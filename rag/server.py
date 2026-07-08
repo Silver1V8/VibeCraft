@@ -8,6 +8,7 @@ import uvicorn
 import numpy as np
 import networkx as nx
 
+from typing import Any
 from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
@@ -218,13 +219,16 @@ def hybrid_search(question: str, top_k: int) -> list[dict]:
         limit=fetch_k,
     ).points
 
-    # noinspection PyTypeChecker  (query accetta SparseVector per i vettori sparsi)
+    # SparseVector è un'interfaccia di query valida a runtime, ma lo stub di
+    # query_points tipa 'query' in modo troppo stretto: la variabile Any
+    # disattiva il controllo di tipo solo su questo argomento.
+    sparse_query: Any = SparseVector(
+        indices=[int(t) for t in lex_q.keys()],
+        values=[float(w) for w in lex_q.values()],
+    )
     sparse_hits = qdrant.query_points(
         collection_name=COLLECTION_NAME,
-        query=SparseVector(
-            indices=[int(t) for t in lex_q.keys()],
-            values=[float(w) for w in lex_q.values()],
-        ),
+        query=sparse_query,
         using="sparse",
         limit=fetch_k,
     ).points
