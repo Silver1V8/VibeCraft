@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="it" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HARO Graph-RAG · Console</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Vis.js Network -->
+  <link  href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50:'#e6fff0', 500:'#00ff41', 600:'#00cc34', 700:'#009e28' },
+            slate: { 50:'#eafff0',100:'#d8ffe4',200:'#a8f0c0',300:'#6fd48c',400:'#3fae5c',500:'#1f5c38',600:'#123a22',700:'#0a2417',800:'#04140a',900:'#020f08',950:'#000000' },
+            blue:  { 50:'#e6fff0',100:'#c2ffdb',200:'#8affc0',300:'#4dff8f',400:'#1aff5c',500:'#00ff41',600:'#00cc34',700:'#009e28',800:'#00751d',900:'#004d13',950:'#00280a' },
+            purple:{ 50:'#e0fffb',100:'#b3fff5',200:'#7dffee',300:'#39ffe0',400:'#00e5cc',500:'#00bfa8',600:'#009e8a',700:'#007d6d',800:'#005c51',900:'#003d36',950:'#00201c' },
+          },
+          fontFamily: { sans: ['JetBrains Mono','Fira Code','Consolas','ui-monospace','monospace'] }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #04140a; }
+    ::-webkit-scrollbar-thumb { background: #1f7a3d; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #2ea34f; }
+
+    /* Vis.js graph container */
+    #graph-canvas {
+      width: 100%;
+      height: 100%;
+      background: #020f08;
+      border-radius: 0.75rem;
+    }
+
+    /* Pulsing loader dot */
+    @keyframes pulse-dot {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40%            { transform: scale(1);   opacity: 1;   }
+    }
+    .loader-dot { animation: pulse-dot 1.2s infinite ease-in-out; }
+    .loader-dot:nth-child(2) { animation-delay: 0.2s; }
+    .loader-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    /* Score bar */
+    .score-bar { transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
+
+    /* Answer fade-in */
+    @keyframes fadeSlideUp {
+      from { opacity:0; transform:translateY(12px); }
+      to   { opacity:1; transform:translateY(0);    }
+    }
+    .answer-appear { animation: fadeSlideUp 0.4s ease forwards; }
+
+    /* Gradient header */
+    .header-gradient {
+      background: linear-gradient(135deg, #000000 0%, #0a3d1f 50%, #000000 100%);
+    }
+
+    /* Matrix rain background canvas */
+    #matrix-rain {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.32;
+    }
+
+    /* CRT scanline overlay */
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      pointer-events: none;
+      background: repeating-linear-gradient(0deg, rgba(0,255,65,0.035) 0px, rgba(0,255,65,0.035) 1px, transparent 1px, transparent 2px);
+    }
+
+    /* Green text glow */
+    .glow-text {
+      text-shadow: 0 0 6px rgba(0,255,65,0.85), 0 0 16px rgba(0,255,65,0.35);
+    }
+    .glow-border {
+      box-shadow: 0 0 10px rgba(0,255,65,0.15), inset 0 0 10px rgba(0,255,65,0.05);
+    }
+  </style>
+</head>
+
+<body class="h-full bg-slate-950 text-slate-100 font-sans flex flex-col">
+
+  <!-- ═══════════════════ THEME SWITCHER (logica) ═══════════════════ -->
+  <script>
+    function setUiTheme(value) {
+        document.cookie = 'ui_theme=' + value + ';path=/;max-age=31536000';
+        location.reload();
+      }
+      document.addEventListener('DOMContentLoaded', function() {
+        var m = document.cookie.match(/(?:^|; )ui_theme=([^;]*)/);
+        var theme = m ? decodeURIComponent(m[1]) : 'matrix';
+        var sel = document.getElementById('theme-switcher');
+        if (sel) sel.value = theme;
+      });
+  </script>
+
+  <canvas id="matrix-rain"></canvas>
+  <div class="scanlines"></div>
+
+  <!-- ═══════════════════ HEADER ═══════════════════ -->
+  <header class="relative z-10 header-gradient border-b border-slate-800 px-6 py-4 flex items-center gap-4 shrink-0">
+    <div class="flex items-center gap-3">
+      <!-- Logo icon -->
+      <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="glow-text text-lg font-bold tracking-tight text-blue-400">HARO Graph-RAG</h1>
+        <p class="text-xs text-slate-400 -mt-0.5">Console di interrogazione</p>
+      </div>
+    </div>
+
+    <a href="/pipeline" class="ml-auto flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+      </svg>
+      Pipeline VibeCraft
+    </a>
+
+    <a href="/infografica" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2a4 4 0 014-4h3m0 0l-3-3m3 3l-3 3M4 7h16M4 12h4m-4 5h4"/>
+      </svg>
+      Infografica
+    </a>
+
+    <!-- Status badge -->
+    <div id="status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-400">
+      <span class="w-2 h-2 rounded-full bg-slate-500" id="status-dot"></span>
+      <span id="status-text">In attesa</span>
+    </div>
+
+    <!-- Theme switcher -->
+    <select id="theme-switcher" onchange="setUiTheme(this.value)"
+      style="background:#0a0a0a;color:#00ff41;border:1px solid #00ff41;border-radius:6px;padding:5px 10px;font-size:12px;font-family:ui-monospace,Consolas,monospace;cursor:pointer;box-shadow:0 0 8px rgba(0,255,65,0.3);">
+      <option value="matrix">🟢 Matrix</option>
+      <option value="classic">☀️ Classico</option>
+    </select>
+  </header>
+
+  <!-- ═══════════════════ MAIN LAYOUT ═══════════════════ -->
+  <main class="relative z-10 flex-1 flex overflow-hidden">
+
+    <!-- ────── LEFT PANEL ────── -->
+    <aside class="w-96 shrink-0 flex flex-col gap-4 p-4 border-r border-slate-800 overflow-y-auto">
+
+      <!-- Search card -->
+      <div class="rounded-xl bg-slate-900 border border-slate-800 p-4">
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Domanda</label>
+        <div class="relative">
+          <textarea
+            id="question-input"
+            rows="3"
+            placeholder="Es. Quali eventi sono previsti a giugno?"
+            class="w-full resize-none rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+          ></textarea>
+        </div>
+
+        <!-- Options row -->
+        <div class="flex gap-3 mt-3">
+          <div class="flex-1">
+            <label class="block text-xs text-slate-500 mb-1">Top-K</label>
+            <input type="number" id="top-k" value="5" min="1" max="20"
+              class="w-full rounded-md bg-slate-800 border border-slate-700 px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div class="flex-1">
+            <label class="block text-xs text-slate-500 mb-1">BFS Depth</label>
+            <input type="number" id="bfs-depth" value="2" min="0" max="5"
+              class="w-full rounded-md bg-slate-800 border border-slate-700 px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+
+        <!-- Submit button -->
+        <button id="ask-btn" onclick="submitQuery()"
+          class="mt-4 w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-semibold py-2.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
+          </svg>
+          Interroga il grafo
+        </button>
+      </div>
+
+      <!-- Loader -->
+      <div id="loader" class="hidden flex flex-col items-center justify-center gap-3 py-6">
+        <div class="flex gap-1.5">
+          <div class="loader-dot w-2.5 h-2.5 rounded-full bg-blue-500"></div>
+          <div class="loader-dot w-2.5 h-2.5 rounded-full bg-blue-400"></div>
+          <div class="loader-dot w-2.5 h-2.5 rounded-full bg-blue-300"></div>
+        </div>
+        <p class="text-xs text-slate-500">Elaborazione in corso…</p>
+      </div>
+
+      <!-- Answer card -->
+      <div id="answer-card" class="hidden rounded-xl bg-slate-900 border border-slate-800 p-4">
+        <div class="flex items-center justify-between mb-3">
+          <label class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Risposta LLM</label>
+          <span id="elapsed-badge" class="text-xs font-mono text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded-full border border-emerald-800"></span>
+        </div>
+        <div id="answer-text"
+          class="answer-appear text-sm text-slate-200 leading-relaxed whitespace-pre-wrap max-h-72 overflow-y-auto pr-1">
+        </div>
+      </div>
+
+      <!-- Qdrant scores card -->
+      <div id="scores-card" class="hidden rounded-xl bg-slate-900 border border-slate-800 p-4">
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">
+          Qdrant Scores
+        </label>
+        <div id="scores-list" class="flex flex-col gap-2.5"></div>
+      </div>
+
+    </aside>
+
+    <!-- ────── RIGHT PANEL ────── -->
+    <section class="flex-1 flex flex-col p-4 gap-3 min-w-0">
+
+      <!-- ── Top bar: Tab switcher + Graph controls ── -->
+      <div class="flex items-center justify-between shrink-0">
+
+        <!-- Tab buttons -->
+        <div class="flex items-center gap-0.5 p-0.5 rounded-lg bg-slate-900 border border-slate-800">
+          <button id="tab-graph-btn" onclick="switchTab('graph')"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition
+                   bg-slate-700 text-slate-100 shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/>
+              <line x1="7" y1="11.5" x2="17" y2="6" stroke="currentColor"/><line x1="7" y1="12.5" x2="17" y2="18" stroke="currentColor"/>
+            </svg>
+            Mappa del Grafo
+          </button>
+          <button id="tab-context-btn" onclick="switchTab('context')"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition
+                   text-slate-500 hover:text-slate-300 hover:bg-slate-800">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0120 9.414V19a2 2 0 01-2 2z"/>
+            </svg>
+            Prompt Context
+          </button>
+          <button id="tab-json-btn" onclick="switchTab('json')"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition
+                   text-slate-500 hover:text-slate-300 hover:bg-slate-800">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h8m-8 6h16"/>
+              <path stroke-linecap="round" d="M17 9l3 3-3 3"/>
+            </svg>
+            Risposta JSON
+          </button>
+        </div>
+
+        <!-- Graph-specific controls (nascosti nel tab Prompt Context) -->
+        <div id="graph-controls" class="flex items-center gap-3">
+          <div class="flex items-center gap-3">
+            <span id="graph-title" class="text-sm font-semibold text-slate-300">Grafo contestuale</span>
+            <!-- Badge Vista Globale -->
+            <span id="graph-mode-badge"
+              class="hidden items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-950 border border-purple-700 text-purple-300">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
+              </svg>
+              Vista Globale
+            </span>
+            <div class="flex items-center gap-3 text-xs text-slate-500">
+              <span class="flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span> Document
+              </span>
+              <span class="flex items-center gap-1.5">
+                <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span> Entity
+              </span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="graph-counter" class="text-xs text-slate-500"></span>
+            <!-- Pulsante ripristina grafo contestuale (visibile solo dopo una query + vista globale) -->
+            <button id="restore-graph-btn" onclick="restoreContextualGraph()"
+              title="Ripristina il grafo dell'ultima interrogazione"
+              style="display:none"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
+                     bg-slate-800 border border-slate-600 text-slate-300
+                     hover:bg-slate-700 hover:text-white active:bg-slate-900
+                     transition">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"/>
+              </svg>
+              Grafo Contestuale
+            </button>
+            <!-- Pulsante Grafo Completo -->
+            <button id="full-graph-btn" onclick="showFullGraph()" title="Visualizza l'intera mappa del knowledge base"
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
+                     bg-purple-900 border border-purple-700 text-purple-200
+                     hover:bg-purple-800 hover:text-white active:bg-purple-950
+                     transition disabled:opacity-50 disabled:cursor-not-allowed">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
+              </svg>
+              Visualizza Grafo Completo
+            </button>
+            <button onclick="fitGraph()" title="Adatta la vista"
+              class="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Tab content area ── -->
+      <div class="flex-1 relative min-h-0">
+
+        <!-- TAB: Mappa del Grafo -->
+        <div id="tab-graph-panel" class="absolute inset-0 rounded-xl overflow-hidden border border-slate-800">
+          <div id="graph-canvas"></div>
+          <!-- Empty state overlay -->
+          <div id="graph-empty" class="absolute inset-0 flex flex-col items-center justify-center text-slate-600 pointer-events-none">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+              <circle cx="5"  cy="12" r="2"/><circle cx="19" cy="5"  r="2"/>
+              <circle cx="19" cy="19" r="2"/>
+              <line x1="7"  y1="11.5" x2="17" y2="6"   stroke="currentColor" stroke-width="1"/>
+              <line x1="7"  y1="12.5" x2="17" y2="18"  stroke="currentColor" stroke-width="1"/>
+            </svg>
+            <p class="text-sm">Il grafo contestuale apparirà dopo la prima interrogazione</p>
+            <p class="text-xs mt-1 opacity-70">oppure clicca <span class="text-purple-400 font-medium">Visualizza Grafo Completo</span> per esplorare l'intero knowledge base</p>
+          </div>
+        </div>
+
+        <!-- TAB: Prompt Context -->
+        <div id="tab-context-panel"
+          class="absolute inset-0 rounded-xl border border-slate-800 bg-slate-950 overflow-hidden"
+          style="display:none">
+          <!-- Header -->
+          <div class="flex items-center justify-between px-4 py-2.5 border-b border-slate-800 bg-slate-900">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Testo inviato all'LLM</span>
+            <span id="context-chars" class="text-xs font-mono text-slate-600"></span>
+          </div>
+          <!-- Content -->
+          <pre id="raw-context-box"
+            style="margin:0; height:calc(100% - 37px); overflow-y:auto; padding:1rem;
+                   font-size:11px; line-height:1.65; font-family:'JetBrains Mono',ui-monospace,monospace;
+                   color:#6ee7b7; background:transparent; white-space:pre-wrap; word-break:break-word;">Nessuna interrogazione eseguita.</pre>
+        </div>
+
+        <!-- TAB: Risposta JSON -->
+        <div id="tab-json-panel"
+          class="absolute inset-0 rounded-xl border border-slate-800 bg-slate-950 overflow-hidden"
+          style="display:none">
+          <!-- Header -->
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid #04140a;background:#020f08">
+            <span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#1f7a3d">Ispezione Risposta RAG</span>
+            <span id="json-status-badge" style="font-size:10px;font-family:ui-monospace,monospace"></span>
+          </div>
+          <!-- Two-column body -->
+          <div style="display:flex;height:calc(100% - 37px);overflow:hidden">
+
+            <!-- ── Colonna sinistra: RAG Deterministico ── -->
+            <div id="json-rag-col"
+              style="flex:0 0 44%;border-right:1px solid #04140a;overflow-y:auto;padding:14px 16px;
+                     font-family:Inter,ui-sans-serif,sans-serif;background:#000d05">
+              <p style="color:#145c2c;font-size:11px">Nessuna interrogazione eseguita.</p>
+            </div>
+
+            <!-- ── Colonna destra: LLM Generativo ── -->
+            <div id="json-llm-col"
+              style="flex:1;overflow-y:auto;padding:14px 16px;
+                     font-family:Inter,ui-sans-serif,sans-serif">
+              <p style="color:#145c2c;font-size:11px">Nessuna interrogazione eseguita.</p>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Node tooltip (shared) -->
+      <div id="node-tooltip"
+        class="hidden absolute z-50 rounded-lg bg-slate-800 border border-slate-700 shadow-xl p-3 text-xs text-slate-200 pointer-events-none max-w-xs">
+      </div>
+
+    </section>
+  </main>
+
+  <!-- ═══════════════════ JAVASCRIPT ═══════════════════ -->
+  <script>
+    /* ──────────── MATRIX RAIN BACKGROUND ──────────── */
+    (function initMatrixRain() {
+      const canvas = document.getElementById('matrix-rain');
+      const ctx = canvas.getContext('2d');
+      const glyphs = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789';
+      let w, h, cols, drops;
+      function resize() {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+        cols = Math.floor(w / 16);
+        drops = new Array(cols).fill(0).map(() => Math.random() * -50);
+      }
+      resize();
+      window.addEventListener('resize', resize);
+      function draw() {
+        ctx.fillStyle = 'rgba(0,0,0,0.06)';
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = '#00ff41';
+        ctx.font = '14px monospace';
+        for (let i = 0; i < drops.length; i++) {
+          const glyph = glyphs[Math.floor(Math.random() * glyphs.length)];
+          ctx.fillText(glyph, i * 16, drops[i] * 16);
+          if (drops[i] * 16 > h && Math.random() > 0.975) drops[i] = 0;
+          drops[i]++;
+        }
+      }
+      setInterval(draw, 50);
+    })();
+
+    let network = null;
+    let currentNodes = new vis.DataSet();
+    let currentEdges = new vis.DataSet();
+    let lastQueryGraphData = null;  // { nodes, edges, seedNodes } dell'ultima query /ask
+
+    /* ──────────── UTILITIES ──────────── */
+    function setStatus(state) {
+      const dot  = document.getElementById('status-dot');
+      const text = document.getElementById('status-text');
+      const map = {
+        idle:    { color:'bg-slate-500',  label:'In attesa' },
+        loading: { color:'bg-amber-400',  label:'Elaborazione…' },
+        success: { color:'bg-emerald-400',label:'Risposta ricevuta' },
+        error:   { color:'bg-red-400',    label:'Errore' },
+      };
+      const s = map[state] || map.idle;
+      dot.className  = `w-2 h-2 rounded-full ${s.color}`;
+      text.textContent = s.label;
+    }
+
+    function showLoader(show) {
+      document.getElementById('loader').classList.toggle('hidden', !show);
+      document.getElementById('ask-btn').disabled = show;
+    }
+
+    function fitGraph() {
+      if (network) network.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
+    }
+
+    /* ──────────── TAB SWITCHER ──────────── */
+    const TAB_ACTIVE   = 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition bg-slate-700 text-slate-100 shadow-sm';
+    const TAB_INACTIVE = 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition text-slate-500 hover:text-slate-300 hover:bg-slate-800';
+
+    function switchTab(tab) {
+      const panels  = ['graph', 'context', 'json'];
+      const btnIds  = { graph: 'tab-graph-btn', context: 'tab-context-btn', json: 'tab-json-btn' };
+      const panIds  = { graph: 'tab-graph-panel', context: 'tab-context-panel', json: 'tab-json-panel' };
+
+      // Mostra il pannello attivo, nascondi gli altri
+      panels.forEach(p => {
+        document.getElementById(panIds[p]).style.display = (p === tab) ? '' : 'none';
+        document.getElementById(btnIds[p]).className     = (p === tab) ? TAB_ACTIVE : TAB_INACTIVE;
+      });
+
+      // Controlli grafo: visibili solo nel tab Mappa
+      document.getElementById('graph-controls').style.display = (tab === 'graph') ? '' : 'none';
+
+      // Forza il ridisegno di Vis.js quando si torna al grafo
+      if (tab === 'graph' && network) setTimeout(() => { network.redraw(); }, 60);
+    }
+
+    /* ──────────── GRAPH MODE HELPERS ──────────── */
+    function setGraphMode(mode) {
+      const title      = document.getElementById('graph-title');
+      const badge      = document.getElementById('graph-mode-badge');
+      const restoreBtn = document.getElementById('restore-graph-btn');
+
+      if (mode === 'full') {
+        title.textContent = 'Grafo Completo';
+        badge.classList.remove('hidden');
+        badge.classList.add('flex');
+        // Mostra "Ripristina" solo se esiste un grafo contestuale salvato
+        restoreBtn.style.display = lastQueryGraphData ? '' : 'none';
+      } else {
+        title.textContent = 'Grafo contestuale';
+        badge.classList.add('hidden');
+        badge.classList.remove('flex');
+        restoreBtn.style.display = 'none';
+      }
+    }
+
+    /* ──────────── RIPRISTINO GRAFO CONTESTUALE ──────────── */
+    function restoreContextualGraph() {
+      if (!lastQueryGraphData) return;
+      const { nodes, edges, seedNodes } = lastQueryGraphData;
+      buildGraph(nodes, edges, seedNodes);
+      fitGraph();
+    }
+
+    /* ──────────── FULL GRAPH ──────────── */
+    async function showFullGraph() {
+      const btn = document.getElementById('full-graph-btn');
+      btn.disabled = true;
+      btn.innerHTML = `
+        <svg class="w-3.5 h-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+        </svg>
+        Caricamento…`;
+      setStatus('loading');
+
+      try {
+        const res = await fetch('/api/graph/all');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        document.getElementById('graph-empty').style.display = 'none';
+        setGraphMode('full');
+
+        const nodes = data.nodes.map(n => {
+          const isDoc = n.type === 'document';
+          const color = isDoc
+            ? { background:'#00b82e', border:'#00ff41', highlight:{ background:'#00e639', border:'#7dffa0' } }
+            : { background:'#065f46', border:'#10b981', highlight:{ background:'#047857', border:'#6ee7b7' } };
+          const shortLabel = n.id.length > 22 ? n.id.substring(0, 20) + '…' : n.id;
+          return {
+            id: n.id,
+            label: shortLabel,
+            nodeId: n.id,
+            description: n.description || '',
+            color,
+            font: { color:'#eafff0', size:11, face:'Inter, sans-serif' },
+            shape: isDoc ? 'box' : 'ellipse',
+            borderWidth: 1.5,
+            size: isDoc ? 18 : 12,
+          };
+        });
+
+        const edges = data.edges.map((e, i) => ({
+          id: i,
+          from: e.from,
+          to: e.to,
+          label: e.relation || '',
+          arrows: { to:{ enabled:true, scaleFactor:0.6 } },
+          color: { color:'#145c2c', highlight:'#4dbf6e' },
+          font: { color:'#2ea34f', size:9, align:'middle', strokeWidth:0 },
+          smooth: { type:'dynamic' },
+        }));
+
+        currentNodes = new vis.DataSet(nodes);
+        currentEdges = new vis.DataSet(edges);
+
+        const container = document.getElementById('graph-canvas');
+        const visData   = { nodes: currentNodes, edges: currentEdges };
+        const options   = {
+          physics: {
+            enabled: true,
+            barnesHut: {
+              gravitationalConstant: -6000,
+              springLength: 160,
+              springConstant: 0.025,
+              damping: 0.25,
+            },
+            stabilization: { iterations: 400 },
+          },
+          interaction: { hover:true, tooltipDelay:150, keyboard:true, zoomView:true },
+          layout: { improvedLayout: nodes.length < 300 },
+        };
+
+        if (network) {
+          network.setData(visData);
+          network.setOptions(options);
+        } else {
+          network = new vis.Network(container, visData, options);
+          attachTooltipListeners();
+        }
+
+        document.getElementById('graph-counter').textContent =
+          `${nodes.length} nodi · ${edges.length} archi`;
+        setStatus('success');
+        setTimeout(fitGraph, 600);
+
+      } catch (e) {
+        setStatus('error');
+        const answerCard = document.getElementById('answer-card');
+        const answerText = document.getElementById('answer-text');
+        answerText.textContent = `❌ Errore caricamento grafo completo: ${e.message}`;
+        answerText.className = 'answer-appear text-sm text-red-400 leading-relaxed whitespace-pre-wrap';
+        answerCard.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
+          </svg>
+          Visualizza Grafo Completo`;
+      }
+    }
+
+    /* ──────────── TOOLTIP (shared) ──────────── */
+    function makeTooltipHtml(nodeId, description) {
+      if (!description) {
+        // Nodo senza descrizione: tooltip minimalista con solo l'ID
+        return `<div style="font-size:11px;color:#4dbf6e;max-width:280px;word-break:break-all">${nodeId}</div>`;
+      }
+
+      const isRule    = /^REGOLA-/.test(nodeId);
+      // Regole → viola  |  Termini di glossario → ciano smeraldo
+      const accent    = isRule ? '#5eeed4' : '#34d399';
+      const divider   = isRule ? '#0a4a3d' : '#1a3d32';
+      const label     = isRule ? 'Regola normativa' : 'Termine di glossario';
+
+      return `
+        <div style="max-width:300px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid ${divider}">
+            <span style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+                         color:${accent};opacity:.75">${label}</span>
+            <span style="font-size:10px;font-weight:700;color:${accent}">${nodeId}</span>
+          </div>
+          <div style="font-size:12px;line-height:1.6;color:#c8f5d4">${description}</div>
+        </div>`;
+    }
+
+    function attachTooltipListeners() {
+      const tooltip = document.getElementById('node-tooltip');
+      network.on('hoverNode', params => {
+        const node = currentNodes.get(params.node);
+        if (!node) return;
+        tooltip.innerHTML = makeTooltipHtml(node.nodeId || node.id, node.description || '');
+        tooltip.classList.remove('hidden');
+      });
+      network.on('blurNode', () => tooltip.classList.add('hidden'));
+      document.getElementById('graph-canvas').addEventListener('mousemove', e => {
+        tooltip.style.left = (e.clientX + 14) + 'px';
+        tooltip.style.top  = (e.clientY - 8)  + 'px';
+      });
+    }
+
+    /* ──────────── GRAPH RENDERER ──────────── */
+    function buildGraph(expandedNodes, graphEdges, seedNodes) {
+      document.getElementById('graph-empty').style.display = 'none';
+      setGraphMode('contextual');
+
+      const seedSet = new Set(seedNodes || []);
+      // expandedNodes è ora una lista di oggetti {id, type, description}
+      const nodes = expandedNodes.map(n => {
+        const nodeId = n.id;
+        const isDoc  = n.type === 'document';
+        const isSeed = seedSet.has(nodeId);
+
+        const color = isDoc
+          ? { background: '#00b82e', border: '#00ff41', highlight: { background:'#00e639', border:'#7dffa0' } }
+          : { background: '#065f46', border: '#10b981', highlight: { background:'#047857', border:'#6ee7b7' } };
+
+        const shortLabel = nodeId.length > 22 ? nodeId.substring(0, 20) + '…' : nodeId;
+
+        return {
+          id: nodeId,
+          label: shortLabel,
+          nodeId: nodeId,
+          description: n.description || '',
+          color: color,
+          font: { color: '#eafff0', size: 12, face: 'Inter, sans-serif' },
+          shape: isDoc ? 'box' : 'ellipse',
+          borderWidth: isSeed ? 3 : 1.5,
+          shadow: isSeed ? { enabled: true, color:'rgba(59,130,246,0.5)', size:10 } : false,
+          size: isSeed ? 20 : 14,
+        };
+      });
+
+      const edges = (graphEdges || []).map((e, i) => ({
+        id: i,
+        from: e.from,
+        to: e.to,
+        label: e.relation || '',
+        arrows: { to: { enabled: true, scaleFactor: 0.7 } },
+        color: { color: '#1f7a3d', highlight: '#4dbf6e' },
+        font: { color: '#4dbf6e', size: 10, align: 'middle', strokeWidth: 0 },
+        smooth: { type: 'dynamic' },
+      }));
+
+      currentNodes = new vis.DataSet(nodes);
+      currentEdges = new vis.DataSet(edges);
+
+      const container = document.getElementById('graph-canvas');
+      const data      = { nodes: currentNodes, edges: currentEdges };
+      const options   = {
+        physics: {
+          enabled: true,
+          barnesHut: { gravitationalConstant: -4000, springLength: 120, springConstant: 0.04, damping: 0.2 },
+          stabilization: { iterations: 200 },
+        },
+        interaction: {
+          hover: true,
+          tooltipDelay: 150,
+          navigationButtons: false,
+          keyboard: true,
+          zoomView: true,
+        },
+        layout: { improvedLayout: true },
+      };
+
+      if (network) {
+        network.setData(data);
+        network.setOptions(options);
+      } else {
+        network = new vis.Network(container, data, options);
+        attachTooltipListeners();
+      }
+
+      // Counter
+      document.getElementById('graph-counter').textContent =
+        `${nodes.length} nodi · ${edges.length} archi`;
+    }
+
+    /* ──────────── SCORES RENDERER ──────────── */
+    function renderScores(scores) {
+      const card = document.getElementById('scores-card');
+      const list = document.getElementById('scores-list');
+      if (!scores || scores.length === 0) { card.classList.add('hidden'); return; }
+
+      list.innerHTML = '';
+      const maxScore = Math.max(...scores.map(s => s.score));
+      scores.forEach(s => {
+        const pct = maxScore > 0 ? (s.score / maxScore * 100).toFixed(1) : 0;
+        const short = (s.doc_id || '—').length > 36
+          ? (s.doc_id || '—').substring(0, 34) + '…'
+          : (s.doc_id || '—');
+        list.insertAdjacentHTML('beforeend', `
+          <div class="group">
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-xs text-slate-300 truncate max-w-[220px]" title="${s.doc_id}">${short}</span>
+              <span class="text-xs font-mono text-emerald-400 ml-2 shrink-0">${s.score.toFixed(4)}</span>
+            </div>
+            <div class="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+              <div class="score-bar h-full rounded-full bg-gradient-to-r from-blue-600 to-emerald-500" style="width:${pct}%"></div>
+            </div>
+          </div>
+        `);
+      });
+      card.classList.remove('hidden');
+    }
+
+    /* ──────────── JSON PANEL RENDERER ──────────── */
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function renderJsonPanel(data) {
+      const gc          = data.graph_context || {};
+      const scores      = data.qdrant_scores  || [];
+      const seedNodes   = gc.seed_nodes        || [];
+      const expNodes    = gc.expanded_nodes    || [];
+      const graphEdges  = gc.graph_edges       || [];
+      const answer      = data.answer          || '—';
+      const elapsed     = data.elaboration_seconds ?? data.elapsed_seconds;
+      const status      = data.status          || '—';
+
+      /* ── Badge header ── */
+      const sBg  = status === 'success' ? '#052e16' : '#1c0a0a';
+      const sClr = status === 'success' ? '#34d399' : '#f87171';
+      document.getElementById('json-status-badge').innerHTML =
+        `<span style="padding:2px 9px;border-radius:20px;background:${sBg};color:${sClr};font-weight:700">${escapeHtml(status)}</span>` +
+        (elapsed != null ? `&nbsp;<span style="color:#1f7a3d">${elapsed}s</span>` : '');
+
+      /* ── LEFT: Qdrant scores ── */
+      const maxScore = scores.length ? Math.max(...scores.map(s => s.score)) : 1;
+      const scoresHtml = scores.length
+        ? scores.map(s => {
+            const pct   = maxScore > 0 ? (s.score / maxScore * 100).toFixed(1) : 0;
+            const label = (s.doc_id || '—').length > 32
+              ? s.doc_id.substring(0, 30) + '…' : (s.doc_id || '—');
+            return `<div style="margin-bottom:10px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+                <span style="font-size:10px;color:#4dbf6e;font-family:ui-monospace,monospace" title="${escapeHtml(s.doc_id)}">${escapeHtml(label)}</span>
+                <span style="font-size:10px;font-family:ui-monospace,monospace;color:#34d399;margin-left:8px;white-space:nowrap">${s.score.toFixed(4)}</span>
+              </div>
+              <div style="height:3px;background:#04140a;border-radius:2px;overflow:hidden">
+                <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,#00e639,#10b981)"></div>
+              </div>
+            </div>`;
+          }).join('')
+        : '<span style="color:#145c2c;font-size:11px">Nessun risultato</span>';
+
+      /* ── LEFT: seed nodes chips ── */
+      const seedHtml = seedNodes.map(n =>
+        `<span style="display:inline-block;margin:2px 3px;padding:2px 8px;border-radius:4px;
+                background:#062e14;border:1px solid #0a3d1f;color:#39ffe0;font-size:10px;
+                font-family:ui-monospace,monospace">${escapeHtml(n)}</span>`
+      ).join('') || '<span style="color:#145c2c;font-size:11px">—</span>';
+
+      /* ── LEFT: raw RAG JSON (context_text escluso) ── */
+      const ragData = {
+        qdrant_scores: scores,
+        graph_context: {
+          seed_nodes:     seedNodes,
+          expanded_nodes: expNodes,
+          graph_edges:    graphEdges,
+        },
+      };
+      const ragJson = JSON.stringify(ragData, null, 2);
+
+      document.getElementById('json-rag-col').innerHTML = `
+        <div style="margin-bottom:18px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+                      color:#145c2c;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #04140a">
+            Retrieval Semantico &middot; Qdrant
+          </div>
+          ${scoresHtml}
+        </div>
+        <div style="margin-bottom:18px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+                      color:#145c2c;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #04140a">
+            Espansione Grafo &middot; NetworkX
+          </div>
+          <div style="margin-bottom:10px">
+            <div style="font-size:9px;color:#1f7a3d;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Nodi seed</div>
+            <div>${seedHtml}</div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:12px">
+            <div style="flex:1;text-align:center;padding:8px 4px;background:#03170a;border-radius:8px;border:1px solid #04140a">
+              <div style="font-size:20px;font-weight:700;color:#7dffa0;font-family:ui-monospace,monospace;line-height:1">${expNodes.length}</div>
+              <div style="font-size:9px;color:#145c2c;text-transform:uppercase;letter-spacing:.06em;margin-top:3px">espansi</div>
+            </div>
+            <div style="flex:1;text-align:center;padding:8px 4px;background:#03170a;border-radius:8px;border:1px solid #04140a">
+              <div style="font-size:20px;font-weight:700;color:#7dffa0;font-family:ui-monospace,monospace;line-height:1">${graphEdges.length}</div>
+              <div style="font-size:9px;color:#145c2c;text-transform:uppercase;letter-spacing:.06em;margin-top:3px">archi</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+                      color:#145c2c;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #04140a">
+            Dati JSON Grezzi &middot; RAG
+          </div>
+          <pre id="rag-json-box" style="margin:0;padding:10px 12px;border-radius:8px;
+               background:#000000;border:1px solid #04140a;
+               font-size:10px;line-height:1.6;font-family:'JetBrains Mono',ui-monospace,monospace;
+               color:#39ffe0;white-space:pre;overflow-x:auto;overflow-y:auto;
+               max-height:240px">${escapeHtml(ragJson)}</pre>
+        </div>`;
+
+      /* ── RIGHT: LLM answer ── */
+      document.getElementById('json-llm-col').innerHTML = `
+        <div style="font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+                    color:#145c2c;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #04140a">
+          Risposta LLM Generativo
+        </div>
+        <div style="font-size:12.5px;line-height:1.75;color:#c8f5d4;white-space:pre-wrap;
+                    word-break:break-word;font-family:Inter,ui-sans-serif,sans-serif">
+          ${escapeHtml(answer)}
+        </div>`;
+    }
+
+    /* ──────────── MAIN QUERY ──────────── */
+    async function submitQuery() {
+      const question = document.getElementById('question-input').value.trim();
+      if (!question) {
+        document.getElementById('question-input').focus();
+        return;
+      }
+
+      const topK    = parseInt(document.getElementById('top-k').value)     || 5;
+      const _bfsRaw = parseInt(document.getElementById('bfs-depth').value);
+      const bfsDep  = Number.isNaN(_bfsRaw) ? 2 : _bfsRaw;
+
+      // Reset UI
+      document.getElementById('answer-card').classList.add('hidden');
+      document.getElementById('scores-card').classList.add('hidden');
+      showLoader(true);
+      setStatus('loading');
+
+      try {
+        const res  = await fetch('/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question, top_k: topK, bfs_depth: bfsDep }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        /* ── ANSWER ── */
+        const answerCard = document.getElementById('answer-card');
+        const answerText = document.getElementById('answer-text');
+        answerText.textContent = data.answer || '(nessuna risposta)';
+        answerText.className   = 'answer-appear text-sm text-slate-200 leading-relaxed whitespace-pre-wrap max-h-72 overflow-y-auto pr-1';
+        void answerText.offsetWidth; // reflow per restart animation
+
+        const elapsed = data.elaboration_seconds ?? data.elapsed_seconds;
+        const badge   = document.getElementById('elapsed-badge');
+        badge.textContent = elapsed != null ? `⏱ ${elapsed}s` : '';
+        answerCard.classList.remove('hidden');
+
+        /* ── GRAPH ── */
+        const gc = data.graph_context || {};
+        const expandedNodes = gc.expanded_nodes || [];
+        const graphEdges    = gc.graph_edges    || [];
+        const seedNodes     = gc.seed_nodes     || [];
+
+        if (expandedNodes.length > 0) {
+          // Salva i dati in memoria per il ripristino istantaneo
+          lastQueryGraphData = { nodes: expandedNodes, edges: graphEdges, seedNodes };
+          buildGraph(expandedNodes, graphEdges, seedNodes);
+        }
+
+        /* ── PROMPT CONTEXT ── */
+        const contextText = gc.context_text || '';
+        document.getElementById('raw-context-box').textContent =
+          contextText || 'Nessun testo di contesto disponibile.';
+        document.getElementById('context-chars').textContent =
+          contextText ? `${contextText.length.toLocaleString('it-IT')} caratteri` : '';
+
+        /* ── JSON RESPONSE ── */
+        renderJsonPanel(data);
+
+        /* ── SCORES ── */
+        renderScores(data.qdrant_scores);
+
+        setStatus('success');
+      } catch (e) {
+        const answerCard = document.getElementById('answer-card');
+        const answerText = document.getElementById('answer-text');
+        answerText.textContent = `❌ Errore: ${e.message}`;
+        answerText.classList.add('text-red-400');
+        answerCard.classList.remove('hidden');
+        setStatus('error');
+      } finally {
+        showLoader(false);
+      }
+    }
+
+    /* Submit on Ctrl+Enter */
+    document.getElementById('question-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitQuery();
+    });
+  </script>
+</body>
+</html>

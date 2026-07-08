@@ -1,0 +1,22 @@
+# rag_config.yaml
+# Configurazione globale del sistema HARO Graph-RAG
+
+llm_settings:
+  # Valori supportati: "anthropic" (Claude 3.5 Sonnet), "openai" (GPT-4o), "ollama" (locale)
+  #active_provider: "anthropic"
+  active_provider: "ollama"
+  
+  # Modelli specifici per provider
+  models:
+    anthropic: "claude-4-6-sonnet"
+    openai: "gpt-4o"
+    ollama: "qwen2.5:14b" # o mistral/llama3
+
+vector_database:
+  provider: "qdrant"
+  collection_name: "vibecraft_events"
+  embedding_model: "BAAI/bge-m3" # Modello locale per vettori densi/sparsi
+
+paths:
+  docs_dir: "./docs"
+  codebase_dir: "./code"

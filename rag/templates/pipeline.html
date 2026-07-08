@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="it" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HARO · Pipeline Explore → Canvas → Propose</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50:'#e6fff0', 500:'#00ff41', 600:'#00cc34', 700:'#009e28' },
+            slate: { 50:'#eafff0',100:'#d8ffe4',200:'#a8f0c0',300:'#6fd48c',400:'#3fae5c',500:'#1f5c38',600:'#123a22',700:'#0a2417',800:'#04140a',900:'#020f08',950:'#000000' },
+            blue:  { 50:'#e6fff0',100:'#c2ffdb',200:'#8affc0',300:'#4dff8f',400:'#1aff5c',500:'#00ff41',600:'#00cc34',700:'#009e28',800:'#00751d',900:'#004d13',950:'#00280a' },
+            purple:{ 50:'#e0fffb',100:'#b3fff5',200:'#7dffee',300:'#39ffe0',400:'#00e5cc',500:'#00bfa8',600:'#009e8a',700:'#007d6d',800:'#005c51',900:'#003d36',950:'#00201c' },
+          },
+          fontFamily: { sans: ['JetBrains Mono','Fira Code','Consolas','ui-monospace','monospace'] }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #04140a; }
+    ::-webkit-scrollbar-thumb { background: #1f7a3d; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #2ea34f; }
+
+    @keyframes pulse-dot {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40%            { transform: scale(1);   opacity: 1;   }
+    }
+    .loader-dot { animation: pulse-dot 1.2s infinite ease-in-out; }
+    .loader-dot:nth-child(2) { animation-delay: 0.2s; }
+    .loader-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes fadeSlideUp {
+      from { opacity:0; transform:translateY(12px); }
+      to   { opacity:1; transform:translateY(0);    }
+    }
+    .fade-in { animation: fadeSlideUp 0.35s ease forwards; }
+
+    .header-gradient {
+      background: linear-gradient(135deg, #000000 0%, #0a3d1f 50%, #000000 100%);
+    }
+
+    .chat-scroll { scroll-behavior: smooth; }
+
+    textarea.md-editor {
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 12.5px;
+      line-height: 1.65;
+      tab-size: 2;
+    }
+
+    .step-line { background: linear-gradient(180deg, #145c2c 0%, #04140a 100%); }
+    .step-line.done { background: linear-gradient(180deg, #00ff41 0%, #00994d 100%); }
+
+    /* Matrix rain background canvas */
+    #matrix-rain {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.32;
+    }
+
+    /* CRT scanline overlay */
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      pointer-events: none;
+      background: repeating-linear-gradient(0deg, rgba(0,255,65,0.035) 0px, rgba(0,255,65,0.035) 1px, transparent 1px, transparent 2px);
+    }
+
+    /* Green text glow */
+    .glow-text {
+      text-shadow: 0 0 6px rgba(0,255,65,0.85), 0 0 16px rgba(0,255,65,0.35);
+    }
+  </style>
+</head>
+
+<body class="h-full bg-slate-950 text-slate-100 font-sans flex flex-col">
+
+  <!-- ═══════════════════ THEME SWITCHER (logica) ═══════════════════ -->
+  <script>
+    function setUiTheme(value) {
+        document.cookie = 'ui_theme=' + value + ';path=/;max-age=31536000';
+        location.reload();
+      }
+      document.addEventListener('DOMContentLoaded', function() {
+        var m = document.cookie.match(/(?:^|; )ui_theme=([^;]*)/);
+        var theme = m ? decodeURIComponent(m[1]) : 'matrix';
+        var sel = document.getElementById('theme-switcher');
+        if (sel) sel.value = theme;
+      });
+  </script>
+
+  <canvas id="matrix-rain"></canvas>
+  <div class="scanlines"></div>
+
+  <!-- ═══════════════════ HEADER ═══════════════════ -->
+  <header class="relative z-10 header-gradient border-b border-slate-800 px-6 py-4 flex items-center gap-4 shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="glow-text text-lg font-bold tracking-tight text-blue-400">Pipeline VibeCraft</h1>
+        <p class="text-xs text-slate-400 -mt-0.5">Explore → REASONS Canvas → Propose</p>
+      </div>
+    </div>
+
+    <a href="/" class="ml-auto flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
+      </svg>
+      Console Graph-RAG
+    </a>
+
+    <a href="/infografica" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2a4 4 0 014-4h3m0 0l-3-3m3 3l-3 3M4 7h16M4 12h4m-4 5h4"/>
+      </svg>
+      Infografica
+    </a>
+
+    <!-- Theme switcher -->
+    <select id="theme-switcher" onchange="setUiTheme(this.value)"
+      style="background:#0a0a0a;color:#00ff41;border:1px solid #00ff41;border-radius:6px;padding:5px 10px;font-size:12px;font-family:ui-monospace,Consolas,monospace;cursor:pointer;box-shadow:0 0 8px rgba(0,255,65,0.3);">
+      <option value="matrix">🟢 Matrix</option>
+      <option value="classic">☀️ Classico</option>
+    </select>
+  </header>
+
+  <!-- ═══════════════════ MAIN LAYOUT ═══════════════════ -->
+  <main class="relative z-10 flex-1 flex overflow-hidden">
+
+    <!-- ────── LEFT: STEPPER + FEATURE ────── -->
+    <aside class="w-80 shrink-0 flex flex-col gap-4 p-4 border-r border-slate-800 overflow-y-auto">
+
+      <!-- Feature card -->
+      <div class="rounded-xl bg-slate-900 border border-slate-800 p-4">
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Nome feature</label>
+        <input id="feature-name-input" type="text" placeholder="Es. form eventi"
+          class="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" />
+        <div class="flex items-center gap-2 mt-2">
+          <button id="load-feature-btn" onclick="loadFeatureStatus()"
+            class="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold py-2 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            Carica / Riprendi
+          </button>
+        </div>
+        <p id="feature-folder-hint" class="text-[11px] text-slate-500 mt-2 font-mono"></p>
+
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mt-4 mb-2">Tipo di sviluppo</label>
+        <select id="dev-type-select" onchange="onDevTypeChange()"
+          class="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+          <option value="">Caricamento…</option>
+        </select>
+        <p class="text-[11px] text-slate-500 mt-2">Determina in quale sottocartella di <code class="text-slate-400">code/</code> verranno scritti i file generati, a monte dell'intera pipeline.</p>
+      </div>
+
+      <!-- Stepper -->
+      <div class="rounded-xl bg-slate-900 border border-slate-800 p-4 flex flex-col gap-0">
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Fasi pipeline</div>
+
+        <div class="flex gap-3" id="step-row-1">
+          <div class="flex flex-col items-center">
+            <div id="step-dot-1" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold bg-blue-600 text-white shrink-0">1</div>
+            <div class="step-line w-0.5 flex-1 my-1" id="step-line-1"></div>
+          </div>
+          <button onclick="goToStep(1)" class="text-left pb-5 group">
+            <div class="text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition">Explore</div>
+            <div class="text-xs text-slate-500">Intervista requisiti</div>
+            <div id="step-badge-1" class="mt-1 text-[10px] font-mono text-slate-600">non generato</div>
+          </button>
+        </div>
+
+        <div class="flex gap-3" id="step-row-2">
+          <div class="flex flex-col items-center">
+            <div id="step-dot-2" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold bg-slate-700 text-slate-400 shrink-0">2</div>
+            <div class="step-line w-0.5 flex-1 my-1" id="step-line-2"></div>
+          </div>
+          <button onclick="goToStep(2)" class="text-left pb-5 group">
+            <div class="text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition">Canvas</div>
+            <div class="text-xs text-slate-500">REASONS Canvas</div>
+            <div id="step-badge-2" class="mt-1 text-[10px] font-mono text-slate-600">non generato</div>
+          </button>
+        </div>
+
+        <div class="flex gap-3" id="step-row-3">
+          <div class="flex flex-col items-center">
+            <div id="step-dot-3" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold bg-slate-700 text-slate-400 shrink-0">3</div>
+          </div>
+          <button onclick="goToStep(3)" class="text-left group">
+            <div class="text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition">Propose</div>
+            <div class="text-xs text-slate-500">Spec + Prompt finale</div>
+            <div id="step-badge-3" class="mt-1 text-[10px] font-mono text-slate-600">non generato</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Pannello di controllo file -->
+      <div class="rounded-xl bg-slate-900 border border-slate-800 p-4">
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Controllo file generati</div>
+        <div id="files-control-list" class="flex flex-col gap-2 text-xs">
+          <p class="text-slate-600">Carica una feature per vedere lo stato dei file.</p>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ────── RIGHT: STEP CONTENT ────── -->
+    <section class="flex-1 flex flex-col p-4 gap-3 min-w-0 overflow-hidden">
+
+      <!-- STEP 1: EXPLORE -->
+      <div id="panel-step-1" class="flex-1 flex flex-col gap-3 min-h-0">
+        <div class="rounded-xl bg-slate-900 border border-slate-800 flex-1 flex flex-col min-h-0">
+          <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between shrink-0">
+            <span class="text-sm font-semibold text-slate-200">🎙️ Intervista Explore</span>
+            <span id="explore-status" class="text-xs text-slate-500"></span>
+          </div>
+          <div id="chat-log" class="chat-scroll flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-0"></div>
+          <div class="p-3 border-t border-slate-800 flex items-end gap-2 shrink-0">
+            <textarea id="chat-input" rows="2" placeholder="Rispondi al Tech Lead IA… (Ctrl+Invio per inviare)"
+              class="flex-1 resize-none rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            <button id="chat-send-btn" onclick="sendExploreTurn()"
+              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed">
+              Invia
+            </button>
+            <button id="chat-finish-btn" onclick="finishExplore()"
+              class="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed">
+              Termina e genera explore.md
+            </button>
+          </div>
+        </div>
+
+        <!-- Review explore.md -->
+        <div id="review-explore" class="hidden rounded-xl bg-slate-900 border border-slate-800 p-4 flex-col shrink-0" style="max-height:38vh;">
+          <div class="flex items-center justify-between mb-2 shrink-0">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisione · explore.md</span>
+            <span class="text-[10px] text-amber-400 font-medium">Approva prima di continuare</span>
+          </div>
+          <textarea id="explore-md-editor" class="md-editor flex-1 min-h-[120px] w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          <div class="flex items-center gap-2 mt-3 shrink-0">
+            <button onclick="saveMdFile('explore.md', 'explore-md-editor')" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
+            <button onclick="approveAndGoToCanvas()" class="ml-auto rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva → vai a Canvas</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2: CANVAS -->
+      <div id="panel-step-2" class="hidden flex-1 flex-col gap-3 min-h-0">
+        <div class="rounded-xl bg-slate-900 border border-slate-800 p-4 shrink-0">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm font-semibold text-slate-200">🧠 REASONS Canvas</div>
+              <p class="text-xs text-slate-500 mt-0.5">Generato a partire da <code class="text-slate-400">explore.md</code>, con le 7 sezioni: Requirements, Entities, Approach, Structure, Operations, Norms, Safeguards.</p>
+            </div>
+            <button id="canvas-generate-btn" onclick="generateCanvas()"
+              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed">
+              Genera Canvas
+            </button>
+          </div>
+        </div>
+
+        <div id="canvas-loader" class="hidden flex-col items-center justify-center gap-3 py-10">
+          <div class="flex gap-1.5">
+            <div class="loader-dot w-2.5 h-2.5 rounded-full bg-blue-500"></div>
+            <div class="loader-dot w-2.5 h-2.5 rounded-full bg-blue-400"></div>
+            <div class="loader-dot w-2.5 h-2.5 rounded-full bg-blue-300"></div>
+          </div>
+          <p class="text-xs text-slate-500">Generazione Canvas in corso tramite LLM locale…</p>
+        </div>
+
+        <div id="review-canvas" class="hidden rounded-xl bg-slate-900 border border-slate-800 p-4 flex-1 min-h-0 flex-col">
+          <div class="flex items-center justify-between mb-2 shrink-0">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisione · canvas.md</span>
+            <span class="text-[10px] text-amber-400 font-medium">Approva prima di continuare</span>
+          </div>
+          <textarea id="canvas-md-editor" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          <div class="flex items-center gap-2 mt-3 shrink-0">
+            <button onclick="saveMdFile('canvas.md', 'canvas-md-editor')" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
+            <button onclick="generateCanvas()" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">🔄 Rigenera</button>
+            <button onclick="approveAndGoToPropose()" class="ml-auto rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva → vai a Propose</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3: PROPOSE -->
+      <div id="panel-step-3" class="hidden flex-1 flex-col gap-3 min-h-0 overflow-y-auto">
+        <div class="rounded-xl bg-slate-900 border border-slate-800 p-4 shrink-0">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm font-semibold text-slate-200">⚙️ Propose · Specifiche BDD</div>
+              <p class="text-xs text-slate-500 mt-0.5">Genera <code class="text-slate-400">spec.md</code> (scenari GIVEN/WHEN/THEN) dal Canvas approvato e il prompt finale pronto per Claude Code.</p>
+            </div>
+            <button id="propose-generate-btn" onclick="generatePropose()"
+              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed">
+              Genera Spec
+            </button>
+          </div>
+        </div>
+
+        <div id="propose-loader" class="hidden flex-col items-center justify-center gap-3 py-10">
+          <div class="flex gap-1.5">
+            <div class="loader-dot w-2.5 h-2.5 rounded-full bg-blue-500"></div>
+            <div class="loader-dot w-2.5 h-2.5 rounded-full bg-blue-400"></div>
+            <div class="loader-dot w-2.5 h-2.5 rounded-full bg-blue-300"></div>
+          </div>
+          <p class="text-xs text-slate-500">Generazione specifiche in corso tramite LLM locale…</p>
+        </div>
+
+        <div id="review-spec" class="hidden rounded-xl bg-slate-900 border border-slate-800 p-4 flex-col shrink-0" style="max-height:42vh;">
+          <div class="flex items-center justify-between mb-2 shrink-0">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisione · spec.md</span>
+            <span class="text-[10px] text-amber-400 font-medium">Approva per sbloccare il prompt finale</span>
+          </div>
+          <textarea id="spec-md-editor" class="md-editor flex-1 min-h-[160px] w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          <div class="flex items-center gap-2 mt-3 shrink-0">
+            <button onclick="saveMdFile('spec.md', 'spec-md-editor')" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
+            <button onclick="generatePropose()" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">🔄 Rigenera</button>
+            <button onclick="approveSpec()" class="ml-auto rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva spec.md</button>
+          </div>
+        </div>
+
+        <div id="final-prompt-card" class="hidden rounded-xl bg-slate-900 border border-emerald-800 p-4 shrink-0 fade-in">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold text-emerald-400 uppercase tracking-widest">🚀 Prompt finale per Claude Code / Cursor</span>
+            <button onclick="copyFinalPrompt()" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">Copia</button>
+          </div>
+          <pre id="final-prompt-box" class="text-xs text-emerald-200 whitespace-pre-wrap leading-relaxed bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-64 overflow-y-auto"></pre>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- ═══════════════════ JAVASCRIPT ═══════════════════ -->
+  <script>
+    /* ──────────── MATRIX RAIN BACKGROUND ──────────── */
+    (function initMatrixRain() {
+      const canvas = document.getElementById('matrix-rain');
+      const ctx = canvas.getContext('2d');
+      const glyphs = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789';
+      let w, h, cols, drops;
+      function resize() {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+        cols = Math.floor(w / 16);
+        drops = new Array(cols).fill(0).map(() => Math.random() * -50);
+      }
+      resize();
+      window.addEventListener('resize', resize);
+      function draw() {
+        ctx.fillStyle = 'rgba(0,0,0,0.06)';
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = '#00ff41';
+        ctx.font = '14px monospace';
+        for (let i = 0; i < drops.length; i++) {
+          const glyph = glyphs[Math.floor(Math.random() * glyphs.length)];
+          ctx.fillText(glyph, i * 16, drops[i] * 16);
+          if (drops[i] * 16 > h && Math.random() > 0.975) drops[i] = 0;
+          drops[i]++;
+        }
+      }
+      setInterval(draw, 50);
+    })();
+
+    let currentStep = 1;
+    let exploreHistory = "";
+    let interviewLog = "";
+    let featureName = "";
+    let devType = "";
+
+    function slugify(name) { return name.trim().replace(/\s+/g, '-').toLowerCase(); }
+
+    /* Ricostruisce il prompt finale senza richiamare l'LLM: è un template
+       deterministico (stesso testo prodotto da /api/pipeline/propose/generate),
+       usato per ripopolare la card quando si riprende una feature già completata. */
+    function buildFinalPrompt(folderName, devTypeValue) {
+      const base = (
+        `Leggi rigorosamente i file 'changes/${folderName}/canvas.md' e 'changes/${folderName}/spec.md'. ` +
+        `Implementa la funzionalità descritta attenendoti esclusivamente all'approccio tecnico del canvas ` +
+        `e soddisfacendo al 100% tutti gli scenari comportamentali GIVEN/WHEN/THEN della specifica. ` +
+        `Non inventare logiche, componenti o comportamenti che non siano esplicitamente normati in questi due documenti. `
+      );
+      if (devTypeValue) {
+        return base + (
+          `Scrivi ESCLUSIVAMENTE il codice generato nella cartella 'code/${devTypeValue}/', poiché il tipo di ` +
+          `sviluppo richiesto per questa feature è '${devTypeValue}'. Non creare né modificare file in altre ` +
+          `sottocartelle di 'code/'.`
+        );
+      }
+      return base + (
+        `Scrivi il codice generato nella cartella corretta sotto 'code/', in base al tipo di sviluppo richiesto: ` +
+        `'code/backend' per la logica lato server e le API, 'code/logicAgent' per la logica degli agenti/LLM, ` +
+        `'code/frontend' per l'interfaccia utente. Se la funzionalità coinvolge più ambiti, distribuisci i file ` +
+        `nelle rispettive sottocartelle mantenendo la separazione delle responsabilità.`
+      );
+    }
+
+    function getFeatureName() {
+      const v = document.getElementById('feature-name-input').value.trim();
+      return v;
+    }
+
+    function onDevTypeChange() {
+      devType = document.getElementById('dev-type-select').value;
+    }
+
+    /* Popola la tendina con le sottocartelle reali di code/ (backend, frontend, logicAgent, ...). */
+    async function loadDevTypes(selected) {
+      const select = document.getElementById('dev-type-select');
+      try {
+        const res = await fetch('/api/pipeline/dev-types');
+        const data = await res.json();
+        const options = ['<option value="">— seleziona —</option>']
+          .concat(data.dev_types.map(t => `<option value="${t}">${t}</option>`));
+        select.innerHTML = options.join('');
+      } catch (e) {
+        select.innerHTML = '<option value="">— errore caricamento —</option>';
+      }
+      if (selected) select.value = selected;
+      devType = select.value;
+    }
+
+    /* Mostra/nasconde un pannello flex-col in modo atomico: 'hidden' e 'flex'
+       non sono mai presenti insieme, per non dipendere dall'ordine con cui
+       Tailwind genera le utility (altrimenti la cascata decide chi vince). */
+    function setPanelVisible(id, visible) {
+      const el = document.getElementById(id);
+      el.classList.toggle('hidden', !visible);
+      el.classList.toggle('flex', visible);
+    }
+
+    /* ──────────── STEPPER NAVIGATION ──────────── */
+    function goToStep(step) {
+      if (!featureName && step !== 1) {
+        alert('Inserisci prima il nome della feature.');
+        return;
+      }
+      currentStep = step;
+      [1, 2, 3].forEach(i => {
+        setPanelVisible(`panel-step-${i}`, i === step);
+        const dot = document.getElementById(`step-dot-${i}`);
+        dot.className = `w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+          i === step ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-400'
+        }`;
+      });
+    }
+
+    function markStepDone(step, label) {
+      const dot = document.getElementById(`step-dot-${step}`);
+      dot.className = 'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 bg-emerald-600 text-white';
+      dot.textContent = '✓';
+      document.getElementById(`step-badge-${step}`).textContent = label || 'generato';
+      document.getElementById(`step-badge-${step}`).className = 'mt-1 text-[10px] font-mono text-emerald-400';
+      const line = document.getElementById(`step-line-${step}`);
+      if (line) line.classList.add('done');
+    }
+
+    /* ──────────── FILE CONTROL PANEL ──────────── */
+    async function refreshFilesControl() {
+      if (!featureName) return;
+      try {
+        const res = await fetch(`/api/pipeline/status?feature=${encodeURIComponent(featureName)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const list = document.getElementById('files-control-list');
+        const rows = [
+          ['explore', 'explore.md', 1],
+          ['canvas', 'canvas.md', 2],
+          ['spec', 'spec.md', 3],
+        ];
+        list.innerHTML = rows.map(([key, fname, step]) => {
+          const ok = data.files[key];
+          return `<div class="flex items-center justify-between rounded-lg border ${ok ? 'border-emerald-900 bg-emerald-950/40' : 'border-slate-800 bg-slate-950'} px-3 py-2">
+            <span class="font-mono text-slate-300">${fname}</span>
+            <span class="${ok ? 'text-emerald-400' : 'text-slate-600'} font-semibold">${ok ? '✅ pronto' : '— assente'}</span>
+          </div>`;
+        }).join('');
+
+        if (data.files.explore) markStepDone(1, 'generato');
+        if (data.files.canvas) markStepDone(2, 'generato');
+        if (data.files.spec) markStepDone(3, 'generato');
+
+        document.getElementById('feature-folder-hint').textContent = `changes/${data.feature_folder}/`;
+      } catch (e) { /* silenzioso: pannello di controllo best-effort */ }
+    }
+
+    /* ──────────── LOAD / RESUME FEATURE ──────────── */
+    async function loadFeatureStatus() {
+      const name = getFeatureName();
+      if (!name) { document.getElementById('feature-name-input').focus(); return; }
+      featureName = name;
+
+      // Recupera il tipo di sviluppo eventualmente già salvato per questa feature
+      // e ripopola la tendina di conseguenza, prima di ricostruire il prompt finale.
+      let savedDevType = "";
+      try {
+        const statusRes = await fetch(`/api/pipeline/status?feature=${encodeURIComponent(featureName)}`);
+        if (statusRes.ok) savedDevType = (await statusRes.json()).dev_type || "";
+      } catch (e) { /* best-effort */ }
+      await loadDevTypes(savedDevType);
+
+      // Prova a recuperare eventuali file già generati per riprendere la review
+      let furthestStep = 1;
+      for (const [fname, editorId, reviewId, step] of [
+        ['explore.md', 'explore-md-editor', 'review-explore', 1],
+        ['canvas.md', 'canvas-md-editor', 'review-canvas', 2],
+        ['spec.md', 'spec-md-editor', 'review-spec', 3],
+      ]) {
+        try {
+          const res = await fetch(`/api/pipeline/file?feature=${encodeURIComponent(featureName)}&name=${fname}`);
+          if (res.ok) {
+            const data = await res.json();
+            document.getElementById(editorId).value = data.content;
+            setPanelVisible(reviewId, true);
+            furthestStep = step;
+
+            if (fname === 'spec.md') {
+              const finalPrompt = buildFinalPrompt(slugify(featureName), devType);
+              window._finalPrompt = finalPrompt;
+              document.getElementById('final-prompt-box').textContent = finalPrompt;
+            }
+          }
+        } catch (e) { /* file non presente, ignora */ }
+      }
+
+      // Riprende automaticamente dall'ultimo step con contenuto già generato,
+      // altrimenti il pannello popolato resterebbe nascosto dietro allo step 1.
+      goToStep(furthestStep);
+
+      await refreshFilesControl();
+    }
+
+    /* ──────────── STEP 1: EXPLORE ──────────── */
+    function appendChatBubble(role, text) {
+      const log = document.getElementById('chat-log');
+      const isUser = role === 'user';
+      const bubble = document.createElement('div');
+      bubble.className = `fade-in max-w-[80%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
+        isUser ? 'self-end bg-blue-600 text-white' : 'self-start bg-slate-800 text-slate-100'
+      }`;
+      bubble.textContent = text;
+      log.appendChild(bubble);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    async function sendExploreTurn() {
+      const name = getFeatureName();
+      if (!name) { document.getElementById('feature-name-input').focus(); return; }
+      featureName = name;
+      if (!devType) { alert('Seleziona prima il tipo di sviluppo.'); return; }
+
+      const input = document.getElementById('chat-input');
+      const userInput = input.value.trim();
+      if (!userInput) { input.focus(); return; }
+
+      appendChatBubble('user', userInput);
+      interviewLog += `**Utente:** ${userInput}\n\n`;
+      input.value = '';
+
+      const sendBtn = document.getElementById('chat-send-btn');
+      sendBtn.disabled = true;
+      document.getElementById('explore-status').textContent = 'IA sta rispondendo…';
+
+      try {
+        const res = await fetch('/api/pipeline/explore/turn', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ feature_name: featureName, history: exploreHistory, user_input: userInput, dev_type: devType }),
+        });
+        const data = await res.json();
+        exploreHistory = data.history;
+        appendChatBubble('ai', data.ai_response);
+        interviewLog += `**IA:** ${data.ai_response}\n\n`;
+        document.getElementById('explore-status').textContent = '';
+      } catch (e) {
+        appendChatBubble('ai', `❌ Errore: ${e.message}`);
+        document.getElementById('explore-status').textContent = 'Errore di connessione';
+      } finally {
+        sendBtn.disabled = false;
+        input.focus();
+      }
+    }
+
+    async function finishExplore() {
+      const name = getFeatureName();
+      if (!name) { document.getElementById('feature-name-input').focus(); return; }
+      featureName = name;
+      if (!devType) { alert('Seleziona prima il tipo di sviluppo.'); return; }
+
+      if (!interviewLog) {
+        alert("Nessuna risposta registrata nell'intervista: scrivi almeno un turno prima di terminare.");
+        return;
+      }
+
+      const btn = document.getElementById('chat-finish-btn');
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/pipeline/explore/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ feature_name: featureName, interview_log: interviewLog, dev_type: devType }),
+        });
+        const data = await res.json();
+        document.getElementById('explore-md-editor').value = data.content;
+        setPanelVisible('review-explore', true);
+        markStepDone(1, 'generato');
+        await refreshFilesControl();
+      } catch (e) {
+        alert(`Errore nel salvataggio di explore.md: ${e.message}`);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function approveAndGoToCanvas() {
+      goToStep(2);
+    }
+
+    /* ──────────── STEP 2: CANVAS ──────────── */
+    async function generateCanvas() {
+      if (!featureName) { alert('Carica prima la feature.'); return; }
+      if (!devType) { alert('Seleziona prima il tipo di sviluppo.'); return; }
+      const btn = document.getElementById('canvas-generate-btn');
+      btn.disabled = true;
+      setPanelVisible('canvas-loader', true);
+      setPanelVisible('review-canvas', false);
+
+      try {
+        const res = await fetch('/api/pipeline/canvas/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ feature_name: featureName, dev_type: devType }),
+        });
+        const data = await res.json();
+        document.getElementById('canvas-md-editor').value = data.content;
+        setPanelVisible('review-canvas', true);
+        markStepDone(2, 'generato');
+        await refreshFilesControl();
+      } catch (e) {
+        alert(`Errore nella generazione del Canvas: ${e.message}`);
+      } finally {
+        btn.disabled = false;
+        setPanelVisible('canvas-loader', false);
+      }
+    }
+
+    function approveAndGoToPropose() {
+      goToStep(3);
+    }
+
+    /* ──────────── STEP 3: PROPOSE ──────────── */
+    async function generatePropose() {
+      if (!featureName) { alert('Carica prima la feature.'); return; }
+      if (!devType) { alert('Seleziona prima il tipo di sviluppo.'); return; }
+      const btn = document.getElementById('propose-generate-btn');
+      btn.disabled = true;
+      setPanelVisible('propose-loader', true);
+      setPanelVisible('review-spec', false);
+      document.getElementById('final-prompt-card').classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/pipeline/propose/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ feature_folder: featureName, dev_type: devType }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        document.getElementById('spec-md-editor').value = data.content;
+        setPanelVisible('review-spec', true);
+        document.getElementById('final-prompt-box').textContent = data.final_prompt;
+        window._finalPrompt = data.final_prompt;
+        markStepDone(3, 'generato');
+        await refreshFilesControl();
+      } catch (e) {
+        alert(`Errore nella generazione delle specifiche: ${e.message}`);
+      } finally {
+        btn.disabled = false;
+        setPanelVisible('propose-loader', false);
+      }
+    }
+
+    function approveSpec() {
+      document.getElementById('final-prompt-card').classList.remove('hidden');
+      document.getElementById('final-prompt-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function copyFinalPrompt() {
+      const text = window._finalPrompt || document.getElementById('final-prompt-box').textContent;
+      const btn = event.target;
+      navigator.clipboard.writeText(text).then(() => {
+        const original = btn.textContent;
+        btn.textContent = 'Copiato ✓';
+        setTimeout(() => { btn.textContent = original; }, 1500);
+      }).catch(() => {
+        const original = btn.textContent;
+        btn.textContent = 'Copia non riuscita';
+        setTimeout(() => { btn.textContent = original; }, 1500);
+      });
+    }
+
+    /* ──────────── SHARED: SAVE EDITED MD FILE ──────────── */
+    async function saveMdFile(name, editorId) {
+      if (!featureName) return;
+      const content = document.getElementById(editorId).value;
+      try {
+        const res = await fetch('/api/pipeline/file/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ feature: featureName, name, content }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        await refreshFilesControl();
+      } catch (e) {
+        alert(`Errore nel salvataggio di ${name}: ${e.message}`);
+      }
+    }
+
+    /* Ctrl+Enter per inviare in chat */
+    document.getElementById('chat-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendExploreTurn();
+    });
+
+    /* Popola subito la tendina dei tipi di sviluppo, ancora prima di caricare una feature */
+    loadDevTypes();
+  </script>
+</body>
+</html>

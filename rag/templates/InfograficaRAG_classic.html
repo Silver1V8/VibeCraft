@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architettura Graph RAG - Project Work</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>mermaid.initialize({startOnLoad:true, theme: 'base', themeVariables: { primaryColor: '#f3f4f6', edgeLabelBackground:'#ffffff', tertiaryColor: '#fff' }});</script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans p-8">
+
+    <!-- ═══════════════════ THEME SWITCHER (logica) ═══════════════════ -->
+    <script>
+      function setUiTheme(value) {
+        document.cookie = 'ui_theme=' + value + ';path=/;max-age=31536000';
+        location.reload();
+      }
+      document.addEventListener('DOMContentLoaded', function() {
+        var m = document.cookie.match(/(?:^|; )ui_theme=([^;]*)/);
+        var theme = m ? decodeURIComponent(m[1]) : 'matrix';
+        var sel = document.getElementById('theme-switcher');
+        if (sel) sel.value = theme;
+      });
+    </script>
+
+    <div class="max-w-6xl mx-auto">
+        <nav class="flex items-center gap-3 mb-8">
+            <a href="/" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
+                </svg>
+                Console Graph-RAG
+            </a>
+            <a href="/pipeline" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                Pipeline VibeCraft
+            </a>
+
+            <!-- Theme switcher -->
+            <select id="theme-switcher" onchange="setUiTheme(this.value)"
+              class="ml-auto"
+              style="background:#0a0a0a;color:#00ff41;border:1px solid #00ff41;border-radius:6px;padding:5px 10px;font-size:12px;font-family:ui-monospace,Consolas,monospace;cursor:pointer;box-shadow:0 0 8px rgba(0,255,65,0.3);">
+              <option value="matrix">🟢 Matrix</option>
+              <option value="classic">☀️ Classico</option>
+            </select>
+        </nav>
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-emerald-500 mb-4">
+                La Tua Architettura Graph RAG (Local-First)
+            </h1>
+            <p class="text-lg text-slate-600">Mappa visuale delle entità, dei file Python e del flusso di dati del nostro ecosistema.</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+            
+            <div class="bg-white rounded-xl shadow-lg border-t-4 border-slate-700 p-6">
+                <div class="text-3xl mb-3">🛠️</div>
+                <h2 class="text-xl font-bold mb-2">1. L'Indicizzatore</h2>
+                <p class="text-sm font-mono bg-slate-100 p-1 rounded text-pink-600 mb-2">rag/index.py</p>
+                <p class="text-sm text-slate-600">Lo script che "mangia" i Markdown. Usa regex <code class="bg-gray-200 px-1 rounded">\[(.*?)\]</code> per trovare le entità (es. [UTENTE]). Genera i vettori tramite il modello BAAI/bge-m3.</p>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg border-t-4 border-purple-500 p-6">
+                <div class="text-3xl mb-3">🗄️</div>
+                <h2 class="text-xl font-bold mb-2">2. Il Cervello Semantico</h2>
+                <p class="text-sm font-mono bg-purple-50 p-1 rounded text-purple-700 mb-2">QdrantClient</p>
+                <p class="text-sm text-slate-600">Il database vettoriale. Calcola la distanza matematica tra la domanda e i documenti. Salva i dati localmente in <code class="bg-gray-200 px-1 rounded">./qdrant_data</code>.</p>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg border-t-4 border-emerald-500 p-6">
+                <div class="text-3xl mb-3">🕸️</div>
+                <h2 class="text-xl font-bold mb-2">3. Il Grafo delle Relazioni</h2>
+                <p class="text-sm font-mono bg-emerald-50 p-1 rounded text-emerald-700 mb-2">NetworkX (graph.pkl)</p>
+                <p class="text-sm text-slate-600">Collega i concetti. Se Qdrant trova la Spec 02, il grafo sa che è collegata alla Spec 01 tramite l'entità [UTENTE]. Costruisce il "fascicolo".</p>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg border-t-4 border-orange-500 p-6">
+                <div class="text-3xl mb-3">🦙</div>
+                <h2 class="text-xl font-bold mb-2">4. L'Oratore Finale</h2>
+                <p class="text-sm font-mono bg-orange-50 p-1 rounded text-orange-700 mb-2">Ollama (localhost:11434)</p>
+                <p class="text-sm text-slate-600">L'LLM Locale. Riceve il fascicolo scremato dai motori e la domanda. Sintetizza la risposta senza inventare nulla, proteggendo la privacy.</p>
+            </div>
+
+        </div>
+
+        <div class="bg-white rounded-xl shadow-xl p-8 border border-slate-200">
+            <h2 class="text-2xl font-bold text-slate-800 mb-6 border-b pb-2">Diagramma del Flusso di Interrogazione (server.py)</h2>
+            <div class="flex justify-center">
+                <div class="mermaid">
+                    %%{init: {'theme': 'base', 'themeVariables': { 'fontFamily': 'ui-sans-serif, system-ui'}}}%%
+                    graph TD
+                        %% Definizione Stili
+                        classDef user fill:#e2e8f0,stroke:#64748b,stroke-width:2px;
+                        classDef fastapi fill:#e0f2fe,stroke:#0ea5e9,stroke-width:2px;
+                        classDef qdrant fill:#f3e8ff,stroke:#a855f7,stroke-width:2px;
+                        classDef networkx fill:#d1fae5,stroke:#10b981,stroke-width:2px;
+                        classDef ollama fill:#ffedd5,stroke:#f97316,stroke-width:2px;
+
+                        %% Nodi (Etichette protette da doppi apici)
+                        U["Utente / App"]:::user
+                        S("FastAPI: server.py<br>Rotta POST /ask"):::fastapi
+                        V{"Embedding<br>bge-m3"}:::fastapi
+                        Q[("Qdrant<br>Ricerca Top-K")]:::qdrant
+                        G[("NetworkX<br>Espansione BFS")]:::networkx
+                        C["Assemblaggio Contesto:<br>Grafo + Testo Markdown"]:::fastapi
+                        O{"Ollama LLM<br>Generazione Risposta"}:::ollama
+                        R["JSON Finale"]:::user
+
+                        %% Relazioni (Etichette protette da doppi apici)
+                        U -->|"Domanda JSON"| S
+                        S -->|"1. Testo Domanda"| V
+                        V -->|"2. Vettore Domanda"| Q
+                        Q -->|"3. Seed Nodes (es. spec_02)"| G
+                        G -->|"4. Nodi Estesi"| C
+                        C -->|"5. Prompt Rigido + Fascicolo"| O
+                        O -->|"6. Testo Sintetizzato"| S
+                        S -->|"7. Ritorno payload"| R
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-8 bg-blue-50 text-blue-800 p-4 rounded-lg border border-blue-200">
+            <p><strong>💡 La Magia del Determinismo:</strong> L'LLM (Ollama) interviene solo allo Step 5. Tutto il lavoro di "pescaggio" delle regole giuste (Step 1-4) è fatto in modo rigoroso, matematico e senza allucinazioni da Qdrant e NetworkX.</p>
+        </div>
+
+    </div>
+</body>
+</html>
