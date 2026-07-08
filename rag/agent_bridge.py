@@ -67,10 +67,13 @@ def _ensure_loop() -> asyncio.AbstractEventLoop:
 
         def _runner() -> None:
             global _loop
+            # Su Windows i sottoprocessi asyncio richiedono il ProactorEventLoop.
+            # Lo costruiamo direttamente invece di impostare una policy globale:
+            # le event loop policy sono deprecate a partire da Python 3.14.
             if sys.platform == "win32":
-                # I sottoprocessi asyncio su Windows richiedono il ProactorEventLoop
-                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-            loop = asyncio.new_event_loop()
+                loop = asyncio.ProactorEventLoop()
+            else:
+                loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             _loop = loop
             loop_ready.set()

@@ -173,6 +173,11 @@ class AgentRunRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Funzioni di supporto
 # ---------------------------------------------------------------------------
+def _hit_doc_id(hit) -> str:
+    """Estrae in modo sicuro il doc_id da un punto Qdrant (payload può essere None)."""
+    return str((hit.payload or {}).get("doc_id", ""))
+
+
 def hybrid_search(question: str, top_k: int) -> list[dict]:
     """
     Ricerca ibrida a tre livelli (stessa forward pass di bge-m3 per tutti i vettori):
@@ -213,6 +218,7 @@ def hybrid_search(question: str, top_k: int) -> list[dict]:
         limit=fetch_k,
     ).points
 
+    # noinspection PyTypeChecker  (query accetta SparseVector per i vettori sparsi)
     sparse_hits = qdrant.query_points(
         collection_name=COLLECTION_NAME,
         query=SparseVector(
@@ -225,13 +231,13 @@ def hybrid_search(question: str, top_k: int) -> list[dict]:
 
     # Fusione per somma delle posizioni (rank più basso = migliore).
     # Un documento assente da una lista riceve una penalità pari a fetch_k+1.
-    dense_rank = {h.payload.get("doc_id"): i + 1 for i, h in enumerate(dense_hits)}
-    sparse_rank = {h.payload.get("doc_id"): i + 1 for i, h in enumerate(sparse_hits)}
-    dense_score = {h.payload.get("doc_id"): h.score for h in dense_hits}
-    sparse_score = {h.payload.get("doc_id"): h.score for h in sparse_hits}
+    dense_rank = {_hit_doc_id(h): i + 1 for i, h in enumerate(dense_hits)}
+    sparse_rank = {_hit_doc_id(h): i + 1 for i, h in enumerate(sparse_hits)}
+    dense_score = {_hit_doc_id(h): h.score for h in dense_hits}
+    sparse_score = {_hit_doc_id(h): h.score for h in sparse_hits}
 
     missing_penalty = fetch_k + 1
-    candidates: dict[str, float] = {}
+    candidates: dict[str, int] = {}
     for doc_id in set(dense_rank) | set(sparse_rank):
         candidates[doc_id] = dense_rank.get(doc_id, missing_penalty) + sparse_rank.get(doc_id, missing_penalty)
 

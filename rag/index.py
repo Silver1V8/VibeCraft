@@ -71,10 +71,11 @@ def add_frontmatter_edges(G: nx.DiGraph, doc_node_id: str, metadata: dict) -> in
     for edge in edges:
         if not isinstance(edge, dict):
             continue
-        target = edge.get("target")
-        relation = edge.get("type", "RELATES_TO")
-        if not target:
+        raw_target = edge.get("target")
+        if not raw_target:
             continue
+        target = str(raw_target)
+        relation = str(edge.get("type", "RELATES_TO"))
         if target not in G:
             G.add_node(target, type="entity")
         G.add_edge(doc_node_id, target, relation=relation)
