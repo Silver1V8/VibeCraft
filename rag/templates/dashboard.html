@@ -280,12 +280,13 @@
               </svg>
               Vista Globale
             </span>
+            <!-- La forma distingue il tipo di nodo; il colore indica il pilastro REASONS (legenda sul grafo) -->
             <div class="flex items-center gap-3 text-xs text-slate-500">
               <span class="flex items-center gap-1.5">
-                <span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span> Document
+                <span class="w-3 h-2 rounded-sm border border-slate-400 inline-block"></span> Documento
               </span>
               <span class="flex items-center gap-1.5">
-                <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span> Entity
+                <span class="w-3 h-3 rounded-full border border-slate-400 inline-block"></span> Entità
               </span>
             </div>
           </div>
@@ -331,6 +332,12 @@
         <!-- TAB: Mappa del Grafo -->
         <div id="tab-graph-panel" class="absolute inset-0 rounded-xl overflow-hidden border border-slate-800">
           <div id="graph-canvas"></div>
+          <!-- Legenda cromatica dei pilastri REASONS (compare quando c'è un grafo) -->
+          <div id="reasons-legend" style="display:none"
+            class="absolute bottom-3 left-3 z-20 rounded-lg border border-slate-700 bg-slate-900/85 px-3 py-2 pointer-events-none">
+            <div class="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Pilastri REASONS</div>
+            <div id="reasons-legend-items" class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-slate-300"></div>
+          </div>
           <!-- Empty state overlay -->
           <div id="graph-empty" class="absolute inset-0 flex flex-col items-center justify-center text-slate-600 pointer-events-none">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
@@ -435,6 +442,54 @@
     let currentEdges = new vis.DataSet();
     let lastQueryGraphData = null;  // { nodes, edges, seedNodes } dell'ultima query /ask
 
+    /* ──────────── REASONS: COLORAZIONE CROMATICA ──────────── */
+    // Ogni pilastro REASONS ha un colore semantico. I documenti vengono assegnati
+    // a un pilastro leggendo il campo `classification` del loro frontmatter YAML;
+    // le entità estratte ([UTENTE], [EVENTO], …) sono per definizione "Entities".
+    const REASONS_PILLARS = {
+      requirements: { label: 'Requirements', color: { background:'#b91c1c', border:'#ef4444', highlight:{ background:'#dc2626', border:'#fca5a5' } } },
+      entities:     { label: 'Entities',     color: { background:'#1d4ed8', border:'#3b82f6', highlight:{ background:'#2563eb', border:'#93c5fd' } } },
+      approach:     { label: 'Approach',     color: { background:'#6d28d9', border:'#a855f7', highlight:{ background:'#7c3aed', border:'#d8b4fe' } } },
+      structure:    { label: 'Structure',    color: { background:'#0e7490', border:'#06b6d4', highlight:{ background:'#0891b2', border:'#67e8f9' } } },
+      operations:   { label: 'Operations',   color: { background:'#047857', border:'#10b981', highlight:{ background:'#059669', border:'#6ee7b7' } } },
+      norms:        { label: 'Norms',        color: { background:'#b45309', border:'#f59e0b', highlight:{ background:'#d97706', border:'#fcd34d' } } },
+      safeguards:   { label: 'Safeguards',   color: { background:'#c2410c', border:'#f97316', highlight:{ background:'#ea580c', border:'#fdba74' } } },
+    };
+    const REASONS_DEFAULT = { label: 'Non classificato', color: { background:'#334155', border:'#94a3b8', highlight:{ background:'#475569', border:'#cbd5e1' } } };
+
+    // Dal valore `classification` dello YAML al pilastro REASONS. Il match è per
+    // parole chiave, così anche classificazioni future ricadono nel pilastro
+    // corretto senza toccare il codice.
+    function pillarKey(classification, type) {
+      if (type === 'entity') return 'entities';   // le entità estratte sono il pilastro Entities
+      const c = (classification || '').toUpperCase();
+      if (!c) return null;
+      if (/(REQUIRE|SPEC|BDD|USE_CASE|USER_STORY|FUNCTIONAL)/.test(c)) return 'requirements';
+      if (/(DICTIONARY|GLOSSAR|ENTITY|DOMAIN|DATA_MODEL)/.test(c))     return 'entities';
+      if (/(METHODOLOG|APPROACH|STRATEGY)/.test(c))                    return 'approach';
+      if (/(ARCHITECT|STRUCTURE|MODULE|SCHEMA|DIAGRAM|BLUEPRINT)/.test(c)) return 'structure';
+      if (/(WORKFLOW|OPERATION|PROCESS|STATE_MACHINE|RUNTIME|PIPELINE)/.test(c)) return 'operations';
+      if (/(AUTHORIZATION|PERMISSION|POLICY|NORM|RULE|GOVERNANCE|COMPLIANCE)/.test(c)) return 'norms';
+      if (/(SAFEGUARD|SECURITY|IRON_MEMORY|CONTRACT|INTEGRITY|PRIVACY|AUDIT)/.test(c)) return 'safeguards';
+      return null;
+    }
+
+    // Restituisce l'oggetto colore vis.js per il pilastro del nodo.
+    function pillarColor(classification, type) {
+      const key = pillarKey(classification, type);
+      return (key && REASONS_PILLARS[key] ? REASONS_PILLARS[key] : REASONS_DEFAULT).color;
+    }
+
+    // Popola la legenda cromatica dei pilastri REASONS (sovrapposta al grafo).
+    function renderReasonsLegend() {
+      const box = document.getElementById('reasons-legend-items');
+      if (!box) return;
+      box.innerHTML = Object.values(REASONS_PILLARS).map(p =>
+        `<span class="flex items-center gap-1.5">
+           <span class="w-2.5 h-2.5 rounded-full inline-block shrink-0" style="background:${p.color.border}"></span>${p.label}
+         </span>`).join('');
+    }
+
     /* ──────────── UTILITIES ──────────── */
     function setStatus(state) {
       const dot  = document.getElementById('status-dot');
@@ -529,11 +584,11 @@
         document.getElementById('graph-empty').style.display = 'none';
         setGraphMode('full');
 
+        document.getElementById('reasons-legend').style.display = '';
+
         const nodes = data.nodes.map(n => {
           const isDoc = n.type === 'document';
-          const color = isDoc
-            ? { background:'#00b82e', border:'#00ff41', highlight:{ background:'#00e639', border:'#7dffa0' } }
-            : { background:'#065f46', border:'#10b981', highlight:{ background:'#047857', border:'#6ee7b7' } };
+          const color = pillarColor(n.classification, n.type);
           const shortLabel = n.id.length > 22 ? n.id.substring(0, 20) + '…' : n.id;
           return {
             id: n.id,
@@ -653,16 +708,18 @@
       document.getElementById('graph-empty').style.display = 'none';
       setGraphMode('contextual');
 
+      document.getElementById('reasons-legend').style.display = '';
+
       const seedSet = new Set(seedNodes || []);
-      // expandedNodes è ora una lista di oggetti {id, type, description}
+      // expandedNodes è ora una lista di oggetti {id, type, description, classification}
       const nodes = expandedNodes.map(n => {
         const nodeId = n.id;
         const isDoc  = n.type === 'document';
         const isSeed = seedSet.has(nodeId);
 
-        const color = isDoc
-          ? { background: '#00b82e', border: '#00ff41', highlight: { background:'#00e639', border:'#7dffa0' } }
-          : { background: '#065f46', border: '#10b981', highlight: { background:'#047857', border:'#6ee7b7' } };
+        // Colore per pilastro REASONS (dal campo classification); la forma continua
+        // a distinguere documenti (box) ed entità (ellisse).
+        const color = pillarColor(n.classification, n.type);
 
         const shortLabel = nodeId.length > 22 ? nodeId.substring(0, 20) + '…' : nodeId;
 
@@ -952,6 +1009,9 @@
     document.getElementById('question-input').addEventListener('keydown', e => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitQuery();
     });
+
+    /* Popola la legenda cromatica dei pilastri REASONS al caricamento */
+    renderReasonsLegend();
   </script>
 </body>
 </html>

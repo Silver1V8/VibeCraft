@@ -619,6 +619,8 @@ async def ask_rag(query: AskQuery):
             "id": node_id,
             "type": graph.nodes[node_id].get("type", "unknown"),
             "description": rule_descriptions.get(node_id, ""),
+            # Pilastro REASONS di appartenenza (dal frontmatter YAML), per la colorazione cromatica del grafo
+            "classification": graph.nodes[node_id].get("classification", ""),
         }
         for node_id in sorted(expanded_nodes)
     ]
@@ -693,6 +695,8 @@ async def get_full_graph():
             "type": attrs.get("type", "unknown"),
             "title": attrs.get("title", node_id),
             "description": rule_descriptions.get(node_id, ""),
+            # Pilastro REASONS di appartenenza (dal frontmatter YAML), per la colorazione cromatica del grafo
+            "classification": attrs.get("classification", ""),
         }
         for node_id, attrs in graph.nodes(data=True)
     ]
