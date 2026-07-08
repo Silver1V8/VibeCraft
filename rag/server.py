@@ -168,7 +168,8 @@ class ProposeGenerateRequest(BaseModel):
 
 class AgentRunRequest(BaseModel):
     prompt: str
-    mode: str = "suggest"  # suggest | agentic | oneshot
+    mode: str = "suggest"   # suggest | agentic | oneshot
+    model: str = "sonnet"   # alias Claude: sonnet | opus | haiku
 
 
 # ---------------------------------------------------------------------------
@@ -523,7 +524,7 @@ async def agent_run(req: AgentRunRequest):
         raise HTTPException(status_code=400, detail="Prompt vuoto.")
 
     return StreamingResponse(
-        run_agent_streaming(req.prompt, req.mode),
+        run_agent_streaming(req.prompt, req.mode, req.model),
         media_type="application/x-ndjson",
     )
 

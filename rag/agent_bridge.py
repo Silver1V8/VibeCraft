@@ -89,13 +89,14 @@ def _ensure_loop() -> asyncio.AbstractEventLoop:
 # ---------------------------------------------------------------------------
 # Esecuzione con streaming degli eventi
 # ---------------------------------------------------------------------------
-async def _run_agent(prompt: str, mode: str, out: queue.Queue) -> None:
+async def _run_agent(prompt: str, mode: str, model: str, out: queue.Queue) -> None:
     """Esegue query() sull'event loop dedicato e pubblica gli eventi sulla coda."""
     mode_cfg = AGENT_MODES[mode]
     options = ClaudeAgentOptions(
         cwd=str(PROJECT_ROOT),
         allowed_tools=mode_cfg["allowed_tools"],
         permission_mode=mode_cfg["permission_mode"],
+        model=model,
     )
     try:
         async for message in query(prompt=prompt, options=options):
@@ -119,7 +120,7 @@ async def _run_agent(prompt: str, mode: str, out: queue.Queue) -> None:
         out.put(None)  # sentinella di fine stream
 
 
-def run_agent_streaming(prompt: str, mode: str):
+def run_agent_streaming(prompt: str, mode: str, model: str = "sonnet"):
     """
     Generatore sincrono di eventi NDJSON, consumabile da StreamingResponse.
     FastAPI lo esegue nel threadpool, quindi la lettura bloccante dalla coda
@@ -130,7 +131,7 @@ def run_agent_streaming(prompt: str, mode: str):
 
     loop = _ensure_loop()
     out: queue.Queue = queue.Queue()
-    asyncio.run_coroutine_threadsafe(_run_agent(prompt, mode, out), loop)
+    asyncio.run_coroutine_threadsafe(_run_agent(prompt, mode, model, out), loop)
 
     while True:
         event = out.get()
