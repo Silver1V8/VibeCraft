@@ -52,6 +52,7 @@
     }
 
     .step-line { background: linear-gradient(180deg, #334155 0%, #1e293b 100%); }
+    /* Classe aggiunta via JS (markStepDone): connettore verde per i passi completati */
     .step-line.done { background: linear-gradient(180deg, #10b981 0%, #059669 100%); }
   </style>
 </head>
@@ -101,8 +102,8 @@
     </a>
 
     <!-- Theme switcher -->
-    <select id="theme-switcher" onchange="setUiTheme(this.value)"
-      style="background:#0a0a0a;color:#00ff41;border:1px solid #00ff41;border-radius:6px;padding:5px 10px;font-size:12px;font-family:ui-monospace,Consolas,monospace;cursor:pointer;box-shadow:0 0 8px rgba(0,255,65,0.3);">
+    <label for="theme-switcher"></label><select id="theme-switcher" onchange="setUiTheme(this.value)"
+                                                style="background:#0a0a0a;color:#00ff41;border:1px solid #00ff41;border-radius:6px;padding:5px 10px;font-size:12px;font-family:ui-monospace,Consolas,monospace;cursor:pointer;box-shadow:0 0 8px rgba(0,255,65,0.3);">
       <option value="matrix">🟢 Matrix</option>
       <option value="classic">☀️ Classico</option>
     </select>
@@ -117,8 +118,8 @@
       <!-- Feature card -->
       <div class="rounded-xl bg-slate-900 border border-slate-800 p-4">
         <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Nome feature</label>
-        <input id="feature-name-input" type="text" placeholder="Es. form eventi"
-          class="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" />
+        <label for="feature-name-input"></label><input id="feature-name-input" type="text" placeholder="Es. form eventi"
+                                                       class="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" />
         <div class="flex items-center gap-2 mt-2">
           <button id="load-feature-btn" onclick="loadFeatureStatus()"
             class="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold py-2 transition">
@@ -131,8 +132,8 @@
         <p id="feature-folder-hint" class="text-[11px] text-slate-500 mt-2 font-mono"></p>
 
         <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mt-4 mb-2">Tipo di sviluppo</label>
-        <select id="dev-type-select" onchange="onDevTypeChange()"
-          class="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+        <label for="dev-type-select"></label><select id="dev-type-select" onchange="onDevTypeChange()"
+                                                     class="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
           <option value="">Caricamento…</option>
         </select>
         <p class="text-[11px] text-slate-500 mt-2">Determina in quale sottocartella di <code class="text-slate-400">code/</code> verranno scritti i file generati, a monte dell'intera pipeline.</p>
@@ -200,8 +201,8 @@
           </div>
           <div id="chat-log" class="chat-scroll flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-0"></div>
           <div class="p-3 border-t border-slate-800 flex items-end gap-2 shrink-0">
-            <textarea id="chat-input" rows="2" placeholder="Rispondi al Tech Lead IA… (Ctrl+Invio per inviare)"
-              class="flex-1 resize-none rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            <label for="chat-input"></label><textarea id="chat-input" rows="2" placeholder="Rispondi al Tech Lead IA… (Ctrl+Invio per inviare)"
+                                                      class="flex-1 resize-none rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
             <button id="chat-send-btn" onclick="sendExploreTurn()"
               class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed">
               Invia
@@ -219,7 +220,7 @@
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisione · explore.md</span>
             <span class="text-[10px] text-amber-400 font-medium">Approva prima di continuare</span>
           </div>
-          <textarea id="explore-md-editor" class="md-editor flex-1 min-h-[120px] w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          <label for="explore-md-editor"></label><textarea id="explore-md-editor" class="md-editor flex-1 min-h-[120px] w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
           <div class="flex items-center gap-2 mt-3 shrink-0">
             <button onclick="saveMdFile('explore.md', 'explore-md-editor')" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
             <button onclick="approveAndGoToCanvas()" class="ml-auto rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva → vai a Canvas</button>
@@ -256,7 +257,7 @@
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisione · canvas.md</span>
             <span class="text-[10px] text-amber-400 font-medium">Approva prima di continuare</span>
           </div>
-          <textarea id="canvas-md-editor" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          <label for="canvas-md-editor"></label><textarea id="canvas-md-editor" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
           <div class="flex items-center gap-2 mt-3 shrink-0">
             <button onclick="saveMdFile('canvas.md', 'canvas-md-editor')" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
             <button onclick="generateCanvas()" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">🔄 Rigenera</button>
@@ -294,7 +295,7 @@
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisione · spec.md</span>
             <span class="text-[10px] text-amber-400 font-medium">Approva per sbloccare il prompt finale</span>
           </div>
-          <textarea id="spec-md-editor" class="md-editor flex-1 min-h-[160px] w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          <label for="spec-md-editor"></label><textarea id="spec-md-editor" class="md-editor flex-1 min-h-[160px] w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
           <div class="flex items-center gap-2 mt-3 shrink-0">
             <button onclick="saveMdFile('spec.md', 'spec-md-editor')" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
             <button onclick="generatePropose()" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">🔄 Rigenera</button>
@@ -313,8 +314,8 @@
           <div class="mt-4 pt-4 border-t border-slate-800">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">🤖 Esegui con Claude Code</span>
-              <select id="agent-mode-select"
-                class="ml-auto rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <label for="agent-mode-select"></label><select id="agent-mode-select"
+                                                             class="ml-auto rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="suggest">🔍 Suggest-only (sola lettura)</option>
                 <option value="agentic">⚡ Agentic (scrive nel progetto)</option>
                 <option value="oneshot">💬 One-shot (nessun tool)</option>
@@ -369,8 +370,7 @@
     }
 
     function getFeatureName() {
-      const v = document.getElementById('feature-name-input').value.trim();
-      return v;
+      return document.getElementById('feature-name-input').value.trim();
     }
 
     function onDevTypeChange() {
@@ -441,7 +441,7 @@
           ['canvas', 'canvas.md', 2],
           ['spec', 'spec.md', 3],
         ];
-        list.innerHTML = rows.map(([key, fname, step]) => {
+        list.innerHTML = rows.map(([key, fname]) => {
           const ok = data.files[key];
           return `<div class="flex items-center justify-between rounded-lg border ${ok ? 'border-emerald-900 bg-emerald-950/40' : 'border-slate-800 bg-slate-950'} px-3 py-2">
             <span class="font-mono text-slate-300">${fname}</span>
