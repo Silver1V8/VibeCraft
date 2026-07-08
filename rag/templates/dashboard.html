@@ -168,9 +168,9 @@
         <div class="relative">
           <label for="question-input"></label><textarea
             id="question-input"
-            rows="3"
+            rows="7"
             placeholder="Es. Quali eventi sono previsti a giugno?"
-            class="w-full resize-none rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+            class="w-full resize-y min-h-[160px] rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
           ></textarea>
         </div>
 
@@ -334,6 +334,21 @@
             class="absolute bottom-3 left-3 z-20 rounded-lg border border-slate-700 bg-slate-900/85 px-3 py-2 pointer-events-none">
             <div class="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Pilastri REASONS</div>
             <div id="reasons-legend-items" class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-slate-300"></div>
+          </div>
+          <!-- Pannello dettagli nodo (compare al click su un nodo) -->
+          <div id="node-details" style="display:none"
+            class="absolute top-3 right-3 z-30 w-72 max-h-[75%] overflow-y-auto rounded-lg border border-slate-700 bg-slate-900/95 p-3 shadow-xl">
+            <div class="flex items-start justify-between gap-2 mb-2">
+              <span id="nd-title" class="text-sm font-semibold text-slate-100 break-all leading-snug"></span>
+              <button onclick="closeNodeDetails()" title="Chiudi"
+                class="shrink-0 text-lg leading-none text-slate-400 hover:text-white">×</button>
+            </div>
+            <div id="nd-badges" class="flex flex-wrap gap-1.5 mb-2 text-[10px]"></div>
+            <div id="nd-desc" class="text-xs text-slate-300 leading-relaxed mb-3"></div>
+            <div id="nd-conn-wrap" class="hidden">
+              <div class="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Connessioni</div>
+              <div id="nd-connections" class="flex flex-col gap-1 text-[11px]"></div>
+            </div>
           </div>
           <!-- Empty state overlay -->
           <div id="graph-empty" class="absolute inset-0 flex flex-col items-center justify-center text-slate-600 pointer-events-none">
@@ -582,6 +597,7 @@
         setGraphMode('full');
 
         document.getElementById('reasons-legend').style.display = '';
+        closeNodeDetails();
 
         const nodes = data.nodes.map(n => {
           const isDoc = n.type === 'document';
@@ -591,6 +607,9 @@
             id: n.id,
             label: shortLabel,
             nodeId: n.id,
+            nodeType: n.type,
+            classification: n.classification || '',
+            pillar: pillarKey(n.classification, n.type),
             description: n.description || '',
             color,
             font: { color:'#eafff0', size:11, face:'Inter, sans-serif' },
@@ -698,6 +717,70 @@
         tooltip.style.left = (e.clientX + 14) + 'px';
         tooltip.style.top  = (e.clientY - 8)  + 'px';
       });
+      // Click su un nodo → pannello dettagli; click sul vuoto → chiude
+      network.on('click', params => {
+        if (params.nodes && params.nodes.length) {
+          renderNodeDetails(params.nodes[0]);
+        } else {
+          closeNodeDetails();
+        }
+      });
+    }
+
+    /* ──────────── PANNELLO DETTAGLI NODO (click) ──────────── */
+    function closeNodeDetails() {
+      const panel = document.getElementById('node-details');
+      if (panel) panel.style.display = 'none';
+      if (network) network.unselectAll();
+    }
+
+    function renderNodeDetails(nodeId) {
+      const node = currentNodes.get(nodeId);
+      if (!node) return;
+
+      const isDoc = node.nodeType === 'document' || node.shape === 'box';
+      document.getElementById('nd-title').textContent = node.nodeId || nodeId;
+
+      // Badge: tipo + pilastro REASONS
+      const badges = [
+        `<span class="px-2 py-0.5 rounded-full border border-slate-600 text-slate-300">${isDoc ? '▢ Documento' : '◯ Entità'}</span>`,
+      ];
+      const p = node.pillar && REASONS_PILLARS[node.pillar];
+      if (p) {
+        badges.push(
+          `<span class="px-2 py-0.5 rounded-full" style="color:${p.color.border};border:1px solid ${p.color.border};background:${p.color.border}1a">${p.label}</span>`
+        );
+      }
+      if (node.classification) {
+        badges.push(`<span class="px-2 py-0.5 rounded-full border border-slate-700 text-slate-400 font-mono">${escapeHtml(node.classification)}</span>`);
+      }
+      document.getElementById('nd-badges').innerHTML = badges.join('');
+
+      // Descrizione
+      const desc = node.description || '';
+      document.getElementById('nd-desc').innerHTML = desc
+        ? escapeHtml(desc)
+        : '<span class="text-slate-500 italic">Nessuna descrizione disponibile.</span>';
+
+      // Connessioni (archi entranti/uscenti nel grafo corrente)
+      const conns = [];
+      currentEdges.forEach(e => {
+        if (e.from === nodeId) conns.push({ arrow: '→', rel: e.label || '', other: e.to });
+        else if (e.to === nodeId) conns.push({ arrow: '←', rel: e.label || '', other: e.from });
+      });
+      const wrap = document.getElementById('nd-conn-wrap');
+      const list = document.getElementById('nd-connections');
+      if (conns.length) {
+        list.innerHTML = conns.map(c => {
+          const rel = c.rel ? `<span class="text-slate-500">${escapeHtml(c.rel)}</span> ` : '';
+          return `<div class="truncate" title="${escapeHtml(c.other)}"><span class="text-slate-400">${c.arrow}</span> ${rel}<span class="text-slate-200">${escapeHtml(c.other)}</span></div>`;
+        }).join('');
+        wrap.classList.remove('hidden');
+      } else {
+        wrap.classList.add('hidden');
+      }
+
+      document.getElementById('node-details').style.display = '';
     }
 
     /* ──────────── GRAPH RENDERER ──────────── */
@@ -706,6 +789,7 @@
       setGraphMode('contextual');
 
       document.getElementById('reasons-legend').style.display = '';
+      closeNodeDetails();
 
       const seedSet = new Set(seedNodes || []);
       // expandedNodes è ora una lista di oggetti {id, type, description, classification}
@@ -724,6 +808,9 @@
           id: nodeId,
           label: shortLabel,
           nodeId: nodeId,
+          nodeType: n.type,
+          classification: n.classification || '',
+          pillar: pillarKey(n.classification, n.type),
           description: n.description || '',
           color: color,
           font: { color: '#eafff0', size: 12, face: 'Inter, sans-serif' },
