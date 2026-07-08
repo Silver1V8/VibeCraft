@@ -341,6 +341,25 @@
             <button onclick="copyFinalPrompt()" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">Copia</button>
           </div>
           <pre id="final-prompt-box" class="text-xs text-emerald-200 whitespace-pre-wrap leading-relaxed bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-64 overflow-y-auto"></pre>
+
+          <!-- ── Esecuzione diretta con Claude Agent SDK ── -->
+          <div class="mt-4 pt-4 border-t border-slate-800">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">🤖 Esegui con Claude Code</span>
+              <select id="agent-mode-select"
+                class="ml-auto rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="suggest">🔍 Suggest-only (sola lettura)</option>
+                <option value="agentic">⚡ Agentic (scrive nel progetto)</option>
+                <option value="oneshot">💬 One-shot (nessun tool)</option>
+              </select>
+              <button id="agent-run-btn" onclick="runWithAgent()"
+                class="rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-1.5 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                ▶ Esegui
+              </button>
+            </div>
+            <pre id="agent-output" style="display:none"
+              class="mt-3 text-xs text-slate-200 whitespace-pre-wrap leading-relaxed bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-72 overflow-y-auto"></pre>
+          </div>
         </div>
       </div>
 
@@ -702,6 +721,65 @@
     function approveSpec() {
       document.getElementById('final-prompt-card').classList.remove('hidden');
       document.getElementById('final-prompt-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    /* ──────────── ESECUZIONE CON CLAUDE AGENT SDK ──────────── */
+    async function runWithAgent() {
+      const prompt = window._finalPrompt || document.getElementById('final-prompt-box').textContent;
+      if (!prompt.trim()) { alert('Nessun prompt finale disponibile: genera prima le specifiche.'); return; }
+
+      const mode = document.getElementById('agent-mode-select').value;
+      if (mode === 'agentic' && !confirm('La modalità Agentic scrive file nel progetto. Continuare?')) return;
+
+      const btn = document.getElementById('agent-run-btn');
+      const out = document.getElementById('agent-output');
+      btn.disabled = true;
+      out.style.display = '';
+      out.textContent = `⏳ Avvio Claude Code in modalità "${mode}"…\n\n`;
+
+      try {
+        const res = await fetch('/api/pipeline/agent/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, mode }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+
+        // Lo stream è NDJSON: un evento JSON per riga
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();  // ultima riga potenzialmente incompleta
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            const ev = JSON.parse(line);
+            if (ev.type === 'text') {
+              out.textContent += ev.text + '\n';
+            } else if (ev.type === 'tool_use') {
+              out.textContent += `  🔧 [${ev.tool}]\n`;
+            } else if (ev.type === 'result') {
+              const secs = ev.duration_ms != null ? (ev.duration_ms / 1000).toFixed(1) + 's' : '—';
+              const cost = ev.total_cost_usd != null ? '$' + ev.total_cost_usd.toFixed(4) : '—';
+              out.textContent += `\n${ev.is_error ? '❌ Terminato con errore' : '✅ Completato'} · ${secs} · ${cost} · ${ev.num_turns ?? '—'} turni\n`;
+            } else if (ev.type === 'error') {
+              out.textContent += `\n❌ Errore: ${ev.message}\n`;
+            }
+            out.scrollTop = out.scrollHeight;
+          }
+        }
+      } catch (e) {
+        out.textContent += `\n❌ Errore: ${e.message}\n`;
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     function copyFinalPrompt() {

@@ -8,6 +8,7 @@ __pycache__/
 # Dati Locali del RAG (Generati dagli script)
 rag/database/qdrant_data/
 rag/database/graph.pkl
+rag/database/colbert.pkl
 
 # Configurazione (Opzionale: escludilo se contiene chiavi API private OpenAI/Anthropic)
 # rag_config.yaml

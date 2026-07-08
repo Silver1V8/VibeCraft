@@ -5,15 +5,19 @@ import yaml
 import pickle
 import httpx
 import uvicorn
+import numpy as np
 import networkx as nx
 
 from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from qdrant_client import QdrantClient
+from qdrant_client.models import SparseVector
 from FlagEmbedding import BGEM3FlagModel
+
+from agent_bridge import AGENT_MODES, run_agent_streaming
 
 # ---------------------------------------------------------------------------
 # Configurazione
@@ -23,6 +27,7 @@ PROJECT_ROOT = RAG_DIR.parent
 CONFIG_PATH = RAG_DIR / "rag_config.yaml"
 DATABASE_DIR = RAG_DIR / "database"
 GRAPH_SAVE_PATH = DATABASE_DIR / "graph.pkl"
+COLBERT_SAVE_PATH = DATABASE_DIR / "colbert.pkl"
 QDRANT_PATH = str(DATABASE_DIR / "qdrant_data")
 TEMPLATES_DIR = RAG_DIR / "templates"
 
@@ -54,6 +59,7 @@ state: dict = {
     "qdrant": None,
     "embed_model": None,
     "rule_descriptions": {},
+    "colbert_store": {},
 }
 
 
@@ -64,9 +70,11 @@ def load_rule_descriptions() -> dict[str, str]:
     Restituisce un dizionario { "REGOLA-AUTH-01": "...", "UTENTE": "...", ... }.
     """
     descriptions: dict[str, str] = {}
-    pattern = re.compile(r"`\[([A-Z0-9][A-Z0-9_\- ]*)\]`:\s*(.+)")
+    pattern = re.compile(r"`\[([A-Z0-9][A-Z0-9_\- ]*)]`:\s*(.+)")
     docs_dir = PROJECT_ROOT / "docs"
-    for spec_file in sorted(docs_dir.rglob("spec_*.md")):
+    # Scansiona tutti i .md: le descrizioni possono vivere in qualsiasi documento
+    # del knowledge base, non solo nei file spec_*.md.
+    for spec_file in sorted(docs_dir.rglob("*.md")):
         try:
             content = spec_file.read_text(encoding="utf-8")
             for m in pattern.finditer(content):
@@ -97,6 +105,14 @@ async def lifespan(application: FastAPI):
 
     g: nx.DiGraph = state["graph"]
     print(f"Grafo caricato: {g.number_of_nodes()} nodi, {g.number_of_edges()} archi.")
+
+    # Multivettori ColBERT per il rerank token-per-token (sidecar dell'indice)
+    if COLBERT_SAVE_PATH.exists():
+        with open(COLBERT_SAVE_PATH, "rb") as f:
+            state["colbert_store"] = pickle.load(f)
+        print(f"Multivettori ColBERT caricati: {len(state['colbert_store'])} documenti.")
+    else:
+        print("Attenzione: colbert.pkl non trovato — rerank ColBERT disattivato. Riesegui 'python index.py'.")
 
     print("Caricamento descrizioni regole dai file spec...")
     state["rule_descriptions"] = load_rule_descriptions()
@@ -149,9 +165,105 @@ class ProposeGenerateRequest(BaseModel):
     dev_type: str = ""
 
 
+class AgentRunRequest(BaseModel):
+    prompt: str
+    mode: str = "suggest"  # suggest | agentic | oneshot
+
+
 # ---------------------------------------------------------------------------
 # Funzioni di supporto
 # ---------------------------------------------------------------------------
+def hybrid_search(question: str, top_k: int) -> list[dict]:
+    """
+    Ricerca ibrida a tre livelli (stessa forward pass di bge-m3 per tutti i vettori):
+
+    1. Dense retrieval  — cattura la semantica generale della domanda.
+    2. Sparse retrieval — recupera match lessicali esatti (identificatori,
+       termini tecnici rari) che il vettore denso diluisce.
+    3. Fusione per somma dei rank: i documenti rilevanti in entrambe le liste
+       salgono; quelli presenti in una sola scendono.
+    4. Rerank ColBERT — confronto token-per-token (MaxSim) sui candidati fusi,
+       per la precisione finale.
+
+    Restituisce i top_k candidati con il breakdown completo del ranking.
+    """
+    qdrant: QdrantClient = state["qdrant"]
+    embed_model: BGEM3FlagModel = state["embed_model"]
+    colbert_store: dict = state["colbert_store"]
+
+    # Una sola forward pass produce dense, sparse e colbert per la query
+    q_out = embed_model.encode(
+        [question],
+        batch_size=1,
+        return_dense=True,
+        return_sparse=True,
+        return_colbert_vecs=True,
+    )
+    dense_q = q_out["dense_vecs"][0].tolist()
+    lex_q = q_out["lexical_weights"][0]
+    colbert_q = q_out["colbert_vecs"][0]
+
+    # Recupera più candidati del necessario: la fusione e il rerank scremano
+    fetch_k = max(top_k * 3, 10)
+
+    dense_hits = qdrant.query_points(
+        collection_name=COLLECTION_NAME,
+        query=dense_q,
+        using="dense",
+        limit=fetch_k,
+    ).points
+
+    sparse_hits = qdrant.query_points(
+        collection_name=COLLECTION_NAME,
+        query=SparseVector(
+            indices=[int(t) for t in lex_q.keys()],
+            values=[float(w) for w in lex_q.values()],
+        ),
+        using="sparse",
+        limit=fetch_k,
+    ).points
+
+    # Fusione per somma delle posizioni (rank più basso = migliore).
+    # Un documento assente da una lista riceve una penalità pari a fetch_k+1.
+    dense_rank = {h.payload.get("doc_id"): i + 1 for i, h in enumerate(dense_hits)}
+    sparse_rank = {h.payload.get("doc_id"): i + 1 for i, h in enumerate(sparse_hits)}
+    dense_score = {h.payload.get("doc_id"): h.score for h in dense_hits}
+    sparse_score = {h.payload.get("doc_id"): h.score for h in sparse_hits}
+
+    missing_penalty = fetch_k + 1
+    candidates: dict[str, float] = {}
+    for doc_id in set(dense_rank) | set(sparse_rank):
+        candidates[doc_id] = dense_rank.get(doc_id, missing_penalty) + sparse_rank.get(doc_id, missing_penalty)
+
+    fused = sorted(candidates.items(), key=lambda kv: kv[1])
+
+    # Rerank ColBERT (MaxSim): per ogni token della query prende la similarità
+    # massima con i token del documento, poi media. Precisione token-per-token.
+    results: list[dict] = []
+    for doc_id, fused_rank_sum in fused:
+        entry = {
+            "doc_id": doc_id,
+            "dense_rank": dense_rank.get(doc_id),
+            "sparse_rank": sparse_rank.get(doc_id),
+            "dense_score": round(dense_score[doc_id], 4) if doc_id in dense_score else None,
+            "sparse_score": round(sparse_score[doc_id], 4) if doc_id in sparse_score else None,
+            "fused_rank_sum": fused_rank_sum,
+            "colbert_score": None,
+        }
+        doc_col = colbert_store.get(doc_id)
+        if doc_col is not None:
+            doc_col = np.asarray(doc_col, dtype=np.float32)
+            sim = colbert_q @ doc_col.T                    # [q_tokens x d_tokens]
+            entry["colbert_score"] = round(float(sim.max(axis=1).mean()), 4)
+        results.append(entry)
+
+    # Ordinamento finale: ColBERT dove disponibile, altrimenti la fusione
+    if any(r["colbert_score"] is not None for r in results):
+        results.sort(key=lambda r: r["colbert_score"] if r["colbert_score"] is not None else -1.0, reverse=True)
+
+    return results[:top_k]
+
+
 def bfs_expand(graph: nx.DiGraph, seed_nodes: list[str], depth: int) -> set[str]:
     """Espansione BFS bidirezionale a partire dai nodi seed fino a `depth` livelli."""
     visited: set[str] = set(seed_nodes)
@@ -381,6 +493,31 @@ async def serve_infografica(request: Request):
     return FileResponse(_themed_template(request, "InfograficaRAG.html", "InfograficaRAG_classic.html"), media_type="text/html", headers=_NO_CACHE_HEADERS)
 
 
+@app.get("/api/pipeline/agent/modes")
+async def agent_modes():
+    """Elenca le modalità di fiducia disponibili per l'esecuzione con Claude Code."""
+    return {"modes": [{"id": k, "label": v["label"]} for k, v in AGENT_MODES.items()]}
+
+
+@app.post("/api/pipeline/agent/run")
+async def agent_run(req: AgentRunRequest):
+    """
+    Esegue il prompt finale della pipeline direttamente tramite il Claude Agent SDK,
+    trasformando la dashboard da finestra sul progetto a strumento operativo.
+    L'SDK gira su un thread dedicato (vedi agent_bridge.py); gli eventi arrivano
+    al client come stream NDJSON.
+    """
+    if req.mode not in AGENT_MODES:
+        raise HTTPException(status_code=400, detail=f"Modalità non valida: {req.mode}")
+    if not req.prompt.strip():
+        raise HTTPException(status_code=400, detail="Prompt vuoto.")
+
+    return StreamingResponse(
+        run_agent_streaming(req.prompt, req.mode),
+        media_type="application/x-ndjson",
+    )
+
+
 @app.get("/api/pipeline/dev-types")
 async def pipeline_dev_types():
     """Elenca le tipologie di sviluppo disponibili (sottocartelle di 'code/') per la tendina di selezione."""
@@ -561,18 +698,8 @@ async def ask_rag(query: AskQuery):
     if graph is None or qdrant is None or embed_model is None:
         raise HTTPException(status_code=503, detail="Server non ancora inizializzato.")
 
-    # 1. Vettorializza la domanda con bge-m3
-    query_vec: list[float] = embed_model.encode(
-        [query.question], batch_size=1
-    )["dense_vecs"][0].tolist()
-
-    # 2. Ricerca semantica top-K in Qdrant
-    search_response = qdrant.query_points(
-        collection_name=COLLECTION_NAME,
-        query=query_vec,
-        limit=query.top_k,
-    )
-    search_results = search_response.points
+    # 1-2. Ricerca ibrida: dense + sparse (fusione per rank) + rerank ColBERT
+    search_results = hybrid_search(query.question, query.top_k)
 
     if not search_results:
         return {
@@ -582,12 +709,8 @@ async def ask_rag(query: AskQuery):
             "qdrant_scores": [],
         }
 
-    # 3. Identifica i nodi seed nel grafo dai risultati Qdrant
-    seed_nodes: list[str] = [
-        hit.payload.get("doc_id")
-        for hit in search_results
-        if hit.payload.get("doc_id") in graph
-    ]
+    # 3. Identifica i nodi seed nel grafo dai risultati della ricerca ibrida
+    seed_nodes = [r["doc_id"] for r in search_results if r["doc_id"] in graph]
 
     if not seed_nodes:
         return {
@@ -595,8 +718,8 @@ async def ask_rag(query: AskQuery):
             "answer": "Documenti trovati in Qdrant ma non presenti nel grafo.",
             "graph_context": {},
             "qdrant_scores": [
-                {"doc_id": h.payload.get("doc_id"), "score": h.score}
-                for h in search_results
+                {**r, "score": r["colbert_score"] if r["colbert_score"] is not None else r["dense_score"]}
+                for r in search_results
             ],
         }
 
@@ -674,9 +797,11 @@ async def ask_rag(query: AskQuery):
             "graph_edges": graph_edges,
             "context_text": context,
         },
+        # Breakdown completo del ranking ibrido: rank dense/sparse, fusione e
+        # punteggio ColBERT. "score" resta il campo principale per il frontend.
         "qdrant_scores": [
-            {"doc_id": h.payload.get("doc_id"), "score": round(h.score, 4)}
-            for h in search_results
+            {**r, "score": r["colbert_score"] if r["colbert_score"] is not None else r["dense_score"]}
+            for r in search_results
         ],
     }
 

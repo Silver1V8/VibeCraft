@@ -11,7 +11,13 @@ import networkx as nx
 import yaml
 from FlagEmbedding import BGEM3FlagModel
 from qdrant_client import QdrantClient
-from qdrant_client.models import PointStruct, VectorParams, Distance
+from qdrant_client.models import (
+    Distance,
+    PointStruct,
+    SparseVector,
+    SparseVectorParams,
+    VectorParams,
+)
 
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
 MODEL_NAME = "qwen2.5:7b" # Usa il modello testuale che state usando (es. llama3)
@@ -23,6 +29,10 @@ CONFIG_PATH = RAG_DIR / "rag_config.yaml"
 DATABASE_DIR = RAG_DIR / "database"
 GRAPH_SAVE_PATH = DATABASE_DIR / "graph.pkl"
 QDRANT_PATH = str(DATABASE_DIR / "qdrant_data")
+# Vettori ColBERT (uno per token) salvati come sidecar: troppo pesanti per lo
+# storage JSON di Qdrant in modalità locale, ma indispensabili per il rerank
+# token-per-token dei candidati migliori.
+COLBERT_SAVE_PATH = DATABASE_DIR / "colbert.pkl"
 
 # Carica configurazione globale
 with open(CONFIG_PATH, "r", encoding="utf-8") as _f:
@@ -47,13 +57,36 @@ def parse_markdown_file(filepath: str) -> tuple[dict, str]:
 
 def extract_entities(text: str) -> list[str]:
     """Trova tutte le entità racchiuse tra parentesi quadre, es. [UTENTE]."""
-    return re.findall(r"\[(.*?)\]", text)
+    return re.findall(r"\[(.*?)]", text)
+
+def add_frontmatter_edges(G: nx.DiGraph, doc_node_id: str, metadata: dict) -> int:
+    """
+    Indicizza le relazioni tipizzate dichiarate nel frontmatter YAML
+    (graph_rag.edges: DERIVA_DA, VINCOLA, REFERENZIA, ...): archi semantici
+    curati dall'autore del documento, molto più ricchi del semplice MENTIONS.
+    """
+    graph_rag = metadata.get("graph_rag") or {}
+    edges = graph_rag.get("edges") or []
+    added = 0
+    for edge in edges:
+        if not isinstance(edge, dict):
+            continue
+        target = edge.get("target")
+        relation = edge.get("type", "RELATES_TO")
+        if not target:
+            continue
+        if target not in G:
+            G.add_node(target, type="entity")
+        G.add_edge(doc_node_id, target, relation=relation)
+        added += 1
+    return added
+
 
 def build_graph_and_index() -> None:
     """Esegue l'indicizzazione completa (Fase 0 e Fase 4)."""
     print(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")
     embed_model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=True)
-    
+
     qdrant = QdrantClient(path=QDRANT_PATH)
     G = nx.DiGraph()
 
@@ -62,14 +95,18 @@ def build_graph_and_index() -> None:
     if COLLECTION_NAME in existing_collections:
         qdrant.delete_collection(COLLECTION_NAME)
 
+    # Hybrid Search: la stessa collection ospita il vettore denso (semantica
+    # generale) e quello sparso (match lessicali esatti su identificatori e
+    # termini rari). I multivettori ColBERT vivono nel sidecar COLBERT_SAVE_PATH.
     qdrant.create_collection(
         collection_name=COLLECTION_NAME,
-        vectors_config=VectorParams(size=DENSE_DIM, distance=Distance.COSINE),
+        vectors_config={"dense": VectorParams(size=DENSE_DIM, distance=Distance.COSINE)},
+        sparse_vectors_config={"sparse": SparseVectorParams()},
     )
 
     points: list[PointStruct] = []
     texts_to_embed: list[str] = []
-    doc_metadata: list[tuple[str, str, dict]] = [] 
+    doc_metadata: list[tuple[str, str, dict]] = []
 
     # Prima passata: costruisce il grafo e raccoglie i testi
     # (scansione ricorsiva: i documenti sono distribuiti nelle sottocartelle di docs/)
@@ -86,38 +123,60 @@ def build_graph_and_index() -> None:
             G.add_node(entity, type="entity")
             G.add_edge(doc_node_id, entity, relation="MENTIONS")
 
+        typed_edges = add_frontmatter_edges(G, doc_node_id, metadata)
+
         texts_to_embed.append(body)
         doc_metadata.append((doc_node_id, rel_path, metadata))
-        print(f"  Analizzato: {rel_path} — {len(entities)} entità trovate")
+        print(f"  Analizzato: {rel_path} — {len(entities)} entità, {typed_edges} relazioni tipizzate")
 
-    # Seconda passata: vettorializza tutti i testi in un batch
+    # Seconda passata: vettorializza tutti i testi in un batch.
+    # Una sola forward pass di bge-m3 produce tutti e tre i tipi di vettore:
+    # dense (semantica), sparse (lessicale), colbert (token-per-token).
+    colbert_store: dict[str, list] = {}
     if texts_to_embed:
-        print(f"\nVettorializzazione di {len(texts_to_embed)} documenti con {EMBEDDING_MODEL}...")
-        dense_vecs = embed_model.encode(
+        print(f"\nVettorializzazione di {len(texts_to_embed)} documenti con {EMBEDDING_MODEL} (dense + sparse + colbert)...")
+        output = embed_model.encode(
             texts_to_embed,
             batch_size=12,
             max_length=8192,
-        )["dense_vecs"]
+            return_dense=True,
+            return_sparse=True,
+            return_colbert_vecs=True,
+        )
+        dense_vecs = output["dense_vecs"]
+        lexical_weights = output["lexical_weights"]
+        colbert_vecs = output["colbert_vecs"]
 
-        for point_id, ((doc_node_id, filename, metadata), dense_vec) in enumerate(zip(doc_metadata, dense_vecs)):
+        for point_id, ((doc_node_id, filename, metadata), dense_vec, lex_w, col_vec) in enumerate(
+            zip(doc_metadata, dense_vecs, lexical_weights, colbert_vecs)
+        ):
+            sparse_vec = SparseVector(
+                indices=[int(token_id) for token_id in lex_w.keys()],
+                values=[float(w) for w in lex_w.values()],
+            )
             points.append(
                 PointStruct(
                     id=point_id,
-                    vector=dense_vec.tolist(),
+                    vector={"dense": dense_vec.tolist(), "sparse": sparse_vec},
                     payload={"doc_id": doc_node_id, "filename": filename, **metadata},
                 )
             )
+            # fp16 per dimezzare l'occupazione su disco; il rerank riconverte al volo
+            colbert_store[doc_node_id] = col_vec.astype("float16")
 
         qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
 
-    # Salva il grafo su disco
+    # Salva il grafo e i multivettori ColBERT su disco
     with open(GRAPH_SAVE_PATH, "wb") as f:
         pickle.dump(G, f)
+    with open(COLBERT_SAVE_PATH, "wb") as f:
+        pickle.dump(colbert_store, f)
 
     print(f"\n✅ Grafo salvato in: {GRAPH_SAVE_PATH}")
+    print(f"✅ Multivettori ColBERT salvati in: {COLBERT_SAVE_PATH}")
     print(f"📊 Grafo: {G.number_of_nodes()} nodi, {G.number_of_edges()} archi.")
-    print(f"📦 Qdrant: {len(points)} documenti nella collection '{COLLECTION_NAME}'.")
-    
+    print(f"📦 Qdrant: {len(points)} documenti (dense + sparse) nella collection '{COLLECTION_NAME}'.")
+
     qdrant.close()
 
 def check_drift(feature_name):
