@@ -348,6 +348,15 @@ PIPELINE_FILES = ("explore.md", "canvas.md", "spec.md")
 # ---------------------------------------------------------------------------
 # Endpoint
 # ---------------------------------------------------------------------------
+# Header anti-cache: impedisce al browser di servire una vecchia versione dell'HTML
+# (es. un'infografica precedente senza barra di navigazione o senza selettore tema).
+_NO_CACHE_HEADERS = {
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
+
 def _themed_template(request: Request, matrix_name: str, classic_name: str) -> Path:
     """Sceglie il file da servire in base al tema scelto dall'utente (cookie 'ui_theme')."""
     theme = request.cookies.get("ui_theme", "matrix")
@@ -357,19 +366,19 @@ def _themed_template(request: Request, matrix_name: str, classic_name: str) -> P
 @app.get("/", response_class=FileResponse, include_in_schema=False)
 async def serve_dashboard(request: Request):
     """Serve la dashboard HTML interattiva (tema Matrix o Classico, a scelta dell'utente)."""
-    return FileResponse(_themed_template(request, "dashboard.html", "dashboard_classic.html"), media_type="text/html")
+    return FileResponse(_themed_template(request, "dashboard.html", "dashboard_classic.html"), media_type="text/html", headers=_NO_CACHE_HEADERS)
 
 
 @app.get("/pipeline", response_class=FileResponse, include_in_schema=False)
 async def serve_pipeline(request: Request):
     """Serve la console Explore -> Canvas -> Propose (tema Matrix o Classico, a scelta dell'utente)."""
-    return FileResponse(_themed_template(request, "pipeline.html", "pipeline_classic.html"), media_type="text/html")
+    return FileResponse(_themed_template(request, "pipeline.html", "pipeline_classic.html"), media_type="text/html", headers=_NO_CACHE_HEADERS)
 
 
 @app.get("/infografica", response_class=FileResponse, include_in_schema=False)
 async def serve_infografica(request: Request):
     """Serve l'infografica statica del sistema RAG (tema Matrix o Classico, a scelta dell'utente)."""
-    return FileResponse(_themed_template(request, "InfograficaRAG.html", "InfograficaRAG_classic.html"), media_type="text/html")
+    return FileResponse(_themed_template(request, "InfograficaRAG.html", "InfograficaRAG_classic.html"), media_type="text/html", headers=_NO_CACHE_HEADERS)
 
 
 @app.get("/api/pipeline/dev-types")
