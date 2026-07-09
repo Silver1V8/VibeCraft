@@ -1390,6 +1390,17 @@ async def ask_rag(query: AskQuery):
     }
 
 
+@app.get("/api/retrieve")
+async def api_retrieve(q: str, k: int = 5):
+    """Retrieval PURO (dense + sparse + ColBERT + authority), senza sintesi LLM. Restituisce
+    i chunk pertinenti con il breakdown del ranking. Serve per valutare la qualità del ranking
+    (golden-set / eval_retrieval.py) e per il debug, senza il costo di Ollama."""
+    if state.get("qdrant") is None or state.get("embed_model") is None:
+        raise HTTPException(status_code=503, detail="Indice non ancora pronto.")
+    results = await run_in_threadpool(hybrid_search, q, k)
+    return {"query": q, "k": k, "results": results}
+
+
 @app.get("/api/graph/all")
 async def get_full_graph():
     """Restituisce l'intero grafo statico (tutti i nodi e gli archi) in formato JSON."""
