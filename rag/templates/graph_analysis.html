@@ -65,6 +65,21 @@
   </header>
 
   <main>
+    <!-- ══════════ QUERY DETERMINISTICA ══════════ -->
+    <section>
+      <h2>❓ Query deterministica sul grafo</h2>
+      <p class="desc">Interroga il grafo <em>senza LLM</em>: «quali documenti esistono?», «quali entità?»,
+        «quale codice?», «relazioni di &lt;NODO&gt;», «cosa impatta &lt;NODO&gt;». Risposte istantanee lette
+        direttamente da nodi e archi (principio «determinismo prima dell'LLM»).</p>
+      <div class="toolbar">
+        <label for="gq-input"></label>
+        <input id="gq-input" placeholder="es. quali documenti esistono?  ·  relazioni di EVENTO" style="min-width:360px" />
+        <button onclick="runGraphQuery()">▶ Interroga</button>
+        <span id="gq-status" class="status"></span>
+      </div>
+      <pre id="gq-out" style="display:none;white-space:pre-wrap;font-size:11.5px;color:#d8ffe4;background:#010a05;border:1px solid #0a2417;border-radius:10px;padding:12px;max-height:280px;overflow:auto"></pre>
+    </section>
+
     <!-- ══════════ SEMANTIC MAP ══════════ -->
     <section>
       <h2>🗺️ Semantic Map</h2>
@@ -346,6 +361,24 @@
     function escapeHtml(s) {
       return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
+
+    /* ══════════ QUERY DETERMINISTICA ══════════ */
+    async function runGraphQuery() {
+      const q = document.getElementById('gq-input').value.trim();
+      const status = document.getElementById('gq-status');
+      const out = document.getElementById('gq-out');
+      if (!q) { status.textContent = 'Scrivi una domanda.'; return; }
+      status.textContent = 'Interrogazione…';
+      try {
+        const res = await fetch('/api/graph/query?q=' + encodeURIComponent(q));
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const d = await res.json();
+        status.textContent = `intent: ${d.intent}` + (d.count !== undefined ? ` · ${d.count}` : '');
+        out.style.display = 'block';
+        out.textContent = JSON.stringify(d, null, 2);
+      } catch (e) { status.textContent = '❌ ' + e.message; }
+    }
+    document.getElementById('gq-input').addEventListener('keydown', e => { if (e.key === 'Enter') runGraphQuery(); });
 
     window.addEventListener('resize', () => { drawSemanticMap(); });
     loadSemanticMap();

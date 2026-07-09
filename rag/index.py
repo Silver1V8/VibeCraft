@@ -74,6 +74,66 @@ def parse_markdown_file(filepath: str) -> tuple[dict, str]:
         return metadata, body
     return {}, content
 
+
+# Estensioni indicizzabili. Il Markdown resta il formato ottimale (frontmatter +
+# versionamento); gli altri sono loader opzionali che si attivano solo se la
+# libreria è installata, senza introdurre dipendenze obbligatorie.
+DOC_EXTS = (".md", ".txt", ".docx", ".xlsx", ".pdf")
+
+
+def _read_docx(filepath: str) -> str:
+    try:
+        import docx  # python-docx
+    except ImportError:
+        print(f"  ⚠️ python-docx non installato: salto {filepath} (pip install python-docx)")
+        return ""
+    return "\n".join(p.text for p in docx.Document(filepath).paragraphs)
+
+
+def _read_xlsx(filepath: str) -> str:
+    try:
+        import openpyxl
+    except ImportError:
+        print(f"  ⚠️ openpyxl non installato: salto {filepath} (pip install openpyxl)")
+        return ""
+    wb = openpyxl.load_workbook(filepath, read_only=True, data_only=True)
+    lines: list[str] = []
+    for ws in wb.worksheets:
+        lines.append(f"# Foglio: {ws.title}")
+        for row in ws.iter_rows(values_only=True):
+            cells = [str(c) for c in row if c is not None]
+            if cells:
+                lines.append(" | ".join(cells))
+    return "\n".join(lines)
+
+
+def _read_pdf(filepath: str) -> str:
+    try:
+        import pypdf
+    except ImportError:
+        print(f"  ⚠️ pypdf non installato: salto {filepath} (pip install pypdf)")
+        return ""
+    reader = pypdf.PdfReader(filepath)
+    return "\n".join((page.extract_text() or "") for page in reader.pages)
+
+
+def read_document(filepath_obj: Path) -> tuple[dict, str]:
+    """Restituisce (frontmatter, corpo) per un documento. Il frontmatter YAML esiste
+    solo nei .md; per gli altri formati è vuoto e si estrae solo il testo."""
+    suffix = filepath_obj.suffix.lower()
+    filepath = str(filepath_obj)
+    if suffix == ".md":
+        return parse_markdown_file(filepath)
+    if suffix == ".txt":
+        return {}, filepath_obj.read_text(encoding="utf-8", errors="ignore")
+    if suffix == ".docx":
+        return {}, _read_docx(filepath)
+    if suffix == ".xlsx":
+        return {}, _read_xlsx(filepath)
+    if suffix == ".pdf":
+        return {}, _read_pdf(filepath)
+    return {}, ""
+
 def extract_entities(text: str) -> list[str]:
     """Trova tutte le entità racchiuse tra parentesi quadre, es. [UTENTE]."""
     return re.findall(r"\[(.*?)]", text)
@@ -102,17 +162,21 @@ def add_frontmatter_edges(G: nx.DiGraph, doc_node_id: str, metadata: dict) -> in
     return added
 
 
-def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None) -> None:
+def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, emit=None) -> None:
     """Esegue l'indicizzazione completa (Fase 0 e Fase 4).
 
     Le risorse pesanti (modello di embedding e client Qdrant) possono essere
     iniettate dall'esterno: quando il server FastAPI innesca la re-indicizzazione
     riusa quelle già caricate, evitando sia il ricaricamento del modello (minuti
     di CPU) sia il doppio lock sullo storage locale di Qdrant (che è esclusivo).
+
+    `emit` è un callback di log (default: print) usato per lo streaming SSE del
+    progresso verso l'interfaccia; se None si stampa su stdout come sempre.
     """
+    _log = emit or print
     own_qdrant = qdrant is None
     if embed_model is None:
-        print(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")
+        _log(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")
         embed_model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
     if qdrant is None:
         qdrant = QdrantClient(path=QDRANT_PATH)
@@ -136,12 +200,15 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None) 
     texts_to_embed: list[str] = []
     doc_metadata: list[tuple[str, str, dict]] = []
 
-    # Prima passata: costruisce il grafo e raccoglie i testi
-    # (scansione ricorsiva: i documenti sono distribuiti nelle sottocartelle di docs/)
-    for filepath_obj in sorted(DOCS_DIR.rglob("*.md")):
+    # Prima passata: costruisce il grafo e raccoglie i testi (scansione ricorsiva
+    # di tutti i formati indicizzabili: Markdown + eventuali Word/Excel/PDF/TXT).
+    all_docs = sorted(p for p in DOCS_DIR.rglob("*") if p.is_file() and p.suffix.lower() in DOC_EXTS)
+    for filepath_obj in all_docs:
         rel_path = filepath_obj.relative_to(DOCS_DIR).as_posix()
-        filepath = str(filepath_obj)
-        metadata, body = parse_markdown_file(filepath)
+        metadata, body = read_document(filepath_obj)
+        if not body.strip():
+            _log(f"  (saltato, corpo vuoto o loader assente: {rel_path})")
+            continue
 
         doc_node_id = rel_path
         G.add_node(doc_node_id, type="document", **metadata)
@@ -155,14 +222,14 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None) 
 
         texts_to_embed.append(body)
         doc_metadata.append((doc_node_id, rel_path, metadata))
-        print(f"  Analizzato: {rel_path} — {len(entities)} entità, {typed_edges} relazioni tipizzate")
+        _log(f"  Analizzato: {rel_path} — {len(entities)} entità, {typed_edges} relazioni tipizzate")
 
     # Seconda passata: vettorializza tutti i testi in un batch.
     # Una sola forward pass di bge-m3 produce tutti e tre i tipi di vettore:
     # dense (semantica), sparse (lessicale), colbert (token-per-token).
     colbert_store: dict[str, list] = {}
     if texts_to_embed:
-        print(f"\nVettorializzazione di {len(texts_to_embed)} documenti con {EMBEDDING_MODEL} (dense + sparse + colbert)...")
+        _log(f"\nVettorializzazione di {len(texts_to_embed)} documenti con {EMBEDDING_MODEL} (dense + sparse + colbert)...")
         output = embed_model.encode(
             texts_to_embed,
             batch_size=12,
@@ -204,11 +271,11 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None) 
                 G, code_symbols, embed_model, [m[0] for m in doc_metadata], dense_vecs
             )
             if n_code:
-                print(f"🧩 Codice indicizzato: {n_code} simboli, {n_impl} archi IMPLEMENTS verso i documenti.")
+                _log(f"🧩 Codice indicizzato: {n_code} simboli, {n_impl} archi IMPLEMENTS verso i documenti.")
             else:
-                print("🧩 Nessun simbolo di codice trovato sotto code/ (verrà indicizzato quando Claude scriverà il codice).")
+                _log("🧩 Nessun simbolo di codice trovato sotto code/ (verrà indicizzato quando Claude scriverà il codice).")
         except Exception as e:
-            print(f"⚠️ Indicizzazione del codice saltata: {e}")
+            _log(f"⚠️ Indicizzazione del codice saltata: {e}")
 
     # Salva il grafo e i multivettori ColBERT su disco
     with open(GRAPH_SAVE_PATH, "wb") as f:
@@ -216,22 +283,22 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None) 
     with open(COLBERT_SAVE_PATH, "wb") as f:
         pickle.dump(colbert_store, f)
 
-    print(f"\n✅ Grafo salvato in: {GRAPH_SAVE_PATH}")
-    print(f"✅ Multivettori ColBERT salvati in: {COLBERT_SAVE_PATH}")
-    print(f"📊 Grafo: {G.number_of_nodes()} nodi, {G.number_of_edges()} archi.")
-    print(f"📦 Qdrant: {len(points)} documenti (dense + sparse) nella collection '{COLLECTION_NAME}'.")
+    _log(f"\n✅ Grafo salvato in: {GRAPH_SAVE_PATH}")
+    _log(f"✅ Multivettori ColBERT salvati in: {COLBERT_SAVE_PATH}")
+    _log(f"📊 Grafo: {G.number_of_nodes()} nodi, {G.number_of_edges()} archi.")
+    _log(f"📦 Qdrant: {len(points)} documenti (dense + sparse) nella collection '{COLLECTION_NAME}'.")
 
     write_index_manifest(len(points), G.number_of_nodes(), G.number_of_edges())
-    print(f"🧾 Manifest indicizzazione salvato in: {INDEX_MANIFEST_PATH}")
+    _log(f"🧾 Manifest indicizzazione salvato in: {INDEX_MANIFEST_PATH}")
 
     if own_qdrant:
         qdrant.close()
 
 
 def _docs_hashes() -> dict[str, str]:
-    """Calcola l'hash SHA-256 di ogni documento in docs/ (chiave = percorso relativo)."""
+    """Calcola l'hash SHA-256 di ogni documento indicizzabile in docs/ (chiave = percorso relativo)."""
     hashes: dict[str, str] = {}
-    for filepath_obj in sorted(DOCS_DIR.rglob("*.md")):
+    for filepath_obj in sorted(p for p in DOCS_DIR.rglob("*") if p.is_file() and p.suffix.lower() in DOC_EXTS):
         rel_path = filepath_obj.relative_to(DOCS_DIR).as_posix()
         hashes[rel_path] = hashlib.sha256(filepath_obj.read_bytes()).hexdigest()
     return hashes
@@ -288,20 +355,22 @@ def _load_dev_type(feature_folder: str) -> str:
         return ""
 
 
-def check_drift(feature_name: str) -> str:
+def check_drift(feature_name: str, emit=None) -> str:
     """Controlla se il codice generato si è discostato dalle specifiche del Canvas.
 
-    Restituisce il report testuale (oltre a stamparlo su stdout), così da poterlo
+    Restituisce il report testuale (oltre a stamparlo/emetterlo), così da poterlo
     mostrare anche nel box dedicato dell'interfaccia della pipeline, senza terminale.
+    `emit` (default: print) permette lo streaming SSE del progresso.
     """
+    _log = emit or print
     feature_folder = feature_name.replace(' ', '-').lower()
-    print(f"\n🔍 Avvio controllo Drift (Disallineamento) per: 'changes/{feature_folder}'...")
+    _log(f"\n🔍 Avvio controllo Drift (Disallineamento) per: 'changes/{feature_folder}'...")
 
     canvas_path = CHANGES_DIR / feature_folder / "canvas.md"
 
     if not canvas_path.exists():
         msg = f"❌ Errore: Non trovo il file {canvas_path}."
-        print(msg)
+        _log(msg)
         return msg
 
     canvas_content = canvas_path.read_text(encoding="utf-8")
@@ -324,7 +393,7 @@ def check_drift(feature_name: str) -> str:
                 codice_generato += f"\n--- FILE: {path.name} ---\n{path.read_text(encoding='utf-8')}\n"
 
     if not codice_generato:
-        print("⚠️ Attenzione: Nessun file di codice sorgente trovato. Claude Code / Cursor ha già scritto il codice?")
+        _log("⚠️ Attenzione: Nessun file di codice sorgente trovato. Claude Code / Cursor ha già scritto il codice?")
 
     prompt_drift = f"""
     Sei un Revisore del Codice esperto.
@@ -342,7 +411,7 @@ def check_drift(feature_name: str) -> str:
     Se va tutto bene, rispondi con "✅ NESSUN DRIFT RILEVATO. Il codice è conforme."
     """
 
-    print("🧠 Analisi del codice in corso tramite LLM locale...")
+    _log("🧠 Analisi del codice in corso tramite LLM locale...")
     data = {"model": MODEL_NAME, "prompt": prompt_drift, "stream": False}
     req = urllib.request.Request(OLLAMA_URL, data=json.dumps(data).encode("utf-8"), headers={"Content-Type": "application/json"})
 
@@ -355,24 +424,25 @@ def check_drift(feature_name: str) -> str:
     except Exception as e:
         report = f"❌ Errore durante il check drift: {e}"
 
-    print("\n" + "=" * 50)
-    print("📊 REPORT DRIFT:")
-    print(report)
-    print("=" * 50 + "\n")
+    _log("\n" + "=" * 50)
+    _log("📊 REPORT DRIFT:")
+    _log(report)
+    _log("=" * 50 + "\n")
     return report
 
 
-def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_model=None) -> str:
+def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_model=None, emit=None) -> str:
     """Sposta la cartella in 'archive' e innesca la re-indicizzazione.
 
-    Restituisce il log testuale dell'operazione (oltre a stamparlo). Le risorse
-    pesanti possono essere iniettate dal server per riusare modello e client Qdrant
-    già aperti, evitando il ricaricamento e il doppio lock sullo storage Qdrant.
+    Restituisce il log testuale dell'operazione (oltre a stamparlo/emetterlo). Le
+    risorse pesanti possono essere iniettate dal server per riusare modello e client
+    Qdrant già aperti; `emit` permette lo streaming SSE del progresso.
     """
+    _emit = emit or print
     lines: list[str] = []
 
     def log(msg: str) -> None:
-        print(msg)
+        _emit(msg)
         lines.append(msg)
 
     feature_folder = feature_name.replace(' ', '-').lower()
@@ -393,7 +463,7 @@ def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_mode
         log(f"✅ Feature archiviata con successo in: {target_dir}")
 
         log("🔄 Innesco la re-indicizzazione del Graph RAG locale...")
-        build_graph_and_index(qdrant=qdrant, embed_model=embed_model)
+        build_graph_and_index(qdrant=qdrant, embed_model=embed_model, emit=_emit)
         log("✅ Re-indicizzazione completata! Il Graph RAG ha appreso la nuova feature.")
 
     except Exception as e:

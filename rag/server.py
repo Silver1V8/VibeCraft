@@ -2,10 +2,12 @@ import re
 import sys
 import json
 import time
+import queue
 import yaml
 import pickle
 import httpx
 import uvicorn
+import threading
 import numpy as np
 import networkx as nx
 
@@ -114,6 +116,7 @@ async def lifespan(application: FastAPI):
         )
     with open(GRAPH_SAVE_PATH, "rb") as f:
         state["graph"] = pickle.load(f)
+    state["_graph_mtime"] = GRAPH_SAVE_PATH.stat().st_mtime  # baseline per l'auto-reload
 
     g: nx.DiGraph = state["graph"]
     print(f"Grafo caricato: {g.number_of_nodes()} nodi, {g.number_of_edges()} archi.")
@@ -470,35 +473,36 @@ def call_ollama_generate(prompt: str) -> str:
         return f"[ERRORE GENERICO OLLAMA]: {str(e)}"
 
 
-def retrieve_governed_context(question: str, top_k: int = 6, bfs_depth: int = 1,
-                              max_docs: int = 4, max_chars_per_doc: int = 4000) -> str:
-    """Recupera dal Graph RAG il contesto normativo pertinente a una feature — ricerca
-    ibrida, espansione sul grafo e lettura dei documenti, con le sorgenti ordinate per
-    autorità. È il tassello che àncora Canvas e Propose ai documenti governati (safeguard,
-    glossario, matrice permessi) invece che alla sola intervista. Restituisce '' se
-    l'indice non è ancora caricato o non emergono documenti pertinenti."""
-    if state.get("graph") is None or state.get("qdrant") is None or state.get("embed_model") is None:
-        return ""
+def _select_governed_docs(question: str, top_k: int = 6, bfs_depth: int = 1,
+                          max_docs: int = 4, results: list | None = None) -> list[str]:
+    """Seleziona i documenti governati pertinenti (ricerca ibrida + espansione grafo),
+    ordinati per autorità con i seed recuperati per primi, e limitati a max_docs.
+    Se `results` è fornito, riusa quei punteggi invece di rifare la ricerca (usato dal
+    dry-run per non ri-vettorializzare la query due volte)."""
+    if state.get("graph") is None:
+        return []
     graph: nx.DiGraph = state["graph"]
 
-    try:
-        results = hybrid_search(question, top_k)
-    except Exception as exc:  # best-effort: il fallback è "nessun contesto normativo"
-        print(f"Attenzione: retrieval governato non riuscito: {exc}")
-        return ""
+    if results is None:
+        if state.get("qdrant") is None or state.get("embed_model") is None:
+            return []
+        try:
+            results = hybrid_search(question, top_k)
+        except Exception as exc:  # best-effort: il fallback è "nessun contesto"
+            print(f"Attenzione: retrieval governato non riuscito: {exc}")
+            return []
 
     seed_nodes = [r["doc_id"] for r in results if r["doc_id"] in graph]
     if not seed_nodes:
-        return ""
+        return []
 
     expanded = bfs_expand(graph, seed_nodes, depth=max(bfs_depth, 1))
 
     def _auth(d: str) -> float:
         return _authority_weight(graph.nodes[d]) if d in graph else 0.0
 
-    # Candidati: prima i seed (recuperati, già ordinati per rilevanza), poi i
-    # documenti aggiunti dall'espansione BFS. Entrambi i gruppi per autorità
-    # decrescente, così il documento più vincolante appare per primo.
+    # Prima i seed (recuperati, già ordinati per rilevanza), poi i documenti aggiunti
+    # dall'espansione BFS. Entrambi i gruppi per autorità decrescente.
     seed_docs = list(dict.fromkeys(seed_nodes))
     seed_seen = set(seed_docs)
     expanded_docs = [
@@ -506,12 +510,23 @@ def retrieve_governed_context(question: str, top_k: int = 6, bfs_depth: int = 1,
         if n not in seed_seen and graph.nodes[n].get("type") == "document"
     ]
     ordered = sorted(seed_docs, key=_auth, reverse=True) + sorted(expanded_docs, key=_auth, reverse=True)
+    return ordered[:max_docs]
 
-    # Cap: al massimo max_docs documenti, ciascuno troncato a max_chars_per_doc,
-    # per non saturare la finestra di contesto dell'LLM locale — i design contract
-    # normativi (es. i safeguard) sono ampi e uno solo può superare migliaia di token.
+
+def retrieve_governed_context(question: str, top_k: int = 6, bfs_depth: int = 1,
+                              max_docs: int = 4, max_chars_per_doc: int = 4000) -> str:
+    """Recupera dal Graph RAG il contesto normativo pertinente a una feature e ne serializza
+    i corpi (troncati) come testo da iniettare in Canvas/Propose/Validate. È il tassello che
+    àncora il design contract ai documenti governati invece che alla sola intervista."""
+    doc_ids = _select_governed_docs(question, top_k, bfs_depth, max_docs)
+    if not doc_ids:
+        return ""
+    graph: nx.DiGraph = state["graph"]
+
+    # Cap: ciascun documento troncato a max_chars_per_doc, per non saturare la finestra
+    # di contesto dell'LLM locale (i design contract normativi sono ampi).
     parts: list[str] = []
-    for doc_id in ordered[:max_docs]:
+    for doc_id in doc_ids:
         doc_path = PROJECT_ROOT / "docs" / doc_id
         if not doc_path.exists():
             continue
@@ -587,6 +602,113 @@ def build_final_prompt(folder_name: str, dev_type: str = "") -> str:
         f"'code/frontend' per l'interfaccia utente. Se la funzionalità coinvolge più ambiti, distribuisci i file "
         f"nelle rispettive sottocartelle mantenendo la separazione delle responsabilità."
     )
+
+
+def _entities_for_docs(graph, doc_ids: list[str], limit: int = 24) -> list[str]:
+    """Entità del glossario collegate ai documenti dati (successori di tipo 'entity')."""
+    ents: list[str] = []
+    for d in doc_ids:
+        if d not in graph:
+            continue
+        for succ in graph.successors(d):
+            if graph.nodes[succ].get("type") == "entity" and succ not in ents:
+                ents.append(succ)
+    return ents[:limit]
+
+
+def _render_agent_context(c: dict) -> str:
+    """Rende il blocco [AGENT CONTEXT] in testo copiabile (formato dell'Articolo 1)."""
+    lines = ["[AGENT CONTEXT]", f"- Intento probabile: {c['intent']}"]
+    lines.append(f"- Sorgenti normative: {', '.join(c['normative_sources']) or '—'}")
+    lines.append(f"- Entità coinvolte: {', '.join(c['entities'][:20]) or '—'}")
+    lines.append(f"- Safeguard pertinenti: {', '.join(c['safeguards']) or '—'}")
+    lines.append("- Vincoli da rispettare:")
+    for x in c["constraints"]:
+        lines.append(f"    • {x}")
+    lines.append("- Rischi:")
+    for x in (c["risks"] or ["(nessuno rilevato)"]):
+        lines.append(f"    • {x}")
+    lines.append(f"- File da leggere: {', '.join(c['files_to_read'])}")
+    lines.append(f"- Confidence: {c['confidence']} ({c['confidence_label']})")
+    lines.append("\n--- PROMPT SUGGERITO ---")
+    lines.append(c["suggested_prompt"])
+    return "\n".join(lines)
+
+
+def build_agent_context(feature_name: str, dev_type: str = "") -> dict:
+    """Costruisce il blocco strutturato [AGENT CONTEXT] (intent / sorgenti / entità /
+    vincoli / rischi / file / prompt / confidence) dell'Articolo 1, in modo deterministico
+    a partire dal retrieval governato e dallo stato di canvas/spec. Il confidence score è
+    una metrica composita (rilevanza + copertura del canvas + spec BDD + copertura normativa)."""
+    folder_name = slugify_feature(feature_name)
+    folder = CHANGES_DIR / folder_name
+    canvas = (folder / "canvas.md").read_text(encoding="utf-8") if (folder / "canvas.md").exists() else ""
+    spec = (folder / "spec.md").read_text(encoding="utf-8") if (folder / "spec.md").exists() else ""
+    dev_type = dev_type or load_dev_type(folder)
+
+    query = f"{feature_name}\n{canvas[:2000]}"
+    graph = state.get("graph")
+    results: list = []
+    top_score = 0.0
+    if graph is not None and state.get("qdrant") is not None and state.get("embed_model") is not None:
+        try:
+            results = hybrid_search(query, 6)
+            if results:
+                top_score = max((r.get("colbert_score") or r.get("dense_score") or 0.0) for r in results)
+        except Exception:
+            results = []
+    doc_ids = _select_governed_docs(query, results=results) if results else []
+
+    entities = _entities_for_docs(graph, doc_ids) if graph is not None else []
+    safeguards = [e for e in entities if e.upper().startswith("SAFEGUARD")]
+    iron = [
+        d for d in doc_ids
+        if graph is not None and str(graph.nodes[d].get("classification", "")).upper() == "IRON_MEMORY"
+    ]
+
+    sections_present = [s for s in CANVAS_SECTIONS if s.lower() in canvas.lower()]
+    coverage = len(sections_present) / len(CANVAS_SECTIONS) if canvas else 0.0
+    spec_ok = 1.0 if all(k in spec.upper() for k in ("GIVEN", "WHEN", "THEN")) else 0.0
+    governance = min(1.0, len(doc_ids) / 3.0)
+    retrieval = max(0.0, min(1.0, float(top_score)))
+    confidence = round(0.35 * retrieval + 0.30 * coverage + 0.15 * spec_ok + 0.20 * governance, 2)
+    label = "alta" if confidence >= 0.75 else ("media" if confidence >= 0.5 else "bassa")
+
+    constraints = []
+    if safeguards:
+        constraints.append("Rispettare i safeguard: " + ", ".join(safeguards[:8]))
+    constraints.append("Usare i termini del glossario in MAIUSCOLO (es. EVENTO, UTENTE), senza sinonimi colloquiali.")
+    if iron:
+        constraints.append("Documenti IRON_MEMORY vincolanti: " + ", ".join(iron))
+
+    risks = []
+    if not spec_ok:
+        risks.append("Spec BDD assente o incompleta: scenari di test non verificabili.")
+    missing = [s for s in CANVAS_SECTIONS if s not in sections_present]
+    if canvas and missing:
+        risks.append(f"Canvas incompleto: sezioni mancanti ({', '.join(missing)}).")
+    if not doc_ids:
+        risks.append("Nessun documento normativo pertinente recuperato: contratto poco ancorato alla governance.")
+    for sg in safeguards[:5]:
+        risks.append(f"Possibile violazione di [{sg}] se non gestita esplicitamente.")
+
+    files_to_read = [f"changes/{folder_name}/canvas.md", f"changes/{folder_name}/spec.md"]
+    files_to_read += [f"code/{dev_type}/"] if dev_type else ["code/backend/", "code/frontend/", "code/logicAgent/"]
+
+    ctx = {
+        "intent": f"Implementare la feature '{feature_name}'" + (f" (ambito: {dev_type})" if dev_type else ""),
+        "normative_sources": doc_ids,
+        "entities": entities,
+        "safeguards": safeguards,
+        "constraints": constraints,
+        "risks": risks,
+        "files_to_read": files_to_read,
+        "suggested_prompt": build_final_prompt(folder_name, dev_type),
+        "confidence": confidence,
+        "confidence_label": label,
+    }
+    ctx["text"] = _render_agent_context(ctx)
+    return ctx
 
 
 PIPELINE_FILES = ("explore.md", "canvas.md", "spec.md")
@@ -817,6 +939,55 @@ def _reload_index_state() -> None:
         with open(COLBERT_SAVE_PATH, "rb") as f:
             state["colbert_store"] = pickle.load(f)
     state["rule_descriptions"] = load_rule_descriptions()
+    try:
+        state["_graph_mtime"] = GRAPH_SAVE_PATH.stat().st_mtime
+    except OSError:
+        pass
+
+
+def _maybe_reload_graph() -> None:
+    """Auto-reload: se graph.pkl è cambiato su disco (es. una re-indicizzazione lanciata
+    da CLI mentre il server è attivo), ricarica l'indice in memoria alla prima richiesta
+    successiva, senza dover riavviare il server."""
+    if state.get("graph") is None:
+        return
+    try:
+        mtime = GRAPH_SAVE_PATH.stat().st_mtime
+    except OSError:
+        return
+    prev = state.get("_graph_mtime")
+    if prev is None:
+        state["_graph_mtime"] = mtime
+        return
+    if mtime != prev:
+        print("🔄 graph.pkl cambiato su disco: ricarico grafo/ColBERT/regole in memoria.")
+        _reload_index_state()
+
+
+def _run_streaming(target, *args):
+    """Esegue una funzione bloccante (check_drift/archive_feature) su un thread dedicato
+    e ne trasmette il log in tempo reale come NDJSON, iniettando `emit` come callback.
+    Stessa filosofia dello streaming dell'agent (una riga JSON per evento)."""
+    q: queue.Queue = queue.Queue()
+
+    def emit(msg) -> None:
+        q.put({"type": "log", "line": str(msg)})
+
+    def worker() -> None:
+        try:
+            result = target(*args, emit=emit)
+            q.put({"type": "result", "value": result})
+        except Exception as exc:  # l'errore va riportato al client
+            q.put({"type": "error", "message": f"{type(exc).__name__}: {exc}"})
+        finally:
+            q.put(None)
+
+    threading.Thread(target=worker, name="pipeline-stream", daemon=True).start()
+    while True:
+        item = q.get()
+        if item is None:
+            break
+        yield json.dumps(item, ensure_ascii=False) + "\n"
 
 
 @app.post("/api/pipeline/drift/check")
@@ -845,6 +1016,31 @@ async def pipeline_archive(req: ArchiveRequest):
     # Rende visibile alla console Graph-RAG la base di conoscenza appena rigenerata.
     _reload_index_state()
     return {"feature_folder": slugify_feature(req.feature), "log": log}
+
+
+@app.post("/api/pipeline/drift/check/stream")
+async def pipeline_drift_check_stream(req: DriftCheckRequest):
+    """Come /api/pipeline/drift/check ma con progresso in streaming (NDJSON): l'interfaccia
+    mostra i passi (avvio, analisi, report) man mano che arrivano, senza box bloccante."""
+    if not req.feature.strip():
+        raise HTTPException(status_code=400, detail="Nome feature mancante.")
+    return StreamingResponse(_run_streaming(check_drift, req.feature), media_type="application/x-ndjson")
+
+
+@app.post("/api/pipeline/archive/stream")
+async def pipeline_archive_stream(req: ArchiveRequest):
+    """Come /api/pipeline/archive ma con progresso in streaming (NDJSON): l'utente vede la
+    re-indicizzazione avanzare passo per passo. Al termine ricarica l'indice in memoria."""
+    if not req.feature.strip():
+        raise HTTPException(status_code=400, detail="Nome feature mancante.")
+
+    def gen():
+        yield from _run_streaming(archive_feature, req.feature, state["qdrant"], state["embed_model"])
+        # La re-indicizzazione ha riscritto graph.pkl: aggiorna lo stato in memoria.
+        _reload_index_state()
+        yield json.dumps({"type": "reloaded"}, ensure_ascii=False) + "\n"
+
+    return StreamingResponse(gen(), media_type="application/x-ndjson")
 
 
 CANVAS_SECTIONS = ("Requirements", "Entities", "Approach", "Structure", "Operations", "Norms", "Safeguards")
@@ -924,6 +1120,80 @@ async def api_index_status():
     return await run_in_threadpool(index_status)
 
 
+@app.post("/api/pipeline/canvas/dry-run")
+async def pipeline_canvas_dry_run(req: CanvasGenerateRequest):
+    """Dry-run del Canvas: mostra le sorgenti che verrebbero recuperate (con punteggi
+    dense/sparse/ColBERT/autorità) e i documenti normativi che verrebbero iniettati,
+    SENZA generare nulla — così si ispeziona il contesto prima di spendere token."""
+    folder = feature_dir(req.feature_name)
+    explore_path = folder / "explore.md"
+    interview = explore_path.read_text(encoding="utf-8") if explore_path.exists() else ""
+    query = f"{req.feature_name}\n{interview[:2000]}"
+
+    def work() -> dict:
+        if state.get("graph") is None or state.get("qdrant") is None or state.get("embed_model") is None:
+            return {"sources": [], "governed_docs": [], "note": "Indice non ancora pronto."}
+        try:
+            results = hybrid_search(query, 6)
+        except Exception as exc:
+            return {"sources": [], "governed_docs": [], "note": f"Retrieval fallito: {exc}"}
+        doc_ids = _select_governed_docs(query, results=results)
+        graph = state["graph"]
+        governed = []
+        for d in doc_ids:
+            p = PROJECT_ROOT / "docs" / d
+            governed.append({
+                "doc_id": d,
+                "authority": round(_authority_weight(graph.nodes[d]) if d in graph else 0.0, 3),
+                "classification": graph.nodes[d].get("classification", "") if d in graph else "",
+                "chars": len(p.read_text(encoding="utf-8")) if p.exists() else 0,
+            })
+        sources = [
+            {"doc_id": r["doc_id"], "dense_score": r["dense_score"], "sparse_score": r["sparse_score"],
+             "colbert_score": r["colbert_score"], "authority": r["authority"]}
+            for r in results
+        ]
+        return {"sources": sources, "governed_docs": governed}
+
+    data = await run_in_threadpool(work)
+    return {"feature_folder": slugify_feature(req.feature_name), "query_preview": query[:300], **data}
+
+
+@app.get("/api/pipeline/agent-context")
+async def pipeline_agent_context(feature: str, dev_type: str = ""):
+    """Blocco strutturato [AGENT CONTEXT] con confidence score (Articolo 1), costruito in
+    modo deterministico dal retrieval governato e dallo stato di canvas/spec."""
+    if not feature.strip():
+        raise HTTPException(status_code=400, detail="Nome feature mancante.")
+    ctx = await run_in_threadpool(build_agent_context, feature, dev_type)
+    return {"feature_folder": slugify_feature(feature), **ctx}
+
+
+@app.get("/api/pipeline/export")
+async def pipeline_export(feature: str, dev_type: str = ""):
+    """Export JSON versionabile del design contract (explore/canvas/spec + prompt finale +
+    [AGENT CONTEXT]), da archiviare come artefatto o dare in pasto a una pipeline."""
+    folder_name = slugify_feature(feature)
+    folder = CHANGES_DIR / folder_name
+
+    def rd(name: str) -> str:
+        p = folder / name
+        return p.read_text(encoding="utf-8") if p.exists() else ""
+
+    dev = dev_type or load_dev_type(folder)
+    ctx = await run_in_threadpool(build_agent_context, feature, dev)
+    return {
+        "feature": feature,
+        "feature_folder": folder_name,
+        "dev_type": dev,
+        "explore": rd("explore.md"),
+        "canvas": rd("canvas.md"),
+        "spec": rd("spec.md"),
+        "final_prompt": build_final_prompt(folder_name, dev),
+        "agent_context": ctx,
+    }
+
+
 @app.get("/api/pipeline/status")
 async def pipeline_status(feature: str):
     """Restituisce quali file (explore/canvas/spec) esistono già per la feature, per il pannello di controllo."""
@@ -965,6 +1235,7 @@ async def pipeline_save_file(req: PipelineFileSaveRequest):
 
 @app.post("/ask")
 async def ask_rag(query: AskQuery):
+    _maybe_reload_graph()
     graph: nx.DiGraph = state["graph"]
     qdrant: QdrantClient = state["qdrant"]
     embed_model: BGEM3FlagModel = state["embed_model"]
@@ -1083,6 +1354,7 @@ async def ask_rag(query: AskQuery):
 @app.get("/api/graph/all")
 async def get_full_graph():
     """Restituisce l'intero grafo statico (tutti i nodi e gli archi) in formato JSON."""
+    _maybe_reload_graph()
     graph: nx.DiGraph = state["graph"]
     rule_descriptions: dict = state["rule_descriptions"]
     if graph is None:
@@ -1121,6 +1393,7 @@ async def graph_impact(node: str, depth: int = 3):
     """Impact Ripple: espansione BFS a cerchi concentrici da un nodo. Ogni 'ring' è
     un livello di distanza (1 hop, 2 hop, ...). Risponde 'cosa viene impattato se
     modifico questo nodo?' in modo deterministico (nessun LLM)."""
+    _maybe_reload_graph()
     graph: nx.DiGraph = state["graph"]
     if graph is None:
         raise HTTPException(status_code=503, detail="Grafo non ancora inizializzato.")
@@ -1166,6 +1439,7 @@ async def graph_semantic_map():
     sui vettori densi bge-m3 in Qdrant), con community detection, rilevamento dei nodi
     'ponte' (alta betweenness) e dei potenziali duplicati (alta similarità coseno tra
     documenti non collegati). Nessuna dipendenza esterna oltre numpy/networkx."""
+    _maybe_reload_graph()
     graph: nx.DiGraph = state["graph"]
     qdrant: QdrantClient = state["qdrant"]
     if graph is None or qdrant is None:
@@ -1250,6 +1524,66 @@ async def graph_semantic_map():
         for i in range(len(ids))
     ]
     return {"points": points, "duplicates": duplicates}
+
+
+@app.get("/api/graph/query")
+async def graph_query(q: str):
+    """Query DETERMINISTICA sul grafo (nessun LLM): risponde a domande strutturali —
+    'quali documenti/entità/codice esistono?', 'relazioni di X', 'cosa impatta X' — leggendo
+    direttamente nodi e archi. Incarna il principio 'determinismo prima dell'LLM' (Articolo 1)."""
+    if state.get("graph") is None:
+        raise HTTPException(status_code=503, detail="Grafo non ancora inizializzato.")
+    _maybe_reload_graph()
+    graph: nx.DiGraph = state["graph"]
+    ql = q.lower().strip()
+
+    def by_type(t: str) -> list[str]:
+        return sorted(n for n, a in graph.nodes(data=True) if a.get("type") == t)
+
+    # Rileva un eventuale nodo bersaglio citato nella domanda (match sull'id).
+    target = None
+    for n in graph.nodes():
+        ns = str(n)
+        if len(ns) > 2 and ns.lower() in ql:
+            target = ns
+            break
+
+    # Prima le intenzioni legate a un nodo bersaglio: l'id del nodo può contenere
+    # parole chiave di listing (es. "spec.md" contiene "spec"), quindi vanno controllate
+    # prima delle domande generiche di elenco.
+    if target and any(k in ql for k in ("impatt", "impact", "cosa cambia", "dipende")):
+        rings, visited, frontier = [[target]], {target}, {target}
+        for _ in range(2):
+            nxt: set[str] = set()
+            for nd in frontier:
+                nxt |= (set(graph.successors(nd)) | set(graph.predecessors(nd))) - visited
+            if not nxt:
+                break
+            visited |= nxt
+            rings.append(sorted(nxt))
+            frontier = nxt
+        return {"intent": "impatto", "target": target, "rings": rings, "count": len(visited) - 1}
+    if target and any(k in ql for k in ("relazion", "vincol", "menzion", "collega", "referenz", "implement", "archi")):
+        out_e = [{"relation": d.get("relation", ""), "to": v} for _, v, d in graph.out_edges(target, data=True)]
+        in_e = [{"relation": d.get("relation", ""), "from": u} for u, _, d in graph.in_edges(target, data=True)]
+        return {"intent": "relazioni", "target": target, "out": out_e, "in": in_e, "count": len(out_e) + len(in_e)}
+    if any(k in ql for k in ("documenti", "document", "spec", "contract")):
+        res = by_type("document")
+        return {"intent": "documenti", "answer": res, "count": len(res)}
+    if any(k in ql for k in ("entità", "entita", "entity", "glossario")):
+        res = by_type("entity")
+        return {"intent": "entità", "answer": res, "count": len(res)}
+    if any(k in ql for k in ("codice", "code", "funzion", "classe", "endpoint")):
+        res = by_type("code")
+        return {"intent": "codice", "answer": res, "count": len(res)}
+    if target:
+        neigh = sorted(set(graph.successors(target)) | set(graph.predecessors(target)))
+        return {"intent": "vicini", "target": target, "answer": neigh, "count": len(neigh)}
+    return {
+        "intent": "sconosciuto", "answer": [], "count": 0,
+        "suggerimenti": ["quali documenti esistono?", "quali entità?", "quale codice?",
+                         "relazioni di <NODO>", "cosa impatta <NODO>"],
+    }
 
 
 @app.get("/analysis", response_class=FileResponse, include_in_schema=False)

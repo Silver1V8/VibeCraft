@@ -267,11 +267,22 @@
               <div class="text-sm font-semibold text-slate-200">🧠 REASONS Canvas</div>
               <p class="text-xs text-slate-500 mt-0.5">Generato a partire da <code class="text-slate-400">explore.md</code>, con le 7 sezioni: Requirements, Entities, Approach, Structure, Operations, Norms, Safeguards.</p>
             </div>
-            <button id="canvas-generate-btn" onclick="generateCanvas()"
-              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed">
-              Genera Canvas
-            </button>
+            <div class="flex items-center gap-2 shrink-0">
+              <button id="canvas-dryrun-btn" onclick="runCanvasDryRun()"
+                class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50">
+                🔎 Dry-run
+              </button>
+              <button id="canvas-generate-btn" onclick="generateCanvas()"
+                class="rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                Genera Canvas
+              </button>
+            </div>
           </div>
+        </div>
+
+        <div id="dryrun-card" class="hidden rounded-xl bg-slate-900 border border-slate-800 p-4 shrink-0 fade-in">
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">🔎 Dry-run — sorgenti che userebbe il Canvas (nessun token speso)</div>
+          <div id="dryrun-body" class="text-xs text-slate-300"></div>
         </div>
 
         <div id="canvas-loader" class="hidden flex-col items-center justify-center gap-3 py-10">
@@ -347,12 +358,20 @@
         <div id="final-prompt-card" class="hidden rounded-xl bg-slate-900 border border-emerald-800 p-4 shrink-0 fade-in">
           <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <span class="text-xs font-semibold text-emerald-400 uppercase tracking-widest">🚀 Prompt finale per Claude Code / Cursor</span>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
+              <button id="agent-context-btn" onclick="loadAgentContext()" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">🧠 Agent Context</button>
+              <button onclick="exportBundle()" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">⬇️ Export JSON</button>
               <button onclick="goToStep(4)" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">➡️ Verifica Drift</button>
               <button onclick="copyFinalPrompt()" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">Copia</button>
             </div>
           </div>
           <pre id="final-prompt-box" class="text-xs text-emerald-200 whitespace-pre-wrap leading-relaxed bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-64 overflow-y-auto"></pre>
+          <div id="agent-context-wrap" class="hidden mt-3">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">🧠 [AGENT CONTEXT] · confidence <span id="agent-confidence" class="text-blue-400"></span></span>
+            </div>
+            <pre id="agent-context-box" class="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-72 overflow-y-auto"></pre>
+          </div>
 
           <!-- ── Esecuzione diretta con Claude Agent SDK ── -->
           <div class="mt-4 pt-4 border-t border-slate-800">
@@ -869,65 +888,82 @@
       }
     }
 
-    /* ──────────── STEP 4: VERIFICA DEL DRIFT ──────────── */
+    /* ──────────── CONSUMER NDJSON (streaming drift/archive) ──────────── */
+    async function consumeNdjson(res, onEvent) {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) { if (line.trim()) onEvent(JSON.parse(line)); }
+      }
+      if (buffer.trim()) onEvent(JSON.parse(buffer));
+    }
+
+    /* ──────────── STEP 4: VERIFICA DEL DRIFT (streaming) ──────────── */
     async function runDriftCheck() {
       if (!featureName) { alert('Carica prima la feature.'); return; }
       const btn = document.getElementById('drift-check-btn');
+      const box = document.getElementById('drift-report-box');
       btn.disabled = true;
       setPanelVisible('drift-loader', true);
-      document.getElementById('drift-report-card').classList.add('hidden');
-
+      box.textContent = '';
+      document.getElementById('drift-report-card').classList.remove('hidden');
       try {
-        const res = await fetch('/api/pipeline/drift/check', {
+        const res = await fetch('/api/pipeline/drift/check/stream', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ feature: featureName }),
         });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ detail: res.statusText }));
-          throw new Error(err.detail || `HTTP ${res.status}`);
-        }
-        const data = await res.json();
-        document.getElementById('drift-report-box').textContent = data.report || '(nessun report)';
-        document.getElementById('drift-report-card').classList.remove('hidden');
+        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(e.detail || `HTTP ${res.status}`); }
+        setPanelVisible('drift-loader', false);
+        await consumeNdjson(res, ev => {
+          if (ev.type === 'log') box.textContent += ev.line + '\n';
+          else if (ev.type === 'error') box.textContent += `\n❌ ${ev.message}\n`;
+          box.scrollTop = box.scrollHeight;
+        });
         markStepDone(4, 'verificato');
       } catch (e) {
-        document.getElementById('drift-report-box').textContent = `❌ Errore: ${e.message}`;
-        document.getElementById('drift-report-card').classList.remove('hidden');
+        box.textContent += `\n❌ Errore: ${e.message}`;
       } finally {
         btn.disabled = false;
         setPanelVisible('drift-loader', false);
       }
     }
 
-    /* ──────────── STEP 5: ARCHIVIAZIONE + RE-INDICIZZAZIONE ──────────── */
+    /* ──────────── STEP 5: ARCHIVIAZIONE + RE-INDICIZZAZIONE (streaming) ──────────── */
     async function runArchive() {
       if (!featureName) { alert('Carica prima la feature.'); return; }
       if (!confirm(`Archiviare la feature "${featureName}" e ricostruire il Graph RAG?\nLa cartella verrà spostata in changes/archive/ e l'operazione non è reversibile dall'interfaccia.`)) return;
 
       const btn = document.getElementById('archive-btn');
+      const box = document.getElementById('archive-report-box');
       btn.disabled = true;
       setPanelVisible('archive-loader', true);
-      document.getElementById('archive-report-card').classList.add('hidden');
-
+      box.textContent = '';
+      document.getElementById('archive-report-card').classList.remove('hidden');
       try {
-        const res = await fetch('/api/pipeline/archive', {
+        const res = await fetch('/api/pipeline/archive/stream', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ feature: featureName }),
         });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ detail: res.statusText }));
-          throw new Error(err.detail || `HTTP ${res.status}`);
-        }
-        const data = await res.json();
-        document.getElementById('archive-report-box').textContent = data.log || '(nessun log)';
-        document.getElementById('archive-report-card').classList.remove('hidden');
+        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(e.detail || `HTTP ${res.status}`); }
+        setPanelVisible('archive-loader', false);
+        await consumeNdjson(res, ev => {
+          if (ev.type === 'log') box.textContent += ev.line + '\n';
+          else if (ev.type === 'reloaded') box.textContent += '\n🔄 Indice ricaricato in memoria.\n';
+          else if (ev.type === 'error') box.textContent += `\n❌ ${ev.message}\n`;
+          box.scrollTop = box.scrollHeight;
+        });
         markStepDone(5, 'archiviato');
         await refreshFilesControl();
       } catch (e) {
-        document.getElementById('archive-report-box').textContent = `❌ Errore: ${e.message}`;
-        document.getElementById('archive-report-card').classList.remove('hidden');
+        box.textContent += `\n❌ Errore: ${e.message}`;
       } finally {
         btn.disabled = false;
         setPanelVisible('archive-loader', false);
@@ -946,6 +982,75 @@
         btn.textContent = 'Copia non riuscita';
         setTimeout(() => { btn.textContent = original; }, 1500);
       });
+    }
+
+    /* ──────────── DRY-RUN CANVAS (nessun token speso) ──────────── */
+    async function runCanvasDryRun() {
+      const name = getFeatureName();
+      if (!name) { document.getElementById('feature-name-input').focus(); return; }
+      featureName = name;
+      const btn = document.getElementById('canvas-dryrun-btn');
+      const card = document.getElementById('dryrun-card');
+      const body = document.getElementById('dryrun-body');
+      btn.disabled = true;
+      card.classList.remove('hidden');
+      body.innerHTML = '<span class="text-slate-500">Recupero sorgenti…</span>';
+      try {
+        const res = await fetch('/api/pipeline/canvas/dry-run', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ feature_name: featureName, dev_type: devType }),
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(e.detail || `HTTP ${res.status}`); }
+        const data = await res.json();
+        if (data.note) { body.innerHTML = `<span class="text-amber-400">${data.note}</span>`; return; }
+        const fmt = v => (v === null || v === undefined) ? '—' : (typeof v === 'number' ? v.toFixed(3) : v);
+        const src = (data.sources || []).map(s =>
+          `<div class="flex justify-between gap-2 border-b border-slate-800 py-1"><span class="font-mono truncate">${s.doc_id}</span><span class="font-mono text-slate-400 shrink-0">D ${fmt(s.dense_score)} · S ${fmt(s.sparse_score)} · CB ${fmt(s.colbert_score)} · A ${fmt(s.authority)}</span></div>`).join('') || '<span class="text-slate-500">nessuna sorgente</span>';
+        const gov = (data.governed_docs || []).map(g =>
+          `<span class="inline-block mr-2 mb-1 rounded border border-slate-700 px-2 py-0.5">${g.doc_id} <span class="text-blue-400">A ${fmt(g.authority)}</span> · ${g.chars} char</span>`).join('') || '<span class="text-slate-500">nessuno</span>';
+        body.innerHTML = `<div class="mb-2"><div class="text-slate-400 mb-1">Retrieval (ranking ibrido):</div>${src}</div>
+          <div><div class="text-slate-400 mb-1">Documenti normativi che verrebbero iniettati:</div>${gov}</div>`;
+      } catch (e) {
+        body.innerHTML = `<span class="text-red-400">❌ ${e.message}</span>`;
+      } finally { btn.disabled = false; }
+    }
+
+    /* ──────────── AGENT CONTEXT (blocco strutturato + confidence, Art. 1) ──────────── */
+    async function loadAgentContext() {
+      if (!featureName) { alert('Carica prima la feature.'); return; }
+      const btn = document.getElementById('agent-context-btn');
+      const wrap = document.getElementById('agent-context-wrap');
+      const box = document.getElementById('agent-context-box');
+      btn.disabled = true;
+      wrap.classList.remove('hidden');
+      box.textContent = '⏳ Costruzione del contesto…';
+      try {
+        const res = await fetch(`/api/pipeline/agent-context?feature=${encodeURIComponent(featureName)}&dev_type=${encodeURIComponent(devType)}`);
+        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(e.detail || `HTTP ${res.status}`); }
+        const data = await res.json();
+        document.getElementById('agent-confidence').textContent = `${data.confidence} (${data.confidence_label})`;
+        box.textContent = data.text || '(vuoto)';
+      } catch (e) {
+        box.textContent = `❌ Errore: ${e.message}`;
+      } finally { btn.disabled = false; }
+    }
+
+    /* ──────────── EXPORT JSON del design contract ──────────── */
+    async function exportBundle() {
+      if (!featureName) { alert('Carica prima la feature.'); return; }
+      try {
+        const res = await fetch(`/api/pipeline/export?feature=${encodeURIComponent(featureName)}&dev_type=${encodeURIComponent(devType)}`);
+        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(e.detail || `HTTP ${res.status}`); }
+        const data = await res.json();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `${data.feature_folder || 'feature'}.contract.json`;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        alert(`Errore export: ${e.message}`);
+      }
     }
 
     /* ──────────── SHARED: SAVE EDITED MD FILE ──────────── */

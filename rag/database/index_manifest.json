@@ -1,0 +1,15 @@
+{
+  "embedding_model": "BAAI/bge-m3",
+  "collection": "vibecraft_events",
+  "created_at": "2026-07-09T10:43:05.405686+00:00",
+  "documents": 5,
+  "graph_nodes": 145,
+  "graph_edges": 263,
+  "doc_hashes": {
+    "00_meta_governance/glossario_entita.md": "a82b0a4eb3d5983f79445ecc87d781fc5adc3e48a8ad8d50fc1379af702c00c7",
+    "00_meta_governance/matrice_permessi.md": "e3510015f9108f23af0ff925128111a65ba3c4a409f2e0d859d53ee2e42991a9",
+    "00_meta_governance/safeguards_security.md": "8f5d2730aedb12bb54e32658eb8a067055a6acdb946d041b305376bd26b41460",
+    "04_knowledge_informative/intent_synonym_mapping.md": "cc271dcea65c1c805e6d8576d8356d83f0cd78e7d3e6a244b118c2c4b9ce054d",
+    "04_knowledge_informative/vibe_coding_workflow.md": "b0e8c1d33637987628ed6f0fc715e99fd9f28ca43a1281ca9005d4a298fb90e4"
+  }
+}
