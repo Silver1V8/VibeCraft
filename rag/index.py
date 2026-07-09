@@ -4,9 +4,18 @@ import json
 import pickle
 import re
 import shutil
+import sys
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+
+# Su Windows lo stdout usa cp1252 quando l'output è rediretto (log/servizio) e le
+# emoji dei messaggi di stato lo farebbero crashare. Forza UTF-8 in modo robusto.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
 import networkx as nx
 import yaml

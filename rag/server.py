@@ -1,4 +1,5 @@
 import re
+import sys
 import json
 import time
 import yaml
@@ -7,6 +8,14 @@ import httpx
 import uvicorn
 import numpy as np
 import networkx as nx
+
+# Forza UTF-8 su stdout/stderr: le emoji dei log crasherebbero su console cp1252
+# (Windows) quando l'output è rediretto verso un file o un servizio.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
 from typing import Any
 from pathlib import Path
