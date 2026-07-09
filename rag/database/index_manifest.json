@@ -1,8 +1,8 @@
 {
   "embedding_model": "BAAI/bge-m3",
   "collection": "vibecraft_events",
-  "created_at": "2026-07-09T10:43:05.405686+00:00",
-  "documents": 5,
+  "created_at": "2026-07-09T12:44:43.232593+00:00",
+  "documents": 36,
   "graph_nodes": 145,
   "graph_edges": 263,
   "doc_hashes": {

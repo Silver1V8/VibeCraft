@@ -13,12 +13,17 @@ _CONFIG = yaml.safe_load((Path(__file__).resolve().parent / "rag_config.yaml").r
 MODEL_NAME = _CONFIG["llm_settings"]["models"].get("ollama", "qwen2.5:7b")
 
 def generate_canvas(feature_name):
+    # [DEPRECATO] Questo script CLI predata la pipeline web e NON è ancorato al Graph RAG.
+    print("⚠️  [DEPRECATO] canvas.py (CLI) non è ancorato al Graph RAG: il canvas generato")
+    print("    NON tiene conto di safeguard/glossario/matrice permessi recuperati dall'indice.")
+    print("    Per un design contract governato usa la pipeline web: avvia il server e apri /pipeline")
+    print("    (endpoint POST /api/pipeline/canvas/generate), oppure genera il canvas da lì.\n")
     print(f"🤖 Inizio generazione REASONS Canvas per: '{feature_name}'...")
-    
+
     # Calcoliamo il nome della cartella (es. "form eventi" -> "form-eventi")
     folder_name = feature_name.replace(' ', '-').lower()
     explore_path = f"changes/{folder_name}/explore.md"
-    
+
     # 1. Tentiamo di recuperare il log dell'intervista (Fase Explore)
     contesto_intervista = ""
     if os.path.exists(explore_path):
@@ -30,22 +35,20 @@ def generate_canvas(feature_name):
         print("💡 Procedo con la generazione basata solo sul titolo della feature.")
         contesto_intervista = "Nessun log di intervista dettagliato disponibile."
 
-    # Contesto di base del progetto (in futuro qui integrerete la ricerca su Qdrant/NetworkX)
-    contesto_progetto_base = "Contesto: Progetto PPA. Dominio richiesto @progettopa.it. Entità note: Utente, Evento."
+    # NB: rimosso il contesto hardcoded errato ("Progetto PPA / @progettopa.it"): iniettava
+    # informazioni di un altro progetto. Qui la CLI si basa solo sull'intervista; il contesto
+    # normativo governato (safeguard, glossario, ...) è disponibile solo nella pipeline web.
 
     # 2. Costruiamo il mega-prompt iniettando l'intervista reale
     prompt_strutturato = f"""
     Sei un Tech Lead expert. Il tuo compito è generare un REASONS Canvas in formato Markdown per la seguente feature: "{feature_name}".
-    
+
     Per definire la strategia tecnica, devi basarti PRIORITARIAMENTE sui requisiti e sui casi limite emersi durante l'intervista preliminare (Explore) riportata qui sotto:
-    
+
     --- INIZIO LOG INTERVISTA (EXPLORE) ---
     {contesto_intervista}
     --- FINE LOG INTERVISTA ---
-    
-    Informazioni generali di contesto del sistema:
-    {contesto_progetto_base}
-    
+
     Il REASONS Canvas generato DEVE contenere tassativamente queste 7 sezioni:
     1. Requirements (Cosa deve fare il modulo, estrapolato dall'intervista)
     2. Entities (Modelli di dominio coinvolti)

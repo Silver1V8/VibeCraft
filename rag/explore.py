@@ -12,6 +12,9 @@ _CONFIG = yaml.safe_load((Path(__file__).resolve().parent / "rag_config.yaml").r
 MODEL_NAME = _CONFIG["llm_settings"]["models"].get("ollama", "qwen2.5:7b")
 
 def run_explore(feature_name):
+    # [DEPRECATO] La CLI predata la pipeline web; quest'ultima è il flusso canonico e governato.
+    print("⚠️  [DEPRECATO] explore.py (CLI): per il flusso completo usa la pipeline web")
+    print("    (avvia il server e apri /pipeline).\n")
     print(f"🎙️ Avvio fase EXPLORE (Intervista) per: '{feature_name}'")
     print("💡 Parla con l'IA per definire i requisiti. Digita 'fine' per terminare e salvare l'intervista.\n")
     

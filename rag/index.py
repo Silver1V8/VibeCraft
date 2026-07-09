@@ -43,6 +43,10 @@ QDRANT_PATH = str(DATABASE_DIR / "qdrant_data")
 # storage JSON di Qdrant in modalità locale, ma indispensabili per il rerank
 # token-per-token dei candidati migliori.
 COLBERT_SAVE_PATH = DATABASE_DIR / "colbert.pkl"
+# Sidecar dei chunk: chunk_id -> {doc_id, section, text}. Il retrieval lavora sui
+# chunk (una sezione per punto), ma il testo dei chunk pertinenti va letto a runtime
+# per il governed context: lo teniamo qui invece che nel payload Qdrant (che resta snello).
+CHUNKS_SAVE_PATH = DATABASE_DIR / "chunks.pkl"
 # Snapshot dell'indicizzazione: modello, conteggi e hash dei documenti al momento
 # dell'indice, per rilevare quando docs/ è cambiato e l'indice è ormai "stale"
 # (il drift di indicizzazione descritto nell'articolo, distinto dal drift canvas↔codice).
@@ -138,6 +142,56 @@ def extract_entities(text: str) -> list[str]:
     """Trova tutte le entità racchiuse tra parentesi quadre, es. [UTENTE]."""
     return re.findall(r"\[(.*?)]", text)
 
+
+# Heading di livello 2 (## Sezione): unità naturale di chunking dei design contract.
+_H2_RE = re.compile(r"(?m)^##\s+(.+?)\s*$")
+
+
+def _slug(text: str, maxlen: int = 32) -> str:
+    s = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    return (s[:maxlen].strip("-") or "sez")
+
+
+def chunk_markdown(rel_path: str, metadata: dict, body: str) -> list[dict]:
+    """Divide un documento Markdown in chunk per sezione (heading di livello 2),
+    ancorando ogni chunk al titolo del documento (contesto del frontmatter).
+
+    Restituisce una lista di dict {chunk_id, doc_id, section, text} con id stabili
+    e leggibili nel formato `doc_id#NN-slug`. Se il documento non ha heading `##`,
+    diventa un unico chunk."""
+    title = str(metadata.get("title") or rel_path)
+    matches = list(_H2_RE.finditer(body))
+
+    sections: list[tuple[str, str]] = []
+    if not matches:
+        sections.append(("(documento)", body))
+    else:
+        preamble = body[: matches[0].start()].strip()
+        if preamble:
+            sections.append(("(preambolo)", preamble))
+        for i, m in enumerate(matches):
+            start = m.end()
+            end = matches[i + 1].start() if i + 1 < len(matches) else len(body)
+            sections.append((m.group(1).strip(), body[start:end].strip()))
+
+    chunks: list[dict] = []
+    for i, (heading, sec_body) in enumerate(sections):
+        if not sec_body.strip():
+            continue
+        # Testo per l'embedding: ancorato al documento (titolo) e alla sezione,
+        # così il chunk resta interpretabile fuori dal suo documento.
+        text = f"# {title}\n## {heading}\n{sec_body}"
+        chunks.append({
+            "chunk_id": f"{rel_path}#{i:02d}-{_slug(heading)}",
+            "doc_id": rel_path,
+            "section": heading,
+            "text": text,
+        })
+
+    if not chunks:  # fallback estremo: intero documento come singolo chunk
+        chunks.append({"chunk_id": f"{rel_path}#00-doc", "doc_id": rel_path, "section": "(documento)", "text": body})
+    return chunks
+
 def add_frontmatter_edges(G: nx.DiGraph, doc_node_id: str, metadata: dict) -> int:
     """
     Indicizza le relazioni tipizzate dichiarate nel frontmatter YAML
@@ -197,11 +251,11 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     )
 
     points: list[PointStruct] = []
-    texts_to_embed: list[str] = []
-    doc_metadata: list[tuple[str, str, dict]] = []
+    all_chunks: list[dict] = []
+    n_docs = 0
 
-    # Prima passata: costruisce il grafo e raccoglie i testi (scansione ricorsiva
-    # di tutti i formati indicizzabili: Markdown + eventuali Word/Excel/PDF/TXT).
+    # Prima passata: costruisce il grafo (a livello documento) e raccoglie i chunk
+    # (a livello sezione). Scansione ricorsiva di tutti i formati indicizzabili.
     all_docs = sorted(p for p in DOCS_DIR.rglob("*") if p.is_file() and p.suffix.lower() in DOC_EXTS)
     for filepath_obj in all_docs:
         rel_path = filepath_obj.relative_to(DOCS_DIR).as_posix()
@@ -213,6 +267,7 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
         doc_node_id = rel_path
         G.add_node(doc_node_id, type="document", **metadata)
 
+        # Le entità sono estratte dall'intero documento (il grafo resta a livello doc)
         entities = extract_entities(body)
         for entity in entities:
             G.add_node(entity, type="entity")
@@ -220,18 +275,22 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
 
         typed_edges = add_frontmatter_edges(G, doc_node_id, metadata)
 
-        texts_to_embed.append(body)
-        doc_metadata.append((doc_node_id, rel_path, metadata))
-        _log(f"  Analizzato: {rel_path} — {len(entities)} entità, {typed_edges} relazioni tipizzate")
+        # Il retrieval invece lavora sui chunk: una sezione per punto Qdrant
+        doc_chunks = chunk_markdown(rel_path, metadata, body)
+        for c in doc_chunks:
+            c["metadata"] = metadata
+        all_chunks.extend(doc_chunks)
+        n_docs += 1
+        _log(f"  Analizzato: {rel_path} — {len(entities)} entità, {len(doc_chunks)} chunk, {typed_edges} relazioni tipizzate")
 
-    # Seconda passata: vettorializza tutti i testi in un batch.
-    # Una sola forward pass di bge-m3 produce tutti e tre i tipi di vettore:
-    # dense (semantica), sparse (lessicale), colbert (token-per-token).
+    # Seconda passata: vettorializza tutti i chunk in un batch.
+    # Una sola forward pass di bge-m3 produce tutti e tre i tipi di vettore.
     colbert_store: dict[str, list] = {}
-    if texts_to_embed:
-        _log(f"\nVettorializzazione di {len(texts_to_embed)} documenti con {EMBEDDING_MODEL} (dense + sparse + colbert)...")
+    chunks_store: dict[str, dict] = {}
+    if all_chunks:
+        _log(f"\nVettorializzazione di {len(all_chunks)} chunk (da {n_docs} documenti) con {EMBEDDING_MODEL} (dense + sparse + colbert)...")
         output = embed_model.encode(
-            texts_to_embed,
+            [c["text"] for c in all_chunks],
             batch_size=12,
             max_length=8192,
             return_dense=True,
@@ -242,8 +301,8 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
         lexical_weights = output["lexical_weights"]
         colbert_vecs = output["colbert_vecs"]
 
-        for point_id, ((doc_node_id, filename, metadata), dense_vec, lex_w, col_vec) in enumerate(
-            zip(doc_metadata, dense_vecs, lexical_weights, colbert_vecs)
+        for point_id, (c, dense_vec, lex_w, col_vec) in enumerate(
+            zip(all_chunks, dense_vecs, lexical_weights, colbert_vecs)
         ):
             sparse_vec = SparseVector(
                 indices=[int(token_id) for token_id in lex_w.keys()],
@@ -253,23 +312,23 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
                 PointStruct(
                     id=point_id,
                     vector={"dense": dense_vec.tolist(), "sparse": sparse_vec},
-                    payload={"doc_id": doc_node_id, "filename": filename, **metadata},
+                    # doc_id = documento padre (nodo del grafo); chunk_id = chiave del retrieval
+                    payload={"chunk_id": c["chunk_id"], "doc_id": c["doc_id"], "section": c["section"], **c["metadata"]},
                 )
             )
             # fp16 per dimezzare l'occupazione su disco; il rerank riconverte al volo
-            colbert_store[doc_node_id] = col_vec.astype("float16")
+            colbert_store[c["chunk_id"]] = col_vec.astype("float16")
+            chunks_store[c["chunk_id"]] = {"doc_id": c["doc_id"], "section": c["section"], "text": c["text"]}
 
         qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
 
-        # Fase Codice: indicizza i simboli sotto code/ e li collega ai documenti
-        # con archi IMPLEMENTS (similarità semantica) e REFERENCES (entità citate),
-        # così il grafo copre anche l'implementazione, non solo la specifica.
+        # Fase Codice: indicizza i simboli sotto code/ e li collega al documento
+        # padre del chunk più simile (archi IMPLEMENTS) + REFERENCES verso le entità.
         try:
             from code_index import add_code_graph, collect_code_symbols
             code_symbols = collect_code_symbols(CODE_DIR)
-            n_code, n_impl = add_code_graph(
-                G, code_symbols, embed_model, [m[0] for m in doc_metadata], dense_vecs
-            )
+            parent_docs = [c["doc_id"] for c in all_chunks]  # padre allineato ai dense_vecs dei chunk
+            n_code, n_impl = add_code_graph(G, code_symbols, embed_model, parent_docs, dense_vecs)
             if n_code:
                 _log(f"🧩 Codice indicizzato: {n_code} simboli, {n_impl} archi IMPLEMENTS verso i documenti.")
             else:
@@ -277,16 +336,19 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
         except Exception as e:
             _log(f"⚠️ Indicizzazione del codice saltata: {e}")
 
-    # Salva il grafo e i multivettori ColBERT su disco
+    # Salva il grafo, i multivettori ColBERT e il sidecar dei chunk su disco
     with open(GRAPH_SAVE_PATH, "wb") as f:
         pickle.dump(G, f)
     with open(COLBERT_SAVE_PATH, "wb") as f:
         pickle.dump(colbert_store, f)
+    with open(CHUNKS_SAVE_PATH, "wb") as f:
+        pickle.dump(chunks_store, f)
 
     _log(f"\n✅ Grafo salvato in: {GRAPH_SAVE_PATH}")
     _log(f"✅ Multivettori ColBERT salvati in: {COLBERT_SAVE_PATH}")
+    _log(f"✅ Sidecar chunk salvato in: {CHUNKS_SAVE_PATH}")
     _log(f"📊 Grafo: {G.number_of_nodes()} nodi, {G.number_of_edges()} archi.")
-    _log(f"📦 Qdrant: {len(points)} documenti (dense + sparse) nella collection '{COLLECTION_NAME}'.")
+    _log(f"📦 Qdrant: {len(points)} chunk (da {n_docs} documenti) nella collection '{COLLECTION_NAME}'.")
 
     write_index_manifest(len(points), G.number_of_nodes(), G.number_of_edges())
     _log(f"🧾 Manifest indicizzazione salvato in: {INDEX_MANIFEST_PATH}")

@@ -12,6 +12,9 @@ _CONFIG = yaml.safe_load((Path(__file__).resolve().parent / "rag_config.yaml").r
 MODEL_NAME = _CONFIG["llm_settings"]["models"].get("ollama", "qwen2.5:7b")
 
 def generate_specs(feature_folder):
+    # [DEPRECATO] La CLI predata la pipeline web; quest'ultima è il flusso canonico e governato.
+    print("⚠️  [DEPRECATO] propose.py (CLI): per il flusso governato usa la pipeline web")
+    print("    (avvia il server e apri /pipeline, oppure POST /api/pipeline/propose/generate).\n")
     print(f"⚙️ Avvio fase PROPOSE per la cartella: 'changes/{feature_folder}'...")
     
     canvas_path = f"changes/{feature_folder}/canvas.md"

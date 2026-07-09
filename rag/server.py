@@ -42,6 +42,7 @@ CONFIG_PATH = RAG_DIR / "rag_config.yaml"
 DATABASE_DIR = RAG_DIR / "database"
 GRAPH_SAVE_PATH = DATABASE_DIR / "graph.pkl"
 COLBERT_SAVE_PATH = DATABASE_DIR / "colbert.pkl"
+CHUNKS_SAVE_PATH = DATABASE_DIR / "chunks.pkl"
 QDRANT_PATH = str(DATABASE_DIR / "qdrant_data")
 TEMPLATES_DIR = RAG_DIR / "templates"
 
@@ -67,6 +68,7 @@ OLLAMA_TIMEOUT_SECONDS = 900.0
 
 # ---------------------------------------------------------------------------
 # Stato globale del server (popolato durante il lifespan)
+# NB: accesso non protetto da lock — vedi nota HARDENING #3 in fondo al file.
 # ---------------------------------------------------------------------------
 state: dict = {
     "graph": None,
@@ -74,6 +76,7 @@ state: dict = {
     "embed_model": None,
     "rule_descriptions": {},
     "colbert_store": {},
+    "chunks": {},
 }
 
 
@@ -125,9 +128,17 @@ async def lifespan(application: FastAPI):
     if COLBERT_SAVE_PATH.exists():
         with open(COLBERT_SAVE_PATH, "rb") as f:
             state["colbert_store"] = pickle.load(f)
-        print(f"Multivettori ColBERT caricati: {len(state['colbert_store'])} documenti.")
+        print(f"Multivettori ColBERT caricati: {len(state['colbert_store'])} chunk.")
     else:
         print("Attenzione: colbert.pkl non trovato — rerank ColBERT disattivato. Riesegui 'python index.py'.")
+
+    # Sidecar dei chunk (chunk_id -> testo della sezione) per il governed context
+    if CHUNKS_SAVE_PATH.exists():
+        with open(CHUNKS_SAVE_PATH, "rb") as f:
+            state["chunks"] = pickle.load(f)
+        print(f"Chunk caricati: {len(state['chunks'])} sezioni.")
+    else:
+        print("Attenzione: chunks.pkl non trovato — governed context degradato. Riesegui 'python index.py'.")
 
     print("Caricamento descrizioni regole dai file spec...")
     state["rule_descriptions"] = load_rule_descriptions()
@@ -202,8 +213,15 @@ class ValidateRequest(BaseModel):
 # Funzioni di supporto
 # ---------------------------------------------------------------------------
 def _hit_doc_id(hit) -> str:
-    """Estrae in modo sicuro il doc_id da un punto Qdrant (payload può essere None)."""
+    """Estrae in modo sicuro il doc_id (documento padre) da un punto Qdrant."""
     return str((hit.payload or {}).get("doc_id", ""))
+
+
+def _hit_chunk_id(hit) -> str:
+    """Chiave del retrieval: chunk_id (una sezione). Fallback a doc_id per robustezza
+    verso indici legacy senza chunk (prima del chunking per sezione)."""
+    payload = hit.payload or {}
+    return str(payload.get("chunk_id") or payload.get("doc_id", ""))
 
 
 # Pesi di autorità per la ri-ponderazione delle sorgenti: i documenti normativi
@@ -282,45 +300,49 @@ def hybrid_search(question: str, top_k: int) -> list[dict]:
         limit=fetch_k,
     ).points
 
-    # Mappa doc_id -> payload (contiene status/classification dal frontmatter),
-    # per la ri-ponderazione per autorità dei candidati.
+    # Mappa chunk_id -> payload (contiene doc_id padre, section, status/classification),
+    # per risalire al documento e per la ri-ponderazione per autorità dei candidati.
     payload_by_id: dict[str, dict] = {}
     for h in list(dense_hits) + list(sparse_hits):
-        payload_by_id.setdefault(_hit_doc_id(h), h.payload or {})
+        payload_by_id.setdefault(_hit_chunk_id(h), h.payload or {})
 
-    # Fusione per somma delle posizioni (rank più basso = migliore).
-    # Un documento assente da una lista riceve una penalità pari a fetch_k+1.
-    dense_rank = {_hit_doc_id(h): i + 1 for i, h in enumerate(dense_hits)}
-    sparse_rank = {_hit_doc_id(h): i + 1 for i, h in enumerate(sparse_hits)}
-    dense_score = {_hit_doc_id(h): h.score for h in dense_hits}
-    sparse_score = {_hit_doc_id(h): h.score for h in sparse_hits}
+    # Fusione per somma delle posizioni sui CHUNK (rank più basso = migliore).
+    # Un chunk assente da una lista riceve una penalità pari a fetch_k+1.
+    dense_rank = {_hit_chunk_id(h): i + 1 for i, h in enumerate(dense_hits)}
+    sparse_rank = {_hit_chunk_id(h): i + 1 for i, h in enumerate(sparse_hits)}
+    dense_score = {_hit_chunk_id(h): h.score for h in dense_hits}
+    sparse_score = {_hit_chunk_id(h): h.score for h in sparse_hits}
 
     missing_penalty = fetch_k + 1
     candidates: dict[str, int] = {}
-    for doc_id in set(dense_rank) | set(sparse_rank):
-        candidates[doc_id] = dense_rank.get(doc_id, missing_penalty) + sparse_rank.get(doc_id, missing_penalty)
+    for chunk_id in set(dense_rank) | set(sparse_rank):
+        candidates[chunk_id] = dense_rank.get(chunk_id, missing_penalty) + sparse_rank.get(chunk_id, missing_penalty)
 
     fused = sorted(candidates.items(), key=lambda kv: kv[1])
 
-    # Rerank ColBERT (MaxSim): per ogni token della query prende la similarità
-    # massima con i token del documento, poi media. Precisione token-per-token.
+    # Rerank ColBERT (MaxSim) sul chunk: per ogni token della query prende la
+    # similarità massima con i token della sezione, poi media. Ogni risultato porta
+    # sia chunk_id (chiave del retrieval) sia doc_id (documento padre, nodo del grafo).
     results: list[dict] = []
-    for doc_id, fused_rank_sum in fused:
+    for chunk_id, fused_rank_sum in fused:
+        payload = payload_by_id.get(chunk_id, {})
         entry = {
-            "doc_id": doc_id,
-            "dense_rank": dense_rank.get(doc_id),
-            "sparse_rank": sparse_rank.get(doc_id),
-            "dense_score": round(dense_score[doc_id], 4) if doc_id in dense_score else None,
-            "sparse_score": round(sparse_score[doc_id], 4) if doc_id in sparse_score else None,
+            "chunk_id": chunk_id,
+            "doc_id": str(payload.get("doc_id") or chunk_id.split("#")[0]),
+            "section": payload.get("section", ""),
+            "dense_rank": dense_rank.get(chunk_id),
+            "sparse_rank": sparse_rank.get(chunk_id),
+            "dense_score": round(dense_score[chunk_id], 4) if chunk_id in dense_score else None,
+            "sparse_score": round(sparse_score[chunk_id], 4) if chunk_id in sparse_score else None,
             "fused_rank_sum": fused_rank_sum,
             "colbert_score": None,
             # Peso di autorità della sorgente (normativa vs informativa, attiva vs archiviata)
-            "authority": round(_authority_weight(payload_by_id.get(doc_id, {})), 3),
+            "authority": round(_authority_weight(payload), 3),
         }
-        doc_col = colbert_store.get(doc_id)
-        if doc_col is not None:
-            doc_col = np.asarray(doc_col, dtype=np.float32)
-            sim = colbert_q @ doc_col.T                    # [q_tokens x d_tokens]
+        chunk_col = colbert_store.get(chunk_id)
+        if chunk_col is not None:
+            chunk_col = np.asarray(chunk_col, dtype=np.float32)
+            sim = colbert_q @ chunk_col.T                  # [q_tokens x d_tokens]
             entry["colbert_score"] = round(float(sim.max(axis=1).mean()), 4)
         results.append(entry)
 
@@ -456,11 +478,14 @@ def slugify_feature(feature_name: str) -> str:
     return feature_name.strip().replace(" ", "-").lower()
 
 
-def call_ollama_generate(prompt: str) -> str:
-    """Chiama Ollama in modalità /api/generate (stessa modalità usata da explore/canvas/propose.py)."""
+async def call_ollama_generate(prompt: str) -> str:
+    """Chiama Ollama in modalità /api/generate in modo ASINCRONO (httpx.AsyncClient),
+    per non bloccare l'event loop di FastAPI durante le generazioni (che su CPU durano
+    minuti). Semantica, timeout ed error handling invariati rispetto alla versione sync."""
     data = {"model": PIPELINE_MODEL_NAME, "prompt": prompt, "stream": False}
     try:
-        response = httpx.post(PIPELINE_OLLAMA_URL, json=data, timeout=OLLAMA_TIMEOUT_SECONDS)
+        async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT_SECONDS) as client:
+            response = await client.post(PIPELINE_OLLAMA_URL, json=data)
         if response.status_code == 404:
             return f"[ERRORE OLLAMA]: Il modello '{PIPELINE_MODEL_NAME}' non è stato trovato. Esegui 'ollama pull {PIPELINE_MODEL_NAME}'."
         response.raise_for_status()
@@ -473,16 +498,15 @@ def call_ollama_generate(prompt: str) -> str:
         return f"[ERRORE GENERICO OLLAMA]: {str(e)}"
 
 
-def _select_governed_docs(question: str, top_k: int = 6, bfs_depth: int = 1,
-                          max_docs: int = 4, results: list | None = None) -> list[str]:
-    """Seleziona i documenti governati pertinenti (ricerca ibrida + espansione grafo),
-    ordinati per autorità con i seed recuperati per primi, e limitati a max_docs.
-    Se `results` è fornito, riusa quei punteggi invece di rifare la ricerca (usato dal
-    dry-run per non ri-vettorializzare la query due volte)."""
-    if state.get("graph") is None:
+def _select_governed_chunks(question: str, top_k: int = 10, max_chunks: int = 8,
+                            results: list | None = None) -> list[dict]:
+    """Seleziona i CHUNK governati più pertinenti (una sezione per elemento). Il ranking
+    ibrido è già ordinato per autorità×rilevanza; qui si filtra ai chunk il cui documento
+    padre è nel grafo e si prendono i primi `max_chunks`. Se `results` è fornito, riusa
+    quei punteggi invece di rifare la ricerca (dry-run/agent-context)."""
+    graph = state.get("graph")
+    if graph is None:
         return []
-    graph: nx.DiGraph = state["graph"]
-
     if results is None:
         if state.get("qdrant") is None or state.get("embed_model") is None:
             return []
@@ -491,52 +515,50 @@ def _select_governed_docs(question: str, top_k: int = 6, bfs_depth: int = 1,
         except Exception as exc:  # best-effort: il fallback è "nessun contesto"
             print(f"Attenzione: retrieval governato non riuscito: {exc}")
             return []
-
-    seed_nodes = [r["doc_id"] for r in results if r["doc_id"] in graph]
-    if not seed_nodes:
-        return []
-
-    expanded = bfs_expand(graph, seed_nodes, depth=max(bfs_depth, 1))
-
-    def _auth(d: str) -> float:
-        return _authority_weight(graph.nodes[d]) if d in graph else 0.0
-
-    # Prima i seed (recuperati, già ordinati per rilevanza), poi i documenti aggiunti
-    # dall'espansione BFS. Entrambi i gruppi per autorità decrescente.
-    seed_docs = list(dict.fromkeys(seed_nodes))
-    seed_seen = set(seed_docs)
-    expanded_docs = [
-        n for n in expanded
-        if n not in seed_seen and graph.nodes[n].get("type") == "document"
-    ]
-    ordered = sorted(seed_docs, key=_auth, reverse=True) + sorted(expanded_docs, key=_auth, reverse=True)
-    return ordered[:max_docs]
+    governed = [r for r in results if r.get("doc_id") in graph]
+    return governed[:max_chunks]
 
 
-def retrieve_governed_context(question: str, top_k: int = 6, bfs_depth: int = 1,
-                              max_docs: int = 4, max_chars_per_doc: int = 4000) -> str:
-    """Recupera dal Graph RAG il contesto normativo pertinente a una feature e ne serializza
-    i corpi (troncati) come testo da iniettare in Canvas/Propose/Validate. È il tassello che
-    àncora il design contract ai documenti governati invece che alla sola intervista."""
-    doc_ids = _select_governed_docs(question, top_k, bfs_depth, max_docs)
-    if not doc_ids:
+def _select_governed_docs(question: str, top_k: int = 10, max_docs: int = 4,
+                          results: list | None = None) -> list[str]:
+    """Documenti padre unici dei chunk governati, nell'ordine di rilevanza, limitati a
+    max_docs. Usato per gli elenchi di sorgenti (dry-run, [AGENT CONTEXT])."""
+    chunks = _select_governed_chunks(question, top_k=max(top_k, max_docs * 3),
+                                     max_chunks=max_docs * 4, results=results)
+    ordered_docs: list[str] = []
+    for r in chunks:
+        d = r["doc_id"]
+        if d not in ordered_docs:
+            ordered_docs.append(d)
+        if len(ordered_docs) >= max_docs:
+            break
+    return ordered_docs
+
+
+def retrieve_governed_context(question: str, top_k: int = 10, max_chunks: int = 8,
+                              max_chars_per_chunk: int = 3000) -> str:
+    """Recupera i CHUNK normativi pertinenti (le sezioni, non i documenti interi troncati)
+    e li serializza come testo per Canvas/Propose/Validate. Selezione dei chunk PRIMA, poi
+    eventuale cap leggero per chunk: niente più truncation-first del documento intero."""
+    chunks = _select_governed_chunks(question, top_k=top_k, max_chunks=max_chunks)
+    if not chunks:
         return ""
     graph: nx.DiGraph = state["graph"]
+    chunks_store: dict = state.get("chunks", {})
 
-    # Cap: ciascun documento troncato a max_chars_per_doc, per non saturare la finestra
-    # di contesto dell'LLM locale (i design contract normativi sono ampi).
     parts: list[str] = []
-    for doc_id in doc_ids:
-        doc_path = PROJECT_ROOT / "docs" / doc_id
-        if not doc_path.exists():
+    for r in chunks:
+        entry = chunks_store.get(r["chunk_id"])
+        if entry is None:
             continue
+        doc_id, section = r["doc_id"], r.get("section", "")
         attrs = graph.nodes[doc_id] if doc_id in graph else {}
         tag = attrs.get("classification") or attrs.get("status") or ""
-        header = f"--- Documento normativo: {doc_id}" + (f" [{tag}]" if tag else "") + " ---"
-        body = doc_path.read_text(encoding="utf-8")
-        if len(body) > max_chars_per_doc:
-            body = body[:max_chars_per_doc].rstrip() + "\n… [documento troncato per limiti di contesto] …"
-        parts.append(f"{header}\n{body}")
+        header = f"--- {doc_id} § {section}" + (f" [{tag}]" if tag else "") + " ---"
+        text = entry["text"]
+        if len(text) > max_chars_per_chunk:
+            text = text[:max_chars_per_chunk].rstrip() + "\n… [sezione troncata] …"
+        parts.append(f"{header}\n{text}")
 
     return "\n\n".join(parts)
 
@@ -794,7 +816,7 @@ async def pipeline_explore_turn(req: ExploreTurnRequest):
         f"la feature: {req.feature_name}.{scope_note} Fai domande brevi e mirate per sviscerare i casi limite.\n"
     )
     prompt = history + f"\nUtente: {req.user_input}\nRispondi in modo conciso:"
-    ai_response = call_ollama_generate(prompt)
+    ai_response = await call_ollama_generate(prompt)
     new_history = history + f"\nUtente: {req.user_input}\nIA: {ai_response}"
     return {"ai_response": ai_response, "history": new_history}
 
@@ -865,7 +887,7 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
     Rispondi esclusivamente con il contenuto del file Markdown, formattato in modo pulito.
     """
 
-    canvas_content = call_ollama_generate(prompt_strutturato)
+    canvas_content = await call_ollama_generate(prompt_strutturato)
     (folder / "canvas.md").write_text(canvas_content, encoding="utf-8")
     save_dev_type(folder, dev_type)
     return {"feature_folder": folder.name, "path": "canvas.md", "content": canvas_content}
@@ -914,7 +936,7 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest):
     Non inventare funzionalità non presenti nel Canvas o nei vincoli normativi.
     """
 
-    spec_content = call_ollama_generate(prompt_strutturato)
+    spec_content = await call_ollama_generate(prompt_strutturato)
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "spec.md").write_text(spec_content, encoding="utf-8")
     save_dev_type(folder, dev_type)
@@ -938,6 +960,9 @@ def _reload_index_state() -> None:
     if COLBERT_SAVE_PATH.exists():
         with open(COLBERT_SAVE_PATH, "rb") as f:
             state["colbert_store"] = pickle.load(f)
+    if CHUNKS_SAVE_PATH.exists():
+        with open(CHUNKS_SAVE_PATH, "rb") as f:
+            state["chunks"] = pickle.load(f)
     state["rule_descriptions"] = load_rule_descriptions()
     try:
         state["_graph_mtime"] = GRAPH_SAVE_PATH.stat().st_mtime
@@ -1046,9 +1071,10 @@ async def pipeline_archive_stream(req: ArchiveRequest):
 CANVAS_SECTIONS = ("Requirements", "Entities", "Approach", "Structure", "Operations", "Norms", "Safeguards")
 
 
-def _validate_feature(feature: str) -> dict:
+async def _validate_feature(feature: str) -> dict:
     """Validazione pre-apply: controlli strutturali deterministici su canvas/spec +
-    analisi LLM di coerenza e conflitti contro il contesto normativo del Graph RAG."""
+    analisi LLM di coerenza e conflitti contro il contesto normativo del Graph RAG.
+    Il retrieval (CPU) gira in threadpool, la chiamata Ollama (I/O) è async."""
     folder_name = slugify_feature(feature)
     folder = CHANGES_DIR / folder_name
     canvas_path = folder / "canvas.md"
@@ -1079,7 +1105,8 @@ def _validate_feature(feature: str) -> dict:
         return {"structural": structural, "report": "❌ canvas.md assente: genera prima il Canvas."}
 
     # 2. Analisi semantica: coerenza e conflitti rispetto al contesto normativo governato.
-    governed = retrieve_governed_context(f"{feature}\n{canvas_text[:2000]}")
+    #    Il retrieval è CPU-bound (embedding della query) → threadpool; l'LLM è I/O → async.
+    governed = await run_in_threadpool(retrieve_governed_context, f"{feature}\n{canvas_text[:2000]}")
     prompt = f"""
     Sei un Revisore dell'Architettura. Verifica la COERENZA del design contract (Canvas + Spec)
     rispetto ai vincoli normativi del knowledge base, PRIMA che il codice venga scritto.
@@ -1099,7 +1126,7 @@ def _validate_feature(feature: str) -> dict:
     3. NON-GOAL: c'è qualcosa fuori ambito rispetto ai vincoli?
     Se tutto è coerente e coperto, rispondi con "✅ VALIDAZIONE SUPERATA. Design contract coerente con la governance."
     """
-    report = call_ollama_generate(prompt)
+    report = await call_ollama_generate(prompt)
     return {"structural": structural, "report": report}
 
 
@@ -1109,7 +1136,7 @@ async def pipeline_validate(req: ValidateRequest):
     spec) e coerenza semantica contro i vincoli normativi del Graph RAG, prima di lanciare Claude."""
     if not req.feature.strip():
         raise HTTPException(status_code=400, detail="Nome feature mancante.")
-    result = await run_in_threadpool(_validate_feature, req.feature)
+    result = await _validate_feature(req.feature)
     return {"feature_folder": slugify_feature(req.feature), **result}
 
 
@@ -1149,7 +1176,8 @@ async def pipeline_canvas_dry_run(req: CanvasGenerateRequest):
                 "chars": len(p.read_text(encoding="utf-8")) if p.exists() else 0,
             })
         sources = [
-            {"doc_id": r["doc_id"], "dense_score": r["dense_score"], "sparse_score": r["sparse_score"],
+            {"doc_id": r["doc_id"], "section": r.get("section", ""),
+             "dense_score": r["dense_score"], "sparse_score": r["sparse_score"],
              "colbert_score": r["colbert_score"], "authority": r["authority"]}
             for r in results
         ]
@@ -1254,8 +1282,9 @@ async def ask_rag(query: AskQuery):
             "qdrant_scores": [],
         }
 
-    # 3. Identifica i nodi seed nel grafo dai risultati della ricerca ibrida
-    seed_nodes = [r["doc_id"] for r in search_results if r["doc_id"] in graph]
+    # 3. Nodi seed nel grafo dai risultati (documenti padre dei chunk, deduplicati
+    #    preservando l'ordine di rilevanza).
+    seed_nodes = list(dict.fromkeys(r["doc_id"] for r in search_results if r["doc_id"] in graph))
 
     if not seed_nodes:
         return {
@@ -1307,26 +1336,36 @@ async def ask_rag(query: AskQuery):
     # context = "\n\n".join(context_parts)
     # =======================================================================
 
-    # === NUOVA LOGICA: EVOLUZIONE GRAPH RAG (Iniezione Documenti Espansi) ===
-    # Raccoglie i seed di Qdrant ed esplora i nodi della BFS per trovare documenti correlati (Multi-Hop)
-    documenti_da_leggere = set(seed_nodes)
-    for node_id in expanded_nodes:
-        if graph.nodes[node_id].get("type") == "document":
-            documenti_da_leggere.add(node_id)
-
-    # Legge e inietta il testo Markdown fluido di TUTTI i documenti collegati
+    # === INIEZIONE CHUNK-AWARE ===
+    # Inietta il testo delle SEZIONI recuperate (i chunk), non i documenti interi:
+    # più preciso e senza saturare il contesto. La struttura multi-hop del grafo
+    # (seed + nodi espansi) resta comunque esposta in graph_context.
+    chunks_store: dict = state.get("chunks", {})
     context_parts: list[str] = []
-    for doc_id in sorted(documenti_da_leggere):
-        doc_path = PROJECT_ROOT / "docs" / doc_id
-        if doc_path.exists():
-            with open(doc_path, "r", encoding="utf-8") as f:
-                context_parts.append(f"--- Inizio Documento: {doc_id} ---\n{f.read()}\n--- Fine Documento: {doc_id} ---")
+    seen_chunks: set[str] = set()
+    for r in search_results:
+        cid = r.get("chunk_id")
+        entry = chunks_store.get(cid) if cid else None
+        if entry is None or cid in seen_chunks:
+            continue
+        seen_chunks.add(cid)
+        context_parts.append(f"--- {r['doc_id']} § {r.get('section', '')} ---\n{entry['text']}")
+
+    # Fallback legacy: senza sidecar dei chunk, inietta i documenti seed interi
+    if not context_parts:
+        for doc_id in seed_nodes:
+            doc_path = PROJECT_ROOT / "docs" / doc_id
+            if doc_path.exists():
+                context_parts.append(f"--- Inizio Documento: {doc_id} ---\n{doc_path.read_text(encoding='utf-8')}\n--- Fine Documento: {doc_id} ---")
     context = "\n\n".join(context_parts)
     # -----------------------------------------------------------------------
 
-    # 5. Sintesi finale tramite LLM configurato
+    # 5. Sintesi finale tramite LLM configurato.
+    #    call_llm è multi-provider e sincrono (SDK anthropic/openai + httpx ollama): lo
+    #    eseguiamo in threadpool per non bloccare l'event loop. TODO: rendere async anche
+    #    il branch ollama di call_llm (gli SDK anthropic/openai restano sync → threadpool).
     start_time = time.time()
-    answer = call_llm(context, query.question)
+    answer = await run_in_threadpool(call_llm, context, query.question)
     end_time = time.time()
     
     elaborazione_secondi = round(end_time - start_time, 2)
@@ -1435,33 +1474,39 @@ async def graph_impact(node: str, depth: int = 3):
 
 @app.get("/api/graph/semantic-map")
 async def graph_semantic_map():
-    """Semantic Map: proietta i documenti in 2D per prossimità semantica (PCA via SVD
-    sui vettori densi bge-m3 in Qdrant), con community detection, rilevamento dei nodi
-    'ponte' (alta betweenness) e dei potenziali duplicati (alta similarità coseno tra
-    documenti non collegati). Nessuna dipendenza esterna oltre numpy/networkx."""
+    """Semantic Map: proietta i CHUNK (sezioni) in 2D per prossimità semantica (PCA via
+    SVD sui vettori densi bge-m3 in Qdrant). Le community e i nodi 'ponte' sono calcolati
+    a livello di documento padre (co-menzione di entità) e ereditati dai chunk; i duplicati
+    sono sezioni molto simili appartenenti a documenti diversi. Solo numpy/networkx."""
     _maybe_reload_graph()
     graph: nx.DiGraph = state["graph"]
     qdrant: QdrantClient = state["qdrant"]
     if graph is None or qdrant is None:
         raise HTTPException(status_code=503, detail="Grafo/Qdrant non inizializzati.")
 
-    # 1. Recupera i vettori densi dei documenti da Qdrant
+    # 1. Recupera i vettori densi dei chunk da Qdrant (chunk_id + documento padre)
     scrolled, _ = qdrant.scroll(
         collection_name=COLLECTION_NAME, limit=10000, with_vectors=True, with_payload=True
     )
-    ids: list[str] = []
+    chunk_ids: list[str] = []
+    parents: list[str] = []
+    sections: list[str] = []
     vecs: list = []
     for p in scrolled:
         vector = p.vector
         dense = vector.get("dense") if isinstance(vector, dict) else None
-        doc_id = (p.payload or {}).get("doc_id")
-        if dense is None or not doc_id:
+        payload = p.payload or {}
+        cid = payload.get("chunk_id") or payload.get("doc_id")
+        parent = payload.get("doc_id")
+        if dense is None or not cid or not parent:
             continue
-        ids.append(str(doc_id))
+        chunk_ids.append(str(cid))
+        parents.append(str(parent))
+        sections.append(str(payload.get("section", "")))
         vecs.append(dense)
 
-    if len(ids) < 2:
-        return {"points": [], "duplicates": [], "note": "Documenti insufficienti per la mappa."}
+    if len(chunk_ids) < 2:
+        return {"points": [], "duplicates": [], "note": "Chunk insufficienti per la mappa."}
 
     mat = np.asarray(vecs, dtype=np.float32)
 
@@ -1474,12 +1519,14 @@ async def graph_semantic_map():
     span[span == 0] = 1.0
     coords = coords / span
 
-    # 3. Grafo di co-menzione (documenti che condividono un'entità) per le community
+    # 3. Community & ponti a livello DOCUMENTO (co-menzione di entità nel grafo)
+    unique_docs = list(dict.fromkeys(parents))
     und = nx.Graph()
-    und.add_nodes_from(ids)
+    und.add_nodes_from(unique_docs)
     entity_to_docs: dict[str, list[str]] = {}
-    id_set = set(ids)
-    for doc_id in ids:
+    for doc_id in unique_docs:
+        if doc_id not in graph:
+            continue
         for succ in graph.successors(doc_id):
             if graph.nodes[succ].get("type") == "entity":
                 entity_to_docs.setdefault(succ, []).append(doc_id)
@@ -1499,29 +1546,34 @@ async def graph_semantic_map():
             for n in comm:
                 node_comm[n] = i
 
-    # 4. Nodi ponte (alta betweenness) e 5. duplicati (coseno alto, non collegati)
     betw = nx.betweenness_centrality(und) if und.number_of_nodes() > 2 else {}
-    n_bridges = max(1, len(ids) // 12)
+    n_bridges = max(1, len(unique_docs) // 6)
     bridges = set(sorted(betw, key=lambda k: betw[k], reverse=True)[:n_bridges]) if betw else set()
 
+    # Duplicati: sezioni molto simili (coseno ≥ 0.9) appartenenti a DOCUMENTI DIVERSI
+    # (le sezioni dello stesso documento sono naturalmente affini e non contano).
     norm = mat / (np.linalg.norm(mat, axis=1, keepdims=True) + 1e-8)
     sims = norm @ norm.T
     duplicates = []
-    for i in range(len(ids)):
-        for j in range(i + 1, len(ids)):
-            if sims[i, j] >= 0.9 and not und.has_edge(ids[i], ids[j]):
-                duplicates.append({"a": ids[i], "b": ids[j], "sim": round(float(sims[i, j]), 3)})
+    for i in range(len(chunk_ids)):
+        for j in range(i + 1, len(chunk_ids)):
+            if sims[i, j] >= 0.9 and parents[i] != parents[j]:
+                duplicates.append({"a": chunk_ids[i], "b": chunk_ids[j], "sim": round(float(sims[i, j]), 3)})
+    duplicates.sort(key=lambda d: d["sim"], reverse=True)
+    duplicates = duplicates[:50]
 
     points = [
         {
-            "id": ids[i],
+            "id": chunk_ids[i],
             "x": round(float(coords[i, 0]), 4),
             "y": round(float(coords[i, 1]), 4),
-            "community": node_comm.get(ids[i], -1),
-            "is_bridge": ids[i] in bridges,
-            "classification": graph.nodes[ids[i]].get("classification", "") if ids[i] in graph else "",
+            "community": node_comm.get(parents[i], -1),
+            "is_bridge": parents[i] in bridges,
+            "classification": graph.nodes[parents[i]].get("classification", "") if parents[i] in graph else "",
+            "doc_id": parents[i],
+            "section": sections[i],
         }
-        for i in range(len(ids))
+        for i in range(len(chunk_ids))
     ]
     return {"points": points, "duplicates": duplicates}
 
@@ -1592,5 +1644,31 @@ async def serve_analysis(request: Request):
     return FileResponse(_themed_template(request, "graph_analysis.html", "graph_analysis_classic.html"), media_type="text/html", headers=_NO_CACHE_HEADERS)
 
 
+# ---------------------------------------------------------------------------
+# HARDENING — rischi residui noti (da affrontare prima di un uso non locale)
+# ---------------------------------------------------------------------------
+# 1. QDRANT EMBEDDED: usiamo QdrantClient(path=...) con storage locale a LOCK
+#    ESCLUSIVO (un solo processo alla volta). Da qui derivano varie acrobazie:
+#    re-index in-process, iniezione di qdrant/embed_model, auto-reload su mtime.
+#    TODO: passare a Qdrant in server mode (docker: QdrantClient(url="http://...")):
+#    sparisce il lock, il re-index può girare in un processo separato, niente più
+#    conflitti di porta/lock come quelli visti nei test.
+# 2. BIND & AUTH: il server ascolta di default su 0.0.0.0 SENZA autenticazione, e
+#    /api/pipeline/agent/run in modalità 'agentic' SCRIVE file nel progetto. Chiunque
+#    sulla stessa rete può invocarlo. Host/porta sono ora configurabili via env
+#    (default invariato per non rompere il flusso attuale). TODO: default 127.0.0.1
+#    + token/API-key su tutti gli endpoint /api/* (dependency FastAPI).
+# 3. STATO GLOBALE NON PROTETTO: `state` è un dict globale che _maybe_reload_graph
+#    sostituisce mentre i thread del pool lo leggono. Oggi regge per il GIL e perché
+#    le sostituzioni sono atomiche (rebinding di riferimenti), ma è fragile per
+#    costruzione. TODO: un threading.RLock attorno a load/reload e alle letture di
+#    graph/qdrant/colbert/chunks, oppure uno snapshot immutabile scambiato atomicamente.
+# ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    import os
+    host = os.environ.get("VIBECRAFT_HOST", "0.0.0.0")  # TODO hardening: default a 127.0.0.1
+    port = int(os.environ.get("VIBECRAFT_PORT", "8000"))
+    if host == "0.0.0.0":
+        print("⚠️  Server in ascolto su 0.0.0.0 SENZA autenticazione (vedi note HARDENING in server.py). "
+              "Per uso solo locale: VIBECRAFT_HOST=127.0.0.1")
+    uvicorn.run(app, host=host, port=port)

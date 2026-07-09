@@ -9,6 +9,7 @@ __pycache__/
 rag/database/qdrant_data/
 rag/database/graph.pkl
 rag/database/colbert.pkl
+rag/database/chunks.pkl
 
 # Configurazione (Opzionale: escludilo se contiene chiavi API private OpenAI/Anthropic)
 # rag_config.yaml
