@@ -86,7 +86,7 @@ def add_frontmatter_edges(G: nx.DiGraph, doc_node_id: str, metadata: dict) -> in
 def build_graph_and_index() -> None:
     """Esegue l'indicizzazione completa (Fase 0 e Fase 4)."""
     print(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")
-    embed_model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=True)
+    embed_model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
 
     qdrant = QdrantClient(path=QDRANT_PATH)
     G = nx.DiGraph()

@@ -91,7 +91,7 @@ def load_rule_descriptions() -> dict[str, str]:
 async def lifespan(application: FastAPI):
     """Carica le risorse pesanti al boot e le libera allo shutdown."""
     print(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")
-    state["embed_model"] = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=True)
+    state["embed_model"] = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
 
     print("Connessione a Qdrant (storage locale)...")
     state["qdrant"] = QdrantClient(path=QDRANT_PATH)
@@ -315,12 +315,15 @@ def build_context(graph: nx.DiGraph, nodes: set[str]) -> str:
 
 
 def call_llm(context: str, question: str) -> str:
-    """Chiama il provider LLM configurato in rag_config.yaml."""
+    # BLINDATURA RIGIDA DEL DIZIONARIO DATI DEL PROMPT DI SISTEMA
     system_prompt = (
-        "Sei un assistente esperto del sistema HARO. "
-        "Rispondi alla domanda usando esclusivamente il contesto del file fornito. "
-        "Se il contesto non è sufficiente per rispondere, dillo esplicitamente."
+        "Sei l'Ispettore di Governance di VibeCraft.\n"
+        "Rispondi alle domande estraendo i contratti e i vincoli esatti.\n"
+        "DEVI citare esplicitamente i codici dei Safeguards (es. [SAFEGUARD-TXN-01]) e i vincoli SQL (es. SELECT ... FOR UPDATE).\n"
+        "[REGOLA-DIZIONARIO-RIGIDO]: È tassativamente ed espressamente vietato inventare o usare sinonimi colloquiali per le entità. "
+        "DEVI usare esclusivamente i termini in MAIUSCOLO estratti dal glossario (Usa EVENTO e mai 'Posto', usa RICHIESTA e mai 'Domanda')."
     )
+
     user_message = f"Contesto grafo:\n{context}\n\nDomanda: {question}"
 
     if LLM_PROVIDER == "anthropic":

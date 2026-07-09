@@ -10,7 +10,7 @@ llm_settings:
   models:
     anthropic: "claude-4-6-sonnet"
     openai: "gpt-4o"
-    ollama: "qwen2.5:14b" # o mistral/llama3
+    ollama: "qwen2.5:7b" # o mistral/llama3
 
 vector_database:
   provider: "qdrant"
