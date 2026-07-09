@@ -12,6 +12,7 @@ from typing import Any
 from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 from qdrant_client import QdrantClient
@@ -19,6 +20,7 @@ from qdrant_client.models import SparseVector
 from FlagEmbedding import BGEM3FlagModel
 
 from agent_bridge import AGENT_MODES, run_agent_streaming
+from index import archive_feature, check_drift
 
 # ---------------------------------------------------------------------------
 # Configurazione
@@ -170,6 +172,14 @@ class AgentRunRequest(BaseModel):
     prompt: str
     mode: str = "suggest"   # suggest | agentic | oneshot
     model: str = "sonnet"   # alias Claude: sonnet | opus | haiku
+
+
+class DriftCheckRequest(BaseModel):
+    feature: str
+
+
+class ArchiveRequest(BaseModel):
+    feature: str
 
 
 # ---------------------------------------------------------------------------
@@ -662,6 +672,46 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest):
         "content": spec_content,
         "final_prompt": final_prompt,
     }
+
+
+def _reload_index_state() -> None:
+    """Ricarica in memoria grafo, multivettori ColBERT e descrizioni regole dai file
+    appena rigenerati dalla re-indicizzazione, così che il server rifletta subito la
+    nuova base di conoscenza senza dover essere riavviato."""
+    with open(GRAPH_SAVE_PATH, "rb") as f:
+        state["graph"] = pickle.load(f)
+    if COLBERT_SAVE_PATH.exists():
+        with open(COLBERT_SAVE_PATH, "rb") as f:
+            state["colbert_store"] = pickle.load(f)
+    state["rule_descriptions"] = load_rule_descriptions()
+
+
+@app.post("/api/pipeline/drift/check")
+async def pipeline_drift_check(req: DriftCheckRequest):
+    """Step 4 — Verifica del Drift: confronta il canvas (contratto) con il codice
+    generato tramite LLM locale e restituisce il report. Equivale a 'index.py --check-drift'."""
+    if not req.feature.strip():
+        raise HTTPException(status_code=400, detail="Nome feature mancante.")
+    # La chiamata a Ollama è bloccante e potenzialmente lunga: la eseguiamo in un
+    # thread separato per non bloccare l'event loop del server.
+    report = await run_in_threadpool(check_drift, req.feature)
+    return {"feature_folder": slugify_feature(req.feature), "report": report}
+
+
+@app.post("/api/pipeline/archive")
+async def pipeline_archive(req: ArchiveRequest):
+    """Step 5 — Archiviazione e Re-indicizzazione: sposta changes/<feature> in
+    changes/archive/ e ricostruisce il Graph RAG locale. Equivale a 'index.py --archive',
+    ma riusa il modello di embedding e il client Qdrant già aperti dal server (necessario:
+    lo storage Qdrant locale è a lock esclusivo e non tollera un secondo processo)."""
+    if not req.feature.strip():
+        raise HTTPException(status_code=400, detail="Nome feature mancante.")
+    log = await run_in_threadpool(
+        archive_feature, req.feature, state["qdrant"], state["embed_model"]
+    )
+    # Rende visibile alla console Graph-RAG la base di conoscenza appena rigenerata.
+    _reload_index_state()
+    return {"feature_folder": slugify_feature(req.feature), "log": log}
 
 
 @app.get("/api/pipeline/status")

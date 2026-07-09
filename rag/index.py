@@ -1,6 +1,5 @@
 import argparse
 import json
-import os
 import pickle
 import re
 import shutil
@@ -41,6 +40,11 @@ with open(CONFIG_PATH, "r", encoding="utf-8") as _f:
 COLLECTION_NAME: str = config["vector_database"]["collection_name"]
 EMBEDDING_MODEL: str = config["vector_database"]["embedding_model"]
 DOCS_DIR: Path = PROJECT_ROOT / config["paths"]["docs_dir"].lstrip("./")
+# Cartelle della pipeline Explore -> Canvas -> Propose (percorsi assoluti: le
+# funzioni di drift/archiviazione vengono richiamate sia da CLI sia dal server,
+# quindi non possono dipendere dalla working directory corrente).
+CHANGES_DIR = PROJECT_ROOT / "changes"
+CODE_DIR = PROJECT_ROOT / "code"
 
 DENSE_DIM = 1024
 
@@ -83,12 +87,20 @@ def add_frontmatter_edges(G: nx.DiGraph, doc_node_id: str, metadata: dict) -> in
     return added
 
 
-def build_graph_and_index() -> None:
-    """Esegue l'indicizzazione completa (Fase 0 e Fase 4)."""
-    print(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")
-    embed_model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
+def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None) -> None:
+    """Esegue l'indicizzazione completa (Fase 0 e Fase 4).
 
-    qdrant = QdrantClient(path=QDRANT_PATH)
+    Le risorse pesanti (modello di embedding e client Qdrant) possono essere
+    iniettate dall'esterno: quando il server FastAPI innesca la re-indicizzazione
+    riusa quelle già caricate, evitando sia il ricaricamento del modello (minuti
+    di CPU) sia il doppio lock sullo storage locale di Qdrant (che è esclusivo).
+    """
+    own_qdrant = qdrant is None
+    if embed_model is None:
+        print(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")
+        embed_model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
+    if qdrant is None:
+        qdrant = QdrantClient(path=QDRANT_PATH)
     G = nx.DiGraph()
 
     # Ricrea la collection Qdrant da zero ad ogni indicizzazione
@@ -178,34 +190,58 @@ def build_graph_and_index() -> None:
     print(f"📊 Grafo: {G.number_of_nodes()} nodi, {G.number_of_edges()} archi.")
     print(f"📦 Qdrant: {len(points)} documenti (dense + sparse) nella collection '{COLLECTION_NAME}'.")
 
-    qdrant.close()
+    if own_qdrant:
+        qdrant.close()
 
-def check_drift(feature_name):
-    """Controlla se il codice generato si è discostato dalle specifiche del Canvas."""
+
+def _load_dev_type(feature_folder: str) -> str:
+    """Legge il tipo di sviluppo salvato in changes/<feature>/meta.json, se presente."""
+    meta_path = CHANGES_DIR / feature_folder / "meta.json"
+    if not meta_path.exists():
+        return ""
+    try:
+        return json.loads(meta_path.read_text(encoding="utf-8")).get("dev_type", "")
+    except Exception:
+        return ""
+
+
+def check_drift(feature_name: str) -> str:
+    """Controlla se il codice generato si è discostato dalle specifiche del Canvas.
+
+    Restituisce il report testuale (oltre a stamparlo su stdout), così da poterlo
+    mostrare anche nel box dedicato dell'interfaccia della pipeline, senza terminale.
+    """
     feature_folder = feature_name.replace(' ', '-').lower()
     print(f"\n🔍 Avvio controllo Drift (Disallineamento) per: 'changes/{feature_folder}'...")
 
-    canvas_path = f"changes/{feature_folder}/canvas.md"
+    canvas_path = CHANGES_DIR / feature_folder / "canvas.md"
 
-    if not os.path.exists(canvas_path):
-        print(f"❌ Errore: Non trovo il file {canvas_path}.")
-        return
+    if not canvas_path.exists():
+        msg = f"❌ Errore: Non trovo il file {canvas_path}."
+        print(msg)
+        return msg
 
-    with open(canvas_path, "r", encoding="utf-8") as f:
-        canvas_content = f.read()
+    canvas_content = canvas_path.read_text(encoding="utf-8")
+
+    # Raccoglie il codice da confrontare: sia dall'eventuale codice presente nella
+    # cartella della feature, sia dalla sottocartella code/<dev_type> dove Claude
+    # Code scrive di fatto l'implementazione (il tipo di sviluppo è in meta.json).
+    code_exts = ('.js', '.ts', '.tsx', '.py', '.html', '.css')
+    search_dirs = [CHANGES_DIR / feature_folder]
+    dev_type = _load_dev_type(feature_folder)
+    if dev_type:
+        search_dirs.append(CODE_DIR / dev_type)
 
     codice_generato = ""
-    folder_path = f"changes/{feature_folder}"
-
-    for root, dirs, files in os.walk(folder_path):
-        for file in files:
-            if file.endswith(('.js', '.ts', '.tsx', '.py', '.html', '.css')):
-                file_path = os.path.join(root, file)
-                with open(file_path, "r", encoding="utf-8") as code_file:
-                    codice_generato += f"\n--- FILE: {file} ---\n{code_file.read()}\n"
+    for base in search_dirs:
+        if not base.exists():
+            continue
+        for path in sorted(base.rglob("*")):
+            if path.is_file() and path.suffix in code_exts:
+                codice_generato += f"\n--- FILE: {path.name} ---\n{path.read_text(encoding='utf-8')}\n"
 
     if not codice_generato:
-        print("⚠️ Attenzione: Nessun file di codice sorgente trovato nella cartella. Cursor ha scritto il codice?")
+        print("⚠️ Attenzione: Nessun file di codice sorgente trovato. Claude Code / Cursor ha già scritto il codice?")
 
     prompt_drift = f"""
     Sei un Revisore del Codice esperto.
@@ -215,7 +251,7 @@ def check_drift(feature_name):
     {canvas_content}
 
     --- CODICE GENERATO ---
-    {codice_generato}
+    {codice_generato if codice_generato else "(Nessun file di codice sorgente trovato.)"}
 
     Rispondi in modo conciso indicando:
     1. Se il codice rispetta le entità e i vincoli del Canvas (SI/NO).
@@ -228,40 +264,59 @@ def check_drift(feature_name):
     req = urllib.request.Request(OLLAMA_URL, data=json.dumps(data).encode("utf-8"), headers={"Content-Type": "application/json"})
 
     try:
-        with urllib.request.urlopen(req) as response:
+        # Timeout esplicito: senza, una richiesta appesa bloccherebbe il thread del
+        # server che esegue il controllo (le generazioni su CPU possono durare minuti).
+        with urllib.request.urlopen(req, timeout=900) as response:
             result = json.loads(response.read().decode())
-            print("\n" + "=" * 50)
-            print("📊 REPORT DRIFT:")
-            print(result.get("response", "Errore nella valutazione."))
-            print("=" * 50 + "\n")
+            report = result.get("response", "Errore nella valutazione.")
     except Exception as e:
-        print(f"❌ Errore durante il check drift: {e}")
+        report = f"❌ Errore durante il check drift: {e}"
 
-def archive_feature(feature_name):
-    """Sposta la cartella in 'archive' e innesca la re-indicizzazione."""
+    print("\n" + "=" * 50)
+    print("📊 REPORT DRIFT:")
+    print(report)
+    print("=" * 50 + "\n")
+    return report
+
+
+def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_model=None) -> str:
+    """Sposta la cartella in 'archive' e innesca la re-indicizzazione.
+
+    Restituisce il log testuale dell'operazione (oltre a stamparlo). Le risorse
+    pesanti possono essere iniettate dal server per riusare modello e client Qdrant
+    già aperti, evitando il ricaricamento e il doppio lock sullo storage Qdrant.
+    """
+    lines: list[str] = []
+
+    def log(msg: str) -> None:
+        print(msg)
+        lines.append(msg)
+
     feature_folder = feature_name.replace(' ', '-').lower()
-    print(f"\n📦 Avvio archiviazione per la feature: '{feature_folder}'...")
+    log(f"\n📦 Avvio archiviazione per la feature: '{feature_folder}'...")
 
-    source_dir = f"changes/{feature_folder}"
-    archive_base_dir = "changes/archive"
-    target_dir = f"{archive_base_dir}/{feature_folder}"
+    source_dir = CHANGES_DIR / feature_folder
+    archive_base_dir = CHANGES_DIR / "archive"
+    target_dir = archive_base_dir / feature_folder
 
-    if not os.path.exists(source_dir):
-        print(f"❌ Errore: La cartella {source_dir} non esiste. Non c'è nulla da archiviare.")
-        return
+    if not source_dir.exists():
+        log(f"❌ Errore: La cartella {source_dir} non esiste. Non c'è nulla da archiviare.")
+        return "\n".join(lines)
 
-    os.makedirs(archive_base_dir, exist_ok=True)
+    archive_base_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        shutil.move(source_dir, target_dir)
-        print(f"✅ Feature archiviata con successo in: {target_dir}")
+        shutil.move(str(source_dir), str(target_dir))
+        log(f"✅ Feature archiviata con successo in: {target_dir}")
 
-        print("🔄 Innesco la re-indicizzazione del Graph RAG locale...")
-        build_graph_and_index()
-        print("✅ Re-indicizzazione completata! Il Graph RAG ha appreso la nuova feature.")
+        log("🔄 Innesco la re-indicizzazione del Graph RAG locale...")
+        build_graph_and_index(qdrant=qdrant, embed_model=embed_model)
+        log("✅ Re-indicizzazione completata! Il Graph RAG ha appreso la nuova feature.")
 
     except Exception as e:
-        print(f"❌ Errore durante l'archiviazione: {e}")
+        log(f"❌ Errore durante l'archiviazione: {e}")
+
+    return "\n".join(lines)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Gestore indicizzazione, Drift e Archiviazione Graph RAG")
