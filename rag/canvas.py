@@ -2,10 +2,15 @@ import sys
 import os
 import json
 import urllib.request
+from pathlib import Path
+
+import yaml
 
 # Usiamo 127.0.0.1 che su Mac è più stabile di localhost
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
-MODEL_NAME = "QWEN2.5:7b" # O il vostro modello di riferimento
+# Modello letto dalla configurazione condivisa, per non divergere da server.py/index.py
+_CONFIG = yaml.safe_load((Path(__file__).resolve().parent / "rag_config.yaml").read_text(encoding="utf-8"))
+MODEL_NAME = _CONFIG["llm_settings"]["models"].get("ollama", "qwen2.5:7b")
 
 def generate_canvas(feature_name):
     print(f"🤖 Inizio generazione REASONS Canvas per: '{feature_name}'...")

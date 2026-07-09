@@ -8,7 +8,7 @@ llm_settings:
   
   # Modelli specifici per provider
   models:
-    anthropic: "claude-4-6-sonnet"
+    anthropic: "claude-sonnet-5"
     openai: "gpt-4o"
     ollama: "qwen2.5:7b" # o mistral/llama3
 

@@ -20,7 +20,7 @@ from qdrant_client.models import SparseVector
 from FlagEmbedding import BGEM3FlagModel
 
 from agent_bridge import AGENT_MODES, run_agent_streaming
-from index import archive_feature, check_drift
+from index import archive_feature, check_drift, index_status
 
 # ---------------------------------------------------------------------------
 # Configurazione
@@ -182,12 +182,38 @@ class ArchiveRequest(BaseModel):
     feature: str
 
 
+class ValidateRequest(BaseModel):
+    feature: str
+
+
 # ---------------------------------------------------------------------------
 # Funzioni di supporto
 # ---------------------------------------------------------------------------
 def _hit_doc_id(hit) -> str:
     """Estrae in modo sicuro il doc_id da un punto Qdrant (payload può essere None)."""
     return str((hit.payload or {}).get("doc_id", ""))
+
+
+# Pesi di autorità per la ri-ponderazione delle sorgenti: i documenti normativi
+# (safeguard, policy di autorizzazione) devono contare più di quelli informativi,
+# e le sorgenti archiviate/deprecate devono contare meno di quelle attive.
+AUTHORITY_CLASS_WEIGHTS = {
+    "IRON_MEMORY": 1.0,
+    "AUTHORIZATION_POLICY": 0.9,
+    "DATA_DICTIONARY": 0.7,
+    "METHODOLOGY": 0.5,
+}
+
+
+def _authority_weight(attrs: dict) -> float:
+    """Peso di autorità in [0,1] a partire da 'classification' e 'status' del documento
+    (presenti sia nel payload Qdrant sia negli attributi del nodo del grafo)."""
+    classification = str(attrs.get("classification", "")).upper()
+    status = str(attrs.get("status", "")).upper()
+    base = AUTHORITY_CLASS_WEIGHTS.get(classification, 0.4)
+    if status in ("ARCHIVED", "DEPRECATED", "HISTORICAL", "OBSOLETE"):
+        base *= 0.3
+    return base
 
 
 def hybrid_search(question: str, top_k: int) -> list[dict]:
@@ -244,6 +270,12 @@ def hybrid_search(question: str, top_k: int) -> list[dict]:
         limit=fetch_k,
     ).points
 
+    # Mappa doc_id -> payload (contiene status/classification dal frontmatter),
+    # per la ri-ponderazione per autorità dei candidati.
+    payload_by_id: dict[str, dict] = {}
+    for h in list(dense_hits) + list(sparse_hits):
+        payload_by_id.setdefault(_hit_doc_id(h), h.payload or {})
+
     # Fusione per somma delle posizioni (rank più basso = migliore).
     # Un documento assente da una lista riceve una penalità pari a fetch_k+1.
     dense_rank = {_hit_doc_id(h): i + 1 for i, h in enumerate(dense_hits)}
@@ -270,6 +302,8 @@ def hybrid_search(question: str, top_k: int) -> list[dict]:
             "sparse_score": round(sparse_score[doc_id], 4) if doc_id in sparse_score else None,
             "fused_rank_sum": fused_rank_sum,
             "colbert_score": None,
+            # Peso di autorità della sorgente (normativa vs informativa, attiva vs archiviata)
+            "authority": round(_authority_weight(payload_by_id.get(doc_id, {})), 3),
         }
         doc_col = colbert_store.get(doc_id)
         if doc_col is not None:
@@ -278,9 +312,21 @@ def hybrid_search(question: str, top_k: int) -> list[dict]:
             entry["colbert_score"] = round(float(sim.max(axis=1).mean()), 4)
         results.append(entry)
 
-    # Ordinamento finale: ColBERT dove disponibile, altrimenti la fusione
+    # Ordinamento finale con un boost di autorità moderato: il punteggio di rilevanza
+    # (ColBERT dove disponibile, altrimenti la fusione) viene modulato in [0.6, 1.0]
+    # dal peso di autorità, così una fonte normativa risale rispetto a una informativa
+    # a parità di rilevanza, senza però stravolgere il ranking semantico.
+    def _authority_mult(r: dict) -> float:
+        return 0.6 + 0.4 * r["authority"]
+
     if any(r["colbert_score"] is not None for r in results):
-        results.sort(key=lambda r: r["colbert_score"] if r["colbert_score"] is not None else -1.0, reverse=True)
+        results.sort(
+            key=lambda r: (r["colbert_score"] if r["colbert_score"] is not None else -1.0) * _authority_mult(r),
+            reverse=True,
+        )
+    else:
+        # Nessun ColBERT: parte dalla fusione (rank più basso = migliore) e premia l'autorità
+        results.sort(key=lambda r: r["fused_rank_sum"] / _authority_mult(r))
 
     return results[:top_k]
 
@@ -413,6 +459,52 @@ def call_ollama_generate(prompt: str) -> str:
         return "[ERRORE DI TIMEOUT]: Ollama sta impiegando troppo tempo a rispondere."
     except Exception as e:
         return f"[ERRORE GENERICO OLLAMA]: {str(e)}"
+
+
+def retrieve_governed_context(question: str, top_k: int = 6, bfs_depth: int = 1) -> str:
+    """Recupera dal Graph RAG il contesto normativo pertinente a una feature — ricerca
+    ibrida, espansione sul grafo e lettura dei documenti, con le sorgenti ordinate per
+    autorità. È il tassello che àncora Canvas e Propose ai documenti governati (safeguard,
+    glossario, matrice permessi) invece che alla sola intervista. Restituisce '' se
+    l'indice non è ancora caricato o non emergono documenti pertinenti."""
+    if state.get("graph") is None or state.get("qdrant") is None or state.get("embed_model") is None:
+        return ""
+    graph: nx.DiGraph = state["graph"]
+
+    try:
+        results = hybrid_search(question, top_k)
+    except Exception as exc:  # best-effort: il fallback è "nessun contesto normativo"
+        print(f"Attenzione: retrieval governato non riuscito: {exc}")
+        return ""
+
+    seed_nodes = [r["doc_id"] for r in results if r["doc_id"] in graph]
+    if not seed_nodes:
+        return ""
+
+    expanded = bfs_expand(graph, seed_nodes, depth=max(bfs_depth, 1))
+    documents = set(seed_nodes)
+    for node_id in expanded:
+        if graph.nodes[node_id].get("type") == "document":
+            documents.add(node_id)
+
+    # Documenti in ordine di autorità decrescente: il più vincolante appare per primo
+    ordered = sorted(
+        documents,
+        key=lambda d: _authority_weight(graph.nodes[d]) if d in graph else 0.0,
+        reverse=True,
+    )
+
+    parts: list[str] = []
+    for doc_id in ordered:
+        doc_path = PROJECT_ROOT / "docs" / doc_id
+        if not doc_path.exists():
+            continue
+        attrs = graph.nodes[doc_id] if doc_id in graph else {}
+        tag = attrs.get("classification") or attrs.get("status") or ""
+        header = f"--- Documento normativo: {doc_id}" + (f" [{tag}]" if tag else "") + " ---"
+        parts.append(f"{header}\n{doc_path.read_text(encoding='utf-8')}")
+
+    return "\n\n".join(parts)
 
 
 def feature_dir(feature_name: str) -> Path:
@@ -589,7 +681,13 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
     else:
         contesto_intervista = "Nessun log di intervista dettagliato disponibile."
 
-    contesto_progetto_base = "Contesto: Progetto PPA. Dominio richiesto @progettopa.it. Entità note: Utente, Evento."
+    # Àncora il Canvas al knowledge base governato: recupera dal Graph RAG i documenti
+    # normativi pertinenti (safeguard, glossario, matrice permessi), pesati per autorità,
+    # invece di affidarsi a un contesto statico scritto a mano.
+    governed_context = await run_in_threadpool(
+        retrieve_governed_context, f"{req.feature_name}\n{contesto_intervista[:2000]}"
+    )
+    contesto_progetto_base = governed_context or "Nessun documento normativo pertinente recuperato dal Graph RAG."
 
     dev_type = req.dev_type or load_dev_type(folder)
     scope_note = (
@@ -609,7 +707,9 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
     {contesto_intervista}
     --- FINE LOG INTERVISTA ---
 
-    Informazioni generali di contesto del sistema:
+    Contesto normativo recuperato dal Graph RAG (ordinato per autorità: rispetta TASSATIVAMENTE
+    i safeguard, i vincoli della matrice permessi e i termini del glossario riportati qui sotto;
+    non contraddirli e riusa i loro codici/entità nelle sezioni Entities, Norms e Safeguards):
     {contesto_progetto_base}{scope_note}
 
     Il REASONS Canvas generato DEVE contenere tassativamente queste 7 sezioni:
@@ -643,20 +743,34 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest):
     canvas_content = canvas_path.read_text(encoding="utf-8")
     dev_type = req.dev_type or load_dev_type(folder)
 
+    # Recupera i vincoli normativi dal Graph RAG per generare scenari BDD che coprano
+    # anche i safeguard e le policy pertinenti, non solo ciò che è nel Canvas.
+    governed_context = await run_in_threadpool(
+        retrieve_governed_context, f"{req.feature_folder}\n{canvas_content[:2000]}"
+    )
+    norme_block = (
+        f"\n\n    Vincoli normativi dal Graph RAG (definisci scenari GIVEN/WHEN/THEN che li verifichino "
+        f"esplicitamente, es. tentativi non autorizzati, casi di errore e invarianti dei safeguard):\n"
+        f"    {governed_context}"
+        if governed_context else ""
+    )
+
     prompt_strutturato = f"""
     Sei un Analista Software esperto in metodologie BDD (Behavior-Driven Development).
     Leggi questo REASONS Canvas:
 
     {canvas_content}
+{norme_block}
 
-    Basandoti ESCLUSIVAMENTE sulle regole e sui requisiti scritti qui sopra, scrivi il file delle specifiche tecniche (spec.md).
+    Basandoti sulle regole e sui requisiti del Canvas (e sui vincoli normativi qui sopra, se presenti),
+    scrivi il file delle specifiche tecniche (spec.md).
     Devi definire gli scenari di test utilizzando rigorosamente il formato:
     - GIVEN (Dato che...)
     - WHEN (Quando...)
     - THEN (Allora...)
     - AND (E...)
 
-    Non inventare funzionalità non presenti nel Canvas.
+    Non inventare funzionalità non presenti nel Canvas o nei vincoli normativi.
     """
 
     spec_content = call_ollama_generate(prompt_strutturato)
@@ -712,6 +826,83 @@ async def pipeline_archive(req: ArchiveRequest):
     # Rende visibile alla console Graph-RAG la base di conoscenza appena rigenerata.
     _reload_index_state()
     return {"feature_folder": slugify_feature(req.feature), "log": log}
+
+
+CANVAS_SECTIONS = ("Requirements", "Entities", "Approach", "Structure", "Operations", "Norms", "Safeguards")
+
+
+def _validate_feature(feature: str) -> dict:
+    """Validazione pre-apply: controlli strutturali deterministici su canvas/spec +
+    analisi LLM di coerenza e conflitti contro il contesto normativo del Graph RAG."""
+    folder_name = slugify_feature(feature)
+    folder = CHANGES_DIR / folder_name
+    canvas_path = folder / "canvas.md"
+    spec_path = folder / "spec.md"
+
+    canvas_text = canvas_path.read_text(encoding="utf-8") if canvas_path.exists() else ""
+    spec_text = spec_path.read_text(encoding="utf-8") if spec_path.exists() else ""
+
+    # 1. Controlli strutturali deterministici (nessun LLM).
+    canvas_lower = canvas_text.lower()
+    spec_upper = spec_text.upper()
+    sezioni_canvas = {sec: (sec.lower() in canvas_lower) for sec in CANVAS_SECTIONS}
+    bdd_given = "GIVEN" in spec_upper
+    bdd_when = "WHEN" in spec_upper
+    bdd_then = "THEN" in spec_upper
+    structural = {
+        "canvas_presente": bool(canvas_text),
+        "spec_presente": bool(spec_text),
+        "sezioni_canvas": sezioni_canvas,
+        "bdd_given": bdd_given,
+        "bdd_when": bdd_when,
+        "bdd_then": bdd_then,
+        "canvas_completo": all(sezioni_canvas.values()),
+        "spec_bdd_valida": bdd_given and bdd_when and bdd_then,
+    }
+
+    if not canvas_text:
+        return {"structural": structural, "report": "❌ canvas.md assente: genera prima il Canvas."}
+
+    # 2. Analisi semantica: coerenza e conflitti rispetto al contesto normativo governato.
+    governed = retrieve_governed_context(f"{feature}\n{canvas_text[:2000]}")
+    prompt = f"""
+    Sei un Revisore dell'Architettura. Verifica la COERENZA del design contract (Canvas + Spec)
+    rispetto ai vincoli normativi del knowledge base, PRIMA che il codice venga scritto.
+
+    --- CANVAS ---
+    {canvas_text}
+
+    --- SPEC (scenari BDD) ---
+    {spec_text if spec_text else "(spec.md non ancora generato)"}
+
+    --- VINCOLI NORMATIVI (Graph RAG, ordinati per autorità) ---
+    {governed if governed else "(nessun documento normativo recuperato)"}
+
+    Rispondi in modo conciso indicando:
+    1. CONFLITTI: il Canvas/Spec viola o contraddice qualche safeguard, policy o termine di glossario? (SI/NO + quali)
+    2. COPERTURA: gli scenari BDD coprono i casi di errore e le invarianti dei safeguard pertinenti? Cosa manca?
+    3. NON-GOAL: c'è qualcosa fuori ambito rispetto ai vincoli?
+    Se tutto è coerente e coperto, rispondi con "✅ VALIDAZIONE SUPERATA. Design contract coerente con la governance."
+    """
+    report = call_ollama_generate(prompt)
+    return {"structural": structural, "report": report}
+
+
+@app.post("/api/pipeline/validate")
+async def pipeline_validate(req: ValidateRequest):
+    """Step di validazione pre-apply: verifica strutturale (7 sezioni del Canvas, BDD nella
+    spec) e coerenza semantica contro i vincoli normativi del Graph RAG, prima di lanciare Claude."""
+    if not req.feature.strip():
+        raise HTTPException(status_code=400, detail="Nome feature mancante.")
+    result = await run_in_threadpool(_validate_feature, req.feature)
+    return {"feature_folder": slugify_feature(req.feature), **result}
+
+
+@app.get("/api/index/status")
+async def api_index_status():
+    """Segnala se l'indice Graph RAG è aggiornato rispetto ai documenti in docs/ (drift di
+    indicizzazione): confronta gli hash correnti con lo snapshot salvato dall'ultima build."""
+    return await run_in_threadpool(index_status)
 
 
 @app.get("/api/pipeline/status")

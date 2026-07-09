@@ -1,9 +1,11 @@
 import argparse
+import hashlib
 import json
 import pickle
 import re
 import shutil
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 import networkx as nx
@@ -32,6 +34,10 @@ QDRANT_PATH = str(DATABASE_DIR / "qdrant_data")
 # storage JSON di Qdrant in modalità locale, ma indispensabili per il rerank
 # token-per-token dei candidati migliori.
 COLBERT_SAVE_PATH = DATABASE_DIR / "colbert.pkl"
+# Snapshot dell'indicizzazione: modello, conteggi e hash dei documenti al momento
+# dell'indice, per rilevare quando docs/ è cambiato e l'indice è ormai "stale"
+# (il drift di indicizzazione descritto nell'articolo, distinto dal drift canvas↔codice).
+INDEX_MANIFEST_PATH = DATABASE_DIR / "index_manifest.json"
 
 # Carica configurazione globale
 with open(CONFIG_PATH, "r", encoding="utf-8") as _f:
@@ -190,8 +196,60 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None) 
     print(f"📊 Grafo: {G.number_of_nodes()} nodi, {G.number_of_edges()} archi.")
     print(f"📦 Qdrant: {len(points)} documenti (dense + sparse) nella collection '{COLLECTION_NAME}'.")
 
+    write_index_manifest(len(points), G.number_of_nodes(), G.number_of_edges())
+    print(f"🧾 Manifest indicizzazione salvato in: {INDEX_MANIFEST_PATH}")
+
     if own_qdrant:
         qdrant.close()
+
+
+def _docs_hashes() -> dict[str, str]:
+    """Calcola l'hash SHA-256 di ogni documento in docs/ (chiave = percorso relativo)."""
+    hashes: dict[str, str] = {}
+    for filepath_obj in sorted(DOCS_DIR.rglob("*.md")):
+        rel_path = filepath_obj.relative_to(DOCS_DIR).as_posix()
+        hashes[rel_path] = hashlib.sha256(filepath_obj.read_bytes()).hexdigest()
+    return hashes
+
+
+def write_index_manifest(points_count: int, nodes: int = 0, edges: int = 0) -> None:
+    """Persiste lo snapshot dell'indice (config modello, conteggi, hash dei documenti)."""
+    manifest = {
+        "embedding_model": EMBEDDING_MODEL,
+        "collection": COLLECTION_NAME,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "documents": points_count,
+        "graph_nodes": nodes,
+        "graph_edges": edges,
+        "doc_hashes": _docs_hashes(),
+    }
+    INDEX_MANIFEST_PATH.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def index_status() -> dict:
+    """Confronta gli hash correnti di docs/ con quelli del manifest per dire se l'indice
+    è aggiornato o va rigenerato, elencando i documenti aggiunti/rimossi/modificati."""
+    if not INDEX_MANIFEST_PATH.exists():
+        return {"indexed": False, "stale": True, "reason": "manifest assente — indice mai costruito", "changed": []}
+    try:
+        manifest = json.loads(INDEX_MANIFEST_PATH.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return {"indexed": False, "stale": True, "reason": f"manifest illeggibile: {exc}", "changed": []}
+
+    old = manifest.get("doc_hashes", {})
+    new = _docs_hashes()
+    added = sorted(set(new) - set(old))
+    removed = sorted(set(old) - set(new))
+    modified = sorted(k for k in set(old) & set(new) if old[k] != new[k])
+    changed = [f"+ {p}" for p in added] + [f"- {p}" for p in removed] + [f"~ {p}" for p in modified]
+    return {
+        "indexed": True,
+        "stale": bool(changed),
+        "created_at": manifest.get("created_at"),
+        "embedding_model": manifest.get("embedding_model"),
+        "documents": manifest.get("documents"),
+        "changed": changed,
+    }
 
 
 def _load_dev_type(feature_folder: str) -> str:
@@ -322,13 +380,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Gestore indicizzazione, Drift e Archiviazione Graph RAG")
     parser.add_argument("--check-drift", type=str, metavar="FEATURE", help="Esegue il controllo drift per la feature specificata")
     parser.add_argument("--archive", type=str, metavar="FEATURE", help="Archivia la feature e re-indicizza il database")
-    
+    parser.add_argument("--index-status", action="store_true", help="Verifica se l'indice è aggiornato rispetto ai documenti in docs/")
+
     args = parser.parse_args()
 
     if args.check_drift:
         check_drift(args.check_drift)
     elif args.archive:
         archive_feature(args.archive)
+    elif args.index_status:
+        status = index_status()
+        print(json.dumps(status, ensure_ascii=False, indent=2))
     else:
         print("Avvio indicizzazione Fase 0 (Base)...\n")
         build_graph_and_index()

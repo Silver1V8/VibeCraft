@@ -879,6 +879,7 @@
         const short = (s.doc_id || '—').length > 36
           ? (s.doc_id || '—').substring(0, 34) + '…'
           : (s.doc_id || '—');
+        const fmt = v => (v === null || v === undefined) ? '—' : (typeof v === 'number' ? v.toFixed(3) : v);
         list.insertAdjacentHTML('beforeend', `
           <div class="group">
             <div class="flex justify-between items-center mb-1">
@@ -887,6 +888,12 @@
             </div>
             <div class="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
               <div class="score-bar h-full rounded-full bg-gradient-to-r from-blue-600 to-emerald-500" style="width:${pct}%"></div>
+            </div>
+            <div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-mono text-slate-500">
+              <span title="Dense (semantica)">D ${fmt(s.dense_score)}</span>
+              <span title="Sparse (lessicale)">S ${fmt(s.sparse_score)}</span>
+              <span title="ColBERT (token-per-token)">CB ${fmt(s.colbert_score)}</span>
+              <span title="Autorità della sorgente" class="text-blue-400">A ${fmt(s.authority)}</span>
             </div>
           </div>
         `);

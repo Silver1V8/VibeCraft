@@ -2,9 +2,14 @@ import sys
 import os
 import json
 import urllib.request
+from pathlib import Path
+
+import yaml
 
 OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
-MODEL_NAME = "Qwen2.5:7b" # O il modello che state usando
+# Modello letto dalla configurazione condivisa, per non divergere da server.py/index.py
+_CONFIG = yaml.safe_load((Path(__file__).resolve().parent / "rag_config.yaml").read_text(encoding="utf-8"))
+MODEL_NAME = _CONFIG["llm_settings"]["models"].get("ollama", "qwen2.5:7b")
 
 def generate_specs(feature_folder):
     print(f"⚙️ Avvio fase PROPOSE per la cartella: 'changes/{feature_folder}'...")
