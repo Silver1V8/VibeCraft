@@ -470,7 +470,8 @@ def call_ollama_generate(prompt: str) -> str:
         return f"[ERRORE GENERICO OLLAMA]: {str(e)}"
 
 
-def retrieve_governed_context(question: str, top_k: int = 6, bfs_depth: int = 1) -> str:
+def retrieve_governed_context(question: str, top_k: int = 6, bfs_depth: int = 1,
+                              max_docs: int = 4, max_chars_per_doc: int = 4000) -> str:
     """Recupera dal Graph RAG il contesto normativo pertinente a una feature — ricerca
     ibrida, espansione sul grafo e lettura dei documenti, con le sorgenti ordinate per
     autorità. È il tassello che àncora Canvas e Propose ai documenti governati (safeguard,
@@ -491,27 +492,36 @@ def retrieve_governed_context(question: str, top_k: int = 6, bfs_depth: int = 1)
         return ""
 
     expanded = bfs_expand(graph, seed_nodes, depth=max(bfs_depth, 1))
-    documents = set(seed_nodes)
-    for node_id in expanded:
-        if graph.nodes[node_id].get("type") == "document":
-            documents.add(node_id)
 
-    # Documenti in ordine di autorità decrescente: il più vincolante appare per primo
-    ordered = sorted(
-        documents,
-        key=lambda d: _authority_weight(graph.nodes[d]) if d in graph else 0.0,
-        reverse=True,
-    )
+    def _auth(d: str) -> float:
+        return _authority_weight(graph.nodes[d]) if d in graph else 0.0
 
+    # Candidati: prima i seed (recuperati, già ordinati per rilevanza), poi i
+    # documenti aggiunti dall'espansione BFS. Entrambi i gruppi per autorità
+    # decrescente, così il documento più vincolante appare per primo.
+    seed_docs = list(dict.fromkeys(seed_nodes))
+    seed_seen = set(seed_docs)
+    expanded_docs = [
+        n for n in expanded
+        if n not in seed_seen and graph.nodes[n].get("type") == "document"
+    ]
+    ordered = sorted(seed_docs, key=_auth, reverse=True) + sorted(expanded_docs, key=_auth, reverse=True)
+
+    # Cap: al massimo max_docs documenti, ciascuno troncato a max_chars_per_doc,
+    # per non saturare la finestra di contesto dell'LLM locale — i design contract
+    # normativi (es. i safeguard) sono ampi e uno solo può superare migliaia di token.
     parts: list[str] = []
-    for doc_id in ordered:
+    for doc_id in ordered[:max_docs]:
         doc_path = PROJECT_ROOT / "docs" / doc_id
         if not doc_path.exists():
             continue
         attrs = graph.nodes[doc_id] if doc_id in graph else {}
         tag = attrs.get("classification") or attrs.get("status") or ""
         header = f"--- Documento normativo: {doc_id}" + (f" [{tag}]" if tag else "") + " ---"
-        parts.append(f"{header}\n{doc_path.read_text(encoding='utf-8')}")
+        body = doc_path.read_text(encoding="utf-8")
+        if len(body) > max_chars_per_doc:
+            body = body[:max_chars_per_doc].rstrip() + "\n… [documento troncato per limiti di contesto] …"
+        parts.append(f"{header}\n{body}")
 
     return "\n\n".join(parts)
 
