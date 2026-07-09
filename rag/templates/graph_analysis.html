@@ -40,6 +40,10 @@
     button:hover { background: #0a2417; }
     .canvas-wrap { position: relative; }
     canvas { width: 100%; display: block; background: #010a05; border: 1px solid #0a2417; border-radius: 10px; }
+    /* Altezza CSS esplicita: senza, con width:100% il browser preserva l'aspect ratio
+       del bitmap e stira il canvas (i punti finiscono sparsi su un canvas altissimo). */
+    #map-canvas { height: 460px; }
+    #ripple-canvas { height: 480px; }
     .status { font-size: 11px; color: #4dbf6e; }
     .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; font-size: 11px; color: #a8f0c0; }
     .legend span { display: inline-flex; align-items: center; gap: 5px; }
