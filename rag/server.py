@@ -1077,6 +1077,10 @@ async def get_full_graph():
             "description": rule_descriptions.get(node_id, ""),
             # Pilastro REASONS di appartenenza (dal frontmatter YAML), per la colorazione cromatica del grafo
             "classification": attrs.get("classification", ""),
+            # Metadati dei nodi di codice (assenti sui documenti/entità)
+            "kind": attrs.get("kind", ""),
+            "file": attrs.get("file", ""),
+            "dev_type": attrs.get("dev_type", ""),
         }
         for node_id, attrs in graph.nodes(data=True)
     ]
@@ -1091,6 +1095,148 @@ async def get_full_graph():
     ]
 
     return {"nodes": nodes, "edges": edges}
+
+
+@app.get("/api/graph/impact")
+async def graph_impact(node: str, depth: int = 3):
+    """Impact Ripple: espansione BFS a cerchi concentrici da un nodo. Ogni 'ring' è
+    un livello di distanza (1 hop, 2 hop, ...). Risponde 'cosa viene impattato se
+    modifico questo nodo?' in modo deterministico (nessun LLM)."""
+    graph: nx.DiGraph = state["graph"]
+    if graph is None:
+        raise HTTPException(status_code=503, detail="Grafo non ancora inizializzato.")
+    if node not in graph:
+        raise HTTPException(status_code=404, detail=f"Nodo non presente nel grafo: {node}")
+
+    rings: list[list[str]] = [[node]]
+    visited: set[str] = {node}
+    frontier: set[str] = {node}
+    for _ in range(max(1, depth)):
+        nxt: set[str] = set()
+        for n in frontier:
+            neighbors = set(graph.successors(n)) | set(graph.predecessors(n))
+            nxt |= neighbors - visited
+        if not nxt:
+            break
+        visited |= nxt
+        rings.append(sorted(nxt))
+        frontier = nxt
+
+    ring_of = {n: i for i, ring in enumerate(rings) for n in ring}
+    nodes = [
+        {
+            "id": n,
+            "type": graph.nodes[n].get("type", "unknown"),
+            "kind": graph.nodes[n].get("kind", ""),
+            "classification": graph.nodes[n].get("classification", ""),
+            "ring": ring_of[n],
+        }
+        for n in visited
+    ]
+    edges = [
+        {"from": u, "to": v, "relation": d.get("relation", "")}
+        for u, v, d in graph.edges(data=True)
+        if u in visited and v in visited
+    ]
+    return {"center": node, "rings": [len(r) for r in rings], "nodes": nodes, "edges": edges}
+
+
+@app.get("/api/graph/semantic-map")
+async def graph_semantic_map():
+    """Semantic Map: proietta i documenti in 2D per prossimità semantica (PCA via SVD
+    sui vettori densi bge-m3 in Qdrant), con community detection, rilevamento dei nodi
+    'ponte' (alta betweenness) e dei potenziali duplicati (alta similarità coseno tra
+    documenti non collegati). Nessuna dipendenza esterna oltre numpy/networkx."""
+    graph: nx.DiGraph = state["graph"]
+    qdrant: QdrantClient = state["qdrant"]
+    if graph is None or qdrant is None:
+        raise HTTPException(status_code=503, detail="Grafo/Qdrant non inizializzati.")
+
+    # 1. Recupera i vettori densi dei documenti da Qdrant
+    scrolled, _ = qdrant.scroll(
+        collection_name=COLLECTION_NAME, limit=10000, with_vectors=True, with_payload=True
+    )
+    ids: list[str] = []
+    vecs: list = []
+    for p in scrolled:
+        vector = p.vector
+        dense = vector.get("dense") if isinstance(vector, dict) else None
+        doc_id = (p.payload or {}).get("doc_id")
+        if dense is None or not doc_id:
+            continue
+        ids.append(str(doc_id))
+        vecs.append(dense)
+
+    if len(ids) < 2:
+        return {"points": [], "duplicates": [], "note": "Documenti insufficienti per la mappa."}
+
+    mat = np.asarray(vecs, dtype=np.float32)
+
+    # 2. Proiezione 2D via PCA (SVD sui dati centrati)
+    centered = mat - mat.mean(axis=0)
+    _, _, vt = np.linalg.svd(centered, full_matrices=False)
+    coords = centered @ vt[:2].T
+    # Normalizza in [-1, 1] per il rendering
+    span = np.abs(coords).max(axis=0)
+    span[span == 0] = 1.0
+    coords = coords / span
+
+    # 3. Grafo di co-menzione (documenti che condividono un'entità) per le community
+    und = nx.Graph()
+    und.add_nodes_from(ids)
+    entity_to_docs: dict[str, list[str]] = {}
+    id_set = set(ids)
+    for doc_id in ids:
+        for succ in graph.successors(doc_id):
+            if graph.nodes[succ].get("type") == "entity":
+                entity_to_docs.setdefault(succ, []).append(doc_id)
+    for docs in entity_to_docs.values():
+        for i in range(len(docs)):
+            for j in range(i + 1, len(docs)):
+                a, b = docs[i], docs[j]
+                if und.has_edge(a, b):
+                    und[a][b]["weight"] += 1
+                else:
+                    und.add_edge(a, b, weight=1)
+
+    node_comm: dict[str, int] = {}
+    if und.number_of_edges() > 0:
+        communities = nx.algorithms.community.greedy_modularity_communities(und)
+        for i, comm in enumerate(communities):
+            for n in comm:
+                node_comm[n] = i
+
+    # 4. Nodi ponte (alta betweenness) e 5. duplicati (coseno alto, non collegati)
+    betw = nx.betweenness_centrality(und) if und.number_of_nodes() > 2 else {}
+    n_bridges = max(1, len(ids) // 12)
+    bridges = set(sorted(betw, key=lambda k: betw[k], reverse=True)[:n_bridges]) if betw else set()
+
+    norm = mat / (np.linalg.norm(mat, axis=1, keepdims=True) + 1e-8)
+    sims = norm @ norm.T
+    duplicates = []
+    for i in range(len(ids)):
+        for j in range(i + 1, len(ids)):
+            if sims[i, j] >= 0.9 and not und.has_edge(ids[i], ids[j]):
+                duplicates.append({"a": ids[i], "b": ids[j], "sim": round(float(sims[i, j]), 3)})
+
+    points = [
+        {
+            "id": ids[i],
+            "x": round(float(coords[i, 0]), 4),
+            "y": round(float(coords[i, 1]), 4),
+            "community": node_comm.get(ids[i], -1),
+            "is_bridge": ids[i] in bridges,
+            "classification": graph.nodes[ids[i]].get("classification", "") if ids[i] in graph else "",
+        }
+        for i in range(len(ids))
+    ]
+    return {"points": points, "duplicates": duplicates}
+
+
+@app.get("/analysis", response_class=FileResponse, include_in_schema=False)
+async def serve_analysis():
+    """Serve la pagina di analisi del grafo (Semantic Map + Impact Ripple)."""
+    return FileResponse(TEMPLATES_DIR / "graph_analysis.html", media_type="text/html", headers=_NO_CACHE_HEADERS)
 
 
 if __name__ == "__main__":

@@ -185,6 +185,22 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None) 
 
         qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
 
+        # Fase Codice: indicizza i simboli sotto code/ e li collega ai documenti
+        # con archi IMPLEMENTS (similarità semantica) e REFERENCES (entità citate),
+        # così il grafo copre anche l'implementazione, non solo la specifica.
+        try:
+            from code_index import add_code_graph, collect_code_symbols
+            code_symbols = collect_code_symbols(CODE_DIR)
+            n_code, n_impl = add_code_graph(
+                G, code_symbols, embed_model, [m[0] for m in doc_metadata], dense_vecs
+            )
+            if n_code:
+                print(f"🧩 Codice indicizzato: {n_code} simboli, {n_impl} archi IMPLEMENTS verso i documenti.")
+            else:
+                print("🧩 Nessun simbolo di codice trovato sotto code/ (verrà indicizzato quando Claude scriverà il codice).")
+        except Exception as e:
+            print(f"⚠️ Indicizzazione del codice saltata: {e}")
+
     # Salva il grafo e i multivettori ColBERT su disco
     with open(GRAPH_SAVE_PATH, "wb") as f:
         pickle.dump(G, f)
