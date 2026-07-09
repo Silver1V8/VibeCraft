@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VibeCraft · Analisi del Grafo</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: #020617; color: #e2e8f0;
+      font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    header {
+      display: flex; align-items: center; gap: 16px; padding: 14px 22px;
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+      border-bottom: 1px solid #1e293b; position: sticky; top: 0; z-index: 5;
+    }
+    header h1 { font-size: 16px; margin: 0; color: #ffffff; font-weight: 700; }
+    header .sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+    header a {
+      margin-left: auto; text-decoration: none; font-size: 12px; color: #cbd5e1;
+      border: 1px solid #334155; border-radius: 999px; padding: 6px 12px; background: #0f172a;
+    }
+    header a + a { margin-left: 8px; }
+    header a:hover { background: #1e293b; color: #fff; }
+    main { padding: 20px; max-width: 1180px; margin: 0 auto; }
+    section {
+      background: #0f172a; border: 1px solid #1e293b; border-radius: 14px;
+      padding: 16px 18px; margin-bottom: 22px;
+    }
+    h2 { font-size: 14px; margin: 0 0 4px; color: #93c5fd; }
+    .desc { font-size: 12px; color: #94a3b8; margin: 0 0 12px; line-height: 1.5; }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+    button, select, input {
+      font-family: inherit; font-size: 12px; background: #1e293b; color: #e2e8f0;
+      border: 1px solid #334155; border-radius: 8px; padding: 6px 10px; cursor: pointer;
+    }
+    input { cursor: text; min-width: 240px; }
+    button:hover { background: #334155; }
+    .canvas-wrap { position: relative; }
+    canvas { width: 100%; display: block; background: #0b1220; border: 1px solid #1e293b; border-radius: 10px; }
+    /* Altezza CSS esplicita: senza, con width:100% il browser preserva l'aspect ratio
+       del bitmap e stira il canvas (i punti finiscono sparsi su un canvas altissimo). */
+    #map-canvas { height: 460px; }
+    #ripple-canvas { height: 480px; }
+    .status { font-size: 11px; color: #94a3b8; }
+    .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; font-size: 11px; color: #cbd5e1; }
+    .legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .tooltip {
+      position: absolute; pointer-events: none; display: none; z-index: 10;
+      background: #0f172a; border: 1px solid #3b82f6; border-radius: 6px; padding: 5px 8px;
+      font-size: 11px; color: #e2e8f0; max-width: 320px; box-shadow: 0 2px 12px rgba(0,0,0,.5);
+    }
+    .dups { margin-top: 12px; font-size: 12px; color: #f9a8d4; }
+    .dups b { color: #f472b6; }
+    .dups div { padding: 2px 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>◇ Analisi del Grafo</h1>
+      <div class="sub">Semantic Map · Impact Ripple</div>
+    </div>
+    <a href="/">Console Graph-RAG</a>
+    <a href="/pipeline">Pipeline</a>
+  </header>
+
+  <main>
+    <!-- ══════════ QUERY DETERMINISTICA ══════════ -->
+    <section>
+      <h2>❓ Query deterministica sul grafo</h2>
+      <p class="desc">Interroga il grafo <em>senza LLM</em>: «quali documenti esistono?», «quali entità?»,
+        «quale codice?», «relazioni di &lt;NODO&gt;», «cosa impatta &lt;NODO&gt;». Risposte istantanee lette
+        direttamente da nodi e archi (principio «determinismo prima dell'LLM»).</p>
+      <div class="toolbar">
+        <label for="gq-input"></label>
+        <input id="gq-input" placeholder="es. quali documenti esistono?  ·  relazioni di EVENTO" style="min-width:360px" />
+        <button onclick="runGraphQuery()">▶ Interroga</button>
+        <span id="gq-status" class="status"></span>
+      </div>
+      <pre id="gq-out" style="display:none;white-space:pre-wrap;font-size:11.5px;color:#e2e8f0;background:#0b1220;border:1px solid #1e293b;border-radius:10px;padding:12px;max-height:280px;overflow:auto"></pre>
+    </section>
+
+    <!-- ══════════ SEMANTIC MAP ══════════ -->
+    <section>
+      <h2>🗺️ Semantic Map</h2>
+      <p class="desc">Ogni documento è proiettato in 2D per prossimità semantica (PCA sui vettori densi bge-m3).
+        I colori sono le <em>community</em> (documenti che condividono entità); i nodi con anello bianco sono i
+        <em>ponti</em> (alta centralità). Le linee tratteggiate magenta segnalano potenziali <em>duplicati</em>
+        (alta similarità ma non collegati). Clicca un punto per centrarlo nell'Impact Ripple sotto.</p>
+      <div class="toolbar">
+        <button onclick="loadSemanticMap()">↻ Ricarica</button>
+        <span id="map-status" class="status">Caricamento…</span>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="map-canvas" height="460"></canvas>
+        <div id="map-tooltip" class="tooltip"></div>
+      </div>
+      <div id="map-legend" class="legend"></div>
+      <div id="map-dups" class="dups"></div>
+    </section>
+
+    <!-- ══════════ IMPACT RIPPLE ══════════ -->
+    <section>
+      <h2>🌊 Impact Ripple</h2>
+      <p class="desc">Espansione BFS a cerchi concentrici da un nodo: il centro è il nodo scelto, ogni anello è
+        un livello di distanza. Risponde «cosa viene impattato se modifico questo nodo?» in modo deterministico.</p>
+      <div class="toolbar">
+        <label for="ripple-node"></label><input id="ripple-node" list="nodes-list" placeholder="Nodo (es. EVENTO, un documento o un simbolo di codice)" />
+        <datalist id="nodes-list"></datalist>
+        <label class="status">Profondità
+          <select id="ripple-depth">
+            <option>1</option><option>2</option><option selected>3</option><option>4</option>
+          </select>
+        </label>
+        <button onclick="loadImpact()">▶ Calcola impatto</button>
+        <span id="ripple-status" class="status"></span>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="ripple-canvas" height="480"></canvas>
+        <div id="ripple-tooltip" class="tooltip"></div>
+      </div>
+      <div class="legend">
+        <span><i class="dot" style="background:#3b82f6"></i> documento</span>
+        <span><i class="dot" style="background:#10b981"></i> entità</span>
+        <span><i class="dot" style="background:#f59e0b"></i> codice</span>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const COMMUNITY_COLORS = ['#3b82f6','#22d3ee','#a855f7','#f59e0b','#10b981','#ec4899','#ef4444','#84cc16','#14b8a6','#f97316'];
+    const TYPE_COLORS = { document: '#3b82f6', entity: '#10b981', code: '#f59e0b' };
+
+    function fitCanvas(canvas) {
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = canvas.clientWidth, cssH = canvas.clientHeight || parseInt(canvas.getAttribute('height'));
+      canvas.width = cssW * dpr; canvas.height = cssH * dpr;
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { ctx, W: cssW, H: cssH };
+    }
+
+    /* ══════════ SEMANTIC MAP ══════════ */
+    let mapPoints = [];   // {id, sx, sy, community, is_bridge}
+    let mapData = null;
+
+    async function loadSemanticMap() {
+      const status = document.getElementById('map-status');
+      status.textContent = 'Caricamento…';
+      try {
+        const res = await fetch('/api/graph/semantic-map');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        mapData = await res.json();
+        if (!mapData.points || mapData.points.length === 0) {
+          status.textContent = mapData.note || 'Nessun documento da proiettare.';
+          drawSemanticMap();
+          return;
+        }
+        status.textContent = `${mapData.points.length} documenti · ${(mapData.duplicates || []).length} coppie sospette`;
+        drawSemanticMap();
+        renderLegend();
+        renderDuplicates();
+      } catch (e) {
+        status.textContent = '❌ ' + e.message;
+      }
+    }
+
+    function drawSemanticMap() {
+      const canvas = document.getElementById('map-canvas');
+      const { ctx, W, H } = fitCanvas(canvas);
+      ctx.clearRect(0, 0, W, H);
+      if (!mapData || !mapData.points.length) return;
+      const pad = 34;
+      const toScreen = (x, y) => [pad + (x + 1) / 2 * (W - 2 * pad), pad + (1 - (y + 1) / 2) * (H - 2 * pad)];
+
+      mapPoints = mapData.points.map(p => {
+        const [sx, sy] = toScreen(p.x, p.y);
+        return { ...p, sx, sy };
+      });
+      const byId = Object.fromEntries(mapPoints.map(p => [p.id, p]));
+
+      // Linee dei duplicati (dietro ai punti)
+      ctx.save();
+      ctx.setLineDash([5, 4]);
+      ctx.strokeStyle = 'rgba(244,114,182,0.75)';
+      ctx.lineWidth = 1.2;
+      for (const d of (mapData.duplicates || [])) {
+        const a = byId[d.a], b = byId[d.b];
+        if (a && b) { ctx.beginPath(); ctx.moveTo(a.sx, a.sy); ctx.lineTo(b.sx, b.sy); ctx.stroke(); }
+      }
+      ctx.restore();
+
+      // Punti
+      for (const p of mapPoints) {
+        const color = p.community >= 0 ? COMMUNITY_COLORS[p.community % COMMUNITY_COLORS.length] : '#64748b';
+        ctx.beginPath();
+        ctx.arc(p.sx, p.sy, p.is_bridge ? 7 : 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = color; ctx.fill();
+        if (p.is_bridge) { ctx.lineWidth = 2; ctx.strokeStyle = '#ffffff'; ctx.stroke(); }
+      }
+    }
+
+    function renderLegend() {
+      const communities = [...new Set(mapPoints.map(p => p.community))].filter(c => c >= 0).sort((a, b) => a - b);
+      const parts = communities.map(c =>
+        `<span><i class="dot" style="background:${COMMUNITY_COLORS[c % COMMUNITY_COLORS.length]}"></i> community ${c}</span>`);
+      parts.push('<span><i class="dot" style="background:#fff"></i> nodo ponte (anello bianco)</span>');
+      parts.push('<span style="color:#f472b6">— — coppia duplicata</span>');
+      document.getElementById('map-legend').innerHTML = parts.join('');
+    }
+
+    function renderDuplicates() {
+      const dups = mapData.duplicates || [];
+      const el = document.getElementById('map-dups');
+      if (!dups.length) { el.innerHTML = ''; return; }
+      el.innerHTML = '<b>Potenziali duplicati (alta similarità, non collegati):</b>' +
+        dups.map(d => `<div>• ${escapeHtml(d.a)} ↔ ${escapeHtml(d.b)} <span style="color:#94a3b8">(sim ${d.sim})</span></div>`).join('');
+    }
+
+    // Hover + click sulla mappa
+    (function () {
+      const canvas = document.getElementById('map-canvas');
+      const tip = document.getElementById('map-tooltip');
+      function nearest(mx, my) {
+        let best = null, bd = 100;
+        for (const p of mapPoints) {
+          const d = (p.sx - mx) ** 2 + (p.sy - my) ** 2;
+          if (d < bd) { bd = d; best = p; }
+        }
+        return best;
+      }
+      canvas.addEventListener('mousemove', e => {
+        const r = canvas.getBoundingClientRect();
+        const p = nearest(e.clientX - r.left, e.clientY - r.top);
+        if (p) {
+          tip.style.display = 'block';
+          tip.style.left = (e.clientX - r.left + 12) + 'px';
+          tip.style.top = (e.clientY - r.top + 12) + 'px';
+          tip.innerHTML = `${escapeHtml(p.id)}<br><span style="color:#94a3b8">community ${p.community}${p.is_bridge ? ' · PONTE' : ''}</span>`;
+          canvas.style.cursor = 'pointer';
+        } else { tip.style.display = 'none'; canvas.style.cursor = 'default'; }
+      });
+      canvas.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+      canvas.addEventListener('click', e => {
+        const r = canvas.getBoundingClientRect();
+        const p = nearest(e.clientX - r.left, e.clientY - r.top);
+        if (p) {
+          document.getElementById('ripple-node').value = p.id;
+          loadImpact();
+          document.getElementById('ripple-canvas').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      });
+    })();
+
+    /* ══════════ IMPACT RIPPLE ══════════ */
+    async function loadNodeList() {
+      try {
+        const res = await fetch('/api/graph/all');
+        if (!res.ok) return;
+        const data = await res.json();
+        const dl = document.getElementById('nodes-list');
+        dl.innerHTML = data.nodes.map(n => `<option value="${escapeHtml(n.id)}">`).join('');
+      } catch (e) { /* best-effort */ }
+    }
+
+    async function loadImpact() {
+      const node = document.getElementById('ripple-node').value.trim();
+      const depth = document.getElementById('ripple-depth').value;
+      const status = document.getElementById('ripple-status');
+      if (!node) { status.textContent = 'Inserisci un nodo.'; return; }
+      status.textContent = 'Calcolo…';
+      try {
+        const res = await fetch(`/api/graph/impact?node=${encodeURIComponent(node)}&depth=${depth}`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: 'HTTP ' + res.status }));
+          throw new Error(err.detail || ('HTTP ' + res.status));
+        }
+        const data = await res.json();
+        status.textContent = `${data.nodes.length} nodi impattati · anelli: [${data.rings.join(', ')}]`;
+        drawRipple(data);
+      } catch (e) {
+        status.textContent = '❌ ' + e.message;
+      }
+    }
+
+    let rippleNodes = [];
+    function drawRipple(data) {
+      const canvas = document.getElementById('ripple-canvas');
+      const { ctx, W, H } = fitCanvas(canvas);
+      ctx.clearRect(0, 0, W, H);
+      const cx = W / 2, cy = H / 2;
+      const maxRing = Math.max(1, data.rings.length - 1);
+      const maxR = Math.min(W, H) / 2 - 40;
+      const ringRadius = i => (i / maxRing) * maxR;
+
+      // Anelli guida
+      ctx.save();
+      ctx.setLineDash([3, 4]); ctx.strokeStyle = 'rgba(71,85,105,0.7)'; ctx.lineWidth = 1;
+      for (let i = 1; i < data.rings.length; i++) {
+        ctx.beginPath(); ctx.arc(cx, cy, ringRadius(i), 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.restore();
+
+      // Posiziona i nodi per anello
+      const perRing = {};
+      data.nodes.forEach(n => { (perRing[n.ring] = perRing[n.ring] || []).push(n); });
+      const pos = {};
+      Object.keys(perRing).forEach(ring => {
+        const r = parseInt(ring);
+        const arr = perRing[ring];
+        if (r === 0) { arr.forEach(n => pos[n.id] = [cx, cy]); return; }
+        arr.forEach((n, k) => {
+          const ang = (k / arr.length) * Math.PI * 2 - Math.PI / 2;
+          pos[n.id] = [cx + Math.cos(ang) * ringRadius(r), cy + Math.sin(ang) * ringRadius(r)];
+        });
+      });
+
+      // Archi
+      ctx.strokeStyle = 'rgba(96,165,250,0.20)'; ctx.lineWidth = 1;
+      for (const e of data.edges) {
+        const a = pos[e.from], b = pos[e.to];
+        if (a && b) { ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
+      }
+
+      // Nodi
+      rippleNodes = [];
+      for (const n of data.nodes) {
+        const [x, y] = pos[n.id];
+        const isCenter = n.ring === 0;
+        const color = TYPE_COLORS[n.type] || '#64748b';
+        ctx.beginPath(); ctx.arc(x, y, isCenter ? 9 : 5, 0, Math.PI * 2);
+        ctx.fillStyle = color; ctx.fill();
+        if (isCenter) { ctx.lineWidth = 2.5; ctx.strokeStyle = '#fff'; ctx.stroke(); }
+        rippleNodes.push({ ...n, sx: x, sy: y });
+      }
+      // Etichetta del centro
+      ctx.fillStyle = '#e2e8f0'; ctx.font = '12px Inter, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(data.center.length > 30 ? data.center.slice(0, 28) + '…' : data.center, cx, cy - 16);
+    }
+
+    (function () {
+      const canvas = document.getElementById('ripple-canvas');
+      const tip = document.getElementById('ripple-tooltip');
+      canvas.addEventListener('mousemove', e => {
+        const r = canvas.getBoundingClientRect();
+        const mx = e.clientX - r.left, my = e.clientY - r.top;
+        let best = null, bd = 120;
+        for (const n of rippleNodes) {
+          const d = (n.sx - mx) ** 2 + (n.sy - my) ** 2;
+          if (d < bd) { bd = d; best = n; }
+        }
+        if (best) {
+          tip.style.display = 'block';
+          tip.style.left = (mx + 12) + 'px'; tip.style.top = (my + 12) + 'px';
+          tip.innerHTML = `${escapeHtml(best.id)}<br><span style="color:#94a3b8">${best.type}${best.kind ? ' · ' + best.kind : ''} · anello ${best.ring}</span>`;
+        } else { tip.style.display = 'none'; }
+      });
+      canvas.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+    })();
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    /* ══════════ QUERY DETERMINISTICA ══════════ */
+    async function runGraphQuery() {
+      const q = document.getElementById('gq-input').value.trim();
+      const status = document.getElementById('gq-status');
+      const out = document.getElementById('gq-out');
+      if (!q) { status.textContent = 'Scrivi una domanda.'; return; }
+      status.textContent = 'Interrogazione…';
+      try {
+        const res = await fetch('/api/graph/query?q=' + encodeURIComponent(q));
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const d = await res.json();
+        status.textContent = `intent: ${d.intent}` + (d.count !== undefined ? ` · ${d.count}` : '');
+        out.style.display = 'block';
+        out.textContent = JSON.stringify(d, null, 2);
+      } catch (e) { status.textContent = '❌ ' + e.message; }
+    }
+    document.getElementById('gq-input').addEventListener('keydown', e => { if (e.key === 'Enter') runGraphQuery(); });
+
+    window.addEventListener('resize', () => { drawSemanticMap(); });
+    loadSemanticMap();
+    loadNodeList();
+  </script>
+</body>
+</html>

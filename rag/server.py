@@ -1587,9 +1587,9 @@ async def graph_query(q: str):
 
 
 @app.get("/analysis", response_class=FileResponse, include_in_schema=False)
-async def serve_analysis():
-    """Serve la pagina di analisi del grafo (Semantic Map + Impact Ripple)."""
-    return FileResponse(TEMPLATES_DIR / "graph_analysis.html", media_type="text/html", headers=_NO_CACHE_HEADERS)
+async def serve_analysis(request: Request):
+    """Serve la pagina di analisi del grafo (Semantic Map + Impact Ripple), tema Matrix o Classico."""
+    return FileResponse(_themed_template(request, "graph_analysis.html", "graph_analysis_classic.html"), media_type="text/html", headers=_NO_CACHE_HEADERS)
 
 
 if __name__ == "__main__":
