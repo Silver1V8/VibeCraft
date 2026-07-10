@@ -32,6 +32,8 @@ from FlagEmbedding import BGEM3FlagModel
 
 from agent_bridge import AGENT_MODES, run_agent_streaming
 from index import archive_feature, check_drift, index_status
+from core import graph_ops
+from core.graph_ops import bfs_expand, build_context
 
 # ---------------------------------------------------------------------------
 # Configurazione — centralizzata in core/config.py (unico punto di verità)
@@ -369,45 +371,6 @@ def hybrid_search(question: str, top_k: int) -> list[dict]:
         results.sort(key=lambda r: r["fused_rank_sum"] / _authority_mult(r))
 
     return results[:top_k]
-
-
-def bfs_expand(graph: nx.DiGraph, seed_nodes: list[str], depth: int) -> set[str]:
-    """Espansione BFS bidirezionale a partire dai nodi seed fino a `depth` livelli."""
-    visited: set[str] = set(seed_nodes)
-    frontier: set[str] = set(seed_nodes)
-
-    for _ in range(depth):
-        next_frontier: set[str] = set()
-        for node in frontier:
-            neighbors = set(graph.successors(node)) | set(graph.predecessors(node))
-            next_frontier |= neighbors - visited
-        visited |= next_frontier
-        frontier = next_frontier
-
-    return visited
-
-
-def build_context(graph: nx.DiGraph, nodes: set[str]) -> str:
-    """Serializza i nodi espansi e le loro relazioni in una stringa di contesto."""
-    lines: list[str] = []
-    for node in sorted(nodes):
-        attrs = graph.nodes[node]
-        node_type = attrs.get("type", "unknown")
-
-        if node_type == "document":
-            title = attrs.get("title", node)
-            lines.append(f"[DOCUMENTO: {node}] Titolo: {title}")
-            for _, neighbor, edge_data in graph.out_edges(node, data=True):
-                rel = edge_data.get("relation", "RELATES_TO")
-                lines.append(f"  -> {rel} -> [{neighbor}]")
-
-        elif node_type == "entity":
-            lines.append(f"[ENTITÀ: {node}]")
-            for predecessor, _, edge_data in graph.in_edges(node, data=True):
-                rel = edge_data.get("relation", "CITED_IN")
-                lines.append(f"  <- {rel} <- [{predecessor}]")
-
-    return "\n".join(lines)
 
 
 def call_llm(context: str, question: str) -> str:
@@ -1412,36 +1375,9 @@ async def get_full_graph():
     """Restituisce l'intero grafo statico (tutti i nodi e gli archi) in formato JSON."""
     _maybe_reload_graph()
     graph: nx.DiGraph = state["graph"]
-    rule_descriptions: dict = state["rule_descriptions"]
     if graph is None:
         raise HTTPException(status_code=503, detail="Grafo non ancora inizializzato.")
-
-    nodes = [
-        {
-            "id": node_id,
-            "type": attrs.get("type", "unknown"),
-            "title": attrs.get("title", node_id),
-            "description": rule_descriptions.get(node_id, ""),
-            # Pilastro REASONS di appartenenza (dal frontmatter YAML), per la colorazione cromatica del grafo
-            "classification": attrs.get("classification", ""),
-            # Metadati dei nodi di codice (assenti sui documenti/entità)
-            "kind": attrs.get("kind", ""),
-            "file": attrs.get("file", ""),
-            "dev_type": attrs.get("dev_type", ""),
-        }
-        for node_id, attrs in graph.nodes(data=True)
-    ]
-
-    edges = [
-        {
-            "from": u,
-            "to": v,
-            "relation": data.get("relation", ""),
-        }
-        for u, v, data in graph.edges(data=True)
-    ]
-
-    return {"nodes": nodes, "edges": edges}
+    return graph_ops.full_graph(graph, state["rule_descriptions"])
 
 
 @app.get("/api/graph/impact", dependencies=[Depends(require_api_key)])
@@ -1455,38 +1391,7 @@ async def graph_impact(node: str, depth: int = 3):
         raise HTTPException(status_code=503, detail="Grafo non ancora inizializzato.")
     if node not in graph:
         raise HTTPException(status_code=404, detail=f"Nodo non presente nel grafo: {node}")
-
-    rings: list[list[str]] = [[node]]
-    visited: set[str] = {node}
-    frontier: set[str] = {node}
-    for _ in range(max(1, depth)):
-        nxt: set[str] = set()
-        for n in frontier:
-            neighbors = set(graph.successors(n)) | set(graph.predecessors(n))
-            nxt |= neighbors - visited
-        if not nxt:
-            break
-        visited |= nxt
-        rings.append(sorted(nxt))
-        frontier = nxt
-
-    ring_of = {n: i for i, ring in enumerate(rings) for n in ring}
-    nodes = [
-        {
-            "id": n,
-            "type": graph.nodes[n].get("type", "unknown"),
-            "kind": graph.nodes[n].get("kind", ""),
-            "classification": graph.nodes[n].get("classification", ""),
-            "ring": ring_of[n],
-        }
-        for n in visited
-    ]
-    edges = [
-        {"from": u, "to": v, "relation": d.get("relation", "")}
-        for u, v, d in graph.edges(data=True)
-        if u in visited and v in visited
-    ]
-    return {"center": node, "rings": [len(r) for r in rings], "nodes": nodes, "edges": edges}
+    return graph_ops.impact(graph, node, depth)
 
 
 @app.get("/api/graph/semantic-map", dependencies=[Depends(require_api_key)])
@@ -1500,99 +1405,7 @@ async def graph_semantic_map():
     qdrant: QdrantClient = state["qdrant"]
     if graph is None or qdrant is None:
         raise HTTPException(status_code=503, detail="Grafo/Qdrant non inizializzati.")
-
-    # 1. Recupera i vettori densi dei chunk da Qdrant (chunk_id + documento padre)
-    scrolled, _ = qdrant.scroll(
-        collection_name=COLLECTION_NAME, limit=10000, with_vectors=True, with_payload=True
-    )
-    chunk_ids: list[str] = []
-    parents: list[str] = []
-    sections: list[str] = []
-    vecs: list = []
-    for p in scrolled:
-        vector = p.vector
-        dense = vector.get("dense") if isinstance(vector, dict) else None
-        payload = p.payload or {}
-        cid = payload.get("chunk_id") or payload.get("doc_id")
-        parent = payload.get("doc_id")
-        if dense is None or not cid or not parent:
-            continue
-        chunk_ids.append(str(cid))
-        parents.append(str(parent))
-        sections.append(str(payload.get("section", "")))
-        vecs.append(dense)
-
-    if len(chunk_ids) < 2:
-        return {"points": [], "duplicates": [], "note": "Chunk insufficienti per la mappa."}
-
-    mat = np.asarray(vecs, dtype=np.float32)
-
-    # 2. Proiezione 2D via PCA (SVD sui dati centrati)
-    centered = mat - mat.mean(axis=0)
-    _, _, vt = np.linalg.svd(centered, full_matrices=False)
-    coords = centered @ vt[:2].T
-    # Normalizza in [-1, 1] per il rendering
-    span = np.abs(coords).max(axis=0)
-    span[span == 0] = 1.0
-    coords = coords / span
-
-    # 3. Community & ponti a livello DOCUMENTO (co-menzione di entità nel grafo)
-    unique_docs = list(dict.fromkeys(parents))
-    und = nx.Graph()
-    und.add_nodes_from(unique_docs)
-    entity_to_docs: dict[str, list[str]] = {}
-    for doc_id in unique_docs:
-        if doc_id not in graph:
-            continue
-        for succ in graph.successors(doc_id):
-            if graph.nodes[succ].get("type") == "entity":
-                entity_to_docs.setdefault(succ, []).append(doc_id)
-    for docs in entity_to_docs.values():
-        for i in range(len(docs)):
-            for j in range(i + 1, len(docs)):
-                a, b = docs[i], docs[j]
-                if und.has_edge(a, b):
-                    und[a][b]["weight"] += 1
-                else:
-                    und.add_edge(a, b, weight=1)
-
-    node_comm: dict[str, int] = {}
-    if und.number_of_edges() > 0:
-        communities = nx.algorithms.community.greedy_modularity_communities(und)
-        for i, comm in enumerate(communities):
-            for n in comm:
-                node_comm[n] = i
-
-    betw = nx.betweenness_centrality(und) if und.number_of_nodes() > 2 else {}
-    n_bridges = max(1, len(unique_docs) // 6)
-    bridges = set(sorted(betw, key=lambda k: betw[k], reverse=True)[:n_bridges]) if betw else set()
-
-    # Duplicati: sezioni molto simili (coseno ≥ 0.9) appartenenti a DOCUMENTI DIVERSI
-    # (le sezioni dello stesso documento sono naturalmente affini e non contano).
-    norm = mat / (np.linalg.norm(mat, axis=1, keepdims=True) + 1e-8)
-    sims = norm @ norm.T
-    duplicates = []
-    for i in range(len(chunk_ids)):
-        for j in range(i + 1, len(chunk_ids)):
-            if sims[i, j] >= 0.9 and parents[i] != parents[j]:
-                duplicates.append({"a": chunk_ids[i], "b": chunk_ids[j], "sim": round(float(sims[i, j]), 3)})
-    duplicates.sort(key=lambda d: d["sim"], reverse=True)
-    duplicates = duplicates[:50]
-
-    points = [
-        {
-            "id": chunk_ids[i],
-            "x": round(float(coords[i, 0]), 4),
-            "y": round(float(coords[i, 1]), 4),
-            "community": node_comm.get(parents[i], -1),
-            "is_bridge": parents[i] in bridges,
-            "classification": graph.nodes[parents[i]].get("classification", "") if parents[i] in graph else "",
-            "doc_id": parents[i],
-            "section": sections[i],
-        }
-        for i in range(len(chunk_ids))
-    ]
-    return {"points": points, "duplicates": duplicates}
+    return graph_ops.semantic_map(graph, qdrant)
 
 
 @app.get("/api/graph/query", dependencies=[Depends(require_api_key)])
@@ -1603,56 +1416,7 @@ async def graph_query(q: str):
     if state.get("graph") is None:
         raise HTTPException(status_code=503, detail="Grafo non ancora inizializzato.")
     _maybe_reload_graph()
-    graph: nx.DiGraph = state["graph"]
-    ql = q.lower().strip()
-
-    def by_type(t: str) -> list[str]:
-        return sorted(n for n, a in graph.nodes(data=True) if a.get("type") == t)
-
-    # Rileva un eventuale nodo bersaglio citato nella domanda (match sull'id).
-    target = None
-    for n in graph.nodes():
-        ns = str(n)
-        if len(ns) > 2 and ns.lower() in ql:
-            target = ns
-            break
-
-    # Prima le intenzioni legate a un nodo bersaglio: l'id del nodo può contenere
-    # parole chiave di listing (es. "spec.md" contiene "spec"), quindi vanno controllate
-    # prima delle domande generiche di elenco.
-    if target and any(k in ql for k in ("impatt", "impact", "cosa cambia", "dipende")):
-        rings, visited, frontier = [[target]], {target}, {target}
-        for _ in range(2):
-            nxt: set[str] = set()
-            for nd in frontier:
-                nxt |= (set(graph.successors(nd)) | set(graph.predecessors(nd))) - visited
-            if not nxt:
-                break
-            visited |= nxt
-            rings.append(sorted(nxt))
-            frontier = nxt
-        return {"intent": "impatto", "target": target, "rings": rings, "count": len(visited) - 1}
-    if target and any(k in ql for k in ("relazion", "vincol", "menzion", "collega", "referenz", "implement", "archi")):
-        out_e = [{"relation": d.get("relation", ""), "to": v} for _, v, d in graph.out_edges(target, data=True)]
-        in_e = [{"relation": d.get("relation", ""), "from": u} for u, _, d in graph.in_edges(target, data=True)]
-        return {"intent": "relazioni", "target": target, "out": out_e, "in": in_e, "count": len(out_e) + len(in_e)}
-    if any(k in ql for k in ("documenti", "document", "spec", "contract")):
-        res = by_type("document")
-        return {"intent": "documenti", "answer": res, "count": len(res)}
-    if any(k in ql for k in ("entità", "entita", "entity", "glossario")):
-        res = by_type("entity")
-        return {"intent": "entità", "answer": res, "count": len(res)}
-    if any(k in ql for k in ("codice", "code", "funzion", "classe", "endpoint")):
-        res = by_type("code")
-        return {"intent": "codice", "answer": res, "count": len(res)}
-    if target:
-        neigh = sorted(set(graph.successors(target)) | set(graph.predecessors(target)))
-        return {"intent": "vicini", "target": target, "answer": neigh, "count": len(neigh)}
-    return {
-        "intent": "sconosciuto", "answer": [], "count": 0,
-        "suggerimenti": ["quali documenti esistono?", "quali entità?", "quale codice?",
-                         "relazioni di <NODO>", "cosa impatta <NODO>"],
-    }
+    return graph_ops.graph_query(q, state["graph"])
 
 
 @app.get("/analysis", response_class=FileResponse, include_in_schema=False)
