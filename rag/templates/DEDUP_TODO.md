@@ -1,6 +1,9 @@
 # TODO — Deduplicazione template (tema Matrix ↔ Classico)
 
-**Stato:** rimandato di proposito (refactor a rischio alto, priorità più bassa del resto).
+**Stato:** layer server pronto e committato (`api/deps.py::serve_page` + fallback retrocompatibile,
+vedi `CLAUDE_DESIGN_CONTRACT.md` per la spec operativa data al frontend). Il lavoro sul markup/CSS
+delle 4 pagine è in corso lato frontend (Claude Design); questo file resta come analisi storica
+delle divergenze reali da preservare.
 I template `*.html` / `*_classic.html` sono ~95% identici nel markup e nel JS, ma **non**
 sono banali copie: hanno divergenze funzionali/visive reali che vanno preservate.
 

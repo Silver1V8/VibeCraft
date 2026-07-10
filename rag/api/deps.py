@@ -13,6 +13,7 @@ from pathlib import Path
 
 import networkx as nx
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from qdrant_client import QdrantClient
 from FlagEmbedding import BGEM3FlagModel
 
@@ -211,3 +212,56 @@ def themed_template(request: Request, matrix_name: str, classic_name: str) -> Pa
     """Sceglie il file da servire in base al tema scelto dall'utente (cookie 'ui_theme')."""
     theme = request.cookies.get("ui_theme", "matrix")
     return TEMPLATES_DIR / (classic_name if theme == "classic" else matrix_name)
+
+
+# ---------------------------------------------------------------------------
+# Dedup template (Punto 5): pagina unificata + data-theme iniettato lato server,
+# con fallback retrocompatibile sulla vecchia coppia Matrix/Classico finché la
+# versione unificata non esiste. Vedi templates/CLAUDE_DESIGN_CONTRACT.md.
+# ---------------------------------------------------------------------------
+VALID_THEMES = ("matrix", "classic")
+
+_HTML_TAG_RE = re.compile(r"<html\b([^>]*)>", re.IGNORECASE)
+_DATA_THEME_ATTR_RE = re.compile(r'data-theme\s*=\s*"[^"]*"', re.IGNORECASE)
+
+
+def _inject_data_theme(html: str, theme: str) -> str:
+    """Imposta (o sostituisce, se già presente) l'attributo data-theme sul tag <html> di
+    apertura, lato server, dal cookie 'ui_theme' — evita il flash del tema sbagliato al
+    primo paint (il CSS `:root[data-theme=...]` si applica già al primo render).
+    Se il tag <html> non viene trovato, restituisce il markup invariato (fail-open: mai
+    un 500 per un template imprevisto, solo niente iniezione)."""
+    match = _HTML_TAG_RE.search(html)
+    if not match:
+        return html
+    attrs = match.group(1)
+    if _DATA_THEME_ATTR_RE.search(attrs):
+        new_attrs = _DATA_THEME_ATTR_RE.sub(f'data-theme="{theme}"', attrs)
+    else:
+        new_attrs = f'{attrs} data-theme="{theme}"'
+    return html[:match.start()] + f"<html{new_attrs}>" + html[match.end():]
+
+
+def serve_page(request: Request, unified_name: str, matrix_name: str, classic_name: str) -> Response:
+    """Serve UNA pagina: se `unified_name` esiste sotto TEMPLATES_DIR (versione dedupata,
+    un solo file con CSS variables — consegnata da Claude Design), la serve iniettando
+    data-theme dal cookie 'ui_theme'. Altrimenti (transizione in corso) ricade sulla
+    vecchia coppia di file `matrix_name`/`classic_name`, invariata — così le pagine
+    possono essere migrate una alla volta senza rompere le altre.
+
+    Nota sul cache: la lettura del file unificato NON è cachata in process — è I/O locale
+    su un template di poche decine di KB, il costo è trascurabile rispetto a NO_CACHE_HEADERS
+    che comunque impedisce la cache lato browser."""
+    theme = request.cookies.get("ui_theme", "matrix")
+    if theme not in VALID_THEMES:
+        theme = "matrix"
+
+    unified_path = TEMPLATES_DIR / unified_name
+    if unified_path.exists():
+        html = unified_path.read_text(encoding="utf-8")
+        html = _inject_data_theme(html, theme)
+        return HTMLResponse(html, headers=NO_CACHE_HEADERS)
+
+    # Fallback: pagina non ancora unificata -> vecchia coppia di file per tema (invariata).
+    legacy_path = themed_template(request, matrix_name, classic_name)
+    return FileResponse(legacy_path, media_type="text/html", headers=NO_CACHE_HEADERS)
