@@ -4,7 +4,7 @@ rimozione dei nodi-documento dal grafo senza distruggere i code-link, ed esecuzi
 import networkx as nx
 import pytest
 
-import index
+from core import indexing as index
 
 
 # ---------------------------------------------------------------------------

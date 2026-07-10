@@ -1,5 +1,5 @@
-"""Test del chunking per sezione (index.chunk_markdown) e dello slug degli id."""
-import index
+"""Test del chunking per sezione (core.chunking.chunk_markdown) e dello slug degli id."""
+from core import chunking as index
 
 
 def test_split_preamble_and_sections():

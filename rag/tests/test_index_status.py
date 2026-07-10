@@ -2,7 +2,7 @@
 Usa i documenti reali in docs/ per gli hash, ma scrive il manifest in una dir temporanea."""
 import json
 
-import index
+from core import indexing as index
 
 
 def test_no_manifest_is_stale(tmp_path, monkeypatch):

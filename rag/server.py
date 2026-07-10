@@ -29,7 +29,7 @@ from qdrant_client.models import SparseVector
 from FlagEmbedding import BGEM3FlagModel
 
 from agent_bridge import AGENT_MODES, run_agent_streaming
-from index import archive_feature, check_drift, index_status
+from core.indexing import archive_feature, check_drift, index_status
 from core import graph_ops, pipeline, retrieval
 from core.graph_ops import bfs_expand, build_context
 from core.retrieval import (
