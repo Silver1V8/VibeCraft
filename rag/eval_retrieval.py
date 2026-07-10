@@ -56,7 +56,7 @@ def evaluate(url: str, k: int) -> dict:
                     first_sec = i + 1
 
             target = first_sec if exp_sec else first_doc          # rango della prima corrispondenza
-            rr_sum += (1.0 / target) if target else 0.0
+            rr_sum += (1.0 / target) if target is not None else 0.0
             doc_hits += 1 if first_doc else 0
             doc_hits3 += 1 if (first_doc and first_doc <= 3) else 0
             sec_hits += 1 if first_sec else 0

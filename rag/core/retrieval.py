@@ -206,7 +206,7 @@ def select_governed_docs(question: str, *, graph: nx.DiGraph | None, results: li
     return ordered_docs
 
 
-def retrieve_governed_context(question: str, *, graph: nx.DiGraph, chunks_store: dict,
+def retrieve_governed_context(question: str, *, graph: nx.DiGraph | None, chunks_store: dict,
                               qdrant, embed_model, colbert_store,
                               top_k: int = 10, max_chunks: int = 8,
                               max_chars_per_chunk: int = 3000) -> str:
@@ -215,7 +215,9 @@ def retrieve_governed_context(question: str, *, graph: nx.DiGraph, chunks_store:
     eventuale cap leggero per chunk: niente più truncation-first del documento intero."""
     chunks = select_governed_chunks(question, graph=graph, top_k=top_k, max_chunks=max_chunks,
                                     qdrant=qdrant, embed_model=embed_model, colbert_store=colbert_store)
-    if not chunks:
+    # select_governed_chunks ritorna [] se graph è None: la riga sotto non è mai raggiunta
+    # in quel caso, ma il controllo esplicito narrowa il tipo (graph non più Optional da qui in poi).
+    if not chunks or graph is None:
         return ""
 
     parts: list[str] = []

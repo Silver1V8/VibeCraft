@@ -1,8 +1,11 @@
 """Test dell'indicizzazione incrementale (delta): planning puro, id deterministici,
 rimozione dei nodi-documento dal grafo senza distruggere i code-link, ed esecuzione
 (delete-by-filter, idempotenza) con fake leggeri — nessun modello di embedding reale."""
+from typing import Any, cast
+
 import networkx as nx
 import pytest
+from qdrant_client import QdrantClient
 
 from core import indexing as index
 
@@ -49,8 +52,10 @@ def test_plan_new_modified_deleted_together():
 
 
 @pytest.mark.parametrize("bad_manifest", [None, {}, {"doc_hashes": None}, {"nope": 1}, "corrotto", 42])
-def test_plan_missing_or_corrupt_manifest_treats_all_as_new(bad_manifest):
-    """Manifest assente/vuoto/corrotto/di tipo errato ⇒ fallback sicuro: tutto 'new'."""
+def test_plan_missing_or_corrupt_manifest_treats_all_as_new(bad_manifest: Any):
+    """Manifest assente/vuoto/corrotto/di tipo errato ⇒ fallback sicuro: tutto 'new'.
+    bad_manifest è intenzionalmente di tipo arbitrario (anche str/int): è proprio il caso
+    limite che plan_incremental_indexing deve gestire in modo difensivo (isinstance check)."""
     current = {"a.md": "h1"}
     plan = index.plan_incremental_indexing(current, bad_manifest)
     assert plan.new == ["a.md"]
@@ -146,7 +151,8 @@ def test_apply_deletes_modified_and_deleted_via_filter(tmp_path, monkeypatch):
     plan = index.IndexPlan(unchanged=[], new=[], modified=["change.md"], deleted=["gone.md"])
     fake_q = FakeQdrant()
     stats = index.apply_incremental_indexing(
-        plan, tmp_path, fake_q, embed_model=None, graph=graph, colbert_store=colbert, chunks_store=chunks
+        plan, tmp_path, cast(QdrantClient, fake_q), embed_model=None,
+        graph=graph, colbert_store=colbert, chunks_store=chunks,
     )
 
     # delete-by-filter invocata una volta con i doc_id modificati+cancellati
@@ -172,7 +178,8 @@ def test_apply_noop_plan_touches_nothing(monkeypatch):
     graph.add_node("a.md", type="document")
     fake_q = FakeQdrant()
     index.apply_incremental_indexing(
-        plan, None, fake_q, embed_model=None, graph=graph, colbert_store={}, chunks_store={}
+        plan, None, cast(QdrantClient, fake_q), embed_model=None,
+        graph=graph, colbert_store={}, chunks_store={},
     )
     # nessuna delete, nessun upsert, grafo intatto
     assert fake_q.deleted_selectors == []

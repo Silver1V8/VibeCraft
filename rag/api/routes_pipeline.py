@@ -9,7 +9,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 
 from agent_bridge import AGENT_MODES, run_agent_streaming
-from api.deps import maybe_reload_graph, reload_index_state, require_api_key, run_streaming, state
+from api.deps import reload_index_state, require_api_key, run_streaming, state
 from api.models import (
     AgentRunRequest,
     ArchiveRequest,

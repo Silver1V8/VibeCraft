@@ -379,7 +379,7 @@ def _delete_doc_chunks(qdrant: QdrantClient, doc_ids: list[str]) -> None:
 
 def apply_incremental_indexing(
     plan: IndexPlan,
-    docs_dir: Path,
+    docs_dir: Path | None,
     qdrant: QdrantClient,
     embed_model,
     graph: nx.DiGraph,
@@ -415,6 +415,7 @@ def apply_incremental_indexing(
     # 2. (Ri)indicizzazione dei soli documenti nuovi/modificati
     upserted = 0
     if to_index:
+        assert docs_dir is not None, "docs_dir richiesto quando ci sono documenti da (ri)indicizzare"
         new_chunks: list[dict] = []
         for rel_path in to_index:
             fp = docs_dir / rel_path
