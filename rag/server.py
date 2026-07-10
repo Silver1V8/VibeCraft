@@ -4,7 +4,6 @@ import sys
 import json
 import time
 import queue
-import yaml
 import pickle
 import httpx
 import uvicorn
@@ -35,39 +34,26 @@ from agent_bridge import AGENT_MODES, run_agent_streaming
 from index import archive_feature, check_drift, index_status
 
 # ---------------------------------------------------------------------------
-# Configurazione
+# Configurazione — centralizzata in core/config.py (unico punto di verità)
 # ---------------------------------------------------------------------------
-RAG_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = RAG_DIR.parent
-CONFIG_PATH = RAG_DIR / "rag_config.yaml"
-DATABASE_DIR = RAG_DIR / "database"
-GRAPH_SAVE_PATH = DATABASE_DIR / "graph.pkl"
-COLBERT_SAVE_PATH = DATABASE_DIR / "colbert.pkl"
-CHUNKS_SAVE_PATH = DATABASE_DIR / "chunks.pkl"
-# Qdrant in server mode (Docker): niente più storage locale a lock esclusivo.
-QDRANT_URL = os.environ.get("QDRANT_URL", "http://127.0.0.1:6333")
-QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY")
-TEMPLATES_DIR = RAG_DIR / "templates"
-
-with open(CONFIG_PATH, "r", encoding="utf-8") as _f:
-    config = yaml.safe_load(_f)
-
-COLLECTION_NAME: str = config["vector_database"]["collection_name"]
-EMBEDDING_MODEL: str = config["vector_database"]["embedding_model"]
-LLM_PROVIDER: str = config["llm_settings"]["active_provider"]
-LLM_MODEL: str = config["llm_settings"]["models"][LLM_PROVIDER]
-
-# ---------------------------------------------------------------------------
-# Configurazione pipeline Explore -> Canvas -> Propose (rag/changes/)
-# ---------------------------------------------------------------------------
-PIPELINE_OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
-PIPELINE_MODEL_NAME: str = config["llm_settings"]["models"].get("ollama", "qwen2.5:7b")
-CHANGES_DIR = PROJECT_ROOT / "changes"
-CODE_DIR = PROJECT_ROOT / "code"
-
-# Generazioni con modelli grandi (es. qwen2.5:14b) su CPU possono richiedere diversi minuti:
-# un timeout troppo corto interrompe la richiesta anche quando Ollama sta ancora generando.
-OLLAMA_TIMEOUT_SECONDS = 900.0
+from core.config import (  # noqa: E402  (import dopo il blocco UTF-8 di sys.stdout)
+    CHANGES_DIR,
+    CHUNKS_SAVE_PATH,
+    CODE_DIR,
+    COLBERT_SAVE_PATH,
+    COLLECTION_NAME,
+    EMBEDDING_MODEL,
+    GRAPH_SAVE_PATH,
+    LLM_MODEL,
+    LLM_PROVIDER,
+    OLLAMA_TIMEOUT_SECONDS,
+    PIPELINE_MODEL_NAME,
+    PIPELINE_OLLAMA_URL,
+    PROJECT_ROOT,
+    QDRANT_API_KEY,
+    QDRANT_URL,
+    TEMPLATES_DIR,
+)
 
 # ---------------------------------------------------------------------------
 # Autenticazione API — bypass su localhost, X-API-Key per il resto
