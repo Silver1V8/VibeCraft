@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="it" class="h-full">
+<html lang="it" class="h-full" data-theme="matrix">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -13,32 +13,119 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
 
   <script>
+    /* Tailwind punta a CSS variables: le classi (bg-slate-900, text-blue-400, ecc.)
+       sono generate UNA volta sola con `var(--...)` come valore colore. Il cambio
+       tema (:root[data-theme]) aggiorna le variabili e ridipinge tutto senza
+       rigenerare le classi Tailwind -> è così che funziona il live-flip. */
     tailwind.config = {
       theme: {
         extend: {
           colors: {
-            brand: { 50:'#eff6ff', 500:'#3b82f6', 600:'#2563eb', 700:'#1d4ed8' },
+            brand:  { 50:'var(--brand-50)',100:'var(--brand-100)',200:'var(--brand-200)',300:'var(--brand-300)',400:'var(--brand-400)',500:'var(--brand-500)',600:'var(--brand-600)',700:'var(--brand-700)',800:'var(--brand-800)',900:'var(--brand-900)',950:'var(--brand-950)' },
+            slate:  { 50:'var(--slate-50)', 100:'var(--slate-100)',200:'var(--slate-200)',300:'var(--slate-300)',400:'var(--slate-400)',500:'var(--slate-500)',600:'var(--slate-600)',700:'var(--slate-700)',800:'var(--slate-800)',900:'var(--slate-900)',950:'var(--slate-950)' },
+            blue:   { 50:'var(--blue-50)',  100:'var(--blue-100)', 200:'var(--blue-200)', 300:'var(--blue-300)', 400:'var(--blue-400)', 500:'var(--blue-500)', 600:'var(--blue-600)', 700:'var(--blue-700)', 800:'var(--blue-800)', 900:'var(--blue-900)', 950:'var(--blue-950)' },
+            purple: { 50:'var(--purple-50)',100:'var(--purple-100)',200:'var(--purple-200)',300:'var(--purple-300)',400:'var(--purple-400)',500:'var(--purple-500)',600:'var(--purple-600)',700:'var(--purple-700)',800:'var(--purple-800)',900:'var(--purple-900)',950:'var(--purple-950)' },
           },
-          fontFamily: { sans: ['Inter','ui-sans-serif','system-ui'] }
+          fontFamily: { sans: ['var(--font-main)'] }
         }
       }
     }
   </script>
 
   <style>
+    /* ═══════════ PALETTE (Punto 5 contratto: CSS vars per tema) ═══════════ */
+    :root[data-theme="matrix"] {
+      --brand-50:#e6fff0; --brand-100:#c2ffdb; --brand-200:#8affc0; --brand-300:#4dff8f; --brand-400:#1aff5c; --brand-500:#00ff41; --brand-600:#00cc34; --brand-700:#009e28; --brand-800:#00751d; --brand-900:#004d13; --brand-950:#00280a;
+      --slate-50:#eafff0; --slate-100:#d8ffe4; --slate-200:#a8f0c0; --slate-300:#6fd48c; --slate-400:#3fae5c; --slate-500:#1f5c38; --slate-600:#123a22; --slate-700:#0a2417; --slate-800:#04140a; --slate-900:#020f08; --slate-950:#000000;
+      --blue-50:#e6fff0; --blue-100:#c2ffdb; --blue-200:#8affc0; --blue-300:#4dff8f; --blue-400:#1aff5c; --blue-500:#00ff41; --blue-600:#00cc34; --blue-700:#009e28; --blue-800:#00751d; --blue-900:#004d13; --blue-950:#00280a;
+      --purple-50:#e0fffb; --purple-100:#b3fff5; --purple-200:#7dffee; --purple-300:#39ffe0; --purple-400:#00e5cc; --purple-500:#00bfa8; --purple-600:#009e8a; --purple-700:#007d6d; --purple-800:#005c51; --purple-900:#003d36; --purple-950:#00201c;
+      --font-main: 'JetBrains Mono','Fira Code',Consolas,ui-monospace,monospace;
+
+      --bg-canvas:#020f08;
+      --header-grad-1:#000000; --header-grad-2:#0a3d1f; --header-grad-3:#000000;
+      --scrollbar-track:#04140a; --scrollbar-thumb:#1f7a3d; --scrollbar-thumb-hover:#2ea34f;
+      --title-color:#1aff5c; --title-glow: 0 0 6px rgba(0,255,65,0.85), 0 0 16px rgba(0,255,65,0.35);
+
+      --node-font:#eafff0;
+      --edge-full:#145c2c; --edge-full-hi:#4dbf6e; --edge-full-font:#2ea34f;
+      --edge-ctx:#1f7a3d;  --edge-ctx-hi:#4dbf6e;  --edge-ctx-font:#4dbf6e;
+
+      --tooltip-muted:#4dbf6e; --tooltip-rule-accent:#5eeed4; --tooltip-rule-divider:#0a4a3d;
+      --tooltip-term-accent:#34d399; --tooltip-term-divider:#1a3d32; --tooltip-desc:#c8f5d4;
+
+      --json-divider:#04140a; --json-accent:#1f7a3d; --json-muted:#145c2c; --json-col-bg:#000d05;
+      --json-score-label:#4dbf6e; --json-score-grad-start:#00e639;
+      --chip-bg:#062e14; --chip-border:#0a3d1f; --chip-color:#39ffe0;
+      --stat-bg:#03170a; --stat-number:#7dffa0; --rag-json-bg:#000000;
+
+      --glass-bg: rgba(4,20,10,0.55); --glass-border: rgba(0,255,65,0.16); --glass-shadow: 0 8px 32px rgba(0,0,0,0.55);
+      --glow-shadow-hover: 0 0 26px rgba(0,255,65,0.35), 0 0 52px rgba(0,255,65,0.12);
+      --btn-glow: 0 0 16px rgba(0,255,65,0.35); --btn-glow-hover: 0 0 30px rgba(0,255,65,0.55);
+    }
+
+    :root[data-theme="classic"] {
+      --brand-50:#eff6ff; --brand-100:#dbeafe; --brand-200:#bfdbfe; --brand-300:#93c5fd; --brand-400:#60a5fa; --brand-500:#3b82f6; --brand-600:#2563eb; --brand-700:#1d4ed8; --brand-800:#1e40af; --brand-900:#1e3a8a; --brand-950:#172554;
+      --slate-50:#f8fafc; --slate-100:#f1f5f9; --slate-200:#e2e8f0; --slate-300:#cbd5e1; --slate-400:#94a3b8; --slate-500:#64748b; --slate-600:#475569; --slate-700:#334155; --slate-800:#1e293b; --slate-900:#0f172a; --slate-950:#020617;
+      --blue-50:#eff6ff; --blue-100:#dbeafe; --blue-200:#bfdbfe; --blue-300:#93c5fd; --blue-400:#60a5fa; --blue-500:#3b82f6; --blue-600:#2563eb; --blue-700:#1d4ed8; --blue-800:#1e40af; --blue-900:#1e3a8a; --blue-950:#172554;
+      --purple-50:#faf5ff; --purple-100:#f3e8ff; --purple-200:#e9d5ff; --purple-300:#d8b4fe; --purple-400:#c084fc; --purple-500:#a855f7; --purple-600:#9333ea; --purple-700:#7e22ce; --purple-800:#6b21a8; --purple-900:#581c87; --purple-950:#3b0764;
+      --font-main: 'Inter',ui-sans-serif,system-ui;
+
+      --bg-canvas:#0f172a;
+      --header-grad-1:#0f172a; --header-grad-2:#1e3a5f; --header-grad-3:#0f172a;
+      --scrollbar-track:#1e293b; --scrollbar-thumb:#475569; --scrollbar-thumb-hover:#64748b;
+      --title-color:#ffffff; --title-glow: none;
+
+      --node-font:#f1f5f9;
+      --edge-full:#334155; --edge-full-hi:#94a3b8; --edge-full-font:#64748b;
+      --edge-ctx:#475569;  --edge-ctx-hi:#94a3b8;  --edge-ctx-font:#94a3b8;
+
+      --tooltip-muted:#94a3b8; --tooltip-rule-accent:#a78bfa; --tooltip-rule-divider:#3b2d6b;
+      --tooltip-term-accent:#34d399; --tooltip-term-divider:#1a3d32; --tooltip-desc:#e2e8f0;
+
+      --json-divider:#1e293b; --json-accent:#475569; --json-muted:#334155; --json-col-bg:#080e1a;
+      --json-score-label:#94a3b8; --json-score-grad-start:#2563eb;
+      --chip-bg:#0c1f3f; --chip-border:#1e3a5f; --chip-color:#7dd3fc;
+      --stat-bg:#0a1628; --stat-number:#93c5fd; --rag-json-bg:#020817;
+
+      --glass-bg: rgba(15,23,42,0.55); --glass-border: rgba(255,255,255,0.08); --glass-shadow: 0 8px 24px rgba(15,23,42,0.25);
+      --glow-shadow-hover: 0 12px 32px rgba(37,99,235,0.18);
+      --btn-glow: 0 4px 14px rgba(37,99,235,0.25); --btn-glow-hover: 0 8px 24px rgba(37,99,235,0.35);
+    }
+
+    body { font-family: var(--font-main); }
+
+    /* ── Premium: glassmorphism + neon micro-interactions ── */
+    .glass-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+      transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    }
+    .glass-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--glow-shadow-hover);
+    }
+    .neon-btn { transition: all 0.3s cubic-bezier(0.4,0,0.2,1); box-shadow: var(--btn-glow); }
+    .neon-btn:hover { box-shadow: var(--btn-glow-hover); transform: translateY(-1px) scale(1.015); }
+
     /* Custom scrollbar */
     ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #1e293b; }
-    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+    ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 
     /* Vis.js graph container */
     #graph-canvas {
       width: 100%;
       height: 100%;
-      background: #0f172a;
+      background: var(--bg-canvas);
       border-radius: 0.75rem;
     }
+
+    #tab-graph-panel { transition: box-shadow 0.3s ease, border-color 0.3s ease; }
+    #tab-graph-panel:hover { box-shadow: var(--glow-shadow-hover); }
 
     /* Pulsing loader dot */
     @keyframes pulse-dot {
@@ -61,7 +148,36 @@
 
     /* Gradient header */
     .header-gradient {
-      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+      background: linear-gradient(135deg, var(--header-grad-1) 0%, var(--header-grad-2) 50%, var(--header-grad-3) 100%);
+    }
+
+    /* Matrix rain background canvas (solo tema Matrix) */
+    #matrix-rain {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.32;
+    }
+
+    /* CRT scanline overlay (solo tema Matrix) */
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      pointer-events: none;
+      background: repeating-linear-gradient(0deg, rgba(0,255,65,0.035) 0px, rgba(0,255,65,0.035) 1px, transparent 1px, transparent 2px);
+    }
+
+    /* Green text glow (solo tema Matrix) */
+    .glow-text { text-shadow: var(--title-glow); }
+
+    /* Elementi esclusivi del tema Matrix: presenti nel DOM, nascosti in Classico */
+    :root[data-theme="classic"] #matrix-rain,
+    :root[data-theme="classic"] .scanlines {
+      display: none;
     }
   </style>
 </head>
@@ -71,40 +187,52 @@
   <!-- ═══════════════════ THEME SWITCHER (logica) ═══════════════════ -->
   <script>
     function setUiTheme(value) {
-        document.cookie = 'ui_theme=' + value + ';path=/;max-age=31536000';
-        location.reload();
-      }
-      document.addEventListener('DOMContentLoaded', function() {
-        var m = document.cookie.match(/(?:^|; )ui_theme=([^;]*)/);
-        var theme = m ? decodeURIComponent(m[1]) : 'matrix';
-        var sel = document.getElementById('theme-switcher');
-        if (sel) sel.value = theme;
-      });
+      document.cookie = 'ui_theme=' + value + ';path=/;max-age=31536000';
+      document.documentElement.dataset.theme = value;   // live-flip: niente reload
+      if (value === 'matrix') startMatrixRain(); else stopMatrixRain();
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+      // Il server ha già impostato data-theme sul primo paint (nessun flash) — questo
+      // blocco serve solo a sincronizzare lo stato del <select id="theme-switcher">.
+      var sel = document.getElementById('theme-switcher');
+      if (sel) sel.value = document.documentElement.dataset.theme || 'matrix';
+      if (document.documentElement.dataset.theme === 'matrix') startMatrixRain();
+    });
   </script>
 
+  <canvas id="matrix-rain"></canvas>
+  <div class="scanlines"></div>
+
   <!-- ═══════════════════ HEADER ═══════════════════ -->
-  <header class="header-gradient border-b border-slate-800 px-6 py-4 flex items-center gap-4 shrink-0">
-    <div class="flex items-center gap-3">
+  <header class="relative z-10 header-gradient border-b border-slate-800 px-6 py-4 flex items-center gap-4 shrink-0">
+    <div class="flex items-center gap-3 shrink-0">
       <!-- Logo icon -->
-      <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg">
+      <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg neon-btn">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
         </svg>
       </div>
       <div>
-        <h1 class="text-lg font-bold tracking-tight text-white">HARO Graph-RAG</h1>
+        <h1 class="glow-text text-lg font-bold tracking-tight" style="color:var(--title-color)">HARO Graph-RAG</h1>
         <p class="text-xs text-slate-400 -mt-0.5">Console di interrogazione</p>
       </div>
     </div>
 
-    <a href="/pipeline" class="ml-auto flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition">
+    <a href="/pipeline" class="ml-auto shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-300 hover:scale-105">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
       </svg>
       Pipeline VibeCraft
     </a>
 
-    <a href="/infografica" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition">
+    <a href="/analysis" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-300 hover:scale-105">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+      </svg>
+      Analisi
+    </a>
+
+    <a href="/infografica" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-300 hover:scale-105">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2a4 4 0 014-4h3m0 0l-3-3m3 3l-3 3M4 7h16M4 12h4m-4 5h4"/>
       </svg>
@@ -112,13 +240,13 @@
     </a>
 
     <!-- Status badge -->
-    <div id="status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-400">
+    <div id="status-badge" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-400">
       <span class="w-2 h-2 rounded-full bg-slate-500" id="status-dot"></span>
       <span id="status-text">In attesa</span>
     </div>
 
     <!-- Theme switcher -->
-    <label for="theme-switcher"></label><select id="theme-switcher" onchange="setUiTheme(this.value)"
+    <label for="theme-switcher"></label><select id="theme-switcher" onchange="setUiTheme(this.value)" class="shrink-0"
                                                 style="background:#0a0a0a;color:#00ff41;border:1px solid #00ff41;border-radius:6px;padding:5px 10px;font-size:12px;font-family:ui-monospace,Consolas,monospace;cursor:pointer;box-shadow:0 0 8px rgba(0,255,65,0.3);">
       <option value="matrix">🟢 Matrix</option>
       <option value="classic">☀️ Classico</option>
@@ -126,13 +254,13 @@
   </header>
 
   <!-- ═══════════════════ MAIN LAYOUT ═══════════════════ -->
-  <main class="flex-1 flex overflow-hidden">
+  <main class="relative z-10 flex-1 flex overflow-hidden">
 
     <!-- ────── LEFT PANEL ────── -->
     <aside class="w-96 shrink-0 flex flex-col gap-4 p-4 border-r border-slate-800 overflow-y-auto">
 
       <!-- Search card -->
-      <div class="rounded-xl bg-slate-900 border border-slate-800 p-4">
+      <div class="rounded-xl glass-card p-4">
         <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Domanda</label>
         <div class="relative">
           <label for="question-input"></label><textarea
@@ -159,7 +287,7 @@
 
         <!-- Submit button -->
         <button id="ask-btn" onclick="submitQuery()"
-          class="mt-4 w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-semibold py-2.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+          class="mt-4 w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-semibold py-2.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed neon-btn hover:scale-[1.02]">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
           </svg>
@@ -178,7 +306,7 @@
       </div>
 
       <!-- Answer card -->
-      <div id="answer-card" class="hidden rounded-xl bg-slate-900 border border-slate-800 p-4">
+      <div id="answer-card" class="hidden rounded-xl glass-card p-4">
         <div class="flex items-center justify-between mb-3">
           <label class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Risposta LLM</label>
           <span id="elapsed-badge" class="text-xs font-mono text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded-full border border-emerald-800"></span>
@@ -189,7 +317,7 @@
       </div>
 
       <!-- Qdrant scores card -->
-      <div id="scores-card" class="hidden rounded-xl bg-slate-900 border border-slate-800 p-4">
+      <div id="scores-card" class="hidden rounded-xl glass-card p-4">
         <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">
           Qdrant Scores
         </label>
@@ -205,7 +333,7 @@
       <div class="flex items-center justify-between shrink-0">
 
         <!-- Tab buttons -->
-        <div class="flex items-center gap-0.5 p-0.5 rounded-lg bg-slate-900 border border-slate-800">
+        <div class="flex items-center gap-0.5 p-0.5 rounded-lg glass-card shrink-0">
           <button id="tab-graph-btn" onclick="switchTab('graph')"
             class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition
                    bg-slate-700 text-slate-100 shadow-sm">
@@ -235,9 +363,9 @@
         </div>
 
         <!-- Graph-specific controls (nascosti nel tab Prompt Context) -->
-        <div id="graph-controls" class="flex items-center gap-3">
-          <div class="flex items-center gap-3">
-            <span id="graph-title" class="text-sm font-semibold text-slate-300">Grafo contestuale</span>
+        <div id="graph-controls" class="flex items-center gap-3 shrink-0 whitespace-nowrap">
+          <div class="flex items-center gap-3 shrink-0">
+            <span id="graph-title" class="text-sm font-semibold text-slate-300 whitespace-nowrap">Grafo contestuale</span>
             <!-- Badge Vista Globale -->
             <span id="graph-mode-badge"
               class="hidden items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-950 border border-purple-700 text-purple-300">
@@ -247,7 +375,7 @@
               Vista Globale
             </span>
             <!-- La forma distingue il tipo di nodo; il colore indica il pilastro REASONS (legenda sul grafo) -->
-            <div class="flex items-center gap-3 text-xs text-slate-500">
+            <div class="flex items-center gap-3 text-xs text-slate-500 whitespace-nowrap">
               <span class="flex items-center gap-1.5">
                 <span class="w-3 h-2 rounded-sm border border-slate-400 inline-block"></span> Documento
               </span>
@@ -257,7 +385,7 @@
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <span id="graph-counter" class="text-xs text-slate-500"></span>
+            <span id="graph-counter" class="text-xs font-mono text-slate-500"></span>
             <!-- Pulsante ripristina grafo contestuale (visibile solo dopo una query + vista globale) -->
             <button id="restore-graph-btn" onclick="restoreContextualGraph()"
               title="Ripristina il grafo dell'ultima interrogazione"
@@ -276,7 +404,7 @@
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
                      bg-purple-900 border border-purple-700 text-purple-200
                      hover:bg-purple-800 hover:text-white active:bg-purple-950
-                     transition disabled:opacity-50 disabled:cursor-not-allowed">
+                     transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn hover:scale-[1.02]">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
               </svg>
@@ -300,13 +428,13 @@
           <div id="graph-canvas"></div>
           <!-- Legenda cromatica dei pilastri REASONS (compare quando c'è un grafo) -->
           <div id="reasons-legend" style="display:none"
-            class="absolute bottom-3 left-3 z-20 rounded-lg border border-slate-700 bg-slate-900/85 px-3 py-2 pointer-events-none">
+            class="absolute bottom-3 left-3 z-20 rounded-lg border border-slate-700 bg-slate-900/70 backdrop-blur-md px-3 py-2 pointer-events-none">
             <div class="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Pilastri REASONS</div>
             <div id="reasons-legend-items" class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-slate-300"></div>
           </div>
           <!-- Pannello dettagli nodo (compare al click su un nodo) -->
           <div id="node-details" style="display:none"
-            class="absolute top-3 right-3 z-30 w-72 max-h-[75%] overflow-y-auto rounded-lg border border-slate-700 bg-slate-900/95 p-3 shadow-xl">
+            class="absolute top-3 right-3 z-30 w-72 max-h-[75%] overflow-y-auto rounded-lg border border-slate-700 bg-slate-900/80 backdrop-blur-md p-3 shadow-xl">
             <div class="flex items-start justify-between gap-2 mb-2">
               <span id="nd-title" class="text-sm font-semibold text-slate-100 break-all leading-snug"></span>
               <button onclick="closeNodeDetails()" title="Chiudi"
@@ -353,8 +481,8 @@
           class="absolute inset-0 rounded-xl border border-slate-800 bg-slate-950 overflow-hidden"
           style="display:none">
           <!-- Header -->
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid #1e293b;background:#0f172a">
-            <span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#475569">Ispezione Risposta RAG</span>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid var(--json-divider);background:var(--bg-canvas)">
+            <span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--json-accent)">Ispezione Risposta RAG</span>
             <span id="json-status-badge" style="font-size:10px;font-family:ui-monospace,monospace"></span>
           </div>
           <!-- Two-column body -->
@@ -362,16 +490,16 @@
 
             <!-- ── Colonna sinistra: RAG Deterministico ── -->
             <div id="json-rag-col"
-              style="flex:0 0 44%;border-right:1px solid #1e293b;overflow-y:auto;padding:14px 16px;
-                     font-family:Inter,ui-sans-serif,sans-serif;background:#080e1a">
-              <p style="color:#334155;font-size:11px">Nessuna interrogazione eseguita.</p>
+              style="flex:0 0 44%;border-right:1px solid var(--json-divider);overflow-y:auto;padding:14px 16px;
+                     font-family:Inter,ui-sans-serif,sans-serif;background:var(--json-col-bg)">
+              <p style="color:var(--json-muted);font-size:11px">Nessuna interrogazione eseguita.</p>
             </div>
 
             <!-- ── Colonna destra: LLM Generativo ── -->
             <div id="json-llm-col"
               style="flex:1;overflow-y:auto;padding:14px 16px;
                      font-family:Inter,ui-sans-serif,sans-serif">
-              <p style="color:#334155;font-size:11px">Nessuna interrogazione eseguita.</p>
+              <p style="color:var(--json-muted);font-size:11px">Nessuna interrogazione eseguita.</p>
             </div>
 
           </div>
@@ -381,7 +509,7 @@
 
       <!-- Node tooltip (shared) -->
       <div id="node-tooltip"
-        class="hidden absolute z-50 rounded-lg bg-slate-800 border border-slate-700 shadow-xl p-3 text-xs text-slate-200 pointer-events-none max-w-xs">
+        class="hidden absolute z-50 rounded-lg bg-slate-800/90 backdrop-blur-sm border border-slate-700 shadow-xl p-3 text-xs text-slate-200 pointer-events-none max-w-xs">
       </div>
 
     </section>
@@ -389,6 +517,46 @@
 
   <!-- ═══════════════════ JAVASCRIPT ═══════════════════ -->
   <script>
+    /** Legge una CSS variable dal :root corrente (risolve già il tema attivo via data-theme). */
+    function themeVar(name, fallback) {
+      const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      return v || fallback;
+    }
+
+    /* ──────────── MATRIX RAIN BACKGROUND (parte solo se il tema attivo è "matrix") ──────────── */
+    let matrixRainTimer = null;
+    function startMatrixRain() {
+      if (matrixRainTimer) return;
+      const canvas = document.getElementById('matrix-rain');
+      const ctx = canvas.getContext('2d');
+      const glyphs = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789';
+      let w, h, cols, drops;
+      function resize() {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+        cols = Math.floor(w / 16);
+        drops = new Array(cols).fill(0).map(() => Math.random() * -50);
+      }
+      resize();
+      window.addEventListener('resize', resize);
+      function draw() {
+        ctx.fillStyle = 'rgba(0,0,0,0.06)';
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = '#00ff41';
+        ctx.font = '14px monospace';
+        for (let i = 0; i < drops.length; i++) {
+          const glyph = glyphs[Math.floor(Math.random() * glyphs.length)];
+          ctx.fillText(glyph, i * 16, drops[i] * 16);
+          if (drops[i] * 16 > h && Math.random() > 0.975) drops[i] = 0;
+          drops[i]++;
+        }
+      }
+      matrixRainTimer = setInterval(draw, 50);
+    }
+    function stopMatrixRain() {
+      if (matrixRainTimer) { clearInterval(matrixRainTimer); matrixRainTimer = null; }
+    }
+
     let network = null;
     let currentNodes = new vis.DataSet();
     let currentEdges = new vis.DataSet();
@@ -539,6 +707,11 @@
         document.getElementById('reasons-legend').style.display = '';
         closeNodeDetails();
 
+        const nodeFont  = themeVar('--node-font', '#eafff0');
+        const edgeColor = themeVar('--edge-full', '#145c2c');
+        const edgeHi    = themeVar('--edge-full-hi', '#4dbf6e');
+        const edgeFont  = themeVar('--edge-full-font', '#2ea34f');
+
         const nodes = data.nodes.map(n => {
           const isDoc = n.type === 'document';
           const color = pillarColor(n.classification, n.type);
@@ -552,7 +725,7 @@
             pillar: pillarKey(n.classification, n.type),
             description: n.description || '',
             color,
-            font: { color:'#f1f5f9', size:11, face:'Inter, sans-serif' },
+            font: { color: nodeFont, size:11, face:'Inter, sans-serif' },
             shape: isDoc ? 'box' : 'ellipse',
             borderWidth: 1.5,
             size: isDoc ? 18 : 12,
@@ -565,8 +738,8 @@
           to: e.to,
           label: e.relation || '',
           arrows: { to:{ enabled:true, scaleFactor:0.6 } },
-          color: { color:'#334155', highlight:'#94a3b8' },
-          font: { color:'#64748b', size:9, align:'middle', strokeWidth:0 },
+          color: { color: edgeColor, highlight: edgeHi },
+          font: { color: edgeFont, size:9, align:'middle', strokeWidth:0 },
           smooth: { type:'dynamic' },
         }));
 
@@ -622,16 +795,18 @@
 
     /* ──────────── TOOLTIP (shared) ──────────── */
     function makeTooltipHtml(nodeId, description) {
+      const mutedColor = themeVar('--tooltip-muted', '#4dbf6e');
       if (!description) {
         // Nodo senza descrizione: tooltip minimalista con solo l'ID
-        return `<div style="font-size:11px;color:#94a3b8;max-width:280px;word-break:break-all">${nodeId}</div>`;
+        return `<div style="font-size:11px;color:${mutedColor};max-width:280px;word-break:break-all">${nodeId}</div>`;
       }
 
       const isRule    = /^REGOLA-/.test(nodeId);
       // Regole → viola  |  Termini di glossario → ciano smeraldo
-      const accent    = isRule ? '#a78bfa' : '#34d399';
-      const divider   = isRule ? '#3b2d6b' : '#1a3d32';
+      const accent    = isRule ? themeVar('--tooltip-rule-accent', '#5eeed4') : themeVar('--tooltip-term-accent', '#34d399');
+      const divider   = isRule ? themeVar('--tooltip-rule-divider', '#0a4a3d') : themeVar('--tooltip-term-divider', '#1a3d32');
       const label     = isRule ? 'Regola normativa' : 'Termine di glossario';
+      const descColor = themeVar('--tooltip-desc', '#c8f5d4');
 
       return `
         <div style="max-width:300px">
@@ -640,7 +815,7 @@
                          color:${accent};opacity:.75">${label}</span>
             <span style="font-size:10px;font-weight:700;color:${accent}">${nodeId}</span>
           </div>
-          <div style="font-size:12px;line-height:1.6;color:#e2e8f0">${description}</div>
+          <div style="font-size:12px;line-height:1.6;color:${descColor}">${description}</div>
         </div>`;
     }
 
@@ -732,6 +907,11 @@
       closeNodeDetails();
 
       const seedSet = new Set(seedNodes || []);
+      const nodeFont  = themeVar('--node-font', '#eafff0');
+      const edgeColor = themeVar('--edge-ctx', '#1f7a3d');
+      const edgeHi    = themeVar('--edge-ctx-hi', '#4dbf6e');
+      const edgeFont  = themeVar('--edge-ctx-font', '#4dbf6e');
+
       // expandedNodes è ora una lista di oggetti {id, type, description, classification}
       const nodes = expandedNodes.map(n => {
         const nodeId = n.id;
@@ -753,7 +933,7 @@
           pillar: pillarKey(n.classification, n.type),
           description: n.description || '',
           color: color,
-          font: { color: '#f1f5f9', size: 12, face: 'Inter, sans-serif' },
+          font: { color: nodeFont, size: 12, face: 'Inter, sans-serif' },
           shape: isDoc ? 'box' : 'ellipse',
           borderWidth: isSeed ? 3 : 1.5,
           shadow: isSeed ? { enabled: true, color:'rgba(59,130,246,0.5)', size:10 } : false,
@@ -767,8 +947,8 @@
         to: e.to,
         label: e.relation || '',
         arrows: { to: { enabled: true, scaleFactor: 0.7 } },
-        color: { color: '#475569', highlight: '#94a3b8' },
-        font: { color: '#94a3b8', size: 10, align: 'middle', strokeWidth: 0 },
+        color: { color: edgeColor, highlight: edgeHi },
+        font: { color: edgeFont, size: 10, align: 'middle', strokeWidth: 0 },
         smooth: { type: 'dynamic' },
       }));
 
@@ -814,6 +994,7 @@
 
       list.innerHTML = '';
       const maxScore = Math.max(...scores.map(s => s.score));
+      const fmt = v => (v === null || v === undefined) ? '—' : (typeof v === 'number' ? v.toFixed(3) : v);
       scores.forEach(s => {
         const pct = maxScore > 0 ? (s.score / maxScore * 100).toFixed(1) : 0;
         const short = (s.doc_id || '—').length > 36
@@ -827,6 +1008,12 @@
             </div>
             <div class="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
               <div class="score-bar h-full rounded-full bg-gradient-to-r from-blue-600 to-emerald-500" style="width:${pct}%"></div>
+            </div>
+            <div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-mono text-slate-500">
+              <span title="Dense (semantica)">D ${fmt(s.dense_score)}</span>
+              <span title="Sparse (lessicale)">S ${fmt(s.sparse_score)}</span>
+              <span title="ColBERT (token-per-token)">CB ${fmt(s.colbert_score)}</span>
+              <span title="Autorità della sorgente" class="text-blue-400">A ${fmt(s.authority)}</span>
             </div>
           </div>
         `);
@@ -851,12 +1038,25 @@
       const elapsed     = data.elaboration_seconds ?? data.elapsed_seconds;
       const status      = data.status          || '—';
 
+      const divider     = themeVar('--json-divider', '#04140a');
+      const accent      = themeVar('--json-accent', '#1f7a3d');
+      const muted       = themeVar('--json-muted', '#145c2c');
+      const scoreLabel  = themeVar('--json-score-label', '#4dbf6e');
+      const scoreGradS  = themeVar('--json-score-grad-start', '#00e639');
+      const chipBg      = themeVar('--chip-bg', '#062e14');
+      const chipBorder  = themeVar('--chip-border', '#0a3d1f');
+      const chipColor   = themeVar('--chip-color', '#39ffe0');
+      const statBg      = themeVar('--stat-bg', '#03170a');
+      const statNumber  = themeVar('--stat-number', '#7dffa0');
+      const ragJsonBg   = themeVar('--rag-json-bg', '#000000');
+      const descColor   = themeVar('--tooltip-desc', '#c8f5d4');
+
       /* ── Badge header ── */
       const sBg  = status === 'success' ? '#052e16' : '#1c0a0a';
       const sClr = status === 'success' ? '#34d399' : '#f87171';
       document.getElementById('json-status-badge').innerHTML =
         `<span style="padding:2px 9px;border-radius:20px;background:${sBg};color:${sClr};font-weight:700">${escapeHtml(status)}</span>` +
-        (elapsed != null ? `&nbsp;<span style="color:#475569">${elapsed}s</span>` : '');
+        (elapsed != null ? `&nbsp;<span style="color:${accent}">${elapsed}s</span>` : '');
 
       /* ── LEFT: Qdrant scores ── */
       const maxScore = scores.length ? Math.max(...scores.map(s => s.score)) : 1;
@@ -867,22 +1067,22 @@
               ? s.doc_id.substring(0, 30) + '…' : (s.doc_id || '—');
             return `<div style="margin-bottom:10px">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-                <span style="font-size:10px;color:#94a3b8;font-family:ui-monospace,monospace" title="${escapeHtml(s.doc_id)}">${escapeHtml(label)}</span>
+                <span style="font-size:10px;color:${scoreLabel};font-family:ui-monospace,monospace" title="${escapeHtml(s.doc_id)}">${escapeHtml(label)}</span>
                 <span style="font-size:10px;font-family:ui-monospace,monospace;color:#34d399;margin-left:8px;white-space:nowrap">${s.score.toFixed(4)}</span>
               </div>
-              <div style="height:3px;background:#1e293b;border-radius:2px;overflow:hidden">
-                <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,#2563eb,#10b981)"></div>
+              <div style="height:3px;background:${divider};border-radius:2px;overflow:hidden">
+                <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,${scoreGradS},#10b981)"></div>
               </div>
             </div>`;
           }).join('')
-        : '<span style="color:#334155;font-size:11px">Nessun risultato</span>';
+        : `<span style="color:${muted};font-size:11px">Nessun risultato</span>`;
 
       /* ── LEFT: seed nodes chips ── */
       const seedHtml = seedNodes.map(n =>
         `<span style="display:inline-block;margin:2px 3px;padding:2px 8px;border-radius:4px;
-                background:#0c1f3f;border:1px solid #1e3a5f;color:#7dd3fc;font-size:10px;
+                background:${chipBg};border:1px solid ${chipBorder};color:${chipColor};font-size:10px;
                 font-family:ui-monospace,monospace">${escapeHtml(n)}</span>`
-      ).join('') || '<span style="color:#334155;font-size:11px">—</span>';
+      ).join('') || `<span style="color:${muted};font-size:11px">—</span>`;
 
       /* ── LEFT: raw RAG JSON (context_text escluso) ── */
       const ragData = {
@@ -898,50 +1098,50 @@
       document.getElementById('json-rag-col').innerHTML = `
         <div style="margin-bottom:18px">
           <div style="font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
-                      color:#334155;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #1e293b">
+                      color:${muted};margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${divider}">
             Retrieval Semantico &middot; Qdrant
           </div>
           ${scoresHtml}
         </div>
         <div style="margin-bottom:18px">
           <div style="font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
-                      color:#334155;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #1e293b">
+                      color:${muted};margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${divider}">
             Espansione Grafo &middot; NetworkX
           </div>
           <div style="margin-bottom:10px">
-            <div style="font-size:9px;color:#475569;margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Nodi seed</div>
+            <div style="font-size:9px;color:${accent};margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Nodi seed</div>
             <div>${seedHtml}</div>
           </div>
           <div style="display:flex;gap:10px;margin-top:12px">
-            <div style="flex:1;text-align:center;padding:8px 4px;background:#0a1628;border-radius:8px;border:1px solid #1e293b">
-              <div style="font-size:20px;font-weight:700;color:#93c5fd;font-family:ui-monospace,monospace;line-height:1">${expNodes.length}</div>
-              <div style="font-size:9px;color:#334155;text-transform:uppercase;letter-spacing:.06em;margin-top:3px">espansi</div>
+            <div style="flex:1;text-align:center;padding:8px 4px;background:${statBg};border-radius:8px;border:1px solid ${divider}">
+              <div style="font-size:20px;font-weight:700;color:${statNumber};font-family:ui-monospace,monospace;line-height:1">${expNodes.length}</div>
+              <div style="font-size:9px;color:${muted};text-transform:uppercase;letter-spacing:.06em;margin-top:3px">espansi</div>
             </div>
-            <div style="flex:1;text-align:center;padding:8px 4px;background:#0a1628;border-radius:8px;border:1px solid #1e293b">
-              <div style="font-size:20px;font-weight:700;color:#93c5fd;font-family:ui-monospace,monospace;line-height:1">${graphEdges.length}</div>
-              <div style="font-size:9px;color:#334155;text-transform:uppercase;letter-spacing:.06em;margin-top:3px">archi</div>
+            <div style="flex:1;text-align:center;padding:8px 4px;background:${statBg};border-radius:8px;border:1px solid ${divider}">
+              <div style="font-size:20px;font-weight:700;color:${statNumber};font-family:ui-monospace,monospace;line-height:1">${graphEdges.length}</div>
+              <div style="font-size:9px;color:${muted};text-transform:uppercase;letter-spacing:.06em;margin-top:3px">archi</div>
             </div>
           </div>
         </div>
         <div>
           <div style="font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
-                      color:#334155;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #1e293b">
+                      color:${muted};margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid ${divider}">
             Dati JSON Grezzi &middot; RAG
           </div>
           <pre id="rag-json-box" style="margin:0;padding:10px 12px;border-radius:8px;
-               background:#020817;border:1px solid #1e293b;
+               background:${ragJsonBg};border:1px solid ${divider};
                font-size:10px;line-height:1.6;font-family:'JetBrains Mono',ui-monospace,monospace;
-               color:#7dd3fc;white-space:pre;overflow-x:auto;overflow-y:auto;
+               color:${chipColor};white-space:pre;overflow-x:auto;overflow-y:auto;
                max-height:240px">${escapeHtml(ragJson)}</pre>
         </div>`;
 
       /* ── RIGHT: LLM answer ── */
       document.getElementById('json-llm-col').innerHTML = `
         <div style="font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
-                    color:#334155;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #1e293b">
+                    color:${muted};margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid ${divider}">
           Risposta LLM Generativo
         </div>
-        <div style="font-size:12.5px;line-height:1.75;color:#e2e8f0;white-space:pre-wrap;
+        <div style="font-size:12.5px;line-height:1.75;color:${descColor};white-space:pre-wrap;
                     word-break:break-word;font-family:Inter,ui-sans-serif,sans-serif">
           ${escapeHtml(answer)}
         </div>`;

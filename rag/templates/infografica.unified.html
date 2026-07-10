@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="matrix">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architettura Graph RAG - Project Work</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+      /* Tailwind punta a CSS variables: le classi (bg-white, text-slate-800, border-purple-500…)
+         sono generate UNA volta con var(--...) come valore colore. Il cambio tema
+         (:root[data-theme]) aggiorna le variabili senza rigenerare le classi -> live-flip. */
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              white:  'var(--white)',
+              slate:  { 50:'var(--slate-50)',100:'var(--slate-100)',200:'var(--slate-200)',300:'var(--slate-300)',400:'var(--slate-400)',500:'var(--slate-500)',600:'var(--slate-600)',700:'var(--slate-700)',800:'var(--slate-800)',900:'var(--slate-900)',950:'var(--slate-950)' },
+              blue:   { 50:'var(--blue-50)',  100:'var(--blue-100)', 200:'var(--blue-200)', 300:'var(--blue-300)', 400:'var(--blue-400)', 500:'var(--blue-500)', 600:'var(--blue-600)', 700:'var(--blue-700)', 800:'var(--blue-800)', 900:'var(--blue-900)', 950:'var(--blue-950)' },
+              purple: { 50:'var(--purple-50)',100:'var(--purple-100)',200:'var(--purple-200)',300:'var(--purple-300)',400:'var(--purple-400)',500:'var(--purple-500)',600:'var(--purple-600)',700:'var(--purple-700)',800:'var(--purple-800)',900:'var(--purple-900)',950:'var(--purple-950)' },
+              emerald:{ 50:'var(--emerald-50)',100:'var(--emerald-100)',200:'var(--emerald-200)',300:'var(--emerald-300)',400:'var(--emerald-400)',500:'var(--emerald-500)',600:'var(--emerald-600)',700:'var(--emerald-700)',800:'var(--emerald-800)',900:'var(--emerald-900)',950:'var(--emerald-950)' },
+              orange: { 50:'var(--orange-50)',100:'var(--orange-100)',200:'var(--orange-200)',300:'var(--orange-300)',400:'var(--orange-400)',500:'var(--orange-500)',600:'var(--orange-600)',700:'var(--orange-700)',800:'var(--orange-800)',900:'var(--orange-900)',950:'var(--orange-950)' },
+              pink:   { 600:'var(--pink-600)' },
+              gray:   { 200:'var(--gray-200)' },
+            },
+            fontFamily: { sans: ['var(--font-main)'] }
+          }
+        }
+      }
+    </script>
+    <style>
+      /* ═══════════ PALETTE (Punto 5 contratto: CSS vars per tema) ═══════════ */
+      :root[data-theme="matrix"] {
+        --white:#06190d;
+        --slate-50:#000000; --slate-100:#0a2417; --slate-200:#123a22; --slate-300:#1f5c38; --slate-400:#2ea34f; --slate-500:#3fae5c; --slate-600:#4dbf6e; --slate-700:#00ff41; --slate-800:#c8f5d4; --slate-900:#eafff0; --slate-950:#ffffff;
+        --blue-50:#04140a; --blue-100:#0a2417; --blue-200:#123a22; --blue-300:#1f5c38; --blue-400:#2ea34f; --blue-500:#3fae5c; --blue-600:#00ff41; --blue-700:#00cc34; --blue-800:#c8f5d4; --blue-900:#eafff0; --blue-950:#ffffff;
+        --purple-50:#03170a; --purple-100:#062e14; --purple-200:#0a4a3d; --purple-300:#0d6b5a; --purple-400:#00a88f; --purple-500:#00e5cc; --purple-600:#39ffe0; --purple-700:#7dffee; --purple-800:#b3fff5; --purple-900:#e0fffb; --purple-950:#ffffff;
+        --emerald-50:#03170a; --emerald-100:#062e14; --emerald-200:#0a4a24; --emerald-300:#0e6b34; --emerald-400:#12a04a; --emerald-500:#00ff41; --emerald-600:#39ff6e; --emerald-700:#7dffa0; --emerald-800:#b3ffc8; --emerald-900:#e0ffe8; --emerald-950:#ffffff;
+        --orange-50:#04140a; --orange-100:#0a2417; --orange-200:#123a22; --orange-300:#4a3a12; --orange-400:#8a6a1a; --orange-500:#ffb700; --orange-600:#ffcc4d; --orange-700:#ffdd80; --orange-800:#ffeeb3; --orange-900:#fff6d9; --orange-950:#ffffff;
+        --pink-600:#ffd166;
+        --gray-200:#0a2417;
+        --font-main: 'JetBrains Mono','Fira Code',Consolas,ui-monospace,monospace;
+
+        --scrollbar-track:#04140a; --scrollbar-thumb:#1f7a3d; --scrollbar-thumb-hover:#2ea34f;
+        --title-glow: 0 0 6px rgba(0,255,65,0.85), 0 0 16px rgba(0,255,65,0.35);
+
+        /* Mermaid: variabili tema base */
+        --mm-primary:#04140a; --mm-primary-text:#c8f5d4; --mm-primary-border:#00ff41;
+        --mm-line:#00ff41; --mm-secondary:#04140a; --mm-tertiary:#04140a;
+        --mm-edge-bg:#000000; --mm-bg:#000000; --mm-font: 'JetBrains Mono, ui-monospace, monospace';
+        /* Mermaid: classDef per nodo (fill/stroke/text) */
+        --mm-user-fill:#04140a;     --mm-user-stroke:#3fae5c;   --mm-user-text:#c8f5d4;
+        --mm-fastapi-fill:#03170a;  --mm-fastapi-stroke:#00cfae;--mm-fastapi-text:#c8f5d4;
+        --mm-qdrant-fill:#04140a;   --mm-qdrant-stroke:#00e5cc; --mm-qdrant-text:#c8f5d4;
+        --mm-networkx-fill:#04140a; --mm-networkx-stroke:#00ff41;--mm-networkx-text:#c8f5d4;
+        --mm-ollama-fill:#04140a;   --mm-ollama-stroke:#ffb700; --mm-ollama-text:#c8f5d4;
+
+        --glass-bg: rgba(4,20,10,0.55); --glass-border: rgba(0,255,65,0.16); --glass-shadow: 0 8px 32px rgba(0,0,0,0.55);
+        --glow-shadow-hover: 0 0 26px rgba(0,255,65,0.28), 0 0 52px rgba(0,255,65,0.10);
+      }
+
+      :root[data-theme="classic"] {
+        --white:#ffffff;
+        --slate-50:#f8fafc; --slate-100:#f1f5f9; --slate-200:#e2e8f0; --slate-300:#cbd5e1; --slate-400:#94a3b8; --slate-500:#64748b; --slate-600:#475569; --slate-700:#334155; --slate-800:#1e293b; --slate-900:#0f172a; --slate-950:#020617;
+        --blue-50:#eff6ff; --blue-100:#dbeafe; --blue-200:#bfdbfe; --blue-300:#93c5fd; --blue-400:#60a5fa; --blue-500:#3b82f6; --blue-600:#2563eb; --blue-700:#1d4ed8; --blue-800:#1e40af; --blue-900:#1e3a8a; --blue-950:#172554;
+        --purple-50:#faf5ff; --purple-100:#f3e8ff; --purple-200:#e9d5ff; --purple-300:#d8b4fe; --purple-400:#c084fc; --purple-500:#a855f7; --purple-600:#9333ea; --purple-700:#7e22ce; --purple-800:#6b21a8; --purple-900:#581c87; --purple-950:#3b0764;
+        --emerald-50:#ecfdf5; --emerald-100:#d1fae5; --emerald-200:#a7f3d0; --emerald-300:#6ee7b7; --emerald-400:#34d399; --emerald-500:#10b981; --emerald-600:#059669; --emerald-700:#047857; --emerald-800:#065f46; --emerald-900:#064e3b; --emerald-950:#022c22;
+        --orange-50:#fff7ed; --orange-100:#ffedd5; --orange-200:#fed7aa; --orange-300:#fdba74; --orange-400:#fb923c; --orange-500:#f97316; --orange-600:#ea580c; --orange-700:#c2410c; --orange-800:#9a3412; --orange-900:#7c2d12; --orange-950:#431407;
+        --pink-600:#db2777;
+        --gray-200:#e5e7eb;
+        --font-main: 'Inter',ui-sans-serif,system-ui;
+
+        --scrollbar-track:#e2e8f0; --scrollbar-thumb:#94a3b8; --scrollbar-thumb-hover:#64748b;
+        --title-glow: none;
+
+        /* Mermaid: variabili tema base */
+        --mm-primary:#f3f4f6; --mm-primary-text:#1f2937; --mm-primary-border:#9ca3af;
+        --mm-line:#9ca3af; --mm-secondary:#ffffff; --mm-tertiary:#ffffff;
+        --mm-edge-bg:#ffffff; --mm-bg:#ffffff; --mm-font: 'Inter, ui-sans-serif, system-ui';
+        /* Mermaid: classDef per nodo (fill/stroke/text) */
+        --mm-user-fill:#e2e8f0;     --mm-user-stroke:#64748b;   --mm-user-text:#1f2937;
+        --mm-fastapi-fill:#e0f2fe;  --mm-fastapi-stroke:#0ea5e9;--mm-fastapi-text:#1f2937;
+        --mm-qdrant-fill:#f3e8ff;   --mm-qdrant-stroke:#a855f7; --mm-qdrant-text:#1f2937;
+        --mm-networkx-fill:#d1fae5; --mm-networkx-stroke:#10b981;--mm-networkx-text:#1f2937;
+        --mm-ollama-fill:#ffedd5;   --mm-ollama-stroke:#f97316; --mm-ollama-text:#1f2937;
+
+        --glass-bg: rgba(255,255,255,0.65); --glass-border: rgba(15,23,42,0.08); --glass-shadow: 0 8px 24px rgba(15,23,42,0.10);
+        --glow-shadow-hover: 0 12px 32px rgba(37,99,235,0.16);
+      }
+
+      body { font-family: var(--font-main); }
+
+      /* ── Premium: glassmorphism + micro-interactions ── */
+      .glass-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid var(--glass-border) !important;
+        box-shadow: var(--glass-shadow);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+      .glass-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--glow-shadow-hover);
+      }
+      .hover-lift { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+      .hover-lift:hover { transform: translateY(-2px); box-shadow: var(--glow-shadow-hover); }
+
+      #matrix-rain {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+        pointer-events: none;
+        opacity: 0.28;
+      }
+      .scanlines {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        pointer-events: none;
+        background: repeating-linear-gradient(0deg, rgba(0,255,65,0.035) 0px, rgba(0,255,65,0.035) 1px, transparent 1px, transparent 2px);
+      }
+      .glow-text {
+        text-shadow: var(--title-glow);
+      }
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+      ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+
+      /* Elementi esclusivi del tema Matrix: presenti nel DOM, nascosti in Classico */
+      :root[data-theme="classic"] #matrix-rain,
+      :root[data-theme="classic"] .scanlines {
+        display: none;
+      }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans p-8">
+
+    <!-- ═══════════════════ THEME SWITCHER (logica) ═══════════════════ -->
+    <script>
+      function setUiTheme(value) {
+        document.cookie = 'ui_theme=' + value + ';path=/;max-age=31536000';
+        document.documentElement.dataset.theme = value;   // live-flip: niente reload
+        if (value === 'matrix') startMatrixRain(); else stopMatrixRain();
+        renderMermaidDiagram();  // ridisegna il grafo coi colori del nuovo tema
+      }
+      document.addEventListener('DOMContentLoaded', function () {
+        // Il server ha già impostato data-theme sul primo paint (nessun flash) — questo
+        // blocco serve solo a sincronizzare lo stato del <select id="theme-switcher">.
+        var sel = document.getElementById('theme-switcher');
+        if (sel) sel.value = document.documentElement.dataset.theme || 'matrix';
+        if (document.documentElement.dataset.theme === 'matrix') startMatrixRain();
+      });
+    </script>
+
+    <canvas id="matrix-rain"></canvas>
+    <div class="scanlines"></div>
+
+    <div class="relative z-10 max-w-6xl mx-auto">
+        <nav class="flex items-center gap-3 mb-8">
+            <a href="/" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all duration-300 hover:scale-105 hover-lift">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
+                </svg>
+                Console Graph-RAG
+            </a>
+            <a href="/pipeline" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all duration-300 hover:scale-105 hover-lift">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                Pipeline VibeCraft
+            </a>
+            <a href="/analysis" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all duration-300 hover:scale-105 hover-lift">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+                </svg>
+                Analisi
+            </a>
+
+            <!-- Theme switcher -->
+            <label for="theme-switcher"></label><select id="theme-switcher" onchange="setUiTheme(this.value)"
+                                                        class="ml-auto"
+                                                        style="background:#0a0a0a;color:#00ff41;border:1px solid #00ff41;border-radius:6px;padding:5px 10px;font-size:12px;font-family:ui-monospace,Consolas,monospace;cursor:pointer;box-shadow:0 0 8px rgba(0,255,65,0.3);">
+              <option value="matrix">🟢 Matrix</option>
+              <option value="classic">☀️ Classico</option>
+            </select>
+        </nav>
+        <header class="text-center mb-12">
+            <h1 class="glow-text text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-emerald-500 mb-4">
+                La Tua Architettura Graph RAG (Local-First)
+            </h1>
+            <p class="text-lg text-slate-600">Mappa visuale delle entità, dei file Python e del flusso di dati del nostro ecosistema.</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+
+            <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-slate-700 p-6">
+                <div class="text-3xl mb-3">🛠️</div>
+                <h2 class="text-xl font-bold mb-2">1. L'Indicizzatore</h2>
+                <p class="text-sm font-mono bg-slate-100 p-1 rounded text-pink-600 mb-2">rag/index.py</p>
+                <p class="text-sm text-slate-600">Lo script che "mangia" i Markdown. Usa regex <code class="bg-gray-200 px-1 rounded font-mono">\[(.*?)\]</code> per trovare le entità (es. [UTENTE]). Genera i vettori tramite il modello BAAI/bge-m3.</p>
+            </div>
+
+            <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-purple-500 p-6">
+                <div class="text-3xl mb-3">🗄️</div>
+                <h2 class="text-xl font-bold mb-2">2. Il Cervello Semantico</h2>
+                <p class="text-sm font-mono bg-purple-50 p-1 rounded text-purple-700 mb-2">QdrantClient</p>
+                <p class="text-sm text-slate-600">Il database vettoriale. Calcola la distanza matematica tra la domanda e i documenti. Salva i dati localmente in <code class="bg-gray-200 px-1 rounded font-mono">./qdrant_data</code>.</p>
+            </div>
+
+            <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-emerald-500 p-6">
+                <div class="text-3xl mb-3">🕸️</div>
+                <h2 class="text-xl font-bold mb-2">3. Il Grafo delle Relazioni</h2>
+                <p class="text-sm font-mono bg-emerald-50 p-1 rounded text-emerald-700 mb-2">NetworkX (graph.pkl)</p>
+                <p class="text-sm text-slate-600">Collega i concetti. Se Qdrant trova la Spec 02, il grafo sa che è collegata alla Spec 01 tramite l'entità [UTENTE]. Costruisce il "fascicolo".</p>
+            </div>
+
+            <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-orange-500 p-6">
+                <div class="text-3xl mb-3">🦙</div>
+                <h2 class="text-xl font-bold mb-2">4. L'Oratore Finale</h2>
+                <p class="text-sm font-mono bg-orange-50 p-1 rounded text-orange-700 mb-2">Ollama (localhost:11434)</p>
+                <p class="text-sm text-slate-600">L'LLM Locale. Riceve il fascicolo scremato dai motori e la domanda. Sintetizza la risposta senza inventare nulla, proteggendo la privacy.</p>
+            </div>
+
+        </div>
+
+        <div class="bg-white glass-card rounded-xl shadow-xl p-8 border border-slate-200">
+            <h2 class="text-2xl font-bold text-slate-800 mb-6 border-b border-slate-200 pb-2">Diagramma del Flusso di Interrogazione (server.py)</h2>
+            <div class="flex justify-center">
+                <div class="mermaid" id="rag-mermaid"></div>
+            </div>
+        </div>
+
+        <div class="mt-8 bg-blue-50 text-blue-800 p-4 rounded-lg border border-blue-200">
+            <p><strong>💡 La Magia del Determinismo:</strong> L'LLM (Ollama) interviene solo allo Step 5. Tutto il lavoro di "pescaggio" delle regole giuste (Step 1-4) è fatto in modo rigoroso, matematico e senza allucinazioni da Qdrant e NetworkX.</p>
+        </div>
+
+    </div>
+
+    <script>
+      /** Legge una CSS variable dal :root corrente (risolve già il tema attivo via data-theme). */
+      function themeVar(name, fallback) {
+        const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        return v || fallback;
+      }
+
+      /* ──────────── MATRIX RAIN BACKGROUND (parte solo se il tema attivo è "matrix") ──────────── */
+      let matrixRainTimer = null;
+      function startMatrixRain() {
+        if (matrixRainTimer) return;
+        const canvas = document.getElementById('matrix-rain');
+        const ctx = canvas.getContext('2d');
+        const glyphs = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789';
+        let w, h, cols, drops;
+        function resize() {
+          w = canvas.width = window.innerWidth;
+          h = canvas.height = window.innerHeight;
+          cols = Math.floor(w / 16);
+          drops = new Array(cols).fill(0).map(() => Math.random() * -50);
+        }
+        resize();
+        window.addEventListener('resize', resize);
+        function draw() {
+          ctx.fillStyle = 'rgba(0,0,0,0.06)';
+          ctx.fillRect(0, 0, w, h);
+          ctx.fillStyle = '#00ff41';
+          ctx.font = '14px monospace';
+          for (let i = 0; i < drops.length; i++) {
+            const glyph = glyphs[Math.floor(Math.random() * glyphs.length)];
+            ctx.fillText(glyph, i * 16, drops[i] * 16);
+            if (drops[i] * 16 > h && Math.random() > 0.975) drops[i] = 0;
+            drops[i]++;
+          }
+        }
+        matrixRainTimer = setInterval(draw, 50);
+      }
+      function stopMatrixRain() {
+        if (matrixRainTimer) { clearInterval(matrixRainTimer); matrixRainTimer = null; }
+      }
+
+      /* ──────────── MERMAID: diagramma ricostruito a runtime dai colori del tema ──────────── */
+      let mermaidRenderSeq = 0;
+      function buildMermaidSource() {
+        const userFill = themeVar('--mm-user-fill'),         userStroke = themeVar('--mm-user-stroke'),         userText = themeVar('--mm-user-text');
+        const apiFill  = themeVar('--mm-fastapi-fill'),       apiStroke  = themeVar('--mm-fastapi-stroke'),      apiText  = themeVar('--mm-fastapi-text');
+        const qFill    = themeVar('--mm-qdrant-fill'),        qStroke    = themeVar('--mm-qdrant-stroke'),       qText    = themeVar('--mm-qdrant-text');
+        const nxFill   = themeVar('--mm-networkx-fill'),      nxStroke   = themeVar('--mm-networkx-stroke'),     nxText   = themeVar('--mm-networkx-text');
+        const olFill   = themeVar('--mm-ollama-fill'),        olStroke   = themeVar('--mm-ollama-stroke'),       olText   = themeVar('--mm-ollama-text');
+        const font     = themeVar('--mm-font', 'ui-sans-serif, system-ui');
+
+        return `%%{init: {'theme': 'base', 'themeVariables': { 'fontFamily': '${font}'}}}%%
+graph TD
+    classDef user fill:${userFill},stroke:${userStroke},stroke-width:2px,color:${userText};
+    classDef fastapi fill:${apiFill},stroke:${apiStroke},stroke-width:2px,color:${apiText};
+    classDef qdrant fill:${qFill},stroke:${qStroke},stroke-width:2px,color:${qText};
+    classDef networkx fill:${nxFill},stroke:${nxStroke},stroke-width:2px,color:${nxText};
+    classDef ollama fill:${olFill},stroke:${olStroke},stroke-width:2px,color:${olText};
+
+    U["Utente / App"]:::user
+    S("FastAPI: server.py<br>Rotta POST /ask"):::fastapi
+    V{"Embedding<br>bge-m3"}:::fastapi
+    Q[("Qdrant<br>Ricerca Top-K")]:::qdrant
+    G[("NetworkX<br>Espansione BFS")]:::networkx
+    C["Assemblaggio Contesto:<br>Grafo + Testo Markdown"]:::fastapi
+    O{"Ollama LLM<br>Generazione Risposta"}:::ollama
+    R["JSON Finale"]:::user
+
+    U -->|"Domanda JSON"| S
+    S -->|"1. Testo Domanda"| V
+    V -->|"2. Vettore Domanda"| Q
+    Q -->|"3. Seed Nodes (es. spec_02)"| G
+    G -->|"4. Nodi Estesi"| C
+    C -->|"5. Prompt Rigido + Fascicolo"| O
+    O -->|"6. Testo Sintetizzato"| S
+    S -->|"7. Ritorno payload"| R`;
+      }
+
+      async function renderMermaidDiagram() {
+        const container = document.getElementById('rag-mermaid');
+        const seq = ++mermaidRenderSeq;
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: 'base',
+          themeVariables: {
+            primaryColor: themeVar('--mm-primary'),
+            primaryTextColor: themeVar('--mm-primary-text'),
+            primaryBorderColor: themeVar('--mm-primary-border'),
+            lineColor: themeVar('--mm-line'),
+            secondaryColor: themeVar('--mm-secondary'),
+            tertiaryColor: themeVar('--mm-tertiary'),
+            edgeLabelBackground: themeVar('--mm-edge-bg'),
+            background: themeVar('--mm-bg'),
+            fontFamily: themeVar('--mm-font', 'ui-sans-serif, system-ui'),
+          }
+        });
+        const source = buildMermaidSource();
+        try {
+          const { svg } = await mermaid.render('rag-mermaid-svg-' + seq, source);
+          if (seq === mermaidRenderSeq) container.innerHTML = svg;
+        } catch (e) {
+          container.innerHTML = `<p style="color:#f87171">Errore nel rendering del diagramma: ${e.message}</p>`;
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', renderMermaidDiagram);
+    </script>
+</body>
+</html>

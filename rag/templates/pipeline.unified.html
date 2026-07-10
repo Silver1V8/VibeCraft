@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="it" class="h-full">
+<html lang="it" class="h-full" data-theme="matrix">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,21 +8,87 @@
   <script src="https://cdn.tailwindcss.com"></script>
 
   <script>
+    /* Tailwind punta a CSS variables: le classi (bg-slate-900, text-blue-400, ecc.)
+       sono generate UNA volta sola con `var(--...)` come valore colore. Il cambio
+       tema (:root[data-theme]) aggiorna le variabili e ridipinge tutto senza
+       rigenerare le classi Tailwind -> è così che funziona il live-flip. */
     tailwind.config = {
       theme: {
         extend: {
-          colors: { brand: { 50:'#eff6ff', 500:'#3b82f6', 600:'#2563eb', 700:'#1d4ed8' } },
-          fontFamily: { sans: ['Inter','ui-sans-serif','system-ui'] }
+          colors: {
+            brand:  { 50:'var(--brand-50)',100:'var(--brand-100)',200:'var(--brand-200)',300:'var(--brand-300)',400:'var(--brand-400)',500:'var(--brand-500)',600:'var(--brand-600)',700:'var(--brand-700)',800:'var(--brand-800)',900:'var(--brand-900)',950:'var(--brand-950)' },
+            slate:  { 50:'var(--slate-50)', 100:'var(--slate-100)',200:'var(--slate-200)',300:'var(--slate-300)',400:'var(--slate-400)',500:'var(--slate-500)',600:'var(--slate-600)',700:'var(--slate-700)',800:'var(--slate-800)',900:'var(--slate-900)',950:'var(--slate-950)' },
+            blue:   { 50:'var(--blue-50)',  100:'var(--blue-100)', 200:'var(--blue-200)', 300:'var(--blue-300)', 400:'var(--blue-400)', 500:'var(--blue-500)', 600:'var(--blue-600)', 700:'var(--blue-700)', 800:'var(--blue-800)', 900:'var(--blue-900)', 950:'var(--blue-950)' },
+            purple: { 50:'var(--purple-50)',100:'var(--purple-100)',200:'var(--purple-200)',300:'var(--purple-300)',400:'var(--purple-400)',500:'var(--purple-500)',600:'var(--purple-600)',700:'var(--purple-700)',800:'var(--purple-800)',900:'var(--purple-900)',950:'var(--purple-950)' },
+          },
+          fontFamily: { sans: ['var(--font-main)'] }
         }
       }
     }
   </script>
 
   <style>
+    /* ═══════════ PALETTE (Punto 5 contratto: CSS vars per tema) ═══════════ */
+    :root[data-theme="matrix"] {
+      --brand-50:#e6fff0; --brand-100:#c2ffdb; --brand-200:#8affc0; --brand-300:#4dff8f; --brand-400:#1aff5c; --brand-500:#00ff41; --brand-600:#00cc34; --brand-700:#009e28; --brand-800:#00751d; --brand-900:#004d13; --brand-950:#00280a;
+      --slate-50:#eafff0; --slate-100:#d8ffe4; --slate-200:#a8f0c0; --slate-300:#6fd48c; --slate-400:#3fae5c; --slate-500:#1f5c38; --slate-600:#123a22; --slate-700:#0a2417; --slate-800:#04140a; --slate-900:#020f08; --slate-950:#000000;
+      --blue-50:#e6fff0; --blue-100:#c2ffdb; --blue-200:#8affc0; --blue-300:#4dff8f; --blue-400:#1aff5c; --blue-500:#00ff41; --blue-600:#00cc34; --blue-700:#009e28; --blue-800:#00751d; --blue-900:#004d13; --blue-950:#00280a;
+      --purple-50:#e0fffb; --purple-100:#b3fff5; --purple-200:#7dffee; --purple-300:#39ffe0; --purple-400:#00e5cc; --purple-500:#00bfa8; --purple-600:#009e8a; --purple-700:#007d6d; --purple-800:#005c51; --purple-900:#003d36; --purple-950:#00201c;
+      --font-main: 'JetBrains Mono','Fira Code',Consolas,ui-monospace,monospace;
+
+      --header-grad-1:#000000; --header-grad-2:#0a3d1f; --header-grad-3:#000000;
+      --scrollbar-track:#04140a; --scrollbar-thumb:#1f7a3d; --scrollbar-thumb-hover:#2ea34f;
+      --title-color:#1aff5c; --title-glow: 0 0 6px rgba(0,255,65,0.85), 0 0 16px rgba(0,255,65,0.35);
+
+      --step-line-start:#145c2c; --step-line-end:#04140a;
+      --step-line-done-start:#00ff41; --step-line-done-end:#00994d;
+
+      --glass-bg: rgba(4,20,10,0.55); --glass-border: rgba(0,255,65,0.16); --glass-shadow: 0 8px 32px rgba(0,0,0,0.55);
+      --glow-shadow-hover: 0 0 26px rgba(0,255,65,0.35), 0 0 52px rgba(0,255,65,0.12);
+      --btn-glow: 0 0 16px rgba(0,255,65,0.35); --btn-glow-hover: 0 0 30px rgba(0,255,65,0.55);
+    }
+
+    :root[data-theme="classic"] {
+      --brand-50:#eff6ff; --brand-100:#dbeafe; --brand-200:#bfdbfe; --brand-300:#93c5fd; --brand-400:#60a5fa; --brand-500:#3b82f6; --brand-600:#2563eb; --brand-700:#1d4ed8; --brand-800:#1e40af; --brand-900:#1e3a8a; --brand-950:#172554;
+      --slate-50:#f8fafc; --slate-100:#f1f5f9; --slate-200:#e2e8f0; --slate-300:#cbd5e1; --slate-400:#94a3b8; --slate-500:#64748b; --slate-600:#475569; --slate-700:#334155; --slate-800:#1e293b; --slate-900:#0f172a; --slate-950:#020617;
+      --blue-50:#eff6ff; --blue-100:#dbeafe; --blue-200:#bfdbfe; --blue-300:#93c5fd; --blue-400:#60a5fa; --blue-500:#3b82f6; --blue-600:#2563eb; --blue-700:#1d4ed8; --blue-800:#1e40af; --blue-900:#1e3a8a; --blue-950:#172554;
+      --purple-50:#faf5ff; --purple-100:#f3e8ff; --purple-200:#e9d5ff; --purple-300:#d8b4fe; --purple-400:#c084fc; --purple-500:#a855f7; --purple-600:#9333ea; --purple-700:#7e22ce; --purple-800:#6b21a8; --purple-900:#581c87; --purple-950:#3b0764;
+      --font-main: 'Inter',ui-sans-serif,system-ui;
+
+      --header-grad-1:#0f172a; --header-grad-2:#1e3a5f; --header-grad-3:#0f172a;
+      --scrollbar-track:#1e293b; --scrollbar-thumb:#475569; --scrollbar-thumb-hover:#64748b;
+      --title-color:#ffffff; --title-glow: none;
+
+      --step-line-start:#334155; --step-line-end:#1e293b;
+      --step-line-done-start:#10b981; --step-line-done-end:#059669;
+
+      --glass-bg: rgba(15,23,42,0.55); --glass-border: rgba(255,255,255,0.08); --glass-shadow: 0 8px 24px rgba(15,23,42,0.25);
+      --glow-shadow-hover: 0 12px 32px rgba(37,99,235,0.18);
+      --btn-glow: 0 4px 14px rgba(37,99,235,0.25); --btn-glow-hover: 0 8px 24px rgba(37,99,235,0.35);
+    }
+
+    body { font-family: var(--font-main); }
+
+    /* ── Premium: glassmorphism + neon micro-interactions ── */
+    .glass-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+      transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    }
+    .glass-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--glow-shadow-hover);
+    }
+    .neon-btn { transition: all 0.3s cubic-bezier(0.4,0,0.2,1); box-shadow: var(--btn-glow); }
+    .neon-btn:hover { box-shadow: var(--btn-glow-hover); transform: translateY(-1px) scale(1.015); }
+
     ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #1e293b; }
-    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+    ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 
     @keyframes pulse-dot {
       0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
@@ -39,7 +105,7 @@
     .fade-in { animation: fadeSlideUp 0.35s ease forwards; }
 
     .header-gradient {
-      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+      background: linear-gradient(135deg, var(--header-grad-1) 0%, var(--header-grad-2) 50%, var(--header-grad-3) 100%);
     }
 
     .chat-scroll { scroll-behavior: smooth; }
@@ -51,9 +117,38 @@
       tab-size: 2;
     }
 
-    .step-line { background: linear-gradient(180deg, #334155 0%, #1e293b 100%); }
-    /* Classe aggiunta via JS (markStepDone): connettore verde per i passi completati */
-    .step-line.done { background: linear-gradient(180deg, #10b981 0%, #059669 100%); }
+    .step-line { background: linear-gradient(180deg, var(--step-line-start) 0%, var(--step-line-end) 100%); }
+    /* Classe aggiunta via JS (markStepDone): connettore per i passi completati */
+    .step-line.done { background: linear-gradient(180deg, var(--step-line-done-start) 0%, var(--step-line-done-end) 100%); }
+
+    /* Matrix rain background canvas (solo tema Matrix) */
+    #matrix-rain {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.32;
+    }
+
+    /* CRT scanline overlay (solo tema Matrix) */
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      pointer-events: none;
+      background: repeating-linear-gradient(0deg, rgba(0,255,65,0.035) 0px, rgba(0,255,65,0.035) 1px, transparent 1px, transparent 2px);
+    }
+
+    /* Green text glow (solo tema Matrix) */
+    .glow-text { text-shadow: var(--title-glow); }
+
+    /* Elementi esclusivi del tema Matrix: presenti nel DOM, nascosti in Classico */
+    :root[data-theme="classic"] #matrix-rain,
+    :root[data-theme="classic"] .scanlines {
+      display: none;
+    }
   </style>
 </head>
 
@@ -62,46 +157,51 @@
   <!-- ═══════════════════ THEME SWITCHER (logica) ═══════════════════ -->
   <script>
     function setUiTheme(value) {
-        document.cookie = 'ui_theme=' + value + ';path=/;max-age=31536000';
-        location.reload();
-      }
-      document.addEventListener('DOMContentLoaded', function() {
-        var m = document.cookie.match(/(?:^|; )ui_theme=([^;]*)/);
-        var theme = m ? decodeURIComponent(m[1]) : 'matrix';
-        var sel = document.getElementById('theme-switcher');
-        if (sel) sel.value = theme;
-      });
+      document.cookie = 'ui_theme=' + value + ';path=/;max-age=31536000';
+      document.documentElement.dataset.theme = value;   // live-flip: niente reload
+      if (value === 'matrix') startMatrixRain(); else stopMatrixRain();
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+      // Il server ha già impostato data-theme sul primo paint (nessun flash) — questo
+      // blocco serve solo a sincronizzare lo stato del <select id="theme-switcher">.
+      var sel = document.getElementById('theme-switcher');
+      if (sel) sel.value = document.documentElement.dataset.theme || 'matrix';
+      if (document.documentElement.dataset.theme === 'matrix') startMatrixRain();
+    });
   </script>
 
+  <canvas id="matrix-rain"></canvas>
+  <div class="scanlines"></div>
+
   <!-- ═══════════════════ HEADER ═══════════════════ -->
-  <header class="header-gradient border-b border-slate-800 px-6 py-4 flex items-center gap-4 shrink-0">
-    <div class="flex items-center gap-3">
-      <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg">
+  <header class="relative z-10 header-gradient border-b border-slate-800 px-6 py-4 flex items-center gap-4 shrink-0">
+    <div class="flex items-center gap-3 shrink-0">
+      <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg neon-btn">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
         </svg>
       </div>
       <div>
-        <h1 class="text-lg font-bold tracking-tight text-white">Pipeline VibeCraft</h1>
+        <h1 class="glow-text text-lg font-bold tracking-tight" style="color:var(--title-color)">Pipeline VibeCraft</h1>
         <p class="text-xs text-slate-400 -mt-0.5">Explore → REASONS Canvas → Propose</p>
       </div>
     </div>
 
-    <a href="/" class="ml-auto flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition">
+    <a href="/" class="ml-auto shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-300 hover:scale-105">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
       </svg>
       Console Graph-RAG
     </a>
 
-    <a href="/infografica" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition">
+    <a href="/infografica" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-300 hover:scale-105">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2a4 4 0 014-4h3m0 0l-3-3m3 3l-3 3M4 7h16M4 12h4m-4 5h4"/>
       </svg>
       Infografica
     </a>
 
-    <a href="/analysis" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition">
+    <a href="/analysis" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-300 hover:scale-105">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
       </svg>
@@ -109,7 +209,7 @@
     </a>
 
     <!-- Theme switcher -->
-    <label for="theme-switcher"></label><select id="theme-switcher" onchange="setUiTheme(this.value)"
+    <label for="theme-switcher"></label><select id="theme-switcher" onchange="setUiTheme(this.value)" class="shrink-0"
                                                 style="background:#0a0a0a;color:#00ff41;border:1px solid #00ff41;border-radius:6px;padding:5px 10px;font-size:12px;font-family:ui-monospace,Consolas,monospace;cursor:pointer;box-shadow:0 0 8px rgba(0,255,65,0.3);">
       <option value="matrix">🟢 Matrix</option>
       <option value="classic">☀️ Classico</option>
@@ -117,13 +217,13 @@
   </header>
 
   <!-- ═══════════════════ MAIN LAYOUT ═══════════════════ -->
-  <main class="flex-1 flex overflow-hidden">
+  <main class="relative z-10 flex-1 flex overflow-hidden">
 
     <!-- ────── LEFT: STEPPER + FEATURE ────── -->
     <aside class="w-80 shrink-0 flex flex-col gap-4 p-4 border-r border-slate-800 overflow-y-auto">
 
       <!-- Feature card -->
-      <div class="rounded-xl bg-slate-900 border border-slate-800 p-4">
+      <div class="rounded-xl glass-card p-4">
         <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Nome feature</label>
         <label for="feature-name-input"></label><input id="feature-name-input" type="text" placeholder="Es. form eventi"
                                                        class="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" />
@@ -147,7 +247,7 @@
       </div>
 
       <!-- Stepper -->
-      <div class="rounded-xl bg-slate-900 border border-slate-800 p-4 flex flex-col gap-0">
+      <div class="rounded-xl glass-card p-4 flex flex-col gap-0">
         <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Fasi pipeline</div>
 
         <div class="flex gap-3" id="step-row-1">
@@ -211,7 +311,7 @@
       </div>
 
       <!-- Pannello di controllo file -->
-      <div class="rounded-xl bg-slate-900 border border-slate-800 p-4">
+      <div class="rounded-xl glass-card p-4">
         <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Controllo file generati</div>
         <div id="files-control-list" class="flex flex-col gap-2 text-xs">
           <p class="text-slate-600">Carica una feature per vedere lo stato dei file.</p>
@@ -225,7 +325,7 @@
 
       <!-- STEP 1: EXPLORE -->
       <div id="panel-step-1" class="flex-1 flex flex-col gap-3 min-h-0">
-        <div class="rounded-xl bg-slate-900 border border-slate-800 flex-1 flex flex-col min-h-0">
+        <div class="rounded-xl glass-card flex-1 flex flex-col min-h-0">
           <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between shrink-0">
             <span class="text-sm font-semibold text-slate-200">🎙️ Intervista Explore</span>
             <span id="explore-status" class="text-xs text-slate-500"></span>
@@ -235,18 +335,18 @@
             <label for="chat-input"></label><textarea id="chat-input" rows="2" placeholder="Rispondi al Tech Lead IA… (Ctrl+Invio per inviare)"
                                                       class="flex-1 resize-none rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
             <button id="chat-send-btn" onclick="sendExploreTurn()"
-              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed">
+              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn hover:scale-[1.02]">
               Invia
             </button>
             <button id="chat-finish-btn" onclick="finishExplore()"
-              class="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed">
+              class="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn hover:scale-[1.02]">
               Termina e genera explore.md
             </button>
           </div>
         </div>
 
         <!-- Review explore.md -->
-        <div id="review-explore" class="hidden rounded-xl bg-slate-900 border border-slate-800 p-4 flex-col shrink-0" style="max-height:62vh;">
+        <div id="review-explore" class="hidden rounded-xl glass-card p-4 flex-col shrink-0" style="max-height:62vh;">
           <div class="flex items-center justify-between mb-2 shrink-0">
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisione · explore.md</span>
             <span class="text-[10px] text-amber-400 font-medium">Approva prima di continuare</span>
@@ -261,7 +361,7 @@
 
       <!-- STEP 2: CANVAS -->
       <div id="panel-step-2" class="hidden flex-1 flex-col gap-3 min-h-0">
-        <div class="rounded-xl bg-slate-900 border border-slate-800 p-4 shrink-0">
+        <div class="rounded-xl glass-card p-4 shrink-0">
           <div class="flex items-center justify-between">
             <div>
               <div class="text-sm font-semibold text-slate-200">🧠 REASONS Canvas</div>
@@ -273,14 +373,14 @@
                 🔎 Dry-run
               </button>
               <button id="canvas-generate-btn" onclick="generateCanvas()"
-                class="rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                class="rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn hover:scale-[1.02]">
                 Genera Canvas
               </button>
             </div>
           </div>
         </div>
 
-        <div id="dryrun-card" class="hidden rounded-xl bg-slate-900 border border-slate-800 p-4 shrink-0 fade-in">
+        <div id="dryrun-card" class="hidden rounded-xl glass-card p-4 shrink-0 fade-in">
           <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">🔎 Dry-run — sorgenti che userebbe il Canvas (nessun token speso)</div>
           <div id="dryrun-body" class="text-xs text-slate-300"></div>
         </div>
@@ -294,7 +394,7 @@
           <p class="text-xs text-slate-500">Generazione Canvas in corso tramite LLM locale…</p>
         </div>
 
-        <div id="review-canvas" class="hidden rounded-xl bg-slate-900 border border-slate-800 p-4 flex-1 min-h-0 flex-col">
+        <div id="review-canvas" class="hidden rounded-xl glass-card p-4 flex-1 min-h-0 flex-col">
           <div class="flex items-center justify-between mb-2 shrink-0">
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisione · canvas.md</span>
             <span class="text-[10px] text-amber-400 font-medium">Approva prima di continuare</span>
@@ -310,14 +410,14 @@
 
       <!-- STEP 3: PROPOSE -->
       <div id="panel-step-3" class="hidden flex-1 flex-col gap-3 min-h-0 overflow-y-auto">
-        <div class="rounded-xl bg-slate-900 border border-slate-800 p-4 shrink-0">
+        <div class="rounded-xl glass-card p-4 shrink-0">
           <div class="flex items-center justify-between">
             <div>
               <div class="text-sm font-semibold text-slate-200">⚙️ Propose · Specifiche BDD</div>
               <p class="text-xs text-slate-500 mt-0.5">Genera <code class="text-slate-400">spec.md</code> (scenari GIVEN/WHEN/THEN) dal Canvas approvato e il prompt finale pronto per Claude Code.</p>
             </div>
             <button id="propose-generate-btn" onclick="generatePropose()"
-              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed">
+              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn hover:scale-[1.02]">
               Genera Spec
             </button>
           </div>
@@ -332,7 +432,7 @@
           <p class="text-xs text-slate-500">Generazione specifiche in corso tramite LLM locale…</p>
         </div>
 
-        <div id="review-spec" class="hidden rounded-xl bg-slate-900 border border-slate-800 p-4 flex-col shrink-0" style="max-height:64vh;">
+        <div id="review-spec" class="hidden rounded-xl glass-card p-4 flex-col shrink-0" style="max-height:64vh;">
           <div class="flex items-center justify-between mb-2 shrink-0">
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisione · spec.md</span>
             <span class="text-[10px] text-amber-400 font-medium">Approva per sbloccare il prompt finale</span>
@@ -345,7 +445,7 @@
           </div>
         </div>
 
-        <div id="validate-card" class="hidden rounded-xl bg-slate-900 border border-amber-800 p-4 shrink-0 fade-in">
+        <div id="validate-card" class="hidden rounded-xl glass-card p-4 shrink-0 fade-in">
           <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <span class="text-xs font-semibold text-amber-400 uppercase tracking-widest">🛡️ Validazione governance (pre-apply)</span>
             <button id="validate-btn" onclick="runValidate()" class="text-xs font-semibold text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition disabled:opacity-50">Valida canvas + spec</button>
@@ -355,7 +455,7 @@
           <pre id="validate-report-box" class="hidden text-xs text-slate-200 whitespace-pre-wrap leading-relaxed bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-72 overflow-y-auto"></pre>
         </div>
 
-        <div id="final-prompt-card" class="hidden rounded-xl bg-slate-900 border border-emerald-800 p-4 shrink-0 fade-in">
+        <div id="final-prompt-card" class="hidden rounded-xl glass-card p-4 shrink-0 fade-in">
           <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <span class="text-xs font-semibold text-emerald-400 uppercase tracking-widest">🚀 Prompt finale per Claude Code / Cursor</span>
             <div class="flex items-center gap-2 flex-wrap">
@@ -390,7 +490,7 @@
                 <option value="oneshot">💬 One-shot (nessun tool)</option>
               </select>
               <button id="agent-run-btn" onclick="runWithAgent()"
-                class="rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-1.5 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                class="rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-1.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn hover:scale-[1.02]">
                 ▶ Esegui
               </button>
             </div>
@@ -402,14 +502,14 @@
 
       <!-- STEP 4: VERIFICA DEL DRIFT -->
       <div id="panel-step-4" class="hidden flex-1 flex-col gap-3 min-h-0 overflow-y-auto">
-        <div class="rounded-xl bg-slate-900 border border-slate-800 p-4 shrink-0">
+        <div class="rounded-xl glass-card p-4 shrink-0">
           <div class="flex items-center justify-between gap-3">
             <div>
               <div class="text-sm font-semibold text-slate-200">🔍 Verifica del Drift</div>
               <p class="text-xs text-slate-500 mt-0.5">Confronta il <code class="text-slate-400">canvas.md</code> (il contratto) con il codice effettivamente scritto e segnala disallineamenti, allucinazioni o librerie inventate. Equivale a <code class="text-slate-400">index.py --check-drift</code>, eseguito tramite LLM locale (Ollama).</p>
             </div>
             <button id="drift-check-btn" onclick="runDriftCheck()"
-              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed">
+              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn hover:scale-[1.02]">
               Esegui verifica
             </button>
           </div>
@@ -424,7 +524,7 @@
           <p class="text-xs text-slate-500">Analisi del Drift in corso tramite LLM locale…</p>
         </div>
 
-        <div id="drift-report-card" class="hidden rounded-xl bg-slate-900 border border-slate-800 p-4 shrink-0 fade-in">
+        <div id="drift-report-card" class="hidden rounded-xl glass-card p-4 shrink-0 fade-in">
           <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">📊 Report Drift · Ollama</span>
             <button onclick="goToStep(5)" class="text-xs font-semibold text-emerald-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-emerald-800 rounded-lg px-3 py-1.5 transition">➡️ Vai all'Archiviazione</button>
@@ -435,14 +535,14 @@
 
       <!-- STEP 5: ARCHIVIAZIONE + RE-INDICIZZAZIONE -->
       <div id="panel-step-5" class="hidden flex-1 flex-col gap-3 min-h-0 overflow-y-auto">
-        <div class="rounded-xl bg-slate-900 border border-slate-800 p-4 shrink-0">
+        <div class="rounded-xl glass-card p-4 shrink-0">
           <div class="flex items-center justify-between gap-3">
             <div>
               <div class="text-sm font-semibold text-slate-200">📦 Archiviazione e Re-indicizzazione</div>
               <p class="text-xs text-slate-500 mt-0.5">Sposta <code class="text-slate-400">changes/&lt;feature&gt;</code> in <code class="text-slate-400">changes/archive/</code> e ricostruisce il Graph RAG locale (grafo + Qdrant + ColBERT). Equivale a <code class="text-slate-400">index.py --archive</code>. Operazione conclusiva e non reversibile dall'interfaccia.</p>
             </div>
             <button id="archive-btn" onclick="runArchive()"
-              class="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed">
+              class="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn hover:scale-[1.02]">
               Archivia e re-indicizza
             </button>
           </div>
@@ -457,7 +557,7 @@
           <p class="text-xs text-slate-500">Archiviazione e re-indicizzazione del Graph RAG in corso… può richiedere qualche minuto.</p>
         </div>
 
-        <div id="archive-report-card" class="hidden rounded-xl bg-slate-900 border border-emerald-800 p-4 shrink-0 fade-in">
+        <div id="archive-report-card" class="hidden rounded-xl glass-card p-4 shrink-0 fade-in">
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs font-semibold text-emerald-400 uppercase tracking-widest">✅ Esito archiviazione</span>
           </div>
@@ -470,6 +570,40 @@
 
   <!-- ═══════════════════ JAVASCRIPT ═══════════════════ -->
   <script>
+    /* ──────────── MATRIX RAIN BACKGROUND (parte solo se il tema attivo è "matrix") ──────────── */
+    let matrixRainTimer = null;
+    function startMatrixRain() {
+      if (matrixRainTimer) return;
+      const canvas = document.getElementById('matrix-rain');
+      const ctx = canvas.getContext('2d');
+      const glyphs = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789';
+      let w, h, cols, drops;
+      function resize() {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+        cols = Math.floor(w / 16);
+        drops = new Array(cols).fill(0).map(() => Math.random() * -50);
+      }
+      resize();
+      window.addEventListener('resize', resize);
+      function draw() {
+        ctx.fillStyle = 'rgba(0,0,0,0.06)';
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = '#00ff41';
+        ctx.font = '14px monospace';
+        for (let i = 0; i < drops.length; i++) {
+          const glyph = glyphs[Math.floor(Math.random() * glyphs.length)];
+          ctx.fillText(glyph, i * 16, drops[i] * 16);
+          if (drops[i] * 16 > h && Math.random() > 0.975) drops[i] = 0;
+          drops[i]++;
+        }
+      }
+      matrixRainTimer = setInterval(draw, 50);
+    }
+    function stopMatrixRain() {
+      if (matrixRainTimer) { clearInterval(matrixRainTimer); matrixRainTimer = null; }
+    }
+
     let currentStep = 1;
     let exploreHistory = "";
     let interviewLog = "";
