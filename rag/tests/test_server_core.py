@@ -1,17 +1,16 @@
-"""Test del core deterministico di server.py: authority weighting, query deterministica
-sul grafo, selezione dei chunk governati. Importa server (torch) una volta a sessione."""
-import asyncio
-
+"""Test del core deterministico ora estratto in core/: query deterministica sul grafo
+(core.graph_ops.graph_query), authority weighting e selezione dei chunk governati
+(core.retrieval). Nessun FastAPI: le funzioni prendono il grafo come parametro esplicito."""
 import networkx as nx
 
-import server
+from core import graph_ops, retrieval
 
 
 # ---------------------------------------------------------------------------
 # Authority weighting
 # ---------------------------------------------------------------------------
 def test_authority_weights():
-    w = server._authority_weight
+    w = retrieval._authority_weight
     assert w({"classification": "IRON_MEMORY", "status": "ENFORCED"}) == 1.0
     assert w({"classification": "AUTHORIZATION_POLICY"}) == 0.9
     assert w({"classification": "METHODOLOGY"}) == 0.5
@@ -20,7 +19,7 @@ def test_authority_weights():
 
 
 def test_authority_normative_over_informative():
-    w = server._authority_weight
+    w = retrieval._authority_weight
     assert w({"classification": "AUTHORIZATION_POLICY"}) > w({"classification": "METHODOLOGY"})
 
 
@@ -38,14 +37,11 @@ def _synthetic_graph() -> nx.DiGraph:
     return g
 
 
+_G = _synthetic_graph()
+
+
 def _q(text: str) -> dict:
-    return asyncio.run(server.graph_query(text))
-
-
-def setup_module(module):
-    # Inietta un grafo sintetico; _graph_mtime a None per evitare l'auto-reload
-    server.state["graph"] = _synthetic_graph()
-    server.state["_graph_mtime"] = None
+    return graph_ops.graph_query(text, _G)
 
 
 def test_query_lists_documents():
@@ -84,28 +80,28 @@ def test_query_unknown():
 # Selezione dei chunk governati (usato da canvas/propose/validate/dry-run)
 # ---------------------------------------------------------------------------
 def test_select_governed_chunks_filters_to_graph_and_caps():
-    server.state["graph"] = _synthetic_graph()
+    g = _synthetic_graph()
     results = [
         {"chunk_id": "spec.md#01-a", "doc_id": "spec.md", "section": "A"},
         {"chunk_id": "orfano.md#00", "doc_id": "orfano.md", "section": "B"},  # padre non nel grafo
         {"chunk_id": "safeguards.md#02-c", "doc_id": "safeguards.md", "section": "C"},
     ]
-    chunks = server._select_governed_chunks("q", results=results, max_chunks=8)
+    chunks = retrieval.select_governed_chunks("q", graph=g, results=results, max_chunks=8)
     parents = [c["doc_id"] for c in chunks]
     assert "orfano.md" not in parents          # filtrato: non è nel grafo
     assert parents == ["spec.md", "safeguards.md"]
 
     # cap rispettato
-    capped = server._select_governed_chunks("q", results=results, max_chunks=1)
+    capped = retrieval.select_governed_chunks("q", graph=g, results=results, max_chunks=1)
     assert len(capped) == 1
 
 
 def test_select_governed_docs_dedup_parents():
-    server.state["graph"] = _synthetic_graph()
+    g = _synthetic_graph()
     results = [
         {"chunk_id": "spec.md#01", "doc_id": "spec.md", "section": "A"},
         {"chunk_id": "spec.md#02", "doc_id": "spec.md", "section": "B"},  # stesso padre
         {"chunk_id": "safeguards.md#00", "doc_id": "safeguards.md", "section": "C"},
     ]
-    docs = server._select_governed_docs("q", results=results, max_docs=4)
+    docs = retrieval.select_governed_docs("q", graph=g, results=results, max_docs=4)
     assert docs == ["spec.md", "safeguards.md"]  # padri unici, ordine di rilevanza

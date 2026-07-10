@@ -1,0 +1,213 @@
+"""Dependency injection e stato condiviso dello strato HTTP: stato di runtime del server
+(grafo, Qdrant, modello di embedding, sidecar), autenticazione, lifespan di caricamento
+risorse, auto-reload dell'indice e helper di streaming/template. I router in api/ leggono
+questo stato e lo iniettano nelle funzioni pure di core/."""
+import json
+import os
+import pickle
+import queue
+import re
+import threading
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+import networkx as nx
+from fastapi import FastAPI, HTTPException, Request
+from qdrant_client import QdrantClient
+from FlagEmbedding import BGEM3FlagModel
+
+from core.config import (
+    CHUNKS_SAVE_PATH,
+    COLBERT_SAVE_PATH,
+    EMBEDDING_MODEL,
+    GRAPH_SAVE_PATH,
+    PROJECT_ROOT,
+    QDRANT_API_KEY,
+    QDRANT_URL,
+    TEMPLATES_DIR,
+)
+
+# ---------------------------------------------------------------------------
+# Autenticazione API — bypass su localhost, X-API-Key per il resto
+# ---------------------------------------------------------------------------
+API_KEY = os.environ.get("VIBECRAFT_API_KEY")
+
+
+def require_api_key(request: Request) -> None:
+    """Lascia passare le richieste da localhost; per tutte le altre, richiede
+    l'header X-API-Key (env VIBECRAFT_API_KEY). Se la chiave non è configurata,
+    le richieste non locali vengono sempre rifiutate (fail-closed)."""
+    client_host = request.client.host if request.client else None
+    if client_host in ("127.0.0.1", "::1"):
+        return
+    if not API_KEY or request.headers.get("X-API-Key") != API_KEY:
+        raise HTTPException(status_code=401, detail="API key richiesta per accesso non locale.")
+
+
+# ---------------------------------------------------------------------------
+# Stato globale del server (popolato durante il lifespan)
+# NB: accesso non protetto da lock — vedi nota HARDENING #3 in server.py.
+# I router importano questo dict e lo mutano/leggono per chiave (mai rebind).
+# ---------------------------------------------------------------------------
+state: dict = {
+    "graph": None,
+    "qdrant": None,
+    "embed_model": None,
+    "rule_descriptions": {},
+    "colbert_store": {},
+    "chunks": {},
+}
+
+
+def load_rule_descriptions() -> dict[str, str]:
+    """
+    Scansiona tutti i file spec_*.md in docs/ (ricorsivamente) ed estrae le descrizioni
+    di regole e termini di glossario nel formato `[CHIAVE]`: <testo>.
+    Restituisce un dizionario { "REGOLA-AUTH-01": "...", "UTENTE": "...", ... }.
+    """
+    descriptions: dict[str, str] = {}
+    pattern = re.compile(r"`\[([A-Z0-9][A-Z0-9_\- ]*)]`:\s*(.+)")
+    docs_dir = PROJECT_ROOT / "docs"
+    # Scansiona tutti i .md: le descrizioni possono vivere in qualsiasi documento
+    # del knowledge base, non solo nei file spec_*.md.
+    for spec_file in sorted(docs_dir.rglob("*.md")):
+        try:
+            content = spec_file.read_text(encoding="utf-8")
+            for m in pattern.finditer(content):
+                key = m.group(1).strip()
+                descriptions[key] = m.group(2).strip()
+        except Exception as exc:
+            print(f"Attenzione: impossibile leggere {spec_file}: {exc}")
+    print(f"Entità indicizzate ({len(descriptions)}): {sorted(descriptions.keys())}")
+    return descriptions
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Carica le risorse pesanti al boot e le libera allo shutdown."""
+    print(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")
+    state["embed_model"] = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
+
+    print(f"Connessione a Qdrant (server mode): {QDRANT_URL} ...")
+    state["qdrant"] = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+
+    print(f"Caricamento grafo NetworkX da {GRAPH_SAVE_PATH} ...")
+    if not GRAPH_SAVE_PATH.exists():
+        raise RuntimeError(
+            "graph.pkl non trovato. Esegui prima 'python index.py' per indicizzare."
+        )
+    with open(GRAPH_SAVE_PATH, "rb") as f:
+        state["graph"] = pickle.load(f)
+    state["_graph_mtime"] = GRAPH_SAVE_PATH.stat().st_mtime  # baseline per l'auto-reload
+
+    g: nx.DiGraph = state["graph"]
+    print(f"Grafo caricato: {g.number_of_nodes()} nodi, {g.number_of_edges()} archi.")
+
+    # Multivettori ColBERT per il rerank token-per-token (sidecar dell'indice)
+    if COLBERT_SAVE_PATH.exists():
+        with open(COLBERT_SAVE_PATH, "rb") as f:
+            state["colbert_store"] = pickle.load(f)
+        print(f"Multivettori ColBERT caricati: {len(state['colbert_store'])} chunk.")
+    else:
+        print("Attenzione: colbert.pkl non trovato — rerank ColBERT disattivato. Riesegui 'python index.py'.")
+
+    # Sidecar dei chunk (chunk_id -> testo della sezione) per il governed context
+    if CHUNKS_SAVE_PATH.exists():
+        with open(CHUNKS_SAVE_PATH, "rb") as f:
+            state["chunks"] = pickle.load(f)
+        print(f"Chunk caricati: {len(state['chunks'])} sezioni.")
+    else:
+        print("Attenzione: chunks.pkl non trovato — governed context degradato. Riesegui 'python index.py'.")
+
+    print("Caricamento descrizioni regole dai file spec...")
+    state["rule_descriptions"] = load_rule_descriptions()
+    print("Server pronto.\n")
+
+    yield  # il server è in esecuzione
+
+    print("Shutdown: rilascio risorse.")
+    state["qdrant"].close()
+
+
+# ---------------------------------------------------------------------------
+# Auto-reload dell'indice in memoria (dopo una re-indicizzazione da CLI o pipeline)
+# ---------------------------------------------------------------------------
+def reload_index_state() -> None:
+    """Ricarica in memoria grafo, multivettori ColBERT e descrizioni regole dai file
+    appena rigenerati dalla re-indicizzazione, così che il server rifletta subito la
+    nuova base di conoscenza senza dover essere riavviato."""
+    with open(GRAPH_SAVE_PATH, "rb") as f:
+        state["graph"] = pickle.load(f)
+    if COLBERT_SAVE_PATH.exists():
+        with open(COLBERT_SAVE_PATH, "rb") as f:
+            state["colbert_store"] = pickle.load(f)
+    if CHUNKS_SAVE_PATH.exists():
+        with open(CHUNKS_SAVE_PATH, "rb") as f:
+            state["chunks"] = pickle.load(f)
+    state["rule_descriptions"] = load_rule_descriptions()
+    try:
+        state["_graph_mtime"] = GRAPH_SAVE_PATH.stat().st_mtime
+    except OSError:
+        pass
+
+
+def maybe_reload_graph() -> None:
+    """Auto-reload: se graph.pkl è cambiato su disco (es. una re-indicizzazione lanciata
+    da CLI mentre il server è attivo), ricarica l'indice in memoria alla prima richiesta
+    successiva, senza dover riavviare il server."""
+    if state.get("graph") is None:
+        return
+    try:
+        mtime = GRAPH_SAVE_PATH.stat().st_mtime
+    except OSError:
+        return
+    prev = state.get("_graph_mtime")
+    if prev is None:
+        state["_graph_mtime"] = mtime
+        return
+    if mtime != prev:
+        print("🔄 graph.pkl cambiato su disco: ricarico grafo/ColBERT/regole in memoria.")
+        reload_index_state()
+
+
+def run_streaming(target, *args):
+    """Esegue una funzione bloccante (check_drift/archive_feature) su un thread dedicato
+    e ne trasmette il log in tempo reale come NDJSON, iniettando `emit` come callback.
+    Stessa filosofia dello streaming dell'agent (una riga JSON per evento)."""
+    q: queue.Queue = queue.Queue()
+
+    def emit(msg) -> None:
+        q.put({"type": "log", "line": str(msg)})
+
+    def worker() -> None:
+        try:
+            result = target(*args, emit=emit)
+            q.put({"type": "result", "value": result})
+        except Exception as exc:  # l'errore va riportato al client
+            q.put({"type": "error", "message": f"{type(exc).__name__}: {exc}"})
+        finally:
+            q.put(None)
+
+    threading.Thread(target=worker, name="pipeline-stream", daemon=True).start()
+    while True:
+        item = q.get()
+        if item is None:
+            break
+        yield json.dumps(item, ensure_ascii=False) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# Serving dei template a tema (Matrix / Classico) — TEMPLATES_DIR è assoluto
+# (derivato da core/config.py), quindi indipendente dalla working directory.
+# ---------------------------------------------------------------------------
+NO_CACHE_HEADERS = {
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
+
+def themed_template(request: Request, matrix_name: str, classic_name: str) -> Path:
+    """Sceglie il file da servire in base al tema scelto dall'utente (cookie 'ui_theme')."""
+    theme = request.cookies.get("ui_theme", "matrix")
+    return TEMPLATES_DIR / (classic_name if theme == "classic" else matrix_name)
