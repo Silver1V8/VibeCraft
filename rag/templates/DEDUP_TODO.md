@@ -16,8 +16,9 @@ sono banali copie: hanno divergenze funzionali/visive reali che vanno preservate
 ## Perché è stato rimandato
 `pipeline.html` è ~1200 righe di JS intricato (5 step, stepper, streaming SSE, agent SDK,
 dry-run, validate, agent-context). Una dedup fatta male introduce regressioni silenziose su
-tutto il flusso e su 3 pagine × 2 temi. Le priorità A–C+E (chunking, canvas.py, async, hardening)
-erano più alte e sono state completate; questa merita un passaggio dedicato con retest UI completo.
+tutto il flusso e su 3 pagine × 2 temi. Le priorità A–C+E (chunking, pipeline async, hardening,
+split core/api, uv) erano più alte e sono state completate; questa merita un passaggio dedicato
+con retest UI completo.
 
 ## Piano concreto (nucleo corretto, da eseguire in un passaggio dedicato)
 1. **Un template per pagina** + `<html data-theme="matrix|classic">` impostato dal server dal cookie.
