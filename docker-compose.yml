@@ -1,0 +1,18 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    # Porta esposta solo su localhost, coerente con il default 127.0.0.1 del server RAG.
+    ports:
+      - "127.0.0.1:6333:6333"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    # Autenticazione Qdrant DISATTIVATA di default (setup locale keyless).
+    # NB: Qdrant tratta una stringa VUOTA come "chiave attiva ma vuota" e rifiuta
+    # tutte le richieste — quindi la chiave va passata SOLO se davvero valorizzata.
+    # Per abilitarla: esporta QDRANT_API_KEY (e imposta lo stesso valore in
+    # QDRANT_API_KEY per il server RAG), poi decommenta il blocco sotto.
+    # environment:
+    #   QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY}
+
+volumes:
+  qdrant_storage:

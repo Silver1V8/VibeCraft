@@ -1,3 +1,4 @@
+import os
 import re
 import sys
 import json
@@ -22,7 +23,7 @@ for _stream in (sys.stdout, sys.stderr):
 from typing import Any
 from pathlib import Path
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
@@ -43,7 +44,9 @@ DATABASE_DIR = RAG_DIR / "database"
 GRAPH_SAVE_PATH = DATABASE_DIR / "graph.pkl"
 COLBERT_SAVE_PATH = DATABASE_DIR / "colbert.pkl"
 CHUNKS_SAVE_PATH = DATABASE_DIR / "chunks.pkl"
-QDRANT_PATH = str(DATABASE_DIR / "qdrant_data")
+# Qdrant in server mode (Docker): niente più storage locale a lock esclusivo.
+QDRANT_URL = os.environ.get("QDRANT_URL", "http://127.0.0.1:6333")
+QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY")
 TEMPLATES_DIR = RAG_DIR / "templates"
 
 with open(CONFIG_PATH, "r", encoding="utf-8") as _f:
@@ -65,6 +68,23 @@ CODE_DIR = PROJECT_ROOT / "code"
 # Generazioni con modelli grandi (es. qwen2.5:14b) su CPU possono richiedere diversi minuti:
 # un timeout troppo corto interrompe la richiesta anche quando Ollama sta ancora generando.
 OLLAMA_TIMEOUT_SECONDS = 900.0
+
+# ---------------------------------------------------------------------------
+# Autenticazione API — bypass su localhost, X-API-Key per il resto
+# ---------------------------------------------------------------------------
+API_KEY = os.environ.get("VIBECRAFT_API_KEY")
+
+
+def require_api_key(request: Request) -> None:
+    """Lascia passare le richieste da localhost; per tutte le altre, richiede
+    l'header X-API-Key (env VIBECRAFT_API_KEY). Se la chiave non è configurata,
+    le richieste non locali vengono sempre rifiutate (fail-closed)."""
+    client_host = request.client.host if request.client else None
+    if client_host in ("127.0.0.1", "::1"):
+        return
+    if not API_KEY or request.headers.get("X-API-Key") != API_KEY:
+        raise HTTPException(status_code=401, detail="API key richiesta per accesso non locale.")
+
 
 # ---------------------------------------------------------------------------
 # Stato globale del server (popolato durante il lifespan)
@@ -109,8 +129,8 @@ async def lifespan(application: FastAPI):
     print(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")
     state["embed_model"] = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
 
-    print("Connessione a Qdrant (storage locale)...")
-    state["qdrant"] = QdrantClient(path=QDRANT_PATH)
+    print(f"Connessione a Qdrant (server mode): {QDRANT_URL} ...")
+    state["qdrant"] = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
     print(f"Caricamento grafo NetworkX da {GRAPH_SAVE_PATH} ...")
     if not GRAPH_SAVE_PATH.exists():
@@ -772,13 +792,13 @@ async def serve_infografica(request: Request):
     return FileResponse(_themed_template(request, "InfograficaRAG.html", "InfograficaRAG_classic.html"), media_type="text/html", headers=_NO_CACHE_HEADERS)
 
 
-@app.get("/api/pipeline/agent/modes")
+@app.get("/api/pipeline/agent/modes", dependencies=[Depends(require_api_key)])
 async def agent_modes():
     """Elenca le modalità di fiducia disponibili per l'esecuzione con Claude Code."""
     return {"modes": [{"id": k, "label": v["label"]} for k, v in AGENT_MODES.items()]}
 
 
-@app.post("/api/pipeline/agent/run")
+@app.post("/api/pipeline/agent/run", dependencies=[Depends(require_api_key)])
 async def agent_run(req: AgentRunRequest):
     """
     Esegue il prompt finale della pipeline direttamente tramite il Claude Agent SDK,
@@ -797,13 +817,13 @@ async def agent_run(req: AgentRunRequest):
     )
 
 
-@app.get("/api/pipeline/dev-types")
+@app.get("/api/pipeline/dev-types", dependencies=[Depends(require_api_key)])
 async def pipeline_dev_types():
     """Elenca le tipologie di sviluppo disponibili (sottocartelle di 'code/') per la tendina di selezione."""
     return {"dev_types": list_dev_types()}
 
 
-@app.post("/api/pipeline/explore/turn")
+@app.post("/api/pipeline/explore/turn", dependencies=[Depends(require_api_key)])
 async def pipeline_explore_turn(req: ExploreTurnRequest):
     """Esegue un turno di intervista (equivalente al loop input() di explore.py)."""
     scope_note = (
@@ -821,7 +841,7 @@ async def pipeline_explore_turn(req: ExploreTurnRequest):
     return {"ai_response": ai_response, "history": new_history}
 
 
-@app.post("/api/pipeline/explore/save")
+@app.post("/api/pipeline/explore/save", dependencies=[Depends(require_api_key)])
 async def pipeline_explore_save(req: ExploreSaveRequest):
     """Salva il log dell'intervista in changes/<feature>/explore.md."""
     folder = feature_dir(req.feature_name)
@@ -833,7 +853,7 @@ async def pipeline_explore_save(req: ExploreSaveRequest):
     return {"feature_folder": folder.name, "path": "explore.md", "content": content}
 
 
-@app.post("/api/pipeline/canvas/generate")
+@app.post("/api/pipeline/canvas/generate", dependencies=[Depends(require_api_key)])
 async def pipeline_canvas_generate(req: CanvasGenerateRequest):
     """Genera il REASONS Canvas a partire dall'intervista Explore (equivalente a canvas.py)."""
     folder = feature_dir(req.feature_name)
@@ -893,7 +913,7 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
     return {"feature_folder": folder.name, "path": "canvas.md", "content": canvas_content}
 
 
-@app.post("/api/pipeline/propose/generate")
+@app.post("/api/pipeline/propose/generate", dependencies=[Depends(require_api_key)])
 async def pipeline_propose_generate(req: ProposeGenerateRequest):
     """Genera spec.md dal Canvas e il prompt finale per Claude Code (equivalente a propose.py)."""
     folder_name = slugify_feature(req.feature_folder)
@@ -1015,7 +1035,7 @@ def _run_streaming(target, *args):
         yield json.dumps(item, ensure_ascii=False) + "\n"
 
 
-@app.post("/api/pipeline/drift/check")
+@app.post("/api/pipeline/drift/check", dependencies=[Depends(require_api_key)])
 async def pipeline_drift_check(req: DriftCheckRequest):
     """Step 4 — Verifica del Drift: confronta il canvas (contratto) con il codice
     generato tramite LLM locale e restituisce il report. Equivale a 'index.py --check-drift'."""
@@ -1027,7 +1047,7 @@ async def pipeline_drift_check(req: DriftCheckRequest):
     return {"feature_folder": slugify_feature(req.feature), "report": report}
 
 
-@app.post("/api/pipeline/archive")
+@app.post("/api/pipeline/archive", dependencies=[Depends(require_api_key)])
 async def pipeline_archive(req: ArchiveRequest):
     """Step 5 — Archiviazione e Re-indicizzazione: sposta changes/<feature> in
     changes/archive/ e ricostruisce il Graph RAG locale. Equivale a 'index.py --archive',
@@ -1043,7 +1063,7 @@ async def pipeline_archive(req: ArchiveRequest):
     return {"feature_folder": slugify_feature(req.feature), "log": log}
 
 
-@app.post("/api/pipeline/drift/check/stream")
+@app.post("/api/pipeline/drift/check/stream", dependencies=[Depends(require_api_key)])
 async def pipeline_drift_check_stream(req: DriftCheckRequest):
     """Come /api/pipeline/drift/check ma con progresso in streaming (NDJSON): l'interfaccia
     mostra i passi (avvio, analisi, report) man mano che arrivano, senza box bloccante."""
@@ -1052,7 +1072,7 @@ async def pipeline_drift_check_stream(req: DriftCheckRequest):
     return StreamingResponse(_run_streaming(check_drift, req.feature), media_type="application/x-ndjson")
 
 
-@app.post("/api/pipeline/archive/stream")
+@app.post("/api/pipeline/archive/stream", dependencies=[Depends(require_api_key)])
 async def pipeline_archive_stream(req: ArchiveRequest):
     """Come /api/pipeline/archive ma con progresso in streaming (NDJSON): l'utente vede la
     re-indicizzazione avanzare passo per passo. Al termine ricarica l'indice in memoria."""
@@ -1130,7 +1150,7 @@ async def _validate_feature(feature: str) -> dict:
     return {"structural": structural, "report": report}
 
 
-@app.post("/api/pipeline/validate")
+@app.post("/api/pipeline/validate", dependencies=[Depends(require_api_key)])
 async def pipeline_validate(req: ValidateRequest):
     """Step di validazione pre-apply: verifica strutturale (7 sezioni del Canvas, BDD nella
     spec) e coerenza semantica contro i vincoli normativi del Graph RAG, prima di lanciare Claude."""
@@ -1140,14 +1160,14 @@ async def pipeline_validate(req: ValidateRequest):
     return {"feature_folder": slugify_feature(req.feature), **result}
 
 
-@app.get("/api/index/status")
+@app.get("/api/index/status", dependencies=[Depends(require_api_key)])
 async def api_index_status():
     """Segnala se l'indice Graph RAG è aggiornato rispetto ai documenti in docs/ (drift di
     indicizzazione): confronta gli hash correnti con lo snapshot salvato dall'ultima build."""
     return await run_in_threadpool(index_status)
 
 
-@app.post("/api/pipeline/canvas/dry-run")
+@app.post("/api/pipeline/canvas/dry-run", dependencies=[Depends(require_api_key)])
 async def pipeline_canvas_dry_run(req: CanvasGenerateRequest):
     """Dry-run del Canvas: mostra le sorgenti che verrebbero recuperate (con punteggi
     dense/sparse/ColBERT/autorità) e i documenti normativi che verrebbero iniettati,
@@ -1187,7 +1207,7 @@ async def pipeline_canvas_dry_run(req: CanvasGenerateRequest):
     return {"feature_folder": slugify_feature(req.feature_name), "query_preview": query[:300], **data}
 
 
-@app.get("/api/pipeline/agent-context")
+@app.get("/api/pipeline/agent-context", dependencies=[Depends(require_api_key)])
 async def pipeline_agent_context(feature: str, dev_type: str = ""):
     """Blocco strutturato [AGENT CONTEXT] con confidence score (Articolo 1), costruito in
     modo deterministico dal retrieval governato e dallo stato di canvas/spec."""
@@ -1197,7 +1217,7 @@ async def pipeline_agent_context(feature: str, dev_type: str = ""):
     return {"feature_folder": slugify_feature(feature), **ctx}
 
 
-@app.get("/api/pipeline/export")
+@app.get("/api/pipeline/export", dependencies=[Depends(require_api_key)])
 async def pipeline_export(feature: str, dev_type: str = ""):
     """Export JSON versionabile del design contract (explore/canvas/spec + prompt finale +
     [AGENT CONTEXT]), da archiviare come artefatto o dare in pasto a una pipeline."""
@@ -1222,7 +1242,7 @@ async def pipeline_export(feature: str, dev_type: str = ""):
     }
 
 
-@app.get("/api/pipeline/status")
+@app.get("/api/pipeline/status", dependencies=[Depends(require_api_key)])
 async def pipeline_status(feature: str):
     """Restituisce quali file (explore/canvas/spec) esistono già per la feature, per il pannello di controllo."""
     folder_name = slugify_feature(feature)
@@ -1239,7 +1259,7 @@ async def pipeline_status(feature: str):
     }
 
 
-@app.get("/api/pipeline/file")
+@app.get("/api/pipeline/file", dependencies=[Depends(require_api_key)])
 async def pipeline_get_file(feature: str, name: str):
     """Restituisce il contenuto di un file md della pipeline, per la visualizzazione di controllo."""
     if name not in PIPELINE_FILES:
@@ -1251,7 +1271,7 @@ async def pipeline_get_file(feature: str, name: str):
     return {"feature_folder": folder_name, "path": name, "content": file_path.read_text(encoding="utf-8")}
 
 
-@app.post("/api/pipeline/file/save")
+@app.post("/api/pipeline/file/save", dependencies=[Depends(require_api_key)])
 async def pipeline_save_file(req: PipelineFileSaveRequest):
     """Salva modifiche manuali a un file md prima dell'approvazione (revisione umana)."""
     if req.name not in PIPELINE_FILES:
@@ -1261,7 +1281,7 @@ async def pipeline_save_file(req: PipelineFileSaveRequest):
     return {"feature_folder": folder.name, "path": req.name, "content": req.content}
 
 
-@app.post("/ask")
+@app.post("/ask", dependencies=[Depends(require_api_key)])
 async def ask_rag(query: AskQuery):
     _maybe_reload_graph()
     graph: nx.DiGraph = state["graph"]
@@ -1390,7 +1410,7 @@ async def ask_rag(query: AskQuery):
     }
 
 
-@app.get("/api/retrieve")
+@app.get("/api/retrieve", dependencies=[Depends(require_api_key)])
 async def api_retrieve(q: str, k: int = 5):
     """Retrieval PURO (dense + sparse + ColBERT + authority), senza sintesi LLM. Restituisce
     i chunk pertinenti con il breakdown del ranking. Serve per valutare la qualità del ranking
@@ -1401,7 +1421,7 @@ async def api_retrieve(q: str, k: int = 5):
     return {"query": q, "k": k, "results": results}
 
 
-@app.get("/api/graph/all")
+@app.get("/api/graph/all", dependencies=[Depends(require_api_key)])
 async def get_full_graph():
     """Restituisce l'intero grafo statico (tutti i nodi e gli archi) in formato JSON."""
     _maybe_reload_graph()
@@ -1438,7 +1458,7 @@ async def get_full_graph():
     return {"nodes": nodes, "edges": edges}
 
 
-@app.get("/api/graph/impact")
+@app.get("/api/graph/impact", dependencies=[Depends(require_api_key)])
 async def graph_impact(node: str, depth: int = 3):
     """Impact Ripple: espansione BFS a cerchi concentrici da un nodo. Ogni 'ring' è
     un livello di distanza (1 hop, 2 hop, ...). Risponde 'cosa viene impattato se
@@ -1483,7 +1503,7 @@ async def graph_impact(node: str, depth: int = 3):
     return {"center": node, "rings": [len(r) for r in rings], "nodes": nodes, "edges": edges}
 
 
-@app.get("/api/graph/semantic-map")
+@app.get("/api/graph/semantic-map", dependencies=[Depends(require_api_key)])
 async def graph_semantic_map():
     """Semantic Map: proietta i CHUNK (sezioni) in 2D per prossimità semantica (PCA via
     SVD sui vettori densi bge-m3 in Qdrant). Le community e i nodi 'ponte' sono calcolati
@@ -1589,7 +1609,7 @@ async def graph_semantic_map():
     return {"points": points, "duplicates": duplicates}
 
 
-@app.get("/api/graph/query")
+@app.get("/api/graph/query", dependencies=[Depends(require_api_key)])
 async def graph_query(q: str):
     """Query DETERMINISTICA sul grafo (nessun LLM): risponde a domande strutturali —
     'quali documenti/entità/codice esistono?', 'relazioni di X', 'cosa impatta X' — leggendo
@@ -1658,17 +1678,14 @@ async def serve_analysis(request: Request):
 # ---------------------------------------------------------------------------
 # HARDENING — rischi residui noti (da affrontare prima di un uso non locale)
 # ---------------------------------------------------------------------------
-# 1. QDRANT EMBEDDED: usiamo QdrantClient(path=...) con storage locale a LOCK
-#    ESCLUSIVO (un solo processo alla volta). Da qui derivano varie acrobazie:
-#    re-index in-process, iniezione di qdrant/embed_model, auto-reload su mtime.
-#    TODO: passare a Qdrant in server mode (docker: QdrantClient(url="http://...")):
-#    sparisce il lock, il re-index può girare in un processo separato, niente più
-#    conflitti di porta/lock come quelli visti nei test.
-# 2. BIND & AUTH: il server ascolta di default su 0.0.0.0 SENZA autenticazione, e
-#    /api/pipeline/agent/run in modalità 'agentic' SCRIVE file nel progetto. Chiunque
-#    sulla stessa rete può invocarlo. Host/porta sono ora configurabili via env
-#    (default invariato per non rompere il flusso attuale). TODO: default 127.0.0.1
-#    + token/API-key su tutti gli endpoint /api/* (dependency FastAPI).
+# 1. QDRANT: risolto. Qdrant gira in server mode (Docker, vedi docker-compose.yml),
+#    niente più lock esclusivo sullo storage — configurabile via QDRANT_URL /
+#    QDRANT_API_KEY. L'iniezione di qdrant/embed_model nel re-index resta comunque
+#    utile per evitare il ricaricamento del modello di embedding (minuti di CPU).
+# 2. BIND & AUTH: risolto. Default host 127.0.0.1; tutti gli endpoint /api/* e /ask
+#    richiedono X-API-Key (env VIBECRAFT_API_KEY) per chi non chiama da localhost —
+#    vedi require_api_key(). Chi vuole esporre il server sulla rete deve impostare
+#    sia VIBECRAFT_HOST che VIBECRAFT_API_KEY.
 # 3. STATO GLOBALE NON PROTETTO: `state` è un dict globale che _maybe_reload_graph
 #    sostituisce mentre i thread del pool lo leggono. Oggi regge per il GIL e perché
 #    le sostituzioni sono atomiche (rebinding di riferimenti), ma è fragile per
@@ -1676,10 +1693,9 @@ async def serve_analysis(request: Request):
 #    graph/qdrant/colbert/chunks, oppure uno snapshot immutabile scambiato atomicamente.
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    import os
-    host = os.environ.get("VIBECRAFT_HOST", "0.0.0.0")  # TODO hardening: default a 127.0.0.1
+    host = os.environ.get("VIBECRAFT_HOST", "127.0.0.1")
     port = int(os.environ.get("VIBECRAFT_PORT", "8000"))
-    if host == "0.0.0.0":
-        print("⚠️  Server in ascolto su 0.0.0.0 SENZA autenticazione (vedi note HARDENING in server.py). "
-              "Per uso solo locale: VIBECRAFT_HOST=127.0.0.1")
+    if host != "127.0.0.1" and not API_KEY:
+        print("⚠️  Server esposto oltre localhost (VIBECRAFT_HOST) SENZA VIBECRAFT_API_KEY: "
+              "tutte le richieste non-locali ai /api/* verranno rifiutate (fail-closed).")
     uvicorn.run(app, host=host, port=port)
