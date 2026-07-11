@@ -146,7 +146,7 @@ async def api_retrieve(
 ):
     """Retrieval PURO (dense + sparse + ColBERT + authority), senza sintesi LLM. Restituisce
     i chunk pertinenti con il breakdown del ranking. Serve per valutare la qualità del ranking
-    (golden-set / eval_retrieval.py) e per il debug, senza il costo di Ollama.
+    (golden-set / eval.run) e per il debug, senza il costo di Ollama.
 
     Input validato da FastAPI: `q` non vuota, `k` in [1, 50] (422 altrimenti)."""
     if state.get("qdrant") is None or state.get("embed_model") is None:

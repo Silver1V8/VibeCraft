@@ -1,61 +1,102 @@
 # Golden-set di retrieval — misura oggettiva della qualità del ranking.
-# Ogni caso: una domanda e la SEZIONE/documento che ci si aspetta in cima ai risultati.
-#   expected_doc     : substring del doc_id padre (obbligatorio)
-#   expected_section : substring della sezione attesa (opzionale ma consigliato)
-# La sezione attesa deve corrispondere a un heading `##` reale del documento.
+#
+# Ogni caso ha una domanda (`q`) e le SORGENTI ATTESE (`expected`): i chunk/sezioni o i
+# file che dovrebbero comparire tra i primi risultati. `expected` è una lista di matcher;
+# per superare recall@k bastano i matcher trovati entro i primi k risultati.
+#
+# Un matcher può essere una stringa (sottostringa cercata in chunk_id O doc_id) oppure un
+# dict con chiavi (tutte in AND, confronto per sottostringa case-insensitive):
+#   doc     : sottostringa del doc_id padre (es. "safeguards_security")
+#   section : sottostringa della sezione — deve corrispondere a un heading `##` reale
+#   chunk   : sottostringa del chunk_id (es. "safeguards_security.md#01")
+#   file    : sottostringa di chunk_id o doc_id (utile per attese a livello di file sorgente)
+#
+# Il vecchio formato `expected_doc` + `expected_section` è ancora accettato (retrocompat).
 cases:
   - q: "come gestire il lock transazionale sui posti di un evento in concorrenza"
-    expected_doc: safeguards_security
-    expected_section: "Concorrenza Critica"
+    expected:
+      - {doc: safeguards_security, section: "Concorrenza Critica"}
 
   - q: "sicurezza degli accessi, autenticazione e gestione dell'identità"
-    expected_doc: safeguards_security
-    expected_section: "Sicurezza Accessi e Identità"
+    expected:
+      - {doc: safeguards_security, section: "Sicurezza Accessi e Identità"}
 
   - q: "immutabilità dei dati e auditability dei log"
-    expected_doc: safeguards_security
-    expected_section: "Immutabilità"
+    expected:
+      - {doc: safeguards_security, section: "Immutabilità"}
 
   - q: "gestione dei segreti e sicurezza del codice sorgente"
-    expected_doc: safeguards_security
-    expected_section: "Sicurezza del Codice e Segreti"
+    expected:
+      - {doc: safeguards_security, section: "Sicurezza del Codice e Segreti"}
 
   - q: "privacy e confine dei dati local-first, dati personali PII"
-    expected_doc: safeguards_security
-    expected_section: "Privacy e Confine"
+    expected:
+      - {doc: safeguards_security, section: "Privacy e Confine"}
 
   - q: "quali sono i profili degli attori e i ruoli del sistema"
-    expected_doc: matrice_permessi
-    expected_section: "Profili degli Attori"
+    expected:
+      - {doc: matrice_permessi, section: "Profili degli Attori"}
 
   - q: "chi ha il permesso di creare o approvare, matrice dei permessi"
-    expected_doc: matrice_permessi
-    expected_section: "Matrice dei Permessi"
+    expected:
+      - {doc: matrice_permessi, section: "Matrice dei Permessi"}
 
   - q: "indice inverso ruolo verso funzionalità concesse RBAC"
-    expected_doc: matrice_permessi
-    expected_section: "Indice Inverso"
+    expected:
+      - {doc: matrice_permessi, section: "Indice Inverso"}
 
   - q: "definizione e attributi dell'entità EVENTO"
-    expected_doc: glossario_entita
-    expected_section: "EVENTO"
+    expected:
+      - {doc: glossario_entita, section: "EVENTO"}
 
   - q: "definizione dell'entità UTENTE del dominio"
-    expected_doc: glossario_entita
-    expected_section: "UTENTE"
+    expected:
+      - {doc: glossario_entita, section: "UTENTE"}
 
   - q: "che cos'è l'AUDIT_LOG, entità di tracciamento"
-    expected_doc: glossario_entita
-    expected_section: "AUDIT_LOG"
+    expected:
+      - {doc: glossario_entita, section: "AUDIT_LOG"}
+
+  - q: "macchina a stati e ciclo di vita dell'entità RICHIESTA"
+    expected:
+      - {doc: glossario_entita, section: "RICHIESTA"}
+
+  - q: "quali notifiche vengono generate e da quali trigger"
+    expected:
+      - {doc: glossario_entita, section: "NOTIFICA"}
 
   - q: "protocollo human-in-the-loop HITL per l'agente"
-    expected_doc: vibe_coding_workflow
-    expected_section: "Human-in-the-Loop"
+    expected:
+      - {doc: vibe_coding_workflow, section: "Human-in-the-Loop"}
 
   - q: "standard di scrittura del codice e ottimizzazione dei token"
-    expected_doc: vibe_coding_workflow
-    expected_section: "Standard di Scrittura"
+    expected:
+      - {doc: vibe_coding_workflow, section: "Standard di Scrittura"}
+
+  - q: "gestione delle deviazioni ed edge case quando manca la specifica"
+    expected:
+      - {doc: vibe_coding_workflow, section: "Gestione delle Deviazioni"}
 
   - q: "mappatura semantica dei verbi e sinonimi delle azioni"
-    expected_doc: intent_synonym_mapping
-    expected_section: "Mappatura Semantica dei Verbi"
+    expected:
+      - {doc: intent_synonym_mapping, section: "Mappatura Semantica dei Verbi"}
+
+  - q: "mappatura dei sostantivi e dei concetti di business del dominio"
+    expected:
+      - {doc: intent_synonym_mapping, section: "Sostantivi"}
+
+  - q: "flusso di autenticazione OAuth2 passo passo con Google"
+    expected:
+      - {doc: spec_auth, section: "Flusso Funzionale"}
+
+  - q: "constraint di database per l'integrità del dominio email aziendale"
+    expected:
+      - {doc: spec_auth, section: "Note Implementative"}
+
+  - q: "gestione della scadenza e timeout della sessione applicativa a 8 ore"
+    expected:
+      - {doc: spec_auth, section: "Note Implementative"}
+
+  - q: "scenario BDD di accesso con dominio esterno che viene bloccato"
+    expected:
+      - {doc: spec_auth, section: "Scenari di Accettazione BDD"}

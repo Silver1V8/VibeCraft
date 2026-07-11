@@ -1,29 +1,79 @@
-"""Guard di regressione sulla QUALITÀ del retrieval (golden-set).
+"""Test del MECCANISMO di eval del retrieval (non delle metriche reali).
 
-OPT-IN: si salta automaticamente se il server non è raggiungibile (serve modello + Qdrant
-caricati). Quando il server è su, fallisce se section_hit@5 o MRR scendono sotto una soglia
-di sicurezza — così un peggioramento del ranking (authority, fusione, chunking) viene notato.
-Non importa torch: è un semplice client HTTP verso /api/retrieve.
+Non richiede server, Qdrant o modello: usa un retriever fittizio deterministico e un
+mini golden-set inline, così verifica che core.eval_metrics calcoli correttamente
+recall@k, "sorgente in top-3" e MRR, e che il matching per doc/section/chunk/file funzioni.
+Le soglie di qualità reali si misurano invece con `uv run python -m eval.run` (server su).
 """
-import httpx
-import pytest
-
-import eval_retrieval
-
-URL = "http://127.0.0.1:8000"
+from core import eval_metrics
 
 
-def _server_up() -> bool:
-    try:
-        httpx.get(f"{URL}/api/index/status", timeout=3).raise_for_status()
-        return True
-    except Exception:
-        return False
+def _fake_retriever(ranking: dict):
+    """Costruisce una retrieve_fn(query, k) che restituisce, per ogni query, la lista
+    ordinata di risultati predefinita in `ranking` (troncata a k)."""
+    def retrieve(query: str, k: int) -> list[dict]:
+        return list(ranking.get(query, []))[:k]
+    return retrieve
 
 
-@pytest.mark.skipif(not _server_up(), reason="server non avviato (python server.py) — eval retrieval saltato")
-def test_retrieval_quality_floor():
-    m = eval_retrieval.evaluate(URL, k=5)
-    # Baseline misurata: section_hit@5 = 1.00, MRR = 0.964. Soglie con margine.
-    assert m["section_hit_k"] >= 0.85, f"section_hit@5 sceso a {m['section_hit_k']:.2f}"
-    assert m["mrr"] >= 0.80, f"MRR sceso a {m['mrr']:.3f}"
+def _hit(chunk_id, doc_id, section=""):
+    return {"chunk_id": chunk_id, "doc_id": doc_id, "section": section}
+
+
+def test_result_matches_keys():
+    r = _hit("00_meta/safeguards_security.md#03-concorrenza", "00_meta/safeguards_security.md", "Concorrenza Critica")
+    assert eval_metrics.result_matches(r, {"doc": "safeguards_security", "section": "Concorrenza"})
+    assert eval_metrics.result_matches(r, {"chunk": "safeguards_security.md#03"})
+    assert eval_metrics.result_matches(r, {"file": "safeguards_security.md"})
+    assert eval_metrics.result_matches(r, {"any": "concorrenza"})
+    assert not eval_metrics.result_matches(r, {"doc": "matrice_permessi"})
+    assert not eval_metrics.result_matches(r, {"doc": "safeguards_security", "section": "Immutabilità"})
+    assert not eval_metrics.result_matches(r, {})  # matcher vuoto non è mai un hit
+
+
+def test_normalize_expected_new_and_legacy():
+    new = eval_metrics.normalize_expected({"q": "x", "expected": ["foo", {"doc": "bar"}]})
+    assert new == [{"any": "foo"}, {"doc": "bar"}]
+    legacy = eval_metrics.normalize_expected({"q": "x", "expected_doc": "d", "expected_section": "s"})
+    assert legacy == [{"doc": "d", "section": "s"}]
+
+
+def test_evaluate_metrics_on_mini_set():
+    # Caso 1: sorgente attesa in posizione 1 (perfetto). Caso 2: in posizione 7
+    # (fuori top-3 e fuori recall@5, dentro recall@10). Caso 3: assente (miss totale).
+    ranking = {
+        "q1": [_hit("a.md#00", "a.md", "Alpha")] + [_hit(f"x{i}.md#00", f"x{i}.md") for i in range(9)],
+        "q2": [_hit(f"y{i}.md#00", f"y{i}.md") for i in range(6)] + [_hit("b.md#00", "b.md", "Beta")],
+        "q3": [_hit(f"z{i}.md#00", f"z{i}.md") for i in range(10)],
+    }
+    cases = [
+        {"q": "q1", "expected": [{"doc": "a.md"}]},
+        {"q": "q2", "expected": [{"doc": "b.md"}]},
+        {"q": "q3", "expected": [{"doc": "missing.md"}]},
+    ]
+    report = eval_metrics.evaluate(cases, _fake_retriever(ranking), ks=(5, 10))
+
+    assert report["n"] == 3
+    by_q = {c["q"]: c for c in report["cases"]}
+    assert by_q["q1"]["best_rank"] == 1
+    assert by_q["q2"]["best_rank"] == 7
+    assert by_q["q3"]["best_rank"] is None
+
+    agg = report["aggregate"]
+    # recall@5: q1 hit, q2 miss (rank 7), q3 miss -> 1/3
+    assert agg["recall@5"] == 1 / 3
+    # recall@10: q1 e q2 hit, q3 miss -> 2/3
+    assert agg["recall@10"] == 2 / 3
+    # source_in_top3: solo q1 -> 1/3
+    assert agg["source_in_top3"] == 1 / 3
+    # mrr: 1/1 + 1/7 + 0, media / 3
+    assert abs(agg["mrr"] - (1.0 + 1 / 7) / 3) < 1e-9
+
+
+def test_recall_averages_multiple_expected_sources():
+    # Un caso con due sorgenti attese: una trovata (rank 1), una assente -> recall = 0.5
+    ranking = {"q": [_hit("a.md#00", "a.md")] + [_hit(f"x{i}.md#00", f"x{i}.md") for i in range(9)]}
+    cases = [{"q": "q", "expected": [{"doc": "a.md"}, {"doc": "notthere.md"}]}]
+    report = eval_metrics.evaluate(cases, _fake_retriever(ranking), ks=(5, 10))
+    assert report["aggregate"]["recall@5"] == 0.5
+    assert report["cases"][0]["n_expected"] == 2

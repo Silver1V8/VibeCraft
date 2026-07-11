@@ -1,0 +1,3 @@
+# Run artifact locali dell'eval harness: non versionati (baseline nel messaggio di commit / commentati altrove).
+*.json
+!.gitignore
