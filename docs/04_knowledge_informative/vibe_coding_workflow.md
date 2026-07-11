@@ -1,6 +1,6 @@
 ---
 id: "vibe-coding-workflow-v1.0"
-title: "Linee Guida di Co-Sviluppo AI & VibeCraft Framework"
+title: "Linee Guida di Co-Sviluppo AI & Vibe Coding Framework"
 project: "VibeCraft — Sistema di Gestione Eventi Aziendali"
 version: "1.0.0"
 date: "2026-07-06"
