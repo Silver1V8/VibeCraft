@@ -133,18 +133,43 @@ async def lifespan(application: FastAPI):
 # ---------------------------------------------------------------------------
 # Auto-reload dell'indice in memoria (dopo una re-indicizzazione da CLI o pipeline)
 # ---------------------------------------------------------------------------
+def _load_pickle_strict(path: Path):
+    """Carica un pickle sollevando eccezione se il file è assente o corrotto.
+    A differenza di un load 'best effort', qui l'errore deve propagarsi perché il
+    reload dei tre artefatti deve essere COERENTE (tutti o nessuno)."""
+    with open(path, "rb") as f:
+        return pickle.load(f)
+
+
 def reload_index_state() -> None:
-    """Ricarica in memoria grafo, multivettori ColBERT e descrizioni regole dai file
-    appena rigenerati dalla re-indicizzazione, così che il server rifletta subito la
-    nuova base di conoscenza senza dover essere riavviato."""
-    with open(GRAPH_SAVE_PATH, "rb") as f:
-        state["graph"] = pickle.load(f)
-    if COLBERT_SAVE_PATH.exists():
-        with open(COLBERT_SAVE_PATH, "rb") as f:
-            state["colbert_store"] = pickle.load(f)
-    if CHUNKS_SAVE_PATH.exists():
-        with open(CHUNKS_SAVE_PATH, "rb") as f:
-            state["chunks"] = pickle.load(f)
+    """Ricarica in memoria grafo, multivettori ColBERT e sidecar chunk dai file appena
+    rigenerati dalla re-indicizzazione, così che il server rifletta subito la nuova base
+    di conoscenza senza riavvio.
+
+    Il reload è COERENTE (tutto-o-niente): i tre artefatti vengono prima caricati in
+    variabili locali; solo se TUTTI e tre sono presenti e integri lo stato viene
+    sostituito. Se anche uno solo è mancante o corrotto (es. una re-indicizzazione
+    ancora in corso o abortita), si logga un warning e si MANTIENE la versione
+    precedente in memoria, evitando di degradare il server (grafo senza ColBERT/chunk)."""
+    try:
+        graph = _load_pickle_strict(GRAPH_SAVE_PATH)
+        colbert_store = _load_pickle_strict(COLBERT_SAVE_PATH)
+        chunks = _load_pickle_strict(CHUNKS_SAVE_PATH)
+    except Exception as exc:
+        print(f"⚠️  Reload indice annullato ({type(exc).__name__}: {exc}): "
+              "artefatto mancante o corrotto, mantengo in memoria la versione precedente.")
+        # Aggiorna comunque il baseline mtime: se il file è corrotto in modo persistente,
+        # evita di ritentare (e ri-loggare) il reload a ogni richiesta successiva. Una
+        # nuova build completa cambierà di nuovo l'mtime e ritenterà il reload.
+        try:
+            state["_graph_mtime"] = GRAPH_SAVE_PATH.stat().st_mtime
+        except OSError:
+            pass
+        return
+
+    state["graph"] = graph
+    state["colbert_store"] = colbert_store
+    state["chunks"] = chunks
     state["rule_descriptions"] = load_rule_descriptions()
     try:
         state["_graph_mtime"] = GRAPH_SAVE_PATH.stat().st_mtime

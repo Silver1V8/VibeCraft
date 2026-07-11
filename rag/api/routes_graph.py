@@ -1,7 +1,7 @@
 """Route di analisi del grafo: grafo completo, Impact Ripple, Semantic Map e query
 deterministica. Handler sottili: leggono lo stato, validano e delegano a core.graph_ops."""
 import networkx as nx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from qdrant_client import QdrantClient
 
 from api.deps import maybe_reload_graph, require_api_key, state
@@ -21,10 +21,15 @@ async def get_full_graph():
 
 
 @router.get("/api/graph/impact")
-async def graph_impact(node: str, depth: int = 3):
+async def graph_impact(
+    node: str = Query(min_length=1),
+    depth: int = Query(default=3, ge=1, le=6),
+):
     """Impact Ripple: espansione BFS a cerchi concentrici da un nodo. Ogni 'ring' è
     un livello di distanza (1 hop, 2 hop, ...). Risponde 'cosa viene impattato se
-    modifico questo nodo?' in modo deterministico (nessun LLM)."""
+    modifico questo nodo?' in modo deterministico (nessun LLM).
+
+    Input validato: `node` non vuoto, `depth` in [1, 6] (evita BFS incontrollate)."""
     maybe_reload_graph()
     graph: nx.DiGraph = state["graph"]
     if graph is None:
@@ -49,7 +54,7 @@ async def graph_semantic_map():
 
 
 @router.get("/api/graph/query")
-async def graph_query(q: str):
+async def graph_query(q: str = Query(min_length=1, max_length=2000)):
     """Query DETERMINISTICA sul grafo (nessun LLM): risponde a domande strutturali —
     'quali documenti/entità/codice esistono?', 'relazioni di X', 'cosa impatta X' — leggendo
     direttamente nodi e archi. Incarna il principio 'determinismo prima dell'LLM' (Articolo 1)."""

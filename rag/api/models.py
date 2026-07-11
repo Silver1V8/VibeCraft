@@ -1,11 +1,13 @@
 """Modelli Pydantic di request per gli endpoint della console Graph-RAG."""
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AskQuery(BaseModel):
-    question: str
-    top_k: int = 5
-    bfs_depth: int = 2
+    # Vincoli di input: domanda non vuota, top_k/bfs_depth entro limiti sensati per
+    # evitare richieste degeneri (k enorme → carico, depth enorme → esplosione BFS).
+    question: str = Field(min_length=1, max_length=4000)
+    top_k: int = Field(default=5, ge=1, le=50)
+    bfs_depth: int = Field(default=2, ge=0, le=5)
 
 
 class ExploreTurnRequest(BaseModel):

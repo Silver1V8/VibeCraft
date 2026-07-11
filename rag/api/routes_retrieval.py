@@ -4,7 +4,7 @@
 import time
 
 import networkx as nx
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
 from qdrant_client import QdrantClient
 from FlagEmbedding import BGEM3FlagModel
@@ -140,10 +140,15 @@ async def ask_rag(query: AskQuery):
 
 
 @router.get("/api/retrieve")
-async def api_retrieve(q: str, k: int = 5):
+async def api_retrieve(
+    q: str = Query(min_length=1, max_length=4000),
+    k: int = Query(default=5, ge=1, le=50),
+):
     """Retrieval PURO (dense + sparse + ColBERT + authority), senza sintesi LLM. Restituisce
     i chunk pertinenti con il breakdown del ranking. Serve per valutare la qualità del ranking
-    (golden-set / eval_retrieval.py) e per il debug, senza il costo di Ollama."""
+    (golden-set / eval_retrieval.py) e per il debug, senza il costo di Ollama.
+
+    Input validato da FastAPI: `q` non vuota, `k` in [1, 50] (422 altrimenti)."""
     if state.get("qdrant") is None or state.get("embed_model") is None:
         raise HTTPException(status_code=503, detail="Indice non ancora pronto.")
     results = await run_in_threadpool(

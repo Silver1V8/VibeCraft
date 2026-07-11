@@ -4,8 +4,10 @@ del Drift e archiviazione. Il caricamento/chunking dei documenti vive in core/ch
 configurazione in core/config.py. Le risorse pesanti (Qdrant, embedding) sono iniettabili."""
 import hashlib
 import json
+import os
 import pickle
 import shutil
+import tempfile
 import urllib.request
 import uuid
 from dataclasses import dataclass, field
@@ -61,6 +63,40 @@ _POINT_ID_NAMESPACE = uuid.UUID("6f9619ff-8b86-d011-b42d-00c04fc964ff")
 def _point_id(chunk_id: str) -> str:
     """ID Qdrant deterministico e stabile per un chunk (uuid5 del chunk_id)."""
     return str(uuid.uuid5(_POINT_ID_NAMESPACE, chunk_id))
+
+
+def _atomic_write(path: Path, writer) -> None:
+    """Scrittura ATOMICA di un artefatto: `writer(file_object)` scrive su un file
+    temporaneo NELLA STESSA directory di `path`, poi `os.replace` lo rinomina in modo
+    atomico sul filesystem. Se il processo muore a metà scrittura, `path` resta la
+    versione precedente (integra) o non esiste ancora: mai un file troncato/corrotto.
+    Il temporaneo va nella stessa dir per garantire che replace sia una rename atomica
+    sullo stesso mount (os.replace tra filesystem diversi non è atomico)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            writer(f)
+            f.flush()
+            os.fsync(f.fileno())  # forza i dati su disco prima del rename
+        os.replace(tmp_name, path)
+    except BaseException:
+        # Non lasciare temporanei orfani se qualcosa va storto prima del replace
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
+
+
+def _atomic_write_pickle(path: Path, obj) -> None:
+    """Serializza `obj` con pickle in modo atomico (vedi _atomic_write)."""
+    _atomic_write(path, lambda f: pickle.dump(obj, f))
+
+
+def _atomic_write_text(path: Path, text: str) -> None:
+    """Scrive testo UTF-8 in modo atomico (vedi _atomic_write)."""
+    _atomic_write(path, lambda f: f.write(text.encode("utf-8")))
 
 
 def _add_doc_to_graph(G: nx.DiGraph, rel_path: str, metadata: dict, body: str) -> tuple[int, int]:
@@ -226,12 +262,10 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
             _log(f"⚠️ Indicizzazione del codice saltata: {e}")
 
     # Salva il grafo, i multivettori ColBERT e il sidecar dei chunk su disco
-    with open(GRAPH_SAVE_PATH, "wb") as f:
-        pickle.dump(G, f)
-    with open(COLBERT_SAVE_PATH, "wb") as f:
-        pickle.dump(colbert_store, f)
-    with open(CHUNKS_SAVE_PATH, "wb") as f:
-        pickle.dump(chunks_store, f)
+    # (scrittura atomica: un crash a metà non lascia artefatti troncati).
+    _atomic_write_pickle(GRAPH_SAVE_PATH, G)
+    _atomic_write_pickle(COLBERT_SAVE_PATH, colbert_store)
+    _atomic_write_pickle(CHUNKS_SAVE_PATH, chunks_store)
 
     _log(f"\n✅ Grafo salvato in: {GRAPH_SAVE_PATH}")
     _log(f"✅ Multivettori ColBERT salvati in: {COLBERT_SAVE_PATH}")
@@ -256,17 +290,24 @@ def _docs_hashes() -> dict[str, str]:
 
 
 def write_index_manifest(points_count: int, nodes: int = 0, edges: int = 0) -> None:
-    """Persiste lo snapshot dell'indice (config modello, conteggi, hash dei documenti)."""
+    """Persiste lo snapshot dell'indice (config modello, conteggi, hash dei documenti).
+
+    Il campo `version` (timestamp ISO) viene scritto INSIEME agli artefatti: identifica
+    in modo univoco questo giro di indicizzazione, così un client può confrontarlo con
+    quello dell'ultima build vista e capire se sta leggendo un indice coerente (tutti e
+    tre i pickle + manifest appartenenti alla stessa versione)."""
+    now_iso = datetime.now(timezone.utc).isoformat()
     manifest = {
+        "version": now_iso,
         "embedding_model": EMBEDDING_MODEL,
         "collection": COLLECTION_NAME,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": now_iso,
         "documents": points_count,
         "graph_nodes": nodes,
         "graph_edges": edges,
         "doc_hashes": _docs_hashes(),
     }
-    INDEX_MANIFEST_PATH.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    _atomic_write_text(INDEX_MANIFEST_PATH, json.dumps(manifest, ensure_ascii=False, indent=2))
 
 
 def _diff_hashes(old: dict[str, str], new: dict[str, str]) -> tuple[list[str], list[str], list[str], list[str]]:
@@ -309,6 +350,7 @@ def index_status() -> dict:
     return {
         "indexed": True,
         "stale": bool(changed),
+        "version": manifest.get("version"),
         "created_at": manifest.get("created_at"),
         "embedding_model": manifest.get("embedding_model"),
         "documents": manifest.get("documents"),
@@ -502,13 +544,10 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
         plan, DOCS_DIR, qdrant, embed_model, graph, colbert_store, chunks_store, emit=_log
     )
 
-    # Persistenza: pickle + manifest coerente (documents = chunk totali correnti)
-    with open(GRAPH_SAVE_PATH, "wb") as f:
-        pickle.dump(graph, f)
-    with open(COLBERT_SAVE_PATH, "wb") as f:
-        pickle.dump(colbert_store, f)
-    with open(CHUNKS_SAVE_PATH, "wb") as f:
-        pickle.dump(chunks_store, f)
+    # Persistenza: pickle atomici + manifest coerente (documents = chunk totali correnti)
+    _atomic_write_pickle(GRAPH_SAVE_PATH, graph)
+    _atomic_write_pickle(COLBERT_SAVE_PATH, colbert_store)
+    _atomic_write_pickle(CHUNKS_SAVE_PATH, chunks_store)
     write_index_manifest(len(chunks_store), graph.number_of_nodes(), graph.number_of_edges())
 
     _log(f"🧾 Manifest aggiornato: {len(chunks_store)} chunk, {graph.number_of_nodes()} nodi, {graph.number_of_edges()} archi.")
