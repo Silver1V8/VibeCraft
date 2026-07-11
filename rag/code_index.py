@@ -125,19 +125,15 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
     return symbols
 
 
-def add_code_graph(G, symbols: list[dict], embed_model, doc_ids: list[str],
-                   doc_dense_vecs, threshold: float = 0.45) -> tuple[int, int]:
-    """Aggiunge i nodi di codice al grafo e li collega ai documenti con archi
-    IMPLEMENTS per similarità semantica (dense bge-m3), più archi REFERENCES
-    deterministici verso le entità del glossario citate nel codice.
+# Relazioni spec<->codice che dipendono dal CONTENUTO (versione) di un simbolo: vanno
+# rimosse e ricalcolate quando il simbolo o lo spazio dei documenti cambia. NON toccano
+# altri tipi di arco (es. MENTIONS doc->entità), che appartengono ai nodi-documento.
+_CODE_LINK_RELATIONS = ("IMPLEMENTS", "REFERENCES")
 
-    Restituisce (numero_nodi_codice, numero_archi_implements)."""
-    if not symbols:
-        return 0, 0
 
-    entity_nodes = {n for n, a in G.nodes(data=True) if a.get("type") == "entity"}
-
-    # Aggiunge i nodi di codice
+def add_symbol_nodes(G, symbols: list[dict]) -> None:
+    """Inserisce (o aggiorna) i soli NODI di codice nel grafo, senza archi. Condiviso da
+    full rebuild e incrementale: gli archi li calcola poi `link_symbols`."""
     for sym in symbols:
         G.add_node(
             sym["id"],
@@ -147,21 +143,56 @@ def add_code_graph(G, symbols: list[dict], embed_model, doc_ids: list[str],
             file=sym["file"],
             dev_type=sym["dev_type"],
         )
-        # Archi REFERENCES deterministici: il codice cita un'entità del glossario
+
+
+def embed_symbols(embed_model, symbols: list[dict]) -> np.ndarray:
+    """Vettorializza (dense) il testo dei simboli. Restituisce una matrice [n x DENSE_DIM]
+    allineata a `symbols` (vuota se non ci sono simboli)."""
+    if not symbols:
+        return np.zeros((0, 0), dtype=np.float32)
+    out = embed_model.encode([s["text"] for s in symbols], batch_size=12, return_dense=True)
+    return np.asarray(out["dense_vecs"], dtype=np.float32)
+
+
+def _clear_code_link_edges(G, symbol_ids) -> None:
+    """Rimuove dai simboli indicati i soli archi IMPLEMENTS/REFERENCES uscenti, così da
+    poterli ricalcolare dalla versione corrente senza toccare il resto del grafo."""
+    for sid in symbol_ids:
+        if sid not in G:
+            continue
+        stale = [(sid, v) for _, v, d in G.out_edges(sid, data=True)
+                 if d.get("relation") in _CODE_LINK_RELATIONS]
+        G.remove_edges_from(stale)
+
+
+def link_symbols(G, symbols: list[dict], sym_dense, doc_dense_vecs, doc_ids,
+                 threshold: float = 0.45) -> int:
+    """(Ri)calcola gli archi IMPLEMENTS (similarità dense verso il chunk-documento più
+    simile) e REFERENCES (match deterministico sulle entità del glossario) per i `symbols`
+    dati, che devono già essere nodi del grafo. Prima azzera i loro vecchi archi di questo
+    tipo: è quindi idempotente e sicuro sia in full rebuild (grafo fresco) sia in
+    incrementale (dove il simbolo/lo spazio-documenti può essere cambiato).
+
+    Restituisce il numero di archi IMPLEMENTS creati."""
+    if not symbols:
+        return 0
+
+    _clear_code_link_edges(G, [s["id"] for s in symbols])
+
+    entity_nodes = {n for n, a in G.nodes(data=True) if a.get("type") == "entity"}
+    for sym in symbols:
         for token in set(_ENTITY_TOKEN_RE.findall(sym["text"])):
             if token in entity_nodes:
                 G.add_edge(sym["id"], token, relation="REFERENCES")
 
     implements = 0
-    if doc_ids is not None and doc_dense_vecs is not None and len(doc_ids) > 0:
+    sym_matrix = np.asarray(sym_dense, dtype=np.float32)
+    if doc_ids is not None and doc_dense_vecs is not None and len(doc_ids) > 0 and sym_matrix.size:
         doc_matrix = np.asarray(doc_dense_vecs, dtype=np.float32)
         doc_norm = doc_matrix / (np.linalg.norm(doc_matrix, axis=1, keepdims=True) + 1e-8)
-
-        out = embed_model.encode([s["text"] for s in symbols], batch_size=12, return_dense=True)
-        sym_matrix = np.asarray(out["dense_vecs"], dtype=np.float32)
         sym_norm = sym_matrix / (np.linalg.norm(sym_matrix, axis=1, keepdims=True) + 1e-8)
 
-        sims = sym_norm @ doc_norm.T  # [n_simboli x n_documenti]
+        sims = sym_norm @ doc_norm.T  # [n_simboli x n_chunk-documento]
         best_idx = sims.argmax(axis=1)
         best_val = sims.max(axis=1)
         for i, sym in enumerate(symbols):
@@ -170,5 +201,19 @@ def add_code_graph(G, symbols: list[dict], embed_model, doc_ids: list[str],
                 if doc_id in G:
                     G.add_edge(sym["id"], doc_id, relation="IMPLEMENTS", weight=round(float(best_val[i]), 3))
                     implements += 1
+    return implements
 
+
+def add_code_graph(G, symbols: list[dict], embed_model, doc_ids: list[str],
+                   doc_dense_vecs, threshold: float = 0.45) -> tuple[int, int]:
+    """Aggiunge i nodi di codice al grafo e li collega ai documenti con archi
+    IMPLEMENTS per similarità semantica (dense bge-m3), più archi REFERENCES
+    deterministici verso le entità del glossario citate nel codice.
+
+    Restituisce (numero_nodi_codice, numero_archi_implements)."""
+    if not symbols:
+        return 0, 0
+    add_symbol_nodes(G, symbols)
+    sym_dense = embed_symbols(embed_model, symbols)
+    implements = link_symbols(G, symbols, sym_dense, doc_dense_vecs, doc_ids, threshold)
     return len(symbols), implements

@@ -29,6 +29,13 @@ from qdrant_client.models import (
     VectorParams,
 )
 
+from code_index import (
+    CODE_EXTS,
+    add_symbol_nodes,
+    collect_code_symbols,
+    embed_symbols,
+    link_symbols,
+)
 from core.chunking import (
     add_frontmatter_edges,
     chunk_markdown,
@@ -39,9 +46,11 @@ from core.config import (
     CHANGES_DIR,
     CHUNKS_SAVE_PATH,
     CODE_DIR,
+    CODE_SAVE_PATH,
     COLBERT_SAVE_PATH,
     COLLECTION_NAME,
     DENSE_DIM,
+    DENSE_SAVE_PATH,
     DOC_EXTS,
     DOCS_DIR,
     EMBEDDING_MODEL,
@@ -128,6 +137,33 @@ def _remove_doc_nodes_from_graph(G: nx.DiGraph, doc_ids) -> int:
     return removed
 
 
+def _prune_unsupported_entities(G: nx.DiGraph) -> int:
+    """Rimuove i nodi-ENTITÀ che nessun DOCUMENTO cita più (nessun arco entrante da un nodo
+    'document'). È l'invariante del full rebuild: un'entità esiste solo se un documento la
+    menziona (MENTIONS) o la referenzia dal frontmatter — il codice, con REFERENCES, può solo
+    puntare a entità già esistenti, mai crearne. Quando un documento sparisce o cambia, le sue
+    entità 'orfane di documento' vanno rimosse (insieme agli eventuali REFERENCES stale del
+    codice che le puntavano), altrimenti l'incrementale divergerebbe dal rebuild."""
+    doc_nodes = {n for n, a in G.nodes(data=True) if a.get("type") == "document"}
+    orphans = [
+        n for n, a in G.nodes(data=True)
+        if a.get("type") == "entity" and not (doc_nodes & set(G.predecessors(n)))
+    ]
+    G.remove_nodes_from(orphans)
+    return len(orphans)
+
+
+def _dense_map(chunks: list[dict], dense_vecs) -> dict[str, "object"]:
+    """Mappa chunk_id -> vettore denso (fp16) allineando `chunks` e `dense_vecs`. Robusto
+    ai fake di test che non producono vettori: se le lunghezze non combaciano restituisce {}."""
+    try:
+        if dense_vecs is None or len(dense_vecs) != len(chunks):
+            return {}
+    except TypeError:
+        return {}
+    return {c["chunk_id"]: dv.astype("float16") for c, dv in zip(chunks, dense_vecs)}
+
+
 def _encode_chunks_to_points(embed_model, chunks: list[dict]):
     """Vettorializza i chunk (una forward pass bge-m3 → dense+sparse+colbert) e produce
     i PointStruct Qdrant con id DETERMINISTICO (uuid5 del chunk_id) più i due sidecar
@@ -191,6 +227,87 @@ def _ensure_collection(qdrant: QdrantClient, recreate: bool = False) -> None:
         )
 
 
+@dataclass
+class FullState:
+    """Stato completo prodotto da un'indicizzazione da zero (in memoria, senza I/O):
+    grafo + punti Qdrant + tutti i sidecar. È l'output condiviso dal full rebuild (che lo
+    persiste) e dal check di coerenza (che confronta il solo grafo con quello persistito)."""
+    graph: nx.DiGraph
+    points: list = field(default_factory=list)
+    colbert_store: dict = field(default_factory=dict)
+    chunks_store: dict = field(default_factory=dict)
+    dense_store: dict = field(default_factory=dict)
+    code_store: dict = field(default_factory=dict)
+    n_docs: int = 0
+
+
+def _build_full_state(embed_model, docs_dir: Path, code_dir: Path, emit=None) -> FullState:
+    """Costruisce da zero l'intero stato dell'indice (grafo + chunk + sidecar) a partire
+    dai file, SENZA alcun I/O su disco o Qdrant. Funzione pura (a parità di modello e input
+    produce lo stesso grafo): è l'unica fonte di verità della topologia 'da rebuild', usata
+    sia dal full rebuild reale sia dal check di coerenza (index.py --check-graph)."""
+    _log = emit or print
+    G = nx.DiGraph()
+    all_chunks: list[dict] = []
+    n_docs = 0
+
+    all_docs = sorted(p for p in docs_dir.rglob("*") if p.is_file() and p.suffix.lower() in DOC_EXTS)
+    for filepath_obj in all_docs:
+        rel_path = filepath_obj.relative_to(docs_dir).as_posix()
+        metadata, body = read_document(filepath_obj)
+        if not body.strip():
+            _log(f"  (saltato, corpo vuoto o loader assente: {rel_path})")
+            continue
+        n_entities, typed_edges = _add_doc_to_graph(G, rel_path, metadata, body)
+        doc_chunks = chunk_markdown(rel_path, metadata, body)
+        for c in doc_chunks:
+            c["metadata"] = metadata
+        all_chunks.extend(doc_chunks)
+        n_docs += 1
+        _log(f"  Analizzato: {rel_path} — {n_entities} entità, {len(doc_chunks)} chunk, {typed_edges} relazioni tipizzate")
+
+    points: list = []
+    colbert_store: dict = {}
+    chunks_store: dict = {}
+    dense_store: dict = {}
+    if all_chunks:
+        _log(f"\nVettorializzazione di {len(all_chunks)} chunk (da {n_docs} documenti) con {EMBEDDING_MODEL} (dense + sparse + colbert)...")
+        points, colbert_store, chunks_store, dense_vecs = _encode_chunks_to_points(embed_model, all_chunks)
+        dense_store = _dense_map(all_chunks, dense_vecs)
+
+    # Fase Codice: nodi dei simboli + archi IMPLEMENTS (chunk-doc più simile) e REFERENCES.
+    # Indipendente dalla presenza di documenti: i simboli di codice esistono comunque come
+    # nodi (senza IMPLEMENTS finché non c'è uno spazio-documenti a cui agganciarsi), così
+    # full rebuild e incrementale restano allineati anche quando docs/ è temporaneamente vuoto.
+    code_store: dict = {}
+    try:
+        code_symbols = collect_code_symbols(code_dir)
+        if code_symbols:
+            add_symbol_nodes(G, code_symbols)
+            sym_dense = embed_symbols(embed_model, code_symbols)
+            # Linka usando gli STESSI vettori fp16 che finiscono nei sidecar: così il
+            # ricalcolo incrementale (che legge fp16) riproduce esattamente questi archi,
+            # e il check di coerenza non segnala falsi positivi da differenza di precisione.
+            sym_dense16 = sym_dense.astype("float16") if sym_dense.size else sym_dense
+            doc_chunk_ids = [c["chunk_id"] for c in all_chunks if c["chunk_id"] in dense_store]
+            doc_dense16 = [dense_store[cid] for cid in doc_chunk_ids]
+            doc_parent16 = [chunks_store[cid]["doc_id"] for cid in doc_chunk_ids]
+            n_impl = link_symbols(G, code_symbols, sym_dense16, doc_dense16, doc_parent16)
+            code_store = {
+                s["id"]: {"name": s["name"], "kind": s["kind"], "file": s["file"],
+                          "dev_type": s["dev_type"], "text": s["text"],
+                          "dense": sym_dense16[i]}
+                for i, s in enumerate(code_symbols)
+            }
+            _log(f"🧩 Codice indicizzato: {len(code_symbols)} simboli, {n_impl} archi IMPLEMENTS verso i documenti.")
+        else:
+            _log("🧩 Nessun simbolo di codice trovato sotto code/ (verrà indicizzato quando Claude scriverà il codice).")
+    except Exception as e:
+        _log(f"⚠️ Indicizzazione del codice saltata: {e}")
+
+    return FullState(G, points, colbert_store, chunks_store, dense_store, code_store, n_docs)
+
+
 def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, emit=None) -> None:
     """Esegue l'indicizzazione completa (Fase 0 e Fase 4).
 
@@ -209,71 +326,30 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
         embed_model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
     if qdrant is None:
         qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-    G = nx.DiGraph()
 
     # Ricrea la collection Qdrant da zero ad ogni indicizzazione completa
     _ensure_collection(qdrant, recreate=True)
 
-    points: list[PointStruct] = []
-    all_chunks: list[dict] = []
-    n_docs = 0
+    state = _build_full_state(embed_model, DOCS_DIR, CODE_DIR, emit=_log)
+    G = state.graph
+    if state.points:
+        qdrant.upsert(collection_name=COLLECTION_NAME, points=state.points)
 
-    # Prima passata: costruisce il grafo (a livello documento) e raccoglie i chunk
-    # (a livello sezione). Scansione ricorsiva di tutti i formati indicizzabili.
-    all_docs = sorted(p for p in DOCS_DIR.rglob("*") if p.is_file() and p.suffix.lower() in DOC_EXTS)
-    for filepath_obj in all_docs:
-        rel_path = filepath_obj.relative_to(DOCS_DIR).as_posix()
-        metadata, body = read_document(filepath_obj)
-        if not body.strip():
-            _log(f"  (saltato, corpo vuoto o loader assente: {rel_path})")
-            continue
-
-        n_entities, typed_edges = _add_doc_to_graph(G, rel_path, metadata, body)
-
-        # Il retrieval invece lavora sui chunk: una sezione per punto Qdrant
-        doc_chunks = chunk_markdown(rel_path, metadata, body)
-        for c in doc_chunks:
-            c["metadata"] = metadata
-        all_chunks.extend(doc_chunks)
-        n_docs += 1
-        _log(f"  Analizzato: {rel_path} — {n_entities} entità, {len(doc_chunks)} chunk, {typed_edges} relazioni tipizzate")
-
-    # Seconda passata: vettorializza tutti i chunk in un batch.
-    # Una sola forward pass di bge-m3 produce tutti e tre i tipi di vettore.
-    colbert_store: dict[str, list] = {}
-    chunks_store: dict[str, dict] = {}
-    if all_chunks:
-        _log(f"\nVettorializzazione di {len(all_chunks)} chunk (da {n_docs} documenti) con {EMBEDDING_MODEL} (dense + sparse + colbert)...")
-        points, colbert_store, chunks_store, dense_vecs = _encode_chunks_to_points(embed_model, all_chunks)
-        qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
-
-        # Fase Codice: indicizza i simboli sotto code/ e li collega al documento
-        # padre del chunk più simile (archi IMPLEMENTS) + REFERENCES verso le entità.
-        try:
-            from code_index import add_code_graph, collect_code_symbols
-            code_symbols = collect_code_symbols(CODE_DIR)
-            parent_docs = [c["doc_id"] for c in all_chunks]  # padre allineato ai dense_vecs dei chunk
-            n_code, n_impl = add_code_graph(G, code_symbols, embed_model, parent_docs, dense_vecs)
-            if n_code:
-                _log(f"🧩 Codice indicizzato: {n_code} simboli, {n_impl} archi IMPLEMENTS verso i documenti.")
-            else:
-                _log("🧩 Nessun simbolo di codice trovato sotto code/ (verrà indicizzato quando Claude scriverà il codice).")
-        except Exception as e:
-            _log(f"⚠️ Indicizzazione del codice saltata: {e}")
-
-    # Salva il grafo, i multivettori ColBERT e il sidecar dei chunk su disco
+    # Salva il grafo, i multivettori ColBERT e i sidecar su disco
     # (scrittura atomica: un crash a metà non lascia artefatti troncati).
     _atomic_write_pickle(GRAPH_SAVE_PATH, G)
-    _atomic_write_pickle(COLBERT_SAVE_PATH, colbert_store)
-    _atomic_write_pickle(CHUNKS_SAVE_PATH, chunks_store)
+    _atomic_write_pickle(COLBERT_SAVE_PATH, state.colbert_store)
+    _atomic_write_pickle(CHUNKS_SAVE_PATH, state.chunks_store)
+    _atomic_write_pickle(DENSE_SAVE_PATH, state.dense_store)
+    _atomic_write_pickle(CODE_SAVE_PATH, state.code_store)
 
     _log(f"\n✅ Grafo salvato in: {GRAPH_SAVE_PATH}")
     _log(f"✅ Multivettori ColBERT salvati in: {COLBERT_SAVE_PATH}")
     _log(f"✅ Sidecar chunk salvato in: {CHUNKS_SAVE_PATH}")
     _log(f"📊 Grafo: {G.number_of_nodes()} nodi, {G.number_of_edges()} archi.")
-    _log(f"📦 Qdrant: {len(points)} chunk (da {n_docs} documenti) nella collection '{COLLECTION_NAME}'.")
+    _log(f"📦 Qdrant: {len(state.points)} chunk (da {state.n_docs} documenti) nella collection '{COLLECTION_NAME}'.")
 
-    write_index_manifest(len(points), G.number_of_nodes(), G.number_of_edges())
+    write_index_manifest(len(state.points), G.number_of_nodes(), G.number_of_edges())
     _log(f"🧾 Manifest indicizzazione salvato in: {INDEX_MANIFEST_PATH}")
 
     if own_qdrant:
@@ -285,6 +361,18 @@ def _docs_hashes() -> dict[str, str]:
     hashes: dict[str, str] = {}
     for filepath_obj in sorted(p for p in DOCS_DIR.rglob("*") if p.is_file() and p.suffix.lower() in DOC_EXTS):
         rel_path = filepath_obj.relative_to(DOCS_DIR).as_posix()
+        hashes[rel_path] = hashlib.sha256(filepath_obj.read_bytes()).hexdigest()
+    return hashes
+
+
+def _code_hashes() -> dict[str, str]:
+    """Hash SHA-256 di ogni file di codice sotto code/ (chiave = percorso relativo a code/).
+    Base del delta incrementale sul codice, gemella di _docs_hashes per i documenti."""
+    hashes: dict[str, str] = {}
+    if not CODE_DIR.exists():
+        return hashes
+    for filepath_obj in sorted(p for p in CODE_DIR.rglob("*") if p.is_file() and p.suffix in CODE_EXTS):
+        rel_path = filepath_obj.relative_to(CODE_DIR).as_posix()
         hashes[rel_path] = hashlib.sha256(filepath_obj.read_bytes()).hexdigest()
     return hashes
 
@@ -306,6 +394,7 @@ def write_index_manifest(points_count: int, nodes: int = 0, edges: int = 0) -> N
         "graph_nodes": nodes,
         "graph_edges": edges,
         "doc_hashes": _docs_hashes(),
+        "code_hashes": _code_hashes(),
     }
     _atomic_write_text(INDEX_MANIFEST_PATH, json.dumps(manifest, ensure_ascii=False, indent=2))
 
@@ -419,6 +508,69 @@ def _delete_doc_chunks(qdrant: QdrantClient, doc_ids: list[str]) -> None:
     )
 
 
+def _apply_code_delta(
+    graph: nx.DiGraph,
+    code_dir: Path,
+    code_store: dict,
+    embed_model,
+    added: list[str],
+    removed: list[str],
+    modified: list[str],
+    emit,
+) -> set[str]:
+    """Applica il delta sui file di codice: rimuove i nodi/entry dei simboli dei file
+    cancellati o modificati (la loro vecchia versione), poi estrae, aggiunge e vettorializza
+    i simboli dei file nuovi/modificati. NON calcola gli archi IMPLEMENTS/REFERENCES: quelli
+    li (ri)stende `link_symbols` sul solo insieme toccato. Restituisce gli id dei simboli
+    toccati (nuovi/modificati), che vanno rilinkati."""
+    gone_files = set(removed) | set(modified)
+    if gone_files:
+        stale_ids = [sid for sid, meta in code_store.items() if meta.get("file") in gone_files]
+        for sid in stale_ids:
+            code_store.pop(sid, None)
+            if sid in graph:
+                graph.remove_node(sid)  # cade anche ogni IMPLEMENTS/REFERENCES uscente
+
+    touched: set[str] = set()
+    fresh_files = set(added) | set(modified)
+    new_syms: list[dict] = []
+    for sym in collect_code_symbols(code_dir):
+        if sym["file"] in fresh_files:
+            new_syms.append(sym)
+    if new_syms:
+        add_symbol_nodes(graph, new_syms)
+        sym_dense = embed_symbols(embed_model, new_syms)
+        for i, sym in enumerate(new_syms):
+            code_store[sym["id"]] = {
+                "name": sym["name"], "kind": sym["kind"], "file": sym["file"],
+                "dev_type": sym["dev_type"], "text": sym["text"],
+                "dense": sym_dense[i].astype("float16"),
+            }
+            touched.add(sym["id"])
+    if gone_files or new_syms:
+        _log = emit or print
+        _log(f"🧩 Codice: {len(removed)} file rimossi, {len(added)} nuovi, {len(modified)} modificati "
+             f"→ {len(touched)} simboli (ri)estratti.")
+    return touched
+
+
+def _relink_touched_symbols(graph: nx.DiGraph, code_store: dict, chunks_store: dict,
+                            dense_store: dict, touched_ids: set[str]) -> int:
+    """Ricalcola IMPLEMENTS/REFERENCES per i soli simboli in `touched_ids`, usando i vettori
+    densi già persistiti (nessun re-embed): i simboli dal code_store, i chunk-documento dal
+    dense_store. Restituisce il numero di archi IMPLEMENTS creati."""
+    ids = [sid for sid in touched_ids if sid in graph and sid in code_store]
+    if not ids:
+        return 0
+    syms = [{"id": sid, "text": code_store[sid]["text"]} for sid in ids]
+    sym_dense = [code_store[sid]["dense"] for sid in ids]
+
+    chunk_ids = [cid for cid in dense_store if cid in chunks_store]
+    chunk_dense = [dense_store[cid] for cid in chunk_ids]
+    chunk_parent = [chunks_store[cid]["doc_id"] for cid in chunk_ids]
+    return link_symbols(graph, syms, sym_dense, chunk_dense, chunk_parent)
+
+
 def apply_incremental_indexing(
     plan: IndexPlan,
     docs_dir: Path | None,
@@ -428,6 +580,10 @@ def apply_incremental_indexing(
     colbert_store: dict,
     chunks_store: dict,
     emit=None,
+    dense_store: dict | None = None,
+    code_store: dict | None = None,
+    code_delta: tuple[list[str], list[str], list[str]] | None = None,
+    code_dir: Path | None = None,
 ) -> dict:
     """Esegue il piano del delta sugli oggetti passati (Qdrant + grafo + sidecar), mutandoli
     in-place. NON fa I/O su disco né gestisce il modello: quelli restano al chiamante
@@ -435,10 +591,17 @@ def apply_incremental_indexing(
 
     Passi (idempotenti):
       1. purge dei chunk dei documenti modificati+cancellati da Qdrant (delete-by-filter),
-         dai sidecar colbert/chunks e dei relativi nodi-documento dal grafo;
+         dai sidecar (colbert/chunks/dense) e dei relativi nodi-documento dal grafo;
       2. (ri)vettorializzazione dei documenti nuovi+modificati e upsert con id deterministici,
-         con re-inserimento dei nodi-documento nel grafo (code-link NON ricalibrati, per scelta).
-    """
+         con re-inserimento dei nodi-documento nel grafo;
+      3. delta sui file di codice (simboli aggiunti/rimossi/modificati);
+      4. ricalcolo mirato degli archi spec<->codice (IMPLEMENTS/REFERENCES) per i soli nodi
+         toccati: i simboli nuovi/modificati e — se lo spazio dei documenti è cambiato —
+         tutti i simboli (l'argmax sui documenti può essersi spostato). Infine potatura
+         delle entità rimaste orfane. Questo elimina la staleness dei code-link senza rebuild.
+
+    `dense_store`/`code_store`/`code_delta`/`code_dir` sono opzionali: se assenti la funzione
+    si comporta come prima (nessun ricalcolo dei code-link), preservando i chiamanti legacy."""
     _log = emit or print
     to_delete = plan.to_delete()   # modificati + cancellati
     to_index = plan.to_index()     # nuovi + modificati
@@ -451,6 +614,8 @@ def apply_incremental_indexing(
         for cid in dead_chunks:
             colbert_store.pop(cid, None)
             chunks_store.pop(cid, None)
+            if dense_store is not None:
+                dense_store.pop(cid, None)
         _remove_doc_nodes_from_graph(graph, to_delete)
         _log(f"🗑️  Rimossi i chunk di {len(to_delete)} documenti (modificati/cancellati): {len(dead_chunks)} chunk purgati da Qdrant, sidecar e grafo.")
 
@@ -480,14 +645,47 @@ def apply_incremental_indexing(
             qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
             colbert_store.update(colbert_partial)
             chunks_store.update(chunks_partial)
+            if dense_store is not None:
+                dense_store.update(_dense_map(new_chunks, _dense))
             upserted = len(points)
         _log(f"➕ (Ri)indicizzati {len(to_index)} documenti → {upserted} chunk upsertati.")
+
+    # 3-4. Delta del codice + ricalcolo mirato dei code-link (solo se i sidecar sono forniti).
+    code_added, code_removed, code_modified = code_delta or ([], [], [])
+    implements = 0
+    orphans = 0
+    if code_store is not None and dense_store is not None:
+        touched: set[str] = set()
+        if code_dir is not None and (code_added or code_removed or code_modified):
+            touched |= _apply_code_delta(
+                graph, code_dir, code_store, embed_model,
+                code_added, code_removed, code_modified, _log,
+            )
+        # Se lo spazio dei documenti è cambiato, l'argmax IMPLEMENTS di OGNI simbolo può
+        # spostarsi (e le entità citabili cambiano): vanno rilinkati tutti. Altrimenti bastano
+        # i simboli toccati dal delta del codice.
+        docs_changed = bool(to_index or plan.deleted)
+        if docs_changed:
+            touched |= set(code_store.keys())
+        # Prima si potano le entità che nessun documento cita più (rimuove anche i REFERENCES
+        # stale del codice verso di esse), POI si ricalcolano i link: così REFERENCES viene
+        # ricostruito sull'insieme di entità valido, identico a quello del full rebuild.
+        orphans = _prune_unsupported_entities(graph)
+        implements = _relink_touched_symbols(graph, code_store, chunks_store, dense_store, touched)
+        if touched or orphans:
+            _log(f"🔗 Code-link ricalcolati per {len(touched)} simboli → {implements} IMPLEMENTS; "
+                 f"{orphans} entità orfane potate.")
 
     return {
         "planned": plan.as_dict(),
         "reindexed_docs": len(to_index),
         "deleted_docs": len(plan.deleted),
         "upserted_chunks": upserted,
+        "code_added": len(code_added),
+        "code_removed": len(code_removed),
+        "code_modified": len(code_modified),
+        "implements_edges": implements,
+        "pruned_entities": orphans,
     }
 
 
@@ -518,16 +716,24 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     manifest = _read_manifest()
     plan = plan_incremental_indexing(current, manifest)
 
-    if manifest is not None and plan.is_noop:
-        _log("✅ Nessun cambiamento in docs/: indice già aggiornato (no-op, nessuna scrittura).")
+    # Delta sul codice: gemello del piano documenti, così l'incrementale reagisce anche a
+    # nuovi file di codice / modifiche / cancellazioni sotto code/ (non solo a docs/).
+    current_code = _code_hashes()
+    old_code = manifest.get("code_hashes", {}) if isinstance(manifest, dict) else {}
+    code_added, code_removed, code_modified, _uc = _diff_hashes(old_code, current_code)
+    code_changed = bool(code_added or code_removed or code_modified)
+
+    if manifest is not None and plan.is_noop and not code_changed:
+        _log("✅ Nessun cambiamento in docs/ o code/: indice già aggiornato (no-op, nessuna scrittura).")
         return {"noop": True, "planned": plan.as_dict(), "reindexed_docs": 0, "deleted_docs": 0, "upserted_chunks": 0}
 
     _log(f"📋 Piano incrementale: {len(plan.new)} nuovi, {len(plan.modified)} modificati, "
-         f"{len(plan.deleted)} cancellati, {len(plan.unchanged)} invariati (saltati).")
+         f"{len(plan.deleted)} cancellati, {len(plan.unchanged)} invariati (saltati). "
+         f"Codice: +{len(code_added)} ~{len(code_modified)} -{len(code_removed)}.")
 
-    # Il modello serve solo se c'è qualcosa da (ri)embeddare: un run di solo-delete
-    # non deve pagare il caricamento di bge-m3 (minuti a freddo).
-    if embed_model is None and plan.to_index():
+    # Il modello serve solo se c'è qualcosa da (ri)embeddare: documenti nuovi/modificati
+    # oppure file di codice nuovi/modificati. Un run di solo-delete non paga bge-m3.
+    if embed_model is None and (plan.to_index() or code_added or code_modified):
         _log(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")
         embed_model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
     if qdrant is None:
@@ -539,24 +745,101 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     graph: nx.DiGraph = _load_pickle(GRAPH_SAVE_PATH, nx.DiGraph())
     colbert_store: dict = _load_pickle(COLBERT_SAVE_PATH, {})
     chunks_store: dict = _load_pickle(CHUNKS_SAVE_PATH, {})
+    dense_store: dict = _load_pickle(DENSE_SAVE_PATH, {})
+    code_store: dict = _load_pickle(CODE_SAVE_PATH, {})
 
     stats = apply_incremental_indexing(
-        plan, DOCS_DIR, qdrant, embed_model, graph, colbert_store, chunks_store, emit=_log
+        plan, DOCS_DIR, qdrant, embed_model, graph, colbert_store, chunks_store, emit=_log,
+        dense_store=dense_store, code_store=code_store,
+        code_delta=(code_added, code_removed, code_modified), code_dir=CODE_DIR,
     )
 
     # Persistenza: pickle atomici + manifest coerente (documents = chunk totali correnti)
     _atomic_write_pickle(GRAPH_SAVE_PATH, graph)
     _atomic_write_pickle(COLBERT_SAVE_PATH, colbert_store)
     _atomic_write_pickle(CHUNKS_SAVE_PATH, chunks_store)
+    _atomic_write_pickle(DENSE_SAVE_PATH, dense_store)
+    _atomic_write_pickle(CODE_SAVE_PATH, code_store)
     write_index_manifest(len(chunks_store), graph.number_of_nodes(), graph.number_of_edges())
 
     _log(f"🧾 Manifest aggiornato: {len(chunks_store)} chunk, {graph.number_of_nodes()} nodi, {graph.number_of_edges()} archi.")
-    _log("ℹ️  Code-link non ricalibrati in incrementale (scelta): esegui un full rebuild per aggiornarli.")
+    _log("🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).")
 
     if own_qdrant:
         qdrant.close()
 
     return stats
+
+
+def _edge_set(G: nx.DiGraph) -> set[tuple[str, str, str]]:
+    """Rappresenta il grafo come insieme di archi tipizzati (u, v, relation): confronto
+    stabile e indipendente dagli attributi non strutturali (es. il peso degli IMPLEMENTS)."""
+    return {(u, v, str(d.get("relation"))) for u, v, d in G.edges(data=True)}
+
+
+def _node_type_set(G: nx.DiGraph) -> set[tuple[str, str]]:
+    """Insieme (id, type) dei nodi: cattura sia la presenza sia il tipo di ciascun nodo."""
+    return {(n, str(a.get("type"))) for n, a in G.nodes(data=True)}
+
+
+def check_graph_consistency(embed_model=None, docs_dir: Path | None = None,
+                            code_dir: Path | None = None, graph_path: Path | None = None,
+                            emit=None) -> dict:
+    """Confronta il grafo INCREMENTALE persistito con quello che produrrebbe un full rebuild
+    sugli STESSI input (documenti + codice), e segnala le differenze di nodi e archi.
+
+    È il guardrail contro la deriva dell'incrementale: se il ricalcolo mirato dei code-link
+    ha lasciato archi stale o nodi orfani, questo check li fa emergere confrontando con la
+    topologia di riferimento (_build_full_state). Non tocca Qdrant né riscrive nulla.
+
+    Restituisce un dict con `consistent` (bool) e le liste delle differenze (troncate)."""
+    _log = emit or print
+    docs_dir = docs_dir or DOCS_DIR
+    code_dir = code_dir or CODE_DIR
+    graph_path = graph_path or GRAPH_SAVE_PATH
+
+    incremental: nx.DiGraph | None = _load_pickle(graph_path, None)
+    if incremental is None:
+        return {"consistent": False, "reason": f"grafo incrementale assente o illeggibile: {graph_path}"}
+
+    if embed_model is None:
+        _log(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")
+        embed_model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
+
+    reference = _build_full_state(embed_model, docs_dir, code_dir, emit=lambda *_a, **_k: None).graph
+
+    inc_nodes, ref_nodes = _node_type_set(incremental), _node_type_set(reference)
+    inc_edges, ref_edges = _edge_set(incremental), _edge_set(reference)
+
+    missing_nodes = sorted(ref_nodes - inc_nodes)   # attesi dal rebuild, mancanti nell'incrementale
+    extra_nodes = sorted(inc_nodes - ref_nodes)     # presenti nell'incrementale, non nel rebuild (stale)
+    missing_edges = sorted(ref_edges - inc_edges)
+    extra_edges = sorted(inc_edges - ref_edges)
+
+    consistent = not (missing_nodes or extra_nodes or missing_edges or extra_edges)
+    _cap = 50
+    report = {
+        "consistent": consistent,
+        "reference_nodes": len(ref_nodes),
+        "incremental_nodes": len(inc_nodes),
+        "reference_edges": len(ref_edges),
+        "incremental_edges": len(inc_edges),
+        "missing_nodes": [list(x) for x in missing_nodes[:_cap]],
+        "extra_nodes": [list(x) for x in extra_nodes[:_cap]],
+        "missing_edges": [list(x) for x in missing_edges[:_cap]],
+        "extra_edges": [list(x) for x in extra_edges[:_cap]],
+        "counts": {
+            "missing_nodes": len(missing_nodes), "extra_nodes": len(extra_nodes),
+            "missing_edges": len(missing_edges), "extra_edges": len(extra_edges),
+        },
+    }
+    if consistent:
+        _log("✅ Grafo incrementale COERENTE con il full rebuild (stessi nodi e archi).")
+    else:
+        _log(f"⚠️ Grafo incrementale DIVERGENTE dal rebuild: "
+             f"{len(missing_nodes)} nodi mancanti, {len(extra_nodes)} nodi in eccesso, "
+             f"{len(missing_edges)} archi mancanti, {len(extra_edges)} archi in eccesso.")
+    return report
 
 
 def _load_dev_type(feature_folder: str) -> str:

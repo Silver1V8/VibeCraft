@@ -191,8 +191,11 @@ def test_incremental_index_noop_returns_early(monkeypatch, tmp_path):
     """Con manifest coerente e docs/ invariati, incremental_index è un no-op:
     non costruisce mai il client Qdrant né il modello (idempotenza sulle run ripetute)."""
     current = {"a.md": "h1", "b.md": "h2"}
+    code = {"backend/svc.py": "c1"}
     monkeypatch.setattr(index, "_docs_hashes", lambda: dict(current))
-    monkeypatch.setattr(index, "_read_manifest", lambda: {"doc_hashes": dict(current)})
+    monkeypatch.setattr(index, "_code_hashes", lambda: dict(code))
+    monkeypatch.setattr(index, "_read_manifest",
+                        lambda: {"doc_hashes": dict(current), "code_hashes": dict(code)})
 
     # Se venisse costruito un QdrantClient o un modello, questi solleverebbero.
     def _boom(*a, **k):
@@ -203,3 +206,253 @@ def test_incremental_index_noop_returns_early(monkeypatch, tmp_path):
     out = index.incremental_index()
     assert out["noop"] is True
     assert out["reindexed_docs"] == 0 and out["deleted_docs"] == 0
+
+
+# ---------------------------------------------------------------------------
+# 5. Ciclo full→incrementale end-to-end: link spec↔codice non stale, senza rebuild.
+#    Fake leggeri (nessun torch, nessun Qdrant reale): un modello stub deterministico
+#    che vettorializza contando alcuni "marker" nel testo, e un Qdrant in-memory.
+# ---------------------------------------------------------------------------
+from types import SimpleNamespace  # noqa: E402
+
+import numpy as np  # noqa: E402
+
+from core import eval_metrics  # noqa: E402
+
+
+class StubEmbed:
+    """Modello di embedding deterministico: il vettore denso conta i marker nel testo,
+    così simboli e documenti che parlano dello stesso marker risultano simili (cosine)."""
+    MARKERS = ["ALPHA", "BETA", "GAMMA", "ZETA"]
+
+    def _vec(self, text: str) -> np.ndarray:
+        v = np.array([float(text.count(m)) for m in self.MARKERS], dtype="float32")
+        return v if v.any() else np.full(len(self.MARKERS), 0.01, dtype="float32")
+
+    def encode(self, texts, **kw):
+        dense = (np.stack([self._vec(t) for t in texts])
+                 if texts else np.zeros((0, len(self.MARKERS)), dtype="float32"))
+        out = {"dense_vecs": dense}
+        if kw.get("return_sparse"):
+            out["lexical_weights"] = [{} for _ in texts]
+        if kw.get("return_colbert_vecs"):
+            out["colbert_vecs"] = [np.zeros((1, len(self.MARKERS)), dtype="float32") for _ in texts]
+        return out
+
+
+class StatefulFakeQdrant:
+    """Qdrant in-memory: tiene i punti per id e onora delete-by-filter su doc_id."""
+    def __init__(self):
+        self.points: dict = {}
+        self.collections: set = set()
+
+    def get_collections(self):
+        return SimpleNamespace(collections=[SimpleNamespace(name=n) for n in self.collections])
+
+    def create_collection(self, collection_name, **kw):
+        self.collections.add(collection_name)
+
+    def delete_collection(self, collection_name):
+        self.collections.discard(collection_name)
+        self.points.clear()
+
+    def upsert(self, collection_name, points):
+        for p in points:
+            self.points[p.id] = p
+
+    def delete(self, collection_name, points_selector):
+        dead = set(points_selector.filter.must[0].match.any)
+        self.points = {pid: p for pid, p in self.points.items() if p.payload.get("doc_id") not in dead}
+
+    def close(self):
+        pass
+
+
+def _wire_tmp_index(monkeypatch, tmp_path):
+    """Reindirizza tutti i percorsi persistiti e le directory docs/ code/ dell'indice
+    su una sandbox temporanea, e restituisce (docs_dir, code_dir)."""
+    docs_dir = tmp_path / "docs"
+    code_dir = tmp_path / "code"
+    db = tmp_path / "db"
+    docs_dir.mkdir(); code_dir.mkdir(); db.mkdir()
+    monkeypatch.setattr(index, "DOCS_DIR", docs_dir)
+    monkeypatch.setattr(index, "CODE_DIR", code_dir)
+    monkeypatch.setattr(index, "GRAPH_SAVE_PATH", db / "graph.pkl")
+    monkeypatch.setattr(index, "COLBERT_SAVE_PATH", db / "colbert.pkl")
+    monkeypatch.setattr(index, "CHUNKS_SAVE_PATH", db / "chunks.pkl")
+    monkeypatch.setattr(index, "DENSE_SAVE_PATH", db / "dense.pkl")
+    monkeypatch.setattr(index, "CODE_SAVE_PATH", db / "code.pkl")
+    monkeypatch.setattr(index, "INDEX_MANIFEST_PATH", db / "manifest.json")
+    return docs_dir, code_dir
+
+
+def _spec(marker: str) -> str:
+    return f"## Sezione\n[{marker}] regola su {marker}\n"
+
+
+_CODE_ALPHA = "def handle_alpha():\n    # gestisce ALPHA\n    return 'ALPHA'\n"
+
+
+def _load_graph():
+    return index._load_pickle(index.GRAPH_SAVE_PATH, None)
+
+
+def _implements(G):
+    return {(u, v) for u, v, d in G.edges(data=True) if d.get("relation") == "IMPLEMENTS"}
+
+
+def _references(G):
+    return {(u, v) for u, v, d in G.edges(data=True) if d.get("relation") == "REFERENCES"}
+
+
+def test_spec_modification_updates_code_links(monkeypatch, tmp_path):
+    """Una spec che cambia contenuto cambia i suoi link al codice: l'IMPLEMENTS e il
+    REFERENCES che dipendevano dalla vecchia versione spariscono, senza full rebuild, e il
+    grafo resta coerente con quello di un rebuild sugli stessi input."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    (code_dir / "backend").mkdir()
+    (code_dir / "backend" / "svc.py").write_text(_CODE_ALPHA, encoding="utf-8")
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    index.build_graph_and_index(qdrant=q, embed_model=stub)
+    G = _load_graph()
+    code_id = "backend/svc.py::handle_alpha"
+    assert (code_id, "spec.md") in _implements(G)      # codice implementa la spec
+    assert (code_id, "ALPHA") in _references(G)         # codice referenzia l'entità ALPHA
+
+    # La spec cambia argomento: da ALPHA a ZETA. Nessun overlap col codice (che parla di ALPHA).
+    (docs_dir / "spec.md").write_text(_spec("ZETA"), encoding="utf-8")
+    stats = index.incremental_index(qdrant=q, embed_model=stub)
+    assert stats.get("noop") is not True
+
+    G2 = _load_graph()
+    assert (code_id, "spec.md") not in _implements(G2)  # IMPLEMENTS stale rimosso
+    assert (code_id, "ALPHA") not in _references(G2)     # REFERENCES stale rimosso
+    assert "ALPHA" not in G2                              # entità non più citata → potata
+    assert "ZETA" in G2 and code_id in G2                 # nuova entità presente, codice resta
+
+    report = index.check_graph_consistency(embed_model=stub, docs_dir=docs_dir, code_dir=code_dir)
+    assert report["consistent"] is True, report
+
+
+def test_deleted_linked_file_removes_orphan_nodes_and_edges(monkeypatch, tmp_path):
+    """Cancellare la spec collegata rimuove il suo nodo e i chunk da Qdrant, pota l'entità
+    rimasta orfana e fa cadere gli archi spec↔codice che vi dipendevano; il nodo-codice
+    (il cui file esiste ancora) resta. Il grafo resta coerente col rebuild."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    (code_dir / "backend").mkdir()
+    (code_dir / "backend" / "svc.py").write_text(_CODE_ALPHA, encoding="utf-8")
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    index.build_graph_and_index(qdrant=q, embed_model=stub)
+    assert q.points, "il full rebuild deve aver upsertato dei chunk"
+
+    (docs_dir / "spec.md").unlink()  # la spec sparisce del tutto
+    index.incremental_index(qdrant=q, embed_model=stub)
+
+    G = _load_graph()
+    code_id = "backend/svc.py::handle_alpha"
+    assert "spec.md" not in G                 # nodo-documento rimosso
+    assert "ALPHA" not in G                    # entità orfana (nessun doc la cita) rimossa
+    assert not any(v == "spec.md" for _, v in _implements(G))
+    assert code_id in G                        # il file di codice esiste ancora → nodo resta
+    assert not q.points                        # chunk della spec purgati da Qdrant
+
+    report = index.check_graph_consistency(embed_model=stub, docs_dir=docs_dir, code_dir=code_dir)
+    assert report["consistent"] is True, report
+
+
+def test_deleted_code_file_removes_code_node(monkeypatch, tmp_path):
+    """Cancellare un file di codice rimuove i suoi nodi-simbolo e gli archi incidenti,
+    lasciando intatta la spec e le sue entità. Coerenza col rebuild preservata."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    (code_dir / "backend").mkdir()
+    (code_dir / "backend" / "svc.py").write_text(_CODE_ALPHA, encoding="utf-8")
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    index.build_graph_and_index(qdrant=q, embed_model=stub)
+    (code_dir / "backend" / "svc.py").unlink()
+    index.incremental_index(qdrant=q, embed_model=stub)
+
+    G = _load_graph()
+    assert "backend/svc.py::handle_alpha" not in G   # simbolo del file rimosso
+    assert "spec.md" in G and "ALPHA" in G           # la spec e la sua entità restano
+    assert _implements(G) == set() and _references(G) == set()
+
+    report = index.check_graph_consistency(embed_model=stub, docs_dir=docs_dir, code_dir=code_dir)
+    assert report["consistent"] is True, report
+
+
+def test_check_graph_detects_injected_divergence(monkeypatch, tmp_path):
+    """Il check di coerenza deve SEGNALARE una divergenza: dopo un build coerente,
+    inietto a mano un arco stale nel grafo persistito e verifico che venga rilevato."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+    index.build_graph_and_index(qdrant=q, embed_model=stub)
+
+    assert index.check_graph_consistency(embed_model=stub, docs_dir=docs_dir, code_dir=code_dir)["consistent"]
+
+    G = _load_graph()
+    G.add_edge("code/ghost.py::x", "spec.md", relation="IMPLEMENTS")  # arco/nodo fantasma
+    index._atomic_write_pickle(index.GRAPH_SAVE_PATH, G)
+
+    report = index.check_graph_consistency(embed_model=stub, docs_dir=docs_dir, code_dir=code_dir)
+    assert report["consistent"] is False
+    assert report["counts"]["extra_nodes"] >= 1 and report["counts"]["extra_edges"] >= 1
+
+
+def _mini_retriever(q: StatefulFakeQdrant, stub: StubEmbed):
+    """Retriever deterministico sui punti in Qdrant: cosine denso query↔chunk. Serve solo a
+    misurare le metriche dell'eval harness (core.eval_metrics) prima/dopo l'incrementale."""
+    def retrieve(query: str, k: int) -> list[dict]:
+        qv = stub.encode([query], return_dense=True)["dense_vecs"][0]
+        qn = qv / (np.linalg.norm(qv) + 1e-8)
+        scored = []
+        for p in q.points.values():
+            dv = np.asarray(p.vector["dense"], dtype="float32")
+            dv = dv / (np.linalg.norm(dv) + 1e-8)
+            scored.append((float(qn @ dv), p.payload))
+        scored.sort(key=lambda t: t[0], reverse=True)
+        return [{"chunk_id": pl["chunk_id"], "doc_id": pl["doc_id"], "section": pl.get("section", "")}
+                for _, pl in scored[:k]]
+    return retrieve
+
+
+def test_eval_metrics_do_not_regress_after_full_then_incremental(monkeypatch, tmp_path):
+    """Dopo un ciclo full→incrementale (con una modifica) le metriche dell'eval harness non
+    regrediscono: l'indice risultante produce lo stesso ranking (e quindi le stesse metriche)
+    di un full rebuild sugli stessi input. Proxy server-free: si misura core.eval_metrics su
+    un retriever deterministico costruito sui punti Qdrant, e si confronta col rebuild."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "alpha.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    (docs_dir / "beta.md").write_text(_spec("BETA"), encoding="utf-8")
+    (code_dir / "backend").mkdir()
+    (code_dir / "backend" / "svc.py").write_text(_CODE_ALPHA, encoding="utf-8")
+    stub = StubEmbed()
+
+    cases = [
+        {"q": "ALPHA", "expected": [{"doc": "alpha.md"}]},
+        {"q": "BETA", "expected": [{"doc": "beta.md"}]},
+    ]
+
+    # Full rebuild → metriche di riferimento
+    q_full = StatefulFakeQdrant()
+    index.build_graph_and_index(qdrant=q_full, embed_model=stub)
+    ref = eval_metrics.evaluate(cases, _mini_retriever(q_full, stub), ks=(1, 2))["aggregate"]
+
+    # Ciclo full→incrementale sullo stesso indice: modifico beta.md (contenuto equivalente)
+    q_cycle = StatefulFakeQdrant()
+    index.build_graph_and_index(qdrant=q_cycle, embed_model=stub)
+    (docs_dir / "beta.md").write_text(_spec("BETA") + "\nnota aggiuntiva\n", encoding="utf-8")
+    index.incremental_index(qdrant=q_cycle, embed_model=stub)
+    after = eval_metrics.evaluate(cases, _mini_retriever(q_cycle, stub), ks=(1, 2))["aggregate"]
+
+    # Nessuna regressione: ogni metrica dopo l'incrementale è >= al riferimento full.
+    for key in ("recall@1", "recall@2", "mrr", "source_in_top3"):
+        assert after[key] >= ref[key] - 1e-9, (key, ref[key], after[key])
+    # E il grafo incrementale resta coerente col rebuild.
+    assert index.check_graph_consistency(embed_model=stub, docs_dir=docs_dir, code_dir=code_dir)["consistent"]

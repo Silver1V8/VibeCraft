@@ -15,6 +15,11 @@ DATABASE_DIR = RAG_DIR / "database"
 GRAPH_SAVE_PATH = DATABASE_DIR / "graph.pkl"
 COLBERT_SAVE_PATH = DATABASE_DIR / "colbert.pkl"
 CHUNKS_SAVE_PATH = DATABASE_DIR / "chunks.pkl"
+# Sidecar dei vettori densi per chunk-documento e per simbolo di codice: servono a
+# ricalcolare gli archi spec<->codice (IMPLEMENTS/REFERENCES) in incrementale, per i
+# soli nodi toccati, senza dover ri-embeddare ciò che non è cambiato.
+DENSE_SAVE_PATH = DATABASE_DIR / "dense.pkl"
+CODE_SAVE_PATH = DATABASE_DIR / "code.pkl"
 # Snapshot dell'indicizzazione (modello, conteggi, hash dei documenti): serve a rilevare
 # quando docs/ è cambiato e l'indice è "stale".
 INDEX_MANIFEST_PATH = DATABASE_DIR / "index_manifest.json"
