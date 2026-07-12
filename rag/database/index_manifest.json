@@ -1,7 +1,8 @@
 {
+  "version": "2026-07-12T14:41:42.373486+00:00",
   "embedding_model": "BAAI/bge-m3",
   "collection": "vibecraft_events",
-  "created_at": "2026-07-10T14:25:12.842397+00:00",
+  "created_at": "2026-07-12T14:41:42.373486+00:00",
   "documents": 41,
   "graph_nodes": 164,
   "graph_edges": 296,
@@ -12,5 +13,6 @@
     "02_specs_normative/spec_auth_1.1.md": "e1bf73e1214134a2367065fe1b4a975029b9336de57a34efad78416da518dd81",
     "04_knowledge_informative/intent_synonym_mapping.md": "cc271dcea65c1c805e6d8576d8356d83f0cd78e7d3e6a244b118c2c4b9ce054d",
     "04_knowledge_informative/vibe_coding_workflow.md": "0ee2d57e0ec45acb925589684a54f3931209a5c433ea9dce8c78d93f11b0c816"
-  }
+  },
+  "code_hashes": {}
 }

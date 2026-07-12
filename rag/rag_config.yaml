@@ -20,7 +20,11 @@ vector_database:
 paths:
   docs_dir: "./docs"
   codebase_dir: "./code"
-# Spike tree-sitter: implementazione del parser simboli per linguaggio.
-# Valori: "regex" (storica, default) | "treesitter". Per ora solo TypeScript.
+
+# Implementazione del parser simboli per linguaggio (code_index).
+# Valori: "treesitter" (default, migrazione completata) | "regex" (fallback
+# d'emergenza, storica). Python usa sempre stdlib ast e non ha flag.
 code_parsers:
-  typescript: "regex"
+  typescript: "treesitter"
+  javascript: "treesitter"
+  svelte: "treesitter"

@@ -4,10 +4,12 @@ Estrae i simboli (classi, funzioni, metodi, endpoint, componenti) dai file sotto
 code/ e li collega ai documenti normativi con archi IMPLEMENTS calcolati per
 similarità semantica, riusando lo stesso modello bge-m3 già caricato per l'indice.
 
-Rispetto all'articolo (che usa tree-sitter per Java/Svelte), qui si usa il modulo
-stdlib `ast` per Python ed euristiche regex leggere per JS/TS/Svelte/HTML/CSS:
-nessuna dipendenza esterna aggiuntiva, e copertura dei linguaggi effettivamente
-presenti nelle sottocartelle di code/ (backend, frontend, logicAgent).
+Parser per linguaggio: stdlib `ast` per Python; tree-sitter (code_index_ts.py)
+per TS/TSX/JS/JSX/Svelte, con le vecchie euristiche regex mantenute come fallback
+d'emergenza dietro il flag `code_parsers.<lang>` in rag_config.yaml. HTML/CSS
+restano nodi-file senza estrazione di simboli. Copre i linguaggi effettivamente
+presenti nelle sottocartelle di code/ (backend, frontend, logicAgent): non esiste
+(né è mai esistito) un parser Java/Quarkus/Kogito in questo repo.
 """
 
 import ast
@@ -87,22 +89,43 @@ def _js_symbols(text: str, stem: str, suffix: str) -> list[tuple[str, str, str]]
     return out
 
 
-def _ts_parser_impl() -> str:
-    """Implementazione del parser TypeScript: "regex" (storica, default) o
-    "treesitter" (spike), scelta via `code_parsers.typescript` in rag_config.yaml."""
+# Linguaggio di configurazione (chiave di `code_parsers` in rag_config.yaml) per suffisso.
+_PARSER_LANG = {
+    ".ts": "typescript", ".tsx": "typescript",
+    ".js": "javascript", ".jsx": "javascript",
+    ".svelte": "svelte",
+}
+
+# Default per linguaggio quando il flag è assente dal config: tree-sitter per i
+# linguaggi migrati; il parser regex resta nel codice come fallback d'emergenza
+# dietro flag (`code_parsers.<lang>: regex`).
+# TODO(2026-07-12): rimuovere _js_symbols e i default "regex" alla prossima release,
+# quando la migrazione tree-sitter sarà consolidata in produzione.
+_PARSER_DEFAULTS = {"typescript": "treesitter", "javascript": "treesitter", "svelte": "treesitter"}
+
+
+def _parser_impl(lang: str) -> str:
+    """Implementazione del parser per `lang`: "treesitter" (default per i linguaggi
+    migrati) o "regex" (storica), scelta via `code_parsers.<lang>` in rag_config.yaml."""
     try:
         from core.config import CODE_PARSERS
-        return CODE_PARSERS.get("typescript", "regex")
+        return CODE_PARSERS.get(lang, _PARSER_DEFAULTS.get(lang, "regex"))
     except Exception:
-        return "regex"
+        return _PARSER_DEFAULTS.get(lang, "regex")
 
 
 def _extract(suffix: str, text: str, stem: str) -> list[tuple[str, str, str]]:
     if suffix == ".py":
         return _py_symbols(text)
-    if suffix in (".ts", ".tsx") and _ts_parser_impl() == "treesitter":
-        from code_index_ts import ts_symbols
-        return ts_symbols(text, stem, suffix)
+    lang = _PARSER_LANG.get(suffix)
+    if lang is not None and _parser_impl(lang) == "treesitter":
+        # Svelte: la grammatica tree-sitter parsa il solo markup, ma il contenuto
+        # degli <script> viene ri-parsato con la grammatica TypeScript, quindi il
+        # test di equivalenza non mostra perdite rispetto al regex e la migrazione
+        # è attiva anche qui (fallback: code_parsers.svelte: "regex").
+        from code_index_ts import svelte_symbols, ts_symbols
+        fn = svelte_symbols if suffix == ".svelte" else ts_symbols
+        return fn(text, stem, suffix)
     if suffix in (".js", ".ts", ".tsx", ".jsx", ".svelte"):
         return _js_symbols(text, stem, suffix)
     if suffix == ".html":

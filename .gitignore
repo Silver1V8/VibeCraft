@@ -20,3 +20,5 @@ Thumbs.db
 
 # IDE
 .idea/
+rag/database/dense.pkl
+rag/database/code.pkl
