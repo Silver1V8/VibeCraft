@@ -9,8 +9,9 @@ L'estrazione dei simboli dal codice generato (`code/`) vive in
 [code_index.py](code_index.py); i parser tree-sitter in
 [code_index_ts.py](code_index_ts.py) (TS/TSX/JS/JSX/Svelte),
 [code_index_java.py](code_index_java.py) (Java + pom.xml/build.gradle +
-Kogito .bpmn/.dmn) e [code_index_csharp.py](code_index_csharp.py)
-(C#/.NET + .csproj/packages.config). L'interfaccia di un parser è una funzione
+Kogito .bpmn/.dmn), [code_index_csharp.py](code_index_csharp.py)
+(C#/.NET + .csproj/packages.config) e [code_index_razor.py](code_index_razor.py)
+(famiglia Razor: view MVC, Razor Pages, componenti Blazor). L'interfaccia di un parser è una funzione
 `(text: str, stem: str, suffix: str) -> list[tuple]` con tuple
 `(kind, name, snippet)` o `(kind, name, snippet, meta)`: `kind` è ad es.
 `function`/`class`/`endpoint`/`component`, `name` è univoco nel file,
@@ -62,6 +63,20 @@ dispatch + flag `code_parsers.csharp` (punto 3); corpus fittizio in
 equivalenza: parser nuovo). Fuori scope, TODO nel dispatch: Razor/.cshtml
 (grammatica immatura; servirà un parser dedicato stile `svelte_symbols`) e
 VB.NET.
+
+**Variante senza grammatica — Razor** (`code_index_razor.py`): quando la
+grammatica tree-sitter non esiste o è immatura, il parser può essere uno
+scanner ibrido: regex per direttive/markup, delega al parser tree-sitter di
+un altro linguaggio per i frammenti incassati (i blocchi `@code` vanno al
+parser C#, come gli `<script>` Svelte vanno alla grammatica TS). I link che
+richiedono la vista d'insieme dei file (code-behind per convenzione di nome,
+`View()` → `Views/{Controller}/{Azione}.cshtml`, tag componente Blazor) si
+esprimono come **dep tipizzate** (`view:...`, `page:...`, `component:...`)
+risolte da `resolve_links` dopo la scansione di tutto `code/`: le dep
+risolte diventano archi DEPENDS_ON, quelle non risolte finiscono nel report
+di governance (`code_index.razor_report()`: link rotti e view orfane), mai
+in nodi fantasma. `refs` nel meta crea archi REFERENCES codice→codice
+(es. view → `@model`).
 
 I parser regex storici (`_js_symbols`) restano come fallback d'emergenza
 dietro flag; TODO datato in `code_index.py` per la loro rimozione.

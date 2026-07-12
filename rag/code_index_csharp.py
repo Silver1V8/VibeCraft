@@ -71,6 +71,21 @@ def _is_public(node, src: bytes) -> bool:
                for child in node.children)
 
 
+def _base_names(node, src: bytes) -> set[str]:
+    """Nomi semplici dei tipi base (class X : Controller, IFoo, ...)."""
+    for child in node.children:
+        if child.type == "base_list":
+            return {_text(src, c).split("<")[0].split(".")[-1]
+                    for c in child.children if c.type not in (":", ",")}
+    return set()
+
+
+# Handler di Razor Pages (PageModel): OnGet/OnPostAsync/OnGetElenco/... -> endpoint
+_PAGE_HANDLER_RE = re.compile(r"^On(Get|Post|Put|Delete|Patch|Head)\w*$")
+# return View(); / View("Nome") / PartialView("Nome") nelle action MVC
+_VIEW_CALL_RE = re.compile(r"\b(?:View|PartialView)\s*\(\s*(?:\"([\w/]+)\")?")
+
+
 def csharp_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
     """Estrae simboli da sorgente C#: tipi (class/record/interface/struct/enum),
     metodi e proprietà pubblici (endpoint ASP.NET Core/WCF marcati), con deps
@@ -98,15 +113,30 @@ def csharp_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
         if body is None:
             return
         implicit_public = node.type == "interface_declaration"
+        bases = _base_names(node, src)
+        is_controller = cls.endswith("Controller") or bases & {"Controller", "ControllerBase"}
+        is_page_model = "PageModel" in bases
+        ctrl = cls.removesuffix("Controller")
         for member in body.children:
             if member.type == "method_declaration":
                 mname_node = member.child_by_field_name("name")
                 if mname_node is None or not (implicit_public or _is_public(member, src)):
                     continue
+                mname = _text(src, mname_node)
                 attrs = _attribute_names(member, src)
-                mkind = "endpoint" if attrs & _ENDPOINT_ATTRIBUTES else "method"
-                out.append((mkind, f"{cls}.{_text(src, mname_node)}",
-                            _context(src, member.start_byte)))
+                if attrs & _ENDPOINT_ATTRIBUTES or (is_page_model and _PAGE_HANDLER_RE.match(mname)):
+                    mkind = "endpoint"
+                else:
+                    mkind = "method"
+                mtuple = (mkind, f"{cls}.{mname}", _context(src, member.start_byte))
+                if is_controller:
+                    # convenzione MVC: View() implicita -> view col nome dell'azione,
+                    # View("Nome")/PartialView("Nome") -> view esplicita. Dep tipizzate,
+                    # risolte (o segnalate rotte) da code_index_razor.resolve_links.
+                    views = {m.group(1) or mname for m in _VIEW_CALL_RE.finditer(_text(src, member))}
+                    if views:
+                        mtuple = mtuple + ({"deps": [f"view:{ctrl}/{v}" for v in sorted(views)]},)
+                out.append(mtuple)
             elif member.type == "property_declaration":
                 pname_node = member.child_by_field_name("name")
                 if pname_node is not None and _is_public(member, src):

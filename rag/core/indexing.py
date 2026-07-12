@@ -550,6 +550,7 @@ def _apply_code_delta(
                 "name": sym["name"], "kind": sym["kind"], "file": sym["file"],
                 "dev_type": sym["dev_type"], "text": sym["text"],
                 "deps": sym.get("deps", []),
+                "refs": sym.get("refs", []),
                 "dense": sym_dense[i].astype("float16"),
             }
             touched.add(sym["id"])
@@ -569,7 +570,8 @@ def _relink_touched_symbols(graph: nx.DiGraph, code_store: dict, chunks_store: d
     if not ids:
         return 0
     syms = [{"id": sid, "text": code_store[sid]["text"],
-             "deps": code_store[sid].get("deps", [])} for sid in ids]
+             "deps": code_store[sid].get("deps", []),
+             "refs": code_store[sid].get("refs", [])} for sid in ids]
     sym_dense = [code_store[sid]["dense"] for sid in ids]
 
     chunk_ids = [cid for cid in dense_store if cid in chunks_store]

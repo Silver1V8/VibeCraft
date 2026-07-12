@@ -20,7 +20,7 @@ import numpy as np
 
 # Estensioni considerate "codice sorgente" (allineate a quelle del check drift)
 CODE_EXTS = {".py", ".js", ".ts", ".tsx", ".jsx", ".svelte", ".html", ".css",
-             ".java", ".bpmn", ".bpmn2", ".dmn", ".cs", ".csproj"}
+             ".java", ".bpmn", ".bpmn2", ".dmn", ".cs", ".csproj", ".cshtml", ".razor"}
 # File di progetto indicizzati per nome (non per estensione): dipendenze Java/.NET
 CODE_FILENAMES = {"pom.xml", "build.gradle", "packages.config"}
 
@@ -99,6 +99,7 @@ _PARSER_LANG = {
     ".svelte": "svelte",
     ".java": "java",
     ".cs": "csharp",
+    ".cshtml": "razor", ".razor": "razor",
 }
 
 # Default per linguaggio quando il flag è assente dal config: tree-sitter per i
@@ -107,7 +108,7 @@ _PARSER_LANG = {
 # TODO(2026-07-12): rimuovere _js_symbols e i default "regex" alla prossima release,
 # quando la migrazione tree-sitter sarà consolidata in produzione.
 _PARSER_DEFAULTS = {"typescript": "treesitter", "javascript": "treesitter", "svelte": "treesitter",
-                    "java": "treesitter", "csharp": "treesitter"}
+                    "java": "treesitter", "csharp": "treesitter", "razor": "hybrid"}
 
 
 def _parser_impl(lang: str) -> str:
@@ -145,8 +146,13 @@ def _extract(suffix: str, text: str, stem: str, rel: str = "") -> list[tuple]:
         from code_index_java import dmn_symbols
         return dmn_symbols(text, stem, suffix)
     # .NET (runtime-agnostico: identico su .NET Framework e Core/5+).
-    # TODO(2026-07-12): Razor/.cshtml fuori scope (grammatica tree-sitter immatura,
-    # servirà un parser dedicato stile svelte_symbols) e VB.NET non supportato.
+    # Razor (.cshtml/.razor): scanner ibrido dedicato (regex per direttive/markup +
+    # parser tree-sitter C# per i blocchi @code) — la grammatica tree-sitter Razor è
+    # immatura. TODO(2026-07-12) fuori scope: VB.NET (.vbhtml), analisi dell'HTML/JS
+    # interno alle view, CSS isolation (.razor.css).
+    if suffix in (".cshtml", ".razor"):
+        from code_index_razor import razor_symbols
+        return razor_symbols(text, stem, suffix, rel)
     if suffix == ".cs":
         from code_index_csharp import csharp_symbols
         return csharp_symbols(text, stem, suffix)
@@ -200,9 +206,30 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
                 "dev_type": dev_type,
                 "text": f"{kind} {name}\n{snippet}",
                 "deps": sorted(set(meta.get("deps") or [])),
+                "refs": sorted(set(meta.get("refs") or [])),
                 "package": meta.get("package", ""),
+                "attrs": meta.get("attrs") or {},
             })
+
+    # Le dep "tipizzate" (view:/page:/component:/...) richiedono la vista d'insieme
+    # dei file: le risolve il resolver Razor, che produce anche il report di
+    # governance (link rotti, view orfane) consultabile via `razor_report()`.
+    global _LAST_RAZOR_REPORT
+    if any(":" in d for s in symbols for d in s["deps"]):
+        from code_index_razor import resolve_links
+        _LAST_RAZOR_REPORT = resolve_links(symbols, code_dir)
+    else:
+        _LAST_RAZOR_REPORT = {"broken_links": [], "orphan_views": []}
     return symbols
+
+
+_LAST_RAZOR_REPORT: dict = {"broken_links": [], "orphan_views": []}
+
+
+def razor_report() -> dict:
+    """Report di governance Razor dell'ultima collect_code_symbols:
+    link rotti (view/page/action inesistenti) e view MVC orfane."""
+    return _LAST_RAZOR_REPORT
 
 
 # Relazioni spec<->codice che dipendono dal CONTENUTO (versione) di un simbolo: vanno
@@ -224,6 +251,9 @@ def add_symbol_nodes(G, symbols: list[dict]) -> None:
         )
         if sym.get("package"):
             attrs["package"] = sym["package"]
+        # metadati specifici del parser (route, parameters, event_callbacks, ...)
+        for k, v in (sym.get("attrs") or {}).items():
+            attrs.setdefault(k, v)
         G.add_node(sym["id"], **attrs)
 
 
@@ -277,6 +307,14 @@ def link_symbols(G, symbols: list[dict], sym_dense, doc_dense_vecs, doc_ids,
             target = name_to_id.get(dep)
             if target and target != sym["id"]:
                 G.add_edge(sym["id"], target, relation="DEPENDS_ON")
+        # REFERENCES codice->codice (es. view Razor -> @model/@inject): stessi
+        # archi del REFERENCES verso le entità, ma con target un nodo di codice.
+        # Non sovrascrive un DEPENDS_ON già presente sulla stessa coppia (DiGraph
+        # ammette un solo arco per coppia: vince la relazione più forte).
+        for ref in sym.get("refs") or []:
+            target = name_to_id.get(ref)
+            if target and target != sym["id"] and not G.has_edge(sym["id"], target):
+                G.add_edge(sym["id"], target, relation="REFERENCES")
 
     implements = 0
     sym_matrix = np.asarray(sym_dense, dtype=np.float32)

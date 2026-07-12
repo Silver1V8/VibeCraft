@@ -38,3 +38,7 @@ code_parsers:
   # (PackageReference/ProjectReference -> DEPENDS_ON) e packages.config legacy.
   # Estensioni registrate nel dispatch di code_index.py: .cs, .csproj + packages.config.
   csharp: "treesitter"
+  # Razor (.cshtml/.razor): scanner ibrido dedicato (niente grammatica tree-sitter,
+  # immatura): direttive/markup via scanner, blocchi @code via parser C#. Dialetti:
+  # .razor=componente Blazor, .cshtml con @page=Razor Page, senza @page=view MVC.
+  razor: "hybrid"
