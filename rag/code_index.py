@@ -20,9 +20,9 @@ import numpy as np
 
 # Estensioni considerate "codice sorgente" (allineate a quelle del check drift)
 CODE_EXTS = {".py", ".js", ".ts", ".tsx", ".jsx", ".svelte", ".html", ".css",
-             ".java", ".bpmn", ".bpmn2", ".dmn"}
-# File di progetto indicizzati per nome (non per estensione): dipendenze Java
-CODE_FILENAMES = {"pom.xml", "build.gradle"}
+             ".java", ".bpmn", ".bpmn2", ".dmn", ".cs", ".csproj"}
+# File di progetto indicizzati per nome (non per estensione): dipendenze Java/.NET
+CODE_FILENAMES = {"pom.xml", "build.gradle", "packages.config"}
 
 _SNIPPET_LIMIT = 1500
 
@@ -98,6 +98,7 @@ _PARSER_LANG = {
     ".js": "javascript", ".jsx": "javascript",
     ".svelte": "svelte",
     ".java": "java",
+    ".cs": "csharp",
 }
 
 # Default per linguaggio quando il flag è assente dal config: tree-sitter per i
@@ -106,7 +107,7 @@ _PARSER_LANG = {
 # TODO(2026-07-12): rimuovere _js_symbols e i default "regex" alla prossima release,
 # quando la migrazione tree-sitter sarà consolidata in produzione.
 _PARSER_DEFAULTS = {"typescript": "treesitter", "javascript": "treesitter", "svelte": "treesitter",
-                    "java": "treesitter"}
+                    "java": "treesitter", "csharp": "treesitter"}
 
 
 def _parser_impl(lang: str) -> str:
@@ -143,6 +144,19 @@ def _extract(suffix: str, text: str, stem: str, rel: str = "") -> list[tuple]:
     if suffix == ".dmn":
         from code_index_java import dmn_symbols
         return dmn_symbols(text, stem, suffix)
+    # .NET (runtime-agnostico: identico su .NET Framework e Core/5+).
+    # TODO(2026-07-12): Razor/.cshtml fuori scope (grammatica tree-sitter immatura,
+    # servirà un parser dedicato stile svelte_symbols) e VB.NET non supportato.
+    if suffix == ".cs":
+        from code_index_csharp import csharp_symbols
+        return csharp_symbols(text, stem, suffix)
+    if suffix == ".csproj":
+        from code_index_csharp import csproj_symbols
+        return csproj_symbols(text, stem, suffix)
+    if suffix == ".config" and stem == "packages":
+        from code_index_csharp import packages_config_symbols
+        project = rel.rsplit("/", 2)[-2] if rel.count("/") else ""
+        return packages_config_symbols(text, stem, suffix, project=project)
     lang = _PARSER_LANG.get(suffix)
     if lang is not None and _parser_impl(lang) == "treesitter":
         # Svelte: la grammatica tree-sitter parsa il solo markup, ma il contenuto

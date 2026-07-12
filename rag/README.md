@@ -7,9 +7,10 @@ Propose (core/) esposti via FastAPI (api/). Entrypoint: `server.py`, `index.py`.
 
 L'estrazione dei simboli dal codice generato (`code/`) vive in
 [code_index.py](code_index.py); i parser tree-sitter in
-[code_index_ts.py](code_index_ts.py) (TS/TSX/JS/JSX/Svelte) e
+[code_index_ts.py](code_index_ts.py) (TS/TSX/JS/JSX/Svelte),
 [code_index_java.py](code_index_java.py) (Java + pom.xml/build.gradle +
-Kogito .bpmn/.dmn). L'interfaccia di un parser è una funzione
+Kogito .bpmn/.dmn) e [code_index_csharp.py](code_index_csharp.py)
+(C#/.NET + .csproj/packages.config). L'interfaccia di un parser è una funzione
 `(text: str, stem: str, suffix: str) -> list[tuple]` con tuple
 `(kind, name, snippet)` o `(kind, name, snippet, meta)`: `kind` è ad es.
 `function`/`class`/`endpoint`/`component`, `name` è univoco nel file,
@@ -47,6 +48,20 @@ non hanno bisogno di tree-sitter: pom.xml/.bpmn/.dmn sono XML (ElementTree),
 build.gradle è regex best-effort. Niente test di equivalenza: non esisteva un
 parser Java precedente (i test sono su un mini-progetto fittizio in
 [tests/test_java_index.py](tests/test_java_index.py)).
+
+**Esempio completo del pattern — C#/.NET** (`code_index_csharp.py`): mostra
+tutti i pezzi in un modulo solo. Grammatica `csharp` dal language-pack (punto
+1 della guida); simboli con namespace nel meta `package` e using come `deps`;
+estrazione framework-aware via attributi, runtime-agnostica: [HttpGet]/
+[HttpPost]/[Route] (ASP.NET Core) e [OperationContract] su [ServiceContract]
+(WCF, .NET Framework legacy) → kind `endpoint`; file di progetto senza
+tree-sitter: `.csproj` (PackageReference/ProjectReference → DEPENDS_ON tra
+progetti, base dell'impact analysis multi-repo) e `packages.config` legacy;
+dispatch + flag `code_parsers.csharp` (punto 3); corpus fittizio in
+[tests/test_csharp_index.py](tests/test_csharp_index.py) (punto 4, senza
+equivalenza: parser nuovo). Fuori scope, TODO nel dispatch: Razor/.cshtml
+(grammatica immatura; servirà un parser dedicato stile `svelte_symbols`) e
+VB.NET.
 
 I parser regex storici (`_js_symbols`) restano come fallback d'emergenza
 dietro flag; TODO datato in `code_index.py` per la loro rimozione.

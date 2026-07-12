@@ -33,3 +33,8 @@ code_parsers:
   # e Kogito .bpmn/.bpmn2/.dmn (processi/decisioni). Estensioni registrate nel
   # dispatch di code_index.py: .java, .bpmn, .bpmn2, .dmn + pom.xml/build.gradle.
   java: "treesitter"
+  # C#/.NET: unica implementazione (tree-sitter-c-sharp dal language-pack),
+  # runtime-agnostica (Framework e Core/5+). Copre anche .csproj
+  # (PackageReference/ProjectReference -> DEPENDS_ON) e packages.config legacy.
+  # Estensioni registrate nel dispatch di code_index.py: .cs, .csproj + packages.config.
+  csharp: "treesitter"
