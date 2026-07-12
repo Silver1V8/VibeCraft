@@ -48,3 +48,17 @@ code_parsers:
   # l'euristica sul contenuto non decide: tsql | plsql | generic.
   sql: "hybrid"
   sql_dialect: "generic"
+  # File di configurazione indicizzati per NOME (stdlib XML/JSON, secret sempre
+  # mascherati): web/app.config + trasformazioni, appsettings*.json, package.json,
+  # WSDL/XSD. Pattern fnmatch sovrascrivibili qui; gli altri .json/.xml restano
+  # esclusi (dati, non struttura).
+  config_patterns:
+    - "web.config"
+    - "app.config"
+    - "web.*.config"
+    - "app.*.config"
+    - "appsettings.json"
+    - "appsettings.*.json"
+    - "package.json"
+    - "*.wsdl"
+    - "*.xsd"

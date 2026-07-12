@@ -25,6 +25,24 @@ CODE_EXTS = {".py", ".js", ".ts", ".tsx", ".jsx", ".svelte", ".html", ".css",
 # File di progetto indicizzati per nome (non per estensione): dipendenze Java/.NET
 CODE_FILENAMES = {"pom.xml", "build.gradle", "packages.config"}
 
+
+def _config_patterns() -> list[str]:
+    """Pattern (fnmatch) dei file di configurazione riconosciuti: solo quelli
+    noti — gli altri .json/.xml (dati, fixture, export) sono rumore, non
+    struttura. Sovrascrivibili in rag_config.yaml (code_parsers.config_patterns)."""
+    from code_index_config import DEFAULT_CONFIG_PATTERNS
+    try:
+        from core.config import CODE_PARSERS
+        return CODE_PARSERS.get("config_patterns") or DEFAULT_CONFIG_PATTERNS
+    except Exception:
+        return DEFAULT_CONFIG_PATTERNS
+
+
+def _is_config_file(fname: str) -> bool:
+    from fnmatch import fnmatch
+    low = fname.lower()
+    return any(fnmatch(low, pat.lower()) for pat in _config_patterns())
+
 _SNIPPET_LIMIT = 1500
 
 # Pattern regex per i linguaggi in stile JS/TS (best-effort, non un parser completo)
@@ -171,6 +189,21 @@ def _extract(suffix: str, text: str, stem: str, rel: str = "") -> list[tuple]:
         from code_index_csharp import packages_config_symbols
         project = rel.rsplit("/", 2)[-2] if rel.count("/") else ""
         return packages_config_symbols(text, stem, suffix, project=project)
+    # File di configurazione riconosciuti per NOME (web.config, appsettings*.json,
+    # package.json, *.wsdl/*.xsd): estrazione strutturata stdlib, secret mascherati.
+    fname = (rel.rsplit("/", 1)[-1] if rel else f"{stem}{suffix}").lower()
+    if _is_config_file(fname):
+        import code_index_config as cfg
+        if fname.endswith(".config"):
+            return cfg.dotnet_config_symbols(text, stem, suffix, rel)
+        if fname.startswith("appsettings") and fname.endswith(".json"):
+            return cfg.appsettings_symbols(text, stem, suffix, rel)
+        if fname == "package.json":
+            return cfg.packagejson_symbols(text, stem, suffix, rel)
+        if fname.endswith(".wsdl"):
+            return cfg.wsdl_symbols(text, stem, suffix, rel)
+        if fname.endswith(".xsd"):
+            return cfg.xsd_symbols(text, stem, suffix, rel)
     lang = _PARSER_LANG.get(suffix)
     if lang is not None and _parser_impl(lang) == "treesitter":
         # Svelte: la grammatica tree-sitter parsa il solo markup, ma il contenuto
@@ -197,7 +230,8 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
     if not code_dir.exists():
         return symbols
     for path in sorted(code_dir.rglob("*")):
-        if not (path.is_file() and (path.suffix in CODE_EXTS or path.name in CODE_FILENAMES)):
+        if not (path.is_file() and (path.suffix in CODE_EXTS or path.name in CODE_FILENAMES
+                                    or _is_config_file(path.name))):
             continue
         rel = path.relative_to(code_dir).as_posix()
         dev_type = rel.split("/")[0] if "/" in rel else ""
@@ -221,6 +255,11 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
                 "package": meta.get("package", ""),
                 "attrs": meta.get("attrs") or {},
             })
+
+    # Appartenenza: ogni nodo config/service/schema si collega al nodo project
+    # più vicino nel filesystem (classe -> config -> connection string -> db).
+    from code_index_config import attach_projects
+    attach_projects(symbols)
 
     # Le dep "tipizzate" (view:/page:/component:/...) richiedono la vista d'insieme
     # dei file: le risolve il resolver Razor, che produce anche il report di
