@@ -36,6 +36,11 @@ from code_index import (
     embed_symbols,
     link_symbols,
 )
+from core.canvas_review import (
+    HISTORICAL_SUBDIR,
+    REVIEW_FILENAME,
+    generate_canvas_review,
+)
 from core.chunking import (
     add_frontmatter_edges,
     chunk_markdown,
@@ -929,6 +934,27 @@ def check_drift(feature_name: str, emit=None) -> str:
     return report
 
 
+def _record_review_skip(change_dir: Path, reason: str) -> None:
+    """Registra nel manifest della change (meta.json) che la canvas review è stata
+    saltata e perché, così l'assenza del file è documentata e non ambigua."""
+    meta_path = change_dir / "meta.json"
+    meta = {}
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except Exception:
+            meta = {}
+    meta["canvas_review"] = {
+        "status": "skipped",
+        "reason": reason,
+        "at": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass  # anche il fallimento della registrazione non deve bloccare l'archive
+
+
 def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_model=None, emit=None) -> str:
     """Sposta la cartella in 'archive' e innesca la re-indicizzazione.
 
@@ -955,6 +981,27 @@ def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_mode
         return "\n".join(lines)
 
     archive_base_dir.mkdir(parents=True, exist_ok=True)
+
+    # Canvas che apprende: confronta il diff reale del codice della change con il
+    # canvas e salva canvas_review.md nella cartella (che sta per essere archiviata);
+    # una copia va in docs/03_changes_historical/ così la re-indicizzazione la ingloba
+    # come contesto storico interrogabile. Se l'LLM non è raggiungibile la review viene
+    # saltata con warning nel meta.json: l'archiviazione NON deve mai fallirne.
+    try:
+        log("🧾 Canvas review: confronto il codice della change con il canvas...")
+        review, warning = generate_canvas_review(feature_folder, source_dir)
+        if review is not None:
+            (source_dir / REVIEW_FILENAME).write_text(review, encoding="utf-8")
+            historical = DOCS_DIR / HISTORICAL_SUBDIR / f"{feature_folder}-canvas-review.md"
+            historical.parent.mkdir(parents=True, exist_ok=True)
+            historical.write_text(review, encoding="utf-8")
+            log(f"✅ Canvas review salvata in {REVIEW_FILENAME} (+ copia storica in docs/{HISTORICAL_SUBDIR}/).")
+        else:
+            log(f"⚠️ Canvas review saltata: {warning}")
+            _record_review_skip(source_dir, warning or "motivo sconosciuto")
+    except Exception as e:  # difensivo: nessun problema della review blocca l'archive
+        log(f"⚠️ Canvas review saltata per errore imprevisto: {e}")
+        _record_review_skip(source_dir, str(e))
 
     try:
         shutil.move(str(source_dir), str(target_dir))
