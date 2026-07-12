@@ -109,9 +109,19 @@ def build_final_prompt(folder_name: str, dev_type: str = "") -> str:
 
 
 def build_canvas_prompt(feature_name: str, contesto_intervista: str,
-                        contesto_progetto_base: str, dev_type: str = "") -> str:
+                        contesto_progetto_base: str, dev_type: str = "",
+                        lessons: str = "") -> str:
     """Prompt deterministico per la generazione del REASONS Canvas (equivalente a canvas.py),
-    ancorato al log Explore e al contesto normativo governato."""
+    ancorato al log Explore e al contesto normativo governato. `lessons` (opzionale) sono
+    le divergenze canvas<->codice emerse nelle review delle change archiviate più simili:
+    con stringa vuota il prompt resta identico a prima (il loop di apprendimento è additivo)."""
+    lessons_block = (
+        f"\n\n    Lezioni dalle change precedenti (divergenze canvas<->codice emerse dalle review "
+        f"delle change archiviate più simili a questa): il nuovo Canvas deve evitare questi punti "
+        f"ciechi ricorrenti, rendendo esplicite nelle sezioni Operations, Structure e Safeguards "
+        f"le decisioni che in passato erano rimaste implicite:\n    {lessons}"
+        if lessons else ""
+    )
     scope_note = (
         f"\n\n    Vincolo di ambito: il tipo di sviluppo richiesto per questa feature è ESCLUSIVAMENTE "
         f"'{dev_type}' (il codice finale verrà scritto solo in 'code/{dev_type}/'). "
@@ -132,7 +142,7 @@ def build_canvas_prompt(feature_name: str, contesto_intervista: str,
     Contesto normativo recuperato dal Graph RAG (ordinato per autorità: rispetta TASSATIVAMENTE
     i safeguard, i vincoli della matrice permessi e i termini del glossario riportati qui sotto;
     non contraddirli e riusa i loro codici/entità nelle sezioni Entities, Norms e Safeguards):
-    {contesto_progetto_base}{scope_note}
+    {contesto_progetto_base}{lessons_block}{scope_note}
 
     Il REASONS Canvas generato DEVE contenere tassativamente queste 7 sezioni:
     1. Requirements (Cosa deve fare il modulo, estrapolato dall'intervista)

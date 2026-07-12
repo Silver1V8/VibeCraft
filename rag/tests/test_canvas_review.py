@@ -99,6 +99,136 @@ def test_generate_canvas_review_missing_canvas(tmp_path):
     assert content is None and "canvas.md assente" in warning
 
 
+REVIEW_TEXT = """# Canvas Review: feat-old
+
+## Divergenze
+- Il codice valida l'input, il canvas non lo prevedeva.
+- Manca la gestione errori promessa nei Safeguards.
+
+## Sezioni accurate
+Structure fedele.
+
+## Fedeltà
+Fedeltà: medio — divergenze minori.
+"""
+
+
+def test_is_review_doc():
+    assert cr.is_review_doc("03_changes_historical/feat-x-canvas-review.md")
+    assert cr.is_review_doc("03_changes_historical\\feat-x-canvas-review.md")
+    assert not cr.is_review_doc("02_specs_normative/spec.md")
+    assert not cr.is_review_doc("03_changes_historical/nota.md")
+
+
+def test_parse_fidelity_and_divergences():
+    assert cr.parse_fidelity(REVIEW_TEXT) == "medio"
+    assert cr.parse_fidelity("nessun giudizio") is None
+    divs = cr.parse_divergences(REVIEW_TEXT)
+    assert len(divs) == 2 and "valida l'input" in divs[0]
+    assert cr.parse_divergences("## Divergenze\nNessuna divergenza rilevata.\n") == []
+
+
+def _fake_resources():
+    """Risorse finte per retrieve_canvas_lessons: due review + un doc normativo."""
+    chunks_store = {
+        "03_changes_historical/feat-old-canvas-review.md#01-divergenze": {
+            "doc_id": "03_changes_historical/feat-old-canvas-review.md",
+            "section": "Divergenze", "text": "- Il codice valida l'input, il canvas no.",
+        },
+        "03_changes_historical/feat-old-canvas-review.md#03-fedelta": {
+            "doc_id": "03_changes_historical/feat-old-canvas-review.md",
+            "section": "Fedeltà", "text": "Fedeltà: medio",
+        },
+        "03_changes_historical/feat-old-canvas-review.md#02-accurate": {
+            "doc_id": "03_changes_historical/feat-old-canvas-review.md",
+            "section": "Sezioni accurate", "text": "Structure fedele.",
+        },
+        "02_specs_normative/spec.md#00-doc": {
+            "doc_id": "02_specs_normative/spec.md", "section": "(documento)", "text": "norme",
+        },
+    }
+    results = [
+        {"doc_id": "02_specs_normative/spec.md"},
+        {"doc_id": "03_changes_historical/feat-old-canvas-review.md"},
+        {"doc_id": "03_changes_historical/feat-old-canvas-review.md"},
+    ]
+    return chunks_store, results
+
+
+def test_retrieve_canvas_lessons_extracts_divergences_and_fidelity():
+    chunks_store, results = _fake_resources()
+    lessons = cr.retrieve_canvas_lessons(
+        "nuova feature simile", qdrant=object(), embed_model=object(), colbert_store={},
+        chunks_store=chunks_store, search=lambda q, k, **kw: results,
+    )
+    assert "Lezioni dalla change 'feat-old'" in lessons
+    assert "valida l'input" in lessons and "Fedeltà: medio" in lessons
+    assert "Structure fedele" not in lessons  # le sezioni accurate non sono lezioni
+    assert "norme" not in lessons             # i doc non-review sono esclusi
+
+
+def test_retrieve_canvas_lessons_empty_without_reviews_or_resources():
+    chunks_store, _ = _fake_resources()
+    # nessun hit review -> ''
+    no_reviews = cr.retrieve_canvas_lessons(
+        "q", qdrant=object(), embed_model=object(), colbert_store={},
+        chunks_store=chunks_store, search=lambda q, k, **kw: [{"doc_id": "02_specs_normative/spec.md"}],
+    )
+    assert no_reviews == ""
+    # risorse non pronte -> ''
+    assert cr.retrieve_canvas_lessons("q", qdrant=None, embed_model=None,
+                                      colbert_store={}, chunks_store={}) == ""
+    # retrieval che esplode -> '' (mai errore)
+    def boom(q, k, **kw): raise RuntimeError("indice giù")
+    assert cr.retrieve_canvas_lessons("q", qdrant=object(), embed_model=object(),
+                                      colbert_store={}, chunks_store=chunks_store, search=boom) == ""
+
+
+def test_build_canvas_prompt_with_and_without_lessons():
+    from core import pipeline
+    without = pipeline.build_canvas_prompt("Feat", "log", "ctx")
+    assert "Lezioni dalle change precedenti" not in without
+    with_lessons = pipeline.build_canvas_prompt("Feat", "log", "ctx", "", "- punto cieco X")
+    assert "Lezioni dalle change precedenti" in with_lessons and "punto cieco X" in with_lessons
+    # senza lezioni il prompt resta byte-per-byte quello di prima
+    assert without == pipeline.build_canvas_prompt("Feat", "log", "ctx", "", "")
+
+
+def _write_review(archive_dir, feature, fidelity, divergences, mtime=None):
+    d = archive_dir / feature
+    d.mkdir(parents=True)
+    bullets = "\n".join(f"- {x}" for x in divergences) or "Nessuna divergenza rilevata."
+    p = d / "canvas_review.md"
+    p.write_text(
+        f"# Canvas Review: {feature}\n\n## Divergenze\n{bullets}\n\n"
+        f"## Sezioni accurate\nTutte.\n\n## Fedeltà\nFedeltà: {fidelity}\n",
+        encoding="utf-8",
+    )
+    if mtime is not None:
+        import os
+        os.utime(p, (mtime, mtime))
+
+
+def test_canvas_quality_stats(tmp_path):
+    archive = tmp_path / "archive"
+    _write_review(archive, "feat-a", "alto", [], mtime=1000)
+    _write_review(archive, "feat-b", "basso", ["manca la gestione errori", "endpoint non previsto"], mtime=2000)
+    _write_review(archive, "feat-c", "medio", ["Manca la gestione errori."], mtime=3000)
+    stats = cr.canvas_quality_stats(archive, last_n=10)
+    assert stats["total_reviews"] == 3
+    assert [t["feature"] for t in stats["trend"]] == ["feat-a", "feat-b", "feat-c"]  # per mtime
+    assert stats["fidelity_counts"] == {"alto": 1, "medio": 1, "basso": 1, "sconosciuto": 0}
+    top = stats["top_divergences"]
+    assert top[0]["text"] == "manca la gestione errori" and top[0]["count"] == 2  # normalizzata
+    # last_n limita alla coda più recente
+    assert [t["feature"] for t in cr.canvas_quality_stats(archive, last_n=2)["trend"]] == ["feat-b", "feat-c"]
+
+
+def test_canvas_quality_stats_empty_archive(tmp_path):
+    stats = cr.canvas_quality_stats(tmp_path / "non-esiste")
+    assert stats["total_reviews"] == 0 and stats["trend"] == [] and stats["top_divergences"] == []
+
+
 @pytest.fixture
 def archive_env(tmp_path, monkeypatch):
     """Ambiente isolato per archive_feature: changes/ e docs/ temporanee, nessuna

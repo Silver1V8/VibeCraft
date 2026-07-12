@@ -2,12 +2,24 @@
 deterministica. Handler sottili: leggono lo stato, validano e delegano a core.graph_ops."""
 import networkx as nx
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.concurrency import run_in_threadpool
 from qdrant_client import QdrantClient
 
 from api.deps import maybe_reload_graph, require_api_key, state
 from core import graph_ops
+from core.canvas_review import canvas_quality_stats
+from core.config import CHANGES_DIR
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
+
+
+@router.get("/api/canvas-quality")
+async def canvas_quality(last_n: int = Query(default=10, ge=1, le=50)):
+    """Dati del pannello 'Canvas quality' (governance): trend del giudizio di fedeltà
+    delle ultime N change archiviate e le divergenze canvas<->codice più frequenti,
+    letti dalle canvas_review.md prodotte all'archive. Stessa auth X-API-Key delle
+    altre route (dependency del router)."""
+    return await run_in_threadpool(canvas_quality_stats, CHANGES_DIR / "archive", last_n)
 
 
 @router.get("/api/graph/all")

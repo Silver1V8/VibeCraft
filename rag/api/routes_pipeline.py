@@ -21,7 +21,7 @@ from api.models import (
     ProposeGenerateRequest,
     ValidateRequest,
 )
-from core import pipeline, retrieval
+from core import canvas_review, pipeline, retrieval
 from core.config import CHANGES_DIR, PROJECT_ROOT
 from core.indexing import archive_feature, check_drift, index_status
 from core.pipeline import (
@@ -47,6 +47,17 @@ def _governed_context(question: str) -> str:
         graph=state.get("graph"), chunks_store=state.get("chunks", {}),
         qdrant=state.get("qdrant"), embed_model=state.get("embed_model"),
         colbert_store=state.get("colbert_store"),
+    )
+
+
+def _canvas_lessons(query: str) -> str:
+    """Lezioni dalle canvas review archiviate più simili all'intent corrente (retrieval
+    semantico). '' se non ci sono review indicizzate o l'indice non è pronto: il flusso
+    canvas funziona identico. Sincrono (embedding della query) → threadpool."""
+    return canvas_review.retrieve_canvas_lessons(
+        query,
+        qdrant=state.get("qdrant"), embed_model=state.get("embed_model"),
+        colbert_store=state.get("colbert_store"), chunks_store=state.get("chunks", {}),
     )
 
 
@@ -134,14 +145,17 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
     # Àncora il Canvas al knowledge base governato: recupera dal Graph RAG i documenti
     # normativi pertinenti (safeguard, glossario, matrice permessi), pesati per autorità,
     # invece di affidarsi a un contesto statico scritto a mano.
-    governed_context = await run_in_threadpool(
-        _governed_context, f"{req.feature_name}\n{contesto_intervista[:2000]}"
-    )
+    query = f"{req.feature_name}\n{contesto_intervista[:2000]}"
+    governed_context = await run_in_threadpool(_governed_context, query)
     contesto_progetto_base = governed_context or "Nessun documento normativo pertinente recuperato dal Graph RAG."
+
+    # Canvas che apprende (parte 2): le divergenze emerse nelle review delle change
+    # archiviate più simili diventano "lezioni" nel prompt ('' se non esistono review).
+    lessons = await run_in_threadpool(_canvas_lessons, query)
 
     dev_type = req.dev_type or load_dev_type(folder)
     prompt_strutturato = pipeline.build_canvas_prompt(
-        req.feature_name, contesto_intervista, contesto_progetto_base, dev_type
+        req.feature_name, contesto_intervista, contesto_progetto_base, dev_type, lessons
     )
 
     canvas_content = await call_ollama_generate(prompt_strutturato)

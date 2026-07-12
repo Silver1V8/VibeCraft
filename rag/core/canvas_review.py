@@ -117,6 +117,128 @@ seguito da una frase di motivazione.
 """
 
 
+def is_review_doc(doc_id: str) -> bool:
+    """True se il doc_id (percorso relativo a docs/) è la copia storica di una
+    canvas review archiviata (scritta da archive_feature in 03_changes_historical/)."""
+    normalized = doc_id.replace("\\", "/")
+    return normalized.startswith(HISTORICAL_SUBDIR) and normalized.endswith("-canvas-review.md")
+
+
+# Sezioni delle review usate come "lezioni": i punti ciechi (Divergenze) e il
+# giudizio sintetico (Fedeltà) — le sezioni accurate non insegnano nulla di nuovo.
+_LESSON_SECTIONS = ("divergenze", "fedeltà", "fedelta")
+
+
+def retrieve_canvas_lessons(query: str, *, qdrant, embed_model, colbert_store,
+                            chunks_store: dict, top_n: int = 3, top_k: int = 12,
+                            max_chars_per_doc: int = 1500, search=None) -> str:
+    """Recupera le "lezioni dalle change precedenti" per la generazione di un nuovo canvas:
+    dalle canvas review archiviate più simili all'intent corrente (retrieval semantico
+    esistente) estrae Divergenze e giudizio di Fedeltà. Restituisce '' se non ci sono
+    review indicizzate o risorse pronte: il flusso canvas resta identico senza review.
+    `search` è iniettabile nei test al posto di retrieval.hybrid_search."""
+    if not chunks_store or qdrant is None or embed_model is None:
+        return ""
+    from core import retrieval  # import locale: evita il ciclo canvas_review <-> retrieval
+    try:
+        results = (search or retrieval.hybrid_search)(
+            query, top_k, qdrant=qdrant, embed_model=embed_model, colbert_store=colbert_store,
+        )
+    except Exception:
+        return ""  # retrieval non disponibile: nessuna lezione, nessun errore
+
+    review_docs: list[str] = []
+    for r in results:
+        d = r.get("doc_id", "")
+        if is_review_doc(d) and d not in review_docs:
+            review_docs.append(d)
+        if len(review_docs) >= top_n:
+            break
+    if not review_docs:
+        return ""
+
+    parts: list[str] = []
+    for doc_id in review_docs:
+        body = "\n".join(
+            entry["text"] for entry in chunks_store.values()
+            if entry.get("doc_id") == doc_id
+            and str(entry.get("section", "")).strip().lower().startswith(_LESSON_SECTIONS)
+        ).strip()
+        if not body:
+            continue
+        if len(body) > max_chars_per_doc:
+            body = body[:max_chars_per_doc].rstrip() + "\n… [troncato] …"
+        feature = Path(doc_id).name.removesuffix("-canvas-review.md")
+        parts.append(f"--- Lezioni dalla change '{feature}' ({doc_id}) ---\n{body}")
+    return "\n\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Canvas quality: parsing delle review archiviate per il pannello di governance
+# ---------------------------------------------------------------------------
+
+_FIDELITY_RE = re.compile(r"Fedelt[aà]\s*:\s*(alto|medio|basso)", re.IGNORECASE)
+
+
+def parse_fidelity(review_text: str) -> str | None:
+    """Estrae il giudizio sintetico ('alto'/'medio'/'basso') da una canvas review."""
+    m = _FIDELITY_RE.search(review_text)
+    return m.group(1).lower() if m else None
+
+
+def parse_divergences(review_text: str) -> list[str]:
+    """Estrae i bullet della sezione '## Divergenze' di una review (esclusi i
+    'nessuna divergenza'), come frasi normalizzate su una riga."""
+    m = re.search(r"^#{1,3}\s*Divergenze\b.*?\n(.*?)(?=^#{1,3}\s|\Z)",
+                  review_text, flags=re.MULTILINE | re.DOTALL | re.IGNORECASE)
+    if not m:
+        return []
+    out = []
+    for line in m.group(1).splitlines():
+        stripped = line.strip().lstrip("-*•").strip()
+        if stripped and "nessuna divergenza" not in stripped.lower():
+            out.append(stripped)
+    return out
+
+
+def canvas_quality_stats(archive_dir: Path, last_n: int = 10) -> dict:
+    """Dati per il pannello 'Canvas quality': trend del giudizio di fedeltà delle
+    ultime `last_n` change archiviate (dalla più vecchia alla più recente) e le
+    divergenze più frequenti tra le loro review. Robusto ad archive vuoto/assente."""
+    reviews: list[tuple[float, str, str]] = []  # (mtime, feature, testo)
+    if archive_dir.exists():
+        for review_path in archive_dir.glob(f"*/{REVIEW_FILENAME}"):
+            try:
+                reviews.append((review_path.stat().st_mtime, review_path.parent.name,
+                                review_path.read_text(encoding="utf-8")))
+            except Exception:
+                continue
+    reviews.sort(key=lambda t: t[0])
+    reviews = reviews[-last_n:]
+
+    trend = []
+    divergence_counts: dict[str, int] = {}
+    fidelity_counts = {"alto": 0, "medio": 0, "basso": 0, "sconosciuto": 0}
+    for mtime, feature, text in reviews:
+        fidelity = parse_fidelity(text) or "sconosciuto"
+        fidelity_counts[fidelity] += 1
+        trend.append({"feature": feature, "fidelity": fidelity})
+        for d in parse_divergences(text):
+            key = re.sub(r"\s+", " ", d).strip().rstrip(".").lower()
+            divergence_counts[key] = divergence_counts.get(key, 0) + 1
+
+    top_divergences = [
+        {"text": k, "count": c}
+        for k, c in sorted(divergence_counts.items(), key=lambda kv: (-kv[1], kv[0]))[:8]
+    ]
+    return {
+        "total_reviews": len(reviews),
+        "trend": trend,  # dalla più vecchia alla più recente
+        "fidelity_counts": fidelity_counts,
+        "top_divergences": top_divergences,
+    }
+
+
 def _call_llm_sync(prompt: str) -> str:
     """Chiamata sincrona al layer LLM locale (stesso endpoint/modello della pipeline).
     A differenza dei chiamanti della pipeline, QUI gli errori si propagano: l'archive

@@ -188,6 +188,21 @@
       <pre id="gq-out" style="display:none;white-space:pre-wrap;font-size:11.5px;color:var(--tooltip-color);background:var(--canvas-bg);border:1px solid var(--canvas-border);border-radius:10px;padding:12px;max-height:280px;overflow:auto"></pre>
     </section>
 
+    <!-- ══════════ CANVAS QUALITY ══════════ -->
+    <section>
+      <h2>📐 Canvas quality</h2>
+      <p class="desc">Il canvas che apprende: all'archiviazione di ogni change il codice reale viene
+        confrontato con il canvas (canvas_review.md). Qui il trend del giudizio di <em>fedeltà</em>
+        delle ultime change e le <em>divergenze</em> più frequenti — i punti ciechi che le review
+        reiniettano nella generazione dei canvas futuri.</p>
+      <div class="toolbar">
+        <button onclick="loadCanvasQuality()">↻ Ricarica</button>
+        <span id="cq-status" class="status">Caricamento…</span>
+      </div>
+      <div id="cq-trend" class="legend"></div>
+      <div id="cq-divergences" class="dups"></div>
+    </section>
+
     <!-- ══════════ SEMANTIC MAP ══════════ -->
     <section>
       <h2>🗺️ Semantic Map</h2>
@@ -574,9 +589,47 @@
     }
     document.getElementById('gq-input').addEventListener('keydown', e => { if (e.key === 'Enter') runGraphQuery(); });
 
+    /* ══════════ CANVAS QUALITY ══════════ */
+    const FIDELITY_STYLE = {
+      alto:        { color: 'var(--type-entity)',   label: 'alto' },
+      medio:       { color: 'var(--community-3)',   label: 'medio' },
+      basso:       { color: 'var(--community-6)',   label: 'basso' },
+      sconosciuto: { color: 'var(--muted-node-color)', label: '?' },
+    };
+    async function loadCanvasQuality() {
+      const status = document.getElementById('cq-status');
+      status.textContent = 'Caricamento…';
+      try {
+        const res = await fetch('/api/canvas-quality');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const d = await res.json();
+        if (!d.total_reviews) {
+          status.textContent = 'Nessuna canvas review ancora: archivia una change per popolare il pannello.';
+          document.getElementById('cq-trend').innerHTML = '';
+          document.getElementById('cq-divergences').innerHTML = '';
+          return;
+        }
+        const c = d.fidelity_counts;
+        status.textContent = `${d.total_reviews} review · fedeltà: ${c.alto} alto / ${c.medio} medio / ${c.basso} basso`;
+        // Trend (dalla più vecchia alla più recente): un pallino colorato per change.
+        document.getElementById('cq-trend').innerHTML = d.trend.map(t => {
+          const s = FIDELITY_STYLE[t.fidelity] || FIDELITY_STYLE.sconosciuto;
+          return `<span><i class="dot" style="background:${s.color}"></i> ${escapeHtml(t.feature)} (${s.label})</span>`;
+        }).join('');
+        const el = document.getElementById('cq-divergences');
+        el.innerHTML = d.top_divergences.length
+          ? '<b>Divergenze più frequenti:</b>' + d.top_divergences.map(x =>
+              `<div>• ${escapeHtml(x.text)}${x.count > 1 ? ` <b>×${x.count}</b>` : ''}</div>`).join('')
+          : '<b>Nessuna divergenza registrata nelle review.</b>';
+      } catch (e) {
+        status.textContent = '❌ ' + e.message;
+      }
+    }
+
     window.addEventListener('resize', () => { drawSemanticMap(); });
     loadSemanticMap();
     loadNodeList();
+    loadCanvasQuality();
   </script>
 </body>
 </html>
