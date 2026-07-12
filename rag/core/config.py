@@ -37,6 +37,10 @@ EMBEDDING_MODEL: str = config["vector_database"]["embedding_model"]
 LLM_PROVIDER: str = config["llm_settings"]["active_provider"]
 LLM_MODEL: str = config["llm_settings"]["models"][LLM_PROVIDER]
 
+# Scelta dell'implementazione dei parser di code_index per linguaggio
+# (es. {"typescript": "treesitter"}); assente o "regex" = parser storico.
+CODE_PARSERS: dict = config.get("code_parsers") or {}
+
 # Configurazione pipeline Explore -> Canvas -> Propose (rag/changes/)
 PIPELINE_OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
 PIPELINE_MODEL_NAME: str = config["llm_settings"]["models"].get("ollama", "qwen2.5:7b")

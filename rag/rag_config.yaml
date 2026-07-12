@@ -20,3 +20,7 @@ vector_database:
 paths:
   docs_dir: "./docs"
   codebase_dir: "./code"
+# Spike tree-sitter: implementazione del parser simboli per linguaggio.
+# Valori: "regex" (storica, default) | "treesitter". Per ora solo TypeScript.
+code_parsers:
+  typescript: "regex"

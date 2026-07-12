@@ -87,9 +87,22 @@ def _js_symbols(text: str, stem: str, suffix: str) -> list[tuple[str, str, str]]
     return out
 
 
+def _ts_parser_impl() -> str:
+    """Implementazione del parser TypeScript: "regex" (storica, default) o
+    "treesitter" (spike), scelta via `code_parsers.typescript` in rag_config.yaml."""
+    try:
+        from core.config import CODE_PARSERS
+        return CODE_PARSERS.get("typescript", "regex")
+    except Exception:
+        return "regex"
+
+
 def _extract(suffix: str, text: str, stem: str) -> list[tuple[str, str, str]]:
     if suffix == ".py":
         return _py_symbols(text)
+    if suffix in (".ts", ".tsx") and _ts_parser_impl() == "treesitter":
+        from code_index_ts import ts_symbols
+        return ts_symbols(text, stem, suffix)
     if suffix in (".js", ".ts", ".tsx", ".jsx", ".svelte"):
         return _js_symbols(text, stem, suffix)
     if suffix == ".html":
