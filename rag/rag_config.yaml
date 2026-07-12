@@ -28,3 +28,8 @@ code_parsers:
   typescript: "treesitter"
   javascript: "treesitter"
   svelte: "treesitter"
+  # Java: unica implementazione (tree-sitter, nessun fallback regex). Copre anche
+  # gli artefatti di progetto: pom.xml / build.gradle (dipendenze -> DEPENDS_ON)
+  # e Kogito .bpmn/.bpmn2/.dmn (processi/decisioni). Estensioni registrate nel
+  # dispatch di code_index.py: .java, .bpmn, .bpmn2, .dmn + pom.xml/build.gradle.
+  java: "treesitter"

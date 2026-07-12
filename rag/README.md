@@ -7,10 +7,15 @@ Propose (core/) esposti via FastAPI (api/). Entrypoint: `server.py`, `index.py`.
 
 L'estrazione dei simboli dal codice generato (`code/`) vive in
 [code_index.py](code_index.py); i parser tree-sitter in
-[code_index_ts.py](code_index_ts.py). L'interfaccia di un parser è una
-funzione `(text: str, stem: str, suffix: str) -> list[tuple[kind, name, snippet]]`
-dove `kind` è ad es. `function`/`class`/`component`, `name` è univoco nel file
-e `snippet` è il contesto testuale usato per l'embedding (max ~1500 char).
+[code_index_ts.py](code_index_ts.py) (TS/TSX/JS/JSX/Svelte) e
+[code_index_java.py](code_index_java.py) (Java + pom.xml/build.gradle +
+Kogito .bpmn/.dmn). L'interfaccia di un parser è una funzione
+`(text: str, stem: str, suffix: str) -> list[tuple]` con tuple
+`(kind, name, snippet)` o `(kind, name, snippet, meta)`: `kind` è ad es.
+`function`/`class`/`endpoint`/`component`, `name` è univoco nel file,
+`snippet` è il contesto testuale usato per l'embedding (max ~1500 char) e
+`meta` (opzionale) porta `deps` (nomi di altri simboli del progetto, risolti
+best-effort in archi DEPENDS_ON da `link_symbols`) e `package`.
 
 Per aggiungere un linguaggio:
 
@@ -32,6 +37,16 @@ Per aggiungere un linguaggio:
    [tests/test_ts_parser_equivalence.py](tests/test_ts_parser_equivalence.py)
    con un corpus del linguaggio: se sostituisci un parser esistente, il nuovo
    deve estrarre almeno tutti i simboli del vecchio (zero `persi`).
+
+**Secondo esempio del pattern — Java** (`code_index_java.py`): grammatica
+`java` dal language-pack; estrazione framework-aware via annotation (JAX-RS
+`@Path`+`@GET/...` → `endpoint`, CDI `@Inject` → nodo `field` + dep verso il
+bean, messaging `@ConsumeEvent/@Incoming/@Outgoing` → `listener`), stesso
+pattern dei decoratori FastAPI nel parser Python. Gli artefatti di progetto
+non hanno bisogno di tree-sitter: pom.xml/.bpmn/.dmn sono XML (ElementTree),
+build.gradle è regex best-effort. Niente test di equivalenza: non esisteva un
+parser Java precedente (i test sono su un mini-progetto fittizio in
+[tests/test_java_index.py](tests/test_java_index.py)).
 
 I parser regex storici (`_js_symbols`) restano come fallback d'emergenza
 dietro flag; TODO datato in `code_index.py` per la loro rimozione.

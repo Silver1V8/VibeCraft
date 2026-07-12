@@ -19,7 +19,10 @@ from pathlib import Path
 import numpy as np
 
 # Estensioni considerate "codice sorgente" (allineate a quelle del check drift)
-CODE_EXTS = {".py", ".js", ".ts", ".tsx", ".jsx", ".svelte", ".html", ".css"}
+CODE_EXTS = {".py", ".js", ".ts", ".tsx", ".jsx", ".svelte", ".html", ".css",
+             ".java", ".bpmn", ".bpmn2", ".dmn"}
+# File di progetto indicizzati per nome (non per estensione): dipendenze Java
+CODE_FILENAMES = {"pom.xml", "build.gradle"}
 
 _SNIPPET_LIMIT = 1500
 
@@ -94,6 +97,7 @@ _PARSER_LANG = {
     ".ts": "typescript", ".tsx": "typescript",
     ".js": "javascript", ".jsx": "javascript",
     ".svelte": "svelte",
+    ".java": "java",
 }
 
 # Default per linguaggio quando il flag è assente dal config: tree-sitter per i
@@ -101,7 +105,8 @@ _PARSER_LANG = {
 # dietro flag (`code_parsers.<lang>: regex`).
 # TODO(2026-07-12): rimuovere _js_symbols e i default "regex" alla prossima release,
 # quando la migrazione tree-sitter sarà consolidata in produzione.
-_PARSER_DEFAULTS = {"typescript": "treesitter", "javascript": "treesitter", "svelte": "treesitter"}
+_PARSER_DEFAULTS = {"typescript": "treesitter", "javascript": "treesitter", "svelte": "treesitter",
+                    "java": "treesitter"}
 
 
 def _parser_impl(lang: str) -> str:
@@ -114,9 +119,30 @@ def _parser_impl(lang: str) -> str:
         return _PARSER_DEFAULTS.get(lang, "regex")
 
 
-def _extract(suffix: str, text: str, stem: str) -> list[tuple[str, str, str]]:
+def _extract(suffix: str, text: str, stem: str, rel: str = "") -> list[tuple]:
+    """Estrae i simboli di un file. Le tuple sono (kind, name, snippet) o
+    (kind, name, snippet, meta) con meta={"deps": [...], "package": ...}."""
     if suffix == ".py":
         return _py_symbols(text)
+    if suffix == ".java":
+        # Unica implementazione (tree-sitter, nessun parser regex precedente):
+        # il flag code_parsers.java esiste solo per uniformità di configurazione.
+        from code_index_java import java_symbols
+        return java_symbols(text, stem, suffix)
+    if suffix == ".xml" and stem == "pom":
+        from code_index_java import pom_symbols
+        return pom_symbols(text, stem, suffix)
+    if suffix == ".gradle":
+        from code_index_java import gradle_symbols
+        # il nome del progetto Gradle non è nel file: si usa la cartella che lo contiene
+        project = rel.rsplit("/", 2)[-2] if rel.count("/") else ""
+        return gradle_symbols(text, stem, suffix, project=project)
+    if suffix in (".bpmn", ".bpmn2"):
+        from code_index_java import bpmn_symbols
+        return bpmn_symbols(text, stem, suffix)
+    if suffix == ".dmn":
+        from code_index_java import dmn_symbols
+        return dmn_symbols(text, stem, suffix)
     lang = _PARSER_LANG.get(suffix)
     if lang is not None and _parser_impl(lang) == "treesitter":
         # Svelte: la grammatica tree-sitter parsa il solo markup, ma il contenuto
@@ -141,7 +167,7 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
     if not code_dir.exists():
         return symbols
     for path in sorted(code_dir.rglob("*")):
-        if not (path.is_file() and path.suffix in CODE_EXTS):
+        if not (path.is_file() and (path.suffix in CODE_EXTS or path.name in CODE_FILENAMES)):
             continue
         rel = path.relative_to(code_dir).as_posix()
         dev_type = rel.split("/")[0] if "/" in rel else ""
@@ -149,7 +175,9 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
             text = path.read_text(encoding="utf-8", errors="ignore")
         except Exception:
             continue
-        for kind, name, snippet in _extract(path.suffix, text, path.stem):
+        for tup in _extract(path.suffix, text, path.stem, rel):
+            kind, name, snippet = tup[0], tup[1], tup[2]
+            meta = tup[3] if len(tup) > 3 else {}
             symbols.append({
                 "id": f"{rel}::{name}",
                 "name": name,
@@ -157,6 +185,8 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
                 "file": rel,
                 "dev_type": dev_type,
                 "text": f"{kind} {name}\n{snippet}",
+                "deps": sorted(set(meta.get("deps") or [])),
+                "package": meta.get("package", ""),
             })
     return symbols
 
@@ -164,21 +194,23 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
 # Relazioni spec<->codice che dipendono dal CONTENUTO (versione) di un simbolo: vanno
 # rimosse e ricalcolate quando il simbolo o lo spazio dei documenti cambia. NON toccano
 # altri tipi di arco (es. MENTIONS doc->entità), che appartengono ai nodi-documento.
-_CODE_LINK_RELATIONS = ("IMPLEMENTS", "REFERENCES")
+_CODE_LINK_RELATIONS = ("IMPLEMENTS", "REFERENCES", "DEPENDS_ON")
 
 
 def add_symbol_nodes(G, symbols: list[dict]) -> None:
     """Inserisce (o aggiorna) i soli NODI di codice nel grafo, senza archi. Condiviso da
     full rebuild e incrementale: gli archi li calcola poi `link_symbols`."""
     for sym in symbols:
-        G.add_node(
-            sym["id"],
+        attrs = dict(
             type="code",
             kind=sym["kind"],
             name=sym["name"],
             file=sym["file"],
             dev_type=sym["dev_type"],
         )
+        if sym.get("package"):
+            attrs["package"] = sym["package"]
+        G.add_node(sym["id"], **attrs)
 
 
 def embed_symbols(embed_model, symbols: list[dict]) -> np.ndarray:
@@ -220,6 +252,17 @@ def link_symbols(G, symbols: list[dict], sym_dense, doc_dense_vecs, doc_ids,
         for token in set(_ENTITY_TOKEN_RE.findall(sym["text"])):
             if token in entity_nodes:
                 G.add_edge(sym["id"], token, relation="REFERENCES")
+
+    # DEPENDS_ON: risoluzione best-effort per nome semplice (classe importata/iniettata,
+    # artifactId, id di processo) verso gli altri nodi di codice del grafo. I nomi che
+    # non risolvono (dipendenze esterne al progetto) vengono ignorati.
+    name_to_id = {a["name"]: n for n, a in G.nodes(data=True)
+                  if a.get("type") == "code" and a.get("name")}
+    for sym in symbols:
+        for dep in sym.get("deps") or []:
+            target = name_to_id.get(dep)
+            if target and target != sym["id"]:
+                G.add_edge(sym["id"], target, relation="DEPENDS_ON")
 
     implements = 0
     sym_matrix = np.asarray(sym_dense, dtype=np.float32)
