@@ -40,6 +40,18 @@ _MESSAGING_ANNOTATIONS = {"ConsumeEvent", "Incoming", "Outgoing"}
 # referenziate dai service task Kogito dentro attributi/estensioni XML.
 _FQCN_RE = re.compile(r"\b(?:[a-z_][\w]*\.)+([A-Z]\w+)\b")
 
+# Ponte codice -> database (best-effort): stored procedure invocate via JPA
+# (@NamedStoredProcedureQuery(procedureName=...)) o CallableStatement ("{call x}").
+_JPA_SP_RE = re.compile(r'procedureName\s*=\s*"([\w.]+)"')
+_CALL_SP_RE = re.compile(r'\{\s*call\s+([\w.]+)', re.I)
+
+
+def _storedproc_links(text: str) -> list[tuple[str, str]]:
+    from code_index_sql import _norm
+    names = set(_JPA_SP_RE.findall(text)) | set(_CALL_SP_RE.findall(text))
+    return [("EXECUTES", _norm(n)) for n in sorted(names) if _norm(n)]
+
+
 # Dichiarazioni di dipendenza Gradle: implementation "gruppo:artefatto:versione" ecc.
 _GRADLE_DEP_RE = re.compile(
     r"(?:implementation|api|compileOnly|runtimeOnly|testImplementation|compile)\s*"
@@ -102,6 +114,11 @@ def java_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
         cls = _text(src, name_node)
         cls_anns = _annotation_names(node, src)
         cls_meta = {"deps": list(imported), "package": package}
+        # @NamedStoredProcedureQuery sulla classe -> arco EXECUTES verso la stored proc
+        ann_text = " ".join(_text(src, a) for a in _annotations(node))
+        cls_sp = _storedproc_links(ann_text)
+        if cls_sp:
+            cls_meta["links"] = cls_sp
         out.append((kind, cls, _context(src, node.start_byte), cls_meta))
 
         body = node.child_by_field_name("body")
@@ -120,8 +137,10 @@ def java_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
                     mkind = "listener"
                 else:
                     mkind = "method"
-                out.append((mkind, f"{cls}.{_text(src, mname_node)}",
-                            _context(src, member.start_byte)))
+                mtuple = (mkind, f"{cls}.{_text(src, mname_node)}",
+                          _context(src, member.start_byte))
+                sp = _storedproc_links(_text(src, member))  # CallableStatement "{call x}"
+                out.append(mtuple + (({"links": sp},) if sp else ()))
             elif member.type == "field_declaration":
                 if "Inject" not in _annotation_names(member, src):
                     continue

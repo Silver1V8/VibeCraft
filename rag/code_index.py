@@ -20,7 +20,8 @@ import numpy as np
 
 # Estensioni considerate "codice sorgente" (allineate a quelle del check drift)
 CODE_EXTS = {".py", ".js", ".ts", ".tsx", ".jsx", ".svelte", ".html", ".css",
-             ".java", ".bpmn", ".bpmn2", ".dmn", ".cs", ".csproj", ".cshtml", ".razor"}
+             ".java", ".bpmn", ".bpmn2", ".dmn", ".cs", ".csproj", ".cshtml", ".razor",
+             ".sql", ".pks", ".pkb"}
 # File di progetto indicizzati per nome (non per estensione): dipendenze Java/.NET
 CODE_FILENAMES = {"pom.xml", "build.gradle", "packages.config"}
 
@@ -100,6 +101,7 @@ _PARSER_LANG = {
     ".java": "java",
     ".cs": "csharp",
     ".cshtml": "razor", ".razor": "razor",
+    ".sql": "sql", ".pks": "sql", ".pkb": "sql",
 }
 
 # Default per linguaggio quando il flag è assente dal config: tree-sitter per i
@@ -108,7 +110,8 @@ _PARSER_LANG = {
 # TODO(2026-07-12): rimuovere _js_symbols e i default "regex" alla prossima release,
 # quando la migrazione tree-sitter sarà consolidata in produzione.
 _PARSER_DEFAULTS = {"typescript": "treesitter", "javascript": "treesitter", "svelte": "treesitter",
-                    "java": "treesitter", "csharp": "treesitter", "razor": "hybrid"}
+                    "java": "treesitter", "csharp": "treesitter", "razor": "hybrid",
+                    "sql": "hybrid"}
 
 
 def _parser_impl(lang: str) -> str:
@@ -159,6 +162,11 @@ def _extract(suffix: str, text: str, stem: str, rel: str = "") -> list[tuple]:
     if suffix == ".csproj":
         from code_index_csharp import csproj_symbols
         return csproj_symbols(text, stem, suffix)
+    # SQL (T-SQL / PL/SQL / generico): ibrido tree-sitter + scanner regex per i
+    # dialetti; .pks/.pkb sono spec/body dei package PL/SQL.
+    if suffix in (".sql", ".pks", ".pkb"):
+        from code_index_sql import sql_symbols
+        return sql_symbols(text, stem, suffix, rel)
     if suffix == ".config" and stem == "packages":
         from code_index_csharp import packages_config_symbols
         project = rel.rsplit("/", 2)[-2] if rel.count("/") else ""
@@ -184,6 +192,8 @@ def _extract(suffix: str, text: str, stem: str, rel: str = "") -> list[tuple]:
 def collect_code_symbols(code_dir: Path) -> list[dict]:
     """Scansiona code/ e restituisce i simboli estratti, uno per elemento di codice."""
     symbols: list[dict] = []
+    from code_index_sql import FALLBACK_LOG
+    FALLBACK_LOG.clear()
     if not code_dir.exists():
         return symbols
     for path in sorted(code_dir.rglob("*")):
@@ -207,6 +217,7 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
                 "text": f"{kind} {name}\n{snippet}",
                 "deps": sorted(set(meta.get("deps") or [])),
                 "refs": sorted(set(meta.get("refs") or [])),
+                "links": sorted(set(map(tuple, meta.get("links") or []))),
                 "package": meta.get("package", ""),
                 "attrs": meta.get("attrs") or {},
             })
@@ -235,7 +246,7 @@ def razor_report() -> dict:
 # Relazioni spec<->codice che dipendono dal CONTENUTO (versione) di un simbolo: vanno
 # rimosse e ricalcolate quando il simbolo o lo spazio dei documenti cambia. NON toccano
 # altri tipi di arco (es. MENTIONS doc->entità), che appartengono ai nodi-documento.
-_CODE_LINK_RELATIONS = ("IMPLEMENTS", "REFERENCES", "DEPENDS_ON")
+_CODE_LINK_RELATIONS = ("IMPLEMENTS", "REFERENCES", "DEPENDS_ON", "READS", "WRITES", "EXECUTES")
 
 
 def add_symbol_nodes(G, symbols: list[dict]) -> None:
@@ -315,6 +326,14 @@ def link_symbols(G, symbols: list[dict], sym_dense, doc_dense_vecs, doc_ids,
             target = name_to_id.get(ref)
             if target and target != sym["id"] and not G.has_edge(sym["id"], target):
                 G.add_edge(sym["id"], target, relation="REFERENCES")
+        # archi semantici tipizzati (SQL: READS/WRITES/EXECUTES); a parità di
+        # coppia vince la relazione più forte (un solo arco per coppia nel DiGraph)
+        priority = {"EXECUTES": 0, "WRITES": 1, "READS": 2}
+        for lrel, lname in sorted(sym.get("links") or [],
+                                  key=lambda t: (priority.get(t[0], 9), t[1])):
+            target = name_to_id.get(lname)
+            if target and target != sym["id"] and not G.has_edge(sym["id"], target):
+                G.add_edge(sym["id"], target, relation=lrel)
 
     implements = 0
     sym_matrix = np.asarray(sym_dense, dtype=np.float32)

@@ -42,3 +42,9 @@ code_parsers:
   # immatura): direttive/markup via scanner, blocchi @code via parser C#. Dialetti:
   # .razor=componente Blazor, .cshtml con @page=Razor Page, senza @page=view MVC.
   razor: "hybrid"
+  # SQL (.sql, .pks/.pkb PL/SQL): ibrido tree-sitter-sql + scanner regex per i
+  # dialetti (la grammatica non regge il procedurale). Archi semantici:
+  # READS/WRITES/EXECUTES. sql_dialect = dialetto predefinito del repo quando
+  # l'euristica sul contenuto non decide: tsql | plsql | generic.
+  sql: "hybrid"
+  sql_dialect: "generic"

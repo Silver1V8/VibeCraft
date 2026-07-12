@@ -85,6 +85,22 @@ _PAGE_HANDLER_RE = re.compile(r"^On(Get|Post|Put|Delete|Patch|Head)\w*$")
 # return View(); / View("Nome") / PartialView("Nome") nelle action MVC
 _VIEW_CALL_RE = re.compile(r"\b(?:View|PartialView)\s*\(\s*(?:\"([\w/]+)\")?")
 
+# Ponte codice -> database (best-effort): stored procedure invocate via ADO.NET
+# (CommandText/SqlCommand con CommandType.StoredProcedure) o EXEC dentro stringhe SQL.
+_SP_NAME_RE = re.compile(r'(?:CommandText\s*=\s*|SqlCommand\(\s*)"([\w.\[\]]+)"')
+_SP_EXEC_IN_STRING_RE = re.compile(r'"[^"]*\bEXEC(?:UTE)?\s+([\w.\[\]]+)', re.I)
+
+
+def _storedproc_links(member_text: str) -> list[tuple[str, str]]:
+    """Archi EXECUTES metodo -> stored procedure, con i nomi normalizzati come
+    fa il parser SQL (così risolvono sugli stessi nodi)."""
+    from code_index_sql import _norm
+    names = set()
+    if "CommandType.StoredProcedure" in member_text:
+        names.update(_SP_NAME_RE.findall(member_text))
+    names.update(_SP_EXEC_IN_STRING_RE.findall(member_text))
+    return [("EXECUTES", _norm(n)) for n in sorted(names) if _norm(n)]
+
 
 def csharp_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
     """Estrae simboli da sorgente C#: tipi (class/record/interface/struct/enum),
@@ -128,15 +144,20 @@ def csharp_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
                     mkind = "endpoint"
                 else:
                     mkind = "method"
-                mtuple = (mkind, f"{cls}.{mname}", _context(src, member.start_byte))
+                member_text = _text(src, member)
+                meta: dict = {}
                 if is_controller:
                     # convenzione MVC: View() implicita -> view col nome dell'azione,
                     # View("Nome")/PartialView("Nome") -> view esplicita. Dep tipizzate,
                     # risolte (o segnalate rotte) da code_index_razor.resolve_links.
-                    views = {m.group(1) or mname for m in _VIEW_CALL_RE.finditer(_text(src, member))}
+                    views = {m.group(1) or mname for m in _VIEW_CALL_RE.finditer(member_text)}
                     if views:
-                        mtuple = mtuple + ({"deps": [f"view:{ctrl}/{v}" for v in sorted(views)]},)
-                out.append(mtuple)
+                        meta["deps"] = [f"view:{ctrl}/{v}" for v in sorted(views)]
+                sp = _storedproc_links(member_text)
+                if sp:
+                    meta["links"] = sp
+                mtuple = (mkind, f"{cls}.{mname}", _context(src, member.start_byte))
+                out.append(mtuple + ((meta,) if meta else ()))
             elif member.type == "property_declaration":
                 pname_node = member.child_by_field_name("name")
                 if pname_node is not None and _is_public(member, src):

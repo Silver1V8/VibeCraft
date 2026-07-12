@@ -10,8 +10,11 @@ L'estrazione dei simboli dal codice generato (`code/`) vive in
 [code_index_ts.py](code_index_ts.py) (TS/TSX/JS/JSX/Svelte),
 [code_index_java.py](code_index_java.py) (Java + pom.xml/build.gradle +
 Kogito .bpmn/.dmn), [code_index_csharp.py](code_index_csharp.py)
-(C#/.NET + .csproj/packages.config) e [code_index_razor.py](code_index_razor.py)
-(famiglia Razor: view MVC, Razor Pages, componenti Blazor). L'interfaccia di un parser è una funzione
+(C#/.NET + .csproj/packages.config) [code_index_razor.py](code_index_razor.py)
+(famiglia Razor: view MVC, Razor Pages, componenti Blazor) e
+[code_index_sql.py](code_index_sql.py) (SQL: T-SQL, PL/SQL, generico —
+archi semantici READS/WRITES/EXECUTES e ponte codice→stored procedure
+dai parser C#/Java). L'interfaccia di un parser è una funzione
 `(text: str, stem: str, suffix: str) -> list[tuple]` con tuple
 `(kind, name, snippet)` o `(kind, name, snippet, meta)`: `kind` è ad es.
 `function`/`class`/`endpoint`/`component`, `name` è univoco nel file,
