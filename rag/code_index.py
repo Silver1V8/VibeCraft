@@ -290,6 +290,14 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
     from code_index_config import attach_projects
     attach_projects(symbols)
 
+    # Entity Framework: context->entity, entity->tabella (con placeholder se il
+    # DDL non è indicizzato), navigazione entity->entity. Va chiamato anche solo
+    # per ripulire le chiavi temporanee (_prop_types/_table) dai metadati C#.
+    if any(k in (s.get("attrs") or {}) for s in symbols
+           for k in ("_table", "_fluent", "_dbsets", "_prop_types")):
+        from code_index_csharp import resolve_ef
+        resolve_ef(symbols)
+
     # Riferimenti incrociati degli script (source, dotnet build su .csproj,
     # sqlcmd su .sql): risolti sui percorsi relativi, best-effort.
     if any(t.startswith("run:") for s in symbols for _, t in s["links"]):

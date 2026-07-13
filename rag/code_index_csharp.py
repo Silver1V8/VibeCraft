@@ -102,6 +102,27 @@ def _storedproc_links(member_text: str) -> list[tuple[str, str]]:
     return [("EXECUTES", _norm(n)) for n in sorted(names) if _norm(n)]
 
 
+# Entity Framework (Core ed EF6): SQL grezzo dentro le API EF
+_EF_RAW_SQL_RE = re.compile(
+    r"(?:FromSqlRaw|FromSqlInterpolated|ExecuteSqlRaw|ExecuteSqlRawAsync|"
+    r"ExecuteSqlInterpolated)\s*\(\s*\$?@?\"([^\"]+)\"")
+# DbSet<Entity> NomeProprieta
+_DBSET_RE = re.compile(r"DbSet<([\w.]+)>")
+# Fluent API in OnModelCreating: modelBuilder.Entity<X>()....ToTable("nome")
+_FLUENT_TOTABLE_RE = re.compile(r"Entity<([\w.]+)>\s*\(\s*\)[\s\S]{0,200}?\.ToTable\(\s*\"([^\"]+)\"")
+_TABLE_ATTR_RE = re.compile(r"\[Table\(\s*\"([^\"]+)\"")
+_COLUMN_ATTR_RE = re.compile(r"\[Column\(\s*\"([^\"]+)\"")
+_COLLECTION_RE = re.compile(r"^(?:ICollection|IEnumerable|IList|List|HashSet|ISet|ObservableCollection)<(.+)>$")
+
+
+def _ef_raw_sql_links(member_text: str) -> list[tuple[str, str]]:
+    """Archi READS/WRITES/EXECUTES dalle stringhe SQL grezze di EF
+    (FromSqlRaw & co.), riusando l'estrattore del parser SQL."""
+    from code_index_sql import _body_links
+    sql = " ; ".join(_EF_RAW_SQL_RE.findall(member_text))
+    return _body_links(sql, "") if sql.strip() else []
+
+
 def csharp_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
     """Estrae simboli da sorgente C#: tipi (class/record/interface/struct/enum),
     metodi e proprietà pubblici (endpoint ASP.NET Core/WCF marcati), con deps
@@ -122,14 +143,30 @@ def csharp_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
         if name_node is None:
             return
         cls = _text(src, name_node)
-        out.append((kind, cls, _context(src, node.start_byte),
-                    {"deps": list(usings), "package": namespace}))
+        bases = _base_names(node, src)
+        is_context = "DbContext" in bases
+        if is_context:
+            kind = "context"  # Entity Framework: DbContext (Core ed EF6)
+        cls_attrs: dict = {}
+        # [Table("nome")] sulla classe: mapping esplicito entity -> tabella; il
+        # resolver EF lo combina con Fluent API/convenzione (chiave temporanea)
+        node_text = _text(src, node)
+        tm = _TABLE_ATTR_RE.search(" ".join(
+            _text(src, c) for c in node.children if c.type == "attribute_list") or "")
+        if tm:
+            cls_attrs["_table"] = tm.group(1)
+        if is_context:
+            # Fluent API in OnModelCreating: Entity<X>()...ToTable("nome")
+            fluent = {e.split(".")[-1]: t for e, t in _FLUENT_TOTABLE_RE.findall(node_text)}
+            if fluent:
+                cls_attrs["_fluent"] = fluent
+        cls_meta = {"deps": list(usings), "package": namespace, "attrs": cls_attrs}
+        out.append((kind, cls, _context(src, node.start_byte), cls_meta))
 
         body = node.child_by_field_name("body")
         if body is None:
             return
         implicit_public = node.type == "interface_declaration"
-        bases = _base_names(node, src)
         is_controller = cls.endswith("Controller") or bases & {"Controller", "ControllerBase"}
         is_page_model = "PageModel" in bases
         ctrl = cls.removesuffix("Controller")
@@ -153,7 +190,7 @@ def csharp_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
                     views = {m.group(1) or mname for m in _VIEW_CALL_RE.finditer(member_text)}
                     if views:
                         meta["deps"] = [f"view:{ctrl}/{v}" for v in sorted(views)]
-                sp = _storedproc_links(member_text)
+                sp = _storedproc_links(member_text) + _ef_raw_sql_links(member_text)
                 if sp:
                     meta["links"] = sp
                 mtuple = (mkind, f"{cls}.{mname}", _context(src, member.start_byte))
@@ -161,7 +198,23 @@ def csharp_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
             elif member.type == "property_declaration":
                 pname_node = member.child_by_field_name("name")
                 if pname_node is not None and _is_public(member, src):
-                    out.append(("property", f"{cls}.{_text(src, pname_node)}",
+                    pname = _text(src, pname_node)
+                    ptext = _text(src, member)
+                    type_node = member.child_by_field_name("type")
+                    ptype = _text(src, type_node).strip() if type_node else ""
+                    ds = _DBSET_RE.match(ptype)
+                    if is_context and ds:
+                        # DbSet<Entity> -> il resolver EF crea context->entity e il
+                        # mapping tabella per convenzione (nome del DbSet)
+                        cls_attrs.setdefault("_dbsets", {})[ds.group(1).split(".")[-1]] = pname
+                    else:
+                        # tipi delle proprietà: servono al resolver EF per le
+                        # proprietà di navigazione entity->entity (chiave temporanea)
+                        cls_attrs.setdefault("_prop_types", {})[pname] = ptype
+                    cm = _COLUMN_ATTR_RE.search(ptext)
+                    if cm:
+                        cls_attrs.setdefault("columns", []).append(cm.group(1))
+                    out.append(("property", f"{cls}.{pname}",
                                 _context(src, member.start_byte)))
             elif member.type in _TYPE_KINDS:  # tipi annidati
                 visit_type(member)
@@ -230,3 +283,66 @@ def packages_config_symbols(text: str, stem: str, suffix: str, project: str = ""
         return []
     deps = [p.get("id") for p in root.iter() if _local(p.tag) == "package" and p.get("id")]
     return [("project", project or stem, text[:_SNIPPET_LIMIT], {"deps": deps})]
+
+
+# ------------------------------------------------------ resolver Entity Framework
+
+def resolve_ef(symbols: list[dict]) -> None:
+    """Post-pass EF (richiede la vista d'insieme dei simboli, come gli altri
+    resolver): archi context->entity dai DbSet, mapping entity->tabella
+    ([Table] > Fluent ToTable > convenzione nome DbSet > nome classe, in
+    lowercase per riconciliarsi con i nodi del parser SQL), nodi tabella
+    placeholder quando il DDL non e' indicizzato, e proprieta' di navigazione
+    entity->entity come REFERENCES. Rimuove sempre le chiavi temporanee
+    (_table/_fluent/_dbsets/_prop_types) dai metadati."""
+    classes = {s["name"]: s for s in symbols
+               if s["kind"] in ("class", "record", "context")}
+    table_nodes = {s["name"] for s in symbols if s["kind"] == "table"}
+    entity_table: dict[str, str] = {}   # entity -> tabella scelta
+
+    # 1) raccolta: [Table] sulle entity, DbSet e Fluent dai context
+    for sym in symbols:
+        t = (sym.get("attrs") or {}).pop("_table", None)
+        if t and sym["kind"] in ("class", "record"):
+            entity_table[sym["name"]] = t.lower()
+    contexts = [s for s in symbols if s["kind"] == "context"]
+    for ctx in contexts:
+        attrs = ctx.get("attrs") or {}
+        fluent = attrs.pop("_fluent", {})
+        dbsets = attrs.pop("_dbsets", {})
+        for etype, table in fluent.items():
+            entity_table.setdefault(etype, table.lower())
+        for etype, dbset_name in dbsets.items():
+            ctx["deps"] = sorted(set(ctx["deps"]) | {etype})   # context -> entity
+            entity_table.setdefault(etype, dbset_name.lower())  # convenzione EF
+
+    # 2) mapping entity -> tabella (+ placeholder se il DDL non c'e' ancora)
+    placeholders: list[dict] = []
+    for ename, table in entity_table.items():
+        ent = classes.get(ename)
+        if ent is None:
+            continue
+        ent["links"] = sorted(set(ent["links"]) | {("REFERENCES", table)})
+        if table not in table_nodes:
+            table_nodes.add(table)
+            placeholders.append({
+                "id": f"{ent['file']}::{table}",
+                "name": table, "kind": "table", "file": ent["file"],
+                "dev_type": ent["dev_type"],
+                "text": f"table {table}\n(placeholder EF: DDL non indicizzato, "
+                        f"riconciliato per nome quando il parser SQL lo trovera')",
+                "deps": [], "refs": [], "links": [], "package": "",
+                "attrs": {"placeholder": True},
+            })
+    symbols.extend(placeholders)
+
+    # 3) navigazione entity -> entity (reference e collection) + pulizia chiavi
+    for sym in symbols:
+        prop_types = (sym.get("attrs") or {}).pop("_prop_types", None)
+        if not prop_types or sym["name"] not in entity_table:
+            continue
+        for ptype in prop_types.values():
+            m = _COLLECTION_RE.match(ptype)
+            inner = (m.group(1) if m else ptype).strip().rstrip("?").split(".")[-1]
+            if inner in entity_table and inner != sym["name"]:
+                sym["refs"] = sorted(set(sym["refs"]) | {inner})

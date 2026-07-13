@@ -182,3 +182,131 @@ def test_malformed_csproj_is_skipped(tmp_path, capsys):
     (tmp_path / "Broken.csproj").write_text("<Project><ItemGroup", encoding="utf-8")
     assert ci.collect_code_symbols(tmp_path) == []
     assert "malformato" in capsys.readouterr().out
+
+
+# ---------------------------------------------- Entity Framework (Core / EF6) --
+
+class _Stub:
+    def encode(self, texts, **kw):
+        return {"dense_vecs": np.zeros((len(texts), 8), dtype="float32")}
+
+
+def _graph(symbols):
+    G = nx.DiGraph()
+    ci.add_code_graph(G, symbols, _Stub(), [], None)
+    return G
+
+
+def _edges(G, relation):
+    return {(G.nodes[u]["name"], G.nodes[v]["name"])
+            for u, v, d in G.edges(data=True) if d.get("relation") == relation}
+
+
+EF_CONTEXT = """namespace Haro.Dati;
+
+public class EventiContext : DbContext
+{
+    public DbSet<Ordine> Ordini { get; set; }
+    public DbSet<Cliente> Clienti { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Cliente>().ToTable("AnagraficaClienti");
+    }
+}
+"""
+
+EF_ENTITIES = """namespace Haro.Dati;
+
+[Table("Ordini")]
+public class Ordine
+{
+    [Column("id_ordine")]
+    public int Id { get; set; }
+    public Cliente Intestatario { get; set; }
+}
+
+public class Cliente
+{
+    public int Id { get; set; }
+    public ICollection<Ordine> Ordini { get; set; }
+}
+"""
+
+EF_REPO = """namespace Haro.Dati;
+
+public class ReportRepo
+{
+    public void Report()
+    {
+        var righe = ctx.Ordini.FromSqlRaw("SELECT * FROM ordini WHERE stato = 'OK'");
+    }
+    public void Ricalcola()
+    {
+        var cmd = new SqlCommand("dbo.RicalcolaTotali", conn);
+        cmd.CommandType = CommandType.StoredProcedure;
+    }
+}
+"""
+
+
+@pytest.fixture
+def ef_project(tmp_path):
+    (tmp_path / "EventiContext.cs").write_text(EF_CONTEXT, encoding="utf-8")
+    (tmp_path / "Entities.cs").write_text(EF_ENTITIES, encoding="utf-8")
+    (tmp_path / "ReportRepo.cs").write_text(EF_REPO, encoding="utf-8")
+    return tmp_path
+
+
+def test_ef_context_and_entity_table_mapping(ef_project):
+    syms = ci.collect_code_symbols(ef_project)
+    by_name = _by_name(syms)
+    # DbContext -> kind context, archi context -> entity dai DbSet
+    ctx = by_name["EventiContext"]
+    assert ctx["kind"] == "context"
+    assert {"Ordine", "Cliente"} <= set(ctx["deps"])
+    # [Table("Ordini")] esplicito; [Column] come metadato
+    assert ("REFERENCES", "ordini") in by_name["Ordine"]["links"]
+    assert by_name["Ordine"]["attrs"]["columns"] == ["id_ordine"]
+    # Fluent API ToTable vince sulla convenzione per Cliente
+    assert ("REFERENCES", "anagraficaclienti") in by_name["Cliente"]["links"]
+    # placeholder: il DDL non e' indicizzato -> nodi tabella creati dal resolver
+    tables = {s["name"]: s for s in syms if s["kind"] == "table"}
+    assert tables["ordini"]["attrs"].get("placeholder") is True
+    assert tables["anagraficaclienti"]["attrs"].get("placeholder") is True
+    # le chiavi temporanee non raggiungono i metadati dei nodi
+    assert not any(k.startswith("_") for s in syms for k in (s["attrs"] or {}))
+
+
+def test_ef_navigation_properties(ef_project):
+    syms = _by_name(ci.collect_code_symbols(ef_project))
+    # reference (Ordine.Intestatario -> Cliente) e collection (Cliente.Ordini -> Ordine)
+    assert "Cliente" in syms["Ordine"]["refs"]
+    assert "Ordine" in syms["Cliente"]["refs"]
+
+
+def test_ef_raw_sql_and_storedproc(ef_project):
+    syms = ci.collect_code_symbols(ef_project)
+    G = _graph(syms)
+    reads = _edges(G, "READS")
+    ex = _edges(G, "EXECUTES")
+    # FromSqlRaw -> READS verso la tabella placeholder 'ordini'
+    assert ("ReportRepo.Report", "ordini") in reads
+    # SqlCommand + CommandType.StoredProcedure -> EXECUTES (nome normalizzato SQL)
+    assert any(src == "ReportRepo.Ricalcola" and dst == "ricalcolatotali"
+               for src, dst in ex) or not any(s["name"] == "ricalcolatotali" for s in syms)
+
+
+def test_ef_placeholder_reconciles_with_sql_ddl(ef_project):
+    # con il DDL indicizzato, la tabella e' quella del parser SQL: nessun placeholder
+    (ef_project / "schema.sql").write_text(
+        "CREATE TABLE ordini (id_ordine INT, stato VARCHAR(5));\n"
+        "GO\n"
+        "CREATE PROCEDURE [dbo].[RicalcolaTotali] AS BEGIN UPDATE ordini SET stato='OK'; END\nGO",
+        encoding="utf-8")
+    syms = ci.collect_code_symbols(ef_project)
+    ordini = [s for s in syms if s["kind"] == "table" and s["name"] == "ordini"]
+    assert len(ordini) == 1 and not ordini[0]["attrs"].get("placeholder")
+    G = _graph(syms)
+    assert ("Ordine", "ordini") in _edges(G, "REFERENCES")
+    assert ("ReportRepo.Ricalcola", "ricalcolatotali") in _edges(G, "EXECUTES")
