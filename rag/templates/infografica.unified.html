@@ -28,6 +28,11 @@
         }
       }
     </script>
+
+    <!-- Asset condivisi (estratti dai template per non duplicare CSS/JS) -->
+    <link rel="stylesheet" href="/static/shared.css" />
+    <script src="/static/shared.js"></script>
+
     <style>
       /* ═══════════ PALETTE (Punto 5 contratto: CSS vars per tema) ═══════════ */
       :root[data-theme="matrix"] {
@@ -43,6 +48,7 @@
 
         --scrollbar-track:#04140a; --scrollbar-thumb:#1f7a3d; --scrollbar-thumb-hover:#2ea34f;
         --title-glow: 0 0 6px rgba(0,255,65,0.85), 0 0 16px rgba(0,255,65,0.35);
+        --rain-opacity: 0.28;   /* consumata da #matrix-rain in /static/shared.css */
 
         /* Mermaid: variabili tema base */
         --mm-primary:#04140a; --mm-primary-text:#c8f5d4; --mm-primary-border:#00ff41;
@@ -106,55 +112,19 @@
       .hover-lift { transition: transform 0.3s ease, box-shadow 0.3s ease; }
       .hover-lift:hover { transform: translateY(-2px); box-shadow: var(--glow-shadow-hover); }
 
-      #matrix-rain {
-        position: fixed;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 0;
-        pointer-events: none;
-        opacity: 0.28;
-      }
-      .scanlines {
-        position: fixed;
-        inset: 0;
-        z-index: 50;
-        pointer-events: none;
-        background: repeating-linear-gradient(0deg, rgba(0,255,65,0.035) 0px, rgba(0,255,65,0.035) 1px, transparent 1px, transparent 2px);
-      }
-      .glow-text {
-        text-shadow: var(--title-glow);
-      }
+      /* NB: matrix-rain, scanlines, glow-text e la regola di hide nel tema Classico
+         vivono ora in /static/shared.css (identici tra le pagine). */
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
       ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
       ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
-
-      /* Elementi esclusivi del tema Matrix: presenti nel DOM, nascosti in Classico */
-      :root[data-theme="classic"] #matrix-rain,
-      :root[data-theme="classic"] .scanlines {
-        display: none;
-      }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans p-8">
 
-    <!-- ═══════════════════ THEME SWITCHER (logica) ═══════════════════ -->
-    <script>
-      function setUiTheme(value) {
-        document.cookie = 'ui_theme=' + value + ';path=/;max-age=31536000';
-        document.documentElement.dataset.theme = value;   // live-flip: niente reload
-        if (value === 'matrix') startMatrixRain(); else stopMatrixRain();
-        renderMermaidDiagram();  // ridisegna il grafo coi colori del nuovo tema
-      }
-      document.addEventListener('DOMContentLoaded', function () {
-        // Il server ha già impostato data-theme sul primo paint (nessun flash) — questo
-        // blocco serve solo a sincronizzare lo stato del <select id="theme-switcher">.
-        var sel = document.getElementById('theme-switcher');
-        if (sel) sel.value = document.documentElement.dataset.theme || 'matrix';
-        if (document.documentElement.dataset.theme === 'matrix') startMatrixRain();
-      });
-    </script>
+    <!-- Theme switcher (setUiTheme) e matrix rain vivono in /static/shared.js.
+         Il redraw del diagramma Mermaid al cambio tema è agganciato via
+         window.onThemeChange, definito più sotto insieme a renderMermaidDiagram. -->
 
     <canvas id="matrix-rain"></canvas>
     <div class="scanlines"></div>
@@ -241,45 +211,9 @@
     </div>
 
     <script>
-      /** Legge una CSS variable dal :root corrente (risolve già il tema attivo via data-theme). */
-      function themeVar(name, fallback) {
-        const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-        return v || fallback;
-      }
-
-      /* ──────────── MATRIX RAIN BACKGROUND (parte solo se il tema attivo è "matrix") ──────────── */
-      let matrixRainTimer = null;
-      function startMatrixRain() {
-        if (matrixRainTimer) return;
-        const canvas = document.getElementById('matrix-rain');
-        const ctx = canvas.getContext('2d');
-        const glyphs = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789';
-        let w, h, cols, drops;
-        function resize() {
-          w = canvas.width = window.innerWidth;
-          h = canvas.height = window.innerHeight;
-          cols = Math.floor(w / 16);
-          drops = new Array(cols).fill(0).map(() => Math.random() * -50);
-        }
-        resize();
-        window.addEventListener('resize', resize);
-        function draw() {
-          ctx.fillStyle = 'rgba(0,0,0,0.06)';
-          ctx.fillRect(0, 0, w, h);
-          ctx.fillStyle = '#00ff41';
-          ctx.font = '14px monospace';
-          for (let i = 0; i < drops.length; i++) {
-            const glyph = glyphs[Math.floor(Math.random() * glyphs.length)];
-            ctx.fillText(glyph, i * 16, drops[i] * 16);
-            if (drops[i] * 16 > h && Math.random() > 0.975) drops[i] = 0;
-            drops[i]++;
-          }
-        }
-        matrixRainTimer = setInterval(draw, 50);
-      }
-      function stopMatrixRain() {
-        if (matrixRainTimer) { clearInterval(matrixRainTimer); matrixRainTimer = null; }
-      }
+      /* themeVar / startMatrixRain / stopMatrixRain: vedi /static/shared.js.
+         Al cambio tema shared.js invoca window.onThemeChange -> ridisegna Mermaid. */
+      window.onThemeChange = function () { renderMermaidDiagram(); };
 
       /* ──────────── MERMAID: diagramma ricostruito a runtime dai colori del tema ──────────── */
       let mermaidRenderSeq = 0;

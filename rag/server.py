@@ -15,11 +15,17 @@ for _stream in (sys.stdout, sys.stderr):
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from api.deps import API_KEY, lifespan
 from api import routes_graph, routes_pages, routes_pipeline, routes_retrieval
+from core.config import STATIC_DIR
 
 app = FastAPI(title="HARO Graph-RAG Console", lifespan=lifespan)
+
+# Asset statici condivisi (shared.css / shared.js) estratti dai template per
+# non duplicare CSS/JS: serviti aperti da /static, come le pagine HTML.
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # Pagine HTML (aperte) + router API protetti da X-API-Key (require_api_key a livello di router).
 app.include_router(routes_pages.router)

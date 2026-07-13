@@ -24,6 +24,9 @@ CODE_SAVE_PATH = DATABASE_DIR / "code.pkl"
 # quando docs/ è cambiato e l'indice è "stale".
 INDEX_MANIFEST_PATH = DATABASE_DIR / "index_manifest.json"
 TEMPLATES_DIR = RAG_DIR / "templates"
+# Asset statici condivisi dai template (shared.css / shared.js): estratti dai
+# *.unified.html per non duplicare CSS/JS, serviti come StaticFiles da FastAPI.
+STATIC_DIR = RAG_DIR / "static"
 
 # Qdrant in server mode (Docker): niente più storage locale a lock esclusivo.
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://127.0.0.1:6333")

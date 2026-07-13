@@ -4,6 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>VibeCraft · Analisi del Grafo</title>
+
+  <!-- Asset condivisi (estratti dai template per non duplicare CSS/JS) -->
+  <link rel="stylesheet" href="/static/shared.css" />
+  <script src="/static/shared.js"></script>
+
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
@@ -12,6 +17,7 @@
     :root[data-theme="matrix"] {
       --body-bg:#04140a; --body-text:#d8ffe4; --font-main:'JetBrains Mono','Fira Code',Consolas,ui-monospace,monospace;
       --scrollbar-track:#04140a; --scrollbar-thumb:#1f7a3d; --scrollbar-thumb-hover:#2ea34f;
+      --rain-opacity: 0.28;   /* consumata da #matrix-rain in /static/shared.css */
       --header-grad-1:#000000; --header-grad-2:#0a3d1f; --header-grad-3:#000000; --header-border:#123a22;
       --title-color:#00ff41; --title-glow: 0 0 8px rgba(0,255,65,.5);
       --sub-text:#4dbf6e;
@@ -104,18 +110,8 @@
     }
     section:hover { transform: translateY(-2px); box-shadow: var(--glow-shadow-hover); }
 
-    /* Matrix rain background canvas (solo tema Matrix) */
-    #matrix-rain {
-      position: fixed; inset: 0; width: 100%; height: 100%;
-      z-index: 0; pointer-events: none; opacity: 0.28;
-    }
-    /* CRT scanline overlay (solo tema Matrix) */
-    .scanlines {
-      position: fixed; inset: 0; z-index: 50; pointer-events: none;
-      background: repeating-linear-gradient(0deg, rgba(0,255,65,0.035) 0px, rgba(0,255,65,0.035) 1px, transparent 1px, transparent 2px);
-    }
-    :root[data-theme="classic"] #matrix-rain,
-    :root[data-theme="classic"] .scanlines { display: none; }
+    /* NB: matrix-rain, scanlines e la regola di hide nel tema Classico vivono ora
+       in /static/shared.css (identici tra le pagine). */
 
     /* Bottoni primari: glow neon (Matrix) / glow blu soffuso (Classico) */
     button { transition: all 0.25s cubic-bezier(0.4,0,0.2,1); box-shadow: var(--btn-glow); }
@@ -251,45 +247,7 @@
   </main>
 
   <script>
-    /** Legge una CSS variable dal :root corrente (risolve già il tema attivo via data-theme). */
-    function themeVar(name, fallback) {
-      const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-      return v || fallback;
-    }
-
-    /* ──────────── MATRIX RAIN BACKGROUND (parte solo se il tema attivo è "matrix") ──────────── */
-    let matrixRainTimer = null;
-    function startMatrixRain() {
-      if (matrixRainTimer) return;
-      const canvas = document.getElementById('matrix-rain');
-      const ctx = canvas.getContext('2d');
-      const glyphs = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789';
-      let w, h, cols, drops;
-      function resize() {
-        w = canvas.width = window.innerWidth;
-        h = canvas.height = window.innerHeight;
-        cols = Math.floor(w / 16);
-        drops = new Array(cols).fill(0).map(() => Math.random() * -50);
-      }
-      resize();
-      window.addEventListener('resize', resize);
-      function draw() {
-        ctx.fillStyle = 'rgba(0,0,0,0.06)';
-        ctx.fillRect(0, 0, w, h);
-        ctx.fillStyle = '#00ff41';
-        ctx.font = '14px monospace';
-        for (let i = 0; i < drops.length; i++) {
-          const glyph = glyphs[Math.floor(Math.random() * glyphs.length)];
-          ctx.fillText(glyph, i * 16, drops[i] * 16);
-          if (drops[i] * 16 > h && Math.random() > 0.975) drops[i] = 0;
-          drops[i]++;
-        }
-      }
-      matrixRainTimer = setInterval(draw, 50);
-    }
-    function stopMatrixRain() {
-      if (matrixRainTimer) { clearInterval(matrixRainTimer); matrixRainTimer = null; }
-    }
+    /* themeVar / startMatrixRain / stopMatrixRain: vedi /static/shared.js */
 
     /* Palette community/tipo lette a runtime dal tema attivo (Punto 3 contratto):
        niente più array hardcoded, si rileggono a ogni ridisegno del canvas. */
@@ -304,24 +262,15 @@
       };
     }
 
-    /* ──────────── THEME SWITCHER (live-flip) ──────────── */
-    function setUiTheme(value) {
-      document.cookie = 'ui_theme=' + value + ';path=/;max-age=31536000';
-      document.documentElement.dataset.theme = value;   // live-flip: niente reload
-      if (value === 'matrix') startMatrixRain(); else stopMatrixRain();
-      // I canvas sono bitmap: vanno ridisegnati esplicitamente coi nuovi colori del tema.
+    /* THEME SWITCHER: setUiTheme e la sync iniziale vivono in /static/shared.js.
+       Qui aggiungo solo il redraw specifico: i canvas sono bitmap e vanno
+       ridisegnati esplicitamente coi nuovi colori del tema. */
+    window.onThemeChange = function () {
       drawSemanticMap();
       renderLegend();
       renderDuplicates();
       if (lastImpactData) drawRipple(lastImpactData);
-    }
-    document.addEventListener('DOMContentLoaded', function () {
-      // Il server ha già impostato data-theme sul primo paint (nessun flash) — questo
-      // blocco serve solo a sincronizzare lo stato del <select id="theme-switcher">.
-      var sel = document.getElementById('theme-switcher');
-      if (sel) sel.value = document.documentElement.dataset.theme || 'matrix';
-      if (document.documentElement.dataset.theme === 'matrix') startMatrixRain();
-    });
+    };
 
     function fitCanvas(canvas) {
       const dpr = window.devicePixelRatio || 1;
