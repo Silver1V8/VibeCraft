@@ -31,6 +31,9 @@ DEFAULT_CONFIG_PATTERNS = [
     "web.config", "app.config", "web.*.config", "app.*.config",
     "appsettings.json", "appsettings.*.json",
     "package.json", "*.wsdl", "*.xsd",
+    "application.properties", "application-*.properties",
+    "application.yml", "application.yaml",
+    "application-*.yml", "application-*.yaml",
 ]
 
 # Chiavi il cui valore è un secret: mai indicizzato, in nessuna forma.
@@ -205,6 +208,111 @@ def appsettings_symbols(text: str, stem: str, suffix: str, rel: str = "") -> lis
     out.insert(0, ("config", name, mask_secrets(text)[:_SNIPPET_LIMIT],
                    {"attrs": attrs, "deps": sorted(set(deps))}))
     return out
+
+
+# -------------------------------------- application.properties / application.yaml
+
+# datasource Quarkus/Spring: url del jdbc (con eventuale nome del datasource)
+_DATASOURCE_URL_RE = re.compile(
+    r"^(?:quarkus|spring)\.datasource(?:\.(?!jdbc\b|url\b)([\w-]+))?\.(?:jdbc\.)?url$")
+_JDBC_HOST_DB_RE = re.compile(r"jdbc:\w+://([^/:;]+)(?::\d+)?(?:/([\w-]+))?")
+_JDBC_DBNAME_RE = re.compile(r"databaseName=([\w-]+)", re.I)
+
+
+def _java_env(fname: str) -> str:
+    """application-prod.properties -> 'prod' (profili Spring/Quarkus)."""
+    m = re.match(r"application-([\w]+)\.", fname)
+    return m.group(1) if m else ""
+
+
+def _java_config_from_flat(flat: list[tuple[str, object]], name: str, fname: str,
+                           suffix: str, text: str) -> list[tuple]:
+    """Cuore comune properties/yaml: datasource -> nodi connection-string,
+    URL esterni -> endpoint-esterno, chiavi come metadati, secret mascherati.
+    Stesso trattamento di appsettings.json (profili -> collegati al base)."""
+    env = _java_env(fname)
+    out: list[tuple] = []
+    attrs: dict = {}
+    deps: list[str] = []
+    keys: list[str] = []
+    if env:
+        attrs["environment"] = env
+        base = f"application{suffix}"
+        deps.append((name.rsplit("/", 1)[0] + "/" + base) if "/" in name else base)
+
+    for key, value in flat:
+        keys.append(key)
+        ds = _DATASOURCE_URL_RE.match(key)
+        if ds and isinstance(value, str):
+            cs_name = ds.group(1) or "datasource"
+            meta = {}
+            m = _JDBC_HOST_DB_RE.search(value)
+            if m:
+                meta["server"] = m.group(1)
+                if m.group(2):
+                    meta["database"] = m.group(2)
+            dbn = _JDBC_DBNAME_RE.search(value)
+            if dbn:
+                meta["database"] = dbn.group(1)
+            if env:
+                meta["environment"] = env
+                deps.append(cs_name)  # override di profilo -> nodo base
+            else:
+                out.append(("connection-string", cs_name,
+                            mask_secrets(f"connection string {cs_name} " + str(meta)),
+                            {"attrs": meta}))
+                deps.append(cs_name)
+        elif isinstance(value, str) and not _is_secret_key(key) and not value.startswith("jdbc:"):
+            m = _URL_RE.match(value)
+            if m:
+                host = m.group(1).lower()
+                out.append(("external-endpoint", host, f"external endpoint {host} (da {key})"))
+                deps.append(host)
+
+    attrs["settings_keys"] = keys  # solo chiavi: i valori sensibili non escono mai
+    out.insert(0, ("config", name, mask_secrets(text)[:_SNIPPET_LIMIT],
+                   {"attrs": attrs, "deps": sorted(set(deps))}))
+    return out
+
+
+def java_properties_symbols(text: str, stem: str, suffix: str, rel: str = "") -> list[tuple]:
+    """application.properties (Quarkus/Spring): righe chiave=valore."""
+    name = rel or f"{stem}{suffix}"
+    flat: list[tuple[str, object]] = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith(("#", "!")):
+            continue
+        key, sep, value = line.partition("=")
+        if sep:
+            flat.append((key.strip(), value.strip()))
+    return _java_config_from_flat(flat, name, name.rsplit("/", 1)[-1], suffix, text)
+
+
+def java_yaml_config_symbols(text: str, stem: str, suffix: str, rel: str = "") -> list[tuple]:
+    """application.yml/.yaml (Quarkus/Spring): chiavi appiattite con il punto,
+    così i pattern dei datasource coincidono con la forma .properties."""
+    import yaml
+    name = rel or f"{stem}{suffix}"
+    try:
+        data = yaml.safe_load(text)
+    except yaml.YAMLError as e:
+        print(f"[warn] parser config: {name} (yaml) malformato, nodo senza dettagli ({e})")
+        return [("config", name, mask_secrets(text)[:_SNIPPET_LIMIT])]
+    if not isinstance(data, dict):
+        return [("config", name, mask_secrets(text)[:_SNIPPET_LIMIT])]
+
+    flat: list[tuple[str, object]] = []
+
+    def walk(obj, prefix=""):
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                walk(v, f"{prefix}.{k}" if prefix else str(k))
+        else:
+            flat.append((prefix, obj))
+
+    walk(data)
+    return _java_config_from_flat(flat, name, name.rsplit("/", 1)[-1], suffix, text)
 
 
 # ------------------------------------------------------------------ WSDL/XSD

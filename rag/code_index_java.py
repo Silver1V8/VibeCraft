@@ -33,8 +33,20 @@ _TYPE_KINDS = {
     "record_declaration": "record",
 }
 
-_HTTP_ANNOTATIONS = {"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
+_HTTP_ANNOTATIONS = {
+    # JAX-RS (Quarkus/Dropwizard)
+    "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS",
+    # Spring MVC (metodo): stesso kind "endpoint"
+    "RequestMapping", "GetMapping", "PostMapping", "PutMapping",
+    "DeleteMapping", "PatchMapping",
+}
 _MESSAGING_ANNOTATIONS = {"ConsumeEvent", "Incoming", "Outgoing"}
+# Iniezione di dipendenza su campo: CDI e Spring, stesso trattamento
+_INJECT_ANNOTATIONS = {"Inject", "Autowired"}
+# Rest-client dichiarativi (chiamate servizio->servizio)
+_REST_CLIENT_ANNOTATIONS = {"RegisterRestClient", "FeignClient"}
+_REST_CLIENT_ARG_RE = re.compile(r'(baseUri|configKey|name|url)\s*=\s*"([^"]+)"')
+_TABLE_NAME_RE = re.compile(r'@Table\s*\(\s*[^)]*name\s*=\s*"([^"]+)"')
 
 # FQCN Java (almeno due segmenti, ultimo capitalizzato): usato per trovare le classi
 # referenziate dai service task Kogito dentro attributi/estensioni XML.
@@ -114,11 +126,30 @@ def java_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
         cls = _text(src, name_node)
         cls_anns = _annotation_names(node, src)
         cls_meta = {"deps": list(imported), "package": package}
-        # @NamedStoredProcedureQuery sulla classe -> arco EXECUTES verso la stored proc
         ann_text = " ".join(_text(src, a) for a in _annotations(node))
+        # @NamedStoredProcedureQuery sulla classe -> arco EXECUTES verso la stored proc
         cls_sp = _storedproc_links(ann_text)
         if cls_sp:
             cls_meta["links"] = cls_sp
+        # rest-client dichiarativi: MicroProfile @RegisterRestClient (baseUri/
+        # configKey) e Spring @FeignClient (name/url) -> kind dedicato, con
+        # URL/configKey nei metadati per la risoluzione a valle
+        if cls_anns & _REST_CLIENT_ANNOTATIONS:
+            kind = "rest-client"
+            rc = {k: v for k, v in _REST_CLIENT_ARG_RE.findall(ann_text)}
+            if rc:
+                cls_meta["attrs"] = rc
+        # stereotipi Spring: metadato della classe, non un nuovo kind
+        stereotypes = cls_anns & {"Service", "Component", "Repository", "RestController", "Controller"}
+        if stereotypes:
+            cls_meta.setdefault("attrs", {})["stereotypes"] = sorted(stereotypes)
+        # JPA: @Entity -> arco verso il nodo tabella (nome da @Table(name=...)
+        # o, per convenzione Hibernate, dal nome della classe); lowercase per
+        # riconciliarsi con i nodi tabella del parser SQL
+        if "Entity" in cls_anns:
+            tm = _TABLE_NAME_RE.search(ann_text)
+            table = (tm.group(1) if tm else cls).lower()
+            cls_meta.setdefault("links", []).append(("REFERENCES", table))
         out.append((kind, cls, _context(src, node.start_byte), cls_meta))
 
         body = node.child_by_field_name("body")
@@ -141,8 +172,24 @@ def java_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
                           _context(src, member.start_byte))
                 sp = _storedproc_links(_text(src, member))  # CallableStatement "{call x}"
                 out.append(mtuple + (({"links": sp},) if sp else ()))
+            elif member.type == "constructor_declaration":
+                # @Autowired su costruttore: i tipi dei parametri sono iniettati,
+                # stesso trattamento dei campi @Inject
+                if "Autowired" not in _annotation_names(member, src):
+                    continue
+                params = member.child_by_field_name("parameters")
+                for par in (params.children if params is not None else []):
+                    if par.type != "formal_parameter":
+                        continue
+                    ptype_node = par.child_by_field_name("type")
+                    pname_node = par.child_by_field_name("name")
+                    ptype = _text(src, ptype_node).split("<")[0].split(".")[-1] if ptype_node else ""
+                    if pname_node is not None and ptype:
+                        out.append(("field", f"{cls}.{_text(src, pname_node)}",
+                                    _context(src, member.start_byte), {"deps": [ptype]}))
+                        cls_meta["deps"].append(ptype)
             elif member.type == "field_declaration":
-                if "Inject" not in _annotation_names(member, src):
+                if not (_INJECT_ANNOTATIONS & _annotation_names(member, src)):
                     continue
                 type_node = member.child_by_field_name("type")
                 ftype = _text(src, type_node).split("<")[0].split(".")[-1] if type_node else ""

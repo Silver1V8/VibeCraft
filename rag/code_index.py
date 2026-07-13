@@ -225,6 +225,10 @@ def _extract(suffix: str, text: str, stem: str, rel: str = "") -> list[tuple]:
             return cfg.appsettings_symbols(text, stem, suffix, rel)
         if fname == "package.json":
             return cfg.packagejson_symbols(text, stem, suffix, rel)
+        if fname.startswith("application") and fname.endswith(".properties"):
+            return cfg.java_properties_symbols(text, stem, suffix, rel)
+        if fname.startswith("application") and fname.endswith((".yml", ".yaml")):
+            return cfg.java_yaml_config_symbols(text, stem, suffix, rel)
         if fname.endswith(".wsdl"):
             return cfg.wsdl_symbols(text, stem, suffix, rel)
         if fname.endswith(".xsd"):

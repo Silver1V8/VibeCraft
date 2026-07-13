@@ -183,3 +183,138 @@ def test_gradle_best_effort(tmp_path):
     syms = _by_name(ci.collect_code_symbols(tmp_path))
     assert syms["notifiche"]["kind"] == "project"
     assert {"dropwizard-core", "junit-jupiter"} <= set(syms["notifiche"]["deps"])
+
+
+# ----------------------- estensioni Spring / rest-client / JPA / properties --
+
+SPRING_CONTROLLER = """package it.haro.eventi;
+
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.GetMapping;
+
+@RestController
+public class EventiRestController {
+
+    private final EventoService servizio;
+
+    @Autowired
+    public EventiRestController(EventoService servizio, AuditService audit) {
+        this.servizio = servizio;
+    }
+
+    @GetMapping("/eventi")
+    public String elenca() { return servizio.tutti(); }
+
+    public String helper() { return ""; }
+}
+"""
+
+REST_CLIENT = """package it.haro.eventi;
+
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+
+@RegisterRestClient(baseUri = "https://notifiche.example.com", configKey = "notifiche-api")
+public interface NotificheClient {
+    String invia(String msg);
+}
+"""
+
+JPA_ENTITIES = """package it.haro.eventi;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "eventi_storici")
+public class EventoStorico {
+    public Long getId() { return 1L; }
+}
+
+@Entity
+public class Partecipante {
+    public Long getId() { return 1L; }
+}
+"""
+
+APP_PROPERTIES = """# datasource Quarkus
+quarkus.datasource.jdbc.url=jdbc:postgresql://db01:5432/eventi
+quarkus.datasource.username=app
+quarkus.datasource.password=SegretoJdbc123
+notifiche.api.url=https://notifiche.example.com/v1
+"""
+
+
+@pytest.fixture
+def spring_project(tmp_path):
+    src = tmp_path / "backend" / "src"
+    src.mkdir(parents=True)
+    (src / "EventiRestController.java").write_text(SPRING_CONTROLLER, encoding="utf-8")
+    (src / "EventoService.java").write_text(SERVICE_JAVA, encoding="utf-8")
+    (src / "NotificheClient.java").write_text(REST_CLIENT, encoding="utf-8")
+    (src / "Entities.java").write_text(JPA_ENTITIES, encoding="utf-8")
+    (tmp_path / "backend" / "application.properties").write_text(APP_PROPERTIES, encoding="utf-8")
+    return tmp_path
+
+
+def test_spring_endpoints_and_constructor_injection(spring_project):
+    syms = _by_name(ci.collect_code_symbols(spring_project))
+    # @GetMapping -> endpoint, come JAX-RS; gli helper restano metodi
+    assert syms["EventiRestController.elenca"]["kind"] == "endpoint"
+    assert syms["EventiRestController.helper"]["kind"] == "method"
+    # stereotipi Spring come metadati della classe
+    assert "RestController" in syms["EventiRestController"]["attrs"]["stereotypes"]
+    # @Autowired su costruttore: field + dep per ogni parametro iniettato
+    assert syms["EventiRestController.servizio"]["kind"] == "field"
+    assert syms["EventiRestController.audit"]["kind"] == "field"
+    assert "EventoService" in syms["EventiRestController"]["deps"]
+    assert "AuditService" in syms["EventiRestController"]["deps"]
+
+
+def test_rest_client_kind_and_meta(spring_project):
+    syms = _by_name(ci.collect_code_symbols(spring_project))
+    rc = syms["NotificheClient"]
+    assert rc["kind"] == "rest-client"
+    assert rc["attrs"]["baseUri"] == "https://notifiche.example.com"
+    assert rc["attrs"]["configKey"] == "notifiche-api"
+
+
+def test_jpa_entity_table_links(spring_project):
+    syms = _by_name(ci.collect_code_symbols(spring_project))
+    # @Table(name=...) esplicito e convenzione (nome classe), lowercase come il parser SQL
+    assert ("REFERENCES", "eventi_storici") in syms["EventoStorico"]["links"]
+    assert ("REFERENCES", "partecipante") in syms["Partecipante"]["links"]
+
+
+def test_jpa_entity_reconciles_with_sql_table(spring_project):
+    (spring_project / "backend" / "schema.sql").write_text(
+        "CREATE TABLE eventi_storici (id INT);", encoding="utf-8")
+    syms = ci.collect_code_symbols(spring_project)
+
+    G = nx.DiGraph()
+
+    class StubModel:
+        def encode(self, texts, **kw):
+            return {"dense_vecs": np.zeros((len(texts), 8), dtype="float32")}
+
+    ci.add_code_graph(G, syms, StubModel(), [], None)
+    refs = {(G.nodes[u]["name"], G.nodes[v]["name"])
+            for u, v, d in G.edges(data=True) if d.get("relation") == "REFERENCES"}
+    assert ("EventoStorico", "eventi_storici") in refs
+
+
+def test_application_properties_datasource_and_masking(spring_project):
+    syms = ci.collect_code_symbols(spring_project)
+    by_name = _by_name(syms)
+    cfg = by_name["backend/application.properties"]
+    assert cfg["kind"] == "config"
+    assert "quarkus.datasource.jdbc.url" in cfg["attrs"]["settings_keys"]
+    # datasource -> nodo connection-string con server/db
+    ds = by_name["datasource"]
+    assert ds["kind"] == "connection-string"
+    assert ds["attrs"] == {"server": "db01", "database": "eventi"}
+    # URL esterno -> nodo endpoint-esterno
+    assert by_name["notifiche.example.com"]["kind"] == "external-endpoint"
+    # la password NON raggiunge l'indice in nessuna forma
+    blob = " ".join(s["text"] + str(s["attrs"]) + str(s["deps"]) + str(s["refs"])
+                    for s in syms)
+    assert "SegretoJdbc123" not in blob
