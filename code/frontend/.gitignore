@@ -1,0 +1,3 @@
+# Mantiene la cartella in git, ma ignora tutto il codice generato al suo interno.
+*
+!.gitignore

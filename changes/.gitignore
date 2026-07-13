@@ -1,0 +1,5 @@
+# Traccia lo scheletro di changes/ (questo file + la cartella archive/),
+# ma ignora tutte le feature generate dalla pipeline al suo interno.
+*
+!.gitignore
+!archive/

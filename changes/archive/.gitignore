@@ -1,0 +1,3 @@
+# Mantiene la cartella archive/ in git, ma ignora tutto ciò che viene archiviato dentro.
+*
+!.gitignore

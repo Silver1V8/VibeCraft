@@ -1,0 +1,7 @@
+# Traccia lo scheletro di code/ (questo file + le sotto-cartelle backend/, frontend/, logicAgent/),
+# ma ignora tutto il codice generato al loro interno.
+*
+!.gitignore
+!backend/
+!frontend/
+!logicAgent/
