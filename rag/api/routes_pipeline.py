@@ -9,7 +9,14 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 
 from agent_bridge import AGENT_MODES, run_agent_streaming
-from api.deps import reload_index_state, require_api_key, run_streaming, state
+from api.deps import (
+    IndexSnapshot,
+    current_snapshot,
+    reload_index_state,
+    require_api_key,
+    run_streaming,
+    state,
+)
 from api.models import (
     AgentRunRequest,
     ArchiveRequest,
@@ -39,34 +46,45 @@ router = APIRouter(dependencies=[Depends(require_api_key)])
 PIPELINE_FILES = ("explore.md", "canvas.md", "spec.md")
 
 
-def _governed_context(question: str) -> str:
-    """Contesto normativo governato per `question`, iniettando le risorse dallo stato.
-    Sincrono (CPU-bound: embedding della query) → i chiamanti lo eseguono in threadpool."""
+def _snap_fields(snap: IndexSnapshot | None):
+    """Estrae (graph, chunks, colbert_store) dallo snapshot, con fallback vuoti se assente.
+    Le connessioni qdrant/embed_model vivono fuori dallo snapshot (state[...])."""
+    if snap is None:
+        return None, {}, None
+    return snap.graph, snap.chunks, snap.colbert_store
+
+
+def _governed_context(question: str, snap: IndexSnapshot | None) -> str:
+    """Contesto normativo governato per `question`, iniettando le risorse dallo snapshot
+    (preso una volta dal chiamante). Sincrono (CPU-bound: embedding della query) → threadpool."""
+    graph, chunks, colbert_store = _snap_fields(snap)
     return retrieval.retrieve_governed_context(
         question,
-        graph=state.get("graph"), chunks_store=state.get("chunks", {}),
+        graph=graph, chunks_store=chunks,
         qdrant=state.get("qdrant"), embed_model=state.get("embed_model"),
-        colbert_store=state.get("colbert_store"),
+        colbert_store=colbert_store,
     )
 
 
-def _canvas_lessons(query: str) -> str:
+def _canvas_lessons(query: str, snap: IndexSnapshot | None) -> str:
     """Lezioni dalle canvas review archiviate più simili all'intent corrente (retrieval
     semantico). '' se non ci sono review indicizzate o l'indice non è pronto: il flusso
     canvas funziona identico. Sincrono (embedding della query) → threadpool."""
+    _, chunks, colbert_store = _snap_fields(snap)
     return canvas_review.retrieve_canvas_lessons(
         query,
         qdrant=state.get("qdrant"), embed_model=state.get("embed_model"),
-        colbert_store=state.get("colbert_store"), chunks_store=state.get("chunks", {}),
+        colbert_store=colbert_store, chunks_store=chunks,
     )
 
 
-def _agent_context(feature: str, dev_type: str) -> dict:
-    """Blocco [AGENT CONTEXT] iniettando le risorse dallo stato. Sincrono → threadpool."""
+def _agent_context(feature: str, dev_type: str, snap: IndexSnapshot | None) -> dict:
+    """Blocco [AGENT CONTEXT] iniettando le risorse dallo snapshot. Sincrono → threadpool."""
+    graph, _, colbert_store = _snap_fields(snap)
     return pipeline.build_agent_context(
         feature, dev_type,
-        graph=state.get("graph"), qdrant=state.get("qdrant"),
-        embed_model=state.get("embed_model"), colbert_store=state.get("colbert_store"),
+        graph=graph, qdrant=state.get("qdrant"),
+        embed_model=state.get("embed_model"), colbert_store=colbert_store,
     )
 
 
@@ -145,13 +163,14 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
     # Àncora il Canvas al knowledge base governato: recupera dal Graph RAG i documenti
     # normativi pertinenti (safeguard, glossario, matrice permessi), pesati per autorità,
     # invece di affidarsi a un contesto statico scritto a mano.
+    snap = current_snapshot()
     query = f"{req.feature_name}\n{contesto_intervista[:2000]}"
-    governed_context = await run_in_threadpool(_governed_context, query)
+    governed_context = await run_in_threadpool(_governed_context, query, snap)
     contesto_progetto_base = governed_context or "Nessun documento normativo pertinente recuperato dal Graph RAG."
 
     # Canvas che apprende (parte 2): le divergenze emerse nelle review delle change
     # archiviate più simili diventano "lezioni" nel prompt ('' se non esistono review).
-    lessons = await run_in_threadpool(_canvas_lessons, query)
+    lessons = await run_in_threadpool(_canvas_lessons, query, snap)
 
     dev_type = req.dev_type or load_dev_type(folder)
     prompt_strutturato = pipeline.build_canvas_prompt(
@@ -180,7 +199,7 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest):
     # Recupera i vincoli normativi dal Graph RAG per generare scenari BDD che coprano
     # anche i safeguard e le policy pertinenti, non solo ciò che è nel Canvas.
     governed_context = await run_in_threadpool(
-        _governed_context, f"{req.feature_folder}\n{canvas_content[:2000]}"
+        _governed_context, f"{req.feature_folder}\n{canvas_content[:2000]}", current_snapshot()
     )
     prompt_strutturato = pipeline.build_spec_prompt(canvas_content, governed_context)
 
@@ -273,7 +292,7 @@ async def _validate_feature(feature: str) -> dict:
 
     # 2. Analisi semantica: coerenza e conflitti rispetto al contesto normativo governato.
     #    Il retrieval è CPU-bound (embedding della query) → threadpool; l'LLM è I/O → async.
-    governed = await run_in_threadpool(_governed_context, f"{feature}\n{canvas_text[:2000]}")
+    governed = await run_in_threadpool(_governed_context, f"{feature}\n{canvas_text[:2000]}", current_snapshot())
     prompt = pipeline.build_validate_prompt(canvas_text, spec_text, governed)
     report = await call_ollama_generate(prompt)
     return {"structural": structural, "report": report}
@@ -306,18 +325,20 @@ async def pipeline_canvas_dry_run(req: CanvasGenerateRequest):
     interview = explore_path.read_text(encoding="utf-8") if explore_path.exists() else ""
     query = f"{req.feature_name}\n{interview[:2000]}"
 
+    snap = current_snapshot()
+
     def work() -> dict:
-        if state.get("graph") is None or state.get("qdrant") is None or state.get("embed_model") is None:
+        if snap is None or snap.graph is None or state.get("qdrant") is None or state.get("embed_model") is None:
             return {"sources": [], "governed_docs": [], "note": "Indice non ancora pronto."}
         try:
             results = retrieval.hybrid_search(
                 query, 6,
-                qdrant=state["qdrant"], embed_model=state["embed_model"], colbert_store=state["colbert_store"],
+                qdrant=state["qdrant"], embed_model=state["embed_model"], colbert_store=snap.colbert_store,
             )
         except Exception as exc:
             return {"sources": [], "governed_docs": [], "note": f"Retrieval fallito: {exc}"}
-        doc_ids = retrieval.select_governed_docs(query, graph=state.get("graph"), results=results)
-        graph = state["graph"]
+        doc_ids = retrieval.select_governed_docs(query, graph=snap.graph, results=results)
+        graph = snap.graph
         governed = []
         for d in doc_ids:
             p = PROJECT_ROOT / "docs" / d
@@ -345,7 +366,7 @@ async def pipeline_agent_context(feature: str, dev_type: str = ""):
     modo deterministico dal retrieval governato e dallo stato di canvas/spec."""
     if not feature.strip():
         raise HTTPException(status_code=400, detail="Nome feature mancante.")
-    ctx = await run_in_threadpool(_agent_context, feature, dev_type)
+    ctx = await run_in_threadpool(_agent_context, feature, dev_type, current_snapshot())
     return {"feature_folder": slugify_feature(feature), **ctx}
 
 
@@ -361,7 +382,7 @@ async def pipeline_export(feature: str, dev_type: str = ""):
         return p.read_text(encoding="utf-8") if p.exists() else ""
 
     dev = dev_type or load_dev_type(folder)
-    ctx = await run_in_threadpool(_agent_context, feature, dev)
+    ctx = await run_in_threadpool(_agent_context, feature, dev, current_snapshot())
     return {
         "feature": feature,
         "feature_folder": folder_name,

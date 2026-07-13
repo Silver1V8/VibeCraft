@@ -46,11 +46,14 @@ app.include_router(routes_graph.router)
 #    richiedono X-API-Key (env VIBECRAFT_API_KEY) per chi non chiama da localhost —
 #    vedi api/deps.py::require_api_key. Chi vuole esporre il server sulla rete deve
 #    impostare sia VIBECRAFT_HOST che VIBECRAFT_API_KEY.
-# 3. STATO GLOBALE NON PROTETTO: `state` (api/deps.py) è un dict globale che
-#    maybe_reload_graph sostituisce mentre i thread del pool lo leggono. Oggi regge per
-#    il GIL e perché le sostituzioni sono atomiche (rebinding di riferimenti), ma è
-#    fragile per costruzione. TODO: un threading.RLock attorno a load/reload e alle
-#    letture di graph/qdrant/colbert/chunks, oppure uno snapshot immutabile atomico.
+# 3. STATO GLOBALE NON PROTETTO: risolto. Gli artefatti dell'indice che cambiano
+#    insieme (graph/colbert/chunks/rule_descriptions) vivono in un IndexSnapshot FROZEN
+#    (api/deps.py). Il reload costruisce un nuovo snapshot completo e lo rebinda con un
+#    solo assegnamento atomico (`state["snapshot"] = ...`), mai mutazione in place; ogni
+#    handler prende lo snapshot UNA volta a inizio richiesta (current_snapshot()) e usa
+#    solo quello, quindi non può mai osservare una versione mista (graph nuovo + chunk
+#    vecchi). Le connessioni qdrant/embed_model restano fuori dallo snapshot (non
+#    cambiano al reload).
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
     host = os.environ.get("VIBECRAFT_HOST", "127.0.0.1")

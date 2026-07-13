@@ -1,8 +1,8 @@
 {
-  "version": "2026-07-12T14:41:42.373486+00:00",
+  "version": "2026-07-13T09:41:34.136704+00:00",
   "embedding_model": "BAAI/bge-m3",
   "collection": "vibecraft_events",
-  "created_at": "2026-07-12T14:41:42.373486+00:00",
+  "created_at": "2026-07-13T09:41:34.136704+00:00",
   "documents": 41,
   "graph_nodes": 164,
   "graph_edges": 296,

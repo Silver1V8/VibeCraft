@@ -99,25 +99,68 @@ def _patch_paths(monkeypatch, deps, graph_path, colbert_path, chunks_path):
     monkeypatch.setattr(deps, "load_rule_descriptions", lambda: {"R": "desc"})
 
 
-def test_reload_all_valid_replaces_state(tmp_path, monkeypatch):
+def _seed_old_snapshot(deps, rule_descriptions=None):
+    """Installa uno snapshot 'vecchio' completo come stato precedente e lo ritorna."""
+    old_graph = nx.DiGraph()
+    old_graph.add_node("vecchio.md", type="document")
+    old = deps.IndexSnapshot(
+        graph=old_graph,
+        colbert_store={"old": 1},
+        chunks={"old": 1},
+        rule_descriptions=rule_descriptions if rule_descriptions is not None else {"OLD": "x"},
+        version=1.0,
+    )
+    deps.state["snapshot"] = old
+    return old
+
+
+def test_reload_all_valid_replaces_snapshot(tmp_path, monkeypatch):
+    """(a) Il reload sostituisce lo snapshot in UN colpo solo: un nuovo IndexSnapshot
+    con tutti gli artefatti della nuova build, mai una mutazione parziale in place."""
     from api import deps
 
     graph_path, colbert_path, chunks_path = _write_valid_artifacts(tmp_path)
     _patch_paths(monkeypatch, deps, graph_path, colbert_path, chunks_path)
 
-    # stato precedente "vecchio"
-    old_graph = nx.DiGraph()
-    old_graph.add_node("vecchio.md", type="document")
-    deps.state.update({"graph": old_graph, "colbert_store": {"old": 1}, "chunks": {"old": 1}})
+    old = _seed_old_snapshot(deps)
 
     deps.reload_index_state()
 
-    assert "nuovo.md" in deps.state["graph"]
-    assert deps.state["colbert_store"] == {"nuovo.md#00": [1, 2]}
-    assert deps.state["chunks"] == {"nuovo.md#00": {"text": "x"}}
+    snap = deps.current_snapshot()
+    # È un OGGETTO nuovo (rebind atomico), non lo stesso mutato
+    assert snap is not old
+    assert "nuovo.md" in snap.graph
+    assert snap.colbert_store == {"nuovo.md#00": [1, 2]}
+    assert snap.chunks == {"nuovo.md#00": {"text": "x"}}
+    assert snap.rule_descriptions == {"R": "desc"}
+
+
+def test_reference_taken_before_reload_stays_coherent(tmp_path, monkeypatch):
+    """(b) Un riferimento allo snapshot preso PRIMA del reload resta internamente coerente
+    (la vecchia versione completa), immune al rebind successivo — è il cuore di HARDENING #3."""
+    from api import deps
+
+    graph_path, colbert_path, chunks_path = _write_valid_artifacts(tmp_path)
+    _patch_paths(monkeypatch, deps, graph_path, colbert_path, chunks_path)
+
+    _seed_old_snapshot(deps)
+    # L'handler prende lo snapshot una volta a inizio richiesta
+    snap_in_flight = deps.current_snapshot()
+
+    # ...mentre un reload rimpiazza atomicamente lo snapshot globale
+    deps.reload_index_state()
+
+    # Il riferimento in mano all'handler è ancora la versione VECCHIA e coerente
+    assert "vecchio.md" in snap_in_flight.graph
+    assert "nuovo.md" not in snap_in_flight.graph
+    assert snap_in_flight.colbert_store == {"old": 1}
+    assert snap_in_flight.chunks == {"old": 1}
+    # ...e lo stato globale intanto punta alla nuova versione
+    assert "nuovo.md" in deps.current_snapshot().graph
 
 
 def test_reload_with_corrupt_artifact_keeps_previous(tmp_path, monkeypatch):
+    """(c) Reload fallito (artefatto corrotto) → lo snapshot precedente resta invariato."""
     from api import deps
 
     graph_path, colbert_path, chunks_path = _write_valid_artifacts(tmp_path)
@@ -126,23 +169,18 @@ def test_reload_with_corrupt_artifact_keeps_previous(tmp_path, monkeypatch):
     # Corrompe uno dei tre artefatti (colbert.pkl) con byte non deserializzabili
     colbert_path.write_bytes(b"\x00\x01 non e' un pickle valido")
 
-    old_graph = nx.DiGraph()
-    old_graph.add_node("vecchio.md", type="document")
-    deps.state.update({
-        "graph": old_graph,
-        "colbert_store": {"old": 1},
-        "chunks": {"old": 1},
-        "rule_descriptions": {"OLD": "x"},
-    })
+    old = _seed_old_snapshot(deps)
 
     deps.reload_index_state()
 
-    # Stato precedente MANTENUTO: nessun reload parziale/degradato
-    assert "vecchio.md" in deps.state["graph"]
-    assert "nuovo.md" not in deps.state["graph"]
-    assert deps.state["colbert_store"] == {"old": 1}
-    assert deps.state["chunks"] == {"old": 1}
-    assert deps.state["rule_descriptions"] == {"OLD": "x"}
+    # Stato precedente MANTENUTO: stesso oggetto snapshot, nessun reload parziale/degradato
+    snap = deps.current_snapshot()
+    assert snap is old
+    assert "vecchio.md" in snap.graph
+    assert "nuovo.md" not in snap.graph
+    assert snap.colbert_store == {"old": 1}
+    assert snap.chunks == {"old": 1}
+    assert snap.rule_descriptions == {"OLD": "x"}
 
 
 def test_reload_with_missing_artifact_keeps_previous(tmp_path, monkeypatch):
@@ -153,11 +191,11 @@ def test_reload_with_missing_artifact_keeps_previous(tmp_path, monkeypatch):
 
     chunks_path.unlink()   # uno dei tre manca del tutto
 
-    old_graph = nx.DiGraph()
-    old_graph.add_node("vecchio.md", type="document")
-    deps.state.update({"graph": old_graph, "colbert_store": {"old": 1}, "chunks": {"old": 1}})
+    old = _seed_old_snapshot(deps)
 
     deps.reload_index_state()
 
-    assert "vecchio.md" in deps.state["graph"]
-    assert deps.state["chunks"] == {"old": 1}
+    snap = deps.current_snapshot()
+    assert snap is old
+    assert "vecchio.md" in snap.graph
+    assert snap.chunks == {"old": 1}

@@ -9,7 +9,7 @@ from fastapi.concurrency import run_in_threadpool
 from qdrant_client import QdrantClient
 from FlagEmbedding import BGEM3FlagModel
 
-from api.deps import maybe_reload_graph, require_api_key, state
+from api.deps import current_snapshot, maybe_reload_graph, require_api_key, state
 from api.models import AskQuery
 from core import graph_ops, retrieval
 from core.config import PROJECT_ROOT
@@ -20,17 +20,18 @@ router = APIRouter(dependencies=[Depends(require_api_key)])
 @router.post("/ask")
 async def ask_rag(query: AskQuery):
     maybe_reload_graph()
-    graph: nx.DiGraph = state["graph"]
+    snap = current_snapshot()
     qdrant: QdrantClient = state["qdrant"]
     embed_model: BGEM3FlagModel = state["embed_model"]
 
-    if graph is None or qdrant is None or embed_model is None:
+    if snap is None or snap.graph is None or qdrant is None or embed_model is None:
         raise HTTPException(status_code=503, detail="Server non ancora inizializzato.")
+    graph: nx.DiGraph = snap.graph
 
     # 1-2. Ricerca ibrida: dense + sparse (fusione per rank) + rerank ColBERT
     search_results = retrieval.hybrid_search(
         query.question, query.top_k,
-        qdrant=qdrant, embed_model=embed_model, colbert_store=state["colbert_store"],
+        qdrant=qdrant, embed_model=embed_model, colbert_store=snap.colbert_store,
     )
 
     if not search_results:
@@ -69,7 +70,7 @@ async def ask_rag(query: AskQuery):
     ]
 
     # Arricchisce i nodi espansi con tipo e descrizione (per il frontend)
-    rule_descriptions: dict = state["rule_descriptions"]
+    rule_descriptions: dict = snap.rule_descriptions
     expanded_nodes_data = [
         {
             "id": node_id,
@@ -89,7 +90,7 @@ async def ask_rag(query: AskQuery):
     # Inietta il testo delle SEZIONI recuperate (i chunk), non i documenti interi:
     # più preciso e senza saturare il contesto. La struttura multi-hop del grafo
     # (seed + nodi espansi) resta comunque esposta in graph_context.
-    chunks_store: dict = state.get("chunks", {})
+    chunks_store: dict = snap.chunks
     context_parts: list[str] = []
     seen_chunks: set[str] = set()
     for r in search_results:
@@ -149,10 +150,11 @@ async def api_retrieve(
     (golden-set / eval.run) e per il debug, senza il costo di Ollama.
 
     Input validato da FastAPI: `q` non vuota, `k` in [1, 50] (422 altrimenti)."""
-    if state.get("qdrant") is None or state.get("embed_model") is None:
+    snap = current_snapshot()
+    if state.get("qdrant") is None or state.get("embed_model") is None or snap is None:
         raise HTTPException(status_code=503, detail="Indice non ancora pronto.")
     results = await run_in_threadpool(
         retrieval.hybrid_search, q, k,
-        qdrant=state["qdrant"], embed_model=state["embed_model"], colbert_store=state["colbert_store"],
+        qdrant=state["qdrant"], embed_model=state["embed_model"], colbert_store=snap.colbert_store,
     )
     return {"query": q, "k": k, "results": results}
