@@ -7,6 +7,7 @@ import networkx as nx
 import pytest
 from qdrant_client import QdrantClient
 
+from core import artifacts as _artifacts
 from core import indexing as index
 
 
@@ -277,12 +278,20 @@ def _wire_tmp_index(monkeypatch, tmp_path):
     docs_dir.mkdir(); code_dir.mkdir(); db.mkdir()
     monkeypatch.setattr(index, "DOCS_DIR", docs_dir)
     monkeypatch.setattr(index, "CODE_DIR", code_dir)
-    monkeypatch.setattr(index, "GRAPH_SAVE_PATH", db / "graph.pkl")
-    monkeypatch.setattr(index, "COLBERT_SAVE_PATH", db / "colbert.pkl")
-    monkeypatch.setattr(index, "CHUNKS_SAVE_PATH", db / "chunks.pkl")
-    monkeypatch.setattr(index, "DENSE_SAVE_PATH", db / "dense.pkl")
-    monkeypatch.setattr(index, "CODE_SAVE_PATH", db / "code.pkl")
     monkeypatch.setattr(index, "INDEX_MANIFEST_PATH", db / "manifest.json")
+    # L'I/O degli artefatti vive in core.artifacts: reindirizziamo LÌ i percorsi dei
+    # nuovi formati (JSON/.npz) e dei legacy pickle (per il fallback) sulla sandbox.
+    monkeypatch.setattr(_artifacts, "GRAPH_JSON_PATH", db / "graph.json")
+    monkeypatch.setattr(_artifacts, "COLBERT_NPZ_PATH", db / "colbert.npz")
+    monkeypatch.setattr(_artifacts, "CHUNKS_JSON_PATH", db / "chunks.json")
+    monkeypatch.setattr(_artifacts, "DENSE_NPZ_PATH", db / "dense.npz")
+    monkeypatch.setattr(_artifacts, "CODE_NPZ_PATH", db / "code.npz")
+    monkeypatch.setattr(_artifacts, "CODE_JSON_PATH", db / "code.json")
+    monkeypatch.setattr(_artifacts, "GRAPH_SAVE_PATH", db / "graph.pkl")
+    monkeypatch.setattr(_artifacts, "COLBERT_SAVE_PATH", db / "colbert.pkl")
+    monkeypatch.setattr(_artifacts, "CHUNKS_SAVE_PATH", db / "chunks.pkl")
+    monkeypatch.setattr(_artifacts, "DENSE_SAVE_PATH", db / "dense.pkl")
+    monkeypatch.setattr(_artifacts, "CODE_SAVE_PATH", db / "code.pkl")
     return docs_dir, code_dir
 
 
@@ -294,7 +303,7 @@ _CODE_ALPHA = "def handle_alpha():\n    # gestisce ALPHA\n    return 'ALPHA'\n"
 
 
 def _load_graph():
-    return index._load_pickle(index.GRAPH_SAVE_PATH, None)
+    return _artifacts.load_artifacts().graph
 
 
 def _implements(G):
@@ -398,7 +407,7 @@ def test_check_graph_detects_injected_divergence(monkeypatch, tmp_path):
 
     G = _load_graph()
     G.add_edge("code/ghost.py::x", "spec.md", relation="IMPLEMENTS")  # arco/nodo fantasma
-    index._atomic_write_pickle(index.GRAPH_SAVE_PATH, G)
+    _artifacts._atomic_write_json(_artifacts.GRAPH_JSON_PATH, _artifacts._graph_to_json(G))
 
     report = index.check_graph_consistency(embed_model=stub, docs_dir=docs_dir, code_dir=code_dir)
     assert report["consistent"] is False

@@ -12,6 +12,20 @@ RAG_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = RAG_DIR.parent
 CONFIG_PATH = RAG_DIR / "rag_config.yaml"
 DATABASE_DIR = RAG_DIR / "database"
+
+# Formati artefatto CORRENTI (sicuri e ispezionabili): il grafo in node-link JSON,
+# i vettori in .npz compressi (fp16), i metadati testuali in JSON sidecar. Sono
+# l'UNICO formato scritto da core.artifacts.save_artifacts.
+GRAPH_JSON_PATH = DATABASE_DIR / "graph.json"
+COLBERT_NPZ_PATH = DATABASE_DIR / "colbert.npz"
+CHUNKS_JSON_PATH = DATABASE_DIR / "chunks.json"
+DENSE_NPZ_PATH = DATABASE_DIR / "dense.npz"
+CODE_NPZ_PATH = DATABASE_DIR / "code.npz"
+CODE_JSON_PATH = DATABASE_DIR / "code.json"
+
+# Formati LEGACY (pickle): mantenuti solo in LETTURA per la retrocompatibilità.
+# core.artifacts.load_artifacts ci ricade con un warning "re-indicizza" se i nuovi
+# file non esistono ancora. Non vengono più SCRITTI.
 GRAPH_SAVE_PATH = DATABASE_DIR / "graph.pkl"
 COLBERT_SAVE_PATH = DATABASE_DIR / "colbert.pkl"
 CHUNKS_SAVE_PATH = DATABASE_DIR / "chunks.pkl"

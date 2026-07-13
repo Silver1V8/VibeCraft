@@ -64,9 +64,10 @@ def test_incremental_index_restricts_to_changed_paths(monkeypatch):
     monkeypatch.setattr(indexing, "_code_hashes", lambda: {})
     monkeypatch.setattr(indexing, "_read_manifest", lambda: {"doc_hashes": {}, "code_hashes": {}})
     monkeypatch.setattr(indexing, "_ensure_collection", lambda *a, **k: None)
-    # Restituisce il default passato: così `graph` resta un nx.DiGraph (number_of_nodes()).
-    monkeypatch.setattr(indexing, "_load_pickle", lambda path, default: default)
-    monkeypatch.setattr(indexing, "_atomic_write_pickle", lambda *a, **k: None)
+    # load_artifacts restituisce artefatti vuoti: così `graph` resta un nx.DiGraph nuovo.
+    from core.artifacts import Artifacts
+    monkeypatch.setattr(indexing, "load_artifacts", lambda *a, **k: Artifacts())
+    monkeypatch.setattr(indexing, "save_artifacts", lambda *a, **k: None)
     monkeypatch.setattr(indexing, "write_index_manifest", lambda *a, **k: None)
 
     captured = {}

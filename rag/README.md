@@ -31,8 +31,37 @@ POSIX `.sh`) esegue `index.py --check-graph` (grafo incrementale vs full
 rebuild) e, **solo se trova drift**, lancia un full rebuild che riallinea tutto.
 Schedulalo di notte con Windows Task Scheduler (`pwsh -File
 scripts/nightly_consistency.ps1`) o cron. Dopo il rebuild il server rileva
-`graph.pkl` cambiato su disco e ricarica gli artefatti alla prima richiesta
+`graph.json` cambiato su disco e ricarica gli artefatti alla prima richiesta
 (`maybe_reload_graph`).
+
+## Artefatti dell'indice: formati sicuri e ispezionabili
+
+L'indice persiste in `rag/database/` tramite [core/artifacts.py](core/artifacts.py),
+**unico punto di I/O**: né `core/indexing.py` né `api/deps.py` toccano i file
+direttamente. I formati sono sicuri (nessun `pickle`, che è fragile tra versioni
+e un vettore d'attacco se qualcuno scrive in `database/`) e ispezionabili:
+
+| Artefatto | File | Formato |
+|-----------|------|---------|
+| Grafo NetworkX | `graph.json` | node-link JSON (`nx.node_link_data`), attributi normalizzati JSON-safe |
+| Multivettori ColBERT | `colbert.npz` | `np.savez_compressed`, fp16, chiave = `chunk_id` |
+| Vettori densi dei chunk | `dense.npz` | idem, chiave = `chunk_id` |
+| Vettori densi dei simboli | `code.npz` | idem, chiave = `symbol_id` |
+| Sidecar testuale dei chunk | `chunks.json` | `chunk_id → {doc_id, section, text}` |
+| Sidecar testuale del codice | `code.json` | `symbol_id → {name, kind, file, dev_type, text, deps, refs, links}` |
+
+Gli attributi dei nodi-documento vengono dal frontmatter YAML e possono contenere
+tipi non-JSON (date, `Path`): `_json_safe` li normalizza (una data → la sua ISO
+string) così `graph.json` è sempre serializzabile. I vettori restano **fp16
+bit-identici** al round-trip. Ogni scrittura è **atomica** (`_atomic_write`): un
+crash a metà non lascia file troncati.
+
+`save_artifacts()` scrive **solo** questi formati. In lettura `load_artifacts()`
+ricade sui vecchi pickle (`*.pkl`) se i nuovi file non esistono ancora, loggando
+un warning che invita a re-indicizzare (`python index.py`) per migrare — il
+prossimo full/incremental rebuild emette i nuovi formati. Il manifest
+(`index_manifest.json`) elenca gli hash SHA-256 di ogni file artefatto
+(`artifact_hashes`), così il check di coerenza può validarne anche l'integrità.
 
 ## Code index: aggiungere un nuovo linguaggio
 

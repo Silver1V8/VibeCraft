@@ -4,10 +4,7 @@ del Drift e archiviazione. Il caricamento/chunking dei documenti vive in core/ch
 configurazione in core/config.py. Le risorse pesanti (Qdrant, embedding) sono iniettabili."""
 import hashlib
 import json
-import os
-import pickle
 import shutil
-import tempfile
 import urllib.request
 import uuid
 from dataclasses import dataclass, field
@@ -36,6 +33,13 @@ from code_index import (
     embed_symbols,
     link_symbols,
 )
+from core.artifacts import (
+    _atomic_write,
+    _atomic_write_text,
+    artifact_hashes,
+    load_artifacts,
+    save_artifacts,
+)
 from core.canvas_review import (
     HISTORICAL_SUBDIR,
     REVIEW_FILENAME,
@@ -49,17 +53,12 @@ from core.chunking import (
 )
 from core.config import (
     CHANGES_DIR,
-    CHUNKS_SAVE_PATH,
     CODE_DIR,
-    CODE_SAVE_PATH,
-    COLBERT_SAVE_PATH,
     COLLECTION_NAME,
     DENSE_DIM,
-    DENSE_SAVE_PATH,
     DOC_EXTS,
     DOCS_DIR,
     EMBEDDING_MODEL,
-    GRAPH_SAVE_PATH,
     INDEX_MANIFEST_PATH,
     PROJECT_ROOT,
     QDRANT_API_KEY,
@@ -78,40 +77,6 @@ _POINT_ID_NAMESPACE = uuid.UUID("6f9619ff-8b86-d011-b42d-00c04fc964ff")
 def _point_id(chunk_id: str) -> str:
     """ID Qdrant deterministico e stabile per un chunk (uuid5 del chunk_id)."""
     return str(uuid.uuid5(_POINT_ID_NAMESPACE, chunk_id))
-
-
-def _atomic_write(path: Path, writer) -> None:
-    """Scrittura ATOMICA di un artefatto: `writer(file_object)` scrive su un file
-    temporaneo NELLA STESSA directory di `path`, poi `os.replace` lo rinomina in modo
-    atomico sul filesystem. Se il processo muore a metà scrittura, `path` resta la
-    versione precedente (integra) o non esiste ancora: mai un file troncato/corrotto.
-    Il temporaneo va nella stessa dir per garantire che replace sia una rename atomica
-    sullo stesso mount (os.replace tra filesystem diversi non è atomico)."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_name = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "wb") as f:
-            writer(f)
-            f.flush()
-            os.fsync(f.fileno())  # forza i dati su disco prima del rename
-        os.replace(tmp_name, path)
-    except BaseException:
-        # Non lasciare temporanei orfani se qualcosa va storto prima del replace
-        try:
-            os.unlink(tmp_name)
-        except OSError:
-            pass
-        raise
-
-
-def _atomic_write_pickle(path: Path, obj) -> None:
-    """Serializza `obj` con pickle in modo atomico (vedi _atomic_write)."""
-    _atomic_write(path, lambda f: pickle.dump(obj, f))
-
-
-def _atomic_write_text(path: Path, text: str) -> None:
-    """Scrive testo UTF-8 in modo atomico (vedi _atomic_write)."""
-    _atomic_write(path, lambda f: f.write(text.encode("utf-8")))
 
 
 def _add_doc_to_graph(G: nx.DiGraph, rel_path: str, metadata: dict, body: str) -> tuple[int, int]:
@@ -341,17 +306,12 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     if state.points:
         qdrant.upsert(collection_name=COLLECTION_NAME, points=state.points)
 
-    # Salva il grafo, i multivettori ColBERT e i sidecar su disco
-    # (scrittura atomica: un crash a metà non lascia artefatti troncati).
-    _atomic_write_pickle(GRAPH_SAVE_PATH, G)
-    _atomic_write_pickle(COLBERT_SAVE_PATH, state.colbert_store)
-    _atomic_write_pickle(CHUNKS_SAVE_PATH, state.chunks_store)
-    _atomic_write_pickle(DENSE_SAVE_PATH, state.dense_store)
-    _atomic_write_pickle(CODE_SAVE_PATH, state.code_store)
+    # Salva grafo + vettori + sidecar nei formati correnti (JSON/.npz), tramite l'unico
+    # punto di I/O (core.artifacts). Scrittura atomica: un crash a metà non lascia
+    # artefatti troncati.
+    save_artifacts(G, state.colbert_store, state.chunks_store, state.dense_store, state.code_store)
 
-    _log(f"\n✅ Grafo salvato in: {GRAPH_SAVE_PATH}")
-    _log(f"✅ Multivettori ColBERT salvati in: {COLBERT_SAVE_PATH}")
-    _log(f"✅ Sidecar chunk salvato in: {CHUNKS_SAVE_PATH}")
+    _log("\n✅ Artefatti indice salvati (grafo JSON, vettori ColBERT/densi .npz, sidecar chunk/codice).")
     _log(f"📊 Grafo: {G.number_of_nodes()} nodi, {G.number_of_edges()} archi.")
     _log(f"📦 Qdrant: {len(state.points)} chunk (da {state.n_docs} documenti) nella collection '{COLLECTION_NAME}'.")
 
@@ -401,6 +361,9 @@ def write_index_manifest(points_count: int, nodes: int = 0, edges: int = 0) -> N
         "graph_edges": edges,
         "doc_hashes": _docs_hashes(),
         "code_hashes": _code_hashes(),
+        # Hash dei file artefatto correnti (grafo JSON, vettori .npz, sidecar): permette
+        # al check di coerenza di validare anche l'integrità degli artefatti persistiti.
+        "artifact_hashes": artifact_hashes(),
     }
     _atomic_write_text(INDEX_MANIFEST_PATH, json.dumps(manifest, ensure_ascii=False, indent=2))
 
@@ -732,17 +695,6 @@ def apply_incremental_indexing(
     }
 
 
-def _load_pickle(path: Path, default):
-    """Carica un pickle se presente e integro, altrimenti restituisce `default`."""
-    if not path.exists():
-        return default
-    try:
-        with open(path, "rb") as f:
-            return pickle.load(f)
-    except Exception:
-        return default
-
-
 def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit=None,
                       changed_paths: list[str] | None = None) -> dict:
     """Orchestratore dell'indicizzazione incrementale: manifest → piano → esecuzione → persistenza.
@@ -801,11 +753,14 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     # L'incrementale NON ricrea la collection: la crea solo se assente, preservando i punti.
     _ensure_collection(qdrant, recreate=False)
 
-    graph: nx.DiGraph = _load_pickle(GRAPH_SAVE_PATH, nx.DiGraph())
-    colbert_store: dict = _load_pickle(COLBERT_SAVE_PATH, {})
-    chunks_store: dict = _load_pickle(CHUNKS_SAVE_PATH, {})
-    dense_store: dict = _load_pickle(DENSE_SAVE_PATH, {})
-    code_store: dict = _load_pickle(CODE_SAVE_PATH, {})
+    # Carica lo stato precedente dagli artefatti (nuovi formati, con fallback pickle
+    # legacy + warning). Gli artefatti assenti diventano il loro default vuoto.
+    arts = load_artifacts(emit=_log)
+    graph: nx.DiGraph = arts.graph if arts.graph is not None else nx.DiGraph()
+    colbert_store: dict = arts.colbert_store
+    chunks_store: dict = arts.chunks_store
+    dense_store: dict = arts.dense_store
+    code_store: dict = arts.code_store
 
     stats = apply_incremental_indexing(
         plan, DOCS_DIR, qdrant, embed_model, graph, colbert_store, chunks_store, emit=_log,
@@ -813,12 +768,8 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
         code_delta=(code_added, code_removed, code_modified), code_dir=CODE_DIR,
     )
 
-    # Persistenza: pickle atomici + manifest coerente (documents = chunk totali correnti)
-    _atomic_write_pickle(GRAPH_SAVE_PATH, graph)
-    _atomic_write_pickle(COLBERT_SAVE_PATH, colbert_store)
-    _atomic_write_pickle(CHUNKS_SAVE_PATH, chunks_store)
-    _atomic_write_pickle(DENSE_SAVE_PATH, dense_store)
-    _atomic_write_pickle(CODE_SAVE_PATH, code_store)
+    # Persistenza: artefatti atomici (JSON/.npz) + manifest coerente (documents = chunk totali)
+    save_artifacts(graph, colbert_store, chunks_store, dense_store, code_store)
     write_index_manifest(len(chunks_store), graph.number_of_nodes(), graph.number_of_edges())
 
     _log(f"🧾 Manifest aggiornato: {len(chunks_store)} chunk, {graph.number_of_nodes()} nodi, {graph.number_of_edges()} archi.")
@@ -855,11 +806,14 @@ def check_graph_consistency(embed_model=None, docs_dir: Path | None = None,
     _log = emit or print
     docs_dir = docs_dir or DOCS_DIR
     code_dir = code_dir or CODE_DIR
-    graph_path = graph_path or GRAPH_SAVE_PATH
 
-    incremental: nx.DiGraph | None = _load_pickle(graph_path, None)
-    if incremental is None:
-        return {"consistent": False, "reason": f"grafo incrementale assente o illeggibile: {graph_path}"}
+    # Carica il grafo incrementale persistito (nuovo formato JSON, con fallback pickle).
+    # `graph_path` è mantenuto per retrocompatibilità di firma ma non è più usato: il
+    # grafo vive ora come artefatto gestito da core.artifacts.
+    try:
+        incremental: nx.DiGraph | None = load_artifacts(required=("graph",), emit=lambda *_a, **_k: None).graph
+    except Exception as exc:
+        return {"consistent": False, "reason": f"grafo incrementale assente o illeggibile: {exc}"}
 
     if embed_model is None:
         _log(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")

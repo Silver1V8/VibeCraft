@@ -7,6 +7,14 @@ __pycache__/
 
 # Dati Locali del RAG (Generati dagli script)
 rag/database/qdrant_data/
+# Artefatti indice, formati correnti (JSON + vettori .npz + sidecar)
+rag/database/graph.json
+rag/database/colbert.npz
+rag/database/chunks.json
+rag/database/dense.npz
+rag/database/code.npz
+rag/database/code.json
+# Artefatti indice, formati legacy (pickle) — letti solo per retrocompatibilità
 rag/database/graph.pkl
 rag/database/colbert.pkl
 rag/database/chunks.pkl

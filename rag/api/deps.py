@@ -4,7 +4,6 @@ risorse, auto-reload dell'indice e helper di streaming/template. I router in api
 questo stato e lo iniettano nelle funzioni pure di core/."""
 import json
 import os
-import pickle
 import queue
 import re
 import threading
@@ -12,16 +11,15 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-import networkx as nx
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from qdrant_client import QdrantClient
 from FlagEmbedding import BGEM3FlagModel
 
+from core.artifacts import load_artifacts
 from core.config import (
-    CHUNKS_SAVE_PATH,
-    COLBERT_SAVE_PATH,
     EMBEDDING_MODEL,
+    GRAPH_JSON_PATH,
     GRAPH_SAVE_PATH,
     PROJECT_ROOT,
     QDRANT_API_KEY,
@@ -64,7 +62,7 @@ class IndexSnapshot:
     colbert_store: dict
     chunks: dict
     rule_descriptions: dict
-    version: float | None  # mtime di graph.pkl al momento della build dello snapshot
+    version: float | None  # mtime del file-grafo (graph.json) al momento della build dello snapshot
 
 
 # ---------------------------------------------------------------------------
@@ -89,12 +87,20 @@ def current_snapshot() -> IndexSnapshot | None:
     return state.get("snapshot")
 
 
+def _graph_version() -> float | None:
+    """mtime del file-grafo corrente (graph.json), con fallback al legacy graph.pkl.
+    È la baseline che innesca l'auto-reload quando una re-indicizzazione riscrive il grafo."""
+    for path in (GRAPH_JSON_PATH, GRAPH_SAVE_PATH):
+        try:
+            return path.stat().st_mtime
+        except OSError:
+            continue
+    return None
+
+
 def _build_snapshot(graph, colbert_store, chunks, rule_descriptions) -> IndexSnapshot:
-    """Assembla un IndexSnapshot catturando la version (mtime di graph.pkl)."""
-    try:
-        version = GRAPH_SAVE_PATH.stat().st_mtime
-    except OSError:
-        version = None
+    """Assembla un IndexSnapshot catturando la version (mtime del file-grafo)."""
+    version = _graph_version()
     return IndexSnapshot(
         graph=graph,
         colbert_store=colbert_store,
@@ -136,41 +142,25 @@ async def lifespan(application: FastAPI):
     print(f"Connessione a Qdrant (server mode): {QDRANT_URL} ...")
     state["qdrant"] = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
-    print(f"Caricamento grafo NetworkX da {GRAPH_SAVE_PATH} ...")
-    if not GRAPH_SAVE_PATH.exists():
+    print("Caricamento artefatti indice (grafo JSON, ColBERT/chunk) ...")
+    try:
+        arts = load_artifacts(required=("graph",))
+    except FileNotFoundError:
         raise RuntimeError(
-            "graph.pkl non trovato. Esegui prima 'python index.py' per indicizzare."
+            "Grafo non trovato (né graph.json né graph.pkl). Esegui prima 'python index.py' per indicizzare."
         )
-    with open(GRAPH_SAVE_PATH, "rb") as f:
-        graph = pickle.load(f)
-
-    g: nx.DiGraph = graph
-    print(f"Grafo caricato: {g.number_of_nodes()} nodi, {g.number_of_edges()} archi.")
-
-    # Multivettori ColBERT per il rerank token-per-token (sidecar dell'indice)
-    colbert_store: dict = {}
-    if COLBERT_SAVE_PATH.exists():
-        with open(COLBERT_SAVE_PATH, "rb") as f:
-            colbert_store = pickle.load(f)
-        print(f"Multivettori ColBERT caricati: {len(colbert_store)} chunk.")
-    else:
-        print("Attenzione: colbert.pkl non trovato — rerank ColBERT disattivato. Riesegui 'python index.py'.")
-
-    # Sidecar dei chunk (chunk_id -> testo della sezione) per il governed context
-    chunks: dict = {}
-    if CHUNKS_SAVE_PATH.exists():
-        with open(CHUNKS_SAVE_PATH, "rb") as f:
-            chunks = pickle.load(f)
-        print(f"Chunk caricati: {len(chunks)} sezioni.")
-    else:
-        print("Attenzione: chunks.pkl non trovato — governed context degradato. Riesegui 'python index.py'.")
+    graph = arts.graph
+    colbert_store = arts.colbert_store
+    chunks = arts.chunks_store
+    print(f"Grafo caricato: {graph.number_of_nodes()} nodi, {graph.number_of_edges()} archi.")
+    print(f"Multivettori ColBERT caricati: {len(colbert_store)} chunk. Chunk sidecar: {len(chunks)} sezioni.")
 
     print("Caricamento descrizioni regole dai file spec...")
     rule_descriptions = load_rule_descriptions()
 
     # Rebind atomico dello snapshot iniziale (un solo assegnamento).
     state["snapshot"] = _build_snapshot(graph, colbert_store, chunks, rule_descriptions)
-    state["_graph_mtime"] = GRAPH_SAVE_PATH.stat().st_mtime  # baseline per l'auto-reload
+    state["_graph_mtime"] = _graph_version()  # baseline per l'auto-reload
     print("Server pronto.\n")
 
     yield  # il server è in esecuzione
@@ -182,28 +172,19 @@ async def lifespan(application: FastAPI):
 # ---------------------------------------------------------------------------
 # Auto-reload dell'indice in memoria (dopo una re-indicizzazione da CLI o pipeline)
 # ---------------------------------------------------------------------------
-def _load_pickle_strict(path: Path):
-    """Carica un pickle sollevando eccezione se il file è assente o corrotto.
-    A differenza di un load 'best effort', qui l'errore deve propagarsi perché il
-    reload dei tre artefatti deve essere COERENTE (tutti o nessuno)."""
-    with open(path, "rb") as f:
-        return pickle.load(f)
-
-
 def reload_index_state() -> None:
     """Ricarica in memoria grafo, multivettori ColBERT e sidecar chunk dai file appena
     rigenerati dalla re-indicizzazione, così che il server rifletta subito la nuova base
     di conoscenza senza riavvio.
 
-    Il reload è COERENTE (tutto-o-niente): i tre artefatti vengono prima caricati in
-    variabili locali; solo se TUTTI e tre sono presenti e integri lo stato viene
-    sostituito. Se anche uno solo è mancante o corrotto (es. una re-indicizzazione
-    ancora in corso o abortita), si logga un warning e si MANTIENE la versione
-    precedente in memoria, evitando di degradare il server (grafo senza ColBERT/chunk)."""
+    Il reload è COERENTE (tutto-o-niente): gli artefatti vengono prima caricati in
+    variabili locali; solo se grafo + ColBERT + chunk sono tutti presenti e integri lo
+    stato viene sostituito. Se anche uno solo è mancante o corrotto (es. una re-
+    indicizzazione ancora in corso o abortita), si logga un warning e si MANTIENE la
+    versione precedente in memoria, evitando di degradare il server (grafo senza
+    ColBERT/chunk)."""
     try:
-        graph = _load_pickle_strict(GRAPH_SAVE_PATH)
-        colbert_store = _load_pickle_strict(COLBERT_SAVE_PATH)
-        chunks = _load_pickle_strict(CHUNKS_SAVE_PATH)
+        arts = load_artifacts(required=("graph", "colbert", "chunks"), emit=lambda *_a, **_k: None)
         rule_descriptions = load_rule_descriptions()
     except Exception as exc:
         print(f"⚠️  Reload indice annullato ({type(exc).__name__}: {exc}): "
@@ -211,19 +192,13 @@ def reload_index_state() -> None:
         # Aggiorna comunque il baseline mtime: se il file è corrotto in modo persistente,
         # evita di ritentare (e ri-loggare) il reload a ogni richiesta successiva. Una
         # nuova build completa cambierà di nuovo l'mtime e ritenterà il reload.
-        try:
-            state["_graph_mtime"] = GRAPH_SAVE_PATH.stat().st_mtime
-        except OSError:
-            pass
+        state["_graph_mtime"] = _graph_version()
         return
 
     # Rebind ATOMICO: un solo IndexSnapshot completo sostituisce quello precedente.
     # Nessuna mutazione in place → nessun handler può osservare una versione mista.
-    state["snapshot"] = _build_snapshot(graph, colbert_store, chunks, rule_descriptions)
-    try:
-        state["_graph_mtime"] = GRAPH_SAVE_PATH.stat().st_mtime
-    except OSError:
-        pass
+    state["snapshot"] = _build_snapshot(arts.graph, arts.colbert_store, arts.chunks_store, rule_descriptions)
+    state["_graph_mtime"] = _graph_version()
 
 
 def maybe_reload_graph() -> None:
@@ -232,16 +207,15 @@ def maybe_reload_graph() -> None:
     successiva, senza dover riavviare il server."""
     if current_snapshot() is None:
         return
-    try:
-        mtime = GRAPH_SAVE_PATH.stat().st_mtime
-    except OSError:
+    mtime = _graph_version()
+    if mtime is None:
         return
     prev = state.get("_graph_mtime")
     if prev is None:
         state["_graph_mtime"] = mtime
         return
     if mtime != prev:
-        print("🔄 graph.pkl cambiato su disco: ricarico grafo/ColBERT/regole in memoria.")
+        print("🔄 grafo cambiato su disco: ricarico grafo/ColBERT/regole in memoria.")
         reload_index_state()
 
 
