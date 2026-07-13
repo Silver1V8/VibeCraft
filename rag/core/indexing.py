@@ -44,6 +44,8 @@ from core.artifacts import (
 from core.canvas_review import (
     HISTORICAL_SUBDIR,
     REVIEW_FILENAME,
+    append_eval_candidate,
+    extract_eval_candidate,
     generate_canvas_review,
 )
 from core.chunking import (
@@ -1219,6 +1221,17 @@ def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_mode
     except Exception as e:  # difensivo: nessun problema della review blocca l'archive
         log(f"⚠️ Canvas review saltata per errore imprevisto: {e}")
         _record_review_skip(source_dir, str(e))
+
+    # Golden-set che cresce dalle change: estrae (deterministicamente, nessun LLM) un
+    # caso candidato di eval — query = intento della feature, expected = documenti
+    # normativi usati dal retrieval governato per il canvas — e lo accoda a
+    # eval/candidates.yaml. La promozione nel golden-set resta una revisione umana.
+    try:
+        candidate = extract_eval_candidate(feature_folder, source_dir)
+        if candidate and append_eval_candidate(candidate):
+            log(f"🧪 Candidato di eval accodato a eval/candidates.yaml (q: {candidate['q'][:60]}...)")
+    except Exception as e:  # anche il candidato non deve mai bloccare l'archive
+        log(f"⚠️ Estrazione candidato di eval saltata: {e}")
 
     try:
         shutil.move(str(source_dir), str(target_dir))

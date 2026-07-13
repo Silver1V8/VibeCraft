@@ -126,6 +126,49 @@ cron:
 0 4 * * 0  /path/to/rag/scripts/weekly_consistency.sh  >> /var/log/vibecraft-weekly.log  2>&1
 ```
 
+## Eval del retrieval: da attrezzo da banco a guardrail
+
+La qualità del retrieval si misura sul golden-set
+([eval/golden_set.yaml](eval/golden_set.yaml)) con [eval/run.py](eval/run.py),
+che interroga il server reale (`GET /api/retrieve`, così riusa il modello già
+caricato) e salva ogni run in `eval/results/`. La modalità guardrail è
+`--assert-min`: exit code 1 se il **recall@10 medio** scende sotto la soglia
+(il report viene comunque scritto), 0 altrimenti.
+
+**Comando consigliato prima di ogni merge che tocca chunking, ranking o pesi
+di autorità** (server su):
+
+```bash
+uv run python -m eval.run --assert-min 0.90
+```
+
+La soglia 0.90 è fissata poco sotto l'ultimo valore misurato (recall@10 =
+0.955 su 22 casi, run del 2026-07-12): se un refactor la fa scattare, il
+retrieval è regredito davvero. Rimisura e aggiorna la soglia quando il
+golden-set cresce. Non esiste (ancora) una pipeline CI in questo repo: quando
+verrà aggiunta, questo comando è lo step da inserire dopo l'avvio del server.
+
+I test pytest, che non possono caricare bge-m3, coprono la **meccanica** del
+guardrail con un retriever fake deterministico
+([tests/test_eval_guardrail.py](tests/test_eval_guardrail.py)): parsing del
+golden-set, matcher, calcolo del recall, soglia che scatta, estrazione e
+promozione dei candidati. Le metriche vere restano il comando qui sopra.
+
+**Il golden-set cresce dalle change (ciclo archive → golden-set):**
+
+1. **Canvas** — alla generazione del canvas il server persiste in
+   `changes/<feature>/meta.json` i documenti normativi usati dal retrieval
+   governato (`governed_sources`, parsati dagli header del contesto).
+2. **Archive → candidato** — `archive_feature` estrae deterministicamente
+   (nessun LLM) un caso candidato: query = nome feature + prima riga del
+   canvas, expected = quei documenti. Lo accoda a `eval/candidates.yaml`
+   (append-only, dedup per query, **mai** nel golden-set diretto).
+3. **Revisione umana** — `uv run python -m eval.run --review-candidates`
+   mostra i candidati; `--promote 0 2` SPOSTA quelli scelti nel
+   `golden_set.yaml` (append testuale: i commenti del file sopravvivono).
+4. **Soglia** — con il golden-set aggiornato, rilancia l'eval e rifissa
+   `--assert-min` poco sotto il nuovo valore misurato.
+
 ## Artefatti dell'indice: formati sicuri e ispezionabili
 
 L'indice persiste in `rag/database/` tramite [core/artifacts.py](core/artifacts.py),

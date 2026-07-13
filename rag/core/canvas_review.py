@@ -3,12 +3,16 @@ codice della change con le sezioni Operations/Structure/Safeguards del REASONS C
 tramite l'LLM locale e produce canvas_review.md (divergenze, sezioni accurate, giudizio
 di fedeltà). Logica pura e iniettabile: il chiamante (core/indexing.archive_feature)
 decide dove salvare il file e come reagire se l'LLM non è raggiungibile."""
+import json
 import re
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 
+import yaml
+
 from core import llm
-from core.config import PROJECT_ROOT
+from core.config import PROJECT_ROOT, RAG_DIR
 
 # Le sezioni del Canvas confrontate con il codice: cosa fa (Operations), come è
 # organizzato (Structure) e quali protezioni promette (Safeguards).
@@ -231,6 +235,75 @@ def canvas_quality_stats(archive_dir: Path, last_n: int = 10) -> dict:
         "fidelity_counts": fidelity_counts,
         "top_divergences": top_divergences,
     }
+
+
+# ---------------------------------------------------------------------------
+# Golden-set che cresce dalle change: candidato di eval estratto all'archive
+# ---------------------------------------------------------------------------
+
+# Candidati per il golden-set di eval: append-only, MAI promossi automaticamente.
+# La promozione in eval/golden_set.yaml è una revisione umana (eval.run --review-candidates).
+EVAL_CANDIDATES_PATH = RAG_DIR / "eval" / "candidates.yaml"
+
+
+def canvas_first_line(canvas_text: str) -> str:
+    """Prima riga significativa del canvas (senza marcatori '#'), usata come intent."""
+    for line in canvas_text.splitlines():
+        stripped = line.strip().lstrip("#").strip()
+        if stripped:
+            return stripped
+    return ""
+
+
+def extract_eval_candidate(feature_folder: str, change_dir: Path) -> dict | None:
+    """Estrae in modo DETERMINISTICO (nessun LLM/embedding) un caso candidato per il
+    golden-set di eval dalla change in archiviazione: la query è l'intento della feature
+    (nome + prima riga del canvas), gli expected sono i documenti normativi che il
+    retrieval governato ha effettivamente usato per generare quel canvas (persistiti in
+    meta.json da save_governed_sources). None se manca il canvas o le sorgenti."""
+    canvas_path = change_dir / "canvas.md"
+    meta_path = change_dir / "meta.json"
+    if not canvas_path.exists() or not meta_path.exists():
+        return None
+    try:
+        first_line = canvas_first_line(canvas_path.read_text(encoding="utf-8"))
+        sources = json.loads(meta_path.read_text(encoding="utf-8")).get("governed_sources") or []
+    except Exception:
+        return None
+    if not sources:
+        return None
+    query = feature_folder if not first_line else f"{feature_folder}: {first_line}"
+    return {
+        "q": query,
+        "expected": [{"doc": str(d)} for d in sources],
+        "from_feature": feature_folder,
+        "extracted_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+
+
+def append_eval_candidate(candidate: dict, path: Path = EVAL_CANDIDATES_PATH) -> bool:
+    """Accoda il candidato a eval/candidates.yaml (creandolo se assente). Dedup per
+    query: se un candidato con la stessa `q` esiste già non viene riproposto.
+    Restituisce True se il candidato è stato aggiunto."""
+    data = {"candidates": []}
+    if path.exists():
+        try:
+            loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            data["candidates"] = loaded.get("candidates") or []
+        except Exception:
+            pass  # file corrotto: si riparte da lista vuota senza bloccare l'archive
+    if any(c.get("q") == candidate["q"] for c in data["candidates"]):
+        return False
+    data["candidates"].append(candidate)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "# Candidati per eval/golden_set.yaml estratti all'archive delle change.\n"
+        "# NON usati dall'eval: la promozione è una revisione umana\n"
+        "# (uv run python -m eval.run --review-candidates [--promote N ...]).\n"
+        + yaml.safe_dump(data, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+    return True
 
 
 def _call_llm_sync(prompt: str) -> str:

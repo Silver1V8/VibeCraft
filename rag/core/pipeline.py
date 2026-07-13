@@ -4,6 +4,7 @@ blocco [AGENT CONTEXT] con confidence score e controlli strutturali. Nessuna dip
 da FastAPI: le risorse di runtime (grafo, Qdrant, embedding, sidecar) sono iniettate come
 parametri espliciti; l'orchestrazione async/I-O resta nei route handler (api/)."""
 import json
+import re
 from pathlib import Path
 
 from core import llm, retrieval
@@ -59,6 +60,39 @@ def save_dev_type(folder: Path, dev_type: str) -> None:
         except Exception:
             meta = {}
     meta["dev_type"] = dev_type
+    meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+# Header dei chunk nel contesto governato serializzato da retrieval.retrieve_governed_context:
+# "--- <doc_id> § <sezione> [TAG] ---". Il doc_id è il primo token dopo i trattini.
+_GOVERNED_HEADER_RE = re.compile(r"^--- (\S+) § ", re.MULTILINE)
+
+
+def governed_docs_from_context(governed_context: str) -> list[str]:
+    """Doc_id unici, in ordine di apparizione, citati negli header del contesto normativo
+    governato. Parsing deterministico del formato prodotto da retrieve_governed_context:
+    permette di sapere QUALI documenti hanno ancorato un canvas senza rifare il retrieval."""
+    docs: list[str] = []
+    for d in _GOVERNED_HEADER_RE.findall(governed_context or ""):
+        if d not in docs:
+            docs.append(d)
+    return docs
+
+
+def save_governed_sources(folder: Path, doc_ids: list[str]) -> None:
+    """Persiste in changes/<feature>/meta.json i documenti normativi usati dal retrieval
+    governato per generare il canvas. Letti all'archive per proporre un caso candidato
+    al golden-set di eval (vedi core.canvas_review.extract_eval_candidate)."""
+    if not doc_ids:
+        return
+    meta_path = folder / "meta.json"
+    meta = {}
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except Exception:
+            meta = {}
+    meta["governed_sources"] = doc_ids
     meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
 
 

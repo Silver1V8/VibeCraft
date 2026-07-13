@@ -169,6 +169,10 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
     governed_context = await run_in_threadpool(_governed_context, query, snap)
     contesto_progetto_base = governed_context or "Nessun documento normativo pertinente recuperato dal Graph RAG."
 
+    # Persiste in meta.json QUALI documenti normativi hanno ancorato questo canvas:
+    # all'archive diventano gli `expected` di un caso candidato per il golden-set di eval.
+    pipeline.save_governed_sources(folder, pipeline.governed_docs_from_context(governed_context))
+
     # Canvas che apprende (parte 2): le divergenze emerse nelle review delle change
     # archiviate più simili diventano "lezioni" nel prompt ('' se non esistono review).
     lessons = await run_in_threadpool(_canvas_lessons, query, snap)
