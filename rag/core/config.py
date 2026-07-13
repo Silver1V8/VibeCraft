@@ -37,6 +37,9 @@ CODE_SAVE_PATH = DATABASE_DIR / "code.pkl"
 # Snapshot dell'indicizzazione (modello, conteggi, hash dei documenti): serve a rilevare
 # quando docs/ è cambiato e l'indice è "stale".
 INDEX_MANIFEST_PATH = DATABASE_DIR / "index_manifest.json"
+# Journal append-only (JSONL) dei job di reindex: ogni transizione di stato vi appende
+# una riga col job serializzato, così lo storico sopravvive ai riavvii del server.
+REINDEX_JOURNAL_PATH = DATABASE_DIR / "reindex_jobs.jsonl"
 TEMPLATES_DIR = RAG_DIR / "templates"
 # Asset statici condivisi dai template (shared.css / shared.js): estratti dai
 # *.unified.html per non duplicare CSS/JS, serviti come StaticFiles da FastAPI.

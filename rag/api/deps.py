@@ -2,6 +2,7 @@
 (grafo, Qdrant, modello di embedding, sidecar), autenticazione, lifespan di caricamento
 risorse, auto-reload dell'indice e helper di streaming/template. I router in api/ leggono
 questo stato e lo iniettano nelle funzioni pure di core/."""
+import hmac
 import json
 import os
 import queue
@@ -42,6 +43,24 @@ def require_api_key(request: Request) -> None:
         return
     if not API_KEY or request.headers.get("X-API-Key") != API_KEY:
         raise HTTPException(status_code=401, detail="API key richiesta per accesso non locale.")
+
+
+# ---------------------------------------------------------------------------
+# Secret token del webhook GitLab — verifica IN AGGIUNTA a require_api_key
+# ---------------------------------------------------------------------------
+GITLAB_TOKEN = os.environ.get("VIBECRAFT_GITLAB_TOKEN")
+
+
+def require_gitlab_token(request: Request) -> None:
+    """Se VIBECRAFT_GITLAB_TOKEN è impostata, il webhook richiede l'header X-Gitlab-Token
+    corrispondente (confronto a tempo costante con hmac.compare_digest). Se l'env non è
+    impostata, non aggiunge alcun requisito (comportamento invariato). Va usata IN AGGIUNTA
+    a require_api_key, non al suo posto."""
+    if not GITLAB_TOKEN:
+        return
+    provided = request.headers.get("X-Gitlab-Token", "")
+    if not hmac.compare_digest(provided, GITLAB_TOKEN):
+        raise HTTPException(status_code=401, detail="Token webhook GitLab mancante o errato.")
 
 
 # ---------------------------------------------------------------------------

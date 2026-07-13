@@ -12,7 +12,17 @@ Due meccanismi tengono l'indice allineato al codebase senza intervento manuale:
 subito `202` con un `job_id`; `GET /api/reindex/{job_id}` ne riporta lo stato
 (`queued`/`running`/`completed`/`failed`) col risultato o l'errore. A fine job
 riuscito il server ricarica in memoria grafo/ColBERT/chunk riusando
-`reload_index_state` (api/deps.py). Auth: `X-API-Key` come tutti i `/api/*`.
+`reload_index_state` (api/deps.py). `GET /api/reindex` (senza id) elenca gli
+ultimi `N` job (`?limit=`, default 20, più recente prima), utile per debug e UI.
+Auth: `X-API-Key` come tutti i `/api/*`.
+
+Lo storico dei job è **persistente ai riavvii**: ogni transizione di stato
+(`created`/`completed`/`failed`) appende una riga JSON al journal append-only
+`database/reindex_jobs.jsonl`. Al boot il `ReindexManager` ricostruisce lo storico
+dal journal (l'ultima riga per `job_id` vince); i job rimasti `running` (crash a
+metà) vengono marcati `interrupted`. Il file si auto-compatta quando supera ~1MB
+(riscritto tenendo solo l'ultimo stato di ogni job) e **non va committato** (è in
+`.gitignore`).
 
 Il manager usa una **coda con coalescing** (`ReindexManager`, api/reindex.py):
 al massimo un job in esecuzione + al massimo **un pending**. Se arriva una
@@ -25,8 +35,14 @@ o fallimento) il pending parte automaticamente. Così due push GitLab ravvicinat
 non si perdono più — il secondo evento si fonde nel pending invece di sparire.
 
 Configura il webhook GitLab (Settings → Webhooks) su **Push events** e/o
-**Merge request events** puntando a `https://<host>/api/reindex` con l'header
-`X-API-Key`. Dal payload push vengono estratti i path modificati
+**Merge request events** puntando a `https://<host>/api/reindex`. Per esporre il
+webhook in sicurezza imposta **entrambe** le variabili d'ambiente: `VIBECRAFT_API_KEY`
+(header `X-API-Key`, richiesta per ogni accesso non locale) e `VIBECRAFT_GITLAB_TOKEN`
+(header `X-Gitlab-Token`, il *Secret token* del webhook GitLab). Quando
+`VIBECRAFT_GITLAB_TOKEN` è impostata, `POST /api/reindex` esige il token corretto
+(confronto a tempo costante con `hmac.compare_digest`) **in aggiunta** a `X-API-Key`;
+se non è impostata il comportamento resta invariato (solo `X-API-Key`). Dal payload
+push vengono estratti i path modificati
 (`commits[].added/modified/removed`) e passati al plan del delta indexing per
 limitare il lavoro ai soli file cambiati; un payload merge request (senza elenco
 file) fa un incrementale completo su `docs/` + `code/`. È accettato anche un

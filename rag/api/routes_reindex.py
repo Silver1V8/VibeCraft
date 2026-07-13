@@ -9,14 +9,21 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
-from api.deps import reload_index_state, require_api_key, state
+from api.deps import (
+    reload_index_state,
+    require_api_key,
+    require_gitlab_token,
+    state,
+)
 from api.reindex import ReindexManager, extract_gitlab_paths
+from core.config import REINDEX_JOURNAL_PATH
 from core.indexing import incremental_index
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
-# Un solo manager per processo: serializza i reindex e conserva lo stato dei job.
-manager = ReindexManager()
+# Un solo manager per processo: serializza i reindex e conserva lo stato dei job. Il journal
+# JSONL rende lo storico persistente ai riavvii (ricostruito dal manager al boot).
+manager = ReindexManager(journal_path=REINDEX_JOURNAL_PATH)
 
 
 def _run_reindex(changed_paths) -> dict:
@@ -30,7 +37,7 @@ def _run_reindex(changed_paths) -> dict:
     )
 
 
-@router.post("/api/reindex")
+@router.post("/api/reindex", dependencies=[Depends(require_gitlab_token)])
 async def start_reindex(request: Request):
     """Avvia (o accoda) un reindex incrementale in background e risponde 202 con il job-id.
 
@@ -51,6 +58,16 @@ async def start_reindex(request: Request):
     if queued:
         content["queued"] = True
     return JSONResponse(status_code=202, content=content)
+
+
+@router.get("/api/reindex")
+async def list_reindex(limit: int = 20):
+    """Lista degli ultimi `limit` job di reindex (default 20), più recente prima — utile
+    per debug e per la UI. Ricostruita dal journal al boot, quindi sopravvive ai riavvii."""
+    if limit < 1:
+        limit = 1
+    jobs = await run_in_threadpool(manager.list_recent, limit)
+    return {"jobs": jobs}
 
 
 @router.get("/api/reindex/{job_id}")

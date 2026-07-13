@@ -2,6 +2,7 @@
 GitLab, restrizione del piano del delta ai path segnalati, e il ReindexManager (job che
 parte, coda con coalescing dei path, reload in memoria a fine job). Nessun modello/Qdrant
 reale: il reindex è iniettato come fake che controlliamo dai test."""
+import json
 import threading
 import time
 
@@ -225,3 +226,114 @@ def test_failed_job_frees_slot_and_skips_reload():
 
 def test_unknown_job_id_returns_none():
     assert ReindexManager().get("does-not-exist") is None
+
+
+# ---------------------------------------------------------------------------
+# Persistenza: journal JSONL append-only + ricostruzione al boot
+# ---------------------------------------------------------------------------
+def test_journal_round_trip_completed_job_survives_restart(tmp_path):
+    """Un job completato sopravvive al "riavvio" = nuovo manager sullo stesso journal."""
+    journal = tmp_path / "reindex_jobs.jsonl"
+    reloaded = threading.Event()
+
+    mgr = ReindexManager(journal_path=journal)
+    job, _ = mgr.start(["docs/a.md"], lambda paths: {"upserted": 7}, reloaded.set)
+    assert reloaded.wait(timeout=5)
+    assert _wait(lambda: mgr.get(job.id).status == "completed")
+
+    # "Riavvio": un nuovo manager ricostruisce lo storico dal journal.
+    revived = ReindexManager(journal_path=journal)
+    restored = revived.get(job.id)
+    assert restored is not None
+    assert restored.status == "completed"
+    assert restored.result == {"upserted": 7}
+    assert restored.changed_paths == ["docs/a.md"]
+    # Compare anche in list_recent, più recente prima.
+    listed = revived.list_recent()
+    assert listed[0]["job_id"] == job.id
+
+
+def test_journal_running_job_marked_interrupted_at_load(tmp_path):
+    """Un job rimasto 'running' nel journal (crash a metà) è 'interrupted' al load."""
+    journal = tmp_path / "reindex_jobs.jsonl"
+    # Simula un crash: scriviamo a mano una riga 'running' senza mai completarla.
+    running_job = {
+        "job_id": "abc123", "status": "running", "created_at": "2026-01-01T00:00:00+00:00",
+        "finished_at": None, "changed_paths": ["docs/x.md"], "result": None, "error": None,
+    }
+    journal.write_text(json.dumps(running_job) + "\n", encoding="utf-8")
+
+    revived = ReindexManager(journal_path=journal)
+    restored = revived.get("abc123")
+    assert restored is not None
+    assert restored.status == "interrupted"
+    assert restored.finished_at is not None
+
+    # La transizione 'interrupted' è persistita: un secondo load resta terminale.
+    again = ReindexManager(journal_path=journal)
+    assert again.get("abc123").status == "interrupted"
+
+
+def test_journal_compaction_keeps_only_last_state(tmp_path, monkeypatch):
+    """Oltre la soglia, il journal è riscritto con una sola riga per job (ultimo stato)."""
+    import api.reindex as reindex_mod
+    monkeypatch.setattr(reindex_mod, "_JOURNAL_MAX_BYTES", 200)  # soglia minuscola
+    journal = tmp_path / "reindex_jobs.jsonl"
+
+    mgr = ReindexManager(journal_path=journal)
+    ids = []
+    for i in range(5):
+        done = threading.Event()
+        job, _ = mgr.start([f"docs/{i}.md"], lambda paths: {"i": paths}, done.set)
+        assert done.wait(timeout=5)
+        assert _wait(lambda jid=job.id: mgr.get(jid).status == "completed")
+        ids.append(job.id)
+
+    # Dopo la compattazione ci deve essere al più UNA riga per job.
+    lines = [l for l in journal.read_text(encoding="utf-8").splitlines() if l.strip()]
+    seen_ids = [json.loads(l)["job_id"] for l in lines]
+    assert len(seen_ids) == len(set(seen_ids))  # nessun duplicato: compattato
+    # Tutti gli stati compattati sono terminali (completed).
+    assert all(json.loads(l)["status"] == "completed" for l in lines)
+    # Lo storico resta intero in memoria e ricostruibile.
+    revived = ReindexManager(journal_path=journal)
+    for jid in ids:
+        assert revived.get(jid).status == "completed"
+
+
+# ---------------------------------------------------------------------------
+# Webhook secret: require_gitlab_token (in aggiunta a X-API-Key)
+# ---------------------------------------------------------------------------
+class _FakeRequest:
+    def __init__(self, headers=None):
+        self.headers = headers or {}
+
+
+def _call_require_gitlab_token(monkeypatch, env_token, header_token):
+    import api.deps as deps
+    from fastapi import HTTPException
+    monkeypatch.setattr(deps, "GITLAB_TOKEN", env_token)
+    headers = {} if header_token is None else {"X-Gitlab-Token": header_token}
+    try:
+        deps.require_gitlab_token(_FakeRequest(headers))
+        return None
+    except HTTPException as exc:
+        return exc.status_code
+
+
+def test_gitlab_token_correct_passes(monkeypatch):
+    assert _call_require_gitlab_token(monkeypatch, "s3cret", "s3cret") is None
+
+
+def test_gitlab_token_wrong_rejected(monkeypatch):
+    assert _call_require_gitlab_token(monkeypatch, "s3cret", "nope") == 401
+
+
+def test_gitlab_token_absent_rejected_when_env_set(monkeypatch):
+    assert _call_require_gitlab_token(monkeypatch, "s3cret", None) == 401
+
+
+def test_gitlab_token_not_required_when_env_unset(monkeypatch):
+    # Env non impostata → nessun requisito aggiuntivo, anche senza header.
+    assert _call_require_gitlab_token(monkeypatch, None, None) is None
+    assert _call_require_gitlab_token(monkeypatch, "", "whatever") is None
