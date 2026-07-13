@@ -1,0 +1,137 @@
+"""Test del layer LLM unificato (core/llm.py): risoluzione purpose -> provider/modello
+(con e senza override da rag_config), provider fake iniettato end-to-end su uno step
+pipeline (niente HTTP) e propagazione tollerante degli errori nei chiamanti
+(check_drift mette l'errore nel report, l'archive salta la review con warning)."""
+import asyncio
+
+import pytest
+
+from core import llm, pipeline
+
+
+@pytest.fixture
+def fake_settings(monkeypatch):
+    """llm_settings controllati: provider fake attivo, nessun purposes override."""
+    settings = {
+        "active_provider": "fake",
+        "models": {"fake": "fake-model", "anthropic": "claude-sonnet-5"},
+    }
+    monkeypatch.setitem(llm.config, "llm_settings", settings)
+    return settings
+
+
+def _register_echo_provider():
+    calls = []
+
+    def echo(model, prompt, timeout):
+        calls.append((model, prompt))
+        return f"RISPOSTA[{model}]"
+
+    llm.register_provider("fake", echo)
+    return calls
+
+
+# ---------------------------------------------------------------------------
+# Risoluzione purpose -> provider/modello
+# ---------------------------------------------------------------------------
+
+def test_resolve_fallback_su_active_provider(fake_settings):
+    assert llm.resolve("drift") == ("fake", "fake-model")
+
+
+def test_resolve_con_override_purposes(fake_settings):
+    fake_settings["purposes"] = {
+        "canvas": {"provider": "anthropic", "model": "claude-opus-4-8"},
+        "review": {"provider": "anthropic"},  # model omesso -> models.anthropic
+    }
+    assert llm.resolve("canvas") == ("anthropic", "claude-opus-4-8")
+    assert llm.resolve("review") == ("anthropic", "claude-sonnet-5")
+    assert llm.resolve("drift") == ("fake", "fake-model")  # nessun override
+
+
+def test_resolve_purpose_sconosciuto(fake_settings):
+    with pytest.raises(llm.LLMError):
+        llm.resolve("traduzione")
+
+
+def test_provider_non_supportato(monkeypatch):
+    monkeypatch.setitem(llm.config, "llm_settings", {
+        "active_provider": "inesistente", "models": {"inesistente": "x"},
+    })
+    with pytest.raises(llm.LLMError, match="non supportato"):
+        llm.generate("ciao", purpose="drift")
+
+
+# ---------------------------------------------------------------------------
+# Provider fake end-to-end (sync + async, step pipeline senza HTTP)
+# ---------------------------------------------------------------------------
+
+def test_generate_con_provider_fake(fake_settings):
+    calls = _register_echo_provider()
+    out = llm.generate("prompt di prova", purpose="drift")
+    assert out == "RISPOSTA[fake-model]"
+    assert calls == [("fake-model", "prompt di prova")]
+
+
+def test_pipeline_step_end_to_end_con_fake(fake_settings):
+    """generate_tolerant (usato da explore/canvas/propose/validate) col provider fake."""
+    _register_echo_provider()
+    out = asyncio.run(pipeline.generate_tolerant("genera il canvas", purpose="canvas"))
+    assert out == "RISPOSTA[fake-model]"
+    # Shim deprecato: stesso percorso.
+    assert asyncio.run(pipeline.call_ollama_generate("x")) == "RISPOSTA[fake-model]"
+
+
+# ---------------------------------------------------------------------------
+# Errori di rete: comportamento tollerante dei chiamanti
+# ---------------------------------------------------------------------------
+
+def _register_broken_provider():
+    def broken(model, prompt, timeout):
+        raise llm.LLMError("[ERRORE DI CONNESSIONE]: Impossibile raggiungere Ollama. Assicurati che l'applicazione Ollama sia avviata.")
+    llm.register_provider("fake", broken)
+
+
+def test_generate_tolerant_restituisce_il_messaggio_di_errore(fake_settings):
+    _register_broken_provider()
+    out = asyncio.run(pipeline.generate_tolerant("x", purpose="validate"))
+    assert out.startswith("[ERRORE DI CONNESSIONE]")
+
+
+def test_check_drift_mette_errore_nel_report(fake_settings, monkeypatch, tmp_path):
+    from core import indexing
+    _register_broken_provider()
+    feature = tmp_path / "changes" / "feat-x"
+    feature.mkdir(parents=True)
+    (feature / "canvas.md").write_text("## Requirements\ncontratto", encoding="utf-8")
+    monkeypatch.setattr(indexing, "CHANGES_DIR", tmp_path / "changes")
+    monkeypatch.setattr(indexing, "CODE_DIR", tmp_path / "code")
+
+    report = indexing.check_drift("feat x", emit=lambda _msg: None)
+    assert "❌ Errore durante il check drift" in report
+    assert "ERRORE DI CONNESSIONE" in report
+
+
+def test_canvas_review_salta_con_warning_su_errore(fake_settings, tmp_path):
+    from core import canvas_review
+    _register_broken_provider()
+    change = tmp_path / "feat-y"
+    change.mkdir()
+    (change / "canvas.md").write_text("## Operations\nstep", encoding="utf-8")
+
+    content, warning = canvas_review.generate_canvas_review("feat-y", change, repo_root=tmp_path)
+    assert content is None
+    assert warning is not None and "LLM non raggiungibile" in warning
+
+
+def test_errore_ollama_connessione_mappato_su_llmerror(monkeypatch):
+    """Il provider ollama sincrono traduce l'errore di rete in LLMError leggibile."""
+    import urllib.error
+    import urllib.request
+
+    def _fail(*args, **kwargs):
+        raise urllib.error.URLError("connection refused")
+
+    monkeypatch.setattr(urllib.request, "urlopen", _fail)
+    with pytest.raises(llm.LLMError, match="ERRORE DI CONNESSIONE"):
+        llm._ollama_generate("qwen2.5:7b", "ciao", timeout=1.0)

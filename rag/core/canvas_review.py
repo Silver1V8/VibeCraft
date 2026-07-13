@@ -3,18 +3,12 @@ codice della change con le sezioni Operations/Structure/Safeguards del REASONS C
 tramite l'LLM locale e produce canvas_review.md (divergenze, sezioni accurate, giudizio
 di fedeltà). Logica pura e iniettabile: il chiamante (core/indexing.archive_feature)
 decide dove salvare il file e come reagire se l'LLM non è raggiungibile."""
-import json
 import re
 import subprocess
-import urllib.request
 from pathlib import Path
 
-from core.config import (
-    OLLAMA_TIMEOUT_SECONDS,
-    PIPELINE_MODEL_NAME,
-    PIPELINE_OLLAMA_URL,
-    PROJECT_ROOT,
-)
+from core import llm
+from core.config import PROJECT_ROOT
 
 # Le sezioni del Canvas confrontate con il codice: cosa fa (Operations), come è
 # organizzato (Structure) e quali protezioni promette (Safeguards).
@@ -240,17 +234,10 @@ def canvas_quality_stats(archive_dir: Path, last_n: int = 10) -> dict:
 
 
 def _call_llm_sync(prompt: str) -> str:
-    """Chiamata sincrona al layer LLM locale (stesso endpoint/modello della pipeline).
-    A differenza dei chiamanti della pipeline, QUI gli errori si propagano: l'archive
+    """Chiamata sincrona al layer LLM (core/llm.py, purpose 'review'). A differenza
+    dei chiamanti della pipeline, QUI gli errori si propagano (LLMError): l'archive
     deve poter distinguere 'LLM non raggiungibile' e saltare la review con un warning."""
-    data = {"model": PIPELINE_MODEL_NAME, "prompt": prompt, "stream": False}
-    req = urllib.request.Request(
-        PIPELINE_OLLAMA_URL, data=json.dumps(data).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(req, timeout=OLLAMA_TIMEOUT_SECONDS) as response:
-        result = json.loads(response.read().decode())
-    text = result.get("response", "").strip()
+    text = llm.generate(prompt, purpose="review").strip()
     if not text:
         raise RuntimeError("risposta vuota dal modello")
     return text

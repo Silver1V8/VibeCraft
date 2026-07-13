@@ -61,9 +61,8 @@ LLM_MODEL: str = config["llm_settings"]["models"][LLM_PROVIDER]
 # (es. {"typescript": "treesitter"}); assente o "regex" = parser storico.
 CODE_PARSERS: dict = config.get("code_parsers") or {}
 
-# Configurazione pipeline Explore -> Canvas -> Propose (rag/changes/)
-PIPELINE_OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
-PIPELINE_MODEL_NAME: str = config["llm_settings"]["models"].get("ollama", "qwen2.5:7b")
+# Configurazione pipeline Explore -> Canvas -> Propose (rag/changes/).
+# NB: endpoint e modelli LLM ora vivono in core/llm.py (risoluzione per purpose).
 CHANGES_DIR = PROJECT_ROOT / "changes"
 CODE_DIR = PROJECT_ROOT / "code"
 DOCS_DIR = PROJECT_ROOT / config["paths"]["docs_dir"].lstrip("./")

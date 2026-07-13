@@ -12,6 +12,17 @@ llm_settings:
     openai: "gpt-4o"
     ollama: "qwen2.5:7b" # o mistral/llama3
 
+  # Override opzionale provider/modello PER SINGOLO STEP della pipeline (core/llm.py).
+  # Scopi riconosciuti: drift, canvas, propose, validate, explore, review.
+  # Ogni chiave può indicare provider e/o model; ciò che manca ricade su
+  # active_provider / models. Esempio: canvas su Claude, il resto su Ollama.
+  #purposes:
+  #  canvas:
+  #    provider: "anthropic"
+  #    model: "claude-sonnet-5"
+  #  review:
+  #    provider: "anthropic"   # model omesso -> models.anthropic
+
 vector_database:
   provider: "qdrant"
   collection_name: "vibecraft_events"

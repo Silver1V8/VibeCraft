@@ -6,16 +6,8 @@ parametri espliciti; l'orchestrazione async/I-O resta nei route handler (api/)."
 import json
 from pathlib import Path
 
-import httpx
-
-from core import retrieval
-from core.config import (
-    CHANGES_DIR,
-    CODE_DIR,
-    OLLAMA_TIMEOUT_SECONDS,
-    PIPELINE_MODEL_NAME,
-    PIPELINE_OLLAMA_URL,
-)
+from core import llm, retrieval
+from core.config import CHANGES_DIR, CODE_DIR
 
 # Le 7 sezioni obbligatorie del REASONS Canvas (copertura strutturale e confidence).
 CANVAS_SECTIONS = ("Requirements", "Entities", "Approach", "Structure", "Operations", "Norms", "Safeguards")
@@ -25,24 +17,20 @@ def slugify_feature(feature_name: str) -> str:
     return feature_name.strip().replace(" ", "-").lower()
 
 
-async def call_ollama_generate(prompt: str) -> str:
-    """Chiama Ollama in modalità /api/generate in modo ASINCRONO (httpx.AsyncClient),
-    per non bloccare l'event loop di FastAPI durante le generazioni (che su CPU durano
-    minuti). Semantica, timeout ed error handling invariati rispetto alla versione sync."""
-    data = {"model": PIPELINE_MODEL_NAME, "prompt": prompt, "stream": False}
+async def generate_tolerant(prompt: str, *, purpose: str) -> str:
+    """Generazione ASINCRONA tollerante per gli step della pipeline: gli errori di
+    rete/timeout non sollevano mai — il messaggio d'errore diventa il testo restituito,
+    come nel comportamento storico (l'interfaccia lo mostra all'utente)."""
     try:
-        async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT_SECONDS) as client:
-            response = await client.post(PIPELINE_OLLAMA_URL, json=data)
-        if response.status_code == 404:
-            return f"[ERRORE OLLAMA]: Il modello '{PIPELINE_MODEL_NAME}' non è stato trovato. Esegui 'ollama pull {PIPELINE_MODEL_NAME}'."
-        response.raise_for_status()
-        return response.json().get("response", "Errore nella generazione.")
-    except httpx.ConnectError:
-        return "[ERRORE DI CONNESSIONE]: Impossibile raggiungere Ollama. Assicurati che l'applicazione Ollama sia avviata."
-    except httpx.TimeoutException:
-        return "[ERRORE DI TIMEOUT]: Ollama sta impiegando troppo tempo a rispondere."
-    except Exception as e:
-        return f"[ERRORE GENERICO OLLAMA]: {str(e)}"
+        return await llm.agenerate(prompt, purpose=purpose)
+    except llm.LLMError as e:
+        return str(e)
+
+
+async def call_ollama_generate(prompt: str) -> str:
+    """DEPRECATA: shim di retrocompatibilità che delega a core.llm (purpose 'canvas').
+    Usare generate_tolerant(prompt, purpose=...) per indicare lo step corretto."""
+    return await generate_tolerant(prompt, purpose="canvas")
 
 
 def feature_dir(feature_name: str) -> Path:

@@ -33,8 +33,8 @@ from core.config import CHANGES_DIR, PROJECT_ROOT
 from core.indexing import archive_feature, check_drift, index_status
 from core.pipeline import (
     build_final_prompt,
-    call_ollama_generate,
     feature_dir,
+    generate_tolerant,
     list_dev_types,
     load_dev_type,
     save_dev_type,
@@ -132,7 +132,7 @@ async def pipeline_explore_turn(req: ExploreTurnRequest):
         f"la feature: {req.feature_name}.{scope_note} Fai domande brevi e mirate per sviscerare i casi limite.\n"
     )
     prompt = history + f"\nUtente: {req.user_input}\nRispondi in modo conciso:"
-    ai_response = await call_ollama_generate(prompt)
+    ai_response = await generate_tolerant(prompt, purpose="explore")
     new_history = history + f"\nUtente: {req.user_input}\nIA: {ai_response}"
     return {"ai_response": ai_response, "history": new_history}
 
@@ -177,7 +177,7 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
         req.feature_name, contesto_intervista, contesto_progetto_base, dev_type, lessons
     )
 
-    canvas_content = await call_ollama_generate(prompt_strutturato)
+    canvas_content = await generate_tolerant(prompt_strutturato, purpose="canvas")
     (folder / "canvas.md").write_text(canvas_content, encoding="utf-8")
     save_dev_type(folder, dev_type)
     return {"feature_folder": folder.name, "path": "canvas.md", "content": canvas_content}
@@ -203,7 +203,7 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest):
     )
     prompt_strutturato = pipeline.build_spec_prompt(canvas_content, governed_context)
 
-    spec_content = await call_ollama_generate(prompt_strutturato)
+    spec_content = await generate_tolerant(prompt_strutturato, purpose="propose")
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "spec.md").write_text(spec_content, encoding="utf-8")
     save_dev_type(folder, dev_type)
@@ -294,7 +294,7 @@ async def _validate_feature(feature: str) -> dict:
     #    Il retrieval è CPU-bound (embedding della query) → threadpool; l'LLM è I/O → async.
     governed = await run_in_threadpool(_governed_context, f"{feature}\n{canvas_text[:2000]}", current_snapshot())
     prompt = pipeline.build_validate_prompt(canvas_text, spec_text, governed)
-    report = await call_ollama_generate(prompt)
+    report = await generate_tolerant(prompt, purpose="validate")
     return {"structural": structural, "report": report}
 
 

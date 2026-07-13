@@ -5,7 +5,6 @@ configurazione in core/config.py. Le risorse pesanti (Qdrant, embedding) sono in
 import hashlib
 import json
 import shutil
-import urllib.request
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -53,6 +52,7 @@ from core.chunking import (
     extract_entities,
     read_document,
 )
+from core import llm
 from core.config import (
     CHANGES_DIR,
     CODE_DIR,
@@ -66,10 +66,6 @@ from core.config import (
     QDRANT_API_KEY,
     QDRANT_URL,
 )
-
-# Endpoint e modello Ollama per il controllo del Drift (canvas <-> codice).
-OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
-MODEL_NAME = "qwen2.5:7b"
 
 # Namespace fisso per derivare l'ID del punto Qdrant dal chunk_id in modo DETERMINISTICO
 # (uuid5): lo stesso chunk_id produce sempre lo stesso id, base dell'incrementale idempotente.
@@ -1011,17 +1007,12 @@ def check_drift(feature_name: str, emit=None) -> str:
     Se va tutto bene, rispondi con "✅ NESSUN DRIFT RILEVATO. Il codice è conforme."
     """
 
-    _log("🧠 Analisi del codice in corso tramite LLM locale...")
-    data = {"model": MODEL_NAME, "prompt": prompt_drift, "stream": False}
-    req = urllib.request.Request(OLLAMA_URL, data=json.dumps(data).encode("utf-8"), headers={"Content-Type": "application/json"})
-
+    _log("🧠 Analisi del codice in corso tramite LLM...")
     try:
-        # Timeout esplicito: senza, una richiesta appesa bloccherebbe il thread del
-        # server che esegue il controllo (le generazioni su CPU possono durare minuti).
-        with urllib.request.urlopen(req, timeout=900) as response:
-            result = json.loads(response.read().decode())
-            report = result.get("response", "Errore nella valutazione.")
-    except Exception as e:
+        report = llm.generate(prompt_drift, purpose="drift")
+    except llm.LLMError as e:
+        # Il controllo drift è tollerante: l'errore diventa parte del report, mai
+        # un'eccezione verso l'interfaccia.
         report = f"❌ Errore durante il check drift: {e}"
 
     _log("\n" + "=" * 50)

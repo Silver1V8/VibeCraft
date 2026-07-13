@@ -3,6 +3,25 @@
 Indicizzazione (core/indexing), retrieval ibrido e pipeline Explore → Canvas →
 Propose (core/) esposti via FastAPI (api/). Entrypoint: `server.py`, `index.py`.
 
+## LLM: un solo layer, provider intercambiabili per step
+
+Tutte le chiamate generative (drift, canvas, propose, validate, explore, canvas
+review) passano da [core/llm.py](core/llm.py): `generate(prompt, purpose=...)`
+(sincrona) e `agenerate(...)` (async). Provider e modello si risolvono da
+[rag_config.yaml](rag_config.yaml): di default `llm_settings.active_provider` +
+`llm_settings.models`, con override opzionale **per singolo step** via
+`llm_settings.purposes` (esempio commentato nel file). Così si può ad esempio
+generare il canvas con Claude e tenere il drift su Ollama locale.
+
+Provider disponibili: `ollama` (endpoint locale `/api/generate`) e `anthropic`
+(SDK ufficiale — richiede `uv add anthropic` e la variabile d'ambiente
+`ANTHROPIC_API_KEY`; se mancano l'errore è esplicito). Gli errori di rete/timeout
+sollevano `LLMError` con messaggio leggibile: i chiamanti restano tolleranti come
+prima (il check drift mette il messaggio nel report, l'archive salta la review
+con un warning, gli step della pipeline restituiscono il messaggio come testo via
+`pipeline.generate_tolerant`). Nei test si inietta un provider fake con
+`llm.register_provider` — nessun HTTP (vedi [tests/test_llm.py](tests/test_llm.py)).
+
 ## Reindex automatico: l'indice non invecchia mai
 
 Due meccanismi tengono l'indice allineato al codebase senza intervento manuale:
