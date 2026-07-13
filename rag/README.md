@@ -23,7 +23,10 @@ PowerShell via tree-sitter — archi EXECUTES script→script e riferimenti
 incrociati verso i progetti/file invocati) e
 [code_index_ci.py](code_index_ci.py) (pipeline GitLab CI / Azure DevOps
 riconosciute per nome — nodi pipeline/job, archi verso template, progetti
-buildati e repo esterni dai trigger). L'interfaccia di un parser è una funzione
+buildati e repo esterni dai trigger) e
+[code_index_frontend.py](code_index_frontend.py) (semantica React/Angular
+sopra il parser TS: componenti, hook, DI, route, template — framework
+rilevato dal package.json del progetto, non dall'estensione). L'interfaccia di un parser è una funzione
 `(text: str, stem: str, suffix: str) -> list[tuple]` con tuple
 `(kind, name, snippet)` o `(kind, name, snippet, meta)`: `kind` è ad es.
 `function`/`class`/`endpoint`/`component`, `name` è univoco nel file,

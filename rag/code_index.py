@@ -157,11 +157,29 @@ def _parser_impl(lang: str) -> str:
         return _PARSER_DEFAULTS.get(lang, "regex")
 
 
-def _extract(suffix: str, text: str, stem: str, rel: str = "") -> list[tuple]:
+def _extract(suffix: str, text: str, stem: str, rel: str = "",
+             code_dir: Path | None = None) -> list[tuple]:
     """Estrae i simboli di un file. Le tuple sono (kind, name, snippet) o
-    (kind, name, snippet, meta) con meta={"deps": [...], "package": ...}."""
+    (kind, name, snippet, meta) con meta={"deps": [...], "package": ...}.
+    `code_dir` serve al rilevamento del framework frontend per progetto."""
     if suffix == ".py":
         return _py_symbols(text)
+    # Frontend framework-aware (React/Angular): il framework si rileva dal
+    # package.json del progetto, non dall'estensione (niente falsi positivi).
+    if suffix in (".ts", ".tsx", ".jsx", ".html") and code_dir is not None:
+        from code_index_frontend import detect_framework
+        fw = detect_framework(code_dir, rel)
+        if fw == "react" and suffix in (".tsx", ".jsx"):
+            from code_index_frontend import react_symbols
+            return react_symbols(text, stem, suffix, rel)
+        if fw == "angular" and suffix == ".ts":
+            from code_index_frontend import angular_symbols
+            return angular_symbols(text, stem, suffix, rel)
+        if fw == "angular" and suffix == ".html":
+            from code_index_frontend import angular_template_meta
+            meta = angular_template_meta(text)
+            return [("template", stem, text[:_SNIPPET_LIMIT], {"attrs": meta})] if meta \
+                else [("template", stem, text[:_SNIPPET_LIMIT])]
     if suffix == ".java":
         # Unica implementazione (tree-sitter, nessun parser regex precedente):
         # il flag code_parsers.java esiste solo per uniformità di configurazione.
@@ -268,7 +286,7 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
             text = path.read_text(encoding="utf-8", errors="ignore")
         except Exception:
             continue
-        for tup in _extract(path.suffix, text, path.stem, rel):
+        for tup in _extract(path.suffix, text, path.stem, rel, code_dir):
             kind, name, snippet = tup[0], tup[1], tup[2]
             meta = tup[3] if len(tup) > 3 else {}
             symbols.append({
@@ -289,6 +307,14 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
     # più vicino nel filesystem (classe -> config -> connection string -> db).
     from code_index_config import attach_projects
     attach_projects(symbols)
+
+    # Frontend (React/Angular): risolve templateUrl/lazy import, archi
+    # componente->componente dai selector, componenti routable dalle route.
+    if any(k in (s.get("attrs") or {}) for s in symbols
+           for k in ("_routes", "_used_selectors")) \
+            or any(d.startswith("file:") for s in symbols for d in s["deps"]):
+        from code_index_frontend import resolve_frontend
+        resolve_frontend(symbols)
 
     # Entity Framework: context->entity, entity->tabella (con placeholder se il
     # DDL non è indicizzato), navigazione entity->entity. Va chiamato anche solo
