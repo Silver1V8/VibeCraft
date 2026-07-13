@@ -403,13 +403,29 @@ def _clear_code_link_edges(G, symbol_ids) -> None:
         G.remove_edges_from(stale)
 
 
+def referenced_entity_tokens(text: str) -> set[str]:
+    """Estrae dai `text` di un simbolo i token candidati a entità del glossario
+    (MAIUSCOLE, es. `ALPHA`, `ORDINE_CLIENTE`). Fonte unica del match REFERENCES
+    codice->entità, riusata dall'incrementale per capire quali simboli toccare
+    quando l'insieme delle entità citabili cambia."""
+    return set(_ENTITY_TOKEN_RE.findall(text or ""))
+
+
 def link_symbols(G, symbols: list[dict], sym_dense, doc_dense_vecs, doc_ids,
-                 threshold: float = 0.45) -> int:
+                 threshold: float = 0.45, chunk_ids=None, scores_out: dict | None = None) -> int:
     """(Ri)calcola gli archi IMPLEMENTS (similarità dense verso il chunk-documento più
     simile) e REFERENCES (match deterministico sulle entità del glossario) per i `symbols`
     dati, che devono già essere nodi del grafo. Prima azzera i loro vecchi archi di questo
     tipo: è quindi idempotente e sicuro sia in full rebuild (grafo fresco) sia in
     incrementale (dove il simbolo/lo spazio-documenti può essere cambiato).
+
+    Se `scores_out` è passato, vi si annota per ogni simbolo lo stato dell'argmax
+    IMPLEMENTS — `best_score` (similarità col chunk vincente), `second_score` (secondo
+    classificato), `win_chunk_id` e `win_doc_id` — anche quando la migliore similarità è
+    sotto soglia (nessun arco creato). È la proprietà globale che l'incrementale persiste
+    nel code_store per decidere, senza rilinkare tutto, quali simboli possono cambiare
+    argmax quando i documenti cambiano. `chunk_ids` (parallelo a `doc_dense_vecs`/`doc_ids`)
+    fornisce l'id del chunk vincente; se assente si annota solo il documento.
 
     Restituisce il numero di archi IMPLEMENTS creati."""
     if not symbols:
@@ -452,7 +468,8 @@ def link_symbols(G, symbols: list[dict], sym_dense, doc_dense_vecs, doc_ids,
 
     implements = 0
     sym_matrix = np.asarray(sym_dense, dtype=np.float32)
-    if doc_ids is not None and doc_dense_vecs is not None and len(doc_ids) > 0 and sym_matrix.size:
+    have_docs = doc_ids is not None and doc_dense_vecs is not None and len(doc_ids) > 0 and sym_matrix.size
+    if have_docs:
         doc_matrix = np.asarray(doc_dense_vecs, dtype=np.float32)
         doc_norm = doc_matrix / (np.linalg.norm(doc_matrix, axis=1, keepdims=True) + 1e-8)
         sym_norm = sym_matrix / (np.linalg.norm(sym_matrix, axis=1, keepdims=True) + 1e-8)
@@ -460,12 +477,30 @@ def link_symbols(G, symbols: list[dict], sym_dense, doc_dense_vecs, doc_ids,
         sims = sym_norm @ doc_norm.T  # [n_simboli x n_chunk-documento]
         best_idx = sims.argmax(axis=1)
         best_val = sims.max(axis=1)
+        # secondo classificato per simbolo (audit + margine): se c'è un solo chunk il
+        # second_score degrada al minimo del dominio cosine (-1.0).
+        second_val = (np.partition(sims, -2, axis=1)[:, -2]
+                      if sims.shape[1] >= 2 else np.full(sims.shape[0], -1.0, dtype=np.float32))
         for i, sym in enumerate(symbols):
-            if best_val[i] >= threshold:
-                doc_id = doc_ids[int(best_idx[i])]
-                if doc_id in G:
-                    G.add_edge(sym["id"], doc_id, relation="IMPLEMENTS", weight=round(float(best_val[i]), 3))
-                    implements += 1
+            win_chunk = chunk_ids[int(best_idx[i])] if chunk_ids is not None else None
+            win_doc = doc_ids[int(best_idx[i])]
+            if scores_out is not None:
+                scores_out[sym["id"]] = {
+                    "best_score": float(best_val[i]),
+                    "second_score": float(second_val[i]),
+                    "win_chunk_id": win_chunk,
+                    "win_doc_id": win_doc,
+                }
+            if best_val[i] >= threshold and win_doc in G:
+                G.add_edge(sym["id"], win_doc, relation="IMPLEMENTS", weight=round(float(best_val[i]), 3))
+                implements += 1
+    elif scores_out is not None:
+        # Nessuno spazio-documenti: i simboli non hanno argmax. Registriamo un best_score
+        # sentinella (-1.0, sotto qualunque cosine) così, appena compare un chunk, il
+        # confronto incrementale li marca come 'da rilinkare'.
+        for sym in symbols:
+            scores_out[sym["id"]] = {"best_score": -1.0, "second_score": -1.0,
+                                     "win_chunk_id": None, "win_doc_id": None}
     return implements
 
 

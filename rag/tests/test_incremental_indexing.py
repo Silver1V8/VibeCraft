@@ -300,6 +300,8 @@ def _spec(marker: str) -> str:
 
 
 _CODE_ALPHA = "def handle_alpha():\n    # gestisce ALPHA\n    return 'ALPHA'\n"
+_CODE_BETA = "def handle_beta():\n    # gestisce BETA\n    return 'BETA'\n"
+_CODE_GAMMA = "def handle_gamma():\n    # gestisce GAMMA\n    return 'GAMMA'\n"
 
 
 def _load_graph():
@@ -412,6 +414,104 @@ def test_check_graph_detects_injected_divergence(monkeypatch, tmp_path):
     report = index.check_graph_consistency(embed_model=stub, docs_dir=docs_dir, code_dir=code_dir)
     assert report["consistent"] is False
     assert report["counts"]["extra_nodes"] >= 1 and report["counts"]["extra_edges"] >= 1
+
+
+def _full_rebuild_graph(monkeypatch, docs_dir, code_dir, stub):
+    """Costruisce da zero il grafo di riferimento sugli input correnti (su un Qdrant
+    usa-e-getta) e ne restituisce (nodi tipizzati, archi tipizzati): il full rebuild è
+    la verità contro cui misurare l'equivalenza dell'incrementale."""
+    ref = index._build_full_state(stub, docs_dir, code_dir, emit=lambda *_a, **_k: None).graph
+    return index._node_type_set(ref), index._edge_set(ref)
+
+
+def test_incremental_matches_full_rebuild_over_edit_sequence(monkeypatch, tmp_path):
+    """PROPRIETÀ: una sequenza di modifiche applicate in incrementale (aggiungi doc, modifica
+    doc, cancella doc, aggiungi codice) mantiene, A OGNI PASSO, il grafo dei code-link
+    deterministicamente equivalente a un full rebuild sugli stessi input — senza mai
+    rilincare tutti i simboli. Embedding fake deterministici (StubEmbed), Qdrant in-memory.
+
+    check_graph_consistency è la prova (confronta il grafo incrementale persistito col
+    rebuild); in più si verifica direttamente l'uguaglianza nodi/archi e qualche invariante
+    di merito, così il test fallisce anche se un giorno il check dovesse degradare."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    # Stato iniziale: due spec (ALPHA, BETA) e un simbolo che parla di ALPHA.
+    (docs_dir / "alpha.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    (docs_dir / "beta.md").write_text(_spec("BETA"), encoding="utf-8")
+    (code_dir / "backend").mkdir()
+    (code_dir / "backend" / "a.py").write_text(_CODE_ALPHA, encoding="utf-8")
+    index.build_graph_and_index(qdrant=q, embed_model=stub)
+
+    def _assert_consistent_with_rebuild():
+        report = index.check_graph_consistency(embed_model=stub, docs_dir=docs_dir, code_dir=code_dir)
+        assert report["consistent"] is True, report
+        inc_nodes = index._node_type_set(_load_graph())
+        inc_edges = index._edge_set(_load_graph())
+        ref_nodes, ref_edges = _full_rebuild_graph(monkeypatch, docs_dir, code_dir, stub)
+        assert inc_nodes == ref_nodes
+        assert inc_edges == ref_edges
+
+    _assert_consistent_with_rebuild()
+    a_id = "backend/a.py::handle_alpha"
+    assert (a_id, "alpha.md") in _implements(_load_graph())  # aggancio iniziale
+
+    # PASSO 1 — aggiungi doc (GAMMA): nessun overlap col codice esistente, il simbolo ALPHA
+    # resta agganciato ad alpha.md; il nuovo doc non deve spostarne l'argmax.
+    (docs_dir / "gamma.md").write_text(_spec("GAMMA"), encoding="utf-8")
+    index.incremental_index(qdrant=q, embed_model=stub)
+    _assert_consistent_with_rebuild()
+    assert (a_id, "alpha.md") in _implements(_load_graph())
+
+    # PASSO 2 — modifica doc: alpha.md passa da ALPHA a ZETA. Il simbolo (che parla di ALPHA)
+    # perde il vincitore e va rilincato; alpha.md non lo implementa più.
+    (docs_dir / "alpha.md").write_text(_spec("ZETA"), encoding="utf-8")
+    index.incremental_index(qdrant=q, embed_model=stub)
+    _assert_consistent_with_rebuild()
+    assert (a_id, "alpha.md") not in _implements(_load_graph())
+
+    # PASSO 3 — aggiungi codice: un nuovo simbolo che parla di GAMMA deve agganciare gamma.md,
+    # senza toccare l'aggancio (già assente) del simbolo ALPHA.
+    (code_dir / "backend" / "g.py").write_text(_CODE_GAMMA, encoding="utf-8")
+    index.incremental_index(qdrant=q, embed_model=stub)
+    _assert_consistent_with_rebuild()
+    g_id = "backend/g.py::handle_gamma"
+    assert (g_id, "gamma.md") in _implements(_load_graph())
+
+    # PASSO 4 — cancella doc: gamma.md sparisce. Il simbolo GAMMA perde il vincitore, l'entità
+    # GAMMA resta orfana e va potata; il grafo resta coerente col rebuild.
+    (docs_dir / "gamma.md").unlink()
+    index.incremental_index(qdrant=q, embed_model=stub)
+    _assert_consistent_with_rebuild()
+    G = _load_graph()
+    assert (g_id, "gamma.md") not in _implements(G)
+    assert "GAMMA" not in G and g_id in G
+
+
+def test_selection_leaves_unaffected_symbols_untouched():
+    """Il cuore dell'ottimizzazione: quando i documenti cambiano, si selezionano SOLO i
+    simboli il cui argmax può spostarsi, non tutti. Verifica diretta sui due criteri."""
+    # sym_keep vince su un chunk di keep.md (0.9); sym_move vinceva su change.md (0.8).
+    code_store = {
+        "sym_keep": {"dense": np.array([1.0, 0.0], dtype="float32"),
+                     "best_score": 0.9, "win_doc_id": "keep.md", "win_chunk_id": "keep.md#00-a"},
+        "sym_move": {"dense": np.array([0.0, 1.0], dtype="float32"),
+                     "best_score": 0.8, "win_doc_id": "change.md", "win_chunk_id": "change.md#00-a"},
+    }
+    # (a) solo i simboli il cui vincitore sta in un doc rimosso/modificato sono toccati.
+    stale = index._symbols_with_stale_argmax(code_store, {"change.md"})
+    assert stale == {"sym_move"}
+    assert "sym_keep" not in stale
+
+    # (b) un nuovo chunk allineato a sym_keep (>= best) lo tocca; sym_move (ortogonale) no.
+    dense_store = {"new.md#00-a": np.array([1.0, 0.0], dtype="float32")}
+    beaten = index._symbols_beaten_by_new_chunks(code_store, dense_store, ["new.md#00-a"])
+    assert "sym_keep" in beaten
+    assert "sym_move" not in beaten
+
+    # nessun cambiamento documenti ⇒ nessun simbolo toccato per via dei documenti.
+    assert index._symbols_with_stale_argmax(code_store, set()) == set()
+    assert index._symbols_beaten_by_new_chunks(code_store, dense_store, []) == set()
 
 
 def _mini_retriever(q: StatefulFakeQdrant, stub: StubEmbed):

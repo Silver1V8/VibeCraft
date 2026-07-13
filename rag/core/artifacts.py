@@ -48,7 +48,11 @@ from core.config import (
 _EDGES_KEY = "links"
 
 # Metadati testuali del codice = tutto tranne il vettore denso (che vive nel .npz).
-_CODE_META_KEYS = ("name", "kind", "file", "dev_type", "text", "deps", "refs", "links")
+# Oltre a nome/tipo/testo/relazioni, si persistono i valori dell'argmax IMPLEMENTS
+# (best_score, second_score, win_chunk_id, win_doc_id): sono la proprietà globale che
+# rende l'incrementale sui code-link deterministicamente equivalente al full rebuild.
+_CODE_META_KEYS = ("name", "kind", "file", "dev_type", "text", "deps", "refs", "links",
+                   "best_score", "second_score", "win_chunk_id", "win_doc_id")
 
 
 # ---------------------------------------------------------------------------

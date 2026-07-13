@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import networkx as nx
+import numpy as np
 from FlagEmbedding import BGEM3FlagModel
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
@@ -32,6 +33,7 @@ from code_index import (
     collect_code_symbols,
     embed_symbols,
     link_symbols,
+    referenced_entity_tokens,
 )
 from core.artifacts import (
     _atomic_write,
@@ -263,11 +265,14 @@ def _build_full_state(embed_model, docs_dir: Path, code_dir: Path, emit=None) ->
             doc_chunk_ids = [c["chunk_id"] for c in all_chunks if c["chunk_id"] in dense_store]
             doc_dense16 = [dense_store[cid] for cid in doc_chunk_ids]
             doc_parent16 = [chunks_store[cid]["doc_id"] for cid in doc_chunk_ids]
-            n_impl = link_symbols(G, code_symbols, sym_dense16, doc_dense16, doc_parent16)
+            scores: dict = {}
+            n_impl = link_symbols(G, code_symbols, sym_dense16, doc_dense16, doc_parent16,
+                                  chunk_ids=doc_chunk_ids, scores_out=scores)
             code_store = {
                 s["id"]: {"name": s["name"], "kind": s["kind"], "file": s["file"],
                           "dev_type": s["dev_type"], "text": s["text"],
-                          "dense": sym_dense16[i]}
+                          "dense": sym_dense16[i],
+                          **scores.get(s["id"], {})}
                 for i, s in enumerate(code_symbols)
             }
             _log(f"🧩 Codice indicizzato: {len(code_symbols)} simboli, {n_impl} archi IMPLEMENTS verso i documenti.")
@@ -557,11 +562,20 @@ def _apply_code_delta(
     return touched
 
 
+def _sorted_chunk_ids(dense_store: dict, chunks_store: dict) -> list[str]:
+    """Chunk-documento validi (presenti in entrambi i sidecar) in ORDINE DETERMINISTICO
+    (per chunk_id, che incorpora doc + indice zero-paddato): riproduce l'ordine in cui il
+    full rebuild presenta i chunk a link_symbols, così l'argmax e i tie-break coincidono."""
+    return sorted(cid for cid in dense_store if cid in chunks_store)
+
+
 def _relink_touched_symbols(graph: nx.DiGraph, code_store: dict, chunks_store: dict,
                             dense_store: dict, touched_ids: set[str]) -> int:
     """Ricalcola IMPLEMENTS/REFERENCES per i soli simboli in `touched_ids`, usando i vettori
     densi già persistiti (nessun re-embed): i simboli dal code_store, i chunk-documento dal
-    dense_store. Restituisce il numero di archi IMPLEMENTS creati."""
+    dense_store. Aggiorna nel code_store lo stato dell'argmax (best/second/win) dei simboli
+    rilinkati, così il prossimo delta parte da valori freschi. Restituisce il numero di
+    archi IMPLEMENTS creati."""
     ids = [sid for sid in touched_ids if sid in graph and sid in code_store]
     if not ids:
         return 0
@@ -571,10 +585,67 @@ def _relink_touched_symbols(graph: nx.DiGraph, code_store: dict, chunks_store: d
              "links": code_store[sid].get("links", [])} for sid in ids]
     sym_dense = [code_store[sid]["dense"] for sid in ids]
 
-    chunk_ids = [cid for cid in dense_store if cid in chunks_store]
+    chunk_ids = _sorted_chunk_ids(dense_store, chunks_store)
     chunk_dense = [dense_store[cid] for cid in chunk_ids]
     chunk_parent = [chunks_store[cid]["doc_id"] for cid in chunk_ids]
-    return link_symbols(graph, syms, sym_dense, chunk_dense, chunk_parent)
+    scores: dict = {}
+    n_impl = link_symbols(graph, syms, sym_dense, chunk_dense, chunk_parent,
+                          chunk_ids=chunk_ids, scores_out=scores)
+    for sid, sc in scores.items():
+        code_store[sid].update(sc)
+    return n_impl
+
+
+def _entity_nodes(graph: nx.DiGraph) -> set[str]:
+    """Insieme degli id dei nodi-entità del grafo (quelli citabili dal codice via REFERENCES)."""
+    return {n for n, a in graph.nodes(data=True) if a.get("type") == "entity"}
+
+
+def _symbols_with_stale_argmax(code_store: dict, dead_docs: set[str]) -> set[str]:
+    """Simboli il cui chunk-documento VINCENTE apparteneva a un documento rimosso o
+    modificato (`dead_docs` = modificati + cancellati): il loro vincitore è sparito o è
+    cambiato, quindi l'argmax IMPLEMENTS va ricalcolato. Gli altri simboli conservano il
+    loro vincitore intatto — per costruzione l'argmax non può essersi spostato lì."""
+    if not dead_docs:
+        return set()
+    return {sid for sid, meta in code_store.items() if meta.get("win_doc_id") in dead_docs}
+
+
+def _symbols_beaten_by_new_chunks(code_store: dict, dense_store: dict,
+                                  new_chunk_ids: list[str], eps: float = 1e-4) -> set[str]:
+    """Simboli per cui un chunk NUOVO/RI-EMBEDDATO raggiunge una similarità >= al loro
+    best_score corrente: solo lì un nuovo chunk può diventare (o pareggiare) l'argmax.
+    Confronto vettoriale in blocco (vettori fp16 già in memoria), nessun re-embed.
+
+    Si tocca anche a parità (entro `eps`) per non divergere dai tie-break del rebuild:
+    sovra-approssimare è sempre sicuro (si rilinca qualche simbolo in più), sotto-
+    approssimare no."""
+    valid_new = [cid for cid in new_chunk_ids if cid in dense_store]
+    sids = [sid for sid, meta in code_store.items() if "dense" in meta]
+    if not valid_new or not sids:
+        return set()
+    sym_mat = np.asarray([code_store[sid]["dense"] for sid in sids], dtype=np.float32)
+    new_mat = np.asarray([dense_store[cid] for cid in valid_new], dtype=np.float32)
+    sym_norm = sym_mat / (np.linalg.norm(sym_mat, axis=1, keepdims=True) + 1e-8)
+    new_norm = new_mat / (np.linalg.norm(new_mat, axis=1, keepdims=True) + 1e-8)
+    max_new = (sym_norm @ new_norm.T).max(axis=1)  # miglior chunk nuovo per simbolo
+    touched: set[str] = set()
+    for i, sid in enumerate(sids):
+        best = code_store[sid].get("best_score")
+        if best is None or float(max_new[i]) >= float(best) - eps:
+            touched.add(sid)
+    return touched
+
+
+def _symbols_referencing_entities(code_store: dict, changed_entities: set[str]) -> set[str]:
+    """Simboli i cui token-entità nel testo intersecano le entità aggiunte/rimosse: sono i
+    soli il cui insieme di archi REFERENCES verso le entità può cambiare. (Gli archi verso
+    entità potate cadono già con la rimozione del nodo; qui si intercettano soprattutto le
+    entità NUOVE, che vanno collegate ai simboli che le citano.)"""
+    if not changed_entities:
+        return set()
+    return {sid for sid, meta in code_store.items()
+            if referenced_entity_tokens(meta.get("text", "")) & changed_entities}
 
 
 def apply_incremental_indexing(
@@ -601,14 +672,20 @@ def apply_incremental_indexing(
       2. (ri)vettorializzazione dei documenti nuovi+modificati e upsert con id deterministici,
          con re-inserimento dei nodi-documento nel grafo;
       3. delta sui file di codice (simboli aggiunti/rimossi/modificati);
-      4. ricalcolo mirato degli archi spec<->codice (IMPLEMENTS/REFERENCES) per i soli nodi
-         toccati: i simboli nuovi/modificati e — se lo spazio dei documenti è cambiato —
-         tutti i simboli (l'argmax sui documenti può essersi spostato). Infine potatura
-         delle entità rimaste orfane. Questo elimina la staleness dei code-link senza rebuild.
+      4. ricalcolo mirato degli archi spec<->codice (IMPLEMENTS/REFERENCES) per i SOLI nodi
+         che possono essere cambiati: i simboli nuovi/modificati, quelli il cui chunk
+         vincente stava in un doc rimosso/modificato, quelli battuti da un chunk nuovo, e
+         quelli che citano un'entità aggiunta/rimossa. Gli altri hanno argmax invariato per
+         costruzione e non si toccano. Infine potatura delle entità rimaste orfane. Il
+         risultato è deterministicamente equivalente al full rebuild (lo prova
+         check_graph_consistency), ma il costo è proporzionale al delta, non all'indice.
 
     `dense_store`/`code_store`/`code_delta`/`code_dir` sono opzionali: se assenti la funzione
     si comporta come prima (nessun ricalcolo dei code-link), preservando i chiamanti legacy."""
     _log = emit or print
+    # Snapshot delle entità PRIMA di toccare i documenti: serve a capire, a valle, quali
+    # entità sono comparse/sparite e quindi quali simboli hanno REFERENCES da ricalcolare.
+    entities_before = _entity_nodes(graph)
     to_delete = plan.to_delete()   # modificati + cancellati
     to_index = plan.to_index()     # nuovi + modificati
 
@@ -627,6 +704,7 @@ def apply_incremental_indexing(
 
     # 2. (Ri)indicizzazione dei soli documenti nuovi/modificati
     upserted = 0
+    new_chunk_ids: list[str] = []
     if to_index:
         assert docs_dir is not None, "docs_dir richiesto quando ci sono documenti da (ri)indicizzare"
         new_chunks: list[dict] = []
@@ -653,6 +731,7 @@ def apply_incremental_indexing(
             chunks_store.update(chunks_partial)
             if dense_store is not None:
                 dense_store.update(_dense_map(new_chunks, _dense))
+            new_chunk_ids = [c["chunk_id"] for c in new_chunks]
             upserted = len(points)
         _log(f"➕ (Ri)indicizzati {len(to_index)} documenti → {upserted} chunk upsertati.")
 
@@ -667,19 +746,29 @@ def apply_incremental_indexing(
                 graph, code_dir, code_store, embed_model,
                 code_added, code_removed, code_modified, _log,
             )
-        # Se lo spazio dei documenti è cambiato, l'argmax IMPLEMENTS di OGNI simbolo può
-        # spostarsi (e le entità citabili cambiano): vanno rilinkati tutti. Altrimenti bastano
-        # i simboli toccati dal delta del codice.
-        docs_changed = bool(to_index or plan.deleted)
-        if docs_changed:
-            touched |= set(code_store.keys())
+        # Selezione MIRATA dei simboli il cui argmax IMPLEMENTS può essere cambiato per via
+        # del delta documenti — invece di rilincare tutto quando i documenti cambiano.
+        # L'argmax è una proprietà globale, ma può spostarsi solo in due casi:
+        #   (a) il chunk vincente del simbolo apparteneva a un doc rimosso/modificato → il
+        #       vincitore è sparito, va ricalcolato;
+        #   (b) un chunk NUOVO/ri-embeddato raggiunge una similarità >= al best_score del
+        #       simbolo → il nuovo chunk può diventare il vincitore.
+        # Gli altri simboli hanno vincitore intatto e nessun nuovo concorrente più forte:
+        # per costruzione l'argmax non si muove, quindi NON si toccano.
+        touched |= _symbols_with_stale_argmax(code_store, set(to_delete))
+        touched |= _symbols_beaten_by_new_chunks(code_store, dense_store, new_chunk_ids)
         # Prima si potano le entità che nessun documento cita più (rimuove anche i REFERENCES
         # stale del codice verso di esse), POI si ricalcolano i link: così REFERENCES viene
         # ricostruito sull'insieme di entità valido, identico a quello del full rebuild.
         orphans = _prune_unsupported_entities(graph)
+        # REFERENCES codice->entità: se l'insieme delle entità citabili è cambiato, i soli
+        # simboli i cui token intersecano le entità aggiunte/rimosse possono avere archi
+        # diversi (le entità potate hanno già perso gli archi con la rimozione del nodo).
+        changed_entities = entities_before ^ _entity_nodes(graph)
+        touched |= _symbols_referencing_entities(code_store, changed_entities)
         implements = _relink_touched_symbols(graph, code_store, chunks_store, dense_store, touched)
         if touched or orphans:
-            _log(f"🔗 Code-link ricalcolati per {len(touched)} simboli → {implements} IMPLEMENTS; "
+            _log(f"🔗 Code-link ricalcolati per {len(touched)} simboli toccati → {implements} IMPLEMENTS; "
                  f"{orphans} entità orfane potate.")
 
     return {
