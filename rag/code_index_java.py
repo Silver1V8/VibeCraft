@@ -47,6 +47,11 @@ _INJECT_ANNOTATIONS = {"Inject", "Autowired"}
 _REST_CLIENT_ANNOTATIONS = {"RegisterRestClient", "FeignClient"}
 _REST_CLIENT_ARG_RE = re.compile(r'(baseUri|configKey|name|url)\s*=\s*"([^"]+)"')
 _TABLE_NAME_RE = re.compile(r'@Table\s*\(\s*[^)]*name\s*=\s*"([^"]+)"')
+# Relazioni di navigazione JPA sui campi (equivalente della navigazione EF)
+_JPA_RELATION_ANNOTATIONS = {"OneToMany", "ManyToOne", "OneToOne", "ManyToMany"}
+_GENERIC_INNER_RE = re.compile(r"^(?:List|Set|Collection|Map)<(?:[\w.]+,\s*)?([\w.]+)>$")
+# @Query(value="...", nativeQuery=true) di Spring Data JPA
+_NATIVE_QUERY_VALUE_RE = re.compile(r'value\s*=\s*"([^"]+)"')
 
 # FQCN Java (almeno due segmenti, ultimo capitalizzato): usato per trovare le classi
 # referenziate dai service task Kogito dentro attributi/estensioni XML.
@@ -143,13 +148,12 @@ def java_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
         stereotypes = cls_anns & {"Service", "Component", "Repository", "RestController", "Controller"}
         if stereotypes:
             cls_meta.setdefault("attrs", {})["stereotypes"] = sorted(stereotypes)
-        # JPA: @Entity -> arco verso il nodo tabella (nome da @Table(name=...)
-        # o, per convenzione Hibernate, dal nome della classe); lowercase per
-        # riconciliarsi con i nodi tabella del parser SQL
+        # JPA: @Entity -> tabella da @Table(name=...) o convenzione Hibernate
+        # (nome classe), lowercase. Chiave temporanea: il post-pass resolve_jpa
+        # (analogo di resolve_ef in C#) crea il link e l'eventuale placeholder.
         if "Entity" in cls_anns:
             tm = _TABLE_NAME_RE.search(ann_text)
-            table = (tm.group(1) if tm else cls).lower()
-            cls_meta.setdefault("links", []).append(("REFERENCES", table))
+            cls_meta.setdefault("attrs", {})["_jpa_table"] = (tm.group(1) if tm else cls).lower()
         out.append((kind, cls, _context(src, node.start_byte), cls_meta))
 
         body = node.child_by_field_name("body")
@@ -171,6 +175,15 @@ def java_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
                 mtuple = (mkind, f"{cls}.{_text(src, mname_node)}",
                           _context(src, member.start_byte))
                 sp = _storedproc_links(_text(src, member))  # CallableStatement "{call x}"
+                # Spring Data JPA: @Query(value="...", nativeQuery=true) -> archi
+                # READS/WRITES/EXECUTES dalle tabelle citate (riusa l'estrattore
+                # del parser SQL, come _ef_raw_sql_links in C#)
+                m_ann_text = " ".join(_text(src, a) for a in _annotations(member))
+                if "Query" in anns and re.search(r"nativeQuery\s*=\s*true", m_ann_text):
+                    qm = _NATIVE_QUERY_VALUE_RE.search(m_ann_text)
+                    if qm:
+                        from code_index_sql import _body_links
+                        sp = sp + _body_links(qm.group(1), "")
                 out.append(mtuple + (({"links": sp},) if sp else ()))
             elif member.type == "constructor_declaration":
                 # @Autowired su costruttore: i tipi dei parametri sono iniettati,
@@ -189,10 +202,17 @@ def java_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
                                     _context(src, member.start_byte), {"deps": [ptype]}))
                         cls_meta["deps"].append(ptype)
             elif member.type == "field_declaration":
-                if not (_INJECT_ANNOTATIONS & _annotation_names(member, src)):
-                    continue
+                f_anns = _annotation_names(member, src)
                 type_node = member.child_by_field_name("type")
-                ftype = _text(src, type_node).split("<")[0].split(".")[-1] if type_node else ""
+                raw_type = _text(src, type_node) if type_node else ""
+                # relazioni JPA sui campi -> navigazione entity->entity (post-pass)
+                if f_anns & _JPA_RELATION_ANNOTATIONS and raw_type:
+                    gm = _GENERIC_INNER_RE.match(raw_type)
+                    target = (gm.group(1) if gm else raw_type).split("<")[0].split(".")[-1]
+                    cls_meta.setdefault("attrs", {}).setdefault("_jpa_nav", []).append(target)
+                if not (_INJECT_ANNOTATIONS & f_anns):
+                    continue
+                ftype = raw_type.split("<")[0].split(".")[-1] if raw_type else ""
                 for decl in member.children:
                     if decl.type == "variable_declarator":
                         fname_node = decl.child_by_field_name("name")
@@ -306,3 +326,41 @@ def dmn_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
         return []
     return [("decision", d.get("id") or d.get("name") or stem, text[:_SNIPPET_LIMIT])
             for d in root.iter() if _local(d.tag) == "decision"]
+
+
+# ---------------------------------------------------------- resolver JPA --
+
+def resolve_jpa(symbols: list[dict]) -> None:
+    """Post-pass JPA (analogo di resolve_ef in code_index_csharp): mapping
+    entity->tabella ([Table] o convenzione Hibernate, lowercase per
+    riconciliarsi coi nodi del parser SQL) con nodi tabella placeholder
+    quando il DDL non e' ancora indicizzato, e relazioni di navigazione
+    @OneToMany/@ManyToOne/@OneToOne/@ManyToMany -> REFERENCES entity->entity.
+    Rimuove sempre le chiavi temporanee (_jpa_table/_jpa_nav)."""
+    table_nodes = {s["name"] for s in symbols if s["kind"] == "table"}
+    entity_names = {s["name"] for s in symbols
+                    if "_jpa_table" in (s.get("attrs") or {})}
+
+    placeholders: list[dict] = []
+    for sym in symbols:
+        attrs = sym.get("attrs") or {}
+        table = attrs.pop("_jpa_table", None)
+        nav = attrs.pop("_jpa_nav", None)
+        if table:
+            sym["links"] = sorted(set(sym["links"]) | {("REFERENCES", table)})
+            if table not in table_nodes:
+                table_nodes.add(table)
+                placeholders.append({
+                    "id": f"{sym['file']}::{table}",
+                    "name": table, "kind": "table", "file": sym["file"],
+                    "dev_type": sym["dev_type"],
+                    "text": f"table {table}\n(placeholder JPA: DDL non indicizzato, "
+                            f"riconciliato per nome quando il parser SQL lo trovera')",
+                    "deps": [], "refs": [], "links": [], "package": "",
+                    "attrs": {"placeholder": True},
+                })
+        if nav:
+            targets = {t for t in nav if t in entity_names and t != sym["name"]}
+            if targets:
+                sym["refs"] = sorted(set(sym["refs"]) | targets)
+    symbols.extend(placeholders)

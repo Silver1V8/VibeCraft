@@ -316,6 +316,13 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
         from code_index_frontend import resolve_frontend
         resolve_frontend(symbols)
 
+    # JPA: entity->tabella (con placeholder se il DDL non è indicizzato) e
+    # navigazione @OneToMany & co. -> REFERENCES entity->entity.
+    if any(k in (s.get("attrs") or {}) for s in symbols
+           for k in ("_jpa_table", "_jpa_nav")):
+        from code_index_java import resolve_jpa
+        resolve_jpa(symbols)
+
     # Entity Framework: context->entity, entity->tabella (con placeholder se il
     # DDL non è indicizzato), navigazione entity->entity. Va chiamato anche solo
     # per ripulire le chiavi temporanee (_prop_types/_table) dai metadati C#.

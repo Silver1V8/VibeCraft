@@ -318,3 +318,94 @@ def test_application_properties_datasource_and_masking(spring_project):
     blob = " ".join(s["text"] + str(s["attrs"]) + str(s["deps"]) + str(s["refs"])
                     for s in syms)
     assert "SegretoJdbc123" not in blob
+
+
+# --------------------------- resolver JPA (placeholder, navigazione, @Query) --
+
+JPA_RELATED = """package it.haro.eventi;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.ManyToOne;
+
+@Entity
+public class Fattura {
+    @ManyToOne
+    private Intestatario intestatario;
+    public Long getId() { return 1L; }
+}
+
+@Entity
+public class Intestatario {
+    @OneToMany
+    private List<Fattura> fatture;
+    public Long getId() { return 1L; }
+}
+"""
+
+SPRING_DATA_REPO = """package it.haro.eventi;
+
+public interface FatturaRepository {
+    @Query(value = "SELECT f.* FROM fatture f JOIN intestatario i ON i.id = f.iid", nativeQuery = true)
+    List<Fattura> conIntestatario();
+
+    @Query("SELECT f FROM Fattura f")
+    List<Fattura> jpql();
+}
+"""
+
+
+@pytest.fixture
+def jpa_project(tmp_path):
+    src = tmp_path / "backend" / "src"
+    src.mkdir(parents=True)
+    (src / "Entities.java").write_text(JPA_RELATED, encoding="utf-8")
+    (src / "FatturaRepository.java").write_text(SPRING_DATA_REPO, encoding="utf-8")
+    return tmp_path
+
+
+def test_jpa_placeholder_tables(jpa_project):
+    syms = ci.collect_code_symbols(jpa_project)
+    tables = {s["name"]: s for s in syms if s["kind"] == "table"}
+    # DDL non indicizzato -> placeholder per convenzione Hibernate (nome classe)
+    assert tables["fattura"]["attrs"].get("placeholder") is True
+    assert tables["intestatario"]["attrs"].get("placeholder") is True
+    by_name = _by_name(syms)
+    assert ("REFERENCES", "fattura") in by_name["Fattura"]["links"]
+    # chiavi temporanee sempre ripulite
+    assert not any(k.startswith("_jpa") for s in syms for k in (s["attrs"] or {}))
+
+
+def test_jpa_placeholder_reconciles_with_ddl(jpa_project):
+    (jpa_project / "backend" / "schema.sql").write_text(
+        "CREATE TABLE fattura (id INT);", encoding="utf-8")
+    syms = ci.collect_code_symbols(jpa_project)
+    fattura = [s for s in syms if s["kind"] == "table" and s["name"] == "fattura"]
+    assert len(fattura) == 1 and not fattura[0]["attrs"].get("placeholder")
+
+
+def test_jpa_navigation_edges(jpa_project):
+    syms = _by_name(ci.collect_code_symbols(jpa_project))
+    # @ManyToOne (reference) e @OneToMany (collection List<Fattura>)
+    assert "Intestatario" in syms["Fattura"]["refs"]
+    assert "Fattura" in syms["Intestatario"]["refs"]
+
+
+def test_spring_data_native_query_reads(jpa_project):
+    syms = ci.collect_code_symbols(jpa_project)
+
+    G = nx.DiGraph()
+
+    class StubModel:
+        def encode(self, texts, **kw):
+            return {"dense_vecs": np.zeros((len(texts), 8), dtype="float32")}
+
+    ci.add_code_graph(G, syms, StubModel(), [], None)
+    reads = {(G.nodes[u]["name"], G.nodes[v]["name"])
+             for u, v, d in G.edges(data=True) if d.get("relation") == "READS"}
+    # nativeQuery=true: READS verso le tabelle citate (fatture non ha nodo,
+    # intestatario si' -- placeholder dall'entity)
+    assert ("FatturaRepository.conIntestatario", "intestatario") in reads
+    # la @Query JPQL (non nativa) non genera archi SQL
+    by_name = _by_name(syms)
+    assert not by_name["FatturaRepository.jpql"].get("links")
