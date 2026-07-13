@@ -17,7 +17,7 @@ from api.deps import (
 )
 from api.reindex import ReindexManager, extract_gitlab_paths
 from core.config import REINDEX_JOURNAL_PATH
-from core.indexing import incremental_index
+from core.indexing import build_graph_and_index, incremental_index
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
@@ -37,23 +37,41 @@ def _run_reindex(changed_paths) -> dict:
     )
 
 
+def _run_full_rebuild(changed_paths) -> dict:
+    """Job "full": ricostruzione completa (build_graph_and_index) riusando modello e client
+    del server. `changed_paths` è ignorato (un full non ha delta). Gira sul thread daemon
+    del ReindexManager: è così che OGNI scrittura degli artefatti passa da un solo scrittore."""
+    build_graph_and_index(qdrant=state.get("qdrant"), embed_model=state.get("embed_model"))
+    return {"full_rebuild": True}
+
+
+def enqueue_full_rebuild() -> tuple:
+    """Accoda (o fonde) un full rebuild nella coda del manager. Restituisce `(job, queued)`.
+    Usata anche dalle route dell'archive (Step 5), che non devono più chiamare
+    build_graph_and_index inline: un solo scrittore per costruzione."""
+    return manager.start(None, _run_full_rebuild, reload_index_state, kind="full")
+
+
 @router.post("/api/reindex", dependencies=[Depends(require_gitlab_token)])
 async def start_reindex(request: Request):
     """Avvia (o accoda) un reindex incrementale in background e risponde 202 con il job-id.
 
     Il corpo è opzionale: se contiene un payload webhook GitLab (push) o un override
     esplicito `{"paths": [...]}`, i path modificati limitano il delta; altrimenti si fa
-    un incrementale completo su docs/ + code/. Se un reindex è già in corso la richiesta
-    NON viene rifiutata: è accodata/fusa in un unico pending e la risposta riporta
-    `{"job_id": <id del pending>, "queued": true}`."""
+    un incrementale completo su docs/ + code/. Un corpo `{"full": true}` richiede invece
+    un FULL REBUILD (build_graph_and_index) via coda. Se un reindex è già in corso la
+    richiesta NON viene rifiutata: è accodata/fusa in un unico pending e la risposta
+    riporta `{"job_id": <id del pending>, "queued": true}`."""
     try:
         payload = await request.json()
     except Exception:
         payload = None  # corpo assente o non-JSON: incrementale completo
 
-    changed_paths = extract_gitlab_paths(payload) if payload is not None else None
-
-    job, queued = manager.start(changed_paths, _run_reindex, reload_index_state)
+    if isinstance(payload, dict) and payload.get("full") is True:
+        job, queued = enqueue_full_rebuild()
+    else:
+        changed_paths = extract_gitlab_paths(payload) if payload is not None else None
+        job, queued = manager.start(changed_paths, _run_reindex, reload_index_state)
     content = job.to_dict()
     if queued:
         content["queued"] = True

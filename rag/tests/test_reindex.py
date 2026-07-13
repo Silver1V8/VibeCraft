@@ -229,6 +229,154 @@ def test_unknown_job_id_returns_none():
 
 
 # ---------------------------------------------------------------------------
+# Job "full" (build completa) — un solo scrittore per costruzione
+# ---------------------------------------------------------------------------
+def test_full_absorbs_pending_incremental():
+    """Un full che arriva su un pending incremental lo sussume: il pending diventa full
+    (path azzerati) e a fine job corrente gira la funzione del FULL, non quella del delta."""
+    mgr = ReindexManager()
+    gate = threading.Event()
+    ran = []
+
+    def busy(paths):
+        gate.wait(timeout=5)
+        return {}
+
+    first, _ = mgr.start(["a"], busy, lambda: None)                    # occupa lo slot
+    pending, q1 = mgr.start(["b"], lambda p: ran.append(("inc", p)) or {}, lambda: None)
+    assert q1 is True and pending.kind == "incremental"
+
+    full, q2 = mgr.start(None, lambda p: ran.append(("full", p)) or {}, lambda: None,
+                         kind="full")
+    assert q2 is True
+    assert full.id == pending.id            # stesso slot pending, mutato
+    assert pending.kind == "full"
+    assert pending.changed_paths is None
+    assert pending.to_dict()["kind"] == "full"
+
+    gate.set()
+    assert _wait(lambda: mgr.get(pending.id).status == "completed")
+    assert ran == [("full", None)]          # ha girato il full, non l'incrementale
+
+
+def test_incremental_merges_into_pending_full_without_changing_it():
+    """Un incremental accodato dietro un pending full vi si fonde: il pending resta full,
+    senza path (il full copre qualunque delta)."""
+    mgr = ReindexManager()
+    gate = threading.Event()
+
+    def busy(paths):
+        gate.wait(timeout=5)
+        return {}
+
+    mgr.start(["a"], busy, lambda: None)                     # occupa lo slot
+    pending, _ = mgr.start(None, lambda p: {}, lambda: None, kind="full")
+    assert pending.kind == "full"
+
+    inc, queued = mgr.start(["docs/x.md"], lambda p: {}, lambda: None)
+    assert queued is True and inc.id == pending.id
+    assert pending.kind == "full"
+    assert pending.changed_paths is None
+    gate.set()
+    assert _wait(lambda: mgr.get(pending.id).status == "completed")
+
+
+def test_full_job_starts_immediately_when_idle_and_reports_kind():
+    mgr = ReindexManager()
+    done = threading.Event()
+    job, queued = mgr.start(None, lambda p: {"full_rebuild": True}, done.set, kind="full")
+    assert queued is False
+    assert job.kind == "full"
+    assert done.wait(timeout=5)
+    assert mgr.get(job.id).to_dict()["kind"] == "full"
+
+
+def test_journal_persists_kind(tmp_path):
+    journal = tmp_path / "reindex_jobs.jsonl"
+    done = threading.Event()
+    mgr = ReindexManager(journal_path=journal)
+    job, _ = mgr.start(None, lambda p: {}, done.set, kind="full")
+    assert done.wait(timeout=5)
+    assert _wait(lambda: mgr.get(job.id).status == "completed")
+
+    revived = ReindexManager(journal_path=journal)
+    assert revived.get(job.id).kind == "full"
+
+
+# ---------------------------------------------------------------------------
+# Archive (Step 5): fase (a) sincrona, re-indicizzazione accodata al manager
+# ---------------------------------------------------------------------------
+def _make_archive_env(tmp_path, monkeypatch):
+    """changes/<feature> temporanea, canvas review disattivata, build tracciata."""
+    changes = tmp_path / "changes"
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (changes / "feat-demo").mkdir(parents=True)
+    (changes / "feat-demo" / "canvas.md").write_text("# canvas", encoding="utf-8")
+    monkeypatch.setattr(indexing, "CHANGES_DIR", changes)
+    monkeypatch.setattr(indexing, "DOCS_DIR", docs)
+    monkeypatch.setattr(
+        indexing, "generate_canvas_review", lambda folder, change_dir: (None, "LLM off")
+    )
+    built = []
+    monkeypatch.setattr(indexing, "build_graph_and_index", lambda **kw: built.append(kw))
+    return changes, built
+
+
+def test_archive_feature_reindex_false_skips_build(tmp_path, monkeypatch):
+    """Con reindex=False (modalità server) archive_feature archivia ma NON chiama
+    build_graph_and_index: la ricostruzione spetta alla coda del ReindexManager."""
+    changes, built = _make_archive_env(tmp_path, monkeypatch)
+    log = indexing.archive_feature("feat-demo", emit=lambda m: None, reindex=False)
+    assert (changes / "archive" / "feat-demo").exists()
+    assert built == []
+    assert "Re-indicizzazione completata" not in log
+
+
+def test_archive_feature_default_still_rebuilds_inline(tmp_path, monkeypatch):
+    """Il default (CLI, fuori dal server) resta la ricostruzione inline."""
+    changes, built = _make_archive_env(tmp_path, monkeypatch)
+    indexing.archive_feature("feat-demo", emit=lambda m: None)
+    assert (changes / "archive" / "feat-demo").exists()
+    assert len(built) == 1
+
+
+def test_archive_stream_route_queues_full_and_emits_final_event(tmp_path, monkeypatch):
+    """La route streaming dell'archive esegue solo la fase (a) (reindex=False), accoda un
+    job full (fake run_reindex: nessuna build reale) e chiude lo stream con
+    {"type": "reindex_queued", "job_id": ...}."""
+    import asyncio
+
+    import api.routes_pipeline as rp
+    import api.routes_reindex as rr
+    from api.models import ArchiveRequest
+
+    _make_archive_env(tmp_path, monkeypatch)
+    monkeypatch.setitem(rr.state, "qdrant", None)
+    monkeypatch.setitem(rr.state, "embed_model", None)
+    # Manager pulito (senza journal reale) e run_reindex finto: nessuna build vera.
+    monkeypatch.setattr(rr, "manager", ReindexManager())
+    ran_full = threading.Event()
+    monkeypatch.setattr(rr, "_run_full_rebuild", lambda paths: ran_full.set() or {"full_rebuild": True})
+
+    async def collect():
+        resp = await rp.pipeline_archive_stream(ArchiveRequest(feature="feat-demo"))
+        events = []
+        async for chunk in resp.body_iterator:
+            events.append(json.loads(chunk))
+        return events
+
+    events = asyncio.run(collect())
+    final = events[-1]
+    assert final["type"] == "reindex_queued"
+    assert final["job_id"]
+    # Il job full accodato viene davvero eseguito dal manager (fake run_reindex).
+    assert ran_full.wait(timeout=5)
+    # E la fase (a) non ha rigenerato l'indice inline: nessun log di re-indicizzazione.
+    assert not any("Re-indicizzazione completata" in e.get("line", "") for e in events)
+
+
+# ---------------------------------------------------------------------------
 # Persistenza: journal JSONL append-only + ricostruzione al boot
 # ---------------------------------------------------------------------------
 def test_journal_round_trip_completed_job_survives_restart(tmp_path):

@@ -1043,8 +1043,15 @@ def _record_review_skip(change_dir: Path, reason: str) -> None:
         pass  # anche il fallimento della registrazione non deve bloccare l'archive
 
 
-def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_model=None, emit=None) -> str:
-    """Sposta la cartella in 'archive' e innesca la re-indicizzazione.
+def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_model=None,
+                    emit=None, reindex: bool = True) -> str:
+    """Sposta la cartella in 'archive' (con canvas review) e, se `reindex=True`, innesca
+    la re-indicizzazione completa inline.
+
+    `reindex=False` esegue SOLO la fase di archiviazione: è la modalità usata dal server,
+    dove la ricostruzione dell'indice deve passare dalla coda del ReindexManager (un solo
+    scrittore per costruzione) e non essere eseguita qui. La CLI (index.py), che gira
+    fuori dal server, mantiene il default inline.
 
     Restituisce il log testuale dell'operazione (oltre a stamparlo/emetterlo). Le
     risorse pesanti possono essere iniettate dal server per riusare modello e client
@@ -1095,9 +1102,10 @@ def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_mode
         shutil.move(str(source_dir), str(target_dir))
         log(f"✅ Feature archiviata con successo in: {target_dir}")
 
-        log("🔄 Innesco la re-indicizzazione del Graph RAG locale...")
-        build_graph_and_index(qdrant=qdrant, embed_model=embed_model, emit=_emit)
-        log("✅ Re-indicizzazione completata! Il Graph RAG ha appreso la nuova feature.")
+        if reindex:
+            log("🔄 Innesco la re-indicizzazione del Graph RAG locale...")
+            build_graph_and_index(qdrant=qdrant, embed_model=embed_model, emit=_emit)
+            log("✅ Re-indicizzazione completata! Il Graph RAG ha appreso la nuova feature.")
 
     except Exception as e:
         log(f"❌ Errore durante l'archiviazione: {e}")

@@ -65,14 +65,18 @@ def _coalesce_paths(a: list[str] | None, b: list[str] | None) -> list[str] | Non
 
 
 class ReindexJob:
-    """Stato di un singolo job di reindex. `status` ∈ {queued, running, completed, failed}.
+    """Stato di un singolo job di reindex. `status` ∈ {queued, running, completed, failed};
+    `kind` ∈ {incremental, full} — un full è una ricostruzione completa (build_graph_and_index)
+    e non ha changed_paths.
 
     Un job può nascere `queued` (accodato/fuso mentre un altro gira) e passare a `running`
     quando viene effettivamente avviato dal dispatch del pending a fine job precedente."""
 
-    def __init__(self, changed_paths: list[str] | None, status: str = "running"):
+    def __init__(self, changed_paths: list[str] | None, status: str = "running",
+                 kind: str = "incremental"):
         self.id: str = uuid.uuid4().hex
         self.status: str = status
+        self.kind: str = kind
         self.created_at: str = _now_iso()
         self.finished_at: str | None = None
         self.changed_paths: list[str] | None = changed_paths
@@ -87,6 +91,7 @@ class ReindexJob:
         return {
             "job_id": self.id,
             "status": self.status,
+            "kind": self.kind,
             "created_at": self.created_at,
             "finished_at": self.finished_at,
             "changed_paths": self.changed_paths,
@@ -102,6 +107,7 @@ class ReindexJob:
         job = cls.__new__(cls)
         job.id = data["job_id"]
         job.status = data.get("status", "interrupted")
+        job.kind = data.get("kind", "incremental")
         job.created_at = data.get("created_at")
         job.finished_at = data.get("finished_at")
         job.changed_paths = data.get("changed_paths")
@@ -237,36 +243,54 @@ class ReindexManager:
         with self._lock:
             return self._pending.id if self._pending is not None else None
 
-    def start(self, changed_paths, run_reindex, on_success) -> tuple[ReindexJob, bool]:
+    def start(self, changed_paths, run_reindex, on_success,
+              kind: str = "incremental") -> tuple[ReindexJob, bool]:
         """Avvia o accoda un reindex in background. Restituisce `(job, queued)`:
         - `(job, False)` se parte subito (nessun reindex in corso);
         - `(job, True)` se è stato accodato o fuso nel pending esistente.
 
         `run_reindex(changed_paths) -> dict` esegue l'indicizzazione (bloccante);
         `on_success()` viene chiamato a fine job SOLO se riuscito (reload in memoria).
+        `kind` è "incremental" (delta su changed_paths) o "full" (ricostruzione completa,
+        senza changed_paths).
 
-        Coalescing: se esiste già un pending, la nuova richiesta vi si fonde — i changed_paths
-        sono l'unione dei due insiemi, e None (richiesta completa) assorbe tutto. Le callback
-        del pending restano quelle della prima richiesta accodata."""
+        Coalescing: se esiste già un pending, la nuova richiesta vi si fonde. Tra
+        incrementali i changed_paths sono l'unione dei due insiemi, e None (richiesta
+        completa) assorbe tutto; le callback restano quelle della prima richiesta accodata.
+        Un full sussume qualunque incrementale: se arriva un full su un pending
+        incremental, il pending DIVENTA full (kind, path azzerati e callback del full);
+        un incremental su un pending full si fonde senza cambiare nulla."""
         # `to_record` accumula i job la cui transizione va journalata: il journal viene
         # scritto DOPO aver rilasciato self._lock (la compattazione riacquisisce il lock,
         # scriverlo qui dentro sarebbe un deadlock).
         to_record: list[ReindexJob] = []
         with self._lock:
             if self._running_id is None:
-                job = self._make_job(changed_paths, run_reindex, on_success, status="running")
+                job = self._make_job(changed_paths, run_reindex, on_success,
+                                     status="running", kind=kind)
                 self._running_id = job.id
                 to_record.append(job)
                 self._dispatch(job)
                 result = (job, False)
             elif self._pending is not None:
                 # Fusione nel pending esistente: un solo pending massimo.
-                self._pending.changed_paths = _coalesce_paths(
-                    self._pending.changed_paths, changed_paths
-                )
+                if self._pending.kind == "full":
+                    pass  # un full pending sussume qualunque richiesta successiva
+                elif kind == "full":
+                    # Il full assorbe il pending incremental: il job cambia natura e
+                    # prende le callback del full (build completa, non delta).
+                    self._pending.kind = "full"
+                    self._pending.changed_paths = None
+                    self._pending._run_reindex = run_reindex
+                    self._pending._on_success = on_success
+                else:
+                    self._pending.changed_paths = _coalesce_paths(
+                        self._pending.changed_paths, changed_paths
+                    )
                 result = (self._pending, True)
             else:
-                pending = self._make_job(changed_paths, run_reindex, on_success, status="queued")
+                pending = self._make_job(changed_paths, run_reindex, on_success,
+                                         status="queued", kind=kind)
                 self._pending = pending
                 to_record.append(pending)
                 result = (pending, True)
@@ -274,8 +298,9 @@ class ReindexManager:
             self._record(job)  # transizione "created" (running o queued)
         return result
 
-    def _make_job(self, changed_paths, run_reindex, on_success, status: str) -> ReindexJob:
-        job = ReindexJob(changed_paths, status=status)
+    def _make_job(self, changed_paths, run_reindex, on_success, status: str,
+                  kind: str = "incremental") -> ReindexJob:
+        job = ReindexJob(changed_paths, status=status, kind=kind)
         job._run_reindex = run_reindex
         job._on_success = on_success
         self._jobs[job.id] = job

@@ -1023,6 +1023,7 @@
         await consumeNdjson(res, ev => {
           if (ev.type === 'log') box.textContent += ev.line + '\n';
           else if (ev.type === 'reloaded') box.textContent += '\n🔄 Indice ricaricato in memoria.\n';
+          else if (ev.type === 'reindex_queued') box.textContent += `\n🔄 Re-indicizzazione accodata, job ${ev.job_id} (stato su /api/reindex/${ev.job_id}).\n`;
           else if (ev.type === 'error') box.textContent += `\n❌ ${ev.message}\n`;
           box.scrollTop = box.scrollHeight;
         });

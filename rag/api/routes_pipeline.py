@@ -2,6 +2,7 @@
 esecuzione via Claude Agent SDK, dry-run, [AGENT CONTEXT], export e gestione file. Gli
 handler orchestrano I/O e concorrenza (async/threadpool/streaming) e iniettano le risorse
 di runtime dallo stato (api.deps) nelle funzioni pure di core.pipeline / core.retrieval."""
+import functools
 import json
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,7 +13,6 @@ from agent_bridge import AGENT_MODES, run_agent_streaming
 from api.deps import (
     IndexSnapshot,
     current_snapshot,
-    reload_index_state,
     require_api_key,
     run_streaming,
     state,
@@ -28,6 +28,7 @@ from api.models import (
     ProposeGenerateRequest,
     ValidateRequest,
 )
+from api.routes_reindex import enqueue_full_rebuild
 from core import canvas_review, pipeline, retrieval
 from core.config import CHANGES_DIR, PROJECT_ROOT
 from core.indexing import archive_feature, check_drift, index_status
@@ -233,17 +234,23 @@ async def pipeline_drift_check(req: DriftCheckRequest):
 @router.post("/api/pipeline/archive")
 async def pipeline_archive(req: ArchiveRequest):
     """Step 5 — Archiviazione e Re-indicizzazione: sposta changes/<feature> in
-    changes/archive/ e ricostruisce il Graph RAG locale. Equivale a 'index.py --archive',
-    ma riusa il modello di embedding e il client Qdrant già aperti dal server (evita il
-    ricaricamento del modello, che su CPU richiede minuti)."""
+    changes/archive/ (con canvas review) e ACCODA un full rebuild al ReindexManager
+    invece di ricostruire inline — un solo scrittore per costruzione, così un archive
+    non può mai correre in parallelo con un reindex da webhook. Il reload in memoria
+    avviene al completamento del job (on_success → reload_index_state)."""
     if not req.feature.strip():
         raise HTTPException(status_code=400, detail="Nome feature mancante.")
     log = await run_in_threadpool(
-        archive_feature, req.feature, state["qdrant"], state["embed_model"]
+        archive_feature, req.feature, state["qdrant"], state["embed_model"],
+        None, False,  # emit=None, reindex=False: la ricostruzione passa dalla coda
     )
-    # Rende visibile alla console Graph-RAG la base di conoscenza appena rigenerata.
-    reload_index_state()
-    return {"feature_folder": slugify_feature(req.feature), "log": log}
+    job, queued = enqueue_full_rebuild()
+    return {
+        "feature_folder": slugify_feature(req.feature),
+        "log": log,
+        "reindex_job_id": job.id,
+        "reindex_queued": queued,
+    }
 
 
 @router.post("/api/pipeline/drift/check/stream")
@@ -257,16 +264,21 @@ async def pipeline_drift_check_stream(req: DriftCheckRequest):
 
 @router.post("/api/pipeline/archive/stream")
 async def pipeline_archive_stream(req: ArchiveRequest):
-    """Come /api/pipeline/archive ma con progresso in streaming (NDJSON): l'utente vede la
-    re-indicizzazione avanzare passo per passo. Al termine ricarica l'indice in memoria."""
+    """Come /api/pipeline/archive ma con progresso in streaming (NDJSON): l'utente vede
+    l'archiviazione avanzare passo per passo. La ricostruzione dell'indice NON avviene
+    nello stream: viene accodata al ReindexManager e lo stream chiude con
+    {"type": "reindex_queued", "job_id": ...}; il reload in memoria avviene al
+    completamento del job (on_success → reload_index_state)."""
     if not req.feature.strip():
         raise HTTPException(status_code=400, detail="Nome feature mancante.")
 
     def gen():
-        yield from run_streaming(archive_feature, req.feature, state["qdrant"], state["embed_model"])
-        # La re-indicizzazione ha riscritto graph.pkl: aggiorna lo stato in memoria.
-        reload_index_state()
-        yield json.dumps({"type": "reloaded"}, ensure_ascii=False) + "\n"
+        yield from run_streaming(
+            functools.partial(archive_feature, reindex=False),
+            req.feature, state["qdrant"], state["embed_model"],
+        )
+        job, _ = enqueue_full_rebuild()
+        yield json.dumps({"type": "reindex_queued", "job_id": job.id}, ensure_ascii=False) + "\n"
 
     return StreamingResponse(gen(), media_type="application/x-ndjson")
 

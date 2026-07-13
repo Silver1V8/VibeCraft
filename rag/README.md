@@ -53,6 +53,21 @@ accodate vengono **fusi** (unione degli insiemi; una richiesta "completa" con
 o fallimento) il pending parte automaticamente. Così due push GitLab ravvicinati
 non si perdono più — il secondo evento si fonde nel pending invece di sparire.
 
+**Un solo scrittore per costruzione.** Ogni scrittura degli artefatti dell'indice
+dal server passa dalla coda del manager, che distingue due tipi di job (`kind` nel
+`to_dict`/journal): `incremental` (delta) e `full` (`build_graph_and_index`,
+ricostruzione completa, senza `changed_paths`). Un corpo `{"full": true}` su
+`POST /api/reindex` accoda un full rebuild; anche l'archive (Step 5,
+`/api/pipeline/archive[/stream]`) non ricostruisce più inline ma accoda un job
+full e riporta il `job_id` al client (nello stream l'evento finale è
+`{"type": "reindex_queued", "job_id": ...}`). Coalescing tra tipi: un full
+**sussume** qualunque incrementale — se il pending è incremental e arriva un full,
+il pending diventa full; se il pending è già full, ogni richiesta successiva vi si
+fonde senza cambiarlo. La CLI (`python index.py`) invece scrive gli artefatti
+direttamente, fuori dalla coda: **non usare la CLI per (re)indicizzare mentre il
+server è attivo** — con il server acceso usa `POST /api/reindex` (eventualmente
+`{"full": true}`).
+
 Configura il webhook GitLab (Settings → Webhooks) su **Push events** e/o
 **Merge request events** puntando a `https://<host>/api/reindex`. Per esporre il
 webhook in sicurezza imposta **entrambe** le variabili d'ambiente: `VIBECRAFT_API_KEY`
