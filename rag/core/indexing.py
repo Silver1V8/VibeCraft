@@ -55,6 +55,7 @@ from core.chunking import (
 from core import llm
 from core.config import (
     CHANGES_DIR,
+    CHUNKS_JSON_PATH,
     CODE_DIR,
     COLLECTION_NAME,
     DENSE_DIM,
@@ -415,6 +416,127 @@ def index_status() -> dict:
         "documents": manifest.get("documents"),
         "changed": changed,
     }
+
+
+def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict:
+    """Check di integrità ECONOMICO dell'indice: zero embedding, nessuna costruzione,
+    secondi di esecuzione. È il controllo notturno; il confronto profondo incrementale
+    vs full rebuild (check_graph_consistency, che ri-embedda tutto) resta il check
+    settimanale.
+
+    Verifica, nell'ordine:
+    1. manifest presente e leggibile;
+    2. doc_hashes/code_hashes del manifest vs hash correnti su disco (differenze ⇒
+       indice STALE: basta un reindex incrementale);
+    3. artifact_hashes del manifest vs file in database/ (mancanti o hash diverso ⇒
+       artefatti CORROTTI o scrittura mista: serve un full rebuild);
+    4. conteggio dei punti nella collection Qdrant vs numero di chunk nel sidecar
+       (divergenza ⇒ Qdrant e artefatti non allineati: serve un full rebuild).
+
+    Restituisce {ok, stale, artifacts_corrupted, qdrant_mismatch, problems}: `problems`
+    è la lista leggibile dei difetti trovati; `ok` è True solo se è vuota."""
+    _log = emit or print
+    problems: list[str] = []
+    stale = False
+    artifacts_corrupted = False
+    qdrant_mismatch = False
+
+    manifest = _read_manifest()
+    if manifest is None:
+        report = {
+            "ok": False, "stale": True, "artifacts_corrupted": False,
+            "qdrant_mismatch": False,
+            "problems": ["manifest assente o illeggibile: indice mai costruito (o manifest corrotto)"],
+        }
+        _log(f"❌ Integrità indice: {report['problems'][0]}")
+        return report
+
+    # 2) Sorgenti vs manifest: differenze ⇒ indice stale (delta incrementale sufficiente).
+    for label, old, new in (
+        ("docs", manifest.get("doc_hashes", {}), _docs_hashes()),
+        ("code", manifest.get("code_hashes", {}), _code_hashes()),
+    ):
+        added, removed, modified, _unchanged = _diff_hashes(old, new)
+        if added or removed or modified:
+            stale = True
+            sample = ", ".join(
+                [f"+{p}" for p in added[:3]] + [f"-{p}" for p in removed[:3]]
+                + [f"~{p}" for p in modified[:3]]
+            )
+            problems.append(
+                f"indice stale ({label}/): {len(added)} aggiunti, {len(removed)} rimossi, "
+                f"{len(modified)} modificati [{sample}]"
+            )
+
+    # 3) Integrità degli artefatti persistiti: il manifest registra gli hash dei file
+    #    scritti dall'ultima build; un file mancante o con hash diverso indica corruzione
+    #    o una scrittura mista (artefatti di build diverse).
+    expected_artifacts = manifest.get("artifact_hashes", {})
+    if not expected_artifacts:
+        artifacts_corrupted = True
+        problems.append(
+            "manifest senza artifact_hashes (build precedente a questo check): "
+            "serve un full rebuild per abilitare la verifica di integrità"
+        )
+    else:
+        current_artifacts = artifact_hashes()
+        for name, digest in sorted(expected_artifacts.items()):
+            if name not in current_artifacts:
+                artifacts_corrupted = True
+                problems.append(f"artefatto mancante in database/: {name}")
+            elif current_artifacts[name] != digest:
+                artifacts_corrupted = True
+                problems.append(
+                    f"artefatto con hash diverso dal manifest (corruzione o scrittura mista): {name}"
+                )
+
+    # 4) Qdrant vs sidecar chunk: i punti nella collection devono essere tanti quanti i
+    #    chunk persistiti. Il sidecar si legge direttamente (JSON, niente vettori).
+    expected_chunks: int | None = None
+    if CHUNKS_JSON_PATH.exists():
+        try:
+            expected_chunks = len(json.loads(CHUNKS_JSON_PATH.read_text(encoding="utf-8")))
+        except Exception as exc:
+            artifacts_corrupted = True
+            problems.append(f"sidecar chunk illeggibile ({CHUNKS_JSON_PATH.name}): {exc}")
+    else:
+        artifacts_corrupted = True
+        problems.append(f"sidecar chunk assente: {CHUNKS_JSON_PATH.name}")
+
+    if expected_chunks is not None:
+        own_qdrant = qdrant is None
+        try:
+            if own_qdrant:
+                qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+            points = qdrant.count(collection_name=COLLECTION_NAME, exact=True).count
+            if points != expected_chunks:
+                qdrant_mismatch = True
+                problems.append(
+                    f"Qdrant e sidecar non allineati: {points} punti nella collection "
+                    f"'{COLLECTION_NAME}' vs {expected_chunks} chunk in {CHUNKS_JSON_PATH.name}"
+                )
+        except Exception as exc:
+            qdrant_mismatch = True
+            problems.append(f"conteggio Qdrant non verificabile ({type(exc).__name__}: {exc})")
+        finally:
+            if own_qdrant and qdrant is not None:
+                try:
+                    qdrant.close()
+                except Exception:
+                    pass
+
+    report = {
+        "ok": not problems,
+        "stale": stale,
+        "artifacts_corrupted": artifacts_corrupted,
+        "qdrant_mismatch": qdrant_mismatch,
+        "problems": problems,
+    }
+    if report["ok"]:
+        _log("✅ Integrità indice OK: manifest, sorgenti, artefatti e Qdrant allineati.")
+    else:
+        _log(f"❌ Integrità indice: {len(problems)} problemi — " + "; ".join(problems))
+    return report
 
 
 # ---------------------------------------------------------------------------

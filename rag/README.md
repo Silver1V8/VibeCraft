@@ -83,15 +83,48 @@ file) fa un incrementale completo su `docs/` + `code/`. È accettato anche un
 override esplicito `{"paths": ["docs/x.md", ...]}` per trigger manuali. La
 logica di estrazione è in [api/reindex.py](api/reindex.py) (`extract_gitlab_paths`).
 
-**2. Batch notturno di fallback (guardrail anti-deriva).**
-L'incrementale può accumulare deriva sui code-link; lo script notturno
-[scripts/nightly_consistency.ps1](scripts/nightly_consistency.ps1) (variante
-POSIX `.sh`) esegue `index.py --check-graph` (grafo incrementale vs full
-rebuild) e, **solo se trova drift**, lancia un full rebuild che riallinea tutto.
-Schedulalo di notte con Windows Task Scheduler (`pwsh -File
-scripts/nightly_consistency.ps1`) o cron. Dopo il rebuild il server rileva
-`graph.json` cambiato su disco e ricarica gli artefatti alla prima richiesta
-(`maybe_reload_graph`).
+**2. Batch notturno ECONOMICO (check di integrità, zero embedding).**
+Lo script notturno [scripts/nightly_consistency.ps1](scripts/nightly_consistency.ps1)
+(variante POSIX `.sh`) esegue `index.py --check-integrity`
+(`check_index_integrity`, core/indexing.py): **niente modello di embedding,
+niente costruzione, secondi di esecuzione**. Verifica che il manifest esista e
+sia leggibile, confronta `doc_hashes`/`code_hashes` con gli hash correnti su
+disco (differenze ⇒ indice **stale**), valida gli `artifact_hashes` contro i
+file in `database/` (mancanti o hash diverso ⇒ artefatti **corrotti**/misti) e
+confronta il conteggio dei punti Qdrant col numero di chunk nel sidecar. Lo
+stesso check è esposto come `GET /api/index/integrity` (auth `X-API-Key`).
+In base al report lo script:
+- **ok** → esce senza fare nulla;
+- **stale** (solo sorgenti cambiate) → `POST /api/reindex` al server locale
+  (`VIBECRAFT_SERVER_URL`, default `http://127.0.0.1:8000`, con `X-API-Key` da
+  `VIBECRAFT_API_KEY`) così il delta passa dalla coda del ReindexManager; se il
+  server è spento, fallback a `index.py --incremental`;
+- **artefatti corrotti o Qdrant disallineato** → full rebuild (`index.py`).
+
+**3. Batch settimanale profondo (guardrail anti-deriva).**
+Il confronto esaustivo grafo incrementale vs full rebuild (`index.py
+--check-graph`, che ri-embedda tutto in memoria) è declassato a settimanale:
+[scripts/weekly_consistency.ps1](scripts/weekly_consistency.ps1) (variante
+POSIX `.sh`) lo esegue e, **solo se trova drift**, lancia un full rebuild che
+riallinea tutto. Dopo il rebuild il server rileva `graph.json` cambiato su
+disco e ricarica gli artefatti alla prima richiesta (`maybe_reload_graph`).
+
+Scheduling — Windows Task Scheduler:
+
+```powershell
+# nightly alle 03:00, weekly la domenica alle 04:00
+schtasks /Create /TN "vibecraft-nightly" /SC DAILY  /ST 03:00 `
+  /TR "pwsh -File C:\path\to\rag\scripts\nightly_consistency.ps1"
+schtasks /Create /TN "vibecraft-weekly"  /SC WEEKLY /D SUN /ST 04:00 `
+  /TR "pwsh -File C:\path\to\rag\scripts\weekly_consistency.ps1"
+```
+
+cron:
+
+```cron
+0 3 * * *  /path/to/rag/scripts/nightly_consistency.sh >> /var/log/vibecraft-nightly.log 2>&1
+0 4 * * 0  /path/to/rag/scripts/weekly_consistency.sh  >> /var/log/vibecraft-weekly.log  2>&1
+```
 
 ## Artefatti dell'indice: formati sicuri e ispezionabili
 

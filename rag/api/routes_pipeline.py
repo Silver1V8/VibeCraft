@@ -31,7 +31,7 @@ from api.models import (
 from api.routes_reindex import enqueue_full_rebuild
 from core import canvas_review, pipeline, retrieval
 from core.config import CHANGES_DIR, PROJECT_ROOT
-from core.indexing import archive_feature, check_drift, index_status
+from core.indexing import archive_feature, check_drift, check_index_integrity, index_status
 from core.pipeline import (
     build_final_prompt,
     feature_dir,
@@ -325,6 +325,16 @@ async def api_index_status():
     """Segnala se l'indice Graph RAG è aggiornato rispetto ai documenti in docs/ (drift di
     indicizzazione): confronta gli hash correnti con lo snapshot salvato dall'ultima build."""
     return await run_in_threadpool(index_status)
+
+
+@router.get("/api/index/integrity")
+async def api_index_integrity():
+    """Check economico di integrità dell'indice (zero embedding): manifest, hash dei
+    sorgenti, integrità degli artefatti in database/ e allineamento del conteggio Qdrant
+    col sidecar chunk. Riusa il client Qdrant del server se disponibile."""
+    return await run_in_threadpool(
+        check_index_integrity, state.get("qdrant"), lambda *_a, **_k: None
+    )
 
 
 @router.post("/api/pipeline/canvas/dry-run")

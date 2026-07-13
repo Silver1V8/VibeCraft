@@ -19,6 +19,7 @@ from core.indexing import (
     build_graph_and_index,
     check_drift,
     check_graph_consistency,
+    check_index_integrity,
     incremental_index,
     index_status,
 )
@@ -30,6 +31,7 @@ if __name__ == "__main__":
     parser.add_argument("--index-status", action="store_true", help="Verifica se l'indice è aggiornato rispetto ai documenti in docs/")
     parser.add_argument("--incremental", action="store_true", help="Indicizzazione incrementale: (ri)indicizza solo i doc nuovi/modificati, rimuove i cancellati, salta gli invariati")
     parser.add_argument("--check-graph", action="store_true", help="Confronta il grafo incrementale persistito con quello di un full rebuild sugli stessi input e segnala differenze")
+    parser.add_argument("--check-integrity", action="store_true", help="Check economico di integrità dell'indice (manifest, hash sorgenti, artefatti, conteggio Qdrant) — zero embedding; exit 1 se ci sono problemi")
 
     args = parser.parse_args()
 
@@ -40,6 +42,12 @@ if __name__ == "__main__":
     elif args.index_status:
         status = index_status()
         print(json.dumps(status, ensure_ascii=False, indent=2))
+    elif args.check_integrity:
+        # Report JSON su stdout (i messaggi umani vanno su stderr, così lo stdout resta
+        # parsabile dagli script notturni), exit 0/1.
+        report = check_index_integrity(emit=lambda m: print(m, file=sys.stderr))
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        sys.exit(0 if report.get("ok") else 1)
     elif args.check_graph:
         print("Confronto grafo incrementale vs full rebuild (coerenza)...\n")
         report = check_graph_consistency()
