@@ -170,7 +170,7 @@
 
   <main>
     <!-- ══════════ QUERY DETERMINISTICA ══════════ -->
-    <section>
+    <section id="section-query">
       <h2>❓ Query deterministica sul grafo</h2>
       <p class="desc">Interroga il grafo <em>senza LLM</em>: «quali documenti esistono?», «quali entità?»,
         «quale codice?», «relazioni di &lt;NODO&gt;», «cosa impatta &lt;NODO&gt;». Risposte istantanee lette
@@ -205,7 +205,8 @@
       <p class="desc">Ogni documento è proiettato in 2D per prossimità semantica (PCA sui vettori densi bge-m3).
         I colori sono le <em>community</em> (documenti che condividono entità); i nodi con anello bianco sono i
         <em>ponti</em> (alta centralità). Le linee tratteggiate magenta segnalano potenziali <em>duplicati</em>
-        (alta similarità ma non collegati). Clicca un punto per centrarlo nell'Impact Ripple sotto.</p>
+        (alta similarità ma non collegati). Clicca un punto per interrogarne le <em>relazioni</em> nella Query
+        deterministica in cima e centrarlo nell'Impact Ripple sotto.</p>
       <div class="toolbar">
         <button onclick="loadSemanticMap()">↻ Ricarica</button>
         <span id="map-status" class="status">Caricamento…</span>
@@ -393,11 +394,16 @@
       canvas.addEventListener('click', e => {
         const r = canvas.getBoundingClientRect();
         const p = nearest(e.clientX - r.left, e.clientY - r.top);
-        if (p) {
-          document.getElementById('ripple-node').value = p.doc_id;
-          loadImpact();
-          document.getElementById('ripple-canvas').scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
+        if (!p) return;
+        // Impact Ripple: prepara e calcola l'impatto del documento cliccato (senza rubare lo scroll).
+        document.getElementById('ripple-node').value = p.doc_id;
+        loadImpact();
+        // Collegamento mappa → Query deterministica: interroga le relazioni del documento cliccato
+        // e porta l'utente al pannello con la risposta (lettura diretta di nodi/archi, nessun LLM).
+        const gq = document.getElementById('gq-input');
+        gq.value = 'relazioni di ' + p.doc_id;
+        runGraphQuery(p.doc_id);
+        document.getElementById('section-query').scrollIntoView({ behavior: 'smooth', block: 'center' });
       });
     })();
 
@@ -521,14 +527,18 @@
     }
 
     /* ══════════ QUERY DETERMINISTICA ══════════ */
-    async function runGraphQuery() {
+    // `target` opzionale: id di nodo esplicito (es. click su un punto della Semantic Map).
+    // Quando presente, il backend salta l'euristica di match testuale e usa questo nodo.
+    async function runGraphQuery(target) {
       const q = document.getElementById('gq-input').value.trim();
       const status = document.getElementById('gq-status');
       const out = document.getElementById('gq-out');
       if (!q) { status.textContent = 'Scrivi una domanda.'; return; }
       status.textContent = 'Interrogazione…';
       try {
-        const res = await fetch('/api/graph/query?q=' + encodeURIComponent(q));
+        let url = '/api/graph/query?q=' + encodeURIComponent(q);
+        if (target) url += '&target=' + encodeURIComponent(target);
+        const res = await fetch(url);
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const d = await res.json();
         status.textContent = `intent: ${d.intent}` + (d.count !== undefined ? ` · ${d.count}` : '');

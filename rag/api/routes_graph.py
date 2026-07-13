@@ -66,11 +66,17 @@ async def graph_semantic_map():
 
 
 @router.get("/api/graph/query")
-async def graph_query(q: str = Query(min_length=1, max_length=2000)):
+async def graph_query(
+    q: str = Query(min_length=1, max_length=2000),
+    target: str | None = Query(default=None, max_length=1000),
+):
     """Query DETERMINISTICA sul grafo (nessun LLM): risponde a domande strutturali —
     'quali documenti/entità/codice esistono?', 'relazioni di X', 'cosa impatta X' — leggendo
-    direttamente nodi e archi. Incarna il principio 'determinismo prima dell'LLM' (Articolo 1)."""
+    direttamente nodi e archi. Incarna il principio 'determinismo prima dell'LLM' (Articolo 1).
+
+    `target` opzionale: nodo bersaglio esplicito (es. doc_id da un click sulla Semantic Map),
+    così l'intent resta dedotto da `q` ma il nodo non dipende dal match testuale."""
     if state.get("graph") is None:
         raise HTTPException(status_code=503, detail="Grafo non ancora inizializzato.")
     maybe_reload_graph()
-    return graph_ops.graph_query(q, state["graph"])
+    return graph_ops.graph_query(q, state["graph"], target=target)

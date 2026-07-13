@@ -214,22 +214,32 @@ def semantic_map(graph: nx.DiGraph, qdrant) -> dict:
     return {"points": points, "duplicates": duplicates}
 
 
-def graph_query(q: str, graph: nx.DiGraph) -> dict:
+def graph_query(q: str, graph: nx.DiGraph, target: str | None = None) -> dict:
     """Query DETERMINISTICA sul grafo (nessun LLM): risponde a domande strutturali —
     'quali documenti/entità/codice esistono?', 'relazioni di X', 'cosa impatta X' — leggendo
-    direttamente nodi e archi. Incarna il principio 'determinismo prima dell'LLM' (Articolo 1)."""
+    direttamente nodi e archi. Incarna il principio 'determinismo prima dell'LLM' (Articolo 1).
+
+    `target` è il nodo bersaglio esplicito: quando il chiamante conosce già l'id esatto
+    (es. click su un punto della Semantic Map), lo passa qui e si evita l'euristica di match
+    a substring sul testo — robusta contro id di nodi contenuti l'uno nell'altro (es. il path
+    di un documento che contiene il nome di un'entità). Se assente, si ricade sul rilevamento
+    testuale storico."""
     ql = q.lower().strip()
 
     def by_type(t: str) -> list[str]:
         return sorted(n for n, a in graph.nodes(data=True) if a.get("type") == t)
 
-    # Rileva un eventuale nodo bersaglio citato nella domanda (match sull'id).
-    target = None
-    for n in graph.nodes():
-        ns = str(n)
-        if len(ns) > 2 and ns.lower() in ql:
-            target = ns
-            break
+    # Nodo bersaglio: se fornito esplicitamente e presente nel grafo lo si usa così com'è
+    # (nessuna ambiguità); altrimenti si ricade sul match a substring sull'id nella domanda.
+    if target is not None and target in graph:
+        target = str(target)
+    else:
+        target = None
+        for n in graph.nodes():
+            ns = str(n)
+            if len(ns) > 2 and ns.lower() in ql:
+                target = ns
+                break
 
     # Prima le intenzioni legate a un nodo bersaglio: l'id del nodo può contenere
     # parole chiave di listing (es. "spec.md" contiene "spec"), quindi vanno controllate

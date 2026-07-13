@@ -76,6 +76,35 @@ def test_query_unknown():
     assert _q("ciao come stai")["intent"] == "sconosciuto"
 
 
+def test_query_explicit_target_overrides_text_match():
+    # Nodo bersaglio esplicito (es. click sulla Semantic Map): l'intent resta dedotto dal
+    # testo ("relazioni") ma il nodo è quello passato, senza dipendere dal match a substring.
+    r = graph_ops.graph_query("relazioni di questo documento", _G, target="spec.md")
+    assert r["intent"] == "relazioni"
+    assert r["target"] == "spec.md"
+    assert r["count"] == 2
+
+
+def test_query_explicit_target_disambiguates_substring_collision():
+    # Robustezza: l'id del documento contiene il nome dell'entità ("EVENTO" ⊂
+    # "spec_EVENTO.md"). Col solo match testuale il target potrebbe agganciare l'entità;
+    # passando il doc_id esplicito il nodo è inequivocabile.
+    g = nx.DiGraph()
+    g.add_node("spec_EVENTO.md", type="document")
+    g.add_node("EVENTO", type="entity")
+    g.add_edge("spec_EVENTO.md", "EVENTO", relation="MENTIONS")
+    r = graph_ops.graph_query("relazioni di spec_EVENTO.md", g, target="spec_EVENTO.md")
+    assert r["target"] == "spec_EVENTO.md"
+    assert r["out"] == [{"relation": "MENTIONS", "to": "EVENTO"}]
+
+
+def test_query_explicit_target_absent_falls_back_to_text():
+    # Target inesistente nel grafo: si ignora e si ricade sul rilevamento testuale.
+    r = graph_ops.graph_query("relazioni di spec.md", _G, target="non_esiste.md")
+    assert r["intent"] == "relazioni"
+    assert r["target"] == "spec.md"
+
+
 # ---------------------------------------------------------------------------
 # Selezione dei chunk governati (usato da canvas/propose/validate/dry-run)
 # ---------------------------------------------------------------------------
