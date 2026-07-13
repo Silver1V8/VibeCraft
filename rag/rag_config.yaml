@@ -48,6 +48,10 @@ code_parsers:
   # l'euristica sul contenuto non decide: tsql | plsql | generic.
   sql: "hybrid"
   sql_dialect: "generic"
+  # Script operazionali (.sh Bash, .ps1/.psm1 PowerShell): entrambi tree-sitter
+  # (grammatica PowerShell del language-pack verificata matura). Nodi script/
+  # function, archi EXECUTES script->script e verso progetti/file invocati.
+  shell: "treesitter"
   # File di configurazione indicizzati per NOME (stdlib XML/JSON, secret sempre
   # mascherati): web/app.config + trasformazioni, appsettings*.json, package.json,
   # WSDL/XSD. Pattern fnmatch sovrascrivibili qui; gli altri .json/.xml restano

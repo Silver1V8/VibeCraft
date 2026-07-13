@@ -21,7 +21,7 @@ import numpy as np
 # Estensioni considerate "codice sorgente" (allineate a quelle del check drift)
 CODE_EXTS = {".py", ".js", ".ts", ".tsx", ".jsx", ".svelte", ".html", ".css",
              ".java", ".bpmn", ".bpmn2", ".dmn", ".cs", ".csproj", ".cshtml", ".razor",
-             ".sql", ".pks", ".pkb"}
+             ".sql", ".pks", ".pkb", ".sh", ".ps1", ".psm1"}
 # File di progetto indicizzati per nome (non per estensione): dipendenze Java/.NET
 CODE_FILENAMES = {"pom.xml", "build.gradle", "packages.config"}
 
@@ -120,6 +120,7 @@ _PARSER_LANG = {
     ".cs": "csharp",
     ".cshtml": "razor", ".razor": "razor",
     ".sql": "sql", ".pks": "sql", ".pkb": "sql",
+    ".sh": "shell", ".ps1": "shell", ".psm1": "shell",
 }
 
 # Default per linguaggio quando il flag è assente dal config: tree-sitter per i
@@ -129,7 +130,7 @@ _PARSER_LANG = {
 # quando la migrazione tree-sitter sarà consolidata in produzione.
 _PARSER_DEFAULTS = {"typescript": "treesitter", "javascript": "treesitter", "svelte": "treesitter",
                     "java": "treesitter", "csharp": "treesitter", "razor": "hybrid",
-                    "sql": "hybrid"}
+                    "sql": "hybrid", "shell": "treesitter"}
 
 
 def _parser_impl(lang: str) -> str:
@@ -185,6 +186,11 @@ def _extract(suffix: str, text: str, stem: str, rel: str = "") -> list[tuple]:
     if suffix in (".sql", ".pks", ".pkb"):
         from code_index_sql import sql_symbols
         return sql_symbols(text, stem, suffix, rel)
+    # Script operazionali: Bash e PowerShell entrambi via tree-sitter (grammatica
+    # PowerShell verificata matura sul corpus: function, dot-sourcing, & call).
+    if suffix in (".sh", ".ps1", ".psm1"):
+        from code_index_shell import shell_symbols
+        return shell_symbols(text, stem, suffix, rel)
     if suffix == ".config" and stem == "packages":
         from code_index_csharp import packages_config_symbols
         project = rel.rsplit("/", 2)[-2] if rel.count("/") else ""
@@ -260,6 +266,12 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
     # più vicino nel filesystem (classe -> config -> connection string -> db).
     from code_index_config import attach_projects
     attach_projects(symbols)
+
+    # Riferimenti incrociati degli script (source, dotnet build su .csproj,
+    # sqlcmd su .sql): risolti sui percorsi relativi, best-effort.
+    if any(t.startswith("run:") for s in symbols for _, t in s["links"]):
+        from code_index_shell import resolve_script_refs
+        resolve_script_refs(symbols)
 
     # Le dep "tipizzate" (view:/page:/component:/...) richiedono la vista d'insieme
     # dei file: le risolve il resolver Razor, che produce anche il report di

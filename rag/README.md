@@ -14,10 +14,13 @@ Kogito .bpmn/.dmn), [code_index_csharp.py](code_index_csharp.py)
 (famiglia Razor: view MVC, Razor Pages, componenti Blazor) e
 [code_index_sql.py](code_index_sql.py) (SQL: T-SQL, PL/SQL, generico —
 archi semantici READS/WRITES/EXECUTES e ponte codice→stored procedure
-dai parser C#/Java) e [code_index_config.py](code_index_config.py)
+dai parser C#/Java) [code_index_config.py](code_index_config.py)
 (file di configurazione riconosciuti per nome: web/app.config,
 appsettings*.json, package.json, WSDL/XSD — secret sempre mascherati,
-nodi collegati al progetto di appartenenza). L'interfaccia di un parser è una funzione
+nodi collegati al progetto di appartenenza) e
+[code_index_shell.py](code_index_shell.py) (script operazionali Bash e
+PowerShell via tree-sitter — archi EXECUTES script→script e riferimenti
+incrociati verso i progetti/file invocati). L'interfaccia di un parser è una funzione
 `(text: str, stem: str, suffix: str) -> list[tuple]` con tuple
 `(kind, name, snippet)` o `(kind, name, snippet, meta)`: `kind` è ad es.
 `function`/`class`/`endpoint`/`component`, `name` è univoco nel file,
