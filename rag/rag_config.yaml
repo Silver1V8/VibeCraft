@@ -52,6 +52,15 @@ code_parsers:
   # (grammatica PowerShell del language-pack verificata matura). Nodi script/
   # function, archi EXECUTES script->script e verso progetti/file invocati.
   shell: "treesitter"
+  # Pipeline CI/CD riconosciute per NOME (pyyaml): GitLab CI e Azure DevOps.
+  # Gli altri .yml (rag_config, docker-compose, ...) restano esclusi.
+  ci_patterns:
+    - ".gitlab-ci.yml"
+    - "*.gitlab-ci.yml"
+    - "*.gitlab-ci.yaml"
+    - "azure-pipelines.yml"
+    - "azure-pipelines*.yml"
+    - "azure-pipelines*.yaml"
   # File di configurazione indicizzati per NOME (stdlib XML/JSON, secret sempre
   # mascherati): web/app.config + trasformazioni, appsettings*.json, package.json,
   # WSDL/XSD. Pattern fnmatch sovrascrivibili qui; gli altri .json/.xml restano

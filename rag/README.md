@@ -20,7 +20,10 @@ appsettings*.json, package.json, WSDL/XSD — secret sempre mascherati,
 nodi collegati al progetto di appartenenza) e
 [code_index_shell.py](code_index_shell.py) (script operazionali Bash e
 PowerShell via tree-sitter — archi EXECUTES script→script e riferimenti
-incrociati verso i progetti/file invocati). L'interfaccia di un parser è una funzione
+incrociati verso i progetti/file invocati) e
+[code_index_ci.py](code_index_ci.py) (pipeline GitLab CI / Azure DevOps
+riconosciute per nome — nodi pipeline/job, archi verso template, progetti
+buildati e repo esterni dai trigger). L'interfaccia di un parser è una funzione
 `(text: str, stem: str, suffix: str) -> list[tuple]` con tuple
 `(kind, name, snippet)` o `(kind, name, snippet, meta)`: `kind` è ad es.
 `function`/`class`/`endpoint`/`component`, `name` è univoco nel file,

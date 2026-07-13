@@ -43,6 +43,20 @@ def _is_config_file(fname: str) -> bool:
     low = fname.lower()
     return any(fnmatch(low, pat.lower()) for pat in _config_patterns())
 
+
+def _is_ci_file(fname: str) -> bool:
+    """Pipeline CI/CD riconosciute per NOME (code_parsers.ci_patterns): gli
+    altri .yml del repo (config, docker-compose) sono esclusi."""
+    from fnmatch import fnmatch
+    from code_index_ci import DEFAULT_CI_PATTERNS
+    try:
+        from core.config import CODE_PARSERS
+        patterns = CODE_PARSERS.get("ci_patterns") or DEFAULT_CI_PATTERNS
+    except Exception:
+        patterns = DEFAULT_CI_PATTERNS
+    low = fname.lower()
+    return any(fnmatch(low, pat.lower()) for pat in patterns)
+
 _SNIPPET_LIMIT = 1500
 
 # Pattern regex per i linguaggi in stile JS/TS (best-effort, non un parser completo)
@@ -198,6 +212,11 @@ def _extract(suffix: str, text: str, stem: str, rel: str = "") -> list[tuple]:
     # File di configurazione riconosciuti per NOME (web.config, appsettings*.json,
     # package.json, *.wsdl/*.xsd): estrazione strutturata stdlib, secret mascherati.
     fname = (rel.rsplit("/", 1)[-1] if rel else f"{stem}{suffix}").lower()
+    if _is_ci_file(fname):
+        import code_index_ci as cimod
+        if "gitlab" in fname:
+            return cimod.gitlab_ci_symbols(text, stem, suffix, rel)
+        return cimod.azure_pipelines_symbols(text, stem, suffix, rel)
     if _is_config_file(fname):
         import code_index_config as cfg
         if fname.endswith(".config"):
@@ -237,7 +256,7 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
         return symbols
     for path in sorted(code_dir.rglob("*")):
         if not (path.is_file() and (path.suffix in CODE_EXTS or path.name in CODE_FILENAMES
-                                    or _is_config_file(path.name))):
+                                    or _is_config_file(path.name) or _is_ci_file(path.name))):
             continue
         rel = path.relative_to(code_dir).as_posix()
         dev_type = rel.split("/")[0] if "/" in rel else ""
