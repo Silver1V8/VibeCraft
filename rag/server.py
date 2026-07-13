@@ -18,7 +18,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from api.deps import API_KEY, lifespan
-from api import routes_graph, routes_pages, routes_pipeline, routes_retrieval
+from api import routes_graph, routes_pages, routes_pipeline, routes_reindex, routes_retrieval
 from core.config import STATIC_DIR
 
 app = FastAPI(title="HARO Graph-RAG Console", lifespan=lifespan)
@@ -30,6 +30,7 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 # Pagine HTML (aperte) + router API protetti da X-API-Key (require_api_key a livello di router).
 app.include_router(routes_pages.router)
 app.include_router(routes_pipeline.router)
+app.include_router(routes_reindex.router)
 app.include_router(routes_retrieval.router)
 app.include_router(routes_graph.router)
 

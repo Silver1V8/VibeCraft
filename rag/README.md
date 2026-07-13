@@ -3,6 +3,37 @@
 Indicizzazione (core/indexing), retrieval ibrido e pipeline Explore → Canvas →
 Propose (core/) esposti via FastAPI (api/). Entrypoint: `server.py`, `index.py`.
 
+## Reindex automatico: l'indice non invecchia mai
+
+Due meccanismi tengono l'indice allineato al codebase senza intervento manuale:
+
+**1. Reindex incrementale su webhook (durante il giorno).**
+`POST /api/reindex` lancia un reindex incrementale in background (un job alla
+volta) e risponde subito `202` con un `job_id`; `GET /api/reindex/{job_id}` ne
+riporta lo stato (`running`/`completed`/`failed`) col risultato o l'errore. Se
+un reindex è già in corso, la nuova richiesta è rifiutata con `409`. A fine job
+riuscito il server ricarica in memoria grafo/ColBERT/chunk riusando
+`reload_index_state` (api/deps.py). Auth: `X-API-Key` come tutti i `/api/*`.
+
+Configura il webhook GitLab (Settings → Webhooks) su **Push events** e/o
+**Merge request events** puntando a `https://<host>/api/reindex` con l'header
+`X-API-Key`. Dal payload push vengono estratti i path modificati
+(`commits[].added/modified/removed`) e passati al plan del delta indexing per
+limitare il lavoro ai soli file cambiati; un payload merge request (senza elenco
+file) fa un incrementale completo su `docs/` + `code/`. È accettato anche un
+override esplicito `{"paths": ["docs/x.md", ...]}` per trigger manuali. La
+logica di estrazione è in [api/reindex.py](api/reindex.py) (`extract_gitlab_paths`).
+
+**2. Batch notturno di fallback (guardrail anti-deriva).**
+L'incrementale può accumulare deriva sui code-link; lo script notturno
+[scripts/nightly_consistency.ps1](scripts/nightly_consistency.ps1) (variante
+POSIX `.sh`) esegue `index.py --check-graph` (grafo incrementale vs full
+rebuild) e, **solo se trova drift**, lancia un full rebuild che riallinea tutto.
+Schedulalo di notte con Windows Task Scheduler (`pwsh -File
+scripts/nightly_consistency.ps1`) o cron. Dopo il rebuild il server rileva
+`graph.pkl` cambiato su disco e ricarica gli artefatti alla prima richiesta
+(`maybe_reload_graph`).
+
 ## Code index: aggiungere un nuovo linguaggio
 
 L'estrazione dei simboli dal codice generato (`code/`) vive in

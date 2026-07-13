@@ -61,6 +61,7 @@ from core.config import (
     EMBEDDING_MODEL,
     GRAPH_SAVE_PATH,
     INDEX_MANIFEST_PATH,
+    PROJECT_ROOT,
     QDRANT_API_KEY,
     QDRANT_URL,
 )
@@ -500,6 +501,37 @@ def plan_incremental_indexing(current_hashes: dict[str, str], manifest: dict | N
     return IndexPlan(unchanged=unchanged, new=added, modified=modified, deleted=removed)
 
 
+def _partition_changed_paths(changed_paths: list[str]) -> tuple[set[str], set[str]]:
+    """Mappa i path repo-relative (es. da un webhook GitLab, relativi alla root del repo)
+    negli insiemi dei path relativi a docs/ e a code/. I file fuori da questi due alberi
+    (config, CI, ecc.) vengono ignorati: non fanno parte dell'indice. Restituisce
+    (docs_rel, code_rel), pronti a filtrare il piano del delta e il delta del codice."""
+    docs_prefix = DOCS_DIR.relative_to(PROJECT_ROOT).as_posix().rstrip("/") + "/"
+    code_prefix = CODE_DIR.relative_to(PROJECT_ROOT).as_posix().rstrip("/") + "/"
+    docs_rel: set[str] = set()
+    code_rel: set[str] = set()
+    for raw in changed_paths:
+        posix = str(raw).replace("\\", "/").lstrip("./")
+        if posix.startswith(docs_prefix):
+            docs_rel.add(posix[len(docs_prefix):])
+        elif posix.startswith(code_prefix):
+            code_rel.add(posix[len(code_prefix):])
+    return docs_rel, code_rel
+
+
+def _restrict_plan(plan: IndexPlan, allowed: set[str]) -> IndexPlan:
+    """Restringe un piano del delta ai soli documenti in `allowed` (path relativi a docs/).
+    È un SOTTOINSIEME sicuro del piano completo: si limita il lavoro ai path segnalati dal
+    webhook, senza mai indicizzare qualcosa che il diff hash non avrebbe indicizzato. Ciò
+    che resta fuori verrà comunque riallineato dal check di coerenza notturno + full rebuild."""
+    return IndexPlan(
+        unchanged=plan.unchanged,
+        new=[p for p in plan.new if p in allowed],
+        modified=[p for p in plan.modified if p in allowed],
+        deleted=[p for p in plan.deleted if p in allowed],
+    )
+
+
 def _delete_doc_chunks(qdrant: QdrantClient, doc_ids: list[str]) -> None:
     """Rimuove da Qdrant TUTTI i punti i cui payload.doc_id è tra quelli indicati,
     con un'unica delete-by-filter (MatchAny). Nessuna dipendenza dall'id del punto."""
@@ -711,7 +743,8 @@ def _load_pickle(path: Path, default):
         return default
 
 
-def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit=None) -> dict:
+def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit=None,
+                      changed_paths: list[str] | None = None) -> dict:
     """Orchestratore dell'indicizzazione incrementale: manifest → piano → esecuzione → persistenza.
 
     - Salta del tutto i documenti invariati (nessun re-embed).
@@ -719,7 +752,12 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
       Qdrant, sidecar o manifest → idempotente sulle run ripetute.
     - Manifest assente/corrotto ⇒ il piano marca tutto come 'new' (equivale al full rebuild),
       ma senza droppare la collection: i punti vengono upsertati con id deterministici.
-    """
+
+    `changed_paths` (opzionale, path relativi alla root del repo — es. estratti da un webhook
+    GitLab push/merge) restringe il delta ai soli file segnalati: si evita di ri-hashare/ri-
+    embeddare tutto quando si sa già cosa è cambiato. È solo un limite superiore al lavoro —
+    il diff hash resta la fonte di verità — quindi non può indicizzare nulla che un delta
+    completo non avrebbe toccato. Se None, si considera l'intero docs/ + code/ come sempre."""
     _log = emit or print
     own_qdrant = qdrant is None
 
@@ -732,6 +770,16 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     current_code = _code_hashes()
     old_code = manifest.get("code_hashes", {}) if isinstance(manifest, dict) else {}
     code_added, code_removed, code_modified, _uc = _diff_hashes(old_code, current_code)
+
+    # Webhook: restringi piano documenti e delta codice ai soli path segnalati (limita il lavoro).
+    if changed_paths is not None:
+        docs_rel, code_rel = _partition_changed_paths(changed_paths)
+        plan = _restrict_plan(plan, docs_rel)
+        code_added = [p for p in code_added if p in code_rel]
+        code_modified = [p for p in code_modified if p in code_rel]
+        code_removed = [p for p in code_removed if p in code_rel]
+        _log(f"🎯 Delta ristretto ai path del webhook: {len(docs_rel)} doc, {len(code_rel)} file di codice segnalati.")
+
     code_changed = bool(code_added or code_removed or code_modified)
 
     if manifest is not None and plan.is_noop and not code_changed:
