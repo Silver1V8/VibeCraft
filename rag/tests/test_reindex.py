@@ -1,6 +1,6 @@
 """Test del reindex incrementale automatico: estrazione dei path da un payload webhook
 GitLab, restrizione del piano del delta ai path segnalati, e il ReindexManager (job che
-parte, secondo job rifiutato a 409, reload in memoria a fine job). Nessun modello/Qdrant
+parte, coda con coalescing dei path, reload in memoria a fine job). Nessun modello/Qdrant
 reale: il reindex è iniettato come fake che controlliamo dai test."""
 import threading
 import time
@@ -90,19 +90,30 @@ def test_incremental_index_restricts_to_changed_paths(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# ReindexManager — un job alla volta, 409, reload a fine job
+# ReindexManager — coda con coalescing, reload a fine job
 # ---------------------------------------------------------------------------
+def _wait(cond, timeout=5.0):
+    """Attende attivamente che `cond()` sia vero, entro timeout."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if cond():
+            return True
+        time.sleep(0.02)
+    return cond()
+
+
 def test_job_starts_and_reloads_on_success():
     mgr = ReindexManager()
     reloaded = threading.Event()
     result = {"upserted_chunks": 3}
 
-    job = mgr.start(
+    job, queued = mgr.start(
         changed_paths=["docs/a.md"],
         run_reindex=lambda paths: result,
         on_success=reloaded.set,
     )
     assert job is not None
+    assert queued is False  # nessun reindex in corso: parte subito
     assert job.status in ("running", "completed")
 
     # Attende la fine del job daemon.
@@ -114,33 +125,83 @@ def test_job_starts_and_reloads_on_success():
     assert not mgr.is_running  # slot liberato
 
 
-def test_second_job_rejected_with_409_semantics():
+def test_second_request_is_queued_and_paths_coalesced():
+    """Il secondo start non è più rifiutato: viene accodato, i path fusi, e parte a fine
+    del primo job (non si perde il webhook ravvicinato)."""
+    mgr = ReindexManager()
+    gate = threading.Event()
+    seen_paths = []
+
+    def reindex(paths):
+        seen_paths.append(paths)
+        gate.wait(timeout=5)  # tiene il job occupato finché non sblocchiamo
+        return {}
+
+    first, q1 = mgr.start(["a"], reindex, lambda: None)
+    assert q1 is False
+    assert _wait(lambda: seen_paths == [["a"]])  # il primo è partito con ["a"]
+
+    # Mentre il primo è in corso: due start ⇒ un solo pending, path fusi.
+    second, q2 = mgr.start(["b"], reindex, lambda: None)
+    third, q3 = mgr.start(["c"], reindex, lambda: None)
+    assert q2 is True and q3 is True
+    assert second.id == third.id            # un solo pending massimo
+    assert second is not first
+    assert second.status == "queued"
+    assert second.changed_paths == ["b", "c"]  # unione ordinata
+    assert mgr.pending_id == second.id
+
+    gate.set()  # sblocca il primo → il pending deve partire da solo
+    assert _wait(lambda: len(seen_paths) == 2)
+    assert seen_paths[1] == ["b", "c"]      # il pending gira con i path fusi
+    assert _wait(lambda: mgr.get(second.id).status == "completed")
+    assert mgr.pending_id is None
+
+
+def test_pending_complete_absorbs_paths():
+    """Un pending "completo" (changed_paths=None) assorbe qualunque path successivo: None
+    resta None (incrementale su tutto)."""
     mgr = ReindexManager()
     gate = threading.Event()
 
-    def slow_reindex(paths):
-        gate.wait(timeout=5)  # tiene il primo job occupato
+    def reindex(paths):
+        gate.wait(timeout=5)
         return {}
 
-    first = mgr.start(["a"], slow_reindex, lambda: None)
-    assert first is not None
+    mgr.start(["a"], reindex, lambda: None)          # occupa lo slot
+    pending, _ = mgr.start(None, reindex, lambda: None)  # pending completo
+    assert pending.changed_paths is None
+    mgr.start(["x", "y"], reindex, lambda: None)     # si fonde: None assorbe tutto
+    assert mgr.get(pending.id).changed_paths is None
+    gate.set()
 
-    # Mentre il primo è in corso, un secondo start è rifiutato (None → il router fa 409).
-    second = mgr.start(["b"], slow_reindex, lambda: None)
-    assert second is None
-    assert mgr.is_running
 
-    gate.set()  # sblocca il primo
-    # Attende che lo slot si liberi.
-    for _ in range(50):
-        if not mgr.is_running:
-            break
-        time.sleep(0.05)
-    assert not mgr.is_running
+def test_failed_first_job_still_dispatches_pending():
+    """Il fallimento del primo job non blocca il pending: parte comunque a fine del primo."""
+    mgr = ReindexManager()
+    started = threading.Event()
+    ran_pending = threading.Event()
 
-    # Ora un nuovo job può partire.
-    third = mgr.start(["c"], lambda paths: {}, lambda: None)
-    assert third is not None
+    def boom(paths):
+        started.set()
+        raise RuntimeError("indice rotto")
+
+    first, _ = mgr.start(["a"], boom, lambda: None)
+    assert started.wait(timeout=5)
+
+    # Accoda un pending mentre/prima che il primo finisca; potrebbe già essere fallito,
+    # in tal caso parte subito lui.
+    def pending_reindex(paths):
+        ran_pending.set()
+        return {}
+    pending, queued = mgr.start(["b"], pending_reindex, lambda: None)
+
+    assert _wait(lambda: mgr.get(first.id).status == "failed")
+    # Se è stato davvero accodato, deve comunque essere stato avviato dal dispatch.
+    if queued:
+        assert ran_pending.wait(timeout=5)
+        assert _wait(lambda: mgr.get(pending.id).status == "completed")
+    assert _wait(lambda: not mgr.is_running)
 
 
 def test_failed_job_frees_slot_and_skips_reload():
@@ -150,13 +211,10 @@ def test_failed_job_frees_slot_and_skips_reload():
     def boom(paths):
         raise RuntimeError("indice rotto")
 
-    job = mgr.start(["a"], boom, reloaded.set)
+    job, _ = mgr.start(["a"], boom, reloaded.set)
     assert job is not None
 
-    for _ in range(50):
-        if mgr.get(job.id).status == "failed":
-            break
-        time.sleep(0.05)
+    assert _wait(lambda: mgr.get(job.id).status == "failed" and not mgr.is_running)
 
     finished = mgr.get(job.id)
     assert finished.status == "failed"

@@ -8,12 +8,21 @@ Propose (core/) esposti via FastAPI (api/). Entrypoint: `server.py`, `index.py`.
 Due meccanismi tengono l'indice allineato al codebase senza intervento manuale:
 
 **1. Reindex incrementale su webhook (durante il giorno).**
-`POST /api/reindex` lancia un reindex incrementale in background (un job alla
-volta) e risponde subito `202` con un `job_id`; `GET /api/reindex/{job_id}` ne
-riporta lo stato (`running`/`completed`/`failed`) col risultato o l'errore. Se
-un reindex è già in corso, la nuova richiesta è rifiutata con `409`. A fine job
+`POST /api/reindex` lancia un reindex incrementale in background e risponde
+subito `202` con un `job_id`; `GET /api/reindex/{job_id}` ne riporta lo stato
+(`queued`/`running`/`completed`/`failed`) col risultato o l'errore. A fine job
 riuscito il server ricarica in memoria grafo/ColBERT/chunk riusando
 `reload_index_state` (api/deps.py). Auth: `X-API-Key` come tutti i `/api/*`.
+
+Il manager usa una **coda con coalescing** (`ReindexManager`, api/reindex.py):
+al massimo un job in esecuzione + al massimo **un pending**. Se arriva una
+richiesta mentre un reindex è in corso **non viene più rifiutata con `409`**: è
+accodata in un unico slot pending e la risposta è `202` con
+`{"job_id": <id del pending>, "queued": true}`. I `changed_paths` delle richieste
+accodate vengono **fusi** (unione degli insiemi; una richiesta "completa" con
+`changed_paths=None` assorbe tutto → incrementale su tutto). A fine job (successo
+o fallimento) il pending parte automaticamente. Così due push GitLab ravvicinati
+non si perdono più — il secondo evento si fonde nel pending invece di sparire.
 
 Configura il webhook GitLab (Settings → Webhooks) su **Push events** e/o
 **Merge request events** puntando a `https://<host>/api/reindex` con l'header
