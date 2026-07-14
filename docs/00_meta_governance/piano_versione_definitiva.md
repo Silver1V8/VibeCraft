@@ -391,7 +391,7 @@ Epic 0  (baseline)      ─┬─> Epic 1 (refactor)  ──> Epic 2 (grafo a se
 
 ## Definizione di "fatto" (la versione definitiva è completa quando…)
 
-- [ ] Il grafo ha nodi-sezione; i code-link puntano alla sezione vincente; delta ≡ full (verificato).
+- [x] Il grafo ha nodi-sezione; i code-link puntano alla sezione vincente; delta ≡ full (verificato). ✅ Epic 2.1 (commit 1dbfbf2): `type="section"` + PART_OF, IMPLEMENTS→win_chunk, CSS/HTML non linkati (21→19), 275 test verdi.
 - [ ] `core/indexing/` è un pacchetto, nessun file > ~400 righe, comportamento invariato.
 - [ ] I pesi di autorità sono in config, calibrati con split di validazione (o documentato che i default
       reggono), con guardrail sul range.
