@@ -184,7 +184,7 @@ _NG_KIND = {"Component": "component", "Injectable": "service", "NgModule": "modu
 def angular_symbols(text: str, stem: str, suffix: str, rel: str = "") -> list[tuple]:
     """Classi decorate Angular + semantica (selector, templateUrl, DI, routing,
     HttpClient). Le classi non decorate restano al parser TS sintattico."""
-    from code_index_ts import ts_symbols
+    from code_index.ts import ts_symbols
     base = {name: (kind, name, snip) for kind, name, snip in ts_symbols(text, stem, suffix)}
 
     out: list[tuple] = []

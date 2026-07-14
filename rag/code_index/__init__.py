@@ -4,7 +4,7 @@ Estrae i simboli (classi, funzioni, metodi, endpoint, componenti) dai file sotto
 code/ e li collega ai documenti normativi con archi IMPLEMENTS calcolati per
 similarità semantica, riusando lo stesso modello bge-m3 già caricato per l'indice.
 
-Parser per linguaggio: stdlib `ast` per Python; tree-sitter (code_index_ts.py)
+Parser per linguaggio: stdlib `ast` per Python; tree-sitter (code_index.ts.py)
 per TS/TSX/JS/JSX/Svelte, con le vecchie euristiche regex mantenute come fallback
 d'emergenza dietro il flag `code_parsers.<lang>` in rag_config.yaml. HTML/CSS
 restano nodi-file senza estrazione di simboli. Copre i linguaggi effettivamente
@@ -30,7 +30,7 @@ def _config_patterns() -> list[str]:
     """Pattern (fnmatch) dei file di configurazione riconosciuti: solo quelli
     noti — gli altri .json/.xml (dati, fixture, export) sono rumore, non
     struttura. Sovrascrivibili in rag_config.yaml (code_parsers.config_patterns)."""
-    from code_index_config import DEFAULT_CONFIG_PATTERNS
+    from code_index.config import DEFAULT_CONFIG_PATTERNS
     try:
         from core.config import CODE_PARSERS
         return CODE_PARSERS.get("config_patterns") or DEFAULT_CONFIG_PATTERNS
@@ -48,7 +48,7 @@ def _is_ci_file(fname: str) -> bool:
     """Pipeline CI/CD riconosciute per NOME (code_parsers.ci_patterns): gli
     altri .yml del repo (config, docker-compose) sono esclusi."""
     from fnmatch import fnmatch
-    from code_index_ci import DEFAULT_CI_PATTERNS
+    from code_index.ci import DEFAULT_CI_PATTERNS
     try:
         from core.config import CODE_PARSERS
         patterns = CODE_PARSERS.get("ci_patterns") or DEFAULT_CI_PATTERNS
@@ -167,37 +167,37 @@ def _extract(suffix: str, text: str, stem: str, rel: str = "",
     # Frontend framework-aware (React/Angular): il framework si rileva dal
     # package.json del progetto, non dall'estensione (niente falsi positivi).
     if suffix in (".ts", ".tsx", ".jsx", ".html") and code_dir is not None:
-        from code_index_frontend import detect_framework
+        from code_index.frontend import detect_framework
         fw = detect_framework(code_dir, rel)
         if fw == "react" and suffix in (".tsx", ".jsx"):
-            from code_index_frontend import react_symbols
+            from code_index.frontend import react_symbols
             return react_symbols(text, stem, suffix, rel)
         if fw == "angular" and suffix == ".ts":
-            from code_index_frontend import angular_symbols
+            from code_index.frontend import angular_symbols
             return angular_symbols(text, stem, suffix, rel)
         if fw == "angular" and suffix == ".html":
-            from code_index_frontend import angular_template_meta
+            from code_index.frontend import angular_template_meta
             meta = angular_template_meta(text)
             return [("template", stem, text[:_SNIPPET_LIMIT], {"attrs": meta})] if meta \
                 else [("template", stem, text[:_SNIPPET_LIMIT])]
     if suffix == ".java":
         # Unica implementazione (tree-sitter, nessun parser regex precedente):
         # il flag code_parsers.java esiste solo per uniformità di configurazione.
-        from code_index_java import java_symbols
+        from code_index.java import java_symbols
         return java_symbols(text, stem, suffix)
     if suffix == ".xml" and stem == "pom":
-        from code_index_java import pom_symbols
+        from code_index.java import pom_symbols
         return pom_symbols(text, stem, suffix)
     if suffix == ".gradle":
-        from code_index_java import gradle_symbols
+        from code_index.java import gradle_symbols
         # il nome del progetto Gradle non è nel file: si usa la cartella che lo contiene
         project = rel.rsplit("/", 2)[-2] if rel.count("/") else ""
         return gradle_symbols(text, stem, suffix, project=project)
     if suffix in (".bpmn", ".bpmn2"):
-        from code_index_java import bpmn_symbols
+        from code_index.java import bpmn_symbols
         return bpmn_symbols(text, stem, suffix)
     if suffix == ".dmn":
-        from code_index_java import dmn_symbols
+        from code_index.java import dmn_symbols
         return dmn_symbols(text, stem, suffix)
     # .NET (runtime-agnostico: identico su .NET Framework e Core/5+).
     # Razor (.cshtml/.razor): scanner ibrido dedicato (regex per direttive/markup +
@@ -205,38 +205,38 @@ def _extract(suffix: str, text: str, stem: str, rel: str = "",
     # immatura. TODO(2026-07-12) fuori scope: VB.NET (.vbhtml), analisi dell'HTML/JS
     # interno alle view, CSS isolation (.razor.css).
     if suffix in (".cshtml", ".razor"):
-        from code_index_razor import razor_symbols
+        from code_index.razor import razor_symbols
         return razor_symbols(text, stem, suffix, rel)
     if suffix == ".cs":
-        from code_index_csharp import csharp_symbols
+        from code_index.csharp import csharp_symbols
         return csharp_symbols(text, stem, suffix)
     if suffix == ".csproj":
-        from code_index_csharp import csproj_symbols
+        from code_index.csharp import csproj_symbols
         return csproj_symbols(text, stem, suffix)
     # SQL (T-SQL / PL/SQL / generico): ibrido tree-sitter + scanner regex per i
     # dialetti; .pks/.pkb sono spec/body dei package PL/SQL.
     if suffix in (".sql", ".pks", ".pkb"):
-        from code_index_sql import sql_symbols
+        from code_index.sql import sql_symbols
         return sql_symbols(text, stem, suffix, rel)
     # Script operazionali: Bash e PowerShell entrambi via tree-sitter (grammatica
     # PowerShell verificata matura sul corpus: function, dot-sourcing, & call).
     if suffix in (".sh", ".ps1", ".psm1"):
-        from code_index_shell import shell_symbols
+        from code_index.shell import shell_symbols
         return shell_symbols(text, stem, suffix, rel)
     if suffix == ".config" and stem == "packages":
-        from code_index_csharp import packages_config_symbols
+        from code_index.csharp import packages_config_symbols
         project = rel.rsplit("/", 2)[-2] if rel.count("/") else ""
         return packages_config_symbols(text, stem, suffix, project=project)
     # File di configurazione riconosciuti per NOME (web.config, appsettings*.json,
     # package.json, *.wsdl/*.xsd): estrazione strutturata stdlib, secret mascherati.
     fname = (rel.rsplit("/", 1)[-1] if rel else f"{stem}{suffix}").lower()
     if _is_ci_file(fname):
-        import code_index_ci as cimod
+        import code_index.ci as cimod
         if "gitlab" in fname:
             return cimod.gitlab_ci_symbols(text, stem, suffix, rel)
         return cimod.azure_pipelines_symbols(text, stem, suffix, rel)
     if _is_config_file(fname):
-        import code_index_config as cfg
+        import code_index.config as cfg
         if fname.endswith(".config"):
             return cfg.dotnet_config_symbols(text, stem, suffix, rel)
         if fname.startswith("appsettings") and fname.endswith(".json"):
@@ -257,7 +257,7 @@ def _extract(suffix: str, text: str, stem: str, rel: str = "",
         # degli <script> viene ri-parsato con la grammatica TypeScript, quindi il
         # test di equivalenza non mostra perdite rispetto al regex e la migrazione
         # è attiva anche qui (fallback: code_parsers.svelte: "regex").
-        from code_index_ts import svelte_symbols, ts_symbols
+        from code_index.ts import svelte_symbols, ts_symbols
         fn = svelte_symbols if suffix == ".svelte" else ts_symbols
         return fn(text, stem, suffix)
     if suffix in (".js", ".ts", ".tsx", ".jsx", ".svelte"):
@@ -272,7 +272,7 @@ def _extract(suffix: str, text: str, stem: str, rel: str = "",
 def collect_code_symbols(code_dir: Path) -> list[dict]:
     """Scansiona code/ e restituisce i simboli estratti, uno per elemento di codice."""
     symbols: list[dict] = []
-    from code_index_sql import FALLBACK_LOG
+    from code_index.sql import FALLBACK_LOG
     FALLBACK_LOG.clear()
     if not code_dir.exists():
         return symbols
@@ -305,7 +305,7 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
 
     # Appartenenza: ogni nodo config/service/schema si collega al nodo project
     # più vicino nel filesystem (classe -> config -> connection string -> db).
-    from code_index_config import attach_projects
+    from code_index.config import attach_projects
     attach_projects(symbols)
 
     # Frontend (React/Angular): risolve templateUrl/lazy import, archi
@@ -313,14 +313,14 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
     if any(k in (s.get("attrs") or {}) for s in symbols
            for k in ("_routes", "_used_selectors")) \
             or any(d.startswith("file:") for s in symbols for d in s["deps"]):
-        from code_index_frontend import resolve_frontend
+        from code_index.frontend import resolve_frontend
         resolve_frontend(symbols)
 
     # JPA: entity->tabella (con placeholder se il DDL non è indicizzato) e
     # navigazione @OneToMany & co. -> REFERENCES entity->entity.
     if any(k in (s.get("attrs") or {}) for s in symbols
            for k in ("_jpa_table", "_jpa_nav")):
-        from code_index_java import resolve_jpa
+        from code_index.java import resolve_jpa
         resolve_jpa(symbols)
 
     # Entity Framework: context->entity, entity->tabella (con placeholder se il
@@ -328,13 +328,13 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
     # per ripulire le chiavi temporanee (_prop_types/_table) dai metadati C#.
     if any(k in (s.get("attrs") or {}) for s in symbols
            for k in ("_table", "_fluent", "_dbsets", "_prop_types")):
-        from code_index_csharp import resolve_ef
+        from code_index.csharp import resolve_ef
         resolve_ef(symbols)
 
     # Riferimenti incrociati degli script (source, dotnet build su .csproj,
     # sqlcmd su .sql): risolti sui percorsi relativi, best-effort.
     if any(t.startswith("run:") for s in symbols for _, t in s["links"]):
-        from code_index_shell import resolve_script_refs
+        from code_index.shell import resolve_script_refs
         resolve_script_refs(symbols)
 
     # Le dep "tipizzate" (view:/page:/component:/...) richiedono la vista d'insieme
@@ -342,7 +342,7 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
     # governance (link rotti, view orfane) consultabile via `razor_report()`.
     global _LAST_RAZOR_REPORT
     if any(":" in d for s in symbols for d in s["deps"]):
-        from code_index_razor import resolve_links
+        from code_index.razor import resolve_links
         _LAST_RAZOR_REPORT = resolve_links(symbols, code_dir)
     else:
         _LAST_RAZOR_REPORT = {"broken_links": [], "orphan_views": []}

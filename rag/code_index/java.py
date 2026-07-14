@@ -64,7 +64,7 @@ _CALL_SP_RE = re.compile(r'\{\s*call\s+([\w.]+)', re.I)
 
 
 def _storedproc_links(text: str) -> list[tuple[str, str]]:
-    from code_index_sql import _norm
+    from code_index.sql import _norm
     names = set(_JPA_SP_RE.findall(text)) | set(_CALL_SP_RE.findall(text))
     return [("EXECUTES", _norm(n)) for n in sorted(names) if _norm(n)]
 
@@ -182,7 +182,7 @@ def java_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
                 if "Query" in anns and re.search(r"nativeQuery\s*=\s*true", m_ann_text):
                     qm = _NATIVE_QUERY_VALUE_RE.search(m_ann_text)
                     if qm:
-                        from code_index_sql import _body_links
+                        from code_index.sql import _body_links
                         sp = sp + _body_links(qm.group(1), "")
                 out.append(mtuple + (({"links": sp},) if sp else ()))
             elif member.type == "constructor_declaration":
@@ -331,7 +331,7 @@ def dmn_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
 # ---------------------------------------------------------- resolver JPA --
 
 def resolve_jpa(symbols: list[dict]) -> None:
-    """Post-pass JPA (analogo di resolve_ef in code_index_csharp): mapping
+    """Post-pass JPA (analogo di resolve_ef in code_index.csharp): mapping
     entity->tabella ([Table] o convenzione Hibernate, lowercase per
     riconciliarsi coi nodi del parser SQL) con nodi tabella placeholder
     quando il DDL non e' ancora indicizzato, e relazioni di navigazione

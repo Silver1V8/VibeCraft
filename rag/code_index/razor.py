@@ -1,7 +1,7 @@
 """Scanner ibrido per la famiglia Razor (.cshtml / .razor) + resolver dei link
 per convenzione ASP.NET. Niente grammatica tree-sitter Razor (immatura): uno
 scanner unico separa direttive e blocchi C# dal markup, e delega i frammenti
-C# (@code/@functions) al parser tree-sitter C# esistente (code_index_csharp).
+C# (@code/@functions) al parser tree-sitter C# esistente (code_index.csharp).
 
 Dialetti riconosciuti dallo scanner unico:
   - .razor                     -> componente Blazor (kind "component");
@@ -166,7 +166,7 @@ def _scan(text: str, stem: str, suffix: str, name: str, rel: str) -> list[tuple]
 def _code_block_symbols(block: str, owner: str, stem: str) -> list[tuple]:
     """Metodi pubblici del blocco @code, estratti col parser tree-sitter C#
     (il blocco viene avvolto in una classe fittizia col nome del componente)."""
-    from code_index_csharp import csharp_symbols
+    from code_index.csharp import csharp_symbols
     out = []
     for tup in csharp_symbols(f"class {stem} {{\n{block}\n}}", stem, ".razor@code"):
         kind, mname = tup[0], tup[1]

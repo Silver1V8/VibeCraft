@@ -10,7 +10,7 @@ linguaggio.
 import pytest
 
 import code_index as ci
-from code_index_ts import svelte_symbols, ts_symbols
+from code_index.ts import svelte_symbols, ts_symbols
 
 # Corpus: ogni voce copre uno dei pattern del parser regex più i casi limite noti.
 CORPUS = {

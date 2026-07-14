@@ -11,7 +11,7 @@ Framework e .NET Core/.NET 5+ — gli attributi WCF ([ServiceContract]/
 [OperationContract], legacy Framework) e ASP.NET Core ([ApiController]/
 [Route]/[HttpGet]...) sono rilevati entrambi, sempre.
 
-Framework-aware (stesso pattern delle annotation Quarkus in code_index_java):
+Framework-aware (stesso pattern delle annotation Quarkus in code_index.java):
 metodi con attributi HTTP/Route/OperationContract -> kind "endpoint".
 
 Error recovery: sorgente C# con errori di sintassi degrada a estrazione
@@ -94,7 +94,7 @@ _SP_EXEC_IN_STRING_RE = re.compile(r'"[^"]*\bEXEC(?:UTE)?\s+([\w.\[\]]+)', re.I)
 def _storedproc_links(member_text: str) -> list[tuple[str, str]]:
     """Archi EXECUTES metodo -> stored procedure, con i nomi normalizzati come
     fa il parser SQL (così risolvono sugli stessi nodi)."""
-    from code_index_sql import _norm
+    from code_index.sql import _norm
     names = set()
     if "CommandType.StoredProcedure" in member_text:
         names.update(_SP_NAME_RE.findall(member_text))
@@ -118,7 +118,7 @@ _COLLECTION_RE = re.compile(r"^(?:ICollection|IEnumerable|IList|List|HashSet|ISe
 def _ef_raw_sql_links(member_text: str) -> list[tuple[str, str]]:
     """Archi READS/WRITES/EXECUTES dalle stringhe SQL grezze di EF
     (FromSqlRaw & co.), riusando l'estrattore del parser SQL."""
-    from code_index_sql import _body_links
+    from code_index.sql import _body_links
     sql = " ; ".join(_EF_RAW_SQL_RE.findall(member_text))
     return _body_links(sql, "") if sql.strip() else []
 
@@ -186,7 +186,7 @@ def csharp_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
                 if is_controller:
                     # convenzione MVC: View() implicita -> view col nome dell'azione,
                     # View("Nome")/PartialView("Nome") -> view esplicita. Dep tipizzate,
-                    # risolte (o segnalate rotte) da code_index_razor.resolve_links.
+                    # risolte (o segnalate rotte) da code_index.razor.resolve_links.
                     views = {m.group(1) or mname for m in _VIEW_CALL_RE.finditer(member_text)}
                     if views:
                         meta["deps"] = [f"view:{ctrl}/{v}" for v in sorted(views)]

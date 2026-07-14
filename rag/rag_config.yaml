@@ -42,12 +42,12 @@ code_parsers:
   # Java: unica implementazione (tree-sitter, nessun fallback regex). Copre anche
   # gli artefatti di progetto: pom.xml / build.gradle (dipendenze -> DEPENDS_ON)
   # e Kogito .bpmn/.bpmn2/.dmn (processi/decisioni). Estensioni registrate nel
-  # dispatch di code_index.py: .java, .bpmn, .bpmn2, .dmn + pom.xml/build.gradle.
+  # dispatch di code_index/: .java, .bpmn, .bpmn2, .dmn + pom.xml/build.gradle.
   java: "treesitter"
   # C#/.NET: unica implementazione (tree-sitter-c-sharp dal language-pack),
   # runtime-agnostica (Framework e Core/5+). Copre anche .csproj
   # (PackageReference/ProjectReference -> DEPENDS_ON) e packages.config legacy.
-  # Estensioni registrate nel dispatch di code_index.py: .cs, .csproj + packages.config.
+  # Estensioni registrate nel dispatch di code_index/: .cs, .csproj + packages.config.
   csharp: "treesitter"
   # Razor (.cshtml/.razor): scanner ibrido dedicato (niente grammatica tree-sitter,
   # immatura): direttive/markup via scanner, blocchi @code via parser C#. Dialetti:

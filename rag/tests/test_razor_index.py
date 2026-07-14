@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 import code_index as ci
-import code_index_razor as razor
+import code_index.razor as razor
 
 
 class StubModel:

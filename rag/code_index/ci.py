@@ -32,8 +32,8 @@ _GITLAB_RESERVED = {"stages", "variables", "include", "default", "workflow",
 
 def _shell_links(lines, attrs: dict) -> list[tuple[str, str]]:
     """Estrae dagli script di un job gli stessi link/comandi del parser bash
-    (riuso di code_index_shell): run:<path> verso script/progetti/file SQL."""
-    from code_index_shell import _Collector, _walk_bash, _clean
+    (riuso di code_index.shell): run:<path> verso script/progetti/file SQL."""
+    from code_index.shell import _Collector, _walk_bash, _clean
     if isinstance(lines, str):
         lines = [lines]
     text = "\n".join(str(l) for l in (lines or []) if isinstance(l, (str, int, float)))
