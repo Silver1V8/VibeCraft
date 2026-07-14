@@ -119,6 +119,18 @@ Il calo di recall@5 è voluto: i casi difficili danno spazio di miglioramento ag
 Rendere sicuro tutto il resto. 1281 righe monolitiche sono il rischio-manutenzione n°1: qui un bug
 diventa corruzione d'indice silenziosa. Refactor puramente strutturale, comportamento identico.
 
+> ⚠️ **Epic 1.1 TENTATO e REVERTITO (2026-07-14) — costo > beneficio.** Lo split in 6 moduli contigui
+> (graph/status/planning/build/incremental/consistency) è pulito e importa correttamente, MA rompe il
+> contratto di monkeypatch dei test: `from X import nome` crea una binding separata nel modulo importatore,
+> quindi `monkeypatch.setattr(index, "_docs_hashes", ...)` non raggiunge più le funzioni che lo usano. I nomi
+> condivisi tra più sottomoduli (DOCS_DIR, CODE_DIR, _docs_hashes, _code_hashes, _read_manifest,
+> _encode_chunks_to_points, write_index_manifest, save/load_artifacts) richiederebbero di convertire i
+> riferimenti cross-modulo ad accesso module-qualified **+** riscrivere ~30 siti di patch su 5 file di test.
+> Churn alto per un refactor puramente cosmetico su un file GIÀ ben organizzato (funzioni raggruppate per
+> concern) e la cui sicurezza è già coperta dai test di equivalenza. **Deciso di NON procedere.** Se un giorno
+> si vuole fare: convertire prima i riferimenti cross-modulo ai nomi patchati in `config.X`/`status.X`/… e
+> aggiornare i test a patchare la sorgente canonica; è un lavoro a sé, non un "solo spostamento".
+
 ### Prompt 1.1 — Estrai il sottopacchetto `core/indexing/`
 ```
 Contesto: core/indexing.py (1281 righe) mescola quattro responsabilità: identità/id deterministici,
