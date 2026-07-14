@@ -10,6 +10,10 @@ import numpy as np
 from qdrant_client.models import SparseVector
 
 from core.config import (
+    AUTHORITY_ARCHIVED_DECAY,
+    AUTHORITY_BOOST_ALPHA,
+    AUTHORITY_CLASS_WEIGHTS as _CFG_CLASS_WEIGHTS,
+    AUTHORITY_DEFAULT_WEIGHT,
     COLLECTION_NAME,
     LLM_MODEL,
     LLM_PROVIDER,
@@ -30,25 +34,48 @@ def _hit_chunk_id(hit) -> str:
 
 
 # Pesi di autorità per la ri-ponderazione delle sorgenti: i documenti normativi
-# (safeguard, policy di autorizzazione) devono contare più di quelli informativi,
-# e le sorgenti archiviate/deprecate devono contare meno di quelle attive.
-AUTHORITY_CLASS_WEIGHTS = {
-    "IRON_MEMORY": 1.0,
-    "AUTHORIZATION_POLICY": 0.9,
-    "DATA_DICTIONARY": 0.7,
-    "METHODOLOGY": 0.5,
-}
+# (safeguard, policy di autorizzazione) devono contare più di quelli informativi, e le
+# sorgenti archiviate/deprecate meno di quelle attive. I valori vivono in config
+# (rag_config.yaml → authority.*) così la calibrazione (eval/calibrate_authority.py) tocca
+# solo la config, non il codice. Il nome resta esportato per retrocompatibilità.
+AUTHORITY_CLASS_WEIGHTS = _CFG_CLASS_WEIGHTS
+_ARCHIVED_STATUSES = ("ARCHIVED", "DEPRECATED", "HISTORICAL", "OBSOLETE")
 
 
-def _authority_weight(attrs: dict) -> float:
+def _authority_weight(attrs: dict, *, weights: dict | None = None,
+                      default: float = AUTHORITY_DEFAULT_WEIGHT,
+                      decay: float = AUTHORITY_ARCHIVED_DECAY) -> float:
     """Peso di autorità in [0,1] a partire da 'classification' e 'status' del documento
-    (presenti sia nel payload Qdrant sia negli attributi del nodo del grafo)."""
+    (presenti sia nel payload Qdrant sia negli attributi del nodo del grafo). I parametri
+    (weights/default/decay) sono iniettabili: usati così com'è dal retrieval (default da
+    config) e con valori variati dal calibratore per la grid search sul golden set."""
+    weights = weights if weights is not None else AUTHORITY_CLASS_WEIGHTS
     classification = str(attrs.get("classification", "")).upper()
     status = str(attrs.get("status", "")).upper()
-    base = AUTHORITY_CLASS_WEIGHTS.get(classification, 0.4)
-    if status in ("ARCHIVED", "DEPRECATED", "HISTORICAL", "OBSOLETE"):
-        base *= 0.3
+    base = weights.get(classification, default)
+    if status in _ARCHIVED_STATUSES:
+        base *= decay
     return base
+
+
+def rank_by_authority(results: list[dict], *, alpha: float = AUTHORITY_BOOST_ALPHA) -> list[dict]:
+    """Ordinamento finale con boost di autorità: il punteggio di rilevanza (ColBERT dove
+    disponibile, altrimenti la fusione) è modulato da (1-alpha + alpha*peso), così una fonte
+    normativa risale rispetto a una informativa a parità di rilevanza. alpha=0 ignora del tutto
+    l'autorità (ranking puramente semantico); alpha più alto la premia di più. Ordina in-place
+    e restituisce la lista (ogni entry ha già 'authority'). Condiviso da hybrid_search e dal
+    calibratore, così la calibrazione valuta ESATTAMENTE il ranking di produzione."""
+    def _mult(r: dict) -> float:
+        return (1.0 - alpha) + alpha * r["authority"]
+
+    if any(r.get("colbert_score") is not None for r in results):
+        results.sort(
+            key=lambda r: (r["colbert_score"] if r["colbert_score"] is not None else -1.0) * _mult(r),
+            reverse=True,
+        )
+    else:
+        results.sort(key=lambda r: r["fused_rank_sum"] / _mult(r))
+    return results
 
 
 def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_store: dict) -> list[dict]:
@@ -137,6 +164,10 @@ def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_sto
             "sparse_score": round(sparse_score[chunk_id], 4) if chunk_id in sparse_score else None,
             "fused_rank_sum": fused_rank_sum,
             "colbert_score": None,
+            # Classe/stato grezzi della sorgente: base della ri-ponderazione per autorità e
+            # input per ricalcolarla offline (calibrazione dei pesi sul golden set).
+            "classification": payload.get("classification", ""),
+            "status": payload.get("status", ""),
             # Peso di autorità della sorgente (normativa vs informativa, attiva vs archiviata)
             "authority": round(_authority_weight(payload), 3),
         }
@@ -147,21 +178,9 @@ def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_sto
             entry["colbert_score"] = round(float(sim.max(axis=1).mean()), 4)
         results.append(entry)
 
-    # Ordinamento finale con un boost di autorità moderato: il punteggio di rilevanza
-    # (ColBERT dove disponibile, altrimenti la fusione) viene modulato in [0.6, 1.0]
-    # dal peso di autorità, così una fonte normativa risale rispetto a una informativa
-    # a parità di rilevanza, senza però stravolgere il ranking semantico.
-    def _authority_mult(r: dict) -> float:
-        return 0.6 + 0.4 * r["authority"]
-
-    if any(r["colbert_score"] is not None for r in results):
-        results.sort(
-            key=lambda r: (r["colbert_score"] if r["colbert_score"] is not None else -1.0) * _authority_mult(r),
-            reverse=True,
-        )
-    else:
-        # Nessun ColBERT: parte dalla fusione (rank più basso = migliore) e premia l'autorità
-        results.sort(key=lambda r: r["fused_rank_sum"] / _authority_mult(r))
+    # Ordinamento finale con boost di autorità (forza alpha da config): estratto in
+    # rank_by_authority così la calibrazione valuta esattamente questo stesso ranking.
+    rank_by_authority(results)
 
     return results[:top_k]
 

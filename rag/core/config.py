@@ -79,6 +79,17 @@ LLM_MODEL: str = config["llm_settings"]["models"][LLM_PROVIDER]
 # (es. {"typescript": "treesitter"}); assente o "regex" = parser storico.
 CODE_PARSERS: dict = config.get("code_parsers") or {}
 
+# Ri-ponderazione per autorità nel retrieval (core/retrieval.py). Default = calibrazione a
+# mano storica; sovrascrivibili in rag_config.yaml (authority.*) e ricalibrabili sul golden set
+# con eval/calibrate_authority.py. Tenuti separati così la calibrazione tocca solo il config.
+_authority_cfg: dict = config.get("authority") or {}
+AUTHORITY_CLASS_WEIGHTS: dict = _authority_cfg.get("class_weights") or {
+    "IRON_MEMORY": 1.0, "AUTHORIZATION_POLICY": 0.9, "DATA_DICTIONARY": 0.7, "METHODOLOGY": 0.5,
+}
+AUTHORITY_DEFAULT_WEIGHT: float = float(_authority_cfg.get("default_weight", 0.4))
+AUTHORITY_ARCHIVED_DECAY: float = float(_authority_cfg.get("archived_decay", 0.3))
+AUTHORITY_BOOST_ALPHA: float = float(_authority_cfg.get("boost_alpha", 0.4))
+
 # Configurazione pipeline Explore -> Canvas -> Propose (rag/changes/).
 # NB: endpoint e modelli LLM ora vivono in core/llm.py (risoluzione per purpose).
 CHANGES_DIR = PROJECT_ROOT / "changes"

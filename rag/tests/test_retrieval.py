@@ -18,7 +18,8 @@ def test_authority_weights_and_penalty():
     assert w({"classification": "IRON_MEMORY", "status": "ENFORCED"}) == 1.0
     assert w({"classification": "AUTHORIZATION_POLICY"}) == 0.9
     assert w({"classification": "METHODOLOGY"}) == 0.5
-    assert w({"classification": "SCONOSCIUTA"}) == 0.4                      # default
+    from core.config import AUTHORITY_DEFAULT_WEIGHT
+    assert w({"classification": "SCONOSCIUTA"}) == AUTHORITY_DEFAULT_WEIGHT  # default (da config, calibrabile)
     assert w({"classification": "IRON_MEMORY", "status": "ARCHIVED"}) == 0.3  # penalizzazione archiviati
 
 

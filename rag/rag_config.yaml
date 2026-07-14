@@ -28,6 +28,24 @@ vector_database:
   collection_name: "vibecraft_events"
   embedding_model: "BAAI/bge-m3" # Modello locale per vettori densi/sparsi
 
+# Ri-ponderazione per autorità nel retrieval (core/retrieval.py): i pesi per classe di
+# documento modulano il ranking finale (fonti normative > informative; archiviate < attive).
+# I valori qui sono i default calibrati a mano; ricalibrabili sul golden set con
+# `eval/calibrate_authority.py` — usando SEMPRE uno split di validazione per non fare overfit.
+authority:
+  class_weights:
+    IRON_MEMORY: 1.0
+    AUTHORIZATION_POLICY: 0.9
+    DATA_DICTIONARY: 0.7
+    METHODOLOGY: 0.5
+  default_weight: 0.7       # peso delle classi non elencate (es. REQUIREMENTS/spec) — CALIBRATO 2026-07-14 (era 0.4)
+  archived_decay: 0.3       # moltiplicatore del peso per status ARCHIVED/DEPRECATED/HISTORICAL/OBSOLETE
+  boost_alpha: 0.1          # forza del boost di autorità: mult = (1 - alpha) + alpha * peso  (alpha=0 → autorità ignorata) — CALIBRATO 2026-07-14 (era 0.4)
+  # Calibrazione (eval/calibrate_authority.py, 5-fold CV su golden set 34 casi, 2026-07-14):
+  # default_weight 0.4→0.7 e boost_alpha 0.4→0.1 alzano recall@10 held-out da 0.914 a 0.971 (+5.7%).
+  # Il boost di autorità hand-set era troppo forte: sovra-promuoveva i safeguard IRON_MEMORY generici
+  # rispetto alle spec REQUIREMENTS specifiche attese. Ricalibrare SEMPRE con split di validazione.
+
 paths:
   docs_dir: "./docs"
   codebase_dir: "./code"
