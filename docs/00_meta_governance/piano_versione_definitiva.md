@@ -397,8 +397,14 @@ Epic 0  (baseline)      ─┬─> Epic 1 (refactor)  ──> Epic 2 (grafo a se
       ✅ Epic 3 (commit 8cc369c): boost_alpha 0.4→0.1, default_weight 0.4→0.7 via 5-fold CV
       (`eval/calibrate_authority.py`). recall@10 CV 0.914→0.971 (+5.7%); end-to-end 0.912→1.000. Il boost
       hand-set era troppo forte. Guardrail: `tests/test_authority_calibration.py`. 280 test verdi.
-- [ ] Il retrieval è async; il TODO in routes_retrieval è rimosso.
-- [ ] La promozione blue/green è condizionata all'eval-gate anche sui delta ad alta autorità.
+- [ ] Il retrieval è async; il TODO in routes_retrieval è rimosso. — **Epic 4.1 SALTATO** (scelta): il
+      retrieval è già fuori dall'event loop (run_in_threadpool), il collo di bottiglia è l'encode bge-m3
+      (CPU-bound), console mono-utente → guadagno marginale, rischio sull'hot path appena calibrato.
+- [x] La promozione blue/green è condizionata all'eval-gate. ✅ Epic 4.2 (commit successivo a 8cc369c):
+      `core/eval_gate.py` valuta recall@k sul golden set prima di spostare CURRENT; sotto soglia blocca +
+      alert critico. Cablato in build_graph_and_index (CLI) e unificato con lo scaffold server
+      (routes_reindex). Verificato: recall@10=1.000 ≥ 0.90 → promosso. 286 test verdi. NB: gate sui full;
+      i delta promuovono sempre (design pre-esistente). Qdrant non versionato = limite documentato.
 - [ ] `eval/results/history.jsonl` + pagina trend + campo health "eval"; alert notturno su regressione.
 - [ ] recall@k finale **≥** baseline Epic 0 (idealmente >, mai <).
 ```
