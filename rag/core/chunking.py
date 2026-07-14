@@ -11,11 +11,17 @@ def parse_markdown_file(filepath: str) -> tuple[dict, str]:
     """Estrae il Front Matter YAML e il corpo dal file Markdown."""
     with open(filepath, "r", encoding="utf-8") as f:
         content = f.read()
-    parts = content.split("---")
-    if len(parts) >= 3:
-        metadata = yaml.safe_load(parts[1]) or {}
-        body = "---".join(parts[2:])
-        return metadata, body
+    # Il front matter YAML esiste SOLO se delimitato in cima al file (`---\n...\n---`).
+    # NON fare split("---") sull'intero contenuto: le righe orizzontali `---` a metà
+    # documento (Markdown legittimo) verrebbero interpretate come frontmatter e i `:`
+    # nel testo farebbero crashare yaml.safe_load. Il delimitatore è valido solo a inizio file.
+    stripped = content.lstrip("﻿")  # tollera il BOM
+    if stripped.startswith("---"):
+        parts = stripped.split("---")
+        if len(parts) >= 3:
+            metadata = yaml.safe_load(parts[1]) or {}
+            body = "---".join(parts[2:])
+            return metadata, body
     return {}, content
 
 
