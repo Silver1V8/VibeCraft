@@ -14,6 +14,12 @@ for _stream in (sys.stdout, sys.stderr):
     except Exception:
         pass
 
+from core.config import setup_logging
+
+# Configurazione centrale del logging (formato/livello da VIBECRAFT_LOG_LEVEL): i moduli
+# core/* loggano via logging.getLogger(__name__) quando `emit` non è iniettato.
+setup_logging()
+
 from core.indexing import (
     archive_feature,
     build_graph_and_index,

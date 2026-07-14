@@ -6,11 +6,14 @@ Questo modulo è PURO rispetto allo strato HTTP e all'indicizzazione: non import
 core.indexing. Riceve la funzione di reindex e la callback di reload iniettate dal router
 (api/routes_reindex.py), così la logica di concorrenza è testabile con fake leggeri."""
 import json
+import logging
 import os
 import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Soglia di rotazione del journal: oltre ~1MB il file viene compattato tenendo solo
 # l'ultimo stato di ogni job.
@@ -347,4 +350,4 @@ class ReindexManager:
             except Exception as exc:
                 # Il reload è best-effort: reload_index_state è già tollerante agli
                 # artefatti incoerenti; qui logghiamo soltanto senza far fallire il job.
-                print(f"⚠️  Reload post-reindex fallito ({type(exc).__name__}: {exc}).")
+                logger.warning("Reload post-reindex fallito (%s: %s).", type(exc).__name__, exc)

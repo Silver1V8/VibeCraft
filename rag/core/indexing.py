@@ -4,6 +4,7 @@ del Drift e archiviazione. Il caricamento/chunking dei documenti vive in core/ch
 configurazione in core/config.py. Le risorse pesanti (Qdrant, embedding) sono iniettabili."""
 import hashlib
 import json
+import logging
 import shutil
 import uuid
 from dataclasses import dataclass, field
@@ -69,6 +70,8 @@ from core.config import (
     QDRANT_API_KEY,
     QDRANT_URL,
 )
+
+logger = logging.getLogger(__name__)
 
 # Namespace fisso per derivare l'ID del punto Qdrant dal chunk_id in modo DETERMINISTICO
 # (uuid5): lo stesso chunk_id produce sempre lo stesso id, base dell'incrementale idempotente.
@@ -218,7 +221,7 @@ def _build_full_state(embed_model, docs_dir: Path, code_dir: Path, emit=None) ->
     dai file, SENZA alcun I/O su disco o Qdrant. Funzione pura (a parità di modello e input
     produce lo stesso grafo): è l'unica fonte di verità della topologia 'da rebuild', usata
     sia dal full rebuild reale sia dal check di coerenza (index.py --check-graph)."""
-    _log = emit or print
+    _log = emit or logger.info
     G = nx.DiGraph()
     all_chunks: list[dict] = []
     n_docs = 0
@@ -291,10 +294,10 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     ricaricamento che richiede minuti di CPU. Il client Qdrant (server mode) è
     invece economico da aprire, ma viene comunque riusato quando disponibile.
 
-    `emit` è un callback di log (default: print) usato per lo streaming SSE del
+    `emit` è un callback di log (default: logger.info) usato per lo streaming SSE del
     progresso verso l'interfaccia; se None si stampa su stdout come sempre.
     """
-    _log = emit or print
+    _log = emit or logger.info
     own_qdrant = qdrant is None
     if embed_model is None:
         _log(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")
@@ -437,7 +440,7 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
 
     Restituisce {ok, stale, artifacts_corrupted, qdrant_mismatch, problems}: `problems`
     è la lista leggibile dei difetti trovati; `ok` è True solo se è vuota."""
-    _log = emit or print
+    _log = emit or logger.info
     problems: list[str] = []
     stale = False
     artifacts_corrupted = False
@@ -676,7 +679,7 @@ def _apply_code_delta(
             }
             touched.add(sym["id"])
     if gone_files or new_syms:
-        _log = emit or print
+        _log = emit or logger.info
         _log(f"🧩 Codice: {len(removed)} file rimossi, {len(added)} nuovi, {len(modified)} modificati "
              f"→ {len(touched)} simboli (ri)estratti.")
     return touched
@@ -802,7 +805,7 @@ def apply_incremental_indexing(
 
     `dense_store`/`code_store`/`code_delta`/`code_dir` sono opzionali: se assenti la funzione
     si comporta come prima (nessun ricalcolo dei code-link), preservando i chiamanti legacy."""
-    _log = emit or print
+    _log = emit or logger.info
     # Snapshot delle entità PRIMA di toccare i documenti: serve a capire, a valle, quali
     # entità sono comparse/sparite e quindi quali simboli hanno REFERENCES da ricalcolare.
     entities_before = _entity_nodes(graph)
@@ -919,7 +922,7 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     embeddare tutto quando si sa già cosa è cambiato. È solo un limite superiore al lavoro —
     il diff hash resta la fonte di verità — quindi non può indicizzare nulla che un delta
     completo non avrebbe toccato. Se None, si considera l'intero docs/ + code/ come sempre."""
-    _log = emit or print
+    _log = emit or logger.info
     own_qdrant = qdrant is None
 
     current = _docs_hashes()
@@ -1012,7 +1015,7 @@ def check_graph_consistency(embed_model=None, docs_dir: Path | None = None,
     topologia di riferimento (_build_full_state). Non tocca Qdrant né riscrive nulla.
 
     Restituisce un dict con `consistent` (bool) e le liste delle differenze (troncate)."""
-    _log = emit or print
+    _log = emit or logger.info
     docs_dir = docs_dir or DOCS_DIR
     code_dir = code_dir or CODE_DIR
 
@@ -1080,9 +1083,9 @@ def check_drift(feature_name: str, emit=None) -> str:
 
     Restituisce il report testuale (oltre a stamparlo/emetterlo), così da poterlo
     mostrare anche nel box dedicato dell'interfaccia della pipeline, senza terminale.
-    `emit` (default: print) permette lo streaming SSE del progresso.
+    `emit` (default: logger.info) permette lo streaming SSE del progresso.
     """
-    _log = emit or print
+    _log = emit or logger.info
     feature_folder = feature_name.replace(' ', '-').lower()
     _log(f"\n🔍 Avvio controllo Drift (Disallineamento) per: 'changes/{feature_folder}'...")
 
@@ -1181,7 +1184,7 @@ def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_mode
     risorse pesanti possono essere iniettate dal server per riusare modello e client
     Qdrant già aperti; `emit` permette lo streaming SSE del progresso.
     """
-    _emit = emit or print
+    _emit = emit or logger.info
     lines: list[str] = []
 
     def log(msg: str) -> None:

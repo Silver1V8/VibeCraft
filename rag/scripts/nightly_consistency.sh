@@ -13,6 +13,17 @@ set -uo pipefail
 RAG_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$RAG_DIR"
 
+# Alert su fallimento (check fallito E rimedio fallito): appende una riga JSON a
+# database/alerts.jsonl (letta da GET /api/health) e, se VIBECRAFT_ALERT_WEBHOOK e'
+# impostata, POSTa lo stesso JSON a quell'URL. Entrambi best-effort.
+send_alert() {
+    json="$(SCRIPT_ERR="$1" uv run python -c "import json,os,datetime; print(json.dumps({'timestamp': datetime.datetime.now().astimezone().isoformat(), 'script': 'nightly_consistency.sh', 'error': os.environ['SCRIPT_ERR']}, ensure_ascii=False))")" || return 0
+    echo "$json" >> "$RAG_DIR/database/alerts.jsonl" || true
+    if [ -n "${VIBECRAFT_ALERT_WEBHOOK:-}" ]; then
+        curl -sf --max-time 10 -X POST -H 'Content-Type: application/json' -d "$json" "$VIBECRAFT_ALERT_WEBHOOK" >/dev/null || true
+    fi
+}
+
 echo "[$(date -Is)] Check di integrita' dell'indice (economico, zero embedding)..."
 
 # stdout = report JSON (i messaggi umani vanno su stderr), exit 1 se ci sono problemi.
@@ -39,6 +50,7 @@ if [ "$(flag artifacts_corrupted)" = "1" ] || [ "$(flag qdrant_mismatch)" = "1" 
         exit 0
     fi
     echo "[$(date -Is)] ERRORE: full rebuild fallito."
+    send_alert "check di integrita' fallito e full rebuild fallito"
     exit 1
 fi
 
@@ -58,8 +70,10 @@ if [ "$(flag stale)" = "1" ]; then
         exit 0
     fi
     echo "[$(date -Is)] ERRORE: reindex incrementale fallito."
+    send_alert "indice stale e reindex incrementale fallito"
     exit 1
 fi
 
 echo "[$(date -Is)] ERRORE: problemi di integrita' non riconducibili a stale/corruzione (vedi report)."
+send_alert "problemi di integrita' non riconducibili a stale/corruzione"
 exit 1

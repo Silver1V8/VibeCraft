@@ -23,6 +23,18 @@ $ErrorActionPreference = "Stop"
 $RagDir = Split-Path -Parent $PSScriptRoot
 Set-Location $RagDir
 
+# Alert su fallimento (check fallito E rimedio fallito): appende una riga JSON a
+# database/alerts.jsonl (letta da GET /api/health) e, se VIBECRAFT_ALERT_WEBHOOK e'
+# impostata, POSTa lo stesso JSON a quell'URL. Entrambi best-effort: un errore di
+# scrittura/rete non deve mascherare l'exit code del batch.
+function Send-Alert([string]$Message) {
+    $json = @{ timestamp = (Get-Date -Format o); script = "nightly_consistency.ps1"; error = $Message } | ConvertTo-Json -Compress
+    try { Add-Content -Path (Join-Path $RagDir "database/alerts.jsonl") -Value $json -Encoding utf8 } catch {}
+    if ($env:VIBECRAFT_ALERT_WEBHOOK) {
+        try { Invoke-RestMethod -Method Post -Uri $env:VIBECRAFT_ALERT_WEBHOOK -ContentType "application/json" -Body $json -TimeoutSec 10 | Out-Null } catch {}
+    }
+}
+
 Write-Host "[$(Get-Date -Format o)] Check di integrita' dell'indice (economico, zero embedding)..."
 
 # stdout = report JSON (i messaggi umani vanno su stderr), exit 1 se ci sono problemi.
@@ -38,6 +50,7 @@ try {
     $report = $reportJson | ConvertFrom-Json
 } catch {
     Write-Host "[$(Get-Date -Format o)] ERRORE: report di integrita' non parsabile."
+    Send-Alert "report di integrita' non parsabile"
     exit 1
 }
 
@@ -52,6 +65,7 @@ if ($report.artifacts_corrupted -or $report.qdrant_mismatch) {
         exit 0
     }
     Write-Host "[$(Get-Date -Format o)] ERRORE: full rebuild fallito (exit $LASTEXITCODE)."
+    Send-Alert "check di integrita' fallito e full rebuild fallito (exit $LASTEXITCODE)"
     exit 1
 }
 
@@ -74,8 +88,10 @@ if ($report.stale) {
         exit 0
     }
     Write-Host "[$(Get-Date -Format o)] ERRORE: reindex incrementale fallito (exit $LASTEXITCODE)."
+    Send-Alert "indice stale e reindex incrementale fallito (exit $LASTEXITCODE)"
     exit 1
 }
 
 Write-Host "[$(Get-Date -Format o)] ERRORE: problemi di integrita' non riconducibili a stale/corruzione (vedi sopra)."
+Send-Alert "problemi di integrita' non riconducibili a stale/corruzione: $($report.problems -join '; ')"
 exit 1

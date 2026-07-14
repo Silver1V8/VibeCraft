@@ -4,6 +4,7 @@ risorse, auto-reload dell'indice e helper di streaming/template. I router in api
 questo stato e lo iniettano nelle funzioni pure di core/."""
 import hmac
 import json
+import logging
 import os
 import queue
 import re
@@ -27,6 +28,8 @@ from core.config import (
     QDRANT_URL,
     TEMPLATES_DIR,
 )
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Autenticazione API — bypass su localhost, X-API-Key per il resto
@@ -147,21 +150,21 @@ def load_rule_descriptions() -> dict[str, str]:
                 key = m.group(1).strip()
                 descriptions[key] = m.group(2).strip()
         except Exception as exc:
-            print(f"Attenzione: impossibile leggere {spec_file}: {exc}")
-    print(f"Entità indicizzate ({len(descriptions)}): {sorted(descriptions.keys())}")
+            logger.warning("Impossibile leggere %s: %s", spec_file, exc)
+    logger.info("Entità indicizzate (%d): %s", len(descriptions), sorted(descriptions.keys()))
     return descriptions
 
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     """Carica le risorse pesanti al boot e le libera allo shutdown."""
-    print(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")
+    logger.info("Caricamento modello embedding: %s ...", EMBEDDING_MODEL)
     state["embed_model"] = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
 
-    print(f"Connessione a Qdrant (server mode): {QDRANT_URL} ...")
+    logger.info("Connessione a Qdrant (server mode): %s ...", QDRANT_URL)
     state["qdrant"] = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
-    print("Caricamento artefatti indice (grafo JSON, ColBERT/chunk) ...")
+    logger.info("Caricamento artefatti indice (grafo JSON, ColBERT/chunk) ...")
     try:
         arts = load_artifacts(required=("graph",))
     except FileNotFoundError:
@@ -171,20 +174,20 @@ async def lifespan(application: FastAPI):
     graph = arts.graph
     colbert_store = arts.colbert_store
     chunks = arts.chunks_store
-    print(f"Grafo caricato: {graph.number_of_nodes()} nodi, {graph.number_of_edges()} archi.")
-    print(f"Multivettori ColBERT caricati: {len(colbert_store)} chunk. Chunk sidecar: {len(chunks)} sezioni.")
+    logger.info("Grafo caricato: %d nodi, %d archi.", graph.number_of_nodes(), graph.number_of_edges())
+    logger.info("Multivettori ColBERT caricati: %d chunk. Chunk sidecar: %d sezioni.", len(colbert_store), len(chunks))
 
-    print("Caricamento descrizioni regole dai file spec...")
+    logger.info("Caricamento descrizioni regole dai file spec...")
     rule_descriptions = load_rule_descriptions()
 
     # Rebind atomico dello snapshot iniziale (un solo assegnamento).
     state["snapshot"] = _build_snapshot(graph, colbert_store, chunks, rule_descriptions)
     state["_graph_mtime"] = _graph_version()  # baseline per l'auto-reload
-    print("Server pronto.\n")
+    logger.info("Server pronto.")
 
     yield  # il server è in esecuzione
 
-    print("Shutdown: rilascio risorse.")
+    logger.info("Shutdown: rilascio risorse.")
     state["qdrant"].close()
 
 
@@ -206,8 +209,8 @@ def reload_index_state() -> None:
         arts = load_artifacts(required=("graph", "colbert", "chunks"), emit=lambda *_a, **_k: None)
         rule_descriptions = load_rule_descriptions()
     except Exception as exc:
-        print(f"⚠️  Reload indice annullato ({type(exc).__name__}: {exc}): "
-              "artefatto mancante o corrotto, mantengo in memoria la versione precedente.")
+        logger.warning("Reload indice annullato (%s: %s): artefatto mancante o corrotto, "
+                       "mantengo in memoria la versione precedente.", type(exc).__name__, exc)
         # Aggiorna comunque il baseline mtime: se il file è corrotto in modo persistente,
         # evita di ritentare (e ri-loggare) il reload a ogni richiesta successiva. Una
         # nuova build completa cambierà di nuovo l'mtime e ritenterà il reload.
@@ -234,7 +237,7 @@ def maybe_reload_graph() -> None:
         state["_graph_mtime"] = mtime
         return
     if mtime != prev:
-        print("🔄 grafo cambiato su disco: ricarico grafo/ColBERT/regole in memoria.")
+        logger.info("Grafo cambiato su disco: ricarico grafo/ColBERT/regole in memoria.")
         reload_index_state()
 
 

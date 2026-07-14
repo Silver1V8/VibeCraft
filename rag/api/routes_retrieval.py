@@ -1,6 +1,7 @@
 """Route di retrieval: /ask (RAG completo con sintesi LLM e contesto grafo) e /api/retrieve
 (retrieval puro per eval/debug). Gli handler iniettano le risorse di runtime dallo stato
 (api.deps) nelle funzioni pure di core.retrieval / core.graph_ops."""
+import logging
 import time
 
 import networkx as nx
@@ -13,6 +14,8 @@ from api.deps import current_snapshot, maybe_reload_graph, require_api_key, stat
 from api.models import AskQuery
 from core import graph_ops, retrieval
 from core.config import PROJECT_ROOT
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
@@ -119,7 +122,7 @@ async def ask_rag(query: AskQuery):
     end_time = time.time()
 
     elaborazione_secondi = round(end_time - start_time, 2)
-    print(f"\n[TIMER] Tempo impiegato per la generazione: {elaborazione_secondi} secondi\n")
+    logger.info("[TIMER] Tempo impiegato per la generazione: %s secondi", elaborazione_secondi)
 
     return {
         "status": "success",

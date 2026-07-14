@@ -13,13 +13,28 @@ for _stream in (sys.stdout, sys.stderr):
     except Exception:
         pass
 
+import logging
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from core.config import STATIC_DIR, setup_logging
+
+# Configurazione centrale del logging PRIMA degli import applicativi: i moduli usano
+# logging.getLogger(__name__) e vedono formato/livello (VIBECRAFT_LOG_LEVEL) coerenti.
+setup_logging()
+logger = logging.getLogger(__name__)
+
 from api.deps import API_KEY, lifespan
-from api import routes_graph, routes_pages, routes_pipeline, routes_reindex, routes_retrieval
-from core.config import STATIC_DIR
+from api import (
+    routes_graph,
+    routes_health,
+    routes_pages,
+    routes_pipeline,
+    routes_reindex,
+    routes_retrieval,
+)
 
 app = FastAPI(title="HARO Graph-RAG Console", lifespan=lifespan)
 
@@ -33,6 +48,7 @@ app.include_router(routes_pipeline.router)
 app.include_router(routes_reindex.router)
 app.include_router(routes_retrieval.router)
 app.include_router(routes_graph.router)
+app.include_router(routes_health.router)
 
 
 # ---------------------------------------------------------------------------
@@ -59,6 +75,6 @@ if __name__ == "__main__":
     host = os.environ.get("VIBECRAFT_HOST", "127.0.0.1")
     port = int(os.environ.get("VIBECRAFT_PORT", "8000"))
     if host != "127.0.0.1" and not API_KEY:
-        print("⚠️  Server esposto oltre localhost (VIBECRAFT_HOST) SENZA VIBECRAFT_API_KEY: "
-              "tutte le richieste non-locali ai /api/* verranno rifiutate (fail-closed).")
+        logger.warning("Server esposto oltre localhost (VIBECRAFT_HOST) SENZA VIBECRAFT_API_KEY: "
+                       "tutte le richieste non-locali ai /api/* verranno rifiutate (fail-closed).")
     uvicorn.run(app, host=host, port=port)

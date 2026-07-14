@@ -20,6 +20,8 @@ rag/database/colbert.pkl
 rag/database/chunks.pkl
 # Journal dei job di reindex (append-only, ricostruito al boot)
 rag/database/reindex_jobs.jsonl
+# Alert dei batch notturni (append-only, letti da /api/health)
+rag/database/alerts.jsonl
 
 # Configurazione (Opzionale: escludilo se contiene chiavi API private OpenAI/Anthropic)
 # rag_config.yaml

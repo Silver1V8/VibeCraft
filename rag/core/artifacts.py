@@ -19,6 +19,7 @@ metà non lascia un artefatto troncato: vedi `_atomic_write`).
 Qualunque altro modulo (core.indexing, api.deps) passa da qui: nessun pickle.load/dump
 diretto altrove."""
 import json
+import logging
 import os
 import pickle
 import tempfile
@@ -42,6 +43,8 @@ from core.config import (
     GRAPH_JSON_PATH,
     GRAPH_SAVE_PATH,
 )
+
+logger = logging.getLogger(__name__)
 
 # node-link: fissiamo esplicitamente la chiave degli archi a "links" (invariata tra
 # le versioni di NetworkX) per non dipendere dal default in via di deprecazione.
@@ -224,7 +227,7 @@ def load_artifacts(required: tuple[str, ...] = (), emit=None) -> Artifacts:
     richiesti e assenti diventano il loro default vuoto (grafo None, dict {}).
 
     Solleva se un file esiste ma è illeggibile/corrotto (il chiamante decide se degradare)."""
-    _log = emit or print
+    _log = emit or logger.info
 
     used_pickle = False
 

@@ -1,10 +1,23 @@
 """Configurazione centralizzata del package RAG: percorsi, connessione Qdrant,
 provider LLM e costanti condivise. Unico punto di verità importato dal server FastAPI
 (api/), dalla logica pura (core/) e dagli entrypoint CLI (index.py, server.py)."""
+import logging
 import os
 from pathlib import Path
 
 import yaml
+
+
+def setup_logging() -> None:
+    """Configurazione centrale del logging (chiamata dagli entrypoint server.py e
+    index.py): formato con timestamp/livello/modulo, livello da VIBECRAFT_LOG_LEVEL
+    (default INFO). `force=True` così una seconda chiamata (o i test) riconfigura."""
+    level_name = os.environ.get("VIBECRAFT_LOG_LEVEL", "INFO").upper()
+    logging.basicConfig(
+        level=getattr(logging, level_name, logging.INFO),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        force=True,
+    )
 
 # Percorsi. NB: questo file vive in rag/core/, quindi la root del package (rag/) è
 # due livelli sopra: parent (core/) -> parent (rag/).
@@ -40,6 +53,9 @@ INDEX_MANIFEST_PATH = DATABASE_DIR / "index_manifest.json"
 # Journal append-only (JSONL) dei job di reindex: ogni transizione di stato vi appende
 # una riga col job serializzato, così lo storico sopravvive ai riavvii del server.
 REINDEX_JOURNAL_PATH = DATABASE_DIR / "reindex_jobs.jsonl"
+# Alert dei batch notturni (JSONL append-only: timestamp, script, errore): scritti dagli
+# script scripts/nightly_* su fallimento, letti da GET /api/health (ultimo alert < 48h).
+ALERTS_PATH = DATABASE_DIR / "alerts.jsonl"
 TEMPLATES_DIR = RAG_DIR / "templates"
 # Asset statici condivisi dai template (shared.css / shared.js): estratti dai
 # *.unified.html per non duplicare CSS/JS, serviti come StaticFiles da FastAPI.
