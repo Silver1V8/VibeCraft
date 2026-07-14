@@ -89,7 +89,8 @@ def build_health(*, snapshot, manager, qdrant, status_fn=index_status,
     now = now if now is not None else time.time()
     reasons: list[str] = []
 
-    # Snapshot in memoria (version = mtime di graph.json al momento del load).
+    # Snapshot in memoria (version = nome della versione blue/green da CURRENT, oppure
+    # — layout legacy — l'mtime float di graph.json; age_seconds ha senso solo per l'mtime).
     if snapshot is None or snapshot.graph is None:
         snap_report = {"loaded": False}
         reasons.append("snapshot indice non caricato in memoria")
@@ -97,7 +98,9 @@ def build_health(*, snapshot, manager, qdrant, status_fn=index_status,
         snap_report = {
             "loaded": True,
             "version": snapshot.version,
-            "age_seconds": round(now - snapshot.version, 1) if snapshot.version else None,
+            "age_seconds": (round(now - snapshot.version, 1)
+                            if isinstance(snapshot.version, (int, float)) and snapshot.version
+                            else None),
             "graph_nodes": snapshot.graph.number_of_nodes(),
             "graph_edges": snapshot.graph.number_of_edges(),
             "chunks": len(snapshot.chunks),

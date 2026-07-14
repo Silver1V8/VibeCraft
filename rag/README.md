@@ -106,8 +106,10 @@ Il confronto esaustivo grafo incrementale vs full rebuild (`index.py
 --check-graph`, che ri-embedda tutto in memoria) è declassato a settimanale:
 [scripts/weekly_consistency.ps1](scripts/weekly_consistency.ps1) (variante
 POSIX `.sh`) lo esegue e, **solo se trova drift**, lancia un full rebuild che
-riallinea tutto. Dopo il rebuild il server rileva `graph.json` cambiato su
-disco e ricarica gli artefatti alla prima richiesta (`maybe_reload_graph`).
+riallinea tutto. Dopo il rebuild il server rileva il puntatore `database/CURRENT`
+spostato (la promozione della nuova versione blue/green; per i layout legacy senza
+CURRENT, l'mtime di `graph.json`) e ricarica gli artefatti alla prima richiesta
+(`maybe_reload_graph`).
 
 Scheduling — Windows Task Scheduler:
 
@@ -169,7 +171,7 @@ promozione dei candidati. Le metriche vere restano il comando qui sopra.
 4. **Soglia** — con il golden-set aggiornato, rilancia l'eval e rifissa
    `--assert-min` poco sotto il nuovo valore misurato.
 
-## Artefatti dell'indice: formati sicuri e ispezionabili
+## Artefatti dell'indice: formati sicuri, ispezionabili e versionati (blue/green)
 
 L'indice persiste in `rag/database/` tramite [core/artifacts.py](core/artifacts.py),
 **unico punto di I/O**: né `core/indexing.py` né `api/deps.py` toccano i file
@@ -191,12 +193,60 @@ string) così `graph.json` è sempre serializzabile. I vettori restano **fp16
 bit-identici** al round-trip. Ogni scrittura è **atomica** (`_atomic_write`): un
 crash a metà non lascia file troncati.
 
-`save_artifacts()` scrive **solo** questi formati. In lettura `load_artifacts()`
-ricade sui vecchi pickle (`*.pkl`) se i nuovi file non esistono ancora, loggando
-un warning che invita a re-indicizzare (`python index.py`) per migrare — il
-prossimo full/incremental rebuild emette i nuovi formati. Il manifest
-(`index_manifest.json`) elenca gli hash SHA-256 di ogni file artefatto
-(`artifact_hashes`), così il check di coerenza può validarne anche l'integrità.
+### Versionamento blue/green: swap atomico, rollback istantaneo
+
+Ogni build scrive gli artefatti in una **directory di versione nuova**
+(`database/versions/v<timestamp UTC>/`, es. `v20260714T153045/`) contenente
+grafo, vettori, sidecar **e il manifest di quella build** (`index_manifest.json`:
+hash SHA-256 dei sorgenti e dei file artefatto — ogni versione è autodescritta,
+così dopo un rollback anche staleness e integrità si misurano contro la versione
+attiva). Il file di testo `database/CURRENT` è il **puntatore alla versione
+attiva**: la lettura (`load_artifacts`) lo segue sempre, e la sua scrittura è
+atomica (`_atomic_write`), quindi lo swap è istantaneo e mai a metà.
+
+Build e promozione sono **due passi espliciti**: `save_artifacts()` restituisce
+il nome della nuova versione (senza toccare CURRENT), `promote_version(nome)`
+sposta il puntatore. La CLI e gli incrementali promuovono a fine build riuscita;
+i job **full** del ReindexManager, se `VIBECRAFT_EVAL_GATE=1`, prima di promuovere
+eseguono l'**eval del golden-set sulla nuova versione** (in process, soglia
+`VIBECRAFT_EVAL_MIN`, default 0.7 — stessa semantica di `eval.run --assert-min`):
+sotto soglia la versione resta su disco **non promossa**, il job termina
+`completed_not_promoted` col report nell'esito e il server continua a servire la
+versione precedente. Se l'eval non è disponibile (golden-set assente, errore), la
+promozione è diretta. Il server rileva ogni spostamento di CURRENT
+(`maybe_reload_graph`) e ricarica lo snapshot alla prima richiesta.
+
+**Rollback istantaneo** — sposta solo il puntatore, nessuna build:
+
+```bash
+python index.py --rollback              # torna alla versione precedente
+python index.py --rollback v20260713T031500   # o a una versione specifica
+```
+
+Equivalente HTTP: `POST /api/index/rollback` (corpo opzionale
+`{"version": "v..."}`) ricarica anche lo snapshot in memoria;
+`GET /api/index/versions` elenca le versioni disponibili e quella attiva.
+
+**Retention**: dopo ogni promozione restano le ultime N versioni (default 5, env
+`VIBECRAFT_INDEX_KEEP`); la versione puntata da CURRENT non viene **mai** eliminata,
+anche se più vecchia delle N conservate (caso post-rollback).
+
+**Limite documentato — Qdrant non è versionato.** I punti della collection hanno
+id deterministici e l'incrementale la muta in place: il blue/green copre grafo e
+sidecar (ColBERT/chunk/codice), **non** la collection Qdrant. Un rollback
+ripristina grafo e sidecar; Qdrant resta all'ultima build e verrà riallineato dal
+reindex successivo. È accettabile perché il retrieval filtra/riordina sui chunk
+presenti nei sidecar della versione attiva; nel frattempo il check notturno di
+integrità può segnalare un mismatch Qdrant↔sidecar **atteso**.
+
+### Retrocompatibilità e formati legacy
+
+`save_artifacts()` scrive **solo** i formati correnti, sempre in una directory di
+versione nuova (mai riscritta). In lettura, se `CURRENT` non esiste ma in
+`database/` ci sono i file flat storici, `load_artifacts()` li carica come
+versione `legacy` (con fallback ai vecchi pickle `*.pkl` e un warning che invita
+a re-indicizzare con `python index.py`); la prima build successiva crea la
+struttura versionata e la promozione fa vincere CURRENT sul layout flat.
 
 ## Code index: aggiungere un nuovo linguaggio
 

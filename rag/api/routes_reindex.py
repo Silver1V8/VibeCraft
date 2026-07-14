@@ -4,7 +4,15 @@ accodata/fusa in un unico pending (coalescing dei path) invece di essere rifiuta
 webhook GitLab ravvicinati non si perdono. GET /api/reindex/{job_id} ne riporta lo stato
 (queued/running/completed/failed). L'endpoint accetta anche un payload webhook GitLab
 (push/merge) da cui estrae i path modificati, per limitare il delta a ciò che è cambiato.
-A fine job riusa reload_index_state (il meccanismo di auto-reload esistente)."""
+A fine job riusa reload_index_state (il meccanismo di auto-reload esistente).
+
+Qui vive anche la gestione delle VERSIONI blue/green dell'indice: i job full scrivono
+una versione nuova e la promuovono a fine build riuscita (se VIBECRAFT_EVAL_GATE=1,
+solo dopo un eval del golden-set sopra soglia); POST /api/index/rollback sposta il
+puntatore CURRENT alla versione precedente (o a quella indicata) e ricarica lo snapshot."""
+import logging
+import os
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
@@ -16,8 +24,17 @@ from api.deps import (
     state,
 )
 from api.reindex import ReindexManager, extract_gitlab_paths
+from core.artifacts import (
+    current_version,
+    list_versions,
+    load_artifacts,
+    promote_version,
+    rollback_version,
+)
 from core.config import REINDEX_JOURNAL_PATH
 from core.indexing import build_graph_and_index, incremental_index
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
@@ -37,12 +54,69 @@ def _run_reindex(changed_paths) -> dict:
     )
 
 
+def _eval_gate(version: str) -> tuple[bool | None, dict]:
+    """Eval del golden-set sulla versione APPENA COSTRUITA (non ancora promossa), in
+    process: il retrieval usa i sidecar della nuova versione + il Qdrant e il modello di
+    embedding già caricati dal server (il full rebuild ha già riallineato la collection
+    alla nuova build, quindi la misura è coerente con ciò che si sta per promuovere).
+
+    Restituisce (passed, summary): passed è True/False rispetto alla soglia
+    (env VIBECRAFT_EVAL_MIN, default 0.7, stessa semantica di `eval.run --assert-min`),
+    oppure None se l'eval non è DISPONIBILE (golden-set assente, dipendenza mancante,
+    errore imprevisto): in quel caso il chiamante promuove direttamente, come da design."""
+    threshold = float(os.environ.get("VIBECRAFT_EVAL_MIN", "0.7"))
+    try:
+        from core import retrieval
+        from core.eval_metrics import evaluate
+        from eval.run import load_cases
+
+        cases = load_cases()
+        arts = load_artifacts(required=("graph", "colbert", "chunks"), version=version,
+                              emit=lambda *_a, **_k: None)
+
+        def _retrieve(query: str, k: int) -> list[dict]:
+            return retrieval.hybrid_search(
+                query, k, qdrant=state["qdrant"], embed_model=state["embed_model"],
+                colbert_store=arts.colbert_store,
+            )
+
+        ks = [5, 10]
+        report = evaluate(cases, _retrieve, ks=ks)
+        recall = report["aggregate"][f"recall@{max(ks)}"]
+        summary = {f"recall@{max(ks)}": round(recall, 3), "threshold": threshold,
+                   "cases": report["n"]}
+        return recall >= threshold, summary
+    except Exception as exc:
+        logger.warning("Eval gate non disponibile (%s: %s): promozione diretta della "
+                       "versione %s.", type(exc).__name__, exc, version)
+        return None, {"error": f"{type(exc).__name__}: {exc}"}
+
+
 def _run_full_rebuild(changed_paths) -> dict:
     """Job "full": ricostruzione completa (build_graph_and_index) riusando modello e client
     del server. `changed_paths` è ignorato (un full non ha delta). Gira sul thread daemon
-    del ReindexManager: è così che OGNI scrittura degli artefatti passa da un solo scrittore."""
-    build_graph_and_index(qdrant=state.get("qdrant"), embed_model=state.get("embed_model"))
-    return {"full_rebuild": True}
+    del ReindexManager: è così che OGNI scrittura degli artefatti passa da un solo scrittore.
+
+    Blue/green: la build scrive una versione NUOVA senza promuoverla; se
+    VIBECRAFT_EVAL_GATE=1 la promozione è condizionata all'eval del golden-set sopra
+    soglia — sotto soglia la versione resta su disco NON promossa (CURRENT invariato) e
+    il job termina "completed_not_promoted" col report nell'esito."""
+    version = build_graph_and_index(qdrant=state.get("qdrant"),
+                                    embed_model=state.get("embed_model"), promote=False)
+    result = {"full_rebuild": True, "version": version}
+    if version and os.environ.get("VIBECRAFT_EVAL_GATE") == "1":
+        passed, summary = _eval_gate(version)
+        result["eval"] = summary
+        if passed is False:
+            result["promoted"] = False
+            result["job_status"] = "completed_not_promoted"
+            logger.warning("Full rebuild %s NON promosso: eval sotto soglia (%s).",
+                           version, summary)
+            return result
+    if version:  # None solo con build finta nei test
+        promote_version(version)
+    result["promoted"] = True
+    return result
 
 
 def enqueue_full_rebuild() -> tuple:
@@ -90,8 +164,42 @@ async def list_reindex(limit: int = 20):
 
 @router.get("/api/reindex/{job_id}")
 async def reindex_status(job_id: str):
-    """Stato di un job di reindex (running/completed/failed) con il risultato o l'errore."""
+    """Stato di un job di reindex (running/completed/completed_not_promoted/failed)
+    con il risultato o l'errore."""
     job = await run_in_threadpool(manager.get, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job di reindex non trovato: {job_id}")
     return job.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# Versioni blue/green: lista e rollback istantaneo
+# ---------------------------------------------------------------------------
+@router.get("/api/index/versions")
+async def index_versions():
+    """Versioni dell'indice presenti su disco (ordine cronologico) e quella attiva."""
+    versions = await run_in_threadpool(list_versions)
+    return {"current": await run_in_threadpool(current_version), "versions": versions}
+
+
+@router.post("/api/index/rollback")
+async def index_rollback(request: Request):
+    """Rollback blue/green ISTANTANEO: sposta il puntatore database/CURRENT alla
+    versione indicata (corpo JSON opzionale `{"version": "v..."}`; default: la
+    precedente) e ricarica subito lo snapshot in memoria. Nessuna build, nessuna copia.
+
+    Limite documentato (README): il rollback ripristina grafo e sidecar; la collection
+    Qdrant resta all'ultima build e verrà riallineata dal reindex successivo."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = None
+    target = payload.get("version") if isinstance(payload, dict) else None
+    try:
+        name = await run_in_threadpool(rollback_version, target)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    await run_in_threadpool(reload_index_state)
+    return {"rolled_back_to": name, "versions": await run_in_threadpool(list_versions)}

@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, HTMLResponse, Response
 from qdrant_client import QdrantClient
 from FlagEmbedding import BGEM3FlagModel
 
-from core.artifacts import load_artifacts
+from core.artifacts import current_version_token, load_artifacts
 from core.config import (
     EMBEDDING_MODEL,
     GRAPH_JSON_PATH,
@@ -84,7 +84,10 @@ class IndexSnapshot:
     colbert_store: dict
     chunks: dict
     rule_descriptions: dict
-    version: float | None  # mtime del file-grafo (graph.json) al momento della build dello snapshot
+    # Versione dell'indice al momento della build dello snapshot: il nome della versione
+    # blue/green puntata da database/CURRENT (str), oppure — layout legacy senza
+    # CURRENT — l'mtime del file-grafo flat (float).
+    version: str | float | None
 
 
 # ---------------------------------------------------------------------------
@@ -109,9 +112,14 @@ def current_snapshot() -> IndexSnapshot | None:
     return state.get("snapshot")
 
 
-def _graph_version() -> float | None:
-    """mtime del file-grafo corrente (graph.json), con fallback al legacy graph.pkl.
-    È la baseline che innesca l'auto-reload quando una re-indicizzazione riscrive il grafo."""
+def _graph_version() -> str | float | None:
+    """Versione osservabile dell'indice su disco: il contenuto di database/CURRENT
+    (nome della versione blue/green attiva — cambia a ogni promote E a ogni rollback),
+    con fallback all'mtime del file-grafo flat (graph.json, poi legacy graph.pkl) per
+    i layout senza CURRENT. È la baseline che innesca l'auto-reload."""
+    token = current_version_token()
+    if token is not None:
+        return token
     for path in (GRAPH_JSON_PATH, GRAPH_SAVE_PATH):
         try:
             return path.stat().st_mtime
@@ -121,7 +129,7 @@ def _graph_version() -> float | None:
 
 
 def _build_snapshot(graph, colbert_store, chunks, rule_descriptions) -> IndexSnapshot:
-    """Assembla un IndexSnapshot catturando la version (mtime del file-grafo)."""
+    """Assembla un IndexSnapshot catturando la version (CURRENT o mtime del grafo)."""
     version = _graph_version()
     return IndexSnapshot(
         graph=graph,
@@ -224,9 +232,10 @@ def reload_index_state() -> None:
 
 
 def maybe_reload_graph() -> None:
-    """Auto-reload: se graph.pkl è cambiato su disco (es. una re-indicizzazione lanciata
-    da CLI mentre il server è attivo), ricarica l'indice in memoria alla prima richiesta
-    successiva, senza dover riavviare il server."""
+    """Auto-reload: se la versione dell'indice su disco è cambiata (database/CURRENT
+    spostato da una promozione o da un rollback; per i layout legacy, mtime del grafo
+    flat), ricarica l'indice in memoria alla prima richiesta successiva, senza dover
+    riavviare il server."""
     if current_snapshot() is None:
         return
     mtime = _graph_version()

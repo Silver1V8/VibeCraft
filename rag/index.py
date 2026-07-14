@@ -1,7 +1,8 @@
 """Entrypoint CLI dell'indicizzazione Graph-RAG. La logica vive ora in core/indexing.py
 (costruzione dell'indice, manifest, incrementale, Drift, archiviazione) e core/chunking.py
 (caricamento e chunking dei documenti). Questo file resta solo come interfaccia a riga di
-comando: `python index.py [--incremental | --check-drift F | --archive F | --index-status]`."""
+comando: `python index.py [--incremental | --check-drift F | --archive F | --index-status |
+--rollback [VERSIONE]]`."""
 import argparse
 import json
 import sys
@@ -38,10 +39,23 @@ if __name__ == "__main__":
     parser.add_argument("--incremental", action="store_true", help="Indicizzazione incrementale: (ri)indicizza solo i doc nuovi/modificati, rimuove i cancellati, salta gli invariati")
     parser.add_argument("--check-graph", action="store_true", help="Confronta il grafo incrementale persistito con quello di un full rebuild sugli stessi input e segnala differenze")
     parser.add_argument("--check-integrity", action="store_true", help="Check economico di integrità dell'indice (manifest, hash sorgenti, artefatti, conteggio Qdrant) — zero embedding; exit 1 se ci sono problemi")
+    parser.add_argument("--rollback", nargs="?", const="__PREVIOUS__", default=None, metavar="VERSION",
+                        help="Rollback blue/green ISTANTANEO: sposta il puntatore database/CURRENT alla versione indicata (default: la precedente). Solo il puntatore, nessuna build; il server ricarica da solo. NB: Qdrant resta all'ultima build (vedi README)")
 
     args = parser.parse_args()
 
-    if args.check_drift:
+    if args.rollback:
+        from core.artifacts import list_versions, rollback_version
+
+        target = None if args.rollback == "__PREVIOUS__" else args.rollback
+        try:
+            name = rollback_version(target)
+        except (FileNotFoundError, ValueError) as exc:
+            print(f"❌ Rollback fallito: {exc}")
+            sys.exit(1)
+        print(f"✅ Rollback: CURRENT → {name}")
+        print(f"   Versioni disponibili: {', '.join(list_versions())}")
+    elif args.check_drift:
         check_drift(args.check_drift)
     elif args.archive:
         archive_feature(args.archive)

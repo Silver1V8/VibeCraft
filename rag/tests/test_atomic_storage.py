@@ -64,8 +64,11 @@ def test_write_index_manifest_has_version(tmp_path, monkeypatch):
     sezione `artifact_hashes` (anche vuota se non ci sono artefatti su disco)."""
     import json
 
+    # Sandbox su database/: nessuna versione promossa -> il manifest va nel flat legacy.
+    monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)
+    monkeypatch.setattr(artifacts, "GRAPH_JSON_PATH", tmp_path / "graph.json")
+    monkeypatch.setattr(artifacts, "GRAPH_SAVE_PATH", tmp_path / "graph.pkl")
     manifest_path = tmp_path / "index_manifest.json"
-    monkeypatch.setattr(indexing, "INDEX_MANIFEST_PATH", manifest_path)
     indexing.write_index_manifest(points_count=7, nodes=3, edges=5)
 
     data = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -80,10 +83,12 @@ def test_write_index_manifest_has_version(tmp_path, monkeypatch):
 # 2. Reload coerente con artefatto corrotto/mancante
 # ---------------------------------------------------------------------------
 def _patch_artifact_paths(monkeypatch, tmp_path):
-    """Reindirizza i percorsi degli artefatti (nuovi formati + legacy) su una sandbox,
-    sia in core.artifacts (I/O) sia in api.deps (mtime/version)."""
+    """Reindirizza database/ (versioni + CURRENT) e i percorsi flat degli artefatti
+    (nuovi formati + legacy) su una sandbox, sia in core.artifacts (I/O) sia in
+    api.deps (mtime/version)."""
     from api import deps
 
+    monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)
     monkeypatch.setattr(artifacts, "GRAPH_JSON_PATH", tmp_path / "graph.json")
     monkeypatch.setattr(artifacts, "COLBERT_NPZ_PATH", tmp_path / "colbert.npz")
     monkeypatch.setattr(artifacts, "CHUNKS_JSON_PATH", tmp_path / "chunks.json")
@@ -100,16 +105,18 @@ def _patch_artifact_paths(monkeypatch, tmp_path):
 
 
 def _write_valid_artifacts():
-    """Scrive un set completo di artefatti validi (grafo + ColBERT + chunk)."""
+    """Scrive e PROMUOVE un set completo di artefatti validi (grafo + ColBERT + chunk):
+    la versione diventa quella attiva (CURRENT), come dopo una build reale."""
     g = nx.DiGraph()
     g.add_node("nuovo.md", type="document")
-    artifacts.save_artifacts(
+    version = artifacts.save_artifacts(
         g,
         colbert_store={"nuovo.md#00": np.array([[1.0, 2.0]], dtype="float16")},
         chunks_store={"nuovo.md#00": {"doc_id": "nuovo.md", "section": "s", "text": "x"}},
         dense_store={},
         code_store={},
     )
+    artifacts.promote_version(version)
 
 
 def _seed_old_snapshot(deps, rule_descriptions=None):
@@ -179,8 +186,8 @@ def test_reload_with_corrupt_artifact_keeps_previous(tmp_path, monkeypatch):
     _patch_artifact_paths(monkeypatch, tmp_path)
     _write_valid_artifacts()
 
-    # Corrompe uno degli artefatti (colbert.npz) con byte non deserializzabili
-    (tmp_path / "colbert.npz").write_bytes(b"\x00\x01 non e' un npz valido")
+    # Corrompe uno degli artefatti della versione ATTIVA con byte non deserializzabili
+    (artifacts.artifact_dir() / "colbert.npz").write_bytes(b"\x00\x01 non e' un npz valido")
 
     old = _seed_old_snapshot(deps)
 
@@ -202,7 +209,7 @@ def test_reload_with_missing_artifact_keeps_previous(tmp_path, monkeypatch):
     _patch_artifact_paths(monkeypatch, tmp_path)
     _write_valid_artifacts()
 
-    (tmp_path / "chunks.json").unlink()   # uno degli artefatti richiesti manca del tutto
+    (artifacts.artifact_dir() / "chunks.json").unlink()   # uno degli artefatti richiesti manca del tutto
 
     old = _seed_old_snapshot(deps)
 

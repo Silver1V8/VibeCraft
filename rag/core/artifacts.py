@@ -16,15 +16,25 @@ In LETTURA `load_artifacts()` ricade sui vecchi .pkl se i nuovi non esistono, lo
 un warning che invita a re-indicizzare. Tutte le scritture sono ATOMICHE (un crash a
 metà non lascia un artefatto troncato: vedi `_atomic_write`).
 
+VERSIONAMENTO BLU/VERDE: ogni `save_artifacts()` scrive in una directory di versione
+NUOVA (`database/versions/v<timestamp UTC>/`) e restituisce il nome della versione;
+`promote_version(name)` sposta il puntatore `database/CURRENT` (un file di testo,
+scritto atomicamente) sulla nuova versione. La lettura segue sempre CURRENT, quindi
+lo swap è atomico e il rollback (`rollback_version`) è lo spostamento del solo
+puntatore. Retrocompat: se CURRENT non esiste ma i file flat in database/ sì, si
+legge il layout storico come versione "legacy". NB: il blue/green copre grafo e
+sidecar; la collection Qdrant NON è versionata (vedi README).
+
 Qualunque altro modulo (core.indexing, api.deps) passa da qui: nessun pickle.load/dump
 diretto altrove."""
 import json
 import logging
 import os
 import pickle
+import shutil
 import tempfile
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import networkx as nx
@@ -38,6 +48,7 @@ from core.config import (
     CODE_SAVE_PATH,
     COLBERT_NPZ_PATH,
     COLBERT_SAVE_PATH,
+    DATABASE_DIR,
     DENSE_NPZ_PATH,
     DENSE_SAVE_PATH,
     GRAPH_JSON_PATH,
@@ -92,6 +103,172 @@ def _atomic_write_text(path: Path, text: str) -> None:
 def _atomic_write_json(path: Path, obj) -> None:
     """Serializza `obj` in JSON (indentato, UTF-8) in modo atomico."""
     _atomic_write_text(path, json.dumps(obj, ensure_ascii=False, indent=2))
+
+
+# ---------------------------------------------------------------------------
+# Versionamento blue/green: directory versionate + puntatore CURRENT
+# ---------------------------------------------------------------------------
+# Nome del file-puntatore in database/: contiene il nome della versione attiva.
+CURRENT_FILENAME = "CURRENT"
+# Versione sintetica per il layout storico (file flat in database/, nessun CURRENT).
+LEGACY_VERSION = "legacy"
+# Il manifest dell'indicizzazione vive DENTRO la directory di versione: ogni versione
+# è autodescritta (hash sorgenti + hash artefatti della SUA build).
+MANIFEST_FILENAME = "index_manifest.json"
+# Retention di default (override: env VIBECRAFT_INDEX_KEEP, letta a ogni prune).
+DEFAULT_KEEP_VERSIONS = 5
+
+# Nomi canonici dei file artefatto dentro una directory di versione (identici ai
+# flat legacy in database/, così artifact_dir() astrae i due layout).
+_ARTIFACT_FILENAMES = ("graph.json", "colbert.npz", "chunks.json",
+                       "dense.npz", "code.npz", "code.json")
+
+
+def versions_root() -> Path:
+    return DATABASE_DIR / "versions"
+
+
+def version_dir(version: str) -> Path:
+    """Directory dei file di `version` ('legacy' = i flat storici in database/)."""
+    if version == LEGACY_VERSION:
+        return DATABASE_DIR
+    return versions_root() / version
+
+
+def current_version_token() -> str | None:
+    """Contenuto grezzo di database/CURRENT (nome della versione attiva), o None se il
+    puntatore non esiste. È il "numero di versione" che l'auto-reload del server
+    (api.deps.maybe_reload_graph) osserva: cambia a ogni promote/rollback."""
+    try:
+        token = (DATABASE_DIR / CURRENT_FILENAME).read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return token or None
+
+
+def current_version() -> str | None:
+    """Versione ATTIVA degli artefatti: il nome puntato da CURRENT se la sua directory
+    esiste; 'legacy' se CURRENT manca ma in database/ ci sono i file flat storici
+    (retrocompat: layout precedente al versionamento); None se non c'è alcun indice."""
+    token = current_version_token()
+    if token:
+        if version_dir(token).is_dir():
+            return token
+        logger.warning("CURRENT punta a una versione inesistente (%s): la ignoro.", token)
+    if GRAPH_JSON_PATH.exists() or GRAPH_SAVE_PATH.exists():
+        return LEGACY_VERSION
+    return None
+
+
+def artifact_dir(version: str | None = None) -> Path:
+    """Directory dei file artefatto per `version` (default: la versione attiva).
+    Per 'legacy' — o quando non esiste alcuna versione — è database/ flat."""
+    name = version or current_version()
+    if name is None or name == LEGACY_VERSION:
+        return DATABASE_DIR
+    return versions_root() / name
+
+
+def manifest_path(version: str | None = None) -> Path:
+    """Percorso del manifest di indicizzazione della versione (default: attiva)."""
+    return artifact_dir(version) / MANIFEST_FILENAME
+
+
+def list_versions() -> list[str]:
+    """Nomi delle versioni presenti su disco, in ordine cronologico (il nome è un
+    timestamp UTC: l'ordine lessicografico coincide con quello temporale)."""
+    root = versions_root()
+    if not root.is_dir():
+        return []
+    return sorted(p.name for p in root.iterdir() if p.is_dir())
+
+
+def _new_version_name() -> str:
+    """Nome di una NUOVA versione: v<timestamp UTC compatto>, con suffisso progressivo
+    (zero-padded, così l'ordine lessicografico resta quello di creazione) in caso di
+    collisione nello stesso secondo — possibile solo nei test: le build reali sono
+    serializzate dalla coda del ReindexManager. Il nome è sempre STRETTAMENTE maggiore
+    di ogni versione esistente: anche se la retention ha eliminato una dir, il suo nome
+    non viene mai riusato entro lo stesso secondo (l'ordinamento resta = cronologia)."""
+    base = datetime.now(timezone.utc).strftime("v%Y%m%dT%H%M%S")
+    existing = list_versions()
+    last = existing[-1] if existing else ""
+    name, n = base, 1
+    while name <= last or (versions_root() / name).exists():
+        n += 1
+        name = f"{base}-{n:02d}"
+    return name
+
+
+def _keep_from_env() -> int:
+    """Quante versioni tenere (env VIBECRAFT_INDEX_KEEP, default 5, mai meno di 1)."""
+    raw = os.environ.get("VIBECRAFT_INDEX_KEEP", "")
+    try:
+        keep = int(raw) if raw else DEFAULT_KEEP_VERSIONS
+    except ValueError:
+        logger.warning("VIBECRAFT_INDEX_KEEP non numerica (%r): uso il default %d.",
+                       raw, DEFAULT_KEEP_VERSIONS)
+        keep = DEFAULT_KEEP_VERSIONS
+    return max(1, keep)
+
+
+def promote_version(version: str) -> None:
+    """Promuove `version` a versione attiva: sposta il puntatore CURRENT con una
+    scrittura atomica (lo swap blue/green), poi applica la retention. Rifiuta versioni
+    inesistenti o senza grafo (build incompleta): CURRENT non deve mai puntare al vuoto."""
+    if version == LEGACY_VERSION:
+        raise ValueError("'legacy' è il layout flat storico, non una versione promuovibile.")
+    if not (version_dir(version) / "graph.json").exists():
+        raise FileNotFoundError(
+            f"Versione '{version}' assente o incompleta (nessun graph.json): non promuovibile."
+        )
+    _atomic_write_text(DATABASE_DIR / CURRENT_FILENAME, version + "\n")
+    logger.info("Versione indice promossa: CURRENT -> %s", version)
+    prune_versions()
+
+
+def prune_versions(keep: int | None = None) -> list[str]:
+    """Retention: mantiene le ultime `keep` versioni (default: VIBECRAFT_INDEX_KEEP o 5)
+    ed elimina le più vecchie — MAI quella puntata da CURRENT, anche se antica (dopo un
+    rollback la versione attiva può non essere tra le ultime N). Restituisce i nomi rimossi."""
+    keep = max(1, keep if keep is not None else _keep_from_env())
+    versions = list_versions()
+    if len(versions) <= keep:
+        return []
+    active = current_version_token()
+    doomed = [v for v in versions[:-keep] if v != active]
+    for name in doomed:
+        shutil.rmtree(versions_root() / name, ignore_errors=True)
+        logger.info("Retention indice: versione rimossa: %s", name)
+    return doomed
+
+
+def rollback_version(target: str | None = None) -> str:
+    """Rollback ISTANTANEO: sposta il solo puntatore CURRENT su `target` (default: la
+    versione immediatamente precedente all'attiva). Nessuna build, nessuna copia; il
+    server se ne accorge via maybe_reload_graph. NB: riporta indietro grafo e sidecar,
+    NON la collection Qdrant (vedi README). Restituisce il nome della versione attivata."""
+    versions = list_versions()
+    if not versions:
+        raise FileNotFoundError("Nessuna versione in database/versions/: nulla su cui fare rollback.")
+    active = current_version_token()
+    if target is None:
+        if active not in versions:
+            raise ValueError(
+                "CURRENT assente o non valido: indica esplicitamente la versione di destinazione. "
+                f"Disponibili: {', '.join(versions)}"
+            )
+        idx = versions.index(active)
+        if idx == 0:
+            raise ValueError(f"'{active}' è la versione più vecchia: nessuna precedente per il rollback.")
+        target = versions[idx - 1]
+    elif target not in versions:
+        raise FileNotFoundError(
+            f"Versione '{target}' inesistente. Disponibili: {', '.join(versions)}"
+        )
+    _atomic_write_text(DATABASE_DIR / CURRENT_FILENAME, target + "\n")
+    logger.info("Rollback indice: CURRENT %s -> %s", active, target)
+    return target
 
 
 # ---------------------------------------------------------------------------
@@ -185,26 +362,36 @@ def _merge_code_store(dense: dict, meta: dict) -> dict:
 @dataclass
 class Artifacts:
     """Stato completo dell'indice caricato da disco. `graph` è None solo se non esiste
-    alcun grafo (né nuovo né legacy). `source` documenta la provenienza (json/pickle)."""
+    alcun grafo (né nuovo né legacy). `source` documenta la provenienza (json/pickle);
+    `version` la versione blue/green da cui si è letto ('legacy' per il layout flat)."""
     graph: nx.DiGraph | None = None
     colbert_store: dict = field(default_factory=dict)
     chunks_store: dict = field(default_factory=dict)
     dense_store: dict = field(default_factory=dict)
     code_store: dict = field(default_factory=dict)
     source: str = "json"
+    version: str | None = None
 
 
 def save_artifacts(graph, colbert_store: dict, chunks_store: dict,
-                   dense_store: dict, code_store: dict) -> None:
-    """Persiste TUTTI gli artefatti dell'indice nei formati correnti (JSON + .npz),
-    ciascuno con scrittura atomica. È l'unico punto di scrittura: non emette pickle."""
+                   dense_store: dict, code_store: dict) -> str:
+    """Persiste TUTTI gli artefatti dell'indice in una directory di versione NUOVA
+    (database/versions/v<timestamp UTC>/), ciascuno con scrittura atomica, e restituisce
+    il nome della versione. NON tocca il puntatore CURRENT: la versione diventa attiva
+    solo con `promote_version(name)` (build → promote in due passi espliciti, così una
+    promozione può essere condizionata, es. dall'eval gate). Unico punto di scrittura:
+    non emette pickle, non riscrive mai una versione esistente."""
+    version = _new_version_name()
+    vdir = versions_root() / version
+    vdir.mkdir(parents=True)
     code_dense, code_meta = _split_code_store(code_store)
-    _atomic_write_json(GRAPH_JSON_PATH, _graph_to_json(graph))
-    _save_vectors(COLBERT_NPZ_PATH, colbert_store)
-    _save_vectors(DENSE_NPZ_PATH, dense_store)
-    _save_vectors(CODE_NPZ_PATH, code_dense)
-    _atomic_write_json(CHUNKS_JSON_PATH, chunks_store)
-    _atomic_write_json(CODE_JSON_PATH, code_meta)
+    _atomic_write_json(vdir / "graph.json", _graph_to_json(graph))
+    _save_vectors(vdir / "colbert.npz", colbert_store)
+    _save_vectors(vdir / "dense.npz", dense_store)
+    _save_vectors(vdir / "code.npz", code_dense)
+    _atomic_write_json(vdir / "chunks.json", chunks_store)
+    _atomic_write_json(vdir / "code.json", code_meta)
+    return version
 
 
 def _load_json(path: Path):
@@ -216,54 +403,73 @@ def _load_pickle_file(path: Path):
         return pickle.load(f)
 
 
-def load_artifacts(required: tuple[str, ...] = (), emit=None) -> Artifacts:
-    """Carica gli artefatti dell'indice, preferendo i formati correnti (JSON/.npz) e
-    ricadendo sui vecchi pickle SOLO se i nuovi non esistono, con un warning che invita
-    a re-indicizzare.
+def load_artifacts(required: tuple[str, ...] = (), emit=None,
+                   version: str | None = None) -> Artifacts:
+    """Carica gli artefatti dell'indice dalla versione indicata (default: quella attiva,
+    risolta via CURRENT). Se non esiste alcuna versione promossa si legge il layout
+    LEGACY flat in database/ (formati correnti JSON/.npz, con fallback ai vecchi pickle
+    e un warning che invita a re-indicizzare). Le directory versionate contengono solo
+    formati correnti: lì il fallback pickle non si applica.
 
     `required` elenca i tipi di artefatto ("graph", "colbert", "chunks", "dense",
-    "code") la cui assenza (in ENTRAMBI i formati) deve sollevare FileNotFoundError:
-    così il chiamante può imporre un caricamento all-or-nothing. Gli artefatti non
-    richiesti e assenti diventano il loro default vuoto (grafo None, dict {}).
+    "code") la cui assenza deve sollevare FileNotFoundError: così il chiamante può
+    imporre un caricamento all-or-nothing. Gli artefatti non richiesti e assenti
+    diventano il loro default vuoto (grafo None, dict {}).
 
     Solleva se un file esiste ma è illeggibile/corrotto (il chiamante decide se degradare)."""
     _log = emit or logger.info
 
+    name = version or current_version()
+    if name is not None and name != LEGACY_VERSION:
+        vdir = version_dir(name)
+        if not vdir.is_dir():
+            raise FileNotFoundError(f"Versione indice '{name}' inesistente in {versions_root()}.")
+        new_paths = {fname: vdir / fname for fname in _ARTIFACT_FILENAMES}
+        legacy_mode = False
+    else:
+        # Layout storico: file flat in database/ (con eventuale fallback pickle).
+        new_paths = {"graph.json": GRAPH_JSON_PATH, "colbert.npz": COLBERT_NPZ_PATH,
+                     "chunks.json": CHUNKS_JSON_PATH, "dense.npz": DENSE_NPZ_PATH,
+                     "code.npz": CODE_NPZ_PATH, "code.json": CODE_JSON_PATH}
+        legacy_mode = True
+
     used_pickle = False
 
-    def _pick(kind: str, new_path: Path, old_path: Path, new_loader, old_loader, empty):
+    def _pick(kind: str, new_path: Path, old_path: Path | None, new_loader, old_loader, empty):
         nonlocal used_pickle
         if new_path.exists():
             return new_loader(new_path)
-        if old_path.exists():
+        if legacy_mode and old_path is not None and old_path.exists():
             used_pickle = True
             return old_loader(old_path)
         if kind in required:
             raise FileNotFoundError(
-                f"Artefatto '{kind}' assente: né {new_path.name} né {old_path.name} trovati."
+                f"Artefatto '{kind}' assente: {new_path} non trovato"
+                + (f" (né il legacy {old_path.name})" if legacy_mode and old_path else "") + "."
             )
         return empty() if callable(empty) else empty
 
-    graph = _pick("graph", GRAPH_JSON_PATH, GRAPH_SAVE_PATH,
+    graph = _pick("graph", new_paths["graph.json"], GRAPH_SAVE_PATH,
                   lambda p: _graph_from_json(_load_json(p)), _load_pickle_file, lambda: None)
-    colbert_store = _pick("colbert", COLBERT_NPZ_PATH, COLBERT_SAVE_PATH,
+    colbert_store = _pick("colbert", new_paths["colbert.npz"], COLBERT_SAVE_PATH,
                           _load_vectors, _load_pickle_file, dict)
-    chunks_store = _pick("chunks", CHUNKS_JSON_PATH, CHUNKS_SAVE_PATH,
+    chunks_store = _pick("chunks", new_paths["chunks.json"], CHUNKS_SAVE_PATH,
                          _load_json, _load_pickle_file, dict)
-    dense_store = _pick("dense", DENSE_NPZ_PATH, DENSE_SAVE_PATH,
+    dense_store = _pick("dense", new_paths["dense.npz"], DENSE_SAVE_PATH,
                         _load_vectors, _load_pickle_file, dict)
 
     # code: i nuovi formati sono DUE file (npz + json). Ricadi al pickle solo se il
     # sidecar JSON manca del tutto (nessun artefatto codice nel nuovo formato).
-    if CODE_JSON_PATH.exists():
-        code_meta = _load_json(CODE_JSON_PATH)
-        code_dense = _load_vectors(CODE_NPZ_PATH) if CODE_NPZ_PATH.exists() else {}
+    code_json_path, code_npz_path = new_paths["code.json"], new_paths["code.npz"]
+    if code_json_path.exists():
+        code_meta = _load_json(code_json_path)
+        code_dense = _load_vectors(code_npz_path) if code_npz_path.exists() else {}
         code_store = _merge_code_store(code_dense, code_meta)
-    elif CODE_SAVE_PATH.exists():
+    elif legacy_mode and CODE_SAVE_PATH.exists():
         used_pickle = True
         code_store = _load_pickle_file(CODE_SAVE_PATH)
     elif "code" in required:
-        raise FileNotFoundError(f"Artefatto 'code' assente: né {CODE_JSON_PATH.name} né {CODE_SAVE_PATH.name}.")
+        raise FileNotFoundError(f"Artefatto 'code' assente: {code_json_path} non trovato.")
     else:
         code_store = {}
 
@@ -278,18 +484,21 @@ def load_artifacts(required: tuple[str, ...] = (), emit=None) -> Artifacts:
         dense_store=dense_store,
         code_store=code_store,
         source="pickle" if used_pickle else "json",
+        version=name,
     )
 
 
-def artifact_hashes() -> dict[str, str]:
-    """SHA-256 di ogni file artefatto CORRENTE presente su disco (chiave = nome file).
-    Alimenta il manifest così il check di coerenza può validare anche l'integrità dei
-    file artefatto, non solo dei documenti sorgente."""
+def artifact_hashes(version: str | None = None) -> dict[str, str]:
+    """SHA-256 di ogni file artefatto presente nella directory della versione indicata
+    (default: la versione attiva; per il layout legacy i flat in database/). Chiave =
+    nome file. Alimenta il manifest così il check di coerenza può validare anche
+    l'integrità dei file artefatto, non solo dei documenti sorgente."""
     import hashlib
 
+    base = artifact_dir(version)
     hashes: dict[str, str] = {}
-    for path in (GRAPH_JSON_PATH, COLBERT_NPZ_PATH, CHUNKS_JSON_PATH,
-                 DENSE_NPZ_PATH, CODE_NPZ_PATH, CODE_JSON_PATH):
+    for fname in _ARTIFACT_FILENAMES:
+        path = base / fname
         if path.exists():
-            hashes[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
+            hashes[fname] = hashlib.sha256(path.read_bytes()).hexdigest()
     return hashes

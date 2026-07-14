@@ -48,7 +48,9 @@ CHUNKS_SAVE_PATH = DATABASE_DIR / "chunks.pkl"
 DENSE_SAVE_PATH = DATABASE_DIR / "dense.pkl"
 CODE_SAVE_PATH = DATABASE_DIR / "code.pkl"
 # Snapshot dell'indicizzazione (modello, conteggi, hash dei documenti): serve a rilevare
-# quando docs/ è cambiato e l'indice è "stale".
+# quando docs/ è cambiato e l'indice è "stale". NB: con il versionamento blue/green il
+# manifest vive DENTRO la directory di versione (core.artifacts.manifest_path); questo
+# percorso flat resta solo per il layout legacy pre-versionamento.
 INDEX_MANIFEST_PATH = DATABASE_DIR / "index_manifest.json"
 # Journal append-only (JSONL) dei job di reindex: ogni transizione di stato vi appende
 # una riga col job serializzato, così lo storico sopravvive ai riavvii del server.

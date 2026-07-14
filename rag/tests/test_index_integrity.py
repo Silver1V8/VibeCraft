@@ -5,6 +5,7 @@ import json
 
 import pytest
 
+from core import artifacts
 from core import indexing
 
 
@@ -45,8 +46,11 @@ def env(tmp_path, monkeypatch):
     }), encoding="utf-8")
     chunks_path.write_text(json.dumps({"c1": {}, "c2": {}, "c3": {}}), encoding="utf-8")
 
-    monkeypatch.setattr(indexing, "INDEX_MANIFEST_PATH", manifest_path)
-    monkeypatch.setattr(indexing, "CHUNKS_JSON_PATH", chunks_path)
+    # Sandbox su database/: nessuna versione promossa -> manifest e sidecar si
+    # risolvono nel layout flat legacy dentro tmp_path.
+    monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)
+    monkeypatch.setattr(artifacts, "GRAPH_JSON_PATH", tmp_path / "graph.json")
+    monkeypatch.setattr(artifacts, "GRAPH_SAVE_PATH", tmp_path / "graph.pkl")
     monkeypatch.setattr(indexing, "_docs_hashes", lambda: dict(doc_hashes))
     monkeypatch.setattr(indexing, "_code_hashes", lambda: dict(code_hashes))
     monkeypatch.setattr(indexing, "artifact_hashes", lambda: dict(art_hashes))

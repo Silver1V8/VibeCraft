@@ -278,9 +278,10 @@ def _wire_tmp_index(monkeypatch, tmp_path):
     docs_dir.mkdir(); code_dir.mkdir(); db.mkdir()
     monkeypatch.setattr(index, "DOCS_DIR", docs_dir)
     monkeypatch.setattr(index, "CODE_DIR", code_dir)
-    monkeypatch.setattr(index, "INDEX_MANIFEST_PATH", db / "manifest.json")
-    # L'I/O degli artefatti vive in core.artifacts: reindirizziamo LÌ i percorsi dei
-    # nuovi formati (JSON/.npz) e dei legacy pickle (per il fallback) sulla sandbox.
+    # L'I/O degli artefatti vive in core.artifacts: reindirizziamo LÌ database/
+    # (versioni blue/green + CURRENT + manifest) e i percorsi flat dei nuovi formati
+    # (JSON/.npz) e dei legacy pickle (per il fallback) sulla sandbox.
+    monkeypatch.setattr(_artifacts, "DATABASE_DIR", db)
     monkeypatch.setattr(_artifacts, "GRAPH_JSON_PATH", db / "graph.json")
     monkeypatch.setattr(_artifacts, "COLBERT_NPZ_PATH", db / "colbert.npz")
     monkeypatch.setattr(_artifacts, "CHUNKS_JSON_PATH", db / "chunks.json")
@@ -409,7 +410,8 @@ def test_check_graph_detects_injected_divergence(monkeypatch, tmp_path):
 
     G = _load_graph()
     G.add_edge("code/ghost.py::x", "spec.md", relation="IMPLEMENTS")  # arco/nodo fantasma
-    _artifacts._atomic_write_json(_artifacts.GRAPH_JSON_PATH, _artifacts._graph_to_json(G))
+    _artifacts._atomic_write_json(_artifacts.artifact_dir() / "graph.json",
+                                  _artifacts._graph_to_json(G))
 
     report = index.check_graph_consistency(embed_model=stub, docs_dir=docs_dir, code_dir=code_dir)
     assert report["consistent"] is False

@@ -7,7 +7,10 @@ __pycache__/
 
 # Dati Locali del RAG (Generati dagli script)
 rag/database/qdrant_data/
-# Artefatti indice, formati correnti (JSON + vettori .npz + sidecar)
+# Versionamento blue/green degli artefatti: directory versionate + puntatore CURRENT
+rag/database/versions/
+rag/database/CURRENT
+# Artefatti indice, formati flat legacy (JSON + vettori .npz + sidecar)
 rag/database/graph.json
 rag/database/colbert.npz
 rag/database/chunks.json

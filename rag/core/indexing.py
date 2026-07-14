@@ -38,8 +38,11 @@ from code_index import (
 from core.artifacts import (
     _atomic_write,
     _atomic_write_text,
+    artifact_dir,
     artifact_hashes,
     load_artifacts,
+    manifest_path,
+    promote_version,
     save_artifacts,
 )
 from core.canvas_review import (
@@ -58,14 +61,12 @@ from core.chunking import (
 from core import llm
 from core.config import (
     CHANGES_DIR,
-    CHUNKS_JSON_PATH,
     CODE_DIR,
     COLLECTION_NAME,
     DENSE_DIM,
     DOC_EXTS,
     DOCS_DIR,
     EMBEDDING_MODEL,
-    INDEX_MANIFEST_PATH,
     PROJECT_ROOT,
     QDRANT_API_KEY,
     QDRANT_URL,
@@ -286,8 +287,10 @@ def _build_full_state(embed_model, docs_dir: Path, code_dir: Path, emit=None) ->
     return FullState(G, points, colbert_store, chunks_store, dense_store, code_store, n_docs)
 
 
-def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, emit=None) -> None:
-    """Esegue l'indicizzazione completa (Fase 0 e Fase 4).
+def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, emit=None,
+                          promote: bool = True) -> str | None:
+    """Esegue l'indicizzazione completa (Fase 0 e Fase 4) e restituisce il nome della
+    versione blue/green scritta.
 
     Il modello di embedding può essere iniettato dall'esterno: quando il server
     FastAPI innesca la re-indicizzazione riusa quello già caricato, evitando un
@@ -296,6 +299,10 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
 
     `emit` è un callback di log (default: logger.info) usato per lo streaming SSE del
     progresso verso l'interfaccia; se None si stampa su stdout come sempre.
+
+    `promote=False` lascia la nuova versione NON attiva (CURRENT invariato): è il gancio
+    per la promozione condizionata dei job full del ReindexManager (eval gate) — il
+    chiamante promuove poi con `core.artifacts.promote_version(nome)`.
     """
     _log = emit or logger.info
     own_qdrant = qdrant is None
@@ -313,20 +320,25 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     if state.points:
         qdrant.upsert(collection_name=COLLECTION_NAME, points=state.points)
 
-    # Salva grafo + vettori + sidecar nei formati correnti (JSON/.npz), tramite l'unico
-    # punto di I/O (core.artifacts). Scrittura atomica: un crash a metà non lascia
-    # artefatti troncati.
-    save_artifacts(G, state.colbert_store, state.chunks_store, state.dense_store, state.code_store)
+    # Salva grafo + vettori + sidecar nei formati correnti (JSON/.npz) in una NUOVA
+    # directory di versione, tramite l'unico punto di I/O (core.artifacts). Scrittura
+    # atomica: un crash a metà non lascia artefatti troncati né una versione attiva rotta.
+    version = save_artifacts(G, state.colbert_store, state.chunks_store, state.dense_store, state.code_store)
 
-    _log("\n✅ Artefatti indice salvati (grafo JSON, vettori ColBERT/densi .npz, sidecar chunk/codice).")
+    _log(f"\n✅ Artefatti indice salvati nella versione {version} (grafo JSON, vettori .npz, sidecar).")
     _log(f"📊 Grafo: {G.number_of_nodes()} nodi, {G.number_of_edges()} archi.")
     _log(f"📦 Qdrant: {len(state.points)} chunk (da {state.n_docs} documenti) nella collection '{COLLECTION_NAME}'.")
 
-    write_index_manifest(len(state.points), G.number_of_nodes(), G.number_of_edges())
-    _log(f"🧾 Manifest indicizzazione salvato in: {INDEX_MANIFEST_PATH}")
+    write_index_manifest(len(state.points), G.number_of_nodes(), G.number_of_edges(), version=version)
+    _log(f"🧾 Manifest indicizzazione salvato in: {manifest_path(version)}")
+
+    if promote and version:
+        promote_version(version)
+        _log(f"🔁 Versione promossa: CURRENT → {version} (swap atomico, rollback: index.py --rollback).")
 
     if own_qdrant:
         qdrant.close()
+    return version
 
 
 def _docs_hashes() -> dict[str, str]:
@@ -350,13 +362,16 @@ def _code_hashes() -> dict[str, str]:
     return hashes
 
 
-def write_index_manifest(points_count: int, nodes: int = 0, edges: int = 0) -> None:
-    """Persiste lo snapshot dell'indice (config modello, conteggi, hash dei documenti).
+def write_index_manifest(points_count: int, nodes: int = 0, edges: int = 0,
+                         version: str | None = None) -> None:
+    """Persiste lo snapshot dell'indice (config modello, conteggi, hash dei documenti)
+    DENTRO la directory della versione indicata (default: la versione attiva; per il
+    layout legacy resta il flat database/index_manifest.json): ogni versione blue/green
+    è autodescritta, così dopo un rollback anche staleness e integrità si misurano
+    contro la versione effettivamente attiva.
 
-    Il campo `version` (timestamp ISO) viene scritto INSIEME agli artefatti: identifica
-    in modo univoco questo giro di indicizzazione, così un client può confrontarlo con
-    quello dell'ultima build vista e capire se sta leggendo un indice coerente (tutti e
-    tre i pickle + manifest appartenenti alla stessa versione)."""
+    Il campo `version` del manifest (timestamp ISO) viene scritto INSIEME agli artefatti:
+    identifica in modo univoco questo giro di indicizzazione."""
     now_iso = datetime.now(timezone.utc).isoformat()
     manifest = {
         "version": now_iso,
@@ -368,11 +383,11 @@ def write_index_manifest(points_count: int, nodes: int = 0, edges: int = 0) -> N
         "graph_edges": edges,
         "doc_hashes": _docs_hashes(),
         "code_hashes": _code_hashes(),
-        # Hash dei file artefatto correnti (grafo JSON, vettori .npz, sidecar): permette
-        # al check di coerenza di validare anche l'integrità degli artefatti persistiti.
-        "artifact_hashes": artifact_hashes(),
+        # Hash dei file artefatto della STESSA versione (grafo JSON, vettori .npz,
+        # sidecar): permette al check di coerenza di validarne anche l'integrità.
+        "artifact_hashes": artifact_hashes(version),
     }
-    _atomic_write_text(INDEX_MANIFEST_PATH, json.dumps(manifest, ensure_ascii=False, indent=2))
+    _atomic_write_text(manifest_path(version), json.dumps(manifest, ensure_ascii=False, indent=2))
 
 
 def _diff_hashes(old: dict[str, str], new: dict[str, str]) -> tuple[list[str], list[str], list[str], list[str]]:
@@ -389,24 +404,28 @@ def _diff_hashes(old: dict[str, str], new: dict[str, str]) -> tuple[list[str], l
 
 
 def _read_manifest() -> dict | None:
-    """Legge il manifest se presente e leggibile, altrimenti None (assente o corrotto).
-    Il chiamante interpreta None come 'nessuna base nota' → tutto da (ri)indicizzare."""
-    if not INDEX_MANIFEST_PATH.exists():
+    """Legge il manifest della VERSIONE ATTIVA se presente e leggibile, altrimenti None
+    (assente o corrotto). Il chiamante interpreta None come 'nessuna base nota' → tutto
+    da (ri)indicizzare."""
+    path = manifest_path()
+    if not path.exists():
         return None
     try:
-        data = json.loads(INDEX_MANIFEST_PATH.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
         return data if isinstance(data, dict) else None
     except Exception:
         return None
 
 
 def index_status() -> dict:
-    """Confronta gli hash correnti di docs/ con quelli del manifest per dire se l'indice
-    è aggiornato o va rigenerato, elencando i documenti aggiunti/rimossi/modificati."""
-    if not INDEX_MANIFEST_PATH.exists():
+    """Confronta gli hash correnti di docs/ con quelli del manifest (della versione
+    attiva) per dire se l'indice è aggiornato o va rigenerato, elencando i documenti
+    aggiunti/rimossi/modificati."""
+    path = manifest_path()
+    if not path.exists():
         return {"indexed": False, "stale": True, "reason": "manifest assente — indice mai costruito", "changed": []}
     try:
-        manifest = json.loads(INDEX_MANIFEST_PATH.read_text(encoding="utf-8"))
+        manifest = json.loads(path.read_text(encoding="utf-8"))
     except Exception as exc:
         return {"indexed": False, "stale": True, "reason": f"manifest illeggibile: {exc}", "changed": []}
 
@@ -433,8 +452,8 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
     1. manifest presente e leggibile;
     2. doc_hashes/code_hashes del manifest vs hash correnti su disco (differenze ⇒
        indice STALE: basta un reindex incrementale);
-    3. artifact_hashes del manifest vs file in database/ (mancanti o hash diverso ⇒
-       artefatti CORROTTI o scrittura mista: serve un full rebuild);
+    3. artifact_hashes del manifest vs file della versione attiva (mancanti o hash
+       diverso ⇒ artefatti CORROTTI o scrittura mista: serve un full rebuild);
     4. conteggio dei punti nella collection Qdrant vs numero di chunk nel sidecar
        (divergenza ⇒ Qdrant e artefatti non allineati: serve un full rebuild).
 
@@ -488,7 +507,7 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
         for name, digest in sorted(expected_artifacts.items()):
             if name not in current_artifacts:
                 artifacts_corrupted = True
-                problems.append(f"artefatto mancante in database/: {name}")
+                problems.append(f"artefatto mancante nella versione attiva: {name}")
             elif current_artifacts[name] != digest:
                 artifacts_corrupted = True
                 problems.append(
@@ -496,17 +515,21 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
                 )
 
     # 4) Qdrant vs sidecar chunk: i punti nella collection devono essere tanti quanti i
-    #    chunk persistiti. Il sidecar si legge direttamente (JSON, niente vettori).
+    #    chunk persistiti (nella versione attiva). Il sidecar si legge direttamente
+    #    (JSON, niente vettori). NB: dopo un rollback blue/green Qdrant resta all'ultima
+    #    build, quindi questo check può segnalare un mismatch ATTESO fino al reindex
+    #    successivo (vedi README, limite del versionamento).
+    chunks_path = artifact_dir() / "chunks.json"
     expected_chunks: int | None = None
-    if CHUNKS_JSON_PATH.exists():
+    if chunks_path.exists():
         try:
-            expected_chunks = len(json.loads(CHUNKS_JSON_PATH.read_text(encoding="utf-8")))
+            expected_chunks = len(json.loads(chunks_path.read_text(encoding="utf-8")))
         except Exception as exc:
             artifacts_corrupted = True
-            problems.append(f"sidecar chunk illeggibile ({CHUNKS_JSON_PATH.name}): {exc}")
+            problems.append(f"sidecar chunk illeggibile ({chunks_path.name}): {exc}")
     else:
         artifacts_corrupted = True
-        problems.append(f"sidecar chunk assente: {CHUNKS_JSON_PATH.name}")
+        problems.append(f"sidecar chunk assente: {chunks_path.name}")
 
     if expected_chunks is not None:
         own_qdrant = qdrant is None
@@ -518,7 +541,7 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
                 qdrant_mismatch = True
                 problems.append(
                     f"Qdrant e sidecar non allineati: {points} punti nella collection "
-                    f"'{COLLECTION_NAME}' vs {expected_chunks} chunk in {CHUNKS_JSON_PATH.name}"
+                    f"'{COLLECTION_NAME}' vs {expected_chunks} chunk in {chunks_path.name}"
                 )
         except Exception as exc:
             qdrant_mismatch = True
@@ -980,11 +1003,18 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
         code_delta=(code_added, code_removed, code_modified), code_dir=CODE_DIR,
     )
 
-    # Persistenza: artefatti atomici (JSON/.npz) + manifest coerente (documents = chunk totali)
-    save_artifacts(graph, colbert_store, chunks_store, dense_store, code_store)
-    write_index_manifest(len(chunks_store), graph.number_of_nodes(), graph.number_of_edges())
+    # Persistenza: nuova versione blue/green (artefatti atomici JSON/.npz) + manifest
+    # coerente nella stessa versione (documents = chunk totali), poi promozione: gli
+    # incrementali promuovono sempre (l'eval gate riguarda solo i job full del manager).
+    version = save_artifacts(graph, colbert_store, chunks_store, dense_store, code_store)
+    write_index_manifest(len(chunks_store), graph.number_of_nodes(), graph.number_of_edges(),
+                         version=version)
+    if version:  # None solo con save_artifacts finto nei test
+        promote_version(version)
+    stats["version"] = version
 
     _log(f"🧾 Manifest aggiornato: {len(chunks_store)} chunk, {graph.number_of_nodes()} nodi, {graph.number_of_edges()} archi.")
+    _log(f"🔁 Versione promossa: CURRENT → {version}.")
     _log("🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).")
 
     if own_qdrant:

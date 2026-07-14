@@ -377,6 +377,70 @@ def test_archive_stream_route_queues_full_and_emits_final_event(tmp_path, monkey
 
 
 # ---------------------------------------------------------------------------
+# Blue/green: promozione dei job full + eval gate (VIBECRAFT_EVAL_GATE)
+# ---------------------------------------------------------------------------
+def test_manager_honors_completed_not_promoted_and_skips_reload():
+    """Un run che risponde job_status=completed_not_promoted termina in quello stato
+    (terminale) e NON innesca on_success: CURRENT è invariato, niente reload."""
+    mgr = ReindexManager()
+    reloaded = threading.Event()
+    job, _ = mgr.start(None, lambda paths: {"full_rebuild": True,
+                                            "job_status": "completed_not_promoted"},
+                       reloaded.set, kind="full")
+    assert _wait(lambda: mgr.get(job.id).status == "completed_not_promoted")
+    time.sleep(0.05)  # dà spazio a un eventuale on_success spurio
+    assert not reloaded.is_set()
+
+
+def _wire_full_rebuild(monkeypatch, gate_result):
+    """Prepara _run_full_rebuild con build ed eval finte; ritorna la lista dei promote."""
+    import api.routes_reindex as rr
+
+    monkeypatch.setattr(rr, "build_graph_and_index", lambda **kw: "v-nuova")
+    monkeypatch.setattr(rr, "_eval_gate", lambda version: gate_result)
+    promoted: list[str] = []
+    monkeypatch.setattr(rr, "promote_version", lambda v: promoted.append(v))
+    return rr, promoted
+
+
+def test_full_rebuild_below_gate_is_not_promoted(monkeypatch):
+    monkeypatch.setenv("VIBECRAFT_EVAL_GATE", "1")
+    rr, promoted = _wire_full_rebuild(monkeypatch, (False, {"recall@10": 0.1, "threshold": 0.7}))
+    result = rr._run_full_rebuild(None)
+    assert result["promoted"] is False
+    assert result["job_status"] == "completed_not_promoted"
+    assert result["version"] == "v-nuova"
+    assert result["eval"]["recall@10"] == 0.1
+    assert promoted == []  # CURRENT mai toccato
+
+
+def test_full_rebuild_above_gate_promotes(monkeypatch):
+    monkeypatch.setenv("VIBECRAFT_EVAL_GATE", "1")
+    rr, promoted = _wire_full_rebuild(monkeypatch, (True, {"recall@10": 0.95, "threshold": 0.7}))
+    result = rr._run_full_rebuild(None)
+    assert result["promoted"] is True and "job_status" not in result
+    assert promoted == ["v-nuova"]
+
+
+def test_full_rebuild_gate_unavailable_promotes_directly(monkeypatch):
+    """Eval non disponibile (passed=None): promozione diretta, come da design."""
+    monkeypatch.setenv("VIBECRAFT_EVAL_GATE", "1")
+    rr, promoted = _wire_full_rebuild(monkeypatch, (None, {"error": "golden-set assente"}))
+    result = rr._run_full_rebuild(None)
+    assert result["promoted"] is True
+    assert promoted == ["v-nuova"]
+
+
+def test_full_rebuild_without_gate_env_promotes(monkeypatch):
+    monkeypatch.delenv("VIBECRAFT_EVAL_GATE", raising=False)
+    rr, promoted = _wire_full_rebuild(
+        monkeypatch, (False, {}))  # l'eval, anche se sotto soglia, NON viene consultata
+    result = rr._run_full_rebuild(None)
+    assert result["promoted"] is True and "eval" not in result
+    assert promoted == ["v-nuova"]
+
+
+# ---------------------------------------------------------------------------
 # Persistenza: journal JSONL append-only + ricostruzione al boot
 # ---------------------------------------------------------------------------
 def test_journal_round_trip_completed_job_survives_restart(tmp_path):

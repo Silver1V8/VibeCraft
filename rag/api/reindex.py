@@ -19,8 +19,10 @@ logger = logging.getLogger(__name__)
 # l'ultimo stato di ogni job.
 _JOURNAL_MAX_BYTES = 1_000_000
 
-# Stati terminali: un job in uno di questi non è "in volo".
-_TERMINAL_STATES = ("completed", "failed", "interrupted")
+# Stati terminali: un job in uno di questi non è "in volo". "completed_not_promoted" è
+# un full riuscito la cui versione NON è stata promossa (eval gate sotto soglia): la
+# build esiste su disco ma CURRENT non si è mosso.
+_TERMINAL_STATES = ("completed", "completed_not_promoted", "failed", "interrupted")
 
 
 def _now_iso() -> str:
@@ -320,7 +322,11 @@ class ReindexManager:
     def _run(self, job: ReindexJob) -> None:
         try:
             job.result = job._run_reindex(job.changed_paths)
-            job.status = "completed"
+            # Un run può declassare l'esito con result["job_status"]: oggi solo
+            # "completed_not_promoted" (eval gate sotto soglia: versione costruita ma
+            # CURRENT non spostato). Qualunque altro valore resta "completed".
+            override = job.result.get("job_status") if isinstance(job.result, dict) else None
+            job.status = "completed_not_promoted" if override == "completed_not_promoted" else "completed"
         except Exception as exc:
             job.status = "failed"
             job.error = f"{type(exc).__name__}: {exc}"
@@ -344,6 +350,8 @@ class ReindexManager:
         self._record(job)
         if next_job is not None:
             self._record(next_job)
+        # on_success (reload in memoria) solo se la build è stata promossa: dopo un
+        # "completed_not_promoted" CURRENT è invariato e non c'è nulla da ricaricare.
         if job.status == "completed":
             try:
                 job._on_success()
