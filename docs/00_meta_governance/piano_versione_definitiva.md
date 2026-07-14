@@ -405,6 +405,9 @@ Epic 0  (baseline)      ─┬─> Epic 1 (refactor)  ──> Epic 2 (grafo a se
       alert critico. Cablato in build_graph_and_index (CLI) e unificato con lo scaffold server
       (routes_reindex). Verificato: recall@10=1.000 ≥ 0.90 → promosso. 286 test verdi. NB: gate sui full;
       i delta promuovono sempre (design pre-esistente). Qdrant non versionato = limite documentato.
-- [ ] `eval/results/history.jsonl` + pagina trend + campo health "eval"; alert notturno su regressione.
-- [ ] recall@k finale **≥** baseline Epic 0 (idealmente >, mai <).
+- [x] `eval/results/history.jsonl` + pagina trend + campo health "eval"; alert notturno su regressione.
+      ✅ Epic 5: `core/eval_history.py` (history + trend + detect_regression), recording in eval.run e
+      nel gate, `GET /api/eval/history` + campo `eval` in `/api/health`, pagina `/eval` (grafico SVG),
+      `eval.run --check-regression` nei check notturni. Telemetria isolata nei test (conftest). 293 test verdi.
+- [x] recall@k finale **≥** baseline Epic 0. ✅ recall@10 0.909 (baseline) → **1.000**; recall@5 0.864 → 0.912.
 ```
