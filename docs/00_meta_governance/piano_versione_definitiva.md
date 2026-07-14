@@ -393,8 +393,10 @@ Epic 0  (baseline)      ─┬─> Epic 1 (refactor)  ──> Epic 2 (grafo a se
 
 - [x] Il grafo ha nodi-sezione; i code-link puntano alla sezione vincente; delta ≡ full (verificato). ✅ Epic 2.1 (commit 1dbfbf2): `type="section"` + PART_OF, IMPLEMENTS→win_chunk, CSS/HTML non linkati (21→19), 275 test verdi.
 - [ ] `core/indexing/` è un pacchetto, nessun file > ~400 righe, comportamento invariato.
-- [ ] I pesi di autorità sono in config, calibrati con split di validazione (o documentato che i default
-      reggono), con guardrail sul range.
+- [x] I pesi di autorità sono in config, calibrati con split di validazione, con guardrail sul range.
+      ✅ Epic 3 (commit 8cc369c): boost_alpha 0.4→0.1, default_weight 0.4→0.7 via 5-fold CV
+      (`eval/calibrate_authority.py`). recall@10 CV 0.914→0.971 (+5.7%); end-to-end 0.912→1.000. Il boost
+      hand-set era troppo forte. Guardrail: `tests/test_authority_calibration.py`. 280 test verdi.
 - [ ] Il retrieval è async; il TODO in routes_retrieval è rimosso.
 - [ ] La promozione blue/green è condizionata all'eval-gate anche sui delta ad alta autorità.
 - [ ] `eval/results/history.jsonl` + pagina trend + campo health "eval"; alert notturno su regressione.
