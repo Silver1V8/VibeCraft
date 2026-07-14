@@ -176,6 +176,17 @@ _relink_touched_symbols (provalo e poi ripristina).
 Oggi il retrieval chiave su `chunk_id` ma il grafo ragiona su nodi-documento. Allineare le due
 granularità sblocca percorsi interrogabili "sezione normativa → endpoint → classe" sempre freschi.
 
+> 📌 **Scoperte dal codice reale (2026-07-14) che riducono l'Epic 2:**
+> - `code_index/__init__.py::link_symbols` **calcola già `win_chunk`** (la sezione vincente, riga ~509) ma
+>   disegna l'arco IMPLEMENTS su `win_doc` (riga ~519). Retarget alla sezione = cambiare quella riga +
+>   garantire che `win_chunk` sia un nodo del grafo. La soglia `threshold=0.45` esiste già.
+> - **NON esistono nodi-endpoint** nel grafo (backend assente; le spec citano `/api/...` solo in prosa) →
+>   il matching `fetch()`→endpoint del Prompt 2.2 è rimandato finché non c'è un backend o un'estrazione di
+>   endpoint dalle spec. Nel frattempo il retarget-a-sezione da solo migliora già la precisione dei link
+>   (es. `session.js`→sezione "Flusso Funzionale" di spec_auth invece del doc intero).
+> - Il rumore CSS (`styles.css`→spec_form @0.52) va tolto NON linkando i file non-semantici (css/html) o
+>   alzando la soglia solo per loro — piccolo fix di precisione da fare in 2.1.
+
 ### Prompt 2.1 — Promuovi i nodi-documento a nodi-sezione
 ```
 Contesto: in core/indexing/graph_build.py, _add_doc_to_graph crea UN nodo per documento. Ma il retrieval
