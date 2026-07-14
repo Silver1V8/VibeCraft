@@ -392,8 +392,9 @@ def test_manager_honors_completed_not_promoted_and_skips_reload():
     assert not reloaded.is_set()
 
 
-def _wire_full_rebuild(monkeypatch, gate_result):
-    """Prepara _run_full_rebuild con build ed eval finte; ritorna la lista dei promote."""
+def _wire_full_rebuild(monkeypatch, gate_result: dict):
+    """Prepara _run_full_rebuild con build ed eval-gate finti; ritorna la lista dei promote.
+    gate_result è il dict restituito da _eval_gate (contratto core.eval_gate.gate_promotion)."""
     import api.routes_reindex as rr
 
     monkeypatch.setattr(rr, "build_graph_and_index", lambda **kw: "v-nuova")
@@ -404,39 +405,37 @@ def _wire_full_rebuild(monkeypatch, gate_result):
 
 
 def test_full_rebuild_below_gate_is_not_promoted(monkeypatch):
-    monkeypatch.setenv("VIBECRAFT_EVAL_GATE", "1")
-    rr, promoted = _wire_full_rebuild(monkeypatch, (False, {"recall@10": 0.1, "threshold": 0.7}))
+    rr, promoted = _wire_full_rebuild(monkeypatch,
+                                      {"passed": False, "recall": 0.1, "k": 10, "min_recall": 0.9})
     result = rr._run_full_rebuild(None)
     assert result["promoted"] is False
     assert result["job_status"] == "completed_not_promoted"
     assert result["version"] == "v-nuova"
-    assert result["eval"]["recall@10"] == 0.1
+    assert result["eval"]["recall"] == 0.1
     assert promoted == []  # CURRENT mai toccato
 
 
 def test_full_rebuild_above_gate_promotes(monkeypatch):
-    monkeypatch.setenv("VIBECRAFT_EVAL_GATE", "1")
-    rr, promoted = _wire_full_rebuild(monkeypatch, (True, {"recall@10": 0.95, "threshold": 0.7}))
+    rr, promoted = _wire_full_rebuild(monkeypatch, {"passed": True, "recall": 0.95, "k": 10})
     result = rr._run_full_rebuild(None)
     assert result["promoted"] is True and "job_status" not in result
     assert promoted == ["v-nuova"]
 
 
 def test_full_rebuild_gate_unavailable_promotes_directly(monkeypatch):
-    """Eval non disponibile (passed=None): promozione diretta, come da design."""
-    monkeypatch.setenv("VIBECRAFT_EVAL_GATE", "1")
-    rr, promoted = _wire_full_rebuild(monkeypatch, (None, {"error": "golden-set assente"}))
+    """Eval non disponibile (fail-open, passed=True + skipped): promozione diretta."""
+    rr, promoted = _wire_full_rebuild(monkeypatch, {"passed": True, "skipped": "no_golden_set"})
     result = rr._run_full_rebuild(None)
     assert result["promoted"] is True
     assert promoted == ["v-nuova"]
 
 
-def test_full_rebuild_without_gate_env_promotes(monkeypatch):
-    monkeypatch.delenv("VIBECRAFT_EVAL_GATE", raising=False)
-    rr, promoted = _wire_full_rebuild(
-        monkeypatch, (False, {}))  # l'eval, anche se sotto soglia, NON viene consultata
+def test_full_rebuild_gate_disabled_promotes(monkeypatch):
+    """Gate disattivo (config eval_gate.enabled=false): promozione diretta, eval saltata."""
+    rr, promoted = _wire_full_rebuild(monkeypatch, {"passed": True, "skipped": "disabled"})
     result = rr._run_full_rebuild(None)
-    assert result["promoted"] is True and "eval" not in result
+    assert result["promoted"] is True
+    assert promoted == ["v-nuova"]
     assert promoted == ["v-nuova"]
 
 

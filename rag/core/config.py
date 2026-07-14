@@ -90,6 +90,14 @@ AUTHORITY_DEFAULT_WEIGHT: float = float(_authority_cfg.get("default_weight", 0.4
 AUTHORITY_ARCHIVED_DECAY: float = float(_authority_cfg.get("archived_decay", 0.3))
 AUTHORITY_BOOST_ALPHA: float = float(_authority_cfg.get("boost_alpha", 0.4))
 
+# Eval-gate continuo sulla promozione blue/green (core/eval_gate.py) + golden set del retrieval.
+_eval_gate_cfg: dict = config.get("eval_gate") or {}
+EVAL_GATE_ENABLED: bool = bool(_eval_gate_cfg.get("enabled", True))
+EVAL_GATE_K: int = int(_eval_gate_cfg.get("k", 10))
+EVAL_GATE_MIN_RECALL: float = float(_eval_gate_cfg.get("min_recall", 0.90))
+EVAL_GATE_BLOCKING: bool = bool(_eval_gate_cfg.get("blocking", True))
+GOLDEN_SET_PATH = RAG_DIR / "eval" / "golden_set.yaml"
+
 # Configurazione pipeline Explore -> Canvas -> Propose (rag/changes/).
 # NB: endpoint e modelli LLM ora vivono in core/llm.py (risoluzione per purpose).
 CHANGES_DIR = PROJECT_ROOT / "changes"

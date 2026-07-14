@@ -60,6 +60,7 @@ from core.chunking import (
     read_document,
 )
 from core import llm
+from core.eval_gate import gate_promotion
 from core.config import (
     CHANGES_DIR,
     CODE_DIR,
@@ -411,8 +412,16 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     _log(f"🧾 Manifest indicizzazione salvato in: {manifest_path(version)}")
 
     if promote and version:
-        promote_version(version)
-        _log(f"🔁 Versione promossa: CURRENT → {version} (swap atomico, rollback: index.py --rollback).")
+        # Eval-gate: valuta la recall della versione candidata sul golden set PRIMA di spostare
+        # CURRENT. Lo stato candidato è in memoria e Qdrant è già popolato: la valutazione
+        # riflette il retrieval che verrebbe servito. Se regredisce, la promozione è bloccata.
+        gate = gate_promotion(version, qdrant, embed_model, state.colbert_store, emit=_log)
+        if gate.get("passed"):
+            promote_version(version)
+            _log(f"🔁 Versione promossa: CURRENT → {version} (swap atomico, rollback: index.py --rollback).")
+        else:
+            _log(f"⛔ Promozione RIFIUTATA dall'eval-gate: CURRENT resta invariato. "
+                 f"Versione {version} salvata ma NON attiva. Investigare il calo di qualità.")
 
     if own_qdrant:
         qdrant.close()

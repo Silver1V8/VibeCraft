@@ -46,6 +46,16 @@ authority:
   # Il boost di autorità hand-set era troppo forte: sovra-promuoveva i safeguard IRON_MEMORY generici
   # rispetto alle spec REQUIREMENTS specifiche attese. Ricalibrare SEMPRE con split di validazione.
 
+# Eval-gate continuo (core/eval_gate.py): prima di promuovere una nuova versione dell'indice
+# (blue/green), misura la recall del retrieval sul golden set. Se scende sotto la soglia, blocca
+# la promozione (CURRENT resta sull'ultima versione buona) e scrive un alert critico. Fail-open:
+# se il golden set manca o il gate è disattivo, la promozione procede (non blocca i primi build).
+eval_gate:
+  enabled: true
+  k: 10                # soglia di recall valutata (recall@k)
+  min_recall: 0.90     # promozione bloccata se recall@k medio scende sotto questo valore
+  blocking: true       # true = blocca la promozione; false = solo alert (advisory), promuove comunque
+
 paths:
   docs_dir: "./docs"
   codebase_dir: "./code"

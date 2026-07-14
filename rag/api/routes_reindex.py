@@ -7,11 +7,11 @@ webhook GitLab ravvicinati non si perdono. GET /api/reindex/{job_id} ne riporta 
 A fine job riusa reload_index_state (il meccanismo di auto-reload esistente).
 
 Qui vive anche la gestione delle VERSIONI blue/green dell'indice: i job full scrivono
-una versione nuova e la promuovono a fine build riuscita (se VIBECRAFT_EVAL_GATE=1,
-solo dopo un eval del golden-set sopra soglia); POST /api/index/rollback sposta il
-puntatore CURRENT alla versione precedente (o a quella indicata) e ricarica lo snapshot."""
+una versione nuova e la promuovono a fine build riuscita, solo dopo che l'eval-gate
+(core.eval_gate, config eval_gate.*) conferma la recall sul golden-set sopra soglia; POST
+/api/index/rollback sposta il puntatore CURRENT alla versione precedente (o a quella
+indicata) e ricarica lo snapshot."""
 import logging
-import os
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
@@ -32,6 +32,7 @@ from core.artifacts import (
     rollback_version,
 )
 from core.config import REINDEX_JOURNAL_PATH
+from core.eval_gate import gate_promotion
 from core.indexing import build_graph_and_index, incremental_index
 
 logger = logging.getLogger(__name__)
@@ -54,42 +55,21 @@ def _run_reindex(changed_paths) -> dict:
     )
 
 
-def _eval_gate(version: str) -> tuple[bool | None, dict]:
-    """Eval del golden-set sulla versione APPENA COSTRUITA (non ancora promossa), in
-    process: il retrieval usa i sidecar della nuova versione + il Qdrant e il modello di
-    embedding già caricati dal server (il full rebuild ha già riallineato la collection
-    alla nuova build, quindi la misura è coerente con ciò che si sta per promuovere).
-
-    Restituisce (passed, summary): passed è True/False rispetto alla soglia
-    (env VIBECRAFT_EVAL_MIN, default 0.7, stessa semantica di `eval.run --assert-min`),
-    oppure None se l'eval non è DISPONIBILE (golden-set assente, dipendenza mancante,
-    errore imprevisto): in quel caso il chiamante promuove direttamente, come da design."""
-    threshold = float(os.environ.get("VIBECRAFT_EVAL_MIN", "0.7"))
+def _eval_gate(version: str) -> dict:
+    """Eval-gate sulla versione APPENA COSTRUITA (non ancora promossa): carica i suoi sidecar
+    e delega alla logica canonica core.eval_gate.gate_promotion. Il retrieval usa il Qdrant e
+    il modello già caricati dal server (il full rebuild ha già riallineato la collection alla
+    nuova build, quindi la misura è coerente con ciò che si sta per promuovere). Fail-open se
+    gli artefatti candidati non sono caricabili."""
     try:
-        from core import retrieval
-        from core.eval_metrics import evaluate
-        from eval.run import load_cases
-
-        cases = load_cases()
         arts = load_artifacts(required=("graph", "colbert", "chunks"), version=version,
                               emit=lambda *_a, **_k: None)
-
-        def _retrieve(query: str, k: int) -> list[dict]:
-            return retrieval.hybrid_search(
-                query, k, qdrant=state["qdrant"], embed_model=state["embed_model"],
-                colbert_store=arts.colbert_store,
-            )
-
-        ks = [5, 10]
-        report = evaluate(cases, _retrieve, ks=ks)
-        recall = report["aggregate"][f"recall@{max(ks)}"]
-        summary = {f"recall@{max(ks)}": round(recall, 3), "threshold": threshold,
-                   "cases": report["n"]}
-        return recall >= threshold, summary
     except Exception as exc:
-        logger.warning("Eval gate non disponibile (%s: %s): promozione diretta della "
-                       "versione %s.", type(exc).__name__, exc, version)
-        return None, {"error": f"{type(exc).__name__}: {exc}"}
+        logger.warning("Eval-gate: artefatti candidati %s non caricabili (%s): promozione diretta.",
+                       version, exc)
+        return {"passed": True, "skipped": "load_error", "version": version}
+    return gate_promotion(version, state.get("qdrant"), state.get("embed_model"),
+                          arts.colbert_store, emit=logger.info)
 
 
 def _run_full_rebuild(changed_paths) -> dict:
@@ -97,23 +77,23 @@ def _run_full_rebuild(changed_paths) -> dict:
     del server. `changed_paths` è ignorato (un full non ha delta). Gira sul thread daemon
     del ReindexManager: è così che OGNI scrittura degli artefatti passa da un solo scrittore.
 
-    Blue/green: la build scrive una versione NUOVA senza promuoverla; se
-    VIBECRAFT_EVAL_GATE=1 la promozione è condizionata all'eval del golden-set sopra
-    soglia — sotto soglia la versione resta su disco NON promossa (CURRENT invariato) e
+    Blue/green: la build scrive una versione NUOVA senza promuoverla; la promozione passa
+    dall'eval-gate (config eval_gate.*): se la recall sul golden-set scende sotto soglia e il
+    gate è in modalità blocking, la versione resta su disco NON promossa (CURRENT invariato) e
     il job termina "completed_not_promoted" col report nell'esito."""
     version = build_graph_and_index(qdrant=state.get("qdrant"),
                                     embed_model=state.get("embed_model"), promote=False)
     result = {"full_rebuild": True, "version": version}
-    if version and os.environ.get("VIBECRAFT_EVAL_GATE") == "1":
-        passed, summary = _eval_gate(version)
-        result["eval"] = summary
-        if passed is False:
+    if version:  # None solo con build finta nei test
+        gate = _eval_gate(version)
+        result["eval"] = {kk: gate[kk] for kk in
+                          ("recall", "k", "min_recall", "n", "skipped", "advisory") if kk in gate}
+        if not gate.get("passed"):
             result["promoted"] = False
             result["job_status"] = "completed_not_promoted"
-            logger.warning("Full rebuild %s NON promosso: eval sotto soglia (%s).",
-                           version, summary)
+            logger.warning("Full rebuild %s NON promosso: eval-gate sotto soglia (%s).",
+                           version, result["eval"])
             return result
-    if version:  # None solo con build finta nei test
         promote_version(version)
     result["promoted"] = True
     return result
