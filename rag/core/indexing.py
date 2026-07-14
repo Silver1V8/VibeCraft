@@ -5,6 +5,7 @@ configurazione in core/config.py. Le risorse pesanti (Qdrant, embedding) sono in
 import hashlib
 import json
 import logging
+import re
 import shutil
 import uuid
 from dataclasses import dataclass, field
@@ -140,6 +141,49 @@ def _remove_doc_nodes_from_graph(G: nx.DiGraph, doc_ids) -> int:
             G.remove_node(doc_id)
             removed += 1
     return removed
+
+
+# Suffisso di versione negli id semantici del frontmatter (es. "safeguards-security-v1.2"):
+# la risoluzione ignora la versione, così un edge che punta a -v1.2 raggiunge il documento
+# anche se questo è alla -v1.0 (le relazioni di autorità sono per-documento, non per-versione).
+_VERSION_SUFFIX_RE = re.compile(r"-v\d+(?:\.\d+)*$")
+
+
+def _semantic_base(s) -> str:
+    """Base-id senza suffisso di versione, per matchare gli alias del frontmatter ai documenti."""
+    return _VERSION_SUFFIX_RE.sub("", str(s).strip().lower())
+
+
+def _resolve_authority_aliases(G: nx.DiGraph) -> int:
+    """Collega tra loro i DOCUMENTI in base alle relazioni di autorità autorate nei frontmatter.
+
+    Gli archi tipizzati (EREDITA_VINCOLI, VINCOLA, DERIVA_DA, ...) sono dichiarati verso l'id
+    SEMANTICO di un altro documento (es. 'safeguards-security-v1.2'), che add_frontmatter_edges
+    materializza come nodo-entità: un alias orfano, scollegato dal nodo-documento reale. Qui,
+    per ogni arco documento -> alias il cui base-id (senza versione) corrisponde a un documento
+    noto, si AGGIUNGE l'arco documento -> documento con la stessa relazione. È NON distruttivo
+    (gli archi-alias autorati restano) e idempotente: essendo una funzione pura degli archi-alias
+    persistiti, full rebuild e incrementale producono gli STESSI archi doc->doc (equivalenza
+    delta≡full preservata). Restituisce il numero di archi doc->doc aggiunti."""
+    id_to_doc: dict[str, str] = {}
+    for n, a in G.nodes(data=True):
+        if a.get("type") != "document":
+            continue
+        graph_rag = a.get("graph_rag") if isinstance(a.get("graph_rag"), dict) else {}
+        for key in (a.get("id"), graph_rag.get("node_id")):
+            if key:
+                id_to_doc[_semantic_base(key)] = n
+    added = 0
+    for u, v, d in list(G.edges(data=True)):
+        if G.nodes[u].get("type") != "document":
+            continue
+        if G.nodes.get(v, {}).get("type") != "entity":
+            continue
+        target = id_to_doc.get(_semantic_base(v))
+        if target and target != u and not G.has_edge(u, target):
+            G.add_edge(u, target, relation=d.get("relation"))
+            added += 1
+    return added
 
 
 def _prune_unsupported_entities(G: nx.DiGraph) -> int:
@@ -313,6 +357,10 @@ def _build_full_state(embed_model, docs_dir: Path, code_dir: Path, emit=None) ->
             _log("🧩 Nessun simbolo di codice trovato sotto code/ (verrà indicizzato quando Claude scriverà il codice).")
     except Exception as e:
         _log(f"⚠️ Indicizzazione del codice saltata: {e}")
+
+    # Connette i documenti tra loro dalle relazioni di autorità del frontmatter (doc->doc),
+    # risolvendo gli alias di versione. Ultimo passo: tutti i nodi-documento sono presenti.
+    _resolve_authority_aliases(G)
 
     return FullState(G, points, colbert_store, chunks_store, dense_store, code_store, n_docs)
 
@@ -947,6 +995,11 @@ def apply_incremental_indexing(
         if touched or orphans:
             _log(f"🔗 Code-link ricalcolati per {len(touched)} simboli toccati → {implements} IMPLEMENTS; "
                  f"{orphans} entità orfane potate.")
+
+    # Riconnette i doc->doc dalle relazioni di autorità: non distruttivo e idempotente, così
+    # il grafo incrementale resta deterministicamente equivalente al full rebuild (che lo fa
+    # in _build_full_state). Va eseguito su TUTTO il grafo dopo aver applicato il delta.
+    _resolve_authority_aliases(graph)
 
     return {
         "planned": plan.as_dict(),

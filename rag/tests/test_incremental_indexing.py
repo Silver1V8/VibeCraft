@@ -573,3 +573,48 @@ def test_eval_metrics_do_not_regress_after_full_then_incremental(monkeypatch, tm
         assert after[key] >= ref[key] - 1e-9, (key, ref[key], after[key])
     # E il grafo incrementale resta coerente col rebuild.
     assert index.check_graph_consistency(embed_model=stub, docs_dir=docs_dir, code_dir=code_dir)["consistent"]
+
+
+def test_resolve_authority_aliases_connects_documents():
+    """Le relazioni di autorità del frontmatter (doc -> alias di versione) vengono risolte in
+    archi doc -> doc reali, ignorando il suffisso di versione. Non distruttivo: l'arco-alias
+    autorato resta. Idempotente: rieseguire non aggiunge duplicati."""
+    G = nx.DiGraph()
+    # spec dichiara EREDITA_VINCOLI verso 'safeguards-security-v1.2' (versione diversa dal doc)
+    G.add_node("spec.md", type="document", id="spec-concurrency-v1.0")
+    G.add_node("safeguards.md", type="document", id="safeguards-security-v1.0")
+    G.add_node("safeguards-security-v1.2", type="entity")            # alias orfano dal frontmatter
+    G.add_node("REGOLA-CONC-01", type="entity")                      # entità reale, non un doc
+    G.add_edge("spec.md", "safeguards-security-v1.2", relation="EREDITA_VINCOLI")
+    G.add_edge("spec.md", "REGOLA-CONC-01", relation="MENTIONS")
+
+    added = index._resolve_authority_aliases(G)
+    assert added == 1
+    assert G.has_edge("spec.md", "safeguards.md")                     # doc -> doc risolto
+    assert G["spec.md"]["safeguards.md"]["relation"] == "EREDITA_VINCOLI"
+    assert G.has_edge("spec.md", "safeguards-security-v1.2")          # alias autorato preservato
+    assert not G.has_edge("spec.md", "REGOLA-CONC-01") or \
+        G["spec.md"]["REGOLA-CONC-01"]["relation"] == "MENTIONS"      # entità reale non toccata
+
+    assert index._resolve_authority_aliases(G) == 0                   # idempotente
+
+
+def test_authority_edges_survive_full_rebuild_equivalence(monkeypatch, tmp_path):
+    """Con frontmatter graph_rag, l'incrementale resta equivalente al full rebuild anche per gli
+    archi doc->doc risolti (il resolver è funzione pura degli archi-alias persistiti)."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    fm = ('---\nid: "{id}"\ngraph_rag:\n  node_id: "{id}"\n  edges:\n{edges}---\n'
+          "## Sezione\n[{marker}] regola su {marker}\n")
+    (docs_dir / "safe.md").write_text(
+        fm.format(id="safe-v1.0", edges="", marker="SAFE"), encoding="utf-8")
+    (docs_dir / "spec.md").write_text(
+        fm.format(id="spec-v1.0",
+                  edges='    - type: "EREDITA_VINCOLI"\n      target: "safe-v1.2"\n',
+                  marker="SPEC"), encoding="utf-8")
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+    index.build_graph_and_index(qdrant=q, embed_model=stub)
+
+    G = _load_graph()
+    assert G.has_edge("spec.md", "safe.md")                          # doc->doc risolto nel full build
+    report = index.check_graph_consistency(embed_model=stub, docs_dir=docs_dir, code_dir=code_dir)
+    assert report["consistent"] is True, report                      # equivalenza col rebuild
