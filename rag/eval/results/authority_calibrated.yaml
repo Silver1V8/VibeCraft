@@ -1,0 +1,20 @@
+generated_at: '2026-07-14T17:15:42'
+metric: recall@10
+cv:
+  folds: 5
+  seed: 0
+  default_recall: 0.9143
+  calibrated_recall: 0.9714
+  gain: 0.0571
+in_sample_best:
+  alpha: 0.1
+  default_weight: 0.7
+  recall: 1.0
+default:
+  alpha: 0.4
+  default_weight: 0.4
+  recall: 0.9118
+recommendation: APPLICA
+proposed_authority_yaml:
+  boost_alpha: 0.1
+  default_weight: 0.7
