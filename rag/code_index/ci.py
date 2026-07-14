@@ -9,8 +9,9 @@ comandi del parser bash) e — l'informazione più preziosa per l'impact
 multi-repo — archi DEPENDS_ON pipeline -> repo esterno dai trigger GitLab.
 
 Riconoscimento per NOME file (pattern in rag_config.yaml,
-code_parsers.ci_patterns): gli altri .yml del repo (config, docker-compose)
-non c'entrano e restano esclusi. YAML malformato o schema inatteso ->
+code_parsers.ci_patterns): gli altri .yml del repo (config Java, rag_config)
+non c'entrano e restano esclusi; docker-compose ha il suo parser dedicato
+(code_index.docker). YAML malformato o schema inatteso ->
 nodo pipeline senza dettagli con warning, mai eccezioni.
 """
 

@@ -22,6 +22,9 @@ import numpy as np
 CODE_EXTS = {".py", ".js", ".ts", ".tsx", ".jsx", ".svelte", ".html", ".css",
              ".java", ".bpmn", ".bpmn2", ".dmn", ".cs", ".csproj", ".cshtml", ".razor",
              ".sql", ".pks", ".pkb", ".sh", ".ps1", ".psm1"}
+# Nota: gli artefatti Docker (docker-compose*.yml, compose*.yml, Dockerfile —
+# senza estensione) sono riconosciuti per NOME via _is_docker_file, non per
+# estensione, quindi non figurano in CODE_EXTS.
 # File di progetto indicizzati per nome (non per estensione): dipendenze Java/.NET
 CODE_FILENAMES = {"pom.xml", "build.gradle", "packages.config"}
 
@@ -42,6 +45,21 @@ def _is_config_file(fname: str) -> bool:
     from fnmatch import fnmatch
     low = fname.lower()
     return any(fnmatch(low, pat.lower()) for pat in _config_patterns())
+
+
+def _is_docker_file(fname: str) -> bool:
+    """Artefatti Docker riconosciuti per NOME (code_parsers.docker_patterns):
+    docker-compose/compose *.yml e Dockerfile. Gli altri .yml del repo restano
+    gestiti dai rispettivi parser (CI, config)."""
+    from fnmatch import fnmatch
+    from code_index.docker import DEFAULT_DOCKER_PATTERNS
+    try:
+        from core.config import CODE_PARSERS
+        patterns = CODE_PARSERS.get("docker_patterns") or DEFAULT_DOCKER_PATTERNS
+    except Exception:
+        patterns = DEFAULT_DOCKER_PATTERNS
+    low = fname.lower()
+    return any(fnmatch(low, pat.lower()) for pat in patterns)
 
 
 def _is_ci_file(fname: str) -> bool:
@@ -230,6 +248,11 @@ def _extract(suffix: str, text: str, stem: str, rel: str = "",
     # File di configurazione riconosciuti per NOME (web.config, appsettings*.json,
     # package.json, *.wsdl/*.xsd): estrazione strutturata stdlib, secret mascherati.
     fname = (rel.rsplit("/", 1)[-1] if rel else f"{stem}{suffix}").lower()
+    if _is_docker_file(fname):
+        import code_index.docker as dockermod
+        if dockermod._is_compose(fname):
+            return dockermod.compose_symbols(text, stem, suffix, rel)
+        return dockermod.dockerfile_symbols(text, stem, suffix, rel)
     if _is_ci_file(fname):
         import code_index.ci as cimod
         if "gitlab" in fname:
@@ -278,7 +301,8 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
         return symbols
     for path in sorted(code_dir.rglob("*")):
         if not (path.is_file() and (path.suffix in CODE_EXTS or path.name in CODE_FILENAMES
-                                    or _is_config_file(path.name) or _is_ci_file(path.name))):
+                                    or _is_config_file(path.name) or _is_ci_file(path.name)
+                                    or _is_docker_file(path.name))):
             continue
         rel = path.relative_to(code_dir).as_posix()
         dev_type = rel.split("/")[0] if "/" in rel else ""

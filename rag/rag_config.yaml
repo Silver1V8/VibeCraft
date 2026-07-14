@@ -64,7 +64,8 @@ code_parsers:
   # function, archi EXECUTES script->script e verso progetti/file invocati.
   shell: "treesitter"
   # Pipeline CI/CD riconosciute per NOME (pyyaml): GitLab CI e Azure DevOps.
-  # Gli altri .yml (rag_config, docker-compose, ...) restano esclusi.
+  # Gli altri .yml (rag_config, application*.yml, ...) restano esclusi;
+  # docker-compose/compose hanno il proprio parser (docker_patterns).
   ci_patterns:
     - ".gitlab-ci.yml"
     - "*.gitlab-ci.yml"
@@ -92,3 +93,19 @@ code_parsers:
     - "application.yaml"
     - "application-*.yml"
     - "application-*.yaml"
+  # Artefatti Docker riconosciuti per NOME (pyyaml per il compose, scanner
+  # riga-per-riga per il Dockerfile): docker-compose/compose *.yml -> nodi
+  # service (immagine, porte, depends_on -> DEPENDS_ON, build -> Dockerfile);
+  # Dockerfile -> nodo image (immagini base, stage, EXPOSE). Secret mascherati.
+  docker_patterns:
+    - "docker-compose.yml"
+    - "docker-compose.yaml"
+    - "docker-compose.*.yml"
+    - "docker-compose.*.yaml"
+    - "compose.yml"
+    - "compose.yaml"
+    - "compose.*.yml"
+    - "compose.*.yaml"
+    - "dockerfile"
+    - "dockerfile.*"
+    - "*.dockerfile"

@@ -79,8 +79,8 @@ def ci_project(tmp_path):
     (api / "Api.csproj").write_text('<Project Sdk="Microsoft.NET.Sdk.Web"/>', encoding="utf-8")
     (tmp_path / "scripts").mkdir()
     (tmp_path / "scripts" / "verifica.sh").write_text("#!/bin/bash\necho ok", encoding="utf-8")
-    # yml qualunque: NON deve essere indicizzato
-    (tmp_path / "docker-compose.yml").write_text("services:\n  db:\n    image: postgres", encoding="utf-8")
+    # yml qualunque (non CI, non compose): NON deve essere indicizzato
+    (tmp_path / "mkdocs.yml").write_text("site_name: Docs\n", encoding="utf-8")
     return tmp_path
 
 
@@ -91,8 +91,8 @@ def test_gitlab_jobs_and_edges(ci_project):
     assert syms["build-api"]["kind"] == "job"
     assert syms["build-api"]["attrs"]["stage"] == "build"
     assert "dotnet" in syms["build-api"]["attrs"]["commands"]
-    # il docker-compose NON viene indicizzato
-    assert not any(s["file"] == "docker-compose.yml" for s in syms.values())
+    # un yml generico (non CI, non compose) NON viene indicizzato
+    assert not any(s["file"] == "mkdocs.yml" for s in syms.values())
     G = _graph(list(syms.values()))
     dep = _edges(G, "DEPENDS_ON")
     # pipeline -> job, job -> extends, pipeline -> template incluso
