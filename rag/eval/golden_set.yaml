@@ -100,3 +100,63 @@ cases:
   - q: "scenario BDD di accesso con dominio esterno che viene bloccato"
     expected:
       - {doc: spec_auth, section: "Scenari di Accettazione BDD"}
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Ampliamento Epic 0.2 (2026-07-14): copertura delle spec finora non testate +
+  # casi difficili con margine di miglioramento. Ogni caso è stato verificato contro
+  # il retrieval reale prima dell'inserimento. Categorie (b) code-resolving e
+  # (c) archived-must-not-appear NON incluse: il corpus non ha ancora file di codice
+  # indicizzati (../code contiene solo .gitignore) né documenti ARCHIVED/DEPRECATED, e
+  # il formato non supporta matcher negativi. Vedi piano_versione_definitiva.md.
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  # Copertura spec (verificati pass, rank 1-2):
+  - q: "regole di lock ottimistico contro il double booking dei posti in concorrenza"
+    expected:
+      - {doc: spec_concurrency, section: "Lock e Protezione dal Double-Booking"}
+
+  - q: "vincoli sui contatori e integrità cross-entità dei posti"
+    expected:
+      - {doc: spec_concurrency, section: "Contatori e Integrità"}
+
+  - q: "regole di transizione tra gli stati ammissibili del workflow"
+    expected:
+      - {doc: spec_wf_states, section: "Transizione e Workflow"}
+
+  - q: "regole di dispacciamento e integrazione dei canali di notifica"
+    expected:
+      - {doc: spec_notifications, section: "Dispacciamento ed Integrazione Canali"}
+
+  - q: "calcolo dinamico dei posti disponibili mostrati nella dashboard"
+    expected:
+      - {doc: spec_dash, section: "Calcolo Dinamico dei Posti"}
+
+  - q: "protezione contro la CSV injection nell'esportazione dei dati"
+    expected:
+      - {doc: spec_export, section: "CSV Injection Guard"}
+
+  - q: "gestione delle bozze e filtraggio nell'area personale"
+    expected:
+      - {doc: spec_area_pers, section: "Filtraggio e Gestione Bozze"}
+
+  - q: "metriche strutturali e limiti di complessità del codice backend"
+    expected:
+      - {doc: coding_standards, section: "Metriche Strutturali e Limiti del Codice Backend"}
+
+  # Autorità (verificato: la safeguard IRON_MEMORY deve vincere su METHODOLOGY/NORMS):
+  - q: "come scrivere codice sicuro e gestire i segreti in modo vincolante"
+    expected:
+      - {doc: safeguards_security, section: "Sicurezza del Codice e Segreti"}
+
+  # Casi DIFFICILI con margine (oggi MISS o recuperati solo a rank alto — target degli Epic 2-3):
+  - q: "cosa succede se due utenti prenotano l'ultimo posto nello stesso istante"
+    expected:
+      - {doc: spec_concurrency, section: "Scenari Comportamentali BDD"}
+
+  - q: "scenario in cui un manager tenta una transizione di stato non ammessa"
+    expected:
+      - {doc: spec_wf_states, section: "Scenari Comportamentali BDD"}
+
+  - q: "cosa accade quando una notifica fallisce e finisce nella coda di retry"
+    expected:
+      - {doc: spec_notifications, section: "Code e Tolleranza ai Guasti"}
