@@ -32,3 +32,9 @@ async def serve_infografica(request: Request):
 async def serve_analysis(request: Request):
     """Serve la pagina di analisi del grafo (Semantic Map + Impact Ripple)."""
     return serve_page(request, "graph_analysis.unified.html", "graph_analysis.html", "graph_analysis_classic.html")
+
+
+@router.get("/eval", include_in_schema=False)
+async def serve_eval_trend(request: Request):
+    """Serve la pagina del trend di qualità del retrieval (recall@10 nel tempo, Epic 5)."""
+    return serve_page(request, "eval_trend.unified.html", "eval_trend.unified.html", "eval_trend.unified.html")

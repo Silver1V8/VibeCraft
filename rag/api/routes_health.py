@@ -17,6 +17,7 @@ from fastapi.concurrency import run_in_threadpool
 from api.deps import current_snapshot, require_api_key, state
 from api.routes_reindex import manager
 from core.config import ALERTS_PATH
+from core.eval_history import eval_health, load_history
 from core.indexing import index_status
 from core.llm import OLLAMA_GENERATE_URL
 
@@ -151,6 +152,9 @@ def build_health(*, snapshot, manager, qdrant, status_fn=index_status,
         "reindex": reindex_report,
         "dependencies": {"qdrant": qdrant_ok, "ollama": ollama_ok},
         "last_alert": alert,
+        # Trend di qualità del retrieval (Epic 5): ultima recall@10 registrata + direzione
+        # rispetto alla media mobile. Se è "down" la recall sta calando: segnale da indagare.
+        "eval": eval_health(),
     }
 
 
@@ -164,3 +168,11 @@ async def api_health():
         manager=manager,
         qdrant=state.get("qdrant"),
     )
+
+
+@router.get("/api/eval/history")
+async def api_eval_history(limit: int = 100):
+    """Storico della qualità del retrieval (eval/results/history.jsonl): recall@k nel tempo e
+    per-versione, con marcatori di provenienza (eval.run / gate). Read-only; ultimi `limit`."""
+    rows = await run_in_threadpool(load_history, limit)
+    return {"n": len(rows), "history": rows, "summary": eval_health()}

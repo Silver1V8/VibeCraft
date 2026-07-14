@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="matrix">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VibeCraft · Trend di Qualità del Retrieval</title>
+  <link rel="stylesheet" href="/static/shared.css" />
+  <script src="/static/shared.js"></script>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 2rem; font-family: var(--font-body, system-ui, sans-serif); }
+    .wrap { max-width: 920px; margin: 0 auto; }
+    h1 { font-size: 1.4rem; margin: 0 0 0.25rem; }
+    .sub { opacity: 0.7; margin: 0 0 1.5rem; font-size: 0.9rem; }
+    .cards { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .card { border: 1px solid var(--border, #2a3a2a); border-radius: 10px; padding: 1rem 1.25rem; min-width: 150px; }
+    .card .k { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; }
+    .card .v { font-size: 1.8rem; font-weight: 700; margin-top: 0.25rem; }
+    .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600; }
+    .up { background: rgba(46,204,113,0.18); color: #2ecc71; }
+    .down { background: rgba(231,76,60,0.18); color: #e74c3c; }
+    .flat { background: rgba(150,150,150,0.18); color: #9aa; }
+    .chart { border: 1px solid var(--border, #2a3a2a); border-radius: 10px; padding: 1rem; overflow-x: auto; }
+    svg { width: 100%; height: 320px; min-width: 480px; }
+    .axis { stroke: var(--border, #2a3a2a); stroke-width: 1; }
+    .grid { stroke: var(--border, #2a3a2a); stroke-width: 0.5; opacity: 0.4; }
+    .line { fill: none; stroke: #2ecc71; stroke-width: 2; }
+    .dot-gate { fill: #2ecc71; }
+    .dot-run { fill: #3498db; }
+    .dot-fail { fill: #e74c3c; }
+    .lbl { fill: currentColor; font-size: 10px; opacity: 0.7; }
+    .empty { opacity: 0.6; padding: 2rem; text-align: center; }
+    .legend { font-size: 0.8rem; opacity: 0.75; margin-top: 0.75rem; display: flex; gap: 1.25rem; flex-wrap: wrap; }
+    .legend span::before { content: "●"; margin-right: 0.35rem; }
+    .lg-gate::before { color: #2ecc71; } .lg-run::before { color: #3498db; } .lg-fail::before { color: #e74c3c; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Trend di Qualità del Retrieval</h1>
+    <p class="sub">recall@10 sul golden set nel tempo — da <code>eval/results/history.jsonl</code>
+      (eval manuali ed eval-gate alla promozione blue/green).</p>
+    <div class="cards" id="cards"></div>
+    <div class="chart" id="chart"><div class="empty">Caricamento…</div></div>
+    <div class="legend">
+      <span class="lg-gate">eval-gate (promozione consentita)</span>
+      <span class="lg-fail">eval-gate (bloccata)</span>
+      <span class="lg-run">eval manuale</span>
+    </div>
+  </div>
+
+  <script>
+    const KEY = "recall@10";
+    function recallOf(e) { return e.recall && e.recall[KEY]; }
+
+    function render(data) {
+      const rows = (data.history || []).filter(e => typeof recallOf(e) === "number");
+      const s = data.summary || {};
+      const trend = s.trend || "flat";
+      const last = s.last_recall_at_10;
+      document.getElementById("cards").innerHTML = `
+        <div class="card"><div class="k">recall@10 attuale</div>
+          <div class="v">${last == null ? "—" : (last * 100).toFixed(1) + "%"}</div></div>
+        <div class="card"><div class="k">trend</div>
+          <div class="v"><span class="badge ${trend}">${trend}</span></div></div>
+        <div class="card"><div class="k">punti storici</div>
+          <div class="v">${s.history_points ?? rows.length}</div></div>`;
+
+      const chart = document.getElementById("chart");
+      if (rows.length < 2) { chart.innerHTML = '<div class="empty">Servono almeno 2 valutazioni per un trend. Lancia <code>uv run python -m eval.run</code>.</div>'; return; }
+
+      const W = 880, H = 320, padL = 44, padR = 12, padT = 16, padB = 28;
+      const vals = rows.map(recallOf);
+      let lo = Math.min(...vals), hi = Math.max(...vals);
+      lo = Math.min(lo, 0.8); hi = Math.max(hi, 1.0);
+      const pad = (hi - lo) * 0.1 || 0.05; lo -= pad; hi += pad;
+      const x = i => padL + (W - padL - padR) * (rows.length === 1 ? 0.5 : i / (rows.length - 1));
+      const y = v => padT + (H - padT - padB) * (1 - (v - lo) / (hi - lo));
+
+      const grid = [], ticks = 4;
+      for (let t = 0; t <= ticks; t++) {
+        const v = lo + (hi - lo) * t / ticks, yy = y(v);
+        grid.push(`<line class="grid" x1="${padL}" y1="${yy}" x2="${W - padR}" y2="${yy}"/>`);
+        grid.push(`<text class="lbl" x="4" y="${yy + 3}">${(v * 100).toFixed(0)}%</text>`);
+      }
+      const path = rows.map((e, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(recallOf(e)).toFixed(1)}`).join(" ");
+      const dots = rows.map((e, i) => {
+        const cls = e.source === "gate" ? (e.gate && e.gate.passed === false ? "dot-fail" : "dot-gate") : "dot-run";
+        const title = `${(recallOf(e) * 100).toFixed(1)}% · ${e.source}${e.version ? " · " + e.version : ""}${e.commit ? " · " + e.commit : ""}`;
+        return `<circle class="${cls}" cx="${x(i).toFixed(1)}" cy="${y(recallOf(e)).toFixed(1)}" r="3.5"><title>${title}</title></circle>`;
+      }).join("");
+
+      chart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+        ${grid.join("")}
+        <line class="axis" x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}"/>
+        <line class="axis" x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}"/>
+        <path class="line" d="${path}"/>
+        ${dots}
+      </svg>`;
+    }
+
+    fetch("/api/eval/history?limit=200")
+      .then(r => r.json()).then(render)
+      .catch(e => { document.getElementById("chart").innerHTML = '<div class="empty">Errore nel caricamento dello storico: ' + e + "</div>"; });
+  </script>
+</body>
+</html>

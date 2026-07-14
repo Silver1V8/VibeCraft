@@ -24,6 +24,20 @@ send_alert() {
     fi
 }
 
+# Check di QUALITA' del retrieval (Epic 5.2), opportunistico: se il server e' raggiungibile
+# (modello gia' caricato, nessun embedding nello script), valuta la recall sul golden set e,
+# via --check-regression, registra un alert critico in database/alerts.jsonl se e' calata sotto
+# la media mobile o sotto soglia. Non blocca il batch: e' un segnale, non un rimedio.
+quality_url="${VIBECRAFT_SERVER_URL:-http://127.0.0.1:8000}"
+if curl -sf --max-time 5 "$quality_url/api/health" >/dev/null 2>&1; then
+    echo "[$(date -Is)] Check di qualita' del retrieval (eval sul golden set)..."
+    if uv run python -m eval.run --url "$quality_url" --check-regression --assert-min 0.90 >/dev/null 2>&1; then
+        echo "[$(date -Is)] Qualita' del retrieval OK."
+    else
+        echo "[$(date -Is)] Qualita' del retrieval: regressione o sotto soglia (alert registrato dall'eval)."
+    fi
+fi
+
 echo "[$(date -Is)] Check di integrita' dell'indice (economico, zero embedding)..."
 
 # stdout = report JSON (i messaggi umani vanno su stderr), exit 1 se ci sono problemi.

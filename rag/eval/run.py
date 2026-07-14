@@ -169,6 +169,14 @@ def run_eval(cases: list[dict], retrieve_fn, ks: list[int], assert_min: float,
     if save:
         out = save_results(report, url)
         print(f"\n💾 Risultati salvati in {out}")
+        # Storicizza nel trend di qualità (Epic 5): source="eval.run".
+        try:
+            from core.artifacts import current_version
+            from core.eval_history import record_history
+            record_history({f"recall@{k}": report["aggregate"][f"recall@{k}"] for k in ks},
+                           n_cases=report["n"], version=current_version(), source="eval.run")
+        except Exception as exc:  # lo storico è telemetria: non deve mai far fallire l'eval
+            print(f"(storico non aggiornato: {exc})")
 
     top_recall = report["aggregate"][f"recall@{max(ks)}"]
     ok = top_recall >= assert_min
@@ -191,6 +199,9 @@ def main() -> int:
                     help="mostra i candidati estratti all'archive (eval/candidates.yaml) invece di eseguire l'eval")
     ap.add_argument("--promote", type=int, nargs="+", metavar="N",
                     help="con --review-candidates: promuove i candidati indicati nel golden_set.yaml (li sposta)")
+    ap.add_argument("--check-regression", action="store_true",
+                    help="dopo l'eval, controlla lo storico (eval/results/history.jsonl) e scrive un alert "
+                         "critico se la recall è calata rispetto alla media mobile o sotto --assert-min (check notturno)")
     a = ap.parse_args()
 
     if a.review_candidates or a.promote:
@@ -212,11 +223,28 @@ def main() -> int:
 
     try:
         with httpx.Client(timeout=180) as client:
-            return run_eval(cases, http_retriever(a.url, client), ks=a.k,
+            code = run_eval(cases, http_retriever(a.url, client), ks=a.k,
                             assert_min=assert_min, save=not a.no_save, url=a.url)
     except httpx.HTTPError as e:
         print(f"❌ /api/retrieve non raggiungibile: {e}\n   Avvia il server: python server.py")
         return 2
+
+    if a.check_regression:
+        # Check notturno (Epic 5.2): confronta l'ultima recall con la media mobile dello storico
+        # e sotto la soglia --assert-min; su regressione scrive un alert critico (alerts.jsonl).
+        from core.eval_history import detect_regression
+        from core.eval_gate import record_alert
+        reg = detect_regression("recall@10", floor=assert_min)
+        if reg is not None:
+            msg = (f"Regressione di qualità: recall@10={reg['last']} "
+                   f"(media mobile {reg['moving_avg']} su {reg['window']} run"
+                   + (f", soglia {reg['floor']}" if reg['floor'] is not None else "") + ").")
+            record_alert("critical", msg, source_check="eval.run --check-regression", **{
+                "recall@10": reg["last"], "moving_avg": reg["moving_avg"]})
+            print(f"⚠️  {msg} Alert scritto.")
+        else:
+            print("✅ Nessuna regressione di qualità rilevata rispetto allo storico.")
+    return code
 
 
 if __name__ == "__main__":

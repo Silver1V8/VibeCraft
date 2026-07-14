@@ -31,6 +31,7 @@ from core.config import (
     EVAL_GATE_MIN_RECALL,
     GOLDEN_SET_PATH,
 )
+from core.eval_history import record_history
 from core.eval_metrics import evaluate
 
 logger = logging.getLogger(__name__)
@@ -104,6 +105,9 @@ def gate_promotion(version: str, qdrant, embed_model, colbert_store: dict, *,
 
     res["min_recall"] = min_recall
     ok = res["recall"] >= min_recall
+    # Storicizza ogni valutazione del gate (trend di qualità, Epic 5): source="gate".
+    record_history({f"recall@{k}": res["recall"]}, n_cases=res["n"], version=version,
+                   source="gate", gate={"passed": ok, "min_recall": min_recall})
     if ok:
         res["passed"] = True
         _log(f"✅ Eval-gate: recall@{k}={res['recall']:.3f} ≥ soglia {min_recall} "

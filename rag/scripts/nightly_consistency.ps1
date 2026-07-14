@@ -35,6 +35,18 @@ function Send-Alert([string]$Message) {
     }
 }
 
+# Check di QUALITA' del retrieval (Epic 5.2), opportunistico: se il server e' raggiungibile
+# (modello gia' caricato), valuta la recall sul golden set e, via --check-regression, registra un
+# alert critico in database/alerts.jsonl se e' calata. Non blocca il batch.
+$qualityUrl = if ($env:VIBECRAFT_SERVER_URL) { $env:VIBECRAFT_SERVER_URL } else { "http://127.0.0.1:8000" }
+try {
+    Invoke-RestMethod -Uri "$qualityUrl/api/health" -TimeoutSec 5 | Out-Null
+    Write-Host "[$(Get-Date -Format o)] Check di qualita' del retrieval (eval sul golden set)..."
+    & uv run python -m eval.run --url $qualityUrl --check-regression --assert-min 0.90 *> $null
+    if ($LASTEXITCODE -eq 0) { Write-Host "[$(Get-Date -Format o)] Qualita' del retrieval OK." }
+    else { Write-Host "[$(Get-Date -Format o)] Qualita' del retrieval: regressione o sotto soglia (alert registrato)." }
+} catch {}
+
 Write-Host "[$(Get-Date -Format o)] Check di integrita' dell'indice (economico, zero embedding)..."
 
 # stdout = report JSON (i messaggi umani vanno su stderr), exit 1 se ci sono problemi.
