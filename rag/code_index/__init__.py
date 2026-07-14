@@ -435,6 +435,18 @@ def referenced_entity_tokens(text: str) -> set[str]:
     return set(_ENTITY_TOKEN_RE.findall(text or ""))
 
 
+# Estensioni "non-semantiche": presentazione/markup senza logica di dominio. I loro simboli
+# restano nodi del grafo (struttura), ma non generano archi IMPLEMENTS verso le spec (rumore).
+_NONSEMANTIC_LINK_SUFFIXES = (".css", ".scss", ".less", ".html", ".htm")
+
+
+def _is_nonsemantic_symbol(sym_id: str) -> bool:
+    """True se il simbolo proviene da un file di sola presentazione/markup (CSS/HTML): non
+    deve produrre un IMPLEMENTS. `sym_id` ha forma 'path/al/file.ext::nome'."""
+    path = sym_id.rsplit("::", 1)[0].lower()
+    return path.endswith(_NONSEMANTIC_LINK_SUFFIXES)
+
+
 def link_symbols(G, symbols: list[dict], sym_dense, doc_dense_vecs, doc_ids,
                  threshold: float = 0.45, chunk_ids=None, scores_out: dict | None = None) -> int:
     """(Ri)calcola gli archi IMPLEMENTS (similarità dense verso il chunk-documento più
@@ -515,8 +527,18 @@ def link_symbols(G, symbols: list[dict], sym_dense, doc_dense_vecs, doc_ids,
                     "win_chunk_id": win_chunk,
                     "win_doc_id": win_doc,
                 }
-            if best_val[i] >= threshold and win_doc in G:
-                G.add_edge(sym["id"], win_doc, relation="IMPLEMENTS", weight=round(float(best_val[i]), 3))
+            # Il link punta alla SEZIONE vincente (nodo-sezione, id = win_chunk) quando questa
+            # esiste nel grafo: precisione a livello di sezione, non di documento intero. Se i
+            # nodi-sezione non ci sono (indici/test legacy pre-sezioni) si ricade sul documento,
+            # preservando il comportamento storico. win_doc resta in scores_out per la logica
+            # incrementale (_symbols_with_stale_argmax chiave su win_doc_id).
+            target = win_chunk if (win_chunk is not None and win_chunk in G) else win_doc
+            # I file non-semantici (CSS/HTML) non "implementano" una spec: la loro similarità
+            # densa col testo è rumore (es. styles.css -> spec_form @0.52). Si registra comunque
+            # l'argmax in scores_out (coerenza dell'incrementale) ma NON si crea l'arco. Il filtro
+            # è identico in full e incrementale, quindi l'equivalenza delta≡full è preservata.
+            if best_val[i] >= threshold and target in G and not _is_nonsemantic_symbol(sym["id"]):
+                G.add_edge(sym["id"], target, relation="IMPLEMENTS", weight=round(float(best_val[i]), 3))
                 implements += 1
     elif scores_out is not None:
         # Nessuno spazio-documenti: i simboli non hanno argmax. Registriamo un best_score

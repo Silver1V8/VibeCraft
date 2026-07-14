@@ -313,6 +313,12 @@ def _implements(G):
     return {(u, v) for u, v, d in G.edges(data=True) if d.get("relation") == "IMPLEMENTS"}
 
 
+def _sec(doc: str) -> str:
+    """Id del nodo-SEZIONE vincente per i doc di test generati da _spec(): una sola sezione
+    ('## Sezione') → chunk_id '<doc>#00-sezione'. Il codice ora implementa la sezione, non il doc."""
+    return f"{doc}#00-sezione"
+
+
 def _references(G):
     return {(u, v) for u, v, d in G.edges(data=True) if d.get("relation") == "REFERENCES"}
 
@@ -330,7 +336,7 @@ def test_spec_modification_updates_code_links(monkeypatch, tmp_path):
     index.build_graph_and_index(qdrant=q, embed_model=stub)
     G = _load_graph()
     code_id = "backend/svc.py::handle_alpha"
-    assert (code_id, "spec.md") in _implements(G)      # codice implementa la spec
+    assert (code_id, _sec("spec.md")) in _implements(G)   # codice implementa la sezione della spec
     assert (code_id, "ALPHA") in _references(G)         # codice referenzia l'entità ALPHA
 
     # La spec cambia argomento: da ALPHA a ZETA. Nessun overlap col codice (che parla di ALPHA).
@@ -339,7 +345,7 @@ def test_spec_modification_updates_code_links(monkeypatch, tmp_path):
     assert stats.get("noop") is not True
 
     G2 = _load_graph()
-    assert (code_id, "spec.md") not in _implements(G2)  # IMPLEMENTS stale rimosso
+    assert (code_id, _sec("spec.md")) not in _implements(G2)  # IMPLEMENTS stale rimosso
     assert (code_id, "ALPHA") not in _references(G2)     # REFERENCES stale rimosso
     assert "ALPHA" not in G2                              # entità non più citata → potata
     assert "ZETA" in G2 and code_id in G2                 # nuova entità presente, codice resta
@@ -456,21 +462,21 @@ def test_incremental_matches_full_rebuild_over_edit_sequence(monkeypatch, tmp_pa
 
     _assert_consistent_with_rebuild()
     a_id = "backend/a.py::handle_alpha"
-    assert (a_id, "alpha.md") in _implements(_load_graph())  # aggancio iniziale
+    assert (a_id, _sec("alpha.md")) in _implements(_load_graph())  # aggancio iniziale
 
     # PASSO 1 — aggiungi doc (GAMMA): nessun overlap col codice esistente, il simbolo ALPHA
     # resta agganciato ad alpha.md; il nuovo doc non deve spostarne l'argmax.
     (docs_dir / "gamma.md").write_text(_spec("GAMMA"), encoding="utf-8")
     index.incremental_index(qdrant=q, embed_model=stub)
     _assert_consistent_with_rebuild()
-    assert (a_id, "alpha.md") in _implements(_load_graph())
+    assert (a_id, _sec("alpha.md")) in _implements(_load_graph())
 
     # PASSO 2 — modifica doc: alpha.md passa da ALPHA a ZETA. Il simbolo (che parla di ALPHA)
     # perde il vincitore e va rilincato; alpha.md non lo implementa più.
     (docs_dir / "alpha.md").write_text(_spec("ZETA"), encoding="utf-8")
     index.incremental_index(qdrant=q, embed_model=stub)
     _assert_consistent_with_rebuild()
-    assert (a_id, "alpha.md") not in _implements(_load_graph())
+    assert (a_id, _sec("alpha.md")) not in _implements(_load_graph())
 
     # PASSO 3 — aggiungi codice: un nuovo simbolo che parla di GAMMA deve agganciare gamma.md,
     # senza toccare l'aggancio (già assente) del simbolo ALPHA.
@@ -478,7 +484,7 @@ def test_incremental_matches_full_rebuild_over_edit_sequence(monkeypatch, tmp_pa
     index.incremental_index(qdrant=q, embed_model=stub)
     _assert_consistent_with_rebuild()
     g_id = "backend/g.py::handle_gamma"
-    assert (g_id, "gamma.md") in _implements(_load_graph())
+    assert (g_id, _sec("gamma.md")) in _implements(_load_graph())
 
     # PASSO 4 — cancella doc: gamma.md sparisce. Il simbolo GAMMA perde il vincitore, l'entità
     # GAMMA resta orfana e va potata; il grafo resta coerente col rebuild.
@@ -486,7 +492,7 @@ def test_incremental_matches_full_rebuild_over_edit_sequence(monkeypatch, tmp_pa
     index.incremental_index(qdrant=q, embed_model=stub)
     _assert_consistent_with_rebuild()
     G = _load_graph()
-    assert (g_id, "gamma.md") not in _implements(G)
+    assert (g_id, _sec("gamma.md")) not in _implements(G)
     assert "GAMMA" not in G and g_id in G
 
 

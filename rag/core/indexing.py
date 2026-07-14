@@ -98,6 +98,28 @@ def _add_doc_to_graph(G: nx.DiGraph, rel_path: str, metadata: dict, body: str) -
     return len(entities), typed_edges
 
 
+# Attributi di autorità che una sezione eredita dal documento padre: sono ciò che guida la
+# ri-ponderazione in core.retrieval (_authority_weight), che deve poter leggere questi campi
+# sia dal payload Qdrant sia dal nodo del grafo. Restare in sync con AUTHORITY_CLASS_WEIGHTS.
+_SECTION_INHERITED_ATTRS = ("classification", "status")
+
+
+def _add_section_nodes(G: nx.DiGraph, doc_id: str, chunks: list[dict], metadata: dict) -> int:
+    """Aggiunge un nodo-SEZIONE (type="section", id = chunk_id) per ogni chunk del documento,
+    con arco `sezione -[PART_OF]-> documento`. La sezione eredita classification/status dal
+    documento (autorità). È il livello di granularità su cui il codice viene collegato
+    (IMPLEMENTS verso la sezione vincente, non l'intero doc) e su cui il retrieval espande il
+    contesto. Chiamato SUBITO dopo _add_doc_to_graph, con gli stessi chunk del retrieval, così
+    full rebuild e incrementale costruiscono una topologia identica. Restituisce il numero di
+    sezioni aggiunte."""
+    inherited = {k: metadata[k] for k in _SECTION_INHERITED_ATTRS if k in metadata}
+    for c in chunks:
+        G.add_node(c["chunk_id"], type="section", doc_id=doc_id,
+                   section=c.get("section", ""), **inherited)
+        G.add_edge(c["chunk_id"], doc_id, relation="PART_OF")
+    return len(chunks)
+
+
 def _remove_doc_nodes_from_graph(G: nx.DiGraph, doc_ids) -> int:
     """Rimuove i soli NODI-DOCUMENTO indicati e gli archi a essi incidenti (MENTIONS
     uscenti, relazioni tipizzate, e l'eventuale IMPLEMENTS entrante da un nodo codice).
@@ -106,6 +128,13 @@ def _remove_doc_nodes_from_graph(G: nx.DiGraph, doc_ids) -> int:
     solo il link `code -> quel documento`. È la staleness accettata sui code-link, che
     viene ripristinata al successivo full rebuild (vedi build_graph_and_index)."""
     removed = 0
+    dead = set(doc_ids)
+    # Prima le sezioni dei documenti in uscita: sono nodi type="section" con attr doc_id nel
+    # set. Rimuovendole cadono anche gli IMPLEMENTS entranti (codice -> sezione) e i PART_OF
+    # uscenti, senza lasciare nodi-sezione orfani (che divergerebbero dal full rebuild).
+    stale_sections = [n for n, a in G.nodes(data=True)
+                      if a.get("type") == "section" and a.get("doc_id") in dead]
+    G.remove_nodes_from(stale_sections)
     for doc_id in doc_ids:
         if doc_id in G and G.nodes[doc_id].get("type") == "document":
             G.remove_node(doc_id)
@@ -236,6 +265,7 @@ def _build_full_state(embed_model, docs_dir: Path, code_dir: Path, emit=None) ->
             continue
         n_entities, typed_edges = _add_doc_to_graph(G, rel_path, metadata, body)
         doc_chunks = chunk_markdown(rel_path, metadata, body)
+        _add_section_nodes(G, rel_path, doc_chunks, metadata)
         for c in doc_chunks:
             c["metadata"] = metadata
         all_chunks.extend(doc_chunks)
@@ -865,6 +895,7 @@ def apply_incremental_indexing(
                 continue
             _add_doc_to_graph(graph, rel_path, metadata, body)
             doc_chunks = chunk_markdown(rel_path, metadata, body)
+            _add_section_nodes(graph, rel_path, doc_chunks, metadata)
             for c in doc_chunks:
                 c["metadata"] = metadata
             new_chunks.extend(doc_chunks)
