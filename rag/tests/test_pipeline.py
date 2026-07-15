@@ -288,3 +288,35 @@ def test_build_canvas_prompt_norme_sono_lente_sull_intervista():
     assert "NON è l'argomento del Canvas" in p
     assert "l'intervista qui sotto" in p or "L'ARGOMENTO del Canvas è UNO SOLO" in p
     assert "se una funzionalità resta sensata dopo aver tolto l'intervista" in p
+
+
+def test_check_scenario_scope_accetta_le_parole_della_feature_come_ancora():
+    # I titoli buoni spesso parlano in termini di UI, non di glossario: "Gestione Erroristica
+    # UI su Form" e' pertinente per la feature "form eventi" pur senza nominare entita'.
+    # Senza questa via d'uscita il controllo segnalava 10/12 in uno spec discreto.
+    ents = ["EVENTO", "RICHIESTA", "UTENTE"]
+    canvas = "L'UTENTE invia una RICHIESTA per un EVENTO tramite form."
+    spec = ("#### Scenario 1: Gestione Erroristica UI su Form\n**GIVEN** x\n\n"
+            "#### Scenario 2: Immutabilita di audit_log\n**GIVEN** y\n")
+    out = pipeline.check_scenario_scope(spec, canvas, ents, feature_name="form eventi")
+    assert [o["title"] for o in out["off_scope"]] == ["Scenario 2: Immutabilita di audit_log"]
+    # Parole corte del nome ("su", "di") non diventano ancore.
+    out2 = pipeline.check_scenario_scope(spec, canvas, ents, feature_name="di su a")
+    assert len(out2["off_scope"]) == 2
+
+
+def test_build_canvas_prompt_ha_la_verifica_finale_del_soggetto():
+    # L'ancora del soggetto a inizio prompt affoga sotto ~18k caratteri di contesto normativo:
+    # la difesa che conta sta in coda, dove il modello la legge per ultima.
+    p = pipeline.build_canvas_prompt("form eventi", "log", "ctx", "frontend")
+    assert "VERIFICA FINALE" in p
+    assert p.index("VERIFICA FINALE") > p.index("ctx")
+    assert 'per "form eventi"' in p
+
+
+def test_build_spec_prompt_ha_verifica_finale_e_vieta_preamboli():
+    p = pipeline.build_spec_prompt("CANVAS", governed_context="NORME", feature_name="form eventi")
+    assert "VERIFICA FINALE" in p and p.index("VERIFICA FINALE") > p.index("NORME")
+    # Lo spec usciva con un preambolo da chat ("Ecco il file..."): il canvas aveva
+    # l'istruzione "solo contenuto del file", lo spec no.
+    assert "senza preamboli" in p

@@ -354,7 +354,8 @@ async def _validate_feature(feature: str) -> dict:
     #     l'LLM locale la aggira (scenari sull'immutabilità di AUDIT_LOG in una feature che il
     #     Canvas dedica alle prenotazioni). Qui il vincolo diventa meccanico, letto dal grafo.
     scope = pipeline.check_scenario_scope(
-        spec_text, canvas_text, pipeline.glossary_entities(snap.graph if snap else None))
+        spec_text, canvas_text, pipeline.glossary_entities(snap.graph if snap else None),
+        feature_name=feature)
 
     # 2. Analisi semantica: coerenza e conflitti rispetto al contesto normativo governato.
     #    Il retrieval è CPU-bound (embedding della query) → threadpool; l'LLM è I/O → async.

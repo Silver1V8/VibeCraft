@@ -242,6 +242,13 @@ def build_canvas_prompt(feature_name: str, contesto_intervista: str,
     6. Norms (Standard di naming e sicurezza, es. restrizioni email)
     7. Safeguards (Vincoli non negoziabili e gestione degli errori concordati nell'intervista)
 
+    VERIFICA FINALE prima di rispondere — rileggi l'intervista in cima e controlla che la
+    sezione Requirements descriva ESATTAMENTE ciò che l'intervista chiede per "{feature_name}",
+    non le funzionalità dei documenti normativi qui sopra: quei documenti descrivono ANCHE
+    altri moduli del sistema (pannelli admin, altre console) che NON sono questa feature.
+    Se una funzionalità che stai per scrivere non è riconducibile a una frase dell'intervista,
+    toglila.
+
     Rispondi esclusivamente con il contenuto del file Markdown, formattato in modo pulito.
     """
 
@@ -309,6 +316,15 @@ def build_spec_prompt(canvas_content: str, governed_context: str = "",
     Non inventare funzionalità non presenti nel Canvas o nei vincoli normativi. Se uno scenario
     nomina una tecnologia o mostra codice, usa ESCLUSIVAMENTE le tecnologie già citate nel
     Canvas: qualsiasi altro linguaggio, libreria o strumento è VIETATO.
+
+    VERIFICA FINALE prima di rispondere — rileggi il Canvas in cima e controlla che ogni
+    scenario discenda da un suo requisito: i vincoli normativi descrivono ANCHE altri moduli
+    del sistema (cataloghi di funzionalità, pannelli, console) che NON sono questa feature,
+    e non vanno trasformati in scenari. Se uno scenario non è riconducibile a una frase del
+    Canvas, toglilo.
+
+    Rispondi esclusivamente con il contenuto del file Markdown, senza preamboli né commenti
+    prima o dopo.
     """
 
 
@@ -384,9 +400,16 @@ def _mentions(text: str, entities: list[str]) -> list[str]:
     return [e for e in entities if _stem(e) in low]
 
 
-def check_scenario_scope(spec_text: str, canvas_text: str, known_entities: list[str]) -> dict:
+def check_scenario_scope(spec_text: str, canvas_text: str, known_entities: list[str],
+                         feature_name: str = "") -> dict:
     """Controllo DETERMINISTICO (nessun LLM) della pertinenza degli scenari: segnala quelli il
-    cui TITOLO non nomina nessuna entità che il Canvas cita.
+    cui TITOLO non nomina né un'entità citata dal Canvas né una parola del nome della feature.
+
+    Le parole della feature contano come àncora perché i titoli buoni spesso parlano in
+    termini di UI e non di glossario («Gestione Erroristica UI su Form» è pertinente per la
+    feature "form eventi" pur senza nominare RICHIESTA): senza questa via d'uscita il
+    controllo segnalava 10 scenari su 12 in uno spec discreto, e un allarme che suona
+    quasi sempre non è un segnale.
 
     Perché il titolo e non il corpo: nel corpo anche uno scenario fuori tema nomina di sfuggita
     un'entità della feature («l'utente tenta di modificare audit_log» contiene UTENTE), mentre
@@ -403,11 +426,15 @@ def check_scenario_scope(spec_text: str, canvas_text: str, known_entities: list[
         return {"scenarios": len(scenarios), "canvas_entities": canvas_entities,
                 "off_scope": [], "checked": False}
 
+    # Àncore = entità del Canvas + parole significative del nome della feature (>=4 caratteri,
+    # per non promuovere articoli e preposizioni ad àncora).
+    anchors = list(canvas_entities) + [w for w in _dev_type_words(feature_name) if len(w) >= 4]
+
     off_scope = []
     for s in scenarios:
         if not s["title"]:
             continue                      # senza titolo non c'è soggetto da giudicare
-        if not _mentions(s["title"], canvas_entities):
+        if not _mentions(s["title"], anchors):
             off_scope.append({"title": s["title"],
                               "foreign_entities": _mentions(s["text"], known_entities)})
     return {"scenarios": len(scenarios), "canvas_entities": canvas_entities,
