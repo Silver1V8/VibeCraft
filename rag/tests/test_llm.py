@@ -168,3 +168,61 @@ def test_ollama_payload_warna_se_il_prompt_sfiora_la_finestra(monkeypatch, caplo
     with caplog.at_level(logging.WARNING, logger="core.llm"):
         llm._ollama_payload("m", "x" * 600)      # ~200 token: nessun warning
     assert not caplog.records
+
+
+def test_check_drift_esclude_node_modules_e_altre_cartelle_di_build(fake_settings, monkeypatch, tmp_path):
+    # rglob("*") senza filtro include node_modules per intero: decine di migliaia di file
+    # .js/.ts non scritti dall'agente, che gonfiano il prompt ben oltre num_ctx (misurato:
+    # ~53 milioni di token stimati su un solo componente, HTTP 500 da Ollama).
+    from core import indexing
+
+    captured = {}
+
+    def _fake_generate(prompt, *, purpose):
+        captured["prompt"] = prompt
+        return "OK"
+
+    monkeypatch.setattr(indexing.llm, "generate", _fake_generate)
+
+    feature = tmp_path / "changes" / "feat-x"
+    feature.mkdir(parents=True)
+    (feature / "canvas.md").write_text("## Requirements\ncontratto", encoding="utf-8")
+    (feature / "meta.json").write_text('{"dev_type": "frontend"}', encoding="utf-8")
+    monkeypatch.setattr(indexing, "CHANGES_DIR", tmp_path / "changes")
+    monkeypatch.setattr(indexing, "CODE_DIR", tmp_path / "code")
+
+    code_dir = tmp_path / "code" / "frontend"
+    (code_dir / "src").mkdir(parents=True)
+    (code_dir / "src" / "Form.tsx").write_text("export const Form = () => null;", encoding="utf-8")
+    nm = code_dir / "node_modules" / "some-pkg"
+    nm.mkdir(parents=True)
+    (nm / "index.js").write_text("x" * 5000, encoding="utf-8")
+
+    indexing.check_drift("feat x", emit=lambda _msg: None)
+    assert "Form.tsx" in captured["prompt"]
+    assert "index.js" not in captured["prompt"]
+    assert "node_modules" not in captured["prompt"]
+
+
+def test_check_drift_tronca_oltre_il_tetto_di_caratteri(fake_settings, monkeypatch, tmp_path):
+    # Anche escludendo node_modules, una feature con molti file sorgente legittimi
+    # potrebbe superare la finestra di contesto: meglio un troncamento esplicito e
+    # segnalato che un prompt enorme spedito a Ollama.
+    from core import indexing
+
+    monkeypatch.setattr(indexing, "_DRIFT_MAX_CODE_CHARS", 100)
+    captured = {}
+    monkeypatch.setattr(indexing.llm, "generate",
+                        lambda prompt, *, purpose: captured.setdefault("prompt", prompt) or "OK")
+
+    feature = tmp_path / "changes" / "feat-x"
+    feature.mkdir(parents=True)
+    (feature / "canvas.md").write_text("## Requirements\n", encoding="utf-8")
+    monkeypatch.setattr(indexing, "CHANGES_DIR", tmp_path / "changes")
+    monkeypatch.setattr(indexing, "CODE_DIR", tmp_path / "code")
+    (feature / "big.py").write_text("y" * 500, encoding="utf-8")
+
+    logs = []
+    indexing.check_drift("feat x", emit=logs.append)
+    assert "[codice troncato" in captured["prompt"]
+    assert any("troncato" in m for m in logs)

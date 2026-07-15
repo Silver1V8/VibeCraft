@@ -1201,6 +1201,22 @@ def _load_dev_type(feature_folder: str) -> str:
         return ""
 
 
+# Cartelle da escludere sempre dalla scansione del codice generato (drift check): dipendenze
+# installate e output di build, mai scritte dall'agente e potenzialmente enormi. Senza
+# questo filtro, un rglob("*") su un progetto con `npm install` già eseguito include
+# node_modules per intero — decine di migliaia di file .js/.ts che gonfiano il prompt ben
+# oltre qualunque num_ctx e Ollama risponde con HTTP 500 (misurato: ~53 milioni di token
+# stimati su un solo componente form).
+_DRIFT_EXCLUDED_DIRS = frozenset({
+    "node_modules", ".git", ".next", "dist", "build", "coverage",
+    ".venv", "venv", "__pycache__", ".turbo", ".cache",
+})
+# Tetto sui caratteri di codice iniettati nel prompt di drift: anche escludendo node_modules,
+# una feature con molti file sorgente potrebbe comunque superare la finestra di contesto.
+# Meglio troncare con un avviso esplicito che affidarsi al solo guardrail di core/llm.py.
+_DRIFT_MAX_CODE_CHARS = 40_000
+
+
 def check_drift(feature_name: str, emit=None) -> str:
     """Controlla se il codice generato si è discostato dalle specifiche del Canvas.
 
@@ -1231,15 +1247,36 @@ def check_drift(feature_name: str, emit=None) -> str:
         search_dirs.append(CODE_DIR / dev_type)
 
     codice_generato = ""
+    truncated = False
     for base in search_dirs:
         if not base.exists():
             continue
         for path in sorted(base.rglob("*")):
-            if path.is_file() and path.suffix in code_exts:
-                codice_generato += f"\n--- FILE: {path.name} ---\n{path.read_text(encoding='utf-8')}\n"
+            if _DRIFT_EXCLUDED_DIRS & set(path.parts):
+                continue
+            if not (path.is_file() and path.suffix in code_exts):
+                continue
+            if len(codice_generato) >= _DRIFT_MAX_CODE_CHARS:
+                truncated = True
+                break
+            chunk = f"\n--- FILE: {path.name} ---\n{path.read_text(encoding='utf-8')}\n"
+            remaining = _DRIFT_MAX_CODE_CHARS - len(codice_generato)
+            if len(chunk) > remaining:
+                # Anche UN solo file può superare il tetto (es. un componente generato molto
+                # lungo): senza questo taglio, il controllo sul giro successivo non basta,
+                # perché qui non c'è un giro successivo.
+                chunk = chunk[:remaining]
+                truncated = True
+                codice_generato += chunk
+                break
+            codice_generato += chunk
 
     if not codice_generato:
         _log("⚠️ Attenzione: Nessun file di codice sorgente trovato. Claude Code / Cursor ha già scritto il codice?")
+    elif truncated:
+        codice_generato = codice_generato[:_DRIFT_MAX_CODE_CHARS]
+        codice_generato += "\n… [codice troncato: troppi file sorgente per il check drift] …"
+        _log(f"⚠️ Codice troncato a {_DRIFT_MAX_CODE_CHARS} caratteri: la feature ha più file sorgente di quanti il check drift possa iniettare nel prompt.")
 
     prompt_drift = f"""
     Sei un Revisore del Codice esperto.
