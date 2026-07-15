@@ -11,12 +11,15 @@ nel report, l'archive salta la review con un warning, le route pipeline restitui
 messaggio come testo). Per i test si inietta un provider fake con `register_provider`.
 """
 import json
+import logging
 import urllib.error
 import urllib.request
 
 import httpx
 
 from core.config import OLLAMA_NUM_CTX, OLLAMA_THINK, OLLAMA_TIMEOUT_SECONDS, config
+
+logger = logging.getLogger(__name__)
 
 
 def _ollama_payload(model: str, prompt: str) -> dict:
@@ -32,6 +35,20 @@ def _ollama_payload(model: str, prompt: str) -> dict:
         payload["think"] = OLLAMA_THINK
     if OLLAMA_NUM_CTX is not None:
         payload["options"] = {"num_ctx": OLLAMA_NUM_CTX}
+        # Guardrail contro il troncamento SILENZIOSO: se il prompt si avvicina alla finestra
+        # (stima conservativa ~3 caratteri/token per l'italiano), il taglio non deve più
+        # passare inosservato come col default 4096. Warning e non errore: la stima è
+        # approssimativa e la generazione può comunque riuscire; ma il log dice subito
+        # dove guardare se il risultato esce mozzato o senza l'inizio del prompt.
+        est_tokens = len(prompt) // 3
+        if est_tokens > OLLAMA_NUM_CTX * 0.8:
+            logger.warning(
+                "Prompt vicino o oltre la finestra di contesto di Ollama: ~%d token stimati "
+                "su num_ctx=%d. Rischio troncamento silenzioso (prompt tagliato dall'alto, "
+                "risposta mozzata): alza llm_settings.ollama_num_ctx in rag_config.yaml o "
+                "riduci i chunk del contesto governato.",
+                est_tokens, OLLAMA_NUM_CTX,
+            )
     return payload
 
 # Scopi riconosciuti della pipeline: usati solo per validare i typo, la risoluzione

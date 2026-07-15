@@ -152,3 +152,19 @@ def test_ollama_payload_include_num_ctx_e_think_solo_se_configurati(monkeypatch)
     monkeypatch.setattr(llm, "OLLAMA_THINK", None)
     p2 = llm._ollama_payload("m", "prompt")
     assert p2 == {"model": "m", "prompt": "prompt", "stream": False}
+
+
+def test_ollama_payload_warna_se_il_prompt_sfiora_la_finestra(monkeypatch, caplog):
+    # Il default 4096 di Ollama troncava i prompt SILENZIOSAMENTE (canvas mozzato, intervista
+    # mai letta): con num_ctx configurato, un prompt vicino alla finestra deve almeno lasciare
+    # una traccia nei log — mai piu' un taglio invisibile.
+    import logging
+    monkeypatch.setattr(llm, "OLLAMA_NUM_CTX", 1000)
+    monkeypatch.setattr(llm, "OLLAMA_THINK", None)
+    with caplog.at_level(logging.WARNING, logger="core.llm"):
+        llm._ollama_payload("m", "x" * 3000)     # ~1000 token stimati = 100% della finestra
+    assert any("troncamento" in r.message for r in caplog.records)
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger="core.llm"):
+        llm._ollama_payload("m", "x" * 600)      # ~200 token: nessun warning
+    assert not caplog.records
