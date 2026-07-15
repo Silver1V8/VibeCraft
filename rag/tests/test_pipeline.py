@@ -250,3 +250,41 @@ def test_stem_non_accorcia_oltre_il_riconoscibile():
     assert pipeline._stem("RICHIESTA") == "richiest"
     assert pipeline._stem("AUDIT_LOG") == "audit_log"     # nessuna vocale finale
     assert pipeline._stem("EVE") == "eve"                  # troppo corto -> intero
+
+
+def test_split_scenarios_riconosce_i_titoli_in_grassetto():
+    # L'LLM alterna intestazioni markdown e titoli in grassetto. Considerando solo le prime,
+    # uno spec scritto tutto in grassetto risultava avere UN solo scenario e il controllo di
+    # pertinenza diventava cieco (caso reale: 4 scenari visti come 1).
+    spec = ("### Specifiche Tecniche\n\n#### Scenari di Test\n\n"
+            "**Scenario 1: Utente invia Richiesta**\n- **GIVEN (Dato che...)**\n  - x\n"
+            "- **THEN (Allora...)**\n  - y\n\n"
+            "**Scenario 2: Immutabilita di audit_log**\n- **GIVEN (Dato che...)**\n  - z\n")
+    sc = pipeline.split_scenarios(spec)
+    assert [s["title"] for s in sc] == ["Scenario 1: Utente invia Richiesta",
+                                        "Scenario 2: Immutabilita di audit_log"]
+
+
+def test_split_scenarios_non_scambia_i_passi_bdd_per_titoli():
+    # "**GIVEN (Dato che...)**" e' un passo, non un titolo: senza il filtro diventerebbe il
+    # "soggetto" dello scenario e il controllo giudicherebbe la parola GIVEN.
+    spec = "**Scenario: Utente invia Richiesta**\n**GIVEN (Dato che...)**\n- x\n**THEN**\n- y\n"
+    sc = pipeline.split_scenarios(spec)
+    assert len(sc) == 1 and sc[0]["title"] == "Scenario: Utente invia Richiesta"
+
+
+def test_build_canvas_prompt_scope_vincola_tutte_le_sezioni():
+    # Il vincolo nominava solo Structure: Approach e Operations restavano libere di progettare
+    # endpoint REST e RBAC in una feature frontend (caso reale segnalato dall'utente).
+    p = pipeline.build_canvas_prompt("Feat", "log", "ctx", "frontend")
+    assert "Vale per TUTTE" in p and "Approach, Structure e Operations" in p
+    assert "VIETATO progettare" in p
+
+
+def test_build_canvas_prompt_norme_sono_lente_sull_intervista():
+    # Stesso schema dello spec: senza dirlo, i documenti normativi diventano l'argomento e il
+    # Canvas descrive funzionalita' che l'intervista non ha mai chiesto.
+    p = pipeline.build_canvas_prompt("Feat", "log intervista", "ctx normativo", "frontend")
+    assert "NON è l'argomento del Canvas" in p
+    assert "l'intervista qui sotto" in p or "L'ARGOMENTO del Canvas è UNO SOLO" in p
+    assert "se una funzionalità resta sensata dopo aver tolto l'intervista" in p

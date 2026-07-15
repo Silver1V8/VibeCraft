@@ -191,9 +191,12 @@ def build_canvas_prompt(feature_name: str, contesto_intervista: str,
     )
     scope_note = (
         f"\n\n    Vincolo di ambito: il tipo di sviluppo richiesto per questa feature è ESCLUSIVAMENTE "
-        f"'{dev_type}' (il codice finale verrà scritto solo in 'code/{dev_type}/'). "
-        f"La sezione Structure deve descrivere layer e componenti pertinenti solo a questo ambito, "
-        f"senza proporre modifiche in altre parti del sistema."
+        f"'{dev_type}' (il codice finale verrà scritto solo in 'code/{dev_type}/'). Vale per TUTTE "
+        f"le 7 sezioni, non solo per Structure: Approach, Structure e Operations devono descrivere "
+        f"esclusivamente lavoro da fare in '{dev_type}'. È VIETATO progettare o elencare come step "
+        f"ciò che vive in altri ambiti (endpoint da creare, tabelle, servizi, controlli lato "
+        f"server se l'ambito è il client, e viceversa): di ciò che sta fuori si può solo dare per "
+        f"esistente l'interfaccia che questa feature consuma."
         if dev_type else ""
     )
     ambito = f" {dev_type}" if dev_type else ""
@@ -214,15 +217,20 @@ def build_canvas_prompt(feature_name: str, contesto_intervista: str,
     return f"""
     Sei un Tech Lead expert. Il tuo compito è generare un REASONS Canvas in formato Markdown per la seguente feature: "{feature_name}".
 
-    Per definire la strategia tecnica, devi basarti PRIORITARIAMENTE sui requisiti e sui casi limite emersi durante l'intervista preliminare (Explore) riportata qui sotto:
+    L'ARGOMENTO del Canvas è UNO SOLO: la feature emersa dall'intervista qui sotto. L'intervista
+    è l'unica fonte di COSA va costruito; tutto ciò che viene dopo sono vincoli su COME, e non
+    può cambiare l'argomento. Non descrivere funzionalità di cui l'intervista non parla.
 
     --- INIZIO LOG INTERVISTA (EXPLORE) ---
     {contesto_intervista}
     --- FINE LOG INTERVISTA ---
 
-    Contesto normativo recuperato dal Graph RAG (ordinato per autorità: rispetta TASSATIVAMENTE
-    i safeguard, i vincoli della matrice permessi e i termini del glossario riportati qui sotto;
-    non contraddirli e riusa i loro codici/entità nelle sezioni Entities, Norms e Safeguards):
+    Contesto normativo recuperato dal Graph RAG. ATTENZIONE: NON è l'argomento del Canvas — è
+    una LENTE sulla feature dell'intervista. Rispetta TASSATIVAMENTE i safeguard, i vincoli
+    della matrice permessi e i termini del glossario riportati qui sotto, non contraddirli e
+    riusa i loro codici/entità nelle sezioni Entities, Norms e Safeguards; ma NON trasformare in
+    requisiti le funzionalità che questi documenti descrivono e che l'intervista non ha chiesto:
+    se una funzionalità resta sensata dopo aver tolto l'intervista, non appartiene a questo Canvas.
     {contesto_progetto_base}{tecnico_block}{lessons_block}{scope_note}
 
     Il REASONS Canvas generato DEVE contenere tassativamente queste 7 sezioni:
@@ -308,10 +316,16 @@ def build_spec_prompt(canvas_content: str, governed_context: str = "",
 # type="entity" è rumore di estrazione (numeri, id di documento, codici di regola) e come
 # dizionario darebbe match casuali.
 _ENTITY_PREFIX = "entity::"
-# Un titolo di scenario: l'intestazione markdown che precede un GIVEN. Regge le varianti che
-# l'LLM produce ("#### Scenario 1: ...", "### Test 2 — ..."), che sono l'unica sintesi
-# esplicita del soggetto dello scenario.
+# Un titolo di scenario: la riga-titolo che precede un GIVEN, unica sintesi esplicita del suo
+# soggetto. L'LLM alterna due forme e vanno riconosciute entrambe: l'intestazione markdown
+# ("#### Scenario 1: ...") e la riga in grassetto ("**Scenario 1: ...**"). Considerando solo
+# la prima, uno spec scritto tutto in grassetto risultava avere un solo scenario gigante e il
+# controllo diventava cieco.
 _HEADING_RE = re.compile(r"^#{1,6}\s+(.+?)\s*$", re.MULTILINE)
+# Solo grassetto a inizio riga: "- **GIVEN (Dato che...)**" è un elemento di lista, non un
+# titolo, e il filtro _BDD_KEYWORDS_RE scarta comunque le righe che sono passi BDD.
+_BOLD_TITLE_RE = re.compile(r"^\*\*(.+?)\*\*\s*:?\s*$", re.MULTILINE)
+_BDD_KEYWORDS_RE = re.compile(r"^\W*(GIVEN|WHEN|THEN|AND|E)\b", re.IGNORECASE)
 _GIVEN_RE = re.compile(r"\bGIVEN\b", re.IGNORECASE)
 
 
@@ -324,11 +338,19 @@ def glossary_entities(graph) -> list[str]:
                   if isinstance(n, str) and n.startswith(_ENTITY_PREFIX))
 
 
+def _titles(spec_text: str) -> list[tuple[int, str]]:
+    """Righe-titolo del documento (markdown o grassetto), in ordine di posizione, escludendo
+    quelle che sono passi BDD ("**GIVEN (Dato che...)**") e non titoli di scenario."""
+    found = [(m.start(), m.group(1)) for m in _HEADING_RE.finditer(spec_text)]
+    found += [(m.start(), m.group(1)) for m in _BOLD_TITLE_RE.finditer(spec_text)]
+    return sorted((pos, t) for pos, t in found if not _BDD_KEYWORDS_RE.match(t))
+
+
 def split_scenarios(spec_text: str) -> list[dict]:
-    """Spezza spec.md in scenari: ognuno è l'intestazione markdown che precede un GIVEN, più
-    il testo fino allo scenario successivo. Il GIVEN è l'ancora (il formato BDD è imposto dal
-    prompt), l'intestazione è il titolo. Gli scenari senza intestazione hanno titolo ''."""
-    headings = [(m.start(), m.group(1)) for m in _HEADING_RE.finditer(spec_text)]
+    """Spezza spec.md in scenari: ognuno è la riga-titolo che precede un GIVEN, più il testo
+    fino allo scenario successivo. Il GIVEN è l'ancora (il formato BDD è imposto dal prompt),
+    la riga-titolo è il soggetto. Gli scenari senza titolo hanno titolo ''."""
+    headings = _titles(spec_text)
     starts: list[tuple[int, str]] = []
     for g in (m.start() for m in _GIVEN_RE.finditer(spec_text)):
         prev = [(pos, title) for pos, title in headings if pos < g]
