@@ -1,0 +1,1 @@
+{"timestamp": "2026-07-15T07:25:18.693037+00:00", "commit": "9033131", "version": "v20260715T072407", "recall": {"recall@10": 1.0}, "n_cases": 34, "source": "gate", "gate": {"passed": true, "min_recall": 0.9}}

@@ -1,3 +1,8 @@
 # Run artifact locali dell'eval harness: non versionati (baseline nel messaggio di commit / commentati altrove).
 *.json
 !.gitignore
+# Eccezione VOLUTA: history.jsonl non è un artifact di un singolo run ma lo storico della
+# qualità del retrieval nel tempo, ed è la fonte dati della pagina /eval — su un clone
+# pulito il trend sarebbe vuoto senza. Append-only: in caso di conflitto si tengono
+# entrambe le righe (sono eventi distinti, ordinati per timestamp).
+!history.jsonl
