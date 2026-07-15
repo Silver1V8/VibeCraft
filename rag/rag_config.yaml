@@ -47,6 +47,17 @@ retrieval:
   # disattiva del tutto il ramo tecnico.
   tech_query: "specifica tecnologica {dev_type}: stack tecnologico, linguaggi e framework, pattern architetturali e struttura delle cartelle del progetto {dev_type}"
 
+  # Campo del frontmatter in cui un documento DICHIARA a quale ambito appartiene: il ramo
+  # tecnico considera solo i documenti che vi elencano il dev_type scelto (in una qualsiasi
+  # grafia: 'logicAgent' trova 'logic-agent', 'logic_agent', 'logicagent'). Non è un
+  # force-include di file noti — è il documento che si dichiara, e chiunque si dichiari
+  # tale compete alla pari; serve perché spec tecnologiche di ambiti diversi sono quasi
+  # gemelle e la sola somiglianza semantica non le separa.
+  # Vuoto = nessuno scoping: il ramo tecnico cerca su tutto l'indice (e può pescare la
+  # spec dell'ambito sbagliato). Se i tuoi documenti dichiarano l'ambito sotto un'altra
+  # chiave, scrivila qui.
+  tech_scope_tag_key: "tags"
+
 # Ri-ponderazione per autorità nel retrieval (core/retrieval.py): i pesi per classe di
 # documento modulano il ranking finale (fonti normative > informative; archiviate < attive).
 # I valori qui sono i default calibrati a mano; ricalibrabili sul golden set con

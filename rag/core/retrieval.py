@@ -2,12 +2,12 @@
 del contesto governato e sintesi LLM. Logica pura: le risorse di runtime (client Qdrant,
 modello di embedding, sidecar ColBERT, grafo, sidecar dei chunk) sono passate come
 parametri espliciti dai chiamanti (dependency injection), non lette da uno stato globale."""
-from typing import Any
+from typing import Any, NamedTuple
 
 import httpx
 import networkx as nx
 import numpy as np
-from qdrant_client.models import SparseVector
+from qdrant_client.models import FieldCondition, Filter, MatchAny, SparseVector
 
 from core.config import (
     AUTHORITY_ARCHIVED_DECAY,
@@ -78,7 +78,8 @@ def rank_by_authority(results: list[dict], *, alpha: float = AUTHORITY_BOOST_ALP
     return results
 
 
-def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_store: dict) -> list[dict]:
+def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_store: dict,
+                  query_filter: Filter | None = None) -> list[dict]:
     """
     Ricerca ibrida a tre livelli (stessa forward pass di bge-m3 per tutti i vettori):
 
@@ -89,6 +90,10 @@ def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_sto
        salgono; quelli presenti in una sola scendono.
     4. Rerank ColBERT — confronto token-per-token (MaxSim) sui candidati fusi,
        per la precisione finale.
+
+    `query_filter` (opzionale) restringe i candidati per payload PRIMA del ranking: serve
+    quando la domanda da sola non separa documenti quasi gemelli (vedi scope_tag_filter).
+    None = ricerca su tutto l'indice, il comportamento di default.
 
     Restituisce i top_k candidati con il breakdown completo del ranking.
     """
@@ -112,6 +117,7 @@ def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_sto
         query=dense_q,
         using="dense",
         limit=fetch_k,
+        query_filter=query_filter,
     ).points
 
     # SparseVector è un'interfaccia di query valida a runtime, ma lo stub di
@@ -126,6 +132,7 @@ def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_sto
         query=sparse_query,
         using="sparse",
         limit=fetch_k,
+        query_filter=query_filter,
     ).points
 
     # Mappa chunk_id -> payload (contiene doc_id padre, section, status/classification),
@@ -185,9 +192,27 @@ def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_sto
     return results[:top_k]
 
 
+def scope_tag_filter(tag_key: str, values: list[str]) -> Filter | None:
+    """Filtro Qdrant «il documento si è dichiarato di questo ambito»: tiene solo i chunk il
+    cui payload ha, sotto `tag_key`, almeno uno dei `values`.
+
+    Non è un force-include di un documento noto: è il documento che dichiara il proprio
+    ambito nel frontmatter, e chiunque si dichiari tale compete alla pari. Serve dove la
+    sola somiglianza semantica non separa documenti quasi gemelli — le spec tecnologiche
+    di ambiti diversi hanno struttura e prosa pressoché identiche, e differiscono per un
+    solo token che il ranking non pesa abbastanza.
+
+    None (nessun filtro) se manca la chiave o i valori: chiamante e config decidono se
+    lo scoping si applica, qui non si inventano convenzioni."""
+    if not tag_key.strip() or not values:
+        return None
+    return Filter(must=[FieldCondition(key=tag_key, match=MatchAny(any=values))])
+
+
 def select_governed_chunks(question: str, *, graph: nx.DiGraph | None, results: list | None = None,
                            top_k: int = 10, max_chunks: int = 8,
-                           qdrant=None, embed_model=None, colbert_store=None) -> list[dict]:
+                           qdrant=None, embed_model=None, colbert_store=None,
+                           query_filter: Filter | None = None) -> list[dict]:
     """Seleziona i CHUNK governati più pertinenti (una sezione per elemento). Il ranking
     ibrido è già ordinato per autorità×rilevanza; qui si filtra ai chunk il cui documento
     padre è nel grafo e si prendono i primi `max_chunks`. Se `results` è fornito, riusa
@@ -199,7 +224,7 @@ def select_governed_chunks(question: str, *, graph: nx.DiGraph | None, results: 
             return []
         try:
             results = hybrid_search(question, top_k, qdrant=qdrant, embed_model=embed_model,
-                                    colbert_store=colbert_store or {})
+                                    colbert_store=colbert_store or {}, query_filter=query_filter)
         except Exception as exc:  # best-effort: il fallback è "nessun contesto"
             print(f"Attenzione: retrieval governato non riuscito: {exc}")
             return []
@@ -264,29 +289,37 @@ def retrieve_governed_context(question: str, *, graph: nx.DiGraph | None, chunks
                              max_chars_per_chunk=max_chars_per_chunk)
 
 
-def retrieve_governed_context_multi(questions: list[tuple[str, int]], *, graph: nx.DiGraph | None,
+class GovernedQuery(NamedTuple):
+    """Un ramo del contesto governato: la domanda, quante sezioni può portare e — opzionale —
+    un filtro di payload che ne restringe l'ambito (vedi scope_tag_filter)."""
+    question: str
+    max_chunks: int
+    query_filter: Filter | None = None
+
+
+def retrieve_governed_context_multi(questions: list[GovernedQuery], *, graph: nx.DiGraph | None,
                                     chunks_store: dict, qdrant, embed_model, colbert_store,
                                     top_k: int = 10, max_chars_per_chunk: int = 3000) -> str:
-    """Come retrieve_governed_context ma su più query indipendenti, ognuna col proprio tetto
-    di sezioni: `questions` è una lista di (domanda, max_chunks).
+    """Come retrieve_governed_context ma su più rami indipendenti, ognuno col proprio tetto
+    di sezioni e il proprio eventuale filtro di ambito (vedi GovernedQuery).
 
     Serve perché una singola domanda non può coprire due esigenze semanticamente distanti:
     il Canvas ha bisogno sia delle norme di dominio («cosa deve fare la feature») sia della
     spec tecnologica dell'ambito («con quale stack va implementata»). Con una query sola le
-    seconde non risalgono mai nel ranking. Ogni ramo resta un retrieval onesto — nessun
-    documento è forzato — e i chunk già visti non vengono ripetuti: il primo ramo che
-    seleziona un chunk se lo tiene, gli altri lo saltano."""
+    seconde non risalgono mai nel ranking. Nessun documento è forzato — i chunk se li
+    contendono i candidati del ramo — e i chunk già visti non vengono ripetuti: il primo
+    ramo che seleziona un chunk se lo tiene, gli altri lo saltano."""
     if graph is None:
         return ""
 
     selected: list[dict] = []
     seen: set[str] = set()
-    for question, max_chunks in questions:
+    for question, max_chunks, query_filter in questions:
         if not question.strip() or max_chunks <= 0:
             continue
         chunks = select_governed_chunks(question, graph=graph, top_k=top_k, max_chunks=max_chunks,
                                         qdrant=qdrant, embed_model=embed_model,
-                                        colbert_store=colbert_store)
+                                        colbert_store=colbert_store, query_filter=query_filter)
         for r in chunks:
             if r["chunk_id"] in seen:
                 continue

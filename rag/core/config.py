@@ -99,6 +99,11 @@ TECH_MAX_CHUNKS: int = int(_retrieval_cfg.get("tech_max_chunks", 3))
 # config perché è vocabolario di progetto, non logica: su un progetto con altra tassonomia
 # (o altra lingua) si riscrive qui senza toccare il codice. Vedi pipeline.build_tech_query.
 TECH_QUERY_TEMPLATE: str = str(_retrieval_cfg.get("tech_query") or "")
+# Campo del payload in cui un documento dichiara il proprio ambito (default: i 'tags' del
+# frontmatter). Il ramo tecnico ci filtra sopra col dev_type scelto: senza, le spec
+# tecnologiche di ambiti diversi — quasi gemelle — si confondono nel ranking. Vuoto =
+# nessuno scoping. Vedi retrieval.scope_tag_filter e pipeline.dev_type_tag_variants.
+TECH_SCOPE_TAG_KEY: str = str(_retrieval_cfg.get("tech_scope_tag_key") or "")
 
 # Eval-gate continuo sulla promozione blue/green (core/eval_gate.py) + golden set del retrieval.
 _eval_gate_cfg: dict = config.get("eval_gate") or {}

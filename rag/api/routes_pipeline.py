@@ -30,7 +30,13 @@ from api.models import (
 )
 from api.routes_reindex import enqueue_full_rebuild
 from core import canvas_review, pipeline, retrieval
-from core.config import CHANGES_DIR, GOVERNED_MAX_CHUNKS, PROJECT_ROOT, TECH_MAX_CHUNKS
+from core.config import (
+    CHANGES_DIR,
+    GOVERNED_MAX_CHUNKS,
+    PROJECT_ROOT,
+    TECH_MAX_CHUNKS,
+    TECH_SCOPE_TAG_KEY,
+)
 from core.indexing import archive_feature, check_drift, check_index_integrity, index_status
 from core.pipeline import (
     build_final_prompt,
@@ -63,10 +69,14 @@ def _governed_context(question: str, snap: IndexSnapshot | None, dev_type: str =
     farebbe mai risalire. Senza dev_type resta il singolo ramo di prima.
     Sincrono (CPU-bound: embedding delle query) → threadpool."""
     graph, chunks, colbert_store = _snap_fields(snap)
-    questions = [(question, GOVERNED_MAX_CHUNKS)]
+    questions = [retrieval.GovernedQuery(question, GOVERNED_MAX_CHUNKS)]
     tech_query = pipeline.build_tech_query(dev_type)
     if tech_query:
-        questions.append((tech_query, TECH_MAX_CHUNKS))
+        # Il ramo tecnico è ristretto ai documenti che si dichiarano di questo ambito: le
+        # spec tecnologiche sono quasi gemelle tra ambiti e la domanda da sola non le separa.
+        tech_filter = retrieval.scope_tag_filter(TECH_SCOPE_TAG_KEY,
+                                                 pipeline.dev_type_tag_variants(dev_type))
+        questions.append(retrieval.GovernedQuery(tech_query, TECH_MAX_CHUNKS, tech_filter))
     return retrieval.retrieve_governed_context_multi(
         questions,
         graph=graph, chunks_store=chunks,

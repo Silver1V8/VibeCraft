@@ -58,3 +58,19 @@ def test_retrieve_governed_context_empty_without_graph():
         "q", graph=None, chunks_store={}, qdrant=None, embed_model=None, colbert_store={}
     )
     assert out == ""
+
+
+def test_scope_tag_filter_matches_any_variant():
+    # Il filtro cerca il dev_type sotto la chiave dichiarata dal documento, in una qualsiasi
+    # delle grafie possibili: e' il doc che si dichiara, non noi che nominiamo dei file.
+    f = retrieval.scope_tag_filter("tags", ["logicagent", "logic-agent"])
+    assert f is not None
+    cond = f.must[0]
+    assert cond.key == "tags"
+    assert cond.match.any == ["logicagent", "logic-agent"]
+
+
+def test_scope_tag_filter_none_when_unconfigured():
+    # Senza chiave (config vuota) o senza valori non si filtra: nessuna convenzione inventata.
+    assert retrieval.scope_tag_filter("", ["frontend"]) is None
+    assert retrieval.scope_tag_filter("tags", []) is None

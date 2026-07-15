@@ -48,6 +48,26 @@ def list_dev_types() -> list[str]:
     return sorted(p.name for p in CODE_DIR.iterdir() if p.is_dir() and not p.name.startswith("."))
 
 
+def _dev_type_words(dev_type: str) -> list[str]:
+    """Scompone il nome di una sottocartella di code/ nelle sue parole: 'logicAgent',
+    'logic_agent' e 'logic-agent' danno tutti ['logic', 'agent']."""
+    spaced = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", dev_type.strip())
+    return spaced.replace("_", " ").replace("-", " ").lower().split()
+
+
+def dev_type_tag_variants(dev_type: str) -> list[str]:
+    """Grafie con cui un documento può essersi taggato per dichiarare l'ambito `dev_type`.
+    La cartella è 'logicAgent' ma il tag può essere 'logic-agent', 'logic_agent',
+    'logicagent' o 'logic agent': si cercano tutte, così la convenzione di tagging del
+    progetto non deve piegarsi a quella dei nomi di cartella (né viceversa).
+    Lista vuota se non c'è un ambito: nessun filtro, vedi retrieval.scope_tag_filter."""
+    words = _dev_type_words(dev_type)
+    if not words:
+        return []
+    variants = ["".join(words), "-".join(words), "_".join(words), " ".join(words), dev_type.strip().lower()]
+    return list(dict.fromkeys(v for v in variants if v))   # unici, ordine stabile
+
+
 def build_tech_query(dev_type: str, template: str = TECH_QUERY_TEMPLATE) -> str:
     """Domanda del ramo TECNICO del retrieval governato: «con quale stack e quali pattern si
     implementa nell'ambito <dev_type>?». È una query semantica come le altre — nessun filtro
@@ -61,7 +81,7 @@ def build_tech_query(dev_type: str, template: str = TECH_QUERY_TEMPLATE) -> str:
     la forma che compare nella prosa dei documenti. Stringa vuota = nessun ramo tecnico."""
     if not dev_type.strip() or not template.strip():
         return ""
-    readable = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", dev_type).replace("_", " ").replace("-", " ").lower()
+    readable = " ".join(_dev_type_words(dev_type))
     # replace() e non format(): il template è testo libero scritto a mano nel config e
     # un'eventuale graffa di troppo non deve far esplodere la generazione del canvas.
     return template.replace("{dev_type}", readable)

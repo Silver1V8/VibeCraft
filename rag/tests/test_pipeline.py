@@ -20,6 +20,17 @@ def test_build_tech_query_uses_config_template_and_humanizes_dev_type():
     assert "logic agent" in pipeline.build_tech_query("logicAgent", tpl)
 
 
+def test_dev_type_tag_variants_covers_tagging_conventions():
+    # La cartella e' 'logicAgent' ma il tag nel frontmatter e' 'logic-agent': il match non
+    # deve dipendere da quale delle due convenzioni ha scelto il progetto.
+    variants = pipeline.dev_type_tag_variants("logicAgent")
+    for expected in ("logicagent", "logic-agent", "logic_agent", "logic agent"):
+        assert expected in variants
+    # Nome di una sola parola: nessuna variante spuria, e niente duplicati.
+    assert pipeline.dev_type_tag_variants("frontend") == ["frontend"]
+    assert pipeline.dev_type_tag_variants("  ") == []
+
+
 def test_build_tech_query_off_without_dev_type_or_template():
     # Senza ambito o senza template configurato il ramo tecnico non parte: su un progetto
     # che non l'ha configurato non ci si inventa una domanda.
