@@ -110,4 +110,4 @@ DOC_EXTS = (".md", ".txt", ".docx", ".xlsx", ".pdf")
 
 # Generazioni con modelli grandi (es. qwen2.5:14b) su CPU possono richiedere diversi minuti:
 # un timeout troppo corto interrompe la richiesta anche quando Ollama sta ancora generando.
-OLLAMA_TIMEOUT_SECONDS = 900.0
+OLLAMA_TIMEOUT_SECONDS = float(os.environ.get("VIBECRAFT_OLLAMA_TIMEOUT_SECONDS", "1800"))
