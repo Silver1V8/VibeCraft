@@ -320,3 +320,22 @@ def test_build_spec_prompt_ha_verifica_finale_e_vieta_preamboli():
     # Lo spec usciva con un preambolo da chat ("Ecco il file..."): il canvas aveva
     # l'istruzione "solo contenuto del file", lo spec no.
     assert "senza preamboli" in p
+
+
+def test_bdd_italiano_riconosciuto_da_structural_e_split():
+    # Il prompt insegna "GIVEN (Dato che...)" e il modello a volte scrive SOLO l'italiano:
+    # uno spec BDD legittimo non deve risultare "senza scenari" o "BDD non valida" per
+    # una questione di lingua (successo con lo spec reale dell'utente).
+    spec = ("## Scenario 01: Badge Sold Out\n"
+            "*   **Dato che** i posti residui sono zero.\n"
+            "*   **Quando** l'utente visualizza la card.\n"
+            "*   **Allora** il pulsante e' disabilitato.\n\n"
+            "## Scenario 02: Richiesta duplicata\n"
+            "*   **Dato che** esiste gia' una RICHIESTA.\n"
+            "*   **Quando** l'utente riprova.\n"
+            "*   **Allora** il form e' bloccato.\n")
+    s = pipeline.validate_structural("## Requirements\n", spec)
+    assert s["spec_bdd_valida"] is True
+    sc = pipeline.split_scenarios(spec)
+    assert [x["title"] for x in sc] == ["Scenario 01: Badge Sold Out",
+                                        "Scenario 02: Richiesta duplicata"]

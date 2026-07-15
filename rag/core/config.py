@@ -79,6 +79,12 @@ LLM_MODEL: str = config["llm_settings"]["models"][LLM_PROVIDER]
 # della pipeline (vedi commento nel config: risposte vuote quando il ragionamento esaurisce
 # la generazione).
 OLLAMA_THINK: bool | None = config["llm_settings"].get("ollama_think")
+# Finestra di contesto richiesta a Ollama (llm_settings.ollama_num_ctx). None = default di
+# Ollama (4096), che pero tronca silenziosamente dall'alto i prompt di canvas/propose
+# (>4.300 token): vedi il commento nel config. Va inviata a ogni richiesta perche non e
+# una proprieta del modello ma della singola generazione.
+_num_ctx = config["llm_settings"].get("ollama_num_ctx")
+OLLAMA_NUM_CTX: int | None = int(_num_ctx) if _num_ctx else None
 
 # Scelta dell'implementazione dei parser di code_index per linguaggio
 # (es. {"typescript": "treesitter"}); assente o "regex" = parser storico.

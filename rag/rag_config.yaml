@@ -20,6 +20,15 @@ llm_settings:
   # supportano il campo `think`).
   ollama_think: false
 
+  # Finestra di contesto richiesta a Ollama (options.num_ctx). SENZA, il default è 4096
+  # token e Ollama TRONCA SILENZIOSAMENTE il prompt dall'alto: i prompt di canvas/propose
+  # superano i 4.300 token, quindi il modello non vedeva l'inizio — cioè l'intervista, il
+  # soggetto della feature — e derivava sul contesto normativo; e la risposta, che divide
+  # la stessa finestra, usciva mozzata (canvas con 4 sezioni su 7, troncato a metà frase).
+  # 16384 copre i prompt attuali con margine; alzarlo aumenta la VRAM del KV cache.
+  # Omesso/null = non inviare il parametro (default di Ollama).
+  ollama_num_ctx: 16384
+
   # Override opzionale provider/modello PER SINGOLO STEP della pipeline (core/llm.py).
   # Scopi riconosciuti: drift, canvas, propose, validate, explore, review.
   # Ogni chiave può indicare provider e/o model; ciò che manca ricade su

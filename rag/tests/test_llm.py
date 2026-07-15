@@ -135,3 +135,20 @@ def test_errore_ollama_connessione_mappato_su_llmerror(monkeypatch):
     monkeypatch.setattr(urllib.request, "urlopen", _fail)
     with pytest.raises(llm.LLMError, match="ERRORE DI CONNESSIONE"):
         llm._ollama_generate("qwen2.5:7b", "ciao", timeout=1.0)
+
+
+def test_ollama_payload_include_num_ctx_e_think_solo_se_configurati(monkeypatch):
+    # num_ctx e' la difesa contro il default 4096 di Ollama, che tronca dall'alto i prompt
+    # di canvas/propose (>4.300 token): senza, il modello non vede l'intervista in cima e
+    # la risposta esce mozzata. think:false evita risposte vuote coi modelli thinking.
+    monkeypatch.setattr(llm, "OLLAMA_NUM_CTX", 16384)
+    monkeypatch.setattr(llm, "OLLAMA_THINK", False)
+    p = llm._ollama_payload("m", "prompt")
+    assert p["options"] == {"num_ctx": 16384}
+    assert p["think"] is False
+    # Non configurati -> payload storico, per compatibilita' con modelli/versioni che non
+    # conoscono questi campi.
+    monkeypatch.setattr(llm, "OLLAMA_NUM_CTX", None)
+    monkeypatch.setattr(llm, "OLLAMA_THINK", None)
+    p2 = llm._ollama_payload("m", "prompt")
+    assert p2 == {"model": "m", "prompt": "prompt", "stream": False}

@@ -16,17 +16,22 @@ import urllib.request
 
 import httpx
 
-from core.config import OLLAMA_THINK, OLLAMA_TIMEOUT_SECONDS, config
+from core.config import OLLAMA_NUM_CTX, OLLAMA_THINK, OLLAMA_TIMEOUT_SECONDS, config
 
 
 def _ollama_payload(model: str, prompt: str) -> dict:
-    """Payload di /api/generate. `think` è incluso solo se configurato (llm_settings.
-    ollama_think): con i modelli thinking (qwen3.5) `false` evita che il ragionamento
-    esaurisca la generazione lasciando la risposta vuota; omesso il payload resta identico
-    a prima, per i modelli che il campo non lo conoscono."""
+    """Payload di /api/generate. Entrambi i campi opzionali sono inclusi solo se configurati
+    (omessi, il payload resta quello storico):
+    · `think` (llm_settings.ollama_think) — con i modelli thinking (qwen3.5) `false` evita
+      che il ragionamento esaurisca la generazione lasciando la risposta vuota;
+    · `options.num_ctx` (llm_settings.ollama_num_ctx) — senza, Ollama resta a 4096 token e
+      TRONCA DALL'ALTO i prompt di canvas/propose (>4.300 token): il modello non vedeva
+      l'intervista in cima e la risposta usciva mozzata."""
     payload = {"model": model, "prompt": prompt, "stream": False}
     if OLLAMA_THINK is not None:
         payload["think"] = OLLAMA_THINK
+    if OLLAMA_NUM_CTX is not None:
+        payload["options"] = {"num_ctx": OLLAMA_NUM_CTX}
     return payload
 
 # Scopi riconosciuti della pipeline: usati solo per validare i typo, la risoluzione

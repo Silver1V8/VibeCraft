@@ -341,8 +341,11 @@ _HEADING_RE = re.compile(r"^#{1,6}\s+(.+?)\s*$", re.MULTILINE)
 # Solo grassetto a inizio riga: "- **GIVEN (Dato che...)**" è un elemento di lista, non un
 # titolo, e il filtro _BDD_KEYWORDS_RE scarta comunque le righe che sono passi BDD.
 _BOLD_TITLE_RE = re.compile(r"^\*\*(.+?)\*\*\s*:?\s*$", re.MULTILINE)
-_BDD_KEYWORDS_RE = re.compile(r"^\W*(GIVEN|WHEN|THEN|AND|E)\b", re.IGNORECASE)
-_GIVEN_RE = re.compile(r"\bGIVEN\b", re.IGNORECASE)
+# Il prompt insegna il formato bilingue («GIVEN (Dato che...)») e il modello a volte scrive
+# SOLO la forma italiana: i marcatori vanno riconosciuti in entrambe le lingue, o uno spec
+# BDD legittimo risulta «senza scenari» (successo davvero con «**Dato che**...»).
+_BDD_KEYWORDS_RE = re.compile(r"^\W*(GIVEN|WHEN|THEN|AND|E|DATO CHE|QUANDO|ALLORA)\b", re.IGNORECASE)
+_GIVEN_RE = re.compile(r"\bGIVEN\b|\bDato che\b", re.IGNORECASE)
 
 
 def glossary_entities(graph) -> list[str]:
@@ -447,9 +450,12 @@ def validate_structural(canvas_text: str, spec_text: str) -> dict:
     canvas_lower = canvas_text.lower()
     spec_upper = spec_text.upper()
     sezioni_canvas = {sec: (sec.lower() in canvas_lower) for sec in CANVAS_SECTIONS}
-    bdd_given = "GIVEN" in spec_upper
-    bdd_when = "WHEN" in spec_upper
-    bdd_then = "THEN" in spec_upper
+    # Marcatori BDD in entrambe le lingue del formato insegnato dal prompt («GIVEN (Dato
+    # che...)»): il modello a volte scrive solo la forma italiana, e uno spec legittimo
+    # non deve risultare «BDD non valida» per una questione di lingua.
+    bdd_given = "GIVEN" in spec_upper or "DATO CHE" in spec_upper
+    bdd_when = "WHEN" in spec_upper or "QUANDO" in spec_upper
+    bdd_then = "THEN" in spec_upper or "ALLORA" in spec_upper
     return {
         "canvas_presente": bool(canvas_text),
         "spec_presente": bool(spec_text),
