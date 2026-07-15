@@ -239,19 +239,33 @@ def build_canvas_prompt(feature_name: str, contesto_intervista: str,
 
 
 def build_spec_prompt(canvas_content: str, governed_context: str = "",
-                      dev_type: str = "") -> str:
+                      dev_type: str = "", feature_name: str = "") -> str:
     """Prompt deterministico per la generazione di spec.md (scenari BDD) a partire dal Canvas
     e dai vincoli normativi governati (equivalente a propose.py).
 
-    NIENTE specifica tecnologica qui: lo stack arriva dal Canvas, che è il contratto. Provato
-    due volte e fallito due volte — messa tra le norme, l'LLM generava scenari che testavano
-    lo stack (test runner, libreria di grafici) invece della feature; messa in un blocco a
-    parte con «non testarla», la ricopiava come preambolo prendendosi un terzo del file. Un
-    documento tecnico nel prompt dello spec finisce per dominarlo, qualunque istruzione lo
-    accompagni. Il vocabolario tecnico serve, ma quello giusto è già nel Canvas."""
+    Due lezioni, stesso schema. Un documento messo nel prompt con l'istruzione «definisci
+    scenari che lo verifichino» ne diventa l'ARGOMENTO, e la feature sparisce:
+    · la spec tecnologica → scenari sul test runner e sulla libreria di grafici (e, vietandoli,
+      il documento ricopiato come preambolo). Qui non c'è più: lo stack lo porta il Canvas.
+    · le norme → uno spec intitolato «Log Audit» con scenari sull'immutabilità dei record,
+      mentre il Canvas parlava d'altro. Le norme però DEVONO produrre scenari (permessi e
+      safeguard sono comportamento vero): non si tolgono, si riformulano come LENTE sulla
+      feature — servono a trovarne i casi limite, non a sostituirne il soggetto.
+
+    `feature_name` ancora QUALE feature, ma è solo un'etichetta: il Canvas resta l'unica fonte
+    di cosa la feature fa. Serve perché col solo Canvas l'LLM derivava sul tema dei documenti
+    recuperati (uno spec su «Dati del DIPENDENTE» per una feature di richiesta eventi); ma va
+    presentato come etichetta e non come definizione, o vince lui sul Canvas — con un nome
+    ambiguo l'LLM si inventava un dominio deducendolo dal titolo."""
+    etichetta = f" (etichetta: «{feature_name}»)" if feature_name else ""
     norme_block = (
-        f"\n\n    Vincoli normativi dal Graph RAG (definisci scenari GIVEN/WHEN/THEN che li verifichino "
-        f"esplicitamente, es. tentativi non autorizzati, casi di errore e invarianti dei safeguard):\n"
+        f"\n\n    Vincoli normativi dal Graph RAG. ATTENZIONE: NON sono l'argomento dello spec — "
+        f"l'argomento è la feature del Canvas, e basta. Servono come LENTE per trovarne i casi "
+        f"limite: da qui ricavi gli scenari negativi CHE LA FEATURE DEVE GESTIRE (tentativi non "
+        f"autorizzati su di essa, suoi casi di errore, invarianti dei safeguard che essa tocca) "
+        f"e i termini/codici esatti da citare. È VIETATO scrivere scenari su parti del sistema "
+        f"che questi documenti nominano ma che la feature non tocca: se uno scenario resta "
+        f"sensato dopo aver tolto la feature, non va scritto.\n"
         f"    {governed_context}"
         if governed_context else ""
     )
@@ -264,7 +278,10 @@ def build_spec_prompt(canvas_content: str, governed_context: str = "",
 
     return f"""
     Sei un Analista Software esperto in metodologie BDD (Behavior-Driven Development).
-    Leggi questo REASONS Canvas:
+    Scrivi le specifiche (spec.md) di UNA SOLA feature: quella descritta dal REASONS Canvas
+    qui sotto{etichetta}. Il Canvas è l'UNICA fonte di cosa la feature fa: l'etichetta serve
+    solo a identificarla, non dedurne requisiti; e nulla di ciò che segue il Canvas può
+    cambiarne il soggetto.
 
     {canvas_content}
 {norme_block}{scope_note}
@@ -277,8 +294,9 @@ def build_spec_prompt(canvas_content: str, governed_context: str = "",
     - THEN (Allora...)
     - AND (E...)
 
-    Ogni scenario deve descrivere un COMPORTAMENTO della feature del Canvas. Non scrivere
-    scenari che verificano lo stack, le librerie o gli strumenti in sé.
+    Ogni scenario deve avere per soggetto la feature del Canvas e descriverne un COMPORTAMENTO
+    osservabile. Non scrivere scenari che verificano lo stack, le librerie o gli strumenti in sé.
+    Niente scenari duplicati: se due differiscono solo nella formulazione, tienine uno.
 
     Non inventare funzionalità non presenti nel Canvas o nei vincoli normativi. Se uno scenario
     nomina una tecnologia o mostra codice, usa ESCLUSIVAMENTE le tecnologie già citate nel

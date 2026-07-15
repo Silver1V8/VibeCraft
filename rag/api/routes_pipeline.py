@@ -247,7 +247,8 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest):
     governed_context = await run_in_threadpool(
         _governed_context, f"{req.feature_folder}\n{canvas_content[:2000]}", current_snapshot()
     )
-    prompt_strutturato = pipeline.build_spec_prompt(canvas_content, governed_context, dev_type)
+    prompt_strutturato = pipeline.build_spec_prompt(canvas_content, governed_context, dev_type,
+                                                    req.feature_folder)
 
     spec_content = await generate_tolerant(prompt_strutturato, purpose="propose")
     folder.mkdir(parents=True, exist_ok=True)

@@ -131,14 +131,39 @@ def test_build_spec_prompt_non_contiene_la_spec_tecnologica():
                                    dev_type="frontend")
     assert "SAFEGUARD-X" in p and "CANVAS con React e Zod" in p
     assert "Stack tecnologico del progetto" not in p
-    # Le due difese che restano: ambito e dizionario chiuso sul Canvas.
     assert "ESCLUSIVAMENTE 'frontend'" in p
     assert "tecnologie già citate nel" in p
     assert "VIETATO" in p
-    assert "scenari che verificano lo stack" in p
+
+
+def test_build_spec_prompt_norme_sono_lente_non_soggetto():
+    # Stesso schema della spec tecnologica: un documento con l'istruzione «definisci scenari
+    # che lo verifichino» ne diventa l'argomento e la feature sparisce (spec intitolati
+    # «Log Audit» / «Dati del DIPENDENTE» per una feature di richiesta eventi). Le norme
+    # restano — sono comportamento vero — ma come lente sulla feature.
+    p = pipeline.build_spec_prompt("CANVAS", governed_context="SAFEGUARD-X",
+                                   feature_name="form eventi")
+    assert "SAFEGUARD-X" in p
+    assert "NON sono l'argomento dello spec" in p
+    # Il criterio operativo che distingue uno scenario della feature da uno sulle norme.
+    assert "se uno scenario resta sensato dopo aver tolto la feature, non va scritto" in p
+
+
+def test_build_spec_prompt_feature_name_e_etichetta_non_definizione():
+    # Il nome ancora QUALE feature, ma non deve vincere sul Canvas: presentato come soggetto
+    # ("l'argomento e' la feature «X»") l'LLM deduceva il dominio dal titolo e inventava
+    # concetti assenti dal Canvas. Il Canvas resta l'unica fonte di COSA fa la feature.
+    p = pipeline.build_spec_prompt("CANVAS", feature_name="form eventi verifica")
+    assert "(etichetta: «form eventi verifica»)" in p
+    assert "Il Canvas è l'UNICA fonte di cosa la feature fa" in p
+    assert "non dedurne requisiti" in p
+    # Il nome compare una volta sola, come etichetta: non ripetuto come soggetto degli scenari.
+    assert p.count("form eventi verifica") == 1
 
 
 def test_build_spec_prompt_senza_dev_type_resta_come_prima():
     p = pipeline.build_spec_prompt("CANVAS", governed_context="SAFEGUARD-X")
     assert "SAFEGUARD-X" in p
     assert "Vincolo di ambito" not in p
+    assert "descritta dal REASONS Canvas" in p   # senza nome il soggetto resta il Canvas
+    assert "etichetta:" not in p                  # nessun nome -> nessuna etichetta inventata
