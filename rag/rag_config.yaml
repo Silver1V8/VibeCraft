@@ -10,25 +10,23 @@ llm_settings:
   models:
     anthropic: "claude-sonnet-5"
     openai: "gpt-4o"
-    ollama: "qwen2.5:7b" # o mistral/llama3
+    ollama: "qwen3.5:9b" # generazione recente, 6.6GB: sta interamente negli 8GB di VRAM di una 3070 Ti
 
   # Override opzionale provider/modello PER SINGOLO STEP della pipeline (core/llm.py).
   # Scopi riconosciuti: drift, canvas, propose, validate, explore, review.
   # Ogni chiave può indicare provider e/o model; ciò che manca ricade su
   # active_provider / models. Esempio: canvas su Claude, il resto su Ollama.
   #
-  # Canvas e Propose sul modello locale più capace (qwen2.5:14b): sono i due step che devono
-  # tenere insieme istruzioni articolate (soggetto dall'intervista, stack dall'ambito, norme
-  # come lente, vincolo di ambito su tutte le sezioni) su prompt lunghi. qwen2.5:7b non ci
-  # arriva — ne "annegava" una alla volta (stack che spariva, soggetto derivato al documento
-  # tecnico). Gli altri step (drift, validate, review, explore) restano sul 7B, più leggero.
-  # Su una macchina con GPU si può alzare ulteriormente il modello qui (es. qwen2.5:32b)
-  # senza toccare il codice.
-  purposes:
-    canvas:
-      model: "qwen2.5:14b"
-    propose:
-      model: "qwen2.5:14b"
+  # Tutti gli step su qwen3.5:9b (vedi models.ollama): generazione più recente di qwen2.5 e
+  # interamente in VRAM su una 3070 Ti — batte il vecchio 14B (che sborderebbe su CPU) sia in
+  # qualità sia in velocità. qwen2.5:7b "annegava" le istruzioni articolate di canvas/propose
+  # (stack che spariva, soggetto derivato al documento tecnico). Per differenziare di nuovo
+  # per step (es. un modello più grosso solo per canvas/propose) riattiva `purposes`:
+  #purposes:
+  #  canvas:
+  #    model: "qwen3.5:27b"
+  #  propose:
+  #    model: "qwen3.5:27b"
 
 vector_database:
   provider: "qdrant"
