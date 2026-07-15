@@ -4,57 +4,174 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>VibeCraft · Trend di Qualità del Retrieval</title>
+
+  <!-- Asset condivisi (estratti dai template per non duplicare CSS/JS) -->
   <link rel="stylesheet" href="/static/shared.css" />
   <script src="/static/shared.js"></script>
+
   <style>
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
-    body { margin: 0; padding: 2rem; font-family: var(--font-body, system-ui, sans-serif); }
-    .wrap { max-width: 920px; margin: 0 auto; }
-    h1 { font-size: 1.4rem; margin: 0 0 0.25rem; }
-    .sub { opacity: 0.7; margin: 0 0 1.5rem; font-size: 0.9rem; }
-    .cards { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
-    .card { border: 1px solid var(--border, #2a3a2a); border-radius: 10px; padding: 1rem 1.25rem; min-width: 150px; }
-    .card .k { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; }
-    .card .v { font-size: 1.8rem; font-weight: 700; margin-top: 0.25rem; }
+
+    /* ═══════════ PALETTE (stessa struttura di graph_analysis.unified.html) ═══════════ */
+    :root[data-theme="matrix"] {
+      --body-bg:#04140a; --body-text:#d8ffe4; --font-main:'JetBrains Mono','Fira Code',Consolas,ui-monospace,monospace;
+      --scrollbar-track:#04140a; --scrollbar-thumb:#1f7a3d; --scrollbar-thumb-hover:#2ea34f;
+      --rain-opacity: 0.28;
+      --header-grad-1:#000000; --header-grad-2:#0a3d1f; --header-grad-3:#000000; --header-border:#123a22;
+      --title-color:#00ff41; --title-glow: 0 0 8px rgba(0,255,65,.5);
+      --sub-text:#4dbf6e;
+      --nav-link-color:#a8f0c0; --nav-link-border:#1f5c38; --nav-link-bg:#04140a; --nav-link-hover-bg:#0a2417;
+      --section-bg:#020f08; --section-border:#123a22;
+      --h2-color:#7dffa0;
+      --muted-text:#4dbf6e; --text-size-sm:11.5px;
+      --control-bg:#04140a; --control-color:#00ff41; --control-border:#1f5c38; --control-hover-bg:#0a2417;
+      --canvas-bg:#010a05; --canvas-border:#0a2417; --canvas-font-family:monospace;
+      --legend-text:#a8f0c0;
+      --tooltip-bg:#000000; --tooltip-border:#00ff41; --tooltip-color:#d8ffe4; --tooltip-shadow:0 0 10px rgba(0,255,65,.3);
+      --up-color:#2ecc71; --down-color:#ff6b6b; --flat-color:#9aa;
+      --grid-color:#123a22; --axis-color:#1f5c38;
+      --dot-gate:#00ff41; --dot-run:#4da3ff; --dot-fail:#ff6b6b;
+
+      --glass-bg: rgba(2,15,8,0.55); --glass-border: rgba(0,255,65,0.16); --glass-shadow: 0 8px 32px rgba(0,0,0,0.55);
+      --glow-shadow-hover: 0 0 26px rgba(0,255,65,0.30), 0 0 52px rgba(0,255,65,0.10);
+      --btn-glow: 0 0 14px rgba(0,255,65,0.30); --btn-glow-hover: 0 0 26px rgba(0,255,65,0.5);
+      --mono-font: 'JetBrains Mono','Fira Code',Consolas,ui-monospace,monospace;
+    }
+
+    :root[data-theme="classic"] {
+      --body-bg:#020617; --body-text:#e2e8f0; --font-main:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
+      --scrollbar-track:#0f172a; --scrollbar-thumb:#475569; --scrollbar-thumb-hover:#64748b;
+      --header-grad-1:#0f172a; --header-grad-2:#1e3a5f; --header-grad-3:#0f172a; --header-border:#1e293b;
+      --title-color:#ffffff; --title-glow: none;
+      --sub-text:#94a3b8;
+      --nav-link-color:#cbd5e1; --nav-link-border:#334155; --nav-link-bg:#0f172a; --nav-link-hover-bg:#1e293b;
+      --section-bg:#0f172a; --section-border:#1e293b;
+      --h2-color:#93c5fd;
+      --muted-text:#94a3b8; --text-size-sm:12px;
+      --control-bg:#1e293b; --control-color:#e2e8f0; --control-border:#334155; --control-hover-bg:#334155;
+      --canvas-bg:#0b1220; --canvas-border:#1e293b; --canvas-font-family:'Inter', sans-serif;
+      --legend-text:#cbd5e1;
+      --tooltip-bg:#0f172a; --tooltip-border:#3b82f6; --tooltip-color:#e2e8f0; --tooltip-shadow:0 2px 12px rgba(0,0,0,.5);
+      --up-color:#16a34a; --down-color:#ef4444; --flat-color:#94a3b8;
+      --grid-color:#1e293b; --axis-color:#334155;
+      --dot-gate:#22c55e; --dot-run:#3b82f6; --dot-fail:#ef4444;
+
+      --glass-bg: rgba(15,23,42,0.55); --glass-border: rgba(255,255,255,0.08); --glass-shadow: 0 8px 24px rgba(15,23,42,0.28);
+      --glow-shadow-hover: 0 12px 32px rgba(59,130,246,0.18);
+      --btn-glow: 0 4px 12px rgba(59,130,246,0.20); --btn-glow-hover: 0 8px 22px rgba(59,130,246,0.32);
+      --mono-font: 'JetBrains Mono','Fira Code',Consolas,ui-monospace,monospace;
+    }
+
+    body {
+      margin: 0; background: var(--body-bg); color: var(--body-text);
+      font-family: var(--font-main);
+    }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+    ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+    header {
+      position: relative; z-index: 10;
+      display: flex; align-items: center; gap: 16px; padding: 14px 22px;
+      background: linear-gradient(135deg, var(--header-grad-1) 0%, var(--header-grad-2) 50%, var(--header-grad-3) 100%);
+      border-bottom: 1px solid var(--header-border); position: sticky; top: 0; z-index: 5;
+    }
+    header > div { flex-shrink: 0; }
+    header h1 { font-size: 16px; margin: 0; color: var(--title-color); text-shadow: var(--title-glow); white-space: nowrap; }
+    header .sub { font-size: 11px; color: var(--sub-text); margin-top: 2px; white-space: nowrap; }
+    header a {
+      margin-left: auto; white-space: nowrap; text-decoration: none; font-size: 12px; color: var(--nav-link-color);
+      border: 1px solid var(--nav-link-border); border-radius: 999px; padding: 6px 12px; background: var(--nav-link-bg);
+    }
+    header a + a { margin-left: 8px; }
+    header a:hover { background: var(--nav-link-hover-bg); color: #fff; }
+    header select#theme-switcher { margin-left: 8px; }
+    main { position: relative; z-index: 10; padding: 20px; max-width: 1180px; margin: 0 auto; }
+    section {
+      position: relative; z-index: 10;
+      background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 14px;
+      padding: 16px 18px; margin-bottom: 22px;
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      box-shadow: var(--glass-shadow);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    section:hover { transform: translateY(-2px); box-shadow: var(--glow-shadow-hover); }
+
+    h2 { font-size: 14px; margin: 0 0 4px; color: var(--h2-color); }
+    .desc { font-size: var(--text-size-sm); color: var(--muted-text); margin: 0 0 12px; line-height: 1.5; }
+
+    .cards { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .card { border: 1px solid var(--section-border); background: var(--canvas-bg); border-radius: 10px; padding: 1rem 1.25rem; min-width: 150px; }
+    .card .k { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-text); }
+    .card .v { font-size: 1.8rem; font-weight: 700; margin-top: 0.25rem; color: var(--body-text); font-family: var(--mono-font); }
     .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600; }
-    .up { background: rgba(46,204,113,0.18); color: #2ecc71; }
-    .down { background: rgba(231,76,60,0.18); color: #e74c3c; }
-    .flat { background: rgba(150,150,150,0.18); color: #9aa; }
-    .chart { border: 1px solid var(--border, #2a3a2a); border-radius: 10px; padding: 1rem; overflow-x: auto; }
+    .up { background: rgba(46,204,113,0.18); color: var(--up-color); }
+    .down { background: rgba(231,76,60,0.18); color: var(--down-color); }
+    .flat { background: rgba(150,150,150,0.18); color: var(--flat-color); }
+
+    .chart { border: 1px solid var(--section-border); background: var(--canvas-bg); border-radius: 10px; padding: 1rem; overflow-x: auto; }
     svg { width: 100%; height: 320px; min-width: 480px; }
-    .axis { stroke: var(--border, #2a3a2a); stroke-width: 1; }
-    .grid { stroke: var(--border, #2a3a2a); stroke-width: 0.5; opacity: 0.4; }
-    .line { fill: none; stroke: #2ecc71; stroke-width: 2; }
-    .dot-gate { fill: #2ecc71; }
-    .dot-run { fill: #3498db; }
-    .dot-fail { fill: #e74c3c; }
-    .lbl { fill: currentColor; font-size: 10px; opacity: 0.7; }
-    .empty { opacity: 0.6; padding: 2rem; text-align: center; }
-    .legend { font-size: 0.8rem; opacity: 0.75; margin-top: 0.75rem; display: flex; gap: 1.25rem; flex-wrap: wrap; }
+    .axis { stroke: var(--axis-color); stroke-width: 1; }
+    .grid { stroke: var(--grid-color); stroke-width: 0.5; opacity: 0.6; }
+    .line { fill: none; stroke: var(--up-color); stroke-width: 2; }
+    .dot-gate { fill: var(--dot-gate); }
+    .dot-run { fill: var(--dot-run); }
+    .dot-fail { fill: var(--dot-fail); }
+    .lbl { fill: var(--muted-text); font-size: 10px; }
+    .empty { color: var(--muted-text); padding: 2rem; text-align: center; font-size: var(--text-size-sm); }
+    .legend { font-size: var(--text-size-sm); color: var(--legend-text); margin-top: 0.75rem; display: flex; gap: 1.25rem; flex-wrap: wrap; }
     .legend span::before { content: "●"; margin-right: 0.35rem; }
-    .lg-gate::before { color: #2ecc71; } .lg-run::before { color: #3498db; } .lg-fail::before { color: #e74c3c; }
+    .lg-gate::before { color: var(--dot-gate); } .lg-run::before { color: var(--dot-run); } .lg-fail::before { color: var(--dot-fail); }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>Trend di Qualità del Retrieval</h1>
-    <p class="sub">recall@10 sul golden set nel tempo — da <code>eval/results/history.jsonl</code>
-      (eval manuali ed eval-gate alla promozione blue/green).</p>
-    <div class="cards" id="cards"></div>
-    <div class="chart" id="chart"><div class="empty">Caricamento…</div></div>
-    <div class="legend">
-      <span class="lg-gate">eval-gate (promozione consentita)</span>
-      <span class="lg-fail">eval-gate (bloccata)</span>
-      <span class="lg-run">eval manuale</span>
+  <canvas id="matrix-rain"></canvas>
+  <div class="scanlines"></div>
+
+  <header>
+    <div>
+      <h1>◇ Trend di Qualità del Retrieval</h1>
+      <div class="sub">recall@10 sul golden set nel tempo</div>
     </div>
-  </div>
+    <a href="/">Console Graph-RAG</a>
+    <a href="/pipeline">Pipeline</a>
+    <a href="/analysis">Analisi</a>
+    <a href="/infografica">Infografica</a>
+
+    <!-- Theme switcher -->
+    <label for="theme-switcher"></label><select id="theme-switcher" onchange="setUiTheme(this.value)">
+      <option value="matrix">🟢 Matrix</option>
+      <option value="classic">☀️ Classico</option>
+    </select>
+  </header>
+
+  <main>
+    <section>
+      <h2>📈 recall@10 nel tempo</h2>
+      <p class="desc">recall@10 sul golden set nel tempo — da <code>eval/results/history.jsonl</code>
+        (eval manuali ed eval-gate alla promozione blue/green).</p>
+      <div class="cards" id="cards"></div>
+      <div class="chart" id="chart"><div class="empty">Caricamento…</div></div>
+      <div class="legend">
+        <span class="lg-gate">eval-gate (promozione consentita)</span>
+        <span class="lg-fail">eval-gate (bloccata)</span>
+        <span class="lg-run">eval manuale</span>
+      </div>
+    </section>
+  </main>
 
   <script>
+    /* themeVar / startMatrixRain / stopMatrixRain / setUiTheme: vedi /static/shared.js */
+
     const KEY = "recall@10";
     function recallOf(e) { return e.recall && e.recall[KEY]; }
 
+    let lastData = null;
+    window.onThemeChange = function () { if (lastData) render(lastData); };
+
     function render(data) {
+      lastData = data;
       const rows = (data.history || []).filter(e => typeof recallOf(e) === "number");
       const s = data.summary || {};
       const trend = s.trend || "flat";
