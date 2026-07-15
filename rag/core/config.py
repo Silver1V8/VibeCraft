@@ -74,6 +74,11 @@ COLLECTION_NAME: str = config["vector_database"]["collection_name"]
 EMBEDDING_MODEL: str = config["vector_database"]["embedding_model"]
 LLM_PROVIDER: str = config["llm_settings"]["active_provider"]
 LLM_MODEL: str = config["llm_settings"]["models"][LLM_PROVIDER]
+# Thinking dei modelli Ollama (rag_config.yaml → llm_settings.ollama_think). None = parametro
+# non inviato (compatibilità con modelli senza campo `think`); false = disattivato, la scelta
+# della pipeline (vedi commento nel config: risposte vuote quando il ragionamento esaurisce
+# la generazione).
+OLLAMA_THINK: bool | None = config["llm_settings"].get("ollama_think")
 
 # Scelta dell'implementazione dei parser di code_index per linguaggio
 # (es. {"typescript": "treesitter"}); assente o "regex" = parser storico.

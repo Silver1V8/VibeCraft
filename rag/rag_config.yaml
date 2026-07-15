@@ -12,6 +12,14 @@ llm_settings:
     openai: "gpt-4o"
     ollama: "qwen3.5:9b" # generazione recente, 6.6GB: sta interamente negli 8GB di VRAM di una 3070 Ti
 
+  # Thinking dei modelli Ollama che lo supportano (qwen3.5). false = disattivato: la pipeline
+  # vuole risposte deterministiche e complete, e col thinking attivo il modello spende
+  # centinaia di token a ragionare (anche ~270 per un "OK") e a volte esaurisce la
+  # generazione nel ragionamento restituendo una RISPOSTA VUOTA — un canvas vuoto è un
+  # fallimento silenzioso. Omesso/null = non inviare il parametro (per modelli che non
+  # supportano il campo `think`).
+  ollama_think: false
+
   # Override opzionale provider/modello PER SINGOLO STEP della pipeline (core/llm.py).
   # Scopi riconosciuti: drift, canvas, propose, validate, explore, review.
   # Ogni chiave può indicare provider e/o model; ciò che manca ricade su

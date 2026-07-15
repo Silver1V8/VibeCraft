@@ -16,7 +16,18 @@ import urllib.request
 
 import httpx
 
-from core.config import OLLAMA_TIMEOUT_SECONDS, config
+from core.config import OLLAMA_THINK, OLLAMA_TIMEOUT_SECONDS, config
+
+
+def _ollama_payload(model: str, prompt: str) -> dict:
+    """Payload di /api/generate. `think` è incluso solo se configurato (llm_settings.
+    ollama_think): con i modelli thinking (qwen3.5) `false` evita che il ragionamento
+    esaurisca la generazione lasciando la risposta vuota; omesso il payload resta identico
+    a prima, per i modelli che il campo non lo conoscono."""
+    payload = {"model": model, "prompt": prompt, "stream": False}
+    if OLLAMA_THINK is not None:
+        payload["think"] = OLLAMA_THINK
+    return payload
 
 # Scopi riconosciuti della pipeline: usati solo per validare i typo, la risoluzione
 # provider/modello funziona per qualunque chiave presente in llm_settings.purposes.
@@ -55,7 +66,7 @@ def resolve(purpose: str) -> tuple[str, str]:
 # ---------------------------------------------------------------------------
 
 def _ollama_generate(model: str, prompt: str, timeout: float) -> str:
-    data = json.dumps({"model": model, "prompt": prompt, "stream": False}).encode("utf-8")
+    data = json.dumps(_ollama_payload(model, prompt)).encode("utf-8")
     req = urllib.request.Request(
         OLLAMA_GENERATE_URL, data=data, headers={"Content-Type": "application/json"},
     )
@@ -76,7 +87,7 @@ def _ollama_generate(model: str, prompt: str, timeout: float) -> str:
 
 
 async def _ollama_agenerate(model: str, prompt: str, timeout: float) -> str:
-    data = {"model": model, "prompt": prompt, "stream": False}
+    data = _ollama_payload(model, prompt)
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(OLLAMA_GENERATE_URL, json=data)
