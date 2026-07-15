@@ -121,3 +121,24 @@ def test_build_agent_context_without_retrieval(tmp_path, monkeypatch):
     assert ctx["confidence_label"] in ("alta", "media", "bassa")
     assert "code/backend/" in ctx["files_to_read"]
     assert ctx["text"].startswith("[AGENT CONTEXT]")
+
+
+def test_build_spec_prompt_non_contiene_la_spec_tecnologica():
+    # Lo stack NON entra nel prompt dello spec: provato due volte, due volte ha dominato il
+    # file (scenari che testavano il test runner; poi il documento ricopiato come preambolo).
+    # Il vocabolario tecnico arriva dal Canvas, che e' il contratto.
+    p = pipeline.build_spec_prompt("CANVAS con React e Zod", governed_context="SAFEGUARD-X",
+                                   dev_type="frontend")
+    assert "SAFEGUARD-X" in p and "CANVAS con React e Zod" in p
+    assert "Stack tecnologico del progetto" not in p
+    # Le due difese che restano: ambito e dizionario chiuso sul Canvas.
+    assert "ESCLUSIVAMENTE 'frontend'" in p
+    assert "tecnologie già citate nel" in p
+    assert "VIETATO" in p
+    assert "scenari che verificano lo stack" in p
+
+
+def test_build_spec_prompt_senza_dev_type_resta_come_prima():
+    p = pipeline.build_spec_prompt("CANVAS", governed_context="SAFEGUARD-X")
+    assert "SAFEGUARD-X" in p
+    assert "Vincolo di ambito" not in p

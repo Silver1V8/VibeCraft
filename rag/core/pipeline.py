@@ -171,11 +171,17 @@ def build_final_prompt(folder_name: str, dev_type: str = "") -> str:
 
 def build_canvas_prompt(feature_name: str, contesto_intervista: str,
                         contesto_progetto_base: str, dev_type: str = "",
-                        lessons: str = "") -> str:
+                        lessons: str = "", contesto_tecnico: str = "") -> str:
     """Prompt deterministico per la generazione del REASONS Canvas (equivalente a canvas.py),
     ancorato al log Explore e al contesto normativo governato. `lessons` (opzionale) sono
     le divergenze canvas<->codice emerse nelle review delle change archiviate più simili:
-    con stringa vuota il prompt resta identico a prima (il loop di apprendimento è additivo)."""
+    con stringa vuota il prompt resta identico a prima (il loop di apprendimento è additivo).
+
+    `contesto_tecnico` (le specifiche tecnologiche dell'ambito) va in un blocco PROPRIO e non
+    insieme alle norme: il blocco normativo dice «rispetta i safeguard e riusa i codici in
+    Entities/Norms/Safeguards», istruzione che non ha senso per uno stack e che lasciava
+    l'LLM senza indicazioni su dove usarlo — infatti lo ignorava. Lo stack serve a Approach
+    e Structure, e questo blocco glielo dice."""
     lessons_block = (
         f"\n\n    Lezioni dalle change precedenti (divergenze canvas<->codice emerse dalle review "
         f"delle change archiviate più simili a questa): il nuovo Canvas deve evitare questi punti "
@@ -190,6 +196,20 @@ def build_canvas_prompt(feature_name: str, contesto_intervista: str,
         f"senza proporre modifiche in altre parti del sistema."
         if dev_type else ""
     )
+    ambito = f" {dev_type}" if dev_type else ""
+    tecnico_block = (
+        f"\n\n    Specifiche tecnologiche vincolanti per l'ambito{ambito} (stack, linguaggi, "
+        f"librerie e struttura del progetto GIÀ DECISI: non sono suggerimenti). Le sezioni "
+        f"Approach, Structure e Operations DEVONO adottare ESATTAMENTE queste tecnologie, "
+        f"chiamandole COL LORO NOME. In particolare:\n"
+        f"    - dove qui è indicata una libreria per un compito (validazione, chiamate HTTP, "
+        f"stile, grafici...), usa QUELLA e citala per nome: è VIETATO inventarne un'altra, "
+        f"scrivere un'alternativa 'o simile', o restare sul generico.\n"
+        f"    - non sono requisiti da verificare né contenuto da riassumere: sono il COME si "
+        f"costruisce, e servono solo a rendere concreti Approach, Structure e Operations.\n"
+        f"    {contesto_tecnico}"
+        if contesto_tecnico else ""
+    )
 
     return f"""
     Sei un Tech Lead expert. Il tuo compito è generare un REASONS Canvas in formato Markdown per la seguente feature: "{feature_name}".
@@ -203,7 +223,7 @@ def build_canvas_prompt(feature_name: str, contesto_intervista: str,
     Contesto normativo recuperato dal Graph RAG (ordinato per autorità: rispetta TASSATIVAMENTE
     i safeguard, i vincoli della matrice permessi e i termini del glossario riportati qui sotto;
     non contraddirli e riusa i loro codici/entità nelle sezioni Entities, Norms e Safeguards):
-    {contesto_progetto_base}{lessons_block}{scope_note}
+    {contesto_progetto_base}{tecnico_block}{lessons_block}{scope_note}
 
     Il REASONS Canvas generato DEVE contenere tassativamente queste 7 sezioni:
     1. Requirements (Cosa deve fare il modulo, estrapolato dall'intervista)
@@ -218,14 +238,28 @@ def build_canvas_prompt(feature_name: str, contesto_intervista: str,
     """
 
 
-def build_spec_prompt(canvas_content: str, governed_context: str = "") -> str:
+def build_spec_prompt(canvas_content: str, governed_context: str = "",
+                      dev_type: str = "") -> str:
     """Prompt deterministico per la generazione di spec.md (scenari BDD) a partire dal Canvas
-    e dai vincoli normativi governati (equivalente a propose.py)."""
+    e dai vincoli normativi governati (equivalente a propose.py).
+
+    NIENTE specifica tecnologica qui: lo stack arriva dal Canvas, che è il contratto. Provato
+    due volte e fallito due volte — messa tra le norme, l'LLM generava scenari che testavano
+    lo stack (test runner, libreria di grafici) invece della feature; messa in un blocco a
+    parte con «non testarla», la ricopiava come preambolo prendendosi un terzo del file. Un
+    documento tecnico nel prompt dello spec finisce per dominarlo, qualunque istruzione lo
+    accompagni. Il vocabolario tecnico serve, ma quello giusto è già nel Canvas."""
     norme_block = (
         f"\n\n    Vincoli normativi dal Graph RAG (definisci scenari GIVEN/WHEN/THEN che li verifichino "
         f"esplicitamente, es. tentativi non autorizzati, casi di errore e invarianti dei safeguard):\n"
         f"    {governed_context}"
         if governed_context else ""
+    )
+    scope_note = (
+        f"\n\n    Vincolo di ambito: questa feature è ESCLUSIVAMENTE '{dev_type}'. Gli scenari devono "
+        f"descrivere comportamento osservabile in questo ambito; non scrivere scenari su parti del "
+        f"sistema fuori da esso."
+        if dev_type else ""
     )
 
     return f"""
@@ -233,7 +267,7 @@ def build_spec_prompt(canvas_content: str, governed_context: str = "") -> str:
     Leggi questo REASONS Canvas:
 
     {canvas_content}
-{norme_block}
+{norme_block}{scope_note}
 
     Basandoti sulle regole e sui requisiti del Canvas (e sui vincoli normativi qui sopra, se presenti),
     scrivi il file delle specifiche tecniche (spec.md).
@@ -243,7 +277,12 @@ def build_spec_prompt(canvas_content: str, governed_context: str = "") -> str:
     - THEN (Allora...)
     - AND (E...)
 
-    Non inventare funzionalità non presenti nel Canvas o nei vincoli normativi.
+    Ogni scenario deve descrivere un COMPORTAMENTO della feature del Canvas. Non scrivere
+    scenari che verificano lo stack, le librerie o gli strumenti in sé.
+
+    Non inventare funzionalità non presenti nel Canvas o nei vincoli normativi. Se uno scenario
+    nomina una tecnologia o mostra codice, usa ESCLUSIVAMENTE le tecnologie già citate nel
+    Canvas: qualsiasi altro linguaggio, libreria o strumento è VIETATO.
     """
 
 

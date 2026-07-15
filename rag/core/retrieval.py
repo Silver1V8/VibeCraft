@@ -2,7 +2,7 @@
 del contesto governato e sintesi LLM. Logica pura: le risorse di runtime (client Qdrant,
 modello di embedding, sidecar ColBERT, grafo, sidecar dei chunk) sono passate come
 parametri espliciti dai chiamanti (dependency injection), non lette da uno stato globale."""
-from typing import Any, NamedTuple
+from typing import Any
 
 import httpx
 import networkx as nx
@@ -274,62 +274,23 @@ def _serialize_chunks(chunks: list[dict], *, graph: nx.DiGraph, chunks_store: di
 def retrieve_governed_context(question: str, *, graph: nx.DiGraph | None, chunks_store: dict,
                               qdrant, embed_model, colbert_store,
                               top_k: int = 10, max_chunks: int = 8,
-                              max_chars_per_chunk: int = 3000) -> str:
+                              max_chars_per_chunk: int = 3000,
+                              query_filter: Filter | None = None) -> str:
     """Recupera i CHUNK normativi pertinenti (le sezioni, non i documenti interi troncati)
     e li serializza come testo per Canvas/Propose/Validate. Selezione dei chunk PRIMA, poi
-    eventuale cap leggero per chunk: niente più truncation-first del documento intero."""
+    eventuale cap leggero per chunk: niente più truncation-first del documento intero.
+
+    `query_filter` restringe l'ambito della ricerca (vedi scope_tag_filter): serve al ramo
+    tecnico del Canvas, che cerca solo tra i documenti dell'ambito dichiarato."""
     chunks = select_governed_chunks(question, graph=graph, top_k=top_k, max_chunks=max_chunks,
-                                    qdrant=qdrant, embed_model=embed_model, colbert_store=colbert_store)
+                                    qdrant=qdrant, embed_model=embed_model, colbert_store=colbert_store,
+                                    query_filter=query_filter)
     # select_governed_chunks ritorna [] se graph è None: la riga sotto non è mai raggiunta
     # in quel caso, ma il controllo esplicito narrowa il tipo (graph non più Optional da qui in poi).
     if not chunks or graph is None:
         return ""
 
     return _serialize_chunks(chunks, graph=graph, chunks_store=chunks_store,
-                             max_chars_per_chunk=max_chars_per_chunk)
-
-
-class GovernedQuery(NamedTuple):
-    """Un ramo del contesto governato: la domanda, quante sezioni può portare e — opzionale —
-    un filtro di payload che ne restringe l'ambito (vedi scope_tag_filter)."""
-    question: str
-    max_chunks: int
-    query_filter: Filter | None = None
-
-
-def retrieve_governed_context_multi(questions: list[GovernedQuery], *, graph: nx.DiGraph | None,
-                                    chunks_store: dict, qdrant, embed_model, colbert_store,
-                                    top_k: int = 10, max_chars_per_chunk: int = 3000) -> str:
-    """Come retrieve_governed_context ma su più rami indipendenti, ognuno col proprio tetto
-    di sezioni e il proprio eventuale filtro di ambito (vedi GovernedQuery).
-
-    Serve perché una singola domanda non può coprire due esigenze semanticamente distanti:
-    il Canvas ha bisogno sia delle norme di dominio («cosa deve fare la feature») sia della
-    spec tecnologica dell'ambito («con quale stack va implementata»). Con una query sola le
-    seconde non risalgono mai nel ranking. Nessun documento è forzato — i chunk se li
-    contendono i candidati del ramo — e i chunk già visti non vengono ripetuti: il primo
-    ramo che seleziona un chunk se lo tiene, gli altri lo saltano."""
-    if graph is None:
-        return ""
-
-    selected: list[dict] = []
-    seen: set[str] = set()
-    for question, max_chunks, query_filter in questions:
-        if not question.strip() or max_chunks <= 0:
-            continue
-        chunks = select_governed_chunks(question, graph=graph, top_k=top_k, max_chunks=max_chunks,
-                                        qdrant=qdrant, embed_model=embed_model,
-                                        colbert_store=colbert_store, query_filter=query_filter)
-        for r in chunks:
-            if r["chunk_id"] in seen:
-                continue
-            seen.add(r["chunk_id"])
-            selected.append(r)
-
-    if not selected:
-        return ""
-
-    return _serialize_chunks(selected, graph=graph, chunks_store=chunks_store,
                              max_chars_per_chunk=max_chars_per_chunk)
 
 
