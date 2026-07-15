@@ -167,3 +167,86 @@ def test_build_spec_prompt_senza_dev_type_resta_come_prima():
     assert "Vincolo di ambito" not in p
     assert "descritta dal REASONS Canvas" in p   # senza nome il soggetto resta il Canvas
     assert "etichetta:" not in p                  # nessun nome -> nessuna etichetta inventata
+
+
+def test_split_scenarios_usa_il_titolo_che_precede_il_given():
+    spec = ("# Preambolo da ignorare\n\n"
+            "#### Scenario 1: Utente invia Richiesta\n**GIVEN** x\n**THEN** y\n\n"
+            "#### Scenario 2: Immutabilita di audit_log\n**GIVEN** z\n**THEN** w\n")
+    sc = pipeline.split_scenarios(spec)
+    assert [s["title"] for s in sc] == ["Scenario 1: Utente invia Richiesta",
+                                        "Scenario 2: Immutabilita di audit_log"]
+    assert "**GIVEN** x" in sc[0]["text"] and "**GIVEN** z" not in sc[0]["text"]
+
+
+def test_check_scenario_scope_segnala_solo_i_titoli_fuori_tema():
+    # Caso reale: il Canvas parla di prenotazioni (EVENTO/RICHIESTA/UTENTE) e non nomina mai
+    # AUDIT_LOG, ma lo spec ci infila scenari sull'immutabilita della tabella.
+    ents = ["AUDIT_LOG", "BUDGET_ANNUO", "EVENTO", "NOTIFICA", "RICHIESTA", "UTENTE"]
+    canvas = "Il modulo permette all'UTENTE di inviare una RICHIESTA per un EVENTO."
+    spec = ("#### Scenario 1: Utente Dipendente Sottomette una Nuova Richiesta\n"
+            "**GIVEN** l'utente e' autenticato\n"
+            "**THEN** una email di notifica e' inviata al manager\n\n"
+            "#### Scenario 2: Immutabilita della Tabella audit_log\n"
+            "**GIVEN** l'utente tenta di modificare audit_log\n**THEN** eccezione\n")
+    out = pipeline.check_scenario_scope(spec, canvas, ents)
+    assert out["checked"] is True and out["scenarios"] == 2
+    assert sorted(out["canvas_entities"]) == ["EVENTO", "RICHIESTA", "UTENTE"]
+    assert [o["title"] for o in out["off_scope"]] == ["Scenario 2: Immutabilita della Tabella audit_log"]
+    # Lo scenario 2 e' segnalato con l'entita' estranea che lo tradisce.
+    assert "AUDIT_LOG" in out["off_scope"][0]["foreign_entities"]
+
+
+def test_check_scenario_scope_non_scarta_scenari_buoni():
+    # Perche' il TITOLO e non il corpo: uno scenario buono nomina nel corpo entita' fuori dal
+    # Canvas ("email di NOTIFICA"), e uno fuori tema nomina di sfuggita UTENTE. Sul corpo, i
+    # criteri ovvi sbagliano entrambi i versi; sul titolo no.
+    ents = ["AUDIT_LOG", "NOTIFICA", "RICHIESTA", "UTENTE"]
+    canvas = "L'UTENTE invia una RICHIESTA."
+    buono = ("#### Scenario: Utente invia una Richiesta\n**GIVEN** x\n"
+             "**THEN** parte una notifica al manager\n")
+    assert pipeline.check_scenario_scope(buono, canvas, ents)["off_scope"] == []
+    fuori = "#### Scenario: Immutabilita di audit_log\n**GIVEN** l'utente prova a modificare\n"
+    assert len(pipeline.check_scenario_scope(fuori, canvas, ents)["off_scope"]) == 1
+
+
+def test_check_scenario_scope_muto_senza_grafo_o_senza_titoli():
+    # Nessuna entita' nota (grafo assente): non si giudica, invece di inventare un dizionario.
+    out = pipeline.check_scenario_scope("#### S\n**GIVEN** x\n", "canvas", [])
+    assert out["checked"] is False and out["off_scope"] == []
+    # Scenari senza intestazione: nessun soggetto da valutare, nessun falso positivo.
+    out2 = pipeline.check_scenario_scope("1. **GIVEN** x\n2. **GIVEN** y\n",
+                                         "L'UTENTE invia", ["UTENTE"])
+    assert out2["off_scope"] == []
+
+
+def test_glossary_entities_ignora_il_rumore_di_estrazione():
+    import networkx as nx
+    g = nx.DiGraph()
+    g.add_node("entity::EVENTO", type="entity")
+    g.add_node("entity::UTENTE", type="entity")
+    g.add_node("5", type="entity")                  # rumore: numeri, codici regola, id doc
+    g.add_node("REGOLA-VAL-01", type="entity")
+    g.add_node("`EVENTO`", type="entity")           # duplicato con backtick
+    g.add_node("02_specs/spec.md", type="document")
+    assert pipeline.glossary_entities(g) == ["EVENTO", "UTENTE"]
+    assert pipeline.glossary_entities(None) == []
+
+
+def test_check_scenario_scope_riconosce_i_plurali_italiani():
+    # Il glossario ha i singolari (EVENTO), gli scenari scrivono i plurali ("Lista degli
+    # Eventi"): senza radice il titolo risultava privo di entita' e veniva segnalato a torto.
+    ents = ["EVENTO", "RICHIESTA", "UTENTE", "NOTIFICA"]
+    canvas = "L'UTENTE invia una RICHIESTA per un EVENTO."
+    spec = ("#### Scenario 1: Visualizzazione della Lista degli Eventi\n**GIVEN** x\n\n"
+            "#### Scenario 2: Il Manager vede le Richieste degli Utenti\n**GIVEN** y\n")
+    assert pipeline.check_scenario_scope(spec, canvas, ents)["off_scope"] == []
+
+
+def test_stem_non_accorcia_oltre_il_riconoscibile():
+    # Nomi senza vocali finali o troppo corti restano interi: la radice non deve diventare
+    # cosi' generica da matchare qualsiasi cosa.
+    assert pipeline._stem("EVENTO") == "event"
+    assert pipeline._stem("RICHIESTA") == "richiest"
+    assert pipeline._stem("AUDIT_LOG") == "audit_log"     # nessuna vocale finale
+    assert pipeline._stem("EVE") == "eve"                  # troppo corto -> intero

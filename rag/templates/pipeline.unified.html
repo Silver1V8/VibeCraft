@@ -892,8 +892,26 @@
         const data = await res.json();
         const s = data.structural || {};
         const chip = (ok, label) => `<span class="px-2 py-0.5 rounded-full border ${ok ? 'border-emerald-800 text-emerald-400' : 'border-red-900 text-red-400'}">${ok ? '✅' : '❌'} ${label}</span>`;
-        struct.innerHTML = [chip(s.canvas_completo, 'Canvas · 7 sezioni'), chip(s.spec_bdd_valida, 'Spec · GIVEN/WHEN/THEN')].join('');
-        box.textContent = data.report || '(nessun report)';
+        const chips = [chip(s.canvas_completo, 'Canvas · 7 sezioni'), chip(s.spec_bdd_valida, 'Spec · GIVEN/WHEN/THEN')];
+        // Pertinenza degli scenari: controllo deterministico, advisory. Chip ambra e non
+        // rossa perche' e un'euristica sul titolo — segnala, non boccia.
+        const sc = data.scenario_scope || {};
+        if (sc.checked) {
+          const n = (sc.off_scope || []).length;
+          chips.push(n === 0
+            ? chip(true, `Spec · ${sc.scenarios} scenari sulla feature`)
+            : `<span class="px-2 py-0.5 rounded-full border border-amber-800 text-amber-400">⚠️ ${n}/${sc.scenarios} scenari fuori tema</span>`);
+        }
+        struct.innerHTML = chips.join('');
+        const off = (sc.off_scope || []);
+        const offText = off.length
+          ? `\n\n⚠️ SCENARI FUORI TEMA (controllo deterministico: il titolo non nomina nessuna `
+            + `entita citata dal Canvas — ${(sc.canvas_entities || []).join(', ')}):\n`
+            + off.map(o => `  • ${o.title}`
+                + (o.foreign_entities.length ? `\n      entita estranee: ${o.foreign_entities.join(', ')}` : '')).join('\n')
+            + `\n  (segnalazione, non un verdetto: rileggili e togli quelli che non riguardano la feature)`
+          : '';
+        box.textContent = (data.report || '(nessun report)') + offText;
       } catch (e) {
         box.textContent = `❌ Errore: ${e.message}`;
       } finally {

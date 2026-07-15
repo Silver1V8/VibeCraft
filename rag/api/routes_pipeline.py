@@ -348,12 +348,20 @@ async def _validate_feature(feature: str) -> dict:
     if not canvas_text:
         return {"structural": structural, "report": "❌ canvas.md assente: genera prima il Canvas."}
 
+    snap = current_snapshot()
+    # 1b. Pertinenza degli scenari, deterministica: il prompt di propose vieta gli scenari che
+    #     non parlano della feature, ma è una difesa che dipende dall'obbedienza del modello e
+    #     l'LLM locale la aggira (scenari sull'immutabilità di AUDIT_LOG in una feature che il
+    #     Canvas dedica alle prenotazioni). Qui il vincolo diventa meccanico, letto dal grafo.
+    scope = pipeline.check_scenario_scope(
+        spec_text, canvas_text, pipeline.glossary_entities(snap.graph if snap else None))
+
     # 2. Analisi semantica: coerenza e conflitti rispetto al contesto normativo governato.
     #    Il retrieval è CPU-bound (embedding della query) → threadpool; l'LLM è I/O → async.
-    governed = await run_in_threadpool(_governed_context, f"{feature}\n{canvas_text[:2000]}", current_snapshot())
+    governed = await run_in_threadpool(_governed_context, f"{feature}\n{canvas_text[:2000]}", snap)
     prompt = pipeline.build_validate_prompt(canvas_text, spec_text, governed)
     report = await generate_tolerant(prompt, purpose="validate")
-    return {"structural": structural, "report": report}
+    return {"structural": structural, "scenario_scope": scope, "report": report}
 
 
 @router.post("/api/pipeline/validate")

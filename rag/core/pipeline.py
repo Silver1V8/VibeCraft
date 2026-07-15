@@ -304,6 +304,94 @@ def build_spec_prompt(canvas_content: str, governed_context: str = "",
     """
 
 
+# Entità canoniche del glossario: i nodi-entità con prefisso 'entity::'. Il resto dei nodi
+# type="entity" è rumore di estrazione (numeri, id di documento, codici di regola) e come
+# dizionario darebbe match casuali.
+_ENTITY_PREFIX = "entity::"
+# Un titolo di scenario: l'intestazione markdown che precede un GIVEN. Regge le varianti che
+# l'LLM produce ("#### Scenario 1: ...", "### Test 2 — ..."), che sono l'unica sintesi
+# esplicita del soggetto dello scenario.
+_HEADING_RE = re.compile(r"^#{1,6}\s+(.+?)\s*$", re.MULTILINE)
+_GIVEN_RE = re.compile(r"\bGIVEN\b", re.IGNORECASE)
+
+
+def glossary_entities(graph) -> list[str]:
+    """Entità canoniche del glossario, dal grafo. Vuoto se il grafo non c'è: il controllo a
+    valle si limita a non dire nulla, invece di inventarsi un dizionario."""
+    if graph is None:
+        return []
+    return sorted(n[len(_ENTITY_PREFIX):] for n in graph.nodes
+                  if isinstance(n, str) and n.startswith(_ENTITY_PREFIX))
+
+
+def split_scenarios(spec_text: str) -> list[dict]:
+    """Spezza spec.md in scenari: ognuno è l'intestazione markdown che precede un GIVEN, più
+    il testo fino allo scenario successivo. Il GIVEN è l'ancora (il formato BDD è imposto dal
+    prompt), l'intestazione è il titolo. Gli scenari senza intestazione hanno titolo ''."""
+    headings = [(m.start(), m.group(1)) for m in _HEADING_RE.finditer(spec_text)]
+    starts: list[tuple[int, str]] = []
+    for g in (m.start() for m in _GIVEN_RE.finditer(spec_text)):
+        prev = [(pos, title) for pos, title in headings if pos < g]
+        start, title = prev[-1] if prev else (g, "")
+        if not starts or start > starts[-1][0]:
+            starts.append((start, title))
+
+    out = []
+    for i, (start, title) in enumerate(starts):
+        end = starts[i + 1][0] if i + 1 < len(starts) else len(spec_text)
+        out.append({"title": title, "text": spec_text[start:end]})
+    return out
+
+
+def _stem(entity: str) -> str:
+    """Radice di un'entità per il match in prosa: via le vocali finali, così il singolare del
+    glossario riconosce il plurale italiano che gli scenari usano davvero — EVENTO→'event'
+    trova «eventi», RICHIESTA→'richiest' trova «richieste», UTENTE→'utent' trova «utenti».
+    Senza, «Lista degli Eventi» risultava priva di entità e veniva segnalata a torto.
+    Si accorcia solo finché resta una radice lunga: su nomi corti o senza vocali finali
+    (AUDIT_LOG) si usa l'entità intera, che è già discriminante."""
+    stem = entity.lower().rstrip("aeiou")
+    return stem if len(stem) >= 4 else entity.lower()
+
+
+def _mentions(text: str, entities: list[str]) -> list[str]:
+    """Entità nominate in `text`, per radice e case-insensitive: gli scenari citano le entità
+    in prosa minuscola e al plurale («l'utente», «gli eventi») anche quando il glossario le
+    vuole in maiuscolo e al singolare. Un match esatto scarterebbe proprio gli scenari buoni."""
+    low = text.lower()
+    return [e for e in entities if _stem(e) in low]
+
+
+def check_scenario_scope(spec_text: str, canvas_text: str, known_entities: list[str]) -> dict:
+    """Controllo DETERMINISTICO (nessun LLM) della pertinenza degli scenari: segnala quelli il
+    cui TITOLO non nomina nessuna entità che il Canvas cita.
+
+    Perché il titolo e non il corpo: nel corpo anche uno scenario fuori tema nomina di sfuggita
+    un'entità della feature («l'utente tenta di modificare audit_log» contiene UTENTE), mentre
+    uno pertinente cita entità che il Canvas non ha («email di NOTIFICA»). Solo il titolo dice
+    di cosa parla lo scenario. È il criterio del prompt reso meccanico: se il soggetto non è
+    la feature, lo scenario resta sensato anche togliendola.
+
+    ADVISORY, non distruttivo: segnala e basta. È un'euristica sul titolo — cancellare scenari
+    su un falso positivo costerebbe più di quanto valga, e la spec resta dell'autore.
+    Report vuoto senza entità note o senza scenari: niente grafo, niente giudizio."""
+    scenarios = split_scenarios(spec_text)
+    canvas_entities = _mentions(canvas_text, known_entities)
+    if not canvas_entities or not scenarios:
+        return {"scenarios": len(scenarios), "canvas_entities": canvas_entities,
+                "off_scope": [], "checked": False}
+
+    off_scope = []
+    for s in scenarios:
+        if not s["title"]:
+            continue                      # senza titolo non c'è soggetto da giudicare
+        if not _mentions(s["title"], canvas_entities):
+            off_scope.append({"title": s["title"],
+                              "foreign_entities": _mentions(s["text"], known_entities)})
+    return {"scenarios": len(scenarios), "canvas_entities": canvas_entities,
+            "off_scope": off_scope, "checked": True}
+
+
 def validate_structural(canvas_text: str, spec_text: str) -> dict:
     """Controlli strutturali deterministici (nessun LLM) su canvas/spec: presenza delle 7
     sezioni del Canvas e degli elementi BDD (GIVEN/WHEN/THEN) nella spec."""
