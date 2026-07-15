@@ -157,6 +157,9 @@ def build_final_prompt(folder_name: str, dev_type: str = "") -> str:
     )
     if dev_type:
         return base + (
+            f"Prima di scrivere, esamina il contenuto esistente di 'code/{dev_type}/' e integra il nuovo "
+            f"codice nella struttura che trovi, senza rigenerare da zero ciò che esiste già. "
+            f"Se la specifica prescrive test per gli scenari, implementali insieme al codice. "
             f"Scrivi ESCLUSIVAMENTE il codice generato nella cartella 'code/{dev_type}/', poiché il tipo di "
             f"sviluppo richiesto per questa feature è '{dev_type}'. Non creare né modificare file in altre "
             f"sottocartelle di 'code/'."
@@ -324,7 +327,9 @@ def build_spec_prompt(canvas_content: str, governed_context: str = "",
     Canvas, toglilo.
 
     Rispondi esclusivamente con il contenuto del file Markdown, senza preamboli né commenti
-    prima o dopo.
+    prima o dopo. Scrivi SOLO la versione definitiva: niente note a margine, auto-correzioni,
+    domande o dubbi inline («*Correzione*: ...», «*Nota*: assumiamo...») — se un punto è
+    ambiguo, scegli l'interpretazione più coerente col Canvas e scrivila come decisione.
     """
 
 
@@ -433,13 +438,20 @@ def check_scenario_scope(spec_text: str, canvas_text: str, known_entities: list[
     # per non promuovere articoli e preposizioni ad àncora).
     anchors = list(canvas_entities) + [w for w in _dev_type_words(feature_name) if len(w) >= 4]
 
+    # Doppia evidenza per segnalare: titolo senza àncore E testo che cita entità ESTRANEE al
+    # Canvas. Il solo titolo non basta — i titoli legittimi parlano dei campi del form
+    # («Motivazione troppo corta», «Email non valida») senza nominare entità, e il check
+    # segnalava 5 scenari pertinenti su 8. L'entità estranea è ciò che distingue la deriva
+    # vera (AUDIT_LOG in una feature di prenotazione) dal linguaggio di dettaglio.
     off_scope = []
     for s in scenarios:
         if not s["title"]:
             continue                      # senza titolo non c'è soggetto da giudicare
-        if not _mentions(s["title"], anchors):
-            off_scope.append({"title": s["title"],
-                              "foreign_entities": _mentions(s["text"], known_entities)})
+        if _mentions(s["title"], anchors):
+            continue
+        foreign = [e for e in _mentions(s["text"], known_entities) if e not in canvas_entities]
+        if foreign:
+            off_scope.append({"title": s["title"], "foreign_entities": foreign})
     return {"scenarios": len(scenarios), "canvas_entities": canvas_entities,
             "off_scope": off_scope, "checked": True}
 

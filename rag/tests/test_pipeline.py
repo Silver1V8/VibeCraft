@@ -294,15 +294,51 @@ def test_check_scenario_scope_accetta_le_parole_della_feature_come_ancora():
     # I titoli buoni spesso parlano in termini di UI, non di glossario: "Gestione Erroristica
     # UI su Form" e' pertinente per la feature "form eventi" pur senza nominare entita'.
     # Senza questa via d'uscita il controllo segnalava 10/12 in uno spec discreto.
-    ents = ["EVENTO", "RICHIESTA", "UTENTE"]
+    ents = ["AUDIT_LOG", "EVENTO", "RICHIESTA", "UTENTE"]
     canvas = "L'UTENTE invia una RICHIESTA per un EVENTO tramite form."
     spec = ("#### Scenario 1: Gestione Erroristica UI su Form\n**GIVEN** x\n\n"
             "#### Scenario 2: Immutabilita di audit_log\n**GIVEN** y\n")
     out = pipeline.check_scenario_scope(spec, canvas, ents, feature_name="form eventi")
     assert [o["title"] for o in out["off_scope"]] == ["Scenario 2: Immutabilita di audit_log"]
-    # Parole corte del nome ("su", "di") non diventano ancore.
+    assert out["off_scope"][0]["foreign_entities"] == ["AUDIT_LOG"]
+    # Parole corte del nome ("su", "di") non diventano ancore; lo scenario 1 resta comunque
+    # non segnalato perche' non cita entita' ESTRANEE (doppia evidenza per segnalare).
     out2 = pipeline.check_scenario_scope(spec, canvas, ents, feature_name="di su a")
-    assert len(out2["off_scope"]) == 2
+    assert [o["title"] for o in out2["off_scope"]] == ["Scenario 2: Immutabilita di audit_log"]
+
+
+def test_check_scenario_scope_richiede_la_doppia_evidenza():
+    # Il solo titolo senza ancore non basta: i titoli legittimi parlano dei campi del form
+    # ("Motivazione troppo corta", "Email non valida") senza nominare entita', e il check
+    # segnalava 5 scenari pertinenti su 8. Serve anche un'entita' ESTRANEA al Canvas.
+    ents = ["AUDIT_LOG", "BUDGET_ANNUO", "EVENTO", "RICHIESTA", "UTENTE"]
+    canvas = "L'UTENTE invia una RICHIESTA per un EVENTO tramite form."
+    spec = ("#### Scenario: Motivazione troppo corta\n**GIVEN** testo sotto i 50 caratteri\n"
+            "**THEN** errore inline\n\n"
+            "#### Scenario: Pannello finanziario nascosto\n**GIVEN** il BUDGET_ANNUO residuo\n"
+            "**THEN** il pannello non appare\n")
+    out = pipeline.check_scenario_scope(spec, canvas, ents, feature_name="form eventi")
+    assert [o["title"] for o in out["off_scope"]] == ["Scenario: Pannello finanziario nascosto"]
+    assert out["off_scope"][0]["foreign_entities"] == ["BUDGET_ANNUO"]
+
+
+def test_build_final_prompt_chiede_integrazione_e_test():
+    # Alla seconda feature l'agente non deve scaffoldare da zero sopra l'esistente, e gli
+    # scenari coperti da test prescritti dalla spec vanno implementati insieme al codice.
+    p = pipeline.build_final_prompt("form-eventi", "frontend")
+    assert "esamina il contenuto esistente di 'code/frontend/'" in p
+    assert "senza rigenerare da zero" in p
+    assert "test" in p.lower()
+    # Senza dev_type resta la distribuzione multi-cartella storica, invariata.
+    assert "esamina il contenuto esistente" not in pipeline.build_final_prompt("f", "")
+
+
+def test_build_spec_prompt_vieta_note_a_margine():
+    # Lo spec reale conteneva auto-correzioni inline del modello ("*Correzione*: ...",
+    # "*Nota*: assumiamo..."): il prompt ora chiede la sola versione definitiva.
+    p = pipeline.build_spec_prompt("CANVAS", governed_context="NORME")
+    assert "versione definitiva" in p
+    assert "auto-correzioni" in p
 
 
 def test_build_canvas_prompt_ha_la_verifica_finale_del_soggetto():
