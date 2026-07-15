@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "Console HARO Graph-RAG: indicizzazione (core/indexing), retrieval ibrido governato e pipeline Explore->Canvas->Propose (core/) esposti via FastAPI (api/). Entrypoint: server.py, index.py."
 requires-python = ">=3.14"
 dependencies = [
-    "anthropic>=0.116.0",
     "claude-agent-sdk>=0.2.115",
     "fastapi>=0.139.0",
     "flagembedding>=1.4.0",

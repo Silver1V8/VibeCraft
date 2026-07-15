@@ -17,20 +17,18 @@ llm_settings:
   # Ogni chiave può indicare provider e/o model; ciò che manca ricade su
   # active_provider / models. Esempio: canvas su Claude, il resto su Ollama.
   #
-  # Canvas e Propose su Claude Sonnet: sono i due step che devono tenere insieme istruzioni
-  # articolate (soggetto dall'intervista, stack dall'ambito, norme come lente, vincolo di
-  # ambito su tutte le sezioni) su prompt lunghi. qwen2.5:7b non ci arriva — ne "annegava"
-  # una alla volta (stack che spariva, soggetto derivato al documento tecnico). Gli altri
-  # step (drift, validate, review, explore) restano sul locale, dove bastano.
-  # RICHIEDE ANTHROPIC_API_KEY nell'ambiente del server; senza, questi due step falliscono
-  # con errore esplicito — per tornare al locale, commenta il blocco `purposes`.
+  # Canvas e Propose sul modello locale più capace (qwen2.5:14b): sono i due step che devono
+  # tenere insieme istruzioni articolate (soggetto dall'intervista, stack dall'ambito, norme
+  # come lente, vincolo di ambito su tutte le sezioni) su prompt lunghi. qwen2.5:7b non ci
+  # arriva — ne "annegava" una alla volta (stack che spariva, soggetto derivato al documento
+  # tecnico). Gli altri step (drift, validate, review, explore) restano sul 7B, più leggero.
+  # Su una macchina con GPU si può alzare ulteriormente il modello qui (es. qwen2.5:32b)
+  # senza toccare il codice.
   purposes:
     canvas:
-      provider: "anthropic"
-      model: "claude-sonnet-5"
+      model: "qwen2.5:14b"
     propose:
-      provider: "anthropic"
-      model: "claude-sonnet-5"
+      model: "qwen2.5:14b"
 
 vector_database:
   provider: "qdrant"
