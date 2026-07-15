@@ -1078,8 +1078,10 @@
         const data = await res.json();
         if (data.note) { body.innerHTML = `<span class="text-amber-400">${data.note}</span>`; return; }
         const fmt = v => (v === null || v === undefined) ? '—' : (typeof v === 'number' ? v.toFixed(3) : v);
+        // `branch` distingue il ramo di dominio da quello tecnico (scoping per dev_type):
+        // senza, due sezioni con punteggi simili sembrerebbero venire dalla stessa domanda.
         const src = (data.sources || []).map(s =>
-          `<div class="flex justify-between gap-2 border-b border-slate-800 py-1"><span class="font-mono truncate">${s.doc_id}${s.section ? ' § ' + s.section : ''}</span><span class="font-mono text-slate-400 shrink-0">D ${fmt(s.dense_score)} · S ${fmt(s.sparse_score)} · CB ${fmt(s.colbert_score)} · A ${fmt(s.authority)}</span></div>`).join('') || '<span class="text-slate-500">nessuna sorgente</span>';
+          `<div class="flex justify-between gap-2 border-b border-slate-800 py-1"><span class="font-mono truncate">${s.branch ? `<span class="text-blue-400">[${s.branch}]</span> ` : ''}${s.doc_id}${s.section ? ' § ' + s.section : ''}</span><span class="font-mono text-slate-400 shrink-0">D ${fmt(s.dense_score)} · S ${fmt(s.sparse_score)} · CB ${fmt(s.colbert_score)} · A ${fmt(s.authority)}</span></div>`).join('') || '<span class="text-slate-500">nessuna sorgente</span>';
         const gov = (data.governed_docs || []).map(g =>
           `<span class="inline-block mr-2 mb-1 rounded border border-slate-700 px-2 py-0.5">${g.doc_id} <span class="text-blue-400">A ${fmt(g.authority)}</span> · ${g.chars} char</span>`).join('') || '<span class="text-slate-500">nessuno</span>';
         body.innerHTML = `<div class="mb-2"><div class="text-slate-400 mb-1">Retrieval (ranking ibrido):</div>${src}</div>

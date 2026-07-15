@@ -4,6 +4,7 @@ handler orchestrano I/O e concorrenza (async/threadpool/streaming) e iniettano l
 di runtime dallo stato (api.deps) nelle funzioni pure di core.pipeline / core.retrieval."""
 import functools
 import json
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.concurrency import run_in_threadpool
@@ -365,26 +366,48 @@ async def api_index_integrity():
 async def pipeline_canvas_dry_run(req: CanvasGenerateRequest):
     """Dry-run del Canvas: mostra le sorgenti che verrebbero recuperate (con punteggi
     dense/sparse/ColBERT/autorità) e i documenti normativi che verrebbero iniettati,
-    SENZA generare nulla — così si ispeziona il contesto prima di spendere token."""
+    SENZA generare nulla — così si ispeziona il contesto prima di spendere token.
+
+    Rispecchia i DUE rami di _governed_context (dominio + tecnico per dev_type): mostrarne
+    uno solo farebbe promettere al dry-run un contesto diverso da quello che il canvas
+    riceve davvero. Ogni sorgente porta il ramo da cui viene."""
     folder = feature_dir(req.feature_name)
     explore_path = folder / "explore.md"
     interview = explore_path.read_text(encoding="utf-8") if explore_path.exists() else ""
     query = f"{req.feature_name}\n{interview[:2000]}"
+    dev_type = req.dev_type or load_dev_type(folder)
 
     snap = current_snapshot()
 
     def work() -> dict:
         if snap is None or snap.graph is None or state.get("qdrant") is None or state.get("embed_model") is None:
             return {"sources": [], "governed_docs": [], "note": "Indice non ancora pronto."}
-        try:
-            results = retrieval.hybrid_search(
-                query, 6,
-                qdrant=state["qdrant"], embed_model=state["embed_model"], colbert_store=snap.colbert_store,
-            )
-        except Exception as exc:
-            return {"sources": [], "governed_docs": [], "note": f"Retrieval fallito: {exc}"}
-        doc_ids = retrieval.select_governed_docs(query, graph=snap.graph, results=results)
         graph = snap.graph
+        search = functools.partial(retrieval.hybrid_search, qdrant=state["qdrant"],
+                                   embed_model=state["embed_model"], colbert_store=snap.colbert_store)
+        branches: list[tuple[str, str, Any]] = [("dominio", query, None)]
+        tech_query = pipeline.build_tech_query(dev_type)
+        if tech_query:
+            branches.append(("tecnico", tech_query,
+                             retrieval.scope_tag_filter(TECH_SCOPE_TAG_KEY,
+                                                        pipeline.dev_type_tag_variants(dev_type))))
+
+        sources, doc_ids = [], []
+        for label, q, query_filter in branches:
+            try:
+                results = search(q, 6, query_filter=query_filter)
+            except Exception as exc:
+                return {"sources": [], "governed_docs": [], "note": f"Retrieval fallito: {exc}"}
+            sources += [
+                {"doc_id": r["doc_id"], "section": r.get("section", ""), "branch": label,
+                 "dense_score": r["dense_score"], "sparse_score": r["sparse_score"],
+                 "colbert_score": r["colbert_score"], "authority": r["authority"]}
+                for r in results
+            ]
+            for d in retrieval.select_governed_docs(q, graph=graph, results=results):
+                if d not in doc_ids:
+                    doc_ids.append(d)
+
         governed = []
         for d in doc_ids:
             p = PROJECT_ROOT / "docs" / d
@@ -394,12 +417,6 @@ async def pipeline_canvas_dry_run(req: CanvasGenerateRequest):
                 "classification": graph.nodes[d].get("classification", "") if d in graph else "",
                 "chars": len(p.read_text(encoding="utf-8")) if p.exists() else 0,
             })
-        sources = [
-            {"doc_id": r["doc_id"], "section": r.get("section", ""),
-             "dense_score": r["dense_score"], "sparse_score": r["sparse_score"],
-             "colbert_score": r["colbert_score"], "authority": r["authority"]}
-            for r in results
-        ]
         return {"sources": sources, "governed_docs": governed}
 
     data = await run_in_threadpool(work)
