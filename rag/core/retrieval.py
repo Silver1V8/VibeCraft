@@ -225,20 +225,10 @@ def select_governed_docs(question: str, *, graph: nx.DiGraph | None, results: li
     return ordered_docs
 
 
-def retrieve_governed_context(question: str, *, graph: nx.DiGraph | None, chunks_store: dict,
-                              qdrant, embed_model, colbert_store,
-                              top_k: int = 10, max_chunks: int = 8,
-                              max_chars_per_chunk: int = 3000) -> str:
-    """Recupera i CHUNK normativi pertinenti (le sezioni, non i documenti interi troncati)
-    e li serializza come testo per Canvas/Propose/Validate. Selezione dei chunk PRIMA, poi
-    eventuale cap leggero per chunk: niente più truncation-first del documento intero."""
-    chunks = select_governed_chunks(question, graph=graph, top_k=top_k, max_chunks=max_chunks,
-                                    qdrant=qdrant, embed_model=embed_model, colbert_store=colbert_store)
-    # select_governed_chunks ritorna [] se graph è None: la riga sotto non è mai raggiunta
-    # in quel caso, ma il controllo esplicito narrowa il tipo (graph non più Optional da qui in poi).
-    if not chunks or graph is None:
-        return ""
-
+def _serialize_chunks(chunks: list[dict], *, graph: nx.DiGraph, chunks_store: dict,
+                      max_chars_per_chunk: int) -> str:
+    """Serializza i chunk selezionati nel formato letto da pipeline.governed_docs_from_context:
+    "--- <doc_id> § <sezione> [TAG] ---" seguito dal testo, con cap leggero per sezione."""
     parts: list[str] = []
     for r in chunks:
         entry = chunks_store.get(r["chunk_id"])
@@ -254,6 +244,60 @@ def retrieve_governed_context(question: str, *, graph: nx.DiGraph | None, chunks
         parts.append(f"{header}\n{text}")
 
     return "\n\n".join(parts)
+
+
+def retrieve_governed_context(question: str, *, graph: nx.DiGraph | None, chunks_store: dict,
+                              qdrant, embed_model, colbert_store,
+                              top_k: int = 10, max_chunks: int = 8,
+                              max_chars_per_chunk: int = 3000) -> str:
+    """Recupera i CHUNK normativi pertinenti (le sezioni, non i documenti interi troncati)
+    e li serializza come testo per Canvas/Propose/Validate. Selezione dei chunk PRIMA, poi
+    eventuale cap leggero per chunk: niente più truncation-first del documento intero."""
+    chunks = select_governed_chunks(question, graph=graph, top_k=top_k, max_chunks=max_chunks,
+                                    qdrant=qdrant, embed_model=embed_model, colbert_store=colbert_store)
+    # select_governed_chunks ritorna [] se graph è None: la riga sotto non è mai raggiunta
+    # in quel caso, ma il controllo esplicito narrowa il tipo (graph non più Optional da qui in poi).
+    if not chunks or graph is None:
+        return ""
+
+    return _serialize_chunks(chunks, graph=graph, chunks_store=chunks_store,
+                             max_chars_per_chunk=max_chars_per_chunk)
+
+
+def retrieve_governed_context_multi(questions: list[tuple[str, int]], *, graph: nx.DiGraph | None,
+                                    chunks_store: dict, qdrant, embed_model, colbert_store,
+                                    top_k: int = 10, max_chars_per_chunk: int = 3000) -> str:
+    """Come retrieve_governed_context ma su più query indipendenti, ognuna col proprio tetto
+    di sezioni: `questions` è una lista di (domanda, max_chunks).
+
+    Serve perché una singola domanda non può coprire due esigenze semanticamente distanti:
+    il Canvas ha bisogno sia delle norme di dominio («cosa deve fare la feature») sia della
+    spec tecnologica dell'ambito («con quale stack va implementata»). Con una query sola le
+    seconde non risalgono mai nel ranking. Ogni ramo resta un retrieval onesto — nessun
+    documento è forzato — e i chunk già visti non vengono ripetuti: il primo ramo che
+    seleziona un chunk se lo tiene, gli altri lo saltano."""
+    if graph is None:
+        return ""
+
+    selected: list[dict] = []
+    seen: set[str] = set()
+    for question, max_chunks in questions:
+        if not question.strip() or max_chunks <= 0:
+            continue
+        chunks = select_governed_chunks(question, graph=graph, top_k=top_k, max_chunks=max_chunks,
+                                        qdrant=qdrant, embed_model=embed_model,
+                                        colbert_store=colbert_store)
+        for r in chunks:
+            if r["chunk_id"] in seen:
+                continue
+            seen.add(r["chunk_id"])
+            selected.append(r)
+
+    if not selected:
+        return ""
+
+    return _serialize_chunks(selected, graph=graph, chunks_store=chunks_store,
+                             max_chars_per_chunk=max_chars_per_chunk)
 
 
 def call_llm(context: str, question: str) -> str:

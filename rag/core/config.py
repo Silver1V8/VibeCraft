@@ -90,6 +90,16 @@ AUTHORITY_DEFAULT_WEIGHT: float = float(_authority_cfg.get("default_weight", 0.4
 AUTHORITY_ARCHIVED_DECAY: float = float(_authority_cfg.get("archived_decay", 0.3))
 AUTHORITY_BOOST_ALPHA: float = float(_authority_cfg.get("boost_alpha", 0.4))
 
+# Contesto governato di Canvas/Propose: quante sezioni prendere dal ramo di dominio e da
+# quello tecnico (rag_config.yaml → retrieval.*). Vedi retrieve_governed_context_multi.
+_retrieval_cfg: dict = config.get("retrieval") or {}
+GOVERNED_MAX_CHUNKS: int = int(_retrieval_cfg.get("governed_max_chunks", 8))
+TECH_MAX_CHUNKS: int = int(_retrieval_cfg.get("tech_max_chunks", 3))
+# Template della query del ramo tecnico ('{dev_type}' = ambito, reso a parole). Vive nel
+# config perché è vocabolario di progetto, non logica: su un progetto con altra tassonomia
+# (o altra lingua) si riscrive qui senza toccare il codice. Vedi pipeline.build_tech_query.
+TECH_QUERY_TEMPLATE: str = str(_retrieval_cfg.get("tech_query") or "")
+
 # Eval-gate continuo sulla promozione blue/green (core/eval_gate.py) + golden set del retrieval.
 _eval_gate_cfg: dict = config.get("eval_gate") or {}
 EVAL_GATE_ENABLED: bool = bool(_eval_gate_cfg.get("enabled", True))

@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 from core import llm, retrieval
-from core.config import CHANGES_DIR, CODE_DIR
+from core.config import CHANGES_DIR, CODE_DIR, TECH_QUERY_TEMPLATE
 
 # Le 7 sezioni obbligatorie del REASONS Canvas (copertura strutturale e confidence).
 CANVAS_SECTIONS = ("Requirements", "Entities", "Approach", "Structure", "Operations", "Norms", "Safeguards")
@@ -46,6 +46,25 @@ def list_dev_types() -> list[str]:
     if not CODE_DIR.exists():
         return []
     return sorted(p.name for p in CODE_DIR.iterdir() if p.is_dir() and not p.name.startswith("."))
+
+
+def build_tech_query(dev_type: str, template: str = TECH_QUERY_TEMPLATE) -> str:
+    """Domanda del ramo TECNICO del retrieval governato: «con quale stack e quali pattern si
+    implementa nell'ambito <dev_type>?». È una query semantica come le altre — nessun filtro
+    su cartelle o nomi file: recupera ciò che le somiglia, ovunque stia nell'alberatura.
+
+    Il testo vive in rag_config.yaml (retrieval.tech_query) perché è vocabolario di progetto:
+    va scritto coi termini dei documenti che si vogliono trovare. Non configurato = ramo
+    tecnico spento, così su un progetto nuovo non si inventa una domanda per suo conto.
+
+    Il dev_type è una sottocartella di code/ ('logicAgent') e va reso a parole ('logic agent'),
+    la forma che compare nella prosa dei documenti. Stringa vuota = nessun ramo tecnico."""
+    if not dev_type.strip() or not template.strip():
+        return ""
+    readable = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", dev_type).replace("_", " ").replace("-", " ").lower()
+    # replace() e non format(): il template è testo libero scritto a mano nel config e
+    # un'eventuale graffa di troppo non deve far esplodere la generazione del canvas.
+    return template.replace("{dev_type}", readable)
 
 
 def save_dev_type(folder: Path, dev_type: str) -> None:

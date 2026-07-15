@@ -30,7 +30,7 @@ from api.models import (
 )
 from api.routes_reindex import enqueue_full_rebuild
 from core import canvas_review, pipeline, retrieval
-from core.config import CHANGES_DIR, PROJECT_ROOT
+from core.config import CHANGES_DIR, GOVERNED_MAX_CHUNKS, PROJECT_ROOT, TECH_MAX_CHUNKS
 from core.indexing import archive_feature, check_drift, check_index_integrity, index_status
 from core.pipeline import (
     build_final_prompt,
@@ -55,12 +55,20 @@ def _snap_fields(snap: IndexSnapshot | None):
     return snap.graph, snap.chunks, snap.colbert_store
 
 
-def _governed_context(question: str, snap: IndexSnapshot | None) -> str:
-    """Contesto normativo governato per `question`, iniettando le risorse dallo snapshot
-    (preso una volta dal chiamante). Sincrono (CPU-bound: embedding della query) → threadpool."""
+def _governed_context(question: str, snap: IndexSnapshot | None, dev_type: str = "") -> str:
+    """Contesto governato per `question`, iniettando le risorse dallo snapshot (preso una
+    volta dal chiamante). Due rami di retrieval: `question` porta le norme di DOMINIO (cosa
+    deve fare la feature), e — se c'è un `dev_type` — una seconda query porta la specifica
+    TECNICA dell'ambito (con quale stack implementarla), che una domanda di dominio non
+    farebbe mai risalire. Senza dev_type resta il singolo ramo di prima.
+    Sincrono (CPU-bound: embedding delle query) → threadpool."""
     graph, chunks, colbert_store = _snap_fields(snap)
-    return retrieval.retrieve_governed_context(
-        question,
+    questions = [(question, GOVERNED_MAX_CHUNKS)]
+    tech_query = pipeline.build_tech_query(dev_type)
+    if tech_query:
+        questions.append((tech_query, TECH_MAX_CHUNKS))
+    return retrieval.retrieve_governed_context_multi(
+        questions,
         graph=graph, chunks_store=chunks,
         qdrant=state.get("qdrant"), embed_model=state.get("embed_model"),
         colbert_store=colbert_store,
@@ -163,10 +171,12 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
 
     # Àncora il Canvas al knowledge base governato: recupera dal Graph RAG i documenti
     # normativi pertinenti (safeguard, glossario, matrice permessi), pesati per autorità,
-    # invece di affidarsi a un contesto statico scritto a mano.
+    # invece di affidarsi a un contesto statico scritto a mano. Il dev_type è risolto qui
+    # perché guida anche il ramo tecnico del retrieval, non solo la cartella di output.
+    dev_type = req.dev_type or load_dev_type(folder)
     snap = current_snapshot()
     query = f"{req.feature_name}\n{contesto_intervista[:2000]}"
-    governed_context = await run_in_threadpool(_governed_context, query, snap)
+    governed_context = await run_in_threadpool(_governed_context, query, snap, dev_type)
     contesto_progetto_base = governed_context or "Nessun documento normativo pertinente recuperato dal Graph RAG."
 
     # Persiste in meta.json QUALI documenti normativi hanno ancorato questo canvas:
@@ -177,7 +187,6 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
     # archiviate più simili diventano "lezioni" nel prompt ('' se non esistono review).
     lessons = await run_in_threadpool(_canvas_lessons, query, snap)
 
-    dev_type = req.dev_type or load_dev_type(folder)
     prompt_strutturato = pipeline.build_canvas_prompt(
         req.feature_name, contesto_intervista, contesto_progetto_base, dev_type, lessons
     )
@@ -202,9 +211,10 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest):
     dev_type = req.dev_type or load_dev_type(folder)
 
     # Recupera i vincoli normativi dal Graph RAG per generare scenari BDD che coprano
-    # anche i safeguard e le policy pertinenti, non solo ciò che è nel Canvas.
+    # anche i safeguard e le policy pertinenti, non solo ciò che è nel Canvas; il dev_type
+    # aggiunge il ramo tecnico, così gli scenari possono normare anche l'ambito tecnologico.
     governed_context = await run_in_threadpool(
-        _governed_context, f"{req.feature_folder}\n{canvas_content[:2000]}", current_snapshot()
+        _governed_context, f"{req.feature_folder}\n{canvas_content[:2000]}", current_snapshot(), dev_type
     )
     prompt_strutturato = pipeline.build_spec_prompt(canvas_content, governed_context)
 

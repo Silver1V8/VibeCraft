@@ -10,6 +10,28 @@ def test_slugify_feature():
     assert pipeline.slugify_feature("  Gestione Eventi  ") == "gestione-eventi"
 
 
+def test_build_tech_query_uses_config_template_and_humanizes_dev_type():
+    # Il template arriva dal config (vocabolario di progetto), non dal codice: qui ne passo
+    # uno arbitrario per verificare che la funzione non imponga termini propri.
+    tpl = "tech spec for {dev_type}: stack and folder layout of the {dev_type} project"
+    assert pipeline.build_tech_query("frontend", tpl) == (
+        "tech spec for frontend: stack and folder layout of the frontend project")
+    # camelCase -> parole: 'logicAgent' non comparirebbe mai così nella prosa dei documenti.
+    assert "logic agent" in pipeline.build_tech_query("logicAgent", tpl)
+
+
+def test_build_tech_query_off_without_dev_type_or_template():
+    # Senza ambito o senza template configurato il ramo tecnico non parte: su un progetto
+    # che non l'ha configurato non ci si inventa una domanda.
+    assert pipeline.build_tech_query("", "tech spec for {dev_type}") == ""
+    assert pipeline.build_tech_query("frontend", "") == ""
+
+
+def test_build_tech_query_tolerates_stray_braces_in_template():
+    # Il template è testo libero scritto a mano: una graffa di troppo non deve sollevare.
+    assert pipeline.build_tech_query("backend", "spec {dev_type} {oops}") == "spec backend {oops}"
+
+
 def test_build_final_prompt_scopes_by_dev_type():
     with_dev = pipeline.build_final_prompt("feat", "backend")
     assert "code/backend/" in with_dev and "ESCLUSIVAMENTE" in with_dev

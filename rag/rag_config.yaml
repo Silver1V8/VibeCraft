@@ -28,6 +28,25 @@ vector_database:
   collection_name: "vibecraft_events"
   embedding_model: "BAAI/bge-m3" # Modello locale per vettori densi/sparsi
 
+# Contesto governato che àncora Canvas/Propose (core/retrieval.py, api/routes_pipeline.py).
+# Il retrieval è a DUE rami: uno di dominio (cosa deve fare la feature) e uno tecnico
+# (con quale stack/pattern si implementa, in base al dev_type scelto). Servono due query
+# perché una domanda di dominio ("form eventi") non è semanticamente vicina a una spec
+# tecnologica ("stack, struttura cartelle"): con una sola query le seconde non risalgono
+# mai. Entrambi i rami sono ricerche semantiche sull'intero indice: nessun filtro su path
+# o cartelle, nessun documento forzato: cambia la domanda, non il ranking.
+retrieval:
+  governed_max_chunks: 8   # sezioni del ramo di dominio (normativo/business)
+  tech_max_chunks: 3       # sezioni del ramo tecnico; 0 disattiva il ramo
+
+  # Domanda del ramo tecnico. `{dev_type}` è sostituito con l'ambito scelto (una sottocartella
+  # di code/), reso a parole: 'logicAgent' -> 'logic agent'. È una QUERY SEMANTICA, non un
+  # filtro: recupera ciò che le somiglia, ovunque stia nell'alberatura. Riscrivila col
+  # vocabolario e nella lingua dei TUOI documenti — è l'unico punto da adattare per portare
+  # la pipeline su un progetto con una tassonomia diversa. Vuota (o tech_max_chunks: 0)
+  # disattiva del tutto il ramo tecnico.
+  tech_query: "specifica tecnologica {dev_type}: stack tecnologico, linguaggi e framework, pattern architetturali e struttura delle cartelle del progetto {dev_type}"
+
 # Ri-ponderazione per autorità nel retrieval (core/retrieval.py): i pesi per classe di
 # documento modulano il ranking finale (fonti normative > informative; archiviate < attive).
 # I valori qui sono i default calibrati a mano; ricalibrabili sul golden set con
