@@ -296,6 +296,53 @@ def retrieve_governed_context(question: str, *, graph: nx.DiGraph | None, chunks
                              max_chars_per_chunk=max_chars_per_chunk)
 
 
+def collect_implementing_code(graph, code_store: dict, anchor_nodes,
+                              *, min_weight: float, max_snippets: int) -> list[dict]:
+    """Dai nodi-ancora (sezioni/documenti recuperati dalla ricerca) risale gli archi
+    IMPLEMENTS ENTRANTI (codice → sezione, calcolati all'indicizzazione per similarità
+    densa) e restituisce i simboli di codice più fortemente linkati, deduplicati per
+    symbol_id (tenendo il peso migliore) e ordinati per peso decrescente.
+
+    È il ponte fra il codice — indicizzato nel grafo ma NON in Qdrant — e la risposta di
+    /ask, che altrimenti vedrebbe solo i documenti normativi. `min_weight` scarta gli archi
+    deboli (rumore); `max_snippets<=0` disattiva del tutto l'iniezione. Logica pura: grafo e
+    code_store sono passati dal chiamante (nessuno stato globale)."""
+    if max_snippets <= 0 or graph is None or not code_store:
+        return []
+    # symbol_id -> (peso migliore, nodo-ancora che quel simbolo implementa)
+    best_by_sym: dict[str, tuple[float, str]] = {}
+    for node in set(anchor_nodes):
+        if node not in graph:
+            continue
+        for src, _dst, data in graph.in_edges(node, data=True):
+            if data.get("relation") != "IMPLEMENTS":
+                continue
+            weight = float(data.get("weight", 0.0))
+            if weight < min_weight:
+                continue
+            prev = best_by_sym.get(src)
+            if prev is None or weight > prev[0]:
+                best_by_sym[src] = (weight, node)
+
+    ranked = sorted(best_by_sym.items(), key=lambda kv: kv[1][0], reverse=True)
+    out: list[dict] = []
+    for sym_id, (weight, anchor) in ranked[:max_snippets]:
+        entry = code_store.get(sym_id)
+        if not entry:
+            continue  # arco nel grafo ma metadati assenti (sidecar disallineato): lo saltiamo
+        out.append({
+            "symbol_id": sym_id,
+            "name": entry.get("name", ""),
+            "kind": entry.get("kind", ""),
+            "file": entry.get("file", ""),
+            "dev_type": entry.get("dev_type", ""),
+            "text": entry.get("text", ""),
+            "weight": weight,
+            "implements": anchor,
+        })
+    return out
+
+
 def call_llm(context: str, question: str) -> str:
     # BLINDATURA RIGIDA DEL DIZIONARIO DATI DEL PROMPT DI SISTEMA
     system_prompt = (

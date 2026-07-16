@@ -84,6 +84,10 @@ class IndexSnapshot:
     colbert_store: dict
     chunks: dict
     rule_descriptions: dict
+    # Sidecar dei simboli di codice (symbol_id -> {name, kind, file, dev_type, text, ...}):
+    # serve a /ask per iniettare, via archi IMPLEMENTS, il codice che implementa le sezioni
+    # recuperate. Fa parte dello snapshot perché cambia insieme al grafo a ogni reindex.
+    code_store: dict
     # Versione dell'indice al momento della build dello snapshot: il nome della versione
     # blue/green puntata da database/CURRENT (str), oppure — layout legacy senza
     # CURRENT — l'mtime del file-grafo flat (float).
@@ -128,7 +132,7 @@ def _graph_version() -> str | float | None:
     return None
 
 
-def _build_snapshot(graph, colbert_store, chunks, rule_descriptions) -> IndexSnapshot:
+def _build_snapshot(graph, colbert_store, chunks, rule_descriptions, code_store) -> IndexSnapshot:
     """Assembla un IndexSnapshot catturando la version (CURRENT o mtime del grafo)."""
     version = _graph_version()
     return IndexSnapshot(
@@ -136,6 +140,7 @@ def _build_snapshot(graph, colbert_store, chunks, rule_descriptions) -> IndexSna
         colbert_store=colbert_store,
         chunks=chunks,
         rule_descriptions=rule_descriptions,
+        code_store=code_store,
         version=version,
     )
 
@@ -188,14 +193,16 @@ async def lifespan(application: FastAPI):
     graph = arts.graph
     colbert_store = arts.colbert_store
     chunks = arts.chunks_store
+    code_store = arts.code_store
     logger.info("Grafo caricato: %d nodi, %d archi.", graph.number_of_nodes(), graph.number_of_edges())
-    logger.info("Multivettori ColBERT caricati: %d chunk. Chunk sidecar: %d sezioni.", len(colbert_store), len(chunks))
+    logger.info("Multivettori ColBERT caricati: %d chunk. Chunk sidecar: %d sezioni. Simboli codice: %d.",
+                len(colbert_store), len(chunks), len(code_store))
 
     logger.info("Caricamento descrizioni regole dai file spec...")
     rule_descriptions = load_rule_descriptions()
 
     # Rebind atomico dello snapshot iniziale (un solo assegnamento).
-    state["snapshot"] = _build_snapshot(graph, colbert_store, chunks, rule_descriptions)
+    state["snapshot"] = _build_snapshot(graph, colbert_store, chunks, rule_descriptions, code_store)
     state["_graph_mtime"] = _graph_version()  # baseline per l'auto-reload
     logger.info("Server pronto.")
 
@@ -233,7 +240,8 @@ def reload_index_state() -> None:
 
     # Rebind ATOMICO: un solo IndexSnapshot completo sostituisce quello precedente.
     # Nessuna mutazione in place → nessun handler può osservare una versione mista.
-    state["snapshot"] = _build_snapshot(arts.graph, arts.colbert_store, arts.chunks_store, rule_descriptions)
+    state["snapshot"] = _build_snapshot(arts.graph, arts.colbert_store, arts.chunks_store,
+                                        rule_descriptions, arts.code_store)
     state["_graph_mtime"] = _graph_version()
 
 

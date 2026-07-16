@@ -129,6 +129,13 @@ TECH_QUERY_TEMPLATE: str = str(_retrieval_cfg.get("tech_query") or "")
 # tecnologiche di ambiti diversi — quasi gemelle — si confondono nel ranking. Vuoto =
 # nessuno scoping. Vedi retrieval.scope_tag_filter e pipeline.dev_type_tag_variants.
 TECH_SCOPE_TAG_KEY: str = str(_retrieval_cfg.get("tech_scope_tag_key") or "")
+# Codice implementante iniettato nel contesto di /ask: risalendo gli archi IMPLEMENTS
+# (codice -> sezione) dalle sezioni recuperate, l'LLM vede la spec E la sua implementazione
+# reale. È il ponte fra il codice indicizzato nel grafo e la ricerca semantica (che interroga
+# solo Qdrant/documenti). max=0 disattiva; min_weight filtra gli archi deboli. Vedi
+# retrieval.collect_implementing_code e api/routes_retrieval.ask_rag.
+CODE_CONTEXT_MAX_SNIPPETS: int = int(_retrieval_cfg.get("code_context_max_snippets", 6))
+CODE_CONTEXT_MIN_WEIGHT: float = float(_retrieval_cfg.get("code_context_min_weight", 0.5))
 
 # Eval-gate continuo sulla promozione blue/green (core/eval_gate.py) + golden set del retrieval.
 _eval_gate_cfg: dict = config.get("eval_gate") or {}

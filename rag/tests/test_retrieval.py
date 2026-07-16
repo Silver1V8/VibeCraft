@@ -74,3 +74,61 @@ def test_scope_tag_filter_none_when_unconfigured():
     # Senza chiave (config vuota) o senza valori non si filtra: nessuna convenzione inventata.
     assert retrieval.scope_tag_filter("", ["frontend"]) is None
     assert retrieval.scope_tag_filter("tags", []) is None
+
+
+# ---------------------------------------------------------------------------
+# collect_implementing_code: ponte codice (grafo) -> contesto di /ask
+# ---------------------------------------------------------------------------
+def _code_graph() -> nx.DiGraph:
+    """Grafo con una sezione-documento e due simboli di codice che la implementano
+    (archi IMPLEMENTS con peso), più un simbolo debolmente linkato e uno REFERENCES."""
+    g = nx.DiGraph()
+    g.add_node("spec.md#01-form", type="chunk")
+    g.add_node("code/frontend/form.tsx::BookingForm", type="code", name="BookingForm")
+    g.add_node("code/frontend/api.ts::apiClient", type="code", name="apiClient")
+    g.add_node("code/frontend/styles.css::x", type="code", name="x")
+    g.add_edge("code/frontend/form.tsx::BookingForm", "spec.md#01-form", relation="IMPLEMENTS", weight=0.72)
+    g.add_edge("code/frontend/api.ts::apiClient", "spec.md#01-form", relation="IMPLEMENTS", weight=0.55)
+    g.add_edge("code/frontend/styles.css::x", "spec.md#01-form", relation="IMPLEMENTS", weight=0.48)  # sotto soglia
+    g.add_edge("code/frontend/form.tsx::BookingForm", "EVENTO", relation="REFERENCES")  # non IMPLEMENTS
+    return g
+
+
+def _code_store() -> dict:
+    return {
+        "code/frontend/form.tsx::BookingForm": {"name": "BookingForm", "kind": "component",
+                                                "file": "frontend/form.tsx", "dev_type": "frontend", "text": "export function BookingForm"},
+        "code/frontend/api.ts::apiClient": {"name": "apiClient", "kind": "object",
+                                            "file": "frontend/api.ts", "dev_type": "frontend", "text": "export const apiClient"},
+        "code/frontend/styles.css::x": {"name": "x", "kind": "stylesheet",
+                                        "file": "frontend/styles.css", "dev_type": "frontend", "text": ".x{}"},
+    }
+
+
+def test_collect_implementing_code_ranks_and_thresholds():
+    out = retrieval.collect_implementing_code(
+        _code_graph(), _code_store(), ["spec.md#01-form"], min_weight=0.5, max_snippets=6)
+    # Ordinati per peso decrescente; lo styles.css sotto 0.5 e il REFERENCES sono esclusi.
+    assert [c["name"] for c in out] == ["BookingForm", "apiClient"]
+    assert out[0]["weight"] == 0.72 and out[0]["file"] == "frontend/form.tsx"
+    assert out[0]["implements"] == "spec.md#01-form"
+    assert out[0]["text"] == "export function BookingForm"
+
+
+def test_collect_implementing_code_caps_and_dedups():
+    g = _code_graph()
+    # Lo stesso simbolo implementa due sezioni diverse con pesi diversi: dedup sul peso migliore.
+    g.add_node("spec.md#02-altra", type="chunk")
+    g.add_edge("code/frontend/form.tsx::BookingForm", "spec.md#02-altra", relation="IMPLEMENTS", weight=0.90)
+    out = retrieval.collect_implementing_code(
+        g, _code_store(), ["spec.md#01-form", "spec.md#02-altra"], min_weight=0.5, max_snippets=1)
+    assert len(out) == 1
+    assert out[0]["name"] == "BookingForm" and out[0]["weight"] == 0.90  # tiene il peso migliore
+
+
+def test_collect_implementing_code_disabled_or_empty():
+    g, cs = _code_graph(), _code_store()
+    assert retrieval.collect_implementing_code(g, cs, ["spec.md#01-form"], min_weight=0.5, max_snippets=0) == []
+    assert retrieval.collect_implementing_code(None, cs, ["spec.md#01-form"], min_weight=0.5, max_snippets=6) == []
+    assert retrieval.collect_implementing_code(g, {}, ["spec.md#01-form"], min_weight=0.5, max_snippets=6) == []
+    assert retrieval.collect_implementing_code(g, cs, ["assente"], min_weight=0.5, max_snippets=6) == []

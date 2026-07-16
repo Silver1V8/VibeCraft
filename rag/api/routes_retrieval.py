@@ -13,7 +13,7 @@ from FlagEmbedding import BGEM3FlagModel
 from api.deps import current_snapshot, maybe_reload_graph, require_api_key, state
 from api.models import AskQuery
 from core import graph_ops, retrieval
-from core.config import PROJECT_ROOT
+from core.config import CODE_CONTEXT_MAX_SNIPPETS, CODE_CONTEXT_MIN_WEIGHT, PROJECT_ROOT
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +113,35 @@ async def ask_rag(query: AskQuery):
     context = "\n\n".join(context_parts)
     # -----------------------------------------------------------------------
 
+    # === INIEZIONE DEL CODICE CHE IMPLEMENTA IL CONTESTO RECUPERATO ===
+    # Il codice è indicizzato nel grafo (nodi + archi IMPLEMENTS) ma NON in Qdrant: la
+    # ricerca semantica sopra vede solo i documenti. Qui risaliamo gli archi IMPLEMENTS
+    # entranti fino ai simboli di codice più fortemente linkati e ne iniettiamo lo snippet:
+    # così l'LLM può confrontare la spec con la sua implementazione reale (es. "cosa manca
+    # nel form?") invece di fermarsi al normativo.
+    # Ancore = vicinanza BFS del grafo (expanded_set, la stessa espansione della Mappa del
+    # Grafo) PIÙ le sezioni/documenti effettivamente recuperati: così emerge anche il codice
+    # collegato ai documenti vicini, non solo a quelli che hanno matchato la query. I nodi
+    # non-sezione nell'insieme (codice, entità) sono ancore innocue — non hanno IMPLEMENTS
+    # entranti, quindi non producono falsi match.
+    code_anchor_nodes: set[str] = set(expanded_set)
+    for r in search_results:
+        if r.get("chunk_id"):
+            code_anchor_nodes.add(r["chunk_id"])
+        if r.get("doc_id"):
+            code_anchor_nodes.add(r["doc_id"])
+    implementing_code = retrieval.collect_implementing_code(
+        graph, snap.code_store, code_anchor_nodes,
+        min_weight=CODE_CONTEXT_MIN_WEIGHT, max_snippets=CODE_CONTEXT_MAX_SNIPPETS,
+    )
+    if implementing_code:
+        code_block = "\n\n".join(
+            f"--- Codice esistente: {c['file']} :: {c['name']} ({c['kind']}) "
+            f"— implementa {c['implements']} ---\n{c['text']}"
+            for c in implementing_code
+        )
+        context = f"{context}\n\n=== CODICE ESISTENTE (implementazione) ===\n\n{code_block}" if context else code_block
+
     # 5. Sintesi finale tramite LLM configurato.
     #    call_llm è multi-provider e sincrono (SDK anthropic/openai + httpx ollama): lo
     #    eseguiamo in threadpool per non bloccare l'event loop. TODO: rendere async anche
@@ -140,6 +169,9 @@ async def ask_rag(query: AskQuery):
             {**r, "score": r["colbert_score"] if r["colbert_score"] is not None else r["dense_score"]}
             for r in search_results
         ],
+        # Codice iniettato nel contesto via archi IMPLEMENTS (vuoto se il grafo non ha
+        # ancora simboli linkati alle sezioni recuperate): trasparenza su cosa ha visto l'LLM.
+        "implementing_code": implementing_code,
     }
 
 

@@ -128,6 +128,7 @@ def _seed_old_snapshot(deps, rule_descriptions=None):
         colbert_store={"old": 1},
         chunks={"old": 1},
         rule_descriptions=rule_descriptions if rule_descriptions is not None else {"OLD": "x"},
+        code_store={},
         version=1.0,
     )
     deps.state["snapshot"] = old
