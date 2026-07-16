@@ -397,8 +397,9 @@ def _wire_full_rebuild(monkeypatch, gate_result: dict):
     gate_result è il dict restituito da _eval_gate (contratto core.eval_gate.gate_promotion)."""
     import api.routes_reindex as rr
 
+    monkeypatch.setattr(rr, "_reindex_embed_model", lambda: object())
     monkeypatch.setattr(rr, "build_graph_and_index", lambda **kw: "v-nuova")
-    monkeypatch.setattr(rr, "_eval_gate", lambda version: gate_result)
+    monkeypatch.setattr(rr, "_eval_gate", lambda version, embed_model: gate_result)
     promoted: list[str] = []
     monkeypatch.setattr(rr, "promote_version", lambda v: promoted.append(v))
     return rr, promoted

@@ -18,6 +18,8 @@ from pathlib import Path
 
 import numpy as np
 
+from core.config import CODE_EXCLUDED_DIRS
+
 # Estensioni considerate "codice sorgente" (allineate a quelle del check drift)
 CODE_EXTS = {".py", ".js", ".ts", ".tsx", ".jsx", ".svelte", ".html", ".css",
              ".java", ".bpmn", ".bpmn2", ".dmn", ".cs", ".csproj", ".cshtml", ".razor",
@@ -303,6 +305,8 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
         if not (path.is_file() and (path.suffix in CODE_EXTS or path.name in CODE_FILENAMES
                                     or _is_config_file(path.name) or _is_ci_file(path.name)
                                     or _is_docker_file(path.name))):
+            continue
+        if CODE_EXCLUDED_DIRS & set(path.relative_to(code_dir).parts):
             continue
         rel = path.relative_to(code_dir).as_posix()
         dev_type = rel.split("/")[0] if "/" in rel else ""

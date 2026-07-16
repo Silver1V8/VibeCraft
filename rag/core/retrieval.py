@@ -17,6 +17,8 @@ from core.config import (
     COLLECTION_NAME,
     LLM_MODEL,
     LLM_PROVIDER,
+    OLLAMA_NUM_CTX,
+    OLLAMA_THINK,
     OLLAMA_TIMEOUT_SECONDS,
 )
 
@@ -331,19 +333,28 @@ def call_llm(context: str, question: str) -> str:
 
     elif LLM_PROVIDER == "ollama":
         try:
+            # think/num_ctx allineati a core.llm._ollama_payload (stesso rag_config.yaml,
+            # stesso motivo: senza think:false qwen3.5 spende la generazione in ragionamento
+            # interno prima della risposta; senza num_ctx Ollama ricade sul default del
+            # modello, che con qwen3.5 è 32768 — cache KV inutilmente grande che spinge il
+            # caricamento del modello fuori dagli 8GB di VRAM in split GPU/CPU, molto più lento).
+            options = {"temperature": 0.0}
+            if OLLAMA_NUM_CTX is not None:
+                options["num_ctx"] = OLLAMA_NUM_CTX
+            payload = {
+                "model": LLM_MODEL,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message},
+                ],
+                "stream": False,
+                "options": options,
+            }
+            if OLLAMA_THINK is not None:
+                payload["think"] = OLLAMA_THINK
             response = httpx.post(
                 "http://localhost:11434/api/chat",
-                json={
-                    "model": LLM_MODEL,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_message},
-                    ],
-                    "stream": False,
-                    "options": {
-                        "temperature": 0.0
-                    },
-                },
+                json=payload,
                 timeout=OLLAMA_TIMEOUT_SECONDS,
             )
             if response.status_code == 404:

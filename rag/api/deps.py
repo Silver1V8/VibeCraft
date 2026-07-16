@@ -167,7 +167,13 @@ def load_rule_descriptions() -> dict[str, str]:
 async def lifespan(application: FastAPI):
     """Carica le risorse pesanti al boot e le libera allo shutdown."""
     logger.info("Caricamento modello embedding: %s ...", EMBEDDING_MODEL)
-    state["embed_model"] = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
+    # CPU per le query interattive (/ask, graph query): una singola embedding costa ms
+    # anche su CPU. GPU riservata ai job di reindex, che processano migliaia di chunk/
+    # simboli in batch (core.indexing crea lì un'istanza dedicata, vedi routes_reindex.py) —
+    # la VRAM da 8GB di una RTX 3070 Ti non basta a tenere residenti bge-m3 E il modello
+    # Ollama (qwen3.5:9b) insieme senza forzare quest'ultimo in split GPU/CPU (inferenza
+    # LLM molto più lenta).
+    state["embed_model"] = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False, devices="cpu")
 
     logger.info("Connessione a Qdrant (server mode): %s ...", QDRANT_URL)
     state["qdrant"] = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)

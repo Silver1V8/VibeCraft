@@ -22,6 +22,17 @@ con un warning, gli step della pipeline restituiscono il messaggio come testo vi
 `pipeline.generate_tolerant`). Nei test si inietta un provider fake con
 `llm.register_provider` — nessun HTTP (vedi [tests/test_llm.py](tests/test_llm.py)).
 
+**Eccezione:** `POST /ask` (sintesi della risposta RAG) NON passa da
+[core/llm.py](core/llm.py) — usa `retrieval.call_llm` (core/retrieval.py), un
+secondo layer Ollama/Anthropic/OpenAI più vecchio, mai unificato col primo. Per
+il ramo `ollama` replica manualmente `think`/`options.num_ctx` da
+`rag_config.yaml` (`llm_settings.ollama_think`/`ollama_num_ctx`): senza,
+`qwen3.5` genera in modalità "thinking" completa su un contesto di 32768 token
+(default del modello) invece dei 16384 configurati — misurato: 335s a risposta
+invece di 47s, e la cache KV più grande spinge il caricamento del modello fuori
+dagli 8GB di VRAM in split GPU/CPU. Se si tocca `_ollama_payload` in
+`core/llm.py` va aggiornato anche il branch `ollama` di `retrieval.call_llm`.
+
 ## Reindex automatico: l'indice non invecchia mai
 
 Due meccanismi tengono l'indice allineato al codebase senza intervento manuale:
@@ -247,6 +258,47 @@ versione nuova (mai riscritta). In lettura, se `CURRENT` non esiste ma in
 versione `legacy` (con fallback ai vecchi pickle `*.pkl` e un warning che invita
 a re-indicizzare con `python index.py`); la prima build successiva crea la
 struttura versionata e la promozione fa vincere CURRENT sul layout flat.
+
+## Embedding (bge-m3): CPU per le query, GPU per il reindex
+
+`BGEM3FlagModel` viene istanziato in due punti con device diversi, di proposito:
+
+- **`api/deps.py`** (`state["embed_model"]`, usato da `/ask` e
+  `/api/graph/query`): `devices="cpu"`. Una singola query costa ms anche su
+  CPU, e lasciare la VRAM libera evita che Ollama carichi `qwen3.5:9b` in
+  split GPU/CPU (molto più lento — vedi sezione LLM sopra).
+- **`api/routes_reindex.py`** (`_reindex_embed_model()`): nessun `devices`
+  esplicito → autodetect GPU. I job di reindex processano migliaia di
+  chunk/simboli in batch; su CPU un `full` rebuild passa da minuti a **decine
+  di ore** (misurato: ~10s/embedding CPU contro ~6-10 it/s GPU). Richiede la
+  build CUDA di torch (vedi `[tool.uv.sources]` in [pyproject.toml](pyproject.toml)
+  — su Windows PyPI serve solo la wheel CPU-only, quella CUDA vive
+  sull'indice ufficiale `download.pytorch.org`).
+
+Un'istanza fresca per job costa solo qualche secondo di caricamento,
+trascurabile rispetto al lavoro di embedding che segue — non vale la pena
+condividere l'istanza fra i due usi.
+
+## Esclusioni dalla scansione del codice generato
+
+`CODE_EXCLUDED_DIRS` (core/config.py) è la lista condivisa di cartelle mai
+scansionate sotto `code/`: dipendenze installate e output di build
+(`node_modules`, `.next`, `dist`, `build`, `coverage`, `.venv`, `venv`,
+`__pycache__`, `.turbo`, `.cache`, `bin`, `obj`, `.vs`, `TestResults`,
+`packages`). Usata da tre punti che altrimenti farebbero ciascuno il proprio
+`rglob("*")` senza filtro:
+
+1. `core.indexing._code_hashes` — base del delta incrementale;
+2. `code_index.collect_code_symbols` — estrazione simboli per il grafo (full
+   rebuild E incrementale: l'incrementale filtra a valle sui file "toccati",
+   ma la scansione grezza sotto è la stessa);
+3. il check drift (`core.indexing`, scansione per il confronto codice↔canvas).
+
+Senza questo filtro un `npm install`/`dotnet build` già eseguito nel repo fa
+esplodere sia il prompt di drift (Ollama risponde 500) sia il grafo di codice:
+misurato +16708 nodi/+131780 archi da un solo `node_modules`, che rendeva
+`/api/graph/all` irrenderizzabile in browser. Aggiungere un linguaggio con una
+propria cartella di build (es. `target/` per Maven) va aggiunto qui.
 
 ## Code index: aggiungere un nuovo linguaggio
 

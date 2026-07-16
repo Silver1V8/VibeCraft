@@ -8,6 +8,20 @@ from pathlib import Path
 import yaml
 
 
+# Cartelle da escludere sempre dalla scansione del codice generato (dipendenze installate
+# e output di build, mai scritte dall'agente e potenzialmente enormi): condivisa da
+# code_index (estrazione simboli) e core.indexing (hash delta + drift check). Senza questo
+# filtro un rglob("*") su un progetto con `npm install`/`dotnet build` già eseguiti include
+# node_modules/bin/obj per intero — decine di migliaia di file che gonfiano sia il prompt
+# di drift sia il grafo di codice (misurato: +16708 nodi/+131780 edge da un solo
+# `npm install`, che rende /api/graph/all irrenderizzabile in browser).
+CODE_EXCLUDED_DIRS = frozenset({
+    "node_modules", ".git", ".next", "dist", "build", "coverage",
+    ".venv", "venv", "__pycache__", ".turbo", ".cache",
+    "bin", "obj", ".vs", "TestResults", "packages",
+})
+
+
 def setup_logging() -> None:
     """Configurazione centrale del logging (chiamata dagli entrypoint server.py e
     index.py): formato con timestamp/livello/modulo, livello da VIBECRAFT_LOG_LEVEL

@@ -33,7 +33,9 @@ from core.artifacts import (
 )
 from core.config import REINDEX_JOURNAL_PATH
 from core.eval_gate import gate_promotion
+from core.config import EMBEDDING_MODEL
 from core.indexing import build_graph_and_index, incremental_index
+from FlagEmbedding import BGEM3FlagModel
 
 logger = logging.getLogger(__name__)
 
@@ -44,21 +46,30 @@ router = APIRouter(dependencies=[Depends(require_api_key)])
 manager = ReindexManager(journal_path=REINDEX_JOURNAL_PATH)
 
 
+def _reindex_embed_model():
+    """Istanza di bge-m3 dedicata ai job di reindex, separata da quella del server
+    (state["embed_model"], su CPU per le query interattive — vedi api/deps.py). I job
+    processano migliaia di chunk/simboli in batch: qui serve la GPU. Un'istanza fresca
+    per job costa solo qualche secondo di caricamento, trascurabile rispetto al lavoro
+    di embedding che segue."""
+    return BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
+
+
 def _run_reindex(changed_paths) -> dict:
-    """Esegue l'incrementale riusando il modello di embedding e il client Qdrant già
-    caricati dal server (evita il ricaricamento del modello, minuti di CPU). Gira sul
-    thread daemon del ReindexManager, quindi è bloccante ma fuori dall'event loop."""
+    """Esegue l'incrementale con un modello di embedding GPU dedicato (vedi
+    _reindex_embed_model) e il client Qdrant del server. Gira sul thread daemon del
+    ReindexManager, quindi è bloccante ma fuori dall'event loop."""
     return incremental_index(
         qdrant=state.get("qdrant"),
-        embed_model=state.get("embed_model"),
+        embed_model=_reindex_embed_model(),
         changed_paths=changed_paths,
     )
 
 
-def _eval_gate(version: str) -> dict:
+def _eval_gate(version: str, embed_model) -> dict:
     """Eval-gate sulla versione APPENA COSTRUITA (non ancora promossa): carica i suoi sidecar
-    e delega alla logica canonica core.eval_gate.gate_promotion. Il retrieval usa il Qdrant e
-    il modello già caricati dal server (il full rebuild ha già riallineato la collection alla
+    e delega alla logica canonica core.eval_gate.gate_promotion. Riusa lo stesso embed_model
+    GPU del full rebuild appena eseguito (il full rebuild ha già riallineato la collection alla
     nuova build, quindi la misura è coerente con ciò che si sta per promuovere). Fail-open se
     gli artefatti candidati non sono caricabili."""
     try:
@@ -68,24 +79,26 @@ def _eval_gate(version: str) -> dict:
         logger.warning("Eval-gate: artefatti candidati %s non caricabili (%s): promozione diretta.",
                        version, exc)
         return {"passed": True, "skipped": "load_error", "version": version}
-    return gate_promotion(version, state.get("qdrant"), state.get("embed_model"),
+    return gate_promotion(version, state.get("qdrant"), embed_model,
                           arts.colbert_store, emit=logger.info)
 
 
 def _run_full_rebuild(changed_paths) -> dict:
-    """Job "full": ricostruzione completa (build_graph_and_index) riusando modello e client
-    del server. `changed_paths` è ignorato (un full non ha delta). Gira sul thread daemon
-    del ReindexManager: è così che OGNI scrittura degli artefatti passa da un solo scrittore.
+    """Job "full": ricostruzione completa (build_graph_and_index) con un modello di embedding
+    GPU dedicato (vedi _reindex_embed_model), riusato anche per l'eval-gate che segue.
+    `changed_paths` è ignorato (un full non ha delta). Gira sul thread daemon del
+    ReindexManager: è così che OGNI scrittura degli artefatti passa da un solo scrittore.
 
     Blue/green: la build scrive una versione NUOVA senza promuoverla; la promozione passa
     dall'eval-gate (config eval_gate.*): se la recall sul golden-set scende sotto soglia e il
     gate è in modalità blocking, la versione resta su disco NON promossa (CURRENT invariato) e
     il job termina "completed_not_promoted" col report nell'esito."""
+    embed_model = _reindex_embed_model()
     version = build_graph_and_index(qdrant=state.get("qdrant"),
-                                    embed_model=state.get("embed_model"), promote=False)
+                                    embed_model=embed_model, promote=False)
     result = {"full_rebuild": True, "version": version}
     if version:  # None solo con build finta nei test
-        gate = _eval_gate(version)
+        gate = _eval_gate(version, embed_model)
         result["eval"] = {kk: gate[kk] for kk in
                           ("recall", "k", "min_recall", "n", "skipped", "advisory") if kk in gate}
         if not gate.get("passed"):

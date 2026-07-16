@@ -64,6 +64,7 @@ from core.eval_gate import gate_promotion
 from core.config import (
     CHANGES_DIR,
     CODE_DIR,
+    CODE_EXCLUDED_DIRS,
     COLLECTION_NAME,
     DENSE_DIM,
     DOC_EXTS,
@@ -444,6 +445,8 @@ def _code_hashes() -> dict[str, str]:
     if not CODE_DIR.exists():
         return hashes
     for filepath_obj in sorted(p for p in CODE_DIR.rglob("*") if p.is_file() and p.suffix in CODE_EXTS):
+        if CODE_EXCLUDED_DIRS & set(filepath_obj.relative_to(CODE_DIR).parts):
+            continue
         rel_path = filepath_obj.relative_to(CODE_DIR).as_posix()
         hashes[rel_path] = hashlib.sha256(filepath_obj.read_bytes()).hexdigest()
     return hashes
@@ -1201,16 +1204,6 @@ def _load_dev_type(feature_folder: str) -> str:
         return ""
 
 
-# Cartelle da escludere sempre dalla scansione del codice generato (drift check): dipendenze
-# installate e output di build, mai scritte dall'agente e potenzialmente enormi. Senza
-# questo filtro, un rglob("*") su un progetto con `npm install` già eseguito include
-# node_modules per intero — decine di migliaia di file .js/.ts che gonfiano il prompt ben
-# oltre qualunque num_ctx e Ollama risponde con HTTP 500 (misurato: ~53 milioni di token
-# stimati su un solo componente form).
-_DRIFT_EXCLUDED_DIRS = frozenset({
-    "node_modules", ".git", ".next", "dist", "build", "coverage",
-    ".venv", "venv", "__pycache__", ".turbo", ".cache",
-})
 # Tetto sui caratteri di codice iniettati nel prompt di drift: anche escludendo node_modules,
 # una feature con molti file sorgente potrebbe comunque superare la finestra di contesto.
 # Meglio troncare con un avviso esplicito che affidarsi al solo guardrail di core/llm.py.
@@ -1252,7 +1245,7 @@ def check_drift(feature_name: str, emit=None) -> str:
         if not base.exists():
             continue
         for path in sorted(base.rglob("*")):
-            if _DRIFT_EXCLUDED_DIRS & set(path.parts):
+            if CODE_EXCLUDED_DIRS & set(path.parts):
                 continue
             if not (path.is_file() and path.suffix in code_exts):
                 continue
