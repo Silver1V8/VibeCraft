@@ -7,6 +7,13 @@
       "runtimeArgs": ["run", "python", "server.py"],
       "cwd": "rag",
       "port": 8000
+    },
+    {
+      "name": "vibecraft-frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "code/frontend",
+      "port": 3000
     }
   ]
 }
