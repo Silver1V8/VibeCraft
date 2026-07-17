@@ -1,3 +1,4 @@
 {"timestamp": "2026-07-15T07:25:18.693037+00:00", "commit": "9033131", "version": "v20260715T072407", "recall": {"recall@10": 1.0}, "n_cases": 34, "source": "gate", "gate": {"passed": true, "min_recall": 0.9}}
 {"timestamp": "2026-07-17T09:42:24.643510+00:00", "commit": "eb9c3e8", "version": "v20260717T094158", "recall": {"recall@10": 1.0}, "n_cases": 34, "source": "gate", "gate": {"passed": true, "min_recall": 0.9}}
 {"timestamp": "2026-07-17T10:17:59.929419+00:00", "commit": "eb9c3e8", "version": "v20260717T101743", "recall": {"recall@10": 1.0}, "n_cases": 34, "source": "gate", "gate": {"passed": true, "min_recall": 0.9}}
+{"timestamp": "2026-07-17T16:17:03.845227+00:00", "commit": "afd470b", "version": "v20260717T161057", "recall": {"recall@10": 1.0}, "n_cases": 34, "source": "gate", "gate": {"passed": true, "min_recall": 0.9}}

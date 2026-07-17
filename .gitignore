@@ -37,3 +37,7 @@ Thumbs.db
 .idea/
 rag/database/dense.pkl
 rag/database/code.pkl
+
+# Backup manuali degli snapshot Qdrant (es. rete di sicurezza pre-flip S9): binari,
+# non fanno parte del codice, non vanno nella history del repo.
+qdrant_snapshots_backup/
