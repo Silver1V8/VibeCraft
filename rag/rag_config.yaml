@@ -49,11 +49,12 @@ vector_database:
   provider: "qdrant"
   collection_name: "vibecraft_events"
   embedding_model: "BAAI/bge-m3" # Modello locale per vettori densi/sparsi
-  # Blue/green Qdrant (collection versionate + alias): piano di implementazione in
-  # corso (step S6). NON attivare prima che gli step S6.3-S6.6 siano completati —
-  # a metà implementazione il flag acceso produce uno stato incoerente (build su
-  # candidata senza che promozione/alias/migrazione sappiano ancora gestirla).
-  blue_green: false
+  # Blue/green Qdrant (collection versionate + alias): S1-S8 completati e testati
+  # (build su candidata, promote+migrazione one-shot+alias swap, rollback con alias
+  # swap, reconciler riparatore, GC delle collection orfane). Acceso in produzione
+  # da S9 (2026-07-17): il primo full rebuild col flag su true ha eseguito la
+  # migrazione one-shot legacy->alias su vibecraft_events.
+  blue_green: true
 
 # Contesto governato che àncora Canvas/Propose (core/retrieval.py, api/routes_pipeline.py).
 # Il retrieval è a DUE rami: uno di dominio (cosa deve fare la feature) e uno tecnico
