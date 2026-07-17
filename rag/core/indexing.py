@@ -61,6 +61,7 @@ from core.chunking import (
 )
 from core import llm
 from core.eval_gate import gate_promotion
+from core.pipeline import InvalidFeatureNameError, resolve_feature_dir
 from core.config import (
     CHANGES_DIR,
     CODE_DIR,
@@ -1193,9 +1194,11 @@ def check_graph_consistency(embed_model=None, docs_dir: Path | None = None,
     return report
 
 
-def _load_dev_type(feature_folder: str) -> str:
-    """Legge il tipo di sviluppo salvato in changes/<feature>/meta.json, se presente."""
-    meta_path = CHANGES_DIR / feature_folder / "meta.json"
+def _load_dev_type(feature_dir: Path) -> str:
+    """Legge il tipo di sviluppo salvato in <feature_dir>/meta.json, se presente.
+    `feature_dir` è già il percorso risolto (e validato) della feature, non più
+    una stringa da ri-comporre: evita una seconda concatenazione non verificata."""
+    meta_path = feature_dir / "meta.json"
     if not meta_path.exists():
         return ""
     try:
@@ -1218,10 +1221,16 @@ def check_drift(feature_name: str, emit=None) -> str:
     `emit` (default: logger.info) permette lo streaming SSE del progresso.
     """
     _log = emit or logger.info
-    feature_folder = feature_name.replace(' ', '-').lower()
+    try:
+        feature_dir_path = resolve_feature_dir(CHANGES_DIR, feature_name)
+    except InvalidFeatureNameError as exc:
+        msg = f"❌ Nome feature non valido: {exc}"
+        _log(msg)
+        return msg
+    feature_folder = feature_dir_path.name
     _log(f"\n🔍 Avvio controllo Drift (Disallineamento) per: 'changes/{feature_folder}'...")
 
-    canvas_path = CHANGES_DIR / feature_folder / "canvas.md"
+    canvas_path = feature_dir_path / "canvas.md"
 
     if not canvas_path.exists():
         msg = f"❌ Errore: Non trovo il file {canvas_path}."
@@ -1234,8 +1243,8 @@ def check_drift(feature_name: str, emit=None) -> str:
     # cartella della feature, sia dalla sottocartella code/<dev_type> dove Claude
     # Code scrive di fatto l'implementazione (il tipo di sviluppo è in meta.json).
     code_exts = ('.js', '.ts', '.tsx', '.py', '.html', '.css')
-    search_dirs = [CHANGES_DIR / feature_folder]
-    dev_type = _load_dev_type(feature_folder)
+    search_dirs = [feature_dir_path]
+    dev_type = _load_dev_type(feature_dir_path)
     if dev_type:
         search_dirs.append(CODE_DIR / dev_type)
 
@@ -1344,12 +1353,23 @@ def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_mode
         _emit(msg)
         lines.append(msg)
 
-    feature_folder = feature_name.replace(' ', '-').lower()
+    try:
+        source_dir = resolve_feature_dir(CHANGES_DIR, feature_name)
+    except InvalidFeatureNameError as exc:
+        log(f"❌ Nome feature non valido: {exc}")
+        return "\n".join(lines)
+    feature_folder = source_dir.name
     log(f"\n📦 Avvio archiviazione per la feature: '{feature_folder}'...")
 
-    source_dir = CHANGES_DIR / feature_folder
     archive_base_dir = CHANGES_DIR / "archive"
-    target_dir = archive_base_dir / feature_folder
+    try:
+        # feature_folder è già uno slug valido (appena prodotto sopra): questa validazione
+        # è difesa in profondità, non attesa a fallire — protegge comunque da eventuali
+        # modifiche future alle invarianti di resolve_feature_dir/archive_base_dir.
+        target_dir = resolve_feature_dir(archive_base_dir, feature_folder)
+    except InvalidFeatureNameError as exc:
+        log(f"❌ Percorso di archiviazione non valido: {exc}")
+        return "\n".join(lines)
 
     if not source_dir.exists():
         log(f"❌ Errore: La cartella {source_dir} non esiste. Non c'è nulla da archiviare.")

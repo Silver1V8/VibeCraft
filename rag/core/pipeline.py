@@ -14,8 +14,56 @@ from core.config import CHANGES_DIR, CODE_DIR, TECH_QUERY_TEMPLATE
 CANVAS_SECTIONS = ("Requirements", "Entities", "Approach", "Structure", "Operations", "Norms", "Safeguards")
 
 
+class InvalidFeatureNameError(ValueError):
+    """Nome feature che non produce uno slug utilizzabile (vuoto, solo separatori,
+    o un percorso che uscirebbe dalla directory base): mai usabile per comporre un
+    path sotto CHANGES_DIR. Sottoclasse di ValueError per restare compatibile con
+    lo stile di gestione errori già in uso altrove (vedi api/routes_reindex.py)."""
+
+
+# Qualunque carattere fuori da [a-z0-9-] viene SCARTATO (non sostituito): scartare
+# invece di rimpiazzare con '-' garantisce che separatori di path ('/', '\\') e '.'
+# non possano mai comparire nello slug, quindi nessuna combinazione di feature_name
+# può produrre '..' o un separatore che sposti la risoluzione fuori da CHANGES_DIR.
+_SLUG_INVALID_RE = re.compile(r"[^a-z0-9-]+")
+_SLUG_DASH_RUN_RE = re.compile(r"-{2,}")
+
+
 def slugify_feature(feature_name: str) -> str:
-    return feature_name.strip().replace(" ", "-").lower()
+    """Slug del nome feature ristretto a [a-z0-9-]. Spazi e underscore diventano '-'
+    (comportamento storico); ogni altro carattere (incluso '/', '\\', '.', '..') viene
+    rimosso invece che trascritto. Solleva InvalidFeatureNameError se il risultato è
+    vuoto (input vuoto, solo separatori, o equivalente a '.'/'..' una volta ripulito)."""
+    lowered = feature_name.strip().lower().replace(" ", "-").replace("_", "-")
+    slug = _SLUG_INVALID_RE.sub("", lowered)
+    slug = _SLUG_DASH_RUN_RE.sub("-", slug).strip("-")
+    if not slug or slug in (".", ".."):
+        raise InvalidFeatureNameError(f"Nome feature non valido: {feature_name!r}")
+    return slug
+
+
+def resolve_feature_dir(base_dir: Path, feature_name: str) -> Path:
+    """Risolve `base_dir / slug(feature_name)`, verificando ESPLICITAMENTE che il
+    percorso risultante resti contenuto in `base_dir`. Lo slug è già ristretto a
+    [a-z0-9-] (nessun separatore può comparirvi), quindi l'uscita da base_dir non è
+    raggiungibile per costruzione; il controllo di contenimento resta comunque come
+    difesa in profondità, indipendente da quell'invariante. Solleva
+    InvalidFeatureNameError se lo slug non è valido o se — difesa in profondità — il
+    percorso risolto non fosse contenuto in base_dir."""
+    slug = slugify_feature(feature_name)
+    candidate = base_dir / slug
+    try:
+        base_resolved = base_dir.resolve()
+        candidate_resolved = candidate.resolve()
+    except OSError as exc:
+        raise InvalidFeatureNameError(
+            f"Percorso non risolvibile per la feature {feature_name!r}: {exc}"
+        ) from exc
+    if not candidate_resolved.is_relative_to(base_resolved):
+        raise InvalidFeatureNameError(
+            f"Percorso della feature fuori da {base_dir}: {feature_name!r}"
+        )
+    return candidate
 
 
 async def generate_tolerant(prompt: str, *, purpose: str) -> str:
@@ -35,8 +83,7 @@ async def call_ollama_generate(prompt: str) -> str:
 
 
 def feature_dir(feature_name: str) -> Path:
-    folder = slugify_feature(feature_name)
-    path = CHANGES_DIR / folder
+    path = resolve_feature_dir(CHANGES_DIR, feature_name)
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -46,6 +93,29 @@ def list_dev_types() -> list[str]:
     if not CODE_DIR.exists():
         return []
     return sorted(p.name for p in CODE_DIR.iterdir() if p.is_dir() and not p.name.startswith("."))
+
+
+class InvalidDevTypeError(ValueError):
+    """dev_type non tra le sottocartelle esistenti di code/ (list_dev_types()): mai
+    persistito né usato per comporre un percorso — diventa un componente di path
+    (CODE_DIR / dev_type in core.indexing.check_drift), quindi solo i valori della
+    whitelist esistente sono ammessi, mai un valore arbitrario fornito dal chiamante."""
+
+
+def validate_dev_type(dev_type: str) -> str:
+    """Restituisce `dev_type` invariato se vuoto (nessun ambito scelto: sempre valido)
+    o se compare tra le sottocartelle esistenti di code/ (list_dev_types()). Solleva
+    InvalidDevTypeError altrimenti — stessa whitelist già usata per popolare la
+    tendina di scelta, nessuna regex nuova."""
+    if not dev_type:
+        return dev_type
+    valid = list_dev_types()
+    if dev_type not in valid:
+        raise InvalidDevTypeError(
+            f"Tipo di sviluppo non valido: {dev_type!r} "
+            f"(attesi: {', '.join(valid) if valid else 'nessuno disponibile sotto code/'})"
+        )
+    return dev_type
 
 
 def _dev_type_words(dev_type: str) -> list[str]:
@@ -88,8 +158,10 @@ def build_tech_query(dev_type: str, template: str = TECH_QUERY_TEMPLATE) -> str:
 
 
 def save_dev_type(folder: Path, dev_type: str) -> None:
-    """Persiste il tipo di sviluppo scelto in changes/<feature>/meta.json, per ripristinarlo al resume."""
-    if not dev_type:
+    """Persiste il tipo di sviluppo scelto in changes/<feature>/meta.json, per ripristinarlo
+    al resume. Solleva InvalidDevTypeError (via validate_dev_type) se dev_type non è vuoto
+    e non è tra le sottocartelle esistenti di code/: non scrive mai un valore non valido."""
+    if not validate_dev_type(dev_type):
         return
     meta_path = folder / "meta.json"
     meta = {}
@@ -544,8 +616,8 @@ def build_agent_context(feature_name: str, dev_type: str = "", *,
 
     Le risorse (grafo, Qdrant, modello di embedding, sidecar ColBERT) sono iniettate; funzione
     sincrona pensata per girare in threadpool dal route handler."""
-    folder_name = slugify_feature(feature_name)
-    folder = CHANGES_DIR / folder_name
+    folder = resolve_feature_dir(CHANGES_DIR, feature_name)
+    folder_name = folder.name
     canvas = (folder / "canvas.md").read_text(encoding="utf-8") if (folder / "canvas.md").exists() else ""
     spec = (folder / "spec.md").read_text(encoding="utf-8") if (folder / "spec.md").exists() else ""
     dev_type = dev_type or load_dev_type(folder)

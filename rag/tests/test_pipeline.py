@@ -2,6 +2,7 @@
 validate), controlli strutturali e blocco [AGENT CONTEXT]. Nessun FastAPI, nessun LLM,
 nessun Qdrant reale (build_agent_context nel percorso senza retrieval)."""
 import networkx as nx
+import pytest
 
 from core import pipeline
 
@@ -29,6 +30,64 @@ def test_dev_type_tag_variants_covers_tagging_conventions():
     # Nome di una sola parola: nessuna variante spuria, e niente duplicati.
     assert pipeline.dev_type_tag_variants("frontend") == ["frontend"]
     assert pipeline.dev_type_tag_variants("  ") == []
+
+
+def test_validate_dev_type_accepts_empty_string():
+    # Nessun ambito scelto: sempre valido, comportamento invariato.
+    assert pipeline.validate_dev_type("") == ""
+
+
+def test_validate_dev_type_accepts_known_type(tmp_path, monkeypatch):
+    (tmp_path / "backend").mkdir()
+    (tmp_path / "frontend").mkdir()
+    monkeypatch.setattr(pipeline, "CODE_DIR", tmp_path)
+    assert pipeline.validate_dev_type("backend") == "backend"
+
+
+def test_validate_dev_type_rejects_unknown_type(tmp_path, monkeypatch):
+    (tmp_path / "backend").mkdir()
+    monkeypatch.setattr(pipeline, "CODE_DIR", tmp_path)
+    with pytest.raises(pipeline.InvalidDevTypeError):
+        pipeline.validate_dev_type("database")
+
+
+def test_validate_dev_type_rejects_path_traversal_attempt(tmp_path, monkeypatch):
+    # dev_type diventa CODE_DIR / dev_type in core.indexing.check_drift: un tentativo
+    # di uscire da code/ non è tra le sottocartelle esistenti, quindi va rifiutato
+    # esattamente come un dev_type sconosciuto qualunque (stessa whitelist).
+    (tmp_path / "backend").mkdir()
+    monkeypatch.setattr(pipeline, "CODE_DIR", tmp_path)
+    for bad in ("../../etc", "..\\..\\windows", "/etc/passwd", "backend/../../../etc"):
+        with pytest.raises(pipeline.InvalidDevTypeError):
+            pipeline.validate_dev_type(bad)
+
+
+def test_save_dev_type_rejects_invalid_dev_type_without_writing(tmp_path, monkeypatch):
+    (tmp_path / "code").mkdir()
+    (tmp_path / "code" / "backend").mkdir()
+    monkeypatch.setattr(pipeline, "CODE_DIR", tmp_path / "code")
+    folder = tmp_path / "changes" / "feat-demo"
+    folder.mkdir(parents=True)
+
+    with pytest.raises(pipeline.InvalidDevTypeError):
+        pipeline.save_dev_type(folder, "../../etc")
+
+    assert not (folder / "meta.json").exists()  # rifiutato prima di qualunque scrittura
+
+
+def test_save_dev_type_still_persists_valid_dev_type(tmp_path, monkeypatch):
+    # Compatibilità: un dev_type valido continua a essere persistito come prima.
+    (tmp_path / "code").mkdir()
+    (tmp_path / "code" / "backend").mkdir()
+    monkeypatch.setattr(pipeline, "CODE_DIR", tmp_path / "code")
+    folder = tmp_path / "changes" / "feat-demo"
+    folder.mkdir(parents=True)
+
+    pipeline.save_dev_type(folder, "backend")
+
+    import json
+    meta = json.loads((folder / "meta.json").read_text(encoding="utf-8"))
+    assert meta["dev_type"] == "backend"
 
 
 def test_build_tech_query_off_without_dev_type_or_template():

@@ -87,6 +87,18 @@ def resolve(purpose: str) -> tuple[str, str]:
 # Provider: ollama
 # ---------------------------------------------------------------------------
 
+def _extract_ollama_text(payload: dict) -> str:
+    """Testo generato da Ollama, o LLMError se il campo 'response' manca o è vuoto.
+    Ollama può rispondere 200 senza aver generato nulla (bug noto di qwen3.5 col
+    thinking attivo, vedi rag_config.yaml: 'un canvas vuoto è un fallimento
+    silenzioso'): una stringa vuota o assente non deve mai essere trattata come
+    contenuto valido dai chiamanti (finiva persistita come se fosse la generazione)."""
+    text = payload.get("response")
+    if not text or not str(text).strip():
+        raise LLMError("[ERRORE OLLAMA]: risposta vuota o priva del campo 'response' (generazione fallita).")
+    return text
+
+
 def _ollama_generate(model: str, prompt: str, timeout: float) -> str:
     data = json.dumps(_ollama_payload(model, prompt)).encode("utf-8")
     req = urllib.request.Request(
@@ -105,7 +117,7 @@ def _ollama_generate(model: str, prompt: str, timeout: float) -> str:
         raise LLMError("[ERRORE DI TIMEOUT]: Ollama sta impiegando troppo tempo a rispondere.") from e
     except Exception as e:
         raise LLMError(f"[ERRORE GENERICO OLLAMA]: {e}") from e
-    return result.get("response", "Errore nella generazione.")
+    return _extract_ollama_text(result)
 
 
 async def _ollama_agenerate(model: str, prompt: str, timeout: float) -> str:
@@ -116,7 +128,7 @@ async def _ollama_agenerate(model: str, prompt: str, timeout: float) -> str:
         if response.status_code == 404:
             raise LLMError(f"[ERRORE OLLAMA]: Il modello '{model}' non è stato trovato. Esegui 'ollama pull {model}'.")
         response.raise_for_status()
-        return response.json().get("response", "Errore nella generazione.")
+        return _extract_ollama_text(response.json())
     except LLMError:
         raise
     except httpx.ConnectError as e:

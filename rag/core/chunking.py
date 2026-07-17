@@ -2,6 +2,7 @@
 (md/txt/docx/xlsx/pdf), estrazione delle entità, split per sezione (heading di livello 2)
 e archi tipizzati dal frontmatter. Nessuna dipendenza da Qdrant o dal modello di embedding."""
 import re
+from pathlib import Path
 
 import networkx as nx
 import yaml

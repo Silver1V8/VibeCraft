@@ -37,6 +37,13 @@ logger = logging.getLogger(__name__)
 API_KEY = os.environ.get("VIBECRAFT_API_KEY")
 
 
+def _valid_api_key(request: Request) -> bool:
+    """True se l'header X-API-Key della richiesta corrisponde a VIBECRAFT_API_KEY (e la
+    chiave è configurata). Condivisa da require_api_key (bypass su localhost) e
+    require_api_key_strict (nessun bypass, per gli endpoint mutanti)."""
+    return bool(API_KEY) and request.headers.get("X-API-Key") == API_KEY
+
+
 def require_api_key(request: Request) -> None:
     """Lascia passare le richieste da localhost; per tutte le altre, richiede
     l'header X-API-Key (env VIBECRAFT_API_KEY). Se la chiave non è configurata,
@@ -44,8 +51,27 @@ def require_api_key(request: Request) -> None:
     client_host = request.client.host if request.client else None
     if client_host in ("127.0.0.1", "::1"):
         return
-    if not API_KEY or request.headers.get("X-API-Key") != API_KEY:
+    if not _valid_api_key(request):
         raise HTTPException(status_code=401, detail="API key richiesta per accesso non locale.")
+
+
+def require_api_key_strict(request: Request) -> None:
+    """Come require_api_key ma SENZA bypass per localhost: per gli endpoint MUTANTI
+    (agent/run — esecuzione shell/scrittura file —, explore/save, canvas/generate,
+    propose/generate, archive, file/save, reindex, rollback) l'header X-API-Key è
+    SEMPRE richiesto, anche da 127.0.0.1/::1. Il bypass di require_api_key esiste per
+    comodità locale sulle route di sola lettura; su queste, invece, un bypass su
+    localhost basterebbe a una pagina aperta nel browser dell'utente per invocarle via
+    fetch() senza alcuna autenticazione (es. esecuzione di comandi tramite agent/run).
+    Fail-closed se VIBECRAFT_API_KEY non è configurata: nessuna richiesta passa senza
+    chiave, nemmeno da localhost. Va usata IN AGGIUNTA a require_api_key (dependency di
+    router), non al suo posto — vedi require_gitlab_token per lo stesso schema di
+    composizione."""
+    if not _valid_api_key(request):
+        raise HTTPException(
+            status_code=401,
+            detail="API key richiesta per questo endpoint, anche da localhost.",
+        )
 
 
 # ---------------------------------------------------------------------------

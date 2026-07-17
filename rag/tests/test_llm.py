@@ -137,6 +137,118 @@ def test_errore_ollama_connessione_mappato_su_llmerror(monkeypatch):
         llm._ollama_generate("qwen2.5:7b", "ciao", timeout=1.0)
 
 
+# ---------------------------------------------------------------------------
+# Ollama può rispondere 200 senza aver generato nulla (bug noto di qwen3.5 col
+# thinking attivo: il ragionamento esaurisce la generazione, la risposta esce vuota
+# o priva del campo 'response'). Prima del fix questo diventava contenuto valido
+# ("Errore nella generazione." o "" scritti in canvas.md/spec.md); ora deve
+# sollevare LLMError come qualunque altro errore di generazione.
+# ---------------------------------------------------------------------------
+def test_extract_ollama_text_raises_on_missing_response_field():
+    with pytest.raises(llm.LLMError, match="risposta vuota"):
+        llm._extract_ollama_text({"model": "qwen3.5:9b"})  # nessun campo 'response'
+
+
+def test_extract_ollama_text_raises_on_empty_or_blank_response():
+    with pytest.raises(llm.LLMError, match="risposta vuota"):
+        llm._extract_ollama_text({"response": ""})
+    with pytest.raises(llm.LLMError, match="risposta vuota"):
+        llm._extract_ollama_text({"response": "   "})
+
+
+def test_extract_ollama_text_returns_content_when_present():
+    assert llm._extract_ollama_text({"response": "## Requirements\nOK"}) == "## Requirements\nOK"
+
+
+class _FakeUrlopenResponse:
+    """Context manager minimale che imita urllib.request.urlopen(...) as response."""
+    def __init__(self, body: bytes):
+        self._body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def read(self):
+        return self._body
+
+
+def test_ollama_generate_raises_on_missing_response_field(monkeypatch):
+    import json
+    import urllib.request
+
+    monkeypatch.setattr(
+        urllib.request, "urlopen",
+        lambda req, timeout=None: _FakeUrlopenResponse(json.dumps({"model": "m"}).encode()),
+    )
+    with pytest.raises(llm.LLMError, match="risposta vuota"):
+        llm._ollama_generate("qwen3.5:9b", "ciao", timeout=1.0)
+
+
+def test_ollama_generate_raises_on_empty_response_field(monkeypatch):
+    import json
+    import urllib.request
+
+    monkeypatch.setattr(
+        urllib.request, "urlopen",
+        lambda req, timeout=None: _FakeUrlopenResponse(json.dumps({"response": ""}).encode()),
+    )
+    with pytest.raises(llm.LLMError, match="risposta vuota"):
+        llm._ollama_generate("qwen3.5:9b", "ciao", timeout=1.0)
+
+
+def test_ollama_generate_still_returns_valid_content(monkeypatch):
+    import json
+    import urllib.request
+
+    monkeypatch.setattr(
+        urllib.request, "urlopen",
+        lambda req, timeout=None: _FakeUrlopenResponse(json.dumps({"response": "canvas ok"}).encode()),
+    )
+    assert llm._ollama_generate("qwen3.5:9b", "ciao", timeout=1.0) == "canvas ok"
+
+
+def _make_fake_async_client(payload: dict):
+    """httpx.AsyncClient fake minimale (async context manager + .post()) per testare
+    _ollama_agenerate senza rete."""
+    class _FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return payload
+
+    class _FakeAsyncClient:
+        def __init__(self, *a, **kw):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            return False
+
+        async def post(self, url, json=None):
+            return _FakeResponse()
+
+    return _FakeAsyncClient
+
+
+def test_ollama_agenerate_raises_on_empty_response(monkeypatch):
+    monkeypatch.setattr(llm.httpx, "AsyncClient", _make_fake_async_client({"response": ""}))
+    with pytest.raises(llm.LLMError, match="risposta vuota"):
+        asyncio.run(llm._ollama_agenerate("qwen3.5:9b", "ciao", timeout=1.0))
+
+
+def test_ollama_agenerate_returns_content_when_present(monkeypatch):
+    monkeypatch.setattr(llm.httpx, "AsyncClient", _make_fake_async_client({"response": "spec ok"}))
+    assert asyncio.run(llm._ollama_agenerate("qwen3.5:9b", "ciao", timeout=1.0)) == "spec ok"
+
+
 def test_ollama_payload_include_num_ctx_e_think_solo_se_configurati(monkeypatch):
     # num_ctx e' la difesa contro il default 4096 di Ollama, che tronca dall'alto i prompt
     # di canvas/propose (>4.300 token): senza, il modello non vede l'intervista in cima e

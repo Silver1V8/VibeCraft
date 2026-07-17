@@ -4,6 +4,7 @@ handler orchestrano I/O e concorrenza (async/threadpool/streaming) e iniettano l
 di runtime dallo stato (api.deps) nelle funzioni pure di core.pipeline / core.retrieval."""
 import functools
 import json
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -15,6 +16,7 @@ from api.deps import (
     IndexSnapshot,
     current_snapshot,
     require_api_key,
+    require_api_key_strict,
     run_streaming,
     state,
 )
@@ -30,7 +32,7 @@ from api.models import (
     ValidateRequest,
 )
 from api.routes_reindex import enqueue_full_rebuild
-from core import canvas_review, pipeline, retrieval
+from core import canvas_review, llm, pipeline, retrieval
 from core.config import (
     CHANGES_DIR,
     GOVERNED_MAX_CHUNKS,
@@ -40,18 +42,56 @@ from core.config import (
 )
 from core.indexing import archive_feature, check_drift, check_index_integrity, index_status
 from core.pipeline import (
+    InvalidDevTypeError,
+    InvalidFeatureNameError,
     build_final_prompt,
     feature_dir,
     generate_tolerant,
     list_dev_types,
     load_dev_type,
+    resolve_feature_dir,
     save_dev_type,
     slugify_feature,
+    validate_dev_type,
 )
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
 PIPELINE_FILES = ("explore.md", "canvas.md", "spec.md")
+
+
+def _safe_slug(feature_name: str) -> str:
+    """slugify_feature con conversione esplicita in 400 Bad Request: un nome feature
+    non valido (vuoto, solo separatori, tentativo di path traversal) diventa un errore
+    HTTP chiaro invece di propagare fino a un 500 non gestito."""
+    try:
+        return slugify_feature(feature_name)
+    except InvalidFeatureNameError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+def _safe_dev_type(dev_type: str) -> str:
+    """validate_dev_type con conversione esplicita in 400 Bad Request: un dev_type
+    fuori dalla whitelist di list_dev_types() (diventerebbe CODE_DIR / dev_type in
+    core.indexing.check_drift) viene rifiutato PRIMA di generare/scrivere alcunché,
+    invece di far fallire a metà lavoro la chiamata a save_dev_type."""
+    try:
+        return validate_dev_type(dev_type)
+    except InvalidDevTypeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+def _safe_feature_dir(feature_name: str, *, create: bool = False) -> Path:
+    """Risolve changes/<slug(feature_name)>, convertendo un nome non valido (o un
+    tentativo di uscire da CHANGES_DIR) in 400 Bad Request. `create=True` crea la
+    cartella se assente (equivalente a pipeline.feature_dir, ma con errore HTTP
+    esplicito invece di propagare l'eccezione)."""
+    try:
+        if create:
+            return feature_dir(feature_name)
+        return resolve_feature_dir(CHANGES_DIR, feature_name)
+    except InvalidFeatureNameError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 def _snap_fields(snap: IndexSnapshot | None):
@@ -127,7 +167,7 @@ async def agent_modes():
     return {"modes": [{"id": k, "label": v["label"]} for k, v in AGENT_MODES.items()]}
 
 
-@router.post("/api/pipeline/agent/run")
+@router.post("/api/pipeline/agent/run", dependencies=[Depends(require_api_key_strict)])
 async def agent_run(req: AgentRunRequest):
     """
     Esegue il prompt finale della pipeline direttamente tramite il Claude Agent SDK,
@@ -173,9 +213,10 @@ async def pipeline_explore_turn(req: ExploreTurnRequest):
 @router.post("/api/pipeline/explore/save")
 async def pipeline_explore_save(req: ExploreSaveRequest):
     """Salva il log dell'intervista in changes/<feature>/explore.md."""
-    folder = feature_dir(req.feature_name)
-    save_dev_type(folder, req.dev_type)
-    dev_type_line = f"**Tipo di sviluppo:** {req.dev_type}\n\n" if req.dev_type else ""
+    folder = _safe_feature_dir(req.feature_name, create=True)
+    dev_type = _safe_dev_type(req.dev_type)
+    save_dev_type(folder, dev_type)
+    dev_type_line = f"**Tipo di sviluppo:** {dev_type}\n\n" if dev_type else ""
     file_path = folder / "explore.md"
     content = f"# Intervista Explore: {req.feature_name}\n\n{dev_type_line}{req.interview_log}"
     file_path.write_text(content, encoding="utf-8")
@@ -185,7 +226,7 @@ async def pipeline_explore_save(req: ExploreSaveRequest):
 @router.post("/api/pipeline/canvas/generate")
 async def pipeline_canvas_generate(req: CanvasGenerateRequest):
     """Genera il REASONS Canvas a partire dall'intervista Explore (equivalente a canvas.py)."""
-    folder = feature_dir(req.feature_name)
+    folder = _safe_feature_dir(req.feature_name, create=True)
     explore_path = folder / "explore.md"
 
     if explore_path.exists():
@@ -197,7 +238,9 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
     # normativi pertinenti (safeguard, glossario, matrice permessi), pesati per autorità,
     # invece di affidarsi a un contesto statico scritto a mano. Il dev_type è risolto qui
     # perché guida anche il ramo tecnico del retrieval, non solo la cartella di output.
-    dev_type = req.dev_type or load_dev_type(folder)
+    # Validato SUBITO (whitelist di list_dev_types()), prima di spendere un retrieval/LLM:
+    # diventa un componente di path (CODE_DIR / dev_type) in core.indexing.check_drift.
+    dev_type = _safe_dev_type(req.dev_type or load_dev_type(folder))
     snap = current_snapshot()
     query = f"{req.feature_name}\n{contesto_intervista[:2000]}"
     governed_context = await run_in_threadpool(_governed_context, query, snap)
@@ -220,7 +263,14 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
         contesto_tecnico
     )
 
-    canvas_content = await generate_tolerant(prompt_strutturato, purpose="canvas")
+    # Generazione DIRETTA (non generate_tolerant): un errore LLM non deve mai diventare il
+    # contenuto di canvas.md — un canvas che dice "[ERRORE DI CONNESSIONE]" verrebbe letto da
+    # propose/validate/archive come contratto reale. L'errore è restituito esplicitamente
+    # come 502 (dipendenza esterna, non input malformato), senza scrivere alcun file.
+    try:
+        canvas_content = await llm.agenerate(prompt_strutturato, purpose="canvas")
+    except llm.LLMError as exc:
+        raise HTTPException(status_code=502, detail=f"Generazione del Canvas fallita: {exc}") from exc
     (folder / "canvas.md").write_text(canvas_content, encoding="utf-8")
     save_dev_type(folder, dev_type)
     return {"feature_folder": folder.name, "path": "canvas.md", "content": canvas_content}
@@ -229,15 +279,17 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
 @router.post("/api/pipeline/propose/generate")
 async def pipeline_propose_generate(req: ProposeGenerateRequest):
     """Genera spec.md dal Canvas e il prompt finale per Claude Code (equivalente a propose.py)."""
-    folder_name = slugify_feature(req.feature_folder)
-    folder = CHANGES_DIR / folder_name
+    folder = _safe_feature_dir(req.feature_folder)
+    folder_name = folder.name
     canvas_path = folder / "canvas.md"
 
     if not canvas_path.exists():
         raise HTTPException(status_code=404, detail=f"Non trovo {canvas_path.name}. Devi prima generare il Canvas.")
 
     canvas_content = canvas_path.read_text(encoding="utf-8")
-    dev_type = req.dev_type or load_dev_type(folder)
+    # Validato SUBITO (whitelist di list_dev_types()), prima di spendere un retrieval/LLM:
+    # diventa un componente di path (CODE_DIR / dev_type) in core.indexing.check_drift.
+    dev_type = _safe_dev_type(req.dev_type or load_dev_type(folder))
 
     # Recupera i vincoli normativi dal Graph RAG per generare scenari BDD che coprano
     # anche i safeguard e le policy pertinenti, non solo ciò che è nel Canvas.
@@ -250,7 +302,13 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest):
     prompt_strutturato = pipeline.build_spec_prompt(canvas_content, governed_context, dev_type,
                                                     req.feature_folder)
 
-    spec_content = await generate_tolerant(prompt_strutturato, purpose="propose")
+    # Generazione DIRETTA (non generate_tolerant): stessa ragione del Canvas — un errore LLM
+    # non deve mai diventare il contenuto di spec.md (validate/archive lo tratterebbero come
+    # spec reale). Errore restituito esplicitamente come 502, nessun file scritto.
+    try:
+        spec_content = await llm.agenerate(prompt_strutturato, purpose="propose")
+    except llm.LLMError as exc:
+        raise HTTPException(status_code=502, detail=f"Generazione della Spec fallita: {exc}") from exc
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "spec.md").write_text(spec_content, encoding="utf-8")
     save_dev_type(folder, dev_type)
@@ -271,10 +329,11 @@ async def pipeline_drift_check(req: DriftCheckRequest):
     generato tramite LLM locale e restituisce il report. Equivale a 'index.py --check-drift'."""
     if not req.feature.strip():
         raise HTTPException(status_code=400, detail="Nome feature mancante.")
+    feature_folder = _safe_slug(req.feature)
     # La chiamata a Ollama è bloccante e potenzialmente lunga: la eseguiamo in un
     # thread separato per non bloccare l'event loop del server.
     report = await run_in_threadpool(check_drift, req.feature)
-    return {"feature_folder": slugify_feature(req.feature), "report": report}
+    return {"feature_folder": feature_folder, "report": report}
 
 
 @router.post("/api/pipeline/archive")
@@ -286,13 +345,16 @@ async def pipeline_archive(req: ArchiveRequest):
     avviene al completamento del job (on_success → reload_index_state)."""
     if not req.feature.strip():
         raise HTTPException(status_code=400, detail="Nome feature mancante.")
+    # Validato PRIMA di toccare filesystem/coda: un nome non valido non deve accodare
+    # un full rebuild inutile né chiamare archive_feature.
+    feature_folder = _safe_slug(req.feature)
     log = await run_in_threadpool(
         archive_feature, req.feature, state["qdrant"], state["embed_model"],
         None, False,  # emit=None, reindex=False: la ricostruzione passa dalla coda
     )
     job, queued = enqueue_full_rebuild()
     return {
-        "feature_folder": slugify_feature(req.feature),
+        "feature_folder": feature_folder,
         "log": log,
         "reindex_job_id": job.id,
         "reindex_queued": queued,
@@ -317,6 +379,9 @@ async def pipeline_archive_stream(req: ArchiveRequest):
     completamento del job (on_success → reload_index_state)."""
     if not req.feature.strip():
         raise HTTPException(status_code=400, detail="Nome feature mancante.")
+    # Validato PRIMA di accodare un full rebuild: un nome invalido non deve mai
+    # innescare una ricostruzione completa inutile (stessa guardia di pipeline_archive).
+    _safe_slug(req.feature)
 
     def gen():
         yield from run_streaming(
@@ -334,8 +399,7 @@ async def _validate_feature(feature: str) -> dict:
     analisi LLM di coerenza e conflitti contro il contesto normativo del Graph RAG.
     Il retrieval (CPU) gira in threadpool, la chiamata Ollama (I/O) è async. La logica
     (controlli strutturali e costruzione dei prompt) è in core/pipeline.py."""
-    folder_name = slugify_feature(feature)
-    folder = CHANGES_DIR / folder_name
+    folder = resolve_feature_dir(CHANGES_DIR, feature)
     canvas_path = folder / "canvas.md"
     spec_path = folder / "spec.md"
 
@@ -371,8 +435,9 @@ async def pipeline_validate(req: ValidateRequest):
     spec) e coerenza semantica contro i vincoli normativi del Graph RAG, prima di lanciare Claude."""
     if not req.feature.strip():
         raise HTTPException(status_code=400, detail="Nome feature mancante.")
+    feature_folder = _safe_slug(req.feature)
     result = await _validate_feature(req.feature)
-    return {"feature_folder": slugify_feature(req.feature), **result}
+    return {"feature_folder": feature_folder, **result}
 
 
 @router.get("/api/index/status")
@@ -401,7 +466,7 @@ async def pipeline_canvas_dry_run(req: CanvasGenerateRequest):
     Rispecchia i DUE rami di _governed_context (dominio + tecnico per dev_type): mostrarne
     uno solo farebbe promettere al dry-run un contesto diverso da quello che il canvas
     riceve davvero. Ogni sorgente porta il ramo da cui viene."""
-    folder = feature_dir(req.feature_name)
+    folder = _safe_feature_dir(req.feature_name, create=True)
     explore_path = folder / "explore.md"
     interview = explore_path.read_text(encoding="utf-8") if explore_path.exists() else ""
     query = f"{req.feature_name}\n{interview[:2000]}"
@@ -450,7 +515,7 @@ async def pipeline_canvas_dry_run(req: CanvasGenerateRequest):
         return {"sources": sources, "governed_docs": governed}
 
     data = await run_in_threadpool(work)
-    return {"feature_folder": slugify_feature(req.feature_name), "query_preview": query[:300], **data}
+    return {"feature_folder": folder.name, "query_preview": query[:300], **data}
 
 
 @router.get("/api/pipeline/agent-context")
@@ -459,16 +524,17 @@ async def pipeline_agent_context(feature: str, dev_type: str = ""):
     modo deterministico dal retrieval governato e dallo stato di canvas/spec."""
     if not feature.strip():
         raise HTTPException(status_code=400, detail="Nome feature mancante.")
+    feature_folder = _safe_slug(feature)
     ctx = await run_in_threadpool(_agent_context, feature, dev_type, current_snapshot())
-    return {"feature_folder": slugify_feature(feature), **ctx}
+    return {"feature_folder": feature_folder, **ctx}
 
 
 @router.get("/api/pipeline/export")
 async def pipeline_export(feature: str, dev_type: str = ""):
     """Export JSON versionabile del design contract (explore/canvas/spec + prompt finale +
     [AGENT CONTEXT]), da archiviare come artefatto o dare in pasto a una pipeline."""
-    folder_name = slugify_feature(feature)
-    folder = CHANGES_DIR / folder_name
+    folder = _safe_feature_dir(feature)
+    folder_name = folder.name
 
     def rd(name: str) -> str:
         p = folder / name
@@ -491,14 +557,13 @@ async def pipeline_export(feature: str, dev_type: str = ""):
 @router.get("/api/pipeline/status")
 async def pipeline_status(feature: str):
     """Restituisce quali file (explore/canvas/spec) esistono già per la feature, per il pannello di controllo."""
-    folder_name = slugify_feature(feature)
-    folder = CHANGES_DIR / folder_name
+    folder = _safe_feature_dir(feature)
     files = {
         name.split(".")[0]: (folder / name).exists()
         for name in PIPELINE_FILES
     }
     return {
-        "feature_folder": folder_name,
+        "feature_folder": folder.name,
         "exists": folder.exists(),
         "files": files,
         "dev_type": load_dev_type(folder),
@@ -510,11 +575,11 @@ async def pipeline_get_file(feature: str, name: str):
     """Restituisce il contenuto di un file md della pipeline, per la visualizzazione di controllo."""
     if name not in PIPELINE_FILES:
         raise HTTPException(status_code=400, detail=f"File non consentito: {name}")
-    folder_name = slugify_feature(feature)
-    file_path = CHANGES_DIR / folder_name / name
+    folder = _safe_feature_dir(feature)
+    file_path = folder / name
     if not file_path.exists():
-        raise HTTPException(status_code=404, detail=f"{name} non trovato per la feature '{folder_name}'.")
-    return {"feature_folder": folder_name, "path": name, "content": file_path.read_text(encoding="utf-8")}
+        raise HTTPException(status_code=404, detail=f"{name} non trovato per la feature '{folder.name}'.")
+    return {"feature_folder": folder.name, "path": name, "content": file_path.read_text(encoding="utf-8")}
 
 
 @router.post("/api/pipeline/file/save")
@@ -522,6 +587,6 @@ async def pipeline_save_file(req: PipelineFileSaveRequest):
     """Salva modifiche manuali a un file md prima dell'approvazione (revisione umana)."""
     if req.name not in PIPELINE_FILES:
         raise HTTPException(status_code=400, detail=f"File non consentito: {req.name}")
-    folder = feature_dir(req.feature)
+    folder = _safe_feature_dir(req.feature, create=True)
     (folder / req.name).write_text(req.content, encoding="utf-8")
     return {"feature_folder": folder.name, "path": req.name, "content": req.content}

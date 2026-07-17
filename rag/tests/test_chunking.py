@@ -1,4 +1,7 @@
 """Test del chunking per sezione (core.chunking.chunk_markdown) e dello slug degli id."""
+import typing
+from pathlib import Path
+
 from core import chunking as index
 
 
@@ -38,6 +41,26 @@ def test_empty_sections_are_skipped():
 
 def test_slug_normalization():
     assert index._slug("Categoria 2 — Concorrenza!") == "categoria-2-concorrenza"
+
+
+# ---------------------------------------------------------------------------
+# Regressione: `from pathlib import Path` mancante in core/chunking.py. Con le
+# annotazioni posticipate (PEP 649, default da Python 3.14) `read_document(filepath_obj:
+# Path)` non falliva all'import né alla chiamata — solo una risoluzione ESPLICITA
+# dell'annotazione (typing.get_type_hints, o un runtime più vecchio/una diversa
+# configurazione di annotazioni) avrebbe sollevato NameError: 'Path' is not defined.
+# ---------------------------------------------------------------------------
+def test_read_document_annotation_resolves_path():
+    hints = typing.get_type_hints(index.read_document)
+    assert hints["filepath_obj"] is Path
+
+
+def test_read_document_reads_txt_from_path_object(tmp_path):
+    p = tmp_path / "note.txt"
+    p.write_text("hello world", encoding="utf-8")
+    metadata, body = index.read_document(p)
+    assert metadata == {}
+    assert body == "hello world"
     assert index._slug("###") == "sez"  # fallback quando non resta nulla
 
 
