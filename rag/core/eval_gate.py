@@ -25,6 +25,7 @@ import yaml
 from core import retrieval
 from core.config import (
     ALERTS_PATH,
+    COLLECTION_NAME,
     EVAL_GATE_BLOCKING,
     EVAL_GATE_ENABLED,
     EVAL_GATE_K,
@@ -61,17 +62,22 @@ def record_alert(level: str, message: str, *, path: Path | None = None, **detail
 
 
 def evaluate_recall(qdrant, embed_model, colbert_store: dict, *, k: int = EVAL_GATE_K,
-                    cases: list[dict] | None = None) -> dict:
+                    cases: list[dict] | None = None,
+                    collection_name: str = COLLECTION_NAME) -> dict:
     """Misura recall@k del retrieval sul golden set contro (qdrant, colbert_store) dati. Riusa il
     percorso di produzione (retrieval.hybrid_search) e la metrica (core.eval_metrics.evaluate), così
-    il numero del gate coincide con quello di eval.run. recall=None se non ci sono casi."""
+    il numero del gate coincide con quello di eval.run. recall=None se non ci sono casi.
+
+    `collection_name` (opzionale, default COLLECTION_NAME): propagata a hybrid_search. Serve
+    al blue/green di Qdrant, che dovrà far valutare il gate contro la collection candidata
+    invece che quella di produzione. Nessun chiamante di produzione lo passa ancora."""
     cases = cases if cases is not None else load_golden_cases()
     if not cases:
         return {"recall": None, "n": 0, "k": k}
 
     def _retrieve(query: str, kk: int) -> list[dict]:
         return retrieval.hybrid_search(query, kk, qdrant=qdrant, embed_model=embed_model,
-                                       colbert_store=colbert_store)
+                                       colbert_store=colbert_store, collection_name=collection_name)
 
     report = evaluate(cases, _retrieve, ks=[k])
     return {"recall": report["aggregate"][f"recall@{k}"], "n": report["n"], "k": k}
@@ -80,19 +86,23 @@ def evaluate_recall(qdrant, embed_model, colbert_store: dict, *, k: int = EVAL_G
 def gate_promotion(version: str, qdrant, embed_model, colbert_store: dict, *,
                    k: int = EVAL_GATE_K, min_recall: float = EVAL_GATE_MIN_RECALL,
                    blocking: bool = EVAL_GATE_BLOCKING, cases: list[dict] | None = None,
-                   emit=None) -> dict:
+                   emit=None, collection_name: str = COLLECTION_NAME) -> dict:
     """Decide se la versione candidata può essere promossa. Restituisce un dict con almeno
     `passed` (bool) e, quando valutato, `recall`/`k`/`min_recall`/`n`.
 
     Fail-open: gate disattivo o golden set assente ⇒ passed=True (non blocca i build privi di
     baseline). Su regressione: scrive un alert critico; blocca la promozione solo se blocking=True
-    (advisory altrimenti — promuove ma segnala)."""
+    (advisory altrimenti — promuove ma segnala).
+
+    `collection_name` (opzionale, default COLLECTION_NAME): propagata a evaluate_recall.
+    Nessun chiamante di produzione lo passa ancora."""
     _log = emit or logger.info
     if not EVAL_GATE_ENABLED:
         return {"passed": True, "skipped": "disabled", "version": version}
 
     try:
-        res = evaluate_recall(qdrant, embed_model, colbert_store, k=k, cases=cases)
+        res = evaluate_recall(qdrant, embed_model, colbert_store, k=k, cases=cases,
+                              collection_name=collection_name)
     except Exception as exc:  # un gate che crasha NON deve bloccare un build: fail-open + warn
         _log(f"⚠️  Eval-gate non eseguito ({type(exc).__name__}: {exc}); fail-open, promozione consentita.")
         return {"passed": True, "skipped": "error", "error": str(exc), "version": version}

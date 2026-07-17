@@ -43,3 +43,32 @@ def test_fresh_then_tampered_goes_stale(tmp_path, monkeypatch):
     st2 = index.index_status()
     assert st2["stale"] is True
     assert any(c.startswith("~") for c in st2["changed"])  # documento modificato
+
+
+# ---------------------------------------------------------------------------
+# Campo qdrant_collection nel manifest (blue/green Qdrant, S2): per ora vale sempre
+# COLLECTION_NAME (layout legacy), ma deve essere presente e i lettori esistenti
+# devono restare indifferenti alla sua presenza/assenza.
+# ---------------------------------------------------------------------------
+def test_manifest_includes_qdrant_collection_field(tmp_path, monkeypatch):
+    manifest_path = _sandbox_db(monkeypatch, tmp_path)
+    index.write_index_manifest(points_count=1, nodes=1, edges=0)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["qdrant_collection"] == index.COLLECTION_NAME
+    # Distinto (per ora identico in valore, ma è un campo a sé) dal "collection"
+    # già esistente, che descrive solo il nome configurato in rag_config.yaml.
+    assert manifest["collection"] == index.COLLECTION_NAME
+
+
+def test_index_status_tolerates_manifest_without_qdrant_collection(tmp_path, monkeypatch):
+    """Un manifest scritto PRIMA di S2 (nessun campo qdrant_collection) deve continuare
+    a essere letto senza eccezioni: index_status non lo richiede."""
+    manifest_path = _sandbox_db(monkeypatch, tmp_path)
+    index.write_index_manifest(points_count=1, nodes=1, edges=0)
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    del manifest["qdrant_collection"]  # simula un manifest legacy pre-S2
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    st = index.index_status()  # non deve sollevare (KeyError o altro)
+    assert st["indexed"] is True
+    assert st["documents"] == 1

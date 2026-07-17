@@ -1,6 +1,7 @@
 """Test dell'indicizzazione incrementale (delta): planning puro, id deterministici,
 rimozione dei nodi-documento dal grafo senza distruggere i code-link, ed esecuzione
 (delete-by-filter, idempotenza) con fake leggeri — nessun modello di embedding reale."""
+import json
 from typing import Any, cast
 
 import networkx as nx
@@ -106,6 +107,81 @@ def test_remove_doc_node_only_touches_document_type():
     removed = index._remove_doc_nodes_from_graph(G, ["ENTITA", "inesistente"])
     assert removed == 0
     assert "ENTITA" in G
+
+
+# ---------------------------------------------------------------------------
+# 3b. _ensure_collection / _delete_doc_chunks: parametrizzazione di collection_name
+# (blue/green Qdrant, S3). Default invariato (COLLECTION_NAME), passaggio esplicito
+# propagato correttamente fino alle chiamate Qdrant sottostanti.
+# ---------------------------------------------------------------------------
+class _FakeCollectionInfo:
+    def __init__(self, name):
+        self.name = name
+
+
+class _FakeCollectionsResponse:
+    def __init__(self, names):
+        self.collections = [_FakeCollectionInfo(n) for n in names]
+
+
+class _RecordingQdrantOps:
+    """Fake minimale per _ensure_collection/_delete_doc_chunks: registra i nomi di
+    collection ricevuti dalle operazioni di gestione/cancellazione, senza toccare
+    un vero Qdrant."""
+    def __init__(self, existing=()):
+        self._existing = set(existing)
+        self.created: list[str] = []
+        self.deleted_collections: list[str] = []
+        self.deleted_from: list[str] = []
+
+    def get_collections(self):
+        return _FakeCollectionsResponse(self._existing)
+
+    def create_collection(self, collection_name, **kw):
+        self.created.append(collection_name)
+        self._existing.add(collection_name)
+
+    def delete_collection(self, collection_name):
+        self.deleted_collections.append(collection_name)
+        self._existing.discard(collection_name)
+
+    def delete(self, collection_name, points_selector):
+        self.deleted_from.append(collection_name)
+
+
+def test_ensure_collection_default_uses_config_constant():
+    qdrant = _RecordingQdrantOps()
+    index._ensure_collection(qdrant)
+    assert qdrant.created == [index.COLLECTION_NAME]
+
+
+def test_ensure_collection_explicit_name_is_propagated():
+    qdrant = _RecordingQdrantOps()
+    index._ensure_collection(qdrant, collection_name="vibecraft_events__v1")
+    assert qdrant.created == ["vibecraft_events__v1"]
+    assert index.COLLECTION_NAME not in qdrant.created
+
+
+def test_ensure_collection_recreate_drops_and_recreates_the_given_name():
+    # recreate=True deve droppare e ricreare la collection INDICATA, non quella di
+    # default: se punteranno a nomi diversi (candidata vs produzione), la produzione
+    # non va mai toccata da un rebuild che opera sulla candidata.
+    qdrant = _RecordingQdrantOps(existing={"vibecraft_events__v1"})
+    index._ensure_collection(qdrant, recreate=True, collection_name="vibecraft_events__v1")
+    assert qdrant.deleted_collections == ["vibecraft_events__v1"]
+    assert qdrant.created == ["vibecraft_events__v1"]
+
+
+def test_delete_doc_chunks_default_uses_config_constant():
+    qdrant = _RecordingQdrantOps()
+    index._delete_doc_chunks(qdrant, ["a.md"])
+    assert qdrant.deleted_from == [index.COLLECTION_NAME]
+
+
+def test_delete_doc_chunks_explicit_name_is_propagated():
+    qdrant = _RecordingQdrantOps()
+    index._delete_doc_chunks(qdrant, ["a.md"], collection_name="vibecraft_events__v1")
+    assert qdrant.deleted_from == ["vibecraft_events__v1"]
 
 
 # ---------------------------------------------------------------------------
@@ -246,18 +322,34 @@ class StatefulFakeQdrant:
     def __init__(self):
         self.points: dict = {}
         self.collections: set = set()
+        # Nomi di collection ricevuti dalle operazioni di gestione (S6.2: verifica
+        # che collection_name resti COLLECTION_NAME nel percorso attuale del full
+        # rebuild). Sola registrazione, non altera il comportamento esistente.
+        self.created_collection_names: list = []
+        self.deleted_collection_names: list = []
+        self.upserted_collection_names: list = []
+        # Alias (S6.5): alias_name -> collection_name. get_aliases/update_collection_aliases
+        # replicano la semantica reale di Qdrant, incluso il rifiuto di un alias
+        # omonimo a una collection FISICA esistente (il conflitto del layout legacy
+        # non ancora migrato — S6.6, non implementato in questo step).
+        self.aliases: dict = {}
 
     def get_collections(self):
         return SimpleNamespace(collections=[SimpleNamespace(name=n) for n in self.collections])
 
     def create_collection(self, collection_name, **kw):
         self.collections.add(collection_name)
+        self.created_collection_names.append(collection_name)
 
     def delete_collection(self, collection_name):
         self.collections.discard(collection_name)
         self.points.clear()
+        self.deleted_collection_names.append(collection_name)
+        for alias_name in [a for a, c in self.aliases.items() if c == collection_name]:
+            del self.aliases[alias_name]
 
     def upsert(self, collection_name, points):
+        self.upserted_collection_names.append(collection_name)
         for p in points:
             self.points[p.id] = p
 
@@ -267,6 +359,39 @@ class StatefulFakeQdrant:
 
     def close(self):
         pass
+
+    def get_aliases(self):
+        return SimpleNamespace(aliases=[
+            SimpleNamespace(alias_name=a, collection_name=c) for a, c in sorted(self.aliases.items())
+        ])
+
+    def update_collection_aliases(self, change_aliases_operations):
+        """Valida TUTTE le operazioni prima di applicarne una sola (batch atomico,
+        come il vero Qdrant): il target di ogni create deve esistere, e alias_name
+        non può coincidere con una collection FISICA esistente (Qdrant reale rifiuta
+        un alias omonimo a una collection — il conflitto del layout legacy)."""
+        pending_creates: list[tuple[str, str]] = []
+        pending_deletes: list[str] = []
+        for op in change_aliases_operations:
+            create = getattr(op, "create_alias", None)
+            delete = getattr(op, "delete_alias", None)
+            if create is not None:
+                if create.collection_name not in self.collections:
+                    raise ValueError(f"Collection inesistente: {create.collection_name}")
+                if create.alias_name in self.collections:
+                    raise ValueError(
+                        f"'{create.alias_name}' è già una collection fisica: impossibile "
+                        f"crearla anche come alias (serve prima una migrazione — S6.6, non implementata)."
+                    )
+                pending_creates.append((create.alias_name, create.collection_name))
+            elif delete is not None:
+                pending_deletes.append(delete.alias_name)
+            else:
+                raise NotImplementedError("Operazione alias non supportata dal fake.")
+        for alias_name in pending_deletes:
+            self.aliases.pop(alias_name, None)
+        for alias_name, collection_name in pending_creates:
+            self.aliases[alias_name] = collection_name
 
 
 def _wire_tmp_index(monkeypatch, tmp_path):
@@ -618,3 +743,835 @@ def test_authority_edges_survive_full_rebuild_equivalence(monkeypatch, tmp_path)
     assert G.has_edge("spec.md", "safe.md")                          # doc->doc risolto nel full build
     report = index.check_graph_consistency(embed_model=stub, docs_dir=docs_dir, code_dir=code_dir)
     assert report["consistent"] is True, report                      # equivalenza col rebuild
+
+
+# ---------------------------------------------------------------------------
+# 6. Refactor parametrico di build_graph_and_index (S6.2, blue/green Qdrant):
+# nome versione deciso una sola volta e riusato ovunque; collection_name esplicito
+# ma identico a COLLECTION_NAME nel percorso attuale. Nessun cambio di comportamento.
+# ---------------------------------------------------------------------------
+def test_build_graph_and_index_generates_version_name_exactly_once(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    calls: list[str] = []
+    real_new_version_name = index._new_version_name
+
+    def _counting_new_version_name():
+        name = real_new_version_name()
+        calls.append(name)
+        return name
+
+    monkeypatch.setattr(index, "_new_version_name", _counting_new_version_name)
+
+    index.build_graph_and_index(qdrant=q, embed_model=stub)
+    assert len(calls) == 1
+
+
+def test_build_graph_and_index_version_used_for_save_artifacts_matches_rest_of_flow(monkeypatch, tmp_path):
+    """Il nome restituito (e usato per manifest/log/promote) deve coincidere con
+    quello passato a save_artifacts: una sola identità di versione lungo tutto il
+    flusso, non due generazioni indipendenti."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    captured: dict = {}
+    real_save_artifacts = index.save_artifacts
+
+    def _spy_save_artifacts(*a, **kw):
+        captured["version_passed_in"] = kw.get("version")
+        return real_save_artifacts(*a, **kw)
+
+    monkeypatch.setattr(index, "save_artifacts", _spy_save_artifacts)
+
+    logs: list[str] = []
+    version = index.build_graph_and_index(qdrant=q, embed_model=stub, emit=logs.append)
+
+    assert captured["version_passed_in"] == version
+    assert _artifacts.current_version() == version  # promossa con la stessa identità
+    assert any(version in m and "salvati nella versione" in m for m in logs)
+    assert any(version in m and "promossa" in m for m in logs)
+
+
+def test_build_graph_and_index_uses_collection_name_equal_to_config_constant(monkeypatch, tmp_path):
+    """collection_name è una variabile locale esplicita (S6.2) ma vale sempre
+    COLLECTION_NAME nel percorso attuale: nessuna collection candidata, nessun
+    branch blue/green — il full rebuild opera esattamente come prima."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    index.build_graph_and_index(qdrant=q, embed_model=stub)
+    assert q.created_collection_names == [index.COLLECTION_NAME]
+    assert q.upserted_collection_names == [index.COLLECTION_NAME]
+
+    # Secondo full rebuild: la collection esiste già -> passa anche dal delete
+    # (recreate=True), sempre sullo stesso nome, mai una collection diversa.
+    index.build_graph_and_index(qdrant=q, embed_model=stub)
+    assert set(q.deleted_collection_names) == {index.COLLECTION_NAME}
+    assert q.created_collection_names == [index.COLLECTION_NAME, index.COLLECTION_NAME]
+    assert q.upserted_collection_names == [index.COLLECTION_NAME, index.COLLECTION_NAME]
+
+
+# ---------------------------------------------------------------------------
+# 7. Build su collection candidata + eval-gate sulla candidata (S6.3/S6.4,
+# blue/green Qdrant). Flag spento: comportamento storico byte-per-byte. Flag
+# acceso: build e gate operano SOLO sulla candidata versionata, mai sulla
+# produzione durante il BUILD (l'alias swap alla promozione è testato nella
+# sezione 8, più sotto).
+# ---------------------------------------------------------------------------
+def _manifest_for_version(version: str) -> dict:
+    return json.loads((_artifacts.version_dir(version) / "index_manifest.json").read_text(encoding="utf-8"))
+
+
+def test_flag_off_full_rebuild_still_uses_collection_name_and_gate_evaluates_it(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", False)
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    captured_gate: dict = {}
+    real_gate_promotion = index.gate_promotion
+
+    def _spy_gate(*a, **kw):
+        captured_gate["collection_name"] = kw.get("collection_name")
+        return real_gate_promotion(*a, **kw)
+
+    monkeypatch.setattr(index, "gate_promotion", _spy_gate)
+
+    version = index.build_graph_and_index(qdrant=q, embed_model=stub)
+
+    assert q.created_collection_names == [index.COLLECTION_NAME]
+    assert q.upserted_collection_names == [index.COLLECTION_NAME]
+    assert _manifest_for_version(version)["qdrant_collection"] == index.COLLECTION_NAME
+    assert captured_gate["collection_name"] == index.COLLECTION_NAME
+
+
+def test_flag_on_full_rebuild_creates_and_uses_only_the_candidate_collection(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    version = index.build_graph_and_index(qdrant=q, embed_model=stub)
+
+    candidate = index.qdrant_collection_name(version)
+    assert candidate != index.COLLECTION_NAME
+    assert q.created_collection_names == [candidate]
+    assert q.upserted_collection_names == [candidate]
+
+
+def test_flag_on_never_drops_or_touches_legacy_production_during_build(monkeypatch, tmp_path):
+    """La produzione (COLLECTION_NAME) preesiste (layout legacy popolato): il full
+    rebuild col flag acceso non deve mai droppare né alterare il suo contenuto
+    DURANTE il build. Gate mockato a bloccante per restare scoped al build (la
+    promozione/alias swap, che con produzione non migrata solleverebbe — vedi
+    test_flag_on_legacy_collision_promotes_current_then_alias_swap_fails più sotto —
+    non è ciò che questo test vuole esercitare)."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": False})
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+    q.collections.add(index.COLLECTION_NAME)
+    q.points["prod-point-1"] = SimpleNamespace(id="prod-point-1", payload={"doc_id": "legacy.md"})
+
+    index.build_graph_and_index(qdrant=q, embed_model=stub)
+
+    assert index.COLLECTION_NAME not in q.deleted_collection_names
+    assert index.COLLECTION_NAME not in q.created_collection_names  # mai ricreata
+    assert index.COLLECTION_NAME in q.collections                   # ancora presente
+    assert "prod-point-1" in q.points                                # dato di produzione intatto
+    assert index.COLLECTION_NAME not in q.upserted_collection_names  # upsert solo sulla candidata
+
+
+def test_flag_on_manifest_contains_the_candidate_qdrant_collection(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    version = index.build_graph_and_index(qdrant=q, embed_model=stub)
+
+    candidate = index.qdrant_collection_name(version)
+    assert _manifest_for_version(version)["qdrant_collection"] == candidate
+
+
+def test_flag_on_gate_evaluates_the_candidate_not_the_production(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    captured: dict = {}
+
+    def _fake_gate(version, qdrant, embed_model, colbert_store, emit=None, collection_name=None, **kw):
+        captured["collection_name"] = collection_name
+        return {"passed": True}
+
+    monkeypatch.setattr(index, "gate_promotion", _fake_gate)
+
+    version = index.build_graph_and_index(qdrant=q, embed_model=stub)
+
+    candidate = index.qdrant_collection_name(version)
+    assert captured["collection_name"] == candidate
+    assert captured["collection_name"] != index.COLLECTION_NAME
+
+
+def test_flag_on_blocking_gate_leaves_current_and_production_untouched(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+    q.collections.add(index.COLLECTION_NAME)
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": False})
+
+    index.build_graph_and_index(qdrant=q, embed_model=stub)
+
+    assert _artifacts.current_version_token() is None  # mai promossa
+    assert index.COLLECTION_NAME in q.collections       # produzione intatta
+    assert index.COLLECTION_NAME not in q.deleted_collection_names
+    assert q.aliases == {}                              # nessuna operazione di alias (S6.5)
+
+
+# ---------------------------------------------------------------------------
+# 8. Alias swap + migrazione one-shot dopo la promozione locale (S6.5/S6.6,
+# blue/green Qdrant): ordine CURRENT-poi-migrazione(se serve)-poi-alias, target
+# corretto, nessuna operazione col flag spento, nessuna operazione se il gate
+# blocca. Layout legacy non ancora migrato: la collection fisica COLLECTION_NAME
+# viene cancellata (migrazione one-shot, S6.6) e l'alias creato subito dopo — mai
+# più un decline. Layout già migrato o installazione fresca (nessuna collisione):
+# nessun delete, solo lo swap.
+# ---------------------------------------------------------------------------
+def test_flag_off_promote_never_touches_aliases(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", False)
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+    q.collections.add(index.COLLECTION_NAME)
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+
+    version = index.build_graph_and_index(qdrant=q, embed_model=stub)
+
+    assert _artifacts.current_version_token() == version  # promossa normalmente
+    assert q.aliases == {}                                  # nessuna operazione di alias
+
+
+def test_flag_on_promote_writes_current_before_alias_swap(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    sequence: list[str] = []
+    real_promote_version = index.promote_version
+
+    def _tracking_promote(version):
+        sequence.append("promote")
+        return real_promote_version(version)
+
+    monkeypatch.setattr(index, "promote_version", _tracking_promote)
+
+    real_update_aliases = q.update_collection_aliases
+
+    def _tracking_update_aliases(change_aliases_operations):
+        sequence.append("alias_swap")
+        return real_update_aliases(change_aliases_operations)
+
+    q.update_collection_aliases = _tracking_update_aliases
+
+    index.build_graph_and_index(qdrant=q, embed_model=stub)
+
+    assert sequence == ["promote", "alias_swap"]  # ordine non negoziabile
+
+
+def test_flag_on_alias_points_to_the_promoted_version_collection(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    version = index.build_graph_and_index(qdrant=q, embed_model=stub)
+
+    candidate = index.qdrant_collection_name(version)
+    assert q.aliases[index.COLLECTION_NAME] == candidate
+    assert _artifacts.current_version_token() == version
+
+
+def test_flag_on_legacy_layout_migrates_deletes_legacy_then_creates_alias(monkeypatch, tmp_path):
+    """S6.6: layout legacy NON ancora migrato — COLLECTION_NAME esiste come
+    collection FISICA di produzione. La migrazione avviene DAVVERO (sostituisce il
+    decline di S6.5): la collection legacy viene cancellata solo dopo che CURRENT è
+    già stato promosso (build completata, gate passato), e SUBITO prima che l'alias
+    venga creato verso la candidata — ordine esplicito e tracciato."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+    q.collections.add(index.COLLECTION_NAME)  # produzione legacy, non ancora migrata
+
+    sequence: list[str] = []
+    real_promote_version = index.promote_version
+
+    def _tracking_promote(version):
+        sequence.append("promote")
+        return real_promote_version(version)
+
+    monkeypatch.setattr(index, "promote_version", _tracking_promote)
+
+    real_delete_collection = q.delete_collection
+
+    def _tracking_delete(collection_name):
+        sequence.append(f"delete:{collection_name}")
+        return real_delete_collection(collection_name)
+
+    q.delete_collection = _tracking_delete
+
+    real_update_aliases = q.update_collection_aliases
+
+    def _tracking_update_aliases(change_aliases_operations):
+        sequence.append("alias_create")
+        return real_update_aliases(change_aliases_operations)
+
+    q.update_collection_aliases = _tracking_update_aliases
+
+    logs: list[str] = []
+    version = index.build_graph_and_index(qdrant=q, embed_model=stub, emit=logs.append)
+
+    candidate = index.qdrant_collection_name(version)
+    assert sequence == ["promote", f"delete:{index.COLLECTION_NAME}", "alias_create"]
+    assert index.COLLECTION_NAME not in q.collections     # collection fisica legacy cancellata
+    assert q.aliases[index.COLLECTION_NAME] == candidate    # ora è un alias verso la candidata
+    assert _artifacts.current_version_token() == version    # promozione COMPLETA riuscita
+    assert any("migrazione" in m.lower() and "irreversibile" in m.lower() for m in logs)
+
+
+def test_flag_on_legacy_migration_crash_between_delete_and_create_leaves_alias_missing(monkeypatch, tmp_path):
+    """Documenta esplicitamente il gap accettato dal design: un crash ESATTAMENTE
+    nella finestra fra il delete della collection legacy e la create dell'alias
+    (breve ma reale). CURRENT è già promosso (ordine invariato: la migrazione parte
+    solo dopo), la collection fisica non esiste più, l'alias non è mai stato creato:
+    il reconciler read-only (S5) osserva questo esatto stato come "missing".
+    Ripararlo automaticamente NON avviene qui: è lavoro futuro di S8."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+    q.collections.add(index.COLLECTION_NAME)
+
+    def _boom(change_aliases_operations):
+        raise ConnectionError("crash simulato: delete già avvenuto, create mai eseguita")
+
+    q.update_collection_aliases = _boom
+
+    with pytest.raises(ConnectionError):
+        index.build_graph_and_index(qdrant=q, embed_model=stub)
+
+    assert _artifacts.current_version_token() is not None  # CURRENT già promosso prima della migrazione
+    assert index.COLLECTION_NAME not in q.collections        # delete già avvenuto
+    assert index.COLLECTION_NAME not in q.aliases             # create mai riuscita: nessun alias
+
+    # Esattamente lo stato "missing" osservato dal reconciler read-only (S5) — non
+    # riparato qui: la riparazione automatica di questo gap resta lavoro di S8.
+    report = index.reconcile_qdrant_alias(q)
+    assert report["state"] == "missing"
+
+
+def test_flag_on_migrated_layout_promotes_and_swaps_to_new_candidate(monkeypatch, tmp_path):
+    """Layout GIA' migrato (ipotetico esito futuro di S6.6): l'alias esiste e punta
+    a una vecchia collection, nessuna collection fisica omonima a COLLECTION_NAME.
+    Nessuna collisione possibile: promote + swap procedono normalmente, l'alias si
+    sposta sulla NUOVA candidata di questa build."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+    q.collections.add("vibecraft_events__v-vecchia")
+    q.aliases[index.COLLECTION_NAME] = "vibecraft_events__v-vecchia"
+
+    version = index.build_graph_and_index(qdrant=q, embed_model=stub)
+
+    candidate = index.qdrant_collection_name(version)
+    assert q.aliases[index.COLLECTION_NAME] == candidate  # alias spostato sulla nuova candidata
+    assert _artifacts.current_version_token() == version
+
+
+def test_flag_on_full_rebuild_never_calls_reconciler_repair_helpers(monkeypatch, tmp_path):
+    """Il full rebuild collega _swap_alias e, da S8, il GC delle collection orfane
+    (gc_orphaned_qdrant_collections) SUBITO dopo lo swap — ma non ha alcun motivo di
+    invocare la riparazione del reconciler (repair_qdrant_alias/
+    reconcile_and_repair_qdrant_alias, riservata a boot pre-serving e a un rollback
+    S7 lasciato divergente): un rebuild riuscito produce sempre uno stato "aligned"
+    per costruzione, quindi quegli helper restano fuori da questo percorso."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    def _boom(*a, **k):
+        raise AssertionError("il full rebuild non deve chiamare la riparazione del reconciler")
+
+    monkeypatch.setattr(index, "repair_qdrant_alias", _boom)
+    monkeypatch.setattr(index, "reconcile_and_repair_qdrant_alias", _boom)
+
+    version = index.build_graph_and_index(qdrant=q, embed_model=stub)
+    assert version  # arrivato qui senza eccezioni: nessun helper di riparazione chiamato
+
+
+# ---------------------------------------------------------------------------
+# 9. S7: rollback blue/green (alias swap nel chiamante, mai in core.artifacts) e
+# lineage incrementale (il figlio eredita qdrant_collection dal padre, senza mai
+# muovere l'alias). GC automatico e reconciler riparatore restano fuori scope.
+# ---------------------------------------------------------------------------
+def test_rollback_flag_off_never_touches_alias(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", False)
+    q = StatefulFakeQdrant()
+
+    v1 = index.save_artifacts(nx.DiGraph(), {}, {}, {}, {})
+    index.write_index_manifest(0, version=v1, qdrant_collection=index.qdrant_collection_name(v1))
+    index.promote_version(v1)
+
+    result = index.rollback_qdrant_alias_if_needed(q, v1)
+    assert result == {"state": "disabled"}
+    assert q.aliases == {}
+
+
+def test_rollback_cross_lineage_swaps_alias_to_target_collection(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    q = StatefulFakeQdrant()
+
+    v1 = index.save_artifacts(nx.DiGraph(), {}, {}, {}, {})
+    c1 = index.qdrant_collection_name(v1)
+    index.write_index_manifest(0, version=v1, qdrant_collection=c1)
+    q.collections.add(c1)
+    index.promote_version(v1)
+    q.aliases[index.COLLECTION_NAME] = c1
+
+    v2 = index.save_artifacts(nx.DiGraph(), {}, {}, {}, {})
+    c2 = index.qdrant_collection_name(v2)
+    index.write_index_manifest(0, version=v2, qdrant_collection=c2)
+    q.collections.add(c2)
+    index.promote_version(v2)
+    q.aliases[index.COLLECTION_NAME] = c2  # produzione ora sulla lineage di v2
+
+    # Rollback locale (core.artifacts, puro) verso v1: CURRENT torna indietro.
+    target = _artifacts.rollback_version(v1)
+    assert target == v1
+
+    logs: list[str] = []
+    result = index.rollback_qdrant_alias_if_needed(q, target, logs.append)
+    assert result == {"state": "swapped", "expected": c1, "actual": c1}
+    assert q.aliases[index.COLLECTION_NAME] == c1
+    assert any("🔀" in m for m in logs)
+
+
+def test_rollback_intra_lineage_is_noop_with_clear_log(monkeypatch, tmp_path):
+    """L'alias punta già alla collection della versione target (rollback dentro la
+    stessa lineage Qdrant, es. due versioni incrementali sulla stessa collection
+    padre): nessuna operazione di alias, solo un log esplicito di no-op."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    q = StatefulFakeQdrant()
+
+    shared_collection = index.qdrant_collection_name("v-shared")
+    q.collections.add(shared_collection)
+    q.aliases[index.COLLECTION_NAME] = shared_collection
+
+    v1 = index.save_artifacts(nx.DiGraph(), {}, {}, {}, {})
+    index.write_index_manifest(0, version=v1, qdrant_collection=shared_collection)
+    index.promote_version(v1)
+
+    v2 = index.save_artifacts(nx.DiGraph(), {}, {}, {}, {})
+    index.write_index_manifest(0, version=v2, qdrant_collection=shared_collection)
+    index.promote_version(v2)
+
+    target = _artifacts.rollback_version(v1)
+
+    real_update_aliases = q.update_collection_aliases
+    def _boom(*a, **k):
+        raise AssertionError("intra-lineage: nessuna scrittura di alias attesa")
+    q.update_collection_aliases = _boom
+
+    logs: list[str] = []
+    result = index.rollback_qdrant_alias_if_needed(q, target, logs.append)
+    assert result == {"state": "noop", "expected": shared_collection, "actual": shared_collection}
+    assert any("nessuna" in m.lower() for m in logs)
+    q.update_collection_aliases = real_update_aliases  # ripristino, per igiene
+
+
+def test_rollback_missing_target_collection_is_explicit_and_not_corrected(monkeypatch, tmp_path):
+    """La collection della versione target non esiste più su Qdrant (es. GC manuale
+    o installazione incompleta): nessuna correzione automatica, l'alias resta dov'è
+    e lo stato lo dice esplicitamente — CURRENT è comunque già tornato al target sul
+    lato locale (rollback_version è già stato eseguito prima di questa chiamata)."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    q = StatefulFakeQdrant()
+
+    v1 = index.save_artifacts(nx.DiGraph(), {}, {}, {}, {})
+    c1 = index.qdrant_collection_name(v1)
+    index.write_index_manifest(0, version=v1, qdrant_collection=c1)
+    index.promote_version(v1)
+    # NB: c1 non viene mai aggiunta a q.collections: simula la collection sparita.
+
+    v2 = index.save_artifacts(nx.DiGraph(), {}, {}, {}, {})
+    c2 = index.qdrant_collection_name(v2)
+    index.write_index_manifest(0, version=v2, qdrant_collection=c2)
+    q.collections.add(c2)
+    index.promote_version(v2)
+    q.aliases[index.COLLECTION_NAME] = c2
+
+    target = _artifacts.rollback_version(v1)
+    assert _artifacts.current_version_token() == v1  # CURRENT già tornato al target, localmente
+
+    logs: list[str] = []
+    result = index.rollback_qdrant_alias_if_needed(q, target, logs.append)
+    assert result == {"state": "missing_target_collection", "expected": c1, "actual": c2}
+    assert q.aliases[index.COLLECTION_NAME] == c2  # alias INTATTO: nessuna correzione magica
+    assert any("non esiste più" in m for m in logs)
+
+
+def test_incremental_index_child_manifest_inherits_qdrant_collection_from_parent(monkeypatch, tmp_path):
+    """Una versione incrementale nata da un padre costruito su una collection
+    candidata (blue/green) deve dichiarare nel proprio manifest la STESSA collection
+    del padre — non ricadere su COLLECTION_NAME solo perché l'incrementale non passa
+    esplicitamente qdrant_collection a write_index_manifest."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    parent_version = index.build_graph_and_index(qdrant=q, embed_model=stub)
+    parent_collection = _manifest_for_version(parent_version)["qdrant_collection"]
+    assert parent_collection != index.COLLECTION_NAME  # confermiamo che è la candidata
+
+    (docs_dir / "spec.md").write_text(_spec("BETA"), encoding="utf-8")
+    stats = index.incremental_index(qdrant=q, embed_model=stub)
+    child_version = stats["version"]
+
+    assert _manifest_for_version(child_version)["qdrant_collection"] == parent_collection
+
+
+def test_incremental_index_bootstrap_without_parent_manifest_falls_back_to_collection_name(monkeypatch, tmp_path):
+    """Fresh install: nessuna versione promossa ancora, quindi nessun manifest padre
+    da cui ereditare. L'incrementale (che tratta tutto come 'new', equivalente a un
+    full) deve comunque produrre un manifest coerente, con qdrant_collection pari al
+    default storico COLLECTION_NAME — nessuna eccezione, nessun None propagato."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    stats = index.incremental_index(qdrant=q, embed_model=stub)
+    version = stats["version"]
+
+    assert _manifest_for_version(version)["qdrant_collection"] == index.COLLECTION_NAME
+
+
+def test_incremental_index_never_calls_swap_alias(monkeypatch, tmp_path):
+    """Vincolo esplicito di S7: l'incrementale eredita la collection del padre ma non
+    promuove né sposta MAI l'alias, indipendentemente dal flag blue/green."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    index.build_graph_and_index(qdrant=q, embed_model=stub)
+
+    def _boom(*a, **k):
+        raise AssertionError("incremental_index non deve mai chiamare _swap_alias")
+    monkeypatch.setattr(index, "_swap_alias", _boom)
+
+    (docs_dir / "spec.md").write_text(_spec("BETA"), encoding="utf-8")
+    stats = index.incremental_index(qdrant=q, embed_model=stub)
+    assert stats["version"]  # arrivato qui senza eccezioni: _swap_alias mai chiamata
+
+
+# ---------------------------------------------------------------------------
+# 10. S8: reconciler riparatore (diverging/missing -> swap, se sicuro) e GC delle
+# collection Qdrant orfane, nei soli punti consentiti (boot pre-serving, writer
+# subito dopo promote/alias-swap). Nessuna correzione se la collection target manca.
+# ---------------------------------------------------------------------------
+def test_repair_qdrant_alias_flag_off_is_disabled_and_writes_nothing(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", False)
+    q = StatefulFakeQdrant()
+
+    def _boom(*a, **k):
+        raise AssertionError("flag off: nessuna lettura/scrittura Qdrant attesa dal repair")
+    q.get_aliases = _boom
+    q.update_collection_aliases = _boom
+
+    result = index.repair_qdrant_alias(q)
+    assert result == {"state": "disabled"}
+
+
+def test_repair_qdrant_alias_fixes_diverging_state(monkeypatch, tmp_path):
+    """CURRENT è avanzato oltre l'ultimo swap (es. rollback S7 non corretto):
+    l'alias diverge dalla collection attesa, ma quella collection esiste -> repair
+    la ripara con uno swap reale."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    q = StatefulFakeQdrant()
+
+    v1 = index.save_artifacts(nx.DiGraph(), {}, {}, {}, {})
+    c1 = index.qdrant_collection_name(v1)
+    index.write_index_manifest(0, version=v1, qdrant_collection=c1)
+    index.promote_version(v1)
+    q.collections.add(c1)
+
+    old_collection = index.qdrant_collection_name("v-vecchia")
+    q.collections.add(old_collection)
+    q.aliases[index.COLLECTION_NAME] = old_collection  # alias ancora sulla vecchia
+
+    logs: list[str] = []
+    result = index.repair_qdrant_alias(q, emit=logs.append)
+    assert result["state"] == "diverging" and result["repaired"] is True
+    assert q.aliases[index.COLLECTION_NAME] == c1
+    assert any("riparato" in m.lower() for m in logs)
+
+
+def test_repair_qdrant_alias_fixes_missing_state(monkeypatch, tmp_path):
+    """Il crash fra delete legacy e create alias (S6.6) lascia l'alias mancante:
+    se la collection attesa esiste, il repair crea l'alias verso di essa."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    q = StatefulFakeQdrant()
+
+    v1 = index.save_artifacts(nx.DiGraph(), {}, {}, {}, {})
+    c1 = index.qdrant_collection_name(v1)
+    index.write_index_manifest(0, version=v1, qdrant_collection=c1)
+    index.promote_version(v1)
+    q.collections.add(c1)
+    # Nessun alias: esattamente lo stato "missing" del crash S6.6.
+
+    result = index.repair_qdrant_alias(q)
+    assert result["state"] == "missing" and result["repaired"] is True
+    assert q.aliases[index.COLLECTION_NAME] == c1
+
+
+def test_repair_qdrant_alias_declines_when_target_collection_missing(monkeypatch, tmp_path):
+    """La collection attesa non esiste più su Qdrant: nessuna correzione automatica
+    distruttiva, nessun alias creato/spostato — solo repaired=False esplicito."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    q = StatefulFakeQdrant()
+
+    v1 = index.save_artifacts(nx.DiGraph(), {}, {}, {}, {})
+    c1 = index.qdrant_collection_name(v1)
+    index.write_index_manifest(0, version=v1, qdrant_collection=c1)
+    index.promote_version(v1)
+    # c1 non viene mai aggiunta a q.collections: simula la collection sparita.
+
+    logs: list[str] = []
+    result = index.repair_qdrant_alias(q, emit=logs.append)
+    assert result["state"] == "missing" and result["repaired"] is False
+    assert q.aliases == {}  # nessuna scrittura
+    assert any("non esiste" in m for m in logs)
+
+
+def test_repair_qdrant_alias_aligned_state_is_a_pure_noop(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    q = StatefulFakeQdrant()
+
+    v1 = index.save_artifacts(nx.DiGraph(), {}, {}, {}, {})
+    c1 = index.qdrant_collection_name(v1)
+    index.write_index_manifest(0, version=v1, qdrant_collection=c1)
+    index.promote_version(v1)
+    q.collections.add(c1)
+    q.aliases[index.COLLECTION_NAME] = c1
+
+    result = index.repair_qdrant_alias(q)
+    assert result == {"state": "aligned", "expected": c1, "actual": c1, "repaired": False}
+
+
+def test_reconcile_and_repair_qdrant_alias_degrades_to_unknown_on_error(monkeypatch):
+    """Come observe_qdrant_alias (S5): un Qdrant irraggiungibile non deve mai
+    propagare l'eccezione, né impedire il boot — degrada a stato 'unknown'."""
+    class _BoomQdrant:
+        def get_aliases(self):
+            raise ConnectionError("Qdrant irraggiungibile")
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    result = index.reconcile_and_repair_qdrant_alias(_BoomQdrant())
+    assert result["state"] == "unknown" and result["repaired"] is False
+    assert "ConnectionError" in result["error"]
+
+
+def test_flag_on_legacy_migration_crash_converges_after_boot_repair(monkeypatch, tmp_path):
+    """Lo stesso scenario testato in S6.6 (crash fra delete legacy e create alias,
+    osservato come 'missing') converge ora con la riparazione di S8: senza alcun
+    nuovo full rebuild, il boot (reconcile_and_repair_qdrant_alias) ripara l'alias."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+    q.collections.add(index.COLLECTION_NAME)
+
+    def _boom(change_aliases_operations):
+        raise ConnectionError("crash simulato: delete già avvenuto, create mai eseguita")
+    q.update_collection_aliases = _boom
+
+    with pytest.raises(ConnectionError):
+        index.build_graph_and_index(qdrant=q, embed_model=stub)
+
+    report = index.reconcile_qdrant_alias(q)
+    assert report["state"] == "missing"  # stato pre-S8: osservato ma non riparato qui
+
+    # Il crash ha lasciato la collection candidata intatta (solo l'alias è mancante):
+    # al prossimo boot (o writer successivo) la riparazione converge senza rebuild.
+    q.update_collection_aliases = StatefulFakeQdrant.update_collection_aliases.__get__(q)
+    repair = index.reconcile_and_repair_qdrant_alias(q)
+    assert repair["state"] == "missing" and repair["repaired"] is True
+    assert index.reconcile_qdrant_alias(q)["state"] == "aligned"
+
+
+def test_gc_orphaned_qdrant_collections_flag_off_returns_empty_and_touches_nothing(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", False)
+    q = StatefulFakeQdrant()
+
+    def _boom(*a, **k):
+        raise AssertionError("flag off: GC non deve toccare Qdrant")
+    q.get_collections = _boom
+    q.delete_collection = _boom
+
+    assert index.gc_orphaned_qdrant_collections(q) == []
+
+
+def test_gc_orphaned_qdrant_collections_keeps_alias_target_and_referenced_manifests(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    q = StatefulFakeQdrant()
+
+    v_active = index.save_artifacts(nx.DiGraph(), {}, {}, {}, {})
+    c_active = index.qdrant_collection_name(v_active)
+    index.write_index_manifest(0, version=v_active, qdrant_collection=c_active)
+    index.promote_version(v_active)
+    q.collections.add(c_active)
+    q.aliases[index.COLLECTION_NAME] = c_active
+
+    v_other = index.save_artifacts(nx.DiGraph(), {}, {}, {}, {})  # non promossa, ma manifest sopravvive
+    c_other_referenced = index.qdrant_collection_name(v_other)
+    index.write_index_manifest(0, version=v_other, qdrant_collection=c_other_referenced)
+    q.collections.add(c_other_referenced)
+
+    orphan = index.qdrant_collection_name("v-crashata-senza-manifest")
+    q.collections.add(orphan)
+
+    removed = index.gc_orphaned_qdrant_collections(q)
+    assert removed == [orphan]
+    assert c_active in q.collections           # target dell'alias: mai toccata
+    assert c_other_referenced in q.collections  # referenziata da un manifest: mai toccata
+    assert orphan not in q.collections          # orfana sicura: rimossa
+
+
+def test_gc_orphaned_qdrant_collections_removes_safe_orphans_after_prune(monkeypatch, tmp_path):
+    """Dopo la retention locale (prune_versions, chiamata da promote_version), le
+    collection delle versioni potate non sono più referenziate: il GC le rimuove."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    monkeypatch.setattr(_artifacts, "_keep_from_env", lambda: 1)
+    q = StatefulFakeQdrant()
+
+    v1 = index.save_artifacts(nx.DiGraph(), {}, {}, {}, {})
+    c1 = index.qdrant_collection_name(v1)
+    index.write_index_manifest(0, version=v1, qdrant_collection=c1)
+    index.promote_version(v1)
+    q.collections.add(c1)
+    q.aliases[index.COLLECTION_NAME] = c1
+
+    v2 = index.save_artifacts(nx.DiGraph(), {}, {}, {}, {})
+    c2 = index.qdrant_collection_name(v2)
+    index.write_index_manifest(0, version=v2, qdrant_collection=c2)
+    index.promote_version(v2)  # retention keep=1: v1 viene potata, il suo manifest sparisce
+    q.collections.add(c2)
+    q.aliases[index.COLLECTION_NAME] = c2
+
+    assert v1 not in index.list_versions()  # confermato: v1 potata dalla retention
+
+    removed = index.gc_orphaned_qdrant_collections(q)
+    assert removed == [c1]
+    assert c2 in q.collections
+
+
+def test_full_rebuild_gc_never_touches_the_current_job_candidate(monkeypatch, tmp_path):
+    """Vincolo esplicito di S8: la collection appena promossa/swappata dal job in
+    corso è per costruzione sempre referenziata dal proprio manifest e sempre il
+    target dell'alias -> il GC collegato dopo lo swap non deve mai rimuoverla."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    # Collection orfana preesistente (es. build crashato precedente, mai referenziata).
+    orphan = index.qdrant_collection_name("v-crashata-precedente")
+    q.collections.add(orphan)
+
+    version = index.build_graph_and_index(qdrant=q, embed_model=stub)
+    candidate = index.qdrant_collection_name(version)
+
+    assert candidate in q.collections
+    assert q.aliases[index.COLLECTION_NAME] == candidate
+    assert orphan not in q.collections  # orfana rimossa, la candidata del job resta intatta
+    assert candidate not in q.deleted_collection_names
+
+
+def test_full_rebuild_wires_gc_right_after_alias_swap(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", True)
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    sequence: list[str] = []
+    real_swap = index._swap_alias
+
+    def _tracking_swap(qdrant, alias, target):
+        sequence.append("alias_swap")
+        return real_swap(qdrant, alias, target)
+
+    monkeypatch.setattr(index, "_swap_alias", _tracking_swap)
+
+    real_gc = index.gc_orphaned_qdrant_collections
+
+    def _tracking_gc(qdrant, **kw):
+        sequence.append("gc")
+        return real_gc(qdrant, **kw)
+
+    monkeypatch.setattr(index, "gc_orphaned_qdrant_collections", _tracking_gc)
+
+    index.build_graph_and_index(qdrant=q, embed_model=stub)
+    assert sequence == ["alias_swap", "gc"]
+
+
+def test_flag_off_full_rebuild_never_calls_gc_or_repair_helpers(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "QDRANT_BLUE_GREEN", False)
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    def _boom(*a, **k):
+        raise AssertionError("flag off: nessun GC/repair atteso")
+    monkeypatch.setattr(index, "gc_qdrant_collections", _boom)
+    monkeypatch.setattr(index, "repair_qdrant_alias", _boom)
+
+    version = index.build_graph_and_index(qdrant=q, embed_model=stub)
+    assert version  # nessuna eccezione: gc_orphaned_qdrant_collections stessa è no-op col flag off

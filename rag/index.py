@@ -46,6 +46,8 @@ if __name__ == "__main__":
 
     if args.rollback:
         from core.artifacts import list_versions, rollback_version
+        from core.config import QDRANT_API_KEY, QDRANT_BLUE_GREEN, QDRANT_URL
+        from core.indexing import rollback_qdrant_alias_if_needed
 
         target = None if args.rollback == "__PREVIOUS__" else args.rollback
         try:
@@ -55,6 +57,19 @@ if __name__ == "__main__":
             sys.exit(1)
         print(f"✅ Rollback: CURRENT → {name}")
         print(f"   Versioni disponibili: {', '.join(list_versions())}")
+
+        # Blue/green (S7): rollback_version sopra resta puro locale (solo CURRENT).
+        # Con QDRANT_BLUE_GREEN acceso, riallinea qui l'alias Qdrant alla versione
+        # target — cross-lineage swappa, intra-lineage è un no-op, collection target
+        # assente non viene "corretta" automaticamente (nessun GC/reconciler in questo
+        # step): lo stato è esplicito e un mismatch fa uscire con codice non-zero.
+        if QDRANT_BLUE_GREEN:
+            from qdrant_client import QdrantClient
+
+            qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+            result = rollback_qdrant_alias_if_needed(qdrant, name, print)
+            if result["state"] == "missing_target_collection":
+                sys.exit(1)
     elif args.check_drift:
         check_drift(args.check_drift)
     elif args.archive:

@@ -85,6 +85,41 @@ def test_every_save_gets_a_distinct_version(db):
 
 
 # ---------------------------------------------------------------------------
+# save_artifacts con nome di versione PRE-GENERATO (blue/green Qdrant, S1): il nome
+# deve poter essere deciso a monte del salvataggio, col comportamento di default
+# (nessun nome passato) invariato.
+# ---------------------------------------------------------------------------
+def test_save_with_explicit_version_name_uses_it_verbatim(db):
+    v = artifacts.save_artifacts(_graph("a"), {}, {}, {}, {}, version="v-candidata-01")
+    assert v == "v-candidata-01"
+    assert (db / "versions" / "v-candidata-01" / "graph.json").exists()
+    # Nessuna promozione: identico al percorso di default, CURRENT resta intoccato.
+    assert not (db / "CURRENT").exists()
+
+
+def test_save_with_duplicate_explicit_version_name_is_rejected(db):
+    artifacts.save_artifacts(_graph("a"), {}, {}, {}, {}, version="v-dup")
+    with pytest.raises(FileExistsError):
+        artifacts.save_artifacts(_graph("b"), {}, {}, {}, {}, version="v-dup")
+    # Il fallimento è sicuro: la versione originale non viene toccata/sovrascritta.
+    graph_json = (db / "versions" / "v-dup" / "graph.json").read_text(encoding="utf-8")
+    assert '"a"' in graph_json and '"b"' not in graph_json
+
+
+def test_save_with_legacy_sentinel_as_explicit_version_is_rejected(db):
+    with pytest.raises(ValueError):
+        artifacts.save_artifacts(_graph("a"), {}, {}, {}, {}, version=artifacts.LEGACY_VERSION)
+
+
+def test_save_default_behavior_unchanged_when_version_not_passed(db):
+    # Nessuna regressione: senza l'argomento, il nome è ancora generato da
+    # _new_version_name() come prima di S1.
+    v = _save("a")
+    assert v.startswith("v")
+    assert (db / "versions" / v / "graph.json").exists()
+
+
+# ---------------------------------------------------------------------------
 # Rollback: sposta solo il puntatore, default = versione precedente
 # ---------------------------------------------------------------------------
 def test_rollback_default_goes_to_previous_version(db):

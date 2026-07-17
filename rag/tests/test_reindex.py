@@ -441,6 +441,307 @@ def test_full_rebuild_gate_disabled_promotes(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# _qdrant_collection_for_version / _eval_gate: il gate del full rebuild deve
+# valutare la STESSA collection su cui quella versione è stata costruita (S6.4,
+# blue/green Qdrant), letta dal manifest — mai una collection diversa, mai
+# hardcoded a COLLECTION_NAME quando il manifest dice altro.
+# ---------------------------------------------------------------------------
+def _write_manifest(tmp_path, monkeypatch, version: str, manifest: dict):
+    from core import artifacts
+    monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)
+    vdir = tmp_path / "versions" / version
+    vdir.mkdir(parents=True, exist_ok=True)
+    (vdir / "index_manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+
+def test_qdrant_collection_for_version_reads_manifest_field(tmp_path, monkeypatch):
+    import api.routes_reindex as rr
+    _write_manifest(tmp_path, monkeypatch, "v1", {"qdrant_collection": "vibecraft_events__v1"})
+    assert rr._qdrant_collection_for_version("v1") == "vibecraft_events__v1"
+
+
+def test_qdrant_collection_for_version_falls_back_when_field_absent(tmp_path, monkeypatch):
+    """Manifest antecedente a S2 (nessun campo qdrant_collection): fallback a
+    COLLECTION_NAME, comportamento invariato — non un'eccezione."""
+    import api.routes_reindex as rr
+    _write_manifest(tmp_path, monkeypatch, "v1", {"version": "v1"})
+    assert rr._qdrant_collection_for_version("v1") == rr.COLLECTION_NAME
+
+
+def test_qdrant_collection_for_version_falls_back_when_manifest_missing(tmp_path, monkeypatch):
+    import api.routes_reindex as rr
+    from core import artifacts
+    monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)  # nessun manifest scritto
+    assert rr._qdrant_collection_for_version("v-inesistente") == rr.COLLECTION_NAME
+
+
+def test_eval_gate_passes_the_version_candidate_collection_to_gate_promotion(tmp_path, monkeypatch):
+    """Col flag acceso il manifest dichiara la candidata: _eval_gate deve passarla a
+    gate_promotion, non valutare mai COLLECTION_NAME al suo posto."""
+    from types import SimpleNamespace
+    import api.routes_reindex as rr
+
+    _write_manifest(tmp_path, monkeypatch, "v1", {"qdrant_collection": "vibecraft_events__v1"})
+    monkeypatch.setattr(rr, "load_artifacts", lambda **kw: SimpleNamespace(colbert_store={}))
+
+    captured: dict = {}
+
+    def _fake_gate_promotion(version, qdrant, embed_model, colbert_store, emit=None, collection_name=None):
+        captured["collection_name"] = collection_name
+        return {"passed": True}
+
+    monkeypatch.setattr(rr, "gate_promotion", _fake_gate_promotion)
+
+    result = rr._eval_gate("v1", embed_model=object())
+    assert result["passed"] is True
+    assert captured["collection_name"] == "vibecraft_events__v1"
+    assert captured["collection_name"] != rr.COLLECTION_NAME
+
+
+def test_eval_gate_flag_off_still_passes_collection_name_to_gate_promotion(tmp_path, monkeypatch):
+    """Manifest col flag spento (o antecedente a S2): _eval_gate continua a passare
+    COLLECTION_NAME, comportamento invariato."""
+    from types import SimpleNamespace
+    import api.routes_reindex as rr
+
+    _write_manifest(tmp_path, monkeypatch, "v1", {"qdrant_collection": rr.COLLECTION_NAME})
+    monkeypatch.setattr(rr, "load_artifacts", lambda **kw: SimpleNamespace(colbert_store={}))
+
+    captured: dict = {}
+
+    def _fake_gate_promotion(version, qdrant, embed_model, colbert_store, emit=None, collection_name=None):
+        captured["collection_name"] = collection_name
+        return {"passed": True}
+
+    monkeypatch.setattr(rr, "gate_promotion", _fake_gate_promotion)
+
+    rr._eval_gate("v1", embed_model=object())
+    assert captured["collection_name"] == rr.COLLECTION_NAME
+
+
+# ---------------------------------------------------------------------------
+# Alias swap + migrazione one-shot dopo la promozione nel path server (S6.5/S6.6,
+# blue/green Qdrant): _run_full_rebuild deve promuovere CURRENT PRIMA, poi (solo se
+# necessario) migrare la collection legacy, e SOLO DOPO swappare l'alias verso la
+# qdrant_collection dichiarata nel manifest (_qdrant_collection_for_version, unico
+# source of truth). Col flag spento, o col gate bloccante, nessuna operazione.
+# ---------------------------------------------------------------------------
+def _wire_full_rebuild_with_alias_tracking(monkeypatch, gate_result: dict, *, blue_green: bool,
+                                           collection_for_version: str = "vibecraft_events__v-nuova"):
+    """Come _wire_full_rebuild, ma traccia l'ordine relativo di promote_version,
+    _migrate_legacy_collection_if_needed e _swap_alias in un'unica `sequence`.
+    `migrate_calls`/`swap_calls` isolano le chiamate ai due helper.
+
+    La DECISIONE se migrare davvero (collection legacy presente o no) è già
+    testata in core/indexing.py con lo StatefulFakeQdrant reale: qui si verifica
+    solo il WIRING — che l'helper venga chiamato, nell'ordine giusto, con gli
+    argomenti giusti — quindi il fake ritorna sempre False (nessuna vera cancellazione
+    da segnalare al chiamante, che comunque ignora il valore di ritorno)."""
+    import api.routes_reindex as rr
+
+    monkeypatch.setattr(rr, "_reindex_embed_model", lambda: object())
+    monkeypatch.setattr(rr, "build_graph_and_index", lambda **kw: "v-nuova")
+    monkeypatch.setattr(rr, "_eval_gate", lambda version, embed_model: gate_result)
+    monkeypatch.setattr(rr, "QDRANT_BLUE_GREEN", blue_green)
+    monkeypatch.setattr(rr, "_qdrant_collection_for_version", lambda version: collection_for_version)
+
+    sequence: list[tuple] = []
+    monkeypatch.setattr(rr, "promote_version", lambda v: sequence.append(("promote", v)))
+
+    migrate_calls: list[str] = []
+
+    def _fake_migrate(qdrant, alias, emit=None):
+        sequence.append(("migrate", alias))
+        migrate_calls.append(alias)
+        return False
+
+    monkeypatch.setattr(rr, "_migrate_legacy_collection_if_needed", _fake_migrate)
+
+    swap_calls: list[tuple] = []
+
+    def _fake_swap_alias(qdrant, alias, target):
+        sequence.append(("alias_swap", alias, target))
+        swap_calls.append((alias, target))
+
+    monkeypatch.setattr(rr, "_swap_alias", _fake_swap_alias)
+
+    gc_calls: list = []
+
+    def _fake_gc(qdrant, emit=None):
+        sequence.append("gc")
+        gc_calls.append(qdrant)
+        return []
+
+    monkeypatch.setattr(rr, "gc_orphaned_qdrant_collections", _fake_gc)
+    return rr, sequence, swap_calls, migrate_calls, gc_calls
+
+
+def test_full_rebuild_flag_off_promotes_without_any_alias_call(monkeypatch):
+    rr, sequence, swap_calls, migrate_calls, gc_calls = _wire_full_rebuild_with_alias_tracking(
+        monkeypatch, {"passed": True, "recall": 0.95, "k": 10}, blue_green=False)
+
+    result = rr._run_full_rebuild(None)
+
+    assert result["promoted"] is True
+    assert sequence == [("promote", "v-nuova")]  # nessun evento di migrazione/alias/GC
+    assert swap_calls == []
+    assert migrate_calls == []
+    assert gc_calls == []  # S8: col flag spento, nessun GC collegato
+
+
+def test_full_rebuild_flag_on_promotes_then_migrates_then_swaps(monkeypatch):
+    """Ordine non negoziabile esteso a S6.6: CURRENT prima, poi la migrazione
+    one-shot (se necessaria — qui il fake la chiama sempre, come fa il codice reale;
+    la decisione se cancellare davvero è interna all'helper), poi lo swap."""
+    rr, sequence, swap_calls, migrate_calls, gc_calls = _wire_full_rebuild_with_alias_tracking(
+        monkeypatch, {"passed": True, "recall": 0.95, "k": 10}, blue_green=True,
+        collection_for_version="vibecraft_events__v-nuova")
+
+    result = rr._run_full_rebuild(None)
+
+    assert result["promoted"] is True
+    assert "job_status" not in result
+    assert sequence == [
+        ("promote", "v-nuova"),
+        ("migrate", rr.COLLECTION_NAME),
+        ("alias_swap", rr.COLLECTION_NAME, "vibecraft_events__v-nuova"),
+        "gc",
+    ]
+    assert migrate_calls == [rr.COLLECTION_NAME]
+    assert len(gc_calls) == 1  # GC (S8): chiamato una volta, SOLO DOPO lo swap
+
+
+def test_full_rebuild_flag_on_alias_swap_uses_manifest_collection_as_source_of_truth(monkeypatch):
+    """Il target dello swap è quello dichiarato dal manifest (_qdrant_collection_for_version),
+    non una ricostruzione indipendente del nome: qui il valore è deliberatamente
+    diverso da quello che qdrant_collection_name(version) produrrebbe, per provare
+    che la fonte usata è davvero il manifest."""
+    rr, sequence, swap_calls, migrate_calls, gc_calls = _wire_full_rebuild_with_alias_tracking(
+        monkeypatch, {"passed": True, "recall": 0.95, "k": 10}, blue_green=True,
+        collection_for_version="collection-dichiarata-nel-manifest",
+    )
+
+    rr._run_full_rebuild(None)
+
+    assert swap_calls == [(rr.COLLECTION_NAME, "collection-dichiarata-nel-manifest")]
+
+
+def test_full_rebuild_blocking_gate_leaves_current_and_alias_untouched(monkeypatch):
+    rr, sequence, swap_calls, migrate_calls, gc_calls = _wire_full_rebuild_with_alias_tracking(
+        monkeypatch, {"passed": False, "recall": 0.1, "k": 10, "min_recall": 0.9}, blue_green=True)
+
+    result = rr._run_full_rebuild(None)
+
+    assert result["promoted"] is False
+    assert result["job_status"] == "completed_not_promoted"
+    assert sequence == []  # né promote, né migrazione, né alias swap, né GC
+    assert swap_calls == []
+    assert migrate_calls == []
+    assert gc_calls == []  # gate bloccante: nessun GC, coerente con "nessuna scrittura se non promosso"
+
+
+# ---------------------------------------------------------------------------
+# S7: POST /api/index/rollback riallinea l'alias Qdrant (rollback_qdrant_alias_if_needed,
+# core.indexing) DOPO il rollback locale puro (rollback_version, core.artifacts) — mai
+# prima, e mai una correzione automatica se la collection target manca.
+# ---------------------------------------------------------------------------
+class _FakeJsonRequest:
+    def __init__(self, payload=None):
+        self._payload = payload
+
+    async def json(self):
+        if self._payload is None:
+            raise ValueError("nessun corpo")
+        return self._payload
+
+
+def _call_index_rollback(monkeypatch, payload=None, *, rollback_version_result="v1",
+                         qdrant_alias_result=None):
+    import asyncio
+    import api.routes_reindex as rr
+
+    monkeypatch.setitem(rr.state, "qdrant", "fake-qdrant-client")
+    monkeypatch.setattr(rr, "rollback_version", lambda target: rollback_version_result)
+    monkeypatch.setattr(rr, "list_versions", lambda: ["v1", "v2"])
+    monkeypatch.setattr(rr, "reload_index_state", lambda: None)
+
+    captured: dict = {}
+
+    def _fake_rollback_qdrant_alias(qdrant, target_version, emit=None):
+        captured["qdrant"] = qdrant
+        captured["target_version"] = target_version
+        return qdrant_alias_result if qdrant_alias_result is not None else {"state": "disabled"}
+
+    monkeypatch.setattr(rr, "rollback_qdrant_alias_if_needed", _fake_rollback_qdrant_alias)
+
+    response = asyncio.run(rr.index_rollback(_FakeJsonRequest(payload)))
+    return response, captured
+
+
+def test_index_rollback_flag_off_reports_disabled_state(monkeypatch):
+    response, captured = _call_index_rollback(monkeypatch, qdrant_alias_result={"state": "disabled"})
+    assert response["rolled_back_to"] == "v1"
+    assert response["qdrant_alias"] == {"state": "disabled"}
+    assert captured["target_version"] == "v1"  # riceve la versione RISULTANTE dal rollback locale
+
+
+def test_index_rollback_flag_on_cross_lineage_reports_swapped_state(monkeypatch):
+    response, captured = _call_index_rollback(
+        monkeypatch, rollback_version_result="v-target",
+        qdrant_alias_result={"state": "swapped", "expected": "coll-v-target", "actual": "coll-v-target"},
+    )
+    assert response["rolled_back_to"] == "v-target"
+    assert response["qdrant_alias"]["state"] == "swapped"
+    assert captured["target_version"] == "v-target"
+    assert captured["qdrant"] == "fake-qdrant-client"
+
+
+def test_index_rollback_flag_on_intra_lineage_reports_noop_state(monkeypatch):
+    response, _ = _call_index_rollback(
+        monkeypatch, qdrant_alias_result={"state": "noop", "expected": "coll-x", "actual": "coll-x"},
+    )
+    assert response["qdrant_alias"]["state"] == "noop"
+
+
+def test_index_rollback_missing_target_collection_does_not_raise_and_current_still_moved(monkeypatch):
+    """Nessuna correzione automatica distruttiva: la route non solleva un errore HTTP
+    quando la collection target manca — lo stato esplicito arriva nel corpo della
+    risposta, e il rollback locale (CURRENT) resta comunque effettuato."""
+    response, _ = _call_index_rollback(
+        monkeypatch, rollback_version_result="v1",
+        qdrant_alias_result={"state": "missing_target_collection", "expected": "coll-v1", "actual": "coll-v2"},
+    )
+    assert response["rolled_back_to"] == "v1"
+    assert response["qdrant_alias"]["state"] == "missing_target_collection"
+
+
+def test_index_rollback_local_failure_never_calls_qdrant_alias_helper(monkeypatch):
+    """Se il rollback locale fallisce (versione inesistente), la route deve uscire
+    con l'errore HTTP prima di toccare qualunque logica di alias Qdrant."""
+    import api.routes_reindex as rr
+    from fastapi import HTTPException
+
+    monkeypatch.setitem(rr.state, "qdrant", "fake-qdrant-client")
+
+    def _boom(target):
+        raise FileNotFoundError(f"versione inesistente: {target}")
+
+    monkeypatch.setattr(rr, "rollback_version", _boom)
+
+    def _should_not_be_called(*a, **k):
+        raise AssertionError("rollback_qdrant_alias_if_needed non deve essere chiamata se il rollback locale fallisce")
+
+    monkeypatch.setattr(rr, "rollback_qdrant_alias_if_needed", _should_not_be_called)
+
+    import asyncio
+    try:
+        asyncio.run(rr.index_rollback(_FakeJsonRequest(None)))
+        assert False, "doveva sollevare HTTPException"
+    except HTTPException as exc:
+        assert exc.status_code == 404
+
+
+# ---------------------------------------------------------------------------
 # Persistenza: journal JSONL append-only + ricostruzione al boot
 # ---------------------------------------------------------------------------
 def test_journal_round_trip_completed_job_survives_restart(tmp_path):

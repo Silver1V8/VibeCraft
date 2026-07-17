@@ -17,6 +17,10 @@ import numpy as np
 from FlagEmbedding import BGEM3FlagModel
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
+    CreateAlias,
+    CreateAliasOperation,
+    DeleteAlias,
+    DeleteAliasOperation,
     Distance,
     FieldCondition,
     Filter,
@@ -39,8 +43,10 @@ from code_index import (
 from core.artifacts import (
     _atomic_write,
     _atomic_write_text,
+    _new_version_name,
     artifact_dir,
     artifact_hashes,
+    list_versions,
     load_artifacts,
     manifest_path,
     promote_version,
@@ -73,6 +79,7 @@ from core.config import (
     EMBEDDING_MODEL,
     PROJECT_ROOT,
     QDRANT_API_KEY,
+    QDRANT_BLUE_GREEN,
     QDRANT_URL,
 )
 
@@ -261,22 +268,388 @@ def _encode_chunks_to_points(embed_model, chunks: list[dict]):
     return points, colbert_partial, chunks_partial, dense_vecs
 
 
-def _ensure_collection(qdrant: QdrantClient, recreate: bool = False) -> None:
+def _ensure_collection(qdrant: QdrantClient, recreate: bool = False,
+                       collection_name: str = COLLECTION_NAME) -> None:
     """Garantisce l'esistenza della collection Qdrant con la config hybrid (dense+sparse).
     `recreate=True` (full rebuild) la ricostruisce da zero; `recreate=False` (incrementale)
-    la crea solo se assente, senza mai cancellare i punti già presenti."""
+    la crea solo se assente, senza mai cancellare i punti già presenti.
+
+    `collection_name` (opzionale, default COLLECTION_NAME): la collection su cui operare.
+    Serve al blue/green di Qdrant (collection versionate + alias), che dovrà creare una
+    collection candidata con un nome diverso da quella di produzione. Nessun chiamante di
+    produzione lo passa ancora."""
     existing = {c.name for c in qdrant.get_collections().collections}
-    if recreate and COLLECTION_NAME in existing:
-        qdrant.delete_collection(COLLECTION_NAME)
-        existing.discard(COLLECTION_NAME)
-    if COLLECTION_NAME not in existing:
+    if recreate and collection_name in existing:
+        qdrant.delete_collection(collection_name)
+        existing.discard(collection_name)
+    if collection_name not in existing:
         # Hybrid Search: la stessa collection ospita il vettore denso (semantica generale)
         # e quello sparso (match lessicali esatti). I multivettori ColBERT vivono nel sidecar.
         qdrant.create_collection(
-            collection_name=COLLECTION_NAME,
+            collection_name=collection_name,
             vectors_config={"dense": VectorParams(size=DENSE_DIM, distance=Distance.COSINE)},
             sparse_vectors_config={"sparse": SparseVectorParams()},
         )
+
+
+# ---------------------------------------------------------------------------
+# Blue/green Qdrant (collection versionate + alias) — helper ISOLATI (S4 del piano di
+# implementazione). NESSUNO dei nomi sotto è ancora chiamato da un percorso di
+# produzione (build_graph_and_index, incremental_index, rollback, lifespan del
+# server, route API): sono scaffolding puro, testato in isolamento in attesa dello
+# step di wiring (S6+ del piano). Nessun branch su flag, nessuna migrazione: solo
+# funzioni pure/testabili che operano su un client Qdrant iniettato.
+#
+# Schema di naming: COLLECTION_NAME resta l'ALIAS che /ask e /api/retrieve
+# interrogheranno sempre; ogni versione dell'indice scrive invece su una collection
+# FISICA "{COLLECTION_NAME}__{version}" (qdrant_collection_name), dove `version` è lo
+# STESSO token della directory locale in database/versions/ (e dello stesso valore
+# scritto nel manifest come "qdrant_collection", vedi write_index_manifest). Il
+# separatore "__" è riservato e mai prodotto da _new_version_name (i cui token sono
+# "v<timestamp>[-NN]"), quindi il parsing inverso non è mai ambiguo.
+# ---------------------------------------------------------------------------
+_QDRANT_COLLECTION_SEP = "__"
+
+
+def qdrant_collection_name(version: str, *, base: str = COLLECTION_NAME) -> str:
+    """Nome della collection FISICA che ospiterà i vettori della versione `version`.
+    `base` (default COLLECTION_NAME) resta anche il nome dell'ALIAS che punterà, dopo
+    la promozione, alla collection della versione attiva."""
+    return f"{base}{_QDRANT_COLLECTION_SEP}{version}"
+
+
+def parse_qdrant_collection_version(name: str, *, base: str = COLLECTION_NAME) -> str | None:
+    """Inversa di qdrant_collection_name: estrae il token di versione da un nome di
+    collection fisica, o None se `name` non segue quello schema — cioè non è una
+    collection versionata di questo progetto (per esempio è l'alias stesso, o una
+    collection estranea non gestita da questo indice)."""
+    prefix = f"{base}{_QDRANT_COLLECTION_SEP}"
+    if not name.startswith(prefix):
+        return None
+    version = name[len(prefix):]
+    return version or None
+
+
+def _qdrant_collection_for_version(version: str) -> str:
+    """Collection Qdrant su cui `version` è stata costruita, letta dal suo manifest
+    (campo qdrant_collection — scritto da write_index_manifest, S2/S6.3). Condivisa
+    da CLI (index.py) e server (api/routes_reindex.py, che la importa da qui invece
+    di ridefinirla — S7): entrambi i path di rollback ne hanno bisogno per risalire
+    alla collection della versione TARGET senza ricostruirne il nome autonomamente.
+    Con QDRANT_BLUE_GREEN attivo è la collection candidata/promossa di quella build,
+    mai la produzione corrente; col flag spento (o per manifest antecedenti a S2)
+    resta COLLECTION_NAME, comportamento invariato. Fallback a COLLECTION_NAME se il
+    manifest è illeggibile o non dichiara il campo."""
+    try:
+        manifest = json.loads(manifest_path(version).read_text(encoding="utf-8"))
+        collection = manifest.get("qdrant_collection") if isinstance(manifest, dict) else None
+    except Exception:
+        collection = None
+    return collection or COLLECTION_NAME
+
+
+def _read_alias_target(qdrant: QdrantClient, alias: str) -> str | None:
+    """Collection fisica a cui punta attualmente `alias`, o None se l'alias non esiste.
+    Qdrant non offre una risoluzione diretta "alias -> collection" per singolo nome:
+    si enumerano tutti gli alias del cluster (get_aliases) e si filtra su alias_name."""
+    response = qdrant.get_aliases()
+    for a in response.aliases:
+        if a.alias_name == alias:
+            return a.collection_name
+    return None
+
+
+def _qdrant_collection_exists(qdrant: QdrantClient, collection_name: str) -> bool:
+    """True se `collection_name` esiste come collection FISICA in Qdrant. get_collections()
+    elenca sempre e solo le collection fisiche, mai gli alias: se `collection_name` è
+    un alias (o non esiste affatto), questa funzione restituisce False. È la base sia
+    del pre-check di S6.5 sia della migrazione one-shot di S6.6 (_migrate_legacy_collection_if_needed):
+    Qdrant rifiuta la creazione di un alias omonimo a una collection fisica esistente."""
+    return any(c.name == collection_name for c in qdrant.get_collections().collections)
+
+
+def _migrate_legacy_collection_if_needed(qdrant: QdrantClient, alias: str, emit=None) -> bool:
+    """Migrazione ONE-SHOT legacy→alias (S6.6): l'UNICA operazione irreversibile
+    dell'intero piano blue/green. Se `alias` esiste ancora come collection FISICA
+    (layout legacy mai migrato), la cancella — libera il nome perché `_swap_alias`,
+    chiamata SUBITO dopo dal chiamante, possa ricrearlo come alias. No-op (False,
+    nessuna cancellazione) se `alias` non è una collection fisica: layout già
+    migrato (è già un alias, `_swap_alias` lo sposta senza toccare nulla) o
+    installazione fresca (non esiste affatto, `_swap_alias` lo crea da zero).
+
+    Va chiamata SOLO dopo che CURRENT è già stato promosso (build completata, gate
+    passato) e SOLO da chi chiama `_swap_alias` subito dopo — non è un passo
+    indipendente. Fra il delete e la create dell'alias c'è una finestra di
+    indisponibilità BREVE ma REALE (nessun nome, né collection né alias, risolve
+    temporaneamente `alias`): se il processo si interrompe in quella finestra, il
+    reconciler read-only (S5) la osserva come stato "missing" — una riparazione
+    automatica di quel gap è lavoro futuro (S8), non di questo step. Avviene al più
+    una volta nella vita di un'installazione: dopo la prima migrazione riuscita,
+    `alias` non è più una collection fisica e le chiamate successive sono no-op."""
+    _log = emit or logger.info
+    if not _qdrant_collection_exists(qdrant, alias):
+        return False
+    _log(f"⚠️  Migrazione legacy→alias ONE-SHOT: '{alias}' esiste ancora come collection "
+         f"fisica di produzione — la cancello ORA per liberare il nome all'alias "
+         f"(azione IRREVERSIBILE, finestra di indisponibilità minima, una sola volta "
+         f"nella vita di questa installazione).")
+    qdrant.delete_collection(alias)
+    _log(f"🗑️  Collection legacy '{alias}' cancellata: il nome è libero per l'alias.")
+    return True
+
+
+def _swap_alias(qdrant: QdrantClient, alias: str, target_collection: str) -> None:
+    """Sposta `alias` su `target_collection` con un'unica richiesta ATOMICA
+    (update_collection_aliases): se l'alias punta già altrove, il delete del vecchio
+    puntamento e la create del nuovo viaggiano nello STESSO batch, che Qdrant applica
+    indivisibilmente — mai un istante senza alias, mai due target contemporaneamente.
+    Idempotente: se l'alias punta già a `target_collection`, non invia alcuna
+    richiesta (nessuna operazione, nessun log, nessun effetto osservabile)."""
+    current = _read_alias_target(qdrant, alias)
+    if current == target_collection:
+        return
+    operations = []
+    if current is not None:
+        operations.append(DeleteAliasOperation(delete_alias=DeleteAlias(alias_name=alias)))
+    operations.append(
+        CreateAliasOperation(
+            create_alias=CreateAlias(collection_name=target_collection, alias_name=alias)
+        )
+    )
+    qdrant.update_collection_aliases(change_aliases_operations=operations)
+
+
+def rollback_qdrant_alias_if_needed(qdrant: QdrantClient, target_version: str, emit=None) -> dict:
+    """Allinea l'alias Qdrant (COLLECTION_NAME) alla versione TARGET di un rollback
+    blue/green (S7), SOLO se QDRANT_BLUE_GREEN è acceso. `core.artifacts.rollback_version`
+    resta puro locale (sposta solo il puntatore CURRENT su disco): questa funzione vive
+    nel chiamante (CLI/server) e si occupa esclusivamente della parte Qdrant, chiamata
+    DOPO che il rollback locale è già andato a buon fine.
+
+    Nessuna correzione automatica distruttiva: se la collection della versione target
+    non esiste più su Qdrant, l'alias NON viene toccato e lo stato lo dice esplicitamente
+    ("missing_target_collection") — CURRENT risulta avanzato ma la produzione resta
+    invariata finché non arriva un full rebuild o un intervento manuale (nessun GC
+    automatico né reconciler riparatore: fuori scope di questo step).
+
+    Restituisce {"state": "disabled"|"noop"|"swapped"|"missing_target_collection",
+    "expected": <collection attesa per target_version>, "actual": <target attuale
+    dell'alias, None se l'alias non esiste ancora>}."""
+    _log = emit or logger.info
+    if not QDRANT_BLUE_GREEN:
+        return {"state": "disabled"}
+    expected = _qdrant_collection_for_version(target_version)
+    actual = _read_alias_target(qdrant, COLLECTION_NAME)
+    if actual == expected:
+        _log(f"ℹ️  Alias Qdrant '{COLLECTION_NAME}' già allineato a '{expected}': nessuna "
+             f"operazione (rollback intra-lineage verso {target_version}).")
+        return {"state": "noop", "expected": expected, "actual": actual}
+    if not _qdrant_collection_exists(qdrant, expected):
+        _log(f"⚠️  Rollback: la collection '{expected}' (versione {target_version}) non "
+             f"esiste più su Qdrant — l'alias NON viene spostato (nessuna correzione "
+             f"automatica). CURRENT punta ora a {target_version} ma la produzione resta "
+             f"su '{actual}'. Serve un full rebuild o un intervento manuale.")
+        return {"state": "missing_target_collection", "expected": expected, "actual": actual}
+    _swap_alias(qdrant, COLLECTION_NAME, expected)
+    _log(f"🔀 Alias Qdrant '{COLLECTION_NAME}' → {expected} (rollback blue/green verso "
+         f"{target_version}).")
+    return {"state": "swapped", "expected": expected, "actual": expected}
+
+
+def list_qdrant_collections(qdrant: QdrantClient, *, base: str = COLLECTION_NAME) -> list[str]:
+    """Nomi delle collection FISICHE versionate di questo progetto presenti su Qdrant
+    (quelle che seguono lo schema di qdrant_collection_name), in ordine alfabetico —
+    che per il formato del token di versione coincide con quello cronologico. Non
+    include l'alias: get_collections elenca solo collection fisiche, mai gli alias."""
+    names = (c.name for c in qdrant.get_collections().collections)
+    return sorted(n for n in names if parse_qdrant_collection_version(n, base=base) is not None)
+
+
+def _referenced_qdrant_collections() -> set[str]:
+    """Collection fisiche ancora referenziate da un manifest di versione SOPRAVVISSUTA
+    su disco (database/versions/<v>/index_manifest.json -> campo qdrant_collection).
+    Solo I/O locale (nessun client Qdrant, coerente con core.artifacts): è, insieme al
+    target corrente dell'alias, l'insieme che il GC non deve mai cancellare."""
+    referenced: set[str] = set()
+    for v in list_versions():
+        try:
+            manifest = json.loads(manifest_path(v).read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        collection = manifest.get("qdrant_collection") if isinstance(manifest, dict) else None
+        if collection:
+            referenced.add(collection)
+    return referenced
+
+
+def gc_qdrant_collections(qdrant: QdrantClient, *, referenced: set[str],
+                          alias_target: str | None = None,
+                          base: str = COLLECTION_NAME) -> list[str]:
+    """Cancella le collection versionate ORFANE: presenti su Qdrant ma né puntate
+    dall'alias (`alias_target`) né referenziate da un manifest sopravvissuto
+    (`referenced`) — tipicamente candidate di build crashati, bloccate dall'eval-gate,
+    o lineage già ruotati dalla retention locale (core.artifacts.prune_versions).
+    `referenced`/`alias_target` sono parametri espliciti (non ricalcolati qui) così la
+    funzione resta pura e testabile senza un vero stato locale su disco — il chiamante
+    di un passo successivo li otterrà da _referenced_qdrant_collections() e
+    _read_alias_target(). Restituisce i nomi effettivamente rimossi."""
+    keep = set(referenced)
+    if alias_target is not None:
+        keep.add(alias_target)
+    doomed = [n for n in list_qdrant_collections(qdrant, base=base) if n not in keep]
+    for name in doomed:
+        qdrant.delete_collection(name)
+    return doomed
+
+
+def reconcile_qdrant_alias(qdrant: QdrantClient, *, base: str = COLLECTION_NAME) -> dict:
+    """Confronta lo stato ATTESO (il campo qdrant_collection nel manifest della
+    versione attualmente attiva, letto da _read_manifest) con quello REALE (il target
+    corrente dell'alias `base` su Qdrant, via _read_alias_target) e restituisce una
+    classificazione. Funzione di sola OSSERVAZIONE: non scrive mai nulla (né su
+    Qdrant né in locale) — la decisione se e come riparare (chiamare _swap_alias)
+    resta a un passo successivo del piano, che userà questo stesso output.
+
+    `state` restituito:
+    - "legacy": nessuna versione attiva ha ancora un manifest con qdrant_collection
+      (indice mai costruito, layout flat pre-versionamento, o manifest scritto da
+      prima di questo campo). Non c'è ancora un blue/green Qdrant da riconciliare.
+    - "missing": la versione attiva dichiara una collection attesa, ma l'alias non
+      esiste affatto su Qdrant.
+    - "aligned": l'alias punta esattamente alla collection attesa.
+    - "diverging": l'alias esiste ma punta a una collection diversa da quella attesa
+      (es. CURRENT è avanzato oltre l'ultimo swap, o un rollback ha spostato CURRENT
+      senza spostare l'alias)."""
+    manifest = _read_manifest()
+    expected = manifest.get("qdrant_collection") if isinstance(manifest, dict) else None
+    actual = _read_alias_target(qdrant, base)
+    if not expected:
+        return {"state": "legacy", "expected": expected, "actual": actual}
+    if actual is None:
+        return {"state": "missing", "expected": expected, "actual": None}
+    if actual == expected:
+        return {"state": "aligned", "expected": expected, "actual": actual}
+    return {"state": "diverging", "expected": expected, "actual": actual}
+
+
+def observe_qdrant_alias(qdrant: QdrantClient | None = None) -> dict:
+    """Wrapper SICURO di reconcile_qdrant_alias per i punti di osservazione runtime
+    (S5 del piano: lifespan del server, check di integrità): a differenza della
+    funzione pura, non solleva mai — gestisce da sé apertura/chiusura del client se
+    non iniettato, e degrada a stato "unknown" se la lettura fallisce (Qdrant
+    irraggiungibile, errore di rete, metodo non supportato dal client, ecc.).
+
+    Resta PURA OSSERVAZIONE: non scrive mai nulla su Qdrant né in locale, non ripara
+    alcuna divergenza. Il livello di riparazione (alias swap sulla base di questo
+    stesso stato) è un passo successivo del piano, deliberatamente non presente qui —
+    vedi reconcile_qdrant_alias per la classificazione pura sottostante."""
+    own_qdrant = qdrant is None
+    try:
+        if own_qdrant:
+            qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+        return reconcile_qdrant_alias(qdrant)
+    except Exception as exc:
+        return {"state": "unknown", "expected": None, "actual": None,
+                "error": f"{type(exc).__name__}: {exc}"}
+    finally:
+        if own_qdrant and qdrant is not None:
+            try:
+                qdrant.close()
+            except Exception:
+                pass
+
+
+def repair_qdrant_alias(qdrant: QdrantClient, *, base: str = COLLECTION_NAME, emit=None) -> dict:
+    """Riparazione MIRATA (S8) della divergenza alias/CURRENT osservata da
+    reconcile_qdrant_alias: a differenza sua, questa scrive su Qdrant — ma solo nei
+    due casi previsti dal piano e solo se sicuro:
+    - "diverging" (CURRENT è avanzato oltre l'ultimo swap, es. un rollback S7 lasciato
+      con l'alias non corretto): sposta l'alias sulla collection ATTESA (`expected`,
+      dal manifest della versione attiva), se esiste.
+    - "missing" (nessun alias, es. il crash fra delete legacy e create alias di
+      S6.6): crea l'alias verso `expected`, se la collection esiste.
+
+    Conservativa per costruzione: se `expected` non esiste come collection fisica, non
+    fa NULLA (nessuna creazione, nessuna collection "inventata") e lo segnala con
+    `repaired: False` — lo stesso limite già imposto al rollback (S7,
+    rollback_qdrant_alias_if_needed). Gli stati "legacy" (nessun manifest blue/green
+    ancora) e "aligned" (nulla da fare) sono no-op espliciti. "unknown" non è mai
+    prodotto qui (solo dal wrapper sicuro sotto, in caso di errore).
+
+    Col flag SPENTO, non fa nulla e non chiama nemmeno reconcile_qdrant_alias: con
+    flag off COLLECTION_NAME è una collection FISICA di produzione, mai un alias, e
+    un tentativo di "riparazione" la scambierebbe per un alias mancante — scrivendo
+    dove non deve mai scrivere. Restituisce {"state": "disabled"}, stessa convenzione
+    di rollback_qdrant_alias_if_needed."""
+    _log = emit or logger.info
+    if not QDRANT_BLUE_GREEN:
+        return {"state": "disabled"}
+    report = reconcile_qdrant_alias(qdrant, base=base)
+    state = report["state"]
+    if state not in ("missing", "diverging"):
+        return {**report, "repaired": False}
+    expected = report["expected"]
+    if not _qdrant_collection_exists(qdrant, expected):
+        _log(f"⚠️  Reconciler: stato '{state}' ma la collection attesa '{expected}' non esiste "
+             f"su Qdrant — nessuna riparazione automatica (nessuna collection inventata). "
+             f"Serve un full rebuild o un intervento manuale.")
+        return {**report, "repaired": False}
+    _swap_alias(qdrant, base, expected)
+    _log(f"🔧 Reconciler: alias '{base}' riparato ({state} → {expected}).")
+    return {**report, "repaired": True}
+
+
+def reconcile_and_repair_qdrant_alias(qdrant: QdrantClient | None = None, emit=None) -> dict:
+    """Wrapper SICURO di repair_qdrant_alias per i punti di riparazione consentiti dal
+    piano (S8: boot pre-serving, percorsi writer subito dopo promote/alias swap):
+    come observe_qdrant_alias, non solleva mai — gestisce da sé apertura/chiusura del
+    client se non iniettato e degrada a stato "unknown" se la lettura/riparazione
+    fallisce (Qdrant irraggiungibile, errore di rete, ecc.). Un Qdrant temporaneamente
+    non disponibile non deve mai impedire il boot del server né interrompere un job."""
+    _log = emit or logger.info
+    own_qdrant = qdrant is None
+    try:
+        if own_qdrant:
+            qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+        return repair_qdrant_alias(qdrant, emit=_log)
+    except Exception as exc:
+        return {"state": "unknown", "expected": None, "actual": None, "repaired": False,
+                "error": f"{type(exc).__name__}: {exc}"}
+    finally:
+        if own_qdrant and qdrant is not None:
+            try:
+                qdrant.close()
+            except Exception:
+                pass
+
+
+def gc_orphaned_qdrant_collections(qdrant: QdrantClient, *, base: str = COLLECTION_NAME,
+                                   emit=None) -> list[str]:
+    """Wrapper SICURO di gc_qdrant_collections per i punti consentiti dal piano (S8:
+    dopo un promote/alias-swap riuscito nei percorsi writer single-writer, e al boot
+    pre-serving) — non un GC generico richiamabile ovunque. Ricalcola `referenced`
+    (_referenced_qdrant_collections, I/O locale) e `alias_target` (_read_alias_target,
+    lo stato REALE post-swap) al momento della chiamata, così rispetta sempre gli
+    invarianti stretti del piano:
+    - mai la collection puntata ORA dall'alias (produzione corrente);
+    - mai una collection ancora referenziata da un manifest sopravvissuto — incluso
+      quello della versione appena promossa/candidata del job in corso, che è per
+      costruzione sempre nell'insieme referenced (il suo manifest esiste su disco);
+    - mai chiamata concorrentemente fuori dal single-writer o dal boot: il chiamante
+      (build_graph_and_index/_run_full_rebuild dopo lo swap, o il lifespan) è l'unico
+      responsabile di questa garanzia, non questa funzione.
+
+    Col flag SPENTO restituisce [] senza toccare Qdrant: senza blue/green non esistono
+    collection versionate da raccogliere, solo l'unica collection di produzione."""
+    _log = emit or logger.info
+    if not QDRANT_BLUE_GREEN:
+        return []
+    referenced = _referenced_qdrant_collections()
+    alias_target = _read_alias_target(qdrant, base)
+    removed = gc_qdrant_collections(qdrant, referenced=referenced, alias_target=alias_target, base=base)
+    if removed:
+        _log(f"🗑️  GC collection Qdrant orfane: {', '.join(removed)}.")
+    return removed
 
 
 @dataclass
@@ -384,6 +757,34 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     `promote=False` lascia la nuova versione NON attiva (CURRENT invariato): è il gancio
     per la promozione condizionata dei job full del ReindexManager (eval gate) — il
     chiamante promuove poi con `core.artifacts.promote_version(nome)`.
+
+    Nome di versione e nome di collection sono DECISI UNA SOLA VOLTA all'inizio della
+    funzione e riusati fino al salvataggio degli artefatti, al manifest e ai log.
+
+    Blue/green Qdrant (core.config.QDRANT_BLUE_GREEN, step S6.3-S6.6 del piano):
+    - flag SPENTO (default): `collection_name` vale COLLECTION_NAME e la collection
+      viene ricreata da zero (`recreate=True`) come sempre — comportamento storico
+      byte-per-byte invariato. Nessuna operazione di alias.
+    - flag ACCESO: `collection_name` è la collection CANDIDATA versionata
+      (`qdrant_collection_name(version)`), creata senza mai droppare/ricreare nulla
+      (`recreate=False`: è un nome nuovo per costruzione, e soprattutto non deve MAI
+      coincidere con — né quindi mai toccare — la collection di produzione, che resta
+      COLLECTION_NAME). Il manifest registra quale collection ospita questa versione
+      (`qdrant_collection`) e l'eval-gate valuta quella stessa candidata. Se il gate
+      passa, la promozione sposta PRIMA CURRENT (il commit point locale) e SOLO DOPO
+      l'alias `COLLECTION_NAME` sulla candidata (`_swap_alias`) — ordine non
+      negoziabile. In mezzo, SOLO se necessario, la migrazione one-shot legacy→alias
+      (S6.6, `_migrate_legacy_collection_if_needed`): se `COLLECTION_NAME` esiste
+      ancora come collection FISICA (layout legacy mai migrato — Qdrant non ammette
+      un alias omonimo a una collection), viene cancellata per liberare il nome,
+      SUBITO prima dello swap che la ricrea come alias — l'UNICA operazione
+      irreversibile dell'intero piano, con una finestra di indisponibilità breve ma
+      reale fra le due chiamate (loggata esplicitamente). Se il layout è già migrato
+      (alias esistente) o l'installazione è fresca (nessuna collisione), la
+      migrazione è un no-op: nessun delete, solo lo swap. Nessun GC né riparazione
+      automatica: se il processo si interrompe nella finestra delete→create,
+      l'osservazione read-only (S5) la rileva come stato "missing"; ripararla
+      automaticamente resta lavoro futuro (S8).
     """
     _log = emit or logger.info
     own_qdrant = qdrant is None
@@ -393,37 +794,66 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     if qdrant is None:
         qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
-    # Ricrea la collection Qdrant da zero ad ogni indicizzazione completa
-    _ensure_collection(qdrant, recreate=True)
+    version = _new_version_name()
+    if QDRANT_BLUE_GREEN:
+        collection_name = qdrant_collection_name(version)
+    else:
+        collection_name = COLLECTION_NAME
+
+    # recreate=True SOLO col flag spento (comportamento storico sulla collection di
+    # produzione). Col flag acceso la candidata è un nome mai usato prima: niente da
+    # droppare, e la produzione (nome diverso) non va mai toccata da questa chiamata.
+    _ensure_collection(qdrant, recreate=not QDRANT_BLUE_GREEN, collection_name=collection_name)
 
     state = _build_full_state(embed_model, DOCS_DIR, CODE_DIR, emit=_log)
     G = state.graph
     if state.points:
-        qdrant.upsert(collection_name=COLLECTION_NAME, points=state.points)
+        qdrant.upsert(collection_name=collection_name, points=state.points)
 
-    # Salva grafo + vettori + sidecar nei formati correnti (JSON/.npz) in una NUOVA
-    # directory di versione, tramite l'unico punto di I/O (core.artifacts). Scrittura
-    # atomica: un crash a metà non lascia artefatti troncati né una versione attiva rotta.
-    version = save_artifacts(G, state.colbert_store, state.chunks_store, state.dense_store, state.code_store)
+    # Salva grafo + vettori + sidecar nei formati correnti (JSON/.npz) nella versione
+    # decisa sopra, tramite l'unico punto di I/O (core.artifacts). Scrittura atomica:
+    # un crash a metà non lascia artefatti troncati né una versione attiva rotta.
+    version = save_artifacts(G, state.colbert_store, state.chunks_store, state.dense_store,
+                             state.code_store, version=version)
 
     _log(f"\n✅ Artefatti indice salvati nella versione {version} (grafo JSON, vettori .npz, sidecar).")
     _log(f"📊 Grafo: {G.number_of_nodes()} nodi, {G.number_of_edges()} archi.")
-    _log(f"📦 Qdrant: {len(state.points)} chunk (da {state.n_docs} documenti) nella collection '{COLLECTION_NAME}'.")
+    _log(f"📦 Qdrant: {len(state.points)} chunk (da {state.n_docs} documenti) nella collection '{collection_name}'.")
 
-    write_index_manifest(len(state.points), G.number_of_nodes(), G.number_of_edges(), version=version)
+    write_index_manifest(len(state.points), G.number_of_nodes(), G.number_of_edges(),
+                        version=version, qdrant_collection=collection_name)
     _log(f"🧾 Manifest indicizzazione salvato in: {manifest_path(version)}")
 
     if promote and version:
         # Eval-gate: valuta la recall della versione candidata sul golden set PRIMA di spostare
         # CURRENT. Lo stato candidato è in memoria e Qdrant è già popolato: la valutazione
         # riflette il retrieval che verrebbe servito. Se regredisce, la promozione è bloccata.
-        gate = gate_promotion(version, qdrant, embed_model, state.colbert_store, emit=_log)
-        if gate.get("passed"):
-            promote_version(version)
-            _log(f"🔁 Versione promossa: CURRENT → {version} (swap atomico, rollback: index.py --rollback).")
-        else:
+        # collection_name è la STESSA collection appena costruita sopra (candidata col flag
+        # acceso, produzione col flag spento): il gate misura sempre ciò che questa build ha
+        # davvero scritto, mai una collection diversa.
+        gate = gate_promotion(version, qdrant, embed_model, state.colbert_store, emit=_log,
+                              collection_name=collection_name)
+        if not gate.get("passed"):
             _log(f"⛔ Promozione RIFIUTATA dall'eval-gate: CURRENT resta invariato. "
                  f"Versione {version} salvata ma NON attiva. Investigare il calo di qualità.")
+        else:
+            # Ordine NON NEGOZIABILE (S6.5): CURRENT prima (il commit point locale),
+            # poi l'eventuale migrazione one-shot legacy→alias (S6.6) e infine l'alias
+            # swap. Solo col flag acceso: col flag spento non esiste alcun alias da
+            # spostare, collection_name è già la produzione. `collection_name` è la
+            # STESSA variabile locale usata per costruire questa versione — non una
+            # ricostruzione indipendente del nome, quindi mai ambigua.
+            promote_version(version)
+            if QDRANT_BLUE_GREEN:
+                _migrate_legacy_collection_if_needed(qdrant, COLLECTION_NAME, emit=_log)
+                _swap_alias(qdrant, COLLECTION_NAME, collection_name)
+                _log(f"🔀 Alias Qdrant '{COLLECTION_NAME}' → {collection_name} (blue/green).")
+                # GC (S8): promote_version() sopra ha già applicato la retention locale
+                # (prune_versions), quindi _referenced_qdrant_collections() qui dentro
+                # riflette già le versioni sopravvissute — solo DOPO lo swap, nel
+                # single-writer di questo job, mai concorrente.
+                gc_orphaned_qdrant_collections(qdrant, emit=_log)
+            _log(f"🔁 Versione promossa: CURRENT → {version} (swap atomico, rollback: index.py --rollback).")
 
     if own_qdrant:
         qdrant.close()
@@ -454,7 +884,8 @@ def _code_hashes() -> dict[str, str]:
 
 
 def write_index_manifest(points_count: int, nodes: int = 0, edges: int = 0,
-                         version: str | None = None) -> None:
+                         version: str | None = None,
+                         qdrant_collection: str | None = None) -> None:
     """Persiste lo snapshot dell'indice (config modello, conteggi, hash dei documenti)
     DENTRO la directory della versione indicata (default: la versione attiva; per il
     layout legacy resta il flat database/index_manifest.json): ogni versione blue/green
@@ -462,12 +893,22 @@ def write_index_manifest(points_count: int, nodes: int = 0, edges: int = 0,
     contro la versione effettivamente attiva.
 
     Il campo `version` del manifest (timestamp ISO) viene scritto INSIEME agli artefatti:
-    identifica in modo univoco questo giro di indicizzazione."""
+    identifica in modo univoco questo giro di indicizzazione.
+
+    `qdrant_collection` (opzionale, default COLLECTION_NAME): la collection Qdrant
+    che ospita I VETTORI di questa specifica versione — distinto da "collection",
+    che è solo il nome configurato in rag_config.yaml. Col blue/green Qdrant attivo
+    (S6.3) il full rebuild vi passa la collection CANDIDATA di questa build; tutti
+    gli altri chiamanti (incrementale, full rebuild col flag spento) non lo passano
+    e ottengono il comportamento storico (COLLECTION_NAME). I lettori di manifest
+    pre-esistenti a questo campo lo trovano assente e devono tollerarlo (vedi
+    index_status/check_index_integrity, che non lo richiedono)."""
     now_iso = datetime.now(timezone.utc).isoformat()
     manifest = {
         "version": now_iso,
         "embedding_model": EMBEDDING_MODEL,
         "collection": COLLECTION_NAME,
+        "qdrant_collection": qdrant_collection if qdrant_collection is not None else COLLECTION_NAME,
         "created_at": now_iso,
         "documents": points_count,
         "graph_nodes": nodes,
@@ -548,13 +989,22 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
     4. conteggio dei punti nella collection Qdrant vs numero di chunk nel sidecar
        (divergenza ⇒ Qdrant e artefatti non allineati: serve un full rebuild).
 
-    Restituisce {ok, stale, artifacts_corrupted, qdrant_mismatch, problems}: `problems`
-    è la lista leggibile dei difetti trovati; `ok` è True solo se è vuota."""
+    Restituisce {ok, stale, artifacts_corrupted, qdrant_mismatch, problems, qdrant_alias}:
+    `problems` è la lista leggibile dei difetti trovati; `ok` è True solo se è vuota.
+    `qdrant_alias` (S5, blue/green Qdrant) è la classificazione di SOLA OSSERVAZIONE
+    di observe_qdrant_alias (stato legacy/aligned/missing/diverging/unknown): non
+    contribuisce MAI a `ok` — anche un alias divergente non fa fallire il check, e il
+    layout legacy vi appare semplicemente come "legacy", non come un problema."""
     _log = emit or logger.info
     problems: list[str] = []
     stale = False
     artifacts_corrupted = False
     qdrant_mismatch = False
+    # Preservato PRIMA che il passo 4 possa riassegnare/chiudere il nome locale
+    # `qdrant` (crea ed eventualmente chiude una propria connessione se non
+    # iniettata): l'osservazione dell'alias, più sotto, deve sapere se un client è
+    # stato iniettato dal chiamante indipendentemente da cosa fa il passo 4.
+    _injected_qdrant = qdrant
 
     manifest = _read_manifest()
     if manifest is None:
@@ -562,6 +1012,7 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
             "ok": False, "stale": True, "artifacts_corrupted": False,
             "qdrant_mismatch": False,
             "problems": ["manifest assente o illeggibile: indice mai costruito (o manifest corrotto)"],
+            "qdrant_alias": observe_qdrant_alias(_injected_qdrant),
         }
         _log(f"❌ Integrità indice: {report['problems'][0]}")
         return report
@@ -650,11 +1101,15 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
         "artifacts_corrupted": artifacts_corrupted,
         "qdrant_mismatch": qdrant_mismatch,
         "problems": problems,
+        # Osservazione READ-ONLY dello stato alias Qdrant (S5): esposta e basta, mai
+        # inclusa nel calcolo di 'ok'/'problems' — vedi observe_qdrant_alias.
+        "qdrant_alias": observe_qdrant_alias(_injected_qdrant),
     }
     if report["ok"]:
         _log("✅ Integrità indice OK: manifest, sorgenti, artefatti e Qdrant allineati.")
     else:
         _log(f"❌ Integrità indice: {len(problems)} problemi — " + "; ".join(problems))
+    _log(f"ℹ️  Stato alias Qdrant (osservazione, S5): {report['qdrant_alias']['state']}")
     return report
 
 
@@ -737,13 +1192,16 @@ def _restrict_plan(plan: IndexPlan, allowed: set[str]) -> IndexPlan:
     )
 
 
-def _delete_doc_chunks(qdrant: QdrantClient, doc_ids: list[str]) -> None:
+def _delete_doc_chunks(qdrant: QdrantClient, doc_ids: list[str],
+                       collection_name: str = COLLECTION_NAME) -> None:
     """Rimuove da Qdrant TUTTI i punti i cui payload.doc_id è tra quelli indicati,
-    con un'unica delete-by-filter (MatchAny). Nessuna dipendenza dall'id del punto."""
+    con un'unica delete-by-filter (MatchAny). Nessuna dipendenza dall'id del punto.
+
+    `collection_name` (opzionale, default COLLECTION_NAME): vedi _ensure_collection."""
     if not doc_ids:
         return
     qdrant.delete(
-        collection_name=COLLECTION_NAME,
+        collection_name=collection_name,
         points_selector=FilterSelector(
             filter=Filter(must=[FieldCondition(key="doc_id", match=MatchAny(any=list(doc_ids)))])
         ),
@@ -1104,8 +1562,15 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     # coerente nella stessa versione (documents = chunk totali), poi promozione: gli
     # incrementali promuovono sempre (l'eval gate riguarda solo i job full del manager).
     version = save_artifacts(graph, colbert_store, chunks_store, dense_store, code_store)
+    # Lineage blue/green (S7): il manifest figlio eredita qdrant_collection dal padre
+    # (`manifest`, letto a inizio funzione — è ancora quello della versione attiva,
+    # perché la promote di questa versione avviene solo DOPO). Bootstrap/fresh install
+    # senza manifest padre o senza il campo: fallback a COLLECTION_NAME, il default
+    # storico già gestito da write_index_manifest. L'incrementale non tocca MAI
+    # l'alias: eredita solo il nome della collection, non promuove né swappa.
+    parent_qdrant_collection = manifest.get("qdrant_collection") if isinstance(manifest, dict) else None
     write_index_manifest(len(chunks_store), graph.number_of_nodes(), graph.number_of_edges(),
-                         version=version)
+                         version=version, qdrant_collection=parent_qdrant_collection)
     if version:  # None solo con save_artifacts finto nei test
         promote_version(version)
     stats["version"] = version

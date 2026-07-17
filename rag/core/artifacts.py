@@ -374,15 +374,32 @@ class Artifacts:
 
 
 def save_artifacts(graph, colbert_store: dict, chunks_store: dict,
-                   dense_store: dict, code_store: dict) -> str:
-    """Persiste TUTTI gli artefatti dell'indice in una directory di versione NUOVA
-    (database/versions/v<timestamp UTC>/), ciascuno con scrittura atomica, e restituisce
+                   dense_store: dict, code_store: dict,
+                   version: str | None = None) -> str:
+    """Persiste TUTTI gli artefatti dell'indice in una directory di versione
+    (database/versions/<version>/), ciascuno con scrittura atomica, e restituisce
     il nome della versione. NON tocca il puntatore CURRENT: la versione diventa attiva
     solo con `promote_version(name)` (build → promote in due passi espliciti, così una
     promozione può essere condizionata, es. dall'eval gate). Unico punto di scrittura:
-    non emette pickle, non riscrive mai una versione esistente."""
-    version = _new_version_name()
+    non emette pickle, non riscrive mai una versione esistente.
+
+    `version` (opzionale): nome di versione PRE-GENERATO da usare al posto di generarne
+    uno nuovo. Serve al blue/green di Qdrant (collection versionate + alias): il full
+    rebuild deve battezzare la collection candidata con lo STESSO nome PRIMA di costruire
+    lo stato, quindi il nome di versione va deciso a monte di questa funzione, non più
+    dentro di essa. Default None: comportamento invariato, genera un nome nuovo come
+    sempre. Solleva ValueError se `version` è il sentinel 'legacy' (il layout flat
+    storico, mai una directory di versione reale) o FileExistsError se la sua directory
+    esiste già: questa funzione non sovrascrive mai una versione persistita."""
+    if version is None:
+        version = _new_version_name()
+    elif version == LEGACY_VERSION:
+        raise ValueError("'legacy' è il layout flat storico, non un nome di versione valido.")
     vdir = versions_root() / version
+    if vdir.exists():
+        raise FileExistsError(
+            f"Versione '{version}' già esistente in {vdir}: save_artifacts non sovrascrive mai una build persistita."
+        )
     vdir.mkdir(parents=True)
     code_dense, code_meta = _split_code_store(code_store)
     _atomic_write_json(vdir / "graph.json", _graph_to_json(graph))

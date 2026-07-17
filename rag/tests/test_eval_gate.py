@@ -48,3 +48,60 @@ def test_gate_disabled_is_noop(monkeypatch):
     monkeypatch.setattr(eval_gate, "EVAL_GATE_ENABLED", False)
     res = eval_gate.gate_promotion("v6", None, None, {})
     assert res["passed"] is True and res["skipped"] == "disabled"
+
+
+# ---------------------------------------------------------------------------
+# collection_name: parametrizzazione blue/green Qdrant (S3). Default invariato
+# (COLLECTION_NAME, propagato a evaluate_recall/hybrid_search), passaggio esplicito
+# propagato correttamente lungo la catena gate_promotion -> evaluate_recall -> hybrid_search.
+# ---------------------------------------------------------------------------
+def test_gate_promotion_default_collection_name_propagated_to_evaluate_recall(monkeypatch):
+    captured = {}
+
+    def _fake_evaluate_recall(*a, **k):
+        captured.update(k)
+        return {"recall": 0.95, "n": 34, "k": 10}
+
+    monkeypatch.setattr(eval_gate, "evaluate_recall", _fake_evaluate_recall)
+    eval_gate.gate_promotion("v7", None, None, {}, min_recall=0.90)
+    assert captured["collection_name"] == eval_gate.COLLECTION_NAME
+
+
+def test_gate_promotion_explicit_collection_name_propagated_to_evaluate_recall(monkeypatch):
+    captured = {}
+
+    def _fake_evaluate_recall(*a, **k):
+        captured.update(k)
+        return {"recall": 0.95, "n": 34, "k": 10}
+
+    monkeypatch.setattr(eval_gate, "evaluate_recall", _fake_evaluate_recall)
+    eval_gate.gate_promotion(
+        "v8", None, None, {}, min_recall=0.90, collection_name="vibecraft_events__v8"
+    )
+    assert captured["collection_name"] == "vibecraft_events__v8"
+
+
+def test_evaluate_recall_default_collection_name_propagated_to_hybrid_search(monkeypatch):
+    captured = {}
+
+    def _fake_hybrid_search(query, kk, *, qdrant, embed_model, colbert_store, collection_name):
+        captured["collection_name"] = collection_name
+        return []
+
+    monkeypatch.setattr(eval_gate.retrieval, "hybrid_search", _fake_hybrid_search)
+    eval_gate.evaluate_recall(None, None, {}, cases=[{"q": "domanda"}])
+    assert captured["collection_name"] == eval_gate.COLLECTION_NAME
+
+
+def test_evaluate_recall_explicit_collection_name_propagated_to_hybrid_search(monkeypatch):
+    captured = {}
+
+    def _fake_hybrid_search(query, kk, *, qdrant, embed_model, colbert_store, collection_name):
+        captured["collection_name"] = collection_name
+        return []
+
+    monkeypatch.setattr(eval_gate.retrieval, "hybrid_search", _fake_hybrid_search)
+    eval_gate.evaluate_recall(
+        None, None, {}, cases=[{"q": "domanda"}], collection_name="vibecraft_events__v9"
+    )
+    assert captured["collection_name"] == "vibecraft_events__v9"

@@ -14,18 +14,47 @@ class _FakeCount:
         self.count = n
 
 
-class _FakeQdrant:
-    """Client Qdrant finto: risponde solo a count() con un numero fisso."""
+class _FakeAliasDescription:
+    def __init__(self, alias_name, collection_name):
+        self.alias_name = alias_name
+        self.collection_name = collection_name
 
-    def __init__(self, n):
+
+class _FakeAliasesResponse:
+    def __init__(self, aliases):
+        self.aliases = aliases
+
+
+class _FakeQdrant:
+    """Client Qdrant finto: risponde a count() con un numero fisso e a get_aliases()
+    con gli alias iniettati (default: nessuno). Qualunque metodo di SCRITTURA
+    (create/delete_collection, update_collection_aliases) solleva: prova che
+    l'osservazione S5 di check_index_integrity non scrive mai su Qdrant."""
+
+    def __init__(self, n, aliases: dict[str, str] | None = None):
         self._n = n
+        self._aliases = aliases or {}
         self.closed = False
 
     def count(self, collection_name, exact=True):
         return _FakeCount(self._n)
 
+    def get_aliases(self):
+        return _FakeAliasesResponse([
+            _FakeAliasDescription(a, c) for a, c in sorted(self._aliases.items())
+        ])
+
     def close(self):
         self.closed = True
+
+    def create_collection(self, *a, **k):
+        raise AssertionError("check_index_integrity (S5, sola osservazione) non deve mai creare collection")
+
+    def delete_collection(self, *a, **k):
+        raise AssertionError("check_index_integrity (S5, sola osservazione) non deve mai cancellare collection")
+
+    def update_collection_aliases(self, *a, **k):
+        raise AssertionError("check_index_integrity (S5, sola osservazione) non deve mai modificare gli alias")
 
 
 @pytest.fixture
@@ -57,8 +86,16 @@ def env(tmp_path, monkeypatch):
     return {"manifest": manifest_path, "chunks": chunks_path, "monkeypatch": monkeypatch}
 
 
-def _check(env, points=3):
-    return indexing.check_index_integrity(qdrant=_FakeQdrant(points), emit=lambda m: None)
+def _check(env, points=3, aliases=None):
+    return indexing.check_index_integrity(qdrant=_FakeQdrant(points, aliases=aliases), emit=lambda m: None)
+
+
+def _set_manifest_qdrant_collection(env, collection: str) -> None:
+    """Inietta il campo qdrant_collection nel manifest del fixture `env` (di base non
+    presente: layout legacy) — serve a simulare una versione attiva del blue/green."""
+    manifest = json.loads(env["manifest"].read_text(encoding="utf-8"))
+    manifest["qdrant_collection"] = collection
+    env["manifest"].write_text(json.dumps(manifest), encoding="utf-8")
 
 
 def test_all_aligned_is_ok(env):
@@ -66,6 +103,8 @@ def test_all_aligned_is_ok(env):
     assert report == {
         "ok": True, "stale": False, "artifacts_corrupted": False,
         "qdrant_mismatch": False, "problems": [],
+        # S5: il fixture di base non scrive qdrant_collection nel manifest -> legacy.
+        "qdrant_alias": {"state": "legacy", "expected": None, "actual": None},
     }
 
 
@@ -121,6 +160,80 @@ def test_manifest_without_artifact_hashes_marks_corrupted(env):
     report = _check(env)
     assert report["artifacts_corrupted"] is True
     assert any("artifact_hashes" in p for p in report["problems"])
+
+
+def test_manifest_without_qdrant_collection_field_is_still_ok(env):
+    """Un manifest privo del campo qdrant_collection (S2, blue/green Qdrant: forward-
+    compatible, non ancora consumato da nessun check) resta un manifest valido — il
+    fixture `env` di default già non lo include, qui lo si rende esplicito. Nessuna
+    eccezione, nessun problema segnalato per la sua assenza."""
+    manifest = json.loads(env["manifest"].read_text(encoding="utf-8"))
+    assert "qdrant_collection" not in manifest  # il fixture di base non lo scrive
+    report = _check(env)
+    assert report["ok"] is True
+    assert not any("qdrant_collection" in p for p in report["problems"])
+
+
+# ---------------------------------------------------------------------------
+# S5: osservazione READ-ONLY dello stato alias Qdrant (campo "qdrant_alias" del
+# report). In nessuno dei quattro stati l'osservazione altera 'ok'/'problems', né
+# tenta una riparazione — vedi _FakeQdrant, che solleva se un metodo di scrittura
+# venisse mai chiamato.
+# ---------------------------------------------------------------------------
+def test_qdrant_alias_state_legacy_when_manifest_lacks_the_field(env):
+    report = _check(env)  # il fixture di base non scrive qdrant_collection
+    assert report["qdrant_alias"] == {"state": "legacy", "expected": None, "actual": None}
+    assert report["ok"] is True  # il layout legacy non fa fallire il check
+
+
+def test_qdrant_alias_state_aligned_when_alias_matches_expected(env):
+    _set_manifest_qdrant_collection(env, "vibecraft_events__v1")
+    report = _check(env, aliases={indexing.COLLECTION_NAME: "vibecraft_events__v1"})
+    assert report["qdrant_alias"] == {
+        "state": "aligned", "expected": "vibecraft_events__v1", "actual": "vibecraft_events__v1",
+    }
+    assert report["ok"] is True
+
+
+def test_qdrant_alias_state_missing_when_alias_not_set(env):
+    _set_manifest_qdrant_collection(env, "vibecraft_events__v1")
+    report = _check(env, aliases={})  # nessun alias su Qdrant
+    assert report["qdrant_alias"] == {
+        "state": "missing", "expected": "vibecraft_events__v1", "actual": None,
+    }
+    assert report["ok"] is True  # osservato, non un problema del check economico
+
+
+def test_qdrant_alias_state_diverging_when_alias_points_elsewhere(env):
+    _set_manifest_qdrant_collection(env, "vibecraft_events__v2")
+    report = _check(env, aliases={indexing.COLLECTION_NAME: "vibecraft_events__v1"})
+    assert report["qdrant_alias"] == {
+        "state": "diverging", "expected": "vibecraft_events__v2", "actual": "vibecraft_events__v1",
+    }
+    assert report["ok"] is True
+    assert not any("diverging" in p or "alias" in p.lower() for p in report["problems"])
+
+
+def test_qdrant_alias_observation_never_writes_even_when_diverging(env):
+    """Il fake solleva su create/delete_collection e update_collection_aliases: se
+    l'osservazione S5 avesse mai provato a riparare la divergenza (alias swap),
+    questo test fallirebbe con l'AssertionError del fake invece che con
+    un'asserzione sul risultato."""
+    _set_manifest_qdrant_collection(env, "vibecraft_events__v2")
+    report = _check(env, aliases={indexing.COLLECTION_NAME: "vibecraft_events__v1"})
+    assert report["qdrant_alias"]["state"] == "diverging"  # arrivato qui: nessuna scrittura è avvenuta
+
+
+def test_qdrant_alias_state_unknown_when_get_aliases_fails(env):
+    """Un client che non supporta get_aliases() (o Qdrant irraggiungibile) degrada a
+    stato 'unknown', senza propagare l'eccezione al chiamante."""
+    class _NoAliasSupport:
+        def count(self, collection_name, exact=True):
+            return _FakeCount(3)
+
+    report = indexing.check_index_integrity(qdrant=_NoAliasSupport(), emit=lambda m: None)
+    assert report["qdrant_alias"]["state"] == "unknown"
+    assert "error" in report["qdrant_alias"]
 
 
 def test_qdrant_count_divergence(env):

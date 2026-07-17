@@ -81,6 +81,18 @@ def test_health_ok_with_snapshot_and_qdrant():
     assert report["last_alert"] is None
 
 
+def test_health_ok_in_legacy_index_layout():
+    """S5 (osservazione read-only dell'alias Qdrant, wired in check_index_integrity
+    e nel lifespan) non tocca /api/health: build_health legge index_status()
+    iniettato, non check_index_integrity. Un layout legacy (nessuna versione col
+    campo qdrant_collection) continua a risultare 'ok' come prima."""
+    report = _build(status_fn=lambda: {
+        "indexed": True, "stale": False, "version": "legacy", "changed": [],
+    })
+    assert report["status"] == "ok"
+    assert report["manifest"]["version"] == "legacy"
+
+
 def test_health_degraded_without_snapshot():
     report = _build(snapshot=None)
     assert report["status"] == "degraded"

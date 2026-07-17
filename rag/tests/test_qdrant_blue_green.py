@@ -1,0 +1,480 @@
+"""Test degli helper ISOLATI del blue/green Qdrant (collection versionate + alias,
+S4 del piano di implementazione): naming/parsing del nome di collection fisica,
+lettura e swap dell'alias, enumerazione, garbage collection delle collection orfane,
+e il reconciler di sola osservazione (core.indexing).
+
+NESSUNO degli helper testati qui è ancora chiamato da un percorso di produzione
+(build_graph_and_index, incremental_index, rollback, lifespan, route API): questo
+file esiste per validare lo scaffolding in isolamento, prima del wiring (step
+successivo del piano). Nessun Qdrant reale è richiesto per la suite di default —
+l'unico test che ne ha bisogno (in fondo al file) si auto-salta se non raggiungibile.
+"""
+import json
+
+import pytest
+
+from core import artifacts
+from core import indexing as index
+
+
+# ---------------------------------------------------------------------------
+# Fake Qdrant alias-aware: distingue esplicitamente collection FISICHE e ALIAS,
+# simula update_collection_aliases come batch atomico (valida tutte le operazioni
+# prima di applicarne una sola) e risolve l'alias nelle point-operation esattamente
+# come farebbe un Qdrant vero (upsert/count su un alias colpiscono la collection
+# fisica a cui punta).
+# ---------------------------------------------------------------------------
+class _FakeCollectionInfo:
+    def __init__(self, name):
+        self.name = name
+
+
+class _FakeCollectionsResponse:
+    def __init__(self, names):
+        self.collections = [_FakeCollectionInfo(n) for n in names]
+
+
+class _FakeAliasDescription:
+    def __init__(self, alias_name, collection_name):
+        self.alias_name = alias_name
+        self.collection_name = collection_name
+
+
+class _FakeAliasesResponse:
+    def __init__(self, aliases):
+        self.aliases = aliases
+
+
+class _FakeCount:
+    def __init__(self, n):
+        self.count = n
+
+
+class AliasAwareFakeQdrant:
+    """Qdrant in-memory con distinzione esplicita tra collection fisiche e alias."""
+
+    def __init__(self, collections=(), aliases=None):
+        self._collections: set[str] = set(collections)
+        self._aliases: dict[str, str] = dict(aliases or {})
+        self._points: dict[str, list] = {name: [] for name in self._collections}
+        self.update_aliases_calls: int = 0
+
+    # --- collection: create/delete rispettano la distinzione fisica/alias ---
+    def get_collections(self):
+        return _FakeCollectionsResponse(sorted(self._collections))
+
+    def create_collection(self, collection_name, **kw):
+        if collection_name in self._aliases:
+            raise ValueError(f"'{collection_name}' è già un alias: non può anche essere una collection.")
+        self._collections.add(collection_name)
+        self._points.setdefault(collection_name, [])
+
+    def delete_collection(self, collection_name):
+        if collection_name not in self._collections:
+            raise ValueError(f"Collection inesistente: {collection_name}")
+        self._collections.discard(collection_name)
+        self._points.pop(collection_name, None)
+        # Qdrant reale invalida gli alias che puntavano alla collection cancellata:
+        # il fake fa lo stesso, per non restare in uno stato incoerente.
+        for alias_name in [a for a, c in self._aliases.items() if c == collection_name]:
+            del self._aliases[alias_name]
+
+    # --- alias: get_aliases + update_collection_aliases (batch atomico) ---
+    def get_aliases(self):
+        return _FakeAliasesResponse([
+            _FakeAliasDescription(alias_name=a, collection_name=c)
+            for a, c in sorted(self._aliases.items())
+        ])
+
+    def update_collection_aliases(self, change_aliases_operations):
+        """Valida TUTTE le operazioni del batch prima di applicarne una sola: se una
+        sola è invalida (es. create verso una collection inesistente), l'intero
+        batch viene rifiutato e l'alias resta nello stato precedente — stessa
+        semantica "tutto o niente" del batch reale di Qdrant."""
+        self.update_aliases_calls += 1
+        pending_creates: list[tuple[str, str]] = []
+        pending_deletes: list[str] = []
+        for op in change_aliases_operations:
+            create = getattr(op, "create_alias", None)
+            delete = getattr(op, "delete_alias", None)
+            if create is not None:
+                if create.collection_name not in self._collections:
+                    raise ValueError(
+                        f"Impossibile creare l'alias '{create.alias_name}': "
+                        f"collection '{create.collection_name}' inesistente."
+                    )
+                pending_creates.append((create.alias_name, create.collection_name))
+            elif delete is not None:
+                pending_deletes.append(delete.alias_name)
+            else:
+                raise NotImplementedError("Operazione alias non supportata dal fake.")
+        # Solo ora, con tutte le operazioni validate, si muta lo stato.
+        for alias_name in pending_deletes:
+            self._aliases.pop(alias_name, None)
+        for alias_name, collection_name in pending_creates:
+            self._aliases[alias_name] = collection_name
+        return True
+
+    # --- point-operations: risolvono l'alias sul target fisico corretto ---
+    def _resolve(self, name: str) -> str:
+        return self._aliases.get(name, name)
+
+    def upsert(self, collection_name, points):
+        target = self._resolve(collection_name)
+        self._points.setdefault(target, []).extend(points)
+
+    def count(self, collection_name, exact=True):
+        target = self._resolve(collection_name)
+        return _FakeCount(len(self._points.get(target, [])))
+
+
+# ---------------------------------------------------------------------------
+# Naming e parsing del nome di collection fisica versionata
+# ---------------------------------------------------------------------------
+def test_qdrant_collection_name_and_parse_roundtrip():
+    name = index.qdrant_collection_name("v20260717T101530")
+    assert name == f"{index.COLLECTION_NAME}__v20260717T101530"
+    assert index.parse_qdrant_collection_version(name) == "v20260717T101530"
+
+
+def test_qdrant_collection_name_honors_explicit_base():
+    name = index.qdrant_collection_name("v1", base="altra_collection")
+    assert name == "altra_collection__v1"
+    assert index.parse_qdrant_collection_version(name, base="altra_collection") == "v1"
+    # Con la base di default non corrisponde: nomi diversi, schemi diversi.
+    assert index.parse_qdrant_collection_version(name) is None
+
+
+def test_parse_qdrant_collection_version_rejects_non_matching_names():
+    # L'alias stesso (senza suffisso) non è una collection versionata.
+    assert index.parse_qdrant_collection_version(index.COLLECTION_NAME) is None
+    # Una collection estranea, non gestita da questo indice.
+    assert index.parse_qdrant_collection_version("altro_progetto__v1") is None
+    # Suffisso vuoto (solo il separatore, nessun token di versione): non valido.
+    assert index.parse_qdrant_collection_version(f"{index.COLLECTION_NAME}__") is None
+
+
+# ---------------------------------------------------------------------------
+# Lettura del target dell'alias
+# ---------------------------------------------------------------------------
+def test_read_alias_target_returns_none_when_alias_absent():
+    q = AliasAwareFakeQdrant(collections={"v1"})
+    assert index._read_alias_target(q, index.COLLECTION_NAME) is None
+
+
+def test_read_alias_target_returns_current_collection():
+    q = AliasAwareFakeQdrant(collections={"v1"}, aliases={index.COLLECTION_NAME: "v1"})
+    assert index._read_alias_target(q, index.COLLECTION_NAME) == "v1"
+
+
+# ---------------------------------------------------------------------------
+# Swap dell'alias: idempotente e atomico
+# ---------------------------------------------------------------------------
+def test_swap_alias_creates_when_absent():
+    q = AliasAwareFakeQdrant(collections={"v1"})
+    index._swap_alias(q, index.COLLECTION_NAME, "v1")
+    assert index._read_alias_target(q, index.COLLECTION_NAME) == "v1"
+    assert q.update_aliases_calls == 1
+
+
+def test_swap_alias_is_idempotent_when_already_pointing_there():
+    q = AliasAwareFakeQdrant(collections={"v1"}, aliases={index.COLLECTION_NAME: "v1"})
+    index._swap_alias(q, index.COLLECTION_NAME, "v1")
+    # Nessuna richiesta inviata: l'alias era già allineato.
+    assert q.update_aliases_calls == 0
+    assert index._read_alias_target(q, index.COLLECTION_NAME) == "v1"
+
+
+def test_swap_alias_replaces_in_a_single_atomic_batch():
+    q = AliasAwareFakeQdrant(collections={"v1", "v2"}, aliases={index.COLLECTION_NAME: "v1"})
+    index._swap_alias(q, index.COLLECTION_NAME, "v2")
+    assert index._read_alias_target(q, index.COLLECTION_NAME) == "v2"
+    # Una SOLA richiesta al batch (delete+create insieme), non due chiamate separate.
+    assert q.update_aliases_calls == 1
+
+
+def test_swap_alias_batch_is_all_or_nothing_on_invalid_target():
+    q = AliasAwareFakeQdrant(collections={"v1"}, aliases={index.COLLECTION_NAME: "v1"})
+    with pytest.raises(ValueError):
+        index._swap_alias(q, index.COLLECTION_NAME, "collection-inesistente")
+    # Il batch è stato rifiutato per intero: l'alias resta al valore precedente,
+    # non in uno stato intermedio (né senza alias, né spostato a metà).
+    assert index._read_alias_target(q, index.COLLECTION_NAME) == "v1"
+
+
+# ---------------------------------------------------------------------------
+# Enumerazione delle collection versionate
+# ---------------------------------------------------------------------------
+def test_list_qdrant_collections_only_returns_versioned_collections_of_this_project():
+    base = index.COLLECTION_NAME
+    q = AliasAwareFakeQdrant(collections={
+        f"{base}__v1", f"{base}__v2", "altro_progetto__v1", "una_collection_qualsiasi",
+    })
+    assert index.list_qdrant_collections(q) == [f"{base}__v1", f"{base}__v2"]
+
+
+def test_list_qdrant_collections_never_includes_the_alias_itself():
+    base = index.COLLECTION_NAME
+    q = AliasAwareFakeQdrant(collections={f"{base}__v1"}, aliases={base: f"{base}__v1"})
+    # L'alias non è una collection fisica: get_collections() del fake (come quello
+    # vero) non lo elenca affatto.
+    assert base not in index.list_qdrant_collections(q)
+    assert index.list_qdrant_collections(q) == [f"{base}__v1"]
+
+
+# ---------------------------------------------------------------------------
+# Point-operations che risolvono l'alias sul target fisico corretto
+# ---------------------------------------------------------------------------
+def test_point_operations_resolve_alias_to_physical_target():
+    q = AliasAwareFakeQdrant(collections={"v1", "v2"}, aliases={index.COLLECTION_NAME: "v1"})
+    q.upsert(collection_name=index.COLLECTION_NAME, points=["p1", "p2"])
+    # I punti sono finiti nella collection FISICA a cui punta l'alias, non in una
+    # collection letteralmente chiamata come l'alias (che non esiste come oggetto fisico).
+    assert q._points["v1"] == ["p1", "p2"]
+    assert q.count(collection_name=index.COLLECTION_NAME).count == 2
+    assert q.count(collection_name="v2").count == 0
+
+
+# ---------------------------------------------------------------------------
+# Garbage collection delle collection orfane: invarianti di sicurezza
+# ---------------------------------------------------------------------------
+def test_gc_never_deletes_the_alias_target():
+    base = index.COLLECTION_NAME
+    q = AliasAwareFakeQdrant(collections={f"{base}__v1", f"{base}__v2"})
+    index._swap_alias(q, base, f"{base}__v1")
+    removed = index.gc_qdrant_collections(q, referenced=set(), alias_target=f"{base}__v1")
+    assert removed == [f"{base}__v2"]
+    assert index.list_qdrant_collections(q) == [f"{base}__v1"]
+
+
+def test_gc_never_deletes_collections_referenced_by_surviving_manifests():
+    base = index.COLLECTION_NAME
+    q = AliasAwareFakeQdrant(collections={f"{base}__v1", f"{base}__v2", f"{base}__v3"})
+    # v1 è il target dell'alias (attivo), v2 è referenziato da un manifest
+    # sopravvissuto (es. non ancora pruned dalla retention locale), v3 è orfana.
+    index._swap_alias(q, base, f"{base}__v1")
+    removed = index.gc_qdrant_collections(
+        q, referenced={f"{base}__v2"}, alias_target=f"{base}__v1"
+    )
+    assert removed == [f"{base}__v3"]
+    assert sorted(index.list_qdrant_collections(q)) == [f"{base}__v1", f"{base}__v2"]
+
+
+def test_gc_deletes_orphan_collections_with_no_alias_target():
+    """Nessun target d'alias noto (es. gate non ancora passato, candidata non
+    promossa): tutto ciò che non è in `referenced` è orfano."""
+    base = index.COLLECTION_NAME
+    q = AliasAwareFakeQdrant(collections={f"{base}__v1", f"{base}__v2"})
+    removed = index.gc_qdrant_collections(q, referenced=set(), alias_target=None)
+    assert sorted(removed) == [f"{base}__v1", f"{base}__v2"]
+    assert index.list_qdrant_collections(q) == []
+
+
+# ---------------------------------------------------------------------------
+# _referenced_qdrant_collections: scan locale dei manifest sopravvissuti
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def versions_db(tmp_path, monkeypatch):
+    """Sandbox su database/versions/ (core.artifacts), per scrivere manifest reali
+    con il campo qdrant_collection senza toccare Qdrant."""
+    monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)
+    return tmp_path
+
+
+def _write_version_manifest(versions_db, version: str, qdrant_collection: str | None) -> None:
+    vdir = versions_db / "versions" / version
+    vdir.mkdir(parents=True)
+    manifest = {"version": version}
+    if qdrant_collection is not None:
+        manifest["qdrant_collection"] = qdrant_collection
+    (vdir / "index_manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+
+def test_referenced_qdrant_collections_reads_field_from_surviving_manifests(versions_db):
+    _write_version_manifest(versions_db, "v1", "vibecraft_events__v1")
+    _write_version_manifest(versions_db, "v2", "vibecraft_events__v2")
+    assert index._referenced_qdrant_collections() == {
+        "vibecraft_events__v1", "vibecraft_events__v2",
+    }
+
+
+def test_referenced_qdrant_collections_tolerates_manifest_without_the_field(versions_db):
+    """Una versione sopravvissuta scritta prima di S2 (nessun campo qdrant_collection)
+    non contribuisce all'insieme referenziato, ma non fa fallire la scansione."""
+    _write_version_manifest(versions_db, "v1", "vibecraft_events__v1")
+    _write_version_manifest(versions_db, "v2", None)  # manifest legacy, campo assente
+    assert index._referenced_qdrant_collections() == {"vibecraft_events__v1"}
+
+
+def test_referenced_qdrant_collections_empty_when_no_versions(versions_db):
+    assert index._referenced_qdrant_collections() == set()
+
+
+# ---------------------------------------------------------------------------
+# Reconciler: classificazione legacy / aligned / diverging / missing (sola
+# osservazione — non scrive mai su Qdrant né in locale).
+# ---------------------------------------------------------------------------
+def test_reconciler_reports_legacy_when_no_manifest(monkeypatch):
+    monkeypatch.setattr(index, "_read_manifest", lambda: None)
+    q = AliasAwareFakeQdrant()
+    report = index.reconcile_qdrant_alias(q)
+    assert report["state"] == "legacy"
+    assert report["expected"] is None
+
+
+def test_reconciler_reports_legacy_when_manifest_lacks_qdrant_collection(monkeypatch):
+    monkeypatch.setattr(index, "_read_manifest", lambda: {"version": "v1"})  # niente qdrant_collection
+    q = AliasAwareFakeQdrant()
+    report = index.reconcile_qdrant_alias(q)
+    assert report["state"] == "legacy"
+
+
+def test_reconciler_reports_missing_when_alias_not_set(monkeypatch):
+    monkeypatch.setattr(index, "_read_manifest", lambda: {"qdrant_collection": "vibecraft_events__v1"})
+    q = AliasAwareFakeQdrant(collections={"vibecraft_events__v1"})  # nessun alias creato
+    report = index.reconcile_qdrant_alias(q)
+    assert report == {"state": "missing", "expected": "vibecraft_events__v1", "actual": None}
+
+
+def test_reconciler_reports_aligned_when_alias_matches_expected(monkeypatch):
+    monkeypatch.setattr(index, "_read_manifest", lambda: {"qdrant_collection": "vibecraft_events__v1"})
+    q = AliasAwareFakeQdrant(collections={"vibecraft_events__v1"},
+                             aliases={index.COLLECTION_NAME: "vibecraft_events__v1"})
+    report = index.reconcile_qdrant_alias(q)
+    assert report == {"state": "aligned", "expected": "vibecraft_events__v1", "actual": "vibecraft_events__v1"}
+
+
+def test_reconciler_reports_diverging_when_alias_points_elsewhere(monkeypatch):
+    # CURRENT è avanzato a v2, ma l'alias punta ancora a v1 (es. crash tra il commit
+    # locale e lo swap dell'alias — vedi design, finestra sub-secondo tollerata).
+    monkeypatch.setattr(index, "_read_manifest", lambda: {"qdrant_collection": "vibecraft_events__v2"})
+    q = AliasAwareFakeQdrant(collections={"vibecraft_events__v1", "vibecraft_events__v2"},
+                             aliases={index.COLLECTION_NAME: "vibecraft_events__v1"})
+    report = index.reconcile_qdrant_alias(q)
+    assert report == {
+        "state": "diverging", "expected": "vibecraft_events__v2", "actual": "vibecraft_events__v1",
+    }
+
+
+def test_reconciler_never_writes_to_qdrant_or_local_state(monkeypatch):
+    """Sola osservazione: qualunque sia lo stato, reconcile_qdrant_alias non deve mai
+    chiamare update_collection_aliases né create/delete_collection."""
+    monkeypatch.setattr(index, "_read_manifest", lambda: {"qdrant_collection": "vibecraft_events__v2"})
+    q = AliasAwareFakeQdrant(collections={"vibecraft_events__v1", "vibecraft_events__v2"},
+                             aliases={index.COLLECTION_NAME: "vibecraft_events__v1"})
+    index.reconcile_qdrant_alias(q)
+    assert q.update_aliases_calls == 0
+    assert index.list_qdrant_collections(q) == ["vibecraft_events__v1", "vibecraft_events__v2"]
+
+
+# ---------------------------------------------------------------------------
+# OPZIONALE / SKIPPABLE: contro un Qdrant reale, solo per validare che il fake non
+# menta sulla semantica degli alias (atomicità del batch, risoluzione nelle
+# point-operation). Si salta da sola se Qdrant non è raggiungibile: non richiede
+# Docker per la suite di default e non tocca mai COLLECTION_NAME/dati reali — usa
+# nomi di collection/alias dedicati e li ripulisce sempre a fine test.
+# ---------------------------------------------------------------------------
+def _real_qdrant_client_or_skip():
+    from qdrant_client import QdrantClient
+
+    from core.config import QDRANT_API_KEY, QDRANT_URL
+
+    try:
+        client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY, timeout=2)
+        client.get_collections()
+    except Exception as exc:
+        pytest.skip(f"Qdrant non raggiungibile su {QDRANT_URL}: {exc}")
+    return client
+
+
+def test_alias_semantics_against_real_qdrant():
+    """Integrazione opzionale: crea due collection throwaway, swappa un alias
+    throwaway tra le due, verifica get_aliases()/query risolta, ripulisce sempre.
+    MAI la collection/alias di produzione (COLLECTION_NAME) — nomi dedicati."""
+    client = _real_qdrant_client_or_skip()
+    from qdrant_client.models import Distance, VectorParams
+
+    alias = "_test_blue_green_scaffolding_alias"
+    col_a, col_b = "_test_blue_green_scaffolding_a", "_test_blue_green_scaffolding_b"
+    try:
+        for col in (col_a, col_b):
+            try:
+                client.delete_collection(col)  # idempotenza: ripulisce un run precedente interrotto
+            except Exception:
+                pass
+            client.create_collection(
+                collection_name=col,
+                vectors_config=VectorParams(size=4, distance=Distance.COSINE),
+            )
+        index._swap_alias(client, alias, col_a)
+        assert index._read_alias_target(client, alias) == col_a
+
+        index._swap_alias(client, alias, col_b)
+        assert index._read_alias_target(client, alias) == col_b
+
+        # Point-operation sull'alias: deve risolvere sulla collection fisica corrente (col_b).
+        client.upsert(collection_name=alias, points=[
+            {"id": 1, "vector": [0.1, 0.2, 0.3, 0.4], "payload": {}},
+        ])
+        assert client.count(collection_name=col_b, exact=True).count == 1
+        assert client.count(collection_name=col_a, exact=True).count == 0
+    finally:
+        # delete_collection cancella anche gli alias che la puntavano (comportamento
+        # reale di Qdrant, replicato dal fake sopra): non serve un delete_alias esplicito.
+        for col in (col_a, col_b):
+            try:
+                client.delete_collection(col)
+            except Exception:
+                pass
+        client.close()
+
+
+def test_real_qdrant_rejects_alias_with_same_name_as_existing_collection():
+    """Integrazione opzionale: verifica l'ASSUNZIONE su cui poggia l'intera
+    migrazione one-shot legacy→alias (S6.6) — Qdrant rifiuta la creazione di un
+    alias con lo stesso nome di una collection FISICA esistente (409 Conflict), e
+    lo swap riesce solo DOPO che quella collection è stata cancellata: esattamente
+    la sequenza delete-poi-create eseguita da _migrate_legacy_collection_if_needed
+    + _swap_alias. Nomi throwaway dedicati, MAI COLLECTION_NAME — non tocca la
+    produzione."""
+    client = _real_qdrant_client_or_skip()
+    from qdrant_client.models import Distance, VectorParams
+
+    legacy_name = "_test_blue_green_legacy_collision"
+    target = "_test_blue_green_legacy_collision_target"
+    try:
+        for col in (legacy_name, target):
+            try:
+                client.delete_collection(col)  # idempotenza: ripulisce un run precedente interrotto
+            except Exception:
+                pass
+        client.create_collection(
+            collection_name=legacy_name,
+            vectors_config=VectorParams(size=4, distance=Distance.COSINE),
+        )
+        client.create_collection(
+            collection_name=target,
+            vectors_config=VectorParams(size=4, distance=Distance.COSINE),
+        )
+
+        # Prima della migrazione: legacy_name è ancora una collection fisica ->
+        # Qdrant rifiuta di crearla anche come alias (il conflitto che giustifica
+        # l'intera migrazione one-shot).
+        assert index._qdrant_collection_exists(client, legacy_name) is True
+        with pytest.raises(Exception):
+            index._swap_alias(client, legacy_name, target)
+        assert index._read_alias_target(client, legacy_name) is None  # rifiutato, nessun alias creato
+
+        # Migrazione (S6.6): delete della collection fisica, poi lo swap riesce.
+        migrated = index._migrate_legacy_collection_if_needed(client, legacy_name)
+        assert migrated is True
+        assert index._qdrant_collection_exists(client, legacy_name) is False
+        index._swap_alias(client, legacy_name, target)
+        assert index._read_alias_target(client, legacy_name) == target
+    finally:
+        for col in (legacy_name, target):
+            try:
+                client.delete_collection(col)
+            except Exception:
+                pass
+        client.close()

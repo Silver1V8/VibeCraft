@@ -33,8 +33,16 @@ from core.artifacts import (
 )
 from core.config import REINDEX_JOURNAL_PATH
 from core.eval_gate import gate_promotion
-from core.config import EMBEDDING_MODEL
-from core.indexing import build_graph_and_index, incremental_index
+from core.config import COLLECTION_NAME, EMBEDDING_MODEL, QDRANT_BLUE_GREEN
+from core.indexing import (
+    _migrate_legacy_collection_if_needed,
+    _qdrant_collection_for_version,
+    _swap_alias,
+    build_graph_and_index,
+    gc_orphaned_qdrant_collections,
+    incremental_index,
+    rollback_qdrant_alias_if_needed,
+)
 from FlagEmbedding import BGEM3FlagModel
 
 logger = logging.getLogger(__name__)
@@ -68,10 +76,11 @@ def _run_reindex(changed_paths) -> dict:
 
 def _eval_gate(version: str, embed_model) -> dict:
     """Eval-gate sulla versione APPENA COSTRUITA (non ancora promossa): carica i suoi sidecar
-    e delega alla logica canonica core.eval_gate.gate_promotion. Riusa lo stesso embed_model
-    GPU del full rebuild appena eseguito (il full rebuild ha già riallineato la collection alla
-    nuova build, quindi la misura è coerente con ciò che si sta per promuovere). Fail-open se
-    gli artefatti candidati non sono caricabili."""
+    e delega alla logica canonica core.eval_gate.gate_promotion, valutando la STESSA
+    collection su cui quella versione è stata costruita (letta dal suo manifest —
+    S6.3/S6.4: con QDRANT_BLUE_GREEN attivo è la candidata, mai la produzione; col
+    flag spento resta COLLECTION_NAME, comportamento invariato). Fail-open se gli
+    artefatti candidati non sono caricabili."""
     try:
         arts = load_artifacts(required=("graph", "colbert", "chunks"), version=version,
                               emit=lambda *_a, **_k: None)
@@ -79,8 +88,9 @@ def _eval_gate(version: str, embed_model) -> dict:
         logger.warning("Eval-gate: artefatti candidati %s non caricabili (%s): promozione diretta.",
                        version, exc)
         return {"passed": True, "skipped": "load_error", "version": version}
+    collection_name = _qdrant_collection_for_version(version)
     return gate_promotion(version, state.get("qdrant"), embed_model,
-                          arts.colbert_store, emit=logger.info)
+                          arts.colbert_store, emit=logger.info, collection_name=collection_name)
 
 
 def _run_full_rebuild(changed_paths) -> dict:
@@ -92,7 +102,20 @@ def _run_full_rebuild(changed_paths) -> dict:
     Blue/green: la build scrive una versione NUOVA senza promuoverla; la promozione passa
     dall'eval-gate (config eval_gate.*): se la recall sul golden-set scende sotto soglia e il
     gate è in modalità blocking, la versione resta su disco NON promossa (CURRENT invariato) e
-    il job termina "completed_not_promoted" col report nell'esito."""
+    il job termina "completed_not_promoted" col report nell'esito.
+
+    Con QDRANT_BLUE_GREEN acceso, a gate passato la promozione sposta PRIMA CURRENT
+    (il commit point locale) e SOLO DOPO l'alias `COLLECTION_NAME` sulla collection
+    candidata — la stessa dichiarata nel manifest della versione appena promossa
+    (`_qdrant_collection_for_version`, S6.4: unico source of truth, mai una
+    ricostruzione indipendente del nome). In mezzo, SOLO se necessario, la
+    migrazione one-shot legacy→alias (S6.6, `_migrate_legacy_collection_if_needed`):
+    se `COLLECTION_NAME` esiste ancora come collection FISICA (layout legacy mai
+    migrato), viene cancellata per liberare il nome subito prima dello swap che la
+    ricrea come alias — l'UNICA operazione irreversibile del piano, con una finestra
+    di indisponibilità breve ma reale fra le due chiamate. Se il layout è già
+    migrato o l'installazione è fresca, la migrazione è un no-op. Col flag spento,
+    invariato: nessuna operazione di alias."""
     embed_model = _reindex_embed_model()
     version = build_graph_and_index(qdrant=state.get("qdrant"),
                                     embed_model=embed_model, promote=False)
@@ -107,7 +130,16 @@ def _run_full_rebuild(changed_paths) -> dict:
             logger.warning("Full rebuild %s NON promosso: eval-gate sotto soglia (%s).",
                            version, result["eval"])
             return result
+
         promote_version(version)
+        if QDRANT_BLUE_GREEN:
+            collection_name = _qdrant_collection_for_version(version)
+            _migrate_legacy_collection_if_needed(state.get("qdrant"), COLLECTION_NAME, emit=logger.info)
+            _swap_alias(state.get("qdrant"), COLLECTION_NAME, collection_name)
+            # GC (S8): stesso punto consentito del path CLI (core.indexing.build_graph_and_index)
+            # — dopo promote (retention locale già applicata) e dopo lo swap, dentro il
+            # single-writer del ReindexManager (mai job full concorrenti).
+            gc_orphaned_qdrant_collections(state.get("qdrant"), emit=logger.info)
     result["promoted"] = True
     return result
 
@@ -181,8 +213,14 @@ async def index_rollback(request: Request):
     versione indicata (corpo JSON opzionale `{"version": "v..."}`; default: la
     precedente) e ricarica subito lo snapshot in memoria. Nessuna build, nessuna copia.
 
-    Limite documentato (README): il rollback ripristina grafo e sidecar; la collection
-    Qdrant resta all'ultima build e verrà riallineata dal reindex successivo."""
+    core.artifacts.rollback_version resta puro locale (sposta solo CURRENT). Con
+    QDRANT_BLUE_GREEN acceso (S7), DOPO il rollback locale l'alias `COLLECTION_NAME`
+    viene riallineato alla collection della versione target (rollback_qdrant_alias_if_needed,
+    core.indexing): cross-lineage → swap; intra-lineage (alias già corretto) → no-op;
+    collection target assente su Qdrant → nessuna correzione automatica, stato esplicito
+    "missing_target_collection" nella risposta (CURRENT resta comunque sulla versione
+    target: nessun rollback parziale lato locale). Col flag spento, comportamento
+    invariato: nessuna operazione di alias, "qdrant_alias": {"state": "disabled"}."""
     try:
         payload = await request.json()
     except Exception:
@@ -194,5 +232,12 @@ async def index_rollback(request: Request):
         raise HTTPException(status_code=404, detail=str(exc))
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+    qdrant_alias = await run_in_threadpool(
+        rollback_qdrant_alias_if_needed, state.get("qdrant"), name, logger.info
+    )
     await run_in_threadpool(reload_index_state)
-    return {"rolled_back_to": name, "versions": await run_in_threadpool(list_versions)}
+    return {
+        "rolled_back_to": name,
+        "versions": await run_in_threadpool(list_versions),
+        "qdrant_alias": qdrant_alias,
+    }

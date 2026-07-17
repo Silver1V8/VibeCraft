@@ -19,6 +19,7 @@ from qdrant_client import QdrantClient
 from FlagEmbedding import BGEM3FlagModel
 
 from core.artifacts import current_version_token, load_artifacts
+from core.indexing import gc_orphaned_qdrant_collections, reconcile_and_repair_qdrant_alias
 from core.config import (
     EMBEDDING_MODEL,
     GRAPH_JSON_PATH,
@@ -208,6 +209,24 @@ async def lifespan(application: FastAPI):
 
     logger.info("Connessione a Qdrant (server mode): %s ...", QDRANT_URL)
     state["qdrant"] = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+
+    # Riconciliazione dell'alias Qdrant al boot, PRE-SERVING (S8, blue/green Qdrant):
+    # unico punto (insieme ai percorsi writer dei job full) dove è consentita una
+    # riparazione reale (alias swap), oltre alla sola osservazione di S5. Ripara solo
+    # "missing"/"diverging" e solo se la collection attesa esiste davvero (nessuna
+    # correzione distruttiva); col flag QDRANT_BLUE_GREEN spento è un puro no-op
+    # ("disabled") — reconcile_and_repair_qdrant_alias non solleva mai: un layout
+    # legacy o un Qdrant temporaneamente irraggiungibile qui non deve mai impedire il
+    # boot del server.
+    alias_state = reconcile_and_repair_qdrant_alias(state["qdrant"])
+    logger.info("Stato alias Qdrant (riconciliazione, S8): %s (expected=%s, actual=%s, repaired=%s)%s",
+               alias_state["state"], alias_state.get("expected"), alias_state.get("actual"),
+               alias_state.get("repaired"),
+               f" — {alias_state['error']}" if alias_state.get("error") else "")
+
+    # GC delle collection Qdrant orfane, stesso punto pre-serving consentito dal
+    # piano: al boot nessun altro writer è concorrente. Col flag spento è un no-op.
+    gc_orphaned_qdrant_collections(state["qdrant"])
 
     logger.info("Caricamento artefatti indice (grafo JSON, ColBERT/chunk) ...")
     try:

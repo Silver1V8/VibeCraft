@@ -81,7 +81,8 @@ def rank_by_authority(results: list[dict], *, alpha: float = AUTHORITY_BOOST_ALP
 
 
 def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_store: dict,
-                  query_filter: Filter | None = None) -> list[dict]:
+                  query_filter: Filter | None = None,
+                  collection_name: str = COLLECTION_NAME) -> list[dict]:
     """
     Ricerca ibrida a tre livelli (stessa forward pass di bge-m3 per tutti i vettori):
 
@@ -96,6 +97,12 @@ def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_sto
     `query_filter` (opzionale) restringe i candidati per payload PRIMA del ranking: serve
     quando la domanda da sola non separa documenti quasi gemelli (vedi scope_tag_filter).
     None = ricerca su tutto l'indice, il comportamento di default.
+
+    `collection_name` (opzionale, default COLLECTION_NAME): la collection Qdrant da
+    interrogare. Serve al blue/green di Qdrant (collection versionate + alias), che deve
+    poter far valutare il retrieval contro una collection candidata invece che quella di
+    produzione (es. dall'eval-gate). Nessun chiamante di produzione lo passa ancora: il
+    default preserva esattamente il comportamento odierno.
 
     Restituisce i top_k candidati con il breakdown completo del ranking.
     """
@@ -115,7 +122,7 @@ def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_sto
     fetch_k = max(top_k * 3, 10)
 
     dense_hits = qdrant.query_points(
-        collection_name=COLLECTION_NAME,
+        collection_name=collection_name,
         query=dense_q,
         using="dense",
         limit=fetch_k,
@@ -130,7 +137,7 @@ def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_sto
         values=[float(w) for w in lex_q.values()],
     )
     sparse_hits = qdrant.query_points(
-        collection_name=COLLECTION_NAME,
+        collection_name=collection_name,
         query=sparse_query,
         using="sparse",
         limit=fetch_k,

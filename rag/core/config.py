@@ -86,6 +86,12 @@ with open(CONFIG_PATH, "r", encoding="utf-8") as _f:
 
 COLLECTION_NAME: str = config["vector_database"]["collection_name"]
 EMBEDDING_MODEL: str = config["vector_database"]["embedding_model"]
+# Blue/green Qdrant (collection versionate + alias, piano di implementazione in
+# corso — step S6). Default False: NESSUN percorso runtime lo legge ancora (questo
+# è solo lo scaffolding del flag, step S6.1). Non attivare prima che gli step
+# S6.3-S6.6 del piano siano completati: a metà implementazione produrrebbe uno
+# stato incoerente (vedi rag_config.yaml).
+QDRANT_BLUE_GREEN: bool = bool(config["vector_database"].get("blue_green", False))
 LLM_PROVIDER: str = config["llm_settings"]["active_provider"]
 LLM_MODEL: str = config["llm_settings"]["models"][LLM_PROVIDER]
 # Thinking dei modelli Ollama (rag_config.yaml → llm_settings.ollama_think). None = parametro

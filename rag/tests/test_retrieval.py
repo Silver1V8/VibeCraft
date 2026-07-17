@@ -1,7 +1,9 @@
 """Test delle funzioni pure di core/retrieval.py con dipendenze iniettate (nessun
 FastAPI, nessun Qdrant reale): peso di autorità e selezione del contesto governato
-nel percorso 'results forniti' (che non richiede il client Qdrant)."""
+nel percorso 'results forniti' (che non richiede il client Qdrant), più hybrid_search
+con qdrant/embed_model finti (nessuna rete, nessun modello bge-m3 reale)."""
 import networkx as nx
+import numpy as np
 
 from core import retrieval
 
@@ -132,3 +134,55 @@ def test_collect_implementing_code_disabled_or_empty():
     assert retrieval.collect_implementing_code(None, cs, ["spec.md#01-form"], min_weight=0.5, max_snippets=6) == []
     assert retrieval.collect_implementing_code(g, {}, ["spec.md#01-form"], min_weight=0.5, max_snippets=6) == []
     assert retrieval.collect_implementing_code(g, cs, ["assente"], min_weight=0.5, max_snippets=6) == []
+
+
+# ---------------------------------------------------------------------------
+# hybrid_search: parametrizzazione di collection_name (blue/green Qdrant, S3).
+# Nessun Qdrant/bge-m3 reale: qdrant e embed_model sono fake minimali che registrano
+# solo il nome di collection ricevuto da query_points.
+# ---------------------------------------------------------------------------
+class _FakePoints:
+    def __init__(self, points):
+        self.points = points
+
+
+class _FakeEmbedModel:
+    """Restituisce vettori fissi per QUALSIASI domanda: basta a far girare
+    hybrid_search senza bge-m3 reale (colbert_store vuoto -> il vettore colbert
+    della query non viene mai usato aritmeticamente)."""
+    def encode(self, questions, **kwargs):
+        return {
+            "dense_vecs": [np.array([0.1, 0.2, 0.3])],
+            "lexical_weights": [{}],
+            "colbert_vecs": [np.zeros((1, 3))],
+        }
+
+
+class _RecordingQdrant:
+    """query_points finto: non cerca nulla, registra solo il collection_name
+    ricevuto a ogni chiamata (una per il ramo denso, una per lo sparso)."""
+    def __init__(self):
+        self.collections_seen: list[str] = []
+
+    def query_points(self, *, collection_name, query, using, limit, query_filter=None):
+        self.collections_seen.append(collection_name)
+        return _FakePoints([])
+
+
+def test_hybrid_search_default_collection_name_is_config_constant():
+    qdrant = _RecordingQdrant()
+    retrieval.hybrid_search("domanda", 5, qdrant=qdrant, embed_model=_FakeEmbedModel(), colbert_store={})
+    # Due chiamate (dense + sparse), entrambe sulla collection di default: nessun
+    # cambio di comportamento quando collection_name non viene passato.
+    assert qdrant.collections_seen == [retrieval.COLLECTION_NAME, retrieval.COLLECTION_NAME]
+
+
+def test_hybrid_search_explicit_collection_name_is_propagated():
+    qdrant = _RecordingQdrant()
+    retrieval.hybrid_search(
+        "domanda", 5, qdrant=qdrant, embed_model=_FakeEmbedModel(), colbert_store={},
+        collection_name="vibecraft_events__v20260717T101530",
+    )
+    assert qdrant.collections_seen == [
+        "vibecraft_events__v20260717T101530", "vibecraft_events__v20260717T101530",
+    ]

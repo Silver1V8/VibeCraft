@@ -250,6 +250,45 @@ reindex successivo. È accettabile perché il retrieval filtra/riordina sui chun
 presenti nei sidecar della versione attiva; nel frattempo il check notturno di
 integrità può segnalare un mismatch Qdrant↔sidecar **atteso**.
 
+### Blue/green Qdrant (collection versionate + alias) — in costruzione, flag spento
+
+Il limite sopra è ciò che il flag `QDRANT_BLUE_GREEN`
+(`rag_config.yaml → vector_database.blue_green`, default **false**) sta chiudendo,
+un pezzo alla volta. Quando **acceso**: ogni full rebuild scrive su una collection
+Qdrant *candidata* e versionata (`{collection_name}__{version}`), valuta
+l'eval-gate su quella stessa candidata, e solo a gate passato promuove CURRENT e
+sposta un **alias** Qdrant (il nome configurato in
+`vector_database.collection_name`, lo stesso che `/ask` e `/api/retrieve`
+interrogano sempre) sulla candidata — la collection di produzione non viene mai
+toccata durante il build, solo alla promozione.
+
+**Migrazione one-shot legacy→alias.** Alla prima promozione col flag acceso, se la
+collection di produzione esiste ancora come collection *fisica* (il layout
+storico, prima di questo meccanismo — Qdrant non ammette un alias con lo stesso
+nome di una collection esistente), viene **cancellata e ricreata come alias**
+verso la candidata. È l'**unica operazione irreversibile** del meccanismo: una
+finestra di indisponibilità breve ma reale (millisecondi) fra il delete e la
+create, loggata esplicitamente. Da quel momento il nome di produzione non è più
+una collection fisica: è sempre un alias verso l'ultima versione promossa.
+
+**Rollback manuale al layout legacy (se si vuole tornare al flag spento dopo che
+la migrazione è già avvenuta).** Rispegnere il flag da solo NON basta: il nome di
+produzione è ormai un alias, non più una collection, e il percorso legacy
+(`_ensure_collection` con `recreate=True`) non sa gestire un alias omonimo. Per
+tornare davvero al layout precedente:
+
+1. Cancella l'alias di produzione (il nome in `vector_database.collection_name`)
+   direttamente da Qdrant.
+2. Spegni il flag in `rag_config.yaml` (`blue_green: false`).
+3. Esegui un full rebuild (`python index.py`): ricreerà la collection fisica da
+   zero, come nel layout storico.
+
+Questo passo è manuale e va eseguito consapevolmente. Non esiste ancora (lavoro
+futuro) un rollback blue/green automatico né una riparazione automatica dello
+stato dell'alias — solo l'osservazione read-only (`GET /api/index/integrity`,
+campo `qdrant_alias`: `legacy`/`aligned`/`missing`/`diverging`) che segnala lo
+stato senza correggerlo.
+
 ### Retrocompatibilità e formati legacy
 
 `save_artifacts()` scrive **solo** i formati correnti, sempre in una directory di
