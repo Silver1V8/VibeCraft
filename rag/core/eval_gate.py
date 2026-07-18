@@ -129,8 +129,9 @@ def gate_promotion(version: str, qdrant, embed_model, colbert_store: dict, *,
     record_alert("critical", msg, recall=res["recall"], k=k, threshold=min_recall, version=version)
     if blocking:
         res["passed"] = False
-        _log(f"❌ {msg} PROMOZIONE BLOCCATA (CURRENT invariato). "
-             f"NB: Qdrant contiene già i vettori candidati (non versionato) → indagare/rebuild.")
+        _log(f"❌ {msg} PROMOZIONE BLOCCATA (CURRENT invariato, alias di produzione "
+             f"invariato). La collection candidata resta su Qdrant, non referenziata "
+             f"da alcuna versione attiva: il GC del prossimo job/boot riuscito la rimuove.")
     else:
         res["passed"] = True
         res["advisory"] = True

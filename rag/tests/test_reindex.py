@@ -81,6 +81,9 @@ def test_incremental_index_restricts_to_changed_paths(monkeypatch):
 
     class _FakeQ:
         def close(self): pass
+        def get_aliases(self):
+            from types import SimpleNamespace
+            return SimpleNamespace(aliases=[])  # nessun alias: bootstrap, COLLECTION_NAME libero
 
     indexing.incremental_index(
         qdrant=_FakeQ(), embed_model=object(),
@@ -392,40 +395,117 @@ def test_manager_honors_completed_not_promoted_and_skips_reload():
     assert not reloaded.is_set()
 
 
-def _wire_full_rebuild(monkeypatch, gate_result: dict):
-    """Prepara _run_full_rebuild con build ed eval-gate finti; ritorna la lista dei promote.
-    gate_result è il dict restituito da _eval_gate (contratto core.eval_gate.gate_promotion)."""
+def _wire_full_rebuild(monkeypatch, gate_result: dict, *,
+                       collection_for_version: str = "vibecraft_events__v-nuova"):
+    """Prepara _run_full_rebuild con build ed eval-gate finti, e traccia l'ordine
+    relativo di promote_version, _migrate_legacy_collection_if_needed, _swap_alias
+    e gc_orphaned_qdrant_collections in un'unica `sequence` (tutti e quattro
+    eseguono SEMPRE a gate passato, non solo in un ramo condizionale: un solo
+    percorso di full rebuild, senza flag). `migrate_calls`/`swap_calls`/`gc_calls`
+    isolano le chiamate ai singoli helper.
+
+    La DECISIONE se migrare davvero (collection legacy presente o no) è già testata
+    in core/indexing.py con lo StatefulFakeQdrant reale: qui si verifica solo il
+    WIRING — che l'helper venga chiamato, nell'ordine giusto, con gli argomenti
+    giusti — quindi il fake ritorna sempre False/[] (nessuna vera cancellazione da
+    segnalare al chiamante, che comunque ignora il valore di ritorno)."""
     import api.routes_reindex as rr
 
     monkeypatch.setattr(rr, "_reindex_embed_model", lambda: object())
     monkeypatch.setattr(rr, "build_graph_and_index", lambda **kw: "v-nuova")
     monkeypatch.setattr(rr, "_eval_gate", lambda version, embed_model: gate_result)
+    monkeypatch.setattr(rr, "_qdrant_collection_for_version", lambda version: collection_for_version)
+
+    sequence: list = []
     promoted: list[str] = []
-    monkeypatch.setattr(rr, "promote_version", lambda v: promoted.append(v))
-    return rr, promoted
+
+    def _tracking_promote(v):
+        promoted.append(v)
+        sequence.append(("promote", v))
+
+    monkeypatch.setattr(rr, "promote_version", _tracking_promote)
+
+    migrate_calls: list[str] = []
+
+    def _fake_migrate(qdrant, alias, emit=None):
+        sequence.append(("migrate", alias))
+        migrate_calls.append(alias)
+        return False
+
+    monkeypatch.setattr(rr, "_migrate_legacy_collection_if_needed", _fake_migrate)
+
+    swap_calls: list[tuple] = []
+
+    def _fake_swap_alias(qdrant, alias, target):
+        sequence.append(("alias_swap", alias, target))
+        swap_calls.append((alias, target))
+
+    monkeypatch.setattr(rr, "_swap_alias", _fake_swap_alias)
+
+    gc_calls: list = []
+
+    def _fake_gc(qdrant, emit=None):
+        sequence.append("gc")
+        gc_calls.append(qdrant)
+        return []
+
+    monkeypatch.setattr(rr, "gc_orphaned_qdrant_collections", _fake_gc)
+    return rr, promoted, sequence, swap_calls, migrate_calls, gc_calls
 
 
 def test_full_rebuild_below_gate_is_not_promoted(monkeypatch):
-    rr, promoted = _wire_full_rebuild(monkeypatch,
-                                      {"passed": False, "recall": 0.1, "k": 10, "min_recall": 0.9})
+    rr, promoted, sequence, *_ = _wire_full_rebuild(
+        monkeypatch, {"passed": False, "recall": 0.1, "k": 10, "min_recall": 0.9})
     result = rr._run_full_rebuild(None)
     assert result["promoted"] is False
     assert result["job_status"] == "completed_not_promoted"
     assert result["version"] == "v-nuova"
     assert result["eval"]["recall"] == 0.1
     assert promoted == []  # CURRENT mai toccato
+    assert sequence == []  # né promote, né migrazione, né alias swap, né GC
 
 
-def test_full_rebuild_above_gate_promotes(monkeypatch):
-    rr, promoted = _wire_full_rebuild(monkeypatch, {"passed": True, "recall": 0.95, "k": 10})
+def test_full_rebuild_above_gate_promotes_then_migrates_then_swaps_then_gcs(monkeypatch):
+    """Ordine non negoziabile: CURRENT prima, poi l'eventuale migrazione one-shot (se
+    necessaria — qui il fake la chiama sempre, come fa il codice reale; la decisione
+    se cancellare davvero è interna all'helper), poi lo swap, poi il GC."""
+    rr, promoted, sequence, swap_calls, migrate_calls, gc_calls = _wire_full_rebuild(
+        monkeypatch, {"passed": True, "recall": 0.95, "k": 10},
+        collection_for_version="vibecraft_events__v-nuova")
+
     result = rr._run_full_rebuild(None)
+
     assert result["promoted"] is True and "job_status" not in result
     assert promoted == ["v-nuova"]
+    assert sequence == [
+        ("promote", "v-nuova"),
+        ("migrate", rr.COLLECTION_NAME),
+        ("alias_swap", rr.COLLECTION_NAME, "vibecraft_events__v-nuova"),
+        "gc",
+    ]
+    assert migrate_calls == [rr.COLLECTION_NAME]
+    assert len(gc_calls) == 1  # chiamato una volta, SOLO DOPO lo swap
+
+
+def test_full_rebuild_alias_swap_uses_manifest_collection_as_source_of_truth(monkeypatch):
+    """Il target dello swap è quello dichiarato dal manifest (_qdrant_collection_for_version),
+    non una ricostruzione indipendente del nome: qui il valore è deliberatamente
+    diverso da quello che qdrant_collection_name(version) produrrebbe, per provare
+    che la fonte usata è davvero il manifest."""
+    rr, promoted, sequence, swap_calls, migrate_calls, gc_calls = _wire_full_rebuild(
+        monkeypatch, {"passed": True, "recall": 0.95, "k": 10},
+        collection_for_version="collection-dichiarata-nel-manifest",
+    )
+
+    rr._run_full_rebuild(None)
+
+    assert swap_calls == [(rr.COLLECTION_NAME, "collection-dichiarata-nel-manifest")]
 
 
 def test_full_rebuild_gate_unavailable_promotes_directly(monkeypatch):
     """Eval non disponibile (fail-open, passed=True + skipped): promozione diretta."""
-    rr, promoted = _wire_full_rebuild(monkeypatch, {"passed": True, "skipped": "no_golden_set"})
+    rr, promoted, sequence, *_ = _wire_full_rebuild(
+        monkeypatch, {"passed": True, "skipped": "no_golden_set"})
     result = rr._run_full_rebuild(None)
     assert result["promoted"] is True
     assert promoted == ["v-nuova"]
@@ -433,10 +513,10 @@ def test_full_rebuild_gate_unavailable_promotes_directly(monkeypatch):
 
 def test_full_rebuild_gate_disabled_promotes(monkeypatch):
     """Gate disattivo (config eval_gate.enabled=false): promozione diretta, eval saltata."""
-    rr, promoted = _wire_full_rebuild(monkeypatch, {"passed": True, "skipped": "disabled"})
+    rr, promoted, sequence, *_ = _wire_full_rebuild(
+        monkeypatch, {"passed": True, "skipped": "disabled"})
     result = rr._run_full_rebuild(None)
     assert result["promoted"] is True
-    assert promoted == ["v-nuova"]
     assert promoted == ["v-nuova"]
 
 
@@ -476,8 +556,8 @@ def test_qdrant_collection_for_version_falls_back_when_manifest_missing(tmp_path
 
 
 def test_eval_gate_passes_the_version_candidate_collection_to_gate_promotion(tmp_path, monkeypatch):
-    """Col flag acceso il manifest dichiara la candidata: _eval_gate deve passarla a
-    gate_promotion, non valutare mai COLLECTION_NAME al suo posto."""
+    """Il manifest dichiara la candidata: _eval_gate deve passarla a gate_promotion,
+    non valutare mai COLLECTION_NAME al suo posto."""
     from types import SimpleNamespace
     import api.routes_reindex as rr
 
@@ -498,150 +578,8 @@ def test_eval_gate_passes_the_version_candidate_collection_to_gate_promotion(tmp
     assert captured["collection_name"] != rr.COLLECTION_NAME
 
 
-def test_eval_gate_flag_off_still_passes_collection_name_to_gate_promotion(tmp_path, monkeypatch):
-    """Manifest col flag spento (o antecedente a S2): _eval_gate continua a passare
-    COLLECTION_NAME, comportamento invariato."""
-    from types import SimpleNamespace
-    import api.routes_reindex as rr
-
-    _write_manifest(tmp_path, monkeypatch, "v1", {"qdrant_collection": rr.COLLECTION_NAME})
-    monkeypatch.setattr(rr, "load_artifacts", lambda **kw: SimpleNamespace(colbert_store={}))
-
-    captured: dict = {}
-
-    def _fake_gate_promotion(version, qdrant, embed_model, colbert_store, emit=None, collection_name=None):
-        captured["collection_name"] = collection_name
-        return {"passed": True}
-
-    monkeypatch.setattr(rr, "gate_promotion", _fake_gate_promotion)
-
-    rr._eval_gate("v1", embed_model=object())
-    assert captured["collection_name"] == rr.COLLECTION_NAME
-
-
 # ---------------------------------------------------------------------------
-# Alias swap + migrazione one-shot dopo la promozione nel path server (S6.5/S6.6,
-# blue/green Qdrant): _run_full_rebuild deve promuovere CURRENT PRIMA, poi (solo se
-# necessario) migrare la collection legacy, e SOLO DOPO swappare l'alias verso la
-# qdrant_collection dichiarata nel manifest (_qdrant_collection_for_version, unico
-# source of truth). Col flag spento, o col gate bloccante, nessuna operazione.
-# ---------------------------------------------------------------------------
-def _wire_full_rebuild_with_alias_tracking(monkeypatch, gate_result: dict, *, blue_green: bool,
-                                           collection_for_version: str = "vibecraft_events__v-nuova"):
-    """Come _wire_full_rebuild, ma traccia l'ordine relativo di promote_version,
-    _migrate_legacy_collection_if_needed e _swap_alias in un'unica `sequence`.
-    `migrate_calls`/`swap_calls` isolano le chiamate ai due helper.
-
-    La DECISIONE se migrare davvero (collection legacy presente o no) è già
-    testata in core/indexing.py con lo StatefulFakeQdrant reale: qui si verifica
-    solo il WIRING — che l'helper venga chiamato, nell'ordine giusto, con gli
-    argomenti giusti — quindi il fake ritorna sempre False (nessuna vera cancellazione
-    da segnalare al chiamante, che comunque ignora il valore di ritorno)."""
-    import api.routes_reindex as rr
-
-    monkeypatch.setattr(rr, "_reindex_embed_model", lambda: object())
-    monkeypatch.setattr(rr, "build_graph_and_index", lambda **kw: "v-nuova")
-    monkeypatch.setattr(rr, "_eval_gate", lambda version, embed_model: gate_result)
-    monkeypatch.setattr(rr, "QDRANT_BLUE_GREEN", blue_green)
-    monkeypatch.setattr(rr, "_qdrant_collection_for_version", lambda version: collection_for_version)
-
-    sequence: list[tuple] = []
-    monkeypatch.setattr(rr, "promote_version", lambda v: sequence.append(("promote", v)))
-
-    migrate_calls: list[str] = []
-
-    def _fake_migrate(qdrant, alias, emit=None):
-        sequence.append(("migrate", alias))
-        migrate_calls.append(alias)
-        return False
-
-    monkeypatch.setattr(rr, "_migrate_legacy_collection_if_needed", _fake_migrate)
-
-    swap_calls: list[tuple] = []
-
-    def _fake_swap_alias(qdrant, alias, target):
-        sequence.append(("alias_swap", alias, target))
-        swap_calls.append((alias, target))
-
-    monkeypatch.setattr(rr, "_swap_alias", _fake_swap_alias)
-
-    gc_calls: list = []
-
-    def _fake_gc(qdrant, emit=None):
-        sequence.append("gc")
-        gc_calls.append(qdrant)
-        return []
-
-    monkeypatch.setattr(rr, "gc_orphaned_qdrant_collections", _fake_gc)
-    return rr, sequence, swap_calls, migrate_calls, gc_calls
-
-
-def test_full_rebuild_flag_off_promotes_without_any_alias_call(monkeypatch):
-    rr, sequence, swap_calls, migrate_calls, gc_calls = _wire_full_rebuild_with_alias_tracking(
-        monkeypatch, {"passed": True, "recall": 0.95, "k": 10}, blue_green=False)
-
-    result = rr._run_full_rebuild(None)
-
-    assert result["promoted"] is True
-    assert sequence == [("promote", "v-nuova")]  # nessun evento di migrazione/alias/GC
-    assert swap_calls == []
-    assert migrate_calls == []
-    assert gc_calls == []  # S8: col flag spento, nessun GC collegato
-
-
-def test_full_rebuild_flag_on_promotes_then_migrates_then_swaps(monkeypatch):
-    """Ordine non negoziabile esteso a S6.6: CURRENT prima, poi la migrazione
-    one-shot (se necessaria — qui il fake la chiama sempre, come fa il codice reale;
-    la decisione se cancellare davvero è interna all'helper), poi lo swap."""
-    rr, sequence, swap_calls, migrate_calls, gc_calls = _wire_full_rebuild_with_alias_tracking(
-        monkeypatch, {"passed": True, "recall": 0.95, "k": 10}, blue_green=True,
-        collection_for_version="vibecraft_events__v-nuova")
-
-    result = rr._run_full_rebuild(None)
-
-    assert result["promoted"] is True
-    assert "job_status" not in result
-    assert sequence == [
-        ("promote", "v-nuova"),
-        ("migrate", rr.COLLECTION_NAME),
-        ("alias_swap", rr.COLLECTION_NAME, "vibecraft_events__v-nuova"),
-        "gc",
-    ]
-    assert migrate_calls == [rr.COLLECTION_NAME]
-    assert len(gc_calls) == 1  # GC (S8): chiamato una volta, SOLO DOPO lo swap
-
-
-def test_full_rebuild_flag_on_alias_swap_uses_manifest_collection_as_source_of_truth(monkeypatch):
-    """Il target dello swap è quello dichiarato dal manifest (_qdrant_collection_for_version),
-    non una ricostruzione indipendente del nome: qui il valore è deliberatamente
-    diverso da quello che qdrant_collection_name(version) produrrebbe, per provare
-    che la fonte usata è davvero il manifest."""
-    rr, sequence, swap_calls, migrate_calls, gc_calls = _wire_full_rebuild_with_alias_tracking(
-        monkeypatch, {"passed": True, "recall": 0.95, "k": 10}, blue_green=True,
-        collection_for_version="collection-dichiarata-nel-manifest",
-    )
-
-    rr._run_full_rebuild(None)
-
-    assert swap_calls == [(rr.COLLECTION_NAME, "collection-dichiarata-nel-manifest")]
-
-
-def test_full_rebuild_blocking_gate_leaves_current_and_alias_untouched(monkeypatch):
-    rr, sequence, swap_calls, migrate_calls, gc_calls = _wire_full_rebuild_with_alias_tracking(
-        monkeypatch, {"passed": False, "recall": 0.1, "k": 10, "min_recall": 0.9}, blue_green=True)
-
-    result = rr._run_full_rebuild(None)
-
-    assert result["promoted"] is False
-    assert result["job_status"] == "completed_not_promoted"
-    assert sequence == []  # né promote, né migrazione, né alias swap, né GC
-    assert swap_calls == []
-    assert migrate_calls == []
-    assert gc_calls == []  # gate bloccante: nessun GC, coerente con "nessuna scrittura se non promosso"
-
-
-# ---------------------------------------------------------------------------
-# S7: POST /api/index/rollback riallinea l'alias Qdrant (rollback_qdrant_alias_if_needed,
+# POST /api/index/rollback riallinea l'alias Qdrant (rollback_qdrant_alias_if_needed,
 # core.indexing) DOPO il rollback locale puro (rollback_version, core.artifacts) — mai
 # prima, e mai una correzione automatica se la collection target manca.
 # ---------------------------------------------------------------------------
@@ -670,7 +608,7 @@ def _call_index_rollback(monkeypatch, payload=None, *, rollback_version_result="
     def _fake_rollback_qdrant_alias(qdrant, target_version, emit=None):
         captured["qdrant"] = qdrant
         captured["target_version"] = target_version
-        return qdrant_alias_result if qdrant_alias_result is not None else {"state": "disabled"}
+        return qdrant_alias_result if qdrant_alias_result is not None else {"state": "noop"}
 
     monkeypatch.setattr(rr, "rollback_qdrant_alias_if_needed", _fake_rollback_qdrant_alias)
 
@@ -678,14 +616,15 @@ def _call_index_rollback(monkeypatch, payload=None, *, rollback_version_result="
     return response, captured
 
 
-def test_index_rollback_flag_off_reports_disabled_state(monkeypatch):
-    response, captured = _call_index_rollback(monkeypatch, qdrant_alias_result={"state": "disabled"})
+def test_index_rollback_reports_target_version_received_by_the_alias_helper(monkeypatch):
+    response, captured = _call_index_rollback(
+        monkeypatch, qdrant_alias_result={"state": "noop", "expected": "coll-v1", "actual": "coll-v1"})
     assert response["rolled_back_to"] == "v1"
-    assert response["qdrant_alias"] == {"state": "disabled"}
+    assert response["qdrant_alias"]["state"] == "noop"
     assert captured["target_version"] == "v1"  # riceve la versione RISULTANTE dal rollback locale
 
 
-def test_index_rollback_flag_on_cross_lineage_reports_swapped_state(monkeypatch):
+def test_index_rollback_cross_lineage_reports_swapped_state(monkeypatch):
     response, captured = _call_index_rollback(
         monkeypatch, rollback_version_result="v-target",
         qdrant_alias_result={"state": "swapped", "expected": "coll-v-target", "actual": "coll-v-target"},
@@ -696,7 +635,7 @@ def test_index_rollback_flag_on_cross_lineage_reports_swapped_state(monkeypatch)
     assert captured["qdrant"] == "fake-qdrant-client"
 
 
-def test_index_rollback_flag_on_intra_lineage_reports_noop_state(monkeypatch):
+def test_index_rollback_intra_lineage_reports_noop_state(monkeypatch):
     response, _ = _call_index_rollback(
         monkeypatch, qdrant_alias_result={"state": "noop", "expected": "coll-x", "actual": "coll-x"},
     )

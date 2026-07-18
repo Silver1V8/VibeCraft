@@ -242,52 +242,47 @@ Equivalente HTTP: `POST /api/index/rollback` (corpo opzionale
 `VIBECRAFT_INDEX_KEEP`); la versione puntata da CURRENT non viene **mai** eliminata,
 anche se più vecchia delle N conservate (caso post-rollback).
 
-**Limite documentato — Qdrant non è versionato.** I punti della collection hanno
-id deterministici e l'incrementale la muta in place: il blue/green copre grafo e
-sidecar (ColBERT/chunk/codice), **non** la collection Qdrant. Un rollback
-ripristina grafo e sidecar; Qdrant resta all'ultima build e verrà riallineato dal
-reindex successivo. È accettabile perché il retrieval filtra/riordina sui chunk
-presenti nei sidecar della versione attiva; nel frattempo il check notturno di
-integrità può segnalare un mismatch Qdrant↔sidecar **atteso**.
+### Blue/green Qdrant (collection versionate + alias)
 
-### Blue/green Qdrant (collection versionate + alias) — in costruzione, flag spento
+Ogni full rebuild scrive su una collection Qdrant *candidata* e versionata
+(`{collection_name}__{version}`), valuta l'eval-gate su quella stessa candidata, e
+solo a gate passato promuove CURRENT e sposta un **alias** Qdrant (il nome
+configurato in `vector_database.collection_name`, lo stesso che `/ask` e
+`/api/retrieve` interrogano sempre) sulla candidata — la collection di produzione
+non viene mai toccata durante il build, solo alla promozione. Se il gate blocca la
+promozione, la collection candidata resta su Qdrant non referenziata da alcuna
+versione attiva: il GC del prossimo job/boot riuscito la rimuove (nessuna
+collezione orfana si accumula).
 
-Il limite sopra è ciò che il flag `QDRANT_BLUE_GREEN`
-(`rag_config.yaml → vector_database.blue_green`, default **false**) sta chiudendo,
-un pezzo alla volta. Quando **acceso**: ogni full rebuild scrive su una collection
-Qdrant *candidata* e versionata (`{collection_name}__{version}`), valuta
-l'eval-gate su quella stessa candidata, e solo a gate passato promuove CURRENT e
-sposta un **alias** Qdrant (il nome configurato in
-`vector_database.collection_name`, lo stesso che `/ask` e `/api/retrieve`
-interrogano sempre) sulla candidata — la collection di produzione non viene mai
-toccata durante il build, solo alla promozione.
+**Migrazione one-shot legacy→alias.** Se la collection di produzione esiste ancora
+come collection *fisica* (un'installazione mai passata da questo meccanismo —
+Qdrant non ammette un alias con lo stesso nome di una collection esistente), alla
+prima promozione viene **cancellata e ricreata come alias** verso la candidata. È
+l'**unica operazione irreversibile** del meccanismo: una finestra di
+indisponibilità breve ma reale (millisecondi) fra il delete e la create, loggata
+esplicitamente. Da quel momento il nome di produzione non è più una collection
+fisica: è sempre un alias verso l'ultima versione promossa. Un crash esattamente
+in quella finestra lascia l'alias mancante: il reconciler lo ripara al boot
+successivo (o al prossimo job full) se la collection candidata esiste ancora,
+senza bisogno di un nuovo rebuild.
 
-**Migrazione one-shot legacy→alias.** Alla prima promozione col flag acceso, se la
-collection di produzione esiste ancora come collection *fisica* (il layout
-storico, prima di questo meccanismo — Qdrant non ammette un alias con lo stesso
-nome di una collection esistente), viene **cancellata e ricreata come alias**
-verso la candidata. È l'**unica operazione irreversibile** del meccanismo: una
-finestra di indisponibilità breve ma reale (millisecondi) fra il delete e la
-create, loggata esplicitamente. Da quel momento il nome di produzione non è più
-una collection fisica: è sempre un alias verso l'ultima versione promossa.
+**Rollback**: `python index.py --rollback [VERSIONE]` (o `POST /api/index/rollback`)
+sposta CURRENT **e** riallinea l'alias Qdrant alla collection dichiarata nel
+manifest della versione target — cross-lineage esegue lo swap, intra-lineage (alias
+già corretto) è un no-op. Se la collection della versione target non esiste più su
+Qdrant (es. rimossa dal GC perché la lineage era già stata ruotata), l'alias
+**non** viene corretto automaticamente: la risposta riporta
+`"qdrant_alias": {"state": "missing_target_collection"}` e serve un full rebuild o
+un intervento manuale — nessuna collection viene mai "inventata".
 
-**Rollback manuale al layout legacy (se si vuole tornare al flag spento dopo che
-la migrazione è già avvenuta).** Rispegnere il flag da solo NON basta: il nome di
-produzione è ormai un alias, non più una collection, e il percorso legacy
-(`_ensure_collection` con `recreate=True`) non sa gestire un alias omonimo. Per
-tornare davvero al layout precedente:
-
-1. Cancella l'alias di produzione (il nome in `vector_database.collection_name`)
-   direttamente da Qdrant.
-2. Spegni il flag in `rag_config.yaml` (`blue_green: false`).
-3. Esegui un full rebuild (`python index.py`): ricreerà la collection fisica da
-   zero, come nel layout storico.
-
-Questo passo è manuale e va eseguito consapevolmente. Non esiste ancora (lavoro
-futuro) un rollback blue/green automatico né una riparazione automatica dello
-stato dell'alias — solo l'osservazione read-only (`GET /api/index/integrity`,
-campo `qdrant_alias`: `legacy`/`aligned`/`missing`/`diverging`) che segnala lo
-stato senza correggerlo.
+**Riconciliazione e GC.** Al boot del server, prima di servire richieste, un
+reconciler confronta lo stato REALE dell'alias con quello atteso dal manifest della
+versione attiva e ripara automaticamente i casi "missing"/"diverging" — ma solo se
+la collection attesa esiste davvero (nessuna correzione distruttiva); lo stesso
+punto esegue il GC delle collection versionate orfane (build crashati o non
+promossi, lineage già ruotate dalla retention locale). `GET /api/index/integrity`
+espone la classificazione READ-ONLY sotto il campo `qdrant_alias`:
+`legacy`/`aligned`/`missing`/`diverging`/`unknown`.
 
 ### Retrocompatibilità e formati legacy
 

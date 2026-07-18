@@ -477,4 +477,49 @@ def test_real_qdrant_rejects_alias_with_same_name_as_existing_collection():
                 client.delete_collection(col)
             except Exception:
                 pass
+
+
+def test_real_qdrant_rejects_create_collection_on_an_alias_name(monkeypatch):
+    """Integrazione opzionale: verifica l'ASSUNZIONE su cui poggia il fix post-S10
+    di incremental_index — Qdrant rifiuta create_collection() su un nome che è già
+    un ALIAS (400 Bad Request), esattamente il bug che _ensure_collection(qdrant,
+    collection_name=COLLECTION_NAME) provocava quando COLLECTION_NAME è un alias.
+    Il fix passa invece la collection FISICA del padre: _ensure_collection su quel
+    nome deve riuscire senza sollevare (già esiste, no-op). Nomi throwaway dedicati,
+    MAI COLLECTION_NAME — non tocca la produzione."""
+    client = _real_qdrant_client_or_skip()
+    from qdrant_client.models import Distance, VectorParams
+
+    physical = "_test_blue_green_ensure_physical"
+    alias = "_test_blue_green_ensure_alias"
+    try:
+        for col in (physical,):
+            try:
+                client.delete_collection(col)  # idempotenza: ripulisce un run precedente interrotto
+            except Exception:
+                pass
+        client.create_collection(
+            collection_name=physical,
+            vectors_config=VectorParams(size=4, distance=Distance.COSINE),
+        )
+        index._swap_alias(client, alias, physical)
+        assert index._read_alias_target(client, alias) == physical
+
+        # Esattamente il bug: _ensure_collection sul nome dell'ALIAS solleva.
+        with pytest.raises(Exception):
+            index._ensure_collection(client, recreate=False, collection_name=alias)
+
+        # Il fix: _ensure_collection sulla collection FISICA del padre non solleva
+        # (esiste già -> no-op).
+        index._ensure_collection(client, recreate=False, collection_name=physical)
+    finally:
+        try:
+            client.update_collection_aliases(change_aliases_operations=[])
+        except Exception:
+            pass
+        try:
+            client.delete_collection(physical)  # cancella anche l'alias che la puntava
+        except Exception:
+            pass
+        client.close()
         client.close()
