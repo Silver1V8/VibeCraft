@@ -1521,29 +1521,46 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
 
     # Lineage blue/green: il manifest figlio erediterà qdrant_collection dal padre
     # (`manifest`, letto a inizio funzione — è ancora quello della versione attiva,
-    # perché la promote di questa versione avviene solo DOPO). Calcolato qui, PRIMA
-    # di _ensure_collection, perché è anche il nome giusto su cui operare: post
-    # migrazione one-shot, COLLECTION_NAME è un ALIAS, non più una collection fisica
-    # — get_collections() non lo elenca e Qdrant rifiuta create_collection su un nome
-    # già alias (400). _ensure_collection deve quindi ricevere sempre la collection
-    # FISICA del padre, mai l'alias.
+    # perché la promote di questa versione avviene solo DOPO).
     parent_qdrant_collection = manifest.get("qdrant_collection") if isinstance(manifest, dict) else None
 
-    # Bootstrap (nessun manifest padre, o manifest antecedente all'introduzione del
-    # campo qdrant_collection): se COLLECTION_NAME è GIÀ un alias (la migrazione
-    # legacy→alias è già avvenuta altrove; qui si arriva così solo se CURRENT è
-    # tornato, via rollback, a una versione con un manifest così vecchio), non c'è
-    # nulla da assicurare — l'alias risolve per costruzione a una collection fisica
-    # già esistente. Solo se COLLECTION_NAME NON è un alias (vero fresh install, o
-    # layout non ancora migrato) è la collection fisica storica su cui operare,
-    # esattamente come prima di questo fix.
-    ensure_collection_name = parent_qdrant_collection
-    if ensure_collection_name is None and _read_alias_target(qdrant, COLLECTION_NAME) is None:
-        ensure_collection_name = COLLECTION_NAME
-
-    # L'incrementale NON ricrea la collection: la crea solo se assente, preservando i punti.
-    if ensure_collection_name is not None:
-        _ensure_collection(qdrant, recreate=False, collection_name=ensure_collection_name)
+    if parent_qdrant_collection is not None:
+        # Guardia di lineage: PRIMA di qualunque scrittura (delete/upsert/ensure)
+        # l'alias deve puntare alla collection del padre. Questo è un punto writer,
+        # quindi la riparazione mirata è consentita: repair_qdrant_alias sposta
+        # l'alias sulla collection attesa se esiste, e non tocca nulla altrimenti.
+        # Se dopo la riparazione lo stato resta divergente o senza alias, si
+        # abortisce: le point-operation sotto passano per l'alias, e scrivere con
+        # l'alias fuori lineage upserterebbe/cancellerebbe su una collection che
+        # non è quella del padre.
+        repair = repair_qdrant_alias(qdrant, emit=_log)
+        if repair["state"] in ("diverging", "missing") and not repair["repaired"]:
+            raise RuntimeError(
+                f"Alias Qdrant '{COLLECTION_NAME}' in stato '{repair['state']}': attesa la "
+                f"collection del padre '{repair['expected']}', target attuale "
+                f"'{repair['actual']}', e riparazione impossibile (la collection attesa non "
+                f"esiste su Qdrant). Incrementale abortito senza scritture: full rebuild richiesto."
+            )
+        # La collection fisica del padre deve ESISTERE già: il percorso incrementale
+        # non crea MAI una collection mancante della lineage — una create qui
+        # produrrebbe una collection vuota "legittimata" dall'alias, mascherando la
+        # perdita dei vettori del padre. Post-riparazione l'alias punta a questa
+        # collection per costruzione, quindi le point-operation sull'alias sono sicure.
+        if not _qdrant_collection_exists(qdrant, parent_qdrant_collection):
+            raise RuntimeError(
+                f"Collection del padre '{parent_qdrant_collection}' assente su Qdrant: "
+                f"l'incrementale non la ricrea mai — full rebuild richiesto."
+            )
+    elif _read_alias_target(qdrant, COLLECTION_NAME) is None:
+        # Bootstrap (nessun manifest padre, o manifest antecedente all'introduzione
+        # del campo qdrant_collection) SENZA alias: vero fresh install o layout non
+        # ancora migrato — COLLECTION_NAME è la collection fisica storica, creata
+        # solo se assente (mai ricreata, i punti sono preservati), esattamente come
+        # prima di questo fix. Se invece l'alias esiste GIÀ (manifest legacy con
+        # migrazione avvenuta altrove, es. rollback molto indietro), non c'è nulla
+        # da assicurare né da guardare: l'alias risolve per costruzione a una
+        # collection fisica esistente (stato "legacy" del reconciler, nessun abort).
+        _ensure_collection(qdrant, recreate=False, collection_name=COLLECTION_NAME)
 
     # Carica lo stato precedente dagli artefatti (nuovi formati, con fallback pickle
     # legacy + warning). Gli artefatti assenti diventano il loro default vuoto.
@@ -1565,10 +1582,11 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     # incrementali promuovono sempre (l'eval gate riguarda solo i job full del manager).
     version = save_artifacts(graph, colbert_store, chunks_store, dense_store, code_store)
     # Lineage blue/green: il manifest figlio eredita `parent_qdrant_collection`
-    # (calcolato sopra, prima di _ensure_collection). Bootstrap/fresh install senza
+    # (calcolato sopra, prima della guardia di lineage). Bootstrap/fresh install senza
     # manifest padre o senza il campo: None qui, che write_index_manifest risolve nel
-    # suo stesso default storico (COLLECTION_NAME). L'incrementale non tocca MAI
-    # l'alias: eredita solo il nome della collection, non promuove né swappa.
+    # suo stesso default storico (COLLECTION_NAME). L'incrementale non promuove MAI
+    # l'alias su una nuova collection: al più lo RIPARA verso quella del padre
+    # (guardia sopra, prima di ogni scrittura), e il manifest ne eredita solo il nome.
     write_index_manifest(len(chunks_store), graph.number_of_nodes(), graph.number_of_edges(),
                          version=version, qdrant_collection=parent_qdrant_collection)
     if version:  # None solo con save_artifacts finto nei test

@@ -1065,8 +1065,9 @@ def test_full_rebuild_never_calls_reconciler_repair_helpers(monkeypatch, tmp_pat
 
 # ---------------------------------------------------------------------------
 # 9. Rollback blue/green (alias swap nel chiamante, mai in core.artifacts) e
-# lineage incrementale (il figlio eredita qdrant_collection dal padre, senza mai
-# muovere l'alias).
+# lineage incrementale (il figlio eredita qdrant_collection dal padre; l'alias non
+# viene mai promosso su una nuova collection — al più RIPARATO verso quella del
+# padre dalla guardia di lineage, vedi 9c).
 # ---------------------------------------------------------------------------
 def test_rollback_cross_lineage_swaps_alias_to_target_collection(monkeypatch, tmp_path):
     docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
@@ -1199,7 +1200,10 @@ def test_incremental_index_bootstrap_without_parent_manifest_falls_back_to_colle
 
 def test_incremental_index_never_calls_swap_alias(monkeypatch, tmp_path):
     """Vincolo esplicito: l'incrementale eredita la collection del padre ma non
-    promuove né sposta MAI l'alias."""
+    promuove MAI l'alias su una nuova collection. Con lo stato allineato (questo
+    scenario) non lo tocca affatto; l'unico movimento ammesso è la RIPARAZIONE
+    verso la collection del padre quando l'alias parte divergente (guardia di
+    lineage R1, testata in 9c) — mai uno swap verso la versione appena creata."""
     docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
     (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
     monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
@@ -1217,18 +1221,21 @@ def test_incremental_index_never_calls_swap_alias(monkeypatch, tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# 9b. Fix post-S10: post migrazione, COLLECTION_NAME è un ALIAS, non più una
-# collection fisica. _ensure_collection non deve MAI riceverlo (Qdrant reale
-# rifiuta create_collection su un nome già alias, 400) — deve sempre operare sulla
-# collection FISICA del padre. Le operazioni dati (upsert/delete/count) continuano
+# 9b. Fix post-S10 (aggiornato dalla guardia di lineage R1): post migrazione,
+# COLLECTION_NAME è un ALIAS, non più una collection fisica. Con un padre
+# non-legacy, _ensure_collection non va chiamata AFFATTO: né sull'alias (Qdrant
+# reale rifiuta create_collection su un nome già alias, 400) né sulla collection
+# FISICA del padre (che l'incrementale non deve mai poter ricreare: se manca, è
+# perdita di lineage → abort, vedi 9c). L'esistenza viene solo VERIFICATA
+# (_qdrant_collection_exists). Le operazioni dati (upsert/delete/count) continuano
 # invece a passare per l'alias COLLECTION_NAME, come sempre.
 # ---------------------------------------------------------------------------
-def test_incremental_index_ensures_the_physical_parent_collection_not_the_alias(monkeypatch, tmp_path):
+def test_incremental_index_with_parent_lineage_never_calls_ensure_collection(monkeypatch, tmp_path):
     """Layout post-S10: COLLECTION_NAME è un alias verso una collection fisica
-    versionata (creata da un full rebuild già promosso). _ensure_collection deve
-    operare sulla collection FISICA del padre, mai sull'alias — il fake
-    (StatefulFakeQdrant.create_collection) solleva se riceve un nome già alias,
-    replicando il 400 reale."""
+    versionata (creata da un full rebuild già promosso). Nuovo contratto (R1):
+    l'incrementale non chiama MAI _ensure_collection — la collection del padre
+    esiste e viene solo verificata, mai (ri)creata; l'alias non è comunque mai un
+    nome valido per create_collection (il fake replica il 400 reale)."""
     docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
     (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
     monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
@@ -1248,10 +1255,10 @@ def test_incremental_index_ensures_the_physical_parent_collection_not_the_alias(
     monkeypatch.setattr(index, "_ensure_collection", _spy_ensure)
 
     (docs_dir / "spec.md").write_text(_spec("BETA"), encoding="utf-8")
-    index.incremental_index(qdrant=q, embed_model=stub)  # non deve sollevare (400 su alias, pre-fix)
+    stats = index.incremental_index(qdrant=q, embed_model=stub)
 
-    assert ensure_calls == [parent_collection]
-    assert index.COLLECTION_NAME not in ensure_calls  # mai l'alias
+    assert stats["version"]
+    assert ensure_calls == []  # mai chiamata: né sull'alias né sulla collection del padre
 
 
 def test_incremental_index_data_ops_still_go_through_the_alias(monkeypatch, tmp_path):
@@ -1306,6 +1313,168 @@ def test_incremental_index_bootstrap_when_alias_already_exists_skips_ensure_coll
 
     assert stats["version"]  # arrivato qui senza eccezioni: _ensure_collection mai chiamata
     assert _manifest_for_version(stats["version"])["qdrant_collection"] == index.COLLECTION_NAME
+
+
+# ---------------------------------------------------------------------------
+# 9c. Guardia di lineage (R1): con un padre non-legacy, PRIMA di qualunque
+# scrittura l'incrementale ripara l'alias verso la collection del padre se
+# possibile (punto writer: repair_qdrant_alias), e abortisce con RuntimeError se
+# l'alias resta fuori lineage o se la collection del padre non esiste più (mai
+# ricreata dal percorso incrementale). Bootstrap e manifest legacy: nessuna
+# guardia, comportamento storico invariato.
+# ---------------------------------------------------------------------------
+class LineageFakeQdrant(StatefulFakeQdrant):
+    """StatefulFakeQdrant + registrazione della collection FISICA su cui atterra
+    ogni point-operation (upsert/delete), risolvendo l'alias come il Qdrant reale:
+    serve alla guardia di lineage per verificare che NESSUNA scrittura finisca su
+    una collection fuori lineage — l'attributo ereditato upserted_collection_names
+    registra il nome PASSATO (l'alias), non quello risolto."""
+
+    def __init__(self):
+        super().__init__()
+        self.point_op_targets: list[str] = []
+
+    def _resolve(self, name: str) -> str:
+        return self.aliases.get(name, name)
+
+    def upsert(self, collection_name, points):
+        self.point_op_targets.append(self._resolve(collection_name))
+        super().upsert(collection_name, points)
+
+    def delete(self, collection_name, points_selector):
+        self.point_op_targets.append(self._resolve(collection_name))
+        super().delete(collection_name, points_selector)
+
+
+def test_incremental_lineage_guard_repairs_diverging_alias_before_any_write(monkeypatch, tmp_path):
+    """(a) Alias dirottato su una collection estranea X, manifest padre → Y, Y
+    esistente: la guardia ripara (alias → Y) PRIMA di ogni scrittura e
+    l'incrementale procede — nessun upsert/delete deve essere finito su X."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    stub, q = StubEmbed(), LineageFakeQdrant()
+
+    parent_version = index.build_graph_and_index(qdrant=q, embed_model=stub)
+    parent_collection = index.qdrant_collection_name(parent_version)  # Y
+
+    stray = index.qdrant_collection_name("v-estranea")  # X: fuori lineage
+    q.collections.add(stray)
+    q.aliases[index.COLLECTION_NAME] = stray  # incidente operativo: alias → X
+
+    q.point_op_targets.clear()  # isola le scritture del solo incrementale
+    (docs_dir / "spec.md").write_text(_spec("BETA"), encoding="utf-8")
+    stats = index.incremental_index(qdrant=q, embed_model=stub)
+
+    assert stats["version"]
+    assert q.aliases[index.COLLECTION_NAME] == parent_collection  # riparato: alias → Y
+    assert q.point_op_targets  # l'incrementale ha scritto davvero (delete+upsert)
+    assert set(q.point_op_targets) == {parent_collection}  # tutto su Y, nulla su X
+    assert _manifest_for_version(stats["version"])["qdrant_collection"] == parent_collection
+
+
+def test_incremental_lineage_guard_aborts_when_parent_collection_gone_and_alias_diverging(monkeypatch, tmp_path):
+    """(b) Alias → X, manifest padre → Y, ma Y non esiste più (GC-ata/cancellata a
+    mano): la riparazione è impossibile (nessuna collection inventata) →
+    RuntimeError PRIMA di ogni scrittura. Nessuna create di Y, nessun upsert/delete
+    su X, nessuna versione promossa."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    stub, q = StubEmbed(), LineageFakeQdrant()
+
+    parent_version = index.build_graph_and_index(qdrant=q, embed_model=stub)
+    parent_collection = index.qdrant_collection_name(parent_version)  # Y
+
+    stray = index.qdrant_collection_name("v-estranea")  # X
+    q.collections.add(stray)
+    q.aliases[index.COLLECTION_NAME] = stray  # alias → X
+    q.collections.discard(parent_collection)  # Y sparita (bypassa delete_collection: X resta alias)
+
+    q.point_op_targets.clear()
+    q.created_collection_names.clear()
+    (docs_dir / "spec.md").write_text(_spec("BETA"), encoding="utf-8")
+    with pytest.raises(RuntimeError, match="full rebuild"):
+        index.incremental_index(qdrant=q, embed_model=stub)
+
+    assert q.point_op_targets == []  # nessun upsert/delete, né su X né altrove
+    assert q.created_collection_names == []  # Y mai ricreata
+    assert q.aliases[index.COLLECTION_NAME] == stray  # riparazione conservativa: alias intatto
+    assert _artifacts.current_version_token() == parent_version  # nessuna versione promossa
+
+
+def test_incremental_lineage_guard_aborts_when_parent_collection_gone_and_alias_missing(monkeypatch, tmp_path):
+    """(c) Collection del padre GC-ata e alias sparito con lei (delete_collection
+    reale invalida gli alias che la puntavano): stato 'missing' irreparabile →
+    RuntimeError, nessuna collection creata, nessuna scrittura."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    stub, q = StubEmbed(), LineageFakeQdrant()
+
+    parent_version = index.build_graph_and_index(qdrant=q, embed_model=stub)
+    parent_collection = index.qdrant_collection_name(parent_version)  # Y
+
+    q.delete_collection(parent_collection)  # GC: come Qdrant reale, cade anche l'alias
+    assert index.COLLECTION_NAME not in q.aliases
+
+    q.point_op_targets.clear()
+    q.created_collection_names.clear()
+    (docs_dir / "spec.md").write_text(_spec("BETA"), encoding="utf-8")
+    with pytest.raises(RuntimeError, match="full rebuild"):
+        index.incremental_index(qdrant=q, embed_model=stub)
+
+    assert q.created_collection_names == []  # nessuna collection creata (né Y né altro)
+    assert q.point_op_targets == []
+    assert index.COLLECTION_NAME not in q.aliases  # nessun alias inventato
+    assert _artifacts.current_version_token() == parent_version
+
+
+def test_incremental_lineage_guard_bootstrap_fresh_install_unchanged(monkeypatch, tmp_path):
+    """(d) Fresh install (nessun manifest padre, nessun alias): comportamento
+    storico invariato — l'incrementale crea la collection FISICA COLLECTION_NAME
+    e procede, senza alcuna guardia di lineage."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    stub, q = StubEmbed(), LineageFakeQdrant()
+
+    stats = index.incremental_index(qdrant=q, embed_model=stub)
+
+    assert stats["version"]
+    assert q.created_collection_names == [index.COLLECTION_NAME]  # la fisica storica
+    assert index.COLLECTION_NAME in q.collections
+
+
+def test_incremental_lineage_guard_skips_repair_on_legacy_manifest_with_alias(monkeypatch, tmp_path):
+    """(e) Manifest legacy (senza qdrant_collection) + alias esistente: NESSUNA
+    guardia — repair_qdrant_alias non viene proprio invocata (stato 'legacy' del
+    reconciler) e l'incrementale procede senza abort. Complementa il test di
+    bootstrap sopra, che pinna il non-uso di _ensure_collection nello stesso
+    scenario."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    stub, q = StubEmbed(), LineageFakeQdrant()
+
+    physical = index.qdrant_collection_name("v-migrata-altrove")
+    q.collections.add(physical)
+    q.aliases[index.COLLECTION_NAME] = physical
+
+    # Manifest legacy: scrittura diretta senza il campo qdrant_collection (come nel
+    # test di bootstrap: write_index_manifest lo riempirebbe sempre col default).
+    v_legacy = index.save_artifacts(nx.DiGraph(), {}, {}, {}, {})
+    legacy_manifest_path = _artifacts.version_dir(v_legacy) / "index_manifest.json"
+    legacy_manifest_path.write_text(json.dumps({"version": v_legacy}), encoding="utf-8")
+    index.promote_version(v_legacy)
+
+    def _boom(*a, **k):
+        raise AssertionError("manifest legacy: la guardia di lineage non va invocata")
+    monkeypatch.setattr(index, "repair_qdrant_alias", _boom)
+    monkeypatch.setattr(index, "reconcile_and_repair_qdrant_alias", _boom)
+
+    (docs_dir / "spec.md").write_text(_spec("BETA"), encoding="utf-8")
+    stats = index.incremental_index(qdrant=q, embed_model=stub)
+
+    assert stats["version"]  # nessun abort, nessuna riparazione tentata
 
 
 # ---------------------------------------------------------------------------
