@@ -8,9 +8,12 @@
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Vis.js Network -->
+  <!-- Vis.js Network (vista 2D) -->
   <link  href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+
+  <!-- 3d-force-graph (vista 3D, WebGL/Three.js — bundle self-contained) -->
+  <script src="https://unpkg.com/3d-force-graph@1.73.3/dist/3d-force-graph.min.js"></script>
 
   <script>
     /* Tailwind punta a CSS variables: le classi (bg-slate-900, text-blue-400, ecc.)
@@ -126,6 +129,28 @@
       height: 100%;
       background: var(--bg-canvas);
       border-radius: 0.75rem;
+    }
+
+    /* 3d-force-graph container (stessa geometria, mostrato in alternativa al 2D) */
+    #graph-canvas-3d {
+      width: 100%;
+      height: 100%;
+      background: var(--bg-canvas);
+      border-radius: 0.75rem;
+    }
+
+    /* Toggle vista 2D/3D */
+    .view-toggle-btn {
+      padding: 0.3rem 0.6rem;
+      font-size: 0.7rem;
+      font-weight: 700;
+      border-radius: 0.5rem;
+      transition: background .15s, color .15s;
+      color: var(--slate-400, #94a3b8);
+    }
+    .view-toggle-btn.active {
+      background: var(--brand-600, #7c3aed);
+      color: #fff;
     }
 
     #tab-graph-panel { transition: box-shadow 0.3s ease, border-color 0.3s ease; }
@@ -387,6 +412,13 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
               </svg>
             </button>
+            <!-- Toggle vista 2D/3D -->
+            <div class="flex items-center rounded-lg border border-slate-700 bg-slate-800/60 overflow-hidden">
+              <button id="view-mode-2d-btn" onclick="setGraphViewMode('2d')" title="Vista 2D"
+                class="view-toggle-btn active">2D</button>
+              <button id="view-mode-3d-btn" onclick="setGraphViewMode('3d')" title="Vista 3D"
+                class="view-toggle-btn">3D</button>
+            </div>
           </div>
         </div>
       </div>
@@ -397,6 +429,7 @@
         <!-- TAB: Mappa del Grafo -->
         <div id="tab-graph-panel" class="absolute inset-0 rounded-xl overflow-hidden border border-slate-800">
           <div id="graph-canvas"></div>
+          <div id="graph-canvas-3d" style="display:none"></div>
           <!-- Legenda cromatica dei pilastri REASONS (compare quando c'è un grafo) -->
           <div id="reasons-legend" style="display:none"
             class="absolute bottom-3 left-3 z-20 rounded-lg border border-slate-700 bg-slate-900/70 backdrop-blur-md px-3 py-2 pointer-events-none">
@@ -495,6 +528,13 @@
     let currentEdges = new vis.DataSet();
     let lastQueryGraphData = null;  // { nodes, edges, seedNodes } dell'ultima query /ask
 
+    /* ──────────── VISTA 2D/3D ──────────── */
+    let graphViewMode  = '2d';   // '2d' (vis.js) oppure '3d' (3d-force-graph / WebGL)
+    let graph3d        = null;   // istanza ForceGraph3D, creata al primo uso
+    let lastGraphNodes = [];     // ultimo array di nodi renderizzato (per il toggle di vista)
+    let lastGraphEdges = [];     // ultimo array di archi renderizzato
+    let lastVisOptions = null;   // ultime opzioni vis.Network usate (fisica), riusate al ritorno al 2D
+
     /* ──────────── REASONS: COLORAZIONE CROMATICA ──────────── */
     // Ogni pilastro REASONS ha un colore semantico. I documenti vengono assegnati
     // a un pilastro leggendo il campo `classification` del loro frontmatter YAML;
@@ -564,7 +604,107 @@
     }
 
     function fitGraph() {
-      if (network) network.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
+      if (graphViewMode === '3d') {
+        if (graph3d) graph3d.zoomToFit(500, 40);
+      } else if (network) {
+        network.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
+      }
+    }
+
+    /* ──────────── RENDERER GENERICO (dispatcha su 2D o 3D) ──────────── */
+    function renderGraph(nodes, edges, visOptions) {
+      lastGraphNodes = nodes;
+      lastGraphEdges = edges;
+      if (visOptions) lastVisOptions = visOptions;
+
+      currentNodes = new vis.DataSet(nodes);
+      currentEdges = new vis.DataSet(edges);
+
+      if (graphViewMode === '3d') {
+        render3D(nodes, edges);
+      } else {
+        render2D(nodes, edges, lastVisOptions);
+      }
+
+      document.getElementById('graph-counter').textContent =
+        `${nodes.length} nodi · ${edges.length} archi`;
+    }
+
+    function render2D(nodes, edges, visOptions) {
+      const container = document.getElementById('graph-canvas');
+      const data = { nodes: currentNodes, edges: currentEdges };
+      if (network) {
+        network.setData(data);
+        network.setOptions(visOptions);
+      } else {
+        network = new vis.Network(container, data, visOptions);
+        attachTooltipListeners();
+      }
+    }
+
+    function resize3DCanvas() {
+      if (!graph3d) return;
+      const el = document.getElementById('graph-canvas-3d');
+      graph3d.width(el.clientWidth || 300).height(el.clientHeight || 300);
+    }
+
+    function render3D(nodes, edges) {
+      const nodeById = new Map(nodes.map(n => [n.id, n]));
+      const graphData = {
+        nodes: nodes.map(n => ({
+          id: n.id,
+          nodeId: n.nodeId,
+          label: n.label,
+          nodeType: n.nodeType,
+          description: n.description,
+          pillar: n.pillar,
+          color: (n.color && (n.color.border || n.color.background)) || '#94a3b8',
+          val: Math.max(1, (n.size || 12) / 4),
+        })),
+        links: edges.map(e => ({
+          source: e.from,
+          target: e.to,
+          label: e.label || '',
+          color: (e.color && e.color.color) || '#4dbf6e',
+        })),
+      };
+
+      if (!graph3d) {
+        const el = document.getElementById('graph-canvas-3d');
+        graph3d = ForceGraph3D()(el)
+          .backgroundColor('rgba(0,0,0,0)')
+          .nodeLabel(n => makeTooltipHtml(n.nodeId || n.id, n.description || ''))
+          .nodeColor('color')
+          .nodeVal('val')
+          .linkColor('color')
+          .linkLabel('label')
+          .linkWidth(0.6)
+          .linkDirectionalArrowLength(3.5)
+          .linkDirectionalArrowRelPos(1)
+          .linkOpacity(0.35)
+          .onNodeClick(n => renderNodeDetails(n.id))
+          .onBackgroundClick(() => closeNodeDetails());
+        resize3DCanvas();
+        window.addEventListener('resize', resize3DCanvas);
+      }
+
+      graph3d.graphData(graphData);
+      resize3DCanvas();
+    }
+
+    function setGraphViewMode(mode) {
+      if (mode === graphViewMode) return;
+      graphViewMode = mode;
+
+      document.getElementById('view-mode-2d-btn').classList.toggle('active', mode === '2d');
+      document.getElementById('view-mode-3d-btn').classList.toggle('active', mode === '3d');
+      document.getElementById('graph-canvas').style.display    = (mode === '2d') ? '' : 'none';
+      document.getElementById('graph-canvas-3d').style.display = (mode === '3d') ? '' : 'none';
+
+      if (lastGraphNodes.length) {
+        if (mode === '3d') render3D(lastGraphNodes, lastGraphEdges);
+        else render2D(lastGraphNodes, lastGraphEdges, lastVisOptions);
+      }
     }
 
     /* ──────────── TAB SWITCHER ──────────── */
@@ -585,8 +725,13 @@
       // Controlli grafo: visibili solo nel tab Mappa
       document.getElementById('graph-controls').style.display = (tab === 'graph') ? '' : 'none';
 
-      // Forza il ridisegno di Vis.js quando si torna al grafo
-      if (tab === 'graph' && network) setTimeout(() => { network.redraw(); }, 60);
+      // Forza il ridisegno del grafo (2D o 3D) quando si torna al tab Mappa
+      if (tab === 'graph') {
+        setTimeout(() => {
+          if (network) network.redraw();
+          if (graph3d) resize3DCanvas();
+        }, 60);
+      }
     }
 
     /* ──────────── GRAPH MODE HELPERS ──────────── */
@@ -676,12 +821,7 @@
           smooth: { type:'dynamic' },
         }));
 
-        currentNodes = new vis.DataSet(nodes);
-        currentEdges = new vis.DataSet(edges);
-
-        const container = document.getElementById('graph-canvas');
-        const visData   = { nodes: currentNodes, edges: currentEdges };
-        const options   = {
+        const options = {
           physics: {
             enabled: true,
             barnesHut: {
@@ -696,16 +836,7 @@
           layout: { improvedLayout: nodes.length < 300 },
         };
 
-        if (network) {
-          network.setData(visData);
-          network.setOptions(options);
-        } else {
-          network = new vis.Network(container, visData, options);
-          attachTooltipListeners();
-        }
-
-        document.getElementById('graph-counter').textContent =
-          `${nodes.length} nodi · ${edges.length} archi`;
+        renderGraph(nodes, edges, options);
         setStatus('success');
         setTimeout(fitGraph, 600);
 
@@ -885,12 +1016,7 @@
         smooth: { type: 'dynamic' },
       }));
 
-      currentNodes = new vis.DataSet(nodes);
-      currentEdges = new vis.DataSet(edges);
-
-      const container = document.getElementById('graph-canvas');
-      const data      = { nodes: currentNodes, edges: currentEdges };
-      const options   = {
+      const options = {
         physics: {
           enabled: true,
           barnesHut: { gravitationalConstant: -4000, springLength: 120, springConstant: 0.04, damping: 0.2 },
@@ -906,17 +1032,7 @@
         layout: { improvedLayout: true },
       };
 
-      if (network) {
-        network.setData(data);
-        network.setOptions(options);
-      } else {
-        network = new vis.Network(container, data, options);
-        attachTooltipListeners();
-      }
-
-      // Counter
-      document.getElementById('graph-counter').textContent =
-        `${nodes.length} nodi · ${edges.length} archi`;
+      renderGraph(nodes, edges, options);
     }
 
     /* ──────────── SCORES RENDERER ──────────── */
