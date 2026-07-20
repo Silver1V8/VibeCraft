@@ -155,6 +155,12 @@ DOCS_DIR = PROJECT_ROOT / config["paths"]["docs_dir"].lstrip("./")
 DENSE_DIM = 1024
 DOC_EXTS = (".md", ".txt", ".docx", ".xlsx", ".pdf")
 
+# Base URL di Ollama (host:porta), sovrascrivibile via env per setup non locali
+# (Docker, host GPU remoto). core/llm.py ne deriva l'endpoint /api/generate e
+# routes_health il ping /api/tags: nessun altro punto del codice deve contenere
+# un URL Ollama letterale.
+OLLAMA_URL = os.environ.get("VIBECRAFT_OLLAMA_URL", "http://127.0.0.1:11434")
+
 # Generazioni con modelli grandi (es. qwen2.5:14b) su CPU possono richiedere diversi minuti:
 # un timeout troppo corto interrompe la richiesta anche quando Ollama sta ancora generando.
 OLLAMA_TIMEOUT_SECONDS = float(os.environ.get("VIBECRAFT_OLLAMA_TIMEOUT_SECONDS", "1800"))

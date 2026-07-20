@@ -30,7 +30,7 @@ llm_settings:
   ollama_num_ctx: 16384
 
   # Override opzionale provider/modello PER SINGOLO STEP della pipeline (core/llm.py).
-  # Scopi riconosciuti: drift, canvas, propose, validate, explore, review.
+  # Scopi riconosciuti: drift, canvas, propose, validate, explore, review, ask.
   # Ogni chiave può indicare provider e/o model; ciò che manca ricade su
   # active_provider / models. Esempio: canvas su Claude, il resto su Ollama.
   #

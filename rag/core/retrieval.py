@@ -1,10 +1,10 @@
 """Recupero ibrido (dense + sparse + ColBERT), ri-ponderazione per autorità, selezione
-del contesto governato e sintesi LLM. Logica pura: le risorse di runtime (client Qdrant,
+del contesto governato e costruzione del prompt di sintesi di /ask (la chiamata LLM
+vive in core/llm.py). Logica pura: le risorse di runtime (client Qdrant,
 modello di embedding, sidecar ColBERT, grafo, sidecar dei chunk) sono passate come
 parametri espliciti dai chiamanti (dependency injection), non lette da uno stato globale."""
 from typing import Any
 
-import httpx
 import networkx as nx
 import numpy as np
 from qdrant_client.models import FieldCondition, Filter, MatchAny, SparseVector
@@ -15,11 +15,6 @@ from core.config import (
     AUTHORITY_CLASS_WEIGHTS as _CFG_CLASS_WEIGHTS,
     AUTHORITY_DEFAULT_WEIGHT,
     COLLECTION_NAME,
-    LLM_MODEL,
-    LLM_PROVIDER,
-    OLLAMA_NUM_CTX,
-    OLLAMA_THINK,
-    OLLAMA_TIMEOUT_SECONDS,
 )
 
 
@@ -350,7 +345,12 @@ def collect_implementing_code(graph, code_store: dict, anchor_nodes,
     return out
 
 
-def call_llm(context: str, question: str) -> str:
+def build_ask_prompt(context: str, question: str) -> str:
+    """Prompt completo della sintesi di /ask, da passare a core.llm con purpose "ask":
+    system prompt storico (INVARIATO carattere per carattere, incluse le regole
+    [REGOLA-DIZIONARIO-RIGIDO]) concatenato al messaggio utente nello stesso formato
+    di sempre. Funzione PURA: provider, num_ctx/think e gestione errori vivono in
+    core/llm.py come per tutti gli altri scopi."""
     # BLINDATURA RIGIDA DEL DIZIONARIO DATI DEL PROMPT DI SISTEMA
     system_prompt = (
         "Sei l'Ispettore di Governance di VibeCraft.\n"
@@ -361,65 +361,4 @@ def call_llm(context: str, question: str) -> str:
     )
 
     user_message = f"Contesto grafo:\n{context}\n\nDomanda: {question}"
-
-    if LLM_PROVIDER == "anthropic":
-        import anthropic
-        client = anthropic.Anthropic()
-        message = client.messages.create(
-            model=LLM_MODEL,
-            max_tokens=1024,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_message}],
-        )
-        return message.content[0].text
-
-    elif LLM_PROVIDER == "openai":
-        import openai
-        client = openai.OpenAI()
-        response = client.chat.completions.create(
-            model=LLM_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
-        )
-        return response.choices[0].message.content
-
-    elif LLM_PROVIDER == "ollama":
-        try:
-            # think/num_ctx allineati a core.llm._ollama_payload (stesso rag_config.yaml,
-            # stesso motivo: senza think:false qwen3.5 spende la generazione in ragionamento
-            # interno prima della risposta; senza num_ctx Ollama ricade sul default del
-            # modello, che con qwen3.5 è 32768 — cache KV inutilmente grande che spinge il
-            # caricamento del modello fuori dagli 8GB di VRAM in split GPU/CPU, molto più lento).
-            options = {"temperature": 0.0}
-            if OLLAMA_NUM_CTX is not None:
-                options["num_ctx"] = OLLAMA_NUM_CTX
-            payload = {
-                "model": LLM_MODEL,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_message},
-                ],
-                "stream": False,
-                "options": options,
-            }
-            if OLLAMA_THINK is not None:
-                payload["think"] = OLLAMA_THINK
-            response = httpx.post(
-                "http://localhost:11434/api/chat",
-                json=payload,
-                timeout=OLLAMA_TIMEOUT_SECONDS,
-            )
-            if response.status_code == 404:
-                return f"[ERRORE OLLAMA]: Il modello '{LLM_MODEL}' non è stato trovato. Esegui 'ollama pull {LLM_MODEL}' nel terminale."
-            response.raise_for_status()
-            return response.json()["message"]["content"]
-        except httpx.ConnectError:
-            return "[ERRORE DI CONNESSIONE]: Impossibile raggiungere Ollama. Assicurati che l'applicazione Ollama sia avviata sul tuo computer."
-        except httpx.TimeoutException:
-            return "[ERRORE DI TIMEOUT]: Ollama sta impiegando troppo tempo a rispondere."
-        except Exception as e:
-            return f"[ERRORE GENERICO OLLAMA]: {str(e)}"
-
-    raise ValueError(f"Provider LLM non supportato: '{LLM_PROVIDER}'")
+    return f"{system_prompt}\n\n{user_message}"
