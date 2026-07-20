@@ -26,7 +26,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 import api.deps as deps
-from api import routes_pipeline, routes_reindex
+from api import routes_pipeline, routes_reindex, routes_retrieval
 from api.models import (
     ArchiveRequest,
     CanvasGenerateRequest,
@@ -621,10 +621,9 @@ def test_route_propose_generate_rejects_stale_or_tampered_meta_dev_type(code_dir
 # (api.deps.require_not_cross_site_request — matrice in SECURITY_SURFACE.md §2)
 # ===========================================================================
 
-# Route della matrice M7 protette in questa sessione: 8 mandatorie (mutano stato) +
-# 4 raccomandate (eseguono LLM senza mutare). La quinta raccomandata della matrice,
-# POST /ask, vive in api/routes_retrieval.py — fuori dallo scope file della Sessione 6:
-# mismatch riportato nel report R2, non coperto qui.
+# Route della matrice M7 (SECURITY_SURFACE.md §2, "Sintesi ambito R2"): 8 mandatorie
+# (mutano stato) + 5 raccomandate (eseguono LLM senza mutare, incluso POST /ask in
+# api/routes_retrieval.py) = 13 POST. Corrispondenza 1:1 con la matrice.
 _ANTI_XSITE_ROUTES = [
     (routes_reindex.router, "POST", "/api/reindex"),
     (routes_reindex.router, "POST", "/api/index/rollback"),
@@ -638,6 +637,7 @@ _ANTI_XSITE_ROUTES = [
     (routes_pipeline.router, "POST", "/api/pipeline/drift/check"),
     (routes_pipeline.router, "POST", "/api/pipeline/drift/check/stream"),
     (routes_pipeline.router, "POST", "/api/pipeline/validate"),
+    (routes_retrieval.router, "POST", "/ask"),
 ]
 
 
@@ -683,14 +683,15 @@ def test_excluded_route_does_not_declare_anti_cross_site_dependency(router, meth
     assert deps.require_not_cross_site_request not in _route_dependency_fns(router, method, path)
 
 
-# --- Wiring HTTP reale sulle 12 route della matrice ---
+# --- Wiring HTTP reale sulle 13 route della matrice ---
 @pytest.fixture
 def xsite_client(monkeypatch, tmp_path):
-    """Client HTTP localhost con entrambi i router della matrice e le dipendenze a valle
+    """Client HTTP localhost con i tre router della matrice e le dipendenze a valle
     di reindex/rollback sostituite da fake (stesso schema dei test di bypass sopra):
     sotto esame c'è solo il gate anti-cross-site, mai il reindex/rollback reale. Per le
-    route Pydantic i test inviano un body volutamente NON valido ({}): quando il gate
-    passa la risposta è il 422 di validazione — la business logic non viene mai eseguita."""
+    route Pydantic (incluso /ask, il cui AskQuery richiede `question`) i test inviano un
+    body volutamente NON valido ({}): quando il gate passa la risposta è il 422 di
+    validazione — la business logic non viene mai eseguita."""
     class _FakeJob:
         id = "fake-job-id"
 
@@ -704,7 +705,7 @@ def xsite_client(monkeypatch, tmp_path):
     from core import artifacts
     monkeypatch.setattr(routes_reindex, "manager", _FakeManager())
     monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)  # rollback => 404, mai il reale
-    return _make_client(routes_pipeline.router, routes_reindex.router)
+    return _make_client(routes_pipeline.router, routes_reindex.router, routes_retrieval.router)
 
 
 @pytest.mark.parametrize("router,method,path", _ANTI_XSITE_ROUTES)

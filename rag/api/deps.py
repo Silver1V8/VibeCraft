@@ -62,8 +62,8 @@ def require_api_key_strict(request: Request) -> None:
     POST /api/pipeline/agent/run (esecuzione shell/scrittura file via Claude Agent SDK):
     lì il bypass localhost basterebbe a una pagina aperta nel browser dell'utente per
     eseguire comandi via fetch() senza alcuna autenticazione. Gli ALTRI endpoint mutanti
-    (explore/save, canvas/generate, propose/generate, archive, file/save, reindex,
-    rollback) l'avevano in una patch precedente ma sono stati deliberatamente riportati
+    (explore/save, canvas/generate, propose/generate, archive, archive/stream, file/save,
+    reindex, rollback) l'avevano in una patch precedente ma sono stati deliberatamente riportati
     a require_api_key (il frontend non invia X-API-Key: strict rompeva la UI nel setup
     keyless di default — vedi tests/test_security_fixes.py); il loro vettore cross-site
     è coperto da require_not_cross_site_request. Fail-closed se VIBECRAFT_API_KEY non è

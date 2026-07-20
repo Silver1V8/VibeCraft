@@ -10,7 +10,13 @@ from fastapi.concurrency import run_in_threadpool
 from qdrant_client import QdrantClient
 from FlagEmbedding import BGEM3FlagModel
 
-from api.deps import current_snapshot, maybe_reload_graph, require_api_key, state
+from api.deps import (
+    current_snapshot,
+    maybe_reload_graph,
+    require_api_key,
+    require_not_cross_site_request,
+    state,
+)
 from api.models import AskQuery
 from core import graph_ops, retrieval
 from core.config import CODE_CONTEXT_MAX_SNIPPETS, CODE_CONTEXT_MIN_WEIGHT, PROJECT_ROOT
@@ -20,7 +26,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(dependencies=[Depends(require_api_key)])
 
 
-@router.post("/ask")
+@router.post("/ask", dependencies=[Depends(require_not_cross_site_request)])
 async def ask_rag(query: AskQuery):
     maybe_reload_graph()
     snap = current_snapshot()
