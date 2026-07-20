@@ -2,11 +2,14 @@
 #
 # index.py --check-graph fa un full rebuild IN MEMORIA (ri-embedda tutto) e confronta il
 # grafo incrementale persistito con la topologia di riferimento: e' costoso (minuti su
-# CPU) ma esaustivo. SOLO se trova drift esegue un full rebuild che riallinea tutto.
+# CPU) ma esaustivo. SOLO se trova drift esegue un full rebuild che riallinea tutto,
+# preferendo il server (coda del ReindexManager, un solo scrittore) con fallback alla CLI.
 # Il check quotidiano economico e' scripts/nightly_consistency.ps1.
 #
+# Env opzionali: VIBECRAFT_SERVER_URL (default http://127.0.0.1:8000), VIBECRAFT_API_KEY.
+#
 # Uso:  pwsh -File scripts/weekly_consistency.ps1
-# Exit: 0 se coerente o rebuild riuscito; 1 se il rebuild e' fallito.
+# Exit: 0 se coerente o rebuild riuscito/accodato; 1 se il rebuild e' fallito.
 
 $ErrorActionPreference = "Stop"
 
@@ -26,6 +29,20 @@ if ($checkExit -eq 0) {
 }
 
 Write-Host "[$(Get-Date -Format o)] Drift rilevato (exit $checkExit): avvio full rebuild..."
+
+# Preferisci il server (un solo scrittore: la coda del ReindexManager), fallback alla
+# CLI se il server e' spento.
+$baseUrl = if ($env:VIBECRAFT_SERVER_URL) { $env:VIBECRAFT_SERVER_URL } else { "http://127.0.0.1:8000" }
+$headers = @{}
+if ($env:VIBECRAFT_API_KEY) { $headers["X-API-Key"] = $env:VIBECRAFT_API_KEY }
+try {
+    $resp = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/reindex" -Headers $headers -Body (@{full = $true} | ConvertTo-Json -Compress) -ContentType "application/json" -TimeoutSec 10
+    Write-Host "[$(Get-Date -Format o)] Full rebuild accodato al server (job $($resp.job_id))."
+    exit 0
+} catch {
+    Write-Host "[$(Get-Date -Format o)] Server non raggiungibile ($baseUrl): fallback a index.py (full rebuild)..."
+}
+
 & uv run python index.py
 $rebuildExit = $LASTEXITCODE
 

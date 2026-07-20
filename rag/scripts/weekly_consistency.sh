@@ -3,8 +3,10 @@
 # dello script PowerShell). Da schedulare via cron. Vedi weekly_consistency.ps1 per i
 # dettagli. Il check quotidiano economico e' scripts/nightly_consistency.sh.
 #
+# Env opzionali: VIBECRAFT_SERVER_URL (default http://127.0.0.1:8000), VIBECRAFT_API_KEY.
+#
 # Uso:   scripts/weekly_consistency.sh
-# Exit:  0 se coerente o rebuild riuscito; 1 se il rebuild e' fallito.
+# Exit:  0 se coerente o rebuild riuscito/accodato; 1 se il rebuild e' fallito.
 set -euo pipefail
 
 RAG_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -19,6 +21,18 @@ if uv run python index.py --check-graph; then
 fi
 
 echo "[$(date -Is)] Drift rilevato: avvio full rebuild..."
+
+# Preferisci il server (un solo scrittore: la coda del ReindexManager), fallback alla
+# CLI se il server e' spento.
+base_url="${VIBECRAFT_SERVER_URL:-http://127.0.0.1:8000}"
+headers=()
+[ -n "${VIBECRAFT_API_KEY:-}" ] && headers=(-H "X-API-Key: ${VIBECRAFT_API_KEY}")
+if resp="$(curl -sf --max-time 10 -X POST -H 'Content-Type: application/json' -d '{"full": true}' "${headers[@]}" "$base_url/api/reindex")"; then
+    echo "[$(date -Is)] Full rebuild accodato al server: $resp"
+    exit 0
+fi
+
+echo "[$(date -Is)] Server non raggiungibile ($base_url): fallback a index.py (full rebuild)..."
 if uv run python index.py; then
     echo "[$(date -Is)] Full rebuild completato: indice riallineato."
     # Il server ricarica gli artefatti in memoria alla prima richiesta (maybe_reload_graph).

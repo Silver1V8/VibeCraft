@@ -56,9 +56,27 @@ flag() {
     printf '%s' "$report" | uv run python -c "import json,sys; print(1 if json.load(sys.stdin).get('$1') else 0)"
 }
 
+if [ "$(flag qdrant_unreachable)" = "1" ]; then
+    # Qdrant giu': niente scritture al buio, ne' rebuild ne' incrementale (la lineage
+    # non e' verificabile senza un conteggio riuscito). Solo alert, si riprova la notte dopo.
+    echo "[$(date -Is)] Qdrant non raggiungibile: nessuna azione (nessun rebuild, nessun incrementale)."
+    send_alert "Qdrant irraggiungibile durante il check notturno"
+    exit 1
+fi
+
 if [ "$(flag artifacts_corrupted)" = "1" ] || [ "$(flag qdrant_mismatch)" = "1" ]; then
-    # Artefatti corrotti/misti o Qdrant disallineato: un incrementale non basta.
+    # Artefatti corrotti/misti o Qdrant disallineato: un incrementale non basta, serve un
+    # full rebuild. Preferisci il server (un solo scrittore: la coda del ReindexManager),
+    # fallback alla CLI se il server e' spento.
     echo "[$(date -Is)] Artefatti corrotti o Qdrant disallineato: full rebuild..."
+    base_url="${VIBECRAFT_SERVER_URL:-http://127.0.0.1:8000}"
+    headers=()
+    [ -n "${VIBECRAFT_API_KEY:-}" ] && headers=(-H "X-API-Key: ${VIBECRAFT_API_KEY}")
+    if resp="$(curl -sf --max-time 10 -X POST -H 'Content-Type: application/json' -d '{"full": true}' "${headers[@]}" "$base_url/api/reindex")"; then
+        echo "[$(date -Is)] Full rebuild accodato al server: $resp"
+        exit 0
+    fi
+    echo "[$(date -Is)] Server non raggiungibile ($base_url): fallback a index.py (full rebuild)..."
     if uv run python index.py; then
         echo "[$(date -Is)] Full rebuild completato: indice riallineato."
         exit 0

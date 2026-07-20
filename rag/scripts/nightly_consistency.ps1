@@ -2,12 +2,17 @@
 #
 # index.py --check-integrity verifica manifest, hash dei sorgenti, integrità degli
 # artefatti in database/ e allineamento del conteggio Qdrant. In base al report:
-#   - ok                          -> niente da fare;
-#   - stale (solo sorgenti)       -> reindex incrementale: POST /api/reindex al server
-#                                    locale se raggiungibile (X-API-Key da env), altrimenti
-#                                    fallback a index.py --incremental;
-#   - artefatti corrotti o Qdrant -> full rebuild (index.py).
-#     disallineato
+#   - ok                             -> niente da fare;
+#   - qdrant_unreachable             -> NESSUNA scrittura (ne' rebuild ne' incrementale): la
+#                                        lineage non e' verificabile senza un conteggio
+#                                        Qdrant riuscito. Solo alert, si ritenta la notte dopo;
+#   - artefatti corrotti o Qdrant    -> full rebuild: POST /api/reindex {"full": true} al
+#     disallineato                     server locale se raggiungibile (coda del
+#                                        ReindexManager, un solo scrittore; X-API-Key da env),
+#                                        altrimenti fallback a index.py;
+#   - stale (solo sorgenti)          -> reindex incrementale: POST /api/reindex al server
+#                                        locale se raggiungibile (X-API-Key da env), altrimenti
+#                                        fallback a index.py --incremental.
 #
 # Il confronto profondo incrementale vs full rebuild (che ri-embedda tutto) è ora nel
 # batch SETTIMANALE: scripts/weekly_consistency.ps1.
@@ -68,9 +73,29 @@ try {
 
 $report.problems | ForEach-Object { Write-Host "[$(Get-Date -Format o)]   problema: $_" }
 
+if ($report.qdrant_unreachable) {
+    # Qdrant giu': niente scritture al buio, ne' rebuild ne' incrementale (la lineage
+    # non e' verificabile senza un conteggio riuscito). Solo alert, si riprova la notte dopo.
+    Write-Host "[$(Get-Date -Format o)] Qdrant non raggiungibile: nessuna azione (nessun rebuild, nessun incrementale)."
+    Send-Alert "Qdrant irraggiungibile durante il check notturno"
+    exit 1
+}
+
 if ($report.artifacts_corrupted -or $report.qdrant_mismatch) {
-    # Artefatti corrotti/misti o Qdrant disallineato: un incrementale non basta.
+    # Artefatti corrotti/misti o Qdrant disallineato: un incrementale non basta, serve un
+    # full rebuild. Preferisci il server (un solo scrittore: la coda del ReindexManager),
+    # fallback alla CLI se il server e' spento.
     Write-Host "[$(Get-Date -Format o)] Artefatti corrotti o Qdrant disallineato: full rebuild..."
+    $baseUrl = if ($env:VIBECRAFT_SERVER_URL) { $env:VIBECRAFT_SERVER_URL } else { "http://127.0.0.1:8000" }
+    $headers = @{}
+    if ($env:VIBECRAFT_API_KEY) { $headers["X-API-Key"] = $env:VIBECRAFT_API_KEY }
+    try {
+        $resp = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/reindex" -Headers $headers -Body (@{full = $true} | ConvertTo-Json -Compress) -ContentType "application/json" -TimeoutSec 10
+        Write-Host "[$(Get-Date -Format o)] Full rebuild accodato al server (job $($resp.job_id))."
+        exit 0
+    } catch {
+        Write-Host "[$(Get-Date -Format o)] Server non raggiungibile ($baseUrl): fallback a index.py (full rebuild)..."
+    }
     & uv run python index.py
     if ($LASTEXITCODE -eq 0) {
         Write-Host "[$(Get-Date -Format o)] Full rebuild completato: indice riallineato."
