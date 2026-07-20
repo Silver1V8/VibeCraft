@@ -967,8 +967,19 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
     4. conteggio dei punti nella collection Qdrant vs numero di chunk nel sidecar
        (divergenza ⇒ Qdrant e artefatti non allineati: serve un full rebuild).
 
-    Restituisce {ok, stale, artifacts_corrupted, qdrant_mismatch, problems, qdrant_alias}:
-    `problems` è la lista leggibile dei difetti trovati; `ok` è True solo se è vuota.
+    Restituisce {ok, stale, artifacts_corrupted, qdrant_mismatch, qdrant_unreachable,
+    problems, qdrant_alias}: `problems` è la lista leggibile dei difetti trovati; `ok`
+    è True solo se è vuota. Quando il conteggio Qdrant fallisce per eccezione, il passo
+    4 disambigua con una probe economica (get_collections) prima di concludere:
+    - se ANCHE la probe fallisce, Qdrant è davvero irraggiungibile (giù, rete):
+      `qdrant_unreachable`=True e `qdrant_mismatch` resta False, perché non è stato
+      possibile confrontare nulla;
+    - se la probe riesce, il server è su ma la collection/alias non esiste (es.
+      cancellata): è un mismatch a tutti gli effetti (`qdrant_mismatch`=True,
+      `qdrant_unreachable`=False), perché i vettori di produzione mancano davvero e
+      serve un full rebuild — non un semplice "riprova più tardi".
+    `qdrant_mismatch` copre quindi sia il conteggio riuscito ma diverso dal sidecar,
+    sia questo caso di collection/alias assente con server raggiungibile.
     `qdrant_alias` è la classificazione di SOLA OSSERVAZIONE di observe_qdrant_alias
     (stato legacy/aligned/missing/diverging/unknown): non contribuisce MAI a `ok` —
     anche un alias divergente non fa fallire il check, e un manifest antecedente al
@@ -979,6 +990,7 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
     stale = False
     artifacts_corrupted = False
     qdrant_mismatch = False
+    qdrant_unreachable = False
     # Preservato PRIMA che il passo 4 possa riassegnare/chiudere il nome locale
     # `qdrant` (crea ed eventualmente chiude una propria connessione se non
     # iniettata): l'osservazione dell'alias, più sotto, deve sapere se un client è
@@ -989,7 +1001,7 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
     if manifest is None:
         report = {
             "ok": False, "stale": True, "artifacts_corrupted": False,
-            "qdrant_mismatch": False,
+            "qdrant_mismatch": False, "qdrant_unreachable": False,
             "problems": ["manifest assente o illeggibile: indice mai costruito (o manifest corrotto)"],
             "qdrant_alias": observe_qdrant_alias(_injected_qdrant),
         }
@@ -1065,8 +1077,24 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
                     f"'{COLLECTION_NAME}' vs {expected_chunks} chunk in {chunks_path.name}"
                 )
         except Exception as exc:
-            qdrant_mismatch = True
-            problems.append(f"conteggio Qdrant non verificabile ({type(exc).__name__}: {exc})")
+            # Il count può fallire sia perché Qdrant è davvero giù, sia perché la
+            # collection/alias non esiste più (server su, ma target sparito: era
+            # prima classificato "unreachable", perdendo l'auto-riparazione via
+            # full rebuild). Disambiguo con una probe economica invece di ispezionare
+            # la classe/status_code dell'eccezione, così copro anche i fake di test.
+            try:
+                qdrant.get_collections()
+            except Exception:
+                qdrant_unreachable = True
+                problems.append(
+                    f"Qdrant non raggiungibile, conteggio non verificabile ({type(exc).__name__}: {exc})"
+                )
+            else:
+                qdrant_mismatch = True
+                problems.append(
+                    f"collection/alias '{COLLECTION_NAME}' assente su Qdrant (server raggiungibile): "
+                    "vettori di produzione mancanti — serve un full rebuild"
+                )
         finally:
             if own_qdrant and qdrant is not None:
                 try:
@@ -1079,6 +1107,7 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
         "stale": stale,
         "artifacts_corrupted": artifacts_corrupted,
         "qdrant_mismatch": qdrant_mismatch,
+        "qdrant_unreachable": qdrant_unreachable,
         "problems": problems,
         # Osservazione READ-ONLY dello stato alias Qdrant: esposta e basta, mai
         # inclusa nel calcolo di 'ok'/'problems' — vedi observe_qdrant_alias.

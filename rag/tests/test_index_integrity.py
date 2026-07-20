@@ -102,7 +102,7 @@ def test_all_aligned_is_ok(env):
     report = _check(env)
     assert report == {
         "ok": True, "stale": False, "artifacts_corrupted": False,
-        "qdrant_mismatch": False, "problems": [],
+        "qdrant_mismatch": False, "qdrant_unreachable": False, "problems": [],
         # S5: il fixture di base non scrive qdrant_collection nel manifest -> legacy.
         "qdrant_alias": {"state": "legacy", "expected": None, "actual": None},
     }
@@ -240,6 +240,7 @@ def test_qdrant_count_divergence(env):
     report = _check(env, points=7)  # sidecar ha 3 chunk
     assert report["ok"] is False
     assert report["qdrant_mismatch"] is True
+    assert report["qdrant_unreachable"] is False
     assert report["stale"] is False and report["artifacts_corrupted"] is False
     assert any("7" in p and "3" in p and "non allineati" in p for p in report["problems"])
 
@@ -249,9 +250,41 @@ def test_qdrant_unreachable_is_reported(env, monkeypatch):
         def count(self, collection_name, exact=True):
             raise ConnectionError("giù")
 
+        def get_collections(self):
+            raise ConnectionError("giù anche la probe")
+
     report = indexing.check_index_integrity(qdrant=_Boom(), emit=lambda m: None)
+    assert report["ok"] is False
+    assert report["qdrant_unreachable"] is True
+    assert report["qdrant_mismatch"] is False
+    assert any("non raggiungibile" in p for p in report["problems"])
+    assert not any("disallineat" in p or "non allineati" in p for p in report["problems"])
+
+
+def test_qdrant_missing_collection_is_mismatch_not_unreachable(env):
+    """count() fallisce come farebbe un 404 su alias/collection inesistente, ma il
+    server risponde alla probe get_collections(): è un mismatch reale (vettori di
+    produzione mancanti), non un'irraggiungibilità temporanea, quindi va accodato un
+    full rebuild notturno e non solo un alert senza rimedio."""
+    class _CollectionGone:
+        def count(self, collection_name, exact=True):
+            raise ValueError("404: collection or alias not found")
+
+        def get_collections(self):
+            return object()
+
+    report = indexing.check_index_integrity(qdrant=_CollectionGone(), emit=lambda m: None)
+    assert report["ok"] is False
     assert report["qdrant_mismatch"] is True
-    assert any("non verificabile" in p for p in report["problems"])
+    assert report["qdrant_unreachable"] is False
+    assert any(indexing.COLLECTION_NAME in p and "assente" in p for p in report["problems"])
+
+
+def test_qdrant_all_aligned_both_flags_false(env):
+    report = _check(env, points=3)  # sidecar ha 3 chunk: allineato
+    assert report["qdrant_mismatch"] is False
+    assert report["qdrant_unreachable"] is False
+    assert report["ok"] is True
 
 
 def test_injected_client_not_closed(env):
