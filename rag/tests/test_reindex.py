@@ -2,13 +2,27 @@
 GitLab, restrizione del piano del delta ai path segnalati, e il ReindexManager (job che
 parte, coda con coalescing dei path, reload in memoria a fine job). Nessun modello/Qdrant
 reale: il reindex è iniettato come fake che controlliamo dai test."""
+import contextlib
 import json
 import threading
 import time
 
+import pytest
+
 from api.reindex import ReindexManager, extract_gitlab_paths
 from core import indexing
 from core.indexing import IndexPlan
+
+
+@pytest.fixture(autouse=True)
+def _noop_writer_lock(monkeypatch):
+    """Neutralizza il writer lock cross-processo in TUTTI i test di questo file: qui si
+    esercitano coda/coalescing/journal, non la mutua esclusione (coperta da
+    test_writer_lock.py). Senza il no-op i job (thread daemon, anche residui del test
+    precedente) contenderebbero il lock reale su database/.writer.lock."""
+    import api.reindex as reindex_mod
+    monkeypatch.setattr(reindex_mod, "writer_lock",
+                        lambda *a, **k: contextlib.nullcontext())
 
 
 # ---------------------------------------------------------------------------

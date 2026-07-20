@@ -13,7 +13,14 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from core.writer_lock import writer_lock
+
 logger = logging.getLogger(__name__)
+
+# Timeout di acquisizione del writer lock cross-processo attorno all'esecuzione di un
+# job: più largo del default CLI (5s) perché il contendente tipico è una CLI che sta
+# finendo, ma non infinito — al timeout il job fallisce con l'errore del lock nel journal.
+_WRITER_LOCK_TIMEOUT_SECONDS = 30
 
 # Soglia di rotazione del journal: oltre ~1MB il file viene compattato tenendo solo
 # l'ultimo stato di ogni job.
@@ -321,7 +328,13 @@ class ReindexManager:
 
     def _run(self, job: ReindexJob) -> None:
         try:
-            job.result = job._run_reindex(job.changed_paths)
+            # Writer lock cross-processo attorno alla SOLA esecuzione del reindex: server
+            # e CLI (index.py) non scrivono mai gli artefatti in contemporanea. Un
+            # WriterLockBusyError al timeout cade nell'except sotto: job "failed" con
+            # l'errore del lock nel journal, slot liberato e pending dispatchato come
+            # per qualunque altro fallimento.
+            with writer_lock(timeout_seconds=_WRITER_LOCK_TIMEOUT_SECONDS):
+                job.result = job._run_reindex(job.changed_paths)
             # Un run può declassare l'esito con result["job_status"]: oggi solo
             # "completed_not_promoted" (eval gate sotto soglia: versione costruita ma
             # CURRENT non spostato). Qualunque altro valore resta "completed".

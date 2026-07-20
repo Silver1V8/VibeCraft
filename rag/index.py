@@ -30,6 +30,11 @@ from core.indexing import (
     incremental_index,
     index_status,
 )
+from core.writer_lock import WriterLockBusyError, writer_lock
+
+# Exit code dedicato al caso "un altro writer detiene il lock": distinto da 1 (errore
+# generico dei singoli rami) così gli script possono distinguere contesa da fallimento.
+WRITER_BUSY_EXIT_CODE = 2
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Gestore indicizzazione, Drift e Archiviazione Graph RAG")
@@ -44,58 +49,78 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.rollback:
-        from core.artifacts import list_versions, rollback_version
-        from core.config import QDRANT_API_KEY, QDRANT_URL
-        from core.indexing import rollback_qdrant_alias_if_needed
-        from qdrant_client import QdrantClient
+    def _dispatch():
+        if args.rollback:
+            from core.artifacts import list_versions, rollback_version
+            from core.config import QDRANT_API_KEY, QDRANT_URL
+            from core.indexing import rollback_qdrant_alias_if_needed
+            from qdrant_client import QdrantClient
 
-        target = None if args.rollback == "__PREVIOUS__" else args.rollback
-        try:
-            name = rollback_version(target)
-        except (FileNotFoundError, ValueError) as exc:
-            print(f"❌ Rollback fallito: {exc}")
-            sys.exit(1)
-        print(f"✅ Rollback: CURRENT → {name}")
-        print(f"   Versioni disponibili: {', '.join(list_versions())}")
-
-        # rollback_version sopra resta puro locale (solo CURRENT, già scritto su
-        # disco a questo punto). Riallinea qui l'alias Qdrant alla versione target —
-        # cross-lineage swappa, intra-lineage è un no-op, collection target assente
-        # non viene "corretta" automaticamente: lo stato è esplicito e un mismatch
-        # fa uscire con codice non-zero. Qdrant irraggiungibile (o qualunque altro
-        # errore nell'apertura del client/nella chiamata) NON deve far crashare la
-        # CLI con un traceback: il rollback locale è già avvenuto, e l'alias verrà
-        # comunque riallineato al prossimo boot del server (reconcile_and_repair_qdrant_alias).
-        try:
-            qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-            result = rollback_qdrant_alias_if_needed(qdrant, name, print)
-            if result["state"] == "missing_target_collection":
+            target = None if args.rollback == "__PREVIOUS__" else args.rollback
+            try:
+                name = rollback_version(target)
+            except (FileNotFoundError, ValueError) as exc:
+                print(f"❌ Rollback fallito: {exc}")
                 sys.exit(1)
-        except Exception as exc:
-            print(f"⚠️  Rollback locale eseguito, ma Qdrant non raggiungibile: alias NON "
-                  f"riallineato, sarà riparato al boot ({type(exc).__name__}: {exc})")
-    elif args.check_drift:
-        check_drift(args.check_drift)
-    elif args.archive:
-        archive_feature(args.archive)
-    elif args.index_status:
-        status = index_status()
-        print(json.dumps(status, ensure_ascii=False, indent=2))
-    elif args.check_integrity:
-        # Report JSON su stdout (i messaggi umani vanno su stderr, così lo stdout resta
-        # parsabile dagli script notturni), exit 0/1.
-        report = check_index_integrity(emit=lambda m: print(m, file=sys.stderr))
-        print(json.dumps(report, ensure_ascii=False, indent=2))
-        sys.exit(0 if report.get("ok") else 1)
-    elif args.check_graph:
-        print("Confronto grafo incrementale vs full rebuild (coerenza)...\n")
-        report = check_graph_consistency()
-        print(json.dumps(report, ensure_ascii=False, indent=2))
-        sys.exit(0 if report.get("consistent") else 1)
-    elif args.incremental:
-        print("Avvio indicizzazione incrementale (delta rispetto al manifest)...\n")
-        incremental_index()
+            print(f"✅ Rollback: CURRENT → {name}")
+            print(f"   Versioni disponibili: {', '.join(list_versions())}")
+
+            # rollback_version sopra resta puro locale (solo CURRENT, già scritto su
+            # disco a questo punto). Riallinea qui l'alias Qdrant alla versione target —
+            # cross-lineage swappa, intra-lineage è un no-op, collection target assente
+            # non viene "corretta" automaticamente: lo stato è esplicito e un mismatch
+            # fa uscire con codice non-zero. Qdrant irraggiungibile (o qualunque altro
+            # errore nell'apertura del client/nella chiamata) NON deve far crashare la
+            # CLI con un traceback: il rollback locale è già avvenuto, e l'alias verrà
+            # comunque riallineato al prossimo boot del server (reconcile_and_repair_qdrant_alias).
+            try:
+                qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+                result = rollback_qdrant_alias_if_needed(qdrant, name, print)
+                if result["state"] == "missing_target_collection":
+                    sys.exit(1)
+            except Exception as exc:
+                print(f"⚠️  Rollback locale eseguito, ma Qdrant non raggiungibile: alias NON "
+                      f"riallineato, sarà riparato al boot ({type(exc).__name__}: {exc})")
+        elif args.check_drift:
+            check_drift(args.check_drift)
+        elif args.archive:
+            archive_feature(args.archive)
+        elif args.index_status:
+            status = index_status()
+            print(json.dumps(status, ensure_ascii=False, indent=2))
+        elif args.check_integrity:
+            # Report JSON su stdout (i messaggi umani vanno su stderr, così lo stdout resta
+            # parsabile dagli script notturni), exit 0/1.
+            report = check_index_integrity(emit=lambda m: print(m, file=sys.stderr))
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+            sys.exit(0 if report.get("ok") else 1)
+        elif args.check_graph:
+            print("Confronto grafo incrementale vs full rebuild (coerenza)...\n")
+            report = check_graph_consistency()
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+            sys.exit(0 if report.get("consistent") else 1)
+        elif args.incremental:
+            print("Avvio indicizzazione incrementale (delta rispetto al manifest)...\n")
+            incremental_index()
+        else:
+            print("Avvio indicizzazione Fase 0 (Base)...\n")
+            build_graph_and_index()
+
+    # I rami che SCRIVONO girano sotto il writer lock cross-processo per l'INTERA durata:
+    # build default, --incremental, --archive (archivia + full rebuild inline) e
+    # --rollback — che non costruisce nulla ma MUOVE CURRENT e l'alias Qdrant, e non
+    # deve interlacciarsi con la promote/alias-swap di un full rebuild in corso.
+    # I check puri (--index-status, --check-integrity, --check-graph, --check-drift)
+    # restano senza lock: solo letture, devono funzionare anche durante un reindex.
+    read_only = bool(args.check_drift or args.index_status
+                     or args.check_integrity or args.check_graph)
+    if read_only:
+        _dispatch()
     else:
-        print("Avvio indicizzazione Fase 0 (Base)...\n")
-        build_graph_and_index()
+        try:
+            with writer_lock():
+                _dispatch()
+        except WriterLockBusyError as exc:
+            print(f"❌ Un altro writer è attivo: usa POST /api/reindex (accoda invece di "
+                  f"fallire) oppure riprova a fine job. Dettaglio: {exc}")
+            sys.exit(WRITER_BUSY_EXIT_CODE)

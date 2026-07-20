@@ -25,6 +25,8 @@ rag/database/chunks.pkl
 rag/database/reindex_jobs.jsonl
 # Alert dei batch notturni (append-only, letti da /api/health)
 rag/database/alerts.jsonl
+# File del writer lock cross-processo (il mutex è il lock OS, il file resta su disco)
+rag/database/.writer.lock
 
 # Configurazione (Opzionale: escludilo se contiene chiavi API private OpenAI/Anthropic)
 # rag_config.yaml
