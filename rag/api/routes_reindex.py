@@ -43,11 +43,18 @@ from core.indexing import (
     incremental_index,
     rollback_qdrant_alias_if_needed,
 )
+from core.writer_lock import WriterLockBusyError, writer_lock
 from FlagEmbedding import BGEM3FlagModel
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
+
+# Timeout CORTO del writer lock attorno al rollback via HTTP: è una richiesta
+# interattiva, mentre un job full del ReindexManager tiene il lock per MINUTI. Meglio
+# un 409 rapido ("riprova a job finito") che un'attesa lunga sull'event loop. Distinto
+# dai 30s del manager (api.reindex._WRITER_LOCK_TIMEOUT_SECONDS): là il job È il lavoro.
+_ROLLBACK_WRITER_LOCK_TIMEOUT_SECONDS = 2
 
 # Un solo manager per processo: serializza i reindex e conserva lo stato dei job. Il journal
 # JSONL rende lo storico persistente ai riavvii (ricostruito dal manager al boot).
@@ -207,6 +214,28 @@ async def index_versions():
     return {"current": await run_in_threadpool(current_version), "versions": versions}
 
 
+def _rollback_under_writer_lock(target) -> tuple:
+    """Esegue l'INTERA mutazione del rollback — rollback_version (sposta CURRENT) +
+    rollback_qdrant_alias_if_needed (riallinea l'alias Qdrant) — dentro un solo writer
+    lock cross-processo, restituendo `(name, qdrant_alias)`.
+
+    Perché entrambe sotto lo STESSO lock: muovono CURRENT e l'alias Qdrant e non devono
+    interlacciarsi con la promote di un full rebuild del ReindexManager (che promuove
+    vN e poi swappa l'alias su c(vN)); senza mutua esclusione un rollback in mezzo
+    lascerebbe CURRENT=vOld ma la produzione su c(vN) — stato divergente.
+
+    Il lock è per-handle e bloccante: va acquisito e rilasciato NELLO STESSO thread,
+    dentro questa unica funzione sync passata a run_in_threadpool — mai spezzato su due
+    chiamate né tenuto attraverso l'event loop. Timeout corto
+    (_ROLLBACK_WRITER_LOCK_TIMEOUT_SECONDS): a lock occupato solleva WriterLockBusyError,
+    mappato a 409 dal chiamante. reload_index_state resta FUORI (sola lettura, dopo la
+    mutazione)."""
+    with writer_lock(timeout_seconds=_ROLLBACK_WRITER_LOCK_TIMEOUT_SECONDS):
+        name = rollback_version(target)
+        qdrant_alias = rollback_qdrant_alias_if_needed(state.get("qdrant"), name, logger.info)
+    return name, qdrant_alias
+
+
 @router.post("/api/index/rollback")
 async def index_rollback(request: Request):
     """Rollback blue/green ISTANTANEO: sposta il puntatore database/CURRENT alla
@@ -219,21 +248,32 @@ async def index_rollback(request: Request):
     swap; intra-lineage (alias già corretto) → no-op; collection target assente su
     Qdrant → nessuna correzione automatica, stato esplicito "missing_target_collection"
     nella risposta (CURRENT resta comunque sulla versione target: nessun rollback
-    parziale lato locale)."""
+    parziale lato locale).
+
+    L'intera mutazione (CURRENT + alias) gira sotto il writer lock cross-processo, in
+    mutua esclusione con la promote dei job full (vedi _rollback_under_writer_lock). Se
+    un job full tiene il lock, si risponde 409 senza toccare nulla, invitando a
+    riprovare a job finito."""
     try:
         payload = await request.json()
     except Exception:
         payload = None
     target = payload.get("version") if isinstance(payload, dict) else None
     try:
-        name = await run_in_threadpool(rollback_version, target)
+        name, qdrant_alias = await run_in_threadpool(_rollback_under_writer_lock, target)
+    except WriterLockBusyError as exc:
+        # Distinto dal 409 del ValueError sotto: qui il rollback NON è stato tentato,
+        # un altro scrittore (tipicamente un job full) detiene il lock. Il messaggio
+        # dell'eccezione porta pid/timestamp del detentore.
+        raise HTTPException(
+            status_code=409,
+            detail=f"Writer lock occupato: un reindex/full rebuild è in corso, "
+                   f"rollback non eseguito — riprova a job finito. ({exc})",
+        )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    qdrant_alias = await run_in_threadpool(
-        rollback_qdrant_alias_if_needed, state.get("qdrant"), name, logger.info
-    )
     await run_in_threadpool(reload_index_state)
     return {
         "rolled_back_to": name,

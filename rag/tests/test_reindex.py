@@ -612,6 +612,10 @@ def _call_index_rollback(monkeypatch, payload=None, *, rollback_version_result="
     import asyncio
     import api.routes_reindex as rr
 
+    # L'autouse _noop_writer_lock neutralizza il lock solo in api.reindex, NON in
+    # api.routes_reindex: qui esercitiamo il comportamento a lock LIBERO, quindi lo
+    # rendiamo un no-op nel namespace della route (mai il database/.writer.lock reale).
+    monkeypatch.setattr(rr, "writer_lock", lambda *a, **k: contextlib.nullcontext())
     monkeypatch.setitem(rr.state, "qdrant", "fake-qdrant-client")
     monkeypatch.setattr(rr, "rollback_version", lambda target: rollback_version_result)
     monkeypatch.setattr(rr, "list_versions", lambda: ["v1", "v2"])
@@ -674,6 +678,7 @@ def test_index_rollback_local_failure_never_calls_qdrant_alias_helper(monkeypatc
     import api.routes_reindex as rr
     from fastapi import HTTPException
 
+    monkeypatch.setattr(rr, "writer_lock", lambda *a, **k: contextlib.nullcontext())
     monkeypatch.setitem(rr.state, "qdrant", "fake-qdrant-client")
 
     def _boom(target):
@@ -692,6 +697,76 @@ def test_index_rollback_local_failure_never_calls_qdrant_alias_helper(monkeypatc
         assert False, "doveva sollevare HTTPException"
     except HTTPException as exc:
         assert exc.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# POST /api/index/rollback sotto il writer lock cross-processo: l'intera mutazione
+# (CURRENT + alias Qdrant) è in mutua esclusione con la promote dei job full. Il lock
+# punta sempre a un file in tmp_path (mai il database/.writer.lock reale) e l'autouse
+# _noop_writer_lock non copre api.routes_reindex, quindi lo patchiamo esplicitamente.
+# ---------------------------------------------------------------------------
+def test_index_rollback_409_when_writer_lock_held_and_leaves_state_untouched(tmp_path, monkeypatch):
+    """Un altro handle detiene il writer lock (come un job full in promote): il route
+    risponde 409 SENZA muovere CURRENT né toccare l'alias Qdrant — nessun rollback
+    parziale sotto contesa. Il 409 è distinguibile da quello del ValueError."""
+    import asyncio
+    import api.routes_reindex as rr
+    from fastapi import HTTPException
+    from core.writer_lock import writer_lock
+
+    lock_file = tmp_path / ".writer.lock"
+    monkeypatch.setattr(rr, "_ROLLBACK_WRITER_LOCK_TIMEOUT_SECONDS", 0.3)
+    monkeypatch.setattr(rr, "writer_lock",
+                        lambda timeout_seconds: writer_lock(timeout_seconds, lock_path=lock_file))
+    monkeypatch.setitem(rr.state, "qdrant", "fake-qdrant-client")
+
+    called = {"rollback_version": False, "alias": False}
+
+    def _rollback_version(target):
+        called["rollback_version"] = True
+        return "v1"
+
+    def _alias(*a, **k):
+        called["alias"] = True
+        return {"state": "noop"}
+
+    monkeypatch.setattr(rr, "rollback_version", _rollback_version)
+    monkeypatch.setattr(rr, "rollback_qdrant_alias_if_needed", _alias)
+    monkeypatch.setattr(rr, "reload_index_state", lambda: None)
+
+    # Un altro handle (thread principale del test) tiene il lock per tutta la richiesta:
+    # il thread del threadpool apre un handle diverso e fallisce entro il timeout corto.
+    with writer_lock(timeout_seconds=5, lock_path=lock_file):
+        with pytest.raises(HTTPException) as exc_info:
+            asyncio.run(rr.index_rollback(_FakeJsonRequest(None)))
+
+    assert exc_info.value.status_code == 409
+    assert "writer lock occupato" in exc_info.value.detail.lower()
+    assert called["rollback_version"] is False  # CURRENT mai mosso
+    assert called["alias"] is False             # alias Qdrant mai toccato
+
+
+def test_index_rollback_succeeds_when_writer_lock_free(tmp_path, monkeypatch):
+    """A lock LIBERO il route si comporta come prima: esegue la mutazione sotto il lock
+    e risponde con rolled_back_to e qdrant_alias."""
+    import asyncio
+    import api.routes_reindex as rr
+    from core.writer_lock import writer_lock
+
+    lock_file = tmp_path / ".writer.lock"
+    monkeypatch.setattr(rr, "_ROLLBACK_WRITER_LOCK_TIMEOUT_SECONDS", 0.3)
+    monkeypatch.setattr(rr, "writer_lock",
+                        lambda timeout_seconds: writer_lock(timeout_seconds, lock_path=lock_file))
+    monkeypatch.setitem(rr.state, "qdrant", "fake-qdrant-client")
+    monkeypatch.setattr(rr, "rollback_version", lambda target: "v1")
+    monkeypatch.setattr(rr, "list_versions", lambda: ["v1", "v2"])
+    monkeypatch.setattr(rr, "reload_index_state", lambda: None)
+    monkeypatch.setattr(rr, "rollback_qdrant_alias_if_needed",
+                        lambda qdrant, name, emit=None: {"state": "swapped"})
+
+    response = asyncio.run(rr.index_rollback(_FakeJsonRequest(None)))
+    assert response["rolled_back_to"] == "v1"
+    assert response["qdrant_alias"]["state"] == "swapped"
 
 
 # ---------------------------------------------------------------------------
