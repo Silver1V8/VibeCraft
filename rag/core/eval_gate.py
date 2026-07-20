@@ -8,10 +8,14 @@ PRIMA di spostare il puntatore CURRENT. Lo stato candidato (colbert_store/chunks
 in memoria e Qdrant contiene già i suoi vettori, quindi la valutazione riflette esattamente ciò
 che il retrieval servirebbe una volta promosso — senza ricaricare artefatti.
 
-Vincolo noto: Qdrant NON è versionato (upsert in-place). Se il gate blocca un FULL rebuild, i
-vettori nuovi restano in Qdrant mentre CURRENT punta al sidecar precedente: stato degradato che
-richiede indagine/rebuild (l'alert lo segnala). Perciò il gate è più prezioso come rete su una
-regressione vera; per i primi build (golden set assente) è fail-open e non blocca nulla.
+Vincolo noto: post-S10 un FULL rebuild scrive su una collection Qdrant CANDIDATA versionata
+(mai quella di produzione); se il gate blocca la promozione, CURRENT e l'alias restano invariati
+e la candidata resta su Qdrant non referenziata da alcuna versione attiva — il GC del prossimo
+job/boot riuscito la rimuove, nessuno stato degradato da investigare. Il limite vero riguarda gli
+INCREMENTALI: mutano in place la collection già promossa (nessuna candidata, nessun gate), quindi
+un rollback blue/green intra-lineage non riavvolge i punti Qdrant scritti da un incrementale
+successivo alla build a cui si torna. Per i primi build (golden set assente) il gate è fail-open
+e non blocca nulla.
 
 Nessuna dipendenza dal package eval/: il golden set è caricato via GOLDEN_SET_PATH e la metrica
 da core.eval_metrics (stesso layer)."""

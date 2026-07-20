@@ -215,15 +215,17 @@ atomica (`_atomic_write`), quindi lo swap è istantaneo e mai a metà.
 
 Build e promozione sono **due passi espliciti**: `save_artifacts()` restituisce
 il nome della nuova versione (senza toccare CURRENT), `promote_version(nome)`
-sposta il puntatore. La CLI e gli incrementali promuovono a fine build riuscita;
-i job **full** del ReindexManager, se `VIBECRAFT_EVAL_GATE=1`, prima di promuovere
-eseguono l'**eval del golden-set sulla nuova versione** (in process, soglia
-`VIBECRAFT_EVAL_MIN`, default 0.7 — stessa semantica di `eval.run --assert-min`):
-sotto soglia la versione resta su disco **non promossa**, il job termina
-`completed_not_promoted` col report nell'esito e il server continua a servire la
-versione precedente. Se l'eval non è disponibile (golden-set assente, errore), la
-promozione è diretta. Il server rileva ogni spostamento di CURRENT
-(`maybe_reload_graph`) e ricarica lo snapshot alla prima richiesta.
+sposta il puntatore. Gli **incrementali** promuovono a fine build riuscita, senza
+passare dal gate (finché M6 non decide diversamente). I **full** — sia la CLI
+(`python index.py`) sia i job del ReindexManager — prima di promuovere eseguono
+l'**eval-gate del golden-set sulla nuova versione** (in process, config
+`rag_config.yaml` → `eval_gate.*`: `enabled`, `min_recall` default 0.90, `blocking`):
+sotto soglia (e gate bloccante) la versione resta su disco **non promossa**, il job
+termina `completed_not_promoted` col report nell'esito e il server continua a
+servire la versione precedente. Se il gate è disattivo, il golden-set manca, o
+l'eval fallisce, la promozione è diretta (fail-open). Il server rileva ogni
+spostamento di CURRENT (`maybe_reload_graph`) e ricarica lo snapshot alla prima
+richiesta.
 
 **Rollback istantaneo** — sposta solo il puntatore, nessuna build:
 

@@ -1049,9 +1049,12 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
 
     # 4) Qdrant vs sidecar chunk: i punti nella collection devono essere tanti quanti i
     #    chunk persistiti (nella versione attiva). Il sidecar si legge direttamente
-    #    (JSON, niente vettori). NB: dopo un rollback blue/green Qdrant resta all'ultima
-    #    build, quindi questo check può segnalare un mismatch ATTESO fino al reindex
-    #    successivo (vedi README, limite del versionamento).
+    #    (JSON, niente vettori). NB: un rollback blue/green cross-lineage riallinea
+    #    anche l'alias Qdrant alla collection della versione target (vedi README);
+    #    solo un rollback intra-lineage seguito da un incrementale (che muta in place
+    #    la collection promossa, senza versionarla) può lasciare Qdrant avanti rispetto
+    #    al sidecar della versione attiva — mismatch ATTESO fino al reindex successivo
+    #    (vedi README, limite del versionamento).
     chunks_path = artifact_dir() / "chunks.json"
     expected_chunks: int | None = None
     if chunks_path.exists():

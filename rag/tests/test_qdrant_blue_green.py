@@ -3,11 +3,15 @@ S4 del piano di implementazione): naming/parsing del nome di collection fisica,
 lettura e swap dell'alias, enumerazione, garbage collection delle collection orfane,
 e il reconciler di sola osservazione (core.indexing).
 
-NESSUNO degli helper testati qui è ancora chiamato da un percorso di produzione
-(build_graph_and_index, incremental_index, rollback, lifespan, route API): questo
-file esiste per validare lo scaffolding in isolamento, prima del wiring (step
-successivo del piano). Nessun Qdrant reale è richiesto per la suite di default —
-l'unico test che ne ha bisogno (in fondo al file) si auto-salta se non raggiungibile.
+Gli helper testati qui sono wired nei percorsi di produzione da S5-S10: naming/parsing
+e `_swap_alias`/`_migrate_legacy_collection_if_needed`/`gc_orphaned_qdrant_collections`
+in `build_graph_and_index` (core/indexing.py, full rebuild via CLI e via
+`api.routes_reindex._run_full_rebuild`); `rollback_qdrant_alias_if_needed` nel rollback
+(`index.py --rollback` e `POST /api/index/rollback`, api/routes_reindex.py); il
+reconciler di sola osservazione `reconcile_and_repair_qdrant_alias` (insieme al GC
+orfani) nel lifespan del server (api/deps.py), al boot pre-serving. Nessun Qdrant reale
+è richiesto per la suite di default — l'unico test che ne ha bisogno (in fondo al file)
+si auto-salta se non raggiungibile.
 """
 import json
 

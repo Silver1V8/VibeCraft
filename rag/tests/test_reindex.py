@@ -394,7 +394,7 @@ def test_archive_stream_route_queues_full_and_emits_final_event(tmp_path, monkey
 
 
 # ---------------------------------------------------------------------------
-# Blue/green: promozione dei job full + eval gate (VIBECRAFT_EVAL_GATE)
+# Blue/green: promozione dei job full + eval gate (config rag_config.yaml eval_gate.*)
 # ---------------------------------------------------------------------------
 def test_manager_honors_completed_not_promoted_and_skips_reload():
     """Un run che risponde job_status=completed_not_promoted termina in quello stato

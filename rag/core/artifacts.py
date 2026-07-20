@@ -23,7 +23,9 @@ scritto atomicamente) sulla nuova versione. La lettura segue sempre CURRENT, qui
 lo swap è atomico e il rollback (`rollback_version`) è lo spostamento del solo
 puntatore. Retrocompat: se CURRENT non esiste ma i file flat in database/ sì, si
 legge il layout storico come versione "legacy". NB: il blue/green copre grafo e
-sidecar; la collection Qdrant NON è versionata (vedi README).
+sidecar SEMPRE; la collection Qdrant è versionata solo per i FULL rebuild (collection
+candidata + alias, vedi README, sezione "Blue/green Qdrant") — gli incrementali la
+mutano in place, senza candidata né versionamento.
 
 Qualunque altro modulo (core.indexing, api.deps) passa da qui: nessun pickle.load/dump
 diretto altrove."""
