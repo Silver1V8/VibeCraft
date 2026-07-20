@@ -17,6 +17,7 @@ from api.deps import (
     current_snapshot,
     require_api_key,
     require_api_key_strict,
+    require_not_cross_site_request,
     run_streaming,
     state,
 )
@@ -192,7 +193,8 @@ async def pipeline_dev_types():
     return {"dev_types": list_dev_types()}
 
 
-@router.post("/api/pipeline/explore/turn")
+@router.post("/api/pipeline/explore/turn",
+             dependencies=[Depends(require_not_cross_site_request)])
 async def pipeline_explore_turn(req: ExploreTurnRequest):
     """Esegue un turno di intervista (equivalente al loop input() di explore.py)."""
     scope_note = (
@@ -210,7 +212,8 @@ async def pipeline_explore_turn(req: ExploreTurnRequest):
     return {"ai_response": ai_response, "history": new_history}
 
 
-@router.post("/api/pipeline/explore/save")
+@router.post("/api/pipeline/explore/save",
+             dependencies=[Depends(require_not_cross_site_request)])
 async def pipeline_explore_save(req: ExploreSaveRequest):
     """Salva il log dell'intervista in changes/<feature>/explore.md."""
     folder = _safe_feature_dir(req.feature_name, create=True)
@@ -223,7 +226,8 @@ async def pipeline_explore_save(req: ExploreSaveRequest):
     return {"feature_folder": folder.name, "path": "explore.md", "content": content}
 
 
-@router.post("/api/pipeline/canvas/generate")
+@router.post("/api/pipeline/canvas/generate",
+             dependencies=[Depends(require_not_cross_site_request)])
 async def pipeline_canvas_generate(req: CanvasGenerateRequest):
     """Genera il REASONS Canvas a partire dall'intervista Explore (equivalente a canvas.py)."""
     folder = _safe_feature_dir(req.feature_name, create=True)
@@ -276,7 +280,8 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
     return {"feature_folder": folder.name, "path": "canvas.md", "content": canvas_content}
 
 
-@router.post("/api/pipeline/propose/generate")
+@router.post("/api/pipeline/propose/generate",
+             dependencies=[Depends(require_not_cross_site_request)])
 async def pipeline_propose_generate(req: ProposeGenerateRequest):
     """Genera spec.md dal Canvas e il prompt finale per Claude Code (equivalente a propose.py)."""
     folder = _safe_feature_dir(req.feature_folder)
@@ -323,7 +328,8 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest):
     }
 
 
-@router.post("/api/pipeline/drift/check")
+@router.post("/api/pipeline/drift/check",
+             dependencies=[Depends(require_not_cross_site_request)])
 async def pipeline_drift_check(req: DriftCheckRequest):
     """Step 4 — Verifica del Drift: confronta il canvas (contratto) con il codice
     generato tramite LLM locale e restituisce il report. Equivale a 'index.py --check-drift'."""
@@ -336,7 +342,8 @@ async def pipeline_drift_check(req: DriftCheckRequest):
     return {"feature_folder": feature_folder, "report": report}
 
 
-@router.post("/api/pipeline/archive")
+@router.post("/api/pipeline/archive",
+             dependencies=[Depends(require_not_cross_site_request)])
 async def pipeline_archive(req: ArchiveRequest):
     """Step 5 — Archiviazione e Re-indicizzazione: sposta changes/<feature> in
     changes/archive/ (con canvas review) e ACCODA un full rebuild al ReindexManager
@@ -361,7 +368,8 @@ async def pipeline_archive(req: ArchiveRequest):
     }
 
 
-@router.post("/api/pipeline/drift/check/stream")
+@router.post("/api/pipeline/drift/check/stream",
+             dependencies=[Depends(require_not_cross_site_request)])
 async def pipeline_drift_check_stream(req: DriftCheckRequest):
     """Come /api/pipeline/drift/check ma con progresso in streaming (NDJSON): l'interfaccia
     mostra i passi (avvio, analisi, report) man mano che arrivano, senza box bloccante."""
@@ -370,7 +378,8 @@ async def pipeline_drift_check_stream(req: DriftCheckRequest):
     return StreamingResponse(run_streaming(check_drift, req.feature), media_type="application/x-ndjson")
 
 
-@router.post("/api/pipeline/archive/stream")
+@router.post("/api/pipeline/archive/stream",
+             dependencies=[Depends(require_not_cross_site_request)])
 async def pipeline_archive_stream(req: ArchiveRequest):
     """Come /api/pipeline/archive ma con progresso in streaming (NDJSON): l'utente vede
     l'archiviazione avanzare passo per passo. La ricostruzione dell'indice NON avviene
@@ -429,7 +438,8 @@ async def _validate_feature(feature: str) -> dict:
     return {"structural": structural, "scenario_scope": scope, "report": report}
 
 
-@router.post("/api/pipeline/validate")
+@router.post("/api/pipeline/validate",
+             dependencies=[Depends(require_not_cross_site_request)])
 async def pipeline_validate(req: ValidateRequest):
     """Step di validazione pre-apply: verifica strutturale (7 sezioni del Canvas, BDD nella
     spec) e coerenza semantica contro i vincoli normativi del Graph RAG, prima di lanciare Claude."""
@@ -582,7 +592,8 @@ async def pipeline_get_file(feature: str, name: str):
     return {"feature_folder": folder.name, "path": name, "content": file_path.read_text(encoding="utf-8")}
 
 
-@router.post("/api/pipeline/file/save")
+@router.post("/api/pipeline/file/save",
+             dependencies=[Depends(require_not_cross_site_request)])
 async def pipeline_save_file(req: PipelineFileSaveRequest):
     """Salva modifiche manuali a un file md prima dell'approvazione (revisione umana)."""
     if req.name not in PIPELINE_FILES:

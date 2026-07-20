@@ -57,21 +57,60 @@ def require_api_key(request: Request) -> None:
 
 
 def require_api_key_strict(request: Request) -> None:
-    """Come require_api_key ma SENZA bypass per localhost: per gli endpoint MUTANTI
-    (agent/run — esecuzione shell/scrittura file —, explore/save, canvas/generate,
-    propose/generate, archive, file/save, reindex, rollback) l'header X-API-Key è
-    SEMPRE richiesto, anche da 127.0.0.1/::1. Il bypass di require_api_key esiste per
-    comodità locale sulle route di sola lettura; su queste, invece, un bypass su
-    localhost basterebbe a una pagina aperta nel browser dell'utente per invocarle via
-    fetch() senza alcuna autenticazione (es. esecuzione di comandi tramite agent/run).
-    Fail-closed se VIBECRAFT_API_KEY non è configurata: nessuna richiesta passa senza
-    chiave, nemmeno da localhost. Va usata IN AGGIUNTA a require_api_key (dependency di
-    router), non al suo posto — vedi require_gitlab_token per lo stesso schema di
-    composizione."""
+    """Come require_api_key ma SENZA bypass per localhost: l'header X-API-Key è SEMPRE
+    richiesto, anche da 127.0.0.1/::1. Oggi è usata da UN SOLO endpoint,
+    POST /api/pipeline/agent/run (esecuzione shell/scrittura file via Claude Agent SDK):
+    lì il bypass localhost basterebbe a una pagina aperta nel browser dell'utente per
+    eseguire comandi via fetch() senza alcuna autenticazione. Gli ALTRI endpoint mutanti
+    (explore/save, canvas/generate, propose/generate, archive, file/save, reindex,
+    rollback) l'avevano in una patch precedente ma sono stati deliberatamente riportati
+    a require_api_key (il frontend non invia X-API-Key: strict rompeva la UI nel setup
+    keyless di default — vedi tests/test_security_fixes.py); il loro vettore cross-site
+    è coperto da require_not_cross_site_request. Fail-closed se VIBECRAFT_API_KEY non è
+    configurata: nessuna richiesta passa senza chiave, nemmeno da localhost. Va usata
+    IN AGGIUNTA a require_api_key (dependency di router), non al suo posto — vedi
+    require_gitlab_token per lo stesso schema di composizione."""
     if not _valid_api_key(request):
         raise HTTPException(
             status_code=401,
             detail="API key richiesta per questo endpoint, anche da localhost.",
+        )
+
+
+def require_not_cross_site_request(request: Request) -> None:
+    """Rifiuta con 403 le richieste browser cross-site sugli endpoint mutanti keyless.
+
+    Modello di minaccia (analisi completa in SECURITY_SURFACE.md): il server non monta
+    CORSMiddleware e require_api_key bypassa localhost, quindi nel setup keyless di
+    default una pagina ostile aperta nel browser dell'utente può inviare POST cross-site
+    "simple request" — in particolare a corpo assente verso gli endpoint che leggono il
+    body con request.json() in try/except (/api/reindex, /api/index/rollback) — che
+    arrivano agli handler autenticate come localhost. Il preflight CORS blocca già i
+    body JSON cross-site, ma è una difesa implicita (un default di FastAPI), non un
+    controllo: questa dependency rende il rifiuto esplicito. Sec-Fetch-Site è un
+    forbidden header (Fetch Metadata): lo scrive il browser, il JS di una pagina non
+    può impostarlo né falsificarlo.
+
+    Semantica:
+    - API key valida (X-API-Key == VIBECRAFT_API_KEY): passa SEMPRE — i client API
+      autenticati non sono il threat model browser-based mitigato qui;
+    - Sec-Fetch-Site esattamente "cross-site": 403;
+    - header ASSENTE: passa — curl, script, webhook, browser legacy e UI aperte da
+      file:// devono continuare a comportarsi come oggi;
+    - "same-origin" / "same-site" / "none": passa (dashboard e navigazioni dirette).
+
+    La protezione è volutamente PER-ROUTE (dependencies=[Depends(...)]), non un
+    middleware globale: l'ambito è la matrice M7 (SECURITY_SURFACE.md §2) — i soli POST
+    che mutano stato o spendono LLM; GET read-only e pagine HTML restano fuori, e
+    l'endpoint già strict (agent/run) non viene toccato. Rischio residuo ACCETTATO:
+    i browser legacy che non emettono Sec-Fetch-Site ricadono nel ramo "header assente"
+    e non attivano la guardia (Fetch Metadata è su tutti gli evergreen dal ~2019)."""
+    if _valid_api_key(request):
+        return
+    if request.headers.get("Sec-Fetch-Site") == "cross-site":
+        raise HTTPException(
+            status_code=403,
+            detail="richiesta cross-site rifiutata su endpoint mutante",
         )
 
 

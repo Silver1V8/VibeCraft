@@ -21,6 +21,7 @@ from api.deps import (
     reload_index_state,
     require_api_key,
     require_gitlab_token,
+    require_not_cross_site_request,
     state,
 )
 from api.reindex import ReindexManager, extract_gitlab_paths
@@ -158,7 +159,8 @@ def enqueue_full_rebuild() -> tuple:
     return manager.start(None, _run_full_rebuild, reload_index_state, kind="full")
 
 
-@router.post("/api/reindex", dependencies=[Depends(require_gitlab_token)])
+@router.post("/api/reindex", dependencies=[Depends(require_gitlab_token),
+                                           Depends(require_not_cross_site_request)])
 async def start_reindex(request: Request):
     """Avvia (o accoda) un reindex incrementale in background e risponde 202 con il job-id.
 
@@ -236,7 +238,8 @@ def _rollback_under_writer_lock(target) -> tuple:
     return name, qdrant_alias
 
 
-@router.post("/api/index/rollback")
+@router.post("/api/index/rollback",
+             dependencies=[Depends(require_not_cross_site_request)])
 async def index_rollback(request: Request):
     """Rollback blue/green ISTANTANEO: sposta il puntatore database/CURRENT alla
     versione indicata (corpo JSON opzionale `{"version": "v..."}`; default: la

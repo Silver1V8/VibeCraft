@@ -328,7 +328,8 @@ def test_mutating_route_declares_strict_api_key_dependency(router, method, path)
 def test_reverted_route_no_longer_declares_strict_api_key_dependency(router, method, path):
     # Regressione diretta del blocker: queste route avevano require_api_key_strict
     # nella patch precedente, il che rompeva la UI (il frontend non invia X-API-Key)
-    # nel setup keyless di default. Devono restare solo su require_api_key.
+    # nel setup keyless di default. Devono restare su require_api_key (il vettore
+    # cross-site è coperto da require_not_cross_site_request — sezione R2 in coda).
     assert deps.require_api_key_strict not in _route_dependency_fns(router, method, path)
 
 
@@ -613,3 +614,140 @@ def test_route_propose_generate_rejects_stale_or_tampered_meta_dev_type(code_dir
 
     assert "Tipo di sviluppo non valido" in exc.detail
     assert calls == []
+
+
+# ===========================================================================
+# R2 (M7): dependency anti-cross-site sugli endpoint mutanti keyless
+# (api.deps.require_not_cross_site_request — matrice in SECURITY_SURFACE.md §2)
+# ===========================================================================
+
+# Route della matrice M7 protette in questa sessione: 8 mandatorie (mutano stato) +
+# 4 raccomandate (eseguono LLM senza mutare). La quinta raccomandata della matrice,
+# POST /ask, vive in api/routes_retrieval.py — fuori dallo scope file della Sessione 6:
+# mismatch riportato nel report R2, non coperto qui.
+_ANTI_XSITE_ROUTES = [
+    (routes_reindex.router, "POST", "/api/reindex"),
+    (routes_reindex.router, "POST", "/api/index/rollback"),
+    (routes_pipeline.router, "POST", "/api/pipeline/explore/save"),
+    (routes_pipeline.router, "POST", "/api/pipeline/canvas/generate"),
+    (routes_pipeline.router, "POST", "/api/pipeline/propose/generate"),
+    (routes_pipeline.router, "POST", "/api/pipeline/archive"),
+    (routes_pipeline.router, "POST", "/api/pipeline/archive/stream"),
+    (routes_pipeline.router, "POST", "/api/pipeline/file/save"),
+    (routes_pipeline.router, "POST", "/api/pipeline/explore/turn"),
+    (routes_pipeline.router, "POST", "/api/pipeline/drift/check"),
+    (routes_pipeline.router, "POST", "/api/pipeline/drift/check/stream"),
+    (routes_pipeline.router, "POST", "/api/pipeline/validate"),
+]
+
+
+# --- Semantica della dependency, in isolamento (stesso pattern _FakeRequest) ---
+def test_not_cross_site_rejects_cross_site_without_key(monkeypatch):
+    monkeypatch.setattr(deps, "API_KEY", None)  # keyless: nessuna chiave da esibire
+    with pytest.raises(HTTPException) as exc_info:
+        deps.require_not_cross_site_request(
+            _FakeRequest(headers={"Sec-Fetch-Site": "cross-site"}))
+    assert exc_info.value.status_code == 403
+    assert "cross-site" in exc_info.value.detail
+
+
+@pytest.mark.parametrize("value", [None, "same-origin", "same-site", "none"])
+def test_not_cross_site_passes_absent_or_non_cross_site_values(monkeypatch, value):
+    # Header assente (curl/script/browser legacy/file://) o con valore non ostile:
+    # comportamento odierno invariato, la dependency non solleva.
+    monkeypatch.setattr(deps, "API_KEY", None)
+    headers = {} if value is None else {"Sec-Fetch-Site": value}
+    deps.require_not_cross_site_request(_FakeRequest(headers=headers))
+
+
+def test_not_cross_site_passes_with_valid_api_key(monkeypatch):
+    # Client API autenticato: passa anche se il browser dichiara cross-site.
+    monkeypatch.setattr(deps, "API_KEY", "s3cret")
+    deps.require_not_cross_site_request(
+        _FakeRequest(headers={"Sec-Fetch-Site": "cross-site", "X-API-Key": "s3cret"}))
+
+
+# --- Introspezione: matrice e codice devono coincidere 1:1 ---
+@pytest.mark.parametrize("router,method,path", _ANTI_XSITE_ROUTES)
+def test_matrix_route_declares_anti_cross_site_dependency(router, method, path):
+    assert deps.require_not_cross_site_request in _route_dependency_fns(router, method, path)
+
+
+@pytest.mark.parametrize("router,method,path", [
+    (routes_pipeline.router, "POST", "/api/pipeline/agent/run"),
+    (routes_pipeline.router, "POST", "/api/pipeline/canvas/dry-run"),
+])
+def test_excluded_route_does_not_declare_anti_cross_site_dependency(router, method, path):
+    # agent/run resta SOLO strict (matrice §2C: non toccato né indebolito);
+    # canvas/dry-run è read-only, escluso dalla matrice — nessuna protezione "per eccesso".
+    assert deps.require_not_cross_site_request not in _route_dependency_fns(router, method, path)
+
+
+# --- Wiring HTTP reale sulle 12 route della matrice ---
+@pytest.fixture
+def xsite_client(monkeypatch, tmp_path):
+    """Client HTTP localhost con entrambi i router della matrice e le dipendenze a valle
+    di reindex/rollback sostituite da fake (stesso schema dei test di bypass sopra):
+    sotto esame c'è solo il gate anti-cross-site, mai il reindex/rollback reale. Per le
+    route Pydantic i test inviano un body volutamente NON valido ({}): quando il gate
+    passa la risposta è il 422 di validazione — la business logic non viene mai eseguita."""
+    class _FakeJob:
+        id = "fake-job-id"
+
+        def to_dict(self):
+            return {"job_id": self.id, "status": "running"}
+
+    class _FakeManager:
+        def start(self, changed_paths, run_reindex, on_success, kind="incremental"):
+            return _FakeJob(), False
+
+    from core import artifacts
+    monkeypatch.setattr(routes_reindex, "manager", _FakeManager())
+    monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)  # rollback => 404, mai il reale
+    return _make_client(routes_pipeline.router, routes_reindex.router)
+
+
+@pytest.mark.parametrize("router,method,path", _ANTI_XSITE_ROUTES)
+def test_http_cross_site_post_rejected_with_403(xsite_client, monkeypatch, router, method, path):
+    """A. Cross-site keyless ⇒ 403. POST senza corpo, come la vera simple request di un
+    attaccante: la dependency scatta prima della validazione Pydantic del body."""
+    monkeypatch.setattr(deps, "API_KEY", None)
+    r = xsite_client.request(method, path, headers={"Sec-Fetch-Site": "cross-site"})
+    assert r.status_code == 403, r.text
+    assert "cross-site" in r.json()["detail"]
+
+
+@pytest.mark.parametrize("router,method,path", _ANTI_XSITE_ROUTES)
+def test_http_without_fetch_metadata_behaves_as_today(xsite_client, monkeypatch, router, method, path):
+    """B. Senza Sec-Fetch-Site ⇒ MAI 403: l'esito è quello di sempre (422 di validazione
+    per le route Pydantic col body {}, 202 dal manager fake, 404 dal rollback senza
+    versioni) — non si fissa un codice unico, si dimostra che il gate non è scattato."""
+    monkeypatch.setattr(deps, "API_KEY", None)
+    r = xsite_client.request(method, path, json={})
+    assert r.status_code != 403, r.text
+
+
+@pytest.mark.parametrize("router,method,path", _ANTI_XSITE_ROUTES)
+def test_http_same_origin_behaves_as_today(xsite_client, monkeypatch, router, method, path):
+    """C. Sec-Fetch-Site: same-origin (la dashboard keyless) ⇒ MAI 403."""
+    monkeypatch.setattr(deps, "API_KEY", None)
+    r = xsite_client.request(method, path, json={}, headers={"Sec-Fetch-Site": "same-origin"})
+    assert r.status_code != 403, r.text
+
+
+@pytest.mark.parametrize("router,method,path", _ANTI_XSITE_ROUTES)
+def test_http_cross_site_with_valid_api_key_passes(xsite_client, monkeypatch, router, method, path):
+    """D. Cross-site MA con API key valida ⇒ MAI 403: il bypass per i client autenticati."""
+    monkeypatch.setattr(deps, "API_KEY", "s3cret")
+    r = xsite_client.request(method, path, json={},
+                             headers={"Sec-Fetch-Site": "cross-site", "X-API-Key": "s3cret"})
+    assert r.status_code != 403, r.text
+
+
+def test_http_reindex_bodyless_curl_still_reaches_handler(xsite_client, monkeypatch):
+    """Criterio di accettazione esplicito: `curl -X POST /api/reindex` — nessun corpo,
+    nessun Sec-Fetch-Site — continua a NON essere bloccato dalla nuova dependency
+    (202 dal manager fake: la richiesta è arrivata all'handler)."""
+    monkeypatch.setattr(deps, "API_KEY", None)
+    r = xsite_client.post("/api/reindex")
+    assert r.status_code == 202, r.text
