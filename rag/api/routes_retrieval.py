@@ -18,12 +18,24 @@ from api.deps import (
     state,
 )
 from api.models import AskQuery
-from core import graph_ops, retrieval
+from core import graph_ops, llm, retrieval
 from core.config import CODE_CONTEXT_MAX_SNIPPETS, CODE_CONTEXT_MIN_WEIGHT, PROJECT_ROOT
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
+
+# Tetto per SINGOLO blocco iniettato nel contesto di /ask (testo di sezione, documento
+# del fallback legacy, snippet di codice), stessa convenzione di troncamento di
+# retrieval._serialize_chunks. Il guardrail GLOBALE sul prompt resta quello di
+# core.llm._ollama_payload (warning quando la stima dei token sfiora num_ctx).
+ASK_MAX_CHARS_PER_CHUNK = 3000
+
+
+def _cap_text(text: str, max_chars: int = ASK_MAX_CHARS_PER_CHUNK) -> str:
+    if len(text) > max_chars:
+        return text[:max_chars].rstrip() + "\n… [sezione troncata] …"
+    return text
 
 
 @router.post("/ask", dependencies=[Depends(require_not_cross_site_request)])
@@ -108,14 +120,14 @@ async def ask_rag(query: AskQuery):
         if entry is None or cid in seen_chunks:
             continue
         seen_chunks.add(cid)
-        context_parts.append(f"--- {r['doc_id']} § {r.get('section', '')} ---\n{entry['text']}")
+        context_parts.append(f"--- {r['doc_id']} § {r.get('section', '')} ---\n{_cap_text(entry['text'])}")
 
-    # Fallback legacy: senza sidecar dei chunk, inietta i documenti seed interi
+    # Fallback legacy: senza sidecar dei chunk, inietta i documenti seed (col cap per blocco)
     if not context_parts:
         for doc_id in seed_nodes:
             doc_path = PROJECT_ROOT / "docs" / doc_id
             if doc_path.exists():
-                context_parts.append(f"--- Inizio Documento: {doc_id} ---\n{doc_path.read_text(encoding='utf-8')}\n--- Fine Documento: {doc_id} ---")
+                context_parts.append(f"--- Inizio Documento: {doc_id} ---\n{_cap_text(doc_path.read_text(encoding='utf-8'))}\n--- Fine Documento: {doc_id} ---")
     context = "\n\n".join(context_parts)
     # -----------------------------------------------------------------------
 
@@ -143,17 +155,20 @@ async def ask_rag(query: AskQuery):
     if implementing_code:
         code_block = "\n\n".join(
             f"--- Codice esistente: {c['file']} :: {c['name']} ({c['kind']}) "
-            f"— implementa {c['implements']} ---\n{c['text']}"
+            f"— implementa {c['implements']} ---\n{_cap_text(c['text'])}"
             for c in implementing_code
         )
         context = f"{context}\n\n=== CODICE ESISTENTE (implementazione) ===\n\n{code_block}" if context else code_block
 
-    # 5. Sintesi finale tramite LLM configurato.
-    #    call_llm è multi-provider e sincrono (SDK anthropic/openai + httpx ollama): lo
-    #    eseguiamo in threadpool per non bloccare l'event loop. TODO: rendere async anche
-    #    il branch ollama di call_llm (gli SDK anthropic/openai restano sync → threadpool).
+    # 5. Sintesi finale tramite il layer LLM unificato (core.llm, purpose "ask"): il prompt
+    #    è costruito dalla funzione pura retrieval.build_ask_prompt (system storico +
+    #    contesto + domanda). Su LLMError la risposta è un 502 esplicito: MAI un testo
+    #    d'errore dentro "answer" con status "success".
     start_time = time.time()
-    answer = await run_in_threadpool(retrieval.call_llm, context, query.question)
+    try:
+        answer = await llm.agenerate(retrieval.build_ask_prompt(context, query.question), purpose="ask")
+    except llm.LLMError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     end_time = time.time()
 
     elaborazione_secondi = round(end_time - start_time, 2)

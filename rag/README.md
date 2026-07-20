@@ -22,16 +22,14 @@ con un warning, gli step della pipeline restituiscono il messaggio come testo vi
 `pipeline.generate_tolerant`). Nei test si inietta un provider fake con
 `llm.register_provider` — nessun HTTP (vedi [tests/test_llm.py](tests/test_llm.py)).
 
-**Eccezione:** `POST /ask` (sintesi della risposta RAG) NON passa da
-[core/llm.py](core/llm.py) — usa `retrieval.call_llm` (core/retrieval.py), un
-secondo layer Ollama/Anthropic/OpenAI più vecchio, mai unificato col primo. Per
-il ramo `ollama` replica manualmente `think`/`options.num_ctx` da
-`rag_config.yaml` (`llm_settings.ollama_think`/`ollama_num_ctx`): senza,
-`qwen3.5` genera in modalità "thinking" completa su un contesto di 32768 token
-(default del modello) invece dei 16384 configurati — misurato: 335s a risposta
-invece di 47s, e la cache KV più grande spinge il caricamento del modello fuori
-dagli 8GB di VRAM in split GPU/CPU. Se si tocca `_ollama_payload` in
-`core/llm.py` va aggiornato anche il branch `ollama` di `retrieval.call_llm`.
+Anche `POST /ask` (sintesi della risposta RAG) passa da questo layer, con purpose
+`ask`: il prompt (system storico + contesto + domanda, invariati) è costruito
+dalla funzione pura `retrieval.build_ask_prompt` e la chiamata è
+`llm.agenerate(..., purpose="ask")` — stessi guardrail `think`/`options.num_ctx`
+degli altri step, un solo client da mantenere. Su `LLMError` la route risponde
+`502` col messaggio dell'errore: mai un testo d'errore dentro `answer` con
+`status: "success"`. La base URL di Ollama è unica per tutto il codice
+(`VIBECRAFT_OLLAMA_URL`, default `http://127.0.0.1:11434`, core/config.py).
 
 ## Reindex automatico: l'indice non invecchia mai
 

@@ -17,7 +17,7 @@ import urllib.request
 
 import httpx
 
-from core.config import OLLAMA_NUM_CTX, OLLAMA_THINK, OLLAMA_TIMEOUT_SECONDS, config
+from core.config import OLLAMA_NUM_CTX, OLLAMA_THINK, OLLAMA_TIMEOUT_SECONDS, OLLAMA_URL, config
 
 logger = logging.getLogger(__name__)
 
@@ -51,12 +51,14 @@ def _ollama_payload(model: str, prompt: str) -> dict:
             )
     return payload
 
-# Scopi riconosciuti della pipeline: usati solo per validare i typo, la risoluzione
-# provider/modello funziona per qualunque chiave presente in llm_settings.purposes.
-PURPOSES = ("drift", "canvas", "propose", "validate", "explore", "review")
+# Scopi riconosciuti (gli step della pipeline più la sintesi di /ask): usati solo per
+# validare i typo, la risoluzione provider/modello funziona per qualunque chiave
+# presente in llm_settings.purposes.
+PURPOSES = ("drift", "canvas", "propose", "validate", "explore", "review", "ask")
 
-# Endpoint locale di Ollama (unica copia: prima era duplicato in indexing/pipeline/config).
-OLLAMA_GENERATE_URL = "http://127.0.0.1:11434/api/generate"
+# Endpoint di generazione derivato dalla base OLLAMA_URL (env VIBECRAFT_OLLAMA_URL,
+# core/config.py): unica copia dell'URL di Ollama in tutto il codice.
+OLLAMA_GENERATE_URL = f"{OLLAMA_URL.rstrip('/')}/api/generate"
 
 # max_tokens per il provider anthropic: le generazioni della pipeline (canvas, spec,
 # report) sono documenti lunghi ma sotto la soglia che richiederebbe lo streaming.

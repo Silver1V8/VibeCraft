@@ -19,7 +19,7 @@ from api.routes_reindex import manager
 from core.config import ALERTS_PATH
 from core.eval_history import eval_health, load_history
 from core.indexing import index_status
-from core.llm import OLLAMA_GENERATE_URL
+from core import llm
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +47,10 @@ def check_qdrant(qdrant) -> bool:
 
 
 def check_ollama(timeout: float = OLLAMA_PING_TIMEOUT_SECONDS) -> bool:
-    """Ping best-effort a Ollama (GET /api/tags derivato dall'endpoint generate),
+    """Ping best-effort a Ollama (GET /api/tags derivato dall'endpoint generate,
+    letto da core.llm a ogni chiamata: stessa origine di VIBECRAFT_OLLAMA_URL),
     mai bloccante oltre `timeout` secondi."""
-    url = OLLAMA_GENERATE_URL.rsplit("/api/", 1)[0] + "/api/tags"
+    url = llm.OLLAMA_GENERATE_URL.rsplit("/api/", 1)[0] + "/api/tags"
     try:
         with urllib.request.urlopen(url, timeout=timeout):
             return True
