@@ -8,6 +8,12 @@ class AskQuery(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
     top_k: int = Field(default=5, ge=1, le=50)
     bfs_depth: int = Field(default=2, ge=0, le=5)
+    # Nodo bersaglio esplicito per il ramo "graph" del router M2 (stessa semantica del
+    # parametro `target` di GET /api/graph/query): il chiamante che conosce già l'id del
+    # nodo (es. click sulla Semantic Map) lo passa qui; il rilevamento testuale di
+    # graph_query non risolve i riferimenti in linguaggio naturale ("la specifica di
+    # autenticazione" non contiene l'id "spec_auth_1.1.md"). Ignorato dal ramo "hybrid".
+    target: str | None = Field(default=None, max_length=1000)
 
 
 class ExploreTurnRequest(BaseModel):

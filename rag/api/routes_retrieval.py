@@ -20,7 +20,7 @@ from api.deps import (
     state,
 )
 from api.models import AskQuery
-from core import graph_ops, llm, retrieval
+from core import graph_ops, llm, retrieval, router as question_router
 from core.config import (
     CODE_CONTEXT_MAX_SNIPPETS,
     CODE_CONTEXT_MIN_WEIGHT,
@@ -38,11 +38,11 @@ router = APIRouter(dependencies=[Depends(require_api_key)])
 # core.llm._ollama_payload (warning quando la stima dei token sfiora num_ctx).
 ASK_MAX_CHARS_PER_CHUNK = 3000
 
-# Strategia di retrieval usata da /ask: oggi è sempre "hybrid" (dense + sparse +
-# ColBERT rerank, vedi core.retrieval.hybrid_search). Il campo esiste già nel log
-# strutturato in vista del router deterministico di M2, che sceglierà la strategia
-# per query invece di usarne sempre una sola.
-ASK_RETRIEVAL_STRATEGY = "hybrid"
+# Strategia di retrieval di /ask: scelta PER QUERY dal router deterministico M2
+# (core.router.route_question): "graph" per le domande strutturali (risposta diretta di
+# graph_ops.graph_query, senza retrieval né LLM), "hybrid" per tutto il resto (dense +
+# sparse + ColBERT rerank, vedi core.retrieval.hybrid_search). La scelta finisce nel
+# campo retrieval_strategy del log strutturato M3.
 
 
 def _cap_text(text: str, max_chars: int = ASK_MAX_CHARS_PER_CHUNK) -> str:
@@ -65,6 +65,34 @@ async def ask_rag(query: AskQuery):
         raise HTTPException(status_code=503, detail="Server non ancora inizializzato.")
     graph: nx.DiGraph = snap.graph
     index_version = snap.version
+
+    # 0. Router deterministico M2: le domande STRUTTURALI (enumerazioni, relazioni,
+    #    impatto, adiacenza — i casi B>A del report M1) sono risposte direttamente da
+    #    graph_query, senza retrieval né chiamata LLM. graph_query è CPU-bound sul
+    #    grafo in memoria: offload in threadpool per non bloccare l'event loop.
+    retrieval_strategy = question_router.route_question(query.question)
+    if retrieval_strategy == "graph":
+        graph_start = time.time()
+        graph_result = await run_in_threadpool(
+            graph_ops.graph_query, query.question, graph, query.target,
+        )
+        latency_graph_ms = round((time.time() - graph_start) * 1000, 2)
+        # Stessa riga di log M3 del percorso ibrido (chiavi identiche e ordinate):
+        # n_results = count della risposta di grafo, latency_generation_ms = 0 (no LLM).
+        logger.info(
+            "ask request_id=%s index_version=%s qdrant_collection=%s qdrant_alias=%s "
+            "retrieval_strategy=%s top_k=%s n_results=%s latency_retrieval_ms=%s "
+            "latency_generation_ms=%s latency_total_ms=%s",
+            request_id, index_version, qdrant_collection_for_version(index_version),
+            COLLECTION_NAME, retrieval_strategy, query.top_k, graph_result.get("count", 0),
+            latency_graph_ms, 0, round((time.time() - request_start) * 1000, 2),
+        )
+        return {
+            "status": "graph_answer",
+            "graph_result": graph_result,
+            "request_id": request_id,
+            "index_version": index_version,
+        }
 
     # 1-2. Ricerca ibrida: dense + sparse (fusione per rank) + rerank ColBERT
     retrieval_start = time.time()
@@ -209,7 +237,7 @@ async def ask_rag(query: AskQuery):
         "retrieval_strategy=%s top_k=%s n_results=%s latency_retrieval_ms=%s "
         "latency_generation_ms=%s latency_total_ms=%s",
         request_id, index_version, qdrant_collection, COLLECTION_NAME,
-        ASK_RETRIEVAL_STRATEGY, query.top_k, len(search_results),
+        retrieval_strategy, query.top_k, len(search_results),
         latency_retrieval_ms, latency_generation_ms, latency_total_ms,
     )
 
