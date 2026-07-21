@@ -2,8 +2,10 @@
 Modulo leggero (no torch): questi test girano in millisecondi."""
 import networkx as nx
 import numpy as np
+import pytest
 
 import code_index as ci
+from core.config import CODE_EXCLUDED_DIRS
 
 
 def test_python_symbols(tmp_path):
@@ -72,6 +74,22 @@ def test_add_code_graph_implements_and_references(tmp_path):
     assert "IMPLEMENTS" in relations
     assert "REFERENCES" in relations  # il codice cita l'entità EVENTO
     assert any(d.get("relation") == "IMPLEMENTS" and v == "spec.md" for _, v, d in G.edges(data=True))
+
+
+@pytest.mark.parametrize("excluded_dir", sorted(CODE_EXCLUDED_DIRS))
+def test_code_excluded_dirs_are_skipped(tmp_path, excluded_dir):
+    """Ogni cartella in CODE_EXCLUDED_DIRS (dipendenze installate/output di build dei progetti
+    reali in code/: node_modules, bin/obj .NET, .venv, ecc.) deve essere scartata dalla
+    scansione di collect_code_symbols, a qualunque profondità — vedi il commento su
+    CODE_EXCLUDED_DIRS in core/config.py sul costo di non farlo (npm install non filtrato)."""
+    excluded = tmp_path / "sub" / excluded_dir
+    excluded.mkdir(parents=True)
+    (excluded / "should_not_be_scanned.py").write_text("def ghost():\n    pass\n", encoding="utf-8")
+    (tmp_path / "kept.py").write_text("def kept_fn():\n    pass\n", encoding="utf-8")
+
+    names = {s["name"] for s in ci.collect_code_symbols(tmp_path)}
+    assert "ghost" not in names
+    assert "kept_fn" in names
 
 
 def test_nonsemantic_symbols_not_linked():

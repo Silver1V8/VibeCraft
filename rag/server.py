@@ -30,6 +30,7 @@ from api.deps import API_KEY, lifespan
 from api import (
     routes_graph,
     routes_health,
+    routes_intake,
     routes_pages,
     routes_pipeline,
     routes_reindex,
@@ -49,6 +50,7 @@ app.include_router(routes_reindex.router)
 app.include_router(routes_retrieval.router)
 app.include_router(routes_graph.router)
 app.include_router(routes_health.router)
+app.include_router(routes_intake.router)
 
 
 # ---------------------------------------------------------------------------

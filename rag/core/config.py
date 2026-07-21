@@ -159,6 +159,26 @@ DOCS_DIR = PROJECT_ROOT / config["paths"]["docs_dir"].lstrip("./")
 DENSE_DIM = 1024
 DOC_EXTS = (".md", ".txt", ".docx", ".xlsx", ".pdf")
 
+# Intake & Import (rag_config.yaml → intake.*): ingresso controllato di documenti/progetti
+# nell'area di staging, in attesa di review esplicita prima di entrare in docs/ o code/ (piano:
+# docs/00_meta_governance/piano_intake_import.md). Vedi core/intake.py per lo scaffold (S0) e
+# core/intake_convert.py / core/project_import.py per le fasi successive del piano.
+_intake_cfg: dict = config.get("intake") or {}
+# Radice dell'area di staging, relativa a RAG_DIR (default: database/staging, accanto agli
+# altri artefatti di database/).
+INTAKE_STAGING_DIR = RAG_DIR / str(_intake_cfg.get("staging_dir") or "database/staging").lstrip("./")
+# Formati sorgente accettati in ingresso (documenti): il resto viene rifiutato a monte, prima
+# di leggere il contenuto.
+INTAKE_ALLOWED_FORMATS: tuple[str, ...] = tuple(
+    _intake_cfg.get("allowed_formats") or ["md", "pdf", "docx", "html", "txt"]
+)
+INTAKE_MAX_UPLOAD_MB: int = int(_intake_cfg.get("max_upload_mb", 25))
+# Authority scritta nel frontmatter dei documenti approvati dallo staging (S2): sotto i
+# documenti autorati a mano, sopra il default implicito del retrieval (0.4).
+INTAKE_DEFAULT_AUTHORITY: float = float(_intake_cfg.get("default_authority", 0.70))
+# Tetto ai file generabili in un'unica richiesta di generazione via Ollama (core/doc_generation.py).
+INTAKE_GENERATION_MAX_FILES: int = int(_intake_cfg.get("generation_max_files", 5))
+
 # Base URL di Ollama (host:porta), sovrascrivibile via env per setup non locali
 # (Docker, host GPU remoto). core/llm.py ne deriva l'endpoint /api/generate e
 # routes_health il ping /api/tags: nessun altro punto del codice deve contenere
