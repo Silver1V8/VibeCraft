@@ -140,10 +140,16 @@ def build_health(*, snapshot, manager, qdrant, status_fn=index_status,
     if not ollama_ok:
         reasons.append("Ollama non raggiungibile")
 
-    # Ultimo alert dei batch notturni (solo se più recente di 48h).
+    # Ultimo alert (solo se più recente di 48h): due formati coesistono in alerts.jsonl —
+    # gli script notturni scrivono {script, error}, mentre core.eval_gate.record_alert
+    # (eval-gate e il warning di rollback su collection condivisa) scrive
+    # {level, source, message, ...}. Il campo "script" distingue i due formati.
     alert = read_last_alert(alerts_path)
     if alert is not None:
-        reasons.append(f"alert notturno recente: {alert.get('script', '?')} — {alert.get('error', '?')}")
+        if "script" in alert:
+            reasons.append(f"alert notturno recente: {alert.get('script', '?')} — {alert.get('error', '?')}")
+        else:
+            reasons.append(f"alert recente ({alert.get('source', '?')}): {alert.get('message', '?')}")
 
     return {
         "status": "ok" if not reasons else "degraded",
