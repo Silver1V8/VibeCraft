@@ -3,6 +3,9 @@
 Indicizzazione (core/indexing), retrieval ibrido e pipeline Explore → Canvas →
 Propose (core/) esposti via FastAPI (api/). Entrypoint: `server.py`, `index.py`.
 
+Le decisioni architetturali significative sono raccolte in
+[rag/adr/](adr/README.md) (Architecture Decision Records).
+
 ## LLM: un solo layer, provider intercambiabili per step
 
 Tutte le chiamate generative (drift, canvas, propose, validate, explore, canvas
