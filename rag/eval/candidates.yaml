@@ -10,3 +10,11 @@ candidates:
   - doc: 04_knowledge_informative/intent_synonym_mapping.md
   from_feature: form-eventi
   extracted_at: '2026-07-16T07:29:45+00:00'
+- q: 'form-eventi-backend1: REASONS Canvas: form eventi (Backend)'
+  expected:
+  - doc: 02_specs_normative/spec_form_1.4.md
+  - doc: 01_architecture_norms/spec_tech_frontend.md
+  - doc: 03_changes_historical/form-eventi-canvas-review.md
+  - doc: 01_architecture_norms/spec_tech_backend.md
+  from_feature: form-eventi-backend1
+  extracted_at: '2026-07-21T12:54:43+00:00'
