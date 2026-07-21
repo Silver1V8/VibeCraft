@@ -172,6 +172,58 @@ cron:
 0 4 * * 0  /path/to/rag/scripts/weekly_consistency.sh  >> /var/log/vibecraft-weekly.log  2>&1
 ```
 
+## Intake & Import: ingresso controllato della conoscenza
+
+La pagina **`/intake`** ([templates/intake.unified.html](templates/intake.unified.html),
+route in [api/routes_pages.py](api/routes_pages.py)) è l'unico ingresso di nuova
+conoscenza — documenti e progetti — nel sistema. Il principio non negoziabile è lo
+**staging con review**: nulla entra in `docs/` o nell'indice senza un'approvazione
+esplicita dalla pagina. Il ciclo vive in [core/intake.py](core/intake.py) e nelle
+route [api/routes_intake.py](api/routes_intake.py) (`/api/intake/*`, auth `X-API-Key`
+come il resto), e usa lo stesso reindex delta + writer lock dell'indicizzazione
+incrementale.
+
+**Quattro flussi, un solo staging** (`database/staging/`, con journal append-only
+`intake.jsonl`):
+
+- **Genera con Ollama** (`POST /api/intake/generate`, [core/doc_generation.py](core/doc_generation.py)):
+  fino a `intake.generation_max_files` documenti markdown grounded nel Graph RAG
+  (hybrid_search) e nelle lezioni delle canvas review; ogni file è validato
+  (parse + chunking) prima di entrare in staging.
+- **Importa documenti** (`POST /api/intake/docs`, [core/intake_convert.py](core/intake_convert.py)):
+  upload multipart Markdown, PDF, DOCX, HTML o TXT (`intake.allowed_formats`,
+  limite `intake.max_upload_mb`) convertiti in Markdown. Estensione e dimensione
+  validate PRIMA di leggere l'intero body in memoria.
+- **Review staging** (`GET /api/intake/staged`, `.../preview`, `POST .../approve`,
+  `POST .../reject`): preview del markdown, poi **approve** (scrive
+  `docs/<categoria>/<nome_file>` con frontmatter conforme + reindex delta della sola
+  path aggiunta, sotto writer lock) o **reject** (motivo nel journal, file spostati
+  in `staging/rejected/`, mai cancellati). `approve` **non sovrascrive MAI** un file
+  esistente in `docs/`, e il documento composto deve passare parse/chunking PRIMA di
+  qualunque scrittura.
+- **Importa progetto da path** (`POST /api/intake/project/plan` + `.../apply`,
+  [core/project_import.py](core/project_import.py)): import di un progetto locale in
+  `code/<target>` (`backend`, `frontend`, `logicAgent`) col pattern **plan/apply**.
+  Il plan è un **dry-run puro** (zero scritture) che classifica i file in
+  nuovi/identici/conflitti/esclusi (esclusioni riusate da `CODE_EXCLUDED_DIRS`).
+  Semantica **additiva e non distruttiva, vincolante**: cartella vuota → bootstrap
+  (copia tutto il copiabile); cartella popolata → additivo (copia SOLO i file nuovi;
+  i file esistenti con contenuto diverso sono **conflitti**, riportati nel piano e
+  **mai applicati**). `apply` fa un backup zip della cartella target, copia solo i
+  nuovi, rifiuta un piano **stale** (fingerprint del target cambiato dopo l'anteprima)
+  e reindicizza il codice in delta (avviso esplicito se serve un full rebuild per i
+  code-link). **Mai una sovrascrittura, mai una cancellazione** di un file esistente
+  in `code/`.
+
+**Project brief** (`POST /api/intake/project/brief`, [core/project_brief.py](core/project_brief.py)):
+dopo un import riuscito, genera via Ollama una sintesi architetturale del target
+(componenti, entrypoint, dipendenze, mappa simboli→spec dagli archi `IMPLEMENTS` del
+grafo, aree candidate a refactoring), **grounded sui dati reali del grafo** — mai
+inventati. Precondizione: un import `applied` per quel target nel journal (altrimenti
+409); grafo senza simboli per il target → esito con avviso, mai un crash. Il brief
+entra in staging come ogni altro documento (`source "brief"`) e passa dalla stessa
+review S2: **nessun percorso diretto verso `docs/`**.
+
 ## Eval del retrieval: da attrezzo da banco a guardrail
 
 La qualità del retrieval si misura sul golden-set

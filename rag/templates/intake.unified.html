@@ -36,6 +36,7 @@
       --dropzone-border:#1f5c38; --dropzone-border-active:#00ff41; --dropzone-bg:#020f08;
       --badge-imported-bg:rgba(77,163,255,0.18); --badge-imported-color:#7db8ff;
       --badge-generated-bg:rgba(0,255,65,0.16); --badge-generated-color:#7dffa0;
+      --badge-brief-bg:rgba(255,196,0,0.16); --badge-brief-color:#ffd75e;
       --ok-color:#2ecc71; --err-color:#ff6b6b; --err-bg:rgba(255,107,107,0.12);
     }
 
@@ -60,6 +61,7 @@
       --dropzone-border:#334155; --dropzone-border-active:#3b82f6; --dropzone-bg:#0b1220;
       --badge-imported-bg:rgba(59,130,246,0.16); --badge-imported-color:#60a5fa;
       --badge-generated-bg:rgba(34,197,94,0.16); --badge-generated-color:#4ade80;
+      --badge-brief-bg:rgba(234,179,8,0.16); --badge-brief-color:#facc15;
       --ok-color:#16a34a; --err-color:#ef4444; --err-bg:rgba(239,68,68,0.10);
     }
 
@@ -133,6 +135,7 @@
     .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
     .badge-imported { background: var(--badge-imported-bg); color: var(--badge-imported-color); }
     .badge-generated { background: var(--badge-generated-bg); color: var(--badge-generated-color); }
+    .badge-brief { background: var(--badge-brief-bg); color: var(--badge-brief-color); }
     .badge-ok { background: rgba(46,204,113,0.16); color: var(--ok-color); }
     .badge-err { background: var(--err-bg); color: var(--err-color); }
     .msg-err { color: var(--err-color); font-size: var(--text-size-sm); }
@@ -255,6 +258,12 @@
       </div>
       <div id="prj-plan-result"></div>
       <div id="prj-apply-result"></div>
+      <div class="toolbar" style="margin-top:12px">
+        <button id="prj-brief-btn" onclick="startProjectBrief()" disabled>🧭 Project brief</button>
+        <span id="prj-brief-status" class="status">Attivo dopo un import riuscito: genera via Ollama
+          una sintesi architetturale del target (grounded sul grafo) che entra in staging come ogni documento.</span>
+      </div>
+      <div id="prj-brief-result"></div>
     </section>
   </main>
 
@@ -454,7 +463,7 @@
         } else {
           list.innerHTML = staged.map(entry => `
             <div class="staged-item">
-              <span class="badge badge-${entry.source === 'generated' ? 'generated' : 'imported'}">${entry.source}</span>
+              <span class="badge badge-${['generated', 'brief'].includes(entry.source) ? entry.source : 'imported'}">${entry.source}</span>
               <span class="name">${escapeHtml(entry.filename || entry.id)}</span>
               <span class="status">${formatDate(entry.staged_at)}</span>
               <button onclick="openPreview('${entry.id}')">🔎 Anteprima</button>
@@ -624,6 +633,12 @@
 
         currentProjectPlanId = null;  // un piano applicato non è riutilizzabile
         status.className = 'status msg-ok'; status.textContent = 'Import applicato.';
+        // Il brief è ora possibile per il target appena importato (il backend
+        // riverifica comunque il journal: 409 senza import riuscito).
+        lastImportedTarget = data.target;
+        document.getElementById('prj-brief-btn').disabled = false;
+        document.getElementById('prj-brief-status').textContent =
+          `Genera il project brief di code/${data.target} (entra in staging, poi review).`;
         const t = data.totali || {};
         const reindexTxt = data.reindex ? JSON.stringify({
           reindexed_docs: data.reindex.reindexed_docs, upserted_chunks: data.reindex.upserted_chunks,
@@ -639,6 +654,68 @@
       } catch (e) {
         status.className = 'status msg-err'; status.textContent = `Errore: ${e.message}`;
       }
+    }
+
+    /* ──────────── (d-bis) PROJECT BRIEF ────────────
+       Attivo solo dopo un import riuscito in questa pagina (il backend riverifica il
+       journal e risponde 409 senza import). Job async col pattern della generazione:
+       202 + polling, esito con documento staged / scartati / avviso. */
+    let lastImportedTarget = null;
+
+    async function startProjectBrief() {
+      if (!lastImportedTarget) return;
+      const btn = document.getElementById('prj-brief-btn');
+      const status = document.getElementById('prj-brief-status');
+      const out = document.getElementById('prj-brief-result');
+      out.innerHTML = '';
+      btn.disabled = true;
+      status.className = 'status';
+      status.textContent = `Avvio brief per code/${lastImportedTarget}…`;
+
+      let job;
+      try {
+        const res = await fetch('/api/intake/project/brief', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ target: lastImportedTarget }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { throw new Error(data.detail || `HTTP ${res.status}`); }
+        job = data;
+      } catch (e) {
+        status.className = 'status msg-err'; status.textContent = `Errore: ${e.message}`;
+        btn.disabled = false; return;
+      }
+
+      status.textContent = 'Brief in corso (grounding sul grafo + Ollama)…';
+      while (job.status === 'pending' || job.status === 'running') {
+        await new Promise(r => setTimeout(r, 1500));
+        try {
+          const res = await fetch(`/api/intake/project/brief/${job.job_id}`);
+          job = await res.json();
+        } catch (e) { /* rete instabile: ritenta al prossimo giro */ }
+      }
+
+      btn.disabled = false;
+      if (job.status === 'failed') {
+        status.className = 'status msg-err';
+        status.textContent = `Job brief fallito: ${job.error || 'errore sconosciuto'}`;
+        return;
+      }
+
+      const r = job.result || {};
+      status.className = 'status msg-ok'; status.textContent = 'Brief completato.';
+      const lat = r.latency || {};
+      const scartatiHtml = (r.scartati || []).map(s =>
+        `<div class="msg-err">· scartato: ${escapeHtml(s.motivo)}</div>`).join('');
+      out.innerHTML = `
+        <div class="file-row">
+          <span class="badge badge-ok">${r.n_generati || 0} in staging</span>
+          <span class="badge ${r.n_scartati ? 'badge-err' : 'badge-ok'}">${r.n_scartati || 0} scartati</span>
+          <span class="status">generazione ${lat.generation_ms ?? '?'} ms · totale ${lat.total_ms ?? '?'} ms</span>
+        </div>
+        ${r.avviso ? `<div class="msg-err" style="margin-top:6px">⚠ ${escapeHtml(r.avviso)}</div>` : ''}
+        ${scartatiHtml}`;
+      if (r.n_generati) refreshStaging();
     }
 
     /* ──────────── Bootstrap ──────────── */

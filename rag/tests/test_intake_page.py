@@ -34,3 +34,12 @@ def test_intake_route_wires_the_existing_apis_not_new_ones():
     assert "/api/intake/staged" in body
     assert "/api/intake/project/plan" in body
     assert "/api/intake/project/apply" in body
+
+
+def test_intake_route_exposes_project_brief_control():
+    """S6: la zona import contiene il controllo Project brief cablato sull'endpoint
+    /api/intake/project/brief (attivo lato UI solo dopo un import riuscito)."""
+    client = _client()
+    body = client.get("/intake").text
+    assert "prj-brief-btn" in body
+    assert "/api/intake/project/brief" in body

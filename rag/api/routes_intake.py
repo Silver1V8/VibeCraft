@@ -26,7 +26,7 @@ from api.deps import (
     require_not_cross_site_request,
     state,
 )
-from core import doc_generation, intake, project_import
+from core import doc_generation, intake, project_brief, project_import
 from core.config import INTAKE_ALLOWED_FORMATS, INTAKE_GENERATION_MAX_FILES, INTAKE_MAX_UPLOAD_MB
 from core.intake_convert import ConversionError
 from core.writer_lock import WriterLockBusyError
@@ -51,6 +51,8 @@ _ERROR_STATUS: tuple[tuple[type[Exception], int], ...] = (
     (intake.InvalidComposedDocumentError, 422),
     (WriterLockBusyError, 409),
     (ConversionError, 422),
+    (project_brief.BriefWithoutImportError, 409),
+    (project_brief.ProjectBriefError, 422),
     (project_import.StaleImportPlanError, 409),
     (project_import.InvalidImportPathError, 422),
     (project_import.InvalidImportTargetError, 422),
@@ -300,3 +302,54 @@ async def apply_project(payload: ProjectApplyRequest):
     # (stesso meccanismo dell'approve dei documenti). Best-effort, mai un errore.
     await run_in_threadpool(reload_index_state)
     return result
+
+
+# ---------------------------------------------------------------------------
+# S6 — Project brief: sintesi architetturale grounded sul grafo, job async
+# (pattern S3), esito in STAGING (source "brief") → review S2 come ogni doc.
+# ---------------------------------------------------------------------------
+class ProjectBriefRequest(BaseModel):
+    target: str
+
+
+# Manager dedicato ai brief: stessi thread daemon del GenerationManager S3, istanza
+# separata per non mescolare i job (e i monkeypatch dei test) con la generazione doc.
+_brief_manager = doc_generation.GenerationManager()
+
+
+def _server_brief(target: str) -> dict:
+    """Chiude sullo snapshot di runtime del server (grafo + code_store coerenti fra
+    loro, vedi IndexSnapshot): gira sul thread daemon del manager, mai sull'event loop."""
+    snap = current_snapshot()
+    return project_brief.generate_project_brief(
+        target,
+        graph=snap.graph if snap else None,
+        code_store=snap.code_store if snap else None,
+    )
+
+
+@router.post("/api/intake/project/brief",
+             dependencies=[Depends(require_not_cross_site_request)])
+async def start_project_brief(payload: ProjectBriefRequest):
+    """Avvia il job di project brief per un target di code/ e risponde 202 col job_id.
+    Precondizioni verificate PRIMA di avviare il job: target ammesso (422) e import
+    progetto riuscito per quel target nel journal intake (altrimenti 409)."""
+    try:
+        await run_in_threadpool(project_brief.require_applied_import, payload.target)
+    except Exception as exc:
+        _raise_http(exc)
+    job = _brief_manager.start(
+        f"project brief {payload.target}", 1, project_brief.BRIEF_CATEGORIA_SUGGERITA,
+        lambda: _server_brief(payload.target),
+    )
+    return JSONResponse(status_code=202, content=job.to_dict())
+
+
+@router.get("/api/intake/project/brief/{job_id}")
+async def project_brief_status(job_id: str):
+    """Stato di un job di brief (pending/running/done/failed) con l'esito (documento
+    staged, scartati, avviso "grafo senza simboli") o l'errore leggibile."""
+    job = await run_in_threadpool(_brief_manager.get, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Job di brief non trovato: {job_id}")
+    return job.to_dict()
