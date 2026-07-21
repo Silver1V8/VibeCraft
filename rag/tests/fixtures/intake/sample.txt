@@ -1,0 +1,8 @@
+Titolo TXT di prova
+
+Questo è il primo paragrafo del documento di testo usato come fixture per i test
+del convertitore intake. Serve a verificare che il testo grezzo venga incapsulato
+correttamente in un documento Markdown con un titolo.
+
+Questo è il secondo paragrafo, con qualche accento più italiano: città, perché,
+università. Serve a controllare che la decodifica UTF-8 funzioni senza problemi.
