@@ -133,10 +133,9 @@ eval_gate:
   #      dei job incrementali (dal journal reindex_jobs.jsonl) E ≤ 1 alert/settimana a
   #      corpus stabile (database/alerts.jsonl, level=warning + advisory=incremental);
   #   3. RIMUOVERE flag e codice (mini-PR di revert) altrimenti.
-  # DEFAULT OFF su main: il flag si attiva MANUALMENTE per la finestra sperimentale
-  # (attivazione locale 2026-07-21 — verifica dovuta il 2026-08-04; comandi di misura
-  # nel report M6 / memoria versione-definitiva-plan). Main non spedisce l'esperimento acceso.
-  incremental_advisory: false
+  # ATTIVATO 2026-07-21 — verifica dovuta il 2026-08-04 (comandi di misura nel report M6,
+  # branch feat/m6-incremental-advisory-gate / memoria versione-definitiva-plan).
+  incremental_advisory: true
 
 paths:
   docs_dir: "./docs"
