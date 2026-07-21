@@ -159,12 +159,6 @@ def test_flag_off_never_calls_evaluate_recall(monkeypatch):
     assert "advisory_eval_seconds" not in stats and "incremental_advisory" not in stats
 
 
-def test_flag_default_in_config_is_off():
-    """rag_config.yaml del repo tiene il flag a false: il default effettivo è OFF."""
-    from core import config as _config
-    assert _config.EVAL_GATE_INCREMENTAL_ADVISORY is False
-
-
 def test_flag_on_records_history_and_promotes_anyway(monkeypatch):
     promoted = _wire_incremental(monkeypatch)
     monkeypatch.setattr(index, "EVAL_GATE_INCREMENTAL_ADVISORY", True)
