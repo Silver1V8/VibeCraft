@@ -1,7 +1,8 @@
-"""Test della route S4 (piano: docs/00_meta_governance/piano_intake_import.md):
-GET /intake serve la pagina unificata con le 3 zone (Genera con Ollama, Importa documenti,
-In staging). Nessuna logica di dominio da testare qui: la pagina è self-contained e passa
-dalle API già testate in test_intake_staging.py / test_intake_generate_routes.py."""
+"""Test della route S4/S5 (piano: docs/00_meta_governance/piano_intake_import.md):
+GET /intake serve la pagina unificata con le 4 zone (Genera con Ollama, Importa documenti,
+In staging, Importa progetto da path). Nessuna logica di dominio da testare qui: la pagina
+è self-contained e passa dalle API già testate in test_intake_staging.py /
+test_intake_generate_routes.py / test_project_import.py."""
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -14,7 +15,7 @@ def _client() -> TestClient:
     return TestClient(app, client=("127.0.0.1", 54321))
 
 
-def test_intake_route_returns_200_with_three_blocks():
+def test_intake_route_returns_200_with_four_blocks():
     client = _client()
     resp = client.get("/intake")
     assert resp.status_code == 200
@@ -22,6 +23,7 @@ def test_intake_route_returns_200_with_three_blocks():
     assert "section-genera" in body
     assert "section-importa" in body
     assert "section-staging" in body
+    assert "section-progetti" in body
 
 
 def test_intake_route_wires_the_existing_apis_not_new_ones():
@@ -30,3 +32,5 @@ def test_intake_route_wires_the_existing_apis_not_new_ones():
     assert "/api/intake/generate" in body
     assert "/api/intake/docs" in body
     assert "/api/intake/staged" in body
+    assert "/api/intake/project/plan" in body
+    assert "/api/intake/project/apply" in body

@@ -26,7 +26,7 @@ from api.deps import (
     require_not_cross_site_request,
     state,
 )
-from core import doc_generation, intake
+from core import doc_generation, intake, project_import
 from core.config import INTAKE_ALLOWED_FORMATS, INTAKE_GENERATION_MAX_FILES, INTAKE_MAX_UPLOAD_MB
 from core.intake_convert import ConversionError
 from core.writer_lock import WriterLockBusyError
@@ -51,6 +51,10 @@ _ERROR_STATUS: tuple[tuple[type[Exception], int], ...] = (
     (intake.InvalidComposedDocumentError, 422),
     (WriterLockBusyError, 409),
     (ConversionError, 422),
+    (project_import.StaleImportPlanError, 409),
+    (project_import.InvalidImportPathError, 422),
+    (project_import.InvalidImportTargetError, 422),
+    (project_import.ProjectImportError, 422),
 )
 
 
@@ -219,3 +223,80 @@ async def generation_status(job_id: str):
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job di generazione non trovato: {job_id}")
     return job.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# S5 — Import progetti da path locale: plan (anteprima, dry-run) + apply (additivo)
+# ---------------------------------------------------------------------------
+class ProjectPlanRequest(BaseModel):
+    path: str
+    target: str
+
+
+class ProjectApplyRequest(BaseModel):
+    plan_id: str | None = None
+    plan: dict | None = None
+
+
+# Piani recenti per plan_id (l'anteprima li produce, l'applica li consuma): stato di
+# processo come il GenerationManager — un riavvio del server li dimentica e l'utente
+# ripete semplicemente l'anteprima (che è comunque l'unica cosa sicura da fare dopo
+# un riavvio: lo stato di code/ potrebbe essere cambiato).
+_project_plans: dict[str, project_import.ImportPlan] = {}
+_PROJECT_PLANS_MAX = 20
+
+
+def _remember_plan(plan: project_import.ImportPlan) -> None:
+    _project_plans[plan.plan_id] = plan
+    while len(_project_plans) > _PROJECT_PLANS_MAX:
+        _project_plans.pop(next(iter(_project_plans)))
+
+
+@router.post("/api/intake/project/plan",
+             dependencies=[Depends(require_not_cross_site_request)])
+async def plan_project(payload: ProjectPlanRequest):
+    """Anteprima dell'import (DRY-RUN puro, zero scritture): scansiona il path
+    sorgente e classifica i file contro code/<target>/ (nuovi/identici/conflitti/
+    esclusi). Validazioni in core.project_import: path assoluto, esistente,
+    directory, MAI dentro il repo né dentro staging; target solo tra i tre ammessi."""
+    try:
+        plan = await run_in_threadpool(
+            project_import.plan_project_import, payload.path, payload.target)
+    except Exception as exc:
+        _raise_http(exc)
+    _remember_plan(plan)
+    return plan.as_dict()
+
+
+@router.post("/api/intake/project/apply",
+             dependencies=[Depends(require_not_cross_site_request)])
+async def apply_project(payload: ProjectApplyRequest):
+    """Applica un piano di import (per plan_id di un'anteprima recente, o piano
+    completo nel body): backup zip, copia dei SOLI file nuovi, journal, reindex delta
+    del codice — tutto sotto writer lock (core.project_import.apply_project_import).
+    Piano stale (stato di code/<target>/ cambiato dopo l'anteprima) → 409."""
+    if payload.plan_id is not None:
+        plan = _project_plans.get(payload.plan_id)
+        if plan is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"piano di import non trovato: {payload.plan_id} — ripeti l'anteprima")
+    elif payload.plan is not None:
+        try:
+            plan = project_import.ImportPlan.from_dict(payload.plan)
+        except Exception as exc:
+            _raise_http(exc)
+    else:
+        raise HTTPException(status_code=422, detail="serve plan_id o plan")
+    try:
+        result = await run_in_threadpool(
+            project_import.apply_project_import, plan, reindex=_server_reindex)
+    except Exception as exc:
+        _raise_http(exc)
+    # Un piano applicato non è riutilizzabile: lo stato di code/ è cambiato per
+    # costruzione (fingerprint diverso), inutile tenerlo in memoria.
+    _project_plans.pop(plan.plan_id, None)
+    # Il reindex delta ha promosso una nuova versione: allinea lo snapshot in memoria
+    # (stesso meccanismo dell'approve dei documenti). Best-effort, mai un errore.
+    await run_in_threadpool(reload_index_state)
+    return result

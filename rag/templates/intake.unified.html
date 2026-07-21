@@ -229,6 +229,33 @@
       <div id="staging-list"></div>
       <div id="staging-detail"></div>
     </section>
+
+    <!-- ══════════ (d) IMPORTA PROGETTO DA PATH ══════════ -->
+    <section id="section-progetti">
+      <h2>📦 Importa progetto da path</h2>
+      <p class="desc">Importa un progetto esistente dal filesystem locale in <code>code/&lt;target&gt;</code>.
+        Semantica NON distruttiva: cartella vuota → bootstrap (copia tutto il copiabile); cartella popolata →
+        additivo (copia solo i file nuovi; i file esistenti con contenuto diverso sono CONFLITTI, riportati e mai
+        applicati). Prima di applicare serve sempre un'anteprima.</p>
+      <div class="toolbar">
+        <label class="field" style="flex:1;min-width:260px">Path assoluto del progetto sorgente
+          <input id="prj-path" type="text" placeholder="Es. C:\progetti\mio-backend" style="width:100%"
+                 oninput="invalidateProjectPlan()" />
+        </label>
+        <label class="field">Target in code/
+          <select id="prj-target" onchange="invalidateProjectPlan()">
+            <option value="backend">backend</option>
+            <option value="frontend">frontend</option>
+            <option value="logicAgent">logicAgent</option>
+          </select>
+        </label>
+        <button id="prj-plan-btn" onclick="planProjectImport()">🔍 Anteprima</button>
+        <button id="prj-apply-btn" onclick="applyProjectImport()" disabled>▶ Applica</button>
+        <span id="prj-status" class="status"></span>
+      </div>
+      <div id="prj-plan-result"></div>
+      <div id="prj-apply-result"></div>
+    </section>
   </main>
 
   <script>
@@ -517,6 +544,100 @@
         setTimeout(closePreview, 1000);
       } catch (e) {
         out.className = 'msg-err'; out.textContent = `Errore: ${e.message}`;
+      }
+    }
+
+    /* ──────────── (d) IMPORTA PROGETTO DA PATH ────────────
+       Applica attivo SOLO dopo un'anteprima riuscita; qualunque modifica a path o
+       target invalida il piano corrente (la semantica anti-stale vera vive nel
+       backend: fingerprint del target nel plan, ricontrollato all'apply). */
+    let currentProjectPlanId = null;
+
+    function invalidateProjectPlan() {
+      currentProjectPlanId = null;
+      document.getElementById('prj-apply-btn').disabled = true;
+      document.getElementById('prj-plan-result').innerHTML = '';
+      document.getElementById('prj-apply-result').innerHTML = '';
+    }
+
+    function renderPathList(title, paths, cssClass) {
+      if (!paths || !paths.length) return '';
+      const items = paths.map(p => `<li><code>${escapeHtml(p)}</code></li>`).join('');
+      return `<details style="margin-top:8px"><summary class="${cssClass}" style="cursor:pointer">
+        ${escapeHtml(title)} (${paths.length})</summary>
+        <ul style="margin:6px 0 0;padding-left:20px;font-size:var(--text-size-sm)">${items}</ul></details>`;
+    }
+
+    async function planProjectImport() {
+      const path = document.getElementById('prj-path').value.trim();
+      const target = document.getElementById('prj-target').value;
+      const status = document.getElementById('prj-status');
+      const result = document.getElementById('prj-plan-result');
+      invalidateProjectPlan();
+
+      if (!path) { status.className = 'status msg-err'; status.textContent = 'Indica il path del progetto.'; return; }
+      status.className = 'status'; status.textContent = 'Anteprima in corso…';
+      try {
+        const res = await fetch('/api/intake/project/plan', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path, target }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+
+        currentProjectPlanId = data.plan_id;
+        const t = data.totali || {};
+        status.className = 'status msg-ok';
+        status.textContent = `Anteprima pronta (modalità ${data.mode}).`;
+        result.innerHTML = `
+          <div class="file-row">
+            <span class="badge badge-ok">${t.nuovi ?? 0} nuovi</span>
+            <span class="badge badge-imported">${t.identici ?? 0} identici</span>
+            <span class="badge ${t.conflitti ? 'badge-err' : 'badge-ok'}">${t.conflitti ?? 0} conflitti</span>
+            <span class="badge badge-generated">${t.esclusi ?? 0} esclusi</span>
+            <span class="status">modalità: ${escapeHtml(data.mode)}</span>
+          </div>
+          ${t.conflitti ? '<div class="msg-err" style="margin-top:6px">I conflitti non verranno MAI applicati: i file esistenti restano intatti.</div>' : ''}
+          ${renderPathList('Conflitti', data.conflitti, 'msg-err')}
+          ${renderPathList('Nuovi', data.nuovi, 'msg-ok')}
+          ${renderPathList('Esclusi', data.esclusi, 'status')}`;
+        document.getElementById('prj-apply-btn').disabled = false;
+      } catch (e) {
+        status.className = 'status msg-err'; status.textContent = `Errore: ${e.message}`;
+      }
+    }
+
+    async function applyProjectImport() {
+      if (!currentProjectPlanId) return;
+      const status = document.getElementById('prj-status');
+      const out = document.getElementById('prj-apply-result');
+      const btn = document.getElementById('prj-apply-btn');
+      btn.disabled = true;
+      status.className = 'status'; status.textContent = 'Applicazione in corso (backup + copia + reindex)…';
+      try {
+        const res = await fetch('/api/intake/project/apply', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan_id: currentProjectPlanId }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+
+        currentProjectPlanId = null;  // un piano applicato non è riutilizzabile
+        status.className = 'status msg-ok'; status.textContent = 'Import applicato.';
+        const t = data.totali || {};
+        const reindexTxt = data.reindex ? JSON.stringify({
+          reindexed_docs: data.reindex.reindexed_docs, upserted_chunks: data.reindex.upserted_chunks,
+          version: data.reindex.version,
+        }) : (data.reindex_error ? `fallito: ${data.reindex_error}` : 'nessun file copiato');
+        out.innerHTML = `
+          <div class="file-row">
+            <span class="badge badge-ok">${t.copiati ?? 0} copiati</span>
+            <span class="status">backup: ${data.backup ? `<code>${escapeHtml(data.backup)}</code>` : 'nessuno (cartella vuota)'}</span>
+          </div>
+          <div class="status" style="margin-top:6px">reindex: ${escapeHtml(reindexTxt)}</div>
+          ${data.avviso ? `<div class="msg-err" style="margin-top:6px">⚠ ${escapeHtml(data.avviso)}</div>` : ''}`;
+      } catch (e) {
+        status.className = 'status msg-err'; status.textContent = `Errore: ${e.message}`;
       }
     }
 
