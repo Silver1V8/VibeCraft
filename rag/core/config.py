@@ -143,6 +143,10 @@ EVAL_GATE_ENABLED: bool = bool(_eval_gate_cfg.get("enabled", True))
 EVAL_GATE_K: int = int(_eval_gate_cfg.get("k", 10))
 EVAL_GATE_MIN_RECALL: float = float(_eval_gate_cfg.get("min_recall", 0.90))
 EVAL_GATE_BLOCKING: bool = bool(_eval_gate_cfg.get("blocking", True))
+# M6 (esperimento, default OFF): advisory di recall post-promozione sui job INCREMENTALI.
+# La regola di decisione (tenere/rimuovere dopo 2 settimane) è documentata sopra il flag
+# in rag_config.yaml e su core.eval_gate.run_incremental_advisory.
+EVAL_GATE_INCREMENTAL_ADVISORY: bool = bool(_eval_gate_cfg.get("incremental_advisory", False))
 GOLDEN_SET_PATH = RAG_DIR / "eval" / "golden_set.yaml"
 
 # Configurazione pipeline Explore -> Canvas -> Propose (rag/changes/).
