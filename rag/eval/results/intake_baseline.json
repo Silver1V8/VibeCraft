@@ -1,0 +1,9 @@
+{
+  "description": "Baseline di riferimento per l'evoluzione Intake & Import (piano: docs/00_meta_governance/piano_intake_import.md, sessione S0). S6 confronta l'eval di chiusura con questi numeri: recall@5 e recall@10 non devono scendere sotto questi valori.",
+  "date": "2026-07-21T13:41:02+00:00",
+  "commit": "1a4de80",
+  "n_cases": 34,
+  "recall@5": 0.9117647058823529,
+  "recall@10": 1.0,
+  "mrr": 0.8171568627450981
+}
