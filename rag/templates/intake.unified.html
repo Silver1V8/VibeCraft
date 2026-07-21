@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="matrix">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VibeCraft · Intake &amp; Import</title>
+
+  <!-- Asset condivisi (estratti dai template per non duplicare CSS/JS) -->
+  <link rel="stylesheet" href="/static/shared.css" />
+  <script src="/static/shared.js"></script>
+
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+
+    /* ═══════════ PALETTE (stessa struttura di eval_trend/graph_analysis.unified.html) ═══════════ */
+    :root[data-theme="matrix"] {
+      --body-bg:#04140a; --body-text:#d8ffe4; --font-main:'JetBrains Mono','Fira Code',Consolas,ui-monospace,monospace;
+      --scrollbar-track:#04140a; --scrollbar-thumb:#1f7a3d; --scrollbar-thumb-hover:#2ea34f;
+      --rain-opacity: 0.28;
+      --header-grad-1:#000000; --header-grad-2:#0a3d1f; --header-grad-3:#000000; --header-border:#123a22;
+      --title-color:#00ff41; --title-glow: 0 0 8px rgba(0,255,65,.5);
+      --sub-text:#4dbf6e;
+      --nav-link-color:#a8f0c0; --nav-link-border:#1f5c38; --nav-link-bg:#04140a; --nav-link-hover-bg:#0a2417;
+      --section-bg:#020f08; --section-border:#123a22;
+      --h2-color:#7dffa0;
+      --muted-text:#4dbf6e; --text-size-sm:11.5px;
+      --control-bg:#04140a; --control-color:#00ff41; --control-border:#1f5c38; --control-hover-bg:#0a2417;
+      --canvas-bg:#010a05; --canvas-border:#0a2417;
+      --mono-font: 'JetBrains Mono','Fira Code',Consolas,ui-monospace,monospace;
+
+      --glass-bg: rgba(2,15,8,0.55); --glass-border: rgba(0,255,65,0.16); --glass-shadow: 0 8px 32px rgba(0,0,0,0.55);
+      --glow-shadow-hover: 0 0 26px rgba(0,255,65,0.30), 0 0 52px rgba(0,255,65,0.10);
+      --btn-glow: 0 0 14px rgba(0,255,65,0.30); --btn-glow-hover: 0 0 26px rgba(0,255,65,0.5);
+
+      --dropzone-border:#1f5c38; --dropzone-border-active:#00ff41; --dropzone-bg:#020f08;
+      --badge-imported-bg:rgba(77,163,255,0.18); --badge-imported-color:#7db8ff;
+      --badge-generated-bg:rgba(0,255,65,0.16); --badge-generated-color:#7dffa0;
+      --ok-color:#2ecc71; --err-color:#ff6b6b; --err-bg:rgba(255,107,107,0.12);
+    }
+
+    :root[data-theme="classic"] {
+      --body-bg:#020617; --body-text:#e2e8f0; --font-main:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
+      --scrollbar-track:#0f172a; --scrollbar-thumb:#475569; --scrollbar-thumb-hover:#64748b;
+      --header-grad-1:#0f172a; --header-grad-2:#1e3a5f; --header-grad-3:#0f172a; --header-border:#1e293b;
+      --title-color:#ffffff; --title-glow: none;
+      --sub-text:#94a3b8;
+      --nav-link-color:#cbd5e1; --nav-link-border:#334155; --nav-link-bg:#0f172a; --nav-link-hover-bg:#1e293b;
+      --section-bg:#0f172a; --section-border:#1e293b;
+      --h2-color:#93c5fd;
+      --muted-text:#94a3b8; --text-size-sm:12px;
+      --control-bg:#1e293b; --control-color:#e2e8f0; --control-border:#334155; --control-hover-bg:#334155;
+      --canvas-bg:#0b1220; --canvas-border:#1e293b;
+      --mono-font: 'JetBrains Mono','Fira Code',Consolas,ui-monospace,monospace;
+
+      --glass-bg: rgba(15,23,42,0.55); --glass-border: rgba(255,255,255,0.08); --glass-shadow: 0 8px 24px rgba(15,23,42,0.28);
+      --glow-shadow-hover: 0 12px 32px rgba(59,130,246,0.18);
+      --btn-glow: 0 4px 12px rgba(59,130,246,0.20); --btn-glow-hover: 0 8px 22px rgba(59,130,246,0.32);
+
+      --dropzone-border:#334155; --dropzone-border-active:#3b82f6; --dropzone-bg:#0b1220;
+      --badge-imported-bg:rgba(59,130,246,0.16); --badge-imported-color:#60a5fa;
+      --badge-generated-bg:rgba(34,197,94,0.16); --badge-generated-color:#4ade80;
+      --ok-color:#16a34a; --err-color:#ef4444; --err-bg:rgba(239,68,68,0.10);
+    }
+
+    body { margin: 0; background: var(--body-bg); color: var(--body-text); font-family: var(--font-main); }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+    ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+
+    header {
+      position: relative; z-index: 10;
+      display: flex; align-items: center; gap: 16px; padding: 14px 22px;
+      background: linear-gradient(135deg, var(--header-grad-1) 0%, var(--header-grad-2) 50%, var(--header-grad-3) 100%);
+      border-bottom: 1px solid var(--header-border); position: sticky; top: 0; z-index: 5;
+    }
+    header > div { flex-shrink: 0; }
+    header h1 { font-size: 16px; margin: 0; color: var(--title-color); text-shadow: var(--title-glow); white-space: nowrap; }
+    header .sub { font-size: 11px; color: var(--sub-text); margin-top: 2px; white-space: nowrap; }
+    header a {
+      margin-left: auto; white-space: nowrap; text-decoration: none; font-size: 12px; color: var(--nav-link-color);
+      border: 1px solid var(--nav-link-border); border-radius: 999px; padding: 6px 12px; background: var(--nav-link-bg);
+    }
+    header a + a { margin-left: 8px; }
+    header a:hover { background: var(--nav-link-hover-bg); color: #fff; }
+    header select#theme-switcher { margin-left: 8px; }
+
+    main { position: relative; z-index: 10; padding: 20px; max-width: 1180px; margin: 0 auto; }
+    section {
+      position: relative; z-index: 10;
+      background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 14px;
+      padding: 16px 18px; margin-bottom: 22px;
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      box-shadow: var(--glass-shadow);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    section:hover { transform: translateY(-2px); box-shadow: var(--glow-shadow-hover); }
+
+    h2 { font-size: 14px; margin: 0 0 4px; color: var(--h2-color); }
+    .desc { font-size: var(--text-size-sm); color: var(--muted-text); margin: 0 0 12px; line-height: 1.5; }
+
+    button { transition: all 0.25s cubic-bezier(0.4,0,0.2,1); box-shadow: var(--btn-glow); }
+    button:hover { box-shadow: var(--btn-glow-hover); transform: translateY(-1px) scale(1.02); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+    button, select, input, textarea {
+      font-family: inherit; font-size: 12px; background: var(--control-bg); color: var(--control-color);
+      border: 1px solid var(--control-border); border-radius: 8px; padding: 6px 10px; cursor: pointer;
+    }
+    input, textarea { cursor: text; color: var(--body-text); }
+    button:hover { background: var(--control-hover-bg); }
+    label.field { display: flex; flex-direction: column; gap: 4px; font-size: var(--text-size-sm); color: var(--muted-text); }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-bottom: 12px; }
+    .status { font-size: var(--text-size-sm); color: var(--muted-text); font-family: var(--mono-font); }
+
+    textarea#gen-descrizione { width: 100%; min-height: 70px; resize: vertical; font-family: var(--font-main); }
+    input#gen-nfile { width: 70px; }
+
+    .dropzone {
+      border: 2px dashed var(--dropzone-border); border-radius: 12px; background: var(--dropzone-bg);
+      padding: 28px; text-align: center; font-size: var(--text-size-sm); color: var(--muted-text);
+      cursor: pointer; transition: border-color 0.2s ease;
+    }
+    .dropzone.dragover { border-color: var(--dropzone-border-active); color: var(--body-text); }
+    .dropzone input[type="file"] { display: none; }
+
+    .file-row, .staged-item {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      border: 1px solid var(--section-border); background: var(--canvas-bg);
+      border-radius: 10px; padding: 8px 12px; margin-top: 8px;
+    }
+    .file-row .name, .staged-item .name { flex: 1; min-width: 160px; font-size: var(--text-size-sm); word-break: break-all; }
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+    .badge-imported { background: var(--badge-imported-bg); color: var(--badge-imported-color); }
+    .badge-generated { background: var(--badge-generated-bg); color: var(--badge-generated-color); }
+    .badge-ok { background: rgba(46,204,113,0.16); color: var(--ok-color); }
+    .badge-err { background: var(--err-bg); color: var(--err-color); }
+    .msg-err { color: var(--err-color); font-size: var(--text-size-sm); }
+    .msg-ok { color: var(--ok-color); font-size: var(--text-size-sm); }
+    .empty-state { color: var(--muted-text); padding: 1.25rem; text-align: center; font-size: var(--text-size-sm); }
+
+    #staging-detail {
+      display: none; margin-top: 14px; border: 1px solid var(--section-border);
+      background: var(--canvas-bg); border-radius: 10px; padding: 14px;
+    }
+    #staging-detail h3 { margin: 0 0 8px; font-size: 13px; color: var(--h2-color); word-break: break-all; }
+    .md-preview {
+      max-height: 340px; overflow: auto; border: 1px solid var(--section-border); border-radius: 8px;
+      padding: 10px 14px; background: var(--body-bg); font-size: 12.5px; line-height: 1.55; margin-bottom: 12px;
+    }
+    .md-preview h1, .md-preview h2, .md-preview h3 { color: var(--h2-color); }
+    .md-preview code { background: rgba(127,127,127,0.18); padding: 1px 4px; border-radius: 4px; }
+    .md-preview pre { background: rgba(127,127,127,0.10); padding: 8px; border-radius: 6px; overflow-x: auto; }
+    .md-preview pre code { background: none; padding: 0; }
+    .review-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+    input#preview-nomefile { min-width: 220px; }
+    input#preview-motivo { min-width: 220px; }
+    #preview-result { margin-top: 10px; font-size: var(--text-size-sm); white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <canvas id="matrix-rain"></canvas>
+  <div class="scanlines"></div>
+
+  <header>
+    <div>
+      <h1 class="glow-text">◇ Intake &amp; Import</h1>
+      <div class="sub">Genera con Ollama · Importa documenti · Review staging</div>
+    </div>
+    <a href="/">Console Graph-RAG</a>
+    <a href="/pipeline">Pipeline</a>
+    <a href="/analysis">Analisi</a>
+    <a href="/infografica">Infografica</a>
+    <a href="/eval">Eval</a>
+
+    <!-- Theme switcher -->
+    <label for="theme-switcher"></label><select id="theme-switcher" onchange="setUiTheme(this.value)">
+      <option value="matrix">🟢 Matrix</option>
+      <option value="classic">☀️ Classico</option>
+    </select>
+  </header>
+
+  <main>
+    <!-- ══════════ (a) GENERA CON OLLAMA ══════════ -->
+    <section id="section-genera">
+      <h2>🪄 Genera con Ollama</h2>
+      <p class="desc">Descrivi lo sviluppo per cui vuoi documentazione: il modello genera fino a
+        <span id="gen-max-hint">5</span> documenti Markdown, grounded nel Graph RAG e nelle lezioni delle change
+        precedenti. Ogni documento generato entra in staging come uno importato: nessun percorso diretto verso
+        <code>docs/</code>.</p>
+      <label class="field">Descrizione dello sviluppo
+        <textarea id="gen-descrizione" placeholder="Es. form di iscrizione a un evento con validazione lato client e persistenza su backend .NET"></textarea>
+      </label>
+      <div class="toolbar">
+        <label class="field">N. documenti
+          <input id="gen-nfile" type="number" min="1" max="5" value="3" />
+        </label>
+        <label class="field">Categoria docs/ target
+          <select id="gen-categoria"></select>
+        </label>
+        <button id="gen-btn" onclick="startGeneration()">▶ Avvia generazione</button>
+        <span id="gen-status" class="status"></span>
+      </div>
+      <div id="gen-result"></div>
+    </section>
+
+    <!-- ══════════ (b) IMPORTA DOCUMENTI ══════════ -->
+    <section id="section-importa">
+      <h2>📥 Importa documenti</h2>
+      <p class="desc">Carica documenti Markdown, PDF, DOCX, HTML o TXT: vengono convertiti in Markdown e messi in
+        staging, in attesa di review. Nessuna scrittura diretta in <code>docs/</code>.</p>
+      <div id="dropzone" class="dropzone" onclick="document.getElementById('file-input').click()">
+        📎 Trascina qui i file, oppure clicca per selezionarli
+        <div style="margin-top:4px;font-size:10.5px">md · pdf · docx · html · txt</div>
+        <input id="file-input" type="file" multiple accept=".md,.pdf,.docx,.html,.htm,.txt" onchange="onFilesPicked(this.files)" />
+      </div>
+      <div id="import-results"></div>
+    </section>
+
+    <!-- ══════════ (c) IN STAGING ══════════ -->
+    <section id="section-staging">
+      <h2>🗂️ In staging</h2>
+      <p class="desc">Documenti importati o generati in attesa di review. Approva per scriverli in
+        <code>docs/</code> con reindicizzazione delta, oppure rifiuta (nessuna cancellazione: restano tracciati).</p>
+      <div class="toolbar">
+        <button onclick="refreshStaging()">↻ Ricarica</button>
+        <span id="staging-status" class="status"></span>
+      </div>
+      <div id="staging-list"></div>
+      <div id="staging-detail"></div>
+    </section>
+  </main>
+
+  <script>
+    /* Categorie docs/ ammesse da core.intake.CATEGORY_CLASSIFICATION (S2): whitelist
+       fissa, non esposta da un endpoint dedicato (S4 non introduce nuove API). */
+    const CATEGORIE = [
+      ['00_meta_governance', '00 · Meta Governance'],
+      ['01_architecture_norms', '01 · Architecture Norms'],
+      ['02_specs_normative', '02 · Specs Normative'],
+      ['03_changes_historical', '03 · Changes Historical'],
+      ['04_knowledge_informative', '04 · Knowledge Informative'],
+    ];
+
+    function populateCategorySelect(select, defaultValue) {
+      select.innerHTML = CATEGORIE.map(([value, label]) =>
+        `<option value="${value}"${value === defaultValue ? ' selected' : ''}>${label}</option>`
+      ).join('');
+    }
+
+    /* ──────────── Markdown → HTML minimale e sicuro ────────────
+       Escapa TUTTO l'input prima di riconoscere qualunque costrutto: i tag prodotti
+       sono solo quelli che questa funzione genera esplicitamente, mai markup annidato
+       nel contenuto sorgente (niente XSS da un documento caricato/generato). */
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function inlineMd(text) {
+      let t = escapeHtml(text);
+      t = t.replace(/`([^`]+)`/g, '<code>$1</code>');
+      t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      t = t.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+      return t;
+    }
+
+    function mdToHtml(md) {
+      const lines = String(md).replace(/\r\n/g, '\n').split('\n');
+      let html = '', inCode = false, codeBuf = [], inList = false;
+      const closeList = () => { if (inList) { html += '</ul>'; inList = false; } };
+      for (const raw of lines) {
+        if (raw.trim().startsWith('```')) {
+          if (!inCode) { closeList(); inCode = true; codeBuf = []; }
+          else { html += `<pre><code>${escapeHtml(codeBuf.join('\n'))}</code></pre>`; inCode = false; }
+          continue;
+        }
+        if (inCode) { codeBuf.push(raw); continue; }
+        let m = /^(#{1,6})\s+(.*)$/.exec(raw);
+        if (m) { closeList(); const lvl = m[1].length; html += `<h${lvl}>${inlineMd(m[2])}</h${lvl}>`; continue; }
+        if (/^\s*[-*]\s+/.test(raw)) {
+          if (!inList) { html += '<ul>'; inList = true; }
+          html += `<li>${inlineMd(raw.replace(/^\s*[-*]\s+/, ''))}</li>`;
+          continue;
+        }
+        closeList();
+        if (raw.trim() === '') continue;
+        html += `<p>${inlineMd(raw)}</p>`;
+      }
+      closeList();
+      if (inCode) html += `<pre><code>${escapeHtml(codeBuf.join('\n'))}</code></pre>`;
+      return html;
+    }
+
+    function formatDate(iso) {
+      if (!iso) return '';
+      try { return new Date(iso).toLocaleString('it-IT'); } catch (e) { return iso; }
+    }
+
+    /* ──────────── (a) GENERA CON OLLAMA ──────────── */
+    async function startGeneration() {
+      const descrizione = document.getElementById('gen-descrizione').value.trim();
+      const nFile = parseInt(document.getElementById('gen-nfile').value, 10) || 1;
+      const categoria = document.getElementById('gen-categoria').value;
+      const btn = document.getElementById('gen-btn');
+      const status = document.getElementById('gen-status');
+      const result = document.getElementById('gen-result');
+      result.innerHTML = '';
+
+      if (!descrizione) { status.textContent = 'Descrivi prima lo sviluppo.'; status.className = 'status msg-err'; return; }
+
+      btn.disabled = true;
+      status.className = 'status';
+      status.textContent = 'Avvio job di generazione…';
+
+      let job;
+      try {
+        const res = await fetch('/api/intake/generate', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ descrizione, n_file: nFile, categoria_suggerita: categoria }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { throw new Error(data.detail || `HTTP ${res.status}`); }
+        job = data;
+      } catch (e) {
+        status.className = 'status msg-err'; status.textContent = `Errore: ${e.message}`; btn.disabled = false; return;
+      }
+
+      status.textContent = 'Generazione in corso (grounding + Ollama)…';
+      while (job.status === 'pending' || job.status === 'running') {
+        await new Promise(r => setTimeout(r, 1500));
+        try {
+          const res = await fetch(`/api/intake/generate/${job.job_id}`);
+          job = await res.json();
+        } catch (e) { /* rete instabile: ritenta al prossimo giro */ }
+      }
+
+      btn.disabled = false;
+      if (job.status === 'failed') {
+        status.className = 'status msg-err'; status.textContent = `Job fallito: ${job.error || 'errore sconosciuto'}`;
+        return;
+      }
+
+      status.className = 'status msg-ok'; status.textContent = 'Generazione completata.';
+      const r = job.result || {};
+      const scartatiHtml = (r.scartati || []).map(s =>
+        `<div class="msg-err">· documento #${s.indice}: ${escapeHtml(s.motivo)}</div>`).join('');
+      const lat = r.latency || {};
+      result.innerHTML = `
+        <div class="file-row">
+          <span class="badge badge-ok">${r.n_generati || 0} generati</span>
+          <span class="badge ${r.n_scartati ? 'badge-err' : 'badge-ok'}">${r.n_scartati || 0} scartati</span>
+          <span class="status">retrieval ${lat.retrieval_ms ?? '?'} ms · generazione ${lat.generation_ms ?? '?'} ms · totale ${lat.total_ms ?? '?'} ms</span>
+        </div>
+        ${scartatiHtml}`;
+      refreshStaging();
+    }
+
+    /* ──────────── (b) IMPORTA DOCUMENTI ──────────── */
+    const dropzone = document.getElementById('dropzone');
+    ['dragover', 'dragenter'].forEach(evt => dropzone.addEventListener(evt, e => {
+      e.preventDefault(); dropzone.classList.add('dragover');
+    }));
+    ['dragleave', 'drop'].forEach(evt => dropzone.addEventListener(evt, e => {
+      e.preventDefault(); dropzone.classList.remove('dragover');
+    }));
+    dropzone.addEventListener('drop', e => {
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+        onFilesPicked(e.dataTransfer.files);
+      }
+    });
+
+    function onFilesPicked(fileList) {
+      const files = Array.from(fileList || []);
+      files.forEach(uploadOneFile);
+      document.getElementById('file-input').value = '';
+    }
+
+    async function uploadOneFile(file) {
+      const results = document.getElementById('import-results');
+      const rowId = `import-row-${Math.random().toString(36).slice(2)}`;
+      const row = document.createElement('div');
+      row.className = 'file-row';
+      row.id = rowId;
+      row.innerHTML = `<span class="name">${escapeHtml(file.name)}</span><span class="status">caricamento…</span>`;
+      results.appendChild(row);
+
+      const form = new FormData();
+      form.append('file', file);
+      try {
+        const res = await fetch('/api/intake/docs', { method: 'POST', body: form });
+        const data = await res.json().catch(() => ({}));
+        const el = document.getElementById(rowId);
+        if (res.ok) {
+          el.innerHTML = `<span class="name">${escapeHtml(file.name)}</span><span class="badge badge-ok">in staging</span>`;
+          refreshStaging();
+        } else {
+          el.innerHTML = `<span class="name">${escapeHtml(file.name)}</span><span class="msg-err">${escapeHtml(data.detail || `HTTP ${res.status}`)}</span>`;
+        }
+      } catch (e) {
+        const el = document.getElementById(rowId);
+        if (el) el.innerHTML = `<span class="name">${escapeHtml(file.name)}</span><span class="msg-err">Errore di connessione: ${escapeHtml(e.message)}</span>`;
+      }
+    }
+
+    /* ──────────── (c) IN STAGING ──────────── */
+    function suggestFilename(sourceFilename) {
+      const stem = String(sourceFilename || 'documento').replace(/\.[^.]+$/, '');
+      let slug = stem.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      if (!slug || !/^[a-z0-9]/.test(slug)) slug = 'd' + slug;
+      return `${slug}.md`;
+    }
+
+    async function refreshStaging() {
+      const status = document.getElementById('staging-status');
+      const list = document.getElementById('staging-list');
+      status.textContent = 'Caricamento…'; status.className = 'status';
+      try {
+        const res = await fetch('/api/intake/staged');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const staged = data.staged || [];
+        if (!staged.length) {
+          list.innerHTML = '<div class="empty-state">Niente in staging.</div>';
+        } else {
+          list.innerHTML = staged.map(entry => `
+            <div class="staged-item">
+              <span class="badge badge-${entry.source === 'generated' ? 'generated' : 'imported'}">${entry.source}</span>
+              <span class="name">${escapeHtml(entry.filename || entry.id)}</span>
+              <span class="status">${formatDate(entry.staged_at)}</span>
+              <button onclick="openPreview('${entry.id}')">🔎 Anteprima</button>
+            </div>`).join('');
+        }
+        status.textContent = `${staged.length} documento/i in staging`;
+      } catch (e) {
+        status.className = 'status msg-err'; status.textContent = `Errore nel caricamento: ${e.message}`;
+      }
+    }
+
+    async function openPreview(id) {
+      const detail = document.getElementById('staging-detail');
+      detail.style.display = 'block';
+      detail.innerHTML = '<p class="status">Caricamento anteprima…</p>';
+      detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      try {
+        const res = await fetch(`/api/intake/staged/${id}/preview`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+
+        const suggested = suggestFilename(data.filename);
+        detail.innerHTML = `
+          <h3>${escapeHtml(data.filename || id)}</h3>
+          <div class="md-preview">${mdToHtml(data.markdown || '')}</div>
+          <div class="review-controls">
+            <label class="field">Categoria docs/
+              <select id="preview-categoria"></select>
+            </label>
+            <label class="field">Nome file
+              <input id="preview-nomefile" type="text" value="${escapeHtml(suggested)}" />
+            </label>
+            <button onclick="approveStaged('${id}')">✅ Approva</button>
+            <label class="field">Motivo (rifiuto)
+              <input id="preview-motivo" type="text" placeholder="opzionale" />
+            </label>
+            <button onclick="rejectStaged('${id}')">🚫 Rifiuta</button>
+          </div>
+          <div id="preview-result"></div>`;
+        populateCategorySelect(document.getElementById('preview-categoria'), '04_knowledge_informative');
+      } catch (e) {
+        detail.innerHTML = `<p class="msg-err">Errore nell'anteprima: ${escapeHtml(e.message)}</p>`;
+      }
+    }
+
+    function closePreview() {
+      const detail = document.getElementById('staging-detail');
+      detail.style.display = 'none';
+      detail.innerHTML = '';
+    }
+
+    async function approveStaged(id) {
+      const categoria = document.getElementById('preview-categoria').value;
+      const nomeFile = document.getElementById('preview-nomefile').value.trim();
+      const out = document.getElementById('preview-result');
+      out.className = 'status'; out.textContent = 'Approvazione in corso…';
+      try {
+        const res = await fetch(`/api/intake/staged/${id}/approve`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ categoria, nome_file: nomeFile }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        const reindex = data.reindex || {};
+        out.className = 'msg-ok';
+        out.textContent = `Approvato → docs/${categoria}/${nomeFile} — reindex: ${JSON.stringify(reindex)}`;
+        refreshStaging();
+        setTimeout(closePreview, 1500);
+      } catch (e) {
+        out.className = 'msg-err'; out.textContent = `Errore: ${e.message}`;
+      }
+    }
+
+    async function rejectStaged(id) {
+      const motivo = document.getElementById('preview-motivo').value.trim();
+      const out = document.getElementById('preview-result');
+      out.className = 'status'; out.textContent = 'Rifiuto in corso…';
+      try {
+        const res = await fetch(`/api/intake/staged/${id}/reject`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ motivo }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        out.className = 'msg-ok'; out.textContent = 'Documento rifiutato.';
+        refreshStaging();
+        setTimeout(closePreview, 1000);
+      } catch (e) {
+        out.className = 'msg-err'; out.textContent = `Errore: ${e.message}`;
+      }
+    }
+
+    /* ──────────── Bootstrap ──────────── */
+    populateCategorySelect(document.getElementById('gen-categoria'), '04_knowledge_informative');
+    refreshStaging();
+  </script>
+</body>
+</html>

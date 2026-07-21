@@ -38,3 +38,9 @@ async def serve_analysis(request: Request):
 async def serve_eval_trend(request: Request):
     """Serve la pagina del trend di qualità del retrieval (recall@10 nel tempo, Epic 5)."""
     return serve_page(request, "eval_trend.unified.html", "eval_trend.unified.html", "eval_trend.unified.html")
+
+
+@router.get("/intake", include_in_schema=False)
+async def serve_intake(request: Request):
+    """Serve la pagina Intake & Import (genera con Ollama, importa documenti, review staging)."""
+    return serve_page(request, "intake.unified.html", "intake.unified.html", "intake.unified.html")
