@@ -20,6 +20,7 @@ from FlagEmbedding import BGEM3FlagModel
 
 from core.artifacts import current_version_token, load_artifacts, manifest_path
 from core.indexing import gc_orphaned_qdrant_collections, reconcile_and_repair_qdrant_alias
+from core.writer_lock import WriterLockBusyError, writer_lock
 from core.config import (
     EMBEDDING_MODEL,
     GRAPH_JSON_PATH,
@@ -285,15 +286,27 @@ async def lifespan(application: FastAPI):
     # davvero (nessuna correzione distruttiva) — reconcile_and_repair_qdrant_alias non
     # solleva mai: un Qdrant temporaneamente irraggiungibile qui non deve mai impedire
     # il boot del server.
-    alias_state = reconcile_and_repair_qdrant_alias(state["qdrant"])
-    logger.info("Stato alias Qdrant (riconciliazione): %s (expected=%s, actual=%s, repaired=%s)%s",
-               alias_state["state"], alias_state.get("expected"), alias_state.get("actual"),
-               alias_state.get("repaired"),
-               f" — {alias_state['error']}" if alias_state.get("error") else "")
+    #
+    # Entrambe girano sotto il writer lock cross-processo (F2): senza, un boot che
+    # capita a metà di una build CLI in corso potrebbe fare GC della collection
+    # candidata il cui manifest non è ancora su disco. Se il lock è occupato (altro
+    # writer attivo) si salta riconciliazione+GC per questo avvio — mai un motivo di
+    # fallimento del boot, il server serve comunque in lettura con l'alias non
+    # riconciliato, che verrà sistemato dal prossimo job o boot.
+    try:
+        with writer_lock(timeout_seconds=5):
+            alias_state = reconcile_and_repair_qdrant_alias(state["qdrant"])
+            logger.info("Stato alias Qdrant (riconciliazione): %s (expected=%s, actual=%s, repaired=%s)%s",
+                       alias_state["state"], alias_state.get("expected"), alias_state.get("actual"),
+                       alias_state.get("repaired"),
+                       f" — {alias_state['error']}" if alias_state.get("error") else "")
 
-    # GC delle collection Qdrant orfane, stesso punto pre-serving consentito: al boot
-    # nessun altro writer è concorrente.
-    gc_orphaned_qdrant_collections(state["qdrant"])
+            # GC delle collection Qdrant orfane, stesso punto pre-serving consentito: al
+            # boot nessun altro writer è concorrente (garantito dal lock qui sopra).
+            gc_orphaned_qdrant_collections(state["qdrant"])
+    except WriterLockBusyError:
+        logger.warning("Writer attivo durante il boot: riconciliazione alias e GC saltati, "
+                        "verranno rieseguiti dal prossimo job o boot.")
 
     logger.info("Caricamento artefatti indice (grafo JSON, ColBERT/chunk) ...")
     try:

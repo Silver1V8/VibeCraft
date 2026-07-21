@@ -3,8 +3,14 @@ collega al boot, PRE-SERVING, sia la riconciliazione riparatrice dell'alias
 (reconcile_and_repair_qdrant_alias) sia il GC delle collection orfane
 (gc_orphaned_qdrant_collections) — mai un motivo di fallimento del boot. Le risorse
 pesanti (modello di embedding, Qdrant, artefatti) sono tutte finte: nessun
-GPU/rete/disco reale."""
+GPU/rete/disco reale.
+
+F2: entrambe girano sotto il writer lock cross-processo, per non GC-are al boot la
+candidata di una build CLI ancora in corso (manifest non ancora su disco). Se il lock
+è occupato, si saltano ma il boot completa comunque (vedi i due test dedicati in fondo
+al file)."""
 import asyncio
+import contextlib
 
 import networkx as nx
 from fastapi import FastAPI
@@ -150,6 +156,93 @@ def test_lifespan_runs_repair_before_gc(monkeypatch):
     try:
         _run_lifespan_once()
         assert sequence == ["repair", "gc"]
+    finally:
+        deps.state.clear()
+        deps.state.update(original_state)
+
+
+def test_lifespan_skips_reconcile_and_gc_when_writer_lock_busy(monkeypatch, caplog):
+    """F2: se il writer lock è occupato al boot (altro writer attivo, es. una build CLI
+    in corso il cui manifest non è ancora su disco), riconciliazione alias e GC vengono
+    saltati per questo avvio — ma il boot NON deve mai fallire né bloccarsi: il server
+    deve partire e servire in lettura, con l'alias non riconciliato che verrà sistemato
+    dal prossimo job o boot."""
+    original_state = dict(deps.state)
+    repair_calls: list = []
+    gc_calls: list = []
+
+    monkeypatch.setattr(deps, "BGEM3FlagModel", lambda *a, **k: object())
+    monkeypatch.setattr(deps, "QdrantClient", lambda *a, **k: _FakeLifespanQdrant())
+    monkeypatch.setattr(deps, "load_artifacts", lambda required=(): Artifacts(graph=nx.DiGraph()))
+    monkeypatch.setattr(deps, "load_rule_descriptions", lambda: {})
+    monkeypatch.setattr(deps, "reconcile_and_repair_qdrant_alias",
+                        lambda qdrant: repair_calls.append(qdrant) or
+                        {"state": "legacy", "expected": None, "actual": None, "repaired": False})
+    monkeypatch.setattr(deps, "gc_orphaned_qdrant_collections",
+                        lambda qdrant: gc_calls.append(qdrant) or [])
+
+    @contextlib.contextmanager
+    def _busy_lock(timeout_seconds=5):
+        raise deps.WriterLockBusyError(
+            "writer lock occupato (test): pid=999 acquired_at=2026-01-01T00:00:00Z"
+        )
+        yield  # pragma: no cover — mai raggiunto, serve solo a rendere _busy_lock un generatore
+
+    monkeypatch.setattr(deps, "writer_lock", _busy_lock)
+
+    try:
+        with caplog.at_level("WARNING"):
+            captured = _run_lifespan_once()  # non deve sollevare né bloccarsi
+        assert captured["qdrant"] is not None
+        assert captured["snapshot"] is not None
+        assert not repair_calls  # reconcile_and_repair_qdrant_alias mai chiamata
+        assert not gc_calls  # gc_orphaned_qdrant_collections mai chiamata
+        assert any("writer attivo durante il boot" in rec.message.lower()
+                   for rec in caplog.records)
+    finally:
+        deps.state.clear()
+        deps.state.update(original_state)
+
+
+def test_lifespan_runs_reconcile_and_gc_inside_writer_lock(monkeypatch):
+    """Percorso normale (lock libero): riconciliazione e GC girano DENTRO il writer
+    lock acquisito al boot, non prima/dopo — è la garanzia F2 (nessun writer
+    concorrente durante il GC) a dipendere dall'ordine, non solo dalla presenza
+    della chiamata a writer_lock."""
+    original_state = dict(deps.state)
+    sequence: list[str] = []
+
+    class _SpyLock:
+        def __init__(self, timeout_seconds=5):
+            self.timeout_seconds = timeout_seconds
+
+        def __enter__(self):
+            sequence.append("lock_enter")
+            return self
+
+        def __exit__(self, *exc_info):
+            sequence.append("lock_exit")
+            return False
+
+    def _spy_repair(qdrant):
+        sequence.append("repair")
+        return {"state": "legacy", "expected": None, "actual": None, "repaired": False}
+
+    def _spy_gc(qdrant):
+        sequence.append("gc")
+        return []
+
+    monkeypatch.setattr(deps, "BGEM3FlagModel", lambda *a, **k: object())
+    monkeypatch.setattr(deps, "QdrantClient", lambda *a, **k: _FakeLifespanQdrant())
+    monkeypatch.setattr(deps, "load_artifacts", lambda required=(): Artifacts(graph=nx.DiGraph()))
+    monkeypatch.setattr(deps, "load_rule_descriptions", lambda: {})
+    monkeypatch.setattr(deps, "reconcile_and_repair_qdrant_alias", _spy_repair)
+    monkeypatch.setattr(deps, "gc_orphaned_qdrant_collections", _spy_gc)
+    monkeypatch.setattr(deps, "writer_lock", _SpyLock)
+
+    try:
+        _run_lifespan_once()
+        assert sequence == ["lock_enter", "repair", "gc", "lock_exit"]
     finally:
         deps.state.clear()
         deps.state.update(original_state)
