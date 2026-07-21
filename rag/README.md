@@ -156,8 +156,9 @@ uv run python -m eval.run --assert-min 0.90
 La soglia 0.90 è fissata poco sotto l'ultimo valore misurato (recall@10 =
 0.955 su 22 casi, run del 2026-07-12): se un refactor la fa scattare, il
 retrieval è regredito davvero. Rimisura e aggiorna la soglia quando il
-golden-set cresce. Non esiste (ancora) una pipeline CI in questo repo: quando
-verrà aggiunta, questo comando è lo step da inserire dopo l'avvio del server.
+golden-set cresce. Questo comando richiede il server acceso (modello caricato):
+per questo NON è nella pipeline CI (vedi [sezione CI](#ci)), resta manuale
+pre-merge finché non matura la regola di promozione descritta lì.
 
 I test pytest, che non possono caricare bge-m3, coprono la **meccanica** del
 guardrail con un retriever fake deterministico
@@ -179,6 +180,61 @@ promozione dei candidati. Le metriche vere restano il comando qui sopra.
    `golden_set.yaml` (append testuale: i commenti del file sopravvivono).
 4. **Soglia** — con il golden-set aggiornato, rilancia l'eval e rifissa
    `--assert-min` poco sotto il nuovo valore misurato.
+
+## CI
+
+Pipeline minima, senza servizi esterni: [scripts/ci.sh](scripts/ci.sh) (POSIX,
+usato anche dalla pipeline) / [scripts/ci.ps1](scripts/ci.ps1) (Windows) fanno
+`uv sync --frozen` (installazione riproducibile da `uv.lock`) seguito da `uv run
+pytest -q`, con l'exit code di pytest propagato:
+
+```bash
+scripts/ci.sh
+```
+
+```powershell
+pwsh -File scripts/ci.ps1
+```
+
+Qdrant e Ollama possono restare spenti: la suite li mocka ovunque (httpx.MockTransport,
+attributi di `core.llm` monkeypatchati, `fastapi.testclient.TestClient` in-process). I
+soli 3 test che parlano con un Qdrant reale
+([tests/test_qdrant_blue_green.py](tests/test_qdrant_blue_green.py), sezione
+"OPZIONALE / SKIPPABLE") si auto-saltano con `pytest.skip` quando la connessione
+fallisce — non richiedono Docker per il verde.
+
+Il remote effettivo del repo determina la config della pipeline: su GitHub è
+[.github/workflows/ci.yml](../.github/workflows/ci.yml) (job `test` che chiama
+`scripts/ci.sh`); su GitLab sarebbe `.gitlab-ci.yml` con uno stage `test` equivalente.
+Nota: il resto del progetto (webhook `X-Gitlab-Token`, `extract_gitlab_paths`,
+l'indicizzatore `.gitlab-ci.yml` in [code_index/ci.py](code_index/ci.py)) presuppone
+GitLab come piattaforma — se il remote cambia, la config della pipeline va allineata di
+conseguenza.
+
+**Eval NON è nella pipeline (per ora):** `uv run python -m eval.run --assert-min
+0.90` (vedi sopra) richiede il server acceso coi modelli caricati — non lo può
+lanciare una pipeline che non prevede servizi. Resta un comando manuale
+pre-merge per chi tocca chunking, ranking o pesi di autorità.
+
+**Regola di promozione a stadio bloccante:** l'eval diventa uno stadio CI
+bloccante SOLO dopo **10 esecuzioni locali consecutive verdi** (nessun flake)
+registrate in `eval/results/`. Fino ad allora resta un comando manuale, non
+gating. Quando la soglia è raggiunta, aggiungere alla pipeline uno stage
+`eval` opzionale/non bloccante prima, poi promuoverlo a bloccante.
+
+**Test intermittente noto:** in run locali senza servizi la suite completa può
+occasionalmente andare in errore a cascata (molti `ERROR` di setup/teardown con
+`UnicodeDecodeError`) invece che in un singolo test fallito. La causa nota è un
+thread daemon di `ReindexManager` che sopravvive al teardown di
+`test_archive_stream_route_queues_full_and_emits_final_event`
+([tests/test_reindex.py](tests/test_reindex.py)) e logga (`api/deps.py:263`,
+caratteri accentati) dopo che la capture di pytest è già smontata — su console
+non-UTF-8 questo corrompe il file di capture FD-level e fa fallire in cascata i
+test successivi. `scripts/ci.sh`/`ci.ps1` impostano `PYTHONUTF8=1` per evitare la
+cascata, ma non eliminano la causa: il fix corretto (sincronizzare il test con la
+fine reale del thread via `ReindexManager.join_all`) esiste già altrove nella
+storia del repo e va portato su questa linea prima di considerare la suite
+completamente stabile in CI.
 
 ## Benchmark baseline
 
