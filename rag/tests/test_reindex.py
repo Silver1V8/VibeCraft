@@ -372,7 +372,14 @@ def test_archive_stream_route_queues_full_and_emits_final_event(tmp_path, monkey
     monkeypatch.setitem(rr.state, "qdrant", None)
     monkeypatch.setitem(rr.state, "embed_model", None)
     # Manager pulito (senza journal reale) e run_reindex finto: nessuna build vera.
-    monkeypatch.setattr(rr, "manager", ReindexManager())
+    fresh_manager = ReindexManager()
+    monkeypatch.setattr(rr, "manager", fresh_manager)
+    # on_success (reload_index_state) fatto passare finto: qui si esamina solo il
+    # wiring della coda, non il reload reale — che farebbe I/O vera su database/ e
+    # docs/ del repo, indipendente dal sandbox di _make_archive_env, e girerebbe nel
+    # thread daemon del manager oltre la vita del test se non sincronizzato (vedi
+    # join_all sotto).
+    monkeypatch.setattr(rr, "reload_index_state", lambda: None)
     ran_full = threading.Event()
     monkeypatch.setattr(rr, "_run_full_rebuild", lambda paths: ran_full.set() or {"full_rebuild": True})
 
@@ -389,6 +396,11 @@ def test_archive_stream_route_queues_full_and_emits_final_event(tmp_path, monkey
     assert final["job_id"]
     # Il job full accodato viene davvero eseguito dal manager (fake run_reindex).
     assert ran_full.wait(timeout=5)
+    # Sincronizzazione REALE con la fine del thread daemon (non solo con l'Event sopra,
+    # che si accende PRIMA che job.status passi a terminale e PRIMA di on_success —
+    # vedi ReindexManager._run): senza questo il thread può ancora essere in volo al
+    # ritorno del test, sopravvivendo al teardown di capture/logging del test successivo.
+    assert fresh_manager.join_all(timeout=5)
     # E la fase (a) non ha rigenerato l'indice inline: nessun log di re-indicizzazione.
     assert not any("Re-indicizzazione completata" in e.get("line", "") for e in events)
 

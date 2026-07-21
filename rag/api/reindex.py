@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import threading
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -149,6 +150,13 @@ class ReindexManager:
         self._journal_lock = threading.Lock()
         # storico dei job (ordine di comparsa) per list_recent, indipendente dal dict.
         self._order: list[str] = []
+        # Thread daemon dispatchati (append in _dispatch, sempre sotto self._lock): NON
+        # serve al funzionamento normale, solo a join_all (vedi sotto) — il job passa a
+        # uno stato terminale PRIMA che on_success sia stato invocato (vedi _run), quindi
+        # un chiamante che osserva solo lo status può proseguire mentre il thread sta
+        # ancora eseguendo side-effect (es. il reload in memoria). I test che vogliono la
+        # sincronizzazione REALE con la fine del lavoro in background usano join_all.
+        self._threads: list[threading.Thread] = []
         if self._journal_path is not None:
             self._load_journal()
 
@@ -320,11 +328,27 @@ class ReindexManager:
         return job
 
     def _dispatch(self, job: ReindexJob) -> None:
-        """Lancia il thread daemon per `job`. Da chiamare con lo slot già assegnato."""
-        threading.Thread(
+        """Lancia il thread daemon per `job`. Da chiamare con lo slot già assegnato (sempre
+        sotto self._lock: sia da `start`, sia dal dispatch del pending in `_run`)."""
+        thread = threading.Thread(
             target=self._run, args=(job,),
             name=f"reindex-{job.id[:8]}", daemon=True,
-        ).start()
+        )
+        self._threads.append(thread)
+        thread.start()
+
+    def join_all(self, timeout: float = 5.0) -> bool:
+        """TEST-ONLY: attende la terminazione di TUTTI i thread daemon finora dispatchati,
+        incluse le callback on_success (es. reload_index_state) — non solo la transizione
+        di stato del job, che passa a terminale PRIMA che on_success sia stata invocata
+        (vedi _run). Un test che sincronizza solo su job.status/un Event nel body di
+        run_reindex può proseguire (e finire, smontando capture/logging) mentre il thread
+        sta ancora eseguendo il reload: usare join_all per una sincronizzazione reale prima
+        che il test ritorni. Restituisce False se qualche thread è ancora vivo al timeout."""
+        deadline = time.monotonic() + timeout
+        for thread in list(self._threads):
+            thread.join(timeout=max(0.0, deadline - time.monotonic()))
+        return all(not t.is_alive() for t in self._threads)
 
     def _run(self, job: ReindexJob) -> None:
         try:
