@@ -1,0 +1,71 @@
+{
+  "timestamp": "2026-07-21T08:45:37+00:00",
+  "url": "http://127.0.0.1:8000",
+  "index_version": "v20260721T084111",
+  "retrieve": {
+    "n": 10,
+    "p50_ms": 494.32,
+    "p95_ms": 647.21,
+    "queries": [
+      "come gestire il lock transazionale sui posti di un evento in concorrenza",
+      "sicurezza degli accessi, autenticazione e gestione dell'identità",
+      "immutabilità dei dati e auditability dei log",
+      "gestione dei segreti e sicurezza del codice sorgente",
+      "privacy e confine dei dati local-first, dati personali PII",
+      "quali sono i profili degli attori e i ruoli del sistema",
+      "chi ha il permesso di creare o approvare, matrice dei permessi",
+      "indice inverso ruolo verso funzionalità concesse RBAC",
+      "definizione e attributi dell'entità EVENTO",
+      "definizione dell'entità UTENTE del dominio"
+    ]
+  },
+  "ask": {
+    "n": 3,
+    "avg_latency_retrieval_ms": null,
+    "avg_latency_generation_ms": null,
+    "avg_latency_total_ms": null,
+    "avg_latency_total_ms_client": 48955.74,
+    "per_query": [
+      {
+        "question": "come gestire il lock transazionale sui posti di un evento in concorrenza",
+        "latency_total_ms_client": 39007.44,
+        "latency_retrieval_ms": null,
+        "latency_generation_ms": null,
+        "latency_total_ms": null
+      },
+      {
+        "question": "sicurezza degli accessi, autenticazione e gestione dell'identità",
+        "latency_total_ms_client": 57200.08,
+        "latency_retrieval_ms": null,
+        "latency_generation_ms": null,
+        "latency_total_ms": null
+      },
+      {
+        "question": "quali sono i profili degli attori e i ruoli del sistema",
+        "latency_total_ms_client": 50659.71,
+        "latency_retrieval_ms": null,
+        "latency_generation_ms": null,
+        "latency_total_ms": null
+      }
+    ],
+    "note": "latency_retrieval_ms/latency_generation_ms/latency_total_ms non sono presenti nella risposta di /ask (oggi solo nel log strutturato lato server, vedi api/routes_retrieval.py — M3 observability): avg_latency_total_ms_client (misurato qui lato client) è l'unico numero affidabile finché non vengono esposti anche in risposta."
+  },
+  "semantic_map": {
+    "n": 1,
+    "latency_ms": 246.93,
+    "n_points": 174,
+    "truncated": false
+  },
+  "incremental_noop": {
+    "n": 1,
+    "job_id": "fdfe9482c16f49fa81003c10274a523c",
+    "status": "completed",
+    "duration_seconds": 4.81278,
+    "wall_clock_seconds": 5.44,
+    "note": "no-op REALE: nessun file modificato prima di questa chiamata, quindi il delta interno è vuoto (misura l'overhead fisso: scansione manifest, diff a zero file). Il delta VERO (con modifiche effettive) va misurato a mano — modifica un file in docs/ o code/ e rilancia POST /api/reindex — non è automatizzato in questo bench."
+  },
+  "full_rebuild": {
+    "skipped": true,
+    "reason": "full rebuild eseguito solo con --with-rebuild esplicito (operazione lunga)"
+  }
+}
