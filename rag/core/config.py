@@ -173,6 +173,9 @@ INTAKE_ALLOWED_FORMATS: tuple[str, ...] = tuple(
     _intake_cfg.get("allowed_formats") or ["md", "pdf", "docx", "html", "txt"]
 )
 INTAKE_MAX_UPLOAD_MB: int = int(_intake_cfg.get("max_upload_mb", 25))
+# Authority scritta nel frontmatter dei documenti approvati dallo staging (S2): sotto i
+# documenti autorati a mano, sopra il default implicito del retrieval (0.4).
+INTAKE_DEFAULT_AUTHORITY: float = float(_intake_cfg.get("default_authority", 0.70))
 # Tetto ai file generabili in un'unica richiesta di generazione via Ollama (core/doc_generation.py).
 INTAKE_GENERATION_MAX_FILES: int = int(_intake_cfg.get("generation_max_files", 5))
 

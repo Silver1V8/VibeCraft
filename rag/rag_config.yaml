@@ -149,6 +149,11 @@ intake:
   allowed_formats: ["md", "pdf", "docx", "html", "txt"]
   max_upload_mb: 25
   generation_max_files: 5
+  # Authority di default scritta nel frontmatter dei documenti approvati dallo staging
+  # (S2): sotto i documenti autorati a mano (0.75-0.90) ma sopra il default implicito
+  # del retrieval (authority.default_weight 0.4) — un doc importato è citabile ma non
+  # deve mai vincere su una spec normativa a parità di match.
+  default_authority: 0.70
 
 # Implementazione del parser simboli per linguaggio (code_index).
 # Valori: "treesitter" (default, migrazione completata) | "regex" (fallback
