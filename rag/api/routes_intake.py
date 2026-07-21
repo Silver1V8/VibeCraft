@@ -3,22 +3,31 @@ docs/00_meta_governance/piano_intake_import.md): upload multipart → staging �
 approve (docs/ + reindex delta) / reject. Handler sottili: la logica vive in
 core/intake.py; qui solo validazioni HTTP (estensione e dimensione PRIMA di leggere tutto
 in memoria), mappatura degli errori tipizzati su status code e iniezione delle risorse di
-runtime (client Qdrant + modello embedding del server) nel reindex."""
+runtime (client Qdrant + modello embedding del server) nel reindex.
+
+S3 aggiunge la generazione di documentazione via Ollama (core/doc_generation.py): POST
+/api/intake/generate avvia un job in background (pattern api.reindex.ReindexManager) e
+risponde subito col job_id; GET /api/intake/generate/{job_id} ne riporta lo stato. Il
+lavoro (retrieval + chiamata LLM) chiude sulle risorse di runtime del server (snapshot
+Qdrant/embedding), mai su un percorso diretto verso docs/: ogni documento generato e
+validato entra in staging come un documento importato qualunque."""
 import logging
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from api.deps import (
+    current_snapshot,
     reload_index_state,
     require_api_key,
     require_not_cross_site_request,
     state,
 )
-from core import intake
-from core.config import INTAKE_ALLOWED_FORMATS, INTAKE_MAX_UPLOAD_MB
+from core import doc_generation, intake
+from core.config import INTAKE_ALLOWED_FORMATS, INTAKE_GENERATION_MAX_FILES, INTAKE_MAX_UPLOAD_MB
 from core.intake_convert import ConversionError
 from core.writer_lock import WriterLockBusyError
 
@@ -60,6 +69,17 @@ class ApproveRequest(BaseModel):
 
 class RejectRequest(BaseModel):
     motivo: str = ""
+
+
+class GenerateRequest(BaseModel):
+    descrizione: str
+    n_file: int = INTAKE_GENERATION_MAX_FILES
+    categoria_suggerita: str = "04_knowledge_informative"
+
+
+# Un solo manager per processo: nessuna coda/coalescing (i job di generazione sono
+# indipendenti, non toccano mai il writer lock di docs/+indice — vedi core.doc_generation).
+_generation_manager = doc_generation.GenerationManager()
 
 
 def _server_reindex(changed_paths):
@@ -159,3 +179,43 @@ async def reject_staged_document(doc_id: str, payload: RejectRequest):
         return await run_in_threadpool(intake.reject, doc_id, payload.motivo)
     except Exception as exc:
         _raise_http(exc)
+
+
+# ---------------------------------------------------------------------------
+# S3 — Generazione doc via Ollama: job in background + polling dello stato
+# ---------------------------------------------------------------------------
+def _server_generate(descrizione: str, n_file: int, categoria_target: str) -> dict:
+    """Chiude sulle risorse di runtime del server (snapshot Qdrant/embedding), pattern di
+    _server_reindex. Gira sul thread daemon del GenerationManager: bloccante ma fuori
+    dall'event loop."""
+    snap = current_snapshot()
+    return doc_generation.generate_docs(
+        descrizione, n_file, categoria_target,
+        qdrant=state.get("qdrant"), embed_model=state.get("embed_model"),
+        colbert_store=snap.colbert_store if snap else None,
+        chunks_store=snap.chunks if snap else None,
+    )
+
+
+@router.post("/api/intake/generate", dependencies=[Depends(require_not_cross_site_request)])
+async def start_generation(payload: GenerateRequest):
+    """Avvia (subito, in background) un job di generazione documentazione grounded e
+    risponde 202 col job_id. Il corpo dell'esito (documenti generati/scartati, latenze)
+    si legge da GET /api/intake/generate/{job_id}."""
+    if not payload.descrizione.strip():
+        raise HTTPException(status_code=422, detail="descrizione vuota")
+    job = _generation_manager.start(
+        payload.descrizione, payload.n_file, payload.categoria_suggerita,
+        lambda: _server_generate(payload.descrizione, payload.n_file, payload.categoria_suggerita),
+    )
+    return JSONResponse(status_code=202, content=job.to_dict())
+
+
+@router.get("/api/intake/generate/{job_id}")
+async def generation_status(job_id: str):
+    """Stato di un job di generazione (pending/running/done/failed) con l'esito
+    (generati/scartati/latenze) o l'errore leggibile."""
+    job = await run_in_threadpool(_generation_manager.get, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Job di generazione non trovato: {job_id}")
+    return job.to_dict()
