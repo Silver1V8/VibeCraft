@@ -34,6 +34,26 @@ degli altri step, un solo client da mantenere. Su `LLMError` la route risponde
 `status: "success"`. La base URL di Ollama è unica per tutto il codice
 (`VIBECRAFT_OLLAMA_URL`, default `http://127.0.0.1:11434`, core/config.py).
 
+**Router deterministico M2 davanti a `/ask`.** Prima del retrieval, la funzione
+pura `core.router.route_question` (regex, zero LLM, zero grafo) classifica la
+domanda: le formulazioni **strutturali** inequivocabili (enumerazioni di
+documenti/entità, `quali relazioni ha X`, `impatto se modifico Y`, nodi
+adiacenti — i casi risolti dal grafo nel report M1) vanno su strategia `graph` e
+sono risposte direttamente da `graph_ops.graph_query` (offload in threadpool),
+**senza retrieval né chiamata LLM**: la risposta ha `status: "graph_answer"` col
+`graph_result` esatto. Tutto il resto (incluse le multihop) resta su strategia
+`hybrid`, il percorso retrieval + sintesi LLM descritto sopra. Il router è
+**conservativo per costruzione** — in dubbio `hybrid`, vincolo di zero falsi
+positivi sul golden-set classico — e la scelta finisce nel campo
+`retrieval_strategy` del log strutturato M3.
+
+**Breakdown di latenza in risposta (M3/F3).** Sia il ramo `hybrid` sia il ramo
+`graph` restituiscono, oltre a `request_id` e `index_version`, un oggetto
+`latency: {retrieval_ms, generation_ms, total_ms}` (nel ramo grafo
+`retrieval_ms` è la latenza di `graph_query` e `generation_ms` è 0): gli stessi
+valori già presenti nel log strutturato di fine richiesta, esposti anche nel JSON
+così i client (e `scripts/bench.py`) misurano il breakdown senza parsare i log.
+
 ## Reindex automatico: l'indice non invecchia mai
 
 Due meccanismi tengono l'indice allineato al codebase senza intervento manuale:
@@ -76,9 +96,21 @@ full e riporta il `job_id` al client (nello stream l'evento finale è
 **sussume** qualunque incrementale — se il pending è incremental e arriva un full,
 il pending diventa full; se il pending è già full, ogni richiesta successiva vi si
 fonde senza cambiarlo. La CLI (`python index.py`) invece scrive gli artefatti
-direttamente, fuori dalla coda: **non usare la CLI per (re)indicizzare mentre il
-server è attivo** — con il server acceso usa `POST /api/reindex` (eventualmente
-`{"full": true}`).
+direttamente, fuori dalla coda: con il server acceso preferisci `POST /api/reindex`
+(eventualmente `{"full": true}`), che accoda invece di scrivere in place.
+
+**Un solo scrittore anche cross-processo (writer lock).** CLI e server non si
+corrompono più a vicenda: ogni ramo che SCRIVE gli artefatti — i comandi CLI di
+scrittura (`index.py`: build, `--incremental`, `--archive`, `--rollback`) e i job
+del ReindexManager — gira per l'intera durata sotto un lock advisory a livello di
+sistema operativo su `database/.writer.lock` ([core/writer_lock.py](core/writer_lock.py):
+`msvcrt.locking` su Windows, `fcntl.flock` su POSIX). Il mutex è il lock OS
+sull'handle, che il kernel rilascia automaticamente alla morte del processo (crash
+inclusi): nessun lock stale da ripulire, il file non viene mai cancellato. Se un
+altro writer è attivo la CLI **fallisce subito** con un exit code dedicato
+(`WriterLockBusyError`, messaggio con pid/timestamp del detentore) invece di
+scrivere a metà — così un `python index.py` lanciato mentre il server reindicizza
+non produce artefatti misti.
 
 Configura il webhook GitLab (Settings → Webhooks) su **Push events** e/o
 **Merge request events** puntando a `https://<host>/api/reindex`. Per esporre il
@@ -259,13 +291,12 @@ NO-OP reale (nessun file toccato: misura solo l'overhead fisso del job, dal jour
 corrispondente è `skipped` con motivo: il bench è una **misurazione**, mai un gate —
 exit code sempre 0.
 
-**Nota sui campi di latenza di `/ask`:** oggi `latency_retrieval_ms`,
-`latency_generation_ms` e `latency_total_ms` esistono solo nel log strutturato di
-fine richiesta (osservabilità M3, vedi [api/routes_retrieval.py](api/routes_retrieval.py)),
-non nella risposta JSON — solo `request_id` e `index_version` sono campi additivi in
-risposta. Il bench li legge comunque dalla risposta (pronto per quando verranno
-esposti lì) e usa `avg_latency_total_ms_client`, misurato lato client, come unico
-numero affidabile nel frattempo: il JSON salvato riporta esplicitamente questa nota.
+**Nota sui campi di latenza di `/ask`:** dal F3 il breakdown è **anche nella
+risposta JSON**, non solo nel log strutturato di fine richiesta (osservabilità M3,
+vedi [api/routes_retrieval.py](api/routes_retrieval.py)): `/ask` restituisce
+`latency: {retrieval_ms, generation_ms, total_ms}` accanto a `request_id` e
+`index_version`. Il bench legge questi campi dalla risposta e, per robustezza,
+affianca `avg_latency_total_ms_client` misurato lato client.
 
 **Il delta incrementale VERO** (con un file davvero modificato) non è automatizzato:
 va misurato a mano modificando un file in `docs/` o `code/` e rilanciando `POST
@@ -380,9 +411,12 @@ reconciler confronta lo stato REALE dell'alias con quello atteso dal manifest de
 versione attiva e ripara automaticamente i casi "missing"/"diverging" — ma solo se
 la collection attesa esiste davvero (nessuna correzione distruttiva); lo stesso
 punto esegue il GC delle collection versionate orfane (build crashati o non
-promossi, lineage già ruotate dalla retention locale). `GET /api/index/integrity`
-espone la classificazione READ-ONLY sotto il campo `qdrant_alias`:
-`legacy`/`aligned`/`missing`/`diverging`/`unknown`.
+promossi, lineage già ruotate dalla retention locale). Riconciliazione e GC girano
+**sotto il writer lock** (F2): se una build CLI è in corso al boot il lock è
+occupato e questo avvio **salta** entrambe (nessun GC che cancelli la collection
+candidata di un rebuild a metà) — non è un errore, il prossimo boot o job full le
+riesegue. `GET /api/index/integrity` espone la classificazione READ-ONLY sotto il
+campo `qdrant_alias`: `legacy`/`aligned`/`missing`/`diverging`/`unknown`.
 
 ### Retrocompatibilità e formati legacy
 
@@ -454,10 +488,15 @@ PowerShell via tree-sitter — archi EXECUTES script→script e riferimenti
 incrociati verso i progetti/file invocati) e
 [code_index/ci.py](code_index/ci.py) (pipeline GitLab CI / Azure DevOps
 riconosciute per nome — nodi pipeline/job, archi verso template, progetti
-buildati e repo esterni dai trigger) e
+buildati e repo esterni dai trigger),
 [code_index/frontend.py](code_index/frontend.py) (semantica React/Angular
 sopra il parser TS: componenti, hook, DI, route, template — framework
-rilevato dal package.json del progetto, non dall'estensione). L'interfaccia di un parser è una funzione
+rilevato dal package.json del progetto, non dall'estensione) e
+[code_index/docker.py](code_index/docker.py) (artefatti di containerizzazione
+riconosciuti per nome — Docker Compose via pyyaml e Dockerfile via scanner
+riga-per-riga: nodi service/image, archi service→service da `depends_on` e
+service→Dockerfile dal build context; environment/ARG sensibili sempre
+mascherati). L'interfaccia di un parser è una funzione
 `(text: str, stem: str, suffix: str) -> list[tuple]` con tuple
 `(kind, name, snippet)` o `(kind, name, snippet, meta)`: `kind` è ad es.
 `function`/`class`/`endpoint`/`component`, `name` è univoco nel file,
