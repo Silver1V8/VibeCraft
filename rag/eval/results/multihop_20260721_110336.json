@@ -1,0 +1,564 @@
+{
+  "timestamp": "2026-07-21T11:03:36",
+  "url": "http://127.0.0.1:8000",
+  "golden_set": "golden_multihop.yaml",
+  "n": 14,
+  "k": 10,
+  "trigger_m2": {
+    "fired": true,
+    "n_qualifying": 6,
+    "minimum": 3,
+    "qualifying_cases": [
+      "quali documenti esistono nel corpus?",
+      "quali entità del dominio esistono?",
+      "quali relazioni ha la specifica di autenticazione?",
+      "cosa viene impattato se modifico le safeguard di sicurezza?",
+      "dammi i nodi adiacenti alla matrice dei permessi",
+      "quali relazioni ha lo standard di codifica?"
+    ]
+  },
+  "aggregate": {
+    "recall_media_A": 0.64216378859236,
+    "A_passed": 5,
+    "B_exact": 6,
+    "B_valutabili": 6
+  },
+  "cases": [
+    {
+      "q": "quali documenti esistono nel corpus?",
+      "kind": "structural",
+      "target": null,
+      "A": {
+        "recall": 0.23076923076923078,
+        "passed": false,
+        "best_rank": 1,
+        "n_expected": 26,
+        "found": [
+          {
+            "doc": "00_meta_governance/change_log.md"
+          },
+          {
+            "doc": "00_meta_governance/glossario_entita.md"
+          },
+          {
+            "doc": "00_meta_governance/matrice_permessi.md"
+          },
+          {
+            "doc": "00_meta_governance/safeguards_security.md"
+          },
+          {
+            "doc": "03_changes_historical/form-eventi-canvas-review.md"
+          },
+          {
+            "doc": "04_knowledge_informative/vibe_coding_workflow.md"
+          }
+        ],
+        "missing": [
+          {
+            "doc": "01_architecture_norms/coding_standards.md"
+          },
+          {
+            "doc": "01_architecture_norms/spec_tech_backend.md"
+          },
+          {
+            "doc": "01_architecture_norms/spec_tech_frontend.md"
+          },
+          {
+            "doc": "01_architecture_norms/spec_tech_logic_agent.md"
+          },
+          {
+            "doc": "02_specs_normative/spec_analytics_3.5.md"
+          },
+          {
+            "doc": "02_specs_normative/spec_area_pers_1.5.md"
+          },
+          {
+            "doc": "02_specs_normative/spec_auth_1.1.md"
+          },
+          {
+            "doc": "02_specs_normative/spec_concurrency_2.3.md"
+          },
+          {
+            "doc": "02_specs_normative/spec_crud_admin_3.2.md"
+          },
+          {
+            "doc": "02_specs_normative/spec_dash_1.2.md"
+          },
+          {
+            "doc": "02_specs_normative/spec_det_1.3.md"
+          },
+          {
+            "doc": "02_specs_normative/spec_export_3.4.md"
+          },
+          {
+            "doc": "02_specs_normative/spec_form_1.4.md"
+          },
+          {
+            "doc": "02_specs_normative/spec_graph_rag_ingestion.md"
+          },
+          {
+            "doc": "02_specs_normative/spec_mgr_panel_2.2.md"
+          },
+          {
+            "doc": "02_specs_normative/spec_monitor_admin_3.3.md"
+          },
+          {
+            "doc": "02_specs_normative/spec_notifications_2.4.md"
+          },
+          {
+            "doc": "02_specs_normative/spec_wf_states_2.1.md"
+          },
+          {
+            "doc": "04_knowledge_informative/graph_rag_ingestion_strategy.md"
+          },
+          {
+            "doc": "04_knowledge_informative/intent_synonym_mapping.md"
+          }
+        ]
+      },
+      "B": {
+        "intent": "documenti",
+        "count": 26,
+        "exact_match": true,
+        "mismatches": []
+      },
+      "delta": "B>A"
+    },
+    {
+      "q": "quali entità del dominio esistono?",
+      "kind": "structural",
+      "target": null,
+      "A": {
+        "recall": 0.6666666666666666,
+        "passed": false,
+        "best_rank": 1,
+        "n_expected": 6,
+        "found": [
+          {
+            "doc": "glossario_entita",
+            "section": "Indice delle Entit"
+          },
+          {
+            "doc": "glossario_entita",
+            "section": "UTENTE"
+          },
+          {
+            "doc": "glossario_entita",
+            "section": "RICHIESTA"
+          },
+          {
+            "doc": "glossario_entita",
+            "section": "AUDIT_LOG"
+          }
+        ],
+        "missing": [
+          {
+            "doc": "glossario_entita",
+            "section": "EVENTO"
+          },
+          {
+            "doc": "glossario_entita",
+            "section": "NOTIFICA"
+          }
+        ]
+      },
+      "B": {
+        "intent": "entità",
+        "count": 196,
+        "exact_match": true,
+        "mismatches": []
+      },
+      "delta": "B>A"
+    },
+    {
+      "q": "quali relazioni ha la specifica di autenticazione?",
+      "kind": "structural",
+      "target": "02_specs_normative/spec_auth_1.1.md",
+      "A": {
+        "recall": 0.6,
+        "passed": false,
+        "best_rank": 1,
+        "n_expected": 5,
+        "found": [
+          {
+            "doc": "spec_auth"
+          },
+          {
+            "doc": "safeguards_security"
+          },
+          {
+            "doc": "glossario_entita"
+          }
+        ],
+        "missing": [
+          {
+            "doc": "matrice_permessi"
+          },
+          {
+            "doc": "intent_synonym_mapping"
+          }
+        ]
+      },
+      "B": {
+        "intent": "relazioni",
+        "count": 42,
+        "exact_match": true,
+        "mismatches": []
+      },
+      "delta": "B>A"
+    },
+    {
+      "q": "cosa viene impattato se modifico le safeguard di sicurezza?",
+      "kind": "structural",
+      "target": "00_meta_governance/safeguards_security.md",
+      "A": {
+        "recall": 0.14285714285714285,
+        "passed": false,
+        "best_rank": 6,
+        "n_expected": 7,
+        "found": [
+          {
+            "doc": "spec_export"
+          }
+        ],
+        "missing": [
+          {
+            "doc": "spec_auth"
+          },
+          {
+            "doc": "spec_concurrency"
+          },
+          {
+            "doc": "spec_wf_states"
+          },
+          {
+            "doc": "spec_notifications"
+          },
+          {
+            "doc": "glossario_entita"
+          },
+          {
+            "doc": "matrice_permessi"
+          }
+        ]
+      },
+      "B": {
+        "intent": "impatto",
+        "count": 349,
+        "exact_match": true,
+        "mismatches": []
+      },
+      "delta": "B>A"
+    },
+    {
+      "q": "dammi i nodi adiacenti alla matrice dei permessi",
+      "kind": "structural",
+      "target": "00_meta_governance/matrice_permessi.md",
+      "A": {
+        "recall": 0.6,
+        "passed": false,
+        "best_rank": 1,
+        "n_expected": 5,
+        "found": [
+          {
+            "doc": "matrice_permessi"
+          },
+          {
+            "doc": "safeguards_security"
+          },
+          {
+            "doc": "intent_synonym_mapping"
+          }
+        ],
+        "missing": [
+          {
+            "doc": "glossario_entita"
+          },
+          {
+            "doc": "spec_auth"
+          }
+        ]
+      },
+      "B": {
+        "intent": "vicini",
+        "count": 78,
+        "exact_match": true,
+        "mismatches": []
+      },
+      "delta": "B>A"
+    },
+    {
+      "q": "quali relazioni ha lo standard di codifica?",
+      "kind": "structural",
+      "target": "01_architecture_norms/coding_standards.md",
+      "A": {
+        "recall": 0.25,
+        "passed": false,
+        "best_rank": 1,
+        "n_expected": 4,
+        "found": [
+          {
+            "doc": "coding_standards"
+          }
+        ],
+        "missing": [
+          {
+            "doc": "spec_tech_backend"
+          },
+          {
+            "doc": "spec_tech_logic_agent"
+          },
+          {
+            "doc": "spec_tech_frontend"
+          }
+        ]
+      },
+      "B": {
+        "intent": "relazioni",
+        "count": 17,
+        "exact_match": true,
+        "mismatches": []
+      },
+      "delta": "B>A"
+    },
+    {
+      "q": "quali vincoli di sicurezza eredita la spec di autenticazione e cosa impongono in concreto?",
+      "kind": "multihop",
+      "target": null,
+      "A": {
+        "recall": 1.0,
+        "passed": true,
+        "best_rank": 4,
+        "n_expected": 2,
+        "found": [
+          {
+            "doc": "spec_auth",
+            "section": "Note Implementative"
+          },
+          {
+            "doc": "safeguards_security",
+            "section": "Sicurezza Accessi"
+          }
+        ],
+        "missing": []
+      },
+      "B": {
+        "intent": "documenti",
+        "count": 26,
+        "exact_match": null,
+        "mismatches": []
+      },
+      "delta": "A-only"
+    },
+    {
+      "q": "chi ha il permesso di creare un evento e quali sono gli attributi dell'entità EVENTO?",
+      "kind": "multihop",
+      "target": null,
+      "A": {
+        "recall": 0.5,
+        "passed": false,
+        "best_rank": 1,
+        "n_expected": 2,
+        "found": [
+          {
+            "doc": "glossario_entita",
+            "section": "EVENTO"
+          }
+        ],
+        "missing": [
+          {
+            "doc": "matrice_permessi",
+            "section": "Matrice dei Permessi"
+          }
+        ]
+      },
+      "B": {
+        "intent": "entità",
+        "count": 196,
+        "exact_match": null,
+        "mismatches": []
+      },
+      "delta": "A-only"
+    },
+    {
+      "q": "quando una richiesta viene approvata, quale transizione di stato avviene e quale notifica viene dispacciata?",
+      "kind": "multihop",
+      "target": null,
+      "A": {
+        "recall": 0.5,
+        "passed": false,
+        "best_rank": 3,
+        "n_expected": 2,
+        "found": [
+          {
+            "doc": "spec_wf_states",
+            "section": "Transizione e Workflow"
+          }
+        ],
+        "missing": [
+          {
+            "doc": "spec_notifications",
+            "section": "Dispacciamento ed Integrazione Canali"
+          }
+        ]
+      },
+      "B": {
+        "intent": "sconosciuto",
+        "count": 0,
+        "exact_match": null,
+        "mismatches": []
+      },
+      "delta": "A-only"
+    },
+    {
+      "q": "come si previene il double-booking dei posti e quale safeguard di concorrenza lo impone a livello di governance?",
+      "kind": "multihop",
+      "target": null,
+      "A": {
+        "recall": 1.0,
+        "passed": true,
+        "best_rank": 1,
+        "n_expected": 2,
+        "found": [
+          {
+            "doc": "spec_concurrency",
+            "section": "Lock e Protezione dal Double-Booking"
+          },
+          {
+            "doc": "safeguards_security",
+            "section": "Concorrenza Critica"
+          }
+        ],
+        "missing": []
+      },
+      "B": {
+        "intent": "sconosciuto",
+        "count": 0,
+        "exact_match": null,
+        "mismatches": []
+      },
+      "delta": "A-only"
+    },
+    {
+      "q": "quali sinonimi esprimono l'azione di approvare e quale ruolo ha il permesso di approvare una richiesta?",
+      "kind": "multihop",
+      "target": null,
+      "A": {
+        "recall": 0.5,
+        "passed": false,
+        "best_rank": 5,
+        "n_expected": 2,
+        "found": [
+          {
+            "doc": "matrice_permessi",
+            "section": "Matrice dei Permessi"
+          }
+        ],
+        "missing": [
+          {
+            "doc": "intent_synonym_mapping",
+            "section": "Mappatura Semantica dei Verbi"
+          }
+        ]
+      },
+      "B": {
+        "intent": "sconosciuto",
+        "count": 0,
+        "exact_match": null,
+        "mismatches": []
+      },
+      "delta": "A-only"
+    },
+    {
+      "q": "il calcolo dei posti disponibili in dashboard deve rispettare quali vincoli sui contatori definiti dalla spec di concorrenza?",
+      "kind": "multihop",
+      "target": null,
+      "A": {
+        "recall": 1.0,
+        "passed": true,
+        "best_rank": 1,
+        "n_expected": 2,
+        "found": [
+          {
+            "doc": "spec_dash",
+            "section": "Calcolo Dinamico dei Posti"
+          },
+          {
+            "doc": "spec_concurrency",
+            "section": "Contatori e Integrità"
+          }
+        ],
+        "missing": []
+      },
+      "B": {
+        "intent": "documenti",
+        "count": 26,
+        "exact_match": null,
+        "mismatches": []
+      },
+      "delta": "A-only"
+    },
+    {
+      "q": "chi può esportare i dati in CSV e cosa deve registrare l'AUDIT_LOG durante l'export?",
+      "kind": "multihop",
+      "target": null,
+      "A": {
+        "recall": 1.0,
+        "passed": true,
+        "best_rank": 4,
+        "n_expected": 3,
+        "found": [
+          {
+            "doc": "spec_export",
+            "section": "Audit"
+          },
+          {
+            "doc": "matrice_permessi",
+            "section": "Profili degli Attori"
+          },
+          {
+            "doc": "glossario_entita",
+            "section": "AUDIT_LOG"
+          }
+        ],
+        "missing": []
+      },
+      "B": {
+        "intent": "sconosciuto",
+        "count": 0,
+        "exact_match": null,
+        "mismatches": []
+      },
+      "delta": "A-only"
+    },
+    {
+      "q": "da quali standard di codifica derivano le spec tecniche del backend e quali metriche strutturali impongono?",
+      "kind": "multihop",
+      "target": null,
+      "A": {
+        "recall": 1.0,
+        "passed": true,
+        "best_rank": 1,
+        "n_expected": 2,
+        "found": [
+          {
+            "doc": "spec_tech_backend",
+            "section": "Direzione Architetturale"
+          },
+          {
+            "doc": "coding_standards",
+            "section": "Metriche Strutturali"
+          }
+        ],
+        "missing": []
+      },
+      "B": {
+        "intent": "documenti",
+        "count": 26,
+        "exact_match": null,
+        "mismatches": []
+      },
+      "delta": "A-only"
+    }
+  ]
+}

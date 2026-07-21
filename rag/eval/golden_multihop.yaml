@@ -1,0 +1,357 @@
+# Golden-set M1 — domande STRUTTURALI e MULTI-HOP (milestone "versione definitiva").
+#
+# Misura il gap tra il retrieval vettoriale (baseline A: GET /api/retrieve, k=10) e la
+# query deterministica sul grafo (riferimento B: GET /api/graph/query) per decidere il
+# TRIGGER della milestone M2 (router strutturale/multihop davanti al retrieval).
+# Harness: eval/run_multihop.py (script separato da eval/run.py: schema dei casi diverso,
+# doppia misura A/B — vedi docstring del modulo per la motivazione del diff).
+#
+# Formato di ogni caso:
+#   q          : domanda in italiano (la stessa per A e per B)
+#   kind       : "structural" (risposta = nodi/archi esatti del grafo)
+#              | "multihop"   (risposta = combinare 2+ documenti collegati nel grafo)
+#   target     : (opzionale) id del nodo bersaglio passato a /api/graph/query — il caso
+#                lo dichiara quando il chiamante reale (es. click sulla Semantic Map)
+#                conoscerebbe già il nodo; assente = rilevamento testuale di graph_query.
+#   expected:
+#     retrieval: lista di matcher (STESSO formato di golden_set.yaml / core.eval_metrics:
+#                doc/section/chunk/file/any, substring case-insensitive) per la baseline A.
+#                A "riuscito" = TUTTI i matcher trovati in top-10 (recall == 1.0).
+#     graph    : (solo structural) atteso ESATTO da graph_query per il riferimento B:
+#                  intent     : intent che graph_query deve riconoscere
+#                  count      : (opz.) valore esatto del campo `count` della risposta
+#                  nodes      : (opz.) nodi che DEVONO comparire nella risposta
+#                  relations  : (opz.) archi che devono comparire: {relation, node}
+#                               (node cercato sia tra gli archi out.to sia in.from)
+#                B "riuscito" (exact-node-match) = intent uguale + count uguale (se
+#                dichiarato) + tutti i nodes presenti + tutte le relations presenti.
+#   evidence   : perché la risposta è quella — percorso/archi nel grafo reale
+#                (verificato su GET /api/graph/all, snapshot v20260721T084111,
+#                566 nodi / 879 archi / 174 chunk).
+#   answer_note: sintesi attesa della risposta corretta.
+#
+# Mix: 6 structural + 8 multihop (tutti gli expected multihop spandono 2+ documenti
+# collegati da archi tipizzati o entità condivise: non risolvibili da un singolo chunk).
+# Baseline registrate al 2026-07-21 (probe manuale pre-scrittura): vedi `evidence`.
+cases:
+  # ───────────────────────────── STRUCTURAL ─────────────────────────────
+
+  - q: "quali documenti esistono nel corpus?"
+    kind: structural
+    expected:
+      retrieval:  # l'enumerazione completa: 26 documenti (top-10 può coprirne al più 10)
+        - {doc: "00_meta_governance/change_log.md"}
+        - {doc: "00_meta_governance/glossario_entita.md"}
+        - {doc: "00_meta_governance/matrice_permessi.md"}
+        - {doc: "00_meta_governance/safeguards_security.md"}
+        - {doc: "01_architecture_norms/coding_standards.md"}
+        - {doc: "01_architecture_norms/spec_tech_backend.md"}
+        - {doc: "01_architecture_norms/spec_tech_frontend.md"}
+        - {doc: "01_architecture_norms/spec_tech_logic_agent.md"}
+        - {doc: "02_specs_normative/spec_analytics_3.5.md"}
+        - {doc: "02_specs_normative/spec_area_pers_1.5.md"}
+        - {doc: "02_specs_normative/spec_auth_1.1.md"}
+        - {doc: "02_specs_normative/spec_concurrency_2.3.md"}
+        - {doc: "02_specs_normative/spec_crud_admin_3.2.md"}
+        - {doc: "02_specs_normative/spec_dash_1.2.md"}
+        - {doc: "02_specs_normative/spec_det_1.3.md"}
+        - {doc: "02_specs_normative/spec_export_3.4.md"}
+        - {doc: "02_specs_normative/spec_form_1.4.md"}
+        - {doc: "02_specs_normative/spec_graph_rag_ingestion.md"}
+        - {doc: "02_specs_normative/spec_mgr_panel_2.2.md"}
+        - {doc: "02_specs_normative/spec_monitor_admin_3.3.md"}
+        - {doc: "02_specs_normative/spec_notifications_2.4.md"}
+        - {doc: "02_specs_normative/spec_wf_states_2.1.md"}
+        - {doc: "03_changes_historical/form-eventi-canvas-review.md"}
+        - {doc: "04_knowledge_informative/graph_rag_ingestion_strategy.md"}
+        - {doc: "04_knowledge_informative/intent_synonym_mapping.md"}
+        - {doc: "04_knowledge_informative/vibe_coding_workflow.md"}
+      graph:
+        intent: "documenti"
+        count: 26
+        nodes:
+          - "00_meta_governance/safeguards_security.md"
+          - "00_meta_governance/glossario_entita.md"
+          - "02_specs_normative/spec_auth_1.1.md"
+          - "04_knowledge_informative/vibe_coding_workflow.md"
+    evidence: >
+      Il grafo ha esattamente 26 nodi type=document (GET /api/graph/all). Un'enumerazione
+      è una proprietà GLOBALE del grafo: nessun chunk la contiene, e k=10 non può coprire
+      26 documenti nemmeno in teoria.
+    answer_note: "Elenco esatto dei 26 documenti indicizzati, per id (path)."
+
+  - q: "quali entità del dominio esistono?"
+    kind: structural
+    expected:
+      retrieval:  # proxy: le sezioni del glossario che elencano/definiscono le entità core
+        - {doc: glossario_entita, section: "Indice delle Entit"}
+        - {doc: glossario_entita, section: "EVENTO"}
+        - {doc: glossario_entita, section: "UTENTE"}
+        - {doc: glossario_entita, section: "RICHIESTA"}
+        - {doc: glossario_entita, section: "NOTIFICA"}
+        - {doc: glossario_entita, section: "AUDIT_LOG"}
+      graph:
+        intent: "entità"
+        count: 196
+        nodes:  # oltre alle 5 entità ERD, l'enumerazione del grafo include regole e safeguard
+          - "entity::EVENTO"
+          - "entity::UTENTE"
+          - "entity::RICHIESTA"
+          - "entity::NOTIFICA"
+          - "entity::AUDIT_LOG"
+          - "REGOLA-CONC-01"
+          - "SAFEGUARD-SEC-04"
+    evidence: >
+      196 nodi type=entity nel grafo: le 5 entità ERD del glossario più regole
+      (REGOLA-*), safeguard (SAFEGUARD-*) ed entità citate estratte da TUTTI i documenti.
+      Nessun singolo chunk elenca le 196: il glossario ne definisce 5, le regole vivono
+      sparse in più documenti.
+    answer_note: >
+      196 entità: EVENTO/UTENTE/RICHIESTA/NOTIFICA/AUDIT_LOG (ERD del glossario) più le
+      regole e i safeguard citati trasversalmente (REGOLA-*, SAFEGUARD-*, moduli, parti).
+
+  - q: "quali relazioni ha la specifica di autenticazione?"
+    kind: structural
+    target: "02_specs_normative/spec_auth_1.1.md"
+    expected:
+      retrieval:  # i 5 documenti coinvolti negli archi tipizzati di spec_auth
+        - {doc: spec_auth}
+        - {doc: safeguards_security}
+        - {doc: glossario_entita}
+        - {doc: matrice_permessi}
+        - {doc: intent_synonym_mapping}
+      graph:
+        intent: "relazioni"
+        count: 42
+        relations:
+          - {relation: "EREDITA_VINCOLI", node: "00_meta_governance/safeguards_security.md"}
+          - {relation: "OPERA_SU_ENTITA", node: "00_meta_governance/glossario_entita.md"}
+          - {relation: "AUTHORIZZAZIONE_DA", node: "00_meta_governance/matrice_permessi.md"}
+          - {relation: "TRADOTTO_DA", node: "04_knowledge_informative/intent_synonym_mapping.md"}
+          - {relation: "PART_OF", node: "02_specs_normative/spec_auth_1.1.md#02-1-descrizione-del-flusso-funzion"}
+    evidence: >
+      Archi out di spec_auth_1.1.md nel grafo: EREDITA_VINCOLI -> safeguards_security.md,
+      OPERA_SU_ENTITA -> glossario_entita.md, AUTHORIZZAZIONE_DA -> matrice_permessi.md,
+      TRADOTTO_DA -> intent_synonym_mapping.md (più MENTIONS verso 26 entità e i gemelli
+      frontmatter *-v1.x); archi in: PART_OF dalle sue 5 sezioni. Totale 42.
+    answer_note: >
+      spec_auth eredita i vincoli dalle safeguard, opera sulle entità del glossario, è
+      autorizzata dalla matrice permessi, tradotta dal synonym mapping; 5 sezioni PART_OF.
+
+  - q: "cosa viene impattato se modifico le safeguard di sicurezza?"
+    kind: structural
+    target: "00_meta_governance/safeguards_security.md"
+    expected:
+      retrieval:  # i documenti nel primo anello di impatto (dovrebbero comparire per rispondere)
+        - {doc: spec_auth}
+        - {doc: spec_concurrency}
+        - {doc: spec_wf_states}
+        - {doc: spec_notifications}
+        - {doc: spec_export}
+        - {doc: glossario_entita}
+        - {doc: matrice_permessi}
+      graph:
+        intent: "impatto"
+        count: 349
+        nodes:  # tutti a 1 hop dal centro (arco tipizzato entrante verso le safeguard)
+          - "02_specs_normative/spec_auth_1.1.md"
+          - "02_specs_normative/spec_concurrency_2.3.md"
+          - "02_specs_normative/spec_wf_states_2.1.md"
+          - "02_specs_normative/spec_notifications_2.4.md"
+          - "02_specs_normative/spec_export_3.4.md"
+          - "00_meta_governance/glossario_entita.md"
+          - "00_meta_governance/matrice_permessi.md"
+    evidence: >
+      safeguards_security.md è il nodo più connesso della governance: 14 documenti gli
+      puntano con EREDITA_VINCOLI, glossario con DIPENDE_DA, matrice con INTEGRA,
+      vibe_coding_workflow con INTEGRA, intent_synonym con APPLICA_TUTELATE_DA. BFS a
+      2 livelli: anelli [1, 76, 273], 349 nodi impattati oltre al centro.
+    answer_note: >
+      Impatto a cascata su quasi tutto il corpus: 76 nodi a 1 hop (tutte le spec che
+      ereditano i vincoli, glossario, matrice, workflow) e 273 a 2 hop; 349 nodi totali.
+
+  - q: "dammi i nodi adiacenti alla matrice dei permessi"
+    kind: structural
+    target: "00_meta_governance/matrice_permessi.md"
+    expected:
+      retrieval:  # i vicini documento della matrice nel grafo
+        - {doc: matrice_permessi}
+        - {doc: glossario_entita}
+        - {doc: safeguards_security}
+        - {doc: spec_auth}
+        - {doc: intent_synonym_mapping}
+      graph:
+        intent: "vicini"
+        count: 78
+        nodes:
+          - "00_meta_governance/glossario_entita.md"
+          - "00_meta_governance/safeguards_security.md"
+          - "02_specs_normative/spec_auth_1.1.md"
+          - "04_knowledge_informative/intent_synonym_mapping.md"
+          - "MIDDLEWARE_AUTORIZZAZIONE"
+          - "00_meta_governance/matrice_permessi.md#03-2-matrice-dei-permessi"
+    evidence: >
+      Vicini diretti di matrice_permessi.md nel grafo: REFERENZIA -> glossario_entita.md,
+      INTEGRA -> safeguards_security.md, AUTHORIZZAZIONE_DA <- spec_auth_1.1.md,
+      REFERENZIA <- intent_synonym_mapping.md, IMPLEMENTATO_DA -> MIDDLEWARE_AUTORIZZAZIONE,
+      PART_OF <- 6 sezioni, più le entità MENTIONS. 78 vicini totali.
+    answer_note: >
+      78 nodi adiacenti: i 4 documenti collegati da archi tipizzati (glossario, safeguard,
+      spec_auth, synonym mapping), il middleware di autorizzazione, le 6 sezioni e le
+      entità menzionate.
+
+  - q: "quali relazioni ha lo standard di codifica?"
+    kind: structural
+    target: "01_architecture_norms/coding_standards.md"
+    expected:
+      retrieval:  # per rispondere servono anche le 3 spec tecniche che DERIVANO dallo standard
+        - {doc: coding_standards}
+        - {doc: spec_tech_backend}
+        - {doc: spec_tech_logic_agent}
+        - {doc: spec_tech_frontend}
+      graph:
+        intent: "relazioni"
+        count: 17
+        relations:
+          - {relation: "DERIVA_DA", node: "01_architecture_norms/spec_tech_backend.md"}
+          - {relation: "DERIVA_DA", node: "01_architecture_norms/spec_tech_logic_agent.md"}
+          - {relation: "DERIVA_DA", node: "01_architecture_norms/spec_tech_frontend.md"}
+          - {relation: "PART_OF", node: "01_architecture_norms/coding_standards.md#03-2-metriche-strutturali-e-limiti"}
+    evidence: >
+      Archi in di coding_standards.md: DERIVA_DA <- spec_tech_backend.md,
+      spec_tech_logic_agent.md, spec_tech_frontend.md (le tre spec tecniche derivano le
+      loro norme dallo standard) e PART_OF <- 6 sezioni; out: MENTIONS verso le regole
+      REGOLA-CLEAN-* e DERIVA_DA -> ANALISI_FUNZIONALE_VIBE_CODING. Totale 17.
+    answer_note: >
+      Lo standard di codifica è la sorgente normativa delle 3 spec tecniche
+      (backend/frontend/logic-agent via DERIVA_DA) e cita le regole REGOLA-CLEAN-*.
+
+  # ───────────────────────────── MULTIHOP ─────────────────────────────
+
+  - q: "quali vincoli di sicurezza eredita la spec di autenticazione e cosa impongono in concreto?"
+    kind: multihop
+    expected:
+      retrieval:
+        - {doc: spec_auth, section: "Note Implementative"}
+        - {doc: safeguards_security, section: "Sicurezza Accessi"}
+    evidence: >
+      Percorso: spec_auth_1.1.md -[EREDITA_VINCOLI]-> safeguards_security.md. La domanda
+      chiede l'UNIONE: quali vincoli (arco nel grafo + note implementative della spec) e
+      cosa impongono (testo della Categoria 1 - Sicurezza Accessi e Identità delle
+      safeguard). Nessuno dei due documenti da solo risponde a entrambe le metà.
+    answer_note: >
+      spec_auth eredita le safeguard di Categoria 1 (SAFEGUARD-SEC-01/02/03: OAuth2 con
+      dominio aziendale, sessione limitata, middleware di autorizzazione) e le
+      concretizza nelle sue note implementative di backend.
+
+  - q: "chi ha il permesso di creare un evento e quali sono gli attributi dell'entità EVENTO?"
+    kind: multihop
+    expected:
+      retrieval:
+        - {doc: glossario_entita, section: "EVENTO"}
+        - {doc: matrice_permessi, section: "Matrice dei Permessi"}
+    evidence: >
+      Percorso: matrice_permessi.md -[REFERENZIA]-> glossario_entita.md. La riga
+      "creare evento" vive nella Matrice dei Permessi (chi può), gli attributi
+      dell'entità EVENTO nel glossario (cosa è). Probe 2026-07-21: il retrieval trova il
+      glossario (rank 1) ma NON la sezione "2. Matrice dei Permessi" in top-10.
+    answer_note: >
+      La creazione di un evento spetta ai ruoli abilitati nella matrice (riga CREATE
+      evento); l'entità EVENTO è definita nel glossario con i suoi attributi (posti,
+      stato, date...). Risposta completa = matrice + glossario.
+
+  - q: "quando una richiesta viene approvata, quale transizione di stato avviene e quale notifica viene dispacciata?"
+    kind: multihop
+    expected:
+      retrieval:
+        - {doc: spec_wf_states, section: "Transizione e Workflow"}
+        - {doc: spec_notifications, section: "Dispacciamento ed Integrazione Canali"}
+    evidence: >
+      Percorso: spec_wf_states_2.1.md -[VINCOLA]-> entity::RICHIESTA <-[VINCOLA]-
+      spec_notifications_2.4.md (entità condivisa; entrambe EREDITA_VINCOLI ->
+      safeguards). La transizione APPROVATA sta nel workflow, il dispacciamento della
+      notifica corrispondente nella spec notifiche. Probe 2026-07-21: top-10 tutto su
+      wf_states/glossario, spec_notifications ASSENTE.
+    answer_note: >
+      Approvazione = transizione di stato della RICHIESTA secondo spec_wf_states; al
+      cambio di stato spec_notifications impone il dispacciamento della notifica al
+      richiedente sui canali integrati. Servono entrambe le spec.
+
+  - q: "come si previene il double-booking dei posti e quale safeguard di concorrenza lo impone a livello di governance?"
+    kind: multihop
+    expected:
+      retrieval:
+        - {doc: spec_concurrency, section: "Lock e Protezione dal Double-Booking"}
+        - {doc: safeguards_security, section: "Concorrenza Critica"}
+    evidence: >
+      Percorso: spec_concurrency_2.3.md -[EREDITA_VINCOLI]-> safeguards_security.md;
+      entità condivisa REGOLA-CONC-01 (MENTIONS da entrambi). Il "come" (lock ottimistico)
+      è nella spec, il "quale safeguard lo impone" (Categoria 2 - Concorrenza Critica,
+      IRON_MEMORY) nella governance.
+    answer_note: >
+      Lock ottimistico/transazionale sui posti (spec_concurrency, REGOLA-CONC-*) imposto
+      a monte dalla safeguard di Categoria 2 - Concorrenza Critica (autorità IRON_MEMORY).
+
+  - q: "quali sinonimi esprimono l'azione di approvare e quale ruolo ha il permesso di approvare una richiesta?"
+    kind: multihop
+    expected:
+      retrieval:
+        - {doc: intent_synonym_mapping, section: "Mappatura Semantica dei Verbi"}
+        - {doc: matrice_permessi, section: "Matrice dei Permessi"}
+    evidence: >
+      Percorso: intent_synonym_mapping.md -[REFERENZIA]-> matrice_permessi.md. I sinonimi
+      del verbo "approvare" stanno nella mappatura dei verbi, il ruolo col permesso di
+      APPROVE nella matrice. Probe 2026-07-21: la sezione "1. Mappatura Semantica dei
+      Verbi" NON compare in top-10 (compaiono solo sostantivi ed esempi).
+    answer_note: >
+      I sinonimi di "approvare" (autorizzare, dare l'ok...) mappano sull'intent APPROVE
+      (synonym mapping); il permesso di APPROVE sulla RICHIESTA spetta al ruolo Manager
+      (matrice dei permessi). Risposta completa = entrambi i documenti.
+
+  - q: "il calcolo dei posti disponibili in dashboard deve rispettare quali vincoli sui contatori definiti dalla spec di concorrenza?"
+    kind: multihop
+    expected:
+      retrieval:
+        - {doc: spec_dash, section: "Calcolo Dinamico dei Posti"}
+        - {doc: spec_concurrency, section: "Contatori e Integrità"}
+    evidence: >
+      Percorso: spec_dash_1.2.md -[VINCOLA]-> entity::EVENTO <-[VINCOLA]-
+      spec_concurrency_2.3.md (entità condivisa; entrambe EREDITA_VINCOLI -> safeguards).
+      Il calcolo mostrato in dashboard è definito in spec_dash, i vincoli di integrità dei
+      contatori che deve rispettare in spec_concurrency.
+    answer_note: >
+      La dashboard calcola i posti disponibili dinamicamente (spec_dash) ma i contatori
+      sottostanti sono vincolati dalle regole di integrità cross-entità di
+      spec_concurrency: la risposta lega le due spec attraverso l'entità EVENTO.
+
+  - q: "chi può esportare i dati in CSV e cosa deve registrare l'AUDIT_LOG durante l'export?"
+    kind: multihop
+    expected:
+      retrieval:
+        - {doc: spec_export, section: "Audit"}
+        - {doc: matrice_permessi, section: "Profili degli Attori"}
+        - {doc: glossario_entita, section: "AUDIT_LOG"}
+    evidence: >
+      Percorso: spec_export_3.4.md -[MENTIONS]-> REGOLA-EXP-01 <-[MENTIONS]-
+      matrice_permessi.md (entità condivisa) e spec_export -[VINCOLA]-> entity::RICHIESTA;
+      AUDIT_LOG definito nel glossario e vincolato da spec_monitor/spec_export. Chi può
+      (matrice/profili), cosa registra (glossario AUDIT_LOG), vincoli operativi (spec_export §3).
+    answer_note: >
+      L'export CSV è riservato ai ruoli amministrativi (matrice permessi); ogni export
+      scrive una entry AUDIT_LOG (entità del glossario) secondo i vincoli operativi e
+      audit della spec_export. Tre documenti collegati da regole/entità condivise.
+
+  - q: "da quali standard di codifica derivano le spec tecniche del backend e quali metriche strutturali impongono?"
+    kind: multihop
+    expected:
+      retrieval:
+        - {doc: spec_tech_backend, section: "Direzione Architetturale"}
+        - {doc: coding_standards, section: "Metriche Strutturali"}
+    evidence: >
+      Percorso: spec_tech_backend.md -[DERIVA_DA]-> coding_standards.md (arco tipizzato
+      esplicito). La derivazione è dichiarata nella spec tecnica, le metriche strutturali
+      (limiti del codice backend) nello standard di codifica.
+    answer_note: >
+      spec_tech_backend DERIVA_DA coding_standards: la direzione architetturale della
+      spec va letta insieme alle metriche strutturali e ai limiti del codice backend
+      dello standard da cui deriva.
