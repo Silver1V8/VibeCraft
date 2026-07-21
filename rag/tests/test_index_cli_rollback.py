@@ -12,7 +12,8 @@ INDEX_PY = RAG_DIR / "index.py"
 
 
 def _run_index_rollback_cli(monkeypatch, capsys, *, qdrant_client_factory,
-                            rollback_alias_result=None, target_arg=None):
+                            rollback_alias_result=None, target_arg=None,
+                            shared_later_result=None):
     import core.artifacts as _artifacts
     import core.indexing as _indexing
     import qdrant_client as _qdrant_client_module
@@ -20,6 +21,10 @@ def _run_index_rollback_cli(monkeypatch, capsys, *, qdrant_client_factory,
     monkeypatch.setattr(_artifacts, "rollback_version", lambda target: "v1")
     monkeypatch.setattr(_artifacts, "list_versions", lambda: ["v1"])
     monkeypatch.setattr(_qdrant_client_module, "QdrantClient", qdrant_client_factory)
+    # Default []: la detection della collection condivisa non deve leggere il vero
+    # database/versions/ (i casi non-vuoti la iniettano via shared_later_result).
+    monkeypatch.setattr(_indexing, "rollback_shares_collection_with_later_versions",
+                        lambda name: shared_later_result if shared_later_result is not None else [])
 
     captured: dict = {}
 
@@ -130,6 +135,61 @@ def test_cli_rollback_fails_with_exit_2_when_writer_lock_busy(monkeypatch, capsy
     assert not rollback_calls  # CURRENT mai toccato
     assert not alias_calls  # alias mai riallineato
     assert not qdrant_calls  # client Qdrant mai aperto
+
+
+def test_cli_rollback_warns_when_collection_shared_with_later_versions(monkeypatch, capsys):
+    """Collection condivisa con versioni posteriori (incrementali intra-lineage): la CLI
+    stampa il warning leggibile ma resta exit 0 — è un avviso, non un errore."""
+    class _FakeQdrantClient:
+        def __init__(self, url, api_key):
+            pass
+
+    out, exit_code, _ = _run_index_rollback_cli(
+        monkeypatch, capsys, qdrant_client_factory=_FakeQdrantClient,
+        rollback_alias_result={"state": "noop", "expected": "c1", "actual": "c1"},
+        shared_later_result=["v2"],
+    )
+
+    assert exit_code == 0
+    assert "✅ Rollback: CURRENT → v1" in out
+    assert "condivisa con versioni successive" in out
+    assert "v2" in out
+    assert "NON riavvolge" in out
+    assert "full rebuild" in out.lower()
+
+
+def test_cli_rollback_shared_collection_warning_survives_qdrant_down(monkeypatch, capsys):
+    """La detection è puramente locale: il warning arriva anche quando Qdrant è giù
+    (l'apertura del client fallisce DOPO la stampa del warning), sempre exit 0."""
+    class _FakeQdrantClient:
+        def __init__(self, url, api_key):
+            raise ConnectionError("Qdrant irraggiungibile (simulato)")
+
+    out, exit_code, _ = _run_index_rollback_cli(
+        monkeypatch, capsys, qdrant_client_factory=_FakeQdrantClient,
+        shared_later_result=["v2"],
+    )
+
+    assert exit_code == 0
+    assert "condivisa con versioni successive" in out
+    assert "Qdrant non raggiungibile" in out  # il messaggio di degrado resta anche lui
+
+
+def test_cli_rollback_shared_collection_does_not_mask_missing_target_exit_code(monkeypatch, capsys):
+    """Warning e missing_target_collection insieme: il warning non deve inghiottire
+    l'exit 1 del caso "collection target assente" (che resta un errore)."""
+    class _FakeQdrantClient:
+        def __init__(self, url, api_key):
+            pass
+
+    out, exit_code, _ = _run_index_rollback_cli(
+        monkeypatch, capsys, qdrant_client_factory=_FakeQdrantClient,
+        rollback_alias_result={"state": "missing_target_collection", "expected": "c1", "actual": "c2"},
+        shared_later_result=["v2"],
+    )
+
+    assert exit_code == 1
+    assert "condivisa con versioni successive" in out
 
 
 def test_cli_rollback_missing_target_collection_still_exits_nonzero(monkeypatch, capsys):

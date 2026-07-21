@@ -53,7 +53,10 @@ if __name__ == "__main__":
         if args.rollback:
             from core.artifacts import list_versions, rollback_version
             from core.config import QDRANT_API_KEY, QDRANT_URL
-            from core.indexing import rollback_qdrant_alias_if_needed
+            from core.indexing import (
+                rollback_qdrant_alias_if_needed,
+                rollback_shares_collection_with_later_versions,
+            )
             from qdrant_client import QdrantClient
 
             target = None if args.rollback == "__PREVIOUS__" else args.rollback
@@ -64,6 +67,18 @@ if __name__ == "__main__":
                 sys.exit(1)
             print(f"✅ Rollback: CURRENT → {name}")
             print(f"   Versioni disponibili: {', '.join(list_versions())}")
+
+            # Warning (non errore, exit 0): versioni POSTERIORI al target condividono la
+            # sua collection Qdrant — incrementali intra-lineage l'hanno mutata in place,
+            # quindi questo rollback locale NON riavvolge i punti Qdrant. Detection
+            # puramente locale (manifest): stampata prima del blocco Qdrant sotto, così
+            # il warning arriva anche a Qdrant irraggiungibile.
+            shared_later = rollback_shares_collection_with_later_versions(name)
+            if shared_later:
+                print(f"⚠️  La collection Qdrant di {name} è condivisa con versioni "
+                      f"successive ({', '.join(shared_later)}): incrementali posteriori "
+                      f"l'hanno mutata in place — il rollback locale NON riavvolge "
+                      f"Qdrant. Full rebuild consigliato.")
 
             # rollback_version sopra resta puro locale (solo CURRENT, già scritto su
             # disco a questo punto). Riallinea qui l'alias Qdrant alla versione target —

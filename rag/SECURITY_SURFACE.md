@@ -88,7 +88,7 @@ Legenda **Protezione R2**: *nessuna* · *anti-x-site* · *strict (già presente)
 | 4 | GET | `/analysis` | nessuna | assente | Sì | read-only (serve HTML) | Basso | nessuna |
 | 5 | GET | `/eval` | nessuna | assente | Sì | read-only (serve HTML) | Basso | nessuna |
 | 6 | GET | `/api/pipeline/agent/modes` | require_api_key (bypass localhost) | assente | Sì | read-only (elenco modi) | Basso | nessuna |
-| 7 | POST | `/api/pipeline/agent/run` | require_api_key **+ require_api_key_strict** | JSON Pydantic | **No (strict)** | **esegue agente** (Bash/Write/Edit in `agentic`) | **Alto** | **strict (già presente)** |
+| 7 | POST | `/api/pipeline/agent/run` | require_api_key **+ require_api_key_strict** | JSON Pydantic | **No (strict)** | **esegue agente** (`agentic`: Write/Edit confinati a `code/`, **Bash rimosso** — vedi §5) | **Alto** | **strict (già presente)** |
 | 8 | GET | `/api/pipeline/dev-types` | require_api_key | assente | Sì | read-only | Basso | nessuna |
 | 9 | POST | `/api/pipeline/explore/turn` | require_api_key | JSON Pydantic | No (preflight) | esegue LLM (no mutazione) | Basso (Medio DoS) | anti-x-site (racc.) |
 | 10 | POST | `/api/pipeline/explore/save` | require_api_key | JSON Pydantic | No (preflight) | **scrive filesystem** (`changes/<slug>/explore.md`, dev_type) | Medio | **anti-x-site** |
@@ -286,6 +286,38 @@ _CROSS_SITE_GUARDED = [
 | 3 | **Client cross-site non-browser** (curl/script sulla LAN se il bind supera localhost). Non inviano `Sec-Fetch-Site` → la guardia non li ferma. | **Accettato per design.** Sec-Fetch-Site difende il vettore CSRF-da-browser, non l'accesso programmatico. La barriera per quest'ultimo resta `VIBECRAFT_API_KEY` + bind `127.0.0.1` (fail-closed già presente in `server.py`). |
 | 4 | **DoS-CPU/costo su route read-only o LLM escluse dal tier mandatorio** (`/api/retrieve`, `/api/graph/semantic-map`, e i POST §2B se non inclusi). Trigger cross-site di massa consuma embedding/SVD/Ollama senza mutare stato. | **Accettato**, con raccomandazione ad **adottare il tier §2B** per i POST-LLM (chiude il grosso). Per le GET CPU un rate-limit è fuori ambito R2; annotato come debito. |
 | 5 | **`/docs`, `/redoc`, `/openapi.json` non autenticati** (Appendice A). Espongono l'intero schema delle route a chiunque raggiunga il server. | **Accettato in locale**; in caso di esposizione, disabilitare (`FastAPI(docs_url=None, redoc_url=None, openapi_url=None)`) o proteggerli. Info-disclosure, non mutazione — fuori dallo scopo R2 ma da tenere a registro. |
+
+---
+
+## 5. Perimetro della modalità `agentic` (R8 — `agent_bridge.py`)
+
+`POST /api/pipeline/agent/run` (riga 7) è l'unica route che **scrive file / esegue**
+tramite il Claude Agent SDK. Oltre all'auth (`require_api_key_strict`, invariata), la
+modalità `agentic` è confinata a livello di SDK (`claude-agent-sdk` 0.2.115):
+
+- **`cwd = PROJECT_ROOT/code`** — working dir dell'agente. Le modalità `suggest`
+  (sola lettura) e `oneshot` (nessun tool) restano su `PROJECT_ROOT`, invariate.
+- **Hook `PreToolUse` → `permissionDecision="deny"`** su ogni `Write`/`Edit` il cui
+  path risolve fuori da `code/` o nomina un'area riservata (`rag/`, `docs/`, `.git/`).
+  È la primitiva più forte della versione installata: il CLI invoca l'hook per **ogni**
+  tool call, anche quelle auto-approvate da `allowed_tools`, e un deny la blocca. La
+  decisione vive in `_agentic_tool_denial` (funzione pura, testata con path avversari:
+  `rag/database/CURRENT`, `../rag/…`, path assoluti fuori da `code/`, `.git/config` ⇒
+  deny; `backend/app.py` ⇒ allow).
+- **Bash rimosso** (`disallowed_tools=["Bash"]`, e l'hook lo nega comunque). Il
+  path-scoping di Bash non è confinabile in modo affidabile: i pattern `allowed_tools`
+  (`Bash(npm:*)`) vincolano solo il prefisso del comando, non i path; un comando shell
+  (Turing-completo) può scrivere ovunque via `..`/assoluti/subshell; la sandbox di
+  esecuzione dell'SDK è macOS/Linux-only e il deploy è Windows. Decisione: **meglio
+  perdere Bash che lasciare RCE con scrittura non confinata**. Build/test del codice
+  generato restano fuori dalla modalità agentic.
+
+**Limiti residui:** (a) il confinamento è a livello di *decisione tool* dell'SDK, non
+un sandbox del kernel — un bug dell'SDK che non invocasse l'hook lo aggirerebbe; (b)
+lettura ampia: `Read`/`Glob`/`Grep` non sono ristretti a `code/`, quindi l'agente può
+*leggere* (non scrivere) altrove nel progetto; (c) niente esecuzione (Bash) significa
+niente build/test in-modalità; (d) la blocklist dei segmenti riservati può rifiutare un
+`docs/` legittimo dentro `code/` (scelta conservativa, fail-closed).
 
 ---
 

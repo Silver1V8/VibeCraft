@@ -50,8 +50,8 @@ async def ask_rag(query: AskQuery):
     graph: nx.DiGraph = snap.graph
 
     # 1-2. Ricerca ibrida: dense + sparse (fusione per rank) + rerank ColBERT
-    search_results = retrieval.hybrid_search(
-        query.question, query.top_k,
+    search_results = await run_in_threadpool(
+        retrieval.hybrid_search, query.question, query.top_k,
         qdrant=qdrant, embed_model=embed_model, colbert_store=snap.colbert_store,
     )
 

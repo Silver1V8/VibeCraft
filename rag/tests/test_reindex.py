@@ -608,7 +608,7 @@ class _FakeJsonRequest:
 
 
 def _call_index_rollback(monkeypatch, payload=None, *, rollback_version_result="v1",
-                         qdrant_alias_result=None):
+                         qdrant_alias_result=None, shared_later_result=None):
     import asyncio
     import api.routes_reindex as rr
 
@@ -620,6 +620,11 @@ def _call_index_rollback(monkeypatch, payload=None, *, rollback_version_result="
     monkeypatch.setattr(rr, "rollback_version", lambda target: rollback_version_result)
     monkeypatch.setattr(rr, "list_versions", lambda: ["v1", "v2"])
     monkeypatch.setattr(rr, "reload_index_state", lambda: None)
+    # Default []: la detection della collection condivisa non deve leggere il vero
+    # database/versions/ nei test che non la esercitano (per quelli che la esercitano
+    # su un sandbox reale vedi i test "end to end" più sotto).
+    monkeypatch.setattr(rr, "rollback_shares_collection_with_later_versions",
+                        lambda name: shared_later_result if shared_later_result is not None else [])
 
     captured: dict = {}
 
@@ -670,6 +675,105 @@ def test_index_rollback_missing_target_collection_does_not_raise_and_current_sti
     )
     assert response["rolled_back_to"] == "v1"
     assert response["qdrant_alias"]["state"] == "missing_target_collection"
+
+
+def test_index_rollback_without_shared_collection_has_no_note_and_writes_no_alert(monkeypatch, tmp_path):
+    """Detection vuota (nessuna versione posteriore sulla stessa collection): la
+    risposta NON porta qdrant_note e alerts.jsonl non viene nemmeno creato."""
+    import core.eval_gate as eval_gate
+
+    alerts = tmp_path / "alerts.jsonl"
+    monkeypatch.setattr(eval_gate, "ALERTS_PATH", alerts)
+    response, _ = _call_index_rollback(monkeypatch, shared_later_result=[])
+    assert "qdrant_note" not in response
+    assert not alerts.exists()
+
+
+def test_index_rollback_shared_collection_adds_note_and_writes_warning_alert(monkeypatch, tmp_path):
+    """Detection non vuota: qdrant_note esplicita nella risposta + alert warning
+    source="rollback" su alerts.jsonl (il canale che degrada /api/health per 48h)."""
+    import core.eval_gate as eval_gate
+
+    alerts = tmp_path / "alerts.jsonl"
+    monkeypatch.setattr(eval_gate, "ALERTS_PATH", alerts)
+    response, _ = _call_index_rollback(monkeypatch, shared_later_result=["v2"])
+    assert response["rolled_back_to"] == "v1"
+    assert response["qdrant_note"] == {
+        "state": "shared_collection_not_rewound",
+        "later_versions": ["v2"],
+        "hint": "Qdrant non riavvolto: full rebuild consigliato",
+    }
+    alert = json.loads(alerts.read_text(encoding="utf-8").splitlines()[-1])
+    assert alert["level"] == "warning"
+    assert alert["source"] == "rollback"
+    assert alert["target_version"] == "v1"
+    assert alert["later_versions"] == ["v2"]
+    assert "full rebuild" in alert["message"].lower()
+
+
+def _sandbox_versions(monkeypatch, tmp_path, versions: dict, current: str):
+    """Sandbox REALE di database/ (core.artifacts): manifest con qdrant_collection per
+    ogni versione in `versions` ({nome: collection}) + puntatore CURRENT."""
+    import core.artifacts as artifacts
+
+    monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)
+    for v, collection in versions.items():
+        vdir = tmp_path / "versions" / v
+        vdir.mkdir(parents=True)
+        (vdir / "index_manifest.json").write_text(
+            json.dumps({"version": v, "qdrant_collection": collection}), encoding="utf-8")
+    (tmp_path / "CURRENT").write_text(current + "\n", encoding="utf-8")
+
+
+def _call_index_rollback_on_sandbox(monkeypatch, tmp_path, versions: dict, current: str):
+    """Route rollback contro il sandbox: rollback_version, list_versions e la detection
+    della collection condivisa sono quelli VERI (girano sul sandbox); restano finti solo
+    lock, snapshot-reload e client/alias Qdrant."""
+    import asyncio
+    import api.routes_reindex as rr
+    import core.eval_gate as eval_gate
+
+    _sandbox_versions(monkeypatch, tmp_path, versions, current)
+    alerts = tmp_path / "alerts.jsonl"
+    monkeypatch.setattr(eval_gate, "ALERTS_PATH", alerts)
+    monkeypatch.setattr(rr, "writer_lock", lambda *a, **k: contextlib.nullcontext())
+    monkeypatch.setitem(rr.state, "qdrant", "fake-qdrant-client")
+    monkeypatch.setattr(rr, "reload_index_state", lambda: None)
+    monkeypatch.setattr(rr, "rollback_qdrant_alias_if_needed",
+                        lambda qdrant, name, emit=None: {"state": "noop"})
+    response = asyncio.run(rr.index_rollback(_FakeJsonRequest(None)))
+    return response, alerts
+
+
+def test_index_rollback_end_to_end_incremental_lineage_warns(monkeypatch, tmp_path):
+    """Sandbox reale: full v1 su C1 → incrementale v2 che eredita C1 (CURRENT=v2) →
+    rollback alla precedente. La detection VERA trova v2, la risposta porta la
+    qdrant_note e l'alert warning finisce su alerts.jsonl."""
+    response, alerts = _call_index_rollback_on_sandbox(
+        monkeypatch, tmp_path,
+        versions={"v20260101T000000": "vibecraft_events__v20260101T000000",
+                  "v20260102T000000": "vibecraft_events__v20260101T000000"},
+        current="v20260102T000000",
+    )
+    assert response["rolled_back_to"] == "v20260101T000000"
+    assert response["qdrant_note"]["state"] == "shared_collection_not_rewound"
+    assert response["qdrant_note"]["later_versions"] == ["v20260102T000000"]
+    alert = json.loads(alerts.read_text(encoding="utf-8").splitlines()[-1])
+    assert alert["level"] == "warning" and alert["source"] == "rollback"
+
+
+def test_index_rollback_end_to_end_cross_lineage_does_not_warn(monkeypatch, tmp_path):
+    """Sandbox reale: full v1 su C1 → full v2 su C2 (CURRENT=v2) → rollback alla
+    precedente. Lineage distinti: nessuna qdrant_note, nessun alert."""
+    response, alerts = _call_index_rollback_on_sandbox(
+        monkeypatch, tmp_path,
+        versions={"v20260101T000000": "vibecraft_events__v20260101T000000",
+                  "v20260102T000000": "vibecraft_events__v20260102T000000"},
+        current="v20260102T000000",
+    )
+    assert response["rolled_back_to"] == "v20260101T000000"
+    assert "qdrant_note" not in response
+    assert not alerts.exists()
 
 
 def test_index_rollback_local_failure_never_calls_qdrant_alias_helper(monkeypatch):

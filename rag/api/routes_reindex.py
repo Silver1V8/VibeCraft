@@ -33,7 +33,7 @@ from core.artifacts import (
     rollback_version,
 )
 from core.config import REINDEX_JOURNAL_PATH
-from core.eval_gate import gate_promotion
+from core.eval_gate import gate_promotion, record_alert
 from core.config import COLLECTION_NAME, EMBEDDING_MODEL
 from core.indexing import (
     _migrate_legacy_collection_if_needed,
@@ -43,6 +43,7 @@ from core.indexing import (
     gc_orphaned_qdrant_collections,
     incremental_index,
     rollback_qdrant_alias_if_needed,
+    rollback_shares_collection_with_later_versions,
 )
 from core.writer_lock import WriterLockBusyError, writer_lock
 from FlagEmbedding import BGEM3FlagModel
@@ -219,7 +220,13 @@ async def index_versions():
 def _rollback_under_writer_lock(target) -> tuple:
     """Esegue l'INTERA mutazione del rollback — rollback_version (sposta CURRENT) +
     rollback_qdrant_alias_if_needed (riallinea l'alias Qdrant) — dentro un solo writer
-    lock cross-processo, restituendo `(name, qdrant_alias)`.
+    lock cross-processo, restituendo `(name, qdrant_alias, shared_later)`.
+
+    `shared_later` (rollback_shares_collection_with_later_versions, core.indexing) è
+    la lista delle versioni POSTERIORI al target che dichiarano la sua stessa
+    collection Qdrant: lista non vuota = incrementali successivi l'hanno mutata in
+    place e il rollback locale NON riavvolge Qdrant. La detection legge i manifest,
+    quindi sta anch'essa sotto il lock: mai interlacciata con la promote di un full.
 
     Perché entrambe sotto lo STESSO lock: muovono CURRENT e l'alias Qdrant e non devono
     interlacciarsi con la promote di un full rebuild del ReindexManager (che promuove
@@ -234,8 +241,24 @@ def _rollback_under_writer_lock(target) -> tuple:
     mutazione)."""
     with writer_lock(timeout_seconds=_ROLLBACK_WRITER_LOCK_TIMEOUT_SECONDS):
         name = rollback_version(target)
+        shared_later = rollback_shares_collection_with_later_versions(name)
         qdrant_alias = rollback_qdrant_alias_if_needed(state.get("qdrant"), name, logger.info)
-    return name, qdrant_alias
+    return name, qdrant_alias, shared_later
+
+
+def _record_shared_collection_rollback_alert(name: str, later_versions: list[str]) -> None:
+    """Alert warning su database/alerts.jsonl quando un rollback lascia Qdrant non
+    riavvolto (collection condivisa con versioni posteriori): è il canale che degrada
+    GET /api/health per 48h (api.routes_health.read_last_alert). Riusa
+    core.eval_gate.record_alert col path di default — stesso file, stesso formato;
+    `source` passato nei details sovrascrive il "eval_gate" del formato base."""
+    record_alert(
+        "warning",
+        f"Rollback a {name}: la collection Qdrant del target è condivisa con versioni "
+        f"successive ({', '.join(later_versions)}) — incrementali posteriori l'hanno "
+        f"mutata in place, Qdrant NON riavvolto. Full rebuild consigliato.",
+        source="rollback", target_version=name, later_versions=later_versions,
+    )
 
 
 @router.post("/api/index/rollback",
@@ -253,6 +276,11 @@ async def index_rollback(request: Request):
     nella risposta (CURRENT resta comunque sulla versione target: nessun rollback
     parziale lato locale).
 
+    Se versioni POSTERIORI al target condividono la sua collection Qdrant (incrementali
+    intra-lineage che l'hanno mutata in place), la risposta porta anche una
+    "qdrant_note" ("shared_collection_not_rewound") e viene registrato un alert warning
+    su alerts.jsonl (source="rollback"), che degrada GET /api/health per 48h.
+
     L'intera mutazione (CURRENT + alias) gira sotto il writer lock cross-processo, in
     mutua esclusione con la promote dei job full (vedi _rollback_under_writer_lock). Se
     un job full tiene il lock, si risponde 409 senza toccare nulla, invitando a
@@ -263,7 +291,8 @@ async def index_rollback(request: Request):
         payload = None
     target = payload.get("version") if isinstance(payload, dict) else None
     try:
-        name, qdrant_alias = await run_in_threadpool(_rollback_under_writer_lock, target)
+        name, qdrant_alias, shared_later = await run_in_threadpool(
+            _rollback_under_writer_lock, target)
     except WriterLockBusyError as exc:
         # Distinto dal 409 del ValueError sotto: qui il rollback NON è stato tentato,
         # un altro scrittore (tipicamente un job full) detiene il lock. Il messaggio
@@ -278,8 +307,20 @@ async def index_rollback(request: Request):
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     await run_in_threadpool(reload_index_state)
-    return {
+    response = {
         "rolled_back_to": name,
         "versions": await run_in_threadpool(list_versions),
         "qdrant_alias": qdrant_alias,
     }
+    if shared_later:
+        # Collection condivisa con versioni posteriori (incrementali intra-lineage):
+        # il rollback locale è avvenuto ma Qdrant NON è stato riavvolto. Warning, non
+        # errore: nota esplicita nella risposta + alert su alerts.jsonl (degrada
+        # /api/health per 48h).
+        response["qdrant_note"] = {
+            "state": "shared_collection_not_rewound",
+            "later_versions": shared_later,
+            "hint": "Qdrant non riavvolto: full rebuild consigliato",
+        }
+        await run_in_threadpool(_record_shared_collection_rollback_alert, name, shared_later)
+    return response

@@ -29,7 +29,7 @@ async def get_full_graph():
     snap = current_snapshot()
     if snap is None or snap.graph is None:
         raise HTTPException(status_code=503, detail="Grafo non ancora inizializzato.")
-    return graph_ops.full_graph(snap.graph, snap.rule_descriptions)
+    return await run_in_threadpool(graph_ops.full_graph, snap.graph, snap.rule_descriptions)
 
 
 @router.get("/api/graph/impact")
@@ -62,7 +62,7 @@ async def graph_semantic_map():
     qdrant: QdrantClient = state["qdrant"]
     if snap is None or snap.graph is None or qdrant is None:
         raise HTTPException(status_code=503, detail="Grafo/Qdrant non inizializzati.")
-    return graph_ops.semantic_map(snap.graph, qdrant)
+    return await run_in_threadpool(graph_ops.semantic_map, snap.graph, qdrant)
 
 
 @router.get("/api/graph/query")

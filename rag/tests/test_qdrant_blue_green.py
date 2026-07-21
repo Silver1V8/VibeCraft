@@ -315,6 +315,61 @@ def test_referenced_qdrant_collections_empty_when_no_versions(versions_db):
 
 
 # ---------------------------------------------------------------------------
+# rollback_shares_collection_with_later_versions: detection PURA locale della
+# collection condivisa con versioni posteriori (incrementali intra-lineage che
+# mutano in place la collection del target: il rollback non riavvolge Qdrant).
+# ---------------------------------------------------------------------------
+def test_rollback_shared_collection_detects_later_versions_on_same_collection(versions_db):
+    """full v1 (C1) → incrementale v2 (eredita C1): il rollback a v1 deve sapere che
+    v2 ha mutato C1 dopo la build di v1."""
+    _write_version_manifest(versions_db, "v1", "vibecraft_events__v1")
+    _write_version_manifest(versions_db, "v2", "vibecraft_events__v1")
+    assert index.rollback_shares_collection_with_later_versions("v1") == ["v2"]
+
+
+def test_rollback_shared_collection_lists_all_later_sharers_chronologically(versions_db):
+    _write_version_manifest(versions_db, "v1", "vibecraft_events__v1")
+    _write_version_manifest(versions_db, "v2", "vibecraft_events__v1")
+    _write_version_manifest(versions_db, "v3", "vibecraft_events__v1")
+    assert index.rollback_shares_collection_with_later_versions("v1") == ["v2", "v3"]
+
+
+def test_rollback_shared_collection_cross_lineage_returns_empty(versions_db):
+    """full v1 (C1) → full v2 (C2): lineage diversi, nessuna condivisione, nessun warning."""
+    _write_version_manifest(versions_db, "v1", "vibecraft_events__v1")
+    _write_version_manifest(versions_db, "v2", "vibecraft_events__v2")
+    assert index.rollback_shares_collection_with_later_versions("v1") == []
+
+
+def test_rollback_shared_collection_ignores_earlier_versions_and_the_target_itself(versions_db):
+    """Le versioni PRECEDENTI sulla stessa collection non contano (hanno scritto PRIMA
+    della build del target), e il target non è mai "posteriore a sé stesso"."""
+    _write_version_manifest(versions_db, "v1", "vibecraft_events__v2")
+    _write_version_manifest(versions_db, "v2", "vibecraft_events__v2")
+    assert index.rollback_shares_collection_with_later_versions("v2") == []
+
+
+def test_rollback_shared_collection_target_without_field_returns_empty(versions_db):
+    """Manifest legacy del TARGET (nessun campo qdrant_collection): condivisione non
+    rilevabile, [] senza errori — nessun falso allarme sui lineage pre-versionamento."""
+    _write_version_manifest(versions_db, "v1", None)
+    _write_version_manifest(versions_db, "v2", "vibecraft_events__v2")
+    assert index.rollback_shares_collection_with_later_versions("v1") == []
+
+
+def test_rollback_shared_collection_tolerates_unreadable_or_legacy_later_manifests(versions_db):
+    """Versioni posteriori con manifest legacy (campo assente) o corrotto: ignorate,
+    stessa tolleranza di _referenced_qdrant_collections; le altre restano rilevate."""
+    _write_version_manifest(versions_db, "v1", "vibecraft_events__v1")
+    _write_version_manifest(versions_db, "v2", None)  # legacy: campo assente
+    v3 = versions_db / "versions" / "v3"
+    v3.mkdir(parents=True)
+    (v3 / "index_manifest.json").write_text("{non-json", encoding="utf-8")  # corrotto
+    _write_version_manifest(versions_db, "v4", "vibecraft_events__v1")
+    assert index.rollback_shares_collection_with_later_versions("v1") == ["v4"]
+
+
+# ---------------------------------------------------------------------------
 # Reconciler: classificazione legacy / aligned / diverging / missing (sola
 # osservazione — non scrive mai su Qdrant né in locale).
 # ---------------------------------------------------------------------------

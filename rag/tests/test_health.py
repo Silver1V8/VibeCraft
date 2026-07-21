@@ -173,6 +173,26 @@ def test_health_reports_recent_alert(tmp_path):
     assert any("alert notturno" in r for r in report["reasons"])
 
 
+def test_health_degraded_by_rollback_shared_collection_alert(tmp_path, monkeypatch):
+    """L'alert warning scritto dal rollback a collection condivisa (POST
+    /api/index/rollback → _record_shared_collection_rollback_alert) degrada l'health
+    per la finestra dei 48h: qui si scrive con il recorder di PRODUZIONE (formato
+    reale via core.eval_gate.record_alert) e si verifica che la reason compaia."""
+    import api.routes_reindex as rr
+    import core.eval_gate as eval_gate
+
+    p = tmp_path / "alerts.jsonl"
+    monkeypatch.setattr(eval_gate, "ALERTS_PATH", p)
+    rr._record_shared_collection_rollback_alert("v1", ["v2"])
+
+    report = _build(alerts_path=p)
+    assert report["status"] == "degraded"
+    assert report["last_alert"]["level"] == "warning"
+    assert report["last_alert"]["source"] == "rollback"
+    assert report["last_alert"]["later_versions"] == ["v2"]
+    assert any("alert" in r for r in report["reasons"])
+
+
 # ---------------------------------------------------------------------------
 # Logging configurabile via VIBECRAFT_LOG_LEVEL
 # ---------------------------------------------------------------------------

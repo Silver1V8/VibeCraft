@@ -330,6 +330,20 @@ def parse_qdrant_collection_version(name: str, *, base: str = COLLECTION_NAME) -
     return version or None
 
 
+def _declared_qdrant_collection(version: str) -> str | None:
+    """Campo qdrant_collection dichiarato dal manifest di `version`, o None se il
+    manifest è assente/illeggibile o non porta il campo (manifest legacy antecedenti
+    alla sua introduzione). Lettura tollerante condivisa: chi ha bisogno di un nome
+    sempre valido vi aggiunge il fallback (_qdrant_collection_for_version); chi
+    invece distingue "dichiarato" da "non dichiarato" usa il None così com'è
+    (_referenced_qdrant_collections, rollback_shares_collection_with_later_versions)."""
+    try:
+        manifest = json.loads(manifest_path(version).read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    return manifest.get("qdrant_collection") if isinstance(manifest, dict) else None
+
+
 def _qdrant_collection_for_version(version: str) -> str:
     """Collection Qdrant su cui `version` è stata costruita, letta dal suo manifest
     (campo qdrant_collection — scritto da write_index_manifest). Condivisa da CLI
@@ -339,12 +353,7 @@ def _qdrant_collection_for_version(version: str) -> str:
     collection candidata/promossa di quella build, mai la produzione corrente.
     Fallback a COLLECTION_NAME se il manifest è illeggibile o non dichiara il campo
     (manifest antecedenti all'introduzione di questo campo)."""
-    try:
-        manifest = json.loads(manifest_path(version).read_text(encoding="utf-8"))
-        collection = manifest.get("qdrant_collection") if isinstance(manifest, dict) else None
-    except Exception:
-        collection = None
-    return collection or COLLECTION_NAME
+    return _declared_qdrant_collection(version) or COLLECTION_NAME
 
 
 def _read_alias_target(qdrant: QdrantClient, alias: str) -> str | None:
@@ -456,6 +465,28 @@ def rollback_qdrant_alias_if_needed(qdrant: QdrantClient, target_version: str, e
     return {"state": "swapped", "expected": expected, "actual": expected}
 
 
+def rollback_shares_collection_with_later_versions(target_version: str) -> list[str]:
+    """Versioni POSTERIORI a `target_version` il cui manifest dichiara la sua STESSA
+    collection Qdrant (in ordine cronologico). Helper PURO locale (solo lettura dei
+    manifest, nessun client Qdrant), per i chiamanti del rollback (CLI e server):
+    gli incrementali ereditano la collection della versione promossa e la mutano IN
+    PLACE (nessuna candidata, nessun gate — vincolo noto, vedi core.eval_gate),
+    quindi se una versione successiva condivide la collection del target il rollback
+    locale NON riavvolge i punti Qdrant scritti dopo la build del target. Lista non
+    vuota = warning "shared_collection_not_rewound"; rimedio: full rebuild.
+
+    Stessa tolleranza di _referenced_qdrant_collections: manifest illeggibili o senza
+    campo qdrant_collection (legacy) sono ignorati. Se è il TARGET a non dichiarare
+    la collection, la condivisione non è rilevabile e si restituisce [] (nessun falso
+    allarme sui lineage pre-versionamento). Le versioni PRECEDENTI al target non
+    contano: solo chi ha scritto DOPO la sua build può averne mutato la collection."""
+    target_collection = _declared_qdrant_collection(target_version)
+    if not target_collection:
+        return []
+    return [v for v in list_versions()
+            if v > target_version and _declared_qdrant_collection(v) == target_collection]
+
+
 def list_qdrant_collections(qdrant: QdrantClient, *, base: str = COLLECTION_NAME) -> list[str]:
     """Nomi delle collection FISICHE versionate di questo progetto presenti su Qdrant
     (quelle che seguono lo schema di qdrant_collection_name), in ordine alfabetico —
@@ -472,11 +503,7 @@ def _referenced_qdrant_collections() -> set[str]:
     target corrente dell'alias, l'insieme che il GC non deve mai cancellare."""
     referenced: set[str] = set()
     for v in list_versions():
-        try:
-            manifest = json.loads(manifest_path(v).read_text(encoding="utf-8"))
-        except Exception:
-            continue
-        collection = manifest.get("qdrant_collection") if isinstance(manifest, dict) else None
+        collection = _declared_qdrant_collection(v)
         if collection:
             referenced.add(collection)
     return referenced
