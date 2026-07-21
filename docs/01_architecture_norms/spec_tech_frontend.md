@@ -119,16 +119,16 @@ La soluzione raccomandata per il Frontend è **Next.js/TypeScript**, integrata c
 
 ## 8. Direttive UI/UX e Coerenza Visiva
 
-La realizzazione grafica del Frontend DEVE essere stilisticamente simile e congruente con l’identità visiva del sito istituzionale di Progetto PA ([www.progettopa.it](https://www.progettopa.it)), adottandone linguaggio visivo, tono, percezione istituzionale e coerenza complessiva di brand. [web:8]
+La realizzazione grafica del Frontend DEVE essere stilisticamente simile e congruente con l’identità visiva del sito istituzionale di Progetto PA, https://www.progettopa.it, adottandone linguaggio visivo, tono, percezione istituzionale e coerenza complessiva di brand.
 
 In particolare, il Frontend DEVE:
-- mantenere un’impostazione grafica sobria, professionale e istituzionale, evitando soluzioni visive eccessivamente promozionali, playful o consumer-oriented; [web:4][web:8]
-- risultare coerente con palette colori, contrasti, tipografia percepita, spaziature, stile dei componenti e gerarchia visiva del sito Progetto PA; [web:8]
-- trasmettere continuità con l’ecosistema digitale aziendale, così che il Portale appaia come prodotto interno della stessa identità organizzativa e non come applicazione visivamente disallineata; [web:4][web:8]
-- usare Tailwind CSS e shadcn/ui come base implementativa, ma con personalizzazione del tema per riflettere il più possibile l’identità visuale del sito Progetto PA; [file:1]
-- privilegiare pattern UI chiari, accessibili e lineari, coerenti con un contesto enterprise destinato a dipendenti, manager e amministratori; [file:1]
-- evitare stili generici da dashboard template, gradienti superflui, animazioni invasive, colori troppo saturi o componenti visivamente non congruenti con il contesto istituzionale aziendale. [file:1]
+- mantenere un’impostazione grafica sobria, professionale e istituzionale, evitando soluzioni visive eccessivamente promozionali, playful o consumer-oriented;
+- risultare coerente con palette colori, contrasti, tipografia percepita, spaziature, stile dei componenti e gerarchia visiva del sito Progetto PA;
+- trasmettere continuità con l’ecosistema digitale aziendale, così che il Portale appaia come prodotto interno della stessa identità organizzativa e non come applicazione visivamente disallineata;
+- usare Tailwind CSS e shadcn/ui come base implementativa, ma con personalizzazione del tema per riflettere il più possibile l’identità visuale del sito Progetto PA;
+- privilegiare pattern UI chiari, accessibili e lineari, coerenti con un contesto enterprise destinato a dipendenti, manager e amministratori;
+- evitare stili generici da dashboard template, gradienti superflui, animazioni invasive, colori troppo saturi o componenti visivamente non congruenti con il contesto istituzionale aziendale.
 
-La coerenza grafica con il sito Progetto PA costituisce un vincolo di progettazione Frontend e deve riflettersi nel tema globale, nei layout, nella libreria dei componenti condivisi e nelle pagine principali (`login`, `eventi`, `richieste`, `manager`, `admin`). [file:1]
+La coerenza grafica con il sito Progetto PA costituisce un vincolo di progettazione Frontend e deve riflettersi nel tema globale, nei layout, nella libreria dei componenti condivisi e nelle pagine principali (`login`, `eventi`, `richieste`, `manager`, `admin`).
 
-Prima dell’implementazione definitiva, è raccomandata la definizione di un piccolo layer di design tokens condivisi (`colors`, `radius`, `shadow`, `font`, `spacing`) derivati dall’analisi del sito Progetto PA, da applicare sopra il design system tecnico scelto. [file:1]
+Prima dell’implementazione definitiva, è raccomandata la definizione di un piccolo layer di design tokens condivisi (`colors`, `radius`, `shadow`, `font`, `spacing`) derivati dall’analisi del sito Progetto PA, da applicare sopra il design system tecnico scelto.
