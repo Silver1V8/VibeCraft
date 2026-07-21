@@ -92,15 +92,14 @@ def test_bench_ask_senza_campi_latency_in_risposta_aggiunge_nota():
     assert result["avg_latency_total_ms"] is None
     assert result["avg_latency_total_ms_client"] > 0
     assert "note" in result
-    assert "non sono presenti nella risposta" in result["note"]
+    assert "non è presente nella risposta" in result["note"]
 
 
 def test_bench_ask_con_campi_latency_in_risposta_li_usa():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={
             "status": "success", "answer": "ok",
-            "latency_retrieval_ms": 12.5, "latency_generation_ms": 800.0,
-            "latency_total_ms": 815.0,
+            "latency": {"retrieval_ms": 12.5, "generation_ms": 800.0, "total_ms": 815.0},
         })
 
     with _client(handler) as client:

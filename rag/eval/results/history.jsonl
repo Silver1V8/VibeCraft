@@ -6,3 +6,4 @@
 {"timestamp": "2026-07-20T09:40:21.763820+00:00", "commit": "dc18a0e", "version": "v20260720T093337", "recall": {"recall@10": 1.0}, "n_cases": 34, "source": "gate", "gate": {"passed": true, "min_recall": 0.9}}
 {"timestamp": "2026-07-20T15:21:13.099275+00:00", "commit": "a18c0f1", "version": "v20260720T151412", "recall": {"recall@10": 1.0}, "n_cases": 34, "source": "gate", "gate": {"passed": true, "min_recall": 0.9}}
 {"timestamp": "2026-07-21T09:23:00.541255+00:00", "commit": "53758cb", "version": "v20260721T084111", "recall": {"recall@5": 0.9117647058823529, "recall@10": 1.0}, "n_cases": 34, "source": "eval.run"}
+{"timestamp": "2026-07-21T12:23:57.292737+00:00", "commit": "e7140f4", "version": "v20260721T122341", "recall": {"recall@10": 1.0}, "n_cases": 34, "source": "incremental_advisory", "gate": {"passed": true, "min_recall": 0.9, "advisory_eval_seconds": 9.269}}

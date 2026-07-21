@@ -57,13 +57,13 @@ FULL_REBUILD_POLL_TIMEOUT_SECONDS = 1800.0
 
 _TERMINAL_JOB_STATES = ("completed", "completed_not_promoted", "failed", "interrupted")
 
-# I campi latency_retrieval_ms/latency_generation_ms/latency_total_ms esistono OGGI solo
-# nel log strutturato di POST /ask (api/routes_retrieval.py, osservabilità M3), non nella
-# risposta JSON — solo request_id e index_version sono campi additivi in risposta. Questo
-# bench li legge comunque dalla risposta (se in futuro verranno esposti lì, il codice
-# funziona senza modifiche) e usa latency_total_ms_client (misurato qui, lato client) come
-# fallback per il totale: mai bloccante, mai un motivo di modifica al codice di produzione.
-_ASK_LATENCY_FIELDS = ("latency_retrieval_ms", "latency_generation_ms", "latency_total_ms")
+# I campi retrieval_ms/generation_ms/total_ms vivono nell'oggetto top-level "latency"
+# della risposta di POST /ask (api/routes_retrieval.py, F3): STESSI valori già loggati
+# nella riga strutturata M3 (latency_retrieval_ms/latency_generation_ms/latency_total_ms),
+# solo esposti anche in risposta per evitare il parsing dei log qui. Il bench legge questo
+# oggetto e mantiene comunque latency_total_ms_client (misurato qui, lato client) come
+# cross-check indipendente: mai bloccante, mai un motivo di modifica al codice di produzione.
+_ASK_LATENCY_FIELDS = ("retrieval_ms", "generation_ms", "total_ms")
 
 
 def _percentile(values: list[float], p: float) -> float | None:
@@ -119,10 +119,9 @@ def bench_retrieve(client: httpx.Client, url: str, n: int = N_RETRIEVE_QUERIES) 
 
 
 def bench_ask(client: httpx.Client, url: str, queries: list[str] = ASK_QUERIES) -> dict:
-    """POST /ask sulle 3 query fisse: latenze medie. Vedi nota su _ASK_LATENCY_FIELDS —
-    i tre campi di latenza non sono (oggi) nella risposta, quindi tipicamente restano None
-    e la sezione riporta latency_total_ms_client come unico numero affidabile, con una nota
-    esplicita nel JSON."""
+    """POST /ask sulle 3 query fisse: latenze medie. Il breakdown (retrieval/generation/
+    total) viene dall'oggetto "latency" della risposta (vedi _ASK_LATENCY_FIELDS);
+    latency_total_ms_client resta come cross-check indipendente, misurato qui lato client."""
     per_query = []
     for q in queries:
         t0 = time.perf_counter()
@@ -133,8 +132,9 @@ def bench_ask(client: httpx.Client, url: str, queries: list[str] = ASK_QUERIES) 
             return _skip(f"/ask non raggiungibile: {exc}")
         client_total_ms = round((time.perf_counter() - t0) * 1000, 2)
         body = r.json()
+        latency = body.get("latency") or {}
         entry = {"question": q, "latency_total_ms_client": client_total_ms}
-        entry.update({f: body.get(f) for f in _ASK_LATENCY_FIELDS})
+        entry.update({f"latency_{f}": latency.get(f) for f in _ASK_LATENCY_FIELDS})
         per_query.append(entry)
 
     result = {
@@ -147,11 +147,10 @@ def bench_ask(client: httpx.Client, url: str, queries: list[str] = ASK_QUERIES) 
     }
     if all(e["latency_total_ms"] is None for e in per_query):
         result["note"] = (
-            "latency_retrieval_ms/latency_generation_ms/latency_total_ms non sono presenti "
-            "nella risposta di /ask (oggi solo nel log strutturato lato server, vedi "
-            "api/routes_retrieval.py — M3 observability): avg_latency_total_ms_client "
-            "(misurato qui lato client) è l'unico numero affidabile finché non vengono "
-            "esposti anche in risposta."
+            "il campo \"latency\" non è presente nella risposta di /ask per queste query "
+            "(vedi api/routes_retrieval.py — F3, campo top-level additivo): "
+            "avg_latency_total_ms_client (misurato qui lato client) è l'unico numero "
+            "affidabile in questo caso."
         )
     return result
 

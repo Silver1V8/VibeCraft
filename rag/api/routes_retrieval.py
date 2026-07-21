@@ -77,6 +77,7 @@ async def ask_rag(query: AskQuery):
             graph_ops.graph_query, query.question, graph, query.target,
         )
         latency_graph_ms = round((time.time() - graph_start) * 1000, 2)
+        latency_total_ms = round((time.time() - request_start) * 1000, 2)
         # Stessa riga di log M3 del percorso ibrido (chiavi identiche e ordinate):
         # n_results = count della risposta di grafo, latency_generation_ms = 0 (no LLM).
         logger.info(
@@ -85,13 +86,20 @@ async def ask_rag(query: AskQuery):
             "latency_generation_ms=%s latency_total_ms=%s",
             request_id, index_version, qdrant_collection_for_version(index_version),
             COLLECTION_NAME, retrieval_strategy, query.top_k, graph_result.get("count", 0),
-            latency_graph_ms, 0, round((time.time() - request_start) * 1000, 2),
+            latency_graph_ms, 0, latency_total_ms,
         )
         return {
             "status": "graph_answer",
             "graph_result": graph_result,
             "request_id": request_id,
             "index_version": index_version,
+            # Stessa forma del ramo ibrido (vedi sotto): retrieval_ms = latenza di
+            # graph_query, generation_ms = 0 (nessuna chiamata LLM in questo ramo).
+            "latency": {
+                "retrieval_ms": latency_graph_ms,
+                "generation_ms": 0,
+                "total_ms": latency_total_ms,
+            },
         }
 
     # 1-2. Ricerca ibrida: dense + sparse (fusione per rank) + rerank ColBERT
@@ -247,6 +255,13 @@ async def ask_rag(query: AskQuery):
         "elaboration_seconds": elaborazione_secondi,
         "request_id": request_id,
         "index_version": index_version,
+        # Stessi valori già loggati sopra (M3 observability), esposti anche in risposta
+        # così scripts/bench.py può misurare il breakdown senza fare parsing dei log.
+        "latency": {
+            "retrieval_ms": latency_retrieval_ms,
+            "generation_ms": latency_generation_ms,
+            "total_ms": latency_total_ms,
+        },
         "graph_context": {
             "seed_nodes": seed_nodes,
             "expanded_nodes": expanded_nodes_data,

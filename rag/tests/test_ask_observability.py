@@ -21,6 +21,7 @@ _CHUNK_ID = "spec.md#01-form"
 def _snapshot(version) -> deps.IndexSnapshot:
     g = nx.DiGraph()
     g.add_node("spec.md", type="document")
+    g.add_node("glossario.md", type="document")
     g.add_node(_CHUNK_ID, type="chunk")
     g.add_edge("spec.md", _CHUNK_ID, relation="HAS_SECTION")
     return deps.IndexSnapshot(
@@ -119,6 +120,30 @@ def test_ask_risposta_contiene_request_id_e_index_version(ask_env):
     request_id = body["request_id"]
     assert isinstance(request_id, str) and len(request_id) == 32
     int(request_id, 16)  # hex valido (uuid4().hex)
+
+    # F3: campo "latency" additivo in risposta, stessi valori del log M3
+    latency = body["latency"]
+    assert set(latency) == {"retrieval_ms", "generation_ms", "total_ms"}
+    assert latency["total_ms"] >= latency["generation_ms"]
+    assert latency["total_ms"] >= latency["retrieval_ms"]
+
+
+# ---------------------------------------------------------------------------
+# F3: la risposta del ramo "graph" contiene lo stesso campo "latency"
+# ---------------------------------------------------------------------------
+def test_ask_risposta_graph_contiene_latency(ask_env):
+    client = ask_env(version="v5", manifest={"qdrant_collection": "vibecraft_docs__v5"})
+
+    r = client.post("/ask", json={"question": "quali documenti esistono nel corpus?"})
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "graph_answer"
+    latency = body["latency"]
+    assert set(latency) == {"retrieval_ms", "generation_ms", "total_ms"}
+    assert latency["generation_ms"] == 0
+    assert latency["total_ms"] >= latency["generation_ms"]
+    assert latency["total_ms"] >= latency["retrieval_ms"]
 
 
 # ---------------------------------------------------------------------------
