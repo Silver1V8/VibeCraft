@@ -180,6 +180,47 @@ promozione dei candidati. Le metriche vere restano il comando qui sopra.
 4. **Soglia** — con il golden-set aggiornato, rilancia l'eval e rifissa
    `--assert-min` poco sotto il nuovo valore misurato.
 
+## Benchmark baseline
+
+[scripts/bench.py](scripts/bench.py) misura le latenze delle vie critiche (server
+acceso) e salva uno snapshot in `eval/results/bench_<timestamp UTC>.json`:
+
+```bash
+uv run python scripts/bench.py                    # senza full rebuild (default)
+uv run python scripts/bench.py --url http://127.0.0.1:8000
+uv run python scripts/bench.py --with-rebuild      # accoda anche un full rebuild (lento: minuti)
+```
+
+Cosa misura, in ordine: `GET /api/retrieve` su 10 query del golden-set (p50/p95);
+`POST /ask` su 3 query fisse (latenze medie — vedi nota sotto); `GET
+/api/graph/semantic-map` (latenza end-to-end + `truncated`); un reindex incrementale
+NO-OP reale (nessun file toccato: misura solo l'overhead fisso del job, dal journal
+`GET /api/reindex`); un full rebuild, **solo con `--with-rebuild`** (di default
+`skipped`, è un'operazione lunga e costosa). Se una dipendenza è giù la sezione
+corrispondente è `skipped` con motivo: il bench è una **misurazione**, mai un gate —
+exit code sempre 0.
+
+**Nota sui campi di latenza di `/ask`:** oggi `latency_retrieval_ms`,
+`latency_generation_ms` e `latency_total_ms` esistono solo nel log strutturato di
+fine richiesta (osservabilità M3, vedi [api/routes_retrieval.py](api/routes_retrieval.py)),
+non nella risposta JSON — solo `request_id` e `index_version` sono campi additivi in
+risposta. Il bench li legge comunque dalla risposta (pronto per quando verranno
+esposti lì) e usa `avg_latency_total_ms_client`, misurato lato client, come unico
+numero affidabile nel frattempo: il JSON salvato riporta esplicitamente questa nota.
+
+**Il delta incrementale VERO** (con un file davvero modificato) non è automatizzato:
+va misurato a mano modificando un file in `docs/` o `code/` e rilanciando `POST
+/api/reindex`, confrontando la durata col job no-op salvato qui.
+
+**Regola:** nessuna ottimizzazione di retrieval, chunking, ranking o indicizzazione
+senza prima confrontare un bench "prima" e uno "dopo" — la sensazione che qualcosa
+sia più veloce non sostituisce un numero salvato in `eval/results/`.
+
+I test pytest ([tests/test_bench.py](tests/test_bench.py)) coprono solo la
+**meccanica** dello script (percentili, aggregazione, polling del journal, struttura
+del JSON) con un server finto (`httpx.MockTransport`): le latenze vere restano il
+comando qui sopra, da eseguire ed allegare alla PR.
+
 ## Artefatti dell'indice: formati sicuri, ispezionabili e versionati (blue/green)
 
 L'indice persiste in `rag/database/` tramite [core/artifacts.py](core/artifacts.py),

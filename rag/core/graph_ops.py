@@ -2,10 +2,14 @@
 testuale, grafo completo, Impact Ripple, Semantic Map (PCA + community) e query
 strutturale. Nessun LLM e nessuna dipendenza da FastAPI: il grafo (e, dove serve, il
 client Qdrant) sono passati come parametri espliciti dai route handler in api/."""
+import logging
+
 import networkx as nx
 import numpy as np
 
 from core.config import COLLECTION_NAME
+
+logger = logging.getLogger(__name__)
 
 
 def bfs_expand(graph: nx.DiGraph, seed_nodes: list[str], depth: int) -> set[str]:
@@ -115,15 +119,48 @@ def impact(graph: nx.DiGraph, node: str, depth: int = 3) -> dict:
     return {"center": node, "rings": [len(r) for r in rings], "nodes": nodes, "edges": edges}
 
 
+def _find_duplicates(
+    mat: np.ndarray,
+    parents: list[str],
+    chunk_ids: list[str],
+    threshold: float = 0.9,
+    top: int = 50,
+) -> list[dict]:
+    """Coppie di chunk (sezioni) quasi-duplicate: coseno >= threshold tra vettori di
+    DOCUMENTI DIVERSI (i duplicati entro lo stesso documento sono naturalmente affini
+    e non contano), le `top` per similarità decrescente. Pura e vettorizzata: stessa
+    semantica del doppio loop i<j con parents[i] != parents[j], nessun cambio di soglia."""
+    norm = mat / (np.linalg.norm(mat, axis=1, keepdims=True) + 1e-8)
+    sims = norm @ norm.T
+    n = len(chunk_ids)
+    parents_arr = np.asarray(parents)
+    diff_parents = parents_arr[:, None] != parents_arr[None, :]
+    upper = np.triu(np.ones((n, n), dtype=bool), k=1)
+    candidate_mask = upper & diff_parents & (sims >= threshold)
+    idx = np.argwhere(candidate_mask)
+    duplicates = [
+        {"a": chunk_ids[i], "b": chunk_ids[j], "sim": round(float(sims[i, j]), 3)}
+        for i, j in idx
+    ]
+    duplicates.sort(key=lambda d: d["sim"], reverse=True)
+    return duplicates[:top]
+
+
 def semantic_map(graph: nx.DiGraph, qdrant) -> dict:
     """Semantic Map: proietta i CHUNK (sezioni) in 2D per prossimità semantica (PCA via
     SVD sui vettori densi bge-m3 in Qdrant). Le community e i nodi 'ponte' sono calcolati
     a livello di documento padre (co-menzione di entità) e ereditati dai chunk; i duplicati
     sono sezioni molto simili appartenenti a documenti diversi. Solo numpy/networkx."""
-    # 1. Recupera i vettori densi dei chunk da Qdrant (chunk_id + documento padre)
-    scrolled, _ = qdrant.scroll(
+    # 1. Recupera i vettori densi dei chunk da Qdrant (chunk_id + documento padre).
+    # Nessun cursore: implementare la paginazione quando il corpus supera 8000 chunk
+    # O il benchmark in scripts/bench_semantic_map.py supera 2s — nessuna delle due
+    # condizioni è ancora vera, quindi non la implementiamo qui.
+    scrolled, next_page_offset = qdrant.scroll(
         collection_name=COLLECTION_NAME, limit=10000, with_vectors=True, with_payload=True
     )
+    truncated = next_page_offset is not None
+    if truncated:
+        logger.warning("semantic map calcolata sui primi 10000 chunk (corpus troncato)")
     chunk_ids: list[str] = []
     parents: list[str] = []
     sections: list[str] = []
@@ -142,7 +179,12 @@ def semantic_map(graph: nx.DiGraph, qdrant) -> dict:
         vecs.append(dense)
 
     if len(chunk_ids) < 2:
-        return {"points": [], "duplicates": [], "note": "Chunk insufficienti per la mappa."}
+        return {
+            "points": [],
+            "duplicates": [],
+            "note": "Chunk insufficienti per la mappa.",
+            "truncated": truncated,
+        }
 
     mat = np.asarray(vecs, dtype=np.float32)
 
@@ -188,15 +230,7 @@ def semantic_map(graph: nx.DiGraph, qdrant) -> dict:
 
     # Duplicati: sezioni molto simili (coseno ≥ 0.9) appartenenti a DOCUMENTI DIVERSI
     # (le sezioni dello stesso documento sono naturalmente affini e non contano).
-    norm = mat / (np.linalg.norm(mat, axis=1, keepdims=True) + 1e-8)
-    sims = norm @ norm.T
-    duplicates = []
-    for i in range(len(chunk_ids)):
-        for j in range(i + 1, len(chunk_ids)):
-            if sims[i, j] >= 0.9 and parents[i] != parents[j]:
-                duplicates.append({"a": chunk_ids[i], "b": chunk_ids[j], "sim": round(float(sims[i, j]), 3)})
-    duplicates.sort(key=lambda d: d["sim"], reverse=True)
-    duplicates = duplicates[:50]
+    duplicates = _find_duplicates(mat, parents, chunk_ids)
 
     points = [
         {
@@ -211,7 +245,7 @@ def semantic_map(graph: nx.DiGraph, qdrant) -> dict:
         }
         for i in range(len(chunk_ids))
     ]
-    return {"points": points, "duplicates": duplicates}
+    return {"points": points, "duplicates": duplicates, "truncated": truncated}
 
 
 def graph_query(q: str, graph: nx.DiGraph, target: str | None = None) -> dict:

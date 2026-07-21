@@ -80,6 +80,7 @@ from core.config import (
     PROJECT_ROOT,
     QDRANT_API_KEY,
     QDRANT_URL,
+    qdrant_upsert_batch_from_env,
 )
 
 logger = logging.getLogger(__name__)
@@ -817,7 +818,14 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     state = _build_full_state(embed_model, DOCS_DIR, CODE_DIR, emit=_log)
     G = state.graph
     if state.points:
-        qdrant.upsert(collection_name=collection_name, points=state.points)
+        # A fette (default 256, VIBECRAFT_QDRANT_UPSERT_BATCH): un unico upsert monolitico
+        # su migliaia di punti rischia il timeout gRPC/HTTP lato client. Un fallimento a
+        # metà lascia la candidata (versione + collection) esattamente orfana come oggi:
+        # niente retry né rollback parziale, l'eccezione propaga e il job fallisce senza
+        # toccare CURRENT (vedi docstring sopra sull'ordine di promozione).
+        batch_size = qdrant_upsert_batch_from_env()
+        for i in range(0, len(state.points), batch_size):
+            qdrant.upsert(collection_name=collection_name, points=state.points[i:i + batch_size])
 
     # Salva grafo + vettori + sidecar nei formati correnti (JSON/.npz) nella versione
     # decisa sopra, tramite l'unico punto di I/O (core.artifacts). Scrittura atomica:

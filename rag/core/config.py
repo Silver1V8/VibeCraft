@@ -164,3 +164,24 @@ OLLAMA_URL = os.environ.get("VIBECRAFT_OLLAMA_URL", "http://127.0.0.1:11434")
 # Generazioni con modelli grandi (es. qwen2.5:14b) su CPU possono richiedere diversi minuti:
 # un timeout troppo corto interrompe la richiesta anche quando Ollama sta ancora generando.
 OLLAMA_TIMEOUT_SECONDS = float(os.environ.get("VIBECRAFT_OLLAMA_TIMEOUT_SECONDS", "1800"))
+
+# Dimensione di default delle fette con cui core.indexing.build_graph_and_index invia i
+# punti a Qdrant (override: env VIBECRAFT_QDRANT_UPSERT_BATCH, letta a ogni chiamata —
+# stesso pattern di VIBECRAFT_INDEX_KEEP in core.artifacts._keep_from_env). Un unico
+# upsert monolitico su migliaia di punti rischia il timeout gRPC/HTTP lato client; a
+# fette il rischio si sposta a "quali fette sono già arrivate", non se arrivano.
+DEFAULT_QDRANT_UPSERT_BATCH = 256
+
+
+def qdrant_upsert_batch_from_env() -> int:
+    """Quanti punti per chiamata upsert Qdrant (env VIBECRAFT_QDRANT_UPSERT_BATCH,
+    default 256, mai meno di 1)."""
+    raw = os.environ.get("VIBECRAFT_QDRANT_UPSERT_BATCH", "")
+    try:
+        batch = int(raw) if raw else DEFAULT_QDRANT_UPSERT_BATCH
+    except ValueError:
+        logging.getLogger(__name__).warning(
+            "VIBECRAFT_QDRANT_UPSERT_BATCH non numerica (%r): uso il default %d.",
+            raw, DEFAULT_QDRANT_UPSERT_BATCH)
+        batch = DEFAULT_QDRANT_UPSERT_BATCH
+    return max(1, batch)

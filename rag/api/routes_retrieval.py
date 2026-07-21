@@ -3,6 +3,7 @@
 (api.deps) nelle funzioni pure di core.retrieval / core.graph_ops."""
 import logging
 import time
+import uuid
 
 import networkx as nx
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -13,13 +14,19 @@ from FlagEmbedding import BGEM3FlagModel
 from api.deps import (
     current_snapshot,
     maybe_reload_graph,
+    qdrant_collection_for_version,
     require_api_key,
     require_not_cross_site_request,
     state,
 )
 from api.models import AskQuery
 from core import graph_ops, llm, retrieval
-from core.config import CODE_CONTEXT_MAX_SNIPPETS, CODE_CONTEXT_MIN_WEIGHT, PROJECT_ROOT
+from core.config import (
+    CODE_CONTEXT_MAX_SNIPPETS,
+    CODE_CONTEXT_MIN_WEIGHT,
+    COLLECTION_NAME,
+    PROJECT_ROOT,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +38,12 @@ router = APIRouter(dependencies=[Depends(require_api_key)])
 # core.llm._ollama_payload (warning quando la stima dei token sfiora num_ctx).
 ASK_MAX_CHARS_PER_CHUNK = 3000
 
+# Strategia di retrieval usata da /ask: oggi è sempre "hybrid" (dense + sparse +
+# ColBERT rerank, vedi core.retrieval.hybrid_search). Il campo esiste già nel log
+# strutturato in vista del router deterministico di M2, che sceglierà la strategia
+# per query invece di usarne sempre una sola.
+ASK_RETRIEVAL_STRATEGY = "hybrid"
+
 
 def _cap_text(text: str, max_chars: int = ASK_MAX_CHARS_PER_CHUNK) -> str:
     if len(text) > max_chars:
@@ -40,6 +53,9 @@ def _cap_text(text: str, max_chars: int = ASK_MAX_CHARS_PER_CHUNK) -> str:
 
 @router.post("/ask", dependencies=[Depends(require_not_cross_site_request)])
 async def ask_rag(query: AskQuery):
+    request_id = uuid.uuid4().hex
+    request_start = time.time()
+
     maybe_reload_graph()
     snap = current_snapshot()
     qdrant: QdrantClient = state["qdrant"]
@@ -48,12 +64,15 @@ async def ask_rag(query: AskQuery):
     if snap is None or snap.graph is None or qdrant is None or embed_model is None:
         raise HTTPException(status_code=503, detail="Server non ancora inizializzato.")
     graph: nx.DiGraph = snap.graph
+    index_version = snap.version
 
     # 1-2. Ricerca ibrida: dense + sparse (fusione per rank) + rerank ColBERT
+    retrieval_start = time.time()
     search_results = await run_in_threadpool(
         retrieval.hybrid_search, query.question, query.top_k,
         qdrant=qdrant, embed_model=embed_model, colbert_store=snap.colbert_store,
     )
+    latency_retrieval_ms = round((time.time() - retrieval_start) * 1000, 2)
 
     if not search_results:
         return {
@@ -61,6 +80,8 @@ async def ask_rag(query: AskQuery):
             "answer": "Nessun documento rilevante trovato nel knowledge base.",
             "graph_context": {},
             "qdrant_scores": [],
+            "request_id": request_id,
+            "index_version": index_version,
         }
 
     # 3. Nodi seed nel grafo dai risultati (documenti padre dei chunk, deduplicati
@@ -76,6 +97,8 @@ async def ask_rag(query: AskQuery):
                 {**r, "score": r["colbert_score"] if r["colbert_score"] is not None else r["dense_score"]}
                 for r in search_results
             ],
+            "request_id": request_id,
+            "index_version": index_version,
         }
 
     # 4a. Espansione BFS per il GRAFO (usa sempre depth >= 1 per la visualizzazione)
@@ -174,10 +197,28 @@ async def ask_rag(query: AskQuery):
     elaborazione_secondi = round(end_time - start_time, 2)
     logger.info("[TIMER] Tempo impiegato per la generazione: %s secondi", elaborazione_secondi)
 
+    # Log strutturato di fine richiesta (M3 observability): una riga sola, chiavi
+    # ordinate e stabili. qdrant_collection è letta dal manifest della versione dello
+    # snapshot via cache in-process (deps.qdrant_collection_for_version): nessuna
+    # chiamata Qdrant aggiuntiva per-request.
+    qdrant_collection = qdrant_collection_for_version(index_version)
+    latency_generation_ms = round((end_time - start_time) * 1000, 2)
+    latency_total_ms = round((time.time() - request_start) * 1000, 2)
+    logger.info(
+        "ask request_id=%s index_version=%s qdrant_collection=%s qdrant_alias=%s "
+        "retrieval_strategy=%s top_k=%s n_results=%s latency_retrieval_ms=%s "
+        "latency_generation_ms=%s latency_total_ms=%s",
+        request_id, index_version, qdrant_collection, COLLECTION_NAME,
+        ASK_RETRIEVAL_STRATEGY, query.top_k, len(search_results),
+        latency_retrieval_ms, latency_generation_ms, latency_total_ms,
+    )
+
     return {
         "status": "success",
         "answer": answer,
         "elaboration_seconds": elaborazione_secondi,
+        "request_id": request_id,
+        "index_version": index_version,
         "graph_context": {
             "seed_nodes": seed_nodes,
             "expanded_nodes": expanded_nodes_data,

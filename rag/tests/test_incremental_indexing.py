@@ -7,8 +7,10 @@ from typing import Any, cast
 import networkx as nx
 import pytest
 from qdrant_client import QdrantClient
+from qdrant_client.models import PointStruct
 
 from core import artifacts as _artifacts
+from core import config as _config
 from core import indexing as index
 
 
@@ -1731,6 +1733,124 @@ def test_full_rebuild_never_uses_recreate_true_on_the_production_collection_name
 
     assert index.COLLECTION_NAME not in q.created_collection_names
     assert q.deleted_collection_names == [index.COLLECTION_NAME]  # invariato: nessun secondo delete
+
+
+# ---------------------------------------------------------------------------
+# 12. R11: upsert Qdrant a fette nel full rebuild (VIBECRAFT_QDRANT_UPSERT_BATCH).
+# _build_full_state è mockato con punti sintetici: isola il batching dal resto
+# della pipeline (chunking/embedding reali), che i test precedenti già coprono.
+# Il percorso incrementale (riga ~1463, _apply_incremental_indexing) resta un
+# unico qdrant.upsert non a fette e non viene toccato qui.
+# ---------------------------------------------------------------------------
+def test_qdrant_upsert_batch_from_env_default(monkeypatch):
+    monkeypatch.delenv("VIBECRAFT_QDRANT_UPSERT_BATCH", raising=False)
+    assert _config.qdrant_upsert_batch_from_env() == 256
+
+
+def test_qdrant_upsert_batch_from_env_custom_value(monkeypatch):
+    monkeypatch.setenv("VIBECRAFT_QDRANT_UPSERT_BATCH", "64")
+    assert _config.qdrant_upsert_batch_from_env() == 64
+
+
+def test_qdrant_upsert_batch_from_env_never_below_one(monkeypatch):
+    monkeypatch.setenv("VIBECRAFT_QDRANT_UPSERT_BATCH", "0")
+    assert _config.qdrant_upsert_batch_from_env() == 1
+    monkeypatch.setenv("VIBECRAFT_QDRANT_UPSERT_BATCH", "-5")
+    assert _config.qdrant_upsert_batch_from_env() == 1
+
+
+def test_qdrant_upsert_batch_from_env_invalid_falls_back_to_default(monkeypatch, caplog):
+    monkeypatch.setenv("VIBECRAFT_QDRANT_UPSERT_BATCH", "banane")
+    with caplog.at_level("WARNING"):
+        assert _config.qdrant_upsert_batch_from_env() == 256
+    assert "VIBECRAFT_QDRANT_UPSERT_BATCH" in caplog.text
+
+
+def _fake_full_state(n_points: int) -> "index.FullState":
+    points = [PointStruct(id=str(i), vector=[0.0], payload={}) for i in range(n_points)]
+    return index.FullState(graph=nx.DiGraph(), points=points)
+
+
+class _BatchRecordingQdrant(StatefulFakeQdrant):
+    """Come StatefulFakeQdrant, ma registra i punti di OGNI singola chiamata upsert
+    (non solo l'unione finale in self.points): serve a verificare le dimensioni e
+    l'ordine delle singole fette."""
+    def __init__(self):
+        super().__init__()
+        self.upsert_batches: list[list] = []
+
+    def upsert(self, collection_name, points):
+        self.upsert_batches.append(list(points))
+        super().upsert(collection_name, points)
+
+
+def test_full_rebuild_upserts_qdrant_in_slices_of_configured_batch_size(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    monkeypatch.setenv("VIBECRAFT_QDRANT_UPSERT_BATCH", "256")
+    monkeypatch.setattr(index, "_build_full_state", lambda *a, **k: _fake_full_state(1000))
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    q = _BatchRecordingQdrant()
+
+    index.build_graph_and_index(qdrant=q, embed_model=object())
+
+    assert [len(b) for b in q.upsert_batches] == [256, 256, 256, 232]
+
+    ids_seen = [p.id for batch in q.upsert_batches for p in batch]
+    assert ids_seen == [str(i) for i in range(1000)]        # ordine originale preservato
+    assert len(set(ids_seen)) == 1000                       # nessun duplicato
+    assert set(ids_seen) == {str(i) for i in range(1000)}   # unione == insieme originale
+
+
+def test_full_rebuild_upserts_in_a_single_call_when_batch_covers_all_points(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    # Env non impostata: default 256, ben oltre i 10 punti finti -> un'unica chiamata.
+    monkeypatch.setattr(index, "_build_full_state", lambda *a, **k: _fake_full_state(10))
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    q = _BatchRecordingQdrant()
+
+    index.build_graph_and_index(qdrant=q, embed_model=object())
+
+    assert len(q.upsert_batches) == 1
+    assert len(q.upsert_batches[0]) == 10
+
+
+def test_full_rebuild_upsert_failure_propagates_and_blocks_promotion(monkeypatch, tmp_path):
+    """Un fallimento a metà upsert lascia la candidata orfana esattamente come oggi
+    (prima del batching, un singolo qdrant.upsert fallito produceva lo stesso esito):
+    l'eccezione propaga senza retry né rollback parziale, il job fallisce, e gate/
+    promote non vengono mai raggiunti — CURRENT resta invariato."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    monkeypatch.setenv("VIBECRAFT_QDRANT_UPSERT_BATCH", "256")
+    monkeypatch.setattr(index, "_build_full_state", lambda *a, **k: _fake_full_state(1000))
+
+    def _boom_gate(*a, **k):
+        raise AssertionError("gate_promotion non deve essere invocato se l'upsert fallisce")
+
+    def _boom_promote(*a, **k):
+        raise AssertionError("promote_version non deve essere invocato se l'upsert fallisce")
+
+    monkeypatch.setattr(index, "gate_promotion", _boom_gate)
+    monkeypatch.setattr(index, "promote_version", _boom_promote)
+
+    class _FailingSecondCallQdrant(StatefulFakeQdrant):
+        def __init__(self):
+            super().__init__()
+            self.upsert_batches: list[list] = []
+
+        def upsert(self, collection_name, points):
+            self.upsert_batches.append(list(points))
+            if len(self.upsert_batches) == 2:
+                raise RuntimeError("Qdrant giù a metà upsert")
+            super().upsert(collection_name, points)
+
+    q = _FailingSecondCallQdrant()
+
+    with pytest.raises(RuntimeError, match="Qdrant giù a metà upsert"):
+        index.build_graph_and_index(qdrant=q, embed_model=object())
+
+    assert len(q.upsert_batches) == 2       # 1a fetta riuscita, 2a tentata e fallita
+    assert len(q.points) == 256             # solo la 1a fetta è arrivata a destinazione
+    assert index.list_versions() == []      # mai salvata: nessuna candidata persistita
 
 
 def test_qdrant_blue_green_flag_no_longer_exists_in_core_config():

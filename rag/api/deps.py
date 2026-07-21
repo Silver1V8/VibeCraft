@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, HTMLResponse, Response
 from qdrant_client import QdrantClient
 from FlagEmbedding import BGEM3FlagModel
 
-from core.artifacts import current_version_token, load_artifacts
+from core.artifacts import current_version_token, load_artifacts, manifest_path
 from core.indexing import gc_orphaned_qdrant_collections, reconcile_and_repair_qdrant_alias
 from core.config import (
     EMBEDDING_MODEL,
@@ -180,6 +180,36 @@ def current_snapshot() -> IndexSnapshot | None:
     avviene a metà richiesta (il reload rebinda `state["snapshot"]`, non tocca l'oggetto
     già in mano all'handler)."""
     return state.get("snapshot")
+
+
+# ---------------------------------------------------------------------------
+# Cache {version: qdrant_collection} per il log strutturato di fine richiesta di
+# /ask (M3 observability). Il manifest di una versione è immutabile una volta
+# scritto (write_index_manifest gira una sola volta per build), quindi leggerlo
+# più di una volta per versione sarebbe I/O sprecato: qui lo leggiamo dal disco
+# UNA volta e serviamo tutte le richieste successive sulla stessa versione dalla
+# cache in-process. Nessuna invalidazione: una versione nuova è semplicemente
+# una nuova chiave.
+# ---------------------------------------------------------------------------
+_qdrant_collection_by_version: dict = {}
+
+
+def qdrant_collection_for_version(version: str | float | None) -> str:
+    """Nome della collection Qdrant dichiarata dal manifest di `version` (campo
+    "qdrant_collection", scritto da core.indexing.write_index_manifest), con cache
+    a livello di modulo per versione. Fallback "unknown" se il manifest è assente,
+    illeggibile, non porta il campo, o se `version` non è un nome di versione valido
+    (es. mtime float del layout legacy senza CURRENT)."""
+    if version in _qdrant_collection_by_version:
+        return _qdrant_collection_by_version[version]
+    try:
+        manifest = json.loads(manifest_path(version).read_text(encoding="utf-8"))
+        name = manifest.get("qdrant_collection") if isinstance(manifest, dict) else None
+    except Exception:
+        name = None
+    name = name or "unknown"
+    _qdrant_collection_by_version[version] = name
+    return name
 
 
 def _graph_version() -> str | float | None:
