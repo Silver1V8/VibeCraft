@@ -362,9 +362,11 @@ def test_e2e_import_reindex_brief_staged_approve_retrieve(tmp_path, monkeypatch)
         reindex=lambda paths: index.incremental_index(qdrant=q, embed_model=stub))
     assert applied["status"] == "applied" and applied["reindex_error"] is None
 
-    # 2) Il reindex ha portato il simbolo del target nel grafo.
+    # 2) Il reindex ha portato il simbolo del target nel grafo. L'import (S5) copia il
+    #    progetto in una SOTTOCARTELLA col nome della sorgente (code/backend/sorgente/...),
+    #    quindi il simbolo vive sotto quel prefisso; il dev_type resta il primo segmento.
     arts = _artifacts.load_artifacts()
-    code_id = "backend/app/svc.py::handle_alpha"
+    code_id = "backend/sorgente/app/svc.py::handle_alpha"
     assert code_id in arts.graph and arts.graph.nodes[code_id]["dev_type"] == "backend"
 
     # 3) Project brief grounded (LLM mockato): il prompt vede il simbolo reale.
