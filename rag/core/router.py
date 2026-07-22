@@ -31,16 +31,27 @@ _GRAPH_RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("enum-entita", re.compile(r"\bquali\s+entit\w*\b.*\besist\w*")),
     # Casi M1: "quali relazioni ha la specifica di autenticazione?" (A 0.60) e "quali
     # relazioni ha lo standard di codifica?" (A 0.25); B intent "relazioni" exact su
-    # entrambi. La forma "quali relazioni ha X" chiede gli archi di un nodo. La keyword
-    # "relazion" da sola (come in graph_query) sarebbe troppo larga: si richiede la
-    # formulazione completa.
-    ("relazioni-di-nodo", re.compile(r"\bquali\s+relazioni\s+ha\w*\b")),
+    # entrambi. La forma "relazioni <preposizione> X" chiede gli archi di un nodo. La
+    # keyword "relazion" da sola (come in graph_query) sarebbe troppo larga: si richiede
+    # che sia retta da un complemento.
+    # ALLARGATA 2026-07-22: la forma originale imponeva l'attacco "quali relazioni ha",
+    # e mancava le formulazioni altrettanto inequivocabili "quali sono le relazioni DI X"
+    # e "relazioni DI X" (entrambe nel golden multihop riscritto). Falsi positivi
+    # verificati prima dell'allargamento: 0 su 49 casi del golden set classico e 0 sugli
+    # 8 multihop, che devono restare "hybrid".
+    ("relazioni-di-nodo", re.compile(r"\brelazioni\s+(?:ha|di|del|della|dello|dei|delle)\b")),
     # Caso M1: "cosa viene impattato se modifico le safeguard di sicurezza?" (A recall
     # 0.14 — il primo anello d'impatto non emerge dal retrieval; B intent "impatto"
     # exact, BFS 349 nodi). Servono ENTRAMBE le radici "impatt*" E "modific*": il solo
     # "impatt" (keyword di graph_query) matcherebbe formulazioni semantiche, e il golden
     # set classico contiene molti "cosa succede se..." che restano "hybrid".
     ("impatto-modifica", re.compile(r"(?=.*\bimpatt)(?=.*\bmodific)")),
+    # AGGIUNTA 2026-07-22: "cosa impatta X?" è la forma diretta della stessa domanda, ma
+    # non nomina la modifica, quindi la regola sopra (che richiede ENTRAMBE le radici) la
+    # mancava. L'attacco "cosa impatt*" è comunque inequivocabile: chiede il fan-out di un
+    # nodo. Resta distinto dal generico "impatt", che da solo matcherebbe formulazioni
+    # semantiche. Falsi positivi verificati: 0 su 49 casi classici e 0 sugli 8 multihop.
+    ("impatto-diretto", re.compile(r"\bcosa\s+impatt\w*")),
     # Caso M1: "dammi i nodi adiacenti alla matrice dei permessi" (A recall 0.60; B
     # intent "vicini" exact, 78 nodi). Lessico esplicito da teoria dei grafi ("nodo/i
     # adiacente/i"): non compare in nessuna domanda semantica del golden set classico.
