@@ -260,7 +260,7 @@
   <main class="relative z-10 flex-1 flex overflow-hidden">
 
     <!-- ────── LEFT PANEL ────── -->
-    <aside class="w-96 shrink-0 flex flex-col gap-4 p-4 border-r border-slate-800 overflow-y-auto">
+    <aside id="left-panel" class="shrink-0 flex flex-col gap-4 p-4 overflow-y-auto" style="width:384px">
 
       <!-- Search card -->
       <div class="rounded-xl glass-card p-4">
@@ -328,6 +328,12 @@
       </div>
 
     </aside>
+
+    <!-- ────── RESIZE HANDLE ────── -->
+    <div id="panel-resizer"
+      class="shrink-0 w-1.5 cursor-col-resize border-r border-slate-800 hover:border-blue-500 hover:bg-blue-500/20 active:bg-blue-500/30 transition-colors"
+      title="Trascina per ridimensionare"
+    ></div>
 
     <!-- ────── RIGHT PANEL ────── -->
     <section class="flex-1 flex flex-col p-4 gap-3 min-w-0">
@@ -529,6 +535,48 @@
   <!-- ═══════════════════ JAVASCRIPT ═══════════════════ -->
   <script>
     /* themeVar / startMatrixRain / stopMatrixRain: vedi /static/shared.js */
+
+    /* ──────────── PANNELLO SINISTRO RIDIMENSIONABILE ──────────── */
+    // Drag orizzontale sull'handle fra <aside id="left-panel"> e la sezione del grafo.
+    // Larghezza persistita in localStorage così sopravvive al refresh della pagina.
+    (function initPanelResizer() {
+      const panel = document.getElementById('left-panel');
+      const resizer = document.getElementById('panel-resizer');
+      if (!panel || !resizer) return;
+
+      const STORAGE_KEY = 'haro-left-panel-width';
+      const MIN_WIDTH = 260;
+      const MAX_WIDTH = 720;
+
+      const saved = parseInt(localStorage.getItem(STORAGE_KEY), 10);
+      if (Number.isFinite(saved)) {
+        panel.style.width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, saved)) + 'px';
+      }
+
+      let dragging = false;
+
+      resizer.addEventListener('mousedown', (e) => {
+        dragging = true;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        const rect = panel.getBoundingClientRect();
+        const width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, e.clientX - rect.left));
+        panel.style.width = width + 'px';
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (!dragging) return;
+        dragging = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        localStorage.setItem(STORAGE_KEY, parseInt(panel.style.width, 10));
+      });
+    })();
 
     let network = null;
     let currentNodes = new vis.DataSet();
