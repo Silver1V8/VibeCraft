@@ -170,7 +170,9 @@ INTAKE_STAGING_DIR = RAG_DIR / str(_intake_cfg.get("staging_dir") or "database/s
 # Formati sorgente accettati in ingresso (documenti): il resto viene rifiutato a monte, prima
 # di leggere il contenuto.
 INTAKE_ALLOWED_FORMATS: tuple[str, ...] = tuple(
-    _intake_cfg.get("allowed_formats") or ["md", "pdf", "docx", "html", "txt"]
+    _intake_cfg.get("allowed_formats")
+    or ["md", "pdf", "docx", "pptx", "xlsx", "xls",
+        "html", "htm", "txt", "csv", "json", "xml", "epub", "msg"]
 )
 INTAKE_MAX_UPLOAD_MB: int = int(_intake_cfg.get("max_upload_mb", 25))
 # Authority scritta nel frontmatter dei documenti approvati dallo staging (S2): sotto i

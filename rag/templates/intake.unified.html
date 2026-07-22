@@ -216,12 +216,13 @@
     <!-- ══════════ (b) IMPORTA DOCUMENTI ══════════ -->
     <section id="section-importa">
       <h2>📥 Importa documenti</h2>
-      <p class="desc">Carica documenti Markdown, PDF, DOCX, HTML o TXT: vengono convertiti in Markdown e messi in
-        staging, in attesa di review. Nessuna scrittura diretta in <code>docs/</code>.</p>
+      <p class="desc">Carica documenti Office, PDF, HTML, dati (CSV/JSON/XML), email o testo: vengono convertiti in
+        Markdown con <code>markitdown</code> (i <code>.md</code> entrano nativi) e messi in staging, in attesa di
+        review. Nessuna scrittura diretta in <code>docs/</code>.</p>
       <div id="dropzone" class="dropzone" onclick="document.getElementById('file-input').click()">
         📎 Trascina qui i file, oppure clicca per selezionarli
-        <div style="margin-top:4px;font-size:10.5px">md · pdf · docx · html · txt</div>
-        <input id="file-input" type="file" multiple accept=".md,.pdf,.docx,.html,.htm,.txt" onchange="onFilesPicked(this.files)" />
+        <div style="margin-top:4px;font-size:10.5px">md · pdf · docx · pptx · xlsx · xls · html · txt · csv · json · xml · epub · msg</div>
+        <input id="file-input" type="file" multiple accept=".md,.pdf,.docx,.pptx,.xlsx,.xls,.html,.htm,.txt,.csv,.json,.xml,.epub,.msg" onchange="onFilesPicked(this.files)" />
       </div>
       <div id="import-results"></div>
     </section>

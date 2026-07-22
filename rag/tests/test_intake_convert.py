@@ -1,8 +1,8 @@
-"""Test dei convertitori multi-formato → Markdown per Intake & Import (S1, piano:
-docs/00_meta_governance/piano_intake_import.md). Copre i 4 formati (pdf/docx/html/txt),
-la compatibilità con core/chunking.py::parse_markdown_file e chunk_markdown, e gli edge
-case elencati nel piano (file vuoto, PDF senza testo, HTML senza body, encoding non
-UTF-8, formato non ammesso)."""
+"""Test del convertitore multi-formato → Markdown per Intake & Import (motore
+microsoft/markitdown, un solo percorso per tutti i formati non-md). Copre i formati con
+fixture (pdf/docx/html/txt), la compatibilità con core/chunking.py::parse_markdown_file e
+chunk_markdown, il titolo di fallback, e gli edge case (file vuoto, PDF senza testo,
+encoding non UTF-8, formato non ammesso, .md rifiutato perché nativo)."""
 import hashlib
 from pathlib import Path
 
@@ -62,11 +62,26 @@ def test_docx_headings_become_markdown_headings():
     assert "## Sezione seconda" in result.markdown
 
 
-def test_html_strips_script_nav_footer():
+def test_html_extracts_title_and_content():
     result = convert_to_markdown(Path(FIXTURES["html"]), "html")
 
-    assert "da scartare" not in result.markdown
     assert "Titolo HTML di prova" in result.markdown
+    # markitdown converte l'intero documento in Markdown (heading, paragrafi, liste)
+    assert "voce uno" in result.markdown
+
+
+def test_pdf_gets_fallback_title_heading():
+    """markitdown non produce heading per i PDF testuali: il convertitore antepone un
+    titolo dal nome file, così ogni documento resta ancorato a un heading."""
+    result = convert_to_markdown(Path(FIXTURES["pdf"]), "pdf", filename="relazione.pdf")
+
+    assert result.markdown.startswith("# relazione")
+
+
+def test_md_is_rejected_because_native():
+    """I .md non passano da markitdown: sono gestiti nativamente in core/intake.py."""
+    with pytest.raises(ConversionError, match="nativamente"):
+        convert_to_markdown(b"# gia markdown\n", "md", filename="doc.md")
 
 
 # --- Edge case: file vuoto o illeggibile -----------------------------------------
@@ -91,14 +106,17 @@ def test_pdf_without_extractable_text_raises_conversion_error():
         convert_to_markdown(pdf_bytes, "pdf", filename="senza_testo.pdf")
 
 
-# --- Edge case: HTML senza <body> -------------------------------------------------
+# --- Edge case: HTML senza <body> → markitdown estrae comunque il titolo -----------
 
 
-def test_html_without_body_raises_conversion_error():
+def test_html_without_body_extracts_title():
+    """markitdown non richiede un <body>: da un HTML col solo <head> estrae il titolo
+    (niente più errore 'senza <body>', a differenza del vecchio convertitore custom)."""
     html = b"<html><head><title>Senza body</title></head></html>"
 
-    with pytest.raises(ConversionError, match="senza <body>"):
-        convert_to_markdown(html, "html", filename="senza_body.html")
+    result = convert_to_markdown(html, "html", filename="senza_body.html")
+
+    assert "Senza body" in result.markdown
 
 
 # --- Edge case: encoding non UTF-8 nel TXT (fallback latin-1) ---------------------
@@ -118,4 +136,4 @@ def test_txt_latin1_fallback():
 
 def test_disallowed_format_is_rejected_upfront():
     with pytest.raises(ConversionError, match="non supportato"):
-        convert_to_markdown(b"qualsiasi contenuto", "pptx", filename="file.pptx")
+        convert_to_markdown(b"qualsiasi contenuto", "exe", filename="file.exe")

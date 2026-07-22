@@ -191,9 +191,12 @@ incrementale.
   (hybrid_search) e nelle lezioni delle canvas review; ogni file è validato
   (parse + chunking) prima di entrare in staging.
 - **Importa documenti** (`POST /api/intake/docs`, [core/intake_convert.py](core/intake_convert.py)):
-  upload multipart Markdown, PDF, DOCX, HTML o TXT (`intake.allowed_formats`,
-  limite `intake.max_upload_mb`) convertiti in Markdown. Estensione e dimensione
-  validate PRIMA di leggere l'intero body in memoria.
+  upload multipart convertito in Markdown con microsoft/markitdown — un solo motore per
+  tutti i formati non-md (PDF, DOCX, PPTX, XLSX/XLS, HTML, CSV, JSON, XML, EPUB, MSG, ...);
+  i `.md` entrano nativi (solo decodifica). La whitelist resta la nostra
+  (`intake.allowed_formats`, markitdown è permissivo e ripiega su plaintext per estensioni
+  ignote). Estensione e dimensione (`intake.max_upload_mb`) validate PRIMA di leggere
+  l'intero body in memoria.
 - **Review staging** (`GET /api/intake/staged`, `.../preview`, `POST .../approve`,
   `POST .../reject`): preview del markdown, poi **approve** (scrive
   `docs/<categoria>/<nome_file>` con frontmatter conforme + reindex delta della sola

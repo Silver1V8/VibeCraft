@@ -146,7 +146,9 @@ paths:
 # Le esclusioni per l'import progetti riusano code_parsers/CODE_EXCLUDED_DIRS: non duplicarle qui.
 intake:
   staging_dir: "database/staging"   # relativo a rag/, accanto agli altri artefatti di database/
-  allowed_formats: ["md", "pdf", "docx", "html", "txt"]
+  # Conversione via microsoft/markitdown (tutti tranne .md, che è nativo). Estendibile a
+  # ogni formato che markitdown sa gestire coi convertitori built-in installati.
+  allowed_formats: ["md", "pdf", "docx", "pptx", "xlsx", "xls", "html", "htm", "txt", "csv", "json", "xml", "epub", "msg"]
   max_upload_mb: 25
   generation_max_files: 5
   # Authority di default scritta nel frontmatter dei documenti approvati dallo staging

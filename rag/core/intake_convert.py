@@ -1,30 +1,33 @@
 """Conversione documenti multi-formato in Markdown per l'evoluzione Intake & Import
 (piano: docs/00_meta_governance/piano_intake_import.md, sessione S1). Logica pura: nessuna
-scrittura su disco né in staging/docs/ — core/intake.py (S2) chiamerà convert_to_markdown
+scrittura su disco né in staging/docs/ — core/intake.py (S2) chiama convert_to_markdown
 prima di salvare il .md derivato e i metadata in un frontmatter (qui i metadata restano
-separati, non ancora fusi nel markdown)."""
+separati, non ancora fusi nel markdown).
+
+Il motore di conversione è microsoft/markitdown: UN solo convertitore per TUTTI i formati
+non-Markdown (pdf, docx, pptx, xlsx/xls, html, csv, json, xml, epub, msg, ...). I .md NON
+passano da qui: sono gestiti nativamente da core/intake.py (solo decodifica, nessuna
+conversione). markitdown è permissivo (per estensioni ignote ripiega su plaintext), quindi
+la whitelist dei formati resta la nostra (INTAKE_ALLOWED_FORMATS), applicata a monte."""
 from __future__ import annotations
 
 import hashlib
 import io
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable
 
-import docx
-import mammoth
-import pymupdf
-from bs4 import BeautifulSoup
-from markdownify import markdownify as _html_to_markdown
+from markitdown import MarkItDown, StreamInfo
+from markitdown._exceptions import MarkItDownException
 
 from core.config import INTAKE_ALLOWED_FORMATS
 
 
 class ConversionError(RuntimeError):
     """Sollevato quando un documento sorgente non può essere convertito in Markdown:
-    formato non ammesso, file vuoto/illeggibile, nessun testo estraibile, encoding
-    irriconoscibile. Mai lasciar propagare l'eccezione grezza della libreria sottostante."""
+    formato non ammesso, file vuoto/illeggibile, nessun testo estraibile. Mai lasciar
+    propagare l'eccezione grezza di markitdown (MarkItDownException e sottoclassi)."""
 
 
 @dataclass(frozen=True)
@@ -33,108 +36,59 @@ class ConversionResult:
     metadata: dict
 
 
-def _decode_text(data: bytes, nome_file: str) -> str:
-    """UTF-8 con fallback latin-1 (i .txt di provenienza Windows/legacy spesso non sono
-    UTF-8 validi): solo se anche latin-1 fallisce l'encoding è davvero irriconoscibile,
-    perché latin-1 mappa ogni singolo byte a un carattere."""
+# markitdown carica un modello magika (onnx) alla PRIMA istanza: costoso, quindi una sola
+# istanza per processo, creata pigramente (nessun costo al solo import del modulo, coerente
+# con la filosofia lazy del resto di core/). enable_plugins=False: niente plugin di terze
+# parti, conversione deterministica coi soli convertitori built-in.
+_markitdown: MarkItDown | None = None
+
+
+def _engine() -> MarkItDown:
+    global _markitdown
+    if _markitdown is None:
+        _markitdown = MarkItDown(enable_plugins=False)
+    return _markitdown
+
+
+# Un heading Markdown in QUALSIASI punto del documento (non solo in cima): se markitdown
+# non ne produce (tipico di pdf/txt/csv), anteponiamo un titolo dal nome file, così ogni
+# documento resta ancorato a un titolo leggibile per il chunking.
+_HEADING_RE = re.compile(r"^#{1,6}\s", re.MULTILINE)
+
+# Formati basati su testo: la rilevazione automatica dell'encoding di markitdown
+# (charset-normalizer) sbaglia su campioni brevi di testo legacy (cp1252/latin-1 italiano
+# viene decodificato come un'altra codepage). Per questi determiniamo l'encoding noi con la
+# stessa strategia storica (UTF-8, poi fallback latin-1 che mappa ogni byte) e lo passiamo
+# come hint a markitdown, che lo rispetta invece di indovinare. Per i formati binari
+# (pdf/docx/xlsx/...) l'encoding non si applica: charset=None.
+_TEXT_FORMATS = frozenset({"txt", "csv", "json", "xml", "html", "htm"})
+
+
+def _detect_charset(data: bytes) -> str:
     try:
-        return data.decode("utf-8")
+        data.decode("utf-8")
+        return "utf-8"
     except UnicodeDecodeError:
-        try:
-            return data.decode("latin-1")
-        except UnicodeDecodeError as exc:
-            raise ConversionError(f"encoding non riconosciuto per {nome_file}") from exc
-
-
-def _convert_txt(data: bytes, nome_file: str) -> str:
-    body = _decode_text(data, nome_file).strip()
-    title = Path(nome_file).stem
-    return f"# {title}\n\n{body}\n"
-
-
-def _convert_pdf(data: bytes, nome_file: str) -> str:
-    try:
-        doc = pymupdf.open(stream=data, filetype="pdf")
-    except Exception as exc:  # libreria non tipizza le eccezioni di parsing
-        raise ConversionError(f"PDF illeggibile: {nome_file} ({exc})") from exc
-    try:
-        pages = [(page.get_text() or "").strip() for page in doc]
-    finally:
-        doc.close()
-    body = "\n\n".join(p for p in pages if p)
-    if not body:
-        raise ConversionError(f"nessun testo estraibile da {nome_file}")
-    title = Path(nome_file).stem
-    return f"# {title}\n\n{body}\n"
-
-
-def _convert_docx_mammoth(data: bytes) -> str:
-    result = mammoth.convert_to_markdown(io.BytesIO(data))
-    return result.value.strip()
-
-
-def _convert_docx_fallback(data: bytes, nome_file: str) -> str:
-    """Fallback su python-docx quando mammoth non riesce ad aprire il file: i titoli
-    Word (stile 'Heading N') diventano heading Markdown, il resto testo semplice."""
-    try:
-        document = docx.Document(io.BytesIO(data))
-    except Exception as exc:
-        raise ConversionError(f"DOCX illeggibile: {nome_file} ({exc})") from exc
-    lines: list[str] = []
-    for p in document.paragraphs:
-        text = p.text.strip()
-        if not text:
-            continue
-        style = p.style.name if p.style else ""
-        if style == "Heading 1":
-            lines.append(f"# {text}")
-        elif style and style.startswith("Heading"):
-            lines.append(f"## {text}")
-        else:
-            lines.append(text)
-    return "\n\n".join(lines)
-
-
-def _convert_docx(data: bytes, nome_file: str) -> str:
-    try:
-        markdown = _convert_docx_mammoth(data)
-    except Exception:
-        markdown = ""
-    if not markdown:
-        markdown = _convert_docx_fallback(data, nome_file)
-    return markdown
-
-
-def _convert_html(data: bytes, nome_file: str) -> str:
-    text = _decode_text(data, nome_file)
-    soup = BeautifulSoup(text, "html.parser")
-    if soup.body is None:
-        raise ConversionError(f"HTML senza <body>: {nome_file}")
-    for tag in soup.body.find_all(["script", "style", "nav", "footer"]):
-        tag.decompose()
-    return _html_to_markdown(str(soup.body), heading_style="ATX").strip()
-
-
-_CONVERTERS: dict[str, Callable[[bytes, str], str]] = {
-    "pdf": _convert_pdf,
-    "docx": _convert_docx,
-    "html": _convert_html,
-    "txt": _convert_txt,
-}
+        return "latin-1"
 
 
 def convert_to_markdown(
     source: bytes | Path, formato: str, filename: str | None = None
 ) -> ConversionResult:
-    """Converte un documento sorgente (bytes o Path) in Markdown. `formato` è
-    l'estensione dichiarata (pdf/docx/html/txt), validata contro
-    intake.allowed_formats (rag_config.yaml) PRIMA di leggere il contenuto.
-    `filename` è il nome originale, usato per i metadata e i messaggi d'errore;
-    se `source` è un Path e `filename` è assente, si usa il nome del Path."""
+    """Converte un documento sorgente (bytes o Path) in Markdown con markitdown.
+    `formato` è l'estensione dichiarata, validata contro intake.allowed_formats
+    (rag_config.yaml) PRIMA di leggere il contenuto — i .md non passano di qui (sono
+    nativi in core/intake.py). `filename` è il nome originale, usato per i metadata, il
+    titolo di fallback e i messaggi d'errore; se `source` è un Path e `filename` è
+    assente, si usa il nome del Path."""
     fmt = formato.lower().lstrip(".")
     if fmt not in INTAKE_ALLOWED_FORMATS:
         raise ConversionError(
             f"formato non supportato: {formato!r} (ammessi: {', '.join(INTAKE_ALLOWED_FORMATS)})"
+        )
+    if fmt == "md":
+        raise ConversionError(
+            "i documenti .md sono gestiti nativamente, non passano da markitdown"
         )
 
     if isinstance(source, Path):
@@ -150,13 +104,21 @@ def convert_to_markdown(
     if not data:
         raise ConversionError(f"file vuoto: {nome_file}")
 
-    converter = _CONVERTERS.get(fmt)
-    if converter is None:
-        raise ConversionError(f"nessun convertitore per il formato {fmt!r}")
+    charset = _detect_charset(data) if fmt in _TEXT_FORMATS else None
+    stream_info = StreamInfo(extension=f".{fmt}", filename=nome_file, charset=charset)
+    try:
+        result = _engine().convert_stream(io.BytesIO(data), stream_info=stream_info)
+    except MarkItDownException as exc:
+        raise ConversionError(f"conversione fallita per {nome_file}: {exc}") from exc
 
-    markdown = converter(data, nome_file)
-    if not markdown.strip():
+    markdown = (result.text_content or "").strip()
+    if not markdown:
         raise ConversionError(f"nessun testo estraibile da {nome_file}")
+
+    # Titolo di fallback solo se il documento non ha alcun heading (pdf/txt/csv...): i
+    # formati che li producono (docx/html) restano intatti, niente doppio titolo.
+    if not _HEADING_RE.search(markdown):
+        markdown = f"# {Path(nome_file).stem}\n\n{markdown}"
 
     metadata = {
         "source_filename": nome_file,
