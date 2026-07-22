@@ -12,151 +12,238 @@
 #   file    : sottostringa di chunk_id o doc_id (utile per attese a livello di file sorgente)
 #
 # Il vecchio formato `expected_doc` + `expected_section` è ancora accettato (retrocompat).
+#
+# ─────────────────────────────────────────────────────────────────────────────────────
+# RISCRITTO 2026-07-22 sul corpus cross-progetto (11 documenti).
+#
+# Il golden-set precedente (34 casi) era costruito sul dominio "prenotazione eventi
+# aziendali": 24 casi su 34 puntavano a documenti poi rimossi (glossario_entita,
+# matrice_permessi, intent_synonym_mapping, le spec funzionali). Le domande non sono
+# state tradotte ma RISCRITTE: i concetti interrogati (workflow richieste, RBAC, budget
+# formativo) non esistono più nel corpus, quindi tradurle avrebbe prodotto attese
+# arbitrarie. Lo storico in eval/results/history.jsonl precedente a questa data NON è
+# confrontabile coi numeri prodotti da questo file: è cambiato il corpus, non i casi.
+#
+# Copertura: tutti gli 11 documenti della baseline compaiono in almeno un caso.
+# ─────────────────────────────────────────────────────────────────────────────────────
 cases:
-  - q: "come gestire il lock transazionale sui posti di un evento in concorrenza"
+  # ─────────────────── safeguards_security.md (IRON_MEMORY) ───────────────────
+
+  - q: "come gestire il lock transazionale su una risorsa contesa in concorrenza"
     expected:
       - {doc: safeguards_security, section: "Concorrenza Critica"}
 
-  - q: "sicurezza degli accessi, autenticazione e gestione dell'identità"
+  - q: "due utenti consumano l'ultima unità disponibile nello stesso istante"
     expected:
-      - {doc: safeguards_security, section: "Sicurezza Accessi e Identità"}
+      - {doc: safeguards_security, section: "Concorrenza Critica"}
 
-  - q: "immutabilità dei dati e auditability dei log"
+  - q: "sicurezza degli accessi, autenticazione e verifica dell'identità"
+    expected:
+      - {doc: safeguards_security, section: "Sicurezza Accessi"}
+
+  - q: "quanto tempo può passare prima che la revoca di un account sia effettiva"
+    expected:
+      - {doc: safeguards_security, section: "Sicurezza Accessi"}
+
+  - q: "immutabilità dei dati e auditability del giornale di audit"
     expected:
       - {doc: safeguards_security, section: "Immutabilità"}
 
-  - q: "gestione dei segreti e sicurezza del codice sorgente"
+  - q: "posso cancellare fisicamente un record che ha figli che lo referenziano"
     expected:
-      - {doc: safeguards_security, section: "Sicurezza del Codice e Segreti"}
+      - {doc: safeguards_security, section: "Immutabilità"}
 
-  - q: "privacy e confine dei dati local-first, dati personali PII"
+  - q: "gestione dei segreti e delle credenziali nel codice sorgente"
+    expected:
+      - {doc: safeguards_security, section: "Sicurezza del Codice"}
+
+  - q: "privacy, confine dei dati local-first e trattamento dei dati personali PII"
     expected:
       - {doc: safeguards_security, section: "Privacy e Confine"}
 
-  - q: "quali sono i profili degli attori e i ruoli del sistema"
+  - q: "posso mandare dati reali nel contesto di un LLM remoto durante lo sviluppo"
     expected:
-      - {doc: matrice_permessi, section: "Profili degli Attori"}
+      - {doc: safeguards_security, section: "Privacy e Confine"}
 
-  - q: "chi ha il permesso di creare o approvare, matrice dei permessi"
+  # ─────────────────── coding_standards.md (METHODOLOGY) ───────────────────
+
+  - q: "qual è la lunghezza massima ammessa per una funzione"
     expected:
-      - {doc: matrice_permessi, section: "Matrice dei Permessi"}
+      - {doc: coding_standards, section: "Metriche Strutturali"}
 
-  - q: "indice inverso ruolo verso funzionalità concesse RBAC"
+  - q: "come vanno gestite le eccezioni e i blocchi di cattura generici"
     expected:
-      - {doc: matrice_permessi, section: "Indice Inverso"}
+      - {doc: coding_standards, section: "Metriche Strutturali"}
 
-  - q: "definizione e attributi dell'entità EVENTO"
+  - q: "come si collega una riga di codice alla regola di business che implementa"
     expected:
-      - {doc: glossario_entita, section: "EVENTO"}
+      - {doc: coding_standards, section: "Tracciabilità della Governance"}
 
-  - q: "definizione dell'entità UTENTE del dominio"
+  - q: "posso usare un sinonimo per nominare una variabile o devo seguire il glossario"
     expected:
-      - {doc: glossario_entita, section: "UTENTE"}
+      - {doc: coding_standards, section: "Tracciabilità della Governance"}
 
-  - q: "che cos'è l'AUDIT_LOG, entità di tracciamento"
-    expected:
-      - {doc: glossario_entita, section: "AUDIT_LOG"}
+  # ─────────────────── vibe_coding_workflow.md (METHODOLOGY) ───────────────────
 
-  - q: "macchina a stati e ciclo di vita dell'entità RICHIESTA"
-    expected:
-      - {doc: glossario_entita, section: "RICHIESTA"}
-
-  - q: "quali notifiche vengono generate e da quali trigger"
-    expected:
-      - {doc: glossario_entita, section: "NOTIFICA"}
-
-  - q: "protocollo human-in-the-loop HITL per l'agente"
+  - q: "quando devo fermarmi e chiedere conferma umana prima di scrivere codice"
     expected:
       - {doc: vibe_coding_workflow, section: "Human-in-the-Loop"}
 
-  - q: "standard di scrittura del codice e ottimizzazione dei token"
+  - q: "il silenzio dell'utente vale come approvazione di un checkpoint"
     expected:
-      - {doc: vibe_coding_workflow, section: "Standard di Scrittura"}
+      - {doc: vibe_coding_workflow, section: "Human-in-the-Loop"}
 
-  - q: "gestione delle deviazioni ed edge case quando manca la specifica"
+  - q: "cosa devo fare se trovo un caso non coperto dalle specifiche"
     expected:
       - {doc: vibe_coding_workflow, section: "Gestione delle Deviazioni"}
 
-  - q: "mappatura semantica dei verbi e sinonimi delle azioni"
+  - q: "posso aggiungere una funzionalità non richiesta se mi sembra utile"
     expected:
-      - {doc: intent_synonym_mapping, section: "Mappatura Semantica dei Verbi"}
+      - {doc: vibe_coding_workflow, section: "Gestione delle Deviazioni"}
 
-  - q: "mappatura dei sostantivi e dei concetti di business del dominio"
+  # ─────────────────── spec_graph_rag_ingestion.md (REQUIREMENTS) ───────────────────
+
+  - q: "come vengono segmentati i documenti in chunk durante l'indicizzazione"
     expected:
-      - {doc: intent_synonym_mapping, section: "Sostantivi"}
+      - {doc: spec_graph_rag_ingestion, section: "Chunking"}
 
-  - q: "flusso di autenticazione OAuth2 passo passo con Google"
+  - q: "quali blocchi di testo non devono mai essere spezzati dal chunker"
     expected:
-      - {doc: spec_auth, section: "Flusso Funzionale"}
+      - {doc: spec_graph_rag_ingestion, section: "Chunking"}
 
-  - q: "constraint di database per l'integrità del dominio email aziendale"
+  - q: "come funziona il boost di autorità nel ranking dei risultati"
     expected:
-      - {doc: spec_auth, section: "Note Implementative"}
+      - {doc: spec_graph_rag_ingestion, section: "Authority Boost"}
 
-  - q: "gestione della scadenza e timeout della sessione applicativa a 8 ore"
+  - q: "cosa succede se modifico un documento senza incrementare la versione"
     expected:
-      - {doc: spec_auth, section: "Note Implementative"}
+      - {doc: spec_graph_rag_ingestion, section: "Aggiornamento Incrementale"}
 
-  - q: "scenario BDD di accesso con dominio esterno che viene bloccato"
+  - q: "due documenti possono dichiarare lo stesso node_id nel grafo"
     expected:
-      - {doc: spec_auth, section: "Scenari di Accettazione BDD"}
+      - {doc: spec_graph_rag_ingestion, section: "Aggiornamento Incrementale"}
 
-  # ─────────────────────────────────────────────────────────────────────────────
-  # Ampliamento Epic 0.2 (2026-07-14): copertura delle spec finora non testate +
-  # casi difficili con margine di miglioramento. Ogni caso è stato verificato contro
-  # il retrieval reale prima dell'inserimento. Categorie (b) code-resolving e
-  # (c) archived-must-not-appear NON incluse: il corpus non ha ancora file di codice
-  # indicizzati (../code contiene solo .gitignore) né documenti ARCHIVED/DEPRECATED, e
-  # il formato non supporta matcher negativi. Vedi piano_versione_definitiva.md.
-  # ─────────────────────────────────────────────────────────────────────────────
+  # ─────────────────── api_error_contract.md (NORMS) ───────────────────
 
-  # Copertura spec (verificati pass, rank 1-2):
-  - q: "regole di lock ottimistico contro il double booking dei posti in concorrenza"
+  - q: "che forma deve avere la risposta di errore di un endpoint"
     expected:
-      - {doc: spec_concurrency, section: "Lock e Protezione dal Double-Booking"}
+      - {doc: api_error_contract, section: "Forma dell'Errore"}
 
-  - q: "vincoli sui contatori e integrità cross-entità dei posti"
+  - q: "posso includere lo stack trace nella risposta di errore al client"
     expected:
-      - {doc: spec_concurrency, section: "Contatori e Integrità"}
+      - {doc: api_error_contract, section: "Forma dell'Errore"}
 
-  - q: "regole di transizione tra gli stati ammissibili del workflow"
+  - q: "quale status HTTP usare per un conflitto di concorrenza"
     expected:
-      - {doc: spec_wf_states, section: "Transizione e Workflow"}
+      - {doc: api_error_contract, section: "Status HTTP"}
 
-  - q: "regole di dispacciamento e integrazione dei canali di notifica"
+  - q: "come si gestisce l'idempotenza e la paginazione delle collezioni"
     expected:
-      - {doc: spec_notifications, section: "Dispacciamento ed Integrazione Canali"}
+      - {doc: api_error_contract, section: "Paginazione e Idempotenza"}
 
-  - q: "calcolo dinamico dei posti disponibili mostrati nella dashboard"
-    expected:
-      - {doc: spec_dash, section: "Calcolo Dinamico dei Posti"}
+  # ─────────────────── observability_standards.md (NORMS) ───────────────────
 
-  - q: "protezione contro la CSV injection nell'esportazione dei dati"
+  - q: "differenza fra audit log e log applicativo"
     expected:
-      - {doc: spec_export, section: "CSV Injection Guard"}
+      - {doc: observability_standards, section: "Audit Log"}
 
-  - q: "gestione delle bozze e filtraggio nell'area personale"
+  - q: "come si correlano log tracing e audit di una stessa richiesta"
     expected:
-      - {doc: spec_area_pers, section: "Filtraggio e Gestione Bozze"}
+      - {doc: observability_standards, section: "Log Strutturati e Correlazione"}
 
-  - q: "metriche strutturali e limiti di complessità del codice backend"
+  - q: "quando usare il livello ERROR invece di WARNING nei log"
     expected:
-      - {doc: coding_standards, section: "Metriche Strutturali e Limiti del Codice Backend"}
+      - {doc: observability_standards, section: "Log Strutturati e Correlazione"}
 
-  # Autorità (verificato: la safeguard IRON_MEMORY deve vincere su METHODOLOGY/NORMS):
-  - q: "come scrivere codice sicuro e gestire i segreti in modo vincolante"
+  - q: "come evitare che dati personali finiscano nei log o negli APM esterni"
     expected:
-      - {doc: safeguards_security, section: "Sicurezza del Codice e Segreti"}
+      - {doc: observability_standards, section: "Confine di Privacy"}
 
-  # Casi DIFFICILI con margine (oggi MISS o recuperati solo a rank alto — target degli Epic 2-3):
-  - q: "cosa succede se due utenti prenotano l'ultimo posto nello stesso istante"
+  - q: "quali metriche deve esporre un servizio e come deve funzionare l'health check"
     expected:
-      - {doc: spec_concurrency, section: "Scenari Comportamentali BDD"}
+      - {doc: observability_standards, section: "Metriche, Salute e Alerting"}
 
-  - q: "scenario in cui un manager tenta una transizione di stato non ammessa"
-    expected:
-      - {doc: spec_wf_states, section: "Scenari Comportamentali BDD"}
+  # ─────────────────── testing_strategy.md (NORMS) ───────────────────
 
-  - q: "cosa accade quando una notifica fallisce e finisce nella coda di retry"
+  - q: "che tipi di test servono e in che proporzione"
     expected:
-      - {doc: spec_notifications, section: "Code e Tolleranza ai Guasti"}
+      - {doc: testing_strategy, section: "Tassonomia dei Test"}
+
+  - q: "cosa fare con un test che fallisce in modo intermittente"
+    expected:
+      - {doc: testing_strategy, section: "Tassonomia dei Test"}
+
+  - q: "come si verifica che un safeguard sia davvero applicato"
+    expected:
+      - {doc: testing_strategy, section: "Tracciabilità fra Regole e Test"}
+
+  - q: "come si testa correttamente un percorso protetto da lock pessimistico"
+    expected:
+      - {doc: testing_strategy, section: "Tracciabilità fra Regole e Test"}
+
+  - q: "qual è la soglia minima di copertura dei test"
+    expected:
+      - {doc: testing_strategy, section: "Gate di Qualità"}
+
+  # ─────────────────── ui_ux_brand_directives.md (NORMS) ───────────────────
+
+  - q: "come deve essere l'aspetto grafico rispetto all'identità visiva aziendale"
+    expected:
+      - {doc: ui_ux_brand_directives, section: "Principio di Coerenza"}
+
+  - q: "posso scrivere un colore direttamente nel componente o devo usare i design token"
+    expected:
+      - {doc: ui_ux_brand_directives, section: "Design Token"}
+
+  - q: "quale rapporto di contrasto devono rispettare i colori dell'interfaccia"
+    expected:
+      - {doc: ui_ux_brand_directives, section: "Design Token"}
+
+  # ─────────────────── definition_of_done.md (METADATA) ───────────────────
+
+  - q: "quando una funzionalità può essere considerata completata"
+    expected:
+      - {doc: definition_of_done, section: "Livello Funzionalità"}
+
+  - q: "cosa va verificato prima del rilascio e del sign-off finale"
+    expected:
+      - {doc: definition_of_done, section: "Livello Rilascio"}
+
+  - q: "posso saltare una voce della checklist se non si applica al mio caso"
+    expected:
+      - {doc: definition_of_done, section: "Principio"}
+
+  # ─────────────────── policy_versionamento_documentale.md (METADATA) ───────────────────
+
+  - q: "come si versionano i documenti della knowledge base"
+    expected:
+      - {doc: policy_versionamento_documentale, section: "Regole di Gestione delle Versioni"}
+
+  - q: "quali campi sono obbligatori nel frontmatter di un documento"
+    expected:
+      - {doc: policy_versionamento_documentale, section: "Contratto del Frontmatter"}
+
+  - q: "quando serve incrementare la major invece della minor di un documento"
+    expected:
+      - {doc: policy_versionamento_documentale, section: "Regole di Gestione delle Versioni"}
+
+  # ─────────────────── README.md (indice della baseline) ───────────────────
+
+  - q: "quali documenti compongono la baseline e come si avvia un nuovo progetto"
+    expected:
+      - {doc: README, section: "Come si avvia un nuovo progetto"}
+
+  - q: "dove sono definiti i segnaposto da compilare per riusare la baseline"
+    expected:
+      - {doc: README, section: "Convenzione dei segnaposto"}
+
+  # ─────────── casi di disambiguazione (concetti presenti in più documenti) ───────────
+  # Verificano che il ranking scelga la fonte NORMATIVA giusta e non un rimando laterale.
+
+  - q: "cosa non deve mai finire committato in un repository git"
+    expected:
+      - {doc: safeguards_security, section: "Sicurezza del Codice"}
+
+  - q: "il correlation id va propagato anche sui record di audit"
+    expected:
+      - {doc: observability_standards, section: "Log Strutturati e Correlazione"}

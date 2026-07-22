@@ -106,10 +106,20 @@ authority:
   default_weight: 0.7       # peso delle classi non elencate (es. REQUIREMENTS/spec) — CALIBRATO 2026-07-14 (era 0.4)
   archived_decay: 0.3       # moltiplicatore del peso per status ARCHIVED/DEPRECATED/HISTORICAL/OBSOLETE
   boost_alpha: 0.1          # forza del boost di autorità: mult = (1 - alpha) + alpha * peso  (alpha=0 → autorità ignorata) — CALIBRATO 2026-07-14 (era 0.4)
-  # Calibrazione (eval/calibrate_authority.py, 5-fold CV su golden set 34 casi, 2026-07-14):
-  # default_weight 0.4→0.7 e boost_alpha 0.4→0.1 alzano recall@10 held-out da 0.914 a 0.971 (+5.7%).
-  # Il boost di autorità hand-set era troppo forte: sovra-promuoveva i safeguard IRON_MEMORY generici
-  # rispetto alle spec REQUIREMENTS specifiche attese. Ricalibrare SEMPRE con split di validazione.
+  # Calibrazione storica (5-fold CV su golden set 34 casi, corpus dominio eventi, 2026-07-14):
+  # default_weight 0.4→0.7 e boost_alpha 0.4→0.1 alzarono recall@10 held-out da 0.914 a 0.971.
+  # Il boost hand-set era troppo forte: sovra-promuoveva i safeguard IRON_MEMORY generici rispetto
+  # alle spec REQUIREMENTS specifiche attese. I valori qui sotto restano quelli di quella corsa.
+  #
+  # RI-CALIBRAZIONE 2026-07-22 sul corpus cross-progetto (11 doc / 91 chunk, golden set 49 casi):
+  # esito NON_APPLICARE, guadagno di validazione +0.000. Nota metodologica: a k=10 e k=5 la recall
+  # è SATURA a 1.000 su tutta la griglia — a quei k il risultato non è informativo, nessuna
+  # combinazione è distinguibile. La misura utile è a k=2 (recall 0.900 held-out), dove il confronto
+  # discrimina: lì anche alpha=0.0, cioè autorità del tutto ignorata, pareggia col default.
+  # Interpretazione: il corpus attuale è composto quasi solo da norme ad alta autorità e senza
+  # contrasto di classe, quindi il parametro oggi è di fatto inerte. Tornerà a contare quando il
+  # corpus rimescolerà classi diverse (spec di dominio, doc importati a 0.70, materiale archiviato).
+  # Ricalibrare SEMPRE con split di validazione, e SEMPRE a un k dove la metrica non sia satura.
 
 # Eval-gate continuo (core/eval_gate.py): prima di promuovere una nuova versione dell'indice
 # (blue/green), misura la recall del retrieval sul golden set. Se scende sotto la soglia, blocca

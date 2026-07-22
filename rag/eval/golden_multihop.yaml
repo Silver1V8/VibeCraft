@@ -25,333 +25,283 @@
 #                               (node cercato sia tra gli archi out.to sia in.from)
 #                B "riuscito" (exact-node-match) = intent uguale + count uguale (se
 #                dichiarato) + tutti i nodes presenti + tutte le relations presenti.
-#   evidence   : perché la risposta è quella — percorso/archi nel grafo reale
-#                (verificato su GET /api/graph/all, snapshot v20260721T084111,
-#                566 nodi / 879 archi / 174 chunk).
+#   evidence   : perché la risposta è quella — percorso/archi nel grafo reale.
 #   answer_note: sintesi attesa della risposta corretta.
 #
-# Mix: 6 structural + 8 multihop (tutti gli expected multihop spandono 2+ documenti
-# collegati da archi tipizzati o entità condivise: non risolvibili da un singolo chunk).
-# Baseline registrate al 2026-07-21 (probe manuale pre-scrittura): vedi `evidence`.
+# ─────────────────────────────────────────────────────────────────────────────────────
+# RISCRITTO 2026-07-22 sul corpus cross-progetto.
+#
+# La versione precedente misurava il trigger M1→M2 sullo snapshot v20260721T084111
+# (566 nodi / 879 archi / 174 chunk) del corpus "prenotazione eventi aziendali": tutti e
+# 14 i casi puntavano a documenti poi rimossi. Quella misura ha già esaurito il suo scopo
+# — il trigger M2 è scattato e il router deterministico è stato implementato — quindi
+# questo file NON prova a ricostruirla: riparte come strumento di regressione sul corpus
+# attuale. Le baseline A/B storiche restano in eval/results/multihop_20260721_*.json e
+# NON sono confrontabili con le corse su questo file.
+#
+# Grafo di riferimento: snapshot v20260722T103724 — 226 nodi / 332 archi / 91 chunk /
+# 11 documenti. Tutti i valori in `expected.graph` sono stati MISURATI eseguendo
+# core.graph_ops.graph_query su questo snapshot, non stimati: 6/6 attese strutturali
+# verificate al 2026-07-22.
+#
+# BASELINE A MISURATA (retrieval vettoriale k=10, alpha=0.1 default_weight=0.7, stesso
+# snapshot): structural recall@10 = 0.924 (n=6) — multihop recall@10 = 0.875 (n=8).
+# I due deficit sono quelli attesi e sono il motivo per cui questo file esiste:
+#   - "quali documenti esistono nel corpus?" → 6 matcher su 11 in top-10. Il limite è
+#     strutturale, non di ranking: 11 documenti non entrano in 10 posizioni. Nessuna
+#     calibrazione può risolverlo, solo il router deterministico.
+#   - le 3 catene che spandono TRE documenti si fermano a 2 su 3. Le catene a due
+#     documenti passano tutte.
+# A differenza del golden_set single-hop — dove recall@10 è satura a 1.000 e non
+# distingue nulla — qui la metrica discrimina, quindi è questo il file da guardare per
+# valutare regressioni di ranking.
+#
+# Nota di progettazione sui `count`: dichiarato solo dove è semanticamente stabile
+# (l'enumerazione dei documenti). Per relazioni/impatto è deliberatamente OMESSO: quei
+# conteggi cambiano a ogni modifica di un documento qualsiasi, e un golden-set che
+# fallisce per una virgola aggiunta altrove misura il rumore, non la regressione. Al suo
+# posto si asseriscono `relations`/`nodes` specifici, che restano veri finché il legame
+# esiste — che è esattamente ciò che il caso vuole proteggere.
+# ─────────────────────────────────────────────────────────────────────────────────────
 cases:
   # ───────────────────────────── STRUCTURAL ─────────────────────────────
 
   - q: "quali documenti esistono nel corpus?"
     kind: structural
     expected:
-      retrieval:  # l'enumerazione completa: 26 documenti (top-10 può coprirne al più 10)
-        - {doc: "00_meta_governance/change_log.md"}
-        - {doc: "00_meta_governance/glossario_entita.md"}
-        - {doc: "00_meta_governance/matrice_permessi.md"}
+      retrieval:  # enumerazione completa: 11 documenti (top-10 può coprirne al più 10)
+        - {doc: "00_meta_governance/definition_of_done.md"}
+        - {doc: "00_meta_governance/policy_versionamento_documentale.md"}
         - {doc: "00_meta_governance/safeguards_security.md"}
+        - {doc: "01_architecture_norms/api_error_contract.md"}
         - {doc: "01_architecture_norms/coding_standards.md"}
-        - {doc: "01_architecture_norms/spec_tech_backend.md"}
-        - {doc: "01_architecture_norms/spec_tech_frontend.md"}
-        - {doc: "01_architecture_norms/spec_tech_logic_agent.md"}
-        - {doc: "02_specs_normative/spec_analytics_3.5.md"}
-        - {doc: "02_specs_normative/spec_area_pers_1.5.md"}
-        - {doc: "02_specs_normative/spec_auth_1.1.md"}
-        - {doc: "02_specs_normative/spec_concurrency_2.3.md"}
-        - {doc: "02_specs_normative/spec_crud_admin_3.2.md"}
-        - {doc: "02_specs_normative/spec_dash_1.2.md"}
-        - {doc: "02_specs_normative/spec_det_1.3.md"}
-        - {doc: "02_specs_normative/spec_export_3.4.md"}
-        - {doc: "02_specs_normative/spec_form_1.4.md"}
+        - {doc: "01_architecture_norms/observability_standards.md"}
+        - {doc: "01_architecture_norms/testing_strategy.md"}
+        - {doc: "01_architecture_norms/ui_ux_brand_directives.md"}
         - {doc: "02_specs_normative/spec_graph_rag_ingestion.md"}
-        - {doc: "02_specs_normative/spec_mgr_panel_2.2.md"}
-        - {doc: "02_specs_normative/spec_monitor_admin_3.3.md"}
-        - {doc: "02_specs_normative/spec_notifications_2.4.md"}
-        - {doc: "02_specs_normative/spec_wf_states_2.1.md"}
-        - {doc: "03_changes_historical/form-eventi-canvas-review.md"}
-        - {doc: "04_knowledge_informative/graph_rag_ingestion_strategy.md"}
-        - {doc: "04_knowledge_informative/intent_synonym_mapping.md"}
         - {doc: "04_knowledge_informative/vibe_coding_workflow.md"}
+        - {doc: "README.md"}
       graph:
-        intent: "documenti"
-        count: 26
+        intent: documenti
+        count: 11
         nodes:
           - "00_meta_governance/safeguards_security.md"
-          - "00_meta_governance/glossario_entita.md"
-          - "02_specs_normative/spec_auth_1.1.md"
+          - "01_architecture_norms/api_error_contract.md"
           - "04_knowledge_informative/vibe_coding_workflow.md"
-    evidence: >
-      Il grafo ha esattamente 26 nodi type=document (GET /api/graph/all). Un'enumerazione
-      è una proprietà GLOBALE del grafo: nessun chunk la contiene, e k=10 non può coprire
-      26 documenti nemmeno in teoria.
-    answer_note: "Elenco esatto dei 26 documenti indicizzati, per id (path)."
+          - "README.md"
+    evidence: >-
+      by_type("document") sul grafo restituisce 11 nodi. Il retrieval vettoriale non può
+      enumerare: top-10 copre al più 10 degli 11 documenti, quindi A è strutturalmente
+      incapace di recall 1.0 su questo caso. È il caso-tipo che motiva il router.
+    answer_note: "Undici documenti, elencati per percorso."
 
-  - q: "quali entità del dominio esistono?"
-    kind: structural
-    expected:
-      retrieval:  # proxy: le sezioni del glossario che elencano/definiscono le entità core
-        - {doc: glossario_entita, section: "Indice delle Entit"}
-        - {doc: glossario_entita, section: "EVENTO"}
-        - {doc: glossario_entita, section: "UTENTE"}
-        - {doc: glossario_entita, section: "RICHIESTA"}
-        - {doc: glossario_entita, section: "NOTIFICA"}
-        - {doc: glossario_entita, section: "AUDIT_LOG"}
-      graph:
-        intent: "entità"
-        count: 196
-        nodes:  # oltre alle 5 entità ERD, l'enumerazione del grafo include regole e safeguard
-          - "entity::EVENTO"
-          - "entity::UTENTE"
-          - "entity::RICHIESTA"
-          - "entity::NOTIFICA"
-          - "entity::AUDIT_LOG"
-          - "REGOLA-CONC-01"
-          - "SAFEGUARD-SEC-04"
-    evidence: >
-      196 nodi type=entity nel grafo: le 5 entità ERD del glossario più regole
-      (REGOLA-*), safeguard (SAFEGUARD-*) ed entità citate estratte da TUTTI i documenti.
-      Nessun singolo chunk elenca le 196: il glossario ne definisce 5, le regole vivono
-      sparse in più documenti.
-    answer_note: >
-      196 entità: EVENTO/UTENTE/RICHIESTA/NOTIFICA/AUDIT_LOG (ERD del glossario) più le
-      regole e i safeguard citati trasversalmente (REGOLA-*, SAFEGUARD-*, moduli, parti).
-
-  - q: "quali relazioni ha la specifica di autenticazione?"
-    kind: structural
-    target: "02_specs_normative/spec_auth_1.1.md"
-    expected:
-      retrieval:  # i 5 documenti coinvolti negli archi tipizzati di spec_auth
-        - {doc: spec_auth}
-        - {doc: safeguards_security}
-        - {doc: glossario_entita}
-        - {doc: matrice_permessi}
-        - {doc: intent_synonym_mapping}
-      graph:
-        intent: "relazioni"
-        count: 42
-        relations:
-          - {relation: "EREDITA_VINCOLI", node: "00_meta_governance/safeguards_security.md"}
-          - {relation: "OPERA_SU_ENTITA", node: "00_meta_governance/glossario_entita.md"}
-          - {relation: "AUTHORIZZAZIONE_DA", node: "00_meta_governance/matrice_permessi.md"}
-          - {relation: "TRADOTTO_DA", node: "04_knowledge_informative/intent_synonym_mapping.md"}
-          - {relation: "PART_OF", node: "02_specs_normative/spec_auth_1.1.md#02-1-descrizione-del-flusso-funzion"}
-    evidence: >
-      Archi out di spec_auth_1.1.md nel grafo: EREDITA_VINCOLI -> safeguards_security.md,
-      OPERA_SU_ENTITA -> glossario_entita.md, AUTHORIZZAZIONE_DA -> matrice_permessi.md,
-      TRADOTTO_DA -> intent_synonym_mapping.md (più MENTIONS verso 26 entità e i gemelli
-      frontmatter *-v1.x); archi in: PART_OF dalle sue 5 sezioni. Totale 42.
-    answer_note: >
-      spec_auth eredita i vincoli dalle safeguard, opera sulle entità del glossario, è
-      autorizzata dalla matrice permessi, tradotta dal synonym mapping; 5 sezioni PART_OF.
-
-  - q: "cosa viene impattato se modifico le safeguard di sicurezza?"
+  - q: "quali sono le relazioni di safeguards_security.md?"
     kind: structural
     target: "00_meta_governance/safeguards_security.md"
     expected:
-      retrieval:  # i documenti nel primo anello di impatto (dovrebbero comparire per rispondere)
-        - {doc: spec_auth}
-        - {doc: spec_concurrency}
-        - {doc: spec_wf_states}
-        - {doc: spec_notifications}
-        - {doc: spec_export}
-        - {doc: glossario_entita}
-        - {doc: matrice_permessi}
-      graph:
-        intent: "impatto"
-        count: 349
-        nodes:  # tutti a 1 hop dal centro (arco tipizzato entrante verso le safeguard)
-          - "02_specs_normative/spec_auth_1.1.md"
-          - "02_specs_normative/spec_concurrency_2.3.md"
-          - "02_specs_normative/spec_wf_states_2.1.md"
-          - "02_specs_normative/spec_notifications_2.4.md"
-          - "02_specs_normative/spec_export_3.4.md"
-          - "00_meta_governance/glossario_entita.md"
-          - "00_meta_governance/matrice_permessi.md"
-    evidence: >
-      safeguards_security.md è il nodo più connesso della governance: 14 documenti gli
-      puntano con EREDITA_VINCOLI, glossario con DIPENDE_DA, matrice con INTEGRA,
-      vibe_coding_workflow con INTEGRA, intent_synonym con APPLICA_TUTELATE_DA. BFS a
-      2 livelli: anelli [1, 76, 273], 349 nodi impattati oltre al centro.
-    answer_note: >
-      Impatto a cascata su quasi tutto il corpus: 76 nodi a 1 hop (tutte le spec che
-      ereditano i vincoli, glossario, matrice, workflow) e 273 a 2 hop; 349 nodi totali.
-
-  - q: "dammi i nodi adiacenti alla matrice dei permessi"
-    kind: structural
-    target: "00_meta_governance/matrice_permessi.md"
-    expected:
-      retrieval:  # i vicini documento della matrice nel grafo
-        - {doc: matrice_permessi}
-        - {doc: glossario_entita}
+      retrieval:
         - {doc: safeguards_security}
-        - {doc: spec_auth}
-        - {doc: intent_synonym_mapping}
       graph:
-        intent: "vicini"
-        count: 78
-        nodes:
-          - "00_meta_governance/glossario_entita.md"
-          - "00_meta_governance/safeguards_security.md"
-          - "02_specs_normative/spec_auth_1.1.md"
-          - "04_knowledge_informative/intent_synonym_mapping.md"
-          - "MIDDLEWARE_AUTORIZZAZIONE"
-          - "00_meta_governance/matrice_permessi.md#03-2-matrice-dei-permessi"
-    evidence: >
-      Vicini diretti di matrice_permessi.md nel grafo: REFERENZIA -> glossario_entita.md,
-      INTEGRA -> safeguards_security.md, AUTHORIZZAZIONE_DA <- spec_auth_1.1.md,
-      REFERENZIA <- intent_synonym_mapping.md, IMPLEMENTATO_DA -> MIDDLEWARE_AUTORIZZAZIONE,
-      PART_OF <- 6 sezioni, più le entità MENTIONS. 78 vicini totali.
-    answer_note: >
-      78 nodi adiacenti: i 4 documenti collegati da archi tipizzati (glossario, safeguard,
-      spec_auth, synonym mapping), il middleware di autorizzazione, le 6 sezioni e le
-      entità menzionate.
-
-  - q: "quali relazioni ha lo standard di codifica?"
-    kind: structural
-    target: "01_architecture_norms/coding_standards.md"
-    expected:
-      retrieval:  # per rispondere servono anche le 3 spec tecniche che DERIVANO dallo standard
-        - {doc: coding_standards}
-        - {doc: spec_tech_backend}
-        - {doc: spec_tech_logic_agent}
-        - {doc: spec_tech_frontend}
-      graph:
-        intent: "relazioni"
-        count: 17
+        intent: relazioni
         relations:
-          - {relation: "DERIVA_DA", node: "01_architecture_norms/spec_tech_backend.md"}
-          - {relation: "DERIVA_DA", node: "01_architecture_norms/spec_tech_logic_agent.md"}
-          - {relation: "DERIVA_DA", node: "01_architecture_norms/spec_tech_frontend.md"}
-          - {relation: "PART_OF", node: "01_architecture_norms/coding_standards.md#03-2-metriche-strutturali-e-limiti"}
-    evidence: >
-      Archi in di coding_standards.md: DERIVA_DA <- spec_tech_backend.md,
-      spec_tech_logic_agent.md, spec_tech_frontend.md (le tre spec tecniche derivano le
-      loro norme dallo standard) e PART_OF <- 6 sezioni; out: MENTIONS verso le regole
-      REGOLA-CLEAN-* e DERIVA_DA -> ANALISI_FUNZIONALE_VIBE_CODING. Totale 17.
-    answer_note: >
-      Lo standard di codifica è la sorgente normativa delle 3 spec tecniche
-      (backend/frontend/logic-agent via DERIVA_DA) e cita le regole REGOLA-CLEAN-*.
+          - {relation: EREDITA_VINCOLI, node: "01_architecture_norms/api_error_contract.md"}
+          - {relation: EREDITA_VINCOLI, node: "01_architecture_norms/observability_standards.md"}
+          - {relation: EREDITA_VINCOLI, node: "01_architecture_norms/testing_strategy.md"}
+          - {relation: EREDITA_VINCOLI, node: "02_specs_normative/spec_graph_rag_ingestion.md"}
+          - {relation: CONNESSA_A, node: "01_architecture_norms/coding_standards.md"}
+    evidence: >-
+      Misurato: 39 archi totali (22 out / 17 in). I quattro EREDITA_VINCOLI entranti sono
+      le norme che dichiarano di ereditare gli invarianti dei safeguard. Il retrieval
+      vettoriale trova il documento ma non sa dire CHI dipende da lui: la direzione
+      dell'arco non è recuperabile da un chunk.
+    answer_note: >-
+      safeguards_security è ereditato da api_error_contract, observability_standards,
+      testing_strategy e spec_graph_rag_ingestion, ed è connesso a coding_standards e
+      vibe_coding_workflow.
+
+  - q: "cosa impatta la modifica di safeguards_security.md?"
+    kind: structural
+    target: "00_meta_governance/safeguards_security.md"
+    expected:
+      retrieval:
+        - {doc: safeguards_security}
+      graph:
+        intent: impatto
+        nodes:
+          - "01_architecture_norms/api_error_contract.md"
+          - "01_architecture_norms/observability_standards.md"
+          - "01_architecture_norms/testing_strategy.md"
+    evidence: >-
+      Misurato: 186 nodi raggiunti in 2 anelli (37 al primo, 149 al secondo). Il primo
+      anello contiene le sezioni proprie più i documenti direttamente collegati. È la
+      query di Impact Ripple: nessun singolo chunk la contiene.
+    answer_note: >-
+      La modifica si propaga a tutte le norme che ereditano i suoi invarianti, in primis
+      api_error_contract, observability_standards e testing_strategy.
+
+  - q: "quali relazioni ha api_error_contract.md?"
+    kind: structural
+    target: "01_architecture_norms/api_error_contract.md"
+    expected:
+      retrieval:
+        - {doc: api_error_contract}
+      graph:
+        intent: relazioni
+        relations:
+          - {relation: EREDITA_VINCOLI, node: "00_meta_governance/safeguards_security.md"}
+          - {relation: CONNESSA_A, node: "01_architecture_norms/observability_standards.md"}
+          - {relation: CONNESSA_A, node: "01_architecture_norms/coding_standards.md"}
+    evidence: >-
+      Misurato: 33 archi (23 out / 10 in). Il contratto degli errori eredita dai safeguard
+      (gli errori nominati vengono da lì) ed è bidirezionalmente connesso a observability
+      (il correlationId compare sia nel payload di errore sia nei log).
+    answer_note: "Eredita dai safeguard; connesso a observability_standards e coding_standards."
+
+  - q: "relazioni di testing_strategy.md"
+    kind: structural
+    target: "01_architecture_norms/testing_strategy.md"
+    expected:
+      retrieval:
+        - {doc: testing_strategy}
+      graph:
+        intent: relazioni
+        relations:
+          - {relation: EREDITA_VINCOLI, node: "00_meta_governance/safeguards_security.md"}
+          - {relation: CONNESSA_A, node: "00_meta_governance/definition_of_done.md"}
+          - {relation: CONNESSA_A, node: "04_knowledge_informative/vibe_coding_workflow.md"}
+    evidence: >-
+      Misurato: 33 archi (23 out / 10 in). La strategia di test eredita dai safeguard
+      (deve dimostrarne l'enforcement) ed è connessa alla Definition of Done, che ne
+      consuma le voci nella checklist di livello funzionalità.
+    answer_note: "Eredita dai safeguard; connessa a definition_of_done e vibe_coding_workflow."
+
+  - q: "cosa impatta observability_standards.md?"
+    kind: structural
+    target: "01_architecture_norms/observability_standards.md"
+    expected:
+      retrieval:
+        - {doc: observability_standards}
+      graph:
+        intent: impatto
+        nodes:
+          - "00_meta_governance/safeguards_security.md"
+          - "01_architecture_norms/api_error_contract.md"
+    evidence: >-
+      Misurato: 82 nodi in 2 anelli (31 / 51). Il primo anello raggiunge già safeguards
+      (da cui eredita il vincolo PII) e api_error_contract (con cui condivide il
+      correlationId).
+    answer_note: "Impatta il contratto API e tocca il perimetro dei safeguard sulla privacy."
 
   # ───────────────────────────── MULTIHOP ─────────────────────────────
 
-  - q: "quali vincoli di sicurezza eredita la spec di autenticazione e cosa impongono in concreto?"
+  - q: "dove finisce il correlation id di una richiesta e chi lo impone?"
     kind: multihop
     expected:
       retrieval:
-        - {doc: spec_auth, section: "Note Implementative"}
-        - {doc: safeguards_security, section: "Sicurezza Accessi"}
-    evidence: >
-      Percorso: spec_auth_1.1.md -[EREDITA_VINCOLI]-> safeguards_security.md. La domanda
-      chiede l'UNIONE: quali vincoli (arco nel grafo + note implementative della spec) e
-      cosa impongono (testo della Categoria 1 - Sicurezza Accessi e Identità delle
-      safeguard). Nessuno dei due documenti da solo risponde a entrambe le metà.
-    answer_note: >
-      spec_auth eredita le safeguard di Categoria 1 (SAFEGUARD-SEC-01/02/03: OAuth2 con
-      dominio aziendale, sessione limitata, middleware di autorizzazione) e le
-      concretizza nelle sue note implementative di backend.
+        - {doc: observability_standards, section: "Log Strutturati e Correlazione"}
+        - {doc: api_error_contract, section: "Forma dell'Errore"}
+        - {doc: safeguards_security, section: "Immutabilità"}
+    evidence: >-
+      Tre documenti: OBS-03 impone la propagazione end-to-end, API-01 ne impone la
+      presenza nel payload di errore, AUD-02 lo richiede nel record di audit. Nessun
+      chunk singolo li contiene tutti.
+    answer_note: >-
+      Log, span di tracing, messaggi su coda, record di audit e risposte di errore: la
+      propagazione è imposta da REGOLA-OBS-03, il payload di errore da REGOLA-API-01.
 
-  - q: "chi ha il permesso di creare un evento e quali sono gli attributi dell'entità EVENTO?"
+  - q: "quali vincoli valgono sui dati personali fra log, test e chiamate a LLM esterni?"
     kind: multihop
     expected:
       retrieval:
-        - {doc: glossario_entita, section: "EVENTO"}
-        - {doc: matrice_permessi, section: "Matrice dei Permessi"}
-    evidence: >
-      Percorso: matrice_permessi.md -[REFERENZIA]-> glossario_entita.md. La riga
-      "creare evento" vive nella Matrice dei Permessi (chi può), gli attributi
-      dell'entità EVENTO nel glossario (cosa è). Probe 2026-07-21: il retrieval trova il
-      glossario (rank 1) ma NON la sezione "2. Matrice dei Permessi" in top-10.
-    answer_note: >
-      La creazione di un evento spetta ai ruoli abilitati nella matrice (riga CREATE
-      evento); l'entità EVENTO è definita nel glossario con i suoi attributi (posti,
-      stato, date...). Risposta completa = matrice + glossario.
+        - {doc: safeguards_security, section: "Privacy e Confine"}
+        - {doc: observability_standards, section: "Confine di Privacy"}
+        - {doc: testing_strategy, section: "Gate di Qualità"}
+    evidence: >-
+      SAFEGUARD-SEC-04 fissa il confine, REGOLA-OBS-06 lo realizza con il sanitizer nel
+      logger, REGOLA-TEST-09 lo estende ai dati di test. Catena su tre documenti distinti.
+    answer_note: >-
+      Il confine local-first di SEC-04 vale ovunque: sanitizer nel logger, scrubbing sugli
+      APM, dati di test sintetici e nessun PII reale nel contesto inviato a un LLM remoto.
 
-  - q: "quando una richiesta viene approvata, quale transizione di stato avviene e quale notifica viene dispacciata?"
+  - q: "come si implementa e come si verifica la protezione sull'ultima unità disponibile?"
     kind: multihop
     expected:
       retrieval:
-        - {doc: spec_wf_states, section: "Transizione e Workflow"}
-        - {doc: spec_notifications, section: "Dispacciamento ed Integrazione Canali"}
-    evidence: >
-      Percorso: spec_wf_states_2.1.md -[VINCOLA]-> entity::RICHIESTA <-[VINCOLA]-
-      spec_notifications_2.4.md (entità condivisa; entrambe EREDITA_VINCOLI ->
-      safeguards). La transizione APPROVATA sta nel workflow, il dispacciamento della
-      notifica corrispondente nella spec notifiche. Probe 2026-07-21: top-10 tutto su
-      wf_states/glossario, spec_notifications ASSENTE.
-    answer_note: >
-      Approvazione = transizione di stato della RICHIESTA secondo spec_wf_states; al
-      cambio di stato spec_notifications impone il dispacciamento della notifica al
-      richiedente sui canali integrati. Servono entrambe le spec.
-
-  - q: "come si previene il double-booking dei posti e quale safeguard di concorrenza lo impone a livello di governance?"
-    kind: multihop
-    expected:
-      retrieval:
-        - {doc: spec_concurrency, section: "Lock e Protezione dal Double-Booking"}
         - {doc: safeguards_security, section: "Concorrenza Critica"}
-    evidence: >
-      Percorso: spec_concurrency_2.3.md -[EREDITA_VINCOLI]-> safeguards_security.md;
-      entità condivisa REGOLA-CONC-01 (MENTIONS da entrambi). Il "come" (lock ottimistico)
-      è nella spec, il "quale safeguard lo impone" (Categoria 2 - Concorrenza Critica,
-      IRON_MEMORY) nella governance.
-    answer_note: >
-      Lock ottimistico/transazionale sui posti (spec_concurrency, REGOLA-CONC-*) imposto
-      a monte dalla safeguard di Categoria 2 - Concorrenza Critica (autorità IRON_MEMORY).
+        - {doc: testing_strategy, section: "Tracciabilità fra Regole e Test"}
+        - {doc: api_error_contract, section: "Status HTTP"}
+    evidence: >-
+      TXN-01 impone il lock, TXN-04 impone l'errore deterministico al perdente, TEST-04
+      impone che la verifica usi transazioni realmente parallele, API-04 fissa il 409.
+      Implementazione, verifica e contratto stanno in tre documenti diversi.
+    answer_note: >-
+      Lock pessimistico prima della lettura, decremento e audit nella stessa transazione,
+      409 RESOURCE_EXHAUSTED al perdente, test con transazioni davvero concorrenti.
 
-  - q: "quali sinonimi esprimono l'azione di approvare e quale ruolo ha il permesso di approvare una richiesta?"
+  - q: "qual è la differenza fra il giornale di audit e i log applicativi?"
     kind: multihop
     expected:
       retrieval:
-        - {doc: intent_synonym_mapping, section: "Mappatura Semantica dei Verbi"}
-        - {doc: matrice_permessi, section: "Matrice dei Permessi"}
-    evidence: >
-      Percorso: intent_synonym_mapping.md -[REFERENZIA]-> matrice_permessi.md. I sinonimi
-      del verbo "approvare" stanno nella mappatura dei verbi, il ruolo col permesso di
-      APPROVE nella matrice. Probe 2026-07-21: la sezione "1. Mappatura Semantica dei
-      Verbi" NON compare in top-10 (compaiono solo sostantivi ed esempi).
-    answer_note: >
-      I sinonimi di "approvare" (autorizzare, dare l'ok...) mappano sull'intent APPROVE
-      (synonym mapping); il permesso di APPROVE sulla RICHIESTA spetta al ruolo Manager
-      (matrice dei permessi). Risposta completa = entrambi i documenti.
+        - {doc: observability_standards, section: "Audit Log"}
+        - {doc: safeguards_security, section: "Immutabilità"}
+    evidence: >-
+      REGOLA-OBS-01 stabilisce che sono sistemi distinti e non sostituibili; i requisiti
+      opposti (scrittura sincrona e perdita mai ammessa) vengono da AUD-01 e AUD-02.
+    answer_note: >-
+      L'audit è append-only, sincrono nella transazione e non può perdersi; il log
+      applicativo è asincrono, diagnostico e tollera perdita. Nessuno dei due sostituisce
+      l'altro.
 
-  - q: "il calcolo dei posti disponibili in dashboard deve rispettare quali vincoli sui contatori definiti dalla spec di concorrenza?"
+  - q: "come faccio a sapere se una funzionalità è davvero finita?"
     kind: multihop
     expected:
       retrieval:
-        - {doc: spec_dash, section: "Calcolo Dinamico dei Posti"}
-        - {doc: spec_concurrency, section: "Contatori e Integrità"}
-    evidence: >
-      Percorso: spec_dash_1.2.md -[VINCOLA]-> entity::EVENTO <-[VINCOLA]-
-      spec_concurrency_2.3.md (entità condivisa; entrambe EREDITA_VINCOLI -> safeguards).
-      Il calcolo mostrato in dashboard è definito in spec_dash, i vincoli di integrità dei
-      contatori che deve rispettare in spec_concurrency.
-    answer_note: >
-      La dashboard calcola i posti disponibili dinamicamente (spec_dash) ma i contatori
-      sottostanti sono vincolati dalle regole di integrità cross-entità di
-      spec_concurrency: la risposta lega le due spec attraverso l'entità EVENTO.
+        - {doc: definition_of_done, section: "Livello Funzionalità"}
+        - {doc: vibe_coding_workflow, section: "Human-in-the-Loop"}
+    evidence: >-
+      REGOLA-HITL-05 blocca il sign-off in attesa della checklist di conformità, che vive
+      in definition_of_done. La risposta richiede entrambi: il checkpoint e il suo contenuto.
+    answer_note: >-
+      Quando la checklist di livello funzionalità è soddisfatta con evidenze verificabili
+      e il sign-off di HITL-05 è stato dato in modo esplicito.
 
-  - q: "chi può esportare i dati in CSV e cosa deve registrare l'AUDIT_LOG durante l'export?"
+  - q: "come si collega una regola documentata al codice che la implementa e al test che la verifica?"
     kind: multihop
     expected:
       retrieval:
-        - {doc: spec_export, section: "Audit"}
-        - {doc: matrice_permessi, section: "Profili degli Attori"}
-        - {doc: glossario_entita, section: "AUDIT_LOG"}
-    evidence: >
-      Percorso: spec_export_3.4.md -[MENTIONS]-> REGOLA-EXP-01 <-[MENTIONS]-
-      matrice_permessi.md (entità condivisa) e spec_export -[VINCOLA]-> entity::RICHIESTA;
-      AUDIT_LOG definito nel glossario e vincolato da spec_monitor/spec_export. Chi può
-      (matrice/profili), cosa registra (glossario AUDIT_LOG), vincoli operativi (spec_export §3).
-    answer_note: >
-      L'export CSV è riservato ai ruoli amministrativi (matrice permessi); ogni export
-      scrive una entry AUDIT_LOG (entità del glossario) secondo i vincoli operativi e
-      audit della spec_export. Tre documenti collegati da regole/entità condivise.
+        - {doc: coding_standards, section: "Tracciabilità della Governance"}
+        - {doc: testing_strategy, section: "Tracciabilità fra Regole e Test"}
+    evidence: >-
+      REGOLA-CLEAN-03 impone il tag nel docstring per lo scanner AST; REGOLA-TEST-03
+      impone che anche il test dichiari il tag della norma verificata. La catena
+      regola→codice→test attraversa due documenti.
+    answer_note: >-
+      Con il tag [REGOLA-*] nel docstring della funzione e nel test corrispondente: è
+      l'arco IMPLEMENTS del grafo a chiudere la tracciabilità bidirezionale.
 
-  - q: "da quali standard di codifica derivano le spec tecniche del backend e quali metriche strutturali impongono?"
+  - q: "cosa devo fare quando modifico un documento della knowledge base?"
     kind: multihop
     expected:
       retrieval:
-        - {doc: spec_tech_backend, section: "Direzione Architetturale"}
+        - {doc: policy_versionamento_documentale, section: "Regole di Gestione delle Versioni"}
+        - {doc: spec_graph_rag_ingestion, section: "Aggiornamento Incrementale"}
+    evidence: >-
+      REGOLA-DEV-03 impone il bump nello stesso commit; REGOLA-VAL-09 è il meccanismo che
+      lo fa rispettare bloccando la pipeline con VERSION_NOT_BUMPED. Policy e enforcement
+      stanno in documenti diversi.
+    answer_note: >-
+      Incrementare `version` nello stesso commit del corpo e registrare la riga nel
+      registro; senza bump l'ingestion incrementale rigetta il documento.
+
+  - q: "perché non posso scrivere un colore direttamente in un componente?"
+    kind: multihop
+    expected:
+      retrieval:
+        - {doc: ui_ux_brand_directives, section: "Design Token"}
         - {doc: coding_standards, section: "Metriche Strutturali"}
-    evidence: >
-      Percorso: spec_tech_backend.md -[DERIVA_DA]-> coding_standards.md (arco tipizzato
-      esplicito). La derivazione è dichiarata nella spec tecnica, le metriche strutturali
-      (limiti del codice backend) nello standard di codifica.
-    answer_note: >
-      spec_tech_backend DERIVA_DA coding_standards: la direzione architetturale della
-      spec va letta insieme alle metriche strutturali e ai limiti del codice backend
-      dello standard da cui deriva.
+    evidence: >-
+      REGOLA-UI-01 è dichiarata esplicitamente corollario di REGOLA-CLEAN-05 (divieto di
+      magic number): la motivazione completa richiede entrambi i documenti.
+    answer_note: >-
+      Perché è un magic number applicato al livello visivo: viola REGOLA-UI-01 come
+      corollario di REGOLA-CLEAN-05, e rende impossibile cambiare il tema in un punto solo.
