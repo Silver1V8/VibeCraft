@@ -20,15 +20,20 @@ changelog:
       - "SAFEGUARD-TXN-05 generalizzato da budget formativo a contatore di quota consumabile"
       - "Aggiunta Sezione 0 — Contratto di Istanziazione con i parametri obbligatori"
 reuse:
+  vocabulary_owner: true
   parameters:
     - "<<DOMINIO_IDENTITA>>: dominio email o issuer OIDC ammesso (es. @example.com)"
+    - "<<PROVIDER_IDENTITA>>: provider OAuth/OIDC adottato"
+    - "<<ENTITA_UTENTE>>: entità anagrafica dell'identità applicativa"
     - "<<RISORSA_CONTESA>>: contatore intero a disponibilità finita (posti, licenze, slot, stock)"
+    - "<<CAPIENZA_TOTALE>>: valore massimo della RISORSA_CONTESA"
     - "<<ENTITA_CONTENITORE>>: entità che possiede la RISORSA_CONTESA"
     - "<<ENTITA_TRANSAZIONE>>: entità creata/transizionata consumando la RISORSA_CONTESA"
     - "<<QUOTA_CONSUMABILE>>: plafond periodico decrementato dalle transazioni (budget, credito, monte-ore)"
     - "<<TABELLA_AUDIT>>: tabella append-only del giornale di audit"
     - "<<CAMPI_PII>>: elenco dei campi classificati come dato personale"
   instantiation: "Copiare il file nel progetto, compilare la Sezione 0 e sostituire ogni <<PARAMETRO>>. Nessun safeguard può essere rimosso; un safeguard non applicabile va marcato NON APPLICABILE con motivazione scritta."
+  note: "Questo documento è il proprietario del vocabolario dei parametri: le altre norme della baseline lo ereditano invece di ridichiararlo, così che un solo valore compilato valga per tutta la libreria."
 authors:
   - role: "Senior Security Architect"
   - role: "AI Coding Agent Context Engineer"
@@ -86,6 +91,7 @@ Compilare questa tabella è **prerequisito bloccante**: finché contiene segnapo
 | `<<ENTITA_UTENTE>>` | Entità anagrafica dell'identità applicativa | *(da compilare)* |
 | `<<ENTITA_CONTENITORE>>` | Entità che possiede la risorsa a disponibilità finita | *(da compilare)* |
 | `<<RISORSA_CONTESA>>` | Contatore intero non negativo conteso in concorrenza | *(da compilare)* |
+| `<<CAPIENZA_TOTALE>>` | Valore massimo della risorsa contesa | *(da compilare)* |
 | `<<ENTITA_TRANSAZIONE>>` | Entità che consuma la risorsa contesa | *(da compilare)* |
 | `<<QUOTA_CONSUMABILE>>` | Plafond periodico decrementato dalle transazioni | *(da compilare, oppure NON APPLICABILE)* |
 | `<<TABELLA_AUDIT>>` | Tabella append-only del giornale di audit | *(da compilare)* |
