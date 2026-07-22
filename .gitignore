@@ -25,6 +25,14 @@ rag/database/chunks.pkl
 rag/database/reindex_jobs.jsonl
 # Journal di intake staging (append-only, generato a runtime)
 rag/database/staging/intake.jsonl
+# Contenuto di staging (docs/projects/rejected): file generati a runtime, mai da
+# tracciare — resta solo lo scheletro delle cartelle (.gitkeep).
+rag/database/staging/docs/*
+rag/database/staging/projects/*
+rag/database/staging/rejected/*
+!rag/database/staging/docs/.gitkeep
+!rag/database/staging/projects/.gitkeep
+!rag/database/staging/rejected/.gitkeep
 # Alert dei batch notturni (append-only, letti da /api/health)
 rag/database/alerts.jsonl
 # File del writer lock cross-processo (il mutex è il lock OS, il file resta su disco)
