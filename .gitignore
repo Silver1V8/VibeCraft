@@ -23,6 +23,8 @@ rag/database/colbert.pkl
 rag/database/chunks.pkl
 # Journal dei job di reindex (append-only, ricostruito al boot)
 rag/database/reindex_jobs.jsonl
+# Journal di intake staging (append-only, generato a runtime)
+rag/database/staging/intake.jsonl
 # Alert dei batch notturni (append-only, letti da /api/health)
 rag/database/alerts.jsonl
 # File del writer lock cross-processo (il mutex è il lock OS, il file resta su disco)
