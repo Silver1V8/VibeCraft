@@ -166,6 +166,33 @@ intake:
   # del retrieval (authority.default_weight 0.4) — un doc importato è citabile ma non
   # deve mai vincere su una spec normativa a parità di match.
   default_authority: 0.70
+  # Raffinazione LLM di un documento in staging (core/intake_refine.py): dal dump del
+  # convertitore alla spec strutturata (sezioni ##, tabelle, blocchi di codice). È un passo
+  # OPT-IN del ciclo di review, non della conversione — la pulizia deterministica
+  # (core/intake_clean.py) resta invece sempre attiva e non passa da qui.
+  refine:
+    # Caratteri per finestra inviata al modello. Va tenuta ben sotto llm_settings.ollama_num_ctx
+    # (16384 token ≈ 49.000 caratteri) perché al testo si somma il prompt e soprattutto la
+    # RISPOSTA, che è lunga quanto l'input: oltre, Ollama tronca in silenzio.
+    window_chars: 5000
+    # Forbice ammessa per lunghezza_riscritta / lunghezza_originale: fuori da questa, la
+    # riscrittura della finestra viene scartata e si tiene il testo pulito. Sotto il minimo
+    # il modello ha RIASSUNTO (e un riassunto perde requisiti); sopra il massimo ha
+    # COMMENTATO o ipotizzato invece di riformattare — su una fonte frammentaria (tabelle
+    # di PDF, diagrammi di classe) tende a riempire i buchi con congetture del tipo
+    # "inferito", "potrebbe riferirsi", che in un documento normativo sono peggio del
+    # testo grezzo. Alzare min_output_ratio rende la raffinazione più conservativa;
+    # abbassarlo (es. 0.15) accetta anche riscritture molto più sintetiche dell'originale.
+    min_output_ratio: 0.45
+    max_output_ratio: 2.0
+    # Il tetto vale per la PROSA. Le fonti dense (alberi di classi, elenchi di campi,
+    # tabelle sfaldate dal PDF: righe mediamente più corte di dense_line_chars) crescono
+    # legittimamente di 3-4× quando diventano tabelle Markdown con una colonna di
+    # descrizione — misurato su NSF_DatiFascicoloEDocumentiResponse, dove una riscrittura
+    # corretta e senza congetture pesa 3,5× l'originale. Con un tetto unico a 2.0 quelle
+    # riscritture verrebbero scartate proprio dove il passo serve di più.
+    max_output_ratio_dense: 4.0
+    dense_line_chars: 40
 
 # Implementazione del parser simboli per linguaggio (code_index).
 # Valori: "treesitter" (default, migrazione completata) | "regex" (fallback

@@ -8,7 +8,13 @@ Il motore di conversione è microsoft/markitdown: UN solo convertitore per TUTTI
 non-Markdown (pdf, docx, pptx, xlsx/xls, html, csv, json, xml, epub, msg, ...). I .md NON
 passano da qui: sono gestiti nativamente da core/intake.py (solo decodifica, nessuna
 conversione). markitdown è permissivo (per estensioni ignote ripiega su plaintext), quindi
-la whitelist dei formati resta la nostra (INTAKE_ALLOWED_FORMATS), applicata a monte."""
+la whitelist dei formati resta la nostra (INTAKE_ALLOWED_FORMATS), applicata a monte.
+
+L'uscita di markitdown passa SEMPRE per core/intake_clean.py, che toglie l'arredo di
+impaginazione del sorgente (testate e piè di pagina ripetuti, numeri di pagina, indici coi
+puntini, sillabazione, a-capo di giustificazione). È pulizia deterministica, non riscrittura:
+la ristrutturazione semantica del documento è un passo separato e opt-in del ciclo di review
+(core/intake_refine.py)."""
 from __future__ import annotations
 
 import hashlib
@@ -22,6 +28,7 @@ from markitdown import MarkItDown, StreamInfo
 from markitdown._exceptions import MarkItDownException
 
 from core.config import INTAKE_ALLOWED_FORMATS
+from core.intake_clean import clean_markdown
 
 
 class ConversionError(RuntimeError):
@@ -111,7 +118,13 @@ def convert_to_markdown(
     except MarkItDownException as exc:
         raise ConversionError(f"conversione fallita per {nome_file}: {exc}") from exc
 
-    markdown = (result.text_content or "").strip()
+    # Pulizia DETERMINISTICA dell'arredo di impaginazione (core/intake_clean.py): sempre
+    # attiva, perché markitdown estrae il testo così com'è impaginato e su un documento
+    # istituzionale metà del risultato sono intestazioni di pagina, piè di pagina e voci
+    # di indice. Non riscrive nulla — la ristrutturazione semantica è un passo a parte e
+    # opt-in (core/intake_refine.py). Il controllo "nessun testo estraibile" viene DOPO:
+    # un PDF di sole testate ripetute non è un documento convertito con successo.
+    markdown = clean_markdown(result.text_content or "")
     if not markdown:
         raise ConversionError(f"nessun testo estraibile da {nome_file}")
 

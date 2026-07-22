@@ -180,6 +180,20 @@ INTAKE_MAX_UPLOAD_MB: int = int(_intake_cfg.get("max_upload_mb", 25))
 INTAKE_DEFAULT_AUTHORITY: float = float(_intake_cfg.get("default_authority", 0.70))
 # Tetto ai file generabili in un'unica richiesta di generazione via Ollama (core/doc_generation.py).
 INTAKE_GENERATION_MAX_FILES: int = int(_intake_cfg.get("generation_max_files", 5))
+# Raffinazione LLM dei documenti in staging (core/intake_refine.py, passo opt-in del ciclo
+# di review): dimensione della finestra inviata al modello e forbice di lunghezza ammessa
+# per la riscrittura (sotto il minimo ha riassunto, sopra il massimo ha commentato).
+_intake_refine_cfg: dict = _intake_cfg.get("refine") or {}
+INTAKE_REFINE_WINDOW_CHARS: int = int(_intake_refine_cfg.get("window_chars", 5000))
+INTAKE_REFINE_MIN_OUTPUT_RATIO: float = float(_intake_refine_cfg.get("min_output_ratio", 0.45))
+INTAKE_REFINE_MAX_OUTPUT_RATIO: float = float(_intake_refine_cfg.get("max_output_ratio", 2.0))
+# Tetto alternativo per le fonti DENSE (alberi di classi, elenchi di campi, tabelle
+# sfaldate dal PDF): righe cortissime che, diventando righe di tabella con una colonna di
+# descrizione, si allungano legittimamente di 3-4×. Una fonte è densa se la lunghezza media
+# delle sue righe non vuote sta sotto INTAKE_REFINE_DENSE_LINE_CHARS.
+INTAKE_REFINE_MAX_OUTPUT_RATIO_DENSE: float = float(
+    _intake_refine_cfg.get("max_output_ratio_dense", 4.0))
+INTAKE_REFINE_DENSE_LINE_CHARS: int = int(_intake_refine_cfg.get("dense_line_chars", 40))
 
 # Base URL di Ollama (host:porta), sovrascrivibile via env per setup non locali
 # (Docker, host GPU remoto). core/llm.py ne deriva l'endpoint /api/generate e

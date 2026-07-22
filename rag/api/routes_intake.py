@@ -26,7 +26,7 @@ from api.deps import (
     require_not_cross_site_request,
     state,
 )
-from core import doc_generation, intake, project_brief, project_import
+from core import doc_generation, intake, intake_refine, project_brief, project_import
 from core.config import INTAKE_ALLOWED_FORMATS, INTAKE_GENERATION_MAX_FILES, INTAKE_MAX_UPLOAD_MB
 from core.intake_convert import ConversionError
 from core.writer_lock import WriterLockBusyError
@@ -51,6 +51,7 @@ _ERROR_STATUS: tuple[tuple[type[Exception], int], ...] = (
     (intake.InvalidComposedDocumentError, 422),
     (WriterLockBusyError, 409),
     (ConversionError, 422),
+    (intake_refine.RefineError, 422),
     (project_brief.BriefWithoutImportError, 409),
     (project_brief.ProjectBriefError, 422),
     (project_import.StaleImportPlanError, 409),
@@ -224,6 +225,45 @@ async def generation_status(job_id: str):
     job = await run_in_threadpool(_generation_manager.get, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job di generazione non trovato: {job_id}")
+    return job.to_dict()
+
+
+# ---------------------------------------------------------------------------
+# Raffinazione LLM di un documento in staging (core/intake_refine.py): job async come
+# la generazione — su un documento lungo sono decine di chiamate al modello, minuti di
+# lavoro, mai sull'event loop. L'esito resta in STAGING: la review S2 non si scavalca.
+# ---------------------------------------------------------------------------
+# Manager dedicato: stessi thread daemon degli altri job, istanza separata per non
+# mescolare i job di raffinazione con quelli di generazione e brief.
+_refine_manager = doc_generation.GenerationManager()
+
+
+@router.post("/api/intake/staged/{doc_id}/refine",
+             dependencies=[Depends(require_not_cross_site_request)])
+async def refine_staged_document(doc_id: str):
+    """Avvia la raffinazione di un documento in staging e risponde 202 col job_id: il
+    dump del convertitore diventa una spec strutturata (sezioni, tabelle, blocchi di
+    codice) con frontmatter semantico. Il markdown grezzo resta in staging accanto al
+    raffinato e la preview mostrerà quest'ultimo. Precondizione verificata PRIMA di
+    avviare il job: il documento è ancora in stato 'staged' (404/409 altrimenti)."""
+    try:
+        await run_in_threadpool(intake.require_staged, doc_id)
+    except Exception as exc:
+        _raise_http(exc)
+    job = _refine_manager.start(
+        f"refine {doc_id}", 1, "",
+        lambda: intake_refine.refine_staged_document(doc_id),
+    )
+    return JSONResponse(status_code=202, content=job.to_dict())
+
+
+@router.get("/api/intake/refine/{job_id}")
+async def refine_status(job_id: str):
+    """Stato di un job di raffinazione (pending/running/done/failed) con l'entry
+    aggiornata del journal (stats delle finestre, frontmatter semantico) o l'errore."""
+    job = await run_in_threadpool(_refine_manager.get, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Job di raffinazione non trovato: {job_id}")
     return job.to_dict()
 
 

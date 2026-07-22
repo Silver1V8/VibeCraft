@@ -105,3 +105,57 @@ def test_route_generate_defaults_n_file_and_categoria(tmp_path, monkeypatch):
     assert captured["categoria_target"] == "04_knowledge_informative"
     from core.config import INTAKE_GENERATION_MAX_FILES
     assert captured["n_file"] == INTAKE_GENERATION_MAX_FILES
+
+
+# ---------------------------------------------------------------------------
+# Raffinazione: POST /api/intake/staged/{id}/refine + GET /api/intake/refine/{job_id}
+# (il lavoro vero è coperto da test_intake_refine.py; qui solo il wiring HTTP)
+# ---------------------------------------------------------------------------
+def _refine_client(tmp_path, monkeypatch) -> TestClient:
+    client = _client(tmp_path, monkeypatch)
+    monkeypatch.setattr(routes_intake, "_refine_manager", doc_generation.GenerationManager())
+    return client
+
+
+def _poll_refine(client: TestClient, job_id: str):
+    assert routes_intake._refine_manager.join_all(timeout=5)
+    return client.get(f"/api/intake/refine/{job_id}")
+
+
+def test_route_refine_returns_202_then_done(tmp_path, monkeypatch):
+    client = _refine_client(tmp_path, monkeypatch)
+    entry = intake.stage_document("doc.txt", b"Titolo\n\nContenuto del documento.")
+    monkeypatch.setattr(routes_intake.intake_refine, "refine_staged_document",
+                        lambda doc_id: {"id": doc_id, "refine": {"windows": 1}})
+
+    resp = client.post(f"/api/intake/staged/{entry['id']}/refine")
+    assert resp.status_code == 202, resp.text
+
+    status = _poll_refine(client, resp.json()["job_id"])
+    assert status.status_code == 200
+    assert status.json()["status"] == "done"
+    assert status.json()["result"]["refine"]["windows"] == 1
+
+
+def test_route_refine_unknown_document_returns_404(tmp_path, monkeypatch):
+    client = _refine_client(tmp_path, monkeypatch)
+
+    resp = client.post("/api/intake/staged/non-esiste/refine")
+
+    assert resp.status_code == 404
+
+
+def test_route_refine_already_processed_returns_409(tmp_path, monkeypatch):
+    client = _refine_client(tmp_path, monkeypatch)
+    entry = intake.stage_document("doc.txt", b"Titolo\n\nContenuto.")
+    intake.reject(entry["id"], "no")
+
+    resp = client.post(f"/api/intake/staged/{entry['id']}/refine")
+
+    assert resp.status_code == 409
+
+
+def test_route_refine_status_unknown_job_returns_404(tmp_path, monkeypatch):
+    client = _refine_client(tmp_path, monkeypatch)
+
+    assert client.get("/api/intake/refine/non-esiste").status_code == 404

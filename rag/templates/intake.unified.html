@@ -498,9 +498,13 @@
         if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
 
         const suggested = suggestFilename(data.filename);
+        const raffinato = !!(data.files || {}).markdown_raw;
         detail.innerHTML = `
-          <h3>${escapeHtml(data.filename || id)}</h3>
+          <h3>${escapeHtml(data.filename || id)}${raffinato ? ' <span class="badge badge-generated">raffinato</span>' : ''}</h3>
           <div class="md-preview">${mdToHtml(data.markdown || '')}</div>
+          <div class="review-controls">
+            <button onclick="refineStaged('${id}')" title="Riscrive il dump del convertitore come spec strutturata (sezioni, tabelle, blocchi di codice). Riesegubile: riparte sempre dal markdown grezzo.">✨ ${raffinato ? 'Raffina di nuovo' : 'Raffina con LLM'}</button>
+          </div>
           <div class="review-controls">
             <label class="field">Categoria docs/
               <select id="preview-categoria"></select>
@@ -544,6 +548,41 @@
         out.textContent = `Approvato → docs/${categoria}/${nomeFile} — reindex: ${JSON.stringify(reindex)}`;
         refreshStaging();
         setTimeout(closePreview, 1500);
+      } catch (e) {
+        out.className = 'msg-err'; out.textContent = `Errore: ${e.message}`;
+      }
+    }
+
+    /* Raffinazione LLM: job async (decine di chiamate al modello su un documento lungo),
+       si interroga lo stato come per la generazione. A fine job si riapre l'anteprima, che
+       ora mostra il markdown raffinato — il grezzo resta comunque in staging. */
+    async function refineStaged(id) {
+      const out = document.getElementById('preview-result');
+      out.className = 'status'; out.textContent = 'Raffinazione avviata: può richiedere alcuni minuti…';
+      try {
+        const res = await fetch(`/api/intake/staged/${id}/refine`, { method: 'POST' });
+        const job = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(job.detail || `HTTP ${res.status}`);
+
+        while (true) {
+          await new Promise(r => setTimeout(r, 3000));
+          const poll = await fetch(`/api/intake/refine/${job.job_id}`);
+          const stato = await poll.json().catch(() => ({}));
+          if (!poll.ok) throw new Error(stato.detail || `HTTP ${poll.status}`);
+          if (stato.status === 'failed') throw new Error(stato.error || 'raffinazione fallita');
+          if (stato.status === 'done') {
+            const s = (stato.result || {}).refine || {};
+            out.className = 'msg-ok';
+            const motivi = [];
+            if (s.windows_too_short) motivi.push(`${s.windows_too_short} riassunte`);
+            if (s.windows_too_long) motivi.push(`${s.windows_too_long} gonfiate di commenti`);
+            out.textContent = `Raffinato in ${s.elapsed_seconds ?? '?'}s — ${s.windows ?? '?'} finestre`
+              + (motivi.length ? ` (${s.windows_kept_raw} tenute grezze: ${motivi.join(', ')})` : '');
+            setTimeout(() => openPreview(id), 1200);
+            return;
+          }
+          out.textContent = 'Raffinazione in corso…';
+        }
       } catch (e) {
         out.className = 'msg-err'; out.textContent = `Errore: ${e.message}`;
       }

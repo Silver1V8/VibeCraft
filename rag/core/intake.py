@@ -182,6 +182,14 @@ def _require_staged(paths: dict[str, Path], doc_id: str) -> dict:
     return entry
 
 
+def require_staged(doc_id: str, base_dir: str | Path | None = None) -> dict:
+    """Come `_require_staged` ma per i moduli che estendono il ciclo di staging senza
+    farne parte (core/intake_refine.py): risolve da sé i percorsi e solleva gli stessi
+    errori tipizzati, così la regola "si opera solo su ciò che è ancora 'staged'" ha
+    un'unica implementazione."""
+    return _require_staged(ensure_staging_dirs(base_dir), doc_id)
+
+
 # ---------------------------------------------------------------------------
 # stage / list / preview
 # ---------------------------------------------------------------------------
@@ -307,14 +315,22 @@ def _split_frontmatter(text: str) -> str:
 def _compose_document(entry: dict, categoria: str, nome_file: str, staged_markdown: str) -> str:
     """Documento finale per docs/<categoria>/<nome_file>: frontmatter CONFORME alle spec
     esistenti (riferimento: docs/00_meta_governance/change_log.md) + corpo convertito.
-    La provenienza (metadata S1) vive nel campo dedicato `intake` del frontmatter."""
+    La provenienza (metadata S1) vive nel campo dedicato `intake` del frontmatter.
+
+    Se il documento è passato dalla raffinazione (core/intake_refine.py), l'entry porta
+    anche un frontmatter SEMANTICO dedotto dal contenuto (document_type, domain, tags…):
+    quei campi si aggiungono in coda, mai al posto dei campi normativi — che restano
+    calcolati qui e solo qui."""
     body = _split_frontmatter(staged_markdown).strip()
     metadata = entry.get("metadata") or {}
+    semantic = entry.get("semantic") or {}
     stem = Path(nome_file).stem
     slug = re.sub(r"[^a-z0-9]+", "-", stem.lower()).strip("-") or "documento"
     doc_semantic_id = f"intake-{slug}-v1.0"
     h1 = _H1_RE.search(body)
-    title = h1.group(1).strip() if h1 else stem
+    # Il titolo dedotto dalla raffinazione batte l'H1 del convertitore, che sui PDF è il
+    # nome del file ("Specifiche Tecniche WsProtocollo bv.0.3.19 (1)").
+    title = semantic.get("title") or (h1.group(1).strip() if h1 else stem)
     frontmatter = {
         "id": doc_semantic_id,
         "title": title,
@@ -343,6 +359,15 @@ def _compose_document(entry: dict, categoria: str, nome_file: str, staged_markdo
             "converted_at": metadata.get("converted_at"),
         },
     }
+    # Campi semantici della raffinazione: utili al retrieval e alla lettura umana, ma non
+    # normativi — whitelist esplicita (mai un dict arbitrario dedotto da un LLM riversato
+    # nel frontmatter) e mai in sovrascrittura di quanto già composto sopra.
+    # (`source_file` non è in lista di proposito: la provenienza ha già la sua unica fonte
+    # di verità in `intake.source_filename`, appena sopra.)
+    for key in ("document_type", "source_version", "domain", "tags"):
+        value = semantic.get(key)
+        if value and key not in frontmatter:
+            frontmatter[key] = value
     fm_yaml = yaml.safe_dump(frontmatter, allow_unicode=True, sort_keys=False)
     return f"---\n{fm_yaml}---\n\n{body}\n"
 

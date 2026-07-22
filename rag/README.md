@@ -183,7 +183,7 @@ route [api/routes_intake.py](api/routes_intake.py) (`/api/intake/*`, auth `X-API
 come il resto), e usa lo stesso reindex delta + writer lock dell'indicizzazione
 incrementale.
 
-**Quattro flussi, un solo staging** (`database/staging/`, con journal append-only
+**Cinque flussi, un solo staging** (`database/staging/`, con journal append-only
 `intake.jsonl`):
 
 - **Genera con Ollama** (`POST /api/intake/generate`, [core/doc_generation.py](core/doc_generation.py)):
@@ -196,7 +196,34 @@ incrementale.
   i `.md` entrano nativi (solo decodifica). La whitelist resta la nostra
   (`intake.allowed_formats`, markitdown è permissivo e ripiega su plaintext per estensioni
   ignote). Estensione e dimensione (`intake.max_upload_mb`) validate PRIMA di leggere
-  l'intero body in memoria.
+  l'intero body in memoria. L'uscita del convertitore passa **sempre** per
+  [core/intake_clean.py](core/intake_clean.py), che toglie l'arredo di impaginazione del
+  sorgente — testate e piè di pagina ripetuti a ogni pagina, numeri di pagina, indici coi
+  puntini di guida, immagini base64, sillabazione e a-capo di giustificazione. È pulizia
+  **deterministica e idempotente**: nessuna parola di contenuto viene persa (su un PDF
+  istituzionale toglie comunque il 20-60% del dump). Senza, tutto quel rumore finisce
+  identico nei chunk del RAG.
+- **Raffina con LLM** (`POST /api/intake/staged/{id}/refine`,
+  [core/intake_refine.py](core/intake_refine.py)): passo **opt-in** del ciclo di review che
+  trasforma il dump del convertitore in una spec strutturata — sezioni `##` (l'unità di
+  chunking), tabelle per gli elenchi di campi, blocchi di codice per XML/XSD — più un
+  frontmatter **semantico** dedotto dal documento (`title`, `document_type`, `domain`,
+  `tags`), che `approve` fonde in coda ai campi normativi senza mai sovrascriverli. Job
+  async (pattern S3) perché su un documento lungo sono decine di chiamate al modello
+  (~2 min per finestra su GPU locale). Due guardrail contro il rischio vero di questo
+  passo, che è tradire il documento: si raffina a **finestre**
+  (`intake.refine.window_chars`, ben sotto `num_ctx` — oltre, Ollama tronca in silenzio) e
+  una finestra la cui riscrittura esce dalla **forbice di lunghezza** viene **scartata** a
+  favore del testo pulito. Troppo corta significa che il modello ha riassunto (e un
+  riassunto perde requisiti); troppo lunga che ha commentato o ipotizzato invece di
+  riformattare — su una fonte frammentaria tende a riempire i buchi con congetture
+  ("inferito", "potrebbe riferirsi") che in un documento normativo sono peggio del testo
+  grezzo. Il tetto **dipende dalla forma della fonte**: la prosa sta sotto
+  `max_output_ratio`, mentre le fonti dense (alberi di classi, elenchi di campi — righe
+  mediamente più corte di `dense_line_chars`) hanno diritto a `max_output_ratio_dense`,
+  perché diventando tabelle con una colonna di descrizione crescono di 3-4× senza che una
+  parola sia stata inventata. Il markdown grezzo resta in staging accanto al raffinato:
+  rieseguire il refine riparte sempre da quello, mai dalla riscrittura.
 - **Review staging** (`GET /api/intake/staged`, `.../preview`, `POST .../approve`,
   `POST .../reject`): preview del markdown, poi **approve** (scrive
   `docs/<categoria>/<nome_file>` con frontmatter conforme + reindex delta della sola
