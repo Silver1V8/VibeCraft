@@ -79,9 +79,56 @@ def read_document(filepath_obj: Path) -> tuple[dict, str]:
         return {}, _read_pdf(filepath)
     return {}, ""
 
+# Regioni da cui NON si estrae: dentro un blocco di codice le parentesi quadre sono
+# sintassi (destrutturazioni `[k, v]`, literal `'[REDACTED]'`, classi di caratteri regex
+# `[A-Z_]`), e nei link Markdown il testo fra quadre è un'etichetta di navigazione.
+# Trattarli come riferimenti creava nodi-entità privi di semantica, che gonfiavano gli
+# archi MENTIONS e sporcavano Semantic Map e query di impatto.
+#
+# NB: si scartano i soli blocchi delimitati da ```, NON il codice inline fra backtick
+# singoli. La convenzione dei documenti è citare le regole proprio così — `[REGOLA-HITL-01]`
+# nei titoli e nelle tabelle di riepilogo — quindi ignorare i backtick singoli perderebbe
+# riferimenti veri (in vibe_coding_workflow le famiglie HITL e PROC compaiono SOLO in quella
+# forma). Il rumore che si annidava nel codice inline lo scarta già il vaglio di forma sotto.
+_CODE_FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
+_MD_LINK_RE = re.compile(r"\[[^\[\]]*\]\([^)\s]*\)")
+
+# Un token candidato: contenuto di una coppia di quadre, non vuoto e non annidato.
+# (Esclude di suo le checkbox Markdown `- [ ]` / `- [x]`, che non superano il vaglio sotto.)
+_BRACKET_RE = re.compile(r"\[([^\[\]]+)\]")
+
+# Identificatore di regola `[PREFISSO-CATEGORIA-NN]` conforme alla tassonomia della spec di
+# ingestion ([REGOLA-VAL-07]). L'ULTIMO segmento deve essere numerico: è ciò che distingue
+# una regola reale dai segnaposto dei template (`[REGOLA-XXX-NN]`, `[PREFISSO-CATEGORIA-XX]`,
+# `[SAFEGUARD-YYY-NN]`), che sono esempi di formato e non devono entrare nel grafo.
+_RULE_ID_RE = re.compile(r"^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+$")
+
+# Entità di dominio in forma `[UTENTE]` / `[AUDIT_LOG]`: sole maiuscole, cifre e underscore.
+# Il trattino NON è ammesso qui, così le wildcard citate nella prosa (`[REGOLA-*]`,
+# `[SAFEGUARD-*]`) e i frammenti tipo `A-Z_` restano fuori.
+_ENTITY_ID_RE = re.compile(r"^[A-Z][A-Z0-9_]{2,}$")
+
+
 def extract_entities(text: str) -> list[str]:
-    """Trova tutte le entità racchiuse tra parentesi quadre, es. [UTENTE]."""
-    return re.findall(r"\[(.*?)]", text)
+    """Entità e identificatori di regola citati nel corpo di un documento, nella forma
+    `[UTENTE]` o `[REGOLA-VAL-07]`, in ordine di prima comparsa e senza duplicati.
+
+    Prima dell'estrazione rimuove i blocchi di codice delimitati da ``` e i link Markdown:
+    le parentesi quadre che compaiono lì sono sintassi o navigazione, mai riferimenti al
+    dominio. Ogni candidato deve poi avere la forma di un identificatore — il che scarta le
+    checkbox, i segnaposto dei template e le wildcard citate a scopo esplicativo."""
+    for pattern in (_CODE_FENCE_RE, _MD_LINK_RE):
+        text = pattern.sub(" ", text)
+    found: list[str] = []
+    seen: set[str] = set()
+    for raw in _BRACKET_RE.findall(text):
+        token = raw.strip()
+        if token in seen:
+            continue
+        if _RULE_ID_RE.match(token) or _ENTITY_ID_RE.match(token):
+            seen.add(token)
+            found.append(token)
+    return found
 
 
 # Heading di livello 2 (## Sezione): unità naturale di chunking dei design contract.

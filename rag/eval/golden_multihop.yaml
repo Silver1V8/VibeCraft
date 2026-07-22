@@ -39,13 +39,19 @@
 # attuale. Le baseline A/B storiche restano in eval/results/multihop_20260721_*.json e
 # NON sono confrontabili con le corse su questo file.
 #
-# Grafo di riferimento: snapshot v20260722T103724 — 226 nodi / 332 archi / 91 chunk /
-# 11 documenti. Tutti i valori in `expected.graph` sono stati MISURATI eseguendo
-# core.graph_ops.graph_query su questo snapshot, non stimati: 6/6 attese strutturali
-# verificate al 2026-07-22.
+# Grafo di riferimento: snapshot v20260722T105547 — 204 nodi (11 document / 91 section /
+# 102 entity) / 302 archi / 91 chunk. Tutti i valori in `expected.graph` sono stati MISURATI
+# eseguendo core.graph_ops.graph_query su questo snapshot, non stimati: 6/6 attese
+# strutturali verificate al 2026-07-22.
+#
+# Le attese hanno già retto un cambio di snapshot: la pulizia dell'estrattore di entità
+# (v20260722T103724 -> v20260722T105547) ha tolto 22 nodi spuri e 30 archi MENTIONS, e
+# nessun caso è fallito — proprio perché si asseriscono relazioni e non conteggi.
 #
 # BASELINE A MISURATA (retrieval vettoriale k=10, alpha=0.1 default_weight=0.7, stesso
 # snapshot): structural recall@10 = 0.924 (n=6) — multihop recall@10 = 0.875 (n=8).
+# Invariata prima e dopo la pulizia dei nodi entità: il retrieval lavora sui chunk, che
+# non sono cambiati.
 # I due deficit sono quelli attesi e sono il motivo per cui questo file esiste:
 #   - "quali documenti esistono nel corpus?" → 6 matcher su 11 in top-10. Il limite è
 #     strutturale, non di ranking: 11 documenti non entrano in 10 posizioni. Nessuna

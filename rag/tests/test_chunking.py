@@ -88,3 +88,58 @@ def test_frontmatter_parsed_when_delimited_at_top(tmp_path):
     meta, body = index.parse_markdown_file(str(doc))
     assert meta["status"] == "ENFORCED" and meta["classification"] == "IRON_MEMORY"
     assert "# Titolo" in body and "## Coda" in body   # separatore `---` nel corpo preservato
+
+
+# ---------------------------------------------------------------------------
+# core.chunking.extract_entities — vaglio dei riferimenti citati fra quadre.
+#
+# Regressione 2026-07-22: la versione precedente era `re.findall(r"\[(.*?)]", text)`,
+# che catturava QUALSIASI cosa fra parentesi quadre. Sul corpus reale produceva 22 nodi
+# entità spuri su 109 token (checkbox Markdown, destrutturazioni JS, classi regex, testo
+# dei link, segnaposto dei template, wildcard citate nella prosa), gonfiando gli archi
+# MENTIONS e sporcando Semantic Map e query di impatto.
+# ---------------------------------------------------------------------------
+def test_extract_entities_riconosce_regole_ed_entita():
+    body = "Vedi [REGOLA-VAL-07] e [SAFEGUARD-TXN-01] per l'entità [AUDIT_LOG]."
+    assert index.extract_entities(body) == ["REGOLA-VAL-07", "SAFEGUARD-TXN-01", "AUDIT_LOG"]
+
+
+def test_extract_entities_accetta_identificatori_fra_backtick():
+    """I titoli dei documenti citano le regole come `[REGOLA-HITL-01]`: il backtick
+    singolo è la convenzione, non un blocco di codice. Ignorarlo perderebbe riferimenti
+    veri (in vibe_coding_workflow le famiglie HITL e PROC compaiono SOLO così)."""
+    assert index.extract_entities("### `[REGOLA-HITL-01]` Checkpoint") == ["REGOLA-HITL-01"]
+
+
+def test_extract_entities_ignora_blocchi_di_codice():
+    body = (
+        "Testo con [REGOLA-OBS-06].\n"
+        "```javascript\n"
+        "const PII = [ /* <<CAMPI_PII>> */ ];\n"
+        "Object.entries(o).map(([k, v]) => [k, '[REDACTED]']);\n"
+        "```\n"
+        "```bash\ngrep -rn \"<<[A-Z_]*>>\" docs/\n```\n"
+    )
+    assert index.extract_entities(body) == ["REGOLA-OBS-06"]
+
+
+def test_extract_entities_ignora_testo_dei_link_markdown():
+    body = "Vedi [`00_meta/safeguards_security.md`](00_meta/safeguards_security.md) e [REGOLA-API-01]."
+    assert index.extract_entities(body) == ["REGOLA-API-01"]
+
+
+def test_extract_entities_ignora_checkbox_markdown():
+    assert index.extract_entities("- [ ] voce da fare\n- [x] voce fatta\n") == []
+
+
+def test_extract_entities_scarta_segnaposto_e_wildcard():
+    """I template mostrano il FORMATO di un identificatore, non un identificatore: devono
+    restare fuori dal grafo. Discriminante: l'ultimo segmento di una regola vera è numerico."""
+    body = "Formato [PREFISSO-CATEGORIA-XX], es. [REGOLA-XXX-NN] o [SAFEGUARD-YYY-NN]. "
+    body += "Le famiglie [REGOLA-*] e [SAFEGUARD-*] sono chiavi di grafo."
+    assert index.extract_entities(body) == []
+
+
+def test_extract_entities_deduplica_preservando_l_ordine():
+    body = "[REGOLA-API-04] poi [SAFEGUARD-SEC-03] poi ancora [REGOLA-API-04]."
+    assert index.extract_entities(body) == ["REGOLA-API-04", "SAFEGUARD-SEC-03"]
