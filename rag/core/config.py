@@ -136,6 +136,22 @@ TECH_SCOPE_TAG_KEY: str = str(_retrieval_cfg.get("tech_scope_tag_key") or "")
 # retrieval.collect_implementing_code e api/routes_retrieval.ask_rag.
 CODE_CONTEXT_MAX_SNIPPETS: int = int(_retrieval_cfg.get("code_context_max_snippets", 6))
 CODE_CONTEXT_MIN_WEIGHT: float = float(_retrieval_cfg.get("code_context_min_weight", 0.5))
+# Ricerca semantica DIRETTA sui simboli di codice (retrieval.search_code_symbols): coseno
+# fra la domanda e i vettori densi dei simboli (sidecar code.npz). È il ramo che rende il
+# codice interrogabile di per sé, senza passare dai documenti — il ponte IMPLEMENTS sopra
+# trova solo il codice agganciato alle sezioni recuperate. max=0 disattiva il ramo.
+CODE_SEARCH_MAX_SNIPPETS: int = int(_retrieval_cfg.get("code_search_max_snippets", 8))
+CODE_SEARCH_MIN_SCORE: float = float(_retrieval_cfg.get("code_search_min_score", 0.45))
+# Quanti simboli al massimo può contribuire uno STESSO file al ramo semantico: i simboli
+# sono a grana fine e un file autogenerato (proxy WCF, client di servizio) occuperebbe da
+# solo tutte le posizioni con varianti della stessa riga. 0 = nessun limite.
+CODE_SEARCH_MAX_PER_FILE: int = int(_retrieval_cfg.get("code_search_max_per_file", 2))
+# Tetto COMPLESSIVO sui blocchi di codice iniettati in /ask dai due rami sommati
+# (retrieval.merge_code_context): senza, il contesto crescerebbe con la somma dei tetti.
+CODE_CONTEXT_TOTAL_SNIPPETS: int = int(
+    _retrieval_cfg.get("code_context_total_snippets",
+                       CODE_SEARCH_MAX_SNIPPETS + CODE_CONTEXT_MAX_SNIPPETS)
+)
 
 # Eval-gate continuo sulla promozione blue/green (core/eval_gate.py) + golden set del retrieval.
 _eval_gate_cfg: dict = config.get("eval_gate") or {}

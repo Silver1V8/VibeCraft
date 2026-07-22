@@ -24,6 +24,10 @@ from core import graph_ops, llm, retrieval, router as question_router
 from core.config import (
     CODE_CONTEXT_MAX_SNIPPETS,
     CODE_CONTEXT_MIN_WEIGHT,
+    CODE_CONTEXT_TOTAL_SNIPPETS,
+    CODE_SEARCH_MAX_PER_FILE,
+    CODE_SEARCH_MAX_SNIPPETS,
+    CODE_SEARCH_MIN_SCORE,
     COLLECTION_NAME,
     PROJECT_ROOT,
 )
@@ -102,15 +106,38 @@ async def ask_rag(query: AskQuery):
             },
         }
 
-    # 1-2. Ricerca ibrida: dense + sparse (fusione per rank) + rerank ColBERT
+    # 1-2. Ricerca ibrida sui DOCUMENTI: dense + sparse (fusione per rank) + rerank ColBERT.
+    #    La query è codificata UNA volta sola (forward pass bge-m3, la più cara della
+    #    richiesta dopo l'LLM) e riusata dal ramo di ricerca sul codice qui sotto.
     retrieval_start = time.time()
+    # La codifica esplicita serve SOLO se c'è davvero del codice da cercare: senza indice di
+    # codice (o col ramo disattivato) si lascia codificare hybrid_search, come da sempre.
+    search_code = CODE_SEARCH_MAX_SNIPPETS > 0 and bool(snap.code_store)
+    query_encoding = (
+        await run_in_threadpool(retrieval.encode_query, embed_model, query.question)
+        if search_code else None
+    )
     search_results = await run_in_threadpool(
         retrieval.hybrid_search, query.question, query.top_k,
         qdrant=qdrant, embed_model=embed_model, colbert_store=snap.colbert_store,
+        query_encoding=query_encoding,
     )
+
+    # 2b. Ricerca semantica DIRETTA sul codice, indipendente dai documenti recuperati: il
+    #     codice non sta in Qdrant, ma i vettori densi dei simboli sono nel code_store
+    #     (sidecar code.npz), quindi il confronto è un prodotto matriciale in memoria.
+    #     Senza questo ramo il codice arrivava SOLO di rimbalzo dalle sezioni recuperate
+    #     (ponte IMPLEMENTS, punto 4c) e i simboli che nessuna spec descrive — i DTO con
+    #     l'elenco dei campi, gli helper — restavano invisibili alla risposta.
+    code_hits = await run_in_threadpool(
+        retrieval.search_code_symbols, query_encoding["dense"], snap.code_store,
+        max_snippets=CODE_SEARCH_MAX_SNIPPETS, min_score=CODE_SEARCH_MIN_SCORE,
+        max_per_file=CODE_SEARCH_MAX_PER_FILE,
+    ) if query_encoding is not None else []
     latency_retrieval_ms = round((time.time() - retrieval_start) * 1000, 2)
 
-    if not search_results:
+    # Nessun documento E nessun codice pertinente: non c'è nulla su cui rispondere.
+    if not search_results and not code_hits:
         return {
             "status": "no_results",
             "answer": "Nessun documento rilevante trovato nel knowledge base.",
@@ -124,7 +151,9 @@ async def ask_rag(query: AskQuery):
     #    preservando l'ordine di rilevanza).
     seed_nodes = list(dict.fromkeys(r["doc_id"] for r in search_results if r["doc_id"] in graph))
 
-    if not seed_nodes:
+    # Senza seed il grafo non è espandibile; si prosegue lo stesso SE la ricerca sul codice
+    # ha trovato qualcosa (domanda puramente implementativa: la risposta viene dal codice).
+    if not seed_nodes and not code_hits:
         return {
             "status": "no_graph_nodes",
             "answer": "Documenti trovati in Qdrant ma non presenti nel grafo.",
@@ -190,12 +219,14 @@ async def ask_rag(query: AskQuery):
     context = "\n\n".join(context_parts)
     # -----------------------------------------------------------------------
 
-    # === INIEZIONE DEL CODICE CHE IMPLEMENTA IL CONTESTO RECUPERATO ===
-    # Il codice è indicizzato nel grafo (nodi + archi IMPLEMENTS) ma NON in Qdrant: la
-    # ricerca semantica sopra vede solo i documenti. Qui risaliamo gli archi IMPLEMENTS
-    # entranti fino ai simboli di codice più fortemente linkati e ne iniettiamo lo snippet:
-    # così l'LLM può confrontare la spec con la sua implementazione reale (es. "cosa manca
-    # nel form?") invece di fermarsi al normativo.
+    # === 4c. INIEZIONE DEL CODICE CHE IMPLEMENTA IL CONTESTO RECUPERATO ===
+    # Secondo ramo del codice (il primo è la ricerca diretta al punto 2b): qui risaliamo gli
+    # archi IMPLEMENTS entranti ai nodi recuperati fino ai simboli più fortemente linkati e
+    # ne iniettiamo lo snippet, così l'LLM può confrontare la spec con la sua implementazione
+    # reale (es. "cosa manca nel form?") invece di fermarsi al normativo. I due rami sono
+    # complementari: questo parte dai DOCUMENTI (trova l'implementazione di ciò che si è
+    # recuperato), quello diretto parte dalla DOMANDA (trova il codice pertinente anche
+    # quando nessuna spec lo descrive).
     # Ancore = vicinanza BFS del grafo (expanded_set, la stessa espansione della Mappa del
     # Grafo) PIÙ le sezioni/documenti effettivamente recuperati: così emerge anche il codice
     # collegato ai documenti vicini, non solo a quelli che hanno matchato la query. I nodi
@@ -207,14 +238,20 @@ async def ask_rag(query: AskQuery):
             code_anchor_nodes.add(r["chunk_id"])
         if r.get("doc_id"):
             code_anchor_nodes.add(r["doc_id"])
-    implementing_code = retrieval.collect_implementing_code(
+    linked_code = retrieval.collect_implementing_code(
         graph, snap.code_store, code_anchor_nodes,
         min_weight=CODE_CONTEXT_MIN_WEIGHT, max_snippets=CODE_CONTEXT_MAX_SNIPPETS,
     )
+    # Priorità al ramo semantico: è ordinato per pertinenza alla domanda, mentre il ponte
+    # ordina per somiglianza codice→spec. Dedup per simbolo e tetto complessivo.
+    implementing_code = retrieval.merge_code_context(
+        code_hits, linked_code, max_snippets=CODE_CONTEXT_TOTAL_SNIPPETS,
+    )
     if implementing_code:
         code_block = "\n\n".join(
-            f"--- Codice esistente: {c['file']} :: {c['name']} ({c['kind']}) "
-            f"— implementa {c['implements']} ---\n{_cap_text(c['text'])}"
+            f"--- Codice esistente: {c['file']} :: {c['name']} ({c['kind']})"
+            + (f" — implementa {c['implements']}" if c["implements"] else "")
+            + f" ---\n{_cap_text(c['text'])}"
             for c in implementing_code
         )
         context = f"{context}\n\n=== CODICE ESISTENTE (implementazione) ===\n\n{code_block}" if context else code_block

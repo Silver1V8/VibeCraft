@@ -186,3 +186,105 @@ def test_hybrid_search_explicit_collection_name_is_propagated():
     assert qdrant.collections_seen == [
         "vibecraft_events__v20260717T101530", "vibecraft_events__v20260717T101530",
     ]
+
+
+class _CountingEmbedModel(_FakeEmbedModel):
+    """Come _FakeEmbedModel ma conta le forward pass: serve a provare che /ask codifica
+    la domanda UNA volta sola anche servendo due rami di ricerca."""
+    def __init__(self):
+        self.calls = 0
+
+    def encode(self, questions, **kwargs):
+        self.calls += 1
+        return super().encode(questions, **kwargs)
+
+
+def test_hybrid_search_reuses_precomputed_query_encoding():
+    model = _CountingEmbedModel()
+    encoding = retrieval.encode_query(model, "domanda")
+    assert model.calls == 1
+    assert set(encoding) == {"dense", "lexical", "colbert"}
+    retrieval.hybrid_search("domanda", 5, qdrant=_RecordingQdrant(), embed_model=model,
+                            colbert_store={}, query_encoding=encoding)
+    assert model.calls == 1  # nessuna seconda codifica della stessa domanda
+
+
+# ---------------------------------------------------------------------------
+# search_code_symbols: ricerca semantica DIRETTA sul codice (il ramo che rende il
+# codice interrogabile senza passare dai documenti).
+# ---------------------------------------------------------------------------
+def _vec(*xs) -> np.ndarray:
+    return np.array(xs, dtype=np.float16)
+
+
+def _searchable_code_store() -> dict:
+    """Tre simboli con vettori densi noti (già normalizzati sugli assi) più uno privo
+    di vettore: quest'ultimo non deve mai comparire nei risultati."""
+    return {
+        "code/dto.cs::Request": {"name": "Request", "kind": "class", "file": "dto.cs",
+                                 "dev_type": "backend", "text": "class Request",
+                                 "win_chunk_id": "spec.md#01-form", "dense": _vec(1.0, 0.0, 0.0)},
+        "code/dto.cs::Request.Campo": {"name": "Request.Campo", "kind": "property", "file": "dto.cs",
+                                       "dev_type": "backend", "text": "string Campo",
+                                       "dense": _vec(0.99, 0.14, 0.0)},
+        "code/altro.cs::Altro": {"name": "Altro", "kind": "class", "file": "altro.cs",
+                                 "dev_type": "backend", "text": "class Altro",
+                                 "dense": _vec(0.7, 0.7, 0.0)},
+        "code/senza_vettore.cs::X": {"name": "X", "kind": "class", "file": "senza_vettore.cs",
+                                     "dev_type": "backend", "text": "class X"},
+    }
+
+
+def test_search_code_symbols_ranks_by_similarity_to_question():
+    out = retrieval.search_code_symbols(np.array([1.0, 0.0, 0.0]), _searchable_code_store(),
+                                        max_snippets=4, min_score=0.0)
+    assert [c["name"] for c in out] == ["Request", "Request.Campo", "Altro"]  # senza_vettore escluso
+    assert out[0]["score"] == 1.0 and out[0]["source"] == "semantic"
+    assert out[0]["text"] == "class Request"
+    # L'ancora è la sezione che il simbolo implementa, se il linking l'ha calcolata.
+    assert out[0]["implements"] == "spec.md#01-form"
+    assert out[1]["implements"] == ""
+
+
+def test_search_code_symbols_min_score_and_disabled():
+    store = _searchable_code_store()
+    q = np.array([1.0, 0.0, 0.0])
+    # 'Altro' è a ~0.707 dalla domanda: sopra soglia resta, alzandola cade.
+    assert len(retrieval.search_code_symbols(q, store, max_snippets=4, min_score=0.8)) == 2
+    assert retrieval.search_code_symbols(q, store, max_snippets=0, min_score=0.0) == []
+    assert retrieval.search_code_symbols(q, {}, max_snippets=4, min_score=0.0) == []
+    assert retrieval.search_code_symbols(None, store, max_snippets=4, min_score=0.0) == []
+
+
+def test_search_code_symbols_caps_symbols_per_file():
+    # dto.cs ha i due simboli più simili: col tetto a 1 ne passa uno solo e sale altro.cs,
+    # così un singolo file (tipicamente autogenerato) non occupa tutte le posizioni.
+    out = retrieval.search_code_symbols(np.array([1.0, 0.0, 0.0]), _searchable_code_store(),
+                                        max_snippets=2, min_score=0.0, max_per_file=1)
+    assert [c["file"] for c in out] == ["dto.cs", "altro.cs"]
+    # max_per_file=0 disattiva il limite: tornano i due simboli di dto.cs.
+    out = retrieval.search_code_symbols(np.array([1.0, 0.0, 0.0]), _searchable_code_store(),
+                                        max_snippets=2, min_score=0.0, max_per_file=0)
+    assert [c["file"] for c in out] == ["dto.cs", "dto.cs"]
+
+
+def test_merge_code_context_dedups_keeping_first_group_and_caps():
+    semantic = retrieval.search_code_symbols(np.array([1.0, 0.0, 0.0]), _searchable_code_store(),
+                                             max_snippets=1, min_score=0.0)
+    linked = retrieval.collect_implementing_code(_code_graph(), _code_store(),
+                                                 ["spec.md#01-form"], min_weight=0.5, max_snippets=6)
+    merged = retrieval.merge_code_context(semantic, linked, max_snippets=10)
+    assert [c["name"] for c in merged] == ["Request", "BookingForm", "apiClient"]
+    assert [c["source"] for c in merged] == ["semantic", "implements", "implements"]
+    # Il tetto è COMPLESSIVO sui rami sommati, non per ramo.
+    assert len(retrieval.merge_code_context(semantic, linked, max_snippets=2)) == 2
+    assert retrieval.merge_code_context(semantic, linked, max_snippets=0) == []
+
+
+def test_merge_code_context_semantic_wins_on_duplicate_symbol():
+    """Lo stesso simbolo trovato da entrambi i rami compare una volta sola, con la
+    provenienza del ramo prioritario (quello semantico)."""
+    entry = {"symbol_id": "s", "name": "n", "source": "semantic", "score": 0.9}
+    dup = {"symbol_id": "s", "name": "n", "source": "implements", "score": 0.6}
+    merged = retrieval.merge_code_context([entry], [dup], max_snippets=5)
+    assert merged == [entry]

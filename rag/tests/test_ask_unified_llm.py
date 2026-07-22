@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 
 import networkx as nx
+import numpy as np
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -23,12 +24,19 @@ from core import llm, retrieval
 
 _CHUNK_ID = "spec.md#01-form"
 _TRUNCATION_MARKER = "… [sezione troncata] …"
+# Vettore denso finto della domanda (encode_query è stubbato): i simboli di codice del
+# test usano lo stesso vettore, così il coseno è 1.0 e il ramo semantico li trova sempre.
+_QUERY_DENSE = [1.0, 0.0, 0.0]
 
 
-def _snapshot(chunk_text: str, code_text: str) -> deps.IndexSnapshot:
+def _snapshot(chunk_text: str, code_text: str,
+              orphan_code_text: str | None = None) -> deps.IndexSnapshot:
     """Snapshot minimo ma completo per /ask: un documento con una sezione nel grafo,
     il testo della sezione nel sidecar dei chunk e un simbolo di codice linkato via
-    IMPLEMENTS (peso sopra la soglia di config) col suo snippet nel code_store."""
+    IMPLEMENTS (peso sopra la soglia di config) col suo snippet nel code_store.
+
+    `orphan_code_text` aggiunge un secondo simbolo SENZA archi nel grafo ma CON vettore
+    denso: è raggiungibile solo dalla ricerca semantica diretta sul codice."""
     g = nx.DiGraph()
     g.add_node("spec.md", type="document")
     g.add_node(_CHUNK_ID, type="chunk")
@@ -36,14 +44,21 @@ def _snapshot(chunk_text: str, code_text: str) -> deps.IndexSnapshot:
     g.add_node("code/frontend/form.tsx::BookingForm", type="code", name="BookingForm")
     g.add_edge("code/frontend/form.tsx::BookingForm", _CHUNK_ID,
                relation="IMPLEMENTS", weight=0.9)
+    code_store = {"code/frontend/form.tsx::BookingForm": {
+        "name": "BookingForm", "kind": "component", "file": "frontend/form.tsx",
+        "dev_type": "frontend", "text": code_text}}
+    if orphan_code_text is not None:
+        code_store["code/backend/dto.cs::Request"] = {
+            "name": "Request", "kind": "class", "file": "backend/dto.cs",
+            "dev_type": "backend", "text": orphan_code_text,
+            "dense": np.array(_QUERY_DENSE, dtype=np.float16),  # coseno 1.0 con la domanda
+        }
     return deps.IndexSnapshot(
         graph=g,
         colbert_store={},
         chunks={_CHUNK_ID: {"text": chunk_text}},
         rule_descriptions={},
-        code_store={"code/frontend/form.tsx::BookingForm": {
-            "name": "BookingForm", "kind": "component", "file": "frontend/form.tsx",
-            "dev_type": "frontend", "text": code_text}},
+        code_store=code_store,
         version="vtest",
     )
 
@@ -69,14 +84,20 @@ def ask_env(monkeypatch):
     monkeypatch.setattr(deps, "API_KEY", None)
     monkeypatch.setattr(routes_retrieval, "maybe_reload_graph", lambda: None)
 
-    def _make(chunk_text: str = "testo della sezione", code_text: str = "export const x = 1"):
-        snap = _snapshot(chunk_text, code_text)
+    def _make(chunk_text: str = "testo della sezione", code_text: str = "export const x = 1",
+              orphan_code_text: str | None = None):
+        snap = _snapshot(chunk_text, code_text, orphan_code_text)
         monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snap)
         monkeypatch.setitem(deps.state, "qdrant", object())
         monkeypatch.setitem(deps.state, "embed_model", object())
         results = [{"chunk_id": _CHUNK_ID, "doc_id": "spec.md", "section": "form",
                     "dense_score": 0.9, "colbert_score": None}]
         monkeypatch.setattr(retrieval, "hybrid_search", lambda *a, **kw: results)
+        # encode_query è la sola forward pass del modello nel percorso: stubbata come il
+        # resto del retrieval (nessun bge-m3 reale in questi test).
+        monkeypatch.setattr(retrieval, "encode_query",
+                            lambda model, question: {"dense": np.array(_QUERY_DENSE),
+                                                     "lexical": {}, "colbert": np.zeros((1, 3))})
         app = FastAPI()
         app.include_router(routes_retrieval.router)
         return TestClient(app, client=("127.0.0.1", 54321))
@@ -139,6 +160,41 @@ def test_ask_cappa_chunk_e_snippet_oltre_il_tetto(ask_env, fake_ask_settings):
     assert "B" * 3000 in prompt and "B" * 3001 not in prompt
 
 
+# ---------------------------------------------------------------------------
+# Ricerca semantica diretta sul codice: il codice entra nel contesto anche quando
+# NESSUN documento lo descrive (il ponte IMPLEMENTS da solo non lo troverebbe).
+# ---------------------------------------------------------------------------
+def test_ask_inietta_codice_trovato_solo_dalla_ricerca_semantica(ask_env, fake_ask_settings):
+    prompts = []
+    llm.register_provider("fake", lambda model, prompt, timeout: prompts.append(prompt) or "ok")
+
+    r = ask_env(orphan_code_text="class Request { CampoObbligatorio }").post(
+        "/ask", json={"question": "quali campi obbligatori?"})
+
+    assert r.status_code == 200
+    # Il simbolo non ha alcun arco nel grafo: se compare, ci è arrivato per somiglianza
+    # semantica con la DOMANDA, non di rimbalzo dai documenti recuperati.
+    assert "class Request { CampoObbligatorio }" in prompts[0]
+    sources = {c["source"]: c["name"] for c in r.json()["implementing_code"]}
+    assert sources == {"semantic": "Request", "implements": "BookingForm"}
+
+
+def test_ask_risponde_col_solo_codice_quando_i_documenti_non_matchano(ask_env, fake_ask_settings,
+                                                                     monkeypatch):
+    """Retrieval documentale a vuoto ma codice pertinente: la domanda riceve comunque una
+    risposta (prima si restituiva 'Nessun documento rilevante')."""
+    llm.register_provider("fake", lambda model, prompt, timeout: "ok")
+    client = ask_env(orphan_code_text="class Request { CampoObbligatorio }")
+    monkeypatch.setattr(retrieval, "hybrid_search", lambda *a, **kw: [])
+
+    r = client.post("/ask", json={"question": "quali campi obbligatori?"})
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "success"
+    assert [c["name"] for c in body["implementing_code"]] == ["Request"]
+
+
 def test_guardrail_globale_num_ctx_scatta_su_contesto_enorme(monkeypatch, caplog):
     """Il tetto per-chunk non limita il TOTALE: la difesa globale resta il warning di
     core.llm._ollama_payload quando la stima dei token sfiora num_ctx — deve scattare
@@ -189,7 +245,11 @@ def test_build_ask_prompt_snapshot_testuale():
         "Rispondi alle domande estraendo i contratti e i vincoli esatti.\n"
         "DEVI citare esplicitamente i codici dei Safeguards (es. [SAFEGUARD-TXN-01]) e i vincoli SQL (es. SELECT ... FOR UPDATE).\n"
         "[REGOLA-DIZIONARIO-RIGIDO]: È tassativamente ed espressamente vietato inventare o usare sinonimi colloquiali per le entità. "
-        "DEVI usare esclusivamente i termini in MAIUSCOLO estratti dal glossario (Usa EVENTO e mai 'Posto', usa RICHIESTA e mai 'Domanda')."
+        "DEVI usare esclusivamente i termini in MAIUSCOLO estratti dal glossario (Usa EVENTO e mai 'Posto', usa RICHIESTA e mai 'Domanda').\n"
+        "[FONTE-CODICE]: il blocco «CODICE ESISTENTE» del contesto è codice sorgente REALE del progetto ed è una fonte "
+        "al pari dei documenti: nomi di classi, campi, parametri, tipi e query che vi compaiono sono FATTI VERIFICATI, "
+        "non invenzioni, e vanno citati testualmente (con file e simbolo) quando rispondono alla domanda. "
+        "Quando codice e documento divergono, riporta ENTRAMBI e dichiara esplicitamente la divergenza."
         "\n\n"
         "Contesto grafo:\nCONTESTO-DI-PROVA\n\nDomanda: Qual è il vincolo?"
     )

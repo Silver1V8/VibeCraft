@@ -75,9 +75,30 @@ def rank_by_authority(results: list[dict], *, alpha: float = AUTHORITY_BOOST_ALP
     return results
 
 
+def encode_query(embed_model, question: str) -> dict:
+    """UNICA forward pass di bge-m3 sulla query: restituisce i tre vettori
+    ({"dense", "lexical", "colbert"}) usati dalla ricerca ibrida sui documenti e —
+    il denso — dalla ricerca semantica sul codice. Estratta da `hybrid_search` perché
+    /ask ha ora due consumatori della stessa query: ricodificarla due volte sarebbe la
+    forward pass più cara della richiesta pagata due volte."""
+    out = embed_model.encode(
+        [question],
+        batch_size=1,
+        return_dense=True,
+        return_sparse=True,
+        return_colbert_vecs=True,
+    )
+    return {
+        "dense": out["dense_vecs"][0],
+        "lexical": out["lexical_weights"][0],
+        "colbert": out["colbert_vecs"][0],
+    }
+
+
 def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_store: dict,
                   query_filter: Filter | None = None,
-                  collection_name: str = COLLECTION_NAME) -> list[dict]:
+                  collection_name: str = COLLECTION_NAME,
+                  query_encoding: dict | None = None) -> list[dict]:
     """
     Ricerca ibrida a tre livelli (stessa forward pass di bge-m3 per tutti i vettori):
 
@@ -99,19 +120,17 @@ def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_sto
     produzione (es. dall'eval-gate). Nessun chiamante di produzione lo passa ancora: il
     default preserva esattamente il comportamento odierno.
 
+    `query_encoding` (opzionale): l'output di `encode_query` per questa stessa domanda,
+    già calcolato dal chiamante. Serve a /ask, che con la stessa codifica alimenta anche
+    la ricerca semantica sul codice. None = codifica qui (comportamento storico).
+
     Restituisce i top_k candidati con il breakdown completo del ranking.
     """
     # Una sola forward pass produce dense, sparse e colbert per la query
-    q_out = embed_model.encode(
-        [question],
-        batch_size=1,
-        return_dense=True,
-        return_sparse=True,
-        return_colbert_vecs=True,
-    )
-    dense_q = q_out["dense_vecs"][0].tolist()
-    lex_q = q_out["lexical_weights"][0]
-    colbert_q = q_out["colbert_vecs"][0]
+    q_out = query_encoding if query_encoding is not None else encode_query(embed_model, question)
+    dense_q = np.asarray(q_out["dense"], dtype=np.float32).tolist()
+    lex_q = q_out["lexical"]
+    colbert_q = q_out["colbert"]
 
     # Recupera più candidati del necessario: la fusione e il rerank scremano
     fetch_k = max(top_k * 3, 10)
@@ -332,32 +351,124 @@ def collect_implementing_code(graph, code_store: dict, anchor_nodes,
         entry = code_store.get(sym_id)
         if not entry:
             continue  # arco nel grafo ma metadati assenti (sidecar disallineato): lo saltiamo
-        out.append({
-            "symbol_id": sym_id,
-            "name": entry.get("name", ""),
-            "kind": entry.get("kind", ""),
-            "file": entry.get("file", ""),
-            "dev_type": entry.get("dev_type", ""),
-            "text": entry.get("text", ""),
-            "weight": weight,
-            "implements": anchor,
-        })
+        # `weight` resta il nome storico del peso dell'arco; `score` è il campo omogeneo
+        # fra i rami (vedi _code_entry) e qui vale lo stesso valore.
+        out.append({**_code_entry(sym_id, entry, source="implements", score=weight, anchor=anchor),
+                    "weight": weight})
     return out
+
+
+def _code_entry(sym_id: str, entry: dict, *, source: str, score: float, anchor: str) -> dict:
+    """Forma comune delle voci di codice iniettate nel contesto di /ask, qualunque sia il
+    ramo che le ha trovate (`source`: "semantic" = ricerca diretta sulla domanda,
+    "implements" = ponte dagli archi del grafo)."""
+    return {
+        "symbol_id": sym_id,
+        "name": entry.get("name", ""),
+        "kind": entry.get("kind", ""),
+        "file": entry.get("file", ""),
+        "dev_type": entry.get("dev_type", ""),
+        "text": entry.get("text", ""),
+        "source": source,
+        "score": round(float(score), 3),
+        "implements": anchor,
+    }
+
+
+def search_code_symbols(query_dense, code_store: dict, *,
+                        max_snippets: int, min_score: float,
+                        max_per_file: int = 2) -> list[dict]:
+    """Ricerca semantica DIRETTA sui simboli di codice: coseno fra il vettore denso della
+    domanda e i vettori densi dei simboli, già calcolati all'indicizzazione e presenti nel
+    code_store (sidecar code.npz).
+
+    È il ramo che rende il codice interrogabile DI PER SÉ, non solo di rimbalzo dai
+    documenti. Il ponte `collect_implementing_code` risale gli archi IMPLEMENTS, quindi
+    trova solo il codice agganciato alle sezioni recuperate e lo ordina per somiglianza
+    CODICE→SPEC: un simbolo che risponde alla domanda ma che nessuna spec descrive (un DTO
+    con l'elenco dei campi, un helper) non emergeva mai. Qui l'ordinamento è la somiglianza
+    col la DOMANDA, che è ciò che l'utente ha chiesto.
+
+    `max_snippets<=0` disattiva il ramo; `min_score` scarta le corrispondenze deboli (con
+    bge-m3 il coseno domanda→codice sta tipicamente in [0.3, 0.8]); `max_per_file` limita
+    quanti simboli può contribuire uno stesso FILE. Quest'ultimo non è cosmesi: i simboli
+    sono a grana fine (una proprietà è un simbolo) e un singolo file generato — il proxy WCF
+    Reference.cs, un client autogenerato — occupa da solo tutte le posizioni con dieci
+    varianti della stessa riga, seppellendo le classi che dichiarano davvero i campi.
+    Logica pura: il vettore della query e il code_store arrivano dal chiamante."""
+    if max_snippets <= 0 or not code_store or query_dense is None:
+        return []
+
+    sym_ids = [sid for sid, e in code_store.items() if e.get("dense") is not None]
+    if not sym_ids:
+        return []
+
+    # I vettori sono persistiti in fp16 (code.npz): si promuovono a float32 per il prodotto.
+    # Costo ~10 ms su qualche migliaio di simboli, trascurabile accanto alla sintesi LLM.
+    matrix = np.asarray([code_store[sid]["dense"] for sid in sym_ids], dtype=np.float32)
+    matrix /= np.linalg.norm(matrix, axis=1, keepdims=True) + 1e-8
+    q = np.asarray(query_dense, dtype=np.float32)
+    q /= np.linalg.norm(q) + 1e-8
+
+    sims = matrix @ q
+    # Pool di candidati più largo del tetto finale (il filtro per file ne scarta parecchi),
+    # estratto con argpartition: i top-N senza ordinare tutti i simboli del progetto.
+    pool = min(len(sym_ids), max(max_snippets * (max_per_file + 8), max_snippets))
+    top = np.argpartition(sims, -pool)[-pool:]
+    top = top[np.argsort(sims[top])[::-1]]
+
+    out: list[dict] = []
+    per_file: dict[str, int] = {}
+    for i in top:
+        score = float(sims[int(i)])
+        if score < min_score:
+            break  # ordinati per score decrescente: sotto soglia non ne arrivano altri
+        sid = sym_ids[int(i)]
+        entry = code_store[sid]
+        path = str(entry.get("file", ""))
+        if max_per_file > 0 and per_file.get(path, 0) >= max_per_file:
+            continue
+        per_file[path] = per_file.get(path, 0) + 1
+        out.append(_code_entry(sid, entry, source="semantic", score=score,
+                               anchor=str(entry.get("win_chunk_id") or "")))
+        if len(out) >= max_snippets:
+            break
+    return out
+
+
+def merge_code_context(*groups: list[dict], max_snippets: int) -> list[dict]:
+    """Fonde le liste di codice dei vari rami (ricerca semantica diretta, ponte IMPLEMENTS)
+    preservandone l'ordine e deduplicando per symbol_id: vince la PRIMA occorrenza, quindi
+    l'ordine dei gruppi è la loro priorità. Il tetto finale è complessivo, così il contesto
+    iniettato in /ask non cresce sommando i tetti dei singoli rami."""
+    merged: dict[str, dict] = {}
+    for group in groups:
+        for entry in group:
+            merged.setdefault(entry["symbol_id"], entry)
+    return list(merged.values())[:max_snippets] if max_snippets > 0 else []
 
 
 def build_ask_prompt(context: str, question: str) -> str:
     """Prompt completo della sintesi di /ask, da passare a core.llm con purpose "ask":
-    system prompt storico (INVARIATO carattere per carattere, incluse le regole
-    [REGOLA-DIZIONARIO-RIGIDO]) concatenato al messaggio utente nello stesso formato
-    di sempre. Funzione PURA: provider, num_ctx/think e gestione errori vivono in
-    core/llm.py come per tutti gli altri scopi."""
+    system prompt storico (incluse le regole [REGOLA-DIZIONARIO-RIGIDO]) concatenato al
+    messaggio utente nello stesso formato di sempre. Funzione PURA: provider, num_ctx/think
+    e gestione errori vivono in core/llm.py come per tutti gli altri scopi.
+
+    Al system prompt storico è aggiunta la sola regola [FONTE-CODICE], che dichiara il
+    blocco «CODICE ESISTENTE» una fonte legittima: senza, il modello trattava come
+    invenzione qualunque nome di campo non presente nei documenti e rispondeva "Non
+    specificato" anche con la classe che quei campi li dichiara sotto gli occhi."""
     # BLINDATURA RIGIDA DEL DIZIONARIO DATI DEL PROMPT DI SISTEMA
     system_prompt = (
         "Sei l'Ispettore di Governance di VibeCraft.\n"
         "Rispondi alle domande estraendo i contratti e i vincoli esatti.\n"
         "DEVI citare esplicitamente i codici dei Safeguards (es. [SAFEGUARD-TXN-01]) e i vincoli SQL (es. SELECT ... FOR UPDATE).\n"
         "[REGOLA-DIZIONARIO-RIGIDO]: È tassativamente ed espressamente vietato inventare o usare sinonimi colloquiali per le entità. "
-        "DEVI usare esclusivamente i termini in MAIUSCOLO estratti dal glossario (Usa EVENTO e mai 'Posto', usa RICHIESTA e mai 'Domanda')."
+        "DEVI usare esclusivamente i termini in MAIUSCOLO estratti dal glossario (Usa EVENTO e mai 'Posto', usa RICHIESTA e mai 'Domanda').\n"
+        "[FONTE-CODICE]: il blocco «CODICE ESISTENTE» del contesto è codice sorgente REALE del progetto ed è una fonte "
+        "al pari dei documenti: nomi di classi, campi, parametri, tipi e query che vi compaiono sono FATTI VERIFICATI, "
+        "non invenzioni, e vanno citati testualmente (con file e simbolo) quando rispondono alla domanda. "
+        "Quando codice e documento divergono, riporta ENTRAMBI e dichiara esplicitamente la divergenza."
     )
 
     user_message = f"Contesto grafo:\n{context}\n\nDomanda: {question}"

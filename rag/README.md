@@ -47,6 +47,34 @@ sono risposte direttamente da `graph_ops.graph_query` (offload in threadpool),
 positivi sul golden-set classico — e la scelta finisce nel campo
 `retrieval_strategy` del log strutturato M3.
 
+**Il codice è una fonte di `/ask`, non solo i documenti.** La ricerca semantica
+interroga Qdrant, dove stanno **solo i documenti**: il codice vive nel grafo (nodi
+simbolo) e i suoi vettori densi nel sidecar `code.npz`. `/ask` lo porta nel contesto
+per **due strade complementari**, e ciò che inietta è esposto nel campo
+`implementing_code` della risposta (con `source` per ramo di provenienza):
+
+1. **Ricerca semantica diretta** (`retrieval.search_code_symbols`): coseno fra il
+   vettore denso della **domanda** e quelli dei simboli, calcolato in memoria (~25 ms
+   su 4.000 simboli, nessun punto in più in Qdrant, nessun costo di indicizzazione).
+   È l'unica strada che trova il codice che **nessuna spec descrive** — un DTO con
+   l'elenco dei campi obbligatori, un helper, una query. Un tetto per **file**
+   (`code_search_max_per_file`) impedisce a un singolo file autogenerato (il proxy
+   WCF `Reference.cs`) di occupare tutte le posizioni con varianti della stessa riga.
+2. **Ponte `IMPLEMENTS`** (`retrieval.collect_implementing_code`): dagli archi
+   entranti ai nodi recuperati risale l'**implementazione di ciò che si è
+   recuperato**, così l'LLM confronta la spec con il codice reale ("cosa manca nel
+   form?").
+
+I due risultati sono deduplicati per simbolo con priorità al ramo semantico e cappati
+complessivamente (`code_context_total_snippets`). La regola `[FONTE-CODICE]` del
+system prompt dichiara il blocco «CODICE ESISTENTE» **fonte legittima**: senza,
+`[REGOLA-DIZIONARIO-RIGIDO]` portava il modello a trattare come invenzione qualunque
+nome di campo assente dai documenti e a rispondere "Non specificato" con la classe che
+quei campi li dichiara sotto gli occhi. Se il retrieval documentale non trova nulla ma
+il codice sì, la domanda **riceve comunque una risposta** (prima: "Nessun documento
+rilevante"). Tutte le soglie stanno in `rag_config.yaml → retrieval.*`;
+`code_search_max_snippets: 0` disattiva il ramo diretto.
+
 **Breakdown di latenza in risposta (M3/F3).** Sia il ramo `hybrid` sia il ramo
 `graph` restituiscono, oltre a `request_id` e `index_version`, un oggetto
 `latency: {retrieval_ms, generation_ms, total_ms}` (nel ramo grafo

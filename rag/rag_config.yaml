@@ -74,6 +74,25 @@ retrieval:
   code_context_max_snippets: 10  # tetto sugli snippet di codice iniettati (0 = disattiva del tutto)
   code_context_min_weight: 0.5   # soglia sul peso dell'arco IMPLEMENTS (cosine); >= soglia di linking (0.45)
 
+  # Ricerca semantica DIRETTA sul codice (core/retrieval.py: search_code_symbols). Il ponte
+  # IMPLEMENTS qui sopra parte SEMPRE dai documenti: trova solo il codice agganciato alle
+  # sezioni recuperate, e lo ordina per somiglianza codice→spec. Un simbolo che risponde alla
+  # domanda ma che nessuna spec descrive — un DTO con l'elenco dei campi obbligatori, un
+  # helper, una query — non emergeva mai, e la risposta restava confinata alla documentazione.
+  # Questo ramo confronta il vettore denso della DOMANDA con quelli dei simboli (già calcolati
+  # all'indicizzazione e persistiti in code.npz: nessun costo di indicizzazione aggiuntivo,
+  # nessun punto in più in Qdrant), e inietta i più simili.
+  code_search_max_snippets: 8  # snippet dal ramo semantico diretto (0 = disattiva il ramo)
+  code_search_min_score: 0.45  # soglia di coseno domanda→simbolo; sotto è rumore
+  # Tetto per FILE sul ramo semantico. I simboli sono a grana fine (una proprietà è un
+  # simbolo): senza questo limite un solo file AUTOGENERATO — il proxy WCF Reference.cs —
+  # si prendeva 6 posizioni su 8 con dieci varianti della stessa riga, seppellendo le
+  # classi DataContract che i campi li dichiarano davvero. 0 = nessun limite.
+  code_search_max_per_file: 2
+  # Tetto COMPLESSIVO sui due rami sommati (dedup per simbolo, priorità al ramo semantico):
+  # senza, il contesto crescerebbe come la somma dei tetti. Default = somma dei due.
+  code_context_total_snippets: 12
+
   # Domanda del ramo tecnico. `{dev_type}` è sostituito con l'ambito scelto (una sottocartella
   # di code/), reso a parole: 'logicAgent' -> 'logic agent'. È una QUERY SEMANTICA, non un
   # filtro: recupera ciò che le somiglia, ovunque stia nell'alberatura. Riscrivila col
