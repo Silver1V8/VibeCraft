@@ -3,13 +3,17 @@ id: "docs-baseline-index-v1.0"
 title: "Indice della Baseline Documentale Cross-Progetto"
 project: "cross-project"
 scope: "cross-project"
-version: "1.0.0"
+version: "1.1.0"
 date: "2026-07-22"
 status: "ENFORCED"
 classification: "METADATA"
 path: "docs/README.md"
 authority: 0.75
 changelog:
+  - version: "1.1.0"
+    date: "2026-07-22"
+    changes:
+      - "Documentata docs/05_project_specs/ come cartella dedicata alle spec di progetto, senza redirect verso 00-04"
   - version: "1.0.0"
     date: "2026-07-22"
     changes:
@@ -100,6 +104,8 @@ grep -rn "<<[A-Z_]*>>" docs/ | grep -v "reuse:" | grep -v "da compilare"
    - specifiche funzionali `spec_*.md`;
    - registro delle modifiche del progetto;
    - mappatura sinonimi → intent, se il progetto espone un'interfaccia in linguaggio naturale.
+
+   `docs/05_project_specs/` è la cartella dedicata alle specifiche di progetto che non seguono il redirect per-classification delle altre cartelle (00-04): ci va tutto ciò che è specifico del progetto e non si vuole distribuire fra `00_meta_governance`/`01_architecture_norms`/`02_specs_normative` in base alla `classification`. È indicizzata automaticamente come il resto di `docs/` (`rag/core/indexing.py` percorre l'albero senza esclusioni), senza bisogno di configurazione aggiuntiva.
 4. Creare il golden set di retrieval del nuovo progetto: quello della baseline non è trasferibile, perché le attese puntano a documenti di dominio.
 
 ---

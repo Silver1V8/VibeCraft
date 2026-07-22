@@ -3,13 +3,18 @@ id: "spec-graph-rag-ingestion-v2.0"
 title: "Specifica Normativa — Strategia di Ingestion e Indicizzazione Graph-RAG (Baseline Cross-Progetto)"
 project: "cross-project"
 scope: "cross-project"
-version: "2.0.0"
+version: "2.1.0"
 date: "2026-07-22"
 status: "ENFORCED"
 classification: "REQUIREMENTS"
 path: "docs/02_specs_normative/spec_graph_rag_ingestion.md"
 authority: 0.87
 changelog:
+  - version: "2.1.0"
+    date: "2026-07-22"
+    changes:
+      - "Aggiunta docs/05_project_specs/ alla tabella cartella→classificazione: contenitore per le spec di progetto, senza redirect verso 00-04"
+      - "Corretta la nota di istanziazione: la classification è letta dal frontmatter, non derivata dal pattern di percorso (chiarimento, nessun cambio di comportamento)"
   - version: "2.0.0"
     date: "2026-07-22"
     changes:
@@ -24,7 +29,7 @@ reuse:
     - "<<SOGLIA_CHUNK>>: dimensione massima di un chunk in caratteri (default 1500)"
     - "<<SOGLIA_CHUNK_ASSOLUTA>>: limite oltre il quale l'ingestion si blocca (default 2500)"
     - "<<AUTHORITY_SPEC>>: authority di default per le nuove spec (default 0.87)"
-  instantiation: "Copiare il file, compilare la Sezione 0, sostituire ogni <<PARAMETRO>>. La struttura di cartelle docs/00..04 è parte del contratto: l'indicizzatore classifica per pattern di percorso."
+  instantiation: "Copiare il file, compilare la Sezione 0, sostituire ogni <<PARAMETRO>>. La struttura di cartelle docs/00..05 è parte del contratto: la tabella indica la classification tipica per cartella, ma è il frontmatter di ciascun documento a determinarla effettivamente."
 graph_rag:
   node_type: "OPEN_SPEC"
   node_id: "spec-graph-rag-ingestion-v2.0"
@@ -76,8 +81,11 @@ L'indicizzatore analizza ricorsivamente tutti i documenti sotto `docs/` applican
 | `docs/02_specs_normative/` | Specifiche funzionali (`spec_*.md`) | `REQUIREMENTS` |
 | `docs/03_changes_historical/` | Materiale archiviato e storicizzato | `HISTORICAL` |
 | `docs/04_knowledge_informative/` | Metodologia e conoscenza di supporto | `METHODOLOGY` |
+| `docs/05_project_specs/` | Specifiche di progetto (funzionali/tecnologiche, glossari, matrici permessi) che il progetto produce da sé, senza redirect verso le classificazioni 00-04 | `REQUIREMENTS` (o quella dichiarata dal singolo documento) |
 
 Rinominare o rimuovere una di queste cartelle cambia la classificazione dei documenti che contiene, e quindi il loro peso nel ranking. È una modifica di contratto, non di layout.
+
+> **Nota:** la tabella è una convenzione documentale, non un meccanismo dell'indicizzatore — `classification` è letta dal frontmatter di ciascun documento (`core/indexing.py`, `_SECTION_INHERITED_ATTRS`), non derivata dal percorso. La colonna "classification tipica" indica cosa ci si aspetta di trovare in ciascuna cartella, non un vincolo applicato in automatico.
 
 ### [REGOLA-VAL-01] Classificazione automatica dei documenti
 - **Descrizione:** Ogni documento sul filesystem deve essere classificato in modo deterministico mediante pattern matching del percorso e del nome file sorgente.

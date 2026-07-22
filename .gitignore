@@ -53,3 +53,8 @@ rag/database/code.pkl
 # Backup manuali degli snapshot Qdrant (es. rete di sicurezza pre-flip S9): binari,
 # non fanno parte del codice, non vanno nella history del repo.
 qdrant_snapshots_backup/
+
+# Specifiche di progetto (docs/05_project_specs/): documenti locali del progetto ospitante,
+# mai da versionare in questo repo — resta solo lo scheletro della cartella (.gitkeep).
+docs/05_project_specs/*
+!docs/05_project_specs/.gitkeep

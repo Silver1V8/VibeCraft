@@ -92,6 +92,7 @@ CATEGORY_CLASSIFICATION = {
     "02_specs_normative": "REQUIREMENTS",
     "03_changes_historical": "METADATA",
     "04_knowledge_informative": "METHODOLOGY",
+    "05_project_specs": "REQUIREMENTS",
 }
 
 # Nome progetto scritto nel frontmatter, identico ai documenti autorati di docs/.
