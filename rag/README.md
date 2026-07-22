@@ -523,6 +523,37 @@ misurato +16708 nodi/+131780 archi da un solo `node_modules`, che rendeva
 `/api/graph/all` irrenderizzabile in browser. Aggiungere un linguaggio con una
 propria cartella di build (es. `target/` per Maven) va aggiunto qui.
 
+## Estrazione entità: solo riferimenti veri nel grafo
+
+`core.chunking.extract_entities` cerca nel corpo dei documenti i riferimenti fra
+parentesi quadre nella forma `[UTENTE]` (entità di dominio) o `[REGOLA-VAL-07]`
+(identificatore di regola) e li trasforma in nodi `entity` + archi `MENTIONS`.
+L'estrattore originale (`re.findall(r"\[(.*?)]", text)`) catturava **qualunque**
+cosa fra quadre: sul corpus reale produceva 22 nodi entità privi di semantica
+su 109 token estratti — checkbox Markdown `- [ ]`, etichette dei link
+`[testo](url)`, destrutturazioni JS `[k, v]`, literal `'[REDACTED]'`, classi
+regex `[A-Z_]` e segnaposto dei template (`[REGOLA-XXX-NN]`,
+`[SAFEGUARD-YYY-NN]`) citati a scopo esplicativo nella prosa.
+
+Il filtro ora è a due stadi:
+
+1. **Rimozione delle regioni non-riferimento** prima dell'estrazione: blocchi
+   di codice ``` ``` (dove le quadre sono sintassi) e link Markdown (dove sono
+   navigazione). Il codice inline fra backtick singoli **non** viene scartato:
+   la convenzione dei documenti cita le regole proprio così
+   (`` `[REGOLA-HITL-01]` ``) nei titoli e nelle tabelle, e in alcuni documenti
+   è l'unica forma in cui certe famiglie di regole compaiono.
+2. **Vaglio di forma** sul token candidato: `_RULE_ID_RE`
+   (`[A-Z][A-Z0-9]*(-[A-Z0-9]+)*-\d+`, ultimo segmento numerico — il
+   discriminante fra una regola vera e un segnaposto di formato) oppure
+   `_ENTITY_ID_RE` (`[A-Z][A-Z0-9_]{2,}`, sole maiuscole/cifre/underscore, MAI
+   il trattino, così le wildcard `[REGOLA-*]` restano fuori).
+
+Effetto misurato sul grafo (full rebuild `v20260722T105547`): nodi 226→204
+(entity 124→102, section/document invariati), archi 332→302 (`MENTIONS`
+183→153, nessun'altra relazione toccata) — zero token legittimi persi.
+Test in [tests/test_chunking.py](tests/test_chunking.py).
+
 ## Code index: aggiungere un nuovo linguaggio
 
 L'estrazione dei simboli dal codice generato (`code/`) vive in
