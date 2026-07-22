@@ -254,6 +254,41 @@ def _remember_plan(plan: project_import.ImportPlan) -> None:
         _project_plans.pop(next(iter(_project_plans)))
 
 
+def _native_folder_dialog() -> str | None:
+    """Apre il selettore di cartelle nativo del SO sulla macchina del server (tkinter,
+    stdlib): ha senso solo perché questo tool gira in locale e server/browser sono la
+    stessa macchina (vedi api.deps.require_api_key, bypass su localhost). Bloccante —
+    va sempre invocata dentro run_in_threadpool. None se l'utente annulla."""
+    import tkinter
+    from tkinter import filedialog
+
+    root = tkinter.Tk()
+    root.withdraw()
+    root.wm_attributes("-topmost", 1)
+    try:
+        selected = filedialog.askdirectory(
+            title="Seleziona la cartella del progetto da importare")
+    finally:
+        root.destroy()
+    return selected or None
+
+
+@router.post("/api/intake/project/browse-path",
+             dependencies=[Depends(require_not_cross_site_request)])
+async def browse_project_path():
+    """Apre l'esplora risorse nativo sulla macchina del server per scegliere la
+    cartella sorgente e ne risponde il path assoluto (None se l'utente annulla).
+    Nessuna validazione qui: resta a plan_project_import (path assoluto, esistente,
+    directory, mai dentro il repo/staging)."""
+    try:
+        path = await run_in_threadpool(_native_folder_dialog)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"selettore di cartelle non disponibile: {exc}") from exc
+    return {"path": path}
+
+
 @router.post("/api/intake/project/plan",
              dependencies=[Depends(require_not_cross_site_request)])
 async def plan_project(payload: ProjectPlanRequest):

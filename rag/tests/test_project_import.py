@@ -90,7 +90,7 @@ def test_plan_exclusions_node_modules_bin_and_unknown_ext(sandbox):
 
 def test_plan_additive_classifies_new_identical_conflict(sandbox):
     src, code_dir, _staging, _lock = sandbox
-    target_dir = code_dir / "backend"
+    target_dir = code_dir / "backend" / src.name
     (target_dir / "app").mkdir(parents=True)
     # identico (stessi byte) + conflitto (contenuto diverso)
     (target_dir / "app" / "main.py").write_text("print('main')\n", encoding="utf-8")
@@ -120,7 +120,7 @@ def test_apply_bootstrap_copies_everything_copiable(sandbox):
     plan = _plan(src, code_dir)
     result = _apply(plan, code_dir, staging, lock)
 
-    target_dir = code_dir / "backend"
+    target_dir = code_dir / "backend" / src.name
     assert result["copiati"] == COPIABLE
     for rel in COPIABLE:
         assert (target_dir / rel).read_bytes() == (src / rel).read_bytes()
@@ -135,7 +135,7 @@ def test_apply_bootstrap_copies_everything_copiable(sandbox):
 
 def test_apply_additive_never_modifies_existing_files_sha_before_after(sandbox):
     src, code_dir, staging, lock = sandbox
-    target_dir = code_dir / "backend"
+    target_dir = code_dir / "backend" / src.name
     (target_dir / "app").mkdir(parents=True)
     identical = target_dir / "app" / "main.py"
     conflict = target_dir / "app" / "service.cs"
@@ -157,7 +157,7 @@ def test_apply_additive_never_modifies_existing_files_sha_before_after(sandbox):
 
 def test_apply_backup_zip_created_and_reopenable(sandbox):
     src, code_dir, staging, lock = sandbox
-    target_dir = code_dir / "backend"
+    target_dir = code_dir / "backend" / src.name
     (target_dir / "app").mkdir(parents=True)
     existing = target_dir / "app" / "esistente.py"
     existing.write_text("originale\n", encoding="utf-8")
@@ -178,8 +178,8 @@ def test_apply_stale_plan_rejected_before_any_write(sandbox):
     src, code_dir, staging, lock = sandbox
     plan = _plan(src, code_dir)
     # lo stato del target cambia DOPO il plan: compare un file copiabile
-    target_dir = code_dir / "backend"
-    target_dir.mkdir()
+    target_dir = code_dir / "backend" / src.name
+    target_dir.mkdir(parents=True)
     (target_dir / "sorpresa.py").write_text("arrivato dopo\n", encoding="utf-8")
 
     with pytest.raises(project_import.StaleImportPlanError, match="ripeti l'anteprima"):
@@ -213,7 +213,7 @@ def test_apply_failed_reindex_keeps_copied_files_and_reports_warning(sandbox):
 
     result = _apply(plan, code_dir, staging, lock, reindex=_boom)
     # additivo mai distruttivo: i file copiati restano, l'esito non nasconde nulla
-    assert (code_dir / "backend" / "app" / "main.py").exists()
+    assert (code_dir / "backend" / src.name / "app" / "main.py").exists()
     assert "reindex esploso" in result["reindex_error"]
     assert "full rebuild" in result["avviso"]
 
@@ -290,7 +290,7 @@ def test_route_plan_then_apply_cycle(tmp_path, monkeypatch):
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["totali"]["copiati"] == len(COPIABLE)
-    assert (code_dir / "backend" / "app" / "main.py").exists()
+    assert (code_dir / "backend" / src.name / "app" / "main.py").exists()
     # un piano applicato non è riutilizzabile: secondo apply → 404 (piano dimenticato)
     assert client.post("/api/intake/project/apply",
                        json={"plan_id": plan["plan_id"]}).status_code == 404
@@ -313,8 +313,8 @@ def test_route_apply_stale_plan_returns_409(tmp_path, monkeypatch):
     client, src, code_dir = _client(tmp_path, monkeypatch)
     plan = client.post("/api/intake/project/plan",
                        json={"path": str(src), "target": "backend"}).json()
-    target_dir = code_dir / "backend"
-    target_dir.mkdir()
+    target_dir = code_dir / "backend" / src.name
+    target_dir.mkdir(parents=True)
     (target_dir / "dopo.py").write_text("x = 1\n", encoding="utf-8")
     resp = client.post("/api/intake/project/apply", json={"plan_id": plan["plan_id"]})
     assert resp.status_code == 409

@@ -108,6 +108,12 @@
     button, select, input, textarea {
       font-family: inherit; font-size: 12px; background: var(--control-bg); color: var(--control-color);
       border: 1px solid var(--control-border); border-radius: 8px; padding: 6px 10px; cursor: pointer;
+      box-sizing: border-box; height: 32px;
+    }
+    textarea { height: auto; }
+    button {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      white-space: nowrap; flex-shrink: 0; line-height: 1;
     }
     input, textarea { cursor: text; color: var(--body-text); }
     button:hover { background: var(--control-hover-bg); }
@@ -242,8 +248,12 @@
         applicati). Prima di applicare serve sempre un'anteprima.</p>
       <div class="toolbar">
         <label class="field" style="flex:1;min-width:260px">Path assoluto del progetto sorgente
-          <input id="prj-path" type="text" placeholder="Es. C:\progetti\mio-backend" style="width:100%"
-                 oninput="invalidateProjectPlan()" />
+          <span style="display:flex;gap:6px;align-items:center">
+            <input id="prj-path" type="text" placeholder="Es. C:\progetti\mio-backend" style="width:100%"
+                   oninput="invalidateProjectPlan()" />
+            <button type="button" id="prj-browse-btn" onclick="browseProjectPath()"
+                    title="Apri l'esplora risorse per scegliere la cartella">📁 Sfoglia…</button>
+          </span>
         </label>
         <label class="field">Target in code/
           <select id="prj-target" onchange="invalidateProjectPlan()">
@@ -575,6 +585,29 @@
       return `<details style="margin-top:8px"><summary class="${cssClass}" style="cursor:pointer">
         ${escapeHtml(title)} (${paths.length})</summary>
         <ul style="margin:6px 0 0;padding-left:20px;font-size:var(--text-size-sm)">${items}</ul></details>`;
+    }
+
+    async function browseProjectPath() {
+      const status = document.getElementById('prj-status');
+      const btn = document.getElementById('prj-browse-btn');
+      btn.disabled = true;
+      status.className = 'status'; status.textContent = 'Apertura esplora risorse…';
+      try {
+        const res = await fetch('/api/intake/project/browse-path', { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        if (data.path) {
+          document.getElementById('prj-path').value = data.path;
+          invalidateProjectPlan();
+          status.className = 'status'; status.textContent = '';
+        } else {
+          status.className = 'status'; status.textContent = 'Selezione annullata.';
+        }
+      } catch (e) {
+        status.className = 'status msg-err'; status.textContent = `Errore: ${e.message}`;
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     async function planProjectImport() {

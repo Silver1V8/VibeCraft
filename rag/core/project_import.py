@@ -1,13 +1,20 @@
-"""Import di progetti esistenti dal filesystem locale in code/<target> (S5, piano:
-docs/00_meta_governance/piano_intake_import.md), col pattern plan/apply di
+"""Import di progetti esistenti dal filesystem locale in code/<target>/<nome-progetto>
+(S5, piano: docs/00_meta_governance/piano_intake_import.md), col pattern plan/apply di
 core/indexing.py: il plan è un DRY-RUN puro (zero scritture), l'apply esegue sotto
 writer lock.
 
-Semantica NON distruttiva DECISA E VINCOLANTE (decisioni del piano):
-- cartella target vuota (o di soli .gitkeep) → bootstrap: copia tutto il copiabile;
-- cartella popolata → additivo: copia SOLO i file nuovi; file esistenti identici per
-  sha256 → skip; file esistenti con contenuto diverso → CONFLITTI, riportati nel piano
-  e MAI applicati;
+Il progetto sorgente finisce SEMPRE in una propria sottocartella di code/<target>/,
+col nome della cartella sorgente (es. code/backend/GD102_WSGDAProtocolloManager/):
+mai spacchettato direttamente dentro code/<target>/, altrimenti le sue cartelle interne
+si mischierebbero come fratelli di quelle già presenti nel target.
+
+Semantica NON distruttiva DECISA E VINCOLANTE (decisioni del piano), valutata su
+quella sottocartella code/<target>/<nome-progetto>/:
+- sottocartella vuota (o inesistente, o di soli .gitkeep) → bootstrap: copia tutto il
+  copiabile;
+- sottocartella popolata (import ripetuto sullo stesso progetto) → additivo: copia
+  SOLO i file nuovi; file esistenti identici per sha256 → skip; file esistenti con
+  contenuto diverso → CONFLITTI, riportati nel piano e MAI applicati;
 - apply non sovrascrive e non cancella MAI un file esistente in code/;
 - nessuna scrittura fuori da code/<target>/ e staging/projects/ (più la riga di journal
   in staging/intake.jsonl, il registro unico dell'intake).
@@ -224,7 +231,7 @@ def plan_project_import(src_path: str | Path, target: str, *,
     _validate_target(target)
     src = _validate_source_path(src_path)
     code_root = Path(code_dir) if code_dir is not None else CODE_DIR
-    target_dir = code_root / target
+    target_dir = code_root / target / src.name
 
     copiabili, esclusi = _scan_tree(src)
     nuovi: list[str] = []
@@ -306,7 +313,7 @@ def apply_project_import(plan: ImportPlan | dict, *,
     _validate_target(plan.target)
     src = _validate_source_path(plan.src)
     code_root = Path(code_dir) if code_dir is not None else CODE_DIR
-    target_dir = code_root / plan.target
+    target_dir = code_root / plan.target / src.name
     paths = ensure_staging_dirs(base_dir)
     reindex_fn = reindex if reindex is not None else _default_reindex
 
