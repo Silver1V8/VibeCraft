@@ -159,40 +159,16 @@
       </div>
     </div>
 
-    <a href="/" class="ml-auto shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
-      </svg>
-      Console Graph-RAG
-    </a>
-
-    <a href="/infografica" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2a4 4 0 014-4h3m0 0l-3-3m3 3l-3 3M4 7h16M4 12h4m-4 5h4"/>
-      </svg>
-      Infografica
-    </a>
-
-    <a href="/analysis" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
-      </svg>
-      Analisi
-    </a>
-
-    <a href="/eval" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15l4-6 4 3 5-8"/>
-      </svg>
-      Eval
-    </a>
-
-    <a href="/intake" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"/>
-      </svg>
-      Intake
-    </a>
+    <!-- Nav canonica, identica sulle 6 pagine: stesso ordine, stesse
+         etichette, pagina corrente inclusa. Lo stile e in shared.css. -->
+    <nav class="app-nav is-end" aria-label="Sezioni">
+      <a href="/">Console</a>
+      <a href="/intake">Intake</a>
+      <a href="/pipeline">Pipeline</a>
+      <a href="/analysis">Analisi</a>
+      <a href="/eval">Eval</a>
+      <a href="/infografica">Infografica</a>
+    </nav>
 
     <!-- Theme switcher — lo stile inline era verde neon HARDCODED, quindi il
          selettore restava verde fluorescente anche nel tema Classico, dove
@@ -451,7 +427,7 @@
               <button id="agent-context-btn" onclick="loadAgentContext()" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">🧠 Agent Context</button>
               <button onclick="exportBundle()" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">⬇️ Export JSON</button>
               <button onclick="goToStep(4)" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">➡️ Verifica Drift</button>
-              <button onclick="copyFinalPrompt()" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">Copia</button>
+              <button onclick="copyFinalPrompt(this)" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">Copia</button>
             </div>
           </div>
           <pre id="final-prompt-box" class="text-xs text-emerald-200 whitespace-pre-wrap leading-relaxed bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-64 overflow-y-auto"></pre>
@@ -630,28 +606,61 @@
     /* ──────────── STEPPER NAVIGATION ──────────── */
     function goToStep(step) {
       if (!featureName && step !== 1) {
-        alert('Inserisci prima il nome della feature.');
+        toast('Inserisci prima il nome della feature.', 'error');
         return;
       }
       currentStep = step;
       [1, 2, 3, 4, 5].forEach(i => {
         setPanelVisible(`panel-step-${i}`, i === step);
-        const dot = document.getElementById(`step-dot-${i}`);
-        dot.className = `w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-          i === step ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-400'
-        }`;
+        // Non si sovrascrive uno stato TERMINALE (completato, con avvisi,
+        // fallito): prima ogni navigazione riscriveva il className di tutti i
+        // pallini, quindi un passo già completato tornava grigio appena si
+        // andava altrove — restava il glifo ✓ ma con i colori di "in attesa".
+        const stato = stepStates[i];
+        if (stato === 'done' || stato === 'warning' || stato === 'failed') return;
+        setStepState(i, i === step ? 'current' : 'pending');
       });
     }
 
-    function markStepDone(step, label) {
+    /* ──────────── STATO DEI PASSI ────────────
+       Lo stepper conosceva due soli stati: corrente (blu) e completato (verde).
+       Mancavano "in esecuzione", "con avvisi" e "fallito" — e markStepDone
+       veniva chiamato al COMPLETAMENTO dello stream, non al successo: un drift
+       check pieno di disallineamenti marcava comunque il passo ✓ verde. Lo
+       stepper mentiva, ed è il posto peggiore dove farlo, perché è l'unica
+       sintesi dello stato della feature.
+
+       Ogni stato ha glifo + colore + etichetta testuale: non dipende dal colore,
+       il che conta doppio in Matrix dove il verde è anche il colore di sfondo. */
+    const STEP_STATES = {
+      pending: { glifo: n => String(n), dot: 'bg-slate-700 text-slate-400', badge: 'text-slate-500', label: 'in attesa' },
+      current: { glifo: n => String(n), dot: 'bg-blue-600 text-white',      badge: 'text-blue-400',  label: 'in corso' },
+      running: { glifo: () => '⋯',      dot: 'bg-blue-600 text-white',      badge: 'text-blue-400',  label: 'in esecuzione…' },
+      done:    { glifo: () => '✓',      dot: 'bg-emerald-600 text-white',   badge: 'text-emerald-400', label: 'completato' },
+      warning: { glifo: () => '⚠',      dot: 'bg-amber-600 text-white',     badge: 'text-amber-400', label: 'con avvisi' },
+      failed:  { glifo: () => '✕',      dot: 'bg-red-700 text-white',       badge: 'text-red-400',   label: 'fallito' },
+    };
+
+    /* Stato corrente di ogni passo: serve a goToStep per non calpestare gli
+       stati terminali durante la navigazione. */
+    const stepStates = { 1: 'current', 2: 'pending', 3: 'pending', 4: 'pending', 5: 'pending' };
+
+    function setStepState(step, state, label) {
+      const s = STEP_STATES[state] || STEP_STATES.pending;
+      stepStates[step] = state;
       const dot = document.getElementById(`step-dot-${step}`);
-      dot.className = 'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 bg-emerald-600 text-white';
-      dot.textContent = '✓';
-      document.getElementById(`step-badge-${step}`).textContent = label || 'generato';
-      document.getElementById(`step-badge-${step}`).className = 'mt-1 text-[10px] font-mono text-emerald-400';
+      dot.className = `w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${s.dot}`;
+      dot.textContent = s.glifo(step);
+      const badge = document.getElementById(`step-badge-${step}`);
+      badge.textContent = label || s.label;
+      badge.className = `mt-1 text-xs font-mono ${s.badge}`;
       const line = document.getElementById(`step-line-${step}`);
-      if (line) line.classList.add('done');
+      if (line) line.classList.toggle('done', state === 'done');
     }
+
+    /* Manteniamo markStepDone come alias: è chiamato da parecchi punti e questo
+       evita un refactor a tappeto per un rename. */
+    function markStepDone(step, label) { setStepState(step, 'done', label || 'generato'); }
 
     /* ──────────── FILE CONTROL PANEL ──────────── */
     async function refreshFilesControl() {
@@ -745,7 +754,7 @@
       const name = getFeatureName();
       if (!name) { document.getElementById('feature-name-input').focus(); return; }
       featureName = name;
-      if (!devType) { alert('Seleziona prima il tipo di sviluppo.'); return; }
+      if (!devType) { toast('Seleziona prima il tipo di sviluppo.', 'error'); return; }
 
       const input = document.getElementById('chat-input');
       const userInput = input.value.trim();
@@ -783,10 +792,10 @@
       const name = getFeatureName();
       if (!name) { document.getElementById('feature-name-input').focus(); return; }
       featureName = name;
-      if (!devType) { alert('Seleziona prima il tipo di sviluppo.'); return; }
+      if (!devType) { toast('Seleziona prima il tipo di sviluppo.', 'error'); return; }
 
       if (!interviewLog) {
-        alert("Nessuna risposta registrata nell'intervista: scrivi almeno un turno prima di terminare.");
+        toast("Nessuna risposta registrata nell'intervista: scrivi almeno un turno prima di terminare.", 'error');
         return;
       }
 
@@ -804,7 +813,7 @@
         markStepDone(1, 'generato');
         await refreshFilesControl();
       } catch (e) {
-        alert(`Errore nel salvataggio di explore.md: ${e.message}`);
+        toast(`Errore nel salvataggio di explore.md: ${e.message}`, 'error');
       } finally {
         btn.disabled = false;
       }
@@ -816,8 +825,8 @@
 
     /* ──────────── STEP 2: CANVAS ──────────── */
     async function generateCanvas() {
-      if (!featureName) { alert('Carica prima la feature.'); return; }
-      if (!devType) { alert('Seleziona prima il tipo di sviluppo.'); return; }
+      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
+      if (!devType) { toast('Seleziona prima il tipo di sviluppo.', 'error'); return; }
       const btn = document.getElementById('canvas-generate-btn');
       btn.disabled = true;
       setPanelVisible('canvas-loader', true);
@@ -839,7 +848,7 @@
         markStepDone(2, 'generato');
         await refreshFilesControl();
       } catch (e) {
-        alert(`Errore nella generazione del Canvas: ${e.message}`);
+        toast(`Errore nella generazione del Canvas: ${e.message}`, 'error');
       } finally {
         btn.disabled = false;
         setPanelVisible('canvas-loader', false);
@@ -852,8 +861,8 @@
 
     /* ──────────── STEP 3: PROPOSE ──────────── */
     async function generatePropose() {
-      if (!featureName) { alert('Carica prima la feature.'); return; }
-      if (!devType) { alert('Seleziona prima il tipo di sviluppo.'); return; }
+      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
+      if (!devType) { toast('Seleziona prima il tipo di sviluppo.', 'error'); return; }
       const btn = document.getElementById('propose-generate-btn');
       btn.disabled = true;
       setPanelVisible('propose-loader', true);
@@ -878,7 +887,7 @@
         markStepDone(3, 'generato');
         await refreshFilesControl();
       } catch (e) {
-        alert(`Errore nella generazione delle specifiche: ${e.message}`);
+        toast(`Errore nella generazione delle specifiche: ${e.message}`, 'error');
       } finally {
         btn.disabled = false;
         setPanelVisible('propose-loader', false);
@@ -893,7 +902,7 @@
 
     /* ──────────── VALIDAZIONE GOVERNANCE (pre-apply) ──────────── */
     async function runValidate() {
-      if (!featureName) { alert('Carica prima la feature.'); return; }
+      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
       const btn = document.getElementById('validate-btn');
       const box = document.getElementById('validate-report-box');
       const struct = document.getElementById('validate-structural');
@@ -944,7 +953,7 @@
     /* ──────────── ESECUZIONE CON CLAUDE AGENT SDK ──────────── */
     async function runWithAgent() {
       const prompt = window._finalPrompt || document.getElementById('final-prompt-box').textContent;
-      if (!prompt.trim()) { alert('Nessun prompt finale disponibile: genera prima le specifiche.'); return; }
+      if (!prompt.trim()) { toast('Nessun prompt finale disponibile: genera prima le specifiche.', 'error'); return; }
 
       const mode = document.getElementById('agent-mode-select').value;
       const model = document.getElementById('agent-model-select').value;
@@ -1019,11 +1028,13 @@
 
     /* ──────────── STEP 4: VERIFICA DEL DRIFT (streaming) ──────────── */
     async function runDriftCheck() {
-      if (!featureName) { alert('Carica prima la feature.'); return; }
+      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
       const btn = document.getElementById('drift-check-btn');
       const box = document.getElementById('drift-report-box');
       btn.disabled = true;
       setPanelVisible('drift-loader', true);
+      setStepState(4, 'running');
+      let hadError = false;
       box.textContent = '';
       document.getElementById('drift-report-card').classList.remove('hidden');
       try {
@@ -1034,14 +1045,20 @@
         });
         if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(e.detail || `HTTP ${res.status}`); }
         setPanelVisible('drift-loader', false);
+        // Il verdetto dipende da cosa è passato nello stream, non dal fatto che
+        // lo stream sia finito: prima bastava che terminasse per marcare il passo
+        // ✓ completato, anche con disallineamenti gravi dentro al report.
         await consumeNdjson(res, ev => {
           if (ev.type === 'log') box.textContent += ev.line + '\n';
-          else if (ev.type === 'error') box.textContent += `\n❌ ${ev.message}\n`;
+          else if (ev.type === 'error') { hadError = true; box.textContent += `\n❌ ${ev.message}\n`; }
           box.scrollTop = box.scrollHeight;
         });
-        markStepDone(4, 'verificato');
+        setStepState(4, hadError ? 'failed' : 'done', hadError ? 'drift rilevato' : 'verificato');
+        if (hadError) toast('Il drift check ha segnalato disallineamenti: leggi il report.', 'warning');
       } catch (e) {
         box.textContent += `\n❌ Errore: ${e.message}`;
+        setStepState(4, 'failed', 'verifica fallita');
+        toast(`Verifica del drift fallita: ${e.message}`, 'error');
       } finally {
         btn.disabled = false;
         setPanelVisible('drift-loader', false);
@@ -1050,13 +1067,15 @@
 
     /* ──────────── STEP 5: ARCHIVIAZIONE + RE-INDICIZZAZIONE (streaming) ──────────── */
     async function runArchive() {
-      if (!featureName) { alert('Carica prima la feature.'); return; }
+      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
       if (!confirm(`Archiviare la feature "${featureName}" e ricostruire il Graph RAG?\nLa cartella verrà spostata in changes/archive/ e l'operazione non è reversibile dall'interfaccia.`)) return;
 
       const btn = document.getElementById('archive-btn');
       const box = document.getElementById('archive-report-box');
       btn.disabled = true;
       setPanelVisible('archive-loader', true);
+      setStepState(5, 'running');
+      let hadError = false;
       box.textContent = '';
       document.getElementById('archive-report-card').classList.remove('hidden');
       try {
@@ -1071,22 +1090,23 @@
           if (ev.type === 'log') box.textContent += ev.line + '\n';
           else if (ev.type === 'reloaded') box.textContent += '\n🔄 Indice ricaricato in memoria.\n';
           else if (ev.type === 'reindex_queued') box.textContent += `\n🔄 Re-indicizzazione accodata, job ${ev.job_id} (stato su /api/reindex/${ev.job_id}).\n`;
-          else if (ev.type === 'error') box.textContent += `\n❌ ${ev.message}\n`;
+          else if (ev.type === 'error') { hadError = true; box.textContent += `\n❌ ${ev.message}\n`; }
           box.scrollTop = box.scrollHeight;
         });
-        markStepDone(5, 'archiviato');
+        setStepState(5, hadError ? 'failed' : 'done', hadError ? 'errori in archiviazione' : 'archiviato');
         await refreshFilesControl();
       } catch (e) {
         box.textContent += `\n❌ Errore: ${e.message}`;
+        setStepState(5, 'failed', 'archiviazione fallita');
+        toast(`Archiviazione fallita: ${e.message}`, 'error');
       } finally {
         btn.disabled = false;
         setPanelVisible('archive-loader', false);
       }
     }
 
-    function copyFinalPrompt() {
+    function copyFinalPrompt(btn) {
       const text = window._finalPrompt || document.getElementById('final-prompt-box').textContent;
-      const btn = event.target;
       navigator.clipboard.writeText(text).then(() => {
         const original = btn.textContent;
         btn.textContent = 'Copiato ✓';
@@ -1133,7 +1153,7 @@
 
     /* ──────────── AGENT CONTEXT (blocco strutturato + confidence, Art. 1) ──────────── */
     async function loadAgentContext() {
-      if (!featureName) { alert('Carica prima la feature.'); return; }
+      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
       const btn = document.getElementById('agent-context-btn');
       const wrap = document.getElementById('agent-context-wrap');
       const box = document.getElementById('agent-context-box');
@@ -1153,7 +1173,7 @@
 
     /* ──────────── EXPORT JSON del design contract ──────────── */
     async function exportBundle() {
-      if (!featureName) { alert('Carica prima la feature.'); return; }
+      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
       try {
         const res = await fetch(`/api/pipeline/export?feature=${encodeURIComponent(featureName)}&dev_type=${encodeURIComponent(devType)}`);
         if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(e.detail || `HTTP ${res.status}`); }
@@ -1165,7 +1185,7 @@
         document.body.appendChild(a); a.click(); a.remove();
         URL.revokeObjectURL(url);
       } catch (e) {
-        alert(`Errore export: ${e.message}`);
+        toast(`Errore export: ${e.message}`, 'error');
       }
     }
 
@@ -1182,7 +1202,7 @@
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         await refreshFilesControl();
       } catch (e) {
-        alert(`Errore nel salvataggio di ${name}: ${e.message}`);
+        toast(`Errore nel salvataggio di ${name}: ${e.message}`, 'error');
       }
     }
 

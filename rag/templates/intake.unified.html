@@ -81,12 +81,9 @@
     header > div { flex-shrink: 0; }
     header h1 { font-size: 16px; margin: 0; color: var(--title-color); text-shadow: var(--title-glow); white-space: nowrap; }
     header .sub { font-size: 11px; color: var(--sub-text); margin-top: 2px; white-space: nowrap; }
-    header a {
-      margin-left: auto; white-space: nowrap; text-decoration: none; font-size: 12px; color: var(--nav-link-color);
-      border: 1px solid var(--nav-link-border); border-radius: 999px; padding: 6px 12px; background: var(--nav-link-bg);
-    }
-    header a + a { margin-left: 8px; }
-    header a:hover { background: var(--nav-link-hover-bg); color: #fff; }
+    /* Lo stile della nav vive in /static/shared.css (.app-nav a): era
+       duplicato identico in tre template. --nav-link-* restano nella palette
+       per retrocompatibilita ma non sono piu consumati qui. */
     header select#theme-switcher { margin-left: 8px; }
 
     main { position: relative; z-index: 10; padding: 20px; max-width: 1180px; margin: 0 auto; }
@@ -183,11 +180,15 @@
       <h1 class="glow-text">◇ Intake &amp; Import</h1>
       <div class="sub">Genera con Ollama · Importa documenti · Review staging</div>
     </div>
-    <a href="/">Console Graph-RAG</a>
-    <a href="/pipeline">Pipeline</a>
-    <a href="/analysis">Analisi</a>
-    <a href="/infografica">Infografica</a>
-    <a href="/eval">Eval</a>
+    <nav class="app-nav is-end" aria-label="Sezioni">
+      <a href="/">Console</a>
+      <a href="/intake">Intake</a>
+      <a href="/pipeline">Pipeline</a>
+      <a href="/analysis">Analisi</a>
+      <a href="/eval">Eval</a>
+      <a href="/infografica">Infografica</a>
+    </nav>
+
 
     <!-- Theme switcher -->
     <label for="theme-switcher"></label><select id="theme-switcher" onchange="setUiTheme(this.value)">

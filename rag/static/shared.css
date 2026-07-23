@@ -157,14 +157,50 @@ textarea:focus-visible,
 
 /* ═══════════ 5. COMPONENTS ═══════════ */
 
-/* ── Navigazione: stato della pagina corrente ──
-   Agganciato da initNavigation() in shared.js confrontando location.pathname.
-   La specificità `header a.is-current` (0,2,1) supera sia `header a` dei template
-   di famiglia B sia le utility Tailwind di famiglia A, quindi funziona su tutte
-   e 6 le pagine senza modificarne il markup.
-   Lo stato NON è affidato al solo colore: bordo + peso tipografico + aria-current. */
-header a.is-current,
-.app-nav a.is-current {
+/* ── Navigazione ──
+   Ogni pagina aveva la propria nav scritta a mano, con ordine diverso, un'etichetta
+   divergente ("Qualità" invece di "Eval") e — soprattutto — senza mai elencare sé
+   stessa: la domanda «dove mi trovo?» non aveva risposta da nessuna parte.
+   Ordine canonico unico, che segue il flusso di lavoro:
+     Console → Intake → Pipeline → Analisi → Eval → Infografica
+   Lo stile vive qui, non nei template. */
+.app-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* Modificatore: spinge la nav a destra nelle pagine dove segue il blocco del
+   titolo dentro un <header> flex. Non è nel selettore base perché l'infografica
+   la vuole a sinistra, con il selettore del tema all'estremità opposta. */
+.app-nav.is-end { margin-left: auto; }
+.app-nav a {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+  text-decoration: none;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.2;
+  transition: background-color var(--duration-fast) var(--ease-standard),
+              border-color var(--duration-fast) var(--ease-standard),
+              color var(--duration-fast) var(--ease-standard);
+}
+.app-nav a:hover {
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+}
+/* Stato corrente: applicato da initNavigation() confrontando location.pathname.
+   NON è affidato al solo colore — bordo, peso tipografico e aria-current. */
+.app-nav a.is-current,
+header a.is-current {
   border-color: var(--color-primary);
   color: var(--color-text-primary);
   font-weight: 600;
@@ -293,6 +329,58 @@ header a.is-current,
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
+
+/* ── Toast ──
+   Sostituiscono i 19 alert() bloccanti della pipeline. Il livello è dato da
+   icona + colore del bordo, mai dal solo colore. */
+#toast-host {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 60;                 /* sopra le scanline (5) e gli overlay (30) */
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: min(28rem, calc(100vw - var(--space-8)));
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-left-width: 3px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  word-break: break-word;
+}
+.toast-icon { flex-shrink: 0; font-weight: 700; }
+.toast-close {
+  flex-shrink: 0;
+  margin-left: auto;
+  border: 0;
+  background: none;
+  color: var(--color-text-secondary);
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 var(--space-1);
+}
+.toast-close:hover { color: var(--color-text-primary); }
+.toast-success { border-left-color: var(--color-success); }
+.toast-success .toast-icon { color: var(--color-success); }
+.toast-warning { border-left-color: var(--color-warning); }
+.toast-warning .toast-icon { color: var(--color-warning); }
+.toast-error   { border-left-color: var(--color-danger); }
+.toast-error .toast-icon { color: var(--color-danger); }
+.toast-info    { border-left-color: var(--color-info); }
+.toast-info .toast-icon { color: var(--color-info); }
 
 /* Toggle del rain, iniettato da shared.js accanto al selettore del tema. */
 .motion-toggle {

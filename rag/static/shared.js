@@ -185,6 +185,43 @@ function setUiTheme(value) {
   if (typeof window.onThemeChange === 'function') window.onThemeChange(value);
 }
 
+/* ──────────── TOAST ────────────
+   Sostituisce alert(): un dialogo nativo di sistema è bloccante, non stilizzabile
+   e spezza completamente l'identità del tema — comparivano finestre di Windows
+   sopra la console verde. Qui il messaggio resta nel linguaggio dell'app e non
+   interrompe il flusso. Gli errori non spariscono da soli: vanno chiusi, così
+   non si perde la causa di un fallimento mentre si guarda altrove. */
+function toast(message, level) {
+  level = level || 'info';
+  let host = document.getElementById('toast-host');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'toast-host';
+    host.setAttribute('role', 'status');
+    host.setAttribute('aria-live', 'polite');
+    document.body.appendChild(host);
+  }
+  const el = document.createElement('div');
+  el.className = 'toast toast-' + level;
+  const icon = { info: 'ℹ', success: '✓', warning: '⚠', error: '✕' }[level] || 'ℹ';
+  // textContent, non innerHTML: i messaggi contengono spesso testo dal server.
+  const ico = document.createElement('span');
+  ico.className = 'toast-icon';
+  ico.textContent = icon;
+  const txt = document.createElement('span');
+  txt.textContent = message;
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'toast-close';
+  close.setAttribute('aria-label', 'Chiudi la notifica');
+  close.textContent = '×';
+  close.addEventListener('click', () => el.remove());
+  el.append(ico, txt, close);
+  host.appendChild(el);
+  if (level !== 'error') setTimeout(() => el.remove(), 5000);
+  return el;
+}
+
 /* ──────────── NAVIGAZIONE: pagina corrente ────────────
    Ogni pagina aveva la propria nav scritta a mano, con ordine diverso e nessuna
    indicazione di dove ci si trovasse. Qui la pagina corrente viene marcata
