@@ -17,6 +17,7 @@ import logging
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from core.config import STATIC_DIR, setup_logging
@@ -26,7 +27,7 @@ from core.config import STATIC_DIR, setup_logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
-from api.deps import API_KEY, lifespan
+from api.deps import API_KEY, NO_CACHE_HEADERS, lifespan
 from api import (
     routes_graph,
     routes_health,
@@ -38,6 +39,27 @@ from api import (
 )
 
 app = FastAPI(title="HARO Graph-RAG Console", lifespan=lifespan)
+
+# shared.css / shared.js cambiano spesso durante lo sviluppo locale, ma
+# StaticFiles li servirebbe con caching euristico del browser (nessun
+# Cache-Control: solo Last-Modified/ETag). Le pagine HTML sono già servite
+# NO_CACHE_HEADERS (vedi api/deps.py::serve_page): senza lo stesso trattamento
+# qui, una tab aperta da prima di un aggiornamento continua a vedere il CSS/JS
+# vecchio contro un HTML sempre fresco — l'HTML referenzia classi (.app-nav,
+# .page-doc, .skip-link, ...) che nel CSS in cache non esistono ancora, e la
+# UI si rompe in modo silenzioso e diverso per ogni tab. Route esplicite,
+# registrate PRIMA del mount così intercettano questi due file soli; il resto
+# di /static (i vendor pinnati) resta sotto la cache di default del browser,
+# che qui è corretta: non cambiano fra un deploy e l'altro.
+@app.get("/static/shared.css", include_in_schema=False)
+def _shared_css() -> FileResponse:
+    return FileResponse(STATIC_DIR / "shared.css", media_type="text/css", headers=NO_CACHE_HEADERS)
+
+
+@app.get("/static/shared.js", include_in_schema=False)
+def _shared_js() -> FileResponse:
+    return FileResponse(STATIC_DIR / "shared.js", media_type="text/javascript", headers=NO_CACHE_HEADERS)
+
 
 # Asset statici condivisi (shared.css / shared.js) estratti dai template per
 # non duplicare CSS/JS: serviti aperti da /static, come le pagine HTML.
