@@ -73,7 +73,9 @@
         --purple-50:#faf5ff; --purple-100:#f3e8ff; --purple-200:#e9d5ff; --purple-300:#d8b4fe; --purple-400:#c084fc; --purple-500:#a855f7; --purple-600:#9333ea; --purple-700:#7e22ce; --purple-800:#6b21a8; --purple-900:#581c87; --purple-950:#3b0764;
         --emerald-50:#ecfdf5; --emerald-100:#d1fae5; --emerald-200:#a7f3d0; --emerald-300:#6ee7b7; --emerald-400:#34d399; --emerald-500:#10b981; --emerald-600:#059669; --emerald-700:#047857; --emerald-800:#065f46; --emerald-900:#064e3b; --emerald-950:#022c22;
         --orange-50:#fff7ed; --orange-100:#ffedd5; --orange-200:#fed7aa; --orange-300:#fdba74; --orange-400:#fb923c; --orange-500:#f97316; --orange-600:#ea580c; --orange-700:#c2410c; --orange-800:#9a3412; --orange-900:#7c2d12; --orange-950:#431407;
-        --pink-600:#db2777;
+        /* #db2777 su bg-slate-100 dava 4,2:1, sotto la soglia AA per il testo
+           normale: scurito di un gradino, resta lo stesso rosa. */
+        --pink-600:#a81b5d;
         --gray-200:#e5e7eb;
         --font-main: 'Inter',ui-sans-serif,system-ui;
 
@@ -147,10 +149,14 @@
          Il redraw del diagramma Mermaid al cambio tema è agganciato via
          window.onThemeChange, definito più sotto insieme a renderMermaidDiagram. -->
 
-    <canvas id="matrix-rain"></canvas>
+    <!-- Skip link: la nav precede il contenuto, quindi senza questo un utente
+       da tastiera attraversa 6 pill a ogni caricamento. -->
+    <a href="#main-content" class="skip-link">Vai al contenuto</a>
+
+    <canvas id="matrix-rain" aria-hidden="true"></canvas>
     <div class="scanlines"></div>
 
-    <div class="relative z-10 max-w-6xl mx-auto">
+    <main id="main-content" tabindex="-1" class="relative z-10 max-w-6xl mx-auto">
         <div class="flex flex-wrap items-center gap-3 mb-8">
             <!-- Nav canonica, identica sulle 6 pagine: stesso ordine, stesse
                  etichette, pagina corrente inclusa. Lo stile e in shared.css. -->
@@ -291,7 +297,7 @@
             <p><strong>💡 La Magia del Determinismo:</strong> allo Step 0 un <strong>router deterministico</strong> (<code class="bg-gray-200 px-1 rounded font-mono">core/router.py</code>, sole regole lessicali) intercetta le domande <strong>strutturali</strong> — enumerazioni, relazioni, impatto, adiacenza — e le risponde direttamente dal grafo (<code class="bg-gray-200 px-1 rounded font-mono">graph_answer</code>) <strong>senza LLM</strong>. Per tutte le altre l'LLM interviene solo allo Step 6: tutto il "pescaggio" del contesto (Step 1-5: ricerca ibrida, rerank ColBERT, autorità, espansione BFS) è fatto in modo rigoroso e senza allucinazioni da Qdrant e NetworkX, e la sintesi finale passa dal layer unico <code class="bg-gray-200 px-1 rounded font-mono">core/llm.py</code> (purpose <code class="bg-gray-200 px-1 rounded font-mono">ask</code>), lo stesso usato dal resto della pipeline.</p>
         </div>
 
-    </div>
+    </main>
 
     <script>
       /* themeVar / startMatrixRain / stopMatrixRain: vedi /static/shared.js.

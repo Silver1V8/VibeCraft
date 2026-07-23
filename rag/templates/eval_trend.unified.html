@@ -97,7 +97,7 @@
     .mk-gate { fill: var(--dot-gate); }
     .mk-run  { fill: var(--dot-run); }
     .mk-fail { fill: none; stroke: var(--dot-fail); stroke-width: 2; }
-    .lbl { fill: var(--muted-text); font-size: 11px; }
+    .lbl { fill: var(--muted-text); font-size: 12px; }
     .empty { color: var(--muted-text); padding: 2rem; text-align: center; font-size: var(--text-size-sm); }
     .legend { font-size: var(--text-size-sm); color: var(--legend-text); margin-top: 0.75rem; display: flex; gap: 1.25rem; flex-wrap: wrap; align-items: center; }
     .legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
@@ -117,7 +117,11 @@
   </style>
 </head>
 <body class="page-doc">
-  <canvas id="matrix-rain"></canvas>
+  <!-- Skip link: la nav precede il contenuto, quindi senza questo un utente
+       da tastiera attraversa 6 pill a ogni caricamento. -->
+  <a href="#main-content" class="skip-link">Vai al contenuto</a>
+
+  <canvas id="matrix-rain" aria-hidden="true"></canvas>
   <div class="scanlines"></div>
 
   <header>
@@ -142,7 +146,7 @@
     </select>
   </header>
 
-  <main>
+  <main id="main-content" tabindex="-1">
     <section>
       <h2>📈 recall@10 nel tempo</h2>
       <p class="desc">recall@10 sul golden set nel tempo — da <code>eval/results/history.jsonl</code>

@@ -185,7 +185,7 @@
     /* Toggle vista 2D/3D */
     .view-toggle-btn {
       padding: 0.3rem 0.6rem;
-      font-size: 0.7rem;
+      font-size: var(--text-xs);
       font-weight: 700;
       border-radius: 0.5rem;
       transition: background .15s, color .15s;
@@ -380,12 +380,12 @@
         <!-- Options row -->
         <div class="flex gap-3 mt-3">
           <div class="flex-1">
-            <label for="top-k" class="block text-xs text-slate-500 mb-1">Top-K</label>
+            <label for="top-k" class="block text-xs text-slate-400 mb-1">Top-K</label>
             <input type="number" id="top-k" value="5" min="1" max="20"
                    class="w-full rounded-md bg-slate-800 border border-slate-700 px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div class="flex-1">
-            <label for="bfs-depth" class="block text-xs text-slate-500 mb-1">BFS Depth</label>
+            <label for="bfs-depth" class="block text-xs text-slate-400 mb-1">BFS Depth</label>
             <input type="number" id="bfs-depth" value="2" min="0" max="5"
                    class="w-full rounded-md bg-slate-800 border border-slate-700 px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
@@ -412,7 +412,7 @@
           <div class="loader-dot w-2.5 h-2.5 rounded-full bg-blue-400"></div>
           <div class="loader-dot w-2.5 h-2.5 rounded-full bg-blue-300"></div>
         </div>
-        <p class="text-xs text-slate-500">Elaborazione in corso…</p>
+        <p class="text-xs text-slate-400">Elaborazione in corso…</p>
       </div>
 
       <!-- Answer card -->
@@ -495,7 +495,7 @@
               Vista Globale
             </span>
             <!-- La forma distingue il tipo di nodo; il colore indica il pilastro REASONS (legenda sul grafo) -->
-            <div class="flex items-center gap-3 text-xs text-slate-500 whitespace-nowrap">
+            <div class="flex items-center gap-3 text-xs text-slate-400 whitespace-nowrap">
               <span class="flex items-center gap-1.5">
                 <span class="w-3 h-2 rounded-sm border border-slate-400 inline-block"></span> Documento
               </span>
@@ -505,7 +505,7 @@
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <span id="graph-counter" class="text-xs font-mono text-slate-500"></span>
+            <span id="graph-counter" class="text-xs font-mono text-slate-400"></span>
             <!-- Pulsante ripristina grafo contestuale (visibile solo dopo una query + vista globale) -->
             <button id="restore-graph-btn" onclick="restoreContextualGraph()"
               title="Ripristina il grafo dell'ultima interrogazione"
@@ -581,7 +581,7 @@
             </div>
           </div>
           <!-- Empty state overlay -->
-          <div id="graph-empty" class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 pointer-events-none px-4 text-center">
+          <div id="graph-empty" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 pointer-events-none px-4 text-center">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 mb-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1" aria-hidden="true">
               <circle cx="5"  cy="12" r="2"/><circle cx="19" cy="5"  r="2"/>
               <circle cx="19" cy="19" r="2"/>
@@ -1240,7 +1240,7 @@
       const desc = node.description || '';
       document.getElementById('nd-desc').innerHTML = desc
         ? escapeHtml(desc)
-        : '<span class="text-slate-500 italic">Nessuna descrizione disponibile.</span>';
+        : '<span class="text-slate-400 italic">Nessuna descrizione disponibile.</span>';
 
       // Connessioni (archi entranti/uscenti nel grafo corrente)
       const conns = [];
@@ -1252,7 +1252,7 @@
       const list = document.getElementById('nd-connections');
       if (conns.length) {
         list.innerHTML = conns.map(c => {
-          const rel = c.rel ? `<span class="text-slate-500">${escapeHtml(c.rel)}</span> ` : '';
+          const rel = c.rel ? `<span class="text-slate-400">${escapeHtml(c.rel)}</span> ` : '';
           return `<div class="truncate" title="${escapeHtml(c.other)}"><span class="text-slate-400">${c.arrow}</span> ${rel}<span class="text-slate-200">${escapeHtml(c.other)}</span></div>`;
         }).join('');
         wrap.classList.remove('hidden');
@@ -1363,7 +1363,7 @@
             <div class="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
               <div class="score-bar h-full rounded-full bg-gradient-to-r from-blue-600 to-emerald-500" style="width:${pct}%"></div>
             </div>
-            <div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs font-mono text-slate-500">
+            <div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs font-mono text-slate-400">
               <span title="Dense (semantica)">D ${fmt(s.dense_score)}</span>
               <span title="Sparse (lessicale)">S ${fmt(s.sparse_score)}</span>
               <span title="ColBERT (token-per-token)">CB ${fmt(s.colbert_score)}</span>

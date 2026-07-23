@@ -117,14 +117,14 @@
        del bitmap e stira il canvas (i punti finiscono sparsi su un canvas altissimo). */
     #map-canvas { height: 460px; }
     #ripple-canvas { height: 480px; }
-    .status { font-size: 11px; color: var(--muted-text); }
-    .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; font-size: 11px; color: var(--legend-text); }
+    .status { font-size: var(--text-xs); color: var(--muted-text); }
+    .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; font-size: var(--text-xs); color: var(--legend-text); }
     .legend span { display: inline-flex; align-items: center; gap: 5px; }
     .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
     .tooltip {
       position: absolute; pointer-events: none; display: none; z-index: 10;
       background: var(--tooltip-bg); border: 1px solid var(--tooltip-border); border-radius: 6px; padding: 5px 8px;
-      font-size: 11px; color: var(--tooltip-color); max-width: 320px; box-shadow: var(--tooltip-shadow);
+      font-size: var(--text-xs); color: var(--tooltip-color); max-width: 320px; box-shadow: var(--tooltip-shadow);
     }
     .dups { margin-top: 12px; font-size: var(--text-size-sm); color: var(--dups-color); }
     .dups b { color: var(--dups-b-color); }
@@ -132,7 +132,11 @@
   </style>
 </head>
 <body class="page-doc">
-  <canvas id="matrix-rain"></canvas>
+  <!-- Skip link: la nav precede il contenuto, quindi senza questo un utente
+       da tastiera attraversa 6 pill a ogni caricamento. -->
+  <a href="#main-content" class="skip-link">Vai al contenuto</a>
+
+  <canvas id="matrix-rain" aria-hidden="true"></canvas>
   <div class="scanlines"></div>
 
   <header>
@@ -157,7 +161,7 @@
     </select>
   </header>
 
-  <main>
+  <main id="main-content" tabindex="-1">
     <!-- ══════════ QUERY DETERMINISTICA ══════════ -->
     <section id="section-query">
       <h2>❓ Query deterministica sul grafo</h2>

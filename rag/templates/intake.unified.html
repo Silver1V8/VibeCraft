@@ -116,7 +116,7 @@
       border-radius: 10px; padding: 8px 12px; margin-top: 8px;
     }
     .file-row .name, .staged-item .name { flex: 1; min-width: min(160px, 100%); font-size: var(--text-size-sm); word-break: break-all; }
-    .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 600; white-space: nowrap; }
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: var(--text-xs); font-weight: 600; white-space: nowrap; }
     .badge-imported { background: var(--badge-imported-bg); color: var(--badge-imported-color); }
     .badge-generated { background: var(--badge-generated-bg); color: var(--badge-generated-color); }
     .badge-brief { background: var(--badge-brief-bg); color: var(--badge-brief-color); }
@@ -146,7 +146,11 @@
   </style>
 </head>
 <body class="page-doc">
-  <canvas id="matrix-rain"></canvas>
+  <!-- Skip link: la nav precede il contenuto, quindi senza questo un utente
+       da tastiera attraversa 6 pill a ogni caricamento. -->
+  <a href="#main-content" class="skip-link">Vai al contenuto</a>
+
+  <canvas id="matrix-rain" aria-hidden="true"></canvas>
   <div class="scanlines"></div>
 
   <header>
@@ -171,7 +175,7 @@
     </select>
   </header>
 
-  <main>
+  <main id="main-content" tabindex="-1">
     <!-- ══════════ (a) GENERA CON OLLAMA ══════════ -->
     <section id="section-genera">
       <h2>🪄 Genera con Ollama</h2>
@@ -203,7 +207,7 @@
         review. Nessuna scrittura diretta in <code>docs/</code>.</p>
       <div id="dropzone" class="dropzone" onclick="document.getElementById('file-input').click()">
         📎 Trascina qui i file, oppure clicca per selezionarli
-        <div style="margin-top:4px;font-size:10.5px">md · pdf · docx · pptx · xlsx · xls · html · txt · csv · json · xml · epub · msg</div>
+        <div style="margin-top:4px;font-size:var(--text-xs)">md · pdf · docx · pptx · xlsx · xls · html · txt · csv · json · xml · epub · msg</div>
         <input id="file-input" type="file" multiple accept=".md,.pdf,.docx,.pptx,.xlsx,.xls,.html,.htm,.txt,.csv,.json,.xml,.epub,.msg" onchange="onFilesPicked(this.files)" />
       </div>
       <div id="import-results"></div>
