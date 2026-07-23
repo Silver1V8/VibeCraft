@@ -104,7 +104,10 @@
         background: var(--glass-bg);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
-        border: 1px solid var(--glass-border) !important;
+        /* niente !important: il bordo pieno lascia passare i border-t-4
+           colorati delle card, che finora erano markup morto. */
+        border: 1px solid var(--glass-border);
+        border-top-width: 0;
         box-shadow: var(--glass-shadow);
         transition: box-shadow var(--duration-normal) var(--ease-standard);
       }
@@ -190,34 +193,72 @@
             <p class="text-lg text-slate-600">Mappa visuale dei moduli <code class="font-mono">core/</code> + <code class="font-mono">api/</code>, degli artefatti dell'indice e del flusso di interrogazione ibrido.</p>
         </header>
 
+        <!-- Fascia KPI: dati REALI da /api/health, non numeri decorativi.
+             Una pagina che descrive un sistema di retrieval deve mostrare lo
+             stato di quel sistema, altrimenti resta una brochure. -->
+        <section id="kpi" class="mb-12" aria-label="Stato del sistema">
+            <div class="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
+                <h2 class="text-sm font-semibold uppercase tracking-widest text-slate-500">Stato attuale del sistema</h2>
+                <span id="kpi-stato" class="text-xs font-mono text-slate-500">carico…</span>
+            </div>
+            <div id="kpi-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <p class="text-sm text-slate-500 col-span-full">Lettura di <code class="font-mono">/api/health</code>…</p>
+            </div>
+        </section>
+
+        <!-- Il diagramma e l'informazione piu densa della pagina: sta in alto,
+             non in fondo dopo 12 blocchi di testo. -->
+        <div class="bg-white glass-card rounded-xl shadow-xl p-8 border border-slate-200">
+            <h2 class="text-2xl font-bold text-slate-800 mb-6 border-b border-slate-200 pb-2">Diagramma del Flusso di Interrogazione (POST /ask)</h2>
+            <div class="flex justify-center">
+                <div class="mermaid" id="rag-mermaid"></div>
+            </div>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-slate-700 p-6">
                 <div class="text-3xl mb-3">🛠️</div>
                 <h2 class="text-xl font-bold mb-2">1. L'Indicizzatore</h2>
                 <p class="text-sm font-mono bg-slate-100 p-1 rounded text-pink-600 mb-2">core/indexing.py + core/chunking.py</p>
-                <p class="text-sm text-slate-600">Legge docs multi-formato (md/txt/docx/xlsx/pdf), li spezza in <strong>chunk per sezione</strong> (heading ##) ed estrae le entità <code class="bg-gray-200 px-1 rounded font-mono">[UTENTE]</code>. Supporta il <strong>full rebuild</strong> e il <strong>delta incrementale</strong> (manifest: solo doc nuovi/modificati). Indicizza anche il codice via AST, con parser per linguaggio nel sottopacchetto <code class="bg-gray-200 px-1 rounded font-mono">code_index/</code> (ts, java, c#, sql, shell, razor, ci, docker…), escludendo sempre dipendenze/build (<code class="bg-gray-200 px-1 rounded font-mono">node_modules</code>, <code class="bg-gray-200 px-1 rounded font-mono">bin</code>/<code class="bg-gray-200 px-1 rounded font-mono">obj</code>…). CLI: <code class="bg-gray-200 px-1 rounded font-mono">index.py</code>.</p>
+                <p class="text-sm text-slate-600 mb-2">Legge documenti e codice, li spezza per sezione, estrae le entita. Full rebuild o solo il delta.</p>
+                <details class="text-sm text-slate-600">
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
+                  <p class="mt-2">Legge docs multi-formato (md/txt/docx/xlsx/pdf), li spezza in <strong>chunk per sezione</strong> (heading ##) ed estrae le entità <code class="bg-gray-200 px-1 rounded font-mono">[UTENTE]</code>. Supporta il <strong>full rebuild</strong> e il <strong>delta incrementale</strong> (manifest: solo doc nuovi/modificati). Indicizza anche il codice via AST, con parser per linguaggio nel sottopacchetto <code class="bg-gray-200 px-1 rounded font-mono">code_index/</code> (ts, java, c#, sql, shell, razor, ci, docker…), escludendo sempre dipendenze/build (<code class="bg-gray-200 px-1 rounded font-mono">node_modules</code>, <code class="bg-gray-200 px-1 rounded font-mono">bin</code>/<code class="bg-gray-200 px-1 rounded font-mono">obj</code>…). CLI: <code class="bg-gray-200 px-1 rounded font-mono">index.py</code>.</p>
+                </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-purple-500 p-6">
                 <div class="text-3xl mb-3">🗄️</div>
                 <h2 class="text-xl font-bold mb-2">2. Il Cervello Semantico</h2>
                 <p class="text-sm font-mono bg-purple-50 p-1 rounded text-purple-700 mb-2">Qdrant server (Docker) + bge-m3</p>
-                <p class="text-sm text-slate-600">Database vettoriale in <strong>server mode</strong> (via <code class="bg-gray-200 px-1 rounded font-mono">QDRANT_URL</code>, niente lock locale). Ricerca <strong>ibrida dense + sparse</strong> con fusione per rank, poi <strong>rerank ColBERT</strong> e ri-ponderazione per <strong>autorità</strong>. I pesi di autorità non sono più hard-coded: vivono in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code> e sono <strong>calibrati sul golden set</strong> (cross-validation) → recall@10 fino a 1.00. <code class="bg-gray-200 px-1 rounded font-mono">bge-m3</code> gira su <strong>CPU per le query</strong> e su <strong>GPU per il reindex</strong> batch: la VRAM è condivisa con Ollama.</p>
+                <p class="text-sm text-slate-600 mb-2">Ricerca ibrida dense + sparse su Qdrant, rerank ColBERT, pesi di autorita calibrati sul golden set.</p>
+                <details class="text-sm text-slate-600">
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
+                  <p class="mt-2">Database vettoriale in <strong>server mode</strong> (via <code class="bg-gray-200 px-1 rounded font-mono">QDRANT_URL</code>, niente lock locale). Ricerca <strong>ibrida dense + sparse</strong> con fusione per rank, poi <strong>rerank ColBERT</strong> e ri-ponderazione per <strong>autorità</strong>. I pesi di autorità non sono più hard-coded: vivono in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code> e sono <strong>calibrati sul golden set</strong> (cross-validation) → recall@10 fino a 1.00. <code class="bg-gray-200 px-1 rounded font-mono">bge-m3</code> gira su <strong>CPU per le query</strong> e su <strong>GPU per il reindex</strong> batch: la VRAM è condivisa con Ollama.</p>
+                </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-emerald-500 p-6">
                 <div class="text-3xl mb-3">🕸️</div>
                 <h2 class="text-xl font-bold mb-2">3. Il Grafo delle Relazioni</h2>
                 <p class="text-sm font-mono bg-emerald-50 p-1 rounded text-emerald-700 mb-2">NetworkX (graph.json)</p>
-                <p class="text-sm text-slate-600">Nodi a <strong>livello di sezione</strong> (non solo doc): i chunk diventano nodi e il <strong>code-link è per sezione</strong>. Archi tipizzati dal frontmatter più <strong>alias di autorità risolti in archi doc→doc</strong> che connettono il KG. I nodi <code class="bg-gray-200 px-1 rounded font-mono">entity</code>/<code class="bg-gray-200 px-1 rounded font-mono">MENTIONS</code> passano da un <strong>vaglio di forma</strong> (<code class="bg-gray-200 px-1 rounded font-mono">extract_entities</code>) che scarta checkbox, link e segnaposto dei template — solo riferimenti veri, niente rumore. Artefatti <strong>sicuri e ispezionabili</strong> (JSON + .npz, addio pickle). Alimenta BFS, <strong>Impact Ripple</strong> e <strong>Semantic Map</strong>.</p>
+                <p class="text-sm text-slate-600 mb-2">Nodi a livello di sezione e archi tipizzati: alimenta BFS, Impact Ripple e Semantic Map.</p>
+                <details class="text-sm text-slate-600">
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
+                  <p class="mt-2">Nodi a <strong>livello di sezione</strong> (non solo doc): i chunk diventano nodi e il <strong>code-link è per sezione</strong>. Archi tipizzati dal frontmatter più <strong>alias di autorità risolti in archi doc→doc</strong> che connettono il KG. I nodi <code class="bg-gray-200 px-1 rounded font-mono">entity</code>/<code class="bg-gray-200 px-1 rounded font-mono">MENTIONS</code> passano da un <strong>vaglio di forma</strong> (<code class="bg-gray-200 px-1 rounded font-mono">extract_entities</code>) che scarta checkbox, link e segnaposto dei template — solo riferimenti veri, niente rumore. Artefatti <strong>sicuri e ispezionabili</strong> (JSON + .npz, addio pickle). Alimenta BFS, <strong>Impact Ripple</strong> e <strong>Semantic Map</strong>.</p>
+                </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-orange-500 p-6">
                 <div class="text-3xl mb-3">🧠</div>
                 <h2 class="text-xl font-bold mb-2">4. Il Layer LLM</h2>
                 <p class="text-sm font-mono bg-orange-50 p-1 rounded text-orange-700 mb-2">core/llm.py (multi-provider)</p>
-                <p class="text-sm text-slate-600">Le chiamate generative della pipeline (drift, canvas, propose, validate, explore, review) passano da un layer unico: provider e modello si scelgono <strong>per scopo</strong> in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code> (es. Ollama per il drift, Claude per il canvas). Riceve solo il fascicolo scremato dai motori deterministici. <strong>Anche <code class="bg-gray-200 px-1 rounded font-mono">POST /ask</code></strong> passa da qui (purpose <code class="bg-gray-200 px-1 rounded font-mono">ask</code>): un solo client, stessi guardrail.</p>
+                <p class="text-sm text-slate-600 mb-2">Un solo client per tutte le chiamate generative: provider e modello si scelgono per scopo.</p>
+                <details class="text-sm text-slate-600">
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
+                  <p class="mt-2">Le chiamate generative della pipeline (drift, canvas, propose, validate, explore, review) passano da un layer unico: provider e modello si scelgono <strong>per scopo</strong> in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code> (es. Ollama per il drift, Claude per il canvas). Riceve solo il fascicolo scremato dai motori deterministici. <strong>Anche <code class="bg-gray-200 px-1 rounded font-mono">POST /ask</code></strong> passa da qui (purpose <code class="bg-gray-200 px-1 rounded font-mono">ask</code>): un solo client, stessi guardrail.</p>
+                </details>
             </div>
 
         </div>
@@ -228,28 +269,44 @@
                 <div class="text-3xl mb-3">🌐</div>
                 <h2 class="text-xl font-bold mb-2">5. Lo Strato HTTP</h2>
                 <p class="text-sm font-mono bg-blue-50 p-1 rounded text-blue-700 mb-2">api/ + server.py (FastAPI)</p>
-                <p class="text-sm text-slate-600">Route handler sottili che iniettano le risorse nelle funzioni pure di <code class="bg-gray-200 px-1 rounded font-mono">core/</code>. Bind di default su 127.0.0.1; <code class="bg-gray-200 px-1 rounded font-mono">/api/*</code> e <code class="bg-gray-200 px-1 rounded font-mono">/ask</code> protetti da <strong>X-API-Key</strong>. L'indice vive in uno <strong>snapshot immutabile</strong>: mai versioni miste durante il reload.</p>
+                <p class="text-sm text-slate-600 mb-2">Route sottili sopra le funzioni pure di core/. Bind locale, X-API-Key, snapshot immutabile.</p>
+                <details class="text-sm text-slate-600">
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
+                  <p class="mt-2">Route handler sottili che iniettano le risorse nelle funzioni pure di <code class="bg-gray-200 px-1 rounded font-mono">core/</code>. Bind di default su 127.0.0.1; <code class="bg-gray-200 px-1 rounded font-mono">/api/*</code> e <code class="bg-gray-200 px-1 rounded font-mono">/ask</code> protetti da <strong>X-API-Key</strong>. L'indice vive in uno <strong>snapshot immutabile</strong>: mai versioni miste durante il reload.</p>
+                </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-emerald-500 p-6">
                 <div class="text-3xl mb-3">🔀</div>
                 <h2 class="text-xl font-bold mb-2">6. La Pipeline VibeCraft</h2>
                 <p class="text-sm font-mono bg-emerald-50 p-1 rounded text-emerald-700 mb-2">core/pipeline.py</p>
-                <p class="text-sm text-slate-600">Explore → Canvas → Propose → Validate, con <strong>Drift check</strong> e <strong>Archive</strong> a chiudere il ciclo. Canvas e Propose sono <strong>grounded nel Graph RAG</strong>; all'archive la <strong>canvas review</strong> confronta il Canvas col diff reale e le lezioni rientrano nei prompt futuri.</p>
+                <p class="text-sm text-slate-600 mb-2">Explore, Canvas, Propose, Validate — con Drift e Archive a chiudere il ciclo, grounded sul grafo.</p>
+                <details class="text-sm text-slate-600">
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
+                  <p class="mt-2">Explore → Canvas → Propose → Validate, con <strong>Drift check</strong> e <strong>Archive</strong> a chiudere il ciclo. Canvas e Propose sono <strong>grounded nel Graph RAG</strong>; all'archive la <strong>canvas review</strong> confronta il Canvas col diff reale e le lezioni rientrano nei prompt futuri.</p>
+                </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-purple-500 p-6">
                 <div class="text-3xl mb-3">♻️</div>
                 <h2 class="text-xl font-bold mb-2">7. Il Reindex Automatico</h2>
                 <p class="text-sm font-mono bg-purple-50 p-1 rounded text-purple-700 mb-2">api/reindex.py</p>
-                <p class="text-sm text-slate-600"><strong>Un solo scrittore</strong> per l'indice: reindex incrementale e archive passano dalla stessa <strong>coda a coalescing</strong> del ReindexManager (webhook ravvicinati fusi, mai persi), con job-id interrogabili e <strong>journal JSONL</strong> persistente. La mutua esclusione vale anche <strong>cross-processo</strong>: CLI e server si escludono con un <strong>writer lock</strong> OS (<code class="bg-gray-200 px-1 rounded font-mono">database/.writer.lock</code>), niente artefatti misti. Trigger via <strong>webhook GitLab</strong> con secret token o manuale dalla console.</p>
+                <p class="text-sm text-slate-600 mb-2">Un solo scrittore per l'indice: coda a coalescing, writer lock cross-processo, journal persistente.</p>
+                <details class="text-sm text-slate-600">
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
+                  <p class="mt-2"><strong>Un solo scrittore</strong> per l'indice: reindex incrementale e archive passano dalla stessa <strong>coda a coalescing</strong> del ReindexManager (webhook ravvicinati fusi, mai persi), con job-id interrogabili e <strong>journal JSONL</strong> persistente. La mutua esclusione vale anche <strong>cross-processo</strong>: CLI e server si escludono con un <strong>writer lock</strong> OS (<code class="bg-gray-200 px-1 rounded font-mono">database/.writer.lock</code>), niente artefatti misti. Trigger via <strong>webhook GitLab</strong> con secret token o manuale dalla console.</p>
+                </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-orange-500 p-6">
                 <div class="text-3xl mb-3">📦</div>
                 <h2 class="text-xl font-bold mb-2">8. Gli Artefatti (blue/green)</h2>
                 <p class="text-sm font-mono bg-orange-50 p-1 rounded text-orange-700 mb-2">core/artifacts.py</p>
-                <p class="text-sm text-slate-600">Unico punto di I/O dell'indice (<code class="bg-gray-200 px-1 rounded font-mono">graph.json</code>, <code class="bg-gray-200 px-1 rounded font-mono">chunks.json</code>, <code class="bg-gray-200 px-1 rounded font-mono">*.npz</code> fp16). Ogni build scrive una <strong>nuova versione</strong> in <code class="bg-gray-200 px-1 rounded font-mono">database/versions/v&lt;ts&gt;/</code>: lo <strong>swap è atomico</strong> spostando il puntatore <code class="bg-gray-200 px-1 rounded font-mono">CURRENT</code>, il <strong>rollback è istantaneo</strong>. Qdrant è versionato solo per i full rebuild (collection candidata + alias); gli incrementali lo mutano in place.</p>
+                <p class="text-sm text-slate-600 mb-2">Ogni build e una nuova versione: swap atomico del puntatore CURRENT, rollback istantaneo.</p>
+                <details class="text-sm text-slate-600">
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
+                  <p class="mt-2">Unico punto di I/O dell'indice (<code class="bg-gray-200 px-1 rounded font-mono">graph.json</code>, <code class="bg-gray-200 px-1 rounded font-mono">chunks.json</code>, <code class="bg-gray-200 px-1 rounded font-mono">*.npz</code> fp16). Ogni build scrive una <strong>nuova versione</strong> in <code class="bg-gray-200 px-1 rounded font-mono">database/versions/v&lt;ts&gt;/</code>: lo <strong>swap è atomico</strong> spostando il puntatore <code class="bg-gray-200 px-1 rounded font-mono">CURRENT</code>, il <strong>rollback è istantaneo</strong>. Qdrant è versionato solo per i full rebuild (collection candidata + alias); gli incrementali lo mutano in place.</p>
+                </details>
             </div>
 
         </div>
@@ -260,37 +317,46 @@
                 <div class="text-3xl mb-3">🩺</div>
                 <h2 class="text-xl font-bold mb-2">9. L'Osservabilità</h2>
                 <p class="text-sm font-mono bg-blue-50 p-1 rounded text-blue-700 mb-2">GET /api/health + logging</p>
-                <p class="text-sm text-slate-600">Endpoint <code class="bg-gray-200 px-1 rounded font-mono">/api/health</code>: stato snapshot in memoria, freschezza del manifest, ultimo job di reindex e pending, raggiungibilità di Qdrant/Ollama. <strong>Logging strutturato</strong> e ultimo alert dei batch notturni da <code class="bg-gray-200 px-1 rounded font-mono">alerts.jsonl</code> (webhook).</p>
+                <p class="text-sm text-slate-600 mb-2">Stato dell'indice, freschezza del manifest, ultimo job e raggiungibilita delle dipendenze.</p>
+                <details class="text-sm text-slate-600">
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
+                  <p class="mt-2">Endpoint <code class="bg-gray-200 px-1 rounded font-mono">/api/health</code>: stato snapshot in memoria, freschezza del manifest, ultimo job di reindex e pending, raggiungibilità di Qdrant/Ollama. <strong>Logging strutturato</strong> e ultimo alert dei batch notturni da <code class="bg-gray-200 px-1 rounded font-mono">alerts.jsonl</code> (webhook).</p>
+                </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-emerald-500 p-6">
                 <div class="text-3xl mb-3">✅</div>
                 <h2 class="text-xl font-bold mb-2">10. L'Eval-Gate Continuo</h2>
                 <p class="text-sm font-mono bg-emerald-50 p-1 rounded text-emerald-700 mb-2">core/eval_gate.py + golden set</p>
-                <p class="text-sm text-slate-600">Prima di spostare <code class="bg-gray-200 px-1 rounded font-mono">CURRENT</code> su una nuova versione, il retrieval è valutato sul golden set: se recall@k scende sotto soglia la <strong>promozione è bloccata</strong> e parte un alert critico. Una regressione del ranking <strong>non diventa più CURRENT in silenzio</strong>.</p>
+                <p class="text-sm text-slate-600 mb-2">Prima di promuovere una versione, il retrieval e valutato: sotto soglia la promozione e bloccata.</p>
+                <details class="text-sm text-slate-600">
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
+                  <p class="mt-2">Prima di spostare <code class="bg-gray-200 px-1 rounded font-mono">CURRENT</code> su una nuova versione, il retrieval è valutato sul golden set: se recall@k scende sotto soglia la <strong>promozione è bloccata</strong> e parte un alert critico. Una regressione del ranking <strong>non diventa più CURRENT in silenzio</strong>.</p>
+                </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-purple-500 p-6">
                 <div class="text-3xl mb-3">🌙</div>
                 <h2 class="text-xl font-bold mb-2">11. I Check Notturni</h2>
                 <p class="text-sm font-mono bg-purple-50 p-1 rounded text-purple-700 mb-2">scripts/nightly_consistency</p>
-                <p class="text-sm text-slate-600">Check notturno <strong>economico</strong> (coerenza grafo, zero embedding) che segnala il drift, più un <strong>check profondo settimanale</strong> con re-embedding. Le anomalie diventano alert su <code class="bg-gray-200 px-1 rounded font-mono">alerts.jsonl</code> e webhook.</p>
+                <p class="text-sm text-slate-600 mb-2">Check notturno economico sulla coerenza del grafo, piu un check profondo settimanale.</p>
+                <details class="text-sm text-slate-600">
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
+                  <p class="mt-2">Check notturno <strong>economico</strong> (coerenza grafo, zero embedding) che segnala il drift, più un <strong>check profondo settimanale</strong> con re-embedding. Le anomalie diventano alert su <code class="bg-gray-200 px-1 rounded font-mono">alerts.jsonl</code> e webhook.</p>
+                </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-orange-500 p-6">
                 <div class="text-3xl mb-3">📈</div>
                 <h2 class="text-xl font-bold mb-2">12. Il Trend di Qualità</h2>
                 <p class="text-sm font-mono bg-orange-50 p-1 rounded text-orange-700 mb-2">core/eval_history.py + /eval</p>
-                <p class="text-sm text-slate-600">La recall non è più solo misurata a ogni promozione ma <strong>storicizzata</strong> (<code class="bg-gray-200 px-1 rounded font-mono">history.jsonl</code> append-only) e resa un trend: la pagina <strong>/eval</strong> grafica recall@10 nel tempo (marcatori gate vs eval manuale), <code class="bg-gray-200 px-1 rounded font-mono">/api/health</code> espone il trend up/flat/down e le <strong>regressioni lente</strong> diventano alert.</p>
+                <p class="text-sm text-slate-600 mb-2">La recall non e solo misurata ma storicizzata: /eval la grafica nel tempo e le regressioni diventano alert.</p>
+                <details class="text-sm text-slate-600">
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
+                  <p class="mt-2">La recall non è più solo misurata a ogni promozione ma <strong>storicizzata</strong> (<code class="bg-gray-200 px-1 rounded font-mono">history.jsonl</code> append-only) e resa un trend: la pagina <strong>/eval</strong> grafica recall@10 nel tempo (marcatori gate vs eval manuale), <code class="bg-gray-200 px-1 rounded font-mono">/api/health</code> espone il trend up/flat/down e le <strong>regressioni lente</strong> diventano alert.</p>
+                </details>
             </div>
 
-        </div>
-
-        <div class="bg-white glass-card rounded-xl shadow-xl p-8 border border-slate-200">
-            <h2 class="text-2xl font-bold text-slate-800 mb-6 border-b border-slate-200 pb-2">Diagramma del Flusso di Interrogazione (POST /ask)</h2>
-            <div class="flex justify-center">
-                <div class="mermaid" id="rag-mermaid"></div>
-            </div>
         </div>
 
         <div class="mt-8 bg-blue-50 text-blue-800 p-4 rounded-lg border border-blue-200">
@@ -375,7 +441,67 @@ graph TD
         }
       }
 
-      document.addEventListener('DOMContentLoaded', renderMermaidDiagram);
+      /* ──────────── KPI REALI DA /api/health ────────────
+         La pagina descriveva il sistema senza mostrarne un solo dato: nessuna
+         metrica, nessuna fonte, nessuna evidenza. Dodici blocchi che dichiarano
+         capacita non generano fiducia — questi numeri si, perche vengono
+         dall'indice vivo e cambiano insieme a lui. */
+      /* `href` opzionale: dove esiste una pagina che approfondisce il dato, la
+         card ci porta. Erano dodici blocchi senza una sola azione possibile. */
+      function kpiCard(etichetta, valore, nota, tono, href) {
+        const colori = { ok: 'text-emerald-700', warn: 'text-orange-700', bad: 'text-pink-600', neutro: 'text-slate-800' };
+        // La dimensione segue la lunghezza: un identificatore di versione non
+        // sta in 143px a 24px di corpo, e a 375px la card sforava.
+        const v = String(valore);
+        const corpo = v.length > 13 ? 'text-base' : v.length > 8 ? 'text-xl' : 'text-2xl';
+        const dentro = `
+          <div class="text-xs uppercase tracking-widest text-slate-500 mb-1">${escapeHtml(etichetta)}</div>
+          <div class="${corpo} font-bold font-mono break-words ${colori[tono] || colori.neutro}">${escapeHtml(v)}</div>
+          ${nota ? `<div class="text-xs text-slate-500 mt-1 break-words">${escapeHtml(nota)}</div>` : ''}`;
+        const base = 'bg-white glass-card rounded-xl p-4 border-t-4 border-slate-700 block min-w-0';
+        return href
+          ? `<a href="${href}" class="${base} no-underline hover-lift">${dentro}
+               <div class="text-xs text-blue-700 mt-2">Apri →</div></a>`
+          : `<div class="${base}">${dentro}</div>`;
+      }
+
+      async function caricaKpi() {
+        const grid = document.getElementById('kpi-grid');
+        const stato = document.getElementById('kpi-stato');
+        try {
+          const res = await fetch('/api/health');
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const h = await res.json();
+          const snap = h.snapshot || {}, ev = h.eval || {}, dep = h.dependencies || {};
+          const nf = n => (typeof n === 'number' ? n.toLocaleString('it-IT') : '—');
+          const recall = typeof ev.last_recall_at_10 === 'number'
+            ? (ev.last_recall_at_10 * 100).toFixed(1) + '%' : '—';
+          const trend = { up: '↑ in salita', down: '↓ in discesa', flat: '→ stabile' }[ev.trend] || ev.trend || '';
+          // Il tono segue la soglia dell'eval-gate (0.9), non un giudizio arbitrario.
+          const tonoRecall = typeof ev.last_recall_at_10 !== 'number' ? 'neutro'
+                           : ev.last_recall_at_10 >= 0.9 ? 'ok' : 'bad';
+
+          grid.innerHTML = [
+            kpiCard('recall@10', recall, trend + ' · ' + (ev.history_points ?? 0) + ' misurazioni', tonoRecall, '/eval'),
+            kpiCard('Nodi nel grafo', nf(snap.graph_nodes), nf(snap.graph_edges) + ' archi', 'neutro', '/analysis'),
+            kpiCard('Sezioni indicizzate', nf(snap.chunks), 'chunk con vettori ColBERT', 'neutro', '/'),
+            kpiCard('Versione CURRENT', snap.version || '—', (h.manifest && h.manifest.stale) ? 'manifest da aggiornare' : 'manifest allineato',
+                    (h.manifest && h.manifest.stale) ? 'warn' : 'ok'),
+            kpiCard('Qdrant', dep.qdrant ? 'raggiungibile' : 'non raggiungibile', 'database vettoriale', dep.qdrant ? 'ok' : 'bad'),
+            kpiCard('Ollama', dep.ollama ? 'raggiungibile' : 'non raggiungibile', 'LLM locale', dep.ollama ? 'ok' : 'bad'),
+          ].join('');
+
+          stato.textContent = 'stato: ' + (h.status || '—');
+          stato.className = 'text-xs font-mono ' +
+            (h.status === 'ok' ? 'text-emerald-700' : h.status === 'degraded' ? 'text-orange-700' : 'text-slate-500');
+        } catch (e) {
+          grid.innerHTML = `<p class="text-sm col-span-full text-slate-600">Stato non disponibile (${escapeHtml(e.message)}).
+            <button class="btn btn-secondary" style="margin-left:.5rem" onclick="caricaKpi()">Riprova</button></p>`;
+          stato.textContent = '';
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', () => { renderMermaidDiagram(); caricaKpi(); });
     </script>
 </body>
 </html>
