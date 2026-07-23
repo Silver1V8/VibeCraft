@@ -294,7 +294,12 @@ body.page-doc {
 .page-doc header {
   position: sticky;
   top: 0;
-  z-index: 5;
+  /* Era z-index:5, sotto main/section (10): l'header sticky restava "in cima"
+     visivamente solo finché non arrivava una sezione, che allora lo copriva
+     scorrendo. L'header sticky deve stare sopra il contenuto normale — resta
+     sotto gli overlay (30) e i toast (60), che devono poterlo coprire quando
+     aperti. */
+  z-index: 15;
   display: flex;
   align-items: center;
   gap: 16px;

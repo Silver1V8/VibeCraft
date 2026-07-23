@@ -115,6 +115,26 @@
 
       /* NB: matrix-rain, scanlines, glow-text e la regola di hide nel tema Classico
          vivono ora in /static/shared.css (identici tra le pagine). */
+
+      /* I pulsanti di navigazione prendono lo stesso trattamento cromatico del
+         titolo "Architettura Graph RAG (Local-First)" (bg-clip-text col
+         gradiente blue-600 → emerald-500). Solo nel tema Classico: in Matrix i
+         pulsanti restano sulla palette verde/teal dell'identità del tema, che
+         qui non ha un gradiente equivalente da riprendere.
+         Specificità (0,3,1): supera la regola .app-nav a.is-current di
+         shared.css (0,2,1) senza !important, e la classe .app-nav-brand è
+         locale a questa pagina — le altre cinque non sono toccate. */
+      :root[data-theme="classic"] .app-nav-brand a {
+        color: transparent;
+        background-image: linear-gradient(90deg, var(--blue-600), var(--emerald-500));
+        background-clip: text;
+        -webkit-background-clip: text;
+      }
+      :root[data-theme="classic"] .app-nav-brand a:hover {
+        background-image: linear-gradient(90deg, var(--blue-700), var(--emerald-600));
+        background-clip: text;
+        -webkit-background-clip: text;
+      }
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
       ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
@@ -134,7 +154,10 @@
         <div class="flex flex-wrap items-center gap-3 mb-8">
             <!-- Nav canonica, identica sulle 6 pagine: stesso ordine, stesse
                  etichette, pagina corrente inclusa. Lo stile e in shared.css. -->
-            <nav class="app-nav" aria-label="Sezioni">
+            <!-- app-nav-brand: scoping locale per il tema Classico (vedi lo
+                 style block di questa pagina) — i pulsanti prendono il colore
+                 del titolo "Architettura Graph RAG (Local-First)". -->
+            <nav class="app-nav app-nav-brand" aria-label="Sezioni">
               <a href="/">Console</a>
               <a href="/intake">Intake</a>
               <a href="/pipeline">Pipeline</a>

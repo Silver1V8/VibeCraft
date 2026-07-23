@@ -538,10 +538,10 @@
             </button>
             <!-- Toggle vista 2D/3D -->
             <div class="flex items-center rounded-lg border border-slate-700 bg-slate-800/60 overflow-hidden">
-              <button id="view-mode-2d-btn" onclick="setGraphViewMode('2d')" title="Vista 2D"
-                class="view-toggle-btn active">2D</button>
-              <button id="view-mode-3d-btn" onclick="setGraphViewMode('3d')" title="Vista 3D"
-                class="view-toggle-btn">3D</button>
+              <button id="view-mode-2d-btn" onclick="setGraphViewMode('2d')" title="Vista 2D" aria-pressed="false"
+                class="view-toggle-btn">2D</button>
+              <button id="view-mode-3d-btn" onclick="setGraphViewMode('3d')" title="Vista 3D" aria-pressed="true"
+                class="view-toggle-btn active">3D</button>
             </div>
           </div>
         </div>
@@ -553,8 +553,11 @@
         <!-- TAB: Mappa del Grafo -->
         <div id="tab-graph-panel" role="tabpanel" aria-labelledby="tab-graph-btn"
           class="absolute inset-0 rounded-xl overflow-hidden border border-slate-800">
-          <div id="graph-canvas"></div>
-          <div id="graph-canvas-3d" style="display:none"></div>
+          <!-- Il 3D è la vista di default (vedi graphViewMode più sotto): i due
+               div partono con la visibilità già coerente con quello stato,
+               altrimenti al primo render comparirebbero entrambi o nessuno. -->
+          <div id="graph-canvas" style="display:none"></div>
+          <div id="graph-canvas-3d"></div>
           <!-- Legenda dei pilastri REASONS (compare quando c'è un grafo).
                Il testo era a 9px/11px: sotto il pavimento di leggibilità. -->
           <div id="reasons-legend" style="display:none"
@@ -733,7 +736,7 @@
     let lastQueryGraphData = null;  // { nodes, edges, seedNodes } dell'ultima query /ask
 
     /* ──────────── VISTA 2D/3D ──────────── */
-    let graphViewMode  = '2d';   // '2d' (vis.js) oppure '3d' (3d-force-graph / WebGL)
+    let graphViewMode  = '3d';   // '2d' (vis.js) oppure '3d' (3d-force-graph / WebGL) — 3D di default
     let graph3d        = null;   // istanza ForceGraph3D, creata al primo uso
     let lastGraphNodes = [];     // ultimo array di nodi renderizzato (per il toggle di vista)
     let lastGraphEdges = [];     // ultimo array di archi renderizzato
