@@ -43,20 +43,56 @@ function themeVar(name, fallback) {
   return _themeVarCache[name] || fallback;
 }
 
+/* ──────────── PREFERENZA DI MOVIMENTO ────────────
+   Tre stati, persistiti: 'auto' (segue il sistema operativo), 'on' e 'off'.
+   Serve un override esplicito perché prefers-reduced-motion da solo è troppo
+   grezzo: chi disattiva le animazioni di Windows perde il rain senza avere modo
+   di riattivarlo, e il rain è l'identità del tema Matrix, non una decorazione
+   accessoria. Il default resta il rispetto del sistema. */
+const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const MOTION_KEY = 'vibecraft-motion';
+
+function motionPref() {
+  try { return localStorage.getItem(MOTION_KEY) || 'auto'; } catch (e) { return 'auto'; }
+}
+function motionEnabled() {
+  const p = motionPref();
+  if (p === 'on')  return true;
+  if (p === 'off') return false;
+  return !prefersReducedMotion.matches;
+}
+/* Riporta la preferenza sul DOM: serve al CSS, che da solo non può sapere di un
+   override memorizzato in localStorage. */
+function applyMotionAttr() {
+  const p = motionPref();
+  if (p === 'auto') delete document.documentElement.dataset.motion;
+  else document.documentElement.dataset.motion = p;
+}
+function setMotion(pref) {
+  try { localStorage.setItem(MOTION_KEY, pref); } catch (e) { /* storage non disponibile */ }
+  applyMotionAttr();
+  syncMotionToggle();
+  if (document.documentElement.dataset.theme === 'matrix' && motionEnabled()) startMatrixRain();
+  else stopMatrixRain();
+}
+
+/* Applicato subito, non a DOMContentLoaded: shared.js è caricato in <head> in
+   modo sincrono, quindi l'attributo è sul posto già al primo paint e le
+   transizioni non fanno in tempo a partire con la preferenza sbagliata. */
+applyMotionAttr();
+
 /* ──────────── MATRIX RAIN ────────────
-   Parte solo se il tema attivo è "matrix" E l'utente non ha chiesto meno
-   movimento. Usa requestAnimationFrame invece di setInterval: si ferma da solo
-   quando la tab è in background, cosa che setInterval non fa.
+   Parte solo se il tema attivo è "matrix" E il movimento è consentito. Usa
+   requestAnimationFrame invece di setInterval: si ferma da solo quando la tab è
+   in background, cosa che setInterval non fa.
    Il listener di resize viene RIMOSSO in stop(): la versione precedente lo
    registrava a ogni start senza mai toglierlo, quindi ogni ciclo
    matrix → classic → matrix lasciava un listener orfano attivo per sempre. */
-const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-
 let rainRaf = null;
 let rainResizeHandler = null;
 
 function startMatrixRain() {
-  if (rainRaf || prefersReducedMotion.matches) return;
+  if (rainRaf || !motionEnabled()) return;
   const canvas = document.getElementById('matrix-rain');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
@@ -101,18 +137,50 @@ function stopMatrixRain() {
   }
 }
 
-/* Se l'utente cambia la preferenza di movimento a runtime, adeguati subito:
-   il tema Matrix resta selezionato, cade solo l'animazione. */
+/* Se cambia la preferenza di sistema a runtime, adeguati — ma solo in 'auto':
+   una scelta esplicita dell'utente non va scavalcata dal sistema operativo. */
 prefersReducedMotion.addEventListener('change', () => {
-  if (prefersReducedMotion.matches) stopMatrixRain();
-  else if (document.documentElement.dataset.theme === 'matrix') startMatrixRain();
+  if (motionPref() !== 'auto') return;
+  syncMotionToggle();
+  if (motionEnabled() && document.documentElement.dataset.theme === 'matrix') startMatrixRain();
+  else stopMatrixRain();
 });
+
+/* ──────────── TOGGLE DEL MOVIMENTO ────────────
+   Il comando viene iniettato accanto al selettore del tema, così compare su
+   tutte e 6 le pagine senza doverne toccare il markup. È visibile solo nel tema
+   Matrix: il rain non esiste in Classico e un interruttore che non fa nulla
+   confonde. */
+function syncMotionToggle() {
+  const btn = document.getElementById('motion-toggle');
+  if (!btn) return;
+  const on = motionEnabled();
+  btn.textContent = on ? '🌧 Rain on' : '🌧 Rain off';
+  btn.setAttribute('aria-pressed', String(on));
+  btn.title = on
+    ? 'Disattiva le animazioni di sfondo (rain)'
+    : 'Attiva le animazioni di sfondo (rain)';
+  btn.hidden = document.documentElement.dataset.theme !== 'matrix';
+}
+
+function initMotionToggle() {
+  const sel = document.getElementById('theme-switcher');
+  if (!sel || document.getElementById('motion-toggle')) return;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.id = 'motion-toggle';
+  btn.className = 'motion-toggle';
+  btn.addEventListener('click', () => setMotion(motionEnabled() ? 'off' : 'on'));
+  sel.insertAdjacentElement('afterend', btn);
+  syncMotionToggle();
+}
 
 /* ──────────── THEME SWITCHER (live-flip, niente reload) ──────────── */
 function setUiTheme(value) {
   document.cookie = 'ui_theme=' + value + ';path=/;max-age=31536000';
   document.documentElement.dataset.theme = value;   // live-flip: niente reload
   if (value === 'matrix') startMatrixRain(); else stopMatrixRain();
+  syncMotionToggle();   // il toggle del rain esiste solo nel tema Matrix
   // Hook per il redraw specifico della pagina (canvas bitmap, mermaid, …).
   if (typeof window.onThemeChange === 'function') window.onThemeChange(value);
 }
@@ -141,6 +209,8 @@ document.addEventListener('DOMContentLoaded', function () {
   // blocco serve solo a sincronizzare lo stato del <select id="theme-switcher">.
   const sel = document.getElementById('theme-switcher');
   if (sel) sel.value = document.documentElement.dataset.theme || 'matrix';
+  applyMotionAttr();
+  initMotionToggle();
   if (document.documentElement.dataset.theme === 'matrix') startMatrixRain();
   initNavigation();
 });

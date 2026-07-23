@@ -113,8 +113,10 @@
   --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.55);
   --btn-glow-token: 0 0 12px rgba(0, 224, 58, 0.28);
 
-  /* Layer di identità: intensità parametriche, non hardcoded. */
-  --rain-opacity:   0.22;
+  /* Layer di identità: intensità parametriche, non hardcoded. Il rain è la
+     firma del tema e deve leggersi: 0.28 è il valore che aveva su 4 pagine su
+     6 prima dell'unificazione. */
+  --rain-opacity:   0.28;
   --scanline-alpha: 0.03;
 }
 
@@ -265,15 +267,47 @@ header a.is-current,
 /* Il tema Matrix resta pienamente selezionabile e leggibile: cade il MOVIMENTO
    (rain fermato in shared.js, transizioni azzerate), non l'identità visiva —
    palette, monospace e scanline statiche restano. Gli !important sono necessari
-   per sovrascrivere le animazioni dichiarate inline nei template non migrati. */
+   per sovrascrivere le animazioni dichiarate inline nei template non migrati.
+
+   La preferenza di sistema vale come DEFAULT, non come verdetto: `data-motion`
+   (scritto da shared.js da localStorage) permette di riattivare esplicitamente
+   il movimento con `on` o di spegnerlo sempre con `off`. Senza questa via
+   d'uscita, chi ha disattivato le animazioni di Windows perdeva il rain — cioè
+   l'identità del tema — senza alcun modo di recuperarlo. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  :root:not([data-motion="on"]) *,
+  :root:not([data-motion="on"]) *::before,
+  :root:not([data-motion="on"]) *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  .scanlines { opacity: 0.4; }
+  :root:not([data-motion="on"]) .scanlines { opacity: 0.4; }
 }
+:root[data-motion="off"] *,
+:root[data-motion="off"] *::before,
+:root[data-motion="off"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Toggle del rain, iniettato da shared.js accanto al selettore del tema. */
+.motion-toggle {
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.motion-toggle:hover { color: var(--color-text-primary); border-color: var(--color-text-muted); }
+.motion-toggle[aria-pressed="true"] { border-color: var(--color-primary); color: var(--color-primary); }
+.motion-toggle[hidden] { display: none; }

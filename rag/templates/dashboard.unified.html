@@ -955,29 +955,45 @@
           .linkColor('color')
           .linkLabel('label')
           .linkWidth(0.6)
-          .linkDirectionalArrowLength(3.5)
           .linkDirectionalArrowRelPos(1)
-          .linkOpacity(0.35)
           .onNodeClick(n => renderNodeDetails(n.id))
           .onBackgroundClick(() => closeNodeDetails());
         resize3DCanvas();
         window.addEventListener('resize', resize3DCanvas);
       }
 
+      /* Degradazione per grafi grandi: sopra qualche migliaio di nodi le frecce
+         direzionali sono geometria aggiuntiva per ogni arco e la simulazione,
+         se non le si dà un tetto, continua a girare indefinitamente. Il
+         cooldown limitato congela il layout dopo un numero fisso di tick: si
+         perde l'assestamento perfetto, si guadagna una pagina che risponde. */
+      const grande = nodes.length > 2000;
+      graph3d
+        .linkDirectionalArrowLength(grande ? 0 : 3.5)
+        .linkOpacity(grande ? 0.18 : 0.35)
+        .warmupTicks(grande ? 40 : 0)
+        .cooldownTicks(grande ? 120 : Infinity);
+
       graph3d.graphData(graphData);
       resize3DCanvas();
     }
 
-    function setGraphViewMode(mode) {
+    /* `rerender: false` serve a chi sta per disegnare comunque un grafo nuovo
+       (showFullGraph): senza, si ridisegnerebbe prima il grafo VECCHIO nella
+       nuova vista e subito dopo quello nuovo — lavoro doppio su decine di
+       migliaia di nodi. */
+    function setGraphViewMode(mode, rerender = true) {
       if (mode === graphViewMode) return;
       graphViewMode = mode;
 
       document.getElementById('view-mode-2d-btn').classList.toggle('active', mode === '2d');
       document.getElementById('view-mode-3d-btn').classList.toggle('active', mode === '3d');
+      document.getElementById('view-mode-2d-btn').setAttribute('aria-pressed', String(mode === '2d'));
+      document.getElementById('view-mode-3d-btn').setAttribute('aria-pressed', String(mode === '3d'));
       document.getElementById('graph-canvas').style.display    = (mode === '2d') ? '' : 'none';
       document.getElementById('graph-canvas-3d').style.display = (mode === '3d') ? '' : 'none';
 
-      if (lastGraphNodes.length) {
+      if (rerender && lastGraphNodes.length) {
         if (mode === '3d') render3D(lastGraphNodes, lastGraphEdges);
         else render2D(lastGraphNodes, lastGraphEdges, lastVisOptions);
       }
@@ -1081,6 +1097,14 @@
         document.getElementById('graph-empty').style.display = 'none';
         hideGraphError();
         setGraphMode('full');
+
+        /* Il grafo completo parte in 3D. Non è solo una preferenza estetica:
+           vis.js in 2D stabilizza il layout sul main thread e su un knowledge
+           base di oltre 10.000 nodi blocca la pagina per decine di secondi,
+           mentre 3d-force-graph gira su WebGL e regge il carico. La vista 2D
+           resta a un click per chi la preferisce, e il grafo contestuale —
+           poche decine di nodi — continua a usare la vista attiva. */
+        setGraphViewMode('3d', false);
 
         document.getElementById('reasons-legend').style.display = '';
         closeNodeDetails();
