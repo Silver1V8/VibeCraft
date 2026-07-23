@@ -17,15 +17,16 @@
     :root[data-theme="matrix"] {
       --body-bg:#04140a; --body-text:#d8ffe4; --font-main:'JetBrains Mono','Fira Code',Consolas,ui-monospace,monospace;
       --scrollbar-track:#04140a; --scrollbar-thumb:#1f7a3d; --scrollbar-thumb-hover:#2ea34f;
-      --rain-opacity: 0.28;
+      /* --rain-opacity: valore unico in /static/shared.css (era 0.28 qui e 0.32
+         di fallback su dashboard/pipeline). */
       --header-grad-1:#000000; --header-grad-2:#0a3d1f; --header-grad-3:#000000; --header-border:#123a22;
-      --title-color:#00ff41; --title-glow: 0 0 8px rgba(0,255,65,.5);
-      --sub-text:#4dbf6e;
+      --title-color:#00ff41; --title-glow: 0 0 12px rgba(0,255,65,.28);
+      --sub-text:#6fbf85;
       --nav-link-color:#a8f0c0; --nav-link-border:#1f5c38; --nav-link-bg:#04140a; --nav-link-hover-bg:#0a2417;
-      --section-bg:#020f08; --section-border:#123a22;
+      --section-border:#17402a;
       --h2-color:#7dffa0;
-      --muted-text:#4dbf6e; --text-size-sm:11.5px;
-      --control-bg:#04140a; --control-color:#00ff41; --control-border:#1f5c38; --control-hover-bg:#0a2417;
+      --muted-text:#6fbf85; --text-size-sm:0.8125rem;
+      --control-bg:#04140a; --control-color:#a8f0c0; --control-border:#1f5c38; --control-hover-bg:#0a2417;
       --canvas-bg:#010a05; --canvas-border:#0a2417;
       --mono-font: 'JetBrains Mono','Fira Code',Consolas,ui-monospace,monospace;
 
@@ -95,16 +96,22 @@
       padding: 16px 18px; margin-bottom: 22px;
       backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
       box-shadow: var(--glass-shadow);
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      transition: border-color var(--duration-normal) var(--ease-standard);
     }
-    section:hover { transform: translateY(-2px); box-shadow: var(--glow-shadow-hover); }
+    /* Rimosso section:hover{transform}: le superfici che portano dati non si
+       muovono al passaggio del mouse. */
 
     h2 { font-size: 14px; margin: 0 0 4px; color: var(--h2-color); }
     .desc { font-size: var(--text-size-sm); color: var(--muted-text); margin: 0 0 12px; line-height: 1.5; }
 
-    button { transition: all 0.25s cubic-bezier(0.4,0,0.2,1); box-shadow: var(--btn-glow); }
-    button:hover { box-shadow: var(--btn-glow-hover); transform: translateY(-1px) scale(1.02); }
-    button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+    /* Il glow era su OGNI <button>: "Approva", "Rifiuta", "Ricarica" e
+       "Anteprima" brillavano identici, quindi non segnalava più l'azione
+       importante. Ora è riservato a .btn-primary (shared.css). Anche lo
+       scale(1.02) su hover è caduto: faceva vibrare le righe della lista di
+       staging al passaggio del mouse. */
+    button { transition: background-color var(--duration-fast) var(--ease-standard),
+                         border-color var(--duration-fast) var(--ease-standard); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
     button, select, input, textarea {
       font-family: inherit; font-size: 12px; background: var(--control-bg); color: var(--control-color);
       border: 1px solid var(--control-border); border-radius: 8px; padding: 6px 10px; cursor: pointer;
@@ -207,7 +214,7 @@
         <label class="field">Categoria docs/ target
           <select id="gen-categoria"></select>
         </label>
-        <button id="gen-btn" onclick="startGeneration()">▶ Avvia generazione</button>
+        <button id="gen-btn" onclick="startGeneration()" class="btn btn-primary">▶ Avvia generazione</button>
         <span id="gen-status" class="status"></span>
       </div>
       <div id="gen-result"></div>
@@ -233,7 +240,7 @@
       <p class="desc">Documenti importati o generati in attesa di review. Approva per scriverli in
         <code>docs/</code> con reindicizzazione delta, oppure rifiuta (nessuna cancellazione: restano tracciati).</p>
       <div class="toolbar">
-        <button onclick="refreshStaging()">↻ Ricarica</button>
+        <button onclick="refreshStaging()" class="btn btn-secondary">↻ Ricarica</button>
         <span id="staging-status" class="status"></span>
       </div>
       <div id="staging-list"></div>
@@ -252,7 +259,7 @@
           <span style="display:flex;gap:6px;align-items:center">
             <input id="prj-path" type="text" placeholder="Es. C:\progetti\mio-backend" style="width:100%"
                    oninput="invalidateProjectPlan()" />
-            <button type="button" id="prj-browse-btn" onclick="browseProjectPath()"
+            <button type="button" id="prj-browse-btn" onclick="browseProjectPath()" class="btn btn-secondary"
                     title="Apri l'esplora risorse per scegliere la cartella">📁 Sfoglia…</button>
           </span>
         </label>
@@ -263,8 +270,8 @@
             <option value="logicAgent">logicAgent</option>
           </select>
         </label>
-        <button id="prj-plan-btn" onclick="planProjectImport()">🔍 Anteprima</button>
-        <button id="prj-apply-btn" onclick="applyProjectImport()" disabled>▶ Applica</button>
+        <button id="prj-plan-btn" onclick="planProjectImport()" class="btn btn-secondary">🔍 Anteprima</button>
+        <button id="prj-apply-btn" onclick="applyProjectImport()" disabled class="btn btn-primary">▶ Applica</button>
         <span id="prj-status" class="status"></span>
       </div>
       <div id="prj-plan-result"></div>
@@ -273,7 +280,7 @@
         <label class="field">Progetto di cui scrivere il brief
           <select id="prj-brief-progetto"><option value="">(nessun import registrato)</option></select>
         </label>
-        <button id="prj-brief-btn" onclick="startProjectBrief()">🧭 Project brief</button>
+        <button id="prj-brief-btn" onclick="startProjectBrief()" class="btn btn-primary">🧭 Project brief</button>
         <span id="prj-brief-status" class="status">Genera via Ollama una sintesi architetturale del
           progetto selezionato (grounded sul grafo) che entra in staging come ogni documento.
           L'elenco viene dagli import già riusciti, anche di sessioni precedenti.</span>
@@ -482,7 +489,7 @@
               <span class="badge badge-${['generated', 'brief'].includes(entry.source) ? entry.source : 'imported'}">${entry.source}</span>
               <span class="name">${escapeHtml(entry.filename || entry.id)}</span>
               <span class="status">${formatDate(entry.staged_at)}</span>
-              <button onclick="openPreview('${entry.id}')">🔎 Anteprima</button>
+              <button onclick="openPreview('${entry.id}')" class="btn btn-secondary">🔎 Anteprima</button>
             </div>`).join('');
         }
         status.textContent = `${staged.length} documento/i in staging`;
@@ -507,7 +514,7 @@
           <h3>${escapeHtml(data.filename || id)}${raffinato ? ' <span class="badge badge-generated">raffinato</span>' : ''}</h3>
           <div class="md-preview">${mdToHtml(data.markdown || '')}</div>
           <div class="review-controls">
-            <button onclick="refineStaged('${id}')" title="Riscrive il dump del convertitore come spec strutturata (sezioni, tabelle, blocchi di codice). Riesegubile: riparte sempre dal markdown grezzo.">✨ ${raffinato ? 'Raffina di nuovo' : 'Raffina con LLM'}</button>
+            <button onclick="refineStaged('${id}')" class="btn btn-secondary" title="Riscrive il dump del convertitore come spec strutturata (sezioni, tabelle, blocchi di codice). Riesegubile: riparte sempre dal markdown grezzo.">✨ ${raffinato ? 'Raffina di nuovo' : 'Raffina con LLM'}</button>
           </div>
           <div class="review-controls">
             <label class="field">Categoria docs/
@@ -516,11 +523,11 @@
             <label class="field">Nome file
               <input id="preview-nomefile" type="text" value="${escapeHtml(suggested)}" />
             </label>
-            <button onclick="approveStaged('${id}')">✅ Approva</button>
+            <button onclick="approveStaged('${id}')" class="btn btn-primary">✅ Approva</button>
             <label class="field">Motivo (rifiuto)
               <input id="preview-motivo" type="text" placeholder="opzionale" />
             </label>
-            <button onclick="rejectStaged('${id}')">🚫 Rifiuta</button>
+            <button onclick="rejectStaged('${id}')" class="btn btn-danger">🚫 Rifiuta</button>
           </div>
           <div id="preview-result"></div>`;
         populateCategorySelect(document.getElementById('preview-categoria'), '04_knowledge_informative');
@@ -535,10 +542,24 @@
       detail.innerHTML = '';
     }
 
+    /* Approva e Rifiuta non disabilitavano nulla durante la chiamata: un doppio
+       click su Approva produceva due scritture in docs/ e due reindex. La
+       guardia vale per entrambi i bottoni della coppia, così un rifiuto non
+       parte mentre un'approvazione è in volo. */
+    let reviewInFlight = false;
+    function setReviewBusy(busy, btn) {
+      reviewInFlight = busy;
+      document.querySelectorAll('#staging-detail .review-controls button')
+        .forEach(b => { b.disabled = busy; });
+      if (btn) btn.setAttribute('aria-busy', String(busy));
+    }
+
     async function approveStaged(id) {
+      if (reviewInFlight) return;
       const categoria = document.getElementById('preview-categoria').value;
       const nomeFile = document.getElementById('preview-nomefile').value.trim();
       const out = document.getElementById('preview-result');
+      setReviewBusy(true);
       out.className = 'status'; out.textContent = 'Approvazione in corso…';
       try {
         const res = await fetch(`/api/intake/staged/${id}/approve`, {
@@ -554,6 +575,8 @@
         setTimeout(closePreview, 1500);
       } catch (e) {
         out.className = 'msg-err'; out.textContent = `Errore: ${e.message}`;
+      } finally {
+        setReviewBusy(false);
       }
     }
 
@@ -593,8 +616,10 @@
     }
 
     async function rejectStaged(id) {
+      if (reviewInFlight) return;
       const motivo = document.getElementById('preview-motivo').value.trim();
       const out = document.getElementById('preview-result');
+      setReviewBusy(true);
       out.className = 'status'; out.textContent = 'Rifiuto in corso…';
       try {
         const res = await fetch(`/api/intake/staged/${id}/reject`, {
@@ -608,6 +633,8 @@
         setTimeout(closePreview, 1000);
       } catch (e) {
         out.className = 'msg-err'; out.textContent = `Errore: ${e.message}`;
+      } finally {
+        setReviewBusy(false);
       }
     }
 

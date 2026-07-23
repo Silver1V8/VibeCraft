@@ -17,15 +17,24 @@
     :root[data-theme="matrix"] {
       --body-bg:#04140a; --body-text:#d8ffe4; --font-main:'JetBrains Mono','Fira Code',Consolas,ui-monospace,monospace;
       --scrollbar-track:#04140a; --scrollbar-thumb:#1f7a3d; --scrollbar-thumb-hover:#2ea34f;
-      --rain-opacity: 0.28;   /* consumata da #matrix-rain in /static/shared.css */
+      /* --rain-opacity non è più definita qui: il valore unico vive in
+         /static/shared.css. Prima era 0.28 su 4 pagine e 0.32 (fallback) su
+         dashboard e pipeline, quindi il rain aveva intensità diversa fra le
+         pagine senza che fosse una scelta. */
       --header-grad-1:#000000; --header-grad-2:#0a3d1f; --header-grad-3:#000000; --header-border:#123a22;
-      --title-color:#00ff41; --title-glow: 0 0 8px rgba(0,255,65,.5);
-      --sub-text:#4dbf6e;
+      /* Il verde puro resta sull'h1 — un elemento per pagina, è la firma del
+         tema — ma il glow doppio ad alpha .5 lo rendeva sfocato: ora è singolo
+         e più tenue. */
+      --title-color:#00ff41; --title-glow: 0 0 12px rgba(0,255,65,.28);
+      --sub-text:#6fbf85;
       --nav-link-color:#a8f0c0; --nav-link-border:#1f5c38; --nav-link-bg:#04140a; --nav-link-hover-bg:#0a2417;
-      --section-bg:#020f08; --section-border:#123a22;
+      --section-border:#17402a;
       --h2-color:#7dffa0;
-      --muted-text:#4dbf6e; --text-size-sm:11.5px;
-      --control-bg:#04140a; --control-color:#00ff41; --control-border:#1f5c38; --control-hover-bg:#0a2417;
+      --muted-text:#6fbf85; --text-size-sm:0.8125rem;
+      /* #00ff41 su OGNI bottone e select era il verde più affaticante
+         dell'interfaccia: il testo dei controlli passa al verde pallido già in
+         uso per la nav, il neon resta agli accenti. */
+      --control-bg:#04140a; --control-color:#a8f0c0; --control-border:#1f5c38; --control-hover-bg:#0a2417;
       --canvas-bg:#010a05; --canvas-border:#0a2417; --canvas-font-family:monospace;
       --legend-text:#a8f0c0;
       --tooltip-bg:#000000; --tooltip-border:#00ff41; --tooltip-color:#d8ffe4; --tooltip-shadow:0 0 10px rgba(0,255,65,.3);
@@ -106,16 +115,21 @@
       padding: 16px 18px; margin-bottom: 22px;
       backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
       box-shadow: var(--glass-shadow);
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      transition: border-color var(--duration-normal) var(--ease-standard);
     }
-    section:hover { transform: translateY(-2px); box-shadow: var(--glow-shadow-hover); }
+    /* Rimosso section:hover{transform} — le sezioni qui contengono <canvas> con
+       tooltip agganciati alla posizione del mouse: entrando nella sezione il
+       canvas traslava di 2px sotto al cursore. Le superfici che portano dati
+       non si muovono. */
 
-    /* NB: matrix-rain, scanlines e la regola di hide nel tema Classico vivono ora
-       in /static/shared.css (identici tra le pagine). */
+    /* NB: matrix-rain, scanlines, :focus-visible e .btn* vivono in
+       /static/shared.css (identici tra le pagine). */
 
-    /* Bottoni primari: glow neon (Matrix) / glow blu soffuso (Classico) */
-    button { transition: all 0.25s cubic-bezier(0.4,0,0.2,1); box-shadow: var(--btn-glow); }
-    button:hover { box-shadow: var(--btn-glow-hover); transform: translateY(-1px) scale(1.02); }
+    /* Il glow era su OGNI <button>: "Interroga", "Ricarica" e "Calcola impatto"
+       brillavano allo stesso modo, quindi il glow non segnalava più nulla. Ora è
+       riservato a .btn-primary (shared.css) e i bottoni nudi restano sobri. */
+    button { transition: background-color var(--duration-fast) var(--ease-standard),
+                         border-color var(--duration-fast) var(--ease-standard); }
 
     /* Dati tecnici/numerici sempre in monospace, anche nel tema Classico (sans) */
     .status, .dups, #gq-out { font-family: var(--mono-font); }
@@ -180,7 +194,7 @@
       <div class="toolbar">
         <label for="gq-input"></label>
         <input id="gq-input" placeholder="es. quali documenti esistono?  ·  relazioni di EVENTO" style="min-width:360px" />
-        <button onclick="runGraphQuery()">▶ Interroga</button>
+        <button onclick="runGraphQuery()" class="btn btn-primary">▶ Interroga</button>
         <span id="gq-status" class="status"></span>
       </div>
       <pre id="gq-out" style="display:none;white-space:pre-wrap;font-size:11.5px;color:var(--tooltip-color);background:var(--canvas-bg);border:1px solid var(--canvas-border);border-radius:10px;padding:12px;max-height:280px;overflow:auto"></pre>
@@ -194,7 +208,7 @@
         delle ultime change e le <em>divergenze</em> più frequenti — i punti ciechi che le review
         reiniettano nella generazione dei canvas futuri.</p>
       <div class="toolbar">
-        <button onclick="loadCanvasQuality()">↻ Ricarica</button>
+        <button onclick="loadCanvasQuality()" class="btn btn-secondary">↻ Ricarica</button>
         <span id="cq-status" class="status">Caricamento…</span>
       </div>
       <div id="cq-trend" class="legend"></div>
@@ -210,7 +224,7 @@
         (alta similarità ma non collegati). Clicca un punto per interrogarne le <em>relazioni</em> nella Query
         deterministica in cima e centrarlo nell'Impact Ripple sotto.</p>
       <div class="toolbar">
-        <button onclick="loadSemanticMap()">↻ Ricarica</button>
+        <button onclick="loadSemanticMap()" class="btn btn-secondary">↻ Ricarica</button>
         <span id="map-status" class="status">Caricamento…</span>
       </div>
       <div class="canvas-wrap">
@@ -234,7 +248,7 @@
             <option>1</option><option>2</option><option selected>3</option><option>4</option>
           </select>
         </label>
-        <button onclick="loadImpact()">▶ Calcola impatto</button>
+        <button onclick="loadImpact()" class="btn btn-primary">▶ Calcola impatto</button>
         <span id="ripple-status" class="status"></span>
       </div>
       <div class="canvas-wrap">

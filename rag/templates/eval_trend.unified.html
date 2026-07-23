@@ -17,15 +17,16 @@
     :root[data-theme="matrix"] {
       --body-bg:#04140a; --body-text:#d8ffe4; --font-main:'JetBrains Mono','Fira Code',Consolas,ui-monospace,monospace;
       --scrollbar-track:#04140a; --scrollbar-thumb:#1f7a3d; --scrollbar-thumb-hover:#2ea34f;
-      --rain-opacity: 0.28;
+      /* --rain-opacity: valore unico in /static/shared.css (era 0.28 qui e 0.32
+         di fallback su dashboard/pipeline). */
       --header-grad-1:#000000; --header-grad-2:#0a3d1f; --header-grad-3:#000000; --header-border:#123a22;
-      --title-color:#00ff41; --title-glow: 0 0 8px rgba(0,255,65,.5);
-      --sub-text:#4dbf6e;
+      --title-color:#00ff41; --title-glow: 0 0 12px rgba(0,255,65,.28);
+      --sub-text:#6fbf85;
       --nav-link-color:#a8f0c0; --nav-link-border:#1f5c38; --nav-link-bg:#04140a; --nav-link-hover-bg:#0a2417;
-      --section-bg:#020f08; --section-border:#123a22;
+      --section-border:#17402a;
       --h2-color:#7dffa0;
-      --muted-text:#4dbf6e; --text-size-sm:11.5px;
-      --control-bg:#04140a; --control-color:#00ff41; --control-border:#1f5c38; --control-hover-bg:#0a2417;
+      --muted-text:#6fbf85; --text-size-sm:0.8125rem;
+      --control-bg:#04140a; --control-color:#a8f0c0; --control-border:#1f5c38; --control-hover-bg:#0a2417;
       --canvas-bg:#010a05; --canvas-border:#0a2417; --canvas-font-family:monospace;
       --legend-text:#a8f0c0;
       --tooltip-bg:#000000; --tooltip-border:#00ff41; --tooltip-color:#d8ffe4; --tooltip-shadow:0 0 10px rgba(0,255,65,.3);
@@ -94,9 +95,10 @@
       padding: 16px 18px; margin-bottom: 22px;
       backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
       box-shadow: var(--glass-shadow);
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      transition: border-color var(--duration-normal) var(--ease-standard);
     }
-    section:hover { transform: translateY(-2px); box-shadow: var(--glow-shadow-hover); }
+    /* Rimosso section:hover{transform}: le superfici che portano dati non si
+       muovono al passaggio del mouse. */
 
     h2 { font-size: 14px; margin: 0 0 4px; color: var(--h2-color); }
     .desc { font-size: var(--text-size-sm); color: var(--muted-text); margin: 0 0 12px; line-height: 1.5; }

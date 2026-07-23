@@ -36,14 +36,19 @@
     /* ═══════════ PALETTE (Punto 5 contratto: CSS vars per tema) ═══════════ */
     :root[data-theme="matrix"] {
       --brand-50:#e6fff0; --brand-100:#c2ffdb; --brand-200:#8affc0; --brand-300:#4dff8f; --brand-400:#1aff5c; --brand-500:#00ff41; --brand-600:#00cc34; --brand-700:#009e28; --brand-800:#00751d; --brand-900:#004d13; --brand-950:#00280a;
-      --slate-50:#eafff0; --slate-100:#d8ffe4; --slate-200:#a8f0c0; --slate-300:#6fd48c; --slate-400:#3fae5c; --slate-500:#1f5c38; --slate-600:#123a22; --slate-700:#0a2417; --slate-800:#04140a; --slate-900:#020f08; --slate-950:#000000;
+      /* Stessa correzione applicata alla dashboard: i gradini che text-slate-*
+         usa per il testo secondario misuravano 4,0:1 / 2,6:1 / 1,7:1 su fondo
+         nero. Qui pesava più che altrove — lo stepper (sottotitoli delle fasi e
+         badge "non generato") usa slate-500 e slate-600, quindi lo stato della
+         pipeline era di fatto illeggibile. */
+      --slate-50:#eafff0; --slate-100:#d8ffe4; --slate-200:#c2ecd0; --slate-300:#a8f0c0; --slate-400:#8ad9a0; --slate-500:#6fbf85; --slate-600:#4d9963; --slate-700:#17402a; --slate-800:#0a2417; --slate-900:#071c0e; --slate-950:#04140a;
       --blue-50:#e6fff0; --blue-100:#c2ffdb; --blue-200:#8affc0; --blue-300:#4dff8f; --blue-400:#1aff5c; --blue-500:#00ff41; --blue-600:#00cc34; --blue-700:#009e28; --blue-800:#00751d; --blue-900:#004d13; --blue-950:#00280a;
       --purple-50:#e0fffb; --purple-100:#b3fff5; --purple-200:#7dffee; --purple-300:#39ffe0; --purple-400:#00e5cc; --purple-500:#00bfa8; --purple-600:#009e8a; --purple-700:#007d6d; --purple-800:#005c51; --purple-900:#003d36; --purple-950:#00201c;
       --font-main: 'JetBrains Mono','Fira Code',Consolas,ui-monospace,monospace;
 
       --header-grad-1:#000000; --header-grad-2:#0a3d1f; --header-grad-3:#000000;
       --scrollbar-track:#04140a; --scrollbar-thumb:#1f7a3d; --scrollbar-thumb-hover:#2ea34f;
-      --title-color:#1aff5c; --title-glow: 0 0 6px rgba(0,255,65,0.85), 0 0 16px rgba(0,255,65,0.35);
+      --title-color:#1aff5c; --title-glow: 0 0 12px rgba(0,255,65,0.28);
 
       --step-line-start:#145c2c; --step-line-end:#04140a;
       --step-line-done-start:#00ff41; --step-line-done-end:#00994d;
@@ -81,14 +86,16 @@
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--glass-border);
       box-shadow: var(--glass-shadow);
-      transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+      transition: border-color var(--duration-normal) var(--ease-standard);
     }
-    .glass-card:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--glow-shadow-hover);
-    }
-    .neon-btn { transition: all 0.3s cubic-bezier(0.4,0,0.2,1); box-shadow: var(--btn-glow); }
-    .neon-btn:hover { box-shadow: var(--btn-glow-hover); transform: translateY(-1px) scale(1.015); }
+    /* Rimosso .glass-card:hover{transform}: qui le card contengono il log della
+       chat, lo stepper e gli editor markdown — superfici di lavoro, che non
+       devono sollevarsi mentre ci si scrive dentro. */
+
+    /* Il glow marca l'azione primaria: niente scale, che faceva "respirare" i
+       bottoni a ogni passaggio del mouse. */
+    .neon-btn { transition: box-shadow var(--duration-normal) var(--ease-standard); box-shadow: var(--btn-glow); }
+    .neon-btn:hover { box-shadow: var(--btn-glow-hover); }
 
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
@@ -152,44 +159,47 @@
       </div>
     </div>
 
-    <a href="/" class="ml-auto shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-300 hover:scale-105">
+    <a href="/" class="ml-auto shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
       </svg>
       Console Graph-RAG
     </a>
 
-    <a href="/infografica" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-300 hover:scale-105">
+    <a href="/infografica" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2a4 4 0 014-4h3m0 0l-3-3m3 3l-3 3M4 7h16M4 12h4m-4 5h4"/>
       </svg>
       Infografica
     </a>
 
-    <a href="/analysis" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-300 hover:scale-105">
+    <a href="/analysis" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
       </svg>
       Analisi
     </a>
 
-    <a href="/eval" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-300 hover:scale-105">
+    <a href="/eval" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15l4-6 4 3 5-8"/>
       </svg>
       Eval
     </a>
 
-    <a href="/intake" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-300 hover:scale-105">
+    <a href="/intake" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"/>
       </svg>
       Intake
     </a>
 
-    <!-- Theme switcher -->
-    <label for="theme-switcher"></label><select id="theme-switcher" onchange="setUiTheme(this.value)" class="shrink-0"
-                                                style="background:#0a0a0a;color:#00ff41;border:1px solid #00ff41;border-radius:6px;padding:5px 10px;font-size:12px;font-family:ui-monospace,Consolas,monospace;cursor:pointer;box-shadow:0 0 8px rgba(0,255,65,0.3);">
+    <!-- Theme switcher — lo stile inline era verde neon HARDCODED, quindi il
+         selettore restava verde fluorescente anche nel tema Classico, dove
+         stonava con tutto il resto. Ora usa i token e segue il tema. La <label>
+         era vuota: sostituita da aria-label, che dà davvero un nome al controllo. -->
+    <select id="theme-switcher" onchange="setUiTheme(this.value)" aria-label="Tema dell'interfaccia"
+            class="shrink-0 rounded-md px-2.5 py-1.5 text-xs font-mono cursor-pointer bg-slate-800 border border-slate-700 text-slate-200">
       <option value="matrix">🟢 Matrix</option>
       <option value="classic">☀️ Classico</option>
     </select>
@@ -314,11 +324,11 @@
             <label for="chat-input"></label><textarea id="chat-input" rows="2" placeholder="Rispondi al Tech Lead IA… (Ctrl+Invio per inviare)"
                                                       class="flex-1 resize-none rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
             <button id="chat-send-btn" onclick="sendExploreTurn()"
-              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn hover:scale-[1.02]">
+              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
               Invia
             </button>
             <button id="chat-finish-btn" onclick="finishExplore()"
-              class="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn hover:scale-[1.02]">
+              class="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
               Termina e genera explore.md
             </button>
           </div>
@@ -352,7 +362,7 @@
                 🔎 Dry-run
               </button>
               <button id="canvas-generate-btn" onclick="generateCanvas()"
-                class="rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn hover:scale-[1.02]">
+                class="rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
                 Genera Canvas
               </button>
             </div>
@@ -396,7 +406,7 @@
               <p class="text-xs text-slate-500 mt-0.5">Genera <code class="text-slate-400">spec.md</code> (scenari GIVEN/WHEN/THEN) dal Canvas approvato e il prompt finale pronto per Claude Code.</p>
             </div>
             <button id="propose-generate-btn" onclick="generatePropose()"
-              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn hover:scale-[1.02]">
+              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
               Genera Spec
             </button>
           </div>
@@ -469,7 +479,7 @@
                 <option value="oneshot">💬 One-shot (nessun tool)</option>
               </select>
               <button id="agent-run-btn" onclick="runWithAgent()"
-                class="rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-1.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn hover:scale-[1.02]">
+                class="rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-1.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
                 ▶ Esegui
               </button>
             </div>
@@ -488,7 +498,7 @@
               <p class="text-xs text-slate-500 mt-0.5">Confronta il <code class="text-slate-400">canvas.md</code> (il contratto) con il codice effettivamente scritto e segnala disallineamenti, allucinazioni o librerie inventate. Equivale a <code class="text-slate-400">index.py --check-drift</code>, eseguito tramite LLM locale (Ollama).</p>
             </div>
             <button id="drift-check-btn" onclick="runDriftCheck()"
-              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn hover:scale-[1.02]">
+              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
               Esegui verifica
             </button>
           </div>
@@ -521,7 +531,7 @@
               <p class="text-xs text-slate-500 mt-0.5">Sposta <code class="text-slate-400">changes/&lt;feature&gt;</code> in <code class="text-slate-400">changes/archive/</code> e ricostruisce il Graph RAG locale (grafo + Qdrant + ColBERT). Equivale a <code class="text-slate-400">index.py --archive</code>. Operazione conclusiva e non reversibile dall'interfaccia.</p>
             </div>
             <button id="archive-btn" onclick="runArchive()"
-              class="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn hover:scale-[1.02]">
+              class="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
               Archivia e re-indicizza
             </button>
           </div>
