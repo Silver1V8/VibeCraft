@@ -10,8 +10,10 @@
   <script src="/static/shared.js"></script>
 
   <style>
-    :root { color-scheme: dark; }
-    * { box-sizing: border-box; }
+    /* Shell della pagina (body, header, main, section, h2, .desc, scrollbar):
+       le regole erano IDENTICHE in questo file, in graph_analysis, in
+       eval_trend e in intake. Vivono in /static/shared.css sotto .page-doc,
+       che e la classe sul <body> qui sotto. */
 
     /* ═══════════ PALETTE (Punto 5 contratto: CSS vars per tema) ═══════════ */
     :root[data-theme="matrix"] {
@@ -84,40 +86,9 @@
       --mono-font: 'JetBrains Mono','Fira Code',Consolas,ui-monospace,monospace;
     }
 
-    body {
-      margin: 0; background: var(--body-bg); color: var(--body-text);
-      font-family: var(--font-main);
-    }
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
-    ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
-    header {
-      position: relative; z-index: 10;
-      display: flex; align-items: center; gap: 16px; padding: 14px 22px;
-      background: linear-gradient(135deg, var(--header-grad-1) 0%, var(--header-grad-2) 50%, var(--header-grad-3) 100%);
-      border-bottom: 1px solid var(--header-border); position: sticky; top: 0; z-index: 5;
-    }
-    header > div { flex-shrink: 0; }
-    header h1 { font-size: 16px; margin: 0; color: var(--title-color); text-shadow: var(--title-glow); white-space: nowrap; }
-    header .sub { font-size: 11px; color: var(--sub-text); margin-top: 2px; white-space: nowrap; }
     /* Lo stile della nav vive in /static/shared.css (.app-nav a): era
        duplicato identico in tre template. --nav-link-* restano nella palette
        per retrocompatibilita ma non sono piu consumati qui. */
-    header select#theme-switcher { margin-left: 8px; }
-    main { position: relative; z-index: 10; padding: 20px; max-width: 1180px; margin: 0 auto; }
-    section {
-      position: relative; z-index: 10;
-      background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 14px;
-      padding: 16px 18px; margin-bottom: 22px;
-      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      box-shadow: var(--glass-shadow);
-      transition: border-color var(--duration-normal) var(--ease-standard);
-    }
-    /* Rimosso section:hover{transform} — le sezioni qui contengono <canvas> con
-       tooltip agganciati alla posizione del mouse: entrando nella sezione il
-       canvas traslava di 2px sotto al cursore. Le superfici che portano dati
-       non si muovono. */
 
     /* NB: matrix-rain, scanlines, :focus-visible e .btn* vivono in
        /static/shared.css (identici tra le pagine). */
@@ -130,14 +101,15 @@
 
     /* Dati tecnici/numerici sempre in monospace, anche nel tema Classico (sans) */
     .status, .dups, #gq-out { font-family: var(--mono-font); }
-    h2 { font-size: 14px; margin: 0 0 4px; color: var(--h2-color); }
-    .desc { font-size: var(--text-size-sm); color: var(--muted-text); margin: 0 0 12px; line-height: 1.5; }
     .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
     button, select, input {
       font-family: inherit; font-size: 12px; white-space: nowrap; background: var(--control-bg); color: var(--control-color);
       border: 1px solid var(--control-border); border-radius: 8px; padding: 6px 10px; cursor: pointer;
     }
-    input { cursor: text; min-width: 240px; }
+    /* min() invece di un valore fisso: sotto i 240px di spazio il vincolo
+       cede invece di spingere la pagina in overflow orizzontale. */
+    input { cursor: text; min-width: min(240px, 100%); }
+    #gq-input { min-width: min(360px, 100%); }
     button:hover { background: var(--control-hover-bg); }
     .canvas-wrap { position: relative; }
     canvas { width: 100%; display: block; background: var(--canvas-bg); border: 1px solid var(--canvas-border); border-radius: 10px; }
@@ -159,7 +131,7 @@
     .dups div { padding: 2px 0; }
   </style>
 </head>
-<body>
+<body class="page-doc">
   <canvas id="matrix-rain"></canvas>
   <div class="scanlines"></div>
 
@@ -194,7 +166,7 @@
         direttamente da nodi e archi (principio «determinismo prima dell'LLM»).</p>
       <div class="toolbar">
         <label for="gq-input"></label>
-        <input id="gq-input" placeholder="es. quali documenti esistono?  ·  relazioni di EVENTO" style="min-width:360px" />
+        <input id="gq-input" placeholder="es. quali documenti esistono?  ·  relazioni di EVENTO" />
         <button onclick="runGraphQuery()" class="btn btn-primary">▶ Interroga</button>
         <span id="gq-status" class="status"></span>
       </div>

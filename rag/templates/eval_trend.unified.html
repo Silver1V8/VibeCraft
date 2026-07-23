@@ -10,8 +10,10 @@
   <script src="/static/shared.js"></script>
 
   <style>
-    :root { color-scheme: dark; }
-    * { box-sizing: border-box; }
+    /* Shell della pagina (body, header, main, section, h2, .desc, scrollbar):
+       le regole erano IDENTICHE in questo file, in graph_analysis, in
+       eval_trend e in intake. Vivono in /static/shared.css sotto .page-doc,
+       che e la classe sul <body> qui sotto. */
 
     /* ═══════════ PALETTE (stessa struttura di graph_analysis.unified.html) ═══════════ */
     :root[data-theme="matrix"] {
@@ -64,41 +66,10 @@
       --mono-font: 'JetBrains Mono','Fira Code',Consolas,ui-monospace,monospace;
     }
 
-    body {
-      margin: 0; background: var(--body-bg); color: var(--body-text);
-      font-family: var(--font-main);
-    }
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
-    ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
-    header {
-      position: relative; z-index: 10;
-      display: flex; align-items: center; gap: 16px; padding: 14px 22px;
-      background: linear-gradient(135deg, var(--header-grad-1) 0%, var(--header-grad-2) 50%, var(--header-grad-3) 100%);
-      border-bottom: 1px solid var(--header-border); position: sticky; top: 0; z-index: 5;
-    }
-    header > div { flex-shrink: 0; }
-    header h1 { font-size: 16px; margin: 0; color: var(--title-color); text-shadow: var(--title-glow); white-space: nowrap; }
-    header .sub { font-size: 11px; color: var(--sub-text); margin-top: 2px; white-space: nowrap; }
     /* Lo stile della nav vive in /static/shared.css (.app-nav a): era
        duplicato identico in tre template. --nav-link-* restano nella palette
        per retrocompatibilita ma non sono piu consumati qui. */
-    header select#theme-switcher { margin-left: 8px; }
-    main { position: relative; z-index: 10; padding: 20px; max-width: 1180px; margin: 0 auto; }
-    section {
-      position: relative; z-index: 10;
-      background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 14px;
-      padding: 16px 18px; margin-bottom: 22px;
-      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      box-shadow: var(--glass-shadow);
-      transition: border-color var(--duration-normal) var(--ease-standard);
-    }
-    /* Rimosso section:hover{transform}: le superfici che portano dati non si
-       muovono al passaggio del mouse. */
 
-    h2 { font-size: 14px; margin: 0 0 4px; color: var(--h2-color); }
-    .desc { font-size: var(--text-size-sm); color: var(--muted-text); margin: 0 0 12px; line-height: 1.5; }
 
     .cards { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
     .card { border: 1px solid var(--section-border); background: var(--canvas-bg); border-radius: 10px; padding: 1rem 1.25rem; min-width: 150px; }
@@ -109,22 +80,43 @@
     .down { background: rgba(231,76,60,0.18); color: var(--down-color); }
     .flat { background: rgba(150,150,150,0.18); color: var(--flat-color); }
 
-    .chart { border: 1px solid var(--section-border); background: var(--canvas-bg); border-radius: 10px; padding: 1rem; overflow-x: auto; }
-    svg { width: 100%; height: 320px; min-width: 480px; }
+    /* `min-width: 480px` sull'SVG forzava lo scroll orizzontale su qualsiasi
+       schermo stretto: il grafico si adatta, semmai si diradano le etichette. */
+    .chart { border: 1px solid var(--section-border); background: var(--canvas-bg); border-radius: 10px; padding: 1rem; }
+    svg { width: 100%; height: 320px; display: block; }
     .axis { stroke: var(--axis-color); stroke-width: 1; }
     .grid { stroke: var(--grid-color); stroke-width: 0.5; opacity: 0.6; }
-    .line { fill: none; stroke: var(--up-color); stroke-width: 2; }
-    .dot-gate { fill: var(--dot-gate); }
-    .dot-run { fill: var(--dot-run); }
-    .dot-fail { fill: var(--dot-fail); }
-    .lbl { fill: var(--muted-text); font-size: 10px; }
+    /* La serie era disegnata con --up-color, cioe il colore del trend "in
+       salita", anche quando il trend scendeva. Ora e neutra: il colore resta
+       riservato agli stati anomali. */
+    .line { fill: none; stroke: var(--muted-text); stroke-width: 2; }
+    /* Soglia dell'eval-gate: sotto questa linea la promozione viene bloccata. */
+    .threshold { stroke: var(--down-color); stroke-width: 1; stroke-dasharray: 5 4; opacity: 0.75; }
+    /* I marker si distinguono per FORMA prima che per colore: cerchio = gate
+       superato, croce = gate bloccato, triangolo = eval fuori dal gate. */
+    .mk-gate { fill: var(--dot-gate); }
+    .mk-run  { fill: var(--dot-run); }
+    .mk-fail { fill: none; stroke: var(--dot-fail); stroke-width: 2; }
+    .lbl { fill: var(--muted-text); font-size: 11px; }
     .empty { color: var(--muted-text); padding: 2rem; text-align: center; font-size: var(--text-size-sm); }
-    .legend { font-size: var(--text-size-sm); color: var(--legend-text); margin-top: 0.75rem; display: flex; gap: 1.25rem; flex-wrap: wrap; }
-    .legend span::before { content: "●"; margin-right: 0.35rem; }
-    .lg-gate::before { color: var(--dot-gate); } .lg-run::before { color: var(--dot-run); } .lg-fail::before { color: var(--dot-fail); }
+    .legend { font-size: var(--text-size-sm); color: var(--legend-text); margin-top: 0.75rem; display: flex; gap: 1.25rem; flex-wrap: wrap; align-items: center; }
+    .legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+    .legend svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+    /* Accesso alternativo ai dati del grafico: un grafico non e leggibile da
+       tastiera ne da screen reader, e i <title> SVG non bastano. */
+    .data-table { margin-top: 0.75rem; font-size: var(--text-size-sm); }
+    .data-table summary { cursor: pointer; color: var(--muted-text); }
+    .data-table table { border-collapse: collapse; margin-top: 0.5rem; width: 100%; }
+    .data-table th, .data-table td {
+      text-align: left; padding: 4px 10px 4px 0;
+      border-bottom: 1px solid var(--section-border); font-family: var(--mono-font);
+    }
+    .data-table th { color: var(--muted-text); font-weight: 600; }
+    .data-table .row-fail td { color: var(--down-color); }
   </style>
 </head>
-<body>
+<body class="page-doc">
   <canvas id="matrix-rain"></canvas>
   <div class="scanlines"></div>
 
@@ -157,11 +149,21 @@
         (eval manuali ed eval-gate alla promozione blue/green).</p>
       <div class="cards" id="cards"></div>
       <div class="chart" id="chart"><div class="empty">Caricamento…</div></div>
+      <!-- Legenda per forma oltre che per colore: gate superato, gate bloccato ed
+           eval fuori dal gate restano distinguibili anche in scala di grigi. -->
       <div class="legend">
-        <span class="lg-gate">eval-gate (promozione consentita)</span>
-        <span class="lg-fail">eval-gate (bloccata)</span>
-        <span class="lg-run">eval manuale</span>
+        <span><svg viewBox="0 0 12 12" aria-hidden="true"><circle class="mk-gate" cx="6" cy="6" r="4"/></svg>
+          eval-gate · promozione consentita</span>
+        <span><svg viewBox="0 0 12 12" aria-hidden="true"><path class="mk-fail" d="M3 3l6 6M9 3l-6 6"/></svg>
+          eval-gate · promozione bloccata</span>
+        <span><svg viewBox="0 0 12 12" aria-hidden="true"><path class="mk-run" d="M6 2l4.5 8h-9z"/></svg>
+          eval fuori dal gate (manuale o advisory)</span>
+        <span><svg viewBox="0 0 12 12" aria-hidden="true"><line class="threshold" x1="0" y1="6" x2="12" y2="6"/></svg>
+          soglia minima del gate</span>
       </div>
+      <details class="data-table" id="data-table">
+        <summary>Dati del grafico in tabella</summary>
+      </details>
     </section>
   </main>
 
@@ -191,39 +193,149 @@
       const chart = document.getElementById("chart");
       if (rows.length < 2) { chart.innerHTML = '<div class="empty">Servono almeno 2 valutazioni per un trend. Lancia <code>uv run python -m eval.run</code>.</div>'; return; }
 
-      const W = 880, H = 320, padL = 44, padR = 12, padT = 16, padB = 28;
+      /* ── Asse X TEMPORALE ──
+         Prima i punti erano spaziati per indice: un intervallo di tre mesi
+         occupava lo stesso spazio di uno di un'ora, quindi la pendenza — cioe
+         l'unica cosa che un grafico di trend deve comunicare — era falsa.
+         Ordino per data e distribuisco sul tempo reale. */
+      rows.sort((a, b) => tsOf(a) - tsOf(b));
+      const t0 = tsOf(rows[0]), t1 = tsOf(rows[rows.length - 1]);
+      const span = (t1 - t0) || 1;
+
+      const W = 880, H = 320, padL = 46, padR = 14, padT = 16, padB = 44;
       const vals = rows.map(recallOf);
-      let lo = Math.min(...vals), hi = Math.max(...vals);
-      lo = Math.min(lo, 0.8); hi = Math.max(hi, 1.0);
-      const pad = (hi - lo) * 0.1 || 0.05; lo -= pad; hi += pad;
-      const x = i => padL + (W - padL - padR) * (rows.length === 1 ? 0.5 : i / (rows.length - 1));
+
+      /* Dominio Y: include sempre la soglia del gate, cosi si vede quanto
+         margine c'e. Non si sfora l'1.0, perche la recall non puo superarlo e
+         mostrarlo suggerirebbe spazio di crescita inesistente. */
+      const soglia = sogliaGate(rows);
+      let lo = Math.min(...vals, soglia == null ? 1 : soglia);
+      lo = Math.max(0, lo - 0.05);
+      const hi = 1.0;
+
+      const x = t => padL + (W - padL - padR) * ((t - t0) / span);
       const y = v => padT + (H - padT - padB) * (1 - (v - lo) / (hi - lo));
 
+      // Griglia e etichette Y
       const grid = [], ticks = 4;
       for (let t = 0; t <= ticks; t++) {
         const v = lo + (hi - lo) * t / ticks, yy = y(v);
         grid.push(`<line class="grid" x1="${padL}" y1="${yy}" x2="${W - padR}" y2="${yy}"/>`);
-        grid.push(`<text class="lbl" x="4" y="${yy + 3}">${(v * 100).toFixed(0)}%</text>`);
+        grid.push(`<text class="lbl" x="4" y="${yy + 4}">${(v * 100).toFixed(0)}%</text>`);
       }
-      const path = rows.map((e, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(recallOf(e)).toFixed(1)}`).join(" ");
-      const dots = rows.map((e, i) => {
-        const cls = e.source === "gate" ? (e.gate && e.gate.passed === false ? "dot-fail" : "dot-gate") : "dot-run";
-        const title = `${(recallOf(e) * 100).toFixed(1)}% · ${e.source}${e.version ? " · " + e.version : ""}${e.commit ? " · " + e.commit : ""}`;
-        return `<circle class="${cls}" cx="${x(i).toFixed(1)}" cy="${y(recallOf(e)).toFixed(1)}" r="3.5"><title>${title}</title></circle>`;
+
+      // Etichette X datate: 5 tacche equispaziate NEL TEMPO
+      const xTicks = [];
+      const nTick = 4;
+      for (let i = 0; i <= nTick; i++) {
+        const t = t0 + span * i / nTick, xx = x(t);
+        xTicks.push(`<line class="grid" x1="${xx}" y1="${padT}" x2="${xx}" y2="${H - padB}"/>`);
+        xTicks.push(`<text class="lbl" x="${xx}" y="${H - padB + 16}" text-anchor="middle">${fmtAsse(t, span)}</text>`);
+      }
+
+      // Linea di soglia del gate
+      const thr = soglia == null ? '' :
+        `<line class="threshold" x1="${padL}" y1="${y(soglia)}" x2="${W - padR}" y2="${y(soglia)}"/>` +
+        `<text class="lbl" x="${W - padR}" y="${y(soglia) - 5}" text-anchor="end">soglia ${(soglia * 100).toFixed(0)}%</text>`;
+
+      const path = rows.map((e, i) => `${i ? "L" : "M"}${x(tsOf(e)).toFixed(1)},${y(recallOf(e)).toFixed(1)}`).join(" ");
+
+      /* Marker per FORMA, non per solo colore. */
+      const marks = rows.map(e => {
+        const cx = x(tsOf(e)), cy = y(recallOf(e));
+        const t = `<title>${escapeHtml(descrizionePunto(e))}</title>`;
+        if (e.source === "gate" && e.gate && e.gate.passed === false)
+          return `<path class="mk-fail" d="M${cx - 4},${cy - 4}l8,8M${cx + 4},${cy - 4}l-8,8">${t}</path>`;
+        if (e.source === "gate")
+          return `<circle class="mk-gate" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5">${t}</circle>`;
+        return `<path class="mk-run" d="M${cx.toFixed(1)},${(cy - 4.5).toFixed(1)}l4.5,8h-9z">${t}</path>`;
       }).join("");
 
-      chart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+      const daA = `${fmtCompleto(t0)} – ${fmtCompleto(t1)}`;
+      chart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet"
+             role="img" aria-label="Andamento di recall@10 su ${rows.length} valutazioni fra ${daA}. Valore piu recente ${(recallOf(rows[rows.length-1]) * 100).toFixed(1)}%.">
         ${grid.join("")}
+        ${xTicks.join("")}
         <line class="axis" x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}"/>
         <line class="axis" x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}"/>
+        ${thr}
         <path class="line" d="${path}"/>
-        ${dots}
+        ${marks}
       </svg>`;
+
+      renderTabella(rows);
     }
 
-    fetch("/api/eval/history?limit=200")
-      .then(r => r.json()).then(render)
-      .catch(e => { document.getElementById("chart").innerHTML = '<div class="empty">Errore nel caricamento dello storico: ' + e + "</div>"; });
+    /* ──────────── HELPER ──────────── */
+    function tsOf(e) { const t = Date.parse(e.timestamp || ""); return Number.isNaN(t) ? 0 : t; }
+
+    // La soglia del gate e la stessa per tutte le run: prendo l'ultima nota.
+    function sogliaGate(rows) {
+      for (let i = rows.length - 1; i >= 0; i--) {
+        const v = rows[i].gate && rows[i].gate.min_recall;
+        if (typeof v === "number") return v;
+      }
+      return null;
+    }
+
+    // Sotto le 48 ore mostra anche l'ora, altrimenti solo la data: su una
+    // finestra di giorni cinque orari identici non direbbero nulla.
+    function fmtAsse(t, span) {
+      const d = new Date(t);
+      const opts = span < 48 * 3600e3
+        ? { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }
+        : { day: "2-digit", month: "2-digit" };
+      return d.toLocaleString("it-IT", opts);
+    }
+    function fmtCompleto(t) {
+      return new Date(t).toLocaleString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    }
+
+    function esitoDi(e) {
+      if (e.source === "gate" && e.gate && e.gate.passed === false) return "gate BLOCCATO";
+      if (e.source === "gate") return "gate superato";
+      return e.source || "eval";
+    }
+    function descrizionePunto(e) {
+      return `${(recallOf(e) * 100).toFixed(1)}% · ${fmtCompleto(tsOf(e))} · ${esitoDi(e)}`
+        + (e.version ? ` · ${e.version}` : "") + (e.commit ? ` · ${e.commit}` : "");
+    }
+
+    /* Accesso alternativo ai dati: un grafico non e leggibile da tastiera ne da
+       screen reader, e i <title> SVG da soli non bastano. */
+    function renderTabella(rows) {
+      const box = document.getElementById("data-table");
+      const righe = rows.slice().reverse().map(e => {
+        const fallito = e.source === "gate" && e.gate && e.gate.passed === false;
+        return `<tr class="${fallito ? "row-fail" : ""}">
+          <td>${escapeHtml(fmtCompleto(tsOf(e)))}</td>
+          <td>${(recallOf(e) * 100).toFixed(1)}%</td>
+          <td>${escapeHtml(esitoDi(e))}</td>
+          <td>${escapeHtml(e.version || "—")}</td>
+          <td>${escapeHtml(e.commit || "—")}</td>
+        </tr>`;
+      }).join("");
+      box.innerHTML = `<summary>Dati del grafico in tabella (${rows.length} valutazioni)</summary>
+        <table>
+          <thead><tr><th>Data</th><th>recall@10</th><th>Esito</th><th>Versione</th><th>Commit</th></tr></thead>
+          <tbody>${righe}</tbody>
+        </table>`;
+    }
+
+    /* Prima l'errore veniva concatenato all'oggetto Error grezzo e non c'era
+       modo di riprovare senza ricaricare la pagina. */
+    function caricaStorico() {
+      const chart = document.getElementById("chart");
+      chart.innerHTML = '<div class="empty">Caricamento…</div>';
+      fetch("/api/eval/history?limit=200")
+        .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        .then(render)
+        .catch(e => {
+          chart.innerHTML = `<div class="empty">Impossibile caricare lo storico: ${escapeHtml(e.message)}
+            <br/><button class="btn btn-secondary" style="margin-top:.75rem" onclick="caricaStorico()">Riprova</button></div>`;
+        });
+    }
+    caricaStorico();
   </script>
 </body>
 </html>

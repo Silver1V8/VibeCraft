@@ -259,6 +259,117 @@ header a.is-current {
 }
 
 
+/* ═══════════ 5b. LAYOUT "PAGE-DOC" ═══════════
+   graph_analysis, eval_trend e intake condividevano ~35 righe di CSS IDENTICHE
+   copiate in tutti e tre i file: shell dell'header, main, section, titoli,
+   scrollbar. Ogni ritocco andava fatto in tre punti, e bastava dimenticarne uno
+   perché le pagine divergessero in silenzio.
+
+   Le regole vivono qui, ambientate sotto `.page-doc` sul <body>: NON possono
+   essere globali perché sono selettori nudi (header, section, h2) e
+   colpirebbero anche dashboard e pipeline, che sono costruite con Tailwind.
+
+   I valori sono identici a prima, carattere per carattere: questa è una
+   deduplicazione, non un ridisegno. La tokenizzazione di questi numeri è un
+   passo successivo e separato, così un'eventuale regressione resta
+   attribuibile. */
+
+.page-doc { color-scheme: dark; }
+.page-doc *,
+.page-doc *::before,
+.page-doc *::after { box-sizing: border-box; }
+
+body.page-doc {
+  margin: 0;
+  background: var(--body-bg);
+  color: var(--body-text);
+  font-family: var(--font-main);
+}
+
+.page-doc ::-webkit-scrollbar { width: 8px; height: 8px; }
+.page-doc ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+.page-doc ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+.page-doc ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+
+.page-doc header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 22px;
+  background: linear-gradient(135deg, var(--header-grad-1) 0%, var(--header-grad-2) 50%, var(--header-grad-3) 100%);
+  border-bottom: 1px solid var(--header-border);
+}
+.page-doc header > div { flex-shrink: 0; }
+.page-doc header h1 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--title-color);
+  text-shadow: var(--title-glow);
+  white-space: nowrap;
+}
+.page-doc header .sub {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--sub-text);
+  white-space: nowrap;
+}
+.page-doc header select#theme-switcher { margin-left: 8px; }
+
+.page-doc main {
+  position: relative;
+  z-index: 10;
+  padding: 20px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.page-doc section {
+  position: relative;
+  z-index: 10;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 22px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--glass-shadow);
+  /* Nessun transform su hover: le superfici che portano dati non si muovono. */
+  transition: border-color var(--duration-normal) var(--ease-standard);
+}
+
+.page-doc h2 { font-size: 14px; margin: 0 0 4px; color: var(--h2-color); }
+.page-doc .desc {
+  font-size: var(--text-size-sm);
+  color: var(--muted-text);
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
+/* Responsive delle pagine page-doc: l'header era una riga flex che non andava
+   mai a capo, con `white-space: nowrap` sul titolo — sotto i ~700px usciva dallo
+   schermo trascinandosi dietro tutta la pagina. */
+@media (max-width: 767px) {
+  .page-doc header {
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+    padding: 12px 16px;
+  }
+  .page-doc header h1 { white-space: normal; font-size: 15px; }
+  .page-doc header .sub { white-space: normal; }
+  /* La nav torna a sinistra: spinta a destra non ha senso quando e su una
+     riga tutta sua. */
+  .page-doc .app-nav.is-end { margin-left: 0; }
+  .page-doc main { padding: 12px; }
+  /* Le tabelle larghe scorrono DENTRO al proprio contenitore, senza mai far
+     scorrere la pagina. */
+  .page-doc table { display: block; overflow-x: auto; }
+}
+
+
 /* ═══════════ 6. MATRIX IDENTITY ═══════════ */
 
 /* Canvas del rain: sotto tutto. L'opacità è parametrica (--rain-opacity). */
