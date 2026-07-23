@@ -1,12 +1,229 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   shared.css — regole IDENTICHE tra i template *.unified.html, servite da
-   /static/ (StaticFiles). Solo il livello visivo comune (sfondo Matrix rain +
-   overlay scanline CRT + glow del titolo): la palette e il layout specifici di
-   ogni pagina restano inline nel rispettivo template.
-   L'opacità del rain è parametrica (--rain-opacity) perché varia per pagina.
+   shared.css — fonte unica dello stile condiviso fra i template *.unified.html,
+   servita da /static/ (StaticFiles).
+
+   ORDINE DELLE SEZIONI (non riordinare: la cascata dipende da questo)
+     1. TOKENS — base            valori indipendenti dal tema (spacing, scala, forma)
+     2. TOKENS — tema Classico
+     3. TOKENS — tema Matrix
+     4. FOCUS                    anello di focus unico per tutta l'app
+     5. COMPONENTS               .btn* e stato corrente della navigazione
+     6. MATRIX IDENTITY          rain + scanline + glow (layer di fondo)
+     7. REDUCED MOTION           rispetto di prefers-reduced-motion
+
+   NOTA SULLA CASCATA: i template caricano questo file PRIMA del proprio <style>
+   inline, quindi le regole locali vincono a parità di specificità. Le regole qui
+   sotto sono scritte per convivere con quel CSS inline finché la migrazione dei
+   template non è completa (oggi: solo dashboard.unified.html consuma i token).
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Matrix rain background canvas (visibile solo nel tema Matrix) */
+
+/* ═══════════ 1. TOKENS — base (indipendenti dal tema) ═══════════ */
+:root {
+  /* Tipografia — scala in rem: segue le preferenze di sistema.
+     --text-xs è il PAVIMENTO: nessun testo dell'interfaccia scende sotto 12px. */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, ui-monospace, monospace;
+  --text-xs:   0.75rem;    /* 12px */
+  --text-sm:   0.8125rem;  /* 13px */
+  --text-base: 0.875rem;   /* 14px */
+  --text-lg:   1rem;       /* 16px */
+  --text-xl:   1.25rem;    /* 20px */
+  --text-2xl:  1.5rem;     /* 24px */
+
+  /* Spacing — scala 4px. Nessun valore fuori scala nei template migrati. */
+  --space-1:  0.25rem;
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-6:  1.5rem;
+  --space-8:  2rem;
+  --space-12: 3rem;
+
+  /* Forma */
+  --radius-sm: 6px;    /* controlli */
+  --radius-md: 10px;   /* card */
+  --radius-lg: 14px;   /* pannelli */
+
+  /* Motion */
+  --duration-fast:   120ms;
+  --duration-normal: 200ms;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+
+/* ═══════════ 2. TOKENS — tema Classico ═══════════ */
+:root[data-theme="classic"] {
+  --color-bg:               #020617;
+  --color-surface:          #0f172a;
+  --color-surface-elevated: #1e293b;
+  --color-border:           #334155;
+
+  --color-text-primary:     #e2e8f0;
+  --color-text-secondary:   #94a3b8;
+  --color-text-muted:       #7c8ba1;
+
+  --color-primary:          #3b82f6;
+  --color-primary-hover:    #60a5fa;
+  --color-on-primary:       #ffffff;
+  --color-accent:           #a855f7;
+  --color-focus:            #60a5fa;
+
+  /* Colori di stato: NON seguono la personalità del tema.
+     Restano semanticamente riconoscibili in entrambi i temi. */
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-danger:  #f87171;
+  --color-info:    #60a5fa;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.28);
+  --btn-glow-token: 0 4px 14px rgba(59, 130, 246, 0.25);
+}
+
+
+/* ═══════════ 3. TOKENS — tema Matrix ═══════════ */
+/* I verdi scuri vivono su BORDI e SUPERFICI, mai sul testo: i valori di testo
+   qui sotto sono scelti per superare 4,5:1 sul fondo del tema. Il teal è il
+   secondo canale cromatico: serve al focus e agli accenti, così lo stato non è
+   mai comunicato dal solo verde. */
+:root[data-theme="matrix"] {
+  --color-bg:               #04140a;
+  --color-surface:          #071c0e;
+  --color-surface-elevated: #0a2417;
+  --color-border:           #17402a;
+
+  --color-text-primary:     #d8ffe4;  /* ~14:1 su --color-bg */
+  --color-text-secondary:   #6fbf85;  /* ~6,4:1 */
+  --color-text-muted:       #4d9963;  /* ~4,6:1 — pavimento, non scendere */
+
+  --color-primary:          #00e03a;
+  --color-primary-hover:    #38ff70;
+  --color-on-primary:       #04140a;  /* testo SCURO su verde: mai bianco (2,2:1) */
+  --color-accent:           #39ffe0;
+  --color-focus:            #39ffe0;  /* ≠ primary: il focus non si confonde
+                                         con lo stato normale di un elemento */
+
+  --color-success: #4ade80;
+  --color-warning: #ffc44d;
+  --color-danger:  #ff7b7b;
+  --color-info:    #7db8ff;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.55);
+  --btn-glow-token: 0 0 12px rgba(0, 224, 58, 0.28);
+
+  /* Layer di identità: intensità parametriche, non hardcoded. */
+  --rain-opacity:   0.22;
+  --scanline-alpha: 0.03;
+}
+
+
+/* ═══════════ 4. FOCUS ═══════════ */
+/* Prima di questa regola il progetto non aveva NESSUN :focus-visible: la
+   navigazione da tastiera si affidava all'outline di default del browser, quasi
+   invisibile su fondo nero. Vale per tutte le pagine, anche non ancora migrate. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--color-focus, #39ffe0);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Skip link: la nav precede il contenuto su ogni pagina, quindi senza questo
+   un utente da tastiera attraversa 5+ pill a ogni caricamento. */
+.skip-link {
+  position: absolute;
+  left: var(--space-2);
+  top: var(--space-2);
+  z-index: 100;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-primary);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+.skip-link:focus { transform: translateY(0); }
+
+
+/* ═══════════ 5. COMPONENTS ═══════════ */
+
+/* ── Navigazione: stato della pagina corrente ──
+   Agganciato da initNavigation() in shared.js confrontando location.pathname.
+   La specificità `header a.is-current` (0,2,1) supera sia `header a` dei template
+   di famiglia B sia le utility Tailwind di famiglia A, quindi funziona su tutte
+   e 6 le pagine senza modificarne il markup.
+   Lo stato NON è affidato al solo colore: bordo + peso tipografico + aria-current. */
+header a.is-current,
+.app-nav a.is-current {
+  border-color: var(--color-primary);
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+/* ── Bottoni ──
+   Solo classi, nessun selettore `button` nudo: i template di famiglia B hanno un
+   proprio `button { ... }` inline e un selettore nudo qui creerebbe un conflitto
+   silenzioso. Il glow è il MARCATORE dell'azione primaria, non atmosfera: una
+   sola azione primaria per riquadro. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard),
+              border-color var(--duration-fast) var(--ease-standard),
+              color var(--duration-fast) var(--ease-standard);
+}
+.btn:hover { background: var(--color-surface); border-color: var(--color-text-muted); }
+
+.btn-primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
+  box-shadow: var(--btn-glow-token);
+}
+.btn-primary:hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); }
+
+.btn-secondary { background: transparent; }
+.btn-secondary:hover { background: var(--color-surface-elevated); }
+
+.btn-danger {
+  background: transparent;
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+.btn-danger:hover { background: color-mix(in srgb, var(--color-danger) 14%, transparent); }
+
+.btn:disabled,
+.btn[aria-busy="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+
+/* ═══════════ 6. MATRIX IDENTITY ═══════════ */
+
+/* Canvas del rain: sotto tutto. L'opacità è parametrica (--rain-opacity). */
 #matrix-rain {
   position: fixed;
   inset: 0;
@@ -14,23 +231,49 @@
   height: 100%;
   z-index: 0;
   pointer-events: none;
-  opacity: var(--rain-opacity, 0.32);
+  opacity: var(--rain-opacity, 0.22);
 }
 
-/* CRT scanline overlay (visibile solo nel tema Matrix) */
+/* Scanline CRT: layer di FONDO, non pellicola sopra i dati.
+   Era z-index:50, cioè sopra il pannello dettagli nodo (z-30) e in pareggio col
+   tooltip (z-50): rigava di verde proprio i due pannelli più densi del prodotto.
+   Ordine di stacking dichiarato: rain 0 → scanline 5 → contenuto 10 →
+   overlay 30 → tooltip/modali 50. */
 .scanlines {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 5;
   pointer-events: none;
-  background: repeating-linear-gradient(0deg, rgba(0,255,65,0.035) 0px, rgba(0,255,65,0.035) 1px, transparent 1px, transparent 2px);
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 255, 65, var(--scanline-alpha, 0.03)) 0 1px,
+    transparent 1px 2px
+  );
 }
 
-/* Green text glow (guidato da --title-glow, che nel tema Classico è `none`) */
+/* Glow del titolo (--title-glow è `none` nel tema Classico). */
 .glow-text { text-shadow: var(--title-glow); }
 
-/* Elementi esclusivi del tema Matrix: presenti nel DOM, nascosti in Classico */
+/* Elementi esclusivi del tema Matrix: presenti nel DOM, nascosti in Classico. */
 :root[data-theme="classic"] #matrix-rain,
 :root[data-theme="classic"] .scanlines {
   display: none;
+}
+
+
+/* ═══════════ 7. REDUCED MOTION ═══════════ */
+/* Il tema Matrix resta pienamente selezionabile e leggibile: cade il MOVIMENTO
+   (rain fermato in shared.js, transizioni azzerate), non l'identità visiva —
+   palette, monospace e scanline statiche restano. Gli !important sono necessari
+   per sovrascrivere le animazioni dichiarate inline nei template non migrati. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .scanlines { opacity: 0.4; }
 }

@@ -1,0 +1,4 @@
+# Asset di terze parti minificati serviti da /static/vendor/: nessuna
+# normalizzazione degli EOL. Sono bundle upstream, non sorgenti del progetto:
+# convertirli LF<->CRLF gonfia i diff e ne altera il checksum senza motivo.
+rag/static/vendor/** -text

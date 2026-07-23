@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Architettura Graph RAG - Project Work</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <!-- Serviti da /static/vendor/: nessuna dipendenza da CDN esterni (local-first). -->
+    <script src="/static/vendor/tailwind.min.js"></script>
+    <script src="/static/vendor/mermaid.min.js"></script>
     <script>
       /* Tailwind punta a CSS variables: le classi (bg-white, text-slate-800, border-purple-500…)
          sono generate UNA volta con var(--...) come valore colore. Il cambio tema

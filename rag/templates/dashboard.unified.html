@@ -5,15 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HARO Graph-RAG · Console</title>
 
+  <!-- Asset di terze parti serviti da /static/vendor/: il backend è local-first
+       (bind 127.0.0.1, Qdrant e Ollama locali) e l'interfaccia non deve dipendere
+       da CDN esterni per funzionare. -->
+
   <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/static/vendor/tailwind.min.js"></script>
 
   <!-- Vis.js Network (vista 2D) -->
-  <link  href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.css" rel="stylesheet" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>
+  <link  href="/static/vendor/vis.min.css" rel="stylesheet" />
+  <script src="/static/vendor/vis.min.js"></script>
 
   <!-- 3d-force-graph (vista 3D, WebGL/Three.js — bundle self-contained) -->
-  <script src="https://unpkg.com/3d-force-graph@1.73.3/dist/3d-force-graph.min.js"></script>
+  <script src="/static/vendor/3d-force-graph.min.js"></script>
 
   <script>
     /* Tailwind punta a CSS variables: le classi (bg-slate-900, text-blue-400, ecc.)
@@ -43,7 +47,12 @@
     /* ═══════════ PALETTE (Punto 5 contratto: CSS vars per tema) ═══════════ */
     :root[data-theme="matrix"] {
       --brand-50:#e6fff0; --brand-100:#c2ffdb; --brand-200:#8affc0; --brand-300:#4dff8f; --brand-400:#1aff5c; --brand-500:#00ff41; --brand-600:#00cc34; --brand-700:#009e28; --brand-800:#00751d; --brand-900:#004d13; --brand-950:#00280a;
-      --slate-50:#eafff0; --slate-100:#d8ffe4; --slate-200:#a8f0c0; --slate-300:#6fd48c; --slate-400:#3fae5c; --slate-500:#1f5c38; --slate-600:#123a22; --slate-700:#0a2417; --slate-800:#04140a; --slate-900:#020f08; --slate-950:#000000;
+      /* slate-400/500/600 sono i gradini che text-slate-* usa per il testo
+         secondario. I valori precedenti (#3fae5c / #1f5c38 / #123a22) misuravano
+         4,0:1 / 2,6:1 / 1,7:1 su fondo nero: sotto la soglia di leggibilità.
+         I verdi scuri restano su slate-700/800/900, dove servono davvero —
+         bordi e superfici — e non sul testo. */
+      --slate-50:#eafff0; --slate-100:#d8ffe4; --slate-200:#c2ecd0; --slate-300:#a8f0c0; --slate-400:#8ad9a0; --slate-500:#6fbf85; --slate-600:#4d9963; --slate-700:#17402a; --slate-800:#0a2417; --slate-900:#071c0e; --slate-950:#04140a;
       --blue-50:#e6fff0; --blue-100:#c2ffdb; --blue-200:#8affc0; --blue-300:#4dff8f; --blue-400:#1aff5c; --blue-500:#00ff41; --blue-600:#00cc34; --blue-700:#009e28; --blue-800:#00751d; --blue-900:#004d13; --blue-950:#00280a;
       --purple-50:#e0fffb; --purple-100:#b3fff5; --purple-200:#7dffee; --purple-300:#39ffe0; --purple-400:#00e5cc; --purple-500:#00bfa8; --purple-600:#009e8a; --purple-700:#007d6d; --purple-800:#005c51; --purple-900:#003d36; --purple-950:#00201c;
       --font-main: 'JetBrains Mono','Fira Code',Consolas,ui-monospace,monospace;
@@ -60,7 +69,11 @@
       --tooltip-muted:#4dbf6e; --tooltip-rule-accent:#5eeed4; --tooltip-rule-divider:#0a4a3d;
       --tooltip-term-accent:#34d399; --tooltip-term-divider:#1a3d32; --tooltip-desc:#c8f5d4;
 
-      --json-divider:#04140a; --json-accent:#1f7a3d; --json-muted:#145c2c; --json-col-bg:#000d05;
+      /* json-accent e json-muted etichettano le intestazioni del pannello di
+         ispezione RAG. A #1f7a3d e #145c2c misuravano 3,1:1 e 2,5:1: il pannello
+         che deve dimostrare il rigore del retrieval era il meno leggibile.
+         json-divider resta scuro perché è un bordo, non testo. */
+      --json-divider:#17402a; --json-accent:#6fbf85; --json-muted:#5aa870; --json-col-bg:#000d05;
       --json-score-label:#4dbf6e; --json-score-grad-start:#00e639;
       --chip-bg:#062e14; --chip-border:#0a3d1f; --chip-color:#39ffe0;
       --stat-bg:#03170a; --stat-number:#7dffa0; --rag-json-bg:#000000;
@@ -68,6 +81,22 @@
       --glass-bg: rgba(4,20,10,0.55); --glass-border: rgba(0,255,65,0.16); --glass-shadow: 0 8px 32px rgba(0,0,0,0.55);
       --glow-shadow-hover: 0 0 26px rgba(0,255,65,0.35), 0 0 52px rgba(0,255,65,0.12);
       --btn-glow: 0 0 16px rgba(0,255,65,0.35); --btn-glow-hover: 0 0 30px rgba(0,255,65,0.55);
+
+      /* Pilastri REASONS — erano 7 tinte sature hardcoded in JS, identiche nei due
+         temi: in Matrix il grafo diventava un arcobaleno estraneo al resto della
+         pagina. Qui sono token, quindi seguono il tema. Restano 7 tinte distinte
+         (7 categorie non sono distinguibili con la sola scala del verde) ma a
+         chroma ridotta e luminanza omogenea, così non urlano sul fondo scuro.
+         Il colore non è comunque l'unico canale: l'etichetta del nodo porta il
+         codice del pilastro. */
+      --pillar-requirements-bg:#3d1f1a; --pillar-requirements-bd:#e08a7a;
+      --pillar-entities-bg:#16283d;     --pillar-entities-bd:#6fa8dc;
+      --pillar-approach-bg:#2a2340;     --pillar-approach-bd:#a894d6;
+      --pillar-structure-bg:#14333a;    --pillar-structure-bd:#5fb8c4;
+      --pillar-operations-bg:#0f2e1c;   --pillar-operations-bd:#6fbf85;
+      --pillar-norms-bg:#3a2e14;        --pillar-norms-bd:#d4b06a;
+      --pillar-safeguards-bg:#3a2617;   --pillar-safeguards-bd:#d99a6c;
+      --pillar-default-bg:#1a241e;      --pillar-default-bd:#7a9488;
     }
 
     :root[data-theme="classic"] {
@@ -97,25 +126,39 @@
       --glass-bg: rgba(15,23,42,0.55); --glass-border: rgba(255,255,255,0.08); --glass-shadow: 0 8px 24px rgba(15,23,42,0.25);
       --glow-shadow-hover: 0 12px 32px rgba(37,99,235,0.18);
       --btn-glow: 0 4px 14px rgba(37,99,235,0.25); --btn-glow-hover: 0 8px 24px rgba(37,99,235,0.35);
+
+      /* Pilastri REASONS — nel tema Classico la palette satura funziona: è quella
+         già in uso, promossa da costanti JS a token. */
+      --pillar-requirements-bg:#b91c1c; --pillar-requirements-bd:#ef4444;
+      --pillar-entities-bg:#1d4ed8;     --pillar-entities-bd:#3b82f6;
+      --pillar-approach-bg:#6d28d9;     --pillar-approach-bd:#a855f7;
+      --pillar-structure-bg:#0e7490;    --pillar-structure-bd:#06b6d4;
+      --pillar-operations-bg:#047857;   --pillar-operations-bd:#10b981;
+      --pillar-norms-bg:#b45309;        --pillar-norms-bd:#f59e0b;
+      --pillar-safeguards-bg:#c2410c;   --pillar-safeguards-bd:#f97316;
+      --pillar-default-bg:#334155;      --pillar-default-bd:#94a3b8;
     }
 
     body { font-family: var(--font-main); }
 
-    /* ── Premium: glassmorphism + neon micro-interactions ── */
+    /* ── Superfici ──
+       Le superfici che contengono DATI non si muovono: il `translateY(-2px)` su
+       .glass-card faceva sollevare la card mentre l'utente ci scriveva dentro e
+       spostava il canvas sotto al cursore. L'hover comunica con bordo e ombra,
+       mai con la geometria. */
     .glass-card {
       background: var(--glass-bg);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--glass-border);
       box-shadow: var(--glass-shadow);
-      transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+      transition: border-color var(--duration-normal) var(--ease-standard);
     }
-    .glass-card:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--glow-shadow-hover);
-    }
-    .neon-btn { transition: all 0.3s cubic-bezier(0.4,0,0.2,1); box-shadow: var(--btn-glow); }
-    .neon-btn:hover { box-shadow: var(--btn-glow-hover); transform: translateY(-1px) scale(1.015); }
+
+    /* Il glow è il marcatore dell'AZIONE PRIMARIA, non atmosfera: se tutto
+       brilla, niente risalta. Una sola .neon-btn per riquadro. */
+    .neon-btn { transition: box-shadow var(--duration-normal) var(--ease-standard); box-shadow: var(--btn-glow); }
+    .neon-btn:hover { box-shadow: var(--btn-glow-hover); }
 
     /* Custom scrollbar */
     ::-webkit-scrollbar { width: 6px; }
@@ -148,13 +191,32 @@
       transition: background .15s, color .15s;
       color: var(--slate-400, #94a3b8);
     }
+    /* Il fallback era #7c3aed (viola), residuo di una palette non più esistente;
+       il valore reale (--brand-600 = #00cc34) con testo bianco dava 2,2:1.
+       Su verde brillante il testo è SCURO: regola generale del tema Matrix. */
     .view-toggle-btn.active {
-      background: var(--brand-600, #7c3aed);
-      color: #fff;
+      background: var(--color-primary);
+      color: var(--color-on-primary);
     }
 
-    #tab-graph-panel { transition: box-shadow 0.3s ease, border-color 0.3s ease; }
-    #tab-graph-panel:hover { box-shadow: var(--glow-shadow-hover); }
+    /* Rimosso #tab-graph-panel:hover — mentre si usa il grafo il cursore è
+       sempre dentro al pannello, quindi il glow era permanente. */
+    #tab-graph-panel { transition: border-color var(--duration-normal) var(--ease-standard); }
+
+    /* Tab: lo stato attivo non è affidato al solo background (in Matrix la gamma
+       dei verdi è compressa e due superfici scure si distinguono male), ma anche
+       da un bordo inferiore in --color-primary e dal peso tipografico. */
+    .tab-btn {
+      color: var(--slate-400);
+      border-bottom: 2px solid transparent;
+      background: transparent;
+    }
+    .tab-btn:hover { color: var(--slate-200); background: var(--slate-800); }
+    .tab-btn.is-active {
+      background: var(--slate-800);
+      color: var(--slate-100);
+      border-bottom-color: var(--color-primary);
+    }
 
     /* Pulsing loader dot */
     @keyframes pulse-dot {
@@ -180,24 +242,73 @@
       background: linear-gradient(135deg, var(--header-grad-1) 0%, var(--header-grad-2) 50%, var(--header-grad-3) 100%);
     }
 
-    /* NB: matrix-rain, scanlines, glow-text e la regola di hide nel tema Classico
-       vivono ora in /static/shared.css (identici tra le pagine). */
+    /* Un flex item ha `min-width: auto`, cioè non scende sotto la propria
+       min-content width: il pannello restava bloccato a ~384px e il MIN_WIDTH di
+       260px del resizer non è mai stato raggiungibile (né col mouse né da
+       tastiera). min-width:0 restituisce il controllo alla larghezza esplicita;
+       le card interne scorrono già in verticale. */
+    #left-panel { min-width: 0; }
+
+    /* ── Responsive ──
+       Prima di questo blocco il progetto non aveva NESSUNA @media query: la
+       dashboard era un layout a due colonne con aside fisso a 384px, quindi
+       inutilizzabile sotto ~1100px e rotta a zoom 200%.
+       Tre soglie: ≥1024 split panel · <1024 stack verticale · <640 nav compatta. */
+    @media (max-width: 1023px) {
+      #app-main { flex-direction: column; overflow-y: auto; }
+      /* !important: sovrascrive la larghezza inline persistita dal resizer in
+         localStorage. max-width serve comunque: in un flex container in colonna
+         l'aside veniva dimensionato sulla cross size del contenitore (allargata
+         dalla toolbar del grafo), non sul viewport. */
+      #left-panel { width: 100% !important; max-width: 100% !important; max-height: none; }
+      #panel-resizer { display: none; }
+      #app-graph-section { min-height: 70vh; }
+      /* La toolbar del grafo era whitespace-nowrap su una riga sola: sotto i
+         1000px spingeva la pagina in overflow orizzontale. Ora va a capo a
+         tutti i livelli di annidamento. */
+      /* shrink-0 sui contenitori impediva qualunque adattamento: senza
+         flex-shrink il wrap non entra mai in gioco perché il contenitore
+         conserva la sua max-content width. */
+      #graph-controls,
+      #graph-controls > div {
+        flex-wrap: wrap;
+        white-space: normal;
+        flex-shrink: 1;
+        max-width: 100%;
+      }
+      #main-content { max-width: 100%; }
+      /* Il tablist non va a capo (spezzerebbe la metafora dei tab): scorre
+         dentro al PROPRIO contenitore, senza mai far scorrere la pagina. */
+      [role="tablist"] { max-width: 100%; overflow-x: auto; }
+      [role="tablist"] > button { flex-shrink: 0; }
+    }
+    @media (max-width: 639px) {
+      #app-header { padding: var(--space-3) var(--space-4); }
+      #app-graph-section { min-height: 60vh; }
+    }
+
+    /* NB: matrix-rain, scanlines, glow-text, focus-visible, .btn* e la regola di
+       hide nel tema Classico vivono in /static/shared.css. */
   </style>
 </head>
 
 <body class="h-full bg-slate-950 text-slate-100 font-sans flex flex-col">
 
-  <!-- Theme switcher (setUiTheme) e matrix rain vivono in /static/shared.js -->
+  <!-- Theme switcher (setUiTheme), matrix rain e initNavigation vivono in /static/shared.js -->
 
-  <canvas id="matrix-rain"></canvas>
-  <div class="scanlines"></div>
+  <a href="#main-content" class="skip-link">Vai al contenuto</a>
+
+  <canvas id="matrix-rain" aria-hidden="true"></canvas>
+  <div class="scanlines" aria-hidden="true"></div>
 
   <!-- ═══════════════════ HEADER ═══════════════════ -->
-  <header class="relative z-10 header-gradient border-b border-slate-800 px-6 py-4 flex items-center gap-4 shrink-0">
+  <!-- flex-wrap: prima la riga non andava mai a capo e l'header usciva dallo
+       schermo sotto ~1100px e a zoom 200%. -->
+  <header id="app-header" class="relative z-10 header-gradient border-b border-slate-800 px-6 py-4 flex flex-wrap items-center gap-x-4 gap-y-3 shrink-0">
     <div class="flex items-center gap-3 shrink-0">
       <!-- Logo icon -->
-      <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg neon-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
         </svg>
       </div>
@@ -207,66 +318,90 @@
       </div>
     </div>
 
-    <a href="/pipeline" class="ml-auto shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-300 hover:scale-105">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-      </svg>
-      Pipeline VibeCraft
-    </a>
+    <!-- ── Navigazione ──
+         Ordine canonico che segue il flusso di lavoro (Console → Intake →
+         Pipeline → Analisi → Eval → Infografica) e che include SEMPRE la pagina
+         corrente: prima ogni pagina ometteva sé stessa dalla propria nav, con
+         ordine ed etichette diversi ovunque, quindi non era mai possibile capire
+         dove ci si trovasse. La marcatura .is-current è applicata da
+         initNavigation() in shared.js. Questo blocco è il riferimento da
+         replicare sulle altre 5 pagine in Fase 3. -->
+    <nav class="app-nav ml-auto flex flex-wrap items-center gap-2" aria-label="Sezioni">
+      <a href="/" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>
+        </svg>
+        Console
+      </a>
 
-    <a href="/analysis" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-300 hover:scale-105">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
-      </svg>
-      Analisi
-    </a>
+      <a href="/intake" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"/>
+        </svg>
+        Intake
+      </a>
 
-    <a href="/infografica" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-300 hover:scale-105">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2a4 4 0 014-4h3m0 0l-3-3m3 3l-3 3M4 7h16M4 12h4m-4 5h4"/>
-      </svg>
-      Infografica
-    </a>
+      <a href="/pipeline" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+        Pipeline
+      </a>
 
-    <a href="/eval" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-300 hover:scale-105">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15l4-6 4 3 5-8"/>
-      </svg>
-      Eval
-    </a>
+      <a href="/analysis" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+        </svg>
+        Analisi
+      </a>
 
-    <a href="/intake" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-all duration-300 hover:scale-105">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"/>
-      </svg>
-      Intake
-    </a>
+      <a href="/eval" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15l4-6 4 3 5-8"/>
+        </svg>
+        Eval
+      </a>
 
-    <!-- Status badge -->
-    <div id="status-badge" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-400">
-      <span class="w-2 h-2 rounded-full bg-slate-500" id="status-dot"></span>
+      <a href="/infografica" class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2a4 4 0 014-4h3m0 0l-3-3m3 3l-3 3M4 7h16M4 12h4m-4 5h4"/>
+        </svg>
+        Infografica
+      </a>
+    </nav>
+
+    <!-- Status badge — lo stato non è affidato al solo colore del pallino:
+         l'etichetta testuale accanto lo esplicita sempre. -->
+    <div id="status-badge" role="status" aria-live="polite"
+         class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300">
+      <span class="w-2 h-2 rounded-full bg-slate-500" id="status-dot" aria-hidden="true"></span>
       <span id="status-text">In attesa</span>
     </div>
 
-    <!-- Theme switcher -->
-    <label for="theme-switcher"></label><select id="theme-switcher" onchange="setUiTheme(this.value)" class="shrink-0"
-                                                style="background:#0a0a0a;color:#00ff41;border:1px solid #00ff41;border-radius:6px;padding:5px 10px;font-size:12px;font-family:ui-monospace,Consolas,monospace;cursor:pointer;box-shadow:0 0 8px rgba(0,255,65,0.3);">
+    <!-- Theme switcher — la <label> era vuota, quindi il controllo non aveva
+         alcun nome accessibile. Sostituita da aria-label. -->
+    <select id="theme-switcher" onchange="setUiTheme(this.value)" aria-label="Tema dell'interfaccia"
+            class="shrink-0 rounded-md px-2.5 py-1.5 text-xs font-mono cursor-pointer bg-slate-800 border border-slate-700 text-slate-200">
       <option value="matrix">🟢 Matrix</option>
       <option value="classic">☀️ Classico</option>
     </select>
   </header>
 
   <!-- ═══════════════════ MAIN LAYOUT ═══════════════════ -->
-  <main class="relative z-10 flex-1 flex overflow-hidden">
+  <main id="app-main" class="relative z-10 flex-1 flex overflow-hidden">
 
     <!-- ────── LEFT PANEL ────── -->
-    <aside id="left-panel" class="shrink-0 flex flex-col gap-4 p-4 overflow-y-auto" style="width:384px">
+    <aside id="left-panel" class="shrink-0 flex flex-col gap-4 p-4 overflow-y-auto" style="width:384px"
+           aria-label="Interrogazione">
 
       <!-- Search card -->
       <div class="rounded-xl glass-card p-4">
-        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Domanda</label>
+        <!-- Le <label for> erano VUOTE: soddisfacevano il linter ma non davano
+             alcun nome accessibile ai controlli. Ora avvolgono il campo o
+             puntano davvero al testo visibile. -->
+        <label for="question-input" class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Domanda</label>
         <div class="relative">
-          <label for="question-input"></label><textarea
+          <textarea
             id="question-input"
             rows="7"
             placeholder="Es. Quali eventi sono previsti a giugno?"
@@ -277,21 +412,25 @@
         <!-- Options row -->
         <div class="flex gap-3 mt-3">
           <div class="flex-1">
-            <label class="block text-xs text-slate-500 mb-1">Top-K</label>
-            <label for="top-k"></label><input type="number" id="top-k" value="5" min="1" max="20"
-                                              class="w-full rounded-md bg-slate-800 border border-slate-700 px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <label for="top-k" class="block text-xs text-slate-500 mb-1">Top-K</label>
+            <input type="number" id="top-k" value="5" min="1" max="20"
+                   class="w-full rounded-md bg-slate-800 border border-slate-700 px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div class="flex-1">
-            <label class="block text-xs text-slate-500 mb-1">BFS Depth</label>
-            <label for="bfs-depth"></label><input type="number" id="bfs-depth" value="2" min="0" max="5"
-                                                  class="w-full rounded-md bg-slate-800 border border-slate-700 px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <label for="bfs-depth" class="block text-xs text-slate-500 mb-1">BFS Depth</label>
+            <input type="number" id="bfs-depth" value="2" min="0" max="5"
+                   class="w-full rounded-md bg-slate-800 border border-slate-700 px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
         </div>
 
-        <!-- Submit button -->
+        <!-- Azione primaria: unico elemento con il glow in questo riquadro.
+             `text-white` su bg-blue-600 dava 2,2:1 nel tema Matrix (dove
+             --blue-600 è verde brillante): il testo su primario ora usa
+             --color-on-primary, scuro in Matrix e bianco in Classico. -->
         <button id="ask-btn" onclick="submitQuery()"
-          class="mt-4 w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-sm font-semibold py-2.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed neon-btn hover:scale-[1.02]">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          style="color: var(--color-on-primary)"
+          class="mt-4 w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-sm font-semibold py-2.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
           </svg>
           Interroga il grafo
@@ -329,41 +468,45 @@
 
     </aside>
 
-    <!-- ────── RESIZE HANDLE ────── -->
-    <div id="panel-resizer"
-      class="shrink-0 w-1.5 cursor-col-resize border-r border-slate-800 hover:border-blue-500 hover:bg-blue-500/20 active:bg-blue-500/30 transition-colors"
-      title="Trascina per ridimensionare"
+    <!-- ────── RESIZE HANDLE ──────
+         Era un <div> guidato solo dal mouse: non focalizzabile, senza ruolo e
+         senza alternativa da tastiera. Ora è un separator ARIA con gestione di
+         ←/→ (vedi initPanelResizer). Larghezza portata a w-2 per un target di
+         puntamento decente. -->
+    <div id="panel-resizer" role="separator" aria-orientation="vertical" tabindex="0"
+      aria-label="Larghezza del pannello di interrogazione"
+      class="shrink-0 w-2 cursor-col-resize border-r border-slate-800 hover:border-blue-500 hover:bg-blue-500/20 active:bg-blue-500/30 transition-colors"
+      title="Trascina o usa ← / → per ridimensionare"
     ></div>
 
     <!-- ────── RIGHT PANEL ────── -->
-    <section class="flex-1 flex flex-col p-4 gap-3 min-w-0">
+    <section id="main-content" class="flex-1 flex flex-col p-4 gap-3 min-w-0">
 
       <!-- ── Top bar: Tab switcher + Graph controls ── -->
-      <div class="flex items-center justify-between shrink-0">
+      <div class="flex flex-wrap items-center justify-between gap-3 shrink-0">
 
-        <!-- Tab buttons -->
-        <div class="flex items-center gap-0.5 p-0.5 rounded-lg glass-card shrink-0">
-          <button id="tab-graph-btn" onclick="switchTab('graph')"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition
-                   bg-slate-700 text-slate-100 shadow-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <!-- Tab buttons — erano <button> senza semantica di tab: nessun
+             role/aria-selected, nessuna navigazione con le frecce, e switchTab
+             riscriveva className per intero (distruggendo ogni altra classe). -->
+        <div class="flex items-center gap-0.5 p-0.5 rounded-lg glass-card shrink-0" role="tablist" aria-label="Vista del risultato">
+          <button id="tab-graph-btn" onclick="switchTab('graph')" role="tab" aria-selected="true" aria-controls="tab-graph-panel"
+            class="tab-btn is-active flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/>
               <line x1="7" y1="11.5" x2="17" y2="6" stroke="currentColor"/><line x1="7" y1="12.5" x2="17" y2="18" stroke="currentColor"/>
             </svg>
             Mappa del Grafo
           </button>
-          <button id="tab-context-btn" onclick="switchTab('context')"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition
-                   text-slate-500 hover:text-slate-300 hover:bg-slate-800">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <button id="tab-context-btn" onclick="switchTab('context')" role="tab" aria-selected="false" aria-controls="tab-context-panel"
+            class="tab-btn flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0120 9.414V19a2 2 0 01-2 2z"/>
             </svg>
             Prompt Context
           </button>
-          <button id="tab-json-btn" onclick="switchTab('json')"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition
-                   text-slate-500 hover:text-slate-300 hover:bg-slate-800">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <button id="tab-json-btn" onclick="switchTab('json')" role="tab" aria-selected="false" aria-controls="tab-json-panel"
+            class="tab-btn flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h8m-8 6h16"/>
               <path stroke-linecap="round" d="M17 9l3 3-3 3"/>
             </svg>
@@ -413,7 +556,7 @@
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
                      bg-purple-900 border border-purple-700 text-purple-200
                      hover:bg-purple-800 hover:text-white active:bg-purple-950
-                     transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn hover:scale-[1.02]">
+                     transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
               </svg>
@@ -437,86 +580,104 @@
       </div>
 
       <!-- ── Tab content area ── -->
-      <div class="flex-1 relative min-h-0">
+      <div id="app-graph-section" class="flex-1 relative min-h-0">
 
         <!-- TAB: Mappa del Grafo -->
-        <div id="tab-graph-panel" class="absolute inset-0 rounded-xl overflow-hidden border border-slate-800">
+        <div id="tab-graph-panel" role="tabpanel" aria-labelledby="tab-graph-btn"
+          class="absolute inset-0 rounded-xl overflow-hidden border border-slate-800">
           <div id="graph-canvas"></div>
           <div id="graph-canvas-3d" style="display:none"></div>
-          <!-- Legenda cromatica dei pilastri REASONS (compare quando c'è un grafo) -->
+          <!-- Legenda dei pilastri REASONS (compare quando c'è un grafo).
+               Il testo era a 9px/11px: sotto il pavimento di leggibilità. -->
           <div id="reasons-legend" style="display:none"
             class="absolute bottom-3 left-3 z-20 rounded-lg border border-slate-700 bg-slate-900/70 backdrop-blur-md px-3 py-2 pointer-events-none">
-            <div class="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Pilastri REASONS</div>
-            <div id="reasons-legend-items" class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-slate-300"></div>
+            <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Pilastri REASONS</div>
+            <div id="reasons-legend-items" class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-300"></div>
           </div>
           <!-- Pannello dettagli nodo (compare al click su un nodo) -->
           <div id="node-details" style="display:none"
             class="absolute top-3 right-3 z-30 w-72 max-h-[75%] overflow-y-auto rounded-lg border border-slate-700 bg-slate-900/80 backdrop-blur-md p-3 shadow-xl">
             <div class="flex items-start justify-between gap-2 mb-2">
               <span id="nd-title" class="text-sm font-semibold text-slate-100 break-all leading-snug"></span>
-              <button onclick="closeNodeDetails()" title="Chiudi"
+              <button onclick="closeNodeDetails()" aria-label="Chiudi i dettagli del nodo"
                 class="shrink-0 text-lg leading-none text-slate-400 hover:text-white">×</button>
             </div>
-            <div id="nd-badges" class="flex flex-wrap gap-1.5 mb-2 text-[10px]"></div>
+            <div id="nd-badges" class="flex flex-wrap gap-1.5 mb-2 text-xs"></div>
             <div id="nd-desc" class="text-xs text-slate-300 leading-relaxed mb-3"></div>
             <div id="nd-conn-wrap" class="hidden">
-              <div class="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Connessioni</div>
-              <div id="nd-connections" class="flex flex-col gap-1 text-[11px]"></div>
+              <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Connessioni</div>
+              <div id="nd-connections" class="flex flex-col gap-1 text-xs"></div>
             </div>
           </div>
           <!-- Empty state overlay -->
-          <div id="graph-empty" class="absolute inset-0 flex flex-col items-center justify-center text-slate-600 pointer-events-none">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+          <div id="graph-empty" class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 pointer-events-none px-4 text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-16 h-16 mb-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1" aria-hidden="true">
               <circle cx="5"  cy="12" r="2"/><circle cx="19" cy="5"  r="2"/>
               <circle cx="19" cy="19" r="2"/>
               <line x1="7"  y1="11.5" x2="17" y2="6"   stroke="currentColor" stroke-width="1"/>
               <line x1="7"  y1="12.5" x2="17" y2="18"  stroke="currentColor" stroke-width="1"/>
             </svg>
             <p class="text-sm">Il grafo contestuale apparirà dopo la prima interrogazione</p>
-            <p class="text-xs mt-1 opacity-70">oppure clicca <span class="text-purple-400 font-medium">Visualizza Grafo Completo</span> per esplorare l'intero knowledge base</p>
+            <p class="text-xs mt-1">oppure clicca <span class="text-purple-300 font-medium">Visualizza Grafo Completo</span> per esplorare l'intero knowledge base</p>
+          </div>
+          <!-- Error state: gli errori di caricamento del grafo finivano nella card
+               "Risposta LLM", come se fossero l'output del modello. Ora restano nel
+               contenitore che ha fallito e offrono un'azione di ripristino. -->
+          <div id="graph-error" style="display:none"
+            class="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center bg-slate-950/80 backdrop-blur-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10" style="color:var(--color-danger)" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M12 8v5m0 3.5v.01"/>
+            </svg>
+            <p class="text-sm font-semibold" style="color:var(--color-danger)">Impossibile caricare il grafo</p>
+            <p id="graph-error-detail" class="text-xs text-slate-400 max-w-md break-words"></p>
+            <button id="graph-error-retry" class="btn btn-secondary">Riprova</button>
           </div>
         </div>
 
-        <!-- TAB: Prompt Context -->
-        <div id="tab-context-panel"
-          class="absolute inset-0 rounded-xl border border-slate-800 bg-slate-950 overflow-hidden"
+        <!-- TAB: Prompt Context
+             `height:calc(100% - 37px)` codificava a mano l'altezza dell'header,
+             che dipende da font e zoom: a zoom 200% il contenuto veniva tagliato.
+             Sostituito da flex, che è già il pattern del resto della pagina. -->
+        <div id="tab-context-panel" role="tabpanel" aria-labelledby="tab-context-btn"
+          class="absolute inset-0 rounded-xl border border-slate-800 bg-slate-950 overflow-hidden flex flex-col"
           style="display:none">
           <!-- Header -->
-          <div class="flex items-center justify-between px-4 py-2.5 border-b border-slate-800 bg-slate-900">
+          <div class="flex items-center justify-between px-4 py-2.5 border-b border-slate-800 bg-slate-900 shrink-0">
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Testo inviato all'LLM</span>
-            <span id="context-chars" class="text-xs font-mono text-slate-600"></span>
+            <span id="context-chars" class="text-xs font-mono text-slate-400"></span>
           </div>
           <!-- Content -->
           <pre id="raw-context-box"
-            style="margin:0; height:calc(100% - 37px); overflow-y:auto; padding:1rem;
-                   font-size:11px; line-height:1.65; font-family:'JetBrains Mono',ui-monospace,monospace;
-                   color:#6ee7b7; background:transparent; white-space:pre-wrap; word-break:break-word;">Nessuna interrogazione eseguita.</pre>
+            class="flex-1 min-h-0"
+            style="margin:0; overflow-y:auto; padding:1rem;
+                   font-size:var(--text-xs); line-height:1.7; font-family:'JetBrains Mono',ui-monospace,monospace;
+                   color:var(--slate-200); background:transparent; white-space:pre-wrap; word-break:break-word;">Nessuna interrogazione eseguita.</pre>
         </div>
 
         <!-- TAB: Risposta JSON -->
-        <div id="tab-json-panel"
-          class="absolute inset-0 rounded-xl border border-slate-800 bg-slate-950 overflow-hidden"
+        <div id="tab-json-panel" role="tabpanel" aria-labelledby="tab-json-btn"
+          class="absolute inset-0 rounded-xl border border-slate-800 bg-slate-950 overflow-hidden flex flex-col"
           style="display:none">
           <!-- Header -->
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid var(--json-divider);background:var(--bg-canvas)">
-            <span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--json-accent)">Ispezione Risposta RAG</span>
-            <span id="json-status-badge" style="font-size:10px;font-family:ui-monospace,monospace"></span>
+          <div class="shrink-0" style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px;border-bottom:1px solid var(--json-divider);background:var(--bg-canvas)">
+            <span style="font-size:var(--text-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--json-accent)">Ispezione Risposta RAG</span>
+            <span id="json-status-badge" style="font-size:var(--text-xs);font-family:ui-monospace,monospace"></span>
           </div>
           <!-- Two-column body -->
-          <div style="display:flex;height:calc(100% - 37px);overflow:hidden">
+          <div class="flex-1 min-h-0" style="display:flex;overflow:hidden">
 
             <!-- ── Colonna sinistra: RAG Deterministico ── -->
             <div id="json-rag-col"
               style="flex:0 0 44%;border-right:1px solid var(--json-divider);overflow-y:auto;padding:14px 16px;
                      font-family:Inter,ui-sans-serif,sans-serif;background:var(--json-col-bg)">
-              <p style="color:var(--json-muted);font-size:11px">Nessuna interrogazione eseguita.</p>
+              <p style="color:var(--json-muted);font-size:var(--text-xs)">Nessuna interrogazione eseguita.</p>
             </div>
 
             <!-- ── Colonna destra: LLM Generativo ── -->
             <div id="json-llm-col"
               style="flex:1;overflow-y:auto;padding:14px 16px;
                      font-family:Inter,ui-sans-serif,sans-serif">
-              <p style="color:var(--json-muted);font-size:11px">Nessuna interrogazione eseguita.</p>
+              <p style="color:var(--json-muted);font-size:var(--text-xs)">Nessuna interrogazione eseguita.</p>
             </div>
 
           </div>
@@ -536,9 +697,13 @@
   <script>
     /* themeVar / startMatrixRain / stopMatrixRain: vedi /static/shared.js */
 
-    /* ──────────── PANNELLO SINISTRO RIDIMENSIONABILE ──────────── */
-    // Drag orizzontale sull'handle fra <aside id="left-panel"> e la sezione del grafo.
-    // Larghezza persistita in localStorage così sopravvive al refresh della pagina.
+    /* ──────────── PANNELLO SINISTRO RIDIMENSIONABILE ────────────
+       Drag orizzontale sull'handle fra <aside id="left-panel"> e la sezione del
+       grafo, con larghezza persistita in localStorage.
+       Rispetto alla versione precedente: Pointer Events al posto dei soli eventi
+       mouse (copre anche penna e touch), listener di move/up registrati SOLO
+       durante il drag invece che permanentemente su window, e supporto tastiera
+       (←/→, Home/Fine) perché l'handle era regolabile solo col mouse. */
     (function initPanelResizer() {
       const panel = document.getElementById('left-panel');
       const resizer = document.getElementById('panel-resizer');
@@ -547,34 +712,50 @@
       const STORAGE_KEY = 'haro-left-panel-width';
       const MIN_WIDTH = 260;
       const MAX_WIDTH = 720;
+      const STEP = 24;
 
-      const saved = parseInt(localStorage.getItem(STORAGE_KEY), 10);
-      if (Number.isFinite(saved)) {
-        panel.style.width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, saved)) + 'px';
+      const clamp = (w) => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, w));
+
+      function applyWidth(width, persist) {
+        const w = clamp(width);
+        panel.style.width = w + 'px';
+        resizer.setAttribute('aria-valuenow', String(w));
+        resizer.setAttribute('aria-valuemin', String(MIN_WIDTH));
+        resizer.setAttribute('aria-valuemax', String(MAX_WIDTH));
+        if (persist) localStorage.setItem(STORAGE_KEY, String(w));
       }
 
-      let dragging = false;
+      const saved = parseInt(localStorage.getItem(STORAGE_KEY), 10);
+      applyWidth(Number.isFinite(saved) ? saved : panel.offsetWidth || 384, false);
 
-      resizer.addEventListener('mousedown', (e) => {
-        dragging = true;
-        document.body.style.cursor = 'col-resize';
-        document.body.style.userSelect = 'none';
-        e.preventDefault();
-      });
-
-      window.addEventListener('mousemove', (e) => {
-        if (!dragging) return;
-        const rect = panel.getBoundingClientRect();
-        const width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, e.clientX - rect.left));
-        panel.style.width = width + 'px';
-      });
-
-      window.addEventListener('mouseup', () => {
-        if (!dragging) return;
-        dragging = false;
+      function onPointerMove(e) {
+        applyWidth(e.clientX - panel.getBoundingClientRect().left, false);
+      }
+      function onPointerUp() {
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
-        localStorage.setItem(STORAGE_KEY, parseInt(panel.style.width, 10));
+        applyWidth(parseInt(panel.style.width, 10), true);
+      }
+      resizer.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+      });
+
+      resizer.addEventListener('keydown', (e) => {
+        const current = parseInt(panel.style.width, 10) || panel.offsetWidth;
+        let next = null;
+        if (e.key === 'ArrowLeft')  next = current - STEP;
+        else if (e.key === 'ArrowRight') next = current + STEP;
+        else if (e.key === 'Home')  next = MIN_WIDTH;
+        else if (e.key === 'End')   next = MAX_WIDTH;
+        if (next === null) return;
+        e.preventDefault();
+        applyWidth(next, true);
       });
     })();
 
@@ -590,20 +771,36 @@
     let lastGraphEdges = [];     // ultimo array di archi renderizzato
     let lastVisOptions = null;   // ultime opzioni vis.Network usate (fisica), riusate al ritorno al 2D
 
-    /* ──────────── REASONS: COLORAZIONE CROMATICA ──────────── */
-    // Ogni pilastro REASONS ha un colore semantico. I documenti vengono assegnati
-    // a un pilastro leggendo il campo `classification` del loro frontmatter YAML;
-    // le entità estratte ([UTENTE], [EVENTO], …) sono per definizione "Entities".
+    /* ──────────── REASONS: COLORAZIONE CROMATICA ────────────
+       Ogni pilastro REASONS ha un colore semantico. I documenti vengono assegnati
+       a un pilastro leggendo il campo `classification` del loro frontmatter YAML;
+       le entità estratte ([UTENTE], [EVENTO], …) sono per definizione "Entities".
+
+       I colori NON sono più costanti hardcoded: vengono dai token --pillar-*, così
+       seguono il tema attivo (prima erano 7 tinte sature identiche nei due temi, e
+       in Matrix il grafo diventava un arcobaleno estraneo al resto della pagina).
+       `code` è il canale NON cromatico: finisce nell'etichetta del nodo, così il
+       pilastro resta distinguibile anche senza percepire il colore. */
     const REASONS_PILLARS = {
-      requirements: { label: 'Requirements', color: { background:'#b91c1c', border:'#ef4444', highlight:{ background:'#dc2626', border:'#fca5a5' } } },
-      entities:     { label: 'Entities',     color: { background:'#1d4ed8', border:'#3b82f6', highlight:{ background:'#2563eb', border:'#93c5fd' } } },
-      approach:     { label: 'Approach',     color: { background:'#6d28d9', border:'#a855f7', highlight:{ background:'#7c3aed', border:'#d8b4fe' } } },
-      structure:    { label: 'Structure',    color: { background:'#0e7490', border:'#06b6d4', highlight:{ background:'#0891b2', border:'#67e8f9' } } },
-      operations:   { label: 'Operations',   color: { background:'#047857', border:'#10b981', highlight:{ background:'#059669', border:'#6ee7b7' } } },
-      norms:        { label: 'Norms',        color: { background:'#b45309', border:'#f59e0b', highlight:{ background:'#d97706', border:'#fcd34d' } } },
-      safeguards:   { label: 'Safeguards',   color: { background:'#c2410c', border:'#f97316', highlight:{ background:'#ea580c', border:'#fdba74' } } },
+      requirements: { label: 'Requirements', code: 'REQ' },
+      entities:     { label: 'Entities',     code: 'ENT' },
+      approach:     { label: 'Approach',     code: 'APP' },
+      structure:    { label: 'Structure',    code: 'STR' },
+      operations:   { label: 'Operations',   code: 'OPS' },
+      norms:        { label: 'Norms',        code: 'NRM' },
+      safeguards:   { label: 'Safeguards',   code: 'SAF' },
     };
-    const REASONS_DEFAULT = { label: 'Non classificato', color: { background:'#334155', border:'#94a3b8', highlight:{ background:'#475569', border:'#cbd5e1' } } };
+    const REASONS_DEFAULT = { label: 'Non classificato', code: '—' };
+
+    /* Costruisce l'oggetto colore vis.js del pilastro leggendo i token del tema.
+       themeVar() è in cache e si azzera al cambio tema, quindi qui non c'è il
+       costo di un getComputedStyle per nodo. */
+    function pillarPalette(key) {
+      const name = (key && REASONS_PILLARS[key]) ? key : 'default';
+      const bg = themeVar(`--pillar-${name}-bg`, '#1a241e');
+      const bd = themeVar(`--pillar-${name}-bd`, '#7a9488');
+      return { background: bg, border: bd, highlight: { background: bd, border: bd } };
+    }
 
     // Dal valore `classification` dello YAML al pilastro REASONS. Il match è per
     // parole chiave, così anche classificazioni future ricadono nel pilastro
@@ -624,17 +821,26 @@
 
     // Restituisce l'oggetto colore vis.js per il pilastro del nodo.
     function pillarColor(classification, type) {
-      const key = pillarKey(classification, type);
-      return (key && REASONS_PILLARS[key] ? REASONS_PILLARS[key] : REASONS_DEFAULT).color;
+      return pillarPalette(pillarKey(classification, type));
     }
 
-    // Popola la legenda cromatica dei pilastri REASONS (sovrapposta al grafo).
+    // Codice breve del pilastro, usato come prefisso dell'etichetta del nodo:
+    // è la ridondanza non cromatica che rende il pilastro leggibile anche a chi
+    // non distingue le tinte.
+    function pillarCode(classification, type) {
+      const key = pillarKey(classification, type);
+      return (key && REASONS_PILLARS[key] ? REASONS_PILLARS[key] : REASONS_DEFAULT).code;
+    }
+
+    // Popola la legenda dei pilastri REASONS (sovrapposta al grafo).
+    // Mostra il codice oltre al pallino: la legenda non è più solo cromatica.
     function renderReasonsLegend() {
       const box = document.getElementById('reasons-legend-items');
       if (!box) return;
-      box.innerHTML = Object.values(REASONS_PILLARS).map(p =>
+      box.innerHTML = Object.entries(REASONS_PILLARS).map(([key, p]) =>
         `<span class="flex items-center gap-1.5">
-           <span class="w-2.5 h-2.5 rounded-full inline-block shrink-0" style="background:${p.color.border}"></span>${p.label}
+           <span class="w-2.5 h-2.5 rounded-full inline-block shrink-0" style="background:${pillarPalette(key).border}"></span>
+           <span class="font-mono text-slate-400">${p.code}</span> ${escapeHtml(p.label)}
          </span>`).join('');
     }
 
@@ -656,6 +862,21 @@
     function showLoader(show) {
       document.getElementById('loader').classList.toggle('hidden', !show);
       document.getElementById('ask-btn').disabled = show;
+    }
+
+    /* ──────────── STATO DI ERRORE DEL PANNELLO GRAFO ────────────
+       Empty, loading ed error sono stati DELLO STESSO contenitore: mostrarne uno
+       nasconde gli altri, così il pannello non resta mai ambiguo. */
+    function showGraphError(message, onRetry) {
+      const box = document.getElementById('graph-error');
+      document.getElementById('graph-empty').style.display = 'none';
+      document.getElementById('graph-error-detail').textContent = message || 'Errore sconosciuto.';
+      const retry = document.getElementById('graph-error-retry');
+      retry.onclick = () => { hideGraphError(); if (typeof onRetry === 'function') onRetry(); };
+      box.style.display = '';
+    }
+    function hideGraphError() {
+      document.getElementById('graph-error').style.display = 'none';
     }
 
     function fitGraph() {
@@ -762,19 +983,24 @@
       }
     }
 
-    /* ──────────── TAB SWITCHER ──────────── */
-    const TAB_ACTIVE   = 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition bg-slate-700 text-slate-100 shadow-sm';
-    const TAB_INACTIVE = 'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition text-slate-500 hover:text-slate-300 hover:bg-slate-800';
+    /* ──────────── TAB SWITCHER ────────────
+       Prima riscriveva `className` per intero con una stringa di 12 utility:
+       qualunque classe aggiunta al markup (responsive, stato) veniva distrutta al
+       primo switch. Ora tocca solo `is-active` e gli attributi ARIA. */
+    const TAB_ORDER = ['graph', 'context', 'json'];
+    const TAB_BTN   = { graph: 'tab-graph-btn',   context: 'tab-context-btn',   json: 'tab-json-btn' };
+    const TAB_PANEL = { graph: 'tab-graph-panel', context: 'tab-context-panel', json: 'tab-json-panel' };
 
     function switchTab(tab) {
-      const panels  = ['graph', 'context', 'json'];
-      const btnIds  = { graph: 'tab-graph-btn', context: 'tab-context-btn', json: 'tab-json-btn' };
-      const panIds  = { graph: 'tab-graph-panel', context: 'tab-context-panel', json: 'tab-json-panel' };
-
-      // Mostra il pannello attivo, nascondi gli altri
-      panels.forEach(p => {
-        document.getElementById(panIds[p]).style.display = (p === tab) ? '' : 'none';
-        document.getElementById(btnIds[p]).className     = (p === tab) ? TAB_ACTIVE : TAB_INACTIVE;
+      TAB_ORDER.forEach(p => {
+        const btn = document.getElementById(TAB_BTN[p]);
+        const isActive = (p === tab);
+        document.getElementById(TAB_PANEL[p]).style.display = isActive ? '' : 'none';
+        btn.classList.toggle('is-active', isActive);
+        btn.setAttribute('aria-selected', String(isActive));
+        // Roving tabindex: dentro un tablist si entra con Tab e ci si sposta con
+        // le frecce, quindi solo il tab attivo è raggiungibile con Tab.
+        btn.tabIndex = isActive ? 0 : -1;
       });
 
       // Controlli grafo: visibili solo nel tab Mappa
@@ -788,6 +1014,24 @@
         }, 60);
       }
     }
+
+    /* Navigazione con le frecce fra i tab (pattern ARIA tablist). */
+    (function initTabKeyboard() {
+      TAB_ORDER.forEach((tab, i) => {
+        document.getElementById(TAB_BTN[tab]).addEventListener('keydown', e => {
+          let next = null;
+          if (e.key === 'ArrowRight') next = TAB_ORDER[(i + 1) % TAB_ORDER.length];
+          else if (e.key === 'ArrowLeft') next = TAB_ORDER[(i - 1 + TAB_ORDER.length) % TAB_ORDER.length];
+          else if (e.key === 'Home') next = TAB_ORDER[0];
+          else if (e.key === 'End') next = TAB_ORDER[TAB_ORDER.length - 1];
+          if (!next) return;
+          e.preventDefault();
+          switchTab(next);
+          document.getElementById(TAB_BTN[next]).focus();
+        });
+      });
+      switchTab('graph');   // imposta tabindex e ARIA coerenti al primo paint
+    })();
 
     /* ──────────── GRAPH MODE HELPERS ──────────── */
     function setGraphMode(mode) {
@@ -835,6 +1079,7 @@
         const data = await res.json();
 
         document.getElementById('graph-empty').style.display = 'none';
+        hideGraphError();
         setGraphMode('full');
 
         document.getElementById('reasons-legend').style.display = '';
@@ -851,7 +1096,10 @@
           const shortLabel = n.id.length > 22 ? n.id.substring(0, 20) + '…' : n.id;
           return {
             id: n.id,
-            label: shortLabel,
+            // Il codice del pilastro prefissa l'etichetta: è il canale NON
+            // cromatico che rende il pilastro leggibile anche a chi non
+            // distingue le tinte (il colore da solo non basta).
+            label: `[${pillarCode(n.classification, n.type)}] ${shortLabel}`,
             nodeId: n.id,
             nodeType: n.type,
             classification: n.classification || '',
@@ -896,12 +1144,10 @@
         setTimeout(fitGraph, 600);
 
       } catch (e) {
+        // L'errore resta NEL pannello che ha fallito: prima finiva nella card
+        // "Risposta LLM", dove sembrava l'output del modello.
         setStatus('error');
-        const answerCard = document.getElementById('answer-card');
-        const answerText = document.getElementById('answer-text');
-        answerText.textContent = `❌ Errore caricamento grafo completo: ${e.message}`;
-        answerText.className = 'answer-appear text-sm text-red-400 leading-relaxed whitespace-pre-wrap';
-        answerCard.classList.remove('hidden');
+        showGraphError(e.message, showFullGraph);
       } finally {
         btn.disabled = false;
         btn.innerHTML = `
@@ -912,12 +1158,17 @@
       }
     }
 
-    /* ──────────── TOOLTIP (shared) ──────────── */
+    /* ──────────── TOOLTIP (shared) ────────────
+       nodeId e description arrivano dai documenti indicizzati e finivano in
+       innerHTML SENZA escape (sia nel tooltip 2D sia come nodeLabel del 3D):
+       un documento caricato da /intake con markup nella descrizione veniva
+       eseguito qui. escapeHtml è in /static/shared.js. */
     function makeTooltipHtml(nodeId, description) {
       const mutedColor = themeVar('--tooltip-muted', '#4dbf6e');
+      const safeId = escapeHtml(nodeId);
       if (!description) {
         // Nodo senza descrizione: tooltip minimalista con solo l'ID
-        return `<div style="font-size:11px;color:${mutedColor};max-width:280px;word-break:break-all">${nodeId}</div>`;
+        return `<div style="font-size:var(--text-xs);color:${mutedColor};max-width:280px;word-break:break-all">${safeId}</div>`;
       }
 
       const isRule    = /^REGOLA-/.test(nodeId);
@@ -930,11 +1181,11 @@
       return `
         <div style="max-width:300px">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid ${divider}">
-            <span style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
-                         color:${accent};opacity:.75">${label}</span>
-            <span style="font-size:10px;font-weight:700;color:${accent}">${nodeId}</span>
+            <span style="font-size:var(--text-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+                         color:${accent}">${label}</span>
+            <span style="font-size:var(--text-xs);font-weight:700;color:${accent}">${safeId}</span>
           </div>
-          <div style="font-size:12px;line-height:1.6;color:${descColor}">${description}</div>
+          <div style="font-size:var(--text-sm);line-height:1.6;color:${descColor}">${escapeHtml(description)}</div>
         </div>`;
     }
 
@@ -1020,6 +1271,7 @@
     /* ──────────── GRAPH RENDERER ──────────── */
     function buildGraph(expandedNodes, graphEdges, seedNodes) {
       document.getElementById('graph-empty').style.display = 'none';
+      hideGraphError();
       setGraphMode('contextual');
 
       document.getElementById('reasons-legend').style.display = '';
@@ -1045,7 +1297,8 @@
 
         return {
           id: nodeId,
-          label: shortLabel,
+          // Codice del pilastro come prefisso: canale non cromatico, vedi showFullGraph.
+          label: `[${pillarCode(n.classification, n.type)}] ${shortLabel}`,
           nodeId: nodeId,
           nodeType: n.type,
           classification: n.classification || '',
@@ -1104,16 +1357,18 @@
         const short = (s.doc_id || '—').length > 36
           ? (s.doc_id || '—').substring(0, 34) + '…'
           : (s.doc_id || '—');
+        // doc_id proviene dai documenti indicizzati (il nome file è scelto
+        // dall'utente in fase di approvazione da /intake): va sempre escapato.
         list.insertAdjacentHTML('beforeend', `
           <div class="group">
             <div class="flex justify-between items-center mb-1">
-              <span class="text-xs text-slate-300 truncate max-w-[220px]" title="${s.doc_id}">${short}</span>
+              <span class="text-xs text-slate-300 truncate max-w-[220px]" title="${escapeHtml(s.doc_id)}">${escapeHtml(short)}</span>
               <span class="text-xs font-mono text-emerald-400 ml-2 shrink-0">${s.score.toFixed(4)}</span>
             </div>
             <div class="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
               <div class="score-bar h-full rounded-full bg-gradient-to-r from-blue-600 to-emerald-500" style="width:${pct}%"></div>
             </div>
-            <div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-mono text-slate-500">
+            <div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs font-mono text-slate-500">
               <span title="Dense (semantica)">D ${fmt(s.dense_score)}</span>
               <span title="Sparse (lessicale)">S ${fmt(s.sparse_score)}</span>
               <span title="ColBERT (token-per-token)">CB ${fmt(s.colbert_score)}</span>
@@ -1125,13 +1380,10 @@
       card.classList.remove('hidden');
     }
 
-    /* ──────────── JSON PANEL RENDERER ──────────── */
-    function escapeHtml(s) {
-      return String(s)
-        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
-
+    /* ──────────── JSON PANEL RENDERER ────────────
+       escapeHtml vive in /static/shared.js: era duplicata qui, in
+       graph_analysis e in intake con tre implementazioni divergenti (questa non
+       gestiva l'apice singolo). */
     function renderJsonPanel(data) {
       const gc          = data.graph_context || {};
       const scores      = data.qdrant_scores  || [];
@@ -1171,22 +1423,22 @@
               ? s.doc_id.substring(0, 30) + '…' : (s.doc_id || '—');
             return `<div style="margin-bottom:10px">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-                <span style="font-size:10px;color:${scoreLabel};font-family:ui-monospace,monospace" title="${escapeHtml(s.doc_id)}">${escapeHtml(label)}</span>
-                <span style="font-size:10px;font-family:ui-monospace,monospace;color:#34d399;margin-left:8px;white-space:nowrap">${s.score.toFixed(4)}</span>
+                <span style="font-size:var(--text-xs);color:${scoreLabel};font-family:ui-monospace,monospace" title="${escapeHtml(s.doc_id)}">${escapeHtml(label)}</span>
+                <span style="font-size:var(--text-xs);font-family:ui-monospace,monospace;color:#34d399;margin-left:8px;white-space:nowrap">${s.score.toFixed(4)}</span>
               </div>
               <div style="height:3px;background:${divider};border-radius:2px;overflow:hidden">
                 <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,${scoreGradS},#10b981)"></div>
               </div>
             </div>`;
           }).join('')
-        : `<span style="color:${muted};font-size:11px">Nessun risultato</span>`;
+        : `<span style="color:${muted};font-size:var(--text-xs)">Nessun risultato</span>`;
 
       /* ── LEFT: seed nodes chips ── */
       const seedHtml = seedNodes.map(n =>
         `<span style="display:inline-block;margin:2px 3px;padding:2px 8px;border-radius:4px;
-                background:${chipBg};border:1px solid ${chipBorder};color:${chipColor};font-size:10px;
+                background:${chipBg};border:1px solid ${chipBorder};color:${chipColor};font-size:var(--text-xs);
                 font-family:ui-monospace,monospace">${escapeHtml(n)}</span>`
-      ).join('') || `<span style="color:${muted};font-size:11px">—</span>`;
+      ).join('') || `<span style="color:${muted};font-size:var(--text-xs)">—</span>`;
 
       /* ── LEFT: raw RAG JSON (context_text escluso) ── */
       const ragData = {
@@ -1201,47 +1453,47 @@
 
       document.getElementById('json-rag-col').innerHTML = `
         <div style="margin-bottom:18px">
-          <div style="font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+          <div style="font-size:var(--text-xs);font-weight:700;letter-spacing:.09em;text-transform:uppercase;
                       color:${muted};margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${divider}">
             Retrieval Semantico &middot; Qdrant
           </div>
           ${scoresHtml}
         </div>
         <div style="margin-bottom:18px">
-          <div style="font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+          <div style="font-size:var(--text-xs);font-weight:700;letter-spacing:.09em;text-transform:uppercase;
                       color:${muted};margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${divider}">
             Espansione Grafo &middot; NetworkX
           </div>
           <div style="margin-bottom:10px">
-            <div style="font-size:9px;color:${accent};margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Nodi seed</div>
+            <div style="font-size:var(--text-xs);color:${accent};margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Nodi seed</div>
             <div>${seedHtml}</div>
           </div>
           <div style="display:flex;gap:10px;margin-top:12px">
             <div style="flex:1;text-align:center;padding:8px 4px;background:${statBg};border-radius:8px;border:1px solid ${divider}">
               <div style="font-size:20px;font-weight:700;color:${statNumber};font-family:ui-monospace,monospace;line-height:1">${expNodes.length}</div>
-              <div style="font-size:9px;color:${muted};text-transform:uppercase;letter-spacing:.06em;margin-top:3px">espansi</div>
+              <div style="font-size:var(--text-xs);color:${muted};text-transform:uppercase;letter-spacing:.06em;margin-top:3px">espansi</div>
             </div>
             <div style="flex:1;text-align:center;padding:8px 4px;background:${statBg};border-radius:8px;border:1px solid ${divider}">
               <div style="font-size:20px;font-weight:700;color:${statNumber};font-family:ui-monospace,monospace;line-height:1">${graphEdges.length}</div>
-              <div style="font-size:9px;color:${muted};text-transform:uppercase;letter-spacing:.06em;margin-top:3px">archi</div>
+              <div style="font-size:var(--text-xs);color:${muted};text-transform:uppercase;letter-spacing:.06em;margin-top:3px">archi</div>
             </div>
           </div>
         </div>
         <div>
-          <div style="font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+          <div style="font-size:var(--text-xs);font-weight:700;letter-spacing:.09em;text-transform:uppercase;
                       color:${muted};margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid ${divider}">
             Dati JSON Grezzi &middot; RAG
           </div>
           <pre id="rag-json-box" style="margin:0;padding:10px 12px;border-radius:8px;
                background:${ragJsonBg};border:1px solid ${divider};
-               font-size:10px;line-height:1.6;font-family:'JetBrains Mono',ui-monospace,monospace;
+               font-size:var(--text-xs);line-height:1.6;font-family:'JetBrains Mono',ui-monospace,monospace;
                color:${chipColor};white-space:pre;overflow-x:auto;overflow-y:auto;
                max-height:240px">${escapeHtml(ragJson)}</pre>
         </div>`;
 
       /* ── RIGHT: LLM answer ── */
       document.getElementById('json-llm-col').innerHTML = `
-        <div style="font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+        <div style="font-size:var(--text-xs);font-weight:700;letter-spacing:.09em;text-transform:uppercase;
                     color:${muted};margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid ${divider}">
           Risposta LLM Generativo
         </div>
@@ -1333,12 +1585,35 @@
       }
     }
 
-    /* Submit on Ctrl+Enter */
+    /* Submit on Ctrl+Enter.
+       showLoader() disabilita #ask-btn, ma questa scorciatoia chiamava
+       submitQuery() direttamente, scavalcando il bottone: si potevano accodare
+       N query premendo Ctrl+Invio ripetutamente. */
     document.getElementById('question-input').addEventListener('keydown', e => {
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitQuery();
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        if (document.getElementById('ask-btn').disabled) return;
+        submitQuery();
+      }
     });
 
-    /* Popola la legenda cromatica dei pilastri REASONS al caricamento */
+    /* ──────────── REDRAW AL CAMBIO TEMA ────────────
+       shared.js invoca window.onThemeChange dopo il flip. La dashboard non lo
+       definiva, quindi cambiando tema il grafo restava con i colori vecchi
+       finché non si rilanciava una query: i colori dei nodi e degli archi sono
+       cotti dentro al DataSet di vis.js, non letti dal CSS. */
+    window.onThemeChange = function () {
+      renderReasonsLegend();
+      if (lastGraphNodes.length) {
+        const refreshed = lastGraphNodes.map(n => ({
+          ...n,
+          color: pillarColor(n.classification, n.nodeType),
+          font: { ...(n.font || {}), color: themeVar('--node-font', '#eafff0') },
+        }));
+        renderGraph(refreshed, lastGraphEdges, lastVisOptions);
+      }
+    };
+
+    /* Popola la legenda dei pilastri REASONS al caricamento */
     renderReasonsLegend();
   </script>
 </body>
