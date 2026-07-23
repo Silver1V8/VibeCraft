@@ -324,7 +324,10 @@ body.page-doc {
 .page-doc header > div { flex-shrink: 0; }
 .page-doc header h1 {
   margin: 0;
-  font-size: var(--text-lg);
+  /* 18px letterali, non var(--text-lg) (16px): qui l'obiettivo e la parita
+     esatta col text-lg di Tailwind usato da pipeline/dashboard (1.125rem),
+     non la scala tipografica di questo file — nomi coincidenti, scale diverse. */
+  font-size: 18px;
   color: var(--title-color);
   text-shadow: var(--title-glow);
   white-space: nowrap;
@@ -337,6 +340,34 @@ body.page-doc {
   white-space: nowrap;
 }
 .page-doc header select#theme-switcher { margin-left: var(--space-2); }
+
+/* ── Blocco titolo (icona + h1 + sottotitolo) ──
+   intake, graph_analysis ed eval_trend avevano solo un h1 col glifo "◇" fisso:
+   pipeline e dashboard hanno un box-icona con glow accanto al titolo. Questi tre
+   template non caricano Tailwind, quindi l'equivalente vive qui invece di
+   ripetere l'utility in tre <style> diversi. */
+.page-doc header .title-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.page-doc header .icon-box {
+  width: 36px;
+  height: 36px;
+  /* 8px letterali: e' il rounded-lg di Tailwind usato dall'icona di pipeline e
+     dashboard, non un token della scala (6/10/14) — qui l'obiettivo e la
+     corrispondenza pixel-per-pixel, non la coerenza coi propri controlli. */
+  border-radius: 8px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: var(--btn-glow-token);
+}
+.page-doc header .icon-box svg { width: 20px; height: 20px; }
+.page-doc header h1 { display: block; }
 
 .page-doc main {
   position: relative;

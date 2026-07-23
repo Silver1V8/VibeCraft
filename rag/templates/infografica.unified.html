@@ -121,6 +121,34 @@
       /* NB: matrix-rain, scanlines, glow-text e la regola di hide nel tema Classico
          vivono ora in /static/shared.css (identici tra le pagine). */
 
+      /* Diagramma Mermaid: mermaid.render() produce un SVG alla sua dimensione
+         NATURALE — per un flowchart con 11 nodi e etichette multi-riga viene
+         piccolo, e senza spazio nel contenitore risultava anche attaccato ai
+         bordi della card.
+         Con .flex.justify-center sul wrapper, #rag-mermaid restava un flex item
+         senza larghezza definita: l'SVG (width="100%" ma nessuna altezza)
+         collassava alla dimensione di rimpiazzo di default del browser (300px),
+         perche una percentuale non ha nulla contro cui risolversi. Il wrapper
+         torna a blocco normale e #rag-mermaid prende una larghezza esplicita,
+         centrata con margin:auto — a quel punto width:100% dell'SVG si risolve
+         davvero. mermaid.render() inietta anche uno style="max-width:...px"
+         INLINE sull'SVG: un'inline style batte qualunque regola del foglio,
+         quindi qui l'!important è l'unico modo per farla vincere. */
+      #mermaid-wrap {
+        padding: 24px 12px;
+        overflow-x: auto;
+      }
+      #rag-mermaid {
+        width: 100%;
+        max-width: 760px;
+        margin: 0 auto;
+      }
+      #rag-mermaid svg {
+        width: 100% !important;
+        height: auto !important;
+        max-width: none !important;
+      }
+
       /* I pulsanti di navigazione prendono lo stesso trattamento cromatico del
          titolo "Architettura Graph RAG (Local-First)" (bg-clip-text col
          gradiente blue-600 → emerald-500). Solo nel tema Classico: in Matrix i
@@ -210,7 +238,11 @@
              non in fondo dopo 12 blocchi di testo. -->
         <div class="bg-white glass-card rounded-xl shadow-xl p-8 border border-slate-200">
             <h2 class="text-2xl font-bold text-slate-800 mb-6 border-b border-slate-200 pb-2">Diagramma del Flusso di Interrogazione (POST /ask)</h2>
-            <div class="flex justify-center">
+            <!-- id="mermaid-wrap": distanzia il diagramma dai bordi della card
+                 (era attaccato) e da' allo svg un contenitore su cui basare la
+                 scala, visto che mermaid lo renderizza alla sua dimensione
+                 naturale — piccola, per un flowchart con 11 nodi. -->
+            <div id="mermaid-wrap">
                 <div class="mermaid" id="rag-mermaid"></div>
             </div>
         </div>
@@ -430,7 +462,11 @@ graph TD
             edgeLabelBackground: themeVar('--mm-edge-bg'),
             background: themeVar('--mm-bg'),
             fontFamily: themeVar('--mm-font', 'ui-sans-serif, system-ui'),
-          }
+            fontSize: '15px',
+          },
+          // Spaziatura di default (~50px) comprimeva gli 11 nodi in una colonna
+          // stretta: piu respiro fra un livello e l'altro del flusso TD.
+          flowchart: { nodeSpacing: 40, rankSpacing: 65, padding: 12 },
         });
         const source = buildMermaidSource();
         try {
