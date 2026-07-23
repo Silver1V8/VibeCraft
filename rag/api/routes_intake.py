@@ -385,6 +385,10 @@ async def apply_project(payload: ProjectApplyRequest):
 # ---------------------------------------------------------------------------
 class ProjectBriefRequest(BaseModel):
     target: str
+    # Cartella sotto code/<target>/ di cui scrivere il brief. Omesso = l'ultimo progetto
+    # importato in quel target: un target ne ospita più d'uno (import additivo), e senza
+    # questa distinzione il brief descriveva il primo progetto in ordine di simboli.
+    progetto: str | None = None
 
 
 # Manager dedicato ai brief: stessi thread daemon del GenerationManager S3, istanza
@@ -392,30 +396,44 @@ class ProjectBriefRequest(BaseModel):
 _brief_manager = doc_generation.GenerationManager()
 
 
-def _server_brief(target: str) -> dict:
+def _server_brief(target: str, progetto: str | None) -> dict:
     """Chiude sullo snapshot di runtime del server (grafo + code_store coerenti fra
     loro, vedi IndexSnapshot): gira sul thread daemon del manager, mai sull'event loop."""
     snap = current_snapshot()
     return project_brief.generate_project_brief(
         target,
+        progetto=progetto,
         graph=snap.graph if snap else None,
         code_store=snap.code_store if snap else None,
     )
 
 
+@router.get("/api/intake/project/imports")
+async def list_project_imports(target: str | None = None):
+    """Progetti importati con successo (uno per target/cartella, dal journal), così la
+    pagina può far scegliere DI QUALE progetto scrivere il brief invece di indovinare."""
+    try:
+        imports = await run_in_threadpool(project_brief.applied_imports, target)
+    except Exception as exc:
+        _raise_http(exc)
+    return {"imports": imports}
+
+
 @router.post("/api/intake/project/brief",
              dependencies=[Depends(require_not_cross_site_request)])
 async def start_project_brief(payload: ProjectBriefRequest):
-    """Avvia il job di project brief per un target di code/ e risponde 202 col job_id.
-    Precondizioni verificate PRIMA di avviare il job: target ammesso (422) e import
-    progetto riuscito per quel target nel journal intake (altrimenti 409)."""
+    """Avvia il job di project brief per un progetto di code/<target>/ e risponde 202 col
+    job_id. Precondizioni verificate PRIMA di avviare il job: target ammesso (422) e
+    import riuscito per quel target/progetto nel journal intake (altrimenti 409)."""
     try:
-        await run_in_threadpool(project_brief.require_applied_import, payload.target)
+        await run_in_threadpool(project_brief.require_applied_import, payload.target,
+                                None, payload.progetto)
     except Exception as exc:
         _raise_http(exc)
+    etichetta = f"{payload.target}/{payload.progetto}" if payload.progetto else payload.target
     job = _brief_manager.start(
-        f"project brief {payload.target}", 1, project_brief.BRIEF_CATEGORIA_SUGGERITA,
-        lambda: _server_brief(payload.target),
+        f"project brief {etichetta}", 1, project_brief.BRIEF_CATEGORIA_SUGGERITA,
+        lambda: _server_brief(payload.target, payload.progetto),
     )
     return JSONResponse(status_code=202, content=job.to_dict())
 

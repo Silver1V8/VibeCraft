@@ -8,22 +8,39 @@ import networkx as nx
 import yaml
 
 
+def split_frontmatter(content: str) -> tuple[str | None, str]:
+    """Separa un documento in (testo del frontmatter, corpo). Il frontmatter esiste SOLO
+    come blocco BEN FORMATO in cima al documento: una riga di sola apertura `---` e una
+    riga di sola chiusura `---` (o `...`). Se manca la chiusura, non c'è frontmatter:
+    `(None, contenuto intero)`.
+
+    Il confronto è per RIGA e non per sottostringa. Un `split("---")` sull'intero testo
+    (implementazione precedente) chiudeva il blocco alla prima occorrenza di `---` ovunque
+    nel documento: se il frontmatter non era chiuso — tipico output di un LLM — il corpo
+    Markdown finiva dentro il YAML, e la prima riga di elenco `- **Testo**: ...` faceva
+    esplodere yaml.safe_load con un ScannerError su `*` (inizio di alias YAML)."""
+    stripped = content.lstrip("﻿")  # tollera il BOM
+    lines = stripped.splitlines(keepends=True)
+    if not lines or lines[0].strip() != "---":
+        return None, stripped
+    for i in range(1, len(lines)):
+        if lines[i].strip() in ("---", "..."):
+            return "".join(lines[1:i]), "".join(lines[i + 1:])
+    return None, stripped
+
+
 def parse_markdown_file(filepath: str) -> tuple[dict, str]:
-    """Estrae il Front Matter YAML e il corpo dal file Markdown."""
+    """Estrae il Front Matter YAML e il corpo dal file Markdown. Un frontmatter che non
+    sia un blocco delimitato in cima al file non viene interpretato (le righe orizzontali
+    `---` a metà documento sono Markdown legittimo, non un delimitatore); un frontmatter
+    che non produce un dict vale come assente, mai come metadata malformati."""
     with open(filepath, "r", encoding="utf-8") as f:
         content = f.read()
-    # Il front matter YAML esiste SOLO se delimitato in cima al file (`---\n...\n---`).
-    # NON fare split("---") sull'intero contenuto: le righe orizzontali `---` a metà
-    # documento (Markdown legittimo) verrebbero interpretate come frontmatter e i `:`
-    # nel testo farebbero crashare yaml.safe_load. Il delimitatore è valido solo a inizio file.
-    stripped = content.lstrip("﻿")  # tollera il BOM
-    if stripped.startswith("---"):
-        parts = stripped.split("---")
-        if len(parts) >= 3:
-            metadata = yaml.safe_load(parts[1]) or {}
-            body = "---".join(parts[2:])
-            return metadata, body
-    return {}, content
+    fm_text, body = split_frontmatter(content)
+    if fm_text is None:
+        return {}, body
+    metadata = yaml.safe_load(fm_text) or {}
+    return (metadata if isinstance(metadata, dict) else {}), body
 
 
 def _read_docx(filepath: str) -> str:

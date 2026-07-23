@@ -7,8 +7,10 @@ from pathlib import Path
 
 import pytest
 
+import yaml
+
 from core import doc_generation, intake, llm
-from core.chunking import parse_markdown_file
+from core.chunking import parse_markdown_file, split_frontmatter
 
 GOOD_DOC_A = """---
 title: Guida A
@@ -35,17 +37,14 @@ scope: Descrive lo sviluppo B
 Contenuto reale.
 """
 
-# Stesso pattern di rottura YAML già usato in test_intake_staging.py (parentesi quadra
-# aperta e mai chiusa): yaml.safe_load solleva un errore di parsing.
+# Documento IRRECUPERABILE: solo frontmatter, nessun corpo. Una rottura del solo
+# frontmatter non basta più a farlo scartare — normalize_generated_markdown la ripara
+# tenendo il corpo (vedi i test di normalizzazione più sotto); qui non c'è nulla da
+# tenere, ed è il caso in cui lo scarto è la risposta giusta.
 BAD_DOC = """---
-title: [yaml rotto
-scope: x
+title: Solo frontmatter
+scope: nessun corpo dopo il delimitatore
 ---
-
-# Titolo
-
-## Sezione
-testo
 """
 
 
@@ -96,6 +95,54 @@ def test_split_generated_documents_splits_on_separator_and_drops_empty():
 def test_split_generated_documents_truncates_to_n_file():
     raw = _raw("doc1", "doc2", "doc3")
     assert doc_generation.split_generated_documents(raw, n_file=2) == ["doc1", "doc2"]
+
+
+# ---------------------------------------------------------------------------
+# normalize_generated_markdown — riparazione del CONTORNO dell'output del modello.
+# Regressione 2026-07-22: un brief con frontmatter APERTO e mai chiuso veniva scartato
+# in validazione (ScannerError su `-   **Progetto Core**: ...`, letto come alias YAML)
+# pur avendo un corpo perfettamente valido.
+# ---------------------------------------------------------------------------
+def test_normalize_closes_unterminated_frontmatter_keeping_body():
+    raw = ("---\ntitle: Project brief backend\nscope: sintesi architetturale\n\n"
+           "# Project brief\n\n## Componenti\n\n"
+           "-   **Progetto Core**: `WSProtocollo` è il servizio principale\n")
+    normalized = doc_generation.normalize_generated_markdown(raw)
+    fm_text, body = split_frontmatter(normalized)
+    assert yaml.safe_load(fm_text) == {"title": "Project brief backend",
+                                       "scope": "sintesi architetturale"}
+    assert "**Progetto Core**" in body and "## Componenti" in body
+    doc_generation._validate_generated_markdown(normalized)  # non solleva
+
+
+def test_normalize_unwraps_markdown_code_fence():
+    raw = "```markdown\n---\ntitle: T\n---\n\n# T\n\n## S\ncorpo\n```"
+    normalized = doc_generation.normalize_generated_markdown(raw)
+    assert not normalized.startswith("```") and normalized.startswith("---")
+    doc_generation._validate_generated_markdown(normalized)
+
+
+def test_normalize_drops_unparsable_frontmatter_but_keeps_body():
+    """Frontmatter chiuso ma non caricabile: si perde il contorno (che l'approve
+    rigenera comunque), mai il documento."""
+    raw = "---\ntitle: [yaml rotto\n---\n# Titolo\n\n## Sezione\ncorpo reale\n"
+    normalized = doc_generation.normalize_generated_markdown(raw)
+    assert split_frontmatter(normalized)[0] is None
+    assert "corpo reale" in normalized
+    doc_generation._validate_generated_markdown(normalized)
+
+
+def test_normalize_leaves_conforming_document_untouched_and_is_idempotent():
+    once = doc_generation.normalize_generated_markdown(GOOD_DOC_A)
+    assert once == GOOD_DOC_A.strip()
+    assert doc_generation.normalize_generated_markdown(once) == once
+
+
+def test_normalize_keeps_leading_rule_that_is_not_frontmatter():
+    """Un `---` iniziale seguito da prosa (nessun campo) non è un frontmatter aperto:
+    resta nel corpo, non si inventa una chiusura."""
+    raw = "---\n\n# Titolo\n\n## Sezione\ncorpo\n"
+    assert doc_generation.normalize_generated_markdown(raw) == raw.strip()
 
 
 # ---------------------------------------------------------------------------

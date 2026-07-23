@@ -24,7 +24,7 @@ from pathlib import Path
 
 import yaml
 
-from core.chunking import chunk_markdown, parse_markdown_file
+from core.chunking import chunk_markdown, parse_markdown_file, split_frontmatter
 from core.config import (
     DOCS_DIR,
     INTAKE_ALLOWED_FORMATS,
@@ -303,13 +303,11 @@ def _sanitize_target_filename(nome_file: str) -> str:
 
 def _split_frontmatter(text: str) -> str:
     """Corpo senza l'eventuale frontmatter già presente (i .md nativi possono averne uno):
-    il frontmatter conforme viene sempre RIGENERATO da approve, mai duplicato."""
-    stripped = text.lstrip("﻿")
-    if stripped.startswith("---"):
-        parts = stripped.split("---")
-        if len(parts) >= 3:
-            return "---".join(parts[2:]).lstrip("\n")
-    return text
+    il frontmatter conforme viene sempre RIGENERATO da approve, mai duplicato. Stessa
+    regola di riconoscimento del parser di indicizzazione (core.chunking.split_frontmatter):
+    solo un blocco `---`…`---` ben formato in cima al documento, mai la prima occorrenza
+    di `---` in mezzo al testo — che taglierebbe via metà corpo."""
+    return split_frontmatter(text)[1].lstrip("\n")
 
 
 def _compose_document(entry: dict, categoria: str, nome_file: str, staged_markdown: str) -> str:

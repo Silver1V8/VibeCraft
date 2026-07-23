@@ -38,8 +38,18 @@ def test_intake_route_wires_the_existing_apis_not_new_ones():
 
 def test_intake_route_exposes_project_brief_control():
     """S6: la zona import contiene il controllo Project brief cablato sull'endpoint
-    /api/intake/project/brief (attivo lato UI solo dopo un import riuscito)."""
+    /api/intake/project/brief."""
     client = _client()
     body = client.get("/intake").text
     assert "prj-brief-btn" in body
     assert "/api/intake/project/brief" in body
+
+
+def test_intake_route_lets_you_choose_the_project_for_the_brief():
+    """Il brief è di un PROGETTO, non di un target: la pagina espone la scelta e la
+    popola dagli import registrati, senza dipendere da un import fatto in questa
+    sessione (altrimenti un reload spegneva il controllo per sempre)."""
+    client = _client()
+    body = client.get("/intake").text
+    assert "prj-brief-progetto" in body
+    assert "/api/intake/project/imports" in body

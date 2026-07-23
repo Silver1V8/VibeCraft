@@ -16,6 +16,7 @@ staging/, mai sotto il writer lock di docs/+indice)."""
 from __future__ import annotations
 
 import json
+import re
 import tempfile
 import threading
 import time
@@ -23,8 +24,10 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+import yaml
+
 from core import canvas_review, intake, llm, retrieval
-from core.chunking import chunk_markdown, parse_markdown_file
+from core.chunking import chunk_markdown, parse_markdown_file, split_frontmatter
 from core.config import INTAKE_GENERATION_MAX_FILES
 
 # Purpose LLM riusato dalla generazione: stesso ruolo del Canvas (documento markdown
@@ -128,6 +131,80 @@ def split_generated_documents(raw_output: str, n_file: int) -> list[str]:
     compito di `_validate_generated_markdown`."""
     parts = [p.strip() for p in raw_output.split(_DOC_SEPARATOR)]
     return [p for p in parts if p][:max(1, n_file)]
+
+
+# ---------------------------------------------------------------------------
+# Normalizzazione dell'output del modello PRIMA della validazione.
+#
+# Le REGOLE DI FORMATO del prompt sono istruzioni, non garanzie: un modello locale le
+# viola in modi ricorrenti e sempre gli stessi tre. Ciascuno costava l'intero documento
+# (scartato in validazione, decine di secondi di GPU buttati) pur avendo un CORPO
+# perfettamente valido — e il frontmatter di un documento staged è comunque materiale
+# di passaggio, RIGENERATO da capo all'approve (core.intake._compose_document).
+# Si ripara quindi il contorno e si tiene il corpo, invece di scartare tutto.
+# ---------------------------------------------------------------------------
+
+# 1) L'intero documento avvolto in un fence ```markdown … ```
+_WRAPPING_FENCE_RE = re.compile(r"\A```[A-Za-z0-9_+-]*[ \t]*\r?\n(.*?)\r?\n```[ \t]*\Z", re.DOTALL)
+
+# 2) Riga di frontmatter plausibile: `chiave: valore` o continuazione indentata.
+_FM_FIELD_RE = re.compile(r"^[A-Za-z_][\w .-]*:(?:\s|$)")
+
+
+def _unwrap_code_fence(text: str) -> str:
+    match = _WRAPPING_FENCE_RE.match(text)
+    return match.group(1).strip() if match else text
+
+
+def _close_unterminated_frontmatter(text: str) -> str:
+    """Chiude un frontmatter aperto e mai chiuso, inserendo il `---` mancante subito dopo
+    l'ultima riga che somiglia a un campo. Senza questa riparazione il blocco resta aperto
+    e il corpo intero vale come frontmatter — l'origine dello ScannerError su `- **…**:`
+    (il `*` apre un alias YAML)."""
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return text
+    if split_frontmatter(text)[0] is not None:
+        return text  # già chiuso: niente da riparare
+    end = 1
+    while end < len(lines):
+        line = lines[end]
+        indented_continuation = line[:1] in (" ", "\t") and line.strip()
+        if not (_FM_FIELD_RE.match(line) or indented_continuation):
+            break
+        end += 1
+    if end == 1:
+        return text  # nessun campo: quel `---` non era un frontmatter, resta nel corpo
+    lines.insert(end, "---")
+    return "\n".join(lines)
+
+
+def _drop_unparsable_frontmatter(text: str) -> str:
+    """Frontmatter presente ma non caricabile come mapping YAML (`title: Progetto: X`,
+    valori che iniziano per `*`, liste malformate): lo si toglie e si tiene il corpo.
+    Nulla va perso — `title`/`scope` generati dal modello non hanno alcun lettore a valle:
+    il frontmatter conforme di docs/ lo ricalcola l'approve (core.intake._compose_document,
+    che prende il titolo dall'H1), quindi vale la pena tenere il documento e non il
+    contorno. Se il corpo è vuoto non si tocca niente: lì lo scarto è corretto."""
+    fm_text, body = split_frontmatter(text)
+    if fm_text is None:
+        return text
+    try:
+        data = yaml.safe_load(fm_text)
+    except yaml.YAMLError:
+        data = None
+    if isinstance(data, dict) or not body.strip():
+        return text
+    return body.lstrip("\n")
+
+
+def normalize_generated_markdown(markdown: str) -> str:
+    """Ripara i modi ricorrenti in cui il modello sbaglia il CONTORNO di un documento
+    (fence di avvolgimento, frontmatter non chiuso, frontmatter non caricabile) senza
+    mai alterarne il corpo. Idempotente: su un documento già conforme non cambia nulla."""
+    text = _unwrap_code_fence(markdown.strip())
+    text = _close_unterminated_frontmatter(text)
+    return _drop_unparsable_frontmatter(text)
 
 
 # ---------------------------------------------------------------------------
@@ -248,7 +325,8 @@ def generate_docs(descrizione: str, n_file: int, categoria_target: str, *,
     except llm.LLMError:
         modello = None
 
-    candidates = split_generated_documents(raw_output, n_file)
+    candidates = [normalize_generated_markdown(c)
+                  for c in split_generated_documents(raw_output, n_file)]
 
     generati: list[dict] = []
     scartati: list[dict] = []

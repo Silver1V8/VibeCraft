@@ -274,13 +274,54 @@ incrementale.
   in `code/`.
 
 **Project brief** (`POST /api/intake/project/brief`, [core/project_brief.py](core/project_brief.py)):
-dopo un import riuscito, genera via Ollama una sintesi architetturale del target
+dopo un import riuscito, genera via Ollama una sintesi architetturale del progetto
 (componenti, entrypoint, dipendenze, mappa simboli→spec dagli archi `IMPLEMENTS` del
 grafo, aree candidate a refactoring), **grounded sui dati reali del grafo** — mai
-inventati. Precondizione: un import `applied` per quel target nel journal (altrimenti
-409); grafo senza simboli per il target → esito con avviso, mai un crash. Il brief
+inventati. Precondizione: un import `applied` per quel target/progetto nel journal
+(altrimenti 409); grafo senza simboli → esito con avviso, mai un crash. Il brief
 entra in staging come ogni altro documento (`source "brief"`) e passa dalla stessa
 review S2: **nessun percorso diretto verso `docs/`**.
+
+L'unità del brief è il **progetto**, non il target. `target` è un bucket
+(`backend`/`frontend`/`logicAgent`) e l'import è additivo, quindi `code/backend/` può
+ospitare più progetti affiancati (`GD102_WSGDAProtocolloManager` **e**
+`GD172_WSProtocollo`): un grounding filtrato per solo `dev_type` prende i simboli di
+tutti, e il tetto `_MAX_SIMBOLI_NEL_PROMPT` riempie il prompt col primo in ordine di
+`id` — il brief chiesto per un progetto descrive l'altro. Il campo `progetto` della
+richiesta seleziona la cartella sotto `code/<target>/`; **omesso vale l'ultimo progetto
+importato** in quel target, mai "tutto il bucket". `GET /api/intake/project/imports`
+elenca i progetti importati (dal journal) per popolare la scelta nella pagina.
+
+Nel prompt i simboli sono un **campione scelto, non un troncamento**. Un progetto reale
+ne ha migliaia (`GD172_WSProtocollo`: 4100 simboli in 309 file) e nel contesto di
+qwen3.5:9b ne stanno decine: `simboli[:80]` su una lista ordinata per path mostrava solo
+le cartelle iniziali in ordine alfabetico e, dei 337 endpoint, solo quelli che iniziano
+per A. `seleziona_simboli` fa invece **un giro per file** (una `Reference.cs` generata da
+1650 simboli vale come ogni altro file) e dentro ciascuno prende prima ciò che ha valore
+architetturale (`_RANGO_KIND`: tipi ed entrypoint prima delle property, a parità di
+natura vince il grado nel sottografo), campionando **a passo costante** le fasce
+omogenee troppo lunghe — così le 337 operazioni SOAP si attraversano tutte invece di
+fermarsi alla A. Accanto al campione il prompt porta i **conteggi per modulo, completi**:
+sono l'unico grounding che copre il 100% del progetto, e il prompt dice esplicitamente al
+modello che l'elenco dei simboli è parziale. I tetti del prompt sono **in caratteri**
+(`_BUDGET_CHAR_*`), non solo in voci: la lunghezza di una riga dipende dai path del
+progetto, e con soli tetti a voci il prompt usciva a ~48.000 caratteri (~13.700 token) —
+dentro `num_ctx 16384` a stento, con Ollama che taglia l'eccedenza **dall'inizio**, cioè
+proprio le istruzioni. Ora resta sotto i ~6.500 token, il resto della finestra è per la
+risposta.
+
+Le **regole di formato** del prompt sono istruzioni per il modello, non garanzie: prima
+della validazione l'output passa da `normalize_generated_markdown`
+([core/doc_generation.py](core/doc_generation.py)), che ripara i tre modi ricorrenti in
+cui il contorno del documento esce sbagliato — documento avvolto in un fence
+```` ```markdown ````, frontmatter aperto e **mai chiuso**, frontmatter non caricabile
+come YAML — senza toccare il corpo. Il frontmatter generato è materiale di passaggio
+(quello conforme lo ricalcola l'`approve`), quindi un contorno rotto non costa più
+l'intero documento; resta scartato solo ciò che non ha un corpo utilizzabile, col motivo
+nel journal. In parallelo il parser di indicizzazione riconosce il frontmatter **solo**
+come blocco ben formato `---`…`---` in cima al file (`core.chunking.split_frontmatter`,
+confronto per riga): un blocco non chiuso vale come assente, non inghiotte più il corpo
+del documento nel YAML.
 
 ## Eval del retrieval: da attrezzo da banco a guardrail
 

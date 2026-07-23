@@ -257,7 +257,7 @@
           </span>
         </label>
         <label class="field">Target in code/
-          <select id="prj-target" onchange="invalidateProjectPlan()">
+          <select id="prj-target" onchange="invalidateProjectPlan(); refreshProjectImports()">
             <option value="backend">backend</option>
             <option value="frontend">frontend</option>
             <option value="logicAgent">logicAgent</option>
@@ -270,9 +270,13 @@
       <div id="prj-plan-result"></div>
       <div id="prj-apply-result"></div>
       <div class="toolbar" style="margin-top:12px">
-        <button id="prj-brief-btn" onclick="startProjectBrief()" disabled>🧭 Project brief</button>
-        <span id="prj-brief-status" class="status">Attivo dopo un import riuscito: genera via Ollama
-          una sintesi architetturale del target (grounded sul grafo) che entra in staging come ogni documento.</span>
+        <label class="field">Progetto di cui scrivere il brief
+          <select id="prj-brief-progetto"><option value="">(nessun import registrato)</option></select>
+        </label>
+        <button id="prj-brief-btn" onclick="startProjectBrief()">🧭 Project brief</button>
+        <span id="prj-brief-status" class="status">Genera via Ollama una sintesi architetturale del
+          progetto selezionato (grounded sul grafo) che entra in staging come ogni documento.
+          L'elenco viene dagli import già riusciti, anche di sessioni precedenti.</span>
       </div>
       <div id="prj-brief-result"></div>
     </section>
@@ -707,12 +711,10 @@
 
         currentProjectPlanId = null;  // un piano applicato non è riutilizzabile
         status.className = 'status msg-ok'; status.textContent = 'Import applicato.';
-        // Il brief è ora possibile per il target appena importato (il backend
-        // riverifica comunque il journal: 409 senza import riuscito).
-        lastImportedTarget = data.target;
-        document.getElementById('prj-brief-btn').disabled = false;
+        // Il progetto appena importato entra nell'elenco e viene preselezionato.
+        refreshProjectImports();
         document.getElementById('prj-brief-status').textContent =
-          `Genera il project brief di code/${data.target} (entra in staging, poi review).`;
+          `Genera il project brief del progetto importato in code/${data.target}/ (entra in staging, poi review).`;
         const t = data.totali || {};
         const reindexTxt = data.reindex ? JSON.stringify({
           reindexed_docs: data.reindex.reindexed_docs, upserted_chunks: data.reindex.upserted_chunks,
@@ -731,26 +733,52 @@
     }
 
     /* ──────────── (d-bis) PROJECT BRIEF ────────────
-       Attivo solo dopo un import riuscito in questa pagina (il backend riverifica il
-       journal e risponde 409 senza import). Job async col pattern della generazione:
-       202 + polling, esito con documento staged / scartati / avviso. */
-    let lastImportedTarget = null;
+       Il brief è di un PROGETTO (una cartella sotto code/<target>/), non di un target:
+       l'import è additivo, quindi in code/backend/ possono convivere più progetti e un
+       brief "del backend" descriverebbe quello che capita per primo fra i simboli.
+       L'elenco dei progetti viene dal journal degli import, che vive su disco e
+       sopravvive al reload: legare il brief a una variabile di pagina lo rendeva
+       irripetibile dopo un errore (bastava ricaricare per perdere il pulsante, e
+       l'unico modo di riaverlo era rifare l'import). Il backend riverifica comunque il
+       journal e risponde 409 se per quel target/progetto non c'è un import applicato.
+       Job async col pattern della generazione: 202 + polling, esito con documento
+       staged / scartati / avviso. */
+    async function refreshProjectImports() {
+      const target = document.getElementById('prj-target').value;
+      const select = document.getElementById('prj-brief-progetto');
+      let imports = [];
+      try {
+        const res = await fetch(`/api/intake/project/imports?target=${encodeURIComponent(target)}`);
+        if (res.ok) imports = (await res.json()).imports || [];
+      } catch (e) { /* elenco non disponibile: resta il placeholder */ }
+      if (!imports.length) {
+        select.innerHTML = `<option value="">(nessun import in code/${escapeHtml(target)}/)</option>`;
+        return;
+      }
+      // Il più recente per ultimo nell'API: qui va in cima e preselezionato, perché è
+      // quasi sempre quello che l'utente ha appena importato.
+      const ordinati = imports.slice().reverse();
+      select.innerHTML = ordinati.map((imp, i) =>
+        `<option value="${escapeHtml(imp.progetto)}"${i === 0 ? ' selected' : ''}>${escapeHtml(imp.progetto)}</option>`
+      ).join('');
+    }
 
     async function startProjectBrief() {
-      if (!lastImportedTarget) return;
+      const target = document.getElementById('prj-target').value;
+      const progetto = document.getElementById('prj-brief-progetto').value;
       const btn = document.getElementById('prj-brief-btn');
       const status = document.getElementById('prj-brief-status');
       const out = document.getElementById('prj-brief-result');
       out.innerHTML = '';
       btn.disabled = true;
       status.className = 'status';
-      status.textContent = `Avvio brief per code/${lastImportedTarget}…`;
+      status.textContent = `Avvio brief per code/${target}/${progetto || '(ultimo import)'}…`;
 
       let job;
       try {
         const res = await fetch('/api/intake/project/brief', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ target: lastImportedTarget }),
+          body: JSON.stringify({ target, progetto: progetto || null }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) { throw new Error(data.detail || `HTTP ${res.status}`); }
@@ -777,7 +805,8 @@
       }
 
       const r = job.result || {};
-      status.className = 'status msg-ok'; status.textContent = 'Brief completato.';
+      status.className = 'status msg-ok';
+      status.textContent = `Brief completato per code/${target}/${r.progetto || progetto}.`;
       const lat = r.latency || {};
       const scartatiHtml = (r.scartati || []).map(s =>
         `<div class="msg-err">· scartato: ${escapeHtml(s.motivo)}</div>`).join('');
@@ -795,6 +824,7 @@
     /* ──────────── Bootstrap ──────────── */
     populateCategorySelect(document.getElementById('gen-categoria'), '04_knowledge_informative');
     refreshStaging();
+    refreshProjectImports();
   </script>
 </body>
 </html>

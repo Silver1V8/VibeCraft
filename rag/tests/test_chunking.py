@@ -78,6 +78,43 @@ def test_frontmatter_only_at_file_start(tmp_path):
     assert "Premessa con i due punti" in body
 
 
+def test_unterminated_frontmatter_is_not_frontmatter(tmp_path):
+    """Regressione 2026-07-22 (brief WSProtocollo scartato): frontmatter APERTO e mai
+    chiuso. `split("---")` chiudeva il blocco alla prima occorrenza di `---` ovunque nel
+    testo, così il corpo Markdown finiva dentro il YAML e la prima riga di elenco
+    `-   **Progetto Core**: ...` faceva esplodere yaml.safe_load (ScannerError: `*` apre
+    un alias YAML). Senza riga di chiusura NON c'è frontmatter: corpo intero, zero crash."""
+    doc = tmp_path / "brief.md"
+    doc.write_text(
+        "---\ntitle: Project brief backend\nscope: sintesi\n\n"
+        "# Project brief\n\n## Componenti\n\n"
+        "-   **Progetto Core**: `WSProtocollo` è il servizio principale\n",
+        encoding="utf-8",
+    )
+    meta, body = index.parse_markdown_file(str(doc))
+    assert meta == {}
+    assert "**Progetto Core**" in body and "## Componenti" in body
+
+
+def test_frontmatter_closed_by_dots_delimiter(tmp_path):
+    """`...` è la chiusura alternativa di un documento YAML: vale come `---`."""
+    doc = tmp_path / "spec.md"
+    doc.write_text("---\ntitle: X\n...\n# Titolo\ncorpo\n", encoding="utf-8")
+    meta, body = index.parse_markdown_file(str(doc))
+    assert meta == {"title": "X"}
+    assert body.startswith("# Titolo")
+
+
+def test_frontmatter_non_mapping_counts_as_absent(tmp_path):
+    """Un frontmatter che non è un mapping (scalare, lista) non deve arrivare a
+    chunk_markdown come metadata: vale come assente, mai come dict finto."""
+    doc = tmp_path / "strano.md"
+    doc.write_text("---\nsolo una frase\n---\n# T\ncorpo\n", encoding="utf-8")
+    meta, body = index.parse_markdown_file(str(doc))
+    assert meta == {}
+    assert "corpo" in body
+
+
 def test_frontmatter_parsed_when_delimited_at_top(tmp_path):
     """Il frontmatter valido (delimitato in cima) continua a essere estratto, corpo con `---` incluso."""
     doc = tmp_path / "spec.md"
