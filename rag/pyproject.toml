@@ -4,13 +4,13 @@ version = "0.1.0"
 description = "Console HARO Graph-RAG: indicizzazione (core/indexing), retrieval ibrido governato e pipeline Explore->Canvas->Propose (core/) esposti via FastAPI (api/). Entrypoint: server.py, index.py."
 requires-python = ">=3.14"
 dependencies = [
-    "aiohttp==3.14.2",
+    "aiohttp==3.14.3",
     "beautifulsoup4>=4.15.0",
-    "claude-agent-sdk==0.2.125",
+    "claude-agent-sdk==0.2.126",
     "fastapi==0.139.2",
     "flagembedding>=1.4.0",
+    "h2==4.4.0",
     "httpx>=0.28.1",
-    "mammoth>=1.12.0",
     "markdownify>=1.2.3",
     "markitdown[docx,outlook,pdf,pptx,xls,xlsx]>=0.1.2",
     "networkx>=3.6.1",
