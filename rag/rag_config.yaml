@@ -1,5 +1,5 @@
 # rag_config.yaml
-# Configurazione globale del sistema HARO Graph-RAG
+# Configurazione globale del sistema Graph-RAG
 
 llm_settings:
   # Valori supportati: "anthropic" (Claude 3.5 Sonnet), "openai" (GPT-4o), "ollama" (locale)

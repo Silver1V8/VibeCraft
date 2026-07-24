@@ -1,4 +1,4 @@
-"""Composition root della console HARO Graph-RAG: assembla l'app FastAPI (lifespan +
+"""Composition root della console Graph-RAG: assembla l'app FastAPI (lifespan +
 mount dei router) e la avvia. La logica di dominio vive in core/ (pura, testabile) e lo
 strato HTTP in api/ (route handler sottili, modelli Pydantic, dependency injection).
 Avvio: `python server.py` oppure `uvicorn server:app` (host/porta via env VIBECRAFT_*)."""

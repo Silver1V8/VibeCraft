@@ -1,4 +1,4 @@
-# rag/ — Console HARO Graph-RAG
+# rag/ — Console Graph-RAG
 
 Indicizzazione (core/indexing), retrieval ibrido e pipeline Explore → Canvas →
 Propose (core/) esposti via FastAPI (api/). Entrypoint: `server.py`, `index.py`.

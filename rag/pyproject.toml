@@ -1,7 +1,7 @@
 [project]
 name = "rag"
 version = "0.1.0"
-description = "Console HARO Graph-RAG: indicizzazione (core/indexing), retrieval ibrido governato e pipeline Explore->Canvas->Propose (core/) esposti via FastAPI (api/). Entrypoint: server.py, index.py."
+description = "Console Graph-RAG: indicizzazione (core/indexing), retrieval ibrido governato e pipeline Explore->Canvas->Propose (core/) esposti via FastAPI (api/). Entrypoint: server.py, index.py."
 requires-python = ">=3.14"
 dependencies = [
     "aiohttp==3.14.3",
