@@ -420,7 +420,11 @@ async def _validate_feature(feature: str) -> dict:
     structural = pipeline.validate_structural(canvas_text, spec_text)
 
     if not canvas_text:
-        return {"structural": structural, "report": "❌ canvas.md assente: genera prima il Canvas."}
+        return {
+            "structural": structural,
+            "report": "❌ canvas.md assente: genera prima il Canvas.",
+            "validation_available": False,
+        }
 
     snap = current_snapshot()
     # 1b. Pertinenza degli scenari, deterministica: il prompt di propose vieta gli scenari che
@@ -435,8 +439,28 @@ async def _validate_feature(feature: str) -> dict:
     #    Il retrieval è CPU-bound (embedding della query) → threadpool; l'LLM è I/O → async.
     governed = await embed_in_threadpool(_governed_context, f"{feature}\n{canvas_text[:2000]}", snap)
     prompt = pipeline.build_validate_prompt(canvas_text, spec_text, governed)
-    report = await generate_tolerant(prompt, purpose="validate")
-    return {"structural": structural, "scenario_scope": scope, "report": report}
+
+    # Chiamata DIRETTA (non generate_tolerant): un errore LLM qui non deve mai diventare il
+    # "report" della validazione — un report che contiene il testo dell'errore verrebbe letto
+    # come esito (verde) della validazione, mentre il gate pre-apply deve fallire in modo
+    # esplicito. I controlli deterministici (structural, scenario_scope) restano comunque
+    # calcolati e restituiti anche quando l'LLM non è disponibile.
+    try:
+        report = await llm.agenerate(prompt, purpose="validate")
+    except llm.LLMError as exc:
+        return {
+            "structural": structural,
+            "scenario_scope": scope,
+            "report": None,
+            "llm_error": str(exc),
+            "validation_available": False,
+        }
+    return {
+        "structural": structural,
+        "scenario_scope": scope,
+        "report": report,
+        "validation_available": True,
+    }
 
 
 @router.post("/api/pipeline/validate",

@@ -1,10 +1,18 @@
 """Test delle funzioni pure di core/pipeline.py: slug, prompt builder (canvas/spec/final/
 validate), controlli strutturali e blocco [AGENT CONTEXT]. Nessun FastAPI, nessun LLM,
-nessun Qdrant reale (build_agent_context nel percorso senza retrieval)."""
+nessun Qdrant reale (build_agent_context nel percorso senza retrieval).
+
+In coda: fail-closed di /api/pipeline/validate (api/routes_pipeline.py::_validate_feature) —
+qui l'unico punto che tocca l'route handler, perché la garanzia riguarda il wiring tra
+_validate_feature e core.llm, non le funzioni pure sopra."""
+import asyncio
+
 import networkx as nx
 import pytest
 
-from core import pipeline
+from api import routes_pipeline
+from api.models import ValidateRequest
+from core import llm, pipeline
 
 
 def test_slugify_feature():
@@ -434,3 +442,59 @@ def test_bdd_italiano_riconosciuto_da_structural_e_split():
     sc = pipeline.split_scenarios(spec)
     assert [x["title"] for x in sc] == ["Scenario 01: Badge Sold Out",
                                         "Scenario 02: Richiesta duplicata"]
+
+
+# ===========================================================================
+# Fail-closed di /api/pipeline/validate: un errore LLM non deve mai diventare
+# un "report" verde vuoto. I controlli strutturali deterministici (structural,
+# scenario_scope) restano presenti anche quando l'LLM non è disponibile.
+# ===========================================================================
+@pytest.fixture
+def validate_changes_env(tmp_path, monkeypatch):
+    """CHANGES_DIR isolata con una feature che ha già canvas.md e spec.md (altrimenti
+    _validate_feature ritorna subito per 'canvas.md assente', prima di toccare l'LLM)."""
+    changes = tmp_path / "changes"
+    monkeypatch.setattr(routes_pipeline, "CHANGES_DIR", changes)
+    monkeypatch.setattr(pipeline, "CHANGES_DIR", changes)
+    folder = changes / "feat-demo"
+    folder.mkdir(parents=True)
+    (folder / "canvas.md").write_text(
+        "## Requirements\n## Entities\n## Approach\n## Structure\n"
+        "## Operations\n## Norms\n## Safeguards\n", encoding="utf-8")
+    (folder / "spec.md").write_text("GIVEN x WHEN y THEN z", encoding="utf-8")
+    return folder
+
+
+@pytest.fixture
+def fake_llm_settings(monkeypatch):
+    settings = {"active_provider": "fake", "models": {"fake": "fake-model"}}
+    monkeypatch.setitem(llm.config, "llm_settings", settings)
+    return settings
+
+
+def test_validate_route_is_fail_closed_on_llm_error(validate_changes_env, fake_llm_settings):
+    def broken(model, prompt, timeout):
+        raise llm.LLMError("[ERRORE DI CONNESSIONE]: Impossibile raggiungere Ollama.")
+    llm.register_provider("fake", broken)
+
+    req = ValidateRequest(feature="feat-demo")
+    result = asyncio.run(routes_pipeline.pipeline_validate(req))
+
+    assert result["validation_available"] is False
+    assert result["report"] is None
+    assert "ERRORE DI CONNESSIONE" in result["llm_error"]
+    # I controlli deterministici restano calcolati e presenti nella risposta.
+    assert result["structural"]["canvas_completo"] is True
+    assert result["structural"]["spec_bdd_valida"] is True
+    assert "scenario_scope" in result
+
+
+def test_validate_route_still_succeeds_when_llm_works(validate_changes_env, fake_llm_settings):
+    llm.register_provider("fake", lambda model, prompt, timeout: "Nessun conflitto rilevato.")
+
+    req = ValidateRequest(feature="feat-demo")
+    result = asyncio.run(routes_pipeline.pipeline_validate(req))
+
+    assert result["validation_available"] is True
+    assert result["report"] == "Nessun conflitto rilevato."
+    assert result["structural"]["canvas_completo"] is True
