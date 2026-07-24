@@ -2,6 +2,7 @@
 (grafo, Qdrant, modello di embedding, sidecar), autenticazione, lifespan di caricamento
 risorse, auto-reload dell'indice e helper di streaming/template. I router in api/ leggono
 questo stato e lo iniettano nelle funzioni pure di core/."""
+import asyncio
 import hmac
 import json
 import logging
@@ -14,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse, Response
 from qdrant_client import QdrantClient
 from FlagEmbedding import BGEM3FlagModel
@@ -172,6 +174,20 @@ state: dict = {
     "qdrant": None,
     "embed_model": None,
 }
+
+
+# ---------------------------------------------------------------------------
+# Semaforo di concorrenza sull'embedding CPU: state["embed_model"] è un'unica
+# istanza CPU condivisa, senza limite più richieste in parallelo mandano la coda
+# torch in thrash e il p99 esplode. Bound configurabile, default 2.
+# ---------------------------------------------------------------------------
+EMBED_CONCURRENCY = int(os.environ.get("VIBECRAFT_EMBED_CONCURRENCY", "2"))
+embed_semaphore = asyncio.Semaphore(EMBED_CONCURRENCY)
+
+
+async def embed_in_threadpool(fn, *a, **k):
+    async with embed_semaphore:
+        return await run_in_threadpool(fn, *a, **k)
 
 
 def current_snapshot() -> IndexSnapshot | None:

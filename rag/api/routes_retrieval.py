@@ -13,6 +13,7 @@ from FlagEmbedding import BGEM3FlagModel
 
 from api.deps import (
     current_snapshot,
+    embed_in_threadpool,
     maybe_reload_graph,
     qdrant_collection_for_version,
     require_api_key,
@@ -114,10 +115,10 @@ async def ask_rag(query: AskQuery):
     # codice (o col ramo disattivato) si lascia codificare hybrid_search, come da sempre.
     search_code = CODE_SEARCH_MAX_SNIPPETS > 0 and bool(snap.code_store)
     query_encoding = (
-        await run_in_threadpool(retrieval.encode_query, embed_model, query.question)
+        await embed_in_threadpool(retrieval.encode_query, embed_model, query.question)
         if search_code else None
     )
-    search_results = await run_in_threadpool(
+    search_results = await embed_in_threadpool(
         retrieval.hybrid_search, query.question, query.top_k,
         qdrant=qdrant, embed_model=embed_model, colbert_store=snap.colbert_store,
         query_encoding=query_encoding,
@@ -330,7 +331,7 @@ async def api_retrieve(
     snap = current_snapshot()
     if state.get("qdrant") is None or state.get("embed_model") is None or snap is None:
         raise HTTPException(status_code=503, detail="Indice non ancora pronto.")
-    results = await run_in_threadpool(
+    results = await embed_in_threadpool(
         retrieval.hybrid_search, q, k,
         qdrant=state["qdrant"], embed_model=state["embed_model"], colbert_store=snap.colbert_store,
     )

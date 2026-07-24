@@ -15,6 +15,7 @@ from agent_bridge import AGENT_MODES, run_agent_streaming
 from api.deps import (
     IndexSnapshot,
     current_snapshot,
+    embed_in_threadpool,
     require_api_key,
     require_api_key_strict,
     require_not_cross_site_request,
@@ -247,11 +248,11 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
     dev_type = _safe_dev_type(req.dev_type or load_dev_type(folder))
     snap = current_snapshot()
     query = f"{req.feature_name}\n{contesto_intervista[:2000]}"
-    governed_context = await run_in_threadpool(_governed_context, query, snap)
+    governed_context = await embed_in_threadpool(_governed_context, query, snap)
     contesto_progetto_base = governed_context or "Nessun documento normativo pertinente recuperato dal Graph RAG."
     # Contesto tecnico: blocco separato nel prompt (vedi build_canvas_prompt), non fuso col
     # normativo — hanno ruoli diversi e istruzioni diverse.
-    contesto_tecnico = await run_in_threadpool(_tech_context, dev_type, snap)
+    contesto_tecnico = await embed_in_threadpool(_tech_context, dev_type, snap)
 
     # Persiste in meta.json QUALI documenti hanno ancorato questo canvas (normativi + tecnici):
     # all'archive diventano gli `expected` di un caso candidato per il golden-set di eval.
@@ -260,7 +261,7 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
 
     # Canvas che apprende (parte 2): le divergenze emerse nelle review delle change
     # archiviate più simili diventano "lezioni" nel prompt ('' se non esistono review).
-    lessons = await run_in_threadpool(_canvas_lessons, query, snap)
+    lessons = await embed_in_threadpool(_canvas_lessons, query, snap)
 
     prompt_strutturato = pipeline.build_canvas_prompt(
         req.feature_name, contesto_intervista, contesto_progetto_base, dev_type, lessons,
@@ -301,7 +302,7 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest):
     #
     # Niente ramo tecnico qui: lo stack lo porta il Canvas (vedi build_spec_prompt). Il
     # dev_type serve solo a delimitare l'ambito degli scenari.
-    governed_context = await run_in_threadpool(
+    governed_context = await embed_in_threadpool(
         _governed_context, f"{req.feature_folder}\n{canvas_content[:2000]}", current_snapshot()
     )
     prompt_strutturato = pipeline.build_spec_prompt(canvas_content, governed_context, dev_type,
@@ -432,7 +433,7 @@ async def _validate_feature(feature: str) -> dict:
 
     # 2. Analisi semantica: coerenza e conflitti rispetto al contesto normativo governato.
     #    Il retrieval è CPU-bound (embedding della query) → threadpool; l'LLM è I/O → async.
-    governed = await run_in_threadpool(_governed_context, f"{feature}\n{canvas_text[:2000]}", snap)
+    governed = await embed_in_threadpool(_governed_context, f"{feature}\n{canvas_text[:2000]}", snap)
     prompt = pipeline.build_validate_prompt(canvas_text, spec_text, governed)
     report = await generate_tolerant(prompt, purpose="validate")
     return {"structural": structural, "scenario_scope": scope, "report": report}
@@ -524,7 +525,7 @@ async def pipeline_canvas_dry_run(req: CanvasGenerateRequest):
             })
         return {"sources": sources, "governed_docs": governed}
 
-    data = await run_in_threadpool(work)
+    data = await embed_in_threadpool(work)
     return {"feature_folder": folder.name, "query_preview": query[:300], **data}
 
 
@@ -535,7 +536,7 @@ async def pipeline_agent_context(feature: str, dev_type: str = ""):
     if not feature.strip():
         raise HTTPException(status_code=400, detail="Nome feature mancante.")
     feature_folder = _safe_slug(feature)
-    ctx = await run_in_threadpool(_agent_context, feature, dev_type, current_snapshot())
+    ctx = await embed_in_threadpool(_agent_context, feature, dev_type, current_snapshot())
     return {"feature_folder": feature_folder, **ctx}
 
 
@@ -551,7 +552,7 @@ async def pipeline_export(feature: str, dev_type: str = ""):
         return p.read_text(encoding="utf-8") if p.exists() else ""
 
     dev = dev_type or load_dev_type(folder)
-    ctx = await run_in_threadpool(_agent_context, feature, dev, current_snapshot())
+    ctx = await embed_in_threadpool(_agent_context, feature, dev, current_snapshot())
     return {
         "feature": feature,
         "feature_folder": folder_name,
