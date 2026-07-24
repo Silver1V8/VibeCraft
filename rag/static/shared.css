@@ -369,6 +369,16 @@ body.page-doc {
 .page-doc header .icon-box svg { width: 20px; height: 20px; }
 .page-doc header h1 { display: block; }
 
+/* Console (dashboard) e Pipeline: l'icona del logo è Tailwind puro
+   (bg-blue-600 + text-white), non passa da .icon-box. bg-blue-600 segue già
+   il tema (--blue-600 è verde in Matrix), ma text-white resta bianco fisso ->
+   solo in Matrix il simbolo va scurito per coerenza con l'icon-box di Intake
+   (stesso principio: colore SCURO su verde, mai bianco). In Classico non si
+   tocca nulla, il bianco su blu resta corretto. */
+:root[data-theme="matrix"] #app-header svg.text-white {
+  color: var(--color-on-primary);
+}
+
 .page-doc main {
   position: relative;
   z-index: 10;
