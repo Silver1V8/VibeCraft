@@ -1009,7 +1009,10 @@
 
       const mode = document.getElementById('agent-mode-select').value;
       const model = document.getElementById('agent-model-select').value;
-      if (mode === 'agentic' && !confirm('La modalità Agentic scrive file nel progetto. Continuare?')) return;
+      if (mode === 'agentic' && !await confirmDialog(
+        'La modalità Agentic scrive file nel progetto. Continuare?',
+        { title: 'Modalità Agentic', confirmText: 'Continua', danger: true }
+      )) return;
 
       const btn = document.getElementById('agent-run-btn');
       const out = document.getElementById('agent-output');
@@ -1120,7 +1123,10 @@
     /* ──────────── STEP 5: ARCHIVIAZIONE + RE-INDICIZZAZIONE (streaming) ──────────── */
     async function runArchive() {
       if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
-      if (!confirm(`Archiviare la feature "${featureName}" e ricostruire il Graph RAG?\nLa cartella verrà spostata in changes/archive/ e l'operazione non è reversibile dall'interfaccia.`)) return;
+      if (!await confirmDialog(
+        `Archiviare la feature "${featureName}" e ricostruire il Graph RAG?\nLa cartella verrà spostata in changes/archive/ e l'operazione non è reversibile dall'interfaccia.`,
+        { title: 'Archiviazione feature', confirmText: 'Archivia', danger: true }
+      )) return;
 
       const btn = document.getElementById('archive-btn');
       const box = document.getElementById('archive-report-box');

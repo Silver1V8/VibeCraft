@@ -222,6 +222,80 @@ function toast(message, level) {
   return el;
 }
 
+/* ──────────── CONFIRM DIALOG ────────────
+   Sostituisce confirm(): un dialogo nativo di sistema espone l'origin
+   ("127.0.0.1:8000 dice") ed è bloccante e non stilizzabile, esattamente come
+   alert() prima del toast. Ritorna una Promise<boolean> così le chiamate
+   restano un semplice `if (!await confirmDialog(...)) return;`.
+   opts.danger marca l'azione come distruttiva (bordo/icona rossi, bottone
+   btn-danger invece di btn-primary) — usato per operazioni non reversibili
+   dall'interfaccia come l'archiviazione. */
+function confirmDialog(message, opts) {
+  opts = opts || {};
+  const title = opts.title || 'Conferma azione';
+  const confirmText = opts.confirmText || 'Conferma';
+  const cancelText = opts.cancelText || 'Annulla';
+  const danger = !!opts.danger;
+
+  return new Promise(resolve => {
+    let host = document.getElementById('confirm-host');
+    if (host) host.remove();  // una conferma alla volta
+    host = document.createElement('div');
+    host.id = 'confirm-host';
+    host.setAttribute('role', 'alertdialog');
+    host.setAttribute('aria-modal', 'true');
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'confirm-backdrop';
+
+    const dialog = document.createElement('div');
+    dialog.className = 'confirm-dialog' + (danger ? ' is-danger' : '');
+
+    const h = document.createElement('h2');
+    h.className = 'confirm-title';
+    const icon = document.createElement('span');
+    icon.className = 'confirm-icon';
+    icon.textContent = danger ? '⚠' : 'ℹ';
+    const titleText = document.createElement('span');
+    titleText.textContent = title;
+    h.append(icon, titleText);
+
+    const p = document.createElement('p');
+    p.className = 'confirm-message';
+    p.textContent = message;  // textContent: i messaggi includono spesso nomi feature dall'utente
+
+    const actions = document.createElement('div');
+    actions.className = 'confirm-actions';
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn btn-secondary';
+    cancelBtn.textContent = cancelText;
+    const okBtn = document.createElement('button');
+    okBtn.type = 'button';
+    okBtn.className = 'btn ' + (danger ? 'btn-danger' : 'btn-primary');
+    okBtn.textContent = confirmText;
+
+    function settle(result) {
+      host.remove();
+      document.removeEventListener('keydown', onKeydown);
+      resolve(result);
+    }
+    function onKeydown(e) {
+      if (e.key === 'Escape') settle(false);
+    }
+    cancelBtn.addEventListener('click', () => settle(false));
+    okBtn.addEventListener('click', () => settle(true));
+    backdrop.addEventListener('click', () => settle(false));
+    document.addEventListener('keydown', onKeydown);
+
+    actions.append(cancelBtn, okBtn);
+    dialog.append(h, p, actions);
+    host.append(backdrop, dialog);
+    document.body.appendChild(host);
+    okBtn.focus();
+  });
+}
+
 /* ──────────── NAVIGAZIONE: pagina corrente ────────────
    Ogni pagina aveva la propria nav scritta a mano, con ordine diverso e nessuna
    indicazione di dove ci si trovasse. Qui la pagina corrente viene marcata

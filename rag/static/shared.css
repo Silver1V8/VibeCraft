@@ -558,6 +558,59 @@ body.page-doc {
 .toast-info    { border-left-color: var(--color-info); }
 .toast-info .toast-icon { color: var(--color-info); }
 
+/* ── Confirm dialog ──
+   Sostituisce confirm(): un dialogo nativo mostra l'origin ("127.0.0.1:8000
+   dice") e rompe l'identità del tema tanto quanto alert(). Qui la domanda resta
+   nel linguaggio dell'app, con un'azione primaria/pericolosa marcata a colore
+   invece che dal solo pulsante "OK" generico del browser. */
+#confirm-host {
+  position: fixed;
+  inset: 0;
+  z-index: 70;                 /* sopra i toast (60): una conferma blocca il flusso */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+.confirm-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+}
+.confirm-dialog {
+  position: relative;
+  width: min(30rem, 100%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-elevated);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-6);
+}
+.confirm-dialog.is-danger { border-color: var(--color-danger); }
+.confirm-dialog .confirm-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+.confirm-dialog .confirm-icon { color: var(--color-warning); }
+.confirm-dialog.is-danger .confirm-icon { color: var(--color-danger); }
+.confirm-dialog .confirm-message {
+  margin: 0 0 var(--space-6);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  white-space: pre-line;
+}
+.confirm-dialog .confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
 /* Toggle del rain, iniettato da shared.js accanto al selettore del tema. */
 .motion-toggle {
   flex-shrink: 0;
