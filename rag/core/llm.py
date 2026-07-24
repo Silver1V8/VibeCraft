@@ -10,8 +10,10 @@ sono i chiamanti a decidere la politica di tolleranza (il check drift mette il m
 nel report, l'archive salta la review con un warning, le route pipeline restituiscono il
 messaggio come testo). Per i test si inietta un provider fake con `register_provider`.
 """
+import asyncio
 import json
 import logging
+import time
 import urllib.error
 import urllib.request
 
@@ -231,17 +233,57 @@ def _provider_fns(provider: str) -> tuple:
         raise LLMError(f"Provider LLM non supportato: '{provider}'") from None
 
 
-def generate(prompt: str, *, purpose: str, timeout: float = OLLAMA_TIMEOUT_SECONDS) -> str:
+# Frammenti di messaggio che identificano un fallimento TRANSITORIO (hiccup di rete/
+# risposta vuota di qwen3.5): questi soli vengono ritentati. Qualsiasi altro LLMError
+# (404 modello, provider/scopo sconosciuto, auth) è un errore di configurazione che
+# ritentare non risolverebbe: si rilancia subito.
+_TRANSIENT_MARKERS = ("[ERRORE DI TIMEOUT]", "[ERRORE DI CONNESSIONE]", "risposta vuota")
+
+
+def _is_transient(err: LLMError) -> bool:
+    message = str(err)
+    return any(marker in message for marker in _TRANSIENT_MARKERS)
+
+
+def generate(
+    prompt: str, *, purpose: str, timeout: float = OLLAMA_TIMEOUT_SECONDS, max_attempts: int = 3,
+) -> str:
     """Genera testo in modo SINCRONO con il provider/modello risolti per `purpose`.
-    Solleva LLMError con messaggio leggibile su qualsiasi errore."""
+    Solleva LLMError con messaggio leggibile su qualsiasi errore.
+
+    Ritenta con backoff esponenziale (min(2**tentativo, 10)s) SOLO i fallimenti
+    transitori (risposta vuota, timeout, connessione): il fallimento più frequente
+    di Ollama, prima mai ritentato, faceva fallire canvas/propose per un hiccup.
+    `max_attempts=1` disattiva il retry. Ogni altro LLMError (es. modello non
+    trovato) rilancia immediatamente."""
     provider, model = resolve(purpose)
     sync_fn, _ = _provider_fns(provider)
-    return sync_fn(model, prompt, timeout)
+    attempt = 1
+    while True:
+        try:
+            return sync_fn(model, prompt, timeout)
+        except LLMError as e:
+            if attempt >= max_attempts or not _is_transient(e):
+                raise
+            logger.warning("Tentativo %d/%d fallito per '%s' (%s): %s", attempt, max_attempts, purpose, provider, e)
+            time.sleep(min(2 ** attempt, 10))
+            attempt += 1
 
 
-async def agenerate(prompt: str, *, purpose: str, timeout: float = OLLAMA_TIMEOUT_SECONDS) -> str:
+async def agenerate(
+    prompt: str, *, purpose: str, timeout: float = OLLAMA_TIMEOUT_SECONDS, max_attempts: int = 3,
+) -> str:
     """Come `generate` ma ASINCRONA (per i route handler FastAPI: non blocca l'event
-    loop durante generazioni che su CPU durano minuti)."""
+    loop durante generazioni che su CPU durano minuti). Stessa politica di retry."""
     provider, model = resolve(purpose)
     _, async_fn = _provider_fns(provider)
-    return await async_fn(model, prompt, timeout)
+    attempt = 1
+    while True:
+        try:
+            return await async_fn(model, prompt, timeout)
+        except LLMError as e:
+            if attempt >= max_attempts or not _is_transient(e):
+                raise
+            logger.warning("Tentativo %d/%d fallito per '%s' (%s): %s", attempt, max_attempts, purpose, provider, e)
+            await asyncio.sleep(min(2 ** attempt, 10))
+            attempt += 1

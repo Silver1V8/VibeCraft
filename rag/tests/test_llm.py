@@ -266,6 +266,76 @@ def test_ollama_payload_include_num_ctx_e_think_solo_se_configurati(monkeypatch)
     assert p2 == {"model": "m", "prompt": "prompt", "stream": False}
 
 
+# ---------------------------------------------------------------------------
+# Retry con backoff sui fallimenti transitori (task 1.1): il fallimento più
+# frequente di Ollama (risposta vuota, timeout, connessione) prima non veniva mai
+# ritentato, un hiccup faceva fallire canvas/propose con 502.
+# ---------------------------------------------------------------------------
+
+def test_generate_ritenta_su_errore_transitorio_e_poi_riesce(fake_settings, monkeypatch):
+    monkeypatch.setattr(llm.time, "sleep", lambda _s: None)
+    calls = []
+
+    def flaky(model, prompt, timeout):
+        calls.append(1)
+        if len(calls) < 3:
+            raise llm.LLMError("[ERRORE DI CONNESSIONE]: Impossibile raggiungere Ollama.")
+        return "RISPOSTA OK"
+
+    llm.register_provider("fake", flaky)
+    out = llm.generate("prompt", purpose="drift", max_attempts=3)
+    assert out == "RISPOSTA OK"
+    assert len(calls) == 3
+
+
+def test_generate_non_ritenta_su_errore_non_transitorio(fake_settings, monkeypatch):
+    monkeypatch.setattr(llm.time, "sleep", lambda _s: None)
+    calls = []
+
+    def not_found(model, prompt, timeout):
+        calls.append(1)
+        raise llm.LLMError(f"[ERRORE OLLAMA]: Il modello '{model}' non è stato trovato. Esegui 'ollama pull {model}'.")
+
+    llm.register_provider("fake", not_found)
+    with pytest.raises(llm.LLMError, match="non è stato trovato"):
+        llm.generate("prompt", purpose="drift", max_attempts=3)
+    assert len(calls) == 1
+
+
+def test_agenerate_ritenta_su_errore_transitorio_e_poi_riesce(fake_settings, monkeypatch):
+    async def fake_sleep(_s):
+        return None
+    monkeypatch.setattr(llm.asyncio, "sleep", fake_sleep)
+    calls = []
+
+    def flaky(model, prompt, timeout):
+        calls.append(1)
+        if len(calls) < 2:
+            raise llm.LLMError("[ERRORE DI TIMEOUT]: Ollama sta impiegando troppo tempo a rispondere.")
+        return "RISPOSTA ASYNC OK"
+
+    llm.register_provider("fake", flaky)
+    out = asyncio.run(llm.agenerate("prompt", purpose="drift", max_attempts=3))
+    assert out == "RISPOSTA ASYNC OK"
+    assert len(calls) == 2
+
+
+def test_agenerate_non_ritenta_su_errore_non_transitorio(fake_settings, monkeypatch):
+    async def fake_sleep(_s):
+        return None
+    monkeypatch.setattr(llm.asyncio, "sleep", fake_sleep)
+    calls = []
+
+    def not_found(model, prompt, timeout):
+        calls.append(1)
+        raise llm.LLMError(f"[ERRORE OLLAMA]: Il modello '{model}' non è stato trovato. Esegui 'ollama pull {model}'.")
+
+    llm.register_provider("fake", not_found)
+    with pytest.raises(llm.LLMError, match="non è stato trovato"):
+        asyncio.run(llm.agenerate("prompt", purpose="drift", max_attempts=3))
+    assert len(calls) == 1
+
+
 def test_ollama_payload_warna_se_il_prompt_sfiora_la_finestra(monkeypatch, caplog):
     # Il default 4096 di Ollama troncava i prompt SILENZIOSAMENTE (canvas mozzato, intervista
     # mai letta): con num_ctx configurato, un prompt vicino alla finestra deve almeno lasciare
