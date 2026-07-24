@@ -127,6 +127,13 @@ def csharp_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
     """Estrae simboli da sorgente C#: tipi (class/record/interface/struct/enum),
     metodi e proprietà pubblici (endpoint ASP.NET Core/WCF marcati), con deps
     best-effort verso gli using directives e namespace come metadato."""
+    # tree-sitter-c-sharp richiede il newline finale dopo una direttiva
+    # #pragma su singola riga: senza, un EOF subito dopo (comune nei file
+    # generati da svcutil/wsdl.exe come Reference.cs, che spesso terminano
+    # con "#pragma warning restore ..." senza \n) fa scattare has_error
+    # anche se il C# e' sintatticamente valido. Normalizziamo prima del parse.
+    if text and not text.endswith("\n"):
+        text = text + "\n"
     src = text.encode("utf-8")
     tree = _pack_parser("csharp").parse(src)
     if tree.root_node.has_error:
