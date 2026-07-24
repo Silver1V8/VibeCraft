@@ -1,11 +1,14 @@
 """Caricamento e chunking dei documenti: parsing del frontmatter YAML, loader multi-formato
 (md/txt/docx/xlsx/pdf), estrazione delle entità, split per sezione (heading di livello 2)
 e archi tipizzati dal frontmatter. Nessuna dipendenza da Qdrant o dal modello di embedding."""
+import logging
 import re
 from pathlib import Path
 
 import networkx as nx
 import yaml
+
+logger = logging.getLogger(__name__)
 
 
 def split_frontmatter(content: str) -> tuple[str | None, str]:
@@ -47,7 +50,7 @@ def _read_docx(filepath: str) -> str:
     try:
         import docx  # python-docx
     except ImportError:
-        print(f"  ⚠️ python-docx non installato: salto {filepath} (pip install python-docx)")
+        logger.warning("  ⚠️ python-docx non installato: salto %s (pip install python-docx)", filepath)
         return ""
     return "\n".join(p.text for p in docx.Document(filepath).paragraphs)
 
@@ -56,7 +59,7 @@ def _read_xlsx(filepath: str) -> str:
     try:
         import openpyxl
     except ImportError:
-        print(f"  ⚠️ openpyxl non installato: salto {filepath} (pip install openpyxl)")
+        logger.warning("  ⚠️ openpyxl non installato: salto %s (pip install openpyxl)", filepath)
         return ""
     wb = openpyxl.load_workbook(filepath, read_only=True, data_only=True)
     lines: list[str] = []
@@ -73,7 +76,7 @@ def _read_pdf(filepath: str) -> str:
     try:
         import pypdf
     except ImportError:
-        print(f"  ⚠️ pypdf non installato: salto {filepath} (pip install pypdf)")
+        logger.warning("  ⚠️ pypdf non installato: salto %s (pip install pypdf)", filepath)
         return ""
     reader = pypdf.PdfReader(filepath)
     return "\n".join((page.extract_text() or "") for page in reader.pages)

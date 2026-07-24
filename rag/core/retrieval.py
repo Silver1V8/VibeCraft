@@ -3,11 +3,14 @@ del contesto governato e costruzione del prompt di sintesi di /ask (la chiamata 
 vive in core/llm.py). Logica pura: le risorse di runtime (client Qdrant,
 modello di embedding, sidecar ColBERT, grafo, sidecar dei chunk) sono passate come
 parametri espliciti dai chiamanti (dependency injection), non lette da uno stato globale."""
+import logging
 from typing import Any
 
 import networkx as nx
 import numpy as np
 from qdrant_client.models import FieldCondition, Filter, MatchAny, SparseVector
+
+logger = logging.getLogger(__name__)
 
 from core.config import (
     AUTHORITY_ARCHIVED_DECAY,
@@ -249,7 +252,7 @@ def select_governed_chunks(question: str, *, graph: nx.DiGraph | None, results: 
             results = hybrid_search(question, top_k, qdrant=qdrant, embed_model=embed_model,
                                     colbert_store=colbert_store or {}, query_filter=query_filter)
         except Exception as exc:  # best-effort: il fallback è "nessun contesto"
-            print(f"Attenzione: retrieval governato non riuscito: {exc}")
+            logger.warning("Attenzione: retrieval governato non riuscito: %s", exc)
             return []
     governed = [r for r in results if r.get("doc_id") in graph]
     return governed[:max_chunks]
