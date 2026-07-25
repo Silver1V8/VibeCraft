@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse, Response
@@ -161,6 +162,14 @@ class IndexSnapshot:
     # blue/green puntata da database/CURRENT (str), oppure — layout legacy senza
     # CURRENT — l'mtime del file-grafo flat (float).
     version: str | float | None
+    # Matrice densa del codice PRECALCOLATA una volta per snapshot (non più per richiesta):
+    # `code_ids` sono gli id dei simboli con vettore denso, `code_matrix` è la matrice float32
+    # GIÀ normalizzata L2 (stessa formula di core.retrieval.search_code_symbols), allineata per
+    # indice a `code_ids`. La normalizzazione L2 dei simboli è identica a ogni richiesta /ask,
+    # quindi calcolarla al reload invece che a ogni ricerca è puro risparmio di CPU. `code_matrix`
+    # è None (e `code_ids` []) se il code_store è vuoto o nessun simbolo ha un vettore denso.
+    code_ids: list[str]
+    code_matrix: "np.ndarray | None"
 
 
 # ---------------------------------------------------------------------------
@@ -245,9 +254,28 @@ def _graph_version() -> str | float | None:
     return None
 
 
+def _prep_code_matrix(code_store: dict) -> tuple[list[str], "np.ndarray | None"]:
+    """Precalcola, una volta per snapshot, la matrice densa L2-normalizzata dei simboli di
+    codice del `code_store` — lo stesso lavoro che core.retrieval.search_code_symbols faceva a
+    OGNI richiesta /ask. Prende gli id dei simboli con `dense` non None, costruisce la matrice in
+    float32 e la normalizza con `norm + 1e-8` (formula IDENTICA a quella del retrieval, così il
+    risultato numerico non cambia). Ritorna `(code_ids, matrix)` allineati per indice, oppure
+    `([], None)` se il code_store è vuoto o nessun simbolo ha un vettore denso."""
+    if not code_store:
+        return [], None
+    sym_ids = [sid for sid, e in code_store.items() if e.get("dense") is not None]
+    if not sym_ids:
+        return [], None
+    matrix = np.asarray([code_store[sid]["dense"] for sid in sym_ids], dtype=np.float32)
+    matrix /= np.linalg.norm(matrix, axis=1, keepdims=True) + 1e-8
+    return sym_ids, matrix
+
+
 def _build_snapshot(graph, colbert_store, chunks, rule_descriptions, code_store) -> IndexSnapshot:
-    """Assembla un IndexSnapshot catturando la version (CURRENT o mtime del grafo)."""
+    """Assembla un IndexSnapshot catturando la version (CURRENT o mtime del grafo) e
+    precalcolando la matrice densa del codice (una volta per reindex, non per richiesta)."""
     version = _graph_version()
+    code_ids, code_matrix = _prep_code_matrix(code_store)
     return IndexSnapshot(
         graph=graph,
         colbert_store=colbert_store,
@@ -255,6 +283,8 @@ def _build_snapshot(graph, colbert_store, chunks, rule_descriptions, code_store)
         rule_descriptions=rule_descriptions,
         code_store=code_store,
         version=version,
+        code_ids=code_ids,
+        code_matrix=code_matrix,
     )
 
 

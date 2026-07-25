@@ -130,6 +130,8 @@ def _seed_old_snapshot(deps, rule_descriptions=None):
         rule_descriptions=rule_descriptions if rule_descriptions is not None else {"OLD": "x"},
         code_store={},
         version=1.0,
+        code_ids=[],
+        code_matrix=None,
     )
     deps.state["snapshot"] = old
     return old

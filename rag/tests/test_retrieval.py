@@ -268,6 +268,41 @@ def test_search_code_symbols_caps_symbols_per_file():
     assert [c["file"] for c in out] == ["dto.cs", "dto.cs"]
 
 
+def test_search_code_symbols_precomputed_matches_on_the_fly():
+    """Equivalenza numerica (Gate): a parità di code_store e query, i risultati ottenuti
+    passando code_ids/code_matrix precalcolati dallo snapshot (api.deps._prep_code_matrix)
+    devono essere IDENTICI a quelli ottenuti lasciando ricostruire la matrice on-the-fly —
+    stessi symbol_id, stesso ordine, stessi score. La normalizzazione L2 dei simboli è
+    identica nei due path, cambia solo DOVE viene calcolata."""
+    from api import deps
+
+    store = _searchable_code_store()
+    code_ids, code_matrix = deps._prep_code_matrix(store)
+
+    # Diverse combinazioni di query e parametri: l'equivalenza deve valere in tutte.
+    for query in ([1.0, 0.0, 0.0], [0.6, 0.8, 0.0], [0.0, 1.0, 0.0]):
+        for max_per_file in (0, 1, 2):
+            on_the_fly = retrieval.search_code_symbols(
+                np.array(query), store, max_snippets=4, min_score=0.0, max_per_file=max_per_file)
+            precomputed = retrieval.search_code_symbols(
+                np.array(query), store, max_snippets=4, min_score=0.0, max_per_file=max_per_file,
+                code_ids=code_ids, code_matrix=code_matrix)
+            assert [c["symbol_id"] for c in precomputed] == [c["symbol_id"] for c in on_the_fly]
+            assert ([round(c["score"], 6) for c in precomputed]
+                    == [round(c["score"], 6) for c in on_the_fly])
+            assert precomputed == on_the_fly  # identità piena delle voci, non solo id/score
+
+
+def test_prep_code_matrix_empty_returns_none():
+    """Store vuoto o senza alcun simbolo con vettore denso: ([], None) — così lo snapshot
+    porta code_matrix=None e search_code_symbols ricade sul path on-the-fly (che ritorna [])."""
+    from api import deps
+
+    assert deps._prep_code_matrix({}) == ([], None)
+    no_dense = {"code/x.cs::X": {"name": "X", "file": "x.cs", "text": "class X"}}
+    assert deps._prep_code_matrix(no_dense) == ([], None)
+
+
 def test_merge_code_context_dedups_keeping_first_group_and_caps():
     semantic = retrieval.search_code_symbols(np.array([1.0, 0.0, 0.0]), _searchable_code_store(),
                                              max_snippets=1, min_score=0.0)

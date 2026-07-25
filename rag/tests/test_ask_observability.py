@@ -31,6 +31,8 @@ def _snapshot(version) -> deps.IndexSnapshot:
         rule_descriptions={},
         code_store={},
         version=version,
+        code_ids=[],
+        code_matrix=None,
     )
 
 

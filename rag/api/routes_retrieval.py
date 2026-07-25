@@ -134,6 +134,7 @@ async def ask_rag(query: AskQuery):
         retrieval.search_code_symbols, query_encoding["dense"], snap.code_store,
         max_snippets=CODE_SEARCH_MAX_SNIPPETS, min_score=CODE_SEARCH_MIN_SCORE,
         max_per_file=CODE_SEARCH_MAX_PER_FILE,
+        code_ids=snap.code_ids, code_matrix=snap.code_matrix,
     ) if query_encoding is not None else []
     latency_retrieval_ms = round((time.time() - retrieval_start) * 1000, 2)
 

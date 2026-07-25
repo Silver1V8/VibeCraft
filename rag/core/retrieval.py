@@ -380,7 +380,9 @@ def _code_entry(sym_id: str, entry: dict, *, source: str, score: float, anchor: 
 
 def search_code_symbols(query_dense, code_store: dict, *,
                         max_snippets: int, min_score: float,
-                        max_per_file: int = 2) -> list[dict]:
+                        max_per_file: int = 2,
+                        code_ids: list[str] | None = None,
+                        code_matrix: np.ndarray | None = None) -> list[dict]:
     """Ricerca semantica DIRETTA sui simboli di codice: coseno fra il vettore denso della
     domanda e i vettori densi dei simboli, già calcolati all'indicizzazione e presenti nel
     code_store (sidecar code.npz).
@@ -398,18 +400,36 @@ def search_code_symbols(query_dense, code_store: dict, *,
     sono a grana fine (una proprietà è un simbolo) e un singolo file generato — il proxy WCF
     Reference.cs, un client autogenerato — occupa da solo tutte le posizioni con dieci
     varianti della stessa riga, seppellendo le classi che dichiarano davvero i campi.
+    `code_ids`/`code_matrix` (opzionali): la matrice densa dei simboli GIÀ costruita e
+    normalizzata L2 una volta per snapshot (api.deps._prep_code_matrix), con la lista di id
+    allineata per indice. Se forniti entrambi, si salta la ricostruzione/normalizzazione
+    per-richiesta e si usano direttamente (ottimizzazione: la normalizzazione dei simboli è
+    identica a ogni richiesta). Se assenti (chiamata da test o da un calibratore che non passa
+    per lo snapshot), si ricostruisce da code_store ESATTAMENTE come prima — stessa formula
+    (`norm + 1e-8`), stesso risultato numerico. La query resta normalizzata al volo in entrambi
+    i casi (cambia a ogni richiesta, non è precalcolabile).
+
     Logica pura: il vettore della query e il code_store arrivano dal chiamante."""
     if max_snippets <= 0 or not code_store or query_dense is None:
         return []
 
-    sym_ids = [sid for sid, e in code_store.items() if e.get("dense") is not None]
+    if code_ids is not None and code_matrix is not None:
+        # Percorso ottimizzato: matrice densa precalcolata e normalizzata nello snapshot.
+        sym_ids = code_ids
+        matrix = code_matrix
+    else:
+        # Percorso storico (nessuno snapshot: test/calibratore): ricostruisce da code_store.
+        # I vettori sono persistiti in fp16 (code.npz): si promuovono a float32 per il prodotto.
+        # Costo ~10 ms su qualche migliaio di simboli, trascurabile accanto alla sintesi LLM.
+        sym_ids = [sid for sid, e in code_store.items() if e.get("dense") is not None]
+        if not sym_ids:
+            return []
+        matrix = np.asarray([code_store[sid]["dense"] for sid in sym_ids], dtype=np.float32)
+        matrix /= np.linalg.norm(matrix, axis=1, keepdims=True) + 1e-8
+
     if not sym_ids:
         return []
 
-    # I vettori sono persistiti in fp16 (code.npz): si promuovono a float32 per il prodotto.
-    # Costo ~10 ms su qualche migliaio di simboli, trascurabile accanto alla sintesi LLM.
-    matrix = np.asarray([code_store[sid]["dense"] for sid in sym_ids], dtype=np.float32)
-    matrix /= np.linalg.norm(matrix, axis=1, keepdims=True) + 1e-8
     q = np.asarray(query_dense, dtype=np.float32)
     q /= np.linalg.norm(q) + 1e-8
 

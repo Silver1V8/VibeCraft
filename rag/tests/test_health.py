@@ -44,7 +44,8 @@ def _snapshot() -> IndexSnapshot:
     g = nx.DiGraph()
     g.add_edge("a.md", "ENTITA")
     return IndexSnapshot(graph=g, colbert_store={}, chunks={"a.md#00-x": {}},
-                         rule_descriptions={}, code_store={}, version=1000.0)
+                         rule_descriptions={}, code_store={}, version=1000.0,
+                         code_ids=[], code_matrix=None)
 
 
 def _status_ok():

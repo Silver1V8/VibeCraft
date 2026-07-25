@@ -53,6 +53,7 @@ def _snapshot(chunk_text: str, code_text: str,
             "dev_type": "backend", "text": orphan_code_text,
             "dense": np.array(_QUERY_DENSE, dtype=np.float16),  # coseno 1.0 con la domanda
         }
+    code_ids, code_matrix = deps._prep_code_matrix(code_store)
     return deps.IndexSnapshot(
         graph=g,
         colbert_store={},
@@ -60,6 +61,8 @@ def _snapshot(chunk_text: str, code_text: str,
         rule_descriptions={},
         code_store=code_store,
         version="vtest",
+        code_ids=code_ids,
+        code_matrix=code_matrix,
     )
 
 
