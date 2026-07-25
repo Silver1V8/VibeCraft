@@ -386,6 +386,152 @@ def test_check_drift_esclude_node_modules_e_altre_cartelle_di_build(fake_setting
     assert "node_modules" not in captured["prompt"]
 
 
+# ---------------------------------------------------------------------------
+# Logging strutturato della spesa Anthropic (token e costo stimato): il layer LLM
+# scartava message.usage dopo la risposta di Anthropic. Un fake module iniettato al
+# posto del pacchetto 'anthropic' (non installato in questo ambiente) espone un
+# messages.create() che ritorna un messaggio con .usage noto, cosi' da poter
+# verificare via caplog che _anthropic_generate/_anthropic_agenerate logghino la
+# riga senza toccare il testo restituito (_anthropic_text invariato).
+# ---------------------------------------------------------------------------
+
+class _FakeAnthropicUsage:
+    def __init__(self, input_tokens, output_tokens):
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
+
+
+class _FakeAnthropicTextBlock:
+    type = "text"
+
+    def __init__(self, text):
+        self.text = text
+
+
+class _FakeAnthropicMessage:
+    def __init__(self, text, input_tokens, output_tokens):
+        self.content = [_FakeAnthropicTextBlock(text)]
+        self.usage = _FakeAnthropicUsage(input_tokens, output_tokens)
+
+
+class _FakeAnthropicMessagesSync:
+    def __init__(self, message):
+        self._message = message
+
+    def create(self, **kwargs):
+        return self._message
+
+
+class _FakeAnthropicMessagesAsync:
+    def __init__(self, message):
+        self._message = message
+
+    async def create(self, **kwargs):
+        return self._message
+
+
+class _FakeAnthropicClient:
+    def __init__(self, message, *, timeout=None):
+        self.messages = _FakeAnthropicMessagesSync(message)
+
+
+class _FakeAsyncAnthropicClient:
+    def __init__(self, message, *, timeout=None):
+        self.messages = _FakeAnthropicMessagesAsync(message)
+
+
+def _fake_anthropic_module(message):
+    """Modulo 'anthropic' fittizio: solo cio' che core/llm.py usa (client sincrono/async
+    e le eccezioni tipizzate catturate nei except)."""
+    import types
+
+    fake = types.SimpleNamespace()
+    fake.Anthropic = lambda timeout=None: _FakeAnthropicClient(message, timeout=timeout)
+    fake.AsyncAnthropic = lambda timeout=None: _FakeAsyncAnthropicClient(message, timeout=timeout)
+    fake.AuthenticationError = type("AuthenticationError", (Exception,), {})
+    fake.APITimeoutError = type("APITimeoutError", (Exception,), {})
+    fake.APIConnectionError = type("APIConnectionError", (Exception,), {})
+
+    class _APIStatusError(Exception):
+        status_code = 500
+        message = "errore"
+
+    fake.APIStatusError = _APIStatusError
+    return fake
+
+
+def test_anthropic_generate_logga_input_output_tokens(monkeypatch, caplog):
+    import logging
+
+    message = _FakeAnthropicMessage("risposta claude", input_tokens=123, output_tokens=45)
+    monkeypatch.setattr(llm, "_anthropic_module", lambda: _fake_anthropic_module(message))
+    monkeypatch.setitem(llm.config, "llm_settings", {"active_provider": "anthropic", "models": {}})
+
+    with caplog.at_level(logging.INFO, logger="core.llm"):
+        out = llm._anthropic_generate("claude-sonnet-5", "ciao", timeout=5.0)
+
+    assert out == "risposta claude"  # il testo restituito resta invariato
+    righe = [r.getMessage() for r in caplog.records if r.name == "core.llm"]
+    assert any(
+        "provider=anthropic" in r and "model=claude-sonnet-5" in r
+        and "input_tokens=123" in r and "output_tokens=45" in r
+        for r in righe
+    ), righe
+
+
+def test_anthropic_agenerate_logga_input_output_tokens(monkeypatch, caplog):
+    import logging
+
+    message = _FakeAnthropicMessage("risposta async", input_tokens=10, output_tokens=7)
+    monkeypatch.setattr(llm, "_anthropic_module", lambda: _fake_anthropic_module(message))
+    monkeypatch.setitem(llm.config, "llm_settings", {"active_provider": "anthropic", "models": {}})
+
+    with caplog.at_level(logging.INFO, logger="core.llm"):
+        out = asyncio.run(llm._anthropic_agenerate("claude-sonnet-5", "ciao", timeout=5.0))
+
+    assert out == "risposta async"
+    righe = [r.getMessage() for r in caplog.records if r.name == "core.llm"]
+    assert any(
+        "input_tokens=10" in r and "output_tokens=7" in r for r in righe
+    ), righe
+
+
+def test_anthropic_generate_logga_cost_usd_con_pricing_configurato(monkeypatch, caplog):
+    import logging
+
+    message = _FakeAnthropicMessage("x", input_tokens=1_000_000, output_tokens=500_000)
+    monkeypatch.setattr(llm, "_anthropic_module", lambda: _fake_anthropic_module(message))
+    monkeypatch.setitem(llm.config, "llm_settings", {
+        "active_provider": "anthropic",
+        "models": {},
+        "pricing": {"claude-sonnet-5": {"input_per_mtok": 3.0, "output_per_mtok": 15.0}},
+    })
+
+    with caplog.at_level(logging.INFO, logger="core.llm"):
+        llm._anthropic_generate("claude-sonnet-5", "ciao", timeout=5.0)
+
+    # 1M input @ $3/Mtok + 0.5M output @ $15/Mtok = 3.0 + 7.5 = 10.5 USD
+    righe = [r.getMessage() for r in caplog.records if r.name == "core.llm"]
+    assert any("cost_usd=10.5" in r for r in righe), righe
+
+
+def test_anthropic_generate_senza_pricing_non_crasha_e_logga_solo_token(monkeypatch, caplog):
+    import logging
+
+    message = _FakeAnthropicMessage("x", input_tokens=42, output_tokens=8)
+    monkeypatch.setattr(llm, "_anthropic_module", lambda: _fake_anthropic_module(message))
+    # Nessuna sezione 'pricing': deve restare fail-closed, senza sollevare eccezioni.
+    monkeypatch.setitem(llm.config, "llm_settings", {"active_provider": "anthropic", "models": {}})
+
+    with caplog.at_level(logging.INFO, logger="core.llm"):
+        out = llm._anthropic_generate("modello-sconosciuto", "ciao", timeout=5.0)
+
+    assert out == "x"
+    righe = [r.getMessage() for r in caplog.records if r.name == "core.llm"]
+    assert any("input_tokens=42" in r and "output_tokens=8" in r for r in righe), righe
+    assert not any("cost_usd" in r for r in righe)
+
+
 def test_check_drift_tronca_oltre_il_tetto_di_caratteri(fake_settings, monkeypatch, tmp_path):
     # Anche escludendo node_modules, una feature con molti file sorgente legittimi
     # potrebbe superare la finestra di contesto: meglio un troncamento esplicito e

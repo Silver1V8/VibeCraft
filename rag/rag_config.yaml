@@ -45,6 +45,15 @@ llm_settings:
   #  propose:
   #    model: "qwen3.5:27b"
 
+  # Prezzi per-modello (USD per milione di token) usati SOLO per stimare cost_usd nel log
+  # strutturato delle chiamate Anthropic (core/llm.py, _log_anthropic_usage). Opzionale:
+  # se un modello non compare qui (o la sezione manca del tutto), il log riporta comunque
+  # input_tokens/output_tokens, semplicemente senza cost_usd — mai un errore.
+  pricing:
+    claude-sonnet-5:
+      input_per_mtok: 3.0
+      output_per_mtok: 15.0
+
 vector_database:
   provider: "qdrant"
   collection_name: "vibecraft_events"

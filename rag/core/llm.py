@@ -161,6 +161,50 @@ def _anthropic_text(message) -> str:
     return "".join(block.text for block in message.content if block.type == "text")
 
 
+def _anthropic_pricing(model: str) -> tuple[float, float] | None:
+    """Prezzi per-modello (USD per milione di token) da rag_config.yaml
+    (llm_settings.pricing: {model: {input_per_mtok, output_per_mtok}}). None se la
+    sezione o il modello mancano, o se i valori sono malformati: il logging dei token
+    resta comunque, semplicemente senza costo stimato (mai un'eccezione da qui)."""
+    try:
+        pricing = (config.get("llm_settings") or {}).get("pricing") or {}
+        entry = pricing.get(model) or {}
+        return float(entry["input_per_mtok"]), float(entry["output_per_mtok"])
+    except (TypeError, KeyError, ValueError):
+        return None
+
+
+def _log_anthropic_usage(model: str, message) -> None:
+    """Logga a INFO la spesa della chiamata Anthropic: token di input/output e, se
+    llm_settings.pricing configura un prezzo per questo modello, il costo stimato in
+    USD. Stesso stile della riga M3 di observability in api/routes_retrieval.py
+    (ask_rag): chiavi=valore ordinate, argomenti % del logger. Non deve mai far
+    fallire la generazione: qualunque errore nel calcolo/logging viene inghiottito."""
+    try:
+        usage = getattr(message, "usage", None)
+        if usage is None:
+            return
+        input_tokens = usage.input_tokens
+        output_tokens = usage.output_tokens
+        pricing = _anthropic_pricing(model)
+        if pricing is None:
+            logger.info(
+                "llm_usage provider=anthropic model=%s input_tokens=%s output_tokens=%s",
+                model, input_tokens, output_tokens,
+            )
+            return
+        input_per_mtok, output_per_mtok = pricing
+        cost_usd = round(
+            (input_tokens * input_per_mtok + output_tokens * output_per_mtok) / 1_000_000, 6,
+        )
+        logger.info(
+            "llm_usage provider=anthropic model=%s input_tokens=%s output_tokens=%s cost_usd=%s",
+            model, input_tokens, output_tokens, cost_usd,
+        )
+    except Exception:
+        logger.warning("Impossibile loggare la spesa Anthropic (usage/pricing malformati).", exc_info=True)
+
+
 def _anthropic_generate(model: str, prompt: str, timeout: float) -> str:
     anthropic = _anthropic_module()
     try:
@@ -170,6 +214,7 @@ def _anthropic_generate(model: str, prompt: str, timeout: float) -> str:
             max_tokens=ANTHROPIC_MAX_TOKENS,
             messages=[{"role": "user", "content": prompt}],
         )
+        _log_anthropic_usage(model, message)
         return _anthropic_text(message)
     except anthropic.AuthenticationError as e:
         raise LLMError("[ERRORE ANTHROPIC]: API key mancante o non valida. Imposta la variabile d'ambiente ANTHROPIC_API_KEY.") from e
@@ -192,6 +237,7 @@ async def _anthropic_agenerate(model: str, prompt: str, timeout: float) -> str:
             max_tokens=ANTHROPIC_MAX_TOKENS,
             messages=[{"role": "user", "content": prompt}],
         )
+        _log_anthropic_usage(model, message)
         return _anthropic_text(message)
     except anthropic.AuthenticationError as e:
         raise LLMError("[ERRORE ANTHROPIC]: API key mancante o non valida. Imposta la variabile d'ambiente ANTHROPIC_API_KEY.") from e
