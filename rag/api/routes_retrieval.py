@@ -6,7 +6,7 @@ import time
 import uuid
 
 import networkx as nx
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from qdrant_client import QdrantClient
 from FlagEmbedding import BGEM3FlagModel
@@ -21,7 +21,7 @@ from api.deps import (
     state,
 )
 from api.models import AskQuery
-from core import graph_ops, llm, retrieval, router as question_router
+from core import ask_cache, graph_ops, llm, retrieval, router as question_router
 from core.config import (
     CODE_CONTEXT_MAX_SNIPPETS,
     CODE_CONTEXT_MIN_WEIGHT,
@@ -56,8 +56,27 @@ def _cap_text(text: str, max_chars: int = ASK_MAX_CHARS_PER_CHUNK) -> str:
     return text
 
 
+# La cache di /ask (core.ask_cache) è BEST-EFFORT: è un'ottimizzazione di costo, non una
+# dipendenza funzionale. Un suo errore non deve MAI far fallire una richiesta, quindi ogni
+# accesso passa da questi due wrapper che degradano al percorso completo e loggano.
+def _cache_get(app, key: ask_cache.AskCacheKey) -> dict | None:
+    try:
+        return ask_cache.for_app(app).get(key)
+    except Exception as exc:
+        logger.warning("Cache /ask non consultabile (%s: %s): proseguo senza cache.",
+                       type(exc).__name__, exc)
+        return None
+
+
+def _cache_set(app, key: ask_cache.AskCacheKey, payload: dict) -> None:
+    try:
+        ask_cache.for_app(app).set(key, payload)
+    except Exception as exc:
+        logger.warning("Cache /ask non aggiornata (%s: %s).", type(exc).__name__, exc)
+
+
 @router.post("/ask", dependencies=[Depends(require_not_cross_site_request)])
-async def ask_rag(query: AskQuery):
+async def ask_rag(request: Request, query: AskQuery):
     request_id = uuid.uuid4().hex
     request_start = time.time()
 
@@ -105,6 +124,41 @@ async def ask_rag(query: AskQuery):
                 "generation_ms": 0,
                 "total_ms": latency_total_ms,
             },
+        }
+
+    # 0b. Cache semantica del ramo "hybrid": a parità di (index_version, strategia, top_k,
+    #     bfs_depth, domanda normalizzata) retrieval e sintesi rifarebbero lo stesso lavoro,
+    #     quindi la risposta completa si serve dalla cache SENZA embedding né chiamata LLM.
+    #     Ramo "graph" escluso a monte (è già deterministico e non spende LLM); gli esiti
+    #     no_results/no_graph_nodes non vengono memorizzati (vedi sotto: si cacha solo il
+    #     payload "success"). L'invalidazione è nella chiave: index_version cambia a ogni
+    #     reindex/rollback e le voci vecchie non sono più consultate (core.ask_cache).
+    cache_key = ask_cache.make_key(
+        index_version, retrieval_strategy, query.top_k, query.bfs_depth, query.question,
+    )
+    cached = _cache_get(request.app, cache_key)
+    if cached is not None:
+        latency_total_ms = round((time.time() - request_start) * 1000, 2)
+        # Stessa riga M3 del percorso completo (chiavi identiche e ordinate) più il flag
+        # cached=true: le richieste servite dalla cache restano visibili nei log, con le
+        # latenze di retrieval/generazione a 0 perché non sono state eseguite.
+        logger.info(
+            "ask request_id=%s index_version=%s qdrant_collection=%s qdrant_alias=%s "
+            "retrieval_strategy=%s top_k=%s n_results=%s latency_retrieval_ms=%s "
+            "latency_generation_ms=%s latency_total_ms=%s cached=true",
+            request_id, index_version, qdrant_collection_for_version(index_version),
+            COLLECTION_NAME, retrieval_strategy, query.top_k,
+            len(cached.get("qdrant_scores", [])), 0, 0, latency_total_ms,
+        )
+        # request_id, latenze ed elaboration_seconds sono di QUESTA richiesta (quelli
+        # cachati appartengono alla richiesta che ha popolato la voce e sarebbero
+        # fuorvianti); il resto del payload è servito tal quale, senza mutare la voce.
+        return {
+            **cached,
+            "cached": True,
+            "request_id": request_id,
+            "elaboration_seconds": 0.0,
+            "latency": {"retrieval_ms": 0, "generation_ms": 0, "total_ms": latency_total_ms},
         }
 
     # 1-2. Ricerca ibrida sui DOCUMENTI: dense + sparse (fusione per rank) + rerank ColBERT.
@@ -288,9 +342,11 @@ async def ask_rag(query: AskQuery):
         latency_retrieval_ms, latency_generation_ms, latency_total_ms,
     )
 
-    return {
+    payload = {
         "status": "success",
         "answer": answer,
+        # False = risposta appena calcolata; True solo sul ramo di hit qui sopra.
+        "cached": False,
         "elaboration_seconds": elaborazione_secondi,
         "request_id": request_id,
         "index_version": index_version,
@@ -317,6 +373,10 @@ async def ask_rag(query: AskQuery):
         # ancora simboli linkati alle sezioni recuperate): trasparenza su cosa ha visto l'LLM.
         "implementing_code": implementing_code,
     }
+    # Si memorizza SOLO questo payload: gli errori (502 su LLMError) e gli esiti a vuoto
+    # (no_results/no_graph_nodes, che tornano prima) non entrano mai in cache.
+    _cache_set(request.app, cache_key, payload)
+    return payload
 
 
 @router.get("/api/retrieve")
