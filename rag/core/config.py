@@ -131,8 +131,12 @@ class LLMSettings(BaseModel):
 def validate_llm_settings(raw, *, boot: bool = False) -> LLMSettings:
     """Valida il blocco llm_settings grezzo (dict da YAML) restituendo il modello tipato.
     Solleva pydantic.ValidationError con un messaggio leggibile se manca active_provider
-    o se i tipi non tornano; con boot=True aggiunge i controlli di coerenza dell'avvio
-    (models non vuoto e coerente con active_provider)."""
+    o se i tipi non tornano. Il contratto è deliberatamente ASIMMETRICO:
+    · boot=True  → aggiunge i controlli di coerenza (models non vuoto e con una voce per
+      active_provider): usato solo all'avvio, fallisce presto e forte;
+    · boot=False → validazione di soli tipi; i casi di configurazione incompleta restano
+      a core.llm.resolve(), che ne produce i messaggi LLMError storici.
+    L'asimmetria è bloccata dai test `test_contratto_*` in tests/test_llm.py."""
     return LLMSettings.model_validate(raw or {}, context={"boot": boot} if boot else None)
 
 

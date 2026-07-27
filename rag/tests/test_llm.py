@@ -153,6 +153,63 @@ def test_llm_settings_tipi_sbagliati_falliscono():
             boot=True)
 
 
+# ---------------------------------------------------------------------------
+# Contratto dell'asimmetria boot/runtime. La validazione di llm_settings è
+# volutamente a DUE livelli: severa all'avvio (fail-fast su una configurazione
+# incoerente) e permissiva a runtime (solo tipi), perché i casi di configurazione
+# incompleta devono continuare a produrre gli LLMError storici di resolve() invece
+# di una ValidationError. Questi quattro test lockano entrambi i lati: senza, un
+# "irrigidiamo anche il runtime" apparentemente innocuo cambierebbe i messaggi
+# d'errore visti dai chiamanti (che li mostrano all'utente) senza far fallire nulla.
+# ---------------------------------------------------------------------------
+
+def test_contratto_boot_models_vuoto_e_errore_di_validazione():
+    # boot=True è severo: all'avvio una configurazione incoerente deve fermare il
+    # processo subito, non lasciar partire un server che fallirà a ogni richiesta.
+    from pydantic import ValidationError
+
+    from core.config import validate_llm_settings
+
+    with pytest.raises(ValidationError):
+        validate_llm_settings({"active_provider": "fake", "models": {}}, boot=True)
+
+
+def test_contratto_runtime_models_vuoto_resta_llmerror_storico(monkeypatch):
+    # A runtime lo STESSO input non deve dare ValidationError: la validazione è di
+    # soli tipi e il caso "nessun modello" resta a resolve(), che ne produce il
+    # messaggio storico — verificato alla lettera perché arriva fino all'utente.
+    from core.config import validate_llm_settings
+
+    raw = {"active_provider": "fake", "models": {}}
+    assert validate_llm_settings(raw).models == {}  # senza boot NON solleva
+    monkeypatch.setitem(llm.config, "llm_settings", raw)
+    with pytest.raises(llm.LLMError) as exc:
+        llm.resolve("drift")
+    assert str(exc.value) == "Nessun modello configurato per il provider 'fake' (llm_settings.models)."
+
+
+def test_contratto_runtime_active_provider_mancante_e_llmerror_non_keyerror(monkeypatch):
+    # Cambio di comportamento introdotto dalla tipizzazione: prima era una KeyError
+    # grezza che risaliva dentro una richiesta, ora è un LLMError leggibile come
+    # ogni altro errore di configurazione. È voluto, quindi va bloccato qui.
+    monkeypatch.setitem(llm.config, "llm_settings", {"models": {"fake": "fake-model"}})
+    with pytest.raises(llm.LLMError) as exc:
+        llm.resolve("drift")
+    assert not isinstance(exc.value, KeyError)
+    assert str(exc.value).startswith("Blocco 'llm_settings' non valido in rag_config.yaml:")
+    assert "active_provider" in str(exc.value)
+
+
+def test_contratto_runtime_blocco_malformato_e_llmerror_leggibile(monkeypatch):
+    # Struttura completamente errata (qui una stringa al posto del blocco): la
+    # validazione di soli tipi la intercetta comunque e la riavvolge in LLMError,
+    # citando il file da correggere invece di esporre la ValidationError grezza.
+    monkeypatch.setitem(llm.config, "llm_settings", "ollama")
+    with pytest.raises(llm.LLMError) as exc:
+        llm.resolve("drift")
+    assert str(exc.value).startswith("Blocco 'llm_settings' non valido in rag_config.yaml:")
+
+
 def test_provider_non_supportato(monkeypatch):
     monkeypatch.setitem(llm.config, "llm_settings", {
         "active_provider": "inesistente", "models": {"inesistente": "x"},
