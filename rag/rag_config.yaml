@@ -54,6 +54,22 @@ llm_settings:
       input_per_mtok: 3.0
       output_per_mtok: 15.0
 
+  # Tetto di spesa GIORNALIERO (UTC) sulle chiamate Anthropic, con degradazione
+  # automatica su un provider locale (core/llm.py, _budget_fallback). Il blocco è
+  # COMMENTATO, quindi il guard è disattivato e la risoluzione provider/modello è
+  # esattamente quella di sempre: scommentalo solo quando i purpose Claude sono
+  # davvero in uso. Il contatore si alimenta dal costo stimato con `pricing` qui
+  # sopra: un modello senza prezzo non incide sul tetto (nessuna stima inventata).
+  # Raggiunta la soglia, i purpose risolti su anthropic passano a fallback_provider
+  # con un WARNING; se quel provider non ha un modello in `models` non si degrada e
+  # si resta su Claude — un problema di costo non deve diventare un fallimento di
+  # generazione. spend_file (opzionale, relativo a rag/) fa sopravvivere il totale ai
+  # riavvii; omesso, il contatore è in-memory e riparte da zero a ogni avvio.
+  #budget:
+  #  daily_usd: 5.0
+  #  fallback_provider: "ollama"
+  #  spend_file: "database/llm_spend.json"
+
 vector_database:
   provider: "qdrant"
   collection_name: "vibecraft_events"

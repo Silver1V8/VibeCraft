@@ -688,6 +688,176 @@ def test_anthropic_generate_senza_pricing_non_crasha_e_logga_solo_token(monkeypa
     assert not any("cost_usd" in r for r in righe)
 
 
+# ---------------------------------------------------------------------------
+# Budget guard giornaliero sul costo Claude (task 4.2): oltre la soglia
+# llm_settings.budget.daily_usd i purpose risolti su anthropic degradano sul
+# provider di fallback. Il guard è OFF finché il blocco `budget` non esiste, e non
+# deve mai far fallire una generazione: nel dubbio si resta sul provider originale.
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def spesa_azzerata(monkeypatch):
+    """Contatore di spesa isolato dal resto della suite: lo stato di modulo è globale
+    (per processo) e monkeypatch lo ripristina a fine test."""
+    monkeypatch.setitem(llm._spend_state, "day", "")
+    monkeypatch.setitem(llm._spend_state, "usd", 0.0)
+
+
+def _budget_settings(monkeypatch, budget: dict | None):
+    """llm_settings con anthropic attivo e ollama disponibile come fallback."""
+    settings = {
+        "active_provider": "anthropic",
+        "models": {"anthropic": "claude-sonnet-5", "ollama": "qwen3.5:9b"},
+    }
+    if budget is not None:
+        settings["budget"] = budget
+    monkeypatch.setitem(llm.config, "llm_settings", settings)
+    return settings
+
+
+def test_budget_guard_degrada_su_ollama_sopra_soglia(monkeypatch, spesa_azzerata, caplog):
+    import logging
+
+    _budget_settings(monkeypatch, {"daily_usd": 1.0})
+    assert llm.resolve("canvas") == ("anthropic", "claude-sonnet-5")  # sotto soglia: invariato
+
+    llm._record_spend(1.5)
+    with caplog.at_level(logging.WARNING, logger="core.llm"):
+        assert llm.resolve("canvas") == ("ollama", "qwen3.5:9b")
+    righe = [r.getMessage() for r in caplog.records if r.name == "core.llm"]
+    assert any("soglia 1.0000 USD" in r for r in righe), righe
+
+
+def test_budget_assente_lascia_resolve_invariato(monkeypatch, spesa_azzerata):
+    """Senza blocco `budget` il guard è disattivato: anche con una spesa registrata
+    enorme la risoluzione resta quella di oggi."""
+    _budget_settings(monkeypatch, None)
+    llm._record_spend(999.0)
+    assert llm.resolve("canvas") == ("anthropic", "claude-sonnet-5")
+    assert llm.resolve("drift") == ("anthropic", "claude-sonnet-5")
+
+
+def test_budget_con_daily_usd_nullo_e_come_assente(monkeypatch, spesa_azzerata):
+    _budget_settings(monkeypatch, {"fallback_provider": "ollama"})  # nessun daily_usd
+    llm._record_spend(999.0)
+    assert llm.resolve("canvas") == ("anthropic", "claude-sonnet-5")
+
+
+def test_spesa_si_azzera_al_cambio_di_giorno_utc(monkeypatch, spesa_azzerata):
+    """Il contatore è per giorno UTC: cambiando giorno la spesa di ieri non conta più
+    e il purpose torna su anthropic senza alcun job di rollover."""
+    _budget_settings(monkeypatch, {"daily_usd": 1.0})
+    llm._record_spend(5.0)
+    assert llm.spend_today_usd() == 5.0
+    assert llm.resolve("canvas") == ("ollama", "qwen3.5:9b")
+
+    monkeypatch.setattr(llm, "_utc_day", lambda: "2999-01-01")
+    assert llm.spend_today_usd() == 0.0
+    assert llm.resolve("canvas") == ("anthropic", "claude-sonnet-5")
+
+
+def test_budget_non_degrada_se_il_fallback_non_ha_un_modello(monkeypatch, spesa_azzerata, caplog):
+    """Degradare su un provider non configurato trasformerebbe un problema di costo in
+    un fallimento di generazione: si resta su anthropic, loggando il perché."""
+    import logging
+
+    monkeypatch.setitem(llm.config, "llm_settings", {
+        "active_provider": "anthropic",
+        "models": {"anthropic": "claude-sonnet-5"},  # nessun modello per il fallback
+        "budget": {"daily_usd": 1.0, "fallback_provider": "ollama"},
+    })
+    llm._record_spend(2.0)
+    with caplog.at_level(logging.WARNING, logger="core.llm"):
+        assert llm.resolve("canvas") == ("anthropic", "claude-sonnet-5")
+    righe = [r.getMessage() for r in caplog.records if r.name == "core.llm"]
+    assert any("non ha un modello" in r for r in righe), righe
+
+
+def test_spesa_persistita_su_file_sopravvive_al_riavvio(monkeypatch, spesa_azzerata, tmp_path):
+    import json
+
+    spend_file = tmp_path / "llm_spend.json"
+    _budget_settings(monkeypatch, {"daily_usd": 2.0, "spend_file": str(spend_file)})
+    llm._record_spend(3.0)
+    assert json.loads(spend_file.read_text(encoding="utf-8"))["usd"] == 3.0
+
+    # Stato in-memory azzerato = processo riavviato: la spesa si rilegge dal file.
+    llm._spend_state["day"], llm._spend_state["usd"] = "", 0.0
+    assert llm.spend_today_usd() == 3.0
+    assert llm.resolve("canvas") == ("ollama", "qwen3.5:9b")
+
+
+def test_file_di_spesa_corrotto_non_fa_fallire_il_guard(monkeypatch, spesa_azzerata, tmp_path):
+    spend_file = tmp_path / "llm_spend.json"
+    spend_file.write_text("{non json", encoding="utf-8")
+    _budget_settings(monkeypatch, {"daily_usd": 1.0, "spend_file": str(spend_file)})
+    assert llm.spend_today_usd() == 0.0
+    assert llm.resolve("canvas") == ("anthropic", "claude-sonnet-5")
+
+
+def test_chiamata_anthropic_riuscita_alimenta_il_contatore(monkeypatch, spesa_azzerata):
+    """Il ciclo completo: la spesa non è un numero a parte ma quella già stimata per il
+    log strutturato (task 2.2), quindi una chiamata reale sposta la risoluzione."""
+    message = _FakeAnthropicMessage("x", input_tokens=1_000_000, output_tokens=0)
+    monkeypatch.setattr(llm, "_anthropic_module", lambda: _fake_anthropic_module(message))
+    monkeypatch.setitem(llm.config, "llm_settings", {
+        "active_provider": "anthropic",
+        "models": {"anthropic": "claude-sonnet-5", "ollama": "qwen3.5:9b"},
+        "pricing": {"claude-sonnet-5": {"input_per_mtok": 3.0, "output_per_mtok": 15.0}},
+        "budget": {"daily_usd": 2.0},
+    })
+    assert llm.resolve("canvas") == ("anthropic", "claude-sonnet-5")
+
+    llm._anthropic_generate("claude-sonnet-5", "ciao", timeout=5.0)  # 1M input @ $3 = 3.0 USD
+    assert llm.spend_today_usd() == 3.0
+    assert llm.resolve("canvas") == ("ollama", "qwen3.5:9b")
+
+
+def test_chiamata_senza_pricing_non_incide_sul_budget(monkeypatch, spesa_azzerata):
+    """Senza prezzo configurato il costo non è noto: non si contabilizza nulla (meglio
+    un guard inerte che una stima inventata)."""
+    message = _FakeAnthropicMessage("x", input_tokens=1_000_000, output_tokens=1_000_000)
+    monkeypatch.setattr(llm, "_anthropic_module", lambda: _fake_anthropic_module(message))
+    _budget_settings(monkeypatch, {"daily_usd": 0.01})
+
+    llm._anthropic_generate("claude-sonnet-5", "ciao", timeout=5.0)
+    assert llm.spend_today_usd() == 0.0
+    assert llm.resolve("canvas") == ("anthropic", "claude-sonnet-5")
+
+
+def test_llm_settings_accetta_il_blocco_budget():
+    """Il blocco `budget` deve passare la validazione pydantic del task 3.2, altrimenti
+    un config che lo usa non arriverebbe nemmeno al boot."""
+    from core.config import validate_llm_settings
+
+    s = validate_llm_settings({
+        "active_provider": "ollama",
+        "models": {"ollama": "qwen3.5:9b"},
+        "budget": {"daily_usd": 5.0, "fallback_provider": "ollama",
+                   "spend_file": "database/llm_spend.json"},
+    }, boot=True)
+    assert s.budget.daily_usd == 5.0
+    assert s.budget.fallback_provider == "ollama"
+    assert s.budget.spend_file == "database/llm_spend.json"
+    # Default: fallback ollama e nessuna persistenza.
+    minimo = validate_llm_settings({
+        "active_provider": "ollama", "models": {"ollama": "m"}, "budget": {"daily_usd": 1},
+    }, boot=True)
+    assert minimo.budget.fallback_provider == "ollama" and minimo.budget.spend_file is None
+
+
+def test_llm_settings_budget_con_tipi_sbagliati_fallisce():
+    from pydantic import ValidationError
+
+    from core.config import validate_llm_settings
+
+    with pytest.raises(ValidationError):
+        validate_llm_settings({
+            "active_provider": "ollama", "models": {"ollama": "m"},
+            "budget": {"daily_usd": "cinque dollari"},
+        }, boot=True)
+
+
 def test_check_drift_tronca_oltre_il_tetto_di_caratteri(fake_settings, monkeypatch, tmp_path):
     # Anche escludendo node_modules, una feature con molti file sorgente legittimi
     # potrebbe superare la finestra di contesto: meglio un troncamento esplicito e

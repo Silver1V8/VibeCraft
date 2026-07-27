@@ -13,9 +13,12 @@ messaggio come testo). Per i test si inietta un provider fake con `register_prov
 import asyncio
 import json
 import logging
+import threading
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
 
 import httpx
 
@@ -26,6 +29,7 @@ from core.config import (
     OLLAMA_THINK,
     OLLAMA_TIMEOUT_SECONDS,
     OLLAMA_URL,
+    RAG_DIR,
     LLMSettings,
     config,
     validate_llm_settings,
@@ -98,9 +102,136 @@ def _llm_settings() -> LLMSettings:
         raise LLMError(f"Blocco 'llm_settings' non valido in rag_config.yaml: {e}") from e
 
 
+# ---------------------------------------------------------------------------
+# Budget guard: tetto di spesa GIORNALIERO (UTC) sulle chiamate Anthropic
+#
+# Il contatore si alimenta dal costo già calcolato per il log strutturato delle
+# chiamate Anthropic (_log_anthropic_usage, più sotto): senza `llm_settings.pricing`
+# per quel modello il costo non è noto e non viene contato nulla — il guard resta
+# quindi inerte, come quando il blocco `budget` manca del tutto.
+#
+# Regola di sicurezza valida per TUTTO questo blocco: il guard non deve MAI far
+# fallire una generazione. Ogni errore interno (config malformata, file di spesa
+# illeggibile, disco pieno) viene loggato e si resta sul provider originale.
+# ---------------------------------------------------------------------------
+
+_spend_lock = threading.Lock()
+# Stato in-memory del contatore: giorno UTC di competenza e spesa accumulata. Con un
+# file di persistenza configurato è solo una cache di ciò che sta su disco.
+_spend_state: dict = {"day": "", "usd": 0.0}
+
+
+def _utc_day() -> str:
+    """Giorno di competenza del contatore, in UTC (non nel fuso locale: la soglia deve
+    azzerarsi allo stesso istante ovunque giri il server)."""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+
+def _budget_settings():
+    """Blocco `llm_settings.budget` tipato, o None se assente/illeggibile."""
+    try:
+        return _llm_settings().budget
+    except Exception:
+        return None
+
+
+def _spend_file_path() -> Path | None:
+    """File JSON in cui persistere la spesa (llm_settings.budget.spend_file, relativo a
+    rag/ se non assoluto). None = contatore solo in-memory, azzerato dal riavvio."""
+    budget = _budget_settings()
+    raw = getattr(budget, "spend_file", None) if budget is not None else None
+    if not raw:
+        return None
+    path = Path(str(raw))
+    return path if path.is_absolute() else RAG_DIR / path
+
+
+def _read_spend(path: Path | None) -> tuple[str, float]:
+    """Stato (giorno, spesa) da cui partire: dal file se configurato, altrimenti dalla
+    memoria. Un file assente o corrotto vale zero — la spesa è un'informazione di
+    controllo, non un dato da recuperare a tutti i costi. Va chiamata sotto lock."""
+    if path is not None:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            return str(data.get("day") or ""), float(data.get("usd") or 0.0)
+        except (OSError, ValueError, TypeError):
+            return "", 0.0
+    return str(_spend_state["day"]), float(_spend_state["usd"])
+
+
+def _record_spend(cost_usd: float) -> None:
+    """Aggiunge il costo di UNA chiamata Anthropic riuscita al totale del giorno UTC
+    corrente (azzerandolo se l'ultimo aggiornamento è di ieri). Thread-safe."""
+    try:
+        if not cost_usd or cost_usd <= 0:
+            return
+        path = _spend_file_path()
+        today = _utc_day()
+        with _spend_lock:
+            day, usd = _read_spend(path)
+            total = (usd if day == today else 0.0) + float(cost_usd)
+            _spend_state["day"], _spend_state["usd"] = today, total
+            if path is not None:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(
+                    json.dumps({"day": today, "usd": round(total, 6)}), encoding="utf-8")
+    except Exception:
+        logger.warning("Impossibile aggiornare il contatore di spesa Claude.", exc_info=True)
+
+
+def spend_today_usd() -> float:
+    """Spesa Anthropic registrata per il giorno UTC CORRENTE. 0.0 se non c'è nulla di
+    registrato o se il totale memorizzato è di un giorno precedente (reset implicito:
+    niente job di rollover, il confronto sul giorno basta)."""
+    try:
+        today = _utc_day()
+        with _spend_lock:
+            day, usd = _read_spend(_spend_file_path())
+        return usd if day == today else 0.0
+    except Exception:
+        logger.warning("Impossibile leggere il contatore di spesa Claude.", exc_info=True)
+        return 0.0
+
+
+def _budget_fallback(provider: str, model: str, settings: LLMSettings) -> tuple[str, str]:
+    """Devia (provider, model) sul `fallback_provider` quando il provider risolto è
+    anthropic e la spesa del giorno ha raggiunto `budget.daily_usd`. Restituisce la
+    coppia originale in ogni altro caso: blocco budget assente, soglia non raggiunta,
+    fallback senza un modello in `models` (degradare su un provider non configurato
+    trasformerebbe un problema di costo in un fallimento di generazione)."""
+    if provider != "anthropic":
+        return provider, model
+    try:
+        budget = settings.budget
+        if budget is None or budget.daily_usd is None:
+            return provider, model
+        threshold = float(budget.daily_usd)
+        spent = spend_today_usd()
+        if spent < threshold:
+            return provider, model
+        fallback = budget.fallback_provider or "ollama"
+        fallback_model = (settings.models or {}).get(fallback)
+        if not fallback_model:
+            logger.warning(
+                "Budget Claude giornaliero raggiunto (spesa %.4f USD >= soglia %.4f USD) ma "
+                "il provider di fallback '%s' non ha un modello in llm_settings.models: "
+                "resto su anthropic/%s.", spent, threshold, fallback, model)
+            return provider, model
+        logger.warning(
+            "Budget Claude giornaliero raggiunto (spesa %.4f USD >= soglia %.4f USD): "
+            "instrado su %s/%s invece di anthropic/%s.",
+            spent, threshold, fallback, fallback_model, model)
+        return fallback, fallback_model
+    except Exception:
+        logger.warning("Budget guard non applicabile: resto sul provider risolto.", exc_info=True)
+        return provider, model
+
+
 def resolve(purpose: str) -> tuple[str, str]:
     """Risolve (provider, model) per lo scopo dato: override da llm_settings.purposes
-    se presente, altrimenti active_provider + models[provider]."""
+    se presente, altrimenti active_provider + models[provider]. Se il risultato è
+    anthropic e il budget giornaliero è esaurito, la coppia viene deviata sul provider
+    di fallback (vedi _budget_fallback): senza il blocco `budget` nulla cambia."""
     if purpose not in PURPOSES:
         raise LLMError(f"Scopo LLM sconosciuto: '{purpose}' (attesi: {', '.join(PURPOSES)})")
     settings = _llm_settings()
@@ -109,7 +240,7 @@ def resolve(purpose: str) -> tuple[str, str]:
     model = override.get("model") or (settings.models or {}).get(provider)
     if not model:
         raise LLMError(f"Nessun modello configurato per il provider '{provider}' (llm_settings.models).")
-    return provider, model
+    return _budget_fallback(provider, model, settings)
 
 
 # ---------------------------------------------------------------------------
@@ -204,7 +335,11 @@ def _log_anthropic_usage(model: str, message) -> None:
     llm_settings.pricing configura un prezzo per questo modello, il costo stimato in
     USD. Stesso stile della riga M3 di observability in api/routes_retrieval.py
     (ask_rag): chiavi=valore ordinate, argomenti % del logger. Non deve mai far
-    fallire la generazione: qualunque errore nel calcolo/logging viene inghiottito."""
+    fallire la generazione: qualunque errore nel calcolo/logging viene inghiottito.
+
+    Lo stesso costo stimato alimenta il contatore giornaliero del budget guard
+    (_record_spend): è l'unico punto in cui la spesa Claude viene contabilizzata,
+    quindi solo le chiamate RIUSCITE e con un prezzo configurato incidono sul tetto."""
     try:
         usage = getattr(message, "usage", None)
         if usage is None:
@@ -226,6 +361,7 @@ def _log_anthropic_usage(model: str, message) -> None:
             "llm_usage provider=anthropic model=%s input_tokens=%s output_tokens=%s cost_usd=%s",
             model, input_tokens, output_tokens, cost_usd,
         )
+        _record_spend(cost_usd)
     except Exception:
         logger.warning("Impossibile loggare la spesa Anthropic (usage/pricing malformati).", exc_info=True)
 

@@ -89,6 +89,22 @@ COLLECTION_NAME: str = config["vector_database"]["collection_name"]
 EMBEDDING_MODEL: str = config["vector_database"]["embedding_model"]
 
 
+class BudgetSettings(BaseModel):
+    """Blocco `llm_settings.budget`: tetto di spesa GIORNALIERO (UTC) sulle chiamate
+    Anthropic, con degradazione automatica su un provider locale quando è raggiunto.
+    Il blocco è opzionale e, se assente, il guard è disattivato (vedi core/llm.py:
+    `_budget_fallback`). `daily_usd` a null vale come blocco assente."""
+
+    model_config = ConfigDict(extra="allow")
+
+    daily_usd: float | None = None
+    fallback_provider: str = "ollama"
+    # File JSON in cui persistere il contatore ({"day": "YYYY-MM-DD", "usd": ...}),
+    # relativo a rag/ se non assoluto. Assente = contatore solo in-memory, azzerato
+    # a ogni riavvio del processo.
+    spend_file: str | None = None
+
+
 class LLMSettings(BaseModel):
     """Blocco `llm_settings` di rag_config.yaml, tipato. È l'UNICO blocco validato: gli
     altri (retrieval, authority, eval_gate, intake, code_parsers...) restano dict, letti
@@ -109,6 +125,9 @@ class LLMSettings(BaseModel):
     # Prezzi per-modello (USD/milione di token) usati solo per stimare cost_usd nel log
     # delle chiamate Anthropic: sezione opzionale, vedi core/llm.py:_anthropic_pricing.
     pricing: dict[str, dict[str, float]] | None = None
+    # Tetto di spesa giornaliero sulle chiamate Anthropic: sezione opzionale, assente =
+    # guard disattivato. Vedi core/llm.py:_budget_fallback.
+    budget: BudgetSettings | None = None
 
     @model_validator(mode="after")
     def _coerenza_al_boot(self, info):
