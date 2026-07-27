@@ -8,10 +8,18 @@ import re
 from pathlib import Path
 
 from core import llm, retrieval
-from core.config import CHANGES_DIR, CODE_DIR, TECH_QUERY_TEMPLATE
+from core.config import CHANGES_DIR, CODE_DIR, RAG_DIR, TECH_QUERY_TEMPLATE
 
 # Le 7 sezioni obbligatorie del REASONS Canvas (copertura strutturale e confidence).
 CANVAS_SECTIONS = ("Requirements", "Entities", "Approach", "Structure", "Operations", "Norms", "Safeguards")
+
+# Scheletri fissi dei prompt canvas/spec/validate, caricati una volta a livello modulo da
+# rag/prompts/*.md: testo iterabile senza deploy di codice (basta modificare il .md). I
+# blocchi condizionali (lessons/scope/tecnico/norme/etichetta) restano calcolati in Python
+# e iniettati via str.replace nelle build_* sotto: NON si usa .format() perché i testi
+# liberi interpolati (intervista, canvas, contesto normativo...) possono contenere '{'/'}'
+# che farebbero esplodere una .format() sul template.
+_PROMPTS = {p.stem: p.read_text(encoding="utf-8") for p in (RAG_DIR / "prompts").glob("*.md")}
 
 
 class InvalidFeatureNameError(ValueError):
@@ -289,43 +297,13 @@ def build_canvas_prompt(feature_name: str, contesto_intervista: str,
         if contesto_tecnico else ""
     )
 
-    return f"""
-    Sei un Tech Lead expert. Il tuo compito è generare un REASONS Canvas in formato Markdown per la seguente feature: "{feature_name}".
-
-    L'ARGOMENTO del Canvas è UNO SOLO: la feature emersa dall'intervista qui sotto. L'intervista
-    è l'unica fonte di COSA va costruito; tutto ciò che viene dopo sono vincoli su COME, e non
-    può cambiare l'argomento. Non descrivere funzionalità di cui l'intervista non parla.
-
-    --- INIZIO LOG INTERVISTA (EXPLORE) ---
-    {contesto_intervista}
-    --- FINE LOG INTERVISTA ---
-
-    Contesto normativo recuperato dal Graph RAG. ATTENZIONE: NON è l'argomento del Canvas — è
-    una LENTE sulla feature dell'intervista. Rispetta TASSATIVAMENTE i safeguard, i vincoli
-    della matrice permessi e i termini del glossario riportati qui sotto, non contraddirli e
-    riusa i loro codici/entità nelle sezioni Entities, Norms e Safeguards; ma NON trasformare in
-    requisiti le funzionalità che questi documenti descrivono e che l'intervista non ha chiesto:
-    se una funzionalità resta sensata dopo aver tolto l'intervista, non appartiene a questo Canvas.
-    {contesto_progetto_base}{tecnico_block}{lessons_block}{scope_note}
-
-    Il REASONS Canvas generato DEVE contenere tassativamente queste 7 sezioni:
-    1. Requirements (Cosa deve fare il modulo, estrapolato dall'intervista)
-    2. Entities (Modelli di dominio coinvolti)
-    3. Approach (Strategia logica per soddisfare i requisiti)
-    4. Structure (Layer e API coinvolte)
-    5. Operations (Step sequenziali e testabili per lo sviluppo)
-    6. Norms (Standard di naming e sicurezza, es. restrizioni email)
-    7. Safeguards (Vincoli non negoziabili e gestione degli errori concordati nell'intervista)
-
-    VERIFICA FINALE prima di rispondere — rileggi l'intervista in cima e controlla che la
-    sezione Requirements descriva ESATTAMENTE ciò che l'intervista chiede per "{feature_name}",
-    non le funzionalità dei documenti normativi qui sopra: quei documenti descrivono ANCHE
-    altri moduli del sistema (pannelli admin, altre console) che NON sono questa feature.
-    Se una funzionalità che stai per scrivere non è riconducibile a una frase dell'intervista,
-    toglila.
-
-    Rispondi esclusivamente con il contenuto del file Markdown, formattato in modo pulito.
-    """
+    return (_PROMPTS["canvas"]
+            .replace("{feature_name}", feature_name)
+            .replace("{contesto_intervista}", contesto_intervista)
+            .replace("{contesto_progetto_base}", contesto_progetto_base)
+            .replace("{tecnico_block}", tecnico_block)
+            .replace("{lessons_block}", lessons_block)
+            .replace("{scope_note}", scope_note))
 
 
 def build_spec_prompt(canvas_content: str, governed_context: str = "",
@@ -366,43 +344,11 @@ def build_spec_prompt(canvas_content: str, governed_context: str = "",
         if dev_type else ""
     )
 
-    return f"""
-    Sei un Analista Software esperto in metodologie BDD (Behavior-Driven Development).
-    Scrivi le specifiche (spec.md) di UNA SOLA feature: quella descritta dal REASONS Canvas
-    qui sotto{etichetta}. Il Canvas è l'UNICA fonte di cosa la feature fa: l'etichetta serve
-    solo a identificarla, non dedurne requisiti; e nulla di ciò che segue il Canvas può
-    cambiarne il soggetto.
-
-    {canvas_content}
-{norme_block}{scope_note}
-
-    Basandoti sulle regole e sui requisiti del Canvas (e sui vincoli normativi qui sopra, se presenti),
-    scrivi il file delle specifiche tecniche (spec.md).
-    Devi definire gli scenari di test utilizzando rigorosamente il formato:
-    - GIVEN (Dato che...)
-    - WHEN (Quando...)
-    - THEN (Allora...)
-    - AND (E...)
-
-    Ogni scenario deve avere per soggetto la feature del Canvas e descriverne un COMPORTAMENTO
-    osservabile. Non scrivere scenari che verificano lo stack, le librerie o gli strumenti in sé.
-    Niente scenari duplicati: se due differiscono solo nella formulazione, tienine uno.
-
-    Non inventare funzionalità non presenti nel Canvas o nei vincoli normativi. Se uno scenario
-    nomina una tecnologia o mostra codice, usa ESCLUSIVAMENTE le tecnologie già citate nel
-    Canvas: qualsiasi altro linguaggio, libreria o strumento è VIETATO.
-
-    VERIFICA FINALE prima di rispondere — rileggi il Canvas in cima e controlla che ogni
-    scenario discenda da un suo requisito: i vincoli normativi descrivono ANCHE altri moduli
-    del sistema (cataloghi di funzionalità, pannelli, console) che NON sono questa feature,
-    e non vanno trasformati in scenari. Se uno scenario non è riconducibile a una frase del
-    Canvas, toglilo.
-
-    Rispondi esclusivamente con il contenuto del file Markdown, senza preamboli né commenti
-    prima o dopo. Scrivi SOLO la versione definitiva: niente note a margine, auto-correzioni,
-    domande o dubbi inline («*Correzione*: ...», «*Nota*: assumiamo...») — se un punto è
-    ambiguo, scegli l'interpretazione più coerente col Canvas e scrivila come decisione.
-    """
+    return (_PROMPTS["spec"]
+            .replace("{etichetta}", etichetta)
+            .replace("{canvas_content}", canvas_content)
+            .replace("{norme_block}", norme_block)
+            .replace("{scope_note}", scope_note))
 
 
 # Entità canoniche del glossario: i nodi-entità con prefisso 'entity::'. Il resto dei nodi
@@ -555,25 +501,12 @@ def validate_structural(canvas_text: str, spec_text: str) -> dict:
 def build_validate_prompt(canvas_text: str, spec_text: str, governed: str) -> str:
     """Prompt di validazione semantica pre-apply: coerenza del design contract (Canvas+Spec)
     rispetto ai vincoli normativi governati."""
-    return f"""
-    Sei un Revisore dell'Architettura. Verifica la COERENZA del design contract (Canvas + Spec)
-    rispetto ai vincoli normativi del knowledge base, PRIMA che il codice venga scritto.
-
-    --- CANVAS ---
-    {canvas_text}
-
-    --- SPEC (scenari BDD) ---
-    {spec_text if spec_text else "(spec.md non ancora generato)"}
-
-    --- VINCOLI NORMATIVI (Graph RAG, ordinati per autorità) ---
-    {governed if governed else "(nessun documento normativo recuperato)"}
-
-    Rispondi in modo conciso indicando:
-    1. CONFLITTI: il Canvas/Spec viola o contraddice qualche safeguard, policy o termine di glossario? (SI/NO + quali)
-    2. COPERTURA: gli scenari BDD coprono i casi di errore e le invarianti dei safeguard pertinenti? Cosa manca?
-    3. NON-GOAL: c'è qualcosa fuori ambito rispetto ai vincoli?
-    Se tutto è coerente e coperto, rispondi con "✅ VALIDAZIONE SUPERATA. Design contract coerente con la governance."
-    """
+    spec_display = spec_text if spec_text else "(spec.md non ancora generato)"
+    governed_display = governed if governed else "(nessun documento normativo recuperato)"
+    return (_PROMPTS["validate"]
+            .replace("{canvas_text}", canvas_text)
+            .replace("{spec_display}", spec_display)
+            .replace("{governed_display}", governed_display))
 
 
 def _entities_for_docs(graph, doc_ids: list[str], limit: int = 24) -> list[str]:
