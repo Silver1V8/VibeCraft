@@ -14,6 +14,10 @@ def _isolate_telemetry(tmp_path_factory, monkeypatch):
     l'eval-gate o run_eval non devono inquinare eval/results/history.jsonl né database/alerts.jsonl
     reali. Reindirizza i path-modulo su una sandbox temporanea (i test che vogliono ispezionare
     l'alert continuano a fare il proprio monkeypatch mirato, che ha la precedenza)."""
-    from core import eval_history
+    from core import eval_gate, eval_history
     tmp = tmp_path_factory.mktemp("telemetry")
     monkeypatch.setattr(eval_history, "HISTORY_PATH", tmp / "history.jsonl")
+    # ALERTS_PATH va reindirizzato QUI e non solo nei test che ispezionano l'alert: senza,
+    # ogni test che innesca l'advisory dell'eval-gate appende al database/alerts.jsonl REALE,
+    # e GET /api/health riporta "degraded" con una recall fasulla per 48h (ALERT_MAX_AGE_HOURS).
+    monkeypatch.setattr(eval_gate, "ALERTS_PATH", tmp / "alerts.jsonl")

@@ -5,6 +5,17 @@ import json
 from core import eval_gate
 
 
+def test_alerts_path_isolato_dalla_fixture_autouse():
+    """Guardia di regressione sull'ISOLAMENTO, non sull'eval-gate: la fixture autouse
+    conftest._isolate_telemetry deve reindirizzare ANCHE eval_gate.ALERTS_PATH, non solo lo
+    storico eval. Senza, ogni test che innesca l'advisory appende al database/alerts.jsonl
+    REALE e /api/health resta "degraded" con una recall fasulla per 48h (successo davvero:
+    32 alert spuri scritti dalla suite il 2026-07-27). Nessun monkeypatch qui: si verifica
+    proprio il valore di default che la fixture lascia ai test."""
+    from core.config import ALERTS_PATH as REAL_ALERTS_PATH
+    assert eval_gate.ALERTS_PATH != REAL_ALERTS_PATH
+
+
 def test_gate_passes_when_recall_above_threshold(monkeypatch):
     monkeypatch.setattr(eval_gate, "evaluate_recall", lambda *a, **k: {"recall": 0.95, "n": 34, "k": 10})
     res = eval_gate.gate_promotion("v1", None, None, {}, min_recall=0.90, blocking=True)
