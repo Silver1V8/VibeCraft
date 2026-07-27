@@ -75,12 +75,41 @@ il codice sì, la domanda **riceve comunque una risposta** (prima: "Nessun docum
 rilevante"). Tutte le soglie stanno in `rag_config.yaml → retrieval.*`;
 `code_search_max_snippets: 0` disattiva il ramo diretto.
 
+**Budget guard giornaliero su Claude, fallback automatico su Ollama.**
+`core/llm.py` tiene un contatore di spesa Anthropic per giorno UTC, alimentato dallo
+stesso costo stimato già loggato per l'osservabilità (`llm_settings.pricing`): senza
+un prezzo configurato per il modello nulla viene contato e il guard resta inerte. Se
+`llm_settings.budget.daily_usd` è superato, `resolve(purpose)` devia silenziosamente
+(provider, model) su `budget.fallback_provider` (default `ollama`) — a patto che quel
+provider abbia un modello in `llm_settings.models`, altrimenti resta su anthropic per
+non trasformare un problema di costo in un fallimento di generazione. Il contatore
+persiste opzionalmente su file (`budget.spend_file`, altrimenti solo in-memory,
+azzerato al riavvio) e non fa mai fallire una chiamata: qualunque errore interno del
+guard (config malformata, file illeggibile) viene loggato e si resta sul provider
+risolto. `spend_today_usd()` espone la spesa corrente per diagnostica.
+
 **Breakdown di latenza in risposta (M3/F3).** Sia il ramo `hybrid` sia il ramo
 `graph` restituiscono, oltre a `request_id` e `index_version`, un oggetto
 `latency: {retrieval_ms, generation_ms, total_ms}` (nel ramo grafo
 `retrieval_ms` è la latenza di `graph_query` e `generation_ms` è 0): gli stessi
 valori già presenti nel log strutturato di fine richiesta, esposti anche nel JSON
 così i client (e `scripts/bench.py`) misurano il breakdown senza parsare i log.
+
+**Cache semantica su `/ask`, invalidata per `index_version`.**
+[core/ask_cache.py](core/ask_cache.py) è una LRU thread-safe in-process che azzera il
+costo (embedding + generazione LLM) delle domande ripetute — la maggioranza su una
+console di governance. La chiave (`make_key`) è `(index_version, retrieval_strategy,
+top_k, bfs_depth, sha256(domanda normalizzata))`: la domanda è normalizzata (trim,
+lowercase, spazi collassati) prima dell'hash, così due formulazioni identiche a meno
+di spaziatura condividono la voce. **L'invalidazione non esiste come operazione**:
+`index_version` fa parte della chiave, quindi dopo una re-indicizzazione o un
+rollback (`database/CURRENT` cambia in entrambi i casi) le voci della versione
+precedente non vengono più consultate e la LRU le espelle. Lo stato vive su
+`app.state.ask_cache` (non in una global di modulo, quindi i test restano isolati
+senza fixture globali), creato lazy con tetto da env `VIBECRAFT_ASK_CACHE_SIZE`
+(default 256 voci, `0` disattiva la cache). I payload cachati sono trattati come
+immutabili: la route costruisce la risposta con una copia (`{**cached, ...}`), mai
+mutando l'oggetto in cache.
 
 ## Reindex automatico: l'indice non invecchia mai
 

@@ -293,7 +293,7 @@
                 <p class="text-sm text-slate-600 mb-2">Un solo client per tutte le chiamate generative: provider e modello si scelgono per scopo.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Le chiamate generative della pipeline (drift, canvas, propose, validate, explore, review) passano da un layer unico: provider e modello si scelgono <strong>per scopo</strong> in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code> (es. Ollama per il drift, Claude per il canvas). Riceve solo il fascicolo scremato dai motori deterministici. <strong>Anche <code class="bg-gray-200 px-1 rounded font-mono">POST /ask</code></strong> passa da qui (purpose <code class="bg-gray-200 px-1 rounded font-mono">ask</code>): un solo client, stessi guardrail.</p>
+                  <p class="mt-2">Le chiamate generative della pipeline (drift, canvas, propose, validate, explore, review) passano da un layer unico: provider e modello si scelgono <strong>per scopo</strong> in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code> (es. Ollama per il drift, Claude per il canvas). Riceve solo il fascicolo scremato dai motori deterministici. <strong>Anche <code class="bg-gray-200 px-1 rounded font-mono">POST /ask</code></strong> passa da qui (purpose <code class="bg-gray-200 px-1 rounded font-mono">ask</code>): un solo client, stessi guardrail. Un <strong>budget guard giornaliero</strong> sulla spesa Claude devia automaticamente su Ollama quando la soglia (<code class="bg-gray-200 px-1 rounded font-mono">llm_settings.budget.daily_usd</code>) è raggiunta, senza mai far fallire una generazione.</p>
                 </details>
             </div>
 
@@ -308,7 +308,7 @@
                 <p class="text-sm text-slate-600 mb-2">Route sottili sopra le funzioni pure di core/. Bind locale, X-API-Key, snapshot immutabile.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Route handler sottili che iniettano le risorse nelle funzioni pure di <code class="bg-gray-200 px-1 rounded font-mono">core/</code>. Bind di default su 127.0.0.1; <code class="bg-gray-200 px-1 rounded font-mono">/api/*</code> e <code class="bg-gray-200 px-1 rounded font-mono">/ask</code> protetti da <strong>X-API-Key</strong>. L'indice vive in uno <strong>snapshot immutabile</strong>: mai versioni miste durante il reload.</p>
+                  <p class="mt-2">Route handler sottili che iniettano le risorse nelle funzioni pure di <code class="bg-gray-200 px-1 rounded font-mono">core/</code>. Bind di default su 127.0.0.1; <code class="bg-gray-200 px-1 rounded font-mono">/api/*</code> e <code class="bg-gray-200 px-1 rounded font-mono">/ask</code> protetti da <strong>X-API-Key</strong>. L'indice vive in uno <strong>snapshot immutabile</strong>: mai versioni miste durante il reload. Le domande ripetute su <code class="bg-gray-200 px-1 rounded font-mono">/ask</code> sono servite da una <strong>cache LRU in-process</strong> (<code class="bg-gray-200 px-1 rounded font-mono">core/ask_cache.py</code>), chiave = domanda + <code class="bg-gray-200 px-1 rounded font-mono">index_version</code>: dopo un reindex o un rollback le voci vecchie semplicemente smettono di essere consultate.</p>
                 </details>
             </div>
 
