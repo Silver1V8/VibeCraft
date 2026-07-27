@@ -367,7 +367,7 @@ def test_ollama_generate_still_returns_valid_content(monkeypatch):
 
 
 def _make_fake_async_client(payload: dict):
-    """httpx.AsyncClient fake minimale (async context manager + .post()) per testare
+    """httpx2.AsyncClient fake minimale (async context manager + .post()) per testare
     _ollama_agenerate senza rete."""
     class _FakeResponse:
         status_code = 200
@@ -395,13 +395,13 @@ def _make_fake_async_client(payload: dict):
 
 
 def test_ollama_agenerate_raises_on_empty_response(monkeypatch):
-    monkeypatch.setattr(llm.httpx, "AsyncClient", _make_fake_async_client({"response": ""}))
+    monkeypatch.setattr(llm.httpx2, "AsyncClient", _make_fake_async_client({"response": ""}))
     with pytest.raises(llm.LLMError, match="risposta vuota"):
         asyncio.run(llm._ollama_agenerate("qwen3.5:9b", "ciao", timeout=1.0))
 
 
 def test_ollama_agenerate_returns_content_when_present(monkeypatch):
-    monkeypatch.setattr(llm.httpx, "AsyncClient", _make_fake_async_client({"response": "spec ok"}))
+    monkeypatch.setattr(llm.httpx2, "AsyncClient", _make_fake_async_client({"response": "spec ok"}))
     assert asyncio.run(llm._ollama_agenerate("qwen3.5:9b", "ciao", timeout=1.0)) == "spec ok"
 
 

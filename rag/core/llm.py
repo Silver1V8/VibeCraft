@@ -20,7 +20,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-import httpx
+import httpx2
 
 from pydantic import ValidationError
 
@@ -283,7 +283,7 @@ def _ollama_generate(model: str, prompt: str, timeout: float) -> str:
 async def _ollama_agenerate(model: str, prompt: str, timeout: float) -> str:
     data = _ollama_payload(model, prompt)
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        async with httpx2.AsyncClient(timeout=timeout) as client:
             response = await client.post(OLLAMA_GENERATE_URL, json=data)
         if response.status_code == 404:
             raise LLMError(f"[ERRORE OLLAMA]: Il modello '{model}' non è stato trovato. Esegui 'ollama pull {model}'.")
@@ -291,9 +291,9 @@ async def _ollama_agenerate(model: str, prompt: str, timeout: float) -> str:
         return _extract_ollama_text(response.json())
     except LLMError:
         raise
-    except httpx.ConnectError as e:
+    except httpx2.ConnectError as e:
         raise LLMError("[ERRORE DI CONNESSIONE]: Impossibile raggiungere Ollama. Assicurati che l'applicazione Ollama sia avviata.") from e
-    except httpx.TimeoutException as e:
+    except httpx2.TimeoutException as e:
         raise LLMError("[ERRORE DI TIMEOUT]: Ollama sta impiegando troppo tempo a rispondere.") from e
     except Exception as e:
         raise LLMError(f"[ERRORE GENERICO OLLAMA]: {e}") from e

@@ -21,7 +21,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-import httpx
+import httpx2
 import yaml
 
 from core.eval_metrics import evaluate
@@ -106,7 +106,7 @@ def print_candidates(candidates: list[dict]) -> None:
         print()
 
 
-def http_retriever(url: str, client: httpx.Client):
+def http_retriever(url: str, client: httpx2.Client):
     """Costruisce una retrieve_fn(query, k) che interroga GET /api/retrieve del server."""
     def retrieve(query: str, k: int) -> list[dict]:
         resp = client.get(f"{url}/api/retrieve", params={"q": query, "k": k})
@@ -222,10 +222,10 @@ def main() -> int:
     cases = load_cases()
 
     try:
-        with httpx.Client(timeout=180) as client:
+        with httpx2.Client(timeout=180) as client:
             code = run_eval(cases, http_retriever(a.url, client), ks=a.k,
                             assert_min=assert_min, save=not a.no_save, url=a.url)
-    except httpx.HTTPError as e:
+    except httpx2.HTTPError as e:
         print(f"❌ /api/retrieve non raggiungibile: {e}\n   Avvia il server: python server.py")
         return 2
 

@@ -11,6 +11,7 @@ dependencies = [
     "flagembedding>=1.4.0",
     "h2==4.4.0",
     "httpx>=0.28.1",
+    "httpx2>=2.9.1",
     "markdownify>=1.2.3",
     "markitdown[docx,outlook,pdf,pptx,xls,xlsx]==0.1.6",
     "networkx>=3.6.1",

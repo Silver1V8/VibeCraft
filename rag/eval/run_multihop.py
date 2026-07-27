@@ -30,7 +30,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-import httpx
+import httpx2
 import yaml
 
 from core.eval_metrics import evaluate_case, result_matches
@@ -216,7 +216,7 @@ def main() -> int:
 
     cases = load_cases()
     try:
-        with httpx.Client(timeout=180) as client:
+        with httpx2.Client(timeout=180) as client:
             def retrieve_fn(q: str, k: int) -> list[dict]:
                 resp = client.get(f"{a.url}/api/retrieve", params={"q": q, "k": k})
                 resp.raise_for_status()
@@ -231,7 +231,7 @@ def main() -> int:
                 return resp.json()
 
             report = run(cases, retrieve_fn, graph_fn, k=a.k)
-    except httpx.HTTPError as e:
+    except httpx2.HTTPError as e:
         print(f"❌ server non raggiungibile: {e}\n   Avvia il server: python server.py")
         return 2
 

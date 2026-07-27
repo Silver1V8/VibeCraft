@@ -33,7 +33,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-import httpx
+import httpx2
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -98,7 +98,7 @@ def _skip(reason: str) -> dict:
     return {"skipped": True, "reason": reason}
 
 
-def bench_retrieve(client: httpx.Client, url: str, n: int = N_RETRIEVE_QUERIES) -> dict:
+def bench_retrieve(client: httpx2.Client, url: str, n: int = N_RETRIEVE_QUERIES) -> dict:
     """GET /api/retrieve su `n` query del golden-set: p50/p95 in ms."""
     cases = load_cases()[:n]
     latencies_ms = []
@@ -107,7 +107,7 @@ def bench_retrieve(client: httpx.Client, url: str, n: int = N_RETRIEVE_QUERIES) 
         try:
             r = client.get(f"{url}/api/retrieve", params={"q": c["q"], "k": RETRIEVE_K})
             r.raise_for_status()
-        except httpx.HTTPError as exc:
+        except httpx2.HTTPError as exc:
             return _skip(f"/api/retrieve non raggiungibile: {exc}")
         latencies_ms.append((time.perf_counter() - t0) * 1000)
     return {
@@ -118,7 +118,7 @@ def bench_retrieve(client: httpx.Client, url: str, n: int = N_RETRIEVE_QUERIES) 
     }
 
 
-def bench_ask(client: httpx.Client, url: str, queries: list[str] = ASK_QUERIES) -> dict:
+def bench_ask(client: httpx2.Client, url: str, queries: list[str] = ASK_QUERIES) -> dict:
     """POST /ask sulle 3 query fisse: latenze medie. Il breakdown (retrieval/generation/
     total) viene dall'oggetto "latency" della risposta (vedi _ASK_LATENCY_FIELDS);
     latency_total_ms_client resta come cross-check indipendente, misurato qui lato client."""
@@ -128,7 +128,7 @@ def bench_ask(client: httpx.Client, url: str, queries: list[str] = ASK_QUERIES) 
         try:
             r = client.post(f"{url}/ask", json={"question": q})
             r.raise_for_status()
-        except httpx.HTTPError as exc:
+        except httpx2.HTTPError as exc:
             return _skip(f"/ask non raggiungibile: {exc}")
         client_total_ms = round((time.perf_counter() - t0) * 1000, 2)
         body = r.json()
@@ -155,13 +155,13 @@ def bench_ask(client: httpx.Client, url: str, queries: list[str] = ASK_QUERIES) 
     return result
 
 
-def bench_semantic_map(client: httpx.Client, url: str) -> dict:
+def bench_semantic_map(client: httpx2.Client, url: str) -> dict:
     """GET /api/graph/semantic-map: latenza end-to-end e flag di troncamento."""
     t0 = time.perf_counter()
     try:
         r = client.get(f"{url}/api/graph/semantic-map")
         r.raise_for_status()
-    except httpx.HTTPError as exc:
+    except httpx2.HTTPError as exc:
         return _skip(f"/api/graph/semantic-map non raggiungibile: {exc}")
     elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)
     body = r.json()
@@ -173,7 +173,7 @@ def bench_semantic_map(client: httpx.Client, url: str) -> dict:
     }
 
 
-def _poll_job(client: httpx.Client, url: str, job_id: str, timeout_seconds: float,
+def _poll_job(client: httpx2.Client, url: str, job_id: str, timeout_seconds: float,
              interval_seconds: float = REINDEX_POLL_INTERVAL_SECONDS) -> tuple[dict | None, float]:
     """Poll di GET /api/reindex/{job_id} finché lo stato non è terminale o scade il
     timeout. Restituisce (job, wall_clock_seconds); job è None se il timeout scade prima
@@ -197,14 +197,14 @@ def _job_duration_seconds(job: dict) -> float | None:
             datetime.fromisoformat(job["created_at"])).total_seconds()
 
 
-def bench_incremental_noop(client: httpx.Client, url: str) -> dict:
+def bench_incremental_noop(client: httpx2.Client, url: str) -> dict:
     """POST /api/reindex SENZA modifiche (nessun file toccato: il vero no-op) e durata
     del job dal journal. NON è il delta reale — quello si misura solo modificando
     davvero un file e rilanciando POST /api/reindex, a mano."""
     try:
         r = client.post(f"{url}/api/reindex")
         r.raise_for_status()
-    except httpx.HTTPError as exc:
+    except httpx2.HTTPError as exc:
         return _skip(f"POST /api/reindex non raggiungibile: {exc}")
     job_id = r.json().get("job_id")
     if not job_id:
@@ -227,7 +227,7 @@ def bench_incremental_noop(client: httpx.Client, url: str) -> dict:
     }
 
 
-def bench_full_rebuild(client: httpx.Client, url: str, enabled: bool) -> dict:
+def bench_full_rebuild(client: httpx2.Client, url: str, enabled: bool) -> dict:
     """POST /api/reindex {"full": true}: SOLO se `enabled` (flag --with-rebuild esplicito).
     Di default saltato: è un'operazione lunga e costosa (ricostruzione completa + eval-gate)."""
     if not enabled:
@@ -235,7 +235,7 @@ def bench_full_rebuild(client: httpx.Client, url: str, enabled: bool) -> dict:
     try:
         r = client.post(f"{url}/api/reindex", json={"full": True})
         r.raise_for_status()
-    except httpx.HTTPError as exc:
+    except httpx2.HTTPError as exc:
         return _skip(f"POST /api/reindex (full) non raggiungibile: {exc}")
     job_id = r.json().get("job_id")
     if not job_id:
@@ -252,16 +252,16 @@ def bench_full_rebuild(client: httpx.Client, url: str, enabled: bool) -> dict:
     }
 
 
-def get_index_version(client: httpx.Client, url: str) -> str | None:
+def get_index_version(client: httpx2.Client, url: str) -> str | None:
     try:
         r = client.get(f"{url}/api/index/versions")
         r.raise_for_status()
         return r.json().get("current")
-    except httpx.HTTPError:
+    except httpx2.HTTPError:
         return None
 
 
-def run_bench(client: httpx.Client, url: str, with_rebuild: bool) -> dict:
+def run_bench(client: httpx2.Client, url: str, with_rebuild: bool) -> dict:
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "url": url,
@@ -306,7 +306,7 @@ def main() -> int:
 
     with_rebuild = a.with_rebuild and not a.skip_rebuild
 
-    with httpx.Client(timeout=1800) as client:
+    with httpx2.Client(timeout=1800) as client:
         payload = run_bench(client, a.url, with_rebuild=with_rebuild)
 
     print_summary(payload)

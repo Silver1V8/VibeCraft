@@ -382,7 +382,7 @@ scripts/ci.sh
 pwsh -File scripts/ci.ps1
 ```
 
-Qdrant e Ollama possono restare spenti: la suite li mocka ovunque (httpx.MockTransport,
+Qdrant e Ollama possono restare spenti: la suite li mocka ovunque (httpx2.MockTransport,
 attributi di `core.llm` monkeypatchati, `fastapi.testclient.TestClient` in-process). I
 soli 3 test che parlano con un Qdrant reale
 ([tests/test_qdrant_blue_green.py](tests/test_qdrant_blue_green.py), sezione
@@ -459,7 +459,7 @@ sia più veloce non sostituisce un numero salvato in `eval/results/`.
 
 I test pytest ([tests/test_bench.py](tests/test_bench.py)) coprono solo la
 **meccanica** dello script (percentili, aggregazione, polling del journal, struttura
-del JSON) con un server finto (`httpx.MockTransport`): le latenze vere restano il
+del JSON) con un server finto (`httpx2.MockTransport`): le latenze vere restano il
 comando qui sopra, da eseguire ed allegare alla PR.
 
 ## Artefatti dell'indice: formati sicuri, ispezionabili e versionati (blue/green)
