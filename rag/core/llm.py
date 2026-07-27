@@ -19,7 +19,17 @@ import urllib.request
 
 import httpx
 
-from core.config import OLLAMA_NUM_CTX, OLLAMA_THINK, OLLAMA_TIMEOUT_SECONDS, OLLAMA_URL, config
+from pydantic import ValidationError
+
+from core.config import (
+    OLLAMA_NUM_CTX,
+    OLLAMA_THINK,
+    OLLAMA_TIMEOUT_SECONDS,
+    OLLAMA_URL,
+    LLMSettings,
+    config,
+    validate_llm_settings,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,16 +82,31 @@ class LLMError(RuntimeError):
     è già leggibile dall'utente finale, negli stessi termini dei vecchi client."""
 
 
+def _llm_settings() -> LLMSettings:
+    """Vista TIPATA del blocco llm_settings corrente. Non usa la costante
+    core.config.LLM_SETTINGS ma rilegge il dict `config` a ogni chiamata: i test (e
+    l'eventuale ricarica del config) sostituiscono `config["llm_settings"]` a runtime,
+    e la risoluzione deve vedere il valore sostituito. La validazione è quella NON di
+    boot: `models` vuoto resta ammesso qui, perché il messaggio d'errore storico per
+    quel caso lo produce resolve() poco sotto."""
+    raw = config.get("llm_settings")
+    if isinstance(raw, LLMSettings):
+        return raw
+    try:
+        return validate_llm_settings(raw)
+    except ValidationError as e:
+        raise LLMError(f"Blocco 'llm_settings' non valido in rag_config.yaml: {e}") from e
+
+
 def resolve(purpose: str) -> tuple[str, str]:
     """Risolve (provider, model) per lo scopo dato: override da llm_settings.purposes
     se presente, altrimenti active_provider + models[provider]."""
     if purpose not in PURPOSES:
         raise LLMError(f"Scopo LLM sconosciuto: '{purpose}' (attesi: {', '.join(PURPOSES)})")
-    settings = config["llm_settings"]
-    override = (settings.get("purposes") or {}).get(purpose) or {}
-    provider = override.get("provider") or settings["active_provider"]
-    models = settings.get("models") or {}
-    model = override.get("model") or models.get(provider)
+    settings = _llm_settings()
+    override = (settings.purposes or {}).get(purpose) or {}
+    provider = override.get("provider") or settings.active_provider
+    model = override.get("model") or (settings.models or {}).get(provider)
     if not model:
         raise LLMError(f"Nessun modello configurato per il provider '{provider}' (llm_settings.models).")
     return provider, model

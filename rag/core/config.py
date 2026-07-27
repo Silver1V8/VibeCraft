@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 import yaml
+from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
 
 # Cartelle da escludere sempre dalla scansione del codice generato (dipendenze installate
@@ -86,19 +87,74 @@ with open(CONFIG_PATH, "r", encoding="utf-8") as _f:
 
 COLLECTION_NAME: str = config["vector_database"]["collection_name"]
 EMBEDDING_MODEL: str = config["vector_database"]["embedding_model"]
-LLM_PROVIDER: str = config["llm_settings"]["active_provider"]
-LLM_MODEL: str = config["llm_settings"]["models"][LLM_PROVIDER]
+
+
+class LLMSettings(BaseModel):
+    """Blocco `llm_settings` di rag_config.yaml, tipato. È l'UNICO blocco validato: gli
+    altri (retrieval, authority, eval_gate, intake, code_parsers...) restano dict, letti
+    con .get() e default espliciti — lì un valore mancante degrada, qui invece un typo
+    faceva esplodere una KeyError DENTRO una richiesta (resolve() in core/llm.py), cioè
+    nel punto peggiore. Con questo modello un config malformato fallisce al BOOT.
+
+    `extra="allow"`: il formato del file non cambia e chiavi future/sperimentali non
+    devono far fallire l'avvio."""
+
+    model_config = ConfigDict(extra="allow")
+
+    active_provider: str
+    models: dict[str, str] = {}
+    purposes: dict[str, dict] | None = None
+    ollama_think: bool | None = None
+    ollama_num_ctx: int | None = None
+    # Prezzi per-modello (USD/milione di token) usati solo per stimare cost_usd nel log
+    # delle chiamate Anthropic: sezione opzionale, vedi core/llm.py:_anthropic_pricing.
+    pricing: dict[str, dict[str, float]] | None = None
+
+    @model_validator(mode="after")
+    def _coerenza_al_boot(self, info):
+        """Controlli che valgono SOLO alla validazione di avvio (context={"boot": True}),
+        non alla ri-validazione per richiesta fatta da core.llm.resolve(): lì un
+        `models` vuoto deve continuare a produrre l'LLMError storico, non un errore di
+        validazione (retrocompatibilità sui messaggi d'errore)."""
+        if not (info.context or {}).get("boot"):
+            return self
+        if not self.models:
+            raise ValueError(
+                "llm_settings.models è vuoto: serve almeno una voce provider -> modello.")
+        if self.active_provider not in self.models:
+            raise ValueError(
+                f"llm_settings.models non ha un modello per active_provider "
+                f"'{self.active_provider}' (presenti: {', '.join(sorted(self.models)) or 'nessuno'}).")
+        return self
+
+
+def validate_llm_settings(raw, *, boot: bool = False) -> LLMSettings:
+    """Valida il blocco llm_settings grezzo (dict da YAML) restituendo il modello tipato.
+    Solleva pydantic.ValidationError con un messaggio leggibile se manca active_provider
+    o se i tipi non tornano; con boot=True aggiunge i controlli di coerenza dell'avvio
+    (models non vuoto e coerente con active_provider)."""
+    return LLMSettings.model_validate(raw or {}, context={"boot": boot} if boot else None)
+
+
+try:
+    LLM_SETTINGS: LLMSettings = validate_llm_settings(config.get("llm_settings"), boot=True)
+except ValidationError as _e:
+    raise RuntimeError(
+        f"Blocco 'llm_settings' non valido in {CONFIG_PATH}:\n{_e}"
+    ) from _e
+
+LLM_PROVIDER: str = LLM_SETTINGS.active_provider
+LLM_MODEL: str = LLM_SETTINGS.models[LLM_PROVIDER]
 # Thinking dei modelli Ollama (rag_config.yaml → llm_settings.ollama_think). None = parametro
 # non inviato (compatibilità con modelli senza campo `think`); false = disattivato, la scelta
 # della pipeline (vedi commento nel config: risposte vuote quando il ragionamento esaurisce
 # la generazione).
-OLLAMA_THINK: bool | None = config["llm_settings"].get("ollama_think")
+OLLAMA_THINK: bool | None = LLM_SETTINGS.ollama_think
 # Finestra di contesto richiesta a Ollama (llm_settings.ollama_num_ctx). None = default di
 # Ollama (4096), che pero tronca silenziosamente dall'alto i prompt di canvas/propose
 # (>4.300 token): vedi il commento nel config. Va inviata a ogni richiesta perche non e
-# una proprieta del modello ma della singola generazione.
-_num_ctx = config["llm_settings"].get("ollama_num_ctx")
-OLLAMA_NUM_CTX: int | None = int(_num_ctx) if _num_ctx else None
+# una proprieta del modello ma della singola generazione. 0/null = parametro non inviato.
+OLLAMA_NUM_CTX: int | None = LLM_SETTINGS.ollama_num_ctx or None
 
 # Scelta dell'implementazione dei parser di code_index per linguaggio
 # (es. {"typescript": "treesitter"}); assente o "regex" = parser storico.

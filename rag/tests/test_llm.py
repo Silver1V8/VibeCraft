@@ -54,6 +54,105 @@ def test_resolve_purpose_sconosciuto(fake_settings):
         llm.resolve("traduzione")
 
 
+def test_resolve_senza_modello_per_il_provider(monkeypatch):
+    """models vuoto (o senza voce per il provider attivo) -> LLMError storico, non un
+    errore di validazione pydantic: il messaggio è verificato per intero."""
+    monkeypatch.setitem(llm.config, "llm_settings", {"active_provider": "fake", "models": {}})
+    with pytest.raises(llm.LLMError) as exc:
+        llm.resolve("drift")
+    assert str(exc.value) == "Nessun modello configurato per il provider 'fake' (llm_settings.models)."
+
+
+def test_resolve_accetta_anche_un_blocco_gia_tipato(monkeypatch):
+    """resolve() accetta indifferentemente il dict grezzo (caso normale) e un
+    LLMSettings già validato messo in config: stessa risoluzione."""
+    from core.config import LLMSettings
+
+    settings = LLMSettings(
+        active_provider="fake", models={"fake": "fake-model"},
+        purposes={"canvas": {"provider": "anthropic", "model": "claude-opus-4-8"}},
+    )
+    monkeypatch.setitem(llm.config, "llm_settings", settings)
+    assert llm.resolve("drift") == ("fake", "fake-model")
+    assert llm.resolve("canvas") == ("anthropic", "claude-opus-4-8")
+
+
+# ---------------------------------------------------------------------------
+# Validazione pydantic del blocco llm_settings (task 2.3): un config malformato
+# deve fallire al BOOT con un messaggio leggibile, non con una KeyError dentro una
+# richiesta.
+# ---------------------------------------------------------------------------
+
+def test_llm_settings_valido_carica_i_valori_del_config_reale():
+    from core.config import LLM_MODEL, LLM_PROVIDER, LLM_SETTINGS, OLLAMA_NUM_CTX, OLLAMA_THINK
+
+    assert LLM_PROVIDER == LLM_SETTINGS.active_provider
+    assert LLM_MODEL == LLM_SETTINGS.models[LLM_PROVIDER]
+    assert OLLAMA_THINK == LLM_SETTINGS.ollama_think
+    assert OLLAMA_NUM_CTX == (LLM_SETTINGS.ollama_num_ctx or None)
+
+
+def test_llm_settings_accetta_un_blocco_completo():
+    from core.config import validate_llm_settings
+
+    s = validate_llm_settings({
+        "active_provider": "ollama",
+        "models": {"ollama": "qwen3.5:9b"},
+        "purposes": {"canvas": {"model": "qwen3.5:27b"}},
+        "ollama_think": False,
+        "ollama_num_ctx": 16384,
+        "pricing": {"claude-sonnet-5": {"input_per_mtok": 3.0, "output_per_mtok": 15.0}},
+        "chiave_futura": "ignorata ma non fatale",
+    }, boot=True)
+    assert (s.active_provider, s.models["ollama"]) == ("ollama", "qwen3.5:9b")
+    assert s.ollama_think is False and s.ollama_num_ctx == 16384
+    assert s.pricing["claude-sonnet-5"]["input_per_mtok"] == 3.0
+
+
+def test_llm_settings_active_provider_mancante_e_errore_chiaro():
+    from pydantic import ValidationError
+
+    from core.config import validate_llm_settings
+
+    with pytest.raises(ValidationError) as exc:
+        validate_llm_settings({"models": {"ollama": "qwen3.5:9b"}}, boot=True)
+    assert "active_provider" in str(exc.value)
+
+
+def test_llm_settings_models_vuoto_e_errore_chiaro_al_boot():
+    from pydantic import ValidationError
+
+    from core.config import validate_llm_settings
+
+    with pytest.raises(ValidationError) as exc:
+        validate_llm_settings({"active_provider": "ollama", "models": {}}, boot=True)
+    assert "models" in str(exc.value)
+
+
+def test_llm_settings_provider_attivo_senza_modello_e_errore_chiaro_al_boot():
+    from pydantic import ValidationError
+
+    from core.config import validate_llm_settings
+
+    with pytest.raises(ValidationError) as exc:
+        validate_llm_settings(
+            {"active_provider": "ollama", "models": {"anthropic": "claude-sonnet-5"}}, boot=True)
+    assert "active_provider" in str(exc.value)
+
+
+def test_llm_settings_tipi_sbagliati_falliscono():
+    from pydantic import ValidationError
+
+    from core.config import validate_llm_settings
+
+    with pytest.raises(ValidationError):
+        validate_llm_settings({"active_provider": "ollama", "models": "qwen3.5:9b"}, boot=True)
+    with pytest.raises(ValidationError):
+        validate_llm_settings(
+            {"active_provider": "ollama", "models": {"ollama": "m"}, "ollama_num_ctx": "molto"},
+            boot=True)
+
+
 def test_provider_non_supportato(monkeypatch):
     monkeypatch.setitem(llm.config, "llm_settings", {
         "active_provider": "inesistente", "models": {"inesistente": "x"},
