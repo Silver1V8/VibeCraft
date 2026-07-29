@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "vibecraft-rag",
-      "runtimeExecutable": "uv",
-      "runtimeArgs": ["run", "python", "server.py"],
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/run_server.ps1"],
       "cwd": "rag",
       "port": 8000
     },

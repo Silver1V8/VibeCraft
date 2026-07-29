@@ -6,7 +6,16 @@ import os
 from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
+
+# Segreti locali di sviluppo (VIBECRAFT_API_KEY ecc.): caricati da rag/.env.local se
+# presente, PRIMA che qualunque modulo legga os.environ (in particolare api/deps.py,
+# importato più sotto nella catena). Così il valore è disponibile indipendentemente da
+# come viene lanciato il processo (uv run, PyCharm/IDE run config, python diretto...),
+# non solo da uno script wrapper che esporta l'env a mano. override=False: un env var
+# già impostato esplicitamente dal chiamante vince sempre su .env.local.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env.local", override=False)
 
 
 # Cartelle da escludere sempre dalla scansione del codice generato (dipendenze installate

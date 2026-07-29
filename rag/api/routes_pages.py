@@ -4,8 +4,9 @@ che serve la versione unificata (un file, CSS variables + data-theme iniettato d
 se esiste, altrimenti ricade sulla vecchia coppia Matrix/Classico — vedi
 templates/CLAUDE_DESIGN_CONTRACT.md per il contratto di migrazione."""
 from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse
 
-from api.deps import serve_page
+from api.deps import NO_CACHE_HEADERS, inject_agent_api_key, serve_page
 
 router = APIRouter()
 
@@ -18,8 +19,15 @@ async def serve_dashboard(request: Request):
 
 @router.get("/pipeline", include_in_schema=False)
 async def serve_pipeline(request: Request):
-    """Serve la console Explore -> Canvas -> Propose."""
-    return serve_page(request, "pipeline.unified.html", "pipeline.html", "pipeline_classic.html")
+    """Serve la console Explore -> Canvas -> Propose, iniettando la X-API-Key di
+    /api/pipeline/agent/run (solo per client locali — vedi inject_agent_api_key) così il
+    pulsante 'Esegui' funziona subito dopo un riavvio del server, senza doverla reimpostare
+    a mano in localStorage da console."""
+    response = serve_page(request, "pipeline.unified.html", "pipeline.html", "pipeline_classic.html")
+    if isinstance(response, HTMLResponse):
+        html = inject_agent_api_key(response.body.decode("utf-8"), request)
+        response = HTMLResponse(html, headers=NO_CACHE_HEADERS)
+    return response
 
 
 @router.get("/infografica", include_in_schema=False)

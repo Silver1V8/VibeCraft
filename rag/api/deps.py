@@ -49,12 +49,19 @@ def _valid_api_key(request: Request) -> bool:
     return bool(API_KEY) and request.headers.get("X-API-Key") == API_KEY
 
 
+def _is_local_request(request: Request) -> bool:
+    """True se la richiesta arriva da 127.0.0.1/::1 (client_host lato server, non
+    l'origin del chiamante). Condivisa da require_api_key (bypass) e dall'iniezione
+    della chiave nella pagina /pipeline (_inject_agent_api_key)."""
+    client_host = request.client.host if request.client else None
+    return client_host in ("127.0.0.1", "::1")
+
+
 def require_api_key(request: Request) -> None:
     """Lascia passare le richieste da localhost; per tutte le altre, richiede
     l'header X-API-Key (env VIBECRAFT_API_KEY). Se la chiave non è configurata,
     le richieste non locali vengono sempre rifiutate (fail-closed)."""
-    client_host = request.client.host if request.client else None
-    if client_host in ("127.0.0.1", "::1"):
+    if _is_local_request(request):
         return
     if not _valid_api_key(request):
         raise HTTPException(status_code=401, detail="API key richiesta per accesso non locale.")
@@ -529,3 +536,33 @@ def serve_page(request: Request, unified_name: str, matrix_name: str, classic_na
     # Fallback: pagina non ancora unificata -> vecchia coppia di file per tema (invariata).
     legacy_path = themed_template(request, matrix_name, classic_name)
     return FileResponse(legacy_path, media_type="text/html", headers=NO_CACHE_HEADERS)
+
+
+_HEAD_CLOSE_RE = re.compile(r"</head>", re.IGNORECASE)
+
+
+def inject_agent_api_key(html: str, request: Request) -> str:
+    """Inietta la X-API-Key richiesta da /api/pipeline/agent/run (require_api_key_strict,
+    l'UNICO endpoint che non bypassa mai localhost — esegue shell/scrittura file via Claude
+    Agent SDK) come variabile JS same-origin, SOLO per richieste locali (stessa condizione
+    di require_api_key, vedi _is_local_request).
+
+    Perché è sicuro anche se sembra "ridare" il bypass che require_api_key_strict nega
+    apposta: la Same-Origin Policy del browser impedisce a uno script di un'ALTRA origine
+    (una pagina ostile aperta in un'altra tab) di LEGGERE il body di questa risposta — può
+    solo farsi navigare o fare fetch() opachi, mai leggerne il contenuto. Solo lo script
+    della pagina stessa (same-origin, cioè questa dashboard) può leggere `window.__...__` e
+    riusarlo. Un attaccante cross-site non impara nulla che non potrebbe già ottenere aprendo
+    lui stesso questa pagina — e se la apre, è comunque un client locale, non l'attaccante.
+
+    Se il server viene esposto oltre localhost (VIBECRAFT_HOST) l'iniezione si disattiva da
+    sola (_is_local_request torna False per i client remoti): il fail-closed di
+    require_api_key_strict per i non-locali resta intatto, la chiave non trapela mai nella
+    pagina servita a un client remoto."""
+    if not API_KEY or not _is_local_request(request):
+        return html
+    match = _HEAD_CLOSE_RE.search(html)
+    if not match:
+        return html
+    script = f"<script>window.__VIBECRAFT_AGENT_API_KEY__={json.dumps(API_KEY)};</script>"
+    return html[:match.start()] + script + html[match.start():]

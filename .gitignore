@@ -5,6 +5,10 @@ env/
 __pycache__/
 *.pyc
 
+# Segreti locali di sviluppo (VIBECRAFT_API_KEY ecc.), letti da scripts/run_server.ps1:
+# mai da committare, ogni sviluppatore ha la propria copia locale.
+rag/.env.local
+
 # Dati Locali del RAG (Generati dagli script)
 rag/database/qdrant_data/
 # Versionamento blue/green degli artefatti: directory versionate + puntatore CURRENT
@@ -58,3 +62,11 @@ qdrant_snapshots_backup/
 # mai da versionare in questo repo — resta solo lo scheletro della cartella (.gitkeep).
 docs/05_project_specs/*
 !docs/05_project_specs/.gitkeep
+
+# docs/: congelata su git allo stato committato. I file già tracciati sono marcati
+# skip-worktree (git update-index --skip-worktree), quindi le modifiche locali non
+# risultano più a `git status`/`git diff`; questa regola copre invece i file NUOVI
+# (output locali di run della pipeline, bozze, ecc.) così non compaiono come untracked.
+# Per far tornare tracciabile un file specifico: git update-index --no-skip-worktree <path>.
+docs/*
+!docs/**/.gitkeep

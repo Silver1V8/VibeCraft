@@ -1020,10 +1020,20 @@
       out.style.display = '';
       out.textContent = `⏳ Avvio Claude Code (${model}) in modalità "${mode}"…\n\n`;
 
+      // X-API-Key richiesta sempre (anche da localhost) per questo endpoint — vedi
+      // api/deps.py::require_api_key_strict. Il server la inietta da solo a ogni
+      // caricamento della pagina (inject_agent_api_key, SOLO per client locali) in
+      // window.__VIBECRAFT_AGENT_API_KEY__: niente piu' da fare a mano dopo un riavvio.
+      // localStorage resta come fallback (es. se in futuro servisse impostarla a mano
+      // da console: localStorage.setItem('vibecraft_agent_api_key', '...')).
+      const apiKey = window.__VIBECRAFT_AGENT_API_KEY__ || localStorage.getItem('vibecraft_agent_api_key') || '';
+      const headers = { 'Content-Type': 'application/json' };
+      if (apiKey) headers['X-API-Key'] = apiKey;
+
       try {
         const res = await fetch('/api/pipeline/agent/run', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({ prompt, mode, model }),
         });
         if (!res.ok) {
