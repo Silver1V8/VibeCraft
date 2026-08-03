@@ -475,7 +475,7 @@ wheels = [
 
 [[package]]
 name = "fastapi"
-version = "0.140.13"
+version = "0.141.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-doc" },
@@ -484,9 +484,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2f/cb/7a4d2c2eb5a5d8a91763c05b7383d72917862e32f780daa0e27ffbb34cc6/fastapi-0.140.13.tar.gz", hash = "sha256:500172a08cf1459901f90b05c37d93060dada3b573fec8f0862445db52ba6b4b", size = 424843, upload-time = "2026-07-28T15:37:00.805Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8a/02/91e3416a8fdd715abb903a952a6bec7cdd8d14eed55d415fc8595524c319/fastapi-0.141.1.tar.gz", hash = "sha256:e8822fc40db1e1858054d7a949a888695bc9bdce70139178e33bd2871a453ca1", size = 425799, upload-time = "2026-07-29T17:18:05.568Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/84/4e/f9e8c762ef5e05c40482131e3d5e8b36bca13fa127578261f1d6b35a25d4/fastapi-0.140.13-py3-none-any.whl", hash = "sha256:8b017110e1e9f30a95e8bdb8f71fbe2f0fe3af5717109e5b14f9e069df54f6d4", size = 131222, upload-time = "2026-07-28T15:37:02.124Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/03/10388a42375ee7e4ac9b94eb2c5c569c8b5795e377e701c9ac3ad63de890/fastapi-0.141.1-py3-none-any.whl", hash = "sha256:bfb91aa2d334c61cb35ba9a116fc123b3d3df31640b801cf57a7a78ec3f603b3", size = 131954, upload-time = "2026-07-29T17:18:04.364Z" },
 ]
 
 [[package]]
@@ -977,7 +977,7 @@ wheels = [
 
 [[package]]
 name = "markitdown"
-version = "0.1.6"
+version = "0.1.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -988,9 +988,9 @@ dependencies = [
     { name = "markdownify" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/18/b7/91fe0e2df07107ab701a15c8ad3213135707e4d6206ae9bd8f457a7ad86a/markitdown-0.1.6.tar.gz", hash = "sha256:e5bdbaffd971b29598c7c39ef0e9afce2f08c0751fbfa4e4257678ebaf8cfc7e", size = 50795, upload-time = "2026-05-26T22:43:59.318Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/59/93/e8a4af0c47551beb6383e226e840cbc811a577b8096eb385251b3fcc8f62/markitdown-0.1.7.tar.gz", hash = "sha256:4d1f3c69cd43b82288fdc3653686d759dcf355ee7c681aa6a855aed98a1e4f44", size = 51767, upload-time = "2026-07-29T18:20:31.496Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9e/30/8031f183ee86ea8ac4e7ea1296bab4cca1bee2fd036a26df69764eb7ca74/markitdown-0.1.6-py3-none-any.whl", hash = "sha256:07b2d5bf87b5c53e13a9f2fdc440df8ccc85e26f40c1e557781727b700049775", size = 70032, upload-time = "2026-05-26T22:44:03.209Z" },
+    { url = "https://files.pythonhosted.org/packages/fc/16/51d269a754d690ec31d3faa0686c8c14ac955dbc0580c358f256ba3391ec/markitdown-0.1.7-py3-none-any.whl", hash = "sha256:4eca912c87c6aa6897284a7f4bf6769a23bccf8544530f5d8b175fbe3797c916", size = 71093, upload-time = "2026-07-29T18:20:30.226Z" },
 ]
 
 [package.optional-dependencies]
@@ -1982,13 +1982,13 @@ requires-dist = [
     { name = "aiohttp", specifier = "==3.14.3" },
     { name = "beautifulsoup4", specifier = ">=4.15.0" },
     { name = "claude-agent-sdk", specifier = "==0.2.128" },
-    { name = "fastapi", specifier = "==0.140.13" },
+    { name = "fastapi", specifier = "==0.141.1" },
     { name = "flagembedding", specifier = ">=1.4.0" },
     { name = "h2", specifier = "==4.4.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "httpx2", specifier = ">=2.9.1" },
     { name = "markdownify", specifier = ">=1.2.3" },
-    { name = "markitdown", extras = ["docx", "outlook", "pdf", "pptx", "xls", "xlsx"], specifier = "==0.1.6" },
+    { name = "markitdown", extras = ["docx", "outlook", "pdf", "pptx", "xls", "xlsx"], specifier = "==0.1.7" },
     { name = "networkx", specifier = ">=3.6.1" },
     { name = "numpy", specifier = ">=2.5.1" },
     { name = "pydantic", specifier = ">=2.13.4" },
@@ -2000,9 +2000,9 @@ requires-dist = [
     { name = "torch", index = "https://download.pytorch.org/whl/cu126" },
     { name = "tree-sitter", specifier = ">=0.26.0" },
     { name = "tree-sitter-javascript", specifier = ">=0.25.0" },
-    { name = "tree-sitter-language-pack", specifier = "==1.13.5" },
+    { name = "tree-sitter-language-pack", specifier = "==1.14.0" },
     { name = "tree-sitter-typescript", specifier = ">=0.23.2" },
-    { name = "uvicorn", specifier = "==0.52.0" },
+    { name = "uvicorn", specifier = "==0.52.1" },
 ]
 
 [package.metadata.requires-dev]
@@ -2494,19 +2494,19 @@ wheels = [
 
 [[package]]
 name = "tree-sitter-language-pack"
-version = "1.13.5"
+version = "1.14.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "tree-sitter" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/be/05/5cb3b284af09158be334b3f7f75e014e6c61b130d3ccc28167b1e18eb256/tree_sitter_language_pack-1.13.5.tar.gz", hash = "sha256:148931c6e19abd1b676b624f6599ec95726f4871e72dd9b8908f500eb6f065b1", size = 82099, upload-time = "2026-07-27T10:32:14.656Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b2/65/1e5eb260ee3fbfc66418afcc89d5f2db0bbde21d57659922a0c13e8fa38e/tree_sitter_language_pack-1.14.0.tar.gz", hash = "sha256:4d155cac55f72cff8066e7ddc8f08913ac4cf728a8bdce4abd44a34848921c4f", size = 82315, upload-time = "2026-08-01T23:33:19.771Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a5/a9/8fddd15ded2239a713505f6ea55717a92cb91dc8a658f632cc5f2f517af7/tree_sitter_language_pack-1.13.5-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:1de57aa0f876b7535ee5cef0549ed3860402ea912eefef38b68527fa1f0bd4f3", size = 2146300, upload-time = "2026-07-27T10:32:07.36Z" },
-    { url = "https://files.pythonhosted.org/packages/46/17/ba43c9bb140a87b1194f44104ea3d743857069b9e75498ef36c6acfea740/tree_sitter_language_pack-1.13.5-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:7c4553c61453111138857cacefa563a35efb33bdab3f902bd62a35c44dda96de", size = 2037500, upload-time = "2026-07-27T10:32:08.626Z" },
-    { url = "https://files.pythonhosted.org/packages/eb/ce/8c5d0a84d515baf4b825f997345fec57d6ec58b5a27ebba06bd7b649f9fc/tree_sitter_language_pack-1.13.5-cp310-abi3-manylinux_2_34_aarch64.whl", hash = "sha256:46a3ab8f48e8e5d3c6ce0e2904c4b7faa9b2dbfcf6dad4bd76ddfaa69e78b7bf", size = 2194612, upload-time = "2026-07-27T10:32:09.845Z" },
-    { url = "https://files.pythonhosted.org/packages/b2/16/753c2d57075e1ab4a946c6a2461ff60e4314f425fbbd56b08532e350587c/tree_sitter_language_pack-1.13.5-cp310-abi3-manylinux_2_34_x86_64.whl", hash = "sha256:fb864927710e092a7201cc4bcd0647d6578655cd6951a3485fa9b0df043715c0", size = 2305997, upload-time = "2026-07-27T10:32:11.145Z" },
-    { url = "https://files.pythonhosted.org/packages/eb/1d/af60b41dfc3f02dd54294104f95bd8b44c41a3e3d3e5a3e7322799378b43/tree_sitter_language_pack-1.13.5-cp310-abi3-win_amd64.whl", hash = "sha256:dcb9640d8b6d89341c2707c77fbdc091c3ba7148d564980d238b1b5be25d34bb", size = 2080478, upload-time = "2026-07-27T10:32:12.373Z" },
-    { url = "https://files.pythonhosted.org/packages/4e/e3/a8826afa09c887b9537c9b2c40fb352a9911646ed557339f6f69f57cb10b/tree_sitter_language_pack-1.13.5-cp310-abi3-win_arm64.whl", hash = "sha256:eae20d7fe006ef8fcbfdaf37ebaa647750a4f885d90ca4c2bad1c1844bf9053a", size = 1991944, upload-time = "2026-07-27T10:32:13.604Z" },
+    { url = "https://files.pythonhosted.org/packages/19/75/11cf1942b5eabb722a7948834c873fedb156a1a75ace765b5117fdaf7273/tree_sitter_language_pack-1.14.0-cp310-abi3-macosx_10_12_x86_64.whl", hash = "sha256:73d8af2801252fdd8225186fc7c832c36ec669dd6239ec18cdb0b000c0f0f096", size = 2197454, upload-time = "2026-08-01T23:33:11.795Z" },
+    { url = "https://files.pythonhosted.org/packages/2c/9b/54ca109457e3341516c8d17b52b926515d97a8caed000bdb39de61e3df15/tree_sitter_language_pack-1.14.0-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:eda64aa3ea7aa0aa574d4ff7802ccc2f252b7ba1efc53392c10feeafe74c8458", size = 2090931, upload-time = "2026-08-01T23:33:13.663Z" },
+    { url = "https://files.pythonhosted.org/packages/12/9b/0b11815d83cce26dff1e5a8e3771311a255a280e9512b8e71233f7e70450/tree_sitter_language_pack-1.14.0-cp310-abi3-manylinux_2_34_aarch64.whl", hash = "sha256:2fe520f507172188c31a6939ffa25575ef1384f5ad0aadcc1e4ba34bd50d2ace", size = 2248091, upload-time = "2026-08-01T23:33:14.937Z" },
+    { url = "https://files.pythonhosted.org/packages/0c/20/3dfb1e78dd0a5312dd53208cc88461acf0521f6f746eebb58805b68ce3d4/tree_sitter_language_pack-1.14.0-cp310-abi3-manylinux_2_34_x86_64.whl", hash = "sha256:3c7fd0218028e6fd9b465e43e3dc5096ca3ff636e881184793af760752111fcd", size = 2357093, upload-time = "2026-08-01T23:33:16.249Z" },
+    { url = "https://files.pythonhosted.org/packages/41/fc/e1dd01505a75fc22e5bf531259ce85698caa4e279a89f2ae8ae721cae689/tree_sitter_language_pack-1.14.0-cp310-abi3-win_amd64.whl", hash = "sha256:1f4654b5abb9ffc44c6dea92928515bcc72dddacc6e4c4df2c6f154f0ee8b04e", size = 2135181, upload-time = "2026-08-01T23:33:17.563Z" },
+    { url = "https://files.pythonhosted.org/packages/39/78/9e20271d574e2671df7f470c3cd1af56077352c20a24cbcebfc217b38146/tree_sitter_language_pack-1.14.0-cp310-abi3-win_arm64.whl", hash = "sha256:3b1e7c9ec2dc994e84e6975ec6d034bc8f089f88540deada59ec2b4bea3a1dd0", size = 2043177, upload-time = "2026-08-01T23:33:18.655Z" },
 ]
 
 [[package]]
@@ -2600,15 +2600,15 @@ wheels = [
 
 [[package]]
 name = "uvicorn"
-version = "0.52.0"
+version = "0.52.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
     { name = "h11" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/05/c8/2d307868453a4bca6e64fa3581d122ae0748a0869c53f159339def179c7c/uvicorn-0.52.0.tar.gz", hash = "sha256:ca8876ad6c1983f394157c168b39d52f6dd56dabf5602fa0982751cffc2293ae", size = 97504, upload-time = "2026-07-29T08:45:34.065Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/03/18/ccce41535dee1be77735592bd19965f3972c82e07ee703d324709496b716/uvicorn-0.52.1.tar.gz", hash = "sha256:112ec661814189acbccd3f7b86460147cc065fc92c0821afa78918780e4354dd", size = 100571, upload-time = "2026-08-01T18:19:30.732Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/39/e6/b5c0630ace9757232aec07112be8146b812787db52141ff9d50674aa7634/uvicorn-0.52.0-py3-none-any.whl", hash = "sha256:3d887809810b89ed33501bcf0a9aba469b06ecd608158efce04bd6b48d8c9b08", size = 79058, upload-time = "2026-07-29T08:45:32.492Z" },
+    { url = "https://files.pythonhosted.org/packages/c7/d5/68e6e9bca63c0badf67002890a46d3784c958de45b65e1275ec583ca1f06/uvicorn-0.52.1-py3-none-any.whl", hash = "sha256:e4403f9d93188cf9d1088e9f40e3acd12630e2df8675316704379a7fc20fff6a", size = 79859, upload-time = "2026-08-01T18:19:29.294Z" },
 ]
 
 [[package]]
