@@ -1157,7 +1157,10 @@
         await consumeNdjson(res, ev => {
           if (ev.type === 'log') box.textContent += ev.line + '\n';
           else if (ev.type === 'reloaded') box.textContent += '\n🔄 Indice ricaricato in memoria.\n';
-          else if (ev.type === 'reindex_queued') box.textContent += `\n🔄 Re-indicizzazione accodata, job ${ev.job_id} (stato su /api/reindex/${ev.job_id}).\n`;
+          else if (ev.type === 'reindex_queued') {
+            box.textContent += `\n🔄 Re-indicizzazione accodata, job ${ev.job_id} (stato su /api/reindex/${ev.job_id}).\n`;
+            pollReindexJob(ev.job_id, box);
+          }
           else if (ev.type === 'error') { hadError = true; box.textContent += `\n❌ ${ev.message}\n`; }
           box.scrollTop = box.scrollHeight;
         });
@@ -1171,6 +1174,49 @@
         btn.disabled = false;
         setPanelVisible('archive-loader', false);
       }
+    }
+
+    /* ──────────── NOTIFICA A FINE RE-INDICIZZAZIONE (poll job in background) ──────────── */
+    const _TERMINAL_REINDEX_STATES = ['completed', 'completed_not_promoted', 'failed', 'interrupted'];
+    const _REINDEX_STATUS_LABELS = {
+      completed: 'completata',
+      completed_not_promoted: 'completata ma NON promossa (eval-gate sotto soglia)',
+      failed: 'fallita',
+      interrupted: 'interrotta',
+    };
+
+    async function notifyReindexDone(message, ok) {
+      toast(message, ok ? 'success' : 'warning');
+      if (typeof Notification === 'undefined') return;
+      try {
+        let perm = Notification.permission;
+        if (perm === 'default') perm = await Notification.requestPermission();
+        if (perm === 'granted') new Notification('VibeCraft — Re-indicizzazione', { body: message });
+      } catch (_e) { /* Notification bloccata/non disponibile: il toast basta comunque. */ }
+    }
+
+    function pollReindexJob(jobId, box) {
+      const POLL_MS = 4000;
+      const tick = async () => {
+        let job;
+        try {
+          const res = await fetch(`/api/reindex/${jobId}`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          job = await res.json();
+        } catch (e) {
+          box.textContent += `\n⚠ Impossibile verificare lo stato del job ${jobId}: ${e.message}\n`;
+          box.scrollTop = box.scrollHeight;
+          return;
+        }
+        if (!_TERMINAL_REINDEX_STATES.includes(job.status)) { setTimeout(tick, POLL_MS); return; }
+        const ok = job.status === 'completed';
+        const label = _REINDEX_STATUS_LABELS[job.status] || job.status;
+        const message = `Re-indicizzazione ${label} (job ${jobId}).`;
+        box.textContent += `\n${ok ? '✅' : '⚠'} ${message}\n`;
+        box.scrollTop = box.scrollHeight;
+        notifyReindexDone(message, ok);
+      };
+      setTimeout(tick, POLL_MS);
     }
 
     function copyFinalPrompt(btn) {
