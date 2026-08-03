@@ -1784,6 +1784,42 @@ def _load_dev_type(feature_dir: Path) -> str:
 # Meglio troncare con un avviso esplicito che affidarsi al solo guardrail di core/llm.py.
 _DRIFT_MAX_CODE_CHARS = 40_000
 
+# Path/cartelle citati tra backtick nel Canvas (es. §4 Structure — "Implementato in
+# `frontend/src/features/booking-requests/components/CreateBookingForm.tsx`").
+_CANVAS_PATH_TOKEN_PATTERN = re.compile(r"`([\w./-]+/[\w.-]+/?)`")
+
+
+def _canvas_priority_dirs(canvas_content: str, *roots: Path) -> list[Path]:
+    """Risolve i path citati nel Canvas contro le radici di ricerca del drift.
+
+    Quando `dev_type` punta a una cartella condivisa da più feature (es. l'intero
+    `code/frontend`), senza questo il tetto `_DRIFT_MAX_CODE_CHARS` si esaurisce
+    sui file di altre feature prima di arrivare a quelli davvero normati dal
+    Canvas sotto revisione, troncando proprio il codice rilevante.
+    """
+    dirs: list[Path] = []
+    seen: set[Path] = set()
+    for token in _CANVAS_PATH_TOKEN_PATTERN.findall(canvas_content):
+        token = token.strip().rstrip("/")
+        if not token or "/" not in token:
+            continue
+        candidate = Path(token)
+        anchor = candidate.parent if candidate.suffix else candidate
+        for root in roots:
+            root = root.resolve()
+            # Include anche la cartella padre dell'anchor (es. `.../booking-requests`
+            # oltre a `.../booking-requests/components`): il Canvas cita in genere solo
+            # il file/cartella del layer UI, ma file "fratelli" come schema.ts o
+            # rules.ts nella stessa feature sono altrettanto pertinenti al drift.
+            for candidate_dir in (anchor, anchor.parent):
+                resolved = (root / candidate_dir).resolve()
+                if resolved == root:
+                    continue
+                if resolved.is_dir() and resolved not in seen:
+                    seen.add(resolved)
+                    dirs.append(resolved)
+    return dirs
+
 
 def check_drift(feature_name: str, emit=None) -> str:
     """Controlla se il codice generato si è discostato dalle specifiche del Canvas.
@@ -1820,20 +1856,36 @@ def check_drift(feature_name: str, emit=None) -> str:
     if dev_type:
         search_dirs.append(CODE_DIR / dev_type)
 
+    priority_dirs = _canvas_priority_dirs(
+        canvas_content, CODE_DIR, *([CODE_DIR / dev_type] if dev_type else [])
+    )
+
     codice_generato = ""
     truncated = False
     for base in search_dirs:
         if not base.exists():
             continue
-        for path in sorted(base.rglob("*")):
-            if CODE_EXCLUDED_DIRS & set(path.parts):
-                continue
-            if not (path.is_file() and path.suffix in code_exts):
-                continue
+        files = [
+            path
+            for path in sorted(base.rglob("*"))
+            if path.is_file() and path.suffix in code_exts and not (CODE_EXCLUDED_DIRS & set(path.parts))
+        ]
+        # I file citati esplicitamente dal Canvas (§4 Structure) vanno iniettati per primi:
+        # se il tetto di caratteri viene raggiunto, deve tagliare fuori file di altre
+        # feature nella stessa cartella dev_type, non quelli normati da questo Canvas.
+        prioritized = [path for path in files if any(path.is_relative_to(d) for d in priority_dirs)]
+        prioritized_set = set(prioritized)
+        ordered = prioritized + [path for path in files if path not in prioritized_set]
+
+        for path in ordered:
             if len(codice_generato) >= _DRIFT_MAX_CODE_CHARS:
                 truncated = True
                 break
-            chunk = f"\n--- FILE: {path.name} ---\n{path.read_text(encoding='utf-8')}\n"
+            # Path relativo alla radice di ricerca (non solo il nome file): più file
+            # con lo stesso basename (es. `schema.ts` in moduli diversi) altrimenti
+            # diventano indistinguibili nel prompt e l'LLM confonde i vincoli tra loro.
+            relative_label = path.relative_to(base)
+            chunk = f"\n--- FILE: {relative_label} ---\n{path.read_text(encoding='utf-8')}\n"
             remaining = _DRIFT_MAX_CODE_CHARS - len(codice_generato)
             if len(chunk) > remaining:
                 # Anche UN solo file può superare il tetto (es. un componente generato molto
