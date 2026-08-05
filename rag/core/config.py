@@ -91,6 +91,16 @@ STATIC_DIR = RAG_DIR / "static"
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://127.0.0.1:6333")
 QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY")
 
+# URL con cui questo server è raggiungibile da FUORI dal processo (un agente CLI, uno script).
+# Serve solo a SCRIVERLO dentro prompt e artefatti (vedi pipeline.build_final_prompt), mai a
+# bindare: il bind resta di server.py. Deriva dagli stessi env di server.py (VIBECRAFT_HOST /
+# VIBECRAFT_PORT) così un server spostato di porta non consegna ai prompt un URL sbagliato;
+# VIBECRAFT_BASE_URL lo forza quando il server sta dietro un reverse proxy o su un altro host.
+SERVER_BASE_URL: str = (
+    os.environ.get("VIBECRAFT_BASE_URL")
+    or f"http://{os.environ.get('VIBECRAFT_HOST', '127.0.0.1')}:{os.environ.get('VIBECRAFT_PORT', '8000')}"
+).rstrip("/")
+
 with open(CONFIG_PATH, "r", encoding="utf-8") as _f:
     config = yaml.safe_load(_f)
 
@@ -248,6 +258,14 @@ CODE_CONTEXT_TOTAL_SNIPPETS: int = int(
     _retrieval_cfg.get("code_context_total_snippets",
                        CODE_SEARCH_MAX_SNIPPETS + CODE_CONTEXT_MAX_SNIPPETS)
 )
+# Tetti dell'endpoint GET /api/code/search (api/routes_retrieval.py), che espone la stessa
+# ricerca semantica sui simboli a un agente esterno. Sono tetti di CONTESTO, non di qualità:
+# l'endpoint esiste per far leggere all'agente MENO codice (gli dice quali file aprire), quindi
+# una risposta che cresce senza limite ne annullerebbe lo scopo. `max_k` limita quanti simboli
+# può chiedere in una volta; `snippet_chars` tronca il testo del simbolo quando lo chiede
+# esplicitamente (&snippet=true) — di default il testo NON viene restituito affatto.
+CODE_SEARCH_API_MAX_K: int = int(_retrieval_cfg.get("code_search_api_max_k", 25))
+CODE_SEARCH_API_SNIPPET_CHARS: int = int(_retrieval_cfg.get("code_search_api_snippet_chars", 400))
 
 # Eval-gate continuo sulla promozione blue/green (core/eval_gate.py) + golden set del retrieval.
 _eval_gate_cfg: dict = config.get("eval_gate") or {}

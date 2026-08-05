@@ -44,6 +44,7 @@ from core.config import (
 )
 from core.indexing import archive_feature, check_drift, check_index_integrity, index_status
 from core.pipeline import (
+    FINAL_PROMPT_CONSUMERS,
     InvalidDevTypeError,
     InvalidFeatureNameError,
     build_final_prompt,
@@ -348,6 +349,33 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest):
         "path": "spec.md",
         "content": spec_content,
         "final_prompt": final_prompt,
+    }
+
+
+@router.get("/api/pipeline/final-prompt")
+async def pipeline_final_prompt(feature: str, dev_type: str = "", consumer: str = "external"):
+    """Prompt finale della feature, ricostruito dal template deterministico (nessun LLM, nessun
+    file letto oltre meta.json). Esiste per due ragioni:
+
+    1. il prompt ha ora due forme (vedi core.pipeline.FINAL_PROMPT_CONSUMERS) e chi lo esegue
+       deve poter chiedere LA PROPRIA: la dashboard mostra quella "external" da copiare in
+       Claude Code, ma quando lancia l'esecuzione in-app deve inviare quella "agent", perché
+       l'SDK non ha modo di fare le chiamate HTTP che l'altra descrive;
+    2. il template viveva in due copie — Python e JavaScript — e la copia JS era già rimasta
+       indietro di una frase. Una sola sorgente, interrogabile, e la deriva non si ripresenta.
+    """
+    if consumer not in FINAL_PROMPT_CONSUMERS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Consumatore non valido: {consumer!r}. Validi: {list(FINAL_PROMPT_CONSUMERS)}",
+        )
+    folder = _safe_feature_dir(feature)
+    dev = _safe_dev_type(dev_type or load_dev_type(folder))
+    return {
+        "feature_folder": folder.name,
+        "dev_type": dev,
+        "consumer": consumer,
+        "final_prompt": build_final_prompt(folder.name, dev, consumer),
     }
 
 

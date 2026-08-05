@@ -776,3 +776,54 @@ in nodi fantasma. `refs` nel meta crea archi REFERENCES codice→codice
 
 I parser regex storici (`_js_symbols`) restano come fallback d'emergenza
 dietro flag; TODO datato in `code_index/` per la loro rimozione.
+
+## L'indice come acceleratore per l'agente che scrive il codice
+
+`GET /api/code/search?q=...&k=...` espone a un agente esterno (Claude Code,
+Cursor) la stessa ricerca semantica sui simboli che alimenta `/ask`: coseno fra
+la domanda e i vettori densi dei simboli, già calcolati all'indicizzazione e
+persistiti in `code.npz`. Nessun LLM, nessuna query a Qdrant — una forward pass
+di bge-m3 e un prodotto matriciale in memoria.
+
+Serve a un problema misurato: un agente che deve integrare codice in `code/` non
+sa dove sta ciò che gli serve e ripiega su Glob+Read a tappeto, cioè legge (e
+paga) l'intero ambito per trovare i due file che gli servono. Su questo repo,
+una ricerca `k=5` in `code/frontend` restituisce ~2,2 KB che puntano a 3 file per
+21 KB complessivi, contro i ~101 KB dell'intero `src/`.
+
+Quel guadagno però si ribalta facilmente nel suo contrario — se la risposta è
+grossa, l'agente paga i token dell'indice **e poi** quelli dei file. Perciò la
+risposta è **navigazionale**, non documentale:
+
+- **niente testo dei simboli per default**: solo `symbol_id`, `file`, `kind`,
+  `dev_type` e `score`, più l'aggregato `files` — l'elenco dei file da aprire, che
+  è la sola cosa che l'agente deve davvero ricavarne;
+- `&snippet=true` aggiunge il testo, **troncato** a `code_search_api_snippet_chars`
+  (400): sullo stesso esempio raddoppia la risposta, ed è per questo un'eccezione
+  dichiarata nel prompt, non il default;
+- `&k=` è limitato da `code_search_api_max_k` (25) e `max_per_file` impedisce a un
+  file autogenerato di occupare tutte le posizioni;
+- `&dev_type=` restringe all'ambito della feature. Il filtro agisce **prima** dei
+  top-k (`search_code_symbols(subset_idx=...)`, indici per ambito precalcolati una
+  volta per snapshot in `api/deps._prep_dev_type_index`): applicato a valle, un
+  ambito poco rappresentato sparirebbe ogni volta che i top-k globali appartengono
+  a un altro ambito.
+
+Il prompt finale della pipeline istruisce l'agente a usarlo, ma **solo quando il
+destinatario può**: `build_final_prompt(..., consumer=...)` aggiunge il blocco di
+orientamento per `external` (Claude Code/Cursor, che hanno una shell) e lo omette
+per `agent` — l'esecuzione in-app via Agent SDK non ha Bash (vedi
+[agent_bridge.py](agent_bridge.py)) e non può fare alcuna chiamata HTTP; darle
+quelle istruzioni significherebbe descriverle uno strumento che non ha. Il blocco
+è additivo: la variante `agent` è, byte per byte, il prompt storico. La dashboard
+mostra la variante `external` da copiare e chiede `GET
+/api/pipeline/final-prompt?consumer=agent` quando lancia l'esecuzione in-app —
+endpoint che esiste anche per togliere di mezzo la copia JavaScript del template,
+che era già rimasta indietro di una frase rispetto a `core/pipeline.py`.
+
+Il blocco dice tre cose che ne delimitano l'uso, e sono la parte che conta:
+l'indice serve **solo** a scegliere cosa leggere, è uno snapshot dell'ultima
+indicizzazione e può essere disallineato (i code-link restano stale fino al
+rebuild), quindi ogni file va letto per intero prima di modificarlo e nessuna riga
+va dedotta dai frammenti dell'indice; e se l'indice non risponde, l'agente procede
+con Read/Grep — è una scorciatoia, non una dipendenza.

@@ -466,6 +466,46 @@ def test_build_final_prompt_chiede_integrazione_e_test():
     assert "esamina il contenuto esistente" not in pipeline.build_final_prompt("f", "")
 
 
+def test_build_final_prompt_solo_al_consumatore_esterno_dice_di_usare_lindice():
+    """Il blocco di orientamento sull'indice presuppone chiamate HTTP. Claude Code esterno le
+    può fare; l'esecuzione in-app via Agent SDK no (Bash è rimosso, vedi agent_bridge), quindi
+    riceverla sarebbe un'istruzione ineseguibile — e un agente che 'dichiara' di aver
+    consultato l'indice è peggio di uno che non sa che esiste."""
+    external = pipeline.build_final_prompt("form-eventi", "frontend", "external")
+    agent = pipeline.build_final_prompt("form-eventi", "frontend", "agent")
+
+    assert "/api/code/search" in external and "dev_type=frontend" in external
+    assert "/api/code/search" not in agent
+    # La variante agent è ESATTAMENTE il prompt storico: il blocco è additivo, non una riscrittura.
+    assert external.startswith(agent)
+    # Il contratto (cosa implementare, dove scrivere) è identico nelle due varianti.
+    for atteso in ("changes/form-eventi/canvas.md", "code/frontend/", "GIVEN/WHEN/THEN"):
+        assert atteso in external and atteso in agent
+
+
+def test_build_final_prompt_default_e_il_consumatore_esterno():
+    # I chiamanti storici (propose/generate, export, [AGENT CONTEXT]) consegnano il prompt a
+    # un agente esterno: è il default, e un consumer sconosciuto NON deve aggiungere il blocco.
+    assert "/api/code/search" in pipeline.build_final_prompt("f", "backend")
+    assert "/api/code/search" not in pipeline.build_final_prompt("f", "backend", "boh")
+
+
+def test_index_hint_block_delimita_luso_dellindice():
+    """Le tre regole che impediscono al blocco di fare più danni che benefici: l'indice sceglie
+    cosa leggere ma non sostituisce la lettura (è uno snapshot e può essere disallineato),
+    &snippet=true è un'eccezione (riporta il testo e annulla il risparmio), e un indice muto
+    non deve bloccare l'implementazione."""
+    block = pipeline.build_index_hint_block("backend", base_url="http://esempio:9000")
+
+    assert "http://esempio:9000" in block and "X-API-Key" in block
+    assert "letto per intero prima di scriverci" in block
+    assert "snapshot" in block and "disallineato" in block
+    assert "&snippet=true SOLO se" in block
+    assert "Read/Grep" in block  # fallback esplicito se l'indice non risponde
+    # Senza dev_type non si inventa un ambito nella query di esempio.
+    assert "dev_type=" not in pipeline.build_index_hint_block("")
+
+
 def test_build_spec_prompt_vieta_note_a_margine():
     # Lo spec reale conteneva auto-correzioni inline del modello ("*Correzione*: ...",
     # "*Nota*: assumiamo..."): il prompt ora chiede la sola versione definitiva.

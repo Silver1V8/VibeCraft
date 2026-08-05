@@ -268,6 +268,61 @@ def test_search_code_symbols_caps_symbols_per_file():
     assert [c["file"] for c in out] == ["dto.cs", "dto.cs"]
 
 
+def test_search_code_symbols_subset_restricts_candidates_before_topk():
+    """Il filtro per sottoinsieme (usato da /api/code/search?dev_type=) deve agire PRIMA della
+    selezione dei top-k: un simbolo dell'ambito richiesto deve emergere anche quando i migliori
+    in assoluto appartengono a un altro ambito — è esattamente il caso che un filtro applicato
+    a valle dei top-k perderebbe."""
+    from api import deps
+
+    store = _searchable_code_store()
+    store["code/altro.cs::Altro"]["dev_type"] = "frontend"
+    code_ids, code_matrix = deps._prep_code_matrix(store)
+    frontend_idx = deps._prep_dev_type_index(code_ids, store)["frontend"]
+
+    q = np.array([1.0, 0.0, 0.0])  # i due simboli più vicini sono backend (dto.cs)
+    out = retrieval.search_code_symbols(q, store, max_snippets=2, min_score=0.0,
+                                        code_ids=code_ids, code_matrix=code_matrix,
+                                        subset_idx=frontend_idx)
+    assert [c["symbol_id"] for c in out] == ["code/altro.cs::Altro"]
+    # Lo score è quello globale (coseno col simbolo normalizzato): restringere i candidati
+    # non ripondera nulla.
+    assert out[0]["score"] == 0.707
+
+
+def test_search_code_symbols_subset_empty_and_none():
+    """Sottoinsieme vuoto = ambito senza simboli, quindi nessun risultato (non 'tutti')."""
+    from api import deps
+
+    store = _searchable_code_store()
+    code_ids, code_matrix = deps._prep_code_matrix(store)
+    q = np.array([1.0, 0.0, 0.0])
+    kw = dict(max_snippets=4, min_score=0.0, code_ids=code_ids, code_matrix=code_matrix)
+
+    assert retrieval.search_code_symbols(q, store, subset_idx=np.array([], dtype=np.int64), **kw) == []
+    # subset_idx=None è il comportamento storico, invariato.
+    assert (retrieval.search_code_symbols(q, store, subset_idx=None, **kw)
+            == retrieval.search_code_symbols(q, store, **kw))
+    # Un sottoinsieme che copre TUTTE le righe non cambia nulla rispetto al filtro assente.
+    full = np.arange(len(code_ids), dtype=np.int64)
+    assert (retrieval.search_code_symbols(q, store, subset_idx=full, **kw)
+            == retrieval.search_code_symbols(q, store, **kw))
+
+
+def test_prep_dev_type_index_groups_rows_by_scope():
+    from api import deps
+
+    store = _searchable_code_store()
+    store["code/altro.cs::Altro"]["dev_type"] = "frontend"
+    store["code/dto.cs::Request.Campo"]["dev_type"] = ""  # senza ambito: in nessun gruppo
+    code_ids, _ = deps._prep_code_matrix(store)
+    groups = deps._prep_dev_type_index(code_ids, store)
+
+    assert sorted(groups) == ["backend", "frontend"]
+    assert [code_ids[i] for i in groups["backend"]] == ["code/dto.cs::Request"]
+    assert [code_ids[i] for i in groups["frontend"]] == ["code/altro.cs::Altro"]
+
+
 def test_search_code_symbols_precomputed_matches_on_the_fly():
     """Equivalenza numerica (Gate): a parità di code_store e query, i risultati ottenuti
     passando code_ids/code_matrix precalcolati dallo snapshot (api.deps._prep_code_matrix)

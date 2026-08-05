@@ -11,7 +11,7 @@ import queue
 import re
 import threading
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -177,6 +177,12 @@ class IndexSnapshot:
     # è None (e `code_ids` []) se il code_store è vuoto o nessun simbolo ha un vettore denso.
     code_ids: list[str]
     code_matrix: "np.ndarray | None"
+    # Indice per AMBITO dei simboli: dev_type -> array degli indici di riga in `code_ids`
+    # (e quindi in `code_matrix`). Precalcolato una volta per snapshot come la matrice, per la
+    # stessa ragione: il raggruppamento è identico a ogni richiesta. Lo usa /api/code/search per
+    # restringere la ricerca a un ambito PRIMA dei top-k, senza copiare una sottomatrice.
+    # Default {} così uno snapshot costruito senza (test, chiamanti storici) resta valido.
+    code_dev_type_idx: dict = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -278,9 +284,25 @@ def _prep_code_matrix(code_store: dict) -> tuple[list[str], "np.ndarray | None"]
     return sym_ids, matrix
 
 
+def _prep_dev_type_index(code_ids: list[str], code_store: dict) -> dict[str, "np.ndarray"]:
+    """Raggruppa gli indici di riga di `code_ids` per dev_type (l'ambito dichiarato dal simbolo,
+    cioè la prima cartella sotto code/). Precalcolato una volta per snapshot: il raggruppamento
+    non dipende dalla query, rifarlo a ogni richiesta sarebbe lavoro identico ripetuto.
+
+    I simboli senza dev_type (file alla radice di code/) non finiscono in nessun gruppo: un
+    filtro per ambito non deve mai restituirli, e senza ambito non c'è filtro."""
+    groups: dict[str, list[int]] = {}
+    for i, sid in enumerate(code_ids):
+        dev_type = str((code_store.get(sid) or {}).get("dev_type") or "")
+        if dev_type:
+            groups.setdefault(dev_type, []).append(i)
+    return {dt: np.asarray(idx, dtype=np.int64) for dt, idx in groups.items()}
+
+
 def _build_snapshot(graph, colbert_store, chunks, rule_descriptions, code_store) -> IndexSnapshot:
     """Assembla un IndexSnapshot catturando la version (CURRENT o mtime del grafo) e
-    precalcolando la matrice densa del codice (una volta per reindex, non per richiesta)."""
+    precalcolando la matrice densa del codice e l'indice per ambito (una volta per reindex,
+    non per richiesta)."""
     version = _graph_version()
     code_ids, code_matrix = _prep_code_matrix(code_store)
     return IndexSnapshot(
@@ -292,6 +314,7 @@ def _build_snapshot(graph, colbert_store, chunks, rule_descriptions, code_store)
         version=version,
         code_ids=code_ids,
         code_matrix=code_matrix,
+        code_dev_type_idx=_prep_dev_type_index(code_ids, code_store),
     )
 
 

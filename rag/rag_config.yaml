@@ -127,6 +127,16 @@ retrieval:
   # senza, il contesto crescerebbe come la somma dei tetti. Default = somma dei due.
   code_context_total_snippets: 12
 
+  # Tetti dell'endpoint GET /api/code/search, che espone la stessa ricerca semantica sui simboli
+  # a un agente ESTERNO (Claude Code, Cursor) perché scelga quali file aprire invece di leggere
+  # tutto code/. Lo scopo dell'endpoint è far consumare MENO token: una risposta che cresce senza
+  # limite lo ribalterebbe nel suo contrario, quindi i tetti sono parte della funzione, non
+  # protezione dagli abusi. Di default la risposta NON contiene il testo dei simboli (solo
+  # symbol_id, file, kind e score): il testo si ottiene con &snippet=true ed è troncato a
+  # snippet_chars per voce.
+  code_search_api_max_k: 25          # tetto su &k= (l'agente ne chiede tipicamente 5-8)
+  code_search_api_snippet_chars: 400 # troncamento del testo per simbolo con &snippet=true
+
   # Domanda del ramo tecnico. `{dev_type}` è sostituito con l'ambito scelto (una sottocartella
   # di code/), reso a parole: 'logicAgent' -> 'logic agent'. È una QUERY SEMANTICA, non un
   # filtro: recupera ciò che le somiglia, ovunque stia nell'alberatura. Riscrivila col

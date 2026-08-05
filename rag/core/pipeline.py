@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 from core import llm, retrieval, spec_format
-from core.config import CHANGES_DIR, CODE_DIR, RAG_DIR, TECH_QUERY_TEMPLATE
+from core.config import CHANGES_DIR, CODE_DIR, RAG_DIR, SERVER_BASE_URL, TECH_QUERY_TEMPLATE
 
 # Le 7 sezioni obbligatorie del REASONS Canvas (copertura strutturale e confidence).
 CANVAS_SECTIONS = ("Requirements", "Entities", "Approach", "Structure", "Operations", "Norms", "Safeguards")
@@ -226,9 +226,65 @@ def load_dev_type(folder: Path) -> str:
         return ""
 
 
-def build_final_prompt(folder_name: str, dev_type: str = "") -> str:
+# Consumatori riconosciuti del prompt finale. Non è una preferenza di stile: cambia COSA il
+# destinatario è in grado di eseguire.
+#   "external" — Claude Code / Cursor lanciati fuori da questo server: hanno una shell e possono
+#                interrogare l'indice via HTTP, quindi il prompt include il blocco di
+#                orientamento qui sotto.
+#   "agent"    — l'esecuzione in-app via Claude Agent SDK (api/routes_pipeline.agent_run): i suoi
+#                tool sono Read/Write/Edit/Glob/Grep e Bash è rimosso apposta (agent_bridge.py),
+#                quindi NON può fare alcuna chiamata HTTP. Dargli quel blocco significherebbe
+#                istruirlo a usare uno strumento che non ha: nel migliore dei casi lo ignora,
+#                nel peggiore dichiara di averlo consultato. Riceve il prompt storico, invariato.
+FINAL_PROMPT_CONSUMERS = ("external", "agent")
+
+
+def build_index_hint_block(dev_type: str = "", base_url: str = SERVER_BASE_URL) -> str:
+    """Blocco di orientamento sull'indice del progetto per un agente che PUÒ fare HTTP.
+
+    Serve a un problema misurabile: senza, un agente che deve integrare codice in code/ ripiega
+    su Glob+Read a tappeto, cioè legge (e paga) l'intero ambito per trovare i due file che gli
+    servono. Con l'indice, la sequenza diventa: una chiamata per sapere quali file aprire, poi
+    la lettura dei soli file scelti.
+
+    Tre vincoli sono nel testo per ragioni precise, non per prudenza generica:
+    · l'indice sceglie COSA aprire, non sostituisce la lettura — è uno snapshot dell'ultima
+      indicizzazione e i code-link restano stale fino al rebuild successivo: codice scritto
+      sulla base di uno snippet dell'indice può patchare un file che non esiste più in quella
+      forma;
+    · &snippet=true è dichiarato come eccezione — è il parametro che ribalta il risparmio,
+      perché riporta il testo dei simboli dentro la risposta;
+    · il fallback esplicito su Read/Grep evita che un server spento blocchi l'implementazione,
+      che è ciò che l'agente deve consegnare."""
+    scope = f"&dev_type={dev_type}" if dev_type else ""
+    return (
+        f"\n\nOrientamento nel codice esistente (facoltativo ma consigliato): questo progetto "
+        f"espone un indice semantico su {base_url} — header 'X-API-Key: $VIBECRAFT_API_KEY', "
+        f"omettibile se chiami da localhost. Usalo per decidere QUALI file aprire, invece di "
+        f"esplorare code/ a tappeto:\n"
+        f"  GET /api/code/search?q=<cosa+cerchi>&k=5{scope} — simboli più pertinenti; il campo "
+        f"'files' è l'elenco dei file da aprire, 'results' i simboli con il loro path. Aggiungi "
+        f"&snippet=true SOLO se il nome del simbolo non basta a decidere: riporta il testo nella "
+        f"risposta e annulla gran parte del risparmio.\n"
+        f"  GET /api/graph/impact?node=<symbol_id>&depth=2 — cosa viene impattato da un simbolo, "
+        f"prima di modificarlo.\n"
+        f"  GET /api/retrieve?q=<domanda>&k=5 — sezioni normative pertinenti (documenti, non codice).\n"
+        f"Regole d'uso, tassative: l'indice serve SOLO a scegliere cosa leggere; è uno snapshot "
+        f"dell'ultima indicizzazione e può essere disallineato rispetto al filesystem, quindi ogni "
+        f"file che modifichi va letto per intero prima di scriverci e nessuna riga di codice va "
+        f"dedotta dai frammenti dell'indice. Se l'indice non risponde, procedi normalmente con "
+        f"Read/Grep: è una scorciatoia, non una dipendenza."
+    )
+
+
+def build_final_prompt(folder_name: str, dev_type: str = "", consumer: str = "external") -> str:
     """Costruisce il prompt finale per Claude Code, scoperto sull'unica cartella code/<dev_type>
-    se una tipologia di sviluppo è stata indicata, altrimenti con la distribuzione multi-cartella storica."""
+    se una tipologia di sviluppo è stata indicata, altrimenti con la distribuzione multi-cartella storica.
+
+    `consumer` (vedi FINAL_PROMPT_CONSUMERS) decide se aggiungere il blocco di orientamento
+    sull'indice: solo un destinatario che può fare HTTP lo riceve. Un valore sconosciuto è
+    trattato come "agent" (nessun blocco): meglio un prompt in meno che un'istruzione ineseguibile."""
+    index_hint = build_index_hint_block(dev_type) if consumer == "external" else ""
     base = (
         f"Leggi rigorosamente i file 'changes/{folder_name}/canvas.md' e 'changes/{folder_name}/spec.md'. "
         f"Implementa la funzionalità descritta attenendoti esclusivamente all'approccio tecnico del canvas "
@@ -243,13 +299,13 @@ def build_final_prompt(folder_name: str, dev_type: str = "") -> str:
             f"Scrivi ESCLUSIVAMENTE il codice generato nella cartella 'code/{dev_type}/', poiché il tipo di "
             f"sviluppo richiesto per questa feature è '{dev_type}'. Non creare né modificare file in altre "
             f"sottocartelle di 'code/'."
-        )
+        ) + index_hint
     return base + (
         f"Scrivi il codice generato nella cartella corretta sotto 'code/', in base al tipo di sviluppo richiesto: "
         f"'code/backend' per la logica lato server e le API, 'code/logicAgent' per la logica degli agenti/LLM, "
         f"'code/frontend' per l'interfaccia utente. Se la funzionalità coinvolge più ambiti, distribuisci i file "
         f"nelle rispettive sottocartelle mantenendo la separazione delle responsabilità."
-    )
+    ) + index_hint
 
 
 def build_canvas_prompt(feature_name: str, contesto_intervista: str,

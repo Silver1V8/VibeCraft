@@ -382,7 +382,8 @@ def search_code_symbols(query_dense, code_store: dict, *,
                         max_snippets: int, min_score: float,
                         max_per_file: int = 2,
                         code_ids: list[str] | None = None,
-                        code_matrix: np.ndarray | None = None) -> list[dict]:
+                        code_matrix: np.ndarray | None = None,
+                        subset_idx: "np.ndarray | list[int] | None" = None) -> list[dict]:
     """Ricerca semantica DIRETTA sui simboli di codice: coseno fra il vettore denso della
     domanda e i vettori densi dei simboli, già calcolati all'indicizzazione e presenti nel
     code_store (sidecar code.npz).
@@ -409,6 +410,15 @@ def search_code_symbols(query_dense, code_store: dict, *,
     (`norm + 1e-8`), stesso risultato numerico. La query resta normalizzata al volo in entrambi
     i casi (cambia a ogni richiesta, non è precalcolabile).
 
+    `subset_idx` (opzionale): indici di RIGA — riferiti a `code_ids` nello stesso ordine usato
+    per la matrice — a cui restringere i candidati. Serve a filtrare per ambito
+    (/api/code/search?dev_type=...) senza costruire una sottomatrice per richiesta. Il filtro va
+    applicato PRIMA della selezione dei top-k, non dopo: filtrando a valle, un ambito poco
+    rappresentato sparirebbe ogni volta che i top-k globali appartengono tutti a un altro ambito.
+    Il punteggio di un simbolo non dipende dagli altri (è un coseno), quindi restringere i
+    candidati non altera né gli score né l'ordine relativo di ciò che resta. Array vuoto =
+    nessun risultato (ambito senza simboli), None = nessun filtro.
+
     Logica pura: il vettore della query e il code_store arrivano dal chiamante."""
     if max_snippets <= 0 or not code_store or query_dense is None:
         return []
@@ -434,11 +444,26 @@ def search_code_symbols(query_dense, code_store: dict, *,
     q /= np.linalg.norm(q) + 1e-8
 
     sims = matrix @ q
+
+    # Insieme dei candidati: tutte le righe, oppure il solo sottoinsieme richiesto (filtro per
+    # ambito). `scores` è la vista dei punteggi su cui si seleziona; `candidates` rimappa poi
+    # gli indici locali su quelli globali di `sym_ids`/`sims`.
+    if subset_idx is None:
+        candidates = None
+        scores = sims
+    else:
+        candidates = np.asarray(subset_idx, dtype=np.int64)
+        if candidates.size == 0:
+            return []
+        scores = sims[candidates]
+
     # Pool di candidati più largo del tetto finale (il filtro per file ne scarta parecchi),
     # estratto con argpartition: i top-N senza ordinare tutti i simboli del progetto.
-    pool = min(len(sym_ids), max(max_snippets * (max_per_file + 8), max_snippets))
-    top = np.argpartition(sims, -pool)[-pool:]
-    top = top[np.argsort(sims[top])[::-1]]
+    pool = min(int(scores.shape[0]), max(max_snippets * (max_per_file + 8), max_snippets))
+    top = np.argpartition(scores, -pool)[-pool:]
+    top = top[np.argsort(scores[top])[::-1]]
+    if candidates is not None:
+        top = candidates[top]
 
     out: list[dict] = []
     per_file: dict[str, int] = {}

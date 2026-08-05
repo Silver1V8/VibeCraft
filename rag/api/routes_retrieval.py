@@ -26,6 +26,8 @@ from core.config import (
     CODE_CONTEXT_MAX_SNIPPETS,
     CODE_CONTEXT_MIN_WEIGHT,
     CODE_CONTEXT_TOTAL_SNIPPETS,
+    CODE_SEARCH_API_MAX_K,
+    CODE_SEARCH_API_SNIPPET_CHARS,
     CODE_SEARCH_MAX_PER_FILE,
     CODE_SEARCH_MAX_SNIPPETS,
     CODE_SEARCH_MIN_SCORE,
@@ -397,3 +399,115 @@ async def api_retrieve(
         qdrant=state["qdrant"], embed_model=state["embed_model"], colbert_store=snap.colbert_store,
     )
     return {"query": q, "k": k, "results": results}
+
+
+# ---------------------------------------------------------------------------
+# GET /api/code/search — l'indice del codice per un agente ESTERNO
+#
+# Perché esiste: un agente (Claude Code, Cursor) che deve modificare code/ non ha modo di
+# sapere DOVE sta ciò che gli serve, e ripiega su Glob+Read a tappeto — il modo più caro
+# possibile di rispondere a "dove sta la validazione dell'ordine?". I vettori densi dei simboli
+# sono già in memoria (code.npz, precalcolati all'indicizzazione): questo endpoint li espone
+# così l'agente sceglie QUALI file aprire e legge solo quelli.
+#
+# Il rischio è che la cura sia peggiore del male: se la risposta è grossa, l'agente paga i token
+# dell'indice E poi quelli dei file. Perciò la risposta è NAVIGAZIONALE per default —
+# symbol_id, file, kind, score, e l'aggregato `files` — e NON contiene il testo dei simboli;
+# `snippet=true` lo aggiunge troncato, per i casi in cui il nome non basta a decidere.
+#
+# Nessun LLM e nessuna query a Qdrant: una forward pass di bge-m3 sulla domanda e un prodotto
+# matriciale in memoria. È l'unico endpoint di ricerca che non tocca la rete.
+# ---------------------------------------------------------------------------
+def _code_hit_view(hit: dict, *, with_snippet: bool) -> dict:
+    """Voce di risposta di /api/code/search: la forma di retrieval._code_entry meno ciò che
+    all'agente non serve per decidere quale file aprire. `source` cade (qui è sempre
+    "semantic"), `implements` resta solo se il linking l'ha calcolata, `text` solo su richiesta
+    e troncato — è il campo che da solo può decuplicare la risposta."""
+    view = {
+        "symbol_id": hit["symbol_id"],
+        "name": hit["name"],
+        "kind": hit["kind"],
+        "file": hit["file"],
+        "dev_type": hit["dev_type"],
+        "score": hit["score"],
+    }
+    if hit.get("implements"):
+        view["implements"] = hit["implements"]
+    if with_snippet:
+        text = str(hit.get("text") or "")
+        view["text"] = (text[:CODE_SEARCH_API_SNIPPET_CHARS].rstrip() + " …"
+                        if len(text) > CODE_SEARCH_API_SNIPPET_CHARS else text)
+    return view
+
+
+def _files_digest(hits: list[dict]) -> list[dict]:
+    """Aggregato per FILE dei simboli trovati, in ordine di pertinenza. È la parte di risposta
+    che l'agente usa davvero — l'elenco dei file da aprire — e costa poche decine di token:
+    tenerla separata gli evita di dover dedurre i path scorrendo i simboli."""
+    per_file: dict[str, dict] = {}
+    for hit in hits:
+        entry = per_file.setdefault(hit["file"], {"file": hit["file"], "symbols": 0,
+                                                  "best_score": hit["score"]})
+        entry["symbols"] += 1
+        entry["best_score"] = max(entry["best_score"], hit["score"])
+    return sorted(per_file.values(), key=lambda e: e["best_score"], reverse=True)
+
+
+@router.get("/api/code/search")
+async def api_code_search(
+    q: str = Query(min_length=1, max_length=2000),
+    k: int = Query(default=8, ge=1, le=CODE_SEARCH_API_MAX_K),
+    dev_type: str = Query(default="", max_length=64),
+    snippet: bool = Query(default=False),
+    min_score: float = Query(default=CODE_SEARCH_MIN_SCORE, ge=0.0, le=1.0),
+    max_per_file: int = Query(default=CODE_SEARCH_MAX_PER_FILE, ge=0, le=10),
+):
+    """Ricerca semantica sui SIMBOLI di codice indicizzati (coseno domanda→simbolo sui vettori
+    densi già calcolati all'indicizzazione). Risponde a "quali file devo aprire per...".
+
+    Parametri: `k` numero di simboli (tetto CODE_SEARCH_API_MAX_K); `dev_type` restringe a un
+    ambito (sottocartella di code/); `snippet=true` include il testo dei simboli, troncato;
+    `min_score` soglia di coseno; `max_per_file` quanti simboli può contribuire uno stesso file
+    (0 = nessun limite), che impedisce a un file autogenerato di occupare tutte le posizioni.
+
+    La risposta NON è una fonte di verità sul contenuto dei file: è uno snapshot dell'ultima
+    indicizzazione e serve solo a scegliere cosa leggere. `index_version` dice su quale versione
+    dell'indice è stata calcolata."""
+    maybe_reload_graph()
+    snap = current_snapshot()
+    embed_model: BGEM3FlagModel = state.get("embed_model")
+    if snap is None or embed_model is None:
+        raise HTTPException(status_code=503, detail="Indice non ancora pronto.")
+
+    base = {"query": q, "k": k, "dev_type": dev_type, "index_version": snap.version}
+
+    # Nessun simbolo indicizzato: risposta esplicita invece di un elenco vuoto ambiguo — la
+    # differenza fra "non c'è codice nell'indice" e "non c'è nulla di pertinente" cambia cosa
+    # deve fare l'agente (nel primo caso ripiegare su Glob/Grep, non insistere con la ricerca).
+    if snap.code_matrix is None or not snap.code_ids:
+        return {**base, "count": 0, "files": [], "results": [],
+                "note": "Nessun simbolo di codice nell'indice: usa Glob/Grep sul filesystem."}
+
+    subset_idx = None
+    if dev_type:
+        subset_idx = snap.code_dev_type_idx.get(dev_type)
+        if subset_idx is None:
+            # Ambito inesistente (typo o cartella non ancora indicizzata): 200 con gli ambiti
+            # disponibili, non 404. L'agente può correggersi da solo con la stessa risposta;
+            # un errore lo costringerebbe a un giro in più per scoprire i valori validi.
+            return {**base, "count": 0, "files": [], "results": [],
+                    "available_dev_types": sorted(snap.code_dev_type_idx),
+                    "note": f"Nessun simbolo indicizzato per l'ambito '{dev_type}'."}
+
+    encoding = await embed_in_threadpool(retrieval.encode_query, embed_model, q)
+    hits = await run_in_threadpool(
+        retrieval.search_code_symbols, encoding["dense"], snap.code_store,
+        max_snippets=k, min_score=min_score, max_per_file=max_per_file,
+        code_ids=snap.code_ids, code_matrix=snap.code_matrix, subset_idx=subset_idx,
+    )
+    return {
+        **base,
+        "count": len(hits),
+        "files": _files_digest(hits),
+        "results": [_code_hit_view(h, with_snippet=snippet) for h in hits],
+    }

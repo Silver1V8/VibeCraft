@@ -1,26 +1,39 @@
-# Superficie di sicurezza HTTP — vibecraft/rag (M7 / R2)
+# Superficie di sicurezza HTTP — vibecraft/rag
 
-> Sessione di **sola analisi**. Nessun codice modificato. Questo documento mappa ogni
-> route registrata, ne verifica l'autenticazione **nel codice** (non nei docstring) e
-> definisce l'ambito della dependency anti-cross-site che la Sessione 6 (R2) dovrà
-> introdurre.
+> **Stato:** R2 (dependency anti-cross-site) è **implementata** —
+> [`api.deps.require_not_cross_site_request`](api/deps.py). Questo documento non è più
+> una proposta: è la **mappa del codice corrente**, con la matrice §2 tenuta allineata da
+> `test_every_post_route_is_classified` in
+> [`tests/test_security_fixes.py`](tests/test_security_fixes.py) — ogni POST registrato
+> deve comparire nella matrice o fra le esclusioni motivate, o la suite fallisce.
+>
+> **Riallineamento 2026-08-05.** La revisione originale (M7/R2) fotografava 39 route.
+> Nel frattempo sono entrati il ciclo Intake & Import (S0-S6, 15 route + la pagina
+> `/intake`) e due endpoint di orientamento per gli agenti (`/api/code/search`,
+> `/api/pipeline/final-prompt`): **57 route**. Le sezioni §2-§4 riportano ora ciò che è
+> nel codice, non ciò che era da fare.
 
 ## Metodologia e conteggio
 
-- **Route registrate sui router: 39** — contate con `grep -c '^@router\.'` su
+- **Route registrate sui router: 57** — contate con `grep -c '^@router\.'` su
   `api/routes_*.py`:
-  - `routes_pages.py` → 5
-  - `routes_pipeline.py` → 20
+  - `routes_pages.py` → 6
+  - `routes_pipeline.py` → 21
   - `routes_reindex.py` → 5
-  - `routes_retrieval.py` → 2
+  - `routes_retrieval.py` → 3
   - `routes_graph.py` → 5
   - `routes_health.py` → 2
-- **La tabella §1 ha 39 righe numerate** (una per route registrata) → il conteggio
-  coincide con il criterio di completezza.
-- Fuori dai router, montati sull'app in [`server.py`](server.py): 1 mount statico
-  (`/static`) e 3 route di default di FastAPI (`/docs`, `/redoc`, `/openapi.json`) +
-  `/docs/oauth2-redirect`. Sono elencate nell'**Appendice A** (non conteggiate nei 39
-  perché non registrate sui router), ma hanno rilievo di sicurezza e vanno lette.
+  - `routes_intake.py` → 15
+- **La tabella §1 ha 57 righe numerate** (una per route registrata) → il conteggio
+  coincide con il criterio di completezza. La numerazione segue l'ordine di
+  `include_router` in [`server.py`](server.py), poi l'ordine di dichiarazione nel file.
+- **POST totali: 24** — 22 con la dependency anti-cross-site, 2 esclusi con motivazione
+  (§2C). Nessun POST non classificato (asserito dalla suite).
+- Fuori dai router, montati sull'app in [`server.py`](server.py): 2 route esplicite per
+  `shared.css`/`shared.js`, 1 mount statico (`/static`) e 3 route di default di FastAPI
+  (`/docs`, `/redoc`, `/openapi.json`) + `/docs/oauth2-redirect`. Sono elencate
+  nell'**Appendice A** (non conteggiate nelle 57 perché non registrate sui router), ma
+  hanno rilievo di sicurezza e vanno lette.
 
 ### Fatti architetturali verificati (valgono per tutta la tabella)
 
@@ -46,234 +59,222 @@
    - assenza di Content-Type → non parsato (strict) → 422.
    - `application/json` → parsato, **ma** non è un content-type "simple" → preflight →
      bloccato cross-site.
-   **Conseguenza chiave:** una route con **body Pydantic a campi obbligatori** (tutti i
-   modelli in [`api/models.py`](api/models.py) hanno almeno un campo required) **non è
-   raggiungibile da una simple request cross-site**: non esiste modo, dal browser di una
-   pagina ostile, di consegnare un body JSON parsabile senza far scattare un preflight
-   che qui fallisce. Questa però è una **difesa implicita** (un default di FastAPI), non
-   un controllo esplicito → §2 la considera insufficiente da sola.
+   **Conseguenza chiave:** una route con **body Pydantic a campi obbligatori** non è
+   raggiungibile da una simple request cross-site. Questa però è una **difesa implicita**
+   (un default di FastAPI), non un controllo → è il motivo per cui §2 non si accontenta.
+   **Attenzione al converso:** la protezione vale solo per i body *Pydantic con campi
+   obbligatori*. Un body **multipart** (`UploadFile`), un body **assente** e un modello
+   **con tutti i campi opzionali** restano consegnabili cross-site — vedi la nota dopo la
+   tabella.
 
-3. **`require_api_key` bypassa localhost** ([`api/deps.py:48-56`](api/deps.py)): se
+3. **`require_api_key` bypassa localhost** ([`api/deps.py`](api/deps.py)): se
    `request.client.host ∈ {127.0.0.1, ::1}` passa senza chiave. Nel setup keyless di
    default (`VIBECRAFT_API_KEY` non impostata) ogni richiesta che **appare** locale è
    autenticata. È esattamente ciò che rende una POST cross-site verso `127.0.0.1:8000`
    un problema CSRF-like: il browser dell'utente **è** localhost, quindi l'auth è
    bypassata e conta solo se la richiesta è consegnabile (punti 1-2).
 
-4. **`require_api_key_strict`** ([`api/deps.py:59-75`](api/deps.py)): **nessun** bypass
+4. **`require_api_key_strict`** ([`api/deps.py`](api/deps.py)): **nessun** bypass
    localhost, chiave sempre richiesta. Usata solo da `agent/run`. `X-API-Key` è un header
    custom → cross-site forza preflight → doppiamente non raggiungibile.
 
-5. **`require_gitlab_token`** ([`api/deps.py:84-93`](api/deps.py)): no-op se
+5. **`require_gitlab_token`** ([`api/deps.py`](api/deps.py)): no-op se
    `VIBECRAFT_GITLAB_TOKEN` non è impostata (default). Se impostata, richiede
    `X-Gitlab-Token` (header custom → preflight cross-site).
 
+6. **`require_not_cross_site_request`** ([`api/deps.py`](api/deps.py)): 403 se
+   `Sec-Fetch-Site: cross-site`; passa con API key valida, con header assente
+   (curl/script/webhook/browser legacy) e con `same-origin`/`same-site`/`none`.
+   `Sec-Fetch-Site` è un *forbidden header* (Fetch Metadata): lo scrive il browser, il JS
+   di una pagina non può impostarlo né falsificarlo. Applicata **per-route**, mai come
+   middleware globale.
+
 ---
 
-## 1. Tabella completa delle route (39 righe)
+## 1. Tabella completa delle route (57 righe)
 
-Legenda **Body**: *assente* = nessun body letto · *query/path* = solo parametri URL ·
-*JSON Pydantic* = modello obbligatorio · *JSON opz.* = `Request` grezza con
-`request.json()` in `try/except` e fallback `None`.
-Legenda **X-site?** (raggiungibile da simple/bodyless request cross-site, dato §Fatti
-1-2): **Sì** · **No (preflight)** = body JSON non consegnabile · **No (strict)**.
-Legenda **Protezione R2**: *nessuna* · *anti-x-site* · *strict (già presente)*.
-`(racc.)` = raccomandata/defense-in-depth, non strettamente mandatoria (vedi §2).
+Legenda **Body**: *assente* = nessun body dichiarato · *query/path* = solo parametri URL ·
+*JSON Pydantic* = modello con campi obbligatori · *JSON opz.* = `Request` grezza con
+`request.json()` in `try/except` e fallback `None` · *JSON tutto-opz.* = modello Pydantic
+senza campi obbligatori · *multipart* = `UploadFile`.
+Legenda **Consegnabile x-site**: se una pagina ostile può **far arrivare la richiesta**
+all'app, ignorando le dependency (dato §Fatti 1-2). **Sì** · **No (preflight)** ·
+**No (strict)**. È una proprietà della *forma* della richiesta, non della protezione: la
+colonna successiva dice cosa la ferma.
+Legenda **Protezione (nel codice)**: dependency effettivamente dichiarate sulla route,
+oltre a `require_api_key` del router.
 
-| # | Metodo | Path | Auth effettiva (nel codice) | Body | X-site? | Effetto | Blast | Protezione R2 |
-|--:|--------|------|-----------------------------|------|---------|---------|-------|---------------|
+| # | Metodo | Path | Auth effettiva (nel codice) | Body | Consegnabile x-site | Effetto | Blast | Protezione (nel codice) |
+|--:|--------|------|-----------------------------|------|---------------------|---------|-------|-------------------------|
 | 1 | GET | `/` | nessuna | assente | Sì | read-only (serve HTML) | Basso | nessuna |
-| 2 | GET | `/pipeline` | nessuna | assente | Sì | read-only (serve HTML) | Basso | nessuna |
+| 2 | GET | `/pipeline` | nessuna | assente | Sì | read-only (serve HTML) + **inietta `VIBECRAFT_API_KEY`** in `window.__VIBECRAFT_AGENT_API_KEY__` — SOLO per client locali (vedi §4 #6) | Basso | nessuna (SOP del browser) |
 | 3 | GET | `/infografica` | nessuna | assente | Sì | read-only (serve HTML) | Basso | nessuna |
 | 4 | GET | `/analysis` | nessuna | assente | Sì | read-only (serve HTML) | Basso | nessuna |
 | 5 | GET | `/eval` | nessuna | assente | Sì | read-only (serve HTML) | Basso | nessuna |
-| 6 | GET | `/api/pipeline/agent/modes` | require_api_key (bypass localhost) | assente | Sì | read-only (elenco modi) | Basso | nessuna |
-| 7 | POST | `/api/pipeline/agent/run` | require_api_key **+ require_api_key_strict** | JSON Pydantic | **No (strict)** | **esegue agente** (`agentic`: Write/Edit confinati a `code/`, **Bash rimosso** — vedi §5) | **Alto** | **strict (già presente)** |
-| 8 | GET | `/api/pipeline/dev-types` | require_api_key | assente | Sì | read-only | Basso | nessuna |
-| 9 | POST | `/api/pipeline/explore/turn` | require_api_key | JSON Pydantic | No (preflight) | esegue LLM (no mutazione) | Basso (Medio DoS) | anti-x-site (racc.) |
-| 10 | POST | `/api/pipeline/explore/save` | require_api_key | JSON Pydantic | No (preflight) | **scrive filesystem** (`changes/<slug>/explore.md`, dev_type) | Medio | **anti-x-site** |
-| 11 | POST | `/api/pipeline/canvas/generate` | require_api_key | JSON Pydantic | No (preflight) | **scrive filesystem** (`canvas.md`, `meta.json`) + esegue LLM | Medio | **anti-x-site** |
-| 12 | POST | `/api/pipeline/propose/generate` | require_api_key | JSON Pydantic | No (preflight) | **scrive filesystem** (`spec.md`) + esegue LLM | Medio | **anti-x-site** |
-| 13 | POST | `/api/pipeline/drift/check` | require_api_key | JSON Pydantic | No (preflight) | esegue LLM (no mutazione) | Basso (Medio DoS) | anti-x-site (racc.) |
-| 14 | POST | `/api/pipeline/archive` | require_api_key | JSON Pydantic | No (preflight) | **scrive filesystem** (sposta in `archive/`) + **accoda full rebuild** → scrive Qdrant + muove CURRENT | **Alto** | **anti-x-site** |
-| 15 | POST | `/api/pipeline/drift/check/stream` | require_api_key | JSON Pydantic | No (preflight) | esegue LLM (no mutazione) | Basso (Medio DoS) | anti-x-site (racc.) |
-| 16 | POST | `/api/pipeline/archive/stream` | require_api_key | JSON Pydantic | No (preflight) | come #14 (archive + full rebuild in coda) | **Alto** | **anti-x-site** |
-| 17 | POST | `/api/pipeline/validate` | require_api_key | JSON Pydantic | No (preflight) | esegue LLM + retrieval (no mutazione) | Basso (Medio DoS) | anti-x-site (racc.) |
-| 18 | GET | `/api/index/status` | require_api_key | assente | Sì | read-only (drift indicizzazione) | Basso | nessuna |
-| 19 | GET | `/api/index/integrity` | require_api_key | assente | Sì | read-only (interroga Qdrant in lettura) | Basso | nessuna |
-| 20 | POST | `/api/pipeline/canvas/dry-run` | require_api_key | JSON Pydantic | No (preflight) | read-only (retrieval/embedding, nessuna scrittura) | Basso (Medio DoS) | nessuna (opz.) |
-| 21 | GET | `/api/pipeline/agent-context` | require_api_key | query | Sì | read-only (retrieval) | Basso | nessuna |
-| 22 | GET | `/api/pipeline/export` | require_api_key | query | Sì | read-only | Basso | nessuna |
-| 23 | GET | `/api/pipeline/status` | require_api_key | query | Sì | read-only | Basso | nessuna |
-| 24 | GET | `/api/pipeline/file` | require_api_key | query | Sì | read-only (whitelist file) | Basso | nessuna |
-| 25 | POST | `/api/pipeline/file/save` | require_api_key | JSON Pydantic | No (preflight) | **scrive filesystem** (file whitelisted in `changes/<slug>`) | Medio | **anti-x-site** |
-| 26 | POST | `/api/reindex` | require_api_key **+ require_gitlab_token** (no-op se env non set) | **JSON opz.** (`Request` grezza) | **Sì (bodyless)** | **scrive Qdrant** (incrementale) — o full rebuild solo con body `{"full":true}` | **Alto** | **anti-x-site** |
-| 27 | GET | `/api/reindex` | require_api_key | query | Sì | read-only (lista job) | Basso | nessuna |
-| 28 | GET | `/api/reindex/{job_id}` | require_api_key | path | Sì | read-only (stato job) | Basso | nessuna |
-| 29 | GET | `/api/index/versions` | require_api_key | assente | Sì | read-only (lista versioni) | Basso | nessuna |
-| 30 | POST | `/api/index/rollback` | require_api_key | **JSON opz.** (`Request` grezza) | **Sì (bodyless)** | **muove CURRENT-alias** + Qdrant alias (default: versione precedente) | **Alto** | **anti-x-site** |
-| 31 | POST | `/ask` | require_api_key | JSON Pydantic | No (preflight) | esegue LLM (RAG completo, no mutazione) | Basso (Medio DoS) | anti-x-site (racc.) |
-| 32 | GET | `/api/retrieve` | require_api_key | query | Sì | read-only (retrieval/embedding) | Basso (Medio DoS) | nessuna (opz.) |
-| 33 | GET | `/api/canvas-quality` | require_api_key | query | Sì | read-only | Basso | nessuna |
-| 34 | GET | `/api/graph/all` | require_api_key | assente | Sì | read-only (grafo intero) | Basso | nessuna |
-| 35 | GET | `/api/graph/impact` | require_api_key | query | Sì | read-only (BFS) | Basso | nessuna |
-| 36 | GET | `/api/graph/semantic-map` | require_api_key | assente | Sì | read-only (SVD/PCA, CPU) | Basso (Medio DoS) | nessuna (opz.) |
-| 37 | GET | `/api/graph/query` | require_api_key | query | Sì | read-only (query deterministica grafo) | Basso | nessuna |
-| 38 | GET | `/api/health` | require_api_key | assente | Sì | read-only (ping Qdrant/Ollama) | Basso | nessuna |
-| 39 | GET | `/api/eval/history` | require_api_key | query | Sì | read-only (storico recall) | Basso | nessuna |
+| 6 | GET | `/intake` | nessuna | assente | Sì | read-only (serve HTML) | Basso | nessuna |
+| 7 | GET | `/api/pipeline/agent/modes` | require_api_key (bypass localhost) | assente | Sì | read-only (elenco modi) | Basso | nessuna |
+| 8 | POST | `/api/pipeline/agent/run` | require_api_key **+ require_api_key_strict** | JSON Pydantic | **No (strict)** | **esegue agente** (`agentic`: Write/Edit confinati a `code/`, **Bash rimosso** — vedi §5) | **Alto** | **strict** |
+| 9 | GET | `/api/pipeline/dev-types` | require_api_key | assente | Sì | read-only | Basso | nessuna |
+| 10 | POST | `/api/pipeline/explore/turn` | require_api_key | JSON Pydantic | No (preflight) | esegue LLM (no mutazione) | Basso (Medio DoS) | **anti-x-site** |
+| 11 | POST | `/api/pipeline/explore/save` | require_api_key | JSON Pydantic | No (preflight) | **scrive filesystem** (`changes/<slug>/explore.md`, dev_type) | Medio | **anti-x-site** |
+| 12 | POST | `/api/pipeline/canvas/generate` | require_api_key | JSON Pydantic | No (preflight) | **scrive filesystem** (`canvas.md`, `meta.json`) + esegue LLM | Medio | **anti-x-site** |
+| 13 | POST | `/api/pipeline/propose/generate` | require_api_key | JSON Pydantic | No (preflight) | **scrive filesystem** (`spec.md`, `spec.raw.md`) + esegue LLM | Medio | **anti-x-site** |
+| 14 | GET | `/api/pipeline/final-prompt` | require_api_key | query | Sì | read-only (template deterministico, nessun LLM) | Basso | nessuna |
+| 15 | POST | `/api/pipeline/drift/check` | require_api_key | JSON Pydantic | No (preflight) | esegue LLM (no mutazione) | Basso (Medio DoS) | **anti-x-site** |
+| 16 | POST | `/api/pipeline/archive` | require_api_key | JSON Pydantic | No (preflight) | **scrive filesystem** (sposta in `archive/`) + **accoda full rebuild** → scrive Qdrant + muove CURRENT | **Alto** | **anti-x-site** |
+| 17 | POST | `/api/pipeline/drift/check/stream` | require_api_key | JSON Pydantic | No (preflight) | esegue LLM (no mutazione) | Basso (Medio DoS) | **anti-x-site** |
+| 18 | POST | `/api/pipeline/archive/stream` | require_api_key | JSON Pydantic | No (preflight) | come #16 (archive + full rebuild in coda) | **Alto** | **anti-x-site** |
+| 19 | POST | `/api/pipeline/validate` | require_api_key | JSON Pydantic | No (preflight) | esegue LLM + retrieval (no mutazione) | Basso (Medio DoS) | **anti-x-site** |
+| 20 | GET | `/api/index/status` | require_api_key | assente | Sì | read-only (drift indicizzazione) | Basso | nessuna |
+| 21 | GET | `/api/index/integrity` | require_api_key | assente | Sì | read-only (interroga Qdrant in lettura) | Basso | nessuna |
+| 22 | POST | `/api/pipeline/canvas/dry-run` | require_api_key | JSON Pydantic | No (preflight) | read-only (retrieval/embedding, nessuna scrittura) | Basso (Medio DoS) | nessuna (esclusa §2C) |
+| 23 | GET | `/api/pipeline/agent-context` | require_api_key | query | Sì | read-only (retrieval) | Basso | nessuna |
+| 24 | GET | `/api/pipeline/export` | require_api_key | query | Sì | read-only | Basso | nessuna |
+| 25 | GET | `/api/pipeline/status` | require_api_key | query | Sì | read-only | Basso | nessuna |
+| 26 | GET | `/api/pipeline/file` | require_api_key | query | Sì | read-only (whitelist file) | Basso | nessuna |
+| 27 | POST | `/api/pipeline/file/save` | require_api_key | JSON Pydantic | No (preflight) | **scrive filesystem** (file whitelisted in `changes/<slug>`) | Medio | **anti-x-site** |
+| 28 | POST | `/api/reindex` | require_api_key **+ require_gitlab_token** (no-op se env non set) | **JSON opz.** (`Request` grezza) | **Sì (bodyless)** | **scrive Qdrant** (incrementale) — o full rebuild solo con body `{"full":true}` | **Alto** | **anti-x-site** |
+| 29 | GET | `/api/reindex` | require_api_key | query | Sì | read-only (lista job) | Basso | nessuna |
+| 30 | GET | `/api/reindex/{job_id}` | require_api_key | path | Sì | read-only (stato job) | Basso | nessuna |
+| 31 | GET | `/api/index/versions` | require_api_key | assente | Sì | read-only (lista versioni) | Basso | nessuna |
+| 32 | POST | `/api/index/rollback` | require_api_key | **JSON opz.** (`Request` grezza) | **Sì (bodyless)** | **muove CURRENT-alias** + Qdrant alias (default: versione precedente) | **Alto** | **anti-x-site** |
+| 33 | POST | `/ask` | require_api_key | JSON Pydantic | No (preflight) | esegue LLM (RAG completo, no mutazione) | Basso (Medio DoS) | **anti-x-site** |
+| 34 | GET | `/api/retrieve` | require_api_key | query | Sì | read-only (retrieval/embedding) | Basso (Medio DoS) | nessuna (opz.) |
+| 35 | GET | `/api/code/search` | require_api_key | query | Sì | read-only (embedding della query + prodotto matriciale in memoria; nessun LLM, nessun Qdrant) | Basso (Medio DoS-CPU) | nessuna (opz.) |
+| 36 | GET | `/api/canvas-quality` | require_api_key | query | Sì | read-only | Basso | nessuna |
+| 37 | GET | `/api/graph/all` | require_api_key | assente | Sì | read-only (grafo intero) | Basso | nessuna |
+| 38 | GET | `/api/graph/impact` | require_api_key | query | Sì | read-only (BFS) | Basso | nessuna |
+| 39 | GET | `/api/graph/semantic-map` | require_api_key | assente | Sì | read-only (SVD/PCA, CPU) | Basso (Medio DoS) | nessuna (opz.) |
+| 40 | GET | `/api/graph/query` | require_api_key | query | Sì | read-only (query deterministica grafo) | Basso | nessuna |
+| 41 | GET | `/api/health` | require_api_key | assente | Sì | read-only (ping Qdrant/Ollama) | Basso | nessuna |
+| 42 | GET | `/api/eval/history` | require_api_key | query | Sì | read-only (storico recall) | Basso | nessuna |
+| 43 | POST | `/api/intake/docs` | require_api_key | **multipart** (`UploadFile`) | **Sì (multipart)** | **scrive staging** (`database/staging/`, journal) | Medio | **anti-x-site** |
+| 44 | GET | `/api/intake/staged` | require_api_key | assente | Sì | read-only (journal) | Basso | nessuna |
+| 45 | GET | `/api/intake/staged/{doc_id}/preview` | require_api_key | path | Sì | read-only (journal + markdown derivato) | Basso | nessuna |
+| 46 | POST | `/api/intake/staged/{doc_id}/approve` | require_api_key | JSON Pydantic | No (preflight) | **scrive `docs/<categoria>/`** + **reindex delta** (Qdrant + CURRENT) sotto writer lock + reload snapshot | **Alto** | **anti-x-site** |
+| 47 | POST | `/api/intake/staged/{doc_id}/reject` | require_api_key | **JSON tutto-opz.** (`motivo` con default) | **Sì (bodyless)** | **scrive staging** (sposta in `staging/rejected/`, journal); `docs/` e indice intatti | Medio | **anti-x-site** |
+| 48 | POST | `/api/intake/generate` | require_api_key | JSON Pydantic | No (preflight) | avvia job LLM (Ollama) → documenti in staging | Medio (DoS/costo) | **anti-x-site** |
+| 49 | GET | `/api/intake/generate/{job_id}` | require_api_key | path | Sì | read-only (stato job) | Basso | nessuna |
+| 50 | POST | `/api/intake/staged/{doc_id}/refine` | require_api_key | **assente** | **Sì (bodyless)** | avvia job LLM di raffinazione → **scrive staging** | Medio (DoS/costo) | **anti-x-site** |
+| 51 | GET | `/api/intake/refine/{job_id}` | require_api_key | path | Sì | read-only (stato job) | Basso | nessuna |
+| 52 | POST | `/api/intake/project/browse-path` | require_api_key | **assente** | **Sì (bodyless)** | **apre un dialogo tkinter MODALE sul desktop della macchina server** e occupa un thread finché non viene chiuso (vedi §4 #7) | Medio | **anti-x-site** |
+| 53 | POST | `/api/intake/project/plan` | require_api_key | JSON Pydantic | No (preflight) | read-only ma **scansiona un path arbitrario del filesystem del server** e ne restituisce l'elenco file (vedi §4 #8) | Medio (info-disclosure) | **anti-x-site** |
+| 54 | POST | `/api/intake/project/apply` | require_api_key | **JSON tutto-opz.** (`plan_id`/`plan` entrambi opzionali) | **Sì (bodyless)** | **copia file in `code/<target>/`** + backup zip + journal + **reindex delta** sotto writer lock | **Alto** | **anti-x-site** |
+| 55 | GET | `/api/intake/project/imports` | require_api_key | query | Sì | read-only (journal) | Basso | nessuna |
+| 56 | POST | `/api/intake/project/brief` | require_api_key | JSON Pydantic | No (preflight) | avvia job LLM sul grafo → documento in staging | Medio (DoS/costo) | **anti-x-site** |
+| 57 | GET | `/api/intake/project/brief/{job_id}` | require_api_key | path | Sì | read-only (stato job) | Basso | nessuna |
 
-### Nota sui due POST "corpo assente" (righe 26 e 30) — il cuore del rischio
+### Nota sulle route a corpo consegnabile — dove la dependency è l'UNICO controllo
 
-`start_reindex` e `index_rollback` **non** dichiarano un modello Pydantic: prendono
-`request: Request` e fanno `payload = await request.json()` dentro `try/except`, con
-fallback `payload = None`. Perciò FastAPI **non** impone il Content-Type. Una **POST
-cross-site senza body** (simple request: nessun content-type problematico, nessun header
-custom) arriva all'handler; `request.json()` solleva → `payload = None` → l'handler
-**procede e muta**:
+Su **15 dei 22 POST protetti** l'anti-cross-site è defense-in-depth: il body Pydantic con
+almeno un campo obbligatorio li rende comunque irraggiungibili cross-site (§Fatti 2) —
+verificato modello per modello su `api/models.py` e `api/routes_intake.py`. Sui restanti
+**7** no: la forma della richiesta è consegnabile da una pagina ostile, quindi la
+dependency è la **sola** barriera nel setup keyless.
 
-- **`/api/reindex`** bodyless → `changed_paths = None` → `manager.start(None, _run_reindex, …)`
-  → **incrementale su tutto `docs/` + `code/`**: ri-embedding e upsert/delete su Qdrant,
-  tiene il writer lock. Il path **full rebuild** (con la migrazione legacy irreversibile
-  e lo swap alias) richiede il body `{"full": true}` → `application/json` → preflight →
-  **non** raggiungibile cross-site. Cross-site si raggiunge solo l'incrementale — che
-  comunque muta la collection di produzione. In default keyless `require_gitlab_token` è
-  no-op, quindi **nessuna barriera aggiuntiva**.
-- **`/api/index/rollback`** bodyless → `target = None` → `rollback_version(None)` sposta
-  CURRENT alla **versione precedente** e riallinea l'alias Qdrant, sotto writer lock. Il
-  rollback a una versione **specifica** richiede body JSON (bloccato cross-site); il
-  rollback-al-precedente funziona **bodyless**.
+| # | Route | Perché è consegnabile |
+|--:|-------|------------------------|
+| 28 | `POST /api/reindex` | `Request` grezza + `request.json()` in try/except → una POST **senza body** arriva all'handler con `payload = None` → incrementale su tutto `docs/`+`code/`. |
+| 32 | `POST /api/index/rollback` | Idem: bodyless → `target = None` → CURRENT alla versione precedente + alias Qdrant. |
+| 43 | `POST /api/intake/docs` | Body **multipart**: `multipart/form-data` è un content-type *simple* → **nessun preflight**. Una pagina ostile costruisce una `FormData` e la invia con `fetch(..., {mode:'no-cors'})`; il file entra in staging. Verificato sul server reale: con `Sec-Fetch-Site: cross-site` risponde **403** prima dell'handler. |
+| 47 | `POST .../reject` | `RejectRequest` ha il solo campo `motivo` con default → un body assente **valida** → l'handler parte. |
+| 50 | `POST .../refine` | Nessun body dichiarato → il body viene ignorato → una POST bodyless raggiunge l'handler. |
+| 52 | `POST /api/intake/project/browse-path` | Nessun body dichiarato → bodyless → l'handler aprirebbe un dialogo sul desktop del server. |
+| 54 | `POST /api/intake/project/apply` | `plan_id` e `plan` entrambi opzionali → body assente valida → l'handler parte (si ferma su 422 "serve plan_id o plan", ma **dopo** le dependency). |
 
-Queste due sono le **uniche route mutanti effettivamente raggiungibili cross-site oggi**.
-Tutte le altre route mutanti (10, 11, 12, 14, 16, 25) sono protette *di fatto* solo dal
-combinato preflight-CORS + `strict_content_type` — una difesa implicita, non un controllo.
+La lezione operativa, da applicare a ogni nuova route: **"ha un body Pydantic" non
+implica "non è raggiungibile cross-site"**. Vale solo se almeno un campo è obbligatorio e
+il body non è multipart. Per questo la matrice §2 include *tutti* i POST mutanti, non solo
+quelli che sembrano esposti.
 
 ---
 
-## 2. Ambito della dependency anti-cross-site (R2)
+## 2. Ambito della dependency anti-cross-site (implementata)
 
-**Principio:** la dependency (es. `require_same_site`, da comporre **in aggiunta** a
-`require_api_key`, sullo schema di `require_gitlab_token`) rifiuta con **403** le
-richieste con `Sec-Fetch-Site: cross-site`; le richieste **senza** l'header passano come
-oggi. `Sec-Fetch-Site` è un header *forbidden* (Fetch Metadata): il JS di una pagina non
-può settarlo né sovrascriverlo, lo impone il browser → è una difesa CSRF valida e
-non falsificabile lato pagina.
+**Principio:** `require_not_cross_site_request` è composta **in aggiunta** a
+`require_api_key` (schema di `require_gitlab_token`) e rifiuta con **403** le richieste
+con `Sec-Fetch-Site: cross-site`; quelle **senza** l'header passano come prima.
 
-### 2A — INCLUSE, mandatorie (mutano stato persistente)
+### 2A — Mutano stato persistente (13)
 
 | Route | Motivazione |
 |-------|-------------|
-| POST `/api/reindex` (26) | **Raggiungibile cross-site oggi** (bodyless) e muta Qdrant sotto writer lock. In default keyless nessuna altra barriera. Priorità massima. |
-| POST `/api/index/rollback` (30) | **Raggiungibile cross-site oggi** (bodyless) e muove CURRENT + alias Qdrant → può degradare la produzione a una versione arbitraria/precedente. Priorità massima. |
-| POST `/api/pipeline/explore/save` (10) | Scrive filesystem. Non raggiungibile oggi *solo* per il combinato preflight+strict content-type: difesa implicita e fragile (un domani `strict_content_type=False`, o un endpoint gemello form-based, la annulla). Sec-Fetch-Site è il controllo esplicito. |
-| POST `/api/pipeline/canvas/generate` (11) | Scrive filesystem + spende LLM. Stessa fragilità della difesa implicita. |
-| POST `/api/pipeline/propose/generate` (12) | Scrive filesystem (`spec.md`) + LLM. Idem. |
-| POST `/api/pipeline/archive` (14) | Sposta filesystem **e** accoda un full rebuild (→ Qdrant + CURRENT): blast Alto. Deve essere protetto esplicitamente. |
-| POST `/api/pipeline/archive/stream` (16) | Variante streaming di #14, stesso effetto e stesso blast. |
-| POST `/api/pipeline/file/save` (25) | Scrive filesystem. Idem. |
+| POST `/api/reindex` (28) | Consegnabile bodyless; muta Qdrant sotto writer lock. In default keyless nessuna altra barriera. |
+| POST `/api/index/rollback` (32) | Consegnabile bodyless; muove CURRENT + alias Qdrant → degrada la produzione a una versione arbitraria. |
+| POST `/api/pipeline/explore/save` (11) | Scrive filesystem. Non consegnabile *solo* per il combinato preflight+strict content-type: difesa implicita, sostituita da un controllo esplicito. |
+| POST `/api/pipeline/canvas/generate` (12) | Scrive filesystem + spende LLM. |
+| POST `/api/pipeline/propose/generate` (13) | Scrive filesystem (`spec.md`) + LLM. |
+| POST `/api/pipeline/archive` (16) | Sposta filesystem **e** accoda un full rebuild (→ Qdrant + CURRENT): blast Alto. |
+| POST `/api/pipeline/archive/stream` (18) | Variante streaming di #16, stesso effetto e stesso blast. |
+| POST `/api/pipeline/file/save` (27) | Scrive filesystem. |
+| POST `/api/intake/docs` (43) | **Consegnabile (multipart)**: scrive in staging senza preflight. |
+| POST `/api/intake/staged/{id}/approve` (46) | Scrive `docs/` **e** reindicizza (Qdrant + CURRENT): blast Alto. |
+| POST `/api/intake/staged/{id}/reject` (47) | **Consegnabile (body tutto-opzionale)**: sposta file e scrive il journal. |
+| POST `/api/intake/project/apply` (54) | **Consegnabile (body tutto-opzionale)**: copia file in `code/`, backup, journal, reindex delta. Blast Alto. |
+| POST `/api/intake/project/browse-path` (52) | **Consegnabile (bodyless)**: non muta dati ma apre una finestra sul desktop del server e occupa un thread — effetto locale osservabile e fastidioso, trattato come mutante. |
 
-> Le 6 route (10, 11, 12, 14, 16, 25) figurano già in `_REVERTED_TO_PLAIN_KEY_ROUTES` in
-> [`tests/test_security_fixes.py`](tests/test_security_fixes.py): il revert dello strict
-> su di esse è **deliberato** (la UI è keyless e il frontend non manda `X-API-Key`).
-> Sec-Fetch-Site è la protezione corretta perché **non rompe la UI same-origin**: il
-> browser dell'utente invia `Sec-Fetch-Site: same-origin` sulle chiamate della dashboard,
-> che quindi passano; solo l'origine ostile invia `cross-site`. È il motivo per cui R2
-> sceglie anti-cross-site invece di re-imporre lo strict.
+### 2B — Eseguono LLM/CPU o espongono il filesystem, senza mutare l'indice (9)
 
-### 2B — INCLUSE raccomandate (eseguono LLM/CPU, non mutano stato) — decisione ambigua
+Route: POST `/api/pipeline/explore/turn` (10), `/api/pipeline/drift/check` (15),
+`/api/pipeline/drift/check/stream` (17), `/api/pipeline/validate` (19), `/ask` (33),
+`/api/intake/generate` (48), `/api/intake/staged/{id}/refine` (50),
+`/api/intake/project/plan` (53), `/api/intake/project/brief` (56).
 
-Route: POST `/api/pipeline/explore/turn` (9), POST `/api/pipeline/drift/check` (13),
-POST `/api/pipeline/drift/check/stream` (15), POST `/api/pipeline/validate` (17),
-POST `/ask` (31).
-
-- **Non mutano stato** → fuori dallo scopo stretto "route mutanti".
-- **Non raggiungibili cross-site oggi** (body Pydantic → preflight).
-- **Ma** eseguono LLM/Ollama: un trigger cross-site di massa è un vettore di
-  **DoS/consumo costo**, non di corruzione. La dependency è a costo nullo e non rompe la
-  UI same-origin.
-- **Raccomandazione:** includerle come **defense-in-depth** (tier "racc."), applicando la
-  stessa dependency in un colpo solo a tutti i POST non-idempotenti del router pipeline +
-  `/ask`. Se R2 vuole restare rigorosamente sulle *sole* route mutanti, è **legittimo
-  escluderle** — in tal caso vanno lasciate esplicitamente annotate come rischio DoS
-  accettato. La raccomandazione pende per **includere**: superficie coerente, nessuna
-  regressione UI.
+Il tier defense-in-depth raccomandato dalla revisione originale **è stato adottato**:
+tutte queste route hanno la dependency. Motivazioni: un trigger cross-site di massa è un
+vettore di **DoS/consumo costo** su Ollama (10, 15, 17, 19, 33, 48, 50, 56); `plan` (53) è
+read-only ma **enumera un path arbitrario del filesystem del server** (§4 #8); `refine`
+(50) è per giunta **consegnabile bodyless**. La dependency è a costo nullo e non rompe la
+UI same-origin.
 
 ### 2C — ESCLUSE, con motivazione
 
 | Route / gruppo | Motivazione dell'esclusione |
 |----------------|------------------------------|
-| POST `/api/pipeline/agent/run` (7) | **Già `require_api_key_strict`** — protezione *più forte* dell'anti-cross-site (chiave sempre richiesta, anche da localhost). Aggiungere Sec-Fetch-Site è ridondante e **non va indebolito** sostituendo lo strict. Resta strict, invariato (cfr. `_STRICT_ROUTES` nel test). |
-| POST `/api/pipeline/canvas/dry-run` (20) | POST ma **read-only** (retrieval/embedding, nessuna scrittura, nessun LLM di generazione). Solo rischio DoS-CPU → opzionale, non mandatorio. |
-| Tutte le **GET** (1-6, 8, 18-19, 21-24, 27-29, 32-39) | Read-only per contratto. Anti-cross-site su GET **romperebbe** navigazione/embedding cross-origin legittimi senza proteggere nulla (niente da mutare). Le GET CPU-pesanti (`/api/retrieve` 32, `/api/graph/semantic-map` 36) restano un rischio DoS-CPU **accettato** (vedi §4). `maybe_reload_graph` invocato da alcune GET è un reload interno idempotente, non una mutazione pilotabile dall'attaccante. |
-| Pagine HTML (1-5) e mount `/static` | Shell statiche pubbliche, nessun dato, nessuna auth by design. |
+| POST `/api/pipeline/agent/run` (8) | **Già `require_api_key_strict`** — protezione *più forte* dell'anti-cross-site (chiave sempre richiesta, anche da localhost). Aggiungere Sec-Fetch-Site è ridondante e **non va indebolito** sostituendo lo strict. Asserito da `_STRICT_ROUTES` e da `test_excluded_route_does_not_declare_anti_cross_site_dependency`. |
+| POST `/api/pipeline/canvas/dry-run` (22) | POST ma **read-only** (retrieval/embedding, nessuna scrittura, nessun LLM di generazione) e body Pydantic obbligatorio → non consegnabile. Solo rischio DoS-CPU. |
+| Tutte le **GET** (1-7, 9, 14, 20-21, 23-26, 29-31, 34-42, 44-45, 49, 51, 55, 57) | Read-only per contratto. Anti-cross-site su GET **romperebbe** navigazione/embedding cross-origin legittimi senza proteggere nulla. Le GET CPU-pesanti (`/api/retrieve` 34, `/api/code/search` 35, `/api/graph/semantic-map` 39) restano un rischio DoS-CPU **accettato** (§4 #4). `maybe_reload_graph` invocato da alcune GET è un reload interno idempotente, non una mutazione pilotabile dall'attaccante. |
+| Pagine HTML (1-6) e mount `/static` | Shell statiche pubbliche, nessun dato, nessuna auth by design. Eccezione documentata: `/pipeline` (2) inietta la API key per i soli client locali → §4 #6. |
 
-**Sintesi ambito R2:** **8 route mandatorie** (§2A) + **5 raccomandate** (§2B). Escluse:
-`agent/run` (già strict, non toccare), `canvas/dry-run` e tutte le GET/pagine.
+**Sintesi ambito:** **22 POST protetti** su 24 (13 mutanti §2A + 9 LLM/filesystem §2B).
+Escluse: `agent/run` (già strict, non toccare) e `canvas/dry-run`; GET e pagine invariate.
 
 ---
 
-## 3. Specifica del test parametrico (R2 implementerà)
+## 3. Copertura di test (implementata)
 
-Modello: stesso stile di `tests/test_security_fixes.py` (introspezione delle dependency +
-wiring HTTP reale con `TestClient`). Il `TestClient` **non è un browser**: può impostare
-qualsiasi header, incluso `Sec-Fetch-Site` e `Content-Type: application/json` — è l'unico
-modo per esercitare davvero il branch cross-site.
+In [`tests/test_security_fixes.py`](tests/test_security_fixes.py), sezione "R2 (M7)". Il
+`TestClient` **non è un browser**: può impostare qualsiasi header, incluso
+`Sec-Fetch-Site` — è l'unico modo per esercitare davvero il branch cross-site.
 
-### 3.1 Ordine di valutazione (vincolo da rispettare nel test)
+### 3.1 Ordine di valutazione (vincolo rispettato dai test)
 
-In `fastapi/routing.py` il **parse grezzo** del body (`json.loads`) avviene **prima** di
-`solve_dependencies`; la **validazione Pydantic** del body avviene **dentro**
-`solve_dependencies`, **dopo** l'esecuzione delle dependency. Quindi una dependency che
-solleva 403 **precede** il 422 di validazione, **ma non** un 422 da JSON malformato.
-Regola operativa per il test: inviare sempre un **body JSON valido e minimale** (con
-`Content-Type: application/json`) per le route Pydantic, così il 403 è attribuibile
-all'header e non a un 422. Per le due route bodyless (reindex/rollback) inviare **senza
-body**.
+In `fastapi/routing.py` il **parse grezzo** del body avviene **prima** di
+`solve_dependencies`; la **validazione Pydantic** avviene **dentro** `solve_dependencies`,
+**dopo** l'esecuzione delle dependency. Quindi una dependency che solleva 403 **precede**
+il 422 di validazione, **ma non** un 422 da JSON malformato. I test sfruttano proprio
+questo: inviano `{}` (JSON valido ma incompleto) e assertano che il cross-site dia 403
+mentre il ramo "come oggi" dia il 422 — la business logic non viene mai eseguita.
 
-### 3.2 Parametrizzazione
+### 3.2 Cosa è asserito
 
-```python
-# (router, metodo, path, body_minimo_valido | None)
-_CROSS_SITE_GUARDED = [
-    # --- mandatorie (§2A) ---
-    (routes_reindex.router,  "POST", "/api/reindex",                    None),
-    (routes_reindex.router,  "POST", "/api/index/rollback",             None),
-    (routes_pipeline.router, "POST", "/api/pipeline/explore/save",      {"feature_name": "f", "interview_log": "x"}),
-    (routes_pipeline.router, "POST", "/api/pipeline/canvas/generate",   {"feature_name": "f"}),
-    (routes_pipeline.router, "POST", "/api/pipeline/propose/generate",  {"feature_folder": "f"}),
-    (routes_pipeline.router, "POST", "/api/pipeline/archive",           {"feature": "f"}),
-    (routes_pipeline.router, "POST", "/api/pipeline/archive/stream",    {"feature": "f"}),
-    (routes_pipeline.router, "POST", "/api/pipeline/file/save",         {"feature": "f", "name": "canvas.md", "content": "x"}),
-    # --- raccomandate (§2B): includere se R2 adotta il tier defense-in-depth ---
-    (routes_pipeline.router, "POST", "/api/pipeline/explore/turn",      {"feature_name": "f", "user_input": "x"}),
-    (routes_pipeline.router, "POST", "/api/pipeline/drift/check",       {"feature": "f"}),
-    (routes_pipeline.router, "POST", "/api/pipeline/drift/check/stream",{"feature": "f"}),
-    (routes_pipeline.router, "POST", "/api/pipeline/validate",          {"feature": "f"}),
-    (routes_retrieval.router,"POST", "/ask",                            {"question": "x"}),
-]
-```
+| Test | Asserzione |
+|------|------------|
+| `test_not_cross_site_*` (3 test) | Semantica della dependency in isolamento: 403 su `cross-site`; passa con header assente, `same-origin`, `same-site`, `none`; passa con API key valida. |
+| `test_matrix_route_declares_anti_cross_site_dependency` | Introspezione: ognuna delle **22** route della matrice dichiara la dependency. |
+| `test_excluded_route_does_not_declare_anti_cross_site_dependency` | `agent/run` e `canvas/dry-run` **non** la dichiarano (nessuna protezione "per eccesso", nessun indebolimento dello strict). |
+| **`test_every_post_route_is_classified`** | **Il verso che mancava.** Ogni POST registrato su uno qualsiasi dei 7 router deve stare nella matrice o fra le esclusioni, e nessuna riga può essere fantasma. È ciò che impedisce alla matrice di restare indietro rispetto al codice: senza, i 9 POST di intake sono entrati senza che nulla lo segnalasse. |
+| `test_http_cross_site_post_rejected_with_403` | Wiring HTTP reale sulle 22 route: cross-site keyless ⇒ 403. |
+| `test_http_without_fetch_metadata_behaves_as_today` | Senza `Sec-Fetch-Site` ⇒ mai 403 (curl/webhook/browser legacy invariati). |
+| `test_http_same_origin_behaves_as_today` | `same-origin` (la dashboard keyless) ⇒ mai 403. |
+| `test_http_cross_site_with_valid_api_key_passes` | Cross-site **con** API key valida ⇒ mai 403 (client API autenticati non sono il threat model). |
+| `test_http_reindex_bodyless_curl_still_reaches_handler` | Criterio di accettazione: `curl -X POST /api/reindex` continua a funzionare (202). |
 
-### 3.3 Asserzioni (per ogni riga)
-
-1. **Cross-site ⇒ 403.** Richiesta con header `Sec-Fetch-Site: cross-site` (per le
-   Pydantic anche `Content-Type: application/json` + body minimo; per reindex/rollback
-   nessun body) → `resp.status_code == 403`. Nel setup keyless (`deps.API_KEY = None`,
-   client `("127.0.0.1", …)`), così si prova che il 403 nasce dalla nuova dependency e
-   **non** dall'auth (che localhost bypasserebbe).
-2. **Senza header ⇒ come oggi.** Stessa richiesta **senza** `Sec-Fetch-Site` → **non**
-   403: l'handler viene raggiunto esattamente come prima di R2 (le dipendenze a valle —
-   filesystem/Qdrant/LLM — vanno mockate/`monkeypatch` come già fa il test suite, così
-   l'asserzione è `status_code != 403`, tipicamente 200/202). Dimostra la
-   retro-compatibilità con webhook e client non-browser.
-3. **`same-origin`/`same-site`/`none` ⇒ come oggi.** Aggiungere almeno un caso
-   `Sec-Fetch-Site: same-origin` → non 403: la UI della dashboard non deve regredire.
-
-### 3.4 Test di non-regressione dell'esclusione
-
-- `agent/run` **resta strict**: riusare l'asserzione esistente `_STRICT_ROUTES`; in più,
-  verificare che la nuova dependency **non** sia stata aggiunta a `agent/run` (non
-  indebolire/duplicare).
-- Le GET read-only **non** montano la dependency (un caso su `/api/health` o
-  `/api/graph/all` con `Sec-Fetch-Site: cross-site` ⇒ **non** 403).
+> Nota sulla fixture: `_native_folder_dialog` è sostituita con un fake. `browse-path` (52)
+> non dichiara body, quindi nei rami "come oggi" l'handler **viene raggiunto davvero** e
+> aprirebbe un dialogo tkinter modale sulla macchina che esegue i test, bloccando la
+> suite. Che una POST bodyless apra una finestra sul desktop del server è anche il motivo
+> per cui la route è in matrice.
 
 ---
 
@@ -281,17 +282,20 @@ _CROSS_SITE_GUARDED = [
 
 | # | Rischio residuo | Mitigazione / accettazione |
 |--:|-----------------|----------------------------|
-| 1 | **Browser legacy senza `Sec-Fetch-Site`.** Un browser che non emette Fetch Metadata manda la richiesta senza header → ricade nel path "come oggi" → la guardia non scatta e una POST cross-site passa. | **Accettato.** Fetch Metadata è supportato da tutti gli evergreen dal ~2019 (Chrome 76+, Firefox 90+, Edge, Safari 16.4+); la popolazione residua è trascurabile per uno strumento su localhost. *Rafforzamento opzionale:* combinare con un controllo `Origin`/`Referer` (rifiuta Origin presente e diverso da self) come secondo segnale — copre anche l'assenza di Sec-Fetch-Site. |
-| 2 | **Reverse proxy che fa apparire locale il client.** Dietro un proxy che termina la connessione, `request.client.host` diventa `127.0.0.1` (il proxy) → il bypass localhost di `require_api_key` si applica a **tutti** i client esterni → auth bypassata a monte, indipendentemente da Sec-Fetch-Site. | **Mitigazione documentata (deploy).** Non esporre dietro proxy senza (a) impostare `VIBECRAFT_API_KEY` **e** (b) far onorare `X-Forwarded-For` a uvicorn (`--forwarded-allow-ips`, `ProxyHeadersMiddleware`) così che `client.host` sia l'IP reale. Nota: Sec-Fetch-Site **continua** a proteggere il vettore browser-CSRF anche via proxy (l'header cross-site attraversa il proxy). Il residuo è l'**accesso di rete autenticato**, che è compito di API-key + bind 127.0.0.1, non di questa dependency. |
+| 1 | **Browser legacy senza `Sec-Fetch-Site`.** Un browser che non emette Fetch Metadata manda la richiesta senza header → ricade nel path "come oggi" → la guardia non scatta e una POST cross-site passa. | **Accettato.** Fetch Metadata è supportato da tutti gli evergreen dal ~2019 (Chrome 76+, Firefox 90+, Edge, Safari 16.4+); la popolazione residua è trascurabile per uno strumento su localhost. *Rafforzamento opzionale:* combinare con un controllo `Origin`/`Referer` (rifiuta Origin presente e diverso da self) come secondo segnale. |
+| 2 | **Reverse proxy che fa apparire locale il client.** Dietro un proxy che termina la connessione, `request.client.host` diventa `127.0.0.1` (il proxy) → il bypass localhost di `require_api_key` si applica a **tutti** i client esterni. | **Mitigazione documentata (deploy).** Non esporre dietro proxy senza (a) impostare `VIBECRAFT_API_KEY` **e** (b) far onorare `X-Forwarded-For` a uvicorn (`--forwarded-allow-ips`, `ProxyHeadersMiddleware`). Sec-Fetch-Site **continua** a proteggere il vettore browser-CSRF anche via proxy. Il residuo è l'**accesso di rete autenticato**, compito di API-key + bind 127.0.0.1. |
 | 3 | **Client cross-site non-browser** (curl/script sulla LAN se il bind supera localhost). Non inviano `Sec-Fetch-Site` → la guardia non li ferma. | **Accettato per design.** Sec-Fetch-Site difende il vettore CSRF-da-browser, non l'accesso programmatico. La barriera per quest'ultimo resta `VIBECRAFT_API_KEY` + bind `127.0.0.1` (fail-closed già presente in `server.py`). |
-| 4 | **DoS-CPU/costo su route read-only o LLM escluse dal tier mandatorio** (`/api/retrieve`, `/api/graph/semantic-map`, e i POST §2B se non inclusi). Trigger cross-site di massa consuma embedding/SVD/Ollama senza mutare stato. | **Accettato**, con raccomandazione ad **adottare il tier §2B** per i POST-LLM (chiude il grosso). Per le GET CPU un rate-limit è fuori ambito R2; annotato come debito. |
-| 5 | **`/docs`, `/redoc`, `/openapi.json` non autenticati** (Appendice A). Espongono l'intero schema delle route a chiunque raggiunga il server. | **Accettato in locale**; in caso di esposizione, disabilitare (`FastAPI(docs_url=None, redoc_url=None, openapi_url=None)`) o proteggerli. Info-disclosure, non mutazione — fuori dallo scopo R2 ma da tenere a registro. |
+| 4 | **DoS-CPU/costo sulle GET read-only** (`/api/retrieve` 34, `/api/code/search` 35, `/api/graph/semantic-map` 39): un trigger cross-site di massa consuma embedding/SVD senza mutare stato. | **Accettato.** I POST-LLM sono ora tutti coperti (§2B), quindi il grosso è chiuso. Per le GET CPU un rate-limit resta **debito annotato**: `/api/code/search` ha già tetti di risposta (`k ≤ 25`) ma non di frequenza. |
+| 5 | **`/docs`, `/redoc`, `/openapi.json` non autenticati** (Appendice A). Espongono l'intero schema delle route a chiunque raggiunga il server. | **Accettato in locale**; in caso di esposizione, disabilitare (`FastAPI(docs_url=None, redoc_url=None, openapi_url=None)`) o proteggerli. Info-disclosure, non mutazione. |
+| 6 | **`GET /pipeline` (2) inietta `VIBECRAFT_API_KEY` nell'HTML** come `window.__VIBECRAFT_AGENT_API_KEY__`, su una route senza auth. | **Accettato, per costruzione.** L'iniezione avviene **solo** per client locali (`_is_local_request`, stessa condizione del bypass di `require_api_key`) e la Same-Origin Policy impedisce a una pagina di un'altra origine di **leggere** il body della risposta: può solo navigarci o fare fetch opachi. Se il server è esposto oltre localhost l'iniezione si disattiva da sola, quindi la chiave non raggiunge mai un client remoto. Resta un rischio se l'utente esegue codice ostile *nella propria pagina* — fuori dal modello di minaccia. |
+| 7 | **`POST /api/intake/project/browse-path` (52) apre un dialogo nativo sul desktop del server** ed è **consegnabile bodyless**. Senza la guardia, una pagina ostile farebbe comparire un selettore di cartelle sulla macchina dell'utente e occuperebbe un thread del pool finché non viene chiuso. | **Mitigato** dall'anti-cross-site (403 prima dell'handler). Residuo: un client locale/programmatico può comunque innescarlo. *Debito annotato:* la route ha senso solo perché server e browser sono la stessa macchina; se il bind superasse localhost andrebbe disabilitata del tutto, non solo protetta. |
+| 8 | **`POST /api/intake/project/plan` (53) enumera un path arbitrario del filesystem del server** e ne restituisce i file classificati: è info-disclosure per un chiamante che raggiunge l'endpoint. | **Mitigato** dall'anti-cross-site e dalle validazioni di `core.project_import` (path assoluto, esistente, directory, mai dentro il repo né lo staging — che riducono l'abuso ma **non** limitano *quale* directory della macchina si possa scansionare). **Accettato** per uno strumento locale: chi è autenticato come localhost ha già accesso al filesystem. Da rivedere se il bind supera localhost. |
 
 ---
 
 ## 5. Perimetro della modalità `agentic` (R8 — `agent_bridge.py`)
 
-`POST /api/pipeline/agent/run` (riga 7) è l'unica route che **scrive file / esegue**
+`POST /api/pipeline/agent/run` (riga 8) è l'unica route che **scrive file / esegue**
 tramite il Claude Agent SDK. Oltre all'auth (`require_api_key_strict`, invariata), la
 modalità `agentic` è confinata a livello di SDK (`claude-agent-sdk` 0.2.115):
 
@@ -312,6 +316,13 @@ modalità `agentic` è confinata a livello di SDK (`claude-agent-sdk` 0.2.115):
   perdere Bash che lasciare RCE con scrittura non confinata**. Build/test del codice
   generato restano fuori dalla modalità agentic.
 
+**Conseguenza sul prompt finale della pipeline.** Poiché in `agentic` non esiste Bash,
+l'agente in-app **non può fare chiamate HTTP**: `core.pipeline.build_final_prompt`
+distingue il consumatore (`external` vs `agent`) e omette per l'SDK il blocco che spiega
+come interrogare l'indice via `/api/code/search`. Non è una misura di sicurezza ma la
+stessa logica di perimetro: non si istruisce un agente a usare uno strumento che il suo
+perimetro gli nega.
+
 **Limiti residui:** (a) il confinamento è a livello di *decisione tool* dell'SDK, non
 un sandbox del kernel — un bug dell'SDK che non invocasse l'hook lo aggirerebbe; (b)
 lettura ampia: `Read`/`Glob`/`Grep` non sono ristretti a `code/`, quindi l'agente può
@@ -321,11 +332,13 @@ niente build/test in-modalità; (d) la blocklist dei segmenti riservati può rif
 
 ---
 
-## Appendice A — Superfici app-level (fuori dai 39, montate in `server.py`)
+## Appendice A — Superfici app-level (fuori dalle 57, montate in `server.py`)
 
 | Metodo | Path | Auth | Effetto | Nota |
 |--------|------|------|---------|------|
-| GET | `/static/*` | nessuna | read-only (asset statici) | `app.mount(StaticFiles)`; shared.css/js pubblici by design. |
+| GET | `/static/shared.css` | nessuna | read-only (asset) | Route esplicita (non il mount) per servirla con `NO_CACHE_HEADERS`: in cache, l'HTML fresco referenzierebbe classi CSS non ancora presenti. |
+| GET | `/static/shared.js` | nessuna | read-only (asset) | Idem. |
+| GET | `/static/*` | nessuna | read-only (asset statici) | `app.mount(StaticFiles)`; vendor pinnati, cache di default del browser. |
 | GET | `/openapi.json` | nessuna | read-only (schema) | Default FastAPI. Rivela tutte le route → vedi rischio #5. |
 | GET | `/docs` | nessuna | read-only (Swagger UI) | Default FastAPI. |
 | GET | `/redoc` | nessuna | read-only (ReDoc) | Default FastAPI. |
@@ -335,28 +348,23 @@ niente build/test in-modalità; (d) la blocklist dei segmenti riservati può rif
 
 ## Report finale
 
-- **Conteggio route registrate sui router: 39** (5 pages · 20 pipeline · 5 reindex ·
-  2 retrieval · 5 graph · 2 health) — **coincide** con le 39 righe della tabella §1.
-  Fuori conteggio: 1 mount statico + 4 route di default FastAPI (Appendice A).
-- **Route mutanti individuate: 8** — `explore/save`, `canvas/generate`,
-  `propose/generate`, `archive`, `archive/stream`, `file/save` (scrivono filesystem;
-  archive → anche Qdrant + CURRENT), `POST /api/reindex` (Qdrant), `POST /api/index/rollback`
-  (CURRENT + alias). Più `agent/run` che **esegue l'agente** (blast Alto) ma è **già
-  strict**, quindi fuori scope R2.
-- **Realmente raggiungibili cross-site oggi: solo 2** — `POST /api/reindex` e
-  `POST /api/index/rollback`, entrambe a **corpo assente** (`Request` grezza,
-  `request.json()` in try/except): una POST cross-site bodyless le raggiunge e muta. Le
-  altre 6 mutanti sono coperte *di fatto* solo dal combinato preflight-CORS +
-  `strict_content_type=True` (FastAPI 0.139.0) — difesa **implicita e fragile**, da
-  sostituire con il controllo esplicito Sec-Fetch-Site.
-- **Decisioni ambigue e raccomandazione:**
-  1. *`drift/check`(+stream), `validate`, `explore/turn`, `/ask`* eseguono LLM ma **non
-     mutano**: **raccomando di includerle** in R2 come defense-in-depth (vettore
-     DoS/costo, dependency a costo nullo, nessuna regressione UI). Escluderle è legittimo
-     solo se documentato come rischio DoS accettato.
-  2. *`agent/run`*: **escludere** — già `require_api_key_strict`, più forte;
-     **non sostituire/indebolire**.
-  3. *`canvas/dry-run`* e *GET CPU-pesanti* (`/api/retrieve`, `/api/graph/semantic-map`):
-     read-only → **fuori scope mandatorio**; solo rischio DoS-CPU, accettato (§4 #4).
-  4. *Ambito R2 consigliato:* **8 mandatorie + 5 raccomandate = 13 POST** con la
-     dependency anti-cross-site; `agent/run` resta strict; GET e pagine invariate.
+- **Conteggio route registrate sui router: 57** (6 pages · 21 pipeline · 5 reindex ·
+  3 retrieval · 5 graph · 2 health · 15 intake) — **coincide** con le 57 righe della
+  tabella §1. Fuori conteggio: 2 route asset + 1 mount statico + 4 route di default
+  FastAPI (Appendice A).
+- **POST: 24** — **22 protetti** da `require_not_cross_site_request`, 2 esclusi con
+  motivazione (`agent/run` già strict, `canvas/dry-run` read-only). Nessun POST non
+  classificato: lo garantisce `test_every_post_route_is_classified`.
+- **Route mutanti individuate: 13** — `explore/save`, `canvas/generate`,
+  `propose/generate`, `archive`, `archive/stream`, `file/save`, `POST /api/reindex`,
+  `POST /api/index/rollback`, `intake/docs`, `intake/approve`, `intake/reject`,
+  `intake/project/apply`, `intake/project/browse-path`. Più `agent/run` che **esegue
+  l'agente** (blast Alto) ma è **già strict**.
+- **Consegnabili cross-site per forma della richiesta: 7** (28, 32, 43, 47, 50, 52, 54 —
+  bodyless, multipart o body con tutti i campi opzionali). Su queste l'anti-cross-site è
+  l'**unico** controllo nel setup keyless, non defense-in-depth. Le altre 15 sono coperte
+  *anche* dal combinato preflight-CORS + `strict_content_type` — difesa implicita, mai
+  l'unica.
+- **Debiti annotati:** rate-limit sulle GET CPU-pesanti (§4 #4); `browse-path` e
+  `project/plan` da disabilitare, non solo proteggere, se il bind supera localhost
+  (§4 #7-#8); `/docs`/`/openapi.json` da chiudere in caso di esposizione (§4 #5).

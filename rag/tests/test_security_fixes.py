@@ -26,7 +26,15 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 import api.deps as deps
-from api import routes_pipeline, routes_reindex, routes_retrieval
+from api import (
+    routes_graph,
+    routes_health,
+    routes_intake,
+    routes_pages,
+    routes_pipeline,
+    routes_reindex,
+    routes_retrieval,
+)
 from api.models import (
     ArchiveRequest,
     CanvasGenerateRequest,
@@ -637,9 +645,11 @@ def test_route_propose_generate_rejects_stale_or_tampered_meta_dev_type(code_dir
 # (api.deps.require_not_cross_site_request — matrice in SECURITY_SURFACE.md §2)
 # ===========================================================================
 
-# Route della matrice M7 (SECURITY_SURFACE.md §2, "Sintesi ambito R2"): 8 mandatorie
-# (mutano stato) + 5 raccomandate (eseguono LLM senza mutare, incluso POST /ask in
-# api/routes_retrieval.py) = 13 POST. Corrispondenza 1:1 con la matrice.
+# Route della matrice M7 (SECURITY_SURFACE.md §2, "Sintesi ambito"): TUTTI i POST del
+# progetto tranne i due esclusi con motivazione (agent/run, già strict; canvas/dry-run,
+# read-only) — 22 su 24. Corrispondenza 1:1 con la matrice, verificata in entrambi i
+# versi: ogni riga qui deve dichiarare la dependency (test sotto) e ogni POST del codice
+# deve comparire qui o fra le esclusioni (test_every_post_route_is_classified).
 _ANTI_XSITE_ROUTES = [
     (routes_reindex.router, "POST", "/api/reindex"),
     (routes_reindex.router, "POST", "/api/index/rollback"),
@@ -654,7 +664,39 @@ _ANTI_XSITE_ROUTES = [
     (routes_pipeline.router, "POST", "/api/pipeline/drift/check/stream"),
     (routes_pipeline.router, "POST", "/api/pipeline/validate"),
     (routes_retrieval.router, "POST", "/ask"),
+    # Intake & Import (S0-S6): 9 POST, tutti mutanti o LLM. Tre di questi sono
+    # STRUTTURALMENTE raggiungibili cross-site anche senza preflight — `docs` ha un body
+    # multipart (content-type "simple", nessun preflight) e `refine`/`browse-path` non
+    # dichiarano alcun body — quindi qui la dependency non è defense-in-depth: è l'unico
+    # controllo. Vedi SECURITY_SURFACE.md §1 "Nota sulle route a corpo consegnabile".
+    (routes_intake.router, "POST", "/api/intake/docs"),
+    (routes_intake.router, "POST", "/api/intake/staged/{doc_id}/approve"),
+    (routes_intake.router, "POST", "/api/intake/staged/{doc_id}/reject"),
+    (routes_intake.router, "POST", "/api/intake/generate"),
+    (routes_intake.router, "POST", "/api/intake/staged/{doc_id}/refine"),
+    (routes_intake.router, "POST", "/api/intake/project/browse-path"),
+    (routes_intake.router, "POST", "/api/intake/project/plan"),
+    (routes_intake.router, "POST", "/api/intake/project/apply"),
+    (routes_intake.router, "POST", "/api/intake/project/brief"),
 ]
+
+# POST deliberatamente FUORI dalla matrice, con la motivazione della matrice §2C. Lista
+# chiusa: serve al test di classificazione qui sotto, che è ciò che impedisce a un nuovo
+# POST di entrare nel codice senza una decisione esplicita.
+_ANTI_XSITE_EXCLUDED = [
+    (routes_pipeline.router, "POST", "/api/pipeline/agent/run"),      # già require_api_key_strict
+    (routes_pipeline.router, "POST", "/api/pipeline/canvas/dry-run"),  # read-only
+]
+
+_ALL_ROUTERS = [routes_pages.router, routes_pipeline.router, routes_reindex.router,
+                routes_retrieval.router, routes_graph.router, routes_health.router,
+                routes_intake.router]
+
+
+def _concrete(path: str) -> str:
+    """Template di route → URL concreto per le richieste HTTP. Gli id inesistenti sono
+    voluti: il ramo "come oggi" deve fermarsi su un 404/422, mai su un documento vero."""
+    return path.replace("{doc_id}", "non-esiste").replace("{job_id}", "non-esiste")
 
 
 # --- Semantica della dependency, in isolamento (stesso pattern _FakeRequest) ---
@@ -689,25 +731,47 @@ def test_matrix_route_declares_anti_cross_site_dependency(router, method, path):
     assert deps.require_not_cross_site_request in _route_dependency_fns(router, method, path)
 
 
-@pytest.mark.parametrize("router,method,path", [
-    (routes_pipeline.router, "POST", "/api/pipeline/agent/run"),
-    (routes_pipeline.router, "POST", "/api/pipeline/canvas/dry-run"),
-])
+@pytest.mark.parametrize("router,method,path", _ANTI_XSITE_EXCLUDED)
 def test_excluded_route_does_not_declare_anti_cross_site_dependency(router, method, path):
     # agent/run resta SOLO strict (matrice §2C: non toccato né indebolito);
     # canvas/dry-run è read-only, escluso dalla matrice — nessuna protezione "per eccesso".
     assert deps.require_not_cross_site_request not in _route_dependency_fns(router, method, path)
 
 
-# --- Wiring HTTP reale sulle 13 route della matrice ---
+def test_every_post_route_is_classified():
+    """Il verso che mancava: ogni POST registrato deve stare nella matrice O fra le
+    esclusioni motivate. È il test che avrebbe fatto fallire l'ingresso dei 9 POST di
+    intake senza una riga corrispondente in SECURITY_SURFACE.md — la matrice non può
+    restare indietro rispetto al codice senza che la suite lo dica."""
+    classified = {(m, p) for _, m, p in _ANTI_XSITE_ROUTES + _ANTI_XSITE_EXCLUDED}
+    registered = {
+        ("POST", route.path)
+        for router in _ALL_ROUTERS for route in router.routes
+        if "POST" in getattr(route, "methods", set())
+    }
+    assert registered - classified == set(), (
+        "POST non classificati: aggiungili a _ANTI_XSITE_ROUTES (con la dependency) o a "
+        "_ANTI_XSITE_EXCLUDED (con la motivazione), e aggiorna SECURITY_SURFACE.md §1-§2."
+    )
+    # E nessuna riga fantasma: una route rimossa dal codice non deve restare in matrice.
+    assert classified - registered == set()
+
+
+# --- Wiring HTTP reale su tutte le route della matrice ---
 @pytest.fixture
 def xsite_client(monkeypatch, tmp_path):
-    """Client HTTP localhost con i tre router della matrice e le dipendenze a valle
+    """Client HTTP localhost con i quattro router della matrice e le dipendenze a valle
     di reindex/rollback sostituite da fake (stesso schema dei test di bypass sopra):
     sotto esame c'è solo il gate anti-cross-site, mai il reindex/rollback reale. Per le
     route Pydantic (incluso /ask, il cui AskQuery richiede `question`) i test inviano un
     body volutamente NON valido ({}): quando il gate passa la risposta è il 422 di
-    validazione — la business logic non viene mai eseguita."""
+    validazione — la business logic non viene mai eseguita.
+
+    `_native_folder_dialog` è sostituita perché `project/browse-path` non dichiara alcun
+    body: nel ramo "come oggi" l'handler viene raggiunto davvero e aprirebbe un dialogo
+    tkinter MODALE sulla macchina che esegue i test, bloccando la suite finché qualcuno
+    non lo chiude a mano. (Che una POST bodyless apra una finestra sul desktop del server
+    è anche il motivo per cui questa route è in matrice.)"""
     class _FakeJob:
         id = "fake-job-id"
 
@@ -721,7 +785,9 @@ def xsite_client(monkeypatch, tmp_path):
     from core import artifacts
     monkeypatch.setattr(routes_reindex, "manager", _FakeManager())
     monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)  # rollback => 404, mai il reale
-    return _make_client(routes_pipeline.router, routes_reindex.router, routes_retrieval.router)
+    monkeypatch.setattr(routes_intake, "_native_folder_dialog", lambda: None)
+    return _make_client(routes_pipeline.router, routes_reindex.router,
+                        routes_retrieval.router, routes_intake.router)
 
 
 @pytest.mark.parametrize("router,method,path", _ANTI_XSITE_ROUTES)
@@ -729,7 +795,7 @@ def test_http_cross_site_post_rejected_with_403(xsite_client, monkeypatch, route
     """A. Cross-site keyless ⇒ 403. POST senza corpo, come la vera simple request di un
     attaccante: la dependency scatta prima della validazione Pydantic del body."""
     monkeypatch.setattr(deps, "API_KEY", None)
-    r = xsite_client.request(method, path, headers={"Sec-Fetch-Site": "cross-site"})
+    r = xsite_client.request(method, _concrete(path), headers={"Sec-Fetch-Site": "cross-site"})
     assert r.status_code == 403, r.text
     assert "cross-site" in r.json()["detail"]
 
@@ -740,7 +806,7 @@ def test_http_without_fetch_metadata_behaves_as_today(xsite_client, monkeypatch,
     per le route Pydantic col body {}, 202 dal manager fake, 404 dal rollback senza
     versioni) — non si fissa un codice unico, si dimostra che il gate non è scattato."""
     monkeypatch.setattr(deps, "API_KEY", None)
-    r = xsite_client.request(method, path, json={})
+    r = xsite_client.request(method, _concrete(path), json={})
     assert r.status_code != 403, r.text
 
 
@@ -748,7 +814,8 @@ def test_http_without_fetch_metadata_behaves_as_today(xsite_client, monkeypatch,
 def test_http_same_origin_behaves_as_today(xsite_client, monkeypatch, router, method, path):
     """C. Sec-Fetch-Site: same-origin (la dashboard keyless) ⇒ MAI 403."""
     monkeypatch.setattr(deps, "API_KEY", None)
-    r = xsite_client.request(method, path, json={}, headers={"Sec-Fetch-Site": "same-origin"})
+    r = xsite_client.request(method, _concrete(path), json={},
+                             headers={"Sec-Fetch-Site": "same-origin"})
     assert r.status_code != 403, r.text
 
 
@@ -756,7 +823,7 @@ def test_http_same_origin_behaves_as_today(xsite_client, monkeypatch, router, me
 def test_http_cross_site_with_valid_api_key_passes(xsite_client, monkeypatch, router, method, path):
     """D. Cross-site MA con API key valida ⇒ MAI 403: il bypass per i client autenticati."""
     monkeypatch.setattr(deps, "API_KEY", "s3cret")
-    r = xsite_client.request(method, path, json={},
+    r = xsite_client.request(method, _concrete(path), json={},
                              headers={"Sec-Fetch-Site": "cross-site", "X-API-Key": "s3cret"})
     assert r.status_code != 403, r.text
 
