@@ -60,3 +60,14 @@ candidates:
   - doc: 01_architecture_norms/architecture_decision_rationale.md
   from_feature: la1
   extracted_at: '2026-08-04T14:29:28+00:00'
+- q: 'la2: REASONS Canvas: Feature LA2 (Integrazione Notifiche Dinamiche)'
+  expected:
+  - doc: 00_meta_governance/glossario_entita.md
+  - doc: 05_project_specs/spec_tech_logic_agent.md
+  - doc: 01_architecture_norms/observability_standards.md
+  - doc: 00_meta_governance/safeguards_security.md
+  - doc: 01_architecture_norms/coding_standards.md
+  - doc: 04_knowledge_informative/vibe_coding_workflow.md
+  - doc: 04_knowledge_informative/intent_synonym_mapping.md
+  from_feature: la2
+  extracted_at: '2026-08-05T09:58:44+00:00'
