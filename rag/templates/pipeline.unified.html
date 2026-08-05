@@ -975,7 +975,18 @@
         const data = await res.json();
         const s = data.structural || {};
         const chip = (ok, label) => `<span class="px-2 py-0.5 rounded-full border ${ok ? 'border-emerald-800 text-emerald-400' : 'border-red-900 text-red-400'}">${ok ? '✅' : '❌'} ${label}</span>`;
+        const sem = s.semantica_bdd || {};
         const chips = [chip(s.canvas_completo, 'Canvas · 7 sezioni'), chip(s.spec_bdd_valida, 'Spec · GIVEN/WHEN/THEN')];
+        // Sostanza degli scenari: chip ROSSA e non ambra — a differenza della pertinenza
+        // (euristica sul titolo) qui il verdetto e deterministico. La FORMA non compare:
+        // la ricostruisce il normalizzatore, non c'e' niente da segnalare all'utente.
+        if (sem.checked) {
+          chips.push(sem.valid
+            ? chip(true, `Spec · ${sem.scenarios} scenari completi`)
+            : chip(false, `Spec · ${(sem.violations || []).length} problemi di sostanza`));
+        } else if (sem.skipped === 'archiviata') {
+          chips.push(`<span class="px-2 py-0.5 rounded-full border border-slate-700 text-slate-400">➖ Scenari · spec archiviata</span>`);
+        }
         // Pertinenza degli scenari: controllo deterministico, advisory. Chip ambra e non
         // rossa perche' e un'euristica sul titolo — segnala, non boccia.
         const sc = data.scenario_scope || {};
@@ -994,7 +1005,17 @@
                 + (o.foreign_entities.length ? `\n      entita estranee: ${o.foreign_entities.join(', ')}` : '')).join('\n')
             + `\n  (segnalazione, non un verdetto: rileggili e togli quelli che non riguardano la feature)`
           : '';
-        box.textContent = (data.report || '(nessun report)') + offText;
+        // Diagnostica: scenario, riga e regola violata, cosi si corregge il punto esatto
+        // invece di rileggere lo spec intero.
+        const viol = (sem.violations || []);
+        const semText = viol.length
+          ? `\n\n❌ SCENARI DA CORREGGERE (controllo deterministico, `
+            + `${viol.length} problemi):\n`
+            + viol.map(v => `  • riga ${v.line}${v.scenario ? ` · ${v.scenario}` : ''} `
+                + `[${v.rule}]\n      ${v.message}`).join('\n')
+            + `\n  (sono problemi di sostanza: vanno risolti nel contenuto, non con una rigenerazione)`
+          : '';
+        box.textContent = (data.report || '(nessun report)') + semText + offText;
       } catch (e) {
         box.textContent = `❌ Errore: ${e.message}`;
       } finally {

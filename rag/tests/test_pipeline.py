@@ -9,9 +9,10 @@ import asyncio
 
 import networkx as nx
 import pytest
+from fastapi import HTTPException
 
 from api import routes_pipeline
-from api.models import ValidateRequest
+from api.models import ProposeGenerateRequest, ValidateRequest
 from core import llm, pipeline
 
 
@@ -133,10 +134,30 @@ def test_build_spec_prompt_norme_block_conditional():
     assert "CANVAS BODY" in without and "Vincoli normativi dal Graph RAG" not in without
 
 
+# Spec nel formato obbligatorio (un blocco ```gherkin per scenario, riga SCENARIO numerata,
+# un solo GIVEN/WHEN/THEN, nominale + negativo): riferimento per i test che devono passare.
+SPEC_CONFORME = (
+    "# Specifica Feature: demo\n\n"
+    "```gherkin\n"
+    "SCENARIO: S01 - Invio della RICHIESTA\n"
+    "  GIVEN un UTENTE autenticato con profilo \"Dipendente\"\n"
+    "  AND una RICHIESTA in stato \"Bozza\"\n"
+    "  WHEN l'utente conferma l'invio\n"
+    "  THEN il sistema porta la RICHIESTA in stato \"In attesa\"\n"
+    "```\n\n"
+    "```gherkin\n"
+    "SCENARIO: S02 - Invio rifiutato senza motivazione\n"
+    "  GIVEN una RICHIESTA priva di motivazione\n"
+    "  WHEN l'utente conferma l'invio\n"
+    "  THEN il sistema rifiuta l'operazione con errore \"VALIDATION_FAILED\"\n"
+    "  AND nessuna mutazione di stato viene persistita\n"
+    "```\n"
+)
+
+
 def test_validate_structural_detects_sections_and_bdd():
     canvas = "## Requirements\n## Entities\n## Approach\n## Structure\n## Operations\n## Norms\n## Safeguards\n"
-    spec = "GIVEN x WHEN y THEN z"
-    out = pipeline.validate_structural(canvas, spec)
+    out = pipeline.validate_structural(canvas, SPEC_CONFORME)
     assert out["canvas_completo"] is True
     assert out["spec_bdd_valida"] is True
     # canvas incompleto + spec senza THEN
@@ -144,6 +165,51 @@ def test_validate_structural_detects_sections_and_bdd():
     assert out2["canvas_completo"] is False
     assert out2["spec_bdd_valida"] is False
     assert out2["bdd_then"] is False
+
+
+def test_validate_structural_boccia_lo_spec_senza_caso_negativo():
+    # I marcatori BDD ci sono tutti e la forma anche, ma il percorso felice da solo non e'
+    # una specifica: prima bastava che le tre parole comparissero nel testo.
+    canvas = "## Requirements\n## Entities\n## Approach\n## Structure\n## Operations\n## Norms\n## Safeguards\n"
+    solo_felice = (
+        "```gherkin\n"
+        "SCENARIO: S01 - Invio della RICHIESTA\n"
+        "  GIVEN un UTENTE autenticato\n"
+        "  WHEN conferma l'invio\n"
+        "  THEN il sistema registra la RICHIESTA\n"
+        "```\n\n"
+        "```gherkin\n"
+        "SCENARIO: S02 - Riepilogo della RICHIESTA\n"
+        "  GIVEN una RICHIESTA registrata\n"
+        "  WHEN l'utente apre il dettaglio\n"
+        "  THEN il sistema mostra il riepilogo\n"
+        "```\n"
+    )
+    out = pipeline.validate_structural(canvas, solo_felice)
+    assert out["bdd_given"] and out["bdd_when"] and out["bdd_then"]
+    assert out["spec_bdd_valida"] is False
+    assert "caso_negativo_mancante" in [v["rule"] for v in out["semantica_bdd"]["violations"]]
+
+
+def test_validate_structural_salta_la_semantica_sugli_spec_archiviati(tmp_path, monkeypatch):
+    # changes/archive/** e' storia: gli spec archiviati prima del formato unico non devono
+    # risultare bocciati, non c'e' nulla da correggere in un documento che nessuno riscrive.
+    changes = tmp_path / "changes"
+    monkeypatch.setattr(pipeline, "CHANGES_DIR", changes)
+    vecchio = "**Scenario 1**\n**GIVEN**: x\n**WHEN**: y\n**THEN**: z\n"
+
+    archiviata = changes / "archive" / "la1" / "spec.md"
+    archiviata.parent.mkdir(parents=True)
+    archiviata.write_text(vecchio, encoding="utf-8")
+    out = pipeline.validate_structural("## Requirements\n", vecchio, archiviata)
+    assert out["semantica_bdd"]["skipped"] == "archiviata"
+    assert out["spec_bdd_valida"] is True
+
+    # La stessa spec ancora attiva viene invece bocciata (un solo scenario).
+    attiva = changes / "la2" / "spec.md"
+    attiva.parent.mkdir(parents=True)
+    attiva.write_text(vecchio, encoding="utf-8")
+    assert pipeline.validate_structural("## Requirements\n", vecchio, attiva)["spec_bdd_valida"] is False
 
 
 def test_build_validate_prompt_handles_missing_parts():
@@ -438,10 +504,172 @@ def test_bdd_italiano_riconosciuto_da_structural_e_split():
             "*   **Quando** l'utente riprova.\n"
             "*   **Allora** il form e' bloccato.\n")
     s = pipeline.validate_structural("## Requirements\n", spec)
+    assert s["bdd_given"] and s["bdd_when"] and s["bdd_then"]
+    # Il verdetto e' POSITIVO: la forma italiana non e' piu' un motivo di bocciatura, perche'
+    # non e' piu' il validatore a giudicare la forma — il normalizzatore la riscrive. Il
+    # controllo semantico legge questo spec attraverso lo stesso parser, ci trova due scenari
+    # completi di cui uno negativo, e non ha nulla da dire.
     assert s["spec_bdd_valida"] is True
+    assert s["semantica_bdd"]["scenarios"] == 2
     sc = pipeline.split_scenarios(spec)
     assert [x["title"] for x in sc] == ["Scenario 01: Badge Sold Out",
                                         "Scenario 02: Richiesta duplicata"]
+
+
+def test_split_scenarios_usa_la_riga_scenario_del_formato_obbligatorio():
+    # Il titolo del formato unico sta DENTRO il blocco ```gherkin: senza riconoscerlo,
+    # check_scenario_scope (che giudica il titolo) resterebbe muto su ogni spec nuovo.
+    sc = pipeline.split_scenarios(SPEC_CONFORME)
+    assert [x["title"] for x in sc] == ["Invio della RICHIESTA",
+                                        "Invio rifiutato senza motivazione"]
+
+
+# ===========================================================================
+# Sostanza degli scenari (check_bdd_semantics). La FORMA non si controlla qui:
+# la ricostruisce core.spec_format.normalize_spec, ed e' coperta da
+# tests/test_spec_format.py. Qui restano solo le regole che un normalizzatore
+# NON puo' sistemare senza decidere al posto dell'autore — e che quindi devono
+# restare un muro. Ogni test copre UNA regola e ne verifica la DIAGNOSTICA.
+# ===========================================================================
+def _rules(spec: str) -> list[str]:
+    return [v["rule"] for v in pipeline.check_bdd_semantics(spec)["violations"]]
+
+
+def test_check_bdd_semantics_accetta_lo_spec_conforme():
+    out = pipeline.check_bdd_semantics(SPEC_CONFORME)
+    assert out == {"checked": True, "scenarios": 2, "violations": [], "valid": True}
+
+
+def test_check_bdd_semantics_spec_vuota_non_e_giudicata():
+    out = pipeline.check_bdd_semantics("   \n")
+    assert out["checked"] is False and out["valid"] is False
+
+
+def test_check_bdd_semantics_non_guarda_piu_la_forma():
+    # Lo stesso identico contenuto in un blocco solo, con la `E` italiana: e' il fallimento
+    # tipico del modello locale. Non e' piu' un problema del validatore — lo assorbe il
+    # normalizzatore — e il verdetto sulla SOSTANZA deve restare pulito.
+    blocco_unico = (
+        "```gherkin\n"
+        "SCENARIO: S01 - Invio della RICHIESTA\n"
+        "  GIVEN un UTENTE autenticato\n"
+        "  WHEN conferma l'invio\n"
+        "  THEN il sistema registra la RICHIESTA\n"
+        "\n"
+        "SCENARIO: S02 - Invio rifiutato senza motivazione\n"
+        "  GIVEN una RICHIESTA priva di motivazione\n"
+        "  WHEN l'utente conferma l'invio\n"
+        "  THEN il sistema rifiuta l'operazione\n"
+        "  E nessuna mutazione di stato viene persistita\n"
+        "```\n"
+    )
+    out = pipeline.check_bdd_semantics(blocco_unico)
+    assert out["scenarios"] == 2
+    assert out["valid"] is True
+
+
+def test_check_bdd_semantics_segnala_i_keyword_duplicati():
+    # Un secondo GIVEN e' una scelta di CONTENUTO (una condizione in piu' da scrivere con AND,
+    # oppure due casi da separare): il normalizzatore non puo' deciderlo, il validatore si'.
+    spec = SPEC_CONFORME.replace(
+        '  AND una RICHIESTA in stato "Bozza"', '  GIVEN una RICHIESTA in stato "Bozza"')
+    viol = [v for v in pipeline.check_bdd_semantics(spec)["violations"]
+            if v["rule"] == "given_duplicato"]
+    assert len(viol) == 1 and viol[0]["scenario"] == "S01"
+    assert "AND" in viol[0]["message"]
+
+
+def test_check_bdd_semantics_segnala_il_passo_mancante():
+    spec = SPEC_CONFORME.replace("  WHEN l'utente conferma l'invio\n", "", 1)
+    assert "when_mancante" in _rules(spec)
+
+
+def test_check_bdd_semantics_segnala_i_passi_fuori_ordine():
+    spec = (
+        "```gherkin\n"
+        "SCENARIO: S01 - Ordine invertito\n"
+        "  GIVEN una premessa\n"
+        "  THEN il sistema risponde\n"
+        "  WHEN accade qualcosa\n"
+        "```\n\n"
+        "```gherkin\n"
+        "SCENARIO: S02 - Caso negativo\n"
+        "  GIVEN una premessa\n"
+        "  WHEN accade altro\n"
+        "  THEN il sistema rifiuta l'operazione\n"
+        "```\n"
+    )
+    assert "ordine_passi" in _rules(spec)
+
+
+def test_check_bdd_semantics_pretende_il_caso_negativo():
+    # Due scenari, entrambi percorsi felici: la forma e' giusta, la copertura no.
+    spec = (
+        "```gherkin\n"
+        "SCENARIO: S01 - Primo caso\n"
+        "  GIVEN una premessa\n"
+        "  WHEN accade qualcosa\n"
+        "  THEN il sistema mostra il dettaglio\n"
+        "```\n\n"
+        "```gherkin\n"
+        "SCENARIO: S02 - Secondo caso\n"
+        "  GIVEN un'altra premessa\n"
+        "  WHEN accade altro\n"
+        "  THEN il sistema aggiorna la scheda\n"
+        "```\n"
+    )
+    assert _rules(spec) == ["caso_negativo_mancante"]
+
+
+def test_check_bdd_semantics_pretende_almeno_due_scenari():
+    solo_uno = (
+        "```gherkin\n"
+        "SCENARIO: S01 - Primo caso\n"
+        "  GIVEN una premessa\n"
+        "  WHEN accade qualcosa\n"
+        "  THEN il sistema rifiuta l'operazione\n"
+        "```\n"
+    )
+    assert "scenari_insufficienti" in _rules(solo_uno)
+
+
+def test_check_bdd_semantics_segnala_i_dettagli_implementativi():
+    # Firma volutamente STRETTA: nomi di file di codice, endpoint HTTP, SQL. Non prova a
+    # riconoscere «sembra il nome di una classe», perche' un termine di dominio che viene dal
+    # Canvas non e' un dettaglio implementativo e bocciarlo sarebbe peggio che tacere.
+    spec = SPEC_CONFORME.replace(
+        "  WHEN l'utente conferma l'invio\n",
+        "  WHEN il gestore in EmailChannelAdapter.cs riceve la conferma\n", 1)
+    viol = [v for v in pipeline.check_bdd_semantics(spec)["violations"]
+            if v["rule"] == "dettaglio_implementativo"]
+    assert len(viol) == 1 and viol[0]["scenario"] == "S01"
+    assert "EmailChannelAdapter.cs" in viol[0]["message"]
+
+    endpoint = SPEC_CONFORME.replace(
+        "  WHEN l'utente conferma l'invio\n", "  WHEN invia POST /api/richieste\n", 1)
+    assert "dettaglio_implementativo" in _rules(endpoint)
+
+    sql = SPEC_CONFORME.replace(
+        "  THEN il sistema porta la RICHIESTA in stato \"In attesa\"\n",
+        "  THEN il sistema esegue INSERT INTO richieste\n", 1)
+    assert "dettaglio_implementativo" in _rules(sql)
+
+
+def test_check_bdd_semantics_non_scambia_i_termini_di_dominio_per_implementazione():
+    # Il rovescio del test sopra, ed e' quello che tiene onesta la firma stretta: uno scenario
+    # che nomina un'entita' del glossario o una policy del Canvas non va bocciato.
+    spec = SPEC_CONFORME.replace(
+        "  WHEN l'utente conferma l'invio\n",
+        "  WHEN la BackoffWindowingPolicy apre la finestra sulla NOTIFICA\n", 1)
+    assert "dettaglio_implementativo" not in _rules(spec)
+
+
+def test_check_bdd_semantics_riporta_la_struttura_irrecuperabile():
+    # Se il testo non e' nemmeno interpretabile come BDD, la sola violazione e' quella, col
+    # messaggio del normalizzatore: nessun elenco di regole su un documento che non c'e'.
+    out = pipeline.check_bdd_semantics("# Solo un titolo\n\nNient'altro.\n")
+    assert [v["rule"] for v in out["violations"]] == ["struttura_irrecuperabile"]
+    assert out["valid"] is False
 
 
 # ===========================================================================
@@ -461,7 +689,7 @@ def validate_changes_env(tmp_path, monkeypatch):
     (folder / "canvas.md").write_text(
         "## Requirements\n## Entities\n## Approach\n## Structure\n"
         "## Operations\n## Norms\n## Safeguards\n", encoding="utf-8")
-    (folder / "spec.md").write_text("GIVEN x WHEN y THEN z", encoding="utf-8")
+    (folder / "spec.md").write_text(SPEC_CONFORME, encoding="utf-8")
     return folder
 
 
@@ -500,6 +728,77 @@ def test_validate_route_still_succeeds_when_llm_works(validate_changes_env, fake
     assert result["structural"]["canvas_completo"] is True
 
 
+# ===========================================================================
+# /api/pipeline/propose/generate: l'output grezzo del modello si conserva
+# SEMPRE prima della normalizzazione, e uno spec non interpretabile non
+# sovrascrive mai spec.md.
+# ===========================================================================
+def _propose(monkeypatch, folder, risposta: str):
+    """Esegue propose/generate con l'LLM e il retrieval finti, restituendo la risposta HTTP
+    o l'eccezione. Il retrieval e' inerte: qui si testa cosa succede all'output, non da dove
+    viene il contesto normativo."""
+    monkeypatch.setattr(routes_pipeline, "CHANGES_DIR", folder.parent)
+    monkeypatch.setattr(pipeline, "CHANGES_DIR", folder.parent)
+
+    async def finto_contesto(*a, **k):
+        return ""
+    async def finta_generazione(prompt, purpose):
+        return risposta
+
+    monkeypatch.setattr(routes_pipeline, "embed_in_threadpool", finto_contesto)
+    monkeypatch.setattr(routes_pipeline.llm, "agenerate", finta_generazione)
+    req = ProposeGenerateRequest(feature_folder=folder.name, dev_type="")
+    return asyncio.run(routes_pipeline.pipeline_propose_generate(req))
+
+
+def test_propose_salva_il_grezzo_e_normalizza(tmp_path, monkeypatch):
+    folder = tmp_path / "changes" / "feat-demo"
+    folder.mkdir(parents=True)
+    (folder / "canvas.md").write_text("## Requirements\n", encoding="utf-8")
+    # L'output tipico del modello locale: tutti gli scenari in un blocco, `E` al posto di AND.
+    grezzo = (
+        "```gherkin\n"
+        "SCENARIO: S01 - Invio della RICHIESTA\n"
+        "  GIVEN un UTENTE autenticato\n"
+        "  WHEN conferma l'invio\n"
+        "  THEN il sistema registra la RICHIESTA\n"
+        "\n"
+        "SCENARIO: S02 - Invio rifiutato\n"
+        "  GIVEN una RICHIESTA priva di motivazione\n"
+        "  WHEN l'utente conferma l'invio\n"
+        "  THEN il sistema rifiuta l'operazione\n"
+        "  E nessuna mutazione di stato viene persistita\n"
+        "```\n"
+    )
+    res = _propose(monkeypatch, folder, grezzo)
+
+    # Il grezzo resta su disco esattamente com'era: e' l'unico modo per rispondere a «l'ha
+    # scritto cosi' il modello o l'ha cambiato la normalizzazione?».
+    assert (folder / "spec.raw.md").read_text(encoding="utf-8") == grezzo
+    # spec.md e' la versione normalizzata: due blocchi, nessuna `E`.
+    spec = (folder / "spec.md").read_text(encoding="utf-8")
+    assert spec.count("```gherkin") == 2
+    assert "  AND nessuna mutazione di stato viene persistita" in spec
+    assert res["content"] == spec
+
+
+def test_propose_e_fail_closed_se_lo_spec_non_e_normalizzabile(tmp_path, monkeypatch):
+    folder = tmp_path / "changes" / "feat-demo"
+    folder.mkdir(parents=True)
+    (folder / "canvas.md").write_text("## Requirements\n", encoding="utf-8")
+    (folder / "spec.md").write_text("SPEC PRECEDENTE VALIDA\n", encoding="utf-8")
+
+    with pytest.raises(HTTPException) as exc:
+        _propose(monkeypatch, folder, "Il modello ha risposto con della prosa e basta.\n")
+
+    assert exc.value.status_code == 502
+    assert "spec.raw.md" in exc.value.detail
+    # spec.md NON viene sovrascritto con un documento che non si riesce a interpretare...
+    assert (folder / "spec.md").read_text(encoding="utf-8") == "SPEC PRECEDENTE VALIDA\n"
+    # ...ma il grezzo e' comunque su disco, altrimenti non c'e' niente da ispezionare.
+    assert (folder / "spec.raw.md").exists()
+
+
 # --- Test di non-regressione (string equality) per l'estrazione dei prompt in rag/prompts/*.md
 # ---------------------------------------------------------------------------------------------
 # Le costanti _SNAPSHOT_* sotto sono l'output ESATTO (catturato PRIMA del refactor, con
@@ -511,8 +810,8 @@ def test_validate_route_still_succeeds_when_llm_works(validate_changes_env, fake
 # regressione, perché quel testo è esattamente ciò che il modello legge nel prompt.
 _SNAPSHOT_CANVAS_FULL = '\n    Sei un Tech Lead expert. Il tuo compito è generare un REASONS Canvas in formato Markdown per la seguente feature: "Feature X".\n\n    L\'ARGOMENTO del Canvas è UNO SOLO: la feature emersa dall\'intervista qui sotto. L\'intervista\n    è l\'unica fonte di COSA va costruito; tutto ciò che viene dopo sono vincoli su COME, e non\n    può cambiare l\'argomento. Non descrivere funzionalità di cui l\'intervista non parla.\n\n    --- INIZIO LOG INTERVISTA (EXPLORE) ---\n    log intervista qui\n    --- FINE LOG INTERVISTA ---\n\n    Contesto normativo recuperato dal Graph RAG. ATTENZIONE: NON è l\'argomento del Canvas — è\n    una LENTE sulla feature dell\'intervista. Rispetta TASSATIVAMENTE i safeguard, i vincoli\n    della matrice permessi e i termini del glossario riportati qui sotto, non contraddirli e\n    riusa i loro codici/entità nelle sezioni Entities, Norms e Safeguards; ma NON trasformare in\n    requisiti le funzionalità che questi documenti descrivono e che l\'intervista non ha chiesto:\n    se una funzionalità resta sensata dopo aver tolto l\'intervista, non appartiene a questo Canvas.\n    contesto progetto base qui\n\n    Specifiche tecnologiche vincolanti per l\'ambito frontend (stack, linguaggi, librerie e struttura del progetto GIÀ DECISI: non sono suggerimenti). Le sezioni Approach, Structure e Operations DEVONO adottare ESATTAMENTE queste tecnologie, chiamandole COL LORO NOME. In particolare:\n    - dove qui è indicata una libreria per un compito (validazione, chiamate HTTP, stile, grafici...), usa QUELLA e citala per nome: è VIETATO inventarne un\'altra, scrivere un\'alternativa \'o simile\', o restare sul generico.\n    - non sono requisiti da verificare né contenuto da riassumere: sono il COME si costruisce, e servono solo a rendere concreti Approach, Structure e Operations.\n    stack tecnico qui\n\n    Lezioni dalle change precedenti (divergenze canvas<->codice emerse dalle review delle change archiviate più simili a questa): il nuovo Canvas deve evitare questi punti ciechi ricorrenti, rendendo esplicite nelle sezioni Operations, Structure e Safeguards le decisioni che in passato erano rimaste implicite:\n    lezione 1\n\n    Vincolo di ambito: il tipo di sviluppo richiesto per questa feature è ESCLUSIVAMENTE \'frontend\' (il codice finale verrà scritto solo in \'code/frontend/\'). Vale per TUTTE le 7 sezioni, non solo per Structure: Approach, Structure e Operations devono descrivere esclusivamente lavoro da fare in \'frontend\'. È VIETATO progettare o elencare come step ciò che vive in altri ambiti (endpoint da creare, tabelle, servizi, controlli lato server se l\'ambito è il client, e viceversa): di ciò che sta fuori si può solo dare per esistente l\'interfaccia che questa feature consuma.\n\n    Il REASONS Canvas generato DEVE contenere tassativamente queste 7 sezioni:\n    1. Requirements (Cosa deve fare il modulo, estrapolato dall\'intervista)\n    2. Entities (Modelli di dominio coinvolti)\n    3. Approach (Strategia logica per soddisfare i requisiti)\n    4. Structure (Layer e API coinvolte)\n    5. Operations (Step sequenziali e testabili per lo sviluppo)\n    6. Norms (Standard di naming e sicurezza, es. restrizioni email)\n    7. Safeguards (Vincoli non negoziabili e gestione degli errori concordati nell\'intervista)\n\n    VERIFICA FINALE prima di rispondere — rileggi l\'intervista in cima e controlla che la\n    sezione Requirements descriva ESATTAMENTE ciò che l\'intervista chiede per "Feature X",\n    non le funzionalità dei documenti normativi qui sopra: quei documenti descrivono ANCHE\n    altri moduli del sistema (pannelli admin, altre console) che NON sono questa feature.\n    Se una funzionalità che stai per scrivere non è riconducibile a una frase dell\'intervista,\n    toglila.\n\n    Rispondi esclusivamente con il contenuto del file Markdown, formattato in modo pulito.\n    '
 _SNAPSHOT_CANVAS_BARE = '\n    Sei un Tech Lead expert. Il tuo compito è generare un REASONS Canvas in formato Markdown per la seguente feature: "Feature Y".\n\n    L\'ARGOMENTO del Canvas è UNO SOLO: la feature emersa dall\'intervista qui sotto. L\'intervista\n    è l\'unica fonte di COSA va costruito; tutto ciò che viene dopo sono vincoli su COME, e non\n    può cambiare l\'argomento. Non descrivere funzionalità di cui l\'intervista non parla.\n\n    --- INIZIO LOG INTERVISTA (EXPLORE) ---\n    log intervista Y\n    --- FINE LOG INTERVISTA ---\n\n    Contesto normativo recuperato dal Graph RAG. ATTENZIONE: NON è l\'argomento del Canvas — è\n    una LENTE sulla feature dell\'intervista. Rispetta TASSATIVAMENTE i safeguard, i vincoli\n    della matrice permessi e i termini del glossario riportati qui sotto, non contraddirli e\n    riusa i loro codici/entità nelle sezioni Entities, Norms e Safeguards; ma NON trasformare in\n    requisiti le funzionalità che questi documenti descrivono e che l\'intervista non ha chiesto:\n    se una funzionalità resta sensata dopo aver tolto l\'intervista, non appartiene a questo Canvas.\n    contesto base Y\n\n    Il REASONS Canvas generato DEVE contenere tassativamente queste 7 sezioni:\n    1. Requirements (Cosa deve fare il modulo, estrapolato dall\'intervista)\n    2. Entities (Modelli di dominio coinvolti)\n    3. Approach (Strategia logica per soddisfare i requisiti)\n    4. Structure (Layer e API coinvolte)\n    5. Operations (Step sequenziali e testabili per lo sviluppo)\n    6. Norms (Standard di naming e sicurezza, es. restrizioni email)\n    7. Safeguards (Vincoli non negoziabili e gestione degli errori concordati nell\'intervista)\n\n    VERIFICA FINALE prima di rispondere — rileggi l\'intervista in cima e controlla che la\n    sezione Requirements descriva ESATTAMENTE ciò che l\'intervista chiede per "Feature Y",\n    non le funzionalità dei documenti normativi qui sopra: quei documenti descrivono ANCHE\n    altri moduli del sistema (pannelli admin, altre console) che NON sono questa feature.\n    Se una funzionalità che stai per scrivere non è riconducibile a una frase dell\'intervista,\n    toglila.\n\n    Rispondi esclusivamente con il contenuto del file Markdown, formattato in modo pulito.\n    '
-_SNAPSHOT_SPEC_FULL = "\n    Sei un Analista Software esperto in metodologie BDD (Behavior-Driven Development).\n    Scrivi le specifiche (spec.md) di UNA SOLA feature: quella descritta dal REASONS Canvas\n    qui sotto (etichetta: «Feature Z»). Il Canvas è l'UNICA fonte di cosa la feature fa: l'etichetta serve\n    solo a identificarla, non dedurne requisiti; e nulla di ciò che segue il Canvas può\n    cambiarne il soggetto.\n\n    CANVAS BODY qui\n\n\n    Vincoli normativi dal Graph RAG. ATTENZIONE: NON sono l'argomento dello spec — l'argomento è la feature del Canvas, e basta. Servono come LENTE per trovarne i casi limite: da qui ricavi gli scenari negativi CHE LA FEATURE DEVE GESTIRE (tentativi non autorizzati su di essa, suoi casi di errore, invarianti dei safeguard che essa tocca) e i termini/codici esatti da citare. È VIETATO scrivere scenari su parti del sistema che questi documenti nominano ma che la feature non tocca: se uno scenario resta sensato dopo aver tolto la feature, non va scritto.\n    norme qui\n\n    Vincolo di ambito: questa feature è ESCLUSIVAMENTE 'backend'. Gli scenari devono descrivere comportamento osservabile in questo ambito; non scrivere scenari su parti del sistema fuori da esso.\n\n    Basandoti sulle regole e sui requisiti del Canvas (e sui vincoli normativi qui sopra, se presenti),\n    scrivi il file delle specifiche tecniche (spec.md).\n    Devi definire gli scenari di test utilizzando rigorosamente il formato:\n    - GIVEN (Dato che...)\n    - WHEN (Quando...)\n    - THEN (Allora...)\n    - AND (E...)\n\n    Ogni scenario deve avere per soggetto la feature del Canvas e descriverne un COMPORTAMENTO\n    osservabile. Non scrivere scenari che verificano lo stack, le librerie o gli strumenti in sé.\n    Niente scenari duplicati: se due differiscono solo nella formulazione, tienine uno.\n\n    Non inventare funzionalità non presenti nel Canvas o nei vincoli normativi. Se uno scenario\n    nomina una tecnologia o mostra codice, usa ESCLUSIVAMENTE le tecnologie già citate nel\n    Canvas: qualsiasi altro linguaggio, libreria o strumento è VIETATO.\n\n    VERIFICA FINALE prima di rispondere — rileggi il Canvas in cima e controlla che ogni\n    scenario discenda da un suo requisito: i vincoli normativi descrivono ANCHE altri moduli\n    del sistema (cataloghi di funzionalità, pannelli, console) che NON sono questa feature,\n    e non vanno trasformati in scenari. Se uno scenario non è riconducibile a una frase del\n    Canvas, toglilo.\n\n    Rispondi esclusivamente con il contenuto del file Markdown, senza preamboli né commenti\n    prima o dopo. Scrivi SOLO la versione definitiva: niente note a margine, auto-correzioni,\n    domande o dubbi inline («*Correzione*: ...», «*Nota*: assumiamo...») — se un punto è\n    ambiguo, scegli l'interpretazione più coerente col Canvas e scrivila come decisione.\n    "
-_SNAPSHOT_SPEC_BARE = "\n    Sei un Analista Software esperto in metodologie BDD (Behavior-Driven Development).\n    Scrivi le specifiche (spec.md) di UNA SOLA feature: quella descritta dal REASONS Canvas\n    qui sotto. Il Canvas è l'UNICA fonte di cosa la feature fa: l'etichetta serve\n    solo a identificarla, non dedurne requisiti; e nulla di ciò che segue il Canvas può\n    cambiarne il soggetto.\n\n    CANVAS BODY bare\n\n\n    Basandoti sulle regole e sui requisiti del Canvas (e sui vincoli normativi qui sopra, se presenti),\n    scrivi il file delle specifiche tecniche (spec.md).\n    Devi definire gli scenari di test utilizzando rigorosamente il formato:\n    - GIVEN (Dato che...)\n    - WHEN (Quando...)\n    - THEN (Allora...)\n    - AND (E...)\n\n    Ogni scenario deve avere per soggetto la feature del Canvas e descriverne un COMPORTAMENTO\n    osservabile. Non scrivere scenari che verificano lo stack, le librerie o gli strumenti in sé.\n    Niente scenari duplicati: se due differiscono solo nella formulazione, tienine uno.\n\n    Non inventare funzionalità non presenti nel Canvas o nei vincoli normativi. Se uno scenario\n    nomina una tecnologia o mostra codice, usa ESCLUSIVAMENTE le tecnologie già citate nel\n    Canvas: qualsiasi altro linguaggio, libreria o strumento è VIETATO.\n\n    VERIFICA FINALE prima di rispondere — rileggi il Canvas in cima e controlla che ogni\n    scenario discenda da un suo requisito: i vincoli normativi descrivono ANCHE altri moduli\n    del sistema (cataloghi di funzionalità, pannelli, console) che NON sono questa feature,\n    e non vanno trasformati in scenari. Se uno scenario non è riconducibile a una frase del\n    Canvas, toglilo.\n\n    Rispondi esclusivamente con il contenuto del file Markdown, senza preamboli né commenti\n    prima o dopo. Scrivi SOLO la versione definitiva: niente note a margine, auto-correzioni,\n    domande o dubbi inline («*Correzione*: ...», «*Nota*: assumiamo...») — se un punto è\n    ambiguo, scegli l'interpretazione più coerente col Canvas e scrivila come decisione.\n    "
+_SNAPSHOT_SPEC_FULL = '\n    Sei un Analista Software esperto in metodologie BDD (Behavior-Driven Development).\n    Scrivi le specifiche (spec.md) di UNA SOLA feature: quella descritta dal REASONS Canvas\n    qui sotto (etichetta: «Feature Z»). Il Canvas è l\'UNICA fonte di cosa la feature fa: l\'etichetta serve\n    solo a identificarla, non dedurne requisiti; e nulla di ciò che segue il Canvas può\n    cambiarne il soggetto.\n\n    CANVAS BODY qui\n\n\n    Vincoli normativi dal Graph RAG. ATTENZIONE: NON sono l\'argomento dello spec — l\'argomento è la feature del Canvas, e basta. Servono come LENTE per trovarne i casi limite: da qui ricavi gli scenari negativi CHE LA FEATURE DEVE GESTIRE (tentativi non autorizzati su di essa, suoi casi di errore, invarianti dei safeguard che essa tocca) e i termini/codici esatti da citare. È VIETATO scrivere scenari su parti del sistema che questi documenti nominano ma che la feature non tocca: se uno scenario resta sensato dopo aver tolto la feature, non va scritto.\n    norme qui\n\n    Vincolo di ambito: questa feature è ESCLUSIVAMENTE \'backend\'. Gli scenari devono descrivere comportamento osservabile in questo ambito; non scrivere scenari su parti del sistema fuori da esso.\n\n    Basandoti sulle regole e sui requisiti del Canvas (e sui vincoli normativi qui sopra, se presenti),\n    scrivi il file delle specifiche tecniche (spec.md).\n\n    Ogni scenario deve avere per soggetto la feature del Canvas e descriverne un COMPORTAMENTO\n    osservabile. Non scrivere scenari che verificano lo stack, le librerie o gli strumenti in sé.\n    Niente scenari duplicati: se due differiscono solo nella formulazione, tienine uno. Per ogni\n    funzionalità descritta dal Canvas servono ALMENO due scenari: un caso nominale e un caso\n    negativo o di errore. In tutto scrivi da 4 a 7 scenari, non di più: pochi scenari completi\n    e ben formati valgono più di molti scenari lunghi e monchi.\n\n    Non inventare funzionalità non presenti nel Canvas o nei vincoli normativi. Se uno scenario\n    nomina una tecnologia o mostra codice, usa ESCLUSIVAMENTE le tecnologie già citate nel\n    Canvas: qualsiasi altro linguaggio, libreria o strumento è VIETATO.\n\n    VERIFICA FINALE sul contenuto — rileggi il Canvas in cima e controlla che ogni scenario\n    discenda da un suo requisito: i vincoli normativi descrivono ANCHE altri moduli del sistema\n    (cataloghi di funzionalità, pannelli, console) che NON sono questa feature, e non vanno\n    trasformati in scenari. Se uno scenario non è riconducibile a una frase del Canvas, toglilo.\n\n    Rispondi esclusivamente con il contenuto del file Markdown, senza preamboli né commenti\n    prima o dopo. Scrivi SOLO la versione definitiva: niente note a margine, auto-correzioni,\n    domande o dubbi inline («*Correzione*: ...», «*Nota*: assumiamo...») — se un punto è\n    ambiguo, scegli l\'interpretazione più coerente col Canvas e scrivila come decisione.\n\n    ==========================================================================\n    FORMATO DEGLI SCENARI — obbligatorio, sempre, senza varianti: vale per ogni\n    scenario di ogni spec, qualunque sia la feature. È la parte più importante\n    di queste istruzioni: uno spec fuori formato viene rifiutato in automatico.\n    ==========================================================================\n\n    Copia la forma dell\'esempio qui sotto, cambiando solo il testo:\n\n```gherkin\nSCENARIO: S01 - Recupero fascicolo esistente\n  GIVEN un utente autenticato con profilo "Operatore"\n  AND un fascicolo con protocollo "2026/00123" presente in archivio\n  WHEN richiede il dettaglio del fascicolo\n  THEN il sistema restituisce i metadati completi del fascicolo\n```\n\n```gherkin\nSCENARIO: S02 - Recupero negato su fascicolo inesistente\n  GIVEN un utente autenticato con profilo "Operatore"\n  WHEN richiede il dettaglio del fascicolo con protocollo "2026/99999"\n  THEN il sistema rifiuta la richiesta con errore "NOT_FOUND"\n  AND non restituisce alcun metadato\n```\n\n    GUARDA COME FINISCE IL PRIMO SCENARIO E COME COMINCIA IL SECONDO. Dopo il THEN di S01 c\'è\n    una riga di tre backtick che CHIUDE il blocco; poi una riga vuota; poi una nuova riga\n    ```gherkin che APRE il blocco di S02. Questa è la regola che si sbaglia più spesso ed è\n    quella che da sola invalida lo spec:\n\n    OGNI SCENARIO HA IL SUO BLOCCO. Cinque scenari sono cinque blocchi: cinque righe di\n    apertura e cinque righe di chiusura. Non scrivere MAI due `SCENARIO:` dentro lo stesso\n    blocco. Una riga ```gherkin non chiude niente — apre: usarla per separare due scenari\n    lascia tutto dentro un blocco solo, ed è sbagliato.\n\n    L\'errore da NON fare — due scenari lasciati dentro un blocco solo, separati da una riga\n    vuota invece che dalla chiusura e dalla riapertura del blocco:\n\n        ```gherkin\n        SCENARIO: S01 - Primo caso\n          GIVEN ...\n          WHEN ...\n          THEN ...\n                                  <- qui manca la riga di chiusura del blocco di S01\n        SCENARIO: S02 - Secondo caso      <- e la riga di apertura del blocco di S02\n          GIVEN ...\n        ```\n\n    OGNI SCENARIO HA TRE PASSI OBBLIGATORI: GIVEN, poi WHEN, poi THEN. Il WHEN non si salta\n    mai: è l\'azione che scatena il comportamento, e senza di esso lo scenario non è\n    verificabile. Un blocco con GIVEN e THEN ma senza WHEN è invalido, così come un blocco che\n    si ferma prima del THEN. Se non sai come completarlo, togli lo scenario invece di\n    consegnarlo a metà.\n\n    Le altre regole della forma, tutte visibili nell\'esempio:\n    - KEYWORD IN INGLESE MAIUSCOLO: GIVEN, WHEN, THEN, AND. Mai `Dato`, `Quando`, `Allora`,\n      `E`: non sono keyword e rendono lo scenario invalido.\n    - PRIMA RIGA del blocco: `SCENARIO: S<nn> - <titolo breve>`, senza rientro, numerata in\n      ordine dal primo all\'ultimo scenario dello spec (S01, S02, S03...) senza salti.\n    - UN SOLO GIVEN, UN SOLO WHEN, UN SOLO THEN per scenario, in quest\'ordine. Ogni condizione\n      o asserzione in più è un AND: `GIVEN → AND… → WHEN → AND… → THEN → AND…`.\n    - PASSI indentati di 2 spazi, uno per riga, una sola asserzione ciascuno, BREVI: una riga\n      di venti-venticinque parole al massimo, come quelle dell\'esempio. Testo in italiano,\n      indicativo presente, terza persona; valori letterali fra virgolette doppie; niente nomi\n      di classi, tabelle o endpoint se non sono un requisito funzionale.\n    - TITOLO dello scenario breve: poche parole, non una frase intera.\n    - DENTRO IL BLOCCO nient\'altro che la riga SCENARIO e i passi: nessun commento, nessun\n      testo libero, nessuna riga di prosa.\n\n    Prima di rispondere rileggi ciò che hai scritto e conta: le righe di backtick sono il\n    doppio degli scenari? Ogni blocco contiene un GIVEN, un WHEN e un THEN? Ogni passo comincia\n    con GIVEN, WHEN, THEN o AND in maiuscolo? Se una delle tre risposte è no, riscrivi lo spec:\n    non consegnarlo così.\n'
+_SNAPSHOT_SPEC_BARE = '\n    Sei un Analista Software esperto in metodologie BDD (Behavior-Driven Development).\n    Scrivi le specifiche (spec.md) di UNA SOLA feature: quella descritta dal REASONS Canvas\n    qui sotto. Il Canvas è l\'UNICA fonte di cosa la feature fa: l\'etichetta serve\n    solo a identificarla, non dedurne requisiti; e nulla di ciò che segue il Canvas può\n    cambiarne il soggetto.\n\n    CANVAS BODY bare\n\n\n    Basandoti sulle regole e sui requisiti del Canvas (e sui vincoli normativi qui sopra, se presenti),\n    scrivi il file delle specifiche tecniche (spec.md).\n\n    Ogni scenario deve avere per soggetto la feature del Canvas e descriverne un COMPORTAMENTO\n    osservabile. Non scrivere scenari che verificano lo stack, le librerie o gli strumenti in sé.\n    Niente scenari duplicati: se due differiscono solo nella formulazione, tienine uno. Per ogni\n    funzionalità descritta dal Canvas servono ALMENO due scenari: un caso nominale e un caso\n    negativo o di errore. In tutto scrivi da 4 a 7 scenari, non di più: pochi scenari completi\n    e ben formati valgono più di molti scenari lunghi e monchi.\n\n    Non inventare funzionalità non presenti nel Canvas o nei vincoli normativi. Se uno scenario\n    nomina una tecnologia o mostra codice, usa ESCLUSIVAMENTE le tecnologie già citate nel\n    Canvas: qualsiasi altro linguaggio, libreria o strumento è VIETATO.\n\n    VERIFICA FINALE sul contenuto — rileggi il Canvas in cima e controlla che ogni scenario\n    discenda da un suo requisito: i vincoli normativi descrivono ANCHE altri moduli del sistema\n    (cataloghi di funzionalità, pannelli, console) che NON sono questa feature, e non vanno\n    trasformati in scenari. Se uno scenario non è riconducibile a una frase del Canvas, toglilo.\n\n    Rispondi esclusivamente con il contenuto del file Markdown, senza preamboli né commenti\n    prima o dopo. Scrivi SOLO la versione definitiva: niente note a margine, auto-correzioni,\n    domande o dubbi inline («*Correzione*: ...», «*Nota*: assumiamo...») — se un punto è\n    ambiguo, scegli l\'interpretazione più coerente col Canvas e scrivila come decisione.\n\n    ==========================================================================\n    FORMATO DEGLI SCENARI — obbligatorio, sempre, senza varianti: vale per ogni\n    scenario di ogni spec, qualunque sia la feature. È la parte più importante\n    di queste istruzioni: uno spec fuori formato viene rifiutato in automatico.\n    ==========================================================================\n\n    Copia la forma dell\'esempio qui sotto, cambiando solo il testo:\n\n```gherkin\nSCENARIO: S01 - Recupero fascicolo esistente\n  GIVEN un utente autenticato con profilo "Operatore"\n  AND un fascicolo con protocollo "2026/00123" presente in archivio\n  WHEN richiede il dettaglio del fascicolo\n  THEN il sistema restituisce i metadati completi del fascicolo\n```\n\n```gherkin\nSCENARIO: S02 - Recupero negato su fascicolo inesistente\n  GIVEN un utente autenticato con profilo "Operatore"\n  WHEN richiede il dettaglio del fascicolo con protocollo "2026/99999"\n  THEN il sistema rifiuta la richiesta con errore "NOT_FOUND"\n  AND non restituisce alcun metadato\n```\n\n    GUARDA COME FINISCE IL PRIMO SCENARIO E COME COMINCIA IL SECONDO. Dopo il THEN di S01 c\'è\n    una riga di tre backtick che CHIUDE il blocco; poi una riga vuota; poi una nuova riga\n    ```gherkin che APRE il blocco di S02. Questa è la regola che si sbaglia più spesso ed è\n    quella che da sola invalida lo spec:\n\n    OGNI SCENARIO HA IL SUO BLOCCO. Cinque scenari sono cinque blocchi: cinque righe di\n    apertura e cinque righe di chiusura. Non scrivere MAI due `SCENARIO:` dentro lo stesso\n    blocco. Una riga ```gherkin non chiude niente — apre: usarla per separare due scenari\n    lascia tutto dentro un blocco solo, ed è sbagliato.\n\n    L\'errore da NON fare — due scenari lasciati dentro un blocco solo, separati da una riga\n    vuota invece che dalla chiusura e dalla riapertura del blocco:\n\n        ```gherkin\n        SCENARIO: S01 - Primo caso\n          GIVEN ...\n          WHEN ...\n          THEN ...\n                                  <- qui manca la riga di chiusura del blocco di S01\n        SCENARIO: S02 - Secondo caso      <- e la riga di apertura del blocco di S02\n          GIVEN ...\n        ```\n\n    OGNI SCENARIO HA TRE PASSI OBBLIGATORI: GIVEN, poi WHEN, poi THEN. Il WHEN non si salta\n    mai: è l\'azione che scatena il comportamento, e senza di esso lo scenario non è\n    verificabile. Un blocco con GIVEN e THEN ma senza WHEN è invalido, così come un blocco che\n    si ferma prima del THEN. Se non sai come completarlo, togli lo scenario invece di\n    consegnarlo a metà.\n\n    Le altre regole della forma, tutte visibili nell\'esempio:\n    - KEYWORD IN INGLESE MAIUSCOLO: GIVEN, WHEN, THEN, AND. Mai `Dato`, `Quando`, `Allora`,\n      `E`: non sono keyword e rendono lo scenario invalido.\n    - PRIMA RIGA del blocco: `SCENARIO: S<nn> - <titolo breve>`, senza rientro, numerata in\n      ordine dal primo all\'ultimo scenario dello spec (S01, S02, S03...) senza salti.\n    - UN SOLO GIVEN, UN SOLO WHEN, UN SOLO THEN per scenario, in quest\'ordine. Ogni condizione\n      o asserzione in più è un AND: `GIVEN → AND… → WHEN → AND… → THEN → AND…`.\n    - PASSI indentati di 2 spazi, uno per riga, una sola asserzione ciascuno, BREVI: una riga\n      di venti-venticinque parole al massimo, come quelle dell\'esempio. Testo in italiano,\n      indicativo presente, terza persona; valori letterali fra virgolette doppie; niente nomi\n      di classi, tabelle o endpoint se non sono un requisito funzionale.\n    - TITOLO dello scenario breve: poche parole, non una frase intera.\n    - DENTRO IL BLOCCO nient\'altro che la riga SCENARIO e i passi: nessun commento, nessun\n      testo libero, nessuna riga di prosa.\n\n    Prima di rispondere rileggi ciò che hai scritto e conta: le righe di backtick sono il\n    doppio degli scenari? Ogni blocco contiene un GIVEN, un WHEN e un THEN? Ogni passo comincia\n    con GIVEN, WHEN, THEN o AND in maiuscolo? Se una delle tre risposte è no, riscrivi lo spec:\n    non consegnarlo così.\n'
 _SNAPSHOT_VALIDATE_FULL = '\n    Sei un Revisore dell\'Architettura. Verifica la COERENZA del design contract (Canvas + Spec)\n    rispetto ai vincoli normativi del knowledge base, PRIMA che il codice venga scritto.\n\n    --- CANVAS ---\n    CANVAS TXT\n\n    --- SPEC (scenari BDD) ---\n    SPEC TXT\n\n    --- VINCOLI NORMATIVI (Graph RAG, ordinati per autorità) ---\n    GOVERNED TXT\n\n    Rispondi in modo conciso indicando:\n    1. CONFLITTI: il Canvas/Spec viola o contraddice qualche safeguard, policy o termine di glossario?\n       Segnala un CONFLITTO SOLO se puoi citare la frase esatta del Canvas o della Spec che lo\n       genera: senza quella citazione non è un conflitto. Un rischio ipotetico legato a\n       un\'implementazione futura non ancora scritta (es. "se lo script usasse credenziali\n       hardcoded...") non è un conflitto: va in COPERTURA come raccomandazione. (SI/NO + quali,\n       con citazione)\n    2. COPERTURA: gli scenari BDD coprono i casi di errore e le invarianti dei safeguard pertinenti?\n       Cosa manca? Qui puoi includere raccomandazioni cautelative su rischi ipotetici non ancora\n       scritti nel Canvas/Spec.\n    3. NON-GOAL: c\'è qualcosa fuori ambito rispetto ai vincoli?\n    Se tutto è coerente e coperto, rispondi con "✅ VALIDAZIONE SUPERATA. Design contract coerente con la governance."\n    '
 _SNAPSHOT_VALIDATE_BARE = '\n    Sei un Revisore dell\'Architettura. Verifica la COERENZA del design contract (Canvas + Spec)\n    rispetto ai vincoli normativi del knowledge base, PRIMA che il codice venga scritto.\n\n    --- CANVAS ---\n    CANVAS TXT2\n\n    --- SPEC (scenari BDD) ---\n    (spec.md non ancora generato)\n\n    --- VINCOLI NORMATIVI (Graph RAG, ordinati per autorità) ---\n    (nessun documento normativo recuperato)\n\n    Rispondi in modo conciso indicando:\n    1. CONFLITTI: il Canvas/Spec viola o contraddice qualche safeguard, policy o termine di glossario?\n       Segnala un CONFLITTO SOLO se puoi citare la frase esatta del Canvas o della Spec che lo\n       genera: senza quella citazione non è un conflitto. Un rischio ipotetico legato a\n       un\'implementazione futura non ancora scritta (es. "se lo script usasse credenziali\n       hardcoded...") non è un conflitto: va in COPERTURA come raccomandazione. (SI/NO + quali,\n       con citazione)\n    2. COPERTURA: gli scenari BDD coprono i casi di errore e le invarianti dei safeguard pertinenti?\n       Cosa manca? Qui puoi includere raccomandazioni cautelative su rischi ipotetici non ancora\n       scritti nel Canvas/Spec.\n    3. NON-GOAL: c\'è qualcosa fuori ambito rispetto ai vincoli?\n    Se tutto è coerente e coperto, rispondi con "✅ VALIDAZIONE SUPERATA. Design contract coerente con la governance."\n    '
 

@@ -70,3 +70,10 @@ docs/05_project_specs/*
 # Per far tornare tracciabile un file specifico: git update-index --no-skip-worktree <path>.
 docs/*
 !docs/**/.gitkeep
+
+# docs/02_specs_normative/: spec normative, tracciate a pieno titolo (non congelate come il
+# resto di docs/) — sono il contratto che il Graph RAG indicizza e che i prompt citano come
+# vincolo, quindi le loro revisioni (es. la migrazione al formato unico degli scenari BDD)
+# devono avere storia in git.
+!docs/02_specs_normative/
+!docs/02_specs_normative/*

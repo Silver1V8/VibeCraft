@@ -29,6 +29,15 @@ llm_settings:
   # Omesso/null = non inviare il parametro (default di Ollama).
   ollama_num_ctx: 16384
 
+  # Temperatura di campionamento (options.temperature). SENZA, Ollama campiona a 0.8: va bene
+  # per la prosa, non per gli step che devono rispettare un formato. Sullo step propose
+  # (spec.md, scenari GIVEN/WHEN/THEN in blocchi gherkin) a 0.8 lo stesso identico prompt
+  # produceva a ogni run una violazione DIVERSA — un blocco unico invece di uno per scenario,
+  # keyword italiane al posto di GIVEN/WHEN/THEN, scenari troncati prima del THEN — e nessuna
+  # istruzione aggiuntiva nel prompt la eliminava, perché il problema era la varianza, non
+  # l'ambiguità. Omesso/null = non inviare il parametro (default di Ollama).
+  ollama_temperature: 0.1
+
   # Override opzionale provider/modello PER SINGOLO STEP della pipeline (core/llm.py).
   # Scopi riconosciuti: drift, canvas, propose, validate, explore, review, ask.
   # Ogni chiave può indicare provider e/o model; ciò che manca ricade su

@@ -81,24 +81,38 @@ tags:
 
 > Ogni scenario qui presente **deve** avere un test corrispondente (`[REGOLA-TEST-05]`). Uno scenario senza test è documentazione che mente.
 
+> **Formato obbligatorio, unico e senza varianti.** Vale per ogni scenario di ogni spec, qualunque sia la feature. Questo documento è la fonte normativa; il resto della catena la esegue: il prompt di generazione (`rag/prompts/spec.md`) la insegna al modello, `core.spec_format.normalize_spec` la **ricostruisce** in modo deterministico su ciò che il modello produce, e il validatore (`pipeline.check_bdd_semantics`) controlla ciò che la normalizzazione non può garantire — un solo `GIVEN`/`WHEN`/`THEN` per scenario, presenza del caso negativo, assenza di dettagli implementativi.
+>
+> Il normalizzatore riscrive la **forma**, mai il contenuto: se la struttura non è ricostruibile senza inventare, fallisce con un errore esplicito invece di indovinare.
+>
+> - un blocco ` ```gherkin ` **per ciascuno** scenario: mai un unico blocco che ne contiene più di uno, mai uno scenario fuori da un blocco;
+> - keyword in **MAIUSCOLO e in inglese**: `GIVEN` / `WHEN` / `THEN` / `AND`;
+> - prima riga del blocco: `SCENARIO: S<nn> - <titolo breve>`, numerazione progressiva (`S01`, `S02`, …) nell'ordine in cui gli scenari compaiono nel documento;
+> - poi i passi, uno per riga, indentati di **2 spazi**, nell'ordine `GIVEN` → `AND` (opzionali) → `WHEN` → `AND` (opzionali) → `THEN` → `AND` (opzionali);
+> - **un solo** `GIVEN`, **un solo** `WHEN` e **un solo** `THEN` per scenario: ogni condizione aggiuntiva si esprime con `AND`, mai con un secondo `GIVEN`/`WHEN`/`THEN`;
+> - testo dei passi in italiano, indicativo presente, terza persona, senza dettagli implementativi (niente nomi di classi, tabelle o endpoint se non sono un requisito funzionale);
+> - valori letterali fra virgolette doppie;
+> - una sola asserzione per riga: niente passi discorsivi o su più frasi;
+> - dentro il blocco non va nient'altro che la riga `SCENARIO` e i passi: nessun commento, nessun testo libero.
+
 ```gherkin
-Scenario: Nome dello scenario nominale
-  Dato una precondizione verificabile
-  E una seconda precondizione
-  Quando avviene l'azione che si vuole normare
-  Allora si osserva l'esito atteso
-  E l'invariante della [REGOLA-XXX-01] risulta rispettata
+SCENARIO: S01 - Nome dello scenario nominale
+  GIVEN una precondizione verificabile
+  AND una seconda precondizione
+  WHEN avviene l'azione che si vuole normare
+  THEN si osserva l'esito atteso
+  AND l'invariante della [REGOLA-XXX-01] risulta rispettata
 ```
 
 ```gherkin
-Scenario: Nome dello scenario negativo
-  Dato una precondizione che viola il vincolo
-  Quando viene tentata l'operazione
-  Allora il sistema la rifiuta con l'errore previsto
-  E nessuna mutazione di stato viene persistita
+SCENARIO: S02 - Nome dello scenario negativo
+  GIVEN una precondizione che viola il vincolo
+  WHEN viene tentata l'operazione
+  THEN il sistema la rifiuta con l'errore previsto
+  AND nessuna mutazione di stato viene persistita
 ```
 
-> Il percorso negativo non è opzionale: `[REGOLA-TEST-03]` richiede che l'enforcement sia dimostrato, non solo il caso lecito.
+> Il percorso negativo non è opzionale: `[REGOLA-TEST-03]` richiede che l'enforcement sia dimostrato, non solo il caso lecito. Per ogni funzionalità servono **almeno due** scenari, un caso nominale e un caso negativo o di errore.
 
 ---
 

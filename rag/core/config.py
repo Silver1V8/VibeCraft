@@ -131,6 +131,7 @@ class LLMSettings(BaseModel):
     purposes: dict[str, dict] | None = None
     ollama_think: bool | None = None
     ollama_num_ctx: int | None = None
+    ollama_temperature: float | None = None
     # Prezzi per-modello (USD/milione di token) usati solo per stimare cost_usd nel log
     # delle chiamate Anthropic: sezione opzionale, vedi core/llm.py:_anthropic_pricing.
     pricing: dict[str, dict[str, float]] | None = None
@@ -187,6 +188,13 @@ OLLAMA_THINK: bool | None = LLM_SETTINGS.ollama_think
 # (>4.300 token): vedi il commento nel config. Va inviata a ogni richiesta perche non e
 # una proprieta del modello ma della singola generazione. 0/null = parametro non inviato.
 OLLAMA_NUM_CTX: int | None = LLM_SETTINGS.ollama_num_ctx or None
+# Temperatura di campionamento (llm_settings.ollama_temperature). None = parametro non
+# inviato, cioè il default di Ollama (0.8): buono per la prosa, pessimo per gli step della
+# pipeline che devono rispettare un formato: a 0.8 lo stesso prompt produce a ogni run una
+# violazione DIVERSA del formato BDD (blocco unico, keyword italiane, scenari monchi), e
+# nessuna quantità di istruzioni in più la elimina. NB: 0.0 è un valore valido e va inviato,
+# quindi il confronto è con None e non con `or`.
+OLLAMA_TEMPERATURE: float | None = LLM_SETTINGS.ollama_temperature
 
 # Scelta dell'implementazione dei parser di code_index per linguaggio
 # (es. {"typescript": "treesitter"}); assente o "regex" = parser storico.

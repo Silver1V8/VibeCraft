@@ -34,7 +34,7 @@ from api.models import (
     ValidateRequest,
 )
 from api.routes_reindex import enqueue_full_rebuild
-from core import canvas_review, llm, pipeline, retrieval
+from core import canvas_review, llm, pipeline, retrieval, spec_format
 from core.config import (
     CHANGES_DIR,
     GOVERNED_MAX_CHUNKS,
@@ -312,10 +312,32 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest):
     # non deve mai diventare il contenuto di spec.md (validate/archive lo tratterebbero come
     # spec reale). Errore restituito esplicitamente come 502, nessun file scritto.
     try:
-        spec_content = await llm.agenerate(prompt_strutturato, purpose="propose")
+        spec_grezza = await llm.agenerate(prompt_strutturato, purpose="propose")
     except llm.LLMError as exc:
         raise HTTPException(status_code=502, detail=f"Generazione della Spec fallita: {exc}") from exc
     folder.mkdir(parents=True, exist_ok=True)
+
+    # L'output GREZZO del modello si conserva sempre, prima di qualunque riscrittura: quando
+    # lo spec finale sorprende, la prima domanda è «l'ha scritto così il modello o l'ha
+    # cambiato la normalizzazione?», e senza il grezzo non ha risposta.
+    (folder / "spec.raw.md").write_text(spec_grezza, encoding="utf-8")
+
+    # Normalizzazione SINTATTICA: il modello locale sbaglia sistematicamente la forma (tutti
+    # gli scenari in un blocco solo, `E` al posto di AND) e nessuna riformulazione del prompt
+    # lo corregge in modo stabile; la forma però è ricostruibile in modo deterministico. Il
+    # contenuto non viene toccato: ciò che riguarda la sostanza resta al validate, che deve
+    # poter ancora bocciare.
+    try:
+        spec_content = spec_format.normalize_spec(spec_grezza)
+    except spec_format.SpecNormalizationError as exc:
+        # Fail-closed: spec.md NON viene sovrascritto con un documento che non si riesce
+        # nemmeno a interpretare. Il grezzo è già su disco e resta ispezionabile.
+        raise HTTPException(
+            status_code=502,
+            detail=(f"La Spec generata non è normalizzabile: {exc} "
+                    f"L'output grezzo del modello è in changes/{folder_name}/spec.raw.md. "
+                    "Rigenera la Spec."),
+        ) from exc
     (folder / "spec.md").write_text(spec_content, encoding="utf-8")
     save_dev_type(folder, dev_type)
 
@@ -416,8 +438,9 @@ async def _validate_feature(feature: str) -> dict:
     canvas_text = canvas_path.read_text(encoding="utf-8") if canvas_path.exists() else ""
     spec_text = spec_path.read_text(encoding="utf-8") if spec_path.exists() else ""
 
-    # 1. Controlli strutturali deterministici (nessun LLM).
-    structural = pipeline.validate_structural(canvas_text, spec_text)
+    # 1. Controlli strutturali deterministici (nessun LLM). Il path serve a validate_structural
+    #    solo per escludere changes/archive/** dal controllo di formato.
+    structural = pipeline.validate_structural(canvas_text, spec_text, spec_path)
 
     if not canvas_text:
         return {

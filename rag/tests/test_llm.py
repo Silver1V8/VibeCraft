@@ -411,6 +411,7 @@ def test_ollama_payload_include_num_ctx_e_think_solo_se_configurati(monkeypatch)
     # la risposta esce mozzata. think:false evita risposte vuote coi modelli thinking.
     monkeypatch.setattr(llm, "OLLAMA_NUM_CTX", 16384)
     monkeypatch.setattr(llm, "OLLAMA_THINK", False)
+    monkeypatch.setattr(llm, "OLLAMA_TEMPERATURE", None)
     p = llm._ollama_payload("m", "prompt")
     assert p["options"] == {"num_ctx": 16384}
     assert p["think"] is False
@@ -420,6 +421,24 @@ def test_ollama_payload_include_num_ctx_e_think_solo_se_configurati(monkeypatch)
     monkeypatch.setattr(llm, "OLLAMA_THINK", None)
     p2 = llm._ollama_payload("m", "prompt")
     assert p2 == {"model": "m", "prompt": "prompt", "stream": False}
+
+
+def test_ollama_payload_include_la_temperatura_e_ammette_lo_zero(monkeypatch):
+    # La temperatura di default di Ollama (0.8) e' troppo alta per gli step a formato rigido:
+    # va inviata esplicitamente. 0.0 e' un valore VALIDO (campionamento greedy) e deve finire
+    # nel payload: con un test `if OLLAMA_TEMPERATURE:` sparirebbe in silenzio.
+    monkeypatch.setattr(llm, "OLLAMA_NUM_CTX", 16384)
+    monkeypatch.setattr(llm, "OLLAMA_THINK", None)
+    monkeypatch.setattr(llm, "OLLAMA_TEMPERATURE", 0.1)
+    assert llm._ollama_payload("m", "prompt")["options"] == {"num_ctx": 16384, "temperature": 0.1}
+
+    monkeypatch.setattr(llm, "OLLAMA_TEMPERATURE", 0.0)
+    assert llm._ollama_payload("m", "prompt")["options"]["temperature"] == 0.0
+
+    # Temperatura sola, senza num_ctx: il blocco options nasce comunque.
+    monkeypatch.setattr(llm, "OLLAMA_NUM_CTX", None)
+    monkeypatch.setattr(llm, "OLLAMA_TEMPERATURE", 0.1)
+    assert llm._ollama_payload("m", "prompt")["options"] == {"temperature": 0.1}
 
 
 # ---------------------------------------------------------------------------

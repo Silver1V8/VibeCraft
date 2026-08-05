@@ -27,6 +27,7 @@ from pydantic import ValidationError
 from core.config import (
     OLLAMA_NUM_CTX,
     OLLAMA_THINK,
+    OLLAMA_TEMPERATURE,
     OLLAMA_TIMEOUT_SECONDS,
     OLLAMA_URL,
     RAG_DIR,
@@ -39,18 +40,27 @@ logger = logging.getLogger(__name__)
 
 
 def _ollama_payload(model: str, prompt: str) -> dict:
-    """Payload di /api/generate. Entrambi i campi opzionali sono inclusi solo se configurati
+    """Payload di /api/generate. I campi opzionali sono inclusi solo se configurati
     (omessi, il payload resta quello storico):
     · `think` (llm_settings.ollama_think) — con i modelli thinking (qwen3.5) `false` evita
       che il ragionamento esaurisca la generazione lasciando la risposta vuota;
     · `options.num_ctx` (llm_settings.ollama_num_ctx) — senza, Ollama resta a 4096 token e
       TRONCA DALL'ALTO i prompt di canvas/propose (>4.300 token): il modello non vedeva
-      l'intervista in cima e la risposta usciva mozzata."""
+      l'intervista in cima e la risposta usciva mozzata;
+    · `options.temperature` (llm_settings.ollama_temperature) — senza, Ollama campiona a 0.8:
+      sugli step a formato rigido (spec.md) lo stesso prompt sbagliava a ogni run in un modo
+      diverso, e il rimedio è la temperatura, non altre istruzioni nel prompt."""
     payload = {"model": model, "prompt": prompt, "stream": False}
     if OLLAMA_THINK is not None:
         payload["think"] = OLLAMA_THINK
+    options = {}
     if OLLAMA_NUM_CTX is not None:
-        payload["options"] = {"num_ctx": OLLAMA_NUM_CTX}
+        options["num_ctx"] = OLLAMA_NUM_CTX
+    if OLLAMA_TEMPERATURE is not None:
+        options["temperature"] = OLLAMA_TEMPERATURE
+    if options:
+        payload["options"] = options
+    if OLLAMA_NUM_CTX is not None:
         # Guardrail contro il troncamento SILENZIOSO: se il prompt si avvicina alla finestra
         # (stima conservativa ~3 caratteri/token per l'italiano), il taglio non deve più
         # passare inosservato come col default 4096. Warning e non errore: la stima è

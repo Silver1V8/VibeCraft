@@ -7,7 +7,7 @@ import json
 import re
 from pathlib import Path
 
-from core import llm, retrieval
+from core import llm, retrieval, spec_format
 from core.config import CHANGES_DIR, CODE_DIR, RAG_DIR, TECH_QUERY_TEMPLATE
 
 # Le 7 sezioni obbligatorie del REASONS Canvas (copertura strutturale e confidence).
@@ -369,6 +369,12 @@ _BOLD_TITLE_RE = re.compile(r"^\*\*(.+?)\*\*\s*:?\s*$", re.MULTILINE)
 # BDD legittimo risulta «senza scenari» (successo davvero con «**Dato che**...»).
 _BDD_KEYWORDS_RE = re.compile(r"^\W*(GIVEN|WHEN|THEN|AND|E|DATO CHE|QUANDO|ALLORA)\b", re.IGNORECASE)
 _GIVEN_RE = re.compile(r"\bGIVEN\b|\bDato che\b", re.IGNORECASE)
+# La riga-titolo del formato obbligatorio ("SCENARIO: S01 - Recupero fascicolo"): sta DENTRO
+# il blocco ```gherkin, quindi non è né un heading markdown né una riga in grassetto e
+# _titles() da sola non la vedrebbe. Senza, ogni scenario risulterebbe senza titolo e
+# check_scenario_scope — che giudica proprio il titolo — diventerebbe muto sull'intero spec.
+# Si cattura solo la parte descrittiva: il prefisso "S01 - " non è soggetto di nulla.
+_SCENARIO_TITLE_RE = re.compile(r"^[ \t]*SCENARIO:\s*S\d+\s*-\s*(.+?)\s*$", re.MULTILINE | re.IGNORECASE)
 
 
 def glossary_entities(graph) -> list[str]:
@@ -381,9 +387,12 @@ def glossary_entities(graph) -> list[str]:
 
 
 def _titles(spec_text: str) -> list[tuple[int, str]]:
-    """Righe-titolo del documento (markdown o grassetto), in ordine di posizione, escludendo
-    quelle che sono passi BDD ("**GIVEN (Dato che...)**") e non titoli di scenario."""
-    found = [(m.start(), m.group(1)) for m in _HEADING_RE.finditer(spec_text)]
+    """Righe-titolo del documento, in ordine di posizione, escludendo quelle che sono passi
+    BDD ("**GIVEN (Dato che...)**") e non titoli di scenario. Tre forme riconosciute: la riga
+    `SCENARIO: S01 - ...` del formato obbligatorio, l'heading markdown e la riga in grassetto
+    (le ultime due restano per gli spec scritti prima del formato unico)."""
+    found = [(m.start(), m.group(1)) for m in _SCENARIO_TITLE_RE.finditer(spec_text)]
+    found += [(m.start(), m.group(1)) for m in _HEADING_RE.finditer(spec_text)]
     found += [(m.start(), m.group(1)) for m in _BOLD_TITLE_RE.finditer(spec_text)]
     return sorted((pos, t) for pos, t in found if not _BDD_KEYWORDS_RE.match(t))
 
@@ -474,9 +483,145 @@ def check_scenario_scope(spec_text: str, canvas_text: str, known_entities: list[
             "off_scope": off_scope, "checked": True}
 
 
-def validate_structural(canvas_text: str, spec_text: str) -> dict:
+# --- Sostanza degli scenari BDD ---------------------------------------------------------
+# Divisione del lavoro fra i due controlli, ed è deliberata:
+# · la FORMA (un blocco per scenario, riga SCENARIO numerata, keyword inglesi maiuscole,
+#   rientro dei passi) la garantisce core.spec_format.normalize_spec, che la ricostruisce
+#   invece di segnalarla — l'LLM locale sbaglia sistematicamente proprio quella parte, ed è
+#   pura sintassi: pretenderla dal modello costava iterazioni infinite sul prompt;
+# · la SOSTANZA la controlla check_bdd_semantics() qui sotto, e resta un muro: sono le cose
+#   che un normalizzatore NON può sistemare senza decidere al posto dell'autore.
+# Fonte normativa del formato: templates/template_spec_funzionale.md §5.
+
+# Euristica (e solo euristica) per riconoscere il caso negativo: le parole con cui un THEN
+# descrive un rifiuto, un errore o un'invariante difesa. Serve a far scattare «manca il caso
+# negativo» su uno spec di soli percorsi felici; sulla singola formulazione può sbagliare, ed
+# è il motivo per cui il messaggio dice cosa aggiungere invece di indicare uno scenario.
+_NEGATIVE_HINTS = (
+    "rifiut", "respin", "error", "fallis", "fallit", "fallimento", "negat", "nega ",
+    "invalid", "non valid", "vietat", "blocc", "impedis", "impedit", "assent", "mancant",
+    "scadut", "duplicat", "timeout", "non autorizzat", "senza permess", "nessuna mutazione",
+    "non consent", "non viene", "non vengono", "non è consentit", "non risulta", "limite",
+)
+
+# Dettagli implementativi in un passo. La firma è VOLUTAMENTE stretta — nomi di file di
+# codice, verbo HTTP + path, istruzioni SQL — e non prova a riconoscere «sembra il nome di
+# una classe»: uno scenario dice cosa si osserva, non come è scritto, ma un controllo che
+# scambia per implementazione un termine di dominio (BackoffWindowingPolicy può venire dal
+# Canvas) bloccherebbe spec buoni. Meglio pochi casi certi che molti dubbi.
+_IMPL_PATTERNS = (
+    (re.compile(r"\b[\w./\-]+\.(?:cs|ts|tsx|js|jsx|py|java|sql|razor|cshtml|xaml)\b"),
+     "nome di file di codice"),
+    (re.compile(r"\b(?:GET|POST|PUT|PATCH|DELETE)\s+/\S"), "endpoint HTTP"),
+    (re.compile(r"\b(?:SELECT\s+.+\s+FROM|INSERT\s+INTO|DELETE\s+FROM|UPDATE\s+\w+\s+SET)\b",
+                re.IGNORECASE), "istruzione SQL"),
+)
+
+
+def _is_negative_scenario(title: str, steps: list[str]) -> bool:
+    """Vero se il titolo o un passo parla di rifiuto, errore o invariante difesa."""
+    text = (title + " " + " ".join(steps)).lower()
+    return any(h in text for h in _NEGATIVE_HINTS)
+
+
+def check_bdd_semantics(spec_text: str) -> dict:
+    """Controllo DETERMINISTICO (nessun LLM) della SOSTANZA degli scenari.
+
+    Verifica le tre cose che il normalizzatore non può garantire senza decidere al posto
+    dell'autore:
+    · un solo GIVEN, un solo WHEN e un solo THEN per scenario, in quest'ordine (un secondo
+      GIVEN può essere un AND mal scritto oppure due premesse che vanno separate in due
+      scenari: è una scelta di contenuto, non di sintassi);
+    · almeno due scenari, di cui almeno uno negativo (il percorso felice da solo non è una
+      specifica: non dimostra nessun enforcement);
+    · nessun dettaglio implementativo nei passi (nomi di file, endpoint, SQL).
+
+    Ogni violazione dice QUALE scenario, QUALE riga e QUALE regola: un «non valido» secco
+    costringerebbe a rileggere lo spec intero per capire cosa correggere.
+
+    Se il testo non è nemmeno interpretabile come BDD, la sola violazione è
+    `struttura_irrecuperabile` col messaggio del normalizzatore."""
+    if not spec_text.strip():
+        return {"checked": False, "scenarios": 0, "violations": [], "valid": False}
+
+    violations: list[dict] = []
+
+    def flag(line: int, scenario: str, rule: str, message: str) -> None:
+        violations.append({"line": line, "scenario": scenario, "rule": rule, "message": message})
+
+    try:
+        scenari = spec_format.parse_scenarios(spec_text)
+    except spec_format.SpecNormalizationError as exc:
+        flag(1, "", "struttura_irrecuperabile", str(exc))
+        return {"checked": True, "scenarios": 0, "violations": violations, "valid": False}
+
+    for idx, s in enumerate(scenari, start=1):
+        etichetta = f"S{idx:02d}"
+        keywords = [kw for kw, _ in s.steps]
+        righe = s.step_lines or [s.line] * len(s.steps)
+
+        for kw in ("GIVEN", "WHEN", "THEN"):
+            n_kw = keywords.count(kw)
+            if n_kw == 0:
+                flag(righe[0] if righe else s.line, etichetta, f"{kw.lower()}_mancante",
+                     f"Manca il passo {kw}: ogni scenario ha esattamente un GIVEN, un WHEN "
+                     "e un THEN.")
+            elif n_kw > 1:
+                seconda = [r for r, k in zip(righe, keywords) if k == kw][1]
+                flag(seconda, etichetta, f"{kw.lower()}_duplicato",
+                     f"Secondo {kw} nello scenario: se è una condizione in più va scritta con "
+                     "AND, se è un caso diverso va in uno scenario suo.")
+
+        if all(k in keywords for k in ("GIVEN", "WHEN", "THEN")):
+            pos = {k: keywords.index(k) for k in ("GIVEN", "WHEN", "THEN")}
+            if not pos["GIVEN"] < pos["WHEN"] < pos["THEN"]:
+                flag(righe[0], etichetta, "ordine_passi",
+                     "Passi fuori ordine: l'ordine è GIVEN → AND → WHEN → AND → THEN → AND.")
+
+        for riga, (kw, testo) in zip(righe, s.steps):
+            for regex, che_cosa in _IMPL_PATTERNS:
+                trovato = regex.search(testo)
+                if trovato:
+                    flag(riga, etichetta, "dettaglio_implementativo",
+                         f"Il passo {kw} cita un {che_cosa} ({trovato.group(0)!r}): lo scenario "
+                         "descrive il comportamento osservabile, non come è implementato.")
+                    break
+
+    if len(scenari) < 2:
+        flag(scenari[0].line if scenari else 1, "", "scenari_insufficienti",
+             f"Solo {len(scenari)} scenario nello spec: per ogni funzionalità servono almeno "
+             "due scenari, un caso nominale e un caso negativo o di errore.")
+    elif not any(_is_negative_scenario(s.title, [t for _, t in s.steps]) for s in scenari):
+        flag(scenari[0].line, "", "caso_negativo_mancante",
+             "Nessuno scenario descrive un rifiuto, un errore o un'invariante difesa: "
+             "aggiungi il caso negativo per ogni funzionalità coperta.")
+
+    return {"checked": True, "scenarios": len(scenari),
+            "violations": violations, "valid": not violations}
+
+
+def _spec_e_archiviata(spec_path: Path | None) -> bool:
+    """Vero se lo spec vive sotto changes/archive/: gli spec archiviati sono storia, scritti
+    con il formato in vigore al tempo, e bocciarli oggi produrrebbe solo rumore su documenti
+    che nessuno riscriverà."""
+    if spec_path is None:
+        return False
+    try:
+        relative = spec_path.resolve().relative_to(CHANGES_DIR.resolve())
+    except (ValueError, OSError):
+        return False
+    return relative.parts[:1] == ("archive",)
+
+
+def validate_structural(canvas_text: str, spec_text: str, spec_path: Path | None = None) -> dict:
     """Controlli strutturali deterministici (nessun LLM) su canvas/spec: presenza delle 7
-    sezioni del Canvas e degli elementi BDD (GIVEN/WHEN/THEN) nella spec."""
+    sezioni del Canvas, degli elementi BDD (GIVEN/WHEN/THEN) e sostanza degli scenari
+    (check_bdd_semantics). La FORMA non si controlla qui: la ricostruisce
+    core.spec_format.normalize_spec subito dopo la generazione.
+
+    `spec_path` serve solo a escludere changes/archive/**: gli spec archiviati sono storia,
+    scritti col formato in vigore al tempo, e bocciarli oggi sarebbe rumore su documenti che
+    nessuno riscriverà."""
     canvas_lower = canvas_text.lower()
     spec_upper = spec_text.upper()
     sezioni_canvas = {sec: (sec.lower() in canvas_lower) for sec in CANVAS_SECTIONS}
@@ -486,6 +631,10 @@ def validate_structural(canvas_text: str, spec_text: str) -> dict:
     bdd_given = "GIVEN" in spec_upper or "DATO CHE" in spec_upper
     bdd_when = "WHEN" in spec_upper or "QUANDO" in spec_upper
     bdd_then = "THEN" in spec_upper or "ALLORA" in spec_upper
+    archiviata = _spec_e_archiviata(spec_path)
+    semantica = ({"checked": False, "scenarios": 0, "violations": [], "valid": True,
+                  "skipped": "archiviata"}
+                 if archiviata else check_bdd_semantics(spec_text))
     return {
         "canvas_presente": bool(canvas_text),
         "spec_presente": bool(spec_text),
@@ -494,7 +643,11 @@ def validate_structural(canvas_text: str, spec_text: str) -> dict:
         "bdd_when": bdd_when,
         "bdd_then": bdd_then,
         "canvas_completo": all(sezioni_canvas.values()),
-        "spec_bdd_valida": bdd_given and bdd_when and bdd_then,
+        "semantica_bdd": semantica,
+        # La sostanza entra nel verdetto: uno spec con un solo percorso felice, o con due
+        # GIVEN in uno scenario, è bocciato. Prima bastava che le tre parole comparissero
+        # da qualche parte nel testo.
+        "spec_bdd_valida": bdd_given and bdd_when and bdd_then and semantica["valid"],
     }
 
 

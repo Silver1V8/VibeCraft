@@ -34,3 +34,29 @@ candidates:
   - doc: 05_project_specs/spec_tech_frontend.md
   from_feature: fe2
   extracted_at: '2026-08-03T12:41:13+00:00'
+- q: 'fe3: REASONS Canvas: FE3 (Form di Prenotazione)'
+  expected:
+  - doc: 02_specs_normative/spec_form_1.4.md
+  - doc: 05_project_specs/spec_tech_frontend.md
+  - doc: 02_specs_normative/spec_area_pers_1.5.md
+  - doc: 02_specs_normative/spec_dash_1.2.md
+  - doc: 01_architecture_norms/architecture_decision_rationale.md
+  - doc: 05_project_specs/spec_tech_backend.md
+  from_feature: fe3
+  extracted_at: '2026-08-03T13:41:17+00:00'
+- q: 'fe4: REASONS Canvas: FE4 - Area Personale (Le mie richieste)'
+  expected:
+  - doc: 02_specs_normative/spec_area_pers_1.5.md
+  - doc: 02_specs_normative/spec_mgr_panel_2.2.md
+  - doc: 00_meta_governance/matrice_permessi.md
+  - doc: 01_architecture_norms/ui_ux_brand_directives.md
+  - doc: 05_project_specs/spec_tech_frontend.md
+  from_feature: fe4
+  extracted_at: '2026-08-04T11:43:55+00:00'
+- q: 'la1: REASONS Canvas: LA1 - Workflow Approvazione e Notifiche (Logic Agent)'
+  expected:
+  - doc: 05_project_specs/spec_tech_logic_agent.md
+  - doc: 02_specs_normative/spec_wf_states_2.1.md
+  - doc: 01_architecture_norms/architecture_decision_rationale.md
+  from_feature: la1
+  extracted_at: '2026-08-04T14:29:28+00:00'

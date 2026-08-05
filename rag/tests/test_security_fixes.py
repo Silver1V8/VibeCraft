@@ -455,6 +455,18 @@ def _register_working_llm_provider(response_text: str):
     llm.register_provider("fake", lambda model, prompt, timeout: response_text)
 
 
+# Spec minimo ma NORMALIZZABILE, per i test di propose/generate: la route scrive spec.md solo
+# dopo core.spec_format.normalize_spec, e un testo privo di scenari e' fail-closed (502).
+SPEC_LLM_STUB = (
+    "```gherkin\n"
+    "SCENARIO: S01 - Caso nominale\n"
+    "  GIVEN una premessa\n"
+    "  WHEN accade qualcosa\n"
+    "  THEN il sistema risponde\n"
+    "```\n"
+)
+
+
 def test_canvas_generate_does_not_persist_llm_error(changes_env, fake_llm_settings):
     _register_broken_llm_provider()
     req = CanvasGenerateRequest(feature_name="feat demo", dev_type="")
@@ -499,13 +511,17 @@ def test_propose_generate_still_persists_on_success(changes_env, fake_llm_settin
     folder = changes_env / "feat-demo"
     folder.mkdir(parents=True)
     (folder / "canvas.md").write_text("## Requirements\ncontratto", encoding="utf-8")
-    _register_working_llm_provider("GIVEN x WHEN y THEN z")
+    # La risposta dev'essere uno spec normalizzabile: propose/generate scrive spec.md solo
+    # dopo core.spec_format.normalize_spec, e un testo senza scenari e' fail-closed (502).
+    _register_working_llm_provider(SPEC_LLM_STUB)
     req = ProposeGenerateRequest(feature_folder="feat-demo", dev_type="")
 
     result = asyncio.run(routes_pipeline.pipeline_propose_generate(req))
 
-    assert result["content"] == "GIVEN x WHEN y THEN z"
-    assert (folder / "spec.md").read_text(encoding="utf-8") == "GIVEN x WHEN y THEN z"
+    assert result["content"] == (folder / "spec.md").read_text(encoding="utf-8")
+    assert "SCENARIO: S01 - Caso nominale" in result["content"]
+    # Il grezzo del modello resta accanto allo spec, intatto.
+    assert (folder / "spec.raw.md").read_text(encoding="utf-8") == SPEC_LLM_STUB
 
 
 # ===========================================================================
@@ -588,12 +604,12 @@ def test_route_propose_generate_accepts_known_dev_type(code_dir_env, fake_llm_se
     folder = code_dir_env / "feat-demo"
     folder.mkdir(parents=True)
     (folder / "canvas.md").write_text("## Requirements\ncontratto", encoding="utf-8")
-    _register_working_llm_provider("GIVEN x")
+    _register_working_llm_provider(SPEC_LLM_STUB)
     req = ProposeGenerateRequest(feature_folder="feat-demo", dev_type="backend")
 
     result = asyncio.run(routes_pipeline.pipeline_propose_generate(req))
 
-    assert result["content"] == "GIVEN x"
+    assert "SCENARIO: S01 - Caso nominale" in result["content"]
     assert (folder / "spec.md").exists()
 
 
