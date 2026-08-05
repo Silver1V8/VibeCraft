@@ -23,6 +23,7 @@ from api.deps import (
     current_snapshot,
     reload_index_state,
     require_api_key,
+    require_local_bind,
     require_not_cross_site_request,
     state,
 )
@@ -314,12 +315,17 @@ def _native_folder_dialog() -> str | None:
 
 
 @router.post("/api/intake/project/browse-path",
-             dependencies=[Depends(require_not_cross_site_request)])
+             dependencies=[Depends(require_local_bind),
+                           Depends(require_not_cross_site_request)])
 async def browse_project_path():
     """Apre l'esplora risorse nativo sulla macchina del server per scegliere la
     cartella sorgente e ne risponde il path assoluto (None se l'utente annulla).
     Nessuna validazione qui: resta a plan_project_import (path assoluto, esistente,
-    directory, mai dentro il repo/staging)."""
+    directory, mai dentro il repo/staging).
+
+    `require_local_bind` la SPEGNE (403) se VIBECRAFT_HOST non è il loopback: il dialogo si
+    aprirebbe sul desktop di chi ospita il processo, non di chi ha cliccato, e resterebbe
+    lì a occupare un thread del pool. Vedi api.deps.require_local_bind."""
     try:
         path = await run_in_threadpool(_native_folder_dialog)
     except Exception as exc:
@@ -330,12 +336,18 @@ async def browse_project_path():
 
 
 @router.post("/api/intake/project/plan",
-             dependencies=[Depends(require_not_cross_site_request)])
+             dependencies=[Depends(require_local_bind),
+                           Depends(require_not_cross_site_request)])
 async def plan_project(payload: ProjectPlanRequest):
     """Anteprima dell'import (DRY-RUN puro, zero scritture): scansiona il path
     sorgente e classifica i file contro code/<target>/ (nuovi/identici/conflitti/
     esclusi). Validazioni in core.project_import: path assoluto, esistente,
-    directory, MAI dentro il repo né dentro staging; target solo tra i tre ammessi."""
+    directory, MAI dentro il repo né dentro staging; target solo tra i tre ammessi.
+
+    Quelle validazioni limitano il DANNO ma non il RAGGIO: la directory scansionabile resta
+    qualunque, quindi la risposta enumera file arbitrari della macchina server. Innocuo
+    finché il chiamante È quella macchina; con un bind aperto è info-disclosure remota, e
+    `require_local_bind` la spegne (403). Vedi api.deps.require_local_bind."""
     try:
         plan = await run_in_threadpool(
             project_import.plan_project_import, payload.path, payload.target)

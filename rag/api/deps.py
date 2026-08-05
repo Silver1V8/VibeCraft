@@ -31,6 +31,8 @@ from core.config import (
     PROJECT_ROOT,
     QDRANT_API_KEY,
     QDRANT_URL,
+    SERVER_BIND_IS_LOCAL,
+    SERVER_HOST,
     TEMPLATES_DIR,
 )
 
@@ -86,6 +88,38 @@ def require_api_key_strict(request: Request) -> None:
             status_code=401,
             detail="API key richiesta per questo endpoint, anche da localhost.",
         )
+
+
+def require_local_bind(request: Request) -> None:
+    """Spegne una route quando il server NON è bindato sul loopback (VIBECRAFT_HOST).
+
+    È una disabilitazione, non un controllo d'accesso, e la differenza è il punto: le due
+    route che la montano — POST /api/intake/project/browse-path e POST /api/intake/project/plan
+    — hanno senso solo perché server e utente sono la stessa macchina. La prima apre un
+    selettore di cartelle NATIVO sul desktop del processo server; la seconda scansiona un path
+    assoluto arbitrario del filesystem del server e ne restituisce l'elenco file. Con un bind
+    aperto (0.0.0.0, un IP di LAN) la prima diventa priva di senso *e* dannosa — il dialogo si
+    apre sul desktop di chi ospita il server, non di chi clicca, e occupa un thread del pool
+    finché qualcuno non lo chiude a mano — e la seconda diventa enumerazione remota del
+    filesystem. Analisi in SECURITY_SURFACE.md §4 #7-#8, che chiedeva esattamente questo:
+    disabilitare, non solo proteggere.
+
+    Perché NON è bypassabile con la API key, a differenza di require_not_cross_site_request:
+    lì la chiave identifica un client legittimo e il threat model è il browser di terzi; qui
+    non c'è alcun chiamante per cui la funzione torni sensata, nemmeno il più autenticato di
+    tutti. Un bypass sarebbe una riapertura, non un'eccezione. Per lo stesso motivo non esiste
+    un flag di override: un interruttore "riabilitami" impostato una volta e dimenticato è
+    esattamente il modo in cui questo rischio tornerebbe.
+
+    Nessun effetto sul default (bind 127.0.0.1): la dependency passa e le route si comportano
+    come sempre. Va usata IN AGGIUNTA a require_api_key, come le altre di questo modulo."""
+    if SERVER_BIND_IS_LOCAL:
+        return
+    raise HTTPException(
+        status_code=403,
+        detail=(f"Endpoint disabilitato: ha senso solo con il server in ascolto su localhost, "
+                f"mentre VIBECRAFT_HOST è '{SERVER_HOST}'. Vedi SECURITY_SURFACE.md §4 #7-#8."),
+    )
 
 
 def require_not_cross_site_request(request: Request) -> None:

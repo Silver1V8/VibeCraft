@@ -82,7 +82,16 @@
    `VIBECRAFT_GITLAB_TOKEN` non è impostata (default). Se impostata, richiede
    `X-Gitlab-Token` (header custom → preflight cross-site).
 
-6. **`require_not_cross_site_request`** ([`api/deps.py`](api/deps.py)): 403 se
+6. **`require_local_bind`** ([`api/deps.py`](api/deps.py)): 403 se `VIBECRAFT_HOST` non è
+   il loopback. Non è un controllo d'accesso ma un **interruttore**: spegne le due route
+   che hanno senso solo con server e utente sulla stessa macchina (52, 53). A differenza
+   di tutte le altre dependency di questo modulo **non è bypassabile con la API key** —
+   non esiste chiamante, per quanto autenticato, per cui aprire un dialogo sul desktop di
+   un'altra macchina torni sensato — e non ha un flag di override, che sarebbe il modo in
+   cui il rischio rientrerebbe dalla finestra. Guarda l'**interfaccia di ascolto**, non
+   l'IP del client: è un asse diverso da `_is_local_request`.
+
+7. **`require_not_cross_site_request`** ([`api/deps.py`](api/deps.py)): 403 se
    `Sec-Fetch-Site: cross-site`; passa con API key valida, con header assente
    (curl/script/webhook/browser legacy) e con `same-origin`/`same-site`/`none`.
    `Sec-Fetch-Site` è un *forbidden header* (Fetch Metadata): lo scrive il browser, il JS
@@ -157,8 +166,8 @@ oltre a `require_api_key` del router.
 | 49 | GET | `/api/intake/generate/{job_id}` | require_api_key | path | Sì | read-only (stato job) | Basso | nessuna |
 | 50 | POST | `/api/intake/staged/{doc_id}/refine` | require_api_key | **assente** | **Sì (bodyless)** | avvia job LLM di raffinazione → **scrive staging** | Medio (DoS/costo) | **anti-x-site** |
 | 51 | GET | `/api/intake/refine/{job_id}` | require_api_key | path | Sì | read-only (stato job) | Basso | nessuna |
-| 52 | POST | `/api/intake/project/browse-path` | require_api_key | **assente** | **Sì (bodyless)** | **apre un dialogo tkinter MODALE sul desktop della macchina server** e occupa un thread finché non viene chiuso (vedi §4 #7) | Medio | **anti-x-site** |
-| 53 | POST | `/api/intake/project/plan` | require_api_key | JSON Pydantic | No (preflight) | read-only ma **scansiona un path arbitrario del filesystem del server** e ne restituisce l'elenco file (vedi §4 #8) | Medio (info-disclosure) | **anti-x-site** |
+| 52 | POST | `/api/intake/project/browse-path` | require_api_key | **assente** | **Sì (bodyless)** | **apre un dialogo tkinter MODALE sul desktop della macchina server** e occupa un thread finché non viene chiuso (vedi §4 #7) | Medio | **anti-x-site + local-bind** |
+| 53 | POST | `/api/intake/project/plan` | require_api_key | JSON Pydantic | No (preflight) | read-only ma **scansiona un path arbitrario del filesystem del server** e ne restituisce l'elenco file (vedi §4 #8) | Medio (info-disclosure) | **anti-x-site + local-bind** |
 | 54 | POST | `/api/intake/project/apply` | require_api_key | **JSON tutto-opz.** (`plan_id`/`plan` entrambi opzionali) | **Sì (bodyless)** | **copia file in `code/<target>/`** + backup zip + journal + **reindex delta** sotto writer lock | **Alto** | **anti-x-site** |
 | 55 | GET | `/api/intake/project/imports` | require_api_key | query | Sì | read-only (journal) | Basso | nessuna |
 | 56 | POST | `/api/intake/project/brief` | require_api_key | JSON Pydantic | No (preflight) | avvia job LLM sul grafo → documento in staging | Medio (DoS/costo) | **anti-x-site** |
@@ -211,7 +220,7 @@ con `Sec-Fetch-Site: cross-site`; quelle **senza** l'header passano come prima.
 | POST `/api/intake/staged/{id}/approve` (46) | Scrive `docs/` **e** reindicizza (Qdrant + CURRENT): blast Alto. |
 | POST `/api/intake/staged/{id}/reject` (47) | **Consegnabile (body tutto-opzionale)**: sposta file e scrive il journal. |
 | POST `/api/intake/project/apply` (54) | **Consegnabile (body tutto-opzionale)**: copia file in `code/`, backup, journal, reindex delta. Blast Alto. |
-| POST `/api/intake/project/browse-path` (52) | **Consegnabile (bodyless)**: non muta dati ma apre una finestra sul desktop del server e occupa un thread — effetto locale osservabile e fastidioso, trattato come mutante. |
+| POST `/api/intake/project/browse-path` (52) | **Consegnabile (bodyless)**: non muta dati ma apre una finestra sul desktop del server e occupa un thread — effetto locale osservabile e fastidioso, trattato come mutante. Monta **anche** `require_local_bind` (§4 #7). |
 
 ### 2B — Eseguono LLM/CPU o espongono il filesystem, senza mutare l'indice (9)
 
@@ -223,9 +232,9 @@ Route: POST `/api/pipeline/explore/turn` (10), `/api/pipeline/drift/check` (15),
 Il tier defense-in-depth raccomandato dalla revisione originale **è stato adottato**:
 tutte queste route hanno la dependency. Motivazioni: un trigger cross-site di massa è un
 vettore di **DoS/consumo costo** su Ollama (10, 15, 17, 19, 33, 48, 50, 56); `plan` (53) è
-read-only ma **enumera un path arbitrario del filesystem del server** (§4 #8); `refine`
-(50) è per giunta **consegnabile bodyless**. La dependency è a costo nullo e non rompe la
-UI same-origin.
+read-only ma **enumera un path arbitrario del filesystem del server** (§4 #8) e monta
+**anche** `require_local_bind`; `refine` (50) è per giunta **consegnabile bodyless**. La
+dependency è a costo nullo e non rompe la UI same-origin.
 
 ### 2C — ESCLUSE, con motivazione
 
@@ -288,8 +297,8 @@ mentre il ramo "come oggi" dia il 422 — la business logic non viene mai esegui
 | 4 | **DoS-CPU/costo sulle GET read-only** (`/api/retrieve` 34, `/api/code/search` 35, `/api/graph/semantic-map` 39): un trigger cross-site di massa consuma embedding/SVD senza mutare stato. | **Accettato.** I POST-LLM sono ora tutti coperti (§2B), quindi il grosso è chiuso. Per le GET CPU un rate-limit resta **debito annotato**: `/api/code/search` ha già tetti di risposta (`k ≤ 25`) ma non di frequenza. |
 | 5 | **`/docs`, `/redoc`, `/openapi.json` non autenticati** (Appendice A). Espongono l'intero schema delle route a chiunque raggiunga il server. | **Accettato in locale**; in caso di esposizione, disabilitare (`FastAPI(docs_url=None, redoc_url=None, openapi_url=None)`) o proteggerli. Info-disclosure, non mutazione. |
 | 6 | **`GET /pipeline` (2) inietta `VIBECRAFT_API_KEY` nell'HTML** come `window.__VIBECRAFT_AGENT_API_KEY__`, su una route senza auth. | **Accettato, per costruzione.** L'iniezione avviene **solo** per client locali (`_is_local_request`, stessa condizione del bypass di `require_api_key`) e la Same-Origin Policy impedisce a una pagina di un'altra origine di **leggere** il body della risposta: può solo navigarci o fare fetch opachi. Se il server è esposto oltre localhost l'iniezione si disattiva da sola, quindi la chiave non raggiunge mai un client remoto. Resta un rischio se l'utente esegue codice ostile *nella propria pagina* — fuori dal modello di minaccia. |
-| 7 | **`POST /api/intake/project/browse-path` (52) apre un dialogo nativo sul desktop del server** ed è **consegnabile bodyless**. Senza la guardia, una pagina ostile farebbe comparire un selettore di cartelle sulla macchina dell'utente e occuperebbe un thread del pool finché non viene chiuso. | **Mitigato** dall'anti-cross-site (403 prima dell'handler). Residuo: un client locale/programmatico può comunque innescarlo. *Debito annotato:* la route ha senso solo perché server e browser sono la stessa macchina; se il bind superasse localhost andrebbe disabilitata del tutto, non solo protetta. |
-| 8 | **`POST /api/intake/project/plan` (53) enumera un path arbitrario del filesystem del server** e ne restituisce i file classificati: è info-disclosure per un chiamante che raggiunge l'endpoint. | **Mitigato** dall'anti-cross-site e dalle validazioni di `core.project_import` (path assoluto, esistente, directory, mai dentro il repo né lo staging — che riducono l'abuso ma **non** limitano *quale* directory della macchina si possa scansionare). **Accettato** per uno strumento locale: chi è autenticato come localhost ha già accesso al filesystem. Da rivedere se il bind supera localhost. |
+| 7 | **`POST /api/intake/project/browse-path` (52) apre un dialogo nativo sul desktop del server** ed è **consegnabile bodyless**. Senza guardie, una pagina ostile farebbe comparire un selettore di cartelle sulla macchina che ospita il server e occuperebbe un thread del pool finché non viene chiuso. | **Chiuso su entrambi gli assi.** Browser di terzi: anti-cross-site (403 prima dell'handler). Bind aperto: `require_local_bind` **spegne** la route (403 per chiunque, API key inclusa) — era il debito annotato dalla revisione precedente, ora implementato, perché con server e utente su macchine diverse la funzione non è "più rischiosa", è priva di senso. Residuo **accettato**: con bind locale, un client sulla stessa macchina può innescarla — ma su quella macchina il dialogo è appunto la funzione richiesta. |
+| 8 | **`POST /api/intake/project/plan` (53) enumera un path arbitrario del filesystem del server** e ne restituisce i file classificati: è info-disclosure per un chiamante che raggiunge l'endpoint. | **Chiuso su entrambi gli assi.** Le validazioni di `core.project_import` (path assoluto, esistente, directory, mai dentro il repo né lo staging) riducono l'abuso ma **non** limitano *quale* directory sia scansionabile: il contenimento vero è che il chiamante deve essere sulla macchina stessa. Anti-cross-site copre il browser di terzi; `require_local_bind` spegne la route se il bind supera il loopback, quando l'enumerazione diventerebbe remota. Residuo **accettato** con bind locale: chi chiama da quella macchina ha già accesso al filesystem. |
 
 ---
 
@@ -365,6 +374,10 @@ niente build/test in-modalità; (d) la blocklist dei segmenti riservati può rif
   l'**unico** controllo nel setup keyless, non defense-in-depth. Le altre 15 sono coperte
   *anche* dal combinato preflight-CORS + `strict_content_type` — difesa implicita, mai
   l'unica.
-- **Debiti annotati:** rate-limit sulle GET CPU-pesanti (§4 #4); `browse-path` e
-  `project/plan` da disabilitare, non solo proteggere, se il bind supera localhost
-  (§4 #7-#8); `/docs`/`/openapi.json` da chiudere in caso di esposizione (§4 #5).
+- **Route spente per configurazione: 2** — `browse-path` (52) e `project/plan` (53) sono
+  disabilitate da `require_local_bind` quando `VIBECRAFT_HOST` non è il loopback. È
+  l'unico caso in cui una route smette di esistere invece di essere protetta: la loro
+  utilità dipende dal fatto che server e utente siano la stessa macchina, quindi con un
+  bind aperto non resta nulla da proteggere.
+- **Debiti annotati:** rate-limit sulle GET CPU-pesanti (§4 #4); `/docs`/`/openapi.json`
+  da chiudere in caso di esposizione (§4 #5).

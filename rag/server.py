@@ -20,7 +20,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from core.config import STATIC_DIR, setup_logging
+from core.config import SERVER_BIND_IS_LOCAL, STATIC_DIR, setup_logging
 
 # Configurazione centrale del logging PRIMA degli import applicativi: i moduli usano
 # logging.getLogger(__name__) e vedono formato/livello (VIBECRAFT_LOG_LEVEL) coerenti.
@@ -101,4 +101,12 @@ if __name__ == "__main__":
     if host != "127.0.0.1" and not API_KEY:
         logger.warning("Server esposto oltre localhost (VIBECRAFT_HOST) SENZA VIBECRAFT_API_KEY: "
                        "tutte le richieste non-locali ai /api/* verranno rifiutate (fail-closed).")
+    if not SERVER_BIND_IS_LOCAL:
+        # Detto all'avvio e non solo al 403: chi apre il bind scopre così, subito, che due
+        # funzioni della pagina Intake non risponderanno più — invece di leggerlo come un
+        # errore inspiegabile al primo click (api.deps.require_local_bind).
+        logger.warning("Bind non locale (VIBECRAFT_HOST=%s): il selettore di cartelle nativo "
+                       "(POST /api/intake/project/browse-path) e l'anteprima di import "
+                       "(POST /api/intake/project/plan) sono DISABILITATI — hanno senso solo "
+                       "con server e utente sulla stessa macchina.", host)
     uvicorn.run(app, host=host, port=port)

@@ -91,14 +91,31 @@ STATIC_DIR = RAG_DIR / "static"
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://127.0.0.1:6333")
 QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY")
 
+# Interfaccia su cui server.py binda uvicorn (stesso env, letto qui perché serve anche allo
+# strato HTTP: vedi SERVER_BIND_IS_LOCAL).
+SERVER_HOST: str = os.environ.get("VIBECRAFT_HOST", "127.0.0.1")
+SERVER_PORT: str = os.environ.get("VIBECRAFT_PORT", "8000")
+
+# True se il server ascolta SOLO sul loopback. Non è la stessa cosa di "la richiesta arriva da
+# localhost" (api.deps._is_local_request, che guarda il client): qui si guarda l'INTERFACCIA su
+# cui il processo è raggiungibile. La distinzione conta per le funzionalità che hanno senso solo
+# quando server e utente sono la stessa macchina — il selettore di cartelle nativo e la scansione
+# di un path arbitrario del filesystem (api.deps.require_local_bind): con un bind aperto quelle
+# route non diventano "più rischiose", diventano PRIVE DI SENSO (il dialogo si aprirebbe sul
+# desktop del server, non su quello di chi lo usa) e vanno spente, non solo protette.
+# Qualunque valore diverso dal loopback — incluso 0.0.0.0, che ASCOLTA anche fuori — è "non locale".
+SERVER_BIND_IS_LOCAL: bool = SERVER_HOST in {"127.0.0.1", "::1", "localhost"}
+
 # URL con cui questo server è raggiungibile da FUORI dal processo (un agente CLI, uno script).
 # Serve solo a SCRIVERLO dentro prompt e artefatti (vedi pipeline.build_final_prompt), mai a
 # bindare: il bind resta di server.py. Deriva dagli stessi env di server.py (VIBECRAFT_HOST /
 # VIBECRAFT_PORT) così un server spostato di porta non consegna ai prompt un URL sbagliato;
 # VIBECRAFT_BASE_URL lo forza quando il server sta dietro un reverse proxy o su un altro host.
+# Un host IPv6 va fra parentesi quadre nell'URL (RFC 3986): senza, "::1" produce
+# "http://::1:8000", che nessun client sa risolvere.
+_URL_HOST = f"[{SERVER_HOST}]" if ":" in SERVER_HOST else SERVER_HOST
 SERVER_BASE_URL: str = (
-    os.environ.get("VIBECRAFT_BASE_URL")
-    or f"http://{os.environ.get('VIBECRAFT_HOST', '127.0.0.1')}:{os.environ.get('VIBECRAFT_PORT', '8000')}"
+    os.environ.get("VIBECRAFT_BASE_URL") or f"http://{_URL_HOST}:{SERVER_PORT}"
 ).rstrip("/")
 
 with open(CONFIG_PATH, "r", encoding="utf-8") as _f:

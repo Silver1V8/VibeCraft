@@ -835,3 +835,98 @@ def test_http_reindex_bodyless_curl_still_reaches_handler(xsite_client, monkeypa
     monkeypatch.setattr(deps, "API_KEY", None)
     r = xsite_client.post("/api/reindex")
     assert r.status_code == 202, r.text
+
+
+# ===========================================================================
+# Route locali-per-costruzione: spente quando il bind supera il loopback
+# (api.deps.require_local_bind — SECURITY_SURFACE.md §4 #7-#8)
+# ===========================================================================
+
+# Le uniche due route che hanno senso SOLO se server e utente sono la stessa macchina:
+# una apre un dialogo nativo sul desktop del server, l'altra scansiona un path arbitrario
+# del suo filesystem. Con un bind aperto non sono "più rischiose": sono prive di senso.
+_LOCAL_ONLY_ROUTES = [
+    (routes_intake.router, "POST", "/api/intake/project/browse-path"),
+    (routes_intake.router, "POST", "/api/intake/project/plan"),
+]
+
+
+def test_require_local_bind_passes_when_bound_to_loopback(monkeypatch):
+    monkeypatch.setattr(deps, "SERVER_BIND_IS_LOCAL", True)
+    deps.require_local_bind(_FakeRequest())  # non solleva: è il default del progetto
+
+
+def test_require_local_bind_rejects_when_bind_is_open(monkeypatch):
+    monkeypatch.setattr(deps, "SERVER_BIND_IS_LOCAL", False)
+    monkeypatch.setattr(deps, "SERVER_HOST", "0.0.0.0")
+    with pytest.raises(HTTPException) as exc_info:
+        deps.require_local_bind(_FakeRequest())
+    assert exc_info.value.status_code == 403
+    # Il messaggio deve dire QUALE valore ha causato lo spegnimento: senza, chi ha aperto
+    # il bind legge un 403 e non ha modo di collegarlo alla propria configurazione.
+    assert "0.0.0.0" in exc_info.value.detail
+
+
+def test_require_local_bind_is_not_bypassable_by_api_key(monkeypatch):
+    """Differenza deliberata da require_not_cross_site_request, che una API key valida
+    bypassa: lì la chiave identifica un client legittimo e il threat model è il browser di
+    terzi; qui non esiste chiamante per cui la funzione torni sensata. Un bypass sarebbe
+    una riapertura, non un'eccezione."""
+    monkeypatch.setattr(deps, "SERVER_BIND_IS_LOCAL", False)
+    monkeypatch.setattr(deps, "API_KEY", "s3cret")
+    with pytest.raises(HTTPException):
+        deps.require_local_bind(_FakeRequest(headers={"X-API-Key": "s3cret"}))
+
+
+@pytest.mark.parametrize("router,method,path", _LOCAL_ONLY_ROUTES)
+def test_local_only_route_declares_local_bind_dependency(router, method, path):
+    deps_fns = _route_dependency_fns(router, method, path)
+    assert deps.require_local_bind in deps_fns
+    # La disabilitazione si AGGIUNGE all'anti-cross-site, non lo sostituisce: con bind
+    # locale (il caso normale) resta il gate che protegge dal browser di terzi.
+    assert deps.require_not_cross_site_request in deps_fns
+
+
+def test_no_other_route_is_disabled_by_bind():
+    """Nessuna disabilitazione "per eccesso": spegnere una route è un costo di funzionalità,
+    quindi solo queste due lo pagano."""
+    local_only = {(m, p) for _, m, p in _LOCAL_ONLY_ROUTES}
+    for router in _ALL_ROUTERS:
+        for route in router.routes:
+            declared = deps.require_local_bind in [d.dependency for d in route.dependencies]
+            for method in getattr(route, "methods", set()) - {"HEAD"}:
+                assert declared == ((method, route.path) in local_only), route.path
+
+
+@pytest.mark.parametrize("router,method,path", _LOCAL_ONLY_ROUTES)
+def test_http_local_only_route_returns_403_when_bind_is_open(monkeypatch, router, method, path):
+    """Wiring HTTP: con bind aperto la route risponde 403 anche a un client 127.0.0.1 con
+    la chiave valida — è spenta, non protetta.
+
+    `_native_folder_dialog` è sostituita da una funzione che SOLLEVA, non dal dialogo vero:
+    se il gate non scattasse, l'handler verrebbe raggiunto e il test deve fallire in modo
+    pulito (500 ≠ 403), non bloccare la suite su una finestra modale aperta sul desktop di
+    chi esegue i test."""
+    def _handler_non_deve_essere_raggiunto():
+        raise AssertionError("require_local_bind non ha fermato la richiesta")
+
+    monkeypatch.setattr(deps, "SERVER_BIND_IS_LOCAL", False)
+    monkeypatch.setattr(deps, "API_KEY", "s3cret")
+    monkeypatch.setattr(routes_intake, "_native_folder_dialog", _handler_non_deve_essere_raggiunto)
+    client = _make_client(routes_intake.router)
+    r = client.request(method, path, json={"path": "C:/tmp", "target": "backend"},
+                       headers={"X-API-Key": "s3cret"})
+    assert r.status_code == 403, r.text
+    assert "disabilitato" in r.json()["detail"]
+
+
+def test_http_local_only_route_reaches_handler_with_loopback_bind(monkeypatch):
+    """Non-regressione del caso normale (bind 127.0.0.1): la route resta raggiungibile.
+    Si usa `plan`, che non apre finestre; il path inesistente la ferma sul 422 di
+    validazione del dominio, ma dopo le dependency — cioè il gate non è scattato."""
+    monkeypatch.setattr(deps, "SERVER_BIND_IS_LOCAL", True)
+    monkeypatch.setattr(deps, "API_KEY", None)
+    client = _make_client(routes_intake.router)
+    r = client.post("/api/intake/project/plan",
+                    json={"path": "/percorso/che/non/esiste", "target": "backend"})
+    assert r.status_code != 403, r.text
