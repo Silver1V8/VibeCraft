@@ -68,12 +68,10 @@ docs/05_project_specs/*
 # risultano più a `git status`/`git diff`; questa regola copre invece i file NUOVI
 # (output locali di run della pipeline, bozze, ecc.) così non compaiono come untracked.
 # Per far tornare tracciabile un file specifico: git update-index --no-skip-worktree <path>.
+#
+# NB: questa regola ha già protetto il repo una volta — senza, 29 file di dominio
+# (13 spec + 16 diagrammi/mockup) rimasti orfani sul disco dopo la riduzione di docs/ a
+# baseline cross-progetto (68159d7, 2026-07-22) sarebbero rientrati come "nuovi" file da
+# tracciare invece che restare invisibili com'è corretto che siano.
 docs/*
 !docs/**/.gitkeep
-
-# docs/02_specs_normative/: spec normative, tracciate a pieno titolo (non congelate come il
-# resto di docs/) — sono il contratto che il Graph RAG indicizza e che i prompt citano come
-# vincolo, quindi le loro revisioni (es. la migrazione al formato unico degli scenari BDD)
-# devono avere storia in git.
-!docs/02_specs_normative/
-!docs/02_specs_normative/*
