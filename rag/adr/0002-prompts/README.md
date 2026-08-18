@@ -16,13 +16,35 @@ S2 ─┼──► S3 ──┐
     └──► S4 ──┘
 ```
 
-| # | Intervento | Dipende da | Rischio | Tocca il ranking |
-|---|---|---|---|---|
-| [S1](S1-autorita-dichiarata.md) | Onorare l'`authority` del frontmatter; separare la fonte non classificata | — | **alto** | sì, direttamente |
-| [S2](S2-natura-degli-archi.md) | Natura e affidabilità degli archi (strutturale / curata / inferita) | — | basso | no |
-| [S3](S3-fiducia-sul-cammino.md) | `trust_paths()` + fase 6 di [REGOLA-WF-01] | S2 | medio | sì, dietro parametro |
-| [S4](S4-conflitti-fra-fonti.md) | `SUPERA_IN_PRIORITÀ` operativo | S2 (consigliata) | basso-medio | solo fra coppie dichiarate |
-| [S5](S5-golden-set-avversariale.md) | Golden set avversariale + ricalibrazione | S1–S4 | basso | no (misura) |
+| # | Intervento | Dipende da | Rischio | Ranking | Modello |
+|---|---|---|---|---|---|
+| [S1](S1-autorita-dichiarata.md) | Onorare l'`authority` del frontmatter; separare la fonte non classificata | — | **alto** | sì, diretto | **Opus 5** |
+| [S2](S2-natura-degli-archi.md) | Natura e affidabilità degli archi (strutturale / curata / inferita) | — | basso | no | Sonnet 5 |
+| [S3](S3-fiducia-sul-cammino.md) | `trust_paths()` + fase 6 di [REGOLA-WF-01] | S2 | medio | sì, a parametro | **Opus 5** |
+| [S4](S4-conflitti-fra-fonti.md) | `SUPERA_IN_PRIORITÀ` operativo | S2 (consigliata) | basso-medio | coppie dichiarate | Sonnet 5 |
+| [S5](S5-golden-set-avversariale.md) | Golden set avversariale + ricalibrazione | S1–S4 | basso | no (misura) | **Opus 5** |
+
+### Come è stato scelto il modello
+
+Il criterio non è l'importanza della sessione né la quantità di codice: è **quanto giudizio
+serve nei punti in cui il prompt ammette che le cose possano andare storte.**
+
+Le tre sessioni su Opus 5 condividono la stessa caratteristica — hanno un bivio in cui la
+risposta corretta è *fermarsi o consegnare un risultato negativo*: S1 se la recall scende
+(conflitto di governance, non un numero da aggiustare), S3 sulla scelta fra shortest-path e
+max-product path, S5 sul dire «il corpus non basta» o «l'autorità non serve» invece di
+fabbricare casi che facciano quadrare il piano. È il tipo di decisione che un modello sotto
+pressione a completare il compito tende a evitare.
+
+Le due su Sonnet 5 hanno specifica chiusa e test che inchiodano il comportamento atteso: un
+errore viene intercettato dal gate invece di propagarsi. Ciascuna dichiara nel proprio header
+la condizione precisa in cui conviene passare a Opus 5.
+
+**I sottoagenti Explore restano un gradino sotto la sessione principale.** Sonnet 5 dove il
+fan-out richiede di *giudicare* (quali documenti sono a bassa autorità, cosa nel frontend
+consuma davvero `graph_context`), Haiku 4.5 dove è pura enumerazione di occorrenze (S2). Il
+contesto completo del prompt vive nella sessione principale: al subagente serve trovare, non
+decidere.
 
 **S1 e S2 sono indipendenti** e possono girare in parallelo. S3 e S4 richiedono S2 in main.
 **S5 va per ultima**: è l'unica sessione che dice se il piano è servito, e senza S1–S4 in

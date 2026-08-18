@@ -4,6 +4,13 @@
 > **Dipendenze:** nessuna (indipendente da S1, può girare in parallelo).
 > **Sblocca:** S3 e S4, che senza questi attributi non hanno substrato.
 > **Rischio:** BASSO — puro metadato, nessun cambio di ranking.
+> **Modello:** **Sonnet 5** (`claude-sonnet-5`). Il lavoro è enumerativo e ben specificato:
+> trovare tutti i call site di `add_edge` e aggiungere due attributi. L'unico punto denso è
+> l'equivalenza fra percorso full e incrementale sul valore di `reliability` degli
+> `IMPLEMENTS`, ed è coperto da un test esplicito (`check_graph_consistency`), quindi un
+> errore viene intercettato invece di propagarsi. Passa a Opus 5 solo se quel test diventa
+> rosso e la causa non è ovvia. Sottoagenti Explore: **Haiku 4.5** — qui il fan-out è
+> ricerca di occorrenze, non valutazione.
 
 ---
 

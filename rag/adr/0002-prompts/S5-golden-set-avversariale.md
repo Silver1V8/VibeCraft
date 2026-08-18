@@ -4,6 +4,14 @@
 > **Dipendenze:** va eseguita **per ultima**, dopo S1–S4.
 > **Rischio:** BASSO sul codice, ALTO sul valore — senza questa sessione, S1–S4 non sono
 > misurabili e il piano resta un atto di fede.
+> **Modello:** **Opus 5** (`claude-opus-5`). Sessione a bassa densità di codice e altissima
+> densità di giudizio: costruire casi che il sistema sbaglia **davvero**, leggere una
+> calibrazione distinguendo un buon risultato da una metrica satura, decidere una norma
+> ([REGOLA-VAL-08]) e — la parte più difficile — consegnare "il corpus non basta" o
+> "l'autorità non serve" quando è questo che dicono i numeri. La pressione a fabbricare
+> casi che facciano quadrare il piano è la modalità di fallimento centrale di questa
+> sessione. Sottoagenti Explore: **Sonnet 5** (l'inventario del corpus richiede di
+> classificare i documenti per autorità, non di elencarli).
 
 ---
 

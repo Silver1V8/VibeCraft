@@ -5,6 +5,12 @@
 > implementabile anche prima.
 > **Rischio:** BASSO-MEDIO — tocca il ranking solo fra coppie di documenti esplicitamente
 > in relazione di precedenza.
+> **Modello:** **Sonnet 5** (`claude-sonnet-5`). La specifica è chiusa e i test la
+> inchiodano punto per punto. Va detto però dov'è la trappola, perché è sottile e ricorrente:
+> il riordino deve essere una **permutazione stabile** che preserva l'ordine relativo di
+> tutto ciò che non è coinvolto nella precedenza — un `sort` con chiave composita sembra
+> equivalente e non lo è. Se il test `test_precedenza_preserva_ordine_relativo_degli_altri`
+> resiste a due tentativi, passa a Opus 5. Sottoagenti Explore: **Sonnet 5**.
 
 ---
 

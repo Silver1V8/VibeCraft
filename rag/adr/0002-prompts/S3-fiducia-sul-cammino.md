@@ -3,6 +3,13 @@
 > **Sessione autonoma.** Prompt self-contained.
 > **Dipendenze:** richiede **S2** (gli archi devono portare `nature`/`reliability`).
 > **Rischio:** MEDIO — introduce un nuovo segnale nel contesto di `/ask`, dietro parametro.
+> **Modello:** **Opus 5** (`claude-opus-5`). È l'unica sessione con una vera decisione di
+> progetto aperta — shortest-path come da articolo contro max-product path — da prendere
+> costruendo esempi numerici sul nostro grafo e da **documentare se diverge**. Attorno c'è
+> un BFS con tracciamento del cammino, gestione dei cicli e un'integrazione in `/ask` che
+> non deve soffocare il ramo semantico: correttezza densa su codice nuovo, senza un
+> comportamento preesistente da confrontare. Sottoagenti Explore: **Sonnet 5** (deve
+> giudicare cosa nel frontend consuma `graph_context`, non solo trovarlo).
 
 ---
 

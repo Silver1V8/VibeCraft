@@ -4,6 +4,12 @@
 > **Dipendenze:** nessuna. **Sblocca:** S5.
 > **Rischio:** ALTO — è l'unico intervento del piano che cambia l'ordinamento di produzione
 > senza passare da un parametro di config.
+> **Modello:** **Opus 5** (`claude-opus-5`). Non per la mole di codice — è poca — ma per il
+> punto di giudizio al gate: se la recall scende, la decisione non è "aggiusto un numero" ma
+> "i coefficienti scritti a mano nel frontmatter contraddicono i pesi di classe calibrati, e
+> questa è governance, non implementazione". Riconoscere quel bivio e **fermarsi** invece di
+> far tornare i conti è esattamente ciò che un modello più piccolo tende a non fare.
+> Sottoagenti Explore: **Sonnet 5**.
 
 ---
 
