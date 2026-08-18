@@ -25,6 +25,39 @@ def test_authority_weights_and_penalty():
     assert w({"classification": "IRON_MEMORY", "status": "ARCHIVED"}) == 0.3  # penalizzazione archiviati
 
 
+def test_peso_autorita_e_indipendente_dai_campi_temporali():
+    """L'autorità non deve MAI dipendere dalla freschezza del documento.
+
+    È l'invariante più facile da rompere per errore: il frontmatter porta `date`,
+    `last_updated` e `version` accanto a `classification`, e `_authority_weight` riceve il
+    dict INTERO — basta una riga in più per trasformare il peso di autorità in un peso di
+    recency senza che nessun test se ne accorga.
+
+    La distinzione è sostanziale, non stilistica. Il drift detection (hash del contenuto)
+    sa che un file è CAMBIATO; non sa se ci si può ancora FIDARE di ciò che dice. Una spec
+    di due anni mai toccata resta la fonte primaria del suo ambito; una change di ieri può
+    essere già superata. L'unico segnale temporale ammesso resta `status`
+    (ARCHIVED/DEPRECATED/…), che è un GIUDIZIO UMANO esplicito — "questo non vale più" —
+    e non una data: quello è già coperto da test_authority_weights_and_penalty.
+
+    Vedi rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md.
+    """
+    w = retrieval._authority_weight
+    vecchio = {"classification": "IRON_MEMORY", "status": "ENFORCED",
+               "date": "2020-01-01", "last_updated": "2020-01-01", "version": "1.0.0"}
+    recente = {"classification": "IRON_MEMORY", "status": "ENFORCED",
+               "date": "2026-08-18", "last_updated": "2026-08-18", "version": "9.9.9"}
+    assert w(vecchio) == w(recente)
+
+    # Vale anche per una classe qualsiasi, non solo per quella a peso massimo: se il peso
+    # base cambiasse, la penalizzazione temporale potrebbe nascondersi in un solo ramo.
+    assert w({**vecchio, "classification": "METHODOLOGY"}) == w({**recente, "classification": "METHODOLOGY"})
+
+    # E il peso non cambia nemmeno TOGLIENDO del tutto i campi temporali: la funzione non
+    # deve avere un ramo "se non so quanto è vecchio, penalizzo".
+    assert w({"classification": "IRON_MEMORY", "status": "ENFORCED"}) == w(recente)
+
+
 def test_select_governed_chunks_filters_to_graph_and_caps():
     g = _graph()
     results = [
