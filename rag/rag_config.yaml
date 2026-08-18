@@ -183,6 +183,28 @@ authority:
   # contrasto di classe, quindi il parametro oggi è di fatto inerte. Tornerà a contare quando il
   # corpus rimescolerà classi diverse (spec di dominio, doc importati a 0.70, materiale archiviato).
   # Ricalibrare SEMPRE con split di validazione, e SEMPRE a un k dove la metrica non sia satura.
+  #
+  # ─── Autorità DICHIARATA nel frontmatter (ADR 0002 / S1, 2026-08-18) ───────────────────
+  # I due default qui sotto NON sono intercambiabili, e confonderli è il difetto che S1 corregge.
+  #
+  #   default_weight (0.7)       → la classe C'È ma non è elencata in class_weights. Tipicamente
+  #                                REQUIREMENTS, cioè le spec: 0.7 è un valore CALIBRATO
+  #                                (grid search 2026-07-14). Significa "so cos'è, vale molto".
+  #   unclassified_weight (0.3)  → la fonte NON ha alcuna classificazione. read_document()
+  #                                restituisce frontmatter vuoto per ogni formato non-.md
+  #                                (pdf, docx, xlsx, txt): un documento importato senza metadati
+  #                                di governance non deve pesare quanto una spec calibrata.
+  #                                Significa "non so nulla di questa fonte, la tratto con cautela".
+  #
+  # Finché i due casi condividevano 0.7, un PDF importato entrava nel ranking alla pari di una
+  # spec normativa — l'inversione di priorità che [REGOLA-VAL-08] cita come failure mode.
+  use_declared: true        # onora `authority:` del frontmatter come coefficiente per-documento
+                            # (precede il peso di classe). KILL-SWITCH: è l'unico interruttore che
+                            # riporta all'ordinamento storico, perché questo cambia il ranking di
+                            # produzione senza passare da un parametro numerico. Un valore assente,
+                            # non numerico o fuori [0,1] degrada al peso di classe (con warning),
+                            # non fa fallire la richiesta.
+  unclassified_weight: 0.3  # peso di una fonte SENZA classificazione — vedi nota sopra
 
 # Eval-gate continuo (core/eval_gate.py): prima di promuovere una nuova versione dell'indice
 # (blue/green), misura la recall del retrieval sul golden set. Se scende sotto la soglia, blocca

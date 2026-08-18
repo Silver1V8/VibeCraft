@@ -112,17 +112,23 @@ def _add_doc_to_graph(G: nx.DiGraph, rel_path: str, metadata: dict, body: str) -
 
 # Attributi di autorità che una sezione eredita dal documento padre: sono ciò che guida la
 # ri-ponderazione in core.retrieval (_authority_weight), che deve poter leggere questi campi
-# sia dal payload Qdrant sia dal nodo del grafo. Restare in sync con AUTHORITY_CLASS_WEIGHTS.
-_SECTION_INHERITED_ATTRS = ("classification", "status")
+# sia dal payload Qdrant sia dal nodo del grafo. Restare in sync con le sorgenti del peso lette
+# da _authority_weight (AUTHORITY_CLASS_WEIGHTS per la classe, `authority` per-documento).
+#
+# `authority` è qui perché il payload Qdrant di ogni chunk porta il frontmatter INTERO del
+# documento padre (splat di c["metadata"]), mentre il nodo-sezione porta solo questi attributi:
+# se il coefficiente dichiarato mancasse alla sezione, lo stesso chunk peserebbe diversamente a
+# seconda della strada da cui lo si legge — dichiarato via Qdrant, di classe via grafo.
+_SECTION_INHERITED_ATTRS = ("classification", "status", "authority")
 
 
 def _add_section_nodes(G: nx.DiGraph, doc_id: str, chunks: list[dict], metadata: dict) -> int:
     """Aggiunge un nodo-SEZIONE (type="section", id = chunk_id) per ogni chunk del documento,
-    con arco `sezione -[PART_OF]-> documento`. La sezione eredita classification/status dal
-    documento (autorità). È il livello di granularità su cui il codice viene collegato
-    (IMPLEMENTS verso la sezione vincente, non l'intero doc) e su cui il retrieval espande il
-    contesto. Chiamato SUBITO dopo _add_doc_to_graph, con gli stessi chunk del retrieval, così
-    full rebuild e incrementale costruiscono una topologia identica. Restituisce il numero di
+    con arco `sezione -[PART_OF]-> documento`. La sezione eredita dal documento gli attributi di
+    autorità (classification/status/authority). È il livello di granularità su cui il codice
+    viene collegato (IMPLEMENTS verso la sezione vincente, non l'intero doc) e su cui il
+    retrieval espande il contesto. Chiamato SUBITO dopo _add_doc_to_graph, con gli stessi chunk
+    del retrieval, così full rebuild e incrementale costruiscono una topologia identica. Restituisce il numero di
     sezioni aggiunte."""
     inherited = {k: metadata[k] for k in _SECTION_INHERITED_ATTRS if k in metadata}
     for c in chunks:

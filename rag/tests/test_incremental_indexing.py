@@ -12,6 +12,7 @@ from qdrant_client.models import PointStruct
 from core import artifacts as _artifacts
 from core import config as _config
 from core import indexing as index
+from core import retrieval
 
 
 # ---------------------------------------------------------------------------
@@ -754,6 +755,52 @@ def test_authority_edges_survive_full_rebuild_equivalence(monkeypatch, tmp_path)
     assert G.has_edge("spec.md", "safe.md")                          # doc->doc risolto nel full build
     report = index.check_graph_consistency(embed_model=stub, docs_dir=docs_dir, code_dir=code_dir)
     assert report["consistent"] is True, report                      # equivalenza col rebuild
+
+
+def test_sezione_eredita_authority_dal_documento(monkeypatch, tmp_path):
+    """Il nodo-SEZIONE porta lo stesso coefficiente di autorità del documento padre.
+
+    Il peso di un chunk si può calcolare da due strade: il payload Qdrant (che porta il
+    frontmatter INTERO del documento) o il nodo-sezione del grafo (che porta solo gli attributi
+    ereditati). Se `authority` mancasse alla sezione, lo stesso identico chunk peserebbe
+    0.91 letto da Qdrant e il peso di CLASSE letto dal grafo — due valori diversi per lo stesso
+    oggetto, a seconda di come ci si è arrivati. Il consumatore del ramo-grafo è reale:
+    api/routes_pipeline.py chiama _authority_weight sugli attributi del nodo."""
+    docs_dir, _ = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(
+        '---\nid: "spec-v1.0"\nclassification: "METHODOLOGY"\nstatus: "ENFORCED"\n'
+        'authority: 0.91\n---\n' + _spec("ALPHA"),
+        encoding="utf-8")
+    index.build_graph_and_index(qdrant=StatefulFakeQdrant(), embed_model=StubEmbed())
+
+    G = _load_graph()
+    sezioni = [n for n, d in G.nodes(data=True) if d.get("type") == "section"]
+    assert sezioni, "nessun nodo-sezione costruito"
+    for n in sezioni:
+        assert G.nodes[n]["authority"] == 0.91                   # ereditata dal padre
+        assert G.nodes[n]["classification"] == "METHODOLOGY"     # ereditarietà preesistente intatta
+
+    # Il peso calcolato dal nodo-sezione coincide con quello calcolato dal documento: è la
+    # proprietà che l'ereditarietà esiste per garantire.
+    peso_sezione = retrieval._authority_weight(G.nodes[sezioni[0]])
+    assert peso_sezione == retrieval._authority_weight(G.nodes["spec.md"]) == 0.91
+
+
+def test_sezione_senza_authority_non_inventa_il_campo(monkeypatch, tmp_path):
+    """Un documento che non dichiara `authority` non deve produrre sezioni con la chiave a None:
+    l'assenza deve restare assenza, così il peso ricade sulla classe e non su un valore fittizio."""
+    docs_dir, _ = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(
+        '---\nid: "spec-v1.0"\nclassification: "METHODOLOGY"\n---\n' + _spec("ALPHA"),
+        encoding="utf-8")
+    index.build_graph_and_index(qdrant=StatefulFakeQdrant(), embed_model=StubEmbed())
+
+    G = _load_graph()
+    sezioni = [n for n, d in G.nodes(data=True) if d.get("type") == "section"]
+    assert sezioni
+    for n in sezioni:
+        assert "authority" not in G.nodes[n]
+        assert retrieval._authority_weight(G.nodes[n]) == 0.5    # peso di classe METHODOLOGY
 
 
 # ---------------------------------------------------------------------------

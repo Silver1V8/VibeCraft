@@ -4,6 +4,7 @@ nel percorso 'results forniti' (che non richiede il client Qdrant), più hybrid_
 con qdrant/embed_model finti (nessuna rete, nessun modello bge-m3 reale)."""
 import networkx as nx
 import numpy as np
+import pytest
 
 from core import retrieval
 
@@ -23,6 +24,90 @@ def test_authority_weights_and_penalty():
     from core.config import AUTHORITY_DEFAULT_WEIGHT
     assert w({"classification": "SCONOSCIUTA"}) == AUTHORITY_DEFAULT_WEIGHT  # default (da config, calibrabile)
     assert w({"classification": "IRON_MEMORY", "status": "ARCHIVED"}) == 0.3  # penalizzazione archiviati
+
+
+def test_authority_dichiarata_vince_sulla_classe():
+    """Il coefficiente per-documento del frontmatter precede il peso di classe.
+
+    È il difetto che [REGOLA-VAL-08] prescrive di non avere: `authority` è obbligatoria per
+    policy e scritta in ogni documento, ma il peso veniva dedotto dalla sola `classification`.
+    La precedenza è per-documento perché due fonti della stessa classe non pesano
+    necessariamente uguale — è esattamente l'informazione che la classe non può esprimere."""
+    w = retrieval._authority_weight
+    assert w({"classification": "METHODOLOGY", "authority": 0.95}) == 0.95
+    assert w({"classification": "METHODOLOGY"}) == 0.5          # senza dichiarazione: la classe
+
+    # Vale anche quando la dichiarata è PIÙ BASSA della classe: non è un boost, è una
+    # sostituzione. Una fonte che si dichiara poco autorevole va creduta.
+    assert w({"classification": "IRON_MEMORY", "authority": 0.2}) == 0.2
+
+    # Gli estremi del range sono valori legittimi, non casi limite da scartare.
+    assert w({"classification": "METHODOLOGY", "authority": 0.0}) == 0.0
+    assert w({"classification": "METHODOLOGY", "authority": 1.0}) == 1.0
+
+
+def test_authority_dichiarata_ignorata_se_kill_switch_spento():
+    """Col kill-switch spento si torna ESATTAMENTE al comportamento storico (peso di classe).
+
+    Serve perché questo è l'unico intervento che cambia l'ordinamento di produzione senza
+    passare da un parametro numerico: `authority.use_declared: false` in rag_config.yaml deve
+    bastare a tornare indietro, senza toccare il codice né ri-indicizzare. Il test passa il
+    parametro iniettato, che è lo stesso valore su cui la config lega il default all'import."""
+    w = retrieval._authority_weight
+    attrs = {"classification": "METHODOLOGY", "authority": 0.95}
+    assert w(attrs, use_declared=False) == 0.5                  # peso di classe, dichiarata ignorata
+    assert w(attrs, use_declared=False) == w({"classification": "METHODOLOGY"})
+
+
+@pytest.mark.parametrize("valore", ["molto alta", None, -0.5, 1.7, "", float("nan"), True])
+def test_authority_invalida_degrada_alla_classe(valore):
+    """Un frontmatter scritto male non deve far fallire una richiesta di retrieval.
+
+    Il campo è compilato a mano in ogni documento: prima o poi qualcuno scriverà
+    `authority: molto alta`, o lascerà la chiave vuota, o sforerà il range. In tutti questi casi
+    si degrada al peso di classe SENZA sollevare — una query non può morire per un typo in un
+    documento che nemmeno è quello cercato.
+
+    `True` è nella lista di proposito: in YAML `authority: yes` viene letto come booleano, e
+    `float(True)` varrebbe 1.0, cioè il peso MASSIMO regalato a un errore di battitura."""
+    w = retrieval._authority_weight
+    assert w({"classification": "METHODOLOGY", "authority": valore}) == 0.5
+
+
+def test_fonte_non_classificata_pesa_meno_di_una_spec():
+    """Una fonte priva di qualunque metadato di governance deve pesare MENO di una spec.
+
+    `read_document()` restituisce frontmatter vuoto per ogni formato non-.md (pdf, docx, xlsx,
+    txt): un PDF importato entrava nel ranking con lo stesso peso di una spec REQUIREMENTS
+    calibrata, perché entrambi ricadevano sull'unico `default_weight`. È l'inversione di
+    priorità che [REGOLA-VAL-08] cita come failure mode.
+
+    Si asserisce la RELAZIONE D'ORDINE, non i due numeri: è la proprietà che deve reggere anche
+    dopo una ricalibrazione dei pesi (S5), mentre i valori assoluti no."""
+    w = retrieval._authority_weight
+    pdf_importato = w({})                                       # nessun frontmatter: il non-.md
+    spec = w({"classification": "REQUIREMENTS"})                # classe nota ma non elencata
+    assert pdf_importato < spec
+
+    # Non è un artefatto della classe assente-come-chiave: vale anche per una classification
+    # esplicitamente vuota o nulla, che significa comunque "questa fonte non è classificata".
+    assert w({"classification": ""}) == pdf_importato
+    assert w({"classification": None}) == pdf_importato
+
+
+def test_decadimento_archiviati_si_applica_anche_alla_dichiarata():
+    """Il decadimento per status archiviato è ORTOGONALE alla provenienza del peso base.
+
+    Se si applicasse solo al ramo di classe, un documento archiviato che dichiara `authority`
+    alta scavalcherebbe una fonte vigente — e il giudizio umano "questo non vale più" verrebbe
+    annullato proprio dal campo che il documento scrive su se stesso."""
+    from core.config import AUTHORITY_ARCHIVED_DECAY
+    w = retrieval._authority_weight
+    assert w({"authority": 0.98, "status": "ARCHIVED"}) == pytest.approx(0.98 * AUTHORITY_ARCHIVED_DECAY)
+    # Vale su tutti gli status che contano come archiviati, non solo su ARCHIVED.
+    assert w({"authority": 0.98, "status": "DEPRECATED"}) == pytest.approx(0.98 * AUTHORITY_ARCHIVED_DECAY)
+    # E vale anche sul ramo "non classificata", che è il terzo dei quattro.
+    assert w({"status": "ARCHIVED"}) < w({})
 
 
 def test_peso_autorita_e_indipendente_dai_campi_temporali():
@@ -56,6 +141,16 @@ def test_peso_autorita_e_indipendente_dai_campi_temporali():
     # E il peso non cambia nemmeno TOGLIENDO del tutto i campi temporali: la funzione non
     # deve avere un ramo "se non so quanto è vecchio, penalizzo".
     assert w({"classification": "IRON_MEMORY", "status": "ENFORCED"}) == w(recente)
+
+    # Vale anche sul ramo dell'autorità DICHIARATA, aggiunto dopo questo test: è il punto in cui
+    # la tentazione è più forte, perché `authority` sta nello stesso frontmatter di `date` e
+    # `version` e chi legge il campo ha gli altri due sotto gli occhi.
+    assert w({**vecchio, "authority": 0.87}) == w({**recente, "authority": 0.87}) == 0.87
+
+    # E sul ramo della fonte non classificata: nemmeno "non so nulla di questa fonte, guardo
+    # almeno quanto è vecchia" è un ragionamento ammesso.
+    solo_date = {"date": "2020-01-01", "last_updated": "2020-01-01", "version": "1.0.0"}
+    assert w(solo_date) == w({})
 
 
 def test_select_governed_chunks_filters_to_graph_and_caps():

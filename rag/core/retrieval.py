@@ -17,6 +17,8 @@ from core.config import (
     AUTHORITY_BOOST_ALPHA,
     AUTHORITY_CLASS_WEIGHTS as _CFG_CLASS_WEIGHTS,
     AUTHORITY_DEFAULT_WEIGHT,
+    AUTHORITY_UNCLASSIFIED_WEIGHT,
+    AUTHORITY_USE_DECLARED,
     COLLECTION_NAME,
 )
 
@@ -42,20 +44,90 @@ AUTHORITY_CLASS_WEIGHTS = _CFG_CLASS_WEIGHTS
 _ARCHIVED_STATUSES = ("ARCHIVED", "DEPRECATED", "HISTORICAL", "OBSOLETE")
 
 
+# Valori di `authority` già segnalati come invalidi: il warning va emesso UNA VOLTA per valore
+# anomalo, non a ogni chunk. Senza questo, un solo documento con frontmatter sbagliato produce
+# una riga di log per ogni sezione a ogni query. Su un corpus governato i valori distinti
+# malformati sono pochissimi, quindi l'insieme non cresce in modo significativo.
+_invalid_authority_seen: set[str] = set()
+
+
+def _declared_authority(attrs: dict) -> float | None:
+    """Coefficiente `authority` dichiarato nel frontmatter, o None se non utilizzabile.
+
+    Un frontmatter scritto male NON deve far fallire una richiesta di retrieval: qualunque
+    valore assente, non numerico o fuori da [0,1] restituisce None, e il chiamante degrada al
+    peso di classe. Ma non deve nemmeno fallire in SILENZIO — un `authority: molto alta` che
+    scivola via senza traccia è indistinguibile da un documento che non lo dichiara affatto,
+    quindi il caso "presente ma inutilizzabile" viene loggato a warning.
+
+    I bool sono rifiutati esplicitamente: in YAML `authority: yes` diventa True e `float(True)`
+    varrebbe 1.0, cioè il peso MASSIMO assegnato per un errore di battitura."""
+    if "authority" not in attrs:
+        return None
+    raw = attrs["authority"]
+    if raw is None:                      # chiave presente ma vuota: equivale a non dichiarata
+        return None
+    if isinstance(raw, bool):
+        _warn_invalid_authority(raw)
+        return None
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        _warn_invalid_authority(raw)
+        return None
+    if not 0.0 <= value <= 1.0:          # NaN cade qui: ogni confronto è falso
+        _warn_invalid_authority(raw)
+        return None
+    return value
+
+
+def _warn_invalid_authority(raw) -> None:
+    key = f"{type(raw).__name__}:{raw!r}"
+    if key not in _invalid_authority_seen:
+        _invalid_authority_seen.add(key)
+        logger.warning(
+            "Campo 'authority' non utilizzabile nel frontmatter (%r): atteso un float in [0,1]. "
+            "Si ricade sul peso di classe.", raw)
+
+
+# INVARIANTE — freschezza != autorità. Il peso è funzione PURA di (authority, classification,
+# status) e non deve MAI leggere `date`, `last_updated`, `version`, l'mtime del file o l'hash di
+# drift, nemmeno come tie-breaker. Il drift detection sa che un file è CAMBIATO; non sa se ci si
+# può ancora FIDARE di ciò che dice. Una spec di due anni mai toccata resta la fonte primaria del
+# suo ambito; una change di ieri può essere già superata. `status` è l'unico segnale ammesso
+# perché è un GIUDIZIO UMANO esplicito ("questo non vale più"), non una data.
+# Protetto da tests/test_retrieval.py::test_peso_autorita_e_indipendente_dai_campi_temporali.
+# Vedi rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md.
 def _authority_weight(attrs: dict, *, weights: dict | None = None,
                       default: float = AUTHORITY_DEFAULT_WEIGHT,
-                      decay: float = AUTHORITY_ARCHIVED_DECAY) -> float:
-    """Peso di autorità in [0,1] a partire da 'classification' e 'status' del documento
-    (presenti sia nel payload Qdrant sia negli attributi del nodo del grafo). I parametri
-    (weights/default/decay) sono iniettabili: usati così com'è dal retrieval (default da
-    config) e con valori variati dal calibratore per la grid search sul golden set."""
+                      decay: float = AUTHORITY_ARCHIVED_DECAY,
+                      use_declared: bool = AUTHORITY_USE_DECLARED,
+                      unclassified: float = AUTHORITY_UNCLASSIFIED_WEIGHT) -> float:
+    """Peso di autorità in [0,1] del documento (attributi presenti sia nel payload Qdrant sia
+    nel nodo del grafo). Risoluzione dal più specifico al più generico:
+
+      1. `authority` dichiarata nel frontmatter — il giudizio esplicito della fonte su se
+         stessa, obbligatorio per policy e prescritto da [REGOLA-VAL-08]. Vince sulla classe
+         perché è per-documento: due spec della stessa classe non pesano necessariamente uguale.
+      2. peso della classe, se `classification` è elencata in `weights`;
+      3. `unclassified` se `classification` è assente o vuota — una fonte senza alcun metadato
+         di governance (tipicamente un non-.md importato) non deve pesare quanto una spec;
+      4. `default` se la classe c'è ma non è elencata (es. REQUIREMENTS): valore calibrato.
+
+    Il decadimento per status archiviato si applica DOPO, a qualunque ramo: è ortogonale alla
+    provenienza del peso base. Tutti i parametri sono iniettabili: usati così come sono dal
+    retrieval (default da config) e con valori variati dal calibratore per la grid search."""
     weights = weights if weights is not None else AUTHORITY_CLASS_WEIGHTS
-    classification = str(attrs.get("classification", "")).upper()
-    status = str(attrs.get("status", "")).upper()
-    base = weights.get(classification, default)
+    base = _declared_authority(attrs) if use_declared else None
+    if base is None:
+        # `or ""` e non `.get(..., "")`: una classification esplicitamente None è una classe
+        # ASSENTE, non la classe di nome "None".
+        classification = str(attrs.get("classification") or "").upper()
+        base = weights.get(classification, default) if classification else unclassified
+    status = str(attrs.get("status") or "").upper()
     if status in _ARCHIVED_STATUSES:
         base *= decay
-    return base
+    return max(0.0, min(1.0, base))
 
 
 def rank_by_authority(results: list[dict], *, alpha: float = AUTHORITY_BOOST_ALPHA) -> list[dict]:

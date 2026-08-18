@@ -237,6 +237,19 @@ AUTHORITY_CLASS_WEIGHTS: dict = _authority_cfg.get("class_weights") or {
 AUTHORITY_DEFAULT_WEIGHT: float = float(_authority_cfg.get("default_weight", 0.4))
 AUTHORITY_ARCHIVED_DECAY: float = float(_authority_cfg.get("archived_decay", 0.3))
 AUTHORITY_BOOST_ALPHA: float = float(_authority_cfg.get("boost_alpha", 0.4))
+# Il coefficiente `authority` dichiarato nel frontmatter (obbligatorio per policy: vedi
+# docs/00_meta_governance/policy_versionamento_documentale.md §3) ha la precedenza sul peso di
+# classe — è il giudizio esplicito della fonte su se stessa, quindi più specifico della classe.
+# Esiste come kill-switch perché onorarlo cambia l'ordinamento di PRODUZIONE senza passare da
+# un parametro numerico: spegnerlo riporta al comportamento storico (peso dedotto dalla sola
+# classification) senza toccare il codice né ri-indicizzare.
+AUTHORITY_USE_DECLARED: bool = bool(_authority_cfg.get("use_declared", True))
+# Peso di una fonte PRIVA di classificazione (core/chunking.py::read_document() restituisce
+# frontmatter vuoto per ogni formato non-.md: pdf, docx, xlsx, txt). Tenuto distinto da
+# AUTHORITY_DEFAULT_WEIGHT, che copre il caso opposto — classe NOTA ma non elencata in
+# class_weights (tipicamente REQUIREMENTS) — ed è un valore calibrato che non va confuso con
+# "non so nulla di questa fonte".
+AUTHORITY_UNCLASSIFIED_WEIGHT: float = float(_authority_cfg.get("unclassified_weight", 0.30))
 
 # Contesto governato di Canvas/Propose: quante sezioni prendere dal ramo di dominio e da
 # quello tecnico (rag_config.yaml → retrieval.*). Vedi retrieve_governed_context_multi.
