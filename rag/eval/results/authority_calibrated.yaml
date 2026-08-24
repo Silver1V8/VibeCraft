@@ -1,17 +1,17 @@
-generated_at: '2026-07-22T12:39:41'
+generated_at: '2026-08-24T13:21:52'
 metric: recall@2
 cv:
   folds: 5
   seed: 0
-  default_recall: 0.9
-  calibrated_recall: 0.9
-  gain: 0.0
+  default_recall: 0.8178
+  calibrated_recall: 0.7978
+  gain: -0.02
 in_sample_best:
-  alpha: 0.0
-  default_weight: 0.4
-  recall: 0.898
+  alpha: 0.1
+  default_weight: 0.5
+  recall: 0.8163
 default:
   alpha: 0.1
   default_weight: 0.7
-  recall: 0.898
+  recall: 0.8163
 recommendation: NON_APPLICARE
