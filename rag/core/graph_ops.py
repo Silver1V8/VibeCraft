@@ -7,9 +7,66 @@ import logging
 import networkx as nx
 import numpy as np
 
-from core.config import COLLECTION_NAME
+from core.config import (
+    COLLECTION_NAME,
+    GRAPH_TRUST_DEFAULT_NATURE,
+    GRAPH_TRUST_NATURE_RELIABILITY,
+    GRAPH_TRUST_RELATION_NATURE,
+)
 
 logger = logging.getLogger(__name__)
+
+
+# --- Fiducia sugli archi (S2, ADR 0002) -------------------------------------------------
+# Ogni arco riceve `nature` e `reliability` al momento della creazione (core/indexing.py,
+# core/chunking.py, code_index). Puro metadato: nessuna di queste funzioni entra oggi nel
+# ranking del retrieval — il consumo arriva in S3 (fiducia sul cammino) e S4 (conflitti).
+
+def edge_nature(relation: str | None) -> str:
+    """Natura di un arco dalla sua relazione (rag_config.yaml -> graph_trust.relation_nature).
+    Una relazione ASSENTE dalla mappa ricade sul default di config ("curated"): il vocabolario
+    delle relazioni cresce dal frontmatter dei documenti, quindi una relazione sconosciuta è
+    per costruzione una dichiarazione umana, non la congettura di un algoritmo."""
+    return GRAPH_TRUST_RELATION_NATURE.get(relation, GRAPH_TRUST_DEFAULT_NATURE)
+
+
+def edge_trust_attrs(relation: str | None) -> dict:
+    """kwargs {nature, reliability} per un G.add_edge(...) che non sia un IMPLEMENTS: la
+    reliability è il default della natura dedotta dalla relazione. Gli IMPLEMENTS non passano
+    di qui — la loro reliability combina la natura con la confidenza del match, vedi
+    implements_reliability()."""
+    nature = edge_nature(relation)
+    return {
+        "nature": nature,
+        "reliability": GRAPH_TRUST_NATURE_RELIABILITY.get(
+            nature, GRAPH_TRUST_NATURE_RELIABILITY["curated"]),
+    }
+
+
+def implements_reliability(weight: float) -> float:
+    """Affidabilità di un arco IMPLEMENTS: combina l'affidabilità di base della natura
+    'inferred' con la confidenza del coseno che ha prodotto il link (l'arco porta già
+    `weight`, la similarità effettiva, soglia di linking 0.45). Un IMPLEMENTS a coseno 0.92
+    è una congettura molto più solida di uno a 0.46: trattarli uguali sprecherebbe quel
+    segnale. Combinazione EMPIRICA (media fra il pavimento 'inferred' e il coseno): ricalibrabile
+    come ogni altro valore di questo modulo. USATA da tutti i chiamanti di link_symbols
+    (full rebuild e ricalcolo incrementale dei code-link), così le due strade producono
+    SEMPRE lo stesso valore per lo stesso arco."""
+    base = GRAPH_TRUST_NATURE_RELIABILITY.get("inferred", 0.6)
+    return round((base + max(0.0, min(1.0, weight))) / 2, 3)
+
+
+def edge_reliability(data: dict) -> float:
+    """Affidabilità di un arco, con fallback per i grafi persistiti PRIMA di questa modifica.
+
+    Legge `data["reliability"]` se presente, altrimenti la deriva da `data["relation"]` con
+    la mappa di config. Questo fallback non è opzionale: database/graph.json è un artefatto
+    persistito, i grafi già su disco non hanno i nuovi attributi, e chi consuma questa
+    affidabilità deve funzionare su un grafo vecchio senza pretendere una ri-indicizzazione."""
+    if "reliability" in data:
+        return float(data["reliability"])
+    nature = edge_nature(data.get("relation"))
+    return GRAPH_TRUST_NATURE_RELIABILITY.get(nature, GRAPH_TRUST_NATURE_RELIABILITY["curated"])
 
 
 def bfs_expand(graph: nx.DiGraph, seed_nodes: list[str], depth: int) -> set[str]:

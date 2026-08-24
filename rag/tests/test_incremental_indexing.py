@@ -735,6 +735,24 @@ def test_resolve_authority_aliases_connects_documents():
     assert index._resolve_authority_aliases(G) == 0                   # idempotente
 
 
+def test_alias_risolto_eredita_natura_origine():
+    """L'arco doc -> doc materializzato da _resolve_authority_aliases eredita nature e
+    reliability dall'arco-alias di origine: è la STESSA dichiarazione dell'autore, solo
+    risolta verso il nodo giusto — non una nuova valutazione di fiducia (S2, ADR 0002)."""
+    G = nx.DiGraph()
+    G.add_node("spec.md", type="document", id="spec-concurrency-v1.0")
+    G.add_node("safeguards.md", type="document", id="safeguards-security-v1.0")
+    G.add_node("safeguards-security-v1.2", type="entity")
+    G.add_edge("spec.md", "safeguards-security-v1.2", relation="EREDITA_VINCOLI",
+              nature="curated", reliability=0.9)
+
+    index._resolve_authority_aliases(G)
+
+    assert G.has_edge("spec.md", "safeguards.md")
+    assert G["spec.md"]["safeguards.md"]["nature"] == "curated"
+    assert G["spec.md"]["safeguards.md"]["reliability"] == 0.9
+
+
 def test_authority_edges_survive_full_rebuild_equivalence(monkeypatch, tmp_path):
     """Con frontmatter graph_rag, l'incrementale resta equivalente al full rebuild anche per gli
     archi doc->doc risolti (il resolver è funzione pura degli archi-alias persistiti)."""
@@ -754,6 +772,69 @@ def test_authority_edges_survive_full_rebuild_equivalence(monkeypatch, tmp_path)
     assert G.has_edge("spec.md", "safe.md")                          # doc->doc risolto nel full build
     report = index.check_graph_consistency(embed_model=stub, docs_dir=docs_dir, code_dir=code_dir)
     assert report["consistent"] is True, report                      # equivalenza col rebuild
+
+
+# ---------------------------------------------------------------------------
+# 5b. Fiducia sugli archi (S2, ADR 0002): ogni arco porta nature+reliability, e questo
+# non rompe l'equivalenza delta≡full dell'indicizzazione incrementale.
+# ---------------------------------------------------------------------------
+def test_ogni_arco_ha_natura_e_affidabilita(monkeypatch, tmp_path):
+    """Un corpus fixture con documenti, frontmatter tipizzato (curato) e codice (inferito):
+    NESSUN arco del grafo risultante è privo di `nature` o `reliability`, qualunque sia
+    la sua provenienza — struttura del filesystem, dichiarazione umana o euristica."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    fm = ('---\nid: "{id}"\ngraph_rag:\n  node_id: "{id}"\n  edges:\n{edges}---\n'
+          "## Sezione\n[{marker}] regola su {marker}\n")
+    (docs_dir / "safe.md").write_text(
+        fm.format(id="safe-v1.0", edges="", marker="SAFE"), encoding="utf-8")
+    (docs_dir / "spec.md").write_text(
+        fm.format(id="spec-v1.0",
+                  edges='    - type: "EREDITA_VINCOLI"\n      target: "safe-v1.2"\n',
+                  marker="ALPHA"), encoding="utf-8")
+    (code_dir / "backend").mkdir()
+    (code_dir / "backend" / "svc.py").write_text(_CODE_ALPHA, encoding="utf-8")
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+
+    index.build_graph_and_index(qdrant=q, embed_model=stub)
+    G = _load_graph()
+
+    assert G.number_of_edges() > 0
+    seen_natures = set()
+    for u, v, data in G.edges(data=True):
+        assert "nature" in data, f"arco {u} -> {v} ({data.get('relation')}) senza nature"
+        assert "reliability" in data, f"arco {u} -> {v} ({data.get('relation')}) senza reliability"
+        assert data["nature"] in {"structural", "curated", "inferred"}
+        assert 0.0 <= data["reliability"] <= 1.0
+        seen_natures.add(data["nature"])
+    # il corpus fixture copre davvero le tre nature (PART_OF/MENTIONS strutturali,
+    # EREDITA_VINCOLI curato, IMPLEMENTS/REFERENCES inferiti), non solo un sottoinsieme.
+    assert seen_natures == {"structural", "curated", "inferred"}
+
+
+def test_natura_archi_non_altera_equivalenza_delta_full(monkeypatch, tmp_path):
+    """check_graph_consistency() resta consistent=True dopo l'aggiunta di nature/reliability.
+    _edge_set() (vedi core/indexing.py) confronta le triple (u, v, relation) e ignora per
+    costruzione gli attributi non strutturali — già vero prima per il `weight` degli
+    IMPLEMENTS. Questo test verifica che quella proprietà valga ANCORA con i due attributi
+    nuovi, non la dà per scontata: full rebuild e ricalcolo incrementale passano entrambi per
+    la STESSA link_symbols() (code_index/__init__.py), quindi anche `reliability` — che per
+    IMPLEMENTS dipende dal coseno — coincide fra le due strade senza logica duplicata."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    (code_dir / "backend").mkdir()
+    (code_dir / "backend" / "svc.py").write_text(_CODE_ALPHA, encoding="utf-8")
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+    index.build_graph_and_index(qdrant=q, embed_model=stub)
+
+    # Delta: la spec cambia argomento e arriva un secondo simbolo di codice, così sia il
+    # ramo doc che il ramo codice dell'incrementale vengono esercitati.
+    (docs_dir / "spec.md").write_text(_spec("BETA"), encoding="utf-8")
+    (code_dir / "backend" / "svc2.py").write_text(_CODE_BETA, encoding="utf-8")
+    stats = index.incremental_index(qdrant=q, embed_model=stub)
+    assert stats.get("noop") is not True
+
+    report = index.check_graph_consistency(embed_model=stub, docs_dir=docs_dir, code_dir=code_dir)
+    assert report["consistent"] is True, report
 
 
 # ---------------------------------------------------------------------------

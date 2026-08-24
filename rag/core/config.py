@@ -238,6 +238,34 @@ AUTHORITY_DEFAULT_WEIGHT: float = float(_authority_cfg.get("default_weight", 0.4
 AUTHORITY_ARCHIVED_DECAY: float = float(_authority_cfg.get("archived_decay", 0.3))
 AUTHORITY_BOOST_ALPHA: float = float(_authority_cfg.get("boost_alpha", 0.4))
 
+# Fiducia sugli archi del grafo (S2, ADR 0002 — rag_config.yaml -> graph_trust.*): natura
+# dell'arco (structural/curated/inferred) e affidabilità di default per natura. Letti da
+# core/graph_ops.py (edge_nature, edge_reliability, implements_reliability) e usati a ogni
+# G.add_edge di core/indexing.py, core/chunking.py e code_index. Valori EMPIRICI, non
+# costanti universali: vedi il commento nel config.
+_graph_trust_cfg: dict = config.get("graph_trust") or {}
+GRAPH_TRUST_NATURE_RELIABILITY: dict[str, float] = {
+    str(k): float(v) for k, v in (
+        _graph_trust_cfg.get("nature_reliability")
+        or {"structural": 1.0, "curated": 0.9, "inferred": 0.6}
+    ).items()
+}
+GRAPH_TRUST_RELATION_NATURE: dict[str, str] = {
+    str(k): str(v) for k, v in (
+        _graph_trust_cfg.get("relation_nature")
+        or {
+            "PART_OF": "structural", "MENTIONS": "structural",
+            "IMPLEMENTS": "inferred", "REFERENCES": "inferred",
+            "DEPENDS_ON": "inferred", "READS": "inferred",
+            "WRITES": "inferred", "EXECUTES": "inferred",
+        }
+    ).items()
+}
+# Natura di ripiego per una relazione ASSENTE dalla mappa sopra: il vocabolario delle
+# relazioni cresce dal frontmatter (un autore dichiara un `type:` nuovo), quindi una
+# relazione sconosciuta è per costruzione una dichiarazione umana, non una congettura.
+GRAPH_TRUST_DEFAULT_NATURE: str = "curated"
+
 # Contesto governato di Canvas/Propose: quante sezioni prendere dal ramo di dominio e da
 # quello tecnico (rag_config.yaml → retrieval.*). Vedi retrieve_governed_context_multi.
 _retrieval_cfg: dict = config.get("retrieval") or {}

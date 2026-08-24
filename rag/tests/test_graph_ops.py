@@ -55,3 +55,46 @@ def test_impact_rings_and_membership():
     # gli archi restituiti sono solo quelli interni all'insieme visitato
     for e in out["edges"]:
         assert e["from"] in ids and e["to"] in ids
+
+
+# ---------------------------------------------------------------------------
+# Fiducia sugli archi (S2, ADR 0002): edge_nature, edge_reliability,
+# implements_reliability. Puro metadato — non entra in bfs_expand/build_context/
+# full_graph/impact sopra, quindi non li si ritesta.
+# ---------------------------------------------------------------------------
+def test_natura_per_relazione():
+    """PART_OF/MENTIONS sono strutturali (filesystem/regex deterministica), gli archi
+    tipizzati dal frontmatter sono curati, IMPLEMENTS/REFERENCES sono inferiti (euristica)."""
+    assert graph_ops.edge_nature("PART_OF") == "structural"
+    assert graph_ops.edge_nature("MENTIONS") == "structural"
+    assert graph_ops.edge_nature("IMPLEMENTS") == "inferred"
+    assert graph_ops.edge_nature("REFERENCES") == "inferred"
+    assert graph_ops.edge_nature("EREDITA_VINCOLI") == "curated"  # arco tipizzato del frontmatter
+
+
+def test_relazione_sconosciuta_ricade_su_curated():
+    """Una relazione del frontmatter mai vista (`type: "PIPPO"`) non fa esplodere nulla e
+    ricade su 'curated': arriva comunque da una dichiarazione umana, non da un algoritmo."""
+    assert graph_ops.edge_nature("PIPPO") == "curated"
+    attrs = graph_ops.edge_trust_attrs("PIPPO")
+    assert attrs["nature"] == "curated"
+    assert attrs["reliability"] == graph_ops.GRAPH_TRUST_NATURE_RELIABILITY["curated"]
+
+
+def test_implements_forte_piu_affidabile_di_implements_debole():
+    """Due IMPLEMENTS con coseno diverso (0.92 forte, 0.46 appena sopra soglia 0.45): quello
+    forte ha reliability STRETTAMENTE maggiore. Si asserisce la relazione d'ordine, non i
+    valori assoluti (che sono empirici e ricalibrabili)."""
+    forte = graph_ops.implements_reliability(0.92)
+    debole = graph_ops.implements_reliability(0.46)
+    assert forte > debole
+
+
+def test_edge_reliability_fallback_su_grafo_legacy():
+    """Un arco costruito SENZA i nuovi attributi (com'è ogni arco in database/graph.json
+    prima di questa modifica) restituisce comunque un'affidabilità sensata, derivata dalla
+    relazione: niente KeyError, niente re-indicizzazione necessaria."""
+    assert graph_ops.edge_reliability({"relation": "PART_OF"}) == 1.0
+    assert graph_ops.edge_reliability({"relation": "IMPLEMENTS"}) == 0.6
+    # Se reliability è già presente (grafo post-S2), quella vince e basta.
+    assert graph_ops.edge_reliability({"relation": "PART_OF", "reliability": 0.42}) == 0.42

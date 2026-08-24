@@ -184,6 +184,31 @@ authority:
   # corpus rimescolerà classi diverse (spec di dominio, doc importati a 0.70, materiale archiviato).
   # Ricalibrare SEMPRE con split di validazione, e SEMPRE a un k dove la metrica non sia satura.
 
+# Fiducia sugli archi del grafo (S2, ADR 0002): ogni arco ha una NATURA (strutturale/curata/
+# inferita) e un'affidabilità numerica. È solo etichettatura — S2 non cambia alcun ranking —
+# ma è il substrato che S3 (fiducia sul cammino BFS) e S4 (conflitti fra fonti) useranno.
+# I valori sono EMPIRICI (istinto e buonsenso, come i pesi di authority.*): ricalibrabili
+# quando S3/S4 li mettono davvero alla prova, non costanti universali.
+graph_trust:
+  # Affidabilità di default per natura, se l'arco non ne porta una propria.
+  nature_reliability:
+    structural: 1.0   # dedotta da filesystem o parsing deterministico: se è sbagliata è un bug
+    curated: 0.9       # dichiarata da un umano nel frontmatter: un umano può sbagliare a scrivere un target
+    inferred: 0.6      # congettura di un algoritmo (coseno, euristica sui nomi): penalizzata per costruzione
+  # Relazione -> natura. Il vocabolario delle relazioni CRESCE dal frontmatter dei documenti
+  # (un autore può dichiarare un `type:` nuovo domani): una relazione ASSENTE da questa mappa
+  # ricade su "curated", perché arriva dal frontmatter, quindi da un umano — non su "inferred",
+  # che è riservato alle relazioni che il codice produce per euristica/similarità (elencate qui).
+  relation_nature:
+    PART_OF: structural       # sezione -> documento, struttura del file
+    MENTIONS: structural      # documento -> entità, regex sul corpo
+    IMPLEMENTS: inferred      # codice -> sezione, argmax di similarità coseno
+    REFERENCES: inferred      # codice -> entità/codice, euristica sui nomi
+    DEPENDS_ON: inferred      # codice -> codice, risoluzione best-effort per nome
+    READS: inferred           # SQL, scanner ibrido tree-sitter + regex
+    WRITES: inferred          # SQL, scanner ibrido tree-sitter + regex
+    EXECUTES: inferred        # SQL/shell, scanner ibrido tree-sitter + regex
+
 # Eval-gate continuo (core/eval_gate.py): prima di promuovere una nuova versione dell'indice
 # (blue/green), misura la recall del retrieval sul golden set. Se scende sotto la soglia, blocca
 # la promozione (CURRENT resta sull'ultima versione buona) e scrive un alert critico. Fail-open:

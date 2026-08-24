@@ -19,6 +19,7 @@ from pathlib import Path
 import numpy as np
 
 from core.config import CODE_EXCLUDED_DIRS
+from core.graph_ops import edge_trust_attrs, implements_reliability
 
 # Estensioni considerate "codice sorgente" (allineate a quelle del check drift)
 CODE_EXTS = {".py", ".js", ".ts", ".tsx", ".jsx", ".svelte", ".html", ".css",
@@ -477,7 +478,7 @@ def link_symbols(G, symbols: list[dict], sym_dense, doc_dense_vecs, doc_ids,
     for sym in symbols:
         for token in set(_ENTITY_TOKEN_RE.findall(sym["text"])):
             if token in entity_nodes:
-                G.add_edge(sym["id"], token, relation="REFERENCES")
+                G.add_edge(sym["id"], token, relation="REFERENCES", **edge_trust_attrs("REFERENCES"))
 
     # DEPENDS_ON: risoluzione best-effort per nome semplice (classe importata/iniettata,
     # artifactId, id di processo) verso gli altri nodi di codice del grafo. I nomi che
@@ -488,7 +489,7 @@ def link_symbols(G, symbols: list[dict], sym_dense, doc_dense_vecs, doc_ids,
         for dep in sym.get("deps") or []:
             target = name_to_id.get(dep)
             if target and target != sym["id"]:
-                G.add_edge(sym["id"], target, relation="DEPENDS_ON")
+                G.add_edge(sym["id"], target, relation="DEPENDS_ON", **edge_trust_attrs("DEPENDS_ON"))
         # REFERENCES codice->codice (es. view Razor -> @model/@inject): stessi
         # archi del REFERENCES verso le entità, ma con target un nodo di codice.
         # Non sovrascrive un DEPENDS_ON già presente sulla stessa coppia (DiGraph
@@ -496,7 +497,7 @@ def link_symbols(G, symbols: list[dict], sym_dense, doc_dense_vecs, doc_ids,
         for ref in sym.get("refs") or []:
             target = name_to_id.get(ref)
             if target and target != sym["id"] and not G.has_edge(sym["id"], target):
-                G.add_edge(sym["id"], target, relation="REFERENCES")
+                G.add_edge(sym["id"], target, relation="REFERENCES", **edge_trust_attrs("REFERENCES"))
         # archi semantici tipizzati (SQL: READS/WRITES/EXECUTES); a parità di
         # coppia vince la relazione più forte (un solo arco per coppia nel DiGraph)
         priority = {"EXECUTES": 0, "WRITES": 1, "READS": 2}
@@ -504,7 +505,7 @@ def link_symbols(G, symbols: list[dict], sym_dense, doc_dense_vecs, doc_ids,
                                   key=lambda t: (priority.get(t[0], 9), t[1])):
             target = name_to_id.get(lname)
             if target and target != sym["id"] and not G.has_edge(sym["id"], target):
-                G.add_edge(sym["id"], target, relation=lrel)
+                G.add_edge(sym["id"], target, relation=lrel, **edge_trust_attrs(lrel))
 
     implements = 0
     sym_matrix = np.asarray(sym_dense, dtype=np.float32)
@@ -542,7 +543,9 @@ def link_symbols(G, symbols: list[dict], sym_dense, doc_dense_vecs, doc_ids,
             # l'argmax in scores_out (coerenza dell'incrementale) ma NON si crea l'arco. Il filtro
             # è identico in full e incrementale, quindi l'equivalenza delta≡full è preservata.
             if best_val[i] >= threshold and target in G and not _is_nonsemantic_symbol(sym["id"]):
-                G.add_edge(sym["id"], target, relation="IMPLEMENTS", weight=round(float(best_val[i]), 3))
+                G.add_edge(sym["id"], target, relation="IMPLEMENTS",
+                          weight=round(float(best_val[i]), 3), nature="inferred",
+                          reliability=implements_reliability(float(best_val[i])))
                 implements += 1
     elif scores_out is not None:
         # Nessuno spazio-documenti: i simboli non hanno argmax. Registriamo un best_score
