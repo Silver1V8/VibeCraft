@@ -358,8 +358,8 @@ La qualità del retrieval si misura sul golden-set
 ([eval/golden_set.yaml](eval/golden_set.yaml)) con [eval/run.py](eval/run.py),
 che interroga il server reale (`GET /api/retrieve`, così riusa il modello già
 caricato) e salva ogni run in `eval/results/`. La modalità guardrail è
-`--assert-min`: exit code 1 se il **recall@10 medio** scende sotto la soglia
-(il report viene comunque scritto), 0 altrimenti.
+`--assert-min`: exit code 1 se il **recall al k più alto** (di default @10)
+scende sotto la soglia (il report viene comunque scritto), 0 altrimenti.
 
 **Comando consigliato prima di ogni merge che tocca chunking, ranking o pesi
 di autorità** (server su):
@@ -368,18 +368,58 @@ di autorità** (server su):
 uv run python -m eval.run --assert-min 0.90
 ```
 
-La soglia 0.90 è fissata poco sotto l'ultimo valore misurato (recall@10 =
-0.955 su 22 casi, run del 2026-07-12): se un refactor la fa scattare, il
-retrieval è regredito davvero. Rimisura e aggiorna la soglia quando il
-golden-set cresce. Questo comando richiede il server acceso (modello caricato):
-per questo NON è nella pipeline CI (vedi [sezione CI](#ci)), resta manuale
-pre-merge finché non matura la regola di promozione descritta lì.
+Ultima misura (2026-08-24, 59 casi, corpus 26 documenti / 175 chunk):
+`recall@1 0.475 · @2 0.763 · @5 0.966 · @10 0.983`. La soglia 0.90 sta poco
+sotto il recall@10 misurato: se un refactor la fa scattare, il retrieval è
+regredito davvero. Rimisura e aggiorna la soglia quando il golden-set cresce.
+Questo comando richiede il server acceso (modello caricato): per questo NON è
+nella pipeline CI (vedi [sezione CI](#ci)), resta manuale pre-merge finché non
+matura la regola di promozione descritta lì.
+
+**Tre letture, non una media sola** (S5, [ADR 0002](adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md)).
+La corsa standard riporta il recall a **k ∈ {1, 2, 5, 10}**, e non per completezza:
+
+- **la saturazione è segnalata come difetto, non come 100%.** Una recall che vale
+  1.000 su *tutti* i casi non è un buon risultato: è una misura che ha smesso di
+  discriminare. Il report la marca `⚠️ SATURA` sulla riga della metrica. È un
+  errore già commesso: la ricalibrazione dei pesi di autorità del 2026-07-22 girò
+  a k=10 e k=5 su una griglia interamente satura e concluse — correttamente ma
+  inutilmente — che nessuna combinazione era distinguibile.
+- **il sottoinsieme avversariale ha una voce a sé.** I casi marcati
+  `adversarial: true` nel golden-set (oggi 10 su 59) contrappongono una fonte a
+  bassa autorità che matcha lessicalmente *meglio* della normativa che risponde:
+  sono l'unico posto dove il boost di autorità può essere falsificato, e nella
+  media coi casi facili il loro movimento sarebbe invisibile.
+- **i pesi di autorità si calibrano con [eval/calibrate_authority.py](eval/calibrate_authority.py)**,
+  che gira in-process (niente server) e **non applica nulla**: scrive una proposta
+  in `eval/results/authority_calibrated.yaml` da rivedere a mano. Calibrare
+  **sempre** con split di validazione, **sempre** a un k non saturo e **sempre**
+  su più seed — il default è 5-fold su 5 seed con deviazione standard riportata,
+  perché su un solo split un guadagno sopra soglia si è già rivelato rumore di
+  partizione. Lo script segnala anche gli **assi morti**, cioè i parametri che sul
+  corpus corrente non muovono la metrica di un millesimo.
+
+```bash
+uv run python -m eval.calibrate_authority --k 5   # proposta, mai applicazione automatica
+```
+
+**Un caso classico oggi non passa** (2026-08-24): *«posso usare un sinonimo per
+nominare una variabile o devo seguire il glossario»*, che si attende
+`coding_standards § Tracciabilità della Governance`, **non compare affatto in
+top-10** — è l'unico dei 59 a mancare a @10, e da solo spiega la differenza fra
+0.983 e 1.000. Non è un matcher stale: la sezione attesa esiste, ed è la stessa
+che un caso avversariale raggiunge a rango 2. È il corpus a essere cresciuto da 11
+a 26 documenti sotto un golden-set riscritto quando ne aveva 11. Vale come
+promemoria del perché la soglia sta a 0.90 e non a 0.98.
 
 I test pytest, che non possono caricare bge-m3, coprono la **meccanica** del
 guardrail con un retriever fake deterministico
 ([tests/test_eval_guardrail.py](tests/test_eval_guardrail.py)): parsing del
 golden-set, matcher, calcolo del recall, soglia che scatta, estrazione e
-promozione dei candidati. Le metriche vere restano il comando qui sopra.
+promozione dei candidati. Saturazione, sottoinsieme avversariale e integrità dei
+matcher avversariali (devono puntare a documenti e sezioni realmente esistenti nel
+corpus) sono in [tests/test_retrieval_eval.py](tests/test_retrieval_eval.py). Le
+metriche vere restano i comandi qui sopra.
 
 **Il golden-set cresce dalle change (ciclo archive → golden-set):**
 
@@ -534,7 +574,17 @@ l'**eval-gate del golden-set sulla nuova versione** (in process, config
 sotto soglia (e gate bloccante) la versione resta su disco **non promossa**, il job
 termina `completed_not_promoted` col report nell'esito e il server continua a
 servire la versione precedente. Se il gate è disattivo, il golden-set manca, o
-l'eval fallisce, la promozione è diretta (fail-open). Il server rileva ogni
+l'eval fallisce, la promozione è diretta (fail-open).
+
+Il gate misura anche la **saturazione** della propria metrica e, se `recall@k`
+vale 1.000 su tutti i casi, scrive un alert `warning`: a quel k non è un gate
+severo, è un gate cieco — lo supera qualunque candidata, anche una peggiorata.
+Non blocca (non è una regressione), ma va letto come "abbassare `eval_gate.k` a un
+k che discrimina". Non è teorico: sul golden-set di 49 casi, misurato a luglio
+sul corpus di allora (11 documenti), il recall@10 era saturo a 1.000 su tutta la
+griglia di calibrazione. Oggi è 0.983 e discrimina, per due ragioni che vale la
+pena tenere distinte: il corpus è cresciuto a 26 documenti (e un caso classico non
+arriva più in top-10, vedi sotto) e i 10 casi avversariali abbassano il recall@1. Il server rileva ogni
 spostamento di CURRENT (`maybe_reload_graph`) e ricarica lo snapshot alla prima
 richiesta.
 
@@ -633,7 +683,7 @@ condividere l'istanza fra i due usi.
 scansionate sotto `code/`: dipendenze installate e output di build
 (`node_modules`, `.next`, `dist`, `build`, `coverage`, `.venv`, `venv`,
 `__pycache__`, `.turbo`, `.cache`, `bin`, `obj`, `.vs`, `TestResults`,
-`packages`). Usata da tre punti che altrimenti farebbero ciascuno il proprio
+`packages`), più `.git`. Usata da tre punti che altrimenti farebbero ciascuno il proprio
 `rglob("*")` senza filtro:
 
 1. `core.indexing._code_hashes` — base del delta incrementale;

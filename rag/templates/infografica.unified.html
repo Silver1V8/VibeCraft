@@ -268,10 +268,10 @@
                 <div class="text-3xl mb-3">🗄️</div>
                 <h2 class="text-xl font-bold mb-2">2. Il Cervello Semantico</h2>
                 <p class="text-sm font-mono bg-purple-50 p-1 rounded text-purple-700 mb-2">Qdrant server (Docker) + bge-m3</p>
-                <p class="text-sm text-slate-600 mb-2">Ricerca ibrida dense + sparse su Qdrant, rerank ColBERT, pesi di autorita calibrati sul golden set.</p>
+                <p class="text-sm text-slate-600 mb-2">Ricerca ibrida dense + sparse su Qdrant, rerank ColBERT, autorita dichiarata e precedenza fra fonti.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Database vettoriale in <strong>server mode</strong> (via <code class="bg-gray-200 px-1 rounded font-mono">QDRANT_URL</code>, niente lock locale). Ricerca <strong>ibrida dense + sparse</strong> con fusione per rank, poi <strong>rerank ColBERT</strong> e ri-ponderazione per <strong>autorità</strong>. I pesi di autorità non sono più hard-coded: vivono in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code> e sono <strong>calibrati sul golden set</strong> (cross-validation) → recall@10 fino a 1.00. <code class="bg-gray-200 px-1 rounded font-mono">bge-m3</code> gira su <strong>CPU per le query</strong> e su <strong>GPU per il reindex</strong> batch: la VRAM è condivisa con Ollama.</p>
+                  <p class="mt-2">Database vettoriale in <strong>server mode</strong> (via <code class="bg-gray-200 px-1 rounded font-mono">QDRANT_URL</code>, niente lock locale). Ricerca <strong>ibrida dense + sparse</strong> con fusione per rank, poi <strong>rerank ColBERT</strong>, ri-ponderazione per <strong>autorità</strong> e infine la <strong>precedenza dichiarata</strong> fra fonti (se un autore scrive <code class="bg-gray-200 px-1 rounded font-mono">SUPERA_IN_PRIORITÀ</code> verso un altro documento, nessun chunk del subordinato precede il prevalente: la decisione umana viene per ultima e vince). L'autorità è quella <strong>dichiarata nel frontmatter</strong> del documento, con il peso di classe come ripiego e un peso più basso e distinto per le fonti <strong>senza classificazione</strong>. La forma è <strong>attenuata</strong> — <code class="bg-gray-200 px-1 rounded font-mono">score × ((1−α) + α·authority)</code>, non la moltiplicazione piena: misurato, α=1 costa 15 punti di recall@5. I pesi vivono in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code> e si ricalibrano sul golden set con <code class="bg-gray-200 px-1 rounded font-mono">eval/calibrate_authority.py</code> — sempre con split di validazione e a un <em>k</em> dove la recall non sia satura. <code class="bg-gray-200 px-1 rounded font-mono">bge-m3</code> gira su <strong>CPU per le query</strong> e su <strong>GPU per il reindex</strong> batch: la VRAM è condivisa con Ollama.</p>
                 </details>
             </div>
 
@@ -279,10 +279,10 @@
                 <div class="text-3xl mb-3">🕸️</div>
                 <h2 class="text-xl font-bold mb-2">3. Il Grafo delle Relazioni</h2>
                 <p class="text-sm font-mono bg-emerald-50 p-1 rounded text-emerald-700 mb-2">NetworkX (graph.json)</p>
-                <p class="text-sm text-slate-600 mb-2">Nodi a livello di sezione e archi tipizzati: alimenta BFS, Impact Ripple e Semantic Map.</p>
+                <p class="text-sm text-slate-600 mb-2">Nodi a livello di sezione e archi tipizzati con natura e affidabilita: alimenta BFS, Impact Ripple e Semantic Map.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Nodi a <strong>livello di sezione</strong> (non solo doc): i chunk diventano nodi e il <strong>code-link è per sezione</strong>. Archi tipizzati dal frontmatter più <strong>alias di autorità risolti in archi doc→doc</strong> che connettono il KG. I nodi <code class="bg-gray-200 px-1 rounded font-mono">entity</code>/<code class="bg-gray-200 px-1 rounded font-mono">MENTIONS</code> passano da un <strong>vaglio di forma</strong> (<code class="bg-gray-200 px-1 rounded font-mono">extract_entities</code>) che scarta checkbox, link e segnaposto dei template — solo riferimenti veri, niente rumore. Artefatti <strong>sicuri e ispezionabili</strong> (JSON + .npz, addio pickle). Alimenta BFS, <strong>Impact Ripple</strong> e <strong>Semantic Map</strong>.</p>
+                  <p class="mt-2">Nodi a <strong>livello di sezione</strong> (non solo doc): i chunk diventano nodi e il <strong>code-link è per sezione</strong>. Archi tipizzati dal frontmatter più <strong>alias di autorità risolti in archi doc→doc</strong> che connettono il KG. Ogni arco porta una <strong>natura</strong> — <em>strutturale</em> (dedotta dal filesystem o da un parser: se è sbagliata è un bug), <em>curata</em> (dichiarata da un umano nel frontmatter), <em>inferita</em> (congettura di un algoritmo, penalizzata per costruzione) — e la relativa <strong>affidabilità</strong>. Da lì la <strong>fiducia sul cammino</strong> (<code class="bg-gray-200 px-1 rounded font-mono">trust_paths</code>): un nodo raggiunto via grafo vale <code class="bg-gray-200 px-1 rounded font-mono">1/lunghezza × Π(affidabilità)</code> sul cammino più breve — non PageRank, perché serve un punteggio relativo alla domanda, non una centralità globale. I nodi <code class="bg-gray-200 px-1 rounded font-mono">entity</code>/<code class="bg-gray-200 px-1 rounded font-mono">MENTIONS</code> passano da un <strong>vaglio di forma</strong> (<code class="bg-gray-200 px-1 rounded font-mono">extract_entities</code>) che scarta checkbox, link e segnaposto dei template — solo riferimenti veri, niente rumore. Artefatti <strong>sicuri e ispezionabili</strong> (JSON + .npz, addio pickle). Alimenta BFS, <strong>Impact Ripple</strong> e <strong>Semantic Map</strong>.</p>
                 </details>
             </div>
 
@@ -367,7 +367,7 @@
                 <p class="text-sm text-slate-600 mb-2">Prima di promuovere una versione, il retrieval e valutato: sotto soglia la promozione e bloccata.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Prima di spostare <code class="bg-gray-200 px-1 rounded font-mono">CURRENT</code> su una nuova versione, il retrieval è valutato sul golden set: se recall@k scende sotto soglia la <strong>promozione è bloccata</strong> e parte un alert critico. Una regressione del ranking <strong>non diventa più CURRENT in silenzio</strong>.</p>
+                  <p class="mt-2">Prima di spostare <code class="bg-gray-200 px-1 rounded font-mono">CURRENT</code> su una nuova versione, il retrieval è valutato sul golden set: se recall@k scende sotto soglia la <strong>promozione è bloccata</strong> e parte un alert critico. Una regressione del ranking <strong>non diventa più CURRENT in silenzio</strong>. Il gate misura anche la <strong>saturazione</strong> della propria metrica: se recall@k vale 1.000 su <em>tutti</em> i casi non è severo, è cieco — lo supera qualunque candidata, anche peggiorata — e lo dichiara con un alert. Il golden set contiene per questo casi <strong>avversariali</strong>, in cui una fonte a bassa autorità matcha lessicalmente meglio della normativa che risponde: sono l'unico posto dove il boost di autorità può essere falsificato.</p>
                 </details>
             </div>
 
@@ -396,7 +396,7 @@
         </div>
 
         <div class="mt-8 bg-blue-50 text-blue-800 p-4 rounded-lg border border-blue-200">
-            <p><strong>💡 La Magia del Determinismo:</strong> allo Step 0 un <strong>router deterministico</strong> (<code class="bg-gray-200 px-1 rounded font-mono">core/router.py</code>, sole regole lessicali) intercetta le domande <strong>strutturali</strong> — enumerazioni, relazioni, impatto, adiacenza — e le risponde direttamente dal grafo (<code class="bg-gray-200 px-1 rounded font-mono">graph_answer</code>) <strong>senza LLM</strong>. Per tutte le altre l'LLM interviene solo allo Step 6: tutto il "pescaggio" del contesto (Step 1-5: ricerca ibrida, rerank ColBERT, autorità, espansione BFS) è fatto in modo rigoroso e senza allucinazioni da Qdrant e NetworkX, e la sintesi finale passa dal layer unico <code class="bg-gray-200 px-1 rounded font-mono">core/llm.py</code> (purpose <code class="bg-gray-200 px-1 rounded font-mono">ask</code>), lo stesso usato dal resto della pipeline.</p>
+            <p><strong>💡 La Magia del Determinismo:</strong> allo Step 0 un <strong>router deterministico</strong> (<code class="bg-gray-200 px-1 rounded font-mono">core/router.py</code>, sole regole lessicali) intercetta le domande <strong>strutturali</strong> — enumerazioni, relazioni, impatto, adiacenza — e le risponde direttamente dal grafo (<code class="bg-gray-200 px-1 rounded font-mono">graph_answer</code>) <strong>senza LLM</strong>. Per tutte le altre l'LLM interviene solo allo Step 6: tutto il "pescaggio" del contesto (Step 1-5: ricerca ibrida, rerank ColBERT, autorità dichiarata, precedenza fra fonti, espansione BFS pesata dalla fiducia sul cammino) è fatto in modo rigoroso e senza allucinazioni da Qdrant e NetworkX, e la sintesi finale passa dal layer unico <code class="bg-gray-200 px-1 rounded font-mono">core/llm.py</code> (purpose <code class="bg-gray-200 px-1 rounded font-mono">ask</code>), lo stesso usato dal resto della pipeline.</p>
         </div>
 
     </main>
@@ -430,8 +430,8 @@ graph TD
     GA[("NetworkX: graph_ops.graph_query<br>risposta diretta nodi/archi<br>status: graph_answer · no LLM")]:::networkx
     V{"Embedding bge-m3<br>dense + sparse"}:::fastapi
     Q[("Qdrant server (Docker)<br>Ricerca ibrida Top-K<br>fusione per rank")]:::qdrant
-    CB{"Rerank ColBERT<br>+ peso autorità"}:::qdrant
-    G[("NetworkX (graph.json)<br>Espansione BFS<br>seed = doc dei chunk")]:::networkx
+    CB{"Rerank ColBERT<br>+ peso autorità<br>+ precedenza fra fonti"}:::qdrant
+    G[("NetworkX (graph.json)<br>Espansione BFS + fiducia sul cammino<br>seed = doc dei chunk")]:::networkx
     C["Contesto chunk-aware:<br>testo delle SEZIONI recuperate<br>+ struttura del grafo"]:::fastapi
     O{"core/llm.py · purpose ask<br>provider da config<br>(Ollama / Claude)"}:::ollama
     R["JSON: answer + graph_context<br>+ breakdown ranking + latency"]:::user
