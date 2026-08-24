@@ -7,9 +7,23 @@ metriche valgono sia contro il server reale (eval.run) sia contro un retriever f
 (test del meccanismo), senza reimplementare nulla.
 
 Metriche calcolate (media sui casi):
-  - recall@5 / recall@10 : frazione delle sorgenti attese trovate entro i primi k risultati.
+  - recall@k             : frazione delle sorgenti attese trovate entro i primi k risultati.
   - source_in_top3       : 1 se ALMENO una sorgente attesa compare nei primi 3, altrimenti 0.
   - mrr                  : reciprocal rank della PRIMA sorgente attesa trovata (0 se assente).
+
+Due letture in più, introdotte da S5 (ADR 0002) perché senza di esse il numero medio
+mente in due modi opposti:
+
+  - SATURAZIONE. Una recall che vale 1.000 su TUTTI i casi non è un buon risultato: è
+    una misura che ha smesso di discriminare. La calibrazione del 2026-07-22 ha girato a
+    k=10 e k=5 su una griglia interamente satura e ha concluso "nessuna combinazione è
+    distinguibile" — cioè non ha misurato niente. `evaluate` elenca in `saturated` le
+    metriche in quello stato: chi legge il report, e chi decide una promozione, deve
+    vederlo come un difetto della misura, non come un 100%.
+  - SOTTOINSIEME AVVERSARIALE. I casi marcati `adversarial: true` nel golden set sono
+    quelli costruiti per mettere l'autorità alla prova (fonte informale lessicalmente
+    più vicina della normativa che risponde). Sono pochi rispetto ai casi facili: nella
+    media generale il loro contributo è invisibile. `evaluate` li aggrega anche a parte.
 
 Una sorgente attesa è descritta da un "matcher": chunk-id, file sorgente, doc padre o
 sezione (tutti confronti per sottostringa, case-insensitive). Un caso può elencarne più
@@ -17,9 +31,13 @@ d'uno (recall li media). Vedi eval/golden_set.yaml per il formato.
 """
 from collections.abc import Callable, Sequence
 
-# k di default per le metriche di recall e per il "sorgente in top-N".
-DEFAULT_KS: tuple[int, ...] = (5, 10)
+# k di default per le metriche di recall e per il "sorgente in top-N". k=1 e k=2 ci sono
+# perché sono gli unici dove questo corpus discrimina ancora: vedi SATURAZIONE sopra.
+DEFAULT_KS: tuple[int, ...] = (1, 2, 5, 10)
 TOP3_K = 3
+# Una recall è "satura" se vale 1.0 su ogni caso. Il margine assorbe l'errore di
+# rappresentazione delle divisioni in recall_at(), non è una tolleranza di giudizio.
+SATURATION_EPS = 1e-9
 
 
 def normalize_expected(case: dict) -> list[dict]:
@@ -92,6 +110,19 @@ def evaluate_case(results: Sequence[dict], matchers: list[dict],
     return metrics
 
 
+def _mean(per_case: Sequence[dict], metric_keys: Sequence[str]) -> dict:
+    n = len(per_case) or 1
+    return {key: sum(pc["metrics"][key] for pc in per_case) / n for key in metric_keys}
+
+
+def saturated_metrics(per_case: Sequence[dict], metric_keys: Sequence[str]) -> list[str]:
+    """Metriche di recall che valgono 1.0 su OGNI caso: hanno smesso di discriminare.
+    Lista vuota se non ci sono casi — su zero casi non si satura, si tace."""
+    return [key for key in metric_keys
+            if key.startswith("recall@") and per_case
+            and all(pc["metrics"][key] >= 1.0 - SATURATION_EPS for pc in per_case)]
+
+
 def evaluate(cases: Sequence[dict], retrieve_fn: Callable[[str, int], list[dict]],
              ks: Sequence[int] = DEFAULT_KS, top3_k: int = TOP3_K) -> dict:
     """Esegue il golden-set contro `retrieve_fn` e aggrega le metriche.
@@ -100,7 +131,10 @@ def evaluate(cases: Sequence[dict], retrieve_fn: Callable[[str, int], list[dict]
     dict con chunk_id/doc_id/section). Viene chiamata con k = max(ks) così una sola
     richiesta copre tutte le soglie di recall.
 
-    Ritorna {n, ks, top3_k, aggregate: {...}, cases: [per-caso...]}.
+    Ritorna {n, ks, top3_k, aggregate, saturated, adversarial, cases}. `saturated` è
+    la lista delle recall che valgono 1.0 su ogni caso; `adversarial` è None se il
+    golden set non marca alcun caso, altrimenti {n, aggregate, saturated} del solo
+    sottoinsieme.
     """
     ks = tuple(ks)
     fetch_k = max(list(ks) + [top3_k])
@@ -114,17 +148,20 @@ def evaluate(cases: Sequence[dict], retrieve_fn: Callable[[str, int], list[dict]
         top = results[0] if results else {}
         per_case.append({
             "q": query,
+            "adversarial": bool(c.get("adversarial")),
             "n_expected": m["n_expected"],
             "best_rank": m["best_rank"],
             "metrics": m,
             "top1": {"doc_id": top.get("doc_id", ""), "section": top.get("section", "")},
         })
 
-    n = len(per_case) or 1
     metric_keys = [f"recall@{k}" for k in ks] + ["source_in_top3", "mrr"]
-    aggregate = {
-        key: sum(pc["metrics"][key] for pc in per_case) / n
-        for key in metric_keys
-    }
+    avversariali = [pc for pc in per_case if pc["adversarial"]]
     return {"n": len(per_case), "ks": list(ks), "top3_k": top3_k,
-            "aggregate": aggregate, "cases": per_case}
+            "aggregate": _mean(per_case, metric_keys),
+            "saturated": saturated_metrics(per_case, metric_keys),
+            "adversarial": ({"n": len(avversariali),
+                             "aggregate": _mean(avversariali, metric_keys),
+                             "saturated": saturated_metrics(avversariali, metric_keys)}
+                            if avversariali else None),
+            "cases": per_case}

@@ -247,3 +247,109 @@ cases:
   - q: "il correlation id va propagato anche sui record di audit"
     expected:
       - {doc: observability_standards, section: "Log Strutturati e Correlazione"}
+
+  # ═══════════════════════════════════════════════════════════════════════════════════
+  # CASI AVVERSARIALI SULL'AUTORITÀ (S5, ADR 0002 — aggiunti 2026-08-24)
+  #
+  # Marcati `adversarial: true`: eval/run.py li misura ANCHE come sottoinsieme a sé,
+  # perché è il numero che il piano ADR 0002 deve muovere e la media coi casi facili lo
+  # renderebbe invisibile.
+  #
+  # Cosa hanno di diverso dai 49 casi sopra: là la fonte attesa è anche la più simile
+  # alla domanda, quindi il ranking semantico da solo basta e la recall satura. Qui la
+  # domanda usa il vocabolario di una fonte a BASSA autorità (informativa METHODOLOGY
+  # 0.50, o senza alcuna classificazione 0.30) mentre la risposta vincolante sta in una
+  # fonte ad autorità ALTA che quel vocabolario non lo usa. Il ColBERT premia il
+  # distrattore; solo l'autorità può correggere.
+  #
+  # VERIFICATI UNO PER UNO il 2026-08-24 contro il ranking di produzione (GET
+  # /api/retrieve, corpus 26 documenti / 175 chunk, S1-S4 già in main): in TUTTI E DIECI
+  # il distrattore precede la fonte attesa. Rango del distrattore -> rango dell'atteso:
+  #   1->2, 1->2, 1->2, 1->2, 2->3, 1->3, 1->5, 3->5, 1->2, 1->3.
+  # Un caso che il sistema già supera è stato SCARTATO: gonfierebbe la recall e
+  # riprodurrebbe il difetto che questa sezione esiste per correggere. Scartati per
+  # questa ragione, e annotati qui perché il fatto è informativo: "divieto di segreti
+  # hardcoded", "checkpoint di sign-off umano finale", "unicità dell'ambiente
+  # transazionale per il lock", "backoff multi-canale email slack", "architettura Server
+  # Component e Client Component". Su questi cinque la fonte normativa vince già senza
+  # aiuto dall'autorità.
+  # Scartati invece per DISONESTÀ del caso (la fonte attesa non risponde davvero, quindi
+  # il "fallimento" non sarebbe un difetto di ranking): "estrazione dei magic numbers"
+  # e "isolamento delle regole di business" — coding_standards.md non tratta né l'una né
+  # l'altra: la fonte corretta è proprio il documento informativo.
+  #
+  # NON costruibili su questo corpus, e la ragione va letta come un risultato:
+  #   - ENFORCED vs ARCHIVED/DEPRECATED: nessun documento del corpus ha uno status
+  #     diverso da ENFORCED. Zero su 26.
+  #   - SUPERA_IN_PRIORITÀ (S4): l'unica dichiarazione del corpus
+  #     (safeguards_security.md) ha per target `QUALSIASI_DECISIONE_IMPLEMENTATIVA_LOCALE`,
+  #     che non è un documento: `precedence_pairs()` richiede che ENTRAMBI i capi siano
+  #     doc_id presenti nei risultati, quindi nessuna coppia si forma mai.
+  #   - "raggiungibile solo via grafo" (S3): la fase 6 di [REGOLA-WF-01] vive in /ask
+  #     (api/routes_retrieval.py), non in /api/retrieve che è ciò che il golden set
+  #     interroga. Non è misurabile da qui con nessun caso.
+  # ═══════════════════════════════════════════════════════════════════════════════════
+
+  # ── distrattore: 04_knowledge_informative/graph_rag_ingestion_strategy.md (METHODOLOGY, peso 0.50)
+  #    Il documento dichiara di sé «non contiene regole enforceable e non deve essere
+  #    citato come fonte di un vincolo»: chiedere la regola e attendersi la spec non è
+  #    una convenzione nostra, è scritto nel corpus.
+  - q: "cosa blocca l'ingestion quando qualcuno dimentica il bump di versione del documento"
+    adversarial: true
+    expected:
+      - {doc: spec_graph_rag_ingestion, section: "Aggiornamento Incrementale"}
+
+  - q: "quanti caratteri al massimo può avere un chunk e con quale severità viene segnalato lo sforamento"
+    adversarial: true
+    expected:
+      - {doc: spec_graph_rag_ingestion, section: "Chunking"}
+
+  - q: "in quale ordine il chunker tenta i tagli: blocchi atomici, poi H2, poi H3, poi paragrafi"
+    adversarial: true
+    expected:
+      - {doc: spec_graph_rag_ingestion, section: "Chunking"}
+
+  # ── distrattore: 04_knowledge_informative/vibe_coding_workflow.md (METHODOLOGY, peso 0.50)
+  #    Ridefinisce [REGOLA-CLEAN-*] con numerazione propria e collidente con
+  #    coding_standards.md: stesso vocabolario, autorità metà.
+  - q: "tracciabilità bidirezionale nei commenti fra riga di codice e regola di business"
+    adversarial: true
+    expected:
+      - {doc: coding_standards, section: "Tracciabilità della Governance"}
+
+  # ── distrattore: 04_knowledge_informative/intent_synonym_mapping.md (METHODOLOGY, peso 0.50)
+  #    È il documento scritto APPOSTA in gergo colloquiale per fare da ponte fra il
+  #    linguaggio naturale e il modello dati: per costruzione vince il match lessicale
+  #    su qualunque domanda posta come la porrebbe un utente.
+  - q: "chi può sbloccare una pratica d'autorità e forzare a mano lo stato di una richiesta"
+    adversarial: true
+    expected:
+      - {doc: matrice_permessi, section: "Mapping degli Archi"}
+
+  - q: "quanti soldi restano nella cassa della formazione e chi li può vedere"
+    adversarial: true
+    expected:
+      - {doc: matrice_permessi, section: "Profili degli Attori"}
+
+  - q: "quante sedie rimaste ci sono per un corso e come si calcola la capienza residua"
+    adversarial: true
+    expected:
+      - {doc: glossario_entita, section: "Entità: `EVENTO`"}
+
+  - q: "posso mandare la motivazione scritta dal dipendente a un LLM remoto"
+    adversarial: true
+    expected:
+      - {doc: safeguards_security, section: "Privacy e Confine"}
+
+  # ── distrattore: 03_changes_historical/*-canvas-review.md (NESSUN frontmatter, peso 0.30)
+  #    È il caso che S1 ha reso distinguibile: prima di S1 questi sei file pesavano 0.70,
+  #    cioè quanto una spec REQUIREMENTS calibrata (difetto D2 dell'ADR 0002).
+  - q: "React Hook Form con Zod e componenti shadcn/ui per la validazione dei form"
+    adversarial: true
+    expected:
+      - {doc: spec_tech_frontend, section: "Stack Tecnologico"}
+
+  - q: "controllo stilistico della palette colori verificabile nel codice sorgente"
+    adversarial: true
+    expected:
+      - {doc: ui_ux_brand_directives, section: "Design Token"}

@@ -77,3 +77,97 @@ def test_recall_averages_multiple_expected_sources():
     report = eval_metrics.evaluate(cases, _fake_retriever(ranking), ks=(5, 10))
     assert report["aggregate"]["recall@5"] == 0.5
     assert report["cases"][0]["n_expected"] == 2
+
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# S5 (ADR 0002): saturazione, sottoinsieme avversariale, e integrità dei casi nuovi.
+# ─────────────────────────────────────────────────────────────────────────────────
+
+def test_report_segnala_metrica_satura():
+    """Recall 1.000 su TUTTI i casi non è un buon risultato: è una misura che ha smesso
+    di discriminare, ed è il difetto che ha reso cieca la calibrazione del 2026-07-22.
+    Deve comparire in `saturated`, non passare per un 100%."""
+    ranking = {q: [_hit(f"{q}.md#00", f"{q}.md")] for q in ("q1", "q2", "q3")}
+    cases = [{"q": q, "expected": [{"doc": f"{q}.md"}]} for q in ranking]
+    report = eval_metrics.evaluate(cases, _fake_retriever(ranking), ks=(1, 2, 5, 10))
+
+    assert report["aggregate"]["recall@5"] == 1.0
+    assert report["saturated"] == ["recall@1", "recall@2", "recall@5", "recall@10"]
+
+    # Un solo caso che manca basta a togliere la saturazione: la metrica torna a discriminare.
+    cases[2] = {"q": "q3", "expected": [{"doc": "assente.md"}]}
+    report = eval_metrics.evaluate(cases, _fake_retriever(ranking), ks=(1, 2, 5, 10))
+    assert report["saturated"] == []
+
+
+def test_metrica_avversariale_separata_dalla_media():
+    """I casi `adversarial: true` sono pochi rispetto ai facili: annegati nella media
+    generale il loro movimento è invisibile, e sono l'unico numero che l'ADR 0002 deve
+    muovere. Vanno esposti come voce a sé."""
+    ranking = {
+        "facile1": [_hit("a.md#00", "a.md")],
+        "facile2": [_hit("b.md#00", "b.md")],
+        "facile3": [_hit("c.md#00", "c.md")],
+        # l'avversariale sbaglia: il distrattore è primo, la fonte attesa seconda
+        "avv": [_hit("distrattore.md#00", "distrattore.md"), _hit("norma.md#00", "norma.md")],
+    }
+    cases = [
+        {"q": "facile1", "expected": [{"doc": "a.md"}]},
+        {"q": "facile2", "expected": [{"doc": "b.md"}]},
+        {"q": "facile3", "expected": [{"doc": "c.md"}]},
+        {"q": "avv", "adversarial": True, "expected": [{"doc": "norma.md"}]},
+    ]
+    report = eval_metrics.evaluate(cases, _fake_retriever(ranking), ks=(1, 2))
+
+    # La media generale nasconde il fallimento: 3 casi su 4 a rango 1.
+    assert report["aggregate"]["recall@1"] == 0.75
+    # Il sottoinsieme lo mostra: 0 su 1.
+    adv = report["adversarial"]
+    assert adv["n"] == 1
+    assert adv["aggregate"]["recall@1"] == 0.0
+    assert adv["aggregate"]["recall@2"] == 1.0
+    # E i casi restano marcati singolarmente, così il report può etichettare le righe.
+    assert [c["adversarial"] for c in report["cases"]] == [False, False, False, True]
+
+
+def test_adversarial_assente_se_nessun_caso_e_marcato():
+    """Un golden set senza casi marcati non deve produrre un sottoinsieme vuoto da
+    stampare come se fosse una misura: None significa "non pervenuto"."""
+    ranking = {"q": [_hit("a.md#00", "a.md")]}
+    report = eval_metrics.evaluate([{"q": "q", "expected": [{"doc": "a.md"}]}],
+                                   _fake_retriever(ranking), ks=(1,))
+    assert report["adversarial"] is None
+
+
+def test_casi_avversariali_hanno_matcher_validi():
+    """Ogni caso avversariale deve puntare a un documento e a una sezione REALMENTE
+    esistenti nel corpus. È il difetto che ha già colpito questo progetto una volta:
+    la nota del 2026-07-22 nel golden set registra 24 casi su 34 che puntavano a
+    documenti eliminati, cioè una recall misurata contro il nulla."""
+    import re
+
+    import yaml
+
+    from core.config import DOCS_DIR, GOLDEN_SET_PATH
+
+    cases = yaml.safe_load(GOLDEN_SET_PATH.read_text(encoding="utf-8"))["cases"]
+    avversariali = [c for c in cases if c.get("adversarial")]
+    assert avversariali, "il golden set non contiene più casi avversariali (S5, ADR 0002)"
+
+    documenti = {p: p.read_text(encoding="utf-8") for p in DOCS_DIR.rglob("*.md")}
+    assert documenti, f"corpus non trovato in {DOCS_DIR}"
+
+    for caso in avversariali:
+        for matcher in eval_metrics.normalize_expected(caso):
+            doc, sezione = matcher.get("doc"), matcher.get("section")
+            candidati = [p for p in documenti if doc.lower() in str(p).lower().replace("\\", "/")]
+            assert candidati, f"{caso['q']!r}: nessun documento del corpus contiene {doc!r}"
+            if not sezione:
+                continue
+            # La sezione deve corrispondere a un heading REALE (## o ###), con lo stesso
+            # confronto per sottostringa case-insensitive che usa result_matches().
+            heading = [h for p in candidati
+                       for h in re.findall(r"^#{2,3} +(.+)$", documenti[p], re.MULTILINE)
+                       if sezione.lower() in h.lower()]
+            assert heading, (f"{caso['q']!r}: nessun heading di {[str(p.name) for p in candidati]} "
+                             f"contiene la sezione attesa {sezione!r}")

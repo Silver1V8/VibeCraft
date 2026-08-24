@@ -87,7 +87,11 @@ def evaluate_recall(qdrant, embed_model, colbert_store: dict, *, k: int = EVAL_G
                                        colbert_store=colbert_store, collection_name=collection_name)
 
     report = evaluate(cases, _retrieve, ks=[k])
-    return {"recall": report["aggregate"][f"recall@{k}"], "n": report["n"], "k": k}
+    # `saturated`: recall@k = 1.000 su OGNI caso. Un gate valutato lì non è un gate
+    # severo, è un gate cieco — qualunque candidata lo supera, compresa una peggiorata
+    # (S5, ADR 0002). Non blocca (non è una regressione), ma va detto ad alta voce.
+    return {"recall": report["aggregate"][f"recall@{k}"], "n": report["n"], "k": k,
+            "saturated": f"recall@{k}" in (report.get("saturated") or [])}
 
 
 def gate_promotion(version: str, qdrant, embed_model, colbert_store: dict, *,
@@ -121,6 +125,12 @@ def gate_promotion(version: str, qdrant, embed_model, colbert_store: dict, *,
         return res
 
     res["min_recall"] = min_recall
+    if res.get("saturated"):
+        msg_sat = (f"Eval-gate valutato a un k SATURO: recall@{k}=1.000 su tutti i {res['n']} "
+                   f"casi del golden set. A questo k il gate non distingue una candidata "
+                   f"buona da una peggiorata — abbassare eval_gate.k a un k che discrimina.")
+        record_alert("warning", msg_sat, k=k, version=version, saturated=True)
+        _log(f"⚠️  {msg_sat}")
     ok = res["recall"] >= min_recall
     # Storicizza ogni valutazione del gate (trend di qualità, Epic 5): source="gate".
     record_history({f"recall@{k}": res["recall"]}, n_cases=res["n"], version=version,

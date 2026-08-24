@@ -8,7 +8,7 @@ il risultato in eval/results/eval_<timestamp>.json per confrontare run successiv
 Uso (da rag/):
     uv run python -m eval.run
     uv run python -m eval.run --assert-min 0.90              # guardrail pre-merge
-    uv run python -m eval.run --k 5 10 --url http://127.0.0.1:8000
+    uv run python -m eval.run --k 2 --url http://127.0.0.1:8000
     uv run python -m eval.run --review-candidates            # mostra i candidati
     uv run python -m eval.run --review-candidates --promote 0 2   # promuove nel golden-set
 
@@ -24,7 +24,7 @@ from pathlib import Path
 import httpx2
 import yaml
 
-from core.eval_metrics import evaluate
+from core.eval_metrics import DEFAULT_KS, evaluate
 
 for _s in (sys.stdout, sys.stderr):  # emoji/§/→ safe su console Windows (cp1252)
     try:
@@ -119,24 +119,42 @@ def _fmt_pct(x: float) -> str:
     return f"{x * 100:5.1f}%"
 
 
+def _print_aggregate(agg: dict, ks: list[int], saturated: list[str], indent: str = "  ") -> None:
+    """Colonne aggregate, con la saturazione marcata SULLA RIGA della metrica satura.
+    Un 100.0% che non discrimina non deve poter essere letto come un buon risultato: chi
+    scorre il report vede il numero, non una nota a piè di pagina."""
+    for key in [f"recall@{k}" for k in ks] + ["source_in_top3", "mrr"]:
+        val = agg[key]
+        nota = "   ⚠️  SATURA: non discrimina, misura non informativa" if key in saturated else ""
+        print(f"{indent}{key:<16} = {_fmt_pct(val) if key != 'mrr' else f'{val:.3f}'}{nota}")
+
+
 def print_report(report: dict, ks: list[int]) -> None:
-    recall_keys = [f"recall@{k}" for k in ks]
-    header_metrics = recall_keys + ["top3", "mrr"]
-    print(f"{'':4} {'rk':>3} {'exp':>3}  {'top-1 (doc § sezione)':<48} query")
+    print(f"{'':4} {'av':>2} {'rk':>3} {'exp':>3}  {'top-1 (doc § sezione)':<44} query")
     print("-" * 110)
     for pc in report["cases"]:
-        m = pc["metrics"]
         rk = pc["best_rank"]
         mark = "OK " if (rk and rk <= report["top3_k"]) else ("~k " if rk else "MISS")
-        top = f"{pc['top1']['doc_id'].split('/')[-1][:22]} § {pc['top1']['section'][:22]}"
-        print(f"{mark:4} {str(rk or '-'):>3} {pc['n_expected']:>3}  {top:<48} {pc['q'][:44]}")
+        top = f"{pc['top1']['doc_id'].split('/')[-1][:20]} § {pc['top1']['section'][:20]}"
+        av = "AV" if pc.get("adversarial") else ""
+        print(f"{mark:4} {av:>2} {str(rk or '-'):>3} {pc['n_expected']:>3}  {top:<44} {pc['q'][:44]}")
     print("-" * 110)
-    agg = report["aggregate"]
     print(f"casi: {report['n']}  |  k={ks}  |  colonne aggregate (media sui casi):")
-    for key in header_metrics:
-        real = "source_in_top3" if key == "top3" else key
-        val = agg[real]
-        print(f"  {key:<16} = {_fmt_pct(val) if key != 'mrr' else f'{val:.3f}'}")
+    _print_aggregate(report["aggregate"], ks, report.get("saturated") or [])
+
+    # Il sottoinsieme avversariale a parte: è il numero che l'ADR 0002 deve muovere, e
+    # nella media coi casi facili (49 su 59) sarebbe invisibile.
+    adv = report.get("adversarial")
+    if adv:
+        print()
+        print(f"sottoinsieme AVVERSARIALE sull'autorità ({adv['n']} casi, marcati "
+              f"`adversarial: true` nel golden set):")
+        _print_aggregate(adv["aggregate"], ks, adv.get("saturated") or [])
+    if report.get("saturated"):
+        print()
+        print(f"⚠️  Metriche SATURE ({', '.join(report['saturated'])}): a quei k il golden "
+              f"set non distingue più una configurazione dall'altra.")
+        print("   Calibrare o gatare lì significa non misurare nulla.")
 
 
 def save_results(report: dict, url: str) -> Path:
@@ -150,6 +168,8 @@ def save_results(report: dict, url: str) -> Path:
         "ks": report["ks"],
         "top3_k": report["top3_k"],
         "aggregate": report["aggregate"],
+        "saturated": report.get("saturated") or [],
+        "adversarial": report.get("adversarial"),
         "cases": report["cases"],
     }
     out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -188,7 +208,9 @@ def run_eval(cases: list[dict], retrieve_fn, ks: list[int], assert_min: float,
 def main() -> int:
     ap = argparse.ArgumentParser(description="Eval harness del retrieval sul golden-set")
     ap.add_argument("--url", default="http://127.0.0.1:8000")
-    ap.add_argument("--k", type=int, nargs="+", default=[5, 10], help="soglie di recall (default: 5 10)")
+    ap.add_argument("--k", type=int, nargs="+", default=list(DEFAULT_KS),
+                    help=f"soglie di recall (default: {' '.join(map(str, DEFAULT_KS))} — "
+                         "k=1 e k=2 servono perché a k=5/10 questo corpus satura)")
     ap.add_argument("--assert-min", type=float, default=None,
                     help="guardrail: exit 1 se il recall@<max k> medio scende sotto questa soglia "
                          "(il report viene comunque scritto in eval/results/)")

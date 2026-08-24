@@ -3,13 +3,18 @@ id: "spec-graph-rag-ingestion-v2.0"
 title: "Specifica Normativa — Strategia di Ingestion e Indicizzazione Graph-RAG (Baseline Cross-Progetto)"
 project: "cross-project"
 scope: "cross-project"
-version: "2.1.0"
-date: "2026-07-22"
+version: "2.2.0"
+date: "2026-08-24"
 status: "ENFORCED"
 classification: "REQUIREMENTS"
 path: "docs/02_specs_normative/spec_graph_rag_ingestion.md"
 authority: 0.87
 changelog:
+  - version: "2.2.0"
+    date: "2026-08-24"
+    changes:
+      - "[REGOLA-VAL-08] emendata: prescrive la forma ATTENUATA `score x ((1 - alpha) + alpha x authority)` al posto della moltiplicazione piena `score x authority`, che il codice non ha mai implementato e che la misura mostra dannosa"
+      - "Aggiunta l'avvertenza sulla saturazione: la forza del boost va calibrata a un k dove la recall non sia satura e su un golden set che contrapponga autorita e similarita lessicale"
   - version: "2.1.0"
     date: "2026-07-22"
     changes:
@@ -156,12 +161,27 @@ Rinominare o rimuovere una di queste cartelle cambia la classificazione dei docu
 
 > **Nota di correzione (v2.0):** la v1.1 dichiarava "sequenza rigida a 5 livelli" ed elencava 6 fasi. Il conteggio è ora allineato all'elenco.
 
-### [REGOLA-VAL-08] Applicazione del coefficiente di authority moltiplicativo
-- **Descrizione:** Il posizionamento finale dei chunk nel context window è determinato moltiplicando lo score di rilevanza del reranker per il coefficiente di `authority` del frontmatter della sorgente.
-- **Effetto in caso di violazione (Failure Mode):** Mancato rispetto della gerarchia delle fonti e inversione di priorità fra contratti di sicurezza e testi descrittivi.
+### [REGOLA-VAL-08] Applicazione del coefficiente di authority (forma attenuata)
+- **Descrizione:** Il posizionamento finale dei chunk nel context window è determinato modulando lo score di rilevanza del reranker per il coefficiente di `authority` della sorgente, nella forma **attenuata**:
+  `score_finale = score_reranker × ((1 − α) + α × authority)`, con `α ∈ [0,1]` parametro calibrato (`authority.boost_alpha`). Il coefficiente `authority` è quello **dichiarato nel frontmatter** della sorgente; in sua assenza si applica il peso della classe, e in assenza anche di `classification` il peso della fonte non classificata (`authority.unclassified_weight`), che deve essere **distinto** e più basso di quello delle classi note ma non elencate.
+- **Effetto in caso di violazione (Failure Mode):** Mancato rispetto della gerarchia delle fonti e inversione di priorità fra contratti di sicurezza e testi descrittivi. Con `α = 1` (moltiplicazione piena) il failure mode si inverte: i contratti generici ad alta autorità sovra-promuovono rispetto alle spec specifiche attese.
 - **Entità Target:** Nessuna.
 
-> **Avvertenza di calibrazione:** i pesi per classe e la forza del boost sono parametri **empirici**, non costanti universali. Vanno ricalibrati sul golden set del progetto con uno split di validazione. Un boost di autorità troppo forte sovra-promuove i contratti generici rispetto alle spec specifiche attese.
+> **Emendamento (v2.2.0, 2026-08-24).** Fino alla v2.1.0 questa regola prescriveva la moltiplicazione **piena** `score × authority`, cioè `α = 1`. Nessuna implementazione l'ha mai applicata, e la misura spiega perché. Su un golden set esteso con 10 casi **avversariali** — costruiti perché una fonte a bassa autorità matchi lessicalmente meglio della normativa che risponde — al crescere di `α` (recall@1 sui 10 casi avversariali / recall@10 sui 59 casi complessivi):
+>
+> | α | 0.0 | 0.1 | 0.2 | 0.3 | 0.5 | 0.8 | 1.0 |
+> |---|---|---|---|---|---|---|---|
+> | avversariali recall@1 | 0.000 | 0.000 | 0.200 | 0.400 | 0.500 | **0.600** | 0.500 |
+> | complessiva recall@5 | 0.949 | **0.966** | 0.949 | 0.932 | 0.898 | 0.881 | 0.814 |
+> | complessiva recall@10 | **0.983** | **0.983** | 0.966 | 0.949 | 0.932 | 0.915 | 0.881 |
+>
+> La moltiplicazione piena costa **15.2 punti di recall@5 e 10.2 di recall@10** su tutto il golden set, e non è nemmeno il massimo sui casi avversariali (`α = 0.8` ne corregge di più). È il failure mode descritto sopra, misurato: oltre una certa forza il boost promuove i contratti generici ad alta autorità sopra le spec specifiche attese, e le fonti corrette escono dalla finestra di contesto invece di salire.
+>
+> La norma è quindi allineata alla forma effettivamente implementata, e la divergenza fra spec e codice — aperta e documentata dall'ADR 0002 — è chiusa qui. Il valore di `α` resta un parametro di calibrazione, non una costante di questa regola.
+
+> **Avvertenza di calibrazione:** i pesi per classe e la forza del boost sono parametri **empirici**, non costanti universali. Vanno ricalibrati sul golden set del progetto con uno split di validazione. Due condizioni rendono la calibrazione priva di significato se disattese, ed entrambe sono state violate in passato su questo progetto:
+> 1. **il `k` non deve essere saturo.** Una recall che vale 1.000 su tutti i casi non distingue una configurazione dall'altra: la ricalibrazione del 2026-07-22 girò a `k = 10` e `k = 5` su una griglia interamente satura e concluse, correttamente ma inutilmente, che nessuna combinazione era distinguibile.
+> 2. **il golden set deve contrapporre autorità e similarità lessicale.** Se in ogni caso la fonte attesa è anche la più simile alla domanda, il ranking semantico basta da solo e il boost di autorità risulta inerte qualunque sia il suo valore — si misura la saturazione del set, non il meccanismo.
 
 ---
 

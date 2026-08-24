@@ -116,3 +116,51 @@ def test_evaluate_recall_explicit_collection_name_propagated_to_hybrid_search(mo
         None, None, {}, cases=[{"q": "domanda"}], collection_name="vibecraft_events__v9"
     )
     assert captured["collection_name"] == "vibecraft_events__v9"
+
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# S5 (ADR 0002): il gate non deve essere valutato a un k dove la metrica è satura.
+# ─────────────────────────────────────────────────────────────────────────────────
+
+def test_eval_gate_usa_un_k_non_saturo(monkeypatch, tmp_path):
+    """Un gate valutato a un k SATURO (recall 1.000 su ogni caso) non è severo, è cieco:
+    lo supera qualunque candidata, anche una peggiorata. Non è una regressione — non c'è
+    niente da bloccare — ma deve gridarlo, altrimenti il 100% viene letto come un successo.
+
+    Il difetto è documentato: la calibrazione del 2026-07-22 girò a k=10 e k=5 su una
+    griglia interamente satura e concluse "nessuna combinazione è distinguibile"."""
+    alerts = tmp_path / "alerts.jsonl"
+    monkeypatch.setattr(eval_gate, "ALERTS_PATH", alerts)
+
+    # 1. k saturo: passa (recall 1.0 ≥ soglia) MA scrive l'alert di saturazione.
+    monkeypatch.setattr(eval_gate, "evaluate_recall",
+                        lambda *a, **k: {"recall": 1.0, "n": 59, "k": 10, "saturated": True})
+    res = eval_gate.gate_promotion("v-saturo", None, None, {}, k=10, min_recall=0.90)
+    assert res["passed"] is True
+    riga = json.loads(alerts.read_text(encoding="utf-8").splitlines()[-1])
+    assert riga["level"] == "warning" and riga["saturated"] is True and riga["k"] == 10
+    assert "SATURO" in riga["message"]
+
+    # 2. k che discrimina: nessun alert di saturazione, il gate misura davvero.
+    prima = len(alerts.read_text(encoding="utf-8").splitlines())
+    monkeypatch.setattr(eval_gate, "evaluate_recall",
+                        lambda *a, **k: {"recall": 0.95, "n": 59, "k": 2, "saturated": False})
+    res = eval_gate.gate_promotion("v-discriminante", None, None, {}, k=2, min_recall=0.90)
+    assert res["passed"] is True
+    assert len(alerts.read_text(encoding="utf-8").splitlines()) == prima
+
+
+def test_evaluate_recall_riporta_la_saturazione(monkeypatch):
+    """La saturazione dev'essere calcolata dove si misura, non dedotta a valle: è
+    `evaluate_recall` a vedere i singoli casi, il chiamante vede solo la media."""
+    casi = [{"q": f"q{i}", "expected": [{"doc": f"d{i}.md"}]} for i in range(3)]
+    trovati = lambda q, k: [{"chunk_id": f"d{q[-1]}.md#00", "doc_id": f"d{q[-1]}.md", "section": ""}]
+    monkeypatch.setattr(eval_gate.retrieval, "hybrid_search",
+                        lambda q, k, **kw: trovati(q, k))
+    res = eval_gate.evaluate_recall(None, None, {}, k=10, cases=casi)
+    assert res["recall"] == 1.0 and res["saturated"] is True
+
+    # Un caso che manca e la metrica torna a discriminare.
+    casi[2] = {"q": "q2", "expected": [{"doc": "assente.md"}]}
+    res = eval_gate.evaluate_recall(None, None, {}, k=10, cases=casi)
+    assert res["recall"] < 1.0 and res["saturated"] is False

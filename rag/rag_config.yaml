@@ -118,8 +118,22 @@ retrieval:
   # nostro corpus, k=50 candidati ciascuna, il massimo vale 0.511 in un caso e 0.727
   # nell'altro, con mediane 0.421 e 0.459 — una soglia assoluta a 0.45 terrebbe mezza coda
   # della seconda domanda e scarterebbe la risposta CORRETTA della prima (0.511).
-  # Default 0.0 = SPENTO: il valore giusto non è stato misurato, e spacciare per calibrato
-  # un numero inventato è l'errore che l'ADR 0002 (D3) documenta. Da tarare in S5.
+  # MISURATO in S5 (2026-08-24), e resta 0.0 — per una ragione che la misura rende esplicita.
+  # Sulle 59 domande del golden set il ramo del grafo inietta 118 sezioni. Rapporto fra il loro
+  # MaxSim ColBERT e il migliore della stessa domanda:
+  #   min 0.327   p10 0.440   p25 0.527   mediana 0.620   p75 0.680   p90 0.764   max 0.811
+  # Per confronto, il PEGGIOR risultato che il ramo semantico tiene comunque, sulle stesse
+  # domande:  min 0.603   mediana 0.804   max 0.909.
+  # Le due distribuzioni quasi non si sovrappongono: praticamente ogni sezione che il grafo
+  # inietta è meno pertinente del peggio che il ramo semantico ha già accettato. È esattamente
+  # lo scopo del ramo — quelle sezioni NON hanno matchato la domanda, sono arrivate da un legame
+  # dichiarato — quindi un pavimento tarato sulla barra semantica (>= 0.80) scarterebbe il 98%
+  # delle iniezioni, cioè spegnerebbe il ramo con un altro nome. Sotto 0.33 non scarta nulla.
+  # Non esiste un valore intermedio SCEGLIBILE: sceglierlo richiederebbe sapere se una sezione
+  # a 0.44 è rumore o contesto utile, e quel giudizio riguarda la RISPOSTA di /ask, che nessun
+  # golden set del progetto misura (il nostro misura GET /api/retrieve). Finché quel golden set
+  # non esiste, qualunque numero qui sarebbe inventato — l'errore che l'ADR 0002 (D3) documenta.
+  # Riaprire quando esiste un set di valutazione sulle risposte, non prima.
   graph_context_min_ratio: 0.0
 
   code_context_max_snippets: 10  # tetto sugli snippet di codice iniettati (0 = disattiva del tutto)
@@ -186,6 +200,28 @@ authority:
   default_weight: 0.7       # peso delle classi non elencate (es. REQUIREMENTS/spec) — CALIBRATO 2026-07-14 (era 0.4)
   archived_decay: 0.3       # moltiplicatore del peso per status ARCHIVED/DEPRECATED/HISTORICAL/OBSOLETE
   boost_alpha: 0.1          # forza del boost di autorità: mult = (1 - alpha) + alpha * peso  (alpha=0 → autorità ignorata) — CALIBRATO 2026-07-14 (era 0.4)
+  # FORMA ATTENUATA vs MOLTIPLICAZIONE PIENA — chiuso il 2026-08-24 (S5, ADR 0002).
+  # [REGOLA-VAL-08] prescriveva `score x authority`, cioè alpha=1.0. Misurato sul golden set
+  # avversariale (avversariali r@1 / 59 casi r@5 / 59 casi r@10):
+  #   alpha 0.0 -> 0.000 / 0.949 / 0.983      alpha 0.5 -> 0.500 / 0.898 / 0.932
+  #   alpha 0.1 -> 0.000 / 0.966 / 0.983      alpha 0.8 -> 0.600 / 0.881 / 0.915
+  #   alpha 0.2 -> 0.200 / 0.949 / 0.966      alpha 1.0 -> 0.500 / 0.814 / 0.881
+  #   alpha 0.3 -> 0.400 / 0.932 / 0.949
+  # La moltiplicazione piena paga 15.2 punti di recall@5 e 10.2 di recall@10 su TUTTO il golden
+  # set, e non è nemmeno il massimo sui casi avversariali (alpha=0.8 ne corregge di più): oltre
+  # una certa forza il boost promuove i contratti generici sopra le spec specifiche attese.
+  # È la conferma, su un golden set che finalmente discrimina, di ciò che la calibrazione del
+  # 2026-07-14 aveva visto per caso. La norma è stata EMENDATA per prescrivere questa forma
+  # (spec_graph_rag_ingestion.md v2.2.0), non il codice per allinearsi alla norma.
+  #
+  # PERCHÉ alpha RESTA 0.1 e non sale. A k=1 la calibrazione propone alpha=0.3 con guadagno
+  # held-out +0.021 (dev.std 0.014, 4 seed su 5 positivi): è un numero vero. Ma /ask inietta
+  # nel contesto fino a `retrieval.governed_max_chunks: 8` sezioni e l'LLM le legge TUTTE:
+  # ciò che conta è se la fonte giusta ENTRA nella finestra, non a che rango. La metrica di
+  # quel consumo è recall@5-@10, e lì alpha=0.3 è peggiore (0.966->0.932 e 0.983->0.949).
+  # A k=5 la configurazione attuale è già l'OTTIMO della griglia: guadagno +0.000 con dev.std
+  # 0.000 su tutti e cinque i seed. Alzare alpha comprerebbe il rango dentro una finestra che
+  # viene letta per intero, pagandolo con fonti che dalla finestra escono.
   # Calibrazione storica (5-fold CV su golden set 34 casi, corpus dominio eventi, 2026-07-14):
   # default_weight 0.4→0.7 e boost_alpha 0.4→0.1 alzarono recall@10 held-out da 0.914 a 0.971.
   # Il boost hand-set era troppo forte: sovra-promuoveva i safeguard IRON_MEMORY generici rispetto
@@ -200,6 +236,47 @@ authority:
   # contrasto di classe, quindi il parametro oggi è di fatto inerte. Tornerà a contare quando il
   # corpus rimescolerà classi diverse (spec di dominio, doc importati a 0.70, materiale archiviato).
   # Ricalibrare SEMPRE con split di validazione, e SEMPRE a un k dove la metrica non sia satura.
+  #
+  # RI-CALIBRAZIONE 2026-08-24 (S5, ADR 0002) — la prima su un golden set che DISCRIMINA.
+  # Corpus: 26 documenti / 175 chunk (indice v20260824T150025). Golden set: 59 casi, di cui 10
+  # AVVERSARIALI costruiti apposta perché una fonte a bassa autorità (informativa METHODOLOGY
+  # 0.50, o senza alcuna classificazione 0.30) matchi lessicalmente MEGLIO della normativa che
+  # risponde. Ognuno verificato eseguendo la query: in tutti e dieci il distrattore precedeva
+  # la fonte attesa. Griglia a tre assi (9 alpha x 6 default_weight x 5 unclassified_weight),
+  # 5-fold CV su 5 seed.
+  #
+  #   k=1 : default 0.474 held-out -> calibrato 0.495   guadagno +0.021 (dev.std 0.014)
+  #   k=2 : default 0.763 held-out -> calibrato 0.776   guadagno +0.013 (dev.std 0.017)
+  #   k=5 : default 0.967 held-out -> calibrato 0.967   guadagno +0.000 (dev.std 0.000)
+  #   Esito: NON_APPLICARE. I valori qui sotto restano invariati. A k=5 — il k che corrisponde
+  #   a ciò che /ask consuma davvero — la configurazione attuale È l'ottimo di griglia, e il
+  #   guadagno a k=1 ottimizza il rango dentro una finestra che l'LLM legge per intero (vedi
+  #   la nota su boost_alpha qui sopra).
+  #
+  # L'AUTORITÀ SERVE (ed è la risposta che il vecchio golden set non poteva dare). Sui 10 casi
+  # avversariali, recall@5: autorità SPENTA (alpha=0.0) = 0.900, produzione attuale = 1.000.
+  # Spegnerla perde un caso su dieci. Non è inerte: semplicemente non lavora a rango 1.
+  #
+  # PRIMA E DOPO S1-S4 (stesse query, cambiano solo i parametri che S1 ha introdotto):
+  #   PRIMA (use_declared=false, unclassified appiattito su 0.70): r@1 0.492 r@5 0.949 r@10 0.983
+  #   DOPO  (use_declared=true,  unclassified=0.30)              : r@1 0.475 r@5 0.966 r@10 0.983
+  #   Sui 10 avversariali: identici, 10 su 10 ancora sbagliati a rango 1 sia prima sia dopo.
+  # S1-S4 hanno spostato +0.017 di recall@5 e -0.017 di recall@1, e NULLA sui casi avversariali:
+  # con alpha=0.1 il moltiplicatore vive fra 0.93 e 1.00, un 7% che non ribalta un distacco
+  # ColBERT di 0.05-0.15. Hanno reso l'autorità ESPRIMIBILE; la forza per usarla è un'altra cosa.
+  #
+  # DUE CORREZIONI DI METODO, entrambe nate da un errore vero commesso in questa sessione:
+  #   1. `default_weight` è un ASSE MORTO su questo corpus: nessuno dei 26 documenti passa da
+  #      quel ramo (14 dichiarano authority, 6 hanno la classe elencata, 6 non sono classificati).
+  #      Con un asse morto ogni alpha ha decine di configurazioni identiche, e grid_best
+  #      scioglieva il pareggio per ordine di iterazione — diversamente da fold a fold, cioè
+  #      rumore puro nella stima held-out. Misurato: il guadagno a k=2 è passato da -0.011 a
+  #      +0.013 fra due corse che differivano per la ri-segmentazione di UN documento su 26.
+  #      Ora a parità di recall vince la configurazione ATTUALE, e gli assi morti sono segnalati.
+  #   2. La CV girava su UN SOLO seed. Su una corsa intermedia il seed 0 dava +0.018 (sopra la
+  #      soglia di applicazione) mentre la media su 5 seed era -0.007, e quel +0.018 era l'unico
+  #      positivo su cinque. Default ora a 5 seed, con deviazione standard riportata.
+  # Ricalibrare SEMPRE con split di validazione, SEMPRE a un k non saturo, SEMPRE su più seed.
   #
   # ─── Autorità DICHIARATA nel frontmatter (ADR 0002 / S1, 2026-08-18) ───────────────────
   # I due default qui sotto NON sono intercambiabili, e confonderli è il difetto che S1 corregge.
@@ -265,6 +342,15 @@ graph_trust:
 eval_gate:
   enabled: true
   k: 10                # soglia di recall valutata (recall@k)
+  # k=10 RESTA, ma per una ragione che è cambiata il 2026-08-24 (S5, ADR 0002). Sul golden set
+  # di 49 casi la recall@10 era SATURA a 1.000: il gate passava per costruzione, e avrebbe
+  # promosso anche una candidata peggiorata. Con i 10 casi avversariali la recall@10 misurata
+  # è 0.983 — la metrica discrimina di nuovo, e il gate ha 8 punti di margine sopra min_recall.
+  # Non è però una proprietà da dare per acquisita: `evaluate_recall` calcola ora anche la
+  # saturazione e `gate_promotion` scrive un alert WARNING se ricapita, invece di lasciare che
+  # un 100% cieco passi per un successo. Se quell'alert compare, abbassare k (k=2 è dove questo
+  # corpus discrimina di più: recall 0.763) e ritarare min_recall di conseguenza — non alzare
+  # min_recall a k saturo, che non misura nulla comunque.
   min_recall: 0.90     # promozione bloccata se recall@k medio scende sotto questo valore
   blocking: true       # true = blocca la promozione; false = solo alert (advisory), promuove comunque
   # M6 — ESPERIMENTO: valutazione ADVISORY post-promozione sui job INCREMENTALI.
