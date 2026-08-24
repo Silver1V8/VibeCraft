@@ -69,20 +69,88 @@ def edge_reliability(data: dict) -> float:
     return GRAPH_TRUST_NATURE_RELIABILITY.get(nature, GRAPH_TRUST_NATURE_RELIABILITY["curated"])
 
 
-def bfs_expand(graph: nx.DiGraph, seed_nodes: list[str], depth: int) -> set[str]:
-    """Espansione BFS bidirezionale a partire dai nodi seed fino a `depth` livelli."""
-    visited: set[str] = set(seed_nodes)
-    frontier: set[str] = set(seed_nodes)
+def _neighbors_reliability(graph: nx.DiGraph, node: str) -> dict[str, float]:
+    """Vicini BIDIREZIONALI di `node` con l'affidabilità dell'arco che ce li collega.
+    Attraversare un arco all'indietro non lo rende meno affidabile: se A dichiara
+    EREDITA_VINCOLI verso B, sapere di A informa su B esattamente quanto il contrario.
+    Se due nodi sono collegati in entrambi i versi vince l'arco più affidabile."""
+    out: dict[str, float] = {}
+    for _u, v, data in graph.out_edges(node, data=True):
+        r = edge_reliability(data)
+        if r > out.get(v, -1.0):
+            out[v] = r
+    for u, _v, data in graph.in_edges(node, data=True):
+        r = edge_reliability(data)
+        if r > out.get(u, -1.0):
+            out[u] = r
+    out.pop(node, None)  # cappio su se stesso: non è un cammino
+    return out
 
-    for _ in range(depth):
-        next_frontier: set[str] = set()
+
+def trust_paths(graph: nx.DiGraph, seed_nodes: list[str], depth: int) -> dict[str, dict]:
+    """Espansione BFS che restituisce, per ogni nodo raggiunto, quanto ci si fida del
+    cammino percorso per arrivarci (S3, ADR 0002 — fase 6 di [REGOLA-WF-01]):
+
+        trust(n) = 1 / lunghezza_cammino × Π affidabilità(archi del cammino più breve)
+
+    I seed hanno trust 1.0 (lunghezza 0, prodotto vuoto). `via` è il cammino effettivo,
+    seed compreso: un punteggio di fiducia che non sai giustificare è un numero magico.
+
+    SHORTEST-PATH, come da articolo di origine, non max-product path. Non è una scelta
+    di comodo: sul grafo reale del corpus il cammino a prodotto massimo produce una
+    fiducia finale MAGGIORE in 0 casi su 24 divergenze misurate, e minore in tutte e 24.
+    Il motivo è nella formula stessa — il prodotto è diviso per la lunghezza, quindi
+    massimizzare il solo prodotto ottimizza l'obiettivo sbagliato: preferisce la deviazione
+    a 2 hop via entità MENTIONS (1.0 × 1.0 / 2 = 0.500) al legame diretto dichiarato nel
+    frontmatter (0.9 / 1 = 0.900). Vedi il messaggio di commit per i numeri per esteso.
+
+    A parità di lunghezza minima vince il cammino col prodotto migliore: è il tie-break
+    naturale, e rende l'esito indipendente dall'ordine di visita (le ancore di codice
+    vengono ordinate da questi punteggi, quindi il determinismo non è cosmetico).
+    L'affidabilità passa SEMPRE da edge_reliability(): il fallback per i grafi persistiti
+    prima di S2 sta lì dentro, e database/graph.json è oggi uno di quelli."""
+    paths: dict[str, dict] = {
+        n: {"trust": 1.0, "hops": 0, "via": [n]} for n in dict.fromkeys(seed_nodes)
+    }
+    prodotto: dict[str, float] = dict.fromkeys(paths, 1.0)
+    frontier: list[str] = list(paths)
+
+    for hop in range(1, depth + 1):
+        # nodo raggiunto -> (prodotto migliore a questo livello, genitore che lo produce)
+        migliori: dict[str, tuple[float, str]] = {}
         for node in frontier:
-            neighbors = set(graph.successors(node)) | set(graph.predecessors(node))
-            next_frontier |= neighbors - visited
-        visited |= next_frontier
-        frontier = next_frontier
+            if node not in graph:
+                continue  # seed non presente nel grafo: nessun vicino, nessun crash
+            for vicino, affidabilita in _neighbors_reliability(graph, node).items():
+                if vicino in paths:
+                    continue  # già raggiunto a una distanza minore o uguale: il ciclo si chiude qui
+                p = prodotto[node] * affidabilita
+                if p > migliori.get(vicino, (-1.0, ""))[0]:
+                    migliori[vicino] = (p, node)
+        for vicino, (p, genitore) in migliori.items():
+            prodotto[vicino] = p
+            paths[vicino] = {
+                "trust": round(p / hop, 6),
+                "hops": hop,
+                "via": paths[genitore]["via"] + [vicino],
+            }
+        frontier = list(migliori)
+        if not frontier:
+            break  # componente esaurita: i livelli successivi sarebbero vuoti
 
-    return visited
+    return paths
+
+
+def bfs_expand(graph: nx.DiGraph, seed_nodes: list[str], depth: int) -> set[str]:
+    """Espansione BFS bidirezionale a partire dai nodi seed fino a `depth` livelli.
+
+    È l'insieme dei nodi che trust_paths() raggiunge: stessa visita, punteggi scartati —
+    una sola implementazione del BFS, che quindi non può divergere fra le due.
+
+    Da S3 il route di /ask chiama direttamente trust_paths, quindi qui non resta alcun
+    chiamante di produzione: la funzione è conservata per contratto (ADR 0002 S3 la dichiara
+    stabile) come forma per chi ha bisogno del solo insieme dei nodi raggiunti."""
+    return set(trust_paths(graph, seed_nodes, depth))
 
 
 def build_context(graph: nx.DiGraph, nodes: set[str]) -> str:

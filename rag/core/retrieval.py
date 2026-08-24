@@ -397,7 +397,8 @@ def collect_implementing_code(graph, code_store: dict, anchor_nodes,
     """Dai nodi-ancora (sezioni/documenti recuperati dalla ricerca) risale gli archi
     IMPLEMENTS ENTRANTI (codice → sezione, calcolati all'indicizzazione per similarità
     densa) e restituisce i simboli di codice più fortemente linkati, deduplicati per
-    symbol_id (tenendo il peso migliore) e ordinati per peso decrescente.
+    symbol_id (tenendo il peso migliore) e ordinati per peso decrescente, usando l'ordine
+    in cui arrivano le ancore come tie-break a parità di peso.
 
     È il ponte fra il codice — indicizzato nel grafo ma NON in Qdrant — e la risposta di
     /ask, che altrimenti vedrebbe solo i documenti normativi. `min_weight` scarta gli archi
@@ -407,7 +408,10 @@ def collect_implementing_code(graph, code_store: dict, anchor_nodes,
         return []
     # symbol_id -> (peso migliore, nodo-ancora che quel simbolo implementa)
     best_by_sym: dict[str, tuple[float, str]] = {}
-    for node in set(anchor_nodes):
+    # dict.fromkeys e non set(): l'ORDINE delle ancore è significativo (il chiamante le
+    # passa per fiducia decrescente sul cammino del grafo, S3) e a parità di peso
+    # dell'arco IMPLEMENTS decide chi vince, sia qui sotto sia nel sort STABILE finale.
+    for node in dict.fromkeys(anchor_nodes):
         if node not in graph:
             continue
         for src, _dst, data in graph.in_edges(node, data=True):

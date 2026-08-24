@@ -32,6 +32,7 @@ from core.config import (
     CODE_SEARCH_MAX_SNIPPETS,
     CODE_SEARCH_MIN_SCORE,
     COLLECTION_NAME,
+    GRAPH_CONTEXT_MAX_CHUNKS,
     PROJECT_ROOT,
 )
 
@@ -224,16 +225,20 @@ async def ask_rag(request: Request, query: AskQuery):
             "index_version": index_version,
         }
 
-    # 4a. Espansione BFS per il GRAFO (usa sempre depth >= 1 per la visualizzazione)
+    # 4a. Espansione BFS per il GRAFO (usa sempre depth >= 1 per la visualizzazione).
+    #     trust_paths è la stessa visita di bfs_expand con, in più, la fiducia nel cammino
+    #     percorso per arrivare a ogni nodo (S3, ADR 0002): 1/lunghezza × prodotto delle
+    #     affidabilità degli archi attraversati. Serve qui sotto per scegliere quali sezioni
+    #     raggiunte via grafo iniettare e per ordinare le ancore del codice.
     graph_depth = max(query.bfs_depth, 1)
-    expanded_nodes = graph_ops.bfs_expand(graph, seed_nodes, depth=graph_depth)
+    trust_by_node = graph_ops.trust_paths(graph, seed_nodes, depth=graph_depth)
+    expanded_nodes = set(trust_by_node)
 
     # Raccoglie gli archi tra i nodi espansi per la dashboard
-    expanded_set = set(expanded_nodes)
     graph_edges = [
         {"from": u, "to": v, "relation": data.get("relation", "")}
         for u, v, data in graph.edges(data=True)
-        if u in expanded_set and v in expanded_set
+        if u in expanded_nodes and v in expanded_nodes
     ]
 
     # Arricchisce i nodi espansi con tipo e descrizione (per il frontend)
@@ -245,6 +250,11 @@ async def ask_rag(request: Request, query: AskQuery):
             "description": rule_descriptions.get(node_id, ""),
             # Pilastro REASONS di appartenenza (dal frontmatter YAML), per la colorazione cromatica del grafo
             "classification": graph.nodes[node_id].get("classification", ""),
+            # Fiducia nel cammino percorso dai seed fino a qui, e sua lunghezza (S3): danno
+            # alla Mappa del Grafo un secondo asse oltre alla classificazione. Campi ADDITIVI
+            # (il frontend legge i nodi per nome di campo, non iterandone le chiavi).
+            "trust": trust_by_node[node_id]["trust"],
+            "hops": trust_by_node[node_id]["hops"],
         }
         for node_id in sorted(expanded_nodes)
     ]
@@ -274,6 +284,53 @@ async def ask_rag(request: Request, query: AskQuery):
             doc_path = PROJECT_ROOT / "docs" / doc_id
             if doc_path.exists():
                 context_parts.append(f"--- Inizio Documento: {doc_id} ---\n{_cap_text(doc_path.read_text(encoding='utf-8'))}\n--- Fine Documento: {doc_id} ---")
+
+    n_parti_semantiche = len(context_parts)
+
+    # === 4b-bis. FASE 6 DI [REGOLA-WF-01]: LE SEZIONI RAGGIUNTE SOLO VIA GRAFO ===
+    # Fino a S3 l'espansione del grafo alimentava solo la mappa della dashboard e le ancore
+    # del codice: il testo dei documenti raggiunti via grafo non entrava MAI nel contesto.
+    # Qui entra, ordinato per fiducia sul cammino × autorità della fonte e con un tetto basso
+    # (GRAPH_CONTEXT_MAX_CHUNKS, 0 = disattivato): il ramo semantico resta il canale
+    # principale, questo è il complemento strutturale. I blocchi sono MARCATI "via grafo"
+    # perché quelle sezioni non hanno matchato la domanda - sono arrivate da un legame
+    # dichiarato, e l'LLM (o chi legge un dump del prompt in debug) deve poterlo distinguere.
+    if GRAPH_CONTEXT_MAX_CHUNKS > 0 and chunks_store:
+        # Un nodo `document` non ha testo proprio: si iniettano le sue sezioni, in ordine di
+        # documento. Con un tetto di 2 si finisce spesso sul preambolo del documento più
+        # vicino: è il limite noto di un ramo che per costruzione NON ha alcun segnale di
+        # pertinenza alla domanda (la fiducia dice quanto ci si fida del legame, non quanto la
+        # sezione risponde). Ordinare queste sezioni per pertinenza sarebbe un secondo
+        # retrieval, fuori dal perimetro di S3.
+        sezioni_per_doc: dict[str, list[str]] = {}
+        for cid, entry in chunks_store.items():
+            sezioni_per_doc.setdefault(entry.get("doc_id", ""), []).append(cid)
+
+        def _peso_grafo(node_id: str) -> float:
+            attrs = graph.nodes[node_id] if node_id in graph else {}
+            return trust_by_node[node_id]["trust"] * retrieval._authority_weight(attrs)
+
+        # Solo i nodi RAGGIUNTI, mai i seed: quelli sono già nel ramo semantico.
+        raggiunti = sorted((n for n in trust_by_node if trust_by_node[n]["hops"] > 0),
+                           key=lambda n: (-_peso_grafo(n), n))
+        for node_id in raggiunti:
+            if len(context_parts) - n_parti_semantiche >= GRAPH_CONTEXT_MAX_CHUNKS:
+                break
+            info = trust_by_node[node_id]
+            # Il nodo è esso stesso una sezione, oppure è un documento con delle sezioni.
+            for cid in ([node_id] if node_id in chunks_store else sezioni_per_doc.get(node_id, [])):
+                if len(context_parts) - n_parti_semantiche >= GRAPH_CONTEXT_MAX_CHUNKS:
+                    break
+                entry = chunks_store.get(cid)
+                if entry is None or cid in seen_chunks:
+                    continue  # già iniettata dal ramo semantico: non la si duplica
+                seen_chunks.add(cid)
+                context_parts.append(
+                    f"--- {entry.get('doc_id', cid)} § {entry.get('section', '')} "
+                    f"[via grafo: {info['hops']} hop, fiducia {info['trust']:.3f}] ---\n"
+                    f"{_cap_text(entry['text'])}"
+                )
+
     context = "\n\n".join(context_parts)
     # -----------------------------------------------------------------------
 
@@ -285,17 +342,23 @@ async def ask_rag(request: Request, query: AskQuery):
     # complementari: questo parte dai DOCUMENTI (trova l'implementazione di ciò che si è
     # recuperato), quello diretto parte dalla DOMANDA (trova il codice pertinente anche
     # quando nessuna spec lo descrive).
-    # Ancore = vicinanza BFS del grafo (expanded_set, la stessa espansione della Mappa del
+    # Ancore = vicinanza BFS del grafo (la stessa espansione della Mappa del
     # Grafo) PIÙ le sezioni/documenti effettivamente recuperati: così emerge anche il codice
     # collegato ai documenti vicini, non solo a quelli che hanno matchato la query. I nodi
     # non-sezione nell'insieme (codice, entità) sono ancore innocue — non hanno IMPLEMENTS
     # entranti, quindi non producono falsi match.
-    code_anchor_nodes: set[str] = set(expanded_set)
+    # Le ancore arrivano ORDINATE per fiducia decrescente, non nell'ordine di hash di un set:
+    # a parità di peso dell'arco IMPLEMENTS vince così il codice agganciato al documento di
+    # cui ci si fida di più (S3). I nodi effettivamente RECUPERATI dalla ricerca valgono 1.0
+    # come i seed: sono agganci diretti, non cammini.
+    fiducia_ancore: dict[str, float] = {n: t["trust"] for n, t in trust_by_node.items()}
     for r in search_results:
-        if r.get("chunk_id"):
-            code_anchor_nodes.add(r["chunk_id"])
-        if r.get("doc_id"):
-            code_anchor_nodes.add(r["doc_id"])
+        for nodo in (r.get("chunk_id"), r.get("doc_id")):
+            if nodo:
+                fiducia_ancore.setdefault(nodo, 1.0)
+    # sort STABILE: a parità di fiducia resta l'ordine d'inserimento (livelli del BFS, poi
+    # rilevanza della ricerca), quindi l'ordine delle ancore è deterministico.
+    code_anchor_nodes: list[str] = sorted(fiducia_ancore, key=lambda n: -fiducia_ancore[n])
     linked_code = retrieval.collect_implementing_code(
         graph, snap.code_store, code_anchor_nodes,
         min_weight=CODE_CONTEXT_MIN_WEIGHT, max_snippets=CODE_CONTEXT_MAX_SNIPPETS,

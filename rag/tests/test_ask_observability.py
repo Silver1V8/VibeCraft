@@ -185,3 +185,75 @@ def test_fallback_unknown_con_manifest_assente(ask_env, caplog):
     records = [rec for rec in caplog.records if rec.name == "api.routes_retrieval"
                and rec.message.startswith("ask ")]
     assert "qdrant_collection=unknown" in records[0].message
+
+
+# ---------------------------------------------------------------------------
+# S3 (ADR 0002) — fase 6 di [REGOLA-WF-01]: le sezioni raggiunte SOLO via grafo
+# ---------------------------------------------------------------------------
+_CHUNK_VIA_GRAFO = "glossario.md#01-termini"
+
+
+def _snapshot_con_vicino(version="v1") -> deps.IndexSnapshot:
+    """Come _snapshot, ma glossario.md e' collegato a spec.md da un arco CURATO e ha una
+    sezione propria: e' il documento che solo il grafo puo' far arrivare alla risposta."""
+    snap = _snapshot(version)
+    snap.graph.add_edge("spec.md", "glossario.md", relation="EREDITA_VINCOLI",
+                        nature="curated", reliability=0.9)
+    snap.chunks[_CHUNK_ID] = {"text": "testo della sezione", "doc_id": "spec.md", "section": "form"}
+    snap.chunks[_CHUNK_VIA_GRAFO] = {"text": "definizione di EVENTO",
+                                     "doc_id": "glossario.md", "section": "termini"}
+    return snap
+
+
+def test_graph_context_disattivato_non_cambia_il_contesto(ask_env, monkeypatch):
+    """Con graph_context_max_chunks: 0 il contesto e' BYTE-IDENTICO a quello prodotto dal
+    solo ramo semantico, cioe' a quello di prima di S3. E' il test che rende l'intervento
+    reversibile in produzione con una riga di config."""
+    client = ask_env()
+    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: _snapshot_con_vicino())
+    monkeypatch.setattr(routes_retrieval, "GRAPH_CONTEXT_MAX_CHUNKS", 0)
+    ctx = client.post("/ask", json={"question": "q"}).json()["graph_context"]["context_text"]
+    assert ctx == "--- spec.md § form ---\ntesto della sezione"
+    assert "via grafo" not in ctx
+
+
+def test_sezioni_da_grafo_sono_marcate_nel_contesto(ask_env, monkeypatch):
+    client = ask_env()
+    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: _snapshot_con_vicino())
+    monkeypatch.setattr(routes_retrieval, "GRAPH_CONTEXT_MAX_CHUNKS", 2)
+    body = client.post("/ask", json={"question": "q"}).json()
+    ctx = body["graph_context"]["context_text"]
+    # la sezione del vicino c'e', e porta il marcatore con hop e fiducia
+    assert "definizione di EVENTO" in ctx
+    assert "[via grafo: 1 hop, fiducia 0.900]" in ctx
+    # il blocco del ramo semantico NON e' confondibile: nessun marcatore
+    semantico, _, _ = ctx.partition("[via grafo")
+    assert "testo della sezione" in semantico
+    # il ramo semantico resta il primo del contesto (il grafo e' il complemento)
+    assert ctx.index("testo della sezione") < ctx.index("definizione di EVENTO")
+    # trust/hops esposti anche sui nodi, per la Mappa del Grafo
+    nodi = {n["id"]: n for n in body["graph_context"]["expanded_nodes"]}
+    assert nodi["spec.md"]["trust"] == 1.0 and nodi["spec.md"]["hops"] == 0
+    assert nodi["glossario.md"]["trust"] == 0.9 and nodi["glossario.md"]["hops"] == 1
+
+
+def test_ancore_codice_ordinate_per_fiducia(ask_env, monkeypatch):
+    """Le ancore arrivano a collect_implementing_code ORDINATE per fiducia decrescente,
+    non nell'ordine di iterazione di un set."""
+    viste: list = []
+
+    def _spia(graph, code_store, anchor_nodes, **kw):
+        viste.append(list(anchor_nodes))
+        return []
+
+    client = ask_env()
+    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: _snapshot_con_vicino())
+    monkeypatch.setattr(retrieval, "collect_implementing_code", _spia)
+    client.post("/ask", json={"question": "q"})
+
+    ancore = viste[0]
+    assert not isinstance(ancore, set)
+    # spec.md (seed, 1.0) e il chunk recuperato (aggancio diretto, 1.0) precedono
+    # glossario.md, raggiunto a 1 hop con fiducia 0.9
+    assert ancore.index("spec.md") < ancore.index("glossario.md")
+    assert ancore.index(_CHUNK_ID) < ancore.index("glossario.md")

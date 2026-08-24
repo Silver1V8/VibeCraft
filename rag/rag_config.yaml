@@ -105,6 +105,14 @@ retrieval:
   # recuperate ma l'intera vicinanza BFS del grafo (stessa espansione della Mappa del Grafo),
   # così emerge anche il codice collegato ai documenti vicini, non solo a quelli che hanno
   # matchato la query — recall più alta a parità di query.
+  # Fase 6 di [REGOLA-WF-01] (S3, ADR 0002): le sezioni dei documenti raggiunti SOLO via grafo
+  # — non già presenti fra i risultati semantici — entrano nel contesto dell'LLM ordinate per
+  # fiducia sul cammino (core/graph_ops.trust_paths) per autorità della fonte. Sono marcate
+  # "[via grafo: N hop, fiducia X]" così l'LLM sa che quella sezione non ha matchato la domanda:
+  # è arrivata da un legame dichiarato. Il tetto è basso di proposito — il ramo semantico resta
+  # il canale principale. 0 = disattiva del tutto e il contesto torna quello di prima di S3.
+  graph_context_max_chunks: 2
+
   code_context_max_snippets: 10  # tetto sugli snippet di codice iniettati (0 = disattiva del tutto)
   code_context_min_weight: 0.5   # soglia sul peso dell'arco IMPLEMENTS (cosine); >= soglia di linking (0.45)
 

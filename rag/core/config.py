@@ -298,6 +298,11 @@ TECH_SCOPE_TAG_KEY: str = str(_retrieval_cfg.get("tech_scope_tag_key") or "")
 # reale. È il ponte fra il codice indicizzato nel grafo e la ricerca semantica (che interroga
 # solo Qdrant/documenti). max=0 disattiva; min_weight filtra gli archi deboli. Vedi
 # retrieval.collect_implementing_code e api/routes_retrieval.ask_rag.
+# Sezioni raggiunte SOLO via grafo iniettate nel contesto di /ask (S3, ADR 0002: la fase 6
+# di [REGOLA-WF-01] che arriva finalmente alla risposta). Tetto BASSO di proposito: il ramo
+# semantico resta il canale principale, questo è il complemento strutturale. 0 = disattivato,
+# e il contesto torna byte-identico a quello di prima di S3.
+GRAPH_CONTEXT_MAX_CHUNKS: int = int(_retrieval_cfg.get("graph_context_max_chunks", 2))
 CODE_CONTEXT_MAX_SNIPPETS: int = int(_retrieval_cfg.get("code_context_max_snippets", 6))
 CODE_CONTEXT_MIN_WEIGHT: float = float(_retrieval_cfg.get("code_context_min_weight", 0.5))
 # Ricerca semantica DIRETTA sui simboli di codice (retrieval.search_code_symbols): coseno
