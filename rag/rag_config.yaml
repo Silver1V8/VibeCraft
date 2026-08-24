@@ -112,6 +112,15 @@ retrieval:
   # è arrivata da un legame dichiarato. Il tetto è basso di proposito — il ramo semantico resta
   # il canale principale. 0 = disattiva del tutto e il contesto torna quello di prima di S3.
   graph_context_max_chunks: 2
+  # Pavimento di pertinenza per le sezioni iniettate dal ramo del grafo, RELATIVO al miglior
+  # punteggio ColBERT della stessa domanda (0 = nessun pavimento). Relativo e non assoluto
+  # per una ragione MISURATA: il MaxSim ColBERT cambia scala con la query. Su due domande del
+  # nostro corpus, k=50 candidati ciascuna, il massimo vale 0.511 in un caso e 0.727
+  # nell'altro, con mediane 0.421 e 0.459 — una soglia assoluta a 0.45 terrebbe mezza coda
+  # della seconda domanda e scarterebbe la risposta CORRETTA della prima (0.511).
+  # Default 0.0 = SPENTO: il valore giusto non è stato misurato, e spacciare per calibrato
+  # un numero inventato è l'errore che l'ADR 0002 (D3) documenta. Da tarare in S5.
+  graph_context_min_ratio: 0.0
 
   code_context_max_snippets: 10  # tetto sugli snippet di codice iniettati (0 = disattiva del tutto)
   code_context_min_weight: 0.5   # soglia sul peso dell'arco IMPLEMENTS (cosine); >= soglia di linking (0.45)

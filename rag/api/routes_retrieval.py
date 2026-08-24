@@ -34,6 +34,7 @@ from core.config import (
     AUTHORITY_PRECEDENCE_RELATION,
     COLLECTION_NAME,
     GRAPH_CONTEXT_MAX_CHUNKS,
+    GRAPH_CONTEXT_MIN_RATIO,
     PROJECT_ROOT,
 )
 
@@ -169,13 +170,14 @@ async def ask_rag(request: Request, query: AskQuery):
     #    La query è codificata UNA volta sola (forward pass bge-m3, la più cara della
     #    richiesta dopo l'LLM) e riusata dal ramo di ricerca sul codice qui sotto.
     retrieval_start = time.time()
-    # La codifica esplicita serve SOLO se c'è davvero del codice da cercare: senza indice di
-    # codice (o col ramo disattivato) si lascia codificare hybrid_search, come da sempre.
+    # La codifica della domanda è calcolata QUI e sempre, non più solo quando c'è codice da
+    # cercare. Non costa nulla in più: quando non gliela si passa, è hybrid_search a fare la
+    # stessa identica forward pass di bge-m3 al suo interno. Spostarla qui cambia solo CHI la
+    # possiede — e serve al ramo del grafo, che con il vettore ColBERT della domanda può
+    # ordinare per pertinenza le sezioni dei documenti raggiunti (S3).
     search_code = CODE_SEARCH_MAX_SNIPPETS > 0 and bool(snap.code_store)
-    query_encoding = (
-        await embed_in_threadpool(retrieval.encode_query, embed_model, query.question)
-        if search_code else None
-    )
+    query_encoding = await embed_in_threadpool(
+        retrieval.encode_query, embed_model, query.question)
     # `graph` alimenta la fase di PRECEDENZA (S4): senza, apply_precedence è un no-op e la
     # precedenza dichiarata dagli autori resterebbe di nuovo un metadato morto.
     search_results = await embed_in_threadpool(
@@ -227,6 +229,12 @@ async def ask_rag(request: Request, query: AskQuery):
             "request_id": request_id,
             "index_version": index_version,
         }
+
+    # Precedenze effettivamente in gioco fra i documenti recuperati (S4): stesse coppie che
+    # hanno riordinato il ranking dentro hybrid_search, rilette qui per dichiararle nel prompt
+    # e nella risposta. Riordinare in silenzio sarebbe metà del lavoro: chi legge la dashboard
+    # deve poter vedere PERCHÉ un documento è sceso.
+    precedenze = retrieval.precedence_pairs(search_results, graph=graph)
 
     # 4a. Espansione BFS per il GRAFO (usa sempre depth >= 1 per la visualizzazione).
     #     trust_paths è la stessa visita di bfs_expand con, in più, la fiducia nel cammino
@@ -316,21 +324,49 @@ async def ask_rag(request: Request, query: AskQuery):
         # Solo i nodi RAGGIUNTI, mai i seed: quelli sono già nel ramo semantico.
         raggiunti = sorted((n for n in trust_by_node if trust_by_node[n]["hops"] > 0),
                            key=lambda n: (-_peso_grafo(n), n))
+
+        # Precedenza anche QUI (S4): senza, un documento esplicitamente superato da una fonte
+        # recuperata rientrerebbe nel contesto dalla porta di servizio del grafo, annullando
+        # la decisione dell'autore che il ranking semantico ha appena rispettato. Si riusa la
+        # stessa funzione pura, allargando l'insieme dei candidati ai nodi raggiunti.
+        superati = {b for _a, b in retrieval.precedence_pairs(
+            [{"doc_id": d} for d in dict.fromkeys(
+                [r.get("doc_id") for r in search_results] + raggiunti)],
+            graph=graph)}
+
+        # Pavimento di pertinenza RELATIVO al miglior punteggio di questa domanda: il MaxSim
+        # ColBERT cambia scala da query a query, quindi una soglia assoluta scarterebbe
+        # risposte corrette sulle domande che "scorano basso". 0.0 = nessun pavimento.
+        punteggi_semantici = [r["colbert_score"] for r in search_results
+                              if r.get("colbert_score") is not None]
+        pavimento = (GRAPH_CONTEXT_MIN_RATIO * max(punteggi_semantici)
+                     if punteggi_semantici and GRAPH_CONTEXT_MIN_RATIO > 0 else 0.0)
+
         for node_id in raggiunti:
             if len(context_parts) - n_parti_semantiche >= GRAPH_CONTEXT_MAX_CHUNKS:
                 break
+            if node_id in superati:
+                continue
             info = trust_by_node[node_id]
-            # Il nodo è esso stesso una sezione, oppure è un documento con delle sezioni.
-            for cid in ([node_id] if node_id in chunks_store else sezioni_per_doc.get(node_id, [])):
+            # Il nodo è esso stesso una sezione, oppure è un documento con delle sezioni. Nel
+            # secondo caso le sezioni NON si prendono in ordine di file — sarebbe il preambolo
+            # quasi sempre — ma ordinate per pertinenza alla domanda: la fiducia sceglie DI
+            # QUALE DOCUMENTO fidarsi, il ColBERT quale SEZIONE di quel documento mostrare.
+            candidate = [node_id] if node_id in chunks_store else sezioni_per_doc.get(node_id, [])
+            for cid, punteggio in retrieval.rank_sections_by_relevance(
+                    candidate, colbert_store=snap.colbert_store,
+                    colbert_query=query_encoding["colbert"], min_score=pavimento):
                 if len(context_parts) - n_parti_semantiche >= GRAPH_CONTEXT_MAX_CHUNKS:
                     break
                 entry = chunks_store.get(cid)
                 if entry is None or cid in seen_chunks:
                     continue  # già iniettata dal ramo semantico: non la si duplica
                 seen_chunks.add(cid)
+                pertinenza = f", pertinenza {punteggio:.3f}" if punteggio is not None else ""
                 context_parts.append(
                     f"--- {entry.get('doc_id', cid)} § {entry.get('section', '')} "
-                    f"[via grafo: {info['hops']} hop, fiducia {info['trust']:.3f}] ---\n"
+                    f"[via grafo: {info['hops']} hop, fiducia {info['trust']:.3f}"
+                    f"{pertinenza}] ---\n"
                     f"{_cap_text(entry['text'])}"
                 )
 
@@ -379,12 +415,6 @@ async def ask_rag(request: Request, query: AskQuery):
             for c in implementing_code
         )
         context = f"{context}\n\n=== CODICE ESISTENTE (implementazione) ===\n\n{code_block}" if context else code_block
-
-    # Precedenze effettivamente in gioco fra i documenti recuperati (S4): stesse coppie che
-    # hanno riordinato il ranking dentro hybrid_search, rilette qui per dichiararle nel prompt
-    # e nella risposta. Riordinare in silenzio sarebbe metà del lavoro: chi legge la dashboard
-    # deve poter vedere PERCHÉ un documento è sceso.
-    precedenze = retrieval.precedence_pairs(search_results, graph=graph)
 
     # 5. Sintesi finale tramite il layer LLM unificato (core.llm, purpose "ask"): il prompt
     #    è costruito dalla funzione pura retrieval.build_ask_prompt (system storico +

@@ -12,6 +12,7 @@ import json
 import logging
 
 import networkx as nx
+import numpy as np
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -21,6 +22,23 @@ from api import routes_retrieval
 from core import llm, retrieval
 
 _CHUNK_ID = "spec.md#01-form"
+
+
+
+
+class _StubEmbed:
+    """Da S3 il route codifica SEMPRE la domanda (la forward pass avviene comunque dentro
+    hybrid_search: spostarla nel route non costa nulla in più), quindi lo stato del server
+    deve portare un embed_model che sappia rispondere a encode() anche con hybrid_search
+    finto."""
+
+    def encode(self, texts, **kw):
+        out = {"dense_vecs": np.zeros((len(texts), 2), dtype="float32")}
+        if kw.get("return_sparse"):
+            out["lexical_weights"] = [{} for _ in texts]
+        if kw.get("return_colbert_vecs"):
+            out["colbert_vecs"] = [np.zeros((1, 2), dtype="float32") for _ in texts]
+        return out
 
 
 def _snapshot(version: str) -> deps.IndexSnapshot:
@@ -70,7 +88,7 @@ def ask_env(monkeypatch, tmp_path):
     snap = _snapshot(version)
     monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snap)
     monkeypatch.setitem(deps.state, "qdrant", object())
-    monkeypatch.setitem(deps.state, "embed_model", object())
+    monkeypatch.setitem(deps.state, "embed_model", _StubEmbed())
 
     def fake_search(*a, **kw):
         calls["search"] += 1

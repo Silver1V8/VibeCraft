@@ -279,11 +279,7 @@ def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_sto
             # Peso di autorità della sorgente (normativa vs informativa, attiva vs archiviata)
             "authority": round(_authority_weight(payload), 3),
         }
-        chunk_col = colbert_store.get(chunk_id)
-        if chunk_col is not None:
-            chunk_col = np.asarray(chunk_col, dtype=np.float32)
-            sim = colbert_q @ chunk_col.T                  # [q_tokens x d_tokens]
-            entry["colbert_score"] = round(float(sim.max(axis=1).mean()), 4)
+        entry["colbert_score"] = colbert_maxsim(colbert_q, colbert_store.get(chunk_id))
         results.append(entry)
 
     # Ordinamento finale con boost di autorità (forza alpha da config): estratto in
@@ -675,6 +671,49 @@ def apply_precedence(results: list[dict], *, graph,
     posizione = {d: i for i, d in enumerate(nuovo_ordine)}
     # sorted() è STABILE: i chunk di uno stesso documento conservano il loro ordine relativo.
     return sorted(results, key=lambda r: posizione.get(str(r.get("doc_id") or ""), len(posizione)))
+
+
+def colbert_maxsim(colbert_query, chunk_vectors) -> float | None:
+    """Punteggio ColBERT (MaxSim) fra la query e un chunk: per ogni token della query la
+    similarità massima con i token del chunk, poi media. None se il chunk non ha vettori
+    (sidecar assente o disallineato): "non giudicabile", che non è la stessa cosa di
+    "poco pertinente". Estratta da hybrid_search per essere riusata dal ramo del grafo:
+    due copie della stessa formula avrebbero potuto divergere in silenzio."""
+    if chunk_vectors is None:
+        return None
+    chunk_col = np.asarray(chunk_vectors, dtype=np.float32)
+    sim = colbert_query @ chunk_col.T          # [token_query x token_chunk]
+    return round(float(sim.max(axis=1).mean()), 4)
+
+
+def rank_sections_by_relevance(chunk_ids, *, colbert_store: dict, colbert_query,
+                               min_score: float = 0.0) -> list[tuple[str, float | None]]:
+    """Sezioni ordinate per pertinenza alla DOMANDA, dalla più pertinente (ADR 0002 / S3).
+
+    Serve al ramo del grafo di /ask: la fiducia sul cammino sceglie DI QUALE DOCUMENTO
+    fidarsi, questa sceglie QUALE SEZIONE di quel documento mostrare. Sono due domande
+    diverse, e rispondere alla prima non risponde alla seconda: senza questa funzione si
+    iniettava la prima sezione in ordine di file, cioè quasi sempre il preambolo.
+
+    Non è un secondo retrieval: nessuna chiamata a Qdrant e nessuna ri-codifica: il
+    vettore della domanda è già stato calcolato per questa richiesta e i vettori dei
+    chunk sono già in memoria nel sidecar ColBERT dello snapshot.
+
+    Le sezioni SENZA vettore (sidecar legacy o disallineato) non sono giudicabili: non
+    vengono scartate dal pavimento — sarebbe un giudizio che non possiamo dare — ma
+    finiscono in coda nell'ordine ricevuto, cioè il comportamento di prima di questa
+    modifica. `min_score` scarta solo ciò che è stato davvero valutato."""
+    valutabili: list[tuple[str, float | None]] = []
+    non_valutabili: list[tuple[str, float | None]] = []
+    for cid in chunk_ids:
+        punteggio = colbert_maxsim(colbert_query, (colbert_store or {}).get(cid))
+        if punteggio is None:
+            non_valutabili.append((cid, None))
+        elif punteggio >= min_score:
+            valutabili.append((cid, punteggio))
+    # sort stabile: a parità di punteggio resta l'ordine di documento
+    valutabili.sort(key=lambda kv: -kv[1])
+    return valutabili + non_valutabili
 
 
 def build_ask_prompt(context: str, question: str,

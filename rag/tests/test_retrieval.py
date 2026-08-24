@@ -646,3 +646,56 @@ def test_precedence_pairs_solo_archi_diretti_fra_documenti_presenti():
     grafo = _grafo_prec(("A.md", "B.md"), ("A.md", "assente.md"))
     coppie = retrieval.precedence_pairs(_res("A.md", "B.md"), graph=grafo, relation=_REL)
     assert coppie == [("A.md", "B.md")]
+
+
+# ---------------------------------------------------------------------------
+# S3 (miglioria) — quale SEZIONE di un documento raggiunto via grafo mostrare
+# ---------------------------------------------------------------------------
+def _cq(*v) -> np.ndarray:
+    """Vettore ColBERT di query con un solo token."""
+    return np.array([list(v)], dtype="float32")
+
+
+def test_maxsim_none_senza_vettori():
+    """Una sezione senza vettori non è "poco pertinente": è NON GIUDICABILE."""
+    assert retrieval.colbert_maxsim(_cq(1, 0), None) is None
+
+
+def test_sezioni_ordinate_per_pertinenza_non_per_ordine_di_file():
+    """È il difetto che questa funzione corregge: con l'ordine di documento si iniettava
+    il preambolo, che sta in cima al file e non risponde quasi mai alla domanda."""
+    store = {
+        "doc.md#00-preambolo": np.array([[0.0, 1.0]], dtype="float32"),
+        "doc.md#01-termini":   np.array([[1.0, 0.0]], dtype="float32"),
+    }
+    out = retrieval.rank_sections_by_relevance(
+        ["doc.md#00-preambolo", "doc.md#01-termini"],
+        colbert_store=store, colbert_query=_cq(1, 0))
+    assert [cid for cid, _ in out] == ["doc.md#01-termini", "doc.md#00-preambolo"]
+    assert out[0][1] == 1.0
+
+
+def test_pavimento_scarta_solo_le_sezioni_valutate():
+    store = {
+        "doc.md#00": np.array([[1.0, 0.0]], dtype="float32"),   # 1.0
+        "doc.md#01": np.array([[0.0, 1.0]], dtype="float32"),   # 0.0
+    }
+    out = retrieval.rank_sections_by_relevance(
+        ["doc.md#00", "doc.md#01"], colbert_store=store, colbert_query=_cq(1, 0),
+        min_score=0.5)
+    assert [cid for cid, _ in out] == ["doc.md#00"]
+
+
+def test_sezioni_non_giudicabili_in_coda_mai_scartate():
+    """Senza sidecar ColBERT (o con sidecar disallineato) non possiamo giudicare: quelle
+    sezioni restano, in coda e nell'ordine ricevuto — il comportamento di prima."""
+    store = {"doc.md#01": np.array([[1.0, 0.0]], dtype="float32")}
+    out = retrieval.rank_sections_by_relevance(
+        ["doc.md#00", "doc.md#01", "doc.md#02"],
+        colbert_store=store, colbert_query=_cq(1, 0), min_score=0.9)
+    assert [cid for cid, _ in out] == ["doc.md#01", "doc.md#00", "doc.md#02"]
+    assert out[1][1] is None and out[2][1] is None
+    # store vuoto: nessuna sezione perduta, ordine invariato
+    tutte = retrieval.rank_sections_by_relevance(
+        ["a", "b"], colbert_store={}, colbert_query=_cq(1, 0), min_score=0.9)
+    assert [cid for cid, _ in tutte] == ["a", "b"]

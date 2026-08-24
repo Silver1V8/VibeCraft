@@ -309,6 +309,10 @@ TECH_SCOPE_TAG_KEY: str = str(_retrieval_cfg.get("tech_scope_tag_key") or "")
 # semantico resta il canale principale, questo è il complemento strutturale. 0 = disattivato,
 # e il contesto torna byte-identico a quello di prima di S3.
 GRAPH_CONTEXT_MAX_CHUNKS: int = int(_retrieval_cfg.get("graph_context_max_chunks", 2))
+# Pavimento RELATIVO (frazione del miglior punteggio ColBERT della stessa domanda) sotto il
+# quale una sezione raggiunta via grafo non viene iniettata. 0.0 = nessun pavimento. Relativo
+# perché il MaxSim ColBERT cambia scala con la query: vedi la nota in rag_config.yaml.
+GRAPH_CONTEXT_MIN_RATIO: float = float(_retrieval_cfg.get("graph_context_min_ratio", 0.0))
 CODE_CONTEXT_MAX_SNIPPETS: int = int(_retrieval_cfg.get("code_context_max_snippets", 6))
 CODE_CONTEXT_MIN_WEIGHT: float = float(_retrieval_cfg.get("code_context_min_weight", 0.5))
 # Ricerca semantica DIRETTA sui simboli di codice (retrieval.search_code_symbols): coseno
