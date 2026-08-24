@@ -31,6 +31,7 @@ from core.config import (
     CODE_SEARCH_MAX_PER_FILE,
     CODE_SEARCH_MAX_SNIPPETS,
     CODE_SEARCH_MIN_SCORE,
+    AUTHORITY_PRECEDENCE_RELATION,
     COLLECTION_NAME,
     GRAPH_CONTEXT_MAX_CHUNKS,
     PROJECT_ROOT,
@@ -175,10 +176,12 @@ async def ask_rag(request: Request, query: AskQuery):
         await embed_in_threadpool(retrieval.encode_query, embed_model, query.question)
         if search_code else None
     )
+    # `graph` alimenta la fase di PRECEDENZA (S4): senza, apply_precedence è un no-op e la
+    # precedenza dichiarata dagli autori resterebbe di nuovo un metadato morto.
     search_results = await embed_in_threadpool(
         retrieval.hybrid_search, query.question, query.top_k,
         qdrant=qdrant, embed_model=embed_model, colbert_store=snap.colbert_store,
-        query_encoding=query_encoding,
+        query_encoding=query_encoding, graph=graph,
     )
 
     # 2b. Ricerca semantica DIRETTA sul codice, indipendente dai documenti recuperati: il
@@ -377,13 +380,21 @@ async def ask_rag(request: Request, query: AskQuery):
         )
         context = f"{context}\n\n=== CODICE ESISTENTE (implementazione) ===\n\n{code_block}" if context else code_block
 
+    # Precedenze effettivamente in gioco fra i documenti recuperati (S4): stesse coppie che
+    # hanno riordinato il ranking dentro hybrid_search, rilette qui per dichiararle nel prompt
+    # e nella risposta. Riordinare in silenzio sarebbe metà del lavoro: chi legge la dashboard
+    # deve poter vedere PERCHÉ un documento è sceso.
+    precedenze = retrieval.precedence_pairs(search_results, graph=graph)
+
     # 5. Sintesi finale tramite il layer LLM unificato (core.llm, purpose "ask"): il prompt
     #    è costruito dalla funzione pura retrieval.build_ask_prompt (system storico +
     #    contesto + domanda). Su LLMError la risposta è un 502 esplicito: MAI un testo
     #    d'errore dentro "answer" con status "success".
     start_time = time.time()
     try:
-        answer = await llm.agenerate(retrieval.build_ask_prompt(context, query.question), purpose="ask")
+        answer = await llm.agenerate(
+            retrieval.build_ask_prompt(context, query.question, precedences=precedenze),
+            purpose="ask")
     except llm.LLMError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     end_time = time.time()
@@ -434,6 +445,10 @@ async def ask_rag(request: Request, query: AskQuery):
             {**r, "score": r["colbert_score"] if r["colbert_score"] is not None else r["dense_score"]}
             for r in search_results
         ],
+        # Precedenze DICHIARATE fra i documenti recuperati che hanno riordinato il ranking
+        # (vuoto quasi sempre: è il caso raro di due fonti in conflitto esplicito).
+        "precedences": [{"prevailing": a, "superseded": b,
+                         "relation": AUTHORITY_PRECEDENCE_RELATION} for a, b in precedenze],
         # Codice iniettato nel contesto via archi IMPLEMENTS (vuoto se il grafo non ha
         # ancora simboli linkati alle sezioni recuperate): trasparenza su cosa ha visto l'LLM.
         "implementing_code": implementing_code,
@@ -460,6 +475,8 @@ async def api_retrieve(
     results = await embed_in_threadpool(
         retrieval.hybrid_search, q, k,
         qdrant=state["qdrant"], embed_model=state["embed_model"], colbert_store=snap.colbert_store,
+        # Stesso ranking della produzione, precedenza compresa: eval.run misura QUESTO.
+        graph=snap.graph,
     )
     return {"query": q, "k": k, "results": results}
 

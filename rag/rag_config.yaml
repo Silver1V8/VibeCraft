@@ -214,6 +214,16 @@ authority:
                             # non fa fallire la richiesta.
   unclassified_weight: 0.3  # peso di una fonte SENZA classificazione — vedi nota sopra
 
+  # ─── Precedenza esplicita fra fonti (ADR 0002 / S4) ───────────────────────────────────
+  # Nome della relazione con cui un autore dichiara, nel frontmatter, che il suo documento
+  # prevale su un altro: «quando questo e quell'altro dicono cose diverse, vince questo».
+  # I pesi qui sopra rispondono PER CLASSE (segnale statistico); questa risponde per COPPIA
+  # SPECIFICA, ed è quindi il segnale più preciso che abbiamo — l'unico che copre due
+  # documenti della stessa classe, con la stessa autorità, che si contraddicono.
+  # Non è hardcodata perché il vocabolario delle relazioni nasce dal frontmatter: un progetto
+  # istanziato dalla nostra baseline può usarne un altro. Stringa vuota = meccanismo spento.
+  precedence_relation: "SUPERA_IN_PRIORITÀ"
+
 # Fiducia sugli archi del grafo (S2, ADR 0002): ogni arco ha una NATURA (strutturale/curata/
 # inferita) e un'affidabilità numerica. È solo etichettatura — S2 non cambia alcun ranking —
 # ma è il substrato che S3 (fiducia sul cammino BFS) e S4 (conflitti fra fonti) useranno.

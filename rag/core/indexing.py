@@ -70,6 +70,7 @@ from core.eval_gate import gate_promotion, run_incremental_advisory
 from core.graph_ops import edge_nature, edge_reliability, edge_trust_attrs
 from core.pipeline import InvalidFeatureNameError, resolve_feature_dir
 from core.config import (
+    AUTHORITY_PRECEDENCE_RELATION,
     CHANGES_DIR,
     CODE_DIR,
     CODE_EXCLUDED_DIRS,
@@ -1717,6 +1718,31 @@ def _node_type_set(G: nx.DiGraph) -> set[tuple[str, str]]:
     return {(n, str(a.get("type"))) for n, a in G.nodes(data=True)}
 
 
+def precedence_cycles(G: nx.DiGraph, relation: str = AUTHORITY_PRECEDENCE_RELATION) -> list[list[str]]:
+    """Cicli fra le precedenze dichiarate nel corpus (ADR 0002 / S4).
+
+    `A supera in priorità B` e `B supera in priorità A` è un corpus MALFORMATO: nessuna delle
+    due fonti può prevalere, e il retrieval non ha modo di risolvere il conflitto che gli
+    autori credevano di aver risolto. A runtime apply_precedence si limita a loggare e a
+    lasciare l'ordine invariato — è la scelta giusta dentro una richiesta, ma vuol dire che il
+    difetto resta invisibile finché qualcuno non legge i log. Qui emerge dove va emerso: in
+    fase di indicizzazione, come difetto del corpus.
+
+    Considera solo gli archi fra DOCUMENTI (gli archi-alias verso nodi-entità non sono
+    precedenze fra fonti). Restituisce la lista dei cicli, ciascuno come lista di doc_id."""
+    if not relation:
+        return []
+    prec = nx.DiGraph()
+    for u, v, d in G.edges(data=True):
+        if (d.get("relation") == relation
+                and G.nodes.get(u, {}).get("type") == "document"
+                and G.nodes.get(v, {}).get("type") == "document"):
+            prec.add_edge(u, v)
+    if prec.number_of_edges() == 0:
+        return []
+    return [sorted(c) for c in nx.simple_cycles(prec)]
+
+
 def check_graph_consistency(embed_model=None, docs_dir: Path | None = None,
                             code_dir: Path | None = None, graph_path: Path | None = None,
                             emit=None) -> dict:
@@ -1754,6 +1780,15 @@ def check_graph_consistency(embed_model=None, docs_dir: Path | None = None,
     missing_edges = sorted(ref_edges - inc_edges)
     extra_edges = sorted(inc_edges - ref_edges)
 
+    # Cicli di precedenza: difetto di CORPUS, non deriva dell'incrementale. Tenuto fuori da
+    # `consistent`, che significa "incrementale ≡ full rebuild" — un ciclo è presente in
+    # entrambi i grafi allo stesso modo, quindi non li rende diversi. Confonderli farebbe
+    # fallire il gate dell'indicizzazione per un problema che sta nel frontmatter.
+    cicli_precedenza = precedence_cycles(incremental)
+    for ciclo in cicli_precedenza:
+        _log(f"⚠️  Precedenza CICLICA fra documenti: {' ↔ '.join(ciclo)} — "
+             "nessuna delle due fonti può prevalere, il corpus va corretto.")
+
     consistent = not (missing_nodes or extra_nodes or missing_edges or extra_edges)
     _cap = 50
     report = {
@@ -1766,9 +1801,11 @@ def check_graph_consistency(embed_model=None, docs_dir: Path | None = None,
         "extra_nodes": [list(x) for x in extra_nodes[:_cap]],
         "missing_edges": [list(x) for x in missing_edges[:_cap]],
         "extra_edges": [list(x) for x in extra_edges[:_cap]],
+        "precedence_cycles": cicli_precedenza,
         "counts": {
             "missing_nodes": len(missing_nodes), "extra_nodes": len(extra_nodes),
             "missing_edges": len(missing_edges), "extra_edges": len(extra_edges),
+            "precedence_cycles": len(cicli_precedenza),
         },
     }
     if consistent:

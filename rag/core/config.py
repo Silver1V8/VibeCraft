@@ -244,6 +244,12 @@ AUTHORITY_BOOST_ALPHA: float = float(_authority_cfg.get("boost_alpha", 0.4))
 # un parametro numerico: spegnerlo riporta al comportamento storico (peso dedotto dalla sola
 # classification) senza toccare il codice né ri-indicizzare.
 AUTHORITY_USE_DECLARED: bool = bool(_authority_cfg.get("use_declared", True))
+# Relazione di PRECEDENZA fra documenti (ADR 0002 / S4): l'arco doc -> doc con cui un autore
+# dichiara quale delle due fonti prevale in caso di conflitto. Applicata da
+# core.retrieval.apply_precedence DOPO la ri-ponderazione per autorità: il peso di classe è un
+# segnale statistico, questa è una decisione presa da un umano su due documenti precisi, e la
+# decisione umana viene per ultima. "" disattiva il meccanismo.
+AUTHORITY_PRECEDENCE_RELATION: str = str(_authority_cfg.get("precedence_relation") or "")
 # Peso di una fonte PRIVA di classificazione (core/chunking.py::read_document() restituisce
 # frontmatter vuoto per ogni formato non-.md: pdf, docx, xlsx, txt). Tenuto distinto da
 # AUTHORITY_DEFAULT_WEIGHT, che copre il caso opposto — classe NOTA ma non elencata in
