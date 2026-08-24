@@ -8,6 +8,8 @@ from pathlib import Path
 import networkx as nx
 import yaml
 
+from core.graph_ops import edge_trust_attrs
+
 logger = logging.getLogger(__name__)
 
 
@@ -219,6 +221,8 @@ def add_frontmatter_edges(G: nx.DiGraph, doc_node_id: str, metadata: dict) -> in
         relation = str(edge.get("type", "RELATES_TO"))
         if target not in G:
             G.add_node(target, type="entity")
-        G.add_edge(doc_node_id, target, relation=relation)
+        # curated: dichiarato a mano dall'autore nel frontmatter, non dedotto da un algoritmo
+        # (una relazione non elencata in graph_trust.relation_nature ricade comunque qui).
+        G.add_edge(doc_node_id, target, relation=relation, **edge_trust_attrs(relation))
         added += 1
     return added

@@ -67,6 +67,7 @@ from core.chunking import (
 )
 from core import llm
 from core.eval_gate import gate_promotion, run_incremental_advisory
+from core.graph_ops import edge_nature, edge_reliability, edge_trust_attrs
 from core.pipeline import InvalidFeatureNameError, resolve_feature_dir
 from core.config import (
     CHANGES_DIR,
@@ -105,7 +106,7 @@ def _add_doc_to_graph(G: nx.DiGraph, rel_path: str, metadata: dict, body: str) -
     entities = extract_entities(body)
     for entity in entities:
         G.add_node(entity, type="entity")
-        G.add_edge(rel_path, entity, relation="MENTIONS")
+        G.add_edge(rel_path, entity, relation="MENTIONS", **edge_trust_attrs("MENTIONS"))
     typed_edges = add_frontmatter_edges(G, rel_path, metadata)
     return len(entities), typed_edges
 
@@ -134,7 +135,7 @@ def _add_section_nodes(G: nx.DiGraph, doc_id: str, chunks: list[dict], metadata:
     for c in chunks:
         G.add_node(c["chunk_id"], type="section", doc_id=doc_id,
                    section=c.get("section", ""), **inherited)
-        G.add_edge(c["chunk_id"], doc_id, relation="PART_OF")
+        G.add_edge(c["chunk_id"], doc_id, relation="PART_OF", **edge_trust_attrs("PART_OF"))
     return len(chunks)
 
 
@@ -198,7 +199,14 @@ def _resolve_authority_aliases(G: nx.DiGraph) -> int:
             continue
         target = id_to_doc.get(_semantic_base(v))
         if target and target != u and not G.has_edge(u, target):
-            G.add_edge(u, target, relation=d.get("relation"))
+            # Eredita natura e affidabilità dall'arco-alias di origine invece di
+            # reinventarle: è la STESSA dichiarazione dell'autore, solo risolta verso il
+            # nodo giusto. Il fallback (edge_nature/edge_reliability) copre solo il caso
+            # difensivo di un arco-alias senza questi attributi (non dovrebbe capitare
+            # nello stesso run, dato che add_frontmatter_edges li scrive sempre).
+            G.add_edge(u, target, relation=d.get("relation"),
+                      nature=d.get("nature") or edge_nature(d.get("relation")),
+                      reliability=d.get("reliability", edge_reliability(d)))
             added += 1
     return added
 
