@@ -7,6 +7,7 @@ import json
 import logging
 
 import networkx as nx
+import numpy as np
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -16,6 +17,23 @@ from api import routes_retrieval
 from core import llm, retrieval
 
 _CHUNK_ID = "spec.md#01-form"
+
+
+class _StubEmbed:
+    """Modello di embedding minimo per i test di /ask: da S3 il route codifica SEMPRE la
+    domanda (la forward pass avviene comunque dentro hybrid_search, spostarla nel route non
+    costa nulla in più), quindi lo stub deve saper rispondere a encode() anche quando
+    hybrid_search è finto. Vettori costanti: nessun test qui misura la similarità."""
+
+    def encode(self, texts, **kw):
+        n = len(texts)
+        out = {"dense_vecs": np.zeros((n, 4), dtype="float32")}
+        if kw.get("return_sparse"):
+            out["lexical_weights"] = [{} for _ in texts]
+        if kw.get("return_colbert_vecs"):
+            out["colbert_vecs"] = [np.zeros((1, 4), dtype="float32") for _ in texts]
+        return out
+
 
 
 def _snapshot(version) -> deps.IndexSnapshot:
@@ -63,7 +81,7 @@ def ask_env(monkeypatch, tmp_path):
         snap = _snapshot(version)
         monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snap)
         monkeypatch.setitem(deps.state, "qdrant", object())
-        monkeypatch.setitem(deps.state, "embed_model", object())
+        monkeypatch.setitem(deps.state, "embed_model", _StubEmbed())
         results = [{"chunk_id": _CHUNK_ID, "doc_id": "spec.md", "section": "form",
                     "dense_score": 0.9, "colbert_score": None}]
         monkeypatch.setattr(retrieval, "hybrid_search", lambda *a, **kw: results)
@@ -185,3 +203,141 @@ def test_fallback_unknown_con_manifest_assente(ask_env, caplog):
     records = [rec for rec in caplog.records if rec.name == "api.routes_retrieval"
                and rec.message.startswith("ask ")]
     assert "qdrant_collection=unknown" in records[0].message
+
+
+# ---------------------------------------------------------------------------
+# S3 (ADR 0002) — fase 6 di [REGOLA-WF-01]: le sezioni raggiunte SOLO via grafo
+# ---------------------------------------------------------------------------
+_CHUNK_VIA_GRAFO = "glossario.md#01-termini"
+
+
+def _snapshot_con_vicino(version="v1") -> deps.IndexSnapshot:
+    """Come _snapshot, ma glossario.md e' collegato a spec.md da un arco CURATO e ha una
+    sezione propria: e' il documento che solo il grafo puo' far arrivare alla risposta."""
+    snap = _snapshot(version)
+    snap.graph.add_edge("spec.md", "glossario.md", relation="EREDITA_VINCOLI",
+                        nature="curated", reliability=0.9)
+    snap.chunks[_CHUNK_ID] = {"text": "testo della sezione", "doc_id": "spec.md", "section": "form"}
+    snap.chunks[_CHUNK_VIA_GRAFO] = {"text": "definizione di EVENTO",
+                                     "doc_id": "glossario.md", "section": "termini"}
+    return snap
+
+
+def test_graph_context_disattivato_non_cambia_il_contesto(ask_env, monkeypatch):
+    """Con graph_context_max_chunks: 0 il contesto e' BYTE-IDENTICO a quello prodotto dal
+    solo ramo semantico, cioe' a quello di prima di S3. E' il test che rende l'intervento
+    reversibile in produzione con una riga di config."""
+    client = ask_env()
+    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: _snapshot_con_vicino())
+    monkeypatch.setattr(routes_retrieval, "GRAPH_CONTEXT_MAX_CHUNKS", 0)
+    ctx = client.post("/ask", json={"question": "q"}).json()["graph_context"]["context_text"]
+    assert ctx == "--- spec.md § form ---\ntesto della sezione"
+    assert "via grafo" not in ctx
+
+
+def test_sezioni_da_grafo_sono_marcate_nel_contesto(ask_env, monkeypatch):
+    client = ask_env()
+    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: _snapshot_con_vicino())
+    monkeypatch.setattr(routes_retrieval, "GRAPH_CONTEXT_MAX_CHUNKS", 2)
+    body = client.post("/ask", json={"question": "q"}).json()
+    ctx = body["graph_context"]["context_text"]
+    # la sezione del vicino c'e', e porta il marcatore con hop e fiducia
+    assert "definizione di EVENTO" in ctx
+    assert "[via grafo: 1 hop, fiducia 0.900]" in ctx
+    # il blocco del ramo semantico NON e' confondibile: nessun marcatore
+    semantico, _, _ = ctx.partition("[via grafo")
+    assert "testo della sezione" in semantico
+    # il ramo semantico resta il primo del contesto (il grafo e' il complemento)
+    assert ctx.index("testo della sezione") < ctx.index("definizione di EVENTO")
+    # trust/hops esposti anche sui nodi, per la Mappa del Grafo
+    nodi = {n["id"]: n for n in body["graph_context"]["expanded_nodes"]}
+    assert nodi["spec.md"]["trust"] == 1.0 and nodi["spec.md"]["hops"] == 0
+    assert nodi["glossario.md"]["trust"] == 0.9 and nodi["glossario.md"]["hops"] == 1
+
+
+def test_ancore_codice_ordinate_per_fiducia(ask_env, monkeypatch):
+    """Le ancore arrivano a collect_implementing_code ORDINATE per fiducia decrescente,
+    non nell'ordine di iterazione di un set."""
+    viste: list = []
+
+    def _spia(graph, code_store, anchor_nodes, **kw):
+        viste.append(list(anchor_nodes))
+        return []
+
+    client = ask_env()
+    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: _snapshot_con_vicino())
+    monkeypatch.setattr(retrieval, "collect_implementing_code", _spia)
+    client.post("/ask", json={"question": "q"})
+
+    ancore = viste[0]
+    assert not isinstance(ancore, set)
+    # spec.md (seed, 1.0) e il chunk recuperato (aggancio diretto, 1.0) precedono
+    # glossario.md, raggiunto a 1 hop con fiducia 0.9
+    assert ancore.index("spec.md") < ancore.index("glossario.md")
+    assert ancore.index(_CHUNK_ID) < ancore.index("glossario.md")
+
+
+# ---------------------------------------------------------------------------
+# S3 (miglioria) + S4 nel ramo del grafo
+# ---------------------------------------------------------------------------
+_PREAMBOLO = "glossario.md#00-preambolo"
+
+
+class _EmbedColbert:
+    """Stub che restituisce un vettore ColBERT di query NOTO, così il test può prevedere
+    quale sezione risulta più pertinente."""
+
+    def encode(self, texts, **kw):
+        n = len(texts)
+        out = {"dense_vecs": np.zeros((n, 2), dtype="float32")}
+        if kw.get("return_sparse"):
+            out["lexical_weights"] = [{} for _ in texts]
+        if kw.get("return_colbert_vecs"):
+            out["colbert_vecs"] = [np.array([[1.0, 0.0]], dtype="float32") for _ in texts]
+        return out
+
+
+def _snapshot_due_sezioni(version="v1") -> deps.IndexSnapshot:
+    """glossario.md raggiunto via grafo con DUE sezioni: il preambolo (primo in ordine di
+    file, per nulla pertinente) e i termini (pertinenti alla domanda)."""
+    snap = _snapshot_con_vicino(version)
+    snap.chunks[_PREAMBOLO] = {"text": "intestazione del glossario",
+                               "doc_id": "glossario.md", "section": "(preambolo)"}
+    # l'ordine di inserimento mette il preambolo DOPO: lo rimettiamo davanti, come nel file
+    snap.chunks.clear()
+    snap.chunks[_CHUNK_ID] = {"text": "testo della sezione", "doc_id": "spec.md", "section": "form"}
+    snap.chunks[_PREAMBOLO] = {"text": "intestazione del glossario",
+                               "doc_id": "glossario.md", "section": "(preambolo)"}
+    snap.chunks[_CHUNK_VIA_GRAFO] = {"text": "definizione di EVENTO",
+                                     "doc_id": "glossario.md", "section": "termini"}
+    snap.colbert_store[_PREAMBOLO] = np.array([[0.0, 1.0]], dtype="float32")   # maxsim 0
+    snap.colbert_store[_CHUNK_VIA_GRAFO] = np.array([[1.0, 0.0]], dtype="float32")  # maxsim 1
+    return snap
+
+
+def test_sezione_da_grafo_scelta_per_pertinenza_non_per_ordine_di_file(ask_env, monkeypatch):
+    """Il difetto noto di S3: con l'ordine di documento si iniettava il preambolo. Ora la
+    fiducia sceglie DI QUALE DOCUMENTO fidarsi e il ColBERT quale SEZIONE mostrare."""
+    client = ask_env()
+    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: _snapshot_due_sezioni())
+    monkeypatch.setitem(deps.state, "embed_model", _EmbedColbert())
+    monkeypatch.setattr(routes_retrieval, "GRAPH_CONTEXT_MAX_CHUNKS", 1)
+    ctx = client.post("/ask", json={"question": "q"}).json()["graph_context"]["context_text"]
+    assert "definizione di EVENTO" in ctx          # la sezione pertinente
+    assert "intestazione del glossario" not in ctx  # NON il preambolo
+    assert "pertinenza 1.000" in ctx                # il punteggio finisce nel marcatore
+
+
+def test_documento_superato_non_rientra_dal_ramo_del_grafo(ask_env, monkeypatch):
+    """S4 vale anche qui: un documento esplicitamente superato da una fonte recuperata non
+    può rientrare nel contesto dalla porta di servizio del grafo."""
+    snap = _snapshot_due_sezioni()
+    snap.graph.add_edge("spec.md", "glossario.md", relation="SUPERA_IN_PRIORITÀ",
+                        nature="curated", reliability=0.9)
+    client = ask_env()
+    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snap)
+    monkeypatch.setitem(deps.state, "embed_model", _EmbedColbert())
+    monkeypatch.setattr(routes_retrieval, "GRAPH_CONTEXT_MAX_CHUNKS", 2)
+    ctx = client.post("/ask", json={"question": "q"}).json()["graph_context"]["context_text"]
+    assert "via grafo" not in ctx
+    assert "definizione di EVENTO" not in ctx

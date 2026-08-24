@@ -16,6 +16,7 @@ import logging
 from types import SimpleNamespace
 
 import networkx as nx
+import numpy as np
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -27,6 +28,23 @@ from core import ask_cache, llm, retrieval
 _CHUNK_ID = "spec.md#01-form"
 _QUESTION = "come funziona il lock sui posti?"
 
+
+
+
+class _StubEmbed:
+    """Modello di embedding minimo per i test di /ask: da S3 il route codifica SEMPRE la
+    domanda (la forward pass avviene comunque dentro hybrid_search, spostarla nel route non
+    costa nulla in più), quindi lo stub deve saper rispondere a encode() anche quando
+    hybrid_search è finto. Vettori costanti: nessun test qui misura la similarità."""
+
+    def encode(self, texts, **kw):
+        n = len(texts)
+        out = {"dense_vecs": np.zeros((n, 4), dtype="float32")}
+        if kw.get("return_sparse"):
+            out["lexical_weights"] = [{} for _ in texts]
+        if kw.get("return_colbert_vecs"):
+            out["colbert_vecs"] = [np.zeros((1, 4), dtype="float32") for _ in texts]
+        return out
 
 def _snapshot(version: str) -> deps.IndexSnapshot:
     g = nx.DiGraph()
@@ -81,7 +99,7 @@ def ask_env(monkeypatch, tmp_path):
     }
     monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: current["snap"])
     monkeypatch.setitem(deps.state, "qdrant", object())
-    monkeypatch.setitem(deps.state, "embed_model", object())
+    monkeypatch.setitem(deps.state, "embed_model", _StubEmbed())
 
     def fake_search(*a, **kw):
         calls["search"] += 1

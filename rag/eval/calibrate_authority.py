@@ -1,9 +1,27 @@
 """Calibrazione dei pesi di autorità sul golden set (Epic 3 — versione definitiva).
 
-Idea chiave: l'autorità influenza SOLO il re-ranking finale del retrieval (rank_by_authority),
-non il recupero dei candidati. Quindi si recuperano i candidati UNA volta per domanda (in-process:
-modello bge-m3 + Qdrant caricati una sola volta) e poi si RI-ORDINA offline per ogni combinazione
-di parametri — niente re-embed, niente restart del server per combinazione.
+Idea chiave: l'autorità influenza SOLO il re-ranking finale del retrieval, non il recupero dei
+candidati. Quindi si recuperano i candidati UNA volta per domanda (in-process: modello bge-m3 +
+Qdrant caricati una sola volta) e poi si RI-ORDINA offline per ogni combinazione di parametri —
+niente re-embed, niente restart del server per combinazione.
+
+FEDELTÀ ALLA PRODUZIONE — è la premessa che rende sensato tutto il resto. Il ri-ranking offline
+deve riprodurre ESATTAMENTE gli stadi finali di hybrid_search, altrimenti si ottimizza un
+ordinamento che nessuno servirà mai e il guadagno riportato non vuol dire niente. Gli stadi sono
+tre e vanno tenuti allineati a mano ogni volta che il retrieval cambia:
+
+  1. peso di autorità per candidato — `authority` DICHIARATA nel frontmatter con precedenza sul
+     peso di classe (S1, ADR 0002). Finché questo script leggeva solo `classification`/`status`,
+     14 dei 26 documenti del corpus venivano appiattiti sul default_weight (0.70) mentre la
+     produzione usava i valori dichiarati (0.75-0.90): la griglia su default_weight misurava un
+     mondo controfattuale;
+  2. rank_by_authority(alpha) — condivisa con la produzione, mai duplicata qui;
+  3. apply_precedence(graph) — precedenza dichiarata fra fonti (S4), ultimo stadio.
+
+Nota sulla leva: con `use_declared: true` il parametro `default_weight` conta SOLO per le fonti
+che non dichiarano un'autorità propria. È corretto che sia così — è ciò che fa la produzione — ma
+significa che la griglia su quel parametro ha oggi molta meno presa di quanta ne avesse prima di
+S1, e un guadagno vicino a zero su quell'asse va letto in questa luce.
 
 Si calibrano due parametri interpretabili:
   - boost_alpha    : forza del boost di autorità (mult = 1-alpha + alpha*peso). alpha=0 ignora
@@ -35,6 +53,7 @@ from core.config import (
     AUTHORITY_ARCHIVED_DECAY,
     AUTHORITY_BOOST_ALPHA,
     AUTHORITY_DEFAULT_WEIGHT,
+    AUTHORITY_USE_DECLARED,
     EMBEDDING_MODEL,
     QDRANT_API_KEY,
     QDRANT_URL,
@@ -57,51 +76,78 @@ DEFAULT_WEIGHTS = [0.4, 0.5, 0.6, 0.7, 0.85, 1.0]
 FETCH_CANDIDATES = 50  # quanti candidati recuperare per domanda (>= max k valutato, con margine)
 
 
-def retrieve_candidate_cache(cases, *, qdrant, embed_model, colbert_store) -> dict:
+def retrieve_candidate_cache(cases, *, qdrant, embed_model, colbert_store, graph) -> dict:
     """Recupera e memorizza i candidati (con classification/status grezzi, colbert_score,
     fused_rank_sum) UNA volta per domanda: il costoso retrieval si paga una sola volta, poi la
-    grid search lavora solo di re-ranking in RAM."""
+    grid search lavora solo di re-ranking in RAM.
+
+    `graph` è passato a hybrid_search perché il POOL sia lo stesso della produzione: la
+    precedenza fra fonti riordina PRIMA del taglio a FETCH_CANDIDATES, quindi senza grafo
+    l'insieme dei candidati potrebbe non essere quello che il retrieval reale produce."""
     cache: dict[str, list[dict]] = {}
     for i, case in enumerate(cases, 1):
         q = case["q"]
         cache[q] = retrieval.hybrid_search(q, FETCH_CANDIDATES, qdrant=qdrant,
-                                           embed_model=embed_model, colbert_store=colbert_store)
+                                           embed_model=embed_model, colbert_store=colbert_store,
+                                           graph=graph)
         print(f"  candidati {i}/{len(cases)} recuperati", end="\r")
     print()
     return cache
 
 
-def make_retrieve_fn(cache: dict, *, alpha: float, default_weight: float):
+def _attrs_for(candidate: dict, graph) -> dict:
+    """Attributi di governance della sorgente di un candidato, come li vede la PRODUZIONE.
+
+    In produzione _authority_weight riceve il payload Qdrant INTERO, che porta tutto il
+    frontmatter del documento — `authority` DICHIARATA compresa (S1). Qui il payload non e' in
+    cache, ma il nodo del grafo porta gli stessi attributi (le sezioni li ereditano dal
+    documento padre), quindi si legge di lì. Il fallback su classification/status della cache
+    copre il caso in cui il nodo non esista (chunk di un documento non presente nel grafo)."""
+    for node_id in (candidate.get("chunk_id"), candidate.get("doc_id")):
+        if node_id and graph is not None and node_id in graph:
+            return graph.nodes[node_id]
+    return {"classification": candidate.get("classification", ""),
+            "status": candidate.get("status", "")}
+
+
+def make_retrieve_fn(cache: dict, *, alpha: float, default_weight: float, graph):
     """retrieve_fn(query, k) che RI-ORDINA i candidati in cache con i parametri dati, riusando
-    esattamente la ri-ponderazione e l'ordinamento di produzione (rank_by_authority)."""
+    ESATTAMENTE la ri-ponderazione e l'ordinamento di produzione: stesso peso di autorità
+    (dichiarata inclusa), stesso rank_by_authority, stessa apply_precedence, nello stesso
+    ordine. Se questi due percorsi divergono, la calibrazione ottimizza un ranking che nessuno
+    servirà mai, e il guadagno riportato non vuol dire niente."""
     def retrieve(query: str, k: int) -> list[dict]:
         cands = [dict(c) for c in cache[query]]
         for c in cands:
             c["authority"] = round(retrieval._authority_weight(
-                {"classification": c.get("classification", ""), "status": c.get("status", "")},
-                default=default_weight, decay=AUTHORITY_ARCHIVED_DECAY), 3)
+                _attrs_for(c, graph), default=default_weight, decay=AUTHORITY_ARCHIVED_DECAY,
+                use_declared=AUTHORITY_USE_DECLARED), 3)
         retrieval.rank_by_authority(cands, alpha=alpha)
+        # Precedenza dichiarata fra fonti (S4): ultimo stadio anche in produzione, dopo
+        # l'autorità. È un riordino booleano indipendente da (alpha, default_weight), quindi
+        # non muove la griglia, ma senza di esso l'ordine valutato non è quello servito.
+        cands = retrieval.apply_precedence(cands, graph=graph)
         return cands[:k]
     return retrieve
 
 
-def mean_recall(cases, cache, *, alpha, default_weight, k) -> float:
-    fn = make_retrieve_fn(cache, alpha=alpha, default_weight=default_weight)
+def mean_recall(cases, cache, *, alpha, default_weight, k, graph) -> float:
+    fn = make_retrieve_fn(cache, alpha=alpha, default_weight=default_weight, graph=graph)
     return evaluate(cases, fn, ks=[k])["aggregate"][f"recall@{k}"]
 
 
-def grid_best(cases, cache, *, k):
+def grid_best(cases, cache, *, k, graph):
     """Miglior (alpha, default_weight) sulla griglia per recall@k medio sui `cases` dati."""
     best = None
     for a in ALPHAS:
         for dw in DEFAULT_WEIGHTS:
-            r = mean_recall(cases, cache, alpha=a, default_weight=dw, k=k)
+            r = mean_recall(cases, cache, alpha=a, default_weight=dw, k=k, graph=graph)
             if best is None or r > best[0]:
                 best = (r, a, dw)
     return best  # (recall, alpha, default_weight)
 
 
-def kfold_cv(cases, cache, *, k, folds, seed):
+def kfold_cv(cases, cache, *, k, folds, seed, graph):
     """k-fold CV: per ogni fold held-out, sceglie i parametri sui restanti e li valuta sul fold.
     Restituisce (recall medio held-out coi parametri CALIBRATI, recall medio held-out coi DEFAULT)."""
     idx = list(range(len(cases)))
@@ -113,10 +159,10 @@ def kfold_cv(cases, cache, *, k, folds, seed):
         train = [cases[i] for i in idx if i not in set(buckets[f])]
         if not val or not train:
             continue
-        _, a, dw = grid_best(train, cache, k=k)
-        cal_scores.append(mean_recall(val, cache, alpha=a, default_weight=dw, k=k))
+        _, a, dw = grid_best(train, cache, k=k, graph=graph)
+        cal_scores.append(mean_recall(val, cache, alpha=a, default_weight=dw, k=k, graph=graph))
         def_scores.append(mean_recall(val, cache, alpha=AUTHORITY_BOOST_ALPHA,
-                                      default_weight=AUTHORITY_DEFAULT_WEIGHT, k=k))
+                                      default_weight=AUTHORITY_DEFAULT_WEIGHT, k=k, graph=graph))
     avg = lambda xs: sum(xs) / len(xs) if xs else 0.0
     return avg(cal_scores), avg(def_scores)
 
@@ -140,12 +186,12 @@ def main() -> int:
     cases = load_cases()
     print(f"Golden set: {len(cases)} casi. Recupero candidati (una volta per domanda)...")
     cache = retrieve_candidate_cache(cases, qdrant=qdrant, embed_model=embed_model,
-                                     colbert_store=arts.colbert_store)
+                                     colbert_store=arts.colbert_store, graph=arts.graph)
 
     default_full = mean_recall(cases, cache, alpha=AUTHORITY_BOOST_ALPHA,
-                               default_weight=AUTHORITY_DEFAULT_WEIGHT, k=a.k)
-    best_full = grid_best(cases, cache, k=a.k)
-    cal_cv, def_cv = kfold_cv(cases, cache, k=a.k, folds=a.folds, seed=a.seed)
+                               default_weight=AUTHORITY_DEFAULT_WEIGHT, k=a.k, graph=arts.graph)
+    best_full = grid_best(cases, cache, k=a.k, graph=arts.graph)
+    cal_cv, def_cv = kfold_cv(cases, cache, k=a.k, folds=a.folds, seed=a.seed, graph=arts.graph)
 
     print("\n" + "=" * 68)
     print(f"Calibrazione autorità — recall@{a.k}  (golden set: {len(cases)} casi)")

@@ -2,6 +2,8 @@
 FastAPI, nessun Qdrant reale): peso di autorità e selezione del contesto governato
 nel percorso 'results forniti' (che non richiede il client Qdrant), più hybrid_search
 con qdrant/embed_model finti (nessuna rete, nessun modello bge-m3 reale)."""
+import logging
+
 import networkx as nx
 import numpy as np
 import pytest
@@ -506,3 +508,194 @@ def test_merge_code_context_semantic_wins_on_duplicate_symbol():
     dup = {"symbol_id": "s", "name": "n", "source": "implements", "score": 0.6}
     merged = retrieval.merge_code_context([entry], [dup], max_snippets=5)
     assert merged == [entry]
+
+
+# ---------------------------------------------------------------------------
+# S4 (ADR 0002) — SUPERA_IN_PRIORITÀ: precedenza esplicita fra fonti
+# ---------------------------------------------------------------------------
+_REL = "SUPERA_IN_PRIORITÀ"
+
+
+def _res(*doc_ids: str) -> list[dict]:
+    """Risultati finti nell'ordine dato: un chunk per elemento (doc ripetuto = più chunk)."""
+    out = []
+    for i, d in enumerate(doc_ids):
+        out.append({"chunk_id": f"{d}#{i:02d}", "doc_id": d, "colbert_score": 1.0 - i * 0.01})
+    return out
+
+
+def _grafo_prec(*coppie: tuple[str, str]) -> nx.DiGraph:
+    g = nx.DiGraph()
+    for a, b in coppie:
+        g.add_node(a, type="document")
+        g.add_node(b, type="document")
+        g.add_edge(a, b, relation=_REL, nature="curated", reliability=0.9)
+    return g
+
+
+def _docs(results: list[dict]) -> list[str]:
+    return [r["doc_id"] for r in results]
+
+
+def test_precedenza_promuove_il_documento_prevalente():
+    """B primo per punteggio, A terzo, con A SUPERA_IN_PRIORITÀ B: dopo il riordino A precede B."""
+    results = _res("B.md", "X.md", "A.md")
+    out = retrieval.apply_precedence(results, graph=_grafo_prec(("A.md", "B.md")), relation=_REL)
+    assert _docs(out).index("A.md") < _docs(out).index("B.md")
+
+
+def test_precedenza_preserva_ordine_relativo_degli_altri():
+    """I documenti non coinvolti mantengono le loro posizioni relative, e il subordinato scende
+    del MINIMO necessario. È la proprietà di stabilità: un sort a chiave composita metterebbe
+    B in fondo, scavalcato anche da Y che con quella precedenza non c'entra nulla."""
+    results = _res("B.md", "X.md", "A.md", "Y.md")
+    out = _docs(retrieval.apply_precedence(
+        results, graph=_grafo_prec(("A.md", "B.md")), relation=_REL))
+    assert out == ["X.md", "A.md", "B.md", "Y.md"]
+    # X prima di Y come all'origine, e B NON è finito oltre Y
+    assert out.index("X.md") < out.index("Y.md")
+    assert out.index("B.md") < out.index("Y.md")
+
+
+def test_precedenza_su_vincoli_disgiunti_non_rimescola():
+    """Due precedenze indipendenti: ciascun subordinato scende solo sotto il proprio
+    prevalente, senza essere spinto in coda insieme all'altro."""
+    results = _res("B.md", "D.md", "X.md", "A.md", "C.md")
+    out = _docs(retrieval.apply_precedence(
+        results, graph=_grafo_prec(("A.md", "B.md"), ("C.md", "D.md")), relation=_REL))
+    assert out == ["X.md", "A.md", "B.md", "C.md", "D.md"]
+
+
+def test_nessuna_precedenza_lascia_invariato():
+    """Senza archi di precedenza la lista torna IDENTICA — stesso oggetto, nessuna copia:
+    il caso comune (la quasi totalità delle richieste) non paga nulla."""
+    results = _res("A.md", "B.md", "C.md")
+    g = nx.DiGraph()
+    g.add_node("A.md", type="document")
+    g.add_node("B.md", type="document")
+    g.add_edge("A.md", "B.md", relation="EREDITA_VINCOLI")   # relazione diversa: non è precedenza
+    out = retrieval.apply_precedence(results, graph=g, relation=_REL)
+    assert out is results
+    assert _docs(out) == ["A.md", "B.md", "C.md"]
+
+
+def test_precedenza_non_e_transitiva():
+    """A > B e B > C nel grafo, ma B NON è fra i risultati: nessun arco diretto lega A e C,
+    quindi il loro ordine relativo non viene forzato. Non calcoliamo la chiusura transitiva —
+    in un corpus governato da umani, se serve A > C lo scrive l'autore.
+    (Se invece B fosse presente, A precederebbe C per COMPOSIZIONE dei due archi diretti:
+    è una conseguenza dei vincoli dichiarati, non una precedenza inferita da noi.)"""
+    results = _res("C.md", "A.md")
+    out = _docs(retrieval.apply_precedence(
+        results, graph=_grafo_prec(("A.md", "B.md"), ("B.md", "C.md")), relation=_REL))
+    assert out == ["C.md", "A.md"]
+
+
+def test_ciclo_di_precedenza_non_blocca_e_logga(caplog):
+    """A > B e B > A è un corpus malformato: la funzione ritorna (nessun loop, nessuna
+    eccezione dentro una richiesta), l'ordine di quella coppia resta invariato, e viene
+    emesso un warning che nomina i documenti."""
+    results = _res("A.md", "B.md")
+    grafo = _grafo_prec(("A.md", "B.md"), ("B.md", "A.md"))
+    with caplog.at_level(logging.WARNING, logger="core.retrieval"):
+        out = retrieval.apply_precedence(results, graph=grafo, relation=_REL)
+    assert _docs(out) == ["A.md", "B.md"]
+    assert "CICLICA" in caplog.text
+    assert "A.md" in caplog.text and "B.md" in caplog.text
+
+
+def test_grafo_assente_e_no_op():
+    results = _res("A.md", "B.md")
+    assert retrieval.apply_precedence(results, graph=None, relation=_REL) is results
+
+
+def test_precedenza_su_chunk_multipli_dello_stesso_documento():
+    """Il retrieval lavora su CHUNK, la precedenza è dichiarata fra DOCUMENTI: nessun chunk
+    di B può precedere il PRIMO chunk di A, e i chunk di uno stesso documento non si
+    rimescolano fra loro."""
+    results = _res("B.md", "B.md", "A.md", "B.md", "A.md")
+    chunk_b = [r["chunk_id"] for r in results if r["doc_id"] == "B.md"]
+    out = retrieval.apply_precedence(
+        results, graph=_grafo_prec(("A.md", "B.md")), relation=_REL)
+    docs = _docs(out)
+    assert docs == ["A.md", "A.md", "B.md", "B.md", "B.md"]
+    primo_a = docs.index("A.md")
+    assert all(i > primo_a for i, d in enumerate(docs) if d == "B.md")
+    # ordine relativo dei chunk di B preservato (permutazione stabile, non rimescolamento)
+    assert [r["chunk_id"] for r in out if r["doc_id"] == "B.md"] == chunk_b
+
+
+def test_regola_precedenza_assente_dal_prompt_senza_conflitto():
+    """Una regola inerte insegna al modello a ignorarla: [PRECEDENZA-FONTI] non compare
+    quando nessuna precedenza si applica."""
+    assert "[PRECEDENZA-FONTI]" not in retrieval.build_ask_prompt("contesto", "domanda")
+    assert "[PRECEDENZA-FONTI]" not in retrieval.build_ask_prompt(
+        "contesto", "domanda", precedences=[])
+
+
+def test_regola_precedenza_nomina_i_documenti():
+    prompt = retrieval.build_ask_prompt(
+        "contesto", "domanda", precedences=[("safeguards.md", "note.md")])
+    assert "[PRECEDENZA-FONTI]" in prompt
+    assert "safeguards.md" in prompt and "note.md" in prompt
+
+
+def test_precedence_pairs_solo_archi_diretti_fra_documenti_presenti():
+    """Le coppie riportate sono solo quelle DIRETTE fra documenti entrambi presenti nei
+    risultati: è lo stesso fatto che riordina il ranking e che viene dichiarato nel prompt."""
+    grafo = _grafo_prec(("A.md", "B.md"), ("A.md", "assente.md"))
+    coppie = retrieval.precedence_pairs(_res("A.md", "B.md"), graph=grafo, relation=_REL)
+    assert coppie == [("A.md", "B.md")]
+
+
+# ---------------------------------------------------------------------------
+# S3 (miglioria) — quale SEZIONE di un documento raggiunto via grafo mostrare
+# ---------------------------------------------------------------------------
+def _cq(*v) -> np.ndarray:
+    """Vettore ColBERT di query con un solo token."""
+    return np.array([list(v)], dtype="float32")
+
+
+def test_maxsim_none_senza_vettori():
+    """Una sezione senza vettori non è "poco pertinente": è NON GIUDICABILE."""
+    assert retrieval.colbert_maxsim(_cq(1, 0), None) is None
+
+
+def test_sezioni_ordinate_per_pertinenza_non_per_ordine_di_file():
+    """È il difetto che questa funzione corregge: con l'ordine di documento si iniettava
+    il preambolo, che sta in cima al file e non risponde quasi mai alla domanda."""
+    store = {
+        "doc.md#00-preambolo": np.array([[0.0, 1.0]], dtype="float32"),
+        "doc.md#01-termini":   np.array([[1.0, 0.0]], dtype="float32"),
+    }
+    out = retrieval.rank_sections_by_relevance(
+        ["doc.md#00-preambolo", "doc.md#01-termini"],
+        colbert_store=store, colbert_query=_cq(1, 0))
+    assert [cid for cid, _ in out] == ["doc.md#01-termini", "doc.md#00-preambolo"]
+    assert out[0][1] == 1.0
+
+
+def test_pavimento_scarta_solo_le_sezioni_valutate():
+    store = {
+        "doc.md#00": np.array([[1.0, 0.0]], dtype="float32"),   # 1.0
+        "doc.md#01": np.array([[0.0, 1.0]], dtype="float32"),   # 0.0
+    }
+    out = retrieval.rank_sections_by_relevance(
+        ["doc.md#00", "doc.md#01"], colbert_store=store, colbert_query=_cq(1, 0),
+        min_score=0.5)
+    assert [cid for cid, _ in out] == ["doc.md#00"]
+
+
+def test_sezioni_non_giudicabili_in_coda_mai_scartate():
+    """Senza sidecar ColBERT (o con sidecar disallineato) non possiamo giudicare: quelle
+    sezioni restano, in coda e nell'ordine ricevuto — il comportamento di prima."""
+    store = {"doc.md#01": np.array([[1.0, 0.0]], dtype="float32")}
+    out = retrieval.rank_sections_by_relevance(
+        ["doc.md#00", "doc.md#01", "doc.md#02"],
+        colbert_store=store, colbert_query=_cq(1, 0), min_score=0.9)
+    assert [cid for cid, _ in out] == ["doc.md#01", "doc.md#00", "doc.md#02"]
+    assert out[1][1] is None and out[2][1] is None
+    # store vuoto: nessuna sezione perduta, ordine invariato
+    tutte = retrieval.rank_sections_by_relevance(
+        ["a", "b"], colbert_store={}, colbert_query=_cq(1, 0), min_score=0.9)
+    assert [cid for cid, _ in tutte] == ["a", "b"]

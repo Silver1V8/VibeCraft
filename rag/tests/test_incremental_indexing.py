@@ -1995,3 +1995,50 @@ def test_qdrant_blue_green_key_no_longer_declared_in_project_config():
 def _config_path():
     from core.config import CONFIG_PATH
     return CONFIG_PATH
+
+
+def test_check_consistency_segnala_ciclo_di_precedenza(monkeypatch, tmp_path):
+    """Due documenti che si dichiarano a vicenda prevalente sono un corpus MALFORMATO:
+    nessuna delle due fonti puo' prevalere e il retrieval non ha modo di risolvere il
+    conflitto che gli autori credevano di aver risolto. A runtime apply_precedence si limita
+    a loggare; qui il difetto emerge dove va emerso, in fase di indicizzazione.
+
+    `consistent` resta True: il ciclo e' un difetto del CORPUS, presente in ugual modo nel
+    grafo incrementale e nel full rebuild, quindi non li rende divergenti (ADR 0002 / S4)."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    fm = ('---\nid: "{id}"\ngraph_rag:\n  node_id: "{id}"\n  edges:\n{edges}---\n'
+          "## Sezione\n[{marker}] regola su {marker}\n")
+    prec = '    - type: "SUPERA_IN_PRIORITÀ"\n      target: "{t}"\n'
+    (docs_dir / "a.md").write_text(
+        fm.format(id="doc-a-v1.0", edges=prec.format(t="doc-b-v1.0"), marker="ALPHA"),
+        encoding="utf-8")
+    (docs_dir / "b.md").write_text(
+        fm.format(id="doc-b-v1.0", edges=prec.format(t="doc-a-v1.0"), marker="BETA"),
+        encoding="utf-8")
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+    index.build_graph_and_index(qdrant=q, embed_model=stub)
+
+    G = _load_graph()
+    assert G.has_edge("a.md", "b.md") and G.has_edge("b.md", "a.md")   # ciclo materializzato
+
+    report = index.check_graph_consistency(embed_model=stub, docs_dir=docs_dir, code_dir=code_dir)
+    assert report["counts"]["precedence_cycles"] == 1, report
+    assert sorted(report["precedence_cycles"][0]) == ["a.md", "b.md"]
+    # il ciclo NON e' deriva dell'incrementale: i due grafi restano equivalenti
+    assert report["consistent"] is True, report
+
+
+def test_nessun_ciclo_nessuna_segnalazione(monkeypatch, tmp_path):
+    """Una precedenza dichiarata in un solo verso e' legittima e non va segnalata."""
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    fm = ('---\nid: "{id}"\ngraph_rag:\n  node_id: "{id}"\n  edges:\n{edges}---\n'
+          "## Sezione\n[{marker}] regola su {marker}\n")
+    (docs_dir / "a.md").write_text(
+        fm.format(id="doc-a-v1.0",
+                  edges='    - type: "SUPERA_IN_PRIORITÀ"\n      target: "doc-b-v1.0"\n',
+                  marker="ALPHA"), encoding="utf-8")
+    (docs_dir / "b.md").write_text(
+        fm.format(id="doc-b-v1.0", edges="", marker="BETA"), encoding="utf-8")
+    index.build_graph_and_index(qdrant=StatefulFakeQdrant(), embed_model=StubEmbed())
+
+    assert index.precedence_cycles(_load_graph()) == []

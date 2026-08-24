@@ -3,6 +3,7 @@ del contesto governato e costruzione del prompt di sintesi di /ask (la chiamata 
 vive in core/llm.py). Logica pura: le risorse di runtime (client Qdrant,
 modello di embedding, sidecar ColBERT, grafo, sidecar dei chunk) sono passate come
 parametri espliciti dai chiamanti (dependency injection), non lette da uno stato globale."""
+import heapq
 import logging
 from typing import Any
 
@@ -18,6 +19,7 @@ from core.config import (
     AUTHORITY_CLASS_WEIGHTS as _CFG_CLASS_WEIGHTS,
     AUTHORITY_DEFAULT_WEIGHT,
     AUTHORITY_UNCLASSIFIED_WEIGHT,
+    AUTHORITY_PRECEDENCE_RELATION,
     AUTHORITY_USE_DECLARED,
     COLLECTION_NAME,
 )
@@ -173,7 +175,8 @@ def encode_query(embed_model, question: str) -> dict:
 def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_store: dict,
                   query_filter: Filter | None = None,
                   collection_name: str = COLLECTION_NAME,
-                  query_encoding: dict | None = None) -> list[dict]:
+                  query_encoding: dict | None = None,
+                  graph=None) -> list[dict]:
     """
     Ricerca ibrida a tre livelli (stessa forward pass di bge-m3 per tutti i vettori):
 
@@ -276,16 +279,20 @@ def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_sto
             # Peso di autorità della sorgente (normativa vs informativa, attiva vs archiviata)
             "authority": round(_authority_weight(payload), 3),
         }
-        chunk_col = colbert_store.get(chunk_id)
-        if chunk_col is not None:
-            chunk_col = np.asarray(chunk_col, dtype=np.float32)
-            sim = colbert_q @ chunk_col.T                  # [q_tokens x d_tokens]
-            entry["colbert_score"] = round(float(sim.max(axis=1).mean()), 4)
+        entry["colbert_score"] = colbert_maxsim(colbert_q, colbert_store.get(chunk_id))
         results.append(entry)
 
     # Ordinamento finale con boost di autorità (forza alpha da config): estratto in
     # rank_by_authority così la calibrazione valuta esattamente questo stesso ranking.
     rank_by_authority(results)
+
+    # Precedenza dichiarata fra fonti (S4), DOPO l'autorità e per ultima. L'ordine dei due
+    # stadi non è arbitrario: l'autorità è un segnale statistico su una CLASSE di documenti,
+    # la precedenza è una decisione presa da un umano su DUE documenti precisi. La decisione
+    # umana viene per ultima e vince. È anche l'ultimo riordino prima del taglio a top_k:
+    # nessun consumatore a valle riordina i risultati (verificato su tutti i chiamanti).
+    # No-op senza grafo, senza archi di precedenza o con la relazione disattivata da config.
+    results = apply_precedence(results, graph=graph)
 
     return results[:top_k]
 
@@ -397,7 +404,8 @@ def collect_implementing_code(graph, code_store: dict, anchor_nodes,
     """Dai nodi-ancora (sezioni/documenti recuperati dalla ricerca) risale gli archi
     IMPLEMENTS ENTRANTI (codice → sezione, calcolati all'indicizzazione per similarità
     densa) e restituisce i simboli di codice più fortemente linkati, deduplicati per
-    symbol_id (tenendo il peso migliore) e ordinati per peso decrescente.
+    symbol_id (tenendo il peso migliore) e ordinati per peso decrescente, usando l'ordine
+    in cui arrivano le ancore come tie-break a parità di peso.
 
     È il ponte fra il codice — indicizzato nel grafo ma NON in Qdrant — e la risposta di
     /ask, che altrimenti vedrebbe solo i documenti normativi. `min_weight` scarta gli archi
@@ -407,7 +415,10 @@ def collect_implementing_code(graph, code_store: dict, anchor_nodes,
         return []
     # symbol_id -> (peso migliore, nodo-ancora che quel simbolo implementa)
     best_by_sym: dict[str, tuple[float, str]] = {}
-    for node in set(anchor_nodes):
+    # dict.fromkeys e non set(): l'ORDINE delle ancore è significativo (il chiamante le
+    # passa per fiducia decrescente sul cammino del grafo, S3) e a parità di peso
+    # dell'arco IMPLEMENTS decide chi vince, sia qui sotto sia nel sort STABILE finale.
+    for node in dict.fromkeys(anchor_nodes):
         if node not in graph:
             continue
         for src, _dst, data in graph.in_edges(node, data=True):
@@ -568,7 +579,145 @@ def merge_code_context(*groups: list[dict], max_snippets: int) -> list[dict]:
     return list(merged.values())[:max_snippets] if max_snippets > 0 else []
 
 
-def build_ask_prompt(context: str, question: str) -> str:
+def precedence_pairs(results: list[dict], *, graph, 
+                     relation: str = AUTHORITY_PRECEDENCE_RELATION) -> list[tuple[str, str]]:
+    """Coppie (prevalente, subordinato) DICHIARATE fra i documenti presenti nei risultati.
+
+    Solo archi DIRETTI fra due documenti entrambi presenti: nessuna chiusura transitiva.
+    `A > B` e `B > C` non implicano `A > C` in un corpus governato da esseri umani, e una
+    catena inferita da noi contraddirebbe lo spirito della dichiarazione — se serve, l'autore
+    scrive l'arco. Le coppie servono sia al riordino sia alla dichiarazione del conflitto
+    nella risposta: sono lo stesso fatto, letto una volta sola."""
+    if graph is None or not results or not relation:
+        return []
+    presenti = list(dict.fromkeys(str(r.get("doc_id") or "") for r in results))
+    insieme = {d for d in presenti if d}
+    coppie: list[tuple[str, str]] = []
+    for a in presenti:
+        if not a or a not in graph:
+            continue
+        for _u, b, data in graph.out_edges(a, data=True):
+            if b != a and b in insieme and data.get("relation") == relation:
+                coppie.append((a, b))
+    return coppie
+
+
+def apply_precedence(results: list[dict], *, graph,
+                     relation: str = AUTHORITY_PRECEDENCE_RELATION) -> list[dict]:
+    """Riordina i risultati rispettando le precedenze dichiarate fra i documenti padre
+    (ADR 0002 / S4): se il grafo contiene `A -[relation]-> B`, NESSUN chunk di B può
+    precedere il PRIMO chunk di A.
+
+    RIORDINO, non riscrittura dei punteggi. Moltiplicare gli score sarebbe un secondo boost
+    opaco sommato a quello di autorità, e renderebbe illeggibile il contributo di ciascuno.
+    Qui la relazione è booleana («precede»), e va applicata come tale.
+
+    PERMUTAZIONE STABILE: l'ordine relativo di tutto ciò che non è coinvolto in una
+    precedenza resta identico, e il subordinato scende del minimo necessario. Un sort a
+    chiave composita (`key=(è_subordinato, indice)`) sembra equivalente e NON lo è: spinge
+    il subordinato in fondo, oltre documenti che con quella precedenza non c'entrano nulla.
+    Verificato: su `[B, X, A, Y]` con `A > B`, la chiave composita produce `[X, A, Y, B]`
+    (B scavalcato anche da Y, estraneo), questa funzione produce `[X, A, B, Y]`.
+    L'implementazione è un ordinamento topologico STABILE (Kahn con scelta del minimo indice
+    originale fra i nodi liberi) sui soli DOCUMENTI, seguito da un sort stabile dei chunk
+    sulla posizione del loro documento — così i chunk di uno stesso documento non si
+    rimescolano fra loro.
+
+    CICLI: `A > B` e `B > A` è un corpus malformato, non un errore di richiesta. Gli archi
+    del ciclo vengono rimossi PRIMA dell'ordinamento (con un warning che nomina i doc_id) e
+    quelle coppie restano nell'ordine che avevano: la funzione non entra in loop e non
+    solleva dentro una richiesta. Il difetto va corretto nel corpus, ed è per questo che
+    check_graph_consistency() lo segnala anche in fase di indicizzazione."""
+    coppie = precedence_pairs(results, graph=graph, relation=relation)
+    if not coppie:
+        return results  # caso comune: nessuna precedenza, nessun costo e nessuna copia
+
+    doc_order = list(dict.fromkeys(str(r.get("doc_id") or "") for r in results))
+    vincoli = nx.DiGraph()
+    vincoli.add_nodes_from(doc_order)
+    vincoli.add_edges_from(coppie)
+
+    # I cicli si tolgono prima: un Kahn che stalla lascerebbe fuori nodi in modo arbitrario.
+    while True:
+        try:
+            ciclo = nx.find_cycle(vincoli)
+        except nx.NetworkXNoCycle:
+            break
+        logger.warning(
+            "Precedenza CICLICA dichiarata nel corpus fra %s: nessuna delle due può prevalere, "
+            "l'ordine di quelle fonti resta invariato. Corpus da correggere (relazione %r).",
+            " e ".join(sorted({n for arco in ciclo for n in arco[:2]})), relation,
+        )
+        vincoli.remove_edges_from(ciclo)
+
+    rango = {d: i for i, d in enumerate(doc_order)}
+    grado_entrante = {d: vincoli.in_degree(d) for d in doc_order}
+    liberi = [rango[d] for d in doc_order if grado_entrante[d] == 0]
+    heapq.heapify(liberi)
+    nuovo_ordine: list[str] = []
+    while liberi:
+        doc = doc_order[heapq.heappop(liberi)]
+        nuovo_ordine.append(doc)
+        for succ in vincoli.successors(doc):
+            grado_entrante[succ] -= 1
+            if grado_entrante[succ] == 0:
+                heapq.heappush(liberi, rango[succ])
+    # Difesa: con i cicli già rimossi il grafo è aciclico e Kahn li colloca tutti. Se non
+    # fosse così, i residui tornano nell'ordine originale invece di sparire dai risultati.
+    if len(nuovo_ordine) < len(doc_order):
+        collocati = set(nuovo_ordine)
+        nuovo_ordine += [d for d in doc_order if d not in collocati]
+
+    posizione = {d: i for i, d in enumerate(nuovo_ordine)}
+    # sorted() è STABILE: i chunk di uno stesso documento conservano il loro ordine relativo.
+    return sorted(results, key=lambda r: posizione.get(str(r.get("doc_id") or ""), len(posizione)))
+
+
+def colbert_maxsim(colbert_query, chunk_vectors) -> float | None:
+    """Punteggio ColBERT (MaxSim) fra la query e un chunk: per ogni token della query la
+    similarità massima con i token del chunk, poi media. None se il chunk non ha vettori
+    (sidecar assente o disallineato): "non giudicabile", che non è la stessa cosa di
+    "poco pertinente". Estratta da hybrid_search per essere riusata dal ramo del grafo:
+    due copie della stessa formula avrebbero potuto divergere in silenzio."""
+    if chunk_vectors is None:
+        return None
+    chunk_col = np.asarray(chunk_vectors, dtype=np.float32)
+    sim = colbert_query @ chunk_col.T          # [token_query x token_chunk]
+    return round(float(sim.max(axis=1).mean()), 4)
+
+
+def rank_sections_by_relevance(chunk_ids, *, colbert_store: dict, colbert_query,
+                               min_score: float = 0.0) -> list[tuple[str, float | None]]:
+    """Sezioni ordinate per pertinenza alla DOMANDA, dalla più pertinente (ADR 0002 / S3).
+
+    Serve al ramo del grafo di /ask: la fiducia sul cammino sceglie DI QUALE DOCUMENTO
+    fidarsi, questa sceglie QUALE SEZIONE di quel documento mostrare. Sono due domande
+    diverse, e rispondere alla prima non risponde alla seconda: senza questa funzione si
+    iniettava la prima sezione in ordine di file, cioè quasi sempre il preambolo.
+
+    Non è un secondo retrieval: nessuna chiamata a Qdrant e nessuna ri-codifica: il
+    vettore della domanda è già stato calcolato per questa richiesta e i vettori dei
+    chunk sono già in memoria nel sidecar ColBERT dello snapshot.
+
+    Le sezioni SENZA vettore (sidecar legacy o disallineato) non sono giudicabili: non
+    vengono scartate dal pavimento — sarebbe un giudizio che non possiamo dare — ma
+    finiscono in coda nell'ordine ricevuto, cioè il comportamento di prima di questa
+    modifica. `min_score` scarta solo ciò che è stato davvero valutato."""
+    valutabili: list[tuple[str, float | None]] = []
+    non_valutabili: list[tuple[str, float | None]] = []
+    for cid in chunk_ids:
+        punteggio = colbert_maxsim(colbert_query, (colbert_store or {}).get(cid))
+        if punteggio is None:
+            non_valutabili.append((cid, None))
+        elif punteggio >= min_score:
+            valutabili.append((cid, punteggio))
+    # sort stabile: a parità di punteggio resta l'ordine di documento
+    valutabili.sort(key=lambda kv: -kv[1])
+    return valutabili + non_valutabili
+
+
+def build_ask_prompt(context: str, question: str,
+                     *, precedences: list[tuple[str, str]] | None = None) -> str:
     """Prompt completo della sintesi di /ask, da passare a core.llm con purpose "ask":
     system prompt storico (incluse le regole [REGOLA-DIZIONARIO-RIGIDO]) concatenato al
     messaggio utente nello stesso formato di sempre. Funzione PURA: provider, num_ctx/think
@@ -590,6 +739,19 @@ def build_ask_prompt(context: str, question: str) -> str:
         "non invenzioni, e vanno citati testualmente (con file e simbolo) quando rispondono alla domanda. "
         "Quando codice e documento divergono, riporta ENTRAMBI e dichiara esplicitamente la divergenza."
     )
+
+    # [PRECEDENZA-FONTI] compare SOLO quando una precedenza si applica davvero ai documenti
+    # recuperati. Una regola inerte — presente anche quando non c'è alcun conflitto — insegna
+    # al modello a ignorarla, e la renderebbe inutile proprio nel caso raro in cui serve.
+    if precedences:
+        dichiarazioni = "; ".join(f"«{a}» supera in priorità «{b}»" for a, b in precedences)
+        system_prompt += (
+            "\n[PRECEDENZA-FONTI]: fra le fonti di questo contesto esiste una precedenza "
+            f"DICHIARATA dagli autori del corpus: {dichiarazioni}. "
+            "Quando queste fonti divergono, la risposta DEVE seguire quella prevalente, citare "
+            "comunque l'altra, e dichiarare esplicitamente che fra le due esiste una precedenza "
+            "dichiarata. Non risolvere il conflitto a tua discrezione: è già stato risolto."
+        )
 
     user_message = f"Contesto grafo:\n{context}\n\nDomanda: {question}"
     return f"{system_prompt}\n\n{user_message}"

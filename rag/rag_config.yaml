@@ -105,6 +105,23 @@ retrieval:
   # recuperate ma l'intera vicinanza BFS del grafo (stessa espansione della Mappa del Grafo),
   # così emerge anche il codice collegato ai documenti vicini, non solo a quelli che hanno
   # matchato la query — recall più alta a parità di query.
+  # Fase 6 di [REGOLA-WF-01] (S3, ADR 0002): le sezioni dei documenti raggiunti SOLO via grafo
+  # — non già presenti fra i risultati semantici — entrano nel contesto dell'LLM ordinate per
+  # fiducia sul cammino (core/graph_ops.trust_paths) per autorità della fonte. Sono marcate
+  # "[via grafo: N hop, fiducia X]" così l'LLM sa che quella sezione non ha matchato la domanda:
+  # è arrivata da un legame dichiarato. Il tetto è basso di proposito — il ramo semantico resta
+  # il canale principale. 0 = disattiva del tutto e il contesto torna quello di prima di S3.
+  graph_context_max_chunks: 2
+  # Pavimento di pertinenza per le sezioni iniettate dal ramo del grafo, RELATIVO al miglior
+  # punteggio ColBERT della stessa domanda (0 = nessun pavimento). Relativo e non assoluto
+  # per una ragione MISURATA: il MaxSim ColBERT cambia scala con la query. Su due domande del
+  # nostro corpus, k=50 candidati ciascuna, il massimo vale 0.511 in un caso e 0.727
+  # nell'altro, con mediane 0.421 e 0.459 — una soglia assoluta a 0.45 terrebbe mezza coda
+  # della seconda domanda e scarterebbe la risposta CORRETTA della prima (0.511).
+  # Default 0.0 = SPENTO: il valore giusto non è stato misurato, e spacciare per calibrato
+  # un numero inventato è l'errore che l'ADR 0002 (D3) documenta. Da tarare in S5.
+  graph_context_min_ratio: 0.0
+
   code_context_max_snippets: 10  # tetto sugli snippet di codice iniettati (0 = disattiva del tutto)
   code_context_min_weight: 0.5   # soglia sul peso dell'arco IMPLEMENTS (cosine); >= soglia di linking (0.45)
 
@@ -205,6 +222,16 @@ authority:
                             # non numerico o fuori [0,1] degrada al peso di classe (con warning),
                             # non fa fallire la richiesta.
   unclassified_weight: 0.3  # peso di una fonte SENZA classificazione — vedi nota sopra
+
+  # ─── Precedenza esplicita fra fonti (ADR 0002 / S4) ───────────────────────────────────
+  # Nome della relazione con cui un autore dichiara, nel frontmatter, che il suo documento
+  # prevale su un altro: «quando questo e quell'altro dicono cose diverse, vince questo».
+  # I pesi qui sopra rispondono PER CLASSE (segnale statistico); questa risponde per COPPIA
+  # SPECIFICA, ed è quindi il segnale più preciso che abbiamo — l'unico che copre due
+  # documenti della stessa classe, con la stessa autorità, che si contraddicono.
+  # Non è hardcodata perché il vocabolario delle relazioni nasce dal frontmatter: un progetto
+  # istanziato dalla nostra baseline può usarne un altro. Stringa vuota = meccanismo spento.
+  precedence_relation: "SUPERA_IN_PRIORITÀ"
 
 # Fiducia sugli archi del grafo (S2, ADR 0002): ogni arco ha una NATURA (strutturale/curata/
 # inferita) e un'affidabilità numerica. È solo etichettatura — S2 non cambia alcun ranking —

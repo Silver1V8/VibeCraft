@@ -56,3 +56,7 @@
 {"timestamp": "2026-08-05T09:13:54.338833+00:00", "commit": "d3030ee", "version": "v20260805T090654", "recall": {"recall@10": 0.9795918367346939}, "n_cases": 49, "source": "gate", "gate": {"passed": true, "min_recall": 0.9}}
 {"timestamp": "2026-08-05T10:04:56.855453+00:00", "commit": "d3030ee", "version": "v20260805T095847", "recall": {"recall@10": 0.9795918367346939}, "n_cases": 49, "source": "gate", "gate": {"passed": true, "min_recall": 0.9}}
 {"timestamp": "2026-08-05T10:25:06.354966+00:00", "commit": "d3030ee", "version": "v20260805T101835", "recall": {"recall@10": 0.9795918367346939}, "n_cases": 49, "source": "gate", "gate": {"passed": true, "min_recall": 0.9}}
+{"timestamp": "2026-08-24T10:32:10.862703+00:00", "commit": "9382fdb", "version": "v20260805T101835", "recall": {"recall@10": 0.9795918367346939}, "n_cases": 49, "source": "eval.run"}
+{"timestamp": "2026-08-24T10:57:20.070749+00:00", "commit": "2c0ac0e", "version": "v20260805T101835", "recall": {"recall@10": 0.9795918367346939}, "n_cases": 49, "source": "eval.run"}
+{"timestamp": "2026-08-24T11:09:34.513261+00:00", "commit": "0ce613b", "version": "v20260805T101835", "recall": {"recall@10": 0.9795918367346939}, "n_cases": 49, "source": "eval.run"}
+{"timestamp": "2026-08-24T11:10:40.830305+00:00", "commit": "0ce613b", "version": "v20260805T101835", "recall": {"recall@10": 0.9795918367346939}, "n_cases": 49, "source": "eval.run"}

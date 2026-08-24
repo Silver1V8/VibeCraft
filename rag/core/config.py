@@ -244,6 +244,12 @@ AUTHORITY_BOOST_ALPHA: float = float(_authority_cfg.get("boost_alpha", 0.4))
 # un parametro numerico: spegnerlo riporta al comportamento storico (peso dedotto dalla sola
 # classification) senza toccare il codice né ri-indicizzare.
 AUTHORITY_USE_DECLARED: bool = bool(_authority_cfg.get("use_declared", True))
+# Relazione di PRECEDENZA fra documenti (ADR 0002 / S4): l'arco doc -> doc con cui un autore
+# dichiara quale delle due fonti prevale in caso di conflitto. Applicata da
+# core.retrieval.apply_precedence DOPO la ri-ponderazione per autorità: il peso di classe è un
+# segnale statistico, questa è una decisione presa da un umano su due documenti precisi, e la
+# decisione umana viene per ultima. "" disattiva il meccanismo.
+AUTHORITY_PRECEDENCE_RELATION: str = str(_authority_cfg.get("precedence_relation") or "")
 # Peso di una fonte PRIVA di classificazione (core/chunking.py::read_document() restituisce
 # frontmatter vuoto per ogni formato non-.md: pdf, docx, xlsx, txt). Tenuto distinto da
 # AUTHORITY_DEFAULT_WEIGHT, che copre il caso opposto — classe NOTA ma non elencata in
@@ -298,6 +304,15 @@ TECH_SCOPE_TAG_KEY: str = str(_retrieval_cfg.get("tech_scope_tag_key") or "")
 # reale. È il ponte fra il codice indicizzato nel grafo e la ricerca semantica (che interroga
 # solo Qdrant/documenti). max=0 disattiva; min_weight filtra gli archi deboli. Vedi
 # retrieval.collect_implementing_code e api/routes_retrieval.ask_rag.
+# Sezioni raggiunte SOLO via grafo iniettate nel contesto di /ask (S3, ADR 0002: la fase 6
+# di [REGOLA-WF-01] che arriva finalmente alla risposta). Tetto BASSO di proposito: il ramo
+# semantico resta il canale principale, questo è il complemento strutturale. 0 = disattivato,
+# e il contesto torna byte-identico a quello di prima di S3.
+GRAPH_CONTEXT_MAX_CHUNKS: int = int(_retrieval_cfg.get("graph_context_max_chunks", 2))
+# Pavimento RELATIVO (frazione del miglior punteggio ColBERT della stessa domanda) sotto il
+# quale una sezione raggiunta via grafo non viene iniettata. 0.0 = nessun pavimento. Relativo
+# perché il MaxSim ColBERT cambia scala con la query: vedi la nota in rag_config.yaml.
+GRAPH_CONTEXT_MIN_RATIO: float = float(_retrieval_cfg.get("graph_context_min_ratio", 0.0))
 CODE_CONTEXT_MAX_SNIPPETS: int = int(_retrieval_cfg.get("code_context_max_snippets", 6))
 CODE_CONTEXT_MIN_WEIGHT: float = float(_retrieval_cfg.get("code_context_min_weight", 0.5))
 # Ricerca semantica DIRETTA sui simboli di codice (retrieval.search_code_symbols): coseno

@@ -1383,6 +1383,7 @@
     function renderJsonPanel(data) {
       const gc          = data.graph_context || {};
       const scores      = data.qdrant_scores  || [];
+      const precedences = data.precedences    || [];
       const seedNodes   = gc.seed_nodes        || [];
       const expNodes    = gc.expanded_nodes    || [];
       const graphEdges  = gc.graph_edges       || [];
@@ -1439,6 +1440,10 @@
       /* ── LEFT: raw RAG JSON (context_text escluso) ── */
       const ragData = {
         qdrant_scores: scores,
+        /* Precedenze dichiarate fra fonti che hanno riordinato il ranking (S4): quasi sempre
+           vuoto. Sta qui perche' un riordino silenzioso non e' spiegabile — chi legge deve
+           poter vedere PERCHE' un documento e' sceso. */
+        ...(precedences.length ? { precedences } : {}),
         graph_context: {
           seed_nodes:     seedNodes,
           expanded_nodes: expNodes,
