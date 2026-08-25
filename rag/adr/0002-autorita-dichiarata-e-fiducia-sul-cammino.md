@@ -391,6 +391,48 @@ casi entro top-10 il gate a k=10 è tornato cieco — e questa volta **lo ha det
 con l'alert di saturazione introdotto da S5: è la prima volta che quel guardrail scatta su
 un caso reale, ed è servito esattamente a quello.
 
+**Seguito immediato: l'istanziazione (stesso giorno).** Ripristinare la baseline ha reso
+il corpus *templato*: `/ask` rispondeva `<<RISORSA_CONTESA>>` dove prima diceva
+`posti_residui`. La recall misura se recuperi la sezione giusta, non se la risposta è
+utilizzabile — e nessuna delle metriche qui sopra vedeva quel peggioramento.
+`safeguards_security.md` è stato quindi **istanziato sul dominio** (Sezione 0 compilata,
+60 occorrenze di segnaposto risolte, v2.1.0), dichiarandolo con `instantiated_from:` così
+il check `docs_git` lo classifica `instantiated` e non `diverging`. Effetto misurato:
+
+| | baseline templata | dopo l'istanziazione |
+|---|---|---|
+| 59 casi, recall@2 | 0.797 | **0.814** |
+| 59 casi, recall@5 | 0.983 | **1.000** (satura) |
+| 9 avversariali, recall@2 | 0.556 | **0.667** |
+| 9 avversariali, recall@5 | 0.889 | **1.000** (satura) |
+
+L'eval-gate è sceso ancora, da k=5 a **k=2** (`min_recall` 0.95 → 0.75): l'alert di
+saturazione è scattato una seconda volta nello stesso giorno, e questa volta su una
+metrica che era stata scelta proprio perché discriminava. **k=2 è l'ultimo k utile**: se
+saturasse anche quello, la risposta non è abbassare un'altra soglia ma estendere il
+golden set con casi che il sistema sbaglia.
+
+Non sono stati reinnestati i blocchi `Regola AFU Correlata` della v1.0.0: rimandano a
+otto famiglie di regole (`CONC`, `AUTH`, `AUDIT`, `UT`, `EV`, `RQ`, `ANL`, `CRUD`) che
+**nessun documento del corpus definisce** — l'AFU non esiste più. Innestarli avrebbe
+prodotto una quindicina di riferimenti orfani, cioè nodi entità che puntano al nulla.
+`Il Perimetro` e `Il Failure Mode` sono invece stati innestati (v2.2.0): 7 + 6 blocchi,
+118 righe di dominio — funzioni applicative, tabelle e route coinvolte, procedura esatta di
+fallimento. I 3 riferimenti orfani che contenevano sono stati risolti togliendo il token
+fra quadre e conservando il senso; quelli a regole che esistono davvero hanno avuto
+corretta la **provenienza** (`[REGOLA-CLEAN-*]` rimanda a `coding_standards.md`, non a
+un'AFU che non c'è più). Nel documento non resta un solo riferimento orfano.
+
+**Il prezzo, misurato e non nascosto.** Innesto + scheda `BUDGET_ANNUO` nel glossario
+(v1.1.0, che ha chiuso il debito dichiarato in Sezione 0) fanno scendere `recall@2` da
+0.814 a **0.797** e `recall@5` da 1.000 a **0.983**. Quattro casi perdono **un solo rango**
+ciascuno, nessuno esce dai primi dieci. Due sono proprio quelli su budget e posti
+disponibili, dove la nuova scheda `BUDGET_ANNUO` compete legittimamente con la fonte
+attesa. È il costo atteso di un corpus più ricco, non una regressione del ranking: la
+recall misura se recuperi la sezione attesa, e più contenuto pertinente significa più
+concorrenza per gli stessi posti. Ottimizzare il corpus per proteggere la metrica sarebbe
+esattamente il rovescio del metodo.
+
 **Ciò che il ripristino NON ha cambiato:** il corpus resta 26 documenti tutti `ENFORCED`,
 quindi `archived_decay` resta non esercitato; e l'unica dichiarazione `SUPERA_IN_PRIORITÀ`
 continua a puntare a un non-documento, quindi S4 resta codice corretto e inerte. I due

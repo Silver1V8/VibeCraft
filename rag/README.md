@@ -208,9 +208,24 @@ perché una divergenza git **non si ripara re-indicizzando** — il reindex rile
 gli stessi file — e trattarla come problema farebbe scattare un full rebuild inutile a
 ogni esecuzione. Quale corpus sia autoritativo è una decisione umana; il check la rende
 solo visibile. Gli script notturni la stampano **sempre**, anche a integrità OK (è il
-caso in cui resterebbe nascosta) e scrivono un alert. Stati: `aligned`, `diverging`
-(con l'elenco dei path), `unavailable` (git assente, non un repository, HEAD assente —
-mai un'eccezione).
+caso in cui resterebbe nascosta) e scrivono un alert.
+
+**Istanziazione dichiarata ≠ difetto.** La baseline è fatta per essere istanziata sul
+posto — `docs/README.md` prescrive di compilare la Sezione 0 e risolvere i
+`<<PARAMETRO>>`, e `skip-worktree` esiste proprio perché quell'istanza non risulti come
+"modifica". Un check che segnalasse anche quella non verrebbe più letto: il rumore
+atteso seppellisce il segnale raro. Un documento che dichiara `instantiated_from:` nel
+frontmatter è quindi classificato a parte — resta elencato e contato, ma non è un
+problema, e non fa scattare l'alert notturno. Il marcatore è una dichiarazione umana con
+lo stesso modello di fiducia di `authority:`: chi lo scrive per mascherare una divergenza
+accidentale sta mentendo al proprio strumento, non aggirando un controllo. Un file
+**sparito** dal disco non può dichiarare nulla e resta sempre una divergenza; un
+frontmatter malformato non vale come dichiarazione (il caso ambiguo si risolve verso
+`diverging`, che è il più prudente).
+
+Stati: `aligned`, `instantiated` (solo differenze dichiarate), `diverging` (almeno una
+non dichiarata — e ne basta una perché lo stato torni tale), `unavailable` (git assente,
+non un repository, HEAD assente — mai un'eccezione).
 In base al report lo script:
 - **ok** → esce senza fare nulla;
 - **stale** (solo sorgenti cambiate) → `POST /api/reindex` al server locale
@@ -382,22 +397,33 @@ scende sotto la soglia (il report viene comunque scritto), 0 altrimenti.
 di autorità** (server su):
 
 ```bash
-uv run python -m eval.run --k 1 2 5 --assert-min 0.95
+uv run python -m eval.run --k 1 2 --assert-min 0.75
 ```
 
-Ultima misura (2026-08-25, 59 casi, corpus 26 documenti / 180 chunk, baseline
-committato ripristinato): `recall@1 0.576 · @2 0.797 · @5 0.983 · @10 1.000`.
+Ultima misura (2026-08-25, 59 casi, corpus 26 documenti / 181 chunk, baseline
+ripristinato, `safeguards_security.md` istanziato sul dominio v2.2.0 e scheda
+`BUDGET_ANNUO` aggiunta al glossario):
+`recall@1 0.576 · @2 0.797 · @5 0.983 · @10 1.000`.
 
-**Il guardrail asserisce sul k più alto passato, e per questo qui i k sono
-`1 2 5` e non il default.** Con il baseline ripristinato tutti e 59 i casi
-rientrano in top-10: `recall@10 = 1.000` è **saturo**, e un `--assert-min` su una
-metrica satura non è severo, è cieco — lo supera qualunque regressione che non
-faccia uscire una fonte dai primi dieci. Fermando i k a 5 l'asserzione cade su
-`recall@5 = 0.983`, che discrimina ancora (un caso su 59 fuori), con la soglia
-0.95 poco sotto. È la stessa scelta fatta per `eval_gate.k` (vedi il blocco
-`eval_gate` in [rag_config.yaml](rag_config.yaml)) e per la stessa ragione: `/ask`
-inietta fino a 8 sezioni e le legge tutte, quindi la domanda che conta è se la
-fonte **entra nella finestra**, non a che rango.
+**Il guardrail asserisce sul k più alto passato, e per questo qui i k sono `1 2` e
+non il default.** `recall@10` vale 1.000 su tutti e 59 i casi: è **satura**, e un
+`--assert-min` su una metrica satura non è severo, è cieco — lo supera qualunque
+regressione che non faccia uscire una fonte dai primi dieci. Fermando i k a 2
+l'asserzione cade su `recall@2 = 0.797`, che discrimina, con la soglia 0.75 poco
+sotto. Stessa scelta di `eval_gate.k` (vedi il blocco `eval_gate` in
+[rag_config.yaml](rag_config.yaml)).
+
+`recall@5` era saturata a 1.000 dopo l'istanziazione ed è tornata a 0.983 quando il
+corpus si è arricchito ancora: **il gate resta comunque a k=2**. Un gate che cambia
+`k` a ogni modifica del corpus non è un gate — la stabilità della soglia vale più di
+qualche punto di sensibilità.
+
+Il criterio *«/ask inietta 8 sezioni, quindi conta se la fonte entra nella
+finestra, non a che rango»* resterebbe valido — ma un gate deve prima di tutto
+**distinguere una regressione**, e a @5 non distingue più nulla. Se anche
+`recall@2` saturasse non resterebbe un k più basso utile: vorrà dire che il
+golden-set ha smesso di essere una misura e va **esteso** con casi che il sistema
+sbaglia, non abbassata un'altra soglia.
 
 Questo comando richiede il server acceso (modello caricato): per questo NON è
 nella pipeline CI (vedi [sezione CI](#ci)), resta manuale pre-merge finché non

@@ -390,3 +390,58 @@ def test_divergenza_docs_non_contribuisce_a_ok(env):
     report = _check(env)
     assert report["docs_git"]["state"] == "diverging"
     assert report["ok"] is True and report["problems"] == []
+
+
+def test_docs_git_istanziazione_dichiarata_non_e_divergenza(tmp_path, git_disponibile):
+    """La baseline è FATTA per essere istanziata sul posto (docs/README.md: compila la
+    Sezione 0, sostituisci i <<PARAMETRO>>), e skip-worktree esiste perché quell'istanza
+    non risulti come modifica. Segnalarla come difetto renderebbe il check illeggibile:
+    il rumore atteso seppellirebbe il segnale raro."""
+    import subprocess
+    root, f = _repo_finto(tmp_path, "---\ntitle: baseline\n---\ncorpo\n")
+    f.write_text('---\ntitle: baseline\ninstantiated_from: "baseline v2.0.0"\n---\n'
+                 'corpo con i valori del progetto\n', encoding="utf-8")
+    subprocess.run(["git", "-C", str(root), "update-index", "--skip-worktree", "docs/norma.md"],
+                   capture_output=True, check=True)
+
+    r = indexing.observe_docs_git_divergence(root=root, docs_dir=root / "docs")
+    assert r["state"] == "instantiated"
+    assert r["instantiated"] == ["docs/norma.md"] and r["diverging"] == []
+
+
+def test_docs_git_una_divergenza_non_dichiarata_vince_sulle_dichiarate(tmp_path, git_disponibile):
+    """Il difetto non deve poter essere mascherato dalla presenza di istanziazioni: basta
+    un file non dichiarato perché lo stato torni `diverging`."""
+    import subprocess
+    root, _ = _repo_finto(tmp_path, "---\ntitle: b\n---\ncorpo\n")
+    altro = root / "docs" / "seconda.md"
+    altro.write_text("---\ntitle: b2\n---\ncorpo\n", encoding="utf-8")
+    run = lambda *a: subprocess.run(["git", "-C", str(root), *a], capture_output=True, check=True)
+    run("add", "docs/seconda.md")
+    run("commit", "-qm", "seconda")
+
+    (root / "docs" / "norma.md").write_text(
+        '---\ntitle: b\ninstantiated_from: "baseline v2.0.0"\n---\nistanziato\n', encoding="utf-8")
+    altro.write_text("---\ntitle: b2\n---\nmodificato per sbaglio\n", encoding="utf-8")
+
+    r = indexing.observe_docs_git_divergence(root=root, docs_dir=root / "docs")
+    assert r["state"] == "diverging"
+    assert r["diverging"] == ["docs/seconda.md"]
+    assert r["instantiated"] == ["docs/norma.md"]
+
+
+def test_docs_git_file_sparito_non_puo_dichiararsi_istanziato(tmp_path, git_disponibile):
+    """Un file cancellato non ha frontmatter da leggere: resta una divergenza, sempre."""
+    root, f = _repo_finto(tmp_path, "---\ninstantiated_from: x\n---\ncorpo\n")
+    f.unlink()
+    r = indexing.observe_docs_git_divergence(root=root, docs_dir=root / "docs")
+    assert r["state"] == "diverging" and r["diverging"] == ["docs/norma.md"]
+
+
+def test_docs_git_frontmatter_malformato_non_vale_come_dichiarazione(tmp_path, git_disponibile):
+    """Frontmatter aperto e mai chiuso = nessun frontmatter (core.chunking.split_frontmatter).
+    Il caso ambiguo si risolve verso `diverging`, che è il più prudente."""
+    root, f = _repo_finto(tmp_path)
+    f.write_text('---\ninstantiated_from: "mai chiuso"\ncorpo senza chiusura\n', encoding="utf-8")
+    r = indexing.observe_docs_git_divergence(root=root, docs_dir=root / "docs")
+    assert r["state"] == "diverging" and r["instantiated"] == []

@@ -358,7 +358,7 @@ graph_trust:
 # se il golden set manca o il gate è disattivo, la promozione procede (non blocca i primi build).
 eval_gate:
   enabled: true
-  k: 5                 # soglia di recall valutata (recall@k)
+  k: 2                 # soglia di recall valutata (recall@k)
   # DA k=10 A k=5, il 2026-08-25 — e l'alert di saturazione ha fatto esattamente il suo lavoro.
   # Storia in tre passi, che vale la pena non riscrivere:
   #   1. sul golden set di 49 casi recall@10 valeva 1.000: il gate passava per costruzione e
@@ -369,15 +369,28 @@ eval_gate:
   #      in top-10: recall@10 = 1.000, di nuovo SATURA, e questa volta il gate lo ha DETTO
   #      (alert warning da gate_promotion). Da qui lo spostamento a k=5.
   #
-  # PERCHÉ k=5 e non k=2. k=2 discrimina di più (0.797 contro 0.983), ma /ask inietta fino a
-  # `retrieval.governed_max_chunks: 8` sezioni e l'LLM le legge tutte: ciò che conta è se la
-  # fonte giusta ENTRA nella finestra, non a che rango. k=5 è la misura più vicina a quel
-  # consumo che non sia satura — stesso ragionamento con cui, nella nota su boost_alpha qui
-  # sopra, si è deciso di NON alzare alpha per guadagnare rango 1. Margine oggi: 0.983 contro
-  # una soglia di 0.95, cioè due casi su 59.
-  # Se anche recall@5 dovesse saturare, scendere a k=2 e ritarare min_recall (~0.75): mai
-  # alzare min_recall a un k saturo, che non misura nulla comunque.
-  min_recall: 0.95     # promozione bloccata se recall@k medio scende sotto questo valore
+  # PERCHÉ NON PIÙ k=5. Il criterio resta quello: /ask inietta fino a
+  # `retrieval.governed_max_chunks: 8` sezioni e l'LLM le legge tutte, quindi la misura giusta
+  # sarebbe la più vicina a quel consumo — @5. Ma un gate deve prima di tutto DISCRIMINARE, e
+  # dopo l'istanziazione recall@5 vale 1.000 su tutti i 59 casi. Fra "vicina al consumo" e
+  # "capace di distinguere una regressione" vince la seconda: una misura satura non è
+  # conservativa, è cieca.
+  #   4. poche ore dopo, ISTANZIATO safeguards_security.md sul dominio (Sezione 0 compilata,
+  #      60 segnaposto risolti): il corpus smette di rispondere "<<RISORSA_CONTESA>>" e dice
+  #      "posti_residui". Il retrieval migliora ancora — r@2 0.797->0.814, e sul sottoinsieme
+  #      avversariale 0.556->0.667 — e recall@5 arriva a 1.000: SATURA anche lei, alert di
+  #      nuovo scattato. Da qui k=5 -> k=2.
+  #
+  # k=2 è l'ultimo k su cui il gate resta stabile: la soglia è 0.75, poco sotto il misurato
+  # (0.797). NB: recall@5 era saturata a 1.000 subito dopo l'istanziazione ed è poi tornata a
+  # 0.983 quando il corpus si è arricchito (innesto dei blocchi di dominio + scheda
+  # BUDGET_ANNUO). Il gate NON è stato riportato a k=5: un gate che insegue il corpus a ogni
+  # modifica non è un gate, e la stabilità della soglia vale più di qualche punto di
+  # sensibilità. Se anche recall@2
+  # dovesse saturare non resta un k più basso utile: vorrà dire che il golden set ha smesso
+  # di essere una misura e va ESTESO con casi che il sistema sbaglia, non abbassata un'altra
+  # soglia. Mai alzare min_recall a un k saturo, che non misura nulla comunque.
+  min_recall: 0.75     # promozione bloccata se recall@k medio scende sotto questo valore
   blocking: true       # true = blocca la promozione; false = solo alert (advisory), promuove comunque
   # M6 — ESPERIMENTO: valutazione ADVISORY post-promozione sui job INCREMENTALI.
   # A flag attivo, DOPO la promozione di un incrementale si misura la recall sul golden set

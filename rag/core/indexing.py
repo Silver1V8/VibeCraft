@@ -70,6 +70,7 @@ from core import llm
 from core.eval_gate import gate_promotion, run_incremental_advisory
 from core.graph_ops import edge_nature, edge_reliability, edge_trust_attrs
 from core.pipeline import InvalidFeatureNameError, resolve_feature_dir
+from core.chunking import split_frontmatter
 from core.config import (
     AUTHORITY_PRECEDENCE_RELATION,
     CHANGES_DIR,
@@ -1004,6 +1005,29 @@ def index_status() -> dict:
     }
 
 
+# Campo di frontmatter con cui un documento DICHIARA di essere l'istanziazione locale di
+# un documento baseline: `instantiated_from: "baseline v2.0.0"`. Vive solo nella copia di
+# lavoro — se finisse nel committato, la baseline distribuirebbe l'istanza di qualcun altro.
+INSTANTIATION_FIELD = "instantiated_from"
+
+
+def _declares_instantiation(path: Path) -> bool:
+    """True se il file su disco dichiara `instantiated_from` nel proprio frontmatter.
+
+    Confronto testuale sulla chiave, non `yaml.safe_load`: qui interessa solo sapere se
+    l'autore ha dichiarato l'intenzione, e un frontmatter malformato non deve far passare
+    per "difetto" un file che dichiara, né viceversa far esplodere un check di sola
+    osservazione. Il caso ambiguo si risolve verso `diverging`, che è il più prudente."""
+    try:
+        fm, _ = split_frontmatter(path.read_text(encoding="utf-8"))
+    except Exception:
+        return False
+    if not fm:
+        return False
+    return any(riga.split(":", 1)[0].strip() == INSTANTIATION_FIELD
+               for riga in fm.splitlines() if ":" in riga)
+
+
 def observe_docs_git_divergence(root: Path = PROJECT_ROOT, docs_dir: Path = DOCS_DIR,
                                 timeout: float = 15.0) -> dict:
     """Il corpus indicizzato (docs/ su disco) coincide con quello committato in git?
@@ -1033,11 +1057,24 @@ def observe_docs_git_divergence(root: Path = PROJECT_ROOT, docs_dir: Path = DOCS
     scattare allo script notturno un reindex inutile a ogni esecuzione. Quale corpus sia
     autoritativo è una decisione umana; questo check si limita a renderla visibile.
 
-    Ritorna {state, diverging, tracked, reason}:
-      - state "aligned"     : ogni file tracciato di docs/ coincide col committato;
-      - state "diverging"   : `diverging` elenca i path che differiscono (o mancano su disco);
-      - state "unavailable" : git assente, non un repository, HEAD assente (repo vuoto),
-                              o comando fallito — `reason` dice perché. Mai un'eccezione.
+    ISTANZIAZIONE DICHIARATA ≠ DIFETTO. La baseline è fatta per essere istanziata sul
+    posto: `docs/README.md` prescrive di compilare la Sezione 0 e sostituire i
+    `<<PARAMETRO>>`, e skip-worktree esiste proprio perché quell'istanza locale non
+    risulti come "modifica". Un check che segnalasse anche quella non verrebbe più letto:
+    il rumore atteso seppellisce il segnale raro. Un documento che dichiara
+    `instantiated_from:` nel proprio frontmatter è quindi classificato a parte — resta
+    visibile e contato, ma non è un problema. Il marcatore è una dichiarazione umana, con
+    lo stesso modello di fiducia di `authority:`: chi lo scrive per nascondere una
+    divergenza accidentale sta mentendo al proprio strumento, non aggirando un controllo.
+
+    Ritorna {state, diverging, instantiated, tracked, reason}:
+      - state "aligned"      : ogni file tracciato di docs/ coincide col committato;
+      - state "instantiated" : le uniche differenze sono su file che DICHIARANO di essere
+                               istanziazioni locali della baseline;
+      - state "diverging"    : c'è almeno una differenza NON dichiarata — `diverging` la
+                               elenca (`instantiated` elenca comunque le dichiarate);
+      - state "unavailable"  : git assente, non un repository, HEAD assente (repo vuoto),
+                               o comando fallito — `reason` dice perché. Mai un'eccezione.
     """
     def _git(args: list[str], stdin: str | None = None) -> str:
         return subprocess.run(
@@ -1046,7 +1083,7 @@ def observe_docs_git_divergence(root: Path = PROJECT_ROOT, docs_dir: Path = DOCS
             timeout=timeout, check=True,
         ).stdout
 
-    vuoto = {"state": "unavailable", "diverging": [], "tracked": 0}
+    vuoto = {"state": "unavailable", "diverging": [], "instantiated": [], "tracked": 0}
     try:
         rel = docs_dir.relative_to(root).as_posix()
     except ValueError:
@@ -1072,7 +1109,7 @@ def observe_docs_git_divergence(root: Path = PROJECT_ROOT, docs_dir: Path = DOCS
         if len(campi) >= 3 and campi[1] == "blob" and path:
             attesi[path] = campi[2]
     if not attesi:
-        return {"state": "aligned", "diverging": [], "tracked": 0,
+        return {"state": "aligned", "diverging": [], "instantiated": [], "tracked": 0,
                 "reason": f"nessun file tracciato sotto {rel}/"}
 
     presenti = [path for path in attesi if (root / path).is_file()]
@@ -1089,13 +1126,19 @@ def observe_docs_git_divergence(root: Path = PROJECT_ROOT, docs_dir: Path = DOCS
             return {**vuoto, "reason": "git hash-object ha restituito un numero di hash inatteso"}
         correnti = dict(zip(presenti, righe))
 
-    diverging = sorted(
+    differenti = sorted(
         path for path, atteso in attesi.items()
-        if correnti.get(path) != atteso  # assente su disco => None => diverge
+        if correnti.get(path) != atteso  # assente su disco => None => differisce
     )
+    # Un file SPARITO dal disco non può dichiarare nulla: resta sempre una divergenza.
+    dichiarate = [p for p in differenti
+                  if (root / p).is_file() and _declares_instantiation(root / p)]
+    non_dichiarate = [p for p in differenti if p not in set(dichiarate)]
     return {
-        "state": "diverging" if diverging else "aligned",
-        "diverging": diverging,
+        "state": ("diverging" if non_dichiarate
+                  else "instantiated" if dichiarate else "aligned"),
+        "diverging": non_dichiarate,
+        "instantiated": dichiarate,
         "tracked": len(attesi),
         "reason": None,
     }
@@ -1280,12 +1323,18 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
         _log(f"❌ Integrità indice: {len(problems)} problemi — " + "; ".join(problems))
     _log(f"ℹ️  Stato alias Qdrant (osservazione): {report['qdrant_alias']['state']}")
     dg = report["docs_git"]
+    if dg.get("instantiated"):
+        _log(f"ℹ️  docs/ istanziato localmente in {len(dg['instantiated'])} file "
+             f"(dichiarato con `{INSTANTIATION_FIELD}:`): "
+             + ", ".join(dg["instantiated"][:3]) + (", …" if len(dg["instantiated"]) > 3 else ""))
     if dg["state"] == "diverging":
         _log(f"⚠️  docs/ su disco DIVERGE dal committato in {len(dg['diverging'])} file "
              f"su {dg['tracked']} ({', '.join(dg['diverging'][:3])}"
              + (", …" if len(dg["diverging"]) > 3 else "") + "). "
              "Il RAG indicizza la copia su disco: un reindex NON riallinea nulla, "
-             "va deciso quale versione è autoritativa.")
+             f"va deciso quale versione è autoritativa. Se la differenza è "
+             f"un'istanziazione voluta, dichiararla con `{INSTANTIATION_FIELD}:` nel "
+             "frontmatter.")
     elif dg["state"] == "unavailable":
         _log(f"ℹ️  Divergenza docs/↔git non verificabile: {dg.get('reason')}")
     return report
