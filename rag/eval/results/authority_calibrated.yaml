@@ -1,4 +1,4 @@
-generated_at: '2026-08-24T17:44:19'
+generated_at: '2026-08-25T11:19:55'
 metric: recall@5
 cv:
   folds: 5
@@ -8,8 +8,8 @@ cv:
   - 2
   - 3
   - 4
-  default_recall: 0.9667
-  calibrated_recall: 0.9667
+  default_recall: 0.983
+  calibrated_recall: 0.983
   gain: 0.0
   gain_std: 0.0
   gain_per_seed:
@@ -21,18 +21,18 @@ cv:
 dead_axes:
 - default_weight
 in_sample_best:
-  alpha: 0.1
-  default_weight: 0.7
-  unclassified_weight: 0.3
-  recall: 0.9661
+  alpha: 0.2
+  default_weight: 0.4
+  unclassified_weight: 0.1
+  recall: 1.0
 default:
   alpha: 0.1
   default_weight: 0.7
   unclassified_weight: 0.3
-  recall: 0.9661
+  recall: 0.9831
 adversarial_subset:
-  n: 10
-  recall_authority_off: 0.9
-  recall_default: 1.0
+  n: 9
+  recall_authority_off: 0.8889
+  recall_default: 0.8889
   recall_grid_best: 1.0
 recommendation: NON_APPLICARE

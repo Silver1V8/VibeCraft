@@ -79,33 +79,18 @@ cases:
     expected:
       - {doc: coding_standards, section: "Tracciabilità della Governance"}
 
-  # ATTESA CORRETTA il 2026-08-24. Puntava a `coding_standards § Tracciabilità della
-  # Governance`, che nel corpus indicizzato NON contiene la risposta: quella sezione
-  # norma il tagging dei docstring e i modelli Pydantic. La regola che risponde —
-  # «è fatto divieto assoluto di introdurre termini o sinonimi non presenti nella
-  # documentazione ufficiale; i nomi di variabili, funzioni, colonne e classi devono
-  # ereditare la denominazione esatta del Glossario» — è [REGOLA-CLEAN-03] in
-  # vibe_coding_workflow.md § Sezione 2.
-  #
-  # L'attesa non era sbagliata all'origine: quando il golden set fu scritto (3a95322,
-  # 2026-07-22) coding_standards.md era alla v2.0.0 cross-progetto e possedeva
-  # [REGOLA-CLEAN-07] «Allineamento terminologico rigido». La copia su disco — quella
-  # che il RAG indicizza — è però tornata alla v1.0.0 dominio-specifica, che si ferma a
-  # CLEAN-04. La divergenza è invisibile a `git status` perché i file di docs/ sono
-  # marcati skip-worktree: da qui il check `docs_git` in check_index_integrity.
-  #
-  # IL CASO CONTINUA A FALLIRE, ed è ora un fallimento LEGGIBILE invece che un'attesa
-  # che punta al vuoto. Verificato eseguendo la query: con il vocabolario della regola
-  # («allineamento terminologico rigido: è vietato introdurre sinonimi…») la sezione
-  # attesa è a rango 1, quindi è perfettamente raggiungibile; con questa formulazione
-  # colloquiale non entra in top-10 e vince intent_synonym_mapping. Il motivo è preciso:
-  # in questo corpus «glossario» denota in modo schiacciante il glossario DI DOMINIO
-  # (glossario_entita.md, e intent_synonym_mapping.md che si intitola proprio «Glossario
-  # Semantico dei Sinonimi»), non la norma di naming che vi si appoggia. L'autorità qui
-  # non può correggere nulla: distrattore e fonte attesa pesano 0.50-0.70 contro 0.50.
+  # STORIA DI QUESTO CASO, che vale la pena tenere. Ha smesso di passare quando la copia
+  # di lavoro di coding_standards.md è tornata alla v1.0.0 dominio-specifica (CLEAN-01..04)
+  # mentre in git c'era la v2.0.0 cross-progetto (CLEAN-01..07): la regola che risponde,
+  # [REGOLA-CLEAN-07] «Allineamento terminologico rigido», esisteva solo nel committato,
+  # e il RAG indicizza il disco. La divergenza era invisibile a `git status` perché i file
+  # di docs/ sono skip-worktree — da qui il check `docs_git` in check_index_integrity.
+  # Ripristinato il baseline (2026-08-25) il caso è tornato a passare: atteso a rango 3.
+  # L'attesa qui sotto è quella ORIGINALE: non è mai stata sbagliata, era il corpus a
+  # essersi discostato.
   - q: "posso usare un sinonimo per nominare una variabile o devo seguire il glossario"
     expected:
-      - {doc: vibe_coding_workflow, section: "Sezione 2"}
+      - {doc: coding_standards, section: "Tracciabilità della Governance"}
 
   # ─────────────────── vibe_coding_workflow.md (METHODOLOGY) ───────────────────
 
@@ -275,6 +260,9 @@ cases:
   # ═══════════════════════════════════════════════════════════════════════════════════
   # CASI AVVERSARIALI SULL'AUTORITÀ (S5, ADR 0002 — aggiunti 2026-08-24)
   #
+  # AGGIORNATO 2026-08-25 dopo il ripristino del baseline committato di docs/: i casi
+  # avversariali sono passati da 10 a 9 (vedi l'annotazione sul caso della tracciabilità).
+  #
   # Marcati `adversarial: true`: eval/run.py li misura ANCHE come sottoinsieme a sé,
   # perché è il numero che il piano ADR 0002 deve muovere e la media coi casi facili lo
   # renderebbe invisibile.
@@ -297,10 +285,13 @@ cases:
   # transazionale per il lock", "backoff multi-canale email slack", "architettura Server
   # Component e Client Component". Su questi cinque la fonte normativa vince già senza
   # aiuto dall'autorità.
-  # Scartati invece per DISONESTÀ del caso (la fonte attesa non risponde davvero, quindi
-  # il "fallimento" non sarebbe un difetto di ranking): "estrazione dei magic numbers"
-  # e "isolamento delle regole di business" — coding_standards.md non tratta né l'una né
-  # l'altra: la fonte corretta è proprio il documento informativo.
+  # Due casi erano stati scartati come DISONESTI perché coding_standards.md non trattava
+  # l'argomento: "estrazione dei magic numbers" e "isolamento delle regole di business".
+  # Il giudizio era sbagliato, e la causa è la stessa del caso sui sinonimi: quelle due
+  # regole sono [REGOLA-CLEAN-05] e [CLEAN-06], presenti nel baseline committato e assenti
+  # dalla copia di lavoro che il RAG indicizzava. Ripristinato il baseline (2026-08-25)
+  # sono tornate al loro posto, quindi i due casi sarebbero oggi costruibili: non sono
+  # stati aggiunti qui, ma non vanno più considerati disonesti.
   #
   # NON costruibili su questo corpus, e la ragione va letta come un risultato:
   #   - ENFORCED vs ARCHIVED/DEPRECATED: nessun documento del corpus ha uno status
@@ -333,11 +324,16 @@ cases:
     expected:
       - {doc: spec_graph_rag_ingestion, section: "Chunking"}
 
-  # ── distrattore: 04_knowledge_informative/vibe_coding_workflow.md (METHODOLOGY, peso 0.50)
-  #    Ridefinisce [REGOLA-CLEAN-*] con numerazione propria e collidente con
-  #    coding_standards.md: stesso vocabolario, autorità metà.
+  # ── NON PIÙ AVVERSARIALE dal 2026-08-25, e la ragione è il punto.
+  #    Lo era perché vibe_coding_workflow.md v1.0.0 ridefiniva [REGOLA-CLEAN-*] con una
+  #    numerazione propria e collidente: stesso vocabolario, metà autorità, e vinceva il
+  #    match lessicale. Ripristinato il baseline committato, la v2.0.0 non duplica più
+  #    quegli identificatori (rimanda a coding_standards.md) e la collisione non esiste:
+  #    l'atteso è ora a rango 1, il distrattore a 3. Il sistema lo supera, quindi il
+  #    marcatore `adversarial` è stato TOLTO — un caso che passa gonfierebbe la recall del
+  #    sottoinsieme e riprodurrebbe il difetto che S5 esiste per correggere. Resta come
+  #    caso normale: la domanda è legittima e la fonte attesa è quella giusta.
   - q: "tracciabilità bidirezionale nei commenti fra riga di codice e regola di business"
-    adversarial: true
     expected:
       - {doc: coding_standards, section: "Tracciabilità della Governance"}
 

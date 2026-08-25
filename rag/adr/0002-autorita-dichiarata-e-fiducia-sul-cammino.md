@@ -327,6 +327,75 @@ uv run python -m eval.calibrate_authority --k 5      # il k che governa /ask: +0
 uv run python -m eval.calibrate_authority --k 1      # il k con più margine: +0.021, ma ottimizza la metrica sbagliata
 ```
 
+### Addendum 2026-08-25 — il corpus è cambiato sotto le misure
+
+**Tutti i numeri della sezione qui sopra si riferiscono al corpus del 2026-08-24**, e
+vanno letti come il record di quello stato. Il 2026-08-25 `docs/` è stato riportato al
+**baseline committato**: tre file (`coding_standards.md`, `vibe_coding_workflow.md`,
+`safeguards_security.md`) erano fermi su disco alla v1.0.0 dominio-specifica mentre in
+git c'era la v2.0.0 cross-progetto, e il RAG indicizza il disco. La divergenza era
+invisibile a `git status` perché quei file sono `skip-worktree`; ora c'è un check
+dedicato (`docs_git` in `check_index_integrity`).
+
+Il corpus passa da 175 a 180 chunk. Cosa cambia, misurato:
+
+| | 2026-08-24 (disco divergente) | 2026-08-25 (baseline) |
+|---|---|---|
+| 59 casi, recall@1 | 0.475 | **0.576** |
+| 59 casi, recall@2 | 0.763 | **0.797** |
+| 59 casi, recall@5 | 0.966 | **0.983** |
+| 59 casi, recall@10 | 0.983 | **1.000** (satura) |
+| casi avversariali | 10 | **9** |
+
+**La decisione NON_APPLICARE regge, e più saldamente di prima.** Ricalibrazione a k=5
+(5-fold, 5 seed) sul corpus ripristinato: default 0.983 held-out, calibrato 0.983,
+guadagno **+0.000 con dev.std 0.000 su tutti e cinque i seed**. La configurazione attuale
+resta l'ottimo di griglia. Nessun parametro modificato.
+
+**Una conclusione della sezione precedente NON regge più, e va detto.** Là era scritto che
+al k che conta l'autorità *serve*, perché spegnerla perdeva un caso avversariale su dieci
+(1.000 contro 0.900 a k=5). Sul corpus ripristinato quel margine **è sparito**: a α = 0.1
+l'autorità spenta e la configurazione di produzione danno lo **stesso** 0.889 sui 9 casi
+avversariali a k=5. Alla forza a cui è configurata, oggi, l'autorità è **neutra** su quei
+casi. Recupera il caso solo a α = 0.2–0.3 (fino a 1.000), che però continua a non
+sopravvivere alla validazione. Il quadro complessivo non cambia — il meccanismo resta
+giusto e la taratura resta quella che il golden set sostiene — ma l'affermazione «serve»
+va sostituita con **«non danneggia, e non è ancora dimostrabile che aiuti»**.
+
+**S1–S4, per contro, ora un effetto ce l'hanno.** Sullo stesso confronto pre-S1 / post-S1–S4
+che prima dava tabelle identiche:
+
+| | recall@1 | recall@2 | recall@5 | recall@10 |
+|---|---|---|---|---|
+| PRIMA di S1–S4 | 0.576 | 0.780 | 0.966 | 1.000 |
+| DOPO S1–S4 | 0.576 | **0.797** | **0.983** | 1.000 |
+
+Due casi su 59 in più entro k=2 e k=5. È poco, ed è sempre invisibile a rango 1 sui casi
+avversariali (0.000 in entrambe le configurazioni), ma non è più zero.
+
+**Effetti sul golden set**, entrambi conseguenze della stessa divergenza:
+
+- *«tracciabilità bidirezionale nei commenti»* **non è più un caso avversariale**. Lo era
+  perché `vibe_coding_workflow.md` v1.0.0 ridefiniva `[REGOLA-CLEAN-*]` con numerazione
+  collidente; la v2.0.0 rimanda a `coding_standards.md` invece di duplicarlo. Sparita la
+  collisione l'atteso va a rango 1: marcatore rimosso, perché un caso che il sistema
+  supera gonfia la recall del sottoinsieme.
+- I due casi scartati in S5 come *disonesti* — «magic numbers» e «isolamento delle regole
+  di business» — **non lo erano**: sono `[REGOLA-CLEAN-05]` e `[CLEAN-06]`, presenti nel
+  baseline e assenti dalla copia di lavoro su cui li avevo valutati. Il giudizio era una
+  conseguenza della divergenza. Non sono stati riaggiunti, ma la nota nel golden set è
+  stata corretta.
+
+**L'eval-gate è stato spostato da k=10 a k=5** (`min_recall` 0.90 → 0.95). Con tutti i 59
+casi entro top-10 il gate a k=10 è tornato cieco — e questa volta **lo ha detto da solo**,
+con l'alert di saturazione introdotto da S5: è la prima volta che quel guardrail scatta su
+un caso reale, ed è servito esattamente a quello.
+
+**Ciò che il ripristino NON ha cambiato:** il corpus resta 26 documenti tutti `ENFORCED`,
+quindi `archived_decay` resta non esercitato; e l'unica dichiarazione `SUPERA_IN_PRIORITÀ`
+continua a puntare a un non-documento, quindi S4 resta codice corretto e inerte. I due
+trigger di riapertura elencati sotto restano aperti entrambi.
+
 ## Conseguenze
 
 - Il ranking cambia: S1 è l'unico intervento che tocca l'ordinamento di produzione senza

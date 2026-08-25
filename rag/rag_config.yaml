@@ -278,6 +278,23 @@ authority:
   #      positivo su cinque. Default ora a 5 seed, con deviazione standard riportata.
   # Ricalibrare SEMPRE con split di validazione, SEMPRE a un k non saturo, SEMPRE su più seed.
   #
+  # RI-CALIBRAZIONE 2026-08-25, dopo il ripristino del baseline committato di docs/.
+  # Tre file erano fermi su disco alla v1.0.0 dominio-specifica mentre in git c'era la
+  # v2.0.0 cross-progetto; il RAG indicizza il disco, e la divergenza era invisibile a
+  # git status (skip-worktree). Corpus da 175 a 180 chunk; casi avversariali da 10 a 9.
+  #   59 casi: r@1 0.475->0.576  r@2 0.763->0.797  r@5 0.966->0.983  r@10 0.983->1.000
+  #   k=5, 5-fold su 5 seed: default 0.983 -> calibrato 0.983, guadagno +0.000 (dev.std
+  #   0.000 su TUTTI i seed). Esito NON_APPLICARE, e la configurazione attuale resta
+  #   l'ottimo di griglia. Nessun parametro modificato.
+  # CADE però un'affermazione della nota del 2026-08-24: là l'autorità "serviva" perché
+  # spegnerla costava un caso avversariale su dieci a k=5 (1.000 vs 0.900). Ora autorità
+  # spenta e produzione danno lo STESSO 0.889 sui 9 casi: ad alpha=0.1 il meccanismo è
+  # NEUTRO su quei casi, non dannoso e non utile. Recupera il caso solo ad alpha 0.2-0.3,
+  # che continua a non sopravvivere alla validazione.
+  # Conseguenza operativa: recall@10 è tornata SATURA (1.000 su tutti i 59) e l'eval-gate
+  # è stato spostato a k=5 — vedi il blocco eval_gate più sotto.
+  #
+
   # ─── Autorità DICHIARATA nel frontmatter (ADR 0002 / S1, 2026-08-18) ───────────────────
   # I due default qui sotto NON sono intercambiabili, e confonderli è il difetto che S1 corregge.
   #
@@ -341,17 +358,26 @@ graph_trust:
 # se il golden set manca o il gate è disattivo, la promozione procede (non blocca i primi build).
 eval_gate:
   enabled: true
-  k: 10                # soglia di recall valutata (recall@k)
-  # k=10 RESTA, ma per una ragione che è cambiata il 2026-08-24 (S5, ADR 0002). Sul golden set
-  # di 49 casi la recall@10 era SATURA a 1.000: il gate passava per costruzione, e avrebbe
-  # promosso anche una candidata peggiorata. Con i 10 casi avversariali la recall@10 misurata
-  # è 0.983 — la metrica discrimina di nuovo, e il gate ha 8 punti di margine sopra min_recall.
-  # Non è però una proprietà da dare per acquisita: `evaluate_recall` calcola ora anche la
-  # saturazione e `gate_promotion` scrive un alert WARNING se ricapita, invece di lasciare che
-  # un 100% cieco passi per un successo. Se quell'alert compare, abbassare k (k=2 è dove questo
-  # corpus discrimina di più: recall 0.763) e ritarare min_recall di conseguenza — non alzare
-  # min_recall a k saturo, che non misura nulla comunque.
-  min_recall: 0.90     # promozione bloccata se recall@k medio scende sotto questo valore
+  k: 5                 # soglia di recall valutata (recall@k)
+  # DA k=10 A k=5, il 2026-08-25 — e l'alert di saturazione ha fatto esattamente il suo lavoro.
+  # Storia in tre passi, che vale la pena non riscrivere:
+  #   1. sul golden set di 49 casi recall@10 valeva 1.000: il gate passava per costruzione e
+  #      avrebbe promosso anche una candidata peggiorata, senza che nulla lo dicesse;
+  #   2. i 10 casi avversariali di S5 la riportarono a 0.983 — la metrica tornava a discriminare
+  #      e k=10 restava difendibile;
+  #   3. ripristinato il baseline committato di docs/ (2026-08-25) tutti e 59 i casi rientrano
+  #      in top-10: recall@10 = 1.000, di nuovo SATURA, e questa volta il gate lo ha DETTO
+  #      (alert warning da gate_promotion). Da qui lo spostamento a k=5.
+  #
+  # PERCHÉ k=5 e non k=2. k=2 discrimina di più (0.797 contro 0.983), ma /ask inietta fino a
+  # `retrieval.governed_max_chunks: 8` sezioni e l'LLM le legge tutte: ciò che conta è se la
+  # fonte giusta ENTRA nella finestra, non a che rango. k=5 è la misura più vicina a quel
+  # consumo che non sia satura — stesso ragionamento con cui, nella nota su boost_alpha qui
+  # sopra, si è deciso di NON alzare alpha per guadagnare rango 1. Margine oggi: 0.983 contro
+  # una soglia di 0.95, cioè due casi su 59.
+  # Se anche recall@5 dovesse saturare, scendere a k=2 e ritarare min_recall (~0.75): mai
+  # alzare min_recall a un k saturo, che non misura nulla comunque.
+  min_recall: 0.95     # promozione bloccata se recall@k medio scende sotto questo valore
   blocking: true       # true = blocca la promozione; false = solo alert (advisory), promuove comunque
   # M6 — ESPERIMENTO: valutazione ADVISORY post-promozione sui job INCREMENTALI.
   # A flag attivo, DOPO la promozione di un incrementale si misura la recall sul golden set

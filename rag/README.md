@@ -382,13 +382,23 @@ scende sotto la soglia (il report viene comunque scritto), 0 altrimenti.
 di autorità** (server su):
 
 ```bash
-uv run python -m eval.run --assert-min 0.90
+uv run python -m eval.run --k 1 2 5 --assert-min 0.95
 ```
 
-Ultima misura (2026-08-24, 59 casi, corpus 26 documenti / 175 chunk):
-`recall@1 0.475 · @2 0.763 · @5 0.966 · @10 0.983`. La soglia 0.90 sta poco
-sotto il recall@10 misurato: se un refactor la fa scattare, il retrieval è
-regredito davvero. Rimisura e aggiorna la soglia quando il golden-set cresce.
+Ultima misura (2026-08-25, 59 casi, corpus 26 documenti / 180 chunk, baseline
+committato ripristinato): `recall@1 0.576 · @2 0.797 · @5 0.983 · @10 1.000`.
+
+**Il guardrail asserisce sul k più alto passato, e per questo qui i k sono
+`1 2 5` e non il default.** Con il baseline ripristinato tutti e 59 i casi
+rientrano in top-10: `recall@10 = 1.000` è **saturo**, e un `--assert-min` su una
+metrica satura non è severo, è cieco — lo supera qualunque regressione che non
+faccia uscire una fonte dai primi dieci. Fermando i k a 5 l'asserzione cade su
+`recall@5 = 0.983`, che discrimina ancora (un caso su 59 fuori), con la soglia
+0.95 poco sotto. È la stessa scelta fatta per `eval_gate.k` (vedi il blocco
+`eval_gate` in [rag_config.yaml](rag_config.yaml)) e per la stessa ragione: `/ask`
+inietta fino a 8 sezioni e le legge tutte, quindi la domanda che conta è se la
+fonte **entra nella finestra**, non a che rango.
+
 Questo comando richiede il server acceso (modello caricato): per questo NON è
 nella pipeline CI (vedi [sezione CI](#ci)), resta manuale pre-merge finché non
 matura la regola di promozione descritta lì.
@@ -420,42 +430,39 @@ La corsa standard riporta il recall a **k ∈ {1, 2, 5, 10}**, e non per complet
 uv run python -m eval.calibrate_authority --k 5   # proposta, mai applicazione automatica
 ```
 
-**Un caso classico non passa, e il perché vale più del caso** (2026-08-24):
-*«posso usare un sinonimo per nominare una variabile o devo seguire il glossario»*
-**non compare affatto in top-10** — è l'unico dei 59 a mancare a @10, e da solo
-spiega la differenza fra 0.983 e 1.000.
+**Il caso che non passava, e perché la sua storia resta qui** (chiuso il
+2026-08-25). *«posso usare un sinonimo per nominare una variabile o devo seguire
+il glossario»* è stato per settimane l'unico dei 59 a non comparire in top-10.
+L'attesa puntava a `coding_standards § Tracciabilità della Governance`, e sembrava
+un caso scritto male.
 
-L'attesa puntava a `coding_standards § Tracciabilità della Governance`, che nel
-corpus indicizzato **non contiene la risposta** (quella sezione norma il tagging
-dei docstring e i modelli Pydantic). Non era però un caso scritto male: quando il
-golden-set fu redatto — commit `3a95322`, 2026-07-22 — `coding_standards.md` era
-alla **v2.0.0 cross-progetto** e possedeva `[REGOLA-CLEAN-07] Allineamento
-terminologico rigido`, che risponde esattamente a quella domanda.
+Non lo era. Quando il golden-set fu redatto (commit `3a95322`, 2026-07-22)
+`coding_standards.md` era alla **v2.0.0 cross-progetto** e possedeva
+`[REGOLA-CLEAN-07] Allineamento terminologico rigido`, che risponde esattamente a
+quella domanda. La copia di lavoro era però tornata alla **v1.0.0
+dominio-specifica**, ferma a `CLEAN-04`: la regola esisteva solo nel committato, e
+il RAG indicizza il disco. Tre file divergevano, e la divergenza era **invisibile a
+`git status`** perché i file di `docs/` sono `skip-worktree`. Il difetto non era né
+nell'indice né nel ranking: era nel corpus, e nulla lo guardava.
 
-La causa vera è che **`docs/` su disco e `docs/` committato sono due corpora
-diversi**: la copia di lavoro è tornata alla v1.0.0 dominio-specifica, che si
-ferma a `CLEAN-04`. Tre file divergono (`coding_standards.md`,
-`vibe_coding_workflow.md`, `safeguards_security.md`) e la divergenza è
-**invisibile a `git status`** perché i file di `docs/` sono marcati
-`skip-worktree`. Il RAG indicizza la copia su disco, quindi una regola che esiste
-solo nel committato non è recuperabile per costruzione. Da qui il check
-[`docs_git`](#reindex-automatico-lindice-non-invecchia-mai) descritto sopra.
+Ripristinato il baseline committato, il caso **passa** (atteso a rango 3) e
+l'intero golden-set rientra in top-10. Due effetti collaterali che valgono più
+della singola riga verde:
 
-L'attesa è stata **corretta** a `vibe_coding_workflow § Sezione 2`, che nel corpus
-indicizzato possiede davvero quella regola (`[REGOLA-CLEAN-03]`). Il caso
-**continua a fallire**, ma ora è un fallimento *leggibile* invece di un'attesa che
-punta al vuoto, ed è diagnostico: interrogata col vocabolario della regola
-(*«allineamento terminologico rigido: è vietato introdurre sinonimi…»*) la sezione
-attesa esce a **rango 1**, quindi è perfettamente raggiungibile; con la
-formulazione colloquiale non entra in top-10 e vince `intent_synonym_mapping`.
-In questo corpus «glossario» denota in modo schiacciante il glossario **di
-dominio** — `glossario_entita.md`, e `intent_synonym_mapping.md` che si intitola
-proprio «Glossario Semantico dei Sinonimi» — non la norma di naming che vi si
-appoggia. L'autorità non può correggerlo: distrattore e fonte attesa pesano
-0.50–0.70 contro 0.50.
+- **due casi avversariali erano stati scartati per il motivo sbagliato.** «Estrazione
+  dei magic numbers» e «isolamento delle regole di business» erano stati giudicati
+  *disonesti* perché `coding_standards.md` non trattava quegli argomenti: sono
+  `[REGOLA-CLEAN-05]` e `[CLEAN-06]`, presenti nel baseline e assenti dalla copia di
+  lavoro. Il giudizio era una conseguenza della divergenza, non del caso.
+- **un caso avversariale ha smesso di esserlo.** «Tracciabilità bidirezionale nei
+  commenti» lo era perché `vibe_coding_workflow.md` v1.0.0 ridefiniva
+  `[REGOLA-CLEAN-*]` con una numerazione collidente. La v2.0.0 rimanda a
+  `coding_standards.md` invece di duplicarlo: sparita la collisione, l'atteso va a
+  rango 1 e il marcatore `adversarial` è stato tolto — un caso che il sistema supera
+  gonfierebbe la recall del sottoinsieme. Gli avversariali sono passati da 10 a 9.
 
-Vale come promemoria del perché la soglia sta a 0.90 e non a 0.98.
-
+Da qui il check [`docs_git`](#reindex-automatico-lindice-non-invecchia-mai): la
+divergenza è tornata visibile, e a ogni check notturno resta tale.
 I test pytest, che non possono caricare bge-m3, coprono la **meccanica** del
 guardrail con un retriever fake deterministico
 ([tests/test_eval_guardrail.py](tests/test_eval_guardrail.py)): parsing del

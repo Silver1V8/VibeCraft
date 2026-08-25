@@ -28,8 +28,11 @@ def _spy_history(monkeypatch):
 
 
 def test_advisory_records_history_with_dedicated_source(monkeypatch):
+    # Il k NON è hardcodato: l'invariante è "lo storico registra la recall al k del gate",
+    # qualunque esso sia. Inchiodarlo a 10 rendeva il test dipendente da eval_gate.k in
+    # config, e infatti si è rotto quando il gate è passato a k=5 (2026-08-25).
     monkeypatch.setattr(eval_gate, "evaluate_recall",
-                        lambda *a, **k: {"recall": 0.95, "n": 34, "k": 10})
+                        lambda *a, **kw: {"recall": 0.95, "n": 34, "k": kw.get("k")})
     history = _spy_history(monkeypatch)
 
     res = eval_gate.run_incremental_advisory("v1", None, object(), {}, min_recall=0.90)
@@ -38,7 +41,8 @@ def test_advisory_records_history_with_dedicated_source(monkeypatch):
     assert isinstance(res["advisory_eval_seconds"], float)
     assert len(history) == 1
     assert history[0]["source"] == "incremental_advisory"
-    assert history[0]["recall"] == {"recall@10": 0.95} and history[0]["version"] == "v1"
+    assert history[0]["recall"] == {f"recall@{eval_gate.EVAL_GATE_K}": 0.95}
+    assert history[0]["version"] == "v1"
     assert history[0]["gate"]["advisory_eval_seconds"] == res["advisory_eval_seconds"]
 
 
