@@ -44,6 +44,23 @@ echo "[$(date -Is)] Check di integrita' dell'indice (economico, zero embedding).
 report="$(uv run python index.py --check-integrity 2>/dev/null)"
 check_exit=$?
 
+# Divergenza docs/ su disco <-> docs/ committato. NON e' un "problema" del report (non
+# entra in `ok`: un reindex non la ripara, quindi non deve innescare remediation), ma va
+# stampata SEMPRE - anche a integrita' OK, che e' il caso in cui altrimenti resterebbe
+# invisibile. I file di docs/ sono skip-worktree: git status non la mostra.
+docs_git_line="$(printf '%s' "$report" | uv run python -c "
+import json, sys
+d = json.load(sys.stdin).get('docs_git') or {}
+if d.get('state') == 'diverging':
+    n = d.get('diverging') or []
+    print(f\"{len(n)}/{d.get('tracked', '?')} file: \" + ', '.join(n[:5]) + (' ...' if len(n) > 5 else ''))
+" 2>/dev/null)"
+if [ -n "$docs_git_line" ]; then
+    echo "[$(date -Is)] ATTENZIONE: docs/ su disco DIVERGE dal committato - $docs_git_line"
+    echo "[$(date -Is)] Il RAG indicizza la copia su disco: un reindex NON riallinea nulla."
+    send_alert "docs/ su disco diverge dal committato ($docs_git_line)"
+fi
+
 if [ "$check_exit" -eq 0 ]; then
     echo "[$(date -Is)] Integrita' OK: nessuna azione necessaria."
     exit 0

@@ -58,6 +58,24 @@ Write-Host "[$(Get-Date -Format o)] Check di integrita' dell'indice (economico, 
 $reportJson = & uv run python index.py --check-integrity 2>$null
 $checkExit = $LASTEXITCODE
 
+# Divergenza docs/ su disco <-> docs/ committato. NON e' un "problema" del report (non
+# entra in `ok`: un reindex non la ripara, quindi non deve innescare remediation), ma va
+# stampata SEMPRE - anche a integrita' OK, che e' il caso in cui altrimenti resterebbe
+# invisibile. I file di docs/ sono skip-worktree: git status non la mostra.
+try {
+    $docsGit = ($reportJson | ConvertFrom-Json).docs_git
+    if ($docsGit -and $docsGit.state -eq 'diverging') {
+        $elenco = ($docsGit.diverging | Select-Object -First 5) -join ', '
+        if ($docsGit.diverging.Count -gt 5) { $elenco += ' ...' }
+        $riga = "$($docsGit.diverging.Count)/$($docsGit.tracked) file: $elenco"
+        Write-Host "[$(Get-Date -Format o)] ATTENZIONE: docs/ su disco DIVERGE dal committato - $riga"
+        Write-Host "[$(Get-Date -Format o)] Il RAG indicizza la copia su disco: un reindex NON riallinea nulla."
+        Send-Alert "docs/ su disco diverge dal committato ($riga)"
+    }
+} catch {
+    # Report non parsabile: il ramo sotto lo gestisce gia' con un alert dedicato.
+}
+
 if ($checkExit -eq 0) {
     Write-Host "[$(Get-Date -Format o)] Integrita' OK: nessuna azione necessaria."
     exit 0

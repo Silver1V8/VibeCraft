@@ -79,9 +79,33 @@ cases:
     expected:
       - {doc: coding_standards, section: "Tracciabilità della Governance"}
 
+  # ATTESA CORRETTA il 2026-08-24. Puntava a `coding_standards § Tracciabilità della
+  # Governance`, che nel corpus indicizzato NON contiene la risposta: quella sezione
+  # norma il tagging dei docstring e i modelli Pydantic. La regola che risponde —
+  # «è fatto divieto assoluto di introdurre termini o sinonimi non presenti nella
+  # documentazione ufficiale; i nomi di variabili, funzioni, colonne e classi devono
+  # ereditare la denominazione esatta del Glossario» — è [REGOLA-CLEAN-03] in
+  # vibe_coding_workflow.md § Sezione 2.
+  #
+  # L'attesa non era sbagliata all'origine: quando il golden set fu scritto (3a95322,
+  # 2026-07-22) coding_standards.md era alla v2.0.0 cross-progetto e possedeva
+  # [REGOLA-CLEAN-07] «Allineamento terminologico rigido». La copia su disco — quella
+  # che il RAG indicizza — è però tornata alla v1.0.0 dominio-specifica, che si ferma a
+  # CLEAN-04. La divergenza è invisibile a `git status` perché i file di docs/ sono
+  # marcati skip-worktree: da qui il check `docs_git` in check_index_integrity.
+  #
+  # IL CASO CONTINUA A FALLIRE, ed è ora un fallimento LEGGIBILE invece che un'attesa
+  # che punta al vuoto. Verificato eseguendo la query: con il vocabolario della regola
+  # («allineamento terminologico rigido: è vietato introdurre sinonimi…») la sezione
+  # attesa è a rango 1, quindi è perfettamente raggiungibile; con questa formulazione
+  # colloquiale non entra in top-10 e vince intent_synonym_mapping. Il motivo è preciso:
+  # in questo corpus «glossario» denota in modo schiacciante il glossario DI DOMINIO
+  # (glossario_entita.md, e intent_synonym_mapping.md che si intitola proprio «Glossario
+  # Semantico dei Sinonimi»), non la norma di naming che vi si appoggia. L'autorità qui
+  # non può correggere nulla: distrattore e fonte attesa pesano 0.50-0.70 contro 0.50.
   - q: "posso usare un sinonimo per nominare una variabile o devo seguire il glossario"
     expected:
-      - {doc: coding_standards, section: "Tracciabilità della Governance"}
+      - {doc: vibe_coding_workflow, section: "Sezione 2"}
 
   # ─────────────────── vibe_coding_workflow.md (METHODOLOGY) ───────────────────
 

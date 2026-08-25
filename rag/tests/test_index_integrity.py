@@ -99,12 +99,18 @@ def _set_manifest_qdrant_collection(env, collection: str) -> None:
 
 
 def test_all_aligned_is_ok(env):
+    # `docs_git` legge il repository REALE: il suo esito dipende dalla copia di lavoro
+    # dello sviluppatore, non dal fixture. Va neutralizzato, altrimenti questo test
+    # fallisce a seconda di quali file di docs/ sono stati toccati in locale.
+    env["monkeypatch"].setattr(indexing, "observe_docs_git_divergence", lambda *a, **k: {
+        "state": "aligned", "diverging": [], "tracked": 13, "reason": None})
     report = _check(env)
     assert report == {
         "ok": True, "stale": False, "artifacts_corrupted": False,
         "qdrant_mismatch": False, "qdrant_unreachable": False, "problems": [],
         # S5: il fixture di base non scrive qdrant_collection nel manifest -> legacy.
         "qdrant_alias": {"state": "legacy", "expected": None, "actual": None},
+        "docs_git": {"state": "aligned", "diverging": [], "tracked": 13, "reason": None},
     }
 
 
@@ -291,3 +297,96 @@ def test_injected_client_not_closed(env):
     q = _FakeQdrant(3)
     indexing.check_index_integrity(qdrant=q, emit=lambda m: None)
     assert q.closed is False  # il client del server non va chiuso dal check
+
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# Divergenza docs/ su disco ↔ docs/ committato (skip-worktree la nasconde a git status)
+# ─────────────────────────────────────────────────────────────────────────────────
+
+def _repo_finto(tmp_path, contenuto_committato="v1\n"):
+    """Repo git minimo con un docs/ tracciato. Restituisce (root, path del file)."""
+    import subprocess
+    root = tmp_path / "repo"
+    (root / "docs").mkdir(parents=True)
+    f = root / "docs" / "norma.md"
+    f.write_text(contenuto_committato, encoding="utf-8")
+    run = lambda *a: subprocess.run(["git", "-C", str(root), *a], capture_output=True, check=True)
+    run("init", "-q")
+    run("config", "user.email", "t@t")
+    run("config", "user.name", "t")
+    run("add", "docs/norma.md")
+    run("commit", "-qm", "baseline")
+    return root, f
+
+
+@pytest.fixture
+def git_disponibile():
+    import shutil
+    if shutil.which("git") is None:
+        pytest.skip("git non disponibile nel PATH")
+
+
+def test_docs_git_allineato(tmp_path, git_disponibile):
+    root, _ = _repo_finto(tmp_path)
+    r = indexing.observe_docs_git_divergence(root=root, docs_dir=root / "docs")
+    assert r["state"] == "aligned" and r["diverging"] == [] and r["tracked"] == 1
+
+
+def test_docs_git_rileva_la_divergenza_invisibile_a_git_status(tmp_path, git_disponibile):
+    """Il caso reale: il file su disco cambia, ma è marcato skip-worktree — git status
+    tace e il RAG continua a indicizzare la versione divergente."""
+    import subprocess
+    root, f = _repo_finto(tmp_path)
+    f.write_text("v2 — contenuto diverso da quello committato\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(root), "update-index", "--skip-worktree", "docs/norma.md"],
+                   capture_output=True, check=True)
+
+    # Premessa del test: git status NON vede nulla. Se un giorno cambiasse, questo
+    # check diventerebbe ridondante e il test lo direbbe.
+    stato = subprocess.run(["git", "-C", str(root), "status", "--porcelain"],
+                           capture_output=True, text=True, check=True).stdout.strip()
+    assert stato == "", f"git status ora vede la modifica ({stato!r}): check ridondante?"
+
+    r = indexing.observe_docs_git_divergence(root=root, docs_dir=root / "docs")
+    assert r["state"] == "diverging"
+    assert r["diverging"] == ["docs/norma.md"]
+
+
+def test_docs_git_rileva_un_file_tracciato_sparito_dal_disco(tmp_path, git_disponibile):
+    root, f = _repo_finto(tmp_path)
+    f.unlink()
+    r = indexing.observe_docs_git_divergence(root=root, docs_dir=root / "docs")
+    assert r["state"] == "diverging" and r["diverging"] == ["docs/norma.md"]
+
+
+def test_docs_git_degrada_senza_repository(tmp_path):
+    """Fuori da un repo git il check non deve sollevare: è un'osservazione, non un gate."""
+    (tmp_path / "docs").mkdir()
+    r = indexing.observe_docs_git_divergence(root=tmp_path, docs_dir=tmp_path / "docs")
+    assert r["state"] == "unavailable" and r["reason"] and r["diverging"] == []
+
+
+def test_docs_git_degrada_se_git_manca(tmp_path, monkeypatch):
+    """git assente dal PATH: `unavailable`, mai un'eccezione che fa fallire il check."""
+    import subprocess
+    def _esplode(*a, **k):
+        raise FileNotFoundError("git")
+    monkeypatch.setattr(subprocess, "run", _esplode)
+    r = indexing.observe_docs_git_divergence(root=tmp_path, docs_dir=tmp_path / "docs")
+    assert r["state"] == "unavailable" and "git" in r["reason"]
+
+
+def test_docs_git_fuori_dal_repository(tmp_path):
+    r = indexing.observe_docs_git_divergence(root=tmp_path / "a", docs_dir=tmp_path / "b")
+    assert r["state"] == "unavailable" and "non è dentro il repository" in r["reason"]
+
+
+def test_divergenza_docs_non_contribuisce_a_ok(env):
+    """OSSERVAZIONE, non problema: una divergenza git non si ripara re-indicizzando, e
+    se finisse in `problems` lo script notturno lancerebbe un reindex inutile a ogni
+    esecuzione. Stessa scelta già fatta per qdrant_alias."""
+    env["monkeypatch"].setattr(indexing, "observe_docs_git_divergence", lambda *a, **k: {
+        "state": "diverging", "diverging": ["docs/x.md"], "tracked": 3, "reason": None})
+    report = _check(env)
+    assert report["docs_git"]["state"] == "diverging"
+    assert report["ok"] is True and report["problems"] == []

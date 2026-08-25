@@ -194,6 +194,23 @@ disco (differenze ⇒ indice **stale**), valida gli `artifact_hashes` contro i
 file in `database/` (mancanti o hash diverso ⇒ artefatti **corrotti**/misti) e
 confronta il conteggio dei punti Qdrant col numero di chunk nel sidecar. Lo
 stesso check è esposto come `GET /api/index/integrity` (auth `X-API-Key`).
+
+**Divergenza `docs/` ↔ git (campo `docs_git`).** I file di `docs/` sono marcati
+`skip-worktree`, quindi le differenze fra la copia di lavoro e il committato sono
+**invisibili a `git status` e `git diff`** — voluto, per non vedere il materiale di
+dominio come "modifiche", ma significa che il corpus indicizzato può discostarsi dal
+repository senza che nessuno se ne accorga. `observe_docs_git_divergence` confronta
+l'hash del blob di `ls-tree HEAD` con `hash-object` sul file di lavoro (bypassa
+l'indice git, che per gli skip-worktree è fermo al committato; `hash-object` applica
+gli stessi filtri eol, quindi niente falsi positivi su checkout CRLF). È
+**osservazione pura**, come `qdrant_alias`: non contribuisce mai a `ok`/`problems`,
+perché una divergenza git **non si ripara re-indicizzando** — il reindex rileggerebbe
+gli stessi file — e trattarla come problema farebbe scattare un full rebuild inutile a
+ogni esecuzione. Quale corpus sia autoritativo è una decisione umana; il check la rende
+solo visibile. Gli script notturni la stampano **sempre**, anche a integrità OK (è il
+caso in cui resterebbe nascosta) e scrivono un alert. Stati: `aligned`, `diverging`
+(con l'elenco dei path), `unavailable` (git assente, non un repository, HEAD assente —
+mai un'eccezione).
 In base al report lo script:
 - **ok** → esce senza fare nulla;
 - **stale** (solo sorgenti cambiate) → `POST /api/reindex` al server locale
@@ -403,14 +420,41 @@ La corsa standard riporta il recall a **k ∈ {1, 2, 5, 10}**, e non per complet
 uv run python -m eval.calibrate_authority --k 5   # proposta, mai applicazione automatica
 ```
 
-**Un caso classico oggi non passa** (2026-08-24): *«posso usare un sinonimo per
-nominare una variabile o devo seguire il glossario»*, che si attende
-`coding_standards § Tracciabilità della Governance`, **non compare affatto in
-top-10** — è l'unico dei 59 a mancare a @10, e da solo spiega la differenza fra
-0.983 e 1.000. Non è un matcher stale: la sezione attesa esiste, ed è la stessa
-che un caso avversariale raggiunge a rango 2. È il corpus a essere cresciuto da 11
-a 26 documenti sotto un golden-set riscritto quando ne aveva 11. Vale come
-promemoria del perché la soglia sta a 0.90 e non a 0.98.
+**Un caso classico non passa, e il perché vale più del caso** (2026-08-24):
+*«posso usare un sinonimo per nominare una variabile o devo seguire il glossario»*
+**non compare affatto in top-10** — è l'unico dei 59 a mancare a @10, e da solo
+spiega la differenza fra 0.983 e 1.000.
+
+L'attesa puntava a `coding_standards § Tracciabilità della Governance`, che nel
+corpus indicizzato **non contiene la risposta** (quella sezione norma il tagging
+dei docstring e i modelli Pydantic). Non era però un caso scritto male: quando il
+golden-set fu redatto — commit `3a95322`, 2026-07-22 — `coding_standards.md` era
+alla **v2.0.0 cross-progetto** e possedeva `[REGOLA-CLEAN-07] Allineamento
+terminologico rigido`, che risponde esattamente a quella domanda.
+
+La causa vera è che **`docs/` su disco e `docs/` committato sono due corpora
+diversi**: la copia di lavoro è tornata alla v1.0.0 dominio-specifica, che si
+ferma a `CLEAN-04`. Tre file divergono (`coding_standards.md`,
+`vibe_coding_workflow.md`, `safeguards_security.md`) e la divergenza è
+**invisibile a `git status`** perché i file di `docs/` sono marcati
+`skip-worktree`. Il RAG indicizza la copia su disco, quindi una regola che esiste
+solo nel committato non è recuperabile per costruzione. Da qui il check
+[`docs_git`](#reindex-automatico-lindice-non-invecchia-mai) descritto sopra.
+
+L'attesa è stata **corretta** a `vibe_coding_workflow § Sezione 2`, che nel corpus
+indicizzato possiede davvero quella regola (`[REGOLA-CLEAN-03]`). Il caso
+**continua a fallire**, ma ora è un fallimento *leggibile* invece di un'attesa che
+punta al vuoto, ed è diagnostico: interrogata col vocabolario della regola
+(*«allineamento terminologico rigido: è vietato introdurre sinonimi…»*) la sezione
+attesa esce a **rango 1**, quindi è perfettamente raggiungibile; con la
+formulazione colloquiale non entra in top-10 e vince `intent_synonym_mapping`.
+In questo corpus «glossario» denota in modo schiacciante il glossario **di
+dominio** — `glossario_entita.md`, e `intent_synonym_mapping.md` che si intitola
+proprio «Glossario Semantico dei Sinonimi» — non la norma di naming che vi si
+appoggia. L'autorità non può correggerlo: distrattore e fonte attesa pesano
+0.50–0.70 contro 0.50.
+
+Vale come promemoria del perché la soglia sta a 0.90 e non a 0.98.
 
 I test pytest, che non possono caricare bge-m3, coprono la **meccanica** del
 guardrail con un retriever fake deterministico

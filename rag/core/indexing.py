@@ -7,6 +7,7 @@ import json
 import logging
 import re
 import shutil
+import subprocess
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -1003,6 +1004,103 @@ def index_status() -> dict:
     }
 
 
+def observe_docs_git_divergence(root: Path = PROJECT_ROOT, docs_dir: Path = DOCS_DIR,
+                                timeout: float = 15.0) -> dict:
+    """Il corpus indicizzato (docs/ su disco) coincide con quello committato in git?
+
+    Perché serve un check dedicato invece di `git status`: i file di `docs/` sono marcati
+    **skip-worktree** (vedi .gitignore), cioè git assume per contratto che la copia di
+    lavoro coincida con l'indice e non la guarda nemmeno. Le differenze locali sono quindi
+    INVISIBILI a `git status` e `git diff` — che è ciò che si vuole per non vedere il
+    materiale di dominio come "modifiche", ma significa anche che il corpus può discostarsi
+    dal repository senza che nessuno se ne accorga.
+
+    È successo davvero: `coding_standards.md` su disco è tornato alla v1.0.0
+    dominio-specifica (CLEAN-01..04) mentre in git c'è la v2.0.0 cross-progetto
+    (CLEAN-01..07). Un caso del golden set che interrogava [REGOLA-CLEAN-07] ha smesso di
+    passare, e la causa è rimasta invisibile per settimane perché il difetto non era né
+    nell'indice né nel ranking: era nel corpus.
+
+    Confronto BYPASSANDO l'indice git (che per gli skip-worktree è fermo al committato):
+    si prende l'hash del blob da `ls-tree HEAD` e lo si confronta con `hash-object` sul
+    file di lavoro. `hash-object` applica gli stessi filtri di git (eol/clean), quindi il
+    confronto non produce falsi positivi su una checkout CRLF.
+
+    OSSERVAZIONE PURA, esattamente come observe_qdrant_alias: non scrive nulla, non
+    ripara nulla, e NON contribuisce mai a `ok`/`problems` del check di integrità. La
+    ragione è concreta: una divergenza git non si corregge re-indicizzando (il reindex
+    rileggerebbe gli stessi file divergenti), quindi trattarla come "problema" farebbe
+    scattare allo script notturno un reindex inutile a ogni esecuzione. Quale corpus sia
+    autoritativo è una decisione umana; questo check si limita a renderla visibile.
+
+    Ritorna {state, diverging, tracked, reason}:
+      - state "aligned"     : ogni file tracciato di docs/ coincide col committato;
+      - state "diverging"   : `diverging` elenca i path che differiscono (o mancano su disco);
+      - state "unavailable" : git assente, non un repository, HEAD assente (repo vuoto),
+                              o comando fallito — `reason` dice perché. Mai un'eccezione.
+    """
+    def _git(args: list[str], stdin: str | None = None) -> str:
+        return subprocess.run(
+            ["git", "-C", str(root), *args],
+            input=stdin, capture_output=True, text=True, encoding="utf-8",
+            timeout=timeout, check=True,
+        ).stdout
+
+    vuoto = {"state": "unavailable", "diverging": [], "tracked": 0}
+    try:
+        rel = docs_dir.relative_to(root).as_posix()
+    except ValueError:
+        return {**vuoto, "reason": f"docs_dir {docs_dir} non è dentro il repository {root}"}
+
+    try:
+        # -z: path grezzi separati da NUL, così i nomi con spazi/accenti non vengono
+        # citati/escapati da core.quotePath e restano confrontabili.
+        grezzo = _git(["ls-tree", "-r", "-z", "HEAD", "--", rel])
+    except FileNotFoundError:
+        return {**vuoto, "reason": "git non disponibile nel PATH"}
+    except subprocess.TimeoutExpired:
+        return {**vuoto, "reason": f"git ls-tree oltre il timeout di {timeout}s"}
+    except subprocess.CalledProcessError as exc:
+        return {**vuoto, "reason": f"git ls-tree fallito: {(exc.stderr or '').strip()[:200]}"}
+
+    attesi: dict[str, str] = {}
+    for voce in grezzo.split("\0"):
+        if not voce.strip():
+            continue
+        meta, _, path = voce.partition("\t")
+        campi = meta.split()
+        if len(campi) >= 3 and campi[1] == "blob" and path:
+            attesi[path] = campi[2]
+    if not attesi:
+        return {"state": "aligned", "diverging": [], "tracked": 0,
+                "reason": f"nessun file tracciato sotto {rel}/"}
+
+    presenti = [path for path in attesi if (root / path).is_file()]
+    correnti: dict[str, str] = {}
+    if presenti:
+        try:
+            uscita = _git(["hash-object", "--stdin-paths"], stdin="\n".join(presenti) + "\n")
+        except subprocess.TimeoutExpired:
+            return {**vuoto, "reason": f"git hash-object oltre il timeout di {timeout}s"}
+        except subprocess.CalledProcessError as exc:
+            return {**vuoto, "reason": f"git hash-object fallito: {(exc.stderr or '').strip()[:200]}"}
+        righe = [r.strip() for r in uscita.splitlines() if r.strip()]
+        if len(righe) != len(presenti):
+            return {**vuoto, "reason": "git hash-object ha restituito un numero di hash inatteso"}
+        correnti = dict(zip(presenti, righe))
+
+    diverging = sorted(
+        path for path, atteso in attesi.items()
+        if correnti.get(path) != atteso  # assente su disco => None => diverge
+    )
+    return {
+        "state": "diverging" if diverging else "aligned",
+        "diverging": diverging,
+        "tracked": len(attesi),
+        "reason": None,
+    }
+
+
 def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict:
     """Check di integrità ECONOMICO dell'indice: zero embedding, nessuna costruzione,
     secondi di esecuzione. È il controllo notturno; il confronto profondo incrementale
@@ -1031,6 +1129,11 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
       serve un full rebuild — non un semplice "riprova più tardi".
     `qdrant_mismatch` copre quindi sia il conteggio riuscito ma diverso dal sidecar,
     sia questo caso di collection/alias assente con server raggiungibile.
+    `docs_git` è la seconda osservazione di sola lettura (observe_docs_git_divergence):
+    dice se il corpus su disco coincide con quello committato. Come `qdrant_alias` non
+    contribuisce MAI a `ok`/`problems` — una divergenza git non si ripara con un reindex,
+    quindi non deve far scattare la remediation automatica dello script notturno.
+
     `qdrant_alias` è la classificazione di SOLA OSSERVAZIONE di observe_qdrant_alias
     (stato legacy/aligned/missing/diverging/unknown): non contribuisce MAI a `ok` —
     anche un alias divergente non fa fallire il check, e un manifest antecedente al
@@ -1055,6 +1158,7 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
             "qdrant_mismatch": False, "qdrant_unreachable": False,
             "problems": ["manifest assente o illeggibile: indice mai costruito (o manifest corrotto)"],
             "qdrant_alias": observe_qdrant_alias(_injected_qdrant),
+            "docs_git": observe_docs_git_divergence(),
         }
         _log(f"❌ Integrità indice: {report['problems'][0]}")
         return report
@@ -1166,12 +1270,24 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
         # Osservazione READ-ONLY dello stato alias Qdrant: esposta e basta, mai
         # inclusa nel calcolo di 'ok'/'problems' — vedi observe_qdrant_alias.
         "qdrant_alias": observe_qdrant_alias(_injected_qdrant),
+        # Idem per la divergenza fra docs/ su disco e docs/ committato: gli
+        # skip-worktree la nascondono a git status, e un reindex non la ripara.
+        "docs_git": observe_docs_git_divergence(),
     }
     if report["ok"]:
         _log("✅ Integrità indice OK: manifest, sorgenti, artefatti e Qdrant allineati.")
     else:
         _log(f"❌ Integrità indice: {len(problems)} problemi — " + "; ".join(problems))
     _log(f"ℹ️  Stato alias Qdrant (osservazione): {report['qdrant_alias']['state']}")
+    dg = report["docs_git"]
+    if dg["state"] == "diverging":
+        _log(f"⚠️  docs/ su disco DIVERGE dal committato in {len(dg['diverging'])} file "
+             f"su {dg['tracked']} ({', '.join(dg['diverging'][:3])}"
+             + (", …" if len(dg["diverging"]) > 3 else "") + "). "
+             "Il RAG indicizza la copia su disco: un reindex NON riallinea nulla, "
+             "va deciso quale versione è autoritativa.")
+    elif dg["state"] == "unavailable":
+        _log(f"ℹ️  Divergenza docs/↔git non verificabile: {dg.get('reason')}")
     return report
 
 
