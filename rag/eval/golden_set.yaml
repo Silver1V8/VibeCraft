@@ -25,6 +25,28 @@
 # confrontabile coi numeri prodotti da questo file: è cambiato il corpus, non i casi.
 #
 # Copertura: tutti gli 11 documenti della baseline compaiono in almeno un caso.
+#
+# ─────────────────────────────────────────────────────────────────────────────────────
+# RIMOSSI 4 CASI AVVERSARIALI il 2026-08-25 — la recidiva del difetto qui sopra.
+#
+# I 10 casi avversariali di S5 (ADR 0002) sono stati scritti quando docs/ conteneva 26
+# documenti sul disco ma la baseline committata ne aveva 11: l'ADR li dichiara misurati
+# «sul corpus committato (26 documenti)», e non lo erano. Ripristinata la baseline
+# (c54030f), 4 di quei casi puntavano a documenti che vivono solo in locale —
+# matrice_permessi e glossario_entita, cioè DUE DEI NOMI che la nota del 2026-07-22 qui
+# sopra elenca già come rimossi, più spec_tech_frontend. Verdi in locale, rossi in CI:
+# è la divergenza docs/<->git che rendeva la misura non riproducibile.
+#
+# Rimossi e non tradotti, per la stessa ragione del 2026-07-22: i concetti interrogati
+# (pratiche d'autorità, cassa formativa, capienza eventi, stack frontend) non esistono
+# nella baseline, quindi tradurli produrrebbe attese arbitrarie. Restano 5 casi
+# avversariali su 9.
+#
+# APERTO: dei 5 superstiti, alcuni dichiarano nei commenti un distrattore che è anch'esso
+# fuori dalla baseline (intent_synonym_mapping.md, 03_changes_historical/*-canvas-review.md).
+# L'atteso esiste, quindi il test passa, ma il contrasto avversariale è esercitato solo
+# dove il corpus locale è completo. Va rimisurato, non assunto.
+# ─────────────────────────────────────────────────────────────────────────────────────
 # ─────────────────────────────────────────────────────────────────────────────────────
 cases:
   # ─────────────────── safeguards_security.md (IRON_MEMORY) ───────────────────
@@ -341,21 +363,6 @@ cases:
   #    È il documento scritto APPOSTA in gergo colloquiale per fare da ponte fra il
   #    linguaggio naturale e il modello dati: per costruzione vince il match lessicale
   #    su qualunque domanda posta come la porrebbe un utente.
-  - q: "chi può sbloccare una pratica d'autorità e forzare a mano lo stato di una richiesta"
-    adversarial: true
-    expected:
-      - {doc: matrice_permessi, section: "Mapping degli Archi"}
-
-  - q: "quanti soldi restano nella cassa della formazione e chi li può vedere"
-    adversarial: true
-    expected:
-      - {doc: matrice_permessi, section: "Profili degli Attori"}
-
-  - q: "quante sedie rimaste ci sono per un corso e come si calcola la capienza residua"
-    adversarial: true
-    expected:
-      - {doc: glossario_entita, section: "Entità: `EVENTO`"}
-
   - q: "posso mandare la motivazione scritta dal dipendente a un LLM remoto"
     adversarial: true
     expected:
@@ -364,11 +371,6 @@ cases:
   # ── distrattore: 03_changes_historical/*-canvas-review.md (NESSUN frontmatter, peso 0.30)
   #    È il caso che S1 ha reso distinguibile: prima di S1 questi sei file pesavano 0.70,
   #    cioè quanto una spec REQUIREMENTS calibrata (difetto D2 dell'ADR 0002).
-  - q: "React Hook Form con Zod e componenti shadcn/ui per la validazione dei form"
-    adversarial: true
-    expected:
-      - {doc: spec_tech_frontend, section: "Stack Tecnologico"}
-
   - q: "controllo stilistico della palette colori verificabile nel codice sorgente"
     adversarial: true
     expected:
