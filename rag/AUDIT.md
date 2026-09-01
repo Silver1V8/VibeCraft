@@ -414,3 +414,126 @@ nessuno vede, e non lo dice.**
 recall@1 63.6% · recall@2 87.3% · recall@5 98.2% · MRR 0.791 · multihop 10/14 (A 0.896).
 Suite: **1257 test verdi, 0 fallimenti, 0 skip** (1253 di partenza + 4 nuovi). Avversariale recall@1 **0.0%**, invariato — A3 resta il
 primo problema di qualità aperto, e non dipendeva dal rumore di dominio.
+
+---
+---
+
+# A3 — perché l'avversariale non è mai primo
+
+**Domanda:** sui 5 casi marcati `adversarial: true`, recall@1 = 0.0%, invariato anche dopo
+la pulizia del corpus di B1. Perché?
+
+## 1. Lo 0.0% di partenza è per costruzione, non è una regressione
+
+L'intestazione del golden set (`eval/golden_set.yaml:299-302`) dice che i dieci casi
+originali furono **scelti** perché il distrattore precede l'atteso, e ne elenca i ranghi
+verificati: `1→2, 1→2, 1→2, 1→2, 2→3, 1→3, 1→5, 3→5, 1→2, 1→3`. Un caso avversariale che
+partisse a rango 1 non sarebbe avversariale. Quindi `recall@1 = 0.0%` **è la condizione
+iniziale che ADR 0002 doveva ribaltare**, e la misura dice che non l'ha ribaltata.
+
+## 2. α = 0.1 è sotto la soglia che servirebbe — e fu calibrato dove non si vede
+
+Il moltiplicatore è `(1-α) + α·peso`. Con α = 0.1 la forbice fra un documento a peso 0.3 e
+uno a 1.0 vale **7,5%**: l'autorità può correggere solo divari ColBERT più piccoli di così.
+
+α minimo per portare l'atteso a rango 1, calcolato con la funzione di produzione
+`rank_by_authority` sui candidati reali:
+
+| Caso | Distrattore | α necessario |
+|---|---|---|
+| 1 — bump di versione | `graph_rag_ingestion_strategy` (METHODOLOGY 0.50) | **0.30** |
+| 2 — caratteri per chunk | idem | **0.45** |
+| 3 — ordine dei tagli | idem | **0.25** |
+| 4 — motivazione a un LLM remoto | `architecture_decision_rationale` (NORMS 0.85) | **0.25** |
+| 5 — palette colori | `fe1-canvas-review` (nessun frontmatter, 0.30) | **nessuno ≤ 1.0** |
+
+`rag_config.yaml:9` dice che `boost_alpha` fu portato da 0.4 a **0.1** perché *"alzarono
+recall@10 held-out da 0.914 a 0.971"*, e le ricalibrazioni successive girarono a k=5 e k=10,
+concludendo ogni volta `NON_APPLICARE, guadagno +0.000`. Il file stesso avverte:
+*"Ricalibrare SEMPRE a un k dove la metrica non sia satura"* (`:45`). **Nessuna calibrazione
+è mai girata a k=1** — l'unico k che misura ciò che questi casi testano. α è stato scelto
+ottimizzando una metrica cieca all'ordinamento in prima posizione.
+
+## 3. Ma alzare α NON è la correzione — provato
+
+Calibrazione eseguita oggi a k=1, 5-fold, 5 seed (`eval/calibrate_authority.py --k 1`):
+
+```
+DEFAULT   alpha=0.1  → recall@1 in-sample 0.636
+GRIGLIA   alpha=0.3  → recall@1 in-sample 0.655   (ottimista)
+CROSS-VALIDATION — l'unico numero onesto:
+   default   held-out = 0.636
+   calibrato held-out = 0.607
+   guadagno = -0.029   su TUTTI E CINQUE i seed (-0.018 -0.036 -0.055 -0.018 -0.018)
+AVVERSARIALE in-sample: 0.000 (default) → 0.600 (griglia)
+```
+
+Alzare α compra 3 casi avversariali su 5 e ne perde di più sugli altri 50. Il guadagno
+in-sample è sovradattamento: fuori campione è una **perdita netta e coerente su ogni seed**.
+Il verdetto dello strumento — *"i pesi a mano REGGONO, nessuna modifica consigliata"* — vale
+anche a k=1.
+
+## 4. La causa vera: il 70% del deficit non è a livello di documento
+
+Decomposizione dei 55 casi contro il ranking di produzione:
+
+| | |
+|---|---|
+| Atteso già a rango 1 | 35 |
+| Atteso **non** a rango 1 | **20** |
+| → bloccato da una **sezione dello stesso documento** | **14 (70%)** |
+| → bloccato da un altro documento | 6 |
+| Atteso fuori dai top-10 | 0 |
+
+**L'autorità è una proprietà del documento, ma l'unità di retrieval è la sezione.** Quando
+il concorrente è una sezione sorella, i pesi sono identici e il moltiplicatore
+`(1-α)+α·peso` **si semplifica**: nessun α, per costruzione, può separarle. Il 70% del
+deficit di rango 1 vive esattamente dove l'unica leva del progetto non arriva.
+
+Il caso 5 è il ritratto della tenaglia:
+
+| α | Chi vince | Rango dell'atteso |
+|---|---|---|
+| ≤ 0.2 | `fe1-canvas-review` (cb 0.6115, peso 0.30) — vince sul ColBERT | 3 |
+| 0.25–0.6 | `ui_ux_brand_directives § 5` — **sezione sorella**, peso identico 0.80 | 2 |
+| ≥ 0.8 | `safeguards_security` (peso 0.98) — vince sulla sola autorità, ColBERT più basso | 5–6 |
+
+## 5. Il meccanismo, con un nome preciso
+
+Quali sezioni bloccano l'atteso dentro il suo stesso documento:
+
+```
+ 7x  "Scenari Comportamentali BDD (Gherkin)"   (numerata 4./5./6. secondo il documento)
+ 2x  "Sezione 0 — Contratto di Istanziazione"
+ 2x  "2. Direttive Vincolanti"
+ ... coda di casi singoli
+```
+
+**Metà dei blocchi fra sezioni sorelle è una sola classe di sezione.** I blocchi
+GIVEN/WHEN/THEN sono la **riformulazione lessicale della regola che li precede**: stesso
+vocabolario, più denso di parole chiave, spesso più lungo. Il MaxSim di ColBERT premia
+esattamente questo. La sezione che *illustra* la regola batte la sezione che *la stabilisce*.
+
+Vale la pena notare che è lo stesso difetto di ADR 0002 — una fonte che spiega batte la
+fonte che vincola — ma sceso di un livello: là fra documenti, qui **fra sezioni dello stesso
+documento**. ADR 0002 ha risolto il livello che vedeva.
+
+## 6. Conclusione
+
+A3 **non è un problema di calibrazione dell'autorità.** L'autorità fa già il suo lavoro al
+livello dei documenti, e alzarla peggiora le cose fuori campione. È un problema di
+**selezione della sezione**, e oggi nessun segnale lo governa.
+
+Tre strade, in ordine di costo — nessuna intrapresa, la scelta è di merito:
+
+1. **Un peso di sezione, non solo di documento** — l'idea di ADR 0002 applicata un livello
+   sotto: una sezione normativa pesa più di una illustrativa dello stesso documento. È la
+   più coerente con l'architettura esistente e riuserebbe `_authority_weight`.
+2. **Trattare i blocchi BDD in indicizzazione** — accorparli alla sezione che illustrano,
+   o non indicizzarli come chunk autonomi. Diff minimo, ma perde la capacità di rispondere
+   a domande sugli scenari.
+3. **Non fare nulla e cambiare il metro** — se ciò che conta è che la fonte giusta stia nel
+   contesto (e `/ask` inietta fino a 8 sezioni), il documento giusto a rango 2 non è un
+   difetto. Allora recall@1 è la metrica sbagliata per questo sistema e va detto.
+
+La 3 va decisa **prima** della 1 e della 2: se rango 2 va bene, non c'è niente da correggere.
