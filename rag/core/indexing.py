@@ -680,6 +680,21 @@ def gc_orphaned_qdrant_collections(qdrant: QdrantClient, *, base: str = COLLECTI
       (build_graph_and_index/_run_full_rebuild dopo lo swap, o il lifespan) è l'unico
       responsabile di questa garanzia, non questa funzione."""
     _log = emit or logger.info
+    # NESSUNA versione locale => NESSUN GC. Un insieme di riferimenti vuoto significa "non
+    # ho basi per giudicare cosa sia orfano", non "e' orfano tutto": senza questa guardia il
+    # GC cancella ogni collection versionata che trova.
+    #
+    # Non e' teorico, e' successo (rag/AUDIT.md, A20): un container avviato con database/
+    # vuoto e puntato a un Qdrant CONDIVISO con un'installazione nativa ha distrutto le
+    # collection di quest'ultima al primo boot. L'alias corrente sopravvive sempre (e'
+    # gia' un invariante), quindi il sistema restava in piedi — ma i rollback alle versioni
+    # precedenti no, ed e' esattamente cio' che il blue/green esiste per garantire.
+    if not list_versions():
+        logger.warning(
+            "GC delle collection Qdrant SALTATO: nessuna versione locale in database/versions/. "
+            "Con un indice locale vuoto non e' possibile distinguere una collection orfana da "
+            "una che appartiene a un'altra installazione che condivide questo Qdrant.")
+        return []
     referenced = _referenced_qdrant_collections()
     alias_target = _read_alias_target(qdrant, base)
     removed = gc_qdrant_collections(qdrant, referenced=referenced, alias_target=alias_target, base=base)

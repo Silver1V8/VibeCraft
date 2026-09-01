@@ -759,3 +759,52 @@ Verificato dal vivo dopo la correzione: `read_document` su un PDF vero lo apre e
 Due test nuovi in `tests/test_chunking.py`: uno fallisce nel momento esatto in cui una delle
 tre librerie esce dalle dipendenze; l'altro pretende che un `.pdf` illeggibile **sollevi**
 invece di restituire vuoto.
+
+---
+
+## A20 — un indice locale vuoto fa cancellare le collection di chi condivide Qdrant
+
+Trovato **provocandolo**, durante la verifica dell'immagine Docker in L2. Non è un difetto
+ipotizzato: è successo, su questa macchina, e ha distrutto dati.
+
+### Cosa è successo
+
+Avviato il container `vibecraft:cpu` puntandolo al Qdrant **dell'installazione nativa**
+(`QDRANT_URL=host.docker.internal:6333`), con il proprio `database/` vuoto. Al boot:
+
+```
+GC collection Qdrant orfane: vibecraft_events__v20260901T101536,
+                             vibecraft_events__v20260901T132300
+```
+
+Due collection appartenenti all'installazione nativa, cancellate dal container al primo
+avvio. `CURRENT` e l'alias sono sopravvissuti (è già un invariante documentato del GC),
+quindi il sistema è rimasto in piedi — ma **il rollback a quelle due versioni ora
+fallirebbe sul lato Qdrant**, ed è esattamente ciò che il blue/green esiste per garantire.
+
+### La causa
+
+`gc_orphaned_qdrant_collections` calcola l'insieme `referenced` dai manifest delle versioni
+locali. Con `database/versions/` vuoto quell'insieme è vuoto — e il codice lo interpretava
+come **"nulla è referenziato, quindi è tutto orfano"**.
+
+Semanticamente è il contrario: un insieme di riferimenti vuoto significa **"non ho basi per
+giudicare"**. È la stessa forma di A1, A18 e A19 — un caso limite non considerato che si
+comporta in modo distruttivo senza chiedere niente a nessuno — ma è l'unico finora che
+**perde dati** invece di degradare in silenzio.
+
+### Correzione
+
+Guardia in `core/indexing.py`: nessuna versione locale ⇒ **nessun GC**, con un `WARNING`
+che spiega perché. Test in `tests/test_qdrant_blue_green.py`, verificato per costruzione:
+disattivando la guardia fallisce, ripristinandola torna verde.
+
+Nel `docker-compose.yml` il problema non si presenta — lo stack usa un proprio Qdrant con un
+proprio volume — e il README avverte esplicitamente di non puntare il container a un Qdrant
+già usato da un'installazione nativa.
+
+### Cosa resta
+
+Le due collection non sono recuperabili: gli artefatti su disco in `database/versions/`
+ci sono ancora, ma i vettori no. Un rollback a `v20260901T101536` o `v20260901T132300`
+richiederebbe una re-indicizzazione. Le versioni successive non sono state toccate.

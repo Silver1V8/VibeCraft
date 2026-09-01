@@ -1,0 +1,31 @@
+# Contesto di build: tutto cio' che non serve DENTRO l'immagine.
+# Senza questo file il contesto include rag/.venv (4,8 GB) e code/frontend/node_modules,
+# che vengono spediti al daemon a ogni build per poi essere scartati.
+
+# Ambienti virtuali e dipendenze installate — l'immagine le reinstalla da uv.lock
+rag/.venv/
+**/node_modules/
+**/__pycache__/
+*.pyc
+
+# Stato locale: l'indice vive in un volume, non nell'immagine (vedi docker-compose.yml)
+rag/database/
+rag/.env.local
+
+# Cache di sviluppo
+.pytest_cache/
+**/.pytest_cache/
+rag/eval/results/*.json
+code/frontend/.next/
+code/frontend/tsconfig.tsbuildinfo
+
+# Storia e strumenti che non servono a runtime
+.git/
+.github/
+.idea/
+.claude/
+docs.local-backup-*/
+
+# Documenti di lavoro dell'audit: utili nel repository, inutili nell'immagine
+rag/AUDIT.md
+rag/DISTRIBUTION.md

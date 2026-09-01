@@ -582,3 +582,23 @@ def test_real_qdrant_rejects_create_collection_on_an_alias_name(monkeypatch):
             pass
         client.close()
         client.close()
+
+
+def test_gc_orfane_non_cancella_nulla_senza_versioni_locali(tmp_path, monkeypatch):
+    """Indice locale VUOTO => nessun GC. Un insieme di riferimenti vuoto significa "non ho
+    basi per giudicare cosa sia orfano", non "e' orfano tutto".
+
+    E' il difetto A20, e non e' teorico: un container avviato con database/ vuoto e puntato
+    a un Qdrant CONDIVISO con un'installazione nativa ne ha distrutto le collection al primo
+    boot. L'alias corrente sopravvive comunque (invariante gia' presente), quindi il sistema
+    resta in piedi — ma i rollback alle versioni precedenti no, ed e' esattamente cio' che il
+    blue/green esiste per garantire."""
+    monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)  # nessuna versione su disco
+    base = index.COLLECTION_NAME
+    q = AliasAwareFakeQdrant(collections={f"{base}__v1", f"{base}__v2"})
+
+    removed = index.gc_orphaned_qdrant_collections(q, base=base)
+
+    assert removed == []
+    assert sorted(index.list_qdrant_collections(q)) == [f"{base}__v1", f"{base}__v2"], \
+        "con database/versions/ vuoto il GC non deve toccare alcuna collection"

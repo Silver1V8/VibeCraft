@@ -217,3 +217,65 @@ dipendenza di runtime.** La correzione sarebbe stata giusta comunque.
   male la propria licenza non viene smascherato da questo metodo.
 - Non è una consulenza legale. Dice che non c'è copyleft forte fra le dipendenze installate;
   non certifica la conformità della distribuzione.
+
+
+---
+
+## Stato — L2 (2026-09-01): costruito, provato, e un blocco trovato
+
+Tutto quello che segue e' stato **eseguito**, non solo scritto.
+
+### Cosa c'e'
+
+| | |
+|---|---|
+| `Dockerfile` | multi-stage, target `cpu` e `gpu`. Differiscono per la sola build di torch: il target `cpu` salta il pacchetto CUDA durante il sync (`uv sync --no-install-package torch`) e reinstalla dall'indice CPU, cosi' non paga 4,0 GB di download per poi scartarli |
+| `docker-compose.yml` | profili `cpu`, `gpu`, `host-ollama`; Qdrant senza profilo perche' serve a tutti e tre. Tutti e tre validati con `docker compose --profile X config` |
+| `.dockerignore` | senza, il contesto spedirebbe `rag/.venv` (4,8 GB) a ogni build |
+| Pesi in volume | `vibecraft_models` (bge-m3) e `ollama_models`: immagini piccole, pesi che sopravvivono agli aggiornamenti |
+| `rag/scripts/doctor.py` | preflight: Python, Qdrant, Ollama e il suo modello, spazio, cache dei pesi, GPU, porta. Ogni fallimento stampa il **rimedio**. Provato su entrambi i rami (tutto verde: exit 0; servizi giu': exit 1 coi rimedi) |
+
+### Cosa e' stato misurato costruendo davvero
+
+| | |
+|---|---|
+| `vibecraft:cpu` | **3,47 GB** — piu' grande delle attese: senza CUDA, torch scende ma lo stack ML (transformers, datasets, scipy, sklearn) resta pesante |
+| Indicizzazione nel container, CPU | **11 min 17 s** per 160 chunk + 452 simboli. La stima di ~10 minuti nel README era giusta |
+| Eval-gate nel container | `recall@2 = 0.873`, **identico all'host** — la build CPU di torch produce embedding equivalenti |
+| Avvio del server | container `healthy`, snapshot caricato, Qdrant raggiunto |
+
+### Il blocco: da Docker la console web non funziona
+
+`GET /`  risponde 200, ma **ogni** `/api/*` e `/ask` rispondono **401**. Verificato dall'host
+contro il container.
+
+La causa non e' una svista di configurazione. `api/deps._is_local_request` considera locale
+un client il cui indirizzo e' `127.0.0.1` o `::1`; attraverso il port forwarding di Docker le
+richieste arrivano dal gateway del bridge. E la console **non invia mai `X-API-Key`** (zero
+occorrenze in `templates/dashboard.unified.html`): si affida interamente al bypass su
+localhost, quindi non ha un ripiego nemmeno impostando una chiave.
+
+L'intento di sicurezza — "browser e server sulla stessa macchina, niente autenticazione" —
+con `ports: 127.0.0.1:8000:8000` **e' rispettato**: solo l'host puo' raggiungere quella porta.
+Ma il container non ha modo di saperlo.
+
+**Non corretto qui: e' un cambio di autenticazione, e non spetta a un lavoro di packaging.**
+Le due strade:
+
+1. **Rendere configurabile cosa conta come "locale"** — un env con gli indirizzi fidati
+   (il gateway Docker), vuoto di default cosi' il comportamento attuale non cambia. Diff
+   piccolo, ma allarga la superficie: va accoppiato per iscritto al vincolo che la porta
+   resti pubblicata su loopback.
+2. **Far autenticare la console** — iniettare la chiave nelle pagine (il meccanismo esiste
+   gia' per `/pipeline`, `deps._inject_agent_api_key`) e far inviare `X-API-Key` alle fetch.
+   Piu' lavoro, tocca i template, ma non allarga niente.
+
+Finche' non e' scelta, lo stack Docker serve per **indicizzare e per l'API con chiave**; per
+la console si usa l'installazione nativa. E' scritto nel README, non lasciato scoprire.
+
+### Nota minore
+
+L'immagine contiene `docs/` cosi' com'e' nel contesto di build: da un clone pulito sono i 14
+documenti della baseline, da questa macchina 23 (ci sono anche i 9 non tracciati, vedi A6).
+Coerente — l'immagine rispecchia il contesto — ma va saputo prima di pubblicare un'immagine
+costruita da una copia di lavoro.

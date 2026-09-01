@@ -47,10 +47,69 @@ Senza GPU il sistema **funziona**, ma reindicizzare diventa un'operazione da pre
 calma. Le singole domande restano usabili: l'embedding della query costa circa un secondo,
 dentro i ~30 s che l'LLM locale impiega comunque a rispondere.
 
-Servono inoltre: **Python 3.14**, [uv](https://docs.astral.sh/uv/), **Docker** (per Qdrant)
-e **[Ollama](https://ollama.com)**.
+I prerequisiti dipendono da come lo installi:
 
-## Avvio rapido
+- **Via Docker** — serve solo **Docker**. Python, Qdrant e Ollama stanno tutti nello stack.
+- **Nativa** — **Python 3.14**, [uv](https://docs.astral.sh/uv/), **Docker** (per il solo
+  Qdrant) e **[Ollama](https://ollama.com)**.
+
+## Avvio rapido — Docker (consigliato)
+
+Uno stack unico: applicazione, Qdrant e Ollama. Scegli il profilo che corrisponde alla tua
+macchina.
+
+```bash
+git clone https://github.com/Silver1V8/VibeCraft.git
+cd VibeCraft
+
+# Scegli UN profilo e usa lo stesso in tutti i comandi che seguono:
+#   cpu          ovunque, anche senza GPU
+#   gpu          NVIDIA + nvidia-container-toolkit
+#   host-ollama  Ollama nativo sull'host (la scelta giusta su macOS)
+
+# 1. Servizi di supporto
+docker compose --profile cpu up -d qdrant ollama
+
+# 2. Il modello LLM (6,6 GB, una volta sola)
+docker compose exec ollama ollama pull qwen3.5:9b
+
+# 3. Indicizza il corpus. Al primo avvio scarica anche bge-m3 (4,3 GB).
+docker compose --profile cpu run --rm app-cpu python index.py
+
+# 4. Avvia la console
+docker compose --profile cpu up -d
+```
+
+Poi apri **http://127.0.0.1:8000**.
+
+**Perché il passo 3 usa `run --rm` e non `exec`.** Il server si rifiuta di partire finché
+un indice non esiste — è una scelta deliberata, meglio non partire che servire il vuoto.
+Quindi non c'è alcun container in cui entrare con `exec`: l'indicizzazione va fatta da un
+container usa-e-getta, prima del primo avvio.
+
+**Perché tre profili.** Docker su macOS non espone Metal: un modello da 9B dentro un
+container gira su CPU. Lì il percorso sensato è tenere **Ollama nativo** sull'host e usare
+`--profile host-ollama`, che avvia tutto il resto e punta al tuo Ollama.
+
+I pesi dei modelli **non stanno nell'immagine**: vivono in volumi, quindi si scaricano una
+volta sola e sopravvivono agli aggiornamenti.
+
+> ⚠️ **Limite noto: da Docker la console web non è ancora utilizzabile.** La pagina si apre,
+> ma ogni chiamata API risponde `401`. Il server considera "locale" — e quindi esente da
+> autenticazione — solo un client che si presenta come `127.0.0.1`; attraverso il port
+> forwarding di Docker le richieste arrivano invece dal gateway del bridge, e la console non
+> invia alcuna `X-API-Key` per ripiegare. **Lo stack Docker è quindi utilizzabile oggi per
+> l'indicizzazione e per l'API con chiave** (`curl -H "X-API-Key: ..."`), non per
+> l'interfaccia dal browser. Per la console usa l'installazione nativa qui sotto.
+> Verificato, non dedotto — vedi [`rag/DISTRIBUTION.md`](rag/DISTRIBUTION.md).
+
+> ⚠️ **Non puntare lo stack Docker a un Qdrant che usi già per un'installazione nativa.**
+> Le due installazioni hanno indici locali distinti, e ciascuna considera "orfane" le
+> collection dell'altra. Lo stack qui sopra usa un proprio Qdrant con un proprio volume,
+> quindi il problema non si pone: si pone solo se imposti `QDRANT_URL` a mano verso
+> un'istanza condivisa.
+
+## Avvio rapido — installazione nativa
 
 ```bash
 git clone https://github.com/Silver1V8/VibeCraft.git
@@ -73,6 +132,14 @@ uv run python server.py       # oppure: scripts/run_server.sh
 ```
 
 Poi apri **http://127.0.0.1:8000**.
+
+Se qualcosa non parte, **chiedi al preflight invece di indovinare**: verifica versione di
+Python, Qdrant, Ollama e il suo modello, spazio su disco, GPU e porta — e per ogni problema
+stampa il rimedio.
+
+```bash
+cd rag && uv run python scripts/doctor.py
+```
 
 **Non serve procurarsi dei documenti per provarlo:** il repository include un corpus di
 esempio di 14 documenti in `docs/` — la baseline di governance cross-progetto — quindi il
