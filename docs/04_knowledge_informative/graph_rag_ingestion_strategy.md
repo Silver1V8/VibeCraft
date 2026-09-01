@@ -1,7 +1,7 @@
 ---
 id: "graph-rag-ingestion-strategy-v1.0"
 title: "Razionale Strategico — Perché la Pipeline di Ingestion Graph-RAG è Progettata Così"
-project: "VibeCraft — Sistema di Gestione Eventi Aziendali"
+project: "cross-project"
 version: "1.0.0"
 date: "2026-07-12"
 status: "ENFORCED"

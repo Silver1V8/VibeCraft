@@ -372,19 +372,33 @@ cases:
     expected:
       - {doc: coding_standards, section: "Tracciabilità della Governance"}
 
-  # ── DISTRATTORE SOSTITUITO il 2026-09-01, e il caso ne esce INDEBOLITO.
-  #    Era intent_synonym_mapping.md (METHODOLOGY, peso 0.50), scritto APPOSTA in gergo
-  #    colloquiale per fare da ponte fra linguaggio naturale e modello dati: per costruzione
-  #    vinceva il match lessicale su qualunque domanda posta come la porrebbe un utente. È
-  #    stato rimosso dal corpus perché apparteneva al dominio dismesso (vedi rag/AUDIT.md, B1).
-  #    Il concorrente a rango 1 è ora architecture_decision_rationale.md, che pesa 0.85 contro
-  #    lo 0.98 dell'atteso: il contrasto di autorità è passato da 0.50-vs-0.98 a 0.85-vs-0.98,
-  #    cioè da largo a stretto. Il caso resta avversariale ma misura MENO di quanto fu
-  #    progettato per misurare — va riscritto con un distrattore a bassa autorità che esista
-  #    nella baseline, non lasciato così credendo che eserciti ancora il contrasto originale.
+  # ── NON PIÙ AVVERSARIALE dal 2026-09-01. Stesso criterio applicato al caso della
+  #    tracciabilità qui sopra, per la ragione opposta: quello smise di essere avversariale
+  #    perché il sistema lo superava, questo perché non esercita più il contrasto che dichiara.
+  #
+  #    Il distrattore progettato era intent_synonym_mapping.md (METHODOLOGY, peso 0.50),
+  #    scritto APPOSTA in gergo colloquiale per fare da ponte fra linguaggio naturale e
+  #    modello dati: per costruzione vinceva il match lessicale su qualunque domanda posta
+  #    come la porrebbe un utente. È stato rimosso dal corpus perché apparteneva al dominio
+  #    dismesso (rag/AUDIT.md, B1). Il concorrente a rango 1 è ora
+  #    architecture_decision_rationale.md, che pesa 0.85 contro lo 0.98 dell'atteso.
+  #
+  #    Il contrasto è passato da 0.50-vs-0.98 a 0.85-vs-0.98: non è più "una fonte informativa
+  #    a bassa autorità vince il match lessicale sulla norma", che è ciò che S5 misura, ma
+  #    "due fonti entrambe autorevoli si contendono il primo posto" — una proprietà diversa,
+  #    che i pesi di classe di ADR 0002 quasi non governano. Tenerlo marcato significherebbe
+  #    far dire al numero del sottoinsieme una cosa che non misura più.
+  #
+  #    NON è stato riscritto con un altro distrattore perché non ce n'è uno: nella baseline
+  #    tracciata esistono due soli documenti sotto peso 0.5 (fe1-canvas-review 0.30 e
+  #    graph_rag_ingestion_strategy 0.50) e NESSUNO dei due nomina LLM, privacy o dati
+  #    personali — verificato, 0 occorrenze. Ricostruire il contrasto richiede un documento
+  #    informativo a bassa autorità che copra quel tema: è una decisione sul CORPUS, non sul
+  #    golden set, e va presa lì. Il sottoinsieme scende quindi a 4 casi, tutti contro due
+  #    soli distrattori: è poco, ed è annotato come tale.
+  #
+  #    Resta come caso normale: la domanda è legittima e la fonte attesa è quella giusta.
   - q: "posso mandare la motivazione scritta dal dipendente a un LLM remoto"
-    adversarial: true
-    distractor: 01_architecture_norms/architecture_decision_rationale.md
     expected:
       - {doc: safeguards_security, section: "Privacy e Confine"}
 

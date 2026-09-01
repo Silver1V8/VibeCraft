@@ -623,3 +623,86 @@ stantìo che è stato corretto in `architecture_decision_rationale.md`. Qui il c
 documento è già neutro rispetto al dominio e il campo non è fra quelli letti dal ranking
 (`classification`, `status`, `authority`, `tags`): correggerlo costerebbe un altro ciclo di
 reindicizzazione per zero effetto misurabile. Va sistemato al prossimo passaggio su quel file.
+
+---
+---
+
+# Chiusura: le tre pendenze e A6
+
+## 1. Il caso 4 non è stato riscritto: è stato declassato
+
+Il distrattore progettato era `intent_synonym_mapping.md` (peso 0.50), rimosso da B1.
+Per ricostruire il contrasto serviva un altro documento a bassa autorità che parlasse di
+LLM e dati personali. **Non esiste.** Misurato sulla baseline tracciata: sotto peso 0.5 ci
+sono due soli documenti — `fe1-canvas-review.md` (0.30) e `graph_rag_ingestion_strategy.md`
+(0.50) — e **nessuno dei due nomina LLM, privacy o dati personali** (0 occorrenze).
+
+Quindi il marcatore `adversarial` è stato **tolto**, con lo stesso criterio che il progetto
+applicò il 2026-08-25 al caso della tracciabilità, per la ragione opposta: quello smise di
+essere avversariale perché il sistema lo superava, questo perché non esercita più il
+contrasto che dichiara. Ora competerebbe 0.85 contro 0.98 — "due fonti entrambe autorevoli
+si contendono il primo posto", che non è ciò che S5 misura e che i pesi di classe di ADR
+0002 quasi non governano.
+
+Il sottoinsieme scende a **4 casi contro 2 soli distrattori**. È poco, ed è annotato come
+tale nel golden set. Restituirgli ampiezza richiede un documento informativo a bassa
+autorità su un tema nuovo: è una decisione sul **corpus**, non sul golden set. **Aperto.**
+
+## 2. A18 verificato end-to-end, non più solo a unit test
+
+La verifica precedente era una mia affermazione sbagliata: il server girava da prima della
+correzione e uvicorn non ricarica il codice, quindi la fix era nel file e non nel processo.
+
+Rifatta sul serio, usando la reindicizzazione della pendenza 3 come innesco:
+
+```
+CURRENT su disco                  : v20260901T114636
+snapshot server (prima)           : v20260901T105315
+snapshot server dopo /api/retrieve: v20260901T114636
+```
+
+Una sola chiamata a `/api/retrieve` — **non** a `/ask` — allinea lo snapshot. Prima della
+correzione era esattamente la chiamata che non faceva nulla.
+
+## 3. Il campo `project:` era una classe, non un'istanza
+
+Segnalando `graph_rag_ingestion_strategy.md` avevo guardato un file solo. Verificati tutti e
+13 i tracciati: la convenzione della baseline è `project: "cross-project"` — e **il mio
+stesso edit precedente** su `architecture_decision_rationale.md` ne aveva introdotta una
+terza variante (`"VibeCraft — baseline cross-progetto"`) invece di seguirla. Corretti
+entrambi; ora i 13 documenti sono allineati, sottotitolo H2 compreso
+(`## Baseline Cross-Progetto`).
+
+## A6 — chiuso
+
+Il criterio di chiusura era: *o un clone pulito riproduce le metriche dichiarate, oppure il
+report di eval dichiara su quale corpus ha misurato*. La prima strada resta impraticabile —
+9 documenti (6 output di pipeline, 3 spec locali del progetto ospitante) stanno nell'indice
+per ragioni legittime e non devono entrare nel repo. Quindi la seconda, in due punti.
+
+**Il rilevatore di divergenza ora vede entrambe le classi.**
+`observe_docs_git_divergence()` confrontava solo i file tracciati con il committato, perché
+parte da `git ls-tree`: un corpus grande il doppio produceva `diverging: []`, che si legge
+come "tutto a posto". Aggiunto il campo `untracked`. Come `diverging`, **non entra in
+`state`**: la maggior parte di quei file è legittima, e farne un problema significherebbe un
+allarme atteso a ogni esecuzione notturna — il rumore seppellirebbe il segnale raro, che è
+l'errore contro cui la funzione stessa mette già in guardia per le istanziazioni.
+
+**Il report di eval dichiara il corpus, accanto ai numeri e dentro il JSON.**
+
+```
+misurato su: 16 documenti tracciati · +9 NON tracciati (nell'indice, assenti da git)
+             · 2 divergenti dal committato  ⚠️  numeri NON riproducibili su un checkout pulito
+```
+
+La riga è a schermo perché è chi legge il report a occhio che rischia di confrontarlo a
+mente con quello di ieri; il campo `corpus` nel JSON serve al confronto automatico. È
+telemetria: se git manca degrada a vuoto e l'eval misura lo stesso.
+
+Tre test nuovi: il rilevatore vede un file non tracciato senza cambiare `state`; la riga di
+provenienza allarma se e solo se c'è divergenza; l'assenza di git non rompe il report.
+
+**Cosa NON chiude questo.** I numeri restano diversi fra questa macchina e la CI. Non è più
+un difetto nascosto: è una differenza dichiarata, fatta di documenti che nessun caso del
+golden set nomina né come atteso né come distrattore. La parte che rendeva la misura
+*inversa* — i distrattori fuori baseline — è chiusa dal commit precedente.

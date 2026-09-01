@@ -352,6 +352,26 @@ def test_docs_git_rileva_la_divergenza_invisibile_a_git_status(tmp_path, git_dis
     assert r["diverging"] == ["docs/norma.md"]
 
 
+def test_docs_git_rileva_i_file_non_tracciati(tmp_path, git_disponibile):
+    """L'altra meta' della divergenza: un file che il corpus HA e il repository NO.
+
+    Il confronto principale parte da `git ls-tree`, cioe' dai soli tracciati, quindi per
+    costruzione non poteva vederli: un corpus grande il doppio del committato riportava
+    `diverging: []`, che si legge come "tutto a posto". Misurato sul repo reale il
+    2026-09-01 (rag/AUDIT.md, A6): 15 file su 26, e fra questi TUTTI i distrattori dei casi
+    avversariali."""
+    root, _ = _repo_finto(tmp_path)
+    (root / "docs" / "aggiunta_locale.md").write_text("mai committato\n", encoding="utf-8")
+
+    r = indexing.observe_docs_git_divergence(root=root, docs_dir=root / "docs")
+
+    assert r["untracked"] == ["docs/aggiunta_locale.md"]
+    # NON entra in `state`: la maggior parte di questi file e' legittima (output di
+    # pipeline, spec locali), e farne un problema significherebbe un allarme atteso a ogni
+    # esecuzione — il rumore seppellirebbe il segnale raro.
+    assert r["state"] == "aligned"
+
+
 def test_docs_git_rileva_un_file_tracciato_sparito_dal_disco(tmp_path, git_disponibile):
     root, f = _repo_finto(tmp_path)
     f.unlink()

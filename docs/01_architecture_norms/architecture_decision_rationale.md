@@ -1,7 +1,7 @@
 ---
 id: "norm-architecture-decision-rationale-v1.0"
 title: "Motivazione Architetturale Condivisa — Modular Monolith vs Microservizi/Agenti LLM"
-project: "VibeCraft — baseline cross-progetto"
+project: "cross-project"
 version: "1.0.0"
 date: "2026-07-28"
 status: "ENFORCED"
@@ -31,7 +31,7 @@ tags:
 ---
 
 # Motivazione Architetturale Condivisa
-## VibeCraft — baseline cross-progetto
+## Baseline Cross-Progetto
 
 ---
 

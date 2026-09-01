@@ -157,7 +157,49 @@ def print_report(report: dict, ks: list[int]) -> None:
         print("   Calibrare o gatare lì significa non misurare nulla.")
 
 
-def save_results(report: dict, url: str) -> Path:
+def corpus_provenance() -> dict:
+    """Su QUALE corpus sono stati misurati questi numeri.
+
+    Un numero di qualità senza il corpus che l'ha prodotto non è confrontabile con nessun
+    altro. Misurato il 2026-09-01 (rag/AUDIT.md, A6): `docs/` conteneva 26 documenti contro
+    gli 11 committati, e la recall@1 del sottoinsieme avversariale valeva 0.0% qui e 80% su
+    un checkout pulito — lo stesso numero rovesciato, perché in CI i distrattori non
+    esistevano. I distrattori sono poi entrati nella baseline, ma la differenza residua resta
+    e va DICHIARATA, non dedotta: chi confronta due report deve poter vedere subito se stanno
+    misurando la stessa cosa.
+
+    Telemetria: qualunque errore degrada a `{"available": False}`, mai un'eccezione — un
+    problema nel dichiarare il corpus non deve impedire di misurarlo."""
+    try:
+        from core.indexing import observe_docs_git_divergence
+        d = observe_docs_git_divergence()
+        return {
+            "available": True,
+            "state": d.get("state"),
+            "tracked": d.get("tracked", 0),
+            "untracked": d.get("untracked") or [],
+            "diverging": d.get("diverging") or [],
+            "instantiated": d.get("instantiated") or [],
+        }
+    except Exception as exc:
+        return {"available": False, "reason": str(exc)[:200]}
+
+
+def format_provenance(prov: dict) -> str:
+    """Riga leggibile per il report a schermo. Vuota se la provenienza non è disponibile."""
+    if not prov.get("available"):
+        return ""
+    n_extra, n_div = len(prov["untracked"]), len(prov["diverging"])
+    pezzi = [f"{prov['tracked']} documenti tracciati"]
+    if n_extra:
+        pezzi.append(f"+{n_extra} NON tracciati (nell'indice, assenti da git)")
+    if n_div:
+        pezzi.append(f"{n_div} divergenti dal committato")
+    coda = "  ⚠️  numeri NON riproducibili su un checkout pulito" if (n_extra or n_div) else ""
+    return f"misurato su: {' · '.join(pezzi)}{coda}"
+
+
+def save_results(report: dict, url: str, provenance: dict | None = None) -> Path:
     RESULTS_DIR.mkdir(exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     out = RESULTS_DIR / f"eval_{ts}.json"
@@ -167,6 +209,8 @@ def save_results(report: dict, url: str) -> Path:
         "n": report["n"],
         "ks": report["ks"],
         "top3_k": report["top3_k"],
+        # Il corpus che ha prodotto questi numeri: senza, due report non sono confrontabili.
+        "corpus": provenance if provenance is not None else corpus_provenance(),
         "aggregate": report["aggregate"],
         "saturated": report.get("saturated") or [],
         "adversarial": report.get("adversarial"),
@@ -186,8 +230,14 @@ def run_eval(cases: list[dict], retrieve_fn, ks: list[int], assert_min: float,
     report = evaluate(cases, retrieve_fn, ks=ks)
 
     print_report(report, ks)
+    # Il corpus va dichiarato ACCANTO ai numeri, non solo dentro il JSON: chi legge il
+    # report a schermo è chi rischia di confrontarlo a mente con quello di ieri.
+    provenance = corpus_provenance()
+    riga = format_provenance(provenance)
+    if riga:
+        print(f"\n{riga}")
     if save:
-        out = save_results(report, url)
+        out = save_results(report, url, provenance)
         print(f"\n💾 Risultati salvati in {out}")
         # Storicizza nel trend di qualità (Epic 5): source="eval.run".
         try:

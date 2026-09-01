@@ -1067,7 +1067,10 @@ def observe_docs_git_divergence(root: Path = PROJECT_ROOT, docs_dir: Path = DOCS
     lo stesso modello di fiducia di `authority:`: chi lo scrive per nascondere una
     divergenza accidentale sta mentendo al proprio strumento, non aggirando un controllo.
 
-    Ritorna {state, diverging, instantiated, tracked, reason}:
+    Ritorna {state, diverging, instantiated, untracked, tracked, reason}. `untracked` elenca
+    i file che il corpus ha e il repository no — l'altra metà della divergenza, invisibile a
+    un confronto che parte dai soli tracciati; come `diverging` non entra mai in `state`
+    (vedi la nota nel corpo). Semantica di `state`:
       - state "aligned"      : ogni file tracciato di docs/ coincide col committato;
       - state "instantiated" : le uniche differenze sono su file che DICHIARANO di essere
                                istanziazioni locali della baseline;
@@ -1083,7 +1086,8 @@ def observe_docs_git_divergence(root: Path = PROJECT_ROOT, docs_dir: Path = DOCS
             timeout=timeout, check=True,
         ).stdout
 
-    vuoto = {"state": "unavailable", "diverging": [], "instantiated": [], "tracked": 0}
+    vuoto = {"state": "unavailable", "diverging": [], "instantiated": [], "untracked": [],
+             "tracked": 0}
     try:
         rel = docs_dir.relative_to(root).as_posix()
     except ValueError:
@@ -1108,8 +1112,26 @@ def observe_docs_git_divergence(root: Path = PROJECT_ROOT, docs_dir: Path = DOCS
         campi = meta.split()
         if len(campi) >= 3 and campi[1] == "blob" and path:
             attesi[path] = campi[2]
+    # SECONDA classe di divergenza: file che il corpus HA e il repository NO. Il confronto
+    # qui sopra parte da `ls-tree`, cioè dai soli tracciati, quindi per costruzione non li
+    # vede: un corpus grande il doppio del committato produceva `diverging: []`, che si legge
+    # come "tutto a posto". Misurato il 2026-09-01 (rag/AUDIT.md, A6): erano 15 file su 26, e
+    # fra questi TUTTI i distrattori dei casi avversariali — il sottoinsieme leggeva 0.0% in
+    # locale e 80% in CI, lo stesso numero rovesciato a seconda del checkout.
+    #
+    # Come `diverging`, è OSSERVAZIONE PURA e NON entra in `state`: la maggior parte di questi
+    # file è legittima (output della pipeline, spec locali del progetto ospitante) e farne un
+    # problema significherebbe far scattare un allarme atteso a ogni esecuzione — il rumore
+    # seppellirebbe il segnale, che è esattamente l'errore contro cui questa funzione mette
+    # già in guardia per le istanziazioni. Serve a chi legge un numero di qualità per sapere
+    # SU QUALE CORPUS è stato misurato.
+    su_disco = {p.relative_to(root).as_posix()
+                for p in docs_dir.rglob("*") if p.is_file()} if docs_dir.is_dir() else set()
+    non_tracciati = sorted(su_disco - set(attesi))
+
     if not attesi:
-        return {"state": "aligned", "diverging": [], "instantiated": [], "tracked": 0,
+        return {"state": "aligned", "diverging": [], "instantiated": [],
+                "untracked": non_tracciati, "tracked": 0,
                 "reason": f"nessun file tracciato sotto {rel}/"}
 
     presenti = [path for path in attesi if (root / path).is_file()]
@@ -1139,6 +1161,7 @@ def observe_docs_git_divergence(root: Path = PROJECT_ROOT, docs_dir: Path = DOCS
                   else "instantiated" if dichiarate else "aligned"),
         "diverging": non_dichiarate,
         "instantiated": dichiarate,
+        "untracked": non_tracciati,
         "tracked": len(attesi),
         "reason": None,
     }

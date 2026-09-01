@@ -186,3 +186,37 @@ def test_casi_avversariali_hanno_matcher_validi():
         assert distrattore in relativi, (
             f"{caso['q']!r}: il distrattore {distrattore!r} non esiste nel corpus. "
             f"Il caso passerebbe senza esercitare alcun contrasto.")
+
+
+# ---------------------------------------------------------------------------
+# Provenienza del corpus nel report di eval (A6)
+# ---------------------------------------------------------------------------
+
+def test_report_dichiara_il_corpus_su_cui_ha_misurato():
+    """Un numero di qualita' senza il corpus che l'ha prodotto non e' confrontabile.
+
+    Misurato il 2026-09-01: docs/ conteneva 26 documenti contro gli 11 committati, e la
+    recall@1 del sottoinsieme avversariale valeva 0.0% in locale e 80% su un checkout
+    pulito — lo stesso numero rovesciato. La differenza va DICHIARATA accanto ai numeri,
+    non dedotta."""
+    from eval.run import format_provenance
+
+    divergente = format_provenance({
+        "available": True, "state": "aligned", "tracked": 11,
+        "untracked": ["docs/a.md", "docs/b.md"], "diverging": [], "instantiated": [],
+    })
+    assert "11 documenti tracciati" in divergente
+    assert "+2 NON tracciati" in divergente
+    assert "NON riproducibili" in divergente, "la riga deve dirlo, non lasciarlo dedurre"
+
+    pulito = format_provenance({
+        "available": True, "state": "aligned", "tracked": 11,
+        "untracked": [], "diverging": [], "instantiated": [],
+    })
+    assert "NON riproducibili" not in pulito, "senza divergenza non si allarma"
+
+
+def test_provenienza_non_disponibile_non_rompe_il_report():
+    """La provenienza e' telemetria: se git manca, l'eval deve misurare lo stesso."""
+    from eval.run import format_provenance
+    assert format_provenance({"available": False, "reason": "git assente"}) == ""
