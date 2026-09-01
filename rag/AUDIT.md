@@ -706,3 +706,42 @@ provenienza allarma se e solo se c'è divergenza; l'assenza di git non rompe il 
 un difetto nascosto: è una differenza dichiarata, fatta di documenti che nessun caso del
 golden set nomina né come atteso né come distrattore. La parte che rendeva la misura
 *inversa* — i distrattori fuori baseline — è chiusa dal commit precedente.
+
+---
+
+## A19 — la lettura dei PDF è spenta, e nessuno lo dice
+
+Trovato durante l'audit delle licenze (Run C), non cercandolo.
+
+`core/chunking.py:_read_pdf` importa **`pypdf`**, che **non è dichiarata in `pyproject.toml`,
+non è nel lock e non è installata**. L'import è dentro un `try/except ImportError` che
+degrada a un `logger.warning`.
+
+Verificato eseguendolo su un PDF vero:
+
+```
+LOG> WARNING core.chunking:  ⚠️ pypdf non installato: salto documento.pdf (pip install pypdf)
+read_document('documento.pdf') -> metadata={} testo=''
+```
+
+**Un PDF messo in `docs/` viene indicizzato come documento vuoto.** Non fallisce, non
+compare fra i problemi di `check_index_integrity`: lascia una riga di warning e un chunk
+senza testo. È la stessa famiglia di A1 e A18 — una degradazione silenziosa che a valle è
+indistinguibile dal funzionamento normale.
+
+I tre lettori di `read_document` non stanno tutti allo stesso modo:
+
+| Formato | Libreria | Stato |
+|---|---|---|
+| `.docx` | `python-docx` | OK, **dichiarata** |
+| `.xlsx` | `openpyxl` | OK, ma solo **transitiva** (da `markitdown[xlsx]`): funziona per fortuna |
+| `.pdf` | `pypdf` | **assente** |
+
+Non corretto qui: la scelta non è ovvia e non spettava a un audit sulle licenze. Le due
+strade sono dichiarare `pypdf` fra le dipendenze (una riga, il codice esiste già ed è
+scritto per lei) oppure far passare anche `_read_pdf` da `markitdown`, che è già una
+dipendenza e i PDF li converte per l'intake. La seconda toglie una libreria invece di
+aggiungerla, ma è una modifica di design, non una dichiarazione mancante.
+
+In entrambi i casi va tolto anche il `try/except` che trasforma una dipendenza mancante in
+un documento vuoto: se il formato è supportato, la libreria deve esserci.

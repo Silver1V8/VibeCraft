@@ -169,3 +169,51 @@ copiare complessità morta e crearne una seconda copia da tenere allineata.
 **Resta da fare in L1, e non è codice:** verificare che le licenze di `torch`,
 `FlagEmbedding`, `bge-m3` e `qwen3.5` siano compatibili con Apache-2.0, e decidere il
 titolare del copyright — se il progetto è work-for-hire il titolare non è la persona.
+
+---
+
+## Audit delle licenze (2026-09-01) — un conflitto trovato e rimosso
+
+Metodo: metadati dei **131 pacchetti realmente installati** (`*.dist-info/METADATA`:
+`License-Expression`, `License`, classificatori), non le licenze dichiarate a mano.
+
+### L'esito
+
+| Categoria | Esito |
+|---|---|
+| Copyleft forte (GPL / AGPL / EUPL / SSPL) | **nessuno** — dopo la rimozione qui sotto |
+| Copyleft debole (MPL-2.0) | `certifi`, `tqdm`. Compatibili con Apache-2.0: MPL è per-file e obbliga solo a pubblicare le modifiche **a quei file**, che non tocchiamo |
+| Permissive | tutto il resto: MIT, BSD-2/3, Apache-2.0, PSF, ISC, Zlib, CC0, BSL |
+| Senza metadati | `FlagEmbedding` — ma spedisce un file `LICENSE` che dice **MIT** (verificato) |
+
+**Modelli** (scaricati a runtime, licenze indipendenti da quella del progetto):
+`bge-m3` **MIT** (dal model card) · `qwen3.5:9b` **Apache-2.0** (da `ollama show --license`).
+
+### Il conflitto: `pymupdf`
+
+`pymupdf==1.28.2` era una dipendenza **diretta** di runtime, ed è
+**"Dual Licensed — GNU AFFERO GPL 3.0 or Artifex Commercial License"**.
+
+AGPL-3.0 e Apache-2.0 sono compatibili in una sola direzione: si può includere codice
+Apache in un progetto AGPL, non il contrario. E VibeCraft è **un servizio di rete** —
+esattamente il caso a cui punta la clausola §13 dell'AGPL. Distribuirlo sotto Apache-2.0
+con quella dipendenza dentro sarebbe stato un conflitto reale, non teorico.
+
+Verificato prima di toccare qualcosa: **nessun modulo di runtime la importa.** I PDF sono
+letti da `core/chunking.py:_read_pdf` (che usa `pypdf`) e convertiti da `markitdown`. L'unico
+uso in tutto il repository era `tests/test_intake_convert.py`, quattro righe per fabbricare
+un PDF di una pagina bianca.
+
+Sostituita con **`pypdfium2`** (BSD-3-Clause / Apache-2.0), già presente come transitiva e
+ora dichiarata esplicitamente nel gruppo `dev` perché un test la importa direttamente.
+`pymupdf` è uscita dalle dipendenze e dal lock.
+
+**Non era solo un problema di licenza: era una dipendenza di test dichiarata come
+dipendenza di runtime.** La correzione sarebbe stata giusta comunque.
+
+### Cosa questo audit NON copre
+
+- Le licenze sono lette dai **metadati dichiarati dai pacchetti**. Un pacchetto che dichiara
+  male la propria licenza non viene smascherato da questo metodo.
+- Non è una consulenza legale. Dice che non c'è copyleft forte fra le dipendenze installate;
+  non certifica la conformità della distribuzione.

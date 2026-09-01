@@ -2,6 +2,12 @@
 name = "rag"
 version = "0.1.0"
 description = "Console Graph-RAG: indicizzazione (core/indexing), retrieval ibrido governato e pipeline Explore->Canvas->Propose (core/) esposti via FastAPI (api/). Entrypoint: server.py, index.py."
+authors = [{ name = "Valerio Silvestre", email = "silvestre.valerio@gmail.com" }]
+# SPDX. Il file sta nella root del repository (../LICENSE), fuori da questa directory di
+# progetto: NON è dichiarato in `license-files` perché quel campo non accetta percorsi
+# esterni alla root del progetto, e qui non servirebbe comunque — vibecraft è
+# un'applicazione che si esegue dal sorgente, non un pacchetto che si costruisce.
+license = "Apache-2.0"
 requires-python = ">=3.14"
 dependencies = [
     "aiohttp==3.14.3",
@@ -17,7 +23,6 @@ dependencies = [
     "networkx>=3.6.1",
     "numpy==2.5.2",
     "pydantic>=2.13.4",
-    "pymupdf==1.28.2",
     "python-docx>=1.2.0",
     "python-dotenv==1.2.3",
     "pyyaml>=6.0.3",
@@ -33,6 +38,10 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+    # Fabbrica il PDF finto di tests/test_intake_convert.py. Esplicita e non
+    # transitiva (arriva anche da pdfplumber) perche' un test la importa
+    # direttamente. Sostituisce pymupdf, che e' AGPL-3.0.
+    "pypdfium2>=5.13.0",
 ]
 
 [tool.uv.sources]

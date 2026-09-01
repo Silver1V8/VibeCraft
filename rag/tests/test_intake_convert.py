@@ -6,7 +6,9 @@ encoding non UTF-8, formato non ammesso, .md rifiutato perché nativo)."""
 import hashlib
 from pathlib import Path
 
-import pymupdf
+import io
+
+import pypdfium2 as pdfium
 import pytest
 
 from core.chunking import chunk_markdown, parse_markdown_file
@@ -97,10 +99,14 @@ def test_empty_file_raises_conversion_error(formato):
 
 
 def test_pdf_without_extractable_text_raises_conversion_error():
-    doc = pymupdf.open()
-    doc.new_page()  # pagina bianca, nessun testo inserito
-    pdf_bytes = doc.tobytes()
-    doc.close()
+    # pypdfium2 e non pymupdf: quest'ultimo e' AGPL-3.0 (o licenza commerciale Artifex) e
+    # non e' compatibile con la distribuzione Apache-2.0 di questo progetto. Era l'UNICO
+    # punto in cui veniva usato, e serviva solo a fabbricare questo PDF finto.
+    doc = pdfium.PdfDocument.new()
+    doc.new_page(200, 200)  # pagina bianca, nessun testo inserito
+    buf = io.BytesIO()
+    doc.save(buf)
+    pdf_bytes = buf.getvalue()
 
     with pytest.raises(ConversionError, match="nessun testo estraibile"):
         convert_to_markdown(pdf_bytes, "pdf", filename="senza_testo.pdf")
