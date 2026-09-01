@@ -171,3 +171,18 @@ def test_casi_avversariali_hanno_matcher_validi():
                        if sezione.lower() in h.lower()]
             assert heading, (f"{caso['q']!r}: nessun heading di {[str(p.name) for p in candidati]} "
                              f"contiene la sezione attesa {sezione!r}")
+
+        # Il DISTRATTORE deve esistere quanto l'atteso. Un caso avversariale il cui
+        # distrattore manca dal corpus non fallisce: passa, perche' non ha piu' nulla contro
+        # cui competere. Misurato il 2026-09-01: tutti e tre i distrattori vivevano fuori
+        # dalla baseline committata, e il sottoinsieme leggeva recall@1 = 0.0% in locale e
+        # 80% in CI — lo stesso numero, invertito, a seconda della macchina. Una metrica che
+        # si capovolge col checkout non misura il sistema, misura il checkout.
+        distrattore = caso.get("distractor")
+        assert distrattore, (
+            f"{caso['q']!r}: caso avversariale senza `distractor` dichiarato. Il documento "
+            f"contro cui compete e' parte della misura e va dichiarato, non lasciato a un commento.")
+        relativi = {str(p.relative_to(DOCS_DIR)).replace("\\", "/") for p in documenti}
+        assert distrattore in relativi, (
+            f"{caso['q']!r}: il distrattore {distrattore!r} non esiste nel corpus. "
+            f"Il caso passerebbe senza esercitare alcun contrasto.")

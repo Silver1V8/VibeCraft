@@ -325,6 +325,16 @@ cases:
   #   - "raggiungibile solo via grafo" (S3): la fase 6 di [REGOLA-WF-01] vive in /ask
   #     (api/routes_retrieval.py), non in /api/retrieve che è ciò che il golden set
   #     interroga. Non è misurabile da qui con nessun caso.
+  #
+  # CAMPO `distractor` (aggiunto 2026-09-01). Ogni caso avversariale dichiara il documento
+  # contro cui compete, e test_casi_avversariali_hanno_matcher_validi verifica che ESISTA
+  # nel corpus, esattamente come già fa per l'atteso. Prima era scritto solo nei commenti,
+  # e la conseguenza è stata misurata: tutti e tre i distrattori vivevano FUORI dalla
+  # baseline committata, quindi in CI non esistevano e i casi passavano a vuoto. Il
+  # sottoinsieme leggeva recall@1 = 0.0% in locale e 80% in CI — lo stesso numero, invertito,
+  # a seconda della macchina. Un distrattore assente non fa fallire il caso: lo rende
+  # DECORATIVO, che è peggio. I tre documenti sono stati portati nella baseline tracciata
+  # perché sono parte dello strumento di misura, non file locali incidentali.
   # ═══════════════════════════════════════════════════════════════════════════════════
 
   # ── distrattore: 04_knowledge_informative/graph_rag_ingestion_strategy.md (METHODOLOGY, peso 0.50)
@@ -333,16 +343,19 @@ cases:
   #    una convenzione nostra, è scritto nel corpus.
   - q: "cosa blocca l'ingestion quando qualcuno dimentica il bump di versione del documento"
     adversarial: true
+    distractor: 04_knowledge_informative/graph_rag_ingestion_strategy.md
     expected:
       - {doc: spec_graph_rag_ingestion, section: "Aggiornamento Incrementale"}
 
   - q: "quanti caratteri al massimo può avere un chunk e con quale severità viene segnalato lo sforamento"
     adversarial: true
+    distractor: 04_knowledge_informative/graph_rag_ingestion_strategy.md
     expected:
       - {doc: spec_graph_rag_ingestion, section: "Chunking"}
 
   - q: "in quale ordine il chunker tenta i tagli: blocchi atomici, poi H2, poi H3, poi paragrafi"
     adversarial: true
+    distractor: 04_knowledge_informative/graph_rag_ingestion_strategy.md
     expected:
       - {doc: spec_graph_rag_ingestion, section: "Chunking"}
 
@@ -359,12 +372,19 @@ cases:
     expected:
       - {doc: coding_standards, section: "Tracciabilità della Governance"}
 
-  # ── distrattore: 04_knowledge_informative/intent_synonym_mapping.md (METHODOLOGY, peso 0.50)
-  #    È il documento scritto APPOSTA in gergo colloquiale per fare da ponte fra il
-  #    linguaggio naturale e il modello dati: per costruzione vince il match lessicale
-  #    su qualunque domanda posta come la porrebbe un utente.
+  # ── DISTRATTORE SOSTITUITO il 2026-09-01, e il caso ne esce INDEBOLITO.
+  #    Era intent_synonym_mapping.md (METHODOLOGY, peso 0.50), scritto APPOSTA in gergo
+  #    colloquiale per fare da ponte fra linguaggio naturale e modello dati: per costruzione
+  #    vinceva il match lessicale su qualunque domanda posta come la porrebbe un utente. È
+  #    stato rimosso dal corpus perché apparteneva al dominio dismesso (vedi rag/AUDIT.md, B1).
+  #    Il concorrente a rango 1 è ora architecture_decision_rationale.md, che pesa 0.85 contro
+  #    lo 0.98 dell'atteso: il contrasto di autorità è passato da 0.50-vs-0.98 a 0.85-vs-0.98,
+  #    cioè da largo a stretto. Il caso resta avversariale ma misura MENO di quanto fu
+  #    progettato per misurare — va riscritto con un distrattore a bassa autorità che esista
+  #    nella baseline, non lasciato così credendo che eserciti ancora il contrasto originale.
   - q: "posso mandare la motivazione scritta dal dipendente a un LLM remoto"
     adversarial: true
+    distractor: 01_architecture_norms/architecture_decision_rationale.md
     expected:
       - {doc: safeguards_security, section: "Privacy e Confine"}
 
@@ -373,5 +393,6 @@ cases:
   #    cioè quanto una spec REQUIREMENTS calibrata (difetto D2 dell'ADR 0002).
   - q: "controllo stilistico della palette colori verificabile nel codice sorgente"
     adversarial: true
+    distractor: 03_changes_historical/fe1-canvas-review.md
     expected:
       - {doc: ui_ux_brand_directives, section: "Design Token"}

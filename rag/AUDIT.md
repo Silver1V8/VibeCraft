@@ -537,3 +537,89 @@ Tre strade, in ordine di costo — nessuna intrapresa, la scelta è di merito:
    difetto. Allora recall@1 è la metrica sbagliata per questo sistema e va detto.
 
 La 3 va decisa **prima** della 1 e della 2: se rango 2 va bene, non c'è niente da correggere.
+
+---
+---
+
+# A6 — corpus e riproducibilità
+
+**Domanda:** l'indice contiene più documenti di quelli tracciati. Quanto conta davvero?
+
+## Il difetto non è la divergenza, è che la misura si capovolge
+
+Dopo B1: `docs/` ha 23 `.md`, di cui **11 tracciati** — esattamente la baseline che il
+golden set dichiara come corpus di riferimento.
+
+Verificato: **tutti e 55 gli attesi vivono in documenti tracciati** (il commit `b1ef300`
+aveva già riallineato i matcher). Ma **nessuno dei tre distrattori lo era**:
+
+| Distrattore | Casi | Era tracciato |
+|---|---|---|
+| `04_knowledge_informative/graph_rag_ingestion_strategy.md` | 1, 2, 3 | no |
+| `01_architecture_norms/architecture_decision_rationale.md` | 4 | no |
+| `03_changes_historical/fe1-canvas-review.md` | 5 | no |
+
+Simulando il corpus che vede la CI (solo i tracciati), escludendo dai candidati i chunk dei
+documenti non tracciati e riordinando con `rank_by_authority`:
+
+| | qui (23 doc) | CI (11 doc) |
+|---|---|---|
+| recall@1, tutti i 55 casi | 63% | 70% |
+| **recall@1, sottoinsieme avversariale** | **0%** | **80%** |
+
+L'80% non è un sistema che funziona meglio: è ciò che si misura quando i distrattori non
+esistono e i casi passano a vuoto. **Un distrattore assente non fa fallire il caso: lo rende
+decorativo**, che è peggio, perché il numero sale e sembra una buona notizia.
+
+Il numero che ADR 0002 esiste per muovere legge dunque **0% su questa macchina e 80% in CI**.
+Una metrica che si capovolge col checkout non misura il sistema, misura il checkout. È anche
+la ragione per cui l'opzione che sembrava più pulita — far girare l'eval sui soli file
+tracciati — era la peggiore: avrebbe reso l'avversariale decorativo *ovunque*.
+
+## Cosa è stato fatto
+
+**I tre distrattori sono entrati nella baseline tracciata** (`git add -f`: `docs/*` è
+ignorata di proposito). Non sono file locali incidentali: sono **parte dello strumento di
+misura**, esattamente come gli attesi.
+
+`architecture_decision_rationale.md` è stato corretto prima di entrare: §1 e il campo
+`project:` descrivevano ancora il dominio dismesso ("Portale richieste e prenotazioni eventi
+aziendali"). L'argomento del documento — per un perimetro di questa **scala** microservizi e
+agenti LLM non si giustificano — non dipende dal dominio, quindi §1 ora dichiara la scala e
+rimanda a `docs/05_project_specs/` per il perimetro concreto. §2 e §3 invariati.
+
+**Il distrattore è ora un campo dichiarato**, non un commento: `distractor:` su ognuno dei 5
+casi, e `test_casi_avversariali_hanno_matcher_validi` ne verifica l'esistenza nel corpus
+esattamente come già faceva per l'atteso. Era la lacuna che il commit `b1ef300` aveva
+lasciato annotata. Verificato per costruzione: puntando il campo a un file inesistente il
+test fallisce, ripristinandolo torna verde.
+
+## Il caso 4 è indebolito, ed è colpa di B1
+
+Il distrattore progettato del caso 4 era `intent_synonym_mapping.md` (METHODOLOGY, peso
+0.50) — uno dei tre documenti che **B1 ha rimosso** perché apparteneva al dominio dismesso.
+Il concorrente a rango 1 è ora `architecture_decision_rationale.md`, che pesa 0.85 contro lo
+0.98 dell'atteso: **il contrasto di autorità è passato da 0.50-vs-0.98 a 0.85-vs-0.98**, da
+largo a stretto.
+
+Il caso resta avversariale ma misura meno di quanto fu progettato per misurare. È annotato
+nel golden set: va riscritto con un distrattore a bassa autorità che esista nella baseline,
+non lasciato così credendo che eserciti ancora il contrasto originale. **Aperto.**
+
+## Cosa resta aperto di A6
+
+Portare i distrattori nella baseline chiude la parte che rendeva la misura *inversa*. Non
+chiude la riproducibilità in senso pieno: restano 9 documenti non tracciati (6 output di
+pipeline, 3 spec locali del progetto ospitante) che l'indice contiene e la CI no, quindi
+recall@1 resta diverso fra le due macchine. La differenza è ora fatta di documenti che
+**nessun caso del golden set nomina**, né come atteso né come distrattore — è rumore di
+fondo, non più strumento mancante.
+
+Resta valido il criterio di chiusura: o un clone pulito riproduce le metriche dichiarate,
+oppure il report di eval dichiara su quale corpus ha misurato.
+
+Annotato e **non** corretto: `graph_rag_ingestion_strategy.md` ha lo stesso campo `project:`
+stantìo che è stato corretto in `architecture_decision_rationale.md`. Qui il corpo del
+documento è già neutro rispetto al dominio e il campo non è fra quelli letti dal ranking
+(`classification`, `status`, `authority`, `tags`): correggerlo costerebbe un altro ciclo di
+reindicizzazione per zero effetto misurabile. Va sistemato al prossimo passaggio su quel file.
