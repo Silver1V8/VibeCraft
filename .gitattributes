@@ -2,3 +2,9 @@
 # normalizzazione degli EOL. Sono bundle upstream, non sorgenti del progetto:
 # convertirli LF<->CRLF gonfia i diff e ne altera il checksum senza motivo.
 rag/static/vendor/** -text
+
+# Script shell: SEMPRE LF nella copia di lavoro, anche su Windows. Con CRLF il kernel
+# legge lo shebang come "/usr/bin/env bash\r" e fallisce con "bad interpreter" — su Linux,
+# in WSL e in Git Bash. Sono i file il cui unico scopo e' girare su POSIX: normalizzarli
+# come testo generico li romperebbe proprio dove servono.
+*.sh text eol=lf
