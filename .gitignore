@@ -75,3 +75,9 @@ docs/05_project_specs/*
 # tracciare invece che restare invisibili com'è corretto che siano.
 docs/*
 !docs/**/.gitkeep
+
+# Backup locali di docs/ (docs.local-backup-<timestamp>/): copie di sicurezza dei documenti
+# spostati fuori dal corpus, tenute perché NON erano tracciati da git e cancellarli sarebbe
+# stato irreversibile (vedi rag/AUDIT.md, B1). Contengono materiale del dominio dismesso:
+# non vanno nel repo, e questa riga impedisce che ci finiscano per un `git add -A` distratto.
+docs.local-backup-*/
