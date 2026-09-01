@@ -270,8 +270,40 @@ Le due strade:
    gia' per `/pipeline`, `deps._inject_agent_api_key`) e far inviare `X-API-Key` alle fetch.
    Piu' lavoro, tocca i template, ma non allarga niente.
 
-Finche' non e' scelta, lo stack Docker serve per **indicizzare e per l'API con chiave**; per
-la console si usa l'installazione nativa. E' scritto nel README, non lasciato scoprire.
+**RISOLTO il 2026-09-01 con la strada 2**, scelta dall'owner: la console si autentica da
+sé, e la superficie di autenticazione non è stata allargata di un millimetro.
+
+Nessuna modifica al server. La chiave **non** viene iniettata nell'HTML per i client remoti —
+sarebbe stato il modo più rapido e il più sbagliato, perché la pagina è servita senza
+autenticazione e regalarla a chiunque la raggiunga avrebbe annullato il controllo che stiamo
+cercando di soddisfare. La tiene il browser: l'utente la inserisce una volta e resta in
+`localStorage`. L'iniezione server-side esistente (`deps.inject_agent_api_key`, solo per
+client locali) resta prioritaria e invariata, quindi in locale non cambia nulla.
+
+L'aggancio è **un wrapper su `window.fetch` in `static/shared.js`**, non 42 modifiche ai punti
+di chiamata: `shared.js` è caricato nel `<head>` di ogni pagina, prima degli script che fanno
+richieste. Aggiunge `X-API-Key` alle sole rotte protette e same-origin, e su 401 chiede la
+chiave una volta sola e ritenta una volta sola.
+
+Verificato in un browser vero, contro il server bindato su `0.0.0.0` e raggiunto dall'IP di
+rete — stesso identico percorso di codice del gateway Docker, senza dover ricostruire
+l'immagine:
+
+| Caso | Atteso | Ottenuto |
+|---|---|---|
+| Prompt annullato | 401 al chiamante, nessun ciclo | 401 ✓ |
+| Chiave sbagliata | un solo prompt, poi 401 | 1 prompt, 401 ✓ |
+| Chiave giusta | 200 e chiave salvata | 200, salvata ✓ |
+| Richiesta successiva | 200 senza chiedere nulla | 200, 0 prompt ✓ |
+| `/static/*`, cross-origin | chiave NON allegata | false ✓ |
+
+E la prova finale: la pagina `/analysis` caricata dall'IP di rete recupera
+`semantic-map`, `graph/all` e `canvas-quality` — tutte **200**, dove prima era 401 su tutto —
+e renderizza Semantic Map e Canvas quality con i dati reali.
+
+**Nessun test automatico su questo codice**: `rag/` non ha un harness JavaScript, e
+introdurne uno per un file solo sarebbe sproporzionato. La verifica è quella qui sopra,
+eseguita in un browser reale.
 
 ### Nota minore
 

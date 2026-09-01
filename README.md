@@ -94,14 +94,14 @@ container gira su CPU. Lì il percorso sensato è tenere **Ollama nativo** sull'
 I pesi dei modelli **non stanno nell'immagine**: vivono in volumi, quindi si scaricano una
 volta sola e sopravvivono agli aggiornamenti.
 
-> ⚠️ **Limite noto: da Docker la console web non è ancora utilizzabile.** La pagina si apre,
-> ma ogni chiamata API risponde `401`. Il server considera "locale" — e quindi esente da
-> autenticazione — solo un client che si presenta come `127.0.0.1`; attraverso il port
-> forwarding di Docker le richieste arrivano invece dal gateway del bridge, e la console non
-> invia alcuna `X-API-Key` per ripiegare. **Lo stack Docker è quindi utilizzabile oggi per
-> l'indicizzazione e per l'API con chiave** (`curl -H "X-API-Key: ..."`), non per
-> l'interfaccia dal browser. Per la console usa l'installazione nativa qui sotto.
-> Verificato, non dedotto — vedi [`rag/DISTRIBUTION.md`](rag/DISTRIBUTION.md).
+**La console chiede la chiave, una volta sola.** Quando il browser e il server non sono
+sulla stessa macchina — è il caso di Docker, dove le richieste arrivano dal gateway del
+bridge e non da `127.0.0.1` — il server richiede l'autenticazione. La console se ne accorge
+da sé alla prima chiamata respinta, chiede la `VIBECRAFT_API_KEY` e la conserva in questo
+browser. Impostala nel servizio (`VIBECRAFT_API_KEY` in un file `.env` alla root, che
+`docker compose` legge da solo) e tienila a portata al primo avvio.
+
+Con l'installazione nativa non cambia nulla: da `127.0.0.1` non viene chiesto niente.
 
 > ⚠️ **Non puntare lo stack Docker a un Qdrant che usi già per un'installazione nativa.**
 > Le due installazioni hanno indici locali distinti, e ciascuna considera "orfane" le

@@ -49,6 +49,86 @@ function themeVar(name, fallback) {
    grezzo: chi disattiva le animazioni di Windows perde il rain senza avere modo
    di riattivarlo, e il rain è l'identità del tema Matrix, non una decorazione
    accessoria. Il default resta il rispetto del sistema. */
+/* ──────────── X-API-KEY: la console si autentica da sola ────────────
+   Il server esenta dall'autenticazione solo i client che si presentano come 127.0.0.1
+   (api/deps._is_local_request). Con l'installazione nativa e' sempre cosi' e nulla cambia.
+   NON lo e' quando la console gira in Docker: attraverso il port forwarding le richieste
+   arrivano dal gateway del bridge, quindi ogni /api/* e /ask rispondevano 401 e la console
+   si apriva senza funzionare.
+
+   La chiave NON viene iniettata nell'HTML per i client remoti, ed e' deliberato: la pagina
+   e' servita senza autenticazione, quindi iniettarla la regalerebbe a chiunque la
+   raggiunga. La tiene il BROWSER — l'utente la inserisce una volta e resta in
+   localStorage, esattamente come farebbe con un qualunque strumento self-hosted.
+
+   `window.__VIBECRAFT_AGENT_API_KEY__` resta la fonte prioritaria: e' l'iniezione
+   server-side per i client locali (api/deps.inject_agent_api_key), che continua a
+   funzionare come prima senza chiedere niente a nessuno.
+
+   L'aggancio e' UN wrapper su window.fetch invece di 42 modifiche ai punti di chiamata:
+   shared.js e' caricato nel <head> di ogni pagina, prima degli script che fanno richieste. */
+const API_KEY_STORAGE = 'vibecraft-api-key';
+
+function apiKey() {
+  if (window.__VIBECRAFT_AGENT_API_KEY__) return window.__VIBECRAFT_AGENT_API_KEY__;
+  try { return localStorage.getItem(API_KEY_STORAGE) || ''; } catch (e) { return ''; }
+}
+function setApiKey(value) {
+  try { localStorage.setItem(API_KEY_STORAGE, value); } catch (e) { /* storage non disponibile */ }
+}
+function clearApiKey() {
+  try { localStorage.removeItem(API_KEY_STORAGE); } catch (e) { /* storage non disponibile */ }
+}
+
+/* Solo le rotte protette, e solo same-origin: un fetch verso un altro host non deve
+   portarsi dietro la chiave. */
+function needsApiKey(url) {
+  try {
+    const u = new URL(url, window.location.origin);
+    if (u.origin !== window.location.origin) return false;
+    return u.pathname === '/ask' || u.pathname.startsWith('/api/');
+  } catch (e) { return false; }
+}
+
+/* Una sola richiesta della chiave alla volta: senza questo, N fetch che tornano 401
+   insieme aprirebbero N prompt sovrapposti. */
+let _richiestaChiave = null;
+function chiediApiKey() {
+  if (_richiestaChiave) return _richiestaChiave;
+  _richiestaChiave = new Promise((resolve) => {
+    const v = (window.prompt(
+      'Questa console richiede una API key (VIBECRAFT_API_KEY del server).\n' +
+      'Succede quando il browser e il server non sono sulla stessa macchina — '
+      + 'per esempio con lo stack Docker.\n\nLa chiave resta in questo browser.') || '').trim();
+    if (v) { setApiKey(v); if (typeof toast === 'function') toast('API key salvata in questo browser.', 'success'); }
+    resolve(v);
+  }).finally(() => { _richiestaChiave = null; });
+  return _richiestaChiave;
+}
+
+const fetchNativa = window.fetch.bind(window);
+window.fetch = function (input, init) {
+  const url = (typeof input === 'string') ? input : (input && input.url) || '';
+  if (!needsApiKey(url)) return fetchNativa(input, init);
+
+  const conChiave = (chiave) => {
+    const opzioni = Object.assign({}, init);
+    const intestazioni = new Headers(
+      (init && init.headers) || (typeof input !== 'string' && input && input.headers) || {});
+    if (chiave) intestazioni.set('X-API-Key', chiave);
+    opzioni.headers = intestazioni;
+    return opzioni;
+  };
+
+  return fetchNativa(input, conChiave(apiKey())).then((risposta) => {
+    // Un solo tentativo di recupero: se anche la chiave appena inserita e' sbagliata,
+    // la 401 arriva al chiamante invece di aprire un ciclo di prompt.
+    if (risposta.status !== 401) return risposta;
+    return chiediApiKey().then((chiave) => (chiave ? fetchNativa(input, conChiave(chiave)) : risposta));
+  });
+};
+
+
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const MOTION_KEY = 'vibecraft-motion';
 
