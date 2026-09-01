@@ -498,7 +498,17 @@ async def api_retrieve(
     i chunk pertinenti con il breakdown del ranking. Serve per valutare la qualità del ranking
     (golden-set / eval.run) e per il debug, senza il costo di Ollama.
 
-    Input validato da FastAPI: `q` non vuota, `k` in [1, 50] (422 altrimenti)."""
+    Input validato da FastAPI: `q` non vuota, `k` in [1, 50] (422 altrimenti). Il tetto resta
+    50 — e non 20 come su /ask — perché qui non si costruisce alcun prompt: nessuna finestra
+    di contesto da sfondare, il costo di un k alto è solo tempo di ranking.
+
+    `maybe_reload_graph()` come /ask e /api/code/search. Senza, questa route era l'UNICA di
+    retrieval a non ricaricare lo snapshot: dopo una promozione o un rollback l'alias Qdrant
+    punta già alla collection nuova mentre i sidecar in memoria (ColBERT, chunk) restano
+    quelli vecchi, e il ranking esce da uno stato MISTO. Il danno non è teorico: è proprio
+    questa la route su cui gira eval.run, cioè lo strumento con cui si decide se una modifica
+    ha migliorato o peggiorato il sistema — e lo sbaglio era silenzioso, con numeri plausibili."""
+    maybe_reload_graph()
     snap = current_snapshot()
     if state.get("qdrant") is None or state.get("embed_model") is None or snap is None:
         raise HTTPException(status_code=503, detail="Indice non ancora pronto.")
