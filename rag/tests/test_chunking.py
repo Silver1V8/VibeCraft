@@ -180,3 +180,34 @@ def test_extract_entities_scarta_segnaposto_e_wildcard():
 def test_extract_entities_deduplica_preservando_l_ordine():
     body = "[REGOLA-API-04] poi [SAFEGUARD-SEC-03] poi ancora [REGOLA-API-04]."
     assert index.extract_entities(body) == ["REGOLA-API-04", "SAFEGUARD-SEC-03"]
+
+
+def test_le_librerie_dei_lettori_di_documenti_sono_dichiarate():
+    """read_document supporta .docx/.xlsx/.pdf, e ciascun formato importa una libreria
+    diversa. Finche' quegli import stavano dentro un try/except che degradava a stringa
+    vuota, una dipendenza NON dichiarata non faceva fallire nulla: il documento veniva
+    indicizzato VUOTO con una riga di warning, indistinguibile a valle da un documento
+    davvero senza testo.
+
+    E' successo davvero: pypdf non era in pyproject.toml ne' nel lock ne' installata, e
+    openpyxl arrivava solo come transitiva di markitdown, cioe' funzionava per fortuna
+    (rag/AUDIT.md, A19). Questo test fallisce nel momento esatto in cui una di loro esce
+    dalle dipendenze, invece di lasciare che il difetto si manifesti come corpus vuoto."""
+    import docx        # noqa: F401  (.docx)
+    import openpyxl    # noqa: F401  (.xlsx)
+    import pypdf       # noqa: F401  (.pdf)
+
+
+def test_pdf_illeggibile_solleva_invece_di_restituire_vuoto(tmp_path):
+    """Il rovescio del test sopra: rimosso il try/except, un errore VERO deve emergere.
+    Un file che finisce in .pdf ma non e' un PDF non puo' produrre un chunk vuoto in
+    silenzio, perche' quel chunk finirebbe nell'indice come documento senza testo."""
+    import pytest
+
+    from core.chunking import read_document
+
+    finto = tmp_path / "non_e_un_pdf.pdf"
+    finto.write_bytes(b"questo non e' un PDF")
+
+    with pytest.raises(Exception):
+        read_document(finto)

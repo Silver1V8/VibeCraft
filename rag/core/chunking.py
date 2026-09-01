@@ -1,7 +1,6 @@
 """Caricamento e chunking dei documenti: parsing del frontmatter YAML, loader multi-formato
 (md/txt/docx/xlsx/pdf), estrazione delle entità, split per sezione (heading di livello 2)
 e archi tipizzati dal frontmatter. Nessuna dipendenza da Qdrant o dal modello di embedding."""
-import logging
 import re
 from pathlib import Path
 
@@ -9,8 +8,6 @@ import networkx as nx
 import yaml
 
 from core.graph_ops import edge_trust_attrs
-
-logger = logging.getLogger(__name__)
 
 
 def split_frontmatter(content: str) -> tuple[str | None, str]:
@@ -48,21 +45,22 @@ def parse_markdown_file(filepath: str) -> tuple[dict, str]:
     return (metadata if isinstance(metadata, dict) else {}), body
 
 
+# I tre lettori qui sotto importano la propria libreria DENTRO la funzione (sono pesanti e
+# servono solo per quel formato), ma NON la avvolgono piu' in un try/except che degrada a
+# stringa vuota. Quel degrado sembrava tolleranza ed era perdita silenziosa di dati: con
+# `pypdf` non dichiarata fra le dipendenze, ogni PDF in docs/ veniva indicizzato come
+# documento VUOTO lasciando solo una riga di warning — indistinguibile, a valle, da un
+# documento davvero senza testo (rag/AUDIT.md, A19). Ora le librerie sono tutte dichiarate
+# in pyproject.toml: se manca, e' un ambiente rotto e deve fallire subito.
 def _read_docx(filepath: str) -> str:
-    try:
-        import docx  # python-docx
-    except ImportError:
-        logger.warning("  ⚠️ python-docx non installato: salto %s (pip install python-docx)", filepath)
-        return ""
+    import docx  # python-docx
+
     return "\n".join(p.text for p in docx.Document(filepath).paragraphs)
 
 
 def _read_xlsx(filepath: str) -> str:
-    try:
-        import openpyxl
-    except ImportError:
-        logger.warning("  ⚠️ openpyxl non installato: salto %s (pip install openpyxl)", filepath)
-        return ""
+    import openpyxl
+
     wb = openpyxl.load_workbook(filepath, read_only=True, data_only=True)
     lines: list[str] = []
     for ws in wb.worksheets:
@@ -75,11 +73,8 @@ def _read_xlsx(filepath: str) -> str:
 
 
 def _read_pdf(filepath: str) -> str:
-    try:
-        import pypdf
-    except ImportError:
-        logger.warning("  ⚠️ pypdf non installato: salto %s (pip install pypdf)", filepath)
-        return ""
+    import pypdf
+
     reader = pypdf.PdfReader(filepath)
     return "\n".join((page.extract_text() or "") for page in reader.pages)
 

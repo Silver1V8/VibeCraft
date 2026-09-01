@@ -22,7 +22,12 @@ dependencies = [
     "markitdown[docx,outlook,pdf,pptx,xls,xlsx]==0.1.7",
     "networkx>=3.6.1",
     "numpy==2.5.2",
+    # Lettori di documenti di core/chunking.read_document. Dichiarate ENTRAMBE:
+    # pypdf non c'era (i PDF venivano indicizzati vuoti, vedi AUDIT A19) e openpyxl
+    # arrivava solo come transitiva di markitdown, cioe' funzionava per fortuna.
+    "openpyxl>=3.1.5",
     "pydantic>=2.13.4",
+    "pypdf>=6.1.3",
     "python-docx>=1.2.0",
     "python-dotenv==1.2.3",
     "pyyaml>=6.0.3",

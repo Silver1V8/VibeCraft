@@ -737,11 +737,25 @@ I tre lettori di `read_document` non stanno tutti allo stesso modo:
 | `.xlsx` | `openpyxl` | OK, ma solo **transitiva** (da `markitdown[xlsx]`): funziona per fortuna |
 | `.pdf` | `pypdf` | **assente** |
 
-Non corretto qui: la scelta non è ovvia e non spettava a un audit sulle licenze. Le due
-strade sono dichiarare `pypdf` fra le dipendenze (una riga, il codice esiste già ed è
-scritto per lei) oppure far passare anche `_read_pdf` da `markitdown`, che è già una
-dipendenza e i PDF li converte per l'intake. La seconda toglie una libreria invece di
-aggiungerla, ma è una modifica di design, non una dichiarazione mancante.
+### Chiuso — dichiarando le librerie e togliendo il degrado
 
-In entrambi i casi va tolto anche il `try/except` che trasforma una dipendenza mancante in
-un documento vuoto: se il formato è supportato, la libreria deve esserci.
+Strada scelta: **dichiarare le dipendenze**, non riscrivere `_read_pdf` su `markitdown`. Il
+codice esiste già ed è scritto per `pypdf`; cambiare libreria sarebbe stata una modifica di
+design a fronte di una dichiarazione mancante.
+
+Dichiarate **due**, non una: `pypdf` non c'era affatto, e **`openpyxl` arrivava solo come
+transitiva di `markitdown`** — funzionava per fortuna, e sarebbe bastato che `markitdown`
+cambiasse le proprie dipendenze per spegnere anche l'`.xlsx` nello stesso modo silenzioso.
+Correggere solo il PDF avrebbe lasciato il gemello armato.
+
+E soprattutto: **tolti i tre `try/except`** che degradavano a stringa vuota. Sembravano
+tolleranza, erano perdita silenziosa di dati — l'unica ragione per cui il difetto è
+sopravvissuto tanto a lungo. Con le librerie dichiarate, una che manca è un ambiente rotto e
+deve fallire subito, non produrre un chunk vuoto.
+
+Verificato dal vivo dopo la correzione: `read_document` su un PDF vero lo apre e lo legge,
+**nessun warning emesso** (prima: `⚠️ pypdf non installato: salto ...` e testo vuoto).
+
+Due test nuovi in `tests/test_chunking.py`: uno fallisce nel momento esatto in cui una delle
+tre librerie esce dalle dipendenze; l'altro pretende che un `.pdf` illeggibile **sollevi**
+invece di restituire vuoto.
