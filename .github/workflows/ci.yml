@@ -18,9 +18,61 @@ jobs:
           version: "0.11.28"
           python-version: "3.14"
 
-      # Nessun servizio esterno: Qdrant/Ollama restano spenti. I test che toccano un
-      # Qdrant reale (rag/tests/test_qdrant_blue_green.py) si auto-saltano con
-      # pytest.skip quando la connessione fallisce — vedi rag/scripts/ci.sh.
+      # Nessun servizio esterno: Qdrant e Ollama restano spenti, e la suite non ne ha
+      # bisogno — i test del blue/green usano _FakeQdrant, non una connessione reale
+      # (verificato: 0 skip anche con un Qdrant attivo). Il rovescio e' che nessun test
+      # esercita un Qdrant vero: e' annotato come A8 in rag/AUDIT.md.
       - name: Test suite (rag/)
         run: bash scripts/ci.sh
         working-directory: rag
+
+  # ---------------------------------------------------------------------------
+  # Il gate che mancava: un CHECKOUT PULITO deve poter produrre un'immagine che parte.
+  # La suite sopra prova il codice; questo prova la DISTRIBUZIONE — che e' cio' che
+  # rompe piu' facilmente, perche' sulla macchina di sviluppo funziona sempre.
+  # ---------------------------------------------------------------------------
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Immagine CPU da un checkout pulito
+        run: docker build --target cpu -t vibecraft:cpu .
+
+      # Prova che il venv costruito nello stage delle dipendenze e' utilizzabile e che il
+      # grafo degli import regge: importare server costruisce l'intera app FastAPI.
+      - name: L'applicazione importa dentro l'immagine
+        run: docker run --rm vibecraft:cpu python -c "import server, index"
+
+      # Il preflight deve FALLIRE quando i servizi non ci sono — e deve dire come rimediare.
+      # Un doctor che esce 0 a Qdrant spento non sta diagnosticando niente.
+      - name: Il preflight segnala i servizi assenti, col rimedio
+        run: |
+          set +e
+          uscita=$(docker run --rm vibecraft:cpu python scripts/doctor.py)
+          codice=$?
+          echo "$uscita"
+          if [ "$codice" -ne 1 ]; then
+            echo "::error::atteso exit 1 senza servizi attivi, ottenuto $codice"
+            exit 1
+          fi
+          if ! echo "$uscita" | grep -q "docker compose up -d qdrant"; then
+            echo "::error::il preflight non ha stampato il rimedio per Qdrant"
+            exit 1
+          fi
+
+      - name: docker-compose valido in tutti e tre i profili
+        run: |
+          for profilo in cpu gpu host-ollama; do
+            VIBECRAFT_API_KEY=chiave-di-ci docker compose --profile "$profilo" config >/dev/null
+          done
+
+      # In Docker il browser non arriva al server come 127.0.0.1, quindi senza una chiave
+      # CONFIGURATA la console chiederebbe un valore che nulla puo' soddisfare. compose
+      # deve rifiutarsi di partire, non consegnare quella configurazione.
+      - name: compose rifiuta una configurazione senza API key
+        run: |
+          if docker compose --profile cpu config >/dev/null 2>&1; then
+            echo "::error::compose ha accettato di partire senza VIBECRAFT_API_KEY"
+            exit 1
+          fi

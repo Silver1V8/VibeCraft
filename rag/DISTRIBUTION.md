@@ -311,3 +311,65 @@ L'immagine contiene `docs/` cosi' com'e' nel contesto di build: da un clone puli
 documenti della baseline, da questa macchina 23 (ci sono anche i 9 non tracciati, vedi A6).
 Coerente — l'immagine rispecchia il contesto — ma va saputo prima di pubblicare un'immagine
 costruita da una copia di lavoro.
+
+---
+
+## Stato — L3 (2026-09-01): il gate di distribuzione, e un difetto di L2 corretto
+
+### Il difetto di L2, trovato riprendendo in mano il compose
+
+Il `docker-compose.yml` consegnato in L2 aveva `VIBECRAFT_API_KEY: ${VIBECRAFT_API_KEY:-}`,
+cioè **vuota di default**. Con la chiave assente *sul server*, `deps._valid_api_key` è falsa
+per costruzione (`bool(API_KEY) and ...`): la console appena resa capace di autenticarsi
+avrebbe chiesto una chiave che **nessun valore** poteva soddisfare. L2 e la correzione della
+console, presi insieme, producevano ancora una console inutilizzabile.
+
+Ora compose **si rifiuta di partire** senza la chiave, con un messaggio che dice cosa fare
+(`${VIBECRAFT_API_KEY:?...}`). Verificato in entrambi i sensi: senza chiave exit 1 col
+messaggio, con chiave i tre profili risolvono.
+
+E il `.env` che il README dice di creare per contenerla **non era gitignorato**: sarebbe
+bastato un `git add -A` per pubblicare la propria API key. Aggiunto a `.gitignore`.
+
+### Il gate: un checkout pulito deve produrre un'immagine che parte
+
+Nuovo job `docker` in `.github/workflows/ci.yml`. La suite esistente prova il codice; questo
+prova **la distribuzione**, che è ciò che si rompe più facilmente, perché sulla macchina di
+sviluppo funziona sempre.
+
+| Passo | Cosa dimostra |
+|---|---|
+| `docker build --target cpu` | il Dockerfile costruisce da un checkout pulito |
+| `python -c "import server, index"` nell'immagine | il venv dello stage dipendenze è utilizzabile e il grafo degli import regge |
+| `doctor.py` deve uscire **1** e stampare il rimedio | un preflight che esce 0 a Qdrant spento non sta diagnosticando niente |
+| `compose config` sui tre profili | il compose è valido, non solo sintatticamente |
+| `compose config` **senza** chiave deve fallire | il difetto qui sopra non può tornare |
+
+Tutti e cinque eseguiti su questa macchina prima di scriverli nel workflow.
+
+Corretto anche il commento ormai falso nel job `test` ("i test che toccano un Qdrant reale si
+auto-saltano"): usano `_FakeQdrant`, non si saltano — e il rovescio, che nessun test eserciti
+un Qdrant vero, resta A8.
+
+### Aggiornamento senza perdere l'indice
+
+Documentato nel README con i tre casi in ordine di costo: solo documenti ⇒ incrementale;
+modello di embedding cambiato ⇒ full rebuild obbligatorio (il manifest registra il modello,
+quindi la differenza è rilevabile e non silenziosa); formato artefatti cambiato ⇒
+`load_artifacts` ricade sui `.pkl` con un warning esplicito. Più il rollback blue/green, che
+è il ritorno indietro senza reindicizzare.
+
+### Cosa di L3 NON è stato fatto, e perché
+
+- **Pubblicazione delle immagini (release workflow).** Richiede decisioni che non spettano al
+  codice: quale registry, immagini pubbliche o private, quali tag, e se pubblicare anche il
+  target `gpu`. Un workflow scritto a indovinare non sarebbe verificabile qui e andrebbe
+  comunque riscritto. **Da decidere.**
+- **Smoke test su un secondo sistema operativo.** Il job `docker` è il test da clone pulito e
+  copre il percorso di distribuzione principale. Una matrice su `windows-latest` per il
+  percorso nativo scaricherebbe ~4 GB di torch CUDA a ogni push: sproporzionato come gate.
+  Il progetto è sviluppato su Windows e testato in CI su Linux, quindi entrambi i sistemi
+  sono coperti — ma non entrambi automaticamente. **Gap dichiarato.**
+- **Primo avvio guidato** (scegli la cartella → indicizza → prima domanda). È una funzionalità
+  di prodotto, non di packaging: il README oggi porta allo stesso risultato in quattro
+  comandi. **Non iniziato.**

@@ -67,6 +67,12 @@ cd VibeCraft
 #   gpu          NVIDIA + nvidia-container-toolkit
 #   host-ollama  Ollama nativo sull'host (la scelta giusta su macOS)
 
+# 0. Genera la API key. In Docker è obbligatoria: il browser non arriva al server
+#    come 127.0.0.1, quindi l'autenticazione non è aggirabile — e senza una chiave
+#    configurata SUL SERVER nessun valore potrebbe soddisfarla.
+#    compose legge questo file da solo; senza, si rifiuta di partire e ti dice perché.
+python -c "import secrets; print('VIBECRAFT_API_KEY=' + secrets.token_urlsafe(32))" > .env
+
 # 1. Servizi di supporto
 docker compose --profile cpu up -d qdrant ollama
 
@@ -94,12 +100,10 @@ container gira su CPU. Lì il percorso sensato è tenere **Ollama nativo** sull'
 I pesi dei modelli **non stanno nell'immagine**: vivono in volumi, quindi si scaricano una
 volta sola e sopravvivono agli aggiornamenti.
 
-**La console chiede la chiave, una volta sola.** Quando il browser e il server non sono
-sulla stessa macchina — è il caso di Docker, dove le richieste arrivano dal gateway del
-bridge e non da `127.0.0.1` — il server richiede l'autenticazione. La console se ne accorge
-da sé alla prima chiamata respinta, chiede la `VIBECRAFT_API_KEY` e la conserva in questo
-browser. Impostala nel servizio (`VIBECRAFT_API_KEY` in un file `.env` alla root, che
-`docker compose` legge da solo) e tienila a portata al primo avvio.
+**La console chiede la chiave, una volta sola.** Al primo caricamento la console si accorge
+da sé che le richieste vengono respinte, chiede la `VIBECRAFT_API_KEY` — quella generata al
+passo 0 — e la conserva in questo browser. Non viene mai scritta nella pagina: la pagina è
+servita senza autenticazione, quindi metterla lì la regalerebbe a chiunque la raggiunga.
 
 Con l'installazione nativa non cambia nulla: da `127.0.0.1` non viene chiesto niente.
 
@@ -148,6 +152,45 @@ punto 4 ha già qualcosa da indicizzare e al punto 5 puoi fare la prima domanda.
 `code/`, invece, arriva **vuoto**: il codice del progetto ospitante non viene distribuito.
 Le funzioni che vivono sul codice (Semantic Map, Impact Ripple, il codice implementante
 dentro le risposte) restano quindi spente finché non punti `code/` a un progetto vero.
+
+## Aggiornare senza perdere l'indice
+
+L'indice non sta mai dentro l'immagine né dentro il codice: vive in
+`rag/database/` (nativa) o nel volume `vibecraft_index` (Docker). Aggiornare non lo tocca.
+
+```bash
+# Docker — i volumi (indice, pesi dei modelli, Qdrant) sopravvivono
+git pull && docker compose --profile cpu build && docker compose --profile cpu up -d
+
+# Nativa
+git pull && cd rag && uv sync
+```
+
+Dopo l'aggiornamento, **chiedi al sistema se l'indice è ancora valido** invece di
+reindicizzare per abitudine:
+
+```bash
+cd rag && uv run python index.py --index-status     # stale: true => i documenti sono cambiati
+cd rag && uv run python index.py --check-integrity  # manifest, artefatti e Qdrant coerenti?
+```
+
+Tre casi, in ordine di costo:
+
+| Cosa è cambiato | Cosa serve |
+|---|---|
+| Solo i documenti | `index.py --incremental` — reindicizza i soli file toccati |
+| Il **modello di embedding** (`rag_config.yaml`) | **Full rebuild** obbligatorio: i vettori vecchi non sono confrontabili con i nuovi. Il manifest registra il modello usato, quindi la differenza è rilevabile e non silenziosa |
+| Il **formato degli artefatti** | `load_artifacts` ricade sui vecchi `.pkl` con un warning esplicito "re-indicizza". Non fallisce e non finge: dice cosa fare |
+
+Se un aggiornamento peggiora le cose, il ritorno indietro è immediato e non richiede
+reindicizzare — è a questo che serve il versionamento blue/green:
+
+```bash
+cd rag && uv run python index.py --rollback          # alla versione precedente
+cd rag && uv run python index.py --rollback v2026…   # a una versione precisa
+```
+
+Le versioni conservate sono 5 per default (`VIBECRAFT_INDEX_KEEP`).
 
 ## Configurazione
 

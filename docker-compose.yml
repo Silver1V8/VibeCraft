@@ -80,10 +80,14 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     environment:
-      # Senza chiave il server e' aperto a chiunque raggiunga la porta. La porta e'
-      # pubblicata solo su 127.0.0.1, quindi in locale va bene; valorizzala PRIMA di
-      # cambiare l'indirizzo di pubblicazione qui sopra.
-      VIBECRAFT_API_KEY: ${VIBECRAFT_API_KEY:-}
+      # OBBLIGATORIA in Docker, e compose si rifiuta di partire senza. Non e' pignoleria:
+      # il server esenta dall'autenticazione solo i client che si presentano come 127.0.0.1,
+      # e attraverso il port forwarding le richieste arrivano dal gateway del bridge. Senza
+      # una chiave CONFIGURATA SUL SERVER, _valid_api_key e' falsa per costruzione: la
+      # console chiederebbe una chiave che nessun valore puo' soddisfare.
+      # Generane una e mettila in un file .env alla root (compose lo legge da solo):
+      #   python -c "import secrets; print('VIBECRAFT_API_KEY=' + secrets.token_urlsafe(32))" > .env
+      VIBECRAFT_API_KEY: ${VIBECRAFT_API_KEY:?manca VIBECRAFT_API_KEY — generala in un file .env alla root del repository, vedi README}
       VIBECRAFT_LOG_LEVEL: ${VIBECRAFT_LOG_LEVEL:-INFO}
     volumes:
       - vibecraft_index:/app/rag/database     # artefatti dell'indice (blue/green)
@@ -104,7 +108,8 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     environment:
-      VIBECRAFT_API_KEY: ${VIBECRAFT_API_KEY:-}
+      # Obbligatoria: vedi la nota estesa sul servizio app-cpu.
+      VIBECRAFT_API_KEY: ${VIBECRAFT_API_KEY:?manca VIBECRAFT_API_KEY — generala in un file .env alla root del repository, vedi README}
       VIBECRAFT_LOG_LEVEL: ${VIBECRAFT_LOG_LEVEL:-INFO}
       VIBECRAFT_OLLAMA_URL: http://ollama-gpu:11434
     volumes:
@@ -131,7 +136,8 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     environment:
-      VIBECRAFT_API_KEY: ${VIBECRAFT_API_KEY:-}
+      # Obbligatoria: vedi la nota estesa sul servizio app-cpu.
+      VIBECRAFT_API_KEY: ${VIBECRAFT_API_KEY:?manca VIBECRAFT_API_KEY — generala in un file .env alla root del repository, vedi README}
       VIBECRAFT_LOG_LEVEL: ${VIBECRAFT_LOG_LEVEL:-INFO}
       # Ollama gira sull'host (nativo, con Metal su macOS): il container lo raggiunge qui.
       VIBECRAFT_OLLAMA_URL: http://host.docker.internal:11434

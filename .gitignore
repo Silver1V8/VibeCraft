@@ -81,3 +81,7 @@ docs/*
 # stato irreversibile (vedi rag/AUDIT.md, B1). Contengono materiale del dominio dismesso:
 # non vanno nel repo, e questa riga impedisce che ci finiscano per un `git add -A` distratto.
 docs.local-backup-*/
+
+# File d'ambiente di docker compose alla root: contiene VIBECRAFT_API_KEY (il README dice
+# di generarla qui, ed e' compose a leggerla da solo). E' un segreto: mai nel repository.
+.env
