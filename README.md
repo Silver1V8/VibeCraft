@@ -153,6 +153,22 @@ punto 4 ha già qualcosa da indicizzare e al punto 5 puoi fare la prima domanda.
 Le funzioni che vivono sul codice (Semantic Map, Impact Ripple, il codice implementante
 dentro le risposte) restano quindi spente finché non punti `code/` a un progetto vero.
 
+## Immagine pronta
+
+Le release pubblicano un'immagine su GHCR, così non serve costruirla:
+
+```bash
+docker pull ghcr.io/silver1v8/vibecraft:latest
+```
+
+È il target **CPU**, `linux/amd64`: gira ovunque, GPU o no. Chi ha una GPU NVIDIA — o gira
+su Apple Silicon — costruisce in locale, dove è veloce e nativo:
+
+```bash
+docker build --target gpu -t vibecraft:gpu .   # NVIDIA
+docker build --target cpu -t vibecraft:cpu .   # Apple Silicon, build arm64 nativa
+```
+
 ## Aggiornare senza perdere l'indice
 
 L'indice non sta mai dentro l'immagine né dentro il codice: vive in

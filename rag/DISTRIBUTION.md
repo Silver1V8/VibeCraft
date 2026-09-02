@@ -373,3 +373,66 @@ quindi la differenza è rilevabile e non silenziosa); formato artefatti cambiato
 - **Primo avvio guidato** (scegli la cartella → indicizza → prima domanda). È una funzionalità
   di prodotto, non di packaging: il README oggi porta allo stesso risultato in quattro
   comandi. **Non iniziato.**
+
+---
+
+## Pubblicazione delle immagini, e un difetto grosso trovato indagando la CI
+
+### Perché la CI falliva (ipotesi forte, non certezza)
+
+Il repository è privato e in questa sessione non c'era modo di leggere i log delle Actions
+(`gh` non installato, connettore GitHub non autorizzato). Quindi la causa **non è
+confermata**: quello che segue è ciò che ho trovato riproducendo la CI in locale.
+
+Il job `test` **non è il problema**: la suite passa contro un export dei soli file tracciati
+(`git archive HEAD`, 14 documenti in `docs/`), cioè esattamente ciò che vede un checkout CI.
+
+Il job `docker`, nuovo dell'ultimo push, costruisce un'immagine che si è rivelata enorme —
+e la ragione era un difetto vero nel Dockerfile.
+
+### Il difetto: l'immagine "CPU" conteneva 4,3 GB di CUDA
+
+`uv sync --no-install-package torch` salta **torch**, non la sua chiusura di dipendenze.
+`uv.lock` pinna la build CUDA, quindi le 15 `nvidia-*-cu12` e `triton` restavano fra le
+dipendenze e venivano installate lo stesso — dentro un'immagine il cui torch è `+cpu` e non
+le userà mai:
+
+| | Prima | Dopo |
+|---|---|---|
+| venv nell'immagine | **6,4 GB** | **2,2 GB** |
+| pacchetti CUDA | 16 | **0** |
+| layer `code/` | 90,6 MB | **1,45 MB** |
+| torch | 2.14.0+cpu (**non pinnato**) | 2.13.0+cpu (= `uv.lock`) |
+
+Su un runner GitHub con ~14 GB liberi, costruire quell'immagine è un ottimo modo per
+esaurire il disco. Le correzioni:
+
+- **esclusa l'intera chiusura CUDA**, non solo torch (lista esplicita: uv non accetta pattern);
+- **pinnata la versione di torch** a quella del lock. Senza pin `uv pip install torch` prendeva
+  l'ultima disponibile sull'indice CPU, e l'immagine aveva smesso di essere riproducibile
+  senza che nulla lo segnalasse — il lock diceva 2.13.0, l'immagine montava 2.14.0;
+- **escluse da `code/` le stesse directory che l'indicizzatore già scarta**
+  (`CODE_EXCLUDED_DIRS`): 90 MB di sorgenti .NET locali finivano nell'immagine da una build
+  sul working tree (in un checkout pulito `code/` è vuota, quindi la CI non lo vedeva);
+- aggiunta al job `docker` la **liberazione di spazio sul runner**, rimedio standard e
+  gratuito per il caso "no space left on device".
+
+### Come si pubblicano le immagini — decisioni prese
+
+`.github/workflows/release.yml`, su **tag `v*`**.
+
+| Decisione | Perché |
+|---|---|
+| **GHCR** (`ghcr.io/silver1v8/vibecraft`) | stesso account del repository, si autentica col `GITHUB_TOKEN` già disponibile — nessun segreto da creare e ruotare — e le immagini stanno accanto al codice |
+| **Su tag, non su ogni push** | un'immagine per commit brucia storage senza che nessuno la usi; ciò che ha senso pubblicare è una versione citabile |
+| **Solo il target `cpu`** | gira ovunque, GPU o no. Il target `gpu` porta ~4,3 GB di CUDA: pubblicarlo costa storage e banda a chi lo scarica, e chi ha una GPU ha per definizione la macchina per costruirselo con un comando |
+| **Solo `linux/amd64`** | arm64 servirebbe ad Apple Silicon, ma su runner x86 andrebbe emulato in QEMU: per questo stack significa ore. Su Apple Silicon la build locale è nativa e veloce, quindi il rapporto è rovesciato. Da riconsiderare se il repository diventa pubblico e ottiene i runner ARM gratuiti |
+| Tag `{{version}}`, `{{major}}.{{minor}}`, `latest` | convenzione standard |
+
+**Il repository è privato, quindi il pacchetto GHCR nasce privato.** Per renderlo scaricabile
+senza credenziali va reso pubblico dalle impostazioni del package su GitHub. Il workflow lo
+ricorda nel proprio riepilogo di esecuzione.
+
+**Non verificato:** il workflow di release non è mai stato eseguito. Il `docker build` che
+contiene sì, ripetutamente, su questa macchina; l'orchestrazione GitHub no. Il primo tag lo
+dirà.

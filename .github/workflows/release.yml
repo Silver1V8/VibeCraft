@@ -1,0 +1,87 @@
+name: Release
+
+# Su TAG, non su ogni push. Un'immagine per commit brucerebbe storage senza che nessuno la
+# usi: cio' che ha senso pubblicare e' una versione che qualcuno puo' citare.
+#
+#   git tag v0.1.0 && git push origin v0.1.0
+on:
+  push:
+    tags: ["v*"]
+
+# GHCR e non Docker Hub: e' lo stesso account del repository, si autentica col GITHUB_TOKEN
+# gia' disponibile (nessun segreto da creare e ruotare) e le immagini restano accanto al
+# codice. `packages: write` e' il solo permesso in piu' che serve.
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMMAGINE: ghcr.io/${{ github.repository }}
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # I runner GitHub hanno ~14 GB liberi e l'immagine ne occupa una fetta consistente
+      # anche dopo aver escluso la chiusura CUDA. Questi tre alberi non servono a nulla qui
+      # e liberano diversi GB: e' la causa piu' probabile di un "no space left on device".
+      - name: Libera spazio sul runner
+        run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /opt/hostedtoolcache/CodeQL
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login su GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag dell'immagine
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMMAGINE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+
+      # SOLO il target `cpu`, ed e' una scelta.
+      #  · gira ovunque, GPU o no, quindi e' l'immagine che ha senso distribuire;
+      #  · il target `gpu` porta con se' ~4,3 GB di librerie CUDA: pubblicarlo costerebbe
+      #    storage e banda a chi lo scarica, e chi ha una GPU ha per definizione la macchina
+      #    per costruirselo — `docker build --target gpu -t vibecraft:gpu .`, un comando.
+      #
+      # Solo linux/amd64. arm64 servirebbe ad Apple Silicon, ma su un runner x86 andrebbe
+      # emulato in QEMU: per questo stack (torch, transformers) significa ore, non minuti.
+      # Su Apple Silicon la build locale e' nativa e veloce, quindi il rapporto costo/utilita'
+      # e' rovesciato. Da riconsiderare se il repository diventa pubblico e quindi ha accesso
+      # ai runner ARM gratuiti.
+      - name: Costruisci e pubblica (target cpu, linux/amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: cpu
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Riepilogo
+        run: |
+          {
+            echo "### Immagine pubblicata"
+            echo ""
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo '```'
+            echo ""
+            echo "Il repository e' privato, quindi anche il pacchetto GHCR nasce **privato**:"
+            echo "per renderlo scaricabile senza credenziali va reso pubblico dalle sue"
+            echo "impostazioni su GitHub (Packages -> vibecraft -> Package settings)."
+          } >> "$GITHUB_STEP_SUMMARY"

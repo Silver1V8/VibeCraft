@@ -39,14 +39,45 @@ COPY rag/pyproject.toml rag/uv.lock ./
 # ---------------------------------------------------------------------------
 FROM base AS deps-cpu
 
-# --no-install-package torch: uv risolve l'intero grafo da uv.lock (quindi le versioni
-# restano quelle bloccate) ma NON scarica la build CUDA da 4,0 GB, che verrebbe subito
-# sostituita. Senza questo flag l'immagine CPU pagherebbe comunque quel download.
+# Si escludono torch E TUTTA la sua chiusura CUDA. Escludere il solo torch NON basta, ed e'
+# l'errore che questo Dockerfile conteneva alla prima stesura: uv.lock pinna la build CUDA,
+# quindi le nvidia-*-cu12 e triton restavano fra le dipendenze e venivano installate lo
+# stesso. Misurato nell'immagine risultante: 3,6 GB di librerie CUDA + 691 MB di triton,
+# dentro un'immagine il cui torch e' 2.13.0+cpu e non le usera' mai — venv da 6,4 GB. Su un
+# runner CI con ~14 GB liberi e' anche un ottimo modo per esaurire il disco.
+#
+# La lista e' esplicita perche' uv non accetta pattern. E' derivata da uv.lock:
+#   grep -oE '^name = "(nvidia-[a-z0-9-]+|triton)"' uv.lock | sort -u
+# Un pacchetto CUDA nuovo che comparisse nel lock non verrebbe escluso, ma si farebbe notare
+# subito come crescita dell'immagine — che e' proprio cio' che ha fatto emergere questo.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-project --no-install-package torch
+    uv sync --frozen --no-dev --no-install-project \
+        --no-install-package torch \
+        --no-install-package triton \
+        --no-install-package nvidia-cublas-cu12 \
+        --no-install-package nvidia-cuda-cupti-cu12 \
+        --no-install-package nvidia-cuda-nvrtc-cu12 \
+        --no-install-package nvidia-cuda-runtime-cu12 \
+        --no-install-package nvidia-cudnn-cu12 \
+        --no-install-package nvidia-cufft-cu12 \
+        --no-install-package nvidia-cufile-cu12 \
+        --no-install-package nvidia-curand-cu12 \
+        --no-install-package nvidia-cusolver-cu12 \
+        --no-install-package nvidia-cusparse-cu12 \
+        --no-install-package nvidia-cusparselt-cu12 \
+        --no-install-package nvidia-nccl-cu12 \
+        --no-install-package nvidia-nvjitlink-cu12 \
+        --no-install-package nvidia-nvshmem-cu12 \
+        --no-install-package nvidia-nvtx-cu12
 
+# Versione PINNATA a quella di uv.lock, e --python esplicito sul venv del progetto.
+# Senza pin, `uv pip install torch` prende l'ultima disponibile sull'indice CPU e
+# l'immagine smette di essere riproducibile: e' gia' successo — il lock diceva 2.13.0
+# e l'immagine montava 2.14.0+cpu. Va tenuta allineata a uv.lock:
+#   grep -A1 '^name = "torch"' uv.lock
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install torch --index https://download.pytorch.org/whl/cpu
+    uv pip install --python /app/rag/.venv/bin/python \
+        torch==2.13.0 --index https://download.pytorch.org/whl/cpu
 
 
 # ---------------------------------------------------------------------------

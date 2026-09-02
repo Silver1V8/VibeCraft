@@ -36,6 +36,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # I runner hanno ~14 GB liberi. Questi alberi non servono qui e ne liberano diversi:
+      # e' la causa piu' probabile di un "no space left on device" durante il build.
+      - name: Libera spazio sul runner
+        run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /opt/hostedtoolcache/CodeQL
+
       - name: Immagine CPU da un checkout pulito
         run: docker build --target cpu -t vibecraft:cpu .
 
