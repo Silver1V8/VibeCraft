@@ -15,9 +15,6 @@ permissions:
   contents: read
   packages: write
 
-env:
-  IMMAGINE: ghcr.io/${{ github.repository }}
-
 jobs:
   image:
     runs-on: ubuntu-latest
@@ -29,6 +26,14 @@ jobs:
       # e liberano diversi GB: e' la causa piu' probabile di un "no space left on device".
       - name: Libera spazio sul runner
         run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /opt/hostedtoolcache/CodeQL
+
+      # GHCR accetta SOLO minuscole nel path del pacchetto, e github.repository qui e'
+      # "Silver1V8/VibeCraft". metadata-action normalizzerebbe da se', ma dedurlo da un
+      # comportamento implicito e' esattamente il genere di cosa che si scopre quando il
+      # workflow fallisce: lo si calcola e lo si vede.
+      - name: Nome dell'immagine (minuscolo, richiesto da GHCR)
+        id: nome
+        run: echo "immagine=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -43,7 +48,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMMAGINE }}
+          images: ${{ steps.nome.outputs.immagine }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -70,7 +75,10 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # mode=min e non max: l'immagine pesa ~2,3 GB e la cache Actions e' 10 GB per
+          # repository — esportare anche i layer intermedi la riempirebbe da sola,
+          # sfrattando la cache di tutto il resto.
+          cache-to: type=gha,mode=min
 
       - name: Riepilogo
         run: |
