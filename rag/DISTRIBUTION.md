@@ -436,3 +436,39 @@ ricorda nel proprio riepilogo di esecuzione.
 **Non verificato:** il workflow di release non è mai stato eseguito. Il `docker build` che
 contiene sì, ripetutamente, su questa macchina; l'orchestrazione GitHub no. Il primo tag lo
 dirà.
+
+### Prima release: `v0.1.0` (2026-09-01)
+
+Tag annotato `v0.1.0` creato su `a716f48` e pubblicato: è l'evento che innesca
+`release.yml`, quindi la build e il push dell'immagine su GHCR sono **partiti**.
+
+Due correzioni al workflow **prima** del tag, entrambe su cose che si sarebbero viste solo
+fallendo:
+
+- **nome dell'immagine in minuscolo.** GHCR accetta solo minuscole nel path del pacchetto, e
+  `github.repository` qui è `Silver1V8/VibeCraft`. `metadata-action` normalizza da sé, ma
+  dedurre la correttezza da un comportamento implicito è esattamente ciò che si scopre quando
+  il workflow fallisce: ora il nome si calcola in uno step e si legge nei log;
+- **`cache-to` da `mode=max` a `mode=min`.** L'immagine pesa ~2,3 GB e la cache Actions è
+  10 GB per repository: esportare anche i layer intermedi la riempirebbe da sola, sfrattando
+  la cache di tutto il resto.
+
+**Non confermato che la pubblicazione sia riuscita.** Il repository è privato e da qui non
+c'è modo di leggere l'esito: un pull anonimo risponde `denied` e il manifest `401` sia che il
+pacchetto esista e sia privato, sia che non esista affatto. Le due cose non sono
+distinguibili dall'esterno.
+
+Cosa guardare, in ordine:
+
+1. la scheda **Actions** del repository, workflow *Release*, run sul tag `v0.1.0`;
+2. a run riuscito, il pacchetto compare sotto **Packages** del profilo GitHub;
+3. il pacchetto nasce **privato**, come il repository. Per renderlo scaricabile senza
+   credenziali va reso pubblico dalle sue impostazioni (*Package settings → Change
+   visibility*). Il workflow lo ricorda nel proprio riepilogo di esecuzione.
+
+Con le credenziali, il controllo è:
+
+```bash
+echo $GITHUB_TOKEN | docker login ghcr.io -u <utente> --password-stdin
+docker pull ghcr.io/silver1v8/vibecraft:v0.1.0
+```
