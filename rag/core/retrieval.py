@@ -795,6 +795,16 @@ def rank_sections_by_relevance(chunk_ids, *, colbert_store: dict, colbert_query,
     return valutabili + non_valutabili
 
 
+# Marcatore di astensione (A16): il modello lo scrive come PRIMO token della risposta
+# quando il contesto fornito non contiene gli elementi per rispondere. Prima l'astensione
+# esisteva solo come prosa libera — corretta e motivata, verificato dal vivo — ma un client
+# non ha modo di distinguerla a macchina da una risposta vera: il payload restava
+# `status: "success"` con le fonti recuperate elencate, identico nella forma a una risposta
+# effettiva. Condiviso fra chi scrive il prompt (qui) e chi legge la risposta
+# (api.routes_retrieval.ask_rag), così le due metà non possono disallinearsi in silenzio.
+ASK_ABSTENTION_MARKER = "[ASTENSIONE]"
+
+
 def build_ask_prompt(context: str, question: str,
                      *, precedences: list[tuple[str, str]] | None = None,
                      authority_classes: list[tuple[str, float]] | None = None) -> str:
@@ -810,7 +820,13 @@ def build_ask_prompt(context: str, question: str,
 
     `authority_classes` (da retrieval.authority_scale) aggiunge [CLASSE-FONTI]: è ciò che
     porta l'autorità DENTRO il prompt invece di lasciarla morire nel ranking. Il perché sta
-    nel commento sopra quella regola, la misura in A3 di rag/AUDIT.md."""
+    nel commento sopra quella regola, la misura in A3 di rag/AUDIT.md.
+
+    [REGOLA-ASTENSIONE] (A16) rende l'astensione leggibile a macchina: senza, il modello si
+    astiene già correttamente in prosa libera, ma "status": "success" con le fonti elencate
+    è indistinguibile da una risposta vera per chi consuma l'API. `ask_rag` legge
+    `ASK_ABSTENTION_MARKER` in testa alla risposta, lo rimuove e imposta
+    `status: "abstained"` — l'utente umano non vede mai il marcatore."""
     # BLINDATURA RIGIDA DEL DIZIONARIO DATI DEL PROMPT DI SISTEMA
     system_prompt = (
         "Sei l'Ispettore di Governance di VibeCraft.\n"
@@ -821,7 +837,13 @@ def build_ask_prompt(context: str, question: str,
         "[FONTE-CODICE]: il blocco «CODICE ESISTENTE» del contesto è codice sorgente REALE del progetto ed è una fonte "
         "al pari dei documenti: nomi di classi, campi, parametri, tipi e query che vi compaiono sono FATTI VERIFICATI, "
         "non invenzioni, e vanno citati testualmente (con file e simbolo) quando rispondono alla domanda. "
-        "Quando codice e documento divergono, riporta ENTRAMBI e dichiara esplicitamente la divergenza."
+        "Quando codice e documento divergono, riporta ENTRAMBI e dichiara esplicitamente la divergenza.\n"
+        f"[REGOLA-ASTENSIONE]: se e SOLO SE il contesto fornito (documenti e codice) non contiene "
+        f"gli elementi per rispondere alla domanda, la risposta DEVE iniziare esattamente con il "
+        f"token {ASK_ABSTENTION_MARKER} — nessun testo prima, nemmeno un titolo — seguito a capo "
+        f"dalla motivazione in prosa normale (perché il contesto non basta, cosa servirebbe). "
+        f"Se il contesto contiene anche una sola parte pertinente, rispondi normalmente e NON "
+        f"scrivere il token: è un'astensione totale, non un avviso su una risposta parziale."
     )
 
     # [CLASSE-FONTI] — stessa disciplina di [PRECEDENZA-FONTI]: compare SOLO quando le fonti

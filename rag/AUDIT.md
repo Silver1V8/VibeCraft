@@ -78,7 +78,7 @@ I tre rischi che lo rendono "non completo":
 | A15 | Portabilità | MANCANTE → **PARZIALE** | Il gemello POSIX di `run_server.ps1` **esiste** (`scripts/run_server.sh`, aggiunto in L1): quella metà è chiusa. **Il vincolo vero resta**: `pyproject.toml` ha ancora `torch = { index = "pytorch-cu126" }` **senza alcun marcatore di piattaforma** — su un `uv sync` nativo (non Docker) questo forza l'indice CUDA anche su macOS/ARM/CPU-only, dove quelle wheel non esistono. Il Dockerfile ha un workaround (il target `cpu` disinstalla e reinstalla torch dall'indice CPU **dentro il container**), ma non risolve l'installazione nativa che questo riscontro misura | Installazione nativa impossibile su macOS, ARM e macchine CPU-only resta vera oggi; solo Docker la elude | M | `uv sync` riesce su una macchina senza NVIDIA — non ancora verificato, resta aperto |
 | A18 | Eval / strumento | MANCANTE → **CHIUSO** | Trovato eseguendo B1, e provato in isolamento: `GET /api/retrieve` era **l'unica route di retrieval a non chiamare `maybe_reload_graph()`** (`api/routes_retrieval.py:493`, da confrontare con `:88` di `/ask` e `:586` di `/api/code/search`, più le 4 di `routes_graph`). Dimostrazione: dopo una promozione, `/api/health` → `v20260825T100624, 181 chunk`; una chiamata a `/api/retrieve` la lasciava **invariata**; una a `/ask` la portava a `v20260901T101536, 160 chunk`. **Quanto era grave dipendeva dal tipo di modifica**: su una CANCELLAZIONE pura (il caso di B1) i chunk nuovi sono un sottoinsieme dei vecchi — il sidecar stantìo li copriva tutti, per fortuna e non per costruzione; su un'AGGIUNTA o una MODIFICA i chunk_id nuovi sarebbero mancati dal sidecar, `colbert_maxsim` avrebbe restituito `None` — l'esatto input che innesca l'inversione di A7. I due riscontri si componevano | **L'harness di eval interrogava solo `/api/retrieve`**: dopo una promozione o un rollback misurava uno stato MISTO — alias Qdrant nuovo, sidecar ColBERT/chunk in memoria vecchi — in silenzio | S | `maybe_reload_graph()` aggiunta a `api_retrieve` (`api/routes_retrieval.py:529`); verificato dal vivo (CURRENT spostato, poi `/api/retrieve` ricaricato alla prima chiamata) e fissato da `tests/test_retrieve_reload.py` |
 | A17 | Documentazione | FRAGILE | `templates/infografica.unified.html:296` descrive come attivo un *"budget guard giornaliero sulla spesa Claude [che] devia automaticamente su Ollama"*; in `rag_config.yaml:74-84` l'intero blocco `budget:` è **commentato**, quindi il guard è spento | L'infografica è il documento che spiega il sistema a chi non lo conosce: descrive una protezione di costo che non esiste | S | O il blocco è attivo, o l'infografica dice che è opzionale e spento |
-| A16 | API / contratto | FRAGILE | Misurato: alla domanda fuori corpus la risposta è un rifiuto corretto e motivato, ma il payload resta `status:"success"` con 5 fonti elencate | Un client non può distinguere "ha risposto" da "si è astenuto": l'astensione, che è la funzione di sicurezza, non è leggibile a macchina | S | Uno stato distinto (o un campo) per la risposta astenuta |
+| A16 | API / contratto | FRAGILE → **CHIUSO 2026-09-03** | Confermato: alla domanda fuori corpus la risposta era un rifiuto corretto e motivato, ma il payload restava `status:"success"` con le fonti elencate. La correzione non è un'euristica sul testo — parsare la prosa italiana di un LLM per capire se si è astenuto sarebbe fragile per costruzione — ma un **contratto**: `[REGOLA-ASTENSIONE]` nel prompt impone il token `[ASTENSIONE]` come primo carattere della risposta quando e solo quando il contesto non basta; `ask_rag` lo legge e lo rimuove | Un client non poteva distinguere "ha risposto" da "si è astenuto": l'astensione, che è la funzione di sicurezza, non era leggibile a macchina | S | `status: "abstained"`, distinto da `no_results`/`no_graph_nodes` (lì il retrieval non trova nulla; qui trova qualcosa ed è la sintesi a dire che non risponde). Verificato dal vivo: domanda fuori corpus → `abstained`; domanda normale → `success`, marcatore mai nella risposta. 6 test in `tests/test_ask_abstention.py`, cache compresa |
 
 **Conteggio:** 17 riscontri — 3 MANCANTE su capacità promesse (A3, A8, A9), 2 MANCANTE su
 distribuzione (A14, A15), 9 FRAGILE, 2 SUPERFLUO, 1 FRAGILE latente.
@@ -97,6 +97,10 @@ al presente: la correzione e il test erano già landati); **A15 declassato a PAR
 gemello POSIX di `run_server.ps1` esiste, ma il pin CUDA di `torch` in `pyproject.toml`
 resta senza marcatore di piattaforma — l'installazione nativa su macOS/ARM/CPU-only è
 ancora bloccata, solo Docker la elude).
+
+**A16 chiuso il 2026-09-03**: non con un'euristica sul testo dell'LLM (fragile per
+costruzione), ma con un contratto — un token che il prompt impone e la route legge. Indagine
+in fondo al documento.
 
 ---
 
@@ -1146,3 +1150,73 @@ distinguono le due versioni:
   manifest, artefatti e allineamento con Qdrant, e oggi dice `ok: true`; il numero
   "chunk scoperti" l'ho misurato a mano. Un sidecar disallineato resta una condizione che
   si scopre solo guardando.
+
+---
+---
+
+# A16 — l'astensione parlava correttamente, e nessuno la ascoltava a macchina
+
+**Domanda:** alla domanda fuori corpus la risposta è un rifiuto corretto e motivato, ma il
+payload resta `status:"success"` con le fonti elencate. Come si corregge senza fare NLP
+sulla prosa del modello?
+
+## Perché non un'euristica sul testo
+
+La tentazione ovvia era cercare frasi come *"non è presente nel contesto"* o *"non risulta
+dai documenti"* nella risposta. È la strada sbagliata: sono frasi che il modello genera
+liberamente, in italiano, senza un contratto — cambiano formulazione da una domanda
+all'altra, e un `if "non è presente" in answer` si romperebbe alla prima riformulazione,
+producendo falsi negativi silenziosi (un'astensione classificata "success") o falsi positivi
+(una risposta vera che cita "non è presente" come parte del contenuto, es. una spec che
+descrive un vincolo di assenza).
+
+## La correzione: un contratto, non un'inferenza
+
+`[REGOLA-ASTENSIONE]`, aggiunta al system prompt di `build_ask_prompt`: se e solo se il
+contesto fornito non basta, la risposta **deve iniziare esattamente** con un token —
+`retrieval.ASK_ABSTENTION_MARKER`, `[ASTENSIONE]` — nessun testo prima. `ask_rag` lo
+riconosce con un confronto letterale (`lstrip().startswith(...)`), lo rimuove — l'utente
+umano non lo vede mai — e imposta `status: "abstained"` invece di `"success"`.
+
+Non è un'inferenza su cosa il modello "intendeva": è un token che il modello si impegna a
+scrivere, e che il consumatore si impegna a leggere. Le due metà del contratto vivono nello
+stesso posto (`core/retrieval.py`, `ASK_ABSTENTION_MARKER`) apposta: non possono
+disallinearsi rinominando una sola delle due.
+
+## Perché non riusare `no_results` / `no_graph_nodes`
+
+Quegli stati esistevano già e sono deterministici: **il retrieval non ha trovato nulla** — né
+documenti nel grafo né codice pertinente. `abstained` è un caso diverso: il retrieval **ha**
+trovato qualcosa (le fonti sono in `qdrant_scores`, il contesto è in `graph_context`), ma la
+sintesi finale — l'LLM, leggendo quel contesto — giudica che non risponde alla domanda. Sono
+due fallimenti a livelli diversi della pipeline, e confonderli in un solo stato avrebbe
+nascosto la differenza fra "non ho trovato nulla di rilevante" e "ho trovato qualcosa ma non
+basta".
+
+## Verifica dal vivo
+
+```
+domanda fuori corpus  → status: "abstained" · answer senza il marcatore
+domanda normale       → status: "success"   · answer invariata
+```
+
+E il caso che l'euristica sul testo avrebbe sbagliato: una risposta che **cita** la regola di
+astensione a metà frase (`"la regola dice di usare [ASTENSIONE] solo quando..."`) resta
+`"success"`, perché il token non è il primo carattere. Testato esplicitamente
+(`test_marcatore_a_meta_testo_non_conta`).
+
+**Cache**: un'astensione entra in cache come qualunque altra risposta — stessa domanda,
+stesso indice, stessa risposta, anche quando la risposta è "il contesto non basta" — e lo
+stato cachato resta `abstained`, non silenziosamente `success` (`test_astensione_viene_cachata_come_lo_stesso_esito`).
+
+## Cosa resta aperto
+
+- **Il marcatore è un impegno del prompt, non una garanzia del modello.** Un provider che
+  ignorasse l'istruzione — o un modello molto più debole — tornerebbe silenziosamente a
+  `"success"`. Nessun test esercita questo caso contro un LLM reale (solo contro il fake nei
+  test); la verifica dal vivo qui sopra è con `qwen3.5:9b`, che la rispetta.
+- **La dashboard non distingue `abstained` da `no_results`/`no_graph_nodes`/`graph_answer`
+  nella colorazione** (`templates/dashboard.unified.html`): tutto ciò che non è
+  `"success"` è già rosso, `abstained` incluso. Non è un difetto nuovo — `graph_answer`, che
+  è un successo a tutti gli effetti, ha lo stesso trattamento — e resta fuori dal perimetro
+  di A16, che riguardava il payload, non la sua resa visiva.

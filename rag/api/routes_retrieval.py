@@ -447,6 +447,15 @@ async def ask_rag(request: Request, query: AskQuery):
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     end_time = time.time()
 
+    # A16: l'astensione esisteva già come prosa corretta e motivata, ma "status": "success"
+    # con le fonti elencate la rendeva indistinguibile da una risposta vera per chi legge il
+    # payload invece della prosa. Il marcatore (retrieval.ASK_ABSTENTION_MARKER,
+    # [REGOLA-ASTENSIONE] nel prompt) è la metà del contratto che l'LLM scrive; questa è la
+    # metà che lo legge — rimosso qui, l'utente umano non lo vede mai.
+    astenuta = answer.lstrip().startswith(retrieval.ASK_ABSTENTION_MARKER)
+    if astenuta:
+        answer = answer.lstrip()[len(retrieval.ASK_ABSTENTION_MARKER):].lstrip("\n ")
+
     elaborazione_secondi = round(end_time - start_time, 2)
     logger.info("[TIMER] Tempo impiegato per la generazione: %s secondi", elaborazione_secondi)
 
@@ -460,14 +469,18 @@ async def ask_rag(request: Request, query: AskQuery):
     logger.info(
         "ask request_id=%s index_version=%s qdrant_collection=%s qdrant_alias=%s "
         "retrieval_strategy=%s top_k=%s n_results=%s latency_retrieval_ms=%s "
-        "latency_generation_ms=%s latency_total_ms=%s",
+        "latency_generation_ms=%s latency_total_ms=%s abstained=%s",
         request_id, index_version, qdrant_collection, COLLECTION_NAME,
         retrieval_strategy, query.top_k, len(search_results),
-        latency_retrieval_ms, latency_generation_ms, latency_total_ms,
+        latency_retrieval_ms, latency_generation_ms, latency_total_ms, astenuta,
     )
 
     payload = {
-        "status": "success",
+        # "abstained" quando il modello ha dichiarato — col marcatore di [REGOLA-ASTENSIONE],
+        # non per un'euristica sul testo — che il contesto recuperato non basta a rispondere.
+        # Distinto da "no_results"/"no_graph_nodes": qui il retrieval HA trovato qualcosa
+        # (le fonti sono elencate in qdrant_scores), è la sintesi a dire che non risponde.
+        "status": "abstained" if astenuta else "success",
         "answer": answer,
         # False = risposta appena calcolata; True solo sul ramo di hit qui sopra.
         "cached": False,
@@ -502,7 +515,9 @@ async def ask_rag(request: Request, query: AskQuery):
         "implementing_code": implementing_code,
     }
     # Si memorizza SOLO questo payload: gli errori (502 su LLMError) e gli esiti a vuoto
-    # (no_results/no_graph_nodes, che tornano prima) non entrano mai in cache.
+    # (no_results/no_graph_nodes, che tornano prima) non entrano mai in cache. Un'astensione
+    # ("abstained") CI entra: è la stessa domanda sullo stesso indice, quindi la stessa
+    # risposta — anche quando la risposta è "il contesto non basta".
     _cache_set(request.app, cache_key, payload)
     return payload
 

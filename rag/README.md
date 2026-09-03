@@ -34,6 +34,19 @@ degli altri step, un solo client da mantenere. Su `LLMError` la route risponde
 `status: "success"`. La base URL di Ollama è unica per tutto il codice
 (`VIBECRAFT_OLLAMA_URL`, default `http://127.0.0.1:11434`, core/config.py).
 
+**L'astensione è leggibile a macchina** (`status: "abstained"`). Il modello si
+astiene già correttamente in prosa libera quando il contesto recuperato non
+contiene la risposta — verificato dal vivo — ma prima il payload restava
+`status: "success"` con le fonti elencate in `qdrant_scores`, identico nella
+forma a una risposta vera: un client non aveva modo di distinguere "ha
+risposto" da "si è astenuto" senza fare NLP sulla prosa. `[REGOLA-ASTENSIONE]`
+nel prompt (`retrieval.build_ask_prompt`) impone al modello di anteporre il
+token `retrieval.ASK_ABSTENTION_MARKER` (`[ASTENSIONE]`) quando e solo quando
+il contesto non basta; `ask_rag` lo legge, lo rimuove — l'utente umano non lo
+vede mai — e imposta `status: "abstained"`. Distinto da `no_results` /
+`no_graph_nodes`: lì il retrieval non trova nulla, qui trova qualcosa ed è la
+sintesi a dire che non risponde.
+
 **Router deterministico M2 davanti a `/ask`.** Prima del retrieval, la funzione
 pura `core.router.route_question` (regex, zero LLM, zero grafo) classifica la
 domanda: le formulazioni **strutturali** inequivocabili (enumerazioni di
