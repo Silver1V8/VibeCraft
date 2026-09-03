@@ -281,13 +281,25 @@ async def ask_rag(request: Request, query: AskQuery):
     chunks_store: dict = snap.chunks
     context_parts: list[str] = []
     seen_chunks: set[str] = set()
+    # Le fonti EFFETTIVAMENTE finite nel contesto, per costruire la scala di [CLASSE-FONTI]:
+    # non i candidati recuperati, che possono essere scartati qui sotto. Una scala che
+    # nominasse una classe assente dal prompt sarebbe una regola che parla del nulla.
+    fonti_nel_contesto: list[dict] = []
     for r in search_results:
         cid = r.get("chunk_id")
         entry = chunks_store.get(cid) if cid else None
         if entry is None or cid in seen_chunks:
             continue
         seen_chunks.add(cid)
-        context_parts.append(f"--- {r['doc_id']} § {r.get('section', '')} ---\n{_cap_text(entry['text'])}")
+        fonti_nel_contesto.append(r)
+        # La CLASSE nell'intestazione (A3): il boost di autorità riordinava i candidati e poi
+        # spariva, e l'LLM riceveva blocchi indistinguibili. Con 8 sezioni in finestra la spec
+        # e il documento che la illustra ci entrano quasi sempre insieme — è la premessa su cui
+        # boost_alpha resta 0.1 — ma senza etichetta il modello li ripesa a naso, per prosa.
+        # Stessa convenzione già usata da retrieval._serialize_chunks per canvas/propose.
+        context_parts.append(
+            f"--- {r['doc_id']} § {r.get('section', '')} [{retrieval.source_label(r)}] ---\n"
+            f"{_cap_text(entry['text'])}")
 
     # Fallback legacy: senza sidecar dei chunk, inietta i documenti seed (col cap per blocco)
     if not context_parts:
@@ -363,10 +375,15 @@ async def ask_rag(request: Request, query: AskQuery):
                     continue  # già iniettata dal ramo semantico: non la si duplica
                 seen_chunks.add(cid)
                 pertinenza = f", pertinenza {punteggio:.3f}" if punteggio is not None else ""
+                # Anche qui la classe, e non per simmetria: un blocco senza etichetta in mezzo a
+                # blocchi etichettati si legge come "fonte senza classe", che è un'altra cosa.
+                attrs_doc = graph.nodes.get(entry.get("doc_id", ""), {})
+                fonti_nel_contesto.append(
+                    {**attrs_doc, "authority": retrieval._authority_weight(attrs_doc)})
                 context_parts.append(
                     f"--- {entry.get('doc_id', cid)} § {entry.get('section', '')} "
-                    f"[via grafo: {info['hops']} hop, fiducia {info['trust']:.3f}"
-                    f"{pertinenza}] ---\n"
+                    f"[{retrieval.source_label(attrs_doc)}; via grafo: {info['hops']} hop, "
+                    f"fiducia {info['trust']:.3f}{pertinenza}] ---\n"
                     f"{_cap_text(entry['text'])}"
                 )
 
@@ -423,7 +440,8 @@ async def ask_rag(request: Request, query: AskQuery):
     start_time = time.time()
     try:
         answer = await llm.agenerate(
-            retrieval.build_ask_prompt(context, query.question, precedences=precedenze),
+            retrieval.build_ask_prompt(context, query.question, precedences=precedenze,
+                                       authority_classes=retrieval.authority_scale(fonti_nel_contesto)),
             purpose="ask")
     except llm.LLMError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc

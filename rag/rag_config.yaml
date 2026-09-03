@@ -222,6 +222,15 @@ authority:
   # A k=5 la configurazione attuale è già l'OTTIMO della griglia: guadagno +0.000 con dev.std
   # 0.000 su tutti e cinque i seed. Alzare alpha comprerebbe il rango dentro una finestra che
   # viene letta per intero, pagandolo con fonti che dalla finestra escono.
+  #
+  # QUESTA PREMESSA E' STATA VERIFICATA, ed e' vera SOLO DA QUANDO l'autorita' arriva anche
+  # nel prompt (A3, 2026-09-03). "L'LLM le legge tutte" era giusto sul leggere e sbagliato
+  # sul PESARE: finche' l'intestazione era `--- doc § sezione ---` il modello non aveva alcun
+  # segnale per distinguere la spec dal documento che la illustra, e dentro la finestra
+  # ri-ordinava per prosa — 2 risposte su 4 dei casi avversariali attribuivano il vincolo al
+  # METHODOLOGY. Ora ogni blocco porta la classe dichiarata e [CLASSE-FONTI] ne enuncia la
+  # graduatoria (core/retrieval.source_label / authority_scale). Se quel meccanismo venisse
+  # rimosso, questo alpha basso tornerebbe indifendibile: non sono due scelte indipendenti.
   # Calibrazione storica (5-fold CV su golden set 34 casi, corpus dominio eventi, 2026-07-14):
   # default_weight 0.4→0.7 e boost_alpha 0.4→0.1 alzarono recall@10 held-out da 0.914 a 0.971.
   # Il boost hand-set era troppo forte: sovra-promuoveva i safeguard IRON_MEMORY generici rispetto

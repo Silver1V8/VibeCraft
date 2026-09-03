@@ -439,7 +439,7 @@ La corsa standard riporta il recall a **k ∈ {1, 2, 5, 10}**, e non per complet
   a k=10 e k=5 su una griglia interamente satura e concluse — correttamente ma
   inutilmente — che nessuna combinazione era distinguibile.
 - **il sottoinsieme avversariale ha una voce a sé.** I casi marcati
-  `adversarial: true` nel golden-set (oggi 10 su 59) contrappongono una fonte a
+  `adversarial: true` nel golden-set (oggi 4 su 55) contrappongono una fonte a
   bassa autorità che matcha lessicalmente *meglio* della normativa che risponde:
   sono l'unico posto dove il boost di autorità può essere falsificato, e nella
   media coi casi facili il loro movimento sarebbe invisibile.
@@ -451,6 +451,15 @@ La corsa standard riporta il recall a **k ∈ {1, 2, 5, 10}**, e non per complet
   perché su un solo split un guadagno sopra soglia si è già rivelato rumore di
   partizione. Lo script segnala anche gli **assi morti**, cioè i parametri che sul
   corpus corrente non muovono la metrica di un millesimo.
+- **e ciò che il recall NON misura: a chi la risposta attribuisce il vincolo.** Il
+  recall dice se la fonte giusta è stata *recuperata*; `/ask` ne inietta fino a 8 e
+  l'LLM le legge tutte, quindi il recall può essere ottimo mentre la risposta cita
+  come fonte del vincolo il documento che lo *illustra*. È successo davvero — 2 casi
+  avversariali su 4, indagine A3 in [AUDIT.md](AUDIT.md) — e la correzione
+  (`[CLASSE-FONTI]`: la classe dichiarata nell'intestazione di ogni blocco del
+  contesto, più la graduatoria delle classi presenti) **non ha mosso il recall di un
+  decimale**, perché il ranking era già corretto. Chi tocca il prompt di `/ask` non
+  ha una metrica che lo protegga: legga le risposte.
 
 ```bash
 uv run python -m eval.calibrate_authority --k 5   # proposta, mai applicazione automatica

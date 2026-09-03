@@ -63,7 +63,7 @@ I tre rischi che lo rendono "non completo":
 | A1 | LLM / contesto | FRAGILE | Serie misurata (stessa domanda, stima 3 char/token del guard): `top_k=10` → 7.775 tok · `=15` → 10.755 · `=20` → 13.275 (**soglia di warning superata**, 81% di `num_ctx=16384`) · `=50` → 30.939 tok, **oltre il doppio**, con log `core.llm` e risposta HTTP comunque `status:"success"`. Guard a `core/llm.py:66-76` (solo `logger.warning`). Tetti: `ASK_MAX_CHARS_PER_CHUNK=3000` (`api/routes_retrieval.py:49`) × `top_k≤50` (`api/models.py:9`). **Unica barriera reale fra i due regimi: l'attributo HTML `max="20"` a `templates/dashboard.unified.html:385`** — validazione lato client | Al massimo che la console stessa offre il margine residuo è del 19%; oltre — bypassando un attributo HTML, o semplicemente con sezioni più piene — il prompt è tagliato dall'alto e la risposta resta `success` | S | Il limite vive nel server, non nell'HTML; una richiesta che eccede la finestra non può concludersi con `status:"success"` silenzioso |
 | A2 | ~~Eval / gate~~ | ~~FRAGILE~~ → **RITIRATO** | **Riscontro sbagliato.** Avevo letto i *default* del codice (`_eval_gate_cfg.get("k", 10)`, `core/config.py:346-347`) scambiandoli per la configurazione attiva. `rag_config.yaml` imposta `k: 2`, `min_recall: 0.75`, `blocking: true`, e documenta una migrazione deliberata k=10 → k=5 → k=2, ogni passo innescato dall'**alert di saturazione del progetto stesso**. Provato dal rebuild eseguito oggi: `Eval-gate: recall@2=0.873 ≥ soglia 0.75 — promozione consentita` | Nessuno: il gate fa già ciò che avrei raccomandato, e con una soglia derivata dal proprio storico | — | — |
 | A2b | Eval / osservabilità | FRAGILE | Ciò che resta di A2, ed è vero: il **gate** è a k=2, ma tutto il resto guarda ancora il k saturo. `core/eval_history.py:73,79,95` — `latest_recall`, `compute_trend`, `detect_regression` hanno tutte `key="recall@10"` come default; `/api/health` espone `last_recall_at_10: 1.0` come numero di qualità in evidenza | Il cancello protegge, ma il rilevatore di regressione e il numero che un umano legge sulla dashboard stanno su una metrica satura a 1.000: la promozione è difesa, la deriva lenta no | S | Trend e rilevamento di regressione leggono la stessa metrica del gate |
-| A3 | Retrieval / qualità | MANCANTE | `eval/run.py`: sottoinsieme avversariale (5 casi) recall@1 = **0.0%**, MRR 0.467. Aggregato: recall@1 61.8%, recall@2 83.6%, recall@5 98.2%, MRR 0.773 | Sui casi costruiti apposta per testare l'autorità (ADR 0002) la fonte giusta non è **mai** prima. Nessuna metrica sorvegliata lo espone | M | recall@1 avversariale tracciata nello storico e sotto soglia |
+| A3 | Retrieval → **prompt** | MANCANTE → **CHIUSO 2026-09-03** | Il riscontro era giusto (avversariale recall@1 = 0.0%), la diagnosi che suggeriva no: **non era un problema di rango**. Indagine in fondo a questo documento. La fonte giusta entra sempre nel contesto (`source_in_top3` avversariale = 100%), ma l'autorità veniva calcolata, usata per riordinare e **buttata via al confine del prompt**: l'intestazione era `--- doc § sezione ---` e basta, così dentro la finestra il modello ri-ordinava per prosa. Misurato su `/ask`: **2 risposte su 4 attribuivano il vincolo alla fonte METHODOLOGY che lo illustra**, con la spec declassata a «conferma» | Il difetto che ADR 0002 esiste per impedire, sopravvissuto un livello più in là di dove ADR 0002 guardava — e invisibile a ogni metrica, perché il ranking era già corretto | M | **Cambiata**: non più «recall@1 avversariale sotto soglia» — resta 0.0% ed è corretto che resti. La classe dichiarata arriva nel prompt (`tests/test_ask_authority_prompt.py`) e le 4 risposte attribuiscono il vincolo alla fonte normativa |
 | A4 | Retrieval / multihop | FRAGILE | `eval/run_multihop.py`: 5 casi su 14 falliscono a k=10, recall media A = 0.854, A riusciti 9/14. Nessun gate su questa suite | La classe di domande più preziosa per un grafo di governance regredisce senza allarme | M | La suite multihop entra nello storico e ha una soglia |
 | A5 | ~~Eval / strumento~~ | ~~FRAGILE~~ → **RITIRATO, assorbito da A6** | **Riscontro impreciso.** Avevo concluso "l'harness sottostima il ramo grafo" vedendo una risposta corretta segnata come fallita. Leggendo `eval/golden_multihop.yaml:90-96`: il caso dichiara `count: 11` — la baseline committata — e i 4 nodi attesi ci sono tutti. L'unico scarto è il conteggio (26, poi 23, contro 11). **L'harness ha ragione: sta segnalando che il corpus è divergente.** Non è un difetto della misura, è la misura che funziona | Nessuno di per sé: è A6 che parla | — | — |
 | A6 | Corpus / riproducibilità | FRAGILE | 26 `.md` su disco vs **11 tracciati** (i 13 path di `git ls-files docs` includono 2 `.gitkeep`); `observe_docs_git_divergence()` → `{state:"instantiated", diverging:[], tracked:13}`; `.gitignore:docs/*` (scelta deliberata). Fra i 15 non tracciati, tre — `glossario_entita.md`, `matrice_permessi.md`, `intent_synonym_mapping.md` — sono **gli stessi che il golden set elenca come "documenti poi rimossi"**: valgono 21 chunk su 181 (**11% del corpus**) | Oltre metà del corpus è invisibile a chi rivede il repo e alla CI; l'11% è dominio dismesso che compete in ogni retrieval; nessun numero di qualità è riproducibile fuori da questa macchina | M | Un clone pulito riproduce le metriche dichiarate, o la differenza è dichiarata ed è visibile |
@@ -82,6 +82,11 @@ I tre rischi che lo rendono "non completo":
 
 **Conteggio:** 17 riscontri — 3 MANCANTE su capacità promesse (A3, A8, A9), 2 MANCANTE su
 distribuzione (A14, A15), 9 FRAGILE, 2 SUPERFLUO, 1 FRAGILE latente.
+
+Il conteggio è la fotografia della Run A e resta com'era: ciò che è successo dopo si legge
+nelle righe. A2 e A5 ritirati, A6 e A18/A19/A20 chiusi in Run B, A3 chiuso il 2026-09-03 —
+ma con una **verifica di chiusura diversa** da quella che la riga proponeva, e il perché è
+l'indagine in fondo a questo documento.
 
 ---
 
@@ -518,26 +523,84 @@ Vale la pena notare che è lo stesso difetto di ADR 0002 — una fonte che spieg
 fonte che vincola — ma sceso di un livello: là fra documenti, qui **fra sezioni dello stesso
 documento**. ADR 0002 ha risolto il livello che vedeva.
 
-## 6. Conclusione
+## 6. La decisione: la 3 era già la posizione del progetto, ed è vera a metà
 
-A3 **non è un problema di calibrazione dell'autorità.** L'autorità fa già il suo lavoro al
-livello dei documenti, e alzarla peggiora le cose fuori campione. È un problema di
-**selezione della sezione**, e oggi nessun segnale lo governa.
+La strada 3 non era un'ipotesi da valutare: era **già scritta** in `rag_config.yaml:218-222`,
+come la ragione per cui `boost_alpha` resta 0.1.
 
-Tre strade, in ordine di costo — nessuna intrapresa, la scelta è di merito:
+> *«/ask inietta nel contesto fino a `retrieval.governed_max_chunks: 8` sezioni e l'LLM le
+> legge TUTTE: ciò che conta è se la fonte giusta ENTRA nella finestra, non a che rango.»*
 
-1. **Un peso di sezione, non solo di documento** — l'idea di ADR 0002 applicata un livello
-   sotto: una sezione normativa pesa più di una illustrativa dello stesso documento. È la
-   più coerente con l'architettura esistente e riuserebbe `_authority_weight`.
-2. **Trattare i blocchi BDD in indicizzazione** — accorparli alla sezione che illustrano,
-   o non indicizzarli come chunk autonomi. Diff minimo, ma perde la capacità di rispondere
-   a domande sugli scenari.
-3. **Non fare nulla e cambiare il metro** — se ciò che conta è che la fonte giusta stia nel
-   contesto (e `/ask` inietta fino a 8 sezioni), il documento giusto a rango 2 non è un
-   difetto. Allora recall@1 è la metrica sbagliata per questo sistema e va detto.
+Verificato che la premessa regge: sui 4 casi avversariali l'atteso sta a rango 2, 2, 2, 3, e
+`source_in_top3` avversariale vale **100%**. La fonte giusta entra sempre, e con lei entra
+sempre anche il distrattore. Restava da misurare la conclusione — *quindi il rango non
+conta* — che nessuno aveva mai messo alla prova, perché nessuna metrica guarda la risposta.
 
-La 3 va decisa **prima** della 1 e della 2: se rango 2 va bene, non c'è niente da correggere.
+Misurata, il 2026-09-03, chiedendo a `/ask` i 4 casi e leggendo **a chi la risposta
+attribuisce il vincolo**:
 
+| | Rango atteso | Prima | Dopo |
+|---|---|---|---|
+| 1 — bump di versione | 2 | ✅ regola dalla spec, distrattore come razionale | ✅ |
+| 2 — caratteri per chunk | 2 | ❌ **severità attribuita al METHODOLOGY**, con la spec declassata a «conferma» | ✅ «Fonte Primaria» la spec, «Fonte Secondaria (Razionale)» il distrattore |
+| 3 — ordine dei tagli | 2 | ✅ `[REGOLA-VAL-04]` citata dalla spec | ✅ |
+| 4 — palette colori | 3 | ❌ **risposta impostata sul distrattore**: apre da una canvas-review storica e conclude «NON ESAUDITA» | ✅ apre dalla norma e dichiara la divergenza risolvendola per classe |
+
+**Entrare nella finestra è necessario, non sufficiente.** Il modello le legge tutte — ma non
+le *pesa*, perché non aveva alcun modo di pesarle: l'intestazione era
+`--- doc § sezione ---` e basta. L'autorità veniva calcolata, usata per riordinare, e poi
+**buttata via al confine del prompt**. Dentro la finestra il modello ri-ordinava a naso, per
+prosa: e la prosa che spiega è più densa di parole chiave di quella che vincola. È il
+difetto di ADR 0002, sopravvissuto un livello più in là di dove ADR 0002 guardava.
+
+Le strade 1 e 2 restano non intraprese, e ora si capisce perché non sono la prima cosa da
+fare: agiscono sul **rango**, che non era il problema.
+
+## 7. La correzione
+
+Due funzioni pure in `core/retrieval.py` (`source_label`, `authority_scale`) e il loro uso in
+`/ask`. Nessuna modifica al ranking: `rank_by_authority` e `boost_alpha` sono intatti, e la
+recall del golden set è **identica** prima e dopo (r@1 63.6%, r@2 87.3%, MRR 0.791).
+
+1. **Ogni blocco del contesto porta la classe dichiarata dalla sua fonte** —
+   `--- spec.md § 2 [REQUIREMENTS] ---`, `--- fe1-canvas-review.md § … [SENZA CLASSE] ---`.
+   È la convenzione che `_serialize_chunks` usava già per canvas/propose: `/ask` era l'unico
+   consumatore a nasconderla, cioè l'unico letto da un umano. Lo `status` compare solo se
+   archiviato — `ENFORCED` su ogni blocco sarebbe rumore.
+2. **`[CLASSE-FONTI]` enuncia la graduatoria** delle sole classi presenti in quel contesto,
+   coi pesi che il ranking ha già usato: *«NORMS (0.80) > METHODOLOGY (0.50) > SENZA CLASSE
+   (0.30) … un vincolo va attribuito alla fonte PIÙ autorevole che lo enuncia; una fonte meno
+   autorevole può motivarlo, mai esserne la fonte»*. Senza la scala, `[METHODOLOGY]` sarebbe
+   una parola qualsiasi.
+
+La regola segue la disciplina di `[PRECEDENZA-FONTI]`: **compare solo quando discrimina**
+(`authority_scale` restituisce `[]` se le fonti recuperate stanno tutte sullo stesso
+livello). Una regola inerte insegna al modello a ignorarla. E viene enunciata **prima** della
+precedenza dichiarata, che è l'eccezione specifica su due documenti precisi.
+
+Effetto collaterale misurato: le risposte si **accorciano** — caso 4 da 10.724 a 5.355
+caratteri, caso 2 da 4.349 a 2.664. Il modello smette di trattare ogni blocco come
+ugualmente citabile.
+
+**I limiti della misura, per intero.** 4 casi, un solo modello (`qwen3.5:9b`, temperatura
+0.1), 2 esecuzioni per condizione — non 30. Il giudizio su «a chi è attribuito il vincolo»
+l'ho dato leggendo le risposte, non una metrica. I due difetti si sono riprodotti in
+entrambe le esecuzioni pre-correzione e sono spariti in entrambe le post: è un segnale
+solido, non un intervallo di confidenza.
+
+## 8. Cosa resta aperto dopo A3
+
+- **`recall@1` avversariale resta 0.0%, ed è corretto che resti.** Misura la condizione
+  iniziale per cui quei casi furono scelti. Non è la metrica di questo sistema: la metrica
+  vera è a chi la risposta attribuisce il vincolo, e **non esiste**. Nessun numero nel
+  progetto si sarebbe mosso di un decimale per questa correzione — la recall è identica.
+  Automatizzarla costa una chiamata LLM per caso e un giudice: non è stato fatto.
+- **La strada 1** (peso di sezione) resta la candidata naturale se un giorno il rango
+  dovesse contare davvero — per esempio con `governed_max_chunks` molto più basso.
+- **Il prompt di sistema ORDINA di citare vincoli SQL** (`«DEVI citare … i vincoli SQL (es.
+  SELECT … FOR UPDATE)»`) su un corpus che di SQL non parla: nei casi 3 e 4 il modello ne ha
+  inventati, dichiarandoli ipotetici. È un invito a inventare, scritto nel prompt. Fuori dal
+  perimetro di A3 e da decidere a parte.
 ---
 ---
 

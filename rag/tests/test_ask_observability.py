@@ -225,13 +225,16 @@ def _snapshot_con_vicino(version="v1") -> deps.IndexSnapshot:
 
 def test_graph_context_disattivato_non_cambia_il_contesto(ask_env, monkeypatch):
     """Con graph_context_max_chunks: 0 il contesto e' BYTE-IDENTICO a quello prodotto dal
-    solo ramo semantico, cioe' a quello di prima di S3. E' il test che rende l'intervento
-    reversibile in produzione con una riga di config."""
+    solo ramo semantico. E' il test che rende l'intervento reversibile in produzione con una
+    riga di config.
+
+    L'intestazione porta la CLASSE della fonte (A3): qui il documento del fixture non ha
+    frontmatter, quindi "SENZA CLASSE" — che e' un'informazione, non un valore mancante."""
     client = ask_env()
     monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: _snapshot_con_vicino())
     monkeypatch.setattr(routes_retrieval, "GRAPH_CONTEXT_MAX_CHUNKS", 0)
     ctx = client.post("/ask", json={"question": "q"}).json()["graph_context"]["context_text"]
-    assert ctx == "--- spec.md § form ---\ntesto della sezione"
+    assert ctx == "--- spec.md § form [SENZA CLASSE] ---\ntesto della sezione"
     assert "via grafo" not in ctx
 
 
@@ -243,7 +246,7 @@ def test_sezioni_da_grafo_sono_marcate_nel_contesto(ask_env, monkeypatch):
     ctx = body["graph_context"]["context_text"]
     # la sezione del vicino c'e', e porta il marcatore con hop e fiducia
     assert "definizione di EVENTO" in ctx
-    assert "[via grafo: 1 hop, fiducia 0.900]" in ctx
+    assert "[SENZA CLASSE; via grafo: 1 hop, fiducia 0.900]" in ctx
     # il blocco del ramo semantico NON e' confondibile: nessun marcatore
     semantico, _, _ = ctx.partition("[via grafo")
     assert "testo della sezione" in semantico

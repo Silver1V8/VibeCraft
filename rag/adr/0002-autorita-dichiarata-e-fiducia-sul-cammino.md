@@ -447,6 +447,14 @@ trigger di riapertura elencati sotto restano aperti entrambi.
   costruzione — ma va comunque verificata dai test di `check_graph_consistency`.
 - `docs/02_specs_normative/spec_graph_rag_ingestion.md` andrà emendato al termine di S5, con
   version bump ([REGOLA-VAL-09]), per registrare l'esito su [REGOLA-VAL-08].
+- **L'autorità deve arrivare fino al prompt, non fermarsi al ranking** (misurato in A3,
+  2026-09-03). Riordinare i candidati non basta quando il consumatore è un LLM che riceve
+  8 sezioni e le legge tutte: senza la classe nell'intestazione di ogni blocco il modello
+  ri-ordina per prosa, e la fonte che *spiega* — più densa di parole chiave — batte quella
+  che *vincola*. È lo stesso difetto che questo ADR corregge, un livello più in là.
+  `core/retrieval.source_label` e `authority_scale` alimentano `[CLASSE-FONTI]`; l'indagine
+  e la misura stanno in `rag/AUDIT.md`. **Chi tocca il ranking di autorità deve chiedersi
+  anche cosa ne vede il prompt.**
 
 ## Trigger di riapertura
 

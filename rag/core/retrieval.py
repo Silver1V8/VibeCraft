@@ -132,6 +132,60 @@ def _authority_weight(attrs: dict, *, weights: dict | None = None,
     return max(0.0, min(1.0, base))
 
 
+# ---------------------------------------------------------------------------
+# L'autorità sopravvive fino al PROMPT, non solo fino al ranking (A3).
+#
+# Il peso di classe riordina i candidati e poi spariva: /ask consegnava all'LLM blocchi
+# «--- doc § sezione ---» tutti uguali fra loro. Con `governed_max_chunks: 8` la fonte
+# normativa e quella che la illustra entrano quasi sempre INSIEME nella finestra — è la
+# premessa su cui `boost_alpha` resta a 0.1 — ma dentro la finestra il modello non aveva
+# alcun segnale per distinguerle e ri-ordinava a naso, per prosa. Misurato sui 4 casi
+# avversariali: 2 risposte su 4 attribuivano il vincolo alla fonte METHODOLOGY che lo
+# spiega invece che alla spec che lo stabilisce, pur avendo entrambe sotto gli occhi.
+#
+# Le due funzioni sotto sono PURE e servono a rendere visibile nel prompt ciò che il
+# ranking già sa. Non cambiano l'ordinamento: `rank_by_authority` resta intatto.
+# ---------------------------------------------------------------------------
+def source_label(attrs: dict) -> str:
+    """Etichetta di classe per l'intestazione di un blocco di contesto: la `classification`
+    dichiarata, o "SENZA CLASSE" quando manca — che NON è la stessa cosa di una classe a peso
+    basso, ed è il caso dei file senza frontmatter (peso `unclassified`).
+
+    Lo status archiviato si aggiunge SOLO quando c'è: è il giudizio umano "questo non vale
+    più", l'unico segnale temporale che l'autorità ammette (vedi l'invariante sopra), e per
+    l'LLM cambia tutto. Uno status ENFORCED non si stampa: sarebbe rumore su ogni blocco."""
+    classe = str(attrs.get("classification") or "").upper()
+    etichetta = classe or "SENZA CLASSE"
+    stato = str(attrs.get("status") or "").upper()
+    if stato in _ARCHIVED_STATUSES:
+        etichetta += f", {stato}"
+    return etichetta
+
+
+def authority_scale(items: list[dict]) -> list[tuple[str, float]]:
+    """Scala di autorevolezza DICHIARATA fra le sole fonti presenti in questo contesto,
+    ordinata dalla più alla meno autorevole, come coppie (etichetta, peso).
+
+    Restituisce [] quando le fonti recuperate stanno tutte sullo stesso livello: come per
+    `[PRECEDENZA-FONTI]`, una regola che compare anche quando non discrimina nulla insegna
+    al modello a ignorarla — e la renderebbe inerte proprio nel caso in cui serve.
+
+    I pesi NON si ricalcolano: si legge `authority`, già messo lì da `hybrid_search` con gli
+    stessi parametri di produzione. Se lo stesso label comparisse con pesi diversi (una
+    `authority` dichiarata nel frontmatter batte la classe, quindi succede) si tiene il
+    massimo: l'etichetta è la classe, e la scala deve dire quanto pesa al suo meglio."""
+    per_label: dict[str, float] = {}
+    for it in items:
+        peso = it.get("authority")
+        if peso is None:
+            continue
+        label = source_label(it)
+        per_label[label] = max(per_label.get(label, 0.0), float(peso))
+    if len(set(per_label.values())) < 2:
+        return []
+    return sorted(per_label.items(), key=lambda kv: (-kv[1], kv[0]))
+
+
 def rank_by_authority(results: list[dict], *, alpha: float = AUTHORITY_BOOST_ALPHA) -> list[dict]:
     """Ordinamento finale con boost di autorità: il punteggio di rilevanza (ColBERT dove
     disponibile, altrimenti la fusione) è modulato da (1-alpha + alpha*peso), così una fonte
@@ -717,7 +771,8 @@ def rank_sections_by_relevance(chunk_ids, *, colbert_store: dict, colbert_query,
 
 
 def build_ask_prompt(context: str, question: str,
-                     *, precedences: list[tuple[str, str]] | None = None) -> str:
+                     *, precedences: list[tuple[str, str]] | None = None,
+                     authority_classes: list[tuple[str, float]] | None = None) -> str:
     """Prompt completo della sintesi di /ask, da passare a core.llm con purpose "ask":
     system prompt storico (incluse le regole [REGOLA-DIZIONARIO-RIGIDO]) concatenato al
     messaggio utente nello stesso formato di sempre. Funzione PURA: provider, num_ctx/think
@@ -726,7 +781,11 @@ def build_ask_prompt(context: str, question: str,
     Al system prompt storico è aggiunta la sola regola [FONTE-CODICE], che dichiara il
     blocco «CODICE ESISTENTE» una fonte legittima: senza, il modello trattava come
     invenzione qualunque nome di campo non presente nei documenti e rispondeva "Non
-    specificato" anche con la classe che quei campi li dichiara sotto gli occhi."""
+    specificato" anche con la classe che quei campi li dichiara sotto gli occhi.
+
+    `authority_classes` (da retrieval.authority_scale) aggiunge [CLASSE-FONTI]: è ciò che
+    porta l'autorità DENTRO il prompt invece di lasciarla morire nel ranking. Il perché sta
+    nel commento sopra quella regola, la misura in A3 di rag/AUDIT.md."""
     # BLINDATURA RIGIDA DEL DIZIONARIO DATI DEL PROMPT DI SISTEMA
     system_prompt = (
         "Sei l'Ispettore di Governance di VibeCraft.\n"
@@ -739,6 +798,26 @@ def build_ask_prompt(context: str, question: str,
         "non invenzioni, e vanno citati testualmente (con file e simbolo) quando rispondono alla domanda. "
         "Quando codice e documento divergono, riporta ENTRAMBI e dichiara esplicitamente la divergenza."
     )
+
+    # [CLASSE-FONTI] — stessa disciplina di [PRECEDENZA-FONTI]: compare SOLO quando le fonti
+    # recuperate stanno su livelli di autorità DIVERSI (authority_scale restituisce [] altrimenti).
+    # Serve perché l'intestazione di ogni blocco ora porta la classe dichiarata: senza la scala,
+    # "[METHODOLOGY]" e "[NORMS]" sarebbero due parole qualsiasi. La precedenza dichiarata resta
+    # più forte — è una decisione umana su due documenti precisi, questa è una graduatoria
+    # di classe — e infatti viene enunciata DOPO, come l'eccezione specifica che segue la
+    # regola generale.
+    if authority_classes:
+        scala = " > ".join(f"{label} ({peso:.2f})" for label, peso in authority_classes)
+        system_prompt += (
+            "\n[CLASSE-FONTI]: ogni blocco del contesto porta fra parentesi quadre la CLASSE "
+            "dichiarata dalla sua fonte. In questo contesto l'autorevolezza dichiarata dagli "
+            f"autori del corpus decresce così: {scala}. Un vincolo, una soglia, una severità "
+            "o un'eccezione vanno attribuiti alla fonte PIÙ autorevole che li enuncia. Una "
+            "fonte meno autorevole può motivarli o illustrarli, e va citata dichiarando che fa "
+            "questo: mai come la fonte del vincolo. Se un vincolo è enunciato SOLO da una fonte "
+            "meno autorevole, riportalo dicendo esplicitamente che nessuna fonte più autorevole "
+            "lo stabilisce."
+        )
 
     # [PRECEDENZA-FONTI] compare SOLO quando una precedenza si applica davvero ai documenti
     # recuperati. Una regola inerte — presente anche quando non c'è alcun conflitto — insegna
