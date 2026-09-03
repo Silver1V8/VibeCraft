@@ -175,7 +175,6 @@ async def ask_rag(request: Request, query: AskQuery):
     # stessa identica forward pass di bge-m3 al suo interno. Spostarla qui cambia solo CHI la
     # possiede — e serve al ramo del grafo, che con il vettore ColBERT della domanda può
     # ordinare per pertinenza le sezioni dei documenti raggiunti (S3).
-    search_code = CODE_SEARCH_MAX_SNIPPETS > 0 and bool(snap.code_store)
     query_encoding = await embed_in_threadpool(
         retrieval.encode_query, embed_model, query.question)
     # `graph` alimenta la fase di PRECEDENZA (S4): senza, apply_precedence è un no-op e la

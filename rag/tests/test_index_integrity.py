@@ -309,7 +309,8 @@ def _repo_finto(tmp_path, contenuto_committato="v1\n"):
     (root / "docs").mkdir(parents=True)
     f = root / "docs" / "norma.md"
     f.write_text(contenuto_committato, encoding="utf-8")
-    run = lambda *a: subprocess.run(["git", "-C", str(root), *a], capture_output=True, check=True)
+    def run(*a):
+        return subprocess.run(["git", "-C", str(root), *a], capture_output=True, check=True)
     run("init", "-q")
     run("config", "user.email", "t@t")
     run("config", "user.name", "t")
@@ -435,7 +436,8 @@ def test_docs_git_una_divergenza_non_dichiarata_vince_sulle_dichiarate(tmp_path,
     root, _ = _repo_finto(tmp_path, "---\ntitle: b\n---\ncorpo\n")
     altro = root / "docs" / "seconda.md"
     altro.write_text("---\ntitle: b2\n---\ncorpo\n", encoding="utf-8")
-    run = lambda *a: subprocess.run(["git", "-C", str(root), *a], capture_output=True, check=True)
+    def run(*a):
+        return subprocess.run(["git", "-C", str(root), *a], capture_output=True, check=True)
     run("add", "docs/seconda.md")
     run("commit", "-qm", "seconda")
 

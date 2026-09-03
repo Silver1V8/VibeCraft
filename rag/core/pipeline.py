@@ -301,10 +301,10 @@ def build_final_prompt(folder_name: str, dev_type: str = "", consumer: str = "ex
             f"sottocartelle di 'code/'."
         ) + index_hint
     return base + (
-        f"Scrivi il codice generato nella cartella corretta sotto 'code/', in base al tipo di sviluppo richiesto: "
-        f"'code/backend' per la logica lato server e le API, 'code/logicAgent' per la logica degli agenti/LLM, "
-        f"'code/frontend' per l'interfaccia utente. Se la funzionalità coinvolge più ambiti, distribuisci i file "
-        f"nelle rispettive sottocartelle mantenendo la separazione delle responsabilità."
+        "Scrivi il codice generato nella cartella corretta sotto 'code/', in base al tipo di sviluppo richiesto: "
+        "'code/backend' per la logica lato server e le API, 'code/logicAgent' per la logica degli agenti/LLM, "
+        "'code/frontend' per l'interfaccia utente. Se la funzionalità coinvolge più ambiti, distribuisci i file "
+        "nelle rispettive sottocartelle mantenendo la separazione delle responsabilità."
     ) + index_hint
 
 

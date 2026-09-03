@@ -37,7 +37,7 @@ def _shell_links(lines, attrs: dict) -> list[tuple[str, str]]:
     from code_index.shell import _Collector, _walk_bash, _clean
     if isinstance(lines, str):
         lines = [lines]
-    text = "\n".join(str(l) for l in (lines or []) if isinstance(l, (str, int, float)))
+    text = "\n".join(str(v) for v in (lines or []) if isinstance(v, (str, int, float)))
     if not text.strip():
         return []
     col = _Collector("ci")

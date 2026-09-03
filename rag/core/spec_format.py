@@ -119,7 +119,7 @@ def _frontmatter_end(lines: list[str]) -> int:
     """Indice della prima riga DOPO il frontmatter YAML, 0 se non c'è. Frontmatter è solo un
     blocco `---` che apre il file (la prima riga non vuota): i `---` più avanti nel documento
     sono righe orizzontali di markdown, e trattarle da delimitatori mangerebbe mezzo file."""
-    prima = next((i for i, l in enumerate(lines) if l.strip()), None)
+    prima = next((i for i, line in enumerate(lines) if line.strip()), None)
     if prima is None or lines[prima].strip() != "---":
         return 0
     for i in range(prima + 1, len(lines)):

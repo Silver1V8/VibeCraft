@@ -22,7 +22,10 @@ jobs:
       # bisogno — i test del blue/green usano _FakeQdrant, non una connessione reale
       # (verificato: 0 skip anche con un Qdrant attivo). Il rovescio e' che nessun test
       # esercita un Qdrant vero: e' annotato come A8 in rag/AUDIT.md.
-      - name: Test suite (rag/)
+      #
+      # scripts/ci.sh gira anche ruff (selezione esplicita in pyproject.toml, A9)
+      # prima della suite: lint e test nello stesso gate, stesso comando in locale.
+      - name: Lint + test suite (rag/)
         run: bash scripts/ci.sh
         working-directory: rag
 

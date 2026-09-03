@@ -412,7 +412,9 @@ def _wire_tmp_index(monkeypatch, tmp_path):
     docs_dir = tmp_path / "docs"
     code_dir = tmp_path / "code"
     db = tmp_path / "db"
-    docs_dir.mkdir(); code_dir.mkdir(); db.mkdir()
+    docs_dir.mkdir()
+    code_dir.mkdir()
+    db.mkdir()
     monkeypatch.setattr(index, "DOCS_DIR", docs_dir)
     monkeypatch.setattr(index, "CODE_DIR", code_dir)
     # L'I/O degli artefatti vive in core.artifacts: reindirizziamo LÌ database/

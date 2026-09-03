@@ -11,8 +11,6 @@ import networkx as nx
 import numpy as np
 from qdrant_client.models import FieldCondition, Filter, MatchAny, SparseVector
 
-logger = logging.getLogger(__name__)
-
 from core.config import (
     AUTHORITY_ARCHIVED_DECAY,
     AUTHORITY_BOOST_ALPHA,
@@ -23,6 +21,8 @@ from core.config import (
     AUTHORITY_USE_DECLARED,
     COLLECTION_NAME,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _hit_doc_id(hit) -> str:

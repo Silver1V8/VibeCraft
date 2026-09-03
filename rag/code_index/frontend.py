@@ -239,7 +239,7 @@ def angular_symbols(text: str, stem: str, suffix: str, rel: str = "") -> list[tu
         routes = {c: p for p, c in _ROUTE_COMPONENT_RE.findall(text)}
         if routes:
             first_meta.setdefault("attrs", {})["_routes"] = routes
-        lazy_deps = [f"file:{l}" for l in _LAZY_RE.findall(text)]
+        lazy_deps = [f"file:{path}" for path in _LAZY_RE.findall(text)]
         if lazy_deps:
             first_meta["deps"] = sorted(set(first_meta.get("deps") or []) | set(lazy_deps))
         out[idx] = out[idx][:3] + (first_meta,)

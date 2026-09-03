@@ -154,7 +154,8 @@ def test_evaluate_recall_riporta_la_saturazione(monkeypatch):
     """La saturazione dev'essere calcolata dove si misura, non dedotta a valle: è
     `evaluate_recall` a vedere i singoli casi, il chiamante vede solo la media."""
     casi = [{"q": f"q{i}", "expected": [{"doc": f"d{i}.md"}]} for i in range(3)]
-    trovati = lambda q, k: [{"chunk_id": f"d{q[-1]}.md#00", "doc_id": f"d{q[-1]}.md", "section": ""}]
+    def trovati(q, k):
+        return [{"chunk_id": f"d{q[-1]}.md#00", "doc_id": f"d{q[-1]}.md", "section": ""}]
     monkeypatch.setattr(eval_gate.retrieval, "hybrid_search",
                         lambda q, k, **kw: trovati(q, k))
     res = eval_gate.evaluate_recall(None, None, {}, k=10, cases=casi)

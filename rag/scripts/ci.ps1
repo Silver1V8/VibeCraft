@@ -1,10 +1,11 @@
-# Pipeline CI minima: sync riproducibile (uv.lock) + suite pytest. Nessun servizio
-# esterno richiesto — Qdrant e Ollama possono restare spenti. I 3 test che toccano
-# un Qdrant reale (tests/test_qdrant_blue_green.py) si auto-saltano con pytest.skip
-# quando la connessione fallisce, quindi non serve alcun mock a livello di pipeline.
+# Pipeline CI minima: sync riproducibile (uv.lock) + lint + suite pytest. Nessun
+# servizio esterno richiesto — Qdrant e Ollama possono restare spenti. I 3 test che
+# toccano un Qdrant reale (tests/test_qdrant_blue_green.py) si auto-saltano con
+# pytest.skip quando la connessione fallisce, quindi non serve alcun mock a livello
+# di pipeline.
 #
 # Uso:  pwsh -File scripts/ci.ps1
-# Exit: propagato da pytest (0 verde, 1 test falliti/errore).
+# Exit: propagato dal primo comando che fallisce (0 se tutto verde).
 
 $ErrorActionPreference = "Stop"
 
@@ -18,6 +19,15 @@ Set-Location $RagDir
 $env:PYTHONUTF8 = "1"
 
 uv sync --frozen
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
+# Selezione esplicita in pyproject.toml (A9): import inutilizzati, variabili morte,
+# nomi ambigui, import fuori ordine (con le eccezioni dichiarate) — segnali di
+# correttezza, non gusto. Prima dei test: e' quasi istantaneo, e un problema qui
+# non deve costare i minuti della suite per farsi vedere.
+uv run ruff check .
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }

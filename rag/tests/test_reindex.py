@@ -947,11 +947,11 @@ def test_journal_compaction_keeps_only_last_state(tmp_path, monkeypatch):
         ids.append(job.id)
 
     # Dopo la compattazione ci deve essere al più UNA riga per job.
-    lines = [l for l in journal.read_text(encoding="utf-8").splitlines() if l.strip()]
-    seen_ids = [json.loads(l)["job_id"] for l in lines]
+    lines = [line for line in journal.read_text(encoding="utf-8").splitlines() if line.strip()]
+    seen_ids = [json.loads(line)["job_id"] for line in lines]
     assert len(seen_ids) == len(set(seen_ids))  # nessun duplicato: compattato
     # Tutti gli stati compattati sono terminali (completed).
-    assert all(json.loads(l)["status"] == "completed" for l in lines)
+    assert all(json.loads(line)["status"] == "completed" for line in lines)
     # Lo storico resta intero in memoria e ricostruibile.
     revived = ReindexManager(journal_path=journal)
     for jid in ids:

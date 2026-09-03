@@ -47,6 +47,7 @@ dev = [
     # transitiva (arriva anche da pdfplumber) perche' un test la importa
     # direttamente. Sostituisce pymupdf, che e' AGPL-3.0.
     "pypdfium2>=5.13.0",
+    "ruff>=0.16.5",
 ]
 
 [tool.uv.sources]
@@ -56,3 +57,31 @@ torch = { index = "pytorch-cu126" }
 name = "pytorch-cu126"
 url = "https://download.pytorch.org/whl/cu126"
 explicit = true
+
+[tool.ruff]
+target-version = "py314"
+
+[tool.ruff.lint]
+# Selezione ESPLICITA (A9), non il default del tool: il default di ruff 0.16 include
+# famiglie di regole di stile discrezionale (SIM, PIE, YTT, ...) — 380 riscontri su
+# questo codebase mai linterato, quasi tutte preferenze di scrittura, non difetti.
+# Fissare la selezione qui protegge anche da un futuro bump di ruff che cambi
+# silenziosamente cosa il gate CI applica.
+#
+#   E4/E7/E9 — pycodestyle: import fuori ordine, sintassi ambigua (nomi come `l`),
+#              errori di sintassi. F — pyflakes: import inutilizzati, variabili morte,
+#              f-string senza placeholder. Segnali di correttezza o leggibilità reale,
+#              non gusto — è la stessa soglia con cui questo audit ha già chiuso ogni
+#              altro riscontro: verificabile, non opinabile.
+select = ["E4", "E7", "E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+# E402 (import non in cima al file) è qui DELIBERATO, non debito: entrambi i file
+# devono forzare l'encoding UTF-8 di stdout/stderr — e index.py chiamare
+# setup_logging() — PRIMA di qualunque import applicativo che possa loggare o
+# stampare, altrimenti su Windows un log con accenti va in crash (server.py) o
+# setup_logging() arriva dopo i moduli che l'hanno già letta (index.py). Riordinare
+# per compiacere il linter romperebbe esattamente la garanzia che il commento in
+# ciascun file spiega.
+"server.py" = ["E402"]
+"index.py" = ["E402"]

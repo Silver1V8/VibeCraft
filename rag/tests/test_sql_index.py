@@ -6,7 +6,6 @@ import numpy as np
 import pytest
 
 import code_index as ci
-import code_index.sql as sql
 
 
 class StubModel:

@@ -445,9 +445,9 @@ def test_brief_malformed_output_is_discarded_with_motivo(staging):
     assert result["scartati"][0]["motivo"]
     assert intake.list_staged(staging) == []          # mai entrato in staging
     # il motivo resta rintracciabile nel journal (stato 'discarded', source 'brief')
-    lines = [json.loads(l) for l in
-             (staging / "intake.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
-    discarded = [l for l in lines if l.get("status") == "discarded"]
+    lines = [json.loads(line) for line in
+             (staging / "intake.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+    discarded = [entry for entry in lines if entry.get("status") == "discarded"]
     assert discarded and discarded[0]["source"] == "brief"
 
 

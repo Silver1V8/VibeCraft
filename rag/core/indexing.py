@@ -42,7 +42,6 @@ from code_index import (
     referenced_entity_tokens,
 )
 from core.artifacts import (
-    _atomic_write,
     _atomic_write_text,
     _new_version_name,
     artifact_dir,

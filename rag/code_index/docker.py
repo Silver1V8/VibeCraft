@@ -16,6 +16,8 @@ inatteso -> nodo compose senza dettagli con warning, mai eccezioni. I valori di
 environment/ARG con chiavi sensibili sono sempre mascherati.
 """
 
+import re
+
 import yaml
 
 _SNIPPET_LIMIT = 1500
@@ -35,8 +37,6 @@ DEFAULT_DOCKER_PATTERNS = DEFAULT_COMPOSE_PATTERNS + DEFAULT_DOCKERFILE_PATTERNS
 
 # Chiavi il cui valore è un secret: mai indicizzato, in nessuna forma (allineato
 # al parser config). Vale per environment (Compose) e ARG/ENV (Dockerfile).
-import re
-
 _SECRET_KEY_RE = re.compile(
     r"(password|pwd|secret|api[-_]?key|token|credential|conn.*string|passphrase)", re.I)
 

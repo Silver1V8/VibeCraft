@@ -1,6 +1,5 @@
 """Route di analisi del grafo: grafo completo, Impact Ripple, Semantic Map e query
 deterministica. Handler sottili: leggono lo stato, validano e delegano a core.graph_ops."""
-import networkx as nx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
 from qdrant_client import QdrantClient

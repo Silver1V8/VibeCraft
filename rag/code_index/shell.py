@@ -18,7 +18,6 @@ eccezioni -> nodo script senza dettagli.
 """
 
 import posixpath
-import re
 
 from tree_sitter_language_pack import get_parser as _pack_parser
 

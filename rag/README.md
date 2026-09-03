@@ -571,8 +571,11 @@ metriche vere restano i comandi qui sopra.
 
 Pipeline minima, senza servizi esterni: [scripts/ci.sh](scripts/ci.sh) (POSIX,
 usato anche dalla pipeline) / [scripts/ci.ps1](scripts/ci.ps1) (Windows) fanno
-`uv sync --frozen` (installazione riproducibile da `uv.lock`) seguito da `uv run
-pytest -q`, con l'exit code di pytest propagato:
+`uv sync --frozen` (installazione riproducibile da `uv.lock`), poi `uv run ruff
+check .` (selezione esplicita in `pyproject.toml`: import inutilizzati, variabili
+morte, nomi ambigui, import fuori ordine — non il default del tool, che su questo
+codebase mai linterato aggiungerebbe ~380 preferenze di stile discrezionali),
+infine `uv run pytest -q`. Il primo comando che fallisce ferma la pipeline:
 
 ```bash
 scripts/ci.sh

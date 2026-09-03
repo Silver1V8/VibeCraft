@@ -44,7 +44,6 @@ Uso (da rag/, niente server necessario — gira in-process):
     uv run python -m eval.calibrate_authority --k 1 --folds 5 --seed 0 1 2 3 4
 """
 import argparse
-import json
 import random
 import sys
 from datetime import datetime
@@ -228,7 +227,8 @@ def kfold_cv(cases, cache, *, k, folds, seed, graph):
                                       default_weight=AUTHORITY_DEFAULT_WEIGHT,
                                       unclassified_weight=AUTHORITY_UNCLASSIFIED_WEIGHT,
                                       k=k, graph=graph))
-    avg = lambda xs: sum(xs) / len(xs) if xs else 0.0
+    def avg(xs):
+        return sum(xs) / len(xs) if xs else 0.0
     return avg(cal_scores), avg(def_scores)
 
 
@@ -265,7 +265,8 @@ def main() -> int:
     morti = assi_morti(tabella_full)
     per_seed = [kfold_cv(cases, cache, k=a.k, folds=a.folds, seed=sd, graph=arts.graph)
                 for sd in a.seed]
-    _media = lambda xs: sum(xs) / len(xs)
+    def _media(xs):
+        return sum(xs) / len(xs)
     cal_cv, def_cv = _media([c for c, _ in per_seed]), _media([d for _, d in per_seed])
     guadagni = [c - d for c, d in per_seed]
     dev_std = (_media([(g - _media(guadagni)) ** 2 for g in guadagni])) ** 0.5

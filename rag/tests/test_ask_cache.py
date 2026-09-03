@@ -153,7 +153,7 @@ def test_domanda_ripetuta_servita_dalla_cache_senza_llm(ask_env, caplog):
 def test_domanda_equivalente_a_meno_di_spazi_e_maiuscole_e_un_hit(ask_env):
     ask_env.client.post("/ask", json={"question": _QUESTION})
 
-    r = ask_env.client.post("/ask", json={"question": f"  Come  FUNZIONA il lock sui posti?\n"})
+    r = ask_env.client.post("/ask", json={"question": "  Come  FUNZIONA il lock sui posti?\n"})
 
     assert r.json()["cached"] is True
     assert ask_env.calls["llm"] == 1

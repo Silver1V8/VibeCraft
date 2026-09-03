@@ -33,11 +33,11 @@ def test_la2_blocco_unico_diventa_un_blocco_per_scenario():
     assert out.count("```gherkin") == 7          # un'apertura per scenario
     assert out.count("```") == 14                # e la relativa chiusura
     # Nessun passo comincia piu' con la `E` italiana.
-    assert not any(l.strip().startswith("E ") for l in out.splitlines())
+    assert not any(line.strip().startswith("E ") for line in out.splitlines())
     assert "  AND avvia le strategie di invio su canali EMAIL e SLACK in parallelo" in out
     # Numerazione riassegnata in ordine, dal primo all'ultimo.
-    numerate = [l for l in out.splitlines() if l.startswith("SCENARIO:")]
-    assert [l.split(" - ")[0] for l in numerate] == [f"SCENARIO: S{n:02d}" for n in range(1, 8)]
+    numerate = [line for line in out.splitlines() if line.startswith("SCENARIO:")]
+    assert [line.split(" - ")[0] for line in numerate] == [f"SCENARIO: S{n:02d}" for n in range(1, 8)]
 
 
 def test_la2_normalizzato_passa_il_formato():
