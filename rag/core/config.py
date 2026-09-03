@@ -352,6 +352,15 @@ EVAL_GATE_BLOCKING: bool = bool(_eval_gate_cfg.get("blocking", True))
 EVAL_GATE_INCREMENTAL_ADVISORY: bool = bool(_eval_gate_cfg.get("incremental_advisory", False))
 GOLDEN_SET_PATH = RAG_DIR / "eval" / "golden_set.yaml"
 
+# Suite strutturale/multihop (eval/run_multihop.py). Blocco SEPARATO da eval_gate: non
+# partecipa alla promozione blue/green, e' il segnale del check notturno. La soglia sta sulla
+# recall MEDIA della baseline A e non sui casi riusciti — quattro casi su 14 non possono
+# passare per costruzione (vedi rag_config.yaml e la testata del golden set).
+_eval_multihop_cfg: dict = config.get("eval_multihop") or {}
+EVAL_MULTIHOP_ENABLED: bool = bool(_eval_multihop_cfg.get("enabled", True))
+EVAL_MULTIHOP_MIN_RECALL: float = float(_eval_multihop_cfg.get("min_recall", 0.85))
+EVAL_MULTIHOP_REQUIRE_GRAPH_EXACT: bool = bool(_eval_multihop_cfg.get("require_graph_exact", True))
+
 # Configurazione pipeline Explore -> Canvas -> Propose (rag/changes/).
 # NB: endpoint e modelli LLM ora vivono in core/llm.py (risoluzione per purpose).
 CHANGES_DIR = PROJECT_ROOT / "changes"

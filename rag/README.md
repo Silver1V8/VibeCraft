@@ -470,6 +470,32 @@ La corsa standard riporta il recall a **k ∈ {1, 2, 5, 10}**, e non per complet
 uv run python -m eval.calibrate_authority --k 5   # proposta, mai applicazione automatica
 ```
 
+### La seconda suite: strutturale e multihop
+
+[eval/golden_multihop.yaml](eval/golden_multihop.yaml) + [eval/run_multihop.py](eval/run_multihop.py)
+misurano le domande che il golden-set classico non copre: **enumerare** («quali documenti
+esistono nel corpus?»), **navigare** («cosa impatta la modifica di X?») e **combinare due o
+tre documenti collegati**. Su ogni domanda misura due strade — **A** il retrieval puro
+(`/api/retrieve`, k=10) e **B** la query deterministica sul grafo (`/api/graph/query`) — così
+il divario fra le due è un numero, non un'impressione.
+
+```bash
+uv run python -m eval.run_multihop        # server su; exit 1 sotto soglia
+```
+
+**Quattro casi su 14 non possono passare A, ed è la misura, non un difetto.**
+L'enumerazione chiede 11 fonti a un top-10, e le tre catene che spandono tre documenti si
+fermano a due: è esattamente il gap che ha motivato il router deterministico. Per questo la
+soglia — `eval_multihop` in [rag_config.yaml](rag_config.yaml) — sta sulla **recall media di
+A** (0.85, con 0.896 misurato) e sull'**esattezza piena delle attese strutturali di B**, mai
+sul numero di casi «riusciti»: sarebbe un numero che il sistema non può far salire.
+
+A differenza di `recall@10` sul golden-set classico, **questa metrica non è mai stata satura**.
+
+Fino al 2026-09-03 la suite girava solo a mano (A4): ora ogni corsa lascia una riga in
+`history.jsonl` (`source="multihop"`, chiavi prefissate per non mescolarsi con l'altra
+suite) e, sotto soglia, un alert critico — ed è nel check notturno insieme all'eval classico.
+
 **Il caso che non passava, e perché la sua storia resta qui** (chiuso il
 2026-08-25). *«posso usare un sinonimo per nominare una variabile o devo seguire
 il glossario»* è stato per settimane l'unico dei 59 a non comparire in top-10.

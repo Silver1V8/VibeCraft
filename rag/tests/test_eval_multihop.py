@@ -216,6 +216,66 @@ def test_run_trigger_not_fired_when_retrieval_is_good():
     assert all(r["delta"] == "pari" for r in report["cases"])
 
 
+# ---------------------------------------------------------------------------
+# Soglia (A4): la suite non aveva alcun gate, quindi poteva regredire in silenzio
+# ---------------------------------------------------------------------------
+
+def _report(recall, b_exact, b_valutabili, casi=None):
+    return {"n": 14, "k": 10,
+            "aggregate": {"recall_media_A": recall, "A_passed": 10,
+                          "B_exact": b_exact, "B_valutabili": b_valutabili},
+            "cases": casi or []}
+
+
+def test_verdetto_passa_sopra_soglia():
+    v = run_multihop.verdict(_report(0.896, 6, 6), min_recall=0.85)
+    assert v["passed"] is True and v["reasons"] == []
+
+
+def test_verdetto_fallisce_sotto_soglia_e_dice_perche():
+    v = run_multihop.verdict(_report(0.80, 6, 6), min_recall=0.85)
+    assert v["passed"] is False
+    assert "0.800" in v["reasons"][0] and "0.85" in v["reasons"][0]
+
+
+def test_verdetto_pretende_le_attese_strutturali_esatte():
+    """Le 6 attese di B asseriscono relazioni verificate a mano sul grafo: se una si rompe
+    e' una regressione del router, non rumore del corpus. Per questo la soglia e' piena."""
+    casi = [{"q": "quali relazioni ha X?", "B": {"exact_match": False}}]
+    v = run_multihop.verdict(_report(0.95, 5, 6, casi), min_recall=0.85)
+    assert v["passed"] is False
+    assert "quali relazioni ha X?" in v["reasons"][0]
+    # e si puo' spegnere, restando una soglia sola sulla recall
+    assert run_multihop.verdict(_report(0.95, 5, 6, casi), min_recall=0.85,
+                                require_graph_exact=False)["passed"] is True
+
+
+def test_la_soglia_non_e_sui_casi_riusciti():
+    """Quattro casi su 14 NON possono passare per costruzione (11 documenti non entrano in
+    10 posizioni; le catene a tre documenti si fermano a due). Un verdetto che li contasse
+    come fallimenti gaterebbe su un numero che il sistema non puo' far salire."""
+    v = run_multihop.verdict(_report(0.896, 6, 6), min_recall=0.85)
+    assert v["passed"] is True          # A_passed = 10/14, e va bene cosi'
+
+
+def test_chiavi_di_storico_prefissate():
+    """Lo storico e' condiviso col golden set single-hop e `_series` seleziona per chiave:
+    un "recall@10" nudo si mescolerebbe con quello dell'altra suite, che misura altro."""
+    k = run_multihop.history_keys(_report(0.9, 3, 6))
+    assert set(k) == {"multihop_recall@10", "multihop_graph_exact"}
+    assert k["multihop_recall@10"] == 0.9 and k["multihop_graph_exact"] == 0.5
+
+
+def test_nessun_caso_dichiara_un_count():
+    """Il `count: 11` sull'enumerazione dei documenti fu ritenuto "semanticamente stabile"
+    e non lo era: il corpus e' passato a 23 e il caso falliva per un'attesa-istantanea, non
+    per una regressione. La regola del file — si asseriscono relazioni, non conteggi — vale
+    ora senza eccezioni, e questo test e' cio' che la tiene."""
+    for c in run_multihop.load_cases():
+        graph = (c.get("expected") or {}).get("graph") or {}
+        assert "count" not in graph, f"conteggio dichiarato in: {c['q']}"
+
+
 def test_matcher_semantics_shared_with_core_eval_metrics():
     """La baseline A riusa i matcher di core.eval_metrics: stessa semantica substring
     case-insensitive del golden-set classico."""

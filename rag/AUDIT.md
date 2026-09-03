@@ -64,7 +64,7 @@ I tre rischi che lo rendono "non completo":
 | A2 | ~~Eval / gate~~ | ~~FRAGILE~~ → **RITIRATO** | **Riscontro sbagliato.** Avevo letto i *default* del codice (`_eval_gate_cfg.get("k", 10)`, `core/config.py:346-347`) scambiandoli per la configurazione attiva. `rag_config.yaml` imposta `k: 2`, `min_recall: 0.75`, `blocking: true`, e documenta una migrazione deliberata k=10 → k=5 → k=2, ogni passo innescato dall'**alert di saturazione del progetto stesso**. Provato dal rebuild eseguito oggi: `Eval-gate: recall@2=0.873 ≥ soglia 0.75 — promozione consentita` | Nessuno: il gate fa già ciò che avrei raccomandato, e con una soglia derivata dal proprio storico | — | — |
 | A2b | Eval / osservabilità | FRAGILE → **CHIUSO 2026-09-03** | Ciò che restava di A2, ed era vero — ma **più esteso di così**. `eval_gate.k` è migrata 10 → 5 → 2, ogni volta perché l'alert di saturazione diceva che quel k non discriminava più; tutto ciò che il gate lo osserva era rimasto a 10. Oltre ai tre osservatori dello storico e a `last_recall_at_10` in `/api/health`: la pagina `/eval` disegnava una **retta a 1.000**, l'infografica colorava contro uno `0.9` scritto a mano mentre il gate stava a 0.75, il guardrail di `eval.run` asseriva su `recall@max(ks)` — e i **due script notturni girano senza `--k`**, quindi confrontavano recall@10 satura contro `--assert-min 0.90` | Il cancello proteggeva; il check notturno di qualità era verde **per costruzione** da quando il gate lasciò k=10, e il numero in evidenza sulla dashboard era l'unico che non poteva peggiorare | S | Una sola sorgente: `GATE_RECALL_KEY` da `EVAL_GATE_K`. Storico, salute, guardrail, check notturno e le due pagine leggono la chiave e la soglia del gate; spostare `eval_gate.k` sposta anche la sorveglianza |
 | A3 | Retrieval → **prompt** | MANCANTE → **CHIUSO 2026-09-03** | Il riscontro era giusto (avversariale recall@1 = 0.0%), la diagnosi che suggeriva no: **non era un problema di rango**. Indagine in fondo a questo documento. La fonte giusta entra sempre nel contesto (`source_in_top3` avversariale = 100%), ma l'autorità veniva calcolata, usata per riordinare e **buttata via al confine del prompt**: l'intestazione era `--- doc § sezione ---` e basta, così dentro la finestra il modello ri-ordinava per prosa. Misurato su `/ask`: **2 risposte su 4 attribuivano il vincolo alla fonte METHODOLOGY che lo illustra**, con la spec declassata a «conferma» | Il difetto che ADR 0002 esiste per impedire, sopravvissuto un livello più in là di dove ADR 0002 guardava — e invisibile a ogni metrica, perché il ranking era già corretto | M | **Cambiata**: non più «recall@1 avversariale sotto soglia» — resta 0.0% ed è corretto che resti. La classe dichiarata arriva nel prompt (`tests/test_ask_authority_prompt.py`) e le 4 risposte attribuiscono il vincolo alla fonte normativa |
-| A4 | Retrieval / multihop | FRAGILE | `eval/run_multihop.py`: 5 casi su 14 falliscono a k=10, recall media A = 0.854, A riusciti 9/14. Nessun gate su questa suite | La classe di domande più preziosa per un grafo di governance regredisce senza allarme | M | La suite multihop entra nello storico e ha una soglia |
+| A4 | Retrieval / multihop | FRAGILE → **CHIUSO 2026-09-03** | **Metà riscontro era una lettura sbagliata del report**: 4 di quei fallimenti sono la MISURA, non un difetto, e la testata del golden set lo diceva già — 11 documenti non entrano in un top-10, e le catene a tre documenti si fermano a due. È il gap che fece scattare il trigger M2. Il quinto era vero ma di altro genere: `count: 11` sull'enumerazione dei documenti, mentre il router rispondeva **23 e aveva ragione** — un'attesa-istantanea, e l'unica eccezione a una regola che il file stesso enuncia («si asseriscono relazioni, non conteggi») | Vero e più grande del riscontro: **nessun gate, nessuno storico, nessun allarme, nemmeno una riga di README**. La suite girava a mano e il suo esito viveva in un JSON che nessuno rileggeva | M | Soglia in `eval_multihop` (rag_config.yaml) sulla **recall media di A** — non sui casi riusciti, che hanno un tetto — più esattezza piena di B; storico con chiavi prefissate, alert critico sotto soglia, e la suite nel check notturno. `count` rimosso: **B passa 6/6** |
 | A5 | ~~Eval / strumento~~ | ~~FRAGILE~~ → **RITIRATO, assorbito da A6** | **Riscontro impreciso.** Avevo concluso "l'harness sottostima il ramo grafo" vedendo una risposta corretta segnata come fallita. Leggendo `eval/golden_multihop.yaml:90-96`: il caso dichiara `count: 11` — la baseline committata — e i 4 nodi attesi ci sono tutti. L'unico scarto è il conteggio (26, poi 23, contro 11). **L'harness ha ragione: sta segnalando che il corpus è divergente.** Non è un difetto della misura, è la misura che funziona | Nessuno di per sé: è A6 che parla | — | — |
 | A6 | Corpus / riproducibilità | FRAGILE | 26 `.md` su disco vs **11 tracciati** (i 13 path di `git ls-files docs` includono 2 `.gitkeep`); `observe_docs_git_divergence()` → `{state:"instantiated", diverging:[], tracked:13}`; `.gitignore:docs/*` (scelta deliberata). Fra i 15 non tracciati, tre — `glossario_entita.md`, `matrice_permessi.md`, `intent_synonym_mapping.md` — sono **gli stessi che il golden set elenca come "documenti poi rimossi"**: valgono 21 chunk su 181 (**11% del corpus**) | Oltre metà del corpus è invisibile a chi rivede il repo e alla CI; l'11% è dominio dismesso che compete in ogni retrieval; nessun numero di qualità è riproducibile fuori da questa macchina | M | Un clone pulito riproduce le metriche dichiarate, o la differenza è dichiarata ed è visibile |
 | A7 | Retrieval / ranking | FRAGILE (latente) | `core/retrieval.py:135-152`: nel ramo misto, un chunk con `colbert_score=None` pesa `-1.0 × (1-α+α·autorità)` — **più è autorevole, più scende**. Oggi irraggiungibile (copertura ColBERT 181/181), ma `retrieval.py:281` tollera esplicitamente il `None` | Sotto divergenza sidecar↔Qdrant il ranking si inverte proprio sulle fonti normative, in silenzio | S | Test sul ramo misto che fissa il comportamento atteso |
@@ -84,9 +84,11 @@ I tre rischi che lo rendono "non completo":
 distribuzione (A14, A15), 9 FRAGILE, 2 SUPERFLUO, 1 FRAGILE latente.
 
 Il conteggio è la fotografia della Run A e resta com'era: ciò che è successo dopo si legge
-nelle righe. A2 e A5 ritirati, A6 e A18/A19/A20 chiusi in Run B, A3 e A2b chiusi il
+nelle righe. A2 e A5 ritirati, A6 e A18/A19/A20 chiusi in Run B, A3, A2b e A4 chiusi il
 2026-09-03 — A3 con una **verifica di chiusura diversa** da quella che la riga proponeva, A2b
-**più esteso** di quanto la riga avesse visto. Le due indagini sono in fondo al documento.
+**più esteso** di quanto la riga avesse visto, A4 **in parte ritirato**: quattro dei cinque
+casi che contavo come fallimenti erano la misura, non il difetto. Le indagini sono in fondo
+al documento.
 
 ---
 
@@ -953,3 +955,94 @@ dell'infografica dicono `recall@2`, senza errori in console.
 - **`recall@2` è a 0.873 con soglia 0.75:** margine 12 punti. Il giorno in cui saturasse non
   resta un k più basso: andrà **esteso il golden set** con casi che il sistema sbaglia, come
   già dice `rag_config.yaml`.
+
+---
+---
+
+# A4 — quattro casi non "falliscono": sono la misura
+
+**Domanda:** 5 casi su 14 falliscono e non c'è alcun gate su questa suite. Quanto è grave?
+
+## Metà del riscontro era una lettura sbagliata del report
+
+Il file stesso lo dichiara, e lo dichiarava già quando la Run A lo ha letto
+(`eval/golden_multihop.yaml`, testata):
+
+> *«"quali documenti esistono nel corpus?" → 6 matcher su 11 in top-10. Il limite è
+> strutturale, non di ranking: 11 documenti non entrano in 10 posizioni. […] le 3 catene che
+> spandono TRE documenti si fermano a 2 su 3.»*
+
+I quattro fallimenti della baseline A **sono il gap che questa suite esiste per
+quantificare** — è il gap che fece scattare il trigger M2 e nascere il router deterministico.
+Un report che li presenta come «4 su 14 falliti» invita esattamente all'errore che ho fatto.
+
+## Metà era vera, e più grande di così
+
+**Nessun gate, nessuno storico, nessun allarme, e nemmeno una riga di README.** La classe di
+domande più preziosa per un grafo di governance poteva regredire senza che nulla lo dicesse:
+la suite girava a mano, e il suo esito viveva in un JSON che nessuno rileggeva.
+
+E il quinto fallimento era un difetto vero, ma di tutt'altro genere.
+
+## Il quinto caso: un'attesa-istantanea
+
+`quali documenti esistono nel corpus?` falliva anche **B**, l'unico caso strutturale a
+farlo, per un solo motivo: `count: 11`, mentre il router rispondeva `23`. Il router aveva
+ragione — il corpus è cresciuto.
+
+La testata del file conteneva già la regola giusta, e la propria eccezione:
+
+> *«Nota di progettazione sui `count`: dichiarato solo dove è semanticamente stabile
+> (l'enumerazione dei documenti). Per relazioni/impatto è deliberatamente OMESSO: quei
+> conteggi cambiano a ogni modifica di un documento qualsiasi, e un golden-set che fallisce
+> per una virgola aggiunta altrove misura il rumore, non la regressione.»*
+
+Il numero di documenti non era «semanticamente stabile»: cambia ogni volta che se ne aggiunge
+uno, cioè più spesso di una relazione. L'unica eccezione alla regola era anche l'unica cosa
+che si è rotta. Rimossa: **B passa 6/6** e il caso torna a essere ciò per cui fu scritto — A
+fallisce, B riesce, che è la dimostrazione del perché serve il router.
+
+## La correzione
+
+- **Soglia**, in `eval_multihop` di `rag_config.yaml` — blocco separato da `eval_gate` perché
+  non partecipa alla promozione blue/green: `min_recall: 0.85` sulla **recall media di A** e
+  `require_graph_exact: true` sulle attese di B.
+- **Perché sulla media e non sui casi riusciti:** «A riusciti» ha un tetto di 10/14 che il
+  sistema non può alzare; la recall media invece **scende** se il ranking peggiora.
+- **Storico**: ogni corsa scrive in `history.jsonl` con `source="multihop"` e chiavi
+  **prefissate** (`multihop_recall@10`, `multihop_graph_exact`) — condividono il file con
+  l'altra suite e `_series` seleziona per chiave: un `recall@10` nudo si sarebbe mescolato
+  con quello del golden-set classico, che misura tutt'altro sugli stessi k.
+- **Allarme**: sotto soglia scrive un alert `critical` in `alerts.jsonl`, il canale che
+  `/api/health` espone come `last_alert`. Senza, il gate sarebbe stato un exit code che
+  nessuno guarda.
+- **Check notturno**: la suite gira accanto all'eval classico in
+  `scripts/nightly_consistency.{sh,ps1}`. Costa 14 chiamate a `/api/retrieve` e
+  `/api/graph/query`, zero LLM.
+- **README**: la suite ora è documentata, col motivo per cui quattro casi non passano.
+
+## Misura dopo
+
+```
+casi: 14  |  k=10  |  recall media A = 0.896  |  A riusciti = 10/14  |  B exact = 6/6
+✅ PASS  (recall media A >= 0.85, attese strutturali tutte soddisfatte)
+```
+
+Prima: `recall media A = 0.896 · A riusciti 10/14 · B exact 5/6`, nessun verdetto.
+
+A differenza di `recall@10` sul golden-set classico, **questa metrica non è mai stata satura**
+— il che la rende, oggi, la più informativa delle due.
+
+## Cosa resta aperto
+
+- **Le tre catene a tre documenti restano a 2 su 3**, e questa correzione non le tocca: mette
+  una soglia sotto al numero, non lo alza. Il documento mancante è ogni volta il terzo salto,
+  che il retrieval semantico non può vedere — ma `/ask` inietta anche le sezioni raggiunte
+  **via grafo**, quindi la domanda vera è se manchi nella *risposta*, non nel retrieval. È la
+  stessa distinzione di A3, e come lì nessuna metrica la guarda.
+- **Il verdetto «trigger M2» è ormai storico** e il report lo stampa ancora come se fosse in
+  corso: il trigger scattò, il router fu implementato, e da allora i casi che lo alimentavano
+  passano anche B — quindi il conteggio scende, il che *sembra* un peggioramento. Va tolto o
+  riformulato, non è più una decisione da prendere.
+- **`recall media A = 0.896` con soglia 0.85:** margine 4,6 punti, lo stesso ordine di
+  grandezza del gate single-hop.

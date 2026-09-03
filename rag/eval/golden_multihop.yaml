@@ -58,16 +58,27 @@
 #     calibrazione può risolverlo, solo il router deterministico.
 #   - le 3 catene che spandono TRE documenti si fermano a 2 su 3. Le catene a due
 #     documenti passano tutte.
+# QUESTI QUATTRO FALLIMENTI SONO LA MISURA, NON UN DIFETTO. Un report che li mostra come
+# "4 casi su 14 falliti" si legge male: A non può passarli, ed è esattamente il gap che
+# questo file esiste per quantificare. Ciò che va sorvegliato è che il gap non PEGGIORI —
+# per questo la soglia è sulla recall media di A (eval_gate.multihop_min_recall) e sul
+# match esatto di B, non sul numero di casi "riusciti".
 # A differenza del golden_set single-hop — dove recall@10 è satura a 1.000 e non
 # distingue nulla — qui la metrica discrimina, quindi è questo il file da guardare per
 # valutare regressioni di ranking.
 #
-# Nota di progettazione sui `count`: dichiarato solo dove è semanticamente stabile
-# (l'enumerazione dei documenti). Per relazioni/impatto è deliberatamente OMESSO: quei
-# conteggi cambiano a ogni modifica di un documento qualsiasi, e un golden-set che
-# fallisce per una virgola aggiunta altrove misura il rumore, non la regressione. Al suo
-# posto si asseriscono `relations`/`nodes` specifici, che restano veri finché il legame
-# esiste — che è esattamente ciò che il caso vuole proteggere.
+# Nota di progettazione sui `count`: NON è dichiarato da nessuna parte, e la ragione era
+# già scritta qui quando i `count` erano ammessi per l'enumerazione dei documenti — quei
+# conteggi cambiano a ogni modifica altrove, e un golden-set che fallisce per una virgola
+# aggiunta da un'altra parte misura il rumore, non la regressione. Al suo posto si
+# asseriscono `relations`/`nodes` specifici, che restano veri finché il legame esiste.
+#
+# L'unica eccezione ammessa era `count: 11` sull'enumerazione dei documenti, ritenuta
+# "semanticamente stabile". NON LO ERA: il corpus è passato da 11 a 23 documenti e quel
+# caso ha cominciato a fallire — non per una regressione del router, che risponde
+# correttamente 23, ma perché l'attesa era un'istantanea. Rimosso il 2026-09-03 (A4);
+# la regola vale ora senza eccezioni, ed è la stessa che ha già fatto sopravvivere queste
+# attese a un cambio di snapshot.
 # ─────────────────────────────────────────────────────────────────────────────────────
 cases:
   # ───────────────────────────── STRUCTURAL ─────────────────────────────
@@ -75,7 +86,11 @@ cases:
   - q: "quali documenti esistono nel corpus?"
     kind: structural
     expected:
-      retrieval:  # enumerazione completa: 11 documenti (top-10 può coprirne al più 10)
+      # Enumerazione della BASELINE TRACCIATA (git ls-files docs/*.md), non del corpus
+      # locale: sono gli 11 documenti che qualunque checkout ha. Il caso resta
+      # strutturalmente insoddisfacibile per A — 11 attesi non entrano in 10 posizioni —
+      # ed è il punto: è la dimostrazione che serve il router, non un difetto di ranking.
+      retrieval:
         - {doc: "00_meta_governance/definition_of_done.md"}
         - {doc: "00_meta_governance/policy_versionamento_documentale.md"}
         - {doc: "00_meta_governance/safeguards_security.md"}
@@ -89,17 +104,20 @@ cases:
         - {doc: "README.md"}
       graph:
         intent: documenti
-        count: 11
+        # niente `count`: vedi la nota di progettazione in testa al file. Il numero di
+        # documenti cambia ogni volta che se ne aggiunge uno; i quattro nodi qui sotto
+        # restano veri finché quei documenti esistono, che è ciò che il caso protegge.
         nodes:
           - "00_meta_governance/safeguards_security.md"
           - "01_architecture_norms/api_error_contract.md"
           - "04_knowledge_informative/vibe_coding_workflow.md"
           - "README.md"
     evidence: >-
-      by_type("document") sul grafo restituisce 11 nodi. Il retrieval vettoriale non può
-      enumerare: top-10 copre al più 10 degli 11 documenti, quindi A è strutturalmente
-      incapace di recall 1.0 su questo caso. È il caso-tipo che motiva il router.
-    answer_note: "Undici documenti, elencati per percorso."
+      by_type("document") sul grafo enumera TUTTI i documenti, quanti che siano. Il
+      retrieval vettoriale non può: top-10 copre al più 10 degli 11 attesi, quindi A è
+      strutturalmente incapace di recall 1.0 su questo caso. È il caso-tipo che motiva
+      il router.
+    answer_note: "L'elenco completo dei documenti, per percorso."
 
   - q: "quali sono le relazioni di safeguards_security.md?"
     kind: structural

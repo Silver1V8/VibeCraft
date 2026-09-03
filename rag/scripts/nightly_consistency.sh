@@ -40,6 +40,17 @@ if curl -sf --max-time 5 "$quality_url/api/health" >/dev/null 2>&1; then
     else
         echo "[$(date -Is)] Qualita' del retrieval: regressione o sotto soglia (alert registrato dall'eval)."
     fi
+
+    # Suite STRUTTURALE/MULTIHOP (A4). Era l'unica suite senza gate: girava a mano, quindi la
+    # classe di domande piu' preziosa per un grafo di governance poteva regredire in silenzio.
+    # Soglia e regola stanno in `eval_multihop` di rag_config.yaml; l'alert lo scrive lo script.
+    # Costo: 14 chiamate a /api/retrieve e /api/graph/query, nessun LLM.
+    echo "[$(date -Is)] Check strutturale/multihop (grafo + retrieval)..."
+    if uv run python -m eval.run_multihop --url "$quality_url" >/dev/null 2>&1; then
+        echo "[$(date -Is)] Suite strutturale/multihop OK."
+    else
+        echo "[$(date -Is)] Suite strutturale/multihop sotto soglia (alert registrato)."
+    fi
 fi
 
 echo "[$(date -Is)] Check di integrita' dell'indice (economico, zero embedding)..."

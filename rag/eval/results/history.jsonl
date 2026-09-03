@@ -86,3 +86,4 @@
 {"timestamp": "2026-09-01T13:23:38.855034+00:00", "commit": "2ed3f46", "version": "v20260901T132300", "recall": {"recall@2": 0.8727272727272727}, "n_cases": 55, "source": "gate", "gate": {"passed": true, "min_recall": 0.75}}
 {"timestamp": "2026-09-01T13:25:53.304450+00:00", "commit": "2ed3f46", "version": "v20260901T132525", "recall": {"recall@2": 0.8727272727272727}, "n_cases": 55, "source": "gate", "gate": {"passed": true, "min_recall": 0.75}}
 {"timestamp": "2026-09-03T09:20:37.881028+00:00", "commit": "2db8252", "version": "v20260901T132525", "recall": {"recall@1": 0.6363636363636364, "recall@2": 0.8727272727272727, "recall@5": 0.9818181818181818, "recall@10": 1.0}, "n_cases": 55, "source": "eval.run"}
+{"timestamp": "2026-09-03T10:05:05.595750+00:00", "commit": "ecad928", "version": "v20260901T132525", "recall": {"multihop_recall@10": 0.8961038961038961, "multihop_graph_exact": 1.0}, "n_cases": 14, "source": "multihop"}

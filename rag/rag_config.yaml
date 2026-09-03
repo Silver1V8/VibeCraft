@@ -418,6 +418,28 @@ eval_gate:
   # branch feat/m6-incremental-advisory-gate / memoria versione-definitiva-plan).
   incremental_advisory: true
 
+# Suite STRUTTURALE/MULTIHOP (eval/run_multihop.py, golden_multihop.yaml) — blocco a se'
+# perche' NON e' il gate di promozione: non gira alla promozione blue/green, gira nel check
+# notturno. Tenerlo dentro `eval_gate:` avrebbe suggerito che la promozione lo consulta.
+#
+# PERCHE' UNA SOGLIA SULLA RECALL MEDIA E NON SUI CASI RIUSCITI. Quattro casi su 14 NON
+# possono passare, per costruzione e non per un difetto: l'enumerazione dei documenti chiede
+# 11 fonti a un top-10, e le tre catene che spandono tre documenti si fermano a due. E'
+# esattamente il gap che questa suite esiste per quantificare (vedi la testata del golden
+# set). Gatare su "A riusciti" significherebbe gatare su un numero che il sistema non puo'
+# far salire; la recall media, invece, PEGGIORA se il ranking peggiora — ed e' quello che si
+# vuole sorvegliare.
+#
+# 0.85 con 0.896 misurato: gli stessi ~4-5 punti di margine del gate single-hop. A differenza
+# di recall@10 sul golden set, qui la metrica non e' MAI stata satura.
+eval_multihop:
+  enabled: true
+  min_recall: 0.85     # soglia sulla recall media della baseline A (retrieval, k=10)
+  # Le attese strutturali di B sono 6 casi verificati a mano sul grafo, e asseriscono
+  # relazioni, non conteggi: se una si rompe e' una regressione del router, non rumore del
+  # corpus. Per questo la soglia e' l'esattezza piena e non una frazione.
+  require_graph_exact: true
+
 paths:
   docs_dir: "./docs"
   codebase_dir: "./code"

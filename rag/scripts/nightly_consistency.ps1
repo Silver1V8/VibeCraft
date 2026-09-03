@@ -54,6 +54,15 @@ try {
     & uv run python -m eval.run --url $qualityUrl --check-regression *> $null
     if ($LASTEXITCODE -eq 0) { Write-Host "[$(Get-Date -Format o)] Qualita' del retrieval OK." }
     else { Write-Host "[$(Get-Date -Format o)] Qualita' del retrieval: regressione o sotto soglia (alert registrato)." }
+
+    # Suite STRUTTURALE/MULTIHOP (A4). Era l'unica suite senza gate: girava a mano, quindi la
+    # classe di domande piu' preziosa per un grafo di governance poteva regredire in silenzio.
+    # Soglia e regola stanno in `eval_multihop` di rag_config.yaml; l'alert lo scrive lo script.
+    # Costo: 14 chiamate a /api/retrieve e /api/graph/query, nessun LLM.
+    Write-Host "[$(Get-Date -Format o)] Check strutturale/multihop (grafo + retrieval)..."
+    & uv run python -m eval.run_multihop --url $qualityUrl *> $null
+    if ($LASTEXITCODE -eq 0) { Write-Host "[$(Get-Date -Format o)] Suite strutturale/multihop OK." }
+    else { Write-Host "[$(Get-Date -Format o)] Suite strutturale/multihop sotto soglia (alert registrato)." }
 } catch {}
 
 Write-Host "[$(Get-Date -Format o)] Check di integrita' dell'indice (economico, zero embedding)..."

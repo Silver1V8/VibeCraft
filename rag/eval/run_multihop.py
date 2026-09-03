@@ -21,8 +21,12 @@ Uso (da rag/, server su):
     uv run python -m eval.run_multihop
     uv run python -m eval.run_multihop --url http://127.0.0.1:8000 --k 10
 
-Exit code: 0 misura completata (il trigger è un VERDETTO, non un gate), 2 server giù.
-Report: eval/results/multihop_<timestamp>.json (esito A, esito B e delta per caso).
+Exit code: 0 se la suite passa la soglia (`eval_multihop` in rag_config.yaml), 1 se no,
+2 server giù. Il trigger M2 resta un VERDETTO storico, non un gate: scattò, il router
+deterministico fu implementato, e da allora i casi che lo alimentavano passano anche B.
+Report: eval/results/multihop_<timestamp>.json (esito A, esito B e delta per caso), più una
+riga in eval/results/history.jsonl (source="multihop") e, se la soglia non è rispettata, un
+alert critico in database/alerts.jsonl.
 """
 import argparse
 import json
@@ -33,6 +37,7 @@ from pathlib import Path
 import httpx2
 import yaml
 
+from core.config import EVAL_MULTIHOP_MIN_RECALL, EVAL_MULTIHOP_REQUIRE_GRAPH_EXACT
 from core.eval_metrics import evaluate_case, result_matches
 
 for _s in (sys.stdout, sys.stderr):  # emoji/à/-> safe su console Windows (cp1252)
@@ -141,6 +146,47 @@ def trigger_m2(rows: list[dict], minimum: int = TRIGGER_MIN) -> dict:
             "minimum": minimum, "qualifying_cases": qualifying}
 
 
+# ---------------------------------------------------------------------------
+# Soglia (A4). Fino al 2026-09-03 questa suite non aveva alcun gate: girava a mano, e la
+# classe di domande piu' preziosa per un grafo di governance poteva regredire senza che
+# nulla lo dicesse.
+# ---------------------------------------------------------------------------
+def history_keys(report: dict) -> dict:
+    """Le due misure che vanno nello storico (eval/results/history.jsonl, source="multihop").
+    Chiavi PREFISSATE: finiscono nello stesso file del golden set single-hop, e `_series`
+    seleziona per chiave — un "recall@10" nudo si mescolerebbe con quello dell'altra suite,
+    che misura tutt'altro sugli stessi k."""
+    agg = report["aggregate"]
+    valutabili = agg["B_valutabili"] or 1
+    return {f"multihop_recall@{report['k']}": agg["recall_media_A"],
+            "multihop_graph_exact": agg["B_exact"] / valutabili}
+
+
+def verdict(report: dict, *, min_recall: float = EVAL_MULTIHOP_MIN_RECALL,
+            require_graph_exact: bool = EVAL_MULTIHOP_REQUIRE_GRAPH_EXACT) -> dict:
+    """Esito del gate: `passed` piu' i motivi, in chiaro, di un eventuale fallimento.
+
+    La soglia sta sulla recall MEDIA di A, non sui casi riusciti: quattro casi su 14 non
+    possono passare per costruzione (11 documenti non entrano in 10 posizioni; le catene a
+    tre documenti si fermano a due), ed e' il gap che questa suite esiste per quantificare.
+    Gatare su "A riusciti" sarebbe gatare su un numero che il sistema non puo' far salire.
+
+    Le attese strutturali di B, invece, si pretendono ESATTE: sono 6 casi verificati a mano
+    sul grafo e asseriscono relazioni, non conteggi — se una si rompe e' una regressione del
+    router. (L'unico `count` dichiarato, sull'enumerazione dei documenti, fu tolto proprio
+    perche' faceva fallire il caso a ogni documento aggiunto: rumore, non regressione.)"""
+    agg = report["aggregate"]
+    motivi: list[str] = []
+    if agg["recall_media_A"] < min_recall:
+        motivi.append(f"recall media A = {agg['recall_media_A']:.3f} < soglia {min_recall}")
+    if require_graph_exact and agg["B_exact"] < agg["B_valutabili"]:
+        rotte = [r["q"] for r in report["cases"] if r["B"]["exact_match"] is False]
+        motivi.append(f"attese strutturali non soddisfatte ({agg['B_exact']}/{agg['B_valutabili']}): "
+                      + "; ".join(rotte))
+    return {"passed": not motivi, "reasons": motivi,
+            "min_recall": min_recall, "require_graph_exact": require_graph_exact}
+
+
 def _delta(a: dict, b: dict) -> str:
     """Lettura sintetica del confronto per caso: dove il grafo risolve e il retrieval no
     (B>A, il caso che alimenta il trigger), il viceversa, il pareggio, o B non valutabile."""
@@ -193,8 +239,15 @@ def print_report(report: dict) -> None:
           f"  |  A riusciti = {agg['A_passed']}/{report['n']}"
           f"  |  B exact = {agg['B_exact']}/{agg['B_valutabili']}")
     print(f"casi con A=fallito e B=riuscito: {trg['n_qualifying']} (soglia: {trg['minimum']})")
-    verdict = "🔔 trigger M2 scattato" if trg["fired"] else "trigger M2 non scattato"
-    print(verdict)
+    print("🔔 trigger M2 scattato" if trg["fired"] else "trigger M2 non scattato")
+    esito = report.get("verdict")
+    if esito:
+        if esito["passed"]:
+            print(f"✅ PASS  (recall media A >= {esito['min_recall']}"
+                  + (", attese strutturali tutte soddisfatte" if esito["require_graph_exact"] else "")
+                  + ")")
+        else:
+            print("❌ FAIL  " + " | ".join(esito["reasons"]))
 
 
 def save_report(report: dict, url: str) -> Path:
@@ -235,11 +288,33 @@ def main() -> int:
         print(f"❌ server non raggiungibile: {e}\n   Avvia il server: python server.py")
         return 2
 
+    report["verdict"] = verdict(report)
     print_report(report)
     if not a.no_save:
         out = save_report(report, a.url)
         print(f"\n💾 Report salvato in {out}")
-    return 0
+        # Storico e allarme condividono la sorte del report: --no-save vuol dire "questa
+        # corsa non lascia traccia", e vale per tutte e tre le tracce, non solo per il JSON.
+        try:
+            from core.artifacts import current_version
+            from core.eval_history import record_history
+            record_history(history_keys(report), n_cases=report["n"],
+                           version=current_version(), source="multihop")
+        except Exception as exc:  # lo storico è telemetria: non deve far fallire la misura
+            print(f"(storico non aggiornato: {exc})")
+        if not report["verdict"]["passed"]:
+            # L'ALLARME, che era la parte mancante di A4: senza, una regressione su questa
+            # suite restava un exit code che nessuno guardava. alerts.jsonl è il canale che
+            # /api/health espone come `last_alert`.
+            try:
+                from core.eval_gate import record_alert
+                record_alert("critical",
+                             "Regressione sulla suite strutturale/multihop: "
+                             + " | ".join(report["verdict"]["reasons"]),
+                             source_check="eval.run_multihop", **history_keys(report))
+            except Exception as exc:
+                print(f"(alert non registrato: {exc})")
+    return 0 if report["verdict"]["passed"] else 1
 
 
 if __name__ == "__main__":
