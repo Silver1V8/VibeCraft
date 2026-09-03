@@ -38,7 +38,7 @@ from api import (
     routes_retrieval,
 )
 
-app = FastAPI(title="HARO Graph-RAG Console", lifespan=lifespan)
+app = FastAPI(title="VibeCraft Graph-RAG Console", lifespan=lifespan)
 
 # shared.css / shared.js cambiano spesso durante lo sviluppo locale, ma
 # StaticFiles li servirebbe con caching euristico del browser (nessun
