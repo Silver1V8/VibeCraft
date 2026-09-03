@@ -7,7 +7,6 @@ num_ctx su un prompt di /ask enorme, base URL di Ollama condivisa fra core.llm e
 routes_health.check_ollama (env VIBECRAFT_OLLAMA_URL), snapshot testuale del prompt
 (system storico invariato) e assenza di riferimenti residui al vecchio secondo layer."""
 import importlib
-import logging
 import re
 from pathlib import Path
 
@@ -198,15 +197,16 @@ def test_ask_risponde_col_solo_codice_quando_i_documenti_non_matchano(ask_env, f
     assert [c["name"] for c in body["implementing_code"]] == ["Request"]
 
 
-def test_guardrail_globale_num_ctx_scatta_su_contesto_enorme(monkeypatch, caplog):
-    """Il tetto per-chunk non limita il TOTALE: la difesa globale resta il warning di
-    core.llm._ollama_payload quando la stima dei token sfiora num_ctx — deve scattare
-    anche per il prompt di /ask."""
+def test_guardrail_globale_num_ctx_scatta_su_contesto_enorme(monkeypatch):
+    """Il tetto per-chunk non limita il TOTALE: la difesa globale resta il guardrail di
+    core.llm._ollama_payload quando la stima dei token raggiunge num_ctx — deve scattare
+    anche per il prompt di /ask. Da avviso a errore (A1): un prompt che supera talmente
+    la finestra da garantire il troncamento non deve più concludersi con una generazione
+    (e uno "status": "success") apparentemente riuscita."""
     monkeypatch.setattr(llm, "OLLAMA_NUM_CTX", 2000)
     prompt = retrieval.build_ask_prompt("x" * 30000, "domanda")  # ~10k token stimati >> 2000
-    with caplog.at_level(logging.WARNING, logger="core.llm"):
+    with pytest.raises(llm.LLMError, match="FINESTRA DI CONTESTO SUPERATA"):
         llm._ollama_payload("qwen3.5:9b", prompt)
-    assert any("troncamento" in rec.message for rec in caplog.records)
 
 
 # ---------------------------------------------------------------------------

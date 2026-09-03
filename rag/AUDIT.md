@@ -60,7 +60,7 @@ I tre rischi che lo rendono "non completo":
 
 | ID | Asse | Tipo | Evidenza | Impatto se non risolto | Sforzo | Verifica di chiusura |
 |---|---|---|---|---|---|---|
-| A1 | LLM / contesto | FRAGILE | Serie misurata (stessa domanda, stima 3 char/token del guard): `top_k=10` → 7.775 tok · `=15` → 10.755 · `=20` → 13.275 (**soglia di warning superata**, 81% di `num_ctx=16384`) · `=50` → 30.939 tok, **oltre il doppio**, con log `core.llm` e risposta HTTP comunque `status:"success"`. Guard a `core/llm.py:66-76` (solo `logger.warning`). Tetti: `ASK_MAX_CHARS_PER_CHUNK=3000` (`api/routes_retrieval.py:49`) × `top_k≤50` (`api/models.py:9`). **Unica barriera reale fra i due regimi: l'attributo HTML `max="20"` a `templates/dashboard.unified.html:385`** — validazione lato client | Al massimo che la console stessa offre il margine residuo è del 19%; oltre — bypassando un attributo HTML, o semplicemente con sezioni più piene — il prompt è tagliato dall'alto e la risposta resta `success` | S | Il limite vive nel server, non nell'HTML; una richiesta che eccede la finestra non può concludersi con `status:"success"` silenzioso |
+| A1 | LLM / contesto | FRAGILE → **CHIUSO 2026-09-03** | Il tetto server-side (`top_k≤20` in `api/models.py`, non più `≤50`) era già stato chiuso in una run precedente — la riga non l'aveva mai registrato. Ma non bastava: misurato dal vivo **oggi**, `/ask` con `top_k=20` — il massimo ora legittimo, non un bypass — produce **~17.013 token stimati su `num_ctx=16384`, il 104%**, e la risposta tornava comunque `status:"success"`. Il corpus e il prompt di sistema sono cresciuti (`[CLASSE-FONTI]`, `[REGOLA-ASTENSIONE]`, entrambi aggiunti in questa sessione) da quando fu misurato l'81% originale: quel margine non c'è più | Non un caso limite raro costruito apposta: il tetto legittimo del server supera la finestra su una domanda ordinaria. Guard a `core/llm.py` solo `logger.warning`, mai visto in tempo reale da nessuno | S | Guardrail a due soglie in `core.llm._ollama_payload`: **certezza** (stima ≥ `num_ctx`) solleva `LLMError` — 502 su `/ask`, testo d'errore sulle pipeline (`generate_tolerant` già lo assorbe, nessun chiamante da toccare); **rischio** (80-100%) resta `logger.warning`, invariato. Verificato dal vivo: la stessa richiesta a 104% ora torna 502 col messaggio chiaro; una domanda normale (`top_k=8`) resta `success` |
 | A2 | ~~Eval / gate~~ | ~~FRAGILE~~ → **RITIRATO** | **Riscontro sbagliato.** Avevo letto i *default* del codice (`_eval_gate_cfg.get("k", 10)`, `core/config.py:346-347`) scambiandoli per la configurazione attiva. `rag_config.yaml` imposta `k: 2`, `min_recall: 0.75`, `blocking: true`, e documenta una migrazione deliberata k=10 → k=5 → k=2, ogni passo innescato dall'**alert di saturazione del progetto stesso**. Provato dal rebuild eseguito oggi: `Eval-gate: recall@2=0.873 ≥ soglia 0.75 — promozione consentita` | Nessuno: il gate fa già ciò che avrei raccomandato, e con una soglia derivata dal proprio storico | — | — |
 | A2b | Eval / osservabilità | FRAGILE → **CHIUSO 2026-09-03** | Ciò che restava di A2, ed era vero — ma **più esteso di così**. `eval_gate.k` è migrata 10 → 5 → 2, ogni volta perché l'alert di saturazione diceva che quel k non discriminava più; tutto ciò che il gate lo osserva era rimasto a 10. Oltre ai tre osservatori dello storico e a `last_recall_at_10` in `/api/health`: la pagina `/eval` disegnava una **retta a 1.000**, l'infografica colorava contro uno `0.9` scritto a mano mentre il gate stava a 0.75, il guardrail di `eval.run` asseriva su `recall@max(ks)` — e i **due script notturni girano senza `--k`**, quindi confrontavano recall@10 satura contro `--assert-min 0.90` | Il cancello proteggeva; il check notturno di qualità era verde **per costruzione** da quando il gate lasciò k=10, e il numero in evidenza sulla dashboard era l'unico che non poteva peggiorare | S | Una sola sorgente: `GATE_RECALL_KEY` da `EVAL_GATE_K`. Storico, salute, guardrail, check notturno e le due pagine leggono la chiave e la soglia del gate; spostare `eval_gate.k` sposta anche la sorveglianza |
 | A3 | Retrieval → **prompt** | MANCANTE → **CHIUSO 2026-09-03** | Il riscontro era giusto (avversariale recall@1 = 0.0%), la diagnosi che suggeriva no: **non era un problema di rango**. Indagine in fondo a questo documento. La fonte giusta entra sempre nel contesto (`source_in_top3` avversariale = 100%), ma l'autorità veniva calcolata, usata per riordinare e **buttata via al confine del prompt**: l'intestazione era `--- doc § sezione ---` e basta, così dentro la finestra il modello ri-ordinava per prosa. Misurato su `/ask`: **2 risposte su 4 attribuivano il vincolo alla fonte METHODOLOGY che lo illustra**, con la spec declassata a «conferma» | Il difetto che ADR 0002 esiste per impedire, sopravvissuto un livello più in là di dove ADR 0002 guardava — e invisibile a ogni metrica, perché il ranking era già corretto | M | **Cambiata**: non più «recall@1 avversariale sotto soglia» — resta 0.0% ed è corretto che resti. La classe dichiarata arriva nel prompt (`tests/test_ask_authority_prompt.py`) e le 4 risposte attribuiscono il vincolo alla fonte normativa |
@@ -118,6 +118,12 @@ di chiusura verificabile — verificata, e soddisfatta da 53 giorni — ma rimuo
 decisione con posta in gioco reale (un fallback d'emergenza e il test che lo teneva vivo):
 chiesto all'utente, non decisa da sola. Rimosso su sua indicazione; il test di equivalenza
 sostituito, non solo cancellato, perché non regredisse la copertura di `code_index.ts`.
+
+**A1 chiuso il 2026-09-03**: parte della premessa era già stantia (`top_k≤20` server-side
+era già arrivato in una sessione precedente, mai registrato in questa riga) — e questo ha
+spinto a rimisurare tutto invece di fidarsi. Bene così: dal vivo, `top_k=20` produce oggi
+**104%** della finestra su una domanda ordinaria, non l'81% originale — il prompt di
+sistema è cresciuto (A3, A16) da quando fu misurato. Indagine in fondo al documento.
 
 ---
 
@@ -1237,3 +1243,102 @@ stato cachato resta `abstained`, non silenziosamente `success` (`test_astensione
   `"success"` è già rosso, `abstained` incluso. Non è un difetto nuovo — `graph_answer`, che
   è un successo a tutti gli effetti, ha lo stesso trattamento — e resta fuori dal perimetro
   di A16, che riguardava il payload, non la sua resa visiva.
+
+---
+---
+
+# A1 — il margine dell'81% non c'era più, e nessuno se n'era accorto
+
+**Domanda:** `top_k≤20` (server-side, non più solo un attributo HTML) chiude il difetto?
+
+## Il primo controllo ha smentito la premessa
+
+La riga di Run A descriveva `top_k≤50` come tetto server e l'attributo HTML `max="20"`
+come unica barriera reale. Leggendo `api/models.py` **prima** di fare qualunque cosa: il
+tetto server era già `le=20`, con un commento che ne spiega la ragione di correttezza e
+cita la stessa misura dell'audit (81% a k=20). Quel fix era già arrivato in una sessione
+precedente — solo la riga non l'aveva mai registrato.
+
+Verificarlo mi ha messo in guardia: se una parte della premessa era stantia, valeva la
+pena rimisurare tutto prima di dichiarare chiuso il resto.
+
+## La misura dal vivo ha smentito anche il margine
+
+Richiesta reale contro il server in esecuzione, `top_k=20` — il massimo oggi **legittimo**,
+non un bypass di validazione:
+
+```
+status: success
+~17.013 token stimati su num_ctx=16384  →  104%
+```
+
+Non un caso limite raro, non un attacco: il tetto che il server stesso impone come
+"sicuro" produce oggi un prompt che eccede la finestra su una domanda ordinaria. La
+misura originale di Run A (81% a k=20) era corretta quando fu presa; non lo è più, perché
+il prompt di sistema è cresciuto da allora — `[CLASSE-FONTI]` (A3) e `[REGOLA-ASTENSIONE]`
+(A16), entrambe aggiunte in questa stessa sessione, sono testo fisso iniettato in **ogni**
+richiesta, indipendentemente da `top_k`. Un tetto di correttezza calibrato su una misura
+è tanto valido quanto è recente quella misura: nessuno l'aveva ricontrollata dopo aver
+allungato il prompt.
+
+## La correzione: due soglie, non una
+
+`core.llm._ollama_payload` aveva un solo confine (80% di `num_ctx`) e una sola reazione
+(`logger.warning`). Il difetto non era la soglia — 80% è un punto ragionevole per un
+*avviso* — ma che la stessa reazione valesse anche quando il troncamento non è più un
+rischio ma una **certezza**: quando il prompt da solo raggiunge `num_ctx`, Ollama tronca
+dall'alto per costruzione, non per sfortuna.
+
+Aggiunta una seconda soglia:
+
+- **rischio** (80-100% di `num_ctx`): resta `logger.warning`, comportamento invariato — la
+  stima è approssimativa, la generazione può ancora riuscire;
+- **certezza** (≥ 100%): solleva `LLMError`. Nessun'euristica sul testo, nessun'inferenza:
+  la stessa stima a 3 caratteri/token già in uso, con un confine diverso.
+
+Il messaggio d'errore dice cosa fare (`riduci top_k o i chunk del contesto governato,
+oppure alza llm_settings.ollama_num_ctx`), non solo cosa è andato storto.
+
+## Perché non ha richiesto toccare i chiamanti
+
+`LLMError` è già il tipo che questo modulo solleva per ogni fallimento di generazione
+(rete, timeout, modello assente), e ogni consumatore lo gestisce già:
+
+- **`/ask`** (`api/routes_retrieval.py`) cattura `llm.LLMError` e risponde `502` col
+  messaggio — esattamente ciò che A1 chiedeva;
+- **le sette pipeline** (canvas, propose, drift, validate, explore, review) passano da
+  `pipeline.generate_tolerant`, che cattura `LLMError` e restituisce il messaggio come
+  testo generato — lo stesso trattamento di un timeout o di un modello assente oggi;
+- **il retry** (`_is_transient`) non lo ritenterà: `[FINESTRA DI CONTESTO SUPERATA]` non è
+  nella lista dei marcatori transitori, quindi si rilancia subito — ritentare un prompt
+  che eccede la finestra non lo farebbe rientrare.
+
+Zero righe cambiate fuori da `core/llm.py` e dai test.
+
+## Verifica
+
+```
+prima:  richiesta a 104%  →  200, status:"success"
+dopo:   richiesta a 104%  →  502, "[FINESTRA DI CONTESTO SUPERATA]: ~17013 token
+                                   contro num_ctx=16384"
+        richiesta normale (top_k=8)  →  200, status:"success" (invariato)
+```
+
+Test: il confine esatto (999 token su una finestra di 1000 → ancora un warning; 1000 →
+`LLMError`), il caso enorme già in test (`test_guardrail_globale_num_ctx_scatta_su_contesto_enorme`,
+riscritto da assert-sul-log a `pytest.raises`), il test di warning esistente spostato al
+90% per lasciare il 100% esclusivamente al nuovo confine.
+
+## Cosa resta aperto
+
+- **Il margine si accorcerà di nuovo.** Ogni futura regola di sistema (`[REGOLA-...]`)
+  aggiunta a `build_ask_prompt` sposta il punto in cui `top_k=20` smette di stare sotto la
+  certezza. Non c'è un test che lo sorvegli nel tempo: solo la misura di oggi.
+- **`top_k=20` resta il tetto**, anche sapendo che tocca il 104% su almeno una domanda
+  reale. Non l'ho abbassato: la correzione di A1 riguardava il *comportamento al
+  superamento* (mai più `success` silenzioso), non la ricalibrazione del tetto — che
+  richiederebbe una nuova misura sistematica come quella originale, non un numero scelto
+  a naso in coda a questa correzione.
+- **Nessun test esercita la soglia di certezza con un LLM reale** (solo con provider
+  finti): il comportamento di Ollama davanti a un prompt che la supera resta osservato,
+  non provato in CI.

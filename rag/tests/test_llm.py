@@ -514,17 +514,39 @@ def test_agenerate_non_ritenta_su_errore_non_transitorio(fake_settings, monkeypa
 def test_ollama_payload_warna_se_il_prompt_sfiora_la_finestra(monkeypatch, caplog):
     # Il default 4096 di Ollama troncava i prompt SILENZIOSAMENTE (canvas mozzato, intervista
     # mai letta): con num_ctx configurato, un prompt vicino alla finestra deve almeno lasciare
-    # una traccia nei log — mai piu' un taglio invisibile.
+    # una traccia nei log — mai piu' un taglio invisibile. Sotto la soglia di CERTEZZA
+    # (>= 100%, vedi il test successivo): qui il rischio esiste ma la generazione puo'
+    # ancora riuscire, quindi resta un warning e non un errore.
     import logging
     monkeypatch.setattr(llm, "OLLAMA_NUM_CTX", 1000)
     monkeypatch.setattr(llm, "OLLAMA_THINK", None)
     with caplog.at_level(logging.WARNING, logger="core.llm"):
-        llm._ollama_payload("m", "x" * 3000)     # ~1000 token stimati = 100% della finestra
+        llm._ollama_payload("m", "x" * 2700)     # ~900 token stimati = 90% della finestra
     assert any("troncamento" in r.message for r in caplog.records)
     caplog.clear()
     with caplog.at_level(logging.WARNING, logger="core.llm"):
         llm._ollama_payload("m", "x" * 600)      # ~200 token: nessun warning
     assert not caplog.records
+
+
+def test_ollama_payload_solleva_se_il_prompt_eccede_certamente_la_finestra(monkeypatch):
+    """A1: sotto l'80% e' un rischio (warning), qui e' una certezza — il prompt da solo
+    raggiunge num_ctx, quindi Ollama tronca dall'alto per costruzione. Prima di questa
+    correzione la richiesta proseguiva comunque e la risposta tornava "success": misurato
+    dal vivo, /ask con top_k=20 (il tetto gia' imposto dal server) produce oggi ~104% della
+    finestra sul corpus reale — non un caso limite raro."""
+    monkeypatch.setattr(llm, "OLLAMA_NUM_CTX", 1000)
+    monkeypatch.setattr(llm, "OLLAMA_THINK", None)
+    with pytest.raises(llm.LLMError, match="FINESTRA DI CONTESTO SUPERATA"):
+        llm._ollama_payload("m", "x" * 3000)     # ~1000 token stimati = 100% della finestra
+
+
+def test_ollama_payload_non_solleva_appena_sotto_la_soglia_di_certezza(monkeypatch):
+    """Confine esatto: appena sotto il 100% resta un warning, non un errore — la stima e'
+    approssimativa e non ogni prompt vicino alla finestra tronca davvero."""
+    monkeypatch.setattr(llm, "OLLAMA_NUM_CTX", 1000)
+    monkeypatch.setattr(llm, "OLLAMA_THINK", None)
+    llm._ollama_payload("m", "x" * 2999)         # 999 token stimati = appena sotto 1000
 
 
 def test_check_drift_esclude_node_modules_e_altre_cartelle_di_build(fake_settings, monkeypatch, tmp_path):

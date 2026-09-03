@@ -49,7 +49,15 @@ def _ollama_payload(model: str, prompt: str) -> dict:
       l'intervista in cima e la risposta usciva mozzata;
     · `options.temperature` (llm_settings.ollama_temperature) — senza, Ollama campiona a 0.8:
       sugli step a formato rigido (spec.md) lo stesso prompt sbagliava a ogni run in un modo
-      diverso, e il rimedio è la temperatura, non altre istruzioni nel prompt."""
+      diverso, e il rimedio è la temperatura, non altre istruzioni nel prompt.
+
+    Solleva LLMError se il prompt, da solo, raggiunge o supera `num_ctx` (A1): a quel
+    punto il troncamento dall'alto non è più un rischio, è certo — Ollama non ha spazio
+    per il prompt intero, figuriamoci per la generazione. Misurato dal vivo il
+    2026-09-03: `/ask` con `top_k=20` (il tetto già imposto dal server, non bypassabile
+    dal client) produce oggi ~17.013 token stimati su num_ctx=16384 — 104%, non un caso
+    limite raro — e senza questo guardrail la risposta tornava comunque `status:
+    "success"`. Sotto la soglia resta un `logger.warning` (rischio, non certezza)."""
     payload = {"model": model, "prompt": prompt, "stream": False}
     if OLLAMA_THINK is not None:
         payload["think"] = OLLAMA_THINK
@@ -61,15 +69,24 @@ def _ollama_payload(model: str, prompt: str) -> dict:
     if options:
         payload["options"] = options
     if OLLAMA_NUM_CTX is not None:
-        # Guardrail contro il troncamento SILENZIOSO: se il prompt si avvicina alla finestra
-        # (stima conservativa ~3 caratteri/token per l'italiano), il taglio non deve più
-        # passare inosservato come col default 4096. Warning e non errore: la stima è
-        # approssimativa e la generazione può comunque riuscire; ma il log dice subito
-        # dove guardare se il risultato esce mozzato o senza l'inizio del prompt.
+        # Guardrail sul troncamento: stima conservativa ~3 caratteri/token per l'italiano.
         est_tokens = len(prompt) // 3
+        if est_tokens >= OLLAMA_NUM_CTX:
+            # CERTEZZA, non rischio: il prompt da solo eccede la finestra. Un warning qui
+            # sarebbe la stessa cosa del difetto che questo guardrail esiste per correggere
+            # — un troncamento (e una risposta status:"success") che nessuno vede accadere.
+            raise LLMError(
+                f"[FINESTRA DI CONTESTO SUPERATA]: prompt stimato in ~{est_tokens} token contro "
+                f"num_ctx={OLLAMA_NUM_CTX}. Ollama troncherebbe il prompt dall'alto in modo "
+                "silenzioso (perdendo le istruzioni di sistema e le fonti più rilevanti): "
+                "riduci top_k o i chunk del contesto governato, oppure alza "
+                "llm_settings.ollama_num_ctx in rag_config.yaml."
+            )
         if est_tokens > OLLAMA_NUM_CTX * 0.8:
+            # Sotto la soglia di certezza, ma vicino: la stima è approssimativa e la
+            # generazione può comunque riuscire — un log, non un blocco.
             logger.warning(
-                "Prompt vicino o oltre la finestra di contesto di Ollama: ~%d token stimati "
+                "Prompt vicino alla finestra di contesto di Ollama: ~%d token stimati "
                 "su num_ctx=%d. Rischio troncamento silenzioso (prompt tagliato dall'alto, "
                 "risposta mozzata): alza llm_settings.ollama_num_ctx in rag_config.yaml o "
                 "riduci i chunk del contesto governato.",
