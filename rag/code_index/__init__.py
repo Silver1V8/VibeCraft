@@ -4,12 +4,15 @@ Estrae i simboli (classi, funzioni, metodi, endpoint, componenti) dai file sotto
 code/ e li collega ai documenti normativi con archi IMPLEMENTS calcolati per
 similarità semantica, riusando lo stesso modello bge-m3 già caricato per l'indice.
 
-Parser per linguaggio: stdlib `ast` per Python; tree-sitter (code_index.ts.py)
-per TS/TSX/JS/JSX/Svelte, con le vecchie euristiche regex mantenute come fallback
-d'emergenza dietro il flag `code_parsers.<lang>` in rag_config.yaml. HTML/CSS
-restano nodi-file senza estrazione di simboli. Copre i linguaggi effettivamente
-presenti nelle sottocartelle di code/ (backend, frontend, logicAgent): non esiste
-(né è mai esistito) un parser Java/Quarkus/Kogito in questo repo.
+Parser per linguaggio: stdlib `ast` per Python; tree-sitter (code_index.ts.py) —
+unica implementazione — per TS/TSX/JS/JSX/Svelte. Le vecchie euristiche regex
+(`_js_symbols`) sono state rimosse (A12, 2026-09-03): la migrazione tree-sitter,
+completata il 2026-07-12, è rimasta il default in produzione per 53 giorni senza
+incidenti, e mantenere un secondo parser mai più esercitato non aveva più
+giustificazione. HTML/CSS restano nodi-file senza estrazione di simboli. Copre
+i linguaggi effettivamente presenti nelle sottocartelle di code/ (backend,
+frontend, logicAgent): non esiste (né è mai esistito) un parser
+Java/Quarkus/Kogito in questo repo.
 """
 
 import ast
@@ -80,13 +83,6 @@ def _is_ci_file(fname: str) -> bool:
 
 _SNIPPET_LIMIT = 1500
 
-# Pattern regex per i linguaggi in stile JS/TS (best-effort, non un parser completo)
-_JS_PATTERNS = [
-    ("function", re.compile(r"(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)")),
-    ("class", re.compile(r"(?:export\s+)?(?:default\s+)?class\s+([A-Za-z_$][\w$]*)")),
-    ("function", re.compile(r"(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>")),
-]
-
 _ENTITY_TOKEN_RE = re.compile(r"[A-Z][A-Z0-9_\-]{2,}")
 
 
@@ -123,59 +119,6 @@ def _py_symbols(text: str) -> list[tuple[str, str, str]]:
                     kind = "endpoint" if _is_http_endpoint(sub) else "method"
                     out.append((kind, f"{node.name}.{sub.name}", _snippet(text, sub)))
     return out
-
-
-def _context_around(text: str, pos: int, span: int = 400) -> str:
-    start = max(0, pos - 40)
-    return text[start:start + span]
-
-
-def _js_symbols(text: str, stem: str, suffix: str) -> list[tuple[str, str, str]]:
-    """Estrae simboli JS/TS/Svelte con euristiche regex."""
-    out: list[tuple[str, str, str]] = []
-    seen: set[str] = set()
-    for kind, pattern in _JS_PATTERNS:
-        for m in pattern.finditer(text):
-            name = m.group(1)
-            if name in seen:
-                continue
-            seen.add(name)
-            out.append((kind, name, _context_around(text, m.start())))
-    if suffix == ".svelte":
-        out.append(("component", stem, text[:_SNIPPET_LIMIT]))
-    return out
-
-
-# Linguaggio di configurazione (chiave di `code_parsers` in rag_config.yaml) per suffisso.
-_PARSER_LANG = {
-    ".ts": "typescript", ".tsx": "typescript",
-    ".js": "javascript", ".jsx": "javascript",
-    ".svelte": "svelte",
-    ".java": "java",
-    ".cs": "csharp",
-    ".cshtml": "razor", ".razor": "razor",
-    ".sql": "sql", ".pks": "sql", ".pkb": "sql",
-    ".sh": "shell", ".ps1": "shell", ".psm1": "shell",
-}
-
-# Default per linguaggio quando il flag è assente dal config: tree-sitter per i
-# linguaggi migrati; il parser regex resta nel codice come fallback d'emergenza
-# dietro flag (`code_parsers.<lang>: regex`).
-# TODO(2026-07-12): rimuovere _js_symbols e i default "regex" alla prossima release,
-# quando la migrazione tree-sitter sarà consolidata in produzione.
-_PARSER_DEFAULTS = {"typescript": "treesitter", "javascript": "treesitter", "svelte": "treesitter",
-                    "java": "treesitter", "csharp": "treesitter", "razor": "hybrid",
-                    "sql": "hybrid", "shell": "treesitter"}
-
-
-def _parser_impl(lang: str) -> str:
-    """Implementazione del parser per `lang`: "treesitter" (default per i linguaggi
-    migrati) o "regex" (storica), scelta via `code_parsers.<lang>` in rag_config.yaml."""
-    try:
-        from core.config import CODE_PARSERS
-        return CODE_PARSERS.get(lang, _PARSER_DEFAULTS.get(lang, "regex"))
-    except Exception:
-        return _PARSER_DEFAULTS.get(lang, "regex")
 
 
 def _extract(suffix: str, text: str, stem: str, rel: str = "",
@@ -223,8 +166,8 @@ def _extract(suffix: str, text: str, stem: str, rel: str = "",
     # .NET (runtime-agnostico: identico su .NET Framework e Core/5+).
     # Razor (.cshtml/.razor): scanner ibrido dedicato (regex per direttive/markup +
     # parser tree-sitter C# per i blocchi @code) — la grammatica tree-sitter Razor è
-    # immatura. TODO(2026-07-12) fuori scope: VB.NET (.vbhtml), analisi dell'HTML/JS
-    # interno alle view, CSS isolation (.razor.css).
+    # immatura. Fuori scope (permanente, non un piano): VB.NET (.vbhtml), analisi
+    # dell'HTML/JS interno alle view, CSS isolation (.razor.css).
     if suffix in (".cshtml", ".razor"):
         from code_index.razor import razor_symbols
         return razor_symbols(text, stem, suffix, rel)
@@ -277,17 +220,14 @@ def _extract(suffix: str, text: str, stem: str, rel: str = "",
             return cfg.wsdl_symbols(text, stem, suffix, rel)
         if fname.endswith(".xsd"):
             return cfg.xsd_symbols(text, stem, suffix, rel)
-    lang = _PARSER_LANG.get(suffix)
-    if lang is not None and _parser_impl(lang) == "treesitter":
+    if suffix in (".js", ".ts", ".tsx", ".jsx", ".svelte"):
+        # Unica implementazione (tree-sitter, nessun fallback regex — A12: rimosso
+        # il 2026-09-03, 53 giorni senza incidenti dalla migrazione del 2026-07-12).
         # Svelte: la grammatica tree-sitter parsa il solo markup, ma il contenuto
-        # degli <script> viene ri-parsato con la grammatica TypeScript, quindi il
-        # test di equivalenza non mostra perdite rispetto al regex e la migrazione
-        # è attiva anche qui (fallback: code_parsers.svelte: "regex").
+        # degli <script> viene ri-parsato con la grammatica TypeScript.
         from code_index.ts import svelte_symbols, ts_symbols
         fn = svelte_symbols if suffix == ".svelte" else ts_symbols
         return fn(text, stem, suffix)
-    if suffix in (".js", ".ts", ".tsx", ".jsx", ".svelte"):
-        return _js_symbols(text, stem, suffix)
     if suffix == ".html":
         return [("template", stem, text[:_SNIPPET_LIMIT])]
     if suffix == ".css":

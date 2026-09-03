@@ -319,8 +319,10 @@ def bpmn_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
 
 
 def dmn_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
-    """Estrae da un file DMN i nodi decisione (id/nome). TODO(2026-07-12): link
-    fini decisione->processo/classi (per ora solo nodi)."""
+    """Estrae da un file DMN i nodi decisione (id/nome). LIMITE NOTO, non pianificato
+    (A12): solo nodi, nessun link decisione->processo/classi — richiederebbe
+    incrociare gli id DMN con le callActivity BPMN che li invocano, un secondo pass
+    fuori dallo scope attuale di questo parser."""
     root = _parse_xml(text, "dmn")
     if root is None:
         return []

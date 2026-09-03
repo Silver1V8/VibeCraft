@@ -487,13 +487,13 @@ intake:
     max_output_ratio_dense: 4.0
     dense_line_chars: 40
 
-# Implementazione del parser simboli per linguaggio (code_index).
-# Valori: "treesitter" (default, migrazione completata) | "regex" (fallback
-# d'emergenza, storica). Python usa sempre stdlib ast e non ha flag.
+# Implementazione del parser simboli per linguaggio (code_index). Python usa sempre
+# stdlib ast e non ha flag. TypeScript/JavaScript/Svelte non hanno più un flag qui:
+# erano l'unico linguaggio con un secondo parser (regex) dietro `code_parsers.<lang>`,
+# rimosso il 2026-09-03 (A12) dopo 53 giorni senza incidenti dalla migrazione a
+# tree-sitter (2026-07-12) — mantenere una chiave che sceglie fra due implementazioni
+# quando ne esiste una sola non è configurazione, è un'affermazione falsa.
 code_parsers:
-  typescript: "treesitter"
-  javascript: "treesitter"
-  svelte: "treesitter"
   # Java: unica implementazione (tree-sitter, nessun fallback regex). Copre anche
   # gli artefatti di progetto: pom.xml / build.gradle (dipendenze -> DEPENDS_ON)
   # e Kogito .bpmn/.bpmn2/.dmn (processi/decisioni). Estensioni registrate nel

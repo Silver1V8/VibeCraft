@@ -1,10 +1,11 @@
 """Parser tree-sitter per i linguaggi frontend (TypeScript/TSX, JavaScript/JSX,
-Svelte) — migrazione dal parser regex di code_index.
+Svelte) — unica implementazione: il vecchio parser regex (`code_index._js_symbols`)
+è stato rimosso (A12, 2026-09-03) dopo 53 giorni senza incidenti dalla migrazione.
 
-Espone la stessa interfaccia di code_index._js_symbols — lista di tuple
-(kind, name, snippet) — selezionabile per linguaggio via `code_parsers.<lang>`
-in rag_config.yaml. Python resta su stdlib `ast` (già un parser vero), HTML/CSS
-restano nodi-file senza simboli.
+Espone la stessa forma di ritorno di quel parser — lista di tuple (kind, name,
+snippet) — invocata direttamente da `code_index._extract` per i suffissi
+.ts/.tsx/.js/.jsx/.svelte. Python resta su stdlib `ast` (già un parser vero),
+HTML/CSS restano nodi-file senza simboli.
 
 Svelte: la grammatica tree-sitter-svelte parsa solo il markup e lascia il
 contenuto di <script> come `raw_text`; qui il blocco script viene ri-parsato

@@ -17,7 +17,7 @@ diventano nomi di simboli reali (archi DEPENDS_ON via link_symbols), quelle
 non risolte diventano segnalazioni di link rotto nel report di governance —
 mai nodi fantasma.
 
-TODO(2026-07-12) fuori scope: VB.NET views (.vbhtml), analisi dell'HTML/JS
+Fuori scope (permanente, non un piano): VB.NET views (.vbhtml), analisi dell'HTML/JS
 interno alle view, CSS isolation (.razor.css).
 """
 

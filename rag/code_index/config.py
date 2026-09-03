@@ -372,8 +372,10 @@ def packagejson_symbols(text: str, stem: str, suffix: str, rel: str = "") -> lis
     for dep_name, spec in all_deps.items():
         if isinstance(spec, str) and spec.startswith(("workspace:", "file:", "link:")):
             deps.append(dep_name)  # risolve sul nome del package target
-    # TODO(2026-07-12): i glob di "workspaces" (es. packages/*) non sono espansi;
-    # i legami passano dalle dipendenze workspace:/file:/link: dichiarate.
+    # LIMITE NOTO, non pianificato (A12): i glob di "workspaces" (es. packages/*) non
+    # sono espansi; i legami passano dalle dipendenze workspace:/file:/link: dichiarate.
+    # Espanderli richiederebbe risolvere i glob sul filesystem del progetto ospitante
+    # (fuori dalla portata di un parser che legge solo il testo del file).
     return [("project", name, text[:_SNIPPET_LIMIT], {"attrs": attrs, "deps": deps})]
 
 

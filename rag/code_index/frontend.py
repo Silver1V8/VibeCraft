@@ -18,8 +18,8 @@ Angular (estrazione decorator-driven, regex su segmenti di classe):
 file), @Injectable -> kind service, DI via costruttore, @NgModule
 (declarations/imports/providers), routing (component:/loadChildren/
 loadComponent -> routable + moduli lazy), HttpClient con URL letterale ->
-endpoint-esterno (assoluti) o metadato http_calls (relativi, TODO match con
-gli endpoint backend del grafo).
+endpoint-esterno (assoluti) o metadato http_calls (relativi, non ancora
+abbinati agli endpoint backend del grafo — limite noto, vedi A12).
 
 I riferimenti che richiedono la vista d'insieme (templateUrl, selector nei
 template, route verso componenti di altri file) passano da chiavi temporanee
@@ -222,8 +222,10 @@ def angular_symbols(text: str, stem: str, suffix: str, rel: str = "") -> list[tu
                 deps.append(host.group(1).lower())
             else:
                 attrs.setdefault("http_calls", []).append(url)
-                # TODO(2026-07-12): match delle URL relative con gli endpoint
-                # backend noti del grafo (ponte frontend<->backend completo)
+                # LIMITE NOTO, non pianificato (A12): l'URL relativa non è abbinata agli
+                # endpoint backend noti del grafo (ponte frontend<->backend completo).
+                # Servirebbe un secondo pass dopo la scansione di TUTTO code/ (come
+                # resolve_links per Razor), non implementato per questo linguaggio.
         snippet = text[max(0, m.start() - 40):m.start() + _CONTEXT_SPAN]
         out.append((_NG_KIND[deco], cls, snippet,
                     {"deps": sorted(set(deps)), "attrs": attrs, "links": links}))
