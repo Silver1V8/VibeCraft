@@ -24,6 +24,8 @@ from pathlib import Path
 import httpx2
 import yaml
 
+from core.config import EVAL_GATE_K, EVAL_GATE_MIN_RECALL
+from core.eval_history import GATE_RECALL_KEY
 from core.eval_metrics import DEFAULT_KS, evaluate
 
 for _s in (sys.stdout, sys.stderr):  # emoji/§/→ safe su console Windows (cp1252)
@@ -225,8 +227,15 @@ def run_eval(cases: list[dict], retrieve_fn, ks: list[int], assert_min: float,
     """Cuore della modalità guardrail, separato da HTTP/argparse così i test lo esercitano
     con un retriever fake: valuta i casi, stampa il report, lo salva SEMPRE in
     eval/results/ (anche sotto soglia, se save=True) e restituisce l'exit code:
-    0 se recall@<max ks> medio >= assert_min, altrimenti 1."""
-    ks = sorted(set(ks))
+    0 se la recall alla k DELL'EVAL-GATE è >= assert_min, altrimenti 1.
+
+    ERA `recall@<max ks>` (A2b), e con i `--k` di default il massimo è 10: una metrica satura
+    a 1.000, che il guardrail non poteva far fallire. Il README insegnava `--k 1 2` proprio
+    per abbassare quel massimo, ma i due script notturni non lo passano — e sono l'unico posto
+    dove questo guardrail gira da solo. Ora la chiave è quella del gate ovunque, e la k del
+    gate viene aggiunta ai `ks` misurati: chiedere colonne diverse cambia cosa si LEGGE, mai
+    su cosa si fallisce."""
+    ks = sorted(set(ks) | {EVAL_GATE_K})
     report = evaluate(cases, retrieve_fn, ks=ks)
 
     print_report(report, ks)
@@ -248,10 +257,10 @@ def run_eval(cases: list[dict], retrieve_fn, ks: list[int], assert_min: float,
         except Exception as exc:  # lo storico è telemetria: non deve mai far fallire l'eval
             print(f"(storico non aggiornato: {exc})")
 
-    top_recall = report["aggregate"][f"recall@{max(ks)}"]
-    ok = top_recall >= assert_min
+    gate_recall = report["aggregate"][GATE_RECALL_KEY]
+    ok = gate_recall >= assert_min
     print(("✅ PASS" if ok else "❌ FAIL")
-          + f"  (recall@{max(ks)} = {top_recall:.3f}, soglia --assert-min = {assert_min})")
+          + f"  ({GATE_RECALL_KEY} = {gate_recall:.3f}, soglia --assert-min = {assert_min})")
     return 0 if ok else 1
 
 
@@ -262,9 +271,10 @@ def main() -> int:
                     help=f"soglie di recall (default: {' '.join(map(str, DEFAULT_KS))} — "
                          "k=1 e k=2 servono perché a k=5/10 questo corpus satura)")
     ap.add_argument("--assert-min", type=float, default=None,
-                    help="guardrail: exit 1 se il recall@<max k> medio scende sotto questa soglia "
-                         "(il report viene comunque scritto in eval/results/)")
-    ap.add_argument("--threshold", type=float, default=0.7,
+                    help=f"guardrail: exit 1 se {GATE_RECALL_KEY} medio scende sotto questa soglia "
+                         f"(default: {EVAL_GATE_MIN_RECALL}, la soglia dell'eval-gate; il report "
+                         "viene comunque scritto in eval/results/)")
+    ap.add_argument("--threshold", type=float, default=None,
                     help="(legacy) come --assert-min; usato solo se --assert-min è assente")
     ap.add_argument("--no-save", action="store_true", help="non salvare il JSON in eval/results/")
     ap.add_argument("--review-candidates", action="store_true",
@@ -290,7 +300,10 @@ def main() -> int:
             print(f"✅ {len(promoted)} candidati spostati in {GOLDEN.name}. Rilancia l'eval per misurarli.")
         return 0
 
-    assert_min = a.assert_min if a.assert_min is not None else a.threshold
+    # Default = la soglia dell'eval-gate, non piu' un 0.7 scritto a mano (A2b): due numeri
+    # separati per la stessa decisione divergono, ed erano gia' divergenti — gli script
+    # notturni chiedevano 0.90 mentre il gate stava a 0.75.
+    assert_min = next(v for v in (a.assert_min, a.threshold, EVAL_GATE_MIN_RECALL) if v is not None)
     cases = load_cases()
 
     try:
@@ -304,15 +317,21 @@ def main() -> int:
     if a.check_regression:
         # Check notturno (Epic 5.2): confronta l'ultima recall con la media mobile dello storico
         # e sotto la soglia --assert-min; su regressione scrive un alert critico (alerts.jsonl).
+        #
+        # LA CHIAVE È QUELLA SU CUI IL GUARDRAIL HA APPENA ASSERITO, cioè quella del gate, e
+        # non un "recall@10" scritto a mano (A2b). Erano due cose diverse, e la differenza
+        # cadeva tutta qui: gli script notturni girano senza `--k`, quindi confrontavano
+        # recall@10 — satura a 1.000 — contro un floor di 0.90. Né il floor né la media mobile
+        # potevano muoversi: un check notturno che, per costruzione, non poteva rilevare nulla.
         from core.eval_history import detect_regression
         from core.eval_gate import record_alert
-        reg = detect_regression("recall@10", floor=assert_min)
+        reg = detect_regression(GATE_RECALL_KEY, floor=assert_min)
         if reg is not None:
-            msg = (f"Regressione di qualità: recall@10={reg['last']} "
+            msg = (f"Regressione di qualità: {GATE_RECALL_KEY}={reg['last']} "
                    f"(media mobile {reg['moving_avg']} su {reg['window']} run"
                    + (f", soglia {reg['floor']}" if reg['floor'] is not None else "") + ").")
             record_alert("critical", msg, source_check="eval.run --check-regression", **{
-                "recall@10": reg["last"], "moving_avg": reg["moving_avg"]})
+                GATE_RECALL_KEY: reg["last"], "moving_avg": reg["moving_avg"]})
             print(f"⚠️  {msg} Alert scritto.")
         else:
             print("✅ Nessuna regressione di qualità rilevata rispetto allo storico.")

@@ -159,8 +159,10 @@ def build_health(*, snapshot, manager, qdrant, status_fn=index_status,
         "reindex": reindex_report,
         "dependencies": {"qdrant": qdrant_ok, "ollama": ollama_ok},
         "last_alert": alert,
-        # Trend di qualità del retrieval (Epic 5): ultima recall@10 registrata + direzione
+        # Trend di qualità del retrieval (Epic 5): ultima recall registrata + direzione
         # rispetto alla media mobile. Se è "down" la recall sta calando: segnale da indagare.
+        # La metrica è quella del gate (`key` nel payload, oggi recall@2), non un k fisso: vedi
+        # il commento su GATE_RECALL_KEY in core/eval_history.py.
         "eval": eval_health(),
     }
 

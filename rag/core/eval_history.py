@@ -11,6 +11,8 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
+from core.config import EVAL_GATE_K, EVAL_GATE_MIN_RECALL
+
 logger = logging.getLogger(__name__)
 
 RAG_DIR = Path(__file__).resolve().parent.parent
@@ -18,6 +20,22 @@ RESULTS_DIR = RAG_DIR / "eval" / "results"
 HISTORY_PATH = RESULTS_DIR / "history.jsonl"
 
 _TREND_EPS = 0.005  # variazione minima di recall per non essere "flat" (mezzo punto percentuale)
+
+# LA CHIAVE SEGUE IL GATE, e non è una preferenza di stile (A2b).
+#
+# Qui il default era `recall@10` scritto a mano, mentre `eval_gate.k` è migrata 10 → 5 → 2
+# perché a ogni passo l'alert di saturazione del progetto stesso diceva che quel k aveva
+# smesso di discriminare. Il cancello si è spostato, l'osservabilità no: il rilevatore di
+# regressione e il numero in evidenza sulla dashboard sono rimasti su una metrica satura a
+# 1.000, cioè su un valore che non può scendere e quindi non può segnalare nulla. La
+# promozione era difesa, la deriva lenta — che è esattamente ciò per cui lo storico esiste —
+# no.
+#
+# Derivarla da EVAL_GATE_K significa che spostare il gate sposta anche la sorveglianza, senza
+# che nessuno debba ricordarsene. Il prezzo è che la serie si accorcia quando il gate cambia
+# k (le righe storiche portano la chiave del k di allora): sono punti in meno, ma di una
+# misura che discrimina — e 79 punti di una metrica satura valgono meno di 22 punti veri.
+GATE_RECALL_KEY = f"recall@{EVAL_GATE_K}"
 
 
 def _git_commit() -> str | None:
@@ -70,13 +88,13 @@ def _series(key: str, path: Path | None = None) -> list[float]:
             if isinstance(e.get("recall"), dict) and key in e["recall"]]
 
 
-def latest_recall(key: str = "recall@10", path: Path | None = None) -> float | None:
+def latest_recall(key: str = GATE_RECALL_KEY, path: Path | None = None) -> float | None:
     """Ultimo valore registrato di `key`, o None se lo storico non ne ha."""
     series = _series(key, path=path)
     return series[-1] if series else None
 
 
-def compute_trend(key: str = "recall@10", window: int = 5, path: Path | None = None) -> str:
+def compute_trend(key: str = GATE_RECALL_KEY, window: int = 5, path: Path | None = None) -> str:
     """'up' / 'flat' / 'down' confrontando l'ultimo valore con la media mobile dei `window`
     precedenti. 'flat' se non ci sono abbastanza dati o la variazione è entro _TREND_EPS."""
     series = _series(key, path=path)
@@ -92,7 +110,7 @@ def compute_trend(key: str = "recall@10", window: int = 5, path: Path | None = N
     return "flat"
 
 
-def detect_regression(key: str = "recall@10", *, window: int = 5, floor: float | None = None,
+def detect_regression(key: str = GATE_RECALL_KEY, *, window: int = 5, floor: float | None = None,
                       min_drop: float = 0.03, path: Path | None = None) -> dict | None:
     """Rileva una regressione di qualità: ritorna un riassunto se l'ultima recall è sotto `floor`
     OPPURE è calata di più di `min_drop` rispetto alla media mobile dei `window` valori precedenti;
@@ -113,8 +131,18 @@ def detect_regression(key: str = "recall@10", *, window: int = 5, floor: float |
             "sustained_drop": sustained_drop, "min_drop": min_drop}
 
 
-def eval_health(key: str = "recall@10", path: Path | None = None) -> dict:
-    """Riassunto per GET /api/health: ultima recall registrata e trend vs media mobile."""
-    return {"last_recall_at_10": latest_recall(key, path=path),
+def eval_health(key: str = GATE_RECALL_KEY, path: Path | None = None) -> dict:
+    """Riassunto per GET /api/health: ultima recall registrata e trend vs media mobile.
+
+    `key` e `min_recall` viaggiano nel payload perché chi legge deve sapere QUALE metrica sta
+    guardando e contro quale soglia: il campo si chiamava `last_recall_at_10` con il 10 nel
+    nome, e la dashboard coloriva il numero contro uno 0.9 scritto a mano mentre il gate era
+    già a 0.75. Un numero senza la sua chiave e la sua soglia non è osservabilità, è una cifra.
+
+    `history_points` conta i punti DELLA SERIE, non le righe del file: è su quelli che il
+    trend è calcolato, e le righe scritte quando il gate stava a un altro k non ne fanno parte."""
+    return {"key": key,
+            "last_recall": latest_recall(key, path=path),
             "trend": compute_trend(key, path=path),
-            "history_points": len(load_history(path=path))}
+            "history_points": len(_series(key, path=path)),
+            "min_recall": EVAL_GATE_MIN_RECALL}

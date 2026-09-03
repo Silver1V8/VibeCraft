@@ -389,15 +389,16 @@ del documento nel YAML.
 La qualità del retrieval si misura sul golden-set
 ([eval/golden_set.yaml](eval/golden_set.yaml)) con [eval/run.py](eval/run.py),
 che interroga il server reale (`GET /api/retrieve`, così riusa il modello già
-caricato) e salva ogni run in `eval/results/`. La modalità guardrail è
-`--assert-min`: exit code 1 se il **recall al k più alto** (di default @10)
-scende sotto la soglia (il report viene comunque scritto), 0 altrimenti.
+caricato) e salva ogni run in `eval/results/`. La modalità guardrail dà exit code 1 se il
+recall **alla `k` dell'eval-gate** scende sotto la soglia dell'eval-gate — oggi
+`recall@2 < 0.75` — con il report scritto comunque; `--assert-min` sostituisce quella
+soglia per una corsa singola.
 
 **Comando consigliato prima di ogni merge che tocca chunking, ranking o pesi
 di autorità** (server su):
 
 ```bash
-uv run python -m eval.run --k 1 2 --assert-min 0.75
+uv run python -m eval.run
 ```
 
 Ultima misura (2026-08-25, 59 casi, corpus 26 documenti / 181 chunk, baseline
@@ -405,13 +406,17 @@ ripristinato, `safeguards_security.md` istanziato sul dominio v2.2.0 e scheda
 `BUDGET_ANNUO` aggiunta al glossario):
 `recall@1 0.576 · @2 0.797 · @5 0.983 · @10 1.000`.
 
-**Il guardrail asserisce sul k più alto passato, e per questo qui i k sono `1 2` e
-non il default.** `recall@10` vale 1.000 su tutti e 59 i casi: è **satura**, e un
-`--assert-min` su una metrica satura non è severo, è cieco — lo supera qualunque
-regressione che non faccia uscire una fonte dai primi dieci. Fermando i k a 2
-l'asserzione cade su `recall@2 = 0.797`, che discrimina, con la soglia 0.75 poco
-sotto. Stessa scelta di `eval_gate.k` (vedi il blocco `eval_gate` in
-[rag_config.yaml](rag_config.yaml)).
+**Il guardrail asserisce sulla `k` dell'eval-gate, e con la sua soglia** — entrambe lette
+da `eval_gate` in [rag_config.yaml](rag_config.yaml), oggi `recall@2 ≥ 0.75`. `--k`
+sceglie quali colonne *leggere*, mai su cosa si fallisce, e la `k` del gate viene misurata
+comunque anche se non la chiedi. `--assert-min` resta per abbassare o alzare la soglia in
+una corsa singola.
+
+**Prima asseriva sul k più alto passato** (A2b), e i due script notturni non passano `--k`:
+il loro confronto cadeva su `recall@10`, **satura a 1.000**, contro un `--assert-min 0.90`
+scritto a mano. Un `--assert-min` su una metrica satura non è severo, è cieco — lo supera
+qualunque regressione che non faccia uscire una fonte dai primi dieci — e quello era un
+check notturno che, per costruzione, non poteva fallire.
 
 `recall@5` era saturata a 1.000 dopo l'istanziazione ed è tornata a 0.983 quando il
 corpus si è arricchito ancora: **il gate resta comunque a k=2**. Un gate che cambia
@@ -520,7 +525,8 @@ metriche vere restano i comandi qui sopra.
    mostra i candidati; `--promote 0 2` SPOSTA quelli scelti nel
    `golden_set.yaml` (append testuale: i commenti del file sopravvivono).
 4. **Soglia** — con il golden-set aggiornato, rilancia l'eval e rifissa
-   `--assert-min` poco sotto il nuovo valore misurato.
+   `eval_gate.min_recall` poco sotto il nuovo valore misurato. È lì che vive la
+   soglia, e da lì la leggono gate, guardrail, check notturno e dashboard.
 
 ## CI
 
@@ -552,9 +558,9 @@ l'indicizzatore `.gitlab-ci.yml` in [code_index/ci.py](code_index/ci.py)) presup
 GitLab come piattaforma — se il remote cambia, la config della pipeline va allineata di
 conseguenza.
 
-**Eval NON è nella pipeline (per ora):** `uv run python -m eval.run --assert-min
-0.90` (vedi sopra) richiede il server acceso coi modelli caricati — non lo può
-lanciare una pipeline che non prevede servizi. Resta un comando manuale
+**Eval NON è nella pipeline (per ora):** `uv run python -m eval.run` (vedi sopra)
+richiede il server acceso coi modelli caricati — non lo può lanciare una pipeline
+che non prevede servizi. Resta un comando manuale
 pre-merge per chi tocca chunking, ranking o pesi di autorità.
 
 **Regola di promozione a stadio bloccante:** l'eval diventa uno stadio CI
@@ -670,7 +676,7 @@ k che discrimina". Non è teorico: sul golden-set di 49 casi, misurato a luglio
 sul corpus di allora (11 documenti), il recall@10 era saturo a 1.000 su tutta la
 griglia di calibrazione. Oggi è 0.983 e discrimina, per due ragioni che vale la
 pena tenere distinte: il corpus è cresciuto a 26 documenti (e un caso classico non
-arriva più in top-10, vedi sotto) e i 10 casi avversariali abbassano il recall@1. Il server rileva ogni
+arriva più in top-10, vedi sotto) e i casi avversariali abbassano il recall@1. Il server rileva ogni
 spostamento di CURRENT (`maybe_reload_graph`) e ricarica lo snapshot alla prima
 richiesta.
 

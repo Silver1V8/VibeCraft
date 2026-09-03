@@ -62,6 +62,27 @@ def test_assert_min_passes_when_recall_above_threshold(tmp_path, monkeypatch):
     assert code == 0
 
 
+def test_il_guardrail_fallisce_sulla_k_del_gate_anche_se_non_richiesta(tmp_path, monkeypatch):
+    """A2b: il guardrail asseriva su recall@max(ks), e senza `--k` il massimo e' 10 — satura
+    a 1.000, quindi non poteva fallire; e' il caso dei due script notturni. Qui il retriever
+    mette l'atteso in QUINTA posizione: recall@10 vale 1.0 e recall@2 vale 0.0. Il guardrail
+    deve fallire, e la k del gate deve essere misurata anche se il chiamante ha chiesto altro."""
+    monkeypatch.setattr(eval_run, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(eval_run, "EVAL_GATE_K", 2)
+    monkeypatch.setattr(eval_run, "GATE_RECALL_KEY", "recall@2")
+
+    def quinto(query, k):
+        rumore = [{"chunk_id": f"n{i}.md#00", "doc_id": f"n{i}.md", "section": ""} for i in range(4)]
+        return (rumore + [{"chunk_id": "a.md#00", "doc_id": "a.md", "section": ""}])[:k]
+
+    cases = [{"q": "q1", "expected": [{"doc": "a.md"}]}]
+    code = eval_run.run_eval(cases, quinto, ks=[10], assert_min=0.9)
+    assert code == 1
+    report = json.loads(next(tmp_path.glob("eval_*.json")).read_text(encoding="utf-8"))
+    assert report["aggregate"]["recall@10"] == 1.0    # la vecchia chiave sarebbe passata
+    assert report["aggregate"]["recall@2"] == 0.0     # misurata pur non essendo in ks
+
+
 def test_assert_min_fails_below_threshold_but_still_writes_report(tmp_path, monkeypatch):
     monkeypatch.setattr(eval_run, "RESULTS_DIR", tmp_path)
     cases = [{"q": "q1", "expected": [{"doc": "a.md"}]}]

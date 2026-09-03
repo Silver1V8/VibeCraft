@@ -514,15 +514,18 @@ graph TD
           const h = await res.json();
           const snap = h.snapshot || {}, ev = h.eval || {}, dep = h.dependencies || {};
           const nf = n => (typeof n === 'number' ? n.toLocaleString('it-IT') : '—');
-          const recall = typeof ev.last_recall_at_10 === 'number'
-            ? (ev.last_recall_at_10 * 100).toFixed(1) + '%' : '—';
+          const recall = typeof ev.last_recall === 'number'
+            ? (ev.last_recall * 100).toFixed(1) + '%' : '—';
           const trend = { up: '↑ in salita', down: '↓ in discesa', flat: '→ stabile' }[ev.trend] || ev.trend || '';
-          // Il tono segue la soglia dell'eval-gate (0.9), non un giudizio arbitrario.
-          const tonoRecall = typeof ev.last_recall_at_10 !== 'number' ? 'neutro'
-                           : ev.last_recall_at_10 >= 0.9 ? 'ok' : 'bad';
+          // Il tono segue la soglia dell'eval-gate, che ora arriva NEL PAYLOAD (A2b): era
+          // scritta a mano come 0.9 mentre il gate stava gia' a 0.75, quindi la dashboard
+          // poteva colorare di rosso una recall che il gate accettava senza riserve.
+          const soglia = typeof ev.min_recall === 'number' ? ev.min_recall : 0.9;
+          const tonoRecall = typeof ev.last_recall !== 'number' ? 'neutro'
+                           : ev.last_recall >= soglia ? 'ok' : 'bad';
 
           grid.innerHTML = [
-            kpiCard('recall@10', recall, trend + ' · ' + (ev.history_points ?? 0) + ' misurazioni', tonoRecall, '/eval'),
+            kpiCard(ev.key || 'recall', recall, trend + ' · ' + (ev.history_points ?? 0) + ' misurazioni', tonoRecall, '/eval'),
             kpiCard('Nodi nel grafo', nf(snap.graph_nodes), nf(snap.graph_edges) + ' archi', 'neutro', '/analysis'),
             kpiCard('Sezioni indicizzate', nf(snap.chunks), 'chunk con vettori ColBERT', 'neutro', '/'),
             kpiCard('Versione CURRENT', snap.version || '—', (h.manifest && h.manifest.stale) ? 'manifest da aggiornare' : 'manifest allineato',

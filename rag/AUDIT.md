@@ -62,7 +62,7 @@ I tre rischi che lo rendono "non completo":
 |---|---|---|---|---|---|---|
 | A1 | LLM / contesto | FRAGILE | Serie misurata (stessa domanda, stima 3 char/token del guard): `top_k=10` → 7.775 tok · `=15` → 10.755 · `=20` → 13.275 (**soglia di warning superata**, 81% di `num_ctx=16384`) · `=50` → 30.939 tok, **oltre il doppio**, con log `core.llm` e risposta HTTP comunque `status:"success"`. Guard a `core/llm.py:66-76` (solo `logger.warning`). Tetti: `ASK_MAX_CHARS_PER_CHUNK=3000` (`api/routes_retrieval.py:49`) × `top_k≤50` (`api/models.py:9`). **Unica barriera reale fra i due regimi: l'attributo HTML `max="20"` a `templates/dashboard.unified.html:385`** — validazione lato client | Al massimo che la console stessa offre il margine residuo è del 19%; oltre — bypassando un attributo HTML, o semplicemente con sezioni più piene — il prompt è tagliato dall'alto e la risposta resta `success` | S | Il limite vive nel server, non nell'HTML; una richiesta che eccede la finestra non può concludersi con `status:"success"` silenzioso |
 | A2 | ~~Eval / gate~~ | ~~FRAGILE~~ → **RITIRATO** | **Riscontro sbagliato.** Avevo letto i *default* del codice (`_eval_gate_cfg.get("k", 10)`, `core/config.py:346-347`) scambiandoli per la configurazione attiva. `rag_config.yaml` imposta `k: 2`, `min_recall: 0.75`, `blocking: true`, e documenta una migrazione deliberata k=10 → k=5 → k=2, ogni passo innescato dall'**alert di saturazione del progetto stesso**. Provato dal rebuild eseguito oggi: `Eval-gate: recall@2=0.873 ≥ soglia 0.75 — promozione consentita` | Nessuno: il gate fa già ciò che avrei raccomandato, e con una soglia derivata dal proprio storico | — | — |
-| A2b | Eval / osservabilità | FRAGILE | Ciò che resta di A2, ed è vero: il **gate** è a k=2, ma tutto il resto guarda ancora il k saturo. `core/eval_history.py:73,79,95` — `latest_recall`, `compute_trend`, `detect_regression` hanno tutte `key="recall@10"` come default; `/api/health` espone `last_recall_at_10: 1.0` come numero di qualità in evidenza | Il cancello protegge, ma il rilevatore di regressione e il numero che un umano legge sulla dashboard stanno su una metrica satura a 1.000: la promozione è difesa, la deriva lenta no | S | Trend e rilevamento di regressione leggono la stessa metrica del gate |
+| A2b | Eval / osservabilità | FRAGILE → **CHIUSO 2026-09-03** | Ciò che restava di A2, ed era vero — ma **più esteso di così**. `eval_gate.k` è migrata 10 → 5 → 2, ogni volta perché l'alert di saturazione diceva che quel k non discriminava più; tutto ciò che il gate lo osserva era rimasto a 10. Oltre ai tre osservatori dello storico e a `last_recall_at_10` in `/api/health`: la pagina `/eval` disegnava una **retta a 1.000**, l'infografica colorava contro uno `0.9` scritto a mano mentre il gate stava a 0.75, il guardrail di `eval.run` asseriva su `recall@max(ks)` — e i **due script notturni girano senza `--k`**, quindi confrontavano recall@10 satura contro `--assert-min 0.90` | Il cancello proteggeva; il check notturno di qualità era verde **per costruzione** da quando il gate lasciò k=10, e il numero in evidenza sulla dashboard era l'unico che non poteva peggiorare | S | Una sola sorgente: `GATE_RECALL_KEY` da `EVAL_GATE_K`. Storico, salute, guardrail, check notturno e le due pagine leggono la chiave e la soglia del gate; spostare `eval_gate.k` sposta anche la sorveglianza |
 | A3 | Retrieval → **prompt** | MANCANTE → **CHIUSO 2026-09-03** | Il riscontro era giusto (avversariale recall@1 = 0.0%), la diagnosi che suggeriva no: **non era un problema di rango**. Indagine in fondo a questo documento. La fonte giusta entra sempre nel contesto (`source_in_top3` avversariale = 100%), ma l'autorità veniva calcolata, usata per riordinare e **buttata via al confine del prompt**: l'intestazione era `--- doc § sezione ---` e basta, così dentro la finestra il modello ri-ordinava per prosa. Misurato su `/ask`: **2 risposte su 4 attribuivano il vincolo alla fonte METHODOLOGY che lo illustra**, con la spec declassata a «conferma» | Il difetto che ADR 0002 esiste per impedire, sopravvissuto un livello più in là di dove ADR 0002 guardava — e invisibile a ogni metrica, perché il ranking era già corretto | M | **Cambiata**: non più «recall@1 avversariale sotto soglia» — resta 0.0% ed è corretto che resti. La classe dichiarata arriva nel prompt (`tests/test_ask_authority_prompt.py`) e le 4 risposte attribuiscono il vincolo alla fonte normativa |
 | A4 | Retrieval / multihop | FRAGILE | `eval/run_multihop.py`: 5 casi su 14 falliscono a k=10, recall media A = 0.854, A riusciti 9/14. Nessun gate su questa suite | La classe di domande più preziosa per un grafo di governance regredisce senza allarme | M | La suite multihop entra nello storico e ha una soglia |
 | A5 | ~~Eval / strumento~~ | ~~FRAGILE~~ → **RITIRATO, assorbito da A6** | **Riscontro impreciso.** Avevo concluso "l'harness sottostima il ramo grafo" vedendo una risposta corretta segnata come fallita. Leggendo `eval/golden_multihop.yaml:90-96`: il caso dichiara `count: 11` — la baseline committata — e i 4 nodi attesi ci sono tutti. L'unico scarto è il conteggio (26, poi 23, contro 11). **L'harness ha ragione: sta segnalando che il corpus è divergente.** Non è un difetto della misura, è la misura che funziona | Nessuno di per sé: è A6 che parla | — | — |
@@ -84,9 +84,9 @@ I tre rischi che lo rendono "non completo":
 distribuzione (A14, A15), 9 FRAGILE, 2 SUPERFLUO, 1 FRAGILE latente.
 
 Il conteggio è la fotografia della Run A e resta com'era: ciò che è successo dopo si legge
-nelle righe. A2 e A5 ritirati, A6 e A18/A19/A20 chiusi in Run B, A3 chiuso il 2026-09-03 —
-ma con una **verifica di chiusura diversa** da quella che la riga proponeva, e il perché è
-l'indagine in fondo a questo documento.
+nelle righe. A2 e A5 ritirati, A6 e A18/A19/A20 chiusi in Run B, A3 e A2b chiusi il
+2026-09-03 — A3 con una **verifica di chiusura diversa** da quella che la riga proponeva, A2b
+**più esteso** di quanto la riga avesse visto. Le due indagini sono in fondo al documento.
 
 ---
 
@@ -326,6 +326,11 @@ Resta da fare, molto più stretto (A2b): `latest_recall`, `compute_trend` e
 `detect_regression` (`core/eval_history.py:73,79,95`) hanno ancora `key="recall@10"` come
 default, e `/api/health` espone `last_recall_at_10` come numero in evidenza. Il gate è
 difeso, la deriva lenta no.
+
+> *Chiuso il 2026-09-03, e «molto più stretto» era sbagliato: cercando i consumatori sono
+> saltati fuori anche le due pagine, il guardrail di `eval.run` e — la peggiore — i due
+> script notturni, che girano senza `--k` e quindi asserivano su una metrica satura. Indagine
+> in fondo al documento.*
 
 ## B4 — Sospeso, in attesa di A18
 
@@ -871,3 +876,80 @@ già usato da un'installazione nativa.
 Le due collection non sono recuperabili: gli artefatti su disco in `database/versions/`
 ci sono ancora, ma i vettori no. Un rollback a `v20260901T101536` o `v20260901T132300`
 richiederebbe una re-indicizzazione. Le versioni successive non sono state toccate.
+
+---
+---
+
+# A2b — il cancello si era spostato, la sorveglianza no
+
+**Domanda:** il gate è a k=2, ma trend, rilevamento di regressione e dashboard leggono
+ancora `recall@10`. Quanto conta?
+
+## Il difetto in una frase
+
+`eval_gate.k` è migrata **10 → 5 → 2**, e ogni passo fu innescato dall'alert di saturazione
+del progetto stesso: a quel k la metrica valeva 1.000 su tutti i casi e aveva smesso di
+discriminare. Il cancello si è spostato tre volte. **Tutto ciò che lo osserva è rimasto a 10**,
+cioè su un numero che non può scendere — e quindi non può segnalare niente.
+
+## Quanto era rotto, punto per punto
+
+Cercando i consumatori è emerso che il difetto era più esteso della riga di Run A:
+
+| Dove | Cosa faceva | Perché non poteva funzionare |
+|---|---|---|
+| `eval_history.latest_recall / compute_trend / detect_regression` | `key="recall@10"` come default | serie satura: media mobile piatta a 1.000, `sustained_drop` irraggiungibile |
+| `/api/health` → `eval` | esponeva `last_recall_at_10: 1.0` | il numero di qualità in evidenza era l'unico che non poteva peggiorare |
+| `/eval` (pagina di trend) | `const KEY = "recall@10"`, e 8 etichette scritte a mano | grafico di una retta orizzontale a 1.000: un trend che non poteva avere pendenza |
+| `/infografica` (KPI) | colorava contro una soglia `0.9` scritta a mano | il gate stava a **0.75**: la dashboard poteva dare in rosso una recall che il gate accettava |
+| `eval/run.py` guardrail | asseriva su `recall@max(ks)`, default max = 10 | vedi sotto |
+| `scripts/nightly_consistency.{sh,ps1}` | `--check-regression --assert-min 0.90`, **senza `--k`** | max(ks) = 10 ⇒ confronto fra una metrica satura a 1.000 e un floor 0.90 |
+
+**L'ultima riga è la peggiore, ed è quella che la Run A non aveva visto.** Il README insegna
+`--k 1 2` proprio per abbassare `max(ks)`, ma i due script notturni — l'unico posto dove
+questo guardrail gira **da solo, senza un umano che legga il report** — non lo passano. Il
+check notturno di qualità era verde per costruzione da quando il gate lasciò k=10.
+
+## La correzione: una sola sorgente di verità
+
+`GATE_RECALL_KEY = f"recall@{EVAL_GATE_K}"` in `core/eval_history.py`, e tutto ci si aggancia:
+
+- i tre osservatori dello storico prendono quella chiave come default;
+- `eval_health()` restituisce **`key` e `min_recall` nel payload**. Il campo `last_recall_at_10`
+  non esiste più: aveva il `10` nel nome, e un numero senza la sua chiave e la sua soglia non
+  è osservabilità, è una cifra. Le due pagine leggono `key` dal server invece di scriverla;
+- il guardrail di `eval.run` asserisce sulla chiave del gate con la soglia del gate, e **la `k`
+  del gate viene sempre misurata** anche se il chiamante ha chiesto altre colonne: `--k` cambia
+  cosa si legge, mai su cosa si fallisce;
+- gli script notturni perdono `--assert-min 0.90` ed ereditano la soglia dal config.
+
+Spostare `eval_gate.k` ora sposta anche la sorveglianza, senza che nessuno debba ricordarsene.
+
+## Cosa costa
+
+La serie si accorcia: **da 79 a 22 punti**, perché le righe storiche portano la chiave del k
+di allora. Sono punti in meno di una misura che discrimina, contro punti in più di una che
+non può muoversi. Il grafico ora sale da 76% a 87% con la soglia del gate al 75% disegnata
+sotto; prima era una retta a 1.000.
+
+## Verifica
+
+`✅ PASS (recall@2 = 0.873, soglia --assert-min = 0.75)` — prima
+`✅ PASS (recall@10 = 1.000, soglia --assert-min = 0.7)`.
+
+Test: la chiave sorvegliata segue `EVAL_GATE_K`; `history_points` conta la serie e non le
+righe; `eval_health` porta `key` e `min_recall` e non `last_recall_at_10`; e un guardrail che
+riceve `ks=[10]` con l'atteso in quinta posizione **fallisce** — con la vecchia regola
+sarebbe passato. Le due pagine verificate in un browser reale: `/eval` e la KPI
+dell'infografica dicono `recall@2`, senza errori in console.
+
+## Cosa resta aperto
+
+- **Le righe storiche restano scritte con la chiave del k di allora.** È corretto — sono
+  misure diverse e mescolarle sarebbe peggio — ma significa che a ogni futuro spostamento del
+  gate il grafico riparte quasi da zero. Se un giorno servisse continuità, la strada è
+  registrare **tutti** i k in ogni riga, anche dalle righe scritte dal gate (che oggi ne
+  registra uno solo).
+- **`recall@2` è a 0.873 con soglia 0.75:** margine 12 punti. Il giorno in cui saturasse non
+  resta un k più basso: andrà **esteso il golden set** con casi che il sistema sbaglia, come
+  già dice `rag_config.yaml`.

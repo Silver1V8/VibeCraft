@@ -28,10 +28,14 @@ send_alert() {
 # (modello gia' caricato, nessun embedding nello script), valuta la recall sul golden set e,
 # via --check-regression, registra un alert critico in database/alerts.jsonl se e' calata sotto
 # la media mobile o sotto soglia. Non blocca il batch: e' un segnale, non un rimedio.
+#
+# NIENTE --assert-min: la soglia e la k sono quelle dell'eval-gate, che eval.run legge da
+# rag_config.yaml (A2b). Qui c'era un `--assert-min 0.90` scritto a mano, e senza `--k` il
+# confronto cadeva su recall@10 — satura a 1.000 — quindi questo check non poteva fallire.
 quality_url="${VIBECRAFT_SERVER_URL:-http://127.0.0.1:8000}"
 if curl -sf --max-time 5 "$quality_url/api/health" >/dev/null 2>&1; then
     echo "[$(date -Is)] Check di qualita' del retrieval (eval sul golden set)..."
-    if uv run python -m eval.run --url "$quality_url" --check-regression --assert-min 0.90 >/dev/null 2>&1; then
+    if uv run python -m eval.run --url "$quality_url" --check-regression >/dev/null 2>&1; then
         echo "[$(date -Is)] Qualita' del retrieval OK."
     else
         echo "[$(date -Is)] Qualita' del retrieval: regressione o sotto soglia (alert registrato dall'eval)."

@@ -134,7 +134,7 @@
       </div>
       <div>
         <h1 class="glow-text">Trend di Qualità del Retrieval</h1>
-        <div class="sub">recall@10 sul golden set nel tempo</div>
+        <div class="sub"><span class="chiave-recall">recall@10</span> sul golden set nel tempo</div>
       </div>
     </div>
     <nav class="app-nav is-end" aria-label="Sezioni">
@@ -156,8 +156,8 @@
 
   <main id="main-content" tabindex="-1">
     <section>
-      <h2>📈 recall@10 nel tempo</h2>
-      <p class="desc">recall@10 sul golden set nel tempo — da <code>eval/results/history.jsonl</code>
+      <h2>📈 <span class="chiave-recall">recall@10</span> nel tempo</h2>
+      <p class="desc"><span class="chiave-recall">recall@10</span> sul golden set nel tempo — da <code>eval/results/history.jsonl</code>
         (eval manuali ed eval-gate alla promozione blue/green).</p>
       <div class="cards" id="cards"></div>
       <div class="chart" id="chart"><div class="empty">Caricamento…</div></div>
@@ -182,7 +182,12 @@
   <script>
     /* themeVar / startMatrixRain / stopMatrixRain / setUiTheme: vedi /static/shared.js */
 
-    const KEY = "recall@10";
+    /* La metrica NON e' scelta qui: la decide il server, ed e' quella dell'eval-gate
+       (A2b). Scriverla a mano nella pagina significava che il gate poteva spostarsi
+       — 10 -> 5 -> 2, ogni volta perche' il k precedente era saturo — e questo grafico
+       restava a mostrare una curva piatta a 1.000, cioe' un numero che non puo' scendere.
+       Il fallback serve solo a un server piu' vecchio del payload. */
+    let KEY = "recall@10";
     function recallOf(e) { return e.recall && e.recall[KEY]; }
 
     let lastData = null;
@@ -190,12 +195,14 @@
 
     function render(data) {
       lastData = data;
-      const rows = (data.history || []).filter(e => typeof recallOf(e) === "number");
       const s = data.summary || {};
+      KEY = s.key || KEY;
+      document.querySelectorAll(".chiave-recall").forEach(el => { el.textContent = KEY; });
+      const rows = (data.history || []).filter(e => typeof recallOf(e) === "number");
       const trend = s.trend || "flat";
-      const last = s.last_recall_at_10;
+      const last = s.last_recall;
       document.getElementById("cards").innerHTML = `
-        <div class="card"><div class="k">recall@10 attuale</div>
+        <div class="card"><div class="k">${KEY} attuale</div>
           <div class="v">${last == null ? "—" : (last * 100).toFixed(1) + "%"}</div></div>
         <div class="card"><div class="k">trend</div>
           <div class="v"><span class="badge ${trend}">${trend}</span></div></div>
@@ -265,7 +272,7 @@
 
       const daA = `${fmtCompleto(t0)} – ${fmtCompleto(t1)}`;
       chart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet"
-             role="img" aria-label="Andamento di recall@10 su ${rows.length} valutazioni fra ${daA}. Valore piu recente ${(recallOf(rows[rows.length-1]) * 100).toFixed(1)}%.">
+             role="img" aria-label="Andamento di ${KEY} su ${rows.length} valutazioni fra ${daA}. Valore piu recente ${(recallOf(rows[rows.length-1]) * 100).toFixed(1)}%.">
         ${grid.join("")}
         ${xTicks.join("")}
         <line class="axis" x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}"/>
@@ -329,7 +336,7 @@
       }).join("");
       box.innerHTML = `<summary>Dati del grafico in tabella (${rows.length} valutazioni)</summary>
         <table>
-          <thead><tr><th>Data</th><th>recall@10</th><th>Esito</th><th>Versione</th><th>Commit</th></tr></thead>
+          <thead><tr><th>Data</th><th>${KEY}</th><th>Esito</th><th>Versione</th><th>Commit</th></tr></thead>
           <tbody>${righe}</tbody>
         </table>`;
     }

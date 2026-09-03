@@ -43,11 +43,15 @@ function Send-Alert([string]$Message) {
 # Check di QUALITA' del retrieval (Epic 5.2), opportunistico: se il server e' raggiungibile
 # (modello gia' caricato), valuta la recall sul golden set e, via --check-regression, registra un
 # alert critico in database/alerts.jsonl se e' calata. Non blocca il batch.
+#
+# NIENTE --assert-min: la soglia e la k sono quelle dell'eval-gate, che eval.run legge da
+# rag_config.yaml (A2b). Qui c'era un `--assert-min 0.90` scritto a mano, e senza `--k` il
+# confronto cadeva su recall@10 — satura a 1.000 — quindi questo check non poteva fallire.
 $qualityUrl = if ($env:VIBECRAFT_SERVER_URL) { $env:VIBECRAFT_SERVER_URL } else { "http://127.0.0.1:8000" }
 try {
     Invoke-RestMethod -Uri "$qualityUrl/api/health" -TimeoutSec 5 | Out-Null
     Write-Host "[$(Get-Date -Format o)] Check di qualita' del retrieval (eval sul golden set)..."
-    & uv run python -m eval.run --url $qualityUrl --check-regression --assert-min 0.90 *> $null
+    & uv run python -m eval.run --url $qualityUrl --check-regression *> $null
     if ($LASTEXITCODE -eq 0) { Write-Host "[$(Get-Date -Format o)] Qualita' del retrieval OK." }
     else { Write-Host "[$(Get-Date -Format o)] Qualita' del retrieval: regressione o sotto soglia (alert registrato)." }
 } catch {}
