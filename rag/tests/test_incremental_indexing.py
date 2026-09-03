@@ -416,8 +416,8 @@ def _wire_tmp_index(monkeypatch, tmp_path):
     monkeypatch.setattr(index, "DOCS_DIR", docs_dir)
     monkeypatch.setattr(index, "CODE_DIR", code_dir)
     # L'I/O degli artefatti vive in core.artifacts: reindirizziamo LÌ database/
-    # (versioni blue/green + CURRENT + manifest) e i percorsi flat dei nuovi formati
-    # (JSON/.npz) e dei legacy pickle (per il fallback) sulla sandbox.
+    # (versioni blue/green + CURRENT + manifest) e i percorsi flat dei formati
+    # correnti (JSON/.npz) sulla sandbox.
     monkeypatch.setattr(_artifacts, "DATABASE_DIR", db)
     monkeypatch.setattr(_artifacts, "GRAPH_JSON_PATH", db / "graph.json")
     monkeypatch.setattr(_artifacts, "COLBERT_NPZ_PATH", db / "colbert.npz")
@@ -425,11 +425,6 @@ def _wire_tmp_index(monkeypatch, tmp_path):
     monkeypatch.setattr(_artifacts, "DENSE_NPZ_PATH", db / "dense.npz")
     monkeypatch.setattr(_artifacts, "CODE_NPZ_PATH", db / "code.npz")
     monkeypatch.setattr(_artifacts, "CODE_JSON_PATH", db / "code.json")
-    monkeypatch.setattr(_artifacts, "GRAPH_SAVE_PATH", db / "graph.pkl")
-    monkeypatch.setattr(_artifacts, "COLBERT_SAVE_PATH", db / "colbert.pkl")
-    monkeypatch.setattr(_artifacts, "CHUNKS_SAVE_PATH", db / "chunks.pkl")
-    monkeypatch.setattr(_artifacts, "DENSE_SAVE_PATH", db / "dense.pkl")
-    monkeypatch.setattr(_artifacts, "CODE_SAVE_PATH", db / "code.pkl")
     return docs_dir, code_dir
 
 

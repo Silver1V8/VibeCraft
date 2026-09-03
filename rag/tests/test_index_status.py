@@ -12,7 +12,6 @@ def _sandbox_db(monkeypatch, tmp_path):
     manifest della "versione attiva" si risolve nel flat tmp_path/index_manifest.json."""
     monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)
     monkeypatch.setattr(artifacts, "GRAPH_JSON_PATH", tmp_path / "graph.json")
-    monkeypatch.setattr(artifacts, "GRAPH_SAVE_PATH", tmp_path / "graph.pkl")
     return tmp_path / "index_manifest.json"
 
 

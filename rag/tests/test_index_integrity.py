@@ -79,7 +79,6 @@ def env(tmp_path, monkeypatch):
     # risolvono nel layout flat legacy dentro tmp_path.
     monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)
     monkeypatch.setattr(artifacts, "GRAPH_JSON_PATH", tmp_path / "graph.json")
-    monkeypatch.setattr(artifacts, "GRAPH_SAVE_PATH", tmp_path / "graph.pkl")
     monkeypatch.setattr(indexing, "_docs_hashes", lambda: dict(doc_hashes))
     monkeypatch.setattr(indexing, "_code_hashes", lambda: dict(code_hashes))
     monkeypatch.setattr(indexing, "artifact_hashes", lambda: dict(art_hashes))

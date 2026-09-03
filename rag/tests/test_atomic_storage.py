@@ -67,7 +67,6 @@ def test_write_index_manifest_has_version(tmp_path, monkeypatch):
     # Sandbox su database/: nessuna versione promossa -> il manifest va nel flat legacy.
     monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)
     monkeypatch.setattr(artifacts, "GRAPH_JSON_PATH", tmp_path / "graph.json")
-    monkeypatch.setattr(artifacts, "GRAPH_SAVE_PATH", tmp_path / "graph.pkl")
     manifest_path = tmp_path / "index_manifest.json"
     indexing.write_index_manifest(points_count=7, nodes=3, edges=5)
 
@@ -84,8 +83,7 @@ def test_write_index_manifest_has_version(tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 def _patch_artifact_paths(monkeypatch, tmp_path):
     """Reindirizza database/ (versioni + CURRENT) e i percorsi flat degli artefatti
-    (nuovi formati + legacy) su una sandbox, sia in core.artifacts (I/O) sia in
-    api.deps (mtime/version)."""
+    su una sandbox, sia in core.artifacts (I/O) sia in api.deps (mtime/version)."""
     from api import deps
 
     monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)
@@ -95,11 +93,7 @@ def _patch_artifact_paths(monkeypatch, tmp_path):
     monkeypatch.setattr(artifacts, "DENSE_NPZ_PATH", tmp_path / "dense.npz")
     monkeypatch.setattr(artifacts, "CODE_NPZ_PATH", tmp_path / "code.npz")
     monkeypatch.setattr(artifacts, "CODE_JSON_PATH", tmp_path / "code.json")
-    for name in ("GRAPH_SAVE_PATH", "COLBERT_SAVE_PATH", "CHUNKS_SAVE_PATH",
-                 "DENSE_SAVE_PATH", "CODE_SAVE_PATH"):
-        monkeypatch.setattr(artifacts, name, tmp_path / name.lower().replace("_save_path", ".pkl"))
     monkeypatch.setattr(deps, "GRAPH_JSON_PATH", tmp_path / "graph.json")
-    monkeypatch.setattr(deps, "GRAPH_SAVE_PATH", tmp_path / "graph.pkl")
     # load_rule_descriptions fa I/O su docs/: la stubbiamo per isolare il test
     monkeypatch.setattr(deps, "load_rule_descriptions", lambda: {"R": "desc"})
 

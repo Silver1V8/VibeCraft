@@ -1848,9 +1848,9 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
         # collection fisica esistente (stato "legacy" del reconciler, nessun abort).
         _ensure_collection(qdrant, recreate=False, collection_name=COLLECTION_NAME)
 
-    # Carica lo stato precedente dagli artefatti (nuovi formati, con fallback pickle
-    # legacy + warning). Gli artefatti assenti diventano il loro default vuoto.
-    arts = load_artifacts(emit=_log)
+    # Carica lo stato precedente dagli artefatti. Gli artefatti assenti diventano il
+    # loro default vuoto.
+    arts = load_artifacts()
     graph: nx.DiGraph = arts.graph if arts.graph is not None else nx.DiGraph()
     colbert_store: dict = arts.colbert_store
     chunks_store: dict = arts.chunks_store
@@ -1961,11 +1961,11 @@ def check_graph_consistency(embed_model=None, docs_dir: Path | None = None,
     docs_dir = docs_dir or DOCS_DIR
     code_dir = code_dir or CODE_DIR
 
-    # Carica il grafo incrementale persistito (nuovo formato JSON, con fallback pickle).
-    # `graph_path` è mantenuto per retrocompatibilità di firma ma non è più usato: il
-    # grafo vive ora come artefatto gestito da core.artifacts.
+    # Carica il grafo incrementale persistito (formato JSON). `graph_path` è mantenuto
+    # per retrocompatibilità di firma ma non è più usato: il grafo vive ora come
+    # artefatto gestito da core.artifacts.
     try:
-        incremental: nx.DiGraph | None = load_artifacts(required=("graph",), emit=lambda *_a, **_k: None).graph
+        incremental: nx.DiGraph | None = load_artifacts(required=("graph",)).graph
     except Exception as exc:
         return {"consistent": False, "reason": f"grafo incrementale assente o illeggibile: {exc}"}
 

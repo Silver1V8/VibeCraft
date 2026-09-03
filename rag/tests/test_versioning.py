@@ -18,11 +18,6 @@ def db(monkeypatch, tmp_path):
         "DENSE_NPZ_PATH": "dense.npz",
         "CODE_NPZ_PATH": "code.npz",
         "CODE_JSON_PATH": "code.json",
-        "GRAPH_SAVE_PATH": "graph.pkl",
-        "COLBERT_SAVE_PATH": "colbert.pkl",
-        "CHUNKS_SAVE_PATH": "chunks.pkl",
-        "DENSE_SAVE_PATH": "dense.pkl",
-        "CODE_SAVE_PATH": "code.pkl",
     }
     for attr, fname in mapping.items():
         monkeypatch.setattr(artifacts, attr, tmp_path / fname)
@@ -225,7 +220,6 @@ def _patch_deps(monkeypatch, db):
     from api import deps
 
     monkeypatch.setattr(deps, "GRAPH_JSON_PATH", db / "graph.json")
-    monkeypatch.setattr(deps, "GRAPH_SAVE_PATH", db / "graph.pkl")
     monkeypatch.setattr(deps, "load_rule_descriptions", lambda: {})
     return deps
 

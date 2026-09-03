@@ -56,21 +56,13 @@ DATABASE_DIR = RAG_DIR / "database"
 GRAPH_JSON_PATH = DATABASE_DIR / "graph.json"
 COLBERT_NPZ_PATH = DATABASE_DIR / "colbert.npz"
 CHUNKS_JSON_PATH = DATABASE_DIR / "chunks.json"
+# Sidecar dei vettori densi per chunk-documento e per simbolo di codice: servono a
+# ricalcolare gli archi spec<->codice (IMPLEMENTS/REFERENCES) in incrementale, per i
+# soli nodi toccati, senza dover ri-embeddare ciò che non è cambiato.
 DENSE_NPZ_PATH = DATABASE_DIR / "dense.npz"
 CODE_NPZ_PATH = DATABASE_DIR / "code.npz"
 CODE_JSON_PATH = DATABASE_DIR / "code.json"
 
-# Formati LEGACY (pickle): mantenuti solo in LETTURA per la retrocompatibilità.
-# core.artifacts.load_artifacts ci ricade con un warning "re-indicizza" se i nuovi
-# file non esistono ancora. Non vengono più SCRITTI.
-GRAPH_SAVE_PATH = DATABASE_DIR / "graph.pkl"
-COLBERT_SAVE_PATH = DATABASE_DIR / "colbert.pkl"
-CHUNKS_SAVE_PATH = DATABASE_DIR / "chunks.pkl"
-# Sidecar dei vettori densi per chunk-documento e per simbolo di codice: servono a
-# ricalcolare gli archi spec<->codice (IMPLEMENTS/REFERENCES) in incrementale, per i
-# soli nodi toccati, senza dover ri-embeddare ciò che non è cambiato.
-DENSE_SAVE_PATH = DATABASE_DIR / "dense.pkl"
-CODE_SAVE_PATH = DATABASE_DIR / "code.pkl"
 # Snapshot dell'indicizzazione (modello, conteggi, hash dei documenti): serve a rilevare
 # quando docs/ è cambiato e l'indice è "stale". NB: con il versionamento blue/green il
 # manifest vive DENTRO la directory di versione (core.artifacts.manifest_path); questo

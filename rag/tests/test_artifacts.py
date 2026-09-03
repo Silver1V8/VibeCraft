@@ -1,8 +1,9 @@
-"""Round-trip degli artefatti indice nei formati sicuri (JSON/.npz) e fallback ai
-pickle legacy in lettura. Verifica che save_artifacts→load_artifacts sia lossless per
-grafo (con attributi), vettori (fp16 identici) e sidecar testuali, e che i vecchi .pkl
-vengano ancora letti con un warning che invita a re-indicizzare."""
-import pickle
+"""Round-trip degli artefatti indice nei formati sicuri (JSON/.npz). Verifica che
+save_artifacts→load_artifacts sia lossless per grafo (con attributi), vettori (fp16
+identici) e sidecar testuali. Il fallback ai vecchi pickle legacy in lettura è stato
+rimosso (A13, rag/AUDIT.md): nessun `.pkl` esisteva più nel progetto, e mantenere
+pickle.load su un formato mai più prodotto era superficie di deserializzazione
+arbitraria senza alcun beneficio."""
 from datetime import date
 from pathlib import Path
 
@@ -16,7 +17,7 @@ from core import artifacts
 @pytest.fixture
 def sandbox(monkeypatch, tmp_path):
     """Reindirizza database/ (versioni + CURRENT) e tutti i percorsi artefatto flat
-    (formati correnti legacy + pickle) su una dir temporanea."""
+    su una dir temporanea."""
     monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)
     mapping = {
         "GRAPH_JSON_PATH": "graph.json",
@@ -25,11 +26,6 @@ def sandbox(monkeypatch, tmp_path):
         "DENSE_NPZ_PATH": "dense.npz",
         "CODE_NPZ_PATH": "code.npz",
         "CODE_JSON_PATH": "code.json",
-        "GRAPH_SAVE_PATH": "graph.pkl",
-        "COLBERT_SAVE_PATH": "colbert.pkl",
-        "CHUNKS_SAVE_PATH": "chunks.pkl",
-        "DENSE_SAVE_PATH": "dense.pkl",
-        "CODE_SAVE_PATH": "code.pkl",
     }
     for attr, fname in mapping.items():
         monkeypatch.setattr(artifacts, attr, tmp_path / fname)
@@ -134,35 +130,13 @@ def test_code_store_split_merge_roundtrip(sandbox):
     assert "deps" not in loaded["svc.py::g"]
 
 
-def test_save_writes_only_new_formats_no_pickle(sandbox):
+def test_save_writes_only_versioned_json_npz(sandbox):
     version = artifacts.save_artifacts(_sample_graph(), {}, {}, {}, {})
     vdir = artifacts.version_dir(version)
-    # Solo i nuovi formati, nella directory della versione: nessun .pkl, nessun flat
+    # Solo i nuovi formati, nella directory della versione: nessun flat
     assert (vdir / "graph.json").exists()
     assert (vdir / "chunks.json").exists()
-    assert not list(vdir.glob("*.pkl"))
-    assert not artifacts.GRAPH_SAVE_PATH.exists()
     assert not artifacts.GRAPH_JSON_PATH.exists()  # il layout flat non viene più scritto
-
-
-def test_fallback_reads_legacy_pickle_with_warning(sandbox):
-    """Se i nuovi file non esistono ma i .pkl sì, load_artifacts legge i pickle e
-    logga un warning che invita a re-indicizzare."""
-    g = _sample_graph()
-    with open(artifacts.GRAPH_SAVE_PATH, "wb") as f:
-        pickle.dump(g, f)
-    with open(artifacts.COLBERT_SAVE_PATH, "wb") as f:
-        pickle.dump({"a.md#00": np.array([[1.0]], dtype="float16")}, f)
-    with open(artifacts.CHUNKS_SAVE_PATH, "wb") as f:
-        pickle.dump({"a.md#00": {"doc_id": "a.md", "section": "s", "text": "t"}}, f)
-
-    logs: list[str] = []
-    arts = artifacts.load_artifacts(emit=logs.append)
-
-    assert arts.source == "pickle"
-    assert "spec.md" in arts.graph
-    assert arts.chunks_store["a.md#00"]["text"] == "t"
-    assert any("legacy" in line.lower() or "re-indicizza" in line.lower() for line in logs)
 
 
 def test_required_missing_raises(sandbox):

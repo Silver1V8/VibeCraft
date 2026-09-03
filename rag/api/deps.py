@@ -27,7 +27,6 @@ from core.writer_lock import WriterLockBusyError, writer_lock
 from core.config import (
     EMBEDDING_MODEL,
     GRAPH_JSON_PATH,
-    GRAPH_SAVE_PATH,
     PROJECT_ROOT,
     QDRANT_API_KEY,
     QDRANT_URL,
@@ -288,16 +287,15 @@ def qdrant_collection_for_version(version: str | float | None) -> str:
 def _graph_version() -> str | float | None:
     """Versione osservabile dell'indice su disco: il contenuto di database/CURRENT
     (nome della versione blue/green attiva — cambia a ogni promote E a ogni rollback),
-    con fallback all'mtime del file-grafo flat (graph.json, poi legacy graph.pkl) per
-    i layout senza CURRENT. È la baseline che innesca l'auto-reload."""
+    con fallback all'mtime del file-grafo flat (graph.json) per i layout senza CURRENT.
+    È la baseline che innesca l'auto-reload."""
     token = current_version_token()
     if token is not None:
         return token
-    for path in (GRAPH_JSON_PATH, GRAPH_SAVE_PATH):
-        try:
-            return path.stat().st_mtime
-        except OSError:
-            continue
+    try:
+        return GRAPH_JSON_PATH.stat().st_mtime
+    except OSError:
+        pass
     return None
 
 
@@ -423,7 +421,7 @@ async def lifespan(application: FastAPI):
         arts = load_artifacts(required=("graph",))
     except FileNotFoundError:
         raise RuntimeError(
-            "Grafo non trovato (né graph.json né graph.pkl). Esegui prima 'python index.py' per indicizzare."
+            "Grafo non trovato (graph.json assente). Esegui prima 'python index.py' per indicizzare."
         )
     graph = arts.graph
     colbert_store = arts.colbert_store
@@ -462,7 +460,7 @@ def reload_index_state() -> None:
     versione precedente in memoria, evitando di degradare il server (grafo senza
     ColBERT/chunk)."""
     try:
-        arts = load_artifacts(required=("graph", "colbert", "chunks"), emit=lambda *_a, **_k: None)
+        arts = load_artifacts(required=("graph", "colbert", "chunks"))
         rule_descriptions = load_rule_descriptions()
     except Exception as exc:
         logger.warning("Reload indice annullato (%s: %s): artefatto mancante o corrotto, "

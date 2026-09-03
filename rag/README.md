@@ -783,10 +783,13 @@ campo `qdrant_alias`: `legacy`/`aligned`/`missing`/`diverging`/`unknown`.
 
 `save_artifacts()` scrive **solo** i formati correnti, sempre in una directory di
 versione nuova (mai riscritta). In lettura, se `CURRENT` non esiste ma in
-`database/` ci sono i file flat storici, `load_artifacts()` li carica come
-versione `legacy` (con fallback ai vecchi pickle `*.pkl` e un warning che invita
-a re-indicizzare con `python index.py`); la prima build successiva crea la
-struttura versionata e la promozione fa vincere CURRENT sul layout flat.
+`database/` ci sono i file flat storici (JSON/`.npz`), `load_artifacts()` li carica
+come versione `legacy`; la prima build successiva crea la struttura versionata e la
+promozione fa vincere CURRENT sul layout flat. Il fallback ai vecchi pickle `*.pkl`
+è stato **rimosso** (A13, `rag/AUDIT.md`): nessuna installazione ne scrive più da
+quando `save_artifacts()` emette solo JSON/`.npz`, e mantenere `pickle.load` su un
+formato che nessuno produce più era superficie di deserializzazione arbitraria
+senza alcun beneficio.
 
 ## Embedding (bge-m3): CPU per le query, GPU per il reindex
 

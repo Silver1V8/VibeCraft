@@ -1,7 +1,6 @@
 """UNICO punto di I/O per gli artefatti persistiti dell'indice Graph-RAG.
 
-Sostituisce i cinque pickle storici (graph/colbert/chunks/dense/code) con formati
-SICURI e ISPEZIONABILI:
+Formati SICURI e ISPEZIONABILI (mai un blob binario arbitrario):
 
   - grafo NetworkX      -> graph.json  (node-link, attributi normalizzati JSON-safe)
   - multivettori ColBERT-> colbert.npz (fp16, chiave = chunk_id)
@@ -11,10 +10,14 @@ SICURI e ISPEZIONABILI:
   - metadati codice     -> code.json   (symbol_id -> {name, kind, file, dev_type,
                                         text, deps, refs, links})
 
-pickle NON è più un formato di SCRITTURA: `save_artifacts()` emette solo i nuovi file.
-In LETTURA `load_artifacts()` ricade sui vecchi .pkl se i nuovi non esistono, loggando
-un warning che invita a re-indicizzare. Tutte le scritture sono ATOMICHE (un crash a
-metà non lascia un artefatto troncato: vedi `_atomic_write`).
+Erano cinque pickle storici (graph/colbert/chunks/dense/code): il ramo di lettura che
+ci ricadeva è stato rimosso (A13, 2026-09-03) — nessun `.pkl` era mai più scritto da
+questo formato in poi, e nessuno ne è mai rimasto su disco da rimigrare: mantenere
+`pickle.load` su un file che nessuna installazione reale produce più era superficie di
+deserializzazione arbitraria senza alcun beneficio. Un artefatto assente torna un
+default vuoto (o `FileNotFoundError` se richiesto), mai un fallback binario. Tutte le
+scritture sono ATOMICHE (un crash a metà non lascia un artefatto troncato: vedi
+`_atomic_write`).
 
 VERSIONAMENTO BLU/VERDE: ogni `save_artifacts()` scrive in una directory di versione
 NUOVA (`database/versions/v<timestamp UTC>/`) e restituisce il nome della versione;
@@ -32,7 +35,6 @@ diretto altrove."""
 import json
 import logging
 import os
-import pickle
 import shutil
 import tempfile
 from dataclasses import dataclass, field
@@ -44,17 +46,12 @@ import numpy as np
 
 from core.config import (
     CHUNKS_JSON_PATH,
-    CHUNKS_SAVE_PATH,
     CODE_JSON_PATH,
     CODE_NPZ_PATH,
-    CODE_SAVE_PATH,
     COLBERT_NPZ_PATH,
-    COLBERT_SAVE_PATH,
     DATABASE_DIR,
     DENSE_NPZ_PATH,
-    DENSE_SAVE_PATH,
     GRAPH_JSON_PATH,
-    GRAPH_SAVE_PATH,
 )
 
 logger = logging.getLogger(__name__)
@@ -157,7 +154,7 @@ def current_version() -> str | None:
         if version_dir(token).is_dir():
             return token
         logger.warning("CURRENT punta a una versione inesistente (%s): la ignoro.", token)
-    if GRAPH_JSON_PATH.exists() or GRAPH_SAVE_PATH.exists():
+    if GRAPH_JSON_PATH.exists():
         return LEGACY_VERSION
     return None
 
@@ -364,8 +361,10 @@ def _merge_code_store(dense: dict, meta: dict) -> dict:
 @dataclass
 class Artifacts:
     """Stato completo dell'indice caricato da disco. `graph` è None solo se non esiste
-    alcun grafo (né nuovo né legacy). `source` documenta la provenienza (json/pickle);
-    `version` la versione blue/green da cui si è letto ('legacy' per il layout flat)."""
+    alcun grafo (né nuovo né legacy). `source` è sempre "json" (il fallback pickle è
+    stato rimosso, A13): resta come campo per compatibilità di chi lo legge, non più
+    come distinzione utile. `version` la versione blue/green da cui si è letto
+    ('legacy' per il layout flat)."""
     graph: nx.DiGraph | None = None
     colbert_store: dict = field(default_factory=dict)
     chunks_store: dict = field(default_factory=dict)
@@ -417,18 +416,12 @@ def _load_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _load_pickle_file(path: Path):
-    with open(path, "rb") as f:
-        return pickle.load(f)
-
-
-def load_artifacts(required: tuple[str, ...] = (), emit=None,
-                   version: str | None = None) -> Artifacts:
+def load_artifacts(required: tuple[str, ...] = (), version: str | None = None) -> Artifacts:
     """Carica gli artefatti dell'indice dalla versione indicata (default: quella attiva,
     risolta via CURRENT). Se non esiste alcuna versione promossa si legge il layout
-    LEGACY flat in database/ (formati correnti JSON/.npz, con fallback ai vecchi pickle
-    e un warning che invita a re-indicizzare). Le directory versionate contengono solo
-    formati correnti: lì il fallback pickle non si applica.
+    LEGACY flat in database/ (formati correnti JSON/.npz — il fallback ai vecchi pickle
+    è stato rimosso, A13: nessuna installazione ne ha più prodotti da quando
+    `save_artifacts()` scrive solo JSON/.npz, e nessuno ne è rimasto da migrare).
 
     `required` elenca i tipi di artefatto ("graph", "colbert", "chunks", "dense",
     "code") la cui assenza deve sollevare FileNotFoundError: così il chiamante può
@@ -436,65 +429,41 @@ def load_artifacts(required: tuple[str, ...] = (), emit=None,
     diventano il loro default vuoto (grafo None, dict {}).
 
     Solleva se un file esiste ma è illeggibile/corrotto (il chiamante decide se degradare)."""
-    _log = emit or logger.info
-
     name = version or current_version()
     if name is not None and name != LEGACY_VERSION:
         vdir = version_dir(name)
         if not vdir.is_dir():
             raise FileNotFoundError(f"Versione indice '{name}' inesistente in {versions_root()}.")
         new_paths = {fname: vdir / fname for fname in _ARTIFACT_FILENAMES}
-        legacy_mode = False
     else:
-        # Layout storico: file flat in database/ (con eventuale fallback pickle).
+        # Layout storico: file flat in database/.
         new_paths = {"graph.json": GRAPH_JSON_PATH, "colbert.npz": COLBERT_NPZ_PATH,
                      "chunks.json": CHUNKS_JSON_PATH, "dense.npz": DENSE_NPZ_PATH,
                      "code.npz": CODE_NPZ_PATH, "code.json": CODE_JSON_PATH}
-        legacy_mode = True
 
-    used_pickle = False
-
-    def _pick(kind: str, new_path: Path, old_path: Path | None, new_loader, old_loader, empty):
-        nonlocal used_pickle
+    def _pick(kind: str, new_path: Path, new_loader, empty):
         if new_path.exists():
             return new_loader(new_path)
-        if legacy_mode and old_path is not None and old_path.exists():
-            used_pickle = True
-            return old_loader(old_path)
         if kind in required:
-            raise FileNotFoundError(
-                f"Artefatto '{kind}' assente: {new_path} non trovato"
-                + (f" (né il legacy {old_path.name})" if legacy_mode and old_path else "") + "."
-            )
+            raise FileNotFoundError(f"Artefatto '{kind}' assente: {new_path} non trovato.")
         return empty() if callable(empty) else empty
 
-    graph = _pick("graph", new_paths["graph.json"], GRAPH_SAVE_PATH,
-                  lambda p: _graph_from_json(_load_json(p)), _load_pickle_file, lambda: None)
-    colbert_store = _pick("colbert", new_paths["colbert.npz"], COLBERT_SAVE_PATH,
-                          _load_vectors, _load_pickle_file, dict)
-    chunks_store = _pick("chunks", new_paths["chunks.json"], CHUNKS_SAVE_PATH,
-                         _load_json, _load_pickle_file, dict)
-    dense_store = _pick("dense", new_paths["dense.npz"], DENSE_SAVE_PATH,
-                        _load_vectors, _load_pickle_file, dict)
+    graph = _pick("graph", new_paths["graph.json"],
+                  lambda p: _graph_from_json(_load_json(p)), lambda: None)
+    colbert_store = _pick("colbert", new_paths["colbert.npz"], _load_vectors, dict)
+    chunks_store = _pick("chunks", new_paths["chunks.json"], _load_json, dict)
+    dense_store = _pick("dense", new_paths["dense.npz"], _load_vectors, dict)
 
-    # code: i nuovi formati sono DUE file (npz + json). Ricadi al pickle solo se il
-    # sidecar JSON manca del tutto (nessun artefatto codice nel nuovo formato).
+    # code: i nuovi formati sono DUE file (npz + json).
     code_json_path, code_npz_path = new_paths["code.json"], new_paths["code.npz"]
     if code_json_path.exists():
         code_meta = _load_json(code_json_path)
         code_dense = _load_vectors(code_npz_path) if code_npz_path.exists() else {}
         code_store = _merge_code_store(code_dense, code_meta)
-    elif legacy_mode and CODE_SAVE_PATH.exists():
-        used_pickle = True
-        code_store = _load_pickle_file(CODE_SAVE_PATH)
     elif "code" in required:
         raise FileNotFoundError(f"Artefatto 'code' assente: {code_json_path} non trovato.")
     else:
         code_store = {}
-
-    if used_pickle:
-        _log("⚠️  Artefatti caricati da formato pickle LEGACY (.pkl): re-indicizza "
-             "(python index.py) per migrare ai formati sicuri JSON/.npz.")
 
     return Artifacts(
         graph=graph,
@@ -502,7 +471,6 @@ def load_artifacts(required: tuple[str, ...] = (), emit=None,
         chunks_store=chunks_store,
         dense_store=dense_store,
         code_store=code_store,
-        source="pickle" if used_pickle else "json",
         version=name,
     )
 
