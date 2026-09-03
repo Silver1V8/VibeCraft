@@ -186,23 +186,42 @@ def authority_scale(items: list[dict]) -> list[tuple[str, float]]:
     return sorted(per_label.items(), key=lambda kv: (-kv[1], kv[0]))
 
 
-def rank_by_authority(results: list[dict], *, alpha: float = AUTHORITY_BOOST_ALPHA) -> list[dict]:
-    """Ordinamento finale con boost di autorità: il punteggio di rilevanza (ColBERT dove
-    disponibile, altrimenti la fusione) è modulato da (1-alpha + alpha*peso), così una fonte
-    normativa risale rispetto a una informativa a parità di rilevanza. alpha=0 ignora del tutto
-    l'autorità (ranking puramente semantico); alpha più alto la premia di più. Ordina in-place
-    e restituisce la lista (ogni entry ha già 'authority'). Condiviso da hybrid_search e dal
-    calibratore, così la calibrazione valuta ESATTAMENTE il ranking di produzione."""
-    def _mult(r: dict) -> float:
-        return (1.0 - alpha) + alpha * r["authority"]
+# Pavimento del moltiplicatore di autorità. Ad alpha=1 — la forma che [REGOLA-VAL-08]
+# prescriveva prima dell'emendamento, e che la griglia del calibratore visita ancora — il
+# moltiplicatore È l'autorità: una fonte che dichiara `authority: 0.0` nel frontmatter
+# azzererebbe il divisore del ramo di fusione. Il pavimento manda comunque quella fonte in
+# fondo (chiave enorme, ordine crescente), che è la direzione giusta, senza dividere per zero.
+_MULT_FLOOR = 1e-9
 
-    if any(r.get("colbert_score") is not None for r in results):
-        results.sort(
-            key=lambda r: (r["colbert_score"] if r["colbert_score"] is not None else -1.0) * _mult(r),
-            reverse=True,
-        )
-    else:
-        results.sort(key=lambda r: r["fused_rank_sum"] / _mult(r))
+
+def rank_by_authority(results: list[dict], *, alpha: float = AUTHORITY_BOOST_ALPHA) -> list[dict]:
+    """Ordinamento finale con boost di autorità: il punteggio di rilevanza è modulato da
+    (1-alpha + alpha*peso), così una fonte normativa risale rispetto a una informativa a
+    parità di rilevanza. alpha=0 ignora del tutto l'autorità (ranking puramente semantico);
+    alpha più alto la premia di più. Ordina in-place e restituisce la lista (ogni entry ha
+    già 'authority'). Condiviso da hybrid_search e dal calibratore, così la calibrazione
+    valuta ESATTAMENTE il ranking di produzione.
+
+    DUE INSIEMI, NON DUE RAMI (A7). Un chunk senza vettore ColBERT — sidecar legacy o
+    disallineato rispetto a Qdrant, caso che `hybrid_search` tollera esplicitamente — non è
+    giudicabile col MaxSim, e prima veniva ordinato con un punteggio finto di -1.0
+    MOLTIPLICATO per l'autorità: più la fonte era autorevole, più il prodotto era negativo,
+    più scendeva. L'inversione colpiva esattamente le fonti normative, in silenzio, e solo
+    nel ramo misto — invisibile finché la copertura ColBERT è piena.
+
+    Ora i non giudicabili non hanno un punteggio finto: stanno in un insieme a parte, in
+    coda, ordinati con la regola che governava già il caso "nessun ColBERT" — la fusione
+    denso+sparso, l'unico segnale di rilevanza che hanno, modulata dalla stessa autorità.
+    Così il posto di un chunk NON dipende dal fatto che altri chunk abbiano un vettore: era
+    l'incoerenza nascosta fra i due rami di prima."""
+    def _mult(r: dict) -> float:
+        return max((1.0 - alpha) + alpha * r["authority"], _MULT_FLOOR)
+
+    giudicabili = [r for r in results if r.get("colbert_score") is not None]
+    non_giudicabili = [r for r in results if r.get("colbert_score") is None]
+    giudicabili.sort(key=lambda r: r["colbert_score"] * _mult(r), reverse=True)
+    non_giudicabili.sort(key=lambda r: r["fused_rank_sum"] / _mult(r))
+    results[:] = giudicabili + non_giudicabili
     return results
 
 
@@ -732,7 +751,13 @@ def colbert_maxsim(colbert_query, chunk_vectors) -> float | None:
     similarità massima con i token del chunk, poi media. None se il chunk non ha vettori
     (sidecar assente o disallineato): "non giudicabile", che non è la stessa cosa di
     "poco pertinente". Estratta da hybrid_search per essere riusata dal ramo del grafo:
-    due copie della stessa formula avrebbero potuto divergere in silenzio."""
+    due copie della stessa formula avrebbero potuto divergere in silenzio.
+
+    Chi consuma questo None deve onorare la distinzione, e per un po' non l'ha fatta:
+    `rank_by_authority` lo sostituiva con un -1.0 moltiplicato per l'autorità — cioè lo
+    trattava come "poco pertinente", e con l'autorità al rovescio (A7). Vedi il commento
+    lì: la regola è che i non giudicabili stiano in un insieme a parte, non che ricevano
+    un punteggio finto."""
     if chunk_vectors is None:
         return None
     chunk_col = np.asarray(chunk_vectors, dtype=np.float32)

@@ -67,7 +67,7 @@ I tre rischi che lo rendono "non completo":
 | A4 | Retrieval / multihop | FRAGILE → **CHIUSO 2026-09-03** | **Metà riscontro era una lettura sbagliata del report**: 4 di quei fallimenti sono la MISURA, non un difetto, e la testata del golden set lo diceva già — 11 documenti non entrano in un top-10, e le catene a tre documenti si fermano a due. È il gap che fece scattare il trigger M2. Il quinto era vero ma di altro genere: `count: 11` sull'enumerazione dei documenti, mentre il router rispondeva **23 e aveva ragione** — un'attesa-istantanea, e l'unica eccezione a una regola che il file stesso enuncia («si asseriscono relazioni, non conteggi») | Vero e più grande del riscontro: **nessun gate, nessuno storico, nessun allarme, nemmeno una riga di README**. La suite girava a mano e il suo esito viveva in un JSON che nessuno rileggeva | M | Soglia in `eval_multihop` (rag_config.yaml) sulla **recall media di A** — non sui casi riusciti, che hanno un tetto — più esattezza piena di B; storico con chiavi prefissate, alert critico sotto soglia, e la suite nel check notturno. `count` rimosso: **B passa 6/6** |
 | A5 | ~~Eval / strumento~~ | ~~FRAGILE~~ → **RITIRATO, assorbito da A6** | **Riscontro impreciso.** Avevo concluso "l'harness sottostima il ramo grafo" vedendo una risposta corretta segnata come fallita. Leggendo `eval/golden_multihop.yaml:90-96`: il caso dichiara `count: 11` — la baseline committata — e i 4 nodi attesi ci sono tutti. L'unico scarto è il conteggio (26, poi 23, contro 11). **L'harness ha ragione: sta segnalando che il corpus è divergente.** Non è un difetto della misura, è la misura che funziona | Nessuno di per sé: è A6 che parla | — | — |
 | A6 | Corpus / riproducibilità | FRAGILE | 26 `.md` su disco vs **11 tracciati** (i 13 path di `git ls-files docs` includono 2 `.gitkeep`); `observe_docs_git_divergence()` → `{state:"instantiated", diverging:[], tracked:13}`; `.gitignore:docs/*` (scelta deliberata). Fra i 15 non tracciati, tre — `glossario_entita.md`, `matrice_permessi.md`, `intent_synonym_mapping.md` — sono **gli stessi che il golden set elenca come "documenti poi rimossi"**: valgono 21 chunk su 181 (**11% del corpus**) | Oltre metà del corpus è invisibile a chi rivede il repo e alla CI; l'11% è dominio dismesso che compete in ogni retrieval; nessun numero di qualità è riproducibile fuori da questa macchina | M | Un clone pulito riproduce le metriche dichiarate, o la differenza è dichiarata ed è visibile |
-| A7 | Retrieval / ranking | FRAGILE (latente) | `core/retrieval.py:135-152`: nel ramo misto, un chunk con `colbert_score=None` pesa `-1.0 × (1-α+α·autorità)` — **più è autorevole, più scende**. Oggi irraggiungibile (copertura ColBERT 181/181), ma `retrieval.py:281` tollera esplicitamente il `None` | Sotto divergenza sidecar↔Qdrant il ranking si inverte proprio sulle fonti normative, in silenzio | S | Test sul ramo misto che fissa il comportamento atteso |
+| A7 | Retrieval / ranking | FRAGILE (latente) → **CHIUSO 2026-09-03** | Confermato, e la regola giusta era **già scritta nella funzione che produce quel `None`**: `colbert_maxsim` dichiara «non giudicabile, che non è la stessa cosa di poco pertinente», e `rank_by_authority` lo sostituiva con un `-1.0` — cioè con «pochissimo pertinente» — moltiplicandolo per l'autorità. Cercando la correzione è emerso di più: i due rami si **contraddicevano**, e gli stessi chunk senza vettore uscivano in un ordine da soli e nell'ordine INVERSO appena un terzo chunk qualsiasi portava un vettore. Più una **divisione per zero** nella stessa espressione, ad α=1 con una fonte che dichiara `authority: 0.0` — α=1.0 è una coordinata della griglia del calibratore | Sotto divergenza sidecar↔Qdrant il ranking si inverte proprio sulle fonti normative, in silenzio | S | Due insiemi invece di due rami: nessun punteggio finto, i non giudicabili in coda ordinati per fusione÷autorità. Copertura **160/160** oggi, quindi resta latente e il percorso di produzione non cambia di una posizione — c'è un test che lo fissa. Le attese sono state verificate una per una contro la regola vecchia: la prima che avevo scritto **passava anche col difetto** |
 | A8 | Test / copertura | MANCANTE | 1253 test, **0 skip** con Qdrant attivo ⇒ nessun test tocca un Qdrant reale; `tests/test_qdrant_blue_green.py:42-131` usa `_FakeQdrant`. Il commento in `.github/workflows/ci.yml` ("i test che toccano un Qdrant reale si auto-saltano") è **superato** | Alias swap, delete-by-filter, GC e rollback sono validati solo contro un finto scritto dallo stesso autore: un disallineamento con la semantica reale di Qdrant non è rilevabile | M | Almeno un test di integrazione contro Qdrant vero, saltato in modo esplicito quando assente |
 | A9 | CI / qualità | MANCANTE | `pyproject.toml`, `pytest.ini`, `ci.yml`: nessun ruff/mypy/coverage | Su 37.5k righe, regressioni di stile e di tipo passano; la copertura reale è ignota | S | Un linter gira in CI e fallisce su una violazione introdotta apposta |
 | A10 | ~~Sicurezza / doc~~ | ~~FRAGILE~~ → **RITIRATO** | **Riscontro sbagliato.** Lo scarto di 19 giorni fra i commit era un indizio, non una prova, e l'ho riportato come sospetto: la riconciliazione riga-per-riga (B5, eseguita) dice che il documento è **allineato**. Le 57 route del codice sono tutte in tabella — `GET /` è la riga 1 (`SECURITY_SURFACE.md:118`) — e le 7 che sembravano "documentate ma assenti" sono le auto-route di FastAPI (`/docs`, `/redoc`, `/openapi.json`, `/docs/oauth2-redirect`) e il mount statico, che il documento conta esplicitamente a `:33`. Il mio grep sui decoratori `@router` non poteva vederle: il documento era più completo del mio strumento | Nessuno | — | — |
@@ -84,11 +84,11 @@ I tre rischi che lo rendono "non completo":
 distribuzione (A14, A15), 9 FRAGILE, 2 SUPERFLUO, 1 FRAGILE latente.
 
 Il conteggio è la fotografia della Run A e resta com'era: ciò che è successo dopo si legge
-nelle righe. A2 e A5 ritirati, A6 e A18/A19/A20 chiusi in Run B, A3, A2b e A4 chiusi il
+nelle righe. A2 e A5 ritirati, A6 e A18/A19/A20 chiusi in Run B, A3, A2b, A4 e A7 chiusi il
 2026-09-03 — A3 con una **verifica di chiusura diversa** da quella che la riga proponeva, A2b
-**più esteso** di quanto la riga avesse visto, A4 **in parte ritirato**: quattro dei cinque
-casi che contavo come fallimenti erano la misura, non il difetto. Le indagini sono in fondo
-al documento.
+e A7 **più estesi** di quanto le righe avessero visto, A4 **in parte ritirato**: quattro dei
+cinque casi che contavo come fallimenti erano la misura, non il difetto. Le indagini sono in
+fondo al documento.
 
 ---
 
@@ -1046,3 +1046,95 @@ A differenza di `recall@10` sul golden-set classico, **questa metrica non è mai
   riformulato, non è più una decisione da prendere.
 - **`recall media A = 0.896` con soglia 0.85:** margine 4,6 punti, lo stesso ordine di
   grandezza del gate single-hop.
+
+---
+---
+
+# A7 — la regola era scritta nella funzione che produce il `None`, e il consumatore la ignorava
+
+**Domanda:** nel ramo misto un chunk con `colbert_score=None` pesa `-1.0 × (1-α+α·autorità)`
+— più è autorevole, più scende. Oggi irraggiungibile: quanto conta?
+
+## Dove stava già la risposta giusta
+
+`colbert_maxsim` dichiara la semantica del proprio `None`, e la dichiarava da prima:
+
+> *«None se il chunk non ha vettori (sidecar assente o disallineato): "non giudicabile", che
+> **non è la stessa cosa di "poco pertinente"**.»*
+
+`rank_by_authority` lo sostituiva con `-1.0` — cioè con "pochissimo pertinente", il preciso
+significato che quella riga esclude — e poi lo **moltiplicava per l'autorità**. Con α=0.1 il
+moltiplicatore sta in [0.9, 1.0], quindi la chiave finiva in [-1.0, -0.9] e, ordinando al
+contrario, la fonte **più** autorevole prendeva la chiave più negativa: ultima.
+
+`rank_sections_by_relevance`, scritta dopo per il ramo del grafo, onora invece la
+distinzione («le sezioni SENZA vettore non sono giudicabili: finiscono in coda»). La regola
+esisteva in due punti su tre.
+
+## L'incoerenza che non era nel riscontro
+
+Cercando come sistemarlo è emerso che i due rami di prima si contraddicevano fra loro. Gli
+**stessi due** chunk senza vettore uscivano:
+
+| | ordine |
+|---|---|
+| da soli (`any(...)` falso ⇒ ramo fusione) | fusione ÷ autorità — **corretto** |
+| appena un terzo chunk qualsiasi portava un vettore | `-1.0` × autorità — **invertito** |
+
+Il posto di un chunk dipendeva dal fatto che *altri* chunk avessero un vettore. Questo spiega
+anche perché la correzione non è "un ramo in meno di bug": i due rami andavano fusi.
+
+## La correzione: due insiemi, non due rami
+
+Nessun punteggio finto e nessun `if any(...)`:
+
+```python
+giudicabili.sort(key=lambda r: r["colbert_score"] * _mult(r), reverse=True)
+non_giudicabili.sort(key=lambda r: r["fused_rank_sum"] / _mult(r))
+results[:] = giudicabili + non_giudicabili
+```
+
+I non giudicabili stanno in coda, ordinati con la regola che governava già il caso "nessun
+ColBERT": la fusione denso+sparso — l'unico segnale di rilevanza che hanno — modulata dalla
+stessa autorità. Copre entrambi i vecchi rami, quindi ne elimina uno, e sparisce anche la
+domanda "il sentinella `-1.0` sta davvero sotto ogni punteggio reale?".
+
+**Il percorso di produzione non cambia di una posizione**, ed è verificato: con copertura
+piena `non_giudicabili` è vuoto e il risultato è `giudicabili` ordinati come prima. Copertura
+misurata oggi su `v20260901T132525`: **160 chunk / 160 vettori ColBERT, 0 scoperti, 0
+orfani** — A7 resta latente, com'era.
+
+## Una divisione per zero, nella stessa espressione
+
+Ad α=1 il moltiplicatore **è** l'autorità: una fonte che dichiara `authority: 0.0` nel
+frontmatter azzerava il divisore del ramo di fusione. Non è ipotetico quanto sembra — α=1.0
+è la forma che `[REGOLA-VAL-08]` prescriveva prima dell'emendamento, ed è ancora una
+coordinata della griglia del calibratore (`ALPHAS = [… 0.8, 1.0]`). Aggiunto un pavimento:
+quella fonte va comunque in fondo, che è la direzione giusta, invece di far esplodere il
+retrieval.
+
+## Un test che non provava nulla
+
+Il primo test che ho scritto — la fonte autorevole senza vettore non deve scendere —
+**passava anche col codice difettoso**: con soli chunk non giudicabili `any(...)` è falso e si
+imboccava il ramo di fusione, che era già corretto. Serve un candidato giudicabile in lista
+perché il difetto si manifesti. Test riscritto e assorbito; verificate una per una tutte le
+attese contro la regola vecchia, per non lasciare in suite altre asserzioni che non
+distinguono le due versioni:
+
+| test | vecchia regola | nuova |
+|---|---|---|
+| coda senza inversione | `debole, senza-bassa, senza-alta` | `debole, senza-alta, senza-bassa` |
+| il posto non dipende dagli altri | soli `B,A` vs misti `A,B` | `B,A` in entrambi |
+| α=1 con autorità 0 | `ZeroDivisionError` | in fondo |
+| copertura piena | identico — **è la guardia sul percorso di produzione** | identico |
+
+## Cosa resta aperto
+
+- **Nessun test esercita un Qdrant reale** (A8), che è la via per cui la divergenza
+  sidecar↔Qdrant si presenterebbe davvero. Questa correzione fissa il comportamento *dato*
+  un `None`; non fa comparire il `None`.
+- **Nulla allarma quando la copertura ColBERT scende.** `check_index_integrity` verifica
+  manifest, artefatti e allineamento con Qdrant, e oggi dice `ok: true`; il numero
+  "chunk scoperti" l'ho misurato a mano. Un sidecar disallineato resta una condizione che
+  si scopre solo guardando.

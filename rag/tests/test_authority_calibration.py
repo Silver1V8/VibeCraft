@@ -44,6 +44,69 @@ def test_rank_by_authority_alpha_zero_is_pure_relevance():
 
 
 # ---------------------------------------------------------------------------
+# A7 — il ramo MISTO: chunk senza vettore ColBERT accanto a chunk che ce l'hanno.
+#
+# `hybrid_search` tollera esplicitamente `colbert_score=None` (sidecar legacy o
+# disallineato rispetto a Qdrant). Prima quei chunk venivano ordinati con un punteggio
+# finto di -1.0 MOLTIPLICATO per l'autorità: più autorevole la fonte, più negativo il
+# prodotto, più scendeva. L'inversione colpiva le fonti normative, in silenzio, e solo
+# quando la copertura ColBERT era parziale — cioè mai, finché è piena.
+# ---------------------------------------------------------------------------
+def _senza_vettore(id_, authority, fused=2):
+    return {"colbert_score": None, "authority": authority, "fused_rank_sum": fused, "id": id_}
+
+
+def test_senza_vettore_in_coda_e_senza_inversione_dell_autorita():
+    """IL test di A7, e serve un candidato giudicabile perché il difetto si manifesti: senza,
+    `any(colbert_score is not None)` è falso e si imboccava il ramo di fusione, che era già
+    corretto. Con un giudicabile in lista la vecchia regola usciva
+    ['debole', 'senza-bassa', 'senza-alta'] — la coda invertita, la fonte più autorevole per
+    ultima.
+
+    Non giudicabile non vuol dire "ultimo per punizione": vuol dire che il MaxSim su quel
+    chunk non si può calcolare. Sta in coda, ma ORDINATO, e nel verso giusto."""
+    giudicabile = {"colbert_score": 0.05, "authority": 0.1, "fused_rank_sum": 99, "id": "debole"}
+    out = retrieval.rank_by_authority(
+        [_senza_vettore("senza-alta", 1.0), giudicabile, _senza_vettore("senza-bassa", 0.1)],
+        alpha=0.1)
+    assert [r["id"] for r in out] == ["debole", "senza-alta", "senza-bassa"]
+
+
+def test_il_posto_di_un_non_giudicabile_non_dipende_dagli_altri():
+    """L'incoerenza nascosta fra i due rami di prima: gli stessi due chunk senza vettore
+    uscivano in un ordine quando erano soli (fusione / autorità) e nell'ordine INVERSO
+    appena un terzo chunk qualsiasi portava un vettore ColBERT."""
+    soli = retrieval.rank_by_authority(
+        [_senza_vettore("A", 0.1), _senza_vettore("B", 1.0)], alpha=0.1)
+    misti = retrieval.rank_by_authority(
+        [_senza_vettore("A", 0.1),
+         {"colbert_score": 0.7, "authority": 0.5, "fused_rank_sum": 1, "id": "C"},
+         _senza_vettore("B", 1.0)], alpha=0.1)
+    assert [r["id"] for r in soli] == ["B", "A"]
+    assert [r["id"] for r in misti if r["id"] != "C"] == ["B", "A"]
+
+
+def test_copertura_piena_ordina_come_prima():
+    """Il percorso di PRODUZIONE (copertura ColBERT 100%) non deve cambiare di una posizione:
+    la correzione riguarda solo l'insieme che prima non esisteva come insieme."""
+    cands = [{"colbert_score": 0.40, "authority": 1.0, "fused_rank_sum": 3, "id": "medio-alto"},
+             {"colbert_score": 0.80, "authority": 0.3, "fused_rank_sum": 2, "id": "forte"},
+             {"colbert_score": 0.10, "authority": 1.0, "fused_rank_sum": 5, "id": "debole"}]
+    out = retrieval.rank_by_authority(cands, alpha=0.1)
+    assert [r["id"] for r in out] == ["forte", "medio-alto", "debole"]
+
+
+def test_autorita_zero_ad_alpha_uno_non_divide_per_zero():
+    """Ad alpha=1 il moltiplicatore È l'autorità: una fonte che dichiara `authority: 0.0`
+    azzerava il divisore del ramo di fusione. Il pavimento la manda in fondo — la direzione
+    giusta — invece di far esplodere il retrieval."""
+    out = retrieval.rank_by_authority(
+        [_senza_vettore("azzerata", 0.0, fused=1), _senza_vettore("normale", 0.8, fused=4)],
+        alpha=1.0)
+    assert [r["id"] for r in out] == ["normale", "azzerata"]
+
+
+# ---------------------------------------------------------------------------
 # Fedeltà del calibratore al ranking di PRODUZIONE (ADR 0002 / S1 + S4)
 # ---------------------------------------------------------------------------
 def _cand(chunk_id, doc_id, colbert, classification="", status=""):
