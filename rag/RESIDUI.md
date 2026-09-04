@@ -48,12 +48,42 @@ Difetti e rischi veri, ancora presenti. **Verificato oggi** salvo dove indicato.
 
 ### Gravità alta
 
-**R1 — Il prompt di sistema ordina di citare vincoli SQL su un corpus che di SQL non parla.**
-`core/retrieval.py:834` — *«DEVI citare esplicitamente i codici dei Safeguards (es.
-[SAFEGUARD-TXN-01]) e i vincoli SQL (es. SELECT ... FOR UPDATE)»*. Nei casi 3 e 4 di A3 il
-modello ne ha **inventati**, dichiarandoli ipotetici. È un invito a inventare scritto nel
-prompt di un sistema di governance, cioè l'unica cosa che un RAG di governance non deve fare.
-*Verificato: l'istruzione è ancora lì, parola per parola.*
+**R1 — Il prompt di sistema ordina di citare vincoli SQL → CHIUSO 2026-09-04.**
+`core/retrieval.py` — *«DEVI citare esplicitamente i codici dei Safeguards (es.
+[SAFEGUARD-TXN-01]) e i vincoli SQL (es. SELECT ... FOR UPDATE)»*, sostituita da
+`[CITAZIONE-VERIFICABILE]`.
+
+**Una metà della premessa era sbagliata, e va detta.** «Un corpus che di SQL non parla» non
+regge: `docs/00_meta_governance/safeguards_security.md` enuncia `SELECT ... FOR UPDATE` nel
+testo di `[SAFEGUARD-TXN-01]`, in un blocco di codice SQL, nel requisito sul motore di
+database e nella tabella di sintesi. Il difetto non era l'assenza di SQL dal corpus: era che
+l'ordine di citarlo era **incondizionato**, quindi si applicava anche alle domande il cui
+contesto recuperato non ne contiene — e lì il modello lo fabbricava.
+
+**Riprodotto** il 2026-09-04 contro `/ask` (Qdrant, Ollama `qwen3.5:9b`, indice
+`v20260901T132525`), 2 esecuzioni per caso, cache disattivata: **3 risposte su 4 inventano**.
+Caso 3 (*ordine dei tagli del chunker*) apre una sezione intitolata *«Vincolo SQL/Logica
+associata (implicito nel contesto dei blocchi atomici)»* e ci trascina dentro
+`[SAFEGUARD-TXN-02]` — l'atomicità transazionale, in una risposta sul chunking. Caso 4
+(*palette colori*) attribuisce il controllo a `[SAFEGUARD-UI-01]` *«(implicito nella
+funzione…)»* e `[SAFEGUARD-PALETTE-01]`: **zero occorrenze in tutto il corpus**, verificato.
+La forma è sempre la stessa — il codice inesistente è marcato «implicito» o «ipotetico», che
+è come il modello obbedisce a un ordine che non può soddisfare.
+
+**Correzione:** non la rimozione della parola «SQL». `[CITAZIONE-VERIFICABILE]` pretende di
+citare *testualmente ciò che il contesto riporta*, ed è la clausola di **divieto** a portare
+il peso: «è tassativamente vietato introdurre un codice, un identificatore o un vincolo
+tecnico che nel contesto non compare: non inventarlo, non dedurlo per analogia, non proporlo
+come esempio, ipotesi o vincolo *implicito*».
+
+**Verifica**, stesse due domande, 2 esecuzioni ciascuna: **0 invenzioni**, e i codici veri
+restano — caso 3 cita `[REGOLA-VAL-04]` dalla spec normativa col METHODOLOGY come razionale,
+caso 4 cita `[REGOLA-UI-01]` e `[REGOLA-UI-03]` dalla norma. Controllo sul verso opposto
+(*«come gestire il lock transazionale su una risorsa contesa»*, dove l'SQL nel contesto c'è
+davvero): la risposta cita `[SAFEGUARD-TXN-01/04/05]` e il `SELECT ... FOR UPDATE` reale —
+la regola sopprime l'invenzione, non la citazione. Costo: il prompt fisso passa da ~804 a
+~954 token stimati (+150), dichiarato e ora sorvegliato da R3.
+Test di non regressione in `tests/test_ask_authority_prompt.py`.
 
 **R2 — Nulla allarma quando la copertura ColBERT scende.** `check_index_integrity` confronta
 i punti Qdrant con `chunks.json`, ma **non guarda mai** le chiavi del sidecar ColBERT: un
@@ -61,11 +91,21 @@ chunk senza vettore non produce alcun problema. È l'input che innesca A7 (l'inv
 ranking sulle fonti normative) ed è ciò che A18 avrebbe prodotto su un'aggiunta. I due
 riscontri si compongono, e nessuno dei due allarma. *Verificato leggendo la funzione.*
 
-**R3 — Il margine sulla finestra di contesto si accorcerà di nuovo, e nulla lo sorveglia.**
-Ogni futura `[REGOLA-...]` aggiunta a `build_ask_prompt` sposta il punto in cui `top_k=20`
-smette di stare sotto la soglia di certezza. Il prompt è già cresciuto due volte in questa
-sessione (`[CLASSE-FONTI]`, `[REGOLA-ASTENSIONE]`), portando la misura dall'81% al 104%.
-Esiste solo la misura di oggi, nessun test.
+**R3 — Il margine sulla finestra di contesto si accorcerà di nuovo → CHIUSO 2026-09-04.**
+Il prompt era cresciuto due volte in una sola sessione (`[CLASSE-FONTI]`,
+`[REGOLA-ASTENSIONE]`), portando la misura dall'81% al 104% di `num_ctx` a `top_k=20`, e non
+esisteva alcun test. Ora c'è `tests/test_ask_prompt_cost.py`: canarino sul costo **fisso**
+del prompt di sistema — base più `[CLASSE-FONTI]` e `[PRECEDENZA-FONTI]` con le
+interpolazioni ridotte a valori sintetici, cioè la sola parte che dipende dal sorgente e non
+dal corpus. Budget **1.000 token stimati** (stessa scala ~3 caratteri/token del guardrail di
+`core.llm._ollama_payload`, altrimenti misurerebbe una grandezza diversa da quella che
+solleva `LLMError`), contro i **954** misurati oggi: ~46 token di margine, meno di qualunque
+regola vera (`[CLASSE-FONTI]` ne pesa ~330, `[REGOLA-ASTENSIONE]` ~160). Aggiungere una
+regola rende il test rosso — è lo scopo: budget, data e ragione della misura stanno **dentro
+il test**, e alzarli senza rimisurare il prompt completo a `top_k=20` sul corpus reale è
+esattamente il passo che era stato saltato. Il test sul prompt **completo** resta
+deliberatamente non fatto: dipende dal corpus e fallirebbe a ogni reindex senza dire chi
+l'ha fatto crescere.
 
 ### Gravità media
 
@@ -154,9 +194,9 @@ l'audit: metà del valore è arrivato dal guardare, non dal riparare.
 
 | # | Approccio scelto | Perché questo e non altro | Sforzo |
 |---|---|---|---|
-| R1 | Riscrivere l'istruzione perché pretenda di citare **ciò che il contesto contiene**, non una lista fissa di categorie | Rimuovere la sola parola «SQL» lascerebbe la forma «DEVI citare X» che genera X quando X non c'è. Il difetto è la forma, non l'esempio | S |
+| R1 ✅ | Riscrivere l'istruzione perché pretenda di citare **ciò che il contesto contiene**, non una lista fissa di categorie | Rimuovere la sola parola «SQL» lascerebbe la forma «DEVI citare X» che genera X quando X non c'è. Il difetto è la forma, non l'esempio | S — **fatto 2026-09-04** (`[CITAZIONE-VERIFICABILE]`) |
 | R2 | Aggiungere al `check_index_integrity` il confronto chiavi ColBERT ↔ `chunks.json`, come per Qdrant | La funzione già fa esattamente questo confronto per un'altra coppia: è una terza voce nella stessa lista, non un meccanismo nuovo | S |
-| R3 | Test-canarino sul **costo fisso** del prompt di sistema, con il budget scritto e la ragione | Un test sul prompt completo dipenderebbe dal corpus; il costo fisso è ciò che cresce quando si aggiunge una regola | S |
+| R3 ✅ | Test-canarino sul **costo fisso** del prompt di sistema, con il budget scritto e la ragione | Un test sul prompt completo dipenderebbe dal corpus; il costo fisso è ciò che cresce quando si aggiunge una regola | S — **fatto 2026-09-04** (`tests/test_ask_prompt_cost.py`) |
 | R4 | `services: qdrant` nel job `test` di `ci.yml` | GitHub Actions lo supporta nativamente; l'alternativa (`docker compose up` nel job) aggiunge uno script da mantenere | S |
 | R5 | Stampare il conteggio come contesto storico, non come verdetto | Togliere la riga perderebbe un numero utile: è l'etichetta a essere sbagliata | S |
 | R6 | Mappa esplicita degli stati → colore, con `abstained` e `graph_answer` distinti dall'errore | Il ternario `success ? verde : rosso` non è estendibile senza mentire | S |
@@ -185,9 +225,11 @@ aprire una sessione nuova e incollarlo.
 
 ---
 
-## S1 — Il prompt che invita a inventare
+## S1 — Il prompt che invita a inventare ✅ ESEGUITA il 2026-09-04
 
-Chiude **R1**, **R3**.
+Chiude **R1**, **R3**. Esito in fondo alla sessione; il prompt resta qui com'era, perché la
+premessa che conteneva («il corpus non parla di SQL») è **sbagliata** ed è parte di ciò che
+la sessione ha scoperto.
 
 ```
 Lavora su rag/. Due residui di AUDIT.md, entrambi in core/retrieval.py::build_ask_prompt.
@@ -225,6 +267,25 @@ Non toccare rank_by_authority, boost_alpha, ne' le soglie del gate.
 Aggiorna AUDIT.md (le due voci in "Cosa resta aperto" di A3 e A1) e RESIDUI.md.
 Suite completa + ruff prima del commit.
 ```
+
+**Esito (2026-09-04).** Entrambi chiusi — dettaglio nelle voci R1 e R3 in sezione 2.
+Tre cose che il prompt della sessione non prevedeva:
+
+1. **La premessa «il corpus non parla di SQL» è falsa.** `safeguards_security.md` enuncia
+   `SELECT ... FOR UPDATE` in quattro punti, dentro `[SAFEGUARD-TXN-01]`. Il difetto era che
+   l'ordine di citarlo valeva per **ogni** domanda, comprese quelle il cui contesto non ne
+   contiene. La correzione richiesta era comunque quella giusta — pretendere ciò che il
+   contesto riporta — ma la ragione è un'altra, e il criterio di verifica cambia: non «l'SQL
+   deve sparire», bensì «deve sparire dove il contesto non ce l'ha e restare dove ce l'ha».
+   Aggiunta per questo una domanda di controllo sul verso opposto.
+2. **L'SQL inventato non era l'unica invenzione, né la più frequente.** Riproducendo, il
+   modello ha fabbricato anche codici `[SAFEGUARD-UI-01]` e `[SAFEGUARD-PALETTE-01]`
+   inesistenti nel corpus — stessa forma («implicito», «ipotetico»), stessa causa. Fermarsi
+   alla parola «SQL» avrebbe lasciato in piedi metà del difetto.
+3. **La correzione costa 150 token di prompt fisso** (804 → 954). Dichiarato, e da subito
+   sotto il canarino di R3 che questa stessa sessione ha aggiunto.
+
+Suite: **1304 test verdi, 0 fallimenti**. Ruff pulito.
 
 ---
 

@@ -818,6 +818,13 @@ def build_ask_prompt(context: str, question: str,
     invenzione qualunque nome di campo non presente nei documenti e rispondeva "Non
     specificato" anche con la classe che quei campi li dichiara sotto gli occhi.
 
+    [CITAZIONE-VERIFICABILE] (R1) ha preso il posto dell'ordine storico di citare «i codici
+    dei Safeguards e i vincoli SQL»: quell'ordine era incondizionato, quindi sulle domande il
+    cui contesto non contiene né gli uni né gli altri il modello li FABBRICAVA — vincoli
+    transazionali «impliciti» e codici [SAFEGUARD-*] inesistenti. Ora la pretesa è sul
+    contesto («cita ciò che il contesto riporta, e nient'altro»), quindi il vincolo SQL reale
+    di [SAFEGUARD-TXN-01] continua a essere citato dove c'è davvero.
+
     `authority_classes` (da retrieval.authority_scale) aggiunge [CLASSE-FONTI]: è ciò che
     porta l'autorità DENTRO il prompt invece di lasciarla morire nel ranking. Il perché sta
     nel commento sopra quella regola, la misura in A3 di rag/AUDIT.md.
@@ -831,7 +838,22 @@ def build_ask_prompt(context: str, question: str,
     system_prompt = (
         "Sei l'Ispettore di Governance di VibeCraft.\n"
         "Rispondi alle domande estraendo i contratti e i vincoli esatti.\n"
-        "DEVI citare esplicitamente i codici dei Safeguards (es. [SAFEGUARD-TXN-01]) e i vincoli SQL (es. SELECT ... FOR UPDATE).\n"
+        # [CITAZIONE-VERIFICABILE] sostituisce la riga storica «DEVI citare esplicitamente i
+        # codici dei Safeguards (es. [SAFEGUARD-TXN-01]) e i vincoli SQL (es. SELECT ... FOR
+        # UPDATE)». Il corpus non parla di SQL, e l'ordine di citarlo lo faceva PRODURRE: nei
+        # casi avversariali 3 e 4 il modello inventava vincoli transazionali dichiarandoli
+        # «ipotetici» o «impliciti», e codici [SAFEGUARD-*] inesistenti (UI-01, PALETTE-01)
+        # pur di obbedire alla stessa forma. Il difetto non è la parola "SQL": è che «DEVI
+        # citare X» genera X anche dove X non c'è. La riga pretende quindi ciò che il contesto
+        # CONTIENE, ed è la clausola di DIVIETO — non l'elenco degli esempi — a portare il peso.
+        # Misura prima/dopo in rag/AUDIT.md, sezione 8 di A3.
+        "[CITAZIONE-VERIFICABILE]: DEVI citare testualmente gli identificatori e i vincoli tecnici "
+        "CHE IL CONTESTO RIPORTA — codici di regola e di safeguard, nomi di file, simboli e campi, "
+        "soglie, severità, formati — e SOLTANTO quelli. È tassativamente vietato introdurre un "
+        "codice, un identificatore o un vincolo tecnico che nel contesto non compare: non "
+        "inventarlo, non dedurlo per analogia, non proporlo come esempio, ipotesi o vincolo "
+        "«implicito». Se la domanda presuppone un elemento che il contesto non riporta, dichiara "
+        "che il contesto non lo riporta invece di ricostruirlo.\n"
         "[REGOLA-DIZIONARIO-RIGIDO]: È tassativamente ed espressamente vietato inventare o usare sinonimi colloquiali per le entità. "
         "DEVI usare esclusivamente i termini in MAIUSCOLO estratti dal glossario (Usa EVENTO e mai 'Posto', usa RICHIESTA e mai 'Domanda').\n"
         "[FONTE-CODICE]: il blocco «CODICE ESISTENTE» del contesto è codice sorgente REALE del progetto ed è una fonte "

@@ -678,10 +678,39 @@ solido, non un intervallo di confidenza.
   Automatizzarla costa una chiamata LLM per caso e un giudice: non è stato fatto.
 - **La strada 1** (peso di sezione) resta la candidata naturale se un giorno il rango
   dovesse contare davvero — per esempio con `governed_max_chunks` molto più basso.
-- **Il prompt di sistema ORDINA di citare vincoli SQL** (`«DEVI citare … i vincoli SQL (es.
+- ~~**Il prompt di sistema ORDINA di citare vincoli SQL** (`«DEVI citare … i vincoli SQL (es.
   SELECT … FOR UPDATE)»`) su un corpus che di SQL non parla: nei casi 3 e 4 il modello ne ha
-  inventati, dichiarandoli ipotetici. È un invito a inventare, scritto nel prompt. Fuori dal
-  perimetro di A3 e da decidere a parte.
+  inventati, dichiarandoli ipotetici. È un invito a inventare, scritto nel prompt.~~
+  **CHIUSO il 2026-09-04** (R1), con **una premessa da correggere**: il corpus di SQL *parla*.
+  `docs/00_meta_governance/safeguards_security.md` enuncia `SELECT ... FOR UPDATE` nel testo
+  di `[SAFEGUARD-TXN-01]`, in un blocco di codice, nel requisito sul motore di database e
+  nella tabella di sintesi. Il difetto non era l'assenza di SQL dal corpus: era che l'ordine
+  di citarlo valeva per **ogni** domanda, comprese quelle il cui contesto recuperato non ne
+  contiene — e lì il modello lo fabbricava.
+
+  **Riprodotto** contro `/ask` (Ollama `qwen3.5:9b`, indice `v20260901T132525`), 2 esecuzioni
+  per caso, cache disattivata: **3 risposte su 4** inventano. Il caso 3 (*ordine dei tagli*)
+  apre una sezione *«Vincolo SQL/Logica associata (implicito nel contesto dei blocchi
+  atomici)»* e ci trascina `[SAFEGUARD-TXN-02]` — l'atomicità transazionale, in una risposta
+  sul chunking. Il caso 4 (*palette colori*) attribuisce il controllo a `[SAFEGUARD-UI-01]` e
+  `[SAFEGUARD-PALETTE-01]`, **zero occorrenze nel corpus**. L'SQL inventato non era dunque né
+  l'unica invenzione né la più frequente: la forma «DEVI citare X» fabbricava anche codici di
+  safeguard, sempre marcandoli «implicito» o «ipotetico» — che è come il modello obbedisce a
+  un ordine che non può soddisfare.
+
+  **Correzione**: `[CITAZIONE-VERIFICABILE]` in `core/retrieval.build_ask_prompt`, che
+  pretende di citare *testualmente ciò che il contesto riporta* e **vieta** di introdurre
+  codici, identificatori o vincoli tecnici assenti dal contesto, «nemmeno come esempio,
+  ipotesi o vincolo implicito». È la clausola di divieto a portare il peso: togliere la sola
+  parola «SQL» avrebbe lasciato intatta la forma.
+
+  **Verifica**, stesse due domande, 2 esecuzioni ciascuna: **0 invenzioni**, e i codici veri
+  restano — caso 3 cita `[REGOLA-VAL-04]` dalla spec col METHODOLOGY come razionale, caso 4
+  `[REGOLA-UI-01]` e `[REGOLA-UI-03]` dalla norma. Controllo sul verso opposto («come gestire
+  il lock transazionale su una risorsa contesa», dove l'SQL nel contesto c'è davvero): la
+  risposta cita `[SAFEGUARD-TXN-01/04/05]` e il `SELECT ... FOR UPDATE` reale. La regola
+  sopprime l'invenzione, non la citazione. Costo: prompt fisso da ~804 a ~954 token,
+  dichiarato e sorvegliato dal canarino di A1/R3 aggiunto lo stesso giorno.
 ---
 ---
 
@@ -1370,9 +1399,20 @@ riscritto da assert-sul-log a `pytest.raises`), il test di warning esistente spo
 
 ## Cosa resta aperto
 
-- **Il margine si accorcerà di nuovo.** Ogni futura regola di sistema (`[REGOLA-...]`)
+- ~~**Il margine si accorcerà di nuovo.** Ogni futura regola di sistema (`[REGOLA-...]`)
   aggiunta a `build_ask_prompt` sposta il punto in cui `top_k=20` smette di stare sotto la
-  certezza. Non c'è un test che lo sorvegli nel tempo: solo la misura di oggi.
+  certezza. Non c'è un test che lo sorvegli nel tempo: solo la misura di oggi.~~
+  **CHIUSO il 2026-09-04** (R3). `tests/test_ask_prompt_cost.py` sorveglia il costo **fisso**
+  del prompt di sistema — la sola parte che dipende dal sorgente e non dal corpus: base più
+  `[CLASSE-FONTI]` e `[PRECEDENZA-FONTI]` con le interpolazioni ridotte a valori sintetici.
+  Budget **1.000 token stimati** contro i **954** di oggi, sulla stessa scala ~3
+  caratteri/token del guardrail di `core.llm._ollama_payload` (una scala diversa misurerebbe
+  una grandezza diversa da quella che poi solleva `LLMError`). I ~46 token di margine sono
+  meno di qualunque regola vera — `[CLASSE-FONTI]` ne pesa ~330, `[REGOLA-ASTENSIONE]` ~160 —
+  quindi aggiungerne una rende il test rosso, che è lo scopo: budget, data e ragione stanno
+  dentro il test, e alzarli senza rimisurare il prompt completo a `top_k=20` sul corpus reale
+  è il passo che era stato saltato. **Non** un test sul prompt completo: dipende dal corpus,
+  fallirebbe a ogni reindex e non direbbe chi l'ha fatto crescere.
 - **`top_k=20` resta il tetto**, anche sapendo che tocca il 104% su almeno una domanda
   reale. Non l'ho abbassato: la correzione di A1 riguardava il *comportamento al
   superamento* (mai più `success` silenzioso), non la ricalibrazione del tetto — che

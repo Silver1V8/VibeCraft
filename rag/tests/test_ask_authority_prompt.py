@@ -74,3 +74,22 @@ def test_la_precedenza_dichiarata_viene_dopo_la_graduatoria_di_classe():
         "ctx", "domanda?", precedences=[("a.md", "b.md")],
         authority_classes=[("NORMS", 0.8), ("METHODOLOGY", 0.5)])
     assert prompt.index("[CLASSE-FONTI]") < prompt.index("[PRECEDENZA-FONTI]")
+
+
+# ── [CITAZIONE-VERIFICABILE] (R1, sezione 8 di A3) ───────────────────────────────────────
+# La riga storica ordinava di citare «i vincoli SQL (es. SELECT ... FOR UPDATE)» su un
+# corpus che di SQL non parla, e il modello li produceva: «DEVI citare X» genera X anche
+# dove X non c'è. Riprodotto il 2026-09-04 sui casi avversariali 3 e 4.
+
+def test_il_prompt_non_ordina_piu_di_citare_vincoli_sql():
+    prompt = retrieval.build_ask_prompt("ctx", "domanda?")
+    assert "SQL" not in prompt
+    assert "FOR UPDATE" not in prompt
+
+
+def test_il_prompt_vieta_di_introdurre_cio_che_il_contesto_non_riporta():
+    """Il divieto è la metà che porta il peso: togliere l'esempio senza vietare l'aggiunta
+    lascerebbe intatta la forma che genera l'invenzione."""
+    prompt = retrieval.build_ask_prompt("ctx", "domanda?")
+    assert "[CITAZIONE-VERIFICABILE]" in prompt
+    assert "vietato introdurre" in prompt
