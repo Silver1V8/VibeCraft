@@ -75,7 +75,8 @@
          che deve dimostrare il rigore del retrieval era il meno leggibile.
          json-divider resta scuro perché è un bordo, non testo. */
       --json-divider:#17402a; --json-accent:#6fbf85; --json-muted:#5aa870; --json-col-bg:#000d05;
-      --json-score-label:#4dbf6e; --json-score-grad-start:#00e639;
+      --score-label:#4dbf6e; --score-grad-start:#00e639;
+      --score-value:#34d399; --score-grad-end:#10b981;
       --chip-bg:#062e14; --chip-border:#0a3d1f; --chip-color:#39ffe0;
       --stat-bg:#03170a; --stat-number:#7dffa0; --rag-json-bg:#000000;
 
@@ -128,7 +129,8 @@
       --tooltip-term-accent:#34d399; --tooltip-term-divider:#1a3d32; --tooltip-desc:#e2e8f0;
 
       --json-divider:#1e293b; --json-accent:#475569; --json-muted:#334155; --json-col-bg:#080e1a;
-      --json-score-label:#94a3b8; --json-score-grad-start:#2563eb;
+      --score-label:#94a3b8; --score-grad-start:#2563eb;
+      --score-value:#93c5fd; --score-grad-end:#60a5fa;
       --chip-bg:#0c1f3f; --chip-border:#1e3a5f; --chip-color:#7dd3fc;
       --stat-bg:#0a1628; --stat-number:#93c5fd; --rag-json-bg:#020817;
 
@@ -1389,10 +1391,10 @@
           <div class="group">
             <div class="flex justify-between items-center mb-1">
               <span class="text-xs text-slate-300 truncate max-w-[220px]" title="${escapeHtml(s.doc_id)}">${escapeHtml(short)}</span>
-              <span class="text-xs font-mono text-emerald-400 ml-2 shrink-0">${s.score.toFixed(4)}</span>
+              <span class="text-xs font-mono ml-2 shrink-0" style="color:var(--score-value)">${s.score.toFixed(4)}</span>
             </div>
             <div class="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-              <div class="score-bar h-full rounded-full bg-gradient-to-r from-blue-600 to-emerald-500" style="width:${pct}%"></div>
+              <div class="score-bar h-full rounded-full" style="width:${pct}%;background:linear-gradient(90deg,var(--score-grad-start),var(--score-grad-end))"></div>
             </div>
             <div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs font-mono text-slate-400">
               <span title="Dense (semantica)">D ${fmt(s.dense_score)}</span>
@@ -1429,8 +1431,10 @@
       const divider     = themeVar('--json-divider', '#04140a');
       const accent      = themeVar('--json-accent', '#1f7a3d');
       const muted       = themeVar('--json-muted', '#145c2c');
-      const scoreLabel  = themeVar('--json-score-label', '#4dbf6e');
-      const scoreGradS  = themeVar('--json-score-grad-start', '#00e639');
+      const scoreLabel  = themeVar('--score-label', '#4dbf6e');
+      const scoreGradS  = themeVar('--score-grad-start', '#00e639');
+      const scoreGradE  = themeVar('--score-grad-end',   '#10b981');
+      const scoreValue  = themeVar('--score-value',      '#34d399');
       const chipBg      = themeVar('--chip-bg', '#062e14');
       const chipBorder  = themeVar('--chip-border', '#0a3d1f');
       const chipColor   = themeVar('--chip-color', '#39ffe0');
@@ -1469,10 +1473,10 @@
             return `<div style="margin-bottom:10px">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
                 <span style="font-size:var(--text-xs);color:${scoreLabel};font-family:ui-monospace,monospace" title="${escapeHtml(s.doc_id)}">${escapeHtml(label)}</span>
-                <span style="font-size:var(--text-xs);font-family:ui-monospace,monospace;color:#34d399;margin-left:8px;white-space:nowrap">${s.score.toFixed(4)}</span>
+                <span style="font-size:var(--text-xs);font-family:ui-monospace,monospace;color:${scoreValue};margin-left:8px;white-space:nowrap">${s.score.toFixed(4)}</span>
               </div>
               <div style="height:3px;background:${divider};border-radius:2px;overflow:hidden">
-                <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,${scoreGradS},#10b981)"></div>
+                <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,${scoreGradS},${scoreGradE})"></div>
               </div>
             </div>`;
           }).join('')
