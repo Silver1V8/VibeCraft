@@ -17,7 +17,8 @@ Uso (da rag/, server acceso):
 
 Sezioni misurate:
     1. GET /api/retrieve   — 10 query dal golden-set, p50/p95.
-    2. POST /ask           — 3 query fisse, latenze medie (retrieval/generation/totale).
+    2. POST /ask           — 10 query dal golden-set, p50/p95/max del totale + medie del
+                             breakdown (retrieval/generation/totale).
     3. GET /api/graph/semantic-map — latenza end-to-end + flag "truncated".
     4. POST /api/reindex (incrementale, no-op reale: nessun file toccato) — durata dal journal.
     5. POST /api/reindex {"full": true} — SOLO con --with-rebuild; di default "skipped".
@@ -42,14 +43,13 @@ from eval.run import RESULTS_DIR, load_cases  # noqa: E402
 N_RETRIEVE_QUERIES = 10
 RETRIEVE_K = 5
 
-# Query fisse per il bench di /ask: stabili tra run così i numeri sono confrontabili
-# (a differenza del golden-set, che cresce nel tempo). Scelte dal golden-set esistente
-# per restare rappresentative del traffico reale, ma congelate qui.
-ASK_QUERIES = [
-    "come gestire il lock transazionale sui posti di un evento in concorrenza",
-    "sicurezza degli accessi, autenticazione e gestione dell'identità",
-    "quali sono i profili degli attori e i ruoli del sistema",
-]
+# Quante query del golden-set attraversano /ask. Erano 3 query FISSE, congelate qui per
+# essere confrontabili fra run: con n=3 però la media è l'unico numero calcolabile, e la
+# media non è ciò che l'utente aspetta — la coda sì. Stessa sorgente e stessa numerosità
+# di bench_retrieve (A11): con 10 campioni il p95 sta di fatto sul massimo osservato, ed
+# è un limite del campione, non della misura. Ogni query costa una generazione LLM
+# completa (~30 s su questa macchina), quindi alzare n allunga il bench in proporzione.
+N_ASK_QUERIES = 10
 
 REINDEX_POLL_INTERVAL_SECONDS = 1.0
 INCREMENTAL_POLL_TIMEOUT_SECONDS = 300.0
@@ -118,10 +118,14 @@ def bench_retrieve(client: httpx2.Client, url: str, n: int = N_RETRIEVE_QUERIES)
     }
 
 
-def bench_ask(client: httpx2.Client, url: str, queries: list[str] = ASK_QUERIES) -> dict:
-    """POST /ask sulle 3 query fisse: latenze medie. Il breakdown (retrieval/generation/
-    total) viene dall'oggetto "latency" della risposta (vedi _ASK_LATENCY_FIELDS);
-    latency_total_ms_client resta come cross-check indipendente, misurato qui lato client."""
+def bench_ask(client: httpx2.Client, url: str, queries: list[str] | None = None,
+              n: int = N_ASK_QUERIES) -> dict:
+    """POST /ask su `n` query del golden-set (o su `queries`, se passate): p50/p95 del
+    totale più le medie del breakdown. Il breakdown (retrieval/generation/total) viene
+    dall'oggetto "latency" della risposta (vedi _ASK_LATENCY_FIELDS); latency_total_ms_client
+    resta come cross-check indipendente, misurato qui lato client."""
+    if queries is None:
+        queries = [c["q"] for c in load_cases()[:n]]
     per_query = []
     for q in queries:
         t0 = time.perf_counter()
@@ -137,8 +141,16 @@ def bench_ask(client: httpx2.Client, url: str, queries: list[str] = ASK_QUERIES)
         entry.update({f"latency_{f}": latency.get(f) for f in _ASK_LATENCY_FIELDS})
         per_query.append(entry)
 
+    # p50/p95 sul TOTALE lato server, che è l'attesa dell'utente. Se la risposta non
+    # porta l'oggetto "latency" si ripiega sulla misura client, così i percentili
+    # esistono comunque (la "note" più sotto dice quando è successo).
+    totali_ms = [e["latency_total_ms"] if e["latency_total_ms"] is not None
+                 else e["latency_total_ms_client"] for e in per_query]
     result = {
         "n": len(per_query),
+        "p50_latency_total_ms": round(p50(totali_ms), 2) if totali_ms else None,
+        "p95_latency_total_ms": round(p95(totali_ms), 2) if totali_ms else None,
+        "max_latency_total_ms": round(max(totali_ms), 2) if totali_ms else None,
         "avg_latency_retrieval_ms": _avg([e["latency_retrieval_ms"] for e in per_query if e["latency_retrieval_ms"] is not None]),
         "avg_latency_generation_ms": _avg([e["latency_generation_ms"] for e in per_query if e["latency_generation_ms"] is not None]),
         "avg_latency_total_ms": _avg([e["latency_total_ms"] for e in per_query if e["latency_total_ms"] is not None]),

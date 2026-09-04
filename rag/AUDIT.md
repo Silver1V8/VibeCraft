@@ -71,7 +71,7 @@ I tre rischi che lo rendono "non completo":
 | A8 | Test / copertura | MANCANTE → **PREMESSA RITIRATA, sostanza CHIUSA 2026-09-03** | **L'inferenza era rovesciata.** «0 skip con Qdrant attivo ⇒ nessun test tocca un Qdrant reale»: con il servizio ATTIVO un test d'integrazione *gira*, non salta — 0 skip è esattamente ciò che ci si aspetta quando funziona. Misurato oggi in entrambe le direzioni: Qdrant spento → **5 skip espliciti col motivo**, Qdrant acceso → **36 passed**. I 3 test contro Qdrant vero esistono dal **2026-07-17/18** (`cc39609`, `47d4e35`), ben prima della Run A, e soddisfacevano già il criterio di chiusura di questa riga. Anche il commento in `ci.yml` era già stato corretto in L3 | **Ma la sostanza teneva in parte**: dei quattro rischi elencati, solo l'alias swap era davvero verificato contro il servizio reale. La **delete-by-filter** — che in produzione gira contro l'ALIAS ed è il percorso caldo dell'incrementale — non lo era: i fake registrano solo *quale* nome ricevono e ignorano del tutto il `points_selector`. Se Qdrant non risolvesse l'alias su una delete, l'incrementale lascerebbe i chunk vecchi **in silenzio** | M | 2 test d'integrazione nuovi: `_delete_doc_chunks` (la funzione di produzione) invocata sull'alias deve togliere ESATTAMENTE i punti del documento indicato e lasciare gli altri; e `delete_collection` deve invalidare gli alias che la puntavano — assunzione su cui poggia il GC, finora scritta solo in un commento del fake. Verificata anche la portanza: la stessa delete verso un nome inesistente **solleva**, quindi il test non passa per caso |
 | A9 | CI / qualità | MANCANTE → **CHIUSO 2026-09-03** | `ruff` aggiunto come dev dependency, con selezione **esplicita** (`E4/E7/E9/F`) invece del default del tool: il default di ruff 0.16 include famiglie di stile discrezionale (SIM, PIE, YTT, ...) e sul codebase mai linterato produceva **380** riscontri, quasi tutti preferenze di scrittura; la selezione scelta ne produceva **42**, tutti segnali reali (import morti, variabili inutilizzate, nomi ambigui come `l`, import fuori ordine non deliberato) | Su 37.5k righe, regressioni di stile e di correttezza passavano senza essere viste; mypy/coverage restano fuori scope (non richiesti dal criterio di chiusura, e mypy a freddo su un codebase mai tipizzato è un lavoro di tutt'altra scala) | S | Tutti e 42 i riscontri corretti (non silenziati): 5 import inutilizzati rimossi, 1 variabile morta rimossa (`api/routes_retrieval.py`, verificato che non gatava nulla — `search_code_symbols` si autoguarda già), 5 f-string senza placeholder, 11 nomi ambigui `l`→`line`/nome specifico, 4 lambda assegnati→`def`, 1 doppio `;`, 2 `E402` genuini riordinati (`code_index/docker.py`, `core/retrieval.py`), 2 `E402` **deliberati** (encoding UTF-8 prima degli import applicativi) dichiarati in `per-file-ignores` con la ragione, non silenziati a caso. Gate in `scripts/ci.sh`/`ci.ps1` (gemelli, verificati entrambi) prima della suite; verificato in entrambe le direzioni: una violazione introdotta apposta fa fallire il gate con `exit 1` prima che pytest parta, il codebase pulito passa. 1289 test invariati |
 | A10 | ~~Sicurezza / doc~~ | ~~FRAGILE~~ → **RITIRATO** | **Riscontro sbagliato.** Lo scarto di 19 giorni fra i commit era un indizio, non una prova, e l'ho riportato come sospetto: la riconciliazione riga-per-riga (B5, eseguita) dice che il documento è **allineato**. Le 57 route del codice sono tutte in tabella — `GET /` è la riga 1 (`SECURITY_SURFACE.md:118`) — e le 7 che sembravano "documentate ma assenti" sono le auto-route di FastAPI (`/docs`, `/redoc`, `/openapi.json`, `/docs/oauth2-redirect`) e il mount statico, che il documento conta esplicitamente a `:33`. Il mio grep sui decoratori `@router` non poteva vederle: il documento era più completo del mio strumento | Nessuno | — | — |
-| A11 | Prestazioni | FRAGILE | `/ask` misurato: 96.4 s a freddo, 28.6 s a caldo (`top_k=50`). Nessuno streaming, nessun budget di latenza esposto | Un'attesa di 30 s senza feedback è indistinguibile da un blocco | M | Latenza p95 misurata e dichiarata, o feedback incrementale |
+| A11 | Prestazioni | FRAGILE → **CHIUSO 2026-09-04** | I due numeri della riga erano presi a `top_k=50`, che dal A1 **non è più accettato** (`api/models.py`: `le=20`): non erano riproducibili. Rimisurati oggi al `top_k` di default, cache fredda, 10 query del golden-set — **p50 24,1 s, p95 32,0 s, max 33,7 s**. Ma la scoperta è un'altra: il retrieval pesa **0,50 s su 22,7 di media — il 2,2%**. Il 97,8% è la generazione LLM. E lo strumento per misurarlo esisteva già (`scripts/bench.py`, con `p50`/`p95` già scritti e usati per `/api/retrieve`): su `/ask` girava su **3 query fisse** e riportava solo la **media** — con n=3 il p95 non è calcolabile, e la media è esattamente il numero che nasconde la coda. `eval/results/` non conteneva **nessun** `bench_*.json`: la regola del README («nessuna ottimizzazione senza baseline salvata») non aveva una baseline | Un'attesa di 30 s senza feedback è indistinguibile da un blocco — e il loader era un'animazione muta, il tempo trascorso compariva solo **dopo**, nel badge `⏱ Ns`. In più, senza il breakdown misurato, "ottimizzare la latenza" sarebbe finita sul ranking: il 97,8% sta altrove | M | `bench_ask` porta `p50`/`p95`/`max` del totale lato server su 10 query del golden-set (stessa sorgente e stessa numerosità di `bench_retrieve`, riusando i `p50`/`p95` già presenti); baseline dichiarata in README con la macchina e la data. Feedback: il loader di `/ask` conta i secondi (verificato dal vivo — sale, si ferma alla risposta, non lascia intervalli appesi). Streaming **non fatto**: cambierebbe il contratto di `/ask`, ed è dichiarato come tale invece che sottinteso |
 | A12 | Codice / debito | SUPERFLUO → **CHIUSO 2026-09-03** | 6 `TODO(2026-07-12)` scaduti da 51 giorni. Cinque erano limiti permanenti travestiti da piani (glob `workspaces` non espansi, URL relative non abbinate al backend, link DMN→processo, "fuori scope: VB.NET/Razor HTML/JS") — ridatati togliendo il calendario e dicendo perché non sono pianificati. Il sesto, `_js_symbols`, era diverso: un piano vero, con la sua condizione di chiusura già scritta ("quando la migrazione tree-sitter sarà consolidata in produzione") | Il debito dichiarato con una data e ignorato smette di essere un piano — e nel caso di `_js_symbols` nascondeva un rischio reale: `pickle`-adiacente no, ma un secondo parser (regex) mai più esercitato restava comunque superficie da mantenere, con un test di 128 righe che lo teneva in vita artificialmente | S | Verificata la condizione della TODO stessa: migrazione del 2026-07-12, 53 giorni e molti commit dopo ancora `treesitter` di default per typescript/javascript/svelte, zero incidenti. **Rimosso** (decisione dell'utente, non mia): `_js_symbols`, `_PARSER_LANG`/`_PARSER_DEFAULTS`/`_parser_impl`, le chiavi `code_parsers.typescript/javascript/svelte` (decorative, un solo valore possibile), e `tests/test_ts_parser_equivalence.py` — **sostituito**, non solo cancellato, da `tests/test_ts_parser.py`: stesso corpus, assert dirette invece che per confronto, cosicché la copertura di `ts_symbols`/`svelte_symbols` non regredisse |
 | A13 | Codice / legacy | SUPERFLUO → **CHIUSO 2026-09-03** | `core/artifacts.py:35` importava `pickle` per il solo ramo di lettura legacy. Verificato **prima** di rimuoverlo: zero `.pkl` in tutto il progetto (`find` sull'intero repo, escluso `.venv`), e la scrittura era già disattivata da prima di questo audit — `save_artifacts()` non ha mai scritto `.pkl` da quando i formati JSON/`.npz` esistono | Un formato di deserializzazione arbitraria mantenuto per una retrocompatibilità di cui nessuno aveva più bisogno | S | Rimosso il ramo di fallback in `load_artifacts()` e i 5 percorsi `*_SAVE_PATH` (`core/config.py`), l'unico check di esistenza rimasto in `current_version()`, il fallback d'mtime in `api.deps._graph_version()`, e il parametro `emit` di `load_artifacts()` (diventato morto insieme all'unico warning che lo usava) nei 3 call site reali. 6 file di test aggiornati (rimossa `test_fallback_reads_legacy_pickle_with_warning`). Verificato dal vivo: il server carica lo snapshot reale (755 nodi, 160 chunk) passando solo da JSON/`.npz`. 1290 test verdi (1291 − 1: la suite rimossa testava un comportamento che non esiste più) |
 | A14 | Distribuzione | MANCANTE → **CHIUSO (Run C/L1)** | Verificato oggi: `README.md`, `LICENSE`, `.env.example`, `Dockerfile` esistono tutti a root, prodotti da L1/L2. La riga non era mai stata aggiornata dopo la Run C, restava con l'etichetta della Run A | — | — | Verificato: `ls README.md LICENSE Dockerfile rag/.env.example` — presenti tutti |
@@ -137,6 +137,15 @@ test d'integrazione esistevano dal 2026-07-17, sei settimane prima della Run A. 
 c'era comunque un buco vero: la **delete-by-filter attraverso l'alias**, percorso caldo
 dell'incrementale, non era verificata da nessuna parte. Ora sì. Indagine in fondo al
 documento.
+
+**A11 chiuso il 2026-09-04**: i due numeri della riga erano presi a `top_k=50`, che dal A1
+il server rifiuta — non riproducibili. Rimisurato: **p50 24,1 s, p95 32,0 s**, e soprattutto
+il retrieval è **0,50 s su 22,7 di media, il 2,2%**: il 97,8% dell'attesa è la generazione
+LLM, quindi il tetto di qualunque ottimizzazione che non tocchi il modello è il 2,2%. Lo
+strumento c'era già (`scripts/bench.py` calcola `p50`/`p95` per `/api/retrieve`) ma su
+`/ask` girava su 3 query fisse riportando solo la media, e `eval/results/` non conteneva
+nessun `bench_*.json`: la comparabilità fra run proteggeva un confronto mai avvenuto.
+Streaming **non fatto** e dichiarato tale. Indagine in fondo al documento.
 
 ---
 
@@ -1442,3 +1451,95 @@ test dipende davvero dalla risoluzione dell'alias e non da un no-op silenzioso.
 - **`rollback` e `GC`** restano validati contro il fake per la parte di *logica locale*
   (puntatore `CURRENT`, insieme dei riferimenti dai manifest): lì non c'è semantica di
   Qdrant da falsificare, se non la `delete_collection` ora coperta.
+
+---
+
+# A11 — trenta secondi, e il retrieval ne spiega mezzo
+
+*Chiusura del 2026-09-04.*
+
+## I due numeri della riga non erano riproducibili
+
+La riga misurava `/ask` a **`top_k=50`**: 96,4 s a freddo, 28,6 s a caldo. Quel `top_k`
+oggi il server lo **rifiuta** — `api/models.py` lo limita a `le=20`, ed è un vincolo di
+correttezza (finestra di contesto), non di carico: è la chiusura di A1, arrivata dopo
+questa riga. Chiunque provasse a riprodurre la baseline otterrebbe un 422.
+
+Rimisurato al `top_k` che la console usa davvero (5, il default del campo), processo
+appena avviato e cache di `/ask` vuota:
+
+| | valore |
+|---|---|
+| `p50` totale | **24,1 s** |
+| `p95` totale | **32,0 s** |
+| max osservato | 33,7 s |
+| media retrieval | 0,50 s |
+| media generation | 22,2 s |
+
+Il 96,4 s a freddo non si ripresenta: la prima run di oggi, a processo freddo, ha dato
+30,1 s di media su 3 query. L'ordine di grandezza dell'attesa "a caldo" invece regge —
+la riga aveva ragione su ciò che conta, cioè che si aspettano circa trenta secondi.
+
+## La scoperta non è il p95, è il denominatore
+
+**Il retrieval pesa 0,50 s su 22,7 di media: il 2,2%.** Dense + sparse + fusione per
+rango + rerank ColBERT + espansione sul grafo — tutto l'apparato che questo repository
+implementa e che l'audit ha passato giorni a correggere — costa mezzo secondo. Il
+**97,8%** è il forward pass del modello locale.
+
+È il numero da rileggere prima di ottimizzare qualsiasi cosa qui dentro: qualunque
+lavoro che non tocchi il modello o l'hardware ha un tetto teorico del 2,2%. Senza
+questa misura, "la console è lenta" sarebbe quasi certamente finita in un refactor del
+ranking.
+
+## Lo strumento c'era, e su `/ask` guardava dalla parte sbagliata
+
+`scripts/bench.py` esiste dal F3, calcola `p50`/`p95` e li usa — ma su
+`GET /api/retrieve`. Su `POST /ask` girava su **tre query fisse** e riportava tre
+**medie**. Con n=3 il p95 non è una quantità calcolabile; e la media è precisamente il
+numero che nasconde ciò che l'utente subisce. La sezione più lenta del sistema era
+l'unica misurata con lo strumento meno adatto.
+
+Le tre query erano congelate per una ragione scritta e legittima: essere confrontabili
+fra run, a differenza del golden-set che cresce. Ma **`eval/results/` non conteneva
+nessun `bench_*.json`** — nessuna run precedente da confrontare. La comparabilità
+proteggeva un confronto che non era mai avvenuto, al prezzo dell'unico numero utile.
+
+`bench_ask` ora pesca `n` casi dal golden-set (stessa sorgente e stessa numerosità di
+`bench_retrieve`, il suo gemello) e riporta `p50`/`p95`/`max` del totale **lato server**,
+accanto alle medie del breakdown, che restano. I percentili ripiegano sulla misura
+client se la risposta non porta l'oggetto `latency`: sparire proprio nel caso in cui
+servirebbero di più sarebbe il comportamento peggiore.
+
+Il p95 su 10 campioni sta di fatto sul massimo osservato. È un limite del **campione**,
+non della misura, ed è dichiarato: ogni query costa una generazione completa, quindi
+alzare `n` allunga il bench in proporzione.
+
+## Il feedback: un numero che sale
+
+L'impatto dichiarato dalla riga — «un'attesa di 30 s senza feedback è indistinguibile
+da un blocco» — non lo chiude una misura. Il loader era tre pallini animati e la scritta
+«Elaborazione in corso…»; il tempo trascorso compariva **solo dopo**, nel badge
+`⏱ 28.81s` accanto alla risposta. Un'animazione in loop non distingue un lavoro in corso
+da un processo appeso: è la stessa immagine nei due casi.
+
+Ora il loader conta i secondi. Verificato dal vivo sulla console (`http://127.0.0.1:8000`,
+Qdrant e Ollama attivi): il contatore sale (11 s → 14 s nella stessa attesa), si azzera
+alla risposta e **non lascia l'intervallo appeso** — controllato tre secondi dopo la fine,
+resta vuoto. Il badge finale ha segnato 28,81 s, coerente con il p50/p95 misurati.
+
+## Cosa NON è stato fatto, e perché è scritto qui
+
+**Lo streaming incrementale non c'è.** È l'unico modo di abbassare il tempo *percepito*
+sotto i trenta secondi, e la riga lo offriva come alternativa alla misura («o feedback
+incrementale»). Costerebbe il contratto di `/ask`: oggi la risposta è un JSON unico che
+porta risposta, contesto grafo, archi, punteggi di ranking e latenze, e il frontend li
+consuma insieme. Trasformarlo in un flusso vuol dire due canali (token in streaming +
+payload strutturato alla fine), un secondo percorso di errore e la cache di `/ask` da
+ripensare. Non è un lavoro da nascondere dentro la chiusura di una riga di audit.
+
+**Nessun gate sulla latenza.** Il bench resta una misurazione, exit code 0, come dice il
+suo stesso docstring; e un p95 di 10 campioni non regge una soglia bloccante. Il rischio
+noto è quello che A2b ha già mostrato altrove: un numero dichiarato che nessuno rilegge
+invecchia. Qui la protezione è debole per costruzione — la baseline in README ha data e
+macchina accanto, così un lettore vede subito quando è vecchia.

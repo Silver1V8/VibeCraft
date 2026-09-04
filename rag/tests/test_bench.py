@@ -111,6 +111,60 @@ def test_bench_ask_con_campi_latency_in_risposta_li_usa():
     assert "note" not in result
 
 
+def test_bench_ask_calcola_p50_p95_max_dai_totali_lato_server():
+    """A11: la media non è ciò che l'utente aspetta — la coda sì. I percentili devono
+    venire dai totali LATO SERVER, non dalla misura client (che include la rete)."""
+    totali = iter([1000.0, 2000.0, 30000.0])
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        total = next(totali)
+        return httpx2.Response(200, json={
+            "status": "success", "answer": "ok",
+            "latency": {"retrieval_ms": 10.0, "generation_ms": total - 10.0, "total_ms": total},
+        })
+
+    with _client(handler) as client:
+        result = bench.bench_ask(client, URL, queries=["q1", "q2", "q3"])
+
+    assert result["p50_latency_total_ms"] == pytest.approx(2000.0)
+    assert result["max_latency_total_ms"] == pytest.approx(30000.0)
+    # p95 su 3 campioni sta fra il 2° e il 3°, molto più vicino al massimo che alla media:
+    # è esattamente il numero che la media (11000) nasconderebbe.
+    assert result["p95_latency_total_ms"] > result["avg_latency_total_ms"]
+    assert result["p50_latency_total_ms"] < result["p95_latency_total_ms"] <= result["max_latency_total_ms"]
+
+
+def test_bench_ask_percentili_ripiegano_sulla_misura_client_senza_campo_latency():
+    """Senza l'oggetto "latency" in risposta i percentili esistono comunque (dalla misura
+    client), invece di sparire proprio nel caso in cui servirebbero di più."""
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, json={"status": "success", "answer": "ok"})
+
+    with _client(handler) as client:
+        result = bench.bench_ask(client, URL, queries=["q1", "q2"])
+
+    assert result["p50_latency_total_ms"] is not None
+    assert result["p95_latency_total_ms"] >= result["p50_latency_total_ms"]
+    assert "note" in result
+
+
+def test_bench_ask_senza_queries_pesca_n_casi_dal_golden_set():
+    """Il default non è più una lista congelata di 3 domande: `n` casi del golden-set,
+    stessa sorgente di bench_retrieve."""
+    viste = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        viste.append(json.loads(request.content)["question"])
+        return httpx2.Response(200, json={"status": "success", "answer": "ok"})
+
+    with _client(handler) as client:
+        result = bench.bench_ask(client, URL, n=4)
+
+    assert result["n"] == 4
+    assert len(viste) == 4
+    assert all(isinstance(q, str) and q for q in viste)
+
+
 def test_bench_ask_skipped_se_server_giu():
     def handler(request: httpx2.Request) -> httpx2.Response:
         raise httpx2.ConnectError("giu", request=request)

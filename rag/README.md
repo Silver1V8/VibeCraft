@@ -645,7 +645,8 @@ uv run python scripts/bench.py --with-rebuild      # accoda anche un full rebuil
 ```
 
 Cosa misura, in ordine: `GET /api/retrieve` su 10 query del golden-set (p50/p95);
-`POST /ask` su 3 query fisse (latenze medie — vedi nota sotto); `GET
+`POST /ask` su 10 query del golden-set (p50/p95/max del totale + medie del
+breakdown — vedi nota sotto); `GET
 /api/graph/semantic-map` (latenza end-to-end + `truncated`); un reindex incrementale
 NO-OP reale (nessun file toccato: misura solo l'overhead fisso del job, dal journal
 `GET /api/reindex`); un full rebuild, **solo con `--with-rebuild`** (di default
@@ -659,6 +660,35 @@ vedi [api/routes_retrieval.py](api/routes_retrieval.py)): `/ask` restituisce
 `latency: {retrieval_ms, generation_ms, total_ms}` accanto a `request_id` e
 `index_version`. Il bench legge questi campi dalla risposta e, per robustezza,
 affianca `avg_latency_total_ms_client` misurato lato client.
+
+### Budget di latenza di `/ask` — misurato, non stimato
+
+Baseline del **2026-09-04** — run locale `bench_20260904T075210Z`, il cui JSON **non è
+versionato** (vedi `eval/results/.gitignore`: i numeri della baseline vivono qui e nel
+messaggio di commit). Server locale, `qwen3.5:9b` su RTX 3070 Ti, `top_k` di default
+(5), cache di `/ask` fredda, 10 query del golden-set:
+
+| | valore |
+|---|---|
+| `p50` totale | **24.1 s** |
+| `p95` totale | **32.0 s** |
+| max osservato | 33.7 s |
+| media retrieval | 0,50 s |
+| media generation | 22,2 s |
+
+**Dove va il tempo: il 97,8% è la generazione LLM.** Il retrieval — dense + sparse +
+rerank ColBERT + espansione sul grafo, cioè tutto ciò che questo repository
+implementa — pesa mezzo secondo su trenta. Ogni lavoro di latenza che non tocchi il
+modello o l'hardware ha quindi un tetto del 2,2%: è il numero da rileggere prima di
+ottimizzare il ranking "perché sembra lento".
+
+Il p95 su 10 campioni sta di fatto sul massimo osservato — è un limite del campione,
+non della misura, e va letto come "l'attesa peggiore vista in questa run", non come un
+percentile stabile. La console non lascia comunque quell'attesa muta: il loader di
+`/ask` conta i secondi trascorsi, così 30 secondi restano distinguibili da un blocco.
+Lo **streaming incrementale** della risposta non c'è, ed è l'unico modo per abbassare
+il tempo *percepito*: cambierebbe il contratto di `/ask` (oggi un JSON unico con
+risposta, contesto grafo e punteggi) e resta fuori da questa baseline.
 
 **Il delta incrementale VERO** (con un file davvero modificato) non è automatizzato:
 va misurato a mano modificando un file in `docs/` o `code/` e rilanciando `POST

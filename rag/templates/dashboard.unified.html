@@ -413,7 +413,9 @@
           <div class="loader-dot w-2.5 h-2.5 rounded-full bg-blue-400"></div>
           <div class="loader-dot w-2.5 h-2.5 rounded-full bg-blue-300"></div>
         </div>
-        <p class="text-xs text-slate-400">Elaborazione in corso…</p>
+        <!-- Il contatore non è decorazione: la sintesi LLM è ~30 s (bench_ask, A11) e
+             senza un numero che sale un'attesa così è indistinguibile da un blocco. -->
+        <p class="text-xs text-slate-400">Elaborazione in corso… <span id="loader-elapsed"></span></p>
       </div>
 
       <!-- Answer card -->
@@ -831,9 +833,24 @@
       text.textContent = s.label;
     }
 
+    /* Il contatore parte e si ferma con il loader — sempre azzerato all'avvio, sempre
+       fermato nel finally di submitQuery(): un intervallo lasciato vivo continuerebbe a
+       contare sotto la risposta già arrivata. */
+    let loaderTimer = null;
+
     function showLoader(show) {
       document.getElementById('loader').classList.toggle('hidden', !show);
       document.getElementById('ask-btn').disabled = show;
+
+      const elapsed = document.getElementById('loader-elapsed');
+      clearInterval(loaderTimer);
+      loaderTimer = null;
+      if (!show) { elapsed.textContent = ''; return; }
+      const t0 = Date.now();
+      elapsed.textContent = '0s';
+      loaderTimer = setInterval(() => {
+        elapsed.textContent = `${Math.round((Date.now() - t0) / 1000)}s`;
+      }, 1000);
     }
 
     /* ──────────── STATO DI ERRORE DEL PANNELLO GRAFO ────────────
