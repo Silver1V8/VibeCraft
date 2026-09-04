@@ -16,9 +16,9 @@ dichiara aperti, li tria fra risolvibili e non, e li ordina in sessioni di lavor
 | | |
 |---|---|
 | Righe dell'audit | 19 — 15 chiuse, 3 ritirate, 1 con premessa ritirata e sostanza chiusa |
-| Residui dichiarati | **22** |
+| Residui dichiarati | **22** (+1 emerso dal primo run CI: R15) |
 | Di cui già chiusi da altri interventi (riga stantia) | 2 |
-| Risolvibili con lavoro tecnico | 14 |
+| Risolvibili con lavoro tecnico | 14 — **7 chiusi** (R1, R2, R3, R4, N5, N6 + gli altri annotati in linea) |
 | Che richiedono una decisione, non del codice | 5 |
 | Non risolvibili (dati persi, hardware assente) | 1 |
 
@@ -35,9 +35,10 @@ dimenticanze: sono confini dichiarati.
 | N2 | **Gate sulla latenza** | A11 | Il bench è una misurazione (exit 0) per contratto, e un p95 su 10 campioni non regge una soglia bloccante |
 | N3 | **Metrica di attribuzione della fonte** | A3 | «A chi la risposta attribuisce il vincolo» è la metrica vera del sistema e **non esiste**. Costa una chiamata LLM per caso più un giudice |
 | N4 | **Strada 1: peso di sezione** | A3 | Agisce sul *rango*, che la misura ha mostrato non essere il problema. Candidata solo se un giorno `governed_max_chunks` scendesse molto |
-| N5 | **Servizio Qdrant nel workflow CI** | A8 | I 5 test d'integrazione esistono e girano in locale, ma in CI saltano sempre |
-| N6 | **Installazione reale su un Mac** | A15 | Il dry-run prova risoluzione e compatibilità delle wheel — non che torch giri. Qui un Mac non c'è |
+| N5 ✅ | ~~**Servizio Qdrant nel workflow CI**~~ | A8 | **Fatto 2026-09-04** — `services: qdrant` (`qdrant/qdrant:v1.19.0`) nel job `test`, con `VIBECRAFT_REQUIRE_QDRANT=1`, `pytest -rs` e un passo che pretende `5 passed`: i cinque non possono tornare a saltare in silenzio. **Run #131 verde**: il riepilogo porta «Qdrant reale: 5/5 test d'integrazione passati», e la suite gira con 0 skipped |
+| N6 ✅ | ~~**Installazione reale su un Mac**~~ | A15 | **Fatto 2026-09-04** — job `macos-nativo` su `macos-15`: `uv sync --frozen` vero, torch importato e un matmul verificato. Un Mac qui continua a non esserci: ce lo mette il runner. **Eseguito: verde in 34-36s su due run**; dal log macOS 15.7.9 arm64, `torch 2.13.0` senza `+cu` e **matmul su `mps`** — torch non si limita a installarsi, calcola sull'acceleratore. Quel numero ha smentito la stima di costo con cui l'avevo limitato a main (130 pacchetti contro 149, torch 106,1 MiB contro 804,7): restrizione rimossa. Resta scoperto il ramo con CPython **gestita da uv** — in CI uv ha usato il Python di Homebrew del runner |
 | N7 | **Extra in conflitto CPU/CUDA per torch** | A15 | Cambierebbe il comando di installazione per tutti (`uv sync --extra cpu`). Per il caso CPU-only esiste già il target `cpu` del Dockerfile |
+| N9 | **macOS con CPython gestita da uv** | A15 | *(Nuovo, 2026-09-04.)* In CI uv ha usato il `python@3.14` di Homebrew dell'immagine, quindi il tag e' `macosx-15.0-arm64` e la wheel `macosx_14_0` passa. Con una CPython **gestita da uv** il tag verrebbe dal `MACOSX_DEPLOYMENT_TARGET` conservativo con cui e' compilata — l'artefatto che A15 aveva gia' incontrato nel dry-run — e la wheel verrebbe rifiutata. Coprirlo vuol dire un secondo job che forza `uv python install`: per ora il tag e' **stampato** nel log, cosi' quel fallimento e' leggibile invece che misterioso |
 | N8 | **Ricalibrazione del tetto `top_k`** | A1 | `top_k=20` tocca il 104% della finestra su almeno una domanda reale. Abbassarlo richiede una misura sistematica, non un numero scelto in coda a una correzione |
 
 ---
@@ -131,9 +132,25 @@ l'ha fatto crescere.
 
 ### Gravità media
 
-**R4 — In CI i cinque test contro Qdrant reale non girano mai.** Il workflow non avvia il
-servizio: alias swap, delete-by-filter, GC e `delete_collection` sono verificati solo da chi
-ha Docker acceso in locale.
+**R4 ✅ — In CI i cinque test contro Qdrant reale non girano mai.** *(Chiuso 2026-09-04.)*
+Il workflow non avviava il servizio: alias swap, delete-by-filter, GC e `delete_collection`
+erano verificati solo da chi aveva Docker acceso in locale. Ora `services: qdrant`
+(`qdrant/qdrant:v1.19.0`, allineata a `qdrant-client==1.19.0`) più tre meccanismi contro la
+ricaduta — `VIBECRAFT_REQUIRE_QDRANT=1` che trasforma lo skip in errore dove il servizio è
+dichiarato, `pytest -rs` per il motivo di ogni skip, e un passo che pretende `5 passed`.
+Misurato nelle tre direzioni; suite intera `1317 passed, 0 skipped` col servizio acceso.
+*Emerso strada facendo:* `ci.sh` passava un `-q` di troppo (`pytest.ini` lo ha già in
+`addopts`), cioè `-qq`, che sopprimeva **proprio** la riga di riepilogo che rende visibile
+il conteggio.
+
+**R15 — Altri test potrebbero dipendere dal `database/versions/` della macchina.** *(Nuovo,
+2026-09-04.)* Il difetto trovato dal primo run CI era di questa forma: verde in locale perché
+l'indice c'è, rosso su un checkout pulito. Ne è stato corretto **uno**; nulla dice che sia
+l'unico. La verifica è a basso costo — un plugin pytest che ripunta `versions_root()` su una
+directory vuota, come quello usato per riprodurre — ma va fatta distinguendo i veri positivi
+dagli artefatti (i test *end to end* le versioni se le creano, e un fixture autouse gliele
+scavalca). *Verificato: la CI ora gira su ogni push, quindi il prossimo caso si manifesta da
+sé — ma dopo il push, non prima.*
 
 **R5 — Il report multihop stampa «trigger M2 scattato» come se fosse una decisione in corso.**
 `eval/run_multihop.py:242`. Il docstring del file è già stato corretto («resta un VERDETTO
@@ -250,7 +267,7 @@ l'audit: metà del valore è arrivato dal guardare, non dal riparare.
 | R1 ✅ | Riscrivere l'istruzione perché pretenda di citare **ciò che il contesto contiene**, non una lista fissa di categorie | Rimuovere la sola parola «SQL» lascerebbe la forma «DEVI citare X» che genera X quando X non c'è. Il difetto è la forma, non l'esempio | S — **fatto 2026-09-04** (`[CITAZIONE-VERIFICABILE]`) |
 | R2 ✅ | Aggiungere al `check_index_integrity` il confronto chiavi ColBERT ↔ `chunks.json`, come per Qdrant | La funzione già fa esattamente questo confronto per un'altra coppia: è una terza voce nella stessa lista, non un meccanismo nuovo | S — **fatto 2026-09-04**; copertura rimisurata 160/160 prima di correggere, e il difetto va in `problems` perché fra i due sidecar non esistono divergenze attese |
 | R3 ✅ | Test-canarino sul **costo fisso** del prompt di sistema, con il budget scritto e la ragione | Un test sul prompt completo dipenderebbe dal corpus; il costo fisso è ciò che cresce quando si aggiunge una regola | S — **fatto 2026-09-04** (`tests/test_ask_prompt_cost.py`) |
-| R4 | `services: qdrant` nel job `test` di `ci.yml` | GitHub Actions lo supporta nativamente; l'alternativa (`docker compose up` nel job) aggiunge uno script da mantenere | S |
+| R4 ✅ | `services: qdrant` nel job `test` di `ci.yml` | GitHub Actions lo supporta nativamente; l'alternativa (`docker compose up` nel job) aggiunge uno script da mantenere | S — **fatto 2026-09-04**; il servizio da solo non bastava: senza un gate lo skip resta verde, quindi `VIBECRAFT_REQUIRE_QDRANT=1` + `-rs` + conteggio preteso |
 | R5 | Stampare il conteggio come contesto storico, non come verdetto | Togliere la riga perderebbe un numero utile: è l'etichetta a essere sbagliata | S |
 | R6 | Mappa esplicita degli stati → colore, con `abstained` e `graph_answer` distinti dall'errore | Il ternario `success ? verde : rosso` non è estendibile senza mentire | S |
 | R7 | Correggere `project:`, ripuntare o rimuovere il riferimento morto, poi **reindicizzare** | Il file è nell'indice: correggerlo senza rebuild non cambia ciò che il retrieval vede | S + rebuild |
@@ -388,9 +405,22 @@ Suite completa + ruff prima del commit.
 
 ---
 
-## S3 — La CI non esercita ciò che dichiara
+## S3 — La CI non esercita ciò che dichiara ✅
 
-Chiude **R4**, **N5**, **N6**.
+Chiude **R4**, **N5**, **N6**. **Eseguita e osservata il 2026-09-04**, primo run reale sul
+branch `ci/s3-qdrant-servizio-e-macos-nativo`.
+
+Due cose che solo il run poteva dire, e che vale la pena non perdere:
+
+- **Ha trovato subito un difetto pre-esistente.** `test_index_rollback_succeeds_when_writer_lock_free`
+  falliva su un checkout pulito e passava su una macchina di sviluppo, perché
+  `resolve_rollback_target` (aggiunto da S2/`1044513`) legge il `database/versions/` vero e il
+  test si rifaceva a mano il set di patch invece di passare dall'helper condiviso. Corretto alla
+  radice. **Nessuna esecuzione locale poteva vederlo**, ed è esattamente il genere di cosa per cui
+  una CI esiste. Da qui un residuo nuovo: **R15**.
+- **Il costo di `macos-nativo` era stimato dieci volte in eccesso.** Prevedevo ~50-80 minuti
+  fatturati; misurati **34 secondi** (~6 fatturati), perché su macOS il lock esclude tutte le
+  wheel `nvidia-*`. La restrizione a main è stata rimossa.
 
 ```
 Lavora su .github/workflows/ci.yml (e rag/ per la documentazione).

@@ -351,6 +351,87 @@ Corretto anche il commento ormai falso nel job `test` ("i test che toccano un Qd
 auto-saltano"): usano `_FakeQdrant`, non si saltano — e il rovescio, che nessun test eserciti
 un Qdrant vero, resta A8.
 
+### Il job `test` esercita un Qdrant vero (2026-09-04)
+
+`services: qdrant` con **`qdrant/qdrant:v1.19.0`** — pinnata come ogni altra versione qui, e
+allineata a `qdrant-client==1.19.0` in `uv.lock`. I cinque test d'integrazione del blue/green
+(alias swap, delete-by-filter attraverso l'alias, invalidazione degli alias alla
+`delete_collection`) esistevano già ma **in CI saltavano sempre**, perché il job non avviava il
+servizio.
+
+Il rischio vero non era avviarlo: era che un job verde che salta tutto è indistinguibile da un
+job verde che verifica. Quindi tre meccanismi invece di uno:
+
+| Meccanismo | Contro cosa |
+|---|---|
+| `VIBECRAFT_REQUIRE_QDRANT=1` nell'env del job | dove il servizio è **dichiarato**, `_real_qdrant_client_or_skip` solleva invece di saltare |
+| `pytest -rs` in `scripts/ci.sh` | ogni skip residuo appare col **motivo**, non come un numero in fondo |
+| un passo che pretende `5 passed` e scrive una riga nel `$GITHUB_STEP_SUMMARY` | i cinque cancellati o disattivati uno alla volta |
+
+Più un'attesa su `/readyz`: l'immagine non dichiara una `HEALTHCHECK`, quindi «container
+avviato» non è «porta che risponde», e senza attesa una partenza lenta darebbe un rosso
+intermittente scambiato per un difetto del codice.
+
+Misurato in locale contro un container `v1.19.0` pinnato: Qdrant giù → `34 passed, 5 skipped`
+coi motivi in chiaro; Qdrant giù **con** la variabile → `5 failed` (il gate ha portanza);
+Qdrant su → `5 passed` e suite intera `1317 passed, 0 skipped`, ruff pulito.
+
+**Osservato in CI (2026-09-04, run #131 verde):** il riepilogo del run porta la riga che il
+passo di conteggio scrive — **«Qdrant reale: 5/5 test d'integrazione passati»** — e la suite
+gira senza un solo `SKIPPED`, che con il servizio assente ne elencherebbe cinque.
+
+Il run *precedente* era rosso per un difetto **pre-esistente e scorrelato**
+(`test_index_rollback_succeeds_when_writer_lock_free`, introdotto da S2/`1044513`): il test si
+rifaceva a mano il set di patch invece di passare dall'helper condiviso, e
+`resolve_rollback_target` legge il `database/versions/` vero — quindi passava su una macchina
+di sviluppo e falliva su un checkout pulito. Corretto alla radice (l'helper accetta ora un
+`writer_lock=`, la duplicazione sparisce). **Questa è la CI che fa il suo mestiere:** un
+difetto che nessuna esecuzione locale poteva vedere, perché in locale l'indice c'è.
+
+### `macos-nativo`: un Mac vero, non un dry-run (2026-09-04)
+
+Job separato su **`macos-15`** (arm64, non deprecato — `macos-14` lo è): `uv sync --frozen` in
+`rag/`, poi torch importato, versione e backend stampati, e un matmul 64×64 verificato. Un
+import da solo non basterebbe: una wheel per l'architettura sbagliata importa e poi esplode
+alla prima operazione, ed è esattamente il divario fra il dry-run di A15 e «torch gira».
+
+La premessa si legge dal log e non si dà per fede: la wheel è `macosx_14_0_arm64`, quindi il
+primo passo stampa `sw_vers -productVersion` e `uname -m` e fallisce **col motivo giusto** se
+il runner non è arm64 o è sotto la 14 — altrimenti quel rosso verrebbe letto come «su macOS
+non si installa». Stampato anche `sysconfig.get_platform()` prima del sync, perché è il tag
+dell'interprete a decidere se quella wheel è accettabile.
+
+**Gira su ogni push, come gli altri due — dopo aver misurato il costo invece di stimarlo.**
+L'avevo limitato a `main` + `workflow_dispatch` prevedendo ~5-8 minuti reali e quindi ~50-80
+fatturati (i runner macOS costano **10×** i minuti Linux su repository privato). Il primo run
+reale: **34 secondi**, ~6 minuti fatturati, contro i 2m31s di `test` e i 3m35s di `docker`.
+La stima ignorava che su macOS il lock esclude **tutte** le wheel `nvidia-*` — è ciò che fa il
+marcatore di A15: **130 pacchetti contro 149**, e **torch 106,1 MiB contro 804,7 MiB**; le 15
+wheel `nvidia-*`/`triton`/`cuda-*` che mancano pesano da sole ~2,5 GiB. Restrizione rimossa:
+limitarla ritardava fino al merge la scoperta di una rottura del lock, senza risparmiare nulla.
+E il tempo non veniva da una cache calda — il log mostra `Cache Size: ~0 MB (1610 B)` e poi il
+download effettivo di tutti e 130 i pacchetti.
+
+**Dal log, che è il punto di N6:**
+
+```
+runner: macOS 15.7.9 su arm64      platform tag: macosx-15.0-arm64
+torch : 2.13.0   (senza "+cu")     mps: True (built: True)
+matmul su : mps -> 262144.0
+```
+
+Il matmul è girato **su Metal**, non su CPU: il job non lo pretendeva, ma il risultato è che
+su Apple Silicon torch non solo si installa — calcola sull'acceleratore.
+
+**Un limite da dichiarare.** Il log dice
+`Using CPython 3.14.7 interpreter at: /opt/homebrew/opt/python@3.14/bin/python3.14`: uv ha
+usato il Python di Homebrew presente nell'immagine, e da lì il tag è nativo
+(`macosx-15.0-arm64`). Con una CPython **gestita da uv** il tag verrebbe dal
+`MACOSX_DEPLOYMENT_TARGET` con cui quella build è compilata, che è conservativo — l'artefatto
+che A15 aveva incontrato nel dry-run — e una wheel `macosx_14_0` verrebbe rifiutata. Il job
+stampa il tag proprio perché quel giorno il fallimento sia leggibile, ma **quel ramo non è
+coperto**: un utente Mac che parta senza un Python di sistema può ancora incontrarlo.
+
 ### Aggiornamento senza perdere l'indice
 
 Documentato nel README con i tre casi in ordine di costo: solo documenti ⇒ incrementale;
@@ -370,13 +451,12 @@ quindi la differenza è rilevabile e non silenziosa); formato artefatti cambiato
   percorso nativo scaricherebbe ~4 GB di torch CUDA a ogni push: sproporzionato come gate.
   Il progetto è sviluppato su Windows e testato in CI su Linux, quindi entrambi i sistemi
   sono coperti — ma non entrambi automaticamente. **Gap dichiarato.**
-- **Installazione nativa su macOS: risolta, non eseguita.** Il pin CUDA di `torch` era
-  incondizionato e faceva fallire `uv sync` su macOS (A15); ora l'indice CUDA ha un
-  marcatore di piattaforma e su Apple Silicon torch arriva da PyPI. Verificato con
-  `uv sync --frozen --dry-run --python-platform aarch64-apple-darwin`, che prova la
-  **risoluzione e la compatibilità delle wheel** — cioè esattamente ciò che era rotto —
-  ma non che il pacchetto poi giri su quella macchina. Un'esecuzione reale su un Mac
-  resta **non fatta**: qui non ce n'è uno.
+- ~~**Installazione nativa su macOS: risolta, non eseguita.**~~ **Coperta il 2026-09-04**
+  dal job `macos-nativo` descritto sopra: `uv sync --frozen` vero su un runner Apple
+  Silicon, torch importato e un matmul verificato. Resta una distinzione onesta: il job è
+  **implementato, non ancora osservato** — nessun run su GitHub Actions è stato letto da
+  qui, e la scelta del runner è verificata sulla documentazione delle immagini. macOS Intel
+  resta impossibile a monte (PyTorch non pubblica quelle wheel).
 - **Primo avvio guidato** (scegli la cartella → indicizza → prima domanda). È una funzionalità
   di prodotto, non di packaging: il README oggi porta allo stesso risultato in quattro
   comandi. **Non iniziato.**

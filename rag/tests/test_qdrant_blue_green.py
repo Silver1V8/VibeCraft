@@ -10,10 +10,12 @@ in `build_graph_and_index` (core/indexing.py, full rebuild via CLI e via
 (`index.py --rollback` e `POST /api/index/rollback`, api/routes_reindex.py); il
 reconciler di sola osservazione `reconcile_and_repair_qdrant_alias` (insieme al GC
 orfani) nel lifespan del server (api/deps.py), al boot pre-serving. Nessun Qdrant reale
-è richiesto per la suite di default — l'unico test che ne ha bisogno (in fondo al file)
-si auto-salta se non raggiungibile.
+è richiesto per la suite di default — i CINQUE test che ne hanno bisogno (in fondo al
+file) si auto-saltano se non raggiungibile. In CI il servizio c'è e saltare non è più
+accettabile: `VIBECRAFT_REQUIRE_QDRANT=1` trasforma quello skip in un errore.
 """
 import json
+import os
 
 import pytest
 
@@ -480,6 +482,15 @@ def _real_qdrant_client_or_skip():
         client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY, timeout=2)
         client.get_collections()
     except Exception as exc:
+        # In CI il servizio Qdrant c'è (services: nel workflow), quindi uno skip qui non è
+        # più "l'ambiente non ce l'ha": è il gate che ha smesso di provare ciò che dichiara.
+        # Un job verde che salta tutto è indistinguibile da un job verde che verifica —
+        # ed è esattamente lo stato che questa variabile esiste per rendere impossibile.
+        if os.environ.get("VIBECRAFT_REQUIRE_QDRANT") == "1":
+            raise RuntimeError(
+                f"VIBECRAFT_REQUIRE_QDRANT=1 ma Qdrant non è raggiungibile su {QDRANT_URL}: "
+                f"{exc}. Questi test NON devono saltare dove il servizio è dichiarato."
+            ) from exc
         pytest.skip(f"Qdrant non raggiungibile su {QDRANT_URL}: {exc}")
     return client
 

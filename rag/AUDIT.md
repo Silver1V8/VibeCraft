@@ -68,14 +68,14 @@ I tre rischi che lo rendono "non completo":
 | A5 | ~~Eval / strumento~~ | ~~FRAGILE~~ → **RITIRATO, assorbito da A6** | **Riscontro impreciso.** Avevo concluso "l'harness sottostima il ramo grafo" vedendo una risposta corretta segnata come fallita. Leggendo `eval/golden_multihop.yaml:90-96`: il caso dichiara `count: 11` — la baseline committata — e i 4 nodi attesi ci sono tutti. L'unico scarto è il conteggio (26, poi 23, contro 11). **L'harness ha ragione: sta segnalando che il corpus è divergente.** Non è un difetto della misura, è la misura che funziona | Nessuno di per sé: è A6 che parla | — | — |
 | A6 | Corpus / riproducibilità | FRAGILE → **CHIUSO (Run B)**, riga riallineata il 2026-09-04 | La riga era rimasta alla fotografia della Run A — e i suoi numeri non erano più veri: oggi `docs/` ha **23** `.md`, di cui **14 tracciati**, non «26 vs 11». La Run B aveva già chiuso il riscontro per la **seconda** strada del criterio (la prima resta impraticabile: 9 documenti — 6 output di pipeline, 3 spec locali del progetto ospitante — stanno nell'indice per ragioni legittime e non devono entrare nel repo): i distrattori dei casi avversariali portati nella baseline tracciata, `untracked` aggiunto a `observe_docs_git_divergence()`, e il corpus **dichiarato** nel report di eval accanto ai numeri e nel JSON. Indagine e chiusura in fondo al documento | Verificando la chiusura è emerso un difetto **dentro la chiusura stessa**: il rilevatore contava *tutti* i file tracciati sotto `docs/`, quindi i 2 `.gitkeep` della struttura di cartelle, e il report annunciava «16 documenti tracciati» contro i **14** realmente indicizzati. Un campo di provenienza che non corrisponde al corpus misurato è precisamente ciò che quel campo esiste per evitare — ed è la stessa trappola che la riga originale aveva già segnalato («i 13 path includono 2 `.gitkeep`») | M | Perimetro allineato a `DOC_EXTS`, cioè esattamente il filtro con cui l'indicizzazione enumera `docs/`: `tracked` e `untracked` ora contano solo file che l'indice legge. Verificato dal vivo — `misurato su: 14 documenti tracciati · +9 NON tracciati`. Test in `tests/test_index_integrity.py` con un `.gitkeep` tracciato e un `.png` non tracciato: verificato contro il codice vecchio, `tracked` valeva 2 |
 | A7 | Retrieval / ranking | FRAGILE (latente) → **CHIUSO 2026-09-03** | Confermato, e la regola giusta era **già scritta nella funzione che produce quel `None`**: `colbert_maxsim` dichiara «non giudicabile, che non è la stessa cosa di poco pertinente», e `rank_by_authority` lo sostituiva con un `-1.0` — cioè con «pochissimo pertinente» — moltiplicandolo per l'autorità. Cercando la correzione è emerso di più: i due rami si **contraddicevano**, e gli stessi chunk senza vettore uscivano in un ordine da soli e nell'ordine INVERSO appena un terzo chunk qualsiasi portava un vettore. Più una **divisione per zero** nella stessa espressione, ad α=1 con una fonte che dichiara `authority: 0.0` — α=1.0 è una coordinata della griglia del calibratore | Sotto divergenza sidecar↔Qdrant il ranking si inverte proprio sulle fonti normative, in silenzio | S | Due insiemi invece di due rami: nessun punteggio finto, i non giudicabili in coda ordinati per fusione÷autorità. Copertura **160/160** oggi, quindi resta latente e il percorso di produzione non cambia di una posizione — c'è un test che lo fissa. Le attese sono state verificate una per una contro la regola vecchia: la prima che avevo scritto **passava anche col difetto** |
-| A8 | Test / copertura | MANCANTE → **PREMESSA RITIRATA, sostanza CHIUSA 2026-09-03** | **L'inferenza era rovesciata.** «0 skip con Qdrant attivo ⇒ nessun test tocca un Qdrant reale»: con il servizio ATTIVO un test d'integrazione *gira*, non salta — 0 skip è esattamente ciò che ci si aspetta quando funziona. Misurato oggi in entrambe le direzioni: Qdrant spento → **5 skip espliciti col motivo**, Qdrant acceso → **36 passed**. I 3 test contro Qdrant vero esistono dal **2026-07-17/18** (`cc39609`, `47d4e35`), ben prima della Run A, e soddisfacevano già il criterio di chiusura di questa riga. Anche il commento in `ci.yml` era già stato corretto in L3 | **Ma la sostanza teneva in parte**: dei quattro rischi elencati, solo l'alias swap era davvero verificato contro il servizio reale. La **delete-by-filter** — che in produzione gira contro l'ALIAS ed è il percorso caldo dell'incrementale — non lo era: i fake registrano solo *quale* nome ricevono e ignorano del tutto il `points_selector`. Se Qdrant non risolvesse l'alias su una delete, l'incrementale lascerebbe i chunk vecchi **in silenzio** | M | 2 test d'integrazione nuovi: `_delete_doc_chunks` (la funzione di produzione) invocata sull'alias deve togliere ESATTAMENTE i punti del documento indicato e lasciare gli altri; e `delete_collection` deve invalidare gli alias che la puntavano — assunzione su cui poggia il GC, finora scritta solo in un commento del fake. Verificata anche la portanza: la stessa delete verso un nome inesistente **solleva**, quindi il test non passa per caso |
+| A8 | Test / copertura | MANCANTE → **PREMESSA RITIRATA, sostanza CHIUSA 2026-09-03**, residuo CI **CHIUSO 2026-09-04** (run reale: 0 skipped, i cinque girano) | **L'inferenza era rovesciata.** «0 skip con Qdrant attivo ⇒ nessun test tocca un Qdrant reale»: con il servizio ATTIVO un test d'integrazione *gira*, non salta — 0 skip è esattamente ciò che ci si aspetta quando funziona. Misurato oggi in entrambe le direzioni: Qdrant spento → **5 skip espliciti col motivo**, Qdrant acceso → **36 passed**. I 3 test contro Qdrant vero esistono dal **2026-07-17/18** (`cc39609`, `47d4e35`), ben prima della Run A, e soddisfacevano già il criterio di chiusura di questa riga. Anche il commento in `ci.yml` era già stato corretto in L3 | **Ma la sostanza teneva in parte**: dei quattro rischi elencati, solo l'alias swap era davvero verificato contro il servizio reale. La **delete-by-filter** — che in produzione gira contro l'ALIAS ed è il percorso caldo dell'incrementale — non lo era: i fake registrano solo *quale* nome ricevono e ignorano del tutto il `points_selector`. Se Qdrant non risolvesse l'alias su una delete, l'incrementale lascerebbe i chunk vecchi **in silenzio** | M | 2 test d'integrazione nuovi: `_delete_doc_chunks` (la funzione di produzione) invocata sull'alias deve togliere ESATTAMENTE i punti del documento indicato e lasciare gli altri; e `delete_collection` deve invalidare gli alias che la puntavano — assunzione su cui poggia il GC, finora scritta solo in un commento del fake. Verificata anche la portanza: la stessa delete verso un nome inesistente **solleva**, quindi il test non passa per caso. **2026-09-04**: `services: qdrant` (`qdrant/qdrant:v1.19.0`, allineata a `qdrant-client==1.19.0`) nel job `test`, piu' tre meccanismi perche' quei cinque non possano tornare a saltare in silenzio — `VIBECRAFT_REQUIRE_QDRANT=1` che trasforma lo skip in errore, `pytest -rs`, e un passo che pretende `5 passed`. Misurato nelle tre direzioni; suite intera 1317 passed / 0 skipped col servizio acceso |
 | A9 | CI / qualità | MANCANTE → **CHIUSO 2026-09-03** | `ruff` aggiunto come dev dependency, con selezione **esplicita** (`E4/E7/E9/F`) invece del default del tool: il default di ruff 0.16 include famiglie di stile discrezionale (SIM, PIE, YTT, ...) e sul codebase mai linterato produceva **380** riscontri, quasi tutti preferenze di scrittura; la selezione scelta ne produceva **42**, tutti segnali reali (import morti, variabili inutilizzate, nomi ambigui come `l`, import fuori ordine non deliberato) | Su 37.5k righe, regressioni di stile e di correttezza passavano senza essere viste; mypy/coverage restano fuori scope (non richiesti dal criterio di chiusura, e mypy a freddo su un codebase mai tipizzato è un lavoro di tutt'altra scala) | S | Tutti e 42 i riscontri corretti (non silenziati): 5 import inutilizzati rimossi, 1 variabile morta rimossa (`api/routes_retrieval.py`, verificato che non gatava nulla — `search_code_symbols` si autoguarda già), 5 f-string senza placeholder, 11 nomi ambigui `l`→`line`/nome specifico, 4 lambda assegnati→`def`, 1 doppio `;`, 2 `E402` genuini riordinati (`code_index/docker.py`, `core/retrieval.py`), 2 `E402` **deliberati** (encoding UTF-8 prima degli import applicativi) dichiarati in `per-file-ignores` con la ragione, non silenziati a caso. Gate in `scripts/ci.sh`/`ci.ps1` (gemelli, verificati entrambi) prima della suite; verificato in entrambe le direzioni: una violazione introdotta apposta fa fallire il gate con `exit 1` prima che pytest parta, il codebase pulito passa. 1289 test invariati |
 | A10 | ~~Sicurezza / doc~~ | ~~FRAGILE~~ → **RITIRATO** | **Riscontro sbagliato.** Lo scarto di 19 giorni fra i commit era un indizio, non una prova, e l'ho riportato come sospetto: la riconciliazione riga-per-riga (B5, eseguita) dice che il documento è **allineato**. Le 57 route del codice sono tutte in tabella — `GET /` è la riga 1 (`SECURITY_SURFACE.md:118`) — e le 7 che sembravano "documentate ma assenti" sono le auto-route di FastAPI (`/docs`, `/redoc`, `/openapi.json`, `/docs/oauth2-redirect`) e il mount statico, che il documento conta esplicitamente a `:33`. Il mio grep sui decoratori `@router` non poteva vederle: il documento era più completo del mio strumento | Nessuno | — | — |
 | A11 | Prestazioni | FRAGILE → **CHIUSO 2026-09-04** | I due numeri della riga erano presi a `top_k=50`, che dal A1 **non è più accettato** (`api/models.py`: `le=20`): non erano riproducibili. Rimisurati oggi al `top_k` di default, cache fredda, 10 query del golden-set — **p50 24,1 s, p95 32,0 s, max 33,7 s**. Ma la scoperta è un'altra: il retrieval pesa **0,50 s su 22,7 di media — il 2,2%**. Il 97,8% è la generazione LLM. E lo strumento per misurarlo esisteva già (`scripts/bench.py`, con `p50`/`p95` già scritti e usati per `/api/retrieve`): su `/ask` girava su **3 query fisse** e riportava solo la **media** — con n=3 il p95 non è calcolabile, e la media è esattamente il numero che nasconde la coda. `eval/results/` non conteneva **nessun** `bench_*.json`: la regola del README («nessuna ottimizzazione senza baseline salvata») non aveva una baseline | Un'attesa di 30 s senza feedback è indistinguibile da un blocco — e il loader era un'animazione muta, il tempo trascorso compariva solo **dopo**, nel badge `⏱ Ns`. In più, senza il breakdown misurato, "ottimizzare la latenza" sarebbe finita sul ranking: il 97,8% sta altrove | M | `bench_ask` porta `p50`/`p95`/`max` del totale lato server su 10 query del golden-set (stessa sorgente e stessa numerosità di `bench_retrieve`, riusando i `p50`/`p95` già presenti); baseline dichiarata in README con la macchina e la data. Feedback: il loader di `/ask` conta i secondi (verificato dal vivo — sale, si ferma alla risposta, non lascia intervalli appesi). Streaming **non fatto**: cambierebbe il contratto di `/ask`, ed è dichiarato come tale invece che sottinteso |
 | A12 | Codice / debito | SUPERFLUO → **CHIUSO 2026-09-03** | 6 `TODO(2026-07-12)` scaduti da 51 giorni. Cinque erano limiti permanenti travestiti da piani (glob `workspaces` non espansi, URL relative non abbinate al backend, link DMN→processo, "fuori scope: VB.NET/Razor HTML/JS") — ridatati togliendo il calendario e dicendo perché non sono pianificati. Il sesto, `_js_symbols`, era diverso: un piano vero, con la sua condizione di chiusura già scritta ("quando la migrazione tree-sitter sarà consolidata in produzione") | Il debito dichiarato con una data e ignorato smette di essere un piano — e nel caso di `_js_symbols` nascondeva un rischio reale: `pickle`-adiacente no, ma un secondo parser (regex) mai più esercitato restava comunque superficie da mantenere, con un test di 128 righe che lo teneva in vita artificialmente | S | Verificata la condizione della TODO stessa: migrazione del 2026-07-12, 53 giorni e molti commit dopo ancora `treesitter` di default per typescript/javascript/svelte, zero incidenti. **Rimosso** (decisione dell'utente, non mia): `_js_symbols`, `_PARSER_LANG`/`_PARSER_DEFAULTS`/`_parser_impl`, le chiavi `code_parsers.typescript/javascript/svelte` (decorative, un solo valore possibile), e `tests/test_ts_parser_equivalence.py` — **sostituito**, non solo cancellato, da `tests/test_ts_parser.py`: stesso corpus, assert dirette invece che per confronto, cosicché la copertura di `ts_symbols`/`svelte_symbols` non regredisse |
 | A13 | Codice / legacy | SUPERFLUO → **CHIUSO 2026-09-03** | `core/artifacts.py:35` importava `pickle` per il solo ramo di lettura legacy. Verificato **prima** di rimuoverlo: zero `.pkl` in tutto il progetto (`find` sull'intero repo, escluso `.venv`), e la scrittura era già disattivata da prima di questo audit — `save_artifacts()` non ha mai scritto `.pkl` da quando i formati JSON/`.npz` esistono | Un formato di deserializzazione arbitraria mantenuto per una retrocompatibilità di cui nessuno aveva più bisogno | S | Rimosso il ramo di fallback in `load_artifacts()` e i 5 percorsi `*_SAVE_PATH` (`core/config.py`), l'unico check di esistenza rimasto in `current_version()`, il fallback d'mtime in `api.deps._graph_version()`, e il parametro `emit` di `load_artifacts()` (diventato morto insieme all'unico warning che lo usava) nei 3 call site reali. 6 file di test aggiornati (rimossa `test_fallback_reads_legacy_pickle_with_warning`). Verificato dal vivo: il server carica lo snapshot reale (755 nodi, 160 chunk) passando solo da JSON/`.npz`. 1290 test verdi (1291 − 1: la suite rimossa testava un comportamento che non esiste più) |
 | A14 | Distribuzione | MANCANTE → **CHIUSO (Run C/L1)** | Verificato oggi: `README.md`, `LICENSE`, `.env.example`, `Dockerfile` esistono tutti a root, prodotti da L1/L2. La riga non era mai stata aggiornata dopo la Run C, restava con l'etichetta della Run A | — | — | Verificato: `ls README.md LICENSE Dockerfile rag/.env.example` — presenti tutti |
-| A15 | Portabilità | MANCANTE → PARZIALE → **CHIUSO 2026-09-04** | **Il difetto era reale e la sua descrizione no.** Misurato con `uv sync --frozen --dry-run --python-platform <p>` su sei piattaforme, prima della correzione: falliva su **macOS Intel, macOS ARM e Windows ARM**; **Linux ARM64 riusciva** (cu126 pubblica wheel `manylinux_2_28_aarch64`), e una macchina **CPU-only x86-64 riusciva pure** — la build CUDA si installa e gira su CPU, solo pesante. Quindi la formula «macOS/ARM/CPU-only» copriva due casi che non erano rotti e ne mancava uno che lo era. Corretto: l'indice cu126 ora ha un marcatore che è la **trascrizione dell'elenco di wheel del lock**. Emerso strada facendo: senza pin di versione uv risolveva macOS a **2.14.0** contro 2.13.0 di tutti gli altri — la deriva che il Dockerfile documenta di aver già subito una volta; `torch` è ora pinnata a 2.13.0, verificato che PyPI abbia la wheel corrispondente per Apple Silicon | Installazione nativa impossibile su macOS resta il caso reale; Linux ARM e CPU-only non lo erano | M | **Cambiata**: non «`uv sync` riesce su una macchina senza NVIDIA» — quello riusciva già. Dopo: Linux x86-64/ARM64, Windows x86-64 e **macOS Apple Silicon** riescono. macOS Intel e Windows ARM restano impossibili perché **PyTorch non pubblica quelle wheel da nessuna parte**: limite a monte, non configurazione locale, e ora dichiarato in README. 5 test **offline** (`tests/test_torch_platform_pin.py`) leggono `pyproject.toml`+`uv.lock` e fissano l'invariante; verificati contro la configurazione vecchia: 3 su 5 falliscono. Immagine Docker `cpu` ricostruita dopo il re-lock: 129 pacchetti, venv 2,2 GB, `torch 2.13.0+cpu` — identica a prima |
+| A15 | Portabilità | MANCANTE → PARZIALE → **CHIUSO 2026-09-04**, residuo «Mac vero» coperto da CI lo stesso giorno | **Il difetto era reale e la sua descrizione no.** Misurato con `uv sync --frozen --dry-run --python-platform <p>` su sei piattaforme, prima della correzione: falliva su **macOS Intel, macOS ARM e Windows ARM**; **Linux ARM64 riusciva** (cu126 pubblica wheel `manylinux_2_28_aarch64`), e una macchina **CPU-only x86-64 riusciva pure** — la build CUDA si installa e gira su CPU, solo pesante. Quindi la formula «macOS/ARM/CPU-only» copriva due casi che non erano rotti e ne mancava uno che lo era. Corretto: l'indice cu126 ora ha un marcatore che è la **trascrizione dell'elenco di wheel del lock**. Emerso strada facendo: senza pin di versione uv risolveva macOS a **2.14.0** contro 2.13.0 di tutti gli altri — la deriva che il Dockerfile documenta di aver già subito una volta; `torch` è ora pinnata a 2.13.0, verificato che PyPI abbia la wheel corrispondente per Apple Silicon | Installazione nativa impossibile su macOS resta il caso reale; Linux ARM e CPU-only non lo erano | M | **Cambiata**: non «`uv sync` riesce su una macchina senza NVIDIA» — quello riusciva già. Dopo: Linux x86-64/ARM64, Windows x86-64 e **macOS Apple Silicon** riescono. macOS Intel e Windows ARM restano impossibili perché **PyTorch non pubblica quelle wheel da nessuna parte**: limite a monte, non configurazione locale, e ora dichiarato in README. 5 test **offline** (`tests/test_torch_platform_pin.py`) leggono `pyproject.toml`+`uv.lock` e fissano l'invariante; verificati contro la configurazione vecchia: 3 su 5 falliscono. Immagine Docker `cpu` ricostruita dopo il re-lock: 129 pacchetti, venv 2,2 GB, `torch 2.13.0+cpu` — identica a prima. **Stesso giorno**: job `macos-nativo` su `macos-15` (arm64, non deprecato) che fa `uv sync --frozen` VERO, importa torch e calcola un matmul — non piu' solo un dry-run. Premessa `macosx_14_0` verificata dal log (`sw_vers`/`uname -m`, fallimento esplicito sotto la 14). **Eseguito: verde in 34-36s su due run**, e smentisce la mia stima di ~50-80 minuti fatturati (130 pacchetti contro 149, torch 106,1 MiB contro 804,7); restrizione a main rimossa, gira su ogni push. Dal log: macOS 15.7.9 arm64, tag `macosx-15.0-arm64`, `torch 2.13.0` senza `+cu`, **matmul eseguito su `mps`** |
 | A18 | Eval / strumento | MANCANTE → **CHIUSO** | Trovato eseguendo B1, e provato in isolamento: `GET /api/retrieve` era **l'unica route di retrieval a non chiamare `maybe_reload_graph()`** (`api/routes_retrieval.py:493`, da confrontare con `:88` di `/ask` e `:586` di `/api/code/search`, più le 4 di `routes_graph`). Dimostrazione: dopo una promozione, `/api/health` → `v20260825T100624, 181 chunk`; una chiamata a `/api/retrieve` la lasciava **invariata**; una a `/ask` la portava a `v20260901T101536, 160 chunk`. **Quanto era grave dipendeva dal tipo di modifica**: su una CANCELLAZIONE pura (il caso di B1) i chunk nuovi sono un sottoinsieme dei vecchi — il sidecar stantìo li copriva tutti, per fortuna e non per costruzione; su un'AGGIUNTA o una MODIFICA i chunk_id nuovi sarebbero mancati dal sidecar, `colbert_maxsim` avrebbe restituito `None` — l'esatto input che innesca l'inversione di A7. I due riscontri si componevano | **L'harness di eval interrogava solo `/api/retrieve`**: dopo una promozione o un rollback misurava uno stato MISTO — alias Qdrant nuovo, sidecar ColBERT/chunk in memoria vecchi — in silenzio | S | `maybe_reload_graph()` aggiunta a `api_retrieve` (`api/routes_retrieval.py:529`); verificato dal vivo (CURRENT spostato, poi `/api/retrieve` ricaricato alla prima chiamata) e fissato da `tests/test_retrieve_reload.py` |
 | A17 | Documentazione | FRAGILE → **CHIUSO 2026-09-03** | `templates/infografica.unified.html:296` descriveva come attivo un *"budget guard giornaliero sulla spesa Claude [che] devia automaticamente su Ollama"*; in `rag_config.yaml` l'intero blocco `budget:` è **commentato**, e con `active_provider: ollama` nessun purpose chiama Claude oggi — non c'è spesa da proteggere | L'infografica è il documento che spiega il sistema a chi non lo conosce: descriveva una protezione di costo attiva che non esiste | S | Corretta la frase: il guard è **pronto** in `core/llm.py` (codice reale, non ipotetico), **spento di default**, con il perché (nessun purpose su Claude oggi) e quando riattivarlo. Non riattivato: farlo oggi non avrebbe alcun effetto — non esiste spesa Claude da proteggere — e attivarlo comunque avrebbe aggiunto stato (contatore di spesa) senza alcuna utilità corrente |
 | A16 | API / contratto | FRAGILE → **CHIUSO 2026-09-03** | Confermato: alla domanda fuori corpus la risposta era un rifiuto corretto e motivato, ma il payload restava `status:"success"` con le fonti elencate. La correzione non è un'euristica sul testo — parsare la prosa italiana di un LLM per capire se si è astenuto sarebbe fragile per costruzione — ma un **contratto**: `[REGOLA-ASTENSIONE]` nel prompt impone il token `[ASTENSIONE]` come primo carattere della risposta quando e solo quando il contesto non basta; `ask_rag` lo legge e lo rimuove | Un client non poteva distinguere "ha risposto" da "si è astenuto": l'astensione, che è la funzione di sicurezza, non era leggibile a macchina | S | `status: "abstained"`, distinto da `no_results`/`no_graph_nodes` (lì il retrieval non trova nulla; qui trova qualcosa ed è la sintesi a dire che non risponde). Verificato dal vivo: domanda fuori corpus → `abstained`; domanda normale → `success`, marcatore mai nella risposta. 6 test in `tests/test_ask_abstention.py`, cache compresa |
@@ -1555,14 +1555,106 @@ test dipende davvero dalla risoluzione dell'alias e non da un no-op silenzioso.
 
 ## Cosa resta aperto
 
-- **In CI quei cinque test non girano mai.** Il job non avvia Qdrant, quindi lì saltano
-  sempre: la semantica reale è verificata solo da chi ha Docker acceso in locale. Chiuderlo
-  davvero vorrebbe dire un servizio Qdrant nel workflow (`services:` o un `docker compose up`
-  nel job) — non fatto qui, ed è il motivo per cui la riga resta annotata invece che chiusa
-  del tutto. Dichiarato nel commento di `ci.yml`, dove prima si leggeva il contrario.
+- ~~**In CI quei cinque test non girano mai.**~~ **Chiuso il 2026-09-04** — vedi
+  «A8, coda: la CI adesso li esegue» qui sotto.
 - **`rollback` e `GC`** restano validati contro il fake per la parte di *logica locale*
   (puntatore `CURRENT`, insieme dei riferimenti dai manifest): lì non c'è semantica di
   Qdrant da falsificare, se non la `delete_collection` ora coperta.
+
+## A8, coda: la CI adesso li esegue — e non può tornare a saltarli in silenzio
+
+*Chiusura del residuo il 2026-09-04.*
+
+`services: qdrant` nel job `test` di `.github/workflows/ci.yml`, immagine
+**`qdrant/qdrant:v1.19.0`** — pinnata come ogni altra versione del repository e
+**allineata al client** (`qdrant-client==1.19.0` in `uv.lock`): un server più nuovo del
+client sarebbe una seconda variabile, e non è quella che questo job vuole misurare.
+
+Il punto delicato non è avviare il servizio: è che **un job verde che salta tutto è
+indistinguibile da un job verde che verifica**, ed è esattamente lo stato in cui questa
+riga è rimasta per sei settimane. Tre meccanismi, ognuno contro un modo diverso di
+ricadere lì:
+
+| Meccanismo | Contro cosa |
+|---|---|
+| `VIBECRAFT_REQUIRE_QDRANT=1` nell'env del job → `_real_qdrant_client_or_skip` **solleva** invece di saltare | il servizio sparisce dal workflow, o non risponde: lo skip non è più «l'ambiente non ce l'ha» dove il servizio è **dichiarato** |
+| `pytest -rs` in `scripts/ci.sh` | ogni skip residuo compare col **motivo**, non come un numero in fondo |
+| passo dedicato che pretende `^5 passed` sui test `-k real_qdrant`, con una riga nel `$GITHUB_STEP_SUMMARY` | i cinque vengono cancellati, rinominati o disattivati uno per volta |
+
+E un'attesa esplicita su `/readyz` prima della suite: l'immagine Qdrant non dichiara una
+`HEALTHCHECK`, quindi «container avviato» non significa «porta che risponde», e senza
+quella attesa una partenza lenta darebbe un rosso intermittente che assomiglia a un
+difetto del codice.
+
+**Un difetto trovato mentre lo verificavo, e sarebbe stato invisibile.** `pytest.ini` ha
+già `addopts = -q`; `ci.sh` passava un secondo `-q`, cioè **`-qq`**, che sopprime *proprio*
+la riga di riepilogo e l'elenco di `-rs`. Misurato: con `-q -rs` l'output di quei cinque
+test finisce sulla barra di progresso (`.....  [100%]`) e **nient'altro** — il passo di
+conteggio avrebbe cercato `^5 passed` in un output che non lo contiene mai, e avrebbe
+fallito sempre, per la ragione sbagliata. Tolto il `-q` di troppo. È il tipo di errore che
+questo intervento esiste per impedire, commesso mentre lo si impediva.
+
+**Misurato su questa macchina**, contro un container `qdrant/qdrant:v1.19.0` pinnato
+(porta throwaway, non quello di sviluppo), nelle tre direzioni che contano:
+
+```
+Qdrant giù,   senza la variabile  →  34 passed, 5 skipped   + "SKIPPED [5] … Qdrant non raggiungibile"
+Qdrant giù,   VIBECRAFT_REQUIRE_QDRANT=1  →  5 failed        (il gate ha portanza: non passa per caso)
+Qdrant su v1.19.0, come in CI     →  5 passed, 34 deselected  → il passo di conteggio trova "5 passed"
+suite intera, Qdrant su + gate    →  1317 passed, 0 skipped, ruff pulito
+```
+
+La seconda riga è quella che conta davvero: senza di essa il primo meccanismo sarebbe una
+dichiarazione d'intenti, non un gate.
+
+## Il primo run reale, e cosa ha trovato
+
+Eseguito il 2026-09-04 sul branch `ci/s3-qdrant-servizio-e-macos-nativo`. `docker` verde,
+`macos-nativo` verde, **`test` rosso** — e non per Qdrant:
+
+```
+1 failed, 1316 passed in 87.86s
+FAILED tests/test_reindex.py::test_index_rollback_succeeds_when_writer_lock_free
+        HTTPException 404: Nessuna versione in database/versions/: nulla su cui fare rollback
+```
+
+**Il difetto è pre-esistente e non appartiene a questo intervento.** `git log -S` lo data:
+`resolve_rollback_target` entra nella route col commit **`1044513` (S2)**, e quella funzione
+risolve la versione leggendo il `database/versions/` **vero**. Il test si costruiva a mano il
+proprio set di patch invece di passare dall'helper condiviso `_call_index_rollback` — che S2
+aveva aggiornato — e quel duplicato è rimasto indietro. Restavano scoperti allo stesso modo
+`assert_rollback_target_has_vectors` (chiamato con la stringa `"fake-qdrant-client"`, e
+verde solo perché tollera le eccezioni) e `rollback_shares_collection_with_later_versions`.
+
+Il punto che vale più del difetto: **una suite locale non poteva vederlo**. Su una macchina
+di sviluppo `database/versions/` è popolata, quindi la funzione non patchata trovava versioni
+vere e il test passava; su un checkout pulito non ce ne sono, e falliva. Riprodotto qui con un
+plugin pytest usa-e-getta che ripunta `versions_root()` su una directory vuota: **stesso e
+solo test**, gli altri rossi di quella simulazione sono suoi artefatti (scavalca i sandbox dei
+test *end to end*, che le versioni se le creano davvero) e in CI infatti sono verdi.
+
+**Correzione alla radice, non alla riga.** Aggiungere la patch mancante avrebbe lasciato in
+piedi la duplicazione che l'ha causata — e le altre due funzioni scoperte. `_call_index_rollback`
+accetta ora un `writer_lock=`, e il test passa da lì: chi vuole esercitare il lock **vero** su
+un file di `tmp_path` non deve più rifarsi tutto il resto a mano, e la prossima chiamata
+aggiunta alla route atterra in un posto solo. Verificata la portanza — il lock iniettato viene
+invocato una volta col timeout patchato e il file di lock viene creato davvero: il test non è
+diventato verde girando su un `nullcontext`.
+
+Verificato in tre direzioni: checkout pulito simulato **verde**, questa macchina **verde**,
+suite intera con Qdrant reale **1317 passed, 0 skipped**, ruff pulito.
+
+## Ciò che questa chiusura NON prova
+
+- **Niente: l'intera catena è stata osservata.** Run **#131**, tutto verde, `test` in
+  3m25s, e il riepilogo del run porta la riga che il passo di conteggio scrive:
+  **«Qdrant reale: 5/5 test d'integrazione passati»**. Prima ancora, il run precedente
+  aveva già dato la prova indiretta più forte — 1316 passed **senza un solo `SKIPPED`**,
+  dove il servizio assente ne elencherebbe cinque. Restano fuori solo scelte dichiarate:
+  un solo server (1.19.0, la versione del client), nessuna matrice.
+- **Un solo server Qdrant, la versione del client.** Il job non prova la compatibilità con
+  versioni diverse da 1.19.0: è una scelta, non una svista — la matrice costerebbe minuti a
+  ogni push per un rischio che si materializza solo quando si alza il pin.
 
 ---
 
@@ -1730,9 +1822,9 @@ pubblicasse wheel macOS, il messaggio è che il marcatore può essere allargato.
 
 ## Ciò che questa chiusura NON prova
 
-- **Nessuna installazione reale su un Mac.** Il dry-run prova la risoluzione e la
-  compatibilità delle wheel — cioè esattamente ciò che era rotto — non che torch poi giri
-  su quella macchina. Qui un Mac non c'è; il limite è dichiarato anche in `DISTRIBUTION.md`.
+- ~~**Nessuna installazione reale su un Mac.**~~ **Affrontato il 2026-09-04** con il job
+  `macos-nativo` — vedi «A15, coda» qui sotto. Il limite non è più «qui un Mac non c'è»:
+  è che il job non è ancora stato eseguito.
 - **La macchina CPU-only x86-64 continua a scaricare 4 GB di CUDA** che non userà.
   Sincronizza e funziona, quindi non è questo riscontro; sceglierne la build CPU sulla
   *stessa* piattaforma richiederebbe extra in conflitto (`uv sync --extra cpu`), cioè
@@ -1741,6 +1833,91 @@ pubblicasse wheel macOS, il messaggio è che il marcatore può essere allargato.
 - **Immagine Docker ricostruita per sicurezza**, perché il re-lock tocca il file da cui il
   target `cpu` deriva la sua lista di esclusioni CUDA: 129 pacchetti, venv 2,2 GB,
   `torch 2.13.0+cpu`, `cuda? False` — identica a quella di prima del cambio.
+
+## A15, coda: un Mac vero, non più un dry-run
+
+*Chiusura del residuo N6 il 2026-09-04.*
+
+Nuovo job **`macos-nativo`** in `.github/workflows/ci.yml`, su **`macos-15`** — che è
+arm64 e **non deprecato** (verificato nel README di `actions/runner-images`, dove
+`macos-14` porta il badge *deprecated*). Fa `uv sync --frozen` in `rag/` e poi importa
+torch, ne stampa versione e backend, e **calcola**: un matmul 64×64 di cui verifica il
+risultato. Importare non basta — una wheel per l'architettura sbagliata importa e poi
+esplode alla prima operazione, ed è precisamente il divario fra il dry-run e «torch gira»
+che questo residuo nominava.
+
+Due asserzioni oltre al calcolo, entrambe su ciò che A15 ha corretto: che la versione
+**non** contenga `+cu` (su macOS torch deve arrivare da PyPI, non dall'indice cu126), e
+che il matmul torni il valore giusto.
+
+**La premessa si verifica prima, e si legge dal log.** La wheel è `macosx_14_0_arm64`: su
+un runner più vecchio il job fallirebbe *per la piattaforma*, non per ciò che sta provando,
+e quel rosso verrebbe letto come «l'installazione su macOS non funziona». Il primo passo
+del job stampa `sw_vers -productVersion` e `uname -m` e **fallisce esplicitamente** con il
+motivo giusto se l'architettura non è `arm64` o la major è `< 14`. Stampato anche il
+`sysconfig.get_platform()` dell'interprete *prima* del sync: il tag di piattaforma
+dell'interprete è ciò che decide se quella wheel è accettabile, ed è l'artefatto che A15
+aveva incontrato nel dry-run (`MACOSX_DEPLOYMENT_TARGET` conservativo). Se la risoluzione
+fallisse, il motivo si legge invece di doverlo indovinare.
+
+**Separato dal job `test`**: qui non servono né il corpus né i servizi, e il ciclo
+principale non deve aspettare un runner macOS per dire se il codice è a posto.
+
+### Il costo: stimato male, misurato, corretto
+
+L'avevo limitato a `main` + `workflow_dispatch` su una stima — repository privato, runner
+macOS fatturati **10× i minuti Linux**, ~5-8 minuti reali per scaricare il grafo delle
+dipendenze, quindi **~50-80 minuti fatturati** a esecuzione: il costo dominante del
+repository. Il primo run reale dice **34 secondi**, cioè ~6 minuti fatturati, contro i
+**2m31s** del job `test` e i **3m35s** di `docker`.
+
+La stima era sbagliata per una ragione che avrei dovuto vedere: su macOS il lock esclude
+**tutte** le wheel `nvidia-*` — è esattamente ciò che fa il marcatore di piattaforma
+introdotto da A15 — cioè i ~2,5 GB che dominano il download su Linux. Avevo trasportato il
+peso della build CUDA su una piattaforma che per costruzione non la installa.
+
+Restrizione rimossa: il job gira su **ogni push**, come gli altri due. Limitarlo non
+proteggeva da un costo che non esiste, e ritardava fino al merge la scoperta di una
+rottura del lock — che è il solo evento che questo job serve a intercettare.
+
+### Cosa dice il log, riga per riga
+
+Due run, entrambi verdi (34s e 36s). Il secondo:
+
+```
+runner: macOS 15.7.9 su arm64          ← premessa macosx_14_0 soddisfatta, e verificata dal job
+platform tag: macosx-15.0-arm64        ← il tag dell'interprete accetta la wheel
+torch      : 2.13.0                    ← da PyPI, senza "+cu": il marcatore di A15 fa il suo lavoro
+cuda       : False
+mps        : True (built: True )
+matmul su  : mps -> 262144.0           ← 64³, il valore atteso
+```
+
+**Il matmul è girato su Metal, non su CPU.** Non me l'aspettavo da un runner virtualizzato:
+il job non lo pretendeva (sceglie `mps` solo se disponibile), ma il risultato è che N6 è
+chiuso più di come era stato formulato — non «torch importa su un Mac», ma «torch calcola
+sull'acceleratore di quel Mac».
+
+I numeri accanto a quelli di Linux, che spiegano il costo meglio di qualsiasi stima:
+**130 pacchetti** contro 149, e **torch 106,1 MiB** contro 804,7 MiB. Le 15 wheel
+`nvidia-*`/`triton`/`cuda-*` che mancano pesano da sole ~2,5 GiB.
+
+### Ciò che questa coda NON prova
+
+- **Non prova macOS Intel**, che resta impossibile a monte (PyTorch non pubblica quelle
+  wheel).
+- **Prova il percorso con la CPython di sistema, non con una gestita da uv.** Il log dice
+  `Using CPython 3.14.7 interpreter at: /opt/homebrew/opt/python@3.14/bin/python3.14`: uv
+  ha trovato il 3.14 di Homebrew nell'immagine del runner, e da lì il tag è
+  `macosx-15.0-arm64`. È **il caso fortunato**. Se l'immagine smettesse di spedire quel
+  Python — o se un utente su Mac partisse da una CPython gestita da uv — il tag verrebbe dal
+  `MACOSX_DEPLOYMENT_TARGET` con cui quella build è compilata, che è conservativo: è
+  esattamente l'artefatto che A15 aveva incontrato nel dry-run, e lì una wheel
+  `macosx_14_0` verrebbe rifiutata. Il job stampa il tag proprio perché quel giorno il
+  fallimento sia leggibile invece che misterioso, ma **non copre quel ramo**.
+- **Il tempo non dipendeva da una cache calda.** Vale la pena dirlo perché sarebbe la
+  spiegazione comoda dei 34s: il log mostra `Cache Size: ~0 MB (1610 B)` e poi il download
+  effettivo di tutti e 130 i pacchetti. L'installazione è reale.
 
 ---
 

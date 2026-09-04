@@ -5,10 +5,26 @@ on:
     branches: ["**"]
   pull_request:
     branches: ["**"]
+  workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    # Qdrant VERO, non un mock. La gran parte dei test del blue/green gira su
+    # _FakeQdrant (in-memory), ma CINQUE sono di integrazione — alias swap,
+    # delete-by-filter attraverso l'alias, invalidazione degli alias alla
+    # delete_collection — e senza servizio si auto-saltavano SEMPRE qui: la semantica
+    # reale di Qdrant era verificata solo da chi aveva Docker acceso in locale (A8).
+    # Immagine pinnata come ogni altra versione di questo repo, e allineata al client
+    # (qdrant-client==1.19.0 in uv.lock): un server piu' nuovo del client e' un'altra
+    # variabile, e non e' quella che questo job vuole misurare.
+    services:
+      qdrant:
+        image: qdrant/qdrant:v1.19.0
+        ports:
+          - 6333:6333
+
     steps:
       - uses: actions/checkout@v7
 
@@ -18,20 +34,54 @@ jobs:
           version: "0.11.28"
           python-version: "3.14"
 
-      # Nessun servizio esterno: Qdrant e Ollama restano spenti e la suite resta verde.
-      # La gran parte dei test del blue/green gira su _FakeQdrant (in-memory), ma CINQUE
-      # sono di integrazione contro un Qdrant VERO e qui si auto-saltano in modo esplicito
-      # (pytest.skip col motivo, sezione "OPZIONALE / SKIPPABLE" di
-      # tests/test_qdrant_blue_green.py): verificato in entrambe le direzioni — Qdrant
-      # spento 31 passed / 5 skipped, Qdrant attivo 36 passed. Il rovescio e' che quei
-      # cinque, in CI, non vengono MAI esercitati: la semantica reale di Qdrant resta
-      # verificata solo in locale, ed e' cio' che resta aperto di A8 in rag/AUDIT.md.
-      #
+      # L'immagine Qdrant non dichiara una HEALTHCHECK, quindi "container avviato" non
+      # significa "porta che risponde". Senza questa attesa una partenza lenta darebbe un
+      # rosso intermittente che assomiglia a un difetto del codice.
+      - name: Attendi che Qdrant risponda
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:6333/readyz >/dev/null; then
+              echo "Qdrant pronto: $(curl -s http://127.0.0.1:6333/ | head -c 200)"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Qdrant non risponde su 127.0.0.1:6333 dopo 60s"
+          docker ps -a
+          exit 1
+
       # scripts/ci.sh gira anche ruff (selezione esplicita in pyproject.toml, A9)
       # prima della suite: lint e test nello stesso gate, stesso comando in locale.
-      - name: Lint + test suite (rag/)
+      #
+      # VIBECRAFT_REQUIRE_QDRANT=1 e' il gate del gate: dove il servizio e' DICHIARATO,
+      # uno skip di quei cinque test non e' piu' "l'ambiente non ce l'ha", e
+      # _real_qdrant_client_or_skip solleva invece di saltare. Senza, un job verde che
+      # salta tutto sarebbe indistinguibile da un job verde che verifica — cioe'
+      # esattamente lo stato di prima. ci.sh passa -rs, quindi ogni skip residuo compare
+      # nel log col suo motivo e non solo come numero in fondo.
+      - name: Lint + test suite (rag/), con Qdrant reale
         run: bash scripts/ci.sh
         working-directory: rag
+        env:
+          QDRANT_URL: http://127.0.0.1:6333
+          VIBECRAFT_REQUIRE_QDRANT: "1"
+
+      # Il conteggio, in chiaro e in cima al riepilogo del run: -rs rende VISIBILE uno
+      # skip, questo passo rende visibile che i cinque sono PASSATI. Sono i due lati
+      # della stessa regressione, e leggere un numero costa meno che rileggere un log.
+      - name: Conta i test d'integrazione davvero eseguiti
+        working-directory: rag
+        env:
+          QDRANT_URL: http://127.0.0.1:6333
+          VIBECRAFT_REQUIRE_QDRANT: "1"
+        run: |
+          uv run pytest tests/test_qdrant_blue_green.py -rs -k "real_qdrant" >/tmp/integrazione.txt 2>&1 || true
+          cat /tmp/integrazione.txt
+          if ! grep -qE "^5 passed" /tmp/integrazione.txt; then
+            echo "::error::attesi 5 test d'integrazione PASSATI contro Qdrant reale"
+            exit 1
+          fi
+          echo "### Qdrant reale: 5/5 test d'integrazione passati" >> "$GITHUB_STEP_SUMMARY"
 
   # ---------------------------------------------------------------------------
   # Il gate che mancava: un CHECKOUT PULITO deve poter produrre un'immagine che parte.
@@ -88,3 +138,82 @@ jobs:
             echo "::error::compose ha accettato di partire senza VIBECRAFT_API_KEY"
             exit 1
           fi
+
+  # ---------------------------------------------------------------------------
+  # N6 — l'installazione nativa su macOS era verificata solo con
+  # `uv sync --frozen --dry-run --python-platform aarch64-apple-darwin` (A15): quel
+  # comando prova la RISOLUZIONE e la compatibilita' delle wheel — cio' che era
+  # davvero rotto — non che torch poi giri. I runner macOS ARM lo provano davvero.
+  #
+  # SEPARATO dal job `test` di proposito: qui non servono ne' il corpus ne' i servizi,
+  # e il ciclo principale non deve aspettare un runner macOS per dire se il codice e' ok.
+  #
+  # Gira su OGNI push, come gli altri due. Era stato limitato a main + workflow_dispatch
+  # su una stima di costo che la misura ha smentito: prevedevo ~5-8 minuti reali (il grafo
+  # delle dipendenze da scaricare) cioe' ~50-80 fatturati col moltiplicatore 10x dei runner
+  # macOS su repository privato. Il primo run reale: **34 secondi**, ~6 minuti fatturati —
+  # contro i 2m31s del job `test` e i 3m35s di `docker`. Su macOS il lock esclude tutte le
+  # wheel `nvidia-*` (e' il marcatore di piattaforma di A15 a farlo), cioe' i ~2,5 GB che
+  # dominano il download su Linux. Non e' il costo dominante di niente: limitarlo avrebbe
+  # solo ritardato la scoperta di una rottura del lock fino al merge su main.
+  # ---------------------------------------------------------------------------
+  macos-nativo:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+
+      # La wheel di torch 2.13.0 per Apple Silicon e' `macosx_14_0_arm64`: su un runner
+      # piu' vecchio il job fallirebbe per la piattaforma, non per cio' che sta provando —
+      # e quel rosso verrebbe letto come "l'installazione su macOS non funziona".
+      # Quindi la premessa si verifica PRIMA, e si legge dal log invece che per fede.
+      - name: Il runner soddisfa la premessa (arm64, macOS >= 14)
+        run: |
+          versione=$(sw_vers -productVersion)
+          arch=$(uname -m)
+          echo "runner: macOS $versione su $arch"
+          if [ "$arch" != "arm64" ]; then
+            echo "::error::runner non Apple Silicon ($arch): non e' la piattaforma che questo job prova"
+            exit 1
+          fi
+          if [ "${versione%%.*}" -lt 14 ]; then
+            echo "::error::macOS $versione < 14, ma la wheel richiede macosx_14_0"
+            exit 1
+          fi
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.11.28"
+          python-version: "3.14"
+
+      # `--frozen`: se il lock non basta a se stesso su questa piattaforma, deve fallire
+      # qui, non risolvere qualcosa di diverso e far passare il job.
+      - name: uv sync --frozen (installazione VERA, non un dry-run)
+        working-directory: rag
+        run: |
+          # Il tag di piattaforma dell'INTERPRETE decide se la wheel `macosx_14_0_arm64`
+          # di torch e' accettabile: uv puo' usare una CPython gestita con un
+          # MACOSX_DEPLOYMENT_TARGET piu' conservativo di quello del runner (e' l'artefatto
+          # che A15 aveva incontrato nel dry-run). Stampato PRIMA del sync: se la
+          # risoluzione fallisse, il motivo si legge qui invece di doverlo indovinare.
+          uv run --no-project python -c "import sysconfig; print('platform tag:', sysconfig.get_platform())"
+          uv sync --frozen
+
+      # Importare non basta: una wheel per l'architettura sbagliata importa e poi esplode
+      # alla prima operazione. Quindi versione, backend, e un tensore che fa davvero i conti.
+      - name: torch importa, dichiara il backend e calcola
+        working-directory: rag
+        run: |
+          uv run python - <<'PY'
+          import platform
+          import torch
+          print("torch      :", torch.__version__)
+          print("piattaforma:", platform.machine(), "macOS", platform.mac_ver()[0])
+          print("cuda       :", torch.cuda.is_available())
+          print("mps        :", torch.backends.mps.is_available(), "(built:", torch.backends.mps.is_built(), ")")
+          assert "+cu" not in torch.__version__, f"su macOS torch deve venire da PyPI, non da cu126: {torch.__version__}"
+          device = "mps" if torch.backends.mps.is_available() else "cpu"
+          x = torch.ones(64, 64, device=device) @ torch.ones(64, 64, device=device)
+          print("matmul su  :", device, "->", x.sum().item())
+          assert x.sum().item() == 64 ** 3
+          PY

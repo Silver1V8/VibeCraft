@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# Pipeline CI minima: sync riproducibile (uv.lock) + lint + suite pytest. Nessun
-# servizio esterno richiesto — Qdrant e Ollama possono restare spenti. I 3 test che
-# toccano un Qdrant reale (tests/test_qdrant_blue_green.py) si auto-saltano con
-# pytest.skip quando la connessione fallisce, quindi non serve alcun mock a livello
-# di pipeline.
+# Pipeline CI minima: sync riproducibile (uv.lock) + lint + suite pytest. In locale
+# nessun servizio esterno e' richiesto: i CINQUE test che toccano un Qdrant reale
+# (tests/test_qdrant_blue_green.py, sezione "OPZIONALE / SKIPPABLE") si auto-saltano
+# con pytest.skip quando la connessione fallisce.
+#
+# In CI invece Qdrant c'e' (services: nel workflow) e saltarli sarebbe la regressione:
+# il workflow esporta VIBECRAFT_REQUIRE_QDRANT=1, che trasforma quello skip in errore.
+# Qui restiamo agnostici — se la variabile non c'e', lo skip resta uno skip.
 #
 # Uso:  scripts/ci.sh
 # Exit: propagato dal primo comando che fallisce (set -e) — 0 se tutto verde.
@@ -26,4 +29,11 @@ uv sync --frozen
 # non deve costare i minuti della suite per farsi vedere.
 uv run ruff check .
 
-uv run pytest -q
+# -rs: elenca OGNI skip col suo motivo, oltre al conteggio della riga di riepilogo.
+# Senza, "5 skipped" si perde in fondo all'output e una regressione della copertura
+# torna invisibile — che e' esattamente com'e' rimasta invisibile finora.
+#
+# NIENTE -q qui: pytest.ini lo passa gia' in addopts, e un secondo -q vale -qq, che
+# sopprime PROPRIO la riga di riepilogo ("39 passed", "5 skipped") insieme all'elenco
+# di -rs. Misurato: con -q -rs l'output finisce sulla barra di progresso.
+uv run pytest -rs

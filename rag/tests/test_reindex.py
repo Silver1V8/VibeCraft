@@ -621,14 +621,19 @@ class _FakeJsonRequest:
 
 def _call_index_rollback(monkeypatch, payload=None, *, rollback_version_result="v1",
                          qdrant_alias_result=None, shared_later_result=None,
-                         precheck=None):
+                         precheck=None, writer_lock=None):
     import asyncio
     import api.routes_reindex as rr
 
     # L'autouse _noop_writer_lock neutralizza il lock solo in api.reindex, NON in
     # api.routes_reindex: qui esercitiamo il comportamento a lock LIBERO, quindi lo
     # rendiamo un no-op nel namespace della route (mai il database/.writer.lock reale).
-    monkeypatch.setattr(rr, "writer_lock", lambda *a, **k: contextlib.nullcontext())
+    # `writer_lock=` permette a chi vuole esercitare il lock VERO (su un file di tmp_path)
+    # di farlo senza rifarsi a mano tutto il resto delle patch: e' quella duplicazione ad
+    # aver lasciato indietro un test quando la route ha iniziato a chiamare
+    # resolve_rollback_target.
+    monkeypatch.setattr(rr, "writer_lock",
+                        writer_lock or (lambda *a, **k: contextlib.nullcontext()))
     monkeypatch.setitem(rr.state, "qdrant", "fake-qdrant-client")
     monkeypatch.setattr(rr, "resolve_rollback_target", lambda target=None: rollback_version_result)
     monkeypatch.setattr(rr, "rollback_version", lambda target: rollback_version_result)
@@ -914,23 +919,27 @@ def test_index_rollback_409_when_writer_lock_held_and_leaves_state_untouched(tmp
 
 def test_index_rollback_succeeds_when_writer_lock_free(tmp_path, monkeypatch):
     """A lock LIBERO il route si comporta come prima: esegue la mutazione sotto il lock
-    e risponde con rolled_back_to e qdrant_alias."""
-    import asyncio
+    VERO (un file in tmp_path, non un no-op) e risponde con rolled_back_to e qdrant_alias.
+
+    Passa da `_call_index_rollback` invece di rifarsi a mano il proprio set di patch. Il
+    set duplicato era rimasto indietro quando la route ha iniziato a chiamare
+    `resolve_rollback_target` (S2): quella funzione risolve la versione leggendo il
+    `database/versions/` VERO, quindi il test continuava a passare su una macchina di
+    sviluppo — dove l'indice c'e' — e falliva su un checkout pulito, cioe' esattamente e
+    solo in CI. Restavano scoperti allo stesso modo `assert_rollback_target_has_vectors` e
+    `rollback_shares_collection_with_later_versions`, che pure leggono lo stato reale.
+    """
     import api.routes_reindex as rr
     from core.writer_lock import writer_lock
 
     lock_file = tmp_path / ".writer.lock"
     monkeypatch.setattr(rr, "_ROLLBACK_WRITER_LOCK_TIMEOUT_SECONDS", 0.3)
-    monkeypatch.setattr(rr, "writer_lock",
-                        lambda timeout_seconds: writer_lock(timeout_seconds, lock_path=lock_file))
-    monkeypatch.setitem(rr.state, "qdrant", "fake-qdrant-client")
-    monkeypatch.setattr(rr, "rollback_version", lambda target: "v1")
-    monkeypatch.setattr(rr, "list_versions", lambda: ["v1", "v2"])
-    monkeypatch.setattr(rr, "reload_index_state", lambda: None)
-    monkeypatch.setattr(rr, "rollback_qdrant_alias_if_needed",
-                        lambda qdrant, name, emit=None: {"state": "swapped"})
 
-    response = asyncio.run(rr.index_rollback(_FakeJsonRequest(None)))
+    response, _ = _call_index_rollback(
+        monkeypatch,
+        qdrant_alias_result={"state": "swapped"},
+        writer_lock=lambda timeout_seconds: writer_lock(timeout_seconds, lock_path=lock_file),
+    )
     assert response["rolled_back_to"] == "v1"
     assert response["qdrant_alias"]["state"] == "swapped"
 
