@@ -95,3 +95,4 @@
 {"timestamp": "2026-09-04T15:19:54.242464+00:00", "commit": "391ccb8", "version": "v20260904T151925", "recall": {"recall@2": 0.875}, "n_cases": 56, "source": "gate", "gate": {"passed": true, "min_recall": 0.75}}
 {"timestamp": "2026-09-04T15:20:39.396653+00:00", "commit": "391ccb8", "version": "v20260904T151925", "recall": {"recall@1": 0.625, "recall@2": 0.875, "recall@5": 0.9821428571428571, "recall@10": 1.0}, "n_cases": 56, "source": "eval.run"}
 {"timestamp": "2026-09-04T15:20:58.789342+00:00", "commit": "391ccb8", "version": "v20260904T151925", "recall": {"multihop_recall@10": 0.8538961038961039, "multihop_graph_exact": 1.0}, "n_cases": 14, "source": "multihop"}
+{"timestamp": "2026-09-04T15:35:39.271129+00:00", "commit": "495e24c", "version": "v20260904T151925", "recall": {"recall@1": 0.625, "recall@2": 0.875, "recall@5": 0.9821428571428571, "recall@10": 1.0}, "n_cases": 56, "source": "eval.run"}
