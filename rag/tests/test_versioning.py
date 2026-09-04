@@ -141,6 +141,22 @@ def test_rollback_errors(db):
         artifacts.rollback_version("v_fantasma")
 
 
+def test_resolve_rollback_target_non_sposta_current(db):
+    """`resolve_rollback_target` e' la sola risoluzione, senza mutazione: e' cio' che
+    permette ai chiamanti di pre-verificare il target (R14) prima di muovere CURRENT.
+    Stessa risoluzione e stesse eccezioni di rollback_version."""
+    v1, v2 = _save("a"), _save("b")
+    artifacts.promote_version(v1)
+    artifacts.promote_version(v2)
+
+    assert artifacts.resolve_rollback_target() == v1
+    assert artifacts.resolve_rollback_target(v1) == v1
+    assert artifacts.current_version() == v2  # nulla e' stato mosso
+    with pytest.raises(FileNotFoundError):
+        artifacts.resolve_rollback_target("v_fantasma")
+    assert artifacts.current_version() == v2
+
+
 # ---------------------------------------------------------------------------
 # Retention: ultime N versioni, mai quella puntata da CURRENT
 # ---------------------------------------------------------------------------

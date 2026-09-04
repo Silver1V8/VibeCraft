@@ -981,6 +981,47 @@ già usato da un'installazione nativa.
 Le due collection non sono recuperabili: gli artefatti su disco in `database/versions/`
 ci sono ancora, ma i vettori no. Un rollback a `v20260901T101536` o `v20260901T132300`
 richiederebbe una re-indicizzazione. Le versioni successive non sono state toccate.
+(`v20260901T101536` è nel frattempo uscita dalla retention; il suo *lineage* sopravvive in
+`v20260901T105315` e `v20260901T114636`, che dichiarano la stessa collection distrutta —
+quindi le versioni locali che puntano a vettori inesistenti oggi sono **tre**.)
+
+**Il comportamento al tentativo, invece, era risolvibile — ed era peggio del previsto
+(chiuso 2026-09-04, R14).** Provato dal vivo, non dedotto: `python index.py --rollback
+v20260901T132300` **riusciva**. Stampava `✅ Rollback: CURRENT → v20260901T132300`, poi il
+warning che l'alias non era stato spostato, e usciva 1 — lasciando il sistema in uno stato
+**misto e durevole**: CURRENT (grafo e sidecar) sulla versione target, produzione Qdrant sui
+vettori di `v20260904T092228`. Non un fallimento oscuro: una **mutazione parziale riuscita**.
+Nessuno la ripara — `repair_qdrant_alias` non inventa collection, quindi nemmeno il
+reconciler di boot — e in quello stato `check_index_integrity` rispondeva **`ok: true`,
+`problems: []`**: le due build hanno lo stesso numero di chunk (160) e il passo 5 confronta
+solo un conteggio. Via HTTP era ancora più silenzioso: `POST /api/index/rollback` rispondeva
+**200**, con lo stato `missing_target_collection` sepolto nel corpo e nessun alert scritto.
+
+Due correzioni, entrambe verificate dal vivo su questo indice:
+
+1. **Fallisce PRIMA di mutare.** `assert_rollback_target_has_vectors` (core/indexing.py)
+   gira sotto lo stesso writer lock, prima di `rollback_version`: se la collection
+   dichiarata dalla versione target non esiste, il rollback è **rifiutato** — CURRENT non si
+   muove, l'alias nemmeno — con un messaggio che nomina la collection mancante e dice che
+   serve una re-indicizzazione completa. CLI exit 1, route **409**. La risoluzione del
+   target è stata estratta in `core.artifacts.resolve_rollback_target` proprio per poter
+   verificare *prima* di scrivere. **Qdrant irraggiungibile non blocca nulla**: il
+   pre-check si salta e il comportamento resta quello di sempre (rollback locale, alias
+   riparato al boot) — la sonda è la stessa `get_collections` che serve alla verifica, e se
+   solleva non c'è nulla da verificare.
+2. **Lo stato misto, se ci si finisce lo stesso, non è più silenzioso.** Il passo 5 di
+   `check_index_integrity` verifica ora anche che la collection **dichiarata dalla versione
+   attiva** esista ancora: se è sparita, l'alias serve i vettori di un'altra build e la
+   divergenza non è nemmeno riparabile ⇒ `qdrant_mismatch`, cioè full rebuild per lo script
+   notturno. Attenzione al contrappeso, che ha un test dedicato: un alias divergente con la
+   collection attesa **ancora presente** resta la sola osservazione `qdrant_alias` — quella
+   il boot la ripara, e farne un problema significherebbe accodare un rebuild a ogni
+   divergenza transitoria.
+
+Verifica di chiusura, eseguita: rollback verso `v20260901T132300` → rifiutato, `CURRENT`
+invariato a `v20260904T092228`; rollback verso `v20260901T132525` (collection viva) →
+riuscito, alias swappato; stato misto ricreato a mano forzando `CURRENT` → il check che
+prima diceva `ok: true` ora risponde `ok: false`, `qdrant_mismatch: true`, exit 1.
 
 ---
 ---
@@ -1237,10 +1278,24 @@ distinguono le due versioni:
 - **Nessun test esercita un Qdrant reale** (A8), che è la via per cui la divergenza
   sidecar↔Qdrant si presenterebbe davvero. Questa correzione fissa il comportamento *dato*
   un `None`; non fa comparire il `None`.
-- **Nulla allarma quando la copertura ColBERT scende.** `check_index_integrity` verifica
-  manifest, artefatti e allineamento con Qdrant, e oggi dice `ok: true`; il numero
-  "chunk scoperti" l'ho misurato a mano. Un sidecar disallineato resta una condizione che
-  si scopre solo guardando.
+- ~~**Nulla allarma quando la copertura ColBERT scende.**~~ → **CHIUSO 2026-09-04 (R2).**
+  La copertura è stata **rimisurata**, non assunta: sull'indice attivo `v20260904T092228`,
+  **160 chunk in `chunks.json`, 160 chiavi in `colbert.npz`, zero scoperti e zero orfani** —
+  il 160/160 di questa riga regge ancora. Ma il numero continuava a esistere solo perché
+  qualcuno lo misurava a mano. Ora è la **terza voce** della stessa lista di problemi di
+  `check_index_integrity` (passo 4, fra gli artefatti e Qdrant), con la stessa forma delle
+  altre due: nessun meccanismo nuovo. Costo zero in embedding — si legge il solo membro
+  `keys` del `.npz`, i vettori non vengono mai decompressi.
+  **Va in `problems`, non fra le osservazioni pure**, e la ragione è stata verificata prima
+  di deciderlo: il precedente documentato nella funzione (rollback intra-lineage seguito da
+  un incrementale ⇒ mismatch ATTESO) riguarda **solo Qdrant**, che non è versionato. I due
+  sidecar li scrive la **stessa `save_artifacts` nella stessa directory di versione**, sia
+  dal full rebuild (`core/indexing.py:865`) sia dall'incrementale (`:1881`): fra loro non
+  esiste una divergenza legittima, quindi un mismatch è sempre un difetto e la remediation
+  giusta è quella che lo script notturno applica già per `artifacts_corrupted` — full
+  rebuild. Verificato per costruzione (`tests/test_index_integrity.py`): tolta una chiave
+  dal sidecar il check la segnala (`-c2` nel messaggio), rimessa torna verde; e i 4 test
+  nuovi **falliscono contro il codice vecchio**, dove il confronto non esisteva.
 
 ---
 ---

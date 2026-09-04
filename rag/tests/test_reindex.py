@@ -620,7 +620,8 @@ class _FakeJsonRequest:
 
 
 def _call_index_rollback(monkeypatch, payload=None, *, rollback_version_result="v1",
-                         qdrant_alias_result=None, shared_later_result=None):
+                         qdrant_alias_result=None, shared_later_result=None,
+                         precheck=None):
     import asyncio
     import api.routes_reindex as rr
 
@@ -629,8 +630,13 @@ def _call_index_rollback(monkeypatch, payload=None, *, rollback_version_result="
     # rendiamo un no-op nel namespace della route (mai il database/.writer.lock reale).
     monkeypatch.setattr(rr, "writer_lock", lambda *a, **k: contextlib.nullcontext())
     monkeypatch.setitem(rr.state, "qdrant", "fake-qdrant-client")
+    monkeypatch.setattr(rr, "resolve_rollback_target", lambda target=None: rollback_version_result)
     monkeypatch.setattr(rr, "rollback_version", lambda target: rollback_version_result)
     monkeypatch.setattr(rr, "list_versions", lambda: ["v1", "v2"])
+    # Pre-check R14: di base passa. I test che simulano la collection del target
+    # distrutta iniettano un `precheck` che solleva.
+    monkeypatch.setattr(rr, "assert_rollback_target_has_vectors",
+                        precheck or (lambda qdrant, target_version: None))
     monkeypatch.setattr(rr, "reload_index_state", lambda: None)
     # Default []: la detection della collection condivisa non deve leggere il vero
     # database/versions/ nei test che non la esercitano (per quelli che la esercitano
@@ -680,13 +686,52 @@ def test_index_rollback_intra_lineage_reports_noop_state(monkeypatch):
 def test_index_rollback_missing_target_collection_does_not_raise_and_current_still_moved(monkeypatch):
     """Nessuna correzione automatica distruttiva: la route non solleva un errore HTTP
     quando la collection target manca — lo stato esplicito arriva nel corpo della
-    risposta, e il rollback locale (CURRENT) resta comunque effettuato."""
+    risposta, e il rollback locale (CURRENT) resta comunque effettuato. NB: dal
+    pre-check R14 in poi questo ramo resta raggiungibile solo se la collection sparisce
+    FRA il pre-check e lo swap, o se il pre-check e' stato saltato (Qdrant giu')."""
     response, _ = _call_index_rollback(
         monkeypatch, rollback_version_result="v1",
         qdrant_alias_result={"state": "missing_target_collection", "expected": "coll-v1", "actual": "coll-v2"},
     )
     assert response["rolled_back_to"] == "v1"
     assert response["qdrant_alias"]["state"] == "missing_target_collection"
+
+
+def test_index_rollback_rifiutato_409_se_la_collection_del_target_non_esiste(monkeypatch):
+    """R14: rollback verso una versione i cui vettori sono stati distrutti (A20). La
+    route risponde 409 SENZA aver mutato nulla — ne' CURRENT ne' l'alias — e il detail
+    nomina la collection mancante e il rimedio. Patch esplicite invece di
+    `_call_index_rollback`: qui il punto e' proprio che rollback_version NON venga
+    chiamata, e l'helper la sostituisce con una versione che riesce sempre."""
+    import asyncio
+    import api.routes_reindex as rr
+    from fastapi import HTTPException
+
+    mutazioni: list = []
+    monkeypatch.setattr(rr, "writer_lock", lambda *a, **k: contextlib.nullcontext())
+    monkeypatch.setitem(rr.state, "qdrant", "fake-qdrant-client")
+    monkeypatch.setattr(rr, "resolve_rollback_target", lambda target=None: "v1")
+    monkeypatch.setattr(rr, "rollback_version",
+                        lambda target: mutazioni.append(("current", target)) or "v1")
+    monkeypatch.setattr(rr, "rollback_qdrant_alias_if_needed",
+                        lambda *a, **k: mutazioni.append(("alias",)) or {"state": "noop"})
+    monkeypatch.setattr(rr, "reload_index_state", lambda: None)
+
+    def _precheck(qdrant, target_version):
+        raise rr.RollbackTargetCollectionMissing(
+            f"rollback a '{target_version}' RIFIUTATO: la sua collection Qdrant "
+            f"'coll-v1' non esiste piu'. Serve una re-indicizzazione completa."
+        )
+
+    monkeypatch.setattr(rr, "assert_rollback_target_has_vectors", _precheck)
+
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(rr.index_rollback(_FakeJsonRequest(None)))
+
+    assert exc.value.status_code == 409
+    assert "coll-v1" in exc.value.detail
+    assert "re-indicizzazione completa" in exc.value.detail
+    assert mutazioni == []  # ne' CURRENT ne' l'alias sono stati toccati
 
 
 def test_index_rollback_without_shared_collection_has_no_note_and_writes_no_alert(monkeypatch, tmp_path):
@@ -753,6 +798,11 @@ def _call_index_rollback_on_sandbox(monkeypatch, tmp_path, versions: dict, curre
     monkeypatch.setattr(rr, "reload_index_state", lambda: None)
     monkeypatch.setattr(rr, "rollback_qdrant_alias_if_needed",
                         lambda qdrant, name, emit=None: {"state": "noop"})
+    # Il pre-check R14 non e' l'oggetto di questi test end-to-end (il client Qdrant e'
+    # una stringa finta): reso esplicitamente no-op invece di dipendere dal fatto che
+    # degradi da solo su un client non valido.
+    monkeypatch.setattr(rr, "assert_rollback_target_has_vectors",
+                        lambda qdrant, target_version: None)
     response = asyncio.run(rr.index_rollback(_FakeJsonRequest(None)))
     return response, alerts
 

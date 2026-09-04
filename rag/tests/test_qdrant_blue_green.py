@@ -373,6 +373,44 @@ def test_rollback_shared_collection_tolerates_unreadable_or_legacy_later_manifes
 # Reconciler: classificazione legacy / aligned / diverging / missing (sola
 # osservazione — non scrive mai su Qdrant né in locale).
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# R14 — pre-check del rollback: la collection Qdrant della versione TARGET deve
+# esistere ancora. A20 ne ha distrutte due davvero: senza questa guardia il rollback
+# spostava CURRENT lo stesso e lasciava uno stato misto (sidecar del target, vettori
+# di un'altra build) che nessun reconciler ripara e che il check di integrita'
+# dichiarava `ok: true`.
+# ---------------------------------------------------------------------------
+def test_precheck_rollback_rifiuta_se_la_collection_del_target_non_esiste(versions_db):
+    _write_version_manifest(versions_db, "v1", "vibecraft_events__v1")
+    _write_version_manifest(versions_db, "v2", "vibecraft_events__v2")
+    qdrant = AliasAwareFakeQdrant(collections=["vibecraft_events__v2"],
+                                  aliases={index.COLLECTION_NAME: "vibecraft_events__v2"})
+    with pytest.raises(index.RollbackTargetCollectionMissing) as exc:
+        index.assert_rollback_target_has_vectors(qdrant, "v1")
+    # Il messaggio deve nominare la collection mancante E il rimedio.
+    assert "vibecraft_events__v1" in str(exc.value)
+    assert "re-indicizzazione completa" in str(exc.value)
+
+
+def test_precheck_rollback_passa_se_la_collection_del_target_esiste(versions_db):
+    _write_version_manifest(versions_db, "v1", "vibecraft_events__v1")
+    qdrant = AliasAwareFakeQdrant(collections=["vibecraft_events__v1", "vibecraft_events__v2"],
+                                  aliases={index.COLLECTION_NAME: "vibecraft_events__v2"})
+    index.assert_rollback_target_has_vectors(qdrant, "v1")  # nessuna eccezione
+
+
+def test_precheck_rollback_non_blocca_se_qdrant_e_irraggiungibile(versions_db):
+    """Qdrant giu' non deve impedire un rollback LOCALE: il pre-check si salta e il
+    comportamento resta quello di sempre (alias riparato al prossimo boot)."""
+    _write_version_manifest(versions_db, "v1", "vibecraft_events__v1")
+
+    class _Giu:
+        def get_collections(self):
+            raise ConnectionError("Qdrant irraggiungibile (simulato)")
+
+    index.assert_rollback_target_has_vectors(_Giu(), "v1")  # nessuna eccezione
+
+
 def test_reconciler_reports_legacy_when_no_manifest(monkeypatch):
     monkeypatch.setattr(index, "_read_manifest", lambda: None)
     q = AliasAwareFakeQdrant()

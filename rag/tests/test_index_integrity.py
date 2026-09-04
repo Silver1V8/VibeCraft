@@ -7,6 +7,15 @@ import pytest
 
 from core import artifacts
 from core import indexing
+from core.artifacts import _save_vectors
+
+
+def _write_colbert(path, chunk_ids) -> None:
+    """Scrive un colbert.npz col FORMATO REALE (chiavi in un array `keys`, vettori sotto
+    nomi generici `v{i}`): il check legge il solo membro `keys`, quindi il contenuto dei
+    vettori è irrilevante — la loro forma no. Riusa `_save_vectors` invece di ricostruire
+    il layout a mano, così il test resta legato al formato di produzione."""
+    _save_vectors(path, {cid: [[0.0]] for cid in chunk_ids})
 
 
 class _FakeCount:
@@ -25,16 +34,33 @@ class _FakeAliasesResponse:
         self.aliases = aliases
 
 
+class _FakeCollectionDescription:
+    def __init__(self, name):
+        self.name = name
+
+
+class _FakeCollectionsResponse:
+    def __init__(self, collections):
+        self.collections = collections
+
+
 class _FakeQdrant:
-    """Client Qdrant finto: risponde a count() con un numero fisso e a get_aliases()
-    con gli alias iniettati (default: nessuno). Qualunque metodo di SCRITTURA
+    """Client Qdrant finto: risponde a count() con un numero fisso, a get_aliases()
+    con gli alias iniettati (default: nessuno) e a get_collections() con le collection
+    fisiche iniettate (default: nessuna). Qualunque metodo di SCRITTURA
     (create/delete_collection, update_collection_aliases) solleva: prova che
     l'osservazione S5 di check_index_integrity non scrive mai su Qdrant."""
 
-    def __init__(self, n, aliases: dict[str, str] | None = None):
+    def __init__(self, n, aliases: dict[str, str] | None = None, collections=()):
         self._n = n
         self._aliases = aliases or {}
+        self._collections = tuple(collections)
         self.closed = False
+
+    def get_collections(self):
+        return _FakeCollectionsResponse(
+            [_FakeCollectionDescription(c) for c in self._collections]
+        )
 
     def count(self, collection_name, exact=True):
         return _FakeCount(self._n)
@@ -60,9 +86,11 @@ class _FakeQdrant:
 @pytest.fixture
 def env(tmp_path, monkeypatch):
     """Ambiente coerente di default: manifest allineato a sorgenti, artefatti e sidecar
-    (3 chunk). I singoli test rompono UN pezzo alla volta."""
+    (3 chunk, ciascuno col suo multivettore ColBERT). I singoli test rompono UN pezzo
+    alla volta."""
     manifest_path = tmp_path / "index_manifest.json"
     chunks_path = tmp_path / "chunks.json"
+    colbert_path = tmp_path / "colbert.npz"
 
     doc_hashes = {"a.md": "h1", "b.md": "h2"}
     code_hashes = {"x.py": "c1"}
@@ -74,6 +102,7 @@ def env(tmp_path, monkeypatch):
         "artifact_hashes": art_hashes,
     }), encoding="utf-8")
     chunks_path.write_text(json.dumps({"c1": {}, "c2": {}, "c3": {}}), encoding="utf-8")
+    _write_colbert(colbert_path, ["c1", "c2", "c3"])
 
     # Sandbox su database/: nessuna versione promossa -> manifest e sidecar si
     # risolvono nel layout flat legacy dentro tmp_path.
@@ -82,11 +111,23 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(indexing, "_docs_hashes", lambda: dict(doc_hashes))
     monkeypatch.setattr(indexing, "_code_hashes", lambda: dict(code_hashes))
     monkeypatch.setattr(indexing, "artifact_hashes", lambda: dict(art_hashes))
-    return {"manifest": manifest_path, "chunks": chunks_path, "monkeypatch": monkeypatch}
+    return {"manifest": manifest_path, "chunks": chunks_path, "colbert": colbert_path,
+            "monkeypatch": monkeypatch}
 
 
-def _check(env, points=3, aliases=None):
-    return indexing.check_index_integrity(qdrant=_FakeQdrant(points, aliases=aliases), emit=lambda m: None)
+def _check(env, points=3, aliases=None, collections=None):
+    """`collections=None` = caso sano: la collection dichiarata dal manifest ESISTE su
+    Qdrant. I test che simulano la sua distruzione (A20) passano `collections=[]`."""
+    if collections is None:
+        try:  # manifest assente/corrotto: il check si ferma prima, nulla da dichiarare
+            declared = json.loads(env["manifest"].read_text(encoding="utf-8")).get("qdrant_collection")
+        except Exception:
+            declared = None
+        collections = [declared] if declared else []
+    return indexing.check_index_integrity(
+        qdrant=_FakeQdrant(points, aliases=aliases, collections=collections),
+        emit=lambda m: None,
+    )
 
 
 def _set_manifest_qdrant_collection(env, collection: str) -> None:
@@ -290,6 +331,92 @@ def test_qdrant_all_aligned_both_flags_false(env):
     assert report["qdrant_mismatch"] is False
     assert report["qdrant_unreachable"] is False
     assert report["ok"] is True
+
+
+# ---------------------------------------------------------------------------
+# R2: copertura ColBERT. Il sidecar dei multivettori e quello dei chunk sono scritti
+# dalla STESSA save_artifacts nella stessa directory di versione: non esiste una
+# divergenza attesa (il precedente del rollback intra-lineage riguarda solo Qdrant,
+# che non e' versionato). Un chunk senza multivettore fa restituire None a
+# colbert_maxsim e degrada il ranking in silenzio (AUDIT A7) -> e' un problema.
+# ---------------------------------------------------------------------------
+def test_chunk_senza_multivettore_colbert_e_un_problema(env):
+    """Verifica per costruzione: si toglie UNA chiave dal sidecar ColBERT e il check
+    deve segnalarlo; ripristinandola torna verde. Contro il codice precedente questo
+    test passava comunque: il confronto non esisteva."""
+    _write_colbert(env["colbert"], ["c1", "c3"])  # manca c2
+    report = _check(env)
+    assert report["ok"] is False
+    assert report["artifacts_corrupted"] is True
+    assert report["qdrant_mismatch"] is False  # non e' Qdrant: sono i due sidecar
+    assert any("ColBERT" in p and "1 chunk senza multivettore" in p and "-c2" in p
+               for p in report["problems"])
+
+    _write_colbert(env["colbert"], ["c1", "c2", "c3"])  # ripristinata
+    assert _check(env)["ok"] is True
+
+
+def test_multivettore_orfano_e_un_problema(env):
+    """L'altro verso della stessa divergenza: un multivettore per un chunk che il
+    sidecar non ha piu' (residuo di una cancellazione mal applicata)."""
+    _write_colbert(env["colbert"], ["c1", "c2", "c3", "c99"])
+    report = _check(env)
+    assert report["artifacts_corrupted"] is True
+    assert any("1 multivettori orfani" in p and "+c99" in p for p in report["problems"])
+
+
+def test_sidecar_colbert_assente_e_un_problema(env):
+    env["colbert"].unlink()
+    report = _check(env)
+    assert report["ok"] is False
+    assert report["artifacts_corrupted"] is True
+    assert any("sidecar ColBERT assente" in p for p in report["problems"])
+
+
+def test_sidecar_colbert_illeggibile_e_un_problema(env):
+    env["colbert"].write_bytes(b"non un npz")
+    report = _check(env)
+    assert report["artifacts_corrupted"] is True
+    assert any("sidecar ColBERT illeggibile" in p for p in report["problems"])
+
+
+def test_sidecar_chunk_illeggibile_non_fa_partire_il_confronto_colbert(env):
+    """Senza l'insieme dei chunk_id non c'e' nulla con cui confrontare le chiavi: il
+    check segnala il sidecar chunk e basta, senza un secondo problema derivato."""
+    env["chunks"].write_text("{non json", encoding="utf-8")
+    report = _check(env)
+    assert any("sidecar chunk illeggibile" in p for p in report["problems"])
+    assert not any("ColBERT" in p for p in report["problems"])
+
+
+# ---------------------------------------------------------------------------
+# R14: la collection dichiarata dalla versione ATTIVA e' sparita da Qdrant (A20 ne ha
+# distrutte due davvero). L'alias punta altrove: il conteggio torna verde perche' le
+# due build hanno lo stesso numero di chunk, ma i vettori serviti sono di un'ALTRA
+# build e nessun reconciler puo' spostare l'alias su una collection che non c'e'.
+# ---------------------------------------------------------------------------
+def test_collection_della_versione_attiva_sparita_e_un_mismatch(env):
+    _set_manifest_qdrant_collection(env, "vibecraft_events__v2")
+    report = _check(env, points=3,  # conteggio ALLINEATO: da solo direbbe "ok"
+                    aliases={indexing.COLLECTION_NAME: "vibecraft_events__v1"},
+                    collections=["vibecraft_events__v1"])  # v2 distrutta
+    assert report["ok"] is False
+    assert report["qdrant_mismatch"] is True
+    assert report["qdrant_unreachable"] is False
+    assert any("vibecraft_events__v2" in p and "non esiste più" in p
+               and "re-indicizzazione completa" in p for p in report["problems"])
+
+
+def test_alias_divergente_ma_collection_attesa_presente_resta_solo_osservazione(env):
+    """Il contrappeso: una divergenza d'alias RIPARABILE (la collection attesa c'e'
+    ancora, il boot la ripara) non deve diventare un problema — altrimenti il check
+    notturno accoderebbe un full rebuild a ogni divergenza transitoria."""
+    _set_manifest_qdrant_collection(env, "vibecraft_events__v2")
+    report = _check(env, aliases={indexing.COLLECTION_NAME: "vibecraft_events__v1"},
+                    collections=["vibecraft_events__v1", "vibecraft_events__v2"])
+    assert report["qdrant_alias"]["state"] == "diverging"
+    assert report["ok"] is True
+    assert report["problems"] == []
 
 
 def test_injected_client_not_closed(env):

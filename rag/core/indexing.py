@@ -448,6 +448,45 @@ def _swap_alias(qdrant: QdrantClient, alias: str, target_collection: str) -> Non
     qdrant.update_collection_aliases(change_aliases_operations=operations)
 
 
+class RollbackTargetCollectionMissing(RuntimeError):
+    """La collection Qdrant della versione target di un rollback non esiste più.
+    Sollevata PRIMA di qualunque mutazione (vedi assert_rollback_target_has_vectors)."""
+
+
+def assert_rollback_target_has_vectors(qdrant: QdrantClient, target_version: str) -> None:
+    """Pre-check di un rollback, da chiamare PRIMA di `rollback_version` (che sposta
+    CURRENT): la collection Qdrant dichiarata da `target_version` deve esistere ancora.
+
+    Perché prima e non dopo (rag/AUDIT.md A20, RESIDUI R14): `rollback_version` è locale
+    e riesce SEMPRE, mentre `rollback_qdrant_alias_if_needed` — che gira dopo — si limita
+    a NON spostare l'alias e restituire "missing_target_collection". Il risultato è uno
+    stato MISTO durevole: CURRENT (grafo e sidecar) sulla versione target, produzione
+    Qdrant sui vettori di un'altra build. Nessuno lo ripara (repair_qdrant_alias non
+    inventa collection) e — misurato il 2026-09-04 su questo indice — `check_index_integrity`
+    lo dichiarava `ok: true`, perché le due build hanno lo stesso numero di chunk e il
+    passo 5 confronta solo un conteggio. Meglio rifiutare il rollback e lasciare il
+    sistema dov'è: i vettori vanno ricostruiti, non aggirati.
+
+    Qdrant irraggiungibile ⇒ NESSUN blocco: il pre-check si salta e il comportamento
+    resta quello di sempre (rollback locale, alias riparato al prossimo boot). La sonda
+    è la stessa get_collections di `_qdrant_collection_exists`: se solleva, il server non
+    risponde e non c'è nulla da verificare."""
+    expected = _qdrant_collection_for_version(target_version)
+    try:
+        exists = _qdrant_collection_exists(qdrant, expected)
+        actual = _read_alias_target(qdrant, COLLECTION_NAME)
+    except Exception:
+        return
+    if not exists:
+        raise RollbackTargetCollectionMissing(
+            f"rollback a '{target_version}' RIFIUTATO: la sua collection Qdrant "
+            f"'{expected}' non esiste più (artefatti locali presenti, vettori no). "
+            f"Attivarla lascerebbe CURRENT su {target_version} e la produzione su "
+            f"'{actual}': stato misto che nessun reconciler ripara. Serve una "
+            f"re-indicizzazione completa (full rebuild) per ricostruire quei vettori."
+        )
+
+
 def rollback_qdrant_alias_if_needed(qdrant: QdrantClient, target_version: str, emit=None) -> dict:
     """Allinea l'alias Qdrant (COLLECTION_NAME) alla versione TARGET di un rollback.
     `core.artifacts.rollback_version` resta puro locale (sposta solo il puntatore
@@ -1205,13 +1244,17 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
        indice STALE: basta un reindex incrementale);
     3. artifact_hashes del manifest vs file della versione attiva (mancanti o hash
        diverso ⇒ artefatti CORROTTI o scrittura mista: serve un full rebuild);
-    4. conteggio dei punti nella collection Qdrant vs numero di chunk nel sidecar
-       (divergenza ⇒ Qdrant e artefatti non allineati: serve un full rebuild).
+    4. chiavi del sidecar ColBERT vs chunk_id del sidecar chunk (un chunk senza
+       multivettore ⇒ `colbert_maxsim` non giudicabile e degradazione silenziosa del
+       ranking, vedi A7: serve un full rebuild);
+    5. conteggio dei punti nella collection Qdrant vs numero di chunk nel sidecar, PIÙ
+       l'esistenza della collection dichiarata dalla versione attiva (divergenza o
+       collection sparita ⇒ Qdrant e artefatti non allineati: serve un full rebuild).
 
     Restituisce {ok, stale, artifacts_corrupted, qdrant_mismatch, qdrant_unreachable,
     problems, qdrant_alias}: `problems` è la lista leggibile dei difetti trovati; `ok`
     è True solo se è vuota. Quando il conteggio Qdrant fallisce per eccezione, il passo
-    4 disambigua con una probe economica (get_collections) prima di concludere:
+    5 disambigua con una probe economica (get_collections) prima di concludere:
     - se ANCHE la probe fallisce, Qdrant è davvero irraggiungibile (giù, rete):
       `qdrant_unreachable`=True e `qdrant_mismatch` resta False, perché non è stato
       possibile confrontare nulla;
@@ -1237,7 +1280,7 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
     artifacts_corrupted = False
     qdrant_mismatch = False
     qdrant_unreachable = False
-    # Preservato PRIMA che il passo 4 possa riassegnare/chiudere il nome locale
+    # Preservato PRIMA che il passo 5 possa riassegnare/chiudere il nome locale
     # `qdrant` (crea ed eventualmente chiude una propria connessione se non
     # iniettata): l'osservazione dell'alias, più sotto, deve sapere se un client è
     # stato iniettato dal chiamante indipendentemente da cosa fa il passo 4.
@@ -1294,19 +1337,13 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
                     f"artefatto con hash diverso dal manifest (corruzione o scrittura mista): {name}"
                 )
 
-    # 4) Qdrant vs sidecar chunk: i punti nella collection devono essere tanti quanti i
-    #    chunk persistiti (nella versione attiva). Il sidecar si legge direttamente
-    #    (JSON, niente vettori). NB: un rollback blue/green cross-lineage riallinea
-    #    anche l'alias Qdrant alla collection della versione target (vedi README);
-    #    solo un rollback intra-lineage seguito da un incrementale (che muta in place
-    #    la collection promossa, senza versionarla) può lasciare Qdrant avanti rispetto
-    #    al sidecar della versione attiva — mismatch ATTESO fino al reindex successivo
-    #    (vedi README, limite del versionamento).
     chunks_path = artifact_dir() / "chunks.json"
     expected_chunks: int | None = None
+    chunk_ids: set[str] | None = None
     if chunks_path.exists():
         try:
-            expected_chunks = len(json.loads(chunks_path.read_text(encoding="utf-8")))
+            chunk_ids = set(json.loads(chunks_path.read_text(encoding="utf-8")))
+            expected_chunks = len(chunk_ids)
         except Exception as exc:
             artifacts_corrupted = True
             problems.append(f"sidecar chunk illeggibile ({chunks_path.name}): {exc}")
@@ -1314,6 +1351,51 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
         artifacts_corrupted = True
         problems.append(f"sidecar chunk assente: {chunks_path.name}")
 
+    # 4) Sidecar ColBERT vs sidecar chunk: ogni chunk deve avere il suo multivettore.
+    #    Un chunk senza vettore fa restituire None a `colbert_maxsim` ("non giudicabile"),
+    #    e rank_by_authority lo confina in coda: sulle fonti normative il ranking degrada
+    #    in silenzio (A7), ed è esattamente lo stato che uno snapshot stantìo produceva
+    #    su un'aggiunta (A18). A DIFFERENZA del passo 5, qui NON esiste divergenza attesa:
+    #    i due sidecar li scrive la stessa `save_artifacts` nella stessa directory di
+    #    versione, sia dal full rebuild sia dall'incrementale, quindi il precedente del
+    #    rollback intra-lineage non si applica — riguarda solo Qdrant, che non è
+    #    versionato. Per questo è un `problems` (remediation: full rebuild) e non
+    #    un'osservazione pura come observe_qdrant_alias. Costo: si legge il solo membro
+    #    `keys` del .npz, i vettori non vengono mai decompressi.
+    colbert_path = artifact_dir() / "colbert.npz"
+    if chunk_ids is not None:
+        colbert_ids: set[str] | None = None
+        if not colbert_path.exists():
+            artifacts_corrupted = True
+            problems.append(f"sidecar ColBERT assente: {colbert_path.name}")
+        else:
+            try:
+                with np.load(colbert_path, allow_pickle=False) as data:
+                    colbert_ids = {str(k) for k in data["keys"]}
+            except Exception as exc:
+                artifacts_corrupted = True
+                problems.append(f"sidecar ColBERT illeggibile ({colbert_path.name}): {exc}")
+        if colbert_ids is not None:
+            senza_vettore = sorted(chunk_ids - colbert_ids)
+            orfani = sorted(colbert_ids - chunk_ids)
+            if senza_vettore or orfani:
+                artifacts_corrupted = True
+                sample = ", ".join([f"-{c}" for c in senza_vettore[:3]]
+                                   + [f"+{c}" for c in orfani[:3]])
+                problems.append(
+                    f"sidecar ColBERT e sidecar chunk non allineati: {len(senza_vettore)} chunk "
+                    f"senza multivettore, {len(orfani)} multivettori orfani su "
+                    f"{len(chunk_ids)} chunk in {chunks_path.name} [{sample}]"
+                )
+
+    # 5) Qdrant vs sidecar chunk: i punti nella collection devono essere tanti quanti i
+    #    chunk persistiti (nella versione attiva). Il sidecar si legge direttamente
+    #    (JSON, niente vettori). NB: un rollback blue/green cross-lineage riallinea
+    #    anche l'alias Qdrant alla collection della versione target (vedi README);
+    #    solo un rollback intra-lineage seguito da un incrementale (che muta in place
+    #    la collection promossa, senza versionarla) può lasciare Qdrant avanti rispetto
+    #    al sidecar della versione attiva — mismatch ATTESO fino al reindex successivo
+    #    (vedi README, limite del versionamento).
     if expected_chunks is not None:
         own_qdrant = qdrant is None
         try:
@@ -1325,6 +1407,24 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
                 problems.append(
                     f"Qdrant e sidecar non allineati: {points} punti nella collection "
                     f"'{COLLECTION_NAME}' vs {expected_chunks} chunk in {chunks_path.name}"
+                )
+            # Il conteggio da solo non basta: se l'alias punta a una collection ALTRUI
+            # con lo stesso numero di chunk, torna verde. La collection DICHIARATA dalla
+            # versione attiva deve esistere ancora — se è sparita (A20 ne ha distrutte
+            # due davvero), l'alias serve i vettori di un'ALTRA build mentre grafo e
+            # sidecar sono quelli della versione attiva, e la divergenza non è nemmeno
+            # riparabile: repair_qdrant_alias non inventa collection. Misurato il
+            # 2026-09-04, questo stato dava `ok: true`. NB: un alias divergente ma con
+            # la collection attesa ancora presente resta la sola osservazione
+            # `qdrant_alias` (il boot la ripara): qui si segnala solo l'irreparabile.
+            declared = manifest.get("qdrant_collection")
+            if declared and not _qdrant_collection_exists(qdrant, declared):
+                qdrant_mismatch = True
+                problems.append(
+                    f"la collection '{declared}' dichiarata dalla versione attiva non "
+                    f"esiste più su Qdrant: l'alias '{COLLECTION_NAME}' serve i vettori "
+                    f"di un'altra build (stato misto, non riparabile spostando l'alias) "
+                    f"— serve una re-indicizzazione completa"
                 )
         except Exception as exc:
             # Il count può fallire sia perché Qdrant è davvero giù, sia perché la

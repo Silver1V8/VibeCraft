@@ -45,25 +45,44 @@ if __name__ == "__main__":
     parser.add_argument("--check-graph", action="store_true", help="Confronta il grafo incrementale persistito con quello di un full rebuild sugli stessi input e segnala differenze")
     parser.add_argument("--check-integrity", action="store_true", help="Check economico di integrità dell'indice (manifest, hash sorgenti, artefatti, conteggio Qdrant) — zero embedding; exit 1 se ci sono problemi")
     parser.add_argument("--rollback", nargs="?", const="__PREVIOUS__", default=None, metavar="VERSION",
-                        help="Rollback blue/green ISTANTANEO: sposta il puntatore database/CURRENT alla versione indicata (default: la precedente) e riallinea l'alias Qdrant alla collection di quella versione. Nessuna build. NB: se la collection della versione target non esiste più su Qdrant, l'alias non viene corretto automaticamente (vedi README)")
+                        help="Rollback blue/green ISTANTANEO: sposta il puntatore database/CURRENT alla versione indicata (default: la precedente) e riallinea l'alias Qdrant alla collection di quella versione. Nessuna build. NB: se la collection della versione target non esiste più su Qdrant il rollback viene RIFIUTATO prima di toccare CURRENT (serve una re-indicizzazione completa); a Qdrant irraggiungibile il pre-check si salta e l'alias viene riparato al boot")
 
     args = parser.parse_args()
 
     def _dispatch():
         if args.rollback:
-            from core.artifacts import list_versions, rollback_version
+            from core.artifacts import list_versions, resolve_rollback_target, rollback_version
             from core.config import QDRANT_API_KEY, QDRANT_URL
             from core.indexing import (
+                RollbackTargetCollectionMissing,
+                assert_rollback_target_has_vectors,
                 rollback_qdrant_alias_if_needed,
                 rollback_shares_collection_with_later_versions,
             )
             from qdrant_client import QdrantClient
 
             target = None if args.rollback == "__PREVIOUS__" else args.rollback
+            # Il client si apre PRIMA della mutazione: serve al pre-check (R14), non solo
+            # al riallineamento dell'alias più sotto. Se non si apre, il pre-check si
+            # salta e il rollback procede come ha sempre fatto (Qdrant giù non deve
+            # impedire un rollback locale).
+            qdrant = None
             try:
-                name = rollback_version(target)
+                qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+            except Exception as exc:
+                print(f"⚠️  Qdrant non raggiungibile ({type(exc).__name__}: {exc}): "
+                      f"pre-check del rollback saltato.")
+            try:
+                name = resolve_rollback_target(target)
+                if qdrant is not None:
+                    assert_rollback_target_has_vectors(qdrant, name)
+                name = rollback_version(name)
             except (FileNotFoundError, ValueError) as exc:
                 print(f"❌ Rollback fallito: {exc}")
+                sys.exit(1)
+            except RollbackTargetCollectionMissing as exc:
+                # Rifiuto PRIMA di toccare CURRENT: nulla è stato mutato.
+                print(f"❌ {exc}")
                 sys.exit(1)
             print(f"✅ Rollback: CURRENT → {name}")
             print(f"   Versioni disponibili: {', '.join(list_versions())}")
@@ -84,15 +103,21 @@ if __name__ == "__main__":
             # disco a questo punto). Riallinea qui l'alias Qdrant alla versione target —
             # cross-lineage swappa, intra-lineage è un no-op, collection target assente
             # non viene "corretta" automaticamente: lo stato è esplicito e un mismatch
-            # fa uscire con codice non-zero. Qdrant irraggiungibile (o qualunque altro
-            # errore nell'apertura del client/nella chiamata) NON deve far crashare la
-            # CLI con un traceback: il rollback locale è già avvenuto, e l'alias verrà
-            # comunque riallineato al prossimo boot del server (reconcile_and_repair_qdrant_alias).
+            # fa uscire con codice non-zero. Con il pre-check sopra questo ramo resta
+            # raggiungibile solo se la collection sparisce FRA il check e lo swap, o se
+            # il pre-check è stato saltato (Qdrant non raggiungibile all'apertura del
+            # client). Qdrant irraggiungibile (o qualunque altro errore nella chiamata)
+            # NON deve far crashare la CLI con un traceback: il rollback locale è già
+            # avvenuto, e l'alias verrà comunque riallineato al prossimo boot del server
+            # (reconcile_and_repair_qdrant_alias).
             try:
-                qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+                if qdrant is None:
+                    raise RuntimeError("client Qdrant non aperto")
                 result = rollback_qdrant_alias_if_needed(qdrant, name, print)
                 if result["state"] == "missing_target_collection":
                     sys.exit(1)
+            except SystemExit:
+                raise
             except Exception as exc:
                 print(f"⚠️  Rollback locale eseguito, ma Qdrant non raggiungibile: alias NON "
                       f"riallineato, sarà riparato al boot ({type(exc).__name__}: {exc})")

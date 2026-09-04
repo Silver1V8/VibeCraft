@@ -204,9 +204,13 @@ Lo script notturno [scripts/nightly_consistency.ps1](scripts/nightly_consistency
 niente costruzione, secondi di esecuzione**. Verifica che il manifest esista e
 sia leggibile, confronta `doc_hashes`/`code_hashes` con gli hash correnti su
 disco (differenze ⇒ indice **stale**), valida gli `artifact_hashes` contro i
-file in `database/` (mancanti o hash diverso ⇒ artefatti **corrotti**/misti) e
-confronta il conteggio dei punti Qdrant col numero di chunk nel sidecar. Lo
-stesso check è esposto come `GET /api/index/integrity` (auth `X-API-Key`).
+file in `database/` (mancanti o hash diverso ⇒ artefatti **corrotti**/misti),
+confronta le chiavi del sidecar ColBERT con i `chunk_id` di `chunks.json` (un chunk
+senza multivettore rende `colbert_maxsim` non giudicabile e degrada il ranking in
+silenzio — vedi `AUDIT.md`, A7) e confronta il conteggio dei punti Qdrant col numero
+di chunk nel sidecar, verificando anche che la collection dichiarata dalla versione
+attiva esista ancora. Lo stesso check è esposto come `GET /api/index/integrity`
+(auth `X-API-Key`).
 
 **Divergenza `docs/` ↔ git (campo `docs_git`).** I file di `docs/` sono marcati
 `skip-worktree`, quindi le differenze fra la copia di lavoro e il committato sono
@@ -803,10 +807,17 @@ senza bisogno di un nuovo rebuild.
 sposta CURRENT **e** riallinea l'alias Qdrant alla collection dichiarata nel
 manifest della versione target — cross-lineage esegue lo swap, intra-lineage (alias
 già corretto) è un no-op. Se la collection della versione target non esiste più su
-Qdrant (es. rimossa dal GC perché la lineage era già stata ruotata), l'alias
-**non** viene corretto automaticamente: la risposta riporta
-`"qdrant_alias": {"state": "missing_target_collection"}` e serve un full rebuild o
-un intervento manuale — nessuna collection viene mai "inventata".
+Qdrant (es. rimossa dal GC perché la lineage era già stata ruotata), il rollback è
+**rifiutato PRIMA di qualunque mutazione**: CURRENT non si muove, l'alias nemmeno, e
+il messaggio nomina la collection mancante e prescrive una re-indicizzazione completa
+(CLI: exit 1; route: **409**). Prima CURRENT si spostava lo stesso e restava uno stato
+misto — sidecar della versione target, vettori di un'altra build — che nessun
+reconciler ripara e che il check di integrità dichiarava `ok: true` (vedi `AUDIT.md`,
+A20). Se Qdrant è irraggiungibile il pre-check si **salta**: un rollback locale non
+dipende dalla raggiungibilità di Qdrant, e l'alias viene riparato al prossimo boot.
+Lo stato `"qdrant_alias": {"state": "missing_target_collection"}` nella risposta resta
+possibile solo se la collection sparisce fra il pre-check e lo swap, o se il pre-check
+è stato saltato — nessuna collection viene mai "inventata".
 
 **Riconciliazione e GC.** Al boot del server, prima di servire richieste, un
 reconciler confronta lo stato REALE dell'alias con quello atteso dal manifest della

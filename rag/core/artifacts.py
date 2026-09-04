@@ -242,11 +242,14 @@ def prune_versions(keep: int | None = None) -> list[str]:
     return doomed
 
 
-def rollback_version(target: str | None = None) -> str:
-    """Rollback ISTANTANEO: sposta il solo puntatore CURRENT su `target` (default: la
-    versione immediatamente precedente all'attiva). Nessuna build, nessuna copia; il
-    server se ne accorge via maybe_reload_graph. NB: riporta indietro grafo e sidecar,
-    NON la collection Qdrant (vedi README). Restituisce il nome della versione attivata."""
+def resolve_rollback_target(target: str | None = None) -> str:
+    """Risolve e VALIDA la destinazione di un rollback senza toccare nulla (default: la
+    versione immediatamente precedente all'attiva). Estratta da `rollback_version` perché
+    i chiamanti (CLI e server) possano pre-verificare la versione target — in particolare
+    che la sua collection Qdrant esista ancora — PRIMA che CURRENT si sposti: un rollback
+    verso una versione i cui vettori non ci sono più lascia uno stato misto (sidecar del
+    target, vettori di un'altra build) che nessun reconciler ripara. Solleva le stesse
+    eccezioni di `rollback_version` (FileNotFoundError/ValueError) e con lo stesso testo."""
     versions = list_versions()
     if not versions:
         raise FileNotFoundError("Nessuna versione in database/versions/: nulla su cui fare rollback.")
@@ -265,6 +268,16 @@ def rollback_version(target: str | None = None) -> str:
         raise FileNotFoundError(
             f"Versione '{target}' inesistente. Disponibili: {', '.join(versions)}"
         )
+    return target
+
+
+def rollback_version(target: str | None = None) -> str:
+    """Rollback ISTANTANEO: sposta il solo puntatore CURRENT su `target` (default: la
+    versione immediatamente precedente all'attiva). Nessuna build, nessuna copia; il
+    server se ne accorge via maybe_reload_graph. NB: riporta indietro grafo e sidecar,
+    NON la collection Qdrant (vedi README). Restituisce il nome della versione attivata."""
+    active = current_version_token()
+    target = resolve_rollback_target(target)
     _atomic_write_text(DATABASE_DIR / CURRENT_FILENAME, target + "\n")
     logger.info("Rollback indice: CURRENT %s -> %s", active, target)
     return target

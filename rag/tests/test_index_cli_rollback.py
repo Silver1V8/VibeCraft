@@ -13,13 +13,19 @@ INDEX_PY = RAG_DIR / "index.py"
 
 def _run_index_rollback_cli(monkeypatch, capsys, *, qdrant_client_factory,
                             rollback_alias_result=None, target_arg=None,
-                            shared_later_result=None):
+                            shared_later_result=None, precheck=None):
     import core.artifacts as _artifacts
     import core.indexing as _indexing
     import qdrant_client as _qdrant_client_module
 
+    monkeypatch.setattr(_artifacts, "resolve_rollback_target", lambda target=None: "v1")
     monkeypatch.setattr(_artifacts, "rollback_version", lambda target: "v1")
     monkeypatch.setattr(_artifacts, "list_versions", lambda: ["v1"])
+    # Pre-check R14: di base passa (collection del target presente). I test che
+    # simulano la sua distruzione iniettano un `precheck` che solleva, e ne verificano
+    # che CURRENT NON venga toccato.
+    monkeypatch.setattr(_indexing, "assert_rollback_target_has_vectors",
+                        precheck or (lambda qdrant, target_version: None))
     monkeypatch.setattr(_qdrant_client_module, "QdrantClient", qdrant_client_factory)
     # Default []: la detection della collection condivisa non deve leggere il vero
     # database/versions/ (i casi non-vuoti la iniettano via shared_later_result).
@@ -207,3 +213,36 @@ def test_cli_rollback_missing_target_collection_still_exits_nonzero(monkeypatch,
 
     assert exit_code == 1
     assert "⚠️  Rollback locale eseguito, ma Qdrant non raggiungibile" not in out
+
+
+def test_cli_rollback_rifiutato_se_la_collection_del_target_non_esiste(monkeypatch, capsys):
+    """R14: il rollback verso una versione i cui vettori non ci sono piu' viene
+    RIFIUTATO prima di toccare CURRENT — messaggio esplicito, exit 1, e
+    `rollback_version` mai chiamata (nessuna mutazione parziale)."""
+    import core.artifacts as _artifacts
+    import core.indexing as _indexing
+
+    class _FakeQdrantClient:
+        def __init__(self, url, api_key):
+            pass
+
+    def _precheck(qdrant, target_version):
+        raise _indexing.RollbackTargetCollectionMissing(
+            f"rollback a '{target_version}' RIFIUTATO: la sua collection Qdrant "
+            f"'vibecraft_events__v1' non esiste piu'. Serve una re-indicizzazione completa."
+        )
+
+    chiamate: list = []
+    monkeypatch.setattr(_artifacts, "rollback_version",
+                        lambda target: chiamate.append(target) or "v1")
+
+    out, exit_code, captured = _run_index_rollback_cli(
+        monkeypatch, capsys, qdrant_client_factory=_FakeQdrantClient, precheck=_precheck,
+    )
+
+    assert exit_code == 1
+    assert "RIFIUTATO" in out and "vibecraft_events__v1" in out
+    assert "re-indicizzazione completa" in out
+    assert "✅ Rollback" not in out       # nessun successo annunciato
+    assert chiamate == []                 # CURRENT non e' stato toccato
+    assert captured == {}                 # nemmeno l'alias

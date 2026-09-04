@@ -30,15 +30,18 @@ from core.artifacts import (
     list_versions,
     load_artifacts,
     promote_version,
+    resolve_rollback_target,
     rollback_version,
 )
 from core.config import REINDEX_JOURNAL_PATH
 from core.eval_gate import gate_promotion, record_alert
 from core.config import COLLECTION_NAME, EMBEDDING_MODEL
 from core.indexing import (
+    RollbackTargetCollectionMissing,
     _migrate_legacy_collection_if_needed,
     _qdrant_collection_for_version,
     _swap_alias,
+    assert_rollback_target_has_vectors,
     build_graph_and_index,
     gc_orphaned_qdrant_collections,
     incremental_index,
@@ -240,7 +243,15 @@ def _rollback_under_writer_lock(target) -> tuple:
     mappato a 409 dal chiamante. reload_index_state resta FUORI (sola lettura, dopo la
     mutazione)."""
     with writer_lock(timeout_seconds=_ROLLBACK_WRITER_LOCK_TIMEOUT_SECONDS):
-        name = rollback_version(target)
+        # Pre-check PRIMA della mutazione (R14): se la collection Qdrant della versione
+        # target non esiste più, il rollback lascerebbe CURRENT sul target e la
+        # produzione altrove — stato misto che nessuno ripara e che il check di
+        # integrità non vedeva. Solleva RollbackTargetCollectionMissing senza aver
+        # toccato nulla; Qdrant irraggiungibile ⇒ nessun blocco (vedi la funzione).
+        name = resolve_rollback_target(target)
+        if state.get("qdrant") is not None:
+            assert_rollback_target_has_vectors(state.get("qdrant"), name)
+        name = rollback_version(name)
         shared_later = rollback_shares_collection_with_later_versions(name)
         qdrant_alias = rollback_qdrant_alias_if_needed(state.get("qdrant"), name, logger.info)
     return name, qdrant_alias, shared_later
@@ -271,10 +282,17 @@ async def index_rollback(request: Request):
     core.artifacts.rollback_version resta puro locale (sposta solo CURRENT). DOPO il
     rollback locale l'alias `COLLECTION_NAME` viene riallineato alla collection della
     versione target (rollback_qdrant_alias_if_needed, core.indexing): cross-lineage →
-    swap; intra-lineage (alias già corretto) → no-op; collection target assente su
-    Qdrant → nessuna correzione automatica, stato esplicito "missing_target_collection"
-    nella risposta (CURRENT resta comunque sulla versione target: nessun rollback
-    parziale lato locale).
+    swap; intra-lineage (alias già corretto) → no-op.
+
+    Se la collection della versione target NON esiste più su Qdrant il rollback è
+    RIFIUTATO con 409 PRIMA di qualunque mutazione (assert_rollback_target_has_vectors):
+    CURRENT non si muove, l'alias nemmeno, e il messaggio nomina la collection mancante
+    e il rimedio (re-indicizzazione completa). Prima si mutava CURRENT lo stesso e la
+    risposta portava solo uno stato "missing_target_collection": stato misto durevole
+    (sidecar del target, vettori di un'altra build) che nessun reconciler ripara — vedi
+    rag/AUDIT.md A20 / RESIDUI R14. Lo stato "missing_target_collection" resta possibile
+    solo se la collection sparisce fra il pre-check e lo swap, o se il pre-check è stato
+    saltato perché Qdrant non era raggiungibile.
 
     Se versioni POSTERIORI al target condividono la sua collection Qdrant (incrementali
     intra-lineage che l'hanno mutata in place), la risposta porta anche una
@@ -302,6 +320,11 @@ async def index_rollback(request: Request):
             detail=f"Writer lock occupato: un reindex/full rebuild è in corso, "
                    f"rollback non eseguito — riprova a job finito. ({exc})",
         )
+    except RollbackTargetCollectionMissing as exc:
+        # 409 come gli altri conflitti di stato, ma qui NULLA è stato mutato: CURRENT
+        # non si è mosso e l'alias nemmeno. Il messaggio nomina la collection mancante
+        # e il rimedio (re-indicizzazione completa).
+        raise HTTPException(status_code=409, detail=str(exc))
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except ValueError as exc:

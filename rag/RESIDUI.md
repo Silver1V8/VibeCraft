@@ -85,11 +85,33 @@ la regola sopprime l'invenzione, non la citazione. Costo: il prompt fisso passa 
 ~954 token stimati (+150), dichiarato e ora sorvegliato da R3.
 Test di non regressione in `tests/test_ask_authority_prompt.py`.
 
-**R2 — Nulla allarma quando la copertura ColBERT scende.** `check_index_integrity` confronta
-i punti Qdrant con `chunks.json`, ma **non guarda mai** le chiavi del sidecar ColBERT: un
-chunk senza vettore non produce alcun problema. È l'input che innesca A7 (l'inversione di
-ranking sulle fonti normative) ed è ciò che A18 avrebbe prodotto su un'aggiunta. I due
-riscontri si compongono, e nessuno dei due allarma. *Verificato leggendo la funzione.*
+**R2 — Nulla allarma quando la copertura ColBERT scende → CHIUSO 2026-09-04.**
+`check_index_integrity` confrontava i punti Qdrant con `chunks.json` senza guardare mai le
+chiavi del sidecar ColBERT: un chunk senza vettore non produceva alcun problema.
+
+**Copertura rimisurata prima di correggere** (AUDIT A7 diceva 160/160 e aveva ragione):
+sull'indice attivo `v20260904T092228`, **160 chunk in `chunks.json`, 160 chiavi in
+`colbert.npz`, zero scoperti e zero orfani**. Il difetto non era il numero, era che il
+numero esisteva solo se qualcuno lo andava a misurare a mano.
+
+Aggiunto come **terza voce della stessa lista** (`core/indexing.py`, passo 4 — fra
+l'integrità degli artefatti e il conteggio Qdrant), con la stessa forma delle altre due:
+nessun meccanismo nuovo, nessun campo nuovo nel report. Legge il solo membro `keys` del
+`.npz`, quindi il check resta economico (zero decompressione dei vettori).
+
+**Va in `problems`, e la ragione è stata verificata, non assunta.** Il precedente
+documentato nella funzione — rollback intra-lineage seguito da un incrementale ⇒ mismatch
+ATTESO — riguarda **solo Qdrant**, che non è versionato. `colbert.npz` e `chunks.json` li
+scrive la stessa `save_artifacts` nella stessa directory di versione, sia dal full rebuild
+sia dall'incrementale: fra loro non esiste divergenza legittima. Quindi è un difetto, non
+un'osservazione pura come `observe_qdrant_alias`, e la remediation è quella che lo script
+notturno applica già per `artifacts_corrupted`: full rebuild.
+
+Verificato per costruzione: tolta una chiave dal sidecar il check la nomina (`-c2` nel
+messaggio), rimessa torna verde; i 4 test nuovi in `tests/test_index_integrity.py`
+**falliscono contro il codice vecchio**. Coperti anche i due versi opposti (multivettore
+orfano, sidecar assente/illeggibile) e un contrappeso: se `chunks.json` è illeggibile il
+check non aggiunge un secondo problema derivato.
 
 **R3 — Il margine sulla finestra di contesto si accorcerà di nuovo → CHIUSO 2026-09-04.**
 Il prompt era cresciuto due volte in una sola sessione (`[CLASSE-FONTI]`,
@@ -156,10 +178,41 @@ i k in ogni riga.
 **R13 — `recall@2` è a 0.873 con soglia 0.75: margine 12 punti.** Il giorno in cui saturasse
 non resta un k più basso — andrà **esteso il golden set** con casi che il sistema sbaglia.
 
-**R14 — Le due collection Qdrant distrutte da A20 non sono recuperabili.** Gli artefatti su
-disco in `database/versions/` ci sono, i vettori no: un rollback a `v20260901T101536` o
-`v20260901T132300` fallirebbe sul lato Qdrant. **Non risolvibile** — ma il *comportamento* al
-tentativo sì (vedi S2).
+**R14 — Le due collection Qdrant distrutte da A20 non sono recuperabili → la parte
+risolvibile è CHIUSA 2026-09-04.** I dati restano persi (gli artefatti su disco ci sono, i
+vettori no) e non si è tentato di recuperarli. `v20260901T101536` è nel frattempo uscita
+dalla retention, ma il suo lineage sopravvive in `v20260901T105315` e `v20260901T114636`:
+le versioni locali che puntano a vettori inesistenti sono **tre**, non due.
+
+**La premessa della riga era sbagliata, ed è la parte che conta.** «Un rollback fallirebbe
+sul lato Qdrant»: provato dal vivo, **riusciva**. `python index.py --rollback
+v20260901T132300` stampava `✅ Rollback: CURRENT → v20260901T132300`, poi il warning
+sull'alias, e usciva 1 — lasciando una **mutazione parziale**: CURRENT (grafo e sidecar) sul
+target, produzione Qdrant sui vettori di `v20260904T092228`. Nessuno la ripara
+(`repair_qdrant_alias` non inventa collection, quindi nemmeno il reconciler di boot), e in
+quello stato `check_index_integrity` rispondeva **`ok: true`, `problems: []`** — le due
+build hanno 160 chunk entrambe e il passo 5 confrontava solo un conteggio. Via HTTP,
+`POST /api/index/rollback` rispondeva **200**. Cioè: **degradazione silenziosa**, non
+fallimento oscuro — la variante grave prevista dalla sessione.
+
+Trattata come tale, con due correzioni:
+1. **Rifiuto prima di mutare** — `assert_rollback_target_has_vectors` (core/indexing.py),
+   sotto lo stesso writer lock e prima di `rollback_version`: collection del target assente
+   ⇒ rollback rifiutato (CURRENT e alias intatti), messaggio che nomina la collection
+   mancante e prescrive la re-indicizzazione completa. CLI exit 1, route **409**. La
+   risoluzione del target vive ora in `core.artifacts.resolve_rollback_target`, così si può
+   verificare prima di scrivere. Qdrant irraggiungibile ⇒ pre-check saltato, comportamento
+   invariato: un rollback locale non deve dipendere dalla raggiungibilità di Qdrant.
+2. **Lo stato misto non è più muto** — il passo 5 di `check_index_integrity` verifica anche
+   che la collection **dichiarata dalla versione attiva** esista ancora: se è sparita,
+   `qdrant_mismatch` (⇒ full rebuild notturno). Un alias divergente con la collection attesa
+   ancora presente resta invece la sola osservazione `qdrant_alias`, come prima: quella il
+   boot la ripara, e trasformarla in un problema accoderebbe un rebuild a ogni divergenza
+   transitoria. Il contrappeso ha un test dedicato.
+
+Verificato dal vivo: rollback a `v20260901T132300` → rifiutato, `CURRENT` invariato;
+rollback a `v20260901T132525` (collection viva) → riuscito, alias swappato; stato misto
+ricreato a mano → `ok: false`, `qdrant_mismatch: true`, exit 1.
 
 ---
 
@@ -195,7 +248,7 @@ l'audit: metà del valore è arrivato dal guardare, non dal riparare.
 | # | Approccio scelto | Perché questo e non altro | Sforzo |
 |---|---|---|---|
 | R1 ✅ | Riscrivere l'istruzione perché pretenda di citare **ciò che il contesto contiene**, non una lista fissa di categorie | Rimuovere la sola parola «SQL» lascerebbe la forma «DEVI citare X» che genera X quando X non c'è. Il difetto è la forma, non l'esempio | S — **fatto 2026-09-04** (`[CITAZIONE-VERIFICABILE]`) |
-| R2 | Aggiungere al `check_index_integrity` il confronto chiavi ColBERT ↔ `chunks.json`, come per Qdrant | La funzione già fa esattamente questo confronto per un'altra coppia: è una terza voce nella stessa lista, non un meccanismo nuovo | S |
+| R2 ✅ | Aggiungere al `check_index_integrity` il confronto chiavi ColBERT ↔ `chunks.json`, come per Qdrant | La funzione già fa esattamente questo confronto per un'altra coppia: è una terza voce nella stessa lista, non un meccanismo nuovo | S — **fatto 2026-09-04**; copertura rimisurata 160/160 prima di correggere, e il difetto va in `problems` perché fra i due sidecar non esistono divergenze attese |
 | R3 ✅ | Test-canarino sul **costo fisso** del prompt di sistema, con il budget scritto e la ragione | Un test sul prompt completo dipenderebbe dal corpus; il costo fisso è ciò che cresce quando si aggiunge una regola | S — **fatto 2026-09-04** (`tests/test_ask_prompt_cost.py`) |
 | R4 | `services: qdrant` nel job `test` di `ci.yml` | GitHub Actions lo supporta nativamente; l'alternativa (`docker compose up` nel job) aggiunge uno script da mantenere | S |
 | R5 | Stampare il conteggio come contesto storico, non come verdetto | Togliere la riga perderebbe un numero utile: è l'etichetta a essere sbagliata | S |
@@ -206,7 +259,7 @@ l'audit: metà del valore è arrivato dal guardare, non dal riparare.
 | R10, R11 | Un check notturno contro Ollama vero, accanto a `nightly_consistency` | In CI non c'è LLM; il notturno gira dove il modello c'è ed è il canale che già porta gli alert | M |
 | R12 | `record_history` scrive **tutti** i k calcolati, non solo quello del gate | Una riga più larga costa nulla e rende ogni futuro spostamento del gate indolore | S |
 | R13 | Preparare l'estensione del golden set **ora**, mentre il margine c'è | Estenderlo sotto pressione (metrica satura) significa sceglierne i casi per far scendere un numero | M |
-| R14 | Non recuperabile. Ma il **rollback** deve accorgersi che la collection della versione target non esiste e dirlo, invece di fallire in modo oscuro | I dati sono persi; l'esperienza al tentativo no | S |
+| R14 ✅ | Non recuperabile. Ma il **rollback** deve accorgersi che la collection della versione target non esiste e dirlo, invece di fallire in modo oscuro | I dati sono persi; l'esperienza al tentativo no. **Misurando è emerso che non falliva affatto**: riusciva a metà e nessun check lo diceva — quindi rifiuto *prima* della mutazione, più il rilevamento dello stato misto nel check notturno | S — **fatto 2026-09-04** |
 | N1–N8 | Decisione esplicita, registrata. Non codice | Cinque di questi sono «no» già argomentati: vanno confermati o ribaltati una volta, non ridiscussi a ogni sessione | — |
 
 ---
@@ -289,9 +342,13 @@ Suite: **1304 test verdi, 0 fallimenti**. Ruff pulito.
 
 ---
 
-## S2 — Gli allarmi che mancano
+## S2 — Gli allarmi che mancano ✅ ESEGUITA il 2026-09-04
 
-Chiude **R2**, **R14** (la parte risolvibile).
+Chiude **R2**, **R14** (la parte risolvibile). Esito nelle righe R2 e R14 sopra; il prompt
+resta qui com'era. **Una premessa è caduta**: R14 diceva che un rollback verso quelle
+versioni «fallirebbe sul lato Qdrant» — misurato, riusciva, e lasciava uno stato misto che
+`check_index_integrity` dichiarava `ok: true`. Era la variante grave che il prompt stesso
+prevedeva.
 
 ```
 Lavora su rag/. Due degradazioni silenziose che AUDIT.md lascia aperte. Sono la stessa
