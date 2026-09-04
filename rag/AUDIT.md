@@ -1648,9 +1648,13 @@ suite intera con Qdrant reale **1317 passed, 0 skipped**, ruff pulito.
 `dffaa6a`, arrivati in un unico push) rosso alle 14:47; **#128**, su S1, era verde. Un'ora
 esatta di ramo principale rotto, fino al merge delle 15:45 — e nessun alert, nessun check
 obbligatorio, niente: il rosso è emerso perché la diagnosi *imponeva* la domanda, non perché
-qualcosa l'abbia segnalato. Questa riga chiude «i test non esercitano Qdrant vero»; resta
-aperto un piano più su, **R16** in `RESIDUI.md`: un gate che nessuno guarda e che non blocca
-nulla non è un gate nemmeno quando funziona.
+qualcosa l'abbia segnalato. **Il run su `main` dopo il merge è verde**, il che chiude la
+catena all'indietro: la regressione di S2 era la causa *unica* del rosso di #129, non una
+delle cause — prima era un'inferenza, ora è osservata.
+
+Questa riga chiude «i test non esercitano Qdrant vero»; resta aperto un piano più su, **R16**
+in `RESIDUI.md`: un gate che nessuno guarda e che non blocca nulla non è un gate nemmeno
+quando funziona.
 
 ## Ciò che questa chiusura NON prova
 

@@ -155,7 +155,8 @@ sé — ma dopo il push, non prima.*
 **R16 — La CI era rossa su `main` e non lo fermava niente.** *(Nuovo, 2026-09-04.)* Misurato:
 `1044513` (S2, 14:45) e `dffaa6a` (14:47) sono stati pushati insieme, quindi il run **#129** li
 copre entrambi ed è **rosso**; il precedente, **#128** su S1, era verde. `main` è rimasta rossa
-**~1 ora**, fino al merge di `7532477` (15:45).
+**~1 ora**, fino al merge di `7532477` (15:45) — dopo il quale il run su `main` è **verde**,
+che conferma all'indietro la diagnosi: quel test era la causa unica, non una delle cause.
 
 Il punto non è l'ora: è **come è finita**. Nessun alert, nessun check obbligatorio, nessuna
 protezione del ramo — il rosso è stato scoperto perché qualcuno ha *chiesto* di guardare, e la
