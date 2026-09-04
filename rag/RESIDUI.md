@@ -16,10 +16,10 @@ dichiara aperti, li tria fra risolvibili e non, e li ordina in sessioni di lavor
 | | |
 |---|---|
 | Righe dell'audit | 19 — 15 chiuse, 3 ritirate, 1 con premessa ritirata e sostanza chiusa |
-| Residui dichiarati | **22** (+1 emerso dal primo run CI: R15) |
+| Residui dichiarati | **22** (+2 emersi dai run CI reali: R15 e R16) |
 | Di cui già chiusi da altri interventi (riga stantia) | 2 |
 | Risolvibili con lavoro tecnico | 14 — **7 chiusi** (R1, R2, R3, R4, N5, N6 + gli altri annotati in linea) |
-| Che richiedono una decisione, non del codice | 5 |
+| Che richiedono una decisione, non del codice | 5 (+R16: proteggere il ramo) |
 | Non risolvibili (dati persi, hardware assente) | 1 |
 
 ---
@@ -152,6 +152,25 @@ dagli artefatti (i test *end to end* le versioni se le creano, e un fixture auto
 scavalca). *Verificato: la CI ora gira su ogni push, quindi il prossimo caso si manifesta da
 sé — ma dopo il push, non prima.*
 
+**R16 — La CI era rossa su `main` e non lo fermava niente.** *(Nuovo, 2026-09-04.)* Misurato:
+`1044513` (S2, 14:45) e `dffaa6a` (14:47) sono stati pushati insieme, quindi il run **#129** li
+copre entrambi ed è **rosso**; il precedente, **#128** su S1, era verde. `main` è rimasta rossa
+**~1 ora**, fino al merge di `7532477` (15:45).
+
+Il punto non è l'ora: è **come è finita**. Nessun alert, nessun check obbligatorio, nessuna
+protezione del ramo — il rosso è stato scoperto perché qualcuno ha *chiesto* di guardare, e la
+domanda è nata di rimbalzo mentre si indagava un difetto diverso. Se non fosse stata posta,
+`main` sarebbe rimasta rossa fino al prossimo sguardo casuale.
+
+È la stessa forma di R4, un piano più su. R4 diceva: *un job che salta tutto ed esce verde non è
+un gate*. Questo dice: *un gate che nessuno guarda e che non blocca nulla non è un gate nemmeno
+quando funziona* — e qui aveva funzionato, aveva visto il difetto, e non è servito a niente per
+un'ora. Il repository ha già un canale per gli allarmi (`alerts.jsonl` + il webhook notturno),
+ma sorveglia lo stato del RAG, non quello della CI.
+
+*Verificato: `1044513` non ha un run proprio — i due commit sono arrivati in un unico push,
+quindi #129 è il primo run che contiene S2. Coerente con la diagnosi, non una coincidenza.*
+
 **R5 — Il report multihop stampa «trigger M2 scattato» come se fosse una decisione in corso.**
 `eval/run_multihop.py:242`. Il docstring del file è già stato corretto («resta un VERDETTO
 storico, non un gate») ma la riga stampata no: il conteggio scende man mano che il router
@@ -247,6 +266,7 @@ l'audit: metà del valore è arrivato dal guardare, non dal riparare.
 | **A2b** — la sorveglianza era rimasta al `k` vecchio | Dal ritiro di A2. Più esteso del previsto: due pagine, il guardrail di `eval.run` e i **due script notturni**, verdi per costruzione | Chiuso |
 | **Deriva di versione di `torch`** | Rifacendo il lock per A15: senza pin, macOS finiva su 2.14.0 e tutti gli altri su 2.13.0 — la deriva che il Dockerfile documenta di aver già subito | Chiuso (pin), lo avrei **introdotto io** chiudendo un riscontro di portabilità |
 | **Il perimetro `.gitkeep`** | Verificando la chiusura di A6 invece di riscriverne l'etichetta: il report dichiarava «16 documenti» contro i 14 indicizzati | Chiuso lo stesso giorno |
+| **`main` era rossa da un'ora e nessuno lo sapeva** | Rispondendo a una domanda posta di rimbalzo — «se S2 ha introdotto quel test rotto, la CI su main non dovrebbe essere rossa?» — mentre si indagava tutt'altro. Lo era: run #129, dalle 14:47 alle 15:45 | Aperto → **R16** |
 | **Nessuna baseline di bench era mai stata salvata** | Aprendo A11: `eval/results/` non conteneva alcun `bench_*.json`, mentre il README vieta di ottimizzare senza baseline | Chiuso |
 
 ### Due residui dell'audit sono già chiusi, e la riga non lo dice
@@ -268,6 +288,7 @@ l'audit: metà del valore è arrivato dal guardare, non dal riparare.
 | R2 ✅ | Aggiungere al `check_index_integrity` il confronto chiavi ColBERT ↔ `chunks.json`, come per Qdrant | La funzione già fa esattamente questo confronto per un'altra coppia: è una terza voce nella stessa lista, non un meccanismo nuovo | S — **fatto 2026-09-04**; copertura rimisurata 160/160 prima di correggere, e il difetto va in `problems` perché fra i due sidecar non esistono divergenze attese |
 | R3 ✅ | Test-canarino sul **costo fisso** del prompt di sistema, con il budget scritto e la ragione | Un test sul prompt completo dipenderebbe dal corpus; il costo fisso è ciò che cresce quando si aggiunge una regola | S — **fatto 2026-09-04** (`tests/test_ask_prompt_cost.py`) |
 | R4 ✅ | `services: qdrant` nel job `test` di `ci.yml` | GitHub Actions lo supporta nativamente; l'alternativa (`docker compose up` nel job) aggiunge uno script da mantenere | S — **fatto 2026-09-04**; il servizio da solo non bastava: senza un gate lo skip resta verde, quindi `VIBECRAFT_REQUIRE_QDRANT=1` + `-rs` + conteggio preteso |
+| R16 | Rendere il job `test` un **check obbligatorio** sul ramo protetto, cosi' che un rosso blocchi invece di essere notato per caso | E' un'impostazione del repository, non del codice: qualunque soluzione scritta qui dentro (uno script che interroga l'API dei run, un alert nel notturno) aggiungerebbe un pezzo da mantenere per fare peggio cio' che GitHub fa nativamente. Va decisa una volta, come le cinque di S8 | S — ma e' una **decisione**, non lavoro tecnico |
 | R5 | Stampare il conteggio come contesto storico, non come verdetto | Togliere la riga perderebbe un numero utile: è l'etichetta a essere sbagliata | S |
 | R6 | Mappa esplicita degli stati → colore, con `abstained` e `graph_answer` distinti dall'errore | Il ternario `success ? verde : rosso` non è estendibile senza mentire | S |
 | R7 | Correggere `project:`, ripuntare o rimuovere il riferimento morto, poi **reindicizzare** | Il file è nell'indice: correggerlo senza rebuild non cambia ciò che il retrieval vede | S + rebuild |
@@ -421,6 +442,8 @@ Due cose che solo il run poteva dire, e che vale la pena non perdere:
 - **Il costo di `macos-nativo` era stimato dieci volte in eccesso.** Prevedevo ~50-80 minuti
   fatturati; misurati **34 secondi** (~6 fatturati), perché su macOS il lock esclude tutte le
   wheel `nvidia-*`. La restrizione a main è stata rimossa.
+- **E `main` era già rossa per lo stesso difetto, da un'ora, senza che niente lo segnalasse.**
+  Scoperto solo perché la diagnosi imponeva la domanda. Residuo nuovo: **R16**.
 
 ```
 Lavora su .github/workflows/ci.yml (e rag/ per la documentazione).

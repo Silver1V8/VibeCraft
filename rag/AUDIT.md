@@ -1644,6 +1644,14 @@ diventato verde girando su un `nullcontext`.
 Verificato in tre direzioni: checkout pulito simulato **verde**, questa macchina **verde**,
 suite intera con Qdrant reale **1317 passed, 0 skipped**, ruff pulito.
 
+**E `main` era già rossa per lo stesso difetto.** Run **#129** (che copre `1044513` e
+`dffaa6a`, arrivati in un unico push) rosso alle 14:47; **#128**, su S1, era verde. Un'ora
+esatta di ramo principale rotto, fino al merge delle 15:45 — e nessun alert, nessun check
+obbligatorio, niente: il rosso è emerso perché la diagnosi *imponeva* la domanda, non perché
+qualcosa l'abbia segnalato. Questa riga chiude «i test non esercitano Qdrant vero»; resta
+aperto un piano più su, **R16** in `RESIDUI.md`: un gate che nessuno guarda e che non blocca
+nulla non è un gate nemmeno quando funziona.
+
 ## Ciò che questa chiusura NON prova
 
 - **Niente: l'intera catena è stata osservata.** Run **#131**, tutto verde, `test` in
