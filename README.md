@@ -145,6 +145,28 @@ stampa il rimedio.
 cd rag && uv run python scripts/doctor.py
 ```
 
+**Su quali macchine `uv sync` riesce.** `torch` è l'unica dipendenza sensibile alla
+piattaforma: dove esiste la build CUDA la si prende dall'indice ufficiale PyTorch, altrove
+da PyPI (`[tool.uv.sources]` in [rag/pyproject.toml](rag/pyproject.toml), con un marcatore
+di piattaforma). Verificato con `uv sync --frozen --dry-run --python-platform <p>`:
+
+| Piattaforma | `uv sync` | torch |
+|---|---|---|
+| Linux x86-64 | ✅ | `2.13.0+cu126` |
+| Linux ARM64 | ✅ | `2.13.0+cu126` |
+| Windows x86-64 | ✅ | `2.13.0+cu126` |
+| macOS Apple Silicon (macOS 14+) | ✅ | `2.13.0` (PyPI) |
+| macOS Intel | ❌ | PyTorch non pubblica più wheel x86-64 per macOS |
+| Windows ARM64 | ❌ | nessuna wheel `win_arm64` a monte |
+
+Le due righe rosse sono **limiti a monte, non di questo repository**: per quelle
+piattaforme PyTorch non pubblica alcuna wheel, e nessuna configurazione qui le crea. Il
+percorso disponibile lì è Docker (target `cpu`, multi-arch).
+
+Una macchina **senza GPU NVIDIA** su Linux o Windows x86-64 sincronizza normalmente: la
+build CUDA si installa e gira su CPU (`torch.cuda.is_available()` → `False`). Costa ~4 GB
+di download che non userà — se pesano, il target `cpu` del Dockerfile li evita.
+
 **Non serve procurarsi dei documenti per provarlo:** il repository include un corpus di
 esempio di 14 documenti in `docs/` — la baseline di governance cross-progetto — quindi il
 punto 4 ha già qualcosa da indicizzare e al punto 5 puoi fare la prima domanda.

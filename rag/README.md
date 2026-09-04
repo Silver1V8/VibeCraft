@@ -846,7 +846,10 @@ senza alcun beneficio.
   di ore** (misurato: ~10s/embedding CPU contro ~6-10 it/s GPU). Richiede la
   build CUDA di torch (vedi `[tool.uv.sources]` in [pyproject.toml](pyproject.toml)
   — su Windows PyPI serve solo la wheel CPU-only, quella CUDA vive
-  sull'indice ufficiale `download.pytorch.org`).
+  sull'indice ufficiale `download.pytorch.org`). Quell'indice è vincolato da un
+  **marcatore di piattaforma**: vale su Linux e Windows x86-64, dove le sue wheel
+  esistono; su macOS Apple Silicon torch arriva da PyPI, altrimenti `uv sync`
+  fallirebbe lì (A15 — la matrice misurata è nel README di root).
 
 Un'istanza fresca per job costa solo qualche secondo di caricamento,
 trascurabile rispetto al lavoro di embedding che segue — non vale la pena

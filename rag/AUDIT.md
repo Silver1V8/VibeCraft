@@ -75,7 +75,7 @@ I tre rischi che lo rendono "non completo":
 | A12 | Codice / debito | SUPERFLUO → **CHIUSO 2026-09-03** | 6 `TODO(2026-07-12)` scaduti da 51 giorni. Cinque erano limiti permanenti travestiti da piani (glob `workspaces` non espansi, URL relative non abbinate al backend, link DMN→processo, "fuori scope: VB.NET/Razor HTML/JS") — ridatati togliendo il calendario e dicendo perché non sono pianificati. Il sesto, `_js_symbols`, era diverso: un piano vero, con la sua condizione di chiusura già scritta ("quando la migrazione tree-sitter sarà consolidata in produzione") | Il debito dichiarato con una data e ignorato smette di essere un piano — e nel caso di `_js_symbols` nascondeva un rischio reale: `pickle`-adiacente no, ma un secondo parser (regex) mai più esercitato restava comunque superficie da mantenere, con un test di 128 righe che lo teneva in vita artificialmente | S | Verificata la condizione della TODO stessa: migrazione del 2026-07-12, 53 giorni e molti commit dopo ancora `treesitter` di default per typescript/javascript/svelte, zero incidenti. **Rimosso** (decisione dell'utente, non mia): `_js_symbols`, `_PARSER_LANG`/`_PARSER_DEFAULTS`/`_parser_impl`, le chiavi `code_parsers.typescript/javascript/svelte` (decorative, un solo valore possibile), e `tests/test_ts_parser_equivalence.py` — **sostituito**, non solo cancellato, da `tests/test_ts_parser.py`: stesso corpus, assert dirette invece che per confronto, cosicché la copertura di `ts_symbols`/`svelte_symbols` non regredisse |
 | A13 | Codice / legacy | SUPERFLUO → **CHIUSO 2026-09-03** | `core/artifacts.py:35` importava `pickle` per il solo ramo di lettura legacy. Verificato **prima** di rimuoverlo: zero `.pkl` in tutto il progetto (`find` sull'intero repo, escluso `.venv`), e la scrittura era già disattivata da prima di questo audit — `save_artifacts()` non ha mai scritto `.pkl` da quando i formati JSON/`.npz` esistono | Un formato di deserializzazione arbitraria mantenuto per una retrocompatibilità di cui nessuno aveva più bisogno | S | Rimosso il ramo di fallback in `load_artifacts()` e i 5 percorsi `*_SAVE_PATH` (`core/config.py`), l'unico check di esistenza rimasto in `current_version()`, il fallback d'mtime in `api.deps._graph_version()`, e il parametro `emit` di `load_artifacts()` (diventato morto insieme all'unico warning che lo usava) nei 3 call site reali. 6 file di test aggiornati (rimossa `test_fallback_reads_legacy_pickle_with_warning`). Verificato dal vivo: il server carica lo snapshot reale (755 nodi, 160 chunk) passando solo da JSON/`.npz`. 1290 test verdi (1291 − 1: la suite rimossa testava un comportamento che non esiste più) |
 | A14 | Distribuzione | MANCANTE → **CHIUSO (Run C/L1)** | Verificato oggi: `README.md`, `LICENSE`, `.env.example`, `Dockerfile` esistono tutti a root, prodotti da L1/L2. La riga non era mai stata aggiornata dopo la Run C, restava con l'etichetta della Run A | — | — | Verificato: `ls README.md LICENSE Dockerfile rag/.env.example` — presenti tutti |
-| A15 | Portabilità | MANCANTE → **PARZIALE** | Il gemello POSIX di `run_server.ps1` **esiste** (`scripts/run_server.sh`, aggiunto in L1): quella metà è chiusa. **Il vincolo vero resta**: `pyproject.toml` ha ancora `torch = { index = "pytorch-cu126" }` **senza alcun marcatore di piattaforma** — su un `uv sync` nativo (non Docker) questo forza l'indice CUDA anche su macOS/ARM/CPU-only, dove quelle wheel non esistono. Il Dockerfile ha un workaround (il target `cpu` disinstalla e reinstalla torch dall'indice CPU **dentro il container**), ma non risolve l'installazione nativa che questo riscontro misura | Installazione nativa impossibile su macOS, ARM e macchine CPU-only resta vera oggi; solo Docker la elude | M | `uv sync` riesce su una macchina senza NVIDIA — non ancora verificato, resta aperto |
+| A15 | Portabilità | MANCANTE → PARZIALE → **CHIUSO 2026-09-04** | **Il difetto era reale e la sua descrizione no.** Misurato con `uv sync --frozen --dry-run --python-platform <p>` su sei piattaforme, prima della correzione: falliva su **macOS Intel, macOS ARM e Windows ARM**; **Linux ARM64 riusciva** (cu126 pubblica wheel `manylinux_2_28_aarch64`), e una macchina **CPU-only x86-64 riusciva pure** — la build CUDA si installa e gira su CPU, solo pesante. Quindi la formula «macOS/ARM/CPU-only» copriva due casi che non erano rotti e ne mancava uno che lo era. Corretto: l'indice cu126 ora ha un marcatore che è la **trascrizione dell'elenco di wheel del lock**. Emerso strada facendo: senza pin di versione uv risolveva macOS a **2.14.0** contro 2.13.0 di tutti gli altri — la deriva che il Dockerfile documenta di aver già subito una volta; `torch` è ora pinnata a 2.13.0, verificato che PyPI abbia la wheel corrispondente per Apple Silicon | Installazione nativa impossibile su macOS resta il caso reale; Linux ARM e CPU-only non lo erano | M | **Cambiata**: non «`uv sync` riesce su una macchina senza NVIDIA» — quello riusciva già. Dopo: Linux x86-64/ARM64, Windows x86-64 e **macOS Apple Silicon** riescono. macOS Intel e Windows ARM restano impossibili perché **PyTorch non pubblica quelle wheel da nessuna parte**: limite a monte, non configurazione locale, e ora dichiarato in README. 5 test **offline** (`tests/test_torch_platform_pin.py`) leggono `pyproject.toml`+`uv.lock` e fissano l'invariante; verificati contro la configurazione vecchia: 3 su 5 falliscono. Immagine Docker `cpu` ricostruita dopo il re-lock: 129 pacchetti, venv 2,2 GB, `torch 2.13.0+cpu` — identica a prima |
 | A18 | Eval / strumento | MANCANTE → **CHIUSO** | Trovato eseguendo B1, e provato in isolamento: `GET /api/retrieve` era **l'unica route di retrieval a non chiamare `maybe_reload_graph()`** (`api/routes_retrieval.py:493`, da confrontare con `:88` di `/ask` e `:586` di `/api/code/search`, più le 4 di `routes_graph`). Dimostrazione: dopo una promozione, `/api/health` → `v20260825T100624, 181 chunk`; una chiamata a `/api/retrieve` la lasciava **invariata**; una a `/ask` la portava a `v20260901T101536, 160 chunk`. **Quanto era grave dipendeva dal tipo di modifica**: su una CANCELLAZIONE pura (il caso di B1) i chunk nuovi sono un sottoinsieme dei vecchi — il sidecar stantìo li copriva tutti, per fortuna e non per costruzione; su un'AGGIUNTA o una MODIFICA i chunk_id nuovi sarebbero mancati dal sidecar, `colbert_maxsim` avrebbe restituito `None` — l'esatto input che innesca l'inversione di A7. I due riscontri si componevano | **L'harness di eval interrogava solo `/api/retrieve`**: dopo una promozione o un rollback misurava uno stato MISTO — alias Qdrant nuovo, sidecar ColBERT/chunk in memoria vecchi — in silenzio | S | `maybe_reload_graph()` aggiunta a `api_retrieve` (`api/routes_retrieval.py:529`); verificato dal vivo (CURRENT spostato, poi `/api/retrieve` ricaricato alla prima chiamata) e fissato da `tests/test_retrieve_reload.py` |
 | A17 | Documentazione | FRAGILE → **CHIUSO 2026-09-03** | `templates/infografica.unified.html:296` descriveva come attivo un *"budget guard giornaliero sulla spesa Claude [che] devia automaticamente su Ollama"*; in `rag_config.yaml` l'intero blocco `budget:` è **commentato**, e con `active_provider: ollama` nessun purpose chiama Claude oggi — non c'è spesa da proteggere | L'infografica è il documento che spiega il sistema a chi non lo conosce: descriveva una protezione di costo attiva che non esiste | S | Corretta la frase: il guard è **pronto** in `core/llm.py` (codice reale, non ipotetico), **spento di default**, con il perché (nessun purpose su Claude oggi) e quando riattivarlo. Non riattivato: farlo oggi non avrebbe alcun effetto — non esiste spesa Claude da proteggere — e attivarlo comunque avrebbe aggiunto stato (contatore di spesa) senza alcuna utilità corrente |
 | A16 | API / contratto | FRAGILE → **CHIUSO 2026-09-03** | Confermato: alla domanda fuori corpus la risposta era un rifiuto corretto e motivato, ma il payload restava `status:"success"` con le fonti elencate. La correzione non è un'euristica sul testo — parsare la prosa italiana di un LLM per capire se si è astenuto sarebbe fragile per costruzione — ma un **contratto**: `[REGOLA-ASTENSIONE]` nel prompt impone il token `[ASTENSIONE]` come primo carattere della risposta quando e solo quando il contesto non basta; `ask_rag` lo legge e lo rimuove | Un client non poteva distinguere "ha risposto" da "si è astenuto": l'astensione, che è la funzione di sicurezza, non era leggibile a macchina | S | `status: "abstained"`, distinto da `no_results`/`no_graph_nodes` (lì il retrieval non trova nulla; qui trova qualcosa ed è la sintesi a dire che non risponde). Verificato dal vivo: domanda fuori corpus → `abstained`; domanda normale → `success`, marcatore mai nella risposta. 6 test in `tests/test_ask_abstention.py`, cache compresa |
@@ -146,6 +146,15 @@ strumento c'era già (`scripts/bench.py` calcola `p50`/`p95` per `/api/retrieve`
 `/ask` girava su 3 query fisse riportando solo la media, e `eval/results/` non conteneva
 nessun `bench_*.json`: la comparabilità fra run proteggeva un confronto mai avvenuto.
 Streaming **non fatto** e dichiarato tale. Indagine in fondo al documento.
+
+**A15 chiuso il 2026-09-04**: il difetto era reale, la sua descrizione no. «macOS/ARM/
+CPU-only» nominava due casi che **non erano rotti** — Linux ARM64 sincronizzava (cu126 ha
+le sue wheel `aarch64`) e una macchina CPU-only x86-64 pure (la build CUDA gira su CPU) —
+e ne ometteva uno che lo era, Windows ARM. Misurato su sei piattaforme prima e dopo. Ora
+l'indice CUDA ha un marcatore che trascrive l'elenco di wheel del lock, e **macOS Apple
+Silicon sincronizza**; macOS Intel e Windows ARM restano impossibili perché PyTorch quelle
+wheel non le pubblica affatto — limite a monte, dichiarato in README invece che subìto.
+Indagine in fondo al documento.
 
 ---
 
@@ -1543,3 +1552,89 @@ suo stesso docstring; e un p95 di 10 campioni non regge una soglia bloccante. Il
 noto è quello che A2b ha già mostrato altrove: un numero dichiarato che nessuno rilegge
 invecchia. Qui la protezione è debole per costruzione — la baseline in README ha data e
 macchina accanto, così un lettore vede subito quando è vecchia.
+
+---
+
+# A15 — il difetto era reale, la sua descrizione no
+
+*Chiusura del 2026-09-04.*
+
+## Sei piattaforme, misurate invece che dedotte
+
+La riga diceva: il pin CUDA senza marcatore blocca l'installazione nativa «su macOS, ARM
+e macchine CPU-only». Tre affermazioni, nessuna verificata — e non serviva un Mac per
+verificarle: `uv sync --frozen --dry-run --python-platform <p>` risolve per una
+piattaforma arbitraria dalla macchina che si ha sotto mano.
+
+| Piattaforma | Prima | Dopo |
+|---|---|---|
+| Linux x86-64 | ✅ `2.13.0+cu126` | ✅ invariato |
+| Linux ARM64 | ✅ `2.13.0+cu126` | ✅ invariato |
+| Windows x86-64 | ✅ `2.13.0+cu126` | ✅ invariato |
+| macOS Apple Silicon | ❌ | ✅ `2.13.0` (PyPI) |
+| macOS Intel | ❌ | ❌ (a monte) |
+| Windows ARM64 | ❌ | ❌ (a monte) |
+
+**Due dei tre casi della riga non erano rotti.** *ARM* è troppo largo: l'indice cu126
+pubblica `manylinux_2_28_aarch64`, quindi **Linux ARM64 sincronizzava già**. *CPU-only* è
+proprio un'altra cosa: su x86-64 la wheel CUDA si installa e **gira**, con
+`torch.cuda.is_available()` a `False` — pesa 4 GB inutili, non impedisce nulla. E la riga
+**ometteva** l'unico altro caso davvero bloccato, Windows ARM64.
+
+Ciò che restava vero è il caso che conta di più in pratica: **macOS**.
+
+## La correzione, e ciò che ha fatto emergere
+
+Il marcatore non è difensivo, è la trascrizione dell'elenco di wheel che `uv.lock`
+contiene già per `torch 2.13.0+cu126`: `manylinux_2_28_x86_64`,
+`manylinux_2_28_aarch64`, `win_amd64`. Nient'altro. Fuori di lì torch arriva da PyPI.
+
+Rifatto il lock, però, è comparso un problema che non c'era prima della correzione: con
+`torch` senza pin di versione, uv risolve **ogni ramo per conto suo** e macOS finiva su
+`2.14.0` mentre tutti gli altri restavano su `2.13.0`. È esattamente la deriva che il
+Dockerfile documenta di aver già subito una volta («il lock diceva 2.13.0 e l'immagine
+montava 2.14.0+cpu»): l'avrei reintrodotta su un'altra piattaforma mentre chiudevo un
+riscontro di portabilità. `torch` è ora pinnata a `2.13.0` — verificato **prima** che PyPI
+abbia la wheel corrispondente (`torch-2.13.0-cp314-cp314-macosx_14_0_arm64.whl`),
+altrimenti il pin avrebbe solo spostato il problema.
+
+## Due piattaforme restano impossibili, e non per colpa nostra
+
+macOS Intel e Windows ARM64 falliscono anche dopo: **PyTorch non pubblica quelle wheel da
+nessuna parte**, né sull'indice CUDA né su PyPI — per la 2.13.0 le uniche wheel macOS sono
+`macosx_14_0_arm64`. Nessuna configurazione in questo repository può crearle. Il fatto è
+ora **scritto** nel README di root, in una tabella con la riga rossa e la ragione accanto,
+invece di essere un fallimento che l'utente scopre da sé.
+
+Sottigliezza registrata perché costa mezz'ora a chi la incontra: la wheel richiede
+`macosx_14_0`, quindi il dry-run per `aarch64-apple-darwin` fallisce lo stesso finché non
+si dichiara `MACOSX_DEPLOYMENT_TARGET=14.0` — uv assume un target 13.0 conservativo. Su un
+Mac vero il target lo legge dall'interprete: era un artefatto della simulazione, non un
+difetto.
+
+## Il test è offline, e verificato contro la configurazione vecchia
+
+Il difetto viveva in due file di configurazione, e l'unico modo di provarlo era eseguire
+uv contro la rete — cioè niente che una suite possa fare. `tests/test_torch_platform_pin.py`
+legge `pyproject.toml` e `uv.lock` con `tomllib` e fissa l'invariante: l'indice CUDA è
+applicato **solo** dove le sue wheel esistono, esiste una sorgente alternativa che le wheel
+macOS ce le ha davvero, e i due registri non divergono di versione.
+
+Rimessa la configurazione vecchia, **3 test su 5 falliscono**. I due che restano verdi
+leggono `uv.lock`, che in quella prova non era stato ripristinato: è coerente, non una
+svista. Un test dice cosa fare invece di limitarsi a fallire — se un domani cu126
+pubblicasse wheel macOS, il messaggio è che il marcatore può essere allargato.
+
+## Ciò che questa chiusura NON prova
+
+- **Nessuna installazione reale su un Mac.** Il dry-run prova la risoluzione e la
+  compatibilità delle wheel — cioè esattamente ciò che era rotto — non che torch poi giri
+  su quella macchina. Qui un Mac non c'è; il limite è dichiarato anche in `DISTRIBUTION.md`.
+- **La macchina CPU-only x86-64 continua a scaricare 4 GB di CUDA** che non userà.
+  Sincronizza e funziona, quindi non è questo riscontro; sceglierne la build CPU sulla
+  *stessa* piattaforma richiederebbe extra in conflitto (`uv sync --extra cpu`), cioè
+  cambiare il comando di installazione per tutti. Per quel caso esiste già il target `cpu`
+  del Dockerfile.
+- **Immagine Docker ricostruita per sicurezza**, perché il re-lock tocca il file da cui il
+  target `cpu` deriva la sua lista di esclusioni CUDA: 129 pacchetti, venv 2,2 GB,
+  `torch 2.13.0+cpu`, `cuda? False` — identica a quella di prima del cambio.

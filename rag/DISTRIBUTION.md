@@ -370,6 +370,13 @@ quindi la differenza è rilevabile e non silenziosa); formato artefatti cambiato
   percorso nativo scaricherebbe ~4 GB di torch CUDA a ogni push: sproporzionato come gate.
   Il progetto è sviluppato su Windows e testato in CI su Linux, quindi entrambi i sistemi
   sono coperti — ma non entrambi automaticamente. **Gap dichiarato.**
+- **Installazione nativa su macOS: risolta, non eseguita.** Il pin CUDA di `torch` era
+  incondizionato e faceva fallire `uv sync` su macOS (A15); ora l'indice CUDA ha un
+  marcatore di piattaforma e su Apple Silicon torch arriva da PyPI. Verificato con
+  `uv sync --frozen --dry-run --python-platform aarch64-apple-darwin`, che prova la
+  **risoluzione e la compatibilità delle wheel** — cioè esattamente ciò che era rotto —
+  ma non che il pacchetto poi giri su quella macchina. Un'esecuzione reale su un Mac
+  resta **non fatta**: qui non ce n'è uno.
 - **Primo avvio guidato** (scegli la cartella → indicizza → prima domanda). È una funzionalità
   di prodotto, non di packaging: il README oggi porta allo stesso risultato in quattro
   comandi. **Non iniziato.**

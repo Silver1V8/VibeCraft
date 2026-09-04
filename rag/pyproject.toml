@@ -32,7 +32,14 @@ dependencies = [
     "python-dotenv==1.2.3",
     "pyyaml>=6.0.3",
     "qdrant-client==1.19.0",
-    "torch",
+    # PINNATA di proposito. Con l'indice CUDA ristretto per piattaforma (tool.uv.sources)
+    # torch arriva da DUE registri: cu126 su linux/win-amd64, PyPI altrove. Senza pin uv
+    # risolve ogni ramo per conto suo e macOS finiva su 2.14.0 mentre tutti gli altri
+    # stavano su 2.13.0 — la stessa deriva di versione che il Dockerfile documenta di aver
+    # gia' subito una volta. Verificato che PyPI abbia la wheel corrispondente
+    # (torch-2.13.0-cp314-cp314-macosx_14_0_arm64.whl), altrimenti il pin sposterebbe solo
+    # il problema. Da tenere allineata al `uv pip install torch==...` del target cpu.
+    "torch==2.13.0",
     "tree-sitter>=0.26.0",
     "tree-sitter-javascript>=0.25.0",
     "tree-sitter-language-pack==1.15.8",
@@ -51,7 +58,22 @@ dev = [
 ]
 
 [tool.uv.sources]
-torch = { index = "pytorch-cu126" }
+# L'indice CUDA vale SOLO dove le sue wheel esistono davvero. Il marcatore non è
+# difensivo: è la trascrizione dell'elenco di wheel che uv.lock contiene per
+# torch 2.13.0+cu126 — `manylinux_2_28_{x86_64,aarch64}` e `win_amd64`, nient'altro.
+# Senza di esso `uv sync` FALLISCE su macOS (Intel e ARM) e su Windows ARM con
+# "doesn't have a source distribution or wheel for the current platform": misurato
+# con `uv sync --frozen --dry-run --python-platform <p>` su sei piattaforme (A15).
+# Lì torch arriva da PyPI, che quelle wheel le ha.
+#
+# NON risolve la macchina CPU-only x86_64: quella sincronizza già oggi (la build CUDA
+# si installa e gira su CPU, con torch.cuda.is_available() = False), solo pesante —
+# per lei esiste il target `cpu` del Dockerfile. Scegliere CPU-vs-CUDA sulla STESSA
+# piattaforma richiederebbe extra in conflitto (`uv sync --extra cpu`), cioè cambiare
+# il comando di installazione per tutti: fuori da questo riscontro.
+torch = [
+    { index = "pytorch-cu126", marker = "sys_platform == 'linux' or (sys_platform == 'win32' and platform_machine == 'AMD64')" },
+]
 
 [[tool.uv.index]]
 name = "pytorch-cu126"
