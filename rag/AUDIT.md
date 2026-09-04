@@ -1091,9 +1091,13 @@ dell'infografica dicono `recall@2`, senza errori in console.
   gate il grafico riparte quasi da zero. Se un giorno servisse continuità, la strada è
   registrare **tutti** i k in ogni riga, anche dalle righe scritte dal gate (che oggi ne
   registra uno solo).
-- **`recall@2` è a 0.873 con soglia 0.75:** margine 12 punti. Il giorno in cui saturasse non
-  resta un k più basso: andrà **esteso il golden set** con casi che il sistema sbaglia, come
-  già dice `rag_config.yaml`.
+- **`recall@2` è a 0.875 con soglia 0.75:** margine 12,5 punti *(era 0.873 su 55 casi; il
+  golden set è passato a 56 il 2026-09-04 — vedi la sezione S5 in fondo)*. Il giorno in cui
+  saturasse non resta un k più basso: andrà **esteso il golden set** con casi che il sistema
+  sbaglia, come già dice `rag_config.yaml`. **I candidati sono stati individuati e misurati
+  il 2026-09-04, prima che servissero** (R13): l'elenco è in fondo a questo documento, sezione
+  «R13 — cinque candidati misurati, nessuno aggiunto». Sceglierli sotto pressione avrebbe
+  significato sceglierli per far scendere un numero.
 
 ---
 ---
@@ -1979,16 +1983,330 @@ server reale stampa `misurato su: 14 documenti tracciati · +9 NON tracciati`, c
 `recall@2 = 0.873` (PASS). Il test nuovo — un `.gitkeep` tracciato più un `.png` non
 tracciato — è stato verificato contro il codice vecchio: `tracked` valeva 2.
 
-## Cosa resta aperto, e non è un difetto di codice
+## Cosa resta aperto, e non è un difetto di codice → **CHIUSO 2026-09-04 (S5)**
 
-Il **sottoinsieme avversariale è a 4 casi con 2 soli distrattori**. Non è una regressione:
-è il residuo dichiarato dalla chiusura di Run B, quando il caso 4 perse il marcatore
-`adversarial` perché il suo distrattore progettato (`intent_synonym_mapping.md`, peso 0.50)
-era stato rimosso col dominio dismesso, e sulla baseline tracciata **non esiste** un
-sostituto a bassa autorità che parli di LLM e dati personali. Restituirgli ampiezza è una
-decisione sul **corpus** — servirebbe un documento informativo nuovo — non un intervento
-sul golden set né sul codice. Resta annotato nel golden set stesso.
+Il **sottoinsieme avversariale era a 4 casi con 2 soli distrattori**. Non era una
+regressione: era il residuo dichiarato dalla chiusura di Run B, quando il caso 4 perse il
+marcatore `adversarial` perché il suo distrattore progettato (`intent_synonym_mapping.md`,
+peso 0.50) era stato rimosso col dominio dismesso, e sulla baseline tracciata **non
+esisteva** un sostituto a bassa autorità che parlasse di LLM e dati personali. Restituirgli
+ampiezza era una decisione sul **corpus**.
+
+Il documento è stato scritto ed è ora in baseline: **5 casi, 3 distrattori distinti**.
+Ma la parte che vale la pena leggere è che la strada indicata dal residuo *non ha
+funzionato come previsto*, ed è la misura ad averlo detto — sezione S5 in fondo a questo
+documento.
 
 Vale la pena rileggerlo accanto ad A3: il `recall@1` avversariale **0.0%** che si legge
 ancora nel report non è un difetto da chiudere, è la misura che fa il suo lavoro su un
 contrasto che il corpus attuale rende stretto.
+
+---
+---
+
+# S5 — il corpus cambia i numeri: prima, dopo, e cosa NON è comparabile
+
+*Eseguita il 2026-09-04. Chiude **R7** e **R8**, prepara **R13**.*
+
+Questa sessione tocca il corpus indicizzato, quindi i suoi numeri non sono un aggiornamento
+dei precedenti: sono una serie nuova. Sotto ci sono entrambe le misure e — la parte che di
+solito manca — la **decomposizione** di quale delle due modifiche ha mosso cosa.
+
+## Le due modifiche, e perché vanno separate
+
+| | Cosa è cambiato | Cosa può muovere |
+|---|---|---|
+| **Corpus** | `change_log.md` bonificato · un documento informativo nuovo, `inferenza_locale_o_remota.md` | tutte le metriche |
+| **Strumento** | golden set 55 → 56 casi (un avversariale aggiunto) | solo il golden set classico e il sottoinsieme |
+
+Misurarle insieme avrebbe prodotto un delta illeggibile. La decomposizione è più sotto.
+
+---
+
+## R7 — il riferimento morto è storia, gli archi del frontmatter no
+
+`docs/00_meta_governance/change_log.md`, non tracciato da git (backup preso in
+`docs.local-backup-20260904T150929/`, mai `rm`). Verificati tutti e tre i riscontri del
+residuo, e trovato un quarto che il residuo non nominava.
+
+**1. `project:`** — `"VibeCraft — Sistema di Gestione Eventi Aziendali"` → `"cross-project"`,
+la convenzione della baseline.
+
+**2. Le 3 righe contaminate** (misurate: righe 4, 60, 75). §1 vincolava «le logiche di
+business delle risorse `RICHIESTA` ed `EVENTO` … il `BUDGET_ANNUO`» — entità che non
+esistono più; [REGOLA-DEV-02] chiedeva «l'autore **HR** o tecnico». Riscritte al perimetro
+reale (contratti di sicurezza, regole enforceable, struttura del frontmatter).
+
+**3. Il riferimento morto di riga 98 — né ripuntato né rimosso, e la ragione è il punto.**
+
+`spec_notifications_2.4.md` non esiste. Ma la prima cosa che la verifica ha trovato è che
+non è **uno**: nella voce «Versione 1.1.0» sono 13 path su 15 a non esistere, e nella
+«1.0.0» altri 4. Il residuo ne nominava uno perché uno ne aveva controllato.
+
+Le due strade ovvie sono entrambe sbagliate, e per ragioni diverse:
+
+- **Ripuntarlo a un documento esistente** significherebbe dichiarare che una release del 13
+  luglio ha toccato un file che non ha toccato. [REGOLA-DEV-02] — scritta in questo stesso
+  file — impone «l'elenco esatto dei file modificati» e nomina il proprio failure mode:
+  «perdita della correlazione storica». Un link morto è visibilmente rotto; un link
+  sbagliato è invisibilmente falso, ed è peggio proprio in un documento di governance, che
+  esiste per essere la prova di cosa è successo.
+- **Cancellare la riga** sarebbe arbitrario: 13 righe su 15 hanno lo stesso difetto, e
+  toglierne una sola perché un residuo l'aveva nominata lascerebbe il registro *meno*
+  coerente di come l'ha trovato.
+
+Quello che un change log fa quando qualcosa cambia è **registrarlo**. Aggiunta la voce
+mancante — `### Versione 2.0.0 (04 Settembre 2026)`, la dismissione del dominio che B1 aveva
+eseguito senza mai scriverla nel registro che esiste per riceverla — e una nota di lettura
+in testa a §3 che dice che le voci precedenti elencano file non più nel corpus e vanno lette
+come storia, non come riferimenti risolvibili. Il record resta intatto e nessuno può più
+scambiare un path del 2026-07 per uno vivo.
+
+**4. Il quarto riscontro, che il residuo non aveva: 12 archi `CONTIENE` verso il nulla.**
+
+Il frontmatter dichiarava 13 relazioni `CONTIENE`. Verificato sul grafo caricato, prima
+della correzione: **12 target su 13 non risolvono**, e `add_frontmatter_edges`
+(`core/chunking.py:217`) non li scarta — `if target not in G: G.add_node(target,
+type="entity")`. Cioè 12 documenti fantasma nel grafo, con `nature: curated` e
+`reliability: 0.9`: il livello di fiducia riservato a ciò che un autore ha dichiarato a
+mano.
+
+Qui la decisione è opposta a quella di §3, e la distinzione è tutta la sostanza di R7:
+
+> §3 è un **ricordo** e non si riscrive. Un arco del frontmatter è un'**asserzione sul
+> presente**, ricalcolata a ogni build. Un `CONTIENE` verso un documento che non esiste non
+> è storia conservata male: è una cosa falsa detta oggi al grafo.
+
+Rimossi i 12. Il tredicesimo (`spec-graph-rag-ingestion-v1.1`) era un caso terzo ancora: il
+documento **esiste**, il `node_id` no — la spec dichiara `v2.0`. Ripuntato, perché ripuntare
+a un target esistente è legittimo quando l'asserzione è sul presente.
+
+Effetto misurato sul grafo (full rebuild):
+
+| | prima | dopo |
+|---|---|---|
+| nodi | 755 | 751 |
+| archi | 929 | 927 |
+| fantasmi `spec-*-v1.0` | 12 | **0** |
+
+I 4 nodi in meno sono il saldo fra 12 fantasmi rimossi e 8 nodi (1 documento + 7 sezioni)
+del documento nuovo di R8.
+
+> **Residuo aperto, non chiuso qui:** `graph_rag_ingestion_strategy.md` — che **è tracciato**
+> — dichiara lo stesso `spec-graph-rag-ingestion-v1.1`, quindi il nodo fantasma sopravvive
+> con un solo arco entrante invece di due. È lo stesso difetto in un file della baseline, e
+> toccarlo esce dal perimetro di R7. Registrato come **R18** in RESIDUI.md.
+
+---
+
+## R8 — il documento nuovo c'è, e la strada che il residuo indicava non ha funzionato
+
+**Scritto:** `docs/04_knowledge_informative/inferenza_locale_o_remota.md` — `METHODOLOGY`,
+`authority: 0.40` **dichiarata** (sotto il peso di classe 0.50), tracciato in git perché è
+parte dello strumento di misura, come i tre distrattori portati in baseline in Run B.
+
+Il tema è scelto per essere davvero scoperto, non per comodità: `Ollama`, `inferenza`,
+`modello locale`, `on-premise`, `GPU`, `quantizzazione` hanno **0 occorrenze** in tutto
+`docs/`. Il documento dichiara di sé, come fa `graph_rag_ingestion_strategy.md`, di non
+essere fonte di un vincolo, e rimanda a `safeguards_security.md` per la norma.
+
+### Poi la misura ha smentito la premessa del residuo
+
+Il residuo prescriveva: scrivi il documento, poi rimarca il caso 4
+(«posso mandare la motivazione scritta dal dipendente a un LLM remoto») con quel
+distrattore. Misurato dopo il rebuild, sul ranking di produzione (`GET /api/retrieve`, k=12):
+
+```
+atteso  safeguards_security § Privacy e Confine   → rango 2
+nuovo   inferenza_locale_o_remota                 → rango 6
+```
+
+**Su quella formulazione non c'è alcun contrasto da esercitare.** Il breakdown dice perché,
+e non è un fallimento del documento:
+
+| | dense_rank | dense | ColBERT | authority |
+|---|---|---|---|---|
+| `inferenza_locale_o_remota § 5` | **2** | 0.4996 | 0.494 | 0.40 |
+| `safeguards_security § Privacy e Confine` | 6 | 0.4693 | **0.5032** | 0.98 |
+
+Sulla similarità **densa** il documento informativo vince davvero — è il secondo risultato,
+contro il sesto della norma. Perde sul **ColBERT**, che è ciò su cui l'ordine finale è
+costruito (ColBERT × autorità). E perde per una ragione strutturale: su *questa* domanda la
+fonte normativa è **anche** il miglior match lessicale, perché §5 di `safeguards_security`
+nomina già «modelli LLM remoti», «dati personali» e «motivazioni» nella tabella delle
+categorie PII. Un documento che vincesse quella domanda andrebbe scritto come **esca**, non
+come contenuto — e il golden set vieta esattamente questo.
+
+Rimarcare il caso 4 comunque avrebbe fatto **passare** il caso e gonfiato la recall del
+sottoinsieme: è il difetto per cui il marcatore era stato tolto. Non è stato fatto.
+
+### Cosa è stato fatto invece: cercare la formulazione, e misurarla
+
+Sette domande candidate sullo stesso tema, misurate una per una. Rango del distrattore e
+rango dell'atteso:
+
+| Domanda | dist. | atteso | esito |
+|---|---|---|---|
+| «posso mandare la motivazione scritta dal dipendente a un LLM remoto» | 6 | 2 | nessun contrasto |
+| «che cosa rischio a mandare fuori i dati personali degli utenti» | 5 | 2 | nessun contrasto |
+| «conviene tenere il modello in locale o posso usarne uno ospitato» | 1 | 9 | **scartata**: qui la fonte giusta *è* il documento informativo |
+| «cosa esce dalla mia macchina quando chiedo aiuto a un modello ospitato» | 1 | — | **scartata**, stessa ragione |
+| «il provider dell'LLM quanto tempo conserva i prompt che gli mando» | 1 | 5 | **scartata**: la retention non è normata in `safeguards` |
+| «posso incollare nel prompt il testo che ha scritto un utente» | 1 | 4 | **scartata**: quasi verbatim una frase del documento nuovo, sarebbe stata un'esca |
+| **«posso usare un servizio di inferenza remoto per il debug di un record reale»** | **1** | **2** | **tenuta** |
+
+Le scartate sono la parte istruttiva: un distrattore che vince *avendo ragione* non è un
+caso avversariale, è il retrieval che funziona. Il caso tenuto ha il vincolo altrove —
+«un record reale» è PII reale verso un endpoint esterno, cioè [SAFEGUARD-SEC-04] — e il
+margine 1→2 è lo stesso, stretto, dei casi avversariali originali.
+
+**Risultato:** il sottoinsieme torna a **5 casi con 3 distrattori distinti**. Il caso 4 resta
+un caso normale, con la misura di oggi annotata accanto, perché la prossima persona che legge
+«perché non l'hanno rimarcato» trovi il numero e non un'opinione.
+`test_casi_avversariali_hanno_matcher_validi` vede il caso nuovo e passa.
+
+---
+
+## Prima e dopo — e cosa non è comparabile
+
+Full rebuild + promozione: `CURRENT → v20260904T151925`, alias Qdrant scambiato.
+Chunk **160 → 167** (+7, il documento nuovo). Eval-gate: `recall@2=0.875 ≥ 0.75 (56 casi)` —
+promozione consentita.
+
+### Golden set classico
+
+| Metrica | Prima (55 casi, `v20260904T092228`) | Dopo (56 casi, `v20260904T151925`) |
+|---|---|---|
+| recall@1 | 63.6% | 62.5% |
+| recall@2 | 87.3% | **87.5%** |
+| recall@5 | 98.2% | 98.2% |
+| recall@10 | 100.0% *(satura)* | 100.0% *(satura)* |
+| source_in_top3 | 94.5% | 94.6% |
+| MRR | 0.791 | 0.786 |
+
+**Questi due numeri non sono confrontabili**, ed è il motivo per cui la decomposizione più
+sotto esiste.
+
+### Sottoinsieme avversariale
+
+| Metrica | Prima (4 casi) | Dopo (5 casi) |
+|---|---|---|
+| recall@1 | 0.0% | 0.0% |
+| recall@2 | 75.0% | 80.0% |
+| source_in_top3 | 100.0% | 100.0% |
+| MRR | 0.458 | 0.467 |
+| distrattori distinti | 2 | **3** |
+
+`recall@1 = 0.0%` invariato, e con un caso in più: il caso nuovo fallisce a k=1 **per
+costruzione** — è ciò che significa averlo scelto misurando. Leggere quello 0.0% come
+peggioramento sarebbe l'errore che A3 ha già chiarito.
+
+### La decomposizione: il corpus non ha mosso nulla, il golden set sì
+
+Riesecuzione delle metriche sui **soli 55 casi condivisi** fra le due run, contro l'indice
+nuovo:
+
+| Metrica | 55 casi, indice vecchio | 55 casi, indice nuovo | Δ |
+|---|---|---|---|
+| recall@1 | 0.6364 | 0.6364 | **0.0000** |
+| recall@2 | 0.8727 | 0.8727 | **0.0000** |
+| recall@5 | 0.9818 | 0.9818 | **0.0000** |
+| source_in_top3 | 0.9455 | 0.9455 | **0.0000** |
+| MRR | 0.7909 | 0.7909 | **0.0000** |
+
+**Nessun caso ha cambiato rango. Nemmeno uno.** Quindi tutto il delta della tabella classica
+— i −1.1 punti di recall@1, i +0.2 di recall@2, i −0.005 di MRR — è il 56° caso, non il
+corpus. Detto altrimenti: bonificare `change_log.md` e aggiungere un documento non ha
+migliorato né peggiorato il retrieval sulle domande già in misura. Era il risultato più
+probabile e non era garantito: era proprio l'aggiunta al corpus lo scenario che A18 aveva
+indicato come pericoloso.
+
+### Multihop — qui il corpus ha mosso, e verso il basso
+
+La suite multihop **non è cambiata** (14 casi, gli stessi), quindi il suo delta è corpus puro:
+
+| Metrica | Prima | Dopo | Δ |
+|---|---|---|---|
+| recall media A | 0.896 | **0.854** | **−0.042** |
+| A riusciti | 10/14 | **9/14** | −1 |
+| B exact | 6/6 | 6/6 | — |
+| gap retrieval→grafo | 1 | 1 | — |
+
+Passa (`min_recall: 0.85`) **con 0.004 di margine**. I due casi che si sono mossi:
+
+- «quali documenti esistono nel corpus?» 0.55 → 0.45. È la misura, non un difetto: il corpus
+  è cresciuto e un top-10 ne copre una frazione minore. Stessa lettura di A4.
+- «cosa devo fare quando modifico un documento della knowledge base?» 1.00 → **0.50**.
+  Verificato sul ranking: `policy_versionamento § Regole di Gestione` resta a rango 3, ma
+  `spec_graph_rag_ingestion § Aggiornamento Incrementale` **esce dal top-10**, spinto fuori
+  da `change_log.md`, che ora occupa i ranghi 6 e 9. La causa è la bonifica stessa: §1
+  riscritto dice adesso che «ogni modifica … alle regole enforceable dei documenti normativi
+  o alla struttura del frontmatter deve essere registrata in questo file», e per la domanda
+  «cosa devo fare quando modifico un documento» quella è una risposta **pertinente**. Il
+  ranking non ha sbagliato; la catena a due documenti non ci sta più in dieci.
+
+**Questo è un residuo nuovo e va detto, non assorbito:** la soglia multihop ha 0,4 punti di
+margine, e la spinta che li ha consumati viene da un documento **non tracciato**. Registrato
+come **R19**.
+
+---
+
+## R13 — cinque candidati misurati, nessuno aggiunto
+
+`recall@2` sta a 0.875 con soglia 0.75. Il giorno in cui saturasse non resta un k più basso:
+l'unica strada è estendere il golden set con casi che il sistema **sbaglia**. Sceglierli
+quel giorno significa sceglierli per far scendere un numero — quindi sono stati cercati oggi,
+misurati, e lasciati fuori.
+
+Quattordici domande candidate misurate contro l'indice `v20260904T151925` (k=10). Le cinque
+qui sotto sono quelle che **falliscono a k=2** e la cui fonte attesa regge un giudizio umano
+(le altre nove passano, o non hanno una fonte attesa difendibile — su una, «una spec vecchia
+di due anni vale ancora», il giudizio *mio* era sbagliato, e per questo non è in elenco):
+
+| # | Domanda | Fonte attesa | Rango | Chi vince al suo posto |
+|---|---|---|---|---|
+| C1 | «il modello ha scritto codice sbagliato, di chi è la responsabilità» | `vibe_coding_workflow` § Protocollo Human-in-the-Loop | 4 | `safeguards_security` § Concorrenza — fuori tema |
+| C2 | «come faccio a sapere se il grafo è disallineato rispetto ai documenti» | `spec_graph_rag_ingestion` § Aggiornamento Incrementale | **assente dal top-10** | `policy_versionamento` § 1 |
+| C3 | «il log di una API può contenere l'indirizzo email dell'utente» | `observability_standards` § Confine di Privacy | 5 | `spec_tech_logic_agent` — **non tracciato** |
+| C4 | «quanto deve durare al massimo una funzione prima di spezzarla» | `coding_standards` § Metriche Strutturali e Limiti | 3 | `testing_strategy` § 0 |
+| C5 | «posso mandare uno stack trace di produzione a un assistente di coding» | `safeguards_security` § Privacy e Confine | 8 | `spec_tech_frontend` — **non tracciato** |
+
+Cosa li rende utili, oltre al fatto che falliscono:
+
+- **C4 è la riformulazione colloquiale di un caso che già esiste** e che passa a rango 1
+  («qual è la lunghezza massima ammessa per una funzione»). Stesso fatto, stessa fonte,
+  formulazione da persona invece che da indice: passa a 1 in un caso e fallisce a 3
+  nell'altro. È il divario che il golden set attuale non misura affatto.
+- **C2 è lo stesso chunk** che esce dal top-10 nella catena multihop regredita qui sopra:
+  due strumenti diversi indicano la stessa sezione come la più fragile del corpus.
+- **C3 e C5 sono da aggiungere solo insieme alla decisione su A6**: il documento che li batte
+  è non tracciato, quindi in CI il caso misurerebbe qualcosa di diverso da qui — è
+  esattamente il difetto che rese le metriche avversariali reversibili col checkout.
+
+**Non aggiunti.** Servono il giorno in cui il margine si chiude, e servono con la loro
+misura di oggi accanto, per poter dire se un futuro fallimento è il sistema o la deriva
+del corpus.
+
+---
+
+## Verifica
+
+- `ruff check .` → `All checks passed!`
+- Suite completa: **1318 passed**, 0 skipped (Qdrant e Ollama accesi).
+- `test_casi_avversariali_hanno_matcher_validi`: verde con il caso nuovo — 56 casi,
+  5 avversariali, 3 distrattori distinti, tutti esistenti nel corpus.
+- Eval-gate sul full rebuild: `recall@2=0.875 ≥ 0.75 (56 casi)` — promozione consentita,
+  `CURRENT → v20260904T151925`, alias Qdrant spostato.
+- Provenienza dichiarata dal report: `14 documenti tracciati · +10 NON tracciati`. Diventa
+  15 + 9 col commit di questa sessione, che porta `inferenza_locale_o_remota.md` in baseline.
+
+## Cosa questa sessione NON prova
+
+- Che il caso avversariale nuovo resti avversariale. Oggi vince 1→2 con margine stretto: se
+  un domani il ColBERT lo ribalta, il caso va **tolto**, non festeggiato — la stessa regola
+  che ha già smarcato due casi in questo golden set.
+- Che la bonifica di `change_log.md` sia completa. È completa per ciò che è **verificabile a
+  macchina** (archi risolvibili, campi del frontmatter, vocabolario del dominio). §3 resta
+  pieno di path che non esistono, ed è voluto: sono storia.
+- Che i 5 candidati di R13 siano ancora sbagliati quando serviranno. Vanno **rimisurati**
+  prima di essere promossi, non copiati.

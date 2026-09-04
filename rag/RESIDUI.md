@@ -16,9 +16,9 @@ dichiara aperti, li tria fra risolvibili e non, e li ordina in sessioni di lavor
 | | |
 |---|---|
 | Righe dell'audit | 19 — 15 chiuse, 3 ritirate, 1 con premessa ritirata e sostanza chiusa |
-| Residui dichiarati | **22** (+3 emersi eseguendo: R15 e R16 dai run CI reali, R17 da S4) |
+| Residui dichiarati | **22** (+5 emersi eseguendo: R15 e R16 dai run CI reali, R17 da S4, R18 e R19 da S5) |
 | Di cui già chiusi da altri interventi (riga stantia) | 2 |
-| Risolvibili con lavoro tecnico | 14 — **9 chiusi** (R1, R2, R3, R4, R5, R6, N5, N6 + gli altri annotati in linea) |
+| Risolvibili con lavoro tecnico | 14 — **11 chiusi** (R1, R2, R3, R4, R5, R6, R7, R8, N5, N6 + gli altri annotati in linea); R13 preparato, non eseguito |
 | Che richiedono una decisione, non del codice | 5 (+R16: proteggere il ramo) |
 | Non risolvibili (dati persi, hardware assente) | 1 |
 
@@ -210,16 +210,44 @@ segue il tema — che nessuno aveva mai visto perché erano **coerentemente** sb
   Ora entrambe usano i token `--score-*` (che perdono il prefisso `json-`: non sono più solo
   del pannello JSON). Da qui il residuo nuovo **R17**.
 
-**R7 — `change_log.md` è contaminato dal dominio dismesso e rimanda a un file inesistente.**
-`project: "VibeCraft — Sistema di Gestione Eventi Aziendali"` e un riferimento a
-`docs/02_specs_normative/spec_notifications_2.4.md`, che **non esiste** (quella cartella
-contiene solo `spec_graph_rag_ingestion.md`). Era già annotato in B1 come «da correggere
-separatamente» e non è mai stato fatto. *Verificato entrambi.*
+**R7 — `change_log.md` è contaminato dal dominio dismesso e rimanda a un file inesistente
+→ CHIUSO 2026-09-04 (S5).** Tutti e tre i riscontri verificati e corretti: `project:` →
+`cross-project`, le 3 righe contaminate (4, 60, 75) riscritte al perimetro reale.
 
-**R8 — Il sottoinsieme avversariale è a 4 casi con 2 soli distrattori.** Il caso 4 perse il
-marcatore `adversarial` perché il suo distrattore progettato (peso 0.50) sparì col dominio
-dismesso, e sulla baseline tracciata non esiste un sostituto a bassa autorità che parli di
-LLM e dati personali. Restituire ampiezza è una decisione sul **corpus**.
+**Il riferimento morto non è stato né ripuntato né rimosso, ed è la parte che conta.**
+Verificando è emerso che non è uno: nella voce «1.1.0» **13 path su 15** non esistono.
+Ripuntarlo direbbe che una release ha toccato un file che non ha toccato — e [REGOLA-DEV-02],
+scritta in quello stesso file, impone «l'elenco esatto dei file modificati» e nomina il
+proprio failure mode («perdita della correlazione storica»). Cancellare la riga sarebbe
+arbitrario: 13 righe hanno lo stesso difetto. Quello che un change log fa è **registrare**:
+aggiunta la voce `2.0.0` che scrive la dismissione del dominio (che B1 eseguì senza mai
+registrarla) più una nota di lettura in testa a §3.
+
+**Il residuo era più piccolo del difetto.** Il frontmatter dichiarava 13 archi `CONTIENE`:
+**12 target su 13 non risolvono**, e `add_frontmatter_edges` non li scarta — li crea come
+nodi `type: entity` con `reliability: 0.9`. Dodici documenti fantasma dichiarati affidabili.
+Rimossi; il tredicesimo ripuntato al `node_id` reale (`v1.1` → `v2.0`). Grafo 755→751 nodi,
+929→927 archi, fantasmi `spec-*-v1.0` **12 → 0**. La distinzione che governa le due decisioni
+opposte: §3 è un **ricordo** e non si riscrive, un arco del frontmatter è un'**asserzione sul
+presente** e deve essere vera oggi.
+
+**R8 — Il sottoinsieme avversariale è a 4 casi con 2 soli distrattori → CHIUSO 2026-09-04
+(S5), ma non per la strada che il residuo indicava.** Il documento mancante è stato scritto
+(`docs/04_knowledge_informative/inferenza_locale_o_remota.md`, `METHODOLOGY`,
+`authority: 0.40` dichiarata, tracciato in git; tema con **0 occorrenze** in `docs/`).
+
+Poi la misura ha smentito la premessa: rimarcato il caso 4 con quel distrattore, il
+distrattore esce a **rango 6** contro il **2** dell'atteso — nessun contrasto. Sulla
+similarità densa il documento vince (rank 2 contro 6), ma perde sul ColBERT (0.494 contro
+0.5032), su cui l'ordine finale è costruito: su *quella* formulazione la fonte normativa è
+anche il miglior match lessicale, perché §5 di `safeguards_security` nomina già «modelli LLM
+remoti», «dati personali» e «motivazioni». Un documento che la vincesse sarebbe un'esca.
+
+Ampiezza restituita con una domanda **diversa**, scelta misurandone sette: «posso usare un
+servizio di inferenza remoto per il debug di un record reale» (distrattore 1 → atteso 2).
+Tre candidate sono state scartate perché il distrattore vinceva **avendo ragione** — non è un
+caso avversariale, è il retrieval che funziona. Sottoinsieme: **5 casi, 3 distrattori**. Il
+caso 4 resta normale, con la misura di oggi annotata accanto.
 
 **R9 — Le tre catene multihop a tre documenti si fermano a 2 su 3.** La soglia di A4 mette un
 pavimento sotto il numero, non lo alza. Ma la domanda vera non è mai stata posta: `/ask`
@@ -239,8 +267,15 @@ la chiave del `k` di allora: spostando `eval_gate.k` la serie si è accorciata d
 punti. Corretto (sono misure diverse), ma la continuità si comprerebbe registrando **tutti**
 i k in ogni riga.
 
-**R13 — `recall@2` è a 0.873 con soglia 0.75: margine 12 punti.** Il giorno in cui saturasse
-non resta un k più basso — andrà **esteso il golden set** con casi che il sistema sbaglia.
+**R13 — `recall@2` è a 0.875 con soglia 0.75: margine 12,5 punti. PREPARATO 2026-09-04, non
+eseguito.** Il giorno in cui saturasse non resta un k più basso — andrà **esteso il golden
+set** con casi che il sistema sbaglia. I candidati sono stati cercati **ora, mentre il
+margine c'è**: 14 domande misurate contro l'indice, **5 falliscono a k=2** con una fonte
+attesa difendibile. Elenco completo, con rango e chi vince al loro posto, in AUDIT.md
+(«R13 — cinque candidati misurati, nessuno aggiunto»). Due note dall'elenco: C4 è la
+riformulazione *colloquiale* di un caso che già passa a rango 1 — stesso fatto, stessa fonte,
+e il divario non è misurato da nulla; C3 e C5 sono battuti da documenti **non tracciati**,
+quindi vanno aggiunti solo insieme alla decisione su A6, altrimenti misurano il checkout.
 
 **R17 — Metà della tavolozza dei template non è agganciata al tema.** *(Nuovo, 2026-09-04,
 emerso da R6.)* In `tailwind.config` (dashboard) solo `brand`, `slate`, `blue` e `purple`
@@ -254,6 +289,29 @@ difetto che R6 ha chiuso su due card, e si vede solo mettendo le due palette una
 all'altra. La correzione non è meccanica: `emerald`/`red`/`amber` in molti punti significano
 *stato* (ok / errore / in corso), e uno stato ha senso che resti riconoscibile **attraverso**
 i temi — quindi va deciso caso per caso quali agganciare e quali no, non sostituito con sed.
+
+**R18 — `graph_rag_ingestion_strategy.md` dichiara un `node_id` che non esiste.** *(Nuovo,
+2026-09-04, emerso da R7.)* Il suo arco `DERIVA_DA` punta a `spec-graph-rag-ingestion-v1.1`,
+ma la spec dichiara `v2.0`: il target non risolve e resta nel grafo come nodo fantasma
+`type: entity` con `reliability: 0.9`. È **lo stesso difetto** che R7 ha corretto in
+`change_log.md` — dove i target morti erano dodici — ma qui il file è **tracciato**, cioè
+parte della baseline: toccarlo cambia il corpus riproducibile e usciva dal perimetro di R7.
+Una riga di correzione, ma va fatta con un rebuild e con la consapevolezza che sposta la
+baseline. Verificato: dopo R7 il nodo fantasma sopravvive con un solo arco entrante invece
+di due.
+
+**R19 — La soglia multihop è a 0,4 punti dal pavimento, e ce l'ha portata un documento non
+tracciato.** *(Nuovo, 2026-09-04, emerso da S5.)* `recall media A` è passata da 0.896 a
+**0.854** contro `min_recall: 0.85`. La suite non è cambiata: è il corpus. Due casi si sono
+mossi, e solo uno è «la misura che fa il suo lavoro» (l'enumerazione dei documenti, 0.55 →
+0.45, stessa lettura di A4). L'altro no: «cosa devo fare quando modifico un documento della
+knowledge base?» crolla da 1.00 a **0.50** perché `spec_graph_rag_ingestion § Aggiornamento
+Incrementale` **esce dal top-10**, spinto fuori da `change_log.md` — che dopo la bonifica di
+R7 è diventato un match legittimamente più forte per quella domanda, e che **non è tracciato
+da git**. Il ranking non ha sbagliato; la catena a due documenti non ci sta più in dieci.
+Due cose da decidere, e nessuna è «alzare la soglia»: se la soglia debba essere relativa alla
+dimensione del corpus invece che assoluta, e se un documento non tracciato debba poter
+consumare il margine di una metrica sorvegliata (è A6 che torna, da un'altra porta).
 
 **R14 — Le due collection Qdrant distrutte da A20 non sono recuperabili → la parte
 risolvibile è CHIUSA 2026-09-04.** I dati restano persi (gli artefatti su disco ci sono, i
@@ -340,12 +398,12 @@ Due su due: la disciplina «misura prima di correggere» ha evitato due modifich
 | R5 ✅ | Stampare il conteggio come contesto storico, non come verdetto | Togliere la riga perderebbe un numero utile: è l'etichetta a essere sbagliata | S — **fatto 2026-09-04**; il docstring era già corretto, quindi il lavoro era una riga sola |
 | R6 ✅ | Mappa esplicita degli stati → colore, con `abstained` e `graph_answer` distinti dall'errore | Il ternario `success ? verde : rosso` non è estendibile senza mentire | S — **fatto 2026-09-04**; la mappa era il lavoro previsto, i tre difetti di tema che ha scoperto no |
 | R17 | Decidere **quali** colori-di-stato devono seguire il tema e quali restare costanti, poi agganciare solo quelli | Un sed su `emerald` → token cancellerebbe la distinzione ok/errore proprio dove serve. È una decisione di design, con una spazzata meccanica dietro | M — decisione + sweep su 3 template |
-| R7 | Correggere `project:`, ripuntare o rimuovere il riferimento morto, poi **reindicizzare** | Il file è nell'indice: correggerlo senza rebuild non cambia ciò che il retrieval vede | S + rebuild |
-| R8 | Scrivere **un documento informativo nuovo** a bassa autorità su un tema che il corpus non copre, poi ripristinare il caso 4 | È una decisione sul corpus: nessun documento esistente sotto peso 0.5 nomina LLM o privacy (già misurato) | M |
+| R7 ✅ | `project:` corretto; il riferimento morto **né ripuntato né rimosso** — registrato con una voce di release nuova, perché §3 è storia e riscriverla la falsifica; e i **12 archi `CONTIENE` verso il nulla** rimossi dal frontmatter, che invece è un'asserzione sul presente | Il file è nell'indice: correggerlo senza rebuild non cambia ciò che il retrieval vede | S + rebuild — **fatto 2026-09-04**; i 12 archi fantasma (`reliability: 0.9`) non erano nel residuo, li ha trovati la verifica |
+| R8 ✅ | Documento scritto (`inferenza_locale_o_remota.md`, `authority: 0.40`, tracciato). Ma il caso 4 **non** è stato rimarcato: misurato, il nuovo distrattore esce a rango 6 contro il 2 dell'atteso — nessun contrasto. Il sottoinsieme è tornato a 5 casi con una domanda **diversa**, scelta misurando 7 formulazioni | È una decisione sul corpus: nessun documento esistente sotto peso 0.5 nomina LLM o privacy (già misurato) | M — **fatto 2026-09-04**; la premessa del residuo («basta un documento sul tema») è stata smentita dalla misura, non assunta |
 | R9 | **Misurare prima**: chiedere a `/ask` le tre catene e verificare se il terzo documento compare nella risposta via grafo | Se compare, non c'è nulla da correggere e il residuo si chiude come A4 — dichiarando cosa misura la soglia | M |
 | R10, R11 | Un check notturno contro Ollama vero, accanto a `nightly_consistency` | In CI non c'è LLM; il notturno gira dove il modello c'è ed è il canale che già porta gli alert | M |
 | R12 | `record_history` scrive **tutti** i k calcolati, non solo quello del gate | Una riga più larga costa nulla e rende ogni futuro spostamento del gate indolore | S |
-| R13 | Preparare l'estensione del golden set **ora**, mentre il margine c'è | Estenderlo sotto pressione (metrica satura) significa sceglierne i casi per far scendere un numero | M |
+| R13 ◐ | **Preparato 2026-09-04**: 14 domande misurate contro l'indice, 5 candidati che falliscono a k=2 annotati in AUDIT.md («R13 — cinque candidati misurati, nessuno aggiunto»). **Nessuno aggiunto**: l'elenco serve pronto, non eseguito | Estenderlo sotto pressione (metrica satura) significa sceglierne i casi per far scendere un numero | M — preparazione fatta, aggiunta ancora aperta |
 | R14 ✅ | Non recuperabile. Ma il **rollback** deve accorgersi che la collection della versione target non esiste e dirlo, invece di fallire in modo oscuro | I dati sono persi; l'esperienza al tentativo no. **Misurando è emerso che non falliva affatto**: riusciva a metà e nessun check lo diceva — quindi rifiuto *prima* della mutazione, più il rilevamento dello stato misto nel check notturno | S — **fatto 2026-09-04** |
 | N1–N8 | Decisione esplicita, registrata. Non codice | Cinque di questi sono «no» già argomentati: vanno confermati o ribaltati una volta, non ridiscussi a ogni sessione | — |
 
@@ -586,9 +644,14 @@ Suite completa + ruff prima del commit.
 
 ---
 
-## S5 — Il corpus: contaminazione residua e sottoinsieme avversariale
+## S5 — Il corpus: contaminazione residua e sottoinsieme avversariale ✅ ESEGUITA 2026-09-04
 
-Chiude **R7**, **R8**, prepara **R13**.
+Chiude **R7**, **R8**, prepara **R13**. Esito e numeri prima/dopo in `AUDIT.md`, sezione
+«S5 — il corpus cambia i numeri». In sintesi: R7 più esteso del residuo (12 archi fantasma
+nel frontmatter, non solo un link morto); R8 chiuso ma **non** rimarcando il caso 4 — la
+misura ha detto che su quella formulazione non c'è contrasto; due residui nuovi, **R18** e
+**R19**. Sul golden set il corpus non ha mosso **nessun rango**; il multihop sì, verso il
+basso (0.896 → 0.854, soglia 0.85).
 
 ```
 Lavora su docs/ e rag/eval/. Questa sessione tocca il CORPUS, quindi cambia i numeri:

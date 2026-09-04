@@ -398,6 +398,24 @@ cases:
   #    soli distrattori: è poco, ed è annotato come tale.
   #
   #    Resta come caso normale: la domanda è legittima e la fonte attesa è quella giusta.
+  #
+  #    RIVERIFICATO IL 2026-09-04, dopo che il documento informativo che mancava è stato
+  #    scritto (04_knowledge_informative/inferenza_locale_o_remota.md, METHODOLOGY,
+  #    `authority: 0.40`). L'aspettativa era di poter rimarcare QUESTA domanda come
+  #    avversariale. **Misurato, non si può**, e il numero è il punto:
+  #      atteso (safeguards_security § Privacy e Confine) → rango 2
+  #      nuovo documento informativo                      → rango 6
+  #    Il breakdown dice perché: sulla similarità DENSA il documento informativo vince
+  #    davvero (dense_rank 2 contro 6 dell'atteso), ma sul ColBERT no — 0.494 contro 0.5032 —
+  #    e l'ordine finale è ColBERT × autorità. Su QUESTA formulazione la fonte normativa è
+  #    anche il miglior match lessicale, perché §5 di safeguards nomina già «modelli LLM
+  #    remoti», «dati personali» e «motivazioni» nella tabella delle categorie PII. Non
+  #    esiste contrasto da esercitare: un documento che lo vincesse su questa domanda
+  #    dovrebbe essere scritto come esca, non come contenuto.
+  #    Rimarcarlo comunque avrebbe fatto passare il caso e gonfiato la recall del
+  #    sottoinsieme — esattamente il difetto per cui il marcatore fu tolto. Resta normale.
+  #    L'ampiezza del sottoinsieme è stata restituita altrove: vedi il caso aggiunto in
+  #    fondo a questa sezione, la cui domanda esercita il contrasto DAVVERO (misurato).
   - q: "posso mandare la motivazione scritta dal dipendente a un LLM remoto"
     expected:
       - {doc: safeguards_security, section: "Privacy e Confine"}
@@ -410,3 +428,30 @@ cases:
     distractor: 03_changes_historical/fe1-canvas-review.md
     expected:
       - {doc: ui_ux_brand_directives, section: "Design Token"}
+
+  # ── distrattore: 04_knowledge_informative/inferenza_locale_o_remota.md (METHODOLOGY,
+  #    `authority: 0.40` dichiarata, quindi SOTTO il peso di classe 0.50)
+  #
+  #    AGGIUNTO IL 2026-09-04. Restituisce ampiezza al sottoinsieme, che era sceso a 4 casi
+  #    contro 2 soli distrattori (rag/AUDIT.md, A6 «cosa resta aperto»). Il documento è stato
+  #    scritto perché non ne esisteva uno: sotto peso 0.5 la baseline tracciata aveva solo
+  #    fe1-canvas-review (0.30) e graph_rag_ingestion_strategy (0.50), e nessuno dei due
+  #    nominava LLM, privacy o dati personali. È contenuto vero — la scelta fra inferenza
+  #    locale e ospitata, tema che il corpus non copriva (0 occorrenze di «Ollama»,
+  #    «inferenza», «modello locale», «on-premise» in docs/) — e dichiara di sé, come fa
+  #    graph_rag_ingestion_strategy, di non essere fonte di un vincolo.
+  #
+  #    Perché QUESTA domanda e non quella del caso qui sopra: la formulazione conta più del
+  #    tema. Misurate il 2026-09-04 sul ranking di produzione (GET /api/retrieve, k=12,
+  #    indice v20260904T151359), rango distrattore → rango atteso:
+  #      «posso mandare la motivazione scritta dal dipendente a un LLM remoto»  6 → 2  NO
+  #      «posso usare un servizio di inferenza remoto per il debug di un record reale»  1 → 2  SÌ
+  #    La seconda è una domanda che un pratico pone davvero, e la risposta vincolante è
+  #    [SAFEGUARD-SEC-04] («un record reale» = PII reale verso un endpoint esterno), non il
+  #    compromesso tecnico che il documento informativo descrive. È il contrasto che S5
+  #    misura: vocabolario della fonte informativa, vincolo nella fonte normativa.
+  - q: "posso usare un servizio di inferenza remoto per il debug di un record reale"
+    adversarial: true
+    distractor: 04_knowledge_informative/inferenza_locale_o_remota.md
+    expected:
+      - {doc: safeguards_security, section: "Privacy e Confine"}
