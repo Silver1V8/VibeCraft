@@ -1422,10 +1422,20 @@
       const descColor   = themeVar('--tooltip-desc', '#c8f5d4');
 
       /* ── Badge header ── */
-      const sBg  = status === 'success' ? '#052e16' : '#1c0a0a';
-      const sClr = status === 'success' ? '#34d399' : '#f87171';
+      /* Gli stati che /ask puo' restituire, ciascuno col proprio significato: "abstained"
+         (A16) e' la sicurezza che funziona e "graph_answer" un successo pieno — colorarli
+         di rosso col vecchio `status === 'success' ? verde : rosso` li faceva leggere come
+         guasti. Ambra = non ha risposto, ed e' corretto cosi'. */
+      const STATUS_STYLE = {
+        success:        { bg:'#052e16', fg:'#34d399', label:'success — risposta generata' },
+        graph_answer:   { bg:'#052e16', fg:'#34d399', label:'graph_answer — risposta dal grafo' },
+        abstained:      { bg:'#2a1a02', fg:'#fbbf24', label:'abstained — non ha risposto, ed e’ corretto' },
+        no_results:     { bg:'#1c1c1c', fg:'#94a3b8', label:'no_results — nulla di pertinente in indice' },
+        no_graph_nodes: { bg:'#1c1c1c', fg:'#94a3b8', label:'no_graph_nodes — trovato in Qdrant, assente nel grafo' },
+      };
+      const st = STATUS_STYLE[status] || { bg:'#1c0a0a', fg:'#f87171', label:status };
       document.getElementById('json-status-badge').innerHTML =
-        `<span style="padding:2px 9px;border-radius:20px;background:${sBg};color:${sClr};font-weight:700">${escapeHtml(status)}</span>` +
+        `<span style="padding:2px 9px;border-radius:20px;background:${st.bg};color:${st.fg};font-weight:700">${escapeHtml(st.label)}</span>` +
         (elapsed != null ? `&nbsp;<span style="color:${accent}">${elapsed}s</span>` : '');
 
       /* ── LEFT: Qdrant scores ── */

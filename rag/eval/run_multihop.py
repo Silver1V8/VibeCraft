@@ -9,7 +9,7 @@ Per ogni caso misura DUE strade sulla stessa domanda:
      dichiarano un atteso di grafo, B è solo informativa (exact_match = null).
 
 Verdetto TRIGGER per la milestone M2 (router strutturale davanti al retrieval):
-"trigger M2 scattato" se ALMENO TRIGGER_MIN casi hanno A=fallito E B=riuscito.
+`trigger_m2.fired` se ALMENO TRIGGER_MIN casi hanno A=fallito E B=riuscito.
 
 Script SEPARATO da eval/run.py (non un flag --multihop) perché è il diff minore: lo
 schema dei casi è diverso (kind/target/atteso graph vs lista di matcher), la misura è
@@ -238,8 +238,9 @@ def print_report(report: dict) -> None:
     print(f"casi: {report['n']}  |  k={report['k']}  |  recall media A = {agg['recall_media_A']:.3f}"
           f"  |  A riusciti = {agg['A_passed']}/{report['n']}"
           f"  |  B exact = {agg['B_exact']}/{agg['B_valutabili']}")
-    print(f"casi con A=fallito e B=riuscito: {trg['n_qualifying']} (soglia: {trg['minimum']})")
-    print("🔔 trigger M2 scattato" if trg["fired"] else "trigger M2 non scattato")
+    print(f"casi col gap retrieval->grafo ancora scoperto (A fallito, B riuscito): {trg['n_qualifying']}")
+    print(f"  storico: a >={trg['minimum']} scatto' il trigger M2, il router deterministico fu "
+          "implementato ed e' in servizio; qui piu' basso = meglio")
     esito = report.get("verdict")
     if esito:
         if esito["passed"]:

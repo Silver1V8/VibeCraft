@@ -791,11 +791,6 @@ fondo, non più strumento mancante.
 Resta valido il criterio di chiusura: o un clone pulito riproduce le metriche dichiarate,
 oppure il report di eval dichiara su quale corpus ha misurato.
 
-Annotato e **non** corretto: `graph_rag_ingestion_strategy.md` ha lo stesso campo `project:`
-stantìo che è stato corretto in `architecture_decision_rationale.md`. Qui il corpo del
-documento è già neutro rispetto al dominio e il campo non è fra quelli letti dal ranking
-(`classification`, `status`, `authority`, `tags`): correggerlo costerebbe un altro ciclo di
-reindicizzazione per zero effetto misurabile. Va sistemato al prossimo passaggio su quel file.
 
 ---
 ---
@@ -1184,10 +1179,12 @@ A differenza di `recall@10` sul golden-set classico, **questa metrica non è mai
   che il retrieval semantico non può vedere — ma `/ask` inietta anche le sezioni raggiunte
   **via grafo**, quindi la domanda vera è se manchi nella *risposta*, non nel retrieval. È la
   stessa distinzione di A3, e come lì nessuna metrica la guarda.
-- **Il verdetto «trigger M2» è ormai storico** e il report lo stampa ancora come se fosse in
-  corso: il trigger scattò, il router fu implementato, e da allora i casi che lo alimentavano
-  passano anche B — quindi il conteggio scende, il che *sembra* un peggioramento. Va tolto o
-  riformulato, non è più una decisione da prendere.
+- ~~**Il verdetto «trigger M2» è ormai storico** e il report lo stampa ancora come se fosse
+  in corso~~ — **chiuso il 2026-09-04.** Il residuo era metà di com'era scritto: il docstring
+  di `eval/run_multihop.py` dichiarava già il verdetto come storico, era solo la riga stampata
+  a suonare come una decisione in corso. Il numero resta (è il gap retrieval→grafo ancora
+  scoperto dal router), con l'etichetta che dice cosa significa oggi: **più basso = meglio**.
+  Il campo `trigger_m2.fired` resta nel JSON, dove nessuno lo legge come un semaforo.
 - **`recall media A = 0.896` con soglia 0.85:** margine 4,6 punti, lo stesso ordine di
   grandezza del gate single-hop.
 
