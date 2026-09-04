@@ -1081,6 +1081,14 @@ def observe_docs_git_divergence(root: Path = PROJECT_ROOT, docs_dir: Path = DOCS
     lo stesso modello di fiducia di `authority:`: chi lo scrive per nascondere una
     divergenza accidentale sta mentendo al proprio strumento, non aggirando un controllo.
 
+    PERIMETRO: solo i file con estensione in `DOC_EXTS`, cioè esattamente quelli che
+    l'indicizzazione legge (`build_index`/`plan_incremental` filtrano con lo stesso
+    criterio). Contare tutto ciò che sta sotto `docs/` gonfiava `tracked` con i 2
+    `.gitkeep` della struttura di cartelle, e il report di eval li dichiarava come
+    "16 documenti tracciati" contro i 14 realmente indicizzati (A6): un numero di
+    provenienza che non corrisponde al corpus misurato è precisamente ciò che quel campo
+    esiste per evitare.
+
     Ritorna {state, diverging, instantiated, untracked, tracked, reason}. `untracked` elenca
     i file che il corpus ha e il repository no — l'altra metà della divergenza, invisibile a
     un confronto che parte dai soli tracciati; come `diverging` non entra mai in `state`
@@ -1125,7 +1133,10 @@ def observe_docs_git_divergence(root: Path = PROJECT_ROOT, docs_dir: Path = DOCS
         meta, _, path = voce.partition("\t")
         campi = meta.split()
         if len(campi) >= 3 and campi[1] == "blob" and path:
-            attesi[path] = campi[2]
+            # Solo i file che l'indicizzazione legge davvero: un .gitkeep tracciato non è
+            # un documento del corpus e non deve comparire in nessuno dei conteggi.
+            if Path(path).suffix.lower() in DOC_EXTS:
+                attesi[path] = campi[2]
     # SECONDA classe di divergenza: file che il corpus HA e il repository NO. Il confronto
     # qui sopra parte da `ls-tree`, cioè dai soli tracciati, quindi per costruzione non li
     # vede: un corpus grande il doppio del committato produceva `diverging: []`, che si legge
@@ -1140,7 +1151,8 @@ def observe_docs_git_divergence(root: Path = PROJECT_ROOT, docs_dir: Path = DOCS
     # già in guardia per le istanziazioni. Serve a chi legge un numero di qualità per sapere
     # SU QUALE CORPUS è stato misurato.
     su_disco = {p.relative_to(root).as_posix()
-                for p in docs_dir.rglob("*") if p.is_file()} if docs_dir.is_dir() else set()
+                for p in docs_dir.rglob("*")
+                if p.is_file() and p.suffix.lower() in DOC_EXTS} if docs_dir.is_dir() else set()
     non_tracciati = sorted(su_disco - set(attesi))
 
     if not attesi:

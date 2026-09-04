@@ -372,6 +372,31 @@ def test_docs_git_rileva_i_file_non_tracciati(tmp_path, git_disponibile):
     assert r["state"] == "aligned"
 
 
+def test_docs_git_conta_solo_i_file_che_lindicizzazione_legge(tmp_path, git_disponibile):
+    """Il perimetro deve essere lo STESSO dell'indicizzazione (DOC_EXTS), altrimenti il
+    numero che il report di eval dichiara non è il corpus su cui ha misurato.
+
+    Caso reale (A6): i 2 `.gitkeep` che tengono in piedi la struttura di cartelle erano
+    contati fra i tracciati, e il report annunciava "16 documenti tracciati" contro i 14
+    davvero indicizzati."""
+    import subprocess
+    root, _ = _repo_finto(tmp_path)
+    (root / "docs" / ".gitkeep").write_text("", encoding="utf-8")
+    (root / "docs" / "diagramma.png").write_bytes(b"\x89PNG\r\n")
+    subprocess.run(["git", "-C", str(root), "add", "-f", "docs/.gitkeep"],
+                   capture_output=True, check=True)
+    subprocess.run(["git", "-C", str(root), "commit", "-qm", "struttura"],
+                   capture_output=True, check=True)
+
+    r = indexing.observe_docs_git_divergence(root=root, docs_dir=root / "docs")
+
+    # Il .gitkeep è TRACCIATO ma non è un documento: fuori dal conteggio.
+    assert r["tracked"] == 1
+    # Il .png non è tracciato ma non è nemmeno indicizzato: non è divergenza del corpus.
+    assert r["untracked"] == []
+    assert r["state"] == "aligned"
+
+
 def test_docs_git_rileva_un_file_tracciato_sparito_dal_disco(tmp_path, git_disponibile):
     root, f = _repo_finto(tmp_path)
     f.unlink()

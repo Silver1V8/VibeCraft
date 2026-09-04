@@ -66,7 +66,7 @@ I tre rischi che lo rendono "non completo":
 | A3 | Retrieval → **prompt** | MANCANTE → **CHIUSO 2026-09-03** | Il riscontro era giusto (avversariale recall@1 = 0.0%), la diagnosi che suggeriva no: **non era un problema di rango**. Indagine in fondo a questo documento. La fonte giusta entra sempre nel contesto (`source_in_top3` avversariale = 100%), ma l'autorità veniva calcolata, usata per riordinare e **buttata via al confine del prompt**: l'intestazione era `--- doc § sezione ---` e basta, così dentro la finestra il modello ri-ordinava per prosa. Misurato su `/ask`: **2 risposte su 4 attribuivano il vincolo alla fonte METHODOLOGY che lo illustra**, con la spec declassata a «conferma» | Il difetto che ADR 0002 esiste per impedire, sopravvissuto un livello più in là di dove ADR 0002 guardava — e invisibile a ogni metrica, perché il ranking era già corretto | M | **Cambiata**: non più «recall@1 avversariale sotto soglia» — resta 0.0% ed è corretto che resti. La classe dichiarata arriva nel prompt (`tests/test_ask_authority_prompt.py`) e le 4 risposte attribuiscono il vincolo alla fonte normativa |
 | A4 | Retrieval / multihop | FRAGILE → **CHIUSO 2026-09-03** | **Metà riscontro era una lettura sbagliata del report**: 4 di quei fallimenti sono la MISURA, non un difetto, e la testata del golden set lo diceva già — 11 documenti non entrano in un top-10, e le catene a tre documenti si fermano a due. È il gap che fece scattare il trigger M2. Il quinto era vero ma di altro genere: `count: 11` sull'enumerazione dei documenti, mentre il router rispondeva **23 e aveva ragione** — un'attesa-istantanea, e l'unica eccezione a una regola che il file stesso enuncia («si asseriscono relazioni, non conteggi») | Vero e più grande del riscontro: **nessun gate, nessuno storico, nessun allarme, nemmeno una riga di README**. La suite girava a mano e il suo esito viveva in un JSON che nessuno rileggeva | M | Soglia in `eval_multihop` (rag_config.yaml) sulla **recall media di A** — non sui casi riusciti, che hanno un tetto — più esattezza piena di B; storico con chiavi prefissate, alert critico sotto soglia, e la suite nel check notturno. `count` rimosso: **B passa 6/6** |
 | A5 | ~~Eval / strumento~~ | ~~FRAGILE~~ → **RITIRATO, assorbito da A6** | **Riscontro impreciso.** Avevo concluso "l'harness sottostima il ramo grafo" vedendo una risposta corretta segnata come fallita. Leggendo `eval/golden_multihop.yaml:90-96`: il caso dichiara `count: 11` — la baseline committata — e i 4 nodi attesi ci sono tutti. L'unico scarto è il conteggio (26, poi 23, contro 11). **L'harness ha ragione: sta segnalando che il corpus è divergente.** Non è un difetto della misura, è la misura che funziona | Nessuno di per sé: è A6 che parla | — | — |
-| A6 | Corpus / riproducibilità | FRAGILE | 26 `.md` su disco vs **11 tracciati** (i 13 path di `git ls-files docs` includono 2 `.gitkeep`); `observe_docs_git_divergence()` → `{state:"instantiated", diverging:[], tracked:13}`; `.gitignore:docs/*` (scelta deliberata). Fra i 15 non tracciati, tre — `glossario_entita.md`, `matrice_permessi.md`, `intent_synonym_mapping.md` — sono **gli stessi che il golden set elenca come "documenti poi rimossi"**: valgono 21 chunk su 181 (**11% del corpus**) | Oltre metà del corpus è invisibile a chi rivede il repo e alla CI; l'11% è dominio dismesso che compete in ogni retrieval; nessun numero di qualità è riproducibile fuori da questa macchina | M | Un clone pulito riproduce le metriche dichiarate, o la differenza è dichiarata ed è visibile |
+| A6 | Corpus / riproducibilità | FRAGILE → **CHIUSO (Run B)**, riga riallineata il 2026-09-04 | La riga era rimasta alla fotografia della Run A — e i suoi numeri non erano più veri: oggi `docs/` ha **23** `.md`, di cui **14 tracciati**, non «26 vs 11». La Run B aveva già chiuso il riscontro per la **seconda** strada del criterio (la prima resta impraticabile: 9 documenti — 6 output di pipeline, 3 spec locali del progetto ospitante — stanno nell'indice per ragioni legittime e non devono entrare nel repo): i distrattori dei casi avversariali portati nella baseline tracciata, `untracked` aggiunto a `observe_docs_git_divergence()`, e il corpus **dichiarato** nel report di eval accanto ai numeri e nel JSON. Indagine e chiusura in fondo al documento | Verificando la chiusura è emerso un difetto **dentro la chiusura stessa**: il rilevatore contava *tutti* i file tracciati sotto `docs/`, quindi i 2 `.gitkeep` della struttura di cartelle, e il report annunciava «16 documenti tracciati» contro i **14** realmente indicizzati. Un campo di provenienza che non corrisponde al corpus misurato è precisamente ciò che quel campo esiste per evitare — ed è la stessa trappola che la riga originale aveva già segnalato («i 13 path includono 2 `.gitkeep`») | M | Perimetro allineato a `DOC_EXTS`, cioè esattamente il filtro con cui l'indicizzazione enumera `docs/`: `tracked` e `untracked` ora contano solo file che l'indice legge. Verificato dal vivo — `misurato su: 14 documenti tracciati · +9 NON tracciati`. Test in `tests/test_index_integrity.py` con un `.gitkeep` tracciato e un `.png` non tracciato: verificato contro il codice vecchio, `tracked` valeva 2 |
 | A7 | Retrieval / ranking | FRAGILE (latente) → **CHIUSO 2026-09-03** | Confermato, e la regola giusta era **già scritta nella funzione che produce quel `None`**: `colbert_maxsim` dichiara «non giudicabile, che non è la stessa cosa di poco pertinente», e `rank_by_authority` lo sostituiva con un `-1.0` — cioè con «pochissimo pertinente» — moltiplicandolo per l'autorità. Cercando la correzione è emerso di più: i due rami si **contraddicevano**, e gli stessi chunk senza vettore uscivano in un ordine da soli e nell'ordine INVERSO appena un terzo chunk qualsiasi portava un vettore. Più una **divisione per zero** nella stessa espressione, ad α=1 con una fonte che dichiara `authority: 0.0` — α=1.0 è una coordinata della griglia del calibratore | Sotto divergenza sidecar↔Qdrant il ranking si inverte proprio sulle fonti normative, in silenzio | S | Due insiemi invece di due rami: nessun punteggio finto, i non giudicabili in coda ordinati per fusione÷autorità. Copertura **160/160** oggi, quindi resta latente e il percorso di produzione non cambia di una posizione — c'è un test che lo fissa. Le attese sono state verificate una per una contro la regola vecchia: la prima che avevo scritto **passava anche col difetto** |
 | A8 | Test / copertura | MANCANTE → **PREMESSA RITIRATA, sostanza CHIUSA 2026-09-03** | **L'inferenza era rovesciata.** «0 skip con Qdrant attivo ⇒ nessun test tocca un Qdrant reale»: con il servizio ATTIVO un test d'integrazione *gira*, non salta — 0 skip è esattamente ciò che ci si aspetta quando funziona. Misurato oggi in entrambe le direzioni: Qdrant spento → **5 skip espliciti col motivo**, Qdrant acceso → **36 passed**. I 3 test contro Qdrant vero esistono dal **2026-07-17/18** (`cc39609`, `47d4e35`), ben prima della Run A, e soddisfacevano già il criterio di chiusura di questa riga. Anche il commento in `ci.yml` era già stato corretto in L3 | **Ma la sostanza teneva in parte**: dei quattro rischi elencati, solo l'alias swap era davvero verificato contro il servizio reale. La **delete-by-filter** — che in produzione gira contro l'ALIAS ed è il percorso caldo dell'incrementale — non lo era: i fake registrano solo *quale* nome ricevono e ignorano del tutto il `points_selector`. Se Qdrant non risolvesse l'alias su una delete, l'incrementale lascerebbe i chunk vecchi **in silenzio** | M | 2 test d'integrazione nuovi: `_delete_doc_chunks` (la funzione di produzione) invocata sull'alias deve togliere ESATTAMENTE i punti del documento indicato e lasciare gli altri; e `delete_collection` deve invalidare gli alias che la puntavano — assunzione su cui poggia il GC, finora scritta solo in un commento del fake. Verificata anche la portanza: la stessa delete verso un nome inesistente **solleva**, quindi il test non passa per caso |
 | A9 | CI / qualità | MANCANTE → **CHIUSO 2026-09-03** | `ruff` aggiunto come dev dependency, con selezione **esplicita** (`E4/E7/E9/F`) invece del default del tool: il default di ruff 0.16 include famiglie di stile discrezionale (SIM, PIE, YTT, ...) e sul codebase mai linterato produceva **380** riscontri, quasi tutti preferenze di scrittura; la selezione scelta ne produceva **42**, tutti segnali reali (import morti, variabili inutilizzate, nomi ambigui come `l`, import fuori ordine non deliberato) | Su 37.5k righe, regressioni di stile e di correttezza passavano senza essere viste; mypy/coverage restano fuori scope (non richiesti dal criterio di chiusura, e mypy a freddo su un codebase mai tipizzato è un lavoro di tutt'altra scala) | S | Tutti e 42 i riscontri corretti (non silenziati): 5 import inutilizzati rimossi, 1 variabile morta rimossa (`api/routes_retrieval.py`, verificato che non gatava nulla — `search_code_symbols` si autoguarda già), 5 f-string senza placeholder, 11 nomi ambigui `l`→`line`/nome specifico, 4 lambda assegnati→`def`, 1 doppio `;`, 2 `E402` genuini riordinati (`code_index/docker.py`, `core/retrieval.py`), 2 `E402` **deliberati** (encoding UTF-8 prima degli import applicativi) dichiarati in `per-file-ignores` con la ragione, non silenziati a caso. Gate in `scripts/ci.sh`/`ci.ps1` (gemelli, verificati entrambi) prima della suite; verificato in entrambe le direzioni: una violazione introdotta apposta fa fallire il gate con `exit 1` prima che pytest parta, il codebase pulito passa. 1289 test invariati |
@@ -155,6 +155,14 @@ l'indice CUDA ha un marcatore che trascrive l'elenco di wheel del lock, e **macO
 Silicon sincronizza**; macOS Intel e Windows ARM restano impossibili perché PyTorch quelle
 wheel non le pubblica affatto — limite a monte, dichiarato in README invece che subìto.
 Indagine in fondo al documento.
+
+**A6, riga riallineata il 2026-09-04**: era l'ultima ancora etichettata `FRAGILE` mentre la
+Run B l'aveva chiusa, con tanto di sezione «A6 — chiuso» in fondo al documento. Ma
+verificare invece di riscrivere l'etichetta ha trovato un difetto **dentro la chiusura**:
+`observe_docs_git_divergence()` contava tutti i file tracciati sotto `docs/`, `.gitkeep`
+compresi, e il report di eval dichiarava «16 documenti tracciati» contro i **14** davvero
+indicizzati — la stessa trappola che la riga originale aveva già segnalato. Perimetro ora
+allineato a `DOC_EXTS`. Indagine in fondo al documento.
 
 ---
 
@@ -1638,3 +1646,68 @@ pubblicasse wheel macOS, il messaggio è che il marcatore può essere allargato.
 - **Immagine Docker ricostruita per sicurezza**, perché il re-lock tocca il file da cui il
   target `cpu` deriva la sua lista di esclusioni CUDA: 129 pacchetti, venv 2,2 GB,
   `torch 2.13.0+cpu`, `cuda? False` — identica a quella di prima del cambio.
+
+---
+
+# A6 — verificare la chiusura invece di riscrivere l'etichetta
+
+*Riallineamento del 2026-09-04.*
+
+Era l'ultima riga ancora etichettata `FRAGILE`, mentre il paragrafo di sintesi e una
+sezione intera in fondo a questo documento («A6 — chiuso») la davano chiusa in Run B. La
+strada comoda era correggere l'etichetta. Rileggere invece **cosa** quella chiusura aveva
+prodotto ha trovato un difetto dentro la chiusura stessa.
+
+## I numeri della riga non erano più veri
+
+«26 `.md` su disco vs 11 tracciati». Oggi: **23 su disco, 14 tracciati**, 9 non tracciati —
+6 output della pipeline (`change_log.md`, cinque `*-canvas-review.md`) e 3 spec locali del
+progetto ospitante. Sono gli stessi 9 che la chiusura di Run B descrive: stanno nell'indice
+per ragioni legittime e non devono entrare nel repository. La prima strada del criterio (un
+clone pulito riproduce le metriche) resta quindi impraticabile per costruzione, ed è la
+seconda ad essere stata percorsa: **dichiarare** il corpus accanto ai numeri.
+
+## Il difetto: il numero dichiarato non era il corpus misurato
+
+`observe_docs_git_divergence()` costruiva i suoi insiemi da *tutti* i file sotto `docs/` —
+`git ls-tree` per i tracciati, `rglob("*")` per il disco. L'indicizzazione, invece, enumera
+filtrando su `DOC_EXTS` (`build_index` e `plan_incremental`, stesso criterio in entrambe).
+
+Due perimetri diversi per la stessa cosa, e la differenza finiva **in evidenza sul report**:
+
+```
+prima:  misurato su: 16 documenti tracciati · +9 NON tracciati …
+dopo:   misurato su: 14 documenti tracciati · +9 NON tracciati …
+```
+
+I due di troppo sono i `.gitkeep` che tengono in piedi la struttura delle cartelle. Non
+sono documenti, l'indice non li legge mai, e il campo `corpus` esiste **esattamente** per
+dire su quale corpus un numero di qualità è stato misurato: dichiararne 16 quando erano 14
+è il difetto che quel campo doveva prevenire.
+
+Ed è una trappola già vista: la riga originale di A6, un mese fa, annotava per conto suo
+che «i 13 path di `git ls-files docs` includono 2 `.gitkeep`». L'audit l'aveva notata; la
+correzione ci è caduta dentro.
+
+Il perimetro è ora `DOC_EXTS` su entrambi i lati. `untracked` ne guadagna anche in
+precisione: un `.png` lasciato in `docs/` non è divergenza del corpus, perché nessun
+retrieval lo vedrà mai.
+
+**Verificato dal vivo**, non solo a unit test: `python -m eval.run --no-save` contro il
+server reale stampa `misurato su: 14 documenti tracciati · +9 NON tracciati`, con
+`recall@2 = 0.873` (PASS). Il test nuovo — un `.gitkeep` tracciato più un `.png` non
+tracciato — è stato verificato contro il codice vecchio: `tracked` valeva 2.
+
+## Cosa resta aperto, e non è un difetto di codice
+
+Il **sottoinsieme avversariale è a 4 casi con 2 soli distrattori**. Non è una regressione:
+è il residuo dichiarato dalla chiusura di Run B, quando il caso 4 perse il marcatore
+`adversarial` perché il suo distrattore progettato (`intent_synonym_mapping.md`, peso 0.50)
+era stato rimosso col dominio dismesso, e sulla baseline tracciata **non esiste** un
+sostituto a bassa autorità che parli di LLM e dati personali. Restituirgli ampiezza è una
+decisione sul **corpus** — servirebbe un documento informativo nuovo — non un intervento
+sul golden set né sul codice. Resta annotato nel golden set stesso.
+
+Vale la pena rileggerlo accanto ad A3: il `recall@1` avversariale **0.0%** che si legge
+ancora nel report non è un difetto da chiudere, è la misura che fa il suo lavoro su un
+contrasto che il corpus attuale rende stretto.
