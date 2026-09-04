@@ -587,10 +587,18 @@ pwsh -File scripts/ci.ps1
 
 Qdrant e Ollama possono restare spenti: la suite li mocka ovunque (httpx2.MockTransport,
 attributi di `core.llm` monkeypatchati, `fastapi.testclient.TestClient` in-process). I
-soli 3 test che parlano con un Qdrant reale
+soli 5 test che parlano con un Qdrant reale
 ([tests/test_qdrant_blue_green.py](tests/test_qdrant_blue_green.py), sezione
 "OPZIONALE / SKIPPABLE") si auto-saltano con `pytest.skip` quando la connessione
 fallisce — non richiedono Docker per il verde.
+
+**Quei cinque valgono un `docker compose up -d qdrant` prima di toccare il
+blue/green**: sono l'unico posto dove le assunzioni sulla semantica di Qdrant
+(atomicità del batch di alias, risoluzione dell'alias nelle point-operation —
+`upsert` *e* `delete`-by-filter —, invalidazione degli alias alla cancellazione
+della collection) vengono verificate contro il servizio vero invece che contro
+`AliasAwareFakeQdrant`, che quelle stesse assunzioni le replica. Un fake e il
+codice che verifica possono sbagliare insieme; il servizio reale no.
 
 Il remote effettivo del repo determina la config della pipeline: su GitHub è
 [.github/workflows/ci.yml](../.github/workflows/ci.yml) (job `test` che chiama

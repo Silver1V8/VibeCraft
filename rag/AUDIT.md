@@ -68,7 +68,7 @@ I tre rischi che lo rendono "non completo":
 | A5 | ~~Eval / strumento~~ | ~~FRAGILE~~ → **RITIRATO, assorbito da A6** | **Riscontro impreciso.** Avevo concluso "l'harness sottostima il ramo grafo" vedendo una risposta corretta segnata come fallita. Leggendo `eval/golden_multihop.yaml:90-96`: il caso dichiara `count: 11` — la baseline committata — e i 4 nodi attesi ci sono tutti. L'unico scarto è il conteggio (26, poi 23, contro 11). **L'harness ha ragione: sta segnalando che il corpus è divergente.** Non è un difetto della misura, è la misura che funziona | Nessuno di per sé: è A6 che parla | — | — |
 | A6 | Corpus / riproducibilità | FRAGILE | 26 `.md` su disco vs **11 tracciati** (i 13 path di `git ls-files docs` includono 2 `.gitkeep`); `observe_docs_git_divergence()` → `{state:"instantiated", diverging:[], tracked:13}`; `.gitignore:docs/*` (scelta deliberata). Fra i 15 non tracciati, tre — `glossario_entita.md`, `matrice_permessi.md`, `intent_synonym_mapping.md` — sono **gli stessi che il golden set elenca come "documenti poi rimossi"**: valgono 21 chunk su 181 (**11% del corpus**) | Oltre metà del corpus è invisibile a chi rivede il repo e alla CI; l'11% è dominio dismesso che compete in ogni retrieval; nessun numero di qualità è riproducibile fuori da questa macchina | M | Un clone pulito riproduce le metriche dichiarate, o la differenza è dichiarata ed è visibile |
 | A7 | Retrieval / ranking | FRAGILE (latente) → **CHIUSO 2026-09-03** | Confermato, e la regola giusta era **già scritta nella funzione che produce quel `None`**: `colbert_maxsim` dichiara «non giudicabile, che non è la stessa cosa di poco pertinente», e `rank_by_authority` lo sostituiva con un `-1.0` — cioè con «pochissimo pertinente» — moltiplicandolo per l'autorità. Cercando la correzione è emerso di più: i due rami si **contraddicevano**, e gli stessi chunk senza vettore uscivano in un ordine da soli e nell'ordine INVERSO appena un terzo chunk qualsiasi portava un vettore. Più una **divisione per zero** nella stessa espressione, ad α=1 con una fonte che dichiara `authority: 0.0` — α=1.0 è una coordinata della griglia del calibratore | Sotto divergenza sidecar↔Qdrant il ranking si inverte proprio sulle fonti normative, in silenzio | S | Due insiemi invece di due rami: nessun punteggio finto, i non giudicabili in coda ordinati per fusione÷autorità. Copertura **160/160** oggi, quindi resta latente e il percorso di produzione non cambia di una posizione — c'è un test che lo fissa. Le attese sono state verificate una per una contro la regola vecchia: la prima che avevo scritto **passava anche col difetto** |
-| A8 | Test / copertura | MANCANTE | 1253 test, **0 skip** con Qdrant attivo ⇒ nessun test tocca un Qdrant reale; `tests/test_qdrant_blue_green.py:42-131` usa `_FakeQdrant`. Il commento in `.github/workflows/ci.yml` ("i test che toccano un Qdrant reale si auto-saltano") è **superato** | Alias swap, delete-by-filter, GC e rollback sono validati solo contro un finto scritto dallo stesso autore: un disallineamento con la semantica reale di Qdrant non è rilevabile | M | Almeno un test di integrazione contro Qdrant vero, saltato in modo esplicito quando assente |
+| A8 | Test / copertura | MANCANTE → **PREMESSA RITIRATA, sostanza CHIUSA 2026-09-03** | **L'inferenza era rovesciata.** «0 skip con Qdrant attivo ⇒ nessun test tocca un Qdrant reale»: con il servizio ATTIVO un test d'integrazione *gira*, non salta — 0 skip è esattamente ciò che ci si aspetta quando funziona. Misurato oggi in entrambe le direzioni: Qdrant spento → **5 skip espliciti col motivo**, Qdrant acceso → **36 passed**. I 3 test contro Qdrant vero esistono dal **2026-07-17/18** (`cc39609`, `47d4e35`), ben prima della Run A, e soddisfacevano già il criterio di chiusura di questa riga. Anche il commento in `ci.yml` era già stato corretto in L3 | **Ma la sostanza teneva in parte**: dei quattro rischi elencati, solo l'alias swap era davvero verificato contro il servizio reale. La **delete-by-filter** — che in produzione gira contro l'ALIAS ed è il percorso caldo dell'incrementale — non lo era: i fake registrano solo *quale* nome ricevono e ignorano del tutto il `points_selector`. Se Qdrant non risolvesse l'alias su una delete, l'incrementale lascerebbe i chunk vecchi **in silenzio** | M | 2 test d'integrazione nuovi: `_delete_doc_chunks` (la funzione di produzione) invocata sull'alias deve togliere ESATTAMENTE i punti del documento indicato e lasciare gli altri; e `delete_collection` deve invalidare gli alias che la puntavano — assunzione su cui poggia il GC, finora scritta solo in un commento del fake. Verificata anche la portanza: la stessa delete verso un nome inesistente **solleva**, quindi il test non passa per caso |
 | A9 | CI / qualità | MANCANTE → **CHIUSO 2026-09-03** | `ruff` aggiunto come dev dependency, con selezione **esplicita** (`E4/E7/E9/F`) invece del default del tool: il default di ruff 0.16 include famiglie di stile discrezionale (SIM, PIE, YTT, ...) e sul codebase mai linterato produceva **380** riscontri, quasi tutti preferenze di scrittura; la selezione scelta ne produceva **42**, tutti segnali reali (import morti, variabili inutilizzate, nomi ambigui come `l`, import fuori ordine non deliberato) | Su 37.5k righe, regressioni di stile e di correttezza passavano senza essere viste; mypy/coverage restano fuori scope (non richiesti dal criterio di chiusura, e mypy a freddo su un codebase mai tipizzato è un lavoro di tutt'altra scala) | S | Tutti e 42 i riscontri corretti (non silenziati): 5 import inutilizzati rimossi, 1 variabile morta rimossa (`api/routes_retrieval.py`, verificato che non gatava nulla — `search_code_symbols` si autoguarda già), 5 f-string senza placeholder, 11 nomi ambigui `l`→`line`/nome specifico, 4 lambda assegnati→`def`, 1 doppio `;`, 2 `E402` genuini riordinati (`code_index/docker.py`, `core/retrieval.py`), 2 `E402` **deliberati** (encoding UTF-8 prima degli import applicativi) dichiarati in `per-file-ignores` con la ragione, non silenziati a caso. Gate in `scripts/ci.sh`/`ci.ps1` (gemelli, verificati entrambi) prima della suite; verificato in entrambe le direzioni: una violazione introdotta apposta fa fallire il gate con `exit 1` prima che pytest parta, il codebase pulito passa. 1289 test invariati |
 | A10 | ~~Sicurezza / doc~~ | ~~FRAGILE~~ → **RITIRATO** | **Riscontro sbagliato.** Lo scarto di 19 giorni fra i commit era un indizio, non una prova, e l'ho riportato come sospetto: la riconciliazione riga-per-riga (B5, eseguita) dice che il documento è **allineato**. Le 57 route del codice sono tutte in tabella — `GET /` è la riga 1 (`SECURITY_SURFACE.md:118`) — e le 7 che sembravano "documentate ma assenti" sono le auto-route di FastAPI (`/docs`, `/redoc`, `/openapi.json`, `/docs/oauth2-redirect`) e il mount statico, che il documento conta esplicitamente a `:33`. Il mio grep sui decoratori `@router` non poteva vederle: il documento era più completo del mio strumento | Nessuno | — | — |
 | A11 | Prestazioni | FRAGILE | `/ask` misurato: 96.4 s a freddo, 28.6 s a caldo (`top_k=50`). Nessuno streaming, nessun budget di latenza esposto | Un'attesa di 30 s senza feedback è indistinguibile da un blocco | M | Latenza p95 misurata e dichiarata, o feedback incrementale |
@@ -130,6 +130,13 @@ discrezionale su un codebase mai linterato — selezionata esplicitamente una so
 correttezza (42 riscontri, tutti reali e tutti corretti), non il default del tool. Gate
 verificato in entrambe le direzioni: una violazione deliberata blocca `scripts/ci.sh` e
 `ci.ps1` con `exit 1` prima della suite.
+
+**A8, premessa ritirata il 2026-09-03**: «0 skip con Qdrant attivo ⇒ nessun test tocca un
+Qdrant reale» è un'inferenza rovesciata — con il servizio acceso quei test *girano*. I 3
+test d'integrazione esistevano dal 2026-07-17, sei settimane prima della Run A. Ma sotto
+c'era comunque un buco vero: la **delete-by-filter attraverso l'alias**, percorso caldo
+dell'incrementale, non era verificata da nessuna parte. Ora sì. Indagine in fondo al
+documento.
 
 ---
 
@@ -1348,3 +1355,90 @@ riscritto da assert-sul-log a `pytest.raises`), il test di warning esistente spo
 - **Nessun test esercita la soglia di certezza con un LLM reale** (solo con provider
   finti): il comportamento di Ollama davanti a un prompt che la supera resta osservato,
   non provato in CI.
+
+---
+---
+
+# A8 — l'inferenza era rovesciata, ma sotto c'era comunque un buco
+
+**Domanda:** nessun test tocca un Qdrant reale. Vero?
+
+## No, e la prova era nella riga stessa
+
+Il ragionamento di Run A: *«1253 test, 0 skip con Qdrant attivo ⇒ nessun test tocca un
+Qdrant reale»*. È rovesciato. Con il servizio **attivo** un test d'integrazione **gira**;
+salta quando il servizio **manca**. Zero skip a Qdrant acceso è esattamente ciò che si
+osserva quando quei test funzionano. Per concludere qualcosa servivano l'altra misura —
+Qdrant spento — e quella non era stata fatta.
+
+Misurate oggi entrambe:
+
+```
+Qdrant spento  →  31 passed, 5 skipped   ("Qdrant non raggiungibile su http://127.0.0.1:6333")
+Qdrant acceso  →  36 passed
+```
+
+E i test non erano nuovi: la sezione «OPZIONALE / SKIPPABLE» con `_real_qdrant_client_or_skip()`
+esiste dal **2026-07-17/18** (`cc39609`, `47d4e35`), sei settimane prima della Run A. Il
+criterio di chiusura che questa riga proponeva — *«almeno un test di integrazione contro
+Qdrant vero, saltato in modo esplicito quando assente»* — era **già soddisfatto quando la
+riga è stata scritta**.
+
+Come è successo: la riga cita `tests/test_qdrant_blue_green.py:42-131`, cioè la definizione
+di `AliasAwareFakeQdrant`. Quella parte del file è davvero tutta fake. La sezione
+d'integrazione sta a `:428-586`, oltre quattrocento righe più in basso.
+
+*(Nota di metodo: anch'io stavo per sbagliare al contrario. La prima esecuzione mi ha dato
+5 skip con «Qdrant non raggiungibile» mentre credevo il servizio acceso, e la lettura
+comoda era «il helper di skip ha un falso negativo». Non era così: il container giusto si
+era davvero fermato. Misurare due volte prima di accusare il codice.)*
+
+## Ma la sostanza teneva, su un punto preciso
+
+La riga elencava quattro cose validate solo contro il fake: **alias swap, delete-by-filter,
+GC, rollback**. Verificando una per una, solo la prima era davvero coperta dal servizio
+reale. La seconda no — ed è la peggiore da sbagliare:
+
+`_delete_doc_chunks` esegue una delete-by-filter (`MatchAny` su `payload.doc_id`) contro
+**l'ALIAS**, non contro la collection fisica: è così che l'indicizzazione incrementale
+ripulisce i chunk dei documenti modificati o cancellati. Due assunzioni, nessuna provata:
+
+1. che Qdrant risolva l'alias anche per una point-operation di **cancellazione** (non solo
+   per `upsert`/`count`, gli unici che il fake modella);
+2. che il filtro tolga **esattamente** i punti giusti.
+
+I test esistenti su `_delete_doc_chunks` asserivano solo *quale nome di collection* fosse
+stato passato: il fake ha un `delete` che registra il nome e **ignora il `points_selector`**.
+Se la prima assunzione fosse falsa, l'incrementale lascerebbe indietro i chunk vecchi senza
+che nulla fallisca — l'indice resta servibile e mente.
+
+Non coperta nemmeno la seconda assunzione del GC: *«cancellare una collection invalida gli
+alias che la puntavano»*, replicata dal fake e scritta solo in un commento.
+
+## Cosa ho aggiunto
+
+Due test nella stessa sezione, stesse convenzioni (nomi throwaway, mai `COLLECTION_NAME`,
+pulizia sempre nel `finally`, skip esplicito se il servizio manca):
+
+- **delete-by-filter attraverso l'alias**, che chiama la funzione di **produzione**
+  (`index._delete_doc_chunks`) e non una sua imitazione: tre punti, due documenti, dopo la
+  cancellazione ne deve restare **uno solo** e deve essere quello giusto. Un test che
+  guardasse solo «il conteggio è sceso» passerebbe anche se cancellasse tutto.
+- **`delete_collection` invalida i suoi alias**: dopo la cancellazione,
+  `_read_alias_target` deve tornare `None`, non un alias appeso a una collection che non
+  esiste più.
+
+**Verificata la portanza**, perché un test che passa non prova ancora nulla: la stessa
+delete verso un nome inesistente **solleva** (`UnexpectedResponse`), quindi il verde del
+test dipende davvero dalla risoluzione dell'alias e non da un no-op silenzioso.
+
+## Cosa resta aperto
+
+- **In CI quei cinque test non girano mai.** Il job non avvia Qdrant, quindi lì saltano
+  sempre: la semantica reale è verificata solo da chi ha Docker acceso in locale. Chiuderlo
+  davvero vorrebbe dire un servizio Qdrant nel workflow (`services:` o un `docker compose up`
+  nel job) — non fatto qui, ed è il motivo per cui la riga resta annotata invece che chiusa
+  del tutto. Dichiarato nel commento di `ci.yml`, dove prima si leggeva il contrario.
+- **`rollback` e `GC`** restano validati contro il fake per la parte di *logica locale*
+  (puntatore `CURRENT`, insieme dei riferimenti dai manifest): lì non c'è semantica di
+  Qdrant da falsificare, se non la `delete_collection` ora coperta.

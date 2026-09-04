@@ -18,10 +18,14 @@ jobs:
           version: "0.11.28"
           python-version: "3.14"
 
-      # Nessun servizio esterno: Qdrant e Ollama restano spenti, e la suite non ne ha
-      # bisogno — i test del blue/green usano _FakeQdrant, non una connessione reale
-      # (verificato: 0 skip anche con un Qdrant attivo). Il rovescio e' che nessun test
-      # esercita un Qdrant vero: e' annotato come A8 in rag/AUDIT.md.
+      # Nessun servizio esterno: Qdrant e Ollama restano spenti e la suite resta verde.
+      # La gran parte dei test del blue/green gira su _FakeQdrant (in-memory), ma CINQUE
+      # sono di integrazione contro un Qdrant VERO e qui si auto-saltano in modo esplicito
+      # (pytest.skip col motivo, sezione "OPZIONALE / SKIPPABLE" di
+      # tests/test_qdrant_blue_green.py): verificato in entrambe le direzioni — Qdrant
+      # spento 31 passed / 5 skipped, Qdrant attivo 36 passed. Il rovescio e' che quei
+      # cinque, in CI, non vengono MAI esercitati: la semantica reale di Qdrant resta
+      # verificata solo in locale, ed e' cio' che resta aperto di A8 in rag/AUDIT.md.
       #
       # scripts/ci.sh gira anche ruff (selezione esplicita in pyproject.toml, A9)
       # prima della suite: lint e test nello stesso gate, stesso comando in locale.

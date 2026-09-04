@@ -581,6 +581,100 @@ def test_real_qdrant_rejects_create_collection_on_an_alias_name(monkeypatch):
         except Exception:
             pass
         client.close()
+
+
+def test_real_qdrant_delete_by_filter_resolves_the_alias():
+    """Integrazione opzionale: la delete-by-filter di `_delete_doc_chunks` gira in
+    produzione contro l'ALIAS (COLLECTION_NAME), non contro la collection fisica —
+    e' il percorso caldo dell'indicizzazione incrementale, che cosi' ripulisce i
+    chunk dei documenti modificati o cancellati.
+
+    Nessun test lo verificava davvero (A8): i fake registrano solo QUALE nome di
+    collection e' stato passato e ignorano del tutto il `points_selector`, quindi
+    due assunzioni restavano senza prova — che Qdrant risolva l'alias anche per una
+    point-operation di cancellazione, e che il filtro MatchAny su `payload.doc_id`
+    tolga ESATTAMENTE i punti giusti. Se la prima fosse falsa l'incrementale
+    lascerebbe indietro i chunk vecchi in silenzio, che e' il modo peggiore di
+    sbagliare: l'indice resta servibile e mente.
+
+    Qui si chiama la funzione di PRODUZIONE, non una sua imitazione. Nomi throwaway
+    dedicati, MAI COLLECTION_NAME."""
+    client = _real_qdrant_client_or_skip()
+    from qdrant_client.models import Distance, VectorParams
+
+    alias = "_test_blue_green_delete_alias"
+    physical = "_test_blue_green_delete_physical"
+    try:
+        try:
+            client.delete_collection(physical)  # idempotenza: run precedente interrotto
+        except Exception:
+            pass
+        client.create_collection(
+            collection_name=physical,
+            vectors_config=VectorParams(size=4, distance=Distance.COSINE),
+        )
+        index._swap_alias(client, alias, physical)
+
+        # Tre punti di due documenti diversi: la cancellazione deve prenderne due e
+        # lasciare il terzo — un delete-by-filter che cancella tutto passerebbe un
+        # test che guardasse solo "il conteggio e' sceso".
+        client.upsert(collection_name=physical, points=[
+            {"id": 1, "vector": [0.1, 0.2, 0.3, 0.4], "payload": {"doc_id": "a.md"}},
+            {"id": 2, "vector": [0.2, 0.3, 0.4, 0.5], "payload": {"doc_id": "a.md"}},
+            {"id": 3, "vector": [0.3, 0.4, 0.5, 0.6], "payload": {"doc_id": "b.md"}},
+        ])
+        assert client.count(collection_name=physical, exact=True).count == 3
+
+        # La funzione di produzione, invocata sull'ALIAS come fa incremental_index.
+        index._delete_doc_chunks(client, ["a.md"], collection_name=alias)
+
+        assert client.count(collection_name=physical, exact=True).count == 1, \
+            "delete-by-filter attraverso l'alias: deve restare il solo punto di b.md"
+        superstiti = client.scroll(collection_name=physical, limit=10)[0]
+        assert [p.payload["doc_id"] for p in superstiti] == ["b.md"]
+    finally:
+        try:
+            client.delete_collection(physical)
+        except Exception:
+            pass
+        client.close()
+
+
+def test_real_qdrant_delete_collection_invalidates_its_aliases():
+    """Integrazione opzionale: cancellare una collection fisica rimuove anche gli
+    alias che la puntavano. E' un'assunzione su cui poggia il GC delle collection
+    orfane (e la pulizia di questi stessi test), replicata dal fake — ma finora
+    scritta solo in un commento, mai verificata contro Qdrant.
+
+    Se fosse falsa, dopo un GC resterebbe un alias appeso a una collection
+    inesistente: ogni richiesta successiva fallirebbe su un nome che *sembra*
+    ancora valido. Nomi throwaway dedicati, MAI COLLECTION_NAME."""
+    client = _real_qdrant_client_or_skip()
+    from qdrant_client.models import Distance, VectorParams
+
+    alias = "_test_blue_green_dangling_alias"
+    physical = "_test_blue_green_dangling_physical"
+    try:
+        try:
+            client.delete_collection(physical)
+        except Exception:
+            pass
+        client.create_collection(
+            collection_name=physical,
+            vectors_config=VectorParams(size=4, distance=Distance.COSINE),
+        )
+        index._swap_alias(client, alias, physical)
+        assert index._read_alias_target(client, alias) == physical
+
+        client.delete_collection(physical)
+
+        assert index._read_alias_target(client, alias) is None, \
+            "l'alias deve sparire con la collection che puntava, non restare appeso"
+    finally:
+        try:
+            client.delete_collection(physical)
+        except Exception:
+            pass
         client.close()
 
 
