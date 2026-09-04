@@ -16,9 +16,9 @@ dichiara aperti, li tria fra risolvibili e non, e li ordina in sessioni di lavor
 | | |
 |---|---|
 | Righe dell'audit | 19 — 15 chiuse, 3 ritirate, 1 con premessa ritirata e sostanza chiusa |
-| Residui dichiarati | **22** (+2 emersi dai run CI reali: R15 e R16) |
+| Residui dichiarati | **22** (+3 emersi eseguendo: R15 e R16 dai run CI reali, R17 da S4) |
 | Di cui già chiusi da altri interventi (riga stantia) | 2 |
-| Risolvibili con lavoro tecnico | 14 — **7 chiusi** (R1, R2, R3, R4, N5, N6 + gli altri annotati in linea) |
+| Risolvibili con lavoro tecnico | 14 — **9 chiusi** (R1, R2, R3, R4, R5, R6, N5, N6 + gli altri annotati in linea) |
 | Che richiedono una decisione, non del codice | 5 (+R16: proteggere il ramo) |
 | Non risolvibili (dati persi, hardware assente) | 1 |
 
@@ -172,16 +172,43 @@ ma sorveglia lo stato del RAG, non quello della CI.
 *Verificato: `1044513` non ha un run proprio — i due commit sono arrivati in un unico push,
 quindi #129 è il primo run che contiene S2. Coerente con la diagnosi, non una coincidenza.*
 
-**R5 — Il report multihop stampa «trigger M2 scattato» come se fosse una decisione in corso.**
-`eval/run_multihop.py:242`. Il docstring del file è già stato corretto («resta un VERDETTO
-storico, non un gate») ma la riga stampata no: il conteggio scende man mano che il router
-funziona, e questo *sembra* un peggioramento. *Verificato: il docstring dice una cosa, il
-`print` un'altra.*
+**R5 — Il report multihop stampa «trigger M2 scattato» come se fosse una decisione in corso
+→ CHIUSO 2026-09-04.** `eval/run_multihop.py`. Il residuo era **metà** di com'era scritto, come
+la nota di §3 aveva anticipato: il docstring dichiarava già il verdetto storico, era solo la
+riga stampata a suonare come una decisione in corso. Il numero resta — è il gap
+retrieval→grafo ancora scoperto dal router — con l'etichetta che dice cosa significa oggi:
 
-**R6 — La dashboard colora come errore tutto ciò che non è `success`.**
-`templates/dashboard.unified.html:1425` — `status === 'success' ? verde : rosso`. Quindi
-`abstained` (che è la funzione di sicurezza che funziona) e `graph_answer` (che è un successo
-pieno) si vedono entrambi come guasti. *Verificato.*
+```
+casi col gap retrieval->grafo ancora scoperto (A fallito, B riuscito): 1
+  storico: a >=3 scatto' il trigger M2, il router deterministico fu implementato ed e' in
+  servizio; qui piu' basso = meglio
+```
+
+`trigger_m2.fired` resta nel JSON, dove nessuno lo legge come un semaforo. *Verificato
+eseguendo la suite col server acceso: PASS, recall media A 0.896, B 6/6.*
+
+**R6 — La dashboard colora come errore tutto ciò che non è `success` → CHIUSO 2026-09-04.**
+`templates/dashboard.unified.html`. Il ternario `status === 'success' ? verde : rosso` è ora
+una mappa dei cinque stati che `/ask` restituisce, con tre toni invece di due: verde per
+`success` e `graph_answer`, **ambra** per `abstained` («non ha risposto, ed è corretto così»),
+neutro per `no_results` e `no_graph_nodes`, rosso solo per l'ignoto. *Verificato nel browser:
+domanda strutturale → `graph_answer` verde, domanda fuori corpus → `abstained` ambra.*
+
+**La correzione ha tirato fuori altro, ed è la parte che vale.** Il badge era l'unico punto
+che si guardava; sistemandolo sono emersi tre difetti dello stesso genere — un colore che non
+segue il tema — che nessuno aveva mai visto perché erano **coerentemente** sbagliati:
+
+- il tema Classico **non è chiaro** (`--bg-canvas:#0f172a`): il badge non era illeggibile,
+  era fuori palette. Detto male da me nella prima diagnosi, corretto misurando;
+- `renderJsonPanel` legge i token con `themeVar()` e li **cuoce nell'HTML**, quindi al cambio
+  di tema tutto il pannello restava con la palette vecchia fino alla query successiva. Col
+  badge corretto la cosa diventava visibile (pillola ambra sopra chip ancora verdi). Il
+  ridisegno è agganciato all'hook `onThemeChange` che già esisteva per il grafo;
+- i **punteggi Qdrant** sono resi in due card, e nessuna delle due seguiva il tema fino in
+  fondo: nel pannello JSON valore e fine del gradiente erano hex cotti nel JS; nella card
+  della sidebar il valore era `text-emerald-400` e la barra `from-blue-600 to-emerald-500`.
+  Ora entrambe usano i token `--score-*` (che perdono il prefisso `json-`: non sono più solo
+  del pannello JSON). Da qui il residuo nuovo **R17**.
 
 **R7 — `change_log.md` è contaminato dal dominio dismesso e rimanda a un file inesistente.**
 `project: "VibeCraft — Sistema di Gestione Eventi Aziendali"` e un riferimento a
@@ -214,6 +241,19 @@ i k in ogni riga.
 
 **R13 — `recall@2` è a 0.873 con soglia 0.75: margine 12 punti.** Il giorno in cui saturasse
 non resta un k più basso — andrà **esteso il golden set** con casi che il sistema sbaglia.
+
+**R17 — Metà della tavolozza dei template non è agganciata al tema.** *(Nuovo, 2026-09-04,
+emerso da R6.)* In `tailwind.config` (dashboard) solo `brand`, `slate`, `blue` e `purple`
+sono mappati sulle CSS vars: `emerald`, `amber` e `red` no, quindi ogni `text-emerald-400`,
+`bg-amber-400`, `text-red-400` è un colore fisso identico nei due temi. Misurato: **39
+occorrenze** fra `dashboard.unified.html`, `pipeline.unified.html` e
+`infografica.unified.html` — fra queste il badge del tempo di elaborazione, i tre pallini di
+`setStatus` (idle/loading/success/error) e il testo d'errore della risposta. Nessuna è un
+guasto: sono tutte leggibili, perché **entrambi i temi sono scuri**. È la stessa classe di
+difetto che R6 ha chiuso su due card, e si vede solo mettendo le due palette una accanto
+all'altra. La correzione non è meccanica: `emerald`/`red`/`amber` in molti punti significano
+*stato* (ok / errore / in corso), e uno stato ha senso che resti riconoscibile **attraverso**
+i temi — quindi va deciso caso per caso quali agganciare e quali no, non sostituito con sed.
 
 **R14 — Le due collection Qdrant distrutte da A20 non sono recuperabili → la parte
 risolvibile è CHIUSA 2026-09-04.** I dati restano persi (gli artefatti su disco ci sono, i
@@ -269,6 +309,8 @@ l'audit: metà del valore è arrivato dal guardare, non dal riparare.
 | **Il perimetro `.gitkeep`** | Verificando la chiusura di A6 invece di riscriverne l'etichetta: il report dichiarava «16 documenti» contro i 14 indicizzati | Chiuso lo stesso giorno |
 | **`main` era rossa da un'ora e nessuno lo sapeva** | Rispondendo a una domanda posta di rimbalzo — «se S2 ha introdotto quel test rotto, la CI su main non dovrebbe essere rossa?» — mentre si indagava tutt'altro. Lo era: run #129, dalle 14:47 alle 15:45 | Aperto → **R16** |
 | **Nessuna baseline di bench era mai stata salvata** | Aprendo A11: `eval/results/` non conteneva alcun `bench_*.json`, mentre il README vieta di ottimizzare senza baseline | Chiuso |
+| **Il pannello JSON restava con la palette vecchia al cambio di tema** | Correggendo il badge di R6: i colori sono letti con `themeVar()` e cotti nell'HTML, e nulla ridisegnava. Invisibile finché il badge era sbagliato **allo stesso modo** | Chiuso (ridisegno agganciato a `onThemeChange`) |
+| **I punteggi Qdrant sono due card, e nessuna seguiva il tema** | Verificando R6 a schermo invece che nel codice: quella della sidebar non era nemmeno nel file che il residuo nominava | Chiuso (token `--score-*`) → il resto della tavolozza è **R17** |
 
 ### Due residui dell'audit sono già chiusi, e la riga non lo dice
 
@@ -278,6 +320,11 @@ l'audit: metà del valore è arrivato dal guardare, non dal riparare.
   note. **Da cancellare da AUDIT.md, non da fare.**
 - **Il verdetto storico del trigger M2** è già dichiarato tale nel docstring di
   `run_multihop.py`; resta solo la riga stampata (R5). Il residuo è **metà** di com'è scritto.
+
+*Entrambe confermate e chiuse da S4 il 2026-09-04: la nota su `graph_rag_ingestion_strategy.md`
+è stata **cancellata** da AUDIT.md (il campo valeva già `"cross-project"`, ricontrollato) e la
+voce aperta di A4 sul trigger M2 registra ora che il residuo era metà di com'era scritto.
+Due su due: la disciplina «misura prima di correggere» ha evitato due modifiche inutili.*
 
 ---
 
@@ -290,8 +337,9 @@ l'audit: metà del valore è arrivato dal guardare, non dal riparare.
 | R3 ✅ | Test-canarino sul **costo fisso** del prompt di sistema, con il budget scritto e la ragione | Un test sul prompt completo dipenderebbe dal corpus; il costo fisso è ciò che cresce quando si aggiunge una regola | S — **fatto 2026-09-04** (`tests/test_ask_prompt_cost.py`) |
 | R4 ✅ | `services: qdrant` nel job `test` di `ci.yml` | GitHub Actions lo supporta nativamente; l'alternativa (`docker compose up` nel job) aggiunge uno script da mantenere | S — **fatto 2026-09-04**; il servizio da solo non bastava: senza un gate lo skip resta verde, quindi `VIBECRAFT_REQUIRE_QDRANT=1` + `-rs` + conteggio preteso |
 | R16 | Rendere il job `test` un **check obbligatorio** sul ramo protetto, cosi' che un rosso blocchi invece di essere notato per caso | E' un'impostazione del repository, non del codice: qualunque soluzione scritta qui dentro (uno script che interroga l'API dei run, un alert nel notturno) aggiungerebbe un pezzo da mantenere per fare peggio cio' che GitHub fa nativamente. Va decisa una volta, come le cinque di S8 | S — ma e' una **decisione**, non lavoro tecnico |
-| R5 | Stampare il conteggio come contesto storico, non come verdetto | Togliere la riga perderebbe un numero utile: è l'etichetta a essere sbagliata | S |
-| R6 | Mappa esplicita degli stati → colore, con `abstained` e `graph_answer` distinti dall'errore | Il ternario `success ? verde : rosso` non è estendibile senza mentire | S |
+| R5 ✅ | Stampare il conteggio come contesto storico, non come verdetto | Togliere la riga perderebbe un numero utile: è l'etichetta a essere sbagliata | S — **fatto 2026-09-04**; il docstring era già corretto, quindi il lavoro era una riga sola |
+| R6 ✅ | Mappa esplicita degli stati → colore, con `abstained` e `graph_answer` distinti dall'errore | Il ternario `success ? verde : rosso` non è estendibile senza mentire | S — **fatto 2026-09-04**; la mappa era il lavoro previsto, i tre difetti di tema che ha scoperto no |
+| R17 | Decidere **quali** colori-di-stato devono seguire il tema e quali restare costanti, poi agganciare solo quelli | Un sed su `emerald` → token cancellerebbe la distinzione ok/errore proprio dove serve. È una decisione di design, con una spazzata meccanica dietro | M — decisione + sweep su 3 template |
 | R7 | Correggere `project:`, ripuntare o rimuovere il riferimento morto, poi **reindicizzare** | Il file è nell'indice: correggerlo senza rebuild non cambia ciò che il retrieval vede | S + rebuild |
 | R8 | Scrivere **un documento informativo nuovo** a bassa autorità su un tema che il corpus non copre, poi ripristinare il caso 4 | È una decisione sul corpus: nessun documento esistente sotto peso 0.5 nomina LLM o privacy (già misurato) | M |
 | R9 | **Misurare prima**: chiedere a `/ask` le tre catene e verificare se il terzo documento compare nella risposta via grafo | Se compare, non c'è nulla da correggere e il residuo si chiude come A4 — dichiarando cosa misura la soglia | M |
@@ -480,9 +528,27 @@ rag/DISTRIBUTION.md e RESIDUI.md.
 
 ---
 
-## S4 — I report che dicono cose non più vere
+## S4 — I report che dicono cose non più vere ✅ ESEGUITA il 2026-09-04
 
-Chiude **R5**, **R6**, e cancella due note stantie dall'audit.
+Chiude **R5**, **R6**, e cancella due note stantie dall'audit. Commit `cdb7de2`, `bcef917`,
+`1027fd0` su `main`.
+
+Tre cose che solo l'esecuzione poteva dire:
+
+- **Due dei quattro punti erano già a posto, e la sessione era scritta per scoprirlo.** Il
+  punto 3 chiedeva di ricontrollare prima di correggere: `graph_rag_ingestion_strategy.md`
+  vale già `project: "cross-project"`, quindi la nota è stata **cancellata** invece di
+  «correggere» un file sano. Il punto 1 si è rivelato una riga sola, perché il docstring era
+  già corretto. È la disciplina di §5 che funziona due volte nello stesso giro.
+- **Il punto 2 era la punta di un difetto più largo.** Il badge era l'unico posto guardato;
+  la mappa dei colori ha fatto emergere che il pannello JSON non si ridisegnava al cambio di
+  tema e che i punteggi Qdrant sono **due** card, di cui una in un file che il residuo non
+  nominava. Chiusi tutti; ciò che resta è **R17**.
+- **`getComputedStyle` mente, nel contesto di valutazione JS del browser.** Le prime letture
+  dicevano che la sidebar era rimasta verde in Classico. Erano stale: il ricalcolo degli stili
+  non viene svuotato, e anche `sv.style.color = 'red'` si rilegge col colore vecchio. La
+  verifica valida è **il pixel** — screenshot nei due temi. Vale per ogni sessione futura che
+  tocchi il CSS: leggere lo stile calcolato via JS non è una prova.
 
 ```
 Lavora su rag/. Quattro correzioni piccole e indipendenti: sono tutte casi di un
@@ -692,10 +758,10 @@ data e senza condizione di riapertura torna a essere una domanda aperta.
 ## Ordine consigliato
 
 ```
-S1  prompt che invita a inventare      ← comportamento scorretto oggi
-S2  allarmi mancanti                   ← degradazioni silenziose
-S4  report non piu' veri               ← piccole, indipendenti, sbloccano la lettura
-S3  CI                                 ← rende permanente cio' che S2 protegge
+S1  prompt che invita a inventare  ✅  ← comportamento scorretto oggi
+S2  allarmi mancanti               ✅  ← degradazioni silenziose
+S4  report non piu' veri           ✅  ← piccole, indipendenti, sbloccano la lettura
+S3  CI                             ✅  ← rende permanente cio' che S2 protegge
 S5  corpus                             ← cambia i numeri: dopo S1, prima di S6
 S6  metriche sulla risposta            ← misura sul corpus nuovo
 S7  storico
