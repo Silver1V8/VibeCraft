@@ -79,6 +79,14 @@
       --chip-bg:#062e14; --chip-border:#0a3d1f; --chip-color:#39ffe0;
       --stat-bg:#03170a; --stat-number:#7dffa0; --rag-json-bg:#000000;
 
+      /* Stati di /ask nel badge del pannello JSON: quattro rese, non due. Erano hex
+         cotti nel JS, quindi identici nei due temi e fermi al tema attivo al momento
+         della risposta. Qui sono token, letti dal CSS a ogni ridisegno. */
+      --status-ok-bg:#052e16;      --status-ok-fg:#34d399;
+      --status-warn-bg:#2a1a02;    --status-warn-fg:#fbbf24;
+      --status-neutral-bg:#101a14; --status-neutral-fg:#9ab3a3;
+      --status-err-bg:#1c0a0a;     --status-err-fg:#f87171;
+
       --glass-bg: rgba(4,20,10,0.55); --glass-border: rgba(0,255,65,0.16); --glass-shadow: 0 8px 32px rgba(0,0,0,0.55);
       --glow-shadow-hover: 0 0 26px rgba(0,255,65,0.35), 0 0 52px rgba(0,255,65,0.12);
       --btn-glow: 0 0 16px rgba(0,255,65,0.35); --btn-glow-hover: 0 0 30px rgba(0,255,65,0.55);
@@ -123,6 +131,11 @@
       --json-score-label:#94a3b8; --json-score-grad-start:#2563eb;
       --chip-bg:#0c1f3f; --chip-border:#1e3a5f; --chip-color:#7dd3fc;
       --stat-bg:#0a1628; --stat-number:#93c5fd; --rag-json-bg:#020817;
+
+      --status-ok-bg:#064e3b;      --status-ok-fg:#6ee7b7;
+      --status-warn-bg:#78350f;    --status-warn-fg:#fcd34d;
+      --status-neutral-bg:#334155; --status-neutral-fg:#cbd5e1;
+      --status-err-bg:#7f1d1d;     --status-err-fg:#fca5a5;
 
       --glass-bg: rgba(15,23,42,0.55); --glass-border: rgba(255,255,255,0.08); --glass-shadow: 0 8px 24px rgba(15,23,42,0.25);
       --glow-shadow-hover: 0 12px 32px rgba(37,99,235,0.18);
@@ -1397,6 +1410,11 @@
        escapeHtml vive in /static/shared.js: era duplicata qui, in
        graph_analysis e in intake con tre implementazioni divergenti (questa non
        gestiva l'apice singolo). */
+    /* Ultima risposta mostrata nel pannello JSON: renderJsonPanel cuoce i colori nell'HTML
+       con themeVar(), quindi al flip di tema il pannello resterebbe con la palette vecchia
+       fino alla query successiva. Il ridisegno lo rifà con i token del tema nuovo. */
+    let lastJsonPanelData = null;
+
     function renderJsonPanel(data) {
       const gc          = data.graph_context || {};
       const scores      = data.qdrant_scores  || [];
@@ -1425,17 +1443,20 @@
       /* Gli stati che /ask puo' restituire, ciascuno col proprio significato: "abstained"
          (A16) e' la sicurezza che funziona e "graph_answer" un successo pieno — colorarli
          di rosso col vecchio `status === 'success' ? verde : rosso` li faceva leggere come
-         guasti. Ambra = non ha risposto, ed e' corretto cosi'. */
+         guasti. Ambra = non ha risposto, ed e' corretto cosi'.
+         I colori sono `var(--status-*)` scritte nello style inline, NON lette con
+         themeVar(): una CSS variable si risolve a ogni ridisegno, quindi il badge segue
+         il flip di tema senza che nulla lo ri-renderizzi. */
       const STATUS_STYLE = {
-        success:        { bg:'#052e16', fg:'#34d399', label:'success — risposta generata' },
-        graph_answer:   { bg:'#052e16', fg:'#34d399', label:'graph_answer — risposta dal grafo' },
-        abstained:      { bg:'#2a1a02', fg:'#fbbf24', label:'abstained — non ha risposto, ed e’ corretto' },
-        no_results:     { bg:'#1c1c1c', fg:'#94a3b8', label:'no_results — nulla di pertinente in indice' },
-        no_graph_nodes: { bg:'#1c1c1c', fg:'#94a3b8', label:'no_graph_nodes — trovato in Qdrant, assente nel grafo' },
+        success:        { tone:'ok',      label:'success — risposta generata' },
+        graph_answer:   { tone:'ok',      label:'graph_answer — risposta dal grafo' },
+        abstained:      { tone:'warn',    label:'abstained — non ha risposto, ed e’ corretto' },
+        no_results:     { tone:'neutral', label:'no_results — nulla di pertinente in indice' },
+        no_graph_nodes: { tone:'neutral', label:'no_graph_nodes — trovato in Qdrant, assente nel grafo' },
       };
-      const st = STATUS_STYLE[status] || { bg:'#1c0a0a', fg:'#f87171', label:status };
+      const st = STATUS_STYLE[status] || { tone:'err', label:status };
       document.getElementById('json-status-badge').innerHTML =
-        `<span style="padding:2px 9px;border-radius:20px;background:${st.bg};color:${st.fg};font-weight:700">${escapeHtml(st.label)}</span>` +
+        `<span style="padding:2px 9px;border-radius:20px;background:var(--status-${st.tone}-bg);color:var(--status-${st.tone}-fg);font-weight:700">${escapeHtml(st.label)}</span>` +
         (elapsed != null ? `&nbsp;<span style="color:${accent}">${elapsed}s</span>` : '');
 
       /* ── LEFT: Qdrant scores ── */
@@ -1595,6 +1616,7 @@
           contextText ? `${contextText.length.toLocaleString('it-IT')} caratteri` : '';
 
         /* ── JSON RESPONSE ── */
+        lastJsonPanelData = data;   // per il ridisegno al cambio di tema (onThemeChange)
         renderJsonPanel(data);
 
         /* ── SCORES ── */
@@ -1631,6 +1653,7 @@
        cotti dentro al DataSet di vis.js, non letti dal CSS. */
     window.onThemeChange = function () {
       renderReasonsLegend();
+      if (lastJsonPanelData) renderJsonPanel(lastJsonPanelData);
       if (lastGraphNodes.length) {
         const refreshed = lastGraphNodes.map(n => ({
           ...n,
