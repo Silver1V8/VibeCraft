@@ -699,3 +699,88 @@ def test_sezioni_non_giudicabili_in_coda_mai_scartate():
     tutte = retrieval.rank_sections_by_relevance(
         ["a", "b"], colbert_store={}, colbert_query=_cq(1, 0), min_score=0.9)
     assert [cid for cid, _ in tutte] == ["a", "b"]
+
+
+# ---------------------------------------------------------------------------
+# N4 — peso di SEZIONE: chi RIFORMULA una regola non è chi la STABILISCE
+# ---------------------------------------------------------------------------
+_STABILISCE = """## 2. Log Strutturati e Correlazione
+
+### `[REGOLA-OBS-03]` Correlazione end-to-end
+
+Ogni richiesta in ingresso riceve un `correlationId` che accompagna ogni log e record di audit.
+"""
+
+_RIFORMULA = """## 6. Riepilogo delle Regole
+
+| ID | Vincolo operativo core |
+|---|---|
+| `[REGOLA-OBS-03]` | `correlationId` propagato su log, tracing, code e audit. |
+| `[REGOLA-OBS-06]` | Sanitizer PII nel logger, non nei call site. |
+"""
+
+_NESSUN_CODICE = """## Premessa
+
+Questo documento descrive le convenzioni di osservabilità del progetto.
+"""
+
+
+def test_riformula_solo_chi_cita_senza_dichiarare():
+    """Il segnale è il codice DICHIARATO in un titolo, non una parola nel titolo: una sezione
+    senza codici non è una riformulazione, e non va confusa con chi ne cita e basta."""
+    assert retrieval.restates_only(_RIFORMULA) is True
+    assert retrieval.restates_only(_STABILISCE) is False
+    assert retrieval.restates_only(_NESSUN_CODICE) is False
+
+
+def test_restatement_sections_legge_il_sidecar_dei_chunk():
+    chunks = {"doc.md#02": {"text": _STABILISCE}, "doc.md#06": {"text": _RIFORMULA},
+              "doc.md#00": {"text": _NESSUN_CODICE}, "doc.md#99": {}}
+    assert retrieval.restatement_sections(chunks) == frozenset({"doc.md#06"})
+
+
+def _sez(chunk_id, colbert, authority=0.85):
+    return {"chunk_id": chunk_id, "doc_id": "doc.md", "colbert_score": colbert,
+            "authority": authority, "fused_rank_sum": 2}
+
+
+def test_il_riepilogo_non_batte_piu_la_sezione_che_stabilisce_la_regola():
+    """A3 §4-5: fra sezioni SORELLE il peso di autorità è identico e il moltiplicatore si
+    semplifica, quindi nessun alpha può separarle — e il MaxSim premia la riformulazione, che
+    ripete le stesse parole più densamente. Il peso di sezione è ciò che le separa.
+
+    Il vantaggio lessicale è del 3%: la penalità calibrata (0.92) lo ribalta. Uno molto più
+    grande vincerebbe comunque, ed è voluto — è una modulazione, non un veto."""
+    risultati = [_sez("doc.md#06", 0.500), _sez("doc.md#02", 0.485)]
+    retrieval.rank_by_authority(risultati, restatements={"doc.md#06"})
+    assert [r["chunk_id"] for r in risultati] == ["doc.md#02", "doc.md#06"]
+
+
+def test_senza_restatements_il_ranking_e_identico_a_prima():
+    """Il parametro è additivo: chi chiama rank_by_authority senza il sidecar dei chunk
+    (test storici, consumatori esterni) ottiene esattamente l'ordinamento di prima di N4."""
+    risultati = [_sez("doc.md#06", 0.500), _sez("doc.md#02", 0.485)]
+    retrieval.rank_by_authority(risultati)
+    assert [r["chunk_id"] for r in risultati] == ["doc.md#06", "doc.md#02"]
+
+
+def test_il_peso_di_sezione_non_ribalta_un_divario_di_rilevanza_vero():
+    """Il costo dichiarato in rag_config: `definition_of_done § Checklist` cita e non dichiara,
+    ma lì la checklist È la norma. La penalità è mite apposta — rompe i pareggi fra sorelle,
+    non ribalta un candidato che vince davvero."""
+    risultati = [_sez("dod.md#03", 0.600), _sez("altro.md#01", 0.500)]
+    retrieval.rank_by_authority(risultati, restatements={"dod.md#03"})
+    assert [r["chunk_id"] for r in risultati] == ["dod.md#03", "altro.md#01"]
+
+
+def test_il_peso_di_sezione_vale_anche_per_i_chunk_senza_colbert():
+    """Ramo dei non giudicabili (A7): ordinato per fused_rank_sum / moltiplicatore, quindi la
+    penalità deve alzare il quoziente e farli scendere, non l'opposto. Un fattore applicato a
+    metà dei due insiemi sarebbe la stessa incoerenza fra rami che A7 ha appena chiuso."""
+    a = {"chunk_id": "doc.md#06", "doc_id": "doc.md", "colbert_score": None,
+         "authority": 0.85, "fused_rank_sum": 10}
+    b = {"chunk_id": "doc.md#02", "doc_id": "doc.md", "colbert_score": None,
+         "authority": 0.85, "fused_rank_sum": 10.5}
+    risultati = [a, b]
+    retrieval.rank_by_authority(risultati, restatements={"doc.md#06"})
+    assert [r["chunk_id"] for r in risultati] == ["doc.md#02", "doc.md#06"]

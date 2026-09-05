@@ -124,7 +124,7 @@ def test_calibratore_onora_authority_dichiarata_come_la_produzione():
 
     cands = [_cand("spec.md#00", "spec.md", 0.9, classification="REQUIREMENTS")]
     fn = calibrate.make_retrieve_fn({"q": cands}, alpha=0.5, default_weight=0.4,
-                                    unclassified_weight=0.3, graph=g)
+                                    unclassified_weight=0.3, graph=g, restatements=frozenset())
     peso = fn("q", 5)[0]["authority"]
 
     # il valore dichiarato vince sul default_weight della griglia, esattamente come in produzione
@@ -139,7 +139,7 @@ def test_calibratore_senza_authority_dichiarata_usa_il_default_della_griglia():
     g.add_node("nota.md#00", type="section", classification="REQUIREMENTS")
     fn = calibrate.make_retrieve_fn({"q": [_cand("nota.md#00", "nota.md", 0.9)]},
                                     alpha=0.5, default_weight=0.42,
-                                    unclassified_weight=0.3, graph=g)
+                                    unclassified_weight=0.3, graph=g, restatements=frozenset())
     assert fn("q", 5)[0]["authority"] == 0.42
 
 
@@ -157,11 +157,13 @@ def test_calibratore_applica_la_precedenza_fra_fonti():
     cands = [_cand("subordinato.md#00", "subordinato.md", 0.95),
              _cand("prevalente.md#00", "prevalente.md", 0.30)]
     senza = calibrate.make_retrieve_fn({"q": cands}, alpha=0.1, default_weight=0.7,
-                                       unclassified_weight=0.3, graph=None)("q", 5)
+                                       unclassified_weight=0.3, graph=None,
+                                       restatements=frozenset())("q", 5)
     assert senza[0]["doc_id"] == "subordinato.md"
 
     con = calibrate.make_retrieve_fn({"q": cands}, alpha=0.1, default_weight=0.7,
-                                     unclassified_weight=0.3, graph=g)("q", 5)
+                                     unclassified_weight=0.3, graph=g,
+                                     restatements=frozenset())("q", 5)
     assert con[0]["doc_id"] == "prevalente.md"
 
 
@@ -190,7 +192,7 @@ def test_calibratore_cerca_anche_sul_peso_della_fonte_non_classificata():
 
     fn = calibrate.make_retrieve_fn({"q": [_cand("importato.md#00", "importato.md", 0.9)]},
                                     alpha=0.5, default_weight=0.7,
-                                    unclassified_weight=0.15, graph=g)
+                                    unclassified_weight=0.15, graph=g, restatements=frozenset())
     # 0.15 (unclassified), NON 0.7 (default_weight): sono due casi diversi, non due nomi
     # per la stessa cosa — la conflazione è il difetto D2 dell'ADR 0002.
     assert fn("q", 5)[0]["authority"] == 0.15
@@ -221,13 +223,15 @@ def test_grid_best_a_parita_di_recall_tiene_la_configurazione_di_produzione():
     # tutta la griglia pareggia: deve vincere l'incumbent, non il primo punto iterato
     piatta = {(a, dw, uw): 0.5 for a in calibrate.ALPHAS
               for dw in calibrate.DEFAULT_WEIGHTS for uw in calibrate.UNCLASSIFIED_WEIGHTS}
-    recall, *scelta = calibrate.grid_best(None, None, k=1, graph=None, tabella=piatta)
+    recall, *scelta = calibrate.grid_best(None, None, k=1, graph=None, restatements=frozenset(),
+                                         tabella=piatta)
     assert tuple(scelta) == attuale and recall == 0.5
 
     # un punto STRETTAMENTE migliore lo scalza: il tie-break non congela la calibrazione
     migliore = (1.0, 0.4, 0.1)
     piatta[migliore] = 0.6
-    recall, *scelta = calibrate.grid_best(None, None, k=1, graph=None, tabella=piatta)
+    recall, *scelta = calibrate.grid_best(None, None, k=1, graph=None, restatements=frozenset(),
+                                         tabella=piatta)
     assert tuple(scelta) == migliore and recall == 0.6
 
 

@@ -5,6 +5,8 @@ modello di embedding, sidecar ColBERT, grafo, sidecar dei chunk) sono passate co
 parametri espliciti dai chiamanti (dependency injection), non lette da uno stato globale."""
 import heapq
 import logging
+import re
+from collections.abc import Collection
 from typing import Any
 
 import networkx as nx
@@ -20,6 +22,7 @@ from core.config import (
     AUTHORITY_PRECEDENCE_RELATION,
     AUTHORITY_USE_DECLARED,
     COLLECTION_NAME,
+    SECTION_RESTATEMENT_WEIGHT,
 )
 
 logger = logging.getLogger(__name__)
@@ -194,7 +197,50 @@ def authority_scale(items: list[dict]) -> list[tuple[str, float]]:
 _MULT_FLOOR = 1e-9
 
 
-def rank_by_authority(results: list[dict], *, alpha: float = AUTHORITY_BOOST_ALPHA) -> list[dict]:
+# ---------------------------------------------------------------------------
+# PESO DI SEZIONE — la sezione che RESTITUISCE una regola non è quella che la STABILISCE
+#
+# A3 §4-5 misurò che il 70% del deficit di rango 1 è bloccato da una sezione SORELLA dello
+# stesso documento, e ne nominò il meccanismo: i blocchi BDD/Gherkin, le tabelle di
+# «Riepilogo delle Regole» e le checklist sono la riformulazione lessicale della regola che
+# li precede — stesso vocabolario, più denso di parole chiave — e il MaxSim di ColBERT
+# premia esattamente questo. Fra sorelle l'autorità non può separare: il peso è del
+# DOCUMENTO, quindi il moltiplicatore `(1-α)+α·peso` si semplifica.
+#
+# Il segnale che le separa è nel corpus e non è un'euristica sui titoli: un codice di regola
+# DICHIARATO in un titolo (`### [SAFEGUARD-AUD-01] Immutabilità…`) marca la sezione che
+# enuncia il vincolo; lo stesso codice dentro una tabella, una checklist o uno scenario
+# Gherkin è una CITAZIONE. Misurato sul corpus: 31 sezioni dichiarano, 28 citano soltanto,
+# e le 28 sono esattamente i «Riepilogo delle Regole» (×5), gli «Scenari BDD», le
+# «Checklist», l'«Indice dei Safeguard». Si penalizzano SOLO quelle: una sezione senza alcun
+# codice (preamboli, prosa) non è una riformulazione e resta a peso pieno.
+#
+# Perché una PENALITÀ e non un premio: l'intervento deve toccare 28 sezioni su 167, non
+# ri-pesare tutto il corpus. Calibrazione e guadagno held-out in rag/AUDIT.md, S6/N4.
+# ---------------------------------------------------------------------------
+_CODICE_REGOLA = r"\[([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+-\d+)\]"
+_CODICE_IN_TITOLO = re.compile(rf"^#{{1,6}}\s+.*?`?{_CODICE_REGOLA}`?", re.MULTILINE)
+_CODICE_OVUNQUE = re.compile(_CODICE_REGOLA)
+
+
+def restates_only(text: str) -> bool:
+    """La sezione CITA codici di regola senza dichiararne nessuno in un titolo: riformula
+    vincoli che appartengono a un'altra sezione. Falso sia per chi dichiara sia per chi non
+    nomina alcun codice — non sono la stessa cosa, ma nessuna delle due è una riformulazione."""
+    return bool(_CODICE_OVUNQUE.search(text)) and not _CODICE_IN_TITOLO.search(text)
+
+
+def restatement_sections(chunks: dict) -> frozenset[str]:
+    """Gli id dei chunk che riformulano invece di stabilire, dal sidecar dei chunk. Calcolata
+    UNA volta per snapshot (167 regex, millisecondi) e non per richiesta; deriva dal testo,
+    quindi non richiede una re-indicizzazione e funziona sugli indici già su disco."""
+    return frozenset(cid for cid, entry in (chunks or {}).items()
+                     if restates_only((entry or {}).get("text", "")))
+
+
+def rank_by_authority(results: list[dict], *, alpha: float = AUTHORITY_BOOST_ALPHA,
+                      restatements: Collection[str] = frozenset(),
+                      restatement_weight: float = SECTION_RESTATEMENT_WEIGHT) -> list[dict]:
     """Ordinamento finale con boost di autorità: il punteggio di rilevanza è modulato da
     (1-alpha + alpha*peso), così una fonte normativa risale rispetto a una informativa a
     parità di rilevanza. alpha=0 ignora del tutto l'autorità (ranking puramente semantico);
@@ -213,9 +259,16 @@ def rank_by_authority(results: list[dict], *, alpha: float = AUTHORITY_BOOST_ALP
     coda, ordinati con la regola che governava già il caso "nessun ColBERT" — la fusione
     denso+sparso, l'unico segnale di rilevanza che hanno, modulata dalla stessa autorità.
     Così il posto di un chunk NON dipende dal fatto che altri chunk abbiano un vettore: era
-    l'incoerenza nascosta fra i due rami di prima."""
+    l'incoerenza nascosta fra i due rami di prima.
+
+    `restatements` (N4) porta nel moltiplicatore il PESO DI SEZIONE — vedi il commento sopra:
+    l'autorità è una proprietà del documento e fra sezioni sorelle si semplifica, quindi da
+    sola non può togliere di mezzo la sezione che riformula la regola invece di stabilirla.
+    Vuoto = comportamento identico a prima, che è ciò che serve a chi chiama questa funzione
+    senza il sidecar dei chunk sotto mano."""
     def _mult(r: dict) -> float:
-        return max((1.0 - alpha) + alpha * r["authority"], _MULT_FLOOR)
+        peso_sezione = restatement_weight if r.get("chunk_id") in restatements else 1.0
+        return max(((1.0 - alpha) + alpha * r["authority"]) * peso_sezione, _MULT_FLOOR)
 
     giudicabili = [r for r in results if r.get("colbert_score") is not None]
     non_giudicabili = [r for r in results if r.get("colbert_score") is None]
@@ -249,7 +302,8 @@ def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_sto
                   query_filter: Filter | None = None,
                   collection_name: str = COLLECTION_NAME,
                   query_encoding: dict | None = None,
-                  graph=None) -> list[dict]:
+                  graph=None,
+                  restatements: Collection[str] = frozenset()) -> list[dict]:
     """
     Ricerca ibrida a tre livelli (stessa forward pass di bge-m3 per tutti i vettori):
 
@@ -355,9 +409,11 @@ def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_sto
         entry["colbert_score"] = colbert_maxsim(colbert_q, colbert_store.get(chunk_id))
         results.append(entry)
 
-    # Ordinamento finale con boost di autorità (forza alpha da config): estratto in
-    # rank_by_authority così la calibrazione valuta esattamente questo stesso ranking.
-    rank_by_authority(results)
+    # Ordinamento finale con boost di autorità (forza alpha da config) e peso di sezione
+    # (N4): estratto in rank_by_authority così la calibrazione valuta esattamente questo
+    # stesso ranking — `restatements` compreso, altrimenti il calibratore ottimizzerebbe un
+    # ordinamento che nessuno serve (è l'avvertimento scritto in make_retrieve_fn).
+    rank_by_authority(results, restatements=restatements)
 
     # Precedenza dichiarata fra fonti (S4), DOPO l'autorità e per ultima. L'ordine dei due
     # stadi non è arbitrario: l'autorità è un segnale statistico su una CLASSE di documenti,

@@ -6,6 +6,8 @@ versione, mai per-request."""
 import json
 import logging
 
+from dataclasses import replace
+
 import networkx as nx
 import numpy as np
 import pytest
@@ -284,6 +286,7 @@ def test_ancore_codice_ordinate_per_fiducia(ask_env, monkeypatch):
 # S3 (miglioria) + S4 nel ramo del grafo
 # ---------------------------------------------------------------------------
 _PREAMBOLO = "glossario.md#00-preambolo"
+_APPENDICE = "spec.md#02-appendice"
 
 
 class _EmbedColbert:
@@ -344,3 +347,149 @@ def test_documento_superato_non_rientra_dal_ramo_del_grafo(ask_env, monkeypatch)
     ctx = client.post("/ask", json={"question": "q"}).json()["graph_context"]["context_text"]
     assert "via grafo" not in ctx
     assert "definizione di EVENTO" not in ctx
+
+
+def _snapshot_sezione_orfana_del_seed(version="v1") -> deps.IndexSnapshot:
+    """Il meccanismo di R9 in piccolo: il documento SEED ha una seconda sezione che il ramo
+    semantico non ha recuperato. Quella sezione è raggiunta dal grafo a 1 hop ed eredita
+    l'autorità del suo documento, quindi in una graduatoria per `fiducia × autorità` batte il
+    vicino — che sta a 0.9 — pur essendo IRRILEVANTE alla domanda e pur venendo da un
+    documento già interamente in finestra.
+
+    L'arco è `PART_OF` come nel grafo reale (sezione -> documento): natura `structural`,
+    affidabilità 1.0. È il motivo per cui sul corpus vero le sezioni del seed vincevano
+    sempre — un vicino dichiarato nel frontmatter è `curated`, cioè 0.9."""
+    snap = _snapshot_due_sezioni(version)
+    snap.graph.add_node(_APPENDICE, type="chunk")
+    snap.graph.add_edge(_APPENDICE, "spec.md", relation="PART_OF")
+    snap.chunks[_APPENDICE] = {"text": "appendice irrilevante", "doc_id": "spec.md",
+                               "section": "appendice"}
+    snap.colbert_store[_APPENDICE] = np.array([[0.0, 1.0]], dtype="float32")  # maxsim 0
+    return snap
+
+
+def test_una_sezione_del_seed_non_ruba_il_budget_al_documento_raggiunto(ask_env, monkeypatch):
+    """R9 — il difetto misurato sulle catene multihop, in unità: l'esclusione dei seed
+    operava sui soli nodi `document`, e le SEZIONI di un seed rientravano dal grafo con
+    l'autorità del loro documento, consumando tutto il tetto per reiniettare una fonte già
+    presente. Con un budget di 1 deve entrare la sezione PERTINENTE del vicino."""
+    client = ask_env()
+    monkeypatch.setattr(routes_retrieval, "current_snapshot",
+                        lambda: _snapshot_sezione_orfana_del_seed())
+    monkeypatch.setitem(deps.state, "embed_model", _EmbedColbert())
+    monkeypatch.setattr(routes_retrieval, "GRAPH_CONTEXT_MAX_CHUNKS", 1)
+    ctx = client.post("/ask", json={"question": "q"}).json()["graph_context"]["context_text"]
+    assert "definizione di EVENTO" in ctx        # il vicino, pertinente
+    assert "appendice irrilevante" not in ctx    # non una sezione del seed
+    assert "glossario.md § termini" in ctx
+
+
+def test_il_ramo_grafo_ordina_per_pertinenza_fra_documenti_diversi(ask_env, monkeypatch):
+    """R9, seconda metà: la pertinenza decide anche FRA documenti raggiunti, non solo dentro
+    a uno. Il preambolo del vicino più fidato non passa più davanti alla sezione pertinente
+    di un vicino meno fidato — che è ciò che sulle catene reali faceva perdere il terzo
+    documento, raggiunto ma 24° in graduatoria."""
+    snap = _snapshot_due_sezioni()
+    # secondo vicino, PIÙ fidato (arco a 1.0) ma con la sola sezione non pertinente
+    snap.graph.add_node("indice.md", type="document")
+    snap.graph.add_edge("spec.md", "indice.md", relation="EREDITA_VINCOLI",
+                        nature="curated", reliability=1.0)
+    snap.chunks["indice.md#00-preambolo"] = {"text": "preambolo dell'indice",
+                                             "doc_id": "indice.md", "section": "(preambolo)"}
+    snap.colbert_store["indice.md#00-preambolo"] = np.array([[0.0, 1.0]], dtype="float32")
+    client = ask_env()
+    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snap)
+    monkeypatch.setitem(deps.state, "embed_model", _EmbedColbert())
+    monkeypatch.setattr(routes_retrieval, "GRAPH_CONTEXT_MAX_CHUNKS", 1)
+    ctx = client.post("/ask", json={"question": "q"}).json()["graph_context"]["context_text"]
+    assert "definizione di EVENTO" in ctx        # fiducia 0.9, pertinenza 1.0
+    assert "preambolo dell'indice" not in ctx    # fiducia 1.0, pertinenza 0.0
+    # l'intestazione porta la fiducia del cammino da cui la sezione arriva davvero
+    assert "via grafo: 1 hop, fiducia 0.900, pertinenza 1.000" in ctx
+
+
+
+
+def _due_vicini(*, classi=("", ""), affidabilita=(0.9, 0.9), pertinenze=(1.0, 1.0)):
+    """Snapshot con DUE vicini a confronto diretto, uno per fattore della chiave del ramo
+    grafo. `pertinenze` sono i valori di MaxSim che _EmbedColbert rende prevedibili: la query
+    è [[1, 0]], quindi un chunk [[x, 0]] vale esattamente x."""
+    snap = _snapshot_due_sezioni()
+    snap.graph.remove_node("glossario.md")   # fuori strada: qui contano solo i due vicini
+    for nome, classe, aff, pert in zip(("uno.md", "due.md"), classi, affidabilita, pertinenze):
+        attrs = {"type": "document"}
+        if classe:
+            attrs["classification"] = classe
+        snap.graph.add_node(nome, **attrs)
+        snap.graph.add_edge("spec.md", nome, relation="EREDITA_VINCOLI",
+                            nature="curated", reliability=aff)
+        snap.chunks[f"{nome}#01"] = {"text": f"testo di {nome}", "doc_id": nome, "section": "s"}
+        snap.colbert_store[f"{nome}#01"] = np.array([[pert, 0.0]], dtype="float32")
+    # Come in produzione: le riformulazioni si derivano dal TESTO dei chunk (N4). Senza,
+    # i test del ramo grafo girerebbero su uno snapshot che quel campo non ha mai popolato,
+    # e non potrebbero accorgersi di come il ramo lo usa — o non lo usa.
+    return replace(snap, restatements=retrieval.restatement_sections(snap.chunks))
+
+
+def _vince(snap, ask_env, monkeypatch) -> str:
+    client = ask_env()
+    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snap)
+    monkeypatch.setitem(deps.state, "embed_model", _EmbedColbert())
+    monkeypatch.setattr(routes_retrieval, "GRAPH_CONTEXT_MAX_CHUNKS", 1)
+    return client.post("/ask", json={"question": "q"}).json()["graph_context"]["context_text"]
+
+
+def test_il_ramo_grafo_non_fa_vincere_la_fonte_debole_per_solo_vantaggio_lessicale(
+        ask_env, monkeypatch):
+    """R9, terza metà: la pertinenza da sola non basta. Una fonte SENZA CLASSE (peso 0.30)
+    con un piccolo vantaggio lessicale passerebbe davanti a una IRON_MEMORY (1.0) — è il
+    difetto di ADR 0002 rifatto nel ramo grafo, ed è successo davvero su una delle tre catene
+    reali (`inferenza_locale_o_remota.md`, `authority: 0.40`, davanti a `testing_strategy.md`).
+
+    I numeri sono quelli di produzione: a α=0.1 la forbice fra peso 0.30 e peso 1.0 vale 7,5%,
+    quindi un vantaggio lessicale del 5% deve perdere — e un vantaggio più grande vincerebbe,
+    che è il comportamento voluto (l'autorità modula la pertinenza, non la sostituisce)."""
+    snap = _due_vicini(classi=("", "IRON_MEMORY"), pertinenze=(1.05, 1.0))
+    ctx = _vince(snap, ask_env, monkeypatch)
+    assert "testo di due.md" in ctx      # IRON_MEMORY, pertinenza 1.000
+    assert "testo di uno.md" not in ctx  # senza classe, pertinenza 1.050
+
+
+def test_il_ramo_grafo_non_fa_vincere_il_cammino_debole_per_solo_vantaggio_lessicale(
+        ask_env, monkeypatch):
+    """Stessa prova per la fiducia sul cammino (S3): senza quel fattore un vicino raggiunto
+    per un legame debole peserebbe quanto uno dichiarato nel frontmatter, e basterebbe un
+    vantaggio lessicale qualsiasi a farlo passare davanti."""
+    snap = _due_vicini(affidabilita=(0.6, 0.9), pertinenze=(1.05, 1.0))
+    ctx = _vince(snap, ask_env, monkeypatch)
+    assert "testo di due.md" in ctx      # fiducia 0.900, pertinenza 1.000
+    assert "testo di uno.md" not in ctx  # fiducia 0.600, pertinenza 1.050
+
+
+def test_il_ramo_grafo_NON_penalizza_le_riformulazioni(ask_env, monkeypatch):
+    """N4 vale nel ramo SEMANTICO e deliberatamente NON qui, ed è una decisione misurata.
+
+    Nel ramo semantico penalizzare una riformulazione promuove la sezione sorella che enuncia
+    la regola, perché è nella stessa lista. Qui i concorrenti sono altri DOCUMENTI, il tetto è
+    basso e la sorella che dichiara spesso non è nemmeno candidata: la penalità non promuove
+    la fonte del vincolo, espelle il documento. Misurato dal vivo — applicandola anche qui, la
+    catena multihop dell'«ultima unità» perdeva `api_error_contract` e con lui il `409` nella
+    risposta (rag/AUDIT.md, S6/N4).
+
+    Qui: una riformulazione del documento PERTINENTE contro una sezione neutra di un altro
+    documento, a pertinenza quasi pari. Deve vincere la riformulazione."""
+    snap = _due_vicini(pertinenze=(1.0, 0.98))
+    snap.chunks["uno.md#01"]["text"] = ("## 6. Riepilogo delle Regole\n\n"
+                                        "| `[REGOLA-OBS-03]` | correlationId propagato. |\n")
+    snap.chunks["due.md#01"]["text"] = "## Premessa\n\nNessun codice di regola qui.\n"
+    # ricalcolata DOPO la riscrittura dei testi, come farebbe il caricamento dello snapshot
+    snap = replace(snap, restatements=retrieval.restatement_sections(snap.chunks))
+    assert snap.restatements == frozenset({"uno.md#01"})
+
+    client = ask_env()
+    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snap)
+    monkeypatch.setitem(deps.state, "embed_model", _EmbedColbert())
+    monkeypatch.setattr(routes_retrieval, "GRAPH_CONTEXT_MAX_CHUNKS", 1)
+    ctx = client.post("/ask", json={"question": "q"}).json()["graph_context"]["context_text"]
+    assert "Riepilogo delle Regole" in ctx    # la riformulazione, più pertinente
+    assert "Nessun codice di regola qui" not in ctx

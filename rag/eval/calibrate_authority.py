@@ -82,7 +82,8 @@ UNCLASSIFIED_WEIGHTS = [0.1, 0.2, 0.3, 0.5, 0.7]
 FETCH_CANDIDATES = 50  # quanti candidati recuperare per domanda (>= max k valutato, con margine)
 
 
-def retrieve_candidate_cache(cases, *, qdrant, embed_model, colbert_store, graph) -> dict:
+def retrieve_candidate_cache(cases, *, qdrant, embed_model, colbert_store, graph,
+                             restatements) -> dict:
     """Recupera e memorizza i candidati (con classification/status grezzi, colbert_score,
     fused_rank_sum) UNA volta per domanda: il costoso retrieval si paga una sola volta, poi la
     grid search lavora solo di re-ranking in RAM.
@@ -95,7 +96,7 @@ def retrieve_candidate_cache(cases, *, qdrant, embed_model, colbert_store, graph
         q = case["q"]
         cache[q] = retrieval.hybrid_search(q, FETCH_CANDIDATES, qdrant=qdrant,
                                            embed_model=embed_model, colbert_store=colbert_store,
-                                           graph=graph)
+                                           graph=graph, restatements=restatements)
         print(f"  candidati {i}/{len(cases)} recuperati", end="\r")
     print()
     return cache
@@ -117,7 +118,7 @@ def _attrs_for(candidate: dict, graph) -> dict:
 
 
 def make_retrieve_fn(cache: dict, *, alpha: float, default_weight: float,
-                     unclassified_weight: float, graph):
+                     unclassified_weight: float, graph, restatements):
     """retrieve_fn(query, k) che RI-ORDINA i candidati in cache con i parametri dati, riusando
     ESATTAMENTE la ri-ponderazione e l'ordinamento di produzione: stesso peso di autorità
     (dichiarata inclusa), stesso rank_by_authority, stessa apply_precedence, nello stesso
@@ -130,7 +131,7 @@ def make_retrieve_fn(cache: dict, *, alpha: float, default_weight: float,
                 _attrs_for(c, graph), default=default_weight, decay=AUTHORITY_ARCHIVED_DECAY,
                 use_declared=AUTHORITY_USE_DECLARED,
                 unclassified=unclassified_weight), 3)
-        retrieval.rank_by_authority(cands, alpha=alpha)
+        retrieval.rank_by_authority(cands, alpha=alpha, restatements=restatements)
         # Precedenza dichiarata fra fonti (S4): ultimo stadio anche in produzione, dopo
         # l'autorità. È un riordino booleano indipendente da (alpha, default_weight), quindi
         # non muove la griglia, ma senza di esso l'ordine valutato non è quello servito.
@@ -139,13 +140,14 @@ def make_retrieve_fn(cache: dict, *, alpha: float, default_weight: float,
     return retrieve
 
 
-def mean_recall(cases, cache, *, alpha, default_weight, unclassified_weight, k, graph,
+def mean_recall(cases, cache, *, alpha, default_weight, unclassified_weight, k, graph, restatements,
                 subset: str = "all") -> float:
     """recall@k medio. `subset="adversarial"` restringe ai casi marcati `adversarial: true`
     nel golden set — il sottoinsieme che l'ADR 0002 deve muovere e che nella media coi casi
     facili sarebbe invisibile. 0.0 se il sottoinsieme è vuoto."""
     fn = make_retrieve_fn(cache, alpha=alpha, default_weight=default_weight,
-                          unclassified_weight=unclassified_weight, graph=graph)
+                          unclassified_weight=unclassified_weight, graph=graph,
+                          restatements=restatements)
     report = evaluate(cases, fn, ks=[k])
     if subset == "adversarial":
         adv = report.get("adversarial")
@@ -153,15 +155,16 @@ def mean_recall(cases, cache, *, alpha, default_weight, unclassified_weight, k, 
     return report["aggregate"][f"recall@{k}"]
 
 
-def griglia(cases, cache, *, k, graph) -> dict[tuple, float]:
+def griglia(cases, cache, *, k, graph, restatements) -> dict[tuple, float]:
     """recall@k per OGNI punto della griglia. Restituita per intero, non solo il massimo:
     serve a `assi_morti()` per dire quali parametri non muovono affatto la metrica."""
     return {(a, dw, uw): mean_recall(cases, cache, alpha=a, default_weight=dw,
-                                     unclassified_weight=uw, k=k, graph=graph)
+                                     unclassified_weight=uw, k=k, graph=graph,
+                                     restatements=restatements)
             for a in ALPHAS for dw in DEFAULT_WEIGHTS for uw in UNCLASSIFIED_WEIGHTS}
 
 
-def grid_best(cases, cache, *, k, graph, tabella: dict | None = None):
+def grid_best(cases, cache, *, k, graph, restatements, tabella: dict | None = None):
     """Miglior (alpha, default_weight, unclassified_weight) per recall@k medio.
 
     A parità di recall vince la configurazione ATTUALE DI PRODUZIONE, non la prima
@@ -182,7 +185,8 @@ def grid_best(cases, cache, *, k, graph, tabella: dict | None = None):
     L'incumbent vince i pareggi anche per una ragione di merito, non solo di rumore: una
     modifica del ranking di produzione va giustificata da un miglioramento, e un pareggio
     non è un miglioramento."""
-    tabella = tabella if tabella is not None else griglia(cases, cache, k=k, graph=graph)
+    tabella = tabella if tabella is not None else griglia(cases, cache, k=k, graph=graph,
+                                                         restatements=restatements)
     attuale = (AUTHORITY_BOOST_ALPHA, AUTHORITY_DEFAULT_WEIGHT, AUTHORITY_UNCLASSIFIED_WEIGHT)
     # L'incumbent parte in testa: solo un `>` stretto lo scalza.
     best = (tabella.get(attuale, -1.0), *attuale)
@@ -208,7 +212,7 @@ def assi_morti(tabella: dict) -> list[str]:
     return morti
 
 
-def kfold_cv(cases, cache, *, k, folds, seed, graph):
+def kfold_cv(cases, cache, *, k, folds, seed, graph, restatements):
     """k-fold CV: per ogni fold held-out, sceglie i parametri sui restanti e li valuta sul fold.
     Restituisce (recall medio held-out coi parametri CALIBRATI, recall medio held-out coi DEFAULT)."""
     idx = list(range(len(cases)))
@@ -220,13 +224,14 @@ def kfold_cv(cases, cache, *, k, folds, seed, graph):
         train = [cases[i] for i in idx if i not in set(buckets[f])]
         if not val or not train:
             continue
-        _, a, dw, uw = grid_best(train, cache, k=k, graph=graph)
+        _, a, dw, uw = grid_best(train, cache, k=k, graph=graph, restatements=restatements)
         cal_scores.append(mean_recall(val, cache, alpha=a, default_weight=dw,
-                                      unclassified_weight=uw, k=k, graph=graph))
+                                      unclassified_weight=uw, k=k, graph=graph,
+                                      restatements=restatements))
         def_scores.append(mean_recall(val, cache, alpha=AUTHORITY_BOOST_ALPHA,
                                       default_weight=AUTHORITY_DEFAULT_WEIGHT,
                                       unclassified_weight=AUTHORITY_UNCLASSIFIED_WEIGHT,
-                                      k=k, graph=graph))
+                                      k=k, graph=graph, restatements=restatements))
     def avg(xs):
         return sum(xs) / len(xs) if xs else 0.0
     return avg(cal_scores), avg(def_scores)
@@ -249,21 +254,29 @@ def main() -> int:
     from FlagEmbedding import BGEM3FlagModel
     from qdrant_client import QdrantClient
     arts = load_artifacts(required=("graph", "colbert", "chunks"))
+    # Peso di SEZIONE (N4): fa parte del ranking di PRODUZIONE, quindi deve far parte anche
+    # di ciò che si calibra. Senza, la griglia ottimizzerebbe alpha contro un ordinamento
+    # che nessuno serve — l'avvertimento è scritto nel docstring di make_retrieve_fn.
+    restatements = retrieval.restatement_sections(arts.chunks_store)
     qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
     embed_model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
 
     cases = load_cases()
     print(f"Golden set: {len(cases)} casi. Recupero candidati (una volta per domanda)...")
     cache = retrieve_candidate_cache(cases, qdrant=qdrant, embed_model=embed_model,
-                                     colbert_store=arts.colbert_store, graph=arts.graph)
+                                     colbert_store=arts.colbert_store, graph=arts.graph,
+                                     restatements=restatements)
 
     attuali = dict(alpha=AUTHORITY_BOOST_ALPHA, default_weight=AUTHORITY_DEFAULT_WEIGHT,
                    unclassified_weight=AUTHORITY_UNCLASSIFIED_WEIGHT)
-    default_full = mean_recall(cases, cache, **attuali, k=a.k, graph=arts.graph)
-    tabella_full = griglia(cases, cache, k=a.k, graph=arts.graph)
-    best_full = grid_best(cases, cache, k=a.k, graph=arts.graph, tabella=tabella_full)
+    default_full = mean_recall(cases, cache, **attuali, k=a.k, graph=arts.graph,
+                               restatements=restatements)
+    tabella_full = griglia(cases, cache, k=a.k, graph=arts.graph, restatements=restatements)
+    best_full = grid_best(cases, cache, k=a.k, graph=arts.graph, restatements=restatements,
+                          tabella=tabella_full)
     morti = assi_morti(tabella_full)
-    per_seed = [kfold_cv(cases, cache, k=a.k, folds=a.folds, seed=sd, graph=arts.graph)
+    per_seed = [kfold_cv(cases, cache, k=a.k, folds=a.folds, seed=sd, graph=arts.graph,
+                         restatements=restatements)
                 for sd in a.seed]
     def _media(xs):
         return sum(xs) / len(xs)
@@ -275,14 +288,17 @@ def main() -> int:
     # suo movimento è sotto la risoluzione del numero, e questo piano esiste per muoverlo.
     n_avv = sum(1 for c in cases if c.get("adversarial"))
     avv_default = mean_recall(cases, cache, **attuali, k=a.k, graph=arts.graph,
+                              restatements=restatements,
                               subset="adversarial") if n_avv else None
     avv_best = mean_recall(cases, cache, alpha=best_full[1], default_weight=best_full[2],
                            unclassified_weight=best_full[3], k=a.k, graph=arts.graph,
+                           restatements=restatements,
                            subset="adversarial") if n_avv else None
     # Autorità del tutto SPENTA: il controfattuale che dice se il meccanismo serve o no.
     avv_spenta = mean_recall(cases, cache, alpha=0.0, default_weight=AUTHORITY_DEFAULT_WEIGHT,
                              unclassified_weight=AUTHORITY_UNCLASSIFIED_WEIGHT, k=a.k,
-                             graph=arts.graph, subset="adversarial") if n_avv else None
+                             graph=arts.graph, restatements=restatements,
+                             subset="adversarial") if n_avv else None
 
     print("\n" + "=" * 68)
     print(f"Calibrazione autorità — recall@{a.k}  (golden set: {len(cases)} casi)")

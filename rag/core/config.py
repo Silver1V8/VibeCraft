@@ -248,6 +248,13 @@ AUTHORITY_PRECEDENCE_RELATION: str = str(_authority_cfg.get("precedence_relation
 # class_weights (tipicamente REQUIREMENTS) — ed è un valore calibrato che non va confuso con
 # "non so nulla di questa fonte".
 AUTHORITY_UNCLASSIFIED_WEIGHT: float = float(_authority_cfg.get("unclassified_weight", 0.30))
+# Peso di SEZIONE (N4): moltiplicatore applicato alle sole sezioni che CITANO codici di regola
+# senza dichiararne nessuno in un titolo — riepiloghi, checklist, scenari BDD. Sono la
+# riformulazione lessicale della regola che vive altrove, e il MaxSim di ColBERT le premia
+# proprio per questo (A3 §4-5: il 70% del deficit di rango 1 è bloccato da una sezione
+# SORELLA, dove l'autorità di documento si semplifica e non può separare). 1.0 = disattivato,
+# comportamento identico a prima di N4. Calibrato: vedi rag_config.yaml.
+SECTION_RESTATEMENT_WEIGHT: float = float(_authority_cfg.get("section_restatement_weight", 0.92))
 
 # Fiducia sugli archi del grafo (S2, ADR 0002 — rag_config.yaml -> graph_trust.*): natura
 # dell'arco (structural/curated/inferred) e affidabilità di default per natura. Letti da

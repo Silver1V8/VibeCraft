@@ -31,6 +31,7 @@ from core.config import (
     CODE_SEARCH_MAX_PER_FILE,
     CODE_SEARCH_MAX_SNIPPETS,
     CODE_SEARCH_MIN_SCORE,
+    AUTHORITY_BOOST_ALPHA,
     AUTHORITY_PRECEDENCE_RELATION,
     COLLECTION_NAME,
     GRAPH_CONTEXT_MAX_CHUNKS,
@@ -182,7 +183,7 @@ async def ask_rag(request: Request, query: AskQuery):
     search_results = await embed_in_threadpool(
         retrieval.hybrid_search, query.question, query.top_k,
         qdrant=qdrant, embed_model=embed_model, colbert_store=snap.colbert_store,
-        query_encoding=query_encoding, graph=graph,
+        query_encoding=query_encoding, graph=graph, restatements=snap.restatements,
     )
 
     # 2b. Ricerca semantica DIRETTA sul codice, indipendente dai documenti recuperati: il
@@ -312,18 +313,24 @@ async def ask_rag(request: Request, query: AskQuery):
     # === 4b-bis. FASE 6 DI [REGOLA-WF-01]: LE SEZIONI RAGGIUNTE SOLO VIA GRAFO ===
     # Fino a S3 l'espansione del grafo alimentava solo la mappa della dashboard e le ancore
     # del codice: il testo dei documenti raggiunti via grafo non entrava MAI nel contesto.
-    # Qui entra, ordinato per fiducia sul cammino × autorità della fonte e con un tetto basso
+    # Qui entra, ordinato per pertinenza × fiducia × autorità e con un tetto basso
     # (GRAPH_CONTEXT_MAX_CHUNKS, 0 = disattivato): il ramo semantico resta il canale
     # principale, questo è il complemento strutturale. I blocchi sono MARCATI "via grafo"
     # perché quelle sezioni non hanno matchato la domanda - sono arrivate da un legame
     # dichiarato, e l'LLM (o chi legge un dump del prompt in debug) deve poterlo distinguere.
     if GRAPH_CONTEXT_MAX_CHUNKS > 0 and chunks_store:
-        # Un nodo `document` non ha testo proprio: si iniettano le sue sezioni, in ordine di
-        # documento. Con un tetto di 2 si finisce spesso sul preambolo del documento più
-        # vicino: è il limite noto di un ramo che per costruzione NON ha alcun segnale di
-        # pertinenza alla domanda (la fiducia dice quanto ci si fida del legame, non quanto la
-        # sezione risponde). Ordinare queste sezioni per pertinenza sarebbe un secondo
-        # retrieval, fuori dal perimetro di S3.
+        # Un nodo `document` non ha testo proprio: si iniettano le sue sezioni. Fino a S6
+        # l'ordine era `fiducia × autorità` PER NODO, e la pertinenza sceglieva solo DENTRO
+        # al documento vincente: il budget finiva sistematicamente sui preamboli della fonte
+        # più autorevole raggiunta. Misurato (R9): sulle tre catene multihop a tre documenti
+        # il terzo documento era raggiunto ma stava 24° e 42° in quella graduatoria, contro un
+        # tetto di 2 — e le due sezioni iniettate erano il preambolo e la baseline di un
+        # documento GIÀ interamente in finestra dal ramo semantico.
+        # Ora i candidati di TUTTI i nodi raggiunti stanno in un solo insieme, e la pertinenza
+        # entra nell'ordinamento ACCANTO a fiducia e autorità invece che dentro al documento
+        # già scelto (la chiave completa è più sotto). NON è un secondo retrieval: il vettore
+        # ColBERT della domanda è già qui (S3) e i vettori dei chunk sono già in memoria —
+        # sono gli stessi MaxSim di prima, calcolati in un colpo invece che a gruppi.
         sezioni_per_doc: dict[str, list[str]] = {}
         for cid, entry in chunks_store.items():
             sezioni_per_doc.setdefault(entry.get("doc_id", ""), []).append(cid)
@@ -332,7 +339,11 @@ async def ask_rag(request: Request, query: AskQuery):
             attrs = graph.nodes[node_id] if node_id in graph else {}
             return trust_by_node[node_id]["trust"] * retrieval._authority_weight(attrs)
 
-        # Solo i nodi RAGGIUNTI, mai i seed: quelli sono già nel ramo semantico.
+        # Solo i nodi RAGGIUNTI, mai i seed: quelli sono già nel ramo semantico. Da S6 questo
+        # ordine NON decide più cosa entra — lo decide la graduatoria composita più sotto —
+        # ma resta significativo per due cose: attribuisce ogni sezione al cammino di cui ci
+        # si fida di più fra quelli che la raggiungono, e dà a precedence_pairs un ordine
+        # deterministico.
         raggiunti = sorted((n for n in trust_by_node if trust_by_node[n]["hops"] > 0),
                            key=lambda n: (-_peso_grafo(n), n))
 
@@ -353,38 +364,87 @@ async def ask_rag(request: Request, query: AskQuery):
         pavimento = (GRAPH_CONTEXT_MIN_RATIO * max(punteggi_semantici)
                      if punteggi_semantici and GRAPH_CONTEXT_MIN_RATIO > 0 else 0.0)
 
+        # Da quale nodo raggiunto arriva ogni sezione candidata: serve SOLO all'intestazione
+        # (hop e fiducia del cammino), non all'ordinamento. A parità di sezione vince il
+        # cammino di cui ci si fida di più, cioè il primo in `raggiunti`.
+        #
+        # I due filtri lavorano ora sul DOCUMENTO della sezione, non sul nodo raggiunto (S6).
+        # Prima erano scritti sul nodo, e le sezioni scappavano da entrambi: le sezioni di un
+        # documento seed sono raggiunte a hops>=1, non sono seed, ereditano l'autorità del
+        # loro documento e rientravano così dalla porta di servizio del grafo — misurato, si
+        # mangiavano tutto il budget. Stessa falla per `superati`: era controllato solo quando
+        # il nodo raggiunto era il documento, mai quando era una sua sezione.
+        semi = set(seed_nodes)
+        provenienza: dict[str, str] = {}
         for node_id in raggiunti:
+            for cid in ([node_id] if node_id in chunks_store
+                        else sezioni_per_doc.get(node_id, [])):
+                doc_id = (chunks_store.get(cid) or {}).get("doc_id", "")
+                if doc_id in semi or doc_id in superati or cid in seen_chunks:
+                    continue  # già in finestra dal ramo semantico, o superato da una fonte
+                provenienza.setdefault(cid, node_id)
+
+        # ORDINE = pertinenza × fiducia × autorità. Le tre grandezze rispondono a tre domande
+        # DIVERSE e nessuna sostituisce le altre: la pertinenza dice se la sezione risponde
+        # alla domanda, la fiducia quanto si crede al legame che ce l'ha portata (S3), il peso
+        # di classe quanto vale la fonte che la enuncia (ADR 0002). Prima di S6 l'ordine era
+        # `fiducia × autorità` e la pertinenza non entrava — il budget finiva sui preamboli
+        # della fonte più autorevole; il primo tentativo di S6 mise la pertinenza AL POSTO
+        # delle altre due, e su una catena il documento informativo (`authority: 0.40`, scritto
+        # come distrattore del golden set) passò davanti alla norma per solo match lessicale:
+        # il difetto di ADR 0002, rifatto nel ramo grafo. Misurate tutte e cinque le
+        # combinazioni sulle tre catene multihop a tre documenti: solo il prodotto pieno porta
+        # il terzo documento in finestra su tutte e tre. Numeri in rag/AUDIT.md, S6.
+        #
+        # Il moltiplicatore dell'autorità è LO STESSO di rank_by_authority — (1-α)+α·peso, la
+        # forma che [REGOLA-VAL-08] prescrive — e non una seconda scala inventata qui: due
+        # scale diverse per la stessa grandezza divergerebbero alla prima ricalibrazione.
+        # Il pavimento resta sulla pertinenza GREZZA: è una soglia di "risponde alla domanda",
+        # e moltiplicarla per fiducia e autorità la trasformerebbe in un'altra cosa.
+        #
+        # IL PESO DI SEZIONE (N4) NON ENTRA QUI, ed è una decisione misurata, non una svista.
+        # Nel ramo semantico penalizzare una riformulazione è giusto perché la sezione che
+        # ENUNCIA la regola è nella stessa lista e ne prende il posto: è esattamente ciò che
+        # fa salire cinque casi del golden set a rango 1. Qui no. Qui i concorrenti sono altri
+        # DOCUMENTI, il tetto è 2, e la sezione sorella che dichiara spesso non è nemmeno
+        # candidata — quindi penalizzare la riformulazione non promuove la fonte del vincolo:
+        # espelle il documento. Provato dal vivo: col peso applicato anche qui, la catena
+        # dell'«ultima unità» perde `api_error_contract` — cioè il terzo documento che R9
+        # aveva appena guadagnato — e con lui il `409` nella risposta.
+        def _composito(cid: str, pertinenza: float) -> float:
+            attrs_doc = graph.nodes.get(chunks_store[cid].get("doc_id", ""), {})
+            peso = retrieval._authority_weight(attrs_doc)
+            moltiplicatore = (1 - AUTHORITY_BOOST_ALPHA) + AUTHORITY_BOOST_ALPHA * peso
+            return pertinenza * trust_by_node[provenienza[cid]]["trust"] * moltiplicatore
+
+        graduatoria = retrieval.rank_sections_by_relevance(
+            list(provenienza), colbert_store=snap.colbert_store,
+            colbert_query=query_encoding["colbert"], min_score=pavimento)
+        # Le sezioni NON giudicabili (nessun vettore ColBERT) restano in coda nell'ordine
+        # ricevuto, come le lascia rank_sections_by_relevance: non avendo pertinenza non hanno
+        # nemmeno un composito, e inventargliene uno sarebbe un giudizio che non possiamo dare.
+        valutabili = [(cid, p) for cid, p in graduatoria if p is not None]
+        valutabili.sort(key=lambda voce: -_composito(*voce))
+        for cid, punteggio in valutabili + [(cid, p) for cid, p in graduatoria if p is None]:
             if len(context_parts) - n_parti_semantiche >= GRAPH_CONTEXT_MAX_CHUNKS:
                 break
-            if node_id in superati:
+            entry = chunks_store.get(cid)
+            if entry is None:
                 continue
-            info = trust_by_node[node_id]
-            # Il nodo è esso stesso una sezione, oppure è un documento con delle sezioni. Nel
-            # secondo caso le sezioni NON si prendono in ordine di file — sarebbe il preambolo
-            # quasi sempre — ma ordinate per pertinenza alla domanda: la fiducia sceglie DI
-            # QUALE DOCUMENTO fidarsi, il ColBERT quale SEZIONE di quel documento mostrare.
-            candidate = [node_id] if node_id in chunks_store else sezioni_per_doc.get(node_id, [])
-            for cid, punteggio in retrieval.rank_sections_by_relevance(
-                    candidate, colbert_store=snap.colbert_store,
-                    colbert_query=query_encoding["colbert"], min_score=pavimento):
-                if len(context_parts) - n_parti_semantiche >= GRAPH_CONTEXT_MAX_CHUNKS:
-                    break
-                entry = chunks_store.get(cid)
-                if entry is None or cid in seen_chunks:
-                    continue  # già iniettata dal ramo semantico: non la si duplica
-                seen_chunks.add(cid)
-                pertinenza = f", pertinenza {punteggio:.3f}" if punteggio is not None else ""
-                # Anche qui la classe, e non per simmetria: un blocco senza etichetta in mezzo a
-                # blocchi etichettati si legge come "fonte senza classe", che è un'altra cosa.
-                attrs_doc = graph.nodes.get(entry.get("doc_id", ""), {})
-                fonti_nel_contesto.append(
-                    {**attrs_doc, "authority": retrieval._authority_weight(attrs_doc)})
-                context_parts.append(
-                    f"--- {entry.get('doc_id', cid)} § {entry.get('section', '')} "
-                    f"[{retrieval.source_label(attrs_doc)}; via grafo: {info['hops']} hop, "
-                    f"fiducia {info['trust']:.3f}{pertinenza}] ---\n"
-                    f"{_cap_text(entry['text'])}"
-                )
+            seen_chunks.add(cid)
+            info = trust_by_node[provenienza[cid]]
+            pertinenza = f", pertinenza {punteggio:.3f}" if punteggio is not None else ""
+            # Anche qui la classe, e non per simmetria: un blocco senza etichetta in mezzo a
+            # blocchi etichettati si legge come "fonte senza classe", che è un'altra cosa.
+            attrs_doc = graph.nodes.get(entry.get("doc_id", ""), {})
+            fonti_nel_contesto.append(
+                {**attrs_doc, "authority": retrieval._authority_weight(attrs_doc)})
+            context_parts.append(
+                f"--- {entry.get('doc_id', cid)} § {entry.get('section', '')} "
+                f"[{retrieval.source_label(attrs_doc)}; via grafo: {info['hops']} hop, "
+                f"fiducia {info['trust']:.3f}{pertinenza}] ---\n"
+                f"{_cap_text(entry['text'])}"
+            )
 
     context = "\n\n".join(context_parts)
     # -----------------------------------------------------------------------
@@ -547,8 +607,9 @@ async def api_retrieve(
     results = await embed_in_threadpool(
         retrieval.hybrid_search, q, k,
         qdrant=state["qdrant"], embed_model=state["embed_model"], colbert_store=snap.colbert_store,
-        # Stesso ranking della produzione, precedenza compresa: eval.run misura QUESTO.
-        graph=snap.graph,
+        # Stesso ranking della produzione, precedenza e peso di sezione compresi: eval.run
+        # misura QUESTO, ed e' l'unico modo perche' il numero che ne esce voglia dire qualcosa.
+        graph=snap.graph, restatements=snap.restatements,
     )
     return {"query": q, "k": k, "results": results}
 

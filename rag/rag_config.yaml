@@ -200,6 +200,41 @@ authority:
   default_weight: 0.7       # peso delle classi non elencate (es. REQUIREMENTS/spec) — CALIBRATO 2026-07-14 (era 0.4)
   archived_decay: 0.3       # moltiplicatore del peso per status ARCHIVED/DEPRECATED/HISTORICAL/OBSOLETE
   boost_alpha: 0.1          # forza del boost di autorità: mult = (1 - alpha) + alpha * peso  (alpha=0 → autorità ignorata) — CALIBRATO 2026-07-14 (era 0.4)
+  section_restatement_weight: 0.92   # peso di SEZIONE (N4) — CALIBRATO 2026-09-05, 1.0 = disattivato
+  # PERCHÉ ESISTE. `boost_alpha` modula un peso di DOCUMENTO, e fra sezioni sorelle quel peso
+  # è identico: il moltiplicatore si semplifica e nessun alpha, per costruzione, può separarle.
+  # A3 §4-5 misurò che è proprio lì che vive il 70% del deficit di rango 1, e ne nominò la
+  # causa: i «Riepilogo delle Regole», le checklist e gli scenari BDD sono la riformulazione
+  # lessicale della regola che li precede — stesso vocabolario, più denso di parole chiave — e
+  # il MaxSim di ColBERT premia esattamente questo. La sezione che ILLUSTRA batte quella che
+  # STABILISCE.
+  #
+  # IL SEGNALE NON È UN'EURISTICA SUI TITOLI. Un codice dichiarato in un titolo
+  # (`### [SAFEGUARD-AUD-01] …`) marca chi enuncia il vincolo; lo stesso codice in una tabella,
+  # una checklist o un blocco Gherkin è una citazione. Sul corpus: 31 sezioni dichiarano, 28
+  # citano soltanto, 108 non nominano codici e restano a peso pieno — una sezione senza codici
+  # non è una riformulazione. Le 28 penalizzate sono esattamente i «Riepilogo delle Regole»
+  # (×5), gli «Scenari Comportamentali BDD», le «Checklist», l'«Indice dei Safeguard».
+  #
+  # CALIBRATO A k=1, non a k=5/k=10: è l'unico k che misura ciò che questo peso governa, e la
+  # nota qui sotto («ricalibrare SEMPRE a un k dove la metrica non sia satura») vale anche qui.
+  # 5-fold × 5 seed, tie-break all'incumbent (1.0), stesso protocollo di calibrate_authority:
+  #   in-sample   r@1  0.625 -> 0.714
+  #   HELD-OUT    r@1  0.626 -> 0.695   guadagno +0.069, dev.std 0.008, POSITIVO su 5 seed su 5
+  #   valore scelto in 20 fold su 25: 0.92
+  # A k=2 il guadagno held-out è +0.011 con dev.std 0.018 e un seed negativo: la metrica è
+  # quasi satura (0.875) e non discrimina. Il valore viene da k=1, ed è dichiarato qui perché
+  # è la stessa disciplina che A3 rimproverò a boost_alpha, calibrato dove non si vedeva.
+  #
+  # CONFERMA FUORI CAMPIONE, su dati che NON hanno scelto il parametro: la suite multihop
+  # passa da 0.854 a 0.890 di recall media e da 9 a 10 casi riusciti; r@5, r@10 e la recall
+  # avversariale restano identici. Nessun caso del golden set regredisce.
+  #
+  # IL COSTO, dichiarato: due fonti attese dal golden set VIVONO in una sezione penalizzata
+  # (`definition_of_done § 3. Checklist — Livello Funzionalità` e `§ 4. Livello Rilascio`),
+  # dove la checklist È la norma e non la riformula. Oggi restano entrambe a rango 1 — la
+  # penalità è abbastanza mite da rompere i pareggi fra sorelle senza ribaltare un divario di
+  # rilevanza vero — ma è il caso da guardare per primo se un domani questo peso venisse alzato.
   # FORMA ATTENUATA vs MOLTIPLICAZIONE PIENA — chiuso il 2026-08-24 (S5, ADR 0002).
   # [REGOLA-VAL-08] prescriveva `score x authority`, cioè alpha=1.0. Misurato sul golden set
   # avversariale (avversariali r@1 / 59 casi r@5 / 59 casi r@10):

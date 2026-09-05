@@ -21,6 +21,7 @@ from fastapi.responses import FileResponse, HTMLResponse, Response
 from qdrant_client import QdrantClient
 from FlagEmbedding import BGEM3FlagModel
 
+from core import retrieval
 from core.artifacts import current_version_token, load_artifacts, manifest_path
 from core.indexing import gc_orphaned_qdrant_collections, reconcile_and_repair_qdrant_alias
 from core.writer_lock import WriterLockBusyError, writer_lock
@@ -216,6 +217,13 @@ class IndexSnapshot:
     # restringere la ricerca a un ambito PRIMA dei top-k, senza copiare una sottomatrice.
     # Default {} così uno snapshot costruito senza (test, chiamanti storici) resta valido.
     code_dev_type_idx: dict = field(default_factory=dict)
+    # Sezioni che RIFORMULANO invece di stabilire (N4): riepiloghi, checklist, scenari BDD —
+    # citano codici di regola senza dichiararne nessuno in un titolo. Derivata dal TESTO dei
+    # chunk (core.retrieval.restatement_sections), quindi non richiede una re-indicizzazione e
+    # vale anche sugli indici gia' su disco. Precalcolata qui per la stessa ragione della
+    # matrice del codice: e' identica a ogni richiesta. Default vuoto = peso di sezione
+    # disattivato, che e' il comportamento dei chiamanti storici (test, snapshot costruiti a mano).
+    restatements: frozenset = frozenset()
 
 
 # ---------------------------------------------------------------------------
@@ -347,6 +355,7 @@ def _build_snapshot(graph, colbert_store, chunks, rule_descriptions, code_store)
         code_ids=code_ids,
         code_matrix=code_matrix,
         code_dev_type_idx=_prep_dev_type_index(code_ids, code_store),
+        restatements=retrieval.restatement_sections(chunks),
     )
 
 
