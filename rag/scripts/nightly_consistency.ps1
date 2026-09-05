@@ -63,6 +63,55 @@ try {
     & uv run python -m eval.run_multihop --url $qualityUrl *> $null
     if ($LASTEXITCODE -eq 0) { Write-Host "[$(Get-Date -Format o)] Suite strutturale/multihop OK." }
     else { Write-Host "[$(Get-Date -Format o)] Suite strutturale/multihop sotto soglia (alert registrato)." }
+
+    # I DUE CONTRATTI CHE PRETENDONO UN LLM VERO (R10, R11). In CI non c'e' un modello:
+    # l'astensione e' esercitata solo contro un provider finto e la soglia di certezza su
+    # num_ctx era stata osservata a mano una volta sola. Girano qui perche' questo e' il
+    # canale che ha Ollama acceso ed e' gia' collegato agli alert. Costo: 2 chiamate a
+    # /ask, di cui una si ferma PRIMA del modello (e' il punto del secondo check).
+    # -SkipHttpErrorCheck e' obbligatorio: con $ErrorActionPreference = "Stop" un 502 —
+    # che qui e' l'esito ATTESO — solleverebbe, e il catch esterno lo inghiottirebbe.
+
+    # R10 — l'astensione e' un impegno del PROMPT, non una garanzia del modello: una
+    # domanda fuori corpus deve tornare status "abstained" (marcatore [ASTENSIONE] scritto
+    # dal modello e letto da ask_rag), non "success" con le fonti elencate.
+    Write-Host "[$(Get-Date -Format o)] Contratto di astensione (domanda fuori corpus)..."
+    $askStatus = ""
+    try {
+        $r = Invoke-WebRequest -Method Post -Uri "$qualityUrl/ask" -ContentType "application/json" -TimeoutSec 600 -SkipHttpErrorCheck `
+            -Body '{"question":"qual e la ricetta tradizionale della carbonara e quanti grammi di guanciale servono per quattro persone"}'
+        $askStatus = ($r.Content | ConvertFrom-Json).status
+    } catch {}
+    if ($askStatus -eq "abstained") {
+        Write-Host "[$(Get-Date -Format o)] Astensione OK (status abstained)."
+    } else {
+        Write-Host "[$(Get-Date -Format o)] ASTENSIONE NON RISPETTATA: status '$askStatus' invece di 'abstained'."
+        Send-Alert "il modello non ha rispettato [REGOLA-ASTENSIONE] su una domanda fuori corpus (status: '$askStatus')"
+    }
+
+    # R11 — soglia di CERTEZZA su num_ctx (A1): a top_k=20 il prompt supera la finestra e
+    # /ask DEVE rispondere 502 col messaggio dichiarato, mai un 200 "success" su un prompt
+    # che Ollama troncherebbe dall'alto in silenzio. Misurato il 2026-09-05 su questa
+    # domanda: ~17.424 token stimati contro num_ctx=16384 (106,3%).
+    # Un 200 NON e' un falso allarme benigno: o il guardrail non scatta piu', o il contesto
+    # si e' ridotto sotto la finestra — in entrambi i casi questo check non sta piu'
+    # esercitando il contratto, ed e' proprio quello che va detto invece di restare verde.
+    Write-Host "[$(Get-Date -Format o)] Soglia di certezza su num_ctx (top_k=20)..."
+    $ctxCode = 0; $ctxBody = ""
+    try {
+        $r = Invoke-WebRequest -Method Post -Uri "$qualityUrl/ask" -ContentType "application/json" -TimeoutSec 600 -SkipHttpErrorCheck `
+            -Body '{"question":"quali vincoli valgono sui dati personali fra log, test e chiamate a LLM esterni?","top_k":20}'
+        $ctxCode = [int]$r.StatusCode; $ctxBody = $r.Content
+    } catch {}
+    if ($ctxCode -eq 502 -and $ctxBody -match 'FINESTRA DI CONTESTO SUPERATA') {
+        Write-Host "[$(Get-Date -Format o)] Soglia di certezza OK (502 col messaggio dichiarato)."
+    } elseif ($ctxCode -eq 502) {
+        Write-Host "[$(Get-Date -Format o)] 502 ma con un messaggio diverso da quello dichiarato."
+        Send-Alert "il 502 oltre la finestra non porta piu' il messaggio [FINESTRA DI CONTESTO SUPERATA]"
+    } else {
+        Write-Host "[$(Get-Date -Format o)] top_k=20 non supera piu' la finestra (HTTP $ctxCode): contratto NON esercitato."
+        Send-Alert "la soglia di certezza su num_ctx non e' piu' esercitata: top_k=20 ha risposto $ctxCode invece di 502"
+    }
 } catch {}
 
 Write-Host "[$(Get-Date -Format o)] Check di integrita' dell'indice (economico, zero embedding)..."

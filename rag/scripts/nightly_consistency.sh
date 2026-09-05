@@ -51,6 +51,49 @@ if curl -sf --max-time 5 "$quality_url/api/health" >/dev/null 2>&1; then
     else
         echo "[$(date -Is)] Suite strutturale/multihop sotto soglia (alert registrato)."
     fi
+
+    # I DUE CONTRATTI CHE PRETENDONO UN LLM VERO (R10, R11). In CI non c'e' un modello:
+    # l'astensione e' esercitata solo contro un provider finto e la soglia di certezza su
+    # num_ctx era stata osservata a mano una volta sola. Girano qui perche' questo e' il
+    # canale che ha Ollama acceso ed e' gia' collegato agli alert. Costo: 2 chiamate a
+    # /ask, di cui una si ferma PRIMA del modello (e' il punto del secondo check).
+
+    # R10 — l'astensione e' un impegno del PROMPT, non una garanzia del modello: una
+    # domanda fuori corpus deve tornare status "abstained" (marcatore [ASTENSIONE] scritto
+    # dal modello e letto da ask_rag), non "success" con le fonti elencate.
+    echo "[$(date -Is)] Contratto di astensione (domanda fuori corpus)..."
+    ask_status="$(curl -s --max-time 600 -X POST -H 'Content-Type: application/json' \
+        -d '{"question":"qual e la ricetta tradizionale della carbonara e quanti grammi di guanciale servono per quattro persone"}' \
+        "$quality_url/ask" 2>/dev/null | uv run python -c "import json,sys; print(json.load(sys.stdin).get('status',''))" 2>/dev/null)"
+    if [ "$ask_status" = "abstained" ]; then
+        echo "[$(date -Is)] Astensione OK (status abstained)."
+    else
+        echo "[$(date -Is)] ASTENSIONE NON RISPETTATA: status '$ask_status' invece di 'abstained'."
+        send_alert "il modello non ha rispettato [REGOLA-ASTENSIONE] su una domanda fuori corpus (status: '$ask_status')"
+    fi
+
+    # R11 — soglia di CERTEZZA su num_ctx (A1): a top_k=20 il prompt supera la finestra e
+    # /ask DEVE rispondere 502 col messaggio dichiarato, mai un 200 "success" su un prompt
+    # che Ollama troncherebbe dall'alto in silenzio. Misurato il 2026-09-05 su questa
+    # domanda: ~17.424 token stimati contro num_ctx=16384 (106,3%).
+    # Un 200 NON e' un falso allarme benigno: o il guardrail non scatta piu', o il contesto
+    # si e' ridotto sotto la finestra — in entrambi i casi questo check non sta piu'
+    # esercitando il contratto, ed e' proprio quello che va detto invece di restare verde.
+    echo "[$(date -Is)] Soglia di certezza su num_ctx (top_k=20)..."
+    ctx_body="$(mktemp)"
+    ctx_code="$(curl -s -o "$ctx_body" -w '%{http_code}' --max-time 600 -X POST -H 'Content-Type: application/json' \
+        -d '{"question":"quali vincoli valgono sui dati personali fra log, test e chiamate a LLM esterni?","top_k":20}' \
+        "$quality_url/ask" 2>/dev/null)"
+    if [ "$ctx_code" = "502" ] && grep -q 'FINESTRA DI CONTESTO SUPERATA' "$ctx_body"; then
+        echo "[$(date -Is)] Soglia di certezza OK (502 col messaggio dichiarato)."
+    elif [ "$ctx_code" = "502" ]; then
+        echo "[$(date -Is)] 502 ma con un messaggio diverso da quello dichiarato."
+        send_alert "il 502 oltre la finestra non porta piu' il messaggio [FINESTRA DI CONTESTO SUPERATA]"
+    else
+        echo "[$(date -Is)] top_k=20 non supera piu' la finestra (HTTP $ctx_code): contratto NON esercitato."
+        send_alert "la soglia di certezza su num_ctx non e' piu' esercitata: top_k=20 ha risposto $ctx_code invece di 502"
+    fi
+    rm -f "$ctx_body"
 fi
 
 echo "[$(date -Is)] Check di integrita' dell'indice (economico, zero embedding)..."
