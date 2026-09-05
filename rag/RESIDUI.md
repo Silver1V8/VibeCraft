@@ -1,6 +1,7 @@
 # RESIDUI — ciò che AUDIT.md lascia aperto, e come chiuderlo
 
-**Data:** 2026-09-04 · **Fonte:** rilettura integrale di `rag/AUDIT.md` (1.713 righe, Run A +
+**Data:** 2026-09-04, aggiornato il 2026-09-05 (S6) · **Fonte:** rilettura integrale di
+`rag/AUDIT.md` (1.713 righe, Run A +
 Run B + le 15 indagini di chiusura) · **Metodo:** ogni residuo è stato **riverificato contro
 il codice di oggi** prima di finire in questo elenco. Due erano già stati chiusi da altri
 interventi e sono qui segnati come tali: fidarsi della riga è l'errore che questo audit ha
@@ -16,9 +17,9 @@ dichiara aperti, li tria fra risolvibili e non, e li ordina in sessioni di lavor
 | | |
 |---|---|
 | Righe dell'audit | 19 — 15 chiuse, 3 ritirate, 1 con premessa ritirata e sostanza chiusa |
-| Residui dichiarati | **22** (+5 emersi eseguendo: R15 e R16 dai run CI reali, R17 da S4, R18 e R19 da S5) |
+| Residui dichiarati | **22** (+6 emersi eseguendo: R15 e R16 dai run CI reali, R17 da S4, R18 e R19 da S5, R20 da S6) |
 | Di cui già chiusi da altri interventi (riga stantia) | 2 |
-| Risolvibili con lavoro tecnico | 14 — **11 chiusi** (R1, R2, R3, R4, R5, R6, R7, R8, N5, N6 + gli altri annotati in linea); R13 preparato, non eseguito |
+| Risolvibili con lavoro tecnico | 14 — **14 chiusi** (R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, N5, N6 + gli altri annotati in linea); R13 preparato, non eseguito. Fuori elenco, chiusi lo stesso: **N4** (S6) e **R19** (effetto collaterale di N4) |
 | Che richiedono una decisione, non del codice | 5 (+R16: proteggere il ramo) |
 | Non risolvibili (dati persi, hardware assente) | 1 |
 
@@ -33,8 +34,8 @@ dimenticanze: sono confini dichiarati.
 |---|---|---|---|
 | N1 | **Streaming incrementale di `/ask`** | A11 | Cambierebbe il contratto: oggi la risposta è un JSON unico con risposta, contesto grafo, archi, punteggi e latenze. Servirebbero due canali, un secondo percorso d'errore e la cache da ripensare |
 | N2 | **Gate sulla latenza** | A11 | Il bench è una misurazione (exit 0) per contratto, e un p95 su 10 campioni non regge una soglia bloccante |
-| N3 | **Metrica di attribuzione della fonte** | A3 | «A chi la risposta attribuisce il vincolo» è la metrica vera del sistema e **non esiste**. Costa una chiamata LLM per caso più un giudice |
-| N4 | **Strada 1: peso di sezione** | A3 | Agisce sul *rango*, che la misura ha mostrato non essere il problema. Candidata solo se un giorno `governed_max_chunks` scendesse molto |
+| N3 ◐ | **Metrica di attribuzione della fonte** | A3 | «A chi la risposta attribuisce il vincolo» è la metrica vera del sistema e **non esiste**. Costa una chiamata LLM per caso più un giudice. **PROTOTIPATA 2026-09-05 (S6), NON scritta**: il giudice è ripetibile (3 giudizi identici sulla stessa risposta) e concorda con l'umano su **3 casi su 4**. Il quarto dissente e il giudice ha ragione: la risposta di oggi non attribuisce alcun vincolo, e il «Dopo ✅» della tabella di A3 §6 **non si riproduce** — corpus e indice sono cambiati fra il 3 e il 5 settembre. Per il criterio fissato («se non coincide, non è pronto») **non passa**, e la causa non è il giudice: è che il riferimento sono 4 risposte lette a mano e mai archiviate. Prima di scrivere l'harness servono casi con l'attribuzione davvero contesa e verdetti umani salvati **insieme al testo della risposta** |
+| N4 ✅ | ~~**Strada 1: peso di sezione**~~ | A3 | ~~Agisce sul *rango*, che la misura ha mostrato non essere il problema.~~ **FATTO il 2026-09-05 (S6)**, ed è risultata necessaria appena R9 si è chiuso. Il segnale non era da inventare: un codice di regola **dichiarato in un titolo** marca la sezione che enuncia il vincolo, lo stesso codice in una tabella o in un blocco Gherkin è una citazione — 31 sezioni dichiarano, 28 citano soltanto, e le 28 sono esattamente l'elenco che A3 §5 aveva stampato. Calibrato a k=1 (5-fold × 5 seed, incumbent al tie-break): **held-out +0.069, dev.std 0.008, positivo su 5 seed su 5** — l'opposto di ciò che A3 trovò alzando α. Dal vivo: `r@1 0.625→0.714`, `MRR 0.786→0.835`, multihop `0.854→0.890` con 9→10 casi, nulla peggiora. Applicato nel ramo **semantico** e deliberatamente **non** in quello grafo: lì i concorrenti sono altri documenti e la penalità espelle il documento invece di promuovere la sorella che dichiara — misurato, e pinnato da un test |
 | N5 ✅ | ~~**Servizio Qdrant nel workflow CI**~~ | A8 | **Fatto 2026-09-04** — `services: qdrant` (`qdrant/qdrant:v1.19.0`) nel job `test`, con `VIBECRAFT_REQUIRE_QDRANT=1`, `pytest -rs` e un passo che pretende `5 passed`: i cinque non possono tornare a saltare in silenzio. **Run #131 verde**: il riepilogo porta «Qdrant reale: 5/5 test d'integrazione passati», e la suite gira con 0 skipped |
 | N6 ✅ | ~~**Installazione reale su un Mac**~~ | A15 | **Fatto 2026-09-04** — job `macos-nativo` su `macos-15`: `uv sync --frozen` vero, torch importato e un matmul verificato. Un Mac qui continua a non esserci: ce lo mette il runner. **Eseguito: verde in 34-36s su due run**; dal log macOS 15.7.9 arm64, `torch 2.13.0` senza `+cu` e **matmul su `mps`** — torch non si limita a installarsi, calcola sull'acceleratore. Quel numero ha smentito la stima di costo con cui l'avevo limitato a main (130 pacchetti contro 149, torch 106,1 MiB contro 804,7): restrizione rimossa. Resta scoperto il ramo con CPython **gestita da uv** — in CI uv ha usato il Python di Homebrew del runner |
 | N7 | **Extra in conflitto CPU/CUDA per torch** | A15 | Cambierebbe il comando di installazione per tutti (`uv sync --extra cpu`). Per il caso CPU-only esiste già il target `cpu` del Dockerfile |
@@ -249,16 +250,46 @@ Tre candidate sono state scartate perché il distrattore vinceva **avendo ragion
 caso avversariale, è il retrieval che funziona. Sottoinsieme: **5 casi, 3 distrattori**. Il
 caso 4 resta normale, con la misura di oggi annotata accanto.
 
-**R9 — Le tre catene multihop a tre documenti si fermano a 2 su 3.** La soglia di A4 mette un
+**R9 ✅ — Le tre catene multihop a tre documenti si fermano a 2 su 3.** La soglia di A4 mette un
 pavimento sotto il numero, non lo alza. Ma la domanda vera non è mai stata posta: `/ask`
 inietta anche le sezioni raggiunte **via grafo**, quindi il terzo documento potrebbe essere
 nella *risposta* pur mancando dal retrieval. Nessuna metrica lo guarda — è la stessa
 distinzione di A3.
+**MISURATO il 2026-09-05 (S6): non compare, e il residuo PEGGIORA rispetto a come era
+scritto.** Chieste le tre catene a `/ask` coi parametri di produzione: il terzo documento
+entra nel contesto **1 volta su 3**, e in quell'unica senza la sezione che porta il vincolo;
+nella risposta il suo contributo manca **3 volte su 3** (il `409`, la gamba «test», i codici
+`[SAFEGUARD-AUD-*]`). La causa è misurata e ha un nome: il ramo grafo ordina per
+`fiducia × autorità` **senza alcun segnale di pertinenza**, e la sua esclusione dei seed
+opera sui soli nodi `document` — le sezioni di un seed sono raggiunte a `hops ≥ 1`, ereditano
+l'autorità del documento e si mangiano tutto il budget (`graph_context_max_chunks: 2`) per
+reiniettare i preamboli di una fonte già in finestra.
+**CORREZIONE APPLICATA e RIMISURATA lo stesso giorno**, in `api/routes_retrieval.py`: i due
+filtri lavorano ora sul **documento** della sezione — il che chiude anche una falla gemella su
+`superati`, che valeva solo per i nodi documento — e i candidati di tutti i nodi raggiunti
+stanno in un solo insieme ordinato per **pertinenza × fiducia × autorità**.
+Il primo tentativo ordinava per **sola** pertinenza e valeva 1 catena su 3, ma su un'altra
+faceva vincere un documento informativo a `authority: 0.40` — scritto come distrattore del
+golden set — sulla norma, per 0.02 di vantaggio lessicale: il difetto di ADR 0002 rifatto nel
+ramo grafo. Cinque ordinamenti misurati sulle tre catene; **solo il prodotto pieno** porta il
+terzo documento in finestra su tutte e tre, e con la norma davanti all'informativa.
+Esito: **3 catene su 3** hanno il terzo documento nel contesto; «ultima unità» cita `409` e
+`[REGOLA-API-04]`, «PII fra log, test e LLM» guadagna una sezione «Vincoli sui Test» che prima
+non c'era. Nessun preambolo più iniettato dal ramo grafo. Golden set e suite multihop
+**invariati**. Quattro test nuovi, ognuno verificato rosso sulla variante che deve bocciare.
+**Quel che resta non è R9:** è QUALE sezione di un documento raggiunto mostrare (sulla catena
+1 la sezione attesa è settima fra le sorelle). È il difetto che A3 §4-5 ha già nominato, e la
+strada è già parcheggiata come **N4** (peso di sezione). Vedi S6 in AUDIT.md.
 
-**R10 — Il marcatore di astensione è un impegno del prompt, non una garanzia del modello.**
-Nessun test lo esercita contro un LLM reale; un provider che ignorasse l'istruzione
-tornerebbe silenziosamente a `"success"`. Stessa famiglia: **R11 — la soglia di certezza su
-`num_ctx` non è mai stata esercitata contro Ollama in un test**, solo osservata a mano.
+**R10 ✅ — Il marcatore di astensione è un impegno del prompt, non una garanzia del modello.**
+~~Nessun test lo esercita contro un LLM reale; un provider che ignorasse l'istruzione
+tornerebbe silenziosamente a `"success"`.~~ **Chiuso il 2026-09-05 (S6)**: il check notturno
+pone una domanda fuori corpus e pretende `status: "abstained"`. Stessa famiglia: **R11 ✅ — la
+soglia di certezza su `num_ctx`** ~~non è mai stata esercitata contro Ollama in un test~~,
+**chiusa lo stesso giorno**: `top_k=20` deve tornare 502 col messaggio dichiarato (rimisurato:
+~17.298 token contro 16.384). Entrambi girano nel notturno e non in CI, dove un LLM non c'è, e
+di entrambi è stato verificato che **discriminano** — una domanda dentro il corpus torna
+`success`, la stessa domanda a `top_k=5` torna `200`.
 
 ### Gravità bassa / vigilanza
 
@@ -300,8 +331,13 @@ Una riga di correzione, ma va fatta con un rebuild e con la consapevolezza che s
 baseline. Verificato: dopo R7 il nodo fantasma sopravvive con un solo arco entrante invece
 di due.
 
-**R19 — La soglia multihop è a 0,4 punti dal pavimento, e ce l'ha portata un documento non
-tracciato.** *(Nuovo, 2026-09-04, emerso da S5.)* `recall media A` è passata da 0.896 a
+**R19 ✅ — La soglia multihop è a 0,4 punti dal pavimento, e ce l'ha portata un documento non
+tracciato.** *(Nuovo, 2026-09-04, emerso da S5; **rientrato il 2026-09-05 con N4**: la recall
+media è tornata a **0.890**, cioè 4,0 punti di margine, e il caso qui sotto è tornato a 1.00
+perché `spec_graph_rag_ingestion § Aggiornamento Incrementale` rientra nel top-10. È un
+effetto collaterale del peso di sezione, non un intervento su R19: le due domande di merito
+in coda — soglia relativa alla dimensione del corpus, e documenti non tracciati che spostano
+una metrica — **restano aperte** e sono in S8.)* `recall media A` è passata da 0.896 a
 **0.854** contro `min_recall: 0.85`. La suite non è cambiata: è il corpus. Due casi si sono
 mossi, e solo uno è «la misura che fa il suo lavoro» (l'enumerazione dei documenti, 0.55 →
 0.45, stessa lettura di A4). L'altro no: «cosa devo fare quando modifico un documento della
@@ -312,6 +348,18 @@ da git**. Il ranking non ha sbagliato; la catena a due documenti non ci sta più
 Due cose da decidere, e nessuna è «alzare la soglia»: se la soglia debba essere relativa alla
 dimensione del corpus invece che assoluta, e se un documento non tracciato debba poter
 consumare il margine di una metrica sorvegliata (è A6 che torna, da un'altra porta).
+
+**R20 — `boost_alpha` e `section_restatement_weight` sono accoppiati e sono stati calibrati
+uno alla volta.** *(Nuovo, 2026-09-05, emerso da N4.)* Rimisurato dopo N4,
+`eval.calibrate_authority --k 1` ha **cambiato verdetto**: dove prima dava `NON_APPLICARE`
+con guadagno held-out **−0.029**, ora propone `alpha=0.3` con **+0.028**. Il `default_recall`
+held-out è salito da 0.636 a 0.716 — è il peso di sezione, visto da uno strumento che non
+l'ha scelto, ed è una conferma. La proposta invece **non è stata applicata**: `dev.std 0.024`
+e un seed negativo, contro lo 0.008 e i 5/5 di N4, e alzare α resta la modifica che A3 ha
+respinto con una misura. Ma il fatto che l'ottimo di α si sia mosso è il residuo: i due
+parametri governano lo stesso ordinamento e una griglia congiunta non è mai stata girata.
+Non è urgente — la configurazione attuale è la migliore misurata su ogni singolo asse — ed è
+esattamente il tipo di lavoro che va fatto quando c'è margine, non sotto pressione.
 
 **R14 — Le due collection Qdrant distrutte da A20 non sono recuperabili → la parte
 risolvibile è CHIUSA 2026-09-04.** I dati restano persi (gli artefatti su disco ci sono, i
@@ -400,8 +448,8 @@ Due su due: la disciplina «misura prima di correggere» ha evitato due modifich
 | R17 | Decidere **quali** colori-di-stato devono seguire il tema e quali restare costanti, poi agganciare solo quelli | Un sed su `emerald` → token cancellerebbe la distinzione ok/errore proprio dove serve. È una decisione di design, con una spazzata meccanica dietro | M — decisione + sweep su 3 template |
 | R7 ✅ | `project:` corretto; il riferimento morto **né ripuntato né rimosso** — registrato con una voce di release nuova, perché §3 è storia e riscriverla la falsifica; e i **12 archi `CONTIENE` verso il nulla** rimossi dal frontmatter, che invece è un'asserzione sul presente | Il file è nell'indice: correggerlo senza rebuild non cambia ciò che il retrieval vede | S + rebuild — **fatto 2026-09-04**; i 12 archi fantasma (`reliability: 0.9`) non erano nel residuo, li ha trovati la verifica |
 | R8 ✅ | Documento scritto (`inferenza_locale_o_remota.md`, `authority: 0.40`, tracciato). Ma il caso 4 **non** è stato rimarcato: misurato, il nuovo distrattore esce a rango 6 contro il 2 dell'atteso — nessun contrasto. Il sottoinsieme è tornato a 5 casi con una domanda **diversa**, scelta misurando 7 formulazioni | È una decisione sul corpus: nessun documento esistente sotto peso 0.5 nomina LLM o privacy (già misurato) | M — **fatto 2026-09-04**; la premessa del residuo («basta un documento sul tema») è stata smentita dalla misura, non assunta |
-| R9 | **Misurare prima**: chiedere a `/ask` le tre catene e verificare se il terzo documento compare nella risposta via grafo | Se compare, non c'è nulla da correggere e il residuo si chiude come A4 — dichiarando cosa misura la soglia | M |
-| R10, R11 | Un check notturno contro Ollama vero, accanto a `nightly_consistency` | In CI non c'è LLM; il notturno gira dove il modello c'è ed è il canale che già porta gli alert | M |
+| R9 ✅ | ~~**Misurare prima**: chiedere a `/ask` le tre catene e verificare se il terzo documento compare nella risposta via grafo~~ **MISURATO 2026-09-05**: non compariva — 1 documento su 3 nel contesto, 0 su 3 nella risposta. **Corretto e rimisurato lo stesso giorno: 3 catene su 3.** | La premessa del residuo («il grafo compensa») è stata **smentita**, non assunta. Il ramo grafo usava i tre segnali che possiede — pertinenza, fiducia, autorità — uno alla volta: prima `fiducia × autorità` senza pertinenza, poi (primo tentativo) pertinenza al posto delle altre due, che ha rifatto il difetto di ADR 0002 dentro il ramo grafo. La chiave giusta li **compone**, con lo stesso moltiplicatore di `rank_by_authority`. Il tetto per-documento nel ranking, la strada più ovvia, è stato misurato e **bocciato**: a 1/doc distrugge entrambe le suite, a 3/doc non risolve R9 | **fatto 2026-09-05** (1 file, 4 test ognuno rosso sulla variante che boccia); quel che resta è **N4**, non R9 |
+| R10 ✅, R11 ✅ | ~~Un check notturno contro Ollama vero, accanto a `nightly_consistency`~~ | In CI non c'è LLM; il notturno gira dove il modello c'è ed è il canale che già porta gli alert | S — **fatto 2026-09-05**; il lavoro previsto erano due asserzioni, quello che ha richiesto pensiero è il ramo `200` di R11: non un falso allarme da ignorare, ma «il contratto non è più esercitato», che è ciò che l'alert dice |
 | R12 | `record_history` scrive **tutti** i k calcolati, non solo quello del gate | Una riga più larga costa nulla e rende ogni futuro spostamento del gate indolore | S |
 | R13 ◐ | **Preparato 2026-09-04**: 14 domande misurate contro l'indice, 5 candidati che falliscono a k=2 annotati in AUDIT.md («R13 — cinque candidati misurati, nessuno aggiunto»). **Nessuno aggiunto**: l'elenco serve pronto, non eseguito | Estenderlo sotto pressione (metrica satura) significa sceglierne i casi per far scendere un numero | M — preparazione fatta, aggiunta ancora aperta |
 | R14 ✅ | Non recuperabile. Ma il **rollback** deve accorgersi che la collection della versione target non esiste e dirlo, invece di fallire in modo oscuro | I dati sono persi; l'esperienza al tentativo no. **Misurando è emerso che non falliva affatto**: riusciva a metà e nessun check lo diceva — quindi rifiuto *prima* della mutazione, più il rilevamento dello stato misto nel check notturno | S — **fatto 2026-09-04** |
@@ -698,9 +746,17 @@ Aggiorna AUDIT.md (A6 "Cosa resta aperto", A2b) e RESIDUI.md.
 
 ---
 
-## S6 — Le metriche che non guardano la risposta
+## S6 — Le metriche che non guardano la risposta ✅ ESEGUITA il 2026-09-05
 
-Chiude **R9**, **R10**, **R11**, affronta **N3**.
+Chiude **R9**, **R10**, **R11**, **N4** e — per effetto collaterale di N4 — **R19**. Su R9
+l'ipotesi che lo avrebbe chiuso senza lavoro («il ramo grafo compensa») è risultata **falsa**;
+la correzione è stata applicata e rimisurata, e ora il terzo documento entra su **3 catene su
+3**. Chiuso R9, il residuo che ne è uscito era **N4**, affrontato subito dopo: il peso di
+sezione porta `recall@1` da 0.625 a 0.714 con un guadagno held-out di +0.069 positivo su tutti
+e cinque i seed. **N3 prototipato e non passato**: il giudice concorda con l'umano su 3 casi
+su 4, e sul quarto ha ragione lui — la tabella di A3 §6 non è più riproducibile. Il primo
+esito accettabile di questa sessione era scoprire che non c'era niente da correggere: non è
+quello che ha trovato. Cronaca e numeri in `AUDIT.md`, sezione **S6**.
 
 ```
 Lavora su rag/eval/ e rag/scripts/. Sessione di MISURA: il primo esito accettabile e'
@@ -825,8 +881,8 @@ S1  prompt che invita a inventare  ✅  ← comportamento scorretto oggi
 S2  allarmi mancanti               ✅  ← degradazioni silenziose
 S4  report non piu' veri           ✅  ← piccole, indipendenti, sbloccano la lettura
 S3  CI                             ✅  ← rende permanente cio' che S2 protegge
-S5  corpus                             ← cambia i numeri: dopo S1, prima di S6
-S6  metriche sulla risposta            ← misura sul corpus nuovo
+S5  corpus                         ✅  ← cambia i numeri: dopo S1, prima di S6
+S6  metriche sulla risposta        ✅  ← R9/R10/R11/N4/R19 chiusi, N3 non passa, R20 nuovo
 S7  storico
 S8  decisioni                          ← in qualsiasi momento, anche in parallelo
 ```

@@ -676,6 +676,18 @@ solido, non un intervallo di confidenza.
   vera è a chi la risposta attribuisce il vincolo, e **non esiste**. Nessun numero nel
   progetto si sarebbe mosso di un decimale per questa correzione — la recall è identica.
   Automatizzarla costa una chiamata LLM per caso e un giudice: non è stato fatto.
+  **PROTOTIPATA il 2026-09-05** (S6, N3), e il prototipo ha trovato prima di tutto un difetto
+  di questa sezione: **la tabella del §6 non è più riproducibile**. Il giudice automatico è
+  ripetibile (3 giudizi identici sulla stessa risposta) e concorda con l'umano su 3 casi su 4;
+  sul quarto — palette colori — dissente, e leggendo la risposta ha ragione lui. In tre
+  esecuzioni indipendenti la risposta di oggi apre con «il contesto **non riporta** un
+  controllo … già eseguito», cita il distrattore come prova dell'assenza e **non attribuisce
+  il vincolo a nessuna fonte**: il «Dopo ✅» registrato il 2026-09-03 non si riproduce, perché
+  fra le due date il corpus e l'indice sono cambiati (S5, R7, R8). Il verdetto di questa
+  sezione **non è ritirato** — nessuna misura di oggi lo contraddice sui casi 1-3, e la
+  correzione del prompt è tuttora in vigore — ma il suo fondamento, quattro risposte lette a
+  mano, è **scaduto e non ricostruibile**: le risposte non furono archiviate. È il motivo per
+  cui N3 va scritto, misurato su se stesso.
 - **La strada 1** (peso di sezione) resta la candidata naturale se un giorno il rango
   dovesse contare davvero — per esempio con `governed_max_chunks` molto più basso.
 - ~~**Il prompt di sistema ORDINA di citare vincoli SQL** (`«DEVI citare … i vincoli SQL (es.
@@ -1183,14 +1195,38 @@ A differenza di `recall@10` sul golden-set classico, **questa metrica non è mai
   che il retrieval semantico non può vedere — ma `/ask` inietta anche le sezioni raggiunte
   **via grafo**, quindi la domanda vera è se manchi nella *risposta*, non nel retrieval. È la
   stessa distinzione di A3, e come lì nessuna metrica la guarda.
+  **MISURATO il 2026-09-05** (S6, R9), e la risposta è no: il ramo grafo **non** recupera il
+  terzo documento. Su 3 catene chieste a `/ask` coi parametri di produzione, il documento
+  mancante entra nel contesto **1 volta su 3** — e in quell'unica volta senza la sezione che
+  porta il vincolo. Nelle altre due l'intero budget del ramo grafo
+  (`graph_context_max_chunks: 2`) va a due sezioni di preambolo di un documento **già presente
+  dal ramo semantico**, perché l'esclusione dei seed opera sui soli nodi `document` mentre le
+  loro sezioni sono raggiunte a `hops ≥ 1` e ne ereditano l'autorità. Nella risposta il
+  vincolo del terzo documento manca in tutti e tre i casi (il `409` di `[REGOLA-API-04]`, la
+  gamba «test» dei vincoli PII, l'attribuzione a `[SAFEGUARD-AUD-*]`). **Quindi la soglia di
+  A4 misura ciò che dice — la recall del retrieval — e non c'è alcun compenso a valle.**
+  **CHIUSO lo stesso giorno**: i due filtri del ramo grafo lavorano ora sul **documento**
+  della sezione — il che chiude anche una falla gemella su `superati` — e i candidati di tutti
+  i nodi raggiunti sono ordinati per **pertinenza × fiducia × autorità**, la composizione dei
+  tre segnali che il ramo già calcolava e usava uno alla volta. Rimisurato: il terzo documento
+  entra in finestra su **3 catene su 3**; «ultima unità» arriva a dire «l'altra riceve `409`
+  con code `RESOURCE_EXHAUSTED`» citando `[REGOLA-API-04]`, e «PII fra log, test e LLM»
+  guadagna una sezione «Vincoli sui Test» che prima non c'era. Golden set e suite multihop
+  **invariati** (il ramo grafo non passa da `/api/retrieve`). **Quindi la soglia di A4 misura
+  ciò che dice, e ora esiste un compenso a valle** — che nessuna delle due suite vede, il che
+  resta il punto di N3.
 - ~~**Il verdetto «trigger M2» è ormai storico** e il report lo stampa ancora come se fosse
   in corso~~ — **chiuso il 2026-09-04.** Il residuo era metà di com'era scritto: il docstring
   di `eval/run_multihop.py` dichiarava già il verdetto come storico, era solo la riga stampata
   a suonare come una decisione in corso. Il numero resta (è il gap retrieval→grafo ancora
   scoperto dal router), con l'etichetta che dice cosa significa oggi: **più basso = meglio**.
   Il campo `trigger_m2.fired` resta nel JSON, dove nessuno lo legge come un semaforo.
-- **`recall media A = 0.896` con soglia 0.85:** margine 4,6 punti, lo stesso ordine di
-  grandezza del gate single-hop.
+- ~~**`recall media A = 0.896` con soglia 0.85:** margine 4,6 punti, lo stesso ordine di
+  grandezza del gate single-hop.~~ **NON PIÙ VERO dal 2026-09-04** (S5): il corpus nuovo ha
+  portato la recall media di A a **0.854**, cioè **0,4 punti** sopra il pavimento. Registrato
+  come **R19**; rimisurato uguale il 2026-09-05 su due corse del notturno. La riga resta qui
+  barrata e non riscritta perché il numero di allora era vero: a scadere è stato il margine,
+  non la misura.
 
 ---
 ---
@@ -1358,10 +1394,17 @@ stato cachato resta `abstained`, non silenziosamente `success` (`test_astensione
 
 ## Cosa resta aperto
 
-- **Il marcatore è un impegno del prompt, non una garanzia del modello.** Un provider che
+- ~~**Il marcatore è un impegno del prompt, non una garanzia del modello.** Un provider che
   ignorasse l'istruzione — o un modello molto più debole — tornerebbe silenziosamente a
   `"success"`. Nessun test esercita questo caso contro un LLM reale (solo contro il fake nei
-  test); la verifica dal vivo qui sopra è con `qwen3.5:9b`, che la rispetta.
+  test); la verifica dal vivo qui sopra è con `qwen3.5:9b`, che la rispetta.~~
+  **CHIUSO il 2026-09-05** (S6, R10). Il check notturno — che gira dove Ollama c'è, ed è già
+  il canale degli alert — pone una domanda fuori corpus a `/ask` e pretende
+  `status: "abstained"`; qualunque altro stato scrive un alert che lo riporta. In CI resta
+  esercitato solo contro il fake, ed è corretto: in CI un modello non c'è. Che il check
+  **discrimini** è stato verificato, non assunto: la stessa domanda posta dentro il corpus
+  torna `success`. Resta vero — e ora è sorvegliato invece che sperato — che la garanzia vale
+  per il modello configurato: cambiarlo è ciò che questo check esiste per rendere visibile.
 - **La dashboard non distingue `abstained` da `no_results`/`no_graph_nodes`/`graph_answer`
   nella colorazione** (`templates/dashboard.unified.html`): tutto ciò che non è
   `"success"` è già rosso, `abstained` incluso. Non è un difetto nuovo — `graph_answer`, che
@@ -1474,9 +1517,18 @@ riscritto da assert-sul-log a `pytest.raises`), il test di warning esistente spo
   superamento* (mai più `success` silenzioso), non la ricalibrazione del tetto — che
   richiederebbe una nuova misura sistematica come quella originale, non un numero scelto
   a naso in coda a questa correzione.
-- **Nessun test esercita la soglia di certezza con un LLM reale** (solo con provider
+- ~~**Nessun test esercita la soglia di certezza con un LLM reale** (solo con provider
   finti): il comportamento di Ollama davanti a un prompt che la supera resta osservato,
-  non provato in CI.
+  non provato in CI.~~
+  **CHIUSO il 2026-09-05** (S6, R11), e non in CI — in CI un LLM non c'è, ed è il motivo per
+  cui il residuo era rimasto aperto. Il check notturno chiede `/ask` a `top_k=20` e pretende
+  **502** col messaggio `[FINESTRA DI CONTESTO SUPERATA]`. Rimisurato oggi: **~17.298 token
+  contro `num_ctx=16384`**, il 105,6% — la misura di A1 regge quattro giorni e un corpus
+  dopo. Il ramo che conta è però il `200`: non viene ignorato come falso allarme
+  benigno, scrive un alert che dice ciò che significa davvero — *o il guardrail non scatta
+  più, o il contesto è sceso sotto la finestra*, e in entrambi i casi il contratto ha smesso
+  di essere esercitato. Verificato che il check discrimini: la stessa domanda a `top_k=5`
+  torna `200`, quindi il 502 viene dalla finestra e non da `/ask` rotto.
 
 ---
 ---
@@ -2310,3 +2362,538 @@ del corpus.
   pieno di path che non esistono, ed è voluto: sono storia.
 - Che i 5 candidati di R13 siano ancora sbagliati quando serviranno. Vanno **rimisurati**
   prima di essere promossi, non copiati.
+
+---
+---
+
+# S6 — tre catene, un giudice e due contratti: cosa la misura ha smentito
+
+*Eseguita il 2026-09-05. Chiude **R9**, **R10**, **R11**, **N4** e — per effetto collaterale
+di N4 — **R19**; prototipa **N3**, che non passa, e la ragione è il risultato. Lascia un
+residuo nuovo: `boost_alpha` e il peso di sezione sono accoppiati e calibrati uno alla volta.*
+
+Il filo di questa sessione era una frase che AUDIT.md ripete in tre punti senza mai
+chiuderla: **ogni metrica di questo progetto guarda il retrieval, e i difetti che contano
+vivono nella risposta.** Le tre pendenze corrispondenti sono state misurate, non discusse.
+Due si chiudono, una peggiora rispetto a come era descritta, e una quarta scopre che la sua
+prova di riferimento è scaduta.
+
+---
+
+## R9 — il terzo documento non arrivava nella risposta: perché, e cosa è servito ✅ CHIUSO
+
+**La domanda di A4:** le tre catene multihop a tre documenti si fermano a 2 su 3 nel
+retrieval, ma `/ask` inietta anche le sezioni raggiunte **via grafo**. Il terzo documento
+potrebbe quindi essere nella risposta pur mancando dalla baseline A. Nessuno l'aveva
+chiesto a `/ask`.
+
+Chiesto. Parametri di **produzione** (`top_k=5`, `bfs_depth=2` — i default di `AskQuery`,
+non i valori con cui gira il report multihop), indice `v20260904T151925`, Ollama
+`qwen3.5:9b`, cache di `/ask` disattivata.
+
+| Catena | Matcher mancante alla baseline A | Documento nel contesto iniettato | Sezione attesa nel contesto | Il vincolo del terzo documento nella risposta |
+|---|---|---|---|---|
+| correlation id | `safeguards_security § Immutabilità` | **sì**, 2 sezioni via grafo | no | **a metà**: «record di audit» c'è, ma citato **da `[REGOLA-OBS-03]`**; `safeguards_security` non è mai nominato e nessun `[SAFEGUARD-AUD-*]` compare |
+| PII fra log, test e LLM | `testing_strategy § Gate di Qualità` | **no**, assente del tutto | no | **no**: la gamba «test» di una domanda a tre gambe non c'è — zero occorrenze di `testing_strategy`, `[REGOLA-TEST-*]`, «dati di test» |
+| ultima unità disponibile | `api_error_contract § Status HTTP` | **no**, assente del tutto | no | **no**: `RESOURCE_EXHAUSTED` c'è (arriva da `[SAFEGUARD-TXN-04]`), il **409** no |
+
+**Il residuo non si chiude come A4.** L'ipotesi che lo avrebbe chiuso — «il grafo lo recupera
+comunque» — è falsa su 2 catene su 3, e sulla terza è vera per il documento e falsa per la
+sezione che porta il vincolo.
+
+### La causa, misurata e non dedotta
+
+Il ramo grafo (`api/routes_retrieval.py`, fase 4b-bis) ordina i nodi raggiunti per
+`fiducia × autorità` e ne prende i primi `graph_context_max_chunks: 2`. Due difetti si
+sommano, ed entrambi si vedono nei numeri:
+
+1. **L'esclusione dei seed opera sui soli nodi `document`.** Le SEZIONI di un documento seed
+   sono raggiunte a `hops ≥ 1`, non sono seed, ed **ereditano l'autorità del documento**.
+   Nelle catene 2 e 3 l'intero budget è andato a due sezioni di `safeguards_security.md` — un
+   documento **già interamente nella finestra dal ramo semantico** — e per giunta alle sue
+   sezioni meno pertinenti, `(preambolo)` e `Baseline Cross-Progetto`, pertinenza 0.316 e
+   0.410: quelle pertinenti il ramo semantico se le era già prese, e al ramo grafo è
+   rimasto il resto.
+2. **Nella chiave di ordinamento non c'è alcun segnale di pertinenza alla domanda.** Il
+   commento nel codice lo dichiara come limite noto — *«la fiducia dice quanto ci si fida del
+   legame, non quanto la sezione risponde»* — e ne trae la conseguenza sbagliata: *«ordinare
+   queste sezioni per pertinenza sarebbe un secondo retrieval»*. Non lo è più da S3: il
+   vettore ColBERT della domanda è già nell'handler e `rank_sections_by_relevance` è già
+   chiamata, solo **dentro** un documento alla volta.
+
+Posizione del terzo documento nella graduatoria del ramo grafo, contro un budget di **2**:
+
+| Catena | oggi | escludendo le sezioni dei documenti già seed | ordinando per pertinenza |
+|---|---|---|---|
+| correlation id | **1**/143 | 1/125 | 1° (`safeguards § Categoria 2`, cb 0.4873) — invariato |
+| PII log/test/LLM | **24**/278 | 5/259 | 3° — perde per 0.008 contro due sezioni di `definition_of_done` (0.4804 e 0.4735 contro 0.4724) |
+| ultima unità | **42**/390 | 3/351 | **1°** (`api_error_contract § 5. BDD`, cb 0.4586) — **entrerebbe** |
+
+### Primo tentativo: la pertinenza al posto degli altri due segnali — e cosa ha rotto
+
+La correzione proposta era in due mosse: far lavorare i due filtri sul **documento** della
+sezione invece che sul nodo raggiunto, e appiattire i candidati ordinandoli per **pertinenza**
+invece che per `fiducia × autorità`.
+
+La prima mossa è giusta e resta. Chiude anche una falla gemella che il residuo non nominava:
+`superati` (S4) era controllato solo quando il nodo raggiunto era il **documento**, mai quando
+era una sua **sezione** — un documento esplicitamente superato poteva quindi rientrare per
+sezione.
+
+La seconda mossa era giusta a metà, e la rimisura l'ha mostrato. Portava il terzo documento
+in finestra su **1 catena su 3** (l'«ultima unità»), ma su un'altra faceva vincere
+`inferenza_locale_o_remota.md § 5` — `authority: 0.40`, un documento **scritto come
+distrattore del golden set** — davanti a `testing_strategy.md`, per un vantaggio lessicale di
+0.02. Cioè il difetto di ADR 0002, rifatto dentro il ramo grafo: la fonte che *spiega* davanti
+alla fonte che *vincola*. Sostituire un segnale con un altro non è comporli.
+
+### La chiave giusta: pertinenza × fiducia × autorità
+
+Le tre grandezze rispondono a **tre domande diverse**, e nessuna sostituisce le altre:
+
+| Fattore | Risponde a | Da dove viene |
+|---|---|---|
+| pertinenza | la sezione risponde alla domanda? | MaxSim ColBERT, già calcolato (S3) |
+| fiducia | quanto si crede al legame che ce l'ha portata? | `trust_paths`, ADR 0002 |
+| autorità | quanto vale la fonte che la enuncia? | `(1-α)+α·peso`, la stessa forma di `rank_by_authority` |
+
+Il moltiplicatore dell'autorità è **letteralmente quello di `rank_by_authority`**, non una
+seconda scala inventata qui: due scale per la stessa grandezza divergerebbero alla prima
+ricalibrazione. Il pavimento di pertinenza resta invece sulla pertinenza **grezza** — è una
+soglia di «risponde alla domanda», e moltiplicarla per fiducia e autorità la trasformerebbe
+in un'altra misura.
+
+Cinque combinazioni misurate sulle tre catene, guardando chi finisce nei primi 2 (il tetto di
+oggi) e dove cade il terzo documento:
+
+| Ordinamento | correlation id | PII log/test/LLM | ultima unità |
+|---|---|---|---|
+| `fiducia × autorità` (pre-S6) | dentro | fuori, **10°** | fuori, 6° |
+| `pertinenza` (primo tentativo) | dentro | fuori, 4° | dentro |
+| `pertinenza × autorità` | dentro | fuori, 3° | dentro |
+| `pertinenza × fiducia` | dentro | dentro (2°) | dentro |
+| **`pertinenza × fiducia × autorità`** | **dentro** | **dentro (1°)** | **dentro** |
+
+Le ultime due righe portano entrambe il terzo documento in finestra su tutte e tre. Il
+prodotto pieno è però l'unico che sulla catena 2 mette `testing_strategy` (NORMS) **davanti**
+al documento informativo a 0.40, invece che dietro: la stessa cosa che ADR 0002 chiede al
+ranking semantico, chiesta anche a questo ramo.
+
+### Rimisura finale — il terzo documento entra su tutte e tre
+
+| Catena | Blocchi via grafo, oggi | Il terzo documento |
+|---|---|---|
+| correlation id | `safeguards § Categoria 2` (0.487) + `§ Sezione 0` (0.468) | **dentro** |
+| PII log/test/LLM | **`testing_strategy § 1. Tassonomia dei Test`** (0.472) + `inferenza_locale_o_remota § 5` (0.495) | **dentro** |
+| ultima unità | **`api_error_contract § 5. BDD`** (0.459) + `spec_graph_rag_ingestion § 4` (0.453) | **dentro** |
+
+E nella risposta, che è ciò che R9 chiedeva davvero:
+
+- **Ultima unità:** *«una riceve `200` … e l'altra riceve `409` con code `RESOURCE_EXHAUSTED`»*,
+  attribuito a `[REGOLA-API-04]`. Il vincolo che nessuna delle due fonti recuperate enuncia.
+- **PII log/test/LLM:** la risposta guadagna una sezione **«5. Vincoli sui Test»** che prima
+  non c'era, con determinismo e isolamento presi da `testing_strategy`, e dichiara
+  esplicitamente che *«il contesto non introduce vincoli specifici aggiuntivi sui dati
+  personali oltre a quelli generali di `[SAFEGUARD-SEC-04]`»*. La terza gamba di una domanda a
+  tre gambe ha una risposta, e il suo limite è dichiarato invece che riempito d'invenzione.
+  La stessa risposta si chiude con una **«Nota sulla fonte»** che attribuisce il vincolo a
+  `[IRON_MEMORY]` e dice che `[NORMS]` lo motiva senza stabilirlo: è l'attribuzione di A3,
+  emessa spontaneamente.
+- **Correlation id:** invariata nella sostanza — «record di audit» c'è, `safeguards` non è
+  citato per nome. Il documento entra, la sua sezione `Immutabilità` no.
+
+Sparisce anche il sintomo che aveva dato il nome al difetto: **nessun blocco di preambolo è
+più iniettato dal ramo grafo** su nessuna delle tre catene.
+
+### L'alternativa che sembrava ovvia, e che la misura ha bocciato
+
+Prima di toccare l'ordinamento è stata misurata la strada più ovvia: **un tetto di sezioni per
+documento** nel ranking, contro il fatto che su una di queste domande 4 dei 5 blocchi
+semantici vengono dallo stesso documento. Calibrata sulle due suite reali (56 casi + 14),
+profondità di ripesca 50:
+
+| Tetto | r@1 | r@2 | r@5 | r@10 | MRR | multihop media A | A riusciti |
+|---|---|---|---|---|---|---|---|
+| nessuno | 0.625 | 0.875 | 0.982 | 1.000 | 0.786 | 0.854 | 9/14 |
+| 3/doc | 0.625 | 0.875 | 0.964 | 0.982 | 0.781 | **0.890** | **10/14** |
+| 2/doc | 0.625 | 0.875 | 0.946 | 0.964 | 0.775 | 0.837 | 9/14 |
+| 1/doc | 0.625 | **0.750** | **0.750** | **0.750** | 0.688 | **0.666** | 6/14 |
+
+Il tetto a 1 è l'unico che porta il terzo documento in finestra su tutte e tre le catene — ed
+è anche quello che **distrugge** entrambe le suite: molti casi del golden set hanno più
+sezioni attese nello stesso documento, e il tetto le taglia. Il tetto a 3 comprerebbe la suite
+multihop (+0.036 e un caso) pagando r@5 e r@10, ma **non** risolve R9: a `top_k=5` il terzo
+documento non entra su nessuna delle tre catene. Registrato qui perché la strada è ovvia e
+qualcuno la ripercorrerà: è misurata, e la risposta è no.
+
+### Cosa non si è mosso — la verifica che la modifica è contenuta
+
+- `recall@1 0.625`, `recall@2 0.875`, `recall@5 0.982`, `recall@10 1.000`, `MRR 0.786` —
+  **identici** a prima della sessione.
+- Suite multihop: `recall media A = 0.854`, `A riusciti 9/14`, `B exact 6/6` — **identici**.
+
+Non è una sorpresa, è una verifica: entrambe le suite girano su `/api/retrieve`, che il ramo
+grafo non attraversa. Se uno di questi numeri si fosse mosso, la modifica avrebbe toccato
+qualcosa che non doveva.
+
+**I quattro test che si accorgono se torna indietro**, in `tests/test_ask_observability.py`,
+**tutti verificati rossi** sulla variante che avrebbero dovuto bocciare:
+
+| Test | Contro cosa | Rosso su |
+|---|---|---|
+| una sezione del seed non ruba il budget | filtro per nodo invece che per documento | codice pre-S6 |
+| ordina per pertinenza fra documenti diversi | ordine `fiducia × autorità` | codice pre-S6 |
+| la fonte debole non vince per solo lessico | ordine a sola pertinenza | primo tentativo |
+| il cammino debole non vince per solo lessico | ordine a sola pertinenza | primo tentativo |
+
+Gli ultimi due usano i pesi di produzione: a α=0.1 la forbice fra peso 0.30 e peso 1.0 vale
+7,5%, quindi un vantaggio lessicale del 5% deve perdere — e uno più grande vincerebbe, che è
+il comportamento voluto: **l'autorità modula la pertinenza, non la sostituisce.**
+
+### R9 si chiude, e quel che resta ha già un altro nome
+
+Il terzo documento entra nel contesto su **3 catene su 3** e il suo contributo compare nella
+risposta su 2 (sulla terza il documento c'era già prima e la sostanza pure, dalla fonte
+sbagliata). Il residuo si chiude.
+
+Quel che resta non è R9: è **quale sezione** di un documento raggiunto mostrare. Sulla catena
+1 la sezione attesa (`Categoria 3 — Immutabilità`, pertinenza 0.4237) è settima fra le sue
+sorelle; sulla 2 entra `§ 1. Tassonomia` invece di `§ 3. Gate di Qualità`. È il difetto che A3
+§4-5 ha già misurato e nominato — *«l'autorità è una proprietà del documento, ma l'unità di
+retrieval è la sezione»*, e fra sezioni sorelle il moltiplicatore si semplifica — e la strada
+per affrontarlo è già parcheggiata come **N4** (peso di sezione). Chiudere R9 qui non nasconde
+nulla: lo consegna al residuo che lo descrive meglio — **e N4 è stato affrontato subito dopo,
+nella stessa sessione: vedi più sotto.**
+
+### Cosa questa correzione NON prova
+
+- Che le risposte siano migliori **in generale**. È misurata su tre catene: su due il vincolo
+  mancante ora arriva, sulla terza no. Nessuna metrica del progetto guarda le altre 53
+  domande del golden set dal lato della risposta — è di nuovo N3.
+- Che `pertinenza × fiducia × autorità` sia la composizione **ottima**. È la migliore delle
+  cinque misurate, tutte con α di produzione. Un α diverso, o una forma non moltiplicativa,
+  non sono stati esplorati: qui serviva una chiave che non buttasse via un segnale, non una
+  calibrazione.
+- Che il tetto `graph_context_max_chunks: 2` sia giusto. Non è più il collo di bottiglia sulle
+  tre catene, ma non è stato calibrato: è rimasto dov'era, ed è la cosa da guardare per prima
+  se un domani una catena a quattro documenti dovesse comparire.
+
+---
+
+---
+
+## N4 — la sezione che RESTITUISCE una regola non è quella che la STABILISCE ✅ CHIUSO
+
+Chiuso R9, restava una cosa sola: **quale sezione** di un documento mostrare. A3 §4-5 l'aveva
+già misurata e nominata — il 70% del deficit di rango 1 è bloccato da una sezione **sorella**,
+dove il peso di autorità è identico per costruzione e il moltiplicatore `(1-α)+α·peso` si
+semplifica, quindi *nessun α può separarle* — e aveva anche nominato il colpevole: i blocchi
+BDD/Gherkin sono *«la riformulazione lessicale della regola che li precede: stesso
+vocabolario, più denso di parole chiave, spesso più lungo»*, e il MaxSim di ColBERT premia
+esattamente questo.
+
+Mancava il segnale che le separi. N4 lo parcheggiava come «peso di sezione», senza dire da
+dove il peso dovesse venire.
+
+### Il segnale è nel corpus, e non è un'euristica sui titoli
+
+Un codice di regola **dichiarato in un titolo** — `### \`[SAFEGUARD-AUD-01]\` Immutabilità
+Assoluta…` — marca la sezione che enuncia il vincolo. Lo stesso codice dentro una tabella di
+riepilogo, una checklist o un blocco Gherkin è una **citazione**. Nient'altro: nessuna lista
+di titoli da riconoscere, nessuna parola chiave da mantenere.
+
+Misurato sul corpus, 167 sezioni:
+
+| Ruolo | Quante | Chi sono |
+|---|---|---|
+| dichiara | 31 | `Categoria 2 — Concorrenza Critica`, `2. Log Strutturati e Correlazione`, `3. Gate di Qualità`, `3. Contratto dei Design Token`… |
+| **cita soltanto** | **28** | `Riepilogo delle Regole` (×5), `Scenari Comportamentali BDD`, `Checklist — Livello …` (×4), `Indice dei Safeguard`, `Catalogo Minimo degli Errori` |
+| nessun codice | 108 | preamboli, prose, contratti di istanziazione senza regole |
+
+Le 28 sono **esattamente** l'elenco che A3 §5 aveva stampato guardando chi bloccava l'atteso.
+Una sezione senza codici non è una riformulazione e resta a peso pieno: si penalizza solo chi
+ripete una regola che appartiene a un'altra sezione.
+
+### Calibrato a k=1, con lo stesso protocollo che A3 pretese da `boost_alpha`
+
+`rag_config.yaml:authority.section_restatement_weight`, moltiplicatore applicato alle sole 28.
+5-fold × 5 seed, tie-break all'incumbent (1.0 = nessuna penalità), come `grid_best`:
+
+```
+in-sample   r@1  0.625 -> 0.714
+HELD-OUT    r@1  0.626 -> 0.695     guadagno +0.069   dev.std 0.008
+            per seed: +0.073  +0.053  +0.073  +0.073  +0.073   ← positivo su 5 su 5
+valore scelto in 20 fold su 25: 0.92
+```
+
+È l'esatto opposto di ciò che A3 trovò provando ad alzare α: là in-sample +0.019 e held-out
+**−0.029 su tutti i seed**, cioè sovradattamento. Qui il guadagno sopravvive fuori campione,
+con una dispersione fra seed di 0.008 — un ordine di grandezza sotto il guadagno.
+
+A k=2 il quadro è diverso e va detto: +0.011 held-out, dev.std 0.018, **un seed negativo**, e
+il valore scelto salta fra 0.8 e 0.95. Non è una contraddizione: a k=2 la metrica sta a 0.875
+e non discrimina. Il valore viene da k=1 — l'unico k che misura ciò che questo peso governa —
+ed è la stessa disciplina che A3 rimproverò a `boost_alpha`, *«calibrato dove non si vede»*.
+
+### Misura dal vivo
+
+| | prima | dopo |
+|---|---|---|
+| `recall@1` | 0.625 | **0.714** |
+| `recall@2` (gate) | 0.875 | **0.893** |
+| `recall@5` | 0.982 | 0.982 |
+| `recall@10` | 1.000 | 1.000 |
+| `MRR` | 0.786 | **0.835** |
+| `source_in_top3` | 0.946 | **0.964** |
+| avversariale `recall@1` | 0.000 | 0.000 |
+| multihop, recall media A | 0.854 | **0.890** |
+| multihop, A riusciti | 9/14 | **10/14** |
+
+Nessuna metrica peggiora. La recall avversariale resta 0.000 ed è corretto: quei cinque casi
+sono bloccati da un **altro documento**, non da una sorella — A3 lo aveva già separato, e il
+peso di sezione non li tocca per costruzione.
+
+**I cinque casi che salgono a rango 1** si leggono come la tabella di A3 §5 letta al contrario:
+
+| Domanda | Prima (rango 1) | Dopo (rango 1) |
+|---|---|---|
+| lunghezza massima di una funzione | `coding_standards § 4. Scenari BDD` | `§ 2. Metriche Strutturali` |
+| forma della risposta di errore | `api_error_contract § Sezione 0` | `§ 1. Forma dell'Errore` |
+| soglia minima di copertura dei test | `testing_strategy § Sezione 0` | `§ 3. Gate di Qualità` |
+| saltare una voce della checklist | `definition_of_done § 6. Scenari BDD` | `§ 1. Principio` |
+| correlation id sui record di audit | `observability § 6. Riepilogo delle Regole` | `§ 2. Log Strutturati e Correlazione` |
+
+Zero casi regrediscono. E la suite multihop — **dati che non hanno scelto il parametro** —
+guadagna un caso: `cosa devo fare quando modifico un documento` passa da 0.500 a 1.000,
+perché `spec_graph_rag_ingestion § Aggiornamento Incrementale` rientra nel top-10.
+
+### L'asimmetria: nel ramo semantico sì, nel ramo grafo NO
+
+Applicato anche al ramo grafo, il peso di sezione **rompe R9**: la catena dell'«ultima unità»
+perde `api_error_contract` — il terzo documento appena guadagnato — e con lui il `409` nella
+risposta. Misurato dal vivo, non dedotto.
+
+La ragione non è un numero, è una differenza di premessa:
+
+- Nel ramo **semantico** penalizzare una riformulazione **promuove la sorella che dichiara**,
+  perché è nella stessa lista: è precisamente ciò che fa salire i cinque casi qui sopra.
+- Nel ramo **grafo** i concorrenti sono altri **documenti**, il tetto è 2, e la sorella che
+  dichiara spesso non è nemmeno candidata. Lì la penalità non promuove la fonte del vincolo:
+  **espelle il documento**.
+
+Quindi il peso vive in `rank_by_authority` — dove `/api/retrieve` lo espone e le due suite lo
+misurano — e non nella chiave composita del ramo grafo. L'asimmetria è deliberata ed è pinnata
+da un test che diventa rosso se qualcuno la "corregge".
+
+### Il costo, dichiarato
+
+Due fonti attese dal golden set **vivono** in una sezione penalizzata:
+`definition_of_done § 3. Checklist — Livello Funzionalità` e `§ 4. Livello Rilascio`. Lì la
+checklist **è** la norma, non la riformula: il segnale, per quel documento, dice la cosa
+sbagliata. Oggi entrambe restano a rango 1 — la penalità è mite apposta, rompe i pareggi fra
+sorelle senza ribaltare un divario di rilevanza vero — ma è il primo posto da guardare se un
+domani quel peso venisse abbassato.
+
+### Due effetti collaterali, uno buono e uno da registrare
+
+**R19 rientra.** La soglia multihop stava a **0,4 punti** dal pavimento (0.854 contro 0.85) e
+S5 l'aveva registrata come residuo nuovo. Con N4 la recall media è 0.890: il margine torna a
+**4,0 punti**. Non è stato l'obiettivo, ed è giusto dirlo così — R19 si chiude per effetto di
+un'altra correzione, non perché qualcuno l'abbia affrontato.
+
+**Il calibratore di `boost_alpha` ha cambiato verdetto, e NON è stato applicato.** Rimisurato
+dopo N4, `eval.calibrate_authority --k 1` propone ora `alpha=0.3` con guadagno held-out
+**+0.028** — dove prima, sullo stesso comando, dava **−0.029** e `NON_APPLICARE`. Il default
+held-out è salito da 0.636 a 0.716: è il peso di sezione, misurato da uno strumento
+indipendente. La proposta però ha `dev.std 0.024` e **un seed negativo**, contro lo 0.008 e i
+5/5 di N4: è un segnale molto più debole, e alzare α resta la modifica che A3 ha respinto con
+una misura. **Non applicata.** Ne esce però un residuo vero: i due parametri sono
+**accoppiati** e sono stati calibrati uno alla volta. Una calibrazione congiunta di
+(`boost_alpha`, `section_restatement_weight`) è un lavoro a sé, non una riga in coda a questo.
+
+### Dove vive, e cosa non ha richiesto
+
+Il ruolo si deriva dal **testo** dei chunk (`retrieval.restatement_sections`), calcolato una
+volta per snapshot accanto a `rule_descriptions`: **nessuna re-indicizzazione**, nessun campo
+nuovo negli artefatti, e funziona sugli indici già su disco. Il parametro è passato
+esplicitamente a `rank_by_authority` — e quindi anche dal **calibratore**, che altrimenti
+ottimizzerebbe un ordinamento che nessuno serve: è l'avvertimento scritto nel docstring di
+`make_retrieve_fn`, ed è il motivo per cui `restatements` è un argomento obbligatorio invece
+di un default comodo.
+
+### Cosa N4 NON prova
+
+- Che 0.92 sia il valore ottimo. È il valore che 20 fold su 25 scelgono a k=1, su una griglia
+  di nove punti, con α fermo al suo valore di produzione. La coppia va ricalibrata insieme.
+- Che il segnale regga su un corpus con altre convenzioni. Qui i documenti dichiarano le
+  regole sotto un titolo perché il corpus lo impone; un corpus che non lo faccia vedrebbe 0
+  sezioni «dichiara» e il peso diventerebbe inerte — che è il modo giusto di degradare, ma
+  resta da verificare il giorno in cui succede.
+- Che la catena del correlation id sia risolta. `safeguards § Categoria 3 — Immutabilità` resta
+  fuori dal top-10, e non per il difetto che N4 corregge: le sue sorelle che la battono
+  **dichiarano** anche loro, e a quella domanda sono più pertinenti. È il ranking che funziona,
+  non un residuo.
+
+---
+
+## N3 — il giudice funziona, la prova contro cui doveva essere validato no
+
+**Il progetto minimo, prototipato.** Un giudice LLM riceve la domanda, l'elenco delle fonti
+presenti nel contesto e la risposta; restituisce un JSON con la fonte che la risposta indica
+come **normativa** — quella che *stabilisce* il vincolo, distinta da quella che lo motiva, lo
+illustra o lo conferma — più una citazione di venti parole a sostegno. Una chiamata per caso,
+qualche secondo l'una.
+
+**Il giudice è ripetibile.** Tre giudizi sulla **stessa** risposta, sul caso facile e su
+quello difficile: `3/3` identici in entrambi. La varianza che si vede più sotto non è sua.
+
+**L'accordo col giudizio umano registrato in A3 §6, colonna «Dopo»: 3 su 4.**
+
+| Caso | Umano (A3, 2026-09-03) | Giudice (2026-09-05) |
+|---|---|---|
+| 1 — bump di versione | ✅ la spec | `spec_graph_rag_ingestion.md` ✅ |
+| 2 — caratteri per chunk | ✅ la spec «Fonte Primaria» | `spec_graph_rag_ingestion.md` ✅ |
+| 3 — ordine dei tagli | ✅ `[REGOLA-VAL-04]` dalla spec | `spec_graph_rag_ingestion.md` ✅ |
+| 4 — palette colori | ✅ «apre dalla norma e dichiara la divergenza» | `NESSUNA` ❌ |
+
+**Per il criterio fissato per questa sessione — se non coincide, il giudice non è pronto — il
+giudice NON passa.** Va detto così, e va detto anche perché non coincide, perché la ragione
+non è il giudice.
+
+Sul caso 4 il giudice ha ragione e la tabella è scaduta. In **tre** esecuzioni indipendenti
+con cache disattivata la risposta apre sempre allo stesso modo — *«Il contesto **non riporta**
+un controllo stilistico della palette colori che sia già stato eseguito»* — cioè riformula la
+domanda in «è già stato fatto?» e **non attribuisce alcun vincolo a nessuna fonte**: cita
+`fe1-canvas-review` (il distrattore) al punto 1 e `[REGOLA-UI-01]` al punto 2, entrambi come
+prove dell'assenza. Il risultato che A3 registrò — *«apre dalla norma e dichiara la
+divergenza risolvendola per classe»* — **non si riproduce oggi**. Fra il 3 e il 5 settembre il
+corpus e l'indice sono cambiati (S5, R7, R8) e nel contesto è entrato il codice del frontend,
+che allora non c'era.
+
+Non è una regressione dimostrata della correzione di A3: è la dimostrazione che **quattro
+risposte lette a mano non sono una prova conservabile**. Il riferimento è marcito in due
+giorni, e nessun numero del progetto se n'era accorto — che è l'argomento di N3, verificato
+su N3 stesso.
+
+Una conseguenza di progetto, da portarsi dietro quando l'harness si scriverà: la condizione
+di controllo va **archiviata insieme al testo della risposta**, non solo come verdetto. Un
+harness che conservi «✅/❌» e basta ricostruisce fra un mese lo stesso vicolo cieco di oggi.
+
+**Il secondo tentativo di validazione, e perché non ha aiutato.** Per non validare il giudice
+su soli casi positivi — un giudice che rispondesse sempre «la fonte più autorevole» li
+passerebbe tutti — è stata ricostruita la condizione **PRIMA** di A3: stesso contesto, le
+classi tolte dalle intestazioni, nessun `[CLASSE-FONTI]`. Non ha prodotto negativi
+affidabili: sul caso 2 due esecuzioni danno `spec` e `NESSUNA`, e il difetto storico —
+severità attribuita al METHODOLOGY — **non si riproduce**. Quindi oggi il giudice non ha un
+solo caso in cui l'attribuzione sia dimostrabilmente sbagliata: la sua capacità di
+riconoscere l'errore resta **non provata**, ed è un limite del corpus tanto quanto del
+giudice.
+
+**Cosa serve prima di scrivere l'harness**, nell'ordine: casi in cui l'attribuzione sia
+davvero contesa — il sottoinsieme avversariale di oggi ha 5 casi e 3 distrattori, e su tre di
+essi la spec vince facile — e, per ognuno, un verdetto umano archiviato **con la risposta che
+l'ha prodotto**. Senza i primi il giudice misura una costante; senza i secondi la misura non è
+riproducibile fra due corpus.
+
+---
+
+## R10 e R11 — i due contratti girano ora dove c'è un modello vero
+
+Due impegni che nessun test esercitava contro un LLM reale: il marcatore `[ASTENSIONE]` è una
+promessa del prompt, non una garanzia del modello; la soglia di **certezza** su `num_ctx` era
+stata osservata a mano una volta sola. In CI non c'è un LLM, quindi il canale è il check
+notturno, che gira dove Ollama c'è ed è già collegato agli alert.
+
+Aggiunti a `scripts/nightly_consistency.{sh,ps1}` — **gemelli**, stesse due verifiche, stessi
+messaggi, `.sh` in LF — dentro il blocco già condizionato alla raggiungibilità del server:
+
+- **R10**: una domanda fuori corpus (una ricetta di cucina) deve tornare `status: "abstained"`.
+  Qualunque altro stato scrive un alert che riporta lo stato ricevuto.
+- **R11**: `top_k=20` sulla domanda dei dati personali deve tornare **502** col messaggio
+  `[FINESTRA DI CONTESTO SUPERATA]`. Misurato oggi: **~17.298 token stimati contro
+  `num_ctx=16384`**, il 105,6% — dello stesso ordine dei ~17.013 di A1, che però non registrò
+  con quale domanda: da oggi la domanda è nello script, e quel confronto non andrà più perso.
+
+**Il ramo che di solito viene scritto male è il 200.** Un `200` qui non è un falso allarme
+benigno da ignorare: o il guardrail non scatta più, o il contesto si è ridotto sotto la
+finestra. In entrambi i casi il check **non sta più esercitando il contratto**, ed è quello
+che l'alert dice — invece di restare verde per la ragione sbagliata, che è il modo in cui
+questa sorveglianza ha già fallito una volta (A2b: la soglia scritta a mano su una `k`
+satura).
+
+**Verifica, entrambi i gemelli, esecuzione reale:**
+
+```
+[…] Contratto di astensione (domanda fuori corpus)...
+[…] Astensione OK (status abstained).
+[…] Soglia di certezza su num_ctx (top_k=20)...
+[…] Soglia di certezza OK (502 col messaggio dichiarato).
+[…] Integrita' OK: nessuna azione necessaria.            exit 0
+```
+
+E la prova che i due check **discriminano**, senza la quale sarebbero due semafori sempre
+verdi: la stessa domanda posta dentro il corpus torna `success` (farebbe scattare R10), e la
+domanda di R11 a `top_k=5` torna `200` — il 502 viene dalla finestra, non da `/ask` rotto.
+Costo aggiunto al notturno: **2 chiamate a `/ask`**, ~4 secondi in tutto, di cui una si ferma
+prima del modello.
+
+**Cosa questa chiusura NON prova.** Che un modello diverso rispetti `[REGOLA-ASTENSIONE]`: il
+check gira contro `qwen3.5:9b`, che è il modello configurato — sostituirlo è ciò che il check
+esiste per rendere visibile, non ciò che ha già verificato. E che il 502 arrivi per la ragione
+giusta su ogni corpus: la domanda di R11 è hard-coded con la sua misura e la sua data
+accanto, perché il giorno in cui non supererà più la finestra il messaggio dell'alert dovrà
+essere leggibile da chi non c'era.
+
+---
+
+## Verifica
+
+- `ruff check .` → `All checks passed!`
+- Suite completa: **1329 passed**, 0 skipped (Qdrant e Ollama accesi) — 1318 prima, più gli
+  undici casi nuovi, ognuno **verificato rosso** sulla variante che deve bocciare (due sul
+  codice pre-S6, due sul primo tentativo a sola pertinenza, tre sul ramo senza peso di
+  sezione, uno sulla variante che il peso lo applica anche al ramo grafo).
+- **R9**: golden set e suite multihop identici prima e dopo — la correzione tocca solo il ramo
+  grafo, che non passa da `/api/retrieve`.
+- **N4**: `recall@1 0.625 → 0.714`, `recall@2 0.875 → 0.893`, `MRR 0.786 → 0.835`,
+  `source_in_top3 0.946 → 0.964`; `recall@5`/`recall@10` invariati ai loro massimi; multihop
+  `0.854 → 0.890` con `A riusciti 9 → 10/14` e `B exact 6/6`. Nessuna metrica peggiora.
+- Il calibratore dell'autorità gira e riporta un `default_recall` held-out salito da **0.636 a
+  0.716**: è il peso di sezione, misurato da uno strumento che non l'ha scelto.
+- `bash scripts/nightly_consistency.sh` e `pwsh -File scripts/nightly_consistency.ps1`:
+  **stessa uscita riga per riga**, entrambi `exit 0`, integrità OK, nessuna mutazione
+  dell'indice. I gemelli restano gemelli, e il `.sh` resta LF (0 CR nel file).
+- I due check nuovi **discriminano**: domanda dentro il corpus → `success` (R10
+  scatterebbe); `top_k=5` → `200` (il 502 di R11 viene dalla finestra, non da `/ask` rotto).
+- Il giudice di N3 è ripetibile: 3 giudizi identici sulla stessa risposta, su due casi.
+
+## Un numero scaduto trovato per strada — e poi rientrato
+
+Le due corse reali del notturno hanno riscritto in `history.jsonl` la recall media della
+suite multihop: **0.854**, contro il pavimento **0.85**. La riga di A4 «margine 4,6 punti»
+descriveva lo 0.896 di prima di S5 ed è stata barrata sul posto. Non è un residuo nuovo — S5
+lo aveva già registrato come **R19** — ma era rimasto vero in un punto del documento e falso
+in un altro, che è il modo in cui questi numeri scadono: uno alla volta, mai tutti insieme.
+
+**Poi N4 l'ha riportato a 0.890, cioè 4,0 punti di margine, e R19 si chiude.** Va detto per
+quello che è: un effetto collaterale, non un intervento. Nessuno ha affrontato R19; è
+rientrato perché la correzione di un'altra cosa passava di lì.
+
+## Cosa questa sessione NON prova
+
+- Che la correzione di R9 renda le risposte migliori **in generale**. È misurata su tre
+  catene: su due il vincolo mancante ora arriva, sulla terza no. Nessuna metrica del progetto
+  guarda le altre 53 domande del golden set dal lato della risposta — è di nuovo N3.
+- Che il tetto `graph_context_max_chunks: 2` sia giusto. Non è più il collo di bottiglia sulle
+  tre catene, ma non è stato calibrato: è rimasto dov'era.
+- Che `boost_alpha` e `section_restatement_weight` siano ai loro valori giusti **insieme**.
+  Sono stati calibrati uno alla volta, e dopo N4 il calibratore dell'autorità propone un α
+  diverso: la coppia è accoppiata e la calibrazione congiunta non è stata fatta. Registrato
+  come residuo, non risolto in coda a questa sessione.
+- Che il giudice di N3 sappia riconoscere un'attribuzione **sbagliata**. Su questi 4 casi non
+  gli è mai stata mostrata: la condizione PRIMA ricostruita non riproduce più il difetto
+  storico. Finché non esiste un caso negativo verificabile, l'accordo 3/4 misura la sua
+  concordanza, non la sua sensibilità.
+- Che il caso 4 di A3 sia una regressione della correzione di A3. Fra le due misure sono
+  cambiati corpus, indice e contesto (ora c'è il codice del frontend): le due condizioni non
+  sono confrontabili, ed è precisamente ciò che rende necessario N3.

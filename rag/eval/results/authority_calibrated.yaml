@@ -1,4 +1,4 @@
-generated_at: '2026-09-01T12:39:50'
+generated_at: '2026-09-05T12:46:55'
 metric: recall@1
 cv:
   folds: 5
@@ -8,32 +8,34 @@ cv:
   - 2
   - 3
   - 4
-  default_recall: 0.6364
-  calibrated_recall: 0.6073
-  gain: -0.0291
-  gain_std: 0.0145
+  default_recall: 0.7164
+  calibrated_recall: 0.7442
+  gain: 0.0279
+  gain_std: 0.0239
   gain_per_seed:
-  - -0.0182
-  - -0.0364
-  - -0.0545
-  - -0.0182
+  - 0.0515
+  - 0.0364
+  - 0.0333
+  - 0.0364
   - -0.0182
 dead_axes:
 - default_weight
-- unclassified_weight
 in_sample_best:
   alpha: 0.3
   default_weight: 0.4
   unclassified_weight: 0.1
-  recall: 0.6545
+  recall: 0.7679
 default:
   alpha: 0.1
   default_weight: 0.7
   unclassified_weight: 0.3
-  recall: 0.6364
+  recall: 0.7143
 adversarial_subset:
   n: 5
   recall_authority_off: 0.0
   recall_default: 0.0
-  recall_grid_best: 0.6
-recommendation: NON_APPLICARE
+  recall_grid_best: 0.8
+recommendation: APPLICA
+proposed_authority_yaml:
+  boost_alpha: 0.3
+  default_weight: 0.4
