@@ -2915,3 +2915,89 @@ rientrato perché la correzione di un'altra cosa passava di lì.
 - Che il caso 4 di A3 sia una regressione della correzione di A3. Fra le due misure sono
   cambiati corpus, indice e contesto (ora c'è il codice del frontend): le due condizioni non
   sono confrontabili, ed è precisamente ciò che rende necessario N3.
+
+---
+
+# M6 — l'esperimento si è bocciato da solo, ma non per il conto che sembrava
+
+L'advisory incrementale (`eval_gate.incremental_advisory`, attivata il 2026-07-21) portava
+scritta addosso la propria regola di decisione, senza terza opzione: **tenere** se la mediana
+di `advisory_eval_seconds` è ≤ 10% della durata mediana dei job incrementali **e** gli alert
+sono ≤ 1/settimana a corpus stabile; **rimuovere** altrimenti. Verifica dovuta il 2026-08-04,
+eseguita il **2026-09-07** con cinque settimane di ritardo. Esito: **RIMOSSA**.
+
+## Le due clausole, misurate
+
+| Clausola | Misura | Esito |
+|---|---|---|
+| Costo ≤ 10% | mediana advisory **23,967 s** contro mediana job incrementali **4,364 s** → **549%** | ❌ |
+| Rumore ≤ 1 alert/sett. | **0 alert** in 7 settimane (23 esecuzioni, tutte `passed=True`) | ✅ |
+
+La regola lega le due con una `E`: una sola bocciatura basta.
+
+## Il 549% è un numero vero e un confronto sbagliato
+
+Va detto, perché è la trappola in cui il conto cade da solo. **I due soli job incrementali del
+journal sono `noop: true`** — 0 documenti reindicizzati, 0 chunk scritti, 23 documenti tutti
+`unchanged`. I loro 4,296 s e 4,432 s sono il costo di *hashare il corpus e scoprire che non è
+cambiato niente*, non il costo di un incrementale che lavora. Peggio: un piano noop esce a
+`indexing.py:1903`, **prima** dell'aggancio dell'advisory — quei due job non l'hanno mai
+eseguita. Il rapporto divide quindi il costo dell'advisory su lavoro reale per la durata di due
+job che lavoro non ne hanno fatto e che l'advisory non l'hanno nemmeno chiamata.
+
+Le due popolazioni sono disgiunte per **costruzione**, non per caso: l'advisory scatta su ogni
+`incremental_index`, ma solo il percorso `ReindexManager` (`routes_reindex.py`) scrive nel
+journal. `routes_intake.py`, `core/intake.py` e `core/project_import.py` chiamano
+`incremental_index` **direttamente** e non journalano nulla. Le 21 righe advisory del 21-23
+luglio non hanno una riga di journal corrispondente perché sono passate di lì. **La regola
+nominava come denominatore uno strumento che non registra il traffico che l'advisory produce:
+com'era scritta non era decidibile.**
+
+## Perché il verdetto sopravvive lo stesso alla correzione
+
+Non regge su quel rapporto. Regge su una soglia che nessun incrementale plausibile raggiunge:
+perché l'advisory costasse ≤ 10%, un job incrementale dovrebbe durare **≥ 239,7 s (4 minuti)**.
+La mediana dei rebuild **full dell'intero corpus** è 553 s (6 misure, 374-704 s). Un delta
+dovrebbe costare il **43% di una ricostruzione totale** per giustificare l'advisory — e a quel
+prezzo si fa un full, che il gate **bloccante** ce l'ha davvero. Sotto ogni trattamento del
+denominatore — letterale (549%), escludendo i noop (popolazione vuota), o estrapolato — la
+clausola cade. Il verdetto non dipende dal punto contestabile.
+
+## Due correzioni ai numeri con cui l'esperimento è stato letto
+
+- **L'intervallo non era 9,3-29 s.** È **5,739-36,663 s** su 23 righe. Le due più recenti
+  (2026-09-01) stanno a **5,8 s**, quattro volte sotto la mediana di luglio (24,114 s): erano
+  state saltate, ed erano l'unico dato che avrebbe potuto salvare l'esperimento.
+- **Quel crollo non è un miglioramento, ed è già stato annullato.** `hybrid_search` dimensiona
+  il pool su `fetch_k = max(top_k*3, 10)`: a luglio `eval_gate.k` era 10 → pool 30; il 25
+  agosto `k` scende (oggi 2) → pool 10, e il costo con esso. **R12, entrato oggi stesso
+  (`57db910`), rimette `evaluate_recall` su `DEFAULT_KS ∪ {k}` → `max(ks)=10` → pool di nuovo
+  30.** Le 23 misure sono quindi **tutte pre-R12**, e le due più economiche appartengono a un
+  regime che oggi non esiste più: il costo attuale torna a quello di luglio, su un golden set
+  nel frattempo cresciuto (55 casi contro 49).
+
+## Cosa è stato rimosso
+
+`run_incremental_advisory` (`core/eval_gate.py`), il flag `eval_gate.incremental_advisory`
+(`rag_config.yaml`) e la sua costante (`core/config.py`), l'aggancio in `core/indexing.py`,
+`tests/test_incremental_advisory.py`. Suite: **1316 passati, 5 saltati**; `ruff` pulito.
+
+**Le 23 righe `incremental_advisory` di `eval/results/history.jsonl` NON sono state toccate**
+— lo storico è append-only, e una misura non smette di essere avvenuta perché il codice che la
+produceva se n'è andato. Il docstring di `record_history` le dichiara ora come sorgente
+*storica*, così chi filtra per `source` se le aspetta invece di trovarle per sbaglio.
+
+## Cosa questa chiusura NON prova
+
+- **Che l'advisory fosse inutile.** Non è mai stata messa nella condizione di dire qualcosa:
+  0 alert su 23 esecuzioni, tutte sopra soglia. È stata rimossa perché **costa** troppo per
+  quello che un incrementale dura, non perché sia stato dimostrato che non vede regressioni.
+- **Che un incrementale non possa degradare l'indice.** Il buco che M6 voleva tappare resta
+  aperto e documentato in testa a `eval_gate.py`: gli incrementali mutano in place la
+  collection già promossa, senza candidata e senza gate bloccante.
+- **Quanto costi davvero l'advisory oggi.** Le 23 misure sono pre-R12; la stima post-R12 è un
+  ritorno al regime di luglio dedotto dal `fetch_k`, **non una misura**. Nessun incrementale
+  reale è stato eseguito per ottenerne una: sarebbe servito scrivere sull'indice di produzione.
+- **Che la durata mediana di un incrementale reale sia nota.** Non lo è: il journal non ne
+  contiene nemmeno uno. È l'estrapolazione dai full a reggere la soglia dei 4 minuti, e resta
+  un'estrapolazione.

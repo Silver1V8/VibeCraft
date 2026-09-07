@@ -57,9 +57,14 @@ def _git_commit() -> str | None:
 
 def record_history(recall: dict, *, n_cases: int, version, source: str,
                    gate: dict | None = None, path: Path | None = None) -> dict:
-    """Appende una riga di storico. `source` è 'eval.run', 'gate', 'incremental_advisory' o
-    'multihop'; `gate` (opzionale) porta l'esito del gate (passed/min_recall). `path` è
-    risolto a runtime così i test lo reindirizzano.
+    """Appende una riga di storico. `source` è 'eval.run', 'gate' o 'multihop'; `gate`
+    (opzionale) porta l'esito del gate (passed/min_recall). `path` è risolto a runtime
+    così i test lo reindirizzano.
+
+    Nel file esiste anche source='incremental_advisory' (23 righe, 2026-07-21 → 2026-09-01):
+    l'esperimento M6 che le scriveva è stato RIMOSSO il 2026-09-07 perché la sua stessa
+    regola di decisione lo bocciava sul costo. Nessuno le scrive più, ma lo storico è
+    append-only e restano leggibili: un consumatore che filtra per source deve aspettarsele.
 
     `recall` è {"recall@1": .., "recall@2": .., ..}: TUTTI i k che il chiamante ha misurato,
     non solo quello che lo interessa oggi (R12). Scrivere una chiave in più non costa nulla —

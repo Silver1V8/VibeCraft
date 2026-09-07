@@ -318,6 +318,21 @@ caso invece di 3, quindi la sua `recall@2` può muoversi di poco — è la profo
 `eval.run` misura da sempre, e le due sorgenti finiscono nella stessa serie. Dettagli in
 `AUDIT.md`, A2b «Cosa resta aperto».
 
+**M6 — l'advisory incrementale è stata RIMOSSA il 2026-09-07, dalla sua stessa regola.**
+Portava scritta una decisione senza terza opzione: tenere se il costo mediano è ≤ 10% della
+durata mediana dei job incrementali **e** gli alert sono ≤ 1/settimana. Alert: **0 in 7
+settimane** (✅). Costo: mediana **23,967 s** contro **4,364 s** di job, **549%** (❌) — e con
+la `E` fra le clausole una sola bocciatura basta. **Ma quel 549% divide per due job `noop`**
+che non hanno reindicizzato niente e che l'advisory non l'hanno mai chiamata (un piano noop
+esce prima dell'aggancio): la regola nominava come denominatore un journal che non registra il
+traffico dell'advisory — intake e project-import chiamano `incremental_index` senza journalare.
+Il verdetto regge lo stesso su una soglia che nessun delta raggiunge: per stare al 10% un
+incrementale dovrebbe durare **≥ 4 minuti**, contro i 553 s mediani di un full dell'intero
+corpus. Da correggere anche l'intervallo con cui l'esperimento è stato letto: **5,7-36,7 s**,
+non 9,3-29, e le 23 misure sono **tutte pre-R12** — le due più economiche (5,8 s) stanno in un
+regime di `fetch_k` che R12 ha annullato lo stesso giorno. Le 23 righe di storico **non sono
+state riscritte**. Dettagli in `AUDIT.md`, «M6 — l'esperimento si è bocciato da solo».
+
 **R13 — `recall@2` è a 0.875 con soglia 0.75: margine 12,5 punti. PREPARATO 2026-09-04, non
 eseguito.** Il giorno in cui saturasse non resta un k più basso — andrà **esteso il golden
 set** con casi che il sistema sbaglia. I candidati sono stati cercati **ora, mentre il

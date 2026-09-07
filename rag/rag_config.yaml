@@ -436,22 +436,6 @@ eval_gate:
   # soglia. Mai alzare min_recall a un k saturo, che non misura nulla comunque.
   min_recall: 0.75     # promozione bloccata se recall@k medio scende sotto questo valore
   blocking: true       # true = blocca la promozione; false = solo alert (advisory), promuove comunque
-  # M6 — ESPERIMENTO: valutazione ADVISORY post-promozione sui job INCREMENTALI.
-  # A flag attivo, DOPO la promozione di un incrementale si misura la recall sul golden set
-  # contro lo stato appena promosso (stesso modello e client del job). Solo osservazione:
-  # la promozione è già avvenuta e resta valida; sotto min_recall si scrive un alert WARNING
-  # (mai critical, mai bloccante). Esito storicizzato in eval/results/history.jsonl con
-  # source="incremental_advisory"; durata in advisory_eval_seconds dentro le stats del job
-  # (→ campo result nel journal database/reindex_jobs.jsonl).
-  # REGOLA DI DECISIONE DELL'ESPERIMENTO (nessuna terza opzione):
-  #   1. attivare il flag MANUALMENTE per 2 settimane di lavoro reale;
-  #   2. TENERE il gate se: mediana di advisory_eval_seconds ≤ 10% della durata mediana
-  #      dei job incrementali (dal journal reindex_jobs.jsonl) E ≤ 1 alert/settimana a
-  #      corpus stabile (database/alerts.jsonl, level=warning + advisory=incremental);
-  #   3. RIMUOVERE flag e codice (mini-PR di revert) altrimenti.
-  # ATTIVATO 2026-07-21 — verifica dovuta il 2026-08-04 (comandi di misura nel report M6,
-  # branch feat/m6-incremental-advisory-gate / memoria versione-definitiva-plan).
-  incremental_advisory: true
 
 # Suite STRUTTURALE/MULTIHOP (eval/run_multihop.py, golden_multihop.yaml) — blocco a se'
 # perche' NON e' il gate di promozione: non gira alla promozione blue/green, gira nel check

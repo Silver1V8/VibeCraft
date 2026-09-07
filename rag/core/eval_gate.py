@@ -13,17 +13,14 @@ Vincolo noto: post-S10 un FULL rebuild scrive su una collection Qdrant CANDIDATA
 e la candidata resta su Qdrant non referenziata da alcuna versione attiva — il GC del prossimo
 job/boot riuscito la rimuove, nessuno stato degradato da investigare. Il limite vero riguarda gli
 INCREMENTALI: mutano in place la collection già promossa (nessuna candidata, nessun gate
-bloccante — M6 aggiunge però un'advisory OSSERVATIVA post-promozione dietro flag,
-run_incremental_advisory), quindi
-un rollback blue/green intra-lineage non riavvolge i punti Qdrant scritti da un incrementale
-successivo alla build a cui si torna. Per i primi build (golden set assente) il gate è fail-open
-e non blocca nulla.
+bloccante), quindi un rollback blue/green intra-lineage non riavvolge i punti Qdrant scritti
+da un incrementale successivo alla build a cui si torna. Per i primi build (golden set
+assente) il gate è fail-open e non blocca nulla.
 
 Nessuna dipendenza dal package eval/: il golden set è caricato via GOLDEN_SET_PATH e la metrica
 da core.eval_metrics (stesso layer)."""
 import json
 import logging
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -177,71 +174,3 @@ def gate_promotion(version: str, qdrant, embed_model, colbert_store: dict, *,
         res["advisory"] = True
         _log(f"⚠️  {msg} Modalità advisory: promuovo comunque, ma l'alert critico è stato registrato.")
     return res
-
-
-def run_incremental_advisory(version, qdrant, embed_model, colbert_store: dict, *,
-                             k: int = EVAL_GATE_K, min_recall: float = EVAL_GATE_MIN_RECALL,
-                             cases: list[dict] | None = None,
-                             collection_name: str = COLLECTION_NAME, emit=None) -> dict:
-    """M6 — ESPERIMENTO (flag eval_gate.incremental_advisory, default OFF): valutazione
-    ADVISORY della recall DOPO la promozione di un job INCREMENTALE. A differenza di
-    gate_promotion NON decide nulla: la promozione è GIÀ avvenuta e resta valida in ogni
-    caso. Misura recall@k sul golden set contro lo stato appena promosso (riusando modello
-    e client già in mano al job; `collection_name` è la collection della lineage dal
-    manifest), storicizza l'esito con source="incremental_advisory" e, sotto soglia,
-    scrive un alert WARNING (mai critical: non c'è nessuna promozione da bloccare).
-    Fail-open identico al gate full: qualunque eccezione della valutazione produce solo un
-    warning nel log e non si propaga mai al job. Indipendente da EVAL_GATE_ENABLED (che
-    governa il gate bloccante dei full): comanda solo il flag incremental_advisory.
-
-    REGOLA DI DECISIONE DELL'ESPERIMENTO (nessuna terza opzione):
-      1. attivare il flag manualmente per 2 settimane di lavoro reale;
-      2. TENERE il gate se: mediana di advisory_eval_seconds ≤ 10% della durata mediana
-         dei job incrementali (dal journal database/reindex_jobs.jsonl) E ≤ 1
-         alert/settimana a corpus stabile;
-      3. RIMUOVERE flag e codice (mini-PR di revert) altrimenti."""
-    _log = emit or logger.info
-    result: dict = {"source": "incremental_advisory", "version": version, "evaluated": False}
-    if embed_model is None:
-        # Job di solo-delete: il modello non è stato caricato e l'advisory non deve
-        # caricarlo apposta (costerebbe più della valutazione stessa).
-        _log("ℹ️  Advisory incrementale saltata: modello embedding non caricato in questo job (solo delete).")
-        result["skipped"] = "no_embed_model"
-        return result
-
-    t0 = time.perf_counter()
-    try:
-        res = evaluate_recall(qdrant, embed_model, colbert_store, k=k, cases=cases,
-                              collection_name=collection_name)
-    except Exception as exc:  # fail-open: la promozione è già avvenuta, il job non fallisce
-        _log(f"⚠️  Advisory incrementale non eseguita ({type(exc).__name__}: {exc}); "
-             f"la promozione resta valida (fail-open).")
-        result["skipped"] = "error"
-        result["error"] = str(exc)
-        return result
-    elapsed = round(time.perf_counter() - t0, 3)
-    result["advisory_eval_seconds"] = elapsed
-
-    if res["recall"] is None:
-        _log("ℹ️  Advisory incrementale saltata: golden set assente o vuoto.")
-        result["skipped"] = "no_golden_set"
-        return result
-
-    ok = res["recall"] >= min_recall
-    result.update(evaluated=True, passed=ok, recall=res["recall"], n=res["n"], k=k,
-                  min_recall=min_recall)
-    record_history(res.get("recall_by_k") or {f"recall@{k}": res["recall"]},  # tutti i k (R12)
-                   n_cases=res["n"], version=version,
-                   source="incremental_advisory",
-                   gate={"passed": ok, "min_recall": min_recall,
-                         "advisory_eval_seconds": elapsed})
-    if ok:
-        _log(f"✅ Advisory incrementale: recall@{k}={res['recall']:.3f} ≥ soglia {min_recall} "
-             f"({res['n']} casi, {elapsed}s).")
-    else:
-        msg = (f"Advisory incrementale: recall@{k}={res['recall']:.3f} < soglia {min_recall} "
-               f"su {res['n']} casi dopo la promozione di {version} (già avvenuta e valida).")
-        record_alert("warning", msg, recall=res["recall"], k=k, threshold=min_recall,
-                     version=version, advisory="incremental")
-        _log(f"⚠️  {msg} Alert warning registrato; nessun blocco.")
-    return result

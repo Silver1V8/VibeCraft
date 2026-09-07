@@ -66,7 +66,7 @@ from core.chunking import (
     read_document,
 )
 from core import llm
-from core.eval_gate import gate_promotion, run_incremental_advisory
+from core.eval_gate import gate_promotion
 from core.graph_ops import edge_nature, edge_reliability, edge_trust_attrs
 from core.pipeline import InvalidFeatureNameError, resolve_feature_dir
 from core.chunking import split_frontmatter
@@ -80,7 +80,6 @@ from core.config import (
     DOC_EXTS,
     DOCS_DIR,
     EMBEDDING_MODEL,
-    EVAL_GATE_INCREMENTAL_ADVISORY,
     PROJECT_ROOT,
     QDRANT_API_KEY,
     QDRANT_URL,
@@ -1976,8 +1975,7 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
 
     # Persistenza: nuova versione blue/green (artefatti atomici JSON/.npz) + manifest
     # coerente nella stessa versione (documents = chunk totali), poi promozione: gli
-    # incrementali promuovono sempre (il gate BLOCCANTE riguarda solo i job full del
-    # manager; a flag M6 attivo, DOPO la promozione gira un'advisory solo-osservativa).
+    # incrementali promuovono sempre (il gate BLOCCANTE riguarda solo i job full del manager).
     version = save_artifacts(graph, colbert_store, chunks_store, dense_store, code_store)
     # Lineage blue/green: il manifest figlio eredita `parent_qdrant_collection`
     # (calcolato sopra, prima della guardia di lineage). Bootstrap/fresh install senza
@@ -1994,26 +1992,6 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     _log(f"🧾 Manifest aggiornato: {len(chunks_store)} chunk, {graph.number_of_nodes()} nodi, {graph.number_of_edges()} archi.")
     _log(f"🔁 Versione promossa: CURRENT → {version}.")
     _log("🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).")
-
-    # M6 — ESPERIMENTO (flag eval_gate.incremental_advisory, default OFF): advisory di
-    # recall DOPO la promozione, contro lo stato appena promosso (stesso client/modello
-    # del job, collection della lineage dal manifest). Solo osservazione: la promozione
-    # è già avvenuta e resta valida; qualunque errore qui non deve mai far fallire il
-    # job (fail-open come il gate dei full). La regola di decisione dell'esperimento è
-    # documentata su run_incremental_advisory e sopra il flag in rag_config.yaml.
-    if EVAL_GATE_INCREMENTAL_ADVISORY:
-        try:
-            advisory = run_incremental_advisory(
-                version, qdrant, embed_model, colbert_store, emit=_log,
-                collection_name=parent_qdrant_collection or COLLECTION_NAME)
-            stats["incremental_advisory"] = advisory
-            if "advisory_eval_seconds" in advisory:
-                # Nelle stats del job → campo `result` nel journal reindex_jobs.jsonl:
-                # è la metrica di costo della regola di decisione M6.
-                stats["advisory_eval_seconds"] = advisory["advisory_eval_seconds"]
-        except Exception as exc:  # cintura extra oltre al fail-open interno dell'advisory
-            logger.warning("Advisory incrementale fallita fuori dal percorso previsto "
-                           "(%s: %s); il job prosegue.", type(exc).__name__, exc)
 
     if own_qdrant:
         qdrant.close()
