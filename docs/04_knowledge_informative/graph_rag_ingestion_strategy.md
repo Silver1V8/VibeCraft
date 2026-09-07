@@ -13,7 +13,7 @@ graph_rag:
   scope: "Motivazioni progettuali e trade-off dietro i requisiti vincolanti di spec_graph_rag_ingestion.md"
   edges:
     - type: "DERIVA_DA"
-      target: "spec-graph-rag-ingestion-v1.1"
+      target: "spec-graph-rag-ingestion-v2.0"
       note: "Questo documento non ridefinisce le regole normative: ne spiega il perché. Per i vincoli vincolanti fare riferimento esclusivamente alla spec normativa."
     - type: "REQUISITO_METODOLOGICO"
       target: "TUTTI_I_COMPITI_DI_SVILUPPO"

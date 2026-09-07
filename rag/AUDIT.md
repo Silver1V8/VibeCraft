@@ -3007,3 +3007,206 @@ produceva se n'è andato. Il docstring di `record_history` le dichiara ora come 
 - **Che la durata mediana di un incrementale reale sia nota.** Non lo è: il journal non ne
   contiene nemmeno uno. È l'estrapolazione dai full a reggere la soglia dei 4 minuti, e resta
   un'estrapolazione.
+
+---
+---
+
+# S10 — due righe spostano la baseline, e i cinque candidati rimisurati
+
+*Eseguita il 2026-09-07. Chiude **R18**, esegue la rimisura che **R13** pretendeva e ne promuove
+due; apre **R26**. Tocca il corpus tracciato: rebuild e rimisura, nel formato di S5.*
+
+## R18 — non era una riga sola, e il difetto era di due tipi
+
+Il mandato chiedeva di verificare **prima** se `spec-graph-rag-ingestion-v1.1` fosse l'unico
+target morto nel frontmatter dei documenti tracciati. Scansione di tutti gli archi
+`graph_rag.edges` dei 15 documenti tracciati contro i `node_id` dichiarati in `docs/`
+(18 in tutto, tracciati e non): **13 target su 37 non risolvono**, ma sono quattro cose diverse.
+
+| Classe | Target | Cosa sono |
+|---|---|---|
+| **Alias di documento morto** | `spec-graph-rag-ingestion-v1.1` (`graph_rag_ingestion_strategy.md`) · `norm-coding-standards-v1.0` (`architecture_decision_rationale.md`) | Il documento esiste, il `node_id` no: rinominato senza aggiornare chi lo cita |
+| Segnaposto astratti | `TUTTI_I_COMPITI_DI_SVILUPPO` (×3), `TUTTI_I_MODULI_APPLICATIVI`, `TUTTI_I_MODULI_DI_INTERFACCIA`, `TUTTI_I_DOCUMENTI_DELLA_KNOWLEDGE_BASE`, `QUALSIASI_DECISIONE_IMPLEMENTATIVA_LOCALE` | Entità dichiarate di proposito come ambito («vincola tutto»), non documenti. Non sono fantasmi: sono ciò che l'autore ha voluto dire |
+| Identificatore di regola | `REGOLA-HITL-05` (`definition_of_done.md`) | Nel grafo è già un'entità con due `MENTIONS` strutturali da altri documenti: l'arco `VINCOLA` la raggiunge |
+| **Risolve solo in locale** | `norm-spec-tech-{frontend,backend,logic-agent}-v1.0` (`architecture_decision_rationale.md`) | Risolvono a `docs/05_project_specs/*`, **non tracciati**: in CI sono tre fantasmi. È A6 da un'altra porta, e non si tocca qui |
+
+Solo la prima classe è il difetto di R18. Ma le due righe **non erano lo stesso difetto**, e la
+differenza l'ha detta il grafo, non il frontmatter:
+
+- `_resolve_authority_aliases` (`core/indexing.py`) collega documento → documento per
+  **base-id senza versione**. `spec-graph-rag-ingestion-v1.1` e `-v2.0` hanno lo stesso
+  base-id, quindi l'arco `graph_rag_ingestion_strategy → spec_graph_rag_ingestion` **esisteva
+  già**. Il fantasma era solo il nodo-entità `v1.1` (in=1, `reliability: 0.9`): un alias
+  orfano, non un collegamento perso.
+- `norm-coding-standards-v1.0` ha base-id `norm-coding-standards`; `coding_standards.md`
+  dichiara `coding-standards-baseline-v2.0` dal commit `68159d7` (2026-07-22, «Riduce docs/ a
+  baseline»). Base-id diverso ⇒ **nessun arco documento → documento**: la derivazione che
+  l'ADR dichiara da sette settimane non è mai stata nel grafo. Questo è il difetto più grave
+  dei due, e il residuo non lo nominava.
+
+Corretti entrambi i target (due righe, nessun altro carattere: il corpo dei documenti è
+invariato, così il delta misurato sotto è grafo puro). I tre `05_project_specs/*` non tracciati
+puntano ancora a `norm-coding-standards-v1.0` — il nodo fantasma sopravvive **in locale** con
+in=3 — e restano fuori perimetro per la stessa ragione di R7: correggere un file non tracciato
+non sposta la baseline, e A6 non è deciso.
+
+**Una cosa che questa sessione ha dovuto scoprire da sola:** `docs/` è `skip-worktree`
+(documentato in README §«Divergenza docs/ ↔ git»), quindi `git status` non vede le due righe
+modificate. Il commit richiede `update-index --no-skip-worktree` sui due file, e il flag va
+rimesso dopo, perché è la convenzione della copia di lavoro. Nel farlo è riemerso che
+`safeguards_security.md` diverge da HEAD (istanziazione dichiarata con `instantiated_from`,
+classificata `instantiated` dal check): **non è nuovo**, ma va nella lista di ciò che non è
+comparabile, perché il corpus misurato qui non è il corpus di CI nemmeno sui documenti tracciati.
+
+Effetto misurato sul grafo (full rebuild):
+
+| | prima (`v20260904T151925`) | dopo (`v20260907T094225`) |
+|---|---|---|
+| nodi | 751 | **750** |
+| archi | 927 | **928** |
+| `spec-graph-rag-ingestion-v1.1` | entità, in=1 | **assente** |
+| `architecture_decision_rationale → coding_standards` (`DERIVA_DA`) | **assente** | presente, `curated`, 0.9 |
+| nodi-entità foglia | 108 | 107 |
+
+−1 nodo è il fantasma; +1 arco è la derivazione dell'ADR. Il saldo è esattamente le due righe.
+
+## Prima e dopo — e cosa non è comparabile
+
+Full rebuild + promozione: `CURRENT → v20260907T094225`, alias Qdrant scambiato, retention ha
+rimosso `v20260901T132300`. Chunk **167 → 167**: il corpo dei documenti non è cambiato.
+Eval-gate: `recall@2=0.875 ≥ 0.75 (56 casi)` — promozione consentita.
+
+**La misura «prima» è stata rifatta oggi**, sul codice di oggi e sull'indice vecchio, non
+copiata da S6: fra il 2026-09-05 e oggi sono passati S7 e S9. Coincide con S6 alla terza cifra
+su tutte le metriche, quindi il codice non ha mosso nulla e il delta sotto è corpus puro.
+
+### Golden set classico (56 casi, stessi casi)
+
+| Metrica | Prima (`v20260904T151925`) | Dopo (`v20260907T094225`) | Δ |
+|---|---|---|---|
+| recall@1 | 71.4% | 71.4% | 0 |
+| recall@2 | 89.3% | 89.3% | 0 |
+| recall@5 | 98.2% | 98.2% | 0 |
+| recall@10 | 100.0% *(satura)* | 100.0% *(satura)* | 0 |
+| source_in_top3 | 96.4% | 96.4% | 0 |
+| MRR | 0.835 | 0.835 | 0 |
+
+Confronto per caso sui due JSON (`eval_20260907_113950` vs `eval_20260907_114430`): **zero
+casi con rango o top-1 diversi**. Era atteso — il ranking semantico legge chunk e autorità, non
+gli archi curati fra documenti — e ora è misurato.
+
+### Sottoinsieme avversariale (5 casi)
+
+Identico: recall@1 0.0%, recall@2 100.0% *(satura)*, source_in_top3 100.0%, MRR 0.500.
+
+### Multihop (14 casi, stessi casi)
+
+| Metrica | Prima | Dopo | Δ |
+|---|---|---|---|
+| recall media A | 0.890 | 0.890 | 0 |
+| A riusciti | 10/14 | 10/14 | — |
+| B exact | 6/6 | 6/6 | — |
+| gap retrieval→grafo | 1 | 1 | — |
+
+Un solo campo si è mosso, e dice esattamente cosa ha fatto la correzione: nel caso «cosa
+impatta la modifica di safeguards_security.md?» il conteggio dell'impatto via grafo passa da
+**255 a 256** nodi raggiunti — il nuovo arco `ADR → coding_standards` rende raggiungibile un
+nodo in più. `exact_match` resta `true`.
+
+### Cosa NON è comparabile
+
+- **Il gate e il server non misurano la stessa cosa.** Il gate in-process ha detto
+  `recall@2 = 0.875`; `eval.run` contro `GET /api/retrieve`, stesso indice, stesso minuto,
+  dice **0.893**. `evaluate_recall` (`core/eval_gate.py`) chiama `hybrid_search` **senza**
+  `restatements` (il peso di sezione di N4) e senza `graph`: il gate promuove con il ranking
+  di *prima* di N4. Il docstring promette «il numero del gate coincide con quello di eval.run»
+  e dal 2026-09-05 non è più vero; la tabella di N4 scriveva «recall@2 (gate) 0.893» e quel
+  numero veniva dal server, non dal gate. Oggi non cambia il verdetto (0.875 ≥ 0.75), ma è un
+  numero di promozione letto su un ordinamento che nessun utente vede. **Registrato come R26.**
+- **Il corpus misurato non è il corpus di CI**, e non solo per i 9 non tracciati:
+  `safeguards_security.md` è l'istanziazione locale (v2.2.0, `instantiated_from`), non la
+  baseline (v2.0.0) — è tracciato *e* diverso. Il report di `eval.run` contava «2 divergenti
+  dal committato» perché le mie due righe non erano ancora committate al momento della misura;
+  dopo il commit ne resta zero *diverging* e uno *instantiated*, ed è quello.
+- **I numeri di S5 e di oggi non sono la stessa serie** benché il golden set sia lo stesso
+  (56): fra i due sta N4, che ha mosso recall@1 di +8.9 punti. Il confronto valido è
+  S6-dopo ↔ oggi-prima, ed è identico.
+
+## R13 — rimisurati i cinque, promossi due
+
+Contro l'indice appena promosso (`GET /api/retrieve`, k=10), stessa procedura del 2026-09-04:
+
+| # | Domanda | Fonte attesa | 04-09 | **07-09** | Chi vince al suo posto | Esito |
+|---|---|---|---|---|---|---|
+| C1 | «il modello ha scritto codice sbagliato, di chi è la responsabilità» | `vibe_coding_workflow` § HITL | 4 | **10** | `safeguards_security` § Concorrenza — fuori tema | fallisce a k=2, **promosso** |
+| C2 | «come faccio a sapere se il grafo è disallineato rispetto ai documenti» | `spec_graph_rag_ingestion` § Aggiornamento Incrementale | assente | **8** | `policy_versionamento` § 1 | fallisce a k=2, **promosso** |
+| C3 | «il log di una API può contenere l'indirizzo email dell'utente» | `observability_standards` § Confine di Privacy | 5 | **5** | `observability_standards` § Log Strutturati (rango 1), `spec_tech_logic_agent` **non tracciato** (rango 2) | fallisce, **fuori: A6** |
+| C4 | «quanto deve durare al massimo una funzione prima di spezzarla» | `coding_standards` § Metriche Strutturali | 3 | **2** | `safeguards_security` § Concorrenza | **passa a k=2**, non promosso |
+| C5 | «posso mandare uno stack trace di produzione a un assistente di coding» | `safeguards_security` § Privacy e Confine | 8 | **8** | `spec_tech_frontend` **non tracciato** | fallisce, **fuori: A6** |
+
+Tre cose che la rimisura ha cambiato rispetto a copiare l'elenco:
+
+- **C4 non fallisce più.** N4 l'ha portato da 3 a 2. Il divario colloquiale/tecnico esiste
+  ancora — la formulazione da indice («qual è la lunghezza massima ammessa per una funzione»)
+  sta a rango 1, quella da persona a rango 2 — ma **non è più un caso che il sistema
+  sbaglia**, e R13 esiste per quelli. Decisione esplicita: **non aggiunto**. Misurare il
+  divario è legittimo, ma un caso solo non è una misura, è un aneddoto: se lo si vuole, va
+  costruito come sottoinsieme di coppie (tecnica/colloquiale sullo stesso fatto), con la sua
+  metrica, non infilato fra i casi normali dove sposterebbe recall@1 di 1.7 punti senza che
+  nessuno sappia perché.
+- **C1 è peggiorato** (4 → 10) senza che il corpus tracciato sia cambiato in modo pertinente:
+  è N4 che ha promosso altre sezioni sopra di lui. È il candidato più solido dei cinque: i
+  **nove** risultati che lo precedono sono tutti documenti tracciati, quindi fallisce a k=2
+  anche su un checkout pulito.
+- **C2 è entrato nel top-10** (assente → 8), sempre per N4. Sopra di lui un solo non tracciato
+  (`change_log.md`, rango 3): in CI starebbe a ≥7, fallisce comunque. Promosso con un limite
+  scritto accanto nel golden set: §5 della spec prescrive le regole che *impediscono* il
+  disallineamento e lo nomina come failure mode, ma non è una diagnostica. È la fonte migliore
+  che il corpus ha, ed è la stessa sezione che la catena multihop perse in S5 — due strumenti
+  sulla stessa sezione fragile. Se un giorno un documento descriverà il check di drift, il
+  caso va ripuntato.
+
+**C3 e C5 restano fuori, e non è un'omissione:** il documento che li batte non è in git. In CI
+misurerebbero un corpus diverso da quello misurato qui — il difetto per cui le metriche
+avversariali si capovolgevano col checkout. Rientrano il giorno in cui A6 decide se
+`05_project_specs/*` è baseline o istanza; fino ad allora hanno la loro misura di oggi accanto.
+
+### Golden set a 58 casi — la serie nuova
+
+| Metrica | 56 casi | **58 casi** |
+|---|---|---|
+| recall@1 | 71.4% | **69.0%** |
+| recall@2 | 89.3% | **86.2%** |
+| recall@5 | 98.2% | **94.8%** |
+| recall@10 | 100.0% *(satura)* | 100.0% *(satura)* |
+| source_in_top3 | 96.4% | **93.1%** |
+| MRR | 0.835 | **0.810** |
+
+Tutto il delta è i due casi aggiunti, per costruzione (zero casi condivisi si sono mossi, vedi
+sopra). Il margine del gate scende da 14.3 a **11.2 punti** sopra 0.75. È il verso voluto: R13
+esiste per tenere il gate discriminante, e due casi che il sistema sbaglia lo rendono più
+severo, non peggiore. Il sottoinsieme avversariale non cambia (nessuno dei due è avversariale).
+
+## Verifica
+
+- `ruff check .` → `All checks passed!`
+- Suite completa: **1323 passed**, 0 skipped (Qdrant acceso). S9 ne riportava 1321: questa sessione non ha aggiunto test, quindi la differenza è anteriore a lei, eseguita dopo l'aggiunta dei due casi;
+  `test_real_golden_set_parses_and_is_well_formed` verde a 58.
+- Eval-gate sul full rebuild: `recall@2=0.875 ≥ 0.75 (56 casi)`, `CURRENT → v20260907T094225`.
+- `eval.run` post-promozione: 56 casi identici al prima; 58 casi `recall@2 = 0.862 ≥ 0.75`.
+- `run_multihop`: 0.890, 10/14, B 6/6, gap 1 — identico, con il conteggio d'impatto 255 → 256.
+
+## Cosa questa sessione NON prova
+
+- **Che il grafo sia ora coerente con i frontmatter.** Lo è per i **documenti tracciati**. I
+  tre `05_project_specs/*` non tracciati citano ancora `norm-coding-standards-v1.0`, e l'ADR
+  tracciato dichiara tre `CONNESSA_A` che in CI sono fantasmi. Entrambe le cose aspettano A6.
+- **Che il gate promuova sul ranking giusto.** Oggi ha promosso una versione che il server
+  misura meglio di quanto il gate creda; il giorno in cui la differenza andasse nell'altro
+  verso, promuoverebbe una regressione che nessuna delle due suite vede. È R26.
+- **Che C1 e C2 restino casi che falliscono.** Sono stati scelti perché falliscono *oggi* con
+  fonte difendibile; se una futura modifica li fa passare, è il sistema che è migliorato, non
+  il caso che va tolto — a differenza dei casi avversariali, non misurano un contrasto.
+- **Che i numeri siano riproducibili in CI.** Non lo sono, e il report lo stampa: 15 tracciati,
+  9 non tracciati, 1 istanziato. È A6, ed è l'unica riga di questo audit che nessuna sessione
+  tecnica può chiudere.

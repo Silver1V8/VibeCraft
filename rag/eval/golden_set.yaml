@@ -132,6 +132,16 @@ cases:
     expected:
       - {doc: vibe_coding_workflow, section: "Gestione delle Deviazioni"}
 
+  # ── R13/C1, promosso il 2026-09-07 (S10). Misurato il 2026-09-04 a rango 4, rimisurato
+  #    il 2026-09-07 contro v20260907T094225 a rango 10: fallisce a k=2 e i nove risultati
+  #    che lo precedono sono TUTTI documenti tracciati (vince safeguards_security
+  #    § Concorrenza Critica, fuori tema), quindi fallisce anche su un checkout pulito.
+  #    Formulazione da persona («di chi è la responsabilità»): la risposta è il protocollo
+  #    HITL, che assegna al supervisore umano revisione e approvazione del codice generato.
+  - q: "il modello ha scritto codice sbagliato, di chi è la responsabilità"
+    expected:
+      - {doc: vibe_coding_workflow, section: "Human-in-the-Loop"}
+
   # ─────────────────── spec_graph_rag_ingestion.md (REQUIREMENTS) ───────────────────
 
   - q: "come vengono segmentati i documenti in chunk durante l'indicizzazione"
@@ -151,6 +161,19 @@ cases:
       - {doc: spec_graph_rag_ingestion, section: "Aggiornamento Incrementale"}
 
   - q: "due documenti possono dichiarare lo stesso node_id nel grafo"
+    expected:
+      - {doc: spec_graph_rag_ingestion, section: "Aggiornamento Incrementale"}
+
+  # ── R13/C2, promosso il 2026-09-07 (S10). Misurato il 2026-09-04 ASSENTE dal top-10,
+  #    rimisurato il 2026-09-07 a rango 8 (rientra grazie al peso di sezione N4); sopra di
+  #    lui un solo non tracciato (change_log.md, rango 3): fallisce a k=2 anche in CI.
+  #    È lo stesso chunk che la catena multihop «cosa devo fare quando modifico un
+  #    documento» perse nel 2026-09-04: due strumenti indicano la stessa sezione fragile.
+  #    Limite dichiarato: §5 prescrive le regole che IMPEDISCONO il disallineamento
+  #    (WF-03, VAL-09, INT-04) e lo nomina come failure mode, ma non è una diagnostica.
+  #    È la fonte migliore che il corpus ha; se un giorno un documento descrive il check
+  #    di drift, il caso va ripuntato lì, non tenuto qui per abitudine.
+  - q: "come faccio a sapere se il grafo è disallineato rispetto ai documenti"
     expected:
       - {doc: spec_graph_rag_ingestion, section: "Aggiornamento Incrementale"}
 

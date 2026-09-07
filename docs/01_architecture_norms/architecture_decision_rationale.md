@@ -17,7 +17,7 @@ graph_rag:
   reranker: "ColBERT"
   edges:
     - type: "DERIVA_DA"
-      target: "norm-coding-standards-v1.0"
+      target: "coding-standards-baseline-v2.0"
     - type: "CONNESSA_A"
       target: "norm-spec-tech-frontend-v1.0"
     - type: "CONNESSA_A"

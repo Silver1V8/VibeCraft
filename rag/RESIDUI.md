@@ -27,10 +27,10 @@ rapporto che questo audit trova ogni volta che qualcuno va a guardare invece di 
 | | |
 |---|---|
 | Righe dell'audit | 19 — 15 chiuse, 3 ritirate, 1 con premessa ritirata e sostanza chiusa |
-| Residui dichiarati | **22** (+11: R15 e R16 dai run CI reali, R17 da S4, R18 e R19 da S5, R20 da S6, R21 da S7 — e R22, R23, R24, R25 dalla verifica del 2026-09-07) |
+| Residui dichiarati | **23** (+12: R15 e R16 dai run CI reali, R17 da S4, R18 e R19 da S5, R20 da S6, R21 da S7, R22, R23, R24, R25 dalla verifica del 2026-09-07 — e **R26** da S10, lo stesso giorno) |
 | Di cui già chiusi da altri interventi (riga stantia) | 2 |
-| Risolvibili con lavoro tecnico | **19 chiusi**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, **R12** (S7, 2026-09-07), R14, **R15**, **R21**, **R22**, **R24** (tutti il 2026-09-07 — gli ultimi tre poche ore dopo essere stati aperti), N5, N6. Fuori elenco, chiusi lo stesso: **N4** (S6) e **R19** (effetto collaterale di N4) |
-| Ancora aperti, con lavoro tecnico davanti | **4** — R13 (preparato, da rimisurare), R18 (una riga + rebuild di baseline), R20 e **R23** (la stessa griglia congiunta). *S9 ne ha chiusi tre in un giro: R15 senza scrivere codice (la guardia c'era già), R24 con due righe di `conftest.py` e una di attesa, R22 con una sezione riscritta* |
+| Risolvibili con lavoro tecnico | **19 chiusi**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, **R12** (S7, 2026-09-07), R14, **R15**, **R21**, **R22**, **R24**, **R18** (S10: due righe, non una, e un rebuild) (tutti il 2026-09-07 — R21, R22 e R24 poche ore dopo essere stati aperti), N5, N6. Fuori elenco, chiusi lo stesso: **N4** (S6) e **R19** (effetto collaterale di N4) |
+| Ancora aperti, con lavoro tecnico davanti | **4** — R13 (**rimisurato e ridotto da S10**: C1 e C2 promossi, C4 passa, restano C3 e C5 che aspettano A6), R20 e **R23** (la stessa griglia congiunta), **R26** (il gate promuove senza il peso di sezione N4: misura 0.875 dove il server misura 0.893). *S10 ha chiuso R18 e aperto R26.* *S9 ne ha chiusi tre in un giro: R15 senza scrivere codice (la guardia c'era già), R24 con due righe di `conftest.py` e una di attesa, R22 con una sezione riscritta* |
 | Fuori registro fino a oggi | **4** voci di `DISTRIBUTION.md` che nessuna riga di RESIDUI tracciava: la forcella `>=3.14` (**misurata il 2026-09-07**, resta la decisione), il workflow di release (**la riga era stantia: è scritto e già partito**), il primo avvio guidato, lo smoke test sul secondo OS (**c'è: scoperto è Windows nativo**) |
 | Che richiedono una decisione, non del codice | **10**, tutte in S8: N1, N2, N7, N8, N9 + R16 (proteggere il ramo), R17 (quali colori seguono il tema), **R25** (il buco lasciato scoperto dalla rimozione di M6), il primo avvio guidato e — nuova — **se abbassare `requires-python` a `>=3.12`**, che S9 ha reso una scelta con un prezzo invece di una domanda. *Erano 5: N4 è uscita (S6 l'ha decisa misurandola), poi sono entrate N9, R16, R17, R25 e le due di distribuzione; ora esce anche il **registry di release**, che era già deciso e spedito dal 2026-09-01 — la riga che lo dava aperto era stantia quanto il bilancio da cui veniva* |
 | Non risolvibili (dati persi, hardware assente) | 1 |
@@ -70,8 +70,9 @@ Difetti e rischi veri, ancora presenti. **Verificato oggi** salvo dove indicato.
 *Aggiornamento 2026-09-07: la sezione è diventata in gran parte un registro di chiusure — le
 voci `✅` restano qui, con la cronaca di come sono state chiuse, perché è dove il lettore le
 cerca. **Ancora aperte davvero (rivisto dopo S9, verificando una per una contro il codice):**
-R13, R16, R17, R18, R20, R23. **R21 è chiuso** (fc5d8d6, lo stesso giorno in cui è nato); **R15,
-R22 e R24 sono chiusi da S9**, lo stesso giorno in cui gli ultimi due sono nati — R15 senza
+R13 (ridotto a C3/C5, che aspettano A6), R16, R17, R20, R23, **R26**. **R18 è chiuso da S10**
+(2026-09-07, due righe e un rebuild: il residuo ne contava una). **R21 è chiuso** (fc5d8d6, lo
+stesso giorno in cui è nato); **R15, R22 e R24 sono chiusi da S9**, lo stesso giorno in cui gli ultimi due sono nati — R15 senza
 scrivere nulla, perché la guardia che chiedeva esisteva già e non era stata riconosciuta.*
 
 ### Gravità alta
@@ -373,8 +374,14 @@ Non ha una voce propria qui: è **R21**, poco più sotto, che la racconta per in
 il ~550% che divideva per due job `noop`, e la soglia su cui il verdetto regge lo stesso.
 Cronaca in `AUDIT.md`, «M6 — l'esperimento si è bocciato da solo».
 
-**R13 — `recall@2` è a 0.875 con soglia 0.75: margine 12,5 punti. PREPARATO 2026-09-04, non
-eseguito.** Il giorno in cui saturasse non resta un k più basso — andrà **esteso il golden
+**R13 ◐ — `recall@2` è a 0.875 con soglia 0.75: margine 12,5 punti. PREPARATO 2026-09-04;
+RIMISURATO ED ESEGUITO IN PARTE il 2026-09-07 (S10).** *Contro `v20260907T094225`: C1 4 → 10 e
+C2 assente → 8 falliscono ancora a k=2 con solo documenti tracciati (o quasi) davanti — **promossi**,
+golden set 56 → 58, `recall@2` 0.893 → **0.862**, margine 11,2 punti. C4 3 → **2**: passa, non
+aggiunto (il divario colloquiale/tecnico va misurato come sottoinsieme di coppie, non con un caso).
+C3 (5) e C5 (8) fallirebbero ma il documento che li batte è **non tracciato**: restano fuori
+finché A6 non decide. Il residuo resta aperto per loro due soltanto. Cronaca in AUDIT.md, S10.*
+La voce originale: Il giorno in cui saturasse non resta un k più basso — andrà **esteso il golden
 set** con casi che il sistema sbaglia. I candidati sono stati cercati **ora, mentre il
 margine c'è**: 14 domande misurate contro l'indice, **5 falliscono a k=2** con una fonte
 attesa difendibile. Elenco completo, con rango e chi vince al loro posto, in AUDIT.md
@@ -396,8 +403,13 @@ all'altra. La correzione non è meccanica: `emerald`/`red`/`amber` in molti punt
 *stato* (ok / errore / in corso), e uno stato ha senso che resti riconoscibile **attraverso**
 i temi — quindi va deciso caso per caso quali agganciare e quali no, non sostituito con sed.
 
-**R18 — `graph_rag_ingestion_strategy.md` dichiara un `node_id` che non esiste.** *(Nuovo,
-2026-09-04, emerso da R7.)* Il suo arco `DERIVA_DA` punta a `spec-graph-rag-ingestion-v1.1`,
+**R18 ✅ — `graph_rag_ingestion_strategy.md` dichiara un `node_id` che non esiste.** *(Nuovo,
+2026-09-04, emerso da R7. **CHIUSO il 2026-09-07 da S10**, e non era una riga sola: la scansione
+di tutti gli archi del frontmatter tracciato ne ha trovate **due** — la seconda, `DERIVA_DA →
+norm-coding-standards-v1.0` in `architecture_decision_rationale.md`, era peggiore, perché il
+base-id diverso impediva anche l'arco documento → documento che la prima aveva comunque. Rebuild,
+`CURRENT → v20260907T094225`, grafo 751/927 → 750/928, zero casi del golden set mossi. I tre
+`05_project_specs/*` NON tracciati puntano ancora al vecchio id: è A6.)* Il suo arco `DERIVA_DA` punta a `spec-graph-rag-ingestion-v1.1`,
 ma la spec dichiara `v2.0`: il target non risolve e resta nel grafo come nodo fantasma
 `type: entity` con `reliability: 0.9`. È **lo stesso difetto** che R7 ha corretto in
 `change_log.md` — dove i target morti erano dodici — ma qui il file è **tracciato**, cioè
@@ -636,6 +648,22 @@ si vede, oppure finanziare una guardia più economica di quella rimossa (un cont
 campionato invece che per-job, o far produrre una candidata anche agli incrementali). Sta in
 **S8**, punto 11; se la scelta è la seconda, si apre una sessione propria.
 
+**R26 — Il gate di promozione misura un ranking che nessun utente vede.** *(Nuovo, 2026-09-07,
+emerso da S10.)* Il full rebuild di oggi ha promosso con `recall@2 = 0.875`; `eval.run` contro
+`GET /api/retrieve`, stesso indice, stesso minuto, misura **0.893**. La differenza è N4:
+`evaluate_recall` (`core/eval_gate.py`) chiama `hybrid_search` senza `restatements` (il peso di
+sezione) e senza `graph`, quindi il gate decide sull'ordinamento di *prima* del 2026-09-05. Il
+docstring promette ancora «il numero del gate coincide con quello di eval.run», e la tabella di
+N4 in AUDIT.md scrive «recall@2 (gate) 0.893» — numero letto dal server, non dal gate. Oggi la
+differenza va nel verso comodo (il gate è più severo del vero); il giorno in cui una modifica
+peggiorasse il ranking di produzione **senza** toccare quello nudo, il gate promuoverebbe una
+regressione che nessuna delle due suite vede. La correzione è piccola — passare al gate ciò che
+il server passa, `restatements` calcolato da `restatement_sections(chunks)` — ma **sposta il
+numero di promozione**, quindi va fatta con una rimisura e con la serie storica avvisata, come
+R12 ha già fatto una volta per il `fetch_k`. Va **prima di S11**: calibrare tre parametri su un
+gate che misura un ranking diverso da quello che si sta calibrando è l'errore che A3 ha già
+descritto.
+
 ### Fuori registro fino a oggi: quattro voci di `DISTRIBUTION.md`
 
 *Nessuna riga di RESIDUI le tracciava, perché il documento nacque da `AUDIT.md` soltanto. Sono
@@ -705,7 +733,9 @@ Due su due: la disciplina «misura prima di correggere» ha evitato due modifich
 | R9 ✅ | ~~**Misurare prima**: chiedere a `/ask` le tre catene e verificare se il terzo documento compare nella risposta via grafo~~ **MISURATO 2026-09-05**: non compariva — 1 documento su 3 nel contesto, 0 su 3 nella risposta. **Corretto e rimisurato lo stesso giorno: 3 catene su 3.** | La premessa del residuo («il grafo compensa») è stata **smentita**, non assunta. Il ramo grafo usava i tre segnali che possiede — pertinenza, fiducia, autorità — uno alla volta: prima `fiducia × autorità` senza pertinenza, poi (primo tentativo) pertinenza al posto delle altre due, che ha rifatto il difetto di ADR 0002 dentro il ramo grafo. La chiave giusta li **compone**, con lo stesso moltiplicatore di `rank_by_authority`. Il tetto per-documento nel ranking, la strada più ovvia, è stato misurato e **bocciato**: a 1/doc distrugge entrambe le suite, a 3/doc non risolve R9 | **fatto 2026-09-05** (1 file, 4 test ognuno rosso sulla variante che boccia); quel che resta è **N4**, non R9 |
 | R10 ✅, R11 ✅ | ~~Un check notturno contro Ollama vero, accanto a `nightly_consistency`~~ | In CI non c'è LLM; il notturno gira dove il modello c'è ed è il canale che già porta gli alert | S — **fatto 2026-09-05**; il lavoro previsto erano due asserzioni, quello che ha richiesto pensiero è il ramo `200` di R11: non un falso allarme da ignorare, ma «il contratto non è più esercitato», che è ciò che l'alert dice |
 | R12 ✅ | `record_history` scrive **tutti** i k calcolati, non solo quello del gate | Una riga più larga costa nulla in lettura (`_series` seleziona per chiave esatta) e rende ogni futuro spostamento del gate indolore | S — **fatto 2026-09-07**; il lavoro previsto era una riga più larga, quello che ha richiesto pensiero è il suo prezzo: misurare più k significa leggere 10 risultati invece di 3, e con un pool di candidati più profondo la `recall@2` del gate può muoversi. È il verso giusto — è già la profondità di `eval.run`, che scrive nella stessa serie — ma è un numero di promozione che cambia, non un dettaglio di telemetria |
-| R13 ◐ | **Preparato 2026-09-04**: 14 domande misurate contro l'indice, 5 candidati che falliscono a k=2 annotati in AUDIT.md («R13 — cinque candidati misurati, nessuno aggiunto»). **Nessuno aggiunto**: l'elenco serve pronto, non eseguito | Estenderlo sotto pressione (metrica satura) significa sceglierne i casi per far scendere un numero | M — preparazione fatta, aggiunta ancora aperta |
+| R13 ◐ | **Preparato 2026-09-04**, **rimisurato 2026-09-07 (S10)**: dei 5 candidati, C1 e C2 falliscono ancora a k=2 con davanti solo documenti tracciati → **promossi** (56 → 58 casi, `recall@2` 0.893 → 0.862); C4 passa a k=2 dopo N4 → non aggiunto; C3 e C5 battuti da non tracciati → **fuori finché A6 non è deciso** | Estenderlo sotto pressione (metrica satura) significa sceglierne i casi per far scendere un numero; copiare l'elenco del 04-09 avrebbe aggiunto C4 che non fallisce più e C2 con un rango sbagliato | M — fatto per ciò che era decidibile; C3/C5 aspettano S8 |
+| R18 ✅ | Due target ripuntati al `node_id` vivo (`spec-graph-rag-ingestion-v2.0`, `coding-standards-baseline-v2.0`), full rebuild, promozione | La scansione preventiva chiesta dal mandato ha trovato il secondo, in `architecture_decision_rationale.md`, e il grafo ha detto che era il più grave: senza base-id comune l'arco documento → documento mancava del tutto | S + rebuild — **fatto 2026-09-07**; skip-worktree tolto e rimesso sui due file per committare |
+| R26 | Passare a `evaluate_recall` gli stessi argomenti che `routes_retrieval` passa a `hybrid_search` (`restatements`, `graph`), poi rimisurare il gate e avvisare la serie storica | È la stessa funzione con due argomenti in meno: qualunque altra strada (un secondo gate via HTTP, una soglia corretta a mano) misurerebbe una terza cosa | S — ma **prima di S11**, perché sposta il numero su cui S11 calibrerebbe |
 | R21 ✅ | ~~Applicare la regola di decisione che M6 ha già scritto: confermare le durate (2 job incrementali nel journal sono pochi), poi mini-PR di revert~~ **Fatto 2026-09-07.** La verifica pretesa dal residuo ha cambiato il ragionamento, non l'esito: i 2 job sono `noop` e non hanno mai chiamato l'advisory, quindi il ~550% divideva per il numero sbagliato. Rimossa lo stesso, su una soglia che nessun delta raggiunge | Il criterio, la scadenza e i dati esistono da settimane — manca solo che qualcuno li legga. Rinegoziare la soglia adesso, dopo aver visto il numero, sarebbe scegliere la regola in funzione dell'esito: è esattamente ciò che «decidere prima» esiste per impedire | S — misure + revert; **ma è l'esperimento a dover essere chiuso, non il codice a doversi difendere** |
 | R14 ✅ | Non recuperabile. Ma il **rollback** deve accorgersi che la collection della versione target non esiste e dirlo, invece di fallire in modo oscuro | I dati sono persi; l'esperienza al tentativo no. **Misurando è emerso che non falliva affatto**: riusciva a metà e nessun check lo diceva — quindi rifiuto *prima* della mutazione, più il rilevamento dello stato misto nel check notturno | S — **fatto 2026-09-04** |
 | N1, N2, N7, N8, N9 | Decisione esplicita, registrata. Non codice | Sono «no» già argomentati: vanno confermati o ribaltati una volta, con la loro condizione di riapertura, non ridiscussi a ogni sessione. *N4 non è più fra questi: S6 l'ha decisa misurandola; N5 e N6 sono state eseguite* | — |
@@ -1181,10 +1211,35 @@ Suite completa + ruff prima del commit. Aggiorna RESIDUI.md e DISTRIBUTION.md.
 
 ---
 
-## S10 — Una riga sposta la baseline, e i cinque candidati vanno rimisurati
+## S10 — Una riga sposta la baseline, e i cinque candidati vanno rimisurati ✅ ESEGUITA il 2026-09-07
 
-Chiude **R18** e sblocca **R13**. Tocca il corpus: rebuild e rimisura obbligatori. L'unica
-dipendenza vera è che venga **prima** di S11.
+Chiude **R18**, esegue **R13** per la parte decidibile, apre **R26**. Cronaca completa in
+`AUDIT.md`, sezione «S10 — due righe spostano la baseline».
+
+**Esito, nell'ordine in cui è arrivato.**
+
+- **R18 non era una riga.** La scansione preventiva di tutti gli archi del frontmatter tracciato
+  ha trovato **13 target irrisolti su 37**, di quattro classi diverse; solo due sono alias di
+  documenti rinominati, e il secondo (`norm-coding-standards-v1.0` nell'ADR) era il più grave:
+  base-id diverso, quindi **nessun arco documento → documento** da sette settimane. Il primo
+  aveva l'arco lo stesso, per base-id; il fantasma era solo il nodo-entità. Due righe, un
+  rebuild: grafo 751/927 → **750/928**, e il saldo è esattamente quelle due righe.
+- **Il corpus non ha mosso un solo caso.** Golden set 56/56 con rango e top-1 identici,
+  avversariale identico, multihop identico salvo il conteggio d'impatto di
+  `safeguards_security` (255 → 256: il nuovo arco). Il «prima» è stato rimisurato oggi, non
+  copiato da S6, e coincide con S6 alla terza cifra.
+- **Il gate non misura quello che misura il server.** 0.875 contro 0.893 sullo stesso indice:
+  `evaluate_recall` non passa `restatements` né `graph`. È **R26**, e va prima di S11.
+- **R13: due promossi, uno decaduto, due bloccati.** C1 (4 → 10) e C2 (assente → 8) entrano;
+  C4 (3 → **2**) passa e non entra — il divario colloquiale/tecnico si misura con coppie, non con
+  un caso; C3 e C5 restano fuori perché li batte un non tracciato (A6). 56 → 58 casi,
+  `recall@2` 0.893 → **0.862**, margine 11,2 punti.
+- **`docs/` è `skip-worktree`:** le due righe erano invisibili a `git status`; committate
+  togliendo e rimettendo il flag. `safeguards_security.md` diverge da HEAD per istanziazione
+  dichiarata — non nuovo, ma nella lista del non comparabile.
+
+*Una cosa che questa sessione NON prova:* che il grafo sia coerente **in CI**: l'ADR dichiara tre
+`CONNESSA_A` verso `05_project_specs/*`, che su un checkout pulito non esistono. È A6.
 
 ```
 Lavora su docs/ e rag/eval/. Questa sessione sposta la baseline riproducibile: misura
@@ -1464,8 +1519,11 @@ S7   storico                        ✅  ← R12 chiuso; R21 nato e chiuso lo st
 S9   guardia, doc, forcella         ✅  ← R15/R22/R24 chiusi, forcella misurata;
                                           il punto 8 di S8 e' caduto strada facendo
 ─────────────────────────────────────────────────────────────────────────────────
-S10  la baseline si sposta              ← rebuild; prima di S11
-S11  i tre parametri accoppiati         ← dopo S10: calibrare su un corpus che sta
+S10  la baseline si sposta          ✅  ← R18 chiuso (erano due righe), R13 +2 casi,
+                                          R26 nuovo: va PRIMA di S11
+R26  il gate senza N4                   ← dopo S10, prima di S11: calibrare su un gate
+                                          che misura un altro ranking e' l'errore di A3
+S11  i tre parametri accoppiati         ← dopo R26: calibrare su un corpus che sta
                                           per cambiare e' l'errore gia' documentato
 S12  il prerequisito di N3              ← dopo S10 e S11: una prova archiviata contro
                                           un ordinamento che cambia marcisce
