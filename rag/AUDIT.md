@@ -3018,6 +3018,8 @@ produceva se n'è andato. Il docstring di `record_history` le dichiara ora come 
 
 # S10 — due righe spostano la baseline, e i cinque candidati rimisurati
 
+> **Indice di questa sezione: `v20260907T094225`, NON più attivo** (R28/S13). `database/CURRENT` è a `v20260907T115228` dal 2026-09-07, ore 11:52. I numeri qui sotto restano quelli che furono misurati e non sono stati rifatti: sono **rietichettati**, non rimisurati. L'unica rimisura sulla versione attiva è la recall del gate — sezione **S13**.
+
 *Eseguita il 2026-09-07. Chiude **R18**, esegue la rimisura che **R13** pretendeva e ne promuove
 due; apre **R26**. Tocca il corpus tracciato: rebuild e rimisura, nel formato di S5.*
 
@@ -3267,6 +3269,8 @@ correzione serve per il giorno in cui non lo sarà.
 
 # S11 — I tre parametri accoppiati, in una griglia sola
 
+> **Indice di questa sezione: `v20260907T094225`, NON più attivo** (R28/S13). `database/CURRENT` è a `v20260907T115228` dal 2026-09-07, ore 11:52. I numeri qui sotto restano quelli che furono misurati e non sono stati rifatti: sono **rietichettati**, non rimisurati. L'unica rimisura sulla versione attiva è la recall del gate — sezione **S13**.
+
 **Data:** 2026-09-07 · **Base:** 8183c8f (R26 chiuso, gate = server) · **Indice:** `v20260907T094225`,
 golden set di S10 (58 casi, 5 avversariali), 8 catene multihop · **Chiude:** R20, R23.
 
@@ -3444,6 +3448,8 @@ l'ordinamento di R9 sceglie — «il documento entra, la sua sezione no» è la 
 
 # S12 — La prova contro cui N3 potrà essere validato
 
+> **Indice di questa sezione: `v20260907T094225`, NON più attivo** (R28/S13). `database/CURRENT` è a `v20260907T115228` dal 2026-09-07, ore 11:52. I numeri qui sotto restano quelli che furono misurati e non sono stati rifatti: sono **rietichettati**, non rimisurati. L'unica rimisura sulla versione attiva è la recall del gate — sezione **S13**.
+
 Questa sessione **non scrive l'harness di attribuzione**. Costruisce le due cose che S6 ha
 dichiarato mancanti prima di poterlo scrivere: casi in cui l'attribuzione del vincolo sia
 davvero contesa, e verdetti umani archiviati **con il testo della risposta** e la versione
@@ -3604,3 +3610,143 @@ non poteva misurare. Costo misurato oggi: 24 chiamate, da 4 a 26 secondi l'una, 
   ogni verdetto. Il testo è lì per essere riletto da un altro — è la differenza con A3 §6.
 - **Che il caso 06 run 3 sia l'unico del suo tipo.** È l'unico *trovato*: la verifica della
   citazione non è stata fatta a mano sulle altre 23, e un giudice la farà.
+
+---
+
+# S13 — L'indice promosso era avanti a tutto ciò che lo descrive
+
+**Data:** 2026-09-07 · **Base:** 66045e6 · **Indice attivo:** `v20260907T115228` — *verificato
+prima di scrivere qualunque numero: `database/CURRENT` è ancora quello, altrimenti questa
+sezione andava rifatta, non riletta* · **Chiude:** R28, R27.
+
+`database/CURRENT` puntava a `v20260907T115228`, promossa dopo il commit di S12. Quella stringa
+**non compariva né in `RESIDUI.md` né in `AUDIT.md`**: entrambi parlavano di `v20260907T094225`,
+4 e 8 volte. Ogni numero dei due documenti era di una promozione indietro rispetto al sistema
+che gira. Non era un errore di misura né di scrittura: era una misura vera che nessuno aveva
+messo dove si legge.
+
+## La sola cosa rimisurata, e da dove viene
+
+`eval/results/history.jsonl` è la sola serie storica del progetto, versionata apposta con
+un'eccezione dedicata nel suo `.gitignore`. La riga della promozione vi era **fuori dal controllo
+di versione** — `git status` la dava come modificata — ed è stata committata insieme al residuo
+che la racconta: una misura vera non tracciata è la cosa più facile da perdere. Queste sono le
+sue due righe, non rifatte oggi:
+
+| Versione | recall@1 | recall@2 | recall@5 | recall@10 | casi | ora | fonte |
+|---|---|---|---|---|---|---|---|
+| `v20260907T094225` | 0.690 | 0.862 | 0.948 | 1.000 | 58 | 09:50 | `eval.run` |
+| **`v20260907T115228`** | **0.741** | 0.862 | **0.966** | 1.000 | 58 | 11:53 | gate, `passed` |
+
+**+5,2 punti di recall@1** — ed è il rendimento di **S11** (`boost_alpha` 0.1 → 0.3,
+`graph_context_max_chunks` 2 → 3) sull'indice **promosso**, non più sul calibratore: il numero
+che giustifica S11 a posteriori, e che nessuno dei due documenti che raccontano S11 riportava.
+`recall@2` non si muove (0.862): alpha lavora sul primo posto, che è dove S11 lo aveva
+calibrato.
+
+**Perché i due record sono confrontabili benché uno sia `eval.run` e l'altro il gate:** lo sono
+**solo** grazie a R26, chiuso in S10 poche ore prima — da allora il gate riceve `graph` e
+`restatements` e misura lo stesso ranking del server. La tabella delle quattro combinazioni in
+S10 lo mostra per costruzione: `graph`+`restatements` dà `0.690 / 0.862 / 0.948 / 1.000` su
+`v20260907T094225`, cioè **esattamente** il record `eval.run` delle 09:50. Prima di R26 questo
+confronto sarebbe stato fra due metri diversi, ed è il tipo di errore che questa sezione esiste
+per non commettere.
+
+## Rimisurato ≠ rietichettato
+
+Sono due cose diverse, e confonderle è il difetto stesso che R28 descrive. Il conto è questo:
+
+| | Cosa | Su quale versione |
+|---|---|---|
+| **RIMISURATO** — 1 misura | `recall@{1,2,5,10}` del gate, 58 casi | **`v20260907T115228`**, misura reale del 2026-09-07 ore 11:53, `history.jsonl` |
+| **RIETICHETTATO** — tutto il resto | grafo 751/927 → 750/928 e i cinque candidati di R13 (S10); le quattro combinazioni del gate 0.845 → 0.862 (R26); l'intera griglia di calibrazione di S11; le 24 run di `golden_attribution.yaml` (S12); l'eval-gate `recall@2=0.875` su 56 casi della promozione precedente | `v20260907T094225` — **non rifatti**, dichiarati storici dove stanno |
+
+I numeri rietichettati **non sono stati toccati**: riscriverli con la versione attiva senza
+averli rimisurati sarebbe stato falsificare tre cronache datate. Ciò che mancava non era il
+numero: era la riga che dice a quale sistema appartiene. Ora sta in testa a S10, S11 e S12, dove
+la legge chi ci arriva da un link e non dall'indice.
+
+## L'archivio di S12: dichiarato storico, non riprodotto
+
+Il colpo più fine di R28 era su S12. Il suo esito centrale era *archiviare la risposta insieme
+alla versione dell'indice, perché la prova di A3 era marcita in due giorni*.
+`eval/golden_attribution.yaml` lo fa — 26 occorrenze di `v20260907T094225`, una per record — e
+ha fatto esattamente il suo lavoro: la prova dichiara la propria versione, e quella versione non
+era più attiva da poche ore. L'archivio non è sbagliato, è **storico**, e nulla lo diceva.
+
+**Scelta: dichiarato storico. Non riprodotto contro `v20260907T115228`.** La ragione non è il
+costo delle 24 chiamate:
+
+- L'uso dell'archivio è **validare offline il giudice di N3** contro i verdetti umani sui testi
+  archiviati (S14, modo «a»). Quell'uso non vuole né il server né l'indice attivo — è
+  precisamente la proprietà che S12 ha comprato, ed è scritta nel prompt di S14. Un archivio
+  legato a un indice superato la conserva intera.
+- La parte cara non sono le 24 chiamate: sono le **24 riletture umane**. Spenderle ora le
+  spenderebbe su un sistema che S13 e S14 cambieranno ancora, e S12 stabilisce che le run non si
+  riscrivono ma si **aggiungono**: la riproduzione va fatta una volta, quando serve a qualcosa.
+- Ciò che resta ignoto **e va detto**: se i 7 negativi si riproducano con `boost_alpha` 0.3 e il
+  tetto del grafo a 3. È la prima misura che l'harness di N3 potrà fare **da sé**, a costo zero
+  di lettura umana — motivo in più per farla là e non qui.
+
+Nel file: `summary.superseded_by: v20260907T115228`, e in testa il perché. E perché la prossima
+volta non serva una domanda per accorgersene, l'invariante è ora **verificata a macchina** —
+`tests/test_golden_attribution.py::test_archivio_dichiara_di_essere_storico_quando_lo_e`: se
+`database/CURRENT` supera `index_version`, l'archivio deve nominare la versione attiva. È
+l'unico pezzo di R28 che smette di dipendere da qualcuno che vada a guardare. *Verificato rosso
+alterando `superseded_by`, e vacuo per costruzione dove `CURRENT` non esiste (CI senza indice).*
+
+## R27 — il marcatore di astensione in grassetto
+
+Trovato da S12 e non applicato là perché sta in `api/`, fuori dal suo perimetro. Il lettore era
+`answer.lstrip().startswith(retrieval.ASK_ABSTENTION_MARKER)`: due asterischi lo mancavano e il
+payload usciva con `status: "success"` — il contratto di A16 di nuovo invisibile a macchina,
+per una variante di formattazione. Il check notturno di R10 non lo vede e non lo vedrà: la sua
+domanda fuori corpus ottiene il marcatore nudo, quindi **è verde per costruzione**.
+
+**Il set di caratteri è stato misurato, non scelto.** Sulle 24 risposte archiviate da S12
+(`qwen3.5:9b`, testo integrale):
+
+| | Occorrenze nell'archivio | Nel set? |
+|---|---|---|
+| `` ` `` — token fra apici (`` `[REGOLA-VAL-04]` ``) | **37** | sì — è l'abitudine **più frequente** del modello, e non era nella correzione prevista |
+| `*` — token in grassetto | 9, di cui `**[ASTENSIONE]**` **due volte** | sì — è il difetto |
+| `#` — titolo prima del token | **0** | sì — `[REGOLA-ASTENSIONE]` vieta esplicitamente un titolo prima del token: ciò che si vieta è ciò che può capitare, e costa un carattere |
+| `_` — enfasi con underscore | 0 | no |
+| `>` — citazione | 0 | no |
+
+La correzione prevista in R27 era `answer.lstrip("*# \n")`. **Non bastava, e l'archivio lo
+dimostra**: toglie l'apertura e lascia la chiusura, quindi `**[ASTENSIONE]**\nmotivazione`
+sarebbe uscito come `` `**\nmotivazione` `` — astensione riconosciuta e risposta sporca. Il
+lettore è ora una regex sola, che toglie gli ornamenti **attaccati** al marcatore da entrambi i
+lati e nient'altro: una motivazione che comincia lei stessa in grassetto — il modello formatta
+molto — resta intera.
+
+Cinque test nuovi in `tests/test_ask_abstention.py`, scritti **senza rilanciare il modello**
+perché la riproduzione era archiviata col testo: `**[ASTENSIONE]**` (il caso 05 run 2 testuale),
+`` `[ASTENSIONE]` ``, `## [ASTENSIONE]`, la variante con spazi, e la guardia inversa sulla
+motivazione in grassetto. **I primi quattro verificati rossi sul codice precedente**, non
+assunti tali. `test_marcatore_a_meta_testo_non_conta` di A16 — il verso opposto, il marcatore
+citato a metà frase che deve restare `success` — è **verde prima e dopo**: la regex è ancorata a
+`^`.
+
+## Verifica
+
+- `ruff check .` → `All checks passed!`
+- Suite completa: **1336 passed**, 0 skipped (Qdrant acceso) — 1330 prima, più i sei test nuovi (quattro varianti ornate + la guardia sulla motivazione in grassetto + l'invariante di staleness dell'archivio). Il conteggio del «prima» è verificato mettendo da parte i due file di test e ricontandoli, non dedotto.
+- `database/CURRENT` = `v20260907T115228`, riletto a inizio e a fine sessione: invariato, quindi i numeri qui sopra valgono per la versione che gira davvero.
+- L'invariante di staleness eseguita **non vacua** (`CURRENT` presente e diverso da `index_version`): senza questa verifica passerebbe anche in un checkout senza indice.
+- Nessuna misura di retrieval è stata rifatta: la sola della versione attiva è quella già in
+  `history.jsonl`, ora committata.
+
+## Cosa questa sessione NON prova
+
+- **Che i 7 negativi di S12 esistano ancora** sotto `boost_alpha` 0.3 e il tetto del grafo a 3.
+  È la conseguenza dichiarata della scelta di non riprodurre l'archivio, ed è di N3/S14.
+- **Che `v20260907T115228` sia migliore su ciò che non è recall.** +5,2 punti a k=1 su 58 casi
+  sono un numero solo. Multihop e attribuzione non sono stati rimisurati sulla versione attiva.
+- **Che il set di ornamenti di R27 sia completo.** È misurato su 24 risposte di un modello, non
+  dedotto dal markdown: un modello diverso, o lo stesso su un altro corpus, può anteporre altro.
+  Il test lo pinna, non lo predice.
+- **Che il resto di `AUDIT.md` sia allineato.** Sono state datate le tre sezioni che portano
+  numeri di `v20260907T094225`. Le sezioni più vecchie parlano di indici ancora anteriori e
+  dichiarano già la propria versione: non sono state toccate.

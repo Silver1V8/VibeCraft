@@ -39,9 +39,27 @@
 #
 # LIMITE NOTO DELLA PROVA (misurato il 2026-09-07, indice v20260907T094225): il blocco `summary` qui sotto conta i
 # verdetti e elenca i negativi; la lettura è in AUDIT.md, sezione S12.
+#
+# QUESTO ARCHIVIO È STORICO (R28/S13, 2026-09-07). Poche ore dopo che è nato, `v20260907T115228`
+# è stata promossa: le 24 run qui sotto NON descrivono il sistema attivo. L'archivio non è
+# sbagliato — dichiara la propria versione, che è esattamente ciò per cui S12 esiste — ma senza
+# questa riga, fra un mese si leggerebbe come il sistema di oggi. È il difetto che R28 descrive,
+# applicato alla prova che lo aveva anticipato.
+# NON RIPRODOTTO contro la versione attiva, deliberatamente: l'uso di questo archivio è
+# validare OFFLINE il giudice di N3 contro i verdetti umani sui testi archiviati (S14, modo
+# «a»), e quell'uso non vuole né il server né l'indice attivo — è la proprietà che S12 ha
+# comprato. Riprodurre costerebbe 24 chiamate PIÙ 24 riletture umane, e la rilettura è la parte
+# cara: rifarla adesso la spenderebbe su un sistema che S13/S14 cambieranno ancora. Ciò che
+# resta ignoto, e va detto: se i 7 negativi si riproducano con `boost_alpha` 0.3 e il tetto del
+# grafo a 3 (S11). È la prima misura che l'harness di N3 potrà fare da sé, a costo zero di
+# lettura umana — ed è il motivo per cui va fatta là e non qui.
+# Regola per il futuro, verificata a macchina da tests/test_golden_attribution.py: quando
+# `index_version` non è più `database/CURRENT`, `superseded_by` deve nominare la versione attiva.
 summary:
   measured_on: '2026-09-07'
   index_version: v20260907T094225
+  superseded_by: v20260907T115228   # promossa il 2026-09-07 alle 11:52, dopo il commit di S12
+  superseded_on: '2026-09-07'
   model: qwen3.5:9b
   runs: 24
   correct: 17

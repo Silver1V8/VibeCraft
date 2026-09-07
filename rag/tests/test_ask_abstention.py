@@ -122,3 +122,34 @@ def test_astensione_viene_cachata_come_lo_stesso_esito(ask_env, monkeypatch):
     seconda = client.post("/ask", json={"question": "domanda?"}).json()
     assert seconda["status"] == "abstained" and seconda["cached"] is True
     assert seconda["answer"] == "Niente in questo corpus."
+
+
+# R27 — A16 leggeva `answer.lstrip().startswith(MARCATORE)`: due asterischi bastavano a
+# mancare l'astensione e il payload usciva "success". Non è un'ipotesi: è il caso 05 run 2
+# di eval/golden_attribution.yaml, archiviato col testo integrale. Il set di ornamenti è
+# misurato sulle 24 risposte archiviate di qwen3.5:9b, non scelto a naso:
+#   ` (backtick)  37 token fra apici nell'archivio — l'abitudine PIÙ frequente del modello
+#   *             9 token in grassetto, di cui **[ASTENSIONE]** due volte (il difetto)
+#   #             0 nell'archivio, ma [REGOLA-ASTENSIONE] vieta esplicitamente un titolo
+#                 prima del token: se è vietato è perché può succedere, e costa un carattere
+# Esclusi con la stessa misura: `_` (0 usi di enfasi con underscore) e `>` (0 citazioni).
+@pytest.mark.parametrize("ornato", [
+    f"**{MARCATORE}**",   # caso 05 run 2, testuale
+    f"`{MARCATORE}`",
+    f"## {MARCATORE}",
+    f"  **{MARCATORE}**  ",
+])
+def test_marcatore_ornato_conta_come_astensione(ask_env, ornato):
+    client = ask_env(risposta_llm=f"{ornato}\nIl contesto non basta.")
+    body = client.post("/ask", json={"question": "domanda?"}).json()
+    assert body["status"] == "abstained"
+    assert body["answer"] == "Il contesto non basta."
+
+
+def test_motivazione_in_grassetto_non_viene_scorticata(ask_env):
+    """Gli ornamenti si tolgono solo se ATTACCATI al marcatore: la motivazione che inizia
+    per conto suo con del markdown deve restare intera (il modello formatta molto)."""
+    client = ask_env(risposta_llm=f"{MARCATORE}\n**Il contesto** non basta.")
+    body = client.post("/ask", json={"question": "domanda?"}).json()
+    assert body["status"] == "abstained"
+    assert body["answer"] == "**Il contesto** non basta."

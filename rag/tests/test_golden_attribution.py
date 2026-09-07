@@ -6,6 +6,7 @@ import re
 
 import yaml
 
+from core import artifacts
 from core.config import DOCS_DIR, GOLDEN_SET_PATH
 
 ATTRIBUTION_PATH = GOLDEN_SET_PATH.with_name("golden_attribution.yaml")
@@ -64,3 +65,21 @@ def test_riepilogo_coerente_con_le_run():
     assert s["wrong_source"] + s["no_source"] == len(runs) - s["correct"]
     assert len(s["negatives"]) == s["wrong_source"] + s["no_source"]
     assert {r["index_version"] for r in runs} == {s["index_version"]}
+
+
+def test_archivio_dichiara_di_essere_storico_quando_lo_e():
+    """R28: l'archivio dichiara la propria versione (è ciò per cui S12 esiste), ma NULLA
+    diceva che quella versione non fosse più attiva — e nessuna verifica automatica poteva
+    accorgersene. Questa lo fa: appena `database/CURRENT` supera `index_version`, l'archivio
+    deve nominare la versione che lo ha reso storico. Se CURRENT non c'è (CI senza indice,
+    checkout pulito) non c'è nulla da confrontare e l'invariante è vacua."""
+    attiva = artifacts.current_version_token()
+    if attiva is None:
+        return
+    s = _load()["summary"]
+    if attiva == s["index_version"]:
+        assert "superseded_by" not in s, "archivio marcato storico ma la sua versione è attiva"
+    else:
+        assert s.get("superseded_by") == attiva, (
+            f"archivio su {s['index_version']}, CURRENT è {attiva}: "
+            f"superseded_by dice {s.get('superseded_by')!r}")

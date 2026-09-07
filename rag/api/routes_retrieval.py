@@ -2,6 +2,7 @@
 (retrieval puro per eval/debug). Gli handler iniettano le risorse di runtime dallo stato
 (api.deps) nelle funzioni pure di core.retrieval / core.graph_ops."""
 import logging
+import re
 import time
 import uuid
 
@@ -79,6 +80,18 @@ def _cache_set(app, key: ask_cache.AskCacheKey, payload: dict) -> None:
         ask_cache.for_app(app).set(key, payload)
     except Exception as exc:
         logger.warning("Cache /ask non aggiornata (%s: %s).", type(exc).__name__, exc)
+
+
+# R27 — il marcatore va letto anche quando il modello lo FORMATTA: `**[ASTENSIONE]**` usciva
+# con status "success" (caso 05 run 2 di eval/golden_attribution.yaml, testo archiviato).
+# Gli ornamenti ammessi sono MISURATI sulle 24 risposte archiviate di qwen3.5:9b: backtick
+# (37 token fra apici, l'abitudine più frequente del modello), asterisco (9 token in
+# grassetto, fra cui il difetto) e cancelletto — zero nell'archivio, ma [REGOLA-ASTENSIONE]
+# vieta esplicitamente un titolo prima del token, e ciò che si vieta è ciò che può capitare.
+# Esclusi con la stessa misura: `_` e `>`, zero usi. La coda `[*#`]*` toglie SOLO la chiusura
+# ATTACCATA al marcatore, così una motivazione che inizia lei stessa in grassetto resta intera.
+_ASTENSIONE_RE = re.compile(
+    r"^[\s*#`]*" + re.escape(retrieval.ASK_ABSTENTION_MARKER) + r"[*#`]*\s*")
 
 
 @router.post("/ask", dependencies=[Depends(require_not_cross_site_request)])
@@ -513,9 +526,10 @@ async def ask_rag(request: Request, query: AskQuery):
     # payload invece della prosa. Il marcatore (retrieval.ASK_ABSTENTION_MARKER,
     # [REGOLA-ASTENSIONE] nel prompt) è la metà del contratto che l'LLM scrive; questa è la
     # metà che lo legge — rimosso qui, l'utente umano non lo vede mai.
-    astenuta = answer.lstrip().startswith(retrieval.ASK_ABSTENTION_MARKER)
+    m = _ASTENSIONE_RE.match(answer)
+    astenuta = m is not None
     if astenuta:
-        answer = answer.lstrip()[len(retrieval.ASK_ABSTENTION_MARKER):].lstrip("\n ")
+        answer = answer[m.end():]
 
     elaborazione_secondi = round(end_time - start_time, 2)
     logger.info("[TIMER] Tempo impiegato per la generazione: %s secondi", elaborazione_secondi)
