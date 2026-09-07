@@ -67,6 +67,7 @@ from core.chunking import (
 )
 from core import llm
 from core.eval_gate import gate_promotion
+from core.retrieval import restatement_sections
 from core.graph_ops import edge_nature, edge_reliability, edge_trust_attrs
 from core.pipeline import InvalidFeatureNameError, resolve_feature_dir
 from core.chunking import split_frontmatter
@@ -917,8 +918,11 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
         # riflette il retrieval che verrebbe servito. Se regredisce, la promozione è bloccata.
         # collection_name è la STESSA collection appena costruita sopra: il gate misura
         # sempre ciò che questa build ha davvero scritto, mai una collection diversa.
+        # graph/restatements: il gate deve leggere lo STESSO ordinamento che il server servirà
+        # (precedenza S4, peso di sezione N4), non quello nudo — R26.
         gate = gate_promotion(version, qdrant, embed_model, state.colbert_store, emit=_log,
-                              collection_name=collection_name)
+                              collection_name=collection_name, graph=G,
+                              restatements=restatement_sections(state.chunks_store))
         if not gate.get("passed"):
             _log(f"⛔ Promozione RIFIUTATA dall'eval-gate: CURRENT resta invariato. "
                  f"Versione {version} salvata ma NON attiva. Investigare il calo di qualità.")

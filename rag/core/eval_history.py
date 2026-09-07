@@ -42,6 +42,13 @@ _TREND_EPS = 0.005  # variazione minima di recall per non essere "flat" (mezzo p
 # si sposta, e non c'è più nulla da azzerare. Ciò che NON succede: le righe già scritte non
 # vengono riscritte. Un grafico che si allunga da oggi non è un grafico che recupera il
 # passato — la serie di un k mai misurato prima parte dal 2026-09-07, non dal 2026-07-15.
+#
+# SECONDA DISCONTINUITÀ, STESSO GIORNO (R26, 2026-09-07). Le righe source="gate" scritte
+# PRIMA di questa data misurano l'ordinamento NUDO: hybrid_search senza `restatements` (peso
+# di sezione, N4) né `graph` (precedenza, S4). Da qui in avanti il gate riceve entrambi, come
+# il server, e la sua riga coincide con quella di eval.run sullo stesso indice. Misurato sulla
+# stessa versione e lo stesso golden set (58 casi): nudo recall@2=0.845, pieno 0.862. Il
+# salto fra una riga gate del 2026-09-07 mattina e una del pomeriggio è questo, non l'indice.
 GATE_RECALL_KEY = f"recall@{EVAL_GATE_K}"
 
 

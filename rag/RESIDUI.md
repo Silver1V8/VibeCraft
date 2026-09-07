@@ -29,8 +29,8 @@ rapporto che questo audit trova ogni volta che qualcuno va a guardare invece di 
 | Righe dell'audit | 19 — 15 chiuse, 3 ritirate, 1 con premessa ritirata e sostanza chiusa |
 | Residui dichiarati | **23** (+12: R15 e R16 dai run CI reali, R17 da S4, R18 e R19 da S5, R20 da S6, R21 da S7, R22, R23, R24, R25 dalla verifica del 2026-09-07 — e **R26** da S10, lo stesso giorno) |
 | Di cui già chiusi da altri interventi (riga stantia) | 2 |
-| Risolvibili con lavoro tecnico | **19 chiusi**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, **R12** (S7, 2026-09-07), R14, **R15**, **R21**, **R22**, **R24**, **R18** (S10: due righe, non una, e un rebuild) (tutti il 2026-09-07 — R21, R22 e R24 poche ore dopo essere stati aperti), N5, N6. Fuori elenco, chiusi lo stesso: **N4** (S6) e **R19** (effetto collaterale di N4) |
-| Ancora aperti, con lavoro tecnico davanti | **4** — R13 (**rimisurato e ridotto da S10**: C1 e C2 promossi, C4 passa, restano C3 e C5 che aspettano A6), R20 e **R23** (la stessa griglia congiunta), **R26** (il gate promuove senza il peso di sezione N4: misura 0.875 dove il server misura 0.893). *S10 ha chiuso R18 e aperto R26.* *S9 ne ha chiusi tre in un giro: R15 senza scrivere codice (la guardia c'era già), R24 con due righe di `conftest.py` e una di attesa, R22 con una sezione riscritta* |
+| Risolvibili con lavoro tecnico | **19 chiusi**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, **R12** (S7, 2026-09-07), R14, **R15**, **R21**, **R22**, **R24**, **R18** (S10: due righe, non una, e un rebuild), **R26** (S10, aperto e chiuso in giornata) (tutti il 2026-09-07 — R21, R22 e R24 poche ore dopo essere stati aperti), N5, N6. Fuori elenco, chiusi lo stesso: **N4** (S6) e **R19** (effetto collaterale di N4) |
+| Ancora aperti, con lavoro tecnico davanti | **3** — R13 (**rimisurato e ridotto da S10**: C1 e C2 promossi, C4 passa, restano C3 e C5 che aspettano A6), R20 e **R23** (la stessa griglia congiunta). *S10 ha chiuso R18, aperto R26 e **chiuso R26 lo stesso giorno** (il gate ora riceve `graph` e `restatements`: 0.845 → 0.862, tutto N4, il grafo non muoveva nulla).* *S9 ne ha chiusi tre in un giro: R15 senza scrivere codice (la guardia c'era già), R24 con due righe di `conftest.py` e una di attesa, R22 con una sezione riscritta* |
 | Fuori registro fino a oggi | **4** voci di `DISTRIBUTION.md` che nessuna riga di RESIDUI tracciava: la forcella `>=3.14` (**misurata il 2026-09-07**, resta la decisione), il workflow di release (**la riga era stantia: è scritto e già partito**), il primo avvio guidato, lo smoke test sul secondo OS (**c'è: scoperto è Windows nativo**) |
 | Che richiedono una decisione, non del codice | **10**, tutte in S8: N1, N2, N7, N8, N9 + R16 (proteggere il ramo), R17 (quali colori seguono il tema), **R25** (il buco lasciato scoperto dalla rimozione di M6), il primo avvio guidato e — nuova — **se abbassare `requires-python` a `>=3.12`**, che S9 ha reso una scelta con un prezzo invece di una domanda. *Erano 5: N4 è uscita (S6 l'ha decisa misurandola), poi sono entrate N9, R16, R17, R25 e le due di distribuzione; ora esce anche il **registry di release**, che era già deciso e spedito dal 2026-09-01 — la riga che lo dava aperto era stantia quanto il bilancio da cui veniva* |
 | Non risolvibili (dati persi, hardware assente) | 1 |
@@ -70,7 +70,7 @@ Difetti e rischi veri, ancora presenti. **Verificato oggi** salvo dove indicato.
 *Aggiornamento 2026-09-07: la sezione è diventata in gran parte un registro di chiusure — le
 voci `✅` restano qui, con la cronaca di come sono state chiuse, perché è dove il lettore le
 cerca. **Ancora aperte davvero (rivisto dopo S9, verificando una per una contro il codice):**
-R13 (ridotto a C3/C5, che aspettano A6), R16, R17, R20, R23, **R26**. **R18 è chiuso da S10**
+R13 (ridotto a C3/C5, che aspettano A6), R16, R17, R20, R23. **R18 e R26 sono chiusi da S10**
 (2026-09-07, due righe e un rebuild: il residuo ne contava una). **R21 è chiuso** (fc5d8d6, lo
 stesso giorno in cui è nato); **R15, R22 e R24 sono chiusi da S9**, lo stesso giorno in cui gli ultimi due sono nati — R15 senza
 scrivere nulla, perché la guardia che chiedeva esisteva già e non era stata riconosciuta.*
@@ -648,8 +648,12 @@ si vede, oppure finanziare una guardia più economica di quella rimossa (un cont
 campionato invece che per-job, o far produrre una candidata anche agli incrementali). Sta in
 **S8**, punto 11; se la scelta è la seconda, si apre una sessione propria.
 
-**R26 — Il gate di promozione misura un ranking che nessun utente vede.** *(Nuovo, 2026-09-07,
-emerso da S10.)* Il full rebuild di oggi ha promosso con `recall@2 = 0.875`; `eval.run` contro
+**R26 ✅ — Il gate di promozione misura un ranking che nessun utente vede.** *(Nuovo, 2026-09-07,
+emerso da S10. **CHIUSO lo stesso giorno**: `evaluate_recall`/`gate_promotion` ricevono `graph` e
+`restatements` dai due chiamanti di produzione; rimisurato in-process sulla stessa versione e sui
+58 casi: nudo 0.845, pieno **0.862** = `eval.run`. Il delta è tutto N4, `graph` non muove nulla
+sul golden set. Discontinuità della serie `gate` annotata in `eval_history.py`. Cronaca in AUDIT.md,
+«R26 — il gate ora legge l'ordinamento del server».)* Il full rebuild di oggi ha promosso con `recall@2 = 0.875`; `eval.run` contro
 `GET /api/retrieve`, stesso indice, stesso minuto, misura **0.893**. La differenza è N4:
 `evaluate_recall` (`core/eval_gate.py`) chiama `hybrid_search` senza `restatements` (il peso di
 sezione) e senza `graph`, quindi il gate decide sull'ordinamento di *prima* del 2026-09-05. Il
@@ -735,7 +739,7 @@ Due su due: la disciplina «misura prima di correggere» ha evitato due modifich
 | R12 ✅ | `record_history` scrive **tutti** i k calcolati, non solo quello del gate | Una riga più larga costa nulla in lettura (`_series` seleziona per chiave esatta) e rende ogni futuro spostamento del gate indolore | S — **fatto 2026-09-07**; il lavoro previsto era una riga più larga, quello che ha richiesto pensiero è il suo prezzo: misurare più k significa leggere 10 risultati invece di 3, e con un pool di candidati più profondo la `recall@2` del gate può muoversi. È il verso giusto — è già la profondità di `eval.run`, che scrive nella stessa serie — ma è un numero di promozione che cambia, non un dettaglio di telemetria |
 | R13 ◐ | **Preparato 2026-09-04**, **rimisurato 2026-09-07 (S10)**: dei 5 candidati, C1 e C2 falliscono ancora a k=2 con davanti solo documenti tracciati → **promossi** (56 → 58 casi, `recall@2` 0.893 → 0.862); C4 passa a k=2 dopo N4 → non aggiunto; C3 e C5 battuti da non tracciati → **fuori finché A6 non è deciso** | Estenderlo sotto pressione (metrica satura) significa sceglierne i casi per far scendere un numero; copiare l'elenco del 04-09 avrebbe aggiunto C4 che non fallisce più e C2 con un rango sbagliato | M — fatto per ciò che era decidibile; C3/C5 aspettano S8 |
 | R18 ✅ | Due target ripuntati al `node_id` vivo (`spec-graph-rag-ingestion-v2.0`, `coding-standards-baseline-v2.0`), full rebuild, promozione | La scansione preventiva chiesta dal mandato ha trovato il secondo, in `architecture_decision_rationale.md`, e il grafo ha detto che era il più grave: senza base-id comune l'arco documento → documento mancava del tutto | S + rebuild — **fatto 2026-09-07**; skip-worktree tolto e rimesso sui due file per committare |
-| R26 | Passare a `evaluate_recall` gli stessi argomenti che `routes_retrieval` passa a `hybrid_search` (`restatements`, `graph`), poi rimisurare il gate e avvisare la serie storica | È la stessa funzione con due argomenti in meno: qualunque altra strada (un secondo gate via HTTP, una soglia corretta a mano) misurerebbe una terza cosa | S — ma **prima di S11**, perché sposta il numero su cui S11 calibrerebbe |
+| R26 ✅ | Passati a `evaluate_recall` gli stessi argomenti che `routes_retrieval` passa a `hybrid_search` (`restatements`, `graph`); gate rimisurato in-process nelle quattro combinazioni; serie storica avvisata in `eval_history.py` | È la stessa funzione con due argomenti in meno: qualunque altra strada (un secondo gate via HTTP, una soglia corretta a mano) misurerebbe una terza cosa | S — **fatto 2026-09-07**, prima di S11; il grafo non muoveva nulla, il peso di sezione tutto (0.845 → 0.862) |
 | R21 ✅ | ~~Applicare la regola di decisione che M6 ha già scritto: confermare le durate (2 job incrementali nel journal sono pochi), poi mini-PR di revert~~ **Fatto 2026-09-07.** La verifica pretesa dal residuo ha cambiato il ragionamento, non l'esito: i 2 job sono `noop` e non hanno mai chiamato l'advisory, quindi il ~550% divideva per il numero sbagliato. Rimossa lo stesso, su una soglia che nessun delta raggiunge | Il criterio, la scadenza e i dati esistono da settimane — manca solo che qualcuno li legga. Rinegoziare la soglia adesso, dopo aver visto il numero, sarebbe scegliere la regola in funzione dell'esito: è esattamente ciò che «decidere prima» esiste per impedire | S — misure + revert; **ma è l'esperimento a dover essere chiuso, non il codice a doversi difendere** |
 | R14 ✅ | Non recuperabile. Ma il **rollback** deve accorgersi che la collection della versione target non esiste e dirlo, invece di fallire in modo oscuro | I dati sono persi; l'esperienza al tentativo no. **Misurando è emerso che non falliva affatto**: riusciva a metà e nessun check lo diceva — quindi rifiuto *prima* della mutazione, più il rilevamento dello stato misto nel check notturno | S — **fatto 2026-09-04** |
 | N1, N2, N7, N8, N9 | Decisione esplicita, registrata. Non codice | Sono «no» già argomentati: vanno confermati o ribaltati una volta, con la loro condizione di riapertura, non ridiscussi a ogni sessione. *N4 non è più fra questi: S6 l'ha decisa misurandola; N5 e N6 sono state eseguite* | — |
@@ -1521,8 +1525,7 @@ S9   guardia, doc, forcella         ✅  ← R15/R22/R24 chiusi, forcella misura
 ─────────────────────────────────────────────────────────────────────────────────
 S10  la baseline si sposta          ✅  ← R18 chiuso (erano due righe), R13 +2 casi,
                                           R26 nuovo: va PRIMA di S11
-R26  il gate senza N4                   ← dopo S10, prima di S11: calibrare su un gate
-                                          che misura un altro ranking e' l'errore di A3
+R26  il gate senza N4               ✅  ← chiuso in giornata: gate = server (0.862)
 S11  i tre parametri accoppiati         ← dopo R26: calibrare su un corpus che sta
                                           per cambiare e' l'errore gia' documentato
 S12  il prerequisito di N3              ← dopo S10 e S11: una prova archiviata contro

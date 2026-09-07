@@ -594,11 +594,11 @@ def test_eval_gate_passes_the_version_candidate_collection_to_gate_promotion(tmp
     import api.routes_reindex as rr
 
     _write_manifest(tmp_path, monkeypatch, "v1", {"qdrant_collection": "vibecraft_events__v1"})
-    monkeypatch.setattr(rr, "load_artifacts", lambda **kw: SimpleNamespace(colbert_store={}))
+    monkeypatch.setattr(rr, "load_artifacts", lambda **kw: SimpleNamespace(colbert_store={}, graph=None, chunks_store={}))
 
     captured: dict = {}
 
-    def _fake_gate_promotion(version, qdrant, embed_model, colbert_store, emit=None, collection_name=None):
+    def _fake_gate_promotion(version, qdrant, embed_model, colbert_store, emit=None, collection_name=None, **kw):
         captured["collection_name"] = collection_name
         return {"passed": True}
 

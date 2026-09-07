@@ -67,10 +67,17 @@ def record_alert(level: str, message: str, *, path: Path | None = None, **detail
 
 def evaluate_recall(qdrant, embed_model, colbert_store: dict, *, k: int = EVAL_GATE_K,
                     cases: list[dict] | None = None,
-                    collection_name: str = COLLECTION_NAME) -> dict:
+                    collection_name: str = COLLECTION_NAME,
+                    graph=None, restatements=frozenset()) -> dict:
     """Misura recall@k del retrieval sul golden set contro (qdrant, colbert_store) dati. Riusa il
     percorso di produzione (retrieval.hybrid_search) e la metrica (core.eval_metrics.evaluate), così
     il numero del gate coincide con quello di eval.run. recall=None se non ci sono casi.
+
+    `graph` e `restatements` sono gli stessi due argomenti che api/routes_retrieval passa a
+    hybrid_search (precedenza dichiarata, S4; peso di sezione, N4). Senza, il gate misurava
+    l'ordinamento NUDO — 0.875 dove il server misurava 0.893 sullo stesso indice (R26,
+    2026-09-07) — e la coincidenza promessa qui sopra era falsa dal 2026-09-05. I default
+    vuoti restano per i doppi dei test; ogni chiamante di produzione li passa.
 
     `recall` è il numero su cui il gate DECIDE, alla sola `k`. `recall_by_k` porta tutti i k
     misurati (DEFAULT_KS più `k`) e serve allo storico: vedi il commento sotto.
@@ -84,7 +91,8 @@ def evaluate_recall(qdrant, embed_model, colbert_store: dict, *, k: int = EVAL_G
 
     def _retrieve(query: str, kk: int) -> list[dict]:
         return retrieval.hybrid_search(query, kk, qdrant=qdrant, embed_model=embed_model,
-                                       colbert_store=colbert_store, collection_name=collection_name)
+                                       colbert_store=colbert_store, collection_name=collection_name,
+                                       graph=graph, restatements=restatements)
 
     # TUTTI i k misurati, non solo quello del gate (R12). Le righe dello storico portano la
     # chiave del k in vigore quando furono scritte e `_series` seleziona per chiave ESATTA:
@@ -113,7 +121,8 @@ def evaluate_recall(qdrant, embed_model, colbert_store: dict, *, k: int = EVAL_G
 def gate_promotion(version: str, qdrant, embed_model, colbert_store: dict, *,
                    k: int = EVAL_GATE_K, min_recall: float = EVAL_GATE_MIN_RECALL,
                    blocking: bool = EVAL_GATE_BLOCKING, cases: list[dict] | None = None,
-                   emit=None, collection_name: str = COLLECTION_NAME) -> dict:
+                   emit=None, collection_name: str = COLLECTION_NAME,
+                   graph=None, restatements=frozenset()) -> dict:
     """Decide se la versione candidata può essere promossa. Restituisce un dict con almeno
     `passed` (bool) e, quando valutato, `recall`/`k`/`min_recall`/`n`.
 
@@ -129,7 +138,8 @@ def gate_promotion(version: str, qdrant, embed_model, colbert_store: dict, *,
 
     try:
         res = evaluate_recall(qdrant, embed_model, colbert_store, k=k, cases=cases,
-                              collection_name=collection_name)
+                              collection_name=collection_name,
+                              graph=graph, restatements=restatements)
     except Exception as exc:  # un gate che crasha NON deve bloccare un build: fail-open + warn
         _log(f"⚠️  Eval-gate non eseguito ({type(exc).__name__}: {exc}); fail-open, promozione consentita.")
         return {"passed": True, "skipped": "error", "error": str(exc), "version": version}

@@ -34,6 +34,7 @@ from core.artifacts import (
     rollback_version,
 )
 from core.config import REINDEX_JOURNAL_PATH
+from core import retrieval
 from core.eval_gate import gate_promotion, record_alert
 from core.config import COLLECTION_NAME, EMBEDDING_MODEL
 from core.indexing import (
@@ -101,7 +102,9 @@ def _eval_gate(version: str, embed_model) -> dict:
         return {"passed": True, "skipped": "load_error", "version": version}
     collection_name = _qdrant_collection_for_version(version)
     return gate_promotion(version, state.get("qdrant"), embed_model,
-                          arts.colbert_store, emit=logger.info, collection_name=collection_name)
+                          arts.colbert_store, emit=logger.info, collection_name=collection_name,
+                          graph=arts.graph,
+                          restatements=retrieval.restatement_sections(arts.chunks_store))
 
 
 def _run_full_rebuild(changed_paths) -> dict:

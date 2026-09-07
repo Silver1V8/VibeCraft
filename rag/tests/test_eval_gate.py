@@ -95,7 +95,7 @@ def test_gate_promotion_explicit_collection_name_propagated_to_evaluate_recall(m
 def test_evaluate_recall_default_collection_name_propagated_to_hybrid_search(monkeypatch):
     captured = {}
 
-    def _fake_hybrid_search(query, kk, *, qdrant, embed_model, colbert_store, collection_name):
+    def _fake_hybrid_search(query, kk, *, qdrant, embed_model, colbert_store, collection_name, **kw):
         captured["collection_name"] = collection_name
         return []
 
@@ -104,10 +104,44 @@ def test_evaluate_recall_default_collection_name_propagated_to_hybrid_search(mon
     assert captured["collection_name"] == eval_gate.COLLECTION_NAME
 
 
+def test_evaluate_recall_propaga_graph_e_restatements_a_hybrid_search(monkeypatch):
+    """R26: il gate deve misurare l'ordinamento del server (precedenza + peso di sezione),
+    non quello nudo. Senza questi due argomenti misurava 0.875 dove il server dava 0.893."""
+    captured = {}
+
+    def _fake_hybrid_search(query, kk, *, qdrant, embed_model, colbert_store, collection_name,
+                            graph=None, restatements=frozenset()):
+        captured["graph"] = graph
+        captured["restatements"] = restatements
+        return []
+
+    monkeypatch.setattr(eval_gate.retrieval, "hybrid_search", _fake_hybrid_search)
+    g = object()
+    eval_gate.evaluate_recall(None, None, {}, cases=[{"q": "domanda"}],
+                              graph=g, restatements=frozenset({"doc.md#06"}))
+    assert captured["graph"] is g
+    assert captured["restatements"] == frozenset({"doc.md#06"})
+
+
+def test_gate_promotion_propaga_graph_e_restatements_a_evaluate_recall(monkeypatch):
+    captured = {}
+
+    def _fake_evaluate_recall(*a, **k):
+        captured.update(k)
+        return {"recall": 0.95, "n": 1, "k": 2}
+
+    monkeypatch.setattr(eval_gate, "evaluate_recall", _fake_evaluate_recall)
+    g = object()
+    eval_gate.gate_promotion("v8", None, None, {}, min_recall=0.5, graph=g,
+                             restatements=frozenset({"x#01"}))
+    assert captured["graph"] is g
+    assert captured["restatements"] == frozenset({"x#01"})
+
+
 def test_evaluate_recall_explicit_collection_name_propagated_to_hybrid_search(monkeypatch):
     captured = {}
 
-    def _fake_hybrid_search(query, kk, *, qdrant, embed_model, colbert_store, collection_name):
+    def _fake_hybrid_search(query, kk, *, qdrant, embed_model, colbert_store, collection_name, **kw):
         captured["collection_name"] = collection_name
         return []
 

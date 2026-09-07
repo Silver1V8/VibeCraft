@@ -3210,3 +3210,50 @@ severo, non peggiore. Il sottoinsieme avversariale non cambia (nessuno dei due �
 - **Che i numeri siano riproducibili in CI.** Non lo sono, e il report lo stampa: 15 tracciati,
   9 non tracciati, 1 istanziato. È A6, ed è l'unica riga di questo audit che nessuna sessione
   tecnica può chiudere.
+
+## R26 — il gate ora legge l'ordinamento del server, e il grafo non c'entrava ✅ CHIUSO
+
+*Chiuso il 2026-09-07, poche ore dopo essere stato aperto, prima di S11 come richiesto.*
+
+La correzione è quella prevista nel triage: `evaluate_recall` e `gate_promotion` accettano
+`graph` e `restatements` e li passano a `hybrid_search`; i due chiamanti di produzione — il full
+rebuild in `core/indexing.py` (con `G` e `state.chunks_store`) e `_eval_gate` in
+`api/routes_reindex.py` (con gli artefatti candidati appena caricati) — li passano. I default
+restano vuoti per i doppi dei test. Due test pinnano la propagazione lungo la catena
+`gate_promotion → evaluate_recall → hybrid_search`; tre fake esistenti avevano la firma rigida
+e sono stati allargati con `**kw`.
+
+**La rimisura ha attribuito il delta, e non a ciò che il residuo sospettava per metà.** Stessa
+versione (`v20260907T094225`), stessa collection, stesso golden set (58 casi), `evaluate_recall`
+in-process nelle quattro combinazioni:
+
+| Gate | recall@1 | recall@2 | recall@5 | recall@10 |
+|---|---|---|---|---|
+| nudo (com'era fino a oggi) | 0.603 | **0.845** | 0.948 | **0.966** |
+| solo `graph` | 0.603 | 0.845 | 0.948 | 0.966 |
+| solo `restatements` | 0.690 | **0.862** | 0.948 | 1.000 |
+| `graph` + `restatements` (= server) | 0.690 | **0.862** | 0.948 | 1.000 |
+
+- **Il gate pieno coincide con `eval.run`** sullo stesso indice (0.862 su 58 casi, S10): la
+  promessa del docstring è di nuovo vera, ed è misurata, non dichiarata.
+- **`graph` non muove nulla sul golden set.** La precedenza (S4) agisce solo quando due
+  risultati della stessa lista sono legati da una relazione dichiarata, e nel golden set non
+  capita mai. Passarlo è comunque giusto — il gate deve ricevere ciò che il server riceve, non
+  ciò che oggi fa differenza — ma il numero di R26 era **tutto N4**.
+- **Il gate nudo non era saturo a k=10** (0.966): senza il peso di sezione due casi escono dal
+  top-10. È un dettaglio con una conseguenza: l'alert di saturazione del gate, letto sul
+  ranking nudo, avrebbe potuto tacere dove quello del server parla, o viceversa.
+
+**La serie storica.** Le righe `source="gate"` scritte prima di oggi misurano l'ordinamento
+nudo; da oggi misurano quello del server. La discontinuità è scritta accanto a quella di R12 in
+testa a `core/eval_history.py`, con i due numeri, perché il prossimo che vede la serie del gate
+saltare da 0.845 a 0.862 in un giorno trovi la ragione senza dover rifare questa misura. Nessuna
+riga vecchia è stata riscritta. La rimisura di oggi ha chiamato `evaluate_recall` direttamente,
+non `gate_promotion`: nessuna riga fittizia è entrata nello storico.
+
+**Cosa questa chiusura NON prova:** che il gate e il server coincidano anche sul ramo grafo di
+`/ask` — R9 vive in `graph_ops`, non in `hybrid_search`, e il gate non lo misura né deve. E non
+prova che la differenza resti nel verso comodo: oggi il gate nudo era più severo del vero; la
+correzione serve per il giorno in cui non lo sarà.
+
+- Verifica: `ruff check .` pulito; suite **1325 passed** (1323 + i due test nuovi).
