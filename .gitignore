@@ -75,6 +75,9 @@ docs/05_project_specs/*
 # tracciare invece che restare invisibili com'è corretto che siano.
 docs/*
 !docs/**/.gitkeep
+!docs/00_meta_governance/
+docs/00_meta_governance/*
+!docs/00_meta_governance/change_log.md
 
 # Backup locali di docs/ (docs.local-backup-<timestamp>/): copie di sicurezza dei documenti
 # spostati fuori dal corpus, tenute perché NON erano tracciati da git e cancellarli sarebbe
