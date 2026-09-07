@@ -1,7 +1,8 @@
 # RESIDUI — ciò che AUDIT.md lascia aperto, e come chiuderlo
 
 **Data:** 2026-09-04 · aggiornato il 2026-09-05 (S6) e il 2026-09-07 (S7, R21, poi la
-**verifica che precede S8**: R15 chiuso, R22/R23/R24/R25 aperti, S9–S12 scritte) · **Fonte:**
+**verifica che precede S8**: R15 chiuso, R22/R23/R24/R25 aperti, S9–S12 scritte, infine **S9**:
+R15, R22 e R24 chiusi e la forcella `>=3.14` misurata) · **Fonte:**
 rilettura integrale di `rag/AUDIT.md` (1.713 righe, Run A + Run B + le 15 indagini di
 chiusura) · **Metodo:** ogni residuo è stato **riverificato contro il codice di oggi** prima
 di finire in questo elenco. Due erano già stati chiusi da altri interventi e sono qui segnati
@@ -28,10 +29,10 @@ rapporto che questo audit trova ogni volta che qualcuno va a guardare invece di 
 | Righe dell'audit | 19 — 15 chiuse, 3 ritirate, 1 con premessa ritirata e sostanza chiusa |
 | Residui dichiarati | **22** (+11: R15 e R16 dai run CI reali, R17 da S4, R18 e R19 da S5, R20 da S6, R21 da S7 — e R22, R23, R24, R25 dalla verifica del 2026-09-07) |
 | Di cui già chiusi da altri interventi (riga stantia) | 2 |
-| Risolvibili con lavoro tecnico | **16 chiusi**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, **R12** (S7, 2026-09-07), R14, **R21** (2026-09-07, poche ore dopo averlo aperto), N5, N6. Fuori elenco, chiusi lo stesso: **N4** (S6) e **R19** (effetto collaterale di N4) |
-| Ancora aperti, con lavoro tecnico davanti | **6** — R13 (preparato, da rimisurare), R18 (una riga + rebuild di baseline), R20 e **R23** (la stessa griglia congiunta), **R22** e **R24** (nuovi, 2026-09-07). *R15 è caduto: misurato oggi, resta solo la guardia* |
-| Fuori registro fino a oggi | **4** voci di `DISTRIBUTION.md` che nessuna riga di RESIDUI tracciava: la forcella `>=3.14`, il workflow di release, il primo avvio guidato, lo smoke test sul secondo OS |
-| Che richiedono una decisione, non del codice | **10**, tutte in S8: N1, N2, N7, N8, N9 + R16 (proteggere il ramo), R17 (quali colori seguono il tema), **R25** (il buco lasciato scoperto dalla rimozione di M6) e le due di `DISTRIBUTION.md` (registry di release, primo avvio guidato). *Erano 5: N4 è uscita — S6 l'ha decisa misurandola — e sono entrate N9, R16, R17, R25 e le due di distribuzione* |
+| Risolvibili con lavoro tecnico | **19 chiusi**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, **R12** (S7, 2026-09-07), R14, **R15**, **R21**, **R22**, **R24** (tutti il 2026-09-07 — gli ultimi tre poche ore dopo essere stati aperti), N5, N6. Fuori elenco, chiusi lo stesso: **N4** (S6) e **R19** (effetto collaterale di N4) |
+| Ancora aperti, con lavoro tecnico davanti | **4** — R13 (preparato, da rimisurare), R18 (una riga + rebuild di baseline), R20 e **R23** (la stessa griglia congiunta). *S9 ne ha chiusi tre in un giro: R15 senza scrivere codice (la guardia c'era già), R24 con due righe di `conftest.py` e una di attesa, R22 con una sezione riscritta* |
+| Fuori registro fino a oggi | **4** voci di `DISTRIBUTION.md` che nessuna riga di RESIDUI tracciava: la forcella `>=3.14` (**misurata il 2026-09-07**, resta la decisione), il workflow di release (**la riga era stantia: è scritto e già partito**), il primo avvio guidato, lo smoke test sul secondo OS (**c'è: scoperto è Windows nativo**) |
+| Che richiedono una decisione, non del codice | **10**, tutte in S8: N1, N2, N7, N8, N9 + R16 (proteggere il ramo), R17 (quali colori seguono il tema), **R25** (il buco lasciato scoperto dalla rimozione di M6), il primo avvio guidato e — nuova — **se abbassare `requires-python` a `>=3.12`**, che S9 ha reso una scelta con un prezzo invece di una domanda. *Erano 5: N4 è uscita (S6 l'ha decisa misurandola), poi sono entrate N9, R16, R17, R25 e le due di distribuzione; ora esce anche il **registry di release**, che era già deciso e spedito dal 2026-09-01 — la riga che lo dava aperto era stantia quanto il bilancio da cui veniva* |
 | Non risolvibili (dati persi, hardware assente) | 1 |
 
 ---
@@ -68,10 +69,10 @@ Difetti e rischi veri, ancora presenti. **Verificato oggi** salvo dove indicato.
 
 *Aggiornamento 2026-09-07: la sezione è diventata in gran parte un registro di chiusure — le
 voci `✅` restano qui, con la cronaca di come sono state chiuse, perché è dove il lettore le
-cerca. **Ancora aperte davvero (rivisto il 2026-09-07, verificando una per una contro il
-codice):** R13, R16, R17, R18, R20, più le tre che questa verifica ha aggiunto — R22, R23,
-R24. **R21 è chiuso** (fc5d8d6, lo stesso giorno in cui è nato) e **R15 è caduto sotto
-misura**: la sua voce qui sotto porta ora il numero invece del sospetto.*
+cerca. **Ancora aperte davvero (rivisto dopo S9, verificando una per una contro il codice):**
+R13, R16, R17, R18, R20, R23. **R21 è chiuso** (fc5d8d6, lo stesso giorno in cui è nato); **R15,
+R22 e R24 sono chiusi da S9**, lo stesso giorno in cui gli ultimi due sono nati — R15 senza
+scrivere nulla, perché la guardia che chiedeva esisteva già e non era stata riconosciuta.*
 
 ### Gravità alta
 
@@ -169,10 +170,11 @@ Misurato nelle tre direzioni; suite intera `1317 passed, 0 skipped` col servizio
 `addopts`), cioè `-qq`, che sopprimeva **proprio** la riga di riepilogo che rende visibile
 il conteggio.
 
-**R15 — Altri test potrebbero dipendere dal `database/versions/` della macchina → MISURATO
-2026-09-07: non ce ne sono.** *(Nuovo, 2026-09-04.)* Il difetto trovato dal primo run CI era di
-questa forma: verde in locale perché l'indice c'è, rosso su un checkout pulito. Ne era stato
-corretto **uno**, e nulla diceva che fosse l'unico.
+**R15 ✅ — Altri test potrebbero dipendere dal `database/versions/` della macchina → MISURATO
+2026-09-07: non ce ne sono, e la guardia c'era già.** *(Nuovo, 2026-09-04; chiuso 2026-09-07,
+S9.)* Il difetto trovato dal primo run CI era di questa forma: verde in locale perché l'indice
+c'è, rosso su un checkout pulito. Ne era stato corretto **uno**, e nulla diceva che fosse
+l'unico.
 
 **Misurato invece che sorvegliato**, e non con un plugin ma con la condizione vera: `database/`
 spostata da parte e suite completa su quella che è, per il codice, una macchina senza indice.
@@ -189,9 +191,32 @@ suite con database/ assente  →  exit 0, 1321 passed, 0 failed, 0 skipped
 `CURRENT`**. Un test che pretendesse una versione sarebbe fallito lo stesso. `database/` è
 stata ripristinata intatta (`CURRENT` → `v20260904T151925`, 5 versioni).
 
-**Resta la guardia, non il difetto.** Oggi nessun test dipende dallo stato della macchina; nulla
-impedisce che il prossimo lo faccia, e lo scoprirebbe la CI dopo il push. È lavoro di **S9**.
-Da quella misura è uscito **R24**.
+**Restava la guardia, non il difetto — e la guardia esisteva già, senza che nessuno l'avesse
+chiamata così.** Verificato il 2026-09-07 invece di scrivere il job CI che S9 preventivava:
+
+- `git ls-files rag/database/` restituisce **tre file**, i `.gitkeep` di
+  `staging/{docs,projects,rejected}`. Nient'altro di `database/` è tracciato: `versions/` e
+  `CURRENT` sono in `.gitignore`;
+- estratto un checkout vero (`git archive HEAD`) per non dedurlo dalle regole: sotto
+  `rag/database/` compaiono quei tre `.gitkeep` e **nulla** — né `versions/`, né `CURRENT`, né
+  `.writer.lock`;
+- nel job `test` i passi che precedono la suite sono `actions/checkout`, `setup-uv` e l'attesa
+  di Qdrant; `scripts/ci.sh` fa `uv sync --frozen`, `ruff` e `pytest`. **Nessuno costruisce un
+  indice.**
+
+Quindi la suite gira **a ogni push** esattamente sulla condizione che R15 voleva sorvegliare, e
+un test che pretendesse una versione farebbe uscire `ci.sh` diverso da zero: è un gate, non un
+promemoria. **Scrivere un secondo job che rifà `checkout` senza `database/` avrebbe aggiunto
+minuti e nessuna informazione.**
+
+**Il limite, detto per intero:** la guardia è **implicita**. Regge perché di `database/` git non
+traccia nulla che conti e perché nessun passo costruisce un indice prima della suite; un futuro
+passo che ne costruisse uno la spegnerebbe **in silenzio**, senza che niente diventi rosso. È il
+prezzo di non aver scritto un job apposta, ed è accettato qui invece che nascosto.
+
+Da quella misura è uscito **R24**, chiuso lo stesso giorno: la suite non solo non **legge** più
+lo stato della macchina — dopo quella correzione non ci **scrive** più nulla. Le due facce
+chiudono insieme.
 
 **R16 — La CI era rossa su `main` e non lo fermava niente.** *(Nuovo, 2026-09-04.)* Misurato:
 `1044513` (S2, 14:45) e `dffaa6a` (14:47) sono stati pushati insieme, quindi il run **#129** li
@@ -494,13 +519,18 @@ ricreato a mano → `ok: false`, `qdrant_mismatch: true`, exit 1.
 
 ### Emersi verificando, il 2026-09-07
 
-*Tre voci nate dal controllo che precede S8, non da una sessione. Due sono difetti piccoli; la
-terza è un parametro che nessuno ha mai calibrato e che è stato nominato senza numero.*
+***Quattro** voci nate dal controllo che precede S8, non da una sessione. Due sono difetti
+piccoli (**R22**, **R24** — entrambi chiusi da S9 lo stesso giorno, e il secondo era più grave
+di come l'avevo scritto); **R23** è un parametro che nessuno ha mai calibrato e che era stato
+nominato senza numero; **R25** è una conseguenza accettata che nessuno guarda più.
+(Questa riga diceva «tre» perché R25 arrivò dopo e nessuno la rilesse: è la forma di R22 dentro
+il documento che denuncia R22.)*
 
-**R22 — `DISTRIBUTION.md` afferma due volte l'opposto sullo stesso job.** *(Nuovo,
-2026-09-07.)* Il documento riporta il log del job `macos-nativo` a `:427` (`runner: macOS
-15.7.9 su arm64 · platform tag: macosx-15.0-arm64`) e scrive a `:620-621` *«Verde in 34-36 s su
-due run»*. Ma il bilancio di L3, a `:463-467`, dice ancora che il job è **«implementato, non
+**R22 ✅ — `DISTRIBUTION.md` afferma due volte l'opposto sullo stesso job.** *(Nuovo,
+2026-09-07; chiuso lo stesso giorno, S9.)* Il documento riporta il log del job `macos-nativo` a
+`:427` (`runner: macOS 15.7.9 su arm64 · platform tag: macosx-15.0-arm64`) e scrive a `:620-621`
+*«Verde in 34-36 s su due run»*.
+Ma il bilancio di L3, a `:463-467`, diceva ancora che il job è **«implementato, non
 ancora osservato — nessun run su GitHub Actions è stato letto da qui»**. Verificato: entrambe le
 frasi sono nel file a `HEAD`. La seconda era vera quando fu scritta e non è più vera da quando
 il run è stato letto; il commit che esisteva apposta per riallineare i documenti (`bfc1ca5`,
@@ -508,6 +538,24 @@ il run è stato letto; il commit che esisteva apposta per riallineare i document
 `SECURITY_SURFACE` e ha lasciato **questa**. È la forma di R5 e di S4, un piano più su: non un
 documento contro il codice, ma un documento **contro sé stesso** — e il bilancio è la parte che
 un lettore nuovo legge per prima.
+
+**Corretto, e non era una riga sola.** *(I numeri di riga qui sopra sono quelli di `HEAD` al
+momento del riscontro, `e37de34`: la correzione ha inserito una sezione in §8 e li ha spostati
+tutti. Restano scritti così perché sono la prova di cos'era vero allora.)* Rileggendo il
+bilancio di L3 col metro che R22 chiedeva — ogni voce riverificata contro il codice di oggi
+invece che riletta — **tre voci su quattro** erano più vecchie del codice, e due venivano
+smentite da altre sezioni dello stesso file:
+
+| Voce del bilancio | Diceva | Dice il codice |
+|---|---|---|
+| Pubblicazione delle immagini | *«Da decidere»* | `release.yml` esiste, le quattro decisioni sono scritte nel capitolo successivo dello stesso file, e il tag `v0.1.0` le ha fatte partire il 2026-09-01 |
+| Smoke test su un secondo OS | *«sviluppato su Windows, testato in CI su Linux… non entrambi automaticamente»* | Da `macos-nativo` i sistemi coperti a ogni push sono **due** (Linux + macOS), più il container. Scoperto resta **Windows nativo** — che è la macchina di sviluppo, cioè l'unica dove «funziona» lo dice una persona |
+| macOS: implementato, non osservato | *«nessun run è stato letto da qui»* | il run è stato letto: è **R22** |
+| Primo avvio guidato | *«Non iniziato»* | **vero**, riverificato: nel codice non c'è nulla del genere |
+
+Emerso di striscio, e scritto lì: il *changelog* che il punto 12 di L3 chiedeva insieme al tag
+esiste come **messaggio del tag annotato** `v0.1.0`, non come `CHANGELOG.md`. Il bilancio non lo
+nominava né in un senso né nell'altro.
 
 **R23 — `graph_context_max_chunks: 2` non è mai stato calibrato.** *(Nuovo, 2026-09-07, da una
 riga di S6 mai numerata.)* «Cosa questa sessione NON prova» lo dichiara esplicitamente: *«non è
@@ -518,14 +566,53 @@ leva che R9 ha dovuto forzare per far arrivare il terzo documento — ed è rima
 di partenza mentre N4 cambiava l'ordinamento sotto di esso. È lo **stesso** difetto di R20 su un
 terzo parametro, quindi va nella stessa griglia e non in una sessione propria.
 
-**R24 — La suite scrive nella `database/` reale del progetto.** *(Nuovo, 2026-09-07, effetto
-collaterale della misura di R15.)* Su un checkout senza indice la suite **crea**
-`database/.writer.lock` e `database/staging/{docs,projects,rejected,intake.jsonl}`: sono test
-che scrivono nella directory di produzione invece che in `tmp_path`. Oggi non rompe niente — è
-la ragione per cui non è mai stato notato — ma è la faccia speculare di R15: là un test che
-*legge* lo stato della macchina, qui uno che lo *scrive*. Su una macchina con un indice vero quei
-file finiscono accanto ad esso, e il `.writer.lock` è il file che serializza gli scrittori
-dell'indice. Quale test sia va identificato prima di correggerlo.
+**R24 ✅ — La suite scrive nella `database/` reale del progetto.** *(Nuovo, 2026-09-07, effetto
+collaterale della misura di R15; chiuso lo stesso giorno, S9.)* La suite **creava**
+`database/.writer.lock` e `database/staging/{docs,projects,rejected,intake.jsonl}`: test che
+scrivono nella directory di produzione invece che in `tmp_path`. È la faccia speculare di R15:
+là un test che *legge* lo stato della macchina, qui uno che lo *scrive*.
+
+**Misurato, non dedotto.** Un plugin di solo rilevamento: dopo ogni test guarda se gli artefatti
+sono ricomparsi, registra il nodeid e li rimuove, così anche i colpevoli successivi si vedono
+invece di restare nascosti dietro il primo. Un giro di suite, `1321 passed`:
+
+```
+45 scritture · 27 test distinti · 7 file
+21 acquisizioni di database/.writer.lock  — test_index_cli_rollback (7), test_lifespan (5),
+   test_security_fixes (4), test_project_import (2), test_doc_generation, test_intake_staging,
+   test_reindex (1 ciascuno)
+ 6 creazioni di staging/{docs,projects,rejected,intake.jsonl} — tutte test_security_fixes,
+   parametrizzazioni delle rotte /intake/staged/{id}/reject e /refine
+```
+
+**La domanda sulla gravità aveva una risposta scritta sul disco.** Il lock non era «solo
+creato»: `.writer.lock` conteneva `pid=… acquired_at=…`, e quella riga `core/writer_lock.py` la
+scrive **solo dopo** aver preso il lock del sistema operativo. Ventuno volte per giro, la suite
+**acquisiva davvero** il mutex che serializza gli scrittori dell'indice — e la mutua esclusione
+vale nei due sensi: con un server acceso o un `index.py` in corso, o la suite sarebbe morta con
+`WriterLockBusyError`, o avrebbe tenuto fermo un reindex vero per la sua durata. Non «non rompe
+niente»: **non aveva ancora incontrato l'altro scrittore.**
+
+**Corretto in due punti, non in ventisette.** I chiamanti passano tutti da due soli imbuti —
+`writer_lock()` senza `lock_path` e `ensure_staging_dirs()` senza `base_dir`, entrambi
+documentati nel sorgente come *«il seam per i test»* — quindi la fixture autouse di
+`conftest.py` che già isolava `HISTORY_PATH` e `ALERTS_PATH` ne reindirizza altri due, e un test
+nuovo nasce isolato senza doverselo ricordare. (Rinominata di conseguenza:
+`_isolate_telemetry` → `_isolate_production_paths`.)
+
+**Uno dei ventisette non era un seam mancante**, e nessuna fixture avrebbe potuto prenderlo:
+`test_reindex.py::test_pending_complete_absorbs_paths` lasciava un job in coda che veniva
+dispacciato **dopo la fine del test**, quando `monkeypatch` aveva già rimesso a posto tutto —
+compreso il `_noop_writer_lock` che quel file si dà da sé, e la cui docstring nomina esattamente
+questo rischio («thread daemon, anche residui del test precedente»). Corretto aspettando che la
+coda si svuoti, come già fanno gli altri test dello stesso file.
+
+**Verifica:** stesso plugin, stessa suite → **0 scritture, 1321 passed**. E una precisazione alla
+riga com'era scritta: la misura originale spostava `database/` *per intero*, quindi la suite
+sembrava **creare** anche `staging/{docs,projects,rejected}`. Su un checkout git quelle tre
+cartelle ci sono già — sono tracciate coi loro `.gitkeep` — e l'unico file davvero nuovo era
+`staging/intake.jsonl`. Non cambia il difetto, cambia come si legge: non «la suite si costruisce
+uno staging», ma «la suite entra in quello di produzione».
 
 **R25 — Rimuovendo M6 il buco che copriva è rimasto, e ora non lo guarda più niente.**
 *(Nuovo, 2026-09-07.)* La chiusura di M6 lo dice per iscritto, in «Cosa questa chiusura NON
@@ -556,10 +643,10 @@ aperte come le altre e vanno decise o misurate, non lasciate in un terzo file.*
 
 | Voce | Dove | Cosa manca |
 |---|---|---|
-| **`requires-python = ">=3.14"` si può abbassare?** | `DISTRIBUTION.md` §8, forcella 3 | *«Va provato, non deciso a tavolino.»* Mai provato. Verificato: `pyproject.toml` dice tuttora `>=3.14`. Abbassarlo a 3.12 allargherebbe parecchio il parco macchine; se non si può, va scritto **perché**. È **misurabile**, quindi non è materia di S8: è **S9** |
-| **Pubblicazione delle immagini (release workflow)** | `DISTRIBUTION.md`, L3 | Quale registry, pubbliche o private, quali tag, e se pubblicare anche il target `gpu`. **Decisione** → S8 |
-| **Primo avvio guidato** | `DISTRIBUTION.md`, L3 | Scegli la cartella → indicizza → prima domanda. Funzionalità di prodotto, non di packaging. **Non iniziato** → S8 decide se entra nel perimetro |
-| **Smoke test su un secondo OS** | `DISTRIBUTION.md`, L3 | «Gap dichiarato». **Parzialmente superato e mai registrato**: fra il job `docker` (Linux), il job `test` e `macos-nativo` (S3) i sistemi coperti in CI sono ora due, più il container. Resta scoperto **Windows nativo**, che è la macchina di sviluppo — cioè l'unico dei tre che nessuno verifica automaticamente |
+| **`requires-python = ">=3.14"` si può abbassare?** ◐ | `DISTRIBUTION.md` §8, forcella 3 | ~~*«Va provato, non deciso a tavolino.»* Mai provato.~~ **Provato in S9, il 2026-09-07**, in una copia fuori dal repo e senza committare nulla: `>=3.12` risolve (159 pacchetti contro 156), installa, e la suite passa su CPython 3.12.13 — `1321 passed`. Il codice non usa **una sola riga** di sintassi o stdlib posteriore a 3.12: il pavimento a 3.14 non era sorretto da niente. Il prezzo è uno e sta su Windows: `onnxruntime` scende da 1.29.0 a **1.20.1** (~21 mesi indietro) perché il lock si biforca per piattaforma, e trascina tre pacchetti nuovi. Linux e il container non cambiano. **Misura chiusa; la decisione resta e torna a S8** |
+| ~~**Pubblicazione delle immagini (release workflow)**~~ ✅ | `DISTRIBUTION.md`, L3 | ~~Quale registry, pubbliche o private, quali tag, e se pubblicare anche il target `gpu`. **Decisione** → S8~~ **La riga era stantia quanto il bilancio che la generava** (verificato in S9): `release.yml` esiste, le quattro decisioni sono scritte in `DISTRIBUTION.md` e il tag `v0.1.0` le ha fatte partire il 2026-09-01. **Non resta una decisione**, restano due fatti da constatare fuori da qui: l'esito del run e la visibilità del pacchetto GHCR, che nasce privato |
+| **Primo avvio guidato** | `DISTRIBUTION.md`, L3 | Scegli la cartella → indicizza → prima domanda. Funzionalità di prodotto, non di packaging. **Non iniziato** → S8 decide se entra nel perimetro. *Riverificato in S9: è l'unica delle quattro ancora vera com'era scritta* |
+| **Smoke test su un secondo OS** | `DISTRIBUTION.md`, L3 | «Gap dichiarato». **Parzialmente superato e mai registrato**: fra il job `docker` (Linux), il job `test` e `macos-nativo` (S3) i sistemi coperti in CI sono ora due, più il container. Resta scoperto **Windows nativo**, che è la macchina di sviluppo — cioè l'unico dei tre che nessuno verifica automaticamente. *S9 ha portato la stessa cosa dentro `DISTRIBUTION.md`, col costo misurato: 4,0 GB di torch cu126 installati, il motivo per cui una matrice `windows-latest` non è un gate gratuito* |
 
 ---
 
@@ -1015,10 +1102,36 @@ Suite completa + ruff prima del commit.
 
 ---
 
-## S9 — La guardia, il documento che si contraddice, e la forcella mai provata
+## S9 — La guardia, il documento che si contraddice, e la forcella mai provata ✅ ESEGUITA il 2026-09-07
 
 Chiude **R15** (la guardia), **R24**, **R22**, e misura la forcella `>=3.14` di
 `DISTRIBUTION.md`. Nessun rebuild, nessun effetto sul corpus: si può eseguire subito.
+
+**Esito, nell'ordine in cui è arrivato.**
+
+- **R15 chiuso senza scrivere una riga di CI.** La guardia che la sessione doveva costruire
+  esisteva già: git non traccia nulla di `database/` a parte tre `.gitkeep`, e nessun passo del
+  job `test` costruisce un indice prima della suite. Il secondo job sarebbe stato minuti in più
+  e informazione zero. Il limite — la guardia è **implicita** e un futuro passo la spegnerebbe
+  in silenzio — è scritto nella voce, non taciuto.
+- **R24 chiuso, ed era più grave di come era stato scritto.** Non «crea» il lock: lo
+  **acquisiva**, 21 volte per giro di suite, sul file che serializza gli scrittori dell'indice.
+  Misurato con un plugin di solo rilevamento (45 scritture, 27 test, 7 file), corretto in due
+  imbuti invece che in ventisette punti, verificato a **0 scritture / 1321 passed**. Uno dei 27
+  non era un seam mancante ma un **thread lasciato in coda**, che scriveva dopo il teardown:
+  nessuna fixture avrebbe potuto prenderlo.
+- **R22 chiuso, e non era una riga sola.** Rileggendo il bilancio di L3 col metro richiesto,
+  **tre voci su quattro** erano più vecchie del codice — la release era già decisa e partita, e
+  lo «smoke test su un secondo OS» c'era: scoperto è **Windows nativo**, cioè la macchina di
+  sviluppo.
+- **Forcella 3 misurata, e non è più una domanda aperta ma una decisione con un prezzo.**
+  `>=3.12` risolve, installa, e passa (`1321 passed` su 3.12.13); il codice non usa niente di
+  posteriore a 3.12. Costa `onnxruntime` 1.20.1 su Windows. **Non committato**, come chiedeva
+  il mandato: la decisione è di S8.
+
+*Una cosa che questa sessione NON prova:* che l'abbassamento a 3.12 regga su **macOS**. Il
+dry-run cross-piattaforma fallisce identico sul lock attuale, quindi non misura niente — lo
+direbbe il job `macos-nativo`, non questa macchina.
 
 ```
 Lavora su rag/. Quattro cose piccole e indipendenti, nessuna tocca il corpus o l'indice.
@@ -1238,10 +1351,18 @@ forcella `requires-python` e **R25** — il buco che la rimozione di M6 ha lasci
 La forcella ha un **prerequisito** — S9 la misura, S8 la decide — ed è l'unica delle undici a
 non essere decidibile oggi.
 
+*Aggiornata da **S9**, il 2026-09-07.* Il prerequisito è tolto: la forcella `requires-python`
+arriva a S8 **con i suoi numeri** (punto 10). E il punto **8** è **ritirato**: la decisione sul
+registry di release era già presa e spedita dal 2026-09-01 — questo registro la dava aperta
+perché copiava il bilancio di L3, che era stantio (**R22**). Da undici le scelte scendono a
+**dieci**, più due constatazioni da fare fuori da qui: leggere l'esito del run di release e
+rendere pubblico il pacchetto GHCR.
+
 ```
-Nessun codice di produzione in questa sessione. Undici scelte che AUDIT.md e
-DISTRIBUTION.md hanno lasciato argomentate ma non decise: vanno confermate o ribaltate UNA
-volta e registrate, invece di essere ridiscusse a ogni sessione.
+Nessun codice di produzione in questa sessione. DIECI scelte che AUDIT.md e DISTRIBUTION.md
+hanno lasciato argomentate ma non decise (erano undici: il punto 8 e' stato ritirato da S9,
+la sua "decisione" era gia' presa dal 2026-09-01): vanno confermate o ribaltate UNA volta e
+registrate, invece di essere ridiscusse a ogni sessione.
 
 Per ognuna: rileggi la ragione scritta in AUDIT.md, verifica che la premessa regga ancora
 oggi (piu' di una si e' rivelata stantia in questo audit) e proponi una decisione con la
@@ -1281,11 +1402,12 @@ sua condizione di riapertura — "si rifa' quando X", non "per ora no".
    significano STATO, e uno stato ha senso che resti riconoscibile ATTRAVERSO i temi.
    Va deciso caso per caso, poi agganciato.
 
-8. Registry e workflow di release (DISTRIBUTION.md, L3 — "Da decidere"). Quale registry,
-   immagini pubbliche o private, quali tag, e se pubblicare anche il target `gpu`. Il
-   documento dice che un workflow scritto a indovinare non sarebbe verificabile e andrebbe
-   riscritto: e' una decisione dell'owner, non del codice. Se la risposta e' "non si
-   pubblica ancora", va scritta con la sua condizione di riapertura.
+8. RITIRATA da S9 il 2026-09-07 — registry e workflow di release. La voce diceva "Da
+   decidere", ma veniva dal bilancio di L3, che era stantio: release.yml esiste, le quattro
+   decisioni (GHCR, su tag v*, solo target cpu, solo linux/amd64) sono scritte in
+   DISTRIBUTION.md con la loro ragione, e il tag v0.1.0 le ha fatte partire il 2026-09-01.
+   Non resta una decisione: restano due CONSTATAZIONI da fare fuori da qui, cioe' leggere
+   l'esito di quel run e rendere pubblico il pacchetto GHCR, che nasce privato.
 
 9. Primo avvio guidato (DISTRIBUTION.md, L3 — "Non iniziato"). Scegli la cartella dei
    documenti, indicizza, prima domanda. Il documento lo classifica come funzionalita' di
@@ -1305,10 +1427,22 @@ sua condizione di riapertura — "si rifa' quando X", non "per ora no".
     aprono una sessione propria. Quello che non e' legittimo e' lasciarlo dov'e' senza dire
     che c'e'.
 
-10. requires-python: si abbassa da >=3.14? NON decidere questa a tavolino: S9 la misura in
-    una copia di lavoro e porta qui i numeri (cosa non risolve, quali sintassi 3.13+/3.14
-    usa il codice, quanto si sposta il lock). Se S9 non e' ancora stata eseguita, questa
-    voce resta aperta e va detto — e' l'unica delle dieci che ha un prerequisito.
+10. requires-python: si abbassa da >=3.14? IL PREREQUISITO E' SODDISFATTO — S9 l'ha misurata
+    il 2026-09-07 e i numeri sono questi (per esteso in DISTRIBUTION.md, "La forcella 3
+    misurata"):
+      · >=3.12 risolve (159 pacchetti contro 156), installa, e la suite passa su CPython
+        3.12.13: 1321 passed, 0 failed, 0 skipped;
+      · il codice non usa NIENTE di posteriore a 3.12 — nessuna sintassi, nessuna stdlib,
+        sui 122 .py tracciati. Il pavimento a 3.14 non era sorretto da nulla;
+      · il prezzo e' uno solo e sta su Windows: onnxruntime si biforca per PIATTAFORMA e
+        scende a 1.20.1 (wheel del 2024-11-21 contro quella del 2026-08-17), anche su
+        Python 3.14, trascinando coloredlogs/humanfriendly/pyreadline3. Linux e il
+        container non cambiano;
+      · macOS non e' verificabile da Windows (il dry-run cross-piattaforma fallisce identico
+        anche col lock attuale, N9): la wheel cp312 esiste nel lock, ma la conferma la
+        darebbe il job macos-nativo.
+    Se la risposta e' si', abbassa ANCHE [tool.ruff] target-version, altrimenti il linter
+    smette di sorvegliare cio' che il pacchetto promette.
 
 Registra gli esiti in AUDIT.md, in DISTRIBUTION.md e in RESIDUI.md sezione 1, con la
 data. Una decisione senza data e senza condizione di riapertura torna a essere una domanda
@@ -1327,14 +1461,15 @@ S3   CI                             ✅  ← rende permanente cio' che S2 proteg
 S5   corpus                         ✅  ← cambia i numeri: dopo S1, prima di S6
 S6   metriche sulla risposta        ✅  ← R9/R10/R11/N4/R19 chiusi, N3 non passa, R20 nuovo
 S7   storico                        ✅  ← R12 chiuso; R21 nato e chiuso lo stesso giorno
+S9   guardia, doc, forcella         ✅  ← R15/R22/R24 chiusi, forcella misurata;
+                                          il punto 8 di S8 e' caduto strada facendo
 ─────────────────────────────────────────────────────────────────────────────────
-S9   guardia, doc, forcella             ← nessun rebuild: eseguibile subito
 S10  la baseline si sposta              ← rebuild; prima di S11
 S11  i tre parametri accoppiati         ← dopo S10: calibrare su un corpus che sta
                                           per cambiare e' l'errore gia' documentato
 S12  il prerequisito di N3              ← dopo S10 e S11: una prova archiviata contro
                                           un ordinamento che cambia marcisce
-S8   decisioni                          ← ULTIMA: il punto 10 aspetta la misura di S9
+S8   decisioni                          ← ULTIMA: il punto 10 ha ora i suoi numeri
 ```
 
 **Le sette sessioni scritte allora sono state eseguite tutte.** Ma la coda che hanno lasciato

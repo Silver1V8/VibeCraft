@@ -192,6 +192,12 @@ def test_pending_complete_absorbs_paths():
     mgr.start(["x", "y"], reindex, lambda: None)     # si fonde: None assorbe tutto
     assert mgr.get(pending.id).changed_paths is None
     gate.set()
+    # Attendere che la coda si svuoti non e' cortesia: _noop_writer_lock e' un monkeypatch,
+    # e monkeypatch si disfa al teardown. Il pending qui sopra veniva dispacciato DOPO la fine
+    # del test, quando il no-op non c'era piu', e quel thread daemon acquisiva il writer lock
+    # REALE del progetto (database/.writer.lock) — l'unico caso di R24 che nessun seam poteva
+    # intercettare, perche' il seam era gia' stato rimesso a posto.
+    assert _wait(lambda: not mgr.is_running)
 
 
 def test_failed_first_job_still_dispatches_pending():

@@ -77,7 +77,7 @@ interruttore fra "in compose" e "sull'host". Il codice è già pronto: `VIBECRAF
 | `Dockerfile` | assente | ✅ multi-stage, target `cpu` e `gpu` (`FROM ... AS cpu`/`AS gpu`) |
 | `docker-compose.yml` | esiste ma contiene **solo Qdrant** | ✅ profili `cpu`, `gpu`, `host-ollama` + Qdrant senza profilo |
 | `scripts/run_server.sh` | assente (esiste solo `.ps1`) | ✅ presente |
-| `requires-python = ">=3.14"` | dichiarato; **non verificato** se sia davvero necessario | ⬜ **ancora aperto** — `pyproject.toml` dice tuttora `>=3.14` e nessuno ha provato ad abbassarlo (forcella 3 di §8) |
+| `requires-python = ">=3.14"` | dichiarato; **non verificato** se sia davvero necessario | ◐ **misurato il 2026-09-07** — `pyproject.toml` dice ancora `>=3.14`, ma ora si sa cosa costa cambiarlo: `>=3.12` risolve e la suite passa, al prezzo di `onnxruntime` 1.20.1 su Windows (sezione «La forcella 3 misurata»). **Non era necessario:** il codice non usa niente di posteriore a 3.12. Resta la decisione |
 
 ## 6. Piano in tre livelli
 
@@ -152,7 +152,68 @@ Ogni livello è utilizzabile da solo.
    corretto così. Quindi le funzioni che vivono sul codice (Semantic Map, Impact Ripple,
    `implementing_code` in `/ask`) partono vuote. Il quickstart arriva alla prima risposta
    **sui documenti**; quella sul codice richiede di puntare `code/` a un progetto vero.
-3. **`>=3.14`: si abbassa?** Va provato, non deciso a tavolino.
+3. **`>=3.14`: si abbassa?** ~~Va provato, non deciso a tavolino.~~ **PROVATO il 2026-09-07**
+   (S9). Si abbassa: sotto c'è il numero che questa riga chiedeva da sei giorni. Resta una
+   decisione — ma ora costa qualcosa di preciso, non «chissà».
+
+### La forcella 3 misurata: `>=3.12` funziona, e ha un prezzo su Windows (2026-09-07)
+
+**Metodo.** Copia di lavoro fuori dal repository (`git archive HEAD`, così è un checkout vero e
+non la macchina di sviluppo), `requires-python` portata a `>=3.12`, `uv lock`, `uv sync --python
+3.12`, suite intera. **Controllo prima di tutto il resto:** `uv lock` sulla stessa copia
+**senza** toccare `requires-python` riproduce il lock committato **byte per byte**. Quindi ogni
+differenza qui sotto è causata dall'abbassamento, non da un lock stantio — che è l'unico modo
+per cui questi numeri vogliano dire qualcosa. Niente di tutto ciò è stato committato.
+
+**1. Risolve.** `uv lock` esce 0: **159 pacchetti contro 156**. Nessun pacchetto che non risolve,
+nessun conflitto.
+
+**2. La suite passa su 3.12.** CPython **3.12.13**, checkout pulito, Qdrant acceso:
+`1321 passed, 0 failed, 0 skipped` in **117 s** (99 s su 3.14, stessa macchina).
+
+**3. Il codice non usa niente di 3.13+ né di 3.14.** Cercato sui **122** `.py` tracciati:
+nessun `type X = …` né generico PEP 695, nessun `@override`, nessun `itertools.batched` (3.12);
+nessun `os.process_cpu_count`, `copy.replace`, `glob.translate` (3.13); nessun `annotationlib`,
+`compression.*`, `concurrent.interpreters` (3.14). L'unico `sys.version_info` è in
+`scripts/doctor.py` e stampa una diagnostica. **Il pavimento a 3.14 non era sorretto da nulla
+nel codice** — era una scelta di comodo, mai una necessità.
+
+**4. Il lock si sposta parecchio, e in un punto peggiora.** Da **2.982 a 3.815 righe** (+28%),
+909 righe diverse. Quasi tutto è meccanico: uv scrive i marker di risoluzione per ogni fork di
+versione, e un intervallo più largo significa più fork. **Una differenza però non è cosmetica:**
+
+```
+lock >=3.14 :  onnxruntime 1.29.0, una voce sola, ovunque
+lock >=3.12 :  onnxruntime 1.29.0  se sys_platform != 'win32'
+               onnxruntime 1.20.1  se sys_platform == 'win32'   ← anche su Python 3.14
+```
+
+Cioè **la macchina di sviluppo** installerebbe `onnxruntime-1.20.1-cp312-cp312-win_amd64.whl`
+(caricata il **2024-11-21**) al posto di `onnxruntime-1.29.0-cp314-cp314-win_amd64.whl`
+(**2026-08-17**): **~21 mesi indietro, sull'interprete che usa oggi** — il marker non è per
+versione di Python, è per piattaforma. Con sé porta tre pacchetti che oggi non ci sono
+(`coloredlogs`, `humanfriendly`, `pyreadline3`) e sposta `magika` da 0.6.2 a 0.6.3. **Linux e il
+container non sono toccati:** lì resta 1.29.0. `onnxruntime` arriva da `markitdown` → `magika`,
+cioè dal riconoscimento del tipo di file nell'intake dei documenti.
+
+**5. macOS non è decidibile da qui, e il modo in cui l'ho scoperto vale più della risposta.**
+`uv sync --frozen --dry-run --python-platform aarch64-apple-darwin` fallisce su `torch==2.13.0`
+«no wheel for the current platform» — ma **fallisce identico anche col lock attuale `>=3.14`**,
+quindi non dice niente sull'abbassamento: è l'artefatto di N9 (il tag di piattaforma viene
+dall'**interprete**, e da Windows uv ne usa uno più conservativo di `macosx_14_0`). Ciò che si
+legge dal lock invece che dal comando: la versione a `>=3.12` **contiene**
+`torch-2.13.0-cp312-cp312-macosx_14_0_arm64.whl` accanto a cp313 e cp314. La wheel esiste; la
+conferma vera la darebbe il job `macos-nativo`, non questa macchina.
+
+**6. Da abbassare insieme, se si decide:** `[tool.ruff] target-version = "py314"`. Con la
+selezione di oggi (`E4`, `E7`, `E9`, `F`) non cambierebbe un riscontro, ma lasciarlo a py314
+significa che il linter non vedrebbe entrare sintassi che 3.12 non compila — cioè il gate
+smetterebbe di sorvegliare proprio la cosa appena promessa.
+
+**Cosa questa misura NON dice: se convenga.** Dice che si può, che costa `onnxruntime` di due
+anni più vecchio su Windows e nient'altro di misurabile, e che il codice non oppone resistenza.
+Se allargare il parco macchine valga quel prezzo è **una decisione, e sta in §8** — questa
+sezione le porta solo il numero che le mancava.
 
 
 ---
@@ -451,24 +512,48 @@ quindi la differenza è rilevabile e non silenziosa); formato artefatti cambiato
 
 ### Cosa di L3 NON è stato fatto, e perché
 
-- **Pubblicazione delle immagini (release workflow).** Richiede decisioni che non spettano al
-  codice: quale registry, immagini pubbliche o private, quali tag, e se pubblicare anche il
-  target `gpu`. Un workflow scritto a indovinare non sarebbe verificabile qui e andrebbe
-  comunque riscritto. **Da decidere.**
-- **Smoke test su un secondo sistema operativo.** Il job `docker` è il test da clone pulito e
-  copre il percorso di distribuzione principale. Una matrice su `windows-latest` per il
-  percorso nativo scaricherebbe ~4 GB di torch CUDA a ogni push: sproporzionato come gate.
-  Il progetto è sviluppato su Windows e testato in CI su Linux, quindi entrambi i sistemi
-  sono coperti — ma non entrambi automaticamente. **Gap dichiarato.**
-- ~~**Installazione nativa su macOS: risolta, non eseguita.**~~ **Coperta il 2026-09-04**
-  dal job `macos-nativo` descritto sopra: `uv sync --frozen` vero su un runner Apple
-  Silicon, torch importato e un matmul verificato. Resta una distinzione onesta: il job è
-  **implementato, non ancora osservato** — nessun run su GitHub Actions è stato letto da
-  qui, e la scelta del runner è verificata sulla documentazione delle immagini. macOS Intel
-  resta impossibile a monte (PyTorch non pubblica quelle wheel).
+*Rivisto per intero il 2026-09-07 (**R22**). Questa è la sezione che un lettore nuovo apre per
+sapere cosa manca, ed è l'ultima che qualcuno aggiorna: **tre voci su quattro erano più vecchie
+del codice**, e due di esse venivano smentite da altre sezioni di questo stesso file.*
+
+- ~~**Pubblicazione delle immagini (release workflow).** Da decidere.~~ **Decisa e scritta il
+  2026-09-01**, cioè prima ancora che questa riga fosse riletta. Il workflow è
+  `.github/workflows/release.yml`; le quattro decisioni che la riga dava per prendere — GHCR,
+  su tag `v*` e non su ogni push, solo il target `cpu`, solo `linux/amd64` — sono nel capitolo
+  successivo, «Come si pubblicano le immagini — decisioni prese», ciascuna con la sua ragione,
+  e il tag `v0.1.0` le ha già fatte partire.
+  **Aperto è altro, ed è in fondo al file:** l'esito di quel run non è mai stato letto da qui
+  (repository privato) e il pacchetto GHCR nasce privato, quindi la visibilità va cambiata a
+  mano. *Il «changelog» che il punto 12 di L3 chiedeva insieme al tag esiste come **messaggio
+  del tag annotato** `v0.1.0`, non come `CHANGELOG.md`: alla seconda release andrà deciso se
+  basta.*
+- **Smoke test su un secondo sistema operativo.** *La ragione scritta qui era vera prima del
+  job `macos-nativo`, che l'ha superata senza che questa riga se ne accorgesse.* I sistemi
+  coperti **automaticamente a ogni push** sono oggi **due**: Linux (`test` e `docker`, su
+  `ubuntu-latest`) e macOS (`macos-nativo`, `macos-15` arm64), con due prove diverse — un
+  clone pulito che produce un'immagine che parte, e un clone pulito che si installa
+  nativamente e fa calcolare torch — più il container come terzo percorso. Il gate «clone
+  pulito su almeno due OS» del punto 12 **c'è**. **Quello che resta scoperto è Windows
+  nativo**, cioè proprio la macchina su cui il progetto è sviluppato: l'unico sistema dove
+  «funziona» è verificato a mano. E il costo qui è reale, diverso da quello di macOS: là il
+  lock esclude tutte le wheel `nvidia-*` e il job costa 34 s, su Windows torch arriva
+  dall'indice cu126 e pesa **4,0 GB una volta installato** — misurati nel `.venv` di questa
+  macchina, su 4,7 GB totali — che un runner senza cache rifà a ogni push. *(La wheel di
+  `download.pytorch.org` non dichiara la propria dimensione nel lock, quindi il byte scaricato
+  non è misurato qui: il numero sopra è l'ordine di grandezza, non una stima.)* **Gap
+  dichiarato — molto più stretto di com'era scritto, e su un sistema diverso.**
+- ~~**Installazione nativa su macOS: risolta, non eseguita.**~~ **Coperta il 2026-09-04** dal
+  job `macos-nativo` descritto sopra, ed **eseguita**: verde in 34-36 s su due run, col log
+  riportato più su (`runner: macOS 15.7.9 su arm64`, `torch 2.13.0` senza `+cu`, matmul su
+  `mps`). *Questa riga ha continuato a dire «implementato, non ancora osservato — nessun run
+  è stato letto da qui» mentre due altre sezioni di questo file citavano quel log: è il
+  difetto che R22 nomina, ed è corretto qui il 2026-09-07.* macOS Intel resta impossibile a
+  monte (PyTorch non pubblica quelle wheel), e resta scoperto il ramo con CPython **gestita da
+  uv** (N9).
 - **Primo avvio guidato** (scegli la cartella → indicizza → prima domanda). È una funzionalità
   di prodotto, non di packaging: il README oggi porta allo stesso risultato in quattro
-  comandi. **Non iniziato.**
+  comandi. **Non iniziato** — *l'unica delle quattro voci ancora vera com'era scritta,
+  riverificata il 2026-09-07: nel codice non esiste nulla del genere.*
 
 ---
 
@@ -531,7 +616,8 @@ ricorda nel proprio riepilogo di esecuzione.
 
 **Non verificato:** il workflow di release non è mai stato eseguito. Il `docker build` che
 contiene sì, ripetutamente, su questa macchina; l'orchestrazione GitHub no. Il primo tag lo
-dirà.
+dirà. *(Scritto prima del tag. **È stato innescato** poche ore dopo — sezione seguente: ciò
+che resta non verificato è l'**esito**, non l'esecuzione. Segnalato il 2026-09-07 con R22.)*
 
 ### Prima release: `v0.1.0` (2026-09-01)
 
@@ -629,11 +715,13 @@ era stato limitato a `main`, quindi gira su ogni push. Resta scoperto il ramo co
 e un passo che **pretende** `5 passed`: i cinque test d'integrazione non possono tornare a
 saltare in silenzio. Prima passavano come skip su un runner senza Qdrant.
 
-### Cosa resta aperto, invariato dal 2026-09-01
+### Cosa resta aperto (aggiornato il 2026-09-07)
 
-- **`requires-python = ">=3.14"` non è mai stato messo alla prova** (forcella 3 di §8).
-  Abbassarlo a 3.12 allargherebbe parecchio il parco macchine; va provato, non deciso a
-  tavolino.
+- ~~**`requires-python = ">=3.14"` non è mai stato messo alla prova.**~~ **Provato il
+  2026-09-07:** `>=3.12` risolve, installa e fa passare la suite (`1321 passed` su CPython
+  3.12.13), e il codice non usa una sola riga di sintassi o di stdlib posteriore a 3.12. Il
+  prezzo è uno solo ed è su Windows: `onnxruntime` scende a **1.20.1**, ~21 mesi indietro.
+  Misura per intero in §8; **quello che resta è la decisione**, non il numero.
 - **Il workflow di release non è mai stato verificato dall'esterno.** Il tag `v0.1.0` è
   partito il 2026-09-01, ma il repository è privato e da qui un pull anonimo non distingue
   «pacchetto privato» da «pacchetto inesistente». Cosa guardare: sezione precedente.
