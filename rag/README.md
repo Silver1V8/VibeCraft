@@ -473,6 +473,17 @@ La corsa standard riporta il recall a **k ∈ {1, 2, 5, 10}**, e non per complet
   perché su un solo split un guadagno sopra soglia si è già rivelato rumore di
   partizione. Lo script segnala anche gli **assi morti**, cioè i parametri che sul
   corpus corrente non muovono la metrica di un millesimo.
+- **`boost_alpha` e `section_restatement_weight` sono accoppiati: calibrarli uno alla
+  volta è un errore già commesso (S11, [rag_config.yaml](rag_config.yaml)).** Sono
+  entrambi un moltiplicatore sullo stesso composito di `/ask` (pertinenza × fiducia ×
+  autorità), quindi il guadagno dell'uno dipende dal valore dell'altro. Una griglia
+  congiunta su `boost_alpha` × `default_weight` × `unclassified_weight` ×
+  `section_restatement_weight` (2160 punti, 5-fold × 5 seed) ha confermato in
+  produzione `boost_alpha: 0.3` (era 0.1 dal 2026-07-14, calibrato allora da solo) e
+  `section_restatement_weight: 0.92` (confermato, non spostato): a k=1 il guadagno
+  held-out è **+0.038**, e ad alpha 0.3 il tetto del contesto da grafo
+  (`graph_context_max_chunks`) è salito a 3 — a 2 una catena multihop perdeva la
+  terza fonte in finestra. Dettagli in [AUDIT.md §S11](adr/AUDIT.md).
 - **e ciò che il recall NON misura: a chi la risposta attribuisce il vincolo.** Il
   recall dice se la fonte giusta è stata *recuperata*; `/ask` ne inietta fino a 8 e
   l'LLM le legge tutte, quindi il recall può essere ottimo mentre la risposta cita
@@ -513,6 +524,20 @@ Non è un gate né un check notturno: costa chiamate LLM e i numeri vanno letti 
 uv run python -m eval.attribution --repeats 3   # (a) valida il giudice offline: solo Ollama
 uv run python -m eval.attribution --live        # (b) misura /ask: server SENZA cache
 ```
+
+**Il giudice, misurato: 20/24 in-sample, e non passa il criterio fissato per validarlo**
+([AUDIT.md §S14](adr/AUDIT.md)). Sei formulazioni del prompt provate sugli stessi 24 record
+d'archivio (temperatura 0, un'unica chiamata per esecuzione, JSON frase→verbo→fonte); tenuta
+la migliore (v4: 20/24 d'accordo con l'umano, 5/7 sui negativi, 24/24 di giudizi ripetibili in
+tre esecuzioni). Il criterio di S6 era «se non coincide col verdetto umano, il giudice non è
+pronto»: non coincide, e in 3 casi su 4 dei disaccordi il giudice sceglie il documento che
+**illustra** il vincolo invece di quello che la risposta dice lo **stabilisce** — la stessa
+confusione che la metrica esiste per misurare nel modello giudicato, riprodotta nel modello
+giudice (sono lo stesso modello, `qwen3.5:9b`, l'unico installato). Sul conto binario del modo
+(b) — «la fonte è quella attesa, sì/no» — l'accordo sale a 22/24 con **0 negativi mancati su
+7**: uno schermo utile per decidere quali risposte far rileggere a un umano, non ancora una
+metrica automatica. Apre **R29** (AUDIT.md, RESIDUI.md): serve un giudice su un modello diverso
+prima di poter promuovere questa misura a gate.
 
 **Quattro casi su 14 non possono passare A, ed è la misura, non un difetto.**
 L'enumerazione chiede 11 fonti a un top-10, e le tre catene che spandono tre documenti si
