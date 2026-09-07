@@ -1,14 +1,16 @@
 # RESIDUI — ciò che AUDIT.md lascia aperto, e come chiuderlo
 
-**Data:** 2026-09-04, aggiornato il 2026-09-05 (S6) · **Fonte:** rilettura integrale di
-`rag/AUDIT.md` (1.713 righe, Run A +
-Run B + le 15 indagini di chiusura) · **Metodo:** ogni residuo è stato **riverificato contro
-il codice di oggi** prima di finire in questo elenco. Due erano già stati chiusi da altri
-interventi e sono qui segnati come tali: fidarsi della riga è l'errore che questo audit ha
-commesso cinque volte su diciannove.
+**Data:** 2026-09-04 · aggiornato il 2026-09-05 (S6) e il 2026-09-07 (S7) · **Fonte:**
+rilettura integrale di `rag/AUDIT.md` (1.713 righe, Run A + Run B + le 15 indagini di
+chiusura) · **Metodo:** ogni residuo è stato **riverificato contro il codice di oggi** prima
+di finire in questo elenco. Due erano già stati chiusi da altri interventi e sono qui segnati
+come tali: fidarsi della riga è l'errore che questo audit ha commesso cinque volte su
+diciannove.
 
-Questo documento non aggiunge riscontri nuovi al sistema: raccoglie quelli che AUDIT.md
-dichiara aperti, li tria fra risolvibili e non, e li ordina in sessioni di lavoro.
+Alla nascita questo documento non aggiungeva riscontri nuovi: raccoglieva quelli che AUDIT.md
+dichiarava aperti, li triava fra risolvibili e non, e li ordinava in sessioni di lavoro.
+**Eseguendole ne sono nati sette** (R15–R21), e sono la parte che l'audit da solo non poteva
+produrre: si vedono correggendo, non leggendo.
 
 ---
 
@@ -17,10 +19,11 @@ dichiara aperti, li tria fra risolvibili e non, e li ordina in sessioni di lavor
 | | |
 |---|---|
 | Righe dell'audit | 19 — 15 chiuse, 3 ritirate, 1 con premessa ritirata e sostanza chiusa |
-| Residui dichiarati | **22** (+6 emersi eseguendo: R15 e R16 dai run CI reali, R17 da S4, R18 e R19 da S5, R20 da S6) |
+| Residui dichiarati | **22** (+7 emersi eseguendo: R15 e R16 dai run CI reali, R17 da S4, R18 e R19 da S5, R20 da S6, R21 da S7) |
 | Di cui già chiusi da altri interventi (riga stantia) | 2 |
-| Risolvibili con lavoro tecnico | 14 — **14 chiusi** (R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, N5, N6 + gli altri annotati in linea); R13 preparato, non eseguito. Fuori elenco, chiusi lo stesso: **N4** (S6) e **R19** (effetto collaterale di N4) |
-| Che richiedono una decisione, non del codice | 5 (+R16: proteggere il ramo) |
+| Risolvibili con lavoro tecnico | **15 chiusi**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, **R12** (S7, 2026-09-07), R14, N5, N6. Fuori elenco, chiusi lo stesso: **N4** (S6) e **R19** (effetto collaterale di N4) |
+| Ancora aperti, con lavoro tecnico davanti | 5 — R13 (preparato, non eseguito), R15 (vigilanza), R18 (una riga + rebuild di baseline), R20 (griglia congiunta), R21 (applicare la regola di M6) |
+| Che richiedono una decisione, non del codice | **7**, tutte in S8: N1, N2, N7, N8, N9 + R16 (proteggere il ramo) e R17 (quali colori seguono il tema). *Erano 5: N4 è uscita — S6 l'ha decisa misurandola — e N9 è entrata* |
 | Non risolvibili (dati persi, hardware assente) | 1 |
 
 ---
@@ -29,6 +32,13 @@ dichiara aperti, li tria fra risolvibili e non, e li ordina in sessioni di lavor
 
 Interventi **deliberatamente** non eseguiti, con la ragione scritta accanto. Non sono
 dimenticanze: sono confini dichiarati.
+
+*Tre di questi confini sono caduti, e per la stessa ragione: qualcuno è andato a misurare.*
+**N4** (peso di sezione) era archiviata come «agisce sul rango, che non è il problema» — S6 ha
+misurato e il rango era il problema; **N5** e **N6** erano «non abbiamo il servizio / non
+abbiamo un Mac» — il runner CI ha entrambi. Restano confini le altre sei: cinque (N1, N2, N7,
+N8, N9) sono la materia di **S8**; **N3** non è una decisione ma un lavoro con un
+prerequisito, ed è scritto nella sua riga.
 
 | # | Cosa | Dove | Perché no |
 |---|---|---|---|
@@ -47,6 +57,11 @@ dimenticanze: sono confini dichiarati.
 # 2. Cosa resta aperto
 
 Difetti e rischi veri, ancora presenti. **Verificato oggi** salvo dove indicato.
+
+*Aggiornamento 2026-09-07: la sezione è diventata in gran parte un registro di chiusure — le
+voci `✅` restano qui, con la cronaca di come sono state chiuse, perché è dove il lettore le
+cerca. **Ancora aperte davvero:** R13 (preparato, non aggiunto), R15, R16, R17, R18, R20,
+R21.*
 
 ### Gravità alta
 
@@ -366,6 +381,28 @@ parametri governano lo stesso ordinamento e una griglia congiunta non è mai sta
 Non è urgente — la configurazione attuale è la migliore misurata su ogni singolo asse — ed è
 esattamente il tipo di lavoro che va fatto quando c'è margine, non sotto pressione.
 
+**R21 — L'esperimento M6 ha una regola di decisione che i suoi stessi dati hanno già
+risolto, e nessuno l'ha applicata.** *(Nuovo, 2026-09-07, emerso da S7.)* Il docstring di
+`run_incremental_advisory` fissa una regola senza terza opzione: *tenere* l'advisory solo se
+la mediana di `advisory_eval_seconds` è ≤ **10%** della durata mediana dei job incrementali,
+altrimenti *rimuovere flag e codice*. I dati per applicarla ci sono da settimane e nessuno li
+ha letti: **23 righe** `incremental_advisory` in `history.jsonl`, mediana **23,97 s** (min
+5,7, max 36,7), contro **2 job** `kind: incremental` in `database/reindex_jobs.jsonl` da
+**4,3 s e 4,4 s**. L'advisory costa il **~550%** della durata del job invece del ≤10%
+preteso: **cinquantacinque volte** la soglia della regola. Non è un caso limite da rimisurare
+meglio — la regola dice *rimuovere*, e lo dice largamente. Le 23 righe sono misure vere (23
+versioni distinte fra il 2026-07-21 e il 2026-09-01, non artefatti della suite), ed è emerso
+proprio dimensionando il costo di R12, che l'ha reso **più** caro (10 risultati per caso
+invece di 3).
+
+È la stessa forma di A2b un piano più su: là una sorveglianza che non poteva segnalare nulla,
+qui un esperimento con criterio, scadenza e dati — che nessuno chiude. Un esperimento che non
+si decide non è un esperimento, è codice in più con un commento che promette di toglierlo. Da
+verificare prima di eseguire: **due** job incrementali nel journal sono pochi, e vanno cercate
+altre misure di durata prima di concludere; se le confermano, il lavoro è un mini-PR di revert
+(flag in `rag_config.yaml`, funzione in `core/eval_gate.py`, aggancio in `core/indexing.py`,
+`tests/test_incremental_advisory.py`).
+
 **R14 — Le due collection Qdrant distrutte da A20 non sono recuperabili → la parte
 risolvibile è CHIUSA 2026-09-04.** I dati restano persi (gli artefatti su disco ci sono, i
 vettori no) e non si è tentato di recuperarli. `v20260901T101536` è nel frattempo uscita
@@ -406,9 +443,11 @@ ricreato a mano → `ok: false`, `qdrant_mismatch: true`, exit 1.
 
 # 3. Cosa è uscito di nuovo dagli interventi
 
-Nessuna delle quattro righe della Run A ha prodotto un difetto nuovo *nel sistema*. Ma sei
-riscontri sono nati **dall'atto di correggere**, ed è il dato più interessante di tutto
-l'audit: metà del valore è arrivato dal guardare, non dal riparare.
+Nessuna delle quattro righe della Run A ha prodotto un difetto nuovo *nel sistema*. Ma
+**undici** riscontri sono nati **dall'atto di correggere** — erano sei quando questa sezione
+fu scritta, e la tabella è cresciuta a ogni sessione senza che il numero la seguisse — ed è il
+dato più interessante di tutto l'audit: metà del valore è arrivato dal guardare, non dal
+riparare.
 
 | Trovato | Come | Stato |
 |---|---|---|
@@ -422,6 +461,7 @@ l'audit: metà del valore è arrivato dal guardare, non dal riparare.
 | **Nessuna baseline di bench era mai stata salvata** | Aprendo A11: `eval/results/` non conteneva alcun `bench_*.json`, mentre il README vieta di ottimizzare senza baseline | Chiuso |
 | **Il pannello JSON restava con la palette vecchia al cambio di tema** | Correggendo il badge di R6: i colori sono letti con `themeVar()` e cotti nell'HTML, e nulla ridisegnava. Invisibile finché il badge era sbagliato **allo stesso modo** | Chiuso (ridisegno agganciato a `onThemeChange`) |
 | **I punteggi Qdrant sono due card, e nessuna seguiva il tema** | Verificando R6 a schermo invece che nel codice: quella della sidebar non era nemmeno nel file che il residuo nominava | Chiuso (token `--score-*`) → il resto della tavolozza è **R17** |
+| **L'advisory incrementale costa il 500% del job che osserva, e la sua regola dice di rimuoverla** | Dimensionando il costo di R12: per sapere se allargare i `k` fosse caro serviva la durata dell'advisory, e leggendola è emerso che il criterio di M6 era già stato superato di due ordini di grandezza — da settimane, nei dati del progetto stesso | Aperto → **R21** |
 
 ### Due residui dell'audit sono già chiusi, e la riga non lo dice
 
@@ -447,7 +487,7 @@ Due su due: la disciplina «misura prima di correggere» ha evitato due modifich
 | R2 ✅ | Aggiungere al `check_index_integrity` il confronto chiavi ColBERT ↔ `chunks.json`, come per Qdrant | La funzione già fa esattamente questo confronto per un'altra coppia: è una terza voce nella stessa lista, non un meccanismo nuovo | S — **fatto 2026-09-04**; copertura rimisurata 160/160 prima di correggere, e il difetto va in `problems` perché fra i due sidecar non esistono divergenze attese |
 | R3 ✅ | Test-canarino sul **costo fisso** del prompt di sistema, con il budget scritto e la ragione | Un test sul prompt completo dipenderebbe dal corpus; il costo fisso è ciò che cresce quando si aggiunge una regola | S — **fatto 2026-09-04** (`tests/test_ask_prompt_cost.py`) |
 | R4 ✅ | `services: qdrant` nel job `test` di `ci.yml` | GitHub Actions lo supporta nativamente; l'alternativa (`docker compose up` nel job) aggiunge uno script da mantenere | S — **fatto 2026-09-04**; il servizio da solo non bastava: senza un gate lo skip resta verde, quindi `VIBECRAFT_REQUIRE_QDRANT=1` + `-rs` + conteggio preteso |
-| R16 | Rendere il job `test` un **check obbligatorio** sul ramo protetto, cosi' che un rosso blocchi invece di essere notato per caso | E' un'impostazione del repository, non del codice: qualunque soluzione scritta qui dentro (uno script che interroga l'API dei run, un alert nel notturno) aggiungerebbe un pezzo da mantenere per fare peggio cio' che GitHub fa nativamente. Va decisa una volta, come le cinque di S8 | S — ma e' una **decisione**, non lavoro tecnico |
+| R16 | Rendere il job `test` un **check obbligatorio** sul ramo protetto, cosi' che un rosso blocchi invece di essere notato per caso | E' un'impostazione del repository, non del codice: qualunque soluzione scritta qui dentro (uno script che interroga l'API dei run, un alert nel notturno) aggiungerebbe un pezzo da mantenere per fare peggio cio' che GitHub fa nativamente. Va decisa una volta, con le altre | S — ma e' una **decisione**, non lavoro tecnico; **spostata in S8** il 2026-09-07 |
 | R5 ✅ | Stampare il conteggio come contesto storico, non come verdetto | Togliere la riga perderebbe un numero utile: è l'etichetta a essere sbagliata | S — **fatto 2026-09-04**; il docstring era già corretto, quindi il lavoro era una riga sola |
 | R6 ✅ | Mappa esplicita degli stati → colore, con `abstained` e `graph_answer` distinti dall'errore | Il ternario `success ? verde : rosso` non è estendibile senza mentire | S — **fatto 2026-09-04**; la mappa era il lavoro previsto, i tre difetti di tema che ha scoperto no |
 | R17 | Decidere **quali** colori-di-stato devono seguire il tema e quali restare costanti, poi agganciare solo quelli | Un sed su `emerald` → token cancellerebbe la distinzione ok/errore proprio dove serve. È una decisione di design, con una spazzata meccanica dietro | M — decisione + sweep su 3 template |
@@ -457,16 +497,21 @@ Due su due: la disciplina «misura prima di correggere» ha evitato due modifich
 | R10 ✅, R11 ✅ | ~~Un check notturno contro Ollama vero, accanto a `nightly_consistency`~~ | In CI non c'è LLM; il notturno gira dove il modello c'è ed è il canale che già porta gli alert | S — **fatto 2026-09-05**; il lavoro previsto erano due asserzioni, quello che ha richiesto pensiero è il ramo `200` di R11: non un falso allarme da ignorare, ma «il contratto non è più esercitato», che è ciò che l'alert dice |
 | R12 ✅ | `record_history` scrive **tutti** i k calcolati, non solo quello del gate | Una riga più larga costa nulla in lettura (`_series` seleziona per chiave esatta) e rende ogni futuro spostamento del gate indolore | S — **fatto 2026-09-07**; il lavoro previsto era una riga più larga, quello che ha richiesto pensiero è il suo prezzo: misurare più k significa leggere 10 risultati invece di 3, e con un pool di candidati più profondo la `recall@2` del gate può muoversi. È il verso giusto — è già la profondità di `eval.run`, che scrive nella stessa serie — ma è un numero di promozione che cambia, non un dettaglio di telemetria |
 | R13 ◐ | **Preparato 2026-09-04**: 14 domande misurate contro l'indice, 5 candidati che falliscono a k=2 annotati in AUDIT.md («R13 — cinque candidati misurati, nessuno aggiunto»). **Nessuno aggiunto**: l'elenco serve pronto, non eseguito | Estenderlo sotto pressione (metrica satura) significa sceglierne i casi per far scendere un numero | M — preparazione fatta, aggiunta ancora aperta |
+| R21 | Applicare la regola di decisione che M6 ha già scritto: confermare le durate (2 job incrementali nel journal sono pochi), poi mini-PR di revert | Il criterio, la scadenza e i dati esistono da settimane — manca solo che qualcuno li legga. Rinegoziare la soglia adesso, dopo aver visto il numero, sarebbe scegliere la regola in funzione dell'esito: è esattamente ciò che «decidere prima» esiste per impedire | S — misure + revert; **ma è l'esperimento a dover essere chiuso, non il codice a doversi difendere** |
 | R14 ✅ | Non recuperabile. Ma il **rollback** deve accorgersi che la collection della versione target non esiste e dirlo, invece di fallire in modo oscuro | I dati sono persi; l'esperienza al tentativo no. **Misurando è emerso che non falliva affatto**: riusciva a metà e nessun check lo diceva — quindi rifiuto *prima* della mutazione, più il rilevamento dello stato misto nel check notturno | S — **fatto 2026-09-04** |
-| N1–N8 | Decisione esplicita, registrata. Non codice | Cinque di questi sono «no» già argomentati: vanno confermati o ribaltati una volta, non ridiscussi a ogni sessione | — |
+| N1, N2, N7, N8, N9 | Decisione esplicita, registrata. Non codice | Sono «no» già argomentati: vanno confermati o ribaltati una volta, con la loro condizione di riapertura, non ridiscussi a ogni sessione. *N4 non è più fra questi: S6 l'ha decisa misurandola; N5 e N6 sono state eseguite* | — |
 
 ---
 
 # 5. Le sessioni
 
-Otto sessioni, ordinate per dipendenza. **S1 e S2 vanno per prime**: sono le uniche due che
-riguardano un comportamento scorretto in produzione oggi. Ogni prompt è autonomo — si può
-aprire una sessione nuova e incollarlo.
+Otto sessioni, ordinate per dipendenza. **S1 e S2 andavano per prime** — erano le uniche due
+che riguardavano un comportamento scorretto in produzione — e sono state eseguite in
+quell'ordine. Ogni prompt è autonomo: si può aprire una sessione nuova e incollarlo. I prompt
+delle sessioni eseguite restano **verbatim**, comprese le premesse che l'esecuzione ha
+smentito: è la parte che si impara a rileggerle.
+
+*Stato al 2026-09-07: S1–S7 eseguite, **S8 aperta**.*
 
 > **Disciplina comune a tutte** — è la lezione che questo audit ha pagato cinque volte:
 > **misura prima di correggere.** Le righe invecchiano, e due dei residui qui elencati erano
@@ -847,7 +892,15 @@ Suite completa + ruff prima del commit.
 
 ## S8 — Le decisioni, non il codice
 
-Chiude **N1**, **N2**, **N4**, **N7**, **N8**.
+Chiude **N1**, **N2**, **N7**, **N8**, **N9**, **R16**, **R17**.
+
+*Rivista il 2026-09-07.* **N4 è uscita da questa sessione**: non è più una domanda. S6 l'ha
+misurata e applicata il 2026-09-05 (peso di sezione, held-out +0.069 positivo su 5 seed su 5)
+— chiederle ancora «tenuta o archiviata?» farebbe ridiscutere una cosa decisa da una misura.
+Al suo posto entrano le tre decisioni che il documento aveva lasciato senza sessione: **N9**
+(macOS con CPython gestita da uv), **R16** (rendere il job `test` un check obbligatorio sul
+ramo protetto) e **R17** (quali colori-di-stato devono seguire il tema). Il prompt qui sotto
+è aggiornato di conseguenza; i punti 1, 2, 4 e 5 restano com'erano.
 
 ```
 Nessun codice di produzione in questa sessione. Cinque scelte che AUDIT.md ha lasciato
@@ -867,10 +920,13 @@ sua condizione di riapertura — "si rifa' quando X", non "per ora no".
    p95 su 10 campioni non regge una soglia. Ma una baseline che nessuno rilegge invecchia:
    e' esattamente cio' che A2b ha mostrato altrove. Esiste una via di mezzo?
 
-3. N4 — strada 1, peso di sezione (A3). Il 70% del deficit di rango 1 e' fra sezioni
-   SORELLE, dove il moltiplicatore di autorita' si semplifica e nessun alpha puo'
-   separarle. A3 fu chiuso al livello del prompt, non del rango. Va tenuta come candidata
-   o archiviata?
+3. N9 — macOS con CPython gestita da uv (A15). In CI uv ha usato il python@3.14 di
+   Homebrew del runner, quindi il tag e' macosx-15.0-arm64 e la wheel passa. Con una
+   CPython gestita da uv il tag verrebbe dal MACOSX_DEPLOYMENT_TARGET conservativo e la
+   wheel verrebbe rifiutata — l'artefatto che A15 aveva gia' incontrato nel dry-run. Oggi
+   il tag e' solo STAMPATO nel log. Serve un secondo job che forza `uv python install`?
+
+   (N4 non e' piu' in questa lista: S6 l'ha misurata e applicata il 2026-09-05.)
 
 4. N7 — extra in conflitto CPU/CUDA per torch (A15). Oggi una macchina CPU-only x86-64
    scarica ~4 GB di CUDA che non usera'; funziona, e per quel caso esiste il target `cpu`
@@ -879,6 +935,15 @@ sua condizione di riapertura — "si rifa' quando X", non "per ora no".
 5. N8 — ricalibrazione del tetto top_k (A1). top_k=20 tocca il 104% della finestra su
    almeno una domanda reale; la correzione di A1 riguardava il comportamento al
    superamento, non il tetto. Abbassarlo richiede una misura sistematica.
+
+6. R16 — rendere il job `test` un check obbligatorio sul ramo protetto. E' un'impostazione
+   del repository, non del codice: qualunque cosa scritta qui dentro farebbe peggio cio'
+   che GitHub fa nativamente. main e' rimasta rossa un'ora e nessuno lo sapeva.
+
+7. R17 — quali colori-di-stato devono seguire il tema e quali restare costanti (39
+   occorrenze fra tre template). Non e' un sed: emerald/red/amber in molti punti
+   significano STATO, e uno stato ha senso che resti riconoscibile ATTRAVERSO i temi.
+   Va deciso caso per caso, poi agganciato.
 
 Registra gli esiti in AUDIT.md e in RESIDUI.md sezione 1, con la data. Una decisione senza
 data e senza condizione di riapertura torna a essere una domanda aperta.
@@ -895,9 +960,15 @@ S4  report non piu' veri           ✅  ← piccole, indipendenti, sbloccano la 
 S3  CI                             ✅  ← rende permanente cio' che S2 protegge
 S5  corpus                         ✅  ← cambia i numeri: dopo S1, prima di S6
 S6  metriche sulla risposta        ✅  ← R9/R10/R11/N4/R19 chiusi, N3 non passa, R20 nuovo
-S7  storico
+S7  storico                        ✅  ← R12 chiuso; R21 nuovo, e la premessa costa piu' del previsto
 S8  decisioni                          ← in qualsiasi momento, anche in parallelo
 ```
+
+**Le sette sessioni eseguibili sono state eseguite.** Resta **S8** (decisioni, nessun codice)
+e la coda di lavoro tecnico che le sessioni hanno lasciato dietro di sé: **R13** preparato e
+non aggiunto, **R15** in vigilanza, **R18** (una riga, ma sposta la baseline), **R20** (griglia
+congiunta `boost_alpha` × peso di sezione) e **R21** (applicare la regola di M6). Nessuno di
+questi ha una sessione scritta: sono voci di sezione 2, non prompt.
 
 **S5 va dopo S1** perché la correzione del prompt cambia le risposte, e S5 rimisura tutto.
 **S6 va dopo S5** perché misurerebbe su un corpus che sta per cambiare.
