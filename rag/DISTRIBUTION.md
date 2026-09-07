@@ -65,15 +65,19 @@ interruttore fra "in compose" e "sull'host". Il codice è già pronto: `VIBECRAF
 
 ## 5. Cosa manca davvero
 
-| | |
-|---|---|
-| `LICENSE` (Apache-2.0) | assente |
-| `README.md` a root | assente — il repo non dice cos'è |
-| `.env.example` | assente |
-| `Dockerfile` | assente |
-| `docker-compose.yml` | esiste ma contiene **solo Qdrant** |
-| `scripts/run_server.sh` | assente (esiste solo `.ps1`) |
-| `requires-python = ">=3.14"` | dichiarato; **non verificato** se sia davvero necessario |
+> **Fotografia del 2026-09-01, prima del lavoro.** Tenuta com'era — è la premessa che rende
+> leggibili i tre livelli di §6. La colonna «Oggi» è stata aggiunta il **2026-09-07**
+> verificando l'esistenza dei file, non fidandosi delle sezioni di stato più sotto.
+
+| | Allora | Oggi (2026-09-07) |
+|---|---|---|
+| `LICENSE` (Apache-2.0) | assente | ✅ presente, intestata a **Valerio Silvestre** (il «da sostituire» di L1 è stato fatto) |
+| `README.md` a root | assente — il repo non dice cos'è | ✅ presente |
+| `.env.example` | assente | ✅ `rag/.env.example`, 17 variabili |
+| `Dockerfile` | assente | ✅ multi-stage, target `cpu` e `gpu` (`FROM ... AS cpu`/`AS gpu`) |
+| `docker-compose.yml` | esiste ma contiene **solo Qdrant** | ✅ profili `cpu`, `gpu`, `host-ollama` + Qdrant senza profilo |
+| `scripts/run_server.sh` | assente (esiste solo `.ps1`) | ✅ presente |
+| `requires-python = ">=3.14"` | dichiarato; **non verificato** se sia davvero necessario | ⬜ **ancora aperto** — `pyproject.toml` dice tuttora `>=3.14` e nessuno ha provato ad abbassarlo (forcella 3 di §8) |
 
 ## 6. Piano in tre livelli
 
@@ -123,9 +127,11 @@ Ogni livello è utilizzabile da solo.
   nella prima schermata del README, non a metà pagina.
 - **Il percorso CPU è funzionante ma non piacevole**: 45× sull'indicizzazione. Va dichiarato
   con i numeri, non con la parola "supportato".
-- **Licenze delle dipendenze**: `torch`, `FlagEmbedding`, `bge-m3` (MIT), `qwen3.5` hanno
+- ~~**Licenze delle dipendenze**: `torch`, `FlagEmbedding`, `bge-m3` (MIT), `qwen3.5` hanno
   ciascuna la propria; vanno verificate prima di pubblicare sotto Apache-2.0. **Non
-  verificato in questa sessione.**
+  verificato in questa sessione.**~~ **VERIFICATO il 2026-09-01**, sui metadati dei pacchetti
+  realmente installati: nessun copyleft forte, e un conflitto vero (`pymupdf`, AGPL) trovato
+  e rimosso. Sezione «Audit delle licenze» più sotto.
 - **Dati sensibili**: `docs/` è congelata e `rag/.env.local` è gitignorato, ma chi clona e
   ci mette i propri documenti deve sapere che l'indice e i log finiscono in `rag/database/`.
 
@@ -166,9 +172,12 @@ python-dotenv, prima che qualunque modulo legga `os.environ`, e proprio perché 
 comunque si avvii il processo. Riprodurre quel ciclo nello script POSIX avrebbe significato
 copiare complessità morta e crearne una seconda copia da tenere allineata.
 
-**Resta da fare in L1, e non è codice:** verificare che le licenze di `torch`,
+~~**Resta da fare in L1, e non è codice:** verificare che le licenze di `torch`,
 `FlagEmbedding`, `bge-m3` e `qwen3.5` siano compatibili con Apache-2.0, e decidere il
-titolare del copyright — se il progetto è work-for-hire il titolare non è la persona.
+titolare del copyright — se il progetto è work-for-hire il titolare non è la persona.~~
+**Entrambe chiuse.** Le licenze: audit nella sezione successiva (un conflitto trovato e
+rimosso). Il titolare: `LICENSE` porta ora `Copyright 2026 Valerio Silvestre` al posto del
+segnaposto «VibeCraft contributors». *(Verificato il 2026-09-07 leggendo il file.)*
 
 ---
 
@@ -559,3 +568,73 @@ Con le credenziali, il controllo è:
 echo $GITHUB_TOKEN | docker login ghcr.io -u <utente> --password-stdin
 docker pull ghcr.io/silver1v8/vibecraft:v0.1.0
 ```
+
+---
+
+## Stato — cosa è cambiato dopo la v0.1.0 (aggiornato il 2026-09-07)
+
+Questo documento si fermava al 2026-09-01. Fra il 3 e il 7 settembre sono entrate quattro
+cose che toccano la distribuzione, e che qui mancavano. Tutte hanno la loro cronaca in
+`AUDIT.md`: qui c'è solo ciò che cambia per chi installa o pubblica.
+
+### `torch` è ora pinnata, e il lock è stato rifatto (A15, 2026-09-04)
+
+Il pin CUDA senza marcatore di piattaforma bloccava l'installazione **nativa** dove le wheel
+`+cu126` non esistono. Corretto con un marcatore che **trascrive** l'elenco di wheel del lock
+(`manylinux_2_28_x86_64`, `manylinux_2_28_aarch64`, `win_amd64`); fuori di lì torch arriva da
+PyPI. Rifacendo il lock è emerso un secondo problema, non presente prima: senza pin di
+versione uv risolveva **macOS a 2.14.0** contro 2.13.0 di tutti gli altri — la stessa deriva
+che il Dockerfile documenta di aver già subito. **`torch` è ora `==2.13.0`** in
+`pyproject.toml`, e va tenuta allineata al `uv pip install torch==...` del target `cpu`.
+
+**Immagine `cpu` ricostruita dopo il re-lock:** 129 pacchetti, venv **2,2 GB**,
+`torch 2.13.0+cpu` — identica a prima del re-lock. Il lavoro di A15 non ha peggiorato
+l'immagine.
+
+### L'installazione nativa: la matrice vera, che §3 non aveva
+
+§3 riguarda i **container** e resta valida. Ma chi fa `uv sync` senza Docker ha una matrice
+diversa, e prima non era scritta da nessuna parte:
+
+| Piattaforma | `uv sync` nativo |
+|---|---|
+| Linux x86-64 / ARM64 | ✅ `2.13.0+cu126` |
+| Windows x86-64 | ✅ `2.13.0+cu126` |
+| macOS Apple Silicon | ✅ `2.13.0` (PyPI) — **prima no** |
+| macOS Intel | ❌ **impossibile** |
+| Windows ARM64 | ❌ **impossibile** |
+
+Le due righe rosse non sono una configurazione da sistemare: **PyTorch non pubblica quelle
+wheel da nessuna parte**, né sull'indice CUDA né su PyPI. Nessuna modifica a questo
+repository può crearle. Il fatto è scritto nel README di root con la ragione accanto, invece
+di essere un fallimento che l'utente scopre da sé. Per macOS Intel il percorso resta il
+container (`linux/amd64`).
+
+Il caso **CPU-only x86-64** non è mai stato rotto e va detto perché la vecchia riga
+dell'audit lo dava per tale: la wheel CUDA si installa e **gira** su CPU
+(`torch.cuda.is_available()` a `False`) — pesa 4 GB inutili, non impedisce nulla. Per quel
+caso esiste il target `cpu` del Dockerfile.
+
+### La CI ora prova davvero l'installazione su un Mac (N6, 2026-09-04)
+
+Job `macos-nativo` su `macos-15` (arm64): `uv sync --frozen` vero, torch importato, un matmul
+eseguito **su `mps`**. Verde in 34-36 s su due run — un costo che ha smentito la stima con cui
+era stato limitato a `main`, quindi gira su ogni push. Resta scoperto il ramo con CPython
+**gestita da uv** (in CI uv usa il Python di Homebrew del runner): il tag di piattaforma è
+**stampato** nel log, così quel fallimento sarebbe leggibile invece che misterioso (N9).
+
+### Qdrant reale nella CI (N5, 2026-09-04)
+
+`services: qdrant` (`qdrant/qdrant:v1.19.0`) nel job `test`, con `VIBECRAFT_REQUIRE_QDRANT=1`
+e un passo che **pretende** `5 passed`: i cinque test d'integrazione non possono tornare a
+saltare in silenzio. Prima passavano come skip su un runner senza Qdrant.
+
+### Cosa resta aperto, invariato dal 2026-09-01
+
+- **`requires-python = ">=3.14"` non è mai stato messo alla prova** (forcella 3 di §8).
+  Abbassarlo a 3.12 allargherebbe parecchio il parco macchine; va provato, non deciso a
+  tavolino.
+- **Il workflow di release non è mai stato verificato dall'esterno.** Il tag `v0.1.0` è
+  partito il 2026-09-01, ma il repository è privato e da qui un pull anonimo non distingue
+  «pacchetto privato» da «pacchetto inesistente». Cosa guardare: sezione precedente.
+- **Il pacchetto GHCR nasce privato** e va reso pubblico dalle impostazioni del package.

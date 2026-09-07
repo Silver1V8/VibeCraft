@@ -1116,6 +1116,12 @@ dell'infografica dicono `recall@2`, senza errori in console.
     profondità a cui `eval.run` misura da sempre, e le righe delle due sorgenti finiscono nella
     **stessa serie**: prima quella serie mescolava una `recall@2` letta su 3 risultati con una
     letta su 10.
+  - **`run_incremental_advisory` non esiste più**: rimossa lo stesso 2026-09-07, poche ore
+    dopo, dalla regola di decisione che si portava scritta addosso (sezione «M6 —
+    l'esperimento si è bocciato da solo», in fondo a questo file). Il nome resta scritto qui
+    perché il 2026-09-07 R12 l'ha davvero toccata, e riscrivere la cronaca la falsificherebbe
+    — ma chi lo cerca nel codice non lo troverà. Delle due sorgenti che R12 ha allargato ne
+    resta **una**, `gate_promotion`; la terza, `eval.run`, scriveva già largo.
   - Verificato che una riga più larga non rompe nessun consumatore: `_series` seleziona per
     chiave **esatta** (le colonne inutilizzate sono invisibili), `/eval` legge `e.recall[KEY]`
     con `KEY` preso da `summary.key`, l'infografica legge `ev.last_recall`/`ev.key` dal payload

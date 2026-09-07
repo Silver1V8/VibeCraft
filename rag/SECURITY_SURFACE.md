@@ -7,6 +7,11 @@
 > [`tests/test_security_fixes.py`](tests/test_security_fixes.py) — ogni POST registrato
 > deve comparire nella matrice o fra le esclusioni motivate, o la suite fallisce.
 >
+> **Riverificato il 2026-09-07**: i conteggi di §Metodologia sono stati ricontati sul
+> codice (57 route, 24 POST, per-file esatti) e reggono. Sono cambiate due cose dal
+> riallineamento di agosto, entrambe recepite sotto: la versione di FastAPI su cui poggia
+> il Fatto 2, e l'arrivo di un'autenticazione **lato client** per la console (Fatto 8).
+>
 > **Riallineamento 2026-08-05.** La revisione originale (M7/R2) fotografava 39 route.
 > Nel frattempo sono entrati il ciclo Intake & Import (S0-S6, 15 route + la pagina
 > `/intake`) e due endpoint di orientamento per gli agenti (`/api/code/search`,
@@ -49,8 +54,13 @@
    header custom) raggiungono il server cross-site; la risposta resta illeggibile al JS
    attaccante, ma **l'effetto collaterale sul server è già avvenuto**.
 
-2. **FastAPI 0.139.0, `strict_content_type=True` (default).** Verificato in
-   `.venv/.../fastapi/routing.py:418-442`: per un body dichiarato come **modello
+2. **FastAPI 0.141.1, `strict_content_type=True` (default).** *(Versione ricontrollata il
+   2026-09-07: il documento diceva 0.139.0, che non è più quella installata. L'argomento
+   qui sotto è stato **riverificato sulla 0.141.1 e regge invariato** — `Default(True)` a
+   `routing.py:389`, `:992` e `:1191`, e il ramo che salta il parsing JSON senza
+   Content-Type a `:437-438`. Va ricontrollato a ogni bump di FastAPI: è una difesa che
+   dipende da un default di libreria, non da codice nostro.)* Verificato in
+   `.venv/.../fastapi/routing.py:425-445`: per un body dichiarato come **modello
    Pydantic**, FastAPI fa `request.json()` **solo se** il Content-Type è
    `application/json` (o `*+json`), **oppure** se non c'è Content-Type **e**
    `strict_content_type` è `False`. Con lo strict a `True`:
@@ -97,6 +107,29 @@
    `Sec-Fetch-Site` è un *forbidden header* (Fetch Metadata): lo scrive il browser, il JS
    di una pagina non può impostarlo né falsificarlo. Applicata **per-route**, mai come
    middleware globale.
+
+8. **La console si autentica da sé, e la chiave la tiene il browser** (dal 2026-09-01,
+   `static/shared.js`). Prima la console dipendeva interamente dal bypass localhost del
+   Fatto 3, e da Docker — dove le richieste arrivano dal gateway del bridge e non da
+   `127.0.0.1` — ogni `/api/*` e `/ask` rispondeva 401. Ora un **wrapper su `window.fetch`**
+   in `shared.js` (caricato nel `<head>` di ogni pagina) allega `X-API-Key` e, su 401,
+   chiede la chiave una volta sola e ritenta una volta sola. Tre proprietà che contano qui:
+   - **Solo same-origin e solo rotte protette.** `needsApiKey()` scarta ogni URL con
+     `origin` diverso da quello della pagina e allega la chiave solo a `/ask` e `/api/*`:
+     un fetch verso un altro host non se la porta dietro.
+   - **La chiave NON è iniettata nell'HTML per i client remoti**, ed è deliberato: la
+     pagina è servita **senza** autenticazione, quindi iniettarla la regalerebbe a
+     chiunque la raggiunga. La tiene `localStorage` del browser dell'utente.
+     L'iniezione server-side esistente (`deps.inject_agent_api_key`, route 2 `/pipeline`)
+     resta prioritaria e vale **solo per i client locali** — vedi §4 #6.
+   - **Non allarga la superficie del server**: nessuna dependency è cambiata, nessuna
+     route ha perso una protezione. È un client che impara a mandare un header che il
+     server già pretendeva.
+
+   Conseguenza per questa mappa: la colonna «Auth effettiva» continua a descrivere ciò che
+   il **server** impone. Che la console sappia ora soddisfarla da remoto non rende
+   raggiungibile nulla che prima non lo fosse — un attaccante cross-site non può leggere
+   quel `localStorage` (è origin-scoped) né far partire la richiesta (Fatti 1-2).
 
 ---
 
