@@ -4,7 +4,9 @@
 **verifica che precede S8**: R15 chiuso, R22/R23/R24/R25 aperti, S9–S12 scritte, infine **S9**:
 R15, R22 e R24 chiusi e la forcella `>=3.14` misurata; infine **S13**: R27 e R28 chiusi, e i
 numeri di questo documento allineati a `v20260907T115228` — **uno** rimisurato, gli altri
-rietichettati) · **Fonte:**
+rietichettati; infine **S14**: N3 **misurata** — l'harness di attribuzione è in repo e
+validato contro l'archivio, il giudice arriva a 20/24 e non passa il criterio di S6; nasce
+**R29**, che è una decisione) · **Fonte:**
 rilettura integrale di `rag/AUDIT.md` (1.713 righe, Run A + Run B + le 15 indagini di
 chiusura) · **Metodo:** ogni residuo è stato **riverificato contro il codice di oggi** prima
 di finire in questo elenco. Due erano già stati chiusi da altri interventi e sono qui segnati
@@ -29,12 +31,12 @@ rapporto che questo audit trova ogni volta che qualcuno va a guardare invece di 
 | | |
 |---|---|
 | Righe dell'audit | 19 — 15 chiuse, 3 ritirate, 1 con premessa ritirata e sostanza chiusa |
-| Residui dichiarati | **24** (+14: R15 e R16 dai run CI reali, R17 da S4, R18 e R19 da S5, R20 da S6, R21 da S7, R22–R25 dalla verifica del 2026-09-07, **R26** da S10, **R27** da S12 e **R28** dalla verifica che precede S8) |
+| Residui dichiarati | **25** (+15: R15 e R16 dai run CI reali, R17 da S4, R18 e R19 da S5, R20 da S6, R21 da S7, R22–R25 dalla verifica del 2026-09-07, **R26** da S10, **R27** da S12, **R28** dalla verifica che precede S8 e **R29** da S14) |
 | Di cui già chiusi da altri interventi (riga stantia) | 2 |
 | Risolvibili con lavoro tecnico | **23 chiusi**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, **R12** (S7, 2026-09-07), R14, **R15**, **R21**, **R22**, **R24**, **R18** (S10: due righe, non una, e un rebuild), **R26** (S10, aperto e chiuso in giornata), **R20** e **R23** (S11, la griglia congiunta), **R27** e **R28** (S13: il marcatore ornato e i documenti rimasti a una promozione indietro) (tutti il 2026-09-07 — R21, R22 e R24 poche ore dopo essere stati aperti; R27 e R28 il giorno stesso), N5, N6. Fuori elenco, chiusi lo stesso: **N4** (S6) e **R19** (effetto collaterale di N4) |
-| Ancora aperti, con lavoro tecnico davanti | **2** — **N3** (la metrica di attribuzione: prerequisito costruito da S12, harness mai scritto, **nessun codice legge l'archivio** — era senza sessione fino al 2026-09-07) e R13 (**rimisurato e ridotto da S10**: C1 e C2 promossi, C4 passa, restano C3 e C5 che aspettano A6). *S13 (2026-09-07) ha chiuso **R27 e R28**: il marcatore di astensione ora si legge anche formattato (set di caratteri **misurato** sull'archivio di S12, non scelto: backtick 37 usi, asterisco 9, cancelletto 0 ma vietato dal prompt), e i documenti sono allineati a `v20260907T115228` distinguendo **una** misura rimisurata dal resto **rietichettato**. L'archivio di S12 è dichiarato storico e non riprodotto — l'uso previsto (validare il giudice offline) non vuole l'indice attivo — con l'invariante ora sotto test.* *S11 (2026-09-07) ha chiuso **R20 e R23** con la griglia congiunta — e non con «non si cambia niente»: `boost_alpha` 0.1 → **0.3** (held-out +0.038 a k=1, dev.std 0.007, 5/5 seed, senza più perdere a k=5/10), `graph_context_max_chunks` 2 → **3** (il prezzo misurato di alpha nel ramo grafo), peso di sezione **confermato a 0.92** in 25 fold su 25 con alpha libero.* *S10 ha chiuso R18, aperto R26 e **chiuso R26 lo stesso giorno** (il gate ora riceve `graph` e `restatements`: 0.845 → 0.862, tutto N4, il grafo non muoveva nulla).* *S9 ne ha chiusi tre in un giro: R15 senza scrivere codice (la guardia c'era già), R24 con due righe di `conftest.py` e una di attesa, R22 con una sezione riscritta* |
+| Ancora aperti, con lavoro tecnico davanti | **1** — R13 (**rimisurato e ridotto da S10**: C1 e C2 promossi, C4 passa, restano C3 e C5 che aspettano A6). *S14 (2026-09-07) ha chiuso **N3** come **misurata**: `eval/attribution.py` legge finalmente l'archivio di S12, giudica per esecuzione e verifica i passi virgolettati con un `in` sul file (06·3 confermato unico del suo tipo su 24). Il giudice `qwen3.5:9b` concorda con l'umano su **20/24** (negativi 5/7), unanime 24/24 a temperatura 0, ma per il criterio di S6 **non è pronto**; in 3 disaccordi su 4 sceglie il documento che contiene il vincolo invece di quello che la risposta dice lo stabilisce — lo stesso difetto del giudicato, ed è **R29**, una decisione.* *S13 (2026-09-07) ha chiuso **R27 e R28**: il marcatore di astensione ora si legge anche formattato (set di caratteri **misurato** sull'archivio di S12, non scelto: backtick 37 usi, asterisco 9, cancelletto 0 ma vietato dal prompt), e i documenti sono allineati a `v20260907T115228` distinguendo **una** misura rimisurata dal resto **rietichettato**. L'archivio di S12 è dichiarato storico e non riprodotto — l'uso previsto (validare il giudice offline) non vuole l'indice attivo — con l'invariante ora sotto test.* *S11 (2026-09-07) ha chiuso **R20 e R23** con la griglia congiunta — e non con «non si cambia niente»: `boost_alpha` 0.1 → **0.3** (held-out +0.038 a k=1, dev.std 0.007, 5/5 seed, senza più perdere a k=5/10), `graph_context_max_chunks` 2 → **3** (il prezzo misurato di alpha nel ramo grafo), peso di sezione **confermato a 0.92** in 25 fold su 25 con alpha libero.* *S10 ha chiuso R18, aperto R26 e **chiuso R26 lo stesso giorno** (il gate ora riceve `graph` e `restatements`: 0.845 → 0.862, tutto N4, il grafo non muoveva nulla).* *S9 ne ha chiusi tre in un giro: R15 senza scrivere codice (la guardia c'era già), R24 con due righe di `conftest.py` e una di attesa, R22 con una sezione riscritta* |
 | Fuori registro fino a oggi | **4** voci di `DISTRIBUTION.md` che nessuna riga di RESIDUI tracciava: la forcella `>=3.14` (**misurata il 2026-09-07**, resta la decisione), il workflow di release (**la riga era stantia: è scritto e già partito**), il primo avvio guidato, lo smoke test sul secondo OS (**c'è: scoperto è Windows nativo**) |
-| Che richiedono una decisione, non del codice | **11**, tutte in S8, e **A6 è il punto 1** — la sola riga che nessuna sessione tecnica può chiudere, con tre cose che la aspettano: N1, N2, N7, N8, N9 + R16 (proteggere il ramo), R17 (quali colori seguono il tema), **R25** (il buco lasciato scoperto dalla rimozione di M6), il primo avvio guidato e — nuova — **se abbassare `requires-python` a `>=3.12`**, che S9 ha reso una scelta con un prezzo invece di una domanda. *Erano 5: N4 è uscita (S6 l'ha decisa misurandola), poi sono entrate N9, R16, R17, R25 e le due di distribuzione; ora esce anche il **registry di release**, che era già deciso e spedito dal 2026-09-01 — la riga che lo dava aperto era stantia quanto il bilancio da cui veniva* |
+| Che richiedono una decisione, non del codice | **12**, tutte in S8, e **A6 è il punto 1** — la sola riga che nessuna sessione tecnica può chiudere, con tre cose che la aspettano: N1, N2, N7, N8, N9 + R16 (proteggere il ramo), R17 (quali colori seguono il tema), **R25** (il buco lasciato scoperto dalla rimozione di M6), il primo avvio guidato, **se abbassare `requires-python` a `>=3.12`** e — nuova da S14 — **R29** (un giudice di attribuzione diverso dal giudicato: quale modello, dove gira, quanto costa), che S9 ha reso una scelta con un prezzo invece di una domanda. *Erano 5: N4 è uscita (S6 l'ha decisa misurandola), poi sono entrate N9, R16, R17, R25 e le due di distribuzione; ora esce anche il **registry di release**, che era già deciso e spedito dal 2026-09-01 — la riga che lo dava aperto era stantia quanto il bilancio da cui veniva* |
 | Non risolvibili (dati persi, hardware assente) | 1 |
 
 ---
@@ -49,7 +51,7 @@ dimenticanze: sono confini dichiarati.
 misurato e il rango era il problema; **N5** e **N6** erano «non abbiamo il servizio / non
 abbiamo un Mac» — il runner CI ha entrambi. Restano confini le altre sei: cinque (N1, N2, N7,
 N8, N9) sono la materia di **S8**; **N3** non è una decisione ma un lavoro con un
-prerequisito — che **S12 ha costruito** il 2026-09-07.
+prerequisito — che **S12 ha costruito** il 2026-09-07, e che **S14 ha eseguito** lo stesso giorno.
 
 *E qui il registro aveva un buco, trovato il 2026-09-07 da una domanda e non da una misura:*
 **N3 era rimasta senza sessione.** «Ora è scrivibile, ed è scritto nella sua riga» era vero
@@ -58,13 +60,13 @@ aperto, non era in S8 (giustamente: non è una decisione), e nessun prompt la no
 **Verificato**: in `eval/` non esiste alcun giudice, e **nessun `.py` del progetto legge
 `golden_attribution.yaml`** — la prova che S12 ha costruito non è letta da niente. È lo
 stesso instradamento mancato di A6, sull'unica voce che aggiunge una *capacità* invece di
-correggere un difetto. Ora è **S14**.
+correggere un difetto. Ora è **S14** — eseguita: vedi la sua sezione.
 
 | # | Cosa | Dove | Perché no |
 |---|---|---|---|
 | N1 | **Streaming incrementale di `/ask`** | A11 | Cambierebbe il contratto: oggi la risposta è un JSON unico con risposta, contesto grafo, archi, punteggi e latenze. Servirebbero due canali, un secondo percorso d'errore e la cache da ripensare |
 | N2 | **Gate sulla latenza** | A11 | Il bench è una misurazione (exit 0) per contratto, e un p95 su 10 campioni non regge una soglia bloccante |
-| N3 ◐ → **S14** | **Metrica di attribuzione della fonte** | A3 | «A chi la risposta attribuisce il vincolo» è la metrica vera del sistema e **non esiste**. Costa una chiamata LLM per caso più un giudice. **PROTOTIPATA 2026-09-05 (S6), NON scritta**: il giudice è ripetibile (3 giudizi identici sulla stessa risposta) e concorda con l'umano su **3 casi su 4**. Il quarto dissente e il giudice ha ragione: la risposta di oggi non attribuisce alcun vincolo, e il «Dopo ✅» della tabella di A3 §6 **non si riproduce** — corpus e indice sono cambiati fra il 3 e il 5 settembre. Per il criterio fissato («se non coincide, non è pronto») **non passa**, e la causa non è il giudice: è che il riferimento sono 4 risposte lette a mano e mai archiviate. Prima di scrivere l'harness servono casi con l'attribuzione davvero contesa e verdetti umani salvati **insieme al testo della risposta**. **PREREQUISITO COSTRUITO 2026-09-07 (S12)**: `eval/golden_attribution.yaml`, 8 casi × 3 esecuzioni con testo integrale e indice `v20260907T094225` (**storico**: dichiarato tale da S13, `superseded_by v20260907T115228`, deliberatamente non riprodotto perché validare il giudice offline non vuole l'indice attivo), **7 negativi verificabili** (6 alla fonte sbagliata, 1 senza fonte) in 4 casi su 8 — il quinto avversariale e tre casi costruiti dove il distrattore dice ciò che la norma non dice. Il criterio di S6 ha ora il lato negativo su cui misurarsi: **N3 è scrivibile**, e l'harness deve giudicare per esecuzione e verificare la citazione nella fonte attribuita (il caso 06·3 è corretto per la metrica e falso nel contenuto) |
+| N3 ✅ misurata (S14) | **Metrica di attribuzione della fonte** | A3 | «A chi la risposta attribuisce il vincolo» è la metrica vera del sistema e **non esiste**. Costa una chiamata LLM per caso più un giudice. **PROTOTIPATA 2026-09-05 (S6), NON scritta**: il giudice è ripetibile (3 giudizi identici sulla stessa risposta) e concorda con l'umano su **3 casi su 4**. Il quarto dissente e il giudice ha ragione: la risposta di oggi non attribuisce alcun vincolo, e il «Dopo ✅» della tabella di A3 §6 **non si riproduce** — corpus e indice sono cambiati fra il 3 e il 5 settembre. Per il criterio fissato («se non coincide, non è pronto») **non passa**, e la causa non è il giudice: è che il riferimento sono 4 risposte lette a mano e mai archiviate. Prima di scrivere l'harness servono casi con l'attribuzione davvero contesa e verdetti umani salvati **insieme al testo della risposta**. **PREREQUISITO COSTRUITO 2026-09-07 (S12)**: `eval/golden_attribution.yaml`, 8 casi × 3 esecuzioni con testo integrale e indice `v20260907T094225` (**storico**: dichiarato tale da S13, `superseded_by v20260907T115228`, deliberatamente non riprodotto perché validare il giudice offline non vuole l'indice attivo), **7 negativi verificabili** (6 alla fonte sbagliata, 1 senza fonte) in 4 casi su 8 — il quinto avversariale e tre casi costruiti dove il distrattore dice ciò che la norma non dice. Il criterio di S6 ha ora il lato negativo su cui misurarsi: **N3 è scrivibile**, e l'harness deve giudicare per esecuzione e verificare la citazione nella fonte attribuita (il caso 06·3 è corretto per la metrica e falso nel contenuto). **MISURATA il 2026-09-07 (S14)**: `eval/attribution.py` (modo a: valida il giudice offline contro l'archivio; modo b: `--live` contro `/ask` senza cache), sei test, scopo `judge` in `core/llm.py`. Giudice `qwen3.5:9b` a temperatura 0: accordo col verdetto umano **20/24**, positivi 15/17, **negativi 5/7**, unanime 24/24 su tre giudizi; accordo binario corretta/sbagliata 22/24 con **0 negativi mancati** e 2 falsi allarmi. Prompt tarato in sei versioni sugli stessi 24 record: il 20/24 è in-sample. **Per il criterio di S6 non passa**: N3 si chiude come *misurata e non praticabile come misura automatica con questo modello*; praticabile come schermo di quali risposte far leggere. Le citazioni sono verificate su tutti i 24: 06·3 è l'unico del suo tipo. Il seguito è **R29** (S8) |
 | N4 ✅ | ~~**Strada 1: peso di sezione**~~ | A3 | ~~Agisce sul *rango*, che la misura ha mostrato non essere il problema.~~ **FATTO il 2026-09-05 (S6)**, ed è risultata necessaria appena R9 si è chiuso. Il segnale non era da inventare: un codice di regola **dichiarato in un titolo** marca la sezione che enuncia il vincolo, lo stesso codice in una tabella o in un blocco Gherkin è una citazione — 31 sezioni dichiarano, 28 citano soltanto, e le 28 sono esattamente l'elenco che A3 §5 aveva stampato. Calibrato a k=1 (5-fold × 5 seed, incumbent al tie-break): **held-out +0.069, dev.std 0.008, positivo su 5 seed su 5** — l'opposto di ciò che A3 trovò alzando α. Dal vivo: `r@1 0.625→0.714`, `MRR 0.786→0.835`, multihop `0.854→0.890` con 9→10 casi, nulla peggiora. Applicato nel ramo **semantico** e deliberatamente **non** in quello grafo: lì i concorrenti sono altri documenti e la penalità espelle il documento invece di promuovere la sorella che dichiara — misurato, e pinnato da un test |
 | N5 ✅ | ~~**Servizio Qdrant nel workflow CI**~~ | A8 | **Fatto 2026-09-04** — `services: qdrant` (`qdrant/qdrant:v1.19.0`) nel job `test`, con `VIBECRAFT_REQUIRE_QDRANT=1`, `pytest -rs` e un passo che pretende `5 passed`: i cinque non possono tornare a saltare in silenzio. **Run #131 verde**: il riepilogo porta «Qdrant reale: 5/5 test d'integrazione passati», e la suite gira con 0 skipped |
 | N6 ✅ | ~~**Installazione reale su un Mac**~~ | A15 | **Fatto 2026-09-04** — job `macos-nativo` su `macos-15`: `uv sync --frozen` vero, torch importato e un matmul verificato. Un Mac qui continua a non esserci: ce lo mette il runner. **Eseguito: verde in 34-36s su due run**; dal log macOS 15.7.9 arm64, `torch 2.13.0` senza `+cu` e **matmul su `mps`** — torch non si limita a installarsi, calcola sull'acceleratore. Quel numero ha smentito la stima di costo con cui l'avevo limitato a main (130 pacchetti contro 149, torch 106,1 MiB contro 804,7): restrizione rimossa. Resta scoperto il ramo con CPython **gestita da uv** — in CI uv ha usato il Python di Homebrew del runner |
@@ -1631,7 +1633,20 @@ Suite completa + ruff prima del commit. Aggiorna RESIDUI.md e AUDIT.md.
 
 ---
 
-## S14 — N3: scrivere la metrica che tutto l'audit dice che manca
+## S14 — N3: scrivere la metrica che tutto l'audit dice che manca ✅ ESEGUITA il 2026-09-07
+
+**Esito: N3 è misurata, e il giudice non passa.** `eval/attribution.py` legge l'archivio di
+S12 — primo codice del progetto a farlo — giudica **per esecuzione** e verifica i passi
+virgolettati con un `in` sul file. `qwen3.5:9b` come giudice: **20/24** col verdetto umano
+(negativi **5/7**), unanime 24/24 a temperatura 0, 1 min 42 per 72 giudizi. Per il criterio
+di S6 non è pronto, e la ragione è leggibile record per record: in 3 disaccordi su 4 sceglie
+il documento che *contiene* il vincolo invece di quello che la risposta dice lo *stabilisce*
+— la confusione che la metrica doveva misurare, riprodotta dal giudice, che è lo stesso
+modello. Il modo (b) è stato eseguito come **prova di fumo** su un caso (il negativo 06 si
+riproduce su `v20260907T115228`, una volta) e **non** come misura: l'ordine era «dopo che
+(a) è validato». Per esteso in AUDIT.md, sezione S14. Ne nasce **R29**, in S8.
+
+*Il prompt con cui è stata eseguita:*
 
 Chiude **N3**. È l'unico lavoro rimasto che aggiunge una **capacità** invece di correggere un
 difetto — e l'unico che tre sezioni «Cosa questa sessione NON prova» (S6, S11, S12) indicano
@@ -1738,9 +1753,10 @@ perché copiava il bilancio di L3, che era stantio (**R22**). Da undici le scelt
 rendere pubblico il pacchetto GHCR.
 
 ```
-Nessun codice di produzione in questa sessione. DIECI scelte che AUDIT.md e DISTRIBUTION.md
-hanno lasciato argomentate ma non decise (erano undici: il punto 8 e' stato ritirato da S9,
-la sua "decisione" era gia' presa dal 2026-09-01): vanno confermate o ribaltate UNA volta e
+Nessun codice di produzione in questa sessione. UNDICI scelte che AUDIT.md e DISTRIBUTION.md
+hanno lasciato argomentate ma non decise (erano undici, poi dieci: il punto 8 e' stato
+ritirato da S9, la sua "decisione" era gia' presa dal 2026-09-01; poi S14 ha aggiunto il
+punto 13, R29): vanno confermate o ribaltate UNA volta e
 registrate, invece di essere ridiscusse a ogni sessione.
 
 Per ognuna: rileggi la ragione scritta in AUDIT.md, verifica che la premessa regga ancora
@@ -1843,6 +1859,19 @@ sua condizione di riapertura — "si rifa' quando X", non "per ora no".
     aprono una sessione propria. Quello che non e' legittimo e' lasciarlo dov'e' senza dire
     che c'e'.
 
+13. R29 — il giudice di attribuzione (S14) e' lo stesso modello del giudicato e ne condivide
+    il difetto: 20/24 col verdetto umano, e in 3 disaccordi su 4 sceglie il documento che
+    CONTIENE il vincolo invece di quello che la risposta dice lo STABILISCE. Il prompt e'
+    stato tarato sei volte sugli stessi 24 record: rifarlo una settima e' spendere dove non
+    rende. La leva che resta e' il MODELLO, ed e' una decisione: qwen3.5:27b non sta negli
+    8 GB di VRAM (girerebbe in parte su CPU: 24 giudizi lenti ma possibili); un provider
+    remoto via `llm_settings.purposes.judge` costa denaro e manda fuori il corpus di docs/
+    (non PII, ma e' un confine da decidere, non da attraversare in coda a una sessione).
+    Tre risposte: tenere il giudice come schermo (0 negativi mancati in-sample, 2 falsi
+    allarmi) e leggere i segnalati; provare un giudice diverso e rivalidarlo con
+    `uv run python -m eval.attribution --repeats 3`; dichiarare N3 chiusa cosi' com'e'.
+    Qualunque risposta ha una condizione di riapertura: un modello nuovo installato.
+
 Registra gli esiti in AUDIT.md, in DISTRIBUTION.md e in RESIDUI.md sezione 1, con la
 data. Una decisione senza data e senza condizione di riapertura torna a essere una domanda
 aperta.
@@ -1872,13 +1901,13 @@ S12  il prerequisito di N3          ✅  ← N3 scrivibile: 7 negativi su 24 arc
                                           col testo e l'indice; R27 nuovo (una riga in api/)
 S13  l'indice e' avanti ai documenti ✅ ← R28+R27 chiusi: una misura rimisurata
                                           (recall@1 +5,2 pt), il resto datato/rietichettato
-S14  N3, la metrica che manca           ← l'unico lavoro che aggiunge una CAPACITA'.
-                                          Non aspetta l'indice: il giudice si valida
-                                          contro risposte gia' archiviate
-S8   decisioni                          ← ULTIMA: 12 voci, e A6 e' il punto 1
+S14  N3, la metrica che manca       ✅  ← harness in repo, validato contro l'archivio:
+                                          giudice 20/24, negativi 5/7, unanime a T=0.
+                                          Non passa S6; R29 nuovo (una decisione)
+S8   decisioni                          ← ULTIMA: 13 voci, e A6 e' il punto 1
 ```
 
-**Dodici sessioni eseguite, una scritta e non eseguita.** La seconda verifica prima di S8 —
+**Tredici sessioni eseguite; resta S8.** La seconda verifica prima di S8 —
 quella del pomeriggio del 2026-09-07 — ha trovato **un solo residuo nuovo** (R28) contro i
 quattro della mattina, ed è il segnale che la coda si sta chiudendo davvero.
 

@@ -94,10 +94,11 @@ def _ollama_payload(model: str, prompt: str) -> dict:
             )
     return payload
 
-# Scopi riconosciuti (gli step della pipeline più la sintesi di /ask): usati solo per
+# Scopi riconosciuti (gli step della pipeline, la sintesi di /ask e il giudice di
+# attribuzione di eval/attribution.py — "judge", sostituibile per scopo): usati solo per
 # validare i typo, la risoluzione provider/modello funziona per qualunque chiave
 # presente in llm_settings.purposes.
-PURPOSES = ("drift", "canvas", "propose", "validate", "explore", "review", "ask")
+PURPOSES = ("drift", "canvas", "propose", "validate", "explore", "review", "ask", "judge")
 
 # Endpoint di generazione derivato dalla base OLLAMA_URL (env VIBECRAFT_OLLAMA_URL,
 # core/config.py): unica copia dell'URL di Ollama in tutto il codice.

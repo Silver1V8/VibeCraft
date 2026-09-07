@@ -500,6 +500,20 @@ il divario fra le due è un numero, non un'impressione.
 uv run python -m eval.run_multihop        # server su; exit 1 sotto soglia
 ```
 
+### La terza misura: a chi la risposta attribuisce il vincolo
+
+[eval/golden_attribution.yaml](eval/golden_attribution.yaml) + [eval/attribution.py](eval/attribution.py):
+la fonte giusta entra sempre nel contesto (A3), ed è **dentro** la finestra che il modello
+decide chi stabilisce un vincolo e chi lo motiva. Un giudice LLM legge ogni risposta — una
+chiamata per esecuzione, mai aggregata per caso — e nomina la fonte a cui la risposta lo
+attribuisce; i passi fra virgolette sono verificati con un `in` sul documento attribuito.
+Non è un gate né un check notturno: costa chiamate LLM e i numeri vanno letti (AUDIT.md, S14).
+
+```bash
+uv run python -m eval.attribution --repeats 3   # (a) valida il giudice offline: solo Ollama
+uv run python -m eval.attribution --live        # (b) misura /ask: server SENZA cache
+```
+
 **Quattro casi su 14 non possono passare A, ed è la misura, non un difetto.**
 L'enumerazione chiede 11 fonti a un top-10, e le tre catene che spandono tre documenti si
 fermano a due: è esattamente il gap che ha motivato il router deterministico. Per questo la

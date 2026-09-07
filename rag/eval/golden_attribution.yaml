@@ -34,6 +34,9 @@
 #       correct       : attributed_to coincide con normative.doc (o con "NESSUNA" se null)
 #       note          : la frase della risposta su cui il verdetto si regge
 #
+# LETTO DA eval/attribution.py (S14, 2026-09-07): valida il giudice di N3 contro questi verdetti,
+# record per record. Esito misurato con qwen3.5:9b: 20/24, negativi 5/7 (AUDIT.md, S14).
+#
 # Invarianti verificate da tests/test_golden_attribution.py: ogni run ha testo, fonti e
 # indice; `correct` è coerente con `normative`; fonti e distrattori esistono nel corpus.
 #

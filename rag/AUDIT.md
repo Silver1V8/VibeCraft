@@ -3750,3 +3750,188 @@ citato a metà frase che deve restare `success` — è **verde prima e dopo**: l
 - **Che il resto di `AUDIT.md` sia allineato.** Sono state datate le tre sezioni che portano
   numeri di `v20260907T094225`. Le sezioni più vecchie parlano di indici ancora anteriori e
   dichiarano già la propria versione: non sono state toccate.
+
+---
+
+# S14 — N3: la metrica esiste, il giudice arriva a 20/24 e non passa il criterio di S6
+
+**Data:** 2026-09-07 · **Base:** baba642 · **Indice attivo:** `v20260907T115228` — *riletto da
+`database/CURRENT` prima e dopo; l'archivio contro cui il giudice è validato resta su
+`v20260907T094225`, e il modo (a) non lo tocca* · **Chiude:** N3 come **misurata**. L'esito
+della riga è quello che il prompt di S14 ammetteva come onesto: *misurata, e non praticabile
+come misura automatica con questo modello*. Apre **R29**, che è una decisione e va in S8.
+
+## Cosa è stato scritto
+
+`eval/attribution.py`, `tests/test_attribution.py` (sei test, nessun LLM), e una parola in
+`core/llm.py`: lo scopo `judge` nella tupla degli scopi riconosciuti, così il modello del
+giudice si cambia in `rag_config.yaml` (`llm_settings.purposes.judge`) senza toccare codice —
+il meccanismo che già esiste per canvas e propose. Nessuna dipendenza nuova.
+
+Il giudice riceve la domanda, le intestazioni dei blocchi del contesto **nell'ordine letto dal
+modello** (le stesse righe che S12 ha archiviato) e la risposta integrale, e restituisce un
+JSON in quest'ordine: la **frase** della risposta in cui la risposta dice chi stabilisce il
+vincolo, il **verbo** con cui la lega alla fonte, la **fonte** (nome file o `NESSUNA`, scelta
+da un elenco chiuso costruito dalle fonti del contesto). L'ordine dei campi è il metodo:
+estrarre prima, decidere dopo. Una chiamata per esecuzione, mai per caso.
+
+Due modi, come richiesto, con prerequisiti diversi e non confusi:
+
+- **(a)** `uv run python -m eval.attribution --repeats 3` — offline contro l'archivio. Serve
+  solo Ollama. Confronta ogni giudizio col verdetto umano di `golden_attribution.yaml`.
+- **(b)** `uv run python -m eval.attribution --live --runs 3` — dal vivo contro `POST /ask`,
+  server nella configurazione **senza cache** (`vibecraft-rag-nocache`; con la cache tre
+  esecuzioni sono una, e l'harness si ferma se `cached` è vero). Scrive
+  `eval/results/attribution_live_<ts>.yaml` nel formato dell'archivio, col verdetto del
+  giudice al posto di quello umano. **Non scrive mai l'archivio**: le run vi entrano a mano,
+  dopo la lettura, come S12 prescrive.
+
+Temperatura del giudice **0**, nel solo processo dell'harness (il server tiene la sua 0.1). Non
+è tuning: a 0.1 lo stesso record dava verdetti diversi in 2-3 casi su 24 per giro, e il
+prompt di S14 mette la ripetibilità prima dell'accuratezza.
+
+## Il giudice, misurato: sei prompt, sempre sugli stessi 24 record
+
+| Prompt | Cosa cambiava | Accordo | Positivi | **Negativi** | Unanimi ×3 |
+|---|---|---|---|---|---|
+| v1 | fonte + citazione, regole in prosa; temperatura 0.1 | 19/24 | 14/17 | **5/7** | 23/24 |
+| v2 | «NESSUNA anche se la fonte è ovvia», elenco chiuso dei valori | 18/24 | 15/17 | **3/7** | 22/24 |
+| v3 | frase → verbo → fonte, liste di verbi | 17/24 | 12/17 | **5/7** | 21/24 |
+| **v4** | + etichette «Fonte: …» contano come attribuzione; **temperatura 0** | **20/24** | **15/17** | **5/7** | **24/24** |
+| v5 | + campo per il passo virgolettato | 19/24 | 14/17 | 5/7 | 24/24 |
+| v4′ | v4 con «o l'etichetta» nella descrizione di un campo | 19/24 | 14/17 | 5/7 | 24/24 |
+
+Tenuta la **v4**. Due cose da leggere in questa tabella prima del numero. La prima: il prompt
+è stato tarato **sugli stessi 24 record** su cui è misurato — sei volte. Il 20/24 è un
+accordo *in-sample*: è un tetto, non una stima di quanto il giudice concorderà su risposte
+che non ha mai visto. La seconda: v4 e v4′ differiscono per **tre parole nella descrizione di
+un campo JSON** e differiscono di un record (03·2, che ribalta da `spec` a `strategy` con tre
+giudizi unanimi in entrambe le direzioni). Un giudice che cambia verdetto per quella
+differenza sta decidendo sul filo, e lo dice il numero prima di qualunque lettura.
+
+**Per il criterio di S6 — se non coincide, non è pronto — il giudice NON passa.** Costo
+misurato: 72 giudizi in 1 min 42 s, circa 1,4 s l'uno (il prompt del giudice è corto e la
+risposta è un JSON di tre campi).
+
+## Dove non coincide, letto record per record
+
+| Record | Umano (S12) | Giudice (v4, 3/3) | Perché |
+|---|---|---|---|
+| 05·2 | `inferenza_locale_o_remota` | `NESSUNA` | La risposta è un'astensione formattata (`**[ASTENSIONE]**`, R27) che DENTRO attribuisce l'autorizzazione scritta al documento informativo. Il giudice legge l'astensione e si ferma |
+| 07·2 | `spec_graph_rag_ingestion` | `graph_rag_ingestion_strategy` | La risposta si contraddice: apre con «la regola che lo impone è [REGOLA-VAL-04]» e chiude con «la regola implicita nel documento strategy lo impone». Il criterio umano prende la prima; il giudice la conclusione, benché il prompt dica «vale la PRIMA» |
+| 07·3 | `NESSUNA` | `graph_rag_ingestion_strategy` | «non riporta una regola esplicita … la motivazione è fornita esclusivamente nel testo descrittivo di strategy». Descrivere non è stabilire; il giudice sceglie il documento che contiene il vincolo |
+| 08·2 | `safeguards_security` | `inferenza_locale_o_remota` | «Il documento [IRON_MEMORY] definisce il vincolo di anonimizzazione» viene prima di «Il documento [METHODOLOGY] esplicita che: "Sostituire non è oscurare"». Il giudice segue il passo virgolettato |
+
+In tre casi su quattro il giudice sceglie il documento che **contiene** o illustra il vincolo
+invece di quello che la risposta dice lo **stabilisce**. È esattamente la confusione che la
+metrica esiste per misurare nel modello che risponde — e il giudice è quel modello. S14 lo
+chiedeva come scelta dichiarata: *un giudice e un giudicato che sono lo stesso modello è una
+scelta, non un default*. Qui la scelta era obbligata (è l'unico modello installato) e la
+misura dice che condividono il difetto. È **R29**.
+
+**Il conto binario, che è quello del modo (b).** Nel modo (b) il giudice non confronta con
+l'umano ma con la fonte normativa attesa: dice «corretta» o «sbagliata». Su quel conto
+l'accordo è **22/24**: **0 negativi mancati su 7**, 2 falsi allarmi su 17 (07·3 e 08·2). Sui
+negativi il giudice sbaglia la fonte (05·2: «nessuna» invece del distrattore) ma non li
+prende per corretti. Va scritto per quello che è: con un'affidabilità in-sample e due falsi
+allarmi, il giudice è uno **schermo** che dice quali esecuzioni far leggere a un umano, non
+una misura da mettere in una tabella senza rileggere.
+
+## La citazione, verificata su tutte e 24
+
+S12 aveva trovato a mano il caso 06 run 3 — fonte giusta, passo virgolettato del distrattore
+— e dichiarato di non aver controllato le altre 23. Farlo era lavoro di questo harness, e
+non lo fa il giudice: nella v5 gli era stato chiesto di estrarre il passo virgolettato, e non
+ha ritrovato 06·3. Lo fa un **`in` su un file**, come S12 aveva scritto: ogni passo che la
+risposta mette fra virgolette (almeno 5 parole, virgolette basse, alte o dritte) viene cercato,
+normalizzato, nel documento attribuito e poi negli altri del contesto. Esiti per giudizio: nel
+documento attribuito 9, in un **altro** documento 18, in nessuno 18 (parafrasi), nessun
+passo 27.
+
+I sei record segnalati «in un altro documento», letti:
+
+| Record | Il passo sta in | È un difetto? |
+|---|---|---|
+| **06·3** | `graph_rag_ingestion_strategy` | **Sì** — presentato come parole della spec («Il testo specifica che "nessun documento possa mai superare…"»). Il caso di S12, ritrovato a macchina |
+| 01·2, 01·3 | `policy_versionamento_documentale` | No — è il titolo dello scenario Gherkin, citato dichiarando «nel documento [METADATA]» / «in policy_versionamento_documentale.md» |
+| 03·2 | `graph_rag_ingestion_strategy` | No — «descrive la cascata come: "blocchi atomici → H2 → H3 → paragrafi"», attribuito a strategy come descrizione |
+| 04·1, 04·3 | `fe1-canvas-review` | No — la frase della canvas-review citata come divergenza dichiarata e smentita dal codice |
+
+**Le altre 23 sono controllate: 06·3 è l'unico del suo tipo nell'archivio.** La verifica
+resta deterministica e gira in ogni modo su ogni record; la lettura dei segnalati resta umana,
+perché un passo citato da un altro documento *dichiarandolo* è corretto, e un `in` non
+distingue «dichiarandolo» da «spacciandolo».
+
+## Il modo (b): eseguito come prova di fumo, non come misura
+
+Un caso, una esecuzione, server `vibecraft-rag-nocache`, indice **`v20260907T115228`**,
+14 secondi: la strada `POST /ask` → `cached` verificato → intestazioni rilette dal contesto →
+giudice → YAML archiviabile funziona fino in fondo. Il caso era il 06: la risposta apre con
+«Secondo **[graph_rag_ingestion_strategy.md § 4]** … Il testo specifica che: "Il
+moltiplicatore impone che nessun documento possa mai superare…"», il giudice dice
+`graph_rag_ingestion_strategy`, e un umano che la legge (io) concorda. **Un negativo di S12 si
+riproduce sull'indice promosso con `boost_alpha` 0.3 e il tetto a 3 — una volta.** Una
+esecuzione non è un tasso, e non risponde alla domanda che S13 ha lasciato aperta.
+
+**La misura intera del modo (b) NON è stata fatta**, deliberatamente: l'ordine di S14 è
+«una volta che il giudice del modo (a) è validato», e non lo è. Farla ora produrrebbe 24
+verdetti di un giudice che sbaglia un record su sei, cioè il tipo di numero che S14 chiama
+«un harness che gira e di cui nessuno sa se dice il vero». Ciò che si può fare già oggi con
+lo strumento è diverso e va detto: 24 chiamate a `/ask` (~6 minuti sull'ultima misura di
+S12) producono 24 risposte archiviabili col testo e l'indice, e il giudice binario — 0
+negativi mancati in-sample — indica **quali** far leggere a un umano. Non è zero letture
+umane: è «leggi i segnalati», che è meno di 24.
+
+## Dove vive nel ciclo
+
+Non in CI, non nel notturno, non nel settimanale: costa chiamate LLM e i suoi numeri vanno
+letti, non confrontati con una soglia. Due momenti, entrambi a mano:
+
+- **Modo (a)** — ogni volta che cambia il **giudice**: il prompt in `eval/attribution.py`,
+  il modello di `purposes.judge`, o la versione di `qwen3.5` in Ollama. Il riferimento è
+  **20/24, negativi 5/7, unanimi 24/24**: un giro sotto quei numeri è una regressione del
+  giudice, non del sistema. Un minuto e 42.
+- **Modo (b)** — dopo ogni promozione che cambia il ranking o il corpus (i parametri di S11,
+  un documento nuovo, il prompt di `/ask`): è la misura che R9, A3 e S12 hanno fatto a mano
+  ogni volta. 24 chiamate a `/ask` più 24 giudizi; le run che il giudice segna sbagliate si
+  leggono e, col verdetto umano accanto, si **appendono** all'archivio con la loro
+  `index_version` — mai riscritte. Finché il giudice non passa (a), il numero del modo (b) non
+  entra in nessuna tabella senza quella lettura.
+
+## Verifica
+
+- `ruff check .` → `All checks passed!`
+- Suite completa: **1342 passed**, 0 failed (Qdrant acceso) — 1336 dopo S13, più i sei test
+  di `tests/test_attribution.py`, che girano senza LLM (provider fake registrato come in
+  `test_llm.py`) e coprono: normalizzazione del verdetto (percorso, classe unica → documento,
+  «nessuna»), i cinque esiti della verifica delle citazioni sul caso 06·3 ricostruito, il
+  conto separato di positivi e negativi (un giudice che risponde sempre «spec» deve uscire
+  con negativi 0/1 e un falso allarme sulla NESSUNA), il giudizio per esecuzione con un
+  giudice non ripetibile, le intestazioni rilette dal contesto di `/ask`.
+- I test non sono stati verificati rossi contro una variante mutata del codice: il solo
+  rosso visto è stato un `KeyError` del prompt fra due versioni, che era un difetto vero. Va
+  detto, perché è la disciplina di questo audit e qui non è stata applicata.
+- I sei giri del modo (a) e la prova di fumo del modo (b) sono in `eval/results/`
+  (`attribution_*.json`, `attribution_live_*.yaml`), gitignorati come ogni artefatto di run;
+  i numeri qui sopra sono copiati da lì.
+- `database/CURRENT` = `v20260907T115228` prima e dopo. Nessun indice toccato, nessuna riga
+  aggiunta a `history.jsonl`: l'attribuzione non è una recall e non entra in quella serie.
+
+## Cosa questa sessione NON prova
+
+- **Che 20/24 valga fuori dall'archivio.** Sei prompt sugli stessi 24 record: il numero è un
+  tetto. La prima misura fuori campione sarà il modo (b) letto da un umano, e potrà essere
+  più bassa.
+- **Che il giudice regga un altro indice.** Le risposte di `v20260907T115228` possono avere
+  un'altra prosa (la prova di fumo ne mostra una quasi identica a S12, su un caso).
+- **Che i 7 negativi si riproducano** con `boost_alpha` 0.3 e il tetto a 3. Uno sì, una
+  volta. Resta la domanda di S13, e resta al modo (b) — con un giudice che passa (a), o con
+  la lettura umana dei segnalati.
+- **Che un giudice diverso faccia meglio.** È l'ipotesi di R29, non una misura: un modello
+  che non condivide il difetto del giudicato (un `qwen3.5:27b` che qui non sta in VRAM, o un
+  provider remoto, che per il corpus di `docs/` non è un problema di PII ma è una decisione
+  di spesa e di confine, e non si prende in coda a una sessione tecnica).
+- **Che l'archivio sia sempre dalla parte giusta.** Su 07·2 e 08·2 il criterio umano è
+  scritto accanto al verdetto e regge alla rilettura, ma sono i due record in cui la risposta
+  stessa è contraddittoria: un secondo lettore potrebbe dissentire, ed è per questo che il
+  testo è lì.

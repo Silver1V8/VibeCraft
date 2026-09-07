@@ -6,3 +6,7 @@
 # pulito il trend sarebbe vuoto senza. Append-only: in caso di conflitto si tengono
 # entrambe le righe (sono eventi distinti, ordinati per timestamp).
 !history.jsonl
+# Run del modo (b) di eval/attribution.py: risposte dal vivo col verdetto del GIUDICE, non umano.
+# Si leggono e, con il verdetto umano accanto, si appendono a eval/golden_attribution.yaml:
+# è l'archivio a essere tracciato, non la run.
+attribution_live_*.yaml
