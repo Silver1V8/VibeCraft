@@ -6,7 +6,9 @@ R15, R22 e R24 chiusi e la forcella `>=3.14` misurata; infine **S13**: R27 e R28
 numeri di questo documento allineati a `v20260907T115228` — **uno** rimisurato, gli altri
 rietichettati; infine **S14**: N3 **misurata** — l'harness di attribuzione è in repo e
 validato contro l'archivio, il giudice arriva a 20/24 e non passa il criterio di S6; nasce
-**R29**, che è una decisione) · **Fonte:**
+**R29**, che è una decisione; infine **S8**, il 2026-09-07: le **dodici decisioni** prese,
+ciascuna con data e condizione di riapertura — A6 chiude R13, R16 è «sì» da applicare a mano,
+nessuna sessione nuova) · **Fonte:**
 rilettura integrale di `rag/AUDIT.md` (1.713 righe, Run A + Run B + le 15 indagini di
 chiusura) · **Metodo:** ogni residuo è stato **riverificato contro il codice di oggi** prima
 di finire in questo elenco. Due erano già stati chiusi da altri interventi e sono qui segnati
@@ -34,9 +36,9 @@ rapporto che questo audit trova ogni volta che qualcuno va a guardare invece di 
 | Residui dichiarati | **25** (+15: R15 e R16 dai run CI reali, R17 da S4, R18 e R19 da S5, R20 da S6, R21 da S7, R22–R25 dalla verifica del 2026-09-07, **R26** da S10, **R27** da S12, **R28** dalla verifica che precede S8 e **R29** da S14) |
 | Di cui già chiusi da altri interventi (riga stantia) | 2 |
 | Risolvibili con lavoro tecnico | **23 chiusi**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, **R12** (S7, 2026-09-07), R14, **R15**, **R21**, **R22**, **R24**, **R18** (S10: due righe, non una, e un rebuild), **R26** (S10, aperto e chiuso in giornata), **R20** e **R23** (S11, la griglia congiunta), **R27** e **R28** (S13: il marcatore ornato e i documenti rimasti a una promozione indietro) (tutti il 2026-09-07 — R21, R22 e R24 poche ore dopo essere stati aperti; R27 e R28 il giorno stesso), N5, N6. Fuori elenco, chiusi lo stesso: **N4** (S6), **R19** (effetto collaterale di N4) e **N3** (S14 — misurata e chiusa con riserva: `eval/attribution.py` esiste ed è in repo, ma il giudice non passa il criterio che S6 si era dato; il seguito è **R29**, in S8) |
-| Ancora aperti, con lavoro tecnico davanti | **1** — R13 (**rimisurato e ridotto da S10**: C1 e C2 promossi, C4 passa, restano C3 e C5 che aspettano A6). *S14 (2026-09-07) ha chiuso **N3** come **misurata**: `eval/attribution.py` legge finalmente l'archivio di S12, giudica per esecuzione e verifica i passi virgolettati con un `in` sul file (06·3 confermato unico del suo tipo su 24). Il giudice `qwen3.5:9b` concorda con l'umano su **20/24** (negativi 5/7), unanime 24/24 a temperatura 0, ma per il criterio di S6 **non è pronto**; in 3 disaccordi su 4 sceglie il documento che contiene il vincolo invece di quello che la risposta dice lo stabilisce — lo stesso difetto del giudicato, ed è **R29**, una decisione.* *S13 (2026-09-07) ha chiuso **R27 e R28**: il marcatore di astensione ora si legge anche formattato (set di caratteri **misurato** sull'archivio di S12, non scelto: backtick 37 usi, asterisco 9, cancelletto 0 ma vietato dal prompt), e i documenti sono allineati a `v20260907T115228` distinguendo **una** misura rimisurata dal resto **rietichettato**. L'archivio di S12 è dichiarato storico e non riprodotto — l'uso previsto (validare il giudice offline) non vuole l'indice attivo — con l'invariante ora sotto test.* *S11 (2026-09-07) ha chiuso **R20 e R23** con la griglia congiunta — e non con «non si cambia niente»: `boost_alpha` 0.1 → **0.3** (held-out +0.038 a k=1, dev.std 0.007, 5/5 seed, senza più perdere a k=5/10), `graph_context_max_chunks` 2 → **3** (il prezzo misurato di alpha nel ramo grafo), peso di sezione **confermato a 0.92** in 25 fold su 25 con alpha libero.* *S10 ha chiuso R18, aperto R26 e **chiuso R26 lo stesso giorno** (il gate ora riceve `graph` e `restatements`: 0.845 → 0.862, tutto N4, il grafo non muoveva nulla).* *S9 ne ha chiusi tre in un giro: R15 senza scrivere codice (la guardia c'era già), R24 con due righe di `conftest.py` e una di attesa, R22 con una sezione riscritta* |
+| Ancora aperti, con lavoro tecnico davanti | **0** — R13 era l'ultimo: **chiuso il 2026-09-07 dalla decisione su A6 (S8)** — C3 e C5 escono per sempre, perché il documento che li batte è contenuto per-installazione e in CI misurerebbero un altro sistema; restano C1, C2 (promossi in S10) e C4 (passa). *Prima di S8: R13 (**rimisurato e ridotto da S10**: C1 e C2 promossi, C4 passa, restano C3 e C5 che aspettano A6).* *S14 (2026-09-07) ha chiuso **N3** come **misurata**: `eval/attribution.py` legge finalmente l'archivio di S12, giudica per esecuzione e verifica i passi virgolettati con un `in` sul file (06·3 confermato unico del suo tipo su 24). Il giudice `qwen3.5:9b` concorda con l'umano su **20/24** (negativi 5/7), unanime 24/24 a temperatura 0, ma per il criterio di S6 **non è pronto**; in 3 disaccordi su 4 sceglie il documento che contiene il vincolo invece di quello che la risposta dice lo stabilisce — lo stesso difetto del giudicato, ed è **R29**, una decisione.* *S13 (2026-09-07) ha chiuso **R27 e R28**: il marcatore di astensione ora si legge anche formattato (set di caratteri **misurato** sull'archivio di S12, non scelto: backtick 37 usi, asterisco 9, cancelletto 0 ma vietato dal prompt), e i documenti sono allineati a `v20260907T115228` distinguendo **una** misura rimisurata dal resto **rietichettato**. L'archivio di S12 è dichiarato storico e non riprodotto — l'uso previsto (validare il giudice offline) non vuole l'indice attivo — con l'invariante ora sotto test.* *S11 (2026-09-07) ha chiuso **R20 e R23** con la griglia congiunta — e non con «non si cambia niente»: `boost_alpha` 0.1 → **0.3** (held-out +0.038 a k=1, dev.std 0.007, 5/5 seed, senza più perdere a k=5/10), `graph_context_max_chunks` 2 → **3** (il prezzo misurato di alpha nel ramo grafo), peso di sezione **confermato a 0.92** in 25 fold su 25 con alpha libero.* *S10 ha chiuso R18, aperto R26 e **chiuso R26 lo stesso giorno** (il gate ora riceve `graph` e `restatements`: 0.845 → 0.862, tutto N4, il grafo non muoveva nulla).* *S9 ne ha chiusi tre in un giro: R15 senza scrivere codice (la guardia c'era già), R24 con due righe di `conftest.py` e una di attesa, R22 con una sezione riscritta* |
 | Fuori registro fino a oggi | **4** voci di `DISTRIBUTION.md` che nessuna riga di RESIDUI tracciava: la forcella `>=3.14` (**misurata il 2026-09-07**, resta la decisione), il workflow di release (**la riga era stantia: è scritto e già partito**), il primo avvio guidato, lo smoke test sul secondo OS (**c'è: scoperto è Windows nativo**) |
-| Che richiedono una decisione, non del codice | **12**, tutte in S8, e **A6 è il punto 1** — la sola riga che nessuna sessione tecnica può chiudere, con tre cose che la aspettano: N1, N2, N7, N8, N9 + R16 (proteggere il ramo), R17 (quali colori seguono il tema), **R25** (il buco lasciato scoperto dalla rimozione di M6), il primo avvio guidato, **se abbassare `requires-python` a `>=3.12`** e — nuova da S14 — **R29** (un giudice di attribuzione diverso dal giudicato: quale modello, dove gira, quanto costa), che S9 ha reso una scelta con un prezzo invece di una domanda. *Erano 5: N4 è uscita (S6 l'ha decisa misurandola), poi sono entrate N9, R16, R17, R25 e le due di distribuzione; ora esce anche il **registry di release**, che era già deciso e spedito dal 2026-09-01 — la riga che lo dava aperto era stantia quanto il bilancio da cui veniva* |
+| Che richiedono una decisione, non del codice | **0 — le 12 sono DECISE il 2026-09-07 (S8)**, ciascuna con data e condizione di riapertura in `AUDIT.md`, sezione S8: A6 divergenza accettata per progetto (chiude R13); N1, N2, N7, N8, N9 confermati «no» con la loro X; R16 **sì** (ruleset su `main`, da applicare a mano); R17 stato costante / decorazione a token, spazzata al primo tema chiaro; R25 accettato, la guardia è il notturno; primo avvio fuori perimetro; `requires-python` resta `>=3.14`; R29 schermo ora, `qwen3.5:27b` locale come prossimo giudice, remoto no. *Prima di S8: **12**, tutte in S8, e **A6 è il punto 1** — la sola riga che nessuna sessione tecnica può chiudere, con tre cose che la aspettano: N1, N2, N7, N8, N9 + R16 (proteggere il ramo), R17 (quali colori seguono il tema), **R25** (il buco lasciato scoperto dalla rimozione di M6), il primo avvio guidato, **se abbassare `requires-python` a `>=3.12`** e — nuova da S14 — **R29** (un giudice di attribuzione diverso dal giudicato: quale modello, dove gira, quanto costa), che S9 ha reso una scelta con un prezzo invece di una domanda. *Erano 5: N4 è uscita (S6 l'ha decisa misurandola), poi sono entrate N9, R16, R17, R25 e le due di distribuzione; ora esce anche il **registry di release**, che era già deciso e spedito dal 2026-09-01 — la riga che lo dava aperto era stantia quanto il bilancio da cui veniva.* |
 | Non risolvibili (dati persi, hardware assente) | 1 |
 
 ---
@@ -55,7 +57,10 @@ con un prerequisito, che **S12 ha costruito** il 2026-09-07 e **S14 ha eseguito*
 giorno. Qui la premessa non era sbagliata come per N4: il lavoro è stato fatto, e ha trovato un
 limite vero — un giudice che arriva a 20/24 e non passa il criterio che S6 si era dato — che
 chiude la voce come **misurata**, non come decisione. Restano confini le altre cinque (N1, N2,
-N7, N8, N9): sono la materia di **S8**.
+N7, N8, N9): ~~sono la materia di **S8**~~ **decise in S8 il 2026-09-07** — tutte confermate
+«no», ognuna con la condizione che la riapre, scritta nella sua riga qui sotto e per esteso in
+`AUDIT.md`, sezione S8. Da oggi un confine di questa tabella non si ridiscute: si controlla se
+la sua X è scattata.
 
 *E qui il registro aveva un buco, trovato il 2026-09-07 da una domanda e non da una misura:*
 **N3 era rimasta senza sessione.** «Ora è scrivibile, ed è scritto nella sua riga» era vero
@@ -68,15 +73,15 @@ correggere un difetto. Ora è **S14** — eseguita: vedi la sua sezione.
 
 | # | Cosa | Dove | Perché no |
 |---|---|---|---|
-| N1 | **Streaming incrementale di `/ask`** | A11 | Cambierebbe il contratto: oggi la risposta è un JSON unico con risposta, contesto grafo, archi, punteggi e latenze. Servirebbero due canali, un secondo percorso d'errore e la cache da ripensare |
-| N2 | **Gate sulla latenza** | A11 | Il bench è una misurazione (exit 0) per contratto, e un p95 su 10 campioni non regge una soglia bloccante |
+| N1 ✔ decisa (S8) | **Streaming incrementale di `/ask`** | A11 | Cambierebbe il contratto: oggi la risposta è un JSON unico con risposta, contesto grafo, archi, punteggi e latenze. Servirebbero due canali, un secondo percorso d'errore e la cache da ripensare. **DECISA il 2026-09-07 (S8): no.** Il 97,8% è generazione, lo streaming cambia la percezione e non il tempo, e il loader conta già i secondi; il canale NDJSON esiste in `routes_pipeline.py`, il costo vero è il contratto e la cache. **Si riapre quando** un secondo client consuma `/ask`, o il p50 di generazione supera 60 s sulla macchina di riferimento |
+| N2 ✔ decisa (S8) | **Gate sulla latenza** | A11 | Il bench è una misurazione (exit 0) per contratto, e un p95 su 10 campioni non regge una soglia bloccante. **DECISA il 2026-09-07 (S8): nessun gate e nessun bench notturno** — 10 generazioni a notte per un numero fatto al 97,8% dal modello e dall'hardware. La via di mezzo è quella già scritta: baseline in README con data e macchina, e la regola di `bench.py` (nessuna ottimizzazione senza prima/dopo). **Si rimisura quando** cambia il modello, `num_ctx` o l'hardware, o prima di una modifica che dichiari un guadagno di latenza |
 | N3 ✅ misurata (S14) | **Metrica di attribuzione della fonte** | A3 | «A chi la risposta attribuisce il vincolo» è la metrica vera del sistema e **non esiste**. Costa una chiamata LLM per caso più un giudice. **PROTOTIPATA 2026-09-05 (S6), NON scritta**: il giudice è ripetibile (3 giudizi identici sulla stessa risposta) e concorda con l'umano su **3 casi su 4**. Il quarto dissente e il giudice ha ragione: la risposta di oggi non attribuisce alcun vincolo, e il «Dopo ✅» della tabella di A3 §6 **non si riproduce** — corpus e indice sono cambiati fra il 3 e il 5 settembre. Per il criterio fissato («se non coincide, non è pronto») **non passa**, e la causa non è il giudice: è che il riferimento sono 4 risposte lette a mano e mai archiviate. Prima di scrivere l'harness servono casi con l'attribuzione davvero contesa e verdetti umani salvati **insieme al testo della risposta**. **PREREQUISITO COSTRUITO 2026-09-07 (S12)**: `eval/golden_attribution.yaml`, 8 casi × 3 esecuzioni con testo integrale e indice `v20260907T094225` (**storico**: dichiarato tale da S13, `superseded_by v20260907T115228`, deliberatamente non riprodotto perché validare il giudice offline non vuole l'indice attivo), **7 negativi verificabili** (6 alla fonte sbagliata, 1 senza fonte) in 4 casi su 8 — il quinto avversariale e tre casi costruiti dove il distrattore dice ciò che la norma non dice. Il criterio di S6 ha ora il lato negativo su cui misurarsi: **N3 è scrivibile**, e l'harness deve giudicare per esecuzione e verificare la citazione nella fonte attribuita (il caso 06·3 è corretto per la metrica e falso nel contenuto). **MISURATA il 2026-09-07 (S14)**: `eval/attribution.py` (modo a: valida il giudice offline contro l'archivio; modo b: `--live` contro `/ask` senza cache), sei test, scopo `judge` in `core/llm.py`. Giudice `qwen3.5:9b` a temperatura 0: accordo col verdetto umano **20/24**, positivi 15/17, **negativi 5/7**, unanime 24/24 su tre giudizi; accordo binario corretta/sbagliata 22/24 con **0 negativi mancati** e 2 falsi allarmi. Prompt tarato in sei versioni sugli stessi 24 record: il 20/24 è in-sample. **Per il criterio di S6 non passa**: N3 si chiude come *misurata e non praticabile come misura automatica con questo modello*; praticabile come schermo di quali risposte far leggere. Le citazioni sono verificate su tutti i 24: 06·3 è l'unico del suo tipo. Il seguito è **R29** (S8) |
 | N4 ✅ | ~~**Strada 1: peso di sezione**~~ | A3 | ~~Agisce sul *rango*, che la misura ha mostrato non essere il problema.~~ **FATTO il 2026-09-05 (S6)**, ed è risultata necessaria appena R9 si è chiuso. Il segnale non era da inventare: un codice di regola **dichiarato in un titolo** marca la sezione che enuncia il vincolo, lo stesso codice in una tabella o in un blocco Gherkin è una citazione — 31 sezioni dichiarano, 28 citano soltanto, e le 28 sono esattamente l'elenco che A3 §5 aveva stampato. Calibrato a k=1 (5-fold × 5 seed, incumbent al tie-break): **held-out +0.069, dev.std 0.008, positivo su 5 seed su 5** — l'opposto di ciò che A3 trovò alzando α. Dal vivo: `r@1 0.625→0.714`, `MRR 0.786→0.835`, multihop `0.854→0.890` con 9→10 casi, nulla peggiora. Applicato nel ramo **semantico** e deliberatamente **non** in quello grafo: lì i concorrenti sono altri documenti e la penalità espelle il documento invece di promuovere la sorella che dichiara — misurato, e pinnato da un test |
 | N5 ✅ | ~~**Servizio Qdrant nel workflow CI**~~ | A8 | **Fatto 2026-09-04** — `services: qdrant` (`qdrant/qdrant:v1.19.0`) nel job `test`, con `VIBECRAFT_REQUIRE_QDRANT=1`, `pytest -rs` e un passo che pretende `5 passed`: i cinque non possono tornare a saltare in silenzio. **Run #131 verde**: il riepilogo porta «Qdrant reale: 5/5 test d'integrazione passati», e la suite gira con 0 skipped |
 | N6 ✅ | ~~**Installazione reale su un Mac**~~ | A15 | **Fatto 2026-09-04** — job `macos-nativo` su `macos-15`: `uv sync --frozen` vero, torch importato e un matmul verificato. Un Mac qui continua a non esserci: ce lo mette il runner. **Eseguito: verde in 34-36s su due run**; dal log macOS 15.7.9 arm64, `torch 2.13.0` senza `+cu` e **matmul su `mps`** — torch non si limita a installarsi, calcola sull'acceleratore. Quel numero ha smentito la stima di costo con cui l'avevo limitato a main (130 pacchetti contro 149, torch 106,1 MiB contro 804,7): restrizione rimossa. Resta scoperto il ramo con CPython **gestita da uv** — in CI uv ha usato il Python di Homebrew del runner |
-| N7 | **Extra in conflitto CPU/CUDA per torch** | A15 | Cambierebbe il comando di installazione per tutti (`uv sync --extra cpu`). Per il caso CPU-only esiste già il target `cpu` del Dockerfile |
-| N9 | **macOS con CPython gestita da uv** | A15 | *(Nuovo, 2026-09-04.)* In CI uv ha usato il `python@3.14` di Homebrew dell'immagine, quindi il tag e' `macosx-15.0-arm64` e la wheel `macosx_14_0` passa. Con una CPython **gestita da uv** il tag verrebbe dal `MACOSX_DEPLOYMENT_TARGET` conservativo con cui e' compilata — l'artefatto che A15 aveva gia' incontrato nel dry-run — e la wheel verrebbe rifiutata. Coprirlo vuol dire un secondo job che forza `uv python install`: per ora il tag e' **stampato** nel log, cosi' quel fallimento e' leggibile invece che misterioso |
-| N8 | **Ricalibrazione del tetto `top_k`** | A1 | `top_k=20` tocca il 104% della finestra su almeno una domanda reale. Abbassarlo richiede una misura sistematica, non un numero scelto in coda a una correzione |
+| N7 ✔ decisa (S8) | **Extra in conflitto CPU/CUDA per torch** | A15 | Cambierebbe il comando di installazione per tutti (`uv sync --extra cpu`). Per il caso CPU-only esiste già il target `cpu` del Dockerfile. **DECISA il 2026-09-07 (S8): no** — il CPU-only x86-64 nativo funziona (4 GB inutili, non un fallimento) e nessuno l'ha chiesto. **Si riapre quando** il README promette l'installazione nativa CPU-only o un utente la chiede: allora `[tool.uv] conflicts` e il comando cambia dichiarandolo |
+| N9 | **macOS con CPython gestita da uv** | A15 | *(Nuovo, 2026-09-04.)* In CI uv ha usato il `python@3.14` di Homebrew dell'immagine, quindi il tag e' `macosx-15.0-arm64` e la wheel `macosx_14_0` passa. Con una CPython **gestita da uv** il tag verrebbe dal `MACOSX_DEPLOYMENT_TARGET` conservativo con cui e' compilata — l'artefatto che A15 aveva gia' incontrato nel dry-run — e la wheel verrebbe rifiutata. Coprirlo vuol dire un secondo job che forza `uv python install`: per ora il tag e' **stampato** nel log, cosi' quel fallimento e' leggibile invece che misterioso. **DECISA il 2026-09-07 (S8): nessun secondo job.** Il job esistente è la sentinella: chiede a `setup-uv` un 3.14 e, se l'immagine smettesse di spedire quello di Homebrew, proverebbe da sé il ramo gestito — rosso, col tag leggibile. **Si riapre quando** `macos-nativo` è rosso con tag sotto `macosx-14.0` o un utente su Mac lo riporta; la correzione è `MACOSX_DEPLOYMENT_TARGET=14.0` nel README, una riga, non un job |
+| N8 ✔ decisa (S8) | **Ricalibrazione del tetto `top_k`** | A1 | `top_k=20` tocca il 104% della finestra su almeno una domanda reale. Abbassarlo richiede una misura sistematica, non un numero scelto in coda a una correzione. **DECISA il 2026-09-07 (S8): resta 20.** Il tetto è un contratto esercitato — il notturno pretende il 502 a 20 (R11), `test_ask_prompt_cost` sorveglia il prompt fisso (R3), nessun chiamante supera 5 — non un parametro da tarare. **Si riapre quando** il check R11 torna 200, cambia `num_ctx`, o un chiamante reale chiede più di 5: la misura è quella originale di A1, non un numero |
 
 ---
 
@@ -256,6 +261,15 @@ ma sorveglia lo stato del RAG, non quello della CI.
 *Verificato: `1044513` non ha un run proprio — i due commit sono arrivati in un unico push,
 quindi #129 è il primo run che contiene S2. Coerente con la diagnosi, non una coincidenza.*
 
+**DECISO il 2026-09-07 (S8): sì.** Ruleset su `main` con *Require status checks to pass* →
+job `test` (Qdrant + suite; `docker` e `macos-nativo` restano informativi). **Conseguenza
+dichiarata**: un push diretto su `main` senza check verde viene respinto — si lavora su un
+ramo, la CI colora, poi `main` avanza; bypass all'amministratore per le emergenze, tracciato.
+**Da applicare a mano** (impostazione del repository, `gh` assente qui) in Settings → Rules →
+Rulesets; **verifica**: il primo push che sarebbe rosso viene respinto — fino ad allora è
+decisa, non constatata. **Si estende (mai si toglie) quando** arriva un secondo contributore:
+*Require a pull request*.
+
 **R5 — Il report multihop stampa «trigger M2 scattato» come se fosse una decisione in corso
 → CHIUSO 2026-09-04.** `eval/run_multihop.py`. Il residuo era **metà** di com'era scritto, come
 la nota di §3 aveva anticipato: il docstring dichiarava già il verdetto storico, era solo la
@@ -396,8 +410,13 @@ RIMISURATO ED ESEGUITO IN PARTE il 2026-09-07 (S10).** *Contro `v20260907T094225
 C2 assente → 8 falliscono ancora a k=2 con solo documenti tracciati (o quasi) davanti — **promossi**,
 golden set 56 → 58, `recall@2` 0.893 → **0.862**, margine 11,2 punti. C4 3 → **2**: passa, non
 aggiunto (il divario colloquiale/tecnico va misurato come sottoinsieme di coppie, non con un caso).
-C3 (5) e C5 (8) fallirebbero ma il documento che li batte è **non tracciato**: restano fuori
-finché A6 non decide. Il residuo resta aperto per loro due soltanto. Cronaca in AUDIT.md, S10.*
+C3 (5) e C5 (8) fallirebbero ma il documento che li batte è **non tracciato**: ~~restano fuori
+finché A6 non decide. Il residuo resta aperto per loro due soltanto.~~ Cronaca in AUDIT.md, S10.*
+**CHIUSO il 2026-09-07 da S8, decidendo A6**: il documento che batte C3 e C5 è contenuto
+per-installazione (`05_project_specs/`, lo slot vuoto in baseline come `code/`), quindi i due
+casi misurerebbero il checkout e non il sistema — **fuori per sempre**, non «per ora». R13
+resta con C1, C2 e C4; il giorno in cui il margine si chiude si cercano candidati **fra i
+documenti tracciati**, con lo stesso protocollo di S5/S10.
 La voce originale: Il giorno in cui saturasse non resta un k più basso — andrà **esteso il golden
 set** con casi che il sistema sbaglia. I candidati sono stati cercati **ora, mentre il
 margine c'è**: 14 domande misurate contro l'indice, **5 falliscono a k=2** con una fonte
@@ -419,6 +438,13 @@ difetto che R6 ha chiuso su due card, e si vede solo mettendo le due palette una
 all'altra. La correzione non è meccanica: `emerald`/`red`/`amber` in molti punti significano
 *stato* (ok / errore / in corso), e uno stato ha senso che resti riconoscibile **attraverso**
 i temi — quindi va deciso caso per caso quali agganciare e quali no, non sostituito con sed.
+
+**DECISO il 2026-09-07 (S8): due classi.** *Stato* (pallini di `setStatus`, badge di `/ask`,
+testo d'errore, pillole di esito) resta **costante** attraverso i temi; *decorazione*
+(gradienti, accenti, bordi, badge del tempo) segue i token. La spazzata — oggi `emerald` 77,
+`amber` 9, `red-*` 5 occorrenze fra tre template — **non si fa ora**: con due temi entrambi
+scuri nessuna è un guasto e nessuno potrebbe verificarla a schermo. **Si riapre quando** entra
+un tema chiaro: la decisione è presa, resta la spazzata, ed è una sessione.
 
 **R18 ✅ — `graph_rag_ingestion_strategy.md` dichiara un `node_id` che non esiste.** *(Nuovo,
 2026-09-04, emerso da R7. **CHIUSO il 2026-09-07 da S10**, e non era una riga sola: la scansione
@@ -688,7 +714,18 @@ candidata, senza gate e senza misura — e il rollback non lo riavvolge.
 È una **decisione**, non un difetto da correggere in coda: accettare il buco e scriverlo dove
 si vede, oppure finanziare una guardia più economica di quella rimossa (un controllo
 campionato invece che per-job, o far produrre una candidata anche agli incrementali). Sta in
-**S8**, punto 11; se la scelta è la seconda, si apre una sessione propria.
+**S8**, punto 12; se la scelta è la seconda, si apre una sessione propria.
+
+**DECISO il 2026-09-07 (S8): accettato — e la premessa era incompleta.** «Nessuno misura più
+gli incrementali» non è vero: il notturno misura la recall **sull'indice promosso** via
+`/api/retrieve` e alza un alert critico sotto la media mobile — la guardia campionata
+dell'opzione 2, in piedi da Epic 5.2 e mai nominata come copertura degli incrementali. Resta
+scoperto, e ora è scritto dove chi opera lo legge (`DISTRIBUTION.md`, «Aggiornamento senza
+perdere l'indice»): un delta cattivo viene servito fino alla notte, e il rollback intra-lineage
+non lo riavvolge — dopo un incrementale sbagliato il ritorno pulito è un full. Journal di oggi:
+2 incrementali su 16 job, entrambi noop. **Si riapre quando** un alert notturno segue un job
+incrementale come ultimo completato, o il journal registra almeno un incrementale reale a
+settimana: allora l'opzione 3 (candidata anche per i delta) apre la sua sessione.
 
 **R26 ✅ — Il gate di promozione misura un ranking che nessun utente vede.** *(Nuovo, 2026-09-07,
 emerso da S10. **CHIUSO lo stesso giorno**: `evaluate_recall`/`gate_promotion` ricevono `graph` e
@@ -817,9 +854,9 @@ aperte come le altre e vanno decise o misurate, non lasciate in un terzo file.*
 
 | Voce | Dove | Cosa manca |
 |---|---|---|
-| **`requires-python = ">=3.14"` si può abbassare?** ◐ | `DISTRIBUTION.md` §8, forcella 3 | ~~*«Va provato, non deciso a tavolino.»* Mai provato.~~ **Provato in S9, il 2026-09-07**, in una copia fuori dal repo e senza committare nulla: `>=3.12` risolve (159 pacchetti contro 156), installa, e la suite passa su CPython 3.12.13 — `1321 passed`. Il codice non usa **una sola riga** di sintassi o stdlib posteriore a 3.12: il pavimento a 3.14 non era sorretto da niente. Il prezzo è uno e sta su Windows: `onnxruntime` scende da 1.29.0 a **1.20.1** (~21 mesi indietro) perché il lock si biforca per piattaforma, e trascina tre pacchetti nuovi. Linux e il container non cambiano. **Misura chiusa; la decisione resta e torna a S8** |
+| **`requires-python = ">=3.14"` si può abbassare?** ◐ | `DISTRIBUTION.md` §8, forcella 3 | ~~*«Va provato, non deciso a tavolino.»* Mai provato.~~ **Provato in S9, il 2026-09-07**, in una copia fuori dal repo e senza committare nulla: `>=3.12` risolve (159 pacchetti contro 156), installa, e la suite passa su CPython 3.12.13 — `1321 passed`. Il codice non usa **una sola riga** di sintassi o stdlib posteriore a 3.12: il pavimento a 3.14 non era sorretto da niente. Il prezzo è uno e sta su Windows: `onnxruntime` scende da 1.29.0 a **1.20.1** (~21 mesi indietro) perché il lock si biforca per piattaforma, e trascina tre pacchetti nuovi. Linux e il container non cambiano. **Misura chiusa; ~~la decisione resta e torna a S8~~ DECISA il 2026-09-07 (S8): resta `>=3.14`**, guadagno zero nel percorso documentato (`uv sync` scarica da sé il 3.14) contro un costo sulla piattaforma di sviluppo; si riapre quando la biforcazione di `onnxruntime` sparisce o il README promette un percorso pip |
 | ~~**Pubblicazione delle immagini (release workflow)**~~ ✅ | `DISTRIBUTION.md`, L3 | ~~Quale registry, pubbliche o private, quali tag, e se pubblicare anche il target `gpu`. **Decisione** → S8~~ **La riga era stantia quanto il bilancio che la generava** (verificato in S9): `release.yml` esiste, le quattro decisioni sono scritte in `DISTRIBUTION.md` e il tag `v0.1.0` le ha fatte partire il 2026-09-01. **Non resta una decisione**, restano due fatti da constatare fuori da qui: l'esito del run e la visibilità del pacchetto GHCR, che nasce privato |
-| **Primo avvio guidato** | `DISTRIBUTION.md`, L3 | Scegli la cartella → indicizza → prima domanda. Funzionalità di prodotto, non di packaging. **Non iniziato** → S8 decide se entra nel perimetro. *Riverificato in S9: è l'unica delle quattro ancora vera com'era scritta* |
+| ~~**Primo avvio guidato**~~ ✅ deciso | `DISTRIBUTION.md`, L3 | Scegli la cartella → indicizza → prima domanda. Funzionalità di prodotto, non di packaging. ~~**Non iniziato** → S8 decide se entra nel perimetro.~~ *Riverificato in S9: è l'unica delle quattro ancora vera com'era scritta.* **DECISO il 2026-09-07 (S8): fuori perimetro** — il primo avvio è i quattro comandi del README più `scripts/doctor.py`, esercitato dalla CI nell'immagine; un wizard per un solo installatore è una funzionalità senza utente. Si riapre alla prima installazione esterna |
 | **Smoke test su un secondo OS** | `DISTRIBUTION.md`, L3 | «Gap dichiarato». **Parzialmente superato e mai registrato**: fra il job `docker` (Linux), il job `test` e `macos-nativo` (S3) i sistemi coperti in CI sono ora due, più il container. Resta scoperto **Windows nativo**, che è la macchina di sviluppo — cioè l'unico dei tre che nessuno verifica automaticamente. *S9 ha portato la stessa cosa dentro `DISTRIBUTION.md`, col costo misurato: 4,0 GB di torch cu126 installati, il motivo per cui una matrice `windows-latest` non è un gate gratuito* |
 
 ---
@@ -872,10 +909,10 @@ Due su due: la disciplina «misura prima di correggere» ha evitato due modifich
 | R2 ✅ | Aggiungere al `check_index_integrity` il confronto chiavi ColBERT ↔ `chunks.json`, come per Qdrant | La funzione già fa esattamente questo confronto per un'altra coppia: è una terza voce nella stessa lista, non un meccanismo nuovo | S — **fatto 2026-09-04**; copertura rimisurata 160/160 prima di correggere, e il difetto va in `problems` perché fra i due sidecar non esistono divergenze attese |
 | R3 ✅ | Test-canarino sul **costo fisso** del prompt di sistema, con il budget scritto e la ragione | Un test sul prompt completo dipenderebbe dal corpus; il costo fisso è ciò che cresce quando si aggiunge una regola | S — **fatto 2026-09-04** (`tests/test_ask_prompt_cost.py`) |
 | R4 ✅ | `services: qdrant` nel job `test` di `ci.yml` | GitHub Actions lo supporta nativamente; l'alternativa (`docker compose up` nel job) aggiunge uno script da mantenere | S — **fatto 2026-09-04**; il servizio da solo non bastava: senza un gate lo skip resta verde, quindi `VIBECRAFT_REQUIRE_QDRANT=1` + `-rs` + conteggio preteso |
-| R16 | Rendere il job `test` un **check obbligatorio** sul ramo protetto, cosi' che un rosso blocchi invece di essere notato per caso | E' un'impostazione del repository, non del codice: qualunque soluzione scritta qui dentro (uno script che interroga l'API dei run, un alert nel notturno) aggiungerebbe un pezzo da mantenere per fare peggio cio' che GitHub fa nativamente. Va decisa una volta, con le altre | S — ma e' una **decisione**, non lavoro tecnico; **spostata in S8** il 2026-09-07 |
+| R16 | Rendere il job `test` un **check obbligatorio** sul ramo protetto, cosi' che un rosso blocchi invece di essere notato per caso | E' un'impostazione del repository, non del codice: qualunque soluzione scritta qui dentro (uno script che interroga l'API dei run, un alert nel notturno) aggiungerebbe un pezzo da mantenere per fare peggio cio' che GitHub fa nativamente. Va decisa una volta, con le altre | S — ma e' una **decisione**, non lavoro tecnico; **spostata in S8** il 2026-09-07 — **decisa: sì**, ruleset su `main`, da applicare a mano |
 | R5 ✅ | Stampare il conteggio come contesto storico, non come verdetto | Togliere la riga perderebbe un numero utile: è l'etichetta a essere sbagliata | S — **fatto 2026-09-04**; il docstring era già corretto, quindi il lavoro era una riga sola |
 | R6 ✅ | Mappa esplicita degli stati → colore, con `abstained` e `graph_answer` distinti dall'errore | Il ternario `success ? verde : rosso` non è estendibile senza mentire | S — **fatto 2026-09-04**; la mappa era il lavoro previsto, i tre difetti di tema che ha scoperto no |
-| R17 | Decidere **quali** colori-di-stato devono seguire il tema e quali restare costanti, poi agganciare solo quelli | Un sed su `emerald` → token cancellerebbe la distinzione ok/errore proprio dove serve. È una decisione di design, con una spazzata meccanica dietro | M — decisione + sweep su 3 template |
+| R17 | Decidere **quali** colori-di-stato devono seguire il tema e quali restare costanti, poi agganciare solo quelli | Un sed su `emerald` → token cancellerebbe la distinzione ok/errore proprio dove serve. È una decisione di design, con una spazzata meccanica dietro | M — decisione + sweep su 3 template. **Decisa in S8** (stato costante, decorazione a token); lo sweep aspetta un tema chiaro |
 | R7 ✅ | `project:` corretto; il riferimento morto **né ripuntato né rimosso** — registrato con una voce di release nuova, perché §3 è storia e riscriverla la falsifica; e i **12 archi `CONTIENE` verso il nulla** rimossi dal frontmatter, che invece è un'asserzione sul presente | Il file è nell'indice: correggerlo senza rebuild non cambia ciò che il retrieval vede | S + rebuild — **fatto 2026-09-04**; i 12 archi fantasma (`reliability: 0.9`) non erano nel residuo, li ha trovati la verifica |
 | R8 ✅ | Documento scritto (`inferenza_locale_o_remota.md`, `authority: 0.40`, tracciato). Ma il caso 4 **non** è stato rimarcato: misurato, il nuovo distrattore esce a rango 6 contro il 2 dell'atteso — nessun contrasto. Il sottoinsieme è tornato a 5 casi con una domanda **diversa**, scelta misurando 7 formulazioni | È una decisione sul corpus: nessun documento esistente sotto peso 0.5 nomina LLM o privacy (già misurato) | M — **fatto 2026-09-04**; la premessa del residuo («basta un documento sul tema») è stata smentita dalla misura, non assunta |
 | R9 ✅ | ~~**Misurare prima**: chiedere a `/ask` le tre catene e verificare se il terzo documento compare nella risposta via grafo~~ **MISURATO 2026-09-05**: non compariva — 1 documento su 3 nel contesto, 0 su 3 nella risposta. **Corretto e rimisurato lo stesso giorno: 3 catene su 3.** | La premessa del residuo («il grafo compensa») è stata **smentita**, non assunta. Il ramo grafo usava i tre segnali che possiede — pertinenza, fiducia, autorità — uno alla volta: prima `fiducia × autorità` senza pertinenza, poi (primo tentativo) pertinenza al posto delle altre due, che ha rifatto il difetto di ADR 0002 dentro il ramo grafo. La chiave giusta li **compone**, con lo stesso moltiplicatore di `rank_by_authority`. Il tetto per-documento nel ranking, la strada più ovvia, è stato misurato e **bocciato**: a 1/doc distrugge entrambe le suite, a 3/doc non risolve R9 | **fatto 2026-09-05** (1 file, 4 test ognuno rosso sulla variante che boccia); quel che resta è **N4**, non R9 |
@@ -886,7 +923,7 @@ Due su due: la disciplina «misura prima di correggere» ha evitato due modifich
 | R26 ✅ | Passati a `evaluate_recall` gli stessi argomenti che `routes_retrieval` passa a `hybrid_search` (`restatements`, `graph`); gate rimisurato in-process nelle quattro combinazioni; serie storica avvisata in `eval_history.py` | È la stessa funzione con due argomenti in meno: qualunque altra strada (un secondo gate via HTTP, una soglia corretta a mano) misurerebbe una terza cosa | S — **fatto 2026-09-07**, prima di S11; il grafo non muoveva nulla, il peso di sezione tutto (0.845 → 0.862) |
 | R21 ✅ | ~~Applicare la regola di decisione che M6 ha già scritto: confermare le durate (2 job incrementali nel journal sono pochi), poi mini-PR di revert~~ **Fatto 2026-09-07.** La verifica pretesa dal residuo ha cambiato il ragionamento, non l'esito: i 2 job sono `noop` e non hanno mai chiamato l'advisory, quindi il ~550% divideva per il numero sbagliato. Rimossa lo stesso, su una soglia che nessun delta raggiunge | Il criterio, la scadenza e i dati esistono da settimane — manca solo che qualcuno li legga. Rinegoziare la soglia adesso, dopo aver visto il numero, sarebbe scegliere la regola in funzione dell'esito: è esattamente ciò che «decidere prima» esiste per impedire | S — misure + revert; **ma è l'esperimento a dover essere chiuso, non il codice a doversi difendere** |
 | R14 ✅ | Non recuperabile. Ma il **rollback** deve accorgersi che la collection della versione target non esiste e dirlo, invece di fallire in modo oscuro | I dati sono persi; l'esperienza al tentativo no. **Misurando è emerso che non falliva affatto**: riusciva a metà e nessun check lo diceva — quindi rifiuto *prima* della mutazione, più il rilevamento dello stato misto nel check notturno | S — **fatto 2026-09-04** |
-| N1, N2, N7, N8, N9 | Decisione esplicita, registrata. Non codice | Sono «no» già argomentati: vanno confermati o ribaltati una volta, con la loro condizione di riapertura, non ridiscussi a ogni sessione. *N4 non è più fra questi: S6 l'ha decisa misurandola; N5 e N6 sono state eseguite* | — |
+| N1, N2, N7, N8, N9 | Decisione esplicita, registrata. Non codice | **Confermati in S8 il 2026-09-07**, ciascuno con la sua condizione di riapertura nella tabella di §1. Sono «no» già argomentati: vanno confermati o ribaltati una volta, con la loro condizione di riapertura, non ridiscussi a ogni sessione. *N4 non è più fra questi: S6 l'ha decisa misurandola; N5 e N6 sono state eseguite* | — |
 
 ---
 
@@ -1648,7 +1685,11 @@ il documento che *contiene* il vincolo invece di quello che la risposta dice lo 
 — la confusione che la metrica doveva misurare, riprodotta dal giudice, che è lo stesso
 modello. Il modo (b) è stato eseguito come **prova di fumo** su un caso (il negativo 06 si
 riproduce su `v20260907T115228`, una volta) e **non** come misura: l'ordine era «dopo che
-(a) è validato». Per esteso in AUDIT.md, sezione S14. Ne nasce **R29**, in S8.
+(a) è validato». Per esteso in AUDIT.md, sezione S14. Ne nasce **R29**, in S8 — **decisa
+il 2026-09-07**: il giudice resta uno schermo (si leggono i segnalati), il prossimo giudice da
+provare è `qwen3.5:27b` in locale via `purposes.judge`, il provider remoto no finché anche il
+27b non fallisce (a); si riapre quando `ollama list` mostra un secondo modello, riferimento
+20/24, negativi 5/7, unanimi 24/24.
 
 *Il prompt con cui è stata eseguita:*
 
@@ -1729,7 +1770,38 @@ di' esplicitamente quando va eseguita.
 
 ---
 
-## S8 — Le decisioni, non il codice
+## S8 — Le decisioni, non il codice ✅ ESEGUITA il 2026-09-07
+
+**Esito: dodici decisioni prese, nessun codice, nessuna sessione nuova.** Ogni premessa è
+stata riverificata contro il repo prima di decidere: nessuna era capovolta, tre erano
+incomplete — il canale NDJSON per `/ask` esiste già (N1), il notturno è già la guardia
+campionata degli incrementali (R25), `uv sync` scarica da sé la CPython 3.14 quindi
+abbassare il pavimento non guadagna nessuna macchina (`requires-python`). Le decisioni, in
+una riga ciascuna — per esteso, con la condizione di riapertura, in `AUDIT.md`, sezione S8:
+
+| # | Voce | Decisione | Si riapre quando |
+|---|---|---|---|
+| 1 | A6 | **Divergenza accettata per sempre, di progetto**: i 9 non tracciati sono contenuto per-installazione (output di pipeline + spec di `code/`, che non si spedisce). **Chiude R13** (C3/C5 fuori per sempre); i `CONNESSA_A` dell'ADR restano | un caso del golden set nomina un non tracciato (il test dei matcher è la tripwire), o `code/` spedisce un progetto d'esempio |
+| 2 | N1 | No streaming | un secondo client di `/ask`, o p50 di generazione > 60 s |
+| 3 | N2 | Nessun gate, nessun bench notturno; baseline datata + regola prima/dopo | cambia modello, `num_ctx` o hardware; prima di ogni modifica che dichiari latenza |
+| 4 | N9 | Nessun secondo job: `macos-nativo` è la sentinella | rosso con tag sotto `macosx-14.0`, o un riscontro da un Mac → `MACOSX_DEPLOYMENT_TARGET=14.0` nel README |
+| 5 | N7 | Nessun extra in conflitto | il README promette il nativo CPU-only, o un utente lo chiede |
+| 6 | N8 | `top_k` resta 20: è un contratto esercitato (R11, R3) | R11 torna 200, cambia `num_ctx`, o un chiamante chiede > 5 |
+| 7 | R16 | **Sì**: ruleset su `main`, check `test` obbligatorio; si lavora su ramo. **Da applicare a mano** | si estende (require PR) al secondo contributore |
+| 8 | R17 | Stato costante, decorazione a token; spazzata rimandata | entra un tema chiaro |
+| 9 | release | ritirata da S9; le due constatazioni restano da fare (nessun `gh` qui) | — |
+| 10 | primo avvio | **Fuori perimetro** | la prima installazione esterna |
+| 11 | `requires-python` | **Resta `>=3.14`**, `ruff` `py314` | la biforcazione di `onnxruntime` sparisce, o il README promette pip |
+| 12 | R25 | Accettato; la guardia è il notturno, scritto in `DISTRIBUTION.md` | un alert notturno dopo un incrementale, o ≥1 incrementale reale a settimana |
+| 13 | R29 | Giudice come schermo; prossimo tentativo `qwen3.5:27b` locale; remoto no | un secondo modello in `ollama list` → `eval.attribution --repeats 3` contro 20/24 |
+
+Lavoro che nasce da S8: **uno**, R16, nelle impostazioni del repository. Constatazioni fuori
+da qui: tre — l'esito di `release.yml`, la visibilità del pacchetto GHCR, l'applicazione del
+ruleset. Faccenda locale, non del repo: il `DERIVA_DA → norm-coding-standards-v1.0` nei tre
+spec non tracciati punta a un id che non esiste (`coding-standards-baseline-v2.0`): si
+corregge a mano e si ricostruisce.
+
+*Il prompt con cui è stata eseguita:*
 
 Chiude **A6**, **N1**, **N2**, **N7**, **N8**, **N9**, **R16**, **R17**, **R25**, e le **due
 decisioni di `DISTRIBUTION.md`** che nessun registro tracciava (registry di release, primo
@@ -1908,9 +1980,14 @@ S13  l'indice e' avanti ai documenti ✅ ← R28+R27 chiusi: una misura rimisura
 S14  N3, la metrica che manca       ✅  ← harness in repo, validato contro l'archivio:
                                           giudice 20/24, negativi 5/7, unanime a T=0.
                                           Non passa S6; R29 nuovo (una decisione)
-S8   decisioni                          ← ULTIMA: 13 voci (12 decisioni + 1 gia'
-                                          ritirata), e A6 e' il punto 1
+S8   decisioni                      ✅  ← 12 decise il 2026-09-07, ognuna con la sua X;
+                                          A6 chiude R13; R16 e' "si'" da applicare a mano
 ```
+
+**Quattordici sessioni eseguite; nessuna resta.** *S8 è stata eseguita il 2026-09-07: il
+registro non ha più voci aperte — né lavoro tecnico né decisioni — ma tredici condizioni di
+riapertura scritte, tre delle quali automatiche (il test dei matcher, il check R11, l'alert
+notturno) e le altre da riconoscere.* Quanto segue è la storia di come ci si è arrivati.
 
 **Tredici sessioni eseguite; resta S8.** La seconda verifica prima di S8 —
 quella del pomeriggio del 2026-09-07 — ha trovato **un solo residuo nuovo** (R28) contro i

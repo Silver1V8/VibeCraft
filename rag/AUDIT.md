@@ -3935,3 +3935,273 @@ letti, non confrontati con una soglia. Due momenti, entrambi a mano:
   scritto accanto al verdetto e regge alla rilettura, ma sono i due record in cui la risposta
   stessa è contraddittoria: un secondo lettore potrebbe dissentire, ed è per questo che il
   testo è lì.
+
+
+---
+---
+
+# S8 — Le decisioni: dodici scelte, ciascuna con data e condizione di riapertura
+
+**Data:** 2026-09-07 · **Base:** e47dbbb · **Nessun codice di produzione.** Tredici voci
+(dodici decisioni più il punto 8, già ritirato da S9). Per ognuna: la premessa è stata
+**riverificata contro il repo di oggi** prima di decidere, perché più di una riga di questo
+audit si è rivelata stantia proprio nel passaggio da «argomentata» a «decisa». Una decisione
+qui sotto è un *«si rifà quando X»*: senza la X torna a essere una domanda.
+
+Cosa NON è stato possibile verificare da questa macchina, e va detto prima dei verdetti:
+**`gh` non è installato** e il repository è privato, quindi la protezione del ramo (R16),
+l'esito del run di release e la visibilità del pacchetto GHCR (punto 9) non sono leggibili da
+qui. Le decisioni che li riguardano sono prese; la loro *constatazione* resta fuori.
+
+## Le premesse riverificate — tre erano incomplete, nessuna capovolta
+
+| # | Premessa scritta | Verifica di oggi |
+|---|---|---|
+| 1 | 15 tracciati + 9 non tracciati | **Regge**: `git ls-files docs` → 15 `.md` + 2 `.gitkeep`; `git status --ignored` → 9 (`change_log.md`, 5 `*-canvas-review.md`, 3 `05_project_specs/*`). **In più**, e pesa sulla decisione: i tre spec portano `project: "VibeCraft — Sistema di Gestione Eventi Aziendali"` — il **dominio dismesso** che B1 ha rimosso — e un `path:` che punta a `01_architecture_norms/`, non alla cartella dove stanno. Tracciarli non è un `git add -f`: è una bonifica |
+| 2 | Streaming = due canali da costruire | **Incompleta**: `api/routes_pipeline.py` serve già tre `StreamingResponse` NDJSON. Il canale c'è come pattern di casa; il costo vero è il contratto di `/ask` e la sua cache, non l'idraulica |
+| 3 | Bench = misura, exit 0; nessun gate | **Regge** (docstring di `scripts/bench.py`, 4 snapshot in `eval/results/`, baseline in README con data e macchina). **In più**: il notturno ha già la «via di mezzo» per la recall — `eval.run --check-regression` contro la media mobile — quindi la forma esiste, e la domanda è solo se valga 10 generazioni a notte |
+| 4 | Il tag è solo stampato | **Regge**: `ci.yml:199` stampa `sysconfig.get_platform()` prima di `uv sync`. `setup-uv` chiede `python-version: "3.14"`: se l'immagine smettesse di spedire il Python di Homebrew, uv ne scaricherebbe una gestita e **il job stesso** diventerebbe la prova di quel ramo — rosso, col tag leggibile |
+| 5 | CPU-only x86-64 scarica CUDA | **Regge**: `pyproject.toml:75`, marcatore su linux/win-amd64; `release.yml` pubblica solo `cpu` |
+| 6 | `top_k` ≤ 20, 104% su una domanda | **Regge e in più è sorvegliato**: `api/models.py:19` `le=20`; il notturno (R11) pretende il 502 a `top_k=20` (105,6% rimisurato in S6); `test_ask_prompt_cost` sorveglia il costo fisso del prompt |
+| 7 | Nessuna protezione del ramo | **Non verificabile da qui** (`gh` assente). Il flusso di lavoro è push diretti su `main` (log recente) con rami `feat/*` occasionali: la decisione deve dire cosa cambia per chi spinge |
+| 8 | 39 occorrenze fra tre template | Oggi, per famiglia: `emerald` 77, `amber` 9, `red-*` 5 (grep sui `.html`, occorrenze e non righe; `pipeline` 24 righe, `infografica` 15, `dashboard` 5). **Entrambi i temi restano scuri**: nessuna è un guasto |
+| 10 | Primo avvio guidato: non iniziato | **Regge**: nulla nel codice. Il README ci arriva in quattro comandi e `scripts/doctor.py` fa il preflight — e la CI lo esercita dentro l'immagine |
+| 11 | `>=3.12` funziona, costa onnxruntime su Windows | **Regge** (S9). **In più**: `uv sync` **scarica da sé** una CPython 3.14 se manca — il percorso d'installazione documentato non guadagna nessuna macchina dall'abbassamento |
+| 12 | Nessuno misura più gli incrementali | **Incompleta**: il notturno misura il retrieval **sull'indice promosso** via `/api/retrieve` — cioè dopo qualunque incrementale — e scrive un alert critico se la recall cala sotto la media mobile. È la «guardia campionata» dell'opzione 2, **già in piedi e mai nominata come tale**. Journal di oggi: 16 job, 2 incrementali, entrambi noop |
+| 13 | Un solo modello installato | **Regge**: `ollama list` → `qwen3.5:9b`, RTX 3070 Ti 8 GB. `purposes.judge` esiste in `core/llm.py:101`, commentato in `rag_config.yaml` |
+
+## Le decisioni
+
+### 1. A6 — la divergenza è accettata per sempre, ed è di progetto, non di comodo
+
+**Deciso: la seconda strada, in modo definitivo.** Il report dichiara il corpus; un clone
+pulito **non** riproduce i numeri e non deve. La ragione non è «i 9 file sono fuori per
+ragioni legittime» — è più forte: i 9 sono **contenuto per-installazione**. Sei sono output
+della pipeline (rigenerati a ogni run: tracciarli divergerebbe di nuovo al giro dopo) e tre
+sono le spec del progetto ospitante, cioè della cartella `code/` — che **non si spedisce**
+(`code/` in un clone pulito contiene quattro `.gitignore`, `DISTRIBUTION.md` §8.2). Tracciare
+le spec di un codice assente è incoerente quanto tracciare il codice; e oggi porterebbero
+dentro anche il dominio dismesso che B1 ha tolto. `05_project_specs/.gitkeep` è tracciato
+esattamente per questo: è lo slot, vuoto in baseline, come `code/`.
+
+Le tre cose che aspettavano A6, chiuse dalla decisione e non rimandate:
+
+- **R13, C3 e C5: fuori per sempre.** Il documento che li batte è per-installazione: in CI
+  misurerebbero un altro sistema. R13 resta con C1, C2 (promossi in S10) e C4 (passa).
+  **R13 si chiude**; l'ultimo residuo con lavoro tecnico davanti non c'è più.
+- **Il grafo coerente coi frontmatter: lo è per la baseline, e i tre `CONNESSA_A` dell'ADR
+  tracciato restano.** Sono il meccanismo con cui la baseline si aggancia alle spec
+  dell'installazione: risolvono dove le spec ci sono, sono fantasmi dove lo slot è vuoto.
+  Toglierli per far tornare pulita la CI toglierebbe archi veri a ogni installazione.
+  Il `DERIVA_DA → norm-coding-standards-v1.0` nei tre spec locali (l'id tracciato è
+  `coding-standards-baseline-v2.0`) è un difetto **locale**: si corregge a mano nei tre
+  file, fuori da git, con un rebuild — una faccenda di questa macchina, non una sessione.
+- **La riproducibilità dei numeri dell'audit**: dichiarata, non ottenuta. Ogni tabella di
+  questo documento porta la versione dell'indice; il report stampa la riga di provenienza.
+  È la garanzia che resta, ed è quella scelta.
+
+**Cosa NON cambia**: l'eval continua a girare sul corpus intero, mai sui soli tracciati —
+A6 l'ha misurato una volta (0% ↔ 80%) e la ragione non è invecchiata.
+
+**Si riapre quando**: un caso del golden set nomina un documento non tracciato come atteso
+o distrattore — `test_casi_avversariali_hanno_matcher_validi` diventa rosso in CI, ed è la
+tripwire — oppure il corpus spedito acquista un progetto d'esempio in `code/`, e allora le
+spec smettono di essere per-installazione.
+
+### 2. N1 — nessuno streaming di `/ask`
+
+**Confermato: no.** Il 97,8% del tempo è generazione; lo streaming non abbassa il tempo, ne
+cambia la percezione, e il loader che conta i secondi copre già la differenza fra «lavora» e
+«è appeso». Il costo non è il canale (il pattern NDJSON c'è in `routes_pipeline.py`) ma il
+contratto: `/ask` restituisce risposta, contesto grafo, archi, punteggi e latenze **insieme**,
+la cache di `/ask` è per payload intero, e il consumatore è uno solo, la console.
+
+**Si riapre quando**: un secondo client consuma `/ask` (un'integrazione, un agente) — è il
+momento in cui il contratto va comunque rinegoziato — oppure il p50 di generazione supera
+**60 s** sulla macchina di riferimento, cioè il doppio dell'oggi, con un modello diverso.
+
+### 3. N2 — nessun gate sulla latenza; la via di mezzo è quella già scritta
+
+**Confermato: no gate, e nessun bench nel notturno.** Un p95 su 10 campioni non regge una
+soglia, e 10 generazioni a notte (~4 minuti) comprerebbero un numero il cui 97,8% dipende
+dal modello e dall'hardware, non dal codice sorvegliato. La via di mezzo esiste già in due
+pezzi: la baseline in README porta **data e macchina** accanto ai numeri (un lettore vede
+quando è vecchia), e la regola nel docstring di `bench.py` — *nessuna ottimizzazione senza
+prima/dopo* — è il gate giusto, applicato dove serve invece che ogni notte.
+
+**Si riapre (cioè: si rimisura) quando**: cambia il modello di Ollama, `num_ctx`,
+o l'hardware — le tre grandezze che fanno il 97,8% — oppure prima di qualunque modifica che
+dichiari un guadagno di latenza. Il bench va rieseguito in quei momenti, e il README
+riscritto con la data nuova.
+
+### 4. N9 — nessun secondo job macOS: quello che c'è è già la sentinella
+
+**Confermato: no.** Il ramo «CPython gestita da uv» non è scoperto, è **non provato oggi**:
+il job chiede a `setup-uv` un 3.14 e usa quello di Homebrew perché c'è. Il giorno in cui
+l'immagine non lo spedisse più, uv scaricherebbe la sua CPython e lo stesso job proverebbe
+quel ramo — e se la wheel `macosx_14_0` venisse rifiutata, il tag stampato prima del sync
+dice perché. Un secondo job costerebbe un run macOS (10× fatturato) per anticipare un rosso
+che sarà comunque leggibile.
+
+**Si riapre quando**: `macos-nativo` diventa rosso con un tag stampato sotto
+`macosx-14.0`, o un utente su Mac lo riporta. La correzione allora **non è un job**: è
+`MACOSX_DEPLOYMENT_TARGET=14.0` nel README (e nel job), una riga.
+
+### 5. N7 — nessun extra CPU/CUDA in conflitto
+
+**Confermato: no.** Il caso CPU-only x86-64 nativo **funziona** (4 GB inutili, non un
+fallimento), il target `cpu` del Dockerfile lo copre, e la release pubblica solo quello.
+Cambiare il comando di installazione per tutti per risparmiare 4 GB a chi installa
+nativamente senza GPU su x86-64 — un caso che nessuno ha ancora chiesto — non vale.
+
+**Si riapre quando**: l'installazione nativa CPU-only diventa un percorso **promesso** dal
+README (o un utente la chiede): allora `[tool.uv] conflicts` con `extra cpu`/`extra cu126`,
+e il comando cambia dichiarandolo nella tabella delle piattaforme.
+
+### 6. N8 — `top_k = 20` resta il tetto
+
+**Confermato: resta.** Il tetto non è un parametro di tuning ma un **contratto esercitato**:
+il notturno pretende il 502 a 20 (R11), il test del prompt fisso avvisa quando il margine
+si mangia (R3), e nessun chiamante usa più di 5 (Domanda aperta 2 della Run A). Abbassarlo a
+un numero «sicuro» senza misura sistematica sposterebbe il contratto per non guadagnare
+nulla: chi vuole 20 oggi riceve un errore parlante, non un troncamento silenzioso.
+
+**Si riapre quando**: il check R11 del notturno torna **200** — vuol dire che il contesto è
+sceso sotto la finestra e il tetto può salire, o che il guardrail non scatta più — oppure
+cambia `num_ctx`, oppure un chiamante reale ha bisogno di più di 5. In tutti e tre i casi la
+misura è quella originale di A1 (prompt completo a `top_k` sul corpus reale), non un numero.
+
+### 7. R16 — sì: il job `test` diventa check obbligatorio su `main`
+
+**Deciso: sì, e cambia il modo di spingere.** Un ruleset su `main` con *Require status
+checks to pass* → `test` (il job che ha Qdrant e la suite; `docker` e `macos-nativo` restano
+informativi: il primo costa 3½ minuti e il secondo è fatturato 10×, e nessuno dei due ha mai
+trovato ciò che `test` non avesse già trovato). **Conseguenza dichiarata**: un push diretto su
+`main` senza check verde viene **respinto** — il lavoro va su un ramo, la CI lo colora, poi si
+fa avanzare `main`. È esattamente ciò che R16 chiedeva: che il rosso blocchi invece di essere
+notato per caso. Bypass: l'amministratore del repository, per le emergenze, e ogni bypass
+lascia traccia.
+
+Non è eseguibile da qui (impostazione del repository, `gh` assente): **da applicare a mano**
+in Settings → Rules → Rulesets. **Verifica**: il primo push che sarebbe rosso viene respinto;
+finché non succede, la decisione è presa ma non constatata.
+
+**Si riapre (per estendersi, mai per togliersi) quando**: arriva un secondo contributore —
+allora *Require a pull request* si aggiunge al ruleset.
+
+### 8. R17 — i colori di stato restano costanti attraverso i temi; la spazzata aspetta un tema chiaro
+
+**Deciso: due classi, una regola per ciascuna.** *Stato* (ok / errore / in corso: i pallini di
+`setStatus`, il badge di `/ask`, il testo d'errore, le pillole di esito) resta **costante** e
+non si aggancia: uno stato deve essere riconoscibile attraverso i temi, e un verde che
+cambia tonalità col tema smette di essere «ok». *Decorazione* (gradienti, accenti, bordi
+`emerald-800`, il badge del tempo) segue i token. La spazzata per classificare le ~90
+occorrenze **non si fa oggi**: con due temi entrambi scuri nessuna è un guasto, e una
+spazzata senza un tema che la metta alla prova è lavoro che nessuno può verificare.
+
+**Si riapre quando**: entra un **tema chiaro**. È l'unico momento in cui la distinzione
+produce un difetto visibile, e in cui la classificazione si verifica a schermo invece che a
+tavolino. A quel punto è una sessione: decisione già presa, resta la spazzata.
+
+### 9. Registry e release — ritirata da S9; restano due constatazioni, ancora da fare
+
+Nulla da decidere. Le due constatazioni — l'esito del run di `release.yml` sul tag `v0.1.0`
+e la visibilità del pacchetto GHCR, che nasce privato — **non sono state fatte nemmeno oggi**:
+`gh` non è installato e il repository è privato. Restano dove `DISTRIBUTION.md` le tiene, in
+«Cosa resta aperto», e si fanno da GitHub, non da un documento.
+
+### 10. Primo avvio guidato — esce dal registro
+
+**Deciso: fuori perimetro.** Il primo avvio del prodotto è già definito e provato: quattro
+comandi nel README, `scripts/doctor.py` che dice cosa manca e con quale rimedio — e la CI
+lo esegue dentro l'immagine (`ci.yml`, «Il preflight segnala i servizi assenti»). Un wizard
+in più, per un prodotto che oggi ha un solo installatore (l'autore), è una funzionalità
+senza utente. «Non iniziato» smette di essere un'etichetta: la riga in `DISTRIBUTION.md`
+diventa «deciso: no».
+
+**Si riapre quando**: esiste un installatore che non è l'autore — la prima installazione
+esterna riportata, o il pacchetto GHCR reso pubblico e tirato da qualcuno. Allora la domanda
+ha un utente, e si fa con lui.
+
+### 11. `requires-python` — resta `>=3.14`; `ruff` resta `py314`
+
+**Deciso: no, non si abbassa.** S9 ha misurato che *si può*; la domanda era se *convenga*, e
+il conto è questo. **Guadagno**: nessuna macchina nel percorso documentato — `uv sync`
+scarica una CPython 3.14 da sé, il container la porta dentro, e la release è Docker. Il
+guadagno esisterebbe solo per chi installa con pip o con un Python di sistema, che il README
+non promette. **Costo**: `onnxruntime` di 21 mesi più vecchio **sulla piattaforma di sviluppo**
+più tre pacchetti nuovi, un lock del 28% più largo, e un pavimento dichiarato che poi nessuna
+CI prova su 3.12 (la matrice è 3.14). Pagare sulla macchina primaria per un pubblico che non
+c'è è il verso sbagliato. `[tool.ruff] target-version` resta coerente col pavimento.
+
+**Si riapre quando**: (a) la biforcazione sparisce — si rifà la procedura di S9 in una copia
+fuori repo e `uv lock` a `>=3.12` dà **un solo** `onnxruntime` su tutte le piattaforme —
+oppure (b) il README promette un percorso pip/Python di sistema. In (a) si abbassa insieme a
+`ruff`, come S9 prescrive; in (b) prima si aggiunge 3.12 alla matrice CI, poi si abbassa.
+
+### 12. R25 — il buco è accettato, e la guardia che lo copre ha finalmente un nome
+
+**Deciso: la prima risposta, con una correzione alla premessa.** «Nessuno misura più gli
+incrementali» non è vero: il notturno misura la recall **sull'indice promosso**, via
+`/api/retrieve`, e alza un alert critico sotto la media mobile — una guardia **campionata**
+(una volta a notte, non per job), cioè l'opzione 2, in piedi da Epic 5.2 e mai descritta come
+la copertura degli incrementali. Con questo, ciò che resta scoperto è preciso e piccolo: un
+incrementale che degrada l'indice **viene visto la notte stessa**, ma (i) non prima di
+servire, e (ii) il rollback blue/green intra-lineage **non riavvolge** i punti Qdrant che
+l'incrementale ha scritto — chi torna indietro dopo un incrementale sbagliato deve rifare un
+full. Il journal di oggi dice che gli incrementali non sono il percorso di scrittura
+dominante: 2 su 16 job, entrambi noop.
+
+Le altre due risposte restano finanziabili, e non oggi: la candidata per gli incrementali
+(opzione 3) è una sessione propria e costa una copia della collection a ogni delta.
+
+Dove lo trova un lettore, da oggi: `DISTRIBUTION.md`, «Aggiornamento senza perdere
+l'indice» (per chi opera), e la riga di RESIDUI. Il docstring di `eval_gate.py` resta la
+sorgente tecnica.
+
+**Si riapre quando**: un alert del notturno arriva con un job **incrementale** come ultimo
+job completato nel journal (la regressione è attribuibile a un delta), oppure il journal
+registra almeno **un incrementale reale (non noop) a settimana** — allora gli incrementali
+sono il percorso di scrittura e l'opzione 3 apre la sua sessione.
+
+### 13. R29 — il giudice resta uno schermo; il prossimo esperimento è locale, non remoto
+
+**Deciso: la prima risposta ora, la seconda come prossimo passo, la terza no.** N3 resta
+**misurata**, non «chiusa così com'è»: dichiararla chiusa con un giudice che sbaglia un
+record su sei significherebbe mettere nelle tabelle un numero che nessuno sa se dice il
+vero. Fino a un giudice che passa (a), il modo (b) si usa come S14 prescrive: 24 chiamate a
+`/ask` dopo ogni promozione che tocca ranking o corpus, e si **leggono i segnalati** — con 0
+negativi mancati in-sample, «leggi i segnalati» è meno di 24 letture e più di zero.
+
+Il prossimo giudice da provare è **`qwen3.5:27b` in locale**, via `llm_settings.purposes.judge`
+— in parte su CPU, 24 giudizi lenti, nessuna spesa e nessun confine: il corpus di `docs/`
+non esce dalla macchina. **Il provider remoto no**, non ora: costa denaro e manda fuori il
+corpus, e uno schermo che oggi non manca nessun negativo non giustifica di attraversare quel
+confine per due falsi allarmi. Diventa la scelta solo se anche il 27b non passa (a).
+
+**Si riapre quando**: `ollama list` mostra un secondo modello — allora
+`uv run python -m eval.attribution --repeats 3`, con il riferimento **20/24, negativi 5/7,
+unanimi 24/24**: sotto è una regressione del giudice, sopra e con negativi 7/7 è un giudice
+che passa e il modo (b) entra nelle tabelle.
+
+## Bilancio
+
+| | |
+|---|---|
+| Decisioni prese | **12** (1–8 e 10–13; il 9 era ritirato) |
+| Confermate com'erano argomentate | 8 — N1, N2, N9, N7, N8, `requires-python` (che era «da decidere», e la decisione è no), R25, primo avvio (fuori) |
+| Ribaltate o cambiate di forma | 3 — **A6** (la divergenza diventa di progetto, e chiude R13 definitivamente), **R16** (da «forse» a «sì, e cambia il flusso»), **R29** (ordine dei tentativi fissato: locale prima, remoto solo dopo) |
+| Con lavoro davanti | **1**, minimo: R16 va applicata a mano nelle impostazioni del repository. Nessuna sessione nuova nasce da S8 |
+| Aperto con lavoro tecnico | **0**: R13 si chiude con A6 |
+| Constatazioni fuori da qui | 3 — l'esito di `release.yml`, la visibilità del pacchetto GHCR, l'applicazione del ruleset |
+
+## Cosa questa sessione NON prova
+
+- **Che le condizioni di riapertura scattino da sole.** Tre sono tripwire automatiche (il
+  test dei matcher per A6, il check R11 per N8, l'alert del notturno per R25); le altre sono
+  eventi che qualcuno deve riconoscere — un modello nuovo, un tema chiaro, un installatore
+  esterno. Un registro con condizioni scritte è meglio di uno senza, non è un sensore.
+- **Che `main` sia protetta.** È deciso, non fatto, e non è verificabile da qui.
+- **Che il 27b passi (a).** È l'ipotesi con cui R29 ordina i tentativi, non una misura.
+- **Che i 6 output di pipeline non pesino sui numeri.** A6 li dà come rumore di fondo
+  (nessun caso li nomina); è vero per il golden set, non è misurato per il multihop.

@@ -153,8 +153,16 @@ Ogni livello è utilizzabile da solo.
    `implementing_code` in `/ask`) partono vuote. Il quickstart arriva alla prima risposta
    **sui documenti**; quella sul codice richiede di puntare `code/` a un progetto vero.
 3. **`>=3.14`: si abbassa?** ~~Va provato, non deciso a tavolino.~~ **PROVATO il 2026-09-07**
-   (S9). Si abbassa: sotto c'è il numero che questa riga chiedeva da sei giorni. Resta una
-   decisione — ma ora costa qualcosa di preciso, non «chissà».
+   (S9). Si abbassa: sotto c'è il numero che questa riga chiedeva da sei giorni. ~~Resta una
+   decisione — ma ora costa qualcosa di preciso, non «chissà».~~ **DECISO il 2026-09-07 (S8):
+   NO, resta `>=3.14`, e `[tool.ruff] target-version` resta `py314`.** Il guadagno era zero
+   nel percorso documentato — `uv sync` scarica da sé una CPython 3.14, il container la porta
+   dentro, la release è Docker — e il costo cadeva sulla piattaforma di sviluppo
+   (`onnxruntime` di 21 mesi più vecchio, tre pacchetti in più, lock +28%) senza che nessuna CI
+   provasse il pavimento promesso. **Si riapre quando** la biforcazione sparisce (rifare la
+   procedura qui sotto: `uv lock` a `>=3.12` deve dare un solo `onnxruntime` su tutte le
+   piattaforme) oppure il README promette un percorso pip / Python di sistema — e allora
+   prima entra 3.12 nella matrice CI, poi si abbassa. Cronaca in `AUDIT.md`, S8 punto 11.
 
 ### La forcella 3 misurata: `>=3.12` funziona, e ha un prezzo su Windows (2026-09-07)
 
@@ -510,6 +518,20 @@ quindi la differenza è rilevabile e non silenziosa); formato artefatti cambiato
 `load_artifacts` ricade sui `.pkl` con un warning esplicito. Più il rollback blue/green, che
 è il ritorno indietro senza reindicizzare.
 
+**Un limite del rollback che chi opera deve sapere (R25, deciso il 2026-09-07 in S8).** Gli
+incrementali scrivono **in place** sulla collection Qdrant già promossa: niente candidata,
+niente gate bloccante. Quindi (i) un delta che degrada l'indice viene servito subito, e (ii)
+un rollback blue/green a una versione precedente **non riavvolge** i punti che un incrementale
+successivo ha scritto — dopo un incrementale sbagliato il ritorno pulito è un **full rebuild**,
+non il rollback. La guardia che c'è è **campionata, non per job**: il batch notturno
+(`scripts/nightly_consistency.*`) misura la recall sull'indice promosso via `/api/retrieve` e
+scrive un alert critico in `database/alerts.jsonl` (letto da `GET /api/health`) se cala sotto la
+media mobile — un incrementale cattivo si vede la notte stessa, non prima. Accettato così
+perché gli incrementali non sono il percorso di scrittura dominante (journal: 2 su 16 job,
+entrambi noop). **Si riapre quando** un alert notturno segue un job incrementale come ultimo
+completato, o il journal registra almeno un incrementale reale a settimana: allora anche gli
+incrementali producono una candidata, in una sessione propria.
+
 ### Cosa di L3 NON è stato fatto, e perché
 
 *Rivisto per intero il 2026-09-07 (**R22**). Questa è la sezione che un lettore nuovo apre per
@@ -550,10 +572,15 @@ del codice**, e due di esse venivano smentite da altre sezioni di questo stesso 
   difetto che R22 nomina, ed è corretto qui il 2026-09-07.* macOS Intel resta impossibile a
   monte (PyTorch non pubblica quelle wheel), e resta scoperto il ramo con CPython **gestita da
   uv** (N9).
-- **Primo avvio guidato** (scegli la cartella → indicizza → prima domanda). È una funzionalità
+- ~~**Primo avvio guidato** (scegli la cartella → indicizza → prima domanda). È una funzionalità
   di prodotto, non di packaging: il README oggi porta allo stesso risultato in quattro
-  comandi. **Non iniziato** — *l'unica delle quattro voci ancora vera com'era scritta,
-  riverificata il 2026-09-07: nel codice non esiste nulla del genere.*
+  comandi. **Non iniziato**~~ — *riverificata il 2026-09-07: nel codice non esiste nulla del
+  genere.* **DECISO il 2026-09-07 (S8): fuori perimetro.** Il primo avvio è già definito e
+  provato — quattro comandi nel README e `scripts/doctor.py` che dice cosa manca e con quale
+  rimedio, esercitato dalla CI dentro l'immagine. Un wizard per un prodotto con un solo
+  installatore (l'autore) è una funzionalità senza utente. **Si riapre quando** esiste un
+  installatore che non è l'autore: la prima installazione esterna riportata, o il pacchetto
+  GHCR reso pubblico e tirato da qualcuno — e si fa con lui.
 
 ---
 
@@ -721,7 +748,16 @@ saltare in silenzio. Prima passavano come skip su un runner senza Qdrant.
   2026-09-07:** `>=3.12` risolve, installa e fa passare la suite (`1321 passed` su CPython
   3.12.13), e il codice non usa una sola riga di sintassi o di stdlib posteriore a 3.12. Il
   prezzo è uno solo ed è su Windows: `onnxruntime` scende a **1.20.1**, ~21 mesi indietro.
-  Misura per intero in §8; **quello che resta è la decisione**, non il numero.
+  Misura per intero in §8; ~~**quello che resta è la decisione**, non il numero.~~ **Deciso lo
+  stesso giorno (S8): resta `>=3.14`**, con la condizione di riapertura scritta in §8.
+- **Due «no» di installazione, decisi il 2026-09-07 (S8) e non più da ridiscutere.** *N7*:
+  nessun extra CPU/CUDA in conflitto — il CPU-only x86-64 nativo funziona (4 GB inutili, non
+  un fallimento) e il target `cpu` lo copre; si riapre se il README promette l'installazione
+  nativa CPU-only o un utente la chiede. *N9*: nessun secondo job macOS per la CPython gestita
+  da uv — il job `macos-nativo` stampa il tag di piattaforma prima del sync ed è esso stesso la
+  sentinella (se l'immagine perdesse il Python di Homebrew, proverebbe quel ramo); si riapre
+  al primo rosso con tag sotto `macosx-14.0` o al primo riscontro da un Mac, e la correzione è
+  `MACOSX_DEPLOYMENT_TARGET=14.0` nel README, non un job. Ragioni in `AUDIT.md`, S8.
 - **Il workflow di release non è mai stato verificato dall'esterno.** Il tag `v0.1.0` è
   partito il 2026-09-01, ma il repository è privato e da qui un pull anonimo non distingue
   «pacchetto privato» da «pacchetto inesistente». Cosa guardare: sezione precedente.
