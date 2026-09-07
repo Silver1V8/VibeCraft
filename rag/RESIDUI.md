@@ -13,7 +13,7 @@ diciannove.
 
 Alla nascita questo documento non aggiungeva riscontri nuovi: raccoglieva quelli che AUDIT.md
 dichiarava aperti, li triava fra risolvibili e non, e li ordinava in sessioni di lavoro.
-**Eseguendole ne sono nati undici** (R15–R25), e sono la parte che l'audit da solo non poteva
+**Eseguendole ne sono nati quattordici** (R15–R28), e sono la parte che l'audit da solo non poteva
 produrre: si vedono correggendo, non leggendo. Gli ultimi quattro — R22, R23, R24, R25 — non li ha
 prodotti una sessione ma la **verifica del 2026-09-07**, fatta prima di eseguire S8 per
 controllare che ciò che restava aperto lo fosse ancora. Delle quattro voci di lavoro tecnico
@@ -1543,10 +1543,37 @@ Aggiorna AUDIT.md e RESIDUI.md.
 
 ---
 
-## S13 — L'indice è avanti ai documenti, e una riga di API mente sull'astensione
+## S13 — L'indice è avanti ai documenti, e una riga di API mente sull'astensione ✅ ESEGUITA il 2026-09-07
 
 Chiude **R28** e **R27**. Nessuna calibrazione, nessun rebuild: si esegue subito ed è
 l'ultima cosa fra qui e S8.
+
+**Esito.** `database/CURRENT` riverificato *prima* di scrivere un numero: era ancora
+`v20260907T115228`, quindi la voce valeva com'era scritta.
+
+- **R28 — una misura sola era rimisurabile, tutto il resto è stato datato.** La riga del
+  gate delle 11:53 era già in `history.jsonl` (committata in `6a9f7ac`): `recall@1` 0.690 →
+  **0.741**, `recall@5` 0.948 → 0.966, `recall@2` fermo a 0.862, 58 casi — il rendimento di
+  S11 sull'indice **promosso**, non più sul calibratore. Il confronto con la riga delle 09:50
+  regge **solo** grazie a R26 (S10 ha reso il gate cieco al grafo lo stesso ranking del
+  server); prima di R26 sarebbero stati due metri diversi. **Rietichettato, non rimisurato**:
+  i cinque candidati di R13, le quattro combinazioni del gate di R26, l'intera griglia di S11,
+  le 24 run di `golden_attribution.yaml` — tutti dichiarati come misure di `v20260907T094225`
+  in testa alle sezioni S10, S11, S12. L'archivio di S12 è marcato `superseded_by` invece di
+  riprodotto (24 riletture umane, non solo 24 chiamate, sarebbero costate su un sistema che
+  S13/S14 avrebbero cambiato ancora), con un test che verifica l'invariante a macchina.
+- **R27 — la correzione prevista in questo prompt (`answer.lstrip("*# \n")`) non bastava**,
+  e l'archivio di S12 lo dimostra senza rilanciare il modello: toglie l'apertura e lascia la
+  chiusura, quindi `**[ASTENSIONE]**` sarebbe uscito con la risposta sporca di `**`. Il set di
+  ornamenti è stato **misurato** sulle 24 risposte archiviate, non scelto: backtick 37
+  occorrenze (l'abitudine più frequente del modello — non era nella correzione prevista),
+  asterisco 9 (il difetto), cancelletto 0 ma tenuto perché `[REGOLA-ASTENSIONE]` lo vieta
+  esplicitamente. Il lettore è ora una regex ancorata che toglie solo gli ornamenti attaccati
+  al marcatore. Cinque test nuovi, quattro verificati rossi sul codice precedente;
+  `test_marcatore_a_meta_testo_non_conta` di A16 resta verde.
+- **Verifica:** `ruff check .` pulito; suite **1336 passed**, 0 skipped (1330 prima, +6 test).
+
+Cronaca completa in `AUDIT.md`, sezione **S13**.
 
 ```
 Lavora su rag/. Due cose piccole e indipendenti, piu' una riga da committare.
@@ -1843,14 +1870,15 @@ S11  i tre parametri accoppiati     ✅  ← R20/R23 chiusi: alpha 0.3, tetto 3,
                                           sezione 0.92 — confermato INSIEME, non da solo
 S12  il prerequisito di N3          ✅  ← N3 scrivibile: 7 negativi su 24 archiviati
                                           col testo e l'indice; R27 nuovo (una riga in api/)
-S13  l'indice e' avanti ai documenti    ← R28 + R27: nessun rebuild, si esegue subito
+S13  l'indice e' avanti ai documenti ✅ ← R28+R27 chiusi: una misura rimisurata
+                                          (recall@1 +5,2 pt), il resto datato/rietichettato
 S14  N3, la metrica che manca           ← l'unico lavoro che aggiunge una CAPACITA'.
                                           Non aspetta l'indice: il giudice si valida
                                           contro risposte gia' archiviate
 S8   decisioni                          ← ULTIMA: 12 voci, e A6 e' il punto 1
 ```
 
-**Undici sessioni eseguite, due scritte e non eseguite.** La seconda verifica prima di S8 —
+**Dodici sessioni eseguite, una scritta e non eseguita.** La seconda verifica prima di S8 —
 quella del pomeriggio del 2026-09-07 — ha trovato **un solo residuo nuovo** (R28) contro i
 quattro della mattina, ed è il segnale che la coda si sta chiudendo davvero.
 
