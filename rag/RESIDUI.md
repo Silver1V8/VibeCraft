@@ -29,8 +29,8 @@ rapporto che questo audit trova ogni volta che qualcuno va a guardare invece di 
 | Righe dell'audit | 19 — 15 chiuse, 3 ritirate, 1 con premessa ritirata e sostanza chiusa |
 | Residui dichiarati | **23** (+12: R15 e R16 dai run CI reali, R17 da S4, R18 e R19 da S5, R20 da S6, R21 da S7, R22, R23, R24, R25 dalla verifica del 2026-09-07 — e **R26** da S10, lo stesso giorno) |
 | Di cui già chiusi da altri interventi (riga stantia) | 2 |
-| Risolvibili con lavoro tecnico | **19 chiusi**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, **R12** (S7, 2026-09-07), R14, **R15**, **R21**, **R22**, **R24**, **R18** (S10: due righe, non una, e un rebuild), **R26** (S10, aperto e chiuso in giornata) (tutti il 2026-09-07 — R21, R22 e R24 poche ore dopo essere stati aperti), N5, N6. Fuori elenco, chiusi lo stesso: **N4** (S6) e **R19** (effetto collaterale di N4) |
-| Ancora aperti, con lavoro tecnico davanti | **3** — R13 (**rimisurato e ridotto da S10**: C1 e C2 promossi, C4 passa, restano C3 e C5 che aspettano A6), R20 e **R23** (la stessa griglia congiunta). *S10 ha chiuso R18, aperto R26 e **chiuso R26 lo stesso giorno** (il gate ora riceve `graph` e `restatements`: 0.845 → 0.862, tutto N4, il grafo non muoveva nulla).* *S9 ne ha chiusi tre in un giro: R15 senza scrivere codice (la guardia c'era già), R24 con due righe di `conftest.py` e una di attesa, R22 con una sezione riscritta* |
+| Risolvibili con lavoro tecnico | **21 chiusi**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, **R12** (S7, 2026-09-07), R14, **R15**, **R21**, **R22**, **R24**, **R18** (S10: due righe, non una, e un rebuild), **R26** (S10, aperto e chiuso in giornata), **R20** e **R23** (S11, la griglia congiunta) (tutti il 2026-09-07 — R21, R22 e R24 poche ore dopo essere stati aperti), N5, N6. Fuori elenco, chiusi lo stesso: **N4** (S6) e **R19** (effetto collaterale di N4) |
+| Ancora aperti, con lavoro tecnico davanti | **1** — R13 (**rimisurato e ridotto da S10**: C1 e C2 promossi, C4 passa, restano C3 e C5 che aspettano A6). *S11 (2026-09-07) ha chiuso **R20 e R23** con la griglia congiunta — e non con «non si cambia niente»: `boost_alpha` 0.1 → **0.3** (held-out +0.038 a k=1, dev.std 0.007, 5/5 seed, senza più perdere a k=5/10), `graph_context_max_chunks` 2 → **3** (il prezzo misurato di alpha nel ramo grafo), peso di sezione **confermato a 0.92** in 25 fold su 25 con alpha libero.* *S10 ha chiuso R18, aperto R26 e **chiuso R26 lo stesso giorno** (il gate ora riceve `graph` e `restatements`: 0.845 → 0.862, tutto N4, il grafo non muoveva nulla).* *S9 ne ha chiusi tre in un giro: R15 senza scrivere codice (la guardia c'era già), R24 con due righe di `conftest.py` e una di attesa, R22 con una sezione riscritta* |
 | Fuori registro fino a oggi | **4** voci di `DISTRIBUTION.md` che nessuna riga di RESIDUI tracciava: la forcella `>=3.14` (**misurata il 2026-09-07**, resta la decisione), il workflow di release (**la riga era stantia: è scritto e già partito**), il primo avvio guidato, lo smoke test sul secondo OS (**c'è: scoperto è Windows nativo**) |
 | Che richiedono una decisione, non del codice | **10**, tutte in S8: N1, N2, N7, N8, N9 + R16 (proteggere il ramo), R17 (quali colori seguono il tema), **R25** (il buco lasciato scoperto dalla rimozione di M6), il primo avvio guidato e — nuova — **se abbassare `requires-python` a `>=3.12`**, che S9 ha reso una scelta con un prezzo invece di una domanda. *Erano 5: N4 è uscita (S6 l'ha decisa misurandola), poi sono entrate N9, R16, R17, R25 e le due di distribuzione; ora esce anche il **registry di release**, che era già deciso e spedito dal 2026-09-01 — la riga che lo dava aperto era stantia quanto il bilancio da cui veniva* |
 | Non risolvibili (dati persi, hardware assente) | 1 |
@@ -70,7 +70,7 @@ Difetti e rischi veri, ancora presenti. **Verificato oggi** salvo dove indicato.
 *Aggiornamento 2026-09-07: la sezione è diventata in gran parte un registro di chiusure — le
 voci `✅` restano qui, con la cronaca di come sono state chiuse, perché è dove il lettore le
 cerca. **Ancora aperte davvero (rivisto dopo S9, verificando una per una contro il codice):**
-R13 (ridotto a C3/C5, che aspettano A6), R16, R17, R20, R23. **R18 e R26 sono chiusi da S10**
+R13 (ridotto a C3/C5, che aspettano A6), R16, R17. **R20 e R23 sono chiusi da S11** (2026-09-07: alpha 0.3, tetto 3, peso di sezione confermato insieme — `AUDIT.md`, S11). **R18 e R26 sono chiusi da S10**
 (2026-09-07, due righe e un rebuild: il residuo ne contava una). **R21 è chiuso** (fc5d8d6, lo
 stesso giorno in cui è nato); **R15, R22 e R24 sono chiusi da S9**, lo stesso giorno in cui gli ultimi due sono nati — R15 senza
 scrivere nulla, perché la guardia che chiedeva esisteva già e non era stata riconosciuta.*
@@ -436,8 +436,8 @@ Due cose da decidere, e nessuna è «alzare la soglia»: se la soglia debba esse
 dimensione del corpus invece che assoluta, e se un documento non tracciato debba poter
 consumare il margine di una metrica sorvegliata (è A6 che torna, da un'altra porta).
 
-**R20 — `boost_alpha` e `section_restatement_weight` sono accoppiati e sono stati calibrati
-uno alla volta.** *(Nuovo, 2026-09-05, emerso da N4.)* Rimisurato dopo N4,
+**R20 ✅ — `boost_alpha` e `section_restatement_weight` sono accoppiati e sono stati calibrati
+uno alla volta. CHIUSO il 2026-09-07 (S11).** *(Nuovo, 2026-09-05, emerso da N4.)* Rimisurato dopo N4,
 `eval.calibrate_authority --k 1` ha **cambiato verdetto**: dove prima dava `NON_APPLICARE`
 con guadagno held-out **−0.029**, ora propone `alpha=0.3` con **+0.028**. Il `default_recall`
 held-out è salito da 0.636 a 0.716 — è il peso di sezione, visto da uno strumento che non
@@ -447,6 +447,19 @@ respinto con una misura. Ma il fatto che l'ottimo di α si sia mosso è il resid
 parametri governano lo stesso ordinamento e una griglia congiunta non è mai stata girata.
 Non è urgente — la configurazione attuale è la migliore misurata su ogni singolo asse — ed è
 esattamente il tipo di lavoro che va fatto quando c'è margine, non sotto pressione.
+
+**Esito (S11, 2026-09-07): la griglia congiunta è stata girata, e ha dato torto a metà del
+residuo.** `eval.calibrate_authority` ha ora un quarto asse (`section_restatement_weight`, con 1.0 =
+N4 spento in griglia), 2160 punti, 5-fold × 5 seed, k=1. Il peso di sezione **resta 0.92**: scelto in
+25 fold su 25 con alpha libero, e spegnerlo perde ovunque (r@1 0.690 → 0.603, multihop 10 → 9 su 14).
+`boost_alpha` invece **sale a 0.3**: held-out +0.038, dev.std 0.007, positivo su 5 seed su 5, scelto
+in 21 fold su 25 — la disciplina di N4, rispettata. Il +0.028 con dev.std 0.024 di questo residuo
+era il risultato di un tie-break sbagliato (fra punti nuovi a pari recall vinceva il primo iterato,
+che trascinava `unclassified_weight=0.1` per ordine di `for`, e quello costava 0.016 fuori campione:
+ora vince chi cambia meno coordinate, e un test lo pinna) e di un corpus diverso (S10). E la
+ragione di A3 per non salire — perdere a k=5/k=10 — non regge più sul corpus attuale: alpha 0.3 fa
++1 caso a k=5 e a k=10, zero a k=2, multihop identico, 4 avversariali su 5 a rango 1 (erano 0).
+Server-identico: 0.741 / 0.862 / 0.966 / 1.000. Numeri e tabelle in `AUDIT.md`, S11.
 
 **R21 ✅ — L'esperimento M6 ha una regola di decisione che i suoi stessi dati hanno già
 risolto, e nessuno l'ha applicata. CHIUSO il 2026-09-07**, poche ore dopo essere stato
@@ -569,7 +582,7 @@ Emerso di striscio, e scritto lì: il *changelog* che il punto 12 di L3 chiedeva
 esiste come **messaggio del tag annotato** `v0.1.0`, non come `CHANGELOG.md`. Il bilancio non lo
 nominava né in un senso né nell'altro.
 
-**R23 — `graph_context_max_chunks: 2` non è mai stato calibrato.** *(Nuovo, 2026-09-07, da una
+**R23 ✅ — `graph_context_max_chunks: 2` non è mai stato calibrato. CHIUSO il 2026-09-07 (S11).** *(Nuovo, 2026-09-07, da una
 riga di S6 mai numerata.)* «Cosa questa sessione NON prova» lo dichiara esplicitamente: *«non è
 più il collo di bottiglia sulle tre catene, ma non è stato calibrato: è rimasto dov'era»*.
 Verificato: `rag_config.yaml:114` e `core/config.py:310` portano tuttora il valore iniziale
@@ -577,6 +590,18 @@ Verificato: `rag_config.yaml:114` e `core/config.py:310` portano tuttora il valo
 leva che R9 ha dovuto forzare per far arrivare il terzo documento — ed è rimasto al suo valore
 di partenza mentre N4 cambiava l'ordinamento sotto di esso. È lo **stesso** difetto di R20 su un
 terzo parametro, quindi va nella stessa griglia e non in una sessione propria.
+
+**Esito (S11, 2026-09-07): misurato a parte, non nella griglia — ed è stato dichiarato prima.** Non
+è un peso ma un taglio nel ramo grafo di `/ask`, che nessuna suite di retrieval attraversa: il nuovo
+`eval/calibrate_graph_context.py` costruisce il contesto di `/ask` con la stessa app in-process
+(LLM stubbato) e conta, per ogni tetto, quante delle 8 catene multihop hanno tutte le fonti in
+finestra. Con alpha 0.1 il gomito era **a 2**: il valore iniziale era già giusto (4/8 → 6/8 → 8/8
+catene complete a livello documento per tetto 0/1/2, poi piatto). Con alpha 0.3 — applicato nella
+stessa sessione — il gomito **si sposta a 3**: `_composito` legge lo stesso alpha, e la catena
+dell'«ultima unità» perde `api_error_contract` (il terzo documento di R9) a 2 e lo riprende a 3,
+per +1.8k caratteri di contesto. È la prova che il residuo cercava: tetto e alpha sono accoppiati, e
+ora `rag_config.yaml` lo dice accanto a entrambi. Il livello di *sezione* resta 3/8 a ogni tetto:
+non è il tetto a scegliere quale sezione entra (R9), e nessun tetto lo cambia.
 
 **R24 ✅ — La suite scrive nella `database/` reale del progetto.** *(Nuovo, 2026-09-07, effetto
 collaterale della misura di R15; chiuso lo stesso giorno, S9.)* La suite **creava**
@@ -1286,7 +1311,9 @@ Suite completa + ruff. Aggiorna AUDIT.md e RESIDUI.md.
 
 ---
 
-## S11 — I tre parametri accoppiati, in una griglia sola
+## S11 — I tre parametri accoppiati, in una griglia sola ✅ ESEGUITA il 2026-09-07
+
+*Esito: R20 e R23 chiusi. `boost_alpha` 0.1 → 0.3, `graph_context_max_chunks` 2 → 3, peso di sezione confermato a 0.92 con alpha libero. Cronaca e numeri in `AUDIT.md`, S11.*
 
 Chiude **R20** e **R23**. Va **dopo S10**: calibrare su un corpus che sta per cambiare è
 l'errore che questo audit ha già documentato due volte.
@@ -1526,9 +1553,9 @@ S9   guardia, doc, forcella         ✅  ← R15/R22/R24 chiusi, forcella misura
 S10  la baseline si sposta          ✅  ← R18 chiuso (erano due righe), R13 +2 casi,
                                           R26 nuovo: va PRIMA di S11
 R26  il gate senza N4               ✅  ← chiuso in giornata: gate = server (0.862)
-S11  i tre parametri accoppiati         ← dopo R26: calibrare su un corpus che sta
-                                          per cambiare e' l'errore gia' documentato
-S12  il prerequisito di N3              ← dopo S10 e S11: una prova archiviata contro
+S11  i tre parametri accoppiati     ✅  ← R20/R23 chiusi: alpha 0.3, tetto 3, peso di
+                                          sezione 0.92 — confermato INSIEME, non da solo
+S12  il prerequisito di N3              ← dopo S11: una prova archiviata contro
                                           un ordinamento che cambia marcisce
 S8   decisioni                          ← ULTIMA: il punto 10 ha ora i suoi numeri
 ```

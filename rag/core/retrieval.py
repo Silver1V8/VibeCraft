@@ -140,8 +140,10 @@ def _authority_weight(attrs: dict, *, weights: dict | None = None,
 #
 # Il peso di classe riordina i candidati e poi spariva: /ask consegnava all'LLM blocchi
 # «--- doc § sezione ---» tutti uguali fra loro. Con `governed_max_chunks: 8` la fonte
-# normativa e quella che la illustra entrano quasi sempre INSIEME nella finestra — è la
-# premessa su cui `boost_alpha` resta a 0.1 — ma dentro la finestra il modello non aveva
+# normativa e quella che la illustra entrano quasi sempre INSIEME nella finestra — la
+# premessa su cui `boost_alpha` restò a 0.1 fino a S11 (2026-09-07), quando la griglia
+# congiunta misurò che a 0.3 nessuna fonte esce più dalla finestra — ma dentro la finestra
+# il modello non aveva
 # alcun segnale per distinguerle e ri-ordinava a naso, per prosa. Misurato sui 4 casi
 # avversariali: 2 risposte su 4 attribuivano il vincolo alla fonte METHODOLOGY che lo
 # spiega invece che alla spec che lo stabilisce, pur avendo entrambe sotto gli occhi.

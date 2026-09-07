@@ -1,4 +1,4 @@
-generated_at: '2026-09-05T12:46:55'
+generated_at: '2026-09-07T12:47:32'
 metric: recall@1
 cv:
   folds: 5
@@ -8,28 +8,42 @@ cv:
   - 2
   - 3
   - 4
-  default_recall: 0.7164
-  calibrated_recall: 0.7442
-  gain: 0.0279
-  gain_std: 0.0239
+  default_recall: 0.6906
+  calibrated_recall: 0.7288
+  gain: 0.0382
+  gain_std: 0.0074
   gain_per_seed:
-  - 0.0515
-  - 0.0364
   - 0.0333
-  - 0.0364
-  - -0.0182
+  - 0.0348
+  - 0.0348
+  - 0.053
+  - 0.0348
+  chosen_per_fold:
+  - alpha: 0.3
+    default_weight: 0.7
+    unclassified_weight: 0.3
+    section_restatement_weight: 0.92
+    n_folds: 21
+  - alpha: 0.5
+    default_weight: 0.7
+    unclassified_weight: 0.3
+    section_restatement_weight: 0.92
+    n_folds: 4
+grid_seconds: 25.4
 dead_axes:
 - default_weight
 in_sample_best:
   alpha: 0.3
-  default_weight: 0.4
-  unclassified_weight: 0.1
-  recall: 0.7679
+  default_weight: 0.7
+  unclassified_weight: 0.3
+  section_restatement_weight: 0.92
+  recall: 0.7414
 default:
   alpha: 0.1
   default_weight: 0.7
   unclassified_weight: 0.3
-  recall: 0.7143
+  section_restatement_weight: 0.92
+  recall: 0.6897
 adversarial_subset:
   n: 5
   recall_authority_off: 0.0
@@ -38,4 +52,5 @@ adversarial_subset:
 recommendation: APPLICA
 proposed_authority_yaml:
   boost_alpha: 0.3
-  default_weight: 0.4
+  default_weight: 0.7
+  section_restatement_weight: 0.92

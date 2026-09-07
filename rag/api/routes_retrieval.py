@@ -294,8 +294,10 @@ async def ask_rag(request: Request, query: AskQuery):
         fonti_nel_contesto.append(r)
         # La CLASSE nell'intestazione (A3): il boost di autorità riordinava i candidati e poi
         # spariva, e l'LLM riceveva blocchi indistinguibili. Con 8 sezioni in finestra la spec
-        # e il documento che la illustra ci entrano quasi sempre insieme — è la premessa su cui
-        # boost_alpha resta 0.1 — ma senza etichetta il modello li ripesa a naso, per prosa.
+        # e il documento che la illustra ci entrano quasi sempre insieme — la premessa su cui
+        # boost_alpha restò a 0.1 fino a S11 (2026-09-07, ora 0.3: la griglia congiunta ha
+        # misurato che salire non fa più uscire fonti dalla finestra) — ma senza etichetta il
+        # modello li ripesa a naso, per prosa.
         # Stessa convenzione già usata da retrieval._serialize_chunks per canvas/propose.
         context_parts.append(
             f"--- {r['doc_id']} § {r.get('section', '')} [{retrieval.source_label(r)}] ---\n"

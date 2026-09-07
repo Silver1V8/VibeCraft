@@ -111,7 +111,35 @@ retrieval:
   # "[via grafo: N hop, fiducia X]" così l'LLM sa che quella sezione non ha matchato la domanda:
   # è arrivata da un legame dichiarato. Il tetto è basso di proposito — il ramo semantico resta
   # il canale principale. 0 = disattiva del tutto e il contesto torna quello di prima di S3.
-  graph_context_max_chunks: 2
+  #
+  # CALIBRATO il 2026-09-07 (S11, R23) — ma NON nella griglia dei pesi: è un TAGLIO nel ramo
+  # grafo di /ask, che nessuna suite di retrieval attraversa. Misurato con
+  # eval/calibrate_graph_context.py: la stessa app in-process, LLM sostituito da uno stub,
+  # le 8 catene multihop di golden_multihop.yaml, top_k=5 (il default di /ask e della
+  # console), e per ogni tetto quante catene hanno TUTTE le fonti attese in finestra — a
+  # livello di DOCUMENTO (ciò che il tetto governa: quante fonti entrano) e di SEZIONE (quale
+  # sezione entra lo decide l'ordinamento di R9, non il tetto).
+  #
+  #   tetto   catene complete (doc / sezione)   fonti in finestra   contesto medio
+  #     0            4/8  /  1/8                    12/19            18.7k caratteri
+  #     1            7/8  /  3/8                    14/19            21.3k
+  #     2            7/8  /  3/8                    14/19            22.8k   (con alpha 0.1: 8/8)
+  #     3            8/8  /  3/8                    14/19            24.6k   <- scelto
+  #     4            8/8  /  3/8                    14/19            27.2k
+  #     6            8/8  /  3/8                    14/19            31.3k
+  #
+  # Con alpha=0.1 il gomito era a 2 (sotto perde documenti, sopra non aggiunge nulla): il
+  # valore iniziale era già giusto. Con alpha=0.3 — applicato nella stessa sessione — il
+  # gomito si sposta a 3: il moltiplicatore di autorità entra anche nell'ordinamento del ramo
+  # grafo (`_composito`), e la catena dell'«ultima unità» perde `api_error_contract` a 2 e lo
+  # riprende a 3. È la prova, misurata, che questo tetto e alpha sono accoppiati: ricalibrare
+  # l'uno senza rimisurare l'altro è l'errore che R20/R23 hanno nominato. Regola di scelta:
+  # massimo di catene complete a livello documento, poi sezione; a parità l'attuale, poi il
+  # tetto più basso (ogni sezione in più è contesto che l'LLM legge e paga: +1.8k caratteri
+  # per passo). Il livello di sezione è fermo a 3/8 da 1 a 6: su 5 catene la sezione attesa
+  # NON è quella che l'ordinamento pertinenza × fiducia × autorità sceglie — «il documento
+  # entra, la sua sezione no» (R9) è la regola, non l'eccezione, e non è un problema del tetto.
+  graph_context_max_chunks: 3   # CALIBRATO 2026-09-07 (S11, con alpha=0.3; era 2, mai calibrato)
   # Pavimento di pertinenza per le sezioni iniettate dal ramo del grafo, RELATIVO al miglior
   # punteggio ColBERT della stessa domanda (0 = nessun pavimento). Relativo e non assoluto
   # per una ragione MISURATA: il MaxSim ColBERT cambia scala con la query. Su due domande del
@@ -199,8 +227,8 @@ authority:
     METHODOLOGY: 0.5
   default_weight: 0.7       # peso delle classi non elencate (es. REQUIREMENTS/spec) — CALIBRATO 2026-07-14 (era 0.4)
   archived_decay: 0.3       # moltiplicatore del peso per status ARCHIVED/DEPRECATED/HISTORICAL/OBSOLETE
-  boost_alpha: 0.1          # forza del boost di autorità: mult = (1 - alpha) + alpha * peso  (alpha=0 → autorità ignorata) — CALIBRATO 2026-07-14 (era 0.4)
-  section_restatement_weight: 0.92   # peso di SEZIONE (N4) — CALIBRATO 2026-09-05, 1.0 = disattivato
+  boost_alpha: 0.3          # forza del boost di autorità: mult = (1 - alpha) + alpha * peso  (alpha=0 → autorità ignorata) — CALIBRATO 2026-09-07 (S11, griglia congiunta; era 0.1 dal 2026-07-14, 0.4 prima)
+  section_restatement_weight: 0.92   # peso di SEZIONE (N4) — CALIBRATO 2026-09-05, CONFERMATO in griglia congiunta con alpha 2026-09-07 (S11); 1.0 = disattivato
   # PERCHÉ ESISTE. `boost_alpha` modula un peso di DOCUMENTO, e fra sezioni sorelle quel peso
   # è identico: il moltiplicatore si semplifica e nessun alpha, per costruzione, può separarle.
   # A3 §4-5 misurò che è proprio lì che vive il 70% del deficit di rango 1, e ne nominò la
@@ -249,23 +277,56 @@ authority:
   # 2026-07-14 aveva visto per caso. La norma è stata EMENDATA per prescrivere questa forma
   # (spec_graph_rag_ingestion.md v2.2.0), non il codice per allinearsi alla norma.
   #
-  # PERCHÉ alpha RESTA 0.1 e non sale. A k=1 la calibrazione propone alpha=0.3 con guadagno
-  # held-out +0.021 (dev.std 0.014, 4 seed su 5 positivi): è un numero vero. Ma /ask inietta
-  # nel contesto fino a `retrieval.governed_max_chunks: 8` sezioni e l'LLM le legge TUTTE:
-  # ciò che conta è se la fonte giusta ENTRA nella finestra, non a che rango. La metrica di
-  # quel consumo è recall@5-@10, e lì alpha=0.3 è peggiore (0.966->0.932 e 0.983->0.949).
-  # A k=5 la configurazione attuale è già l'OTTIMO della griglia: guadagno +0.000 con dev.std
-  # 0.000 su tutti e cinque i seed. Alzare alpha comprerebbe il rango dentro una finestra che
-  # viene letta per intero, pagandolo con fonti che dalla finestra escono.
+  # PERCHÉ alpha È SALITO A 0.3 (S11, 2026-09-07) — e perché fino a S11 era rimasto a 0.1.
+  # Fino a S11 la ragione per non salire era MISURATA (A3/S5, corpus e golden set di allora):
+  # a k=1 alpha=0.3 guadagnava (+0.021 held-out, dev.std 0.014, 4 seed su 5), ma /ask inietta
+  # fino a 8 sezioni e l'LLM le legge TUTTE, quindi la metrica del consumo è recall@5-@10 —
+  # e lì alpha=0.3 PERDEVA (0.966->0.932 e 0.983->0.949): comprava il rango dentro una
+  # finestra letta per intero pagandolo con fonti che dalla finestra uscivano.
   #
-  # QUESTA PREMESSA E' STATA VERIFICATA, ed e' vera SOLO DA QUANDO l'autorita' arriva anche
-  # nel prompt (A3, 2026-09-03). "L'LLM le legge tutte" era giusto sul leggere e sbagliato
-  # sul PESARE: finche' l'intestazione era `--- doc § sezione ---` il modello non aveva alcun
-  # segnale per distinguere la spec dal documento che la illustra, e dentro la finestra
-  # ri-ordinava per prosa — 2 risposte su 4 dei casi avversariali attribuivano il vincolo al
-  # METHODOLOGY. Ora ogni blocco porta la classe dichiarata e [CLASSE-FONTI] ne enuncia la
-  # graduatoria (core/retrieval.source_label / authority_scale). Se quel meccanismo venisse
-  # rimosso, questo alpha basso tornerebbe indifendibile: non sono due scelte indipendenti.
+  # S11 ha rifatto la misura con i tre parametri INSIEME (alpha × default_weight ×
+  # unclassified_weight × section_restatement_weight, 2160 punti per griglia, 5-fold × 5
+  # seed, tie-break all'incumbent e — nuovo — a parità fra punti nuovi vince chi cambia meno
+  # coordinate), sul golden set di S10 (58 casi, 5 avversariali), e quel costo NON C'È PIÙ:
+  #
+  #   punto fisso (in-sample, 58 casi)     r@1    r@2    r@5    r@10 | avv r@1 | multihop r@10
+  #   alpha 0.1, peso sezione 0.92 (prima) 0.690  0.862  0.948  0.983 |  0.000  | 0.890 (10/14)
+  #   alpha 0.3, peso sezione 0.92 (ora)   0.741  0.862  0.966  1.000 |  0.800  | 0.890 (10/14)
+  #   alpha 0.3, peso sezione 1.0          0.638  0.862  0.966  0.983 |  0.600  | 0.847  (9/14)
+  #   alpha 0.1, peso sezione 1.0          0.603  0.845  0.948  0.966 |  0.000  | 0.854  (9/14)
+  #   (r@10 = 0.983 «prima» è il pool a 50 candidati del calibratore; il server misura 1.000
+  #    a k=10 — a k<=5 i due coincidono al millesimo. Server-identico DOPO, evaluate_recall
+  #    con graph+restatements: 0.741 / 0.862 / 0.966 / 1.000.)
+  #
+  #   CV k=1 : default 0.691 held-out -> calibrato 0.729   guadagno +0.038 (dev.std 0.007)
+  #            per seed +0.033 +0.035 +0.035 +0.053 +0.035 — POSITIVO su 5 su 5
+  #            scelto in 21 fold su 25: alpha=0.3 con TUTTO il resto invariato (peso di
+  #            sezione 0.92 compreso); negli altri 4 alpha=0.5, mai un altro peso di sezione
+  #   CV k=2 : la griglia sceglie il peso di sezione 0.8 in-sample (0.897) e PERDE fuori
+  #            campione (-0.010, dev.std 0.013): NON_APPLICARE — alpha 0.3 e 0.1 pareggiano
+  #   CV k=5 : +0.000 su tutti i seed (0.948): la metrica non discrimina; alpha=0.3 pareggia
+  #            in-sample con unclassified_weight=0.1 a 0.966, e nessuno dei due perde
+  #
+  # Quindi: a k=1 — l'unico k dove la metrica discrimina, lo stesso di N4 — alpha=0.3 batte
+  # l'attuale con la disciplina di N4 rispettata (held-out, dev.std bassa, segno positivo su
+  # tutti i seed), e a k=2/k=5/k=10 non perde più nulla: +1 caso a k=5 e a k=10, zero a k=2.
+  # Sui 5 avversariali passa da 0 a 4 su 5 a rango 1. Il verdetto di A3 non era sbagliato:
+  # era vero su quel corpus, e il corpus è cambiato (S5 -> S10). Sulla stessa griglia il peso
+  # di sezione 0.92 vince ANCHE con alpha a 0.3 (e a 0.5), e spegnerlo (1.0) perde
+  # ovunque; a k=1 il peso 0.92 è scelto in 25 fold su 25: i due sono confermati insieme,
+  # non uno alla volta — che era R20.
+  #
+  # IL PREZZO, misurato prima di applicare: alpha entra anche nell'ordinamento del ramo GRAFO
+  # di /ask (routes_retrieval `_composito`: pertinenza × fiducia × (1-α+α·peso)), e a 0.3 la
+  # catena multihop dell'«ultima unità» perde il terzo documento (`api_error_contract`, quello
+  # che R9 aveva guadagnato) a `graph_context_max_chunks: 2` e lo riprende a 3. Per questo il
+  # tetto è salito a 3 nello stesso commit: vedi la nota in `retrieval.graph_context_max_chunks`.
+  #
+  # LA PREMESSA DI A3 RESTA: l'autorità arriva anche nel PROMPT (classe nell'intestazione dei
+  # blocchi e [CLASSE-FONTI], core/retrieval.source_label / authority_scale). Con alpha 0.3 il
+  # moltiplicatore vive fra 0.79 e 1.00 invece che fra 0.93 e 1.00: il ranking fa di più, ma
+  # dentro la finestra è ancora l'etichetta a dire al modello quale fonte STABILISCE. Se quel
+  # meccanismo venisse rimosso, andrebbero rimisurati entrambi.
   # Calibrazione storica (5-fold CV su golden set 34 casi, corpus dominio eventi, 2026-07-14):
   # default_weight 0.4→0.7 e boost_alpha 0.4→0.1 alzarono recall@10 held-out da 0.914 a 0.971.
   # Il boost hand-set era troppo forte: sovra-promuoveva i safeguard IRON_MEMORY generici rispetto

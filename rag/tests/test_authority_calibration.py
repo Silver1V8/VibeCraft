@@ -206,6 +206,13 @@ def test_calibratore_cerca_anche_sul_peso_della_fonte_non_classificata():
         "'attuale vs calibrato' non è nella ricerca")
 
 
+def _punti():
+    """Tutti i punti della griglia a QUATTRO assi (S11): alpha × default_weight ×
+    unclassified_weight × section_restatement_weight."""
+    return [(a, dw, uw, rw) for a in calibrate.ALPHAS for dw in calibrate.DEFAULT_WEIGHTS
+            for uw in calibrate.UNCLASSIFIED_WEIGHTS for rw in calibrate.RESTATEMENT_WEIGHTS]
+
+
 def test_grid_best_a_parita_di_recall_tiene_la_configurazione_di_produzione():
     """Un pareggio non è un miglioramento: se nessun punto della griglia batte la
     configurazione attuale, la calibrazione deve proporre di NON toccare nulla.
@@ -216,23 +223,28 @@ def test_grid_best_a_parita_di_recall_tiene_la_configurazione_di_produzione():
     e finisce nella stima held-out come rumore. Misurato: senza questo tie-break il guadagno
     a k=2 è passato da -0.011 a +0.013 fra due corse che differivano per la sola
     ri-segmentazione di UN documento su 26."""
-    from core.config import (AUTHORITY_BOOST_ALPHA, AUTHORITY_DEFAULT_WEIGHT,
-                             AUTHORITY_UNCLASSIFIED_WEIGHT)
-    attuale = (AUTHORITY_BOOST_ALPHA, AUTHORITY_DEFAULT_WEIGHT, AUTHORITY_UNCLASSIFIED_WEIGHT)
+    attuale = calibrate.ATTUALE
 
     # tutta la griglia pareggia: deve vincere l'incumbent, non il primo punto iterato
-    piatta = {(a, dw, uw): 0.5 for a in calibrate.ALPHAS
-              for dw in calibrate.DEFAULT_WEIGHTS for uw in calibrate.UNCLASSIFIED_WEIGHTS}
+    piatta = {punto: 0.5 for punto in _punti()}
     recall, *scelta = calibrate.grid_best(None, None, k=1, graph=None, restatements=frozenset(),
                                          tabella=piatta)
     assert tuple(scelta) == attuale and recall == 0.5
 
     # un punto STRETTAMENTE migliore lo scalza: il tie-break non congela la calibrazione
-    migliore = (1.0, 0.4, 0.1)
+    migliore = (1.0, 0.4, 0.1, 0.7)
     piatta[migliore] = 0.6
     recall, *scelta = calibrate.grid_best(None, None, k=1, graph=None, restatements=frozenset(),
                                          tabella=piatta)
     assert tuple(scelta) == migliore and recall == 0.6
+
+    # fra due punti NUOVI a pari recall vince quello che cambia MENO coordinate rispetto
+    # alla produzione: il gemello su un asse morto non deve trascinarsi valori arbitrari
+    vicino = (1.0, *attuale[1:])
+    piatta[vicino] = 0.6
+    recall, *scelta = calibrate.grid_best(None, None, k=1, graph=None, restatements=frozenset(),
+                                         tabella=piatta)
+    assert tuple(scelta) == vicino and recall == 0.6
 
 
 def test_assi_morti_riconosce_un_parametro_che_non_muove_nulla():
@@ -240,16 +252,40 @@ def test_assi_morti_riconosce_un_parametro_che_non_muove_nulla():
     che la ricerca ottimizza a vuoto, e il report deve dirlo invece di lasciar credere che
     il valore 'vincente' su quell'asse significhi qualcosa."""
     # recall dipendente dal solo alpha: gli altri due assi sono morti per costruzione
-    tabella = {(a, dw, uw): a for a in calibrate.ALPHAS
-               for dw in calibrate.DEFAULT_WEIGHTS for uw in calibrate.UNCLASSIFIED_WEIGHTS}
-    assert calibrate.assi_morti(tabella) == ["default_weight", "unclassified_weight"]
+    tabella = {(a, dw, uw, rw): a for a, dw, uw, rw in _punti()}
+    assert calibrate.assi_morti(tabella) == ["default_weight", "unclassified_weight",
+                                             "section_restatement_weight"]
 
     # se anche unclassified_weight muove la metrica, resta morto solo default_weight
-    tabella = {(a, dw, uw): a + uw for a in calibrate.ALPHAS
-               for dw in calibrate.DEFAULT_WEIGHTS for uw in calibrate.UNCLASSIFIED_WEIGHTS}
-    assert calibrate.assi_morti(tabella) == ["default_weight"]
+    tabella = {(a, dw, uw, rw): a + uw for a, dw, uw, rw in _punti()}
+    assert calibrate.assi_morti(tabella) == ["default_weight", "section_restatement_weight"]
 
-    # griglia in cui tutti e tre contano: nessun asse morto
-    tabella = {(a, dw, uw): a + dw + uw for a in calibrate.ALPHAS
-               for dw in calibrate.DEFAULT_WEIGHTS for uw in calibrate.UNCLASSIFIED_WEIGHTS}
+    # griglia in cui tutti e quattro contano: nessun asse morto
+    tabella = {(a, dw, uw, rw): a + dw + uw + rw for a, dw, uw, rw in _punti()}
     assert calibrate.assi_morti(tabella) == []
+
+
+def test_calibratore_cerca_anche_sul_peso_di_sezione():
+    """Quarto asse della griglia (S11, R20). Il peso di sezione (N4) e alpha governano lo
+    stesso ordinamento e sono stati calibrati uno alla volta: l'ottimo di alpha si è mosso
+    quando N4 ha cambiato l'altro. Qui si pinna che il valore passato dalla griglia ARRIVI a
+    rank_by_authority — e che la griglia sia una ricerca vera che include produzione e
+    'spento' (1.0)."""
+    cands = [_cand("doc.md#01", "doc.md", 0.90),   # riformulazione, leggermente più rilevante
+             _cand("doc.md#00", "doc.md", 0.88)]   # la sezione che stabilisce
+    riformulazioni = frozenset({"doc.md#01"})
+    spento = calibrate.make_retrieve_fn({"q": cands}, alpha=0.1, default_weight=0.7,
+                                        unclassified_weight=0.3, graph=None,
+                                        restatements=riformulazioni,
+                                        restatement_weight=1.0)("q", 2)
+    assert spento[0]["chunk_id"] == "doc.md#01"
+    pesato = calibrate.make_retrieve_fn({"q": cands}, alpha=0.1, default_weight=0.7,
+                                        unclassified_weight=0.3, graph=None,
+                                        restatements=riformulazioni,
+                                        restatement_weight=0.9)("q", 2)
+    assert pesato[0]["chunk_id"] == "doc.md#00"
+
+    from core.config import SECTION_RESTATEMENT_WEIGHT
+    assert len(set(calibrate.RESTATEMENT_WEIGHTS)) > 1
+    assert 1.0 in calibrate.RESTATEMENT_WEIGHTS, "il peso SPENTO deve poter vincere"
+    assert SECTION_RESTATEMENT_WEIGHT in calibrate.RESTATEMENT_WEIGHTS

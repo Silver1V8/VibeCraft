@@ -3257,3 +3257,180 @@ prova che la differenza resti nel verso comodo: oggi il gate nudo era più sever
 correzione serve per il giorno in cui non lo sarà.
 
 - Verifica: `ruff check .` pulito; suite **1325 passed** (1323 + i due test nuovi).
+
+---
+
+# S11 — I tre parametri accoppiati, in una griglia sola
+
+**Data:** 2026-09-07 · **Base:** 8183c8f (R26 chiuso, gate = server) · **Indice:** `v20260907T094225`,
+golden set di S10 (58 casi, 5 avversariali), 8 catene multihop · **Chiude:** R20, R23.
+
+L'esito accettabile includeva «non si cambia niente». Non è andata così, e non per un solo
+parametro: **`boost_alpha` sale da 0.1 a 0.3, `graph_context_max_chunks` da 2 a 3, e
+`section_restatement_weight` resta 0.92** — confermato *insieme* ad alpha, non più da solo.
+La prima e la seconda modifica non sono indipendenti: la seconda è il prezzo misurato della prima.
+
+## Cosa si misura dove — la decisione dichiarata prima di lanciare
+
+I tre parametri non governano *lo stesso* ordinamento, e la sessione ha dovuto dirlo prima di
+poter misurare. `boost_alpha` e `section_restatement_weight` entrano entrambi in
+`rank_by_authority` — lo stadio finale di `hybrid_search`, quello che `/api/retrieve`, il gate e
+`eval.calibrate_authority` misurano. `graph_context_max_chunks` no: è un **taglio nel ramo grafo
+di `/ask`** (`routes_retrieval.ask_rag`, fase 6 di [REGOLA-WF-01]), che decide quante sezioni
+raggiunte solo via grafo entrano nel contesto *dopo* il ramo semantico. Nessuna delle due suite
+di retrieval lo attraversa: `eval.run` e `eval.run_multihop` si fermano a `hybrid_search`. L'unica
+misura che lo tocca è quella che R9 fece a mano — «il terzo documento entra nella finestra».
+
+Quindi due strumenti, non uno:
+
+- **Griglia congiunta** in `eval/calibrate_authority.py`, che guadagna un quarto asse
+  (`RESTATEMENT_WEIGHTS = [1.0, 0.98, 0.95, 0.92, 0.9, 0.85, 0.8, 0.7]`, con 1.0 = N4 spento, in
+  griglia di proposito). Stessa disciplina di N4: k=1, 5-fold × 5 seed, incumbent al tie-break,
+  verdetto sull'held-out e sulla dev.std. Un tie-break in più, nato da un errore commesso in
+  sessione (sotto).
+- **`eval/calibrate_graph_context.py`**, nuovo: la stessa app in-process (stesso lifespan, stesso
+  ranking, stesso ramo grafo), con il solo LLM sostituito da uno stub, e per ogni tetto quante
+  catene multihop hanno *tutte* le fonti attese nella finestra di `/ask`. Non è una CV — otto
+  catene sono un insieme su cui scegliere un intero, non un campione — ed è dichiarato nel docstring.
+
+**Il costo, stimato prima.** Quattro assi: 9 × 6 × 5 × 8 = **2160 punti per griglia**, e la CV ne
+rifà una per fold e per seed (25). Lo script ora cronometra la prima griglia e stampa la stima
+prima di partire: 25-27 s a griglia, ~8-9 min stimati per la CV — in pratica ~2 min a CPU libera
+(la prima stima era gonfiata da un secondo processo bge-m3 in parallelo). La griglia piena era
+praticabile: **nessuna riduzione di punti**. Tre corse (k=1, 2, 5), ~10 min l'una compreso il
+recupero dei candidati.
+
+## La griglia congiunta: alpha si muove, il peso di sezione no
+
+```
+k=1  default 0.691 held-out -> calibrato 0.729   guadagno +0.038   dev.std 0.007
+     per seed: +0.033  +0.035  +0.035  +0.053  +0.035        <- positivo su 5 su 5
+     scelto in 21 fold su 25: alpha=0.3, default_weight=0.7, unclassified=0.3, sezione=0.92
+     negli altri 4: alpha=0.5, sezione=0.92 — mai un altro peso di sezione
+     in-sample: 0.690 -> 0.741.  Avversariali r@1: spenta 0.000, attuale 0.000, griglia 0.800
+k=2  in-sample la griglia sceglie sezione=0.8 (0.897 vs 0.862) e PERDE fuori campione:
+     held-out 0.862 -> 0.852, guadagno -0.010, dev.std 0.013 (-0.017 -0.033 0 0 0). NON_APPLICARE
+k=5  +0.000 su tutti i seed (0.948). In-sample due punti a 0.966: alpha=0.3 e unclassified=0.1,
+     pari merito, nessuno dei due perde. Asse morto, come sempre: default_weight
+```
+
+È la misura che R20 chiedeva, e dà il risultato che R20 sospettava a metà. **`section_restatement_weight`
+è confermato a 0.92 con alpha libero**: in 25 fold su 25 la griglia sceglie 0.92, e spegnerlo perde
+ovunque (tabella sotto). **`boost_alpha` invece si muove**, e stavolta con la disciplina rispettata:
+held-out +0.038, dev.std 0.007 — un ordine di grandezza sotto il guadagno, come per N4 — e segno
+positivo su ogni seed. R20 aveva visto +0.028 con dev.std 0.024 e un seed negativo, e aveva ragione
+a non applicarlo; la differenza fra quel numero e questo è in due cose, entrambe misurate.
+
+**La prima è un errore di tie-break, commesso qui e corretto qui.** La prima corsa della griglia
+congiunta proponeva `alpha=0.3, default_weight=0.4, unclassified_weight=0.1`: guadagno held-out
+**+0.022**. Ma `default_weight` è un asse morto e `unclassified_weight` a quell'alpha pareggia, quindi
+il vincitore aveva decine di gemelli identici in-sample, e fra gemelli vinceva il primo iterato —
+cioè i valori *più bassi* di ogni lista, per costruzione della griglia. `unclassified_weight=0.1`
+non era una scelta: era l'ordine di un `for`. E fuori campione costava: con «a parità fra punti
+nuovi vince chi cambia meno coordinate rispetto alla produzione» (`grid_best`, un test lo pinna)
+la proposta diventa *alpha=0.3 e nient'altro*, e il guadagno held-out sale a **+0.038**. Lo 0.016 di
+differenza era il prezzo di un parametro trascinato dentro dall'iterazione. È la stessa lezione di
+S5 (l'incumbent al tie-break) un passo più in là: non basta proteggere l'attuale, va protetto anche
+il *minimo cambiamento*.
+
+**La seconda è che la ragione di A3 per non salire non regge più su questo corpus.** A3 respinse
+alpha=0.3 perché comprava il rango 1 pagando a k=5-10 — le fonti uscivano dalla finestra che
+l'LLM legge per intero (0.966→0.932, 0.983→0.949). Rimisurato sui punti fissi, senza selezione:
+
+| punto (in-sample, 58 casi) | r@1 | r@2 | r@5 | r@10 | avv. r@1 | multihop r@10 |
+|---|---|---|---|---|---|---|
+| alpha 0.1, sezione 0.92 — **prima** | 0.690 | 0.862 | 0.948 | 0.983 | 0.000 | 0.890 (10/14) |
+| alpha 0.2, sezione 0.92 | 0.690 | 0.862 | 0.966 | 1.000 | 0.200 | 0.890 (10/14) |
+| alpha 0.3, sezione 0.92 — **ora** | **0.741** | 0.862 | **0.966** | **1.000** | **0.800** | 0.890 (10/14) |
+| alpha 0.3, sezione 0.95 | 0.724 | 0.879 | 0.966 | 1.000 | 0.800 | 0.890 (10/14) |
+| alpha 0.3, sezione 1.0 (N4 spento) | 0.638 | 0.862 | 0.966 | 0.983 | 0.600 | 0.847 (9/14) |
+| alpha 0.1, sezione 1.0 (N4 spento) | 0.603 | 0.845 | 0.948 | 0.966 | 0.000 | 0.854 (9/14) |
+
+Alpha 0.3 non perde più niente a nessun k: +3 casi a rango 1 (4 dei 5 avversariali, −1 altrove),
++1 caso a k=5, +1 a k=10, zero a k=2, multihop identico. Il verdetto di A3 era vero sul corpus di
+S5 e il corpus è cambiato (S5 → S10: 59 → 58 casi, avversariali riscritti, documenti rientrati):
+non è la disciplina che è cambiata, sono i dati. **Server-identico dopo** (`evaluate_recall` con
+`graph` + `restatements`, il gate di R26): **0.741 / 0.862 / 0.966 / 1.000** contro 0.690 / 0.862 /
+0.948 / 1.000 di R26. Il gate a k=2 non vede la differenza; il server sì.
+
+Una discrepanza va detta: il calibratore misura r@10 = 0.983 «prima», il server 1.000. Il
+calibratore lavora su un pool di 50 candidati per domanda ri-ordinato offline, il server sul pool
+che `hybrid_search` costruisce per k=10; a k ≤ 5 i due coincidono al millesimo, a k=10 un caso
+differisce. Il docstring del calibratore promette fedeltà negli *stadi finali*, ed è vero; il pool
+non è uno stadio finale. Non ha pesato sul verdetto (a k=10 nessuno decide), ma è un limite dello
+strumento e va scritto accanto alla promessa.
+
+## Il taglio, misurato dove conta — e il prezzo di alpha
+
+Con `alpha=0.1`, le 8 catene multihop nella finestra di `/ask` (top_k=5, il default di AskQuery e
+della console):
+
+| tetto | catene complete (documento / sezione) | fonti in finestra | blocchi via grafo |
+|---|---|---|---|
+| 0 | 4/8 / 1/8 | 12/19 | 0 |
+| 1 | 6/8 / 2/8 | 13/19 | 1 |
+| **2 — attuale** | **8/8** / 3/8 | 14/19 | 2 |
+| 3, 4, 6 | 8/8 / 3/8 | 14/19 | 3, 4, 6 |
+
+Un gomito pulito: sotto 2 escono documenti, sopra 2 non entra nulla. **Il valore iniziale era già
+giusto** — R23 aveva ragione che non fosse mai stato misurato, e torto (per fortuna) sul rischio.
+
+Poi alpha è salito a 0.3, e il taglio è stato rimisurato **prima** di considerare alpha applicato,
+perché `_composito` — l'ordinamento del ramo grafo, `pertinenza × fiducia × (1-α+α·peso)` — legge lo
+stesso `AUTHORITY_BOOST_ALPHA`:
+
+| tetto | catene complete (documento / sezione) | fonti in finestra | contesto medio |
+|---|---|---|---|
+| 0 | 4/8 / 1/8 | 12/19 | 18.7k car. |
+| 1 | 7/8 / 3/8 | 14/19 | 21.3k |
+| 2 | **7/8** / 3/8 | 14/19 | 22.8k |
+| **3 — scelto** | **8/8** / 3/8 | 14/19 | 24.6k |
+| 4 | 8/8 / 3/8 | 14/19 | 27.2k |
+| 6 | 8/8 / 3/8 | 14/19 | 31.3k |
+
+Con alpha 0.3 la catena dell'**«ultima unità» perde `api_error_contract` a tetto 2** — esattamente
+il terzo documento che R9 aveva conquistato — e lo riprende a 3: un documento più autorevole,
+con moltiplicatore ora fra 0.79 e 1.00 invece che fra 0.93 e 1.00, gli passa davanti nella
+graduatoria via grafo. In compenso «cosa devo fare quando modifico un documento» prende
+`spec_graph_rag_ingestion` già a tetto 1 (con alpha 0.1 serviva 2). Il gomito si sposta di uno, e
+costa **+1.8k caratteri** di contesto medio per `/ask` (24.6k su una finestra da 16384 token:
+`core/llm` avvisa quando la stima si avvicina, e non ha avvisato).
+
+È la prova che R23 chiedeva senza saperlo: **alpha e tetto sono accoppiati**, e chi calibra l'uno
+senza rimisurare l'altro applica una modifica a metà. Regola di scelta dello script, dichiarata:
+massimo di catene complete a livello di *documento* (è ciò che il tetto governa: quante fonti
+entrano), poi di sezione; a parità l'attuale, poi il tetto più basso. Il livello di sezione è
+fermo a 3/8 da 1 a 6 con entrambi gli alpha: su 5 catene la sezione attesa non è quella che
+l'ordinamento di R9 sceglie — «il documento entra, la sua sezione no» è la regola, non l'eccezione
+— e nessun tetto può cambiarlo, perché non è il tetto a scegliere.
+
+## Cosa è cambiato, dove
+
+- `rag/rag_config.yaml`: `boost_alpha: 0.3`, `graph_context_max_chunks: 3`, commenti di calibrazione
+  riscritti (il paragrafo «perché alpha resta 0.1» è ora «perché è salito», con le tabelle).
+- `rag/eval/calibrate_authority.py`: quarto asse, `ATTUALE` a 4 coordinate, tie-break «minimo
+  cambiamento», punti scelti per fold nel report, cronometro della prima griglia.
+- `rag/eval/calibrate_graph_context.py`: nuovo.
+- `rag/tests/test_authority_calibration.py`: tuple a 4, test del quarto asse, test del tie-break.
+- `api/routes_retrieval.py`, `core/retrieval.py`: i due commenti che davano «alpha resta 0.1»
+  come premessa di A3 ora dicono fino a quando, e perché.
+- Verifica: `ruff check .` pulito; suite **1326 passed** (1325 + 1) con alpha 0.3; il tetto a 3 non
+  è letto da alcun test (che lo monkeypatchano tutti). Nessuna riga scritta in `history.jsonl`: la
+  prossima corsa di `eval.run` sul server registrerà la baseline nuova, con questo commit accanto.
+
+## Cosa questa sessione NON prova
+
+- **Che le risposte siano migliori.** È tutto retrieval e finestra: nessuna metrica del progetto
+  guarda la risposta (N3, ancora). Alpha 0.3 porta 4 avversariali su 5 a rango 1, e A3 ha già
+  mostrato che dentro la finestra è l'etichetta di classe a pesare, non il rango: il guadagno
+  sulla risposta potrebbe essere zero. La premessa di A3 è ancora la premessa.
+- **Che il guadagno a k=1 non sia «per costruzione».** Tre dei 3 casi netti guadagnati a rango 1
+  sono avversariali, cioè scritti in S5 perché una fonte a bassa autorità matchi meglio della
+  norma. È lo scopo del meccanismo, e la CV è onesta rispetto ai fold — ma il golden set è stato
+  costruito da chi poi calibra, e questo non lo cura nessuna cross-validation.
+- **Che il tetto sia giusto fuori dalle 8 catene.** Misurato a top_k=5 su 8 domande a livello di
+  documento. A top_k diversi, o su una catena a quattro documenti, il gomito può stare altrove.
+- **Che alpha=0.3 sia l'ottimo a k=5.** Là pareggia con `unclassified_weight=0.1` (0.966) e il
+  guadagno held-out del punto scelto è +0.000: k=5 non discrimina e non è stato usato per decidere.
+- **Che il calibratore misuri il server a k=10.** Non lo fa (0.983 vs 1.000): il pool di 50 è
+  un'approssimazione che a k ≤ 5 è esatta e a k=10 no.

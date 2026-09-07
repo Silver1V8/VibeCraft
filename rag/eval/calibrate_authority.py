@@ -23,7 +23,7 @@ che non dichiarano un'autorità propria. È corretto che sia così — è ciò c
 significa che la griglia su quel parametro ha oggi molta meno presa di quanta ne avesse prima di
 S1, e un guadagno vicino a zero su quell'asse va letto in questa luce.
 
-Si calibrano tre parametri interpretabili:
+Si calibrano quattro parametri interpretabili, IN UNA GRIGLIA SOLA (S11, R20):
   - boost_alpha         : forza del boost di autorità (mult = 1-alpha + alpha*peso). alpha=0 ignora
                           l'autorità (ranking puramente semantico); alpha alto la premia di più.
   - default_weight      : peso delle classi non elencate (es. le spec REQUIREMENTS). Alzarlo riduce
@@ -33,6 +33,16 @@ Si calibrano tre parametri interpretabili:
                           lasciarlo fuori dalla griglia significherebbe calibrare due terzi del
                           meccanismo. Nel corpus attuale governa i 6 file di 03_changes_historical/,
                           che sono privi di frontmatter.
+  - section_restatement_weight : peso di SEZIONE (N4) — moltiplicatore delle sezioni che
+                          CITANO codici di regola senza dichiararne (rank_by_authority). Quarto
+                          asse dal 2026-09-07 (S11): fino ad allora era calibrato A PARTE, con
+                          alpha fermo, e alpha era stato calibrato con questo peso a 1.0. R20 ha
+                          misurato che l'ottimo di alpha si MUOVE quando cambia questo peso
+                          (verdetto di calibrate_authority ribaltato da N4): sono accoppiati, e
+                          due calibrazioni separate non provano che la coppia sia ottima.
+                          `graph_context_max_chunks` NON è in questa griglia: è un taglio nel
+                          ramo grafo di /ask, non un peso del ranking — vedi
+                          eval/calibrate_graph_context.py.
 
 La qualità si misura con k-fold cross-validation ONESTA: il parametro scelto sui fold di training
 è valutato sul fold held-out. Il guadagno riportato è quello di validazione, non in-sample: è
@@ -46,6 +56,8 @@ Uso (da rag/, niente server necessario — gira in-process):
 import argparse
 import random
 import sys
+import time
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
@@ -62,6 +74,7 @@ from core.config import (
     EMBEDDING_MODEL,
     QDRANT_API_KEY,
     QDRANT_URL,
+    SECTION_RESTATEMENT_WEIGHT,
 )
 from core.eval_metrics import evaluate
 from eval.run import load_cases
@@ -79,7 +92,20 @@ RESULTS_DIR = Path(__file__).parent / "results"
 ALPHAS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0]
 DEFAULT_WEIGHTS = [0.4, 0.5, 0.6, 0.7, 0.85, 1.0]
 UNCLASSIFIED_WEIGHTS = [0.1, 0.2, 0.3, 0.5, 0.7]
+# 1.0 = peso di sezione SPENTO (l'ordinamento di prima di N4) è nella griglia di proposito:
+# se vincesse, N4 andrebbe ritirato, non solo ricalibrato.
+RESTATEMENT_WEIGHTS = [1.0, 0.98, 0.95, 0.92, 0.9, 0.85, 0.8, 0.7]
 FETCH_CANDIDATES = 50  # quanti candidati recuperare per domanda (>= max k valutato, con margine)
+# La configurazione di PRODUZIONE, nell'ordine delle coordinate della griglia: è l'incumbent
+# del tie-break e il "default" della CV.
+ATTUALE = (AUTHORITY_BOOST_ALPHA, AUTHORITY_DEFAULT_WEIGHT, AUTHORITY_UNCLASSIFIED_WEIGHT,
+           SECTION_RESTATEMENT_WEIGHT)
+
+
+def _kw(punto) -> dict:
+    """Coordinate della griglia → argomenti nominali di mean_recall/make_retrieve_fn."""
+    a, dw, uw, rw = punto
+    return dict(alpha=a, default_weight=dw, unclassified_weight=uw, restatement_weight=rw)
 
 
 def retrieve_candidate_cache(cases, *, qdrant, embed_model, colbert_store, graph,
@@ -118,7 +144,8 @@ def _attrs_for(candidate: dict, graph) -> dict:
 
 
 def make_retrieve_fn(cache: dict, *, alpha: float, default_weight: float,
-                     unclassified_weight: float, graph, restatements):
+                     unclassified_weight: float, graph, restatements,
+                     restatement_weight: float = SECTION_RESTATEMENT_WEIGHT):
     """retrieve_fn(query, k) che RI-ORDINA i candidati in cache con i parametri dati, riusando
     ESATTAMENTE la ri-ponderazione e l'ordinamento di produzione: stesso peso di autorità
     (dichiarata inclusa), stesso rank_by_authority, stessa apply_precedence, nello stesso
@@ -131,7 +158,8 @@ def make_retrieve_fn(cache: dict, *, alpha: float, default_weight: float,
                 _attrs_for(c, graph), default=default_weight, decay=AUTHORITY_ARCHIVED_DECAY,
                 use_declared=AUTHORITY_USE_DECLARED,
                 unclassified=unclassified_weight), 3)
-        retrieval.rank_by_authority(cands, alpha=alpha, restatements=restatements)
+        retrieval.rank_by_authority(cands, alpha=alpha, restatements=restatements,
+                                    restatement_weight=restatement_weight)
         # Precedenza dichiarata fra fonti (S4): ultimo stadio anche in produzione, dopo
         # l'autorità. È un riordino booleano indipendente da (alpha, default_weight), quindi
         # non muove la griglia, ma senza di esso l'ordine valutato non è quello servito.
@@ -141,13 +169,14 @@ def make_retrieve_fn(cache: dict, *, alpha: float, default_weight: float,
 
 
 def mean_recall(cases, cache, *, alpha, default_weight, unclassified_weight, k, graph, restatements,
+                restatement_weight: float = SECTION_RESTATEMENT_WEIGHT,
                 subset: str = "all") -> float:
     """recall@k medio. `subset="adversarial"` restringe ai casi marcati `adversarial: true`
     nel golden set — il sottoinsieme che l'ADR 0002 deve muovere e che nella media coi casi
     facili sarebbe invisibile. 0.0 se il sottoinsieme è vuoto."""
     fn = make_retrieve_fn(cache, alpha=alpha, default_weight=default_weight,
                           unclassified_weight=unclassified_weight, graph=graph,
-                          restatements=restatements)
+                          restatements=restatements, restatement_weight=restatement_weight)
     report = evaluate(cases, fn, ks=[k])
     if subset == "adversarial":
         adv = report.get("adversarial")
@@ -158,14 +187,16 @@ def mean_recall(cases, cache, *, alpha, default_weight, unclassified_weight, k, 
 def griglia(cases, cache, *, k, graph, restatements) -> dict[tuple, float]:
     """recall@k per OGNI punto della griglia. Restituita per intero, non solo il massimo:
     serve a `assi_morti()` per dire quali parametri non muovono affatto la metrica."""
-    return {(a, dw, uw): mean_recall(cases, cache, alpha=a, default_weight=dw,
-                                     unclassified_weight=uw, k=k, graph=graph,
-                                     restatements=restatements)
-            for a in ALPHAS for dw in DEFAULT_WEIGHTS for uw in UNCLASSIFIED_WEIGHTS}
+    return {(a, dw, uw, rw): mean_recall(cases, cache, alpha=a, default_weight=dw,
+                                         unclassified_weight=uw, k=k, graph=graph,
+                                         restatements=restatements, restatement_weight=rw)
+            for a in ALPHAS for dw in DEFAULT_WEIGHTS for uw in UNCLASSIFIED_WEIGHTS
+            for rw in RESTATEMENT_WEIGHTS}
 
 
 def grid_best(cases, cache, *, k, graph, restatements, tabella: dict | None = None):
-    """Miglior (alpha, default_weight, unclassified_weight) per recall@k medio.
+    """Miglior (alpha, default_weight, unclassified_weight, section_restatement_weight) per
+    recall@k medio.
 
     A parità di recall vince la configurazione ATTUALE DI PRODUZIONE, non la prima
     incontrata. Non è un dettaglio estetico: su questo corpus DUE dei tre assi non muovono
@@ -187,13 +218,18 @@ def grid_best(cases, cache, *, k, graph, restatements, tabella: dict | None = No
     non è un miglioramento."""
     tabella = tabella if tabella is not None else griglia(cases, cache, k=k, graph=graph,
                                                          restatements=restatements)
-    attuale = (AUTHORITY_BOOST_ALPHA, AUTHORITY_DEFAULT_WEIGHT, AUTHORITY_UNCLASSIFIED_WEIGHT)
-    # L'incumbent parte in testa: solo un `>` stretto lo scalza.
-    best = (tabella.get(attuale, -1.0), *attuale)
-    for (a, dw, uw), r in tabella.items():
-        if r > best[0]:
-            best = (r, a, dw, uw)
-    return best  # (recall, alpha, default_weight, unclassified_weight)
+    # L'incumbent parte in testa: solo un `>` stretto lo scalza. E fra due punti NUOVI a
+    # pari recall vince quello che cambia MENO coordinate rispetto alla produzione (S11):
+    # con un asse morto ogni vincitore ha decine di gemelli identici, e senza questo
+    # criterio la proposta porterebbe con sé valori "vincenti" scelti dall'ordine di
+    # iterazione della griglia — un cambio di produzione che nessuna misura giustifica.
+    def _distanza(punto) -> int:
+        return sum(1 for x, y in zip(punto, ATTUALE) if x != y)
+    best = (tabella.get(ATTUALE, -1.0), *ATTUALE)
+    for punto, r in tabella.items():
+        if r > best[0] or (r == best[0] and _distanza(punto) < _distanza(best[1:])):
+            best = (r, *punto)
+    return best  # (recall, alpha, default_weight, unclassified_weight, section_restatement_weight)
 
 
 def assi_morti(tabella: dict) -> list[str]:
@@ -201,7 +237,8 @@ def assi_morti(tabella: dict) -> list[str]:
     due. Un asse morto non è un parametro da calibrare: è una coordinata che la ricerca
     ottimizza a vuoto, e va detto nel report invece di lasciar credere che il valore
     "vincente" su quell'asse significhi qualcosa."""
-    assi = {"boost_alpha": 0, "default_weight": 1, "unclassified_weight": 2}
+    assi = {"boost_alpha": 0, "default_weight": 1, "unclassified_weight": 2,
+            "section_restatement_weight": 3}
     morti = []
     for nome, i in assi.items():
         gruppi: dict[tuple, set] = {}
@@ -214,27 +251,27 @@ def assi_morti(tabella: dict) -> list[str]:
 
 def kfold_cv(cases, cache, *, k, folds, seed, graph, restatements):
     """k-fold CV: per ogni fold held-out, sceglie i parametri sui restanti e li valuta sul fold.
-    Restituisce (recall medio held-out coi parametri CALIBRATI, recall medio held-out coi DEFAULT)."""
+    Restituisce (recall medio held-out coi parametri CALIBRATI, recall medio held-out coi
+    DEFAULT, lista dei punti scelti fold per fold — "valore scelto in N fold su M" è la
+    stabilità della scelta, che la sola dev.std fra seed non mostra)."""
     idx = list(range(len(cases)))
     random.Random(seed).shuffle(idx)
     buckets = [idx[i::folds] for i in range(folds)]
-    cal_scores, def_scores = [], []
+    cal_scores, def_scores, scelti = [], [], []
     for f in range(folds):
         val = [cases[i] for i in buckets[f]]
         train = [cases[i] for i in idx if i not in set(buckets[f])]
         if not val or not train:
             continue
-        _, a, dw, uw = grid_best(train, cache, k=k, graph=graph, restatements=restatements)
-        cal_scores.append(mean_recall(val, cache, alpha=a, default_weight=dw,
-                                      unclassified_weight=uw, k=k, graph=graph,
+        _, *punto = grid_best(train, cache, k=k, graph=graph, restatements=restatements)
+        scelti.append(tuple(punto))
+        cal_scores.append(mean_recall(val, cache, **_kw(punto), k=k, graph=graph,
                                       restatements=restatements))
-        def_scores.append(mean_recall(val, cache, alpha=AUTHORITY_BOOST_ALPHA,
-                                      default_weight=AUTHORITY_DEFAULT_WEIGHT,
-                                      unclassified_weight=AUTHORITY_UNCLASSIFIED_WEIGHT,
-                                      k=k, graph=graph, restatements=restatements))
+        def_scores.append(mean_recall(val, cache, **_kw(ATTUALE), k=k, graph=graph,
+                                      restatements=restatements))
     def avg(xs):
         return sum(xs) / len(xs) if xs else 0.0
-    return avg(cal_scores), avg(def_scores)
+    return avg(cal_scores), avg(def_scores), scelti
 
 
 def main() -> int:
@@ -255,8 +292,9 @@ def main() -> int:
     from qdrant_client import QdrantClient
     arts = load_artifacts(required=("graph", "colbert", "chunks"))
     # Peso di SEZIONE (N4): fa parte del ranking di PRODUZIONE, quindi deve far parte anche
-    # di ciò che si calibra. Senza, la griglia ottimizzerebbe alpha contro un ordinamento
-    # che nessuno serve — l'avvertimento è scritto nel docstring di make_retrieve_fn.
+    # di ciò che si calibra — l'insieme `restatements` dice QUALI sezioni lo ricevono, la
+    # griglia (RESTATEMENT_WEIGHTS) QUANTO. Senza, la griglia ottimizzerebbe alpha contro un
+    # ordinamento che nessuno serve — l'avvertimento è scritto nel docstring di make_retrieve_fn.
     restatements = retrieval.restatement_sections(arts.chunks_store)
     qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
     embed_model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
@@ -267,11 +305,17 @@ def main() -> int:
                                      colbert_store=arts.colbert_store, graph=arts.graph,
                                      restatements=restatements)
 
-    attuali = dict(alpha=AUTHORITY_BOOST_ALPHA, default_weight=AUTHORITY_DEFAULT_WEIGHT,
-                   unclassified_weight=AUTHORITY_UNCLASSIFIED_WEIGHT)
-    default_full = mean_recall(cases, cache, **attuali, k=a.k, graph=arts.graph,
+    default_full = mean_recall(cases, cache, **_kw(ATTUALE), k=a.k, graph=arts.graph,
                                restatements=restatements)
+    # Il COSTO, misurato sulla prima griglia e stampato PRIMA della CV: quattro assi
+    # moltiplicano (9×6×5×8 = 2160 punti per griglia, e la CV ne rifà una per fold e per seed).
+    n_punti = len(ALPHAS) * len(DEFAULT_WEIGHTS) * len(UNCLASSIFIED_WEIGHTS) * len(RESTATEMENT_WEIGHTS)
+    t0 = time.perf_counter()
     tabella_full = griglia(cases, cache, k=a.k, graph=arts.graph, restatements=restatements)
+    t_griglia = time.perf_counter() - t0
+    n_griglie_cv = a.folds * len(a.seed)
+    print(f"  griglia piena: {n_punti} punti in {t_griglia:.0f}s → CV ({n_griglie_cv} griglie "
+          f"su {(a.folds - 1) / a.folds:.0%} dei casi) stimata in ~{t_griglia * n_griglie_cv * (a.folds - 1) / a.folds / 60:.0f} min")
     best_full = grid_best(cases, cache, k=a.k, graph=arts.graph, restatements=restatements,
                           tabella=tabella_full)
     morti = assi_morti(tabella_full)
@@ -280,41 +324,49 @@ def main() -> int:
                 for sd in a.seed]
     def _media(xs):
         return sum(xs) / len(xs)
-    cal_cv, def_cv = _media([c for c, _ in per_seed]), _media([d for _, d in per_seed])
-    guadagni = [c - d for c, d in per_seed]
+    cal_cv, def_cv = _media([c for c, _, _ in per_seed]), _media([d for _, d, _ in per_seed])
+    guadagni = [c - d for c, d, _ in per_seed]
     dev_std = (_media([(g - _media(guadagni)) ** 2 for g in guadagni])) ** 0.5
+    # Stabilità della SCELTA: quante volte, sui fold di training, la griglia ha scelto ogni
+    # punto. Un guadagno positivo con una scelta che salta da fold a fold è rumore che ha
+    # trovato un segno, non una calibrazione.
+    scelte = Counter(punto for _, _, scelti in per_seed for punto in scelti)
+    n_fold_tot = sum(scelte.values())
 
     # Il sottoinsieme avversariale a parte (S5). È 10 casi su 59: nella media generale il
     # suo movimento è sotto la risoluzione del numero, e questo piano esiste per muoverlo.
     n_avv = sum(1 for c in cases if c.get("adversarial"))
-    avv_default = mean_recall(cases, cache, **attuali, k=a.k, graph=arts.graph,
+    avv_default = mean_recall(cases, cache, **_kw(ATTUALE), k=a.k, graph=arts.graph,
                               restatements=restatements,
                               subset="adversarial") if n_avv else None
-    avv_best = mean_recall(cases, cache, alpha=best_full[1], default_weight=best_full[2],
-                           unclassified_weight=best_full[3], k=a.k, graph=arts.graph,
+    avv_best = mean_recall(cases, cache, **_kw(best_full[1:]), k=a.k, graph=arts.graph,
                            restatements=restatements,
                            subset="adversarial") if n_avv else None
     # Autorità del tutto SPENTA: il controfattuale che dice se il meccanismo serve o no.
-    avv_spenta = mean_recall(cases, cache, alpha=0.0, default_weight=AUTHORITY_DEFAULT_WEIGHT,
-                             unclassified_weight=AUTHORITY_UNCLASSIFIED_WEIGHT, k=a.k,
+    avv_spenta = mean_recall(cases, cache, **_kw((0.0, *ATTUALE[1:])), k=a.k,
                              graph=arts.graph, restatements=restatements,
                              subset="adversarial") if n_avv else None
+
+    def _fmt(punto) -> str:
+        a_, dw, uw, rw = punto
+        return (f"alpha={a_}  default_weight={dw}  unclassified_weight={uw}  "
+                f"section_restatement_weight={rw}")
 
     print("\n" + "=" * 68)
     print(f"Calibrazione autorità — recall@{a.k}  (golden set: {len(cases)} casi)")
     print("=" * 68)
-    print(f"  DEFAULT attuale   alpha={AUTHORITY_BOOST_ALPHA}  default_weight={AUTHORITY_DEFAULT_WEIGHT}"
-          f"  unclassified_weight={AUTHORITY_UNCLASSIFIED_WEIGHT}"
-          f"   → recall in-sample {default_full:.3f}")
-    print(f"  MIGLIORE griglia  alpha={best_full[1]}  default_weight={best_full[2]}"
-          f"  unclassified_weight={best_full[3]}"
-          f"   → recall in-sample {best_full[0]:.3f}  (ottimista, non fidarsi)")
+    print(f"  DEFAULT attuale   {_fmt(ATTUALE)}   → recall in-sample {default_full:.3f}")
+    print(f"  MIGLIORE griglia  {_fmt(best_full[1:])}   → recall in-sample {best_full[0]:.3f}"
+          "  (ottimista, non fidarsi)")
     print(f"\n  CROSS-VALIDATION ({a.folds}-fold, seed={a.seed}) — l'unico numero onesto:")
     print(f"    default   : recall@{a.k} held-out medio = {def_cv:.3f}")
     print(f"    calibrato : recall@{a.k} held-out medio = {cal_cv:.3f}")
     gain = cal_cv - def_cv
     print(f"    guadagno di validazione = {gain:+.3f}   (dev.std sui {len(a.seed)} seed: "
           f"{dev_std:.3f} — per seed: {', '.join(f'{g:+.3f}' for g in guadagni)})")
+    print(f"    punti scelti sui {n_fold_tot} fold di training:")
+    for punto, n in scelte.most_common(5):
+        print(f"      {n:2d}× {_fmt(punto)}")
     if morti:
         print()
         print(f"  ⚠️  ASSI MORTI su questo corpus: {', '.join(morti)}.")
@@ -332,20 +384,20 @@ def main() -> int:
             print("    ⚠️  Nessuna combinazione della griglia batte l'autorità SPENTA su questi")
             print("        casi: sul nostro corpus il meccanismo non li corregge.")
 
+    nomi = ("alpha", "default_weight", "unclassified_weight", "section_restatement_weight")
     proposal = {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "metric": f"recall@{a.k}",
         "cv": {"folds": a.folds, "seeds": a.seed,
                "default_recall": round(def_cv, 4), "calibrated_recall": round(cal_cv, 4),
                "gain": round(gain, 4), "gain_std": round(dev_std, 4),
-               "gain_per_seed": [round(g, 4) for g in guadagni]},
+               "gain_per_seed": [round(g, 4) for g in guadagni],
+               "chosen_per_fold": [{**dict(zip(nomi, punto)), "n_folds": n}
+                                   for punto, n in scelte.most_common()]},
+        "grid_seconds": round(t_griglia, 1),
         "dead_axes": morti,
-        "in_sample_best": {"alpha": best_full[1], "default_weight": best_full[2],
-                           "unclassified_weight": best_full[3],
-                           "recall": round(best_full[0], 4)},
-        "default": {"alpha": AUTHORITY_BOOST_ALPHA, "default_weight": AUTHORITY_DEFAULT_WEIGHT,
-                    "unclassified_weight": AUTHORITY_UNCLASSIFIED_WEIGHT,
-                    "recall": round(default_full, 4)},
+        "in_sample_best": {**dict(zip(nomi, best_full[1:])), "recall": round(best_full[0], 4)},
+        "default": {**dict(zip(nomi, ATTUALE)), "recall": round(default_full, 4)},
     }
     if n_avv:
         proposal["adversarial_subset"] = {
@@ -359,10 +411,10 @@ def main() -> int:
     if gain >= a.min_gain:
         proposal["recommendation"] = "APPLICA"
         proposal["proposed_authority_yaml"] = {
-            "boost_alpha": best_full[1], "default_weight": best_full[2]}
+            "boost_alpha": best_full[1], "default_weight": best_full[2],
+            "section_restatement_weight": best_full[4]}
         print(f"\n  ✅ Guadagno ≥ soglia ({a.min_gain}): calibrazione PROPOSTA.")
-        print(f"     Applica a mano in rag_config.yaml → authority: "
-              f"boost_alpha={best_full[1]}, default_weight={best_full[2]}")
+        print(f"     Applica a mano in rag_config.yaml → authority: {_fmt(best_full[1:])}")
     else:
         proposal["recommendation"] = "NON_APPLICARE"
         print(f"\n  ⚠️  Guadagno < soglia ({a.min_gain}): i pesi a mano REGGONO. Nessuna modifica consigliata.")
