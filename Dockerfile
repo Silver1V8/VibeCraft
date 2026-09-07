@@ -9,7 +9,7 @@
 # (tool.uv.sources), che e' giusto sulla macchina di sviluppo ma pesa 4,0 GB e non gira su
 # ARM ne' su macchine senza NVIDIA. Il target `cpu` salta quel pacchetto durante il sync e
 # lo reinstalla dall'indice CPU: l'immagine scende di qualche GB e diventa multi-arch.
-# Misurato (rag/DISTRIBUTION.md): su CPU l'embedding e' ~45x piu' lento, quindi il target
+# Misurato (rag/adr/DISTRIBUTION.md): su CPU l'embedding e' ~45x piu' lento, quindi il target
 # `cpu` e' pienamente funzionante ma reindicizzare diventa un'operazione da prendere con
 # calma. Non e' un ripiego silenzioso: e' una scelta con un costo dichiarato.
 #

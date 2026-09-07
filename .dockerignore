@@ -26,9 +26,13 @@ code/frontend/tsconfig.tsbuildinfo
 .claude/
 docs.local-backup-*/
 
-# Documenti di lavoro dell'audit: utili nel repository, inutili nell'immagine
-rag/AUDIT.md
-rag/DISTRIBUTION.md
+# Documenti di lavoro dell'audit: utili nel repository, inutili nell'immagine. Spostati in
+# rag/adr/ perché sono cronaca di sviluppo, non parte del prodotto che gira — stessa ragione
+# per cui adr/ non sta sotto docs/ (il corpus indicizzato). RESIDUI.md (il backlog derivato
+# dall'audit) non era mai stato aggiunto qui: stessa categoria, stessa esclusione.
+rag/adr/AUDIT.md
+rag/adr/DISTRIBUTION.md
+rag/adr/RESIDUI.md
 
 # Artefatti di build dentro code/: sono le STESSE directory che l'indicizzatore gia' scarta
 # (core/config.CODE_EXCLUDED_DIRS), quindi non servono nemmeno a lui. In un checkout pulito

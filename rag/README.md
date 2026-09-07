@@ -477,7 +477,7 @@ La corsa standard riporta il recall a **k ∈ {1, 2, 5, 10}**, e non per complet
   recall dice se la fonte giusta è stata *recuperata*; `/ask` ne inietta fino a 8 e
   l'LLM le legge tutte, quindi il recall può essere ottimo mentre la risposta cita
   come fonte del vincolo il documento che lo *illustra*. È successo davvero — 2 casi
-  avversariali su 4, indagine A3 in [AUDIT.md](AUDIT.md) — e la correzione
+  avversariali su 4, indagine A3 in [AUDIT.md](adr/AUDIT.md) — e la correzione
   (`[CLASSE-FONTI]`: la classe dichiarata nell'intestazione di ogni blocco del
   contesto, più la graduatoria delle classi presenti) **non ha mosso il recall di un
   decimale**, perché il ranking era già corretto. Chi tocca il prompt di `/ask` non

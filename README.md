@@ -265,8 +265,8 @@ La superficie di attacco è mappata rotta per rotta in
 | [`rag/README.md`](rag/README.md) | architettura, retrieval, pipeline, indicizzazione |
 | [`rag/adr/`](rag/adr/README.md) | le decisioni architetturali e il perché |
 | [`rag/SECURITY_SURFACE.md`](rag/SECURITY_SURFACE.md) | superficie di attacco, rotta per rotta |
-| [`rag/AUDIT.md`](rag/AUDIT.md) | audit del progetto: cosa è misurato, cosa è aperto |
-| [`rag/DISTRIBUTION.md`](rag/DISTRIBUTION.md) | piano di distribuzione e portabilità |
+| [`rag/adr/AUDIT.md`](rag/adr/AUDIT.md) | audit del progetto: cosa è misurato, cosa è aperto |
+| [`rag/adr/DISTRIBUTION.md`](rag/adr/DISTRIBUTION.md) | piano di distribuzione e portabilità |
 | `/infografica` (a server acceso) | il flusso di interrogazione, illustrato |
 
 ## Licenza

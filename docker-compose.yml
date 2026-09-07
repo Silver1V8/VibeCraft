@@ -10,7 +10,7 @@
 # dentro un container gira su CPU. Il percorso sensato li' e' Ollama NATIVO (che usa Metal)
 # e il container che gli punta contro: e' quello che fa `host-ollama`.
 #
-# VINCOLO DA NON IGNORARE (rag/DISTRIBUTION.md). Il server carica l'embedder su CPU DI
+# VINCOLO DA NON IGNORARE (rag/adr/DISTRIBUTION.md). Il server carica l'embedder su CPU DI
 # PROPOSITO (api/deps.py): 8 GB di VRAM non tengono bge-m3 e qwen3.5:9b residenti insieme.
 # Nel profilo `gpu` la GPU e' assegnata sia all'app (che la usa per i job di reindex in
 # batch) sia a Ollama: su una scheda da 8 GB le due cose si contendono la memoria durante
