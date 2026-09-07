@@ -55,11 +55,13 @@ Questa cartella non documenta un'applicazione: è la **libreria di governance ri
 | [`00_meta_governance/safeguards_security.md`](00_meta_governance/safeguards_security.md) | 12 invarianti inviolabili: identità, concorrenza, audit, segreti, privacy PII | `IRON_MEMORY` | 0.98 |
 | [`00_meta_governance/definition_of_done.md`](00_meta_governance/definition_of_done.md) | Checklist di conformità a tre livelli e registrazione del sign-off | `METADATA` | 0.90 |
 | [`00_meta_governance/policy_versionamento_documentale.md`](00_meta_governance/policy_versionamento_documentale.md) | Versionamento semantico, contratto del frontmatter, tracciamento delle modifiche | `METADATA` | 0.90 |
+| [`00_meta_governance/change_log.md`](00_meta_governance/change_log.md) | Storico delle versioni rilasciate della documentazione di questo repository | `METADATA` | 0.90 |
 | [`01_architecture_norms/coding_standards.md`](01_architecture_norms/coding_standards.md) | Metriche strutturali, eccezioni, tagging AST, validazione input, terminologia | `METHODOLOGY` | 0.85 |
 | [`01_architecture_norms/api_error_contract.md`](01_architecture_norms/api_error_contract.md) | Schema unico di errore, status HTTP, versionamento, paginazione, idempotenza | `NORMS` | 0.85 |
 | [`01_architecture_norms/observability_standards.md`](01_architecture_norms/observability_standards.md) | Log strutturati, correlation ID, redazione PII, metriche, alerting | `NORMS` | 0.85 |
 | [`01_architecture_norms/testing_strategy.md`](01_architecture_norms/testing_strategy.md) | Tassonomia dei test, tracciabilità regola→test, gate di copertura | `NORMS` | 0.85 |
 | [`01_architecture_norms/ui_ux_brand_directives.md`](01_architecture_norms/ui_ux_brand_directives.md) | Coerenza visiva, design token, accessibilità AA | `NORMS` | 0.80 |
+| [`01_architecture_norms/architecture_decision_rationale.md`](01_architecture_norms/architecture_decision_rationale.md) | Motivazione condivisa: modular monolith vs microservizi/agenti LLM | `NORMS` | 0.85 |
 | [`02_specs_normative/spec_graph_rag_ingestion.md`](02_specs_normative/spec_graph_rag_ingestion.md) | Pipeline di ingestion: chunking, authority, delta ingestion | `REQUIREMENTS` | 0.87 |
 | [`04_knowledge_informative/vibe_coding_workflow.md`](04_knowledge_informative/vibe_coding_workflow.md) | Protocollo Human-in-the-Loop e gestione delle deviazioni | `METHODOLOGY` | 0.90 |
 
