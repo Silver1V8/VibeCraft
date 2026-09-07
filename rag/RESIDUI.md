@@ -27,10 +27,10 @@ rapporto che questo audit trova ogni volta che qualcuno va a guardare invece di 
 | | |
 |---|---|
 | Righe dell'audit | 19 — 15 chiuse, 3 ritirate, 1 con premessa ritirata e sostanza chiusa |
-| Residui dichiarati | **23** (+12: R15 e R16 dai run CI reali, R17 da S4, R18 e R19 da S5, R20 da S6, R21 da S7, R22, R23, R24, R25 dalla verifica del 2026-09-07 — e **R26** da S10, lo stesso giorno) |
+| Residui dichiarati | **24** (+13: R15 e R16 dai run CI reali, R17 da S4, R18 e R19 da S5, R20 da S6, R21 da S7, R22, R23, R24, R25 dalla verifica del 2026-09-07, **R26** da S10 e **R27** da S12, lo stesso giorno) |
 | Di cui già chiusi da altri interventi (riga stantia) | 2 |
 | Risolvibili con lavoro tecnico | **21 chiusi**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, **R12** (S7, 2026-09-07), R14, **R15**, **R21**, **R22**, **R24**, **R18** (S10: due righe, non una, e un rebuild), **R26** (S10, aperto e chiuso in giornata), **R20** e **R23** (S11, la griglia congiunta) (tutti il 2026-09-07 — R21, R22 e R24 poche ore dopo essere stati aperti), N5, N6. Fuori elenco, chiusi lo stesso: **N4** (S6) e **R19** (effetto collaterale di N4) |
-| Ancora aperti, con lavoro tecnico davanti | **1** — R13 (**rimisurato e ridotto da S10**: C1 e C2 promossi, C4 passa, restano C3 e C5 che aspettano A6). *S11 (2026-09-07) ha chiuso **R20 e R23** con la griglia congiunta — e non con «non si cambia niente»: `boost_alpha` 0.1 → **0.3** (held-out +0.038 a k=1, dev.std 0.007, 5/5 seed, senza più perdere a k=5/10), `graph_context_max_chunks` 2 → **3** (il prezzo misurato di alpha nel ramo grafo), peso di sezione **confermato a 0.92** in 25 fold su 25 con alpha libero.* *S10 ha chiuso R18, aperto R26 e **chiuso R26 lo stesso giorno** (il gate ora riceve `graph` e `restatements`: 0.845 → 0.862, tutto N4, il grafo non muoveva nulla).* *S9 ne ha chiusi tre in un giro: R15 senza scrivere codice (la guardia c'era già), R24 con due righe di `conftest.py` e una di attesa, R22 con una sezione riscritta* |
+| Ancora aperti, con lavoro tecnico davanti | **2** — **R27** (il marcatore di astensione in grassetto passa per `success`: una riga in `api/`, trovata da S12 e non applicata perché fuori perimetro) e R13 (**rimisurato e ridotto da S10**: C1 e C2 promossi, C4 passa, restano C3 e C5 che aspettano A6). *S11 (2026-09-07) ha chiuso **R20 e R23** con la griglia congiunta — e non con «non si cambia niente»: `boost_alpha` 0.1 → **0.3** (held-out +0.038 a k=1, dev.std 0.007, 5/5 seed, senza più perdere a k=5/10), `graph_context_max_chunks` 2 → **3** (il prezzo misurato di alpha nel ramo grafo), peso di sezione **confermato a 0.92** in 25 fold su 25 con alpha libero.* *S10 ha chiuso R18, aperto R26 e **chiuso R26 lo stesso giorno** (il gate ora riceve `graph` e `restatements`: 0.845 → 0.862, tutto N4, il grafo non muoveva nulla).* *S9 ne ha chiusi tre in un giro: R15 senza scrivere codice (la guardia c'era già), R24 con due righe di `conftest.py` e una di attesa, R22 con una sezione riscritta* |
 | Fuori registro fino a oggi | **4** voci di `DISTRIBUTION.md` che nessuna riga di RESIDUI tracciava: la forcella `>=3.14` (**misurata il 2026-09-07**, resta la decisione), il workflow di release (**la riga era stantia: è scritto e già partito**), il primo avvio guidato, lo smoke test sul secondo OS (**c'è: scoperto è Windows nativo**) |
 | Che richiedono una decisione, non del codice | **10**, tutte in S8: N1, N2, N7, N8, N9 + R16 (proteggere il ramo), R17 (quali colori seguono il tema), **R25** (il buco lasciato scoperto dalla rimozione di M6), il primo avvio guidato e — nuova — **se abbassare `requires-python` a `>=3.12`**, che S9 ha reso una scelta con un prezzo invece di una domanda. *Erano 5: N4 è uscita (S6 l'ha decisa misurandola), poi sono entrate N9, R16, R17, R25 e le due di distribuzione; ora esce anche il **registry di release**, che era già deciso e spedito dal 2026-09-01 — la riga che lo dava aperto era stantia quanto il bilancio da cui veniva* |
 | Non risolvibili (dati persi, hardware assente) | 1 |
@@ -47,13 +47,14 @@ dimenticanze: sono confini dichiarati.
 misurato e il rango era il problema; **N5** e **N6** erano «non abbiamo il servizio / non
 abbiamo un Mac» — il runner CI ha entrambi. Restano confini le altre sei: cinque (N1, N2, N7,
 N8, N9) sono la materia di **S8**; **N3** non è una decisione ma un lavoro con un
-prerequisito, ed è scritto nella sua riga.
+prerequisito — che **S12 ha costruito** il 2026-09-07: ora è scrivibile, ed è scritto nella
+sua riga.
 
 | # | Cosa | Dove | Perché no |
 |---|---|---|---|
 | N1 | **Streaming incrementale di `/ask`** | A11 | Cambierebbe il contratto: oggi la risposta è un JSON unico con risposta, contesto grafo, archi, punteggi e latenze. Servirebbero due canali, un secondo percorso d'errore e la cache da ripensare |
 | N2 | **Gate sulla latenza** | A11 | Il bench è una misurazione (exit 0) per contratto, e un p95 su 10 campioni non regge una soglia bloccante |
-| N3 ◐ | **Metrica di attribuzione della fonte** | A3 | «A chi la risposta attribuisce il vincolo» è la metrica vera del sistema e **non esiste**. Costa una chiamata LLM per caso più un giudice. **PROTOTIPATA 2026-09-05 (S6), NON scritta**: il giudice è ripetibile (3 giudizi identici sulla stessa risposta) e concorda con l'umano su **3 casi su 4**. Il quarto dissente e il giudice ha ragione: la risposta di oggi non attribuisce alcun vincolo, e il «Dopo ✅» della tabella di A3 §6 **non si riproduce** — corpus e indice sono cambiati fra il 3 e il 5 settembre. Per il criterio fissato («se non coincide, non è pronto») **non passa**, e la causa non è il giudice: è che il riferimento sono 4 risposte lette a mano e mai archiviate. Prima di scrivere l'harness servono casi con l'attribuzione davvero contesa e verdetti umani salvati **insieme al testo della risposta** |
+| N3 ◐ | **Metrica di attribuzione della fonte** | A3 | «A chi la risposta attribuisce il vincolo» è la metrica vera del sistema e **non esiste**. Costa una chiamata LLM per caso più un giudice. **PROTOTIPATA 2026-09-05 (S6), NON scritta**: il giudice è ripetibile (3 giudizi identici sulla stessa risposta) e concorda con l'umano su **3 casi su 4**. Il quarto dissente e il giudice ha ragione: la risposta di oggi non attribuisce alcun vincolo, e il «Dopo ✅» della tabella di A3 §6 **non si riproduce** — corpus e indice sono cambiati fra il 3 e il 5 settembre. Per il criterio fissato («se non coincide, non è pronto») **non passa**, e la causa non è il giudice: è che il riferimento sono 4 risposte lette a mano e mai archiviate. Prima di scrivere l'harness servono casi con l'attribuzione davvero contesa e verdetti umani salvati **insieme al testo della risposta**. **PREREQUISITO COSTRUITO 2026-09-07 (S12)**: `eval/golden_attribution.yaml`, 8 casi × 3 esecuzioni con testo integrale e indice `v20260907T094225`, **7 negativi verificabili** (6 alla fonte sbagliata, 1 senza fonte) in 4 casi su 8 — il quinto avversariale e tre casi costruiti dove il distrattore dice ciò che la norma non dice. Il criterio di S6 ha ora il lato negativo su cui misurarsi: **N3 è scrivibile**, e l'harness deve giudicare per esecuzione e verificare la citazione nella fonte attribuita (il caso 06·3 è corretto per la metrica e falso nel contenuto) |
 | N4 ✅ | ~~**Strada 1: peso di sezione**~~ | A3 | ~~Agisce sul *rango*, che la misura ha mostrato non essere il problema.~~ **FATTO il 2026-09-05 (S6)**, ed è risultata necessaria appena R9 si è chiuso. Il segnale non era da inventare: un codice di regola **dichiarato in un titolo** marca la sezione che enuncia il vincolo, lo stesso codice in una tabella o in un blocco Gherkin è una citazione — 31 sezioni dichiarano, 28 citano soltanto, e le 28 sono esattamente l'elenco che A3 §5 aveva stampato. Calibrato a k=1 (5-fold × 5 seed, incumbent al tie-break): **held-out +0.069, dev.std 0.008, positivo su 5 seed su 5** — l'opposto di ciò che A3 trovò alzando α. Dal vivo: `r@1 0.625→0.714`, `MRR 0.786→0.835`, multihop `0.854→0.890` con 9→10 casi, nulla peggiora. Applicato nel ramo **semantico** e deliberatamente **non** in quello grafo: lì i concorrenti sono altri documenti e la penalità espelle il documento invece di promuovere la sorella che dichiara — misurato, e pinnato da un test |
 | N5 ✅ | ~~**Servizio Qdrant nel workflow CI**~~ | A8 | **Fatto 2026-09-04** — `services: qdrant` (`qdrant/qdrant:v1.19.0`) nel job `test`, con `VIBECRAFT_REQUIRE_QDRANT=1`, `pytest -rs` e un passo che pretende `5 passed`: i cinque non possono tornare a saltare in silenzio. **Run #131 verde**: il riepilogo porta «Qdrant reale: 5/5 test d'integrazione passati», e la suite gira con 0 skipped |
 | N6 ✅ | ~~**Installazione reale su un Mac**~~ | A15 | **Fatto 2026-09-04** — job `macos-nativo` su `macos-15`: `uv sync --frozen` vero, torch importato e un matmul verificato. Un Mac qui continua a non esserci: ce lo mette il runner. **Eseguito: verde in 34-36s su due run**; dal log macOS 15.7.9 arm64, `torch 2.13.0` senza `+cu` e **matmul su `mps`** — torch non si limita a installarsi, calcola sull'acceleratore. Quel numero ha smentito la stima di costo con cui l'avevo limitato a main (130 pacchetti contro 149, torch 106,1 MiB contro 804,7): restrizione rimossa. Resta scoperto il ramo con CPython **gestita da uv** — in CI uv ha usato il Python di Homebrew del runner |
@@ -693,6 +694,22 @@ R12 ha già fatto una volta per il `fetch_k`. Va **prima di S11**: calibrare tre
 gate che misura un ranking diverso da quello che si sta calibrando è l'errore che A3 ha già
 descritto.
 
+### Emerso in S12, il 2026-09-07
+
+**R27 — Il marcatore di astensione formattato passa per `success`.** *(Nuovo, 2026-09-07,
+S12.)* Caso 05 di `eval/golden_attribution.yaml`, run 2: la risposta apre con
+`**[ASTENSIONE]**` — il marcatore di `[REGOLA-ASTENSIONE]` in grassetto — e il payload esce
+con `status: "success"`. Il lettore in `api/routes_retrieval.py:516` è
+`answer.lstrip().startswith("[ASTENSIONE]")`: due asterischi lo mancano. È il difetto che A16
+aveva chiuso, tornato per una variante di formattazione: l'astensione esiste in prosa e il
+payload la nega. Il check notturno di R10 **non lo vede** — la sua domanda fuori corpus ottiene
+il marcatore nudo — quindi resta verde per costruzione.
+**Chiusura:** una riga — prima del confronto togliere `*`, `#` e spazi in testa
+(`answer.lstrip("*# \n")`), e un test con il marcatore in grassetto, verificato rosso sul
+codice attuale. Non applicata in S12 perché sta in `api/` e la sessione lavorava in `eval/`; la
+riproduzione è archiviata col testo, quindi il test si scrive senza rilanciare il modello.
+Gravità media: non altera la risposta, altera ciò che l'API dichiara di lei.
+
 ### Fuori registro fino a oggi: quattro voci di `DISTRIBUTION.md`
 
 *Nessuna riga di RESIDUI le tracciava, perché il documento nacque da `AUDIT.md` soltanto. Sono
@@ -728,6 +745,8 @@ riparare.
 | **Il pannello JSON restava con la palette vecchia al cambio di tema** | Correggendo il badge di R6: i colori sono letti con `themeVar()` e cotti nell'HTML, e nulla ridisegnava. Invisibile finché il badge era sbagliato **allo stesso modo** | Chiuso (ridisegno agganciato a `onThemeChange`) |
 | **I punteggi Qdrant sono due card, e nessuna seguiva il tema** | Verificando R6 a schermo invece che nel codice: quella della sidebar non era nemmeno nel file che il residuo nominava | Chiuso (token `--score-*`) → il resto della tavolozza è **R17** |
 | **L'advisory incrementale costa il 500% del job che osserva, e la sua regola dice di rimuoverla** | Dimensionando il costo di R12: per sapere se allargare i `k` fosse caro serviva la durata dell'advisory, e leggendola è emerso che il criterio di M6 era già stato superato di due ordini di grandezza — da settimane, nei dati del progetto stesso | Aperto → **R21** |
+
+| **Il marcatore di astensione in grassetto passa per `success`** | Leggendo per intero le 24 risposte di S12 invece dei soli verdetti: una apre con `**[ASTENSIONE]**` e il payload dice `success`. Il check di R10 non lo vede perché la sua domanda ottiene il marcatore nudo | Aperto → R27 |
 
 ### Due residui dell'audit sono già chiusi, e la riga non lo dice
 
@@ -1363,11 +1382,24 @@ Aggiorna AUDIT.md, RESIDUI.md e i commenti di calibrazione in rag_config.yaml.
 
 ---
 
-## S12 — Il prerequisito che N3 aspetta
+## S12 — Il prerequisito che N3 aspetta ✅ ESEGUITA il 2026-09-07
 
 Non chiude **N3**: costruisce le due cose senza le quali N3 non è scrivibile. S6 le ha
 nominate entrambe. Va **dopo S10 e S11**, perché una prova archiviata contro un ordinamento
 che sta per cambiare marcisce come è già marcita quella di A3.
+
+**Esito: N3 è scrivibile.** Il negativo che S6 non trovava esiste e si riproduce: **7
+verdetti su 24** sono attribuzioni sbagliate (6 alla fonte sbagliata, 1 senza fonte), in 4
+casi su 8. Il primo sta nel quinto caso avversariale, mai letto dal lato della risposta; gli
+altri in tre casi costruiti sul corpus dove il distrattore dice ciò che la norma **non dice**
+(autorità «moltiplicativa» smentita da `[REGOLA-VAL-08]`; sottotitolo in corsivo che nessuna
+norma impone; «sostituire non è oscurare» contro `[SAFEGUARD-SEC-04]`). Il rango non c'entra:
+nel caso 05 la norma è il primo blocco e il distrattore il sesto. Tutto in
+`eval/golden_attribution.yaml` — 8 casi, 24 esecuzioni, testo integrale, indice
+`v20260907T094225` — con 4 test verificati rossi. Due conseguenze per l'harness, dedotte e non
+progettate: giudizio **per esecuzione** (il caso 05 ha dato tre esiti diversi su tre) e
+citazione **verificata** nella fonte attribuita (il caso 06·3 è corretto per la metrica e
+falso nel contenuto). Trovato per strada **R27**. Cronaca in `AUDIT.md`, sezione **S12**.
 
 ```
 Lavora su rag/eval/. Questa sessione NON scrive l'harness di attribuzione: costruisce la
@@ -1555,8 +1587,8 @@ S10  la baseline si sposta          ✅  ← R18 chiuso (erano due righe), R13 +
 R26  il gate senza N4               ✅  ← chiuso in giornata: gate = server (0.862)
 S11  i tre parametri accoppiati     ✅  ← R20/R23 chiusi: alpha 0.3, tetto 3, peso di
                                           sezione 0.92 — confermato INSIEME, non da solo
-S12  il prerequisito di N3              ← dopo S11: una prova archiviata contro
-                                          un ordinamento che cambia marcisce
+S12  il prerequisito di N3          ✅  ← N3 scrivibile: 7 negativi su 24 archiviati
+                                          col testo e l'indice; R27 nuovo (una riga in api/)
 S8   decisioni                          ← ULTIMA: il punto 10 ha ora i suoi numeri
 ```
 

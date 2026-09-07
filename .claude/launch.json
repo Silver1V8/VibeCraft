@@ -4,14 +4,36 @@
     {
       "name": "vibecraft-rag",
       "runtimeExecutable": "powershell",
-      "runtimeArgs": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/run_server.ps1"],
+      "runtimeArgs": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "scripts/run_server.ps1"
+      ],
+      "cwd": "rag",
+      "port": 8000
+    },
+    {
+      "name": "vibecraft-rag-nocache",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "$env:VIBECRAFT_ASK_CACHE_SIZE='0'; & ./scripts/run_server.ps1"
+      ],
       "cwd": "rag",
       "port": 8000
     },
     {
       "name": "vibecraft-frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "cwd": "code/frontend",
       "port": 3000
     }

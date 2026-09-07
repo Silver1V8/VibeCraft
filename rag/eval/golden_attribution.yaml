@@ -1,0 +1,1088 @@
+# Prova di controllo per N3 — «a chi la risposta attribuisce il vincolo» (S12, 2026-09-07).
+#
+# NON è un artefatto di run e NON è un golden set di retrieval: è l'insieme dei verdetti
+# UMANI contro cui un giudice automatico di attribuzione (N3, AUDIT.md) potrà essere
+# validato. Vive qui, accanto a golden_set.yaml, perché eval/results/*.json è gitignorato per
+# policy e una prova di controllo deve essere tracciata, rileggibile e diffabile.
+#
+# Perché ogni verdetto porta il TESTO INTEGRALE della risposta e la VERSIONE DELL'INDICE:
+# S6 (2026-09-05) ha scoperto che i quattro verdetti di A3 §6 (2026-09-03), conservati come
+# soli ✅/❌, erano marciti in due giorni — la risposta di oggi non riproduceva più quella
+# letta allora, e nessuno poteva dire perché. Senza il testo il verdetto non è rileggibile;
+# senza l'indice non è riproducibile fra due corpus. Ogni `run` qui sotto è una chiamata
+# REALE a POST /ask (cache disattivata: VIBECRAFT_ASK_CACHE_SIZE=0), archiviata tal quale.
+#
+# Formato di ogni caso:
+#   id          : identificativo stabile
+#   q           : la domanda, IDENTICA a quella posta a /ask
+#   kind        : "adversarial" = caso del sottoinsieme avversariale di golden_set.yaml
+#                 "constructed" = costruito in S12 per cercare un'attribuzione CONTESA
+#   distractor  : il documento a bassa autorità contro cui la fonte normativa compete
+#   normative   : la fonte che STABILISCE il vincolo ({doc, section}), oppure null quando
+#                 nessuna fonte normativa lo stabilisce (attribuzione corretta = "NESSUNA")
+#   why         : perché il caso è nella prova, e cosa esercita
+#   runs        : una voce per esecuzione, MAI riscritta — se il corpus cambia si AGGIUNGE
+#                 una run con la nuova index_version, non si aggiorna la vecchia
+#     date, index_version, model, status
+#     context_sources         : le intestazioni dei blocchi del contesto iniettato, nell'ordine
+#                               in cui il modello le ha lette (classe fra parentesi quadre)
+#     implementing_code_blocks: quanti blocchi di codice (archi IMPLEMENTS) seguivano
+#     answer                  : il testo integrale della risposta
+#     verdict:
+#       attributed_to : doc id (stem del file) a cui la risposta attribuisce il vincolo,
+#                       oppure "NESSUNA" se non lo attribuisce a nessuna fonte
+#       correct       : attributed_to coincide con normative.doc (o con "NESSUNA" se null)
+#       note          : la frase della risposta su cui il verdetto si regge
+#
+# Invarianti verificate da tests/test_golden_attribution.py: ogni run ha testo, fonti e
+# indice; `correct` è coerente con `normative`; fonti e distrattori esistono nel corpus.
+#
+# LIMITE NOTO DELLA PROVA (misurato il 2026-09-07, indice v20260907T094225): il blocco `summary` qui sotto conta i
+# verdetti e elenca i negativi; la lettura è in AUDIT.md, sezione S12.
+summary:
+  measured_on: '2026-09-07'
+  index_version: v20260907T094225
+  model: qwen3.5:9b
+  runs: 24
+  correct: 17
+  wrong_source: 6
+  no_source: 1
+  negatives:
+  - 'attr-05-remote-inference run 1: -> NESSUNA'
+  - 'attr-05-remote-inference run 2: -> inferenza_locale_o_remota'
+  - 'attr-06-authority-multiplicative run 1: -> graph_rag_ingestion_strategy'
+  - 'attr-06-authority-multiplicative run 2: -> graph_rag_ingestion_strategy'
+  - 'attr-07-subtitle-heading run 2: -> spec_graph_rag_ingestion'
+  - 'attr-08-name-substitution run 1: -> inferenza_locale_o_remota'
+  - 'attr-08-name-substitution run 3: -> inferenza_locale_o_remota'
+cases:
+- id: attr-01-version-bump
+  q: cosa blocca l'ingestion quando qualcuno dimentica il bump di versione del documento
+  kind: adversarial
+  distractor: 04_knowledge_informative/graph_rag_ingestion_strategy.md
+  normative:
+    doc: spec_graph_rag_ingestion
+    section: Aggiornamento Incrementale
+  why: 'Caso 1 di A3 §6. Il distrattore (§5 «Perché il version bump è bloccante») spiega il perché con
+    lo stesso vocabolario; la regola è [REGOLA-VAL-09]. Nel contesto entra anche policy_versionamento_documentale
+    [METADATA], che ripete la regola come [REGOLA-DEV-03]: due fonti autorevoli concordi, il distrattore
+    resta razionale.'
+  runs:
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 5. Regole di Aggiornamento Incrementale e Delta
+      Ingestion [REQUIREMENTS]
+    - 04_knowledge_informative/graph_rag_ingestion_strategy.md § 5. Perché il version bump è bloccante
+      e non un warning [METHODOLOGY]
+    - 00_meta_governance/policy_versionamento_documentale.md § 5. Scenari Comportamentali BDD (Gherkin)
+      [METADATA]
+    - 00_meta_governance/policy_versionamento_documentale.md § 2. Regole di Gestione delle Versioni [METADATA]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 2. Requisiti di Chunking Dinamico e Compressione
+      [REQUIREMENTS]
+    - '00_meta_governance/change_log.md § 3. Storico delle Versioni Rilasciate [METADATA; via grafo: 1
+      hop, fiducia 0.900, pertinenza 0.499]'
+    - 'README.md § Contenuto [METADATA; via grafo: 1 hop, fiducia 0.900, pertinenza 0.481]'
+    - '00_meta_governance/safeguards_security.md § Categoria 2 — Concorrenza Critica sul Database [IRON_MEMORY;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.443]'
+    implementing_code_blocks: 10
+    answer: |
+      Il contesto non riporta un blocco specifico dell'ingestion legato a una "dimenticanza" generica, ma definisce esplicitamente la condizione e le conseguenze tecniche per il caso in cui il corpo del documento è modificato senza l'incremento contestuale del campo `version`.
+
+      Secondo **[REGOLA-VAL-09]** (Version bump bloccante obbligatorio) presente nel file `02_specs_normative/spec_graph_rag_ingestion.md`, la modifica del corpo di un documento senza il contestuale incremento di `version` deve **bloccare la pipeline** con l'eccezione **`VERSION_NOT_BUMPED`**.
+
+      Questa regola è rafforzata da **[REGOLA-DEV-03]** (Version bump contestuale alla modifica) nel file `00_meta_governance/policy_versionamento_documentale.md`, che specifica che un "bump differito produce una finestra in cui l'indice contiene chunk che non corrispondono più al file sorgente", portando la pipeline a **rigettare il documento** con **`VERSION_NOT_BUMPED`**.
+
+      Il contesto conferma inoltre, tramite lo scenario Gherkin **"Blocco per modifica senza version bump"** nel file `00_meta_governance/policy_versionamento_documentale.md`, che quando viene lanciata la pipeline di ingestion incrementale su un documento modificato il cui campo `version` è rimasto invariato, **la pipeline si arresta sollevando `VERSION_NOT_BUMPED`** e l'indice resta sull'ultima versione coerente.
+
+      Pertanto, ciò che blocca l'ingestion è la violazione del vincolo di atomicità tra modifica del corpo e incremento della versione, che attiva il blocco con l'eccezione **`VERSION_NOT_BUMPED`**.
+    verdict:
+      attributed_to: spec_graph_rag_ingestion
+      correct: true
+      note: «Secondo [REGOLA-VAL-09] … presente nel file 02_specs_normative/spec_graph_rag_ingestion.md»;
+        policy_versionamento citata come rafforzamento, il distrattore non è citato.
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 5. Regole di Aggiornamento Incrementale e Delta
+      Ingestion [REQUIREMENTS]
+    - 04_knowledge_informative/graph_rag_ingestion_strategy.md § 5. Perché il version bump è bloccante
+      e non un warning [METHODOLOGY]
+    - 00_meta_governance/policy_versionamento_documentale.md § 5. Scenari Comportamentali BDD (Gherkin)
+      [METADATA]
+    - 00_meta_governance/policy_versionamento_documentale.md § 2. Regole di Gestione delle Versioni [METADATA]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 2. Requisiti di Chunking Dinamico e Compressione
+      [REQUIREMENTS]
+    - '00_meta_governance/change_log.md § 3. Storico delle Versioni Rilasciate [METADATA; via grafo: 1
+      hop, fiducia 0.900, pertinenza 0.499]'
+    - 'README.md § Contenuto [METADATA; via grafo: 1 hop, fiducia 0.900, pertinenza 0.481]'
+    - '00_meta_governance/safeguards_security.md § Categoria 2 — Concorrenza Critica sul Database [IRON_MEMORY;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.443]'
+    implementing_code_blocks: 10
+    answer: |
+      Il contesto non riporta un blocco specifico per la domanda posta, ma fornisce le regole e gli effetti in caso di violazione che rispondono alla richiesta.
+
+      Quando il corpo di un documento viene modificato senza il contestuale incremento del campo `version` nel frontmatter, l'indicizzatore blocca la pipeline sollevando l'eccezione **`VERSION_NOT_BUMPED`**. Questo comportamento è definito da **[REGOLA-VAL-09]** nella specifica `[REQUIREMENTS]` e confermato dallo scenario BDD "Blocco per modifica senza version bump" nel documento `[METADATA]`.
+
+      Il blocco avviene perché la pipeline di ingestion incrementale rigetta il documento, impedendo l'indicizzazione dei chunk che non corrispondono più al file sorgente (evitando così un disallineamento tra indice e dati).
+    verdict:
+      attributed_to: spec_graph_rag_ingestion
+      correct: true
+      note: «definito da [REGOLA-VAL-09] nella specifica [REQUIREMENTS] e confermato dallo scenario BDD
+        … [METADATA]».
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 5. Regole di Aggiornamento Incrementale e Delta
+      Ingestion [REQUIREMENTS]
+    - 04_knowledge_informative/graph_rag_ingestion_strategy.md § 5. Perché il version bump è bloccante
+      e non un warning [METHODOLOGY]
+    - 00_meta_governance/policy_versionamento_documentale.md § 5. Scenari Comportamentali BDD (Gherkin)
+      [METADATA]
+    - 00_meta_governance/policy_versionamento_documentale.md § 2. Regole di Gestione delle Versioni [METADATA]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 2. Requisiti di Chunking Dinamico e Compressione
+      [REQUIREMENTS]
+    - '00_meta_governance/change_log.md § 3. Storico delle Versioni Rilasciate [METADATA; via grafo: 1
+      hop, fiducia 0.900, pertinenza 0.499]'
+    - 'README.md § Contenuto [METADATA; via grafo: 1 hop, fiducia 0.900, pertinenza 0.481]'
+    - '00_meta_governance/safeguards_security.md § Categoria 2 — Concorrenza Critica sul Database [IRON_MEMORY;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.443]'
+    implementing_code_blocks: 10
+    answer: |
+      Il contesto non riporta un blocco specifico per la domanda posta, ma fornisce le regole e gli effetti in caso di violazione che rispondono alla richiesta.
+
+      Quando il corpo di un documento viene modificato senza il contestuale incremento del campo `version` nel frontmatter, l'indicizzatore blocca la pipeline sollevando l'eccezione **`VERSION_NOT_BUMPED`**. Questo comportamento è definito da **[REGOLA-VAL-09]** (Version bump bloccante obbligatorio) in *spec_graph_rag_ingestion.md* e confermato dallo scenario Gherkin "Blocco per modifica senza version bump" in *policy_versionamento_documentale.md*. L'effetto di questa violazione è il rifiuto dell'ingestion incrementale dei dati, mantenendo l'indice sull'ultima versione coerente del documento.
+    verdict:
+      attributed_to: spec_graph_rag_ingestion
+      correct: true
+      note: «definito da [REGOLA-VAL-09] … in spec_graph_rag_ingestion.md e confermato dallo scenario
+        Gherkin … in policy_versionamento_documentale.md».
+- id: attr-02-chunk-threshold
+  q: quanti caratteri al massimo può avere un chunk e con quale severità viene segnalato lo sforamento
+  kind: adversarial
+  distractor: 04_knowledge_informative/graph_rag_ingestion_strategy.md
+  normative:
+    doc: spec_graph_rag_ingestion
+    section: Chunking
+  why: Caso 2 di A3 §6, quello del difetto storico (severità attribuita al METHODOLOGY, colonna «Prima»
+    del 2026-09-03). Il distrattore enuncia 1500, 2500 e WARNING in prosa piena; la spec li enuncia via
+    segnaposto <<SOGLIA_CHUNK>> / <<SOGLIA_CHUNK_ASSOLUTA>> in [REGOLA-VAL-02] e [REGOLA-VAL-06].
+  runs:
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 04_knowledge_informative/graph_rag_ingestion_strategy.md § 2. Perché il limite di chunking è ~1500
+      caratteri (non 500, non 4000) [METHODOLOGY]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 2. Requisiti di Chunking Dinamico e Compressione
+      [REQUIREMENTS]
+    - 00_meta_governance/policy_versionamento_documentale.md § 2. Regole di Gestione delle Versioni [METADATA]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 1. Obiettivo e Ambito di Applicazione [REQUIREMENTS]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 4. Requisiti di Retrieval e Authority Boost [REQUIREMENTS]
+    - '00_meta_governance/safeguards_security.md § Categoria 4 — Sicurezza del Codice e Segreti [IRON_MEMORY;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.400]'
+    - '00_meta_governance/safeguards_security.md § Indice dei Safeguard [IRON_MEMORY; via grafo: 1 hop,
+      fiducia 0.900, pertinenza 0.391]'
+    - '00_meta_governance/change_log.md § 2. Regole di Gestione delle Versioni (Version Control Rules)
+      [METADATA; via grafo: 1 hop, fiducia 0.900, pertinenza 0.400]'
+    implementing_code_blocks: 10
+    answer: |
+      Il contesto riporta due soglie distinte per il limite dimensionale dei chunk, ciascuna associata a una specifica condizione di violazione e alla relativa severità.
+
+      1.  **Soglia operativa (`<<SOGLIA_CHUNK>>`):**
+          *   **Valore:** `1500` caratteri *(default)*.
+          *   **Vincolo:** La segmentazione deve produrre blocchi semantici sotto questo limite per preservare la densità informativa.
+          *   **Severità dello sforamento:** Non è esplicitamente definita una severità di blocco (come `WARNING`) per il superamento di questa soglia specifica nel contesto fornito; tuttavia, l'effetto in caso di violazione è descritto come **"Diluizione della firma semantica del vettore ed errori di accuratezza nel Dense Retrieval"**.
+          *   **Fonte:** `[REGOLA-VAL-02]` in `02_specs_normative/spec_graph_rag_ingestion.md § 2. Requisiti di Chunking Dinamico e Compressione [REQUIREMENTS]`.
+
+      2.  **Soglia di blocco dell'ingestion (`<<SOGLIA_CHUNK_ASSOLUTA>>`):**
+          *   **Valore:** `2500` caratteri *(default)*.
+          *   **Vincolo:** Al superamento di questa soglia, l'indicizzatore blocca l'ingestion.
+          *   **Severità dello sforamento:** `WARNING`.
+          *   **Fonte:** `[REGOLA-VAL-06]` in `02_specs_normative/spec_graph_rag_ingestion.md § 2. Requisiti di Chunking Dinamico e Compressione [REQUIREMENTS]`, confermato anche nel riepilogo dei parametri in `02_specs_normative/spec_graph_rag_ingestion.md § 1. Obiettivo e Ambito di Applicazione [REQUIREMENTS]`.
+
+      **Nota sulla divergenza:**
+      Il blocco `04_knowledge_informative/graph_rag_ingestion_strategy.md` descrive il valore empirico scelto (`~1500`) come la soglia oltre la quale BGE-M3 perde precisione, e menziona che `2500` è il punto oltre il quale si preferisce bloccare l'ingestion con severity `WARNING`. Questo valore coincide esattamente con i parametri definiti nelle specifiche normative (`<<SOGLIA_CHUNK>>` = 1500, `<<SOGLIA_CHUNK_ASSOLUTA>>` = 2500). Non vi è divergenza tra codice e documento su questi valori numerici specifici.
+    verdict:
+      attributed_to: spec_graph_rag_ingestion
+      correct: true
+      note: 'Entrambe le soglie con «Fonte: [REGOLA-VAL-02] / [REGOLA-VAL-06] in spec_graph_rag_ingestion.md»;
+        il distrattore in «Nota sulla divergenza», come conferma dei valori.'
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 04_knowledge_informative/graph_rag_ingestion_strategy.md § 2. Perché il limite di chunking è ~1500
+      caratteri (non 500, non 4000) [METHODOLOGY]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 2. Requisiti di Chunking Dinamico e Compressione
+      [REQUIREMENTS]
+    - 00_meta_governance/policy_versionamento_documentale.md § 2. Regole di Gestione delle Versioni [METADATA]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 1. Obiettivo e Ambito di Applicazione [REQUIREMENTS]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 4. Requisiti di Retrieval e Authority Boost [REQUIREMENTS]
+    - '00_meta_governance/safeguards_security.md § Categoria 4 — Sicurezza del Codice e Segreti [IRON_MEMORY;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.400]'
+    - '00_meta_governance/safeguards_security.md § Indice dei Safeguard [IRON_MEMORY; via grafo: 1 hop,
+      fiducia 0.900, pertinenza 0.391]'
+    - '00_meta_governance/change_log.md § 2. Regole di Gestione delle Versioni (Version Control Rules)
+      [METADATA; via grafo: 1 hop, fiducia 0.900, pertinenza 0.400]'
+    implementing_code_blocks: 10
+    answer: |
+      Il contesto riporta due soglie distinte per il limite dimensionale dei chunk, ciascuna associata a una specifica azione o severità.
+
+      1.  **Soglia operativa (`<<SOGLIA_CHUNK>>`):**
+          *   **Valore:** `1500` caratteri *(default)*.
+          *   **Fonte:** `[REGOLA-VAL-02] Limite dimensionale dei chunk` (file `02_specs_normative/spec_graph_rag_ingestion.md`, classe `REQUIREMENTS`).
+          *   **Vincolo:** La segmentazione deve produrre blocchi semantici sotto questa soglia per preservare la densità informativa.
+          *   **Effetto in caso di violazione:** Diluizione della firma semantica del vettore ed errori di accuratezza nel Dense Retrieval (Failure Mode).
+
+      2.  **Soglia di blocco dell'ingestion (`<<SOGLIA_CHUNK_ASSOLUTA>>`):**
+          *   **Valore:** `2500` caratteri *(default)*.
+          *   **Fonte:** `[REGOLA-VAL-06] Compressione controllata lossy` (file `02_specs_normative/spec_graph_rag_ingestion.md`, classe `REQUIREMENTS`).
+          *   **Vincolo:** Al superamento di questa soglia, l'indicizzatore blocca l'ingestion.
+          *   **Severità:** `WARNING`.
+
+      **Nota sulla divergenza tra documento e codice:**
+      Il contesto fornito include un blocco «CODICE ESISTENTE» che cita implementazioni specifiche (es. `BookingRequestApprovedFaultConsumer`, `SafeguardIsolationTests`) relative a logiche di business, gestione degli errori (`Fault`), isolamento eventi e template di rifiuto automatico. Tuttavia, **nessun file di codice sorgente** all'interno del blocco «CODICE ESISTENTE» definisce i parametri `<<SOGLIA_CHUNK>>`, `<<SOGLIA_CHUNK_ASSOLUTA>>` o le relative logiche di chunking. Pertanto, non è possibile estrarre identificatori tecnici (nomi di classi, campi, metodi) dal codice fornito per questa specifica domanda; la risposta si basa esclusivamente sui requisiti documentali (`REQUIREMENTS`) presenti nel contesto testuale.
+    verdict:
+      attributed_to: spec_graph_rag_ingestion
+      correct: true
+      note: '«Fonte: [REGOLA-VAL-02] … [REGOLA-VAL-06] … classe REQUIREMENTS»; il distrattore non è citato.'
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 04_knowledge_informative/graph_rag_ingestion_strategy.md § 2. Perché il limite di chunking è ~1500
+      caratteri (non 500, non 4000) [METHODOLOGY]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 2. Requisiti di Chunking Dinamico e Compressione
+      [REQUIREMENTS]
+    - 00_meta_governance/policy_versionamento_documentale.md § 2. Regole di Gestione delle Versioni [METADATA]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 1. Obiettivo e Ambito di Applicazione [REQUIREMENTS]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 4. Requisiti di Retrieval e Authority Boost [REQUIREMENTS]
+    - '00_meta_governance/safeguards_security.md § Categoria 4 — Sicurezza del Codice e Segreti [IRON_MEMORY;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.400]'
+    - '00_meta_governance/safeguards_security.md § Indice dei Safeguard [IRON_MEMORY; via grafo: 1 hop,
+      fiducia 0.900, pertinenza 0.391]'
+    - '00_meta_governance/change_log.md § 2. Regole di Gestione delle Versioni (Version Control Rules)
+      [METADATA; via grafo: 1 hop, fiducia 0.900, pertinenza 0.400]'
+    implementing_code_blocks: 10
+    answer: |
+      Il contesto riporta due soglie distinte per il limite dimensionale dei chunk, ciascuna associata a una specifica modalità di gestione (segnalazione o blocco) e alle relative fonti autorevoli.
+
+      **1. Soglia di Segnalazione (`WARNING`)**
+      *   **Valore:** `2500` caratteri.
+      *   **Severità:** `WARNING`.
+      *   **Fonte Autorevole:** `[REGOLA-VAL-06] Compressione controllata lossy` (fonte: `REQUIREMENTS`, autorità 0.87).
+          *   Il contesto specifica che al superamento di `<<SOGLIA_CHUNK_ASSOLUTA>>` (valore default `2500`) l'indicizzatore blocca l'ingestion con severity `WARNING`.
+      *   **Motivazione:** È il punto oltre il quale si preferisce bloccare l'ingestion piuttosto che accettare una compressione lossy che potrebbe alterare il significato di una regola.
+
+      **2. Soglia Operativa Standard (Limite dimensionale)**
+      *   **Valore:** `1500` caratteri.
+      *   **Severità:** Non applicata direttamente come blocco, ma è la soglia oltre la quale BGE-M3 perde precisione su testo normativo denso in italiano.
+      *   **Fonte Autorevole:** `[REGOLA-VAL-02] Limite dimensionale dei chunk` (fonte: `REQUIREMENTS`, autorità 0.87).
+          *   Il contesto stabilisce che la segmentazione deve produrre blocchi semantici sotto `<<SOGLIA_CHUNK>>` caratteri, con valore default `1500`.
+
+      **Nota sulla divergenza tra fonti:**
+      Esiste una distinzione funzionale tra le due soglie nel contesto:
+      *   La soglia di **`1500`** è il limite operativo per preservare la densità informativa e la precisione dell'embedding (fonte `[REGOLA-VAL-02]`).
+      *   La soglia di **`2500`** è il limite assoluto (`<<SOGLIA_CHUNK_ASSOLUTA>>`) oltre il quale viene attivata la severità `WARNING` per bloccare l'ingestion (fonte `[REGOLA-VAL-06]`).
+
+      Il contesto non riporta una singola soglia unica che copra entrambi gli effetti in modo indifferenziato; piuttosto, definisce un intervallo operativo (`1500`) e un limite di sicurezza assoluto (`2500`) con la relativa severità.
+    verdict:
+      attributed_to: spec_graph_rag_ingestion
+      correct: true
+      note: '«Fonte Autorevole: [REGOLA-VAL-06] … (REQUIREMENTS, autorità 0.87)». Da registrare: la motivazione
+        «BGE-M3 perde precisione» viene dal distrattore ma è riportata sotto la fonte spec senza dirlo
+        — attribuzione del vincolo giusta, del razionale no.'
+- id: attr-03-cascade-order
+  q: 'in quale ordine il chunker tenta i tagli: blocchi atomici, poi H2, poi H3, poi paragrafi'
+  kind: adversarial
+  distractor: 04_knowledge_informative/graph_rag_ingestion_strategy.md
+  normative:
+    doc: spec_graph_rag_ingestion
+    section: Chunking
+  why: Caso 3 di A3 §6. Il distrattore (§3 «Perché la segmentazione è a cascata») descrive lo stesso ordine
+    con più parole; la regola è [REGOLA-VAL-04].
+  runs:
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 2. Requisiti di Chunking Dinamico e Compressione
+      [REQUIREMENTS]
+    - 04_knowledge_informative/graph_rag_ingestion_strategy.md § 3. Perché la segmentazione è a cascata
+      e non "sempre per paragrafo" [METHODOLOGY]
+    - 04_knowledge_informative/graph_rag_ingestion_strategy.md § 2. Perché il limite di chunking è ~1500
+      caratteri (non 500, non 4000) [METHODOLOGY]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 5. Regole di Aggiornamento Incrementale e Delta
+      Ingestion [REQUIREMENTS]
+    - 04_knowledge_informative/vibe_coding_workflow.md § Sezione 1 — Protocollo Human-in-the-Loop (HITL)
+      [METHODOLOGY]
+    - '00_meta_governance/policy_versionamento_documentale.md § 2. Regole di Gestione delle Versioni [METADATA;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.377]'
+    - '00_meta_governance/policy_versionamento_documentale.md § 5. Scenari Comportamentali BDD (Gherkin)
+      [METADATA; via grafo: 1 hop, fiducia 0.900, pertinenza 0.363]'
+    - '01_architecture_norms/testing_strategy.md § Sezione 0 — Contratto di Istanziazione [NORMS; via
+      grafo: 1 hop, fiducia 0.900, pertinenza 0.362]'
+    implementing_code_blocks: 10
+    answer: |
+      Il contesto riporta l'ordine esatto dei tentativi di taglio nel modulo di chunking.
+
+      Secondo **[REGOLA-VAL-04] Segmentazione gerarchica in cascata** (fonte: `02_specs_normative/spec_graph_rag_ingestion.md`), il modulo applica la priorità di taglio in cascata con l'ordine seguente:
+      1.  **blocchi atomici**
+      2.  **intestazioni H2**
+      3.  **intestazioni H3**
+      4.  **paragrafi**
+
+      Questa sequenza è confermata dal razionale strategico in `04_knowledge_informative/graph_rag_ingestion_strategy.md`, che spiega come la cascata applichi il taglio più "grossolano" (blocchi atomici) prima di scendere a quello più fine (paragrafi), per garantire che l'unità semantica minima coincida con l'unità di significato del documento.
+    verdict:
+      attributed_to: spec_graph_rag_ingestion
+      correct: true
+      note: '«Secondo [REGOLA-VAL-04] … (fonte: spec_graph_rag_ingestion.md)»; il distrattore «conferma»
+        e «spiega».'
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 2. Requisiti di Chunking Dinamico e Compressione
+      [REQUIREMENTS]
+    - 04_knowledge_informative/graph_rag_ingestion_strategy.md § 3. Perché la segmentazione è a cascata
+      e non "sempre per paragrafo" [METHODOLOGY]
+    - 04_knowledge_informative/graph_rag_ingestion_strategy.md § 2. Perché il limite di chunking è ~1500
+      caratteri (non 500, non 4000) [METHODOLOGY]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 5. Regole di Aggiornamento Incrementale e Delta
+      Ingestion [REQUIREMENTS]
+    - 04_knowledge_informative/vibe_coding_workflow.md § Sezione 1 — Protocollo Human-in-the-Loop (HITL)
+      [METHODOLOGY]
+    - '00_meta_governance/policy_versionamento_documentale.md § 2. Regole di Gestione delle Versioni [METADATA;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.377]'
+    - '00_meta_governance/policy_versionamento_documentale.md § 5. Scenari Comportamentali BDD (Gherkin)
+      [METADATA; via grafo: 1 hop, fiducia 0.900, pertinenza 0.363]'
+    - '01_architecture_norms/testing_strategy.md § Sezione 0 — Contratto di Istanziazione [NORMS; via
+      grafo: 1 hop, fiducia 0.900, pertinenza 0.362]'
+    implementing_code_blocks: 10
+    answer: |
+      Il contesto riporta esplicitamente l'ordine dei tentativi di taglio nel blocco **[REGOLA-VAL-04] Segmentazione gerarchica in cascata** del file `02_specs_normative/spec_graph_rag_ingestion.md`.
+
+      L'ordine esatto è:
+      1.  **blocchi atomici**
+      2.  **intestazioni H2**
+      3.  **intestazioni H3**
+      4.  **paragrafi**
+
+      Questa sequenza è confermata anche nella spiegazione strategica del file `04_knowledge_informative/graph_rag_ingestion_strategy.md`, che descrive la cascata come: "blocchi atomici → H2 → H3 → paragrafi".
+    verdict:
+      attributed_to: spec_graph_rag_ingestion
+      correct: true
+      note: «nel blocco [REGOLA-VAL-04] … del file spec_graph_rag_ingestion.md»; il distrattore «conferma
+        anche».
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 2. Requisiti di Chunking Dinamico e Compressione
+      [REQUIREMENTS]
+    - 04_knowledge_informative/graph_rag_ingestion_strategy.md § 3. Perché la segmentazione è a cascata
+      e non "sempre per paragrafo" [METHODOLOGY]
+    - 04_knowledge_informative/graph_rag_ingestion_strategy.md § 2. Perché il limite di chunking è ~1500
+      caratteri (non 500, non 4000) [METHODOLOGY]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 5. Regole di Aggiornamento Incrementale e Delta
+      Ingestion [REQUIREMENTS]
+    - 04_knowledge_informative/vibe_coding_workflow.md § Sezione 1 — Protocollo Human-in-the-Loop (HITL)
+      [METHODOLOGY]
+    - '00_meta_governance/policy_versionamento_documentale.md § 2. Regole di Gestione delle Versioni [METADATA;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.377]'
+    - '00_meta_governance/policy_versionamento_documentale.md § 5. Scenari Comportamentali BDD (Gherkin)
+      [METADATA; via grafo: 1 hop, fiducia 0.900, pertinenza 0.363]'
+    - '01_architecture_norms/testing_strategy.md § Sezione 0 — Contratto di Istanziazione [NORMS; via
+      grafo: 1 hop, fiducia 0.900, pertinenza 0.362]'
+    implementing_code_blocks: 10
+    answer: |
+      Il contesto riporta esplicitamente l'ordine dei tentativi di taglio nel blocco **[REGOLA-VAL-04] Segmentazione gerarchica in cascata** del file `02_specs_normative/spec_graph_rag_ingestion.md`.
+
+      L'ordine esatto è:
+      1.  **blocchi atomici**
+      2.  **intestazioni H2**
+      3.  **intestazioni H3**
+      4.  **paragrafi**
+
+      Questa sequenza applica il taglio più "grossolano" possibile prima di scendere a quello più fine, come motivato nel file `04_knowledge_informative/graph_rag_ingestion_strategy.md` (§ 3), per garantire che l'unità semantica minima coincida con l'unità di significato del documento.
+    verdict:
+      attributed_to: spec_graph_rag_ingestion
+      correct: true
+      note: Idem; il distrattore «motiva» (§ 3).
+- id: attr-04-palette
+  q: controllo stilistico della palette colori verificabile nel codice sorgente
+  kind: adversarial
+  distractor: 03_changes_historical/fe1-canvas-review.md
+  normative:
+    doc: ui_ux_brand_directives
+    section: Design Token
+  why: 'Caso 4 di A3 §6, quello su cui S6 dissentì dalla tabella (giudice: «NESSUNA», 2026-09-05). La
+    domanda ripete parola per parola una frase del distrattore (canvas-review senza classe, peso 0.30).
+    Oggi nel contesto entra il codice del frontend (contrast.ts, palette-guard.ts) via archi IMPLEMENTS.'
+  runs:
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 01_architecture_norms/ui_ux_brand_directives.md § 3. Contratto dei Design Token [NORMS]
+    - 01_architecture_norms/coding_standards.md § 1. Obiettivo e Standard di Coesione del Team [METHODOLOGY]
+    - 03_changes_historical/fe1-canvas-review.md § Sezioni accurate [SENZA CLASSE]
+    - 01_architecture_norms/ui_ux_brand_directives.md § 5. Scenari Comportamentali BDD (Gherkin) [NORMS]
+    - 00_meta_governance/safeguards_security.md § Riepilogo degli Invarianti per il Coding Agent [IRON_MEMORY]
+    - '04_knowledge_informative/vibe_coding_workflow.md § Sezione 3 — Gestione delle Deviazioni (Edge
+      Cases) [METHODOLOGY; via grafo: 1 hop, fiducia 0.900, pertinenza 0.473]'
+    - '04_knowledge_informative/vibe_coding_workflow.md § Riepilogo delle Regole per l''Iniezione del
+      Contesto [METHODOLOGY; via grafo: 1 hop, fiducia 0.900, pertinenza 0.448]'
+    - '04_knowledge_informative/vibe_coding_workflow.md § Sezione 1 — Protocollo Human-in-the-Loop (HITL)
+      [METHODOLOGY; via grafo: 1 hop, fiducia 0.900, pertinenza 0.444]'
+    implementing_code_blocks: 12
+    answer: |
+      Il contesto **non riporta** un vincolo o una soglia specifica per il "controllo stilistico" inteso come processo di revisione umana (checkpoint) applicato alla palette colori, sebbene definisca i meccanismi tecnici per la sua validazione.
+
+      Ecco l'analisi dettagliata basata sui documenti e sul codice forniti:
+
+      1.  **Vincoli Tecnici Esistenti (Verificabili nel Codice):**
+          Il contesto stabilisce che il controllo stilistico della palette colori è automatizzato e verificabile tramite le seguenti entità estratte dal codice sorgente:
+          *   **Funzione di validazione:** `assertAccessibleColorPairs` (definita in `frontend/src/lib/design-tokens/contrast.ts`). Questa funzione implementa la verifica del rapporto di contrasto.
+          *   **Soglia tecnica:** Il vincolo è il rispetto del rapporto di contrasto **WCAG 2.1 AA** (4.5:1 per testo normale, 3:1 per testo grande), come specificato in `01_architecture_norms/ui_ux_brand_directives.md § 3 [REGOLA-UI-03]`.
+          *   **Classe di errore:** In caso di violazione, viene sollevata l'eccezione `PaletteViolationError` (definita in `frontend/src/lib/design-tokens/palette-guard.ts`).
+          *   **Meccanismo di enforcement:** La funzione `applyPaletteOverrides` (in `frontend/src/lib/design-tokens/palette-guard.ts`) applica le sovrascritture solo dopo aver validato che i colori siano all'interno della palette autorizzata (`assertWithinAllowedPalette`).
+          *   **File di configurazione:** I valori letterali sono definiti in `frontend/src/app/globals.css` ma devono essere proiettati dai token del `Theme_Config_Object` (gestito da `useDesignTokens` in `frontend/src/components/theme/theme-provider.tsx`).
+
+      2.  **Assenza di Vincoli Specifici per il Controllo Stilistico (Human-in-the-Loop):**
+          Il contesto **non riporta** un identificatore specifico (es. `[REGOLA-STILISTICO-XX]`) o una procedura documentata che definisca come deve avvenire il "controllo stilistico" da parte di un operatore umano sulla palette colori, a differenza dei checkpoint HITL definiti per lo sviluppo del codice (`[REGOLA-HITL-01]` a `[REGOLA-HITL-05]`).
+          *   Il documento `03_changes_historical/fe1-canvas-review.md § Sezioni accurate` conferma esplicitamente: "**Safeguards**: Nessun controllo stilistico oPalette Colori verificabile nel codice sorgente target." (Nota: questa frase indica l'assenza di un controllo *stilistico* verificabile come entità separata oltre a quelli tecnici, o che tale verifica non è ancora implementata come sezione distinta).
+          *   Il documento `04_knowledge_informative/vibe_coding_workflow.md` definisce regole per le deviazioni (`[REGOLA-DEV-01]`) e i checkpoint HITL (`[REGOLA-HITL-XX]`), ma non menziona una regola specifica che vincoli lo stile visivo (palette) tramite un controllo umano separato dal gate automatico di contrasto.
+
+      **Conclusione:**
+      Il contesto fornisce solo i **vincoli tecnici automatici** per la palette colori (`assertAccessibleColorPairs`, `PaletteViolationError`, soglia WCAG 2.1 AA). Non fornisce un identificatore o una procedura per un "controllo stilistico" manuale/umano specifico sulla palette, se non come parte generica dei checkpoint HITL per il codice (`[REGOLA-HITL-02]` Revisione del Codice Generato), che però non cita esplicitamente la palette come oggetto di verifica separata.
+    verdict:
+      attributed_to: ui_ux_brand_directives
+      correct: true
+      note: 'Apre con «non riporta un vincolo … per il controllo stilistico inteso come revisione umana»,
+        poi «Soglia tecnica: WCAG 2.1 AA … come specificato in ui_ux_brand_directives.md § 3 [REGOLA-UI-03]»;
+        la canvas-review citata come dichiarazione di assenza. Da leggere con la nota: un giudice che
+        si fermi al primo capoverso dirà NESSUNA, come S6.'
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 01_architecture_norms/ui_ux_brand_directives.md § 3. Contratto dei Design Token [NORMS]
+    - 01_architecture_norms/coding_standards.md § 1. Obiettivo e Standard di Coesione del Team [METHODOLOGY]
+    - 03_changes_historical/fe1-canvas-review.md § Sezioni accurate [SENZA CLASSE]
+    - 01_architecture_norms/ui_ux_brand_directives.md § 5. Scenari Comportamentali BDD (Gherkin) [NORMS]
+    - 00_meta_governance/safeguards_security.md § Riepilogo degli Invarianti per il Coding Agent [IRON_MEMORY]
+    - '04_knowledge_informative/vibe_coding_workflow.md § Sezione 3 — Gestione delle Deviazioni (Edge
+      Cases) [METHODOLOGY; via grafo: 1 hop, fiducia 0.900, pertinenza 0.473]'
+    - '04_knowledge_informative/vibe_coding_workflow.md § Riepilogo delle Regole per l''Iniezione del
+      Contesto [METHODOLOGY; via grafo: 1 hop, fiducia 0.900, pertinenza 0.448]'
+    - '04_knowledge_informative/vibe_coding_workflow.md § Sezione 1 — Protocollo Human-in-the-Loop (HITL)
+      [METHODOLOGY; via grafo: 1 hop, fiducia 0.900, pertinenza 0.444]'
+    implementing_code_blocks: 12
+    answer: |
+      Il contesto **non riporta** un vincolo o una soglia specifica per il "controllo stilistico" inteso come verifica di conformità a uno standard estetico predefinito (es. stile grafico, tono visivo) oltre alla mera validazione tecnica dei colori.
+
+      Tuttavia, il contesto **riporta** i seguenti elementi verificabili relativi alla **validazione della palette colori** e ai **vincoli tecnici** che ne governano l'implementazione:
+
+      1.  **Vincolo di Contrasto (Soglia):**
+          *   **Identificatore:** `[REGOLA-UI-03]`
+          *   **Fonte:** `01_architecture_norms/ui_ux_brand_directives.md § 3. Contratto dei Design Token [NORMS]`
+          *   **Vincolo Tecnico:** Ogni combinazione testo/superficie deve superare il rapporto di contrasto **WCAG 2.1 AA** (4.5:1 per testo normale, 3:1 per testo grande e controlli).
+          *   **Codice Sorgente Verificato:** La funzione `assertAccessibleColorPairs` in `frontend/src/lib/design-tokens/contrast.ts` implementa questa verifica rigettando le coppie non conformi.
+
+      2.  **Vincolo di Hardcoding (Safeguard):**
+          *   **Identificatore:** `[REGOLA-UI-01]`
+          *   **Fonte:** `01_architecture_norms/ui_ux_brand_directives.md § 3. Contratto dei Design Token [NORMS]`
+          *   **Vincolo Tecnico:** Nessun valore visivo (colore, dimensione tipografica) può comparire come valore letterale nei componenti; ogni modifica all'identità visiva deve passare dal layer dei design token.
+          *   **Codice Sorgente Verificato:** Il file `frontend/src/app/globals.css` proietta i colori tramite variabili CSS (`--color-primary`, ecc.) derivanti da `Theme_Config_Object`, vietando l'inserimento di valori letterali scelti a mano.
+
+      3.  **Safeguard di Autorizzazione Palette (Errore):**
+          *   **Identificatore:** `PaletteViolationError`
+          *   **Fonte:** `frontend/src/lib/design-tokens/palette-guard.ts`
+          *   **Vincolo Tecnico:** La palette è autorizzata SOLO dai colori estratti dall'analisi di `progettopa.it`. Qualsiasi override deve passare attraverso `applyPaletteOverrides` che chiama `assertWithinAllowedPalette`.
+
+      4.  **Scenario BDD (Gherkin):**
+          *   **Identificatore:** `Scenario: Token di palette con contrasto insufficiente`
+          *   **Fonte:** `01_architecture_norms/ui_ux_brand_directives.md § 5. Scenari Comportamentali BDD (Gherkin) [NORMS]`
+          *   **Vincolo Operativo:** La coppia di token viene rigettata per `[REGOLA-UI-03]` se il contrasto è inferiore a 4.5:1, bloccando la pubblicazione del tema.
+
+      **Nota sulla divergenza tra documento e codice:**
+      Il documento `03_changes_historical/fe1-canvas-review.md § Sezioni accurate [SENZA CLASSE]` dichiara che non ci sono controlli stilistici o palette verificabili nel codice sorgente target (assenza di proof of implementation). Tuttavia, il blocco **CODICE ESISTENTE** fornito (`frontend/src/lib/design-tokens/contrast.ts`, `globals.css`, `palette-guard.ts`) dimostra l'esistenza effettiva di queste implementazioni. Si riporta quindi la divergenza: il documento storico indica assenza, mentre il codice sorgente reale conferma la presenza dei controlli `[REGOLA-UI-03]` e `[REGOLA-UI-01]`.
+    verdict:
+      attributed_to: ui_ux_brand_directives
+      correct: true
+      note: '«Identificatore [REGOLA-UI-03] / [REGOLA-UI-01] — Fonte: ui_ux_brand_directives.md § 3 [NORMS]»;
+        la canvas-review in «Nota sulla divergenza», smentita dal codice.'
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 01_architecture_norms/ui_ux_brand_directives.md § 3. Contratto dei Design Token [NORMS]
+    - 01_architecture_norms/coding_standards.md § 1. Obiettivo e Standard di Coesione del Team [METHODOLOGY]
+    - 03_changes_historical/fe1-canvas-review.md § Sezioni accurate [SENZA CLASSE]
+    - 01_architecture_norms/ui_ux_brand_directives.md § 5. Scenari Comportamentali BDD (Gherkin) [NORMS]
+    - 00_meta_governance/safeguards_security.md § Riepilogo degli Invarianti per il Coding Agent [IRON_MEMORY]
+    - '04_knowledge_informative/vibe_coding_workflow.md § Sezione 3 — Gestione delle Deviazioni (Edge
+      Cases) [METHODOLOGY; via grafo: 1 hop, fiducia 0.900, pertinenza 0.473]'
+    - '04_knowledge_informative/vibe_coding_workflow.md § Riepilogo delle Regole per l''Iniezione del
+      Contesto [METHODOLOGY; via grafo: 1 hop, fiducia 0.900, pertinenza 0.448]'
+    - '04_knowledge_informative/vibe_coding_workflow.md § Sezione 1 — Protocollo Human-in-the-Loop (HITL)
+      [METHODOLOGY; via grafo: 1 hop, fiducia 0.900, pertinenza 0.444]'
+    implementing_code_blocks: 12
+    answer: |
+      Il contesto **non riporta** un vincolo o una soglia specifica per il "controllo stilistico" inteso come verifica di conformità a uno standard estetico predefinito (es. stile grafico, tono visivo) oltre alla mera validazione tecnica dei colori.
+
+      Tuttavia, il contesto **riporta** i seguenti elementi verificabili relativi alla **validazione della palette colori** e ai **vincoli tecnici** che ne governano l'implementazione:
+
+      1.  **Vincolo di Contrasto (Soglia):**
+          *   **Identificatore:** `[REGOLA-UI-03]`
+          *   **Fonte:** `01_architecture_norms/ui_ux_brand_directives.md § 3. Contratto dei Design Token [NORMS]`
+          *   **Vincolo Tecnico:** Ogni combinazione testo/superficie deve superare il rapporto di contrasto **WCAG 2.1 AA** (4.5:1 per testo normale, 3:1 per testo grande e controlli).
+          *   **Codice Sorgente Verificato:** La funzione `assertAccessibleColorPairs` in `frontend/src/lib/design-tokens/contrast.ts` implementa la validazione di questa regola.
+
+      2.  **Vincolo di Origine (Sorgente):**
+          *   **Identificatore:** `[REGOLA-UI-01]` e `[REGOLA-UI-02]`
+          *   **Fonte:** `01_architecture_norms/ui_ux_brand_directives.md § 3. Contratto dei Design Token [NORMS]`
+          *   **Vincolo Tecnico:** Nessun valore visivo (colore, dimensione) può comparire come valore letterale inline; ogni modifica all'identità visiva deve passare dal layer dei design token (`Theme_Config_Object`).
+          *   **Codice Sorgente Verificato:** Le variabili CSS in `frontend/src/app/globals.css` e l'uso di `useDesignTokens()` in `frontend/src/components/theme/theme-provider.tsx`.
+
+      3.  **Vincolo di Autorizzazione Palette (Safeguard):**
+          *   **Identificatore:** `SEC-04` (Zero segreti letterali) e implicitamente la "Paleta Colori Vincolante" citata nel commento del codice.
+          *   **Fonte:** `00_meta_governance/safeguards_security.md § Riepilogo degli Invarianti per il Coding Agent [IRON_MEMORY]` (per i segreti) e commenti in `frontend/src/lib/design-tokens/palette-guard.ts`.
+          *   **Vincolo Tecnico:** La palette è autorizzata SOLO dai colori estratti dall'analisi di `<<SITO_ISTITUZIONALE>>` (`progettopa.it`).
+          *   **Codice Sorgente Verificato:** La classe `PaletteViolationError` e la funzione `applyPaletteOverrides` in `frontend/src/lib/design-tokens/palette-guard.ts`.
+
+      4.  **Eccezione/Deviazione:**
+          *   **Identificatore:** `[REGOLA-DEV-01]`
+          *   **Fonte:** `04_knowledge_informative/vibe_coding_workflow.md § Sezione 3 — Gestione delle Deviazioni (Edge Cases) [METHODOLOGY]`
+          *   **Vincolo Tecnico:** In caso di discrepanza tra codice preesistente e regola documentata, prevale la regola documentata.
+
+      **Divergenza rilevata:**
+      Il contesto contiene una sezione `03_changes_historical/fe1-canvas-review.md § Sezioni accurate [SENZA CLASSE]` che dichiara: *"Safeguards: Nessun controllo stilistico oPalette Colori verificabile nel codice sorgente target"*.
+      Tuttavia, il blocco **CODICE ESISTENTE** (es. `frontend/src/lib/design-tokens/contrast.ts`, `frontend/src/lib/design-tokens/palette-guard.ts`) dimostra che i controlli tecnici per la palette colori (contrasto e autorizzazione) sono **presenti e implementati**.
+      *   **Motivazione della divergenza:** Il documento di review (`fe1-canvas-review.md`) sembra riferirsi a una mancanza di *verifica visiva* o *controllo stilistico* nel senso di un'analisi grafica soggettiva, mentre il codice implementa rigorosamente i *vincoli tecnici* (contrasto WCAG e allowlist). La fonte più autorevole (`IRON_MEMORY` 0.98 > `METHODOLOGY` 0.90) stabilisce che la palette è vincolante e i segreti letterali vietati, confermando l'esistenza dei controlli tecnici nel codice.
+    verdict:
+      attributed_to: ui_ux_brand_directives
+      correct: true
+      note: 'Idem per UI-03/UI-01/UI-02. Da registrare: il punto 3 attribuisce a SEC-04 (IRON_MEMORY)
+        una «autorizzazione palette» che SEC-04 non contiene — SEC-04 è «Zero segreti letterali». Errore
+        di attribuzione su un vincolo secondario, non su quello chiesto.'
+- id: attr-05-remote-inference
+  q: posso usare un servizio di inferenza remoto per il debug di un record reale
+  kind: adversarial
+  distractor: 04_knowledge_informative/inferenza_locale_o_remota.md
+  normative:
+    doc: safeguards_security
+    section: Privacy e Confine
+  why: 'Caso 5 del sottoinsieme (aggiunto 2026-09-04, mai letto dal lato della risposta). Il distrattore
+    (authority 0.40) dice in prosa piana «serve un''autorizzazione scritta» rimandando esplicitamente
+    alla norma; il vincolo è [SAFEGUARD-SEC-04], l''unica fonte del corpus a nominare DPA e EXPLICITLY_AUTHORIZED_ENDPOINTS
+    (verificato: 0 occorrenze altrove). È il caso CONTESO che S6 cercava: tre esecuzioni, tre esiti diversi.'
+  runs:
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: abstained
+    context_sources:
+    - 00_meta_governance/safeguards_security.md § Categoria 5 — Privacy e Confine dei Dati Local-First
+      [IRON_MEMORY]
+    - 01_architecture_norms/observability_standards.md § 4. Metriche, Salute e Alerting [NORMS]
+    - 00_meta_governance/safeguards_security.md § Categoria 3 — Immutabilità dei Dati e Auditability [IRON_MEMORY]
+    - 01_architecture_norms/observability_standards.md § 3. Confine di Privacy [NORMS]
+    - 01_architecture_norms/observability_standards.md § 6. Riepilogo delle Regole [NORMS]
+    - '04_knowledge_informative/inferenza_locale_o_remota.md § 2. Cosa lascia davvero la macchina in una
+      chiamata a un modello ospitato [METHODOLOGY; via grafo: 1 hop, fiducia 0.900, pertinenza 0.517]'
+    - '04_knowledge_informative/inferenza_locale_o_remota.md § 4. Il parametro che si dimentica: la retention
+      [METHODOLOGY; via grafo: 1 hop, fiducia 0.900, pertinenza 0.507]'
+    - '04_knowledge_informative/inferenza_locale_o_remota.md § 5. Come si decide, in pratica [METHODOLOGY;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.496]'
+    implementing_code_blocks: 12
+    answer: |
+      Il contesto fornito non contiene una risposta diretta alla domanda specifica su come *abilitare* o *configurare* l'uso di un servizio di inferenza remoto per il debug di un record reale, né elenca i passi operativi per ottenere l'autorizzazione scritta richiesta. Il contesto stabilisce chiaramente che tale uso è **vietato** se il record contiene testo scritto da persone reali (PII) o dati sensibili, e impone di riformulare il prompt usando solo strutture tecniche anonimizzate. Per rispondere alla domanda su *come* procedere in un caso specifico (debug), servirebbe una procedura operativa esplicita nel contesto che definisca le condizioni esatte sotto cui l'uso remoto è consentito per attività di debug (es. autorizzazione scritta specifica, uso di dati sintetici generati al momento, ecc.), elementi che non sono presenti nel corpus fornito. Il contesto afferma solo il divieto e la necessità di anonimizzazione, ma non descrive il processo di "debug" su record reali tramite remoto come scenario lecito o ne definisce i prerequisiti procedurali oltre alla semplice rimozione dei dati sensibili.
+    verdict:
+      attributed_to: NESSUNA
+      correct: false
+      note: 'Astensione. «Il contesto stabilisce chiaramente che tale uso è vietato … e impone di riformulare
+        il prompt»: il vincolo c''è, nessuna fonte è nominata.'
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 00_meta_governance/safeguards_security.md § Categoria 5 — Privacy e Confine dei Dati Local-First
+      [IRON_MEMORY]
+    - 01_architecture_norms/observability_standards.md § 4. Metriche, Salute e Alerting [NORMS]
+    - 00_meta_governance/safeguards_security.md § Categoria 3 — Immutabilità dei Dati e Auditability [IRON_MEMORY]
+    - 01_architecture_norms/observability_standards.md § 3. Confine di Privacy [NORMS]
+    - 01_architecture_norms/observability_standards.md § 6. Riepilogo delle Regole [NORMS]
+    - '04_knowledge_informative/inferenza_locale_o_remota.md § 2. Cosa lascia davvero la macchina in una
+      chiamata a un modello ospitato [METHODOLOGY; via grafo: 1 hop, fiducia 0.900, pertinenza 0.517]'
+    - '04_knowledge_informative/inferenza_locale_o_remota.md § 4. Il parametro che si dimentica: la retention
+      [METHODOLOGY; via grafo: 1 hop, fiducia 0.900, pertinenza 0.507]'
+    - '04_knowledge_informative/inferenza_locale_o_remota.md § 5. Come si decide, in pratica [METHODOLOGY;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.496]'
+    implementing_code_blocks: 12
+    answer: |
+      **[ASTENSIONE]**
+
+      Il contesto fornito **non contiene** le informazioni sufficienti per rispondere alla domanda in modo completo e conforme ai vincoli richiesti, poiché mancano i seguenti elementi specifici presenti nel testo ma non esplicitati nella risposta diretta:
+
+      1.  **Identificatori esatti dei campi PII:** Il documento `00_meta_governance/safeguards_security.md` elenca le categorie di dati da censire (es. `email`, `nome`, `cognome`, `motivazione`, `commento_manager`, `note_aggiuntive`) e definisce il vincolo `[SAFEGUARD-SEC-04]`. Tuttavia, non specifica quali siano esattamente i nomi dei campi nel record reale che si intende debuggare (es. se il campo si chiama `Motivazione` o `NoteAggiuntive`, o se esistono altri campi specifici in quel record particolare). Senza la lista esatta dei nomi dei campi del record specifico, non è possibile citare testualmente quali identificatori censire per quel caso concreto.
+      2.  **Autorizzazione scritta specifica:** Il documento `04_knowledge_informative/inferenza_locale_o_remota.md` afferma che l'invio di testo scritto da persone reali a un modello remoto richiede un'autorizzazione **scritta** (`DPA`, `EXPLICITLY_AUTHORIZED_ENDPOINTS`). Il contesto non riporta se per il caso specifico del debug in questione esista già tale autorizzazione scritta o meno.
+      3.  **Configurazione del sanitizer:** Il documento `01_architecture_norms/observability_standards.md` impone l'uso di un `sanitizer/redactor` configurato nel logger (`<<CAMPI_PII>>`). Non è possibile verificare dal contesto se per il record specifico in esame tale configurazione sia già attiva o se debba essere implementata prima dell'invio.
+
+      Poiché la domanda presuppone l'esistenza di un "record reale" e chiede se si possa usare un servizio remoto, ma il contesto non elenca i nomi esatti dei campi di quel record né lo stato delle autorizzazioni scritte per quel caso specifico, non è possibile rispondere affermativamente o negativamente senza violare la regola di non inventare elementi. La risposta corretta è che il contesto non basta a determinare la fattibilità tecnica e legale per quel record specifico senza ulteriori dati (lista esatta dei campi del record, esistenza del DPA/autorizzazione scritta).
+    verdict:
+      attributed_to: inferenza_locale_o_remota
+      correct: false
+      note: 'NEGATIVO VERIFICABILE. «Il documento 04_knowledge_informative/inferenza_locale_o_remota.md
+        afferma che l''invio di testo scritto da persone reali a un modello remoto richiede un''autorizzazione
+        scritta (DPA, EXPLICITLY_AUTHORIZED_ENDPOINTS)»: i due identificatori esistono SOLO in safeguards_security.md,
+        e il documento informativo scrive «la spec normativa … chiede un''autorizzazione scritta». Il
+        vincolo è attribuito alla fonte che dichiara di non esserne la fonte. Inoltre: la risposta apre
+        con «**[ASTENSIONE]**» in grassetto e lo status è success — il marcatore di A16 non è riconosciuto
+        se il modello lo formatta (R27).'
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: abstained
+    context_sources:
+    - 00_meta_governance/safeguards_security.md § Categoria 5 — Privacy e Confine dei Dati Local-First
+      [IRON_MEMORY]
+    - 01_architecture_norms/observability_standards.md § 4. Metriche, Salute e Alerting [NORMS]
+    - 00_meta_governance/safeguards_security.md § Categoria 3 — Immutabilità dei Dati e Auditability [IRON_MEMORY]
+    - 01_architecture_norms/observability_standards.md § 3. Confine di Privacy [NORMS]
+    - 01_architecture_norms/observability_standards.md § 6. Riepilogo delle Regole [NORMS]
+    - '04_knowledge_informative/inferenza_locale_o_remota.md § 2. Cosa lascia davvero la macchina in una
+      chiamata a un modello ospitato [METHODOLOGY; via grafo: 1 hop, fiducia 0.900, pertinenza 0.517]'
+    - '04_knowledge_informative/inferenza_locale_o_remota.md § 4. Il parametro che si dimentica: la retention
+      [METHODOLOGY; via grafo: 1 hop, fiducia 0.900, pertinenza 0.507]'
+    - '04_knowledge_informative/inferenza_locale_o_remota.md § 5. Come si decide, in pratica [METHODOLOGY;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.496]'
+    implementing_code_blocks: 12
+    answer: |
+      Il contesto fornito non contiene una risposta diretta alla domanda specifica su come procedere nel caso di "debug di un record reale" utilizzando un servizio di inferenza remoto, né elenca le eccezioni procedurali che autorizzerebbero tale azione in circostanze specifiche (es. debug interno vs produzione).
+
+      Tuttavia, il contesto stabilisce vincoli e identificatori tassativi che rendono l'uso descritto **vietato** o **condizionato** senza ulteriori autorizzazioni scritte:
+
+      1.  **Vincolo di Confine dei Dati Local-First (`[SAFEGUARD-SEC-04]`)**: Impedisce la trasmissione di qualsiasi dato classificato come PII (Dati anagrafici, testi liberi scritti dall'utente come motivazioni/note, contenuti di audit trail) a endpoint cloud o modelli remoti non esplicitamente autorizzati.
+      2.  **Definizione di PII**: Il contesto definisce tassativamente quali dati sono PII da censire (es. `email`, `nome`, `cognome`, `motivazione`, `commento_manager`, `note_aggiuntive`), inclusi i "Testi liberi scritti dall'utente" e il "Contenuto dell'audit trail".
+      3.  **Requisito di Autorizzazione Scritta**: Per trasmettere dati a un endpoint esterno, è richiesto che l'endpoint sia in `EXPLICITLY_AUTHORIZED_ENDPOINTS` e esista un DPA (Data Processing Agreement).
+      4.  **Regola di Scrubbing (`[REGOLA-OBS-06]`)**: Il sanitizer deve essere installato nel logger stesso per redigere i campi PII (`<<CAMPI_PII>>`) prima della scrittura o trasmissione, non invocato dai singoli call site.
+      5.  **Divergenza tra Codice e Documento**: Sebbene il codice sorgente (es. `MetricsNotifier`, `DeliveryLogStore`) mostri come vengono gestiti i log strutturati con campi come `RichiestaId` e `CorrelationId`, non contiene la logica di autorizzazione o l'eccezione per il "debug" che potrebbe giustificare una deroga temporanea al vincolo di privacy. Il documento `[SAFEGUARD-SEC-04]` (fonte `IRON_MEMORY`) stabilisce l'invariante assoluto: nessun dato PII può essere trasmesso a endpoint non autorizzati.
+
+      Pertanto, senza un'autorizzazione scritta esplicita nel Design Contract o una configurazione di scrubbing che rimuova i valori reali prima dell'invio, l'uso del servizio remoto per debug su record reali (che contengono inevitabilmente campi PII come definiti dal contesto) viola `[SAFEGUARD-SEC-04]`. Il contesto non riporta un meccanismo per autorizzare eccezioni di "debug" che superino questo vincolo.
+    verdict:
+      attributed_to: safeguards_security
+      correct: true
+      note: 'Astensione motivata: «Vincolo di Confine dei Dati Local-First ([SAFEGUARD-SEC-04]) … Il documento
+        [SAFEGUARD-SEC-04] (fonte IRON_MEMORY) stabilisce l''invariante assoluto». Il distrattore non
+        è citato.'
+- id: attr-06-authority-multiplicative
+  q: un documento a bassa authority può mai superare in ranking un documento ad authority superiore, se
+    il suo testo matcha meglio la query?
+  kind: constructed
+  distractor: 04_knowledge_informative/graph_rag_ingestion_strategy.md
+  normative:
+    doc: spec_graph_rag_ingestion
+    section: Requisiti di Retrieval e Authority Boost
+  why: 'Costruito in S12 sulla strada indicata: una fonte poco autorevole che enuncia un vincolo in modo
+    PIÙ esplicito della norma. Il distrattore §4 scrive «il moltiplicatore impone che nessun documento
+    possa mai superare in ranking un documento di authority superiore»; la norma [REGOLA-VAL-08] prescrive
+    la forma ATTENUATA score × ((1−α) + α·authority), e il suo emendamento v2.2.0 dice della moltiplicazione
+    piena che «nessuna implementazione l''ha mai applicata» ed è un failure mode. Risposta corretta: sì,
+    può — per costruzione della formula. Il distrattore non solo non è la fonte: è smentito dalla fonte.'
+  runs:
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 04_knowledge_informative/graph_rag_ingestion_strategy.md § 4. Perché l'authority è moltiplicativa
+      e non additiva [METHODOLOGY]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 4. Requisiti di Retrieval e Authority Boost [REQUIREMENTS]
+    - 00_meta_governance/policy_versionamento_documentale.md § 3. Contratto del Frontmatter [METADATA]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 1. Obiettivo e Ambito di Applicazione [REQUIREMENTS]
+    - README.md § Contenuto [METADATA]
+    - '00_meta_governance/safeguards_security.md § Categoria 2 — Concorrenza Critica sul Database [IRON_MEMORY;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.429]'
+    - '00_meta_governance/safeguards_security.md § Categoria 1 — Sicurezza Accessi e Identità [IRON_MEMORY;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.394]'
+    - '00_meta_governance/safeguards_security.md § Indice dei Safeguard [IRON_MEMORY; via grafo: 1 hop,
+      fiducia 0.900, pertinenza 0.392]'
+    implementing_code_blocks: 10
+    answer: |
+      No. Il contesto **NON** riporta alcuna condizione o eccezione che permetta a un documento a bassa autorità di superare in ranking un documento ad authority superiore, indipendentemente dalla qualità del match lessicale.
+
+      Il contesto stabilisce esplicitamente il contrario attraverso i seguenti vincoli e definizioni:
+
+      1.  **Vincolo Moltiplicativo dell'Authority:**
+          Secondo **[04_knowledge_informative/graph_rag_ingestion_strategy.md § 4]**, l'authority è progettata per essere **moltiplicativa** e non additiva. Il testo specifica che: *"Il moltiplicatore impone che nessun documento possa mai superare in ranking un documento di authority superiore, indipendentemente da quanto bene ne combaci il testo con la query"*.
+
+      2.  **Formula del Ranking:**
+          La specifica **[02_specs_normative/spec_graph_rag_ingestion.md § 4]** definisce la formula per il posizionamento finale dei chunk nel context window:
+          `score_finale = score_reranker × ((1 − α) + α × authority)`
+          Dove `α` è il parametro calibrato (`authority.boost_alpha`). Questa formula garantisce che il documento con l'authority più alta (che ha un coefficiente moltiplicativo maggiore) mantenga una posizione di priorità rispetto a documenti descrittivi, anche se questi ultimi ottengono uno `score_reranker` molto alto.
+
+      3.  **Gerarchia Normativa:**
+          Il contesto reitera che questa struttura è la *"garanzia che i `safeguards` e le spec `ENFORCED` restino sempre sopra ai testi descrittivi nel context window, coerentemente con la gerarchia normativa del progetto"*.
+
+      Pertanto, sebbene un documento a bassa authority possa avere uno score di rilevanza (`score_reranker`) più alto grazie a un migliore match lessicale, il moltiplicatore di autorità applicato al suo punteggio finale non gli permetterà di scalare oltre la soglia imposta da un documento con authority superiore.
+    verdict:
+      attributed_to: graph_rag_ingestion_strategy
+      correct: false
+      note: 'NEGATIVO VERIFICABILE. «No. … 1. Vincolo Moltiplicativo dell''Authority: Secondo [graph_rag_ingestion_strategy.md
+        § 4] … “nessun documento possa mai superare in ranking”». La formula della spec è citata al punto
+        2 e letta come se garantisse la stessa cosa.'
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 04_knowledge_informative/graph_rag_ingestion_strategy.md § 4. Perché l'authority è moltiplicativa
+      e non additiva [METHODOLOGY]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 4. Requisiti di Retrieval e Authority Boost [REQUIREMENTS]
+    - 00_meta_governance/policy_versionamento_documentale.md § 3. Contratto del Frontmatter [METADATA]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 1. Obiettivo e Ambito di Applicazione [REQUIREMENTS]
+    - README.md § Contenuto [METADATA]
+    - '00_meta_governance/safeguards_security.md § Categoria 2 — Concorrenza Critica sul Database [IRON_MEMORY;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.429]'
+    - '00_meta_governance/safeguards_security.md § Categoria 1 — Sicurezza Accessi e Identità [IRON_MEMORY;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.394]'
+    - '00_meta_governance/safeguards_security.md § Indice dei Safeguard [IRON_MEMORY; via grafo: 1 hop,
+      fiducia 0.900, pertinenza 0.392]'
+    implementing_code_blocks: 10
+    answer: |
+      No. Il contesto **NON** riporta alcuna eccezione o condizione che permetta a un documento a bassa autorità di superare in ranking uno con autorità superiore, indipendentemente dalla qualità del match lessicale.
+
+      Il contesto stabilisce esplicitamente il contrario attraverso i seguenti vincoli e identificatori:
+
+      1.  **Vincolo Moltiplicativo dell'Authority:**
+          Il documento `04_knowledge_informative/graph_rag_ingestion_strategy.md` (§ 4) enuncia che "il moltiplicatore impone che **nessun documento possa mai superare in ranking un documento di authority superiore**, indipendentemente da quanto bene ne combaci il testo con la query". Questo vincolo è descritto come una garanzia per far sì che i `safeguards` e le spec `ENFORCED` restino sempre sopra ai testi descrittivi.
+
+      2.  **Formula di Calcolo dello Score Finale:**
+          Il documento `02_specs_normative/spec_graph_rag_ingestion.md` (§ 4, [REGOLA-VAL-08]) definisce la formula attenuata per il posizionamento finale:
+          `score_finale = score_reranker × ((1 − α) + α × authority)`
+          Dove `α ∈ [0,1]`. Anche se `α` può variare (con valori come 0.8 che massimizzano il recall su casi avversariali), la struttura della formula moltiplica lo score del reranker per una combinazione lineare dell'autorità e di un fattore costante. Poiché l'authority è un coefficiente moltiplicativo applicato al termine ponderato, e non additivo semplice, il documento con autorità superiore (valore più alto) mantiene un peso relativo che impedisce a un documento con autorità inferiore di "scavalcarlo" pur avendo un `score_reranker` più alto.
+
+      3.  **Fallimento in caso di Violazione:**
+          Il contesto specifica che l'effetto in caso di violazione di questo principio (ad esempio, se si usasse una moltiplicazione piena `α = 1` senza attenuazione o con logica errata) sarebbe la "Mancato rispetto della gerarchia delle fonti e inversione di priorità fra contratti di sicurezza e testi descrittivi".
+
+      4.  **Gerarchia delle Fonti:**
+          Il documento `04_knowledge_informative/graph_rag_ingestion_strategy.md` conferma che questo comportamento è coerente con la "gerarchia normativa del progetto", dove i documenti classificati come `IRON_MEMORY` (es. `safeguards_security.md`, Authority 0.98) o `METADATA` (Authority 0.90) devono mantenere priorità su documenti di classe inferiore (`METHODOLOGY`, `REQUIREMENTS`, ecc.), indipendentemente dal contenuto lessicale.
+
+      In sintesi, il contesto **non** ammette che un testo con alto match lessicale possa superare uno documento di autorità superiore; al contrario, impone che l'autorità agisca come un filtro o moltiplicatore che preserva la gerarchia normativa.
+    verdict:
+      attributed_to: graph_rag_ingestion_strategy
+      correct: false
+      note: NEGATIVO VERIFICABILE. «No. … Il documento graph_rag_ingestion_strategy.md (§ 4) enuncia che
+        il moltiplicatore impone che nessun documento possa mai superare …»; [REGOLA-VAL-08] citata e
+        piegata («impedisce … di scavalcarlo»).
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 04_knowledge_informative/graph_rag_ingestion_strategy.md § 4. Perché l'authority è moltiplicativa
+      e non additiva [METHODOLOGY]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 4. Requisiti di Retrieval e Authority Boost [REQUIREMENTS]
+    - 00_meta_governance/policy_versionamento_documentale.md § 3. Contratto del Frontmatter [METADATA]
+    - 02_specs_normative/spec_graph_rag_ingestion.md § 1. Obiettivo e Ambito di Applicazione [REQUIREMENTS]
+    - README.md § Contenuto [METADATA]
+    - '00_meta_governance/safeguards_security.md § Categoria 2 — Concorrenza Critica sul Database [IRON_MEMORY;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.429]'
+    - '00_meta_governance/safeguards_security.md § Categoria 1 — Sicurezza Accessi e Identità [IRON_MEMORY;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.394]'
+    - '00_meta_governance/safeguards_security.md § Indice dei Safeguard [IRON_MEMORY; via grafo: 1 hop,
+      fiducia 0.900, pertinenza 0.392]'
+    implementing_code_blocks: 10
+    answer: |
+      No. Il contesto **NON** riporta alcuna condizione o eccezione che permetta a un documento a bassa autorità di superare in ranking uno a autorità superiore, indipendentemente dalla qualità del match lessicale.
+
+      Il contesto stabilisce esplicitamente il contrario attraverso i seguenti vincoli:
+
+      1.  **Vincolo Moltiplicativo dell'Authority:**
+          Secondo **[REGOLA-VAL-08]** (fonte `[REQUIREMENTS]`), il posizionamento finale è determinato dalla formula:
+          `score_finale = score_reranker × ((1 − α) + α × authority)`
+          Dove `α ∈ [0,1]`. Il testo specifica che "nessun documento possa mai superare in ranking un documento di authority superiore, indipendentemente da quanto bene ne combaci il testo con la query".
+
+      2.  **Gerarchia Normativa e Failure Mode:**
+          La sezione **[METHODOLOGY]** conferma che questo meccanismo garantisce che i `safeguards` e le spec `ENFORCED` (alta autorità) restino sempre sopra ai testi descrittivi.
+          Il contesto elenca esplicitamente il **Failure Mode** in caso di violazione: "Mancato rispetto della gerarchia delle fonti e inversione di priorità fra contratti di sicurezza e testi descrittivi".
+
+      3.  **Divergenza tra Codice e Specifica (Nota):**
+          Esiste una divergenza documentata nel contesto tra la specifica normativa e l'implementazione storica:
+          *   La specifica **[REQUIREMENTS]** (v2.0/v2.2.0) prescrive la forma **attenuata** (`α < 1`) per evitare che i contratti generici ad alta autorità sovra-promuovano rispetto alle spec specifiche attese.
+          *   Il contesto nota che fino alla v2.1.0 esisteva una regola di moltiplicazione **piena** (`α = 1`), ma nessuna implementazione l'ha mai applicata e questa sarebbe stata costosa in termini di recall (costa "15.2 punti di recall@5").
+          *   Tuttavia, il vincolo logico ("nessun documento possa mai superare...") rimane valido come requisito funzionale descritto nella specifica normativa vigente (`α ∈ [0,1]`), anche se l'implementazione reale potrebbe comportare un `α` calibrato (es. 0.8) per bilanciare recall e sicurezza, senza mai invertire la gerarchia in modo da far superare una spec a una policy di sicurezza.
+
+      In sintesi: il contesto **non** supporta l'ipotesi che un testo match meglio possa scavalcare un documento di autorità superiore; al contrario, impone che ciò non accada per preservare la gerarchia normativa.
+    verdict:
+      attributed_to: spec_graph_rag_ingestion
+      correct: true
+      note: 'ATTRIBUZIONE GIUSTA, CONTENUTO FALSO — il caso limite della metrica. «Secondo [REGOLA-VAL-08]
+        (fonte [REQUIREMENTS]) … Il testo specifica che “nessun documento possa mai superare in ranking”»:
+        la frase virgolettata è del distrattore, non della spec, e la spec dice il contrario. Un giudice
+        di attribuzione la conta corretta; lo smaschera solo la verifica che la citazione ESISTA nella
+        fonte attribuita (le venti parole del progetto di S6).'
+- id: attr-07-subtitle-heading
+  q: il sottotitolo di progetto sotto il titolo H1 va scritto come intestazione H2 o come testo semplice,
+    e quale regola lo impone?
+  kind: constructed
+  distractor: 04_knowledge_informative/graph_rag_ingestion_strategy.md
+  normative: null
+  why: 'Costruito in S12 per l''altro ramo di [CLASSE-FONTI]: «se un vincolo è enunciato SOLO da una fonte
+    meno autorevole, riportalo dicendo che nessuna fonte più autorevole lo stabilisce». Il distrattore
+    §6 impone «il sottotitolo di progetto va scritto come testo semplice, mai come intestazione» e lo
+    chiama «vincolo di igiene del chunking»; nessuna norma del corpus lo stabilisce (verificato: «sottotitolo»/«corsivo»
+    assenti dalla spec). Attribuzione corretta = NESSUNA.'
+  runs:
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 04_knowledge_informative/graph_rag_ingestion_strategy.md § 6. Boilerplate strutturale e igiene del
+      grafo semantico [METHODOLOGY]
+    - 04_knowledge_informative/vibe_coding_workflow.md § Sezione 1 — Protocollo Human-in-the-Loop (HITL)
+      [METHODOLOGY]
+    - 04_knowledge_informative/vibe_coding_workflow.md § Sezione 3 — Gestione delle Deviazioni (Edge Cases)
+      [METHODOLOGY]
+    - 00_meta_governance/safeguards_security.md § Categoria 2 — Concorrenza Critica sul Database [IRON_MEMORY]
+    - 01_architecture_norms/coding_standards.md § Sezione 0 — Contratto di Istanziazione [METHODOLOGY]
+    - '01_architecture_norms/api_error_contract.md § Sezione 0 — Contratto di Istanziazione [NORMS; via
+      grafo: 1 hop, fiducia 0.900, pertinenza 0.441]'
+    - '01_architecture_norms/testing_strategy.md § Sezione 0 — Contratto di Istanziazione [NORMS; via
+      grafo: 1 hop, fiducia 0.900, pertinenza 0.434]'
+    - '02_specs_normative/spec_graph_rag_ingestion.md § 2. Requisiti di Chunking Dinamico e Compressione
+      [REQUIREMENTS; via grafo: 1 hop, fiducia 0.900, pertinenza 0.429]'
+    implementing_code_blocks: 10
+    answer: |
+      Il contesto **non riporta** una regola esplicita che imponga di scrivere il sottotitolo di progetto come testo semplice invece che come intestazione H2.
+
+      Tuttavia, il contesto fornisce la seguente informazione tecnica nel documento `04_knowledge_informative/graph_rag_ingestion_strategy.md`:
+      *   **Fatto verificato:** Il sottotitolo di progetto va scritto come **testo semplice** (es. corsivo), mai come intestazione H2.
+      *   **Motivazione riportata:** La scelta tipografica non è estetica, ma è un **vincolo di igiene del chunking**. Se quel sottotitolo fosse un'intestazione H2, la cascata di segmentazione (Sezione 3 sopra) lo tratterebbe come una sezione a sé stante — identica testualmente in decine di documenti, e quindi rilevata dalla Semantic Map come **falso positivo di duplicazione ad alta similarità** pur non essendo contenuto normativo.
+
+      Il contesto **non cita** un identificatore di regola specifico (es. `[REGOLA-XXX]`) che imponga questo vincolo, né menziona il nome del file o della classe che lo definisce formalmente come norma, sebbene il documento `04_knowledge_informative/graph_rag_ingestion_strategy.md` (§ 6) contenga la descrizione tecnica di tale pattern.
+    verdict:
+      attributed_to: NESSUNA
+      correct: true
+      note: «non riporta una regola esplicita che imponga … Il contesto non cita un identificatore di
+        regola … né … lo definisce formalmente come norma»; il fatto è riportato come «informazione tecnica»
+        del documento informativo. È il comportamento che [CLASSE-FONTI] prescrive.
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 04_knowledge_informative/graph_rag_ingestion_strategy.md § 6. Boilerplate strutturale e igiene del
+      grafo semantico [METHODOLOGY]
+    - 04_knowledge_informative/vibe_coding_workflow.md § Sezione 1 — Protocollo Human-in-the-Loop (HITL)
+      [METHODOLOGY]
+    - 04_knowledge_informative/vibe_coding_workflow.md § Sezione 3 — Gestione delle Deviazioni (Edge Cases)
+      [METHODOLOGY]
+    - 00_meta_governance/safeguards_security.md § Categoria 2 — Concorrenza Critica sul Database [IRON_MEMORY]
+    - 01_architecture_norms/coding_standards.md § Sezione 0 — Contratto di Istanziazione [METHODOLOGY]
+    - '01_architecture_norms/api_error_contract.md § Sezione 0 — Contratto di Istanziazione [NORMS; via
+      grafo: 1 hop, fiducia 0.900, pertinenza 0.441]'
+    - '01_architecture_norms/testing_strategy.md § Sezione 0 — Contratto di Istanziazione [NORMS; via
+      grafo: 1 hop, fiducia 0.900, pertinenza 0.434]'
+    - '02_specs_normative/spec_graph_rag_ingestion.md § 2. Requisiti di Chunking Dinamico e Compressione
+      [REQUIREMENTS; via grafo: 1 hop, fiducia 0.900, pertinenza 0.429]'
+    implementing_code_blocks: 10
+    answer: |
+      Il sottotitolo di progetto deve essere scritto come **testo semplice** (es. corsivo) e non come intestazione H2.
+
+      La regola che lo impone è:
+      *   **Identificatore:** `[REGOLA-VAL-04]` Segmentazione gerarchica in cascata (citato nel documento `02_specs_normative/spec_graph_rag_ingestion.md`).
+          *   *Nota:* Sebbene il contesto citi esplicitamente `[REGOLA-VAL-04]` per la segmentazione, il blocco di testo che descrive il vincolo tipografico ("Per questo il sottotitolo di progetto va scritto come testo semplice...") si trova nel documento `04_knowledge_informative/graph_rag_ingestion_strategy.md` classificato come `[METHODOLOGY]`.
+          *   **Divergenza:** Il contesto non associa esplicitamente l'identificatore `[REGOLA-VAL-04]` al vincolo del sottotitolo nel blocco `graph_rag_ingestion_strategy.md`. Tuttavia, il documento `02_specs_normative/spec_graph_rag_ingestion.md` (classificato come `[REQUIREMENTS]`) cita esplicitamente `[REGOLA-VAL-04]` per la "Segmentazione gerarchica in cascata" che include H2 e paragrafi.
+          *   **Attribuzione:** Poiché il vincolo del sottotitolo è descritto nel documento `[METHODOLOGY]` (autorità 0.90) e non c'è un identificatore esplicito per quel specifico vincolo in quel file, ma esiste `[REGOLA-VAL-04]` in un documento `[REQUIREMENTS]` (autorità 0.87) che parla di segmentazione H2, la fonte più autorevole che enuncia il principio generale di igiene del chunking è `[METHODOLOGY]`. Tuttavia, poiché non c'è un identificatore testuale per quel specifico vincolo nel blocco `graph_rag_ingestion_strategy.md`, e l'identificatore `[REGOLA-VAL-04]` appare solo in `spec_graph_rag_ingestion.md` (che tratta chunking ma non menziona il sottotitolo), **nessuna fonte più autorevole stabilisce un identificatore specifico per questo vincolo nel contesto fornito**.
+          *   **Vincolo Tecnico:** Il vincolo è descritto come "testo semplice (es. corsivo)" e la motivazione è che se fosse H2, la cascata di segmentazione lo tratterebbe come falso positivo di duplicazione ad alta similarità.
+
+      **Riassunto della risposta basata sul contesto:**
+      Il sottotitolo va scritto come **testo semplice**. La regola implicita nel documento `04_knowledge_informative/graph_rag_ingestion_strategy.md` (classe `[METHODOLOGY]`) lo impone per evitare falsi positivi di duplicazione nella Semantic Map. Non esiste un identificatore esplicito (come `[REGOLA-XXX]`) associato a questa specifica istruzione nel contesto fornito, sebbene il documento `02_specs_normative/spec_graph_rag_ingestion.md` citi `[REGOLA-VAL-04]` per la segmentazione gerarchica in generale.
+    verdict:
+      attributed_to: spec_graph_rag_ingestion
+      correct: false
+      note: 'NEGATIVO VERIFICABILE, di tipo diverso: «La regola che lo impone è: [REGOLA-VAL-04] Segmentazione
+        gerarchica in cascata (citato nel documento spec_graph_rag_ingestion.md)». [REGOLA-VAL-04] non
+        nomina il sottotitolo: la risposta appende a una norma un vincolo che la norma non contiene, poi
+        si contraddice tre volte prima di concludere che nessuna fonte lo stabilisce.'
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 04_knowledge_informative/graph_rag_ingestion_strategy.md § 6. Boilerplate strutturale e igiene del
+      grafo semantico [METHODOLOGY]
+    - 04_knowledge_informative/vibe_coding_workflow.md § Sezione 1 — Protocollo Human-in-the-Loop (HITL)
+      [METHODOLOGY]
+    - 04_knowledge_informative/vibe_coding_workflow.md § Sezione 3 — Gestione delle Deviazioni (Edge Cases)
+      [METHODOLOGY]
+    - 00_meta_governance/safeguards_security.md § Categoria 2 — Concorrenza Critica sul Database [IRON_MEMORY]
+    - 01_architecture_norms/coding_standards.md § Sezione 0 — Contratto di Istanziazione [METHODOLOGY]
+    - '01_architecture_norms/api_error_contract.md § Sezione 0 — Contratto di Istanziazione [NORMS; via
+      grafo: 1 hop, fiducia 0.900, pertinenza 0.441]'
+    - '01_architecture_norms/testing_strategy.md § Sezione 0 — Contratto di Istanziazione [NORMS; via
+      grafo: 1 hop, fiducia 0.900, pertinenza 0.434]'
+    - '02_specs_normative/spec_graph_rag_ingestion.md § 2. Requisiti di Chunking Dinamico e Compressione
+      [REQUIREMENTS; via grafo: 1 hop, fiducia 0.900, pertinenza 0.429]'
+    implementing_code_blocks: 10
+    answer: |
+      Il contesto **non riporta** una regola esplicita che imponga di scrivere il sottotitolo di progetto come testo semplice invece che come intestazione H2.
+
+      Tuttavia, il contesto fornisce la seguente informazione tecnica nel documento `04_knowledge_informative/graph_rag_ingestion_strategy.md`:
+      *   **Fatto verificato:** Il sottotitolo di progetto va scritto come **testo semplice** (es. corsivo), mai come intestazione H2.
+      *   **Motivazione riportata:** La scelta tipografica non è estetica, ma è un **vincolo di igiene del chunking**. Se quel sottotitolo fosse un'intestazione H2, la cascata di segmentazione (Sezione 3 sopra) lo tratterebbe come una sezione a sé stante — identica testualmente in decine di documenti, e quindi rilevata dalla Semantic Map come **falso positivo di duplicazione ad alta similarità** pur non essendo contenuto normativo.
+
+      Il contesto **non cita** un identificatore di regola specifico (es. `[REGOLA-XXX]`) o un codice di vincolo che imponga questa scelta; la motivazione è fornita esclusivamente nel testo descrittivo della sezione 6 del documento `graph_rag_ingestion_strategy.md`.
+    verdict:
+      attributed_to: NESSUNA
+      correct: true
+      note: «non riporta una regola esplicita … la motivazione è fornita esclusivamente nel testo descrittivo
+        della sezione 6 del documento graph_rag_ingestion_strategy.md».
+- id: attr-08-name-substitution
+  q: per anonimizzare la motivazione scritta dal dipendente prima di mandarla al modello remoto basta
+    sostituire il nome con Mario Rossi?
+  kind: constructed
+  distractor: 04_knowledge_informative/inferenza_locale_o_remota.md
+  normative:
+    doc: safeguards_security
+    section: Privacy e Confine
+  why: 'Costruito in S12: il distrattore §2 enuncia il vincolo in forma più esplicita della norma («Sostituire
+    non è oscurare … le alternative che reggono sono due: dati sintetici, o ridurre a schema») e dichiara
+    nella stessa pagina «cosa sia lecito farne è deciso dalla spec normativa, non da questa nota». La
+    norma è [SAFEGUARD-SEC-04]: il contesto inviato al modello «deve contenere esclusivamente strutture
+    tecniche anonimizzate», e i testi liberi scritti dall''utente sono PII per categoria.'
+  runs:
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 00_meta_governance/safeguards_security.md § Categoria 5 — Privacy e Confine dei Dati Local-First
+      [IRON_MEMORY]
+    - 04_knowledge_informative/inferenza_locale_o_remota.md § 2. Cosa lascia davvero la macchina in una
+      chiamata a un modello ospitato [METHODOLOGY]
+    - 00_meta_governance/policy_versionamento_documentale.md § 4. Template di Riga del Registro [METADATA]
+    - 01_architecture_norms/observability_standards.md § 3. Confine di Privacy [NORMS]
+    - 01_architecture_norms/architecture_decision_rationale.md § 3. Perché Modular Monolith [NORMS]
+    - '04_knowledge_informative/vibe_coding_workflow.md § Sezione 0 — Contratto di Istanziazione [METHODOLOGY;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.388]'
+    - '04_knowledge_informative/vibe_coding_workflow.md § Sezione 3 — Gestione delle Deviazioni (Edge
+      Cases) [METHODOLOGY; via grafo: 1 hop, fiducia 0.900, pertinenza 0.384]'
+    - 'README.md § Convenzione dei segnaposto [METADATA; via grafo: 1 hop, fiducia 0.900, pertinenza 0.402]'
+    implementing_code_blocks: 12
+    answer: |
+      Il contesto **NON** riporta un vincolo che autorizzi l'anonimizzazione tramite sostituzione del nome con "Mario Rossi" come tecnica sufficiente.
+
+      Analizzando le fonti presenti:
+
+      1.  Il documento `04_knowledge_informative/inferenza_locale_o_remota.md` (§2) stabilisce esplicitamente che **"Sostituire non è oscurare"**.
+          *   **Vincolo:** Rimpiazzare un nome con `Mario Rossi` e lasciare la frase intatta **non anonimizza niente**, se la frase descrive un evento databile e attribuibile.
+          *   **Alternativa richiesta:** Le alternative che reggono sono due: usare **dati sintetici scritti apposta** oppure ridurre il caso a **schema** (nomi di colonne, tipi, vincoli).
+
+      2.  Il documento `00_meta_governance/safeguards_security.md` (§ Categoria 5) definisce l'invariante per i dati PII:
+          *   **Vincolo:** Il contesto inviato al modello deve essere depurato da qualsiasi dato sensibile reale e contenere esclusivamente strutture tecniche anonimizzate (schemi, nomi di entità, regole di business astratte).
+
+      3.  Il documento `01_architecture_norms/observability_standards.md` (§3) impone la redazione dei campi PII (`<<CAMPI_PII>>`) tramite un sanitizer installato nel logger, ma non definisce "Mario Rossi" come valore valido per l'anonimizzazione del contesto LLM.
+
+      **Conclusione:**
+      La sostituzione con "Mario Rossi" **non è sufficiente** secondo il contesto fornito. Il contesto richiede l'uso di **dati sintetici scritti apposta** o la riduzione a **schema**, poiché una frase contenente circostanze (anche con un nome fittizio) identifica comunque una persona se l'evento è databile e attribuibile.
+    verdict:
+      attributed_to: inferenza_locale_o_remota
+      correct: false
+      note: 'NEGATIVO VERIFICABILE. «1. Il documento inferenza_locale_o_remota.md (§2) stabilisce esplicitamente
+        … Vincolo: … Alternativa richiesta: …» e in conclusione «Il contesto richiede l''uso di dati sintetici
+        … o la riduzione a schema» — il requisito preso dal distrattore; SEC-04 al punto 2 come invariante
+        generica.'
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 00_meta_governance/safeguards_security.md § Categoria 5 — Privacy e Confine dei Dati Local-First
+      [IRON_MEMORY]
+    - 04_knowledge_informative/inferenza_locale_o_remota.md § 2. Cosa lascia davvero la macchina in una
+      chiamata a un modello ospitato [METHODOLOGY]
+    - 00_meta_governance/policy_versionamento_documentale.md § 4. Template di Riga del Registro [METADATA]
+    - 01_architecture_norms/observability_standards.md § 3. Confine di Privacy [NORMS]
+    - 01_architecture_norms/architecture_decision_rationale.md § 3. Perché Modular Monolith [NORMS]
+    - '04_knowledge_informative/vibe_coding_workflow.md § Sezione 0 — Contratto di Istanziazione [METHODOLOGY;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.388]'
+    - '04_knowledge_informative/vibe_coding_workflow.md § Sezione 3 — Gestione delle Deviazioni (Edge
+      Cases) [METHODOLOGY; via grafo: 1 hop, fiducia 0.900, pertinenza 0.384]'
+    - 'README.md § Convenzione dei segnaposto [METADATA; via grafo: 1 hop, fiducia 0.900, pertinenza 0.402]'
+    implementing_code_blocks: 12
+    answer: |
+      Il contesto **NON** riporta un vincolo che autorizzi o prescriva la sostituzione del nome con `Mario Rossi` come metodo sufficiente per l'anonimizzazione.
+
+      Analizzando le fonti presenti:
+
+      1.  Il documento `[IRON_MEMORY]` (`00_meta_governance/safeguards_security.md`) definisce il vincolo di anonimizzazione per i dati PII (inclusi testi liberi scritti dall'utente come `motivazione`, `commento_manager`).
+      2.  Il documento `[METHODOLOGY]` (`04_knowledge_informative/inferenza_locale_o_remota.md`) esplicita che: *"Sostituire non è oscurare. Rimpiazzare un nome con `Mario Rossi` e lasciare la frase intatta non anonimizza niente, se la frase descrive un evento databile e attribuibile."*
+      3.  Il documento `[METHODOLOGY]` specifica le alternative valide: *"Le alternative che reggono sono due: usare dati sintetici scritti apposta, oppure ridurre il caso a schema — nomi di colonne, tipi, vincoli — che è quasi sempre ciò di cui il modello aveva davvero bisogno per rispondere."*
+
+      Pertanto, sostituire il nome con `Mario Rossi` **non** basta e non è conforme al vincolo `[SAFEGUARD-SEC-04]`, poiché la frase rimane attribuibile se descrive un evento reale. Il contesto richiede l'uso di dati sintetici o la riduzione a schema, non una sostituzione fittizia del nome che lascia il testo intatto.
+    verdict:
+      attributed_to: safeguards_security
+      correct: true
+      note: «sostituire … non è conforme al vincolo [SAFEGUARD-SEC-04]»; il documento informativo «esplicita»
+        e «specifica le alternative» — citato come illustrazione.
+  - date: '2026-09-07'
+    index_version: v20260907T094225
+    model: qwen3.5:9b
+    status: success
+    context_sources:
+    - 00_meta_governance/safeguards_security.md § Categoria 5 — Privacy e Confine dei Dati Local-First
+      [IRON_MEMORY]
+    - 04_knowledge_informative/inferenza_locale_o_remota.md § 2. Cosa lascia davvero la macchina in una
+      chiamata a un modello ospitato [METHODOLOGY]
+    - 00_meta_governance/policy_versionamento_documentale.md § 4. Template di Riga del Registro [METADATA]
+    - 01_architecture_norms/observability_standards.md § 3. Confine di Privacy [NORMS]
+    - 01_architecture_norms/architecture_decision_rationale.md § 3. Perché Modular Monolith [NORMS]
+    - '04_knowledge_informative/vibe_coding_workflow.md § Sezione 0 — Contratto di Istanziazione [METHODOLOGY;
+      via grafo: 1 hop, fiducia 0.900, pertinenza 0.388]'
+    - '04_knowledge_informative/vibe_coding_workflow.md § Sezione 3 — Gestione delle Deviazioni (Edge
+      Cases) [METHODOLOGY; via grafo: 1 hop, fiducia 0.900, pertinenza 0.384]'
+    - 'README.md § Convenzione dei segnaposto [METADATA; via grafo: 1 hop, fiducia 0.900, pertinenza 0.402]'
+    implementing_code_blocks: 12
+    answer: |
+      Il contesto **NON** riporta un vincolo che autorizzi l'anonimizzazione tramite sostituzione del nome con "Mario Rossi" come tecnica sufficiente.
+
+      Analizzando le fonti presenti:
+
+      1.  Il documento `04_knowledge_informative/inferenza_locale_o_remota.md` (§2) stabilisce esplicitamente che **"Sostituire non è oscurare"**.
+          *   **Vincolo:** Rimpiazzare un nome con `Mario Rossi` e lasciare la frase intatta **non anonimizza niente**, se la frase descrive un evento databile e attribuibile.
+          *   **Alternativa richiesta:** Le alternative che reggono sono due: usare **dati sintetici scritti apposta** oppure ridurre il caso a **schema** (nomi di colonne, tipi, vincoli).
+
+      2.  Il documento `00_meta_governance/safeguards_security.md` (§ Categoria 5) definisce l'invariante per i dati PII:
+          *   **Vincolo:** Il contesto inviato al modello deve essere depurato da qualsiasi dato sensibile reale e contenere esclusivamente strutture tecniche anonimizzate (schemi, nomi di entità, regole di business astratte).
+
+      3.  Il documento `01_architecture_norms/observability_standards.md` (§3) impone l'uso di un **sanitizer/redactor** che maschera i campi PII (`motivazione`, ecc.) prima della scrittura o trasmissione, applicando `[SAFEGUARD-SEC-04]`.
+
+      Pertanto, la semplice sostituzione del nome con "Mario Rossi" non è sufficiente secondo il contesto fornito; tale operazione viola il principio espresso in `inferenza_locale_o_remota.md` che dichiara esplicitamente l'inefficacia di questa tecnica se il testo rimane intatto e descrittivo.
+    verdict:
+      attributed_to: inferenza_locale_o_remota
+      correct: false
+      note: 'NEGATIVO VERIFICABILE. «tale operazione viola il principio espresso in inferenza_locale_o_remota.md
+        che dichiara esplicitamente l''inefficacia di questa tecnica»: la violazione è attribuita al documento
+        che dichiara di non essere fonte di un divieto.'

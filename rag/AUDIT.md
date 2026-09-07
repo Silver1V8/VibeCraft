@@ -2819,6 +2819,11 @@ essi la spec vince facile — e, per ognuno, un verdetto umano archiviato **con 
 l'ha prodotto**. Senza i primi il giudice misura una costante; senza i secondi la misura non è
 riproducibile fra due corpus.
 
+**S12 (2026-09-07) ha costruito entrambe.** `eval/golden_attribution.yaml`: 8 casi, 24
+esecuzioni con il testo integrale e l'indice, **7 negativi verificabili** — il primo è il
+quinto caso avversariale, mai letto dal lato della risposta; gli altri stanno in tre casi
+costruiti dove il distrattore dice ciò che la norma non dice. Vedi la sezione **S12**.
+
 ---
 
 ## R10 e R11 — i due contratti girano ora dove c'è un modello vero
@@ -3434,3 +3439,168 @@ l'ordinamento di R9 sceglie — «il documento entra, la sua sezione no» è la 
   guadagno held-out del punto scelto è +0.000: k=5 non discrimina e non è stato usato per decidere.
 - **Che il calibratore misuri il server a k=10.** Non lo fa (0.983 vs 1.000): il pool di 50 è
   un'approssimazione che a k ≤ 5 è esatta e a k=10 no.
+
+---
+
+# S12 — La prova contro cui N3 potrà essere validato
+
+Questa sessione **non scrive l'harness di attribuzione**. Costruisce le due cose che S6 ha
+dichiarato mancanti prima di poterlo scrivere: casi in cui l'attribuzione del vincolo sia
+davvero contesa, e verdetti umani archiviati **con il testo della risposta** e la versione
+dell'indice. Esito: **N3 è scrivibile**. Il negativo che S6 non aveva trovato esiste, si
+riproduce, ed è archiviato — e non era dove S6 lo cercava.
+
+Metodo: 8 domande, ognuna posta **3 volte** a `POST /ask` con la cache disattivata
+(`VIBECRAFT_ASK_CACHE_SIZE=0`, configurazione `vibecraft-rag-nocache` in
+`.claude/launch.json`; la chiave della cache normalizza maiuscole e spazi, quindi riformulare
+non basta), indice `v20260907T094225`, `qwen3.5:9b`. Ogni risposta letta per intero e
+giudicata su una domanda sola: *a quale fonte la risposta attribuisce il vincolo*. Verificato
+che le tre esecuzioni di ogni caso hanno letto **lo stesso contesto**, blocco per blocco: la
+varianza che segue è tutta nella risposta.
+
+## Il negativo esiste, e non era nella condizione PRIMA di A3
+
+S6 aveva cercato l'errore ricostruendo il contesto senza classi: il difetto storico non si
+riproduceva più. Non è stato ritentato. Le due strade praticabili erano il **quinto caso
+avversariale** — aggiunto il 2026-09-04 e mai letto dal lato della risposta — e casi
+**costruiti** sul corpus dove una fonte poco autorevole enuncia un vincolo in modo più
+esplicito della norma che lo stabilisce. Il corpus ne offre tre senza scrivere esche:
+
+- `graph_rag_ingestion_strategy.md §4` scrive *«il moltiplicatore impone che nessun documento
+  possa mai superare in ranking un documento di authority superiore»*. La norma
+  `[REGOLA-VAL-08]` prescrive la forma **attenuata** `score × ((1−α) + α·authority)` e il suo
+  emendamento dice della moltiplicazione piena che *nessuna implementazione l'ha mai
+  applicata* ed è un failure mode. Il distrattore non è solo la fonte sbagliata: è **smentito**
+  dalla fonte giusta.
+- `graph_rag_ingestion_strategy.md §6` impone *«il sottotitolo di progetto va scritto come
+  testo semplice, mai come intestazione»* e lo chiama vincolo. **Nessuna norma lo stabilisce**
+  («sottotitolo», «corsivo»: zero occorrenze nella spec). È il ramo di `[CLASSE-FONTI]` che
+  A3 scrisse e nessuno aveva mai esercitato: la risposta giusta è «lo dice solo una fonte
+  informativa».
+- `inferenza_locale_o_remota.md §2` scrive *«Sostituire non è oscurare … le alternative che
+  reggono sono due»*, e nella stessa pagina *«cosa sia lecito farne è deciso dalla spec
+  normativa, non da questa nota»*. La norma è `[SAFEGUARD-SEC-04]`.
+
+| Caso | Fonte normativa | Rango norma / distrattore | Run 1 | Run 2 | Run 3 |
+|---|---|---|---|---|---|
+| 01 bump di versione | spec `[REGOLA-VAL-09]` | 1 / 2 | ✅ | ✅ | ✅ |
+| 02 caratteri per chunk | spec `[REGOLA-VAL-02/06]` | 2 / 1 | ✅ | ✅ | ✅ |
+| 03 ordine dei tagli | spec `[REGOLA-VAL-04]` | 1 / 2 | ✅ | ✅ | ✅ |
+| 04 palette colori | `ui_ux` `[REGOLA-UI-03]` | 1 / 3 | ✅ | ✅ | ✅ |
+| 05 inferenza remota | `safeguards` `[SEC-04]` | 1 / **6** | ❌ nessuna fonte | ❌ **distrattore** | ✅ |
+| 06 autorità moltiplicativa *(costruito)* | spec `[REGOLA-VAL-08]` | 2 / 1 | ❌ **distrattore** | ❌ **distrattore** | ✅ † |
+| 07 sottotitolo H2 *(costruito)* | **nessuna** | – / 1 | ✅ «nessuna» | ❌ **spec** | ✅ «nessuna» |
+| 08 nome sostituito *(costruito)* | `safeguards` `[SEC-04]` | 1 / 2 | ❌ **distrattore** | ✅ | ❌ **distrattore** |
+
+**24 esecuzioni: 17 corrette, 6 attribuite alla fonte sbagliata, 1 senza fonte.** I negativi
+stanno in 4 casi su 8, e in tre dei quattro si ripetono in almeno due esecuzioni su tre.
+Ognuno è verificabile sul corpus senza leggere la prosa: nel caso 05 la risposta scrive
+*«il documento inferenza_locale_o_remota.md afferma che … richiede un'autorizzazione scritta
+(DPA, EXPLICITLY_AUTHORIZED_ENDPOINTS)»*, e quei due identificatori esistono **solo** in
+`safeguards_security.md` — il documento informativo scrive letteralmente *«la spec normativa
+… chiede un'autorizzazione scritta»*. Il vincolo è attribuito alla fonte che dichiara di non
+esserne la fonte.
+
+**Il rango non c'entra, di nuovo.** Nel caso 05 la norma è il primo blocco del contesto e il
+distrattore il sesto, arrivato via grafo; nel caso 08 la norma è prima e il distrattore
+secondo. L'errore vive dentro la finestra, come A3 aveva stabilito, e i casi in cui la spec
+«vince facile» (01-04) sono quelli in cui distrattore e norma dicono la **stessa** cosa con
+parole diverse. Il contrasto che produce l'errore è un altro: il distrattore dice qualcosa che
+la norma **non dice**, o dice in forma di regola ciò che la norma lascia implicito. È questo
+il criterio con cui costruire i prossimi casi, e va scritto perché il sottoinsieme avversariale
+di S5 fu costruito con l'altro — vocabolario della fonte debole, vincolo nella forte — che
+governa il retrieval e non la risposta.
+
+## Tre tipi di errore, e uno che la metrica non vede
+
+1. **Il vincolo attribuito alla fonte debole** (05·2, 06·1, 06·2, 08·1, 08·3). Il tipo che
+   `[CLASSE-FONTI]` esiste per impedire, e il giudice di S6 lo riconoscerebbe per
+   costruzione: la fonte indicata come normativa non è quella attesa.
+2. **Il vincolo appeso a una norma che non lo contiene** (07·2): *«La regola che lo impone è
+   [REGOLA-VAL-04]»*, che parla di cascata H2/H3 e non nomina il sottotitolo. La risposta poi
+   si contraddice tre volte e chiude con «nessuna fonte più autorevole lo stabilisce».
+3. **Il vincolo senza fonte** (05·1): «il contesto stabilisce che è vietato», nessun
+   documento nominato. Astensione, quindi.
+
+**† Il quarto tipo.** Caso 06, run 3: *«Secondo [REGOLA-VAL-08] (fonte [REQUIREMENTS]) … il
+testo specifica che “nessun documento possa mai superare in ranking”»*. La fonte è quella
+giusta; la frase virgolettata è del distrattore, e la spec dice il **contrario**. Per la
+metrica di attribuzione questa risposta è **corretta**, ed è archiviata come tale — con la
+nota. Un giudice che risponda solo «quale fonte» non la vedrà mai. La vede il secondo campo
+del progetto di S6, la citazione di venti parole: basta verificare che **esista nel
+documento attribuito**, un `in` su un file. Non è un'aggiunta al progetto: è la ragione per
+cui quel campo c'era.
+
+**La varianza è a monte del giudice.** S6 ha misurato che il giudice è ripetibile *sulla
+stessa risposta*. Qui la stessa domanda, sullo stesso indice, con lo stesso contesto, ha dato
+nel caso 05 tre esiti diversi in tre esecuzioni (temperatura 0.1). L'harness deve giudicare
+**per esecuzione** e riportare per caso una distribuzione, non un verdetto: «2 su 3» sul caso
+08 è un'osservazione, non un tasso.
+
+## Il caso 4 di A3, riletto per la terza volta
+
+| Data | Indice | Chi legge | Verdetto |
+|---|---|---|---|
+| 2026-09-03 | pre-S5 | umano (A3 §6) | ✅ «apre dalla norma e dichiara la divergenza» |
+| 2026-09-05 | post-S5/R7/R8 | giudice (S6), 3 esecuzioni | «NESSUNA»: nessun vincolo attribuito |
+| 2026-09-07 | `v20260907T094225` | umano, 3 esecuzioni | ✅ 3/3 `[REGOLA-UI-03]`/`[UI-01]` da `ui_ux_brand_directives`, canvas-review citata come divergenza storica smentita dal codice |
+
+Tre date, tre indici, tre letture, nessuna sbagliata: sono tre sistemi diversi, ed è
+esattamente il motivo per cui l'archivio porta il testo e l'indice. Da registrare: la run 1 di
+oggi **apre** con «il contesto non riporta un vincolo … per il controllo stilistico inteso come
+revisione umana» e attribuisce la soglia WCAG alla norma tre righe dopo. Un giudice che si
+fermi al primo capoverso dice «NESSUNA», come S6; la nota nel verdetto lo dice, perché fra un
+mese sarà la prima cosa da controllare quando i due dissentiranno.
+
+## Dove vive la prova, e perché lì
+
+`eval/golden_attribution.yaml`, accanto a `golden_set.yaml`: **8 casi, 24 esecuzioni, ~1.090
+righe**, di cui la maggior parte è testo di risposta. Non è in `eval/results/` perché lì
+`*.json` è gitignorato per policy e una prova di controllo non è un artefatto di run: è lo
+strumento di misura, e va tracciato come il golden set. Ogni esecuzione porta data, indice,
+modello, stato, le intestazioni dei blocchi del contesto **nell'ordine letto dal modello**, il
+numero di blocchi di codice, il testo integrale e il verdetto con la frase su cui si regge.
+Regola scritta in testa al file: le run **non si riscrivono** — se il corpus cambia si
+aggiunge una run con il nuovo indice, e il confronto fra le due è il dato.
+
+Quattro test in `tests/test_golden_attribution.py`: ogni run ha testo, fonti e indice; un
+verdetto «corretto» indica esattamente la fonte dichiarata normativa (o «NESSUNA» quando il
+caso dichiara che nessuna norma la stabilisce); fonti e distrattori esistono nel corpus; il
+blocco `summary` conta ciò che le run contengono. Ciascuno **verificato rosso** sulla variante
+che deve bocciare: un verdetto ribaltato, un riepilogo gonfiato, una risposta troncata.
+
+## Un difetto trovato per strada — R27
+
+Caso 05, run 2: la risposta apre con `**[ASTENSIONE]**` — il marcatore di `[REGOLA-ASTENSIONE]`
+in grassetto — e lo status è `success`. Il lettore (`routes_retrieval.py:516`) fa
+`answer.lstrip().startswith("[ASTENSIONE]")`: due asterischi bastano a mancarlo, e il
+contratto di A16 torna invisibile a macchina esattamente nel modo che A16 aveva chiuso. Il
+check notturno di R10 resta verde perché la sua domanda fuori corpus ottiene il marcatore
+nudo. La correzione è una riga (togliere `*`, `#` e spazi in testa prima del confronto) e
+**non è stata applicata**: sta in `api/`, fuori dal perimetro di questa sessione, e la
+riproduzione è archiviata col testo. Registrato in RESIDUI come **R27**.
+
+## N3 è scrivibile
+
+Con la prova di oggi il criterio di S6 — «se non coincide, il giudice non è pronto» — ha
+finalmente un lato negativo su cui misurarsi. Ciò che l'harness deve avere, dedotto da qui e
+non da un progetto: giudizio **per esecuzione**; la citazione **verificata** nella fonte
+attribuita; «NESSUNA» come esito atteso legittimo (caso 07); confronto contro
+`golden_attribution.yaml` e non contro una tabella in prosa. Criterio di validazione: sui 24
+verdetti archiviati, concordanza sui 17 positivi **e** sui 7 negativi — la sensibilità che S6
+non poteva misurare. Costo misurato oggi: 24 chiamate, da 4 a 26 secondi l'una, sei minuti.
+
+## Cosa questa sessione NON prova
+
+- **Che i negativi siano stabili.** Un indice, un modello, un giorno, tre esecuzioni. Il caso
+  05 ha dato tre esiti diversi: l'archivio è il riferimento, non un tasso di errore.
+- **Che i casi costruiti siano avversariali per il retrieval.** Sono costruiti per la
+  risposta e non sono marcati `adversarial` in `golden_set.yaml`: nei casi 06 e 07 il
+  distrattore è a rango 1, nel 08 a rango 2 — ma aggiungerli là cambierebbe il numero del
+  sottoinsieme di S5 per una proprietà che quel numero non misura.
+- **Che il giudice li riconosca.** Non è stato eseguito: era il confine dichiarato della
+  sessione. La prova è pronta; la misura è di N3.
+- **Che i verdetti umani siano giusti.** Un lettore solo, con il criterio scritto accanto a
+  ogni verdetto. Il testo è lì per essere riletto da un altro — è la differenza con A3 §6.
+- **Che il caso 06 run 3 sia l'unico del suo tipo.** È l'unico *trovato*: la verifica della
+  citazione non è stata fatta a mano sulle altre 23, e un giudice la farà.
