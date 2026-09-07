@@ -15,7 +15,7 @@ diciannove.
 
 Alla nascita questo documento non aggiungeva riscontri nuovi: raccoglieva quelli che AUDIT.md
 dichiarava aperti, li triava fra risolvibili e non, e li ordinava in sessioni di lavoro.
-**Eseguendole ne sono nati quattordici** (R15–R28), e sono la parte che l'audit da solo non poteva
+**Eseguendole ne sono nati quindici** (R15–R29), e sono la parte che l'audit da solo non poteva
 produrre: si vedono correggendo, non leggendo. Gli ultimi quattro — R22, R23, R24, R25 — non li ha
 prodotti una sessione ma la **verifica del 2026-09-07**, fatta prima di eseguire S8 per
 controllare che ciò che restava aperto lo fosse ancora. Delle quattro voci di lavoro tecnico
@@ -33,7 +33,7 @@ rapporto che questo audit trova ogni volta che qualcuno va a guardare invece di 
 | Righe dell'audit | 19 — 15 chiuse, 3 ritirate, 1 con premessa ritirata e sostanza chiusa |
 | Residui dichiarati | **25** (+15: R15 e R16 dai run CI reali, R17 da S4, R18 e R19 da S5, R20 da S6, R21 da S7, R22–R25 dalla verifica del 2026-09-07, **R26** da S10, **R27** da S12, **R28** dalla verifica che precede S8 e **R29** da S14) |
 | Di cui già chiusi da altri interventi (riga stantia) | 2 |
-| Risolvibili con lavoro tecnico | **23 chiusi**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, **R12** (S7, 2026-09-07), R14, **R15**, **R21**, **R22**, **R24**, **R18** (S10: due righe, non una, e un rebuild), **R26** (S10, aperto e chiuso in giornata), **R20** e **R23** (S11, la griglia congiunta), **R27** e **R28** (S13: il marcatore ornato e i documenti rimasti a una promozione indietro) (tutti il 2026-09-07 — R21, R22 e R24 poche ore dopo essere stati aperti; R27 e R28 il giorno stesso), N5, N6. Fuori elenco, chiusi lo stesso: **N4** (S6) e **R19** (effetto collaterale di N4) |
+| Risolvibili con lavoro tecnico | **23 chiusi**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, **R12** (S7, 2026-09-07), R14, **R15**, **R21**, **R22**, **R24**, **R18** (S10: due righe, non una, e un rebuild), **R26** (S10, aperto e chiuso in giornata), **R20** e **R23** (S11, la griglia congiunta), **R27** e **R28** (S13: il marcatore ornato e i documenti rimasti a una promozione indietro) (tutti il 2026-09-07 — R21, R22 e R24 poche ore dopo essere stati aperti; R27 e R28 il giorno stesso), N5, N6. Fuori elenco, chiusi lo stesso: **N4** (S6), **R19** (effetto collaterale di N4) e **N3** (S14 — misurata e chiusa con riserva: `eval/attribution.py` esiste ed è in repo, ma il giudice non passa il criterio che S6 si era dato; il seguito è **R29**, in S8) |
 | Ancora aperti, con lavoro tecnico davanti | **1** — R13 (**rimisurato e ridotto da S10**: C1 e C2 promossi, C4 passa, restano C3 e C5 che aspettano A6). *S14 (2026-09-07) ha chiuso **N3** come **misurata**: `eval/attribution.py` legge finalmente l'archivio di S12, giudica per esecuzione e verifica i passi virgolettati con un `in` sul file (06·3 confermato unico del suo tipo su 24). Il giudice `qwen3.5:9b` concorda con l'umano su **20/24** (negativi 5/7), unanime 24/24 a temperatura 0, ma per il criterio di S6 **non è pronto**; in 3 disaccordi su 4 sceglie il documento che contiene il vincolo invece di quello che la risposta dice lo stabilisce — lo stesso difetto del giudicato, ed è **R29**, una decisione.* *S13 (2026-09-07) ha chiuso **R27 e R28**: il marcatore di astensione ora si legge anche formattato (set di caratteri **misurato** sull'archivio di S12, non scelto: backtick 37 usi, asterisco 9, cancelletto 0 ma vietato dal prompt), e i documenti sono allineati a `v20260907T115228` distinguendo **una** misura rimisurata dal resto **rietichettato**. L'archivio di S12 è dichiarato storico e non riprodotto — l'uso previsto (validare il giudice offline) non vuole l'indice attivo — con l'invariante ora sotto test.* *S11 (2026-09-07) ha chiuso **R20 e R23** con la griglia congiunta — e non con «non si cambia niente»: `boost_alpha` 0.1 → **0.3** (held-out +0.038 a k=1, dev.std 0.007, 5/5 seed, senza più perdere a k=5/10), `graph_context_max_chunks` 2 → **3** (il prezzo misurato di alpha nel ramo grafo), peso di sezione **confermato a 0.92** in 25 fold su 25 con alpha libero.* *S10 ha chiuso R18, aperto R26 e **chiuso R26 lo stesso giorno** (il gate ora riceve `graph` e `restatements`: 0.845 → 0.862, tutto N4, il grafo non muoveva nulla).* *S9 ne ha chiusi tre in un giro: R15 senza scrivere codice (la guardia c'era già), R24 con due righe di `conftest.py` e una di attesa, R22 con una sezione riscritta* |
 | Fuori registro fino a oggi | **4** voci di `DISTRIBUTION.md` che nessuna riga di RESIDUI tracciava: la forcella `>=3.14` (**misurata il 2026-09-07**, resta la decisione), il workflow di release (**la riga era stantia: è scritto e già partito**), il primo avvio guidato, lo smoke test sul secondo OS (**c'è: scoperto è Windows nativo**) |
 | Che richiedono una decisione, non del codice | **12**, tutte in S8, e **A6 è il punto 1** — la sola riga che nessuna sessione tecnica può chiudere, con tre cose che la aspettano: N1, N2, N7, N8, N9 + R16 (proteggere il ramo), R17 (quali colori seguono il tema), **R25** (il buco lasciato scoperto dalla rimozione di M6), il primo avvio guidato, **se abbassare `requires-python` a `>=3.12`** e — nuova da S14 — **R29** (un giudice di attribuzione diverso dal giudicato: quale modello, dove gira, quanto costa), che S9 ha reso una scelta con un prezzo invece di una domanda. *Erano 5: N4 è uscita (S6 l'ha decisa misurandola), poi sono entrate N9, R16, R17, R25 e le due di distribuzione; ora esce anche il **registry di release**, che era già deciso e spedito dal 2026-09-01 — la riga che lo dava aperto era stantia quanto il bilancio da cui veniva* |
@@ -46,12 +46,16 @@ rapporto che questo audit trova ogni volta che qualcuno va a guardare invece di 
 Interventi **deliberatamente** non eseguiti, con la ragione scritta accanto. Non sono
 dimenticanze: sono confini dichiarati.
 
-*Tre di questi confini sono caduti, e per la stessa ragione: qualcuno è andato a misurare.*
-**N4** (peso di sezione) era archiviata come «agisce sul rango, che non è il problema» — S6 ha
-misurato e il rango era il problema; **N5** e **N6** erano «non abbiamo il servizio / non
-abbiamo un Mac» — il runner CI ha entrambi. Restano confini le altre sei: cinque (N1, N2, N7,
-N8, N9) sono la materia di **S8**; **N3** non è una decisione ma un lavoro con un
-prerequisito — che **S12 ha costruito** il 2026-09-07, e che **S14 ha eseguito** lo stesso giorno.
+*Quattro di questi confini sono caduti.* Tre per la stessa ragione — qualcuno è andato a
+misurare: **N4** (peso di sezione) era archiviata come «agisce sul rango, che non è il
+problema» — S6 ha misurato e il rango era il problema; **N5** e **N6** erano «non abbiamo il
+servizio / non abbiamo un Mac» — il runner CI ha entrambi. Il quarto è caduto per una ragione
+diversa — qualcuno ha scritto il codice che mancava: **N3** non era una decisione ma un lavoro
+con un prerequisito, che **S12 ha costruito** il 2026-09-07 e **S14 ha eseguito** lo stesso
+giorno. Qui la premessa non era sbagliata come per N4: il lavoro è stato fatto, e ha trovato un
+limite vero — un giudice che arriva a 20/24 e non passa il criterio che S6 si era dato — che
+chiude la voce come **misurata**, non come decisione. Restano confini le altre cinque (N1, N2,
+N7, N8, N9): sono la materia di **S8**.
 
 *E qui il registro aveva un buco, trovato il 2026-09-07 da una domanda e non da una misura:*
 **N3 era rimasta senza sessione.** «Ora è scrivibile, ed è scritto nella sua riga» era vero
@@ -1904,7 +1908,8 @@ S13  l'indice e' avanti ai documenti ✅ ← R28+R27 chiusi: una misura rimisura
 S14  N3, la metrica che manca       ✅  ← harness in repo, validato contro l'archivio:
                                           giudice 20/24, negativi 5/7, unanime a T=0.
                                           Non passa S6; R29 nuovo (una decisione)
-S8   decisioni                          ← ULTIMA: 13 voci, e A6 e' il punto 1
+S8   decisioni                          ← ULTIMA: 13 voci (12 decisioni + 1 gia'
+                                          ritirata), e A6 e' il punto 1
 ```
 
 **Tredici sessioni eseguite; resta S8.** La seconda verifica prima di S8 —
