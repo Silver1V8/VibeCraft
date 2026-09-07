@@ -2,8 +2,8 @@
 id: "meta-change-log-v1.0"
 title: "Registro delle Modifiche — Change Log di VibeCraft"
 project: "cross-project"
-version: "2.0.0"
-date: "2026-09-04"
+version: "2.1.0"
+date: "2026-09-07"
 status: "ENFORCED"
 classification: "METADATA"
 path: "docs/00_meta_governance/change_log.md"
@@ -67,6 +67,24 @@ Ogni modifica ai contratti di sicurezza, alle regole enforceable dei documenti n
 ---
 
 ## 3. Storico delle Versioni Rilasciate
+
+### Versione 2.1.0 (07 Settembre 2026)
+* **Autore:** manutenzione della knowledge base (Run S8-S10, tracciamento del registro)
+* **File Modificati:**
+  * `docs/04_knowledge_informative/inferenza_locale_o_remota.md` — **nuovo**
+  * `docs/01_architecture_norms/architecture_decision_rationale.md`
+  * `docs/04_knowledge_informative/graph_rag_ingestion_strategy.md`
+  * `docs/README.md`
+  * `docs/00_meta_governance/change_log.md`
+* **Descrizione Modifiche:** Aggiunta la nota informativa `inferenza_locale_o_remota.md`
+  (METHODOLOGY, authority 0.40) su un tema non coperto dal corpus. Corretti due archi
+  `CONTIENE` morti nel frontmatter tracciato (`spec-graph-rag-ingestion-v1.1` e
+  `norm-coding-standards-v1.0`, quest'ultimo con base-id diverso e privo di arco
+  documento→documento), rilevati durante S10 [R18]. Aggiornato l'indice di `docs/README.md`
+  con le voci mancanti di `change_log.md` e `architecture_decision_rationale.md`. Questo
+  stesso file, mai tracciato da git da quando esiste, è stato aggiunto al repository ed è ora
+  pubblicato su GitHub (rimossa l'esclusione mirata nel `.gitignore`). **Bump minor** perché
+  aggiunge un documento nuovo alla knowledge base, non solo correzioni di forma.
 
 > **Nota di lettura (aggiunta il 2026-09-04).** Le voci 1.1.0 e 1.0.0 qui sotto
 > elencano file che **non fanno più parte del corpus**: appartenevano al dominio
