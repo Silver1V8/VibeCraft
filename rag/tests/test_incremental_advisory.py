@@ -41,9 +41,27 @@ def test_advisory_records_history_with_dedicated_source(monkeypatch):
     assert isinstance(res["advisory_eval_seconds"], float)
     assert len(history) == 1
     assert history[0]["source"] == "incremental_advisory"
+    # Il doppio non torna `recall_by_k`: questa riga PINNA IL FALLBACK di R12. record_history
+    # e' chiamata fuori dal try/except del fail-open, e un KeyError su una chiave assente
+    # farebbe fallire proprio il job che l'advisory non deve mai toccare.
     assert history[0]["recall"] == {f"recall@{eval_gate.EVAL_GATE_K}": 0.95}
     assert history[0]["version"] == "v1"
     assert history[0]["gate"]["advisory_eval_seconds"] == res["advisory_eval_seconds"]
+
+
+def test_advisory_records_every_k_when_measured(monkeypatch):
+    """R12: quando evaluate_recall misura piu' k, l'advisory li scrive TUTTI — non solo
+    quello del gate. E' la seconda sorgente che scriveva una colonna sola: senza questo test
+    la correzione resterebbe provata solo su gate_promotion."""
+    larga = {"recall@1": 0.70, "recall@2": 0.95, "recall@5": 0.99, "recall@10": 1.0}
+    monkeypatch.setattr(eval_gate, "evaluate_recall",
+                        lambda *a, **kw: {"recall": 0.95, "n": 34, "k": kw.get("k"),
+                                          "recall_by_k": larga})
+    history = _spy_history(monkeypatch)
+
+    eval_gate.run_incremental_advisory("v1", None, object(), {}, min_recall=0.90)
+
+    assert history[0]["recall"] == larga
 
 
 def test_advisory_below_threshold_writes_warning_alert_never_critical(monkeypatch, tmp_path):

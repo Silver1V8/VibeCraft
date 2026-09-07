@@ -293,10 +293,15 @@ di entrambi è stato verificato che **discriminano** — una domanda dentro il c
 
 ### Gravità bassa / vigilanza
 
-**R12 — Lo storico riparte quasi da zero a ogni spostamento del gate.** Le righe portano solo
-la chiave del `k` di allora: spostando `eval_gate.k` la serie si è accorciata da 79 a 22
-punti. Corretto (sono misure diverse), ma la continuità si comprerebbe registrando **tutti**
-i k in ogni riga.
+**R12 — Lo storico riparte quasi da zero a ogni spostamento del gate. ✅ CHIUSO 2026-09-07.**
+Le righe portavano solo la chiave del `k` di allora: spostando `eval_gate.k` la serie si è
+accorciata da 79 a 22 punti. Ora `evaluate_recall` misura `DEFAULT_KS ∪ {k}` e le tre sorgenti
+scrivono tutte le colonne (`eval.run` lo faceva già; il gate e l'advisory incrementale ne
+scrivevano una). **Le 69 righe già scritte non sono state riscritte:** il beneficio parte dal
+2026-09-07 in avanti, non recupera il passato. Costo dichiarato: il gate legge 10 risultati per
+caso invece di 3, quindi la sua `recall@2` può muoversi di poco — è la profondità a cui
+`eval.run` misura da sempre, e le due sorgenti finiscono nella stessa serie. Dettagli in
+`AUDIT.md`, A2b «Cosa resta aperto».
 
 **R13 — `recall@2` è a 0.875 con soglia 0.75: margine 12,5 punti. PREPARATO 2026-09-04, non
 eseguito.** Il giorno in cui saturasse non resta un k più basso — andrà **esteso il golden
@@ -450,7 +455,7 @@ Due su due: la disciplina «misura prima di correggere» ha evitato due modifich
 | R8 ✅ | Documento scritto (`inferenza_locale_o_remota.md`, `authority: 0.40`, tracciato). Ma il caso 4 **non** è stato rimarcato: misurato, il nuovo distrattore esce a rango 6 contro il 2 dell'atteso — nessun contrasto. Il sottoinsieme è tornato a 5 casi con una domanda **diversa**, scelta misurando 7 formulazioni | È una decisione sul corpus: nessun documento esistente sotto peso 0.5 nomina LLM o privacy (già misurato) | M — **fatto 2026-09-04**; la premessa del residuo («basta un documento sul tema») è stata smentita dalla misura, non assunta |
 | R9 ✅ | ~~**Misurare prima**: chiedere a `/ask` le tre catene e verificare se il terzo documento compare nella risposta via grafo~~ **MISURATO 2026-09-05**: non compariva — 1 documento su 3 nel contesto, 0 su 3 nella risposta. **Corretto e rimisurato lo stesso giorno: 3 catene su 3.** | La premessa del residuo («il grafo compensa») è stata **smentita**, non assunta. Il ramo grafo usava i tre segnali che possiede — pertinenza, fiducia, autorità — uno alla volta: prima `fiducia × autorità` senza pertinenza, poi (primo tentativo) pertinenza al posto delle altre due, che ha rifatto il difetto di ADR 0002 dentro il ramo grafo. La chiave giusta li **compone**, con lo stesso moltiplicatore di `rank_by_authority`. Il tetto per-documento nel ranking, la strada più ovvia, è stato misurato e **bocciato**: a 1/doc distrugge entrambe le suite, a 3/doc non risolve R9 | **fatto 2026-09-05** (1 file, 4 test ognuno rosso sulla variante che boccia); quel che resta è **N4**, non R9 |
 | R10 ✅, R11 ✅ | ~~Un check notturno contro Ollama vero, accanto a `nightly_consistency`~~ | In CI non c'è LLM; il notturno gira dove il modello c'è ed è il canale che già porta gli alert | S — **fatto 2026-09-05**; il lavoro previsto erano due asserzioni, quello che ha richiesto pensiero è il ramo `200` di R11: non un falso allarme da ignorare, ma «il contratto non è più esercitato», che è ciò che l'alert dice |
-| R12 | `record_history` scrive **tutti** i k calcolati, non solo quello del gate | Una riga più larga costa nulla e rende ogni futuro spostamento del gate indolore | S |
+| R12 ✅ | `record_history` scrive **tutti** i k calcolati, non solo quello del gate | Una riga più larga costa nulla in lettura (`_series` seleziona per chiave esatta) e rende ogni futuro spostamento del gate indolore | S — **fatto 2026-09-07**; il lavoro previsto era una riga più larga, quello che ha richiesto pensiero è il suo prezzo: misurare più k significa leggere 10 risultati invece di 3, e con un pool di candidati più profondo la `recall@2` del gate può muoversi. È il verso giusto — è già la profondità di `eval.run`, che scrive nella stessa serie — ma è un numero di promozione che cambia, non un dettaglio di telemetria |
 | R13 ◐ | **Preparato 2026-09-04**: 14 domande misurate contro l'indice, 5 candidati che falliscono a k=2 annotati in AUDIT.md («R13 — cinque candidati misurati, nessuno aggiunto»). **Nessuno aggiunto**: l'elenco serve pronto, non eseguito | Estenderlo sotto pressione (metrica satura) significa sceglierne i casi per far scendere un numero | M — preparazione fatta, aggiunta ancora aperta |
 | R14 ✅ | Non recuperabile. Ma il **rollback** deve accorgersi che la collection della versione target non esiste e dirlo, invece di fallire in modo oscuro | I dati sono persi; l'esperienza al tentativo no. **Misurando è emerso che non falliva affatto**: riusciva a metà e nessun check lo diceva — quindi rifiuto *prima* della mutazione, più il rilevamento dello stato misto nel check notturno | S — **fatto 2026-09-04** |
 | N1–N8 | Decisione esplicita, registrata. Non codice | Cinque di questi sono «no» già argomentati: vanno confermati o ribaltati una volta, non ridiscussi a ogni sessione | — |
@@ -799,9 +804,16 @@ Aggiorna AUDIT.md (A3 sezione 8, A4 e A16 "Cosa resta aperto", A1) e RESIDUI.md.
 
 ---
 
-## S7 — Lo storico che riparte da zero
+## S7 — Lo storico che riparte da zero ✅ ESEGUITA il 2026-09-07
 
-Chiude **R12**.
+Chiude **R12**. La premessa del residuo («una riga più larga costa nulla») regge in lettura ma
+non in scrittura: per registrare `recall@10` bisogna *guardare* dieci risultati, e in
+`hybrid_search` la profondità del pool di candidati dipende da `top_k` — quindi il gate misura
+ora alla stessa profondità di `eval.run`, che scrive nella sua stessa serie, e la sua
+`recall@2` può muoversi di poco. Verificato che nessun consumatore legge «la prima chiave che
+trova» (`_series` seleziona per chiave esatta; le due pagine e `eval_health` prendono la chiave
+dal payload). Le righe già scritte **non** sono state riscritte. Cronaca in `AUDIT.md`, A2b
+«Cosa resta aperto».
 
 ```
 Lavora su rag/core/eval_history.py e rag/eval/.

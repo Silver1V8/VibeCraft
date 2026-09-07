@@ -1098,11 +1098,29 @@ dell'infografica dicono `recall@2`, senza errori in console.
 
 ## Cosa resta aperto
 
-- **Le righe storiche restano scritte con la chiave del k di allora.** È corretto — sono
-  misure diverse e mescolarle sarebbe peggio — ma significa che a ogni futuro spostamento del
-  gate il grafico riparte quasi da zero. Se un giorno servisse continuità, la strada è
-  registrare **tutti** i k in ogni riga, anche dalle righe scritte dal gate (che oggi ne
-  registra uno solo).
+- ~~**Le righe storiche restano scritte con la chiave del k di allora**, quindi a ogni futuro
+  spostamento del gate il grafico riparte quasi da zero.~~ **CHIUSO il 2026-09-07 (R12, S7).**
+  `evaluate_recall` misura ora `DEFAULT_KS ∪ {k}` e sia `gate_promotion` sia
+  `run_incremental_advisory` scrivono TUTTE le colonne misurate; `eval.run` lo faceva già. La
+  serie del prossimo k è quindi popolata **prima** che il gate ci si sposti, e lo spostamento
+  non azzera più niente.
+  - **Il beneficio parte da oggi, non recupera il passato.** Le 46 righe `gate` e le 23
+    `incremental_advisory` già scritte portano una colonna sola e **non sono state riscritte**
+    (lo storico è append-only): la serie di un k mai misurato prima parte dal 2026-09-07, non
+    dal 2026-07-15. Un grafico che si allunga da oggi non è un grafico che recupera il passato.
+  - **Costa una cosa, e va detta.** `evaluate` interroga il retrieval una volta sola ma a
+    `max(ks)`: il gate legge ora 10 risultati per caso invece di `max(k, 3)`, e `hybrid_search`
+    dimensiona il pool di candidati su `top_k` (`fetch_k = max(top_k*3, 10)`, quindi 30 invece
+    di 10). Su un pool più profondo il rerank ColBERT può riordinare anche le prime posizioni:
+    **la `recall@2` del gate può muoversi di poco rispetto a ieri.** È il verso giusto — è la
+    profondità a cui `eval.run` misura da sempre, e le righe delle due sorgenti finiscono nella
+    **stessa serie**: prima quella serie mescolava una `recall@2` letta su 3 risultati con una
+    letta su 10.
+  - Verificato che una riga più larga non rompe nessun consumatore: `_series` seleziona per
+    chiave **esatta** (le colonne inutilizzate sono invisibili), `/eval` legge `e.recall[KEY]`
+    con `KEY` preso da `summary.key`, l'infografica legge `ev.last_recall`/`ev.key` dal payload
+    di `eval_health`, e il guardrail di `eval.run` asserisce sull'`aggregate` del report, non
+    sullo storico. Nessuno prende «la prima chiave che trova».
 - **`recall@2` è a 0.875 con soglia 0.75:** margine 12,5 punti *(era 0.873 su 55 casi; il
   golden set è passato a 56 il 2026-09-04 — vedi la sezione S5 in fondo)*. Il giorno in cui
   saturasse non resta un k più basso: andrà **esteso il golden set** con casi che il sistema

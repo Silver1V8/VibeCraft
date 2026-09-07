@@ -40,7 +40,7 @@ from core.config import (
     GOLDEN_SET_PATH,
 )
 from core.eval_history import record_history
-from core.eval_metrics import evaluate
+from core.eval_metrics import DEFAULT_KS, evaluate
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +75,9 @@ def evaluate_recall(qdrant, embed_model, colbert_store: dict, *, k: int = EVAL_G
     percorso di produzione (retrieval.hybrid_search) e la metrica (core.eval_metrics.evaluate), così
     il numero del gate coincide con quello di eval.run. recall=None se non ci sono casi.
 
+    `recall` è il numero su cui il gate DECIDE, alla sola `k`. `recall_by_k` porta tutti i k
+    misurati (DEFAULT_KS più `k`) e serve allo storico: vedi il commento sotto.
+
     `collection_name` (opzionale, default COLLECTION_NAME): propagata a hybrid_search. Serve
     al blue/green di Qdrant, che dovrà far valutare il gate contro la collection candidata
     invece che quella di produzione. Nessun chiamante di produzione lo passa ancora."""
@@ -86,11 +89,27 @@ def evaluate_recall(qdrant, embed_model, colbert_store: dict, *, k: int = EVAL_G
         return retrieval.hybrid_search(query, kk, qdrant=qdrant, embed_model=embed_model,
                                        colbert_store=colbert_store, collection_name=collection_name)
 
-    report = evaluate(cases, _retrieve, ks=[k])
+    # TUTTI i k misurati, non solo quello del gate (R12). Le righe dello storico portano la
+    # chiave del k in vigore quando furono scritte e `_series` seleziona per chiave ESATTA:
+    # spostare eval_gate.k azzerava quasi il grafico (10 → 2 ha accorciato la serie da 79 a
+    # 22 punti). Misurando anche gli altri k, la serie del PROSSIMO k esiste già il giorno in
+    # cui il gate ci si sposta. La decisione resta sul solo `k`: le altre colonne si
+    # scrivono, non votano.
+    #
+    # COSTA UNA COSA, e va detta. `evaluate` interroga il retrieval una volta sola, ma a
+    # max(ks): 10 risultati per caso invece di max(k, 3). hybrid_search dimensiona il pool di
+    # candidati su top_k (fetch_k = max(top_k * 3, 10)), e su un pool più profondo il rerank
+    # ColBERT può riordinare anche le prime posizioni — quindi la recall@k del gate può
+    # muoversi di poco rispetto a ieri. È il verso giusto: è la profondità a cui eval.run
+    # misura da sempre, e le righe delle due sorgenti finiscono nella STESSA serie. Prima
+    # quella serie mescolava un recall@k letto su 3 risultati con uno letto su 10.
+    ks = sorted({*DEFAULT_KS, k})
+    report = evaluate(cases, _retrieve, ks=ks)
     # `saturated`: recall@k = 1.000 su OGNI caso. Un gate valutato lì non è un gate
     # severo, è un gate cieco — qualunque candidata lo supera, compresa una peggiorata
     # (S5, ADR 0002). Non blocca (non è una regressione), ma va detto ad alta voce.
     return {"recall": report["aggregate"][f"recall@{k}"], "n": report["n"], "k": k,
+            "recall_by_k": {f"recall@{kk}": report["aggregate"][f"recall@{kk}"] for kk in ks},
             "saturated": f"recall@{k}" in (report.get("saturated") or [])}
 
 
@@ -132,8 +151,12 @@ def gate_promotion(version: str, qdrant, embed_model, colbert_store: dict, *,
         record_alert("warning", msg_sat, k=k, version=version, saturated=True)
         _log(f"⚠️  {msg_sat}")
     ok = res["recall"] >= min_recall
-    # Storicizza ogni valutazione del gate (trend di qualità, Epic 5): source="gate".
-    record_history({f"recall@{k}": res["recall"]}, n_cases=res["n"], version=version,
+    # Storicizza ogni valutazione del gate (trend di qualità, Epic 5): source="gate", con
+    # TUTTI i k misurati (R12) e non solo quello in vigore. Il fallback copre un
+    # `evaluate_recall` sostituito da un doppio: siamo fuori dal try/except, e un KeyError
+    # qui farebbe fallire proprio il build che il fail-open del gate esiste per proteggere.
+    record_history(res.get("recall_by_k") or {f"recall@{k}": res["recall"]},
+                   n_cases=res["n"], version=version,
                    source="gate", gate={"passed": ok, "min_recall": min_recall})
     if ok:
         res["passed"] = True
@@ -207,7 +230,8 @@ def run_incremental_advisory(version, qdrant, embed_model, colbert_store: dict, 
     ok = res["recall"] >= min_recall
     result.update(evaluated=True, passed=ok, recall=res["recall"], n=res["n"], k=k,
                   min_recall=min_recall)
-    record_history({f"recall@{k}": res["recall"]}, n_cases=res["n"], version=version,
+    record_history(res.get("recall_by_k") or {f"recall@{k}": res["recall"]},  # tutti i k (R12)
+                   n_cases=res["n"], version=version,
                    source="incremental_advisory",
                    gate={"passed": ok, "min_recall": min_recall,
                          "advisory_eval_seconds": elapsed})

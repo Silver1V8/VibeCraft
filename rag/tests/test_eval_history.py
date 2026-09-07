@@ -101,3 +101,48 @@ def test_detect_regression_none_when_stable(tmp_path):
         eh.record_history({eh.GATE_RECALL_KEY: v}, n_cases=34, version="v", source="gate", path=p)
     assert eh.detect_regression(floor=0.90, path=p) is None
     assert eh.detect_regression(path=tmp_path / "vuoto.jsonl") is None   # dati insufficienti
+
+
+# ---------------------------------------------------------------------------
+# R12 — righe larghe: la serie del prossimo k esiste gia', e i lettori non sbagliano colonna
+# ---------------------------------------------------------------------------
+def test_serie_del_nuovo_k_gia_popolata_quando_il_gate_si_sposta(tmp_path):
+    """Il beneficio di R12 in una riga: con tutte le colonne scritte, spostare EVAL_GATE_K
+    non fa ripartire il grafico da zero — la serie del k di destinazione ha gia' i suoi punti.
+
+    Vale da R12 in avanti. Le righe scritte prima portano solo la chiave del k di allora e non
+    vengono riscritte: qui la seconda meta' del test lo mette nero su bianco, una riga stretta
+    non regala punti agli altri k."""
+    from core.eval_metrics import DEFAULT_KS
+    p = tmp_path / "h.jsonl"
+    tutti = sorted({*DEFAULT_KS, config.EVAL_GATE_K})
+
+    eh.record_history({eh.GATE_RECALL_KEY: 0.5}, n_cases=34, version="vecchia", source="gate",
+                      path=p)                                   # riga STRETTA, come le storiche
+    for v in (0.80, 0.84, 0.88):
+        eh.record_history({f"recall@{k}": v for k in tutti}, n_cases=34, version="v",
+                          source="gate", path=p)                # righe LARGHE, da R12 in poi
+
+    for k in tutti:
+        atteso = 4 if f"recall@{k}" == eh.GATE_RECALL_KEY else 3
+        assert len(eh._series(f"recall@{k}", path=p)) == atteso, f"serie recall@{k}"
+
+
+def test_i_consumatori_leggono_la_chiave_del_gate_e_non_un_altra(tmp_path):
+    """Il rischio di una riga piu' larga non e' scriverla: e' che un lettore prenda la prima
+    chiave che trova. Qui il k del gate CROLLA mentre tutti gli altri restano a 1.000 — chi
+    leggesse la colonna sbagliata vedrebbe una serie piatta e non segnalerebbe nulla."""
+    from core.eval_metrics import DEFAULT_KS
+    p = tmp_path / "h.jsonl"
+    altri = [f"recall@{k}" for k in {*DEFAULT_KS, config.EVAL_GATE_K}
+             if f"recall@{k}" != eh.GATE_RECALL_KEY]
+    for v in (0.95, 0.95, 0.95, 0.60):
+        eh.record_history({eh.GATE_RECALL_KEY: v, **{k: 1.0 for k in altri}},
+                          n_cases=34, version="v", source="gate", path=p)
+
+    h = eh.eval_health(path=p)
+    assert h["key"] == eh.GATE_RECALL_KEY and h["last_recall"] == 0.60
+    assert h["trend"] == "down" and h["history_points"] == 4
+    assert eh.latest_recall(path=p) == 0.60
+    reg = eh.detect_regression(path=p)
+    assert reg is not None and reg["key"] == eh.GATE_RECALL_KEY and reg["last"] == 0.60

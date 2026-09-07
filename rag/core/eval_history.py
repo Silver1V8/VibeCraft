@@ -35,6 +35,13 @@ _TREND_EPS = 0.005  # variazione minima di recall per non essere "flat" (mezzo p
 # che nessuno debba ricordarsene. Il prezzo è che la serie si accorcia quando il gate cambia
 # k (le righe storiche portano la chiave del k di allora): sono punti in meno, ma di una
 # misura che discrimina — e 79 punti di una metrica satura valgono meno di 22 punti veri.
+#
+# QUEL PREZZO SI PAGA UNA VOLTA SOLA (R12, 2026-09-07). Da qui in avanti ogni riga porta
+# TUTTI i k misurati — eval.run lo faceva già, il gate e l'advisory incrementale ne
+# scrivevano uno — quindi la serie del prossimo k è già popolata il giorno in cui il gate ci
+# si sposta, e non c'è più nulla da azzerare. Ciò che NON succede: le righe già scritte non
+# vengono riscritte. Un grafico che si allunga da oggi non è un grafico che recupera il
+# passato — la serie di un k mai misurato prima parte dal 2026-09-07, non dal 2026-07-15.
 GATE_RECALL_KEY = f"recall@{EVAL_GATE_K}"
 
 
@@ -50,9 +57,17 @@ def _git_commit() -> str | None:
 
 def record_history(recall: dict, *, n_cases: int, version, source: str,
                    gate: dict | None = None, path: Path | None = None) -> dict:
-    """Appende una riga di storico. `recall` è {"recall@5": .., "recall@10": ..}; `source` è
-    'eval.run' o 'gate'; `gate` (opzionale) porta l'esito del gate (passed/min_recall). `path` è
-    risolto a runtime così i test lo reindirizzano."""
+    """Appende una riga di storico. `source` è 'eval.run', 'gate', 'incremental_advisory' o
+    'multihop'; `gate` (opzionale) porta l'esito del gate (passed/min_recall). `path` è
+    risolto a runtime così i test lo reindirizzano.
+
+    `recall` è {"recall@1": .., "recall@2": .., ..}: TUTTI i k che il chiamante ha misurato,
+    non solo quello che lo interessa oggi (R12). Scrivere una chiave in più non costa nulla —
+    `_series` seleziona per chiave esatta, quindi le colonne inutilizzate sono invisibili a
+    chi legge — e risparmia al grafico di ripartire da zero al prossimo spostamento del gate.
+    Chiavi PREFISSATE per le suite che misurano altro (vedi eval.run_multihop.history_keys):
+    finiscono nello stesso file, e un "recall@10" nudo si mescolerebbe con quello del golden
+    set single-hop."""
     path = path if path is not None else HISTORY_PATH
     entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -84,6 +99,10 @@ def load_history(limit: int | None = None, path: Path | None = None) -> list[dic
 
 
 def _series(key: str, path: Path | None = None) -> list[float]:
+    """Valori di UNA chiave lungo lo storico, in ordine cronologico. Selezione per chiave
+    esatta, mai "la prima che c'è": è ciò che rende innocua una riga larga (più k) e ciò che
+    tiene separate le suite che scrivono nello stesso file. Le righe che quella chiave non ce
+    l'hanno — perché scritte quando il gate stava altrove — semplicemente non sono punti."""
     return [e["recall"][key] for e in load_history(path=path)
             if isinstance(e.get("recall"), dict) and key in e["recall"]]
 

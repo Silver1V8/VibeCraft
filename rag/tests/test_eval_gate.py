@@ -165,3 +165,37 @@ def test_evaluate_recall_riporta_la_saturazione(monkeypatch):
     casi[2] = {"q": "q2", "expected": [{"doc": "assente.md"}]}
     res = eval_gate.evaluate_recall(None, None, {}, k=10, cases=casi)
     assert res["recall"] < 1.0 and res["saturated"] is False
+
+
+# ---------------------------------------------------------------------------
+# R12: la riga dello storico porta TUTTI i k misurati, non solo quello in vigore
+# ---------------------------------------------------------------------------
+def test_riga_del_gate_porta_tutti_i_k(monkeypatch, tmp_path):
+    """Le righe di history.jsonl portano la chiave del k di allora, e `_series` seleziona per
+    chiave esatta: spostare eval_gate.k azzerava quasi il grafico (10 → 2: da 79 a 22 punti).
+    Il gate ora scrive tutte le colonne che ha misurato.
+
+    L'atteso è in QUARTA posizione apposta: recall@1 e recall@2 valgono 0.0, recall@5 e
+    recall@10 valgono 1.0. Una riga larga fatta di copie dello stesso numero — l'errore
+    facile — fallirebbe qui invece di scrivere quattro volte la stessa cosa."""
+    from core import eval_history as eh
+    from core.eval_metrics import DEFAULT_KS
+
+    hist = tmp_path / "history.jsonl"
+    monkeypatch.setattr(eh, "HISTORY_PATH", hist)
+    monkeypatch.setattr(eval_gate, "EVAL_GATE_ENABLED", True)
+
+    def _atteso_in_quarta(query, k, **kw):
+        rumore = [{"chunk_id": f"n{i}.md#00", "doc_id": f"n{i}.md", "section": ""} for i in range(3)]
+        return (rumore + [{"chunk_id": "a.md#00", "doc_id": "a.md", "section": ""}])[:k]
+
+    monkeypatch.setattr(eval_gate.retrieval, "hybrid_search", _atteso_in_quarta)
+    res = eval_gate.gate_promotion("v1", None, None, {}, k=2, min_recall=0.0,
+                                   cases=[{"q": "q", "expected": [{"doc": "a.md"}]}])
+
+    riga = eh.load_history(path=hist)[-1]
+    assert set(riga["recall"]) == {f"recall@{k}" for k in DEFAULT_KS}
+    assert riga["recall"]["recall@1"] == 0.0 and riga["recall"]["recall@2"] == 0.0
+    assert riga["recall"]["recall@5"] == 1.0 and riga["recall"]["recall@10"] == 1.0
+    # La DECISIONE resta sul solo k del gate: le colonne in più si scrivono, non votano.
+    assert res["k"] == 2 and res["recall"] == 0.0
