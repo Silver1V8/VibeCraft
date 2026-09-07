@@ -1,6 +1,6 @@
 # RESIDUI — ciò che AUDIT.md lascia aperto, e come chiuderlo
 
-**Data:** 2026-09-04 · aggiornato il 2026-09-05 (S6) e il 2026-09-07 (S7) · **Fonte:**
+**Data:** 2026-09-04 · aggiornato il 2026-09-05 (S6) e il 2026-09-07 (S7, poi R21) · **Fonte:**
 rilettura integrale di `rag/AUDIT.md` (1.713 righe, Run A + Run B + le 15 indagini di
 chiusura) · **Metodo:** ogni residuo è stato **riverificato contro il codice di oggi** prima
 di finire in questo elenco. Due erano già stati chiusi da altri interventi e sono qui segnati
@@ -21,8 +21,8 @@ produrre: si vedono correggendo, non leggendo.
 | Righe dell'audit | 19 — 15 chiuse, 3 ritirate, 1 con premessa ritirata e sostanza chiusa |
 | Residui dichiarati | **22** (+7 emersi eseguendo: R15 e R16 dai run CI reali, R17 da S4, R18 e R19 da S5, R20 da S6, R21 da S7) |
 | Di cui già chiusi da altri interventi (riga stantia) | 2 |
-| Risolvibili con lavoro tecnico | **15 chiusi**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, **R12** (S7, 2026-09-07), R14, N5, N6. Fuori elenco, chiusi lo stesso: **N4** (S6) e **R19** (effetto collaterale di N4) |
-| Ancora aperti, con lavoro tecnico davanti | 5 — R13 (preparato, non eseguito), R15 (vigilanza), R18 (una riga + rebuild di baseline), R20 (griglia congiunta), R21 (applicare la regola di M6) |
+| Risolvibili con lavoro tecnico | **16 chiusi**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, **R12** (S7, 2026-09-07), R14, **R21** (2026-09-07, poche ore dopo averlo aperto), N5, N6. Fuori elenco, chiusi lo stesso: **N4** (S6) e **R19** (effetto collaterale di N4) |
+| Ancora aperti, con lavoro tecnico davanti | 4 — R13 (preparato, non eseguito), R15 (vigilanza), R18 (una riga + rebuild di baseline), R20 (griglia congiunta) |
 | Che richiedono una decisione, non del codice | **7**, tutte in S8: N1, N2, N7, N8, N9 + R16 (proteggere il ramo) e R17 (quali colori seguono il tema). *Erano 5: N4 è uscita — S6 l'ha decisa misurandola — e N9 è entrata* |
 | Non risolvibili (dati persi, hardware assente) | 1 |
 
@@ -319,19 +319,9 @@ caso invece di 3, quindi la sua `recall@2` può muoversi di poco — è la profo
 `AUDIT.md`, A2b «Cosa resta aperto».
 
 **M6 — l'advisory incrementale è stata RIMOSSA il 2026-09-07, dalla sua stessa regola.**
-Portava scritta una decisione senza terza opzione: tenere se il costo mediano è ≤ 10% della
-durata mediana dei job incrementali **e** gli alert sono ≤ 1/settimana. Alert: **0 in 7
-settimane** (✅). Costo: mediana **23,967 s** contro **4,364 s** di job, **549%** (❌) — e con
-la `E` fra le clausole una sola bocciatura basta. **Ma quel 549% divide per due job `noop`**
-che non hanno reindicizzato niente e che l'advisory non l'hanno mai chiamata (un piano noop
-esce prima dell'aggancio): la regola nominava come denominatore un journal che non registra il
-traffico dell'advisory — intake e project-import chiamano `incremental_index` senza journalare.
-Il verdetto regge lo stesso su una soglia che nessun delta raggiunge: per stare al 10% un
-incrementale dovrebbe durare **≥ 4 minuti**, contro i 553 s mediani di un full dell'intero
-corpus. Da correggere anche l'intervallo con cui l'esperimento è stato letto: **5,7-36,7 s**,
-non 9,3-29, e le 23 misure sono **tutte pre-R12** — le due più economiche (5,8 s) stanno in un
-regime di `fetch_k` che R12 ha annullato lo stesso giorno. Le 23 righe di storico **non sono
-state riscritte**. Dettagli in `AUDIT.md`, «M6 — l'esperimento si è bocciato da solo».
+Non ha una voce propria qui: è **R21**, poco più sotto, che la racconta per intero — misure,
+il ~550% che divideva per due job `noop`, e la soglia su cui il verdetto regge lo stesso.
+Cronaca in `AUDIT.md`, «M6 — l'esperimento si è bocciato da solo».
 
 **R13 — `recall@2` è a 0.875 con soglia 0.75: margine 12,5 punti. PREPARATO 2026-09-04, non
 eseguito.** Il giorno in cui saturasse non resta un k più basso — andrà **esteso il golden
@@ -396,8 +386,9 @@ parametri governano lo stesso ordinamento e una griglia congiunta non è mai sta
 Non è urgente — la configurazione attuale è la migliore misurata su ogni singolo asse — ed è
 esattamente il tipo di lavoro che va fatto quando c'è margine, non sotto pressione.
 
-**R21 — L'esperimento M6 ha una regola di decisione che i suoi stessi dati hanno già
-risolto, e nessuno l'ha applicata.** *(Nuovo, 2026-09-07, emerso da S7.)* Il docstring di
+**R21 ✅ — L'esperimento M6 ha una regola di decisione che i suoi stessi dati hanno già
+risolto, e nessuno l'ha applicata. CHIUSO il 2026-09-07**, poche ore dopo essere stato
+aperto: l'advisory è stata rimossa. *(Nuovo, 2026-09-07, emerso da S7.)* Il docstring di
 `run_incremental_advisory` fissa una regola senza terza opzione: *tenere* l'advisory solo se
 la mediana di `advisory_eval_seconds` è ≤ **10%** della durata mediana dei job incrementali,
 altrimenti *rimuovere flag e codice*. I dati per applicarla ci sono da settimane e nessuno li
@@ -417,6 +408,28 @@ verificare prima di eseguire: **due** job incrementali nel journal sono pochi, e
 altre misure di durata prima di concludere; se le confermano, il lavoro è un mini-PR di revert
 (flag in `rag_config.yaml`, funzione in `core/eval_gate.py`, aggancio in `core/indexing.py`,
 `tests/test_incremental_advisory.py`).
+
+**Esito (2026-09-07): rimossa — ma quella cautela era giustificata, e il ~550% era sbagliato.**
+Cercate altre misure prima di concludere, come il residuo chiedeva: non ce ne sono altrove (un
+solo journal, e le 23 righe di storico sono complete in tutta la storia git del file). Ma i
+**due job del journal sono `noop`** — 0 documenti reindicizzati, 0 chunk — e un piano noop esce
+da `incremental_index` **prima** dell'aggancio dell'advisory: quei job non l'hanno mai
+eseguita. Il ~550% divideva quindi il costo dell'advisory su lavoro reale per la durata di due
+job che lavoro non ne hanno fatto. Peggio: le due popolazioni sono disgiunte per costruzione —
+l'advisory scatta su ogni `incremental_index`, ma solo il percorso `ReindexManager` journala,
+mentre intake e project-import chiamano diretto. **La regola nominava come denominatore uno
+strumento che non registra il traffico che l'advisory produce: com'era scritta non era
+decidibile.**
+
+Il verdetto sopravvive lo stesso, su una soglia che nessun delta raggiunge: perché l'advisory
+costasse ≤10%, un incrementale dovrebbe durare **≥ 4 minuti**, contro i **553 s** mediani di un
+full dell'**intero** corpus. Sotto ogni trattamento del denominatore — letterale, senza i noop,
+o estrapolato — la clausola cade. Da correggere anche due numeri con cui il residuo era stato
+scritto: l'intervallo è **5,7-36,7 s** (le due misure più recenti, 5,8 s, erano state saltate) e
+le 23 righe sono **tutte pre-R12**, quindi la nota «R12 l'ha reso più caro» è un'inferenza
+corretta ma non misurata — R12 rimette il pool a 30 lo stesso giorno. L'altra clausola,
+**0 alert in 7 settimane**, passava. Cronaca in `AUDIT.md`, «M6 — l'esperimento si è bocciato
+da solo».
 
 **R14 — Le due collection Qdrant distrutte da A20 non sono recuperabili → la parte
 risolvibile è CHIUSA 2026-09-04.** I dati restano persi (gli artefatti su disco ci sono, i
@@ -512,7 +525,7 @@ Due su due: la disciplina «misura prima di correggere» ha evitato due modifich
 | R10 ✅, R11 ✅ | ~~Un check notturno contro Ollama vero, accanto a `nightly_consistency`~~ | In CI non c'è LLM; il notturno gira dove il modello c'è ed è il canale che già porta gli alert | S — **fatto 2026-09-05**; il lavoro previsto erano due asserzioni, quello che ha richiesto pensiero è il ramo `200` di R11: non un falso allarme da ignorare, ma «il contratto non è più esercitato», che è ciò che l'alert dice |
 | R12 ✅ | `record_history` scrive **tutti** i k calcolati, non solo quello del gate | Una riga più larga costa nulla in lettura (`_series` seleziona per chiave esatta) e rende ogni futuro spostamento del gate indolore | S — **fatto 2026-09-07**; il lavoro previsto era una riga più larga, quello che ha richiesto pensiero è il suo prezzo: misurare più k significa leggere 10 risultati invece di 3, e con un pool di candidati più profondo la `recall@2` del gate può muoversi. È il verso giusto — è già la profondità di `eval.run`, che scrive nella stessa serie — ma è un numero di promozione che cambia, non un dettaglio di telemetria |
 | R13 ◐ | **Preparato 2026-09-04**: 14 domande misurate contro l'indice, 5 candidati che falliscono a k=2 annotati in AUDIT.md («R13 — cinque candidati misurati, nessuno aggiunto»). **Nessuno aggiunto**: l'elenco serve pronto, non eseguito | Estenderlo sotto pressione (metrica satura) significa sceglierne i casi per far scendere un numero | M — preparazione fatta, aggiunta ancora aperta |
-| R21 | Applicare la regola di decisione che M6 ha già scritto: confermare le durate (2 job incrementali nel journal sono pochi), poi mini-PR di revert | Il criterio, la scadenza e i dati esistono da settimane — manca solo che qualcuno li legga. Rinegoziare la soglia adesso, dopo aver visto il numero, sarebbe scegliere la regola in funzione dell'esito: è esattamente ciò che «decidere prima» esiste per impedire | S — misure + revert; **ma è l'esperimento a dover essere chiuso, non il codice a doversi difendere** |
+| R21 ✅ | ~~Applicare la regola di decisione che M6 ha già scritto: confermare le durate (2 job incrementali nel journal sono pochi), poi mini-PR di revert~~ **Fatto 2026-09-07.** La verifica pretesa dal residuo ha cambiato il ragionamento, non l'esito: i 2 job sono `noop` e non hanno mai chiamato l'advisory, quindi il ~550% divideva per il numero sbagliato. Rimossa lo stesso, su una soglia che nessun delta raggiunge | Il criterio, la scadenza e i dati esistono da settimane — manca solo che qualcuno li legga. Rinegoziare la soglia adesso, dopo aver visto il numero, sarebbe scegliere la regola in funzione dell'esito: è esattamente ciò che «decidere prima» esiste per impedire | S — misure + revert; **ma è l'esperimento a dover essere chiuso, non il codice a doversi difendere** |
 | R14 ✅ | Non recuperabile. Ma il **rollback** deve accorgersi che la collection della versione target non esiste e dirlo, invece di fallire in modo oscuro | I dati sono persi; l'esperienza al tentativo no. **Misurando è emerso che non falliva affatto**: riusciva a metà e nessun check lo diceva — quindi rifiuto *prima* della mutazione, più il rilevamento dello stato misto nel check notturno | S — **fatto 2026-09-04** |
 | N1, N2, N7, N8, N9 | Decisione esplicita, registrata. Non codice | Sono «no» già argomentati: vanno confermati o ribaltati una volta, con la loro condizione di riapertura, non ridiscussi a ogni sessione. *N4 non è più fra questi: S6 l'ha decisa misurandola; N5 e N6 sono state eseguite* | — |
 
@@ -975,15 +988,16 @@ S4  report non piu' veri           ✅  ← piccole, indipendenti, sbloccano la 
 S3  CI                             ✅  ← rende permanente cio' che S2 protegge
 S5  corpus                         ✅  ← cambia i numeri: dopo S1, prima di S6
 S6  metriche sulla risposta        ✅  ← R9/R10/R11/N4/R19 chiusi, N3 non passa, R20 nuovo
-S7  storico                        ✅  ← R12 chiuso; R21 nuovo, e la premessa costa piu' del previsto
+S7  storico                        ✅  ← R12 chiuso; R21 nato e chiuso lo stesso giorno
 S8  decisioni                          ← in qualsiasi momento, anche in parallelo
 ```
 
 **Le sette sessioni eseguibili sono state eseguite.** Resta **S8** (decisioni, nessun codice)
 e la coda di lavoro tecnico che le sessioni hanno lasciato dietro di sé: **R13** preparato e
 non aggiunto, **R15** in vigilanza, **R18** (una riga, ma sposta la baseline), **R20** (griglia
-congiunta `boost_alpha` × peso di sezione) e **R21** (applicare la regola di M6). Nessuno di
-questi ha una sessione scritta: sono voci di sezione 2, non prompt.
+congiunta `boost_alpha` × peso di sezione). **R21 è stato aperto e chiuso il 2026-09-07**:
+la regola di M6 è stata applicata e l'advisory rimossa. Nessuno dei restanti ha una sessione
+scritta: sono voci di sezione 2, non prompt.
 
 **S5 va dopo S1** perché la correzione del prompt cambia le risposte, e S5 rimisura tutto.
 **S6 va dopo S5** perché misurerebbe su un corpus che sta per cambiare.
