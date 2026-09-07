@@ -1797,9 +1797,16 @@ una riga ciascuna — per esteso, con la condizione di riapertura, in `AUDIT.md`
 
 Lavoro che nasce da S8: **uno**, R16, nelle impostazioni del repository. Constatazioni fuori
 da qui: tre — l'esito di `release.yml`, la visibilità del pacchetto GHCR, l'applicazione del
-ruleset. Faccenda locale, non del repo: il `DERIVA_DA → norm-coding-standards-v1.0` nei tre
-spec non tracciati punta a un id che non esiste (`coding-standards-baseline-v2.0`): si
-corregge a mano e si ricostruisce.
+ruleset. Faccenda locale, non del repo — **fatta il 2026-09-07**: il `DERIVA_DA →
+norm-coding-standards-v1.0` nei tre spec non tracciati puntava a un id che non esisteva
+(`coding-standards-baseline-v2.0`, verificato nel frontmatter di `coding_standards.md`).
+Corretto nei tre file (solo quel campo: `project:`/`path:` restano — sono contenuto
+per-installazione, e A6 li ha lasciati fuori dalla portata di questo repo) e ricostruito:
+il nodo fantasma `norm-coding-standards-v1.0` (`type: entity`, 3 archi entranti, uno per
+spec) non è più nel grafo, i tre archi ora risolvono al nodo vero. Eval-gate invariato
+(`recall@2 = 0.862`, stesso numero di prima — un difetto di grafo, non di ranking).
+`eval/golden_attribution.yaml` aggiornato di conseguenza: `superseded_by` ora nomina
+`v20260907T142924`, la promozione che questa correzione ha prodotto.
 
 *Il prompt con cui è stata eseguita:*
 

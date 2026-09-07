@@ -3996,6 +3996,13 @@ Le tre cose che aspettavano A6, chiuse dalla decisione e non rimandate:
   Il `DERIVA_DA → norm-coding-standards-v1.0` nei tre spec locali (l'id tracciato è
   `coding-standards-baseline-v2.0`) è un difetto **locale**: si corregge a mano nei tre
   file, fuori da git, con un rebuild — una faccenda di questa macchina, non una sessione.
+  **Fatto il 2026-09-07**: corretto il solo campo `target:` (`project:`/`path:` restano
+  per-installazione, fuori dalla portata di questo repo — non è la bonifica che tracciarli
+  avrebbe richiesto, perché A6 ha appena deciso di non tracciarli), rebuild eseguito.
+  Verificato prima e dopo sul `graph.json` della versione: il nodo fantasma
+  `norm-coding-standards-v1.0` (`type: entity`, 3 archi entranti) è sparito, i tre archi
+  risolvono a `coding-standards-baseline-v2.0`. Eval-gate promuove `v20260907T142924` con
+  `recall@2 = 0.862`, identico a prima — un difetto di grafo non sposta il ranking.
 - **La riproducibilità dei numeri dell'audit**: dichiarata, non ottenuta. Ogni tabella di
   questo documento porta la versione dell'indice; il report stampa la riga di provenienza.
   È la garanzia che resta, ed è quella scelta.

@@ -43,11 +43,12 @@
 # LIMITE NOTO DELLA PROVA (misurato il 2026-09-07, indice v20260907T094225): il blocco `summary` qui sotto conta i
 # verdetti e elenca i negativi; la lettura è in AUDIT.md, sezione S12.
 #
-# QUESTO ARCHIVIO È STORICO (R28/S13, 2026-09-07). Poche ore dopo che è nato, `v20260907T115228`
-# è stata promossa: le 24 run qui sotto NON descrivono il sistema attivo. L'archivio non è
-# sbagliato — dichiara la propria versione, che è esattamente ciò per cui S12 esiste — ma senza
-# questa riga, fra un mese si leggerebbe come il sistema di oggi. È il difetto che R28 descrive,
-# applicato alla prova che lo aveva anticipato.
+# QUESTO ARCHIVIO È STORICO (R28/S13, 2026-09-07). Poche ore dopo che è nato è stato superato
+# da una promozione, e da allora da almeno un'altra (`superseded_by` porta sempre l'ultima,
+# non la prima — vedi AUDIT.md per la cronologia completa): le 24 run qui sotto NON descrivono
+# il sistema attivo. L'archivio non è sbagliato — dichiara la propria versione, che è esattamente
+# ciò per cui S12 esiste — ma senza questa riga, fra un mese si leggerebbe come il sistema di
+# oggi. È il difetto che R28 descrive, applicato alla prova che lo aveva anticipato.
 # NON RIPRODOTTO contro la versione attiva, deliberatamente: l'uso di questo archivio è
 # validare OFFLINE il giudice di N3 contro i verdetti umani sui testi archiviati (S14, modo
 # «a»), e quell'uso non vuole né il server né l'indice attivo — è la proprietà che S12 ha
@@ -61,7 +62,7 @@
 summary:
   measured_on: '2026-09-07'
   index_version: v20260907T094225
-  superseded_by: v20260907T115228   # promossa il 2026-09-07 alle 11:52, dopo il commit di S12
+  superseded_by: v20260907T142924   # promossa il 2026-09-07 alle 16:30, bonifica locale del DERIVA_DA (A6/S8)
   superseded_on: '2026-09-07'
   model: qwen3.5:9b
   runs: 24
