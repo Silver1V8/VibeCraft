@@ -1,6 +1,7 @@
 # RESIDUI — ciò che AUDIT.md lascia aperto, e come chiuderlo
 
-**Data:** 2026-09-04 · aggiornato il 2026-09-05 (S6) e il 2026-09-07 (S7, poi R21) · **Fonte:**
+**Data:** 2026-09-04 · aggiornato il 2026-09-05 (S6) e il 2026-09-07 (S7, R21, poi la
+**verifica che precede S8**: R15 chiuso, R22/R23/R24/R25 aperti, S9–S12 scritte) · **Fonte:**
 rilettura integrale di `rag/AUDIT.md` (1.713 righe, Run A + Run B + le 15 indagini di
 chiusura) · **Metodo:** ogni residuo è stato **riverificato contro il codice di oggi** prima
 di finire in questo elenco. Due erano già stati chiusi da altri interventi e sono qui segnati
@@ -9,8 +10,14 @@ diciannove.
 
 Alla nascita questo documento non aggiungeva riscontri nuovi: raccoglieva quelli che AUDIT.md
 dichiarava aperti, li triava fra risolvibili e non, e li ordinava in sessioni di lavoro.
-**Eseguendole ne sono nati sette** (R15–R21), e sono la parte che l'audit da solo non poteva
-produrre: si vedono correggendo, non leggendo.
+**Eseguendole ne sono nati undici** (R15–R25), e sono la parte che l'audit da solo non poteva
+produrre: si vedono correggendo, non leggendo. Gli ultimi quattro — R22, R23, R24, R25 — non li ha
+prodotti una sessione ma la **verifica del 2026-09-07**, fatta prima di eseguire S8 per
+controllare che ciò che restava aperto lo fosse ancora. Delle quattro voci di lavoro tecnico
+che il registro dava aperte, **una è caduta sotto misura** (R15) e le altre tre sono state
+confermate riga per riga contro il codice; nel frattempo ne sono comparse **quattro nuove**, e
+**quattro voci di `DISTRIBUTION.md`** non erano mai state tracciate da nessun registro. È il
+rapporto che questo audit trova ogni volta che qualcuno va a guardare invece di rileggere.
 
 ---
 
@@ -19,11 +26,12 @@ produrre: si vedono correggendo, non leggendo.
 | | |
 |---|---|
 | Righe dell'audit | 19 — 15 chiuse, 3 ritirate, 1 con premessa ritirata e sostanza chiusa |
-| Residui dichiarati | **22** (+7 emersi eseguendo: R15 e R16 dai run CI reali, R17 da S4, R18 e R19 da S5, R20 da S6, R21 da S7) |
+| Residui dichiarati | **22** (+11: R15 e R16 dai run CI reali, R17 da S4, R18 e R19 da S5, R20 da S6, R21 da S7 — e R22, R23, R24, R25 dalla verifica del 2026-09-07) |
 | Di cui già chiusi da altri interventi (riga stantia) | 2 |
 | Risolvibili con lavoro tecnico | **16 chiusi**: R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, **R12** (S7, 2026-09-07), R14, **R21** (2026-09-07, poche ore dopo averlo aperto), N5, N6. Fuori elenco, chiusi lo stesso: **N4** (S6) e **R19** (effetto collaterale di N4) |
-| Ancora aperti, con lavoro tecnico davanti | 4 — R13 (preparato, non eseguito), R15 (vigilanza), R18 (una riga + rebuild di baseline), R20 (griglia congiunta) |
-| Che richiedono una decisione, non del codice | **7**, tutte in S8: N1, N2, N7, N8, N9 + R16 (proteggere il ramo) e R17 (quali colori seguono il tema). *Erano 5: N4 è uscita — S6 l'ha decisa misurandola — e N9 è entrata* |
+| Ancora aperti, con lavoro tecnico davanti | **6** — R13 (preparato, da rimisurare), R18 (una riga + rebuild di baseline), R20 e **R23** (la stessa griglia congiunta), **R22** e **R24** (nuovi, 2026-09-07). *R15 è caduto: misurato oggi, resta solo la guardia* |
+| Fuori registro fino a oggi | **4** voci di `DISTRIBUTION.md` che nessuna riga di RESIDUI tracciava: la forcella `>=3.14`, il workflow di release, il primo avvio guidato, lo smoke test sul secondo OS |
+| Che richiedono una decisione, non del codice | **10**, tutte in S8: N1, N2, N7, N8, N9 + R16 (proteggere il ramo), R17 (quali colori seguono il tema), **R25** (il buco lasciato scoperto dalla rimozione di M6) e le due di `DISTRIBUTION.md` (registry di release, primo avvio guidato). *Erano 5: N4 è uscita — S6 l'ha decisa misurandola — e sono entrate N9, R16, R17, R25 e le due di distribuzione* |
 | Non risolvibili (dati persi, hardware assente) | 1 |
 
 ---
@@ -60,8 +68,10 @@ Difetti e rischi veri, ancora presenti. **Verificato oggi** salvo dove indicato.
 
 *Aggiornamento 2026-09-07: la sezione è diventata in gran parte un registro di chiusure — le
 voci `✅` restano qui, con la cronaca di come sono state chiuse, perché è dove il lettore le
-cerca. **Ancora aperte davvero:** R13 (preparato, non aggiunto), R15, R16, R17, R18, R20,
-R21.*
+cerca. **Ancora aperte davvero (rivisto il 2026-09-07, verificando una per una contro il
+codice):** R13, R16, R17, R18, R20, più le tre che questa verifica ha aggiunto — R22, R23,
+R24. **R21 è chiuso** (fc5d8d6, lo stesso giorno in cui è nato) e **R15 è caduto sotto
+misura**: la sua voce qui sotto porta ora il numero invece del sospetto.*
 
 ### Gravità alta
 
@@ -159,14 +169,29 @@ Misurato nelle tre direzioni; suite intera `1317 passed, 0 skipped` col servizio
 `addopts`), cioè `-qq`, che sopprimeva **proprio** la riga di riepilogo che rende visibile
 il conteggio.
 
-**R15 — Altri test potrebbero dipendere dal `database/versions/` della macchina.** *(Nuovo,
-2026-09-04.)* Il difetto trovato dal primo run CI era di questa forma: verde in locale perché
-l'indice c'è, rosso su un checkout pulito. Ne è stato corretto **uno**; nulla dice che sia
-l'unico. La verifica è a basso costo — un plugin pytest che ripunta `versions_root()` su una
-directory vuota, come quello usato per riprodurre — ma va fatta distinguendo i veri positivi
-dagli artefatti (i test *end to end* le versioni se le creano, e un fixture autouse gliele
-scavalca). *Verificato: la CI ora gira su ogni push, quindi il prossimo caso si manifesta da
-sé — ma dopo il push, non prima.*
+**R15 — Altri test potrebbero dipendere dal `database/versions/` della macchina → MISURATO
+2026-09-07: non ce ne sono.** *(Nuovo, 2026-09-04.)* Il difetto trovato dal primo run CI era di
+questa forma: verde in locale perché l'indice c'è, rosso su un checkout pulito. Ne era stato
+corretto **uno**, e nulla diceva che fosse l'unico.
+
+**Misurato invece che sorvegliato**, e non con un plugin ma con la condizione vera: `database/`
+spostata da parte e suite completa su quella che è, per il codice, una macchina senza indice.
+`DATABASE_DIR` non è configurabile da env (`core/config.py`), quindi ripuntarla avrebbe
+simulato qualcosa di diverso da ciò che rompe.
+
+```
+suite con database/ assente  →  exit 0, 1321 passed, 0 failed, 0 skipped
+```
+
+**Controllato anche il modo in cui questa misura poteva mentire**: se un test creasse
+`database/` presto, mascherebbe la dipendenza di uno più tardi. La suite *la ricrea* — ma solo
+`.writer.lock` e `staging/{docs,projects,rejected,intake.jsonl}`, **mai `versions/` né
+`CURRENT`**. Un test che pretendesse una versione sarebbe fallito lo stesso. `database/` è
+stata ripristinata intatta (`CURRENT` → `v20260904T151925`, 5 versioni).
+
+**Resta la guardia, non il difetto.** Oggi nessun test dipende dallo stato della macchina; nulla
+impedisce che il prossimo lo faccia, e lo scoprirebbe la CI dopo il push. È lavoro di **S9**.
+Da quella misura è uscito **R24**.
 
 **R16 — La CI era rossa su `main` e non lo fermava niente.** *(Nuovo, 2026-09-04.)* Misurato:
 `1044513` (S2, 14:45) e `dffaa6a` (14:47) sono stati pushati insieme, quindi il run **#129** li
@@ -467,6 +492,75 @@ Verificato dal vivo: rollback a `v20260901T132300` → rifiutato, `CURRENT` inva
 rollback a `v20260901T132525` (collection viva) → riuscito, alias swappato; stato misto
 ricreato a mano → `ok: false`, `qdrant_mismatch: true`, exit 1.
 
+### Emersi verificando, il 2026-09-07
+
+*Tre voci nate dal controllo che precede S8, non da una sessione. Due sono difetti piccoli; la
+terza è un parametro che nessuno ha mai calibrato e che è stato nominato senza numero.*
+
+**R22 — `DISTRIBUTION.md` afferma due volte l'opposto sullo stesso job.** *(Nuovo,
+2026-09-07.)* Il documento riporta il log del job `macos-nativo` a `:427` (`runner: macOS
+15.7.9 su arm64 · platform tag: macosx-15.0-arm64`) e scrive a `:620-621` *«Verde in 34-36 s su
+due run»*. Ma il bilancio di L3, a `:463-467`, dice ancora che il job è **«implementato, non
+ancora osservato — nessun run su GitHub Actions è stato letto da qui»**. Verificato: entrambe le
+frasi sono nel file a `HEAD`. La seconda era vera quando fu scritta e non è più vera da quando
+il run è stato letto; il commit che esisteva apposta per riallineare i documenti (`bfc1ca5`,
+*«i quattro documenti dicevano uno stato che il codice aveva già superato»*) ha corretto
+`SECURITY_SURFACE` e ha lasciato **questa**. È la forma di R5 e di S4, un piano più su: non un
+documento contro il codice, ma un documento **contro sé stesso** — e il bilancio è la parte che
+un lettore nuovo legge per prima.
+
+**R23 — `graph_context_max_chunks: 2` non è mai stato calibrato.** *(Nuovo, 2026-09-07, da una
+riga di S6 mai numerata.)* «Cosa questa sessione NON prova» lo dichiara esplicitamente: *«non è
+più il collo di bottiglia sulle tre catene, ma non è stato calibrato: è rimasto dov'era»*.
+Verificato: `rag_config.yaml:114` e `core/config.py:310` portano tuttora il valore iniziale
+`2`. Governa quante sezioni raggiunte **via grafo** entrano nel contesto — cioè esattamente la
+leva che R9 ha dovuto forzare per far arrivare il terzo documento — ed è rimasto al suo valore
+di partenza mentre N4 cambiava l'ordinamento sotto di esso. È lo **stesso** difetto di R20 su un
+terzo parametro, quindi va nella stessa griglia e non in una sessione propria.
+
+**R24 — La suite scrive nella `database/` reale del progetto.** *(Nuovo, 2026-09-07, effetto
+collaterale della misura di R15.)* Su un checkout senza indice la suite **crea**
+`database/.writer.lock` e `database/staging/{docs,projects,rejected,intake.jsonl}`: sono test
+che scrivono nella directory di produzione invece che in `tmp_path`. Oggi non rompe niente — è
+la ragione per cui non è mai stato notato — ma è la faccia speculare di R15: là un test che
+*legge* lo stato della macchina, qui uno che lo *scrive*. Su una macchina con un indice vero quei
+file finiscono accanto ad esso, e il `.writer.lock` è il file che serializza gli scrittori
+dell'indice. Quale test sia va identificato prima di correggerlo.
+
+**R25 — Rimuovendo M6 il buco che copriva è rimasto, e ora non lo guarda più niente.**
+*(Nuovo, 2026-09-07.)* La chiusura di M6 lo dice per iscritto, in «Cosa questa chiusura NON
+prova»: *«Che un incrementale non possa degradare l'indice. Il buco che M6 voleva tappare resta
+aperto e documentato in testa a `eval_gate.py`»*. Verificato oggi alla sorgente
+(`core/eval_gate.py:14-17`): *«Il limite vero riguarda gli INCREMENTALI: mutano in place la
+collection già promossa (nessuna candidata, nessun gate bloccante), quindi un rollback
+blue/green intra-lineage non riavvolge i punti Qdrant scritti da un incrementale successivo
+alla build a cui si torna»*. E `run_incremental_advisory` non c'è più: in `core/` restano solo
+la modalità advisory del gate dei **full** — un'altra cosa — e due commenti storici in
+`eval_history.py`.
+
+**La rimozione era giusta e la conseguenza va detta lo stesso.** M6 è stato tolto perché
+**costava** (≥4 minuti di job perché l'advisory ne valesse il ≤10%), non perché il rischio
+fosse stato smentito: 0 alert su 23 esecuzioni significa «non ha mai visto niente», non «non
+c'era niente da vedere». Oggi un incrementale può degradare l'indice di produzione senza
+candidata, senza gate e senza misura — e il rollback non lo riavvolge.
+
+È una **decisione**, non un difetto da correggere in coda: accettare il buco e scriverlo dove
+si vede, oppure finanziare una guardia più economica di quella rimossa (un controllo
+campionato invece che per-job, o far produrre una candidata anche agli incrementali). Sta in
+**S8**, punto 11; se la scelta è la seconda, si apre una sessione propria.
+
+### Fuori registro fino a oggi: quattro voci di `DISTRIBUTION.md`
+
+*Nessuna riga di RESIDUI le tracciava, perché il documento nacque da `AUDIT.md` soltanto. Sono
+aperte come le altre e vanno decise o misurate, non lasciate in un terzo file.*
+
+| Voce | Dove | Cosa manca |
+|---|---|---|
+| **`requires-python = ">=3.14"` si può abbassare?** | `DISTRIBUTION.md` §8, forcella 3 | *«Va provato, non deciso a tavolino.»* Mai provato. Verificato: `pyproject.toml` dice tuttora `>=3.14`. Abbassarlo a 3.12 allargherebbe parecchio il parco macchine; se non si può, va scritto **perché**. È **misurabile**, quindi non è materia di S8: è **S9** |
+| **Pubblicazione delle immagini (release workflow)** | `DISTRIBUTION.md`, L3 | Quale registry, pubbliche o private, quali tag, e se pubblicare anche il target `gpu`. **Decisione** → S8 |
+| **Primo avvio guidato** | `DISTRIBUTION.md`, L3 | Scegli la cartella → indicizza → prima domanda. Funzionalità di prodotto, non di packaging. **Non iniziato** → S8 decide se entra nel perimetro |
+| **Smoke test su un secondo OS** | `DISTRIBUTION.md`, L3 | «Gap dichiarato». **Parzialmente superato e mai registrato**: fra il job `docker` (Linux), il job `test` e `macos-nativo` (S3) i sistemi coperti in CI sono ora due, più il container. Resta scoperto **Windows nativo**, che è la macchina di sviluppo — cioè l'unico dei tre che nessuno verifica automaticamente |
+
 ---
 
 # 3. Cosa è uscito di nuovo dagli interventi
@@ -533,13 +627,16 @@ Due su due: la disciplina «misura prima di correggere» ha evitato due modifich
 
 # 5. Le sessioni
 
-Otto sessioni, ordinate per dipendenza. **S1 e S2 andavano per prime** — erano le uniche due
-che riguardavano un comportamento scorretto in produzione — e sono state eseguite in
-quell'ordine. Ogni prompt è autonomo: si può aprire una sessione nuova e incollarlo. I prompt
+Dodici sessioni, ordinate per dipendenza. **S1 e S2 andavano per prime** — erano le uniche
+due che riguardavano un comportamento scorretto in produzione — e sono state eseguite in
+quell'ordine. **S9–S12 sono state scritte il 2026-09-07**, quando la verifica prima di S8 ha
+mostrato che la coda di lavoro rimasta non aveva prompt: erano voci di sezione 2 e nessuno le
+avrebbe eseguite. Ogni prompt è autonomo: si può aprire una sessione nuova e incollarlo. I prompt
 delle sessioni eseguite restano **verbatim**, comprese le premesse che l'esecuzione ha
 smentito: è la parte che si impara a rileggerle.
 
-*Stato al 2026-09-07: S1–S7 eseguite, **S8 aperta**.*
+*Stato al 2026-09-07: S1–S7 eseguite; **S9, S10, S11, S12 scritte e non eseguite**; **S8
+aperta e ora ultima** — il suo punto 10 aspetta una misura che porta S9.*
 
 > **Disciplina comune a tutte** — è la lezione che questo audit ha pagato cinque volte:
 > **misura prima di correggere.** Le righe invecchiano, e due dei residui qui elencati erano
@@ -918,9 +1015,214 @@ Suite completa + ruff prima del commit.
 
 ---
 
+## S9 — La guardia, il documento che si contraddice, e la forcella mai provata
+
+Chiude **R15** (la guardia), **R24**, **R22**, e misura la forcella `>=3.14` di
+`DISTRIBUTION.md`. Nessun rebuild, nessun effetto sul corpus: si può eseguire subito.
+
+```
+Lavora su rag/. Quattro cose piccole e indipendenti, nessuna tocca il corpus o l'indice.
+
+1. R15 — la guardia, non il difetto. Il difetto e' gia' stato misurato il 2026-09-07:
+   spostando database/ da parte la suite passa (exit 0, 1321 passed, 0 failed), e la
+   suite ricrea solo .writer.lock e staging/, mai versions/ ne' CURRENT — quindi nessun
+   test mascherava la dipendenza di un altro. NON rifare quella misura per confermarla:
+   rifalla solo se sospetti che sia cambiata, e in quel caso di' perche'.
+   Cio' che manca e' che resti vero. Aggiungi la guardia permanente: il modo piu' onesto
+   e' un job CI che gira la suite su un checkout senza database/ — la CI ce l'ha gia'
+   pulito per costruzione, quindi verifica PRIMA se il job `test` attuale la sta gia'
+   fornendo (se si', R15 e' chiuso senza scrivere niente, e va detto cosi'). Se invece in
+   CI database/ viene creata da un passo precedente, la guardia va resa esplicita.
+   Evita il plugin pytest che ripunta versions_root(): simula qualcosa di diverso da cio'
+   che rompe, e DATABASE_DIR non e' configurabile da env.
+
+2. R24 — la suite scrive nella database/ REALE del progetto: su un checkout pulito crea
+   .writer.lock e staging/{docs,projects,rejected,intake.jsonl}. Sono test che usano la
+   directory di produzione invece di tmp_path. Identifica QUALI test lo fanno prima di
+   correggere (il modo diretto: cancella database/staging, gira la suite a sottoinsiemi e
+   guarda chi la ricrea). Poi ripuntali su tmp_path.
+   Il .writer.lock e' il file che serializza gli scrittori dell'indice: su una macchina con
+   un indice vero i test ci scrivono accanto. Verifica se il lock viene solo creato o anche
+   ACQUISITO durante la suite — cambia la gravita', e cambia cosa scrivi nella riga.
+
+3. R22 — DISTRIBUTION.md afferma due volte l'opposto sullo stesso job. A :427 riporta il
+   log del run macos-nativo, a :620-621 dice "Verde in 34-36 s su due run", ma il bilancio
+   di L3 a :463-467 dice ancora "implementato, non ancora osservato — nessun run e' stato
+   letto da qui". La seconda era vera quando fu scritta. Correggi il bilancio, non le altre
+   due. Mentre ci sei rileggi TUTTO il bilancio di L3 con lo stesso metro: e' la sezione che
+   un lettore nuovo usa per sapere cosa manca, ed e' l'ultima ad essere aggiornata.
+   Nota gia' verificata da usare: lo "smoke test su un secondo OS" e' dichiarato gap, ma fra
+   docker (Linux), test e macos-nativo i sistemi coperti in CI sono due piu' il container —
+   resta scoperto Windows nativo, che e' la macchina di sviluppo.
+
+4. DISTRIBUTION.md §8, forcella 3 — "requires-python >=3.14: si abbassa? Va provato, non
+   deciso a tavolino." Non e' mai stato provato. Provalo: in una COPIA di lavoro (non nel
+   repo) abbassa a >=3.12, rifai `uv lock` e gira la suite. Riporta cosa succede davvero —
+   quali pacchetti non risolvono, quali sintassi 3.13+/3.14 usa il codice, quanto si sposta
+   il lock. NON committare l'abbassamento: la decisione e' di S8, questa sessione le porta
+   il numero che oggi non ha. Se invece non si puo' abbassare, scrivi PERCHE' in
+   DISTRIBUTION.md — e' cio' che la forcella chiedeva in alternativa.
+
+Suite completa + ruff prima del commit. Aggiorna RESIDUI.md e DISTRIBUTION.md.
+```
+
+---
+
+## S10 — Una riga sposta la baseline, e i cinque candidati vanno rimisurati
+
+Chiude **R18** e sblocca **R13**. Tocca il corpus: rebuild e rimisura obbligatori. L'unica
+dipendenza vera è che venga **prima** di S11.
+
+```
+Lavora su docs/ e rag/eval/. Questa sessione sposta la baseline riproducibile: misura
+prima, rebuild, misura dopo, e scrivi cosa NON e' comparabile.
+
+1. R18 — docs/04_knowledge_informative/graph_rag_ingestion_strategy.md:16 dichiara un arco
+   DERIVA_DA verso "spec-graph-rag-ingestion-v1.1", ma la spec dichiara
+   "spec-graph-rag-ingestion-v2.0" (docs/02_specs_normative/spec_graph_rag_ingestion.md:2
+   e :40 — verificato il 2026-09-07). Il target non risolve e resta nel grafo come nodo
+   fantasma type: entity con reliability 0.9.
+   E' lo stesso difetto che R7 ha corretto in change_log.md, ma qui il file e' TRACCIATO:
+   correggerlo cambia il corpus riproducibile, non solo la macchina.
+   Prima di correggere, controlla se e' l'unico: cerca TUTTI gli archi del frontmatter dei
+   documenti tracciati il cui target non risolve a un node_id dichiarato. R7 ne trovo'
+   dodici in un file solo; qui potrebbero essercene altri, e una riga sola non giustifica
+   due rebuild.
+
+2. Full rebuild + promozione. Rimisura golden set (recall@1/@2, MRR, source_in_top3),
+   sottoinsieme avversariale e multihop. Attenzione: l'eval-gate blocca la promozione sotto
+   0.75 a k=2. Registra prima/dopo e dichiara cosa non e' comparabile — e' il formato che
+   S5 ha gia' usato.
+
+3. R13 — cinque candidati per estendere il golden set furono misurati il 2026-09-04 e non
+   aggiunti (elenco in AUDIT.md, "R13 — cinque candidati misurati, nessuno aggiunto").
+   S5 ha scritto esplicitamente che vanno RIMISURATI prima di essere promossi, non copiati:
+   fra allora e oggi sono cambiati corpus (S5), ordinamento (N4) e contesto grafo (R9).
+   Rimisurali contro l'indice appena promosso e riporta quali falliscono ancora a k=2.
+   Poi promuovi SOLO quelli difendibili senza una decisione pendente:
+     - C3 e C5 sono battuti da documenti NON TRACCIATI: aggiungerli farebbe misurare il
+       checkout invece del sistema. Restano fuori finche' A6 non e' deciso — dillo, non
+       aggirarlo.
+     - C4 e' la riformulazione colloquiale di un caso che gia' passa a rango 1: stesso
+       fatto, stessa fonte. Vale come caso solo se il divario colloquiale/tecnico e'
+       qualcosa che si vuole misurare — decidilo esplicitamente.
+   Se dopo la rimisura nessuno e' promuovibile, va bene: scrivilo. R13 esiste per avere
+   l'elenco pronto quando recall@2 saturera', non per alzare un numero adesso.
+
+Suite completa + ruff. Aggiorna AUDIT.md e RESIDUI.md.
+```
+
+---
+
+## S11 — I tre parametri accoppiati, in una griglia sola
+
+Chiude **R20** e **R23**. Va **dopo S10**: calibrare su un corpus che sta per cambiare è
+l'errore che questo audit ha già documentato due volte.
+
+```
+Lavora su rag/eval/ e rag_config.yaml. Sessione di CALIBRAZIONE: l'esito accettabile
+include "la configurazione attuale e' gia' la migliore, non si cambia niente".
+
+Tre parametri governano lo STESSO ordinamento e sono stati scelti uno alla volta, in
+momenti diversi, ciascuno tenendo fermi gli altri:
+
+  boost_alpha: 0.1                  calibrato 2026-07-14 (era 0.4)
+  section_restatement_weight: 0.92  calibrato 2026-09-05 (N4)
+  graph_context_max_chunks: 2       MAI calibrato — valore iniziale
+
+R20: rimisurato dopo N4, `eval.calibrate_authority --k 1` ha CAMBIATO VERDETTO — dove prima
+dava NON_APPLICARE con held-out -0.029, ora propone alpha=0.3 con +0.028. La proposta NON e'
+stata applicata, e la ragione e' buona: dev.std 0.024 con un seed negativo, contro lo 0.008 e
+i 5/5 di N4. Ma il fatto che l'ottimo di alpha si sia MOSSO quando e' cambiato l'altro
+parametro e' la prova che sono accoppiati.
+
+R23: graph_context_max_chunks governa quante sezioni raggiunte via grafo entrano nel
+contesto — esattamente la leva che R9 ha dovuto forzare per far arrivare il terzo documento
+— ed e' rimasto al valore di partenza mentre N4 cambiava l'ordinamento sotto di esso.
+S6 lo dichiara in "Cosa questa sessione NON prova".
+
+Cosa fare:
+- Una griglia CONGIUNTA, con la stessa disciplina di N4: k=1 (dove la metrica non e'
+  satura), cross-validation con piu' seed, incumbent al tie-break, e il verdetto che guarda
+  l'HELD-OUT e la deviazione standard fra i seed — non l'in-sample. E' la disciplina che ha
+  fatto respingere alpha=0.3 in A3 e accettare il peso di sezione in N4: applicala identica,
+  cosi' i tre risultati sono confrontabili fra loro.
+- graph_context_max_chunks non e' un peso ma un TAGLIO: non entra in una griglia continua
+  allo stesso modo. Valuta se misurarlo sullo stesso asse o separatamente sulle catene
+  multihop, dove e' il parametro che conta — e di' quale hai scelto, invece di forzarlo
+  dentro la griglia senza dirlo.
+- Il costo va stimato PRIMA di lanciare: tre assi moltiplicano. Se la griglia piena non e'
+  praticabile, riduci i punti in modo dichiarato invece di lanciare qualcosa che non finisce.
+
+Non applicare nulla che non batta l'attuale sull'held-out CON deviazione standard bassa e
+segno positivo sulla maggioranza dei seed. Se l'attuale vince, il risultato della sessione e'
+"i tre valori sono confermati insieme, non solo uno alla volta" — che e' esattamente cio' che
+oggi manca, e vale la sessione.
+
+Aggiorna AUDIT.md, RESIDUI.md e i commenti di calibrazione in rag_config.yaml.
+```
+
+---
+
+## S12 — Il prerequisito che N3 aspetta
+
+Non chiude **N3**: costruisce le due cose senza le quali N3 non è scrivibile. S6 le ha
+nominate entrambe. Va **dopo S10 e S11**, perché una prova archiviata contro un ordinamento
+che sta per cambiare marcisce come è già marcita quella di A3.
+
+```
+Lavora su rag/eval/. Questa sessione NON scrive l'harness di attribuzione: costruisce la
+prova contro cui potra' essere validato. S6 ha prototipato il giudice e lo ha bocciato per
+il criterio giusto — e la causa non era il giudice.
+
+Cosa S6 ha stabilito (AUDIT.md, "N3 — il giudice funziona, la prova contro cui doveva essere
+validato no"):
+  - il giudice e' RIPETIBILE: 3 giudizi identici sulla stessa risposta, due volte
+  - concorda con l'umano su 3 casi su 4
+  - sul quarto il giudice ha ragione e la tabella e' scaduta: la risposta di oggi non
+    attribuisce alcun vincolo a nessuna fonte, e il "Dopo" registrato in A3 §6 NON si
+    riproduce — fra il 3 e il 5 settembre sono cambiati corpus, indice e contesto
+  - non esiste OGGI un solo caso in cui l'attribuzione sia dimostrabilmente sbagliata,
+    quindi la capacita' del giudice di riconoscere l'errore e' NON PROVATA
+
+Servono due cose, in quest'ordine:
+
+1. CASI IN CUI L'ATTRIBUZIONE SIA DAVVERO CONTESA. Il sottoinsieme avversariale ha 5 casi e
+   3 distrattori, e su tre di essi la spec vince facile: un giudice che rispondesse sempre
+   "la fonte piu' autorevole" li passerebbe tutti. Serve almeno un caso in cui la risposta
+   attribuisca il vincolo alla fonte SBAGLIATA — cioe' un negativo verificabile.
+   S6 ci ha gia' provato ricostruendo la condizione PRIMA di A3 (classi tolte dalle
+   intestazioni, nessun [CLASSE-FONTI]) e non ha funzionato: il difetto storico non si
+   riproduce piu'. Non ripetere quel tentativo aspettandoti un esito diverso; se decidi di
+   riprovarlo, di' prima cosa e' cambiato che dovrebbe farlo funzionare stavolta.
+   Le strade praticabili sono altre: un caso costruito sul corpus dove una fonte poco
+   autorevole enuncia un vincolo in modo piu' esplicito della norma che lo stabilisce; oppure
+   accettare che il negativo non esista oggi e DICHIARARLO come limite noto della prova.
+   La seconda e' una risposta legittima e va scritta come tale, non evitata.
+
+2. VERDETTI UMANI ARCHIVIATI CON IL TESTO DELLA RISPOSTA. E' la conseguenza di progetto che
+   S6 ha estratto: un harness che conservi solo il verdetto ricostruisce fra un mese lo
+   stesso vicolo cieco. Ogni caso di controllo deve portare, insieme: la domanda, le fonti
+   nel contesto, il TESTO INTEGRALE della risposta che ha prodotto il verdetto, il verdetto
+   umano, la data e la VERSIONE DELL'INDICE. Senza l'indice la prova non e' riproducibile fra
+   due corpus; senza il testo non e' rileggibile.
+   Decidi dove vivono — accanto al golden set, o in eval/results/ — sapendo che
+   eval/results/*.json e' gitignorato per policy tranne history.jsonl: una prova di controllo
+   NON e' un artefatto di run e non va trattata come tale.
+
+Alla fine di questa sessione N3 deve essere o scrivibile, o dichiarata non scrivibile con la
+ragione misurata. Entrambi gli esiti chiudono qualcosa; nessuno dei due e' "ci riproviamo".
+
+Aggiorna AUDIT.md e RESIDUI.md.
+```
+
+---
+
 ## S8 — Le decisioni, non il codice
 
-Chiude **N1**, **N2**, **N7**, **N8**, **N9**, **R16**, **R17**.
+Chiude **N1**, **N2**, **N7**, **N8**, **N9**, **R16**, **R17**, **R25**, e le **due
+decisioni di `DISTRIBUTION.md`** che nessun registro tracciava (registry di release, primo
+avvio guidato).
 
 *Rivista il 2026-09-07.* **N4 è uscita da questa sessione**: non è più una domanda. S6 l'ha
 misurata e applicata il 2026-09-05 (peso di sezione, held-out +0.069 positivo su 5 seed su 5)
@@ -930,10 +1232,16 @@ Al suo posto entrano le tre decisioni che il documento aveva lasciato senza sess
 ramo protetto) e **R17** (quali colori-di-stato devono seguire il tema). Il prompt qui sotto
 è aggiornato di conseguenza; i punti 1, 2, 4 e 5 restano com'erano.
 
+*Rivista di nuovo il 2026-09-07, dalla verifica che precede l'esecuzione.* Entrano i punti
+**8, 9, 10 e 11**: le due decisioni di `DISTRIBUTION.md` mai entrate in questo registro, la
+forcella `requires-python` e **R25** — il buco che la rimozione di M6 ha lasciato scoperto.
+La forcella ha un **prerequisito** — S9 la misura, S8 la decide — ed è l'unica delle undici a
+non essere decidibile oggi.
+
 ```
-Nessun codice di produzione in questa sessione. Cinque scelte che AUDIT.md ha lasciato
-argomentate ma non decise: vanno confermate o ribaltate UNA volta e registrate, invece di
-essere ridiscusse a ogni sessione.
+Nessun codice di produzione in questa sessione. Undici scelte che AUDIT.md e
+DISTRIBUTION.md hanno lasciato argomentate ma non decise: vanno confermate o ribaltate UNA
+volta e registrate, invece di essere ridiscusse a ogni sessione.
 
 Per ognuna: rileggi la ragione scritta in AUDIT.md, verifica che la premessa regga ancora
 oggi (piu' di una si e' rivelata stantia in questo audit) e proponi una decisione con la
@@ -973,8 +1281,38 @@ sua condizione di riapertura — "si rifa' quando X", non "per ora no".
    significano STATO, e uno stato ha senso che resti riconoscibile ATTRAVERSO i temi.
    Va deciso caso per caso, poi agganciato.
 
-Registra gli esiti in AUDIT.md e in RESIDUI.md sezione 1, con la data. Una decisione senza
-data e senza condizione di riapertura torna a essere una domanda aperta.
+8. Registry e workflow di release (DISTRIBUTION.md, L3 — "Da decidere"). Quale registry,
+   immagini pubbliche o private, quali tag, e se pubblicare anche il target `gpu`. Il
+   documento dice che un workflow scritto a indovinare non sarebbe verificabile e andrebbe
+   riscritto: e' una decisione dell'owner, non del codice. Se la risposta e' "non si
+   pubblica ancora", va scritta con la sua condizione di riapertura.
+
+9. Primo avvio guidato (DISTRIBUTION.md, L3 — "Non iniziato"). Scegli la cartella dei
+   documenti, indicizza, prima domanda. Il documento lo classifica come funzionalita' di
+   PRODOTTO, non di packaging, e osserva che il README oggi ci arriva in quattro comandi.
+   La decisione e' se entra nel perimetro o esce dal registro: lasciarlo "non iniziato" a
+   tempo indeterminato e' la terza opzione che non esiste.
+
+11. R25 — dopo la rimozione di M6 nessuno misura piu' gli incrementali, e il buco che
+    l'advisory copriva e' scritto in testa a core/eval_gate.py: mutano IN PLACE la collection
+    gia' promossa, senza candidata e senza gate bloccante, e un rollback intra-lineage non
+    riavvolge i punti scritti dopo. M6 e' stato rimosso perche' COSTAVA (>=4 minuti di job
+    perche' valesse il <=10% preteso), non perche' il rischio fosse smentito — 0 alert su 23
+    esecuzioni vuol dire "non ha mai visto niente", non "non c'era niente da vedere".
+    Tre risposte possibili, e vanno pesate esplicitamente: accettare il buco e scriverlo dove
+    un lettore lo trova (oggi e' in un docstring); una guardia campionata invece che per-job;
+    far produrre una candidata anche agli incrementali. La prima e' legittima, le altre due
+    aprono una sessione propria. Quello che non e' legittimo e' lasciarlo dov'e' senza dire
+    che c'e'.
+
+10. requires-python: si abbassa da >=3.14? NON decidere questa a tavolino: S9 la misura in
+    una copia di lavoro e porta qui i numeri (cosa non risolve, quali sintassi 3.13+/3.14
+    usa il codice, quanto si sposta il lock). Se S9 non e' ancora stata eseguita, questa
+    voce resta aperta e va detto — e' l'unica delle dieci che ha un prerequisito.
+
+Registra gli esiti in AUDIT.md, in DISTRIBUTION.md e in RESIDUI.md sezione 1, con la
+data. Una decisione senza data e senza condizione di riapertura torna a essere una domanda
+aperta.
 ```
 
 ---
@@ -982,23 +1320,39 @@ data e senza condizione di riapertura torna a essere una domanda aperta.
 ## Ordine consigliato
 
 ```
-S1  prompt che invita a inventare  ✅  ← comportamento scorretto oggi
-S2  allarmi mancanti               ✅  ← degradazioni silenziose
-S4  report non piu' veri           ✅  ← piccole, indipendenti, sbloccano la lettura
-S3  CI                             ✅  ← rende permanente cio' che S2 protegge
-S5  corpus                         ✅  ← cambia i numeri: dopo S1, prima di S6
-S6  metriche sulla risposta        ✅  ← R9/R10/R11/N4/R19 chiusi, N3 non passa, R20 nuovo
-S7  storico                        ✅  ← R12 chiuso; R21 nato e chiuso lo stesso giorno
-S8  decisioni                          ← in qualsiasi momento, anche in parallelo
+S1   prompt che invita a inventare  ✅  ← comportamento scorretto oggi
+S2   allarmi mancanti               ✅  ← degradazioni silenziose
+S4   report non piu' veri           ✅  ← piccole, indipendenti, sbloccano la lettura
+S3   CI                             ✅  ← rende permanente cio' che S2 protegge
+S5   corpus                         ✅  ← cambia i numeri: dopo S1, prima di S6
+S6   metriche sulla risposta        ✅  ← R9/R10/R11/N4/R19 chiusi, N3 non passa, R20 nuovo
+S7   storico                        ✅  ← R12 chiuso; R21 nato e chiuso lo stesso giorno
+─────────────────────────────────────────────────────────────────────────────────
+S9   guardia, doc, forcella             ← nessun rebuild: eseguibile subito
+S10  la baseline si sposta              ← rebuild; prima di S11
+S11  i tre parametri accoppiati         ← dopo S10: calibrare su un corpus che sta
+                                          per cambiare e' l'errore gia' documentato
+S12  il prerequisito di N3              ← dopo S10 e S11: una prova archiviata contro
+                                          un ordinamento che cambia marcisce
+S8   decisioni                          ← ULTIMA: il punto 10 aspetta la misura di S9
 ```
 
-**Le sette sessioni eseguibili sono state eseguite.** Resta **S8** (decisioni, nessun codice)
-e la coda di lavoro tecnico che le sessioni hanno lasciato dietro di sé: **R13** preparato e
-non aggiunto, **R15** in vigilanza, **R18** (una riga, ma sposta la baseline), **R20** (griglia
-congiunta `boost_alpha` × peso di sezione). **R21 è stato aperto e chiuso il 2026-09-07**:
-la regola di M6 è stata applicata e l'advisory rimossa. Nessuno dei restanti ha una sessione
-scritta: sono voci di sezione 2, non prompt.
+**Le sette sessioni scritte allora sono state eseguite tutte.** Ma la coda che hanno lasciato
+dietro di sé non aveva un prompt — questo documento lo diceva a chiare lettere: *«nessuno dei
+restanti ha una sessione scritta: sono voci di sezione 2, non prompt»*. Ora ce l'ha:
+**S9–S12** coprono tutto ciò che resta chiudibile con del lavoro, e portano a S8 un tavolo
+sgombro.
 
-**S5 va dopo S1** perché la correzione del prompt cambia le risposte, e S5 rimisura tutto.
-**S6 va dopo S5** perché misurerebbe su un corpus che sta per cambiare.
-**S4 e S8 non hanno dipendenze** e possono essere intercalate ovunque.
+**S8 non è più «in qualsiasi momento».** Lo era finché le sue voci erano cinque scelte
+indipendenti. Con il punto 10 — `requires-python` — ha acquisito un prerequisito: **S9 la
+misura, S8 la decide**. Deciderla prima significherebbe sceglierla a tavolino, che è
+esattamente ciò che la forcella di `DISTRIBUTION.md` vieta da un mese.
+
+Le altre dipendenze, tutte già viste in questo audit:
+**S11 va dopo S10** perché il corpus si sposta e una calibrazione su un corpus che sta per
+cambiare misura rumore — è la ragione per cui A3 respinse una ricalibrazione e per cui S6
+non ne fece un'altra in coda a sé stessa.
+**S12 va dopo S11** perché la prova che deve archiviare vale solo contro l'ordinamento che
+la produce: la prova di A3 è marcita in due giorni proprio così.
+**S9 non ha dipendenze** e può essere intercalata ovunque — ma prima è, prima S8 diventa
+decidibile per intero.
