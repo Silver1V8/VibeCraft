@@ -59,10 +59,10 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libxcb1 libgl1 libglib2.0-0 fonts-liberation libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui
 
       - name: Cache dei pesi Docling/RapidOCR
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: rag/database/models/docling
-          key: docling-pesi-${{ hashFiles('rag/core/intake_convert.py', 'rag/scripts/docling_models.py') }}
+          key: docling-pesi-v2-${{ hashFiles('rag/core/intake_convert.py', 'rag/scripts/docling_models.py') }}
 
       - name: Pesi Docling alle revisioni fissate, verificati per SHA-256
         working-directory: rag
@@ -140,16 +140,17 @@ jobs:
       # in compose (volume dell'indice). Stessa cache del job test: nessun download doppio
       # quando e' gia' popolata; se non lo e', lo scarica l'immagine stessa con lo script.
       - name: Cache dei pesi Docling/RapidOCR
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: rag/database/models/docling
-          key: docling-pesi-${{ hashFiles('rag/core/intake_convert.py', 'rag/scripts/docling_models.py') }}
+          key: docling-pesi-v2-${{ hashFiles('rag/core/intake_convert.py', 'rag/scripts/docling_models.py') }}
 
       - name: Conversioni nell'immagine - PDF digitale, scansione con OCR, DOC, PPT, XLSX e XLS
         run: |
           mkdir -p rag/database/models/docling && chmod -R a+rwX rag/database/models
           pesi="$PWD/rag/database/models/docling:/app/rag/database/models/docling"
-          docker run --rm -v "$pesi" vibecraft:cpu python scripts/docling_models.py
+          # I metadati HF possono essere 0600: devono appartenere al runner che salva la cache.
+          docker run --rm --user "$(id -u):$(id -g)" -v "$pesi" vibecraft:cpu python scripts/docling_models.py
           docker run --rm -i -v "$pesi" -v "$PWD/rag/tests/fixtures/intake:/fix:ro" vibecraft:cpu python - <<'PY'
           import io
           from pathlib import Path
