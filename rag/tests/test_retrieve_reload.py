@@ -43,6 +43,7 @@ def retrieve_env(monkeypatch):
         code_store={}, version="v-test", code_ids=[], code_matrix=None,
     )
     monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snap)
+    monkeypatch.setattr(routes_retrieval, "qdrant_collection_for_version", lambda v: "test-collection")
     monkeypatch.setitem(deps.state, "qdrant", object())
     monkeypatch.setitem(deps.state, "embed_model", _StubEmbed())
     monkeypatch.setattr(retrieval, "hybrid_search", lambda *a, **kw: [])

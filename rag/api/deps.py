@@ -339,11 +339,17 @@ def _prep_dev_type_index(code_ids: list[str], code_store: dict) -> dict[str, "np
     return {dt: np.asarray(idx, dtype=np.int64) for dt, idx in groups.items()}
 
 
-def _build_snapshot(graph, colbert_store, chunks, rule_descriptions, code_store) -> IndexSnapshot:
-    """Assembla un IndexSnapshot catturando la version (CURRENT o mtime del grafo) e
+def _build_snapshot(graph, colbert_store, chunks, rule_descriptions, code_store,
+                    *, version=None) -> IndexSnapshot:
+    """Assembla un IndexSnapshot con la versione degli artefatti già caricati e
     precalcolando la matrice densa del codice e l'indice per ambito (una volta per reindex,
     non per richiesta)."""
-    version = _graph_version()
+    # Il loader ha già catturato CURRENT prima di leggere gli artefatti.
+    # Rileggerlo qui attribuirebbe una promozione concorrente ai dati precedenti.
+    if version == "legacy":
+        version = GRAPH_JSON_PATH.stat().st_mtime
+    elif version is None:
+        version = _graph_version()
     code_ids, code_matrix = _prep_code_matrix(code_store)
     return IndexSnapshot(
         graph=graph,
@@ -444,8 +450,9 @@ async def lifespan(application: FastAPI):
     rule_descriptions = load_rule_descriptions()
 
     # Rebind atomico dello snapshot iniziale (un solo assegnamento).
-    state["snapshot"] = _build_snapshot(graph, colbert_store, chunks, rule_descriptions, code_store)
-    state["_graph_mtime"] = _graph_version()  # baseline per l'auto-reload
+    state["snapshot"] = _build_snapshot(graph, colbert_store, chunks, rule_descriptions, code_store,
+                                        version=arts.version)
+    state["_graph_mtime"] = state["snapshot"].version
     logger.info("Server pronto.")
 
     yield  # il server è in esecuzione
@@ -483,8 +490,8 @@ def reload_index_state() -> None:
     # Rebind ATOMICO: un solo IndexSnapshot completo sostituisce quello precedente.
     # Nessuna mutazione in place → nessun handler può osservare una versione mista.
     state["snapshot"] = _build_snapshot(arts.graph, arts.colbert_store, arts.chunks_store,
-                                        rule_descriptions, arts.code_store)
-    state["_graph_mtime"] = _graph_version()
+                                        rule_descriptions, arts.code_store, version=arts.version)
+    state["_graph_mtime"] = state["snapshot"].version
 
 
 def maybe_reload_graph() -> None:

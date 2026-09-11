@@ -68,6 +68,7 @@ async def graph_semantic_map():
 async def graph_query(
     q: str = Query(min_length=1, max_length=2000),
     target: str | None = Query(default=None, max_length=1000),
+    limit: int | None = Query(default=None, ge=1, le=1000),
 ):
     """Query DETERMINISTICA sul grafo (nessun LLM): risponde a domande strutturali —
     'quali documenti/entità/codice esistono?', 'relazioni di X', 'cosa impatta X' — leggendo
@@ -75,8 +76,26 @@ async def graph_query(
 
     `target` opzionale: nodo bersaglio esplicito (es. doc_id da un click sulla Semantic Map),
     così l'intent resta dedotto da `q` ma il nodo non dipende dal match testuale."""
-    if current_snapshot() is None or current_snapshot().graph is None:
-        raise HTTPException(status_code=503, detail="Grafo non ancora inizializzato.")
     maybe_reload_graph()
     snap = current_snapshot()
-    return graph_ops.graph_query(q, snap.graph, target=target)
+    if snap is None or snap.graph is None:
+        raise HTTPException(status_code=503, detail="Grafo non ancora inizializzato.")
+    result = graph_ops.graph_query(q, snap.graph, target=target)
+    if limit is None:
+        return result
+    # Budget condiviso fra gli elenchi: ordine e count originale restano intatti.
+    remaining = limit
+    total = 0
+    for key in ("answer", "out", "in", "rings"):
+        if key not in result:
+            continue
+        lists = result[key] if key == "rings" else [result[key]]
+        bounded = []
+        for items in lists:
+            total += len(items)
+            bounded.append(items[:remaining])
+            remaining -= len(bounded[-1])
+        result[key] = bounded if key == "rings" else bounded[0]
+    return {**result, "index_version": snap.version, "limit": limit,
+            "returned_count": limit - remaining, "truncated": total > limit,
+            "scope": "Due hop per impatto; solo nodi e archi dello snapshot indicizzato."}

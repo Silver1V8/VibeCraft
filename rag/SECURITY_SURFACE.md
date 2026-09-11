@@ -1,4 +1,36 @@
-# Superficie di sicurezza HTTP — vibecraft/rag
+# Superfici di sicurezza HTTP e MCP — vibecraft/rag
+
+## Superficie MCP locale (sessione 5, 2026-09-11)
+
+`mcp_server.py` espone **tre tool stdio**, distinti dalle **57 route HTTP** sotto:
+`vibecraft_retrieve` → GET `/api/retrieve`, `vibecraft_code_search` → GET
+`/api/code/search`, `vibecraft_graph_query` → GET `/api/graph/query`.
+Nessuna porta MCP, risorsa filesystem, prompt o tool aggiuntivo. Il confine di accesso
+stdio è il processo/utente locale. La chiave API viene ereditata dall'ambiente e
+inoltrata; `require_api_key` e `require_api_key_strict` non vengono modificati.
+
+Backend configurato fuori dagli argomenti dei tool: solo HTTP su loopback numerico,
+`localhost` normalizzato senza DNS, redirect e proxy d'ambiente disabilitati.
+Input Pydantic, scadenza totale 30 s (configurabile 0,1–120), tetto risposta 2 MiB;
+errori sanitizzati e log stderr. L'adattatore non importa il core, non carica modelli
+e non contatta Qdrant, Ollama o provider remoti.
+
+La route retrieval aggiunge testo solo su richiesta esplicita, con limiti e
+troncamento; versione, sidecar e collection fisica sono vincolati allo snapshot.
+La ricerca codice dichiara limiti e taglio degli snippet. La query del grafo usa
+solo il lettore deterministico esistente, senza linguaggi eseguibili: `limit`
+opzionale taglia conservando totale e indicazione di parzialità. I default HTTP
+mantengono l'assenza del testo documentale e il grafo senza taglio.
+
+Esclusi `/ask`, shell, agent_bridge, pipeline agentica, intake/approve/reject/refine,
+scritture sul grafo, reindex, rollback e gestione collection. Spegnimento: non
+avviare o terminare il processo stdio; nessun flag o modifica dell'indice.
+Il boot ordinario del **backend HTTP** conserva le sue operazioni di riconciliazione
+alias e GC: è separato dalle tre letture e durante le prove richiede risorse isolate.
+
+Gli estratti restano privati: un client che li invia a un modello remoto oltrepassa
+il confine dei dati anche se usa stdio. Tale uso non è autorizzato da questa sessione.
+Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura).
 
 > **Stato:** R2 (dependency anti-cross-site) è **implementata** —
 > [`api.deps.require_not_cross_site_request`](api/deps.py). Questo documento non è più

@@ -614,6 +614,8 @@ async def ask_rag(request: Request, query: AskQuery):
 async def api_retrieve(
     q: str = Query(min_length=1, max_length=4000),
     k: int = Query(default=5, ge=1, le=50),
+    include_text: bool = Query(default=False),
+    text_max_chars: int = Query(default=2000, ge=1, le=8000),
 ):
     """Retrieval PURO (dense + sparse + ColBERT + authority), senza sintesi LLM. Restituisce
     i chunk pertinenti con il breakdown del ranking. Serve per valutare la qualità del ranking
@@ -633,14 +635,33 @@ async def api_retrieve(
     snap = current_snapshot()
     if state.get("qdrant") is None or state.get("embed_model") is None or snap is None:
         raise HTTPException(status_code=503, detail="Indice non ancora pronto.")
+    collection = qdrant_collection_for_version(snap.version)
+    if collection == "unknown":
+        if isinstance(snap.version, str) and snap.version != "legacy":
+            raise HTTPException(status_code=503, detail="Collection dello snapshot non disponibile.")
+        collection = COLLECTION_NAME  # layout flat precedente al blue/green
     results = await embed_in_threadpool(
         retrieval.hybrid_search, q, k,
         qdrant=state["qdrant"], embed_model=state["embed_model"], colbert_store=snap.colbert_store,
+        collection_name=collection,
         # Stesso ranking della produzione, precedenza e peso di sezione compresi: eval.run
         # misura QUESTO, ed e' l'unico modo perche' il numero che ne esce voglia dire qualcosa.
         graph=snap.graph, restatements=snap.restatements,
     )
-    return {"query": q, "k": k, "results": results}
+    if include_text:
+        enriched = []
+        for hit in results:
+            chunk = snap.chunks.get(hit["chunk_id"])
+            if chunk is None:
+                raise HTTPException(status_code=503, detail="Testo assente nello snapshot del retrieval.")
+            text = chunk.get("text", "")
+            enriched.append({**hit, "source_label": retrieval.source_label(hit),
+                             "text": text[:text_max_chars], "text_chars": len(text),
+                             "text_truncated": len(text) > text_max_chars})
+        results = enriched
+    return {"query": q, "k": k, "results": results, "index_version": snap.version,
+            "limits": {"k": k, "text_max_chars": text_max_chars if include_text else None,
+                       "exhaustive": False}}
 
 
 # ---------------------------------------------------------------------------
@@ -677,6 +698,8 @@ def _code_hit_view(hit: dict, *, with_snippet: bool) -> dict:
         view["implements"] = hit["implements"]
     if with_snippet:
         text = str(hit.get("text") or "")
+        view["text_truncated"] = len(text) > CODE_SEARCH_API_SNIPPET_CHARS
+        view["text_chars"] = len(text)
         view["text"] = (text[:CODE_SEARCH_API_SNIPPET_CHARS].rstrip() + " …"
                         if len(text) > CODE_SEARCH_API_SNIPPET_CHARS else text)
     return view
@@ -721,7 +744,10 @@ async def api_code_search(
     if snap is None or embed_model is None:
         raise HTTPException(status_code=503, detail="Indice non ancora pronto.")
 
-    base = {"query": q, "k": k, "dev_type": dev_type, "index_version": snap.version}
+    base = {"query": q, "k": k, "dev_type": dev_type, "index_version": snap.version,
+            "limits": {"k": k, "min_score": min_score, "max_per_file": max_per_file,
+                       "snippet_chars": CODE_SEARCH_API_SNIPPET_CHARS if snippet else None,
+                       "exhaustive": False}}
 
     # Nessun simbolo indicizzato: risposta esplicita invece di un elenco vuoto ambiguo — la
     # differenza fra "non c'è codice nell'indice" e "non c'è nulla di pertinente" cambia cosa
