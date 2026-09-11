@@ -150,7 +150,7 @@ jobs:
           mkdir -p rag/database/models/docling && chmod -R a+rwX rag/database/models
           pesi="$PWD/rag/database/models/docling:/app/rag/database/models/docling"
           # I metadati HF possono essere 0600: devono appartenere al runner che salva la cache.
-          docker run --rm --user "$(id -u):$(id -g)" -v "$pesi" vibecraft:cpu python scripts/docling_models.py
+          docker run --rm --user "$(id -u):$(id -g)" -e HF_HOME=/tmp/huggingface -v "$pesi" vibecraft:cpu python scripts/docling_models.py
           docker run --rm -i -v "$pesi" -v "$PWD/rag/tests/fixtures/intake:/fix:ro" vibecraft:cpu python - <<'PY'
           import io
           from pathlib import Path
