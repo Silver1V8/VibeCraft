@@ -323,8 +323,11 @@ _OLE_STREAMS = {"doc": ("WordDocument",), "xls": ("Workbook", "Book"), "ppt": ("
 # OOXML/ODF (i valori restano quelli salvati), link da posizioni non attendibili bloccati.
 # Misurato: col profilo predefinito un DOCX con immagine collegata genera richieste HTTP,
 # con questo nessuna.
+# L'updater automatico è disattivato solo qui: su Windows può riavviare LibreOffice
+# prima della conversione, restituendo successo senza il file di uscita.
 _LO_PROFILE = """<?xml version="1.0" encoding="UTF-8"?>
 <oor:items xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<item oor:path="/org.openoffice.Office.Update/Update"><prop oor:name="Enabled" oor:op="fuse"><value>false</value></prop></item>
 <item oor:path="/org.openoffice.Office.Common/Security/Scripting"><prop oor:name="DisableMacrosExecution" oor:op="fuse"><value>true</value></prop></item>
 <item oor:path="/org.openoffice.Office.Common/Security/Scripting"><prop oor:name="MacroSecurityLevel" oor:op="fuse"><value>3</value></prop></item>
 <item oor:path="/org.openoffice.Office.Common/Security/Scripting"><prop oor:name="BlockUntrustedRefererLinks" oor:op="fuse"><value>true</value></prop></item>
@@ -335,7 +338,7 @@ _LO_PROFILE = """<?xml version="1.0" encoding="UTF-8"?>
 <item oor:path="/org.openoffice.Office.Calc/Formula/Load"><prop oor:name="ODFRecalcMode" oor:op="fuse"><value>1</value></prop></item>
 </oor:items>
 """
-_WIN_SOFFICE = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "LibreOffice" / "program" / "soffice.exe"
+_WIN_SOFFICE = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "LibreOffice" / "program" / "soffice.com"
 
 
 class LibreOfficeUnavailableError(RuntimeError):
@@ -347,7 +350,10 @@ def _libreoffice_cmd() -> list[str] | None:
     predefinita di Windows. None se disattivato o assente."""
     if not INTAKE_LIBREOFFICE_ENABLED:
         return None
-    cmd = (INTAKE_LIBREOFFICE_COMMAND or shutil.which("soffice") or shutil.which("libreoffice")
+    # L'avviatore console espone anche --version; soffice.exe su Windows non lo stampa.
+    cmd = (INTAKE_LIBREOFFICE_COMMAND
+           or (shutil.which("soffice.com") if os.name == "nt" else None)
+           or shutil.which("soffice") or shutil.which("libreoffice")
            or (str(_WIN_SOFFICE) if _WIN_SOFFICE.is_file() else None))
     return [cmd] if cmd else None
 
@@ -362,7 +368,7 @@ def _libreoffice(argomenti: list[str], tmp: Path, timeout: float) -> tuple[int, 
     profilo = tmp / "profilo"
     (profilo / "user").mkdir(parents=True, exist_ok=True)
     (profilo / "user" / "registrymodifications.xcu").write_text(_LO_PROFILE, encoding="utf-8")
-    gruppo = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt"
+    gruppo = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW} if os.name == "nt"
               else {"start_new_session": True})
     proc = subprocess.Popen(
         [*cmd, f"-env:UserInstallation={profilo.as_uri()}", "--headless", "--invisible", "--nologo",

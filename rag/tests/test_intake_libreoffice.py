@@ -154,6 +154,8 @@ def test_profilo_blindato_nuovo_per_ogni_conversione_e_rimosso(finto_soffice):
     prima, seconda = finto_soffice()
     assert prima["profilo"] != seconda["profilo"]
     assert not Path(prima["profilo"]).exists() and not Path(seconda["profilo"]).exists()
+    assert '/org.openoffice.Office.Update/Update' in prima["xcu"]
+    assert '"Enabled" oor:op="fuse"><value>false' in prima["xcu"]
     for chiave in ('"DisableMacrosExecution" oor:op="fuse"><value>true', '"OOXMLRecalcMode" oor:op="fuse"><value>1',
                    'Calc/Content/Update"><prop oor:name="Link" oor:op="fuse"><value>1',
                    'Writer/Content/Update"><prop oor:name="Link" oor:op="fuse"><value>2'):
