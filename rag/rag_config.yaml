@@ -185,6 +185,15 @@ retrieval:
   # Tetto COMPLESSIVO sui due rami sommati (dedup per simbolo, priorità al ramo semantico):
   # senza, il contesto crescerebbe come la somma dei tetti. Default = somma dei due.
   code_context_total_snippets: 12
+  # Pavimento di coseno DOMANDA->simbolo sul ponte IMPLEMENTS: stesso segnale e stessa
+  # funzione del ramo semantico (search_code_symbols), ristretta ai simboli proposti dal
+  # ponte. I simboli senza vettore denso non sono valutabili e restano. Ordine del ponte
+  # invariato. 0.0 = disattivato: contesto byte-identico a prima. Agisce sulla composizione
+  # del contesto a runtime: cambiarlo richiede un riavvio, non una reindicizzazione.
+  # 0.35 verificato il 2026-09-10 sul corpus corrente (golden 58, multihop 8, holdout 7, top_k
+  # 5 e 10): testo documentale invariato, copertura invariata, no-op a 0.0 byte-identico a
+  # prima (rag/eval/results/implementazione_migliorie_20260910/). 0.45 costava copertura.
+  code_link_min_question_score: 0.35
 
   # Tetti dell'endpoint GET /api/code/search, che espone la stessa ricerca semantica sui simboli
   # a un agente ESTERNO (Claude Code, Cursor) perché scelga quali file aprire invece di leggere
@@ -529,10 +538,31 @@ paths:
 # Le esclusioni per l'import progetti riusano code_parsers/CODE_EXCLUDED_DIRS: non duplicarle qui.
 intake:
   staging_dir: "database/staging"   # relativo a rag/, accanto agli altri artefatti di database/
-  # Conversione via microsoft/markitdown (tutti tranne .md, che è nativo). Estendibile a
-  # ogni formato che markitdown sa gestire coi convertitori built-in installati.
-  allowed_formats: ["md", "pdf", "docx", "pptx", "xlsx", "xls", "html", "htm", "txt", "csv", "json", "xml", "epub", "msg"]
+  # Conversione per formato: PDF Docling, XLSX/XLS lettura diretta (openpyxl/xlrd), MD nativo,
+  # altri MarkItDown. Estendibile a ogni formato che markitdown sa gestire coi convertitori built-in.
+  allowed_formats: ["md", "pdf", "docx", "pptx", "xlsx", "doc", "xls", "ppt", "html", "htm", "txt", "csv", "json", "xml", "epub", "msg"]
   max_upload_mb: 25
+  # Motore dei PDF (core/intake_convert.py): Docling con la configurazione verificata dal pilot
+  # (StandardPdfPipeline, CPU, TableFormer ACCURATE, gerarchia dei titoli dallo stile; OCR
+  # locale RapidOCR solo per le pagine senza testo selezionabile). Gli altri formati ammessi
+  # usano MarkItDown tranne XLSX/XLS (lettura diretta) e MD (nativo). Se Docling fallisce, il PDF
+  # passa da MarkItDown con fallback DICHIARATO nella preview. enabled: false = PDF su MarkItDown
+  # (riavvio, niente reindicizzazione; i documenti già approvati non cambiano). Non tocca Excel.
+  docling:
+    enabled: true
+    models_dir: "database/models/docling"   # pesi fissati e verificati: scripts/docling_models.py
+    timeout_seconds: 300
+  # Formati binari legacy DOC e PPT: LibreOffice headless li normalizza nel formato moderno
+  # (DOCX, PPTX), poi vale la matrice del formato moderno. Sui formati moderni LibreOffice non ha
+  # migliorato l'estrazione (rag/eval/results/libreoffice_20260910/); gli XLS non passano di qui,
+  # li legge xlrd senza alterare numeri e booleani (rag/eval/results/excel_diretto_20260911/).
+  # Ogni conversione usa un profilo temporaneo blindato (macro spente, collegamenti mai
+  # aggiornati, nessun ricalcolo delle formule). Se LibreOffice manca o non risponde, DOC e PPT
+  # danno un errore esplicito. enabled: false = come "manca".
+  libreoffice:
+    enabled: true
+    command: ""          # vuoto: soffice nel PATH, o l'installazione predefinita su Windows
+    timeout_seconds: 120
   generation_max_files: 5
   # Authority di default scritta nel frontmatter dei documenti approvati dallo staging
   # (S2): sotto i documenti autorati a mano (0.75-0.90) ma sopra il default implicito

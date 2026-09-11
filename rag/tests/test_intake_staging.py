@@ -8,6 +8,8 @@ filesystem reale di docs/ né un Qdrant vero. Il writer lock usa un lock file in
 (seam lock_path) per restare ermetico."""
 import hashlib
 import json
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -20,6 +22,7 @@ from core import intake
 from core.chunking import parse_markdown_file
 from core.config import INTAKE_DEFAULT_AUTHORITY
 from core.intake_convert import ConversionError
+from core.writer_lock import writer_lock
 
 from test_incremental_indexing import StatefulFakeQdrant, StubEmbed, _wire_tmp_index
 
@@ -412,3 +415,226 @@ def test_route_approve_success_writes_doc_and_returns_stats(tmp_path, monkeypatc
     resp2 = client.post(f"/api/intake/staged/{doc_id}/approve",
                         json={"categoria": "04_knowledge_informative", "nome_file": "altro"})
     assert resp2.status_code == 409
+
+
+# ---------------------------------------------------------------------------
+# approve concorrenti: il ricontrollo SOTTO writer lock e la creazione esclusiva
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def lock_conteso(tmp_path, monkeypatch):
+    """Il test tiene il writer lock mentre le approvazioni superano i controlli rapidi e si
+    mettono in coda: da lì le può fermare solo ciò che approve ricontrolla sotto lock.
+    Restituisce (lock_path, avvia, attendi_in_coda)."""
+    lock_path = _lock(tmp_path)
+    in_coda = threading.Semaphore(0)
+    reale = intake.writer_lock
+
+    def spia(*a, **kw):
+        in_coda.release()
+        return reale(*a, **kw)
+    monkeypatch.setattr(intake, "writer_lock", spia)
+
+    def avvia(*args, **kwargs):
+        esito: dict = {}
+
+        def corpo():
+            try:
+                esito["ok"] = intake.approve(*args, lock_path=lock_path,
+                                             lock_timeout_seconds=30, **kwargs)
+            except Exception as exc:  # l'esito viene verificato dal test
+                esito["err"] = exc
+        thread = threading.Thread(target=corpo)
+        thread.start()
+        return thread, esito
+
+    def attendi_in_coda(n):
+        for _ in range(n):
+            assert in_coda.acquire(timeout=10)
+        time.sleep(0.2)  # dalla spia all'acquisizione del lock: istruzioni, non I/O
+
+    return lock_path, avvia, attendi_in_coda
+
+
+def _esiti(*coppie):
+    for thread, _esito in coppie:
+        thread.join(timeout=30)
+    return [esito for _thread, esito in coppie]
+
+
+def test_doppia_approvazione_concorrente_stesso_documento(staging_dir, docs_dir, lock_conteso):
+    lock_path, avvia, attendi_in_coda = lock_conteso
+    record = intake.stage_document("doc.txt", b"contenuto conteso")
+    reindex_calls: list = []
+
+    def reindex(paths):
+        reindex_calls.append(paths)
+        return {}
+    with writer_lock(lock_path=lock_path):
+        a = avvia(record["id"], "04_knowledge_informative", "primo", reindex=reindex)
+        b = avvia(record["id"], "04_knowledge_informative", "secondo", reindex=reindex)
+        attendi_in_coda(2)
+    esiti = _esiti(a, b)
+
+    assert sum("ok" in e for e in esiti) == 1
+    assert [type(e["err"]) for e in esiti if "err" in e] == [intake.DocumentAlreadyProcessedError]
+    assert len(list(docs_dir.rglob("*.md"))) == 1 and len(reindex_calls) == 1
+    assert [j["status"] for j in _journal_lines(staging_dir)].count("approved") == 1
+
+
+def test_due_documenti_verso_lo_stesso_nome(staging_dir, docs_dir, lock_conteso):
+    lock_path, avvia, attendi_in_coda = lock_conteso
+    uno = intake.stage_document("uno.txt", b"primo documento")
+    due = intake.stage_document("due.txt", b"secondo documento")
+    with writer_lock(lock_path=lock_path):
+        a = avvia(uno["id"], "04_knowledge_informative", "conteso", reindex=_noop_reindex)
+        b = avvia(due["id"], "04_knowledge_informative", "conteso", reindex=_noop_reindex)
+        attendi_in_coda(2)
+    esiti = _esiti(a, b)
+
+    vincitore = next(e["ok"] for e in esiti if "ok" in e)
+    assert [type(e["err"]) for e in esiti if "err" in e] == [intake.TargetFileExistsError]
+    fm, _body = parse_markdown_file(str(docs_dir / "04_knowledge_informative" / "conteso.md"))
+    assert fm["intake"]["staged_id"] == vincitore["id"]  # il file è del vincitore, intatto
+    assert [e["id"] for e in intake.list_staged()] == [({uno["id"], due["id"]} - {vincitore["id"]}).pop()]
+
+
+def test_destinazione_creata_durante_l_attesa_non_viene_sovrascritta(staging_dir, docs_dir,
+                                                                     lock_conteso):
+    lock_path, avvia, attendi_in_coda = lock_conteso
+    record = intake.stage_document("doc.txt", b"contenuto nuovo")
+    target = docs_dir / "04_knowledge_informative" / "occupato.md"
+    reindex_calls: list = []
+    with writer_lock(lock_path=lock_path):
+        a = avvia(record["id"], "04_knowledge_informative", "occupato",
+                  reindex=lambda p: reindex_calls.append(p) or {})
+        attendi_in_coda(1)
+        target.parent.mkdir(parents=True)
+        target.write_text("scritto da altri durante l'attesa", encoding="utf-8")
+    (esito,) = _esiti(a)
+
+    assert isinstance(esito["err"], intake.TargetFileExistsError)
+    assert target.read_text(encoding="utf-8") == "scritto da altri durante l'attesa"
+    assert reindex_calls == [] and [e["id"] for e in intake.list_staged()] == [record["id"]]
+
+
+def test_reindex_fallito_rollback_journal_e_retry(staging_dir, docs_dir, tmp_path):
+    record = intake.stage_document("doc.txt", b"contenuto da riprovare")
+
+    def _boom(_paths):
+        raise RuntimeError("Qdrant irraggiungibile")
+    with pytest.raises(RuntimeError, match="Qdrant irraggiungibile"):
+        intake.approve(record["id"], "04_knowledge_informative", "doc",
+                       reindex=_boom, lock_path=_lock(tmp_path))
+
+    assert list(docs_dir.rglob("*.md")) == []
+    ultimo = _journal_lines(staging_dir)[-1]
+    assert ultimo["status"] == "staged" and "Qdrant irraggiungibile" in ultimo["approve_error"]["errore"]
+    # Retry dopo l'errore: stesso documento, stesso nome, stavolta riesce.
+    result = intake.approve(record["id"], "04_knowledge_informative", "doc",
+                            reindex=_noop_reindex, lock_path=_lock(tmp_path))
+    assert result["status"] == "approved"
+    assert [p.name for p in docs_dir.rglob("*.md")] == ["doc.md"]
+
+
+def test_rollback_non_rimuove_un_file_cambiato_da_altri(staging_dir, docs_dir, tmp_path):
+    record = intake.stage_document("doc.txt", b"contenuto")
+    target = docs_dir / "04_knowledge_informative" / "doc.md"
+
+    def _sostituito_poi_boom(_paths):
+        target.write_text("riscritto da un altro processo", encoding="utf-8")
+        raise RuntimeError("reindex esploso")
+    with pytest.raises(RuntimeError):
+        intake.approve(record["id"], "04_knowledge_informative", "doc",
+                       reindex=_sostituito_poi_boom, lock_path=_lock(tmp_path))
+    assert target.read_text(encoding="utf-8") == "riscritto da un altro processo"
+
+
+@pytest.fixture
+def lock_predefinito(tmp_path, monkeypatch):
+    """Writer lock nel suo percorso PREDEFINITO, ma dentro tmp_path: così anche le funzioni
+    chiamate senza `lock_path` (reject, refine) si contendono lo stesso lock di approve."""
+    import core.writer_lock as wl
+    monkeypatch.setattr(wl, "DATABASE_DIR", tmp_path)
+
+
+def test_reject_durante_approve_non_sposta_un_documento_pubblicato(staging_dir, docs_dir,
+                                                                   lock_predefinito):
+    record = intake.stage_document("doc.txt", b"contenuto conteso")
+    esito: dict = {}
+
+    def rifiuta():
+        try:
+            intake.reject(record["id"], "arrivato tardi")
+        except Exception as exc:  # l'esito viene verificato dal test
+            esito["err"] = exc
+    thread = threading.Thread(target=rifiuta)
+
+    def reindex(_paths):
+        thread.start()
+        thread.join(timeout=1)  # il rifiuto arriva mentre la pubblicazione è in corso
+        return {}
+    intake.approve(record["id"], "04_knowledge_informative", "doc", reindex=reindex)
+    thread.join(timeout=30)
+
+    assert isinstance(esito.get("err"), intake.DocumentAlreadyProcessedError)
+    assert _journal_lines(staging_dir)[-1]["status"] == "approved"
+    assert (staging_dir / "docs" / record["files"]["original"]).exists()
+
+
+def test_raffinazione_conclusa_dopo_approve_non_riapre_il_documento(staging_dir, docs_dir,
+                                                                     lock_predefinito):
+    from core import intake_refine
+    record = intake.stage_document("doc.txt", b"Titolo\n\n" + b"testo da raffinare " * 30)
+    iniziata, prosegui = threading.Event(), threading.Event()
+    esito: dict = {}
+
+    def generate(_prompt):
+        iniziata.set()
+        prosegui.wait(timeout=30)
+        return "{}"
+
+    def raffina():
+        try:
+            esito["ok"] = intake_refine.refine_staged_document(record["id"], generate=generate)
+        except Exception as exc:  # l'esito viene verificato dal test
+            esito["err"] = exc
+    thread = threading.Thread(target=raffina)
+    thread.start()
+    assert iniziata.wait(timeout=10)
+    intake.approve(record["id"], "04_knowledge_informative", "doc", reindex=_noop_reindex)
+    prosegui.set()
+    thread.join(timeout=30)
+
+    assert isinstance(esito.get("err"), intake.DocumentAlreadyProcessedError)
+    assert intake.list_staged() == []
+    assert _journal_lines(staging_dir)[-1]["status"] == "approved"
+
+
+def test_append_concorrenti_al_journal_non_perdono_righe(staging_dir):
+    """Stage, approve, reject, refine, generazione e import scrivono tutti con
+    _append_journal, da thread diversi. Su Windows due handle aperti in append si
+    sovrascrivevano: righe perse (una 'approved' persa lascia 'staged' un documento
+    già pubblicato)."""
+    paths = intake.ensure_staging_dirs()
+    thread_n, righe_n = 8, 150
+    barriera = threading.Barrier(thread_n)
+
+    def scrivi(t):
+        barriera.wait()
+        for i in range(righe_n):
+            intake._append_journal(paths, {"id": f"{t}-{i}", "status": "discarded", "pad": "x" * 300})
+    threads = [threading.Thread(target=scrivi, args=(t,)) for t in range(thread_n)]
+    for th in threads:
+        th.start()
+    for th in threads:
+        th.join(timeout=120)
+
+    ids = [r["id"] for r in _journal_lines(staging_dir)]
+    assert sorted(ids) == sorted(f"{t}-{i}" for t in range(thread_n) for i in range(righe_n))
+
+
+def test_approve_pubblica_solo_md_anche_con_nome_non_md(staging_dir, docs_dir, tmp_path):
+    record = intake.stage_document("doc.txt", b"contenuto")
+    intake.approve(record["id"], "04_knowledge_informative", "relazione.pdf",
+                   reindex=_noop_reindex, lock_path=_lock(tmp_path))
+    assert [p.name for p in docs_dir.rglob("*") if p.is_file()] == ["relazione.pdf.md"]

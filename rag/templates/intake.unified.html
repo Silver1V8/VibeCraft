@@ -140,10 +140,19 @@
     .md-preview code { background: rgba(127,127,127,0.18); padding: 1px 4px; border-radius: 4px; }
     .md-preview pre { background: rgba(127,127,127,0.10); padding: 8px; border-radius: 6px; overflow-x: auto; }
     .md-preview pre code { background: none; padding: 0; }
+    .md-preview table { border-collapse: collapse; display: block; overflow-x: auto; }
+    .md-preview th, .md-preview td { border: 1px solid var(--border-color, #888); padding: 4px 8px; white-space: pre-wrap; }
     .review-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); }
     input#preview-nomefile { min-width: min(220px, 100%); }
     input#preview-motivo { min-width: min(220px, 100%); }
     #preview-result { margin-top: 10px; font-size: var(--text-size-sm); white-space: pre-wrap; }
+    .conv-info {
+      font-size: var(--text-size-sm); margin-bottom: 12px; padding: 8px 12px;
+      border-left: 3px solid var(--section-border); background: var(--body-bg); border-radius: var(--radius-sm);
+    }
+    .conv-info p { margin: 2px 0; }
+    .conv-info ul { margin: 6px 0 0; padding-left: 18px; }
+    .conv-info .msg-err { font-weight: 600; }
   </style>
 </head>
 <body class="page-doc">
@@ -210,15 +219,23 @@
     <!-- ══════════ (b) IMPORTA DOCUMENTI ══════════ -->
     <section id="section-importa">
       <h2>📥 Importa documenti</h2>
-      <p class="desc">Carica documenti Office, PDF, HTML, dati (CSV/JSON/XML), email o testo: vengono convertiti in
-        Markdown con <code>markitdown</code> (i <code>.md</code> entrano nativi) e messi in staging, in attesa di
-        review. Nessuna scrittura diretta in <code>docs/</code>.</p>
+      <p class="desc">Carica documenti Office, PDF, HTML, dati (CSV/JSON/XML), email o testo: vengono convertiti
+        in Markdown <strong>su questa macchina</strong>, senza servizi esterni. I PDF passano da Docling, che
+        ricostruisce tabelle e titoli e usa l'OCR locale solo sulle pagine scansionate (può richiedere da qualche
+        secondo a qualche minuto); XLSX e XLS vengono letti direttamente dall'originale (openpyxl, xlrd): celle con
+        coordinate e valori memorizzati, un foglio per sezione, formule non ricalcolate, grafici e immagini esclusi
+        con avviso; gli altri formati da MarkItDown; i <code>.md</code> entrano nativi. I vecchi formati binari DOC e
+        PPT vengono prima portati al formato moderno da LibreOffice, sempre in locale, con macro e collegamenti
+        esterni disattivati.
+        La preview dice quale motore è stato usato davvero.
+        L'originale resta conservato in staging. Dopo la review, obbligatoria, in <code>docs/</code> viene
+        pubblicato solo il file <code>.md</code>.</p>
       <div id="dropzone" class="dropzone" onclick="document.getElementById('file-input').click()">
         📎 Trascina qui i file, oppure clicca per selezionarli
-        <div style="margin-top:4px;font-size:var(--text-xs)">md · pdf · docx · pptx · xlsx · xls · html · txt · csv · json · xml · epub · msg</div>
-        <input id="file-input" type="file" multiple accept=".md,.pdf,.docx,.pptx,.xlsx,.xls,.html,.htm,.txt,.csv,.json,.xml,.epub,.msg" onchange="onFilesPicked(this.files)" />
+        <div style="margin-top:4px;font-size:var(--text-xs)">md · pdf · docx · pptx · xlsx · doc · xls · ppt · html · txt · csv · json · xml · epub · msg</div>
+        <input id="file-input" type="file" multiple accept=".md,.pdf,.docx,.pptx,.xlsx,.doc,.xls,.ppt,.html,.htm,.txt,.csv,.json,.xml,.epub,.msg" onchange="onFilesPicked(this.files)" />
       </div>
-      <div id="import-results"></div>
+      <div id="import-results" aria-live="polite"></div>
     </section>
 
     <!-- ══════════ (c) IN STAGING ══════════ -->
@@ -313,11 +330,36 @@
       return t;
     }
 
-    function mdToHtml(md) {
+    function excelText(text) {
+      // Excel (core/intake_excel.py): toglie solo gli escape del serializzatore (\X, &#N;, <br>)
+      // in un unico passaggio, poi ri-escapa TUTTO: il markup della fonte resta testo.
+      const decoded = String(text).replace(/\\([!-\/:-@\[-`{-~])|&#(\d+);|<br>/g, (m, punct, code) =>
+        punct !== undefined ? punct
+          : code !== undefined ? (Number(code) <= 0x10FFFF ? String.fromCodePoint(Number(code)) : m)
+          : '\n');
+      return escapeHtml(decoded).replace(/\n/g, '<br>');
+    }
+
+    function mdToHtml(md, excel = false) {
       const lines = String(md).replace(/\r\n/g, '\n').split('\n');
-      let html = '', inCode = false, codeBuf = [], inList = false;
+      const renderText = excel ? excelText : inlineMd;
+      let html = '', inCode = false, codeBuf = [], inList = false, inTable = false;
       const closeList = () => { if (inList) { html += '</ul>'; inList = false; } };
+      const closeTable = () => { if (inTable) { html += '</tbody></table>'; inTable = false; } };
       for (const raw of lines) {
+        if (excel && raw.startsWith('|') && raw.endsWith('|')) {
+          if (/^[| :\-]+$/.test(raw)) continue;
+          // I pipe dei dati sono sempre `\|`: si divide solo sui delimitatori non escapati.
+          const cells = raw.slice(1, -1).split(/(?<!\\)\|/).map(c => renderText(c.trim()));
+          if (!inTable) {
+            html += '<table><thead><tr>' + cells.map(c => `<th scope="col">${c}</th>`).join('') + '</tr></thead><tbody>';
+            inTable = true;
+          } else {
+            html += '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
+          }
+          continue;
+        }
+        closeTable();
         if (raw.trim().startsWith('```')) {
           if (!inCode) { closeList(); inCode = true; codeBuf = []; }
           else { html += `<pre><code>${escapeHtml(codeBuf.join('\n'))}</code></pre>`; inCode = false; }
@@ -325,17 +367,18 @@
         }
         if (inCode) { codeBuf.push(raw); continue; }
         let m = /^(#{1,6})\s+(.*)$/.exec(raw);
-        if (m) { closeList(); const lvl = m[1].length; html += `<h${lvl}>${inlineMd(m[2])}</h${lvl}>`; continue; }
+        if (m) { closeList(); const lvl = m[1].length; html += `<h${lvl}>${renderText(m[2])}</h${lvl}>`; continue; }
         if (/^\s*[-*]\s+/.test(raw)) {
           if (!inList) { html += '<ul>'; inList = true; }
-          html += `<li>${inlineMd(raw.replace(/^\s*[-*]\s+/, ''))}</li>`;
+          html += `<li>${renderText(raw.replace(/^\s*[-*]\s+/, ''))}</li>`;
           continue;
         }
         closeList();
         if (raw.trim() === '') continue;
-        html += `<p>${inlineMd(raw)}</p>`;
+        html += `<p>${renderText(raw)}</p>`;
       }
       closeList();
+      closeTable();
       if (inCode) html += `<pre><code>${escapeHtml(codeBuf.join('\n'))}</code></pre>`;
       return html;
     }
@@ -430,7 +473,7 @@
       const row = document.createElement('div');
       row.className = 'file-row';
       row.id = rowId;
-      row.innerHTML = `<span class="name">${escapeHtml(file.name)}</span><span class="status">caricamento…</span>`;
+      row.innerHTML = `<span class="name">${escapeHtml(file.name)}</span><span class="status">caricamento e conversione in corso…</span>`;
       results.appendChild(row);
 
       const form = new FormData();
@@ -440,7 +483,11 @@
         const data = await res.json().catch(() => ({}));
         const el = document.getElementById(rowId);
         if (res.ok) {
-          el.innerHTML = `<span class="name">${escapeHtml(file.name)}</span><span class="badge badge-ok">in staging</span>`;
+          const m = data.metadata || {};
+          const avvisi = (m.avvisi || []).length;
+          el.innerHTML = `<span class="name">${escapeHtml(file.name)}</span><span class="badge badge-ok">in staging</span>`
+            + `<span class="status">${escapeHtml(engineLabel(m))}</span>`
+            + (avvisi ? `<span class="badge badge-err">⚠ ${avvisi} ${avvisi === 1 ? 'avviso' : 'avvisi'}: vedi anteprima</span>` : '');
           refreshStaging();
         } else {
           el.innerHTML = `<span class="name">${escapeHtml(file.name)}</span><span class="msg-err">${escapeHtml(data.detail || `HTTP ${res.status}`)}</span>`;
@@ -449,6 +496,49 @@
         const el = document.getElementById(rowId);
         if (el) el.innerHTML = `<span class="name">${escapeHtml(file.name)}</span><span class="msg-err">Errore di connessione: ${escapeHtml(e.message)}</span>`;
       }
+    }
+
+    /* Motore effettivo della conversione, dai metadata dello staging (core/intake_convert.py).
+       Un fallback dopo un errore di Docling non si presenta mai come conversione Docling. */
+    function engineLabel(m) {
+      const v = m.versione_motore ? ` ${m.versione_motore}` : '';
+      const n = m.normalizzazione;
+      const prima = n ? `${String(n.da).toUpperCase()} portato a ${String(n.a).toUpperCase()} da ${n.versione || 'LibreOffice'}, poi ` : '';
+      if (m.motore === 'nativo') return 'Markdown nativo, nessuna conversione';
+      if (m.motore === 'markitdown' && m.fallback) return `${prima}MarkItDown${v} come ripiego: Docling non ha convertito il file`;
+      if (m.motore === 'openpyxl' || m.motore === 'xlrd') return `celle lette direttamente dall'originale con ${m.motore}${v}`;
+      if (m.motore === 'docling') return `${prima}convertito con Docling${v}`;
+      if (m.motore === 'markitdown') return `${prima}convertito con MarkItDown${v}`;
+      return 'motore non registrato';
+    }
+
+    function conversionInfoHtml(data) {
+      const m = data.metadata || {};
+      const righe = [`<p><strong>Conversione:</strong> ${escapeHtml(engineLabel(m))}.</p>`];
+      righe.push(`<p>Originale <code>${escapeHtml(m.source_filename || data.filename || '')}</code>`
+        + (m.sha256 ? ` · SHA-256 <code title="${escapeHtml(m.sha256)}">${escapeHtml(m.sha256.slice(0, 12))}…</code>` : '')
+        + ` · conservato in staging, non viene pubblicato.</p>`);
+      if (m.normalizzazione) {
+        const n = m.normalizzazione;
+        righe.push(`<p>Normalizzazione: ${escapeHtml(String(n.da).toUpperCase())} → ${escapeHtml(String(n.a).toUpperCase())} `
+          + `con ${escapeHtml(n.versione || 'LibreOffice')} (in locale, profilo temporaneo, macro e collegamenti esterni disattivati).</p>`);
+      }
+      if (m.pdf) {
+        righe.push(`<p>PDF: ${m.pdf.pagine} ${m.pdf.pagine === 1 ? 'pagina' : 'pagine'}, `
+          + `${m.pdf.pagine_senza_testo} senza testo selezionabile · OCR locale: ${m.pdf.ocr ? 'sì' : 'no'}.</p>`);
+      }
+      if (m.fallback) {
+        righe.push(`<p class="msg-err">⚠ Motivo del ripiego: ${escapeHtml(m.fallback.motivo || '')}</p>`);
+      }
+      const avvisi = m.avvisi || [];
+      if (avvisi.length) {
+        righe.push(`<ul aria-label="Avvisi della conversione">${avvisi.map(a => `<li class="msg-err">⚠ ${escapeHtml(a)}</li>`).join('')}</ul>`);
+      }
+      if (data.approve_error) {
+        righe.push(`<p class="msg-err">Ultimo tentativo di approvazione non riuscito (${escapeHtml(formatDate(data.approve_error.at))}): `
+          + `${escapeHtml(data.approve_error.errore || '')}. Nulla è stato pubblicato; puoi riprovare.</p>`);
+      }
+      return `<div class="conv-info">${righe.join('')}</div>`;
     }
 
     /* ──────────── (c) IN STAGING ──────────── */
@@ -475,7 +565,7 @@
             <div class="staged-item">
               <span class="badge badge-${['generated', 'brief'].includes(entry.source) ? entry.source : 'imported'}">${entry.source}</span>
               <span class="name">${escapeHtml(entry.filename || entry.id)}</span>
-              <span class="status">${formatDate(entry.staged_at)}</span>
+              <span class="status">${escapeHtml(engineLabel(entry.metadata || {}))} · ${formatDate(entry.staged_at)}</span>
               <button onclick="openPreview('${entry.id}')" class="btn btn-secondary">🔎 Anteprima</button>
             </div>`).join('');
         }
@@ -499,7 +589,9 @@
         const raffinato = !!(data.files || {}).markdown_raw;
         detail.innerHTML = `
           <h3>${escapeHtml(data.filename || id)}${raffinato ? ' <span class="badge badge-generated">raffinato</span>' : ''}</h3>
-          <div class="md-preview">${mdToHtml(data.markdown || '')}</div>
+          ${conversionInfoHtml(data)}
+          <div class="md-preview">${mdToHtml(data.markdown || '', ['openpyxl', 'xlrd'].includes(data.metadata?.motore) && !raffinato)}</div>
+          <p class="status">Approvando, in <code>docs/&lt;categoria&gt;/</code> viene scritto solo il file <code>.md</code> mostrato qui, con il frontmatter di governance.</p>
           <div class="review-controls">
             <button onclick="refineStaged('${id}')" class="btn btn-secondary" title="Riscrive il dump del convertitore come spec strutturata (sezioni, tabelle, blocchi di codice). Riesegubile: riparte sempre dal markdown grezzo.">✨ ${raffinato ? 'Raffina di nuovo' : 'Raffina con LLM'}</button>
           </div>
@@ -516,7 +608,7 @@
             </label>
             <button onclick="rejectStaged('${id}')" class="btn btn-danger">🚫 Rifiuta</button>
           </div>
-          <div id="preview-result"></div>`;
+          <div id="preview-result" role="status" aria-live="polite"></div>`;
         populateCategorySelect(document.getElementById('preview-categoria'), '04_knowledge_informative');
       } catch (e) {
         detail.innerHTML = `<p class="msg-err">Errore nell'anteprima: ${escapeHtml(e.message)}</p>`;

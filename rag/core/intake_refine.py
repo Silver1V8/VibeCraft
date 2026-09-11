@@ -23,7 +23,6 @@ Due guardrail contro il rischio vero di questo passo, che è tradire il document
 VINCOLO LLM (core/llm.py): purpose "canvas" — qwen3.5:9b, num_ctx 16384, think:false."""
 from __future__ import annotations
 
-import json
 import re
 import time
 from dataclasses import dataclass, field
@@ -41,6 +40,7 @@ from core.config import (
     INTAKE_REFINE_WINDOW_CHARS,
 )
 from core.intake_clean import clean_markdown
+from core.writer_lock import writer_lock
 
 # Stesso purpose della generazione doc (core/doc_generation.py): produrre markdown
 # strutturato è lo stesso mestiere del Canvas, non serve un purpose nuovo.
@@ -434,19 +434,23 @@ def refine_staged_document(doc_id: str, *, base_dir: str | Path | None = None,
     source_filename = (entry.get("metadata") or {}).get("source_filename") or entry.get("filename", "")
     result = refine_markdown(raw_markdown, source_filename=source_filename, generate=generate)
 
-    refined_path = paths["docs"] / f"{doc_id}.refined.md"
-    refined_path.write_text(result.markdown, encoding="utf-8")
+    # La raffinazione dura minuti: nel frattempo il documento può essere stato approvato o
+    # rifiutato. Scrittura e journal sotto lo stesso writer lock di approve/reject, con lo
+    # stato ricontrollato: un risultato arrivato tardi si scarta, non riapre il documento.
+    with writer_lock(timeout_seconds=30):
+        entry = intake.require_staged(doc_id, base_dir)
+        files = dict(entry.get("files") or {})
+        refined_path = paths["docs"] / f"{doc_id}.refined.md"
+        refined_path.write_text(result.markdown, encoding="utf-8")
 
-    files["markdown_raw"] = raw_name
-    files["markdown"] = refined_path.name
-    record = {
-        **entry,
-        "files": files,
-        "semantic": result.semantic,
-        "refined_at": _now_iso(),
-        "refine": result.stats,
-    }
-    with paths["journal"].open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(record, ensure_ascii=False) + "\n")
-        fh.flush()
+        files["markdown_raw"] = raw_name
+        files["markdown"] = refined_path.name
+        record = {
+            **entry,
+            "files": files,
+            "semantic": result.semantic,
+            "refined_at": _now_iso(),
+            "refine": result.stats,
+        }
+        intake._append_journal(paths, record)
     return record

@@ -973,7 +973,9 @@ def _code_hashes() -> dict[str, str]:
 
 def write_index_manifest(points_count: int, nodes: int = 0, edges: int = 0,
                          version: str | None = None,
-                         qdrant_collection: str | None = None) -> None:
+                         qdrant_collection: str | None = None,
+                         doc_hashes: dict[str, str] | None = None,
+                         code_hashes: dict[str, str] | None = None) -> None:
     """Persiste lo snapshot dell'indice (config modello, conteggi, hash dei documenti)
     DENTRO la directory della versione indicata (default: la versione attiva; per il
     layout legacy resta il flat database/index_manifest.json): ogni versione blue/green
@@ -1000,8 +1002,10 @@ def write_index_manifest(points_count: int, nodes: int = 0, edges: int = 0,
         "documents": points_count,
         "graph_nodes": nodes,
         "graph_edges": edges,
-        "doc_hashes": _docs_hashes(),
-        "code_hashes": _code_hashes(),
+        # Default: gli hash su disco (full rebuild, che indicizza tutto). L'incrementale passa
+        # gli hash di ciò che ha davvero elaborato: vedi incremental_index.
+        "doc_hashes": doc_hashes if doc_hashes is not None else _docs_hashes(),
+        "code_hashes": code_hashes if code_hashes is not None else _code_hashes(),
         # Hash dei file artefatto della STESSA versione (grafo JSON, vettori .npz,
         # sidecar): permette al check di coerenza di validarne anche l'integrità.
         "artifact_hashes": artifact_hashes(version),
@@ -1987,8 +1991,18 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     # suo stesso default storico (COLLECTION_NAME). L'incrementale non promuove MAI
     # l'alias su una nuova collection: al più lo RIPARA verso quella del padre
     # (guardia sopra, prima di ogni scrittura), e il manifest ne eredita solo il nome.
+    # Il manifest descrive ciò che l'indice CONTIENE, non ciò che c'è su disco: con un delta
+    # ristretto (changed_paths — l'approve dell'intake, un webhook) i documenti non elaborati,
+    # cancellazioni comprese, conservano la voce precedente e restano visibili come stale.
+    # Ricalcolarli da disco li faceva sparire dal manifest lasciandone i punti in Qdrant.
+    old_docs = manifest.get("doc_hashes", {}) if isinstance(manifest, dict) else {}
+    doc_hashes = {p: h for p, h in old_docs.items() if p not in plan.deleted}
+    doc_hashes.update({p: current[p] for p in [*plan.new, *plan.modified]})
+    code_hashes = {p: h for p, h in old_code.items() if p not in code_removed}
+    code_hashes.update({p: current_code[p] for p in [*code_added, *code_modified]})
     write_index_manifest(len(chunks_store), graph.number_of_nodes(), graph.number_of_edges(),
-                         version=version, qdrant_collection=parent_qdrant_collection)
+                         version=version, qdrant_collection=parent_qdrant_collection,
+                         doc_hashes=doc_hashes, code_hashes=code_hashes)
     if version:  # None solo con save_artifacts finto nei test
         promote_version(version)
     stats["version"] = version

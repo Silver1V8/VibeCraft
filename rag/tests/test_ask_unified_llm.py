@@ -6,6 +6,7 @@ caratteri sul contesto iniettato (sezioni e snippet di codice), guardrail global
 num_ctx su un prompt di /ask enorme, base URL di Ollama condivisa fra core.llm e
 routes_health.check_ollama (env VIBECRAFT_OLLAMA_URL), snapshot testuale del prompt
 (system storico invariato) e assenza di riferimenti residui al vecchio secondo layer."""
+import dataclasses
 import importlib
 import re
 from pathlib import Path
@@ -293,3 +294,68 @@ def test_zero_riferimenti_residui_al_vecchio_layer():
         and needle.search(path.read_text(encoding="utf-8", errors="ignore"))
     ]
     assert offenders == []
+
+
+# ---------------------------------------------------------------------------
+# S2: pavimento di pertinenza alla DOMANDA sul ponte IMPLEMENTS
+# (retrieval.filter_linked_code_by_question, soglia CODE_LINK_MIN_QUESTION_SCORE)
+# ---------------------------------------------------------------------------
+_BRIDGE = "code/frontend/form.tsx::BookingForm"
+_BRIDGE_TEXT = "export const BookingForm = () => null"
+_CODE_MARK = "=== CODICE ESISTENTE (implementazione) ==="
+
+
+def _ask_col_ponte(ask_env, monkeypatch, soglia, vettore_ponte):
+    """Prompt e implementing_code di /ask con il simbolo del ponte dotato di `vettore_ponte`
+    (None = senza vettore denso, cioè non valutabile). Un client nuovo per chiamata: la
+    cache di /ask vive nell'app."""
+    prompts = []
+    llm.register_provider("fake", lambda model, prompt, timeout: prompts.append(prompt) or "ok")
+    client = ask_env(code_text=_BRIDGE_TEXT)
+    snap = routes_retrieval.current_snapshot()
+    if vettore_ponte is not None:
+        store = {k: dict(v) for k, v in snap.code_store.items()}
+        store[_BRIDGE]["dense"] = np.array(vettore_ponte, dtype=np.float16)
+        ids, matrix = deps._prep_code_matrix(store)
+        snap = dataclasses.replace(snap, code_store=store, code_ids=ids, code_matrix=matrix)
+        monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snap)
+    monkeypatch.setattr(routes_retrieval, "CODE_LINK_MIN_QUESTION_SCORE", soglia)
+    r = client.post("/ask", json={"question": "quali vincoli ha il form?"})
+    assert r.status_code == 200, r.text
+    return prompts[0], r.json()["implementing_code"]
+
+
+def test_s2_ponte_ortogonale_alla_domanda_escluso_solo_a_soglia_attiva(ask_env, fake_ask_settings,
+                                                                     monkeypatch):
+    spento, codice_spento = _ask_col_ponte(ask_env, monkeypatch, 0.0, [0.0, 1.0, 0.0])
+    attivo, codice_attivo = _ask_col_ponte(ask_env, monkeypatch, 0.35, [0.0, 1.0, 0.0])
+
+    assert _BRIDGE_TEXT in spento and [c["name"] for c in codice_spento] == ["BookingForm"]
+    assert _BRIDGE_TEXT not in attivo and codice_attivo == []
+    # Invariante documentale: tolto il blocco del codice, il prompt è byte-identico.
+    testa = spento.split(f"\n\n{_CODE_MARK}")[0]
+    coda = spento[spento.rindex("\n\nDomanda:"):]
+    assert attivo == testa + coda
+
+
+def test_s2_ponte_pertinente_resta_anche_sotto_la_soglia_semantica(ask_env, fake_ask_settings,
+                                                                   monkeypatch):
+    """Collegamento specifica→codice: coseno 0.4 con la domanda, sotto la soglia del ramo
+    semantico (0.45) ma sopra quella del ponte. Lo porta SOLO il ponte, e il filtro lo tiene."""
+    prompt, codice = _ask_col_ponte(ask_env, monkeypatch, 0.35, [0.4, 0.9165, 0.0])
+    assert _BRIDGE_TEXT in prompt
+    assert [(c["name"], c["source"]) for c in codice] == [("BookingForm", "implements")]
+
+
+def test_s2_ponte_senza_vettore_resta_a_soglia_alta(ask_env, fake_ask_settings, monkeypatch):
+    prompt, codice = _ask_col_ponte(ask_env, monkeypatch, 0.99, None)
+    assert _BRIDGE_TEXT in prompt and [c["name"] for c in codice] == ["BookingForm"]
+
+
+def test_s2_soglia_zero_non_chiama_il_filtro(ask_env, fake_ask_settings, monkeypatch):
+    """0.0 = percorso di prima, byte per byte: il filtro non viene nemmeno invocato."""
+    def _vietato(*a, **kw):
+        raise AssertionError("filtro invocato con soglia 0.0")
+    monkeypatch.setattr(retrieval, "filter_linked_code_by_question", _vietato)
+    prompt, _codice = _ask_col_ponte(ask_env, monkeypatch, 0.0, [0.0, 1.0, 0.0])
+    assert _BRIDGE_TEXT in prompt

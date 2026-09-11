@@ -53,6 +53,7 @@ FROM base AS deps-cpu
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project \
         --no-install-package torch \
+        --no-install-package torchvision \
         --no-install-package triton \
         --no-install-package nvidia-cublas-cu12 \
         --no-install-package nvidia-cuda-cupti-cu12 \
@@ -75,9 +76,12 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # l'immagine smette di essere riproducibile: e' gia' successo — il lock diceva 2.13.0
 # e l'immagine montava 2.14.0+cpu. Va tenuta allineata a uv.lock:
 #   grep -A1 '^name = "torch"' uv.lock
+# torchvision (dipendenza di Docling) va installato INSIEME e dallo stesso indice: la build
+# del lock e' compilata per CUDA e accanto a torch +cpu non avrebbe le sue operazioni.
+#   grep -A1 '^name = "torchvision"' uv.lock
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv pip install --python /app/rag/.venv/bin/python \
-        torch==2.13.0 --index https://download.pytorch.org/whl/cpu
+        torch==2.13.0 torchvision==0.28.0 --index https://download.pytorch.org/whl/cpu
 
 
 # ---------------------------------------------------------------------------
@@ -110,6 +114,24 @@ ENV PYTHONUNBUFFERED=1 \
     VIBECRAFT_OLLAMA_URL=http://ollama:11434 \
     # Cache dei pesi: montata come volume, cosi' bge-m3 si scarica una volta sola.
     HF_HOME=/models/huggingface
+
+# Librerie di sistema di opencv-python (dipendenza di Docling, conversione PDF dell'intake):
+# senza, `import docling` fallisce su python:3.14-slim con "libxcb.so.1: cannot open shared
+# object file" e l'intake ripiega su MarkItDown (dichiarandolo). Verificato su linux/amd64.
+# fonts-liberation: l'immagine slim non ha font, e i PDF con font NON incorporati (Helvetica,
+# Arial, Times) venivano resi con un ripiego — misurato: il layout di Docling declassava un
+# titolo a testo. Liberation è metricamente compatibile con quelle famiglie.
+# LibreOffice headless, SOLO i moduli senza interfaccia: normalizza DOC/PPT nel formato
+# moderno prima della conversione (core/intake_convert.py, profilo blindato per ogni file).
+# Gli XLS non lo usano: xlrd li legge direttamente (rag/eval/results/excel_diretto_20260911/).
+# calc-nogui non serve più all'intake XLS; toglierlo richiede ricostruire l'immagine e
+# riverificare DOC/PPT, non fatto in quella sessione.
+# Misurato: +443 MB non compressi (rag/eval/results/libreoffice_20260910/). I formati moderni
+# non lo usano.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libxcb1 libgl1 libglib2.0-0 fonts-liberation \
+        libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui \
+    && rm -rf /var/lib/apt/lists/*
 
 # Utente non-root. Il processo non ha bisogno di privilegi e non deve averli.
 RUN useradd --create-home --uid 10001 vibecraft \

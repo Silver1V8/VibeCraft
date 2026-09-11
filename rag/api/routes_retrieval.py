@@ -27,6 +27,7 @@ from core.config import (
     CODE_CONTEXT_MAX_SNIPPETS,
     CODE_CONTEXT_MIN_WEIGHT,
     CODE_CONTEXT_TOTAL_SNIPPETS,
+    CODE_LINK_MIN_QUESTION_SCORE,
     CODE_SEARCH_API_MAX_K,
     CODE_SEARCH_API_SNIPPET_CHARS,
     CODE_SEARCH_MAX_PER_FILE,
@@ -493,6 +494,18 @@ async def ask_rag(request: Request, query: AskQuery):
         graph, snap.code_store, code_anchor_nodes,
         min_weight=CODE_CONTEXT_MIN_WEIGHT, max_snippets=CODE_CONTEXT_MAX_SNIPPETS,
     )
+    # Il ponte sceglie per prossimità nel grafo: su una domanda che non parla di codice
+    # inietterebbe comunque il suo tetto. Stesso pavimento di pertinenza alla domanda del
+    # ramo semantico, ristretto ai simboli del ponte (0.0 = disattivato).
+    if CODE_LINK_MIN_QUESTION_SCORE > 0 and linked_code and query_encoding is not None:
+        linked_code, scartati_ponte = await run_in_threadpool(
+            retrieval.filter_linked_code_by_question, linked_code, query_encoding["dense"],
+            snap.code_store, min_score=CODE_LINK_MIN_QUESTION_SCORE,
+            code_ids=snap.code_ids, code_matrix=snap.code_matrix)
+        if scartati_ponte:
+            logger.info("ask code_link_filter request_id=%s soglia=%s tenuti=%d scartati=%s",
+                        request_id, CODE_LINK_MIN_QUESTION_SCORE, len(linked_code),
+                        ",".join(c["symbol_id"] for c in scartati_ponte))
     # Priorità al ramo semantico: è ordinato per pertinenza alla domanda, mentre il ponte
     # ordina per somiglianza codice→spec. Dedup per simbolo e tetto complessivo.
     implementing_code = retrieval.merge_code_context(

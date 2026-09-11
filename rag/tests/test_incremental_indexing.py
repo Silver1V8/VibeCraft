@@ -2039,3 +2039,34 @@ def test_nessun_ciclo_nessuna_segnalazione(monkeypatch, tmp_path):
     index.build_graph_and_index(qdrant=StatefulFakeQdrant(), embed_model=StubEmbed())
 
     assert index.precedence_cycles(_load_graph()) == []
+
+
+def test_delta_ristretto_non_dimentica_le_cancellazioni_non_elaborate(tmp_path, monkeypatch):
+    """L'approve dell'intake reindicizza la SOLA path approvata (changed_paths). Un documento
+    cancellato nel frattempo non viene elaborato: deve restare nel manifest — quindi rilevabile
+    come stale — finché una sincronizzazione non ne toglie punti e nodi. Prima spariva dal
+    manifest lasciando i suoi punti in Qdrant: integrità «ok» e contenuto vecchio duplicato
+    per sempre, invisibile a ogni sincronizzazione successiva."""
+    docs_dir, _code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    monkeypatch.setattr(index, "PROJECT_ROOT", tmp_path)
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+    (docs_dir / "a.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    (docs_dir / "vecchio.md").write_text(_spec("VECCHIO"), encoding="utf-8")
+    index.build_graph_and_index(qdrant=q, embed_model=stub)
+
+    def doc_ids() -> set[str]:
+        return {p.payload.get("doc_id") for p in q.points.values()}
+
+    (docs_dir / "vecchio.md").unlink()
+    (docs_dir / "nuovo.md").write_text(_spec("NUOVO"), encoding="utf-8")
+    index.incremental_index(qdrant=q, embed_model=stub, changed_paths=["docs/nuovo.md"])
+
+    assert "nuovo.md" in doc_ids()
+    assert "vecchio.md" in doc_ids()  # non elaborato: i punti restano...
+    assert "vecchio.md" in index._read_manifest()["doc_hashes"]  # ...e il manifest lo dichiara
+    assert index.plan_incremental_indexing(index._docs_hashes(), index._read_manifest()).deleted == ["vecchio.md"]
+
+    index.incremental_index(qdrant=q, embed_model=stub)
+    assert doc_ids() == {"a.md", "nuovo.md"}
+    assert "vecchio.md" not in index._read_manifest()["doc_hashes"]
+    assert "vecchio.md" not in _artifacts.load_artifacts().graph

@@ -18,6 +18,7 @@ import hashlib
 import json
 import re
 import shutil
+import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -102,7 +103,7 @@ _PROJECT_NAME = "VibeCraft — Sistema di Gestione Eventi Aziendali"
 # primo carattere alfanumerico (esclude '.', quindi anche '..' e i dotfile).
 _SAFE_FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
-_H1_RE = re.compile(r"(?m)^#\s+(.+?)\s*$")
+_HEADING_RE = re.compile(r"(?m)^(#{1,6})\s+(.+?)\s*$")
 
 
 def _now_iso() -> str:
@@ -141,10 +142,22 @@ def ensure_staging_dirs(base_dir: str | Path | None = None) -> dict[str, Path]:
 # Journal append-only: una riga JSON per transizione, l'ultima riga per id vince
 # (stesso folding di api/reindex.py::_load_journal).
 # ---------------------------------------------------------------------------
+# UNICO punto di scrittura del journal (stage, approve, reject, refine, generazione, import).
+# Su Windows due handle aperti in "a" da thread diversi si sovrascrivono a vicenda: la CRT
+# emula O_APPEND con seek+write (misurato: 8 thread × 400 righe → ~25% di righe perse).
+# Uno stage che finiva durante un approve poteva cancellare la riga 'approved' o 'staged'.
+# Lock di processo più lock OS su un file accanto al journal: la CLI può scrivere mentre
+# il server fa staging. Ordine fisso writer lock → lock del journal, mai il contrario.
+_journal_lock = threading.Lock()
+
+
 def _append_journal(paths: dict[str, Path], record: dict) -> None:
-    with paths["journal"].open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(record, ensure_ascii=False) + "\n")
-        fh.flush()
+    line = json.dumps(record, ensure_ascii=False) + "\n"
+    with _journal_lock, writer_lock(timeout_seconds=30,
+                                    lock_path=paths["journal"].with_name("intake.jsonl.lock")):
+        with paths["journal"].open("a", encoding="utf-8") as fh:
+            fh.write(line)
+            fh.flush()
 
 
 def _journal_state(paths: dict[str, Path]) -> dict[str, dict]:
@@ -207,36 +220,7 @@ def _decode_markdown_native(content: bytes, filename: str) -> str:
             raise ConversionError(f"encoding non riconosciuto per {filename}") from exc
 
 
-def stage_document(filename: str, content: bytes, *, base_dir: str | Path | None = None,
-                   source: str = "imported") -> dict:
-    """Converte `content` in Markdown (via core.intake_convert; i .md entrano nativi) e lo
-    salva in staging/docs/ insieme all'originale, appendendo l'entry 'staged' al journal.
-    Nessuna scrittura fuori da staging/.
-
-    Un upload col medesimo sha256 di un documento già 'staged' o già 'approved' viene
-    RIFIUTATO (DuplicateStagedDocumentError): segnalato, non ri-staged. Un documento
-    'rejected' può invece essere ricaricato."""
-    paths = ensure_staging_dirs(base_dir)
-    fmt = Path(filename).suffix.lower().lstrip(".")
-    if fmt not in INTAKE_ALLOWED_FORMATS:
-        raise ConversionError(
-            f"formato non supportato: {fmt!r} (ammessi: {', '.join(INTAKE_ALLOWED_FORMATS)})"
-        )
-
-    if fmt == "md":
-        markdown = _decode_markdown_native(content, filename)
-        metadata = {
-            "source_filename": filename,
-            "sha256": hashlib.sha256(content).hexdigest(),
-            "formato": "md",
-            "converted_at": _now_iso(),
-            "n_chars": len(markdown),
-        }
-    else:
-        result = convert_to_markdown(content, fmt, filename=filename)
-        markdown, metadata = result.markdown, result.metadata
-
-    sha = metadata["sha256"]
+def _check_not_duplicate(paths: dict[str, Path], sha: str) -> None:
     for entry in _journal_state(paths).values():
         if (entry.get("status") in ("staged", "approved")
                 and (entry.get("metadata") or {}).get("sha256") == sha):
@@ -245,22 +229,66 @@ def stage_document(filename: str, content: bytes, *, base_dir: str | Path | None
                 f"stato {entry.get('status')}): non ri-staged"
             )
 
-    doc_id = uuid.uuid4().hex[:12]
-    original_path = paths["docs"] / f"{doc_id}.src.{fmt}"
-    markdown_path = paths["docs"] / f"{doc_id}.md"
-    original_path.write_bytes(content)
-    markdown_path.write_text(markdown, encoding="utf-8")
 
-    record = {
-        "id": doc_id,
-        "status": "staged",
-        "source": source,
-        "filename": filename,
-        "staged_at": _now_iso(),
-        "metadata": metadata,
-        "files": {"original": original_path.name, "markdown": markdown_path.name},
-    }
-    _append_journal(paths, record)
+# Ricontrollo del duplicato e scrittura in staging sono una sezione critica: la conversione
+# (secondi o minuti per un PDF) avviene fuori, quindi due upload identici possono arrivare
+# qui insieme. ponytail: lock di processo; il journal non ha altri scrittori concorrenti.
+_stage_lock = threading.Lock()
+
+
+def stage_document(filename: str, content: bytes, *, base_dir: str | Path | None = None,
+                   source: str = "imported") -> dict:
+    """Converte `content` in Markdown (via core.intake_convert; i .md entrano nativi) e lo
+    salva in staging/docs/ insieme all'originale, appendendo l'entry 'staged' al journal.
+    Nessuna scrittura fuori da staging/: l'originale resta qui anche dopo l'approvazione.
+
+    Un upload col medesimo sha256 di un documento già 'staged' o già 'approved' viene
+    RIFIUTATO (DuplicateStagedDocumentError): segnalato, non ri-staged — e prima di pagare
+    la conversione. Un documento 'rejected' può invece essere ricaricato."""
+    paths = ensure_staging_dirs(base_dir)
+    fmt = Path(filename).suffix.lower().lstrip(".")
+    if fmt not in INTAKE_ALLOWED_FORMATS:
+        raise ConversionError(
+            f"formato non supportato: {fmt!r} (ammessi: {', '.join(INTAKE_ALLOWED_FORMATS)})"
+        )
+    sha = hashlib.sha256(content).hexdigest()
+    _check_not_duplicate(paths, sha)
+
+    if fmt == "md":
+        markdown = _decode_markdown_native(content, filename)
+        metadata = {
+            "source_filename": filename,
+            "sha256": sha,
+            "formato": "md",
+            "converted_at": _now_iso(),
+            "n_chars": len(markdown),
+            "motore": "nativo",
+            "versione_motore": None,
+            "fallback": None,
+            "avvisi": [],
+        }
+    else:
+        result = convert_to_markdown(content, fmt, filename=filename)
+        markdown, metadata = result.markdown, result.metadata
+
+    with _stage_lock:
+        _check_not_duplicate(paths, sha)
+        doc_id = uuid.uuid4().hex[:12]
+        original_path = paths["docs"] / f"{doc_id}.src.{fmt}"
+        markdown_path = paths["docs"] / f"{doc_id}.md"
+        original_path.write_bytes(content)
+        markdown_path.write_text(markdown, encoding="utf-8")
+
+        record = {
+            "id": doc_id,
+            "status": "staged",
+            "source": source,
+            "filename": filename,
+            "staged_at": _now_iso(),
+            "metadata": metadata,
+            "files": {"original": original_path.name, "markdown": markdown_path.name},
+        }
+        _append_journal(paths, record)
     return record
 
 
@@ -325,10 +353,13 @@ def _compose_document(entry: dict, categoria: str, nome_file: str, staged_markdo
     stem = Path(nome_file).stem
     slug = re.sub(r"[^a-z0-9]+", "-", stem.lower()).strip("-") or "documento"
     doc_semantic_id = f"intake-{slug}-v1.0"
-    h1 = _H1_RE.search(body)
-    # Il titolo dedotto dalla raffinazione batte l'H1 del convertitore, che sui PDF è il
-    # nome del file ("Specifiche Tecniche WsProtocollo bv.0.3.19 (1)").
-    title = semantic.get("title") or (h1.group(1).strip() if h1 else stem)
+    # Titolo di livello più alto presente (il primo, a parità): Docling riserva `#` al titolo
+    # del documento, e un PDF il cui titolo è riconosciuto come intestazione parte da `##`.
+    # Il titolo dedotto dalla raffinazione batte quello del convertitore, che sui PDF di
+    # MarkItDown è il nome del file ("Specifiche Tecniche WsProtocollo bv.0.3.19 (1)").
+    titoli = _HEADING_RE.findall(body)
+    testa = min(titoli, key=lambda t: len(t[0]))[1] if titoli else None
+    title = semantic.get("title") or testa or stem
     frontmatter = {
         "id": doc_semantic_id,
         "title": title,
@@ -355,6 +386,10 @@ def _compose_document(entry: dict, categoria: str, nome_file: str, staged_markdo
             "sha256": metadata.get("sha256"),
             "formato": metadata.get("formato"),
             "converted_at": metadata.get("converted_at"),
+            # Motore effettivo ed eventuale fallback, solo se registrati (le entry staged
+            # prima dell'introduzione di Docling non li hanno).
+            **{k: metadata[k] for k in ("motore", "versione_motore", "fallback", "normalizzazione")
+               if metadata.get(k)},
         },
     }
     # Campi semantici della raffinazione: utili al retrieval e alla lettura umana, ma non
@@ -426,18 +461,22 @@ def approve(doc_id: str, categoria: str, nome_file: str, *,
             lock_timeout_seconds: float = 30,
             lock_path: str | Path | None = None) -> dict:
     """Promuove un documento dallo staging a docs/<categoria>/<nome_file> e lancia il
-    reindex DELTA della sola path aggiunta — l'UNICO percorso che scrive in docs/.
+    reindex DELTA della sola path aggiunta — l'UNICO percorso che scrive in docs/, e scrive
+    solo il .md composto: l'originale resta in staging.
 
-    Ordine: validazioni (stato staged, categoria, nome file, destinazione libera) →
-    composizione frontmatter conforme → validazione parse/chunking del composto → SOTTO
-    WRITER LOCK: scrittura del file + reindex delta (plan/apply di core/indexing.py, via
-    `reindex(changed_paths)`; default incremental_index). Se il reindex fallisce, il file
-    appena scritto viene rimosso: docs/ e indice restano coerenti tra loro.
+    Ordine: validazioni rapide (stato staged, categoria, nome file, destinazione libera) →
+    SOTTO WRITER LOCK: ricontrollo di stato e destinazione (nell'attesa un'altra richiesta
+    può aver approvato lo stesso documento o occupato lo stesso nome), composizione del
+    frontmatter conforme e validazione parse/chunking, creazione ESCLUSIVA del file, reindex
+    delta (plan/apply di core/indexing.py, via `reindex(changed_paths)`; default
+    incremental_index), journal. Se il reindex fallisce si rimuove solo il file creato da
+    questa richiesta, e solo se è ancora quello scritto qui: il documento resta in staging
+    con l'errore nel journal, riprovabile.
 
     Un secondo approve dello stesso id fallisce con DocumentAlreadyProcessedError senza
     alcun effetto (idempotenza degli errori, mai doppio file)."""
     paths = ensure_staging_dirs(base_dir)
-    entry = _require_staged(paths, doc_id)
+    _require_staged(paths, doc_id)
     if categoria not in CATEGORY_CLASSIFICATION:
         raise InvalidCategoryError(
             f"categoria inesistente: {categoria!r} "
@@ -446,16 +485,10 @@ def approve(doc_id: str, categoria: str, nome_file: str, *,
     nome = _sanitize_target_filename(nome_file)
     docs_root = Path(docs_dir) if docs_dir is not None else DOCS_DIR
     target = docs_root / categoria / nome
+    occupato = (f"esiste già un file {nome!r} in docs/{categoria}/: mai sovrascrittura — "
+                f"scegli un altro nome")
     if target.exists():
-        raise TargetFileExistsError(
-            f"esiste già un file {nome!r} in docs/{categoria}/: mai sovrascrittura — "
-            f"scegli un altro nome"
-        )
-
-    staged_md_path = paths["docs"] / entry["files"]["markdown"]
-    staged_markdown = staged_md_path.read_text(encoding="utf-8")
-    composed = _compose_document(entry, categoria, nome, staged_markdown)
-    _validate_composed(paths, doc_id, composed)
+        raise TargetFileExistsError(occupato)
 
     try:
         rel_path = target.resolve().relative_to(PROJECT_ROOT.resolve()).as_posix()
@@ -468,54 +501,75 @@ def approve(doc_id: str, categoria: str, nome_file: str, *,
 
     reindex_fn = reindex if reindex is not None else _default_reindex
     with writer_lock(timeout_seconds=lock_timeout_seconds, lock_path=lock_path):
+        entry = _require_staged(paths, doc_id)
+        staged_markdown = (paths["docs"] / entry["files"]["markdown"]).read_text(encoding="utf-8")
+        composed = _compose_document(entry, categoria, nome, staged_markdown)
+        _validate_composed(paths, doc_id, composed)
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(composed, encoding="utf-8")
+        try:
+            # "x": fallisce se il file esiste, anche se creato fuori da questo processo.
+            with target.open("x", encoding="utf-8") as fh:
+                fh.write(composed)
+        except FileExistsError as exc:
+            raise TargetFileExistsError(occupato) from exc
+        written = target.read_bytes()
         try:
             stats = reindex_fn(changed_paths)
-        except Exception:
-            # docs/ e indice devono restare coerenti: senza reindex riuscito il file
-            # non deve sopravvivere in docs/ (il doc resta in staging, riprovabile).
+        except Exception as exc:
+            # docs/ e indice devono restare coerenti: senza reindex riuscito il file di QUESTA
+            # richiesta non sopravvive in docs/. Se nel frattempo è cambiato non è più nostro.
             try:
-                target.unlink()
+                if target.read_bytes() == written:
+                    target.unlink()
             except OSError:
                 pass
+            _append_journal(paths, {**entry, "approve_error": {
+                "at": _now_iso(), "categoria": categoria, "nome_file": nome,
+                "errore": f"{type(exc).__name__}: {exc}"[:500]}})
             raise
 
-    record = {
-        **entry,
-        "status": "approved",
-        "approved_at": _now_iso(),
-        "categoria": categoria,
-        "nome_file": nome,
-        "doc_path": rel_path,
-        "reindex": _slim_stats(stats),
-    }
-    _append_journal(paths, record)
+        record = {
+            **entry,
+            "status": "approved",
+            "approved_at": _now_iso(),
+            "categoria": categoria,
+            "nome_file": nome,
+            "doc_path": rel_path,
+            "reindex": _slim_stats(stats),
+        }
+        _append_journal(paths, record)
     return {**record, "reindex": stats if isinstance(stats, dict) else _slim_stats(stats)}
 
 
 # ---------------------------------------------------------------------------
 # reject: marca nel journal e sposta i file in staging/rejected/
 # ---------------------------------------------------------------------------
-def reject(doc_id: str, motivo: str = "", *, base_dir: str | Path | None = None) -> dict:
+def reject(doc_id: str, motivo: str = "", *, base_dir: str | Path | None = None,
+           lock_timeout_seconds: float = 30, lock_path: str | Path | None = None) -> dict:
     """Rifiuta un documento in staging: entry 'rejected' nel journal (col motivo) e file
     spostati in staging/rejected/. docs/ e indice NON vengono toccati — non c'è nulla da
-    toccare: nulla era uscito dallo staging."""
+    toccare: nulla era uscito dallo staging.
+
+    Sotto lo stesso writer lock di approve, con lo stato ricontrollato dentro: un rifiuto che
+    arriva mentre lo stesso documento viene pubblicato attende e trova lo stato già cambiato,
+    invece di spostarne i file."""
     paths = ensure_staging_dirs(base_dir)
-    entry = _require_staged(paths, doc_id)
-    moved: dict[str, str] = {}
-    for key, name in (entry.get("files") or {}).items():
-        src = paths["docs"] / name
-        if src.exists():
-            dst = paths["rejected"] / name
-            shutil.move(str(src), str(dst))
-            moved[key] = dst.name
-    record = {
-        **entry,
-        "status": "rejected",
-        "rejected_at": _now_iso(),
-        "motivo": motivo,
-        "files": moved or entry.get("files"),
-    }
-    _append_journal(paths, record)
+    _require_staged(paths, doc_id)
+    with writer_lock(timeout_seconds=lock_timeout_seconds, lock_path=lock_path):
+        entry = _require_staged(paths, doc_id)
+        moved: dict[str, str] = {}
+        for key, name in (entry.get("files") or {}).items():
+            src = paths["docs"] / name
+            if src.exists():
+                dst = paths["rejected"] / name
+                shutil.move(str(src), str(dst))
+                moved[key] = dst.name
+        record = {
+            **entry,
+            "status": "rejected",
+            "rejected_at": _now_iso(),
+            "motivo": motivo,
+            "files": moved or entry.get("files"),
+        }
+        _append_journal(paths, record)
     return record

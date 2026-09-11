@@ -698,6 +698,32 @@ def search_code_symbols(query_dense, code_store: dict, *,
     return out
 
 
+def filter_linked_code_by_question(linked_code: list[dict], query_dense, code_store: dict, *,
+                                   min_score: float, code_ids: list[str] | None,
+                                   code_matrix: np.ndarray | None) -> tuple[list[dict], list[dict]]:
+    """Applica al ponte IMPLEMENTS lo stesso pavimento di pertinenza alla DOMANDA del ramo
+    semantico: `search_code_symbols` ristretta con `subset_idx` ai soli simboli proposti dal
+    ponte. Ritorna `(tenuti, scartati)`; i tenuti conservano l'ordine del ponte.
+
+    Solo i simboli VALUTABILI (con una riga in `code_ids`/`code_matrix`) possono essere
+    scartati: per un simbolo senza vettore denso il coseno non esiste, e l'assenza del segnale
+    non è una prova di irrilevanza. Senza matrice nessuno è valutabile: nessuno scartato.
+    `min_score<=0` disattiva il filtro e restituisce `linked_code` stesso."""
+    if min_score <= 0 or not linked_code or query_dense is None or code_matrix is None:
+        return linked_code, []
+    posizione = {sid: i for i, sid in enumerate(code_ids or [])}
+    valutabili = [c for c in linked_code if c["symbol_id"] in posizione]
+    if not valutabili:
+        return linked_code, []
+    pertinenti = {c["symbol_id"] for c in search_code_symbols(
+        query_dense, code_store, max_snippets=len(valutabili), min_score=min_score,
+        max_per_file=0, code_ids=code_ids, code_matrix=code_matrix,
+        subset_idx=[posizione[c["symbol_id"]] for c in valutabili])}
+    esclusi = {c["symbol_id"] for c in valutabili} - pertinenti
+    return ([c for c in linked_code if c["symbol_id"] not in esclusi],
+            [c for c in valutabili if c["symbol_id"] in esclusi])
+
+
 def merge_code_context(*groups: list[dict], max_snippets: int) -> list[dict]:
     """Fonde le liste di codice dei vari rami (ricerca semantica diretta, ponte IMPLEMENTS)
     preservandone l'ordine e deduplicando per symbol_id: vince la PRIMA occorrenza, quindi

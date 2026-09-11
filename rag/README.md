@@ -297,18 +297,68 @@ incrementale.
   (hybrid_search) e nelle lezioni delle canvas review; ogni file è validato
   (parse + chunking) prima di entrare in staging.
 - **Importa documenti** (`POST /api/intake/docs`, [core/intake_convert.py](core/intake_convert.py)):
-  upload multipart convertito in Markdown con microsoft/markitdown — un solo motore per
-  tutti i formati non-md (PDF, DOCX, PPTX, XLSX/XLS, HTML, CSV, JSON, XML, EPUB, MSG, ...);
-  i `.md` entrano nativi (solo decodifica). La whitelist resta la nostra
-  (`intake.allowed_formats`, markitdown è permissivo e ripiega su plaintext per estensioni
-  ignote). Estensione e dimensione (`intake.max_upload_mb`) validate PRIMA di leggere
-  l'intero body in memoria. L'uscita del convertitore passa **sempre** per
+  upload multipart convertito in Markdown **in locale** e messo in staging accanto
+  all'originale. Il motore segue una matrice esplicita, misurata sulla versione installata:
+
+  | formato | motore |
+  |---|---|
+  | `.md` | nativo (solo decodifica) |
+  | `.pdf` | **Docling** 2.126.0 se `intake.docling.enabled`, altrimenti MarkItDown |
+  | `.xlsx`, `.xls` | lettura diretta dell'originale: **openpyxl** 3.1.5, **xlrd** 2.0.2 ([core/intake_excel.py](core/intake_excel.py)) |
+  | DOCX, PPTX, HTML/HTM, TXT, CSV, JSON, XML, EPUB, MSG | MarkItDown 0.1.7 |
+  | DOC, PPT | **LibreOffice** headless → DOCX, PPTX, poi la riga del formato moderno |
+
+  La scelta viene da un confronto sugli stessi input, dopo il cleaner reale, con attese
+  scritte prima (`eval/results/verifica_finale_20260910/`). Fogli di calcolo
+  (`eval/results/excel_diretto_20260911/RESOCONTO.md`): MarkItDown passa da pandas, che svuota
+  le celle «NA», «N/A», «null» e scrive `7.0` e `NaN`; Docling divide in più tabelle una riga
+  con celle vuote intermedie; LibreOffice arrotonda a 15 cifre i numeri degli XLS e trasforma i
+  booleani in numeri. La lettura diretta produce, per foglio, intervalli di celle con le
+  coordinate originali (una colonna vuota in tutto il foglio separa gli intervalli, una riga
+  vuota i blocchi: nessuna intestazione o tabella dedotta) e i valori memorizzati, senza
+  ricalcolo né formato di visualizzazione; formati, celle unite, commenti, collegamenti e testo
+  dall'aspetto numerico sono elencati per foglio, formule, disegni e grafici esclusi hanno un
+  avviso. Nessun ripiego: file illeggibile, protetto o oltre 1.000.000 di celle da
+  rappresentare = errore esplicito. DOCX ambiguo (Docling migliore
+  con lo stile Title, peggiore con un titolo in Heading 1): resta MarkItDown. PPTX: MarkItDown
+  conserva le note del relatore. CSV: Docling fallisce sul `;` latin-1. HTML ed EPUB alla
+  pari. DOC e PPT (`intake.libreoffice`): LibreOffice porta una COPIA al formato moderno,
+  con un profilo temporaneo nuovo per ogni conversione (macro spente, collegamenti esterni mai
+  aggiornati, nessun ricalcolo delle formule, albero di processi terminato al timeout), poi
+  decide la riga del formato moderno; senza LibreOffice DOC e PPT danno un errore. Mai il
+  LibreOffice interno di Docling (profilo predefinito:
+  misurato, scarica le immagini collegate). Sui formati moderni LibreOffice non migliora nulla
+  e non viene usato (`eval/results/libreoffice_20260910/`). Un contenitore non valido (DOCX,
+  PPTX, XLSX, EPUB non ZIP; DOC, XLS, PPT senza la struttura OLE attesa; MSG senza firma OLE) è
+  un errore, non un documento di byte grezzi; un OOXML o XLS cifrato è «protetto da password».
+  Configurazione dei PDF, quella del pilot finale:
+  `StandardPdfPipeline`, CPU esplicita, TableFormer ACCURATE con cell matching, testo del
+  backend, gerarchia dei titoli dallo stile, niente VLM né servizi remoti. I pesi stanno in
+  `intake.docling.models_dir`, fissati a revisioni note e verificati per SHA-256 al primo uso:
+  `uv run python scripts/docling_models.py` li scarica, `--verifica` li controlla. Solo un
+  PDF con pagine senza testo selezionabile (scansione) passa dall'OCR locale RapidOCR; un
+  PDF digitale mai. Se Docling non è disponibile (dipendenza, pesi) o fallisce, il PDF passa
+  da MarkItDown con un **fallback dichiarato** (`metadata.fallback` e un avviso nella
+  preview), mai presentato come conversione equivalente; una scansione senza Docling è un
+  errore, non un documento vuoto. Motore, versione, fallback, avvisi e, per i PDF, pagine,
+  pagine senza testo e uso dell'OCR arrivano alla preview; motore, versione ed eventuale
+  fallback anche nel campo `intake` del frontmatter. Le immagini non entrano in `docs/`:
+  Docling non le esporta, e i riferimenti a immagini locali di MarkItDown (PPTX, HTML) si
+  tolgono con un avviso — l'originale resta in staging. La whitelist resta la nostra
+  (`intake.allowed_formats`); estensione e dimensione (`intake.max_upload_mb`) sono validate
+  PRIMA di leggere l'intero body in memoria, e un duplicato (stesso SHA-256 di un documento
+  staged o approvato) è rifiutato prima della conversione. Le conversioni Docling sono seriali
+  nel processo e girano nel threadpool, mai sull'event loop; `intake.docling.timeout_seconds`
+  limita un documento (oltre, risultato parziale dichiarato come INCOMPLETO).
+  L'uscita di MarkItDown passa **sempre** per
   [core/intake_clean.py](core/intake_clean.py), che toglie l'arredo di impaginazione del
   sorgente — testate e piè di pagina ripetuti a ogni pagina, numeri di pagina, indici coi
   puntini di guida, immagini base64, sillabazione e a-capo di giustificazione. È pulizia
   **deterministica e idempotente**: nessuna parola di contenuto viene persa (su un PDF
   istituzionale toglie comunque il 20-60% del dump). Senza, tutto quel rumore finisce
-  identico nei chunk del RAG.
+  identico nei chunk del RAG. L'uscita di Docling, già strutturata e senza testate né piè di
+  pagina, passa solo per `normalize_markdown` (NFC, caratteri invisibili, righe vuote): le
+  regole di arredo toglierebbero righe di contenuto, come un valore KPI isolato.
 - **Raffina con LLM** (`POST /api/intake/staged/{id}/refine`,
   [core/intake_refine.py](core/intake_refine.py)): passo **opt-in** del ciclo di review che
   trasforma il dump del convertitore in una spec strutturata — sezioni `##` (l'unità di
@@ -336,7 +386,30 @@ incrementale.
   path aggiunta, sotto writer lock) o **reject** (motivo nel journal, file spostati
   in `staging/rejected/`, mai cancellati). `approve` **non sovrascrive MAI** un file
   esistente in `docs/`, e il documento composto deve passare parse/chunking PRIMA di
-  qualunque scrittura.
+  qualunque scrittura. Sotto writer lock ricontrolla che il documento sia ancora in staging
+  e che la destinazione sia libera, crea il file in modo esclusivo e, se il reindex fallisce,
+  rimuove solo il file creato da quella richiesta (e solo se è ancora quello scritto): il
+  documento resta in staging con `approve_error` nel journal, riprovabile. Anche `reject` e
+  la scrittura finale della raffinazione passano dallo stesso writer lock, ricontrollando lo
+  stato: un rifiuto o una raffinazione arrivati tardi non toccano un documento già
+  approvato. In `docs/` entra
+  solo il `.md` composto; l'originale resta in `staging/docs/` (o `staging/rejected/`).
+  Ogni pubblicazione dell'app in `docs/` è un `.md` — l'approve dell'intake e la copia storica
+  della canvas review all'archive —, ma l'app non può impedire scritture manuali esterne.
+  L'approve reindicizza la SOLA path approvata: un documento rimosso a mano da `docs/` resta
+  nell'indice (e `--check-integrity` lo segnala come stale) finché non si sincronizza con
+  `uv run python index.py --incremental` o con un full rebuild. Importare un `.md` al posto di
+  un vecchio PDF non toglie da solo i chunk del PDF.
+- **Pesi di Docling, Docker e CI**: i pesi (layout, TableFormer, RapidOCR, ~540 MB) non sono
+  nel repository né nell'immagine. In locale: `uv run python scripts/docling_models.py`
+  (scarica alle revisioni fissate e verifica gli SHA-256; `--verifica` controlla soltanto).
+  In Docker vanno nel volume dell'indice: `docker compose --profile cpu run --rm app-cpu
+  python scripts/docling_models.py`. L'immagine include le librerie native di OpenCV e
+  `fonts-liberation`: senza font, i PDF con font non incorporati venivano resi diversamente e
+  il layout declassava un titolo. In CI il job `test` recupera i pesi da una cache chiavata
+  sugli hash dei file che dichiarano revisioni e SHA, li riverifica e gira con
+  `VIBECRAFT_REQUIRE_DOCLING=1` (senza pesi i test falliscono, non saltano); il job `docker`
+  converte davvero un PDF, una scansione, DOC, PPT, XLSX e XLS nell'immagine costruita.
 - **Importa progetto da path** (`POST /api/intake/project/plan` + `.../apply`,
   [core/project_import.py](core/project_import.py)): import di un progetto locale in
   `code/<target>` (`backend`, `frontend`, `logicAgent`) col pattern **plan/apply**.

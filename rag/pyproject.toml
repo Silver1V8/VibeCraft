@@ -13,6 +13,15 @@ dependencies = [
     "aiohttp==3.14.3",
     "beautifulsoup4>=4.15.0",
     "claude-agent-sdk==0.2.144",
+    # Conversione dell'intake (core/intake_convert.py), SENZA l'extra [vlm]: niente Granite
+    # e niente binari GPL di `av`. Il pin di docling non pinna la catena (docling-parse si è
+    # già mosso sotto un pin fermo, EVOLUZIONE.md): la famiglia è fissata alle versioni
+    # verificate dal pilot. torchvision arriva da PyPI (build CPU su Windows): Docling gira
+    # su CPU esplicita, vedi rag/adr/NOTA_IMPLEMENTAZIONE_MIGLIORIE.md.
+    "docling==2.126.0",
+    "docling-core==2.95.0",
+    "docling-ibm-models==4.0.2",
+    "docling-parse==7.18.0",
     "fastapi==0.141.1",
     "flagembedding==1.4.2",
     "h2==4.4.1",
@@ -26,6 +35,9 @@ dependencies = [
     # pypdf non c'era (i PDF venivano indicizzati vuoti, vedi AUDIT A19) e openpyxl
     # arrivava solo come transitiva di markitdown, cioe' funzionava per fortuna.
     "openpyxl>=3.1.5",
+    # Lettura diretta degli XLS nell'intake (core/intake_excel.py): prima arrivava solo come
+    # transitiva di markitdown[xls]. Importata dall'app, quindi dichiarata qui.
+    "xlrd>=2.0.2",
     "pydantic>=2.13.4",
     "pypdf>=6.1.3",
     "python-docx>=1.2.0",
@@ -40,6 +52,10 @@ dependencies = [
     # (torch-2.13.0-cp314-cp314-macosx_14_0_arm64.whl), altrimenti il pin sposterebbe solo
     # il problema. Da tenere allineata al `uv pip install torch==...` del target cpu.
     "torch==2.13.0",
+    # DIRETTA di proposito, benché la usi solo Docling: [tool.uv.sources] vale soltanto per
+    # le dipendenze dirette, e torchvision deve seguire l'indice di torch (vedi sotto).
+    # Pinnata alla versione compilata per torch 2.13.0.
+    "torchvision==0.28.0",
     "tree-sitter>=0.26.0",
     "tree-sitter-javascript>=0.25.0",
     "tree-sitter-language-pack==1.15.8",
@@ -72,6 +88,15 @@ dev = [
 # piattaforma richiederebbe extra in conflitto (`uv sync --extra cpu`), cioè cambiare
 # il comando di installazione per tutti: fuori da questo riscontro.
 torch = [
+    { index = "pytorch-cu126", marker = "sys_platform == 'linux' or (sys_platform == 'win32' and platform_machine == 'AMD64')" },
+]
+# torchvision (arriva con Docling) DEVE venire dallo stesso indice di torch, con lo stesso
+# marcatore. Da PyPI arriverebbe `0.28.0+cu130` su Linux accanto a torch `+cu126`: al primo
+# import torchvision confronta i major CUDA e solleva RuntimeError (12 != 13). Su Windows
+# arriverebbe `+cpu`, con le operazioni compilate (nms) assenti sul backend CUDA mentre
+# torch.cuda.is_available() resta True. cu126 pubblica 0.28.0 per linux x86_64/aarch64 e
+# win_amd64, cioè esattamente le piattaforme del marcatore; altrove PyPI, come torch.
+torchvision = [
     { index = "pytorch-cu126", marker = "sys_platform == 'linux' or (sys_platform == 'win32' and platform_machine == 'AMD64')" },
 ]
 

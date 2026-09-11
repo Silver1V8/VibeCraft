@@ -330,6 +330,12 @@ CODE_CONTEXT_TOTAL_SNIPPETS: int = int(
     _retrieval_cfg.get("code_context_total_snippets",
                        CODE_SEARCH_MAX_SNIPPETS + CODE_CONTEXT_MAX_SNIPPETS)
 )
+# Pavimento di coseno DOMANDA->simbolo sul ponte IMPLEMENTS (retrieval.
+# filter_linked_code_by_question): il ponte filtra solo sul peso dell'ARCO, quindi può
+# iniettare codice pertinente alla spec ma non alla domanda. 0.0 = disattivato (fallback
+# del codice); il valore effettivo è quello di rag_config.yaml.
+CODE_LINK_MIN_QUESTION_SCORE: float = float(
+    _retrieval_cfg.get("code_link_min_question_score", 0.0))
 # Tetti dell'endpoint GET /api/code/search (api/routes_retrieval.py), che espone la stessa
 # ricerca semantica sui simboli a un agente esterno. Sono tetti di CONTESTO, non di qualità:
 # l'endpoint esiste per far leggere all'agente MENO codice (gli dice quali file aprire), quindi
@@ -378,10 +384,26 @@ INTAKE_STAGING_DIR = RAG_DIR / str(_intake_cfg.get("staging_dir") or "database/s
 # di leggere il contenuto.
 INTAKE_ALLOWED_FORMATS: tuple[str, ...] = tuple(
     _intake_cfg.get("allowed_formats")
-    or ["md", "pdf", "docx", "pptx", "xlsx", "xls",
+    or ["md", "pdf", "docx", "pptx", "xlsx", "doc", "xls", "ppt",
         "html", "htm", "txt", "csv", "json", "xml", "epub", "msg"]
 )
 INTAKE_MAX_UPLOAD_MB: int = int(_intake_cfg.get("max_upload_mb", 25))
+# Docling come motore dei PDF nell'intake (core/intake_convert.py). Fallback del codice:
+# disattivato, cioè MarkItDown come prima; il valore effettivo è quello di rag_config.yaml.
+# I pesi stanno in models_dir e sono verificati per SHA-256 al primo uso; timeout_seconds
+# è il document_timeout di Docling (oltre, risultato PARZIALE dichiarato negli avvisi).
+_intake_docling_cfg: dict = _intake_cfg.get("docling") or {}
+INTAKE_DOCLING_ENABLED: bool = bool(_intake_docling_cfg.get("enabled", False))
+INTAKE_DOCLING_MODELS_DIR = RAG_DIR / str(_intake_docling_cfg.get("models_dir") or "database/models/docling")
+INTAKE_DOCLING_TIMEOUT_SECONDS: float = float(_intake_docling_cfg.get("timeout_seconds", 300))
+# LibreOffice headless per i SOLI formati binari legacy DOC e PPT (gli XLS li legge xlrd): li normalizza nel
+# formato moderno prima della matrice dei motori (core/intake_convert.py). Fallback del codice:
+# disattivato; il valore effettivo è quello di rag_config.yaml. command vuoto = soffice nel PATH
+# (o l'installazione predefinita su Windows); timeout_seconds = tetto per documento.
+_intake_lo_cfg: dict = _intake_cfg.get("libreoffice") or {}
+INTAKE_LIBREOFFICE_ENABLED: bool = bool(_intake_lo_cfg.get("enabled", False))
+INTAKE_LIBREOFFICE_COMMAND: str = str(_intake_lo_cfg.get("command") or "")
+INTAKE_LIBREOFFICE_TIMEOUT_SECONDS: float = float(_intake_lo_cfg.get("timeout_seconds", 120))
 # Authority scritta nel frontmatter dei documenti approvati dallo staging (S2): sotto i
 # documenti autorati a mano, sopra il default implicito del retrieval (0.4).
 INTAKE_DEFAULT_AUTHORITY: float = float(_intake_cfg.get("default_authority", 0.70))

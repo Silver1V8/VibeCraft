@@ -29,6 +29,8 @@ rag/database/chunks.pkl
 rag/database/reindex_jobs.jsonl
 # Journal di intake staging (append-only, generato a runtime)
 rag/database/staging/intake.jsonl
+# Lock OS delle append al journal (core/intake._append_journal)
+rag/database/staging/intake.jsonl.lock
 # Contenuto di staging (docs/projects/rejected): file generati a runtime, mai da
 # tracciare — resta solo lo scheletro delle cartelle (.gitkeep).
 rag/database/staging/docs/*
@@ -41,6 +43,9 @@ rag/database/staging/rejected/*
 rag/database/alerts.jsonl
 # File del writer lock cross-processo (il mutex è il lock OS, il file resta su disco)
 rag/database/.writer.lock
+# Pesi locali di Docling/RapidOCR per l'intake (centinaia di MB, verificati per SHA-256 al
+# caricamento): si scaricano con scripts/docling_models.py, non si versionano.
+rag/database/models/
 
 # Configurazione (Opzionale: escludilo se contiene chiavi API private OpenAI/Anthropic)
 # rag_config.yaml
@@ -92,3 +97,6 @@ docs.local-backup-*/
 # File d'ambiente di docker compose alla root: contiene VIBECRAFT_API_KEY (il README dice
 # di generarla qui, ed e' compose a leggerla da solo). E' un segreto: mai nel repository.
 .env
+
+# Cartella locale di lavoro degli agent: mai da tracciare.
+.agents/

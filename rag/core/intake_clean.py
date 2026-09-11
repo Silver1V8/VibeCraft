@@ -184,6 +184,17 @@ def _rejoin_wrapped(text: str) -> str:
     return "\n".join(out)
 
 
+def normalize_markdown(text: str) -> str:
+    """Sottoinsieme SICURO di clean_markdown per un Markdown già strutturato dal convertitore
+    (Docling): newline, caratteri invisibili, NFC e righe vuote multiple. Niente rimozione di
+    righe né ricongiunzioni: Docling esclude già testate e piè di pagina, e le regole di arredo
+    toglierebbero righe di contenuto come un valore KPI isolato («11») o una riga di tabella
+    con puntini di guida."""
+    if not text or not text.strip():
+        return ""
+    return re.sub(r"\n{3,}", "\n\n", _normalize(text)).strip()
+
+
 def clean_markdown(text: str) -> str:
     """Markdown ripulito dall'arredo di impaginazione. Idempotente: applicarla due volte
     dà lo stesso risultato. Non aggiunge, non riordina e non riscrive nulla — al netto

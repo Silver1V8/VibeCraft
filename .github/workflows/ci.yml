@@ -50,6 +50,24 @@ jobs:
           docker ps -a
           exit 1
 
+      # Docling (intake, PDF) va provato DAVVERO, non saltato: pesi alle revisioni
+      # fissate e verificati per SHA-256 da scripts/docling_models.py, che esce 1 se un peso
+      # manca o non corrisponde. La cache e' identificata dagli hash dei file che dichiarano
+      # revisioni e SHA attesi: cambiarli invalida la cache, e i file recuperati vengono
+      # comunque riverificati dallo stesso script. I pesi non stanno nel repository.
+      - name: Librerie native di Docling (OpenCV, font per i PDF senza font incorporati)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends libxcb1 libgl1 libglib2.0-0 fonts-liberation libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui
+
+      - name: Cache dei pesi Docling/RapidOCR
+        uses: actions/cache@v4
+        with:
+          path: rag/database/models/docling
+          key: docling-pesi-${{ hashFiles('rag/core/intake_convert.py', 'rag/scripts/docling_models.py') }}
+
+      - name: Pesi Docling alle revisioni fissate, verificati per SHA-256
+        working-directory: rag
+        run: uv run --frozen python scripts/docling_models.py
+
       # scripts/ci.sh gira anche ruff (selezione esplicita in pyproject.toml, A9)
       # prima della suite: lint e test nello stesso gate, stesso comando in locale.
       #
@@ -65,6 +83,18 @@ jobs:
         env:
           QDRANT_URL: http://127.0.0.1:6333
           VIBECRAFT_REQUIRE_QDRANT: "1"
+          # Stesso patto di Qdrant: senza pesi i test con Docling reale FALLISCONO invece
+          # di saltare (tests/test_intake_docling.py, fixture docling_reale).
+          VIBECRAFT_REQUIRE_DOCLING: "1"
+          # Idem per LibreOffice (DOC, PPT): tests/test_intake_libreoffice.py, fixture libreoffice_reale.
+          VIBECRAFT_REQUIRE_LIBREOFFICE: "1"
+
+      - name: Preview Excel - coordinate, caratteri letterali e HTML non eseguibile
+        run: node rag/tests/intake_excel_preview.cjs
+
+      - name: Fedeltà Excel - nessuna fusione di tabelle indipendenti
+        working-directory: rag
+        run: uv run --frozen pytest tests/test_intake_excel.py -k tabelle_affiancate_e_sovrapposte_restano_distinte
 
       # Il conteggio, in chiaro e in cima al riepilogo del run: -rs rende VISIBILE uno
       # skip, questo passo rende visibile che i cinque sono PASSATI. Sono i due lati
@@ -105,6 +135,57 @@ jobs:
       # grafo degli import regge: importare server costruisce l'intera app FastAPI.
       - name: L'applicazione importa dentro l'immagine
         run: docker run --rm vibecraft:cpu python -c "import server, index"
+
+      # Conversioni REALI nell'immagine costruita: librerie native, font e pesi montati come
+      # in compose (volume dell'indice). Stessa cache del job test: nessun download doppio
+      # quando e' gia' popolata; se non lo e', lo scarica l'immagine stessa con lo script.
+      - name: Cache dei pesi Docling/RapidOCR
+        uses: actions/cache@v4
+        with:
+          path: rag/database/models/docling
+          key: docling-pesi-${{ hashFiles('rag/core/intake_convert.py', 'rag/scripts/docling_models.py') }}
+
+      - name: Conversioni nell'immagine - PDF digitale, scansione con OCR, DOC, PPT, XLSX e XLS
+        run: |
+          mkdir -p rag/database/models/docling && chmod -R a+rwX rag/database/models
+          pesi="$PWD/rag/database/models/docling:/app/rag/database/models/docling"
+          docker run --rm -v "$pesi" vibecraft:cpu python scripts/docling_models.py
+          docker run --rm -i -v "$pesi" -v "$PWD/rag/tests/fixtures/intake:/fix:ro" vibecraft:cpu python - <<'PY'
+          import io
+          from pathlib import Path
+          import openpyxl
+          import pypdfium2 as pdfium
+          from core.intake_convert import convert_to_markdown
+          pdf = Path("/fix/tabelle_titoli.pdf").read_bytes()
+          r = convert_to_markdown(pdf, "pdf", filename="t.pdf")
+          assert r.metadata["motore"] == "docling" and r.metadata["fallback"] is None, r.metadata
+          assert "#### Note operative" in r.markdown and "| L-02" in r.markdown, r.markdown
+          img = pdfium.PdfDocument(pdf)[0].render(scale=150 / 72).to_pil().convert("L")
+          buf = io.BytesIO()
+          img.save(buf, format="PDF", resolution=150)
+          s = convert_to_markdown(buf.getvalue(), "pdf", filename="s.pdf")
+          assert s.metadata["pdf"]["ocr"] and s.metadata["fallback"] is None and "Beta SpA" in s.markdown, s.metadata
+          for nome, fmt in (("legacy.doc", "doc"), ("legacy.ppt", "ppt")):
+              r = convert_to_markdown(Path(f"/fix/{nome}").read_bytes(), fmt, filename=nome)
+              assert r.metadata["normalizzazione"]["motore"] == "libreoffice" and r.metadata["motore"] == "markitdown", r.metadata
+          # Excel: lettura diretta, niente LibreOffice. Riga con celle vuote intermedie intera.
+          wb = openpyxl.Workbook()
+          wb.active.title = "Budget"
+          for riga in (["Voce", "Stato", "Quantità", "Data", "Importo", "Quota"], ["A", "NA"], [], ["Residuo", None, 10, None, 1500.5, 2401]):
+              wb.active.append(riga)
+          buf = io.BytesIO()
+          wb.save(buf)
+          x = convert_to_markdown(buf.getvalue(), "xlsx", filename="b.xlsx")
+          assert x.metadata["motore"] == "openpyxl" and "## Budget" in x.markdown, x.metadata
+          assert "| 4 | Residuo |  | 10 |  | 1500.5 | 2401 |" in x.markdown, x.markdown
+          r = convert_to_markdown(Path("/fix/legacy.xls"), "xls")
+          assert r.metadata["motore"] == "xlrd" and "normalizzazione" not in r.metadata, r.metadata
+          assert "| 7 | Totale |  | 10 |  | 1500.5 | 2401 |" in r.markdown, r.markdown
+          # Stesso workbook salvato da Excel nei due formati: stesso Markdown.
+          assert (convert_to_markdown(Path("/fix/casi_excel.xls"), "xls").markdown
+                  == convert_to_markdown(Path("/fix/casi_excel.xlsx"), "xlsx").markdown)
+          print("Nell'immagine: PDF, OCR, DOC e PPT via LibreOffice; XLSX e XLS diretti ok")
+          PY
 
       # Il preflight deve FALLIRE quando i servizi non ci sono — e deve dire come rimediare.
       # Un doctor che esce 0 a Qdrant spento non sta diagnosticando niente.

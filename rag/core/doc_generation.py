@@ -12,10 +12,9 @@ validazione viene scartato con il motivo registrato nel journal, mai silenziosam
 Pattern job ASYNC: GenerationManager esegue il lavoro (I/O rete verso Ollama + retrieval)
 su un thread daemon in background, stesso principio di api.reindex.ReindexManager — qui
 senza coda/coalescing perché i job di generazione sono indipendenti (scrivono solo in
-staging/, mai sotto il writer lock di docs/+indice)."""
+staging/; il writer lock protegge il solo aggiornamento dei metadati)."""
 from __future__ import annotations
 
-import json
 import re
 import tempfile
 import threading
@@ -29,6 +28,7 @@ import yaml
 from core import canvas_review, intake, llm, retrieval
 from core.chunking import chunk_markdown, parse_markdown_file, split_frontmatter
 from core.config import INTAKE_GENERATION_MAX_FILES
+from core.writer_lock import writer_lock
 
 # Purpose LLM riusato dalla generazione: stesso ruolo del Canvas (documento markdown
 # grounded, nessuna chiamata "a caldo" senza contesto) — non si introduce un nuovo purpose
@@ -244,10 +244,7 @@ def _validate_generated_markdown(markdown: str) -> None:
 # aggiorna ciò che list_staged/get_preview vedono, senza duplicare la logica di staging.
 # ---------------------------------------------------------------------------
 def _append_journal_line(base_dir, record: dict) -> None:
-    paths = intake.ensure_staging_dirs(base_dir)
-    with paths["journal"].open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(record, ensure_ascii=False) + "\n")
-        fh.flush()
+    intake._append_journal(intake.ensure_staging_dirs(base_dir), record)
 
 
 def _attach_generation_metadata(base_dir, record: dict, extra: dict) -> dict:
@@ -255,8 +252,15 @@ def _attach_generation_metadata(base_dir, record: dict, extra: dict) -> dict:
     richiesta, modello, latenze): core.intake.stage_document non li conosce (sono un
     concetto solo di S3), quindi si appende una riga aggiornata invece di estendere la
     firma di stage_document per un caso d'uso che non le appartiene."""
-    updated = {**record, "metadata": {**(record.get("metadata") or {}), **extra}}
-    _append_journal_line(base_dir, updated)
+    paths = intake.ensure_staging_dirs(base_dir)
+    # Dopo stage_document la review può aver già cambiato stato o file: arricchire
+    # l'ultima entry sotto lo stesso lock di approve/reject/refine, senza riaprirla.
+    with writer_lock(timeout_seconds=30):
+        latest = intake._journal_state(paths).get(record["id"])
+        if latest is None:
+            raise intake.StagedDocumentNotFoundError(record["id"])
+        updated = {**latest, "metadata": {**(latest.get("metadata") or {}), **extra}}
+        intake._append_journal(paths, updated)
     return updated
 
 

@@ -104,3 +104,29 @@ def test_tutti_i_torch_del_lock_hanno_la_stessa_versione_base(lock):
         f"torch risolve a versioni diverse per piattaforma: {sorted(versioni)}. "
         "Pinna la versione in [project.dependencies] invece di lasciarla libera."
     )
+
+
+def _registri(packages: list[dict]) -> set[str | None]:
+    return {p["source"].get("registry") for p in packages}
+
+
+def test_torchvision_segue_indice_e_marcatore_di_torch(pyproject):
+    """torchvision arriva con Docling (intake). Da PyPI su Linux sarebbe `+cu130` accanto a
+    torch `+cu126`, e al primo import torchvision solleva RuntimeError confrontando i major
+    CUDA; su Windows sarebbe `+cpu`, senza operazioni sul backend CUDA. Stessa sorgente."""
+    sources = pyproject["tool"]["uv"]["sources"]
+    assert sources.get("torchvision") == sources["torch"]
+
+
+def test_torchvision_del_lock_ha_la_stessa_build_di_torch(lock):
+    """Da ogni registro da cui arriva torch arriva anche torchvision, con la stessa etichetta
+    locale della build (`+cu126` con `+cu126`, nessuna con nessuna) e una sola versione base."""
+    torchvision = [p for p in lock["package"] if p["name"] == "torchvision"]
+    assert torchvision, "torchvision non è nel lock: se Docling è stato tolto, togli questi test"
+    assert _registri(torchvision) == _registri(_torch_packages(lock))
+    for tv in torchvision:
+        stesso_registro = [t for t in _torch_packages(lock)
+                           if t["source"].get("registry") == tv["source"].get("registry")]
+        assert {t["version"].partition("+")[2] for t in stesso_registro} == {
+            tv["version"].partition("+")[2]}, tv["version"]
+    assert len({p["version"].split("+")[0] for p in torchvision}) == 1

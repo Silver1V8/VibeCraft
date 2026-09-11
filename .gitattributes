@@ -8,3 +8,12 @@ rag/static/vendor/** -text
 # in WSL e in Git Bash. Sono i file il cui unico scopo e' girare su POSIX: normalizzarli
 # come testo generico li romperebbe proprio dove servono.
 *.sh text eol=lf
+
+# Documenti binari: conservare i byte anche con core.autocrlf su Windows.
+*.pdf binary
+*.xls binary
+*.xlsx binary
+*.doc binary
+*.docx binary
+*.ppt binary
+*.pptx binary
