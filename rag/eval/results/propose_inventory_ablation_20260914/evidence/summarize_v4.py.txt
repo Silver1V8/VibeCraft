@@ -1,0 +1,111 @@
+"""Conteggi locali V3/V4: stdlib soltanto, nessuna chiamata generativa."""
+import hashlib
+import json
+import re
+import runpy
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+OLD = HERE.parent.parent / "propose_count_ablation_20260914/evidence"
+base = runpy.run_path(str(OLD / "summarize_structural.py.txt"), run_name="parser")
+parse = base["parse"]
+
+def inspect(raw):
+    parsed = parse(raw)
+    lines = raw.splitlines()
+    blocks, active = [], None
+    inside = set()
+    for i, line in enumerate(lines, 1):
+        fence = re.match(r"^\s*(`{3,}|~{3,})(.*)$", line)
+        if active:
+            inside.add(i)
+            if fence and fence[1][0] == active["char"] and len(fence[1]) >= active["length"] and not fence[2].strip():
+                active["end"] = i
+                blocks.append(active)
+                active = None
+        elif fence:
+            active = {"start": i, "end": None, "char": fence[1][0], "length":len(fence[1]),
+                      "language": fence[2].strip()}
+            inside.add(i)
+    if active:
+        blocks.append(active)
+    for b in blocks:
+        b["scenarios"] = [s["ordinal"] for s in parsed["scenarios"]
+                          if b["start"] < s["line"] < (b["end"] or len(lines)+1)]
+    for s in parsed["scenarios"]:
+        tokens = [line.strip().split()[0] for line in s["text"].splitlines() if line.strip()]
+        seq = [t for t in tokens if t in ("GIVEN","WHEN","THEN")]
+        bad = [line for line in s["text"].splitlines() if line.strip() and
+               line.strip().split()[0] not in ("GIVEN","WHEN","THEN","AND")]
+        s["invalid_step_lines"] = bad
+        s["keyword_order_valid"] = seq == ["GIVEN","WHEN","THEN"] and bool(tokens) and tokens[0]=="GIVEN"
+        s["header_valid"] = bool(re.fullmatch(r"SCENARIO: S[0-9]{2,} - .+", lines[s["line"]-1]))
+        sid = re.match(r"^SCENARIO: S([0-9]+) - ", lines[s["line"]-1])
+        s["sequential_id"] = bool(sid and int(sid[1]) == s["ordinal"])
+        s["gherkin_block_count"] = sum(s["ordinal"] in b["scenarios"] and b["language"]=="gherkin" and
+                                        b["char"]=="`" and b["end"] is not None for b in blocks)
+    tables=[]
+    i=0
+    while i<len(lines)-1:
+        if i+1 not in inside and lines[i].strip().startswith("|") and re.fullmatch(r"[\s|:\-]+",lines[i+1]):
+            start=i; rows=[]; header=[c.strip() for c in re.split(r"(?<!\\)\|",lines[i].strip())[1:-1]]
+            i+=2
+            while i<len(lines) and lines[i].strip().startswith("|"):
+                rows.append({"line":i+1,"raw":lines[i],"cells":[c.strip() for c in re.split(r"(?<!\\)\|",lines[i].strip())[1:-1]]})
+                i+=1
+            tables.append({"line":start+1,"header":header,"rows":rows,
+                           "before_scenarios":not parsed["scenarios"] or start+1<parsed["scenarios"][0]["line"]})
+        else:
+            i+=1
+    parsed.update(fence_blocks=blocks,tables=tables,
+                  unclosed_fences=sum(b["end"] is None for b in blocks),
+                  non_single_scenario_gherkin_blocks=sum(len(b["scenarios"])!=1 for b in blocks if b["language"]=="gherkin"),
+                  outside_gherkin=[s["ordinal"] for s in parsed["scenarios"] if s["gherkin_block_count"]!=1],
+                  invalid_keyword_scenarios=[s["ordinal"] for s in parsed["scenarios"] if not s["keyword_order_valid"]],
+                  invalid_conjunction_scenarios=[s["ordinal"] for s in parsed["scenarios"] if s["invalid_step_lines"]],
+                  invalid_header_scenarios=[s["ordinal"] for s in parsed["scenarios"] if not s["header_valid"] or not s["sequential_id"]])
+    return parsed
+
+def check():
+    base["check"]()
+    a="SCENARIO: S01 - A\n  GIVEN a\n  WHEN b\n  THEN c\n"
+    p=inspect("## Inventario\n| Funzionalità | Fonte | Casi | Rif |\n|---|---|---|---|\n| F1 | | n / e | S01 |\n\n```gherkin\n"+a+"```\n")
+    assert len(p["tables"][0]["rows"])==1 and p["tables"][0]["rows"][0]["cells"][1]==""
+    assert not p["outside_gherkin"] and not p["invalid_keyword_scenarios"] and not p["invalid_header_scenarios"]
+    p=inspect("```gherkin\n"+a+a.replace("S01","S02")+"```")
+    assert p["non_single_scenario_gherkin_blocks"]==1
+    p=inspect("```gherkin\n"+a.replace("WHEN b\n","E b\n")+"```")
+    assert p["invalid_keyword_scenarios"]==[1] and p["invalid_conjunction_scenarios"]==[1]
+    p=inspect("```gherkin\n"+a.replace("GIVEN","Given"))
+    assert p["unclosed_fences"]==1 and p["outside_gherkin"]==[1] and p["invalid_keyword_scenarios"]==[1]
+
+def main():
+    check()
+    state=json.loads((HERE/"run_status.json").read_text(encoding="utf-8"))
+    assert state["status"]!="running"
+    rows=[]
+    for arm, folder in (("V3",OLD),("V4",HERE)):
+        for feature in ("fe3","la2"):
+            for rep in (1,2,3):
+                sid=f"{feature}_{arm}_r{rep}"
+                path=folder/"responses"/(sid+".md")
+                if not path.exists():
+                    rows.append({"sample_id":sid,"status":"missing"})
+                    continue
+                rec=json.loads((folder/"responses"/(sid+"_provider.json")).read_text(encoding="utf-8"))
+                rows.append({"sample_id":sid,"feature":feature,"arm":arm,"repetition":rep,"status":"available",
+                             "response_sha256":hashlib.sha256(path.read_bytes()).hexdigest(),
+                             "capture_complete":rec["capture_complete"],"provider_attempts":len(rec["attempts"]),
+                             **inspect(path.read_text(encoding="utf-8"))})
+    (HERE/"STRUCTURAL.json").write_text(json.dumps({"run_status":state["status"],"samples":rows},ensure_ascii=False,indent=2),encoding="utf-8")
+    print(json.dumps([{"id":r["sample_id"],"scenarios":r.get("scenario_count"),"tables":len(r.get("tables",[])),
+                      "op_rows":r.get("open_points_count"),"bad_keywords":r.get("invalid_keyword_scenarios"),
+                      "bad_conjunctions":r.get("invalid_conjunction_scenarios")} for r in rows]))
+
+if __name__=="__main__":
+    if sys.argv[1:]==["check"]:
+        check()
+        print("Parser self-check passed; no generation.")
+    else:
+        main()

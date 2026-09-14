@@ -1,0 +1,197 @@
+"""Runner della prova sul conteggio: prepare, freeze fresh|reuse, run.
+Derivato dal runner dell'ablazione originale; usa lo stesso provider e recorder.
+Prepare e freeze non generano risposte. Ogni lotto run può partire una sola volta.
+"""
+import asyncio
+import hashlib
+import json
+import random
+import subprocess
+import sys
+import time
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+from unittest.mock import patch
+
+HERE = Path(__file__).resolve().parent
+RAG = HERE.parents[3]
+sys.path.insert(0, str(RAG))
+from core import llm, pipeline
+from eval.provider_recorder import record_ollama
+
+
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def dump(path, value):
+    path.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def model_info():
+    with urllib.request.urlopen(llm.OLLAMA_URL + "/api/tags", timeout=10) as response:
+        models = json.load(response)["models"]
+    return next(m for m in models if m["name"] == "qwen3.5:9b")
+
+
+
+PREVIOUS = HERE.parent.parent / "propose_ablation_20260914" / "evidence"
+OPENING = "    La feature del Canvas è l'unità complessiva dello spec e può contenere più\n    funzionalità, cioè comportamenti osservabili distinti. Una sola feature non\n    significa una sola funzionalità.\n"
+COUNT_PARAGRAPH = "    La feature descritta dal Canvas può contenere più funzionalità, cioè comportamenti\n    osservabili distinti. Il limite seguente si applica separatamente a ciascuna\n    funzionalità, non alla feature nel suo insieme.\n\n    Individua le N funzionalità da coprire. Per ciascuna funzionalità Fi scrivi da 2 a 4\n    scenari dedicati, includendo almeno un caso nominale e uno negativo o di errore.\n    Non accorpare funzionalità distinte per rispettare il limite.\n\n    Il totale dello spec è T = s1 + s2 + … + sN, dove si è il numero di scenari della\n    singola funzionalità Fi. Quando tutti i casi sono definibili, 2N ≤ T ≤ 4N.\n    Il numero 4 non è un limite complessivo: il totale cresce con il numero delle\n    funzionalità.\n\n    Verifica il conteggio per ciascuna funzionalità prima di sommare il totale.\n    Non inventare requisiti per raggiungere il minimo: se un'ambiguità impedisce un\n    caso verificabile, dichiara il caso mancante nei punti aperti. Se una singola\n    funzionalità richiede più di quattro scenari, dichiara la sua copertura mancante\n    senza suddividere il Canvas.\n"
+
+def prepare():
+    """Congela varianti e contesto, senza chiamate generative."""
+    import difflib
+    prior = json.loads((PREVIOUS / "manifest.json").read_text(encoding="utf-8"))
+    names = ["fe3_canvas.md", "la2_canvas.md", "fe3_context.md", "la2_context.md",
+             "spec_form_1.4.md", "spec_notifications_2.4.md", "observability_standards.md"]
+    expected = ["PROTOCOL.md", "inputs/new_spec_template.md"] + ["inputs/" + n for n in names]
+    expected += ["inputs/" + f + "_new_prompt.md" for f in ("fe3", "la2")]
+    for name in expected:
+        assert sha(PREVIOUS / name) == prior["hashes"][name], "Evidenza originale modificata: " + name
+    original_bytes = subprocess.check_output(["git", "show", "bd87bd7:rag/prompts/spec.md"], cwd=RAG)
+    assert original_bytes == (PREVIOUS / "inputs/new_spec_template.md").read_bytes()
+    original = original_bytes.decode("utf-8")
+    recall = "Per la copertura che eccede i 4 scenari,"
+    assert original.count(recall) == 1
+    opening_anchor = "    cambiarne il soggetto.\n"
+    assert original.count(opening_anchor) == 1
+    count_start = original.index("    Per ogni funzionalità descritta dal Canvas")
+    count_end = original.index("\n    Non inventare funzionalità", count_start)
+    templates = {
+        "B0": original,
+        "V1": original.replace(recall, "Per la copertura che eccede i 4 scenari per quella funzionalità,"),
+        "V2": original.replace(opening_anchor, opening_anchor + OPENING),
+        "V3": (original[:count_start] + COUNT_PARAGRAPH + original[count_end:]).replace(
+            recall, "Per la copertura di una singola funzionalità che eccede i 4 scenari per quella funzionalità,"),
+    }
+    assert templates["V1"].replace("4 scenari per quella funzionalità,", "4 scenari,") == original
+    assert templates["V2"].replace(OPENING, "") == original
+    assert recall in templates["V2"]
+    # Tutti i byte del formato BDD e del trattamento delle assunzioni restano invariati.
+    for text in templates.values():
+        assert text[text.index("    =========================================================================="):] == original[original.index("    =========================================================================="):]
+        a = "    Rispondi esclusivamente"
+        b = "    Per la copertura"
+        assert text[text.index(a):text.index(b)] == original[original.index(a):original.index(b)]
+    inputs = HERE / "inputs"
+    variants = HERE / "variants"
+    inputs.mkdir(exist_ok=False)
+    variants.mkdir(exist_ok=False)
+    (HERE / "PROTOCOL.md").write_bytes((PREVIOUS / "PROTOCOL.md").read_bytes())
+    for name in names:
+        (inputs / name).write_bytes((PREVIOUS / "inputs" / name).read_bytes())
+    differences = []
+    for arm, template in templates.items():
+        (variants / (arm + "_spec.md")).write_bytes(template.encode("utf-8"))
+        differences.extend(difflib.unified_diff(original.splitlines(True), template.splitlines(True),
+                                               fromfile="bd87bd7", tofile=arm))
+        for feature, dev in (("fe3", "frontend"), ("la2", "logicAgent")):
+            with patch.dict(pipeline._PROMPTS, spec=template):
+                prompt = pipeline.build_spec_prompt(
+                    (inputs / (feature + "_canvas.md")).read_text(encoding="utf-8"),
+                    (inputs / (feature + "_context.md")).read_text(encoding="utf-8"), dev, feature)
+            if arm == "B0":
+                assert prompt == (PREVIOUS / "inputs" / (feature + "_new_prompt.md")).read_text(encoding="utf-8"), "Rendering baseline diverso"
+            (inputs / (feature + "_" + arm + "_prompt.md")).write_text(prompt, encoding="utf-8")
+    (HERE / "VARIANT_DIFFS.patch").write_text("".join(differences), encoding="utf-8")
+    print("PREPARED: 4 template, 8 prompt; contesto e protocollo identici; nessuna generazione.", flush=True)
+
+
+def freeze(baseline):
+    if (HERE / "manifest.json").exists():
+        raise SystemExit("Freeze già presente: non sovrascrivere.")
+    assert baseline in ("fresh", "reuse")
+    prior = json.loads((PREVIOUS / "manifest.json").read_text(encoding="utf-8"))
+    assert llm.resolve("propose") == ("ollama", "qwen3.5:9b")
+    info = model_info()
+    assert info["digest"] == prior["model"]["digest"], "Modello diverso dalla prima ablazione"
+    for prompt in (HERE / "inputs").glob("*_prompt.md"):
+        options = llm._ollama_payload("qwen3.5:9b", prompt.read_text(encoding="utf-8"))
+        del options["prompt"]
+        assert options == prior["payload_options"], "Opzioni diverse dalla prima ablazione"
+    arms = ["B0", "V1", "V2", "V3"] if baseline == "fresh" else ["V1", "V2", "V3"]
+    schedule = []
+    for repetition in (1, 2, 3):
+        for feature in ("fe3", "la2"):
+            for arm in arms:
+                schedule.append({"feature": feature, "arm": arm, "repetition": repetition,
+                                 "sample_id": f"{feature}_{arm}_r{repetition}"})
+    frozen = [HERE / "PROTOCOL.md", HERE / "ADDENDUM.md", HERE / "VARIANT_DIFFS.patch", Path(__file__)]
+    frozen += list((HERE / "inputs").iterdir()) + list((HERE / "variants").iterdir())
+    manifest = {
+        "frozen_at": datetime.now(timezone.utc).isoformat(),
+        "code_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=RAG, text=True).strip(),
+        "provider": "ollama", "model": info, "payload_options": prior["payload_options"],
+        "baseline": baseline, "schedule": schedule, "wall_budget_seconds": 1800,
+        "original_manifest_sha256": sha(PREVIOUS / "manifest.json"),
+        "hashes": {p.relative_to(HERE).as_posix(): sha(p) for p in frozen},
+        "application_prompt_sha256": sha(RAG / "prompts/spec.md"),
+        "quality_status": "not_evaluated", "mapping_author": "assistant; not a human verdict",
+    }
+    dump(HERE / "manifest.json", manifest)
+    (HERE / "PREREGISTERED.sha256").write_text(sha(HERE / "manifest.json") + "  manifest.json\n", encoding="utf-8")
+    print("FROZEN", len(schedule), "generazioni; budget 1800 secondi.", flush=True)
+
+async def run():
+    manifest = json.loads((HERE / "manifest.json").read_text(encoding="utf-8"))
+    assert sha(HERE / "manifest.json") == (HERE / "PREREGISTERED.sha256").read_text().split()[0]
+    for name, digest in manifest["hashes"].items():
+        assert sha(HERE / name) == digest, "Input modificato: " + name
+    assert model_info()["digest"] == manifest["model"]["digest"]
+    assert sha(RAG / "prompts/spec.md") == manifest["application_prompt_sha256"]
+    output = HERE / "responses"
+    output.mkdir(exist_ok=False)
+    started = time.perf_counter()
+    report = {"started_at": datetime.now(timezone.utc).isoformat(), "status": "running",
+              "quality_status": "not_evaluated", "samples": [], "planned": len(manifest["schedule"])}
+    try:
+        async with asyncio.timeout(manifest["wall_budget_seconds"]):
+            for case in manifest["schedule"]:
+                assert llm.resolve("propose") == ("ollama", "qwen3.5:9b")
+                prompt = (HERE / "inputs" / (case["feature"] + "_" + case["arm"] + "_prompt.md")).read_text(encoding="utf-8")
+                options = llm._ollama_payload("qwen3.5:9b", prompt)
+                del options["prompt"]
+                assert options == manifest["payload_options"], "Opzioni cambiate"
+                sample = {**case, "status": "running"}
+                report["samples"].append(sample)
+                print("START", case, flush=True)
+                with record_ollama() as recording:
+                    try:
+                        text = await llm.agenerate(prompt, purpose="propose")
+                        (output / (case["sample_id"] + ".md")).write_text(text, encoding="utf-8")
+                        sample["status"] = "completed"
+                    except llm.LLMError as exc:
+                        sample.update(status="provider_error", error=str(exc))
+                    except asyncio.CancelledError:
+                        sample["status"] = "budget_interrupted"
+                        raise
+                    finally:
+                        recording.save(output / (case["sample_id"] + "_provider.json"))
+                        sample["capture_complete"] = recording.capture_complete
+                        dump(HERE / "run_status.json", report)
+                if not recording.capture_complete:
+                    raise RuntimeError("Recorder incompleto: lotto interrotto")
+                print("END", case["sample_id"], sample["status"], flush=True)
+        report["status"] = "completed"
+    except TimeoutError:
+        report["status"] = "budget_exhausted"
+    except Exception as exc:
+        report.update(status="incomplete", error=f"{type(exc).__name__}: {exc}")
+    finally:
+        report["elapsed_seconds"] = time.perf_counter() - started
+        report["finished_at"] = datetime.now(timezone.utc).isoformat()
+        dump(HERE / "run_status.json", report)
+        print("FINAL", report["status"], report["elapsed_seconds"], flush=True)
+
+
+if __name__ == "__main__":
+    if sys.argv[1:] == ["prepare"]:
+        prepare()
+    elif len(sys.argv) == 3 and sys.argv[1] == "freeze":
+        freeze(sys.argv[2])
+    elif sys.argv[1:] == ["run"]:
+        asyncio.run(run())
+    else:
+        raise SystemExit("Uso: python run_variants.py.txt prepare|freeze fresh|freeze reuse|run")

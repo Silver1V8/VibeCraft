@@ -1,0 +1,164 @@
+"""Riproduce questa ablazione: python run_ablation.py.txt freeze|run (da ambiente rag).
+
+Freeze va eseguito prima di qualsiasi generazione; run rifiuta output già esistenti.
+Script di evidenza specifico della prova, non un nuovo framework di valutazione.
+"""
+import asyncio
+import hashlib
+import json
+import random
+import subprocess
+import sys
+import time
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+from unittest.mock import patch
+
+HERE = Path(__file__).resolve().parent
+RAG = HERE.parents[3]
+sys.path.insert(0, str(RAG))
+from core import llm, pipeline
+from eval.provider_recorder import record_ollama
+
+
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def dump(path, value):
+    path.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def model_info():
+    with urllib.request.urlopen(llm.OLLAMA_URL + "/api/tags", timeout=10) as response:
+        models = json.load(response)["models"]
+    return next(m for m in models if m["name"] == "qwen3.5:9b")
+
+
+def freeze():
+    if (HERE / "manifest.json").exists():
+        raise SystemExit("Freeze già presente: non sovrascrivere la preregistrazione.")
+    if llm.resolve("propose") != ("ollama", "qwen3.5:9b"):
+        raise SystemExit("Provider/modello inatteso: nessuna generazione.")
+    inputs = HERE / "inputs"
+    inputs.mkdir()
+    templates = {}
+    for arm, revision in (("old", "bd87bd7^"), ("new", "bd87bd7")):
+        blob = subprocess.check_output(["git", "show", revision + ":rag/prompts/spec.md"], cwd=RAG)
+        assert b"{open_points_block}" not in blob
+        (inputs / (arm + "_spec_template.md")).write_bytes(blob)
+        templates[arm] = blob.decode("utf-8")
+    definitions = {
+        "fe3": ("frontend", ["02_specs_normative/spec_form_1.4.md"]),
+        "la2": ("logicAgent", ["02_specs_normative/spec_notifications_2.4.md",
+                               "01_architecture_norms/observability_standards.md"]),
+    }
+    sources = {}
+    payload_options = None
+    for feature, (dev_type, documents) in definitions.items():
+        canvas_path = RAG.parent / "changes" / "archive" / feature / "canvas.md"
+        frozen_canvas = inputs / (feature + "_canvas.md")
+        frozen_canvas.write_bytes(canvas_path.read_bytes())
+        blocks = []
+        for doc in documents:
+            source = RAG.parent / "docs" / doc
+            target = inputs / Path(doc).name
+            target.write_bytes(source.read_bytes())
+            sources[doc] = {"sha256": sha(target), "snapshot": target.relative_to(HERE).as_posix()}
+            blocks.append("--- " + doc + " [ENFORCED, documento integrale] ---\n" + target.read_text(encoding="utf-8"))
+        context = "\n\n".join(blocks)
+        (inputs / (feature + "_context.md")).write_text(context, encoding="utf-8")
+        for arm, template in templates.items():
+            with patch.dict(pipeline._PROMPTS, spec=template):
+                prompt = pipeline.build_spec_prompt(frozen_canvas.read_text(encoding="utf-8"), context, dev_type, feature)
+            (inputs / (feature + "_" + arm + "_prompt.md")).write_text(prompt, encoding="utf-8")
+            options = llm._ollama_payload("qwen3.5:9b", prompt)
+            del options["prompt"]
+            if payload_options is not None:
+                assert options == payload_options
+            payload_options = options
+            print(feature, arm, "prompt_chars", len(prompt), flush=True)
+    order = []
+    for repetition in (1, 2, 3):
+        for feature in ("fe3", "la2"):
+            arms = ["old", "new"] if (repetition + (feature == "la2")) % 2 else ["new", "old"]
+            order += [{"feature": feature, "arm": arm, "repetition": repetition} for arm in arms]
+    blind = list(range(1, 13))
+    random.Random(20260914).shuffle(blind)
+    for entry, label in zip(order, blind):
+        entry["sample_id"] = "P%02d" % label
+    frozen = [*inputs.iterdir(), HERE / "PROTOCOL.md", Path(__file__).resolve()]
+    manifest = {
+        "frozen_at": datetime.now(timezone.utc).isoformat(),
+        "code_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=RAG, text=True).strip(),
+        "provider": "ollama", "model": model_info(), "payload_options": payload_options,
+        "index_pointer_for_information_only": (RAG / "database/CURRENT").read_text().strip(),
+        "context_selection": "Fixed full local documents, no live retrieval or index dependency",
+        "sources": sources, "schedule": order, "wall_budget_seconds": 1800,
+        "hashes": {p.relative_to(HERE).as_posix(): sha(p) for p in frozen},
+        "quality_status": "pending_human_review",
+    }
+    dump(HERE / "manifest.json", manifest)
+    (HERE / "PREREGISTERED.sha256").write_text(sha(HERE / "manifest.json") + "  manifest.json\n", encoding="utf-8")
+    print("Frozen", manifest["frozen_at"], "calls", len(order), flush=True)
+
+
+async def run():
+    manifest = json.loads((HERE / "manifest.json").read_text(encoding="utf-8"))
+    assert sha(HERE / "manifest.json") == (HERE / "PREREGISTERED.sha256").read_text().split()[0]
+    for name, digest in manifest["hashes"].items():
+        assert sha(HERE / name) == digest, "Input modificato: " + name
+    assert model_info()["digest"] == manifest["model"]["digest"]
+    output = HERE / "responses"
+    output.mkdir(exist_ok=False)
+    started = time.perf_counter()
+    report = {"started_at": datetime.now(timezone.utc).isoformat(), "status": "running",
+              "quality_status": "pending_human_review", "samples": [], "planned": 12}
+    try:
+        async with asyncio.timeout(manifest["wall_budget_seconds"]):
+            for case in manifest["schedule"]:
+                assert llm.resolve("propose") == ("ollama", "qwen3.5:9b")
+                prompt = (HERE / "inputs" / (case["feature"] + "_" + case["arm"] + "_prompt.md")).read_text(encoding="utf-8")
+                options = llm._ollama_payload("qwen3.5:9b", prompt)
+                del options["prompt"]
+                assert options == manifest["payload_options"], "Opzioni cambiate"
+                sample = {**case, "status": "running"}
+                report["samples"].append(sample)
+                print("START", case, flush=True)
+                with record_ollama() as recording:
+                    try:
+                        text = await llm.agenerate(prompt, purpose="propose")
+                        (output / (case["sample_id"] + ".md")).write_text(text, encoding="utf-8")
+                        sample["status"] = "completed"
+                    except llm.LLMError as exc:
+                        sample.update(status="provider_error", error=str(exc))
+                    except asyncio.CancelledError:
+                        sample["status"] = "budget_interrupted"
+                        raise
+                    finally:
+                        recording.save(output / (case["sample_id"] + "_provider.json"))
+                        sample["capture_complete"] = recording.capture_complete
+                        dump(HERE / "run_status.json", report)
+                if not recording.capture_complete:
+                    raise RuntimeError("Recorder incompleto: lotto interrotto")
+                print("END", case["sample_id"], sample["status"], flush=True)
+        report["status"] = "completed"
+    except TimeoutError:
+        report["status"] = "budget_exhausted"
+    except Exception as exc:
+        report.update(status="incomplete", error=f"{type(exc).__name__}: {exc}")
+    finally:
+        report["elapsed_seconds"] = time.perf_counter() - started
+        report["finished_at"] = datetime.now(timezone.utc).isoformat()
+        dump(HERE / "run_status.json", report)
+        print("FINAL", report["status"], report["elapsed_seconds"], flush=True)
+
+
+if __name__ == "__main__":
+    if sys.argv[1:] == ["freeze"]:
+        freeze()
+    elif sys.argv[1:] == ["run"]:
+        asyncio.run(run())
+    else:
+        raise SystemExit("Uso: python run_ablation.py.txt freeze|run")

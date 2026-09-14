@@ -1,0 +1,90 @@
+"""V4 soltanto: riusa il loop storico, osservazione provider e arresto invariati."""
+import asyncio
+import difflib
+import hashlib
+import json
+import runpy
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from unittest.mock import patch
+
+HERE = Path(__file__).resolve().parent
+OLD = HERE.parent.parent / "propose_count_ablation_20260914/evidence"
+historical = runpy.run_path(str(OLD / "run_variants.py.txt"), run_name="historical")
+g = historical["run"].__globals__
+g["HERE"] = HERE
+sha, dump = g["sha"], g["dump"]
+
+def prepare():
+    assert not (HERE / "manifest.json").exists(), "Freeze esistente"
+    prior = json.loads((OLD / "manifest.json").read_text(encoding="utf-8"))
+    assert sha(OLD / "manifest.json") == (OLD / "PREREGISTERED.sha256").read_text().split()[0]
+    for name, digest in prior["hashes"].items():
+        assert sha(OLD / name) == digest, name
+    v3 = (OLD / "variants/V3_spec.md").read_text(encoding="utf-8")
+    v4_path = OLD / "variants/V4_spec.md"
+    v4 = v4_path.read_text(encoding="utf-8")
+    start = v4.index("    INVENTARIO DELLE FUNZIONALITÀ")
+    end = v4.index("    Ogni scenario deve avere per soggetto")
+    assert v4[:start] + v4[end:] == v3, "V4 deve aggiungere solo l'inventario"
+    (HERE / "inputs").mkdir(exist_ok=False)
+    (HERE / "variants").mkdir(exist_ok=False)
+    for name in ["fe3_canvas.md", "la2_canvas.md", "fe3_context.md", "la2_context.md",
+                 "spec_form_1.4.md", "spec_notifications_2.4.md", "observability_standards.md"]:
+        (HERE / "inputs" / name).write_bytes((OLD / "inputs" / name).read_bytes())
+    (HERE / "PROTOCOL.md").write_bytes((OLD / "PROTOCOL.md").read_bytes())
+    (HERE / "variants/V4_spec.md").write_bytes(v4_path.read_bytes())
+    (HERE / "V4_DIFF.patch").write_text("".join(difflib.unified_diff(
+        v3.splitlines(True), v4.splitlines(True), fromfile="V3", tofile="V4")), encoding="utf-8")
+    for feature, dev in (("fe3", "frontend"), ("la2", "logicAgent")):
+        canvas = (HERE / "inputs" / (feature + "_canvas.md")).read_text(encoding="utf-8")
+        context = (HERE / "inputs" / (feature + "_context.md")).read_text(encoding="utf-8")
+        with patch.dict(g["pipeline"]._PROMPTS, spec=v3):
+            assert g["pipeline"].build_spec_prompt(canvas, context, dev, feature) == (
+                OLD / "inputs" / (feature + "_V3_prompt.md")).read_text(encoding="utf-8")
+        with patch.dict(g["pipeline"]._PROMPTS, spec=v4):
+            prompt = g["pipeline"].build_spec_prompt(canvas, context, dev, feature)
+        (HERE / "inputs" / (feature + "_V4_prompt.md")).write_text(prompt, encoding="utf-8")
+        options = g["llm"]._ollama_payload("qwen3.5:9b", prompt)
+        del options["prompt"]
+        assert options == prior["payload_options"]
+    assert g["llm"].resolve("propose") == ("ollama", "qwen3.5:9b")
+    info = g["model_info"]()
+    assert info["digest"] == prior["model"]["digest"], "Digest cambiato"
+    comparison = {}
+    for repetition in (1, 2, 3):
+        for feature in ("fe3", "la2"):
+            for suffix in (".md", "_provider.json"):
+                name = "responses/" + feature + "_V3_r" + str(repetition) + suffix
+                comparison[name] = sha(OLD / name)
+    files = [HERE / "PROTOCOL.md", HERE / "ADDENDUM.md", Path(__file__),
+             HERE / "V4_DIFF.patch"] + list((HERE / "inputs").iterdir()) + list((HERE / "variants").iterdir())
+    manifest = {
+        "frozen_at": datetime.now(timezone.utc).isoformat(),
+        "provider": "ollama", "model": info, "payload_options": prior["payload_options"],
+        "schedule": [{"feature": f, "arm": "V4", "repetition": r, "sample_id": f"{f}_V4_r{r}"}
+                     for r in (1, 2, 3) for f in ("fe3", "la2")],
+        "wall_budget_seconds": 1800,
+        "hashes": {p.relative_to(HERE).as_posix(): sha(p) for p in files},
+        "reused_runner_sha256": sha(OLD / "run_variants.py.txt"),
+        "comparison_hashes": comparison,
+        "approved_v4_sha256": sha(v4_path),
+        "application_prompt_sha256": sha(g["RAG"] / "prompts/spec.md"),
+        "quality_status": "not_evaluated",
+    }
+    dump(HERE / "manifest.json", manifest)
+    (HERE / "PREREGISTERED.sha256").write_text(sha(HERE / "manifest.json") + "  manifest.json\n", encoding="utf-8")
+    print("FROZEN: 6 V4; 6 V3 riutilizzate; nessuna generazione.", flush=True)
+
+if __name__ == "__main__":
+    if sys.argv[1:] == ["prepare"]:
+        prepare()
+    elif sys.argv[1:] == ["run"]:
+        m = json.loads((HERE / "manifest.json").read_text(encoding="utf-8"))
+        assert sha(OLD / "run_variants.py.txt") == m["reused_runner_sha256"]
+        for name, digest in m["comparison_hashes"].items():
+            assert sha(OLD / name) == digest, name
+        asyncio.run(historical["run"]())
+    else:
+        raise SystemExit("prepare | run")

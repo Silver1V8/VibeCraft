@@ -1,0 +1,1968 @@
+{
+  "status": "assistant_annotated",
+  "author": "assistant",
+  "human_review_status": "not_performed",
+  "meaning": "F toccate, non copertura completa né validità dei requisiti. La mappatura e le somiglianze semantiche richiedono lettura e non sono misure puramente meccaniche.",
+  "method": "ID F del PROTOCOL congelato; uno scenario può toccare più F. Mere premesse su destinatario o trigger già risolti non contano come verifica del routing/trigger. Il successo dell'invio di un form compilato verifica l'accettazione degli input mostrati; invio bloccato dalla validazione conta F1, non un ulteriore caso F3. Il logging generico resta trasversale; quello dell'esaurimento canali appartiene a LA2-F4.",
+  "open_points_method": "open_count esclude solo voci che dichiarano Nessuna/Nessun punto aperto/N/A: non valuta correttezza o pertinenza ai Q. Il conteggio meccanico preregistrato delle righe resta separato in STRUCTURAL.json.",
+  "samples": {
+    "fe3_B0_r1": {
+      "map": [
+        [
+          1,
+          2,
+          3
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          3
+        ]
+      ],
+      "open_count": 3,
+      "nominal_pairs": [],
+      "functions_touched": [
+        "FE3-F1",
+        "FE3-F2",
+        "FE3-F3"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 15,
+          "header": "SCENARIO: S01 - Invio richiesta con dati validi",
+          "source": "responses/fe3_B0_r1.md",
+          "functions": [
+            "FE3-F1",
+            "FE3-F2",
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 26,
+          "header": "SCENARIO: S02 - Inibizione invio per motivazione vuota",
+          "source": "responses/fe3_B0_r1.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 34,
+          "header": "SCENARIO: S03 - Gestione superamento limite caratteri motivazione",
+          "source": "responses/fe3_B0_r1.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 42,
+          "header": "SCENARIO: S04 - Gestione errore di rete durante la sottomissione",
+          "source": "responses/fe3_B0_r1.md",
+          "functions": [
+            "FE3-F3"
+          ]
+        }
+      ]
+    },
+    "fe3_V1_r1": {
+      "map": [
+        [
+          1,
+          2,
+          3
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          3
+        ]
+      ],
+      "open_count": 3,
+      "nominal_pairs": [],
+      "functions_touched": [
+        "FE3-F1",
+        "FE3-F2",
+        "FE3-F3"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 15,
+          "header": "SCENARIO: S01 - Invio form con dati completi e validi",
+          "source": "responses/fe3_V1_r1.md",
+          "functions": [
+            "FE3-F1",
+            "FE3-F2",
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 25,
+          "header": "SCENARIO: S02 - Inibizione invio per motivazione vuota",
+          "source": "responses/fe3_V1_r1.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 33,
+          "header": "SCENARIO: S03 - Gestione superamento limite caratteri motivazione",
+          "source": "responses/fe3_V1_r1.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 41,
+          "header": "SCENARIO: S04 - Gestione errore di rete durante la sottomissione",
+          "source": "responses/fe3_V1_r1.md",
+          "functions": [
+            "FE3-F3"
+          ]
+        }
+      ]
+    },
+    "fe3_V2_r1": {
+      "map": [
+        [
+          1,
+          2,
+          3
+        ],
+        [
+          1
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ]
+      ],
+      "open_count": 3,
+      "nominal_pairs": [],
+      "functions_touched": [
+        "FE3-F1",
+        "FE3-F2",
+        "FE3-F3",
+        "FE3-F4"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 32,
+          "header": "SCENARIO: S01 - Compilazione ed invio valido del form di prenotazione",
+          "source": "responses/fe3_V2_r1.md",
+          "functions": [
+            "FE3-F1",
+            "FE3-F2",
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 43,
+          "header": "SCENARIO: S02 - Blocco invio form per superamento limite caratteri motivazione",
+          "source": "responses/fe3_V2_r1.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 52,
+          "header": "SCENARIO: S03 - Gestione errore lato server durante sottomissione",
+          "source": "responses/fe3_V2_r1.md",
+          "functions": [
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 60,
+          "header": "SCENARIO: S04 - Inibizione input per utente già iscritto all'evento",
+          "source": "responses/fe3_V2_r1.md",
+          "functions": [
+            "FE3-F4"
+          ]
+        }
+      ]
+    },
+    "fe3_V3_r1": {
+      "map": [
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ],
+        [],
+        []
+      ],
+      "open_count": 0,
+      "nominal_pairs": [
+        [
+          4,
+          5
+        ]
+      ],
+      "notes": "S08/S09 verificano lo stato dell'evento, non l'idoneità basata su richieste attive della F4 preregistrata. La sezione Punti aperti dichiara Nessun punto aperto e contiene quattro voci di copertura completa, non quattro domande.",
+      "functions_touched": [
+        "FE3-F1",
+        "FE3-F2",
+        "FE3-F3"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 19,
+          "header": "SCENARIO: S01 - Invio form con motivazione valida",
+          "source": "responses/fe3_V3_r1.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 27,
+          "header": "SCENARIO: S02 - Inibizione invio per motivazione vuota",
+          "source": "responses/fe3_V3_r1.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 35,
+          "header": "SCENARIO: S03 - Inibizione invio per superamento limite caratteri",
+          "source": "responses/fe3_V3_r1.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 47,
+          "header": "SCENARIO: S04 - Selezione della necessità alloggio",
+          "source": "responses/fe3_V3_r1.md",
+          "functions": [
+            "FE3-F2",
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 5,
+          "line": 55,
+          "header": "SCENARIO: S05 - Selezione della non necessità alloggio",
+          "source": "responses/fe3_V3_r1.md",
+          "functions": [
+            "FE3-F2",
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 6,
+          "line": 67,
+          "header": "SCENARIO: S06 - Disattivazione pulsante durante sottomissione",
+          "source": "responses/fe3_V3_r1.md",
+          "functions": [
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 7,
+          "line": 75,
+          "header": "SCENARIO: S07 - Gestione errore lato server durante sottomissione",
+          "source": "responses/fe3_V3_r1.md",
+          "functions": [
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 8,
+          "line": 87,
+          "header": "SCENARIO: S08 - Visualizzazione form con contesto evento valido",
+          "source": "responses/fe3_V3_r1.md",
+          "functions": []
+        },
+        {
+          "ordinal": 9,
+          "line": 94,
+          "header": "SCENARIO: S09 - Disabilitazione form in caso evento non accessibile",
+          "source": "responses/fe3_V3_r1.md",
+          "functions": []
+        }
+      ]
+    },
+    "la2_B0_r1": {
+      "map": [
+        [
+          3
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          4
+        ]
+      ],
+      "open_count": 4,
+      "nominal_pairs": [],
+      "notes": "S01 parte da trigger e destinatario già identificati e verifica solo la consegna; F1 non contata. S03 verifica il trigger statico.",
+      "functions_touched": [
+        "LA2-F2",
+        "LA2-F3",
+        "LA2-F4"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 20,
+          "header": "SCENARIO: S01 - Invio notifica Email riuscito per trigger dinamico",
+          "source": "responses/la2_B0_r1.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 29,
+          "header": "SCENARIO: S02 - Gestione fallimento Email e backoff verso Slack",
+          "source": "responses/la2_B0_r1.md",
+          "functions": [
+            "LA2-F3",
+            "LA2-F4"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 38,
+          "header": "SCENARIO: S03 - Innesco notifica statica per scadenza imminente",
+          "source": "responses/la2_B0_r1.md",
+          "functions": [
+            "LA2-F2",
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 47,
+          "header": "SCENARIO: S04 - Logging anomalia fallimento definitivo senza fallback alternativi",
+          "source": "responses/la2_B0_r1.md",
+          "functions": [
+            "LA2-F4"
+          ]
+        }
+      ]
+    },
+    "la2_V1_r1": {
+      "map": [
+        [
+          1,
+          3
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ]
+      ],
+      "open_count": 4,
+      "nominal_pairs": [],
+      "functions_touched": [
+        "LA2-F1",
+        "LA2-F3",
+        "LA2-F4"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 21,
+          "header": "SCENARIO: S01 - Invio notifica su trigger dinamico con consegna Email",
+          "source": "responses/la2_V1_r1.md",
+          "functions": [
+            "LA2-F1",
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 31,
+          "header": "SCENARIO: S02 - Gestione fallimento Email e backoff verso Slack",
+          "source": "responses/la2_V1_r1.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 41,
+          "header": "SCENARIO: S03 - Consegna definitiva tramite canale Slack dopo fallimento Email",
+          "source": "responses/la2_V1_r1.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 51,
+          "header": "SCENARIO: S04 - Gestione fallimento definitivo e logging anomalia",
+          "source": "responses/la2_V1_r1.md",
+          "functions": [
+            "LA2-F4"
+          ]
+        }
+      ]
+    },
+    "la2_V2_r1": {
+      "map": [
+        [
+          1
+        ],
+        [
+          2
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [],
+        [
+          5
+        ]
+      ],
+      "open_count": 4,
+      "nominal_pairs": [],
+      "notes": "S07 è osservabilità trasversale; il conteggio delle F proviene dagli altri scenari.",
+      "functions_touched": [
+        "LA2-F1",
+        "LA2-F2",
+        "LA2-F3",
+        "LA2-F4",
+        "LA2-F5"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 22,
+          "header": "SCENARIO: S01 - Invio notifica su cambio stato dinamico",
+          "source": "responses/la2_V2_r1.md",
+          "functions": [
+            "LA2-F1"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 32,
+          "header": "SCENARIO: S02 - Invio notifica su scadenza imminente",
+          "source": "responses/la2_V2_r1.md",
+          "functions": [
+            "LA2-F2"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 41,
+          "header": "SCENARIO: S03 - Consegna riuscita via Email",
+          "source": "responses/la2_V2_r1.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 50,
+          "header": "SCENARIO: S04 - Fallimento Email e backoff verso Slack",
+          "source": "responses/la2_V2_r1.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 5,
+          "line": 59,
+          "header": "SCENARIO: S05 - Fallimento definitivo e logging anomalia",
+          "source": "responses/la2_V2_r1.md",
+          "functions": [
+            "LA2-F4"
+          ]
+        },
+        {
+          "ordinal": 6,
+          "line": 68,
+          "header": "SCENARIO: S06 - Gestione fallimento silenzioso senza fallback alternativi",
+          "source": "responses/la2_V2_r1.md",
+          "functions": [
+            "LA2-F4"
+          ]
+        },
+        {
+          "ordinal": 7,
+          "line": 77,
+          "header": "SCENARIO: S07 - Propagazione CorrelationId end-to-end",
+          "source": "responses/la2_V2_r1.md",
+          "functions": []
+        },
+        {
+          "ordinal": 8,
+          "line": 85,
+          "header": "SCENARIO: S08 - Isolamento transazionale della creazione notifica",
+          "source": "responses/la2_V2_r1.md",
+          "functions": [
+            "LA2-F5"
+          ]
+        }
+      ]
+    },
+    "la2_V3_r1": {
+      "map": [
+        [
+          1
+        ],
+        [
+          2
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [
+          5
+        ]
+      ],
+      "open_count": 5,
+      "nominal_pairs": [],
+      "functions_touched": [
+        "LA2-F1",
+        "LA2-F2",
+        "LA2-F3",
+        "LA2-F4",
+        "LA2-F5"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 19,
+          "header": "SCENARIO: S01 - Invio notifica su trigger dinamico di stato",
+          "source": "responses/la2_V3_r1.md",
+          "functions": [
+            "LA2-F1"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 28,
+          "header": "SCENARIO: S02 - Invio notifica su trigger statico di scadenza",
+          "source": "responses/la2_V3_r1.md",
+          "functions": [
+            "LA2-F2"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 37,
+          "header": "SCENARIO: S03 - Fallimento primo tentativo Email e backoff Slack",
+          "source": "responses/la2_V3_r1.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 45,
+          "header": "SCENARIO: S04 - Consegna riuscita su canale Slack dopo fallimento Email",
+          "source": "responses/la2_V3_r1.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 5,
+          "line": 54,
+          "header": "SCENARIO: S05 - Fallimento definitivo dopo esaurimento tentativi",
+          "source": "responses/la2_V3_r1.md",
+          "functions": [
+            "LA2-F4"
+          ]
+        },
+        {
+          "ordinal": 6,
+          "line": 63,
+          "header": "SCENARIO: S06 - Logging strutturato e correlazione end-to-end",
+          "source": "responses/la2_V3_r1.md",
+          "functions": [
+            "LA2-F4"
+          ]
+        },
+        {
+          "ordinal": 7,
+          "line": 71,
+          "header": "SCENARIO: S07 - Non attivazione fallback alternativi non concordati",
+          "source": "responses/la2_V3_r1.md",
+          "functions": [
+            "LA2-F4"
+          ]
+        },
+        {
+          "ordinal": 8,
+          "line": 79,
+          "header": "SCENARIO: S08 - Gestione integrità dati in transazione fallita",
+          "source": "responses/la2_V3_r1.md",
+          "functions": [
+            "LA2-F5"
+          ]
+        }
+      ]
+    },
+    "fe3_B0_r2": {
+      "map": [
+        [
+          1,
+          2,
+          3
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          3
+        ]
+      ],
+      "open_count": 3,
+      "nominal_pairs": [],
+      "functions_touched": [
+        "FE3-F1",
+        "FE3-F2",
+        "FE3-F3"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 17,
+          "header": "SCENARIO: S01 - Invio richiesta con dati validi",
+          "source": "responses/fe3_B0_r2.md",
+          "functions": [
+            "FE3-F1",
+            "FE3-F2",
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 28,
+          "header": "SCENARIO: S02 - Inibizione invio per motivazione vuota",
+          "source": "responses/fe3_B0_r2.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 37,
+          "header": "SCENARIO: S03 - Gestione superamento limite caratteri motivazione",
+          "source": "responses/fe3_B0_r2.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 45,
+          "header": "SCENARIO: S04 - Gestione errore di rete durante la sottomissione",
+          "source": "responses/fe3_B0_r2.md",
+          "functions": [
+            "FE3-F3"
+          ]
+        }
+      ]
+    },
+    "fe3_V1_r2": {
+      "map": [
+        [
+          1,
+          2,
+          3
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          3
+        ]
+      ],
+      "open_count": 3,
+      "nominal_pairs": [],
+      "functions_touched": [
+        "FE3-F1",
+        "FE3-F2",
+        "FE3-F3"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 39,
+          "header": "SCENARIO: S01 - Invio richiesta con dati validi e preferenze",
+          "source": "responses/fe3_V1_r2.md",
+          "functions": [
+            "FE3-F1",
+            "FE3-F2",
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 50,
+          "header": "SCENARIO: S02 - Inibizione invio per motivazione vuota",
+          "source": "responses/fe3_V1_r2.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 59,
+          "header": "SCENARIO: S03 - Blocco invio per superamento limite caratteri",
+          "source": "responses/fe3_V1_r2.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 67,
+          "header": "SCENARIO: S04 - Gestione errore di sottomissione lato server",
+          "source": "responses/fe3_V1_r2.md",
+          "functions": [
+            "FE3-F3"
+          ]
+        }
+      ]
+    },
+    "fe3_V2_r2": {
+      "map": [
+        [
+          1,
+          2,
+          3
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          3
+        ]
+      ],
+      "open_count": 4,
+      "nominal_pairs": [],
+      "functions_touched": [
+        "FE3-F1",
+        "FE3-F2",
+        "FE3-F3"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 33,
+          "header": "SCENARIO: S01 - Compilazione e sottomissione valida della richiesta",
+          "source": "responses/fe3_V2_r2.md",
+          "functions": [
+            "FE3-F1",
+            "FE3-F2",
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 44,
+          "header": "SCENARIO: S02 - Blocco sottomissione per campo motivazione vuoto",
+          "source": "responses/fe3_V2_r2.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 53,
+          "header": "SCENARIO: S03 - Inibizione invio per superamento limite caratteri motivazione",
+          "source": "responses/fe3_V2_r2.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 62,
+          "header": "SCENARIO: S04 - Gestione errore lato server durante sottomissione",
+          "source": "responses/fe3_V2_r2.md",
+          "functions": [
+            "FE3-F3"
+          ]
+        }
+      ]
+    },
+    "fe3_V3_r2": {
+      "map": [
+        [
+          1,
+          3
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ],
+        [
+          2
+        ],
+        [
+          2
+        ]
+      ],
+      "open_count": 2,
+      "nominal_pairs": [
+        [
+          7,
+          8
+        ]
+      ],
+      "notes": "Tre righe nella tabella Punti aperti; la prima dichiara Nessuna e N/A. Due domande effettive. S07/S08 sono due varianti nominali di rendering con preferenze, segnalate per sovrapposizione, non come duplicati testuali.",
+      "functions_touched": [
+        "FE3-F1",
+        "FE3-F2",
+        "FE3-F3"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 18,
+          "header": "SCENARIO: S01 - Invio richiesta con motivazione valida",
+          "source": "responses/fe3_V3_r2.md",
+          "functions": [
+            "FE3-F1",
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 27,
+          "header": "SCENARIO: S02 - Inibizione invio per motivazione vuota",
+          "source": "responses/fe3_V3_r2.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 35,
+          "header": "SCENARIO: S03 - Inibizione invio per superamento limite caratteri",
+          "source": "responses/fe3_V3_r2.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 47,
+          "header": "SCENARIO: S04 - Invio con preferenza alloggio attiva",
+          "source": "responses/fe3_V3_r2.md",
+          "functions": [
+            "FE3-F2",
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 5,
+          "line": 56,
+          "header": "SCENARIO: S05 - Gestione stato di caricamento durante l'invio",
+          "source": "responses/fe3_V3_r2.md",
+          "functions": [
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 6,
+          "line": 64,
+          "header": "SCENARIO: S06 - Gestione errore lato server durante l'invio",
+          "source": "responses/fe3_V3_r2.md",
+          "functions": [
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 7,
+          "line": 75,
+          "header": "SCENARIO: S07 - Caricamento contestuale dei metadati evento",
+          "source": "responses/fe3_V3_r2.md",
+          "functions": [
+            "FE3-F2"
+          ]
+        },
+        {
+          "ordinal": 8,
+          "line": 83,
+          "header": "SCENARIO: S08 - Rendering dinamico dei campi preferenze",
+          "source": "responses/fe3_V3_r2.md",
+          "functions": [
+            "FE3-F2"
+          ]
+        }
+      ]
+    },
+    "la2_B0_r2": {
+      "map": [
+        [
+          1,
+          3
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        [
+          3
+        ]
+      ],
+      "open_count": 4,
+      "nominal_pairs": [],
+      "functions_touched": [
+        "LA2-F1",
+        "LA2-F3",
+        "LA2-F4"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 14,
+          "header": "SCENARIO: S01 - Invio notifica Email riuscito per cambio stato dinamico",
+          "source": "responses/la2_B0_r2.md",
+          "functions": [
+            "LA2-F1",
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 24,
+          "header": "SCENARIO: S02 - Gestione fallimento Email e retry Slack per scadenza imminente",
+          "source": "responses/la2_B0_r2.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 35,
+          "header": "SCENARIO: S03 - Fallimento definitivo e chiusura sequenza senza fallback SMS",
+          "source": "responses/la2_B0_r2.md",
+          "functions": [
+            "LA2-F4"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 45,
+          "header": "SCENARIO: S04 - Invio notifica Slack riuscito dopo fallimento Email iniziale",
+          "source": "responses/la2_B0_r2.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        }
+      ]
+    },
+    "la2_V1_r2": {
+      "map": [
+        [
+          3
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          5
+        ]
+      ],
+      "open_count": 4,
+      "nominal_pairs": [],
+      "notes": "S01 verifica la consegna con routing già dato; F1 è toccata dallo Strategy nel THEN di S03.",
+      "functions_touched": [
+        "LA2-F1",
+        "LA2-F2",
+        "LA2-F3",
+        "LA2-F4",
+        "LA2-F5"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 9,
+          "header": "SCENARIO: S01 - Invio notifica Email su trigger dinamico riuscito",
+          "source": "responses/la2_V1_r2.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 19,
+          "header": "SCENARIO: S02 - Gestione fallimento Email e retry su Slack con backoff",
+          "source": "responses/la2_V1_r2.md",
+          "functions": [
+            "LA2-F3",
+            "LA2-F4"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 29,
+          "header": "SCENARIO: S03 - Innesco notifica statica per scadenza imminente",
+          "source": "responses/la2_V1_r2.md",
+          "functions": [
+            "LA2-F1",
+            "LA2-F2"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 38,
+          "header": "SCENARIO: S04 - Arrivo duplicato di evento trigger e gestione idempotenza",
+          "source": "responses/la2_V1_r2.md",
+          "functions": [
+            "LA2-F5"
+          ]
+        }
+      ]
+    },
+    "la2_V2_r2": {
+      "map": [
+        [
+          1,
+          3
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ]
+      ],
+      "open_count": 4,
+      "nominal_pairs": [],
+      "functions_touched": [
+        "LA2-F1",
+        "LA2-F2",
+        "LA2-F3",
+        "LA2-F4"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 16,
+          "header": "SCENARIO: S01 - Invio notifica su transizione di stato dinamica",
+          "source": "responses/la2_V2_r2.md",
+          "functions": [
+            "LA2-F1",
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 27,
+          "header": "SCENARIO: S02 - Invio notifica su scadenza imminente (Trigger Statico)",
+          "source": "responses/la2_V2_r2.md",
+          "functions": [
+            "LA2-F1",
+            "LA2-F2"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 37,
+          "header": "SCENARIO: S03 - Gestione fallimento primo tentativo e backoff multi-canale",
+          "source": "responses/la2_V2_r2.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 46,
+          "header": "SCENARIO: S04 - Gestione fallimento definitivo e logging anomalia",
+          "source": "responses/la2_V2_r2.md",
+          "functions": [
+            "LA2-F4"
+          ]
+        }
+      ]
+    },
+    "la2_V3_r2": {
+      "map": [
+        [
+          1
+        ],
+        [
+          2
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        [
+          4
+        ],
+        [],
+        [
+          1
+        ]
+      ],
+      "open_count": 2,
+      "nominal_pairs": [],
+      "overlap_pairs": [
+        [
+          6,
+          7
+        ]
+      ],
+      "notes": "S06/S07 condividono GIVEN e WHEN e dividono esiti dello stesso fallimento definitivo; sovrapposizione di un caso negativo, non duplicato testuale. S08 è correlazione trasversale.",
+      "functions_touched": [
+        "LA2-F1",
+        "LA2-F2",
+        "LA2-F3",
+        "LA2-F4"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 18,
+          "header": "SCENARIO: S01 - Invio notifica su trigger dinamico di stato",
+          "source": "responses/la2_V3_r2.md",
+          "functions": [
+            "LA2-F1"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 27,
+          "header": "SCENARIO: S02 - Invio notifica su trigger statico di scadenza imminente",
+          "source": "responses/la2_V3_r2.md",
+          "functions": [
+            "LA2-F2"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 36,
+          "header": "SCENARIO: S03 - Consegna riuscita del primo canale (Email)",
+          "source": "responses/la2_V3_r2.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 45,
+          "header": "SCENARIO: S04 - Gestione fallimento del primo canale (Email) e backoff",
+          "source": "responses/la2_V3_r2.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 5,
+          "line": 54,
+          "header": "SCENARIO: S05 - Consegna riuscita del secondo canale (Slack) dopo fallimento Email",
+          "source": "responses/la2_V3_r2.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 6,
+          "line": 64,
+          "header": "SCENARIO: S06 - Gestione fallimento definitivo su entrambi i canali",
+          "source": "responses/la2_V3_r2.md",
+          "functions": [
+            "LA2-F4"
+          ]
+        },
+        {
+          "ordinal": 7,
+          "line": 74,
+          "header": "SCENARIO: S07 - Arresto sequenza al raggiungimento del limite massimo tentativi",
+          "source": "responses/la2_V3_r2.md",
+          "functions": [
+            "LA2-F4"
+          ]
+        },
+        {
+          "ordinal": 8,
+          "line": 84,
+          "header": "SCENARIO: S08 - Propagazione correlationId end-to-end",
+          "source": "responses/la2_V3_r2.md",
+          "functions": []
+        },
+        {
+          "ordinal": 9,
+          "line": 92,
+          "header": "SCENARIO: S09 - Verifica esistenza utente prima della creazione record",
+          "source": "responses/la2_V3_r2.md",
+          "functions": [
+            "LA2-F1"
+          ]
+        }
+      ]
+    },
+    "fe3_B0_r3": {
+      "map": [
+        [
+          1,
+          2,
+          3
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          3
+        ]
+      ],
+      "open_count": 3,
+      "nominal_pairs": [],
+      "functions_touched": [
+        "FE3-F1",
+        "FE3-F2",
+        "FE3-F3"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 35,
+          "header": "SCENARIO: S01 - Invio richiesta con dati validi",
+          "source": "responses/fe3_B0_r3.md",
+          "functions": [
+            "FE3-F1",
+            "FE3-F2",
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 46,
+          "header": "SCENARIO: S02 - Invio bloccato per motivazione vuota",
+          "source": "responses/fe3_B0_r3.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 55,
+          "header": "SCENARIO: S03 - Invio bloccato per superamento limite caratteri",
+          "source": "responses/fe3_B0_r3.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 64,
+          "header": "SCENARIO: S04 - Gestione errore server durante sottomissione",
+          "source": "responses/fe3_B0_r3.md",
+          "functions": [
+            "FE3-F3"
+          ]
+        }
+      ]
+    },
+    "fe3_V1_r3": {
+      "map": [
+        [
+          1,
+          2,
+          3
+        ],
+        [
+          1
+        ],
+        [
+          3
+        ],
+        [
+          1,
+          2,
+          3
+        ]
+      ],
+      "open_count": 3,
+      "nominal_pairs": [
+        [
+          1,
+          4
+        ]
+      ],
+      "notes": "S01/S04 sono due invii nominali, con preferenza selezionata e senza preferenze.",
+      "functions_touched": [
+        "FE3-F1",
+        "FE3-F2",
+        "FE3-F3"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 33,
+          "header": "SCENARIO: S01 - Invio form con dati validi e preferenze corrette",
+          "source": "responses/fe3_V1_r3.md",
+          "functions": [
+            "FE3-F1",
+            "FE3-F2",
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 44,
+          "header": "SCENARIO: S02 - Inibizione invio per motivazione troppo lunga",
+          "source": "responses/fe3_V1_r3.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 54,
+          "header": "SCENARIO: S03 - Gestione errore lato server durante la sottomissione",
+          "source": "responses/fe3_V1_r3.md",
+          "functions": [
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 62,
+          "header": "SCENARIO: S04 - Invio form senza preferenze selezionate",
+          "source": "responses/fe3_V1_r3.md",
+          "functions": [
+            "FE3-F1",
+            "FE3-F2",
+            "FE3-F3"
+          ]
+        }
+      ]
+    },
+    "fe3_V2_r3": {
+      "map": [
+        [
+          1,
+          2,
+          3
+        ],
+        [
+          1,
+          2,
+          3
+        ],
+        [
+          1
+        ],
+        [
+          3
+        ]
+      ],
+      "open_count": 3,
+      "nominal_pairs": [
+        [
+          1,
+          2
+        ]
+      ],
+      "notes": "S01/S02 sono due invii nominali, con alloggio selezionato e deselezionato.",
+      "functions_touched": [
+        "FE3-F1",
+        "FE3-F2",
+        "FE3-F3"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 27,
+          "header": "SCENARIO: S01 - Invio richiesta con motivazione valida e alloggio richiesto",
+          "source": "responses/fe3_V2_r3.md",
+          "functions": [
+            "FE3-F1",
+            "FE3-F2",
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 37,
+          "header": "SCENARIO: S02 - Invio richiesta con motivazione valida e alloggio non richiesto",
+          "source": "responses/fe3_V2_r3.md",
+          "functions": [
+            "FE3-F1",
+            "FE3-F2",
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 47,
+          "header": "SCENARIO: S03 - Inibizione invio per superamento limite caratteri motivazione",
+          "source": "responses/fe3_V2_r3.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 56,
+          "header": "SCENARIO: S04 - Gestione errore server durante sottomissione",
+          "source": "responses/fe3_V2_r3.md",
+          "functions": [
+            "FE3-F3"
+          ]
+        }
+      ]
+    },
+    "fe3_V3_r3": {
+      "map": [
+        [
+          1,
+          3
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ]
+      ],
+      "open_count": 0,
+      "nominal_pairs": [
+        [
+          4,
+          5
+        ]
+      ],
+      "notes": "Quattro righe Punti aperti, tutte Nessuna / N/A: zero punti dichiarati. La F4 interna alla risposta è feedback di rete, non FE3-F4 preregistrata. Gli ordinali 8/9 sono privi di WHEN.",
+      "functions_touched": [
+        "FE3-F1",
+        "FE3-F2",
+        "FE3-F3"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 19,
+          "header": "SCENARIO: F1-01 - Invio form con motivazione valida",
+          "source": "responses/fe3_V3_r3.md",
+          "functions": [
+            "FE3-F1",
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 28,
+          "header": "SCENARIO: F1-02 - Blocco invio per motivazione vuota",
+          "source": "responses/fe3_V3_r3.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 36,
+          "header": "SCENARIO: F1-03 - Blocco invio per superamento limite caratteri",
+          "source": "responses/fe3_V3_r3.md",
+          "functions": [
+            "FE3-F1"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 49,
+          "header": "SCENARIO: F2-01 - Sottomissione con richiesta di alloggio",
+          "source": "responses/fe3_V3_r3.md",
+          "functions": [
+            "FE3-F2",
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 5,
+          "line": 58,
+          "header": "SCENARIO: F2-02 - Sottomissione senza richiesta di alloggio",
+          "source": "responses/fe3_V3_r3.md",
+          "functions": [
+            "FE3-F2",
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 6,
+          "line": 71,
+          "header": "SCENARIO: F3-01 - Disattivazione pulsante al click",
+          "source": "responses/fe3_V3_r3.md",
+          "functions": [
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 7,
+          "line": 79,
+          "header": "SCENARIO: F3-02 - Prevenzione sottomissione parallela",
+          "source": "responses/fe3_V3_r3.md",
+          "functions": [
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 8,
+          "line": 91,
+          "header": "SCENARIO: F4-01 - Gestione errore di timeout durante invio",
+          "source": "responses/fe3_V3_r3.md",
+          "functions": [
+            "FE3-F3"
+          ]
+        },
+        {
+          "ordinal": 9,
+          "line": 99,
+          "header": "SCENARIO: F4-02 - Gestione errore server (500) durante invio",
+          "source": "responses/fe3_V3_r3.md",
+          "functions": [
+            "FE3-F3"
+          ]
+        }
+      ]
+    },
+    "la2_B0_r3": {
+      "map": [
+        [
+          3
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        [
+          1,
+          2
+        ]
+      ],
+      "open_count": 3,
+      "nominal_pairs": [],
+      "notes": "S01 verifica la consegna con routing già dato; F1 è toccata dallo Strategy nel THEN di S04.",
+      "functions_touched": [
+        "LA2-F1",
+        "LA2-F2",
+        "LA2-F3",
+        "LA2-F4"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 14,
+          "header": "SCENARIO: S01 - Invio notifica Email su trigger dinamico riuscito",
+          "source": "responses/la2_B0_r3.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 24,
+          "header": "SCENARIO: S02 - Gestione fallimento Email e backoff verso Slack",
+          "source": "responses/la2_B0_r3.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 33,
+          "header": "SCENARIO: S03 - Fallimento definitivo e chiusura sequenza",
+          "source": "responses/la2_B0_r3.md",
+          "functions": [
+            "LA2-F4"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 42,
+          "header": "SCENARIO: S04 - Innesco trigger statico da job periodico",
+          "source": "responses/la2_B0_r3.md",
+          "functions": [
+            "LA2-F1",
+            "LA2-F2"
+          ]
+        }
+      ]
+    },
+    "la2_V1_r3": {
+      "map": [
+        [
+          3
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          4
+        ],
+        [
+          1,
+          2,
+          3
+        ]
+      ],
+      "open_count": 3,
+      "nominal_pairs": [],
+      "notes": "S01 verifica solo la consegna; S04 asserisce l'esclusione di EMAIL in funzione della configurazione del ruolo (F1).",
+      "functions_touched": [
+        "LA2-F1",
+        "LA2-F2",
+        "LA2-F3",
+        "LA2-F4"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 22,
+          "header": "SCENARIO: S01 - Invio notifica Email riuscito per trigger dinamico",
+          "source": "responses/la2_V1_r3.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 31,
+          "header": "SCENARIO: S02 - Gestione fallimento Email con backoff verso Slack",
+          "source": "responses/la2_V1_r3.md",
+          "functions": [
+            "LA2-F3",
+            "LA2-F4"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 40,
+          "header": "SCENARIO: S03 - Arrivo al limite massimo tentativi e chiusura sequenza",
+          "source": "responses/la2_V1_r3.md",
+          "functions": [
+            "LA2-F4"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 49,
+          "header": "SCENARIO: S04 - Invio notifica Slack riuscito per trigger statico",
+          "source": "responses/la2_V1_r3.md",
+          "functions": [
+            "LA2-F1",
+            "LA2-F2",
+            "LA2-F3"
+          ]
+        }
+      ]
+    },
+    "la2_V2_r3": {
+      "map": [
+        [
+          3
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ]
+      ],
+      "open_count": 4,
+      "nominal_pairs": [],
+      "functions_touched": [
+        "LA2-F1",
+        "LA2-F2",
+        "LA2-F3",
+        "LA2-F4"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 12,
+          "header": "SCENARIO: S01 - Invio notifica su variazione di stato dinamico",
+          "source": "responses/la2_V2_r3.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 22,
+          "header": "SCENARIO: S02 - Invio notifica su scadenza imminente (Trigger Statico)",
+          "source": "responses/la2_V2_r3.md",
+          "functions": [
+            "LA2-F1",
+            "LA2-F2"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 32,
+          "header": "SCENARIO: S03 - Gestione fallimento primo tentativo e backoff multi-canale",
+          "source": "responses/la2_V2_r3.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 41,
+          "header": "SCENARIO: S04 - Gestione fallimento definitivo e logging anomalia",
+          "source": "responses/la2_V2_r3.md",
+          "functions": [
+            "LA2-F4"
+          ]
+        }
+      ],
+      "notes": "S01 elabora un trigger già rilevato e verifica la consegna; F1 è toccata dallo Strategy nel THEN di S02."
+    },
+    "la2_V3_r3": {
+      "map": [
+        [
+          1
+        ],
+        [
+          2
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        [
+          5
+        ],
+        []
+      ],
+      "open_count": 3,
+      "nominal_pairs": [],
+      "notes": "S08 verifica logging trasversale durante backoff, non una nuova F.",
+      "functions_touched": [
+        "LA2-F1",
+        "LA2-F2",
+        "LA2-F3",
+        "LA2-F4",
+        "LA2-F5"
+      ],
+      "scenario_refs": [
+        {
+          "ordinal": 1,
+          "line": 21,
+          "header": "SCENARIO: S01 - Invio notifica su trigger dinamico di stato",
+          "source": "responses/la2_V3_r3.md",
+          "functions": [
+            "LA2-F1"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 31,
+          "header": "SCENARIO: S02 - Invio notifica su trigger statico di scadenza imminente",
+          "source": "responses/la2_V3_r3.md",
+          "functions": [
+            "LA2-F2"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 40,
+          "header": "SCENARIO: S03 - Invio riuscito del primo canale (Email)",
+          "source": "responses/la2_V3_r3.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 49,
+          "header": "SCENARIO: S04 - Fallimento del primo canale e backoff verso Slack",
+          "source": "responses/la2_V3_r3.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 5,
+          "line": 58,
+          "header": "SCENARIO: S05 - Invio riuscito del secondo canale (Slack) dopo fallimento Email",
+          "source": "responses/la2_V3_r3.md",
+          "functions": [
+            "LA2-F3"
+          ]
+        },
+        {
+          "ordinal": 6,
+          "line": 67,
+          "header": "SCENARIO: S06 - Fallimento definitivo e logging dell'anomalia",
+          "source": "responses/la2_V3_r3.md",
+          "functions": [
+            "LA2-F4"
+          ]
+        },
+        {
+          "ordinal": 7,
+          "line": 76,
+          "header": "SCENARIO: S07 - Arrivo di messaggio duplicato (Idempotenza)",
+          "source": "responses/la2_V3_r3.md",
+          "functions": [
+            "LA2-F5"
+          ]
+        },
+        {
+          "ordinal": 8,
+          "line": 84,
+          "header": "SCENARIO: S08 - Logging strutturato durante il backoff",
+          "source": "responses/la2_V3_r3.md",
+          "functions": []
+        }
+      ]
+    }
+  }
+}

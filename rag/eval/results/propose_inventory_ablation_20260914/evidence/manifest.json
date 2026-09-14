@@ -1,0 +1,111 @@
+{
+  "frozen_at": "2026-09-14T13:16:15.808379+00:00",
+  "provider": "ollama",
+  "model": {
+    "name": "qwen3.5:9b",
+    "model": "qwen3.5:9b",
+    "modified_at": "2026-07-15T15:23:28.4650472+02:00",
+    "size": 6594474711,
+    "digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+    "details": {
+      "parent_model": "",
+      "format": "gguf",
+      "family": "qwen35",
+      "families": [
+        "qwen35"
+      ],
+      "parameter_size": "9.7B",
+      "quantization_level": "Q4_K_M",
+      "context_length": 262144,
+      "embedding_length": 4096
+    },
+    "capabilities": [
+      "vision",
+      "completion",
+      "tools",
+      "thinking"
+    ]
+  },
+  "payload_options": {
+    "model": "qwen3.5:9b",
+    "stream": false,
+    "think": false,
+    "options": {
+      "num_ctx": 16384,
+      "temperature": 0.1
+    }
+  },
+  "schedule": [
+    {
+      "feature": "fe3",
+      "arm": "V4",
+      "repetition": 1,
+      "sample_id": "fe3_V4_r1"
+    },
+    {
+      "feature": "la2",
+      "arm": "V4",
+      "repetition": 1,
+      "sample_id": "la2_V4_r1"
+    },
+    {
+      "feature": "fe3",
+      "arm": "V4",
+      "repetition": 2,
+      "sample_id": "fe3_V4_r2"
+    },
+    {
+      "feature": "la2",
+      "arm": "V4",
+      "repetition": 2,
+      "sample_id": "la2_V4_r2"
+    },
+    {
+      "feature": "fe3",
+      "arm": "V4",
+      "repetition": 3,
+      "sample_id": "fe3_V4_r3"
+    },
+    {
+      "feature": "la2",
+      "arm": "V4",
+      "repetition": 3,
+      "sample_id": "la2_V4_r3"
+    }
+  ],
+  "wall_budget_seconds": 1800,
+  "hashes": {
+    "PROTOCOL.md": "f98fa0ae960ca51f98e5270e5823bee932e44222862cf65e975e009c6798eb74",
+    "ADDENDUM.md": "9539f275b82baca31b2aa43abeac5ce6b654b8df5998c764ccf5ee8ea937119b",
+    "run_v4.py.txt": "f4fd2995af76c4269ae2c04960e9050fcc39fbc72850fc5504ab4121d36b10a4",
+    "V4_DIFF.patch": "58a0ccd2d507ab3d2293e8ab96bc02603224ac1aa14aff5679d189a4fc299d25",
+    "inputs/fe3_canvas.md": "1097824511c76ae13b593337978e1caf9fba80e532696e5433be8c77279754fb",
+    "inputs/fe3_context.md": "53f76e9f54cba96dbd16c8f306e7dec001d10d8de6db472df443b5e024baad6e",
+    "inputs/fe3_V4_prompt.md": "65f28347408dac77a9384c8e62d8c65f5a769f8d608dad6532ba52e92780ef09",
+    "inputs/la2_canvas.md": "696618417517d2c31f8cadb8db83a321f920a0bf8987efc46864eb79f923ce35",
+    "inputs/la2_context.md": "86965b90f9bd0e590f677d4d0dce11939a25d6129a3637ad0c41ca999ebd5f51",
+    "inputs/la2_V4_prompt.md": "22ae4957e75093132f55b479eb65998847377e086a9df8b3b0342d6c23543b07",
+    "inputs/observability_standards.md": "6fa1f554e1758ef5ce7755627d1f14aa7cda4d25bc49c02137c020b18fed7426",
+    "inputs/spec_form_1.4.md": "919852e2e930582fe6b069fa5631862e0d35ee46ba690cd536b21b55b9f39986",
+    "inputs/spec_notifications_2.4.md": "0e182542c199e487637b17e67a0d9a743b536e53f927ba484fbb982300b0c22f",
+    "variants/V4_spec.md": "c0755ed9c486a9b122ab8a974db8c7cfca47fd4217c46efdc21d8afdf24c28ec"
+  },
+  "reused_runner_sha256": "93ded9849e5a0037952a685039ab8e43011fbf754006a6984d304481216b7a60",
+  "comparison_hashes": {
+    "responses/fe3_V3_r1.md": "61a2d9c6d525cd343182361d761fdb01ddd5e672c817a76d09d9c23150cee767",
+    "responses/fe3_V3_r1_provider.json": "8386b5da22bf861907178f213291ec99d5d8b458ae9b3edd5fa50bdd6a9b8b0c",
+    "responses/la2_V3_r1.md": "004a3475cce1a7f8736ea0a4614a581bb52750301f91a4e07ed54a958d040034",
+    "responses/la2_V3_r1_provider.json": "ce41dc038abeac1dfe6c13d813f8f0b075520539b3ab77fb95e3e11d3f7adb51",
+    "responses/fe3_V3_r2.md": "5c0a508b380f582c3bc05596c70edafe00fd24e43576b8230fade3b38abe6a5f",
+    "responses/fe3_V3_r2_provider.json": "10d09928547e1e020de3bc99ec4cca59a30ccecda5daf2c74f3429e9d93076af",
+    "responses/la2_V3_r2.md": "b6ad4f573adfebf24af36ada40ee295efc7da7a0c79e56aea0dc338a6a0b99f0",
+    "responses/la2_V3_r2_provider.json": "72ac154eacc14a750a38efb53d135cf66a45186fdb0d2fdfc744de2ed04ca532",
+    "responses/fe3_V3_r3.md": "73c5248f9b1f1db6520c1af90555de8ba1e93eb65027fab7d64541ce27ca1054",
+    "responses/fe3_V3_r3_provider.json": "5e1a9627af592d2d6dc9fc0f5c2bec84eae69bb26cabf22af8a88a56e9b9df8a",
+    "responses/la2_V3_r3.md": "5f2e73df57d8dd0a4bdd87ce157c60331e80b853078b4cb6572560a17393d394",
+    "responses/la2_V3_r3_provider.json": "cad418b12039e822ad9a2961ebd54718b2b93917fefaf9c540e2fca468445a7c"
+  },
+  "approved_v4_sha256": "c0755ed9c486a9b122ab8a974db8c7cfca47fd4217c46efdc21d8afdf24c28ec",
+  "application_prompt_sha256": "e1c18d2df134ffdc0eaa3ea2a0a2e272a4a27e3a7bedbdb13935a9fda26da220",
+  "quality_status": "not_evaluated"
+}

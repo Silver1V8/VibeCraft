@@ -1,5 +1,10 @@
 # Evidenze delle valutazioni
 
+**Fase 2 chiusa, 14 settembre 2026:** [resoconto finale dei tre giri Propose](FASE2_PROPOSE_20260914.md).
+Miglioramento qualitativo non dimostrato; V3 non adottata, V4 respinta.
+Il resoconto include la riserva sul perimetro FE3-F4, da applicare anche ai
+conteggi FE3 riportati più sotto. Nessuno starter o pilot avviato.
+
 `history.jsonl` conserva gli eventi aggregati della pagina `/eval`. I dati che
 permettono di esaminarli vivono in `<run>/evidence/`. Fuori da quella cartella gli
 artefatti restano locali: non basta l'estensione JSON per renderli evidenze.
@@ -88,6 +93,60 @@ mai usati per scegliere o modificare il prompt, e il congelamento del giudice
 prima della valutazione. I risultati del giudice restano separati dai
 [verdetti umani archiviati](../golden_attribution.yaml): questa nota non li
 modifica e non certifica la loro validità sull'indice attuale.
+
+## Ablazione Propose del 14 settembre 2026 — confronto descrittivo
+
+Confrontati i file interi di `rag/prompts/spec.md` in `bd87bd7^` e `bd87bd7`,
+su FE3 e LA2 con tre ripetizioni per combinazione (12 risposte), Canvas e fonti
+congelati e lo stesso modello. Le due modifiche di `bd87bd7` — assunzioni
+dichiarate/punti aperti e numero di scenari per funzionalità — sono misurate
+insieme: questo confronto non ne separa gli effetti e non misura MCP o il gate.
+
+Evidenze: [protocollo](propose_ablation_20260914/evidence/PROTOCOL.md),
+[nota di metodo](propose_ablation_20260914/evidence/HUMAN_REVIEW.md),
+[schede FE3](propose_ablation_20260914/evidence/REVIEW_FE3.md),
+[schede LA2](propose_ablation_20260914/evidence/REVIEW_LA2.md),
+[chiave](propose_ablation_20260914/evidence/AFTER_REVIEW/KEY.json) e
+[misure provider](propose_ablation_20260914/evidence/AFTER_REVIEW/MEASUREMENTS.json).
+La nota di metodo e le intestazioni delle schede sono state completate prima
+dell'apertura della chiave. La revisione è umana con assistenza di Claude;
+ordine di accesso alle fonti diverso fra FE3 e LA2, 13 rilievi sul protocollo
+e 3 affermazioni non valutabili restano limiti espliciti della misura.
+
+| Conteggio | `bd87bd7^` | `bd87bd7` |
+|---|---:|---:|
+| Ambiguità preregistrate dichiarate, FE3 + LA2 | 0 / 27 | 3 / 27 |
+| FE3: F elencate nel campo nominale e negativo coperti | 7 | 2 |
+| LA2: F elencate nel campo nominale e negativo coperti | 6 | 4 |
+| FE3: affermazioni supported / valutabili | 18 / 28 | 19 / 25 |
+| FE3: unsupported / conflicted / not_assessable | 4 / 6 / 0 | 4 / 2 / 0 |
+| LA2: affermazioni supported / valutabili | 18 / 34 | 13 / 33 |
+| LA2: unsupported / conflicted / not_assessable | 2 / 14 / 2 | 1 / 19 / 1 |
+| Intestazioni SCENARIO per risposta, su entrambe le feature | 7 in 6/6 risposte | 4 in 6/6 risposte |
+
+Le ambiguità sono sommate sulle tre ripetizioni: 9 opportunità FE3 e 18 LA2
+per gruppo, non 27 dubbi distinti. La copertura elencata scende FE3 7→2 e
+LA2 6→4; sono conteggi letterali dei campi delle schede, con le riserve già
+annotate (P06 su F2; P07 su F1 e F5), non coperture complete certificate né
+scenari soddisfatti da codice. Il rapporto supported/valutabili e il numero di
+conflicted vanno in direzioni opposte sulle due feature; i conteggi delle
+affermazioni restano separati da copertura e omissioni.
+
+La separazione 7/4 nel numero di scenari è netta su tutte le risposte. FE3 ha
+quattro funzionalità attese e LA2 cinque: il minimo teorico sarebbe 8 e 10
+scenari rispettivamente, salvo casi irrisolti dichiarati. Il conteggio degli
+scenari può spiegare il calo di copertura indipendentemente dalla modifica
+sulle assunzioni e sui punti aperti; è un'ipotesi da verificare, non una causa
+isolata da questa ablazione. Il prompt contiene la regola esplicita per
+funzionalità, ma anche il richiamo «Per la copertura che eccede i 4 scenari»
+senza ripeterne l'ambito. Nessuna correzione del prompt o nuova generazione
+è stata effettuata per questa registrazione.
+
+Il riepilogo P08 è stato corretto da 7/9 a 6/9 supported, conformemente alle
+nove righe della sua tabella (6 supported, 2 unsupported, 1 conflicted);
+nessun verdetto atomico è cambiato. I file meccanici in AFTER_REVIEW conservano
+lo stato precedente alla revisione: i conteggi umani sopra provengono dalle
+schede aggiornate. Nessuno starter o pilot avviato.
 
 ## Punto aperto — cache condivisa dei prossimi pilot Docling
 

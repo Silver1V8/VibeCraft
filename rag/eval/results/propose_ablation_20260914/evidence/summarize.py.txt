@@ -1,0 +1,165 @@
+"""Riepilogo meccanico senza giudice: python summarize.py.txt dopo la run."""
+import csv
+import hashlib
+import json
+import re
+import statistics
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+
+
+def main():
+    manifest = json.loads((HERE / "manifest.json").read_text(encoding="utf-8"))
+    status = json.loads((HERE / "run_status.json").read_text(encoding="utf-8"))
+    assert status["status"] != "running", "Non riepilogare un lotto ancora attivo"
+    # Etichette e confronti restano separati dal materiale destinato al revisore.
+    after = HERE / "AFTER_REVIEW"
+    after.mkdir(exist_ok=True)
+    rows = []
+    for sample in status["samples"]:
+        path = HERE / "responses" / (sample["sample_id"] + "_provider.json")
+        if not path.exists():
+            rows.append({**sample, "usage_complete": False})
+            continue
+        recording = json.loads(path.read_text(encoding="utf-8"))
+        replies = [a.get("response") or {} for a in recording["attempts"]]
+        observed = {key: [r[key] for r in replies if isinstance(r.get(key), int)]
+                    for key in ("prompt_eval_count", "eval_count")}
+        complete = recording["capture_complete"] and all(len(v) == len(replies) for v in observed.values())
+        raw_file = HERE / "responses" / (sample["sample_id"] + ".md")
+        raw = raw_file.read_text(encoding="utf-8") if raw_file.exists() else ""
+        fences = re.findall(r"^```gherkin\s*\n(.*?)^```\s*$", raw, re.M | re.S)
+        headers = re.findall(r"^\s*SCENARIO:\s*S\d+\s*[-–—]", raw, re.M)
+        rows.append({
+            **sample, "provider_attempts": len(replies), "usage_complete": complete,
+            "input_tokens": sum(observed["prompt_eval_count"]) if complete else None,
+            "output_tokens": sum(observed["eval_count"]) if complete else None,
+            "observed_input_subtotal": sum(observed["prompt_eval_count"]),
+            "observed_output_subtotal": sum(observed["eval_count"]),
+            "provider_seconds": sum(r.get("total_duration", 0) for r in replies) / 1e9
+                if all("total_duration" in r for r in replies) else None,
+            "load_seconds": sum(r.get("load_duration", 0) for r in replies) / 1e9
+                if all("load_duration" in r for r in replies) else None,
+            "raw_uppercase_scenario_headers": len(headers), "closed_gherkin_fences": len(fences),
+            "output_sha256": hashlib.sha256(raw_file.read_bytes()).hexdigest() if raw_file.exists() else None,
+        })
+    groups = []
+    for feature in ("fe3", "la2"):
+        for arm in ("old", "new"):
+            cases = [r for r in rows if r["feature"] == feature and r["arm"] == arm]
+            group = {"feature": feature, "arm": arm, "n": len(cases), "metrics": {}}
+            for metric in ("input_tokens", "output_tokens", "provider_seconds", "raw_uppercase_scenario_headers"):
+                values = [r[metric] for r in cases if r.get(metric) is not None]
+                group["metrics"][metric] = {
+                    "n_observed": len(values), "values": values,
+                    "mean": statistics.mean(values) if values else None,
+                    "sample_sd": statistics.stdev(values) if len(values) >= 2 else None,
+                    "min": min(values) if values else None, "max": max(values) if values else None,
+                }
+            groups.append(group)
+    result = {"run_status": status["status"], "elapsed_seconds": status["elapsed_seconds"],
+              "quality_status": "pending_human_review", "human_verdicts_received": 0,
+              "scope": "Joint bd87bd7 prompt changes only; no MCP, retrieval, implementation or gate claim",
+              "useless_calls": None, "useless_calls_reason": "N/A: no agent research loop in Propose",
+              "samples": rows, "groups": groups}
+    (after / "MEASUREMENTS.json").write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    (after / "KEY.json").write_text(json.dumps({
+        "warning": "Aprire solo dopo aver completato i verdetti umani",
+        "arms": {"old": "bd87bd7^", "new": "bd87bd7"},
+        "samples": manifest["schedule"],
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
+    lines = ["# Risultato meccanico dell'ablazione Propose", "",
+             "Stato qualità: **pending_human_review**, 0 verdetti umani. Nessun giudice LLM.",
+             "Non è ancora possibile concludere se la qualità sia migliorata.", "",
+             "Misura congiunta delle due modifiche di bd87bd7; non separa i contributi e non misura MCP, retrieval o gate.",
+             "Input, dubbi, funzionalità e criteri: [protocollo preregistrato](../PROTOCOL.md).",
+             "Aprire questo riepilogo solo DOPO aver compilato [le schede umane](../HUMAN_REVIEW.md).", "",
+             f"Run: {status['status']}; durata wall {status['elapsed_seconds'] / 60:.2f} minuti.", "",
+             "| Feature | Braccio | n | Token input, media | Token output, media ± SD | Secondi provider, media ± SD | Intestazioni SCENARIO, valori |",
+             "|---|---|---:|---:|---:|---:|---|" ]
+    for group in groups:
+        m = group["metrics"]
+        def value(metric, sd=False):
+            data = m[metric]
+            if data["mean"] is None:
+                return "unknown"
+            text = f"{data['mean']:.1f}"
+            return text + (f" ± {data['sample_sd']:.1f}" if sd and data["sample_sd"] is not None else "")
+        lines.append(f"| {group['feature']} | {group['arm']} | {group['n']} | {value('input_tokens')} | {value('output_tokens', True)} | {value('provider_seconds', True)} | {m['raw_uppercase_scenario_headers']['values']} |")
+    lines += ["", "SD campionaria, n=3 pianificato: descrizione della dispersione, nessuna significatività inferita.",
+              "Le intestazioni sono conteggi testuali, non scenari validi, coperti o soddisfatti.",
+              "Token da prompt_eval_count/eval_count; nessun proxy. I tempi includono cache/caricamenti osservati, senza correzioni a posteriori.",
+              "Usage assente = unknown, non zero. Chiamate inutili = N/A: nessuna ricerca durante Propose.",
+              "Il costo in valuta non è disponibile: inferenza Ollama locale, nessuna tariffa per token assunta.", "",
+              "Le metriche qualitative (supporto, ambiguità, copertura e omissioni) restano da compilare da una persona.",
+              "Nessuno starter o pilot avviato. La decisione sul pilot resta successiva alla valutazione umana."]
+    (after / "RESULTS.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    human = ["# Valutazione umana — campioni senza etichetta del braccio", "",
+             "Tutte le valutazioni sono ancora pending_human_review. Non aprire AFTER_REVIEW/, manifest.json, run_status.json, i prompt in inputs/ o i payload provider prima di compilare: contengono le etichette o le istruzioni dei bracci.",
+             "Il testo può rivelare il braccio: questo non è un cieco garantito.",
+             "Leggere i [criteri preregistrati](REVIEW_CRITERIA.md), poi compilare le schede [FE3](REVIEW_FE3.md) e [LA2](REVIEW_LA2.md). Contengono risposte integrali in ordine di codice campione, senza etichetta, timestamp o contatori che possano suggerire il braccio.",
+             "Lasciare vuoto ciò che non è stato valutato, senza trasformarlo in zero. I CSV sono un'alternativa alle schede Markdown, non lavoro aggiuntivo richiesto.",
+             "In claims.csv aggiungere una riga per affermazione normativa atomica, con citazione e fonte.",
+             "Verdetti ammessi: supported / unsupported / conflicted / not_assessable.",
+             "In human_review.csv indicare Q dichiarati correttamente, F con entrambi i casi, casi mancanti dichiarati e omissioni silenziose.", "",
+             "| Campione | Feature | Risposta grezza |", "|---|---|---|"]
+    by_id = sorted(manifest["schedule"], key=lambda r: r["sample_id"])
+    for case in by_id:
+        name = case["sample_id"]
+        human.append(f"| {name} | {case['feature']} | [{name}](responses/{name}.md) |")
+    (HERE / "HUMAN_REVIEW.md").write_text("\n".join(human) + "\n", encoding="utf-8")
+    protocol = (HERE / "PROTOCOL.md").read_text(encoding="utf-8")
+    criteria = protocol[protocol.index("## FE3:"):protocol.index("## Decisione successiva")]
+    (HERE / "REVIEW_CRITERIA.md").write_text(
+        "# Criteri di revisione\n\nEstratto invariato del protocollo fissato prima delle generazioni; nessun criterio aggiunto dopo le risposte.\n\n" + criteria,
+        encoding="utf-8")
+    for feature in ("fe3", "la2"):
+        review_path = HERE / ("REVIEW_" + feature.upper() + ".md")
+        if review_path.exists():
+            continue  # Non cancellare mai valutazioni umane durante un nuovo riepilogo.
+        sources = (["spec_form_1.4.md"] if feature == "fe3" else
+                   ["spec_notifications_2.4.md", "observability_standards.md"])
+        sheet = ["# Schede " + feature.upper(), "", "Stato: pending_human_review. Revisore: ______. Data: ______.", "",
+                 "[Criteri](REVIEW_CRITERIA.md) · [Canvas congelato](inputs/" + feature + "_canvas.md)", "",
+                 "Fonti integrali: " + ", ".join("[" + s + "](inputs/" + s + ")" for s in sources), "",
+                 "Compilare i campi dopo ogni risposta. L'ordine è per codice campione, non per esecuzione o template."]
+        for case in by_id:
+            if case["feature"] != feature:
+                continue
+            name = case["sample_id"]
+            raw_path = HERE / "responses" / (name + ".md")
+            raw = raw_path.read_text(encoding="utf-8") if raw_path.exists() else "Risposta non disponibile: non valutabile."
+            sheet += ["", "---", "", "## Campione " + name, "", "### Risposta integrale", "",
+                      raw, "", "### Valutazione umana di " + name, "",
+                      "- Stato: pending_human_review", "- Ambiguità dichiarate correttamente (ID Q):",
+                      "- Funzionalità con nominale e negativo coperti (ID F):",
+                      "- Funzionalità con copertura parziale (ID F e caso mancante):",
+                      "- Casi mancanti dichiarati esplicitamente:", "- Omissioni non dichiarate:",
+                      "- Forma GIVEN/WHEN/THEN e fence (annotazioni, non giudizio sostanziale):",
+                      "- Note / punti non valutabili:", "",
+                      "Affermazioni normative atomiche: aggiungere righe; verdict = supported / unsupported / conflicted / not_assessable.", "",
+                      "| ID | Citazione dalla risposta | Verdetto | Fonte e passaggio | Motivazione |",
+                      "|---|---|---|---|---|", "| | | | | |", ""]
+        review_path.write_text("\n".join(sheet), encoding="utf-8")
+    for filename, fields in (
+        ("human_review.csv", ["sample_id", "feature", "status", "reviewer", "reviewed_at", "declared_Q_ids",
+                              "fully_covered_F_ids", "partial_F_ids", "declared_missing_cases", "silent_omissions", "notes"]),
+        ("claims.csv", ["sample_id", "claim_id", "quote", "verdict", "source_reference", "reason", "reviewer"]),
+    ):
+        path = HERE / filename
+        if path.exists():
+            continue  # Non sovrascrivere mai lavoro umano già iniziato.
+        with path.open("w", newline="", encoding="utf-8") as stream:
+            writer = csv.DictWriter(stream, fieldnames=fields)
+            writer.writeheader()
+            if filename == "human_review.csv":
+                for case in by_id:
+                    writer.writerow({"sample_id": case["sample_id"], "feature": case["feature"], "status": "pending_human_review"})
+    # Non esporre la chiave o confronti fra bracci nemmeno nell'output del comando.
+    print(json.dumps({"run_status": result["run_status"], "samples": len(rows),
+                      "quality_status": "pending_human_review", "review_entry": "HUMAN_REVIEW.md"}))
+
+
+if __name__ == "__main__":
+    main()

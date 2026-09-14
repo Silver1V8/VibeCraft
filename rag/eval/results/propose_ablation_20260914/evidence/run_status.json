@@ -1,0 +1,106 @@
+{
+  "started_at": "2026-09-14T09:58:29.463672+00:00",
+  "status": "completed",
+  "quality_status": "pending_human_review",
+  "samples": [
+    {
+      "feature": "fe3",
+      "arm": "old",
+      "repetition": 1,
+      "sample_id": "P11",
+      "status": "completed",
+      "capture_complete": true
+    },
+    {
+      "feature": "fe3",
+      "arm": "new",
+      "repetition": 1,
+      "sample_id": "P04",
+      "status": "completed",
+      "capture_complete": true
+    },
+    {
+      "feature": "la2",
+      "arm": "new",
+      "repetition": 1,
+      "sample_id": "P05",
+      "status": "completed",
+      "capture_complete": true
+    },
+    {
+      "feature": "la2",
+      "arm": "old",
+      "repetition": 1,
+      "sample_id": "P02",
+      "status": "completed",
+      "capture_complete": true
+    },
+    {
+      "feature": "fe3",
+      "arm": "new",
+      "repetition": 2,
+      "sample_id": "P12",
+      "status": "completed",
+      "capture_complete": true
+    },
+    {
+      "feature": "fe3",
+      "arm": "old",
+      "repetition": 2,
+      "sample_id": "P03",
+      "status": "completed",
+      "capture_complete": true
+    },
+    {
+      "feature": "la2",
+      "arm": "old",
+      "repetition": 2,
+      "sample_id": "P09",
+      "status": "completed",
+      "capture_complete": true
+    },
+    {
+      "feature": "la2",
+      "arm": "new",
+      "repetition": 2,
+      "sample_id": "P01",
+      "status": "completed",
+      "capture_complete": true
+    },
+    {
+      "feature": "fe3",
+      "arm": "old",
+      "repetition": 3,
+      "sample_id": "P06",
+      "status": "completed",
+      "capture_complete": true
+    },
+    {
+      "feature": "fe3",
+      "arm": "new",
+      "repetition": 3,
+      "sample_id": "P08",
+      "status": "completed",
+      "capture_complete": true
+    },
+    {
+      "feature": "la2",
+      "arm": "new",
+      "repetition": 3,
+      "sample_id": "P10",
+      "status": "completed",
+      "capture_complete": true
+    },
+    {
+      "feature": "la2",
+      "arm": "old",
+      "repetition": 3,
+      "sample_id": "P07",
+      "status": "completed",
+      "capture_complete": true
+    }
+  ],
+  "planned": 12,
+  "elapsed_seconds": 282.8240459999997,
+  "finished_at": "2026-09-14T10:03:12.287746+00:00"
+}

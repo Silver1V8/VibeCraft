@@ -1,0 +1,26 @@
+{
+  "status": "passed",
+  "provider_calls_in_verification": 0,
+  "samples": 24,
+  "provider_attempts": 24,
+  "frozen_hashes_checked": 23,
+  "manifest_unchanged": true,
+  "application_prompt_unchanged": true,
+  "raw_responses_match_provider": true,
+  "requests_match_frozen_prompts_and_options": true,
+  "execution_order_verified": true,
+  "mapping_lengths_and_references_valid": true,
+  "mapping_semantics": "assistant reading, not certified by these checks",
+  "original_baseline_counts_separate": {
+    "fe3": [
+      4,
+      4,
+      4
+    ],
+    "la2": [
+      4,
+      4,
+      4
+    ]
+  }
+}

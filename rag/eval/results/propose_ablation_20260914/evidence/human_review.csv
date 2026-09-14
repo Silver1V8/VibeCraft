@@ -1,0 +1,13 @@
+sample_id,feature,status,reviewer,reviewed_at,declared_Q_ids,fully_covered_F_ids,partial_F_ids,declared_missing_cases,silent_omissions,notes
+P01,la2,pending_human_review,,,,,,,,
+P02,la2,pending_human_review,,,,,,,,
+P03,fe3,pending_human_review,,,,,,,,
+P04,fe3,pending_human_review,,,,,,,,
+P05,la2,pending_human_review,,,,,,,,
+P06,fe3,pending_human_review,,,,,,,,
+P07,la2,pending_human_review,,,,,,,,
+P08,fe3,pending_human_review,,,,,,,,
+P09,la2,pending_human_review,,,,,,,,
+P10,la2,pending_human_review,,,,,,,,
+P11,fe3,pending_human_review,,,,,,,,
+P12,fe3,pending_human_review,,,,,,,,

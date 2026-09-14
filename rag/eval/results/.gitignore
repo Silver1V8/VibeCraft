@@ -5,6 +5,7 @@
 !/.gitignore
 !/.gitattributes
 !/README.md
+!/FASE2_PROPOSE_20260914.md
 !/history.jsonl
 !/*/evidence/**/*.json
 !/*/evidence/**/*.jsonl
@@ -15,3 +16,4 @@
 !/*/evidence/**/*.csv
 !/*/evidence/**/*.sha256
 !/*/evidence/**/*.diff
+!/*/evidence/**/*.patch

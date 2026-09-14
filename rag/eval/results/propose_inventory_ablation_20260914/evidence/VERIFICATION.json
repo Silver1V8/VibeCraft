@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "new_V4_samples": 6,
+  "reused_V3_samples": 6,
+  "provider_attempts": 6,
+  "input_tokens": 47886,
+  "output_tokens": 9491,
+  "elapsed_seconds": 191.8863453999984,
+  "hashes_verified": 14,
+  "comparison_files_unchanged": 12,
+  "approved_V4_unchanged": true,
+  "application_prompt_unchanged": true,
+  "raw_response_matches_provider": true,
+  "request_prompts_and_options_verified": true,
+  "execution_order_verified": true,
+  "parser_self_check": "passed",
+  "semantic_annotations": "assistant reading, not mechanically certified",
+  "provider_calls_during_verification": 0
+}

@@ -1,0 +1,103 @@
+"""Aggrega soltanto evidenze salvate: nessun import/provider o chiamata al modello."""
+import hashlib
+import json
+import re
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+
+
+def parse(raw):
+    lines = raw.splitlines()
+    starts = [i for i, line in enumerate(lines) if re.match(r"^\s*SCENARIO\s*:", line, re.I)]
+    scenarios = []
+    for ordinal, start in enumerate(starts):
+        end = start + 1
+        while end < len(lines) and not lines[end].lstrip().startswith("```"):
+            if end in starts:
+                break
+            end += 1
+        body = lines[start + 1:end]
+        steps = [line for line in body if line.strip()]
+        scenarios.append({
+            "ordinal": ordinal + 1, "line": start + 1, "header": lines[start],
+            "text": "\n".join(body),
+            "missing_keywords": [k for k in ("GIVEN", "WHEN", "THEN")
+                                 if not any(re.match(r"^\s*" + k + r"\b", l) for l in body)],
+            "non_english_steps": [l for l in steps if re.match(r"^\s*(E|Dato|Quando|Allora)\b", l)],
+        })
+    headings = [(i, m) for i, line in enumerate(lines)
+                if (m := re.match(r"^(#{1,6})\s+(.*)$", line))]
+    sections = []
+    for pos, (start, match) in enumerate(headings):
+        if not re.search(r"punti\s+aperti", match[2], re.I):
+            continue
+        end = next((i for i, h in headings[pos + 1:] if len(h[1]) <= len(match[1])), len(lines))
+        body = lines[start + 1:end]
+        table_rows = [l for l in body if l.strip().startswith("|")]
+        if table_rows:
+            records = [l for l in table_rows if not re.fullmatch(r"[\s|:\-]+", l)][1:]
+        else:
+            records = [l for l in body if re.match(r"^(?:[-*]|\d+[.)])\s+", l)]
+        sections.append({"line": start + 1, "heading": lines[start], "records": records,
+                         "enumerable": bool(records) or not any(l.strip() for l in body),
+                         "text": "\n".join(body)})
+    bodies = ["\n".join(l.strip() for l in s["text"].splitlines() if l.strip()) for s in scenarios]
+    duplicates = [[i + 1, j + 1] for i in range(len(bodies)) for j in range(i + 1, len(bodies))
+                  if bodies[i] and bodies[i] == bodies[j]]
+    return {
+        "scenario_count": len(scenarios),
+        "closed_gherkin_fences": len(re.findall(r"^\s*```gherkin\s*\n(.*?)^\s*```\s*$", raw, re.M | re.S)),
+        "scenarios": scenarios, "open_points_present": bool(sections),
+        "open_points_count": sum(len(s["records"]) for s in sections)
+            if all(s["enumerable"] for s in sections) else None,
+        "open_points_sections": sections, "exact_duplicate_pairs": duplicates,
+    }
+
+
+def check():
+    raw = "## Scenari\n```gherkin\nSCENARIO: S01 - a\n  GIVEN a\n  WHEN b\n  THEN c\n```\n\n```gherkin\nSCENARIO: S02 - b\n  GIVEN a\n  WHEN b\n  THEN c\n```\n## Punti aperti\n| Tema | Domanda |\n|---|---|\n| A | B? C? |\n"
+    p = parse(raw)
+    assert (p["scenario_count"], p["closed_gherkin_fences"], p["open_points_count"]) == (2, 2, 1)
+    assert p["exact_duplicate_pairs"] == [[1, 2]]
+    assert not parse("Nessun testo")["open_points_present"]
+    assert parse("## Punti aperti\nTesto non enumerabile")["open_points_count"] is None
+    assert parse("## Punti aperti\n- A\n  - dettaglio\n- B")["open_points_count"] == 2
+
+
+def main():
+    check()
+    state = json.loads((HERE / "run_status.json").read_text(encoding="utf-8"))
+    assert state["status"] != "running", "Attendere la fine della generazione"
+    manifest = json.loads((HERE / "manifest.json").read_text(encoding="utf-8"))
+    rows = []
+    for case in manifest["schedule"]:
+        path = HERE / "responses" / (case["sample_id"] + ".md")
+        if not path.exists():
+            rows.append({**case, "status": "missing", "scenario_count": None})
+            continue
+        recording = json.loads(path.with_name(case["sample_id"] + "_provider.json").read_text(encoding="utf-8"))
+        responses = [a.get("response") for a in recording["attempts"]]
+        def total(key, scale=1):
+            return sum(r[key] for r in responses) / scale if responses and all(
+                isinstance(r, dict) and isinstance(r.get(key), (int, float)) for r in responses) else None
+        rows.append({**case, "status": "available",
+                     "response_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                     "provider_attempts": len(responses), "capture_complete": recording["capture_complete"],
+                     "input_tokens": total("prompt_eval_count"), "output_tokens": total("eval_count"),
+                     "provider_seconds": total("total_duration", 1e9), **parse(path.read_text(encoding="utf-8"))})
+    output = {"run_status": state["status"], "elapsed_seconds": state["elapsed_seconds"],
+              "mapping_status": "not_inferred_by_parser", "samples": rows}
+    (HERE / "STRUCTURAL.json").write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(json.dumps({"run_status": state["status"], "saved_samples": sum(r["status"] == "available" for r in rows),
+                      "planned": len(rows), "elapsed_seconds": state["elapsed_seconds"]}))
+
+
+if __name__ == "__main__":
+    import sys
+    if sys.argv[1:] == ["check"]:
+        check()
+        print("Parser check passed; nessuna lettura o generazione di risposte.")
+    else:
+        main()
+

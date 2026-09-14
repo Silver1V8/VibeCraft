@@ -1,0 +1,1925 @@
+{
+  "run_status": "completed",
+  "elapsed_seconds": 691.6020294000009,
+  "mapping_status": "not_inferred_by_parser",
+  "samples": [
+    {
+      "feature": "fe3",
+      "arm": "B0",
+      "repetition": 1,
+      "sample_id": "fe3_B0_r1",
+      "status": "available",
+      "response_sha256": "1a264d5ca36c8135560a230ecf408de8006e4ec40f1620b6523ff4c8f5906d31",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 4975.0,
+      "output_tokens": 868.0,
+      "provider_seconds": 17.8460259,
+      "scenario_count": 4,
+      "closed_gherkin_fences": 4,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 15,
+          "header": "SCENARIO: S01 - Invio richiesta con dati validi",
+          "text": "  GIVEN un utente autenticato visualizza il form per un EVENTO attivo\n  AND l'utente inserisce una motivazione di 150 caratteri nel campo textarea\n  AND seleziona la checkbox \"Necessità alloggio\" come preferenza\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema disabilita immediatamente il pulsante e mostra uno stato di caricamento\n  AND invia il payload JSON contenente motivazione e preferenze al backend\n  AND visualizza un messaggio di successo dopo la risposta dell'API",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 26,
+          "header": "SCENARIO: S02 - Inibizione invio per motivazione vuota",
+          "text": "  GIVEN un utente autenticato visualizza il form per un EVENTO attivo\n  WHEN l'utente clicca sul pulsante \"Partecipa\" senza aver inserito nulla nella motivazione\n  THEN il sistema evidenzia il campo textarea con un bordo rosso\n  AND disabilita visivamente il pulsante \"Partecipa\" impedendo la chiamata di rete",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 34,
+          "header": "SCENARIO: S03 - Gestione superamento limite caratteri motivazione",
+          "text": "  GIVEN un utente autenticato visualizza il form per un EVENTO attivo\n  WHEN l'utente inserisce una motivazione contenente 550 caratteri nel campo textarea\n  THEN il sistema evidenzia il campo con un bordo rosso e mostra un contatore negativo\n  AND disabilita il pulsante \"Partecipa\" impedendo la sottomissione del payload",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 42,
+          "header": "SCENARIO: S04 - Gestione errore di rete durante la sottomissione",
+          "text": "  GIVEN un utente autenticato ha compilato correttamente il form e clicca su \"Partecipa\"\n  WHEN il backend restituisce un errore HTTP 500 o un timeout durante l'elaborazione\n  THEN il sistema mostra un messaggio di errore tramite componente Toast\n  AND riabilita i controlli del form permettendo all'utente di correggere i dati e riprovare",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 3,
+      "open_points_sections": [
+        {
+          "line": 51,
+          "heading": "## 3. Punti Aperti",
+          "records": [
+            "| Gestione Preferenze | Il campo \"Necessità alloggio\" è l'unica preferenza gestita nel form per questa feature specifica. | Esistono altre preferenze (es. dieta, accessibilità) da includere nel payload o sono gestite in un modulo futuro? Attualmente non coperte dagli scenari. |",
+            "| Validazione Schema | Lo schema Zod blocca solo i campi obbligatori e il limite di lunghezza; non valida la sintassi interna del testo oltre al conteggio caratteri. | Se l'utente inserisce caratteri speciali o formattazioni HTML nel textarea, il sistema li accetta come testo puro o li sanitizza? Non specificato nei requisiti attuali. |",
+            "| Stato Utente | Il Server Component fornisce i metadati dell'evento ma non gestisce la logica di blocco per utenti già iscritti (questa è responsabilità del backend/API). | L'utente vede il form se ha già una richiesta in attesa per lo stesso evento? La visibilità del form dipende solo dall'esistenza dell'evento o anche dallo stato della richiesta esistente? |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione da Confermare | Domanda Aperta |\n| :--- | :--- | :--- |\n| Gestione Preferenze | Il campo \"Necessità alloggio\" è l'unica preferenza gestita nel form per questa feature specifica. | Esistono altre preferenze (es. dieta, accessibilità) da includere nel payload o sono gestite in un modulo futuro? Attualmente non coperte dagli scenari. |\n| Validazione Schema | Lo schema Zod blocca solo i campi obbligatori e il limite di lunghezza; non valida la sintassi interna del testo oltre al conteggio caratteri. | Se l'utente inserisce caratteri speciali o formattazioni HTML nel textarea, il sistema li accetta come testo puro o li sanitizza? Non specificato nei requisiti attuali. |\n| Stato Utente | Il Server Component fornisce i metadati dell'evento ma non gestisce la logica di blocco per utenti già iscritti (questa è responsabilità del backend/API). | L'utente vede il form se ha già una richiesta in attesa per lo stesso evento? La visibilità del form dipende solo dall'esistenza dell'evento o anche dallo stato della richiesta esistente? |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "fe3",
+      "arm": "V1",
+      "repetition": 1,
+      "sample_id": "fe3_V1_r1",
+      "status": "available",
+      "response_sha256": "ef50ccbd069e31c5490baaece5fb311bd4cf9f9e574765f9c40aa38c0c719a98",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 4978.0,
+      "output_tokens": 865.0,
+      "provider_seconds": 20.4743575,
+      "scenario_count": 4,
+      "closed_gherkin_fences": 4,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 15,
+          "header": "SCENARIO: S01 - Invio form con dati completi e validi",
+          "text": "  GIVEN un utente autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente inserisce una motivazione contenente 150 caratteri\n  AND seleziona la preferenza \"Necessità alloggio\" tramite checkbox\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema valida lo schema Zod e invia la richiesta al backend\n  AND disabilita il pulsante visualizzando uno stato di caricamento",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 25,
+          "header": "SCENARIO: S02 - Inibizione invio per motivazione vuota",
+          "text": "  GIVEN un utente autenticato visualizza il form di prenotazione per un EVENTO attivo\n  WHEN l'utente clicca sul pulsante \"Partecipa\" senza aver inserito nulla nella casella motivazione\n  THEN il sistema evidenzia la casella in rosso come campo obbligatorio mancante\n  AND disabilita visivamente il pulsante \"Partecipa\" impedendo l'invio del payload",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 33,
+          "header": "SCENARIO: S03 - Gestione superamento limite caratteri motivazione",
+          "text": "  GIVEN un utente autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente inserisce una motivazione contenente 510 caratteri\n  THEN il sistema evidenzia la casella in rosso con messaggio \"Limite superato\"\n  AND disabilita il pulsante \"Partecipa\" bloccando la sottomissione",
+          "missing_keywords": [
+            "WHEN"
+          ],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 41,
+          "header": "SCENARIO: S04 - Gestione errore di rete durante la sottomissione",
+          "text": "  GIVEN un utente autenticato ha compilato correttamente il form e clicca su \"Partecipa\"\n  WHEN il backend restituisce un errore HTTP 500 o un timeout durante l'elaborazione\n  THEN il sistema visualizza un messaggio Toast di errore generato da sonner\n  AND riabilita i controlli del form permettendo all'utente di correggere e riprovare",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 3,
+      "open_points_sections": [
+        {
+          "line": 50,
+          "heading": "## 3. Punti Aperti",
+          "records": [
+            "| Gestione Preferenze (Alloggio) | Si presume che la selezione della checkbox \"Necessità alloggio\" sia l'unica preferenza gestita in questa specifica iterazione. | Il Canvas menziona \"altre preferenze connesse\". È necessario aggiungere scenari per campi come \"Dieta\", \"Accessibilità\", ecc., o sono fuori scope di questa feature? |",
+            "| Validazione Schema Zod | Si presume che lo schema Zod blocchi automaticamente l'invio se il testo contiene caratteri non stampabili o formati invalidi oltre al semplice limite di lunghezza. | È necessario un scenario specifico per la validazione di caratteri speciali (es. emoji, tag HTML) nel campo motivazione? |",
+            "| Stato Loading | Si presume che lo stato di loading disabiliti *tutti* gli input del form, non solo il pulsante. | Il Canvas richiede di \"disabilitare visivamente il pulsante\". È corretto disabilitare anche i campi di input per evitare modifiche durante il submit? |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione Proposta DA CONFERMARE | Domanda Aperta |\n| :--- | :--- | :--- |\n| Gestione Preferenze (Alloggio) | Si presume che la selezione della checkbox \"Necessità alloggio\" sia l'unica preferenza gestita in questa specifica iterazione. | Il Canvas menziona \"altre preferenze connesse\". È necessario aggiungere scenari per campi come \"Dieta\", \"Accessibilità\", ecc., o sono fuori scope di questa feature? |\n| Validazione Schema Zod | Si presume che lo schema Zod blocchi automaticamente l'invio se il testo contiene caratteri non stampabili o formati invalidi oltre al semplice limite di lunghezza. | È necessario un scenario specifico per la validazione di caratteri speciali (es. emoji, tag HTML) nel campo motivazione? |\n| Stato Loading | Si presume che lo stato di loading disabiliti *tutti* gli input del form, non solo il pulsante. | Il Canvas richiede di \"disabilitare visivamente il pulsante\". È corretto disabilitare anche i campi di input per evitare modifiche durante il submit? |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "fe3",
+      "arm": "V2",
+      "repetition": 1,
+      "sample_id": "fe3_V2_r1",
+      "status": "available",
+      "response_sha256": "5359280a323c485e387cd10f06c6fd64c30cfd5481e0c5a7794346acb2b79ee5",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 5015.0,
+      "output_tokens": 1311.0,
+      "provider_seconds": 28.9233872,
+      "scenario_count": 4,
+      "closed_gherkin_fences": 4,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 32,
+          "header": "SCENARIO: S01 - Compilazione ed invio valido del form di prenotazione",
+          "text": "  GIVEN un UTENTE autenticato visualizza la pagina di dettaglio di un EVENTO attivo\n  AND l'utente inserisce una motivazione di 120 caratteri nella casella di testo\n  AND l'utente seleziona la checkbox \"Necessità alloggio\"\n  WHEN l'utente clicca sul pulsante \"Partecipa\"\n  THEN il sistema disabilita immediatamente il pulsante e gli input\n  AND visualizza uno stato di caricamento (loading state)\n  AND inoltra con successo il payload JSON al backend per la creazione della RICHIESTA",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 43,
+          "header": "SCENARIO: S02 - Blocco invio form per superamento limite caratteri motivazione",
+          "text": "  GIVEN un UTENTE autenticato visualizza la pagina di dettaglio di un EVENTO attivo\n  AND l'utente inserisce una motivazione di 550 caratteri nella casella di testo\n  THEN il sistema evidenzia il bordo della casella con colore rosso\n  AND mostra il messaggio informativo \"La motivazione non può superare i 500 caratteri\"\n  AND disabilita il pulsante \"Partecipa\" impedendo la trasmissione dei dati",
+          "missing_keywords": [
+            "WHEN"
+          ],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 52,
+          "header": "SCENARIO: S03 - Gestione errore lato server durante sottomissione",
+          "text": "  GIVEN un UTENTE autenticato compila correttamente il form con motivazione valida\n  WHEN l'utente clicca su \"Partecipa\" e il backend restituisce un errore HTTP 500 o timeout\n  THEN il sistema visualizza un messaggio di errore tramite componente Toast\n  AND ripristina lo stato abilitato del pulsante dopo la visualizzazione dell'errore",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 60,
+          "header": "SCENARIO: S04 - Inibizione input per utente già iscritto all'evento",
+          "text": "  GIVEN un UTENTE che possiede già una RICHIESTA in stato 'APPROVATA' per un EVENTO specifico\n  WHEN l'utente naviga nuovamente sulla pagina di quell'evento e tenta di compilare il form\n  THEN il sistema sostituisce il form di sottomissione con un badge informativo verde recante la dicitura \"Sei già iscritto a questo evento\"",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 3,
+      "open_points_sections": [
+        {
+          "line": 68,
+          "heading": "## 4. Punti Aperti",
+          "records": [
+            "| **REQ-FE3-03** (Preferenze) | Si presume che \"altre preferenze connesse\" menzionate nel Canvas si riferiscano esclusivamente alla necessità di alloggio per semplicità d'implementazione iniziale. | Il Canvas cita \"altre preferenze connesse\". È necessario aggiungere campi per \"Pasto\", \"Accessibilità\" o altri? Se sì, quali e come devono essere validati (es. opzionali/obbligatori)? |",
+            "| **REQ-FE3-04** (Feedback UI) | Si presume che il componente Toast standard di `sonner` sia sufficiente per gestire errori generici senza personalizzazioni specifiche per codice errore HTTP. | Per errori specifici (es. 409 Conflict), è necessario mostrare un messaggio diverso rispetto al generico \"Errore server\"? |",
+            "| **REQ-FE3-05** (Concorrenza) | Si presume che la disattivazione del pulsante tramite `React Hook Form` sia sufficiente a prevenire duplicati, senza bisogno di lock lato database aggiuntivi. | In caso di race condition tra due click rapidissimi prima della disattivazione, il backend gestisce i duplicati o è necessario un meccanismo di idempotenza lato client? |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione da Confermare | Domanda Aperta |\n| :--- | :--- | :--- |\n| **REQ-FE3-03** (Preferenze) | Si presume che \"altre preferenze connesse\" menzionate nel Canvas si riferiscano esclusivamente alla necessità di alloggio per semplicità d'implementazione iniziale. | Il Canvas cita \"altre preferenze connesse\". È necessario aggiungere campi per \"Pasto\", \"Accessibilità\" o altri? Se sì, quali e come devono essere validati (es. opzionali/obbligatori)? |\n| **REQ-FE3-04** (Feedback UI) | Si presume che il componente Toast standard di `sonner` sia sufficiente per gestire errori generici senza personalizzazioni specifiche per codice errore HTTP. | Per errori specifici (es. 409 Conflict), è necessario mostrare un messaggio diverso rispetto al generico \"Errore server\"? |\n| **REQ-FE3-05** (Concorrenza) | Si presume che la disattivazione del pulsante tramite `React Hook Form` sia sufficiente a prevenire duplicati, senza bisogno di lock lato database aggiuntivi. | In caso di race condition tra due click rapidissimi prima della disattivazione, il backend gestisce i duplicati o è necessario un meccanismo di idempotenza lato client? |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "fe3",
+      "arm": "V3",
+      "repetition": 1,
+      "sample_id": "fe3_V3_r1",
+      "status": "available",
+      "response_sha256": "61a2d9c6d525cd343182361d761fdb01ddd5e672c817a76d09d9c23150cee767",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 5090.0,
+      "output_tokens": 1474.0,
+      "provider_seconds": 37.7071505,
+      "scenario_count": 9,
+      "closed_gherkin_fences": 9,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 19,
+          "header": "SCENARIO: S01 - Invio form con motivazione valida",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente inserisce una motivazione contenente esattamente 250 caratteri\n  WHEN l'utente clicca sul pulsante \"Partecipa\"\n  THEN il sistema accetta l'inserimento e abilita la sottomissione al backend",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 27,
+          "header": "SCENARIO: S02 - Inibizione invio per motivazione vuota",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND il campo motivazione è lasciato vuoto o contiene solo spazi bianchi\n  WHEN l'utente tenta di cliccare sul pulsante \"Partecipa\"\n  THEN il sistema disabilita visivamente il pulsante e non invia la richiesta al backend",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 35,
+          "header": "SCENARIO: S03 - Inibizione invio per superamento limite caratteri",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente inserisce una motivazione contenente 550 caratteri (superiore al limite)\n  WHEN l'utente tenta di cliccare sul pulsante \"Partecipa\"\n  THEN il sistema evidenzia il campo in rosso, disabilita il pulsante e mostra un messaggio di errore relativo al limite dei 500 caratteri",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 47,
+          "header": "SCENARIO: S04 - Selezione della necessità alloggio",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente attiva la casella di controllo relativa alla necessità di alloggio\n  WHEN l'utente clicca sul pulsante \"Partecipa\"\n  THEN il sistema include nel payload inviato al backend il flag booleano che indica la necessità di alloggio",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 5,
+          "line": 55,
+          "header": "SCENARIO: S05 - Selezione della non necessità alloggio",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente lascia disattivata la casella di controllo relativa alla necessità di alloggio\n  WHEN l'utente clicca sul pulsante \"Partecipa\"\n  THEN il sistema include nel payload inviato al backend il flag booleano che indica l'assenza di necessità di alloggio",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 6,
+          "line": 67,
+          "header": "SCENARIO: S06 - Disattivazione pulsante durante sottomissione",
+          "text": "  GIVEN un UTENTE autenticato ha compilato correttamente il form di prenotazione per un EVENTO\n  AND l'utente clicca sul pulsante \"Partecipa\"\n  WHEN la chiamata al backend è in corso (stato di rete attivo)\n  THEN il sistema disabilita immediatamente il pulsante \"Partecipa\", mostra uno stato di caricamento e impedisce ulteriori click",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 7,
+          "line": 75,
+          "header": "SCENARIO: S07 - Gestione errore lato server durante sottomissione",
+          "text": "  GIVEN un UTENTE autenticato ha compilato correttamente il form di prenotazione per un EVENTO\n  AND l'utente clicca sul pulsante \"Partecipa\"\n  WHEN il backend restituisce un errore (es. timeout o codice 500) durante la sottomissione\n  THEN il sistema visualizza un messaggio di avviso (Toast) all'utente e ripristina lo stato del form senza inviare dati duplicati",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 8,
+          "line": 87,
+          "header": "SCENARIO: S08 - Visualizzazione form con contesto evento valido",
+          "text": "  GIVEN un UTENTE autenticato naviga verso la pagina di dettaglio di un EVENTO attivo e disponibile\n  WHEN il componente Server Component recupera i metadati dell'evento\n  THEN il sistema renderizza il form di prenotazione con tutti i campi abilitati per l'inserimento dati",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 9,
+          "line": 94,
+          "header": "SCENARIO: S09 - Disabilitazione form in caso evento non accessibile",
+          "text": "  GIVEN un UTENTE autenticato naviga verso la pagina di dettaglio di un EVENTO già esaurito o chiuso\n  WHEN il componente Server Component riceve lo stato \"Sold Out\" o \"Chiuso\" dal backend\n  THEN il sistema nasconde i campi di input e disabilita l'invio della richiesta, mostrando solo informazioni contestuali",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 4,
+      "open_points_sections": [
+        {
+          "line": 102,
+          "heading": "## 3. Punti Aperti",
+          "records": [
+            "*   **Funzionalità F1**: Copertura completa per limiti di testo e vuoto.",
+            "*   **Funzionalità F2**: Copertura completa per gestione booleana delle preferenze.",
+            "*   **Funzionalità F3**: Copertura completa per UX durante la rete (loading/error).",
+            "*   **Funzionalità F4**: Copertura completa per il rendering condizionale basato sui metadati evento."
+          ],
+          "enumerable": true,
+          "text": "\nNessun punto aperto rilevato per la copertura delle funzionalità descritte nel Canvas FE3. Tutti i requisiti funzionali (motivazione, preferenze alloggio, validazione Zod, gestione stato API) e i vincoli normativi (limite caratteri, anti-duplicati, sicurezza input) sono stati mappati negli scenari corrispondenti.\n\n*   **Funzionalità F1**: Copertura completa per limiti di testo e vuoto.\n*   **Funzionalità F2**: Copertura completa per gestione booleana delle preferenze.\n*   **Funzionalità F3**: Copertura completa per UX durante la rete (loading/error).\n*   **Funzionalità F4**: Copertura completa per il rendering condizionale basato sui metadati evento."
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "la2",
+      "arm": "B0",
+      "repetition": 1,
+      "sample_id": "la2_B0_r1",
+      "status": "available",
+      "response_sha256": "c5779fb0c3192303ec93182cbd9fa68033c53a239c341b795a2f92028a70f42f",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 9537.0,
+      "output_tokens": 1391.0,
+      "provider_seconds": 32.6258431,
+      "scenario_count": 4,
+      "closed_gherkin_fences": 4,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 20,
+          "header": "SCENARIO: S01 - Invio notifica Email riuscito per trigger dinamico",
+          "text": "  GIVEN una RICHIESTA in stato \"Revisato\" che attiva un trigger dinamico\n  AND il sistema identifica come destinatario valido un UTENTE di tipo \"DIPENDENTE\"\n  WHEN il consumer NotificationConsumer elabora l'evento e tenta l'invio via EmailChannelAdapter\n  THEN il record NOTIFICA viene creato con stato \"CONSEGNATA\" e tentativo_n = 1\n  AND lo stato della RICHIESTA rimane invariato",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 29,
+          "header": "SCENARIO: S02 - Gestione fallimento Email e backoff verso Slack",
+          "text": "  GIVEN una RICHIESTA che attiva un trigger dinamico per notifica a \"RESPONSABILE\"\n  WHEN il tentativo di invio via EmailChannelAdapter fallisce (es. timeout SMTP)\n  AND il sistema incrementa tentativo_n a 1 e applica il backoff di 15 minuti\n  THEN dopo il backoff, il sistema tenta l'invio via Slack tramite SlackChannelAdapter\n  AND se anche Slack fallisce definitivamente al terzo tentativo, lo stato NOTIFICA diventa \"FALLITA\"",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 38,
+          "header": "SCENARIO: S03 - Innesco notifica statica per scadenza imminente",
+          "text": "  GIVEN una RICHIESTA con countdown temporale che scade entro la soglia configurata\n  AND il job StaticTriggerJob (Quartz.NET) rileva lo stato \"SCADENZA_IMMINENTE\"\n  WHEN il job pubblica l'evento trigger su RabbitMQ\n  THEN il consumer elabora l'evento creando un record NOTIFICA con messaggio relativo alla scadenza\n  AND se la consegna è riuscita, lo stato diventa \"CONSEGNATA\" e viene generato log INFO",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 47,
+          "header": "SCENARIO: S04 - Logging anomalia fallimento definitivo senza fallback alternativi",
+          "text": "  GIVEN una RICHIESTA associata a un evento trigger che ha esaurito tutti i canali (Email e Slack)\n  AND il contatore tentativo_n ha raggiunto il limite massimo di 3\n  WHEN il sistema determina che la sequenza di consegna è conclusa con errore\n  THEN lo stato della NOTIFICA viene impostato su \"FALLITA\"\n  AND viene generato un log strutturato con livello ERROR contenente i dettagli dell'anomalia\n  AND non vengono attivati tentativi di invio su canali alternativi non configurati (es. SMS)",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 4,
+      "open_points_sections": [
+        {
+          "line": 56,
+          "heading": "## 4. Punti Aperti",
+          "records": [
+            "| Gestione Trigger Statico (S03) | Il job `StaticTriggerJob` scansiona *tutte* le richieste in attesa o solo quelle con stato specifico? | È necessario definire una lista di stati della `RICHIESTA` che abilitano il trigger statico, oppure si applica a qualsiasi richiesta con countdown attivo? |",
+            "| Backoff Multi-Canale (S02) | Il backoff di 15 minuti è fisso o esponenziale tra tentativi su *diversi* canali? | La specifica indica \"backoff configurato a 15 minuti\" per il passaggio canale->canale. È corretto interpretare questo come un tempo fisso tra Email e Slack, oppure c'è una logica di backoff esponenziale anche all'interno dello stesso canale prima di passare al successivo? |",
+            "| Logging Fallimento (S04) | Il log strutturato include l'intero payload dell'errore o solo il codice? | Per `[REGOLA-OBS-07]` non devono essere inclusi payload completi. È sufficiente registrare il codice errore e il messaggio generico, oppure è necessario includere stack trace anonimizzati? |",
+            "| Correlazione ID (Vincolo Normativo) | Il `correlationId` viene generato dal middleware o dall'evento di business? | La specifica richiede la propagazione del `correlationId`. Chi è responsabile della sua generazione iniziale se non proviene da un HTTP request esterno (es. evento interno)? |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione da Confermare | Domanda Aperta |\n|---|---|---|\n| Gestione Trigger Statico (S03) | Il job `StaticTriggerJob` scansiona *tutte* le richieste in attesa o solo quelle con stato specifico? | È necessario definire una lista di stati della `RICHIESTA` che abilitano il trigger statico, oppure si applica a qualsiasi richiesta con countdown attivo? |\n| Backoff Multi-Canale (S02) | Il backoff di 15 minuti è fisso o esponenziale tra tentativi su *diversi* canali? | La specifica indica \"backoff configurato a 15 minuti\" per il passaggio canale->canale. È corretto interpretare questo come un tempo fisso tra Email e Slack, oppure c'è una logica di backoff esponenziale anche all'interno dello stesso canale prima di passare al successivo? |\n| Logging Fallimento (S04) | Il log strutturato include l'intero payload dell'errore o solo il codice? | Per `[REGOLA-OBS-07]` non devono essere inclusi payload completi. È sufficiente registrare il codice errore e il messaggio generico, oppure è necessario includere stack trace anonimizzati? |\n| Correlazione ID (Vincolo Normativo) | Il `correlationId` viene generato dal middleware o dall'evento di business? | La specifica richiede la propagazione del `correlationId`. Chi è responsabile della sua generazione iniziale se non proviene da un HTTP request esterno (es. evento interno)? |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "la2",
+      "arm": "V1",
+      "repetition": 1,
+      "sample_id": "la2_V1_r1",
+      "status": "available",
+      "response_sha256": "01a788ed99300979f34391874dc0df4aa7b3185e59bea465de1c41ee0097ca09",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 9540.0,
+      "output_tokens": 1422.0,
+      "provider_seconds": 32.7915838,
+      "scenario_count": 4,
+      "closed_gherkin_fences": 4,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 21,
+          "header": "SCENARIO: S01 - Invio notifica su trigger dinamico con consegna Email",
+          "text": "  GIVEN una RICHIESTA che cambia stato da \"Bozza\" a \"Revisato\"\n  AND il workflow di routing configura l'invio al DIPENDENTE\n  WHEN il sistema rileva il cambiamento e pubblica l'evento su RabbitMQ\n  THEN crea un record NOTIFICA con stato IN_CODA\n  E invia la notifica tramite EmailChannelAdapter\n  E aggiorna lo stato della NOTIFICA a CONSEGNATA",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E invia la notifica tramite EmailChannelAdapter",
+            "  E aggiorna lo stato della NOTIFICA a CONSEGNATA"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 31,
+          "header": "SCENARIO: S02 - Gestione fallimento Email e backoff verso Slack",
+          "text": "  GIVEN una RICHIESTA che cambia stato innescando un trigger dinamico\n  AND il routing è configurato per inviare al RESPONSABILE\n  WHEN l'invio via EmailChannelAdapter fallisce per timeout del provider SMTP\n  THEN incrementa il contatore tentativo_n a 1\n  E registra un log di livello WARNING con messaggio \"Backoff in corso\"\n  E attende il periodo di backoff configurato (15 minuti)",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E registra un log di livello WARNING con messaggio \"Backoff in corso\"",
+            "  E attende il periodo di backoff configurato (15 minuti)"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 41,
+          "header": "SCENARIO: S03 - Consegna definitiva tramite canale Slack dopo fallimento Email",
+          "text": "  GIVEN una RICHIESTA che ha generato un evento trigger statico o dinamico\n  AND il primo tentativo di invio via Email è fallito definitivamente\n  WHEN scade il periodo di backoff e il sistema tenta l'invio su Slack\n  THEN invia il messaggio tramite SlackChannelAdapter\n  E aggiorna lo stato della NOTIFICA a CONSEGNATA\n  E ferma la sequenza di retry per quell'evento",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E aggiorna lo stato della NOTIFICA a CONSEGNATA",
+            "  E ferma la sequenza di retry per quell'evento"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 51,
+          "header": "SCENARIO: S04 - Gestione fallimento definitivo e logging anomalia",
+          "text": "  GIVEN una RICHIESTA che ha generato un evento trigger\n  AND il tentativo iniziale su Email è fallito\n  AND anche il tentativo successivo su Slack dopo 15 minuti fallisce\n  WHEN il sistema raggiunge il limite massimo dei tentativi (tentativo_n = 3)\n  THEN aggiorna lo stato della NOTIFICA a FALLITA\n  E genera un log strutturato di livello ERROR con stato \"invio mancato\"\n  E non attiva alcun fallback alternativo come SMS",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E genera un log strutturato di livello ERROR con stato \"invio mancato\"",
+            "  E non attiva alcun fallback alternativo come SMS"
+          ]
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 4,
+      "open_points_sections": [
+        {
+          "line": 61,
+          "heading": "## 4. Punti Aperti",
+          "records": [
+            "| **Gestione Fallimenti Definitivi** | Si assume che il limite di tentativi sia rigidamente 3 per ogni evento trigger, indipendentemente dal canale. | È corretto interpretare \"limite massimo dei tentativi\" come un conteggio globale per evento (max 3) o per canale? Il testo specifica \"limite massimo di 3 tentativi totali per evento\", ma la sequenza descritta (Email fallisce -> Slack) implica che il tentativo 1 sia Email e il tentativo 2 sia Slack. Se entrambi falliscono, siamo al tentativo 2. Dove si inserisce il terzo tentativo? È un terzo tentativo su uno dei due canali o un meccanismo diverso? |",
+            "| **Trigger Statico** | Si assume che il job `StaticTriggerJob` inneschi lo stesso flusso di routing e invio del trigger dinamico. | Il job Quartz.NET esegue una scansione periodica. Se trova una scadenza imminente, pubblica l'evento su RabbitMQ esattamente come farebbe un cambio stato? O esiste un payload diverso per i trigger statici che richiede uno scenario specifico? |",
+            "| **Correlazione End-to-End** | Si assume che il `correlationId` sia generato all'inizio del processo di notifica (es. creazione evento) e propagato in tutti i log e messaggi RabbitMQ. | Come viene generato l'ID se non proviene da una richiesta HTTP esterna? Il worker service genera un GUID interno o eredita qualcosa dal contesto di transazione Outbox? |",
+            "| **Atomicità Transazionale** | Si assume che la scrittura del record `NOTIFICA` avvenga in transazione con l'evento trigger. | Cosa succede esattamente se il database rollbacka dopo aver creato il record ma prima dell'invio al broker? Il record viene cancellato o lasciato in stato inconsistente? La specifica richiede atomicità, ma non definisce lo stato intermedio di rollback. |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione da Confermare | Domanda Aperta |\n|---|---|---|\n| **Gestione Fallimenti Definitivi** | Si assume che il limite di tentativi sia rigidamente 3 per ogni evento trigger, indipendentemente dal canale. | È corretto interpretare \"limite massimo dei tentativi\" come un conteggio globale per evento (max 3) o per canale? Il testo specifica \"limite massimo di 3 tentativi totali per evento\", ma la sequenza descritta (Email fallisce -> Slack) implica che il tentativo 1 sia Email e il tentativo 2 sia Slack. Se entrambi falliscono, siamo al tentativo 2. Dove si inserisce il terzo tentativo? È un terzo tentativo su uno dei due canali o un meccanismo diverso? |\n| **Trigger Statico** | Si assume che il job `StaticTriggerJob` inneschi lo stesso flusso di routing e invio del trigger dinamico. | Il job Quartz.NET esegue una scansione periodica. Se trova una scadenza imminente, pubblica l'evento su RabbitMQ esattamente come farebbe un cambio stato? O esiste un payload diverso per i trigger statici che richiede uno scenario specifico? |\n| **Correlazione End-to-End** | Si assume che il `correlationId` sia generato all'inizio del processo di notifica (es. creazione evento) e propagato in tutti i log e messaggi RabbitMQ. | Come viene generato l'ID se non proviene da una richiesta HTTP esterna? Il worker service genera un GUID interno o eredita qualcosa dal contesto di transazione Outbox? |\n| **Atomicità Transazionale** | Si assume che la scrittura del record `NOTIFICA` avvenga in transazione con l'evento trigger. | Cosa succede esattamente se il database rollbacka dopo aver creato il record ma prima dell'invio al broker? Il record viene cancellato o lasciato in stato inconsistente? La specifica richiede atomicità, ma non definisce lo stato intermedio di rollback. |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "la2",
+      "arm": "V2",
+      "repetition": 1,
+      "sample_id": "la2_V2_r1",
+      "status": "available",
+      "response_sha256": "fd4493f374c9576e31225cec6b3f541182d7016516e4dc5547220ddaee54f7c7",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 9577.0,
+      "output_tokens": 1658.0,
+      "provider_seconds": 37.9403715,
+      "scenario_count": 8,
+      "closed_gherkin_fences": 8,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 22,
+          "header": "SCENARIO: S01 - Invio notifica su cambio stato dinamico",
+          "text": "  GIVEN una RICHIESTA in stato \"Bozza\" associata a un UTENTE dipendente\n  AND la RICHIESTA passa allo stato \"Revisato\" tramite azione di business\n  WHEN il sistema rileva il cambiamento di stato della RICHIESTA\n  THEN pubblica un evento asincrono su RabbitMQ contenente l'ID della richiesta\n  E istanzia lo Strategy appropriato per determinare il destinatario\n  E crea un record NOTIFICA con stato_consegna \"IN_CODA\" e tentativo_n = 1",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E istanzia lo Strategy appropriato per determinare il destinatario",
+            "  E crea un record NOTIFICA con stato_consegna \"IN_CODA\" e tentativo_n = 1"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 32,
+          "header": "SCENARIO: S02 - Invio notifica su scadenza imminente",
+          "text": "  GIVEN una RICHIESTA con countdown temporale impostato a 1 giorno\n  AND il sistema esegue la scansione periodica del job StaticTriggerJob\n  WHEN il countdown scende sotto la soglia di attivazione definita\n  THEN il job pubblica un evento trigger per \"SCADENZA_IMMINENTE\"\n  E crea un record NOTIFICA con stato_consegna \"IN_CODA\" e tentativo_n = 1",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E crea un record NOTIFICA con stato_consegna \"IN_CODA\" e tentativo_n = 1"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 41,
+          "header": "SCENARIO: S03 - Consegna riuscita via Email",
+          "text": "  GIVEN una notifica in stato IN_CODA destinata a un canale EMAIL\n  AND il server SMTP risponde con successo al messaggio di invio\n  WHEN il sistema elabora la risposta positiva dal provider\n  THEN aggiorna lo stato della NOTIFICA a \"CONSEGNATA\"\n  E ferma immediatamente la sequenza di retry per quell'evento",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E ferma immediatamente la sequenza di retry per quell'evento"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 50,
+          "header": "SCENARIO: S04 - Fallimento Email e backoff verso Slack",
+          "text": "  GIVEN una notifica in stato IN_CODA destinata a un canale EMAIL\n  AND il server SMTP fallisce l'invio (es. timeout o errore rete)\n  WHEN il sistema incrementa il contatore tentativo_n a 1\n  THEN attende il periodo di backoff configurato di 15 minuti\n  E tenta l'invio dello stesso evento tramite il canale SLACK",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E tenta l'invio dello stesso evento tramite il canale SLACK"
+          ]
+        },
+        {
+          "ordinal": 5,
+          "line": 59,
+          "header": "SCENARIO: S05 - Fallimento definitivo e logging anomalia",
+          "text": "  GIVEN una notifica che ha già fallito su EMAIL (tentativo_n = 1)\n  AND il tentativo successivo su SLACK fallisce anch'esso\n  WHEN il sistema raggiunge il limite massimo di tentativi (3) o entrambi i canali falliscono\n  THEN aggiorna lo stato della NOTIFICA a \"FALLITA\"\n  E registra un log strutturato con livello ERROR contenente i dettagli dell'anomalia",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E registra un log strutturato con livello ERROR contenente i dettagli dell'anomalia"
+          ]
+        },
+        {
+          "ordinal": 6,
+          "line": 68,
+          "header": "SCENARIO: S06 - Gestione fallimento silenzioso senza fallback alternativi",
+          "text": "  GIVEN una notifica in cui entrambi i canali EMAIL e SLACK hanno fallito definitivamente\n  AND il sistema verifica la policy di sicurezza per l'attivazione di fallback\n  WHEN si tenta di attivare un canale alternativo non autorizzato (es. SMS)\n  THEN il sistema rifiuta l'attivazione del fallback\n  E registra solo l'anomalia come \"invio mancato\" senza bloccare la pratica",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E registra solo l'anomalia come \"invio mancato\" senza bloccare la pratica"
+          ]
+        },
+        {
+          "ordinal": 7,
+          "line": 77,
+          "header": "SCENARIO: S07 - Propagazione CorrelationId end-to-end",
+          "text": "  GIVEN una RICHIESTA che innesca un evento di notifica\n  AND il sistema genera un correlationId per l'evento RabbitMQ\n  WHEN il messaggio viene elaborato dal consumer e generano log o errori\n  THEN ogni record NOTIFICA, log strutturato e messaggio DLQ contiene lo stesso correlationId",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 8,
+          "line": 85,
+          "header": "SCENARIO: S08 - Isolamento transazionale della creazione notifica",
+          "text": "  GIVEN una RICHIESTA in stato di transizione che richiede la persistenza di una NOTIFICA\n  AND il database risponde con un errore durante l'inserimento del record\n  WHEN il sistema tenta di scrivere il record NOTIFICA nella transazione\n  THEN rollback immediato dell'intera transazione senza scrittura parziale",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 4,
+      "open_points_sections": [
+        {
+          "line": 92,
+          "heading": "## 4. Punti Aperti",
+          "records": [
+            "| Gestione Timeout di Consegna (15 min finestra) | Si assume che la finestra temporale massima per tentare le consegne su canali diversi sia rigidamente 15 minuti, indipendentemente dal numero di fallimenti intermedi. | Come si comporta il sistema se un canale è down per più di 15 minuti ma diventa operativo dopo? Il job Quartz.NET deve riavviare la sequenza o considerare l'evento chiuso definitivamente? |",
+            "| Logging dell'Anomalia (Livello Semantico) | Si assume che il livello log per il fallimento definitivo sia sempre `ERROR` come specificato, anche se il business logic prevede solo \"logging\" in certi contesti. | Esiste un flag di configurazione nel workflow che permette di degradare il livello da `ERROR` a `WARNING` per eventi non critici? Se sì, come viene propagato questo flag agli adapter? |",
+            "| Validazione Destinatario (Sicurezza Identità) | Si assume che la validazione dell'esistenza dell'UTENTE avvenga sempre prima della creazione del record NOTIFICA. | Qual è il comportamento esatto se l'UTENTE esiste ma il suo stato è \"INATTIVO\"? Il sistema deve scartare l'invio o tentare comunque e fallire? |",
+            "| Copertura Retry Logic | La copertura attuale include 1 fallimento su Email + 1 su Slack. Manca lo scenario per il raggiungimento del limite di 3 tentativi totali (es. 2 fallimenti Email, 1 fallimento Slack). | È necessario aggiungere uno scenario specifico che mostri l'incremento fino a `tentativo_n = 3` e la chiusura della sequenza? Attualmente S05 copre il \"fallimento definitivo\" ma non esplicita il conteggio progressivo. |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità coinvolta | Assunzione proposta DA CONFERMARE | Domanda aperta |\n|---|---|---|\n| Gestione Timeout di Consegna (15 min finestra) | Si assume che la finestra temporale massima per tentare le consegne su canali diversi sia rigidamente 15 minuti, indipendentemente dal numero di fallimenti intermedi. | Come si comporta il sistema se un canale è down per più di 15 minuti ma diventa operativo dopo? Il job Quartz.NET deve riavviare la sequenza o considerare l'evento chiuso definitivamente? |\n| Logging dell'Anomalia (Livello Semantico) | Si assume che il livello log per il fallimento definitivo sia sempre `ERROR` come specificato, anche se il business logic prevede solo \"logging\" in certi contesti. | Esiste un flag di configurazione nel workflow che permette di degradare il livello da `ERROR` a `WARNING` per eventi non critici? Se sì, come viene propagato questo flag agli adapter? |\n| Validazione Destinatario (Sicurezza Identità) | Si assume che la validazione dell'esistenza dell'UTENTE avvenga sempre prima della creazione del record NOTIFICA. | Qual è il comportamento esatto se l'UTENTE esiste ma il suo stato è \"INATTIVO\"? Il sistema deve scartare l'invio o tentare comunque e fallire? |\n| Copertura Retry Logic | La copertura attuale include 1 fallimento su Email + 1 su Slack. Manca lo scenario per il raggiungimento del limite di 3 tentativi totali (es. 2 fallimenti Email, 1 fallimento Slack). | È necessario aggiungere uno scenario specifico che mostri l'incremento fino a `tentativo_n = 3` e la chiusura della sequenza? Attualmente S05 copre il \"fallimento definitivo\" ma non esplicita il conteggio progressivo. |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "la2",
+      "arm": "V3",
+      "repetition": 1,
+      "sample_id": "la2_V3_r1",
+      "status": "available",
+      "response_sha256": "004a3475cce1a7f8736ea0a4614a581bb52750301f91a4e07ed54a958d040034",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 9652.0,
+      "output_tokens": 1785.0,
+      "provider_seconds": 43.5013974,
+      "scenario_count": 8,
+      "closed_gherkin_fences": 8,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 19,
+          "header": "SCENARIO: S01 - Invio notifica su trigger dinamico di stato",
+          "text": "  GIVEN una RICHIESTA con ID \"REQ-001\" in stato \"Bozza\"\n  AND un UTENTE con ID \"USR-01\" configurato come destinatario per lo stato \"Revisato\"\n  WHEN la RICHIESTA cambia stato da \"Bozza\" a \"Revisato\"\n  THEN il sistema crea un record NOTIFICA con stato_consegna \"IN_CODA\" e tentativo_n 1\n  AND accoda l'evento di invio su RabbitMQ per il canale Email",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 28,
+          "header": "SCENARIO: S02 - Invio notifica su trigger statico di scadenza",
+          "text": "  GIVEN una RICHIESTA con ID \"REQ-002\" in stato \"In Attesa\" e countdown <= 1 giorno\n  AND un job StaticTriggerJob attivo che esegue la scansione periodica\n  WHEN il job rileva che la scadenza è imminente per REQ-002\n  THEN il sistema crea un record NOTIFICA con stato_consegna \"IN_CODA\" e tentativo_n 1\n  AND accoda l'evento di invio su RabbitMQ per il canale Email",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 37,
+          "header": "SCENARIO: S03 - Fallimento primo tentativo Email e backoff Slack",
+          "text": "  GIVEN una RICHIESTA che innesca un evento di notifica\n  WHEN il sistema tenta l'invio via Email tramite EmailChannelAdapter e riceve errore di delivery\n  THEN il sistema incrementa lo stato della NOTIFICA a \"IN_CODA\" con tentativo_n 2\n  AND applica un backoff di 15 minuti prima di tentare Slack",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 45,
+          "header": "SCENARIO: S04 - Consegna riuscita su canale Slack dopo fallimento Email",
+          "text": "  GIVEN una RICHIESTA che ha fallito l'invio via Email (tentativo_n 1)\n  AND il sistema attende il periodo di backoff configurato\n  WHEN il sistema tenta l'invio via Slack tramite SlackChannelAdapter e riceve risposta OK\n  THEN il sistema aggiorna lo stato della NOTIFICA a \"CONSEGNATA\"\n  AND ferma la sequenza di retry per quell'evento",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 5,
+          "line": 54,
+          "header": "SCENARIO: S05 - Fallimento definitivo dopo esaurimento tentativi",
+          "text": "  GIVEN una RICHIESTA che ha fallito l'invio via Email (tentativo_n 1)\n  AND il sistema tenta l'invio via Slack e riceve errore di delivery\n  WHEN il sistema raggiunge il limite massimo di tentativi (tentativo_n = 3)\n  THEN il sistema aggiorna lo stato della NOTIFICA a \"FALLITA\"\n  AND registra un log strutturato con livello ERROR contenente i dettagli dell'anomalia",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 6,
+          "line": 63,
+          "header": "SCENARIO: S06 - Logging strutturato e correlazione end-to-end",
+          "text": "  GIVEN una RICHIESTA che innesca una notifica fallita definitivamente\n  WHEN il sistema genera il log di anomalia finale\n  THEN il log contiene i campi obbligatori timestamp, level, message, correlationId\n  AND il livello del log è impostato su ERROR",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 7,
+          "line": 71,
+          "header": "SCENARIO: S07 - Non attivazione fallback alternativi non concordati",
+          "text": "  GIVEN una RICHIESTA che ha fallito sia Email che Slack\n  WHEN il sistema raggiunge lo stato FALLITA definitivo\n  THEN il sistema NON attiva canali alternativi come SMS\n  AND NON blocca la pratica principale della RICHIESTA",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 8,
+          "line": 79,
+          "header": "SCENARIO: S08 - Gestione integrità dati in transazione fallita",
+          "text": "  GIVEN una RICHIESTA che innesca un evento di notifica\n  WHEN il database fallisce durante la scrittura del record NOTIFICA\n  THEN la transazione viene rollbackata immediatamente\n  AND non vengono scritti dati parziali nello stato di consegna",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 5,
+      "open_points_sections": [
+        {
+          "line": 86,
+          "heading": "## 4. Punti Aperti",
+          "records": [
+            "| Gestione Trigger Statico (S02) | Il job `StaticTriggerJob` scansiona tutte le richieste o solo quelle in uno stato specifico? | È necessario definire lo stato esatto della `RICHIESTA` che deve essere monitorato per il countdown, oltre a \"In Attesa\"? |",
+            "| Backoff Multi-Canale (S03) | Il backoff di 15 minuti è applicato tra Email e Slack o solo in caso di fallimento ripetuto dello stesso canale? | La specifica richiede un backoff configurato a 15 minuti tra tentativi su canali *diversi*. Va chiarito se questo intervallo si applica anche al passaggio da Email a Slack dopo il primo fallimento, o solo per retry sullo stesso canale. |",
+            "| Logging Anomalia (S06) | Il campo `correlationId` è generato dal middleware di ingresso o ereditato dalla richiesta originale? | Va confermato se il `correlationId` deve essere sempre presente anche per eventi interni asincroni non derivanti da una richiesta HTTP diretta. |",
+            "| Fallback Silenzioso (S07) | La policy \"non attivare fallback alternativi\" si applica solo a canali esterni costosi (es. SMS) o a qualsiasi canale non configurato nel workflow? | Va specificato se l'attivazione di un canale non previsto (es. WhatsApp) è considerata una violazione della policy o semplicemente ignorata dal sistema. |",
+            "| Integrità Dati (S08) | Il rollback avviene solo sul record `NOTIFICA` o anche sugli eventi pubblicati su RabbitMQ? | Va chiarito se il publish dell'evento su RabbitMQ deve essere atomico con la scrittura DB o se può avvenire prima, richiedendo un idempotency check nel consumer. |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione Proposta DA CONFERMARE | Domanda Aperta |\n|---|---|---|\n| Gestione Trigger Statico (S02) | Il job `StaticTriggerJob` scansiona tutte le richieste o solo quelle in uno stato specifico? | È necessario definire lo stato esatto della `RICHIESTA` che deve essere monitorato per il countdown, oltre a \"In Attesa\"? |\n| Backoff Multi-Canale (S03) | Il backoff di 15 minuti è applicato tra Email e Slack o solo in caso di fallimento ripetuto dello stesso canale? | La specifica richiede un backoff configurato a 15 minuti tra tentativi su canali *diversi*. Va chiarito se questo intervallo si applica anche al passaggio da Email a Slack dopo il primo fallimento, o solo per retry sullo stesso canale. |\n| Logging Anomalia (S06) | Il campo `correlationId` è generato dal middleware di ingresso o ereditato dalla richiesta originale? | Va confermato se il `correlationId` deve essere sempre presente anche per eventi interni asincroni non derivanti da una richiesta HTTP diretta. |\n| Fallback Silenzioso (S07) | La policy \"non attivare fallback alternativi\" si applica solo a canali esterni costosi (es. SMS) o a qualsiasi canale non configurato nel workflow? | Va specificato se l'attivazione di un canale non previsto (es. WhatsApp) è considerata una violazione della policy o semplicemente ignorata dal sistema. |\n| Integrità Dati (S08) | Il rollback avviene solo sul record `NOTIFICA` o anche sugli eventi pubblicati su RabbitMQ? | Va chiarito se il publish dell'evento su RabbitMQ deve essere atomico con la scrittura DB o se può avvenire prima, richiedendo un idempotency check nel consumer. |\n"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "fe3",
+      "arm": "B0",
+      "repetition": 2,
+      "sample_id": "fe3_B0_r2",
+      "status": "available",
+      "response_sha256": "b8bc019bebfc8e4dcf02038732a4f7bb2c237bd0c80873413b09a13ddb6e9285",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 4975.0,
+      "output_tokens": 1017.0,
+      "provider_seconds": 22.5162101,
+      "scenario_count": 4,
+      "closed_gherkin_fences": 4,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 17,
+          "header": "SCENARIO: S01 - Invio richiesta con dati validi",
+          "text": "  GIVEN un utente autenticato visualizza la pagina di prenotazione per un EVENTO attivo\n  AND l'utente inserisce una motivazione di 200 caratteri nel campo dedicato\n  AND seleziona la preferenza \"Necessità alloggio\" tramite il controllo UI\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema disabilita immediatamente il pulsante e mostra uno stato di caricamento\n  AND invia con successo il payload JSON al backend contenente motivazione e preferenze\n  AND visualizza un messaggio di conferma dopo la risposta positiva del server",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 28,
+          "header": "SCENARIO: S02 - Inibizione invio per motivazione vuota",
+          "text": "  GIVEN un utente autenticato visualizza la pagina di prenotazione per un EVENTO attivo\n  WHEN tenta di cliccare sul pulsante \"Partecipa\" senza aver inserito nulla nella casella motivazione\n  THEN il sistema impedisce l'invio del payload al backend\n  AND mantiene il pulsante abilitato solo se lo schema Zod rileva dati validi, altrimenti lo disabilita\n  AND evidenzia visivamente il campo motivazione come mancante secondo le regole di validazione UI",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 37,
+          "header": "SCENARIO: S03 - Gestione superamento limite caratteri motivazione",
+          "text": "  GIVEN un utente autenticato visualizza la pagina di prenotazione per un EVENTO attivo\n  AND l'utente inserisce una motivazione contenente 550 caratteri nel campo dedicato\n  THEN il sistema evidenzia il campo con un bordo rosso e mostra un contatore dei caratteri residui negativo\n  AND disabilita il pulsante \"Partecipa\" impedendo la sottomissione del payload invalido",
+          "missing_keywords": [
+            "WHEN"
+          ],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 45,
+          "header": "SCENARIO: S04 - Gestione errore di rete durante la sottomissione",
+          "text": "  GIVEN un utente autenticato ha compilato correttamente il form e clicca su \"Partecipa\"\n  AND il backend restituisce una risposta HTTP con codice 500 o un timeout durante l'elaborazione\n  THEN il sistema mostra un alert Toast di errore generato dalla libreria UI standard\n  AND ripristina lo stato del pulsante dopo la visualizzazione del messaggio di errore",
+          "missing_keywords": [
+            "WHEN"
+          ],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 3,
+      "open_points_sections": [
+        {
+          "line": 54,
+          "heading": "## 3. Punti Aperti",
+          "records": [
+            "| **Gestione Preferenze (Alloggio)** | Si assume che il campo \"Necessità alloggio\" sia l'unico campo preferenziale gestito in questa specifica. | Il Canvas menziona \"altre preferenze connesse\". È necessario aggiungere scenari per campi come \"Dieta\", \"Accessibilità\" o lasciarli fuori scope? Se sì, quali sono i vincoli di validazione per questi nuovi campi? |",
+            "| **Feedback Visivo Loading** | Si assume che lo stato di caricamento sia gestito esclusivamente tramite UI standard (spinner) senza interruzioni dell'utente. | Come comportarsi se l'utente modifica il form mentre è attivo lo stato di loading? È necessario uno scenario per la cancellazione del payload in caso di errore di rete parziale o timeout prolungato? |",
+            "| **Validazione Zod** | Si assume che lo schema Zod sia configurato con un limite rigido a 500 caratteri come da vincolo normativo. | Il Canvas non specifica il comportamento esatto se l'utente copia-incolla testo formattato (es. tabulazioni, nuovi linee). È necessario validare la lunghezza \"visuale\" o quella grezza? |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione da Confermare | Domanda Aperta |\n| :--- | :--- | :--- |\n| **Gestione Preferenze (Alloggio)** | Si assume che il campo \"Necessità alloggio\" sia l'unico campo preferenziale gestito in questa specifica. | Il Canvas menziona \"altre preferenze connesse\". È necessario aggiungere scenari per campi come \"Dieta\", \"Accessibilità\" o lasciarli fuori scope? Se sì, quali sono i vincoli di validazione per questi nuovi campi? |\n| **Feedback Visivo Loading** | Si assume che lo stato di caricamento sia gestito esclusivamente tramite UI standard (spinner) senza interruzioni dell'utente. | Come comportarsi se l'utente modifica il form mentre è attivo lo stato di loading? È necessario uno scenario per la cancellazione del payload in caso di errore di rete parziale o timeout prolungato? |\n| **Validazione Zod** | Si assume che lo schema Zod sia configurato con un limite rigido a 500 caratteri come da vincolo normativo. | Il Canvas non specifica il comportamento esatto se l'utente copia-incolla testo formattato (es. tabulazioni, nuovi linee). È necessario validare la lunghezza \"visuale\" o quella grezza? |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "fe3",
+      "arm": "V1",
+      "repetition": 2,
+      "sample_id": "fe3_V1_r2",
+      "status": "available",
+      "response_sha256": "82493dfd9d17d3109a20b9f352b90c805fff02754f638063cff9806ca87e1d3e",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 4978.0,
+      "output_tokens": 1348.0,
+      "provider_seconds": 28.673089,
+      "scenario_count": 4,
+      "closed_gherkin_fences": 4,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 39,
+          "header": "SCENARIO: S01 - Invio richiesta con dati validi e preferenze",
+          "text": "  GIVEN un utente autenticato visualizza il form per un EVENTO attivo\n  AND l'utente inserisce una motivazione di 120 caratteri nel campo Textarea\n  AND seleziona la preferenza \"Necessità alloggio\" tramite Checkbox\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema valida lo schema Zod e abilita l'invio\n  AND disabilita il pulsante mostrando uno stato di caricamento\n  AND inoltra con successo il payload JSON al backend",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 50,
+          "header": "SCENARIO: S02 - Inibizione invio per motivazione vuota",
+          "text": "  GIVEN un utente autenticato visualizza il form per un EVENTO attivo\n  WHEN l'utente clicca sul pulsante \"Partecipa\" senza inserire nulla nella motivazione\n  THEN il sistema rileva la violazione dello schema Zod\n  AND disabilita visivamente il pulsante \"Partecipa\"\n  AND non invia alcun payload al backend",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 59,
+          "header": "SCENARIO: S03 - Blocco invio per superamento limite caratteri",
+          "text": "  GIVEN un utente autenticato visualizza il form per un EVENTO attivo\n  AND l'utente inserisce una motivazione di 550 caratteri nel campo Textarea\n  THEN il sistema evidenzia il contatore dei caratteri in rosso con valore negativo\n  AND disabilita il pulsante \"Partecipa\" impedendo la trasmissione dei dati",
+          "missing_keywords": [
+            "WHEN"
+          ],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 67,
+          "header": "SCENARIO: S04 - Gestione errore di sottomissione lato server",
+          "text": "  GIVEN un utente autenticato invia una richiesta valida tramite il form\n  WHEN il backend restituisce un errore HTTP 500 o timeout durante l'elaborazione\n  THEN il sistema visualizza un messaggio di errore Toast all'utente\n  AND riabilita i controlli del form permettendo al utente di correggere e riprovare",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 3,
+      "open_points_sections": [
+        {
+          "line": 76,
+          "heading": "## 4. Punti Aperti",
+          "records": [
+            "| Gestione preferenze (alloggio) | Si presume che le altre preferenze connesse menzionate nel Canvas siano gestite tramite gli stessi meccanismi booleani/radio descritti per l'alloggio. | Qual è esattamente la lista completa delle \"altre preferenze connesse\" da includere nel form oltre all'alloggio? |",
+            "| Validazione schema Zod | Si presume che lo schema Zod sia configurato per accettare solo stringhe non vuote e boole valide, senza regole complesse di formato (es. regex) oltre al limite di lunghezza. | Esistono vincoli specifici sul formato della motivazione (es. caratteri speciali permessi) oltre al semplice conteggio dei caratteri? |",
+            "| Stato iniziale form | Si presume che il Server Component fornisca sempre i metadati dell'evento necessari per inizializzare lo stato del Client Component prima del primo render. | Come si comporta il form se il Server Component fallisce nel recuperare i metadati dell'evento (fallback UI)? |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione da Confermare | Domanda Aperta |\n| :--- | :--- | :--- |\n| Gestione preferenze (alloggio) | Si presume che le altre preferenze connesse menzionate nel Canvas siano gestite tramite gli stessi meccanismi booleani/radio descritti per l'alloggio. | Qual è esattamente la lista completa delle \"altre preferenze connesse\" da includere nel form oltre all'alloggio? |\n| Validazione schema Zod | Si presume che lo schema Zod sia configurato per accettare solo stringhe non vuote e boole valide, senza regole complesse di formato (es. regex) oltre al limite di lunghezza. | Esistono vincoli specifici sul formato della motivazione (es. caratteri speciali permessi) oltre al semplice conteggio dei caratteri? |\n| Stato iniziale form | Si presume che il Server Component fornisca sempre i metadati dell'evento necessari per inizializzare lo stato del Client Component prima del primo render. | Come si comporta il form se il Server Component fallisce nel recuperare i metadati dell'evento (fallback UI)? |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "fe3",
+      "arm": "V2",
+      "repetition": 2,
+      "sample_id": "fe3_V2_r2",
+      "status": "available",
+      "response_sha256": "67bdda0b4fad4081dc31161e889db8c71a2e2e19a470db2438a92cbb202b3bf6",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 5015.0,
+      "output_tokens": 1449.0,
+      "provider_seconds": 27.9844528,
+      "scenario_count": 4,
+      "closed_gherkin_fences": 4,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 33,
+          "header": "SCENARIO: S01 - Compilazione e sottomissione valida della richiesta",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente inserisce una motivazione di 120 caratteri nel campo dedicato\n  AND seleziona la preferenza \"Necessità alloggio: Sì\" tramite il controllo UI\n  WHEN l'utente clicca sul pulsante \"Partecipa\"\n  THEN il sistema disabilita immediatamente il pulsante applicando lo stato disabled\n  AND invia con successo il payload JSON al backend per la creazione della RICHIESTA\n  AND visualizza un messaggio di conferma Toast all'utente",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 44,
+          "header": "SCENARIO: S02 - Blocco sottomissione per campo motivazione vuoto",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form di prenotazione per un EVENTO attivo\n  WHEN l'utente clicca sul pulsante \"Partecipa\" senza aver inserito alcuna motivazione\n  THEN il sistema impedisce la chiamata API al server\n  AND mantiene il pulsante abilitato solo se lo schema rileva dati validi, altrimenti lo disabilita\n  AND evidenzia visivamente il campo motivazione come mancante secondo le regole di validazione",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 53,
+          "header": "SCENARIO: S03 - Inibizione invio per superamento limite caratteri motivazione",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente inserisce una motivazione di 550 caratteri nella casella di testo\n  THEN il sistema evidenzia la casella con un bordo rosso\n  AND mostra il messaggio informativo \"La motivazione non può superare i 500 caratteri\"\n  AND disabilita il pulsante \"Partecipa\" impedendo la trasmissione dei dati",
+          "missing_keywords": [
+            "WHEN"
+          ],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 62,
+          "header": "SCENARIO: S04 - Gestione errore lato server durante sottomissione",
+          "text": "  GIVEN un UTENTE autenticato compila correttamente il form con dati validi\n  WHEN l'utente clicca su \"Partecipa\" e il backend restituisce un errore 500 o timeout\n  THEN il sistema visualizza un alert Toast generato con sonner contenente il messaggio di errore\n  AND ripristina lo stato abilitato del pulsante dopo la risoluzione dell'errore",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 4,
+      "open_points_sections": [
+        {
+          "line": 69,
+          "heading": "## 4. Punti Aperti",
+          "records": [
+            "| Gestione Preferenze (REQ-FE3-03) | Si presume che le preferenze oltre all'alloggio siano gestite tramite lo stesso pattern booleano/radio descritto per l'alloggio. | Quali sono esattamente le \"altre preferenze connesse\" menzionate nel Canvas e come devono essere rappresentate UI (checkbox, select multi-select)? |",
+            "| Validazione Schema Zod (REQ-FE3-02) | Si presume che lo schema Zod sia configurato con un limite di lunghezza esatto di 500 caratteri per il campo motivazione. | Il limite di 500 caratteri è assoluto o dipende da impostazioni dell'evento? Come si gestisce il caso in cui l'utente copia-incolla testo formattato che supera il conteggio byte ma non quello grafico? |",
+            "| Gestione Errori Client (REQ-FE3-06) | Si presume che il componente Toast sia configurato per essere dismissibile automaticamente dopo un timeout breve. | Qual è la durata esposta del Toast in caso di errore e come si gestisce il caso in cui l'errore persiste oltre 5 secondi? |",
+            "| Concorrenza UI (REQ-FE3-06) | Si presume che non sia necessario gestire stati di \"doppio click\" oltre al blocco standard del pulsante. | Se l'utente tenta di cambiare preferenze mentre la chiamata API è in volo, come si gestisce il conflitto tra stato UI e stato server? |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione da Confermare | Domanda Aperta |\n| :--- | :--- | :--- |\n| Gestione Preferenze (REQ-FE3-03) | Si presume che le preferenze oltre all'alloggio siano gestite tramite lo stesso pattern booleano/radio descritto per l'alloggio. | Quali sono esattamente le \"altre preferenze connesse\" menzionate nel Canvas e come devono essere rappresentate UI (checkbox, select multi-select)? |\n| Validazione Schema Zod (REQ-FE3-02) | Si presume che lo schema Zod sia configurato con un limite di lunghezza esatto di 500 caratteri per il campo motivazione. | Il limite di 500 caratteri è assoluto o dipende da impostazioni dell'evento? Come si gestisce il caso in cui l'utente copia-incolla testo formattato che supera il conteggio byte ma non quello grafico? |\n| Gestione Errori Client (REQ-FE3-06) | Si presume che il componente Toast sia configurato per essere dismissibile automaticamente dopo un timeout breve. | Qual è la durata esposta del Toast in caso di errore e come si gestisce il caso in cui l'errore persiste oltre 5 secondi? |\n| Concorrenza UI (REQ-FE3-06) | Si presume che non sia necessario gestire stati di \"doppio click\" oltre al blocco standard del pulsante. | Se l'utente tenta di cambiare preferenze mentre la chiamata API è in volo, come si gestisce il conflitto tra stato UI e stato server? |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "fe3",
+      "arm": "V3",
+      "repetition": 2,
+      "sample_id": "fe3_V3_r2",
+      "status": "available",
+      "response_sha256": "5c0a508b380f582c3bc05596c70edafe00fd24e43576b8230fade3b38abe6a5f",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 5090.0,
+      "output_tokens": 1301.0,
+      "provider_seconds": 27.394949,
+      "scenario_count": 8,
+      "closed_gherkin_fences": 8,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 18,
+          "header": "SCENARIO: S01 - Invio richiesta con motivazione valida",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente inserisce una motivazione contenente 250 caratteri\n  WHEN l'utente clicca sul pulsante \"Partecipa\"\n  THEN il sistema invia la richiesta al backend con successo\n  AND mostra uno stato di feedback positivo all'utente",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 27,
+          "header": "SCENARIO: S02 - Inibizione invio per motivazione vuota",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  WHEN l'utente lascia il campo \"Motivazione\" vuoto e clicca su \"Partecipa\"\n  THEN il sistema impedisce la sottomissione della richiesta\n  AND evidenzia visivamente il campo come mancante",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 35,
+          "header": "SCENARIO: S03 - Inibizione invio per superamento limite caratteri",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente inserisce una motivazione di 550 caratteri\n  WHEN l'utente tenta di inviare la richiesta\n  THEN il sistema disabilita il pulsante \"Partecipa\"\n  AND mostra un messaggio di errore indicando il limite di 500 caratteri",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 47,
+          "header": "SCENARIO: S04 - Invio con preferenza alloggio attiva",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente seleziona \"Necessario\" per la struttura di alloggio\n  WHEN l'utente completa tutti i campi e clicca su \"Partecipa\"\n  THEN il sistema invia il payload contenente la preferenza di alloggio\n  AND aggiorna lo stato della richiesta nel contesto dell'utente",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 5,
+          "line": 56,
+          "header": "SCENARIO: S05 - Gestione stato di caricamento durante l'invio",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  WHEN l'utente clicca su \"Partecipa\" e la chiamata API è in corso\n  THEN il sistema disabilita il pulsante \"Partecipa\"\n  AND mostra uno stato di caricamento (spinner) sul pulsante",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 6,
+          "line": 64,
+          "header": "SCENARIO: S06 - Gestione errore lato server durante l'invio",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  WHEN l'utente clicca su \"Partecipa\" e il backend restituisce un errore 500\n  THEN il sistema mostra un messaggio di avviso (Toast) con i dettagli dell'errore\n  AND ripristina lo stato abilitato del pulsante dopo la visualizzazione dell'errore",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 7,
+          "line": 75,
+          "header": "SCENARIO: S07 - Caricamento contestuale dei metadati evento",
+          "text": "  GIVEN un UTENTE naviga verso la pagina di dettaglio di un EVENTO specifico\n  WHEN il Server Component recupera i metadati dell'evento\n  THEN il Client Component renderizza il form con i dati dell'evento disponibili\n  AND abilita l'inserimento delle preferenze relative a quell'evento",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 8,
+          "line": 83,
+          "header": "SCENARIO: S08 - Rendering dinamico dei campi preferenze",
+          "text": "  GIVEN un UTENTE visualizza il form per un EVENTO attivo\n  WHEN il sistema riceve i metadati che includono opzioni di alloggio\n  THEN l'interfaccia renderizza dinamicamente i controlli (Checkbox/Select) per le preferenze\n  AND permette all'utente di modificare tali preferenze in tempo reale",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 3,
+      "open_points_sections": [
+        {
+          "line": 92,
+          "heading": "## 3. Punti Aperti",
+          "records": [
+            "| **F1** (Validazione Motivazione) | Nessuna; copertura completa dai casi S02 e S03. | N/A |",
+            "| **F2** (Gestione Errori) | L'errore 500 restituito dal backend è sempre gestito tramite Toast standard senza ricaricare la pagina. | Come comportarsi se l'errore persiste per più di 10 secondi? (Non coperto, ma non critico per MVP). |",
+            "| **F3** (Rendering) | I metadati dell'evento sono sempre disponibili prima del primo render del Client Component. | Cosa succede se i metadati arrivano con ritardo significativo rispetto al timeout di rendering? |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione da Confermare | Domanda Aperta |\n| :--- | :--- | :--- |\n| **F1** (Validazione Motivazione) | Nessuna; copertura completa dai casi S02 e S03. | N/A |\n| **F2** (Gestione Errori) | L'errore 500 restituito dal backend è sempre gestito tramite Toast standard senza ricaricare la pagina. | Come comportarsi se l'errore persiste per più di 10 secondi? (Non coperto, ma non critico per MVP). |\n| **F3** (Rendering) | I metadati dell'evento sono sempre disponibili prima del primo render del Client Component. | Cosa succede se i metadati arrivano con ritardo significativo rispetto al timeout di rendering? |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "la2",
+      "arm": "B0",
+      "repetition": 2,
+      "sample_id": "la2_B0_r2",
+      "status": "available",
+      "response_sha256": "88d60bc0f50d20cfb70483de3fee36ab8b0ece9e6a0f6e5a75206704b5077d0a",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 9537.0,
+      "output_tokens": 1106.0,
+      "provider_seconds": 25.6748237,
+      "scenario_count": 4,
+      "closed_gherkin_fences": 4,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 14,
+          "header": "SCENARIO: S01 - Invio notifica Email riuscito per cambio stato dinamico",
+          "text": "  GIVEN una RICHIESTA in stato \"Bozza\" che viene aggiornata a \"Revisato\"\n  AND il workflow di routing è configurato per notificare il RESPONSABILE via EMAIL\n  WHEN il sistema rileva la transizione di stato e pubblica l'evento su RabbitMQ\n  THEN crea un record NOTIFICA con stato IN_CODA\n  E invia il messaggio tramite EmailChannelAdapter\n  E aggiorna lo stato della NOTIFICA a CONSEGNATA",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E invia il messaggio tramite EmailChannelAdapter",
+            "  E aggiorna lo stato della NOTIFICA a CONSEGNATA"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 24,
+          "header": "SCENARIO: S02 - Gestione fallimento Email e retry Slack per scadenza imminente",
+          "text": "  GIVEN una RICHIESTA prossima alla scadenza con countdown <= X giorni\n  AND il sistema innesca il trigger statico SCADENZA_IMMINENTE per il RESPONSABILE via EMAIL\n  WHEN l'invio tramite EmailChannelAdapter fallisce (es. timeout SMTP)\n  THEN incrementa il contatore tentativo_n a 1\n  E registra lo stato della NOTIFICA come IN_CODA con livello log WARNING\n  E attende il periodo di backoff configurato a 15 minuti\n  E tenta l'invio tramite SlackChannelAdapter",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E registra lo stato della NOTIFICA come IN_CODA con livello log WARNING",
+            "  E attende il periodo di backoff configurato a 15 minuti",
+            "  E tenta l'invio tramite SlackChannelAdapter"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 35,
+          "header": "SCENARIO: S03 - Fallimento definitivo e chiusura sequenza senza fallback SMS",
+          "text": "  GIVEN una RICHIESTA per cui sia Email che Slack falliscono nei rispettivi tentativi\n  AND il contatore tentativo_n raggiunge il limite massimo di 3\n  WHEN entrambi i canali (Email e Slack) restituiscono errori definitivi\n  THEN aggiorna lo stato della NOTIFICA a FALLITA\n  E genera un log strutturato con livello ERROR contenente i dettagli dell'anomalia\n  E non attiva alcuna notifica alternativa come SMS",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E genera un log strutturato con livello ERROR contenente i dettagli dell'anomalia",
+            "  E non attiva alcuna notifica alternativa come SMS"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 45,
+          "header": "SCENARIO: S04 - Invio notifica Slack riuscito dopo fallimento Email iniziale",
+          "text": "  GIVEN una RICHIESTA in stato \"Annullata\" che richiede notifica al DIPENDENTE via EMAIL\n  WHEN l'invio tramite EmailChannelAdapter fallisce per errore di rete\n  THEN incrementa il contatore tentativo_n a 1\n  E tenta l'invio tramite SlackChannelAdapter dopo il backoff\n  E aggiorna lo stato della NOTIFICA a CONSEGNATA solo dopo successo su Slack",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E tenta l'invio tramite SlackChannelAdapter dopo il backoff",
+            "  E aggiorna lo stato della NOTIFICA a CONSEGNATA solo dopo successo su Slack"
+          ]
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 4,
+      "open_points_sections": [
+        {
+          "line": 53,
+          "heading": "## 3. Punti Aperti",
+          "records": [
+            "| Gestione Trigger Statici (Countdown) | Il job `StaticTriggerJob` scansiona le richieste ogni X minuti per calcolare il countdown residuo. | Qual è l'intervallo di scansione esposto dal job Quartz.NET? È fisso o dinamico in base al carico? |",
+            "| Validazione Utente Destinatario | La verifica dell'esistenza dell'UTENTE avviene prima della creazione del record NOTIFICA, ma non si applica la validazione del dominio email (poiché i dati sono @progettopa.it). | Se un utente viene disabilitato nel sistema tra il momento in cui viene creato il record NOTIFICA e l'invio effettivo, come gestisce il consumer? Il fallimento è considerato \"fallimento canale\" o \"errore di business\"? |",
+            "| Propagazione CorrelationId | Il campo `correlationId` viene generato al momento della ricezione dell'evento RabbitMQ dal consumer. | Se l'evento arriva da un trigger statico (Job) che non ha un ID di richiesta correlato esplicitamente, come viene generato il `correlationId` iniziale? |",
+            "| Logging Anomalia Definitiva | Il log finale per stato FALLITA deve essere di livello ERROR. | Il log deve includere anche lo stack trace dell'ultimo errore o solo il messaggio sintetico definito dal business logic? |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione da Confermare | Domanda Aperta |\n|---|---|---|\n| Gestione Trigger Statici (Countdown) | Il job `StaticTriggerJob` scansiona le richieste ogni X minuti per calcolare il countdown residuo. | Qual è l'intervallo di scansione esposto dal job Quartz.NET? È fisso o dinamico in base al carico? |\n| Validazione Utente Destinatario | La verifica dell'esistenza dell'UTENTE avviene prima della creazione del record NOTIFICA, ma non si applica la validazione del dominio email (poiché i dati sono @progettopa.it). | Se un utente viene disabilitato nel sistema tra il momento in cui viene creato il record NOTIFICA e l'invio effettivo, come gestisce il consumer? Il fallimento è considerato \"fallimento canale\" o \"errore di business\"? |\n| Propagazione CorrelationId | Il campo `correlationId` viene generato al momento della ricezione dell'evento RabbitMQ dal consumer. | Se l'evento arriva da un trigger statico (Job) che non ha un ID di richiesta correlato esplicitamente, come viene generato il `correlationId` iniziale? |\n| Logging Anomalia Definitiva | Il log finale per stato FALLITA deve essere di livello ERROR. | Il log deve includere anche lo stack trace dell'ultimo errore o solo il messaggio sintetico definito dal business logic? |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "la2",
+      "arm": "V1",
+      "repetition": 2,
+      "sample_id": "la2_V1_r2",
+      "status": "available",
+      "response_sha256": "d02701ccbf3f1b90027b3936fda8d28eb81574839e9031ef9273b56206640acb",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 9540.0,
+      "output_tokens": 1086.0,
+      "provider_seconds": 25.4083036,
+      "scenario_count": 4,
+      "closed_gherkin_fences": 4,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 9,
+          "header": "SCENARIO: S01 - Invio notifica Email su trigger dinamico riuscito",
+          "text": "  GIVEN una RICHIESTA in stato \"Revisato\" che attiva un trigger dinamico\n  AND il sistema identifica come destinatario l'utente con ruolo \"DIPENDENTE\"\n  WHEN il consumer NotificationConsumer elabora l'evento e tenta l'invio via EmailChannelAdapter\n  THEN lo stato della NOTIFICA viene aggiornato a \"CONSEGNATA\"\n  AND il contatore tentativo_n rimane uguale a 1\n  AND non vengono generati tentativi su Slack né log di errore",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 19,
+          "header": "SCENARIO: S02 - Gestione fallimento Email e retry su Slack con backoff",
+          "text": "  GIVEN una RICHIESTA in stato \"Revisato\" che attiva un trigger dinamico\n  AND il sistema tenta l'invio via EmailChannelAdapter ma riceve un errore di delivery\n  WHEN il sistema incrementa tentativo_n a 1, attende il periodo di backoff configurato (15 minuti) e riprende\n  THEN il sistema tenta l'invio tramite SlackChannelAdapter\n  AND se anche Slack fallisce definitivamente, lo stato della NOTIFICA diventa \"FALLITA\"\n  AND viene generato un log strutturato con livello ERROR contenente i dettagli dell'anomalia",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 29,
+          "header": "SCENARIO: S03 - Innesco notifica statica per scadenza imminente",
+          "text": "  GIVEN una RICHIESTA in attesa di scadenza con countdown <= X giorni\n  WHEN il job StaticTriggerJob esegue la scansione periodica e rileva la soglia raggiunta\n  THEN pubblica un evento trigger per \"SCADENZA_IMMINENTE\"\n  AND istanzia lo Strategy appropriato per determinare i destinatari (Dipendente o Responsabile)\n  AND avvia la sequenza di invio multi-canale secondo le regole di LA2",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 38,
+          "header": "SCENARIO: S04 - Arrivo duplicato di evento trigger e gestione idempotenza",
+          "text": "  GIVEN un evento trigger per una RICHIESTA già in coda di elaborazione nel consumer NotificationConsumer\n  WHEN il messaggio viene ricevuto nuovamente su RabbitMQ (es. per persistenza broker)\n  THEN il sistema verifica l'ID nell'Inbox o lo stato corrente della NOTIFICA\n  AND ignora la duplicazione evitando nuovi tentativi di invio o duplicati nel database",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 4,
+      "open_points_sections": [
+        {
+          "line": 45,
+          "heading": "## 3. Punti Aperti e Assunzioni",
+          "records": [
+            "| Gestione Fallimenti Silenziosi | Si assume che il \"fallback silenzioso\" significhi esclusivamente l'arresto della sequenza di invio per quell'evento specifico senza attivare canali esterni non configurati (es. SMS). | È necessario definire una policy esplicita su quali canali alternativi sono *mai* consentiti oltre a EMAIL e SLACK, o se il sistema deve essere rigido solo su quelli configurati? |",
+            "| Timeout di Consegna Globale | Si assume che la finestra temporale massima di 15 minuti tra i tentativi si riferisca al ciclo completo (Email -> Slack) per un singolo evento, non a una finestra globale per tutte le notifiche. | Come deve comportarsi il sistema se l'evento trigger originale ha un timeout diverso da quello del retry logic? |",
+            "| Logging Anomalia Definitiva | Si assume che il log strutturato finale con livello ERROR venga scritto immediatamente al raggiungimento dello stato FALLITA, indipendentemente dal momento esatto in cui scade il timer di backoff. | È necessario includere nel log anche l'ID della richiesta sorgente e i metadati del workflow fallito per facilitare il debugging? |",
+            "| Copertura Scenari Negativi | La copertura attuale include un caso di successo, un caso di fallback multi-canale fallito e due casi di gestione eventi (statico/duplicato). | Mancano scenari specifici per: 1) Fallimento simultaneo su entrambi i canali senza backoff (es. errore transazionale immediato), 2) Gestione dell'entità UTENTE non trovata prima della creazione della NOTIFICA. |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione da Confermare | Domanda Aperta |\n|---|---|---|\n| Gestione Fallimenti Silenziosi | Si assume che il \"fallback silenzioso\" significhi esclusivamente l'arresto della sequenza di invio per quell'evento specifico senza attivare canali esterni non configurati (es. SMS). | È necessario definire una policy esplicita su quali canali alternativi sono *mai* consentiti oltre a EMAIL e SLACK, o se il sistema deve essere rigido solo su quelli configurati? |\n| Timeout di Consegna Globale | Si assume che la finestra temporale massima di 15 minuti tra i tentativi si riferisca al ciclo completo (Email -> Slack) per un singolo evento, non a una finestra globale per tutte le notifiche. | Come deve comportarsi il sistema se l'evento trigger originale ha un timeout diverso da quello del retry logic? |\n| Logging Anomalia Definitiva | Si assume che il log strutturato finale con livello ERROR venga scritto immediatamente al raggiungimento dello stato FALLITA, indipendentemente dal momento esatto in cui scade il timer di backoff. | È necessario includere nel log anche l'ID della richiesta sorgente e i metadati del workflow fallito per facilitare il debugging? |\n| Copertura Scenari Negativi | La copertura attuale include un caso di successo, un caso di fallback multi-canale fallito e due casi di gestione eventi (statico/duplicato). | Mancano scenari specifici per: 1) Fallimento simultaneo su entrambi i canali senza backoff (es. errore transazionale immediato), 2) Gestione dell'entità UTENTE non trovata prima della creazione della NOTIFICA. |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "la2",
+      "arm": "V2",
+      "repetition": 2,
+      "sample_id": "la2_V2_r2",
+      "status": "available",
+      "response_sha256": "e3b97cd6f64ddd069a6315b48017593e6ce1d5c7f116a6f0f560d87034c4b271",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 9577.0,
+      "output_tokens": 1197.0,
+      "provider_seconds": 23.2778787,
+      "scenario_count": 4,
+      "closed_gherkin_fences": 4,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 16,
+          "header": "SCENARIO: S01 - Invio notifica su transizione di stato dinamica",
+          "text": "  GIVEN una RICHIESTA in stato \"Bozza\" con countdown scaduto\n  AND un utente UTENTE assegnato come RESPONSABILE nella configurazione workflow\n  WHEN lo stato della RICHIESTA cambia a \"Revisato\"\n  THEN il sistema pubblica un evento RabbitMQ per notifica \"STATO_CAMBIATO\"\n  E istanzia la strategia di routing che seleziona l'UTENTE responsabile\n  E invia il messaggio via EmailChannelAdapter con successo\n  E aggiorna lo stato della NOTIFICA a CONSEGNATA",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E istanzia la strategia di routing che seleziona l'UTENTE responsabile",
+            "  E invia il messaggio via EmailChannelAdapter con successo",
+            "  E aggiorna lo stato della NOTIFICA a CONSEGNATA"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 27,
+          "header": "SCENARIO: S02 - Invio notifica su scadenza imminente (Trigger Statico)",
+          "text": "  GIVEN una RICHIESTA in stato \"In Attesa\" con countdown residuo <= 1 giorno\n  AND il job Quartz.NET StaticTriggerJob esegue la scansione periodica\n  WHEN il countdown scade e il sistema rileva l'evento di scadenza\n  THEN il sistema pubblica un evento RabbitMQ per notifica \"SCADENZA_IMMINENTE\"\n  E istanzia la strategia di routing che seleziona i destinatari configurati\n  E tenta l'invio via EmailChannelAdapter",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E istanzia la strategia di routing che seleziona i destinatari configurati",
+            "  E tenta l'invio via EmailChannelAdapter"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 37,
+          "header": "SCENARIO: S03 - Gestione fallimento primo tentativo e backoff multi-canale",
+          "text": "  GIVEN una RICHIESTA con evento trigger generato\n  AND il sistema tenta l'invio su EmailChannelAdapter che fallisce (errore rete)\n  WHEN il sistema incrementa il contatore di tentativi a 1\n  THEN il sistema attende il periodo di backoff configurato (15 minuti)\n  E tenta l'invio dello stesso evento su SlackChannelAdapter",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E tenta l'invio dello stesso evento su SlackChannelAdapter"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 46,
+          "header": "SCENARIO: S04 - Gestione fallimento definitivo e logging anomalia",
+          "text": "  GIVEN una RICHIESTA con evento trigger generato\n  AND il primo tentativo via EmailChannelAdapter fallisce\n  AND il secondo tentativo via SlackChannelAdapter (dopo backoff) fallisce\n  WHEN il sistema raggiunge il limite massimo dei tentativi (tentativo_n = 3)\n  THEN il sistema aggiorna lo stato della NOTIFICA a FALLITA\n  E registra un log strutturato con livello ERROR e messaggio \"invio mancato\"\n  E non attiva alcun fallback alternativo come SMS",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E registra un log strutturato con livello ERROR e messaggio \"invio mancato\"",
+            "  E non attiva alcun fallback alternativo come SMS"
+          ]
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 4,
+      "open_points_sections": [
+        {
+          "line": 56,
+          "heading": "## 3. Punti Aperti",
+          "records": [
+            "| Gestione Trigger Statico (S02) | Il job Quartz.NET scansiona *tutte* le richieste o solo quelle in stato specifico? | Come viene filtrato l'insieme delle `RICHIESTA` da monitorare per evitare sovraccarico del worker durante la scansione periodica? |",
+            "| Backoff Multi-Canale (S03) | Il backoff di 15 minuti è applicato *solo* tra Email e Slack, o anche se lo stesso canale fallisce due volte? | Se Email fallisce al tentativo 1, si aspetta 15 min per provare Slack. Se Slack fallisce, si aspetta altri 15 min per riprovare Email (tentativo 3)? O il ciclo è lineare (Email -> Slack -> Fine)? |",
+            "| Logging Fallimento (S04) | Il log di livello ERROR include i dettagli dell'errore specifico del provider esterno o solo lo stato generico? | Qual è la struttura esatta del payload JSON del log per garantire che contenga `correlationId`, `timestamp` e il motivo del fallimento senza violare le regole PII? |",
+            "| Correlazione End-to-End | Il `correlationId` viene generato al momento della creazione dell'evento RabbitMQ o ereditato dalla transazione di business originale? | Come si garantisce che il `correlationId` sia presente anche se la transazione di business originale non ha generato un ID (es. evento interno)? |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione da Confermare | Domanda Aperta |\n|---|---|---|\n| Gestione Trigger Statico (S02) | Il job Quartz.NET scansiona *tutte* le richieste o solo quelle in stato specifico? | Come viene filtrato l'insieme delle `RICHIESTA` da monitorare per evitare sovraccarico del worker durante la scansione periodica? |\n| Backoff Multi-Canale (S03) | Il backoff di 15 minuti è applicato *solo* tra Email e Slack, o anche se lo stesso canale fallisce due volte? | Se Email fallisce al tentativo 1, si aspetta 15 min per provare Slack. Se Slack fallisce, si aspetta altri 15 min per riprovare Email (tentativo 3)? O il ciclo è lineare (Email -> Slack -> Fine)? |\n| Logging Fallimento (S04) | Il log di livello ERROR include i dettagli dell'errore specifico del provider esterno o solo lo stato generico? | Qual è la struttura esatta del payload JSON del log per garantire che contenga `correlationId`, `timestamp` e il motivo del fallimento senza violare le regole PII? |\n| Correlazione End-to-End | Il `correlationId` viene generato al momento della creazione dell'evento RabbitMQ o ereditato dalla transazione di business originale? | Come si garantisce che il `correlationId` sia presente anche se la transazione di business originale non ha generato un ID (es. evento interno)? |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "la2",
+      "arm": "V3",
+      "repetition": 2,
+      "sample_id": "la2_V3_r2",
+      "status": "available",
+      "response_sha256": "b6ad4f573adfebf24af36ada40ee295efc7da7a0c79e56aea0dc338a6a0b99f0",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 9652.0,
+      "output_tokens": 1766.0,
+      "provider_seconds": 38.8034869,
+      "scenario_count": 9,
+      "closed_gherkin_fences": 9,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 18,
+          "header": "SCENARIO: S01 - Invio notifica su trigger dinamico di stato",
+          "text": "  GIVEN una RICHIESTA in stato \"Bozza\" associata a un UTENTE dipendente\n  AND la configurazione workflow indica che lo stato \"Revisato\" deve notificare il DIPENDENTE\n  WHEN l'operatore cambia lo stato della RICHIESTA in \"Revisato\"\n  THEN il sistema pubblica un evento su RabbitMQ contenente l'ID della richiesta e i nuovi metadati\n  AND crea un record NOTIFICA con stato IN_CODA e tentativo_n impostato a 1",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 27,
+          "header": "SCENARIO: S02 - Invio notifica su trigger statico di scadenza imminente",
+          "text": "  GIVEN una RICHIESTA in attesa con countdown temporale residuo inferiore a X giorni\n  AND il job StaticTriggerJob esegue la scansione periodica delle scadenze\n  WHEN il countdown scade o raggiunge la soglia definita dal job\n  THEN il sistema pubblica un evento trigger per la notifica \"SCADENZA_IMMINENTE\"\n  AND crea un record NOTIFICA con stato IN_CODA e tentativo_n impostato a 1",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 36,
+          "header": "SCENARIO: S03 - Consegna riuscita del primo canale (Email)",
+          "text": "  GIVEN un record NOTIFICA in stato IN_CODA con tentativo_n uguale a 1\n  AND il sistema tenta l'invio via SMTP tramite EmailChannelAdapter\n  WHEN la chiamata API SMTP risponde con successo\n  THEN il sistema aggiorna lo stato della NOTIFICA a CONSEGNATA\n  AND ferma i tentativi di retry e chiude la sequenza per quell'evento",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 45,
+          "header": "SCENARIO: S04 - Gestione fallimento del primo canale (Email) e backoff",
+          "text": "  GIVEN un record NOTIFICA in stato IN_CODA con tentativo_n uguale a 1\n  AND il sistema tenta l'invio via SMTP tramite EmailChannelAdapter\n  WHEN la chiamata API SMTP fallisce o times out\n  THEN il sistema incrementa il contatore di tentativo_n a 2\n  AND registra un log di livello WARNING indicando che si attende il backoff di 15 minuti",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 5,
+          "line": 54,
+          "header": "SCENARIO: S05 - Consegna riuscita del secondo canale (Slack) dopo fallimento Email",
+          "text": "  GIVEN un record NOTIFICA con tentativo_n uguale a 2 e stato IN_CODA\n  AND il sistema ha completato il periodo di backoff di 15 minuti\n  WHEN il sistema tenta l'invio via Slack tramite SlackChannelAdapter\n  AND la chiamata API Slack risponde con successo\n  THEN il sistema aggiorna lo stato della NOTIFICA a CONSEGNATA\n  AND ferma i tentativi di retry e chiude la sequenza per quell'evento",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 6,
+          "line": 64,
+          "header": "SCENARIO: S06 - Gestione fallimento definitivo su entrambi i canali",
+          "text": "  GIVEN un record NOTIFICA con tentativo_n uguale a 2 e stato IN_CODA\n  AND il sistema ha completato il periodo di backoff di 15 minuti\n  WHEN il sistema tenta l'invio via Slack tramite SlackChannelAdapter\n  AND anche la chiamata API Slack fallisce definitivamente\n  THEN il sistema aggiorna lo stato della NOTIFICA a FALLITA\n  AND incrementa il contatore di tentativo_n a 3 e registra un log di livello ERROR con messaggio strutturato",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 7,
+          "line": 74,
+          "header": "SCENARIO: S07 - Arresto sequenza al raggiungimento del limite massimo tentativi",
+          "text": "  GIVEN un record NOTIFICA con tentativo_n uguale a 2 e stato IN_CODA\n  AND il sistema ha completato il periodo di backoff di 15 minuti\n  WHEN il sistema tenta l'invio via Slack tramite SlackChannelAdapter\n  AND la chiamata API Slack fallisce definitivamente\n  THEN il sistema arresta immediatamente la sequenza per quell'evento specifico\n  AND non attiva fallback alternativi come chiamate a servizi SMS esterni",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 8,
+          "line": 84,
+          "header": "SCENARIO: S08 - Propagazione correlationId end-to-end",
+          "text": "  GIVEN una RICHIESTA che innesca un evento di notifica\n  WHEN il sistema elabora l'evento e genera log o invia messaggi su RabbitMQ\n  THEN ogni messaggio RabbitMQ contiene il campo correlationId ereditato dal contesto\n  AND ogni riga di log generata include il campo correlationId corrispondente",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 9,
+          "line": 92,
+          "header": "SCENARIO: S09 - Verifica esistenza utente prima della creazione record",
+          "text": "  GIVEN una RICHIESTA associata a un UTENTE che non esiste nel sistema\n  WHEN lo stato della RICHIESTA cambia innescando la notifica\n  THEN il sistema rifiuta di creare il record NOTIFICA per l'utente inesistente\n  AND registra un log di livello WARNING indicando l'anomalia dell'identità destinatario",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 2,
+      "open_points_sections": [
+        {
+          "line": 99,
+          "heading": "## 4. Punti Aperti",
+          "records": [
+            "- **Funzionalità: Gestione Fallimenti Silenziosi**",
+            "- **Funzionalità: Timeout di Consegna**"
+          ],
+          "enumerable": true,
+          "text": "\n- **Funzionalità: Gestione Fallimenti Silenziosi**\n  - **Assunzione:** Se entrambi i canali falliscono, il sistema non invia alert esterni (es. SMS) e non blocca la pratica principale.\n  - **Domanda aperta:** Qual è esattamente il contenuto del log strutturato generato al raggiungimento dello stato `FALLITA`? È necessario includere nel campo `message` anche i dettagli dell'errore specifico del provider o solo lo stato aggregato?\n\n- **Funzionalità: Timeout di Consegna**\n  - **Assunzione:** La finestra temporale massima per tentare le consegne è di 15 minuti tra i tentativi su canali diversi.\n  - **Domanda aperta:** Se il primo tentativo (Email) fallisce e il secondo (Slack) ha successo esattamente al termine dei 15 minuti, il sistema considera l'operazione conclusa o richiede un terzo tentativo immediato? La specifica attuale prevede un massimo di 3 tentativi totali; se il limite è raggiunto dopo il fallimento del secondo canale, la sequenza si arresta."
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "fe3",
+      "arm": "B0",
+      "repetition": 3,
+      "sample_id": "fe3_B0_r3",
+      "status": "available",
+      "response_sha256": "c70b89a67a3025ca411f646562c8e4842a97631a6d31ae33f60ebc2310496881",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 4975.0,
+      "output_tokens": 1358.0,
+      "provider_seconds": 27.0676511,
+      "scenario_count": 4,
+      "closed_gherkin_fences": 4,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 35,
+          "header": "SCENARIO: S01 - Invio richiesta con dati validi",
+          "text": "  GIVEN un utente autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente inserisce una motivazione valida inferiore a 500 caratteri\n  AND l'utente seleziona le preferenze desiderate (es. alloggio necessario)\n  WHEN l'utente clicca sul pulsante \"Partecipa\"\n  THEN il sistema disabilita il pulsante e mostra uno stato di caricamento\n  AND invia la richiesta al backend con successo\n  AND visualizza un messaggio di conferma dopo la risposta dell'API",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 46,
+          "header": "SCENARIO: S02 - Invio bloccato per motivazione vuota",
+          "text": "  GIVEN un utente autenticato visualizza il form di prenotazione per un EVENTO attivo\n  WHEN l'utente clicca sul pulsante \"Partecipa\" senza aver inserito nulla nella casella motivazione\n  THEN il sistema mantiene il pulsante abilitato solo se lo schema non rileva errore (o lo disabilita se vuoto)\n  AND non invia la richiesta al backend\n  AND evidenzia visivamente il campo motivazione come mancante",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 55,
+          "header": "SCENARIO: S03 - Invio bloccato per superamento limite caratteri",
+          "text": "  GIVEN un utente autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente inserisce una motivazione contenente più di 500 caratteri\n  WHEN l'utente tenta di inviare la richiesta\n  THEN il sistema evidenzia il campo in rosso con messaggio \"Limite superato\"\n  AND disabilita il pulsante \"Partecipa\" impedendo l'invio",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 64,
+          "header": "SCENARIO: S04 - Gestione errore server durante sottomissione",
+          "text": "  GIVEN un utente autenticato ha compilato correttamente il form e clicca su \"Partecipa\"\n  WHEN il backend restituisce un errore 500 o un timeout durante l'elaborazione della richiesta\n  THEN il sistema mostra un messaggio di errore tramite Toast\n  AND ripristina lo stato del pulsante dopo la visualizzazione dell'errore",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 3,
+      "open_points_sections": [
+        {
+          "line": 73,
+          "heading": "## 4. Punti Aperti",
+          "records": [
+            "| Gestione preferenze (alloggio) | Si presume che le preferenze siano semplici booleane o radio buttons come descritto nel Canvas, senza logiche complesse di dipendenza tra campi. | Esistono vincoli specifici sulle combinazioni di preferenze (es. \"necessario alloggio\" implica automaticamente \"necessaria colazione\") da validare lato client prima dell'invio? |",
+            "| Stato iniziale del form | Si assume che il Server Component fornisca sempre i metadati dell'evento necessari per abilitare la vista del form, anche se l'evento è tecnicamente \"full\" (la gestione della disponibilità residua non è compito del form). | Come deve comportarsi esattamente l'UI se il Server Component ritarda la risposta dei metadati oltre un certo threshold? Il form deve essere nascosto o mostrato in stato di loading globale? |",
+            "| Gestione Toast Errori | Si assume che la libreria `sonner` (o componente equivalente shadcn) sia configurata per mostrare i toast automaticamente quando il client API restituisce uno stato di errore. | Qual è il tempo di permanenza del messaggio di errore prima della chiusura automatica? Deve essere possibile chiuderlo manualmente dall'utente? |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione da Confermare | Domanda Aperta |\n| :--- | :--- | :--- |\n| Gestione preferenze (alloggio) | Si presume che le preferenze siano semplici booleane o radio buttons come descritto nel Canvas, senza logiche complesse di dipendenza tra campi. | Esistono vincoli specifici sulle combinazioni di preferenze (es. \"necessario alloggio\" implica automaticamente \"necessaria colazione\") da validare lato client prima dell'invio? |\n| Stato iniziale del form | Si assume che il Server Component fornisca sempre i metadati dell'evento necessari per abilitare la vista del form, anche se l'evento è tecnicamente \"full\" (la gestione della disponibilità residua non è compito del form). | Come deve comportarsi esattamente l'UI se il Server Component ritarda la risposta dei metadati oltre un certo threshold? Il form deve essere nascosto o mostrato in stato di loading globale? |\n| Gestione Toast Errori | Si assume che la libreria `sonner` (o componente equivalente shadcn) sia configurata per mostrare i toast automaticamente quando il client API restituisce uno stato di errore. | Qual è il tempo di permanenza del messaggio di errore prima della chiusura automatica? Deve essere possibile chiuderlo manualmente dall'utente? |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "fe3",
+      "arm": "V1",
+      "repetition": 3,
+      "sample_id": "fe3_V1_r3",
+      "status": "available",
+      "response_sha256": "4e480705a9952a23d277f141e046bd122d9f6255a17111a0f81535b141b12772",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 4978.0,
+      "output_tokens": 1345.0,
+      "provider_seconds": 26.8232073,
+      "scenario_count": 4,
+      "closed_gherkin_fences": 4,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 33,
+          "header": "SCENARIO: S01 - Invio form con dati validi e preferenze corrette",
+          "text": "  GIVEN un utente autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente inserisce una motivazione di 200 caratteri nel campo dedicato\n  AND seleziona la preferenza \"Necessità alloggio\" tramite checkbox\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema disabilita il pulsante e mostra uno stato di caricamento\n  AND invia con successo il payload JSON al backend\n  AND visualizza un messaggio di conferma dopo la risposta positiva",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 44,
+          "header": "SCENARIO: S02 - Inibizione invio per motivazione troppo lunga",
+          "text": "  GIVEN un utente autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente inserisce una motivazione contenente 550 caratteri nel campo dedicato\n  WHEN tenta di cliccare sul pulsante \"Partecipa\"\n  THEN il sistema evidenzia il campo in rosso con bordo errore\n  AND disabilita il pulsante \"Partecipa\" impedendo la sottomissione\n  AND visualizza un messaggio di errore relativo al limite dei caratteri",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 54,
+          "header": "SCENARIO: S03 - Gestione errore lato server durante la sottomissione",
+          "text": "  GIVEN un utente autenticato ha compilato correttamente il form con dati validi\n  WHEN clicca sul pulsante \"Partecipa\" e il backend restituisce un errore HTTP 500 o timeout\n  THEN il sistema mostra un messaggio di notifica (Toast) con l'errore ricevuto\n  AND non blocca la pagina né lascia l'utente in uno stato indefinito",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 62,
+          "header": "SCENARIO: S04 - Invio form senza preferenze selezionate",
+          "text": "  GIVEN un utente autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente inserisce una motivazione valida ma non seleziona alcuna preferenza (es. alloggio)\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema invia la richiesta con le preferenze impostate a valori predefiniti o nulli\n  AND conferma la sottomissione al backend con successo",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 3,
+      "open_points_sections": [
+        {
+          "line": 72,
+          "heading": "## 4. Punti Aperti",
+          "records": [
+            "| **Gestione Preferenze** | Si assume che se l'utente non seleziona \"Necessità alloggio\", il valore inviato al backend sia `false` o `null`. | Il form deve obbligare la selezione di almeno una preferenza o permettere esplicitamente il valore vuoto? Attualmente lo scenario S04 copre il caso \"nessuna selezionata\", ma non è chiaro se questo sia un comportamento desiderato o un errore da segnalare. |",
+            "| **Validazione Zod** | Si assume che lo schema Zod blocchi solo i dati sintatticamente errati (lunghezza, tipo) e non validazioni di business complesse (es. \"motivazione vuota\" se il campo è opzionale). | Il campo motivazione è obbligatorio o opzionale? Se opzionale, lo scenario S02 copre bene il limite caratteri, ma manca uno scenario per \"motivazione vuota\" se fosse richiesta. |",
+            "| **Stato Caricamento** | Si assume che lo stato di loading disabiliti *tutti* gli input del form e non solo il pulsante. | È necessario bloccare anche i campi di testo durante il caricamento per evitare modifiche in corso? Attualmente S02 copre il blocco del pulsante, ma non esplicitamente degli input. |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione da Confermare | Domanda Aperta |\n| :--- | :--- | :--- |\n| **Gestione Preferenze** | Si assume che se l'utente non seleziona \"Necessità alloggio\", il valore inviato al backend sia `false` o `null`. | Il form deve obbligare la selezione di almeno una preferenza o permettere esplicitamente il valore vuoto? Attualmente lo scenario S04 copre il caso \"nessuna selezionata\", ma non è chiaro se questo sia un comportamento desiderato o un errore da segnalare. |\n| **Validazione Zod** | Si assume che lo schema Zod blocchi solo i dati sintatticamente errati (lunghezza, tipo) e non validazioni di business complesse (es. \"motivazione vuota\" se il campo è opzionale). | Il campo motivazione è obbligatorio o opzionale? Se opzionale, lo scenario S02 copre bene il limite caratteri, ma manca uno scenario per \"motivazione vuota\" se fosse richiesta. |\n| **Stato Caricamento** | Si assume che lo stato di loading disabiliti *tutti* gli input del form e non solo il pulsante. | È necessario bloccare anche i campi di testo durante il caricamento per evitare modifiche in corso? Attualmente S02 copre il blocco del pulsante, ma non esplicitamente degli input. |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "fe3",
+      "arm": "V2",
+      "repetition": 3,
+      "sample_id": "fe3_V2_r3",
+      "status": "available",
+      "response_sha256": "9335ca0cee9c743ad76511c1d482e55859957c760aed93c93162d2b126c5374c",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 5015.0,
+      "output_tokens": 1188.0,
+      "provider_seconds": 22.0276292,
+      "scenario_count": 4,
+      "closed_gherkin_fences": 4,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 27,
+          "header": "SCENARIO: S01 - Invio richiesta con motivazione valida e alloggio richiesto",
+          "text": "  GIVEN un utente autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente inserisce una motivazione contenente 150 caratteri\n  AND seleziona la checkbox \"Necessità alloggio\"\n  WHEN l'utente clicca sul pulsante \"Partecipa\"\n  THEN il sistema disabilita il pulsante e mostra lo stato di caricamento\n  AND invia con successo il payload JSON al backend contenente motivazione e preferenza alloggio",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 37,
+          "header": "SCENARIO: S02 - Invio richiesta con motivazione valida e alloggio non richiesto",
+          "text": "  GIVEN un utente autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente inserisce una motivazione contenente 150 caratteri\n  AND NON seleziona la checkbox \"Necessità alloggio\"\n  WHEN l'utente clicca sul pulsante \"Partecipa\"\n  THEN il sistema disabilita il pulsante e mostra lo stato di caricamento\n  AND invia con successo il payload JSON al backend contenente motivazione e valore falso per alloggio",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 47,
+          "header": "SCENARIO: S03 - Inibizione invio per superamento limite caratteri motivazione",
+          "text": "  GIVEN un utente autenticato visualizza il form di prenotazione\n  AND l'utente inserisce una motivazione contenente 550 caratteri\n  WHEN l'utente tenta di cliccare sul pulsante \"Partecipa\"\n  THEN il sistema evidenzia la casella con bordo rosso e mostra messaggio \"Limite superato\"\n  AND disabilita il pulsante impedendo l'invio della richiesta",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 56,
+          "header": "SCENARIO: S04 - Gestione errore server durante sottomissione",
+          "text": "  GIVEN un utente autenticato ha compilato correttamente il form\n  WHEN l'utente clicca su \"Partecipa\" e il backend restituisce un errore HTTP 500 o timeout\n  THEN il sistema visualizza un messaggio di errore tramite Toast\n  AND riabilita i controlli del form permettendo all'utente di correggere e riprovare",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 3,
+      "open_points_sections": [
+        {
+          "line": 63,
+          "heading": "## 4. Punti Aperti",
+          "records": [
+            "| **REQ-FE3-01** (Preferenze) | Si presume che le preferenze oltre all'alloggio (menzionate genericamente nel Canvas come \"altre preferenze connesse\") non siano implementate in questa specifica versione del form. | Quali altre preferenze specifiche devono essere gestite dal form? Se ne richiedono altre (es. dieta, accessibilità)? |",
+            "| **REQ-FE3-02** (Motivazione) | Si presume che il limite di 500 caratteri sia l'unico vincolo di lunghezza applicato al campo motivazione. | Esistono vincoli di formato specifici per la motivazione (es. regex, divieto di HTML)? |",
+            "| **REQ-FE3-04** (Errori) | Si presume che il comportamento post-errore sia sempre il ripristino dello stato iniziale del form. | Il sistema deve salvare uno schizzo della richiesta in locale (draft) prima dell'errore? |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione da Confermare | Domanda Aperta |\n| :--- | :--- | :--- |\n| **REQ-FE3-01** (Preferenze) | Si presume che le preferenze oltre all'alloggio (menzionate genericamente nel Canvas come \"altre preferenze connesse\") non siano implementate in questa specifica versione del form. | Quali altre preferenze specifiche devono essere gestite dal form? Se ne richiedono altre (es. dieta, accessibilità)? |\n| **REQ-FE3-02** (Motivazione) | Si presume che il limite di 500 caratteri sia l'unico vincolo di lunghezza applicato al campo motivazione. | Esistono vincoli di formato specifici per la motivazione (es. regex, divieto di HTML)? |\n| **REQ-FE3-04** (Errori) | Si presume che il comportamento post-errore sia sempre il ripristino dello stato iniziale del form. | Il sistema deve salvare uno schizzo della richiesta in locale (draft) prima dell'errore? |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "fe3",
+      "arm": "V3",
+      "repetition": 3,
+      "sample_id": "fe3_V3_r3",
+      "status": "available",
+      "response_sha256": "73c5248f9b1f1db6520c1af90555de8ba1e93eb65027fab7d64541ce27ca1054",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 5090.0,
+      "output_tokens": 1509.0,
+      "provider_seconds": 29.957438,
+      "scenario_count": 9,
+      "closed_gherkin_fences": 9,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 19,
+          "header": "SCENARIO: F1-01 - Invio form con motivazione valida",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente inserisce una motivazione di 250 caratteri nel campo dedicato\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema invia la richiesta al backend con successo\n  AND mostra uno stato di feedback positivo all'utente",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 28,
+          "header": "SCENARIO: F1-02 - Blocco invio per motivazione vuota",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  WHEN l'utente non inserisce alcun testo nel campo motivazione e clicca \"Partecipa\"\n  THEN il sistema impedisce la sottomissione della richiesta\n  AND evidenzia il campo motivazione come mancante",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 36,
+          "header": "SCENARIO: F1-03 - Blocco invio per superamento limite caratteri",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente inserisce una motivazione di 550 caratteri nel campo dedicato\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema impedisce la sottomissione della richiesta\n  AND evidenzia il campo con messaggio di errore relativo al limite dei 500 caratteri",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 49,
+          "header": "SCENARIO: F2-01 - Sottomissione con richiesta di alloggio",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente seleziona l'opzione \"Necessario alloggio\" tra le preferenze disponibili\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema invia la richiesta al backend includendo la preferenza di alloggio\n  AND conferma la registrazione della preferenza nel payload inviato",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 5,
+          "line": 58,
+          "header": "SCENARIO: F2-02 - Sottomissione senza richiesta di alloggio",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente lascia deselezionata l'opzione \"Necessario alloggio\"\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema invia la richiesta al backend senza includere la preferenza di alloggio\n  AND conferma la registrazione della preferenza negativa nel payload inviato",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 6,
+          "line": 71,
+          "header": "SCENARIO: F3-01 - Disattivazione pulsante al click",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  WHEN l'utente clicca sul pulsante \"Partecipa\"\n  THEN il sistema disabilita immediatamente il pulsante \"Partecipa\"\n  AND sostituisce il testo del pulsante con uno stato di caricamento visivo",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 7,
+          "line": 79,
+          "header": "SCENARIO: F3-02 - Prevenzione sottomissione parallela",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  WHEN l'utente clicca ripetutamente sul pulsante \"Partecipa\" durante la chiamata di rete\n  THEN il sistema ignora i click successivi mantenendo il pulsante disabilitato\n  AND invia al backend esattamente una sola istanza della richiesta",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 8,
+          "line": 91,
+          "header": "SCENARIO: F4-01 - Gestione errore di timeout durante invio",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente clicca \"Partecipa\" ma la chiamata al backend subisce un timeout HTTP\n  THEN il sistema mostra un messaggio di errore all'utente tramite componente Toast\n  AND ripristina lo stato del pulsante dopo la visualizzazione dell'errore",
+          "missing_keywords": [
+            "WHEN"
+          ],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 9,
+          "line": 99,
+          "header": "SCENARIO: F4-02 - Gestione errore server (500) durante invio",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente clicca \"Partecipa\" ma il backend restituisce un codice di errore 500\n  THEN il sistema mostra un messaggio di errore generico all'utente tramite componente Toast\n  AND non blocca l'interfaccia utente permettendo la navigazione o il riavvio del form",
+          "missing_keywords": [
+            "WHEN"
+          ],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 4,
+      "open_points_sections": [
+        {
+          "line": 108,
+          "heading": "## 3. Punti Aperti",
+          "records": [
+            "| **F1** (Validazione Motivazione) | Nessuna; copertura completa dai casi limite definiti. | N/A |",
+            "| **F2** (Gestione Preferenze) | Nessuna; copertura completa dei casi di selezione/deselezione. | N/A |",
+            "| **F3** (Prevenzione Duplicati) | Nessuna; copertura completa del comportamento anti-click e disattivazione. | N/A |",
+            "| **F4** (Gestione Errori) | Nessuna; copertura completa degli errori di rete e server standard. | N/A |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione da Confermare | Domanda Aperta |\n| :--- | :--- | :--- |\n| **F1** (Validazione Motivazione) | Nessuna; copertura completa dai casi limite definiti. | N/A |\n| **F2** (Gestione Preferenze) | Nessuna; copertura completa dei casi di selezione/deselezione. | N/A |\n| **F3** (Prevenzione Duplicati) | Nessuna; copertura completa del comportamento anti-click e disattivazione. | N/A |\n| **F4** (Gestione Errori) | Nessuna; copertura completa degli errori di rete e server standard. | N/A |\n\n*Nota: La specifica copre esclusivamente il comportamento osservabile dell'interfaccia utente per la feature FE3 come descritto nel Canvas e nei vincoli normativi applicabili.*"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "la2",
+      "arm": "B0",
+      "repetition": 3,
+      "sample_id": "la2_B0_r3",
+      "status": "available",
+      "response_sha256": "e2ac2422d852d889c3c9a48daaa696663e3729bba1a7306180cfa5a08960ad73",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 9537.0,
+      "output_tokens": 1025.0,
+      "provider_seconds": 23.3623715,
+      "scenario_count": 4,
+      "closed_gherkin_fences": 4,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 14,
+          "header": "SCENARIO: S01 - Invio notifica Email su trigger dinamico riuscito",
+          "text": "  GIVEN una RICHIESTA in stato \"Revisato\" che attiva un trigger dinamico\n  AND il sistema identifica come destinatario valido l'utente dipendente tramite strategia di routing\n  WHEN il consumer elabora l'evento e tenta l'invio via canale EMAIL\n  THEN il sistema aggiorna lo stato della NOTIFICA a \"CONSEGNATA\"\n  AND incrementa il contatore dei tentativi a 1\n  AND registra un log di livello INFO con messaggio di consegna avvenuta",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 24,
+          "header": "SCENARIO: S02 - Gestione fallimento Email e backoff verso Slack",
+          "text": "  GIVEN una RICHIESTA che innesca una notifica per scadenza imminente\n  WHEN il sistema tenta l'invio via canale EMAIL ma riceve un errore di delivery dal provider SMTP\n  THEN il sistema incrementa il contatore dei tentativi a 1\n  AND imposta lo stato della NOTIFICA a \"IN_CODA\"\n  AND programma un nuovo tentativo per il canale SLACK dopo un backoff di 15 minuti",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 33,
+          "header": "SCENARIO: S03 - Fallimento definitivo e chiusura sequenza",
+          "text": "  GIVEN una RICHIESTA che ha già subito due tentativi falliti (Email e Slack)\n  WHEN il terzo tentativo via canale SLACK fallisce definitivamente per timeout o errore API\n  THEN il sistema aggiorna lo stato della NOTIFICA a \"FALLITA\"\n  AND incrementa il contatore dei tentativi a 3\n  AND registra un log strutturato di livello ERROR con dettaglio dell'anomalia e non attiva fallback alternativi",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 42,
+          "header": "SCENARIO: S04 - Innesco trigger statico da job periodico",
+          "text": "  GIVEN una RICHIESTA in attesa con countdown temporale inferiore alla soglia configurata\n  WHEN il job StaticTriggerJob esegue la scansione periodica delle scadenze imminenti\n  THEN il sistema pubblica un evento asincrono su RabbitMQ per attivare la notifica \"SCADENZA_IMMINENTE\"\n  AND istanzia lo Strategy appropriato per determinare i destinatari senza hard-coding dei ruoli",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 3,
+      "open_points_sections": [
+        {
+          "line": 49,
+          "heading": "## 4. Punti Aperti",
+          "records": [
+            "| Gestione Backoff Multi-Canale | Il backoff di 15 minuti si applica solo al passaggio tra canali diversi (Email -> Slack) o anche dopo il fallimento dello stesso canale? | Come gestire la finestra temporale massima di 15 minuti se un canale è lento ma non fallisce definitivamente entro quel tempo? |",
+            "| Logging Anomalia | Il log strutturato per lo stato FALLITA deve includere l'intero stack trace dell'errore o solo il codice errore generico? | Qual è la soglia esatta di \"limite massimo dei tentativi\" se il sistema rileva un errore transitorio ripetuto più volte prima del timeout totale? |",
+            "| Correlazione End-to-End | Il campo `correlationId` viene generato al momento della ricezione dell'evento RabbitMQ o ereditato dal chiamante esterno? | Come comportarsi se l'evento trigger arriva senza un `correlationId` valido nel payload iniziale? |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità coinvolta | Assunzione proposta DA CONFERMARE | Domanda aperta |\n|---|---|---|\n| Gestione Backoff Multi-Canale | Il backoff di 15 minuti si applica solo al passaggio tra canali diversi (Email -> Slack) o anche dopo il fallimento dello stesso canale? | Come gestire la finestra temporale massima di 15 minuti se un canale è lento ma non fallisce definitivamente entro quel tempo? |\n| Logging Anomalia | Il log strutturato per lo stato FALLITA deve includere l'intero stack trace dell'errore o solo il codice errore generico? | Qual è la soglia esatta di \"limite massimo dei tentativi\" se il sistema rileva un errore transitorio ripetuto più volte prima del timeout totale? |\n| Correlazione End-to-End | Il campo `correlationId` viene generato al momento della ricezione dell'evento RabbitMQ o ereditato dal chiamante esterno? | Come comportarsi se l'evento trigger arriva senza un `correlationId` valido nel payload iniziale? |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "la2",
+      "arm": "V1",
+      "repetition": 3,
+      "sample_id": "la2_V1_r3",
+      "status": "available",
+      "response_sha256": "0444ffcedb821c14c5c8ee52306316e88270709a0727e32d98adea863f078620",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 9540.0,
+      "output_tokens": 1533.0,
+      "provider_seconds": 33.8275689,
+      "scenario_count": 4,
+      "closed_gherkin_fences": 4,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 22,
+          "header": "SCENARIO: S01 - Invio notifica Email riuscito per trigger dinamico",
+          "text": "  GIVEN una RICHIESTA in stato \"Revisato\" che attiva un trigger dinamico\n  AND il sistema identifica come destinatario l'utente dipendente tramite configurazione workflow\n  WHEN il consumer NotificationConsumer elabora l'evento e tenta l'invio via EMAIL\n  THEN il record NOTIFICA viene creato con stato_consegna \"CONSEGNATA\" e tentativo_n \"1\"\n  E lo stato della RICHIESTA rimane invariato",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E lo stato della RICHIESTA rimane invariato"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 31,
+          "header": "SCENARIO: S02 - Gestione fallimento Email con backoff verso Slack",
+          "text": "  GIVEN una RICHIESTA che attiva un trigger dinamico per notifica al dipendente\n  WHEN il tentativo di invio via EMAIL fallisce (es. timeout SMTP) e il sistema incrementa tentativo_n a \"1\"\n  AND il sistema attende il periodo di backoff configurato a 15 minuti\n  THEN il sistema tenta l'invio tramite SLACK\n  E se anche Slack fallisce, lo stato della NOTIFICA viene aggiornato a \"FALLITA\" con tentativo_n \"2\"",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E se anche Slack fallisce, lo stato della NOTIFICA viene aggiornato a \"FALLITA\" con tentativo_n \"2\""
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 40,
+          "header": "SCENARIO: S03 - Arrivo al limite massimo tentativi e chiusura sequenza",
+          "text": "  GIVEN una RICHIESTA che innesca una notifica statica per scadenza imminente\n  WHEN il sistema esegue i tentativi di invio su EMAIL e SLACK raggiungendo il limite tentativo_n \"3\"\n  AND entrambi i canali falliscono definitivamente\n  THEN lo stato della NOTIFICA viene impostato a \"FALLITA\"\n  E il sistema genera un log strutturato con livello \"ERROR\" contenente lo stato \"FALLITA\"",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E il sistema genera un log strutturato con livello \"ERROR\" contenente lo stato \"FALLITA\""
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 49,
+          "header": "SCENARIO: S04 - Invio notifica Slack riuscito per trigger statico",
+          "text": "  GIVEN una RICHIESTA in attesa di scadenza dove il countdown è scaduto\n  AND la configurazione workflow indica come destinatario il RESPONSABILE\n  WHEN il job StaticTriggerJob pubblica l'evento e il consumer tenta l'invio via SLACK\n  THEN il record NOTIFICA viene creato con stato_consegna \"CONSEGNATA\" e tentativo_n \"1\"\n  E il canale EMAIL non viene tentato in quanto non configurato per questo ruolo",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E il canale EMAIL non viene tentato in quanto non configurato per questo ruolo"
+          ]
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 3,
+      "open_points_sections": [
+        {
+          "line": 57,
+          "heading": "## 4. Punti Aperti",
+          "records": [
+            "| Gestione Trigger Statico (S04) | Il sistema tenta l'invio solo sui canali configurati per il ruolo specifico del destinatario, ignorando i canali non pertinenti. | Se un ruolo ha solo EMAIL configurato ma questo fallisce, il sistema passa a SLACK o chiude immediatamente? Attualmente S04 assume che se Slack è usato, Email non viene tentato, ma la regola \"prova tutti i canali possibili\" potrebbe implicare una sequenza fissa indipendentemente dal ruolo. |",
+            "| Backoff Multi-Canale (S02) | Il backoff di 15 minuti si applica tra il fallimento del primo canale e il tentativo del secondo, non cumulativamente per ogni singolo fallimento all'interno della finestra dei 3 tentativi totali. | La specifica indica \"backoff configurato a 15 minuti\" ma anche \"limite massimo dei tentativi o esaurimento delle opzioni\". È corretto interpretare che i 3 tentativi totali includano il secondo tentativo dopo 15 min, oppure che i 3 tentativi siano sequenziali rapidi e il backoff sia solo per la transizione canale? |",
+            "| Logging Fallimento Definitivo (S03) | Il log finale con livello \"ERROR\" viene generato immediatamente al raggiungimento del limite di tentativi, senza ulteriori verifiche asincrone. | La specifica richiede un log strutturato. È necessario includere nel payload del log anche il `correlationId` e i dettagli dell'anomalia come richiesto da `[REGOLA-OBS-02]` e `[REGOLA-OBS-03]`? (Assunto: Sì, ma non testato esplicitamente nello scenario). |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione da Confermare | Domanda Aperta |\n|---|---|---|\n| Gestione Trigger Statico (S04) | Il sistema tenta l'invio solo sui canali configurati per il ruolo specifico del destinatario, ignorando i canali non pertinenti. | Se un ruolo ha solo EMAIL configurato ma questo fallisce, il sistema passa a SLACK o chiude immediatamente? Attualmente S04 assume che se Slack è usato, Email non viene tentato, ma la regola \"prova tutti i canali possibili\" potrebbe implicare una sequenza fissa indipendentemente dal ruolo. |\n| Backoff Multi-Canale (S02) | Il backoff di 15 minuti si applica tra il fallimento del primo canale e il tentativo del secondo, non cumulativamente per ogni singolo fallimento all'interno della finestra dei 3 tentativi totali. | La specifica indica \"backoff configurato a 15 minuti\" ma anche \"limite massimo dei tentativi o esaurimento delle opzioni\". È corretto interpretare che i 3 tentativi totali includano il secondo tentativo dopo 15 min, oppure che i 3 tentativi siano sequenziali rapidi e il backoff sia solo per la transizione canale? |\n| Logging Fallimento Definitivo (S03) | Il log finale con livello \"ERROR\" viene generato immediatamente al raggiungimento del limite di tentativi, senza ulteriori verifiche asincrone. | La specifica richiede un log strutturato. È necessario includere nel payload del log anche il `correlationId` e i dettagli dell'anomalia come richiesto da `[REGOLA-OBS-02]` e `[REGOLA-OBS-03]`? (Assunto: Sì, ma non testato esplicitamente nello scenario). |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "la2",
+      "arm": "V2",
+      "repetition": 3,
+      "sample_id": "la2_V2_r3",
+      "status": "available",
+      "response_sha256": "96be6f682bc45f0d4bd3ad3c192463ee4186f74b2202649f906bef36ddd1f14f",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 9577.0,
+      "output_tokens": 1044.0,
+      "provider_seconds": 20.0306981,
+      "scenario_count": 4,
+      "closed_gherkin_fences": 4,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 12,
+          "header": "SCENARIO: S01 - Invio notifica su variazione di stato dinamico",
+          "text": "  GIVEN una RICHIESTA in stato \"Bozza\" associata a un UTENTE dipendente\n  AND il sistema rileva la transizione dello stato della RICHIESTA verso \"Revisato\"\n  WHEN il consumer NotificationConsumer elabora l'evento trigger dinamico\n  THEN crea un record NOTIFICA con stato IN_CODA e tentativo_n impostato a 1\n  E invia il messaggio tramite EmailChannelAdapter\n  E aggiorna lo stato della NOTIFICA a CONSEGNATA",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E invia il messaggio tramite EmailChannelAdapter",
+            "  E aggiorna lo stato della NOTIFICA a CONSEGNATA"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 22,
+          "header": "SCENARIO: S02 - Invio notifica su scadenza imminente (Trigger Statico)",
+          "text": "  GIVEN una RICHIESTA con countdown temporale impostato a 1 giorno\n  AND il job StaticTriggerJob esegue la scansione periodica delle scadenze\n  WHEN il countdown scende sotto la soglia di attivazione definita dal workflow\n  THEN il sistema pubblica un evento trigger per \"SCADENZA_IMMINENTE\"\n  E istanzia lo Strategy appropriato per identificare il RESPONSABILE\n  E avvia la sequenza di invio del canale EMAIL",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E istanzia lo Strategy appropriato per identificare il RESPONSABILE",
+            "  E avvia la sequenza di invio del canale EMAIL"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 32,
+          "header": "SCENARIO: S03 - Gestione fallimento primo tentativo e backoff multi-canale",
+          "text": "  GIVEN una RICHIESTA che innesca un evento di notifica\n  WHEN l'invio tramite EmailChannelAdapter fallisce per errore di rete o timeout\n  THEN il sistema incrementa lo stato della NOTIFICA a IN_CODA con tentativo_n = 2\n  E registra un log WARNING indicando il backoff di 15 minuti\n  E dopo il periodo di attesa tenta l'invio tramite SlackChannelAdapter",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E registra un log WARNING indicando il backoff di 15 minuti",
+            "  E dopo il periodo di attesa tenta l'invio tramite SlackChannelAdapter"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 41,
+          "header": "SCENARIO: S04 - Gestione fallimento definitivo e logging anomalia",
+          "text": "  GIVEN una RICHIESTA per cui sia Email che Slack hanno fallito nei rispettivi tentativi\n  AND il contatore tentativo_n raggiunge il limite massimo di 3\n  WHEN la sequenza di invio si conclude senza successo su alcun canale\n  THEN il sistema aggiorna lo stato della NOTIFICA a FALLITA\n  E registra un log strutturato con livello ERROR e messaggio \"invio mancato\"\n  E non attiva alcuna notifica alternativa (es. SMS) né blocca la pratica",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E registra un log strutturato con livello ERROR e messaggio \"invio mancato\"",
+            "  E non attiva alcuna notifica alternativa (es. SMS) né blocca la pratica"
+          ]
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 4,
+      "open_points_sections": [
+        {
+          "line": 50,
+          "heading": "## 3. Punti Aperti",
+          "records": [
+            "| Trigger Statico (S02) | Il job `StaticTriggerJob` scansiona tutte le richieste o solo quelle in uno stato specifico di attesa? | Qual è esattamente lo stato della `RICHIESTA` che deve essere monitorato per il countdown? |",
+            "| Routing Strategy (S01, S02) | Lo Strategy pattern seleziona un singolo destinatario o può selezionare più utenti contemporaneamente? | Se entrambi i ruoli (Dipendente e Responsabile) sono validi per uno stesso stato, come viene gestito l'invio parallelo? |",
+            "| Logging Anomalia (S04) | Il log strutturato include il payload dell'errore specifico del provider esterno o solo il codice generico? | Qual è la struttura esatta dei campi aggiuntivi nel log oltre a `timestamp`, `level`, `message`, `correlationId`? |",
+            "| Backoff Multi-Canale (S03) | Il backoff di 15 minuti si applica tra Email e Slack o solo in caso di fallimento ripetuto dello stesso canale? | Se Email fallisce, il sistema attende 15 minuti per provare Slack, oppure prova Slack immediatamente se disponibile? |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione da Confermare | Domanda Aperta |\n|---|---|---|\n| Trigger Statico (S02) | Il job `StaticTriggerJob` scansiona tutte le richieste o solo quelle in uno stato specifico di attesa? | Qual è esattamente lo stato della `RICHIESTA` che deve essere monitorato per il countdown? |\n| Routing Strategy (S01, S02) | Lo Strategy pattern seleziona un singolo destinatario o può selezionare più utenti contemporaneamente? | Se entrambi i ruoli (Dipendente e Responsabile) sono validi per uno stesso stato, come viene gestito l'invio parallelo? |\n| Logging Anomalia (S04) | Il log strutturato include il payload dell'errore specifico del provider esterno o solo il codice generico? | Qual è la struttura esatta dei campi aggiuntivi nel log oltre a `timestamp`, `level`, `message`, `correlationId`? |\n| Backoff Multi-Canale (S03) | Il backoff di 15 minuti si applica tra Email e Slack o solo in caso di fallimento ripetuto dello stesso canale? | Se Email fallisce, il sistema attende 15 minuti per provare Slack, oppure prova Slack immediatamente se disponibile? |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    },
+    {
+      "feature": "la2",
+      "arm": "V3",
+      "repetition": 3,
+      "sample_id": "la2_V3_r3",
+      "status": "available",
+      "response_sha256": "5f2e73df57d8dd0a4bdd87ce157c60331e80b853078b4cb6572560a17393d394",
+      "provider_attempts": 1,
+      "capture_complete": true,
+      "input_tokens": 9652.0,
+      "output_tokens": 1674.0,
+      "provider_seconds": 36.1204609,
+      "scenario_count": 8,
+      "closed_gherkin_fences": 8,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 21,
+          "header": "SCENARIO: S01 - Invio notifica su trigger dinamico di stato",
+          "text": "  GIVEN una RICHIESTA in stato \"Bozza\"\n  AND un utente UTENTE designato come RESPONSABILE per la pratica\n  WHEN lo stato della RICHIESTA cambia a \"Revisato\"\n  THEN il sistema pubblica un evento asincrono su RabbitMQ contenente l'ID della richiesta\n  E istanzia una strategia di routing che seleziona l'utente RESPONSABILE\n  E crea un record NOTIFICA con stato_consegna IN_CODA e tentativo_n impostato a 1",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E istanzia una strategia di routing che seleziona l'utente RESPONSABILE",
+            "  E crea un record NOTIFICA con stato_consegna IN_CODA e tentativo_n impostato a 1"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 31,
+          "header": "SCENARIO: S02 - Invio notifica su trigger statico di scadenza imminente",
+          "text": "  GIVEN una RICHIESTA in attesa con countdown temporale residuo <= X giorni\n  AND il job StaticTriggerJob esegue la scansione periodica delle scadenze\n  WHEN il countdown scade o raggiunge la soglia definita\n  THEN il sistema pubblica un evento asincrono su RabbitMQ per l'evento \"SCADENZA_IMMINENTE\"\n  E crea un record NOTIFICA con stato_consegna IN_CODA e tentativo_n impostato a 1",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E crea un record NOTIFICA con stato_consegna IN_CODA e tentativo_n impostato a 1"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 40,
+          "header": "SCENARIO: S03 - Invio riuscito del primo canale (Email)",
+          "text": "  GIVEN una notifica in coda per invio via EmailChannelAdapter\n  AND il server SMTP è raggiungibile e accetta la connessione\n  WHEN il sistema tenta l'invio della prima notifica (tentativo_n = 1)\n  THEN il record NOTIFICA viene aggiornato con stato_consegna CONSEGNATA\n  E la sequenza di invio per quell'evento si interrompe senza ulteriori tentativi",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E la sequenza di invio per quell'evento si interrompe senza ulteriori tentativi"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 49,
+          "header": "SCENARIO: S04 - Fallimento del primo canale e backoff verso Slack",
+          "text": "  GIVEN una notifica in coda per invio via EmailChannelAdapter\n  AND il server SMTP rifiuta la connessione o l'email non viene consegnata\n  WHEN il sistema tenta l'invio della prima notifica (tentativo_n = 1)\n  THEN il record NOTIFICA mantiene stato_consegna IN_CODA e incrementa tentativo_n a 2\n  E il sistema applica un backoff di 15 minuti prima di tentare SlackChannelAdapter",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E il sistema applica un backoff di 15 minuti prima di tentare SlackChannelAdapter"
+          ]
+        },
+        {
+          "ordinal": 5,
+          "line": 58,
+          "header": "SCENARIO: S05 - Invio riuscito del secondo canale (Slack) dopo fallimento Email",
+          "text": "  GIVEN una notifica in coda per invio via SlackChannelAdapter\n  AND il sistema ha completato il periodo di backoff da un precedente fallimento Email\n  WHEN il sistema tenta l'invio della seconda notifica (tentativo_n = 2)\n  THEN il record NOTIFICA viene aggiornato con stato_consegna CONSEGNATA\n  E la sequenza di invio per quell'evento si interrompe senza ulteriori tentativi",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E la sequenza di invio per quell'evento si interrompe senza ulteriori tentativi"
+          ]
+        },
+        {
+          "ordinal": 6,
+          "line": 67,
+          "header": "SCENARIO: S06 - Fallimento definitivo e logging dell'anomalia",
+          "text": "  GIVEN una notifica in coda per invio via SlackChannelAdapter\n  AND il sistema ha già fallito l'invio su Email (tentativo_n = 1) e ora anche Slack fallisce (tentativo_n = 2)\n  WHEN il sistema tenta l'invio della terza notifica (tentativo_n = 3)\n  THEN il record NOTIFICA viene aggiornato con stato_consegna FALLITA\n  E il sistema genera un log strutturato con livello ERROR contenente i dettagli dell'anomalia",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E il sistema genera un log strutturato con livello ERROR contenente i dettagli dell'anomalia"
+          ]
+        },
+        {
+          "ordinal": 7,
+          "line": 76,
+          "header": "SCENARIO: S07 - Arrivo di messaggio duplicato (Idempotenza)",
+          "text": "  GIVEN una notifica già elaborata e inserita nell'Inbox di MassTransit\n  AND lo stesso evento trigger viene ripubblicato su RabbitMQ a causa di un errore del consumer precedente\n  WHEN il consumer riceve nuovamente il messaggio con lo stesso ID correlato\n  THEN il sistema ignora il messaggio duplicato senza creare record duplicati o incrementare tentativi",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 8,
+          "line": 84,
+          "header": "SCENARIO: S08 - Logging strutturato durante il backoff",
+          "text": "  GIVEN una notifica in fase di retry su Email (tentativo_n = 1) che fallisce\n  AND il sistema sta applicando il backoff verso Slack\n  WHEN il sistema registra lo stato intermedio del tentativo\n  THEN il log generato ha livello WARNING e include il campo correlationId",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": 3,
+      "open_points_sections": [
+        {
+          "line": 91,
+          "heading": "## 4. Punti Aperti",
+          "records": [
+            "| Gestione Trigger Statico (S02) | Il job `StaticTriggerJob` scansiona *tutte* le richieste o solo quelle in uno stato specifico di attesa? | Qual è esattamente lo stato della `RICHIESTA` che deve essere monitorato dal job Quartz.NET per innescare la notifica di scadenza? |",
+            "| Logging Fallimento Definitivo (S06) | Il log finale viene scritto nel file di log applicativo o in una tabella dedicata dell'audit log? | La specifica richiede di distinguere tra \"log applicativo\" e \"audit log\". Per il fallimento definitivo della notifica, dove deve essere registrato l'errore definitivamente? |",
+            "| Backoff Multi-Canale (S04) | Il backoff di 15 minuti è un tempo fisso assoluto o dipende dalla latenza di rete rilevata? | La specifica indica \"periodo di backoff configurato a 15 minuti\". È necessario esportare una metrica per monitorare questo intervallo fisso? |"
+          ],
+          "enumerable": true,
+          "text": "\n| Funzionalità Coinvolta | Assunzione da Confermare | Domanda Aperta |\n|---|---|---|\n| Gestione Trigger Statico (S02) | Il job `StaticTriggerJob` scansiona *tutte* le richieste o solo quelle in uno stato specifico di attesa? | Qual è esattamente lo stato della `RICHIESTA` che deve essere monitorato dal job Quartz.NET per innescare la notifica di scadenza? |\n| Logging Fallimento Definitivo (S06) | Il log finale viene scritto nel file di log applicativo o in una tabella dedicata dell'audit log? | La specifica richiede di distinguere tra \"log applicativo\" e \"audit log\". Per il fallimento definitivo della notifica, dove deve essere registrato l'errore definitivamente? |\n| Backoff Multi-Canale (S04) | Il backoff di 15 minuti è un tempo fisso assoluto o dipende dalla latenza di rete rilevata? | La specifica indica \"periodo di backoff configurato a 15 minuti\". È necessario esportare una metrica per monitorare questo intervallo fisso? |"
+        }
+      ],
+      "exact_duplicate_pairs": []
+    }
+  ]
+}
