@@ -148,7 +148,8 @@ def test_mismatch_names_documents_and_validation_and_decisions():
     reason = next(r for r in result.reasons if r.code == 'contract_changed')
     assert reason.changed == ['canvas', 'spec']
     assert validation.validation_id in reason.message
-    assert validation.finished_at in reason.message
+    assert ' UTC.' in reason.message
+    assert 'Il Canvas e la Spec sono stati modificati' in reason.message
     assert reason.http_status == 409 and reason.action == 'user_action'
     assert 'Valida' in reason.next_step
     c = gate.make_contract('feature-a', 'Canvas', spec([point()]), [decision()])
@@ -156,6 +157,28 @@ def test_mismatch_names_documents_and_validation_and_decisions():
     reason = next(r for r in gate.evaluate_gate(other, passed(c), gate.SourceState()).reasons
                   if r.code == 'contract_changed')
     assert reason.changed == ['decisions']
+    assert 'Le decisioni registrate sono state modificate' in reason.message
+    assert 'Il Canvas e la Spec sono invariati.' in reason.message
+
+
+@pytest.mark.parametrize('canvas,spec_text,sentence', [
+    ('Altro Canvas', None, 'Il Canvas è stato modificato'),
+    (None, 'Spec diversa', 'La Spec è stata modificata'),
+    ('Altro Canvas', 'Spec diversa', 'Il Canvas e la Spec sono stati modificati'),
+])
+def test_mismatch_is_readable_and_formats_reference_time_in_utc(monkeypatch, canvas, spec_text, sentence):
+    monkeypatch.setattr(gate, '_now', lambda: '2026-09-14T18:11:01.839908+02:00')
+    old = contract()
+    v = passed(old)
+    current = gate.make_contract('feature-a', canvas or old.canvas.text, spec_text or old.spec.text)
+    reason = next(r for r in gate.evaluate_gate(current, v, gate.SourceState()).reasons
+                  if r.code == 'contract_changed')
+    assert reason.message.startswith(sentence + ' rispetto alla validazione ' + v.validation_id)
+    assert 'del 14/09/2026 16:11 UTC.' in reason.message
+    if canvas is None:
+        assert 'Il Canvas è invariato.' in reason.message
+    if spec_text is None:
+        assert 'La Spec è invariata.' in reason.message
 
 
 def test_stale_and_unavailable_are_not_negative_validations():

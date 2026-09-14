@@ -352,8 +352,20 @@ def evaluate_gate(current_contract: Contract | None, validation: ValidationRecor
         if c.dev_type != v.dev_type:
             changed.append('dev_type')
         if changed:
-            block('contract_changed', f"Modificati {', '.join(changed)} rispetto alla validazione "
-                  f'{v.validation_id} del {v.finished_at or v.started_at}.',
+            when = datetime.fromisoformat(v.finished_at or v.started_at).astimezone(timezone.utc)
+            reference = f" rispetto alla validazione {v.validation_id} del {when:%d/%m/%Y %H:%M} UTC."
+            documents = ('canvas' in changed, 'spec' in changed)
+            message = {
+                (True, True): 'Il Canvas e la Spec sono stati modificati' + reference,
+                (True, False): 'Il Canvas è stato modificato' + reference + ' La Spec è invariata.',
+                (False, True): 'La Spec è stata modificata' + reference + ' Il Canvas è invariato.',
+                (False, False): 'Il Canvas e la Spec sono invariati.',
+            }[documents]
+            if 'decisions' in changed:
+                message += ' Le decisioni registrate sono state modificate' + reference
+            if 'dev_type' in changed:
+                message += ' L’ambito di sviluppo è stato modificato' + reference
+            block('contract_changed', message,
                   'Valida nuovamente Canvas, Spec e decisioni correnti, poi riprova.', changed=changed)
         if v.status == 'running':
             block('validation_running', f'Validazione {v.validation_id} ancora in corso.',
