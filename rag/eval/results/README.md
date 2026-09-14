@@ -35,7 +35,14 @@ Non tutte queste run producono eventi in `history.jsonl`: molte misurano parsing
 attribuzione, contesto o conversione. Non vanno confuse con il retrieval generale
 né considerate una misura delle recenti modifiche al prompt di pipeline.
 
-## Collegamento delle 11 aggiunte pendenti allo storico
+## Collegamento degli 11 eventi del 7–11 settembre 2026
+
+Ogni record di questo gruppo in `history.jsonl` dichiara `evidence`: `full` per
+un report per caso disponibile (5), `partial` per un estratto del gate senza
+dettaglio per caso (2), `none` quando non è stata rintracciata una prova
+indipendente (4). `full` descrive la disponibilità del report, non certifica la
+riproducibilità dell'ambiente né la qualità della risposta. I record precedenti
+senza questo campo non sono stati classificati: l'assenza non significa `full`.
 
 Gli orari seguenti sono UTC. I report dell'8 settembre usano l'ora locale italiana
 (UTC+2); il nome `153456` precede di circa un secondo l'append dello storico.
@@ -61,5 +68,5 @@ P0/pilot; questa correlazione non sostituisce un identificatore salvato nella ru
 
 Le quattro lacune non sono state riempite duplicando lo storico o rieseguendo
 oggi il codice: nessuna delle due operazioni produrrebbe la prova della run
-storica. Prima del commit dello storico occorre decidere se conservarle come
-eventi storici con questa limitazione dichiarata o recuperare i report originali.
+storica. I quattro eventi sono conservati con `evidence: "none"`, senza
+attribuire loro prove o verifiche che non abbiamo recuperato.

@@ -35,7 +35,7 @@
 #       note          : la frase della risposta su cui il verdetto si regge
 #
 # LETTO DA eval/attribution.py (S14, 2026-09-07): valida il giudice di N3 contro questi verdetti,
-# record per record. Esito misurato con qwen3.5:9b: 20/24, negativi 5/7 (AUDIT.md, S14).
+# record per record. Le misure del giudice vivono in AUDIT.md, S14, non nei verdetti umani.
 #
 # Invarianti verificate da tests/test_golden_attribution.py: ogni run ha testo, fonti e
 # indice; `correct` è coerente con `normative`; fonti e distrattori esistono nel corpus.
@@ -43,12 +43,12 @@
 # LIMITE NOTO DELLA PROVA (misurato il 2026-09-07, indice v20260907T094225): il blocco `summary` qui sotto conta i
 # verdetti e elenca i negativi; la lettura è in AUDIT.md, sezione S12.
 #
-# QUESTO ARCHIVIO È STORICO (R28/S13, 2026-09-07). Poche ore dopo che è nato è stato superato
-# da una promozione, e da allora da almeno un'altra (`superseded_by` porta sempre l'ultima,
-# non la prima — vedi AUDIT.md per la cronologia completa): le 24 run qui sotto NON descrivono
-# il sistema attivo. L'archivio non è sbagliato — dichiara la propria versione, che è esattamente
-# ciò per cui S12 esiste — ma senza questa riga, fra un mese si leggerebbe come il sistema di
-# oggi. È il difetto che R28 descrive, applicato alla prova che lo aveva anticipato.
+# QUESTO ARCHIVIO È STORICO (R28/S13, 2026-09-07).
+# superseded_by = PRIMA versione documentata che ha reso storico l'archivio;
+# NON certifica che i verdetti valgano sull'indice attuale e non segue CURRENT.
+# La catena è v20260907T094225 (24 verdetti) -> v20260907T115228 -> v20260907T142924.
+# Git 8a3a92f registrò il primo successore; 0303c6a lo sostituì per seguire CURRENT.
+# Il riferimento storico è ora ripristinato: le 24 run NON descrivono il sistema attivo.
 # NON RIPRODOTTO contro la versione attiva, deliberatamente: l'uso di questo archivio è
 # validare OFFLINE il giudice di N3 contro i verdetti umani sui testi archiviati (S14, modo
 # «a»), e quell'uso non vuole né il server né l'indice attivo — è la proprietà che S12 ha
@@ -57,12 +57,14 @@
 # resta ignoto, e va detto: se i 7 negativi si riproducano con `boost_alpha` 0.3 e il tetto del
 # grafo a 3 (S11). È la prima misura che l'harness di N3 potrà fare da sé, a costo zero di
 # lettura umana — ed è il motivo per cui va fatta là e non qui.
-# Regola per il futuro, verificata a macchina da tests/test_golden_attribution.py: quando
-# `index_version` non è più `database/CURRENT`, `superseded_by` deve nominare la versione attiva.
+# Il test verifica il primo successore nello storico dei gate superati e nell'inventario
+# results/p0_20260908-152239/evidence/preflight.json, entrambi tracciati.
+# Non dipende da CURRENT o dalla retention.
+# Nuove prove di un indice intermedio richiedono di riesaminare questo riferimento.
 summary:
   measured_on: '2026-09-07'
   index_version: v20260907T094225
-  superseded_by: v20260907T142924   # promossa il 2026-09-07 alle 16:30, bonifica locale del DERIVA_DA (A6/S8)
+  superseded_by: v20260907T115228   # prima promozione successiva ai 24 verdetti, attestata da Git 8a3a92f
   superseded_on: '2026-09-07'
   model: qwen3.5:9b
   runs: 24

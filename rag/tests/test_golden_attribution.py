@@ -2,12 +2,14 @@
 RIPRODUCIBILE: ogni verdetto umano porta con sé il testo integrale della risposta che lo ha
 prodotto, le fonti nel contesto e la versione dell'indice. È la conseguenza di progetto
 estratta da S6: quattro verdetti senza testo sono marciti in due giorni (AUDIT.md, N3)."""
+import json
 import re
+from datetime import datetime
 
 import yaml
 
-from core import artifacts
 from core.config import DOCS_DIR, GOLDEN_SET_PATH
+from core.eval_history import load_history
 
 ATTRIBUTION_PATH = GOLDEN_SET_PATH.with_name("golden_attribution.yaml")
 INDEX_VERSION_RE = re.compile(r"^v\d{8}T\d{6}$")
@@ -68,18 +70,24 @@ def test_riepilogo_coerente_con_le_run():
 
 
 def test_archivio_dichiara_di_essere_storico_quando_lo_e():
-    """R28: l'archivio dichiara la propria versione (è ciò per cui S12 esiste), ma NULLA
-    diceva che quella versione non fosse più attiva — e nessuna verifica automatica poteva
-    accorgersene. Questa lo fa: appena `database/CURRENT` supera `index_version`, l'archivio
-    deve nominare la versione che lo ha reso storico. Se CURRENT non c'è (CI senza indice,
-    checkout pulito) non c'è nulla da confrontare e l'invariante è vacua."""
-    attiva = artifacts.current_version_token()
-    if attiva is None:
-        return
+    """Verifica la prima successione documentata, anche senza indici locali."""
+    # superseded_by è il primo successore storico provato, non una copia di CURRENT.
     s = _load()["summary"]
-    if attiva == s["index_version"]:
-        assert "superseded_by" not in s, "archivio marcato storico ma la sua versione è attiva"
-    else:
-        assert s.get("superseded_by") == attiva, (
-            f"archivio su {s['index_version']}, CURRENT è {attiva}: "
-            f"superseded_by dice {s.get('superseded_by')!r}")
+    results = ATTRIBUTION_PATH.parent / "results"
+    inventory = json.loads((results / "p0_20260908-152239/evidence/preflight.json")
+                           .read_text(encoding="utf-8"))
+    versions = {v["version"] for v in inventory["versions"]}
+    history = load_history(path=results / "history.jsonl")
+    assert history, "Storico dei gate assente o illeggibile: impossibile verificare il primo successore"
+    versions.update(row["version"] for row in history
+                    if row["source"] == "gate" and row.get("gate", {}).get("passed"))
+    recorded = s.get("superseded_by")
+    assert recorded in versions, f"Indice superseded_by {recorded!r} assente dalle evidenze storiche"
+    # Il formato ordinabile è anche una data reale, non una stringa arbitraria.
+    dates = {v: datetime.strptime(v, "v%Y%m%dT%H%M%S") for v in versions}
+    archive_date = datetime.strptime(s["index_version"], "v%Y%m%dT%H%M%S")
+    assert dates[recorded] > archive_date, "superseded_by deve essere successivo all'indice dei verdetti"
+    first = min((v for v in versions if dates[v] > archive_date), key=dates.get)
+    assert recorded == first, (
+        f"superseded_by={recorded}, ma il primo successore documentato di "
+        f"{s['index_version']} è {first}: verificare la cronologia delle evidenze")
