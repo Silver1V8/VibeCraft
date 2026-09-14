@@ -14,13 +14,28 @@
     Ogni scenario deve avere per soggetto la feature del Canvas e descriverne un COMPORTAMENTO
     osservabile. Non scrivere scenari che verificano lo stack, le librerie o gli strumenti in sé.
     Niente scenari duplicati: se due differiscono solo nella formulazione, tienine uno.
-    Per ogni funzionalità descritta dal Canvas scrivi da un minimo di 2 a un massimo di 4
-    scenari, includendo almeno un caso nominale e uno negativo o di errore. Non c'è un tetto
-    complessivo per lo spec: il totale è la somma degli scenari delle singole funzionalità.
-    Se una funzionalità richiede più di 4 scenari, non suddividere il Canvas: dichiara la
-    copertura mancante nella sezione "Punti aperti", senza presentarla come già soddisfatta.
-    Non inventare requisiti per raggiungere il minimo: se un'ambiguità impedisce di formulare
-    un caso verificabile, dichiara anche quel caso mancante nei punti aperti.
+    La feature descritta dal Canvas può contenere più funzionalità, cioè comportamenti
+    osservabili distinti. Il limite seguente si applica separatamente a ciascuna
+    funzionalità, non alla feature nel suo insieme.
+
+    Individua le N funzionalità da coprire. Per ciascuna funzionalità Fi scrivi da 2 a 4
+    scenari dedicati, includendo almeno un caso nominale e uno negativo o di errore.
+    Non accorpare funzionalità distinte per rispettare il limite.
+
+    Il totale dello spec è T = s1 + s2 + … + sN, dove si è il numero di scenari della
+    singola funzionalità Fi. Quando tutti i casi sono definibili, 2N ≤ T ≤ 4N.
+    Il numero 4 non è un limite complessivo: il totale cresce con il numero delle
+    funzionalità.
+
+    Verifica il conteggio per ciascuna funzionalità prima di sommare il totale.
+    Non inventare requisiti per raggiungere il minimo: se un'ambiguità impedisce un
+    caso verificabile, dichiara il caso mancante nei punti aperti. Se una singola
+    funzionalità richiede più di quattro scenari, dichiara la sua copertura mancante
+    senza suddividere il Canvas.
+
+    Limite noto: il conteggio per funzionalità non garantisce la copertura, perché
+    il modello sceglie da sé i confini delle funzionalità. È un problema aperto,
+    non risolto da questa modifica.
 
     Non inventare funzionalità non presenti nel Canvas o nei vincoli normativi. Se uno scenario
     nomina una tecnologia o mostra codice, usa ESCLUSIVAMENTE le tecnologie già citate nel
@@ -38,7 +53,7 @@
     la funzionalità coinvolta, l'assunzione proposta DA CONFERMARE e una domanda aperta
     esplicita. L'assunzione non è un requisito approvato: non usarla per fissare l'esito di
     uno scenario. Indica quali comportamenti restano senza copertura fino alla risposta.
-    Per la copertura che eccede i 4 scenari, elenca i casi mancanti e la domanda da risolvere;
+    Per la copertura di una singola funzionalità che eccede i 4 scenari per quella funzionalità, elenca i casi mancanti e la domanda da risolvere;
     se non occorre un'assunzione, usa assumption: null nel resoconto strutturato.
     Non dichiarare completa la copertura in presenza di casi mancanti o punti irrisolti.
 
