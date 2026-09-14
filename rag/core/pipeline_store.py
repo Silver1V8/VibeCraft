@@ -12,7 +12,8 @@ from core.artifacts import _atomic_write_json
 from core.config import DATABASE_DIR
 from core.open_points import _unique_keys
 from core.pipeline import resolve_feature_dir
-from core.pipeline_gate import ValidationRecord
+from core.pipeline_gate import PointDecision, ValidationRecord, _now, content_hash
+from uuid import uuid4
 from core.writer_lock import WriterLockBusyError, writer_lock
 
 
@@ -74,3 +75,63 @@ class PipelineStore:
             return record
         except (ValueError, ValidationError) as exc:
             raise PipelineStorageError(f'Record di validazione corrotto: {exc}') from exc
+
+    def decisions(self, feature: str) -> list[PointDecision]:
+        folder = self._validation_path(feature, 'val-' + '0' * 32).parent
+        folder = self.root / 'decisions' / folder.name
+        try:
+            if not folder.resolve().is_relative_to(self.root.resolve()):
+                raise ValueError('Directory decisioni fuori da pipeline')
+            paths = sorted(folder.iterdir()) if folder.exists() else []
+            records = []
+            for path in paths:
+                if path.suffix != '.json':
+                    continue
+                if not path.resolve().is_relative_to(self.root.resolve()):
+                    raise ValueError('Record decisione fuori da pipeline')
+                record = PointDecision.model_validate(json.loads(path.read_text(encoding='utf-8'),
+                                                                 object_pairs_hook=_unique_keys))
+                if record.feature != feature or path.stem != record.decision_id:
+                    raise ValueError('Identità del record decisione non corrispondente')
+                records.append(record)
+            return records
+        except (OSError, ValueError, UnicodeError) as exc:
+            raise PipelineStorageError(f'Decisioni non disponibili: {exc}') from exc
+
+    def record_decision(self, *, feature, point, spec_hash, status, motivation, declared_by,
+                        declared_origin, observed_metadata, active_attempt_ids, coverage_findings) -> PointDecision:
+        """L'accettazione non è esposta agli strumenti dell'agente; non è
+        certificata come decisione umana dalla credenziale condivisa.
+
+        Vale anche per le associazioni esplicite ai rilievi: nessuna equivalenza
+        dedotta dal modello, nessuna identità umana attestata da un nome dichiarato.
+        """
+        # Per rendere origin_verified true servirebbero identità personale autenticata
+        # (non una chiave condivisa), provenienza verificata dal server e revisione
+        # esplicita della garanzia. Un nome/header o una sovrapposizione temporale
+        # non bastano. Il chiamante NON può fornire questo campo.
+        record = PointDecision(decision_id='dec-' + uuid4().hex, feature=feature, point=point,
+            point_hash=content_hash(point), spec_hash=spec_hash, status=status, recorded_at=_now(),
+            motivation=motivation, declared_by=declared_by, declared_origin=declared_origin,
+            observed_metadata=observed_metadata, active_attempt_ids=active_attempt_ids,
+            coverage_findings=coverage_findings, origin_verified=False)
+        self._validation_path(feature, 'val-' + '0' * 32)  # stesso controllo dello slug
+        path = self.root / 'decisions' / feature / (record.decision_id + '.json')
+        if not path.resolve().is_relative_to(self.root.resolve()):
+            raise PipelineStorageError('Decisione fuori dalla directory pipeline')
+        try:
+            _atomic_write_json(path, record.model_dump())
+        except OSError as exc:
+            raise PipelineStorageError(f'Scrittura decisione non disponibile: {exc}') from exc
+        return record
+
+    def latest_validation(self, feature: str, contract_hash: str) -> ValidationRecord | None:
+        folder = self._validation_path(feature, 'val-' + '0' * 32).parent
+        try:
+            paths = list(folder.iterdir()) if folder.exists() else []
+            records = [self.read_validation(feature, p.stem) for p in paths if p.suffix == '.json']
+            records = [r for r in records if r is not None]
+            matching = [r for r in records if r.passed and r.contract.hash == contract_hash]
+            return max(matching or records, key=lambda r: (r.started_at, r.validation_id), default=None)
+        except (OSError, ValueError) as exc:
+            raise PipelineStorageError(f'Storico validazioni non disponibile: {exc}') from exc

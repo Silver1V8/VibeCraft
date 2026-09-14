@@ -1326,14 +1326,15 @@ Il prompt esterno usa lo stesso protocollo, ma il suo output non rientra
 automaticamente nella pipeline. Non è ancora presente un vincolo sull'avvio
 dell'implementazione: lo stato è già leggibile a macchina per il futuro harness.
 
-### Gate — nucleo implementato, avvio non ancora vincolato
+### Gate — validazione e decisioni, avvio non ancora vincolato
 
-**L'avvio non è ancora vincolato.** Il primo dei tre commit introduce soltanto
-`core/pipeline_gate.py` (hash, record e punto decisionale puro) e
-`core/pipeline_store.py` (persistenza atomica, record conclusi immutabili).
-Route, prompt di validazione, UI e avvio SDK restano invariati. Il secondo
-commit collegherà validazione e decisioni dell'operatore; il terzo vincolerà
-agentic e registrerà gli eventi. [Piano e schema dei record](PIPELINE_GATE.md).
+**L'avvio non è ancora vincolato.** I primi due commit implementano contratto,
+persistenza atomica, validazione strutturata e decisioni dell'operatore.
+La UI mostra il risultato di `evaluate_gate` ricalcolato dal server tramite
+`GET /api/pipeline/gate`. `POST /api/pipeline/validate` conserva il controllo;
+`POST /api/pipeline/open-points/decision` richiede la chiave anche da localhost.
+Il terzo commit vincolerà agentic e registrerà gli eventi JSONL.
+[Piano e schema dei record](PIPELINE_GATE.md).
 
 Il nucleo distingue missing/invalid, unaddressed, mismatch, failed/stale e
 unavailable, con azioni user_action/operator_action/retryable. Blocca sui soli
@@ -1356,7 +1357,7 @@ con risposte HTTP simulate, inclusi errori e retry. Non promette overhead nullo.
 La Fase 2 è ora [chiusa](eval/results/FASE2_PROPOSE_20260914.md), senza pilot.
 La sequenza approvata è isolamento delle impostazioni → adozione V3 → gate,
 con un checkpoint per ogni commit. L'isolamento è applicato come segue;
-le decisioni sul gate e sull'accettazione restano da implementare.
+l'enforcement dell'avvio e gli eventi restano da implementare.
 
 Il bridge imposta `setting_sources=[]` esplicitamente
 per **suggest, oneshot e agentic**, preservando l'hook SDK di confinamento
@@ -1382,11 +1383,10 @@ Garanzia dell'accettazione nel design approvato:
 > L'accettazione non è esposta agli strumenti dell'agente; non è certificata
 > come decisione umana dalla credenziale condivisa.
 
-La garanzia e i requisiti di provenienza sono annotati anche accanto al record
-`OpenPoint` in `core/open_points.py`. Quando verrà implementata l'accettazione,
-la garanzia resterà presso il suo record o la sua funzione e i requisiti di
-`origin_verified` accompagneranno il punto esatto dove il server lo scrive.
-Quel writer non esiste ancora: la nota nel codice descrive un obbligo futuro.
+La garanzia è anche nella docstring del writer `PipelineStore.record_decision`
+e della route di decisione; i requisiti per cambiare `origin_verified` sono
+accanto al punto in cui il writer lo impone. `core/open_points.py` distingue
+il resoconto advisory dell'agente dalle decisioni registrate dal server.
 
 Un punto `accepted` resta esplicitamente irrisolto; `resolved` registra una
 risoluzione, mentre `unaddressed` segnala l'assenza di una decisione. L'accettazione
@@ -1394,10 +1394,10 @@ risoluzione, mentre `unaddressed` segnala l'assenza di una decisione. L'accettaz
 nell'impronta del contratto eseguibile. Accettare una lacuna non rende soddisfatti
 gli scenari interessati; `uncovered_scenarios: []` non certifica la marginalità.
 
-Il futuro record di decisione conserverà provenienza dichiarata, metadati
+Il record di decisione conserva provenienza dichiarata, metadati
 osservati della chiamata ed esecuzioni attive sulla stessa feature, con
 **`origin_verified: false` obbligatorio e imposto dal server**, non configurabile
-né promuovibile tramite input del chiamante. Schema e test dovranno rifiutare
+né promuovibile tramite input del chiamante. Schema e test rifiutano
 `true` nel protocollo basato sulla chiave condivisa.
 Per poter introdurre `true` serviranno un'identità personale autenticata
 (non una chiave condivisa), un legame verificato dal server fra identità e
@@ -1408,4 +1408,16 @@ neppure l'identità personale prova da sola che qualcuno abbia letto il punto.
 Possiamo contare le accettazioni **avvenute durante** un'esecuzione dell'agente,
 non possiamo chiamarle accettazioni **effettuate dall'agente**. La correlazione
 temporale non distingue una sessione UI concorrente da una richiesta automatica.
-La selezione finale degli eventi e delle metriche rimane al design della Fase 2.
+La correlazione attuale osserva il solo processo server: `activity_scope`
+riporta il PID, le esecuzioni prive di feature sono elencate separatamente.
+Una lista vuota non prova assenza di agenti su altri processi; la feature del
+vecchio endpoint è ancora dichiarata dal client. Gli eventi approvati dalla
+Fase 2 arriveranno con il terzo commit.
+
+I rilievi strutturali globali `scenari_insufficienti` e `caso_negativo_mancante`
+restano bloccanti finché l'operatore non li associa esplicitamente a un punto
+accepted. Nessuna associazione preselelezionata, nessuna deroga GIVEN/WHEN/THEN.
+Restano visibili, con decisione, autore dichiarato e `origin_verified: false`.
+L'associazione integrale entra nell'hash; cambiando la Spec decadono sia la
+decisione sia l'associazione. Una lacuna accettata non certifica copertura.
+La scelta emersa in implementazione e i suoi limiti sono nel piano del gate.

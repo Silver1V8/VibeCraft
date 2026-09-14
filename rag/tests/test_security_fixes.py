@@ -300,12 +300,11 @@ def test_require_api_key_strict_differs_from_bypassing_require_api_key(monkeypat
         deps.require_api_key_strict(request)  # nessun bypass: rifiutata
 
 
-# Dopo il revert: SOLO agent/run deve avere require_api_key_strict come dependency di
-# route (in aggiunta a require_api_key ereditata dal router). Tutti gli altri endpoint
-# mutanti — che nella patch precedente l'avevano anche loro, rompendo la UI keyless —
-# devono essere tornati al solo require_api_key.
+# Agent/run e le nuove decisioni dell'operatore richiedono la chiave anche da localhost.
+# Il precedente revert resta valido per le altre route mutanti della UI keyless.
 _STRICT_ROUTES = [
     (routes_pipeline.router, "POST", "/api/pipeline/agent/run"),
+    (routes_pipeline.router, "POST", "/api/pipeline/open-points/decision"),
 ]
 
 _REVERTED_TO_PLAIN_KEY_ROUTES = [
@@ -369,6 +368,20 @@ def test_http_agent_run_rejects_localhost_without_key(monkeypatch):
     client = _make_client(routes_pipeline.router)
     r = client.post("/api/pipeline/agent/run", json={"prompt": "x", "mode": "suggest"})
     assert r.status_code == 401
+
+
+@pytest.mark.parametrize('configured_key', [None, 's3cret'])
+def test_http_operator_decision_rejects_localhost_without_key(monkeypatch, configured_key):
+    monkeypatch.setattr(deps, 'API_KEY', configured_key)
+    client = _make_client(routes_pipeline.router)
+    assert client.post('/api/pipeline/open-points/decision', json={}).status_code == 401
+
+
+def test_http_operator_decision_with_key_still_validates_payload(monkeypatch):
+    monkeypatch.setattr(deps, 'API_KEY', 's3cret')
+    client = _make_client(routes_pipeline.router)
+    assert client.post('/api/pipeline/open-points/decision', json={},
+                       headers={'X-API-Key': 's3cret'}).status_code == 422
 
 
 def test_http_agent_run_accepts_localhost_with_correct_key(monkeypatch):
@@ -685,6 +698,7 @@ _ANTI_XSITE_ROUTES = [
 # POST di entrare nel codice senza una decisione esplicita.
 _ANTI_XSITE_EXCLUDED = [
     (routes_pipeline.router, "POST", "/api/pipeline/agent/run"),      # già require_api_key_strict
+    (routes_pipeline.router, "POST", "/api/pipeline/open-points/decision"),  # chiave obbligatoria
     (routes_pipeline.router, "POST", "/api/pipeline/canvas/dry-run"),  # read-only
 ]
 

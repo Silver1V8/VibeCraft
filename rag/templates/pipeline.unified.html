@@ -466,6 +466,10 @@
             <button id="validate-btn" onclick="runValidate()" class="text-xs font-semibold text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition disabled:opacity-50">Valida canvas + spec</button>
           </div>
           <p class="text-xs text-slate-400 mb-2">Verifica strutturale (7 sezioni del Canvas, scenari BDD) e coerenza semantica contro i vincoli normativi del Graph RAG, prima di lanciare Claude.</p>
+          <p class="text-xs text-amber-400 mb-2">L’avvio non è ancora vincolato.</p>
+          <button onclick="refreshGateReview()" class="text-xs underline">Rivedi punti aperti e associazioni</button>
+          <pre id="gate-status" class="text-xs whitespace-pre-wrap my-2"></pre>
+          <div id="gate-decisions" class="text-xs space-y-2"></div>
           <div id="validate-structural" class="flex flex-wrap gap-2 mb-2 text-xs font-mono"></div>
           <pre id="validate-report-box" class="hidden text-xs text-slate-200 whitespace-pre-wrap leading-relaxed bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-72 overflow-y-auto"></pre>
         </div>
@@ -950,74 +954,137 @@
     }
 
     /* ──────────── VALIDAZIONE GOVERNANCE (pre-apply) ──────────── */
+    function gateApiError(data) {
+      const detail = data.detail || data.gate || data;
+      if (typeof detail === 'string') return detail;
+      return (detail.reasons || []).map(r => `${r.message} ${r.next_step}`).join('\n') || 'Richiesta non riuscita';
+    }
+
+    function describeFinding(f) {
+      const who = f.covered_by;
+      const coverage = who ? `coperto da ${who.decision_id} · nome dichiarato: ${who.declared_by} · ${who.recorded_at} · origin_verified: false`
+        : 'non esaminato / non coperto';
+      return `${f.rule || f.kind} · ${f.message}\n${coverage}`;
+    }
+
+    function validationSummary(data) {
+      const lines = [`Validazione ${data.validation_id}: ${data.status}`, data.validation_error || data.report || ''];
+      lines.push(...(data.structural_findings || []).map(describeFinding));
+      lines.push(...(data.semantic_findings || []).map(describeFinding));
+      lines.push('Le lacune coperte da decisione non sono scenari soddisfatti.');
+      if (data.scenario_scope?.off_scope?.length) lines.push('Rilievi euristici di pertinenza (advisory): ' + JSON.stringify(data.scenario_scope.off_scope));
+      lines.push(...(data.gate?.reasons || []).map(r => `${r.code} · ${r.action}: ${r.message} ${r.next_step}`));
+      lines.push(...(data.gate?.warnings || []).map(w => `${w.message} ${(w.changed || []).join(', ')}`));
+      lines.push('L’avvio non è ancora vincolato.');
+      return lines.filter(Boolean).join('\n\n');
+    }
+
     async function runValidate() {
       if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
+      const validatingFeature = featureName;
       const btn = document.getElementById('validate-btn');
       const box = document.getElementById('validate-report-box');
-      const struct = document.getElementById('validate-structural');
       btn.disabled = true;
-      struct.innerHTML = '';
       box.classList.remove('hidden');
-      box.textContent = '⏳ Validazione in corso tramite LLM locale…';
+      box.textContent = 'Validazione in corso…';
       try {
-        const res = await fetch('/api/pipeline/validate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ feature: featureName }),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ detail: res.statusText }));
-          throw new Error(err.detail || `HTTP ${res.status}`);
-        }
+        const res = await fetch('/api/pipeline/validate', {method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({feature: validatingFeature})});
         const data = await res.json();
-        const s = data.structural || {};
-        const chip = (ok, label) => `<span class="px-2 py-0.5 rounded-full border ${ok ? 'border-emerald-800 text-emerald-400' : 'border-red-900 text-red-400'}">${ok ? '✅' : '❌'} ${label}</span>`;
-        const sem = s.semantica_bdd || {};
-        const chips = [chip(s.canvas_completo, 'Canvas · 7 sezioni'), chip(s.spec_bdd_valida, 'Spec · GIVEN/WHEN/THEN')];
-        // Sostanza degli scenari: chip ROSSA e non ambra — a differenza della pertinenza
-        // (euristica sul titolo) qui il verdetto e deterministico. La FORMA non compare:
-        // la ricostruisce il normalizzatore, non c'e' niente da segnalare all'utente.
-        if (sem.checked) {
-          chips.push(sem.valid
-            ? chip(true, `Spec · ${sem.scenarios} scenari completi`)
-            : chip(false, `Spec · ${(sem.violations || []).length} problemi di sostanza`));
-        } else if (sem.skipped === 'archiviata') {
-          chips.push(`<span class="px-2 py-0.5 rounded-full border border-slate-700 text-slate-400">➖ Scenari · spec archiviata</span>`);
-        }
-        // Pertinenza degli scenari: controllo deterministico, advisory. Chip ambra e non
-        // rossa perche' e un'euristica sul titolo — segnala, non boccia.
-        const sc = data.scenario_scope || {};
-        if (sc.checked) {
-          const n = (sc.off_scope || []).length;
-          chips.push(n === 0
-            ? chip(true, `Spec · ${sc.scenarios} scenari sulla feature`)
-            : `<span class="px-2 py-0.5 rounded-full border border-amber-800 text-amber-400">⚠️ ${n}/${sc.scenarios} scenari fuori tema</span>`);
-        }
-        struct.innerHTML = chips.join('');
-        const off = (sc.off_scope || []);
-        const offText = off.length
-          ? `\n\n⚠️ SCENARI FUORI TEMA (controllo deterministico: il titolo non nomina nessuna `
-            + `entita citata dal Canvas — ${(sc.canvas_entities || []).join(', ')}):\n`
-            + off.map(o => `  • ${o.title}`
-                + (o.foreign_entities.length ? `\n      entita estranee: ${o.foreign_entities.join(', ')}` : '')).join('\n')
-            + `\n  (segnalazione, non un verdetto: rileggili e togli quelli che non riguardano la feature)`
-          : '';
-        // Diagnostica: scenario, riga e regola violata, cosi si corregge il punto esatto
-        // invece di rileggere lo spec intero.
-        const viol = (sem.violations || []);
-        const semText = viol.length
-          ? `\n\n❌ SCENARI DA CORREGGERE (controllo deterministico, `
-            + `${viol.length} problemi):\n`
-            + viol.map(v => `  • riga ${v.line}${v.scenario ? ` · ${v.scenario}` : ''} `
-                + `[${v.rule}]\n      ${v.message}`).join('\n')
-            + `\n  (sono problemi di sostanza: vanno risolti nel contenuto, non con una rigenerazione)`
-          : '';
-        box.textContent = (data.report || '(nessun report)') + semText + offText;
+        if (featureName !== validatingFeature) return;
+        if (!res.ok && data.status !== 'unavailable') throw new Error(gateApiError(data));
+        box.textContent = validationSummary(data);
+        document.getElementById('validate-structural').textContent = `Controlli: ${data.checks?.structural?.status || 'unavailable'} / ${data.checks?.semantic?.status || 'unavailable'}`;
       } catch (e) {
-        box.textContent = `❌ Errore: ${e.message}`;
-      } finally {
-        btn.disabled = false;
+        if (featureName === validatingFeature) box.textContent = `Validazione non disponibile: ${e.message}`;
+      } finally { btn.disabled = false; }
+    }
+
+    let gateReview = null;
+    async function refreshGateReview() {
+      if (!featureName) return;
+      const reviewingFeature = featureName;
+      gateReview = null;
+      document.getElementById('gate-decisions').textContent = '';
+      try {
+        const res = await fetch('/api/pipeline/gate?' + new URLSearchParams({feature: reviewingFeature}));
+        const data = await res.json();
+        if (featureName !== reviewingFeature) return;
+        if (!res.ok) throw new Error(gateApiError(data));
+        gateReview = {data, feature: reviewingFeature};
+        document.getElementById('gate-status').textContent = [
+          `Stato resoconto: ${data.gate.open_points_status ?? 'non leggibile'}`,
+          ...(data.gate.reasons || []).map(r => `${r.action}: ${r.message} ${r.next_step}`),
+          ...(data.gate.warnings || []).map(w => w.message + ' ' + w.changed.join(', ')),
+          ...(data.structural_findings || []).map(describeFinding),
+        ].join('\n');
+        renderDecisionEditor(data);
+      } catch (e) {
+        if (featureName === reviewingFeature) document.getElementById('gate-status').textContent = e.message;
       }
+    }
+
+    function renderDecisionEditor(data) {
+      const host = document.getElementById('gate-decisions');
+      host.textContent = '';
+      function element(tag, text, id) {
+        const node = document.createElement(tag);
+        if (text) node.textContent = text;
+        if (id) node.id = id;
+        host.appendChild(node);
+        return node;
+      }
+      element('p', "L'accettazione non è esposta agli strumenti dell'agente; non è certificata come decisione umana dalla credenziale condivisa.");
+      if (!Array.isArray(data.point_decisions)) { element('p', 'Resoconto assente o invalido: correggilo prima di decidere.'); return; }
+      if (!data.point_decisions.length) { element('p', 'Nessun punto aperto dichiarato.'); return; }
+      for (const p of data.point_decisions) element('pre', `${p.point.id} · ${p.status}\n${JSON.stringify(p.point, null, 2)}` +
+        (p.decision ? `\nDecisione ${p.decision.decision_id} · nome dichiarato ${p.decision.declared_by} · ${p.decision.recorded_at} · origin_verified: false\n${p.decision.motivation}` : ''));
+      element('label', 'Punto esaminato').htmlFor = 'decision-point';
+      const points = element('select', '', 'decision-point');
+      points.add(new Option('Seleziona il punto esaminato', ''));
+      for (const p of data.point_decisions) points.add(new Option(`${p.point.id}: ${p.point.question}`, p.point_hash));
+      element('label', 'Decisione esplicita').htmlFor = 'decision-status';
+      const status = element('select', '', 'decision-status');
+      status.add(new Option('Seleziona la decisione', ''));
+      status.add(new Option('Accetto la lacuna e procedo', 'accepted'));
+      status.add(new Option('Registro la risoluzione', 'resolved'));
+      element('label', 'Nome dichiarato (non identità verificata)', 'decision-by-label').htmlFor = 'decision-by';
+      element('input', '', 'decision-by');
+      element('label', 'Motivazione / risoluzione', 'decision-reason-label').htmlFor = 'decision-reason';
+      element('textarea', '', 'decision-reason');
+      element('p', 'Associazioni esplicite: seleziona solo i rilievi di copertura esaminati per questo punto. Nessuna selezione automatica.');
+      for (const f of data.structural_findings.filter(f => f.associable)) {
+        const label = element('label', '');
+        const check = document.createElement('input'); check.type = 'checkbox'; check.value = f.finding_hash;
+        check.className = 'coverage-association'; label.appendChild(check);
+        label.appendChild(document.createTextNode(describeFinding(f)));
+      }
+      const submit = element('button', 'Registra decisione', 'decision-submit');
+      submit.onclick = recordPointDecision;
+    }
+
+    async function recordPointDecision() {
+      const review = gateReview;
+      if (!review || review.feature !== featureName) return;
+      const value = id => document.getElementById(id).value.trim();
+      const status = value('decision-status'), point = value('decision-point');
+      const motivation = value('decision-reason'), declaredBy = value('decision-by');
+      const hashes = [...document.querySelectorAll('#gate-decisions .coverage-association:checked')].map(n => n.value);
+      if (!point || !status || !motivation || !declaredBy) { toast('Seleziona punto e decisione, indica nome dichiarato e motivazione.', 'error'); return; }
+      if (hashes.length && status !== 'accepted') { toast('Solo accepted può coprire un rilievo.', 'error'); return; }
+      const btn = document.getElementById('decision-submit'); btn.disabled = true;
+      const headers = {'Content-Type': 'application/json'};
+      const key = window.__VIBECRAFT_AGENT_API_KEY__ || localStorage.getItem('vibecraft_agent_api_key');
+      if (key) headers['X-API-Key'] = key;
+      try {
+        const res = await fetch('/api/pipeline/open-points/decision', {method: 'POST', headers,
+          body: JSON.stringify({feature: review.feature, spec_hash: review.data.spec_hash, point_hash: point,
+            status, motivation, declared_by: declaredBy, declared_origin: 'ui', coverage_finding_hashes: hashes})});
+        const data = await res.json();
+        if (!res.ok) throw new Error(gateApiError(data));
+        if (featureName === review.feature) { await refreshGateReview(); toast('Decisione registrata. Rivalida il contratto.'); }
+      } catch (e) { toast(e.message, 'error'); }
+      finally { btn.disabled = false; }
     }
 
     /* ──────────── ESECUZIONE CON CLAUDE AGENT SDK ──────────── */
@@ -1071,7 +1138,7 @@
         const res = await fetch('/api/pipeline/agent/run', {
           method: 'POST',
           headers,
-          body: JSON.stringify({ prompt, mode, model }),
+          body: JSON.stringify({ prompt, mode, model, feature: featureName }),
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({ detail: res.statusText }));

@@ -7,9 +7,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from agent_bridge import AGENT_MODES, run_agent_streaming
 from api.deps import (
@@ -32,9 +32,14 @@ from api.models import (
     PipelineFileSaveRequest,
     ProposeGenerateRequest,
     ValidateRequest,
+    OpenPointDecisionRequest,
 )
 from api.routes_reindex import enqueue_full_rebuild
-from core import canvas_review, llm, pipeline, retrieval, spec_format
+from core import canvas_review, llm, pipeline, retrieval, spec_format, pipeline_gate as gate, pipeline_validation as validation
+from core import pipeline_activity
+from core.artifacts import manifest_path
+from core.pipeline_store import PipelineStore, PipelineStorageError, PipelineStorageBusyError
+from core.writer_lock import writer_lock, WriterLockBusyError
 from core.open_points import read_report
 from core.config import (
     CHANGES_DIR,
@@ -43,7 +48,7 @@ from core.config import (
     TECH_MAX_CHUNKS,
     TECH_SCOPE_TAG_KEY,
 )
-from core.indexing import archive_feature, check_drift, check_index_integrity, index_status
+from core.indexing import archive_feature, check_drift, check_index_integrity, index_status, _docs_hashes
 from core.pipeline import (
     FINAL_PROMPT_CONSUMERS,
     InvalidDevTypeError,
@@ -60,6 +65,7 @@ from core.pipeline import (
 )
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
+pipeline_store = PipelineStore()
 
 PIPELINE_FILES = ("explore.md", "canvas.md", "spec.md")
 
@@ -185,7 +191,8 @@ async def agent_run(req: AgentRunRequest):
         raise HTTPException(status_code=400, detail="Prompt vuoto.")
 
     return StreamingResponse(
-        run_agent_streaming(req.prompt, req.mode, req.model),
+        run_agent_streaming(req.prompt, req.mode, req.model,
+                            **({'feature': _safe_slug(req.feature)} if req.feature else {})),
         media_type="application/x-ndjson",
     )
 
@@ -462,76 +469,175 @@ async def pipeline_archive_stream(req: ArchiveRequest):
     return StreamingResponse(gen(), media_type="application/x-ndjson")
 
 
-async def _validate_feature(feature: str) -> dict:
-    """Validazione pre-apply: controlli strutturali deterministici su canvas/spec +
-    analisi LLM di coerenza e conflitti contro il contesto normativo del Graph RAG.
-    Il retrieval (CPU) gira in threadpool, la chiamata Ollama (I/O) è async. La logica
-    (controlli strutturali e costruzione dei prompt) è in core/pipeline.py."""
-    folder = resolve_feature_dir(CHANGES_DIR, feature)
-    canvas_path = folder / "canvas.md"
-    spec_path = folder / "spec.md"
+def _read_gate_contract(feature: str):
+    folder = _safe_feature_dir(feature)
+    def read(name):
+        try:
+            return (folder / name).read_bytes()
+        except FileNotFoundError:
+            return b""
+    return gate.make_contract(folder.name, read("canvas.md"), read("spec.md"),
+                              pipeline_store.decisions(folder.name), dev_type=load_dev_type(folder))
 
-    canvas_text = canvas_path.read_text(encoding="utf-8") if canvas_path.exists() else ""
-    spec_text = spec_path.read_text(encoding="utf-8") if spec_path.exists() else ""
 
-    # 1. Controlli strutturali deterministici (nessun LLM). Il path serve a validate_structural
-    #    solo per escludere changes/archive/** dal controllo di formato.
-    structural = pipeline.validate_structural(canvas_text, spec_text, spec_path)
-
-    if not canvas_text:
-        return {
-            "structural": structural,
-            "report": "❌ canvas.md assente: genera prima il Canvas.",
-            "validation_available": False,
-        }
-
-    snap = current_snapshot()
-    # 1b. Pertinenza degli scenari, deterministica: il prompt di propose vieta gli scenari che
-    #     non parlano della feature, ma è una difesa che dipende dall'obbedienza del modello e
-    #     l'LLM locale la aggira (scenari sull'immutabilità di AUDIT_LOG in una feature che il
-    #     Canvas dedica alle prenotazioni). Qui il vincolo diventa meccanico, letto dal grafo.
-    scope = pipeline.check_scenario_scope(
-        spec_text, canvas_text, pipeline.glossary_entities(snap.graph if snap else None),
-        feature_name=feature)
-
-    # 2. Analisi semantica: coerenza e conflitti rispetto al contesto normativo governato.
-    #    Il retrieval è CPU-bound (embedding della query) → threadpool; l'LLM è I/O → async.
-    governed = await embed_in_threadpool(_governed_context, f"{feature}\n{canvas_text[:2000]}", snap)
-    prompt = pipeline.build_validate_prompt(canvas_text, spec_text, governed)
-
-    # Chiamata DIRETTA (non generate_tolerant): un errore LLM qui non deve mai diventare il
-    # "report" della validazione — un report che contiene il testo dell'errore verrebbe letto
-    # come esito (verde) della validazione, mentre il gate pre-apply deve fallire in modo
-    # esplicito. I controlli deterministici (structural, scenario_scope) restano comunque
-    # calcolati e restituiti anche quando l'LLM non è disponibile.
+def _validation_manifest(snap):
+    if snap is None:
+        raise validation.ValidationUnavailable("Indice non disponibile")
+    path = manifest_path(snap.version if isinstance(snap.version, str) else "legacy")
     try:
-        report = await llm.agenerate(prompt, purpose="validate")
-    except llm.LLMError as exc:
-        return {
-            "structural": structural,
-            "scenario_scope": scope,
-            "report": None,
-            "llm_error": str(exc),
-            "validation_available": False,
-        }
-    return {
-        "structural": structural,
-        "scenario_scope": scope,
-        "report": report,
-        "validation_available": True,
-    }
+        data = json.loads(path.read_text(encoding="utf-8"))
+        hashes = data["doc_hashes"]
+        if not isinstance(hashes, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in hashes.items()):
+            raise ValueError("doc_hashes non valido")
+        return hashes
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise validation.ValidationUnavailable(f"Manifest dello snapshot non disponibile: {exc}") from exc
 
 
-@router.post("/api/pipeline/validate",
-             dependencies=[Depends(require_not_cross_site_request)])
+def _validation_source_state():
+    snap = current_snapshot()
+    _validation_manifest(snap)  # assenza/corruzione non diventa corpus vuoto
+    return gate.SourceState(index_version=snap.version, doc_hashes=_docs_hashes())
+
+
+def _gate_storage_error(exc):
+    issue = gate.AvailabilityIssue(code="storage_unavailable", message=str(exc),
+                                   action=getattr(exc, "action", "operator_action"))
+    return HTTPException(status_code=503, detail=gate.evaluate_gate(None, None, gate.SourceState(), [issue]).model_dump())
+
+
+def _gate_payload(contract, record, issues=()):
+    issues = list(issues)
+    if contract is None:
+        return dict(feature_folder=record.feature, spec_hash=None, validation_id=record.validation_id,
+                    gate=gate.evaluate_gate(None, record, gate.SourceState(), issues).model_dump(),
+                    point_decisions=None, structural_findings=[], execution_enforced=False)
+    try:
+        sources = _validation_source_state()
+    except (validation.ValidationUnavailable, OSError) as exc:
+        sources = gate.SourceState()
+        issues.append(gate.AvailabilityIssue(code="sources_unavailable", message=str(exc), action="operator_action"))
+    structural, _, findings = validation.structural_check(contract)
+    return dict(feature_folder=contract.feature, spec_hash=contract.spec.hash,
+                validation_id=record.validation_id if record else None,
+                gate=gate.evaluate_gate(contract, record, sources, issues).model_dump(),
+                structural=structural, structural_findings=findings,
+                point_decisions=validation.point_states(contract), execution_enforced=False)
+
+
+@router.get("/api/pipeline/gate")
+async def pipeline_gate_status(feature: str, validation_id: str | None = None):
+    slug = _safe_slug(feature)
+    def read():
+        contract = _read_gate_contract(slug)
+        record = (pipeline_store.read_validation(slug, validation_id) if validation_id else
+                  pipeline_store.latest_validation(slug, contract.hash))
+        return _gate_payload(contract, record)
+    try:
+        return await run_in_threadpool(read)
+    except (PipelineStorageError, OSError, UnicodeError) as exc:
+        raise _gate_storage_error(exc) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/api/pipeline/open-points/decision", dependencies=[Depends(require_api_key_strict)])
+async def pipeline_point_decision(req: OpenPointDecisionRequest, request: Request):
+    """L'accettazione non è esposta agli strumenti dell'agente; non è
+    certificata come decisione umana dalla credenziale condivisa.
+    """
+    feature = _safe_slug(req.feature)
+    def record():
+        with writer_lock(timeout_seconds=0, lock_path=pipeline_store.root / "decisions" / feature / ".operator.lock"):
+            contract = _read_gate_contract(feature)
+            states = validation.point_states(contract)
+            point = next((p['point'] for p in states or [] if p['point_hash'] == req.point_hash), None)
+            if point is None or contract.spec.hash != req.spec_hash:
+                raise HTTPException(status_code=409, detail="Punto o Spec cambiati: ricarica e riesamina prima di decidere.")
+            _, _, findings = validation.structural_check(contract)
+            available = {f['finding_hash']: f for f in findings if f['associable']}
+            if any(h not in available for h in req.coverage_finding_hashes):
+                raise HTTPException(status_code=409, detail="Rilievo assente o non associabile: nessuna deroga a GIVEN/WHEN/THEN.")
+            selected = [{k: available[h][k] for k in ('line', 'scenario', 'rule', 'message')}
+                        for h in req.coverage_finding_hashes]
+            active, unscoped, scope = pipeline_activity.snapshot(feature)
+            observed = {"client_host": request.client.host if request.client else "unknown",
+                        "user_agent": request.headers.get("user-agent", ""),
+                        "origin": request.headers.get("origin", ""),
+                        "sec_fetch_site": request.headers.get("sec-fetch-site", ""),
+                        "activity_scope": scope, "unscoped_active_attempt_ids": json.dumps(unscoped)}
+            decision = pipeline_store.record_decision(feature=feature, point=point, spec_hash=contract.spec.hash,
+                status=req.status, motivation=req.motivation, declared_by=req.declared_by,
+                declared_origin=req.declared_origin, observed_metadata=observed, active_attempt_ids=active,
+                coverage_findings=selected)
+            return {"decision": decision.model_dump(), "execution_enforced": False}
+    try:
+        return await run_in_threadpool(record)
+    except WriterLockBusyError as exc:
+        raise _gate_storage_error(PipelineStorageBusyError("Decisione concorrente: riprova")) from exc
+    except (PipelineStorageError, OSError, UnicodeError) as exc:
+        raise _gate_storage_error(exc) from exc
+
+
+async def _validate_feature(feature: str) -> dict:
+    """Valida uno snapshot; l'avvio non è ancora vincolato (commit 3)."""
+    contract = await run_in_threadpool(_read_gate_contract, feature)
+    started = gate.new_validation(contract)
+    await run_in_threadpool(pipeline_store.write_validation, started)
+    structural, structural_check, structural_findings = validation.structural_check(contract)
+    snap = current_snapshot()
+    scope = pipeline.check_scenario_scope(contract.spec.text, contract.canvas.text,
+        pipeline.glossary_entities(snap.graph if snap else None), feature_name=feature)
+    sources = gate.ValidationSources()
+    evidence = gate.ValidatorEvidence()
+    semantic_check = gate.Check(status="unavailable")
+    semantic_findings, semantic_report, error = [], None, None
+    try:
+        doc_hashes = await run_in_threadpool(_validation_manifest, snap)
+        context, sources = await embed_in_threadpool(validation.validation_context,
+            f"{feature}\n{contract.canvas.text[:2000]}", snap, doc_hashes,
+            qdrant=state.get("qdrant"), embed_model=state.get("embed_model"), max_chunks=GOVERNED_MAX_CHUNKS)
+        prompt = pipeline.build_validate_prompt(contract.canvas.text, contract.spec.text, context,
+                                                 validation.point_states(contract))
+        provider, model = llm.resolve("validate")
+        evidence = gate.ValidatorEvidence(model=f"{provider}:{model}", prompt_hash=gate.content_hash(prompt))
+        raw = await llm.agenerate(prompt, purpose="validate")
+        if not isinstance(raw, str):
+            raise validation.ValidationUnavailable("Risposta del validatore non testuale")
+        evidence.raw_response = raw
+        semantic_report, semantic_check, semantic_findings = validation.read_semantic(raw, contract, sources)
+    except (validation.ValidationUnavailable, llm.LLMError, ValueError, OSError) as exc:
+        error = str(exc)
+        semantic_check = gate.Check(status="unavailable", details=[error])
+    issues = []
+    try:
+        current = await run_in_threadpool(_read_gate_contract, feature)
+    except (PipelineStorageError, OSError, UnicodeError) as exc:
+        current, error = None, str(exc)
+        issues.append(gate.AvailabilityIssue(code='storage_unavailable', message=error, action='operator_action'))
+        semantic_check = gate.Check(status='unavailable', details=[error])
+    result = gate.finish_validation(started, current or started.contract,
+        gate.ValidationChecks(structural=structural_check, semantic=semantic_check), sources=sources, validator=evidence)
+    result.structural_findings = structural_findings
+    result.semantic_findings = semantic_findings
+    payload = await run_in_threadpool(_gate_payload, current, result, issues)
+    result.warnings = [gate.Notice.model_validate(w) for w in payload['gate']['warnings']]
+    await run_in_threadpool(pipeline_store.write_validation, result)
+    return {**payload, "status": result.status, "passed": result.passed,
+            "validation_available": result.status != "unavailable", "validation_error": error,
+            "llm_error": error, "report": semantic_report.summary if semantic_report else None,
+            "checks": result.checks.model_dump(), "structural": structural, "scenario_scope": scope,
+            "structural_findings": structural_findings, "semantic_findings": semantic_findings}
+
+
+@router.post("/api/pipeline/validate", dependencies=[Depends(require_not_cross_site_request)])
 async def pipeline_validate(req: ValidateRequest):
-    """Step di validazione pre-apply: verifica strutturale (7 sezioni del Canvas, BDD nella
-    spec) e coerenza semantica contro i vincoli normativi del Graph RAG, prima di lanciare Claude."""
-    if not req.feature.strip():
-        raise HTTPException(status_code=400, detail="Nome feature mancante.")
-    feature_folder = _safe_slug(req.feature)
-    result = await _validate_feature(req.feature)
-    return {"feature_folder": feature_folder, **result}
+    feature = _safe_slug(req.feature)
+    try:
+        result = await _validate_feature(feature)
+    except (PipelineStorageError, OSError, UnicodeError) as exc:
+        raise _gate_storage_error(exc) from exc
+    return JSONResponse(result, status_code=503) if result['status'] == 'unavailable' else result
 
 
 @router.get("/api/index/status")

@@ -46,7 +46,7 @@ async function check(mode, unavailable = false, event = null) {
   } else {
     assert.equal(requests[1].url, '/api/pipeline/agent/run');
     assert.deepEqual(JSON.parse(requests[1].options.body), {
-      prompt: `CONTRATTO ${mode}`, mode, model: 'sonnet',
+      prompt: `CONTRATTO ${mode}`, mode, model: 'sonnet', feature: 'feat',
     });
   }
   assert.equal(nodes['agent-run-btn'].disabled, false);

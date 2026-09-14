@@ -28,6 +28,8 @@ def contract(**kwargs):
 def decision(**changes):
     data = dict(decision_id='dec-00000000000000000000000000000001', feature='feature-a',
                 point=point(), point_hash=gate.content_hash(point()), status='accepted',
+                spec_hash='sha256:' + hashlib.sha256(gate.normalize_text(spec([point()])).encode()).hexdigest(),
+                declared_by='Operatore di test',
                 recorded_at='2026-09-14T10:00:00+00:00', motivation='Procedere con questa lacuna.',
                 declared_origin='ui', observed_metadata={}, active_attempt_ids=[], origin_verified=False)
     data.update(changes)
@@ -167,6 +169,14 @@ def test_stale_and_unavailable_are_not_negative_validations():
     result = gate.evaluate_gate(c, unavailable, gate.SourceState())
     assert result.http_status == 503
     assert next(r for r in result.reasons if r.code == 'validation_unavailable').action == 'retryable'
+
+
+def test_sources_unavailable_does_not_claim_sources_were_removed():
+    c = contract()
+    result = gate.evaluate_gate(c, passed(c, sources()), gate.SourceState(), [
+        gate.AvailabilityIssue(code='sources_unavailable', message='disk offline', action='operator_action')])
+    assert codes(result) == {'sources_unavailable'}
+    assert result.http_status == 503 and result.warnings == []
 
 
 def test_pass_is_derived_from_checks_never_prose_or_claimed_flag():

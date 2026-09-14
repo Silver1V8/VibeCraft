@@ -1,5 +1,9 @@
 """Modelli Pydantic di request per gli endpoint della console Graph-RAG."""
-from pydantic import BaseModel, Field
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from core.open_points import Text
+from core.pipeline_gate import Digest
 
 
 class AskQuery(BaseModel):
@@ -57,6 +61,7 @@ class ProposeGenerateRequest(BaseModel):
 
 class AgentRunRequest(BaseModel):
     prompt: str
+    feature: str | None = None  # correlazione dichiarata; enforcement dal commit 3
     mode: str = "suggest"   # suggest | agentic | oneshot
     model: str = "sonnet"   # alias Claude: sonnet | opus | haiku
 
@@ -71,3 +76,23 @@ class ArchiveRequest(BaseModel):
 
 class ValidateRequest(BaseModel):
     feature: str
+
+
+class OpenPointDecisionRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid', strict=True)
+    feature: Text
+    point_hash: Digest
+    spec_hash: Digest
+    status: Literal['accepted', 'resolved']
+    motivation: Text
+    declared_by: Text
+    declared_origin: Text
+    coverage_finding_hashes: list[Digest] = Field(default_factory=list)
+
+    @model_validator(mode='after')
+    def association_requires_acceptance(self):
+        if self.coverage_finding_hashes and self.status != 'accepted':
+            raise ValueError('Le associazioni ai rilievi richiedono accepted')
+        if len(self.coverage_finding_hashes) != len(set(self.coverage_finding_hashes)):
+            raise ValueError('Associazione duplicata')
+        return self

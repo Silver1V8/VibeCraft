@@ -792,15 +792,15 @@ def validate_structural(canvas_text: str, spec_text: str, spec_path: Path | None
     }
 
 
-def build_validate_prompt(canvas_text: str, spec_text: str, governed: str) -> str:
+def build_validate_prompt(canvas_text: str, spec_text: str, governed: str, decisions=None) -> str:
     """Prompt di validazione semantica pre-apply: coerenza del design contract (Canvas+Spec)
     rispetto ai vincoli normativi governati."""
     spec_display = spec_text if spec_text else "(spec.md non ancora generato)"
     governed_display = governed if governed else "(nessun documento normativo recuperato)"
-    return (_PROMPTS["validate"]
-            .replace("{canvas_text}", canvas_text)
-            .replace("{spec_display}", spec_display)
-            .replace("{governed_display}", governed_display))
+    values = dict(canvas_text=canvas_text, spec_display=spec_display, governed_display=governed_display,
+                  decisions_json=json.dumps(decisions or [], ensure_ascii=False))
+    return re.sub(r'\{(canvas_text|spec_display|governed_display|decisions_json)\}',
+                  lambda m: values[m[1]], _PROMPTS["validate"])
 
 
 def _entities_for_docs(graph, doc_ids: list[str], limit: int = 24) -> list[str]:

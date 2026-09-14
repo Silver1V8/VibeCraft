@@ -41,19 +41,29 @@ class Record(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True)
 
 
+class CoverageFinding(Record):
+    line: int
+    scenario: str
+    rule: Literal['scenari_insufficienti', 'caso_negativo_mancante']
+    message: Text
+
+
 class PointDecision(Record):
-    """Record server: l'endpoint e il writer dell'accettazione arrivano nel commit 2."""
+    """Decisione sulla revisione della Spec e sul punto integrale, non certificata umana."""
     decision_id: str = Field(pattern=r'^dec-[0-9a-f]{32}$')
     feature: Feature
     point: OpenPoint
     point_hash: Digest
+    spec_hash: Digest
     status: Literal['accepted', 'resolved']
     recorded_at: Text
     motivation: Text
+    declared_by: Text
     declared_origin: Text
     observed_metadata: dict[str, str]
     active_attempt_ids: list[str]
     origin_verified: Literal[False]
+    coverage_findings: list[CoverageFinding] = Field(default_factory=list)
 
     @field_validator('origin_verified', mode='before')
     @classmethod
@@ -64,6 +74,8 @@ class PointDecision(Record):
 
     @model_validator(mode='after')
     def integral_point(self):
+        if self.coverage_findings and self.status != 'accepted':
+            raise ValueError('Solo accepted può coprire un rilievo di copertura')
         if self.point_hash != content_hash(self.point.model_dump()):
             raise ValueError('Impronta del punto aperto non corrispondente al contenuto integrale')
         if datetime.fromisoformat(self.recorded_at).utcoffset() is None:
@@ -117,7 +129,8 @@ def make_contract(feature: str, canvas: str | bytes, spec: str | bytes,
     hashes = {content_hash(p) for p in report.get('open_points') or []}
     latest = {}
     for decision in sorted(decisions, key=lambda d: (datetime.fromisoformat(d.recorded_at), d.decision_id)):
-        if decision.feature == feature and decision.point_hash in hashes:
+        if (decision.feature == feature and decision.point_hash in hashes
+                and decision.spec_hash == _text_hash(spec_text)):
             latest[decision.point_hash] = decision
     selected = [latest[key].model_dump() for key in sorted(latest)]
     canvas_doc = Document(text=canvas_text, hash=_text_hash(canvas_text))
@@ -199,6 +212,8 @@ class ValidationRecord(Record):
     validator: ValidatorEvidence = Field(default_factory=ValidatorEvidence)
     sources: ValidationSources = Field(default_factory=ValidationSources)
     warnings: list[Notice] = Field(default_factory=list)
+    structural_findings: list[dict] = Field(default_factory=list)
+    semantic_findings: list[dict] = Field(default_factory=list)
 
     @model_validator(mode='after')
     def consistent_result(self):
@@ -265,14 +280,14 @@ class AvailabilityIssue(Record):
 class GateDecision(Record):
     allowed: bool
     validation_id: str | None
-    contract_hash: str
-    open_points_status: Literal['missing', 'invalid', 'valid']
+    contract_hash: str | None
+    open_points_status: Literal['missing', 'invalid', 'valid'] | None
     reasons: list[Reason]
     warnings: list[Notice]
     http_status: Literal[200, 409, 503]
 
 
-def evaluate_gate(current_contract: Contract, validation: ValidationRecord | None,
+def evaluate_gate(current_contract: Contract | None, validation: ValidationRecord | None,
                   source_state: SourceState, availability=()) -> GateDecision:
     """UNICO punto decisionale, senza I/O. allowed riguarda agentic, mai suggest/oneshot.
 
@@ -281,7 +296,6 @@ def evaluate_gate(current_contract: Contract, validation: ValidationRecord | Non
     uncovered_scenarios=[]: la lista vuota non certifica la marginalità.
     """
     c, v = current_contract, validation
-    report = read_report(c.spec.text)
     reasons, warnings = [], []
 
     def block(code, message, next_step, *, action='user_action', http_status=409, changed=()):
@@ -295,6 +309,15 @@ def evaluate_gate(current_contract: Contract, validation: ValidationRecord | Non
         step = ('Ripristina storage o configurazione del servizio; poi riprova.'
                 if issue.action == 'operator_action' else 'Riprova quando il servizio è disponibile.')
         block(issue.code, issue.message, step, action=issue.action, http_status=503)
+
+    if c is None:
+        if not reasons:
+            block('storage_unavailable', 'Contratto non leggibile.', 'Ripristina lo storage e riprova.',
+                  action='operator_action', http_status=503)
+        return GateDecision(allowed=False, validation_id=v.validation_id if v else None,
+                            contract_hash=None, open_points_status=None, reasons=reasons,
+                            warnings=[], http_status=503)
+    report = read_report(c.spec.text)
 
     for name in ('canvas', 'spec'):
         if not getattr(c, name).text.strip():
@@ -336,17 +359,19 @@ def evaluate_gate(current_contract: Contract, validation: ValidationRecord | Non
             block('validation_' + v.status, f'Validazione {v.validation_id}: {v.status}.',
                   'Correggi i controlli falliti e rivalida.' if v.status == 'failed' else
                   'Valida nuovamente il contratto corrente: è cambiato durante la validazione.')
-        provided = {s.path: s.document_hash for s in v.sources.provided}
-        changed_sources = sorted(p for p, h in provided.items() if source_state.doc_hashes.get(p) != h)
-        if changed_sources:
-            block('provided_sources_changed', 'Fonti fornite al validatore modificate o rimosse.',
-                  'Aggiorna il contesto indicizzato e rivalida la feature.', changed=changed_sources)
-        old = v.sources.corpus_doc_hashes
-        other = sorted(p for p in old.keys() | source_state.doc_hashes.keys()
-                       if p not in provided and old.get(p) != source_state.doc_hashes.get(p))
-        if other:
-            warnings.append(Notice(code='unreviewed_corpus_changes', changed=other,
-                message='Documenti non forniti al validatore cambiati: pertinenza non rivalutata; avviso non bloccante.'))
+        # Un corpus non leggibile non è una mappa autorevole di documenti rimossi.
+        if not any(i.code in ('sources_unavailable', 'index_unavailable') for i in availability):
+            provided = {s.path: s.document_hash for s in v.sources.provided}
+            changed_sources = sorted(p for p, h in provided.items() if source_state.doc_hashes.get(p) != h)
+            if changed_sources:
+                block('provided_sources_changed', 'Fonti fornite al validatore modificate o rimosse.',
+                      'Aggiorna il contesto indicizzato e rivalida la feature.', changed=changed_sources)
+            old = v.sources.corpus_doc_hashes
+            other = sorted(p for p in old.keys() | source_state.doc_hashes.keys()
+                           if p not in provided and old.get(p) != source_state.doc_hashes.get(p))
+            if other:
+                warnings.append(Notice(code='unreviewed_corpus_changes', changed=other,
+                    message='Documenti non forniti al validatore cambiati: pertinenza non rivalutata; avviso non bloccante.'))
     return GateDecision(allowed=not reasons, validation_id=v.validation_id if v else None,
                         contract_hash=c.hash, open_points_status=report['open_points_status'],
                         reasons=reasons, warnings=warnings,
