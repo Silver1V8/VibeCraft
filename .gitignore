@@ -100,3 +100,8 @@ docs.local-backup-*/
 
 # Cartella locale di lavoro degli agent: mai da tracciare.
 .agents/
+
+# Output e strumenti temporanei locali, non parte del progetto condiviso.
+/output/
+/tmp/
+/skills-lock.json
