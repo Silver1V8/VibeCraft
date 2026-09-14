@@ -1,8 +1,13 @@
 # Fase 2 — resoconto finale delle ablazioni Propose
 
-14 settembre 2026. Chiusura dell'indagine sui tre giri conservati; nessuna
-generazione aggiuntiva per questo resoconto. Domanda: **le modifiche a Propose
-hanno migliorato la qualità? Risposta: non dimostrato.**
+14 settembre 2026. Resoconto dei tre giri iniziali, aggiornato con il confronto
+successivo all'adozione di V3. Nessuna nuova generazione per questo aggiornamento.
+Domanda: **le modifiche a Propose hanno migliorato la qualità? Risposta:
+beneficio strutturale osservato, miglioramento qualitativo non ancora dimostrato.**
+Il prompt attuale dichiara punti aperti in 6/6 campioni contro 0/6 e non riduce
+il numero di scenari o le F toccate. Non è stata rivalutata la correttezza delle
+ambiguità dichiarate né la copertura nominale/negativa: questi conteggi non bastano
+a concludere un miglioramento sostanziale. Esito conclusivo e riserve in §6.
 
 ## 1. Risposta e primo giro
 
@@ -193,9 +198,12 @@ righe in sei campioni, non nove righe su dodici campioni.
 | propose_ablation | 12 | 282,824 s |
 | propose_count_ablation | 24 | 691,602 s |
 | propose_inventory_ablation | 6 (V3 riutilizzata) | 191,886 s |
-| Totale | **42** | **1.166,312 s: circa 19 min 26 s** |
+| Subtotale dei tre giri iniziali | **42** | **1.166,312 s: circa 19 min 26 s** |
+| propose_adopted_v3 (vecchie risposte riutilizzate) | 6 | 177,312 s |
+| Totale aggiornato | **48** | **1.343,624 s: circa 22 min 24 s** |
 
-Circa 20 minuti macchina: somma dei tempi registrati dei giri, non del tempo
+Circa 20 minuti macchina per i tre giri iniziali, circa 22 minuti e 24 secondi
+includendo il confronto successivo: somma dei tempi registrati, non del tempo
 umano di preparazione, lettura e revisione. Fonti: [misure del primo giro](propose_ablation_20260914/evidence/AFTER_REVIEW/MEASUREMENTS.json),
 [secondo giro](propose_count_ablation_20260914/evidence/RESULTS.md),
 [verifica del terzo](propose_inventory_ablation_20260914/evidence/VERIFICATION.json).
@@ -210,17 +218,89 @@ codice. I token provider sono conservati nelle evidenze; le chiamate inutili
 di ricerca sono N/A perché qui non c'è un loop di ricerca. Nessun confronto
 causale con i run storici su indici/codice diversi è stato aggiunto.
 
-Restano aperti:
+Alla prima chiusura restavano aperti:
 
 - Perimetro FE3-F4 da decidere con chi possiede il Canvas, prima di usarlo
   nuovamente come criterio certo di copertura.
 - Confini delle funzionalità scelti dal modello: problema non risolto.
 - V3 disponibile come variante sperimentale, **non adottata**; V4 respinta.
 
-Fase 2 chiusa con **miglioramento qualitativo non dimostrato**. Nessuna modifica
+La prima chiusura registrava **miglioramento qualitativo non dimostrato**. Nessuna modifica
 a `rag/prompts/spec.md`, nessuno starter, nessun pilot e nessun gate avviati
 per questa chiusura. Fonti, risposte e verdetti restano conservati; artefatti
 rigenerabili e configurazioni locali restano esclusi dal commit. Le evidenze
 testuali del primo giro, ancora non tracciate al momento della chiusura,
 entrano insieme a quelle dei due giri successivi per rendere i rimandi del
 resoconto disponibili anche su main.
+
+## 6. Esito conclusivo dopo adozione V3
+
+V3 è stata adottata in `a8b2416`; le sei nuove risposte e il confronto con le
+sei `bd87bd7^` originali sono conservati in `9f09f86`:
+[risultati](propose_adopted_v3_20260914/evidence/RESULTS.md),
+[mappatura scenario→F](propose_adopted_v3_20260914/evidence/MAPPING.json),
+[addendum congelato](propose_adopted_v3_20260914/evidence/ADDENDUM.md).
+Stessi Canvas, fonti, modello/digest e opzioni; tre ripetizioni per feature.
+
+| Feature | Gruppo | Scenari r1/r2/r3 | F toccate r1/r2/r3 | Punti dichiarati r1/r2/r3 |
+|---|---|---|---|---|
+| FE3 | bd87bd7^ | 7/7/7 | F1–F3 / F1–F3 / F1–F3 | 0/0/0 |
+| FE3 | Attuale, V3 adottata | 7/7/7 | F1–F3 / F1–F3 / F1–F3 | 1/1/1 |
+| LA2 | bd87bd7^ | 7/7/7 | F1–F4 / F1–F4 / F1–F5 | 0/0/0 |
+| LA2 | Attuale, V3 adottata | 8/10/8 | F1–F4 / F1–F4 / F1–F5 | 1/1/1 |
+
+**Campioni con punti aperti dichiarati: 0/6→6/6.** Il vecchio gruppo non ha
+la sezione; il nuovo dichiara un record per campione. Questo dato NON sostituisce
+il precedente 0/27→3/27 sulle ambiguità preregistrate riconosciute correttamente:
+denominatore e oggetto misurato sono diversi, e non c'è una nuova revisione
+sostanziale. In LA2 r2 un record è leggibile ma il JSON è malformato.
+
+Con la formulazione adottata, il numero di scenari non cala: FE3 rimane a
+sette, LA2 passa da sette a 8–10. Anche le F toccate restano uguali nelle tre
+ripetizioni dei due gruppi. **Non è una verifica che la copertura nominale e
+negativa non cali**: più scenari o le stesse F toccate non lo dimostrano.
+FE3-F4 è esclusa dal giudizio di lacuna per il perimetro ambiguo già documentato,
+simmetricamente in entrambi i gruppi; non si riscrivono le schede storiche.
+
+Il trade-off strutturale del primo giro — meno scenari insieme a più dichiarazioni —
+non si ripresenta in questo lotto. Le evidenze sono coerenti con la spiegazione
+che il limite letto come totale producesse quel compromesso; non autorizzano
+ad attribuirlo come proprietà necessaria alla dichiarazione delle ambiguità.
+**Non è però isolata la causalità:** affermare che il calo di copertura fosse
+certamente e interamente un artefatto dell'errore di formulazione supererebbe
+questi dati. Nel confronto attuale cambiano anche il resoconto advisory e la
+nota sul limite; la copertura sostanziale non è stata rivalutata.
+
+Riserve: due feature e tre ripetizioni; baseline storica in un lotto diverso;
+conteggi strutturali senza nuova revisione sostanziale; mappatura delle F letta
+dall'assistente; FE3-F4 dal perimetro ambiguo. Il confronto è controllato su
+input e modello ma non isola la sola modifica sulle ambiguità. Restano validi
+i 13 rilievi sulla rubrica e i limiti della revisione iniziale. La scelta dei
+confini delle funzionalità rimane un problema aperto anche dopo l'adozione V3.
+
+### Precisazione sul JSON e sugli stati osservati
+
+In `la2_current_r2.md` manca soltanto la graffa finale dell'oggetto esterno:
+il payload termina con `}}]` anziché `}}]}`. Nessun campo obbligatorio manca,
+il fence è chiuso e non c'è testo estraneo nel blocco. Aggiungere la graffa
+soltanto in memoria rende validi JSON e schema; la risposta grezza è invariata.
+
+Il titolo è però `## 4. Punti aperti`, non quello canonico `## Punti aperti`:
+`read_report()` non trova la sezione e restituisce **missing** prima di leggere
+il JSON. Sul lotto attuale gli stati effettivi sono **valid 2/6, missing 4/6,
+invalid 0/6**. La sintassi JSON malformata si osserva in **1/6**; non equivale
+a uno stato invalid osservato end-to-end. Con il solo titolo canonico,
+quel payload non corretto restituisce invalid. Gli altri tre titoli numerati
+rendono missing anche JSON sintatticamente validi.
+
+Una precisazione minima proponibile, NON applicata in questo intervento:
+«Non numerare il titolo `## Punti aperti`. Prima di chiudere il fence json,
+verifica di aver chiuso anche l'oggetto esterno: dopo la `]` di open_points
+serve la `}` finale.» La graffa mancante è un caso su sei, insufficiente per
+definirlo ricorrente; il titolo numerato ricorre quattro volte su sei.
+La precisazione non garantisce JSON valido e non sostituisce il controllo runtime.
+
+Conclusione aggiornata: **più punti dichiarati senza regressione dei conteggi
+strutturali nel lotto osservato; miglioramento qualitativo ancora da verificare.**
+Nessuna modifica al prompt o al parser per questo aggiornamento. Nessun pilot
+e nessun gate avviati.

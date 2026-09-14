@@ -9,7 +9,10 @@ conteggi FE3 riportati più sotto. Nessuno starter o pilot avviato.
 delle funzionalità. [Confronto strutturale dopo l'adozione](propose_adopted_v3_20260914/evidence/RESULTS.md):
 sei risposte nuove contro le sei `bd87bd7^` conservate, senza giudizio sostanziale.
 Il prompt attuale include anche il resoconto advisory: non isola la sola modifica
-sulle ambiguità. Il resoconto finale dei tre giri precedenti rimane storico.
+sulle ambiguità. Il resoconto finale conserva i tre giri precedenti e include
+ora l'esito successivo: più punti dichiarati senza calo dei conteggi strutturali;
+qualità sostanziale non rivalutata. Distingue JSON malformato (1/6) da stato
+runtime invalid (0/6).
 
 `history.jsonl` conserva gli eventi aggregati della pagina `/eval`. I dati che
 permettono di esaminarli vivono in `<run>/evidence/`. Fuori da quella cartella gli
