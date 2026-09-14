@@ -70,3 +70,23 @@ Le quattro lacune non sono state riempite duplicando lo storico o rieseguendo
 oggi il codice: nessuna delle due operazioni produrrebbe la prova della run
 storica. I quattro eventi sono conservati con `evidence: "none"`, senza
 attribuire loro prove o verifiche che non abbiamo recuperato.
+
+## Punto aperto — cache condivisa dei prossimi pilot Docling
+
+I circa 701 MB di pesi trovati nella run del pilot isolato non derivano dal
+percorso applicativo attuale: [lo script storico](pilot_docling_standard_20260909-095127/evidence/run_standard.py.txt)
+riceveva `artifacts_path` come argomento e [il report della run](pilot_docling_standard_20260909-095127/evidence/run2/run_report.json)
+lo colloca in `pilot_docling_standard_20260909-095127/artifacts`.
+L'applicazione usa già `intake.docling.models_dir`, configurato come
+`rag/database/models/docling`, e verifica gli SHA-256 prima del caricamento
+(`core/intake_convert.py`). Nessun peso è stato spostato.
+
+Prima del prossimo pilot verificare che riusi quel percorso condiviso e che le
+revisioni richieste coincidano con quelle fissate in `scripts/docling_models.py`
+e con gli hash attesi dal pilot. Da `rag/`, `scripts/docling_models.py --verifica`
+controlla i pesi applicativi senza scaricarli; non certifica da solo la compatibilità
+di un pilot che richieda revisioni diverse. Registrare nella nuova evidenza percorso
+risolto, revisioni e hash effettivi, verificando che la run non contenga nuove copie
+dei pesi. Se servono revisioni diverse, prevedere una cache condivisa distinta per
+revisione senza sovrascrivere i pesi applicativi. Verifica dei prossimi pilot ancora
+da eseguire; nessuna migrazione o modifica al loro codice in questo intervento.
