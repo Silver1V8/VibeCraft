@@ -59,6 +59,9 @@
 
 {open_points_block}
 
+    Prima di chiudere il fence JSON, verifica di aver chiuso anche l'oggetto esterno:
+    dopo la parentesi ] di open_points deve esserci la graffa finale }.
+
     ==========================================================================
     FORMATO DEGLI SCENARI — obbligatorio, sempre, senza varianti: vale per ogni
     scenario di ogni spec, qualunque sia la feature. È la parte più importante

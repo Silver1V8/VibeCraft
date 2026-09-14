@@ -322,11 +322,12 @@ Nessuna riparazione automatica.` [Ricalcolo e hash](propose_adopted_v3_20260914/
 I conteggi originali in STRUCTURAL.json restano storici; nessuna rigenerazione.
 
 La precedente proposta di vietare la numerazione nel prompt è ritirata:
-avrebbe chiesto al modello di aggirare una fragilità del parser. Resta prevista
-nel commit del prompt la sola verifica della graffa finale prima di chiudere
-il fence JSON. Non garantisce JSON valido e non sostituisce il controllo runtime.
+avrebbe chiesto al modello di aggirare una fragilità del parser. Il commit
+separato del prompt aggiunge soltanto la verifica della graffa finale prima di
+chiudere il fence JSON. Non garantisce JSON valido e non sostituisce il controllo
+runtime; nessuna nuova generazione ne misura qui l'effetto.
 
 Conclusione aggiornata: **più punti dichiarati senza regressione dei conteggi
 strutturali nel lotto osservato; miglioramento qualitativo ancora da verificare.**
-Corretto il parser; aggiornamento del prompt separato. Nessun pilot e nessun
+Corretto il parser; aggiunta la verifica finale nel prompt in un commit separato. Nessun pilot e nessun
 gate avviati.
