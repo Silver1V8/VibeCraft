@@ -466,21 +466,46 @@ def test_build_final_prompt_chiede_integrazione_e_test():
     assert "esamina il contenuto esistente" not in pipeline.build_final_prompt("f", "")
 
 
-def test_build_final_prompt_solo_al_consumatore_esterno_dice_di_usare_lindice():
-    """Il blocco di orientamento sull'indice presuppone chiamate HTTP. Claude Code esterno le
-    può fare; l'esecuzione in-app via Agent SDK no (Bash è rimosso, vedi agent_bridge), quindi
-    riceverla sarebbe un'istruzione ineseguibile — e un agente che 'dichiara' di aver
-    consultato l'indice è peggio di uno che non sa che esiste."""
+def test_build_final_prompt_matches_consumer_tools_and_paths():
     external = pipeline.build_final_prompt("form-eventi", "frontend", "external")
     agent = pipeline.build_final_prompt("form-eventi", "frontend", "agent")
 
     assert "/api/code/search" in external and "dev_type=frontend" in external
     assert "/api/code/search" not in agent
-    # La variante agent è ESATTAMENTE il prompt storico: il blocco è additivo, non una riscrittura.
-    assert external.startswith(agent)
+    from agent_bridge import _build_agent_options
+    options = _build_agent_options("agentic", "sonnet")
+    for name in options.allowed_tools:
+        if name.startswith("mcp__"):
+            assert name in agent
+    assert str((pipeline.CHANGES_DIR / "form-eventi" / "canvas.md").resolve()) in agent
+    assert str((pipeline.CODE_DIR / "frontend").resolve()) in agent
     # Il contratto (cosa implementare, dove scrivere) è identico nelle due varianti.
-    for atteso in ("changes/form-eventi/canvas.md", "code/frontend/", "GIVEN/WHEN/THEN"):
-        assert atteso in external and atteso in agent
+    assert "GIVEN/WHEN/THEN" in external and "GIVEN/WHEN/THEN" in agent
+
+
+def test_agent_prompt_oneshot_uses_embedded_contract_not_tools(tmp_path, monkeypatch):
+    monkeypatch.setattr(routes_pipeline, "CHANGES_DIR", tmp_path)
+    monkeypatch.setattr(pipeline, "CHANGES_DIR", tmp_path)
+    folder = tmp_path / "feat"
+    folder.mkdir()
+    (folder / "canvas.md").write_text("Canvas sintetico {esempio}", encoding="utf-8")
+    (folder / "spec.md").write_text("Spec sintetica", encoding="utf-8")
+    result = asyncio.run(routes_pipeline.pipeline_final_prompt(
+        "feat", consumer="agent", mode="oneshot"))
+    prompt = result["final_prompt"]
+    assert "Canvas sintetico {esempio}" in prompt and "Spec sintetica" in prompt
+    assert "mcp__" not in prompt and "/api/code/search" not in prompt
+    assert result["mode"] == "oneshot"
+    (folder / "spec.md").unlink()
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(routes_pipeline.pipeline_final_prompt("feat", consumer="agent", mode="oneshot"))
+    assert exc.value.status_code == 409
+
+
+def test_agent_prompt_rejects_unknown_mode():
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(routes_pipeline.pipeline_final_prompt("feat", consumer="agent", mode="bogus"))
+    assert exc.value.status_code == 400
 
 
 def test_build_final_prompt_default_e_il_consumatore_esterno():

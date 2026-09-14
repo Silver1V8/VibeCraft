@@ -595,11 +595,11 @@
     /* Prompt finale della feature, chiesto al server invece di ricostruito qui.
        Il template è deterministico (nessun LLM) ma ha DUE forme — "external" per Claude
        Code/Cursor, che possono interrogare l'indice via HTTP, e "agent" per l'esecuzione
-       in-app, che non ha Bash e quindi non può — e viveva in due copie, Python e JS: la
+       in-app, che usa MCP secondo la modalità — e viveva in due copie, Python e JS: la
        copia JS era già rimasta indietro di una frase rispetto a core/pipeline.py. Una sola
        sorgente di verità, interrogabile: GET /api/pipeline/final-prompt. */
-    async function fetchFinalPrompt(feature, devTypeValue, consumer) {
-      const params = new URLSearchParams({ feature, dev_type: devTypeValue || '', consumer });
+    async function fetchFinalPrompt(feature, devTypeValue, consumer, mode = 'agentic') {
+      const params = new URLSearchParams({ feature, dev_type: devTypeValue || '', consumer, mode });
       const res = await fetch(`/api/pipeline/final-prompt?${params}`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: res.statusText }));
@@ -1021,20 +1021,14 @@
       const shown = window._finalPrompt || document.getElementById('final-prompt-box').textContent;
       if (!shown.trim()) { toast('Nessun prompt finale disponibile: genera prima le specifiche.', 'error'); return; }
 
-      // Il prompt MOSTRATO è quello per Claude Code esterno: contiene il blocco di
-      // orientamento sull'indice, che presuppone chiamate HTTP. L'Agent SDK gira senza Bash
-      // (agent_bridge.py) e quelle chiamate non può farle, quindi si esegue la variante
-      // "agent" — stesso contratto, senza istruzioni ineseguibili. Se il server non la
-      // fornisce si ripiega sul prompt mostrato: perdere l'esecuzione sarebbe peggio.
-      let prompt = shown;
-      if (featureName) {
-        try {
-          prompt = await fetchFinalPrompt(featureName, devType, 'agent');
-        } catch (err) { /* fallback sul prompt mostrato */ }
-      }
-
       const mode = document.getElementById('agent-mode-select').value;
       const model = document.getElementById('agent-model-select').value;
+      // La modalità determina tool e contesto: niente fallback sul prompt HTTP esterno.
+      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
+      let prompt;
+      try {
+        prompt = await fetchFinalPrompt(featureName, devType, 'agent', mode);
+      } catch (err) { toast(err.message, 'error'); return; }
       if (mode === 'agentic' && !await confirmDialog(
         'La modalità Agentic scrive file nel progetto. Continuare?',
         { title: 'Modalità Agentic', confirmText: 'Continua', danger: true }

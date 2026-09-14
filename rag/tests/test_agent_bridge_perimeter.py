@@ -5,8 +5,8 @@ Copre tre livelli:
 
 1. Costruzione delle ClaudeAgentOptions per ogni modalità — asserzioni ESATTE
    (uguaglianza, non "contiene"): agentic ha cwd=<root>/code, il set di tool
-   atteso, Bash rimosso e l'hook PreToolUse; suggest/oneshot restano invariate su
-   PROJECT_ROOT senza hook.
+   atteso, Bash rimosso e l'hook PreToolUse; suggest/oneshot restano su
+   PROJECT_ROOT senza hook. MCP è disponibile solo a suggest/agentic.
 2. La funzione di decisione pura `_agentic_tool_denial` contro path avversari.
 3. L'hook `_deny_out_of_sandbox_writes` (struttura del deny / astensione) e il
    contratto di streaming NDJSON di `run_agent_streaming` (con `query` fasullo),
@@ -14,6 +14,9 @@ Copre tre livelli:
 """
 import asyncio
 import json
+import queue
+import shutil
+import sys
 
 import pytest
 
@@ -27,6 +30,12 @@ from agent_bridge import (
 )
 from claude_agent_sdk.types import AssistantMessage, ResultMessage, TextBlock, ToolUseBlock
 
+MCP_TOOLS = [
+    "mcp__vibecraft__vibecraft_retrieve",
+    "mcp__vibecraft__vibecraft_code_search",
+    "mcp__vibecraft__vibecraft_graph_query",
+]
+
 
 # ===========================================================================
 # 1. Costruzione delle opzioni — asserzioni esatte
@@ -39,7 +48,8 @@ def test_agentic_options_confine_to_code_dir_exactly():
     assert opts.cwd == str(PROJECT_ROOT / "code")
 
     # Set di tool auto-approvati esatto: NIENTE Bash.
-    assert opts.allowed_tools == ["Read", "Write", "Edit", "Glob", "Grep"]
+    assert opts.allowed_tools == ["Read", "Write", "Edit", "Glob", "Grep"] + MCP_TOOLS
+    assert opts.tools == ["Read", "Write", "Edit", "Glob", "Grep"]
     assert "Bash" not in opts.allowed_tools
 
     # Bash rimosso anche dal contesto del modello.
@@ -61,11 +71,12 @@ def test_agentic_options_register_exactly_one_pretooluse_hook():
     assert matcher.hooks == [agent_bridge._deny_out_of_sandbox_writes]
 
 
-def test_suggest_options_unchanged_read_only_no_hooks():
+def test_suggest_options_read_only_with_mcp_no_hooks():
     opts = _build_agent_options("suggest", "sonnet")
 
     assert opts.cwd == str(PROJECT_ROOT)  # NON confinata a code/
-    assert opts.allowed_tools == ["Read", "Grep", "Glob"]
+    assert opts.allowed_tools == ["Read", "Grep", "Glob"] + MCP_TOOLS
+    assert opts.tools == ["Read", "Grep", "Glob"]
     assert opts.disallowed_tools == []
     assert opts.permission_mode == "dontAsk"
     assert opts.hooks is None  # nessun hook di confinamento
@@ -79,11 +90,52 @@ def test_oneshot_options_unchanged_no_tools_no_hooks():
     assert opts.disallowed_tools == []
     assert opts.permission_mode == "dontAsk"
     assert opts.hooks is None
+    assert opts.tools == []
+    assert opts.mcp_servers == {}
+    assert opts.strict_mcp_config is True
+    assert opts.max_turns == 1
+
+
+@pytest.mark.parametrize("mode", ["suggest", "agentic"])
+def test_mcp_is_local_explicit_and_does_not_mutate_modes(mode, monkeypatch):
+    monkeypatch.setenv("VIBECRAFT_AGENT_MAX_TURNS", "12")
+    opts = _build_agent_options(mode, "sonnet")
+    assert opts.mcp_servers == {"vibecraft": {
+        "type": "stdio", "command": sys.executable,
+        "args": ["-B", str(PROJECT_ROOT / "rag" / "mcp_server.py")],
+    }}
+    assert opts.strict_mcp_config is True
+    assert opts.max_turns == 12
+    assert _build_agent_options(mode, "sonnet").allowed_tools == opts.allowed_tools
+    assert not any(t.startswith("mcp__") for t in agent_bridge.AGENT_MODES[mode]["allowed_tools"])
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "201", "nope"])
+def test_invalid_turn_limit_closes_stream_instead_of_hanging(monkeypatch, value):
+    monkeypatch.setenv("VIBECRAFT_AGENT_MAX_TURNS", value)
+    monkeypatch.setattr(agent_bridge, "query", _fake_query_factory([], raise_exc=AssertionError("SDK non deve partire")))
+    out = queue.Queue()
+    asyncio.run(agent_bridge._run_agent("hi", "suggest", "sonnet", out))
+    event = out.get_nowait()
+    assert event["type"] == "error"
+    assert "VIBECRAFT_AGENT_MAX_TURNS" in event["message"]
+    assert out.get_nowait() is None
 
 
 def test_model_is_forwarded():
     assert _build_agent_options("agentic", "opus").model == "opus"
     assert _build_agent_options("suggest", "haiku").model == "haiku"
+
+
+def test_windows_npm_shim_uses_installed_native_binary(tmp_path, monkeypatch):
+    monkeypatch.setattr(agent_bridge.sys, "platform", "win32")
+    monkeypatch.setattr(shutil, "which", lambda name: str(tmp_path / "claude.cmd"))
+    native = tmp_path / "node_modules" / "@anthropic-ai" / "claude-code" / "bin" / "claude.exe"
+    native.parent.mkdir(parents=True)
+    native.touch()
+    assert _build_agent_options("suggest", "sonnet").cli_path == str(native)
+    native.unlink()
+    assert _build_agent_options("suggest", "sonnet").cli_path is None
 
 
 # ===========================================================================

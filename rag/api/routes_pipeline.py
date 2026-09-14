@@ -353,29 +353,35 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest):
 
 
 @router.get("/api/pipeline/final-prompt")
-async def pipeline_final_prompt(feature: str, dev_type: str = "", consumer: str = "external"):
-    """Prompt finale della feature, ricostruito dal template deterministico (nessun LLM, nessun
-    file letto oltre meta.json). Esiste per due ragioni:
-
-    1. il prompt ha ora due forme (vedi core.pipeline.FINAL_PROMPT_CONSUMERS) e chi lo esegue
-       deve poter chiedere LA PROPRIA: la dashboard mostra quella "external" da copiare in
-       Claude Code, ma quando lancia l'esecuzione in-app deve inviare quella "agent", perché
-       l'SDK non ha modo di fare le chiamate HTTP che l'altra descrive;
-    2. il template viveva in due copie — Python e JavaScript — e la copia JS era già rimasta
-       indietro di una frase. Una sola sorgente, interrogabile, e la deriva non si ripresenta.
-    """
+async def pipeline_final_prompt(feature: str, dev_type: str = "", consumer: str = "external",
+                                mode: str = "agentic"):
+    """Template unico per HTTP esterno e MCP in-app. One-shot riceve Canvas/Spec
+    nel prompt perché non ha strumenti di lettura. Nessuna chiamata al modello."""
     if consumer not in FINAL_PROMPT_CONSUMERS:
         raise HTTPException(
             status_code=400,
             detail=f"Consumatore non valido: {consumer!r}. Validi: {list(FINAL_PROMPT_CONSUMERS)}",
         )
+    if consumer == "agent" and mode not in AGENT_MODES:
+        raise HTTPException(status_code=400, detail=f"Modalità non valida: {mode}")
     folder = _safe_feature_dir(feature)
     dev = _safe_dev_type(dev_type or load_dev_type(folder))
+    prompt = build_final_prompt(folder.name, dev, consumer, mode=mode)
+    if consumer == "agent" and mode == "oneshot":
+        try:
+            contract = {name: (folder / name).read_text(encoding="utf-8")
+                        for name in ("canvas.md", "spec.md")}
+        except FileNotFoundError:
+            raise HTTPException(status_code=409, detail="Genera prima Canvas e Spec per One-shot.") from None
+        if not all(text.strip() for text in contract.values()):
+            raise HTTPException(status_code=409, detail="Canvas e Spec non possono essere vuoti.")
+        prompt += "\n\nContratto della feature (JSON):\n" + json.dumps(contract, ensure_ascii=False)
     return {
         "feature_folder": folder.name,
         "dev_type": dev,
         "consumer": consumer,
-        "final_prompt": build_final_prompt(folder.name, dev, consumer),
+        "mode": mode if consumer == "agent" else None,
+        "final_prompt": prompt,
     }
 
 

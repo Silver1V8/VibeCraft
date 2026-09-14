@@ -2,10 +2,8 @@
 import asyncio
 import json
 import os
-import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 
 import httpx
 import pytest
@@ -13,6 +11,7 @@ from mcp import Client
 from mcp.client.stdio import StdioServerParameters
 
 from mcp_server import backend_url, create_server
+from agent_bridge import _build_agent_options
 
 
 @pytest.mark.parametrize('url', ['https://example.org', 'http://127.0.0.1.evil',
@@ -87,14 +86,17 @@ def test_real_stdio_exact_tools_equivalence_validation_and_no_secrets(capfd):
 
     async def run():
         env = {**os.environ, 'VIBECRAFT_MCP_BACKEND_URL': url, 'VIBECRAFT_API_KEY': secret}
-        params = StdioServerParameters(command=sys.executable,
-            args=['-B', str(Path(__file__).resolve().parents[1] / 'mcp_server.py')], env=env)
+        options = _build_agent_options('suggest', 'sonnet')
+        config = options.mcp_servers['vibecraft']
+        params = StdioServerParameters(command=config['command'], args=config['args'], env=env)
         async with Client(params) as client:
             listing = await client.list_tools()
             expected = {'vibecraft_retrieve': '/api/retrieve',
                         'vibecraft_code_search': '/api/code/search',
                         'vibecraft_graph_query': '/api/graph/query'}
             assert {tool.name for tool in listing.tools} == set(expected)
+            assert {t for t in options.allowed_tools if t.startswith('mcp__')} == {
+                'mcp__vibecraft__' + name for name in expected}
             assert all(tool.annotations.read_only_hint for tool in listing.tools)
             assert not (await client.list_resources()).resources
             assert not (await client.list_prompts()).prompts

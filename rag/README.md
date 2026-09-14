@@ -1168,17 +1168,35 @@ risposta è **navigazionale**, non documentale:
   ambito poco rappresentato sparirebbe ogni volta che i top-k globali appartengono
   a un altro ambito.
 
-Il prompt finale della pipeline istruisce l'agente a usarlo, ma **solo quando il
-destinatario può**: `build_final_prompt(..., consumer=...)` aggiunge il blocco di
-orientamento per `external` (Claude Code/Cursor, che hanno una shell) e lo omette
-per `agent` — l'esecuzione in-app via Agent SDK non ha Bash (vedi
-[agent_bridge.py](agent_bridge.py)) e non può fare alcuna chiamata HTTP; darle
-quelle istruzioni significherebbe descriverle uno strumento che non ha. Il blocco
-è additivo: la variante `agent` è, byte per byte, il prompt storico. La dashboard
-mostra la variante `external` da copiare e chiede `GET
-/api/pipeline/final-prompt?consumer=agent` quando lancia l'esecuzione in-app —
-endpoint che esiste anche per togliere di mezzo la copia JavaScript del template,
-che era già rimasta indietro di una frase rispetto a `core/pipeline.py`.
+Il prompt finale è costruito in `core/pipeline.py`. La variante `external`, da
+copiare in Claude Code/Cursor, descrive le API HTTP. Per l'esecuzione in-app la
+dashboard richiede `/api/pipeline/final-prompt?feature=<feature>&consumer=agent&mode=<mode>`:
+Suggest e Agentic consultano l'indice tramite i tre tool MCP locali; One-shot
+riceve Canvas e Spec allegati in JSON, perché non ha strumenti di lettura.
+I percorsi in-app sono assoluti: Agentic lavora dentro `code/`, mentre l'indice
+restituisce path relativi alla radice del progetto. Se il prompt della modalità
+non è disponibile, l'esecuzione non parte con un prompt esterno incompatibile.
+
+Il prompt in-app richiede contesto su domanda: ricerca codice con `k=5`, ambito
+`dev_type` e `snippet=false`; grafo e norme solo quando necessari. Per ogni
+scenario chiede modifica o proposta, copertura dei test e lacune residue.
+Suggest resta in sola lettura; Agentic può scrivere codice e test ma non eseguirli,
+perché Bash resta escluso. Il resoconto deve distinguere implementato da verificato.
+
+Il bridge configura direttamente il processo stdio usando lo stesso interprete
+Python del backend. Il backend HTTP deve essere avviato e raggiungibile tramite
+`VIBECRAFT_MCP_BACKEND_URL` (default `http://127.0.0.1:8000`); URL, timeout e chiave
+sono ereditati dall'ambiente. `strict_mcp_config=True` esclude altri server MCP,
+`tools` limita i tool nativi e `allowed_tools` autorizza solo i tre tool MCP nominati.
+`VIBECRAFT_AGENT_MAX_TURNS` limita il ciclo a 30 turni per default (intero 1–200);
+One-shot ha un solo turno. Gli errori di configurazione chiudono lo stream con errore.
+Su Windows viene usato, se presente accanto allo shim npm, il binario nativo
+`node_modules/@anthropic-ai/claude-code/bin/claude.exe`; lo shim `.cmd` non viene eseguito.
+
+Verifica locale senza provider o corpus privato:
+`python -m pytest tests/test_agent_bridge_perimeter.py tests/test_pipeline.py tests/test_mcp_server.py tests/test_mcp_http.py`
+e `node tests/pipeline_agent.cjs`. Il test stdio avvia il server dalla configurazione
+del bridge e controlla i tre tool contro un backend HTTP con dati sintetici.
 
 Il blocco dice tre cose che ne delimitano l'uso, e sono la parte che conta:
 l'indice serve **solo** a scegliere cosa leggere, è uno snapshot dell'ultima
@@ -1253,11 +1271,12 @@ o interruttore aggiuntivo. In container eseguire il processo **dentro lo stesso
 container del backend**, per esempio `docker exec -i <container> python -B mcp_server.py`
 (senza `-t`); il backend resta su loopback dal punto di vista dell'adattatore.
 
-Solo client di test locali sono autorizzati per il corpus privato: usare stdio non
-impedisce a un client collegato a un modello remoto di inoltrare gli estratti.
-Quel trasferimento richiede una decisione separata sul confine dei dati.
-Il perimetro non include `/ask`, intake, scritture, shell, reindex o agent bridge;
-non riapre N1 sullo streaming.
+L'esecuzione in-app collega questi tool a Claude: gli estratti richiesti entrano
+nel contesto del modello remoto. One-shot invia invece Canvas e Spec nel prompt.
+L'accesso al corpus privato da altri client o provider richiede autorizzazione
+esplicita. I test automatici usano dati sintetici e non chiamano il modello.
+Il server MCP resta di sola lettura: non espone `/ask`,
+intake, scritture, shell, reindex o l'avvio dell'agente.
 
 Benchmark riproducibile, con backend pronto e senza carichi concorrenti:
 `python -B -m scripts.bench_mcp --pairs 30`. Tre warm-up per tool sono esclusi;

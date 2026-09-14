@@ -9,11 +9,11 @@ thread daemon dedicato con il proprio event loop; le chiamate vi vengono
 instradate con `asyncio.run_coroutine_threadsafe`, senza mai bloccare il server.
 
 Tre modalità di fiducia (dalla più conservativa alla più autonoma):
-  - suggest : sola lettura (Read/Grep/Glob) su tutto il progetto — l'agente
+  - suggest : sola lettura (Read/Grep/Glob + MCP) su tutto il progetto — l'agente
               analizza e propone, non tocca il filesystem.
   - agentic : scrive SOLO dentro PROJECT_ROOT/code (il codice generato). La
               working dir è code/ e un hook PreToolUse nega meccanicamente ogni
-              Write/Edit fuori da quel perimetro; Bash è rimosso (vedi sotto).
+              Write/Edit fuori da quel perimetro; MCP è di sola lettura, Bash è rimosso.
   - oneshot : nessun tool — pura generazione di testo/codice su PROJECT_ROOT.
 
 Perimetro di sicurezza della modalità "agentic" (SDK claude-agent-sdk 0.2.115)
@@ -48,7 +48,9 @@ dalla modalità agentic (pipeline dedicata / esecuzione manuale).
 
 import asyncio
 import json
+import os
 import queue
+import shutil
 import sys
 import threading
 from pathlib import Path
@@ -201,11 +203,42 @@ def _build_agent_options(mode: str, model: str) -> ClaudeAgentOptions:
 
     kwargs: dict[str, Any] = {
         "cwd": str(cwd),
-        "allowed_tools": cfg["allowed_tools"],
+        "tools": list(cfg["allowed_tools"]),
+        "allowed_tools": list(cfg["allowed_tools"]),
         "disallowed_tools": cfg.get("disallowed_tools", []),
         "permission_mode": cfg["permission_mode"],
         "model": model,
+        "strict_mcp_config": True,
+        "max_turns": 1,
     }
+
+    # L'SDK rifiuta gli shim .cmd; npm può già contenere il binario nativo
+    # senza esporlo direttamente nel PATH. Non eseguire lo shim tramite shell.
+    if sys.platform == "win32" and (cli := shutil.which("claude")):
+        if Path(cli).suffix.lower() in (".cmd", ".bat"):
+            native = Path(cli).parent / "node_modules" / "@anthropic-ai" / "claude-code" / "bin" / "claude.exe"
+            if native.is_file():
+                kwargs["cli_path"] = str(native)
+
+    if mode != "oneshot":
+        try:
+            max_turns = int(os.environ.get("VIBECRAFT_AGENT_MAX_TURNS", "30"))
+            if not 1 <= max_turns <= 200:
+                raise ValueError
+        except ValueError:
+            raise ValueError("VIBECRAFT_AGENT_MAX_TURNS deve essere un intero fra 1 e 200.") from None
+        kwargs["max_turns"] = max_turns
+        # Stesso interprete/checkout del backend; ambiente ereditato, nessuna chiave
+        # nel prompt o negli argomenti CLI. Il server MCP resta un adattatore HTTP.
+        kwargs["mcp_servers"] = {"vibecraft": {
+            "type": "stdio", "command": sys.executable,
+            "args": ["-B", str(PROJECT_ROOT / "rag" / "mcp_server.py")],
+        }}
+        kwargs["allowed_tools"] += [
+            "mcp__vibecraft__vibecraft_retrieve",
+            "mcp__vibecraft__vibecraft_code_search",
+            "mcp__vibecraft__vibecraft_graph_query",
+        ]
 
     if cfg.get("confine_writes"):
         # La working dir deve esistere: il transport dell'SDK fallisce se cwd non
@@ -265,8 +298,8 @@ def _ensure_loop() -> asyncio.AbstractEventLoop:
 # ---------------------------------------------------------------------------
 async def _run_agent(prompt: str, mode: str, model: str, out: queue.Queue) -> None:
     """Esegue query() sull'event loop dedicato e pubblica gli eventi sulla coda."""
-    options = _build_agent_options(mode, model)
     try:
+        options = _build_agent_options(mode, model)
         async for message in query(prompt=prompt, options=options):
             if isinstance(message, AssistantMessage):
                 for block in message.content:
