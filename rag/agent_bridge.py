@@ -10,7 +10,7 @@ instradate con `asyncio.run_coroutine_threadsafe`, senza mai bloccare il server.
 
 Tre modalità di fiducia (dalla più conservativa alla più autonoma):
   - suggest : sola lettura (Read/Grep/Glob + MCP) su tutto il progetto — l'agente
-              analizza e propone, non tocca il filesystem.
+              analizza e propone, senza scritture applicative.
   - agentic : scrive SOLO dentro PROJECT_ROOT/code (il codice generato). La
               working dir è code/ e un hook PreToolUse nega meccanicamente ogni
               Write/Edit fuori da quel perimetro; MCP è di sola lettura, Bash è rimosso.
@@ -205,6 +205,9 @@ def _build_agent_options(mode: str, model: str) -> ClaudeAgentOptions:
 
     kwargs: dict[str, Any] = {
         "cwd": str(cwd),
+        # Esclude impostazioni/hook user, project e local in tutte le modalità.
+        # Gli hook SDK espliciti di confinamento restano registrati più sotto.
+        "setting_sources": [],
         "tools": list(cfg["allowed_tools"]),
         "allowed_tools": list(cfg["allowed_tools"]),
         "disallowed_tools": cfg.get("disallowed_tools", []),

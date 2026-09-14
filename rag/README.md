@@ -1328,7 +1328,7 @@ dell'implementazione: lo stato è già leggibile a macchina per il futuro harnes
 
 ### Decisioni approvate per il gate — ancora da implementare
 
-Sequenza concordata: **recorder provider minimo → ablazione prompt → decisione
+Sequenza originaria: **recorder provider minimo → ablazione prompt → decisione
 sul pilot → eventuale baseline A → commit dedicato all'isolamento delle
 impostazioni → gate → misure B e C**. Nessuno starter prima della decisione;
 se approvato, checkpoint dopo un'ora di preparazione. Il recorder SDK è rinviato
@@ -1339,22 +1339,27 @@ del testo, senza cambiare richieste, retry o cache; conserva i contatori restitu
 mai token stimati. Gli errori del recorder rendono incompleta la misura, senza
 ritentare la generazione. I test acceso/spento usano il vero percorso provider
 con risposte HTTP simulate, inclusi errori e retry. Non promette overhead nullo.
-Queste sono decisioni di progetto,
-non garanzie già applicate dal runtime attuale.
+La Fase 2 è ora [chiusa](eval/results/FASE2_PROPOSE_20260914.md), senza pilot.
+La sequenza approvata è isolamento delle impostazioni → adozione V3 → gate,
+con un checkpoint per ogni commit. L'isolamento è applicato come segue;
+le decisioni sul gate e sull'accettazione restano da implementare.
 
-Il commit di isolamento imposterà `setting_sources=[]` esplicitamente
+Il bridge imposta `setting_sources=[]` esplicitamente
 per **suggest, oneshot e agentic**, preservando l'hook SDK di confinamento
-delle scritture di agentic. Il test degli hook coprirà tutte e tre le modalità:
-un hook innocuo in un ambiente temporaneo deve creare una sentinella quando
-le impostazioni sono caricate esplicitamente (controllo positivo), e non deve
-eseguire con le opzioni isolate. La sola assenza dei tool non basta come prova.
-Il test avrà in testa il commento: "Il controllo positivo prova che l'hook
-è eseguibile: senza, il test negativo potrebbe passare perché il fixture è
-rotto, non perché l'isolamento funziona."
+delle scritture di agentic. `tests/test_agent_settings_isolation.py` usa il
+CLI/SDK reale in tutte e tre le modalità: hook `SessionStart` innocui nelle
+impostazioni user, project e local creano sentinelle in un ambiente temporaneo
+quando le fonti sono caricate esplicitamente; con le opzioni reali isolate
+non le creano. Il test inizializza soltanto la sessione, senza prompt o
+generazioni. Il controllo positivo e il motivo per conservarlo sono in testa
+al test: la sola assenza dei tool o della sentinella non basta come prova.
+Esecuzione da `rag/`: `python -m pytest tests/test_agent_settings_isolation.py -q`.
+Richiede il CLI Claude installato (quello incluso nell'SDK o quello nativo
+selezionato dal bridge), non una credenziale provider. Un controllo positivo
+fallito fa fallire il test: non viene trasformato in uno skip.
 Se emergono dipendenze operative dalle impostazioni locali, fermare il lavoro
 e segnalarle prima di procedere, senza riabilitarle implicitamente.
-Garanzia prevista: **nessuna scrittura applicativa comandabile dall'agente
-o dagli hook locali nelle modalità senza scritture**; agentic conserva le
+Garanzia per suggest e oneshot: **nessuna scrittura applicativa comandabile dall'agente o dagli hook locali**; agentic conserva le
 scritture applicative confinate previste. Non si promette che il processo non
 scriva alcun byte, per esempio nei propri file di sessione.
 
