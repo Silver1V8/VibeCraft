@@ -1,0 +1,10 @@
+{"stage": "explore-save", "file": "explore-save-1", "status": 200, "started_at": "2026-09-14T16:21:31.067048+00:00", "seconds": 0.029}
+{"stage": "canvas", "file": "canvas-1", "status": 200, "started_at": "2026-09-14T16:21:31.097606+00:00", "seconds": 102.949}
+{"stage": "propose", "file": "propose-1", "status": 200, "started_at": "2026-09-14T16:23:32.450158+00:00", "seconds": 36.495}
+{"stage": "validate", "file": "validate-1", "status": 200, "started_at": "2026-09-14T16:24:28.412505+00:00", "seconds": 14.746}
+{"stage": "canvas-clarification", "file": "canvas-clarification-1", "status": 200, "started_at": "2026-09-14T16:26:20.769192+00:00", "seconds": 0.029}
+{"stage": "propose", "file": "propose-2", "status": 200, "started_at": "2026-09-14T16:26:20.975506+00:00", "seconds": 29.931}
+{"stage": "validate", "file": "validate-2", "status": 200, "started_at": "2026-09-14T16:30:05.773199+00:00", "seconds": 18.725}
+{"stage": "repair-report", "file": "repair-report-1", "status": 200, "started_at": "2026-09-14T16:30:59.606843+00:00", "seconds": 0.034}
+{"stage": "validate", "file": "validate-3", "status": 200, "started_at": "2026-09-14T16:30:59.814287+00:00", "seconds": 15.218}
+{"stage": "run", "file": "run-1", "status": 409, "started_at": "2026-09-14T16:32:13.859678+00:00", "seconds": 0.044}

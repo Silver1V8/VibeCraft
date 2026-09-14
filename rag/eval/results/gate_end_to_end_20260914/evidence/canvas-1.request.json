@@ -1,0 +1,7 @@
+{
+  "path": "/api/pipeline/canvas/generate",
+  "body": {
+    "feature_name": "gate-probe-posti",
+    "dev_type": "frontend"
+  }
+}

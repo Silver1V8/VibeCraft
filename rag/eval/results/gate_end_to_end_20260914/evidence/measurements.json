@@ -1,0 +1,108 @@
+{
+  "feature": "gate-probe-posti",
+  "feature_completed": false,
+  "validation_records": [
+    {
+      "validation_id": "val-d77105f5ad994bd48226782c36de4a79",
+      "status": "failed",
+      "bytes": 41744,
+      "started_at": "2026-09-14T16:24:28.440247+00:00",
+      "finished_at": "2026-09-14T16:24:43.131165+00:00",
+      "open_points_status": "valid"
+    },
+    {
+      "validation_id": "val-e56a102f7d164170a4f038eac192cc1a",
+      "status": "passed",
+      "bytes": 44245,
+      "started_at": "2026-09-14T16:30:05.798456+00:00",
+      "finished_at": "2026-09-14T16:30:24.466769+00:00",
+      "open_points_status": "invalid"
+    },
+    {
+      "validation_id": "val-60c27c8d6dee4577a465a9b638f87086",
+      "status": "failed",
+      "bytes": 42489,
+      "started_at": "2026-09-14T16:30:59.839586+00:00",
+      "finished_at": "2026-09-14T16:31:15.008503+00:00",
+      "open_points_status": "valid"
+    }
+  ],
+  "record_bytes_median": 42489,
+  "record_bytes_total": 128478,
+  "api_seconds_total": 218.2,
+  "timings": [
+    {
+      "stage": "explore-save",
+      "file": "explore-save-1",
+      "status": 200,
+      "started_at": "2026-09-14T16:21:31.067048+00:00",
+      "seconds": 0.029
+    },
+    {
+      "stage": "canvas",
+      "file": "canvas-1",
+      "status": 200,
+      "started_at": "2026-09-14T16:21:31.097606+00:00",
+      "seconds": 102.949
+    },
+    {
+      "stage": "propose",
+      "file": "propose-1",
+      "status": 200,
+      "started_at": "2026-09-14T16:23:32.450158+00:00",
+      "seconds": 36.495
+    },
+    {
+      "stage": "validate",
+      "file": "validate-1",
+      "status": 200,
+      "started_at": "2026-09-14T16:24:28.412505+00:00",
+      "seconds": 14.746
+    },
+    {
+      "stage": "canvas-clarification",
+      "file": "canvas-clarification-1",
+      "status": 200,
+      "started_at": "2026-09-14T16:26:20.769192+00:00",
+      "seconds": 0.029
+    },
+    {
+      "stage": "propose",
+      "file": "propose-2",
+      "status": 200,
+      "started_at": "2026-09-14T16:26:20.975506+00:00",
+      "seconds": 29.931
+    },
+    {
+      "stage": "validate",
+      "file": "validate-2",
+      "status": 200,
+      "started_at": "2026-09-14T16:30:05.773199+00:00",
+      "seconds": 18.725
+    },
+    {
+      "stage": "repair-report",
+      "file": "repair-report-1",
+      "status": 200,
+      "started_at": "2026-09-14T16:30:59.606843+00:00",
+      "seconds": 0.034
+    },
+    {
+      "stage": "validate",
+      "file": "validate-3",
+      "status": 200,
+      "started_at": "2026-09-14T16:30:59.814287+00:00",
+      "seconds": 15.218
+    },
+    {
+      "stage": "run",
+      "file": "run-1",
+      "status": 409,
+      "started_at": "2026-09-14T16:32:13.859678+00:00",
+      "seconds": 0.044
+    }
+  ],
+  "execution_events": [
+    "execution_blocked"
+  ]
+}

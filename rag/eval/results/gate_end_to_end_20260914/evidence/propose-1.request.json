@@ -1,0 +1,7 @@
+{
+  "path": "/api/pipeline/propose/generate",
+  "body": {
+    "feature_folder": "gate-probe-posti",
+    "dev_type": "frontend"
+  }
+}

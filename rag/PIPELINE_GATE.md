@@ -69,11 +69,13 @@ positivo SDK nelle tre modalità), due controlli UI Node passati, Ruff sull'inte
 
 Verifica del terzo commit: 544 test Python passati, inclusi lock, journal,
 confinamento SDK, MCP e archiviazione; controlli UI Node e Ruff passati.
-La prova operativa dopo il push è distinta: tutti i contratti reali presenti
-(LA3 attiva, FE1–FE4 e LA1–LA2 archiviate) hanno resoconto missing. Non aggiungere
-una lista vuota né registrare accettazioni al posto dell'operatore per farla
-passare. Al controllo iniziale non esistono record operativi: nessuna dimensione
-tipica o numero di rivalidazioni per feature conclusa è ancora misurabile.
+I contratti preesistenti (LA3 attiva, FE1–FE4 e LA1–LA2 archiviate) hanno
+resoconto missing. Per le feature archiviate è una conseguenza attesa: furono
+generate prima del punto 4, che ha introdotto il resoconto strutturato, non è un
+difetto del parser o del gate. Se si dovrà lavorarci di nuovo, rigenerare la Spec
+con il prompt attuale e revisionarla; non aggiungere una lista vuota né accettare
+lacune mai esaminate. La prova operativa successiva usa invece una feature nuova
+creata dall'inizio, senza forzare lo sblocco dell'archivio.
 
 ## Record e invarianti del nucleo
 
@@ -128,13 +130,17 @@ validazione. Gli altri percorsi restano da correggere in un intervento separato.
 
 ## Crescita dei record
 
-La route produce ora validazioni, ma le verifiche di questo commit usano solo
-fixture isolate e risposte simulate: non esiste ancora un campione operativo
-dal quale stimare dimensione tipica o tentativi per feature.
-La misura va raccolta con l'integrazione: byte UTF-8 del JSON persistito e numero
-di validation_id distinti per feature conclusa. running→esito aggiorna lo stesso
-file, mentre una rivalidazione crea un nuovo record. Non stimare come osservati
-i tentativi necessari a concludere una feature; nessuna retention introdotta.
+Prima misura operativa del 14 settembre 2026 sulla nuova feature
+`gate-probe-posti`: tre record da 41 744, 44 245 e 42 489 byte; mediana
+42 489 byte (41.5 KiB). La feature NON è conclusa: un rilievo semantico
+classificato coverage dichiara assenza di lacune e blocca comunque, come
+richiede lo schema. Nessuna accettazione inventata o retry fino al successo.
+Il numero di validazioni per feature conclusa resta non misurato.
+
+[Passaggi, tempi, rifiuto 409 reale e attriti](eval/results/gate_end_to_end_20260914/evidence/RESULTS.md).
+I record reali includono testi, risposta grezza e fonti; la misura è locale a
+questa feature minima, non una stima generale. running→esito aggiorna lo stesso
+file, mentre una rivalidazione ne crea uno nuovo. Nessuna retention introdotta.
 
 ## Associazioni esplicite — scelta emersa durante l’implementazione
 

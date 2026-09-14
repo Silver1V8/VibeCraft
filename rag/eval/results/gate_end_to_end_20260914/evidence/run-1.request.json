@@ -1,0 +1,9 @@
+{
+  "path": "/api/pipeline/agent/run",
+  "body": {
+    "feature": "gate-probe-posti",
+    "validation_id": "val-e56a102f7d164170a4f038eac192cc1a",
+    "mode": "agentic",
+    "model": "sonnet"
+  }
+}
