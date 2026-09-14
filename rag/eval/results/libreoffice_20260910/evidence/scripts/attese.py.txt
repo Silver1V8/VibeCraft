@@ -1,0 +1,202 @@
+"""Attese del banco Office/LibreOffice, scritte PRIMA di eseguire i confronti.
+
+I valori memorizzati delle formule vengono dalla lettura delle fixture con lettori
+indipendenti dai convertitori (openpyxl data_only per XLSX, xlrd per XLS), fatta prima
+delle misure:
+  registro.xlsx        (openpyxl)  C7=999 (obsoleto: il ricalcolo darebbe 10), E7=1500.5, F7 assente
+  registro_excel.xlsx  (Excel 16)  C7=10, E7=1500.5, F7=2401
+  registro.xls         (Excel 16)  C7=10, E7=1500.5, F7=2401
+Un valore diverso da quello memorizzato è un CAMBIAMENTO, non un miglioramento.
+"""
+import re
+
+MEMORIZZATI = {
+    "registro.xlsx": {"C7": "999", "E7": "1500.5", "F7": None},
+    "registro_excel.xlsx": {"C7": "10", "E7": "1500.5", "F7": "2401"},
+    "registro.xls": {"C7": "10", "E7": "1500.5", "F7": "2401"},
+}
+# Valori che un ricalcolo produrrebbe per le formule di registro.xlsx.
+RICALCOLATI = {"C7": "10", "F7": "2401"}
+
+
+def heads(md):
+    return [(len(m.group(1)), m.group(2).strip()) for m in re.finditer(r"(?m)^(#{1,6})\s+(.*)$", md)]
+
+
+def lvl(md, text):
+    return next((n for n, t in heads(md) if text in t), None)
+
+
+def celle(riga: str) -> list[str]:
+    return [c.strip() for c in riga.strip().strip("|").split("|")]
+
+
+def righe_tabella(md):
+    return [celle(ln) for ln in md.splitlines()
+            if ln.lstrip().startswith("|") and not set(ln.strip()) <= set("|-: ")]
+
+
+def riga(md, *valori):
+    """Una riga di tabella con TUTTI i valori, ciascuno uguale a una cella: l'associazione
+    fra etichetta e valore è verificata dalla riga, non dalla sola presenza del testo."""
+    return any(all(v in r for v in valori) for r in righe_tabella(md))
+
+
+def voce(md, text):
+    return re.search(rf"(?m)^\s*([-*+]|\d+[.)])\s+.*{re.escape(text)}", md) is not None
+
+
+def rientro(md, text):
+    ln = next((ln for ln in md.splitlines() if text in ln), None)
+    return None if ln is None else len(ln) - len(ln.lstrip())
+
+
+def prima(md, a, b):
+    return 0 <= md.find(a) < md.find(b)
+
+
+def tutti(md, *parole):
+    return all(p in md for p in parole)
+
+
+def una_volta(md, *parole):
+    return all(md.count(p) == 1 for p in parole)
+
+
+def gerarchia(md, *titoli):
+    livelli = [lvl(md, t) for t in titoli]
+    return None not in livelli and all(a < b for a, b in zip(livelli, livelli[1:]))
+
+
+def _num(c):
+    try:
+        return float(c.replace(" ", ""))
+    except ValueError:
+        return None
+
+
+def riga_totale(md):
+    return next((r for r in righe_tabella(md) if r and r[0] == "Totale"), None)
+
+
+def formule_memorizzate(md, nome):
+    """Ogni valore memorizzato compare nella riga Totale; una formula SENZA valore memorizzato
+    non riceve un numero inventato (né il ricalcolo)."""
+    r = riga_totale(md)
+    if r is None:
+        return False
+    numeri = {_num(c) for c in r} - {None}
+    attesi = MEMORIZZATI[nome]
+    for ref, v in attesi.items():
+        if v is not None and float(v) not in numeri:
+            return False
+        if v is None and float(RICALCOLATI[ref]) in numeri:
+            return False
+    return True
+
+
+def osservato_c7(md):
+    r = riga_totale(md)
+    if r is None:
+        return "riga Totale assente"
+    numeri = {_num(c) for c in r} - {None}
+    return "999 (memorizzato)" if 999.0 in numeri else "10 (ricalcolato)" if 10.0 in numeri else "assente"
+
+
+WORD_MANUALE = [
+    ("testo e caratteri speciali", lambda m: tutti(m, "città", "perché", "3.000 €", "≥ 5 kg", "12 µm")),
+    ("gerarchia titolo>H1>H2>H3", lambda m: gerarchia(m, "Manuale forniture", "Capitolo uno",
+                                                        "Sezione uno punto uno", "Dettaglio uno punto uno")),
+    ("H1 fratelli allo stesso livello", lambda m: lvl(m, "Capitolo uno") == lvl(m, "Capitolo due") is not None),
+    ("paragrafi distinti", lambda m: any("Primo paragrafo del capitolo uno." == ln.strip() for ln in m.splitlines())
+     and any("Secondo paragrafo, distinto dal primo." == ln.strip() for ln in m.splitlines())),
+    ("lista puntata", lambda m: voce(m, "Primo punto")),
+    ("lista annidata rientrata", lambda m: (rientro(m, "Sottopunto") or 0) > (rientro(m, "Primo punto") or 0)),
+    ("lista numerata", lambda m: voce(m, "Passo numerato uno") and voce(m, "Passo numerato due")),
+    ("tabella: riga associata", lambda m: riga(m, "A1", "Cavo rame", "12,5 kg")),
+    ("coppie campo-valore", lambda m: riga(m, "Codice commessa", "00457") and riga(m, "Responsabile", "Anna Rossi")
+     and riga(m, "Stato", "N/A")),
+    ("etichetta e valore in linea", lambda m: "Totale: 1.500 €" in m),
+    ("cella unita: intestazione e righe", lambda m: riga(m, "Gennaio", "2026", "1.500 €") and any(
+        "Periodo" in r and "Importo" in r for r in righe_tabella(m))),
+    ("link con URL", lambda m: "[specifica esterna](https://example.org/specifica)" in m),
+    ("nota a piè di pagina", lambda m: "fonte interna 2026" in m),
+    ("nessuna duplicazione", lambda m: una_volta(m, "Chiusura del documento.", "Primo paragrafo del capitolo uno.",
+                                                  "Cavo rame")),
+]
+
+WORD_SPECIFICA = [
+    ("titolo documento a livello 1", lambda m: lvl(m, "Specifica tecnica pagamenti") == 1),
+    ("gerarchia", lambda m: gerarchia(m, "Specifica tecnica pagamenti", "Requisiti")),
+    ("fratelli allo stesso livello", lambda m: lvl(m, "Requisiti") == lvl(m, "Allegati") is not None),
+    ("testo", lambda m: tutti(m, "Premessa del documento.", "Il sistema deve registrare ogni transazione.")),
+]
+
+
+def excel(nome):
+    return [
+        ("nomi dei fogli come sezioni", lambda m: {"Registro", "Contatti città"} <= {t for _, t in heads(m)}),
+        ("cella unita una sola volta", lambda m: m.count("Magazzino Nord registro 2026") == 1),
+        ("intestazioni associate", lambda m: riga(m, "Codice", "Stato", "Quantità", "Data", "Importo €", "Quota")),
+        ("zeri iniziali", lambda m: riga(m, "00123") and riga(m, "00124") and riga(m, "00125")),
+        ("NA / N/A / null letterali", lambda m: riga(m, "00123", "NA") and riga(m, "00124", "N/A") and riga(m, "00125", "null")),
+        ("intero senza decimali inventati", lambda m: riga(m, "00125", "7") and not riga(m, "00125", "7.0")),
+        ("data presente", lambda m: any(d in m for d in ("2026-09-10", "10/09/2026", "09/10/2026", "10/09/26"))),
+        ("nessun orario inventato", lambda m: "00:00:00" not in m),
+        ("nessun seriale al posto della data", lambda m: "46275" not in m),
+        ("decimale", lambda m: riga(m, "00123", "1200.5") or riga(m, "00123", "1200,5")),
+        ("percentuale", lambda m: riga(m, "00123", "0.12") or riga(m, "00123", "12%")),
+        ("valori memorizzati delle formule", lambda m: formule_memorizzate(m, nome)),
+        ("accenti", lambda m: riga(m, "Anna", "Forlì")),
+        ("nessun NaN/None/Unnamed", lambda m: not any(x in m for x in ("NaN", "None", "Unnamed"))),
+    ]
+
+
+POWERPOINT = [
+    ("titoli delle slide", lambda m: tutti(m, "Piano di rilascio", "Tabella rischi")),
+    ("slide in ordine", lambda m: prima(m, "Piano di rilascio", "Tabella rischi") and prima(m, "Tabella rischi", "Primo blocco")),
+    ("testo", lambda m: tutti(m, "Fase uno: verifica", "Fase due: rilascio")),
+    ("elenco con sottolivello", lambda m: voce(m, "Fase uno") and (rientro(m, "Controllo accessi") or 0) > (rientro(m, "Fase uno") or 0)),
+    ("tabella: riga associata", lambda m: riga(m, "Ritardo fornitore", "alto") and riga(m, "Bug critico", "medio")),
+    ("ordine di lettura dall'alto", lambda m: prima(m, "Primo blocco in alto", "Secondo blocco in basso")),
+    ("note del relatore", lambda m: "12% di margine" in m),
+    ("nessuna duplicazione", lambda m: una_volta(m, "Primo blocco in alto", "Ritardo fornitore")),
+]
+
+ATTESE = {
+    "manuale": WORD_MANUALE,
+    "specifica_word": WORD_SPECIFICA,
+    "registro": None,  # per file: excel(nome), perché i valori memorizzati dipendono dal produttore
+    "registro_excel": None,
+    "rilascio": POWERPOINT,
+    "rilascio_pp": POWERPOINT,
+}
+
+
+def attese_per(nome_file: str):
+    stem = nome_file.rsplit(".", 1)[0]
+    return excel(nome_file) if stem.startswith("registro") else ATTESE[stem]
+
+
+def problemi_markdown(md: str) -> list[str]:
+    """Validità: tabelle con lo stesso numero di colonne in ogni riga e la riga separatrice;
+    nessun tag HTML (i commenti sono ammessi); righe di testo duplicate."""
+    out, blocco = [], []
+    for ln in md.splitlines() + [""]:
+        if ln.lstrip().startswith("|"):
+            blocco.append(ln)
+            continue
+        if blocco:
+            n = {ln2.strip().count("|") for ln2 in blocco}
+            if len(n) > 1:
+                out.append(f"tabella con colonne diverse: {sorted(n)}")
+            if len(blocco) > 1 and not set(blocco[1].strip()) <= set("|-: "):
+                out.append("tabella senza riga separatrice")
+            blocco = []
+    if re.search(r"<(?!!--)[a-zA-Z/][^>]*>", md):
+        out.append("tag HTML")
+    testo = [ln.strip() for ln in md.splitlines() if ln.strip() and not ln.lstrip().startswith(("|", "#"))]
+    dup = {t for t in testo if testo.count(t) > 1 and len(t) > 12}
+    if dup:
+        out.append(f"righe duplicate: {sorted(dup)[:3]}")
+    return out

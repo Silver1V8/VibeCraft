@@ -1,0 +1,5 @@
+{
+  "independent_tables": true,
+  "markdown": "## Sheet\n\n| Voce   |   Euro |\n|--------|--------|\n| A      |     12 |\n\n| Persona   |   Anni |\n|-----------|--------|\n| Ada       |     30 |",
+  "verdict": "PASS"
+}

@@ -1,0 +1,205 @@
+"""Run in a fresh process: compare.py baseline|candidate|gap OUTPUT [SAMPLES].
+
+Oracle read BEFORE conversion, from original XLSX/openpyxl and XLS/xlrd.
+No aggregate score: every original nonempty cell at its exact sheet/row/column
+must survive; every emitted value must have an original cell. Record old row
+associations separately, including blank columns, before inspecting output.
+"""
+import hashlib
+import html
+import importlib.util
+import io
+import json
+import re
+import sys
+import threading
+import time
+from datetime import datetime
+from pathlib import Path
+
+import openpyxl
+import psutil
+import xlrd
+from openpyxl.styles.numbers import is_datetime
+from openpyxl.utils import column_index_from_string
+
+ROOT = Path.cwd()
+sys.path.insert(0, str(ROOT))
+from core import intake_convert as current  # noqa: E402
+
+MODE, OUT = sys.argv[1], Path(sys.argv[2])
+OUT.mkdir(parents=True, exist_ok=True)
+if MODE == "candidate":
+    engine = current
+else:
+    spec = importlib.util.spec_from_loader("excel_before", loader=None)
+    engine = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = engine
+    exec(compile(Path(__file__).with_name("intake_convert.before.txt").read_text(encoding="utf-8"),
+                 "intake_convert.before.txt", "exec"), engine.__dict__)
+    if MODE == "gap":
+        from docling.datamodel.backend_options import MsExcelBackendOptions
+        from docling.datamodel.base_models import InputFormat
+        from docling.document_converter import DocumentConverter, ExcelFormatOption
+        engine._xlsx_converter = DocumentConverter(allowed_formats=[InputFormat.XLSX], format_options={
+            InputFormat.XLSX: ExcelFormatOption(backend_options=MsExcelBackendOptions(gap_tolerance=1))})
+
+
+def value(v, fmt):
+    if v is None:
+        return ""
+    if isinstance(v, datetime):
+        if is_datetime(fmt) == "date" and not any((v.hour, v.minute, v.second, v.microsecond)):
+            return v.date().isoformat()
+        return v.isoformat(sep=" ")
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        if re.fullmatch("0+", fmt) and v == int(v):
+            return str(int(v)).zfill(len(fmt))
+        return str(int(v)) if v == int(v) else str(v)
+    return str(v)
+
+
+def xlsx_oracle(wb):
+    cells, sheetnames = {}, []
+    for ws in wb.worksheets:
+        sheetnames.append(ws.title)
+        for row in ws:
+            for cell in row:
+                if cell.value is not None:
+                    cells[(ws.title, cell.row, cell.column)] = value(cell.value, cell.number_format)
+    wb.close()
+    return cells, sheetnames
+
+
+def oracle(path):
+    cells, sheetnames = {}, []
+    if path.suffix.lower() == ".xlsx":
+        return xlsx_oracle(openpyxl.load_workbook(path, data_only=True))
+    else:
+        wb = xlrd.open_workbook(path, formatting_info=True)
+        for ws in wb.sheets():
+            sheetnames.append(ws.name)
+            for r in range(ws.nrows):
+                for c in range(ws.ncols):
+                    cell = ws.cell(r, c)
+                    if cell.ctype in (xlrd.XL_CELL_EMPTY, xlrd.XL_CELL_BLANK):
+                        continue
+                    fmt = wb.format_map[wb.xf_list[cell.xf_index].format_key].format_str
+                    v = cell.value
+                    if cell.ctype == xlrd.XL_CELL_DATE:
+                        v = xlrd.xldate_as_datetime(v, wb.datemode)
+                    elif cell.ctype == xlrd.XL_CELL_BOOLEAN:
+                        v = bool(v)
+                    elif cell.ctype == xlrd.XL_CELL_ERROR:
+                        v = xlrd.error_text_from_code[v]
+                    cells[(ws.name, r + 1, c + 1)] = value(v, fmt)
+        wb.release_resources()
+    return cells, sheetnames
+
+
+def parsed(md):
+    cells, names, blocks, rows = {}, [], [], []
+    sheet = None
+    cols = []
+    for line in md.splitlines():
+        if line.startswith("## "):
+            sheet = html.unescape(line[3:])
+            names.append(sheet)
+        if line.startswith("### "):
+            blocks.append((sheet, line[4:]))
+        if not line.startswith("|") or set(line) <= set("| -:"):
+            continue
+        row = [html.unescape(c.strip().replace("<br>", "\n")) for c in line[1:-1].split("|")]
+        if MODE == "candidate" and row[0] == "Riga":
+            cols = [column_index_from_string(c) for c in row[1:]]
+        elif MODE == "candidate":
+            assert len(row) == len(cols) + 1
+            for col, v in zip(cols, row[1:]):
+                key = (sheet, int(row[0]), col)
+                assert key not in cells, ("duplicate", key)
+                cells[key] = v
+            rows.append((sheet, row[1:]))
+        else:
+            rows.append((sheet, row))
+    return cells, names, blocks, rows
+
+
+files = [ROOT / p for p in (
+    "eval/results/libreoffice_20260910/fixture/registro.xlsx",
+    "eval/results/libreoffice_20260910/fixture/registro_excel.xlsx",
+    "eval/results/libreoffice_20260910/fixture/registro.xls",
+    "eval/results/libreoffice_20260910/fixture/rete.xlsx",
+    "eval/results/verifica_finale_20260910/formati2/fixture/registro.xlsx",
+    "eval/results/verifica_finale_20260910/formati/fixture/budget.xlsx",
+    "eval/results/verifica_finale_20260910/formati/fixture/budget.xls",
+    "tests/fixtures/intake/legacy.xls",
+)]
+if len(sys.argv) > 3:
+    files += sorted(Path(sys.argv[3]).glob("*.XLS"))
+results = []
+for idx, path in enumerate(files):
+    expected, sheets = oracle(path)  # immutable original, before either engine
+    rows_expected = {}
+    for (sheet, row, col), v in expected.items():
+        rows_expected.setdefault((sheet, row), {})[col] = v
+    stop = threading.Event()
+    peak = [0]
+    process = psutil.Process()
+
+    def sample():
+        while not stop.is_set():
+            try:
+                peak[0] = max(peak[0], sum(p.memory_info().rss for p in [process, *process.children(recursive=True)]))
+            except psutil.Error:
+                pass
+            stop.wait(0.01)
+
+    th = threading.Thread(target=sample, daemon=True)
+    normalized = []
+    normalizer = engine._normalize_legacy
+
+    def capture_normalization(*args):
+        data = normalizer(*args)
+        normalized.append(data)
+        return data
+
+    engine._normalize_legacy = capture_normalization
+    th.start()
+    t0 = time.perf_counter()
+    result = engine.convert_to_markdown(path, path.suffix[1:].lower())
+    engine._normalize_legacy = normalizer
+    elapsed = time.perf_counter() - t0
+    stop.set()
+    th.join()
+    md = result.markdown
+    assert "\r" not in md
+    (OUT / f"{idx:02}-{path.name}.md").write_bytes(md.encode("utf-8"))
+    actual, names, blocks, rows = parsed(md)
+    missing = [(str(k), v, actual.get(k)) for k, v in expected.items() if actual.get(k) != v]
+    invented = [(str(k), v) for k, v in actual.items() if v and k not in expected]
+    lost_rows = []
+    for (sheet, r), cols in rows_expected.items():
+        start, end = min(cols), max(cols)
+        wanted = [cols.get(c, "") for c in range(start, end + 1)]
+        if not any(s == sheet and any(row[i:i + len(wanted)] == wanted for i in range(len(row)))
+                   for s, row in rows):
+            lost_rows.append([sheet, r, wanted])
+    item = dict(file=str(path), sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+                seconds=round(elapsed, 4), peak_tree_rss_mb=round(peak[0] / 1e6, 1),
+                markdown_sha256=hashlib.sha256(md.encode()).hexdigest(),
+                cells=len(expected), sheetnames_ok=names == sheets, blocks=blocks,
+                lost_row_associations=lost_rows, metadata=result.metadata)
+    if MODE == "candidate":
+        item.update(missing_or_changed=missing, invented=invented)
+        item["PASS"] = not missing and not invented and not lost_rows and names == sheets
+    if normalized:
+        normalized_cells, _ = xlsx_oracle(openpyxl.load_workbook(io.BytesIO(normalized[0]), data_only=True))
+        item["normalization_changes"] = [(str(k), v, normalized_cells.get(k)) for k, v in expected.items()
+                                          if normalized_cells.get(k) != v]
+        if MODE == "candidate":
+            item["normalized_cells_preserved"] = all(actual.get(k) == v for k, v in normalized_cells.items())
+    results.append(item)
+    (OUT / "results.json").write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(path.name, elapsed, "PASS" if item.get("PASS") else f"lost rows: {len(lost_rows)}", flush=True)
+if MODE == "candidate":
+    assert all(r["PASS"] for r in results), "critical fidelity failure; see results.json"

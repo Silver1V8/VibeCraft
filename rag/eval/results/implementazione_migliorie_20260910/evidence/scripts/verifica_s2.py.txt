@@ -1,0 +1,130 @@
+"""Verifica S2 sul corpus corrente: in-process e in SOLA LETTURA.
+
+Nessun lifespan del server (che al boot ripara l'alias Qdrant e fa GC sotto writer lock):
+stato montato a mano con gli stessi oggetti — bge-m3 su CPU, client Qdrant, artefatti della
+versione CURRENT via load_artifacts, snapshot via deps._build_snapshot. LLM sostituito da uno
+stub e cache di /ask spenta: si misura cosa entra nel contesto, non la risposta.
+
+Per ogni domanda e ogni top_k confronta tre contesti:
+  head  api/routes_retrieval.py di HEAD (prima di S2), stesso core/
+  s00   codice nuovo, code_link_min_question_score = 0.0
+  s35   codice nuovo, code_link_min_question_score = 0.35
+e riusa esito_caso/blocchi_del_contesto di eval/calibrate_graph_context.py per la copertura.
+
+Uso (da rag/): uv run --no-sync python -B <questo> <out.json> <routes_retrieval_head.py>
+"""
+import importlib.util
+import json
+import pathlib
+import statistics
+import sys
+
+RAG = pathlib.Path.cwd()
+sys.path.insert(0, str(RAG))
+
+import yaml  # noqa: E402
+from fastapi import FastAPI  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+
+from api import deps, routes_retrieval  # noqa: E402
+from core import llm  # noqa: E402
+from eval.calibrate_graph_context import blocchi_del_contesto, esito_caso  # noqa: E402
+from eval.run_multihop import load_cases  # noqa: E402
+
+HOLDOUT = RAG / "eval/results/sel_contesto_20260910-090000/holdout/holdout.yaml"
+MARK = "\n\n=== CODICE ESISTENTE (implementazione) ===\n\n"
+
+
+def main() -> int:
+    out_path, head_path = pathlib.Path(sys.argv[1]), sys.argv[2]
+    spec = importlib.util.spec_from_file_location("api.routes_retrieval_head", head_path)
+    head = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(head)
+
+    deps.API_KEY = None
+
+    async def _stub(prompt: str, *, purpose: str) -> str:
+        return ""
+    llm.agenerate = _stub
+    for mod in (routes_retrieval, head):
+        mod._cache_get = lambda app_, key: None
+        mod._cache_set = lambda app_, key, payload: None
+        mod.maybe_reload_graph = lambda: None
+
+    deps.state["embed_model"] = deps.BGEM3FlagModel(deps.EMBEDDING_MODEL, use_fp16=False, devices="cpu")
+    deps.state["qdrant"] = deps.QdrantClient(url=deps.QDRANT_URL, api_key=deps.QDRANT_API_KEY)
+    arts = deps.load_artifacts(required=("graph",))
+    snap = deps._build_snapshot(arts.graph, arts.colbert_store, arts.chunks_store,
+                                deps.load_rule_descriptions(), arts.code_store)
+    deps.state["snapshot"] = snap
+
+    def client(router):
+        app = FastAPI()
+        app.include_router(router)
+        return TestClient(app, client=("127.0.0.1", 54321))
+    c_head, c_new = client(head.router), client(routes_retrieval.router)
+
+    y = yaml.safe_load((RAG / "eval/golden_set.yaml").read_text(encoding="utf-8"))
+    golden = [{"id": c.get("id") or c["q"][:40], "q": c["q"],
+               "case": {"q": c["q"], "expected": {"retrieval": c["expected"]}}
+               if isinstance(c.get("expected"), list) else c}
+              for c in (y["cases"] if isinstance(y, dict) else y)]
+    multihop = [{"id": c["q"][:40], "q": c["q"], "case": c}
+                for c in load_cases() if c.get("kind") == "multihop"]
+    h = yaml.safe_load(HOLDOUT.read_text(encoding="utf-8"))
+    holdout = [{"id": d["id"], "q": d["domanda"], "fonte": d.get("fonte_attesa")} for d in h["domande"]]
+
+    def ask(c, q, k, soglia=None):
+        if soglia is not None:
+            routes_retrieval.CODE_LINK_MIN_QUESTION_SCORE = soglia
+        r = c.post("/ask", json={"question": q, "top_k": k})
+        r.raise_for_status()
+        body = r.json()
+        return ((body.get("graph_context") or {}).get("context_text") or "",
+                [(x["file"], x["name"], x["source"]) for x in body.get("implementing_code") or []])
+
+    report = {"index_version": snap.version, "insiemi": {}}
+    for nome, casi in (("golden", golden), ("multihop", multihop), ("holdout", holdout)):
+        for k in (5, 10):
+            righe = []
+            for c in casi:
+                ctx_h, _cod_h = ask(c_head, c["q"], k)
+                ctx0, cod0 = ask(c_new, c["q"], k, 0.0)
+                ctx35, cod35 = ask(c_new, c["q"], k, 0.35)
+                riga = {"id": c["id"], "head_uguale_s00": ctx_h == ctx0,
+                        "doc_invariato": ctx0.split(MARK)[0] == ctx35.split(MARK)[0],
+                        "codice_s00": cod0, "codice_s35": cod35,
+                        "scartati": [x for x in cod0 if x not in cod35]}
+                if "case" in c and (c["case"].get("expected") or {}).get("retrieval"):
+                    e0 = esito_caso(c["case"], blocchi_del_contesto(ctx0, snap.chunks), len(ctx0))
+                    e35 = esito_caso(c["case"], blocchi_del_contesto(ctx35, snap.chunks), len(ctx35))
+                    riga["completo_doc"] = (e0["completo_doc"], e35["completo_doc"])
+                    riga["completo_sezione"] = (e0["completo"], e35["completo"])
+                if c.get("fonte"):
+                    riga["fonte_nel_contesto"] = (c["fonte"] in ctx0, c["fonte"] in ctx35)
+                righe.append(riga)
+
+            def conta(chiave, i):
+                return sum(r[chiave][i] for r in righe if chiave in r)
+            sintesi = {
+                "casi": len(righe),
+                "head_uguale_s00": sum(r["head_uguale_s00"] for r in righe),
+                "doc_invariato": sum(r["doc_invariato"] for r in righe),
+                "blocchi_codice_mediani": [statistics.median(len(r["codice_s00"]) for r in righe),
+                                           statistics.median(len(r["codice_s35"]) for r in righe)],
+                "dal_ponte_mediani": [statistics.median(sum(x[2] == "implements" for x in r["codice_s00"]) for r in righe),
+                                      statistics.median(sum(x[2] == "implements" for x in r["codice_s35"]) for r in righe)],
+                "scartati_totali": sum(len(r["scartati"]) for r in righe),
+                "completo_doc": [conta("completo_doc", 0), conta("completo_doc", 1)],
+                "completo_sezione": [conta("completo_sezione", 0), conta("completo_sezione", 1)],
+                "fonte_nel_contesto": [conta("fonte_nel_contesto", 0), conta("fonte_nel_contesto", 1)],
+            }
+            report["insiemi"][f"{nome}@k{k}"] = {"sintesi": sintesi, "casi": righe}
+            print(f"{nome}@k{k}: {json.dumps(sintesi, ensure_ascii=False)}", flush=True)
+    routes_retrieval.CODE_LINK_MIN_QUESTION_SCORE = 0.0
+    out_path.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

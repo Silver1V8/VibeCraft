@@ -1,0 +1,44 @@
+"""Applica al SOLO sandbox candidato la lettura PDF via Docling.
+
+Sostituisce il corpo di `_read_pdf` in core/chunking.py della copia sandbox.
+Il codice applicativo del repository NON viene toccato.
+
+La conversione e' cercata per SHA-256 del PDF: fuori dai due documenti
+convertiti dalla pipeline congelata resta il pypdf di produzione.
+"""
+
+import pathlib
+import sys
+
+target = pathlib.Path(sys.argv[1])
+src = target.read_text(encoding="utf-8")
+lines = src.splitlines(keepends=True)
+
+start = next(i for i, ln in enumerate(lines) if ln.startswith("def _read_pdf("))
+end = next(i for i in range(start + 1, len(lines)) if lines[i].startswith("def "))
+
+nuovo = '''def _read_pdf(filepath: str) -> str:
+    # PILOT SPERIMENTALE — SOLO in questa copia sandbox, non nel codice applicativo.
+    # Il candidato legge la conversione Docling gia' prodotta dalla pipeline congelata,
+    # cercata per SHA-256 del PDF: cosi' non puo' applicarsi in silenzio a un file
+    # diverso da quelli convertiti. Fuori da quei due hash resta il pypdf di produzione.
+    import hashlib
+    import pathlib as _pathlib
+
+    from core.config import DATABASE_DIR
+
+    data = _pathlib.Path(filepath).read_bytes()
+    sidecar = DATABASE_DIR / "docling_cache" / (hashlib.sha256(data).hexdigest() + ".md")
+    if sidecar.is_file():
+        return sidecar.read_text(encoding="utf-8")
+
+    import pypdf
+
+    reader = pypdf.PdfReader(filepath)
+    return "\\n".join((page.extract_text() or "") for page in reader.pages)
+
+
+'''
+
+target.write_text("".join(lines[:start]) + nuovo + "".join(lines[end:]), encoding="utf-8")
+print(f"sostituite le righe {start + 1}-{end} di {target}")

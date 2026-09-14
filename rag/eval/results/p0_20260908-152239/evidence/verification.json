@@ -1,0 +1,27 @@
+{
+  "verdict": "PASS",
+  "unchanged": {
+    "rag/rag_config.yaml": "289195009d8e0f20dfec93a93ff4b82927e75626f6de1ca842bf224f1b31512d",
+    "rag/pyproject.toml": "9df03682e0253665dd5c15b8080f2fa35cf95776116319eec35c9f11ac37a324",
+    "rag/uv.lock": "528b9c17f9bd091071b795a1b5a678d47dc50d161f9fa31a8d121e2e9f992d9f",
+    "rag/adr/README.md": "f9306ab1902b4595f62170c85d11a2440b54053c2ee3a68ad3e5c64fbdb776f0"
+  },
+  "corpus_unchanged": true,
+  "historical_prefix_preserved": true,
+  "history_appended_lines": 5,
+  "original_versions_preserved": true,
+  "current_snapshot": {
+    "path": "C:\\Users\\Silve\\Desktop\\vibecraft-p0-backup-20260908-152239\\vibecraft_events__v20260908T132451-844081940527413-2026-09-08-13-40-03.snapshot",
+    "sha256": "8eba97010c39b49cf2f72f627d5ec80c11bdaf3cf26fd08b2fcc4a35e9df5453"
+  },
+  "current_sidecars": {
+    "chunks.json": "181a8f67c2de9736e455844cfed4a13655128535e579dd76bb038c95d36d1af6",
+    "code.json": "7047600c91801f750820d26cd086685b92b5fcdb6147327ca1e0b7bc28bfa1e6",
+    "code.npz": "8f6d39cf00550534bdf2036a98065151b8905033c508c00d22cb5e66f59af69c",
+    "colbert.npz": "eec7560c5bfe817af9363d60906ad2d504626429fd235f63247c29ac397fa73b",
+    "dense.npz": "a910f3be5ea58ff146a45cfff4948f282d042616e7548a0deabe695fb9b8c486",
+    "graph.json": "57c2a1fdd178eb3d47e03efe623d78d33cbbe45504075a509250e38da2791a0a",
+    "index_manifest.json": "0bc8434ef3108fa1c8eb6db5b1c2488c5142e8dda4cb62462b58010d67811bf4"
+  },
+  "archive_only_summary_reference": true
+}

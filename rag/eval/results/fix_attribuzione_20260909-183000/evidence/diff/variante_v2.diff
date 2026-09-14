@@ -1,0 +1,23 @@
+--- core/retrieval.py	2026-09-07 13:10:51.761779500 +0200
++++ /c/Users/Silve/AppData/Local/Temp/claude/C--Users-Silve-Desktop-vibecraft/4b279f9d-0a05-4337-b2a4-157e29255185/scratchpad/fixv2/rag/core/retrieval.py	2026-09-09 15:50:08.038481800 +0200
+@@ -937,13 +937,13 @@
+         scala = " > ".join(f"{label} ({peso:.2f})" for label, peso in authority_classes)
+         system_prompt += (
+             "\n[CLASSE-FONTI]: ogni blocco del contesto porta fra parentesi quadre la CLASSE "
+-            "dichiarata dalla sua fonte. In questo contesto l'autorevolezza dichiarata dagli "
+-            f"autori del corpus decresce così: {scala}. Un vincolo, una soglia, una severità "
+-            "o un'eccezione vanno attribuiti alla fonte PIÙ autorevole che li enuncia. Una "
+-            "fonte meno autorevole può motivarli o illustrarli, e va citata dichiarando che fa "
+-            "questo: mai come la fonte del vincolo. Se un vincolo è enunciato SOLO da una fonte "
+-            "meno autorevole, riportalo dicendo esplicitamente che nessuna fonte più autorevole "
+-            "lo stabilisce."
++            f"dichiarata dalla sua fonte; l'autorevolezza decresce così: {scala}. Quei numeri "
++            "graduano SOLO le fonti: non sono dati dei documenti — valori, quantità, dimensioni, "
++            "formati e unità si leggono nel testo del blocco. Un vincolo, una soglia o un'eccezione "
++            "vanno attribuiti alla fonte PIÙ autorevole che li enuncia; una meno autorevole può "
++            "illustrarli e va citata dichiarando che fa questo, mai come fonte del vincolo; se li "
++            "enuncia SOLO lei, dillo esplicitamente. Indica la provenienza con l'intestazione del "
++            "blocco: non nominare sezioni che non dichiara; se non è determinabile, cita il solo documento."
+         )
+ 
+     # [PRECEDENZA-FONTI] compare SOLO quando una precedenza si applica davvero ai documenti

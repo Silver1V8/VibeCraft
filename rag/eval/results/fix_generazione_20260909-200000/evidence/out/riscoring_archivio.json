@@ -1,0 +1,234 @@
+{
+  "A": {
+    "presenza": 22,
+    "doc": 13,
+    "sez_err_nuovo": 5,
+    "sez_err_vecchio": 5,
+    "diniego": 1,
+    "n": 24,
+    "per_domanda": {
+      "pdf-diag-1": {
+        "pres": 3,
+        "doc": 1,
+        "sez": 1,
+        "neg": 0
+      },
+      "pdf-diag-2": {
+        "pres": 3,
+        "doc": 1,
+        "sez": 1,
+        "neg": 0
+      },
+      "pdf-diag-3": {
+        "pres": 1,
+        "doc": 1,
+        "sez": 0,
+        "neg": 0
+      },
+      "pdf-diag-4": {
+        "pres": 3,
+        "doc": 3,
+        "sez": 0,
+        "neg": 0
+      },
+      "pdf-mock-1": {
+        "pres": 3,
+        "doc": 1,
+        "sez": 0,
+        "neg": 0
+      },
+      "pdf-mock-2": {
+        "pres": 3,
+        "doc": 3,
+        "sez": 3,
+        "neg": 0
+      },
+      "pdf-mock-3": {
+        "pres": 3,
+        "doc": 0,
+        "sez": 0,
+        "neg": 0
+      },
+      "pdf-mock-4": {
+        "pres": 3,
+        "doc": 3,
+        "sez": 0,
+        "neg": 1
+      }
+    }
+  },
+  "B": {
+    "presenza": 21,
+    "doc": 14,
+    "sez_err_nuovo": 2,
+    "sez_err_vecchio": 5,
+    "diniego": 0,
+    "n": 24,
+    "per_domanda": {
+      "pdf-diag-1": {
+        "pres": 3,
+        "doc": 3,
+        "sez": 0,
+        "neg": 0
+      },
+      "pdf-diag-2": {
+        "pres": 3,
+        "doc": 0,
+        "sez": 0,
+        "neg": 0
+      },
+      "pdf-diag-3": {
+        "pres": 0,
+        "doc": 3,
+        "sez": 1,
+        "neg": 0
+      },
+      "pdf-diag-4": {
+        "pres": 3,
+        "doc": 3,
+        "sez": 0,
+        "neg": 0
+      },
+      "pdf-mock-1": {
+        "pres": 3,
+        "doc": 0,
+        "sez": 0,
+        "neg": 0
+      },
+      "pdf-mock-2": {
+        "pres": 3,
+        "doc": 1,
+        "sez": 0,
+        "neg": 0
+      },
+      "pdf-mock-3": {
+        "pres": 3,
+        "doc": 1,
+        "sez": 1,
+        "neg": 0
+      },
+      "pdf-mock-4": {
+        "pres": 3,
+        "doc": 3,
+        "sez": 0,
+        "neg": 0
+      }
+    }
+  },
+  "C": {
+    "presenza": 22,
+    "doc": 21,
+    "sez_err_nuovo": 6,
+    "sez_err_vecchio": 6,
+    "diniego": 1,
+    "n": 24,
+    "per_domanda": {
+      "pdf-diag-1": {
+        "pres": 3,
+        "doc": 3,
+        "sez": 2,
+        "neg": 0
+      },
+      "pdf-diag-2": {
+        "pres": 3,
+        "doc": 3,
+        "sez": 0,
+        "neg": 0
+      },
+      "pdf-diag-3": {
+        "pres": 1,
+        "doc": 3,
+        "sez": 0,
+        "neg": 1
+      },
+      "pdf-diag-4": {
+        "pres": 3,
+        "doc": 3,
+        "sez": 0,
+        "neg": 0
+      },
+      "pdf-mock-1": {
+        "pres": 3,
+        "doc": 2,
+        "sez": 0,
+        "neg": 0
+      },
+      "pdf-mock-2": {
+        "pres": 3,
+        "doc": 3,
+        "sez": 3,
+        "neg": 0
+      },
+      "pdf-mock-3": {
+        "pres": 3,
+        "doc": 1,
+        "sez": 1,
+        "neg": 0
+      },
+      "pdf-mock-4": {
+        "pres": 3,
+        "doc": 3,
+        "sez": 0,
+        "neg": 0
+      }
+    }
+  },
+  "D": {
+    "presenza": 21,
+    "doc": 17,
+    "sez_err_nuovo": 2,
+    "sez_err_vecchio": 5,
+    "diniego": 0,
+    "n": 24,
+    "per_domanda": {
+      "pdf-diag-1": {
+        "pres": 3,
+        "doc": 3,
+        "sez": 0,
+        "neg": 0
+      },
+      "pdf-diag-2": {
+        "pres": 3,
+        "doc": 0,
+        "sez": 0,
+        "neg": 0
+      },
+      "pdf-diag-3": {
+        "pres": 0,
+        "doc": 3,
+        "sez": 2,
+        "neg": 0
+      },
+      "pdf-diag-4": {
+        "pres": 3,
+        "doc": 3,
+        "sez": 0,
+        "neg": 0
+      },
+      "pdf-mock-1": {
+        "pres": 3,
+        "doc": 1,
+        "sez": 0,
+        "neg": 0
+      },
+      "pdf-mock-2": {
+        "pres": 3,
+        "doc": 2,
+        "sez": 0,
+        "neg": 0
+      },
+      "pdf-mock-3": {
+        "pres": 3,
+        "doc": 2,
+        "sez": 0,
+        "neg": 0
+      },
+      "pdf-mock-4": {
+        "pres": 3,
+        "doc": 3,
+        "sez": 0,
+        "neg": 0
+      }
+    }
+  }
+}

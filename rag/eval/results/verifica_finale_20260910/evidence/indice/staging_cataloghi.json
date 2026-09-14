@@ -1,0 +1,30 @@
+{
+ "catalogo_diagrammi_normativi.pdf": {
+  "id": "70c581550d3e",
+  "motore": "docling",
+  "versione": "2.126.0",
+  "fallback": null,
+  "avvisi": [],
+  "pdf": {
+   "pagine": 2,
+   "pagine_senza_testo": 0,
+   "ocr": false
+  },
+  "sha256": "917dccfeb2628d2cffc059663109a8e6f7d1873701fc7f6e1d97b150d953199e",
+  "inizio": "## Catalogo diagrammi\n\nIndice operativo per classificare, consultare e mantenere gli artefatti visuali normativi.\n\n5 artefatti\n\n1 cartella sorgente SVG formato\n\n### Regole di organizzazione\n\n| 1. Naming        | Mantieni il prefisso diag_ , seguito da area o sezione e da un nome descrittivo in snake_case.                   |\n|------------------|-----------------------------------------------------"
+ },
+ "catalogo_mockup_normativi.pdf": {
+  "id": "b180d8adb347",
+  "motore": "docling",
+  "versione": "2.126.0",
+  "fallback": null,
+  "avvisi": [],
+  "pdf": {
+   "pagine": 2,
+   "pagine_senza_testo": 0,
+   "ocr": false
+  },
+  "sha256": "da7789dbb93b155c86ea5f9fa03883f90493fae7d8c2f2c55a139c9e88a46592",
+  "inizio": "## Catalogo mockup\n\nIndice operativo delle interfacce di riferimento collegate alle specifiche normative.\n\n11 artefatti\n\n4 aree funzionali SVG + HTML formati\n\n### Regole di organizzazione\n\n| 1. Naming        | Usa mockup_[spec]_[ruolo]_[schermata] ; il numero deve coincidere con la specifica associata.                     |\n|------------------|------------------------------------------------------"
+ }
+}

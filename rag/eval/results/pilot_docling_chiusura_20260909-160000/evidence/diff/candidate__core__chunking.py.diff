@@ -1,0 +1,23 @@
+--- repo/rag/core\chunking.py
++++ candidate/rag/core\chunking.py
+@@ -73,6 +73,20 @@
+ 
+ 
+ def _read_pdf(filepath: str) -> str:
++    # PILOT SPERIMENTALE — SOLO in questa copia sandbox, non nel codice applicativo.
++    # Il candidato legge la conversione Docling gia' prodotta dalla pipeline congelata,
++    # cercata per SHA-256 del PDF: cosi' non puo' applicarsi in silenzio a un file
++    # diverso da quelli convertiti. Fuori da quei due hash resta il pypdf di produzione.
++    import hashlib
++    import pathlib as _pathlib
++
++    from core.config import DATABASE_DIR
++
++    data = _pathlib.Path(filepath).read_bytes()
++    sidecar = DATABASE_DIR / "docling_cache" / (hashlib.sha256(data).hexdigest() + ".md")
++    if sidecar.is_file():
++        return sidecar.read_text(encoding="utf-8")
++
+     import pypdf
+ 
+     reader = pypdf.PdfReader(filepath)

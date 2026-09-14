@@ -1,0 +1,96 @@
+{
+  "sorgente": "C:/Users/Silve/Desktop/vibecraft/rag/eval/results/sel_contesto_20260910-090000/out/comp_S2_finale_pdf.json",
+  "modello": [
+    "ollama",
+    "qwen3.5:9b"
+  ],
+  "casi": {
+    "U1-riga2": {
+      "pdf-diag-3": {
+        "domanda": "Quale diagramma del catalogo documenta i checkpoint human-in-the-loop, e con quale peso?",
+        "prompt_tok": 9345,
+        "passate": [
+          {
+            "passata": 1,
+            "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, classificato come artefatto di tipo **Governance** nel catalogo dei diagrammi.\n\nIl suo peso (Authority) è **0.90**.\n\n**Motivazione e calcolo del peso:**\n1.  Il file `diag_6_2_hitl_checkpoints.svg.svg` è elencato nel documento `catalogo_diagrammi_normativi.pdf` con l'area \"Governance\".\n2.  Secondo la tabella delle autorità nella sezione **README.md**, i documenti situati in `docs/04_knowledge_informative/` (come `vibe_coding_workflow.md`, che definisce i checkpoint HITL) hanno la classe **METHODOLOGY** con un'autorità dichiarata di **0.90**.\n3.  Il catalogo diagrammi conferma che questo file SVG è l'artefatto visivo corrispondente ai checkpoint definiti in `vibe_coding_workflow.md` (Sezione 1 — Protocollo Human-in-the-Loop).\n4.  Poiché il documento di riferimento (`vibe_coding_workflow.md`) ha la classe **METHODOLOGY**, e non vi è alcuna fonte più autorevole (come una specifica **NORMS** o un contratto **IRON_MEMORY**) che modifichi esplicitamente il peso di questo diagramma, si applica l'autorità della classe del documento sorgente.\n5.  La classe **METHODOLOGY** ha un valore di autorità di **0.90** (come indicato nella tabella README.md e confermato dalla gerarchia: NORMS > REQUIREMENTS > METHODOLOGY).\n\nPertanto, il diagramma è `diag_6_2_hitl_checkpoints.svg.svg` con peso **0.90**.",
+            "secondi": 10.05,
+            "coeff": true,
+            "nega": false
+          },
+          {
+            "passata": 2,
+            "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, come riportato nel registro dei file del documento `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`.\n\nIl peso (Authority) attribuito a questo diagramma è **0.30**.\nQuesta autorità deriva dalla classe della fonte indicata nel contesto: **[SENZA CLASSE]**, che ha un'autorevolezza dichiarata di 0.30, inferiore alle classi `NORMS` (0.85), `REQUIREMENTS` (0.87) e `METADATA` (0.60).\n\n**Fatti del contesto:**\n*   **Identificatore diagramma:** `diag_6_2_hitl_checkpoints.svg.svg`\n*   **Area/Sezione:** Governance\n*   **Finalità:** Checkpoint human-in-the-loop e punti di controllo\n*   **Formato:** SVG\n*   **Peso (Authority):** 0.30 (Classe: SENZA CLASSE)",
+            "secondi": 3.95,
+            "coeff": true,
+            "nega": false
+          },
+          {
+            "passata": 3,
+            "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, classificato come artefatto di tipo **Governance** nel catalogo `catalogo_diagrammi_normativi.pdf`.\n\nIl suo peso (Authority) è **0.90**.\nQuesto valore deriva dalla classe della fonte che lo definisce: il file `vibe_coding_workflow.md` (citato nel contesto come contenente la sezione sul Protocollo Human-in-the-Loop), che ha la classe dichiarata **METHODOLOGY** con un'autorevolezza di 0.90, come specificato nella tabella del file `README.md`.\n\nLa fonte meno autorevole (`catalogo_diagrammi_normativi.pdf`, classe SENZA CLASSE) non stabilisce il vincolo sul peso, ma solo la classificazione dell'artefatto visivo; pertanto, si applica l'autorevolezza della specifica che lo descrive.",
+            "secondi": 3.49,
+            "coeff": true,
+            "nega": false
+          }
+        ]
+      }
+    },
+    "U2-riga2+ambito": {
+      "pdf-diag-3": {
+        "domanda": "Quale diagramma del catalogo documenta i checkpoint human-in-the-loop, e con quale peso?",
+        "prompt_tok": 9329,
+        "passate": [
+          {
+            "passata": 1,
+            "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, classificato come artefatto di tipo **Governance** nel catalogo normativo.\n\nPer quanto riguarda il **peso** (coefficiente di autorità), il contesto non riporta un valore numerico specifico per questo diagramma, ma fornisce i seguenti dati:\n1.  Il file è elencato nella cartella `docs/02_specs_normative/diagrams/`, che secondo la specifica `spec_graph_rag_ingestion.md` ha una classificazione tipica di **REQUIREMENTS** (con un default di authority di `0.87`).\n2.  Tuttavia, il file stesso è classificato esplicitamente come **Governance**. Nel documento `README.md`, i documenti della cartella `docs/00_meta_governance/` hanno la classe `IRON_MEMORY` (authority 0.98), mentre quelli di `docs/01_architecture_norms/` sono `NORMS` o `METHODOLOGY`. Non esiste una mappatura esplicita nel contesto che assegni il coefficiente `0.90` (tipico dei documenti `METHODOLOGY`) direttamente alla classe \"Governance\" per i diagrammi, né un valore specifico per questo file.\n3.  Poiché il contesto non contiene l'identificatore del coefficiente di autorità per la classe \"Governance\" applicata ai diagrammi, e poiché la regola `[REGOLA-VAL-08]` stabilisce che in assenza di `classification` si usa il peso della classe (ma qui la classe è presente), e poiché non c'è un valore esplicito per questa combinazione specifica nel testo fornito:\n\n**Il contesto non riporta il coefficiente di autorità numerico specifico per il diagramma `diag_6_2_hitl_checkpoints.svg.svg` o per la sua classe \"Governance\" applicata ai file SVG.** Il contesto elenca solo i default per le cartelle (`REQUIREMENTS` -> 0.87) e le classi dei documenti di governance testuale (`IRON_MEMORY` -> 0.98), ma non definisce il peso per i diagrammi classificati come \"Governance\".",
+            "secondi": 11.16,
+            "coeff": true,
+            "nega": true
+          },
+          {
+            "passata": 2,
+            "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, classificato come artefatto di tipo **Governance** nel catalogo `catalogo_diagrammi_normativi.pdf`.\n\nIl suo peso (Authority) è **0.30**.\nQuesto valore deriva dalla classe della fonte indicata nel documento README: poiché il file `diag_6_2_hitl_checkpoints.svg.svg` è elencato come un \"documento\" senza una specifica classe di autorità esplicita nel frontmatter o nella tabella del catalogo, si applica la classe **SENZA CLASSE** (0.30) secondo la gerarchia delle fonti (`NORMS` > `REQUIREMENTS` > `METADATA` > `METHODOLOGY` > `SENZA CLASSE`).\n\nIl documento che definisce i checkpoint stessi è `vibe_coding_workflow.md` (classe `METHODOLOGY`, peso 0.90), ma la domanda chiede specificamente quale *diagramma* del catalogo li documenti e con quale *peso*.",
+            "secondi": 3.99,
+            "coeff": true,
+            "nega": false
+          },
+          {
+            "passata": 3,
+            "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, classificato come artefatto di tipo **Governance** nel catalogo `catalogo_diagrammi_normativi.pdf`.\n\nIl suo peso (Authority) è **0.30**.\nQuesto valore deriva dalla classe della fonte indicata nel blocco del contesto: **[SENZA CLASSE]**, che corrisponde al coefficiente qualificante per le fonti senza classe definito nella sezione `[CLASSE-FONTI]` (0.30).\n\n**Fatti verificati dal contesto:**\n*   **Identificatore file:** `diag_6_2_hitl_checkpoints.svg.svg` (estratto da `catalogo_diagrammi_normativi.pdf`).\n*   **Area/Tipologia:** Governance (estratto da `catalogo_diagrammi_normativi.pdf`).\n*   **Classe fonte:** SENZA CLASSE (estratto da `catalogo_diagrammi_normativi.pdf` e confermato dalla tabella di autorità in `README.md`).\n*   **Coefficiente Authority:** 0.30 (definito nella sezione `[CLASSE-FONTI]` per la classe SENZA CLASSE).\n\nIl documento `vibe_coding_workflow.md` descrive i checkpoint HITL ma è classificato come `[METHODOLOGY]` con autorità 0.90; tuttavia, la domanda chiede specificamente il **diagramma** del catalogo, non il documento di testo.",
+            "secondi": 5.53,
+            "coeff": true,
+            "nega": false
+          }
+        ]
+      }
+    },
+    "U3-riga2+senzanumeri": {
+      "pdf-diag-3": {
+        "domanda": "Quale diagramma del catalogo documenta i checkpoint human-in-the-loop, e con quale peso?",
+        "prompt_tok": 9333,
+        "passate": [
+          {
+            "passata": 1,
+            "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, come riportato nel file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf` nella sezione \"Registro dei file\".\n\nIl peso (Authority) di questo documento è **SENZA CLASSE**.\nQuesta classificazione deriva dal fatto che il file è un diagramma SVG contenuto in una cartella sorgente (`diagrams`) e non possiede un frontmatter esplicito che gli assegni una classe superiore (come `NORMS`, `REQUIREMENTS` o `METADATA`). Secondo la gerarchia di autorità definita nel contesto, i documenti senza classe dichiarata hanno un'autorevolezza inferiore rispetto a quelli classificati come `NORMS`, `REQUIREMENTS` o `METADATA`.\n\n**Dettagli verificabili dal contesto:**\n*   **Identificatore del diagramma:** `diag_6_2_hitl_checkpoints.svg.svg` (nome file completo).\n*   **Area/Sezione:** `Governance` (descrizione nel catalogo).\n*   **Formato:** `SVG`.\n*   **Peso (Authority):** `SENZA CLASSE` (dedotto dall'assenza di attributo `classification` nel frontmatter e dalla natura del file come artefatto visivo non normativo diretto, a differenza dei file `.md` che portano esplicitamente `[NORMS]`, `[REQUIREMENTS]` o `[METADATA]`).\n*   **Fonte primaria:** `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`.",
+            "secondi": 9.05,
+            "coeff": false,
+            "nega": false
+          },
+          {
+            "passata": 2,
+            "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, come riportato nel file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf` nella sezione \"Registro dei file\".\n\nIl peso (Authority) di questo documento è **SENZA CLASSE**.\nQuesta classificazione deriva dal fatto che il file è un diagramma SVG elencato nell'inventario normativo (`catalogo_diagrammi_normativi.pdf`) ma non possiede una classe esplicita dichiarata nel frontmatter o in una specifica normativa superiore (come `NORMS`, `REQUIREMENTS` o `IRON_MEMORY`). Nel contesto fornito, i documenti senza classe esplicita sono classificati come \"SENZA CLASSE\" e hanno un'autorevolezza inferiore rispetto a quelle con classi definite (es. `NORMS` > `REQUIREMENTS` > `METHODOLOGY` > `SENZA CLASSE`).\n\n**Dettagli tecnici estratti dal contesto:**\n*   **Nome file:** `diag_6_2_hitl_checkpoints.svg.svg`\n*   **Area:** Governance\n*   **Finalità:** Checkpoint human-in-the-loop e punti di controllo.\n*   **Formato:** SVG\n*   **Peso (Authority):** SENZA CLASSE (non classificato esplicitamente nel frontmatter o nella specifica, a differenza di documenti come `02_specs_normative/spec_graph_rag_ingestion.md` che ha classe `REQUIREMENTS` e authority 0.87).",
+            "secondi": 5.55,
+            "coeff": true,
+            "nega": false
+          },
+          {
+            "passata": 3,
+            "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, come riportato nel registro dei file del catalogo diagrammi normativi.\n\nIl suo peso (Authority) è **0.87**.\n\n**Motivazione:**\n1.  **Identificazione del Diagramma:** Nel documento `catalogo_diagrammi_normativi.pdf` (classe [SENZA CLASSE]), nella sezione \"Registro dei file\", viene elencato il file `diag_6_2_hitl_checkpoints.svg.svg` con la finalità: \"Governance - Checkpoint human-in-the-loop e punti di controllo\".\n2.  **Determinazione del Peso:** Il documento `catalogo_diagrammi_normativi.pdf` è classificato come [SENZA CLASSE]. Secondo la gerarchia di autorità definita nel contesto (`NORMS > REQUIREMENTS > METADATA > METHODOLOGY > SENZA CLASSE`), le fonti senza classe non hanno un peso esplicito definito nella tabella `README.md`. Tuttavia, il documento `spec_graph_rag_ingestion.md` (classe [REQUIREMENTS], Authority 0.87) definisce l'Authority di default per le nuove specifiche (`<<AUTHORITY_SPEC>>`) come **0.87**. Poiché il catalogo diagrammi è un artefatto normativo descrittivo e non una specifica funzionale con frontmatter esplicito che sovrascrive il default, e dato che la domanda chiede \"con quale peso\", si applica il valore di default per le specifiche/arteфatti normativi (`<<AUTHORITY_SPEC>>`) presente nel contratto di istanziazione di `spec_graph_rag_ingestion.md`.\n    *   *Nota:* Sebbene il catalogo sia [SENZA CLASSE], nella pratica del sistema VibeCraft, gli artefatti descrittivi (come i diagrammi) ereditano l'Authority della classe che li ospita o quella di default delle specifiche (`0.87`) se non classificati diversamente nel frontmatter. Non essendoci un frontmatter specifico per il file SVG nel catalogo, si applica il valore di default `<<AUTHORITY_SPEC>>` = **0.87**.\n\n**Vincoli e Contratti citati:**\n*   File: `diag_6_2_hitl_checkpoints.svg.svg`\n*   Classe del documento sorgente: [SENZA CLASSE] (da `catalogo_diagrammi_normativi.pdf`)\n*   Valore Authority di default per specifiche (`<<AUTHORITY_SPEC>>`): **0.87** (da `spec_graph_rag_ingestion.md`)\n*   Gerarchia autorità: `NORMS > REQUIREMENTS > METADATA > METHODOLOGY > SENZA CLASSE` (da `README.md`)",
+            "secondi": 9.97,
+            "coeff": true,
+            "nega": false
+          }
+        ]
+      }
+    }
+  }
+}

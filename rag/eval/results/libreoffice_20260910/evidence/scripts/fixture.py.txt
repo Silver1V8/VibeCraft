@@ -1,0 +1,206 @@
+"""Fixture MODERNE del banco Office/LibreOffice, generate qui in modo riproducibile.
+Le versioni legacy (DOC, XLS, PPT), le copie salvate da Office e le varianti protette le
+produce office_legacy.ps1 con Word, Excel e PowerPoint 16 installati: produttori
+indipendenti da LibreOffice, quindi nessun vantaggio artificiale da round trip.
+
+Uso (da rag/): uv run --no-sync python -B <questo> <fixture_dir>
+"""
+import datetime
+import io
+import re
+import sys
+import zipfile
+from pathlib import Path
+
+OUT = Path(sys.argv[1])
+OUT.mkdir(parents=True, exist_ok=True)
+
+
+def _hyperlink(paragraph, url, text):
+    from docx.opc.constants import RELATIONSHIP_TYPE as RT
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    r_id = paragraph.part.relate_to(url, RT.HYPERLINK, is_external=True)
+    link = OxmlElement("w:hyperlink")
+    link.set(qn("r:id"), r_id)
+    run = OxmlElement("w:r")
+    t = OxmlElement("w:t")
+    t.text = text
+    run.append(t)
+    link.append(run)
+    paragraph._p.append(link)
+
+
+def manuale_docx() -> bytes:
+    """Word: gerarchia, paragrafi, liste, tabella, cella unita, link, accenti, coppie
+    campo-valore. La nota a piè di pagina la aggiunge Word (office_legacy.ps1)."""
+    from docx import Document
+    d = Document()
+    d.add_heading("Manuale forniture", level=0)
+    d.add_paragraph("Introduzione: città, perché, 3.000 €, ≥ 5 kg, 12 µm.")
+    d.add_heading("Capitolo uno", 1)
+    d.add_paragraph("Primo paragrafo del capitolo uno.")
+    d.add_paragraph("Secondo paragrafo, distinto dal primo.")
+    d.add_heading("Sezione uno punto uno", 2)
+    d.add_heading("Dettaglio uno punto uno punto uno", 3)
+    d.add_paragraph("Primo punto", style="List Bullet")
+    d.add_paragraph("Sottopunto annidato", style="List Bullet 2")
+    d.add_paragraph("Passo numerato uno", style="List Number")
+    d.add_paragraph("Passo numerato due", style="List Number")
+    t = d.add_table(rows=3, cols=3)
+    for i, row in enumerate([["Codice", "Descrizione", "Valore"], ["A1", "Cavo rame", "12,5 kg"],
+                             ["B2", "Isolante", "0,75 m"]]):
+        for j, v in enumerate(row):
+            t.cell(i, j).text = v
+    d.add_heading("Dati della commessa", 2)
+    kv = d.add_table(rows=3, cols=2)
+    for i, (k, v) in enumerate([("Codice commessa", "00457"), ("Responsabile", "Anna Rossi"),
+                                ("Stato", "N/A")]):
+        kv.cell(i, 0).text, kv.cell(i, 1).text = k, v
+    d.add_paragraph("Totale: 1.500 €")
+    u = d.add_table(rows=3, cols=3)
+    u.cell(0, 0).merge(u.cell(0, 1)).text = "Periodo"
+    u.cell(0, 2).text = "Importo"
+    for i, row in enumerate([["Gennaio", "2026", "1.500 €"], ["Febbraio", "2026", "980 €"]], 1):
+        for j, v in enumerate(row):
+            u.cell(i, j).text = v
+    p = d.add_paragraph("Vedi la ")
+    _hyperlink(p, "https://example.org/specifica", "specifica esterna")
+    d.add_heading("Capitolo due", 1)
+    d.add_paragraph("Chiusura del documento.")
+    b = io.BytesIO()
+    d.save(b)
+    return b.getvalue()
+
+
+def specifica_docx() -> bytes:
+    """Titolo in Heading 1 senza stile Title (Docling lo porta a `##`: seconda tornata)."""
+    from docx import Document
+    d = Document()
+    d.add_heading("Specifica tecnica pagamenti", 1)
+    d.add_paragraph("Premessa del documento.")
+    d.add_heading("Requisiti", 2)
+    d.add_paragraph("Il sistema deve registrare ogni transazione.")
+    d.add_heading("Allegati", 2)
+    d.add_paragraph("Nessun allegato.")
+    b = io.BytesIO()
+    d.save(b)
+    return b.getvalue()
+
+
+def registro_xlsx() -> bytes:
+    """Excel: due fogli, cella unita, intestazioni, zeri iniziali, NA/N/A/null, date, numeri,
+    percentuale, e tre formule: valore memorizzato corretto (E7), valore memorizzato
+    OBSOLETO (C7: 999, il ricalcolo darebbe 10), nessun valore memorizzato (F7)."""
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Registro"
+    ws["A1"] = "Magazzino Nord registro 2026"
+    ws.merge_cells("A1:F1")
+    ws.append(["Codice", "Stato", "Quantità", "Data", "Importo €", "Quota"])
+    ws.append(["00123", "NA", 3, datetime.date(2026, 9, 10), 1200.5, 0.12])
+    ws.append(["00124", "N/A", None, datetime.date(2026, 9, 11), 300, 0.05])
+    ws.append(["00125", "null", 7, None, 0, 1])
+    ws.append([])
+    ws.append(["Totale", None, "=SUM(C3:C5)", None, "=SUM(E3:E5)", "=E3*2"])
+    for c in ("F3", "F4", "F5"):
+        ws[c].number_format = "0%"
+    ws2 = wb.create_sheet("Contatti città")
+    ws2.append(["Nome", "Città"])
+    ws2.append(["Anna", "Forlì"])
+    b = io.BytesIO()
+    wb.save(b)
+    src = zipfile.ZipFile(io.BytesIO(b.getvalue()))
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
+        for item in src.infolist():
+            data = src.read(item.filename)
+            if item.filename == "xl/worksheets/sheet1.xml":
+                for ref, formula, valore in (("C7", b"SUM(C3:C5)", b"999"), ("E7", b"SUM(E3:E5)", b"1500.5")):
+                    data, n = re.subn(rb'(<c r="' + ref.encode() + rb'"[^>]*>)<f>' + re.escape(formula)
+                                      + rb"</f>(<v\s*/>|<v></v>)?", rb"\1<f>" + formula + rb"</f><v>" + valore + rb"</v>", data)
+                    assert n == 1, f"iniezione del valore memorizzato fallita per {ref}"
+            dst.writestr(item, data)
+    return out.getvalue()
+
+
+def rilascio_pptx() -> bytes:
+    """PowerPoint: ordine delle slide, titoli, elenco con sottolivello, tabella, note del
+    relatore, ordine di lettura dall'alto (blocco in basso inserito per primo)."""
+    from pptx import Presentation
+    from pptx.util import Inches
+    prs = Presentation()
+    s1 = prs.slides.add_slide(prs.slide_layouts[1])
+    s1.shapes.title.text = "Piano di rilascio"
+    body = s1.placeholders[1].text_frame
+    body.text = "Fase uno: verifica"
+    sub = body.add_paragraph()
+    sub.text = "Controllo accessi"
+    sub.level = 1
+    body.add_paragraph().text = "Fase due: rilascio"
+    s2 = prs.slides.add_slide(prs.slide_layouts[5])
+    s2.shapes.title.text = "Tabella rischi"
+    tb = s2.shapes.add_table(3, 2, Inches(1), Inches(2), Inches(6), Inches(1.5)).table
+    for i, row in enumerate([["Rischio", "Impatto"], ["Ritardo fornitore", "alto"], ["Bug critico", "medio"]]):
+        for j, v in enumerate(row):
+            tb.cell(i, j).text = v
+    s2.notes_slide.notes_text_frame.text = "Nota per il relatore: citare il 12% di margine."
+    s3 = prs.slides.add_slide(prs.slide_layouts[6])
+    s3.shapes.add_textbox(Inches(1), Inches(5), Inches(6), Inches(1)).text_frame.text = "Secondo blocco in basso"
+    s3.shapes.add_textbox(Inches(1), Inches(1), Inches(6), Inches(1)).text_frame.text = "Primo blocco in alto"
+    b = io.BytesIO()
+    prs.save(b)
+    return b.getvalue()
+
+
+def rete_xlsx() -> bytes:
+    """Sonda di rete: formula WEBSERVICE e riferimento a una cartella esterna, entrambi verso
+    127.0.0.1:8765 (loopback del container). Nessun valore memorizzato: un ricalcolo o un
+    aggiornamento dei collegamenti produrrebbe una richiesta registrabile."""
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Rete"
+    ws.append(["Voce", "Valore"])
+    ws.append(["webservice", '=WEBSERVICE("http://127.0.0.1:8765/webservice")'])
+    ws.append(["collegamento", "='http://127.0.0.1:8765/[esterno.xlsx]Foglio1'!A1"])
+    b = io.BytesIO()
+    wb.save(b)
+    return b.getvalue()
+
+
+def rete_docx() -> bytes:
+    """Sonda di rete: immagine COLLEGATA (r:link, TargetMode External) verso il loopback."""
+    from docx import Document
+    from docx.shared import Inches
+    from PIL import Image
+    d = Document()
+    d.add_paragraph("Documento con immagine collegata.")
+    img = io.BytesIO()
+    Image.new("RGB", (8, 8), "navy").save(img, format="PNG")
+    d.add_picture(io.BytesIO(img.getvalue()), width=Inches(1))
+    b = io.BytesIO()
+    d.save(b)
+    src = zipfile.ZipFile(io.BytesIO(b.getvalue()))
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
+        for item in src.infolist():
+            data = src.read(item.filename)
+            if item.filename == "word/document.xml":
+                data, n = re.subn(rb'r:embed="(rId\d+)"', rb'r:link="\1"', data)
+                assert n == 1
+            if item.filename == "word/_rels/document.xml.rels":
+                data, n = re.subn(rb'(<Relationship Id="rId\d+" Type="[^"]+/image") Target="[^"]+"',
+                                  rb'\1 Target="http://127.0.0.1:8765/immagine.png" TargetMode="External"', data)
+                assert n == 1
+            dst.writestr(item, data)
+    return out.getvalue()
+
+
+if __name__ == "__main__":
+    for nome, fn in (("manuale_src.docx", manuale_docx), ("specifica.docx", specifica_docx),
+                     ("registro.xlsx", registro_xlsx), ("rilascio.pptx", rilascio_pptx),
+                     ("rete.xlsx", rete_xlsx), ("rete.docx", rete_docx)):
+        (OUT / nome).write_bytes(fn())
+        print(nome)

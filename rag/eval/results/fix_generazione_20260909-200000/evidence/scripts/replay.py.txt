@@ -1,0 +1,91 @@
+"""FASE 2/3 — replay OFFLINE dei contesti realmente inviati, con il prompt come
+unica variabile.
+
+Perche' offline: i contesti archiviati il 2026-09-09 sono quelli che il server ha
+davvero costruito (stesso indice, stesso retrieval, stessi ranghi). Rigiocarli
+cambiando SOLO il prompt isola la generazione senza rialzare i server, e permette
+di scartare una variante in minuti invece che in un batch da 96 risposte — che e'
+esattamente cio' che il mandato chiede («non ripetere grandi batch su una variante
+che fallisce gia' il controllo mirato»).
+
+NON sostituisce il confronto fattoriale di FASE 5: e' lo screening che lo precede.
+Le domande restano quelle congelate, testuali, non riformulate.
+
+  replay.py <etichetta> <retrieval.py> <cfg-sorgente> <out.json> [id...]
+
+`cfg-sorgente` e' A o B: da quale archivio prendere i contesti (A = pypdf,
+B = Docling). Le classi per [CLASSE-FONTI] si ricavano dalle intestazioni di
+blocco del contesto archiviato, come fa `authority_scale` sulle fonti vere.
+"""
+import importlib.util
+import json
+import pathlib
+import re
+import sys
+import time
+
+RAG = pathlib.Path(r"C:\Users\Silve\Desktop\vibecraft\rag")
+ARCH = RAG / "eval/results/fix_attribuzione_20260909-183000/out"
+sys.path.insert(0, str(RAG))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+
+from core import llm  # noqa: E402
+
+INTESTAZIONE = re.compile(r"^--- (?P<doc>\S+) § (?P<sez>.*?) \[(?P<cls>[^\]]+)\] ---$", re.M)
+# pesi dichiarati: quelli che authority_scale avrebbe prodotto. Presi dal
+# retrieval archiviato quando c'e', altrimenti dai pesi di configurazione.
+PESI = {"IRON_MEMORY": 1.0, "AUTHORIZATION_POLICY": 0.9, "NORMS": 0.9,
+        "REQUIREMENTS": 0.87, "DATA_DICTIONARY": 0.7, "METADATA": 0.6,
+        "METHODOLOGY": 0.5, "SENZA CLASSE": 0.3}
+
+
+def carica(percorso: str):
+    spec = importlib.util.spec_from_file_location("retr_replay", percorso)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["retr_replay"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def scala(contesto: str) -> list[tuple[str, float]]:
+    viste: dict[str, float] = {}
+    for m in INTESTAZIONE.finditer(contesto):
+        cls = m.group("cls").split(";")[0].split(",")[0].strip().upper()
+        viste.setdefault(cls, PESI.get(cls, 0.3))
+    if len(viste) < 2:
+        return []
+    return sorted(viste.items(), key=lambda kv: -kv[1])
+
+
+def main() -> int:
+    etichetta, modulo, cfg, uscita = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+    solo = set(sys.argv[5:]) or None
+    retr = carica(modulo)
+    sorgente = json.loads((ARCH / f"eval_{cfg}_p1.json").read_text(encoding="utf-8"))
+    out = {"etichetta": etichetta, "modulo": modulo, "contesti_da": f"eval_{cfg}_p1.json",
+           "modello": llm.resolve("ask"), "num_ctx": llm.OLLAMA_NUM_CTX,
+           "temperature": llm.OLLAMA_TEMPERATURE, "casi": {}}
+    for qid, q in sorgente["domande"].items():
+        if solo and qid not in solo:
+            continue
+        ctx = q["contesto_inviato"]
+        prompt = retr.build_ask_prompt(ctx, q["domanda"], authority_classes=scala(ctx))
+        t0 = time.perf_counter()
+        try:
+            risposta, errore = llm.generate(prompt, purpose="ask"), None
+        except Exception as exc:  # noqa: BLE001
+            risposta, errore = "", f"{type(exc).__name__}: {exc}"
+        out["casi"][qid] = {
+            "domanda": q["domanda"], "risposta_attesa": q.get("risposta_attesa"),
+            "risposta": risposta, "errore": errore,
+            "secondi": round(time.perf_counter() - t0, 2),
+            "prompt_char": len(prompt), "classi": scala(ctx),
+        }
+        print(f"  {qid:12} {round(time.perf_counter()-t0,1):5}s  {' '.join(risposta.split())[:100]}")
+    pathlib.Path(uscita).write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"-> {uscita}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

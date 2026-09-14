@@ -1,0 +1,65 @@
+"""Scenario in SANDBOX (copia del codice, docs/ e database/ propri, Qdrant dedicato):
+un PDF indicizzato viene rimosso dal manutentore e il suo contenuto rientra come .md via
+intake. Domanda: l'approve del .md toglie dall'indice i chunk del vecchio PDF?
+
+Passi: build completa con i PDF → rimozione dei PDF → stage + approve dei cataloghi
+rigenerati (reindex dell'app, delta ristretto alla path approvata) → conteggi → sincronizzazione
+esplicita (incremental_index senza restrizione) → conteggi e integrità.
+
+Uso (da <sandbox>/rag, QDRANT_URL impostata): python -B <questo> <cataloghi_dir> <out.json>
+"""
+import collections
+import json
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, os.getcwd())
+
+from qdrant_client import QdrantClient  # noqa: E402
+
+from core import indexing, intake  # noqa: E402
+from core.artifacts import load_artifacts  # noqa: E402
+from core.config import COLLECTION_NAME, DOCS_DIR, QDRANT_URL  # noqa: E402
+
+CAT, OUT = Path(sys.argv[1]), Path(sys.argv[2])
+assert "6402" in QDRANT_URL, f"non è il Qdrant della sandbox: {QDRANT_URL}"
+q = QdrantClient(url=QDRANT_URL)
+PDF = ["02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf",
+       "02_specs_normative/mockups/catalogo_mockup_normativi.pdf"]
+MD = ["02_specs_normative/catalogo-diagrammi-normativi.md", "02_specs_normative/catalogo-mockup-normativi.md"]
+
+
+def stato(etichetta: str) -> dict:
+    punti, off = collections.Counter(), None
+    while True:
+        batch, off = q.scroll(COLLECTION_NAME, limit=256, offset=off, with_payload=["doc_id"])
+        punti.update(p.payload.get("doc_id") for p in batch)
+        if off is None:
+            break
+    arts = load_artifacts(required=("graph",))
+    testi = collections.Counter(c.get("text", "").split("\n", 2)[-1] for c in arts.chunks_store.values())
+    integ = indexing.check_index_integrity(qdrant=q)
+    s = {"passo": etichetta, "current": (Path("database") / "CURRENT").read_text().strip(),
+         "punti_per_doc": {d: punti.get(d, 0) for d in PDF + MD},
+         "punti_totali": sum(punti.values()),
+         "nodi_grafo_pdf": [d for d in PDF if d in arts.graph],
+         "chunk_testo_duplicato": sum(n - 1 for n in testi.values() if n > 1),
+         "integrita_ok": integ.get("ok"), "problemi": integ.get("problems")}
+    print(json.dumps(s, ensure_ascii=False), flush=True)
+    return s
+
+
+passi = []
+indexing.build_graph_and_index(qdrant=q)
+passi.append(stato("1 build completa con i PDF"))
+for rel in PDF:
+    (DOCS_DIR / rel).unlink()
+passi.append(stato("2 PDF rimossi dal manutentore"))
+for nome, dest in (("catalogo_diagrammi_normativi.pdf", MD[0]), ("catalogo_mockup_normativi.pdf", MD[1])):
+    rec = intake.stage_document(nome, (CAT / nome).read_bytes())
+    intake.approve(rec["id"], "02_specs_normative", Path(dest).name)
+passi.append(stato("3 cataloghi rigenerati approvati via intake (reindex dell'app)"))
+indexing.incremental_index(qdrant=q)
+passi.append(stato("4 sincronizzazione esplicita (incremental_index)"))
+OUT.write_text(json.dumps(passi, ensure_ascii=False, indent=1), encoding="utf-8")

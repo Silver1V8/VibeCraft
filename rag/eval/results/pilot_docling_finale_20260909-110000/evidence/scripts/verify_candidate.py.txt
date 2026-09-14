@@ -1,0 +1,105 @@
+"""Fase 3 — fedelta' del candidato finale sui NUOVI input, criteri congelati.
+
+Riusa i tre scorer del pilot Standard SENZA modificarli (runpy). Il candidato
+viene collocato nello slot `standard` che quegli scorer conoscono: la riga
+`docling_standard` dei report prodotti qui si riferisce quindi al CANDIDATO
+FINALE su input corretti, non al pilot storico. Le righe degli altri motori nei
+report copiati restano risultati storici su input ORIGINALI: non sono un
+confronto a parita' di input e sono marcate come tali.
+
+Aggiunge solo i controlli mancanti (gerarchia di rango), senza indebolire i
+preesistenti.
+
+Uso: verify_candidate.py
+"""
+
+import json
+import pathlib
+import re
+import runpy
+import shutil
+import sys
+
+HERE = pathlib.Path(__file__).resolve().parent.parent
+RES = HERE.parent
+OLD = RES / "pilot_docling_standard_20260909-095127"
+SF = RES / "pilot_docling_sourcefix_20260909"
+
+# verita' e domande: copiate SENZA modifiche dal pilot precedente
+shutil.copytree(OLD / "truth", HERE / "truth", dirs_exist_ok=True)
+shutil.copytree(OLD / "compare", HERE / "compare", dirs_exist_ok=True)
+for name in ("diagrammi", "mockup"):
+    shutil.copyfile(HERE / "out/run1" / f"candidate_{name}.md", HERE / "compare/standard" / f"standard_{name}.md")
+
+for script, args in [
+    ("score_standard.py", [HERE / "truth/verita_riferimento.json", HERE / "compare", HERE / "confronto_celle.json"]),
+    ("score_domande.py", [HERE]),
+    ("score_testo.py", [HERE]),
+]:
+    sys.argv = [str(OLD / script), *map(str, args)]
+    runpy.run_path(str(OLD / script), run_name="__main__")
+
+# gli scorer 2 e 3 scrivono accanto a HERE; normalizziamo i nomi
+for src in ("confronto_celle.json", "confronto_domande.json", "confronto_testo.json"):
+    if (HERE / src).exists():
+        shutil.move(str(HERE / src), str(HERE / "out" / src))
+
+cells = json.loads((HERE / "out/confronto_celle.json").read_text(encoding="utf-8"))["docling_standard"]
+questions = json.loads((HERE / "out/confronto_domande.json").read_text(encoding="utf-8"))["docling_standard"]
+truth = json.loads((HERE / "truth/verita_riferimento.json").read_text(encoding="utf-8"))
+
+# ---- criteri congelati, invariati -------------------------------------------
+assert cells["tabelle_complete"] == 2, cells
+assert cells["celle_dati_corrette"] == 75, cells
+assert cells["celle_intestazione_corrette"] == 9, cells
+assert all(q["derivabile"] for q in questions.values()), questions
+
+# ---- titoli: attesi presenti, nessuno inventato ------------------------------
+run = json.loads((HERE / "out/run1/run_report.json").read_text(encoding="utf-8"))
+headings, gerarchia = {}, {}
+for name in ("diagrammi", "mockup"):
+    md = (HERE / "out/run1" / f"candidate_{name}.md").read_text(encoding="utf-8")
+    got = re.findall(r"^#{1,6}\s+(.+)$", md, re.M)
+    expected = [h.split(" (")[0] for h in truth["segmentazione_attesa_heading"][name]]
+    assert sorted(got) == sorted(expected), (name, got, expected)
+    headings[name] = got
+
+    # ---- NUOVO: gerarchia di rango sul documento STRUTTURATO -----------------
+    liv = {h["testo"]: h["livello"] for h in run["documents"][name]["intestazioni"]}
+    titolo = "Catalogo diagrammi" if name == "diagrammi" else "Catalogo mockup"
+    assert liv[titolo] == 1, (name, liv)
+    assert liv["Regole di organizzazione"] == liv["Registro dei file"] == 2, (name, liv)
+    assert liv["Percorso sorgente"] == 3, (name, liv)
+    assert liv[titolo] < liv["Regole di organizzazione"] < liv["Percorso sorgente"], (name, liv)
+    gerarchia[name] = liv
+
+    # ---- riproducibilita' byte a byte ---------------------------------------
+    for ext in ("md", "json"):
+        a = (HERE / "out/run1" / f"candidate_{name}.{ext}").read_bytes()
+        b = (HERE / "out/run2" / f"candidate_{name}.{ext}").read_bytes()
+        assert a == b, f"run1 != run2 su candidate_{name}.{ext}"
+
+# ---- input: gli hash devono essere quelli NUOVI, non gli originali ----------
+orig = {
+    "diagrammi": "9c0d51c52710efbd87aaf8599d7bde09e93ceefbdc206ad35c311d993c56f91f",
+    "mockup": "443ecfca8c8ab4fb706bf518c725e80272e52dfdc4b75b6759fb7d04a00aa1b2",
+}
+for name, h in run["input_sha256"].items():
+    assert h != orig[name], f"{name}: il candidato ha letto il PDF ORIGINALE, non la copia corretta"
+
+summary = {
+    "perimetro": "conversione sui NUOVI input (copie con template corretto). Le righe degli altri motori nei report copiati sono storiche su input ORIGINALI: non un confronto a parita' di input.",
+    "riga_docling_standard": "e' il CANDIDATO FINALE (StandardPdfPipeline + heading_hierarchy nativo) su input corretti",
+    "input_sha256": run["input_sha256"],
+    "tabelle": cells["tabelle_complete"],
+    "celle_dati": cells["celle_dati_corrette"],
+    "intestazioni_tabellari": cells["celle_intestazione_corrette"],
+    "domande_derivabili": sum(1 for q in questions.values() if q["derivabile"]),
+    "titoli_presenti": headings,
+    "titoli_inventati": 0,
+    "gerarchia_livelli": gerarchia,
+    "gerarchia_attesa": "titolo=1; Regole di organizzazione = Registro dei file = 2; Percorso sorgente = 3",
+    "run1_run2_identici": True,
+}
+(HERE / "out/verification.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+print(json.dumps(summary, ensure_ascii=False, indent=2))

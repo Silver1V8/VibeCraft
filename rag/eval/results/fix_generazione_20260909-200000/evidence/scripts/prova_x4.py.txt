@@ -1,0 +1,42 @@
+"""X4/X5 — ipotesi: il modello USA la voce giusta per le prime richieste e poi
+la ABBANDONA per l'ultima. Regola: rispondere a tutte le richieste dalla stessa
+voce, usandone tutti i campi."""
+import json
+import pathlib
+import sys
+import re
+RAG = pathlib.Path(r"C:\Users\Silve\Desktop\vibecraft\rag")
+sys.path.insert(0, str(RAG))
+from core import llm, retrieval  # noqa: E402
+ARCH = RAG / "eval/results/fix_attribuzione_20260909-183000/out"
+ANCORA = "che il contesto non lo riporta invece di ricostruirlo."
+X = {
+ "x4-stessa-voce-tutti-campi": ANCORA + (
+   " Quando la domanda chiede piu' cose sullo stesso elemento, rispondi a tutte dalla voce che lo "
+   "nomina, usandone TUTTI i campi: non abbandonare quella voce per dichiarare assente un dato che "
+   "un suo campo riporta."),
+ "x5-stessa-voce-corta": ANCORA + (
+   " Se la domanda chiede piu' cose su un elemento, prendile tutte dalla voce che lo nomina, "
+   "usandone tutti i campi."),
+}
+cfg, n, uscita = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+d = json.loads((ARCH/f"eval_{cfg}_p1.json").read_text(encoding="utf-8"))
+q = d["domande"]["pdf-diag-3"]
+ctx = q["contesto_inviato"]
+scala=[("NORMS",0.9),("REQUIREMENTS",0.87),("METADATA",0.6),("METHODOLOGY",0.5),("SENZA CLASSE",0.3)]
+base = retrieval.build_ask_prompt(ctx, q["domanda"], authority_classes=scala)
+res={}
+for nome, nuovo in X.items():
+    p = base.replace(ANCORA, nuovo)
+    assert p != base
+    righe=[]
+    for i in range(n):
+        r = llm.generate(p, purpose="ask")
+        kb="19.5 KB" in r
+        coeff=bool(re.search(r"\b0[.,](?:30|50|60|85|87|90)\b", r))
+        nega=bool(re.search(r"non\s+(?:è|e')?\s*(?:riport\w+|contien\w+|specific\w+|indic\w+|present\w+)|nessun\w*\s+valore", r, re.I))
+        righe.append({"r":i+1,"kb":kb,"coeff":coeff,"nega":nega,"risposta":r})
+    pulite=sum(x["kb"] and not x["coeff"] and not x["nega"] for x in righe)
+    print(f"  {nome:28} {len(p)//3:5}tok | 19.5KB {sum(x['kb'] for x in righe)}/{n} | coeff {sum(x['coeff'] for x in righe)}/{n} | nega {sum(x['nega'] for x in righe)}/{n} | PULITE {pulite}/{n}")
+    res[nome]={"righe":righe}
+pathlib.Path(uscita).write_text(json.dumps(res,indent=2,ensure_ascii=False),encoding="utf-8")

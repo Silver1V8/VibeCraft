@@ -1,0 +1,109 @@
+"""Copertura delle fonti attese nella finestra di /ask, per una configurazione.
+
+RIUSA la misura di `eval/calibrate_graph_context.py` — `blocchi_del_contesto` e
+`esito_caso` — invece di riscriverla: e' la stessa domanda («la fonte attesa
+entra? dal ramo semantico o solo via grafo?») applicata a parametri diversi da
+`graph_context_max_chunks`. Riscriverla avrebbe prodotto una seconda definizione
+di «coperto», ed e' esattamente il difetto che l'audit del 2026-09-09 ha corretto
+sullo schermo delle citazioni.
+
+Uso (da rag/ del sandbox, server GIU', Qdrant su):
+    copertura.py <out.json> --set golden|multihop [--top-k 10]
+                 [--graph-max N] [--graph-ratio X] [--code-link-score X]
+                 [--code-total N]
+"""
+import argparse
+import json
+import pathlib
+import sys
+
+RAG = pathlib.Path.cwd()
+if str(RAG) not in sys.path:
+    sys.path.insert(0, str(RAG))
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("uscita")
+    ap.add_argument("--set", default="multihop", choices=["golden", "multihop"])
+    ap.add_argument("--top-k", type=int, default=10)
+    ap.add_argument("--graph-max", type=int)
+    ap.add_argument("--graph-ratio", type=float)
+    ap.add_argument("--code-link-score", type=float)
+    ap.add_argument("--code-total", type=int)
+    a = ap.parse_args()
+
+    from fastapi.testclient import TestClient
+
+    from api import deps, routes_retrieval
+    from core import llm
+    from eval.calibrate_graph_context import blocchi_del_contesto, esito_caso
+    from server import app
+
+    deps.API_KEY = None
+
+    async def _senza_llm(prompt: str, *, purpose: str) -> str:
+        return ""
+    llm.agenerate = _senza_llm
+    routes_retrieval._cache_get = lambda app_, key: None
+    routes_retrieval._cache_set = lambda app_, key, payload: None
+
+    for attr, val in (("GRAPH_CONTEXT_MAX_CHUNKS", a.graph_max),
+                      ("GRAPH_CONTEXT_MIN_RATIO", a.graph_ratio),
+                      ("CODE_LINK_MIN_QUESTION_SCORE", a.code_link_score),
+                      ("CODE_CONTEXT_TOTAL_SNIPPETS", a.code_total)):
+        if val is not None:
+            setattr(routes_retrieval, attr, val)
+
+    # I due insiemi hanno FORME DIVERSE e vanno normalizzati alla forma che
+    # `esito_caso` si aspetta ({"q", "expected": {"retrieval": [...]}}):
+    #   golden   -> expected e' la LISTA dei matcher;
+    #   multihop -> expected e' un dict con la chiave "retrieval".
+    if a.set == "multihop":
+        from eval.run_multihop import load_cases
+        casi = [c for c in load_cases() if c.get("kind") == "multihop"]
+    else:
+        import yaml
+        y = yaml.safe_load((RAG / "eval/golden_set.yaml").read_text(encoding="utf-8"))
+        grezzi = y["cases"] if isinstance(y, dict) else y
+        casi = [{"q": c["q"], "expected": {"retrieval": c["expected"]}}
+                if isinstance(c.get("expected"), list) else c for c in grezzi]
+
+    esiti, saltati = [], 0
+    with TestClient(app, client=("127.0.0.1", 54321)) as client:
+        chunks = deps.current_snapshot().chunks
+        for c in casi:
+            if not (c.get("expected") or {}).get("retrieval"):
+                saltati += 1
+                continue
+            r = client.post("/ask", json={"question": c["q"], "top_k": a.top_k})
+            r.raise_for_status()
+            ctx = (r.json().get("graph_context") or {}).get("context_text")
+            if ctx is None:
+                saltati += 1
+                continue
+            esiti.append(esito_caso(c, blocchi_del_contesto(ctx, chunks), len(ctx)))
+
+    out = {
+        "set": a.set, "top_k": a.top_k, "saltati": saltati, "casi": len(esiti),
+        "parametri": {n: getattr(routes_retrieval, n) for n in
+                      ("GRAPH_CONTEXT_MAX_CHUNKS", "GRAPH_CONTEXT_MIN_RATIO",
+                       "CODE_LINK_MIN_QUESTION_SCORE", "CODE_CONTEXT_TOTAL_SNIPPETS")},
+        "completi_doc": sum(e["completo_doc"] for e in esiti),
+        "completi_sezione": sum(e["completo"] for e in esiti),
+        "attesi_assenti": sum(e["atteso"].count("assente") for e in esiti),
+        "attesi_assenti_doc": sum(e["atteso_doc"].count("assente") for e in esiti),
+        "solo_via_grafo": sum(e["solo_via_grafo"] for e in esiti),
+        "caratteri_mediani": sorted(e["caratteri"] for e in esiti)[len(esiti) // 2] if esiti else 0,
+        "esiti": esiti,
+    }
+    pathlib.Path(a.uscita).write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"  {a.set}: casi {out['casi']} (saltati {saltati}) | completi_doc "
+          f"{out['completi_doc']}/{out['casi']} | completi_sez {out['completi_sezione']}/{out['casi']} "
+          f"| attesi assenti {out['attesi_assenti']} (doc {out['attesi_assenti_doc']}) "
+          f"| solo via grafo {out['solo_via_grafo']} | char mediani {out['caratteri_mediani']}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

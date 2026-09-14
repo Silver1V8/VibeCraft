@@ -1,0 +1,148 @@
+"""Esperimento pre-implementazione: Docling 2.126.0 installato nell'app, configurazione del
+pilot finale (StandardPdfPipeline, CPU, TableFormer ACCURATE + cell matching, testo backend,
+heading_hierarchy + parsed pages, niente VLM/remote). Decide matrice formati e cleaner.
+Uso (da rag/): uv run --no-sync python -B <questo> <out_dir>"""
+import difflib
+import io
+import json
+import sys
+import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path.cwd()))
+
+from docling.backend.docling_parse_backend import ThreadedDoclingParseDocumentBackend
+from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
+from docling.datamodel.base_models import DocumentStream, InputFormat
+from docling.datamodel.pipeline_options import (HeadingHierarchyOptions, PdfPipelineOptions,
+                                                RapidOcrOptions, TableFormerMode,
+                                                TableStructureOptions)
+from docling.document_converter import DocumentConverter, PdfFormatOption
+from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
+
+from core.intake_clean import clean_markdown
+from core.intake_convert import convert_to_markdown
+
+OUT = Path(sys.argv[1])
+OUT.mkdir(parents=True, exist_ok=True)
+ART = Path("database/models/docling").resolve()
+SP = OUT.parent
+
+
+def pdf_opts(ocr: bool) -> PdfPipelineOptions:
+    return PdfPipelineOptions(
+        artifacts_path=ART, do_ocr=ocr, do_table_structure=True, force_backend_text=True,
+        table_structure_options=TableStructureOptions(mode=TableFormerMode.ACCURATE, do_cell_matching=True),
+        accelerator_options=AcceleratorOptions(device=AcceleratorDevice.CPU),
+        do_code_enrichment=False, do_formula_enrichment=False, do_picture_description=False,
+        do_picture_classification=False, enable_remote_services=False,
+        generate_parsed_pages=True, heading_hierarchy_options=HeadingHierarchyOptions(enabled=True),
+        ocr_options=RapidOcrOptions(lang=["it"], backend="onnxruntime"), document_timeout=300)
+
+
+def conv(ocr: bool) -> DocumentConverter:
+    return DocumentConverter(
+        allowed_formats=[InputFormat.PDF, InputFormat.DOCX, InputFormat.PPTX, InputFormat.XLSX, InputFormat.HTML],
+        format_options={InputFormat.PDF: PdfFormatOption(pipeline_cls=StandardPdfPipeline,
+                                                         pipeline_options=pdf_opts(ocr),
+                                                         backend=ThreadedDoclingParseDocumentBackend)})
+
+
+def docling_md(c, data: bytes, name: str):
+    t0 = time.perf_counter()
+    r = c.convert(DocumentStream(name=name, stream=io.BytesIO(data)), raises_on_error=False)
+    md = r.document.export_to_markdown(escape_underscores=False, image_placeholder="")
+    return md, {"status": str(r.status), "s": round(time.perf_counter() - t0, 2),
+                "tabelle": len(r.document.tables), "immagini": len(r.document.pictures),
+                "pagine": len(r.document.pages),
+                "errori": [str(e.error_message)[:160] for e in r.errors]}
+
+
+def scan_from(pdf_path: Path, dpi=150) -> bytes:
+    import pypdfium2 as pdfium
+    doc = pdfium.PdfDocument(pdf_path.read_bytes())
+    imgs = [doc[i].render(scale=dpi / 72).to_pil().convert("L") for i in range(len(doc))]
+    buf = io.BytesIO()
+    imgs[0].save(buf, format="PDF", save_all=True, append_images=imgs[1:], resolution=dpi)
+    return buf.getvalue()
+
+
+def main():
+    report = {}
+    t0 = time.perf_counter()
+    c = conv(False)
+    report["init_s"] = round(time.perf_counter() - t0, 2)
+    pdfs = {
+        "fixture_tabelle": Path("tests/fixtures/intake/tabelle_titoli.pdf"),
+        "fixture_sample": Path("tests/fixtures/intake/sample.pdf"),
+        "cand_diagrammi": Path("eval/results/pilot_docling_sourcefix_20260909/catalogo_diagrammi_normativi.pdf"),
+        "cand_mockup": Path("eval/results/pilot_docling_sourcefix_20260909/catalogo_mockup_normativi.pdf"),
+    }
+    for k, p in pdfs.items():
+        md, info = docling_md(c, p.read_bytes(), p.name)
+        (OUT / f"{k}.docling.md").write_text(md, encoding="utf-8")
+        cl = clean_markdown(md)
+        (OUT / f"{k}.docling.clean.md").write_text(cl, encoding="utf-8")
+        info["clean_diff"] = [ln for ln in difflib.unified_diff(md.splitlines(), cl.splitlines(), lineterm="", n=0)
+                              if ln[:1] in "+-" and not ln.startswith(("+++", "---"))][:40]
+        info["heading"] = [ln for ln in md.splitlines() if ln.startswith("#")]
+        report[k] = info
+    # confronto con l'output del pilot (stessa catena, export con underscore escapati)
+    for k, f in (("cand_diagrammi", "candidate_diagrammi.md"), ("cand_mockup", "candidate_mockup.md")):
+        pil = next(Path("eval/results/pilot_docling_finale_20260909-110000/out").rglob(f), None)
+        if pil:
+            a = pil.read_text(encoding="utf-8").replace("\\_", "_")
+            b = (OUT / f"{k}.docling.md").read_text(encoding="utf-8")
+            report[k]["uguale_al_pilot_modulo_underscore"] = a.strip() == b.strip()
+    # scansione
+    scan = scan_from(pdfs["fixture_tabelle"])
+    (SP / "scan_tabelle.pdf").write_bytes(scan)
+    co = conv(True)
+    md, info = docling_md(co, scan, "scan_tabelle.pdf")
+    (OUT / "scan.docling.md").write_text(md, encoding="utf-8")
+    truth = (OUT / "fixture_tabelle.docling.md").read_text(encoding="utf-8")
+    info["similarita_con_digitale"] = round(difflib.SequenceMatcher(None, truth, md).ratio(), 3)
+    report["scan_ocr"] = info
+    md, info = docling_md(c, scan, "scan_tabelle.pdf")
+    info["md_chars"] = len(md.strip())
+    report["scan_senza_ocr"] = info
+    # altri formati: docling vs markitdown
+    from docx import Document  # noqa: F401  (python-docx, dipendenza dell'app)
+    import openpyxl
+    from pptx import Presentation
+    from pptx.util import Inches
+    prs = Presentation()
+    s = prs.slides.add_slide(prs.slide_layouts[1])
+    s.shapes.title.text = "Piano di rilascio"
+    s.placeholders[1].text = "Fase uno: verifica\nFase due: rilascio"
+    s2 = prs.slides.add_slide(prs.slide_layouts[5])
+    s2.shapes.title.text = "Tabella rischi"
+    tb = s2.shapes.add_table(3, 2, Inches(1), Inches(2), Inches(6), Inches(1.5)).table
+    for i, row in enumerate([["Rischio", "Impatto"], ["Ritardo fornitore", "alto"], ["Bug critico", "medio"]]):
+        for j, v in enumerate(row):
+            tb.cell(i, j).text = v
+    b = io.BytesIO(); prs.save(b); pptx = b.getvalue()
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Budget"
+    for row in [["Voce", "Importo €"], ["Hardware", 1200], ["Licenze", 300.5]]:
+        ws.append(row)
+    ws2 = wb.create_sheet("Note"); ws2.append(["città", "perché"])
+    b = io.BytesIO(); wb.save(b); xlsx = b.getvalue()
+    others = {"docx": Path("tests/fixtures/intake/sample.docx").read_bytes(), "pptx": pptx, "xlsx": xlsx,
+              "html": Path("tests/fixtures/intake/sample.html").read_bytes(),
+              "html_latin1": "<html><body><h1>Città</h1><p>perché è così</p></body></html>".encode("latin-1")}
+    for fmt, data in others.items():
+        ext = fmt.split("_")[0]
+        try:
+            md, info = docling_md(c, data, f"x.{ext}")
+        except Exception as exc:  # noqa: BLE001
+            md, info = "", {"eccezione": f"{type(exc).__name__}: {exc}"[:300]}
+        mi = convert_to_markdown(data, ext, filename=f"x.{ext}").markdown
+        (OUT / f"{fmt}.docling.md").write_text(md, encoding="utf-8")
+        (OUT / f"{fmt}.markitdown.md").write_text(mi, encoding="utf-8")
+        report[fmt] = info
+    (OUT / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()

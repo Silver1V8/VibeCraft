@@ -1,0 +1,16 @@
+{
+  "diagrammi": {
+    "sha256_produzione": "9c0d51c52710efbd87aaf8599d7bde09e93ceefbdc206ad35c311d993c56f91f",
+    "sha256_disambiguato": "c612e5b8e1833a965754e9f00691a45daed2167a7f30ea9dc5dce7a20cb7c3f8",
+    "intestazione": "Formato / peso -> Formato / peso (dimensione file)",
+    "righe_dati_pagina2_invariate": true,
+    "n_righe_dati": 41
+  },
+  "mockup": {
+    "sha256_produzione": "443ecfca8c8ab4fb706bf518c725e80272e52dfdc4b75b6759fb7d04a00aa1b2",
+    "sha256_disambiguato": "53f3730d170972f4861bd71b1c0f262082199452478f3d35c453d18b7f428dc7",
+    "intestazione": "Formato / peso -> Formato / peso (dimensione file)",
+    "righe_dati_pagina2_invariate": true,
+    "n_righe_dati": 85
+  }
+}

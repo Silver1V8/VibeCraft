@@ -1,0 +1,30 @@
+{
+  "etichetta": "candidate",
+  "sandbox": "C:\\Users\\Silve\\AppData\\Local\\Temp\\claude\\C--Users-Silve-Desktop-vibecraft\\bf54f804-fff5-40ce-ad46-d26ccb85ab43\\scratchpad\\sandbox-candidate",
+  "file_diversi": [
+    {
+      "file": "adr/EVOLUZIONE.md",
+      "sha_repo": "ba6e1aca9fff77b3",
+      "sha_sandbox": "d0335f04d2ff22e9",
+      "diff": "diff/candidate__adr__EVOLUZIONE.md.diff",
+      "righe_cambiate": 313
+    },
+    {
+      "file": "core/chunking.py",
+      "sha_repo": "28c4c1ad0aae4aa9",
+      "sha_sandbox": "ef8ae5e7fa5d0a1c",
+      "diff": "diff/candidate__core__chunking.py.diff",
+      "righe_cambiate": 14
+    },
+    {
+      "file": "eval/golden_attribution.yaml",
+      "sha_repo": "62f8221dae8fedd1",
+      "sha_sandbox": "d3c6a4fd76bfecd7",
+      "diff": "diff/candidate__eval__golden_attribution.yaml.diff",
+      "righe_cambiate": 2
+    }
+  ],
+  "file_solo_nel_sandbox": [],
+  "file_solo_nel_repository": [],
+  "n_solo_nel_repository": 0
+}

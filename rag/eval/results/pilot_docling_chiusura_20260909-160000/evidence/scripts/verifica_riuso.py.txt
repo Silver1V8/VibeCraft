@@ -1,0 +1,112 @@
+"""Integrita' e corrispondenza dei risultati che questa sessione RIUSA.
+
+Il piano dice: riusa i risultati di conversione «dopo averne verificato
+integrita' e corrispondenza al candidato». Qui si verifica, in modo
+riproducibile:
+
+  1. l'inventario SHA-256 della sessione precedente combacia file per file
+     (nessun artefatto e' stato alterato dopo la consegna);
+  2. i due Markdown del candidato (run1) sono identici a quelli di run2, cioe'
+     la riproducibilita' dichiarata regge ancora;
+  3. i sidecar che il sandbox del candidato legge davvero
+     (database/docling_cache/<sha256-del-PDF>.md) hanno per nome l'hash del PDF
+     CORRETTO e per contenuto esattamente il Markdown di run1: e' il ponte fra
+     «conversione verificata» e «indice interrogato»;
+  4. i PDF originali del corpus di produzione hanno ancora gli hash di sempre
+     (non sono stati toccati) e sono DIVERSI dalle copie corrette.
+
+Uso: verifica_riuso.py <workdir>
+"""
+
+import hashlib
+import json
+import pathlib
+import sys
+
+W = pathlib.Path(sys.argv[1]).resolve()
+RES = W.parent
+PREC = RES / "pilot_docling_finale_20260909-110000"
+SF = RES / "pilot_docling_sourcefix_20260909"
+REPO = RES.parents[2]
+SANDBOX = pathlib.Path(
+    "C:/Users/Silve/AppData/Local/Temp/claude/C--Users-Silve-Desktop-vibecraft/"
+    "bf54f804-fff5-40ce-ad46-d26ccb85ab43/scratchpad/sandbox-candidate")
+
+
+def sha(p):
+    return hashlib.sha256(pathlib.Path(p).read_bytes()).hexdigest()
+
+
+esito = {}
+
+# --- 1. inventario della sessione precedente ---------------------------------
+inv = json.loads((PREC / "inventario_sha256.json").read_text(encoding="utf-8"))
+alterati, spariti = [], []
+for rel, v in inv.items():
+    p = PREC / rel
+    if not p.is_file():
+        spariti.append(rel)
+    elif sha(p) != v["sha256"]:
+        alterati.append(rel)
+esito["1_inventario_precedente"] = {
+    "file_dichiarati": len(inv), "alterati": alterati, "spariti": spariti,
+    "integro": not alterati and not spariti,
+}
+
+# --- 2. riproducibilita' run1 vs run2 ----------------------------------------
+coppie = {}
+for nome in ("candidate_diagrammi", "candidate_mockup"):
+    for est in (".md", ".json"):
+        a, b = PREC / "out/run1" / (nome + est), PREC / "out/run2" / (nome + est)
+        coppie[nome + est] = {"run1": sha(a)[:16], "run2": sha(b)[:16], "identici": sha(a) == sha(b)}
+esito["2_run1_vs_run2"] = {"coppie": coppie, "tutte_identiche": all(c["identici"] for c in coppie.values())}
+
+# --- 3. sidecar letti dal sandbox vs Markdown del candidato -------------------
+pdf = {"diagrammi": SF / "catalogo_diagrammi_normativi.pdf",
+       "mockup": SF / "catalogo_mockup_normativi.pdf"}
+cache = SANDBOX / "rag/database/docling_cache"
+ponte = {}
+for nome, p in pdf.items():
+    h = sha(p)
+    side = cache / f"{h}.md"
+    md = PREC / "out/run1" / f"candidate_{nome}.md"
+    # il sidecar e' scritto/letto come testo: si confronta il TESTO, non i byte
+    # (il Markdown di run1 e' salvato con newline='\n', il sidecar puo' avere CRLF).
+    uguale = side.is_file() and side.read_text(encoding="utf-8") == md.read_text(encoding="utf-8")
+    ponte[nome] = {"pdf_corretto_sha256": h, "sidecar": side.name,
+                   "sidecar_presente": side.is_file(),
+                   "contenuto_uguale_a_run1": uguale}
+esito["3_ponte_conversione_indice"] = {
+    "cache": str(cache), "documenti": ponte,
+    "coerente": all(v["sidecar_presente"] and v["contenuto_uguale_a_run1"] for v in ponte.values()),
+}
+
+# --- 4. originali di produzione intatti e distinti ---------------------------
+ORIG = {
+    "diagrammi": (REPO / "docs/02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf",
+                  "9c0d51c52710efbd87aaf8599d7bde09e93ceefbdc206ad35c311d993c56f91f"),
+    "mockup": (REPO / "docs/02_specs_normative/mockups/catalogo_mockup_normativi.pdf",
+               "443ecfca8c8ab4fb706bf518c725e80272e52dfdc4b75b6759fb7d04a00aa1b2"),
+}
+orig = {}
+for nome, (p, atteso) in ORIG.items():
+    h = sha(p)
+    orig[nome] = {"sha256": h, "invariato": h == atteso,
+                  "diverso_dalla_copia_corretta": h != sha(pdf[nome])}
+esito["4_originali_produzione"] = {
+    "documenti": orig,
+    "intatti_e_distinti": all(v["invariato"] and v["diverso_dalla_copia_corretta"]
+                              for v in orig.values()),
+}
+
+esito["riuso_ammissibile"] = all([
+    esito["1_inventario_precedente"]["integro"],
+    esito["2_run1_vs_run2"]["tutte_identiche"],
+    esito["3_ponte_conversione_indice"]["coerente"],
+    esito["4_originali_produzione"]["intatti_e_distinti"],
+])
+
+(W / "out" / "verifica_riuso.json").write_text(
+    json.dumps(esito, ensure_ascii=False, indent=2), encoding="utf-8")
+print(json.dumps(esito, ensure_ascii=False, indent=2))
+assert esito["riuso_ammissibile"], "i risultati precedenti non sono riusabili come sono"

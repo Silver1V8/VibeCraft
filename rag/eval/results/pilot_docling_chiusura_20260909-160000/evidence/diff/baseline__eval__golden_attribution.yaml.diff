@@ -1,0 +1,11 @@
+--- repo/rag/eval\golden_attribution.yaml
++++ baseline/rag/eval\golden_attribution.yaml
+@@ -62,7 +62,7 @@
+ summary:
+   measured_on: '2026-09-07'
+   index_version: v20260907T094225
+-  superseded_by: v20260908T132451   # P0: versione attiva dopo full rebuild del 2026-09-08
++  superseded_by: v20260909T101204   # P0: versione attiva dopo full rebuild del 2026-09-08
+   superseded_on: '2026-09-07'
+   model: qwen3.5:9b
+   runs: 24

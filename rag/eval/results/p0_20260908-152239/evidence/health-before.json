@@ -1,0 +1,39 @@
+{
+  "status": "ok",
+  "reasons": [],
+  "snapshot": {
+    "loaded": true,
+    "version": "v20260908T132451",
+    "age_seconds": null,
+    "graph_nodes": 935,
+    "graph_edges": 1305,
+    "chunks": 250
+  },
+  "manifest": {
+    "indexed": true,
+    "version": "2026-09-08T13:30:59.525956+00:00",
+    "stale": false,
+    "changed_count": 0
+  },
+  "reindex": {
+    "last_job": {
+      "job_id": "0179ca40e5b740d6b839a84d000386c8",
+      "kind": "incremental",
+      "status": "completed",
+      "finished_at": "2026-09-04T07:52:10.195682+00:00"
+    },
+    "pending": false
+  },
+  "dependencies": {
+    "qdrant": true,
+    "ollama": true
+  },
+  "last_alert": null,
+  "eval": {
+    "key": "recall@2",
+    "last_recall": 0.8275862068965517,
+    "trend": "down",
+    "history_points": 48,
+    "min_recall": 0.75
+  }
+}

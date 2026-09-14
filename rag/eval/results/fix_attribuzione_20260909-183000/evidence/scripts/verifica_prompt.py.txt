@@ -1,0 +1,70 @@
+"""Prova che il prompt IN VIGORE nel sandbox e' quello atteso, prima di generare.
+
+Senza questo controllo una configurazione potrebbe girare con il prompt
+dell'altra e nessuno se ne accorgerebbe: e' il rischio principale di un
+confronto fattoriale che applica e ritira una patch sullo stesso sandbox.
+Registra anche la misura di budget, con la scala del progetto.
+
+Uso: verifica_prompt.py <cfg> <sandbox> <out.json>
+"""
+import hashlib
+import importlib.util
+import json
+import pathlib
+import sys
+
+CFG, SANDBOX, OUT = sys.argv[1], pathlib.Path(sys.argv[2]), pathlib.Path(sys.argv[3])
+ATTESA_VARIANTE = CFG in ("C", "D")
+
+target = SANDBOX / "rag" / "core" / "retrieval.py"
+# il modulo importa `core.config`: va risolto DENTRO il sandbox, non nel
+# repository, altrimenti si verificherebbe il prompt sbagliato.
+sys.path.insert(0, str(SANDBOX / "rag"))
+spec = importlib.util.spec_from_file_location("retr_in_vigore", target)
+mod = importlib.util.module_from_spec(spec)
+sys.modules["retr_in_vigore"] = mod
+spec.loader.exec_module(mod)
+
+kw = dict(precedences=[("a", "b")], authority_classes=[("NORMS", 0.8), ("METHODOLOGY", 0.5)])
+prompt = mod.build_ask_prompt("", "", **kw)
+base = mod.build_ask_prompt("CONTESTO-DI-PROVA", "Qual è il vincolo?")
+
+# firme testuali disgiunte delle due versioni di [CLASSE-FONTI]
+FIRMA_VARIANTE = "graduano SOLO le fonti"
+FIRMA_ORIGINALE = "In questo contesto l'autorevolezza dichiarata dagli"
+e_variante = FIRMA_VARIANTE in prompt
+e_originale = FIRMA_ORIGINALE in prompt
+
+# BUDGET: stima ~3 caratteri/token, la STESSA di core.llm._ollama_payload e di
+# tests/test_ask_prompt_cost.py. E' una STIMA, non un conteggio esatto di token.
+token_stimati = len(prompt) // 3
+BUDGET = 1000
+
+dati = {
+    "configurazione": CFG,
+    "sandbox": str(SANDBOX),
+    "sha256_retrieval_py": hashlib.sha256(target.read_bytes()).hexdigest(),
+    "prompt_atteso": "variante-v2" if ATTESA_VARIANTE else "originale",
+    "prompt_in_vigore": "variante-v2" if e_variante else ("originale" if e_originale else "IGNOTO"),
+    "prompt_fisso_caratteri": len(prompt),
+    "prompt_fisso_token_stimati": token_stimati,
+    "budget_token": BUDGET,
+    "budget_rispettato": token_stimati <= BUDGET,
+    "misura": "stima ~3 caratteri/token (core.llm._ollama_payload); NON un conteggio esatto",
+    "prompt_base_sha256": hashlib.sha256(base.encode("utf-8")).hexdigest(),
+    "regole_presenti": [r for r in ("[CITAZIONE-VERIFICABILE]", "[REGOLA-DIZIONARIO-RIGIDO]",
+                                    "[FONTE-CODICE]", "[REGOLA-ASTENSIONE]", "[CLASSE-FONTI]",
+                                    "[PRECEDENZA-FONTI]") if r in prompt],
+    "prompt_fisso_testo": prompt,
+}
+OUT.parent.mkdir(parents=True, exist_ok=True)
+OUT.write_text(json.dumps(dati, indent=2, ensure_ascii=False), encoding="utf-8")
+
+coerente = (e_variante == ATTESA_VARIANTE) and (e_originale != ATTESA_VARIANTE)
+print(f"  prompt in vigore: {dati['prompt_in_vigore']} (atteso {dati['prompt_atteso']}) "
+      f"-> {'OK' if coerente else 'INCOERENTE'}")
+print(f"  budget: {token_stimati} token stimati / {BUDGET} -> "
+      f"{'PASS' if dati['budget_rispettato'] else 'FAIL'}")
+print(f"  regole presenti: {len(dati['regole_presenti'])}/6")
+if not coerente or not dati["budget_rispettato"]:
+    raise SystemExit(1)

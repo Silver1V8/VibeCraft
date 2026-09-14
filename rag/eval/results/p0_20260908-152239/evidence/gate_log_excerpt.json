@@ -1,0 +1,14 @@
+{
+  "source": "rag/eval/results/p0_20260908-152239/rebuild.log",
+  "source_sha256": "b7f74682f8d1141bc0dea60173225f2170154e508e88b33a769a9a03d4cd1a91",
+  "lines": [
+    {
+      "line": 592,
+      "text": "2026-09-08 15:31:15,152 INFO core.indexing: ✅ Eval-gate: recall@2=0.828 ≥ soglia 0.75 (58 casi) — promozione consentita."
+    },
+    {
+      "line": 593,
+      "text": "2026-09-08 15:31:15,157 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260908T132451"
+    }
+  ]
+}

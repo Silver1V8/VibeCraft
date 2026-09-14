@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Costruisce UN indice sperimentale nel sandbox indicato.
+#   build_stack.sh <sandbox-dir> <log-file>
+# Qdrant: SEMPRE l'istanza sperimentale su 127.0.0.1:6401 (container
+# vibecraft-pilot-qdrant, avviato da questa sessione). Nessun contatto con
+# 6333, con l'alias vibecraft_events o con database/ del repository.
+set -euo pipefail
+SANDBOX="$1"
+LOG="$2"
+VENV="C:/Users/Silve/Desktop/vibecraft/rag/.venv/Scripts/python.exe"
+
+export QDRANT_URL="http://127.0.0.1:6401"
+unset QDRANT_API_KEY || true
+export VIBECRAFT_LOG_LEVEL=INFO
+
+cd "$SANDBOX/rag"
+rm -rf database/versions database/CURRENT 2>/dev/null || true
+echo "collection: $(grep -m1 collection_name rag_config.yaml)" | tee "$LOG"
+echo "qdrant:     $QDRANT_URL" | tee -a "$LOG"
+echo "docs_dir:   $SANDBOX/docs" | tee -a "$LOG"
+"$VENV" -B index.py >> "$LOG" 2>&1
+echo "EXIT=$?" | tee -a "$LOG"
+tail -4 "$LOG"

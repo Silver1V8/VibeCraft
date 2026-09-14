@@ -1,0 +1,88 @@
+"""Valuta le 8 domande PDF locali su ogni output di conversione.
+
+Criterio dichiarato in truth/domande_pdf_locali.yaml: la risposta e' DERIVABILE
+se l'output contiene i valori attesi CON l'associazione corretta. Valori presenti
+ma associabili solo per posizione = NON derivabile.
+
+Le sei domande di associazione si risolvono sul confronto cella-per-cella gia'
+prodotto (confronto_celle.json): la risposta e' derivabile se e solo se le celle
+che la compongono sono corrette dentro una tabella con righe e colonne corrette.
+Le due domande sulla banda KPI si risolvono sulla presenza dei valori e della
+loro etichetta nella stessa struttura.
+"""
+
+import json
+import pathlib
+import re
+import sys
+
+P = pathlib.Path(sys.argv[1])
+cells = json.loads((P / "out" / "confronto_celle.json").read_text(encoding="utf-8"))
+
+FILES = {
+    "loader_pypdf": {"diagrammi": "baseline/loader_diagrammi.txt", "mockup": "baseline/loader_mockup.txt"},
+    "intake_markitdown": {"diagrammi": "baseline/markitdown_diagrammi.md", "mockup": "baseline/markitdown_mockup.md"},
+    "docling_granite_grezzo": {"diagrammi": "novlm/granite_diagrammi.md", "mockup": "novlm/granite_mockup.md"},
+    "docling_granite_refined": {"diagrammi": "refine/granite_diagrammi.refined.md", "mockup": "refine/granite_mockup.refined.md"},
+}
+
+# (id, documento, tabella, riga 1-based, colonne coinvolte) per le sei di associazione
+ASSOC = [
+    ("pdf-diag-1", "diagrammi", "diagrammi_p2_registro", 4, ["File", "Area"]),
+    ("pdf-diag-2", "diagrammi", "diagrammi_p2_registro", 1, ["File", "Formato / peso"]),
+    ("pdf-diag-3", "diagrammi", "diagrammi_p2_registro", 5, ["File", "Finalita", "Formato / peso"]),
+    ("pdf-mock-1", "mockup", "mockup_p2_registro", 7, ["File", "Spec.", "Area"]),
+    ("pdf-mock-2", "mockup", "mockup_p2_registro", 11, ["File", "Formato / peso"]),
+    ("pdf-mock-3", "mockup", "mockup_p2_registro", 5, ["File", "Area", "Schermata"]),
+]
+
+# banda KPI: valore -> etichetta attesa
+KPI = {
+    "pdf-diag-4": ("diagrammi", [("5", "artefatti"), ("1", "cartella sorgente")]),
+    "pdf-mock-4": ("mockup", [("11", "artefatti"), ("4", "aree funzionali"), ("SVG + HTML", "formati")]),
+}
+
+out = {}
+for engine, files in FILES.items():
+    res = {}
+    det = cells[engine]["dettaglio"]
+    wrong_by_table = {
+        k: {(w["riga"], w["colonna"]) for w in v.get("celle_sbagliate", [])}
+        for k, v in det.items()
+    }
+    for qid, doc, tid, row, cols in ASSOC:
+        d = det[tid]
+        if not d.get("tabella_completa"):
+            # senza struttura corretta l'associazione non e' ricostruibile
+            res[qid] = {"derivabile": False,
+                        "motivo": d.get("motivo", "tabella non completa: associazione non ricostruibile")}
+            continue
+        bad = [c for c in cols if (row, c) in wrong_by_table[tid]]
+        res[qid] = {"derivabile": not bad,
+                    "motivo": "" if not bad else f"celle errate: {bad}"}
+
+    for qid, (doc, pairs) in KPI.items():
+        text = (P / "out" / files[doc]).read_text(encoding="utf-8")
+        flat = re.sub(r"\s+", " ", text)
+        missing = [v for v, _ in pairs if not re.search(r"(?<![\w.])" + re.escape(v) + r"(?![\w.])", flat)]
+        if missing:
+            res[qid] = {"derivabile": False, "motivo": f"valori assenti dall'output: {missing}"}
+        else:
+            # presenti: ma sono associati all'etichetta o solo giustapposti?
+            associati = all(
+                re.search(re.escape(v) + r"[^\w]{0,4}" + re.escape(lab), flat)
+                or re.search(re.escape(lab) + r"[^\w]{0,4}" + re.escape(v), flat)
+                for v, lab in pairs
+            )
+            res[qid] = {"derivabile": associati,
+                        "motivo": "" if associati else "valori presenti ma associati all'etichetta solo per posizione"}
+    out[engine] = res
+
+(P / "out" / "confronto_domande.json").write_text(
+    json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
+
+ids = [q[0] for q in ASSOC] + list(KPI)
+print(f"{'motore':26s} " + " ".join(f"{i:11s}" for i in ids) + "  totale")
+for e, r in out.items():
+    row = " ".join(f"{('SI' if r[i]['derivabile'] else 'no'):11s}" for i in ids)
+    print(f"{e:26s} {row}  {sum(1 for i in ids if r[i]['derivabile'])}/8")

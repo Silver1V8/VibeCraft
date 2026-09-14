@@ -1,0 +1,141 @@
+"""Seconda tornata, solo dove la prima era ambigua (DOCX, XLSX, HTML latin-1), con ipotesi
+dichiarate PRIMA di guardare gli output:
+
+- DOCX con titolo in stile Heading 1 (niente stile Title): Docling lo scrive a `##`?
+  Con un'immagine incorporata: chi lo dichiara? Con celle unite: associazioni intatte?
+- XLSX: pandas (MarkItDown) tratta come vuote le celle letterali "NA", "N/A", "null";
+  scrive 3.0 per un intero in una colonna con vuoti; le date diventano timestamp.
+  Docling serializzato PER FOGLIO (gruppo del documento, non pagina) conserva i nomi?
+- HTML latin-1 SENZA meta charset: il backend Docling decodifica in UTF-8.
+
+Uso (da rag/): uv run --no-sync python -B <questo> <out_dir>
+"""
+import datetime
+import io
+import json
+import sys
+from pathlib import Path
+
+RAG = Path.cwd()
+sys.path.insert(0, str(RAG))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import confronto_formati as cf  # noqa: E402
+
+OUT = Path(sys.argv[1])
+OUT.mkdir(parents=True, exist_ok=True)
+
+
+def docx_h1() -> bytes:
+    from docx import Document
+    from docx.shared import Inches
+    from PIL import Image
+    d = Document()
+    d.add_heading("Specifica tecnica pagamenti", 1)
+    d.add_paragraph("Premessa del documento.")
+    d.add_heading("Requisiti", 2)
+    d.add_paragraph("Il sistema deve registrare ogni transazione.")
+    img = io.BytesIO()
+    Image.new("RGB", (40, 20), "navy").save(img, format="PNG")
+    d.add_picture(io.BytesIO(img.getvalue()), width=Inches(1))
+    t = d.add_table(rows=3, cols=3)
+    t.cell(0, 0).merge(t.cell(0, 1)).text = "Periodo"
+    t.cell(0, 2).text = "Importo"
+    for i, row in enumerate([["Gennaio", "2026", "1.500 €"], ["Febbraio", "2026", "980 €"]], 1):
+        for j, v in enumerate(row):
+            t.cell(i, j).text = v
+    d.add_heading("Allegati", 2)
+    d.add_paragraph("Nessun allegato.")
+    b = io.BytesIO()
+    d.save(b)
+    return b.getvalue()
+
+
+def xlsx_valori() -> bytes:
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Registro"
+    ws.append(["Codice", "Stato", "Quantità", "Data"])
+    ws.append(["00123", "NA", 3, datetime.date(2026, 9, 10)])
+    ws.append(["00124", "N/A", None, datetime.date(2026, 9, 11)])
+    ws.append(["00125", "null", 7, None])
+    ws.append([])
+    ws.append(["Riepilogo", "Totale"])
+    ws.append(["Pezzi", 10])
+    ws2 = wb.create_sheet("Contatti")
+    ws2.append(["Nome", "Città"])
+    ws2.append(["Anna", "Forlì"])
+    b = io.BytesIO()
+    wb.save(b)
+    return b.getvalue()
+
+
+def docling_per_foglio(data: bytes, nome: str) -> str:
+    from docling.datamodel.base_models import DocumentStream
+    from docling_core.transforms.serializer.markdown import MarkdownDocSerializer, MarkdownParams
+    r = cf._docling_generic().convert(DocumentStream(name=nome, stream=io.BytesIO(data)), raises_on_error=False)
+    d = r.document
+    ser = MarkdownDocSerializer(doc=d, params=MarkdownParams(escape_underscores=False, image_placeholder=""))
+    parti = []
+    for ref in d.body.children:
+        g = ref.resolve(d)
+        parti.append(f"## {getattr(g, 'name', '')}\n\n{ser.serialize(item=g).text}")
+    return cf._finisci("\n\n".join(parti), nome)
+
+
+ATTESE = {
+    "docx_h1": [
+        ("titolo documento a livello 1", lambda m: cf.lvl(m, "Specifica tecnica pagamenti") == 1),
+        ("gerarchia", lambda m: cf.gerarchia(m, "Specifica tecnica pagamenti", "Requisiti")),
+        ("fratelli allo stesso livello", lambda m: cf.lvl(m, "Requisiti") == cf.lvl(m, "Allegati") is not None),
+        ("tabella con cella unita: riga associata", lambda m: cf.riga(m, "Gennaio", "2026", "1.500 €")),
+        ("intestazione della tabella", lambda m: cf.riga(m, "Periodo", "Importo")),
+    ],
+    "xlsx_valori": [
+        ("nomi dei fogli", lambda m: cf.tutti(m, "Registro", "Contatti")),
+        ("zeri iniziali dei codici", lambda m: cf.tutti(m, "00123", "00124")),
+        ("celle letterali NA / N/A / null conservate", lambda m: cf.riga(m, "00123", "NA") and cf.riga(m, "00124", "N/A") and cf.riga(m, "00125", "null")),
+        ("intero non trasformato in decimale", lambda m: cf.riga(m, "00125", "7") and not cf.riga(m, "00125", "7.0")),
+        ("data leggibile senza orario inventato", lambda m: "2026-09-10" in m and "00:00:00" not in m),
+        ("seconda tabella del foglio", lambda m: cf.riga(m, "Pezzi", "10")),
+        ("accenti", lambda m: cf.riga(m, "Anna", "Forlì")),
+        ("nessun NaN", lambda m: "NaN" not in m),
+    ],
+    "html_latin1_senza_meta": [("accenti", lambda m: cf.tutti(m, "città di Forlì", "perché"))],
+}
+
+
+def main() -> int:
+    html = cf.HTML.format(cs="x").replace('<meta charset="x">', "").replace("≥", "&ge;").encode("latin-1")
+    casi = {
+        "docx_h1": ("docx", "specifica.docx", docx_h1()),
+        "docx_sample": ("docx", "sample.docx", (RAG / "tests/fixtures/intake/sample.docx").read_bytes()),
+        "xlsx_valori": ("xlsx", "registro.xlsx", xlsx_valori()),
+        "html_latin1_senza_meta": ("html", "guida.html", html),
+    }
+    report = {}
+    for caso, (fmt, nome, data) in casi.items():
+        (cf.FIX / nome).write_bytes(data)
+        motori = {"markitdown": lambda: cf.markitdown(data, fmt, nome), "docling": lambda: cf.docling(data, nome)}
+        if fmt == "xlsx":
+            motori["docling_per_foglio"] = lambda: docling_per_foglio(data, nome)
+        if fmt == "html":
+            motori["docling+utf8"] = lambda: cf.docling(data.decode(cf.ic._detect_charset(data)).encode("utf-8"), nome)
+        esiti = {}
+        for motore, fn in motori.items():
+            md, err, sec, mb = cf.misura(fn)
+            (OUT / f"{caso}.{motore}.md").write_text(md, encoding="utf-8")
+            controlli = {n: bool(md) and bool(c(md)) for n, c in ATTESE.get(caso, [])}
+            esiti[motore] = {"errore": err, "secondi": sec, "titoli": cf.heads(md)[:8], "controlli": controlli,
+                             "superati": f"{sum(controlli.values())}/{len(controlli)}"}
+            print(f"{caso:24} {motore:20} {esiti[motore]['superati']:>5} falliti="
+                  f"{[k for k, v in controlli.items() if not v]} titoli={esiti[motore]['titoli'][:4]}"
+                  + (f" ERR {err[:80]}" if err else ""), flush=True)
+        report[caso] = esiti
+    (OUT / "confronto_2.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

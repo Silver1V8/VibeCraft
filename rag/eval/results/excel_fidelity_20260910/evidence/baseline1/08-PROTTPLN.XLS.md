@@ -1,0 +1,4 @@
+## Sheet1
+
+| Per la cartella di lavoro sono impostate autorizzazioni limitate. La cartella di lavoro può essere aperta solo con Microsoft Office 2003 o versioni successive. È possibile richiedere all'autore della cartella di lavoro di inviare una copia leggibile tramite il componente aggiuntivo Rights Management per Internet Explorer.   |
+|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|

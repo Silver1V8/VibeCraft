@@ -1,0 +1,60 @@
+{
+  "diagrammi": {
+    "sha256_input": "9c0d51c52710efbd87aaf8599d7bde09e93ceefbdc206ad35c311d993c56f91f",
+    "loader": {
+      "secondi": 0.095,
+      "frontmatter": {},
+      "chars": 1300,
+      "sha256": "d610a5adf26a15e1824ee89f5c5ff87561a751c1ace30cad86526d0b6c115a90",
+      "righe_con_pipe": 0,
+      "heading_h2": 0,
+      "chunk": 1,
+      "chunk_ids": [
+        "02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf#00-documento"
+      ]
+    },
+    "intake_markitdown": {
+      "secondi": 0.086,
+      "chars": 1612,
+      "sha256": "292006d5fe0b17ac65fa8045a5c2648986215d3ff3a28051852cba766303971e",
+      "metadata": {
+        "source_filename": "catalogo_diagrammi_normativi.pdf",
+        "sha256": "9c0d51c52710efbd87aaf8599d7bde09e93ceefbdc206ad35c311d993c56f91f",
+        "formato": "pdf",
+        "converted_at": "2026-09-08T14:39:40.000530+00:00",
+        "n_chars": 1612
+      },
+      "righe_con_pipe": 12,
+      "heading_h2": 0
+    }
+  },
+  "mockup": {
+    "sha256_input": "443ecfca8c8ab4fb706bf518c725e80272e52dfdc4b75b6759fb7d04a00aa1b2",
+    "loader": {
+      "secondi": 0.016,
+      "frontmatter": {},
+      "chars": 1798,
+      "sha256": "eda7ee86af14dfcad46ab813d55fe00cb1a5e875acffc42457b95d93e746463b",
+      "righe_con_pipe": 0,
+      "heading_h2": 0,
+      "chunk": 1,
+      "chunk_ids": [
+        "02_specs_normative/mockups/catalogo_mockup_normativi.pdf#00-documento"
+      ]
+    },
+    "intake_markitdown": {
+      "secondi": 0.106,
+      "chars": 1722,
+      "sha256": "eeb54c8f13334bfe1f9b5ec7be649a10e08d966c67446b4e0dc4732d1d5aa246",
+      "metadata": {
+        "source_filename": "catalogo_mockup_normativi.pdf",
+        "sha256": "443ecfca8c8ab4fb706bf518c725e80272e52dfdc4b75b6759fb7d04a00aa1b2",
+        "formato": "pdf",
+        "converted_at": "2026-09-08T14:39:40.124721+00:00",
+        "n_chars": 1722
+      },
+      "righe_con_pipe": 0,
+      "heading_h2": 0
+    }
+  }
+}

@@ -1,0 +1,2432 @@
+[
+  {
+    "file": "/app/rag/eval/results/libreoffice_20260910/fixture/registro.xlsx",
+    "sha256": "588a3d1436f98722f9851b2675a344f422b87391a42baf11db659720be4229ba",
+    "seconds": 3.3469,
+    "peak_tree_rss_mb": 521.1,
+    "markdown_sha256": "a495eac18d1c46239a23fe967fe9fd08e872f55a9e01f317e5de53ab08509b6d",
+    "cells": 30,
+    "sheetnames_ok": true,
+    "blocks": [],
+    "lost_row_associations": [
+      [
+        "Registro",
+        1,
+        [
+          "Magazzino Nord registro 2026"
+        ]
+      ],
+      [
+        "Registro",
+        3,
+        [
+          "00123",
+          "NA",
+          "3",
+          "2026-09-10",
+          "1200.5",
+          "0.12"
+        ]
+      ],
+      [
+        "Registro",
+        4,
+        [
+          "00124",
+          "N/A",
+          "",
+          "2026-09-11",
+          "300",
+          "0.05"
+        ]
+      ],
+      [
+        "Registro",
+        7,
+        [
+          "Totale",
+          "",
+          "999",
+          "",
+          "1500.5"
+        ]
+      ]
+    ],
+    "metadata": {
+      "source_filename": "registro.xlsx",
+      "sha256": "588a3d1436f98722f9851b2675a344f422b87391a42baf11db659720be4229ba",
+      "formato": "xlsx",
+      "converted_at": "2026-09-11T07:34:16.196849+00:00",
+      "n_chars": 610,
+      "motore": "docling",
+      "versione_motore": "2.126.0",
+      "fallback": null,
+      "avvisi": [
+        "1 celle con formula non hanno un valore calcolato memorizzato nel file (tipico dei fogli scritti da un programma e mai aperti in Excel): nel Markdown sono vuote. Apri e salva il file in Excel o LibreOffice per memorizzare i risultati, poi ricaricalo."
+      ]
+    }
+  },
+  {
+    "file": "/app/rag/eval/results/libreoffice_20260910/fixture/registro_excel.xlsx",
+    "sha256": "1fc40f0d58f9a146d15050f0ceb96ecb40852fd22eb45bf5c3566bd847f2f79c",
+    "seconds": 0.0222,
+    "peak_tree_rss_mb": 521.7,
+    "markdown_sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b",
+    "cells": 31,
+    "sheetnames_ok": true,
+    "blocks": [],
+    "lost_row_associations": [
+      [
+        "Registro",
+        1,
+        [
+          "Magazzino Nord registro 2026"
+        ]
+      ],
+      [
+        "Registro",
+        3,
+        [
+          "00123",
+          "NA",
+          "3",
+          "2026-09-10",
+          "1200.5",
+          "0.12"
+        ]
+      ],
+      [
+        "Registro",
+        4,
+        [
+          "00124",
+          "N/A",
+          "",
+          "2026-09-11",
+          "300",
+          "0.05"
+        ]
+      ],
+      [
+        "Registro",
+        7,
+        [
+          "Totale",
+          "",
+          "10",
+          "",
+          "1500.5",
+          "2401"
+        ]
+      ]
+    ],
+    "metadata": {
+      "source_filename": "registro_excel.xlsx",
+      "sha256": "1fc40f0d58f9a146d15050f0ceb96ecb40852fd22eb45bf5c3566bd847f2f79c",
+      "formato": "xlsx",
+      "converted_at": "2026-09-11T07:34:16.245236+00:00",
+      "n_chars": 626,
+      "motore": "docling",
+      "versione_motore": "2.126.0",
+      "fallback": null,
+      "avvisi": []
+    }
+  },
+  {
+    "file": "/app/rag/eval/results/libreoffice_20260910/fixture/registro.xls",
+    "sha256": "34afb1ad515d8214630c67024b5dda362d3f819616ab031acf2cdc5a534053c0",
+    "seconds": 1.5222,
+    "peak_tree_rss_mb": 758.9,
+    "markdown_sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b",
+    "cells": 31,
+    "sheetnames_ok": true,
+    "blocks": [],
+    "lost_row_associations": [
+      [
+        "Registro",
+        1,
+        [
+          "Magazzino Nord registro 2026"
+        ]
+      ],
+      [
+        "Registro",
+        3,
+        [
+          "00123",
+          "NA",
+          "3",
+          "2026-09-10",
+          "1200.5",
+          "0.12"
+        ]
+      ],
+      [
+        "Registro",
+        4,
+        [
+          "00124",
+          "N/A",
+          "",
+          "2026-09-11",
+          "300",
+          "0.05"
+        ]
+      ],
+      [
+        "Registro",
+        7,
+        [
+          "Totale",
+          "",
+          "10",
+          "",
+          "1500.5",
+          "2401"
+        ]
+      ]
+    ],
+    "metadata": {
+      "source_filename": "registro.xls",
+      "sha256": "34afb1ad515d8214630c67024b5dda362d3f819616ab031acf2cdc5a534053c0",
+      "formato": "xls",
+      "converted_at": "2026-09-11T07:34:17.794352+00:00",
+      "n_chars": 626,
+      "motore": "docling",
+      "versione_motore": "2.126.0",
+      "fallback": null,
+      "avvisi": [],
+      "normalizzazione": {
+        "motore": "libreoffice",
+        "versione": "LibreOffice 25.2.3.2 520(Build:2)",
+        "da": "xls",
+        "a": "xlsx"
+      }
+    },
+    "normalization_changes": []
+  },
+  {
+    "file": "/app/rag/eval/results/libreoffice_20260910/fixture/rete.xlsx",
+    "sha256": "56d2d1b3f97b9c23297de67aa3f7e2bf1c21a10b093fe5ac6105ac4bbba35706",
+    "seconds": 0.0183,
+    "peak_tree_rss_mb": 522.0,
+    "markdown_sha256": "e1e02113d4c62d1ed79a783e3baf9c2335082f33ed3258f0a9b3a9ddc821f883",
+    "cells": 4,
+    "sheetnames_ok": true,
+    "blocks": [],
+    "lost_row_associations": [],
+    "metadata": {
+      "source_filename": "rete.xlsx",
+      "sha256": "56d2d1b3f97b9c23297de67aa3f7e2bf1c21a10b093fe5ac6105ac4bbba35706",
+      "formato": "xlsx",
+      "converted_at": "2026-09-11T07:34:17.844833+00:00",
+      "n_chars": 120,
+      "motore": "docling",
+      "versione_motore": "2.126.0",
+      "fallback": null,
+      "avvisi": [
+        "2 celle con formula non hanno un valore calcolato memorizzato nel file (tipico dei fogli scritti da un programma e mai aperti in Excel): nel Markdown sono vuote. Apri e salva il file in Excel o LibreOffice per memorizzare i risultati, poi ricaricalo."
+      ]
+    }
+  },
+  {
+    "file": "/app/rag/eval/results/verifica_finale_20260910/formati2/fixture/registro.xlsx",
+    "sha256": "e457f838f9f10fef902f81e699718dfafc9b5cc2b9e8debcd0f3bd04be99cb01",
+    "seconds": 0.0222,
+    "peak_tree_rss_mb": 522.0,
+    "markdown_sha256": "2811d139b0e300ca4b4185559d87d9d90259604264fc373a8b42a34b65b5d63d",
+    "cells": 22,
+    "sheetnames_ok": true,
+    "blocks": [],
+    "lost_row_associations": [
+      [
+        "Registro",
+        2,
+        [
+          "00123",
+          "NA",
+          "3",
+          "2026-09-10"
+        ]
+      ],
+      [
+        "Registro",
+        3,
+        [
+          "00124",
+          "N/A",
+          "",
+          "2026-09-11"
+        ]
+      ]
+    ],
+    "metadata": {
+      "source_filename": "registro.xlsx",
+      "sha256": "e457f838f9f10fef902f81e699718dfafc9b5cc2b9e8debcd0f3bd04be99cb01",
+      "formato": "xlsx",
+      "converted_at": "2026-09-11T07:34:17.894936+00:00",
+      "n_chars": 461,
+      "motore": "docling",
+      "versione_motore": "2.126.0",
+      "fallback": null,
+      "avvisi": []
+    }
+  },
+  {
+    "file": "/app/rag/eval/results/verifica_finale_20260910/formati/fixture/budget.xlsx",
+    "sha256": "3d23d5d68a71188c52d88c82002193625c09edde01619c19ab85ec28cc380977",
+    "seconds": 0.0222,
+    "peak_tree_rss_mb": 522.1,
+    "markdown_sha256": "5163eb2407be2b5418026c046bda9ab234ce154894ffbbb1ee5d3d2dadbc31a6",
+    "cells": 15,
+    "sheetnames_ok": true,
+    "blocks": [],
+    "lost_row_associations": [],
+    "metadata": {
+      "source_filename": "budget.xlsx",
+      "sha256": "3d23d5d68a71188c52d88c82002193625c09edde01619c19ab85ec28cc380977",
+      "formato": "xlsx",
+      "converted_at": "2026-09-11T07:34:17.945708+00:00",
+      "n_chars": 310,
+      "motore": "docling",
+      "versione_motore": "2.126.0",
+      "fallback": null,
+      "avvisi": [
+        "1 celle con formula non hanno un valore calcolato memorizzato nel file (tipico dei fogli scritti da un programma e mai aperti in Excel): nel Markdown sono vuote. Apri e salva il file in Excel o LibreOffice per memorizzare i risultati, poi ricaricalo."
+      ]
+    }
+  },
+  {
+    "file": "/app/rag/eval/results/verifica_finale_20260910/formati/fixture/budget.xls",
+    "sha256": "9bae8d498c3115feeba2a83b33c5e01303758fdcf4bed2109844a9f8b6d70a55",
+    "seconds": 1.229,
+    "peak_tree_rss_mb": 759.9,
+    "markdown_sha256": "c0ab198f910234aee72ddfbdaf5ff19080d1bbe240ca91cc095e4ce85261da9c",
+    "cells": 13,
+    "sheetnames_ok": true,
+    "blocks": [],
+    "lost_row_associations": [],
+    "metadata": {
+      "source_filename": "budget.xls",
+      "sha256": "9bae8d498c3115feeba2a83b33c5e01303758fdcf4bed2109844a9f8b6d70a55",
+      "formato": "xls",
+      "converted_at": "2026-09-11T07:34:19.203828+00:00",
+      "n_chars": 270,
+      "motore": "docling",
+      "versione_motore": "2.126.0",
+      "fallback": null,
+      "avvisi": [],
+      "normalizzazione": {
+        "motore": "libreoffice",
+        "versione": "LibreOffice 25.2.3.2 520(Build:2)",
+        "da": "xls",
+        "a": "xlsx"
+      }
+    },
+    "normalization_changes": []
+  },
+  {
+    "file": "/app/rag/tests/fixtures/intake/legacy.xls",
+    "sha256": "34afb1ad515d8214630c67024b5dda362d3f819616ab031acf2cdc5a534053c0",
+    "seconds": 1.152,
+    "peak_tree_rss_mb": 760.5,
+    "markdown_sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b",
+    "cells": 31,
+    "sheetnames_ok": true,
+    "blocks": [],
+    "lost_row_associations": [
+      [
+        "Registro",
+        1,
+        [
+          "Magazzino Nord registro 2026"
+        ]
+      ],
+      [
+        "Registro",
+        3,
+        [
+          "00123",
+          "NA",
+          "3",
+          "2026-09-10",
+          "1200.5",
+          "0.12"
+        ]
+      ],
+      [
+        "Registro",
+        4,
+        [
+          "00124",
+          "N/A",
+          "",
+          "2026-09-11",
+          "300",
+          "0.05"
+        ]
+      ],
+      [
+        "Registro",
+        7,
+        [
+          "Totale",
+          "",
+          "10",
+          "",
+          "1500.5",
+          "2401"
+        ]
+      ]
+    ],
+    "metadata": {
+      "source_filename": "legacy.xls",
+      "sha256": "34afb1ad515d8214630c67024b5dda362d3f819616ab031acf2cdc5a534053c0",
+      "formato": "xls",
+      "converted_at": "2026-09-11T07:34:20.388502+00:00",
+      "n_chars": 626,
+      "motore": "docling",
+      "versione_motore": "2.126.0",
+      "fallback": null,
+      "avvisi": [],
+      "normalizzazione": {
+        "motore": "libreoffice",
+        "versione": "LibreOffice 25.2.3.2 520(Build:2)",
+        "da": "xls",
+        "a": "xlsx"
+      }
+    },
+    "normalization_changes": []
+  },
+  {
+    "file": "/samples/PROTTPLN.XLS",
+    "sha256": "c59c01b651fe8e9aef81cb905d8961fe3bda3bd066ea6d702a442a55b8b6912d",
+    "seconds": 1.2744,
+    "peak_tree_rss_mb": 762.3,
+    "markdown_sha256": "146e6477e58a2b513730abeae6b6530683435bf986926a10bf9e7b383fce791d",
+    "cells": 1,
+    "sheetnames_ok": false,
+    "blocks": [],
+    "lost_row_associations": [],
+    "metadata": {
+      "source_filename": "PROTTPLN.XLS",
+      "sha256": "c59c01b651fe8e9aef81cb905d8961fe3bda3bd066ea6d702a442a55b8b6912d",
+      "formato": "xls",
+      "converted_at": "2026-09-11T07:34:21.690668+00:00",
+      "n_chars": 670,
+      "motore": "docling",
+      "versione_motore": "2.126.0",
+      "fallback": null,
+      "avvisi": [],
+      "normalizzazione": {
+        "motore": "libreoffice",
+        "versione": "LibreOffice 25.2.3.2 520(Build:2)",
+        "da": "xls",
+        "a": "xlsx"
+      }
+    },
+    "normalization_changes": []
+  },
+  {
+    "file": "/samples/SOLVSAMP.XLS",
+    "sha256": "b7fefe55732c04a89825dcb087bfa872165b1752f00acbbed8f5e6cf81df2091",
+    "seconds": 1.8208,
+    "peak_tree_rss_mb": 762.2,
+    "markdown_sha256": "18f65358ffc70a486d91c7fca714135798328f9189c1101f6c4c75ea75fbb901",
+    "cells": 883,
+    "sheetnames_ok": true,
+    "blocks": [],
+    "lost_row_associations": [
+      [
+        "Panoramica",
+        5,
+        [
+          "Unità vendute",
+          "3591.5525890622844",
+          "4389.675386631681",
+          "3192.491190277586",
+          "4788.7367854163795",
+          "15962.455951387932"
+        ]
+      ],
+      [
+        "Panoramica",
+        6,
+        [
+          "Fatturato",
+          "14366210.356249137",
+          "17558701.546526726",
+          "12769964.761110345",
+          "19154947.14166552",
+          "63849823.80555172",
+          "",
+          "Codice colore"
+        ]
+      ],
+      [
+        "Panoramica",
+        7,
+        [
+          "Costo del venduto",
+          "8978881.472655712",
+          "10974188.466579203",
+          "7981227.975693965",
+          "11971841.963540949",
+          "39906139.878469825"
+        ]
+      ],
+      [
+        "Panoramica",
+        8,
+        [
+          "Margine lordo",
+          "5387328.883593425",
+          "6584513.079947524",
+          "4788736.78541638",
+          "7183105.178124569",
+          "23943683.927081898",
+          "",
+          "",
+          "",
+          "   Cella obiettivo"
+        ]
+      ],
+      [
+        "Panoramica",
+        10,
+        [
+          "Addetti alle vendite",
+          "8000",
+          "8000",
+          "9000",
+          "9000",
+          "34000",
+          "",
+          "",
+          "",
+          "   Celle variabili"
+        ]
+      ],
+      [
+        "Panoramica",
+        12,
+        [
+          "Spese generali",
+          "2154931.5534373703",
+          "2633805.2319790088",
+          "1915494.7141665516",
+          "2873242.0712498277",
+          "9577473.57083276",
+          "",
+          "",
+          "",
+          "   Vincoli"
+        ]
+      ],
+      [
+        "Panoramica",
+        13,
+        [
+          "Costo totale",
+          "2172931.5534373703",
+          "2651805.2319790088",
+          "1934494.7141665516",
+          "2892242.0712498277",
+          "9651473.57083276"
+        ]
+      ],
+      [
+        "Panoramica",
+        15,
+        [
+          "Utile operativo",
+          "3214397.330156055",
+          "3932707.847968515",
+          "2854242.0712498277",
+          "4290863.106874742",
+          "14292210.356249139"
+        ]
+      ],
+      [
+        "Panoramica",
+        16,
+        [
+          "Margine di profitto",
+          "0.22374705997241845",
+          "0.2239748672501607",
+          "0.223512133717247",
+          "0.22400808914483133",
+          "0.22384103047448717"
+        ]
+      ],
+      [
+        "Panoramica",
+        24,
+        [
+          "Riga",
+          "Contiene",
+          "",
+          "Spiegazione"
+        ]
+      ],
+      [
+        "Panoramica",
+        25,
+        [
+          "3",
+          "Valori fissi",
+          "",
+          "Fattore di stagionalità: le vendite crescono nei trimestri 2 e 4,"
+        ]
+      ],
+      [
+        "Panoramica",
+        28,
+        [
+          "5",
+          "=35*B3*(B11+3000)^0.5",
+          "",
+          "Previsione del volume delle vendite trimestrale:"
+        ]
+      ],
+      [
+        "Panoramica",
+        32,
+        [
+          "6",
+          "=B5*$B$18",
+          "",
+          "Fatturato: volume delle vendite (riga 5)"
+        ]
+      ],
+      [
+        "Panoramica",
+        35,
+        [
+          "7",
+          "=B5*$B$19",
+          "",
+          "Costo del venduto: volume delle vendite (riga 5)"
+        ]
+      ],
+      [
+        "Panoramica",
+        38,
+        [
+          "8",
+          "=B6-B7",
+          "",
+          "Margine lordo: fatturato (riga 6)"
+        ]
+      ],
+      [
+        "Panoramica",
+        41,
+        [
+          "10",
+          "Valori fissi",
+          "",
+          "Spese addetti alle vendite."
+        ]
+      ],
+      [
+        "Panoramica",
+        43,
+        [
+          "11",
+          "Valori fissi",
+          "",
+          "Budget pubblicitario (circa il 6.3% del fatturato)."
+        ]
+      ],
+      [
+        "Panoramica",
+        45,
+        [
+          "12",
+          "=0,15*B6",
+          "",
+          "Spese generali: fatturato (riga 6)"
+        ]
+      ],
+      [
+        "Panoramica",
+        48,
+        [
+          "13",
+          "=SUM(B10:B12)",
+          "",
+          "Totale costi: spese addetti alle vendite (riga 10) più"
+        ]
+      ],
+      [
+        "Panoramica",
+        51,
+        [
+          "15",
+          "=B8-B13",
+          "",
+          "Utile operativo: margine lordo (riga 8) meno costo totale"
+        ]
+      ],
+      [
+        "Panoramica",
+        54,
+        [
+          "16",
+          "=B15/B6",
+          "",
+          "Margine di profitto: utile (riga 15)"
+        ]
+      ],
+      [
+        "Panoramica",
+        57,
+        [
+          "18",
+          "Valori fissi",
+          "",
+          "Prezzo unitario."
+        ]
+      ],
+      [
+        "Panoramica",
+        59,
+        [
+          "19",
+          "Valori fissi",
+          "",
+          "Costo unitario."
+        ]
+      ],
+      [
+        "Panoramica",
+        70,
+        [
+          "Il Risolutore può essere utilizzato per determinare il valore massimo di una cella variandone un'altra. "
+        ]
+      ],
+      [
+        "Panoramica",
+        71,
+        [
+          "Le due celle devono essere poste in relazione mediante le formule del foglio di lavoro. In caso contrario, "
+        ]
+      ],
+      [
+        "Panoramica",
+        81,
+        [
+          "Cambiando le celle o selezionare la cella B11 (spesa pubblicitaria nel primo "
+        ]
+      ],
+      [
+        "Panoramica",
+        84,
+        [
+          "Alcuni messaggi verranno visualizzati nella barra di stato mentre il problema viene impostato e risolto. "
+        ]
+      ],
+      [
+        "Panoramica",
+        93,
+        [
+          "Scegliere il pulsante Reimposta se si desidera ripristinare le impostazioni originarie delle opzioni "
+        ]
+      ],
+      [
+        "Panoramica",
+        106,
+        [
+          "Imposta cella obiettivo o selezionare la cella F15 (utile operativo annuale) "
+        ]
+      ],
+      [
+        "Panoramica",
+        107,
+        [
+          "sul foglio di lavoro. Selezionare l'opzione Max. Digitare b11:e11 nella casella "
+        ]
+      ],
+      [
+        "Panoramica",
+        109,
+        [
+          "  trimestre) sul foglio di lavoro. Scegliere il pulsante Risolvi."
+        ]
+      ],
+      [
+        "Panoramica",
+        114,
+        [
+          "Questo è un problema di ottimizzazione non lineare di media complessità, consistente nel ricercare "
+        ]
+      ],
+      [
+        "Panoramica",
+        165,
+        [
+          "finanziario. Rispetto al risultato non vincolato, questa soluzione comporta un assottigliamento degli utili di "
+        ]
+      ],
+      [
+        "Mix di prodotti",
+        2,
+        [
+          "Un'azienda produce televisori, impianti stereo e altoparlanti utilizzando una scorta comune per trasformatori,",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Codice colore"
+        ]
+      ],
+      [
+        "Mix di prodotti",
+        4,
+        [
+          "Si consideri che il profitto per unità fabbricata diminuisce con l'aumentare del volume perchè si rendono",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Cella obiettivo"
+        ]
+      ],
+      [
+        "Mix di prodotti",
+        8,
+        [
+          "Televisori",
+          "Imp. stereo",
+          "Altoparlanti",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Vincoli"
+        ]
+      ],
+      [
+        "Mix di prodotti",
+        12,
+        [
+          "Tubo catodico",
+          "250",
+          "100",
+          "1",
+          "0",
+          "0",
+          "",
+          "Esponente "
+        ]
+      ],
+      [
+        "Mix di prodotti",
+        13,
+        [
+          "Cono",
+          "800",
+          "500",
+          "2",
+          "2",
+          "1",
+          "",
+          "di diminuzione"
+        ]
+      ],
+      [
+        "Mix di prodotti",
+        14,
+        [
+          "Alternatore",
+          "450",
+          "200",
+          "1",
+          "1",
+          "0",
+          "",
+          "dei ricavi:"
+        ]
+      ],
+      [
+        "Mix di prodotti",
+        15,
+        [
+          "Diodi",
+          "600",
+          "400",
+          "2",
+          "1",
+          "1",
+          "",
+          "0.9"
+        ]
+      ],
+      [
+        "Mix di prodotti",
+        17,
+        [
+          "Per prodotto",
+          "4732.180083601453",
+          "3154.7867224009683",
+          "2208.350705680678"
+        ]
+      ],
+      [
+        "Mix di prodotti",
+        18,
+        [
+          "Totale",
+          "10095.317511683099"
+        ]
+      ],
+      [
+        "Mix di prodotti",
+        26,
+        [
+          "Cella obiettivo",
+          "",
+          "D18",
+          "",
+          "L'obiettivo è massimizzare i profitti."
+        ]
+      ],
+      [
+        "Mix di prodotti",
+        28,
+        [
+          "Celle variabili",
+          "",
+          "D9:F9",
+          "",
+          "Numero di unità da produrre per ciascun prodotto."
+        ]
+      ],
+      [
+        "Mix di prodotti",
+        30,
+        [
+          "Vincoli",
+          "",
+          "C11:C15<=B11:B15",
+          "",
+          "Il numero dei componenti utilizzati non può essere"
+        ]
+      ],
+      [
+        "Mix di prodotti",
+        33,
+        [
+          "D9:F9>=0",
+          "",
+          "Il numero di unità da produrre deve essere maggiore"
+        ]
+      ],
+      [
+        "Trasporti",
+        6,
+        [
+          "Numero di spedizioni dallo stabilimento x al magazzino y:",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "Codice colore"
+        ]
+      ],
+      [
+        "Trasporti",
+        8,
+        [
+          "Gioia Tauro",
+          "5",
+          "1",
+          "1",
+          "1",
+          "1",
+          "1",
+          "",
+          "",
+          "",
+          "",
+          "   Cella obiettivo"
+        ]
+      ],
+      [
+        "Trasporti",
+        10,
+        [
+          "Marghera",
+          "5",
+          "1",
+          "1",
+          "1",
+          "1",
+          "1",
+          "",
+          "",
+          "",
+          "",
+          "   Celle variabili"
+        ]
+      ],
+      [
+        "Trasporti",
+        11,
+        [
+          "---",
+          "---",
+          "---",
+          "---",
+          "---"
+        ]
+      ],
+      [
+        "Trasporti",
+        12,
+        [
+          "Totale:",
+          "",
+          "3",
+          "3",
+          "3",
+          "3",
+          "3",
+          "",
+          "",
+          "",
+          "",
+          "   Vincoli"
+        ]
+      ],
+      [
+        "Trasporti",
+        23,
+        [
+          "regionali. Le merci possono essere spedite da qualsiasi stabilimento a qualsiasi magazzino, ma i costi "
+        ]
+      ],
+      [
+        "Trasporti",
+        24,
+        [
+          "diminuiscono minimizzando le distanze. Il problema consiste nel determinare quanta merce spedire "
+        ]
+      ],
+      [
+        "Trasporti",
+        25,
+        [
+          "da ciascun stabilimento a ciascun magazzino per soddisfare la domanda regionale senza eccedere "
+        ]
+      ],
+      [
+        "Trasporti",
+        30,
+        [
+          "Cella obiettivo",
+          "",
+          "B20",
+          "",
+          "L'obiettivo è minimizzare i costi di trasporto totali."
+        ]
+      ],
+      [
+        "Trasporti",
+        32,
+        [
+          "Celle variabili",
+          "",
+          "C8:G10",
+          "",
+          "Quantità da spedire da ciascun stabilimento"
+        ]
+      ],
+      [
+        "Trasporti",
+        35,
+        [
+          "Vincoli",
+          "",
+          "B8:B10<=B16:B18",
+          "",
+          "Il volume delle spedizioni non può eccedere"
+        ]
+      ],
+      [
+        "Trasporti",
+        38,
+        [
+          "C12:G12>=C14:G14",
+          "",
+          "I volumi di merce spediti ai magazzini devono"
+        ]
+      ],
+      [
+        "Trasporti",
+        41,
+        [
+          "C8:G10>=0",
+          "",
+          "Il numero di spedizioni deve essere maggiore "
+        ]
+      ],
+      [
+        "Trasporti",
+        45,
+        [
+          "Presupponi modello lineare nella finestra di dialogo Opzioni del Risolutore prima di scegliere "
+        ]
+      ],
+      [
+        "Gestione del personale",
+        6,
+        [
+          "Turno",
+          "Giorni liberi",
+          "",
+          "Dipendenti",
+          "",
+          "Lun",
+          "Mar",
+          "Mer",
+          "Gio",
+          "Ven",
+          "Sab",
+          "Dom",
+          "",
+          "Codice colore"
+        ]
+      ],
+      [
+        "Gestione del personale",
+        7,
+        [
+          "  A",
+          "Dom, Lun",
+          "",
+          "4",
+          "",
+          "0",
+          "0",
+          "1",
+          "1",
+          "1",
+          "1",
+          "1"
+        ]
+      ],
+      [
+        "Gestione del personale",
+        8,
+        [
+          "  B",
+          "Lun, Mar",
+          "",
+          "4",
+          "",
+          "1",
+          "0",
+          "0",
+          "1",
+          "1",
+          "1",
+          "1",
+          "",
+          "",
+          "",
+          "   Cella obiettivo"
+        ]
+      ],
+      [
+        "Gestione del personale",
+        9,
+        [
+          "  C",
+          "Mar, Mer",
+          "",
+          "4",
+          "",
+          "1",
+          "1",
+          "0",
+          "0",
+          "1",
+          "1",
+          "1"
+        ]
+      ],
+      [
+        "Gestione del personale",
+        10,
+        [
+          "  D",
+          "Mer, Gio",
+          "",
+          "6",
+          "",
+          "1",
+          "1",
+          "1",
+          "0",
+          "0",
+          "1",
+          "1",
+          "",
+          "",
+          "",
+          "   Celle variabili"
+        ]
+      ],
+      [
+        "Gestione del personale",
+        11,
+        [
+          "  E",
+          "Gio, Ven",
+          "",
+          "6",
+          "",
+          "1",
+          "1",
+          "1",
+          "1",
+          "0",
+          "0",
+          "1"
+        ]
+      ],
+      [
+        "Gestione del personale",
+        12,
+        [
+          "  F",
+          "Ven, Sab",
+          "",
+          "4",
+          "",
+          "1",
+          "1",
+          "1",
+          "1",
+          "1",
+          "0",
+          "0",
+          "",
+          "",
+          "",
+          "   Vincoli"
+        ]
+      ],
+      [
+        "Gestione del personale",
+        13,
+        [
+          "  G",
+          "Sab, Dom",
+          "",
+          "4",
+          "",
+          "0",
+          "1",
+          "1",
+          "1",
+          "1",
+          "1",
+          "0"
+        ]
+      ],
+      [
+        "Gestione del personale",
+        15,
+        [
+          "Turni totali:",
+          "32",
+          "",
+          "24",
+          "24",
+          "24",
+          "22",
+          "20",
+          "22",
+          "24"
+        ]
+      ],
+      [
+        "Gestione del personale",
+        17,
+        [
+          "Domanda totale:",
+          "",
+          "",
+          "22",
+          "17",
+          "13",
+          "14",
+          "15",
+          "18",
+          "24"
+        ]
+      ],
+      [
+        "Gestione del personale",
+        19,
+        [
+          "Paga/dipend./giorno:",
+          "",
+          "40000"
+        ]
+      ],
+      [
+        "Gestione del personale",
+        20,
+        [
+          "Paghe/settimana:",
+          "",
+          "1280000"
+        ]
+      ],
+      [
+        "Gestione del personale",
+        29,
+        [
+          "Cella obiettivo",
+          "",
+          "D20",
+          "",
+          "L'obiettivo è minimizzare le spese di manodopera."
+        ]
+      ],
+      [
+        "Gestione del personale",
+        31,
+        [
+          "Celle variabili",
+          "",
+          "D7:D13",
+          "",
+          "Dipendenti in servizio in ciascuna giornata."
+        ]
+      ],
+      [
+        "Gestione del personale",
+        33,
+        [
+          "Vincoli",
+          "",
+          "D7:D13>=0",
+          "",
+          "Il numero di dipendenti deve essere maggiore o uguale a 0."
+        ]
+      ],
+      [
+        "Gestione del personale",
+        35,
+        [
+          "D7:D13=Numero intero",
+          "",
+          "Il numero di dipendenti deve essere un numero intero."
+        ]
+      ],
+      [
+        "Gestione del personale",
+        37,
+        [
+          "F15:L15>=F17:L17",
+          "",
+          "In ciascuna giornata deve prestare servizio un numero di"
+        ]
+      ],
+      [
+        "Gestione del personale",
+        40,
+        [
+          "Turni possibili",
+          "",
+          "Righe 7-13",
+          "",
+          "1 significa che il dipendente assegnato al turno è in servizio."
+        ]
+      ],
+      [
+        "Gestione del personale",
+        42,
+        [
+          "Nell'esempio si utilizza un numero intero come vincolo in modo che le soluzioni non includano frazioni di dipendente "
+        ]
+      ],
+      [
+        "Massimizzazione del reddito",
+        5,
+        [
+          "Rendimento",
+          "Durata",
+          "",
+          "Acquistare nei mesi:"
+        ]
+      ],
+      [
+        "Massimizzazione del reddito",
+        6,
+        [
+          "Certificato di deposito a 1 mese:",
+          "0.01",
+          "1",
+          "",
+          "1, 2, 3, 4, 5 e 6",
+          "",
+          "",
+          "Interessi"
+        ]
+      ],
+      [
+        "Massimizzazione del reddito",
+        7,
+        [
+          "Certificato di deposito a 3 mesi:",
+          "0.04",
+          "3",
+          "",
+          "1 e 4",
+          "",
+          "",
+          " percepiti:"
+        ]
+      ],
+      [
+        "Massimizzazione del reddito",
+        8,
+        [
+          "Certificato di deposito a 6 mesi:",
+          "0.09",
+          "6",
+          "",
+          "1",
+          "",
+          "Totale",
+          "7700"
+        ]
+      ],
+      [
+        "Massimizzazione del reddito",
+        10,
+        [
+          "Mese:",
+          "Mese 1",
+          "Mese 2",
+          "Mese 3",
+          "Mese 4",
+          "Mese 5",
+          "Mese 6",
+          "Fine",
+          "",
+          "Codice colore"
+        ]
+      ],
+      [
+        "Massimizzazione del reddito",
+        12,
+        [
+          "Cert. di depo. maturati:",
+          "",
+          "100000",
+          "100000",
+          "110000",
+          "100000",
+          "100000",
+          "120000",
+          "",
+          "",
+          "",
+          "   Cella obiettivo"
+        ]
+      ],
+      [
+        "Massimizzazione del reddito",
+        14,
+        [
+          "Cert. di dep. a 1 mese:",
+          "100000",
+          "100000",
+          "100000",
+          "100000",
+          "100000",
+          "100000",
+          "",
+          "",
+          "",
+          "",
+          "   Celle variabili"
+        ]
+      ],
+      [
+        "Massimizzazione del reddito",
+        16,
+        [
+          "Cert. di dep. a 6 mesi:",
+          "10000",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "   Vincoli"
+        ]
+      ],
+      [
+        "Massimizzazione del reddito",
+        34,
+        [
+          "Cella obiettivo",
+          "",
+          "H8",
+          "",
+          "L'obiettivo è massimizzare l'interesse percepito."
+        ]
+      ],
+      [
+        "Massimizzazione del reddito",
+        36,
+        [
+          "Celle variabili",
+          "",
+          "B14:G14",
+          "",
+          "Importi investiti in ciascun tipo di certificato."
+        ]
+      ],
+      [
+        "Massimizzazione del reddito",
+        39,
+        [
+          "Vincoli",
+          "",
+          "B14:G14>=0",
+          "",
+          "L'investimento in ciascun tipo di certificato deve"
+        ]
+      ],
+      [
+        "Massimizzazione del reddito",
+        40,
+        [
+          "B15:B16>=0",
+          "",
+          "essere maggiore o uguale a 0."
+        ]
+      ],
+      [
+        "Massimizzazione del reddito",
+        43,
+        [
+          "B18:H18>=100000",
+          "",
+          "La cassa finale deve essere maggiore o uguale a"
+        ]
+      ],
+      [
+        "Massimizzazione del reddito",
+        46,
+        [
+          "La soluzione ottimale genera un reddito da interessi pari a L.16.531.000 preferenziando i certificati a sei e a tre mesi, "
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        2,
+        [
+          "Determinare la ponderazione di titoli in un portafoglio efficiente che massimizzi la redditività "
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        3,
+        [
+          "per un dato livello di rischio. Il foglio utilizza il modello ad indicizzazione singola di Sharpe. "
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        6,
+        [
+          "Tasso a rischio zero",
+          "",
+          "0.06",
+          "",
+          "Varianza di mercato",
+          "",
+          "0.03"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        7,
+        [
+          "Tasso di mercato",
+          "",
+          "0.15",
+          "",
+          "Peso massimo",
+          "",
+          "1"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        9,
+        [
+          "Beta",
+          "Varianza res.",
+          "",
+          "Peso",
+          "*Beta",
+          "*Var.",
+          "",
+          "Codice colore"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        10,
+        [
+          "Titolo A",
+          "0.8",
+          "0.04",
+          "",
+          "0.2",
+          "0.16000000000000003",
+          "0.0016000000000000003"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        11,
+        [
+          "Titolo B",
+          "1",
+          "0.2",
+          "",
+          "0.2",
+          "0.2",
+          "0.008000000000000002",
+          "",
+          "",
+          "",
+          "   Cella obiettivo"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        12,
+        [
+          "Titolo C",
+          "1.8",
+          "0.12",
+          "",
+          "0.2",
+          "0.36000000000000004",
+          "0.0048000000000000004"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        13,
+        [
+          "Titolo D",
+          "2.2",
+          "0.4",
+          "",
+          "0.2",
+          "0.44000000000000006",
+          "0.016000000000000004",
+          "",
+          "",
+          "",
+          "   Celle variabili"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        14,
+        [
+          "Buoni del Tesoro",
+          "0",
+          "0",
+          "",
+          "0.2",
+          "0",
+          "0"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        15,
+        [
+          "   Vincoli"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        16,
+        [
+          "Totale",
+          "",
+          "",
+          "",
+          "1",
+          "1.1600000000000001",
+          "0.030400000000000007"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        18,
+        [
+          "Portafoglio:  ",
+          "",
+          "0.1644",
+          "",
+          "0.07076800000000001"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        20,
+        [
+          "Rendimento massimo: A21:A29",
+          "",
+          "",
+          "Rischio minimo: D21:D29"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        21,
+        [
+          "0.1644",
+          "",
+          "",
+          "0.07076800000000001"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        22,
+        [
+          "5",
+          "",
+          "",
+          "5"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        23,
+        [
+          "True",
+          "",
+          "",
+          "True"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        24,
+        [
+          "True",
+          "",
+          "",
+          "True"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        25,
+        [
+          "True",
+          "",
+          "",
+          "True"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        26,
+        [
+          "True",
+          "",
+          "",
+          "True"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        27,
+        [
+          "True",
+          "",
+          "",
+          "True"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        28,
+        [
+          "True",
+          "",
+          "",
+          "True"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        29,
+        [
+          "True",
+          "",
+          "",
+          "True"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        38,
+        [
+          "Il foglio di lavoro include il coefficiente beta (rischio di mercato) e la varianza residua relativi a quattro titoli. "
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        48,
+        [
+          "Cella obiettivo",
+          "",
+          "",
+          "E18",
+          "",
+          "L'obiettivo è massimizzare il rendimento del"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        51,
+        [
+          "Celle variabili",
+          "",
+          "",
+          "E10:E14",
+          "",
+          "Peso di ciascun titolo."
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        53,
+        [
+          "Vincoli",
+          "",
+          "",
+          "E10:E14>=0",
+          "",
+          "Il peso deve essere maggiore o uguale a 0."
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        55,
+        [
+          "E16=1",
+          "",
+          "Il peso deve essere uguale a 1."
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        57,
+        [
+          "G18<=0,071",
+          "",
+          "La varianza deve essere minore o uguale a 0,071."
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        59,
+        [
+          "Coefficiente beta di ciascun titolo",
+          "",
+          "",
+          "B10:B13"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        61,
+        [
+          "Varianza di ciascun titolo",
+          "",
+          "",
+          "C10:C13"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        72,
+        [
+          "Le celle A21:A29 contengono il modello di problema originario. Per caricarlo nuovamente, scegliere Risolutore "
+        ]
+      ],
+      [
+        "Problema tecnico",
+        6,
+        [
+          "q0 =",
+          "9",
+          "volt",
+          "",
+          "Codice colore"
+        ]
+      ],
+      [
+        "Problema tecnico",
+        8,
+        [
+          "    ",
+          "",
+          "",
+          "",
+          "t =",
+          "0.05",
+          "secondi",
+          "",
+          "",
+          "",
+          "   Cella obiettivo"
+        ]
+      ],
+      [
+        "Problema tecnico",
+        9,
+        [
+          "Batteria",
+          "Condensatore (C)",
+          "",
+          "Induttanza (L)",
+          "",
+          "L =",
+          "8",
+          "henry"
+        ]
+      ],
+      [
+        "Problema tecnico",
+        10,
+        [
+          "C =",
+          "0.0001",
+          "farad",
+          "",
+          "",
+          "",
+          "   Celle variabili"
+        ]
+      ],
+      [
+        "Problema tecnico",
+        12,
+        [
+          "Resistenza",
+          "",
+          "",
+          "R =",
+          "300",
+          "ohm",
+          "",
+          "",
+          "",
+          "   Vincoli"
+        ]
+      ],
+      [
+        "Problema tecnico",
+        13,
+        [
+          "    (R)"
+        ]
+      ],
+      [
+        "Problema tecnico",
+        15,
+        [
+          "1/(L*C)",
+          "",
+          "1250",
+          "",
+          "q[t] =",
+          "0.2538891840303239"
+        ]
+      ],
+      [
+        "Problema tecnico",
+        16,
+        [
+          "(R/(2*L))^2",
+          "",
+          "351.5625"
+        ]
+      ],
+      [
+        "Problema tecnico",
+        17,
+        [
+          "RADQ(B15-B16)",
+          "",
+          "29.973947020704497"
+        ]
+      ],
+      [
+        "Problema tecnico",
+        18,
+        [
+          "COS(T*B17)",
+          "",
+          "0.07203652709511484"
+        ]
+      ],
+      [
+        "Problema tecnico",
+        19,
+        [
+          "-R*T/(2*L)",
+          "",
+          "-0.9375"
+        ]
+      ],
+      [
+        "Problema tecnico",
+        20,
+        [
+          "Q0*EXP(B19)",
+          "",
+          "3.524450640091191"
+        ]
+      ],
+      [
+        "Problema tecnico",
+        36,
+        [
+          "Cella obiettivo",
+          "",
+          "G15",
+          "",
+          "L'obiettivo è ottenere il valore 0,01."
+        ]
+      ],
+      [
+        "Problema tecnico",
+        38,
+        [
+          "Celle variabili",
+          "",
+          "G12",
+          "",
+          "Resistenza."
+        ]
+      ],
+      [
+        "Problema tecnico",
+        40,
+        [
+          "Vincoli",
+          "",
+          "D15:D20",
+          "",
+          "Soluzione algebrica della legge di Kirchhoff."
+        ]
+      ]
+    ],
+    "metadata": {
+      "source_filename": "SOLVSAMP.XLS",
+      "sha256": "b7fefe55732c04a89825dcb087bfa872165b1752f00acbbed8f5e6cf81df2091",
+      "formato": "xls",
+      "converted_at": "2026-09-11T07:34:23.572198+00:00",
+      "n_chars": 50395,
+      "motore": "docling",
+      "versione_motore": "2.126.0",
+      "fallback": null,
+      "avvisi": [],
+      "normalizzazione": {
+        "motore": "libreoffice",
+        "versione": "LibreOffice 25.2.3.2 520(Build:2)",
+        "da": "xls",
+        "a": "xlsx"
+      }
+    },
+    "normalization_changes": [
+      [
+        "('Panoramica', 5, 2)",
+        "3591.5525890622844",
+        "3591.55258906228"
+      ],
+      [
+        "('Panoramica', 5, 3)",
+        "4389.675386631681",
+        "4389.67538663168"
+      ],
+      [
+        "('Panoramica', 5, 4)",
+        "3192.491190277586",
+        "3192.49119027759"
+      ],
+      [
+        "('Panoramica', 5, 5)",
+        "4788.7367854163795",
+        "4788.73678541638"
+      ],
+      [
+        "('Panoramica', 5, 6)",
+        "15962.455951387932",
+        "15962.4559513879"
+      ],
+      [
+        "('Panoramica', 6, 2)",
+        "14366210.356249137",
+        "14366210.3562491"
+      ],
+      [
+        "('Panoramica', 6, 3)",
+        "17558701.546526726",
+        "17558701.5465267"
+      ],
+      [
+        "('Panoramica', 6, 4)",
+        "12769964.761110345",
+        "12769964.7611103"
+      ],
+      [
+        "('Panoramica', 6, 5)",
+        "19154947.14166552",
+        "19154947.1416655"
+      ],
+      [
+        "('Panoramica', 6, 6)",
+        "63849823.80555172",
+        "63849823.8055517"
+      ],
+      [
+        "('Panoramica', 7, 2)",
+        "8978881.472655712",
+        "8978881.47265571"
+      ],
+      [
+        "('Panoramica', 7, 3)",
+        "10974188.466579203",
+        "10974188.4665792"
+      ],
+      [
+        "('Panoramica', 7, 4)",
+        "7981227.975693965",
+        "7981227.97569397"
+      ],
+      [
+        "('Panoramica', 7, 5)",
+        "11971841.963540949",
+        "11971841.9635409"
+      ],
+      [
+        "('Panoramica', 7, 6)",
+        "39906139.878469825",
+        "39906139.8784698"
+      ],
+      [
+        "('Panoramica', 8, 2)",
+        "5387328.883593425",
+        "5387328.88359343"
+      ],
+      [
+        "('Panoramica', 8, 3)",
+        "6584513.079947524",
+        "6584513.07994752"
+      ],
+      [
+        "('Panoramica', 8, 5)",
+        "7183105.178124569",
+        "7183105.17812457"
+      ],
+      [
+        "('Panoramica', 8, 6)",
+        "23943683.927081898",
+        "23943683.9270819"
+      ],
+      [
+        "('Panoramica', 12, 2)",
+        "2154931.5534373703",
+        "2154931.55343737"
+      ],
+      [
+        "('Panoramica', 12, 3)",
+        "2633805.2319790088",
+        "2633805.23197901"
+      ],
+      [
+        "('Panoramica', 12, 4)",
+        "1915494.7141665516",
+        "1915494.71416655"
+      ],
+      [
+        "('Panoramica', 12, 5)",
+        "2873242.0712498277",
+        "2873242.07124983"
+      ],
+      [
+        "('Panoramica', 13, 2)",
+        "2172931.5534373703",
+        "2172931.55343737"
+      ],
+      [
+        "('Panoramica', 13, 3)",
+        "2651805.2319790088",
+        "2651805.23197901"
+      ],
+      [
+        "('Panoramica', 13, 4)",
+        "1934494.7141665516",
+        "1934494.71416655"
+      ],
+      [
+        "('Panoramica', 13, 5)",
+        "2892242.0712498277",
+        "2892242.07124983"
+      ],
+      [
+        "('Panoramica', 15, 2)",
+        "3214397.330156055",
+        "3214397.33015606"
+      ],
+      [
+        "('Panoramica', 15, 3)",
+        "3932707.847968515",
+        "3932707.84796852"
+      ],
+      [
+        "('Panoramica', 15, 4)",
+        "2854242.0712498277",
+        "2854242.07124983"
+      ],
+      [
+        "('Panoramica', 15, 5)",
+        "4290863.106874742",
+        "4290863.10687474"
+      ],
+      [
+        "('Panoramica', 15, 6)",
+        "14292210.356249139",
+        "14292210.3562491"
+      ],
+      [
+        "('Panoramica', 16, 2)",
+        "0.22374705997241845",
+        "0.223747059972418"
+      ],
+      [
+        "('Panoramica', 16, 3)",
+        "0.2239748672501607",
+        "0.223974867250161"
+      ],
+      [
+        "('Panoramica', 16, 5)",
+        "0.22400808914483133",
+        "0.224008089144831"
+      ],
+      [
+        "('Panoramica', 16, 6)",
+        "0.22384103047448717",
+        "0.223841030474487"
+      ],
+      [
+        "('Mix di prodotti', 17, 4)",
+        "4732.180083601453",
+        "4732.18008360145"
+      ],
+      [
+        "('Mix di prodotti', 17, 5)",
+        "3154.7867224009683",
+        "3154.78672240097"
+      ],
+      [
+        "('Mix di prodotti', 17, 6)",
+        "2208.350705680678",
+        "2208.35070568068"
+      ],
+      [
+        "('Mix di prodotti', 18, 4)",
+        "10095.317511683099",
+        "10095.3175116831"
+      ],
+      [
+        "('Portafoglio titoli', 10, 6)",
+        "0.16000000000000003",
+        "0.16"
+      ],
+      [
+        "('Portafoglio titoli', 10, 7)",
+        "0.0016000000000000003",
+        "0.0016"
+      ],
+      [
+        "('Portafoglio titoli', 11, 7)",
+        "0.008000000000000002",
+        "0.008"
+      ],
+      [
+        "('Portafoglio titoli', 12, 6)",
+        "0.36000000000000004",
+        "0.36"
+      ],
+      [
+        "('Portafoglio titoli', 12, 7)",
+        "0.0048000000000000004",
+        "0.0048"
+      ],
+      [
+        "('Portafoglio titoli', 13, 6)",
+        "0.44000000000000006",
+        "0.44"
+      ],
+      [
+        "('Portafoglio titoli', 13, 7)",
+        "0.016000000000000004",
+        "0.016"
+      ],
+      [
+        "('Portafoglio titoli', 16, 6)",
+        "1.1600000000000001",
+        "1.16"
+      ],
+      [
+        "('Portafoglio titoli', 16, 7)",
+        "0.030400000000000007",
+        "0.0304"
+      ],
+      [
+        "('Portafoglio titoli', 18, 7)",
+        "0.07076800000000001",
+        "0.070768"
+      ],
+      [
+        "('Portafoglio titoli', 21, 4)",
+        "0.07076800000000001",
+        "0.070768"
+      ],
+      [
+        "('Portafoglio titoli', 23, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 23, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 24, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 24, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 25, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 25, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 26, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 26, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 27, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 27, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 28, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 28, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 29, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 29, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Problema tecnico', 15, 7)",
+        "0.2538891840303239",
+        "0.253889184030324"
+      ],
+      [
+        "('Problema tecnico', 17, 4)",
+        "29.973947020704497",
+        "29.9739470207045"
+      ],
+      [
+        "('Problema tecnico', 18, 4)",
+        "0.07203652709511484",
+        "0.0720365270951148"
+      ],
+      [
+        "('Problema tecnico', 20, 4)",
+        "3.524450640091191",
+        "3.52445064009119"
+      ]
+    ]
+  }
+]

@@ -1,0 +1,175 @@
+{
+  "init_s": 0.01,
+  "fixture_tabelle": {
+    "status": "ConversionStatus.SUCCESS",
+    "s": 7.17,
+    "tabelle": 1,
+    "immagini": 0,
+    "pagine": 1,
+    "errori": [],
+    "clean_diff": [
+      "-| Lotto   | Fornitore   |   Quantità | Stato      |",
+      "+| Lotto | Fornitore | Quantità | Stato |",
+      "-| L-01    | Acme Srl    |        120 | consegnato |",
+      "-| L-02    | Beta SpA    |         45 | in attesa  |",
+      "-| L-03    | Gamma Coop  |          7 | annullato  |",
+      "+| L-01 | Acme Srl | 120 | consegnato |",
+      "+| L-02 | Beta SpA | 45 | in attesa |",
+      "+| L-03 | Gamma Coop | 7 | annullato |"
+    ],
+    "heading": [
+      "## Registro forniture",
+      "### Regole di consegna",
+      "### Tabella dei lotti",
+      "#### Note operative"
+    ]
+  },
+  "fixture_sample": {
+    "status": "ConversionStatus.SUCCESS",
+    "s": 0.95,
+    "tabelle": 0,
+    "immagini": 0,
+    "pagine": 1,
+    "errori": [],
+    "clean_diff": [],
+    "heading": []
+  },
+  "cand_diagrammi": {
+    "status": "ConversionStatus.SUCCESS",
+    "s": 2.94,
+    "tabelle": 2,
+    "immagini": 0,
+    "pagine": 2,
+    "errori": [],
+    "clean_diff": [
+      "-| 1. Naming        | Mantieni il prefisso diag_ , seguito da area o sezione e da un nome descrittivo in snake_case.                   |",
+      "+| 1. Naming | Mantieni il prefisso diag_ , seguito da area o sezione e da un nome descrittivo in snake_case. |",
+      "-| 2. Posizione     | Conserva qui solo diagrammi normativi; bozze e fonti editabili vanno in una sottocartella source .               |",
+      "+| 2. Posizione | Conserva qui solo diagrammi normativi; bozze e fonti editabili vanno in una sottocartella source . |",
+      "-| File                                       | Area         | Finalita                                                | Formato / peso   |",
+      "+| File | Area | Finalita | Formato / peso |",
+      "-| diag_0_3_modules_relations_map .svg        | Architettura | Mappa delle relazioni fra i moduli del sistema.         | SVG 46.4 KB      |",
+      "-| diag_2_1_workflow_state_machin e.svg       | Workflow     | Macchina a stati del ciclo di prenotazione o richiesta. | SVG 13.0 KB      |",
+      "-| diag_2_3_concurrency_pessimisti c_lock.svg | Workflow     | Gestione della concorrenza tramite lock pessimistico.   | SVG 15.6 KB      |",
+      "-| diag_5_2_graph_rag_structure.sv g          | Knowledge    | Struttura del grafo e pipeline Graph RAG.               | SVG 11.2 KB      |",
+      "-| diag_6_2_hitl_checkpoints.svg.sv g         | Governance   | Checkpoint human-in-the-loop e punti di controllo.      | SVG 19.5 KB      |",
+      "+| diag_0_3_modules_relations_map .svg | Architettura | Mappa delle relazioni fra i moduli del sistema. | SVG 46.4 KB |",
+      "+| diag_2_1_workflow_state_machin e.svg | Workflow | Macchina a stati del ciclo di prenotazione o richiesta. | SVG 13.0 KB |",
+      "+| diag_2_3_concurrency_pessimisti c_lock.svg | Workflow | Gestione della concorrenza tramite lock pessimistico. | SVG 15.6 KB |",
+      "+| diag_5_2_graph_rag_structure.sv g | Knowledge | Struttura del grafo e pipeline Graph RAG. | SVG 11.2 KB |",
+      "+| diag_6_2_hitl_checkpoints.svg.sv g | Governance | Checkpoint human-in-the-loop e punti di controllo. | SVG 19.5 KB |"
+    ],
+    "heading": [
+      "## Catalogo diagrammi",
+      "### Regole di organizzazione",
+      "### Registro dei file",
+      "#### Percorso sorgente"
+    ],
+    "uguale_al_pilot_modulo_underscore": true
+  },
+  "cand_mockup": {
+    "status": "ConversionStatus.SUCCESS",
+    "s": 4.13,
+    "tabelle": 2,
+    "immagini": 0,
+    "pagine": 2,
+    "errori": [],
+    "clean_diff": [
+      "-| 1. Naming        | Usa mockup_[spec]_[ruolo]_[schermata] ; il numero deve coincidere con la specifica associata.                     |",
+      "+| 1. Naming | Usa mockup_[spec]_[ruolo]_[schermata] ; il numero deve coincidere con la specifica associata. |",
+      "-| 2. Ruoli         | Raggruppa per Dipendente, Manager e Admin; mantieni SVG come riferimento statico e HTML per prototipi navigabili. |",
+      "-| 3. Tracciabilita | Ogni modifica a un flusso UX deve essere riconciliata con la specifica e annotata nel changelog del progetto.     |",
+      "+| 2. Ruoli | Raggruppa per Dipendente, Manager e Admin; mantieni SVG come riferimento statico e HTML per prototipi navigabili. |",
+      "+| 3. Tracciabilita | Ogni modifica a un flusso UX deve essere riconciliata con la specifica e annotata nel changelog del progetto. |",
+      "-| File                                       |   Spec. | Area            | Schermata                                  | Formato / peso   |",
+      "+| File | Spec. | Area | Schermata | Formato / peso |",
+      "-| mockup_1_1_auth_login.svg                  |     1.1 | Autenticazion e | Schermata di accesso.                      | SVG 21.3 KB      |",
+      "-| mockup_1_2_employee_dashb oard.svg         |     1.2 | Dipendente      | Dashboard operativa del dipendente.        | SVG 30.0 KB      |",
+      "-| mockup_1_3_event_details.svg               |     1.3 | Dipendente      | Dettaglio di un evento o una prenotazione. | SVG 18.4 KB      |",
+      "-| mockup_1_4_reservation_form. svg           |     1.4 | Dipendente      | Form di inserimento prenotazione.          | SVG 23.4 KB      |",
+      "-| mockup_1_5_employee_person al_area.svg     |     1.5 | Dipendente      | Area personale del dipendente.             | SVG 31.4 KB      |",
+      "-| mockup_2_2_manager_approva l_queue.svg     |     2.2 | Manager         | Coda di approvazione del responsabile.     | SVG 25.9 KB      |",
+      "-| mockup_2_4_notifications_tem plates.svg    |     2.4 | Manager         | Gestione template di notifica.             | SVG 18.6 KB      |",
+      "-| mockup_3_2_admin_crud_even ts.svg          |     3.2 | Admin           | Gestione CRUD degli eventi.                | SVG 27.4 KB      |",
+      "-| mockup_3_3_admin_global_mo nitor.svg       |     3.3 | Admin           | Monitoraggio globale amministrativo.       | SVG 24.6 KB      |",
+      "-| mockup_3_4_admin_export_mo dal.svg         |     3.4 | Admin           | Finestra di esportazione dati.             | SVG 12.2 KB      |",
+      "-| mockup_3_5_admin_dashboard _analytics.html |     3.5 | Admin           | Dashboard analytics amministrativa.        | HTML 3.4 KB      |",
+      "+| mockup_1_1_auth_login.svg | 1.1 | Autenticazion e | Schermata di accesso. | SVG 21.3 KB |",
+      "+| mockup_1_2_employee_dashb oard.svg | 1.2 | Dipendente | Dashboard operativa del dipendente. | SVG 30.0 KB |",
+      "+| mockup_1_3_event_details.svg | 1.3 | Dipendente | Dettaglio di un evento o una prenotazione. | SVG 18.4 KB |",
+      "+| mockup_1_4_reservation_form. svg | 1.4 | Dipendente | Form di inserimento prenotazione. | SVG 23.4 KB |",
+      "+| mockup_1_5_employee_person al_area.svg | 1.5 | Dipendente | Area personale del dipendente. | SVG 31.4 KB |",
+      "+| mockup_2_2_manager_approva l_queue.svg | 2.2 | Manager | Coda di approvazione del responsabile. | SVG 25.9 KB |",
+      "+| mockup_2_4_notifications_tem plates.svg | 2.4 | Manager | Gestione template di notifica. | SVG 18.6 KB |",
+      "+| mockup_3_2_admin_crud_even ts.svg | 3.2 | Admin | Gestione CRUD degli eventi. | SVG 27.4 KB |",
+      "+| mockup_3_3_admin_global_mo nitor.svg | 3.3 | Admin | Monitoraggio globale amministrativo. | SVG 24.6 KB |",
+      "+| mockup_3_4_admin_export_mo dal.svg | 3.4 | Admin | Finestra di esportazione dati. | SVG 12.2 KB |",
+      "+| mockup_3_5_admin_dashboard _analytics.html | 3.5 | Admin | Dashboard analytics amministrativa. | HTML 3.4 KB |"
+    ],
+    "heading": [
+      "## Catalogo mockup",
+      "### Regole di organizzazione",
+      "### Registro dei file",
+      "#### Percorso sorgente"
+    ],
+    "uguale_al_pilot_modulo_underscore": true
+  },
+  "scan_ocr": {
+    "status": "ConversionStatus.SUCCESS",
+    "s": 4.34,
+    "tabelle": 1,
+    "immagini": 0,
+    "pagine": 1,
+    "errori": [],
+    "similarita_con_digitale": 0.998
+  },
+  "scan_senza_ocr": {
+    "status": "ConversionStatus.SUCCESS",
+    "s": 1.63,
+    "tabelle": 1,
+    "immagini": 0,
+    "pagine": 1,
+    "errori": [],
+    "md_chars": 0
+  },
+  "docx": {
+    "status": "ConversionStatus.SUCCESS",
+    "s": 0.03,
+    "tabelle": 0,
+    "immagini": 0,
+    "pagine": 0,
+    "errori": []
+  },
+  "pptx": {
+    "status": "ConversionStatus.SUCCESS",
+    "s": 0.02,
+    "tabelle": 1,
+    "immagini": 0,
+    "pagine": 2,
+    "errori": []
+  },
+  "xlsx": {
+    "status": "ConversionStatus.SUCCESS",
+    "s": 0.01,
+    "tabelle": 2,
+    "immagini": 0,
+    "pagine": 2,
+    "errori": []
+  },
+  "html": {
+    "status": "ConversionStatus.SUCCESS",
+    "s": 0.01,
+    "tabelle": 0,
+    "immagini": 0,
+    "pagine": 0,
+    "errori": []
+  },
+  "html_latin1": {
+    "status": "ConversionStatus.SUCCESS",
+    "s": 0.11,
+    "tabelle": 0,
+    "immagini": 0,
+    "pagine": 0,
+    "errori": []
+  }
+}

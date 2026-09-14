@@ -1,0 +1,337 @@
+{
+  "run": "pilot_docling_finale_20260909-110000",
+  "packaged_on": "2026-09-14",
+  "note": "Conservazione di prove esistenti, non nuova esecuzione. File originali mantenuti localmente. Percorsi path relativi a rag/eval/results; source relativi alla root del progetto. Script conservati come .txt senza modifiche al contenuto.",
+  "files": [
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/compare/baseline/loader_diagrammi.txt",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/compare/baseline/loader_diagrammi.txt",
+      "bytes": 1361,
+      "sha256": "ce456ab25080ee4d64c4a72542f7c23c16b594325dc51d8566e2e12288265a96"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/compare/baseline/loader_mockup.txt",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/compare/baseline/loader_mockup.txt",
+      "bytes": 1905,
+      "sha256": "81591ecc8b02f5b489a1b70814d672c6439ae26f95ed7cdd3b382aff0f3048ed"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/compare/baseline/markitdown_diagrammi.md",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/compare/baseline/markitdown_diagrammi.md",
+      "bytes": 1644,
+      "sha256": "f4ec4f2deaa808cb7835082216f331a627b9f9bd1772d376681b4dc40d43e280"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/compare/baseline/markitdown_mockup.md",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/compare/baseline/markitdown_mockup.md",
+      "bytes": 1848,
+      "sha256": "cf0070ff0642deac0e6b456ba0c3b329f7553f1e531dd4890f36148a6109fd4e"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/compare/granite/granite_diagrammi.md",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/compare/granite/granite_diagrammi.md",
+      "bytes": 1857,
+      "sha256": "3c5be08127b52d023b92f2ac59872b1362c1d77de267b2180beb3a7aeb46756b"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/compare/granite/granite_mockup.md",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/compare/granite/granite_mockup.md",
+      "bytes": 2712,
+      "sha256": "25af5e148c384a9a025fe3062f01244c6e53bde714904b9fc43c38925d9885f2"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/compare/standard/standard_diagrammi.md",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/compare/standard/standard_diagrammi.md",
+      "bytes": 1824,
+      "sha256": "ba3b282a6dc19bc9abca1f31b3fe4632bea6a7e807da241f6db552630088c65f"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/compare/standard/standard_mockup.md",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/compare/standard/standard_mockup.md",
+      "bytes": 2659,
+      "sha256": "b90bd7656bb3ee57cdfe4f91f10d71fedb10f4b39392fe7e7b488b9be30be662"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/inventario_sha256.json",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/inventario_sha256.json",
+      "bytes": 8779,
+      "sha256": "057234e6ae69555d8ce41b8efd0cd01f907bfe91abd244bbe46ffc2cc1804b83"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/manifest/manifest_input_e_catena.json",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/manifest/manifest_input_e_catena.json",
+      "bytes": 4366,
+      "sha256": "092eb3832e6bd029372b1aea241725d4c36fcc2aed3a69023454adf54690702a"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/out/confronto_celle.json",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/out/confronto_celle.json",
+      "bytes": 3687,
+      "sha256": "4759bace11d751ef6f1ba52e672ff02800f3e953333771306877d9bc8e8d0787"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/out/confronto_domande.json",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/out/confronto_domande.json",
+      "bytes": 3565,
+      "sha256": "00e4f9a79148f8338ad2af80f982ef6546611259411e783266111a7c168d22ec"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/out/confronto_risposte.json",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/out/confronto_risposte.json",
+      "bytes": 4672,
+      "sha256": "fa17df43cd89fa881961d7175ea6a320b8d34586b308006932d5d32aab1d5ab3"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/out/confronto_testo.json",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/out/confronto_testo.json",
+      "bytes": 5942,
+      "sha256": "5181d9618daf2b2109efa38630e6f52c0e6d9f37ae6fb4cafa2576eef6bd89c8"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/out/eval_baseline.json",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/out/eval_baseline.json",
+      "bytes": 45882,
+      "sha256": "d3be87b22f6c57c2d59e46b549f25ebeb423d74b34584a38e91fa281fd83247b"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/out/eval_candidate.json",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/out/eval_candidate.json",
+      "bytes": 47130,
+      "sha256": "b41fe77a2393634938eb7ab567f32b49c044a8bd9806b04bd1eac8ba06187d37"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/out/run1/candidate_diagrammi.json",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/out/run1/candidate_diagrammi.json",
+      "bytes": 50555,
+      "sha256": "9298937f1944aaf0433fe2762cde2e479870c25512e185d78ea3719701f7b4de"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/out/run1/candidate_diagrammi.md",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/out/run1/candidate_diagrammi.md",
+      "bytes": 1824,
+      "sha256": "ba3b282a6dc19bc9abca1f31b3fe4632bea6a7e807da241f6db552630088c65f"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/out/run1/candidate_mockup.json",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/out/run1/candidate_mockup.json",
+      "bytes": 96409,
+      "sha256": "60d14e0214bb68a48e46a3ab5e7ee5b6929539448e5d410377f5af56901a831e"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/out/run1/candidate_mockup.md",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/out/run1/candidate_mockup.md",
+      "bytes": 2659,
+      "sha256": "b90bd7656bb3ee57cdfe4f91f10d71fedb10f4b39392fe7e7b488b9be30be662"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/out/run1/run_report.json",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/out/run1/run_report.json",
+      "bytes": 7202,
+      "sha256": "6ed696ebf1bb31786c5e5f8fa49c26e6e95603037bba5220b596175c17b8c47e"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/out/run2/candidate_diagrammi.json",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/out/run2/candidate_diagrammi.json",
+      "bytes": 50555,
+      "sha256": "9298937f1944aaf0433fe2762cde2e479870c25512e185d78ea3719701f7b4de"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/out/run2/candidate_diagrammi.md",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/out/run2/candidate_diagrammi.md",
+      "bytes": 1824,
+      "sha256": "ba3b282a6dc19bc9abca1f31b3fe4632bea6a7e807da241f6db552630088c65f"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/out/run2/candidate_mockup.json",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/out/run2/candidate_mockup.json",
+      "bytes": 96409,
+      "sha256": "60d14e0214bb68a48e46a3ab5e7ee5b6929539448e5d410377f5af56901a831e"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/out/run2/candidate_mockup.md",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/out/run2/candidate_mockup.md",
+      "bytes": 2659,
+      "sha256": "b90bd7656bb3ee57cdfe4f91f10d71fedb10f4b39392fe7e7b488b9be30be662"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/out/run2/run_report.json",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/out/run2/run_report.json",
+      "bytes": 7202,
+      "sha256": "d541cd38b24499514e805a3acb538b0b04b8d01ce1f74214e13dedc9688b48c5"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/out/verification.json",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/out/verification.json",
+      "bytes": 1438,
+      "sha256": "bad1b497dcd83e8e7be9f9960071cc2034e0185cc952c4882b1de34ea7a4c5ae"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/RESOCONTO.md",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/RESOCONTO.md",
+      "bytes": 15122,
+      "sha256": "e35b85c927059f30477cec487a2cae930f4d6c626edc52f575f7c38b83cb6635"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/review/PACCHETTO_REVISIONE.md",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/review/PACCHETTO_REVISIONE.md",
+      "bytes": 18373,
+      "sha256": "791d7eaa025640278cd88ca26a10ed0c6732fc8c35cdec9c56ec66a22af494f5"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/scripts/build_stack.sh.txt",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/scripts/build_stack.sh",
+      "bytes": 882,
+      "sha256": "9f7ade7d8ee0478d1c0a5c7f43f983cb13fe93b9ee69fef3117df03067647de5"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/scripts/check_hierarchy_rule.py.txt",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/scripts/check_hierarchy_rule.py",
+      "bytes": 4535,
+      "sha256": "ee4c87a17e273f624dd6670f5c59af5d9e282ea7072ca01ac12a015871119fd9"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/scripts/eval_stack.py.txt",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/scripts/eval_stack.py",
+      "bytes": 5743,
+      "sha256": "b2335af75bd4cb2b45449fda1229673885c65846d08cfc0838bd3a2865922a2a"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/scripts/make_hierarchy_fixtures.py.txt",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/scripts/make_hierarchy_fixtures.py",
+      "bytes": 3289,
+      "sha256": "f760053596c723f2e40059be6ff6d0e0d8424a5a1e1a02a791cd77c6ea692d3c"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/scripts/make_manifest.py.txt",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/scripts/make_manifest.py",
+      "bytes": 5288,
+      "sha256": "7411b530a7ad75af2496db557a74140e81d6e10c89232cb2bf423ea2db6fc5c0"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/scripts/patch_candidate_sandbox.py.txt",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/scripts/patch_candidate_sandbox.py",
+      "bytes": 1644,
+      "sha256": "e87108b025d293da160aa3584c0131a8c35389d0f8f3aef01396be9764d23f3b"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/scripts/run_candidate.py.txt",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/scripts/run_candidate.py",
+      "bytes": 6732,
+      "sha256": "409d8348d6e42c44140f8f593511f56e218631eaf815af5fe9b72d0959c69c98"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/scripts/score_risposte.py.txt",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/scripts/score_risposte.py",
+      "bytes": 4572,
+      "sha256": "017a8b572bf51162225c1e8c3310acd5233e79b4ce7c2827bacf57486e75d6d7"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/scripts/verify_candidate.py.txt",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/scripts/verify_candidate.py",
+      "bytes": 5360,
+      "sha256": "fd674da5a421fec50c7a35f47ca665f6e78d17aa069af6e461b54f4186c4d1e9"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/truth/domande_pdf_locali.yaml",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/truth/domande_pdf_locali.yaml",
+      "bytes": 4140,
+      "sha256": "22eede74334b969b5f74cd3be7d69e2322fe42f3f6faae86ef6ddd23a11bcc74"
+    },
+    {
+      "path": "pilot_docling_finale_20260909-110000/evidence/truth/verita_riferimento.json",
+      "source": "rag/eval/results/pilot_docling_finale_20260909-110000/truth/verita_riferimento.json",
+      "bytes": 8494,
+      "sha256": "c2494d30709931cfb6c062df20e59bd512a09084ea91fe914981a7c947fee3cc"
+    }
+  ],
+  "omitted_local_files": [
+    {
+      "path": "logs/freeze-dopo-dev.txt",
+      "bytes": 2969
+    },
+    {
+      "path": "logs/freeze-prima-dev.txt",
+      "bytes": 2925
+    },
+    {
+      "path": "logs/golden-baseline.log",
+      "bytes": 7678
+    },
+    {
+      "path": "logs/golden-candidate.log",
+      "bytes": 7678
+    },
+    {
+      "path": "logs/index-baseline.log",
+      "bytes": 51803
+    },
+    {
+      "path": "logs/index-candidate.log",
+      "bytes": 51653
+    },
+    {
+      "path": "logs/install-dev.log",
+      "bytes": 371
+    },
+    {
+      "path": "logs/integrity-candidate.log",
+      "bytes": 1383
+    },
+    {
+      "path": "logs/multihop-baseline.log",
+      "bytes": 2062
+    },
+    {
+      "path": "logs/multihop-candidate.log",
+      "bytes": 2062
+    },
+    {
+      "path": "logs/run1.log",
+      "bytes": 3986
+    },
+    {
+      "path": "logs/run2.log",
+      "bytes": 3986
+    },
+    {
+      "path": "logs/server-baseline.log",
+      "bytes": 81729
+    },
+    {
+      "path": "logs/server-candidate.log",
+      "bytes": 81166
+    },
+    {
+      "path": "logs/suite-catena-applicativa.log",
+      "bytes": 17478
+    },
+    {
+      "path": "logs/suite-catena-candidata.log",
+      "bytes": 18099
+    },
+    {
+      "path": "out/fixtures/fixture_ambigua.pdf",
+      "bytes": 1854
+    },
+    {
+      "path": "out/fixtures/fixture_gerarchia.pdf",
+      "bytes": 1945
+    },
+    {
+      "path": "out/pagine/diagrammi_p1.png",
+      "bytes": 146903
+    },
+    {
+      "path": "out/pagine/diagrammi_p2.png",
+      "bytes": 200098
+    },
+    {
+      "path": "out/pagine/mockup_p1.png",
+      "bytes": 149729
+    },
+    {
+      "path": "out/pagine/mockup_p2.png",
+      "bytes": 327466
+    }
+  ]
+}

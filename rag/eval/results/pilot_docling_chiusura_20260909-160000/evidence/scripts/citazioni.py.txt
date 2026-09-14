@@ -1,0 +1,72 @@
+"""Estrazione e verifica delle citazioni — RIUSA la funzione del repository.
+
+Causa del difetto precedente (frammenti come «) dedicata all»): lo script
+`pilot_docling_finale_20260909-110000/scripts/eval_stack.py` aveva RI-SCRITTO
+l'estrattore invece di riusare quello che il repository ha gia':
+
+    eval_stack.py     r"[«\\"']([^«»\\"']{12,200})[»\\"']"      <- ' e' delimitatore
+    eval/attribution  r"[«\\"“]([^»\\"”]{20,}?)[»\\"”]"          <- ' NON e' delimitatore
+
+L'apostrofo ASCII e' segno di elisione dentro le parole italiane («l'area»,
+«dell'utente», «all'interno»): trattarlo da delimitatore fa aprire e chiudere
+citazioni in mezzo alle parole. In piu' lo script sperimentale misurava la
+soglia in CARATTERI (>=12), non in PAROLE, quindi accettava frammenti privi di
+contenuto proposizionale.
+
+`eval.attribution.quoted_spans` non ha nessuno dei due difetti ed e' gia'
+coperto da tests/test_attribution.py. Qui non si riscrive: si importa.
+
+Chiamanti di eval.attribution.quoted_spans / check_citations, verificati prima
+di toccare qualunque cosa (grep su eval/ core/ api/ tests/):
+  - eval/attribution.py: check_citations -> harness N3 del giudice;
+  - tests/test_attribution.py::test_verifica_citazione_nel_documento_attribuito.
+Nessuna modifica al repository: questo modulo e' additivo e sperimentale.
+
+Regola di prudenza mantenuta: `no_quote` e `unverifiable` restano esiti
+DISTINTI da `verified`. L'assenza di citazioni non e' un'attribuzione corretta,
+e un passo non ritrovato resta non verificabile.
+"""
+
+import pathlib
+import re
+import sys
+
+RAG = pathlib.Path(__file__).resolve().parents[4]
+if str(RAG) not in sys.path:
+    sys.path.insert(0, str(RAG))
+
+from eval.attribution import MIN_QUOTE_WORDS, normalize, quoted_spans  # noqa: E402
+
+__all__ = ["MIN_QUOTE_WORDS", "estrai", "normalize", "quoted_spans", "verifica_citazioni"]
+
+# estrattore DIFETTOSO, conservato solo per il confronto prima/dopo
+REGEX_DIFETTOSA = re.compile(r"[«\"']([^«»\"']{12,200})[»\"']")
+
+
+def estrai_difettoso(risposta: str) -> list[str]:
+    return [" ".join(m.split()) for m in REGEX_DIFETTOSA.findall(risposta)]
+
+
+def estrai(risposta: str) -> list[str]:
+    """I passi che la risposta presenta come parole di una fonte."""
+    return quoted_spans(risposta)
+
+
+def verifica_citazioni(risposta: str, corpus: dict[str, str]) -> list[dict]:
+    """Verifica DETERMINISTICA (`in` su testo normalizzato) di ogni passo
+    virgolettato contro i documenti che il modello poteva vedere.
+
+    `corpus`: nome della fonte -> testo. Per i PDF il testo e' quello
+    INDICIZZATO, cioe' esattamente cio' che e' finito nel contesto."""
+    normalizzato = {k: normalize(v) for k, v in corpus.items()}
+    esiti = []
+    for passo in estrai(risposta):
+        ago = normalize(passo)
+        dove = sorted(k for k, v in normalizzato.items() if ago and ago in v)
+        esiti.append({
+            "passo": passo[:200],
+            "parole": len(passo.split()),
+            "esito": "verified" if dove else "unverifiable",
+            "trovato_in": dove[:3],
+        })
+    return esiti

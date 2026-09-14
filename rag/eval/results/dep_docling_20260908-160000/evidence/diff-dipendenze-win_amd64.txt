@@ -1,0 +1,72 @@
+6a7
+> antlr4-python3-runtime==4.9.3
+8a10
+> av==18.1.0
+17a20
+> colorlog==6.12.0
+21a25,30
+> doclang==0.7.3
+> docling-core==2.95.0
+> docling-ibm-models==4.0.2
+> docling-parse==7.18.0
+> docling-slim==2.126.0
+> docling==2.126.0
+22a32
+> faker==40.38.0
+24a35
+> filetype==1.2.0
+43a55
+> jsonref==1.1.0
+45a58
+> latex2mathml==3.81.1
+48a62
+> mail-parser==4.6.4
+52a67
+> marko==2.2.4
+56a72
+> mpire==2.10.2
+63a80
+> omegaconf==2.3.1
+64a82
+> opencv-python==5.0.0.93
+72a91,92
+> pluggy==1.6.0
+> polyfactory==3.3.0
+77a98
+> pyclipper==1.4.0
+79a101
+> pydantic-settings==2.15.0
+82a105
+> pylatexenc==2.11
+88a112
+> python-oxmsg==0.0.2
+92a117,118
+> qwen-vl-utils==0.0.14
+> rapidocr==3.9.2
+97a124
+> rtree==1.4.1
+100a128
+> semchunk==3.2.5
+103a132
+> shapely==2.1.2
+110a140
+> tabulate==0.10.0
+112c142
+< tokenizers==0.23.2
+---
+> tokenizers==0.22.2
+113a144
+> torchvision==0.28.0
+115c146,147
+< transformers==5.16.1
+---
+> transformers==5.15.1
+> tree-sitter-c==0.24.2
+117a150
+> tree-sitter-python==0.25.0
+121c154
+< typer==0.27.2
+---
+> typer==0.26.8
+126a160
+> websockets==16.1.1

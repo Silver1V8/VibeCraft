@@ -1,0 +1,43 @@
+{
+  "etichetta": "w1-B-r2",
+  "modulo": "C:\\Users\\Silve\\AppData\\Local\\Temp\\claude\\C--Users-Silve-Desktop-vibecraft\\4b279f9d-0a05-4337-b2a4-157e29255185\\scratchpad\\w1\\rag\\core\\retrieval.py",
+  "contesti_da": "eval_B_p1.json",
+  "modello": [
+    "ollama",
+    "qwen3.5:9b"
+  ],
+  "num_ctx": 16384,
+  "temperature": 0.1,
+  "casi": {
+    "pdf-diag-3": {
+      "domanda": "Quale diagramma del catalogo documenta i checkpoint human-in-the-loop, e con quale peso?",
+      "risposta_attesa": "diag_6_2_hitl_checkpoints.svg.svg, 19.5 KB",
+      "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **`diag_6_2_hitl_checkpoints.svg.svg`**, classificato nell'area **Governance** con finalità sui \"Checkpoint human-in-the-loop e punti di controllo\".\n\nTale artefatto ha un peso di **0.30**, poiché la sua fonte è indicata come **[SENZA CLASSE]** nel catalogo dei diagrammi, mentre le regole che definiscono i checkpoint (es. `[REGOLA-HITL-01]`...`[REGOLA-HITL-05]`) risiedono in `vibe_coding_workflow.md` classificato come **[METHODOLOGY]** (peso 0.90).",
+      "errore": null,
+      "secondi": 8.33,
+      "prompt_char": 34967,
+      "classi": [
+        [
+          "NORMS",
+          0.9
+        ],
+        [
+          "REQUIREMENTS",
+          0.87
+        ],
+        [
+          "METADATA",
+          0.6
+        ],
+        [
+          "METHODOLOGY",
+          0.5
+        ],
+        [
+          "SENZA CLASSE",
+          0.3
+        ]
+      ]
+    }
+  }
+}

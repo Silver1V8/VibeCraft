@@ -1,0 +1,124 @@
+"""Variante sperimentale V2 — riscrittura di [CLASSE-FONTI], nessun blocco nuovo.
+
+Differenza dalla variante [ATTRIBUZIONE-DICHIARATA] della sessione precedente
+(NON_APPLICARE, conservata e non riattivata): quella AGGIUNGEVA un blocco e
+portava il prompt fisso da ~954 a ~1180 token stimati, sfondando il budget di
+1000. Questa RISCRIVE il testo gia' presente, eliminando ridondanze, e resta
+dentro il budget.
+
+Difetti bersaglio, entrambi accertati su ENTRAMBI gli stack (quindi non causati
+dal parser Docling):
+
+  D1 — peso/Authority. [CLASSE-FONTI] interpola una graduatoria con numeri nudi
+       («NORMS (0.80) > METHODOLOGY (0.50)») senza mai dire che cosa quei numeri
+       misurino. Il modello li offre come risposta a una domanda su una
+       grandezza dei documenti. La riscrittura dichiara che graduano SOLO le
+       fonti e che valori, quantita', dimensioni, formati e unita' si leggono
+       nel testo del blocco.
+
+  D2 — attribuzione di sezione. L'intestazione di blocco dice
+       «--- <doc> § <sezione> [CLASSE] ---» ed e' l'unica provenienza dichiarata.
+       Il modello scende a sotto-sezioni che l'intestazione non nomina e ne
+       indovina l'ordine. La riscrittura vincola la provenienza all'intestazione
+       e prescrive il ripiego verificabile (il solo documento) quando la sezione
+       non e' determinabile.
+
+Cosa NON fa, per costruzione:
+  - non nomina i cataloghi, i PDF, gli id delle domande ne' alcun valore del golden;
+  - non associa la parola «peso» a nulla: pdf-diag-2 chiede «formato e peso» e
+    gia' passa, quindi la parola non e' il difetto;
+  - non filtra ne' riscrive la risposta dopo la generazione;
+  - non tocca ranking, authority, precedenze o parametri calibrati;
+  - non rimuove alcuna istruzione di governance: [PRECEDENZA-FONTI],
+    [CITAZIONE-VERIFICABILE], [REGOLA-ASTENSIONE], [FONTE-CODICE] e
+    [REGOLA-DIZIONARIO-RIGIDO] restano invariate alla lettera.
+
+Distinzioni preservate, verificate dai controlli di FASE 3:
+  - Authority descrive l'autorevolezza della FONTE;
+  - valori/quantita'/dimensioni/unita' riportati dai documenti restano DATI;
+  - la precedenza dichiarata continua ad applicarsi nei conflitti;
+  - il testo recuperato non acquisisce autorita' sul sistema.
+
+Collocazione: dentro il ramo `if authority_classes:`, cioe' esattamente dove il
+testo sostituito gia' stava. Conseguenze sui test esistenti, verificate:
+  - tests/test_ask_unified_llm.py::test_build_ask_prompt_snapshot_testuale
+    fotografa il prompt BASE (senza scala) e resta verde: non tocchiamo il base;
+  - tests/test_ask_authority_prompt.py pretende «[CLASSE-FONTI]» nel prompt, la
+    stringa «NORMS (0.80) > METHODOLOGY (0.50)» e l'ordine prima di
+    [PRECEDENZA-FONTI]: tutti e tre conservati;
+  - tests/test_ask_prompt_cost.py: 987 token stimati contro un budget di 1000.
+
+LIMITE DICHIARATO: `authority_scale` restituisce [] quando tutte le fonti stanno
+sullo stesso livello, e allora la regola non compare. Per D1 e' innocuo — senza
+scala non c'e' il numero con cui collidere — ma per D2 e' una lacuna reale:
+l'invenzione di sezione puo' avvenire anche in un contesto a un solo livello.
+Tutte e otto le domande congelate hanno contesti a piu' classi (verificato sui
+contesti archiviati), quindi la regola e' attiva su tutte.
+
+Uso: patch_v2.py <sandbox> [--revert]
+"""
+import hashlib
+import pathlib
+import sys
+
+ATTUALE = (
+    '            "\\n[CLASSE-FONTI]: ogni blocco del contesto porta fra parentesi quadre la CLASSE "\n'
+    '            "dichiarata dalla sua fonte. In questo contesto l\'autorevolezza dichiarata dagli "\n'
+    '            f"autori del corpus decresce così: {scala}. Un vincolo, una soglia, una severità "\n'
+    '            "o un\'eccezione vanno attribuiti alla fonte PIÙ autorevole che li enuncia. Una "\n'
+    '            "fonte meno autorevole può motivarli o illustrarli, e va citata dichiarando che fa "\n'
+    '            "questo: mai come la fonte del vincolo. Se un vincolo è enunciato SOLO da una fonte "\n'
+    '            "meno autorevole, riportalo dicendo esplicitamente che nessuna fonte più autorevole "\n'
+    '            "lo stabilisce."\n'
+)
+
+VARIANTE = (
+    '            "\\n[CLASSE-FONTI]: ogni blocco del contesto porta fra parentesi quadre la CLASSE "\n'
+    '            f"dichiarata dalla sua fonte; l\'autorevolezza decresce così: {scala}. Quei numeri "\n'
+    '            "graduano SOLO le fonti: non sono dati dei documenti — valori, quantità, dimensioni, "\n'
+    '            "formati e unità si leggono nel testo del blocco. Un vincolo, una soglia o un\'eccezione "\n'
+    '            "vanno attribuiti alla fonte PIÙ autorevole che li enuncia; una meno autorevole può "\n'
+    '            "illustrarli e va citata dichiarando che fa questo, mai come fonte del vincolo; se li "\n'
+    '            "enuncia SOLO lei, dillo esplicitamente. Indica la provenienza con l\'intestazione del "\n'
+    '            "blocco: non nominare sezioni che non dichiara; se non è determinabile, cita il solo documento."\n'
+)
+
+
+def main() -> int:
+    sandbox = pathlib.Path(sys.argv[1])
+    revert = "--revert" in sys.argv
+    target = sandbox / "rag" / "core" / "retrieval.py"
+    backup = sandbox / "rag" / "core" / "retrieval.py.orig"
+    if not target.is_file():
+        print(f"ERRORE: {target} assente")
+        return 2
+
+    if revert:
+        if not backup.is_file():
+            print("ERRORE: nessun backup da ripristinare")
+            return 2
+        atteso = hashlib.sha256(backup.read_bytes()).hexdigest()
+        target.write_bytes(backup.read_bytes())
+        ottenuto = hashlib.sha256(target.read_bytes()).hexdigest()
+        backup.unlink()
+        print(f"RIPRISTINATO byte-esatto: {atteso == ottenuto} sha256={ottenuto[:16]}")
+        return 0 if atteso == ottenuto else 1
+
+    testo = target.read_text(encoding="utf-8")
+    if VARIANTE in testo:
+        print("gia' applicata")
+        return 0
+    if testo.count(ATTUALE) != 1:
+        print(f"ERRORE: blocco [CLASSE-FONTI] atteso trovato {testo.count(ATTUALE)} volte, non 1")
+        return 2
+    if not backup.is_file():
+        backup.write_bytes(target.read_bytes())
+    target.write_text(testo.replace(ATTUALE, VARIANTE), encoding="utf-8")
+    print(f"APPLICATA a {target}")
+    print(f"  sha256 prima={hashlib.sha256(backup.read_bytes()).hexdigest()[:16]}")
+    print(f"  sha256 dopo ={hashlib.sha256(target.read_bytes()).hexdigest()[:16]}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

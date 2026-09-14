@@ -1,0 +1,37 @@
+"""Prova mirata dell'ipotesi W2 prima di ingegnerizzarla: il dato va preso dalla
+RIGA che nomina l'elemento, mai da un'altra riga o entita'. Costruisce il prompt
+a mano sul contesto archiviato: se l'ipotesi non regge, non si tocca il patch."""
+import json
+import pathlib
+import sys
+import re
+RAG = pathlib.Path(r"C:\Users\Silve\Desktop\vibecraft\rag")
+sys.path.insert(0, str(RAG))
+from core import llm, retrieval  # noqa: E402
+ARCH = RAG / "eval/results/fix_attribuzione_20260909-183000/out"
+RIGA2_W2 = ("Rispondi ALLA DOMANDA POSTA con i fatti del contesto: vincoli e contratti se la "
+    "domanda li chiede, altrimenti il dato chiesto — valori, quantità, dimensioni e unità — "
+    "preso dalla riga o voce che nomina l'elemento di cui parli, mai da un'altra riga o entità.\n")
+cfg, n = sys.argv[1], int(sys.argv[2])
+d = json.loads((ARCH/f"eval_{cfg}_p1.json").read_text(encoding="utf-8"))
+q = d["domande"]["pdf-diag-3"]
+ctx = q["contesto_inviato"]
+INT = re.compile(r"^--- (?P<doc>\S+) § (?P<sez>.*?) \[(?P<cls>[^\]]+)\] ---$", re.M)
+PESI = {"NORMS":0.9,"REQUIREMENTS":0.87,"METADATA":0.6,"METHODOLOGY":0.5,"SENZA CLASSE":0.3}
+viste = {}
+for m in INT.finditer(ctx):
+    c = m.group("cls").split(";")[0].split(",")[0].strip().upper()
+    viste.setdefault(c, PESI.get(c,0.3))
+scala = sorted(viste.items(), key=lambda kv:-kv[1])
+base = retrieval.build_ask_prompt(ctx, q["domanda"], authority_classes=scala)
+w2 = base.replace("Rispondi alle domande estraendo i contratti e i vincoli esatti.\n", RIGA2_W2)
+assert w2 != base
+out = []
+for i in range(n):
+    r = llm.generate(w2, purpose="ask")
+    kb = "19.5 KB" in r
+    auth = bool(re.search(r"\b0[.,](?:30|50|60|85|87|90)\b", r))
+    nega = bool(re.search(r"non\s+(?:è|e')?\s*(?:riport\w+|contien\w+|specific\w+|indic\w+|present\w+)|nessun\w*\s+valore", r, re.I))
+    print(f"  {cfg} r{i+1}: 19.5KB={'SI' if kb else 'NO':2} coeff={'SI' if auth else 'no':2} nega={'SI' if nega else 'no':2}")
+    out.append({"r":i+1,"risposta":r,"kb":kb,"coeff":auth,"nega":nega})
+pathlib.Path(sys.argv[3]).write_text(json.dumps({"cfg":cfg,"riga2":RIGA2_W2,"prove":out}, indent=2, ensure_ascii=False), encoding="utf-8")

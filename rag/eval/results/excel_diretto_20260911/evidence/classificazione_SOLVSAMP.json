@@ -1,0 +1,6194 @@
+{
+ "differenze": 149,
+ "per_classe": {
+  "formato numerico diverso + testo visualizzato identico": 67,
+  "valore memorizzato arrotondato a 15 cifre significative + formato numerico diverso + testo visualizzato identico": 4,
+  "valore memorizzato arrotondato a 15 cifre significative + formato numerico diverso + testo visualizzato diverso": 22,
+  "valore memorizzato arrotondato a 15 cifre significative + testo visualizzato identico": 29,
+  "formato numerico diverso + testo visualizzato diverso": 13,
+  "tipo bool → number + testo visualizzato diverso": 14
+ },
+ "precedenti_69_coperte": true,
+ "precedenti": 69,
+ "nuove_rispetto_alle_69": [
+  [
+   "Gestione del personale",
+   19,
+   4
+  ],
+  [
+   "Gestione del personale",
+   20,
+   4
+  ],
+  [
+   "Massimizzazione del reddito",
+   8,
+   8
+  ],
+  [
+   "Massimizzazione del reddito",
+   11,
+   2
+  ],
+  [
+   "Massimizzazione del reddito",
+   11,
+   3
+  ],
+  [
+   "Massimizzazione del reddito",
+   11,
+   4
+  ],
+  [
+   "Massimizzazione del reddito",
+   11,
+   5
+  ],
+  [
+   "Massimizzazione del reddito",
+   11,
+   6
+  ],
+  [
+   "Massimizzazione del reddito",
+   11,
+   7
+  ],
+  [
+   "Massimizzazione del reddito",
+   11,
+   8
+  ],
+  [
+   "Massimizzazione del reddito",
+   12,
+   3
+  ],
+  [
+   "Massimizzazione del reddito",
+   12,
+   4
+  ],
+  [
+   "Massimizzazione del reddito",
+   12,
+   5
+  ],
+  [
+   "Massimizzazione del reddito",
+   12,
+   6
+  ],
+  [
+   "Massimizzazione del reddito",
+   12,
+   7
+  ],
+  [
+   "Massimizzazione del reddito",
+   12,
+   8
+  ],
+  [
+   "Massimizzazione del reddito",
+   13,
+   3
+  ],
+  [
+   "Massimizzazione del reddito",
+   13,
+   4
+  ],
+  [
+   "Massimizzazione del reddito",
+   13,
+   5
+  ],
+  [
+   "Massimizzazione del reddito",
+   13,
+   6
+  ],
+  [
+   "Massimizzazione del reddito",
+   13,
+   7
+  ],
+  [
+   "Massimizzazione del reddito",
+   13,
+   8
+  ],
+  [
+   "Massimizzazione del reddito",
+   14,
+   2
+  ],
+  [
+   "Massimizzazione del reddito",
+   14,
+   3
+  ],
+  [
+   "Massimizzazione del reddito",
+   14,
+   4
+  ],
+  [
+   "Massimizzazione del reddito",
+   14,
+   5
+  ],
+  [
+   "Massimizzazione del reddito",
+   14,
+   6
+  ],
+  [
+   "Massimizzazione del reddito",
+   14,
+   7
+  ],
+  [
+   "Massimizzazione del reddito",
+   15,
+   2
+  ],
+  [
+   "Massimizzazione del reddito",
+   15,
+   5
+  ],
+  [
+   "Massimizzazione del reddito",
+   16,
+   2
+  ],
+  [
+   "Massimizzazione del reddito",
+   17,
+   2
+  ],
+  [
+   "Massimizzazione del reddito",
+   17,
+   3
+  ],
+  [
+   "Massimizzazione del reddito",
+   17,
+   4
+  ],
+  [
+   "Massimizzazione del reddito",
+   17,
+   5
+  ],
+  [
+   "Massimizzazione del reddito",
+   17,
+   6
+  ],
+  [
+   "Massimizzazione del reddito",
+   17,
+   7
+  ],
+  [
+   "Massimizzazione del reddito",
+   17,
+   8
+  ],
+  [
+   "Massimizzazione del reddito",
+   18,
+   2
+  ],
+  [
+   "Massimizzazione del reddito",
+   18,
+   3
+  ],
+  [
+   "Massimizzazione del reddito",
+   18,
+   4
+  ],
+  [
+   "Massimizzazione del reddito",
+   18,
+   5
+  ],
+  [
+   "Massimizzazione del reddito",
+   18,
+   6
+  ],
+  [
+   "Massimizzazione del reddito",
+   18,
+   7
+  ],
+  [
+   "Massimizzazione del reddito",
+   18,
+   8
+  ],
+  [
+   "Massimizzazione del reddito",
+   20,
+   2
+  ],
+  [
+   "Panoramica",
+   8,
+   4
+  ],
+  [
+   "Panoramica",
+   10,
+   2
+  ],
+  [
+   "Panoramica",
+   10,
+   3
+  ],
+  [
+   "Panoramica",
+   10,
+   4
+  ],
+  [
+   "Panoramica",
+   10,
+   5
+  ],
+  [
+   "Panoramica",
+   10,
+   6
+  ],
+  [
+   "Panoramica",
+   11,
+   2
+  ],
+  [
+   "Panoramica",
+   11,
+   3
+  ],
+  [
+   "Panoramica",
+   11,
+   4
+  ],
+  [
+   "Panoramica",
+   11,
+   5
+  ],
+  [
+   "Panoramica",
+   11,
+   6
+  ],
+  [
+   "Panoramica",
+   12,
+   6
+  ],
+  [
+   "Panoramica",
+   13,
+   6
+  ],
+  [
+   "Trasporti",
+   16,
+   3
+  ],
+  [
+   "Trasporti",
+   16,
+   4
+  ],
+  [
+   "Trasporti",
+   16,
+   5
+  ],
+  [
+   "Trasporti",
+   16,
+   6
+  ],
+  [
+   "Trasporti",
+   16,
+   7
+  ],
+  [
+   "Trasporti",
+   17,
+   3
+  ],
+  [
+   "Trasporti",
+   17,
+   4
+  ],
+  [
+   "Trasporti",
+   17,
+   5
+  ],
+  [
+   "Trasporti",
+   17,
+   6
+  ],
+  [
+   "Trasporti",
+   17,
+   7
+  ],
+  [
+   "Trasporti",
+   18,
+   3
+  ],
+  [
+   "Trasporti",
+   18,
+   4
+  ],
+  [
+   "Trasporti",
+   18,
+   5
+  ],
+  [
+   "Trasporti",
+   18,
+   6
+  ],
+  [
+   "Trasporti",
+   18,
+   7
+  ],
+  [
+   "Trasporti",
+   20,
+   2
+  ],
+  [
+   "Trasporti",
+   20,
+   3
+  ],
+  [
+   "Trasporti",
+   20,
+   4
+  ],
+  [
+   "Trasporti",
+   20,
+   5
+  ],
+  [
+   "Trasporti",
+   20,
+   6
+  ],
+  [
+   "Trasporti",
+   20,
+   7
+  ]
+ ],
+ "righe": [
+  {
+   "cella": [
+    "Gestione del personale",
+    19,
+    4
+   ],
+   "originale": {
+    "a": "D19",
+    "r": 19,
+    "c": 4,
+    "t": "number",
+    "v": "40000",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 40.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D19",
+    "r": 19,
+    "c": 4,
+    "t": "number",
+    "v": "40000",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 40.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Gestione del personale",
+    20,
+    4
+   ],
+   "originale": {
+    "a": "D20",
+    "r": 20,
+    "c": 4,
+    "t": "number",
+    "v": "1280000",
+    "d": false,
+    "f": "=D15*D19",
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 1.280.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D20",
+    "r": 20,
+    "c": 4,
+    "t": "number",
+    "v": "1280000",
+    "d": false,
+    "f": "=D15*D19",
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 1.280.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    8,
+    8
+   ],
+   "originale": {
+    "a": "H8",
+    "r": 8,
+    "c": 8,
+    "t": "number",
+    "v": "7700",
+    "d": false,
+    "f": "=SUM(B13:H13)",
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 7.700",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "H8",
+    "r": 8,
+    "c": 8,
+    "t": "number",
+    "v": "7700",
+    "d": false,
+    "f": "=SUM(B13:H13)",
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 7.700",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    11,
+    2
+   ],
+   "originale": {
+    "a": "B11",
+    "r": 11,
+    "c": 2,
+    "t": "number",
+    "v": "400000",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 400.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "B11",
+    "r": 11,
+    "c": 2,
+    "t": "number",
+    "v": "400000",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 400.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    11,
+    3
+   ],
+   "originale": {
+    "a": "C11",
+    "r": 11,
+    "c": 3,
+    "t": "number",
+    "v": "205000",
+    "d": false,
+    "f": "=B18",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 205.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C11",
+    "r": 11,
+    "c": 3,
+    "t": "number",
+    "v": "205000",
+    "d": false,
+    "f": "=B18",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 205.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    11,
+    4
+   ],
+   "originale": {
+    "a": "D11",
+    "r": 11,
+    "c": 4,
+    "t": "number",
+    "v": "216000",
+    "d": false,
+    "f": "=C18",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 216.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D11",
+    "r": 11,
+    "c": 4,
+    "t": "number",
+    "v": "216000",
+    "d": false,
+    "f": "=C18",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 216.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    11,
+    5
+   ],
+   "originale": {
+    "a": "E11",
+    "r": 11,
+    "c": 5,
+    "t": "number",
+    "v": "237000",
+    "d": false,
+    "f": "=D18",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 237.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E11",
+    "r": 11,
+    "c": 5,
+    "t": "number",
+    "v": "237000",
+    "d": false,
+    "f": "=D18",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 237.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    11,
+    6
+   ],
+   "originale": {
+    "a": "F11",
+    "r": 11,
+    "c": 6,
+    "t": "number",
+    "v": "158400",
+    "d": false,
+    "f": "=E18",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 158.400",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F11",
+    "r": 11,
+    "c": 6,
+    "t": "number",
+    "v": "158400",
+    "d": false,
+    "f": "=E18",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 158.400",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    11,
+    7
+   ],
+   "originale": {
+    "a": "G11",
+    "r": 11,
+    "c": 7,
+    "t": "number",
+    "v": "109400",
+    "d": false,
+    "f": "=F18",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 109.400",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "G11",
+    "r": 11,
+    "c": 7,
+    "t": "number",
+    "v": "109400",
+    "d": false,
+    "f": "=F18",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 109.400",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    11,
+    8
+   ],
+   "originale": {
+    "a": "H11",
+    "r": 11,
+    "c": 8,
+    "t": "number",
+    "v": "125400",
+    "d": false,
+    "f": "=G18",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 125.400",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "H11",
+    "r": 11,
+    "c": 8,
+    "t": "number",
+    "v": "125400",
+    "d": false,
+    "f": "=G18",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 125.400",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    12,
+    3
+   ],
+   "originale": {
+    "a": "C12",
+    "r": 12,
+    "c": 3,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=B14",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C12",
+    "r": 12,
+    "c": 3,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=B14",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    12,
+    4
+   ],
+   "originale": {
+    "a": "D12",
+    "r": 12,
+    "c": 4,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=C14",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D12",
+    "r": 12,
+    "c": 4,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=C14",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    12,
+    5
+   ],
+   "originale": {
+    "a": "E12",
+    "r": 12,
+    "c": 5,
+    "t": "number",
+    "v": "110000",
+    "d": false,
+    "f": "=D14+B15",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 110.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E12",
+    "r": 12,
+    "c": 5,
+    "t": "number",
+    "v": "110000",
+    "d": false,
+    "f": "=D14+B15",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 110.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    12,
+    6
+   ],
+   "originale": {
+    "a": "F12",
+    "r": 12,
+    "c": 6,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=E14",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F12",
+    "r": 12,
+    "c": 6,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=E14",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    12,
+    7
+   ],
+   "originale": {
+    "a": "G12",
+    "r": 12,
+    "c": 7,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=F14",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "G12",
+    "r": 12,
+    "c": 7,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=F14",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    12,
+    8
+   ],
+   "originale": {
+    "a": "H12",
+    "r": 12,
+    "c": 8,
+    "t": "number",
+    "v": "120000",
+    "d": false,
+    "f": "=G14+E15+B16",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 120.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "H12",
+    "r": 12,
+    "c": 8,
+    "t": "number",
+    "v": "120000",
+    "d": false,
+    "f": "=G14+E15+B16",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 120.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    13,
+    3
+   ],
+   "originale": {
+    "a": "C13",
+    "r": 13,
+    "c": 3,
+    "t": "number",
+    "v": "1000",
+    "d": false,
+    "f": "=B14*$B$6",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 1.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C13",
+    "r": 13,
+    "c": 3,
+    "t": "number",
+    "v": "1000",
+    "d": false,
+    "f": "=B14*$B$6",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 1.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    13,
+    4
+   ],
+   "originale": {
+    "a": "D13",
+    "r": 13,
+    "c": 4,
+    "t": "number",
+    "v": "1000",
+    "d": false,
+    "f": "=C14*$B$6",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 1.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D13",
+    "r": 13,
+    "c": 4,
+    "t": "number",
+    "v": "1000",
+    "d": false,
+    "f": "=C14*$B$6",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 1.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    13,
+    5
+   ],
+   "originale": {
+    "a": "E13",
+    "r": 13,
+    "c": 5,
+    "t": "number",
+    "v": "1400",
+    "d": false,
+    "f": "=D14*$B$6+B15*$B$7",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 1.400",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E13",
+    "r": 13,
+    "c": 5,
+    "t": "number",
+    "v": "1400",
+    "d": false,
+    "f": "=D14*$B$6+B15*$B$7",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 1.400",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    13,
+    6
+   ],
+   "originale": {
+    "a": "F13",
+    "r": 13,
+    "c": 6,
+    "t": "number",
+    "v": "1000",
+    "d": false,
+    "f": "=E14*$B$6",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 1.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F13",
+    "r": 13,
+    "c": 6,
+    "t": "number",
+    "v": "1000",
+    "d": false,
+    "f": "=E14*$B$6",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 1.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    13,
+    7
+   ],
+   "originale": {
+    "a": "G13",
+    "r": 13,
+    "c": 7,
+    "t": "number",
+    "v": "1000",
+    "d": false,
+    "f": "=F14*$B$6",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 1.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "G13",
+    "r": 13,
+    "c": 7,
+    "t": "number",
+    "v": "1000",
+    "d": false,
+    "f": "=F14*$B$6",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 1.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    13,
+    8
+   ],
+   "originale": {
+    "a": "H13",
+    "r": 13,
+    "c": 8,
+    "t": "number",
+    "v": "2300",
+    "d": false,
+    "f": "=G14*$B$6+E15*$B$7+B16*$B$8",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 2.300",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "H13",
+    "r": 13,
+    "c": 8,
+    "t": "number",
+    "v": "2300",
+    "d": false,
+    "f": "=G14*$B$6+E15*$B$7+B16*$B$8",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 2.300",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    14,
+    2
+   ],
+   "originale": {
+    "a": "B14",
+    "r": 14,
+    "c": 2,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=100000",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "B14",
+    "r": 14,
+    "c": 2,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=100000",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    14,
+    3
+   ],
+   "originale": {
+    "a": "C14",
+    "r": 14,
+    "c": 3,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=100000",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C14",
+    "r": 14,
+    "c": 3,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=100000",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    14,
+    4
+   ],
+   "originale": {
+    "a": "D14",
+    "r": 14,
+    "c": 4,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=100000",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D14",
+    "r": 14,
+    "c": 4,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=100000",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    14,
+    5
+   ],
+   "originale": {
+    "a": "E14",
+    "r": 14,
+    "c": 5,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=100000",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E14",
+    "r": 14,
+    "c": 5,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=100000",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    14,
+    6
+   ],
+   "originale": {
+    "a": "F14",
+    "r": 14,
+    "c": 6,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=100000",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F14",
+    "r": 14,
+    "c": 6,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=100000",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    14,
+    7
+   ],
+   "originale": {
+    "a": "G14",
+    "r": 14,
+    "c": 7,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=100000",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "G14",
+    "r": 14,
+    "c": 7,
+    "t": "number",
+    "v": "100000",
+    "d": false,
+    "f": "=100000",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 100.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    15,
+    2
+   ],
+   "originale": {
+    "a": "B15",
+    "r": 15,
+    "c": 2,
+    "t": "number",
+    "v": "10000",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 10.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "B15",
+    "r": 15,
+    "c": 2,
+    "t": "number",
+    "v": "10000",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 10.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    15,
+    5
+   ],
+   "originale": {
+    "a": "E15",
+    "r": 15,
+    "c": 5,
+    "t": "number",
+    "v": "10000",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 10.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E15",
+    "r": 15,
+    "c": 5,
+    "t": "number",
+    "v": "10000",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 10.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    16,
+    2
+   ],
+   "originale": {
+    "a": "B16",
+    "r": 16,
+    "c": 2,
+    "t": "number",
+    "v": "10000",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 10.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "B16",
+    "r": 16,
+    "c": 2,
+    "t": "number",
+    "v": "10000",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 10.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    17,
+    2
+   ],
+   "originale": {
+    "a": "B17",
+    "r": 17,
+    "c": 2,
+    "t": "number",
+    "v": "75000",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 75.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "B17",
+    "r": 17,
+    "c": 2,
+    "t": "number",
+    "v": "75000",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 75.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    17,
+    3
+   ],
+   "originale": {
+    "a": "C17",
+    "r": 17,
+    "c": 3,
+    "t": "number",
+    "v": "-10000",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "-L. 10.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C17",
+    "r": 17,
+    "c": 3,
+    "t": "number",
+    "v": "-10000",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "-L. 10.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    17,
+    4
+   ],
+   "originale": {
+    "a": "D17",
+    "r": 17,
+    "c": 4,
+    "t": "number",
+    "v": "-20000",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "-L. 20.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D17",
+    "r": 17,
+    "c": 4,
+    "t": "number",
+    "v": "-20000",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "-L. 20.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    17,
+    5
+   ],
+   "originale": {
+    "a": "E17",
+    "r": 17,
+    "c": 5,
+    "t": "number",
+    "v": "80000",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 80.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E17",
+    "r": 17,
+    "c": 5,
+    "t": "number",
+    "v": "80000",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 80.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    17,
+    6
+   ],
+   "originale": {
+    "a": "F17",
+    "r": 17,
+    "c": 6,
+    "t": "number",
+    "v": "50000",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 50.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F17",
+    "r": 17,
+    "c": 6,
+    "t": "number",
+    "v": "50000",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 50.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    17,
+    7
+   ],
+   "originale": {
+    "a": "G17",
+    "r": 17,
+    "c": 7,
+    "t": "number",
+    "v": "-15000",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "-L. 15.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "G17",
+    "r": 17,
+    "c": 7,
+    "t": "number",
+    "v": "-15000",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "-L. 15.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    17,
+    8
+   ],
+   "originale": {
+    "a": "H17",
+    "r": 17,
+    "c": 8,
+    "t": "number",
+    "v": "60000",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 60.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "H17",
+    "r": 17,
+    "c": 8,
+    "t": "number",
+    "v": "60000",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 60.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    18,
+    2
+   ],
+   "originale": {
+    "a": "B18",
+    "r": 18,
+    "c": 2,
+    "t": "number",
+    "v": "205000",
+    "d": false,
+    "f": "=SUM(B11:B13)-SUM(B14:B17)",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 205.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "B18",
+    "r": 18,
+    "c": 2,
+    "t": "number",
+    "v": "205000",
+    "d": false,
+    "f": "=SUM(B11:B13)-SUM(B14:B17)",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 205.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    18,
+    3
+   ],
+   "originale": {
+    "a": "C18",
+    "r": 18,
+    "c": 3,
+    "t": "number",
+    "v": "216000",
+    "d": false,
+    "f": "=SUM(C11:C13)-SUM(C14:C17)",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 216.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C18",
+    "r": 18,
+    "c": 3,
+    "t": "number",
+    "v": "216000",
+    "d": false,
+    "f": "=SUM(C11:C13)-SUM(C14:C17)",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 216.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    18,
+    4
+   ],
+   "originale": {
+    "a": "D18",
+    "r": 18,
+    "c": 4,
+    "t": "number",
+    "v": "237000",
+    "d": false,
+    "f": "=SUM(D11:D13)-SUM(D14:D17)",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 237.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D18",
+    "r": 18,
+    "c": 4,
+    "t": "number",
+    "v": "237000",
+    "d": false,
+    "f": "=SUM(D11:D13)-SUM(D14:D17)",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 237.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    18,
+    5
+   ],
+   "originale": {
+    "a": "E18",
+    "r": 18,
+    "c": 5,
+    "t": "number",
+    "v": "158400",
+    "d": false,
+    "f": "=SUM(E11:E13)-SUM(E14:E17)",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 158.400",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E18",
+    "r": 18,
+    "c": 5,
+    "t": "number",
+    "v": "158400",
+    "d": false,
+    "f": "=SUM(E11:E13)-SUM(E14:E17)",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 158.400",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    18,
+    6
+   ],
+   "originale": {
+    "a": "F18",
+    "r": 18,
+    "c": 6,
+    "t": "number",
+    "v": "109400",
+    "d": false,
+    "f": "=SUM(F11:F13)-SUM(F14:F17)",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 109.400",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F18",
+    "r": 18,
+    "c": 6,
+    "t": "number",
+    "v": "109400",
+    "d": false,
+    "f": "=SUM(F11:F13)-SUM(F14:F17)",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 109.400",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    18,
+    7
+   ],
+   "originale": {
+    "a": "G18",
+    "r": 18,
+    "c": 7,
+    "t": "number",
+    "v": "125400",
+    "d": false,
+    "f": "=SUM(G11:G13)-SUM(G14:G17)",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 125.400",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "G18",
+    "r": 18,
+    "c": 7,
+    "t": "number",
+    "v": "125400",
+    "d": false,
+    "f": "=SUM(G11:G13)-SUM(G14:G17)",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 125.400",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    18,
+    8
+   ],
+   "originale": {
+    "a": "H18",
+    "r": 18,
+    "c": 8,
+    "t": "number",
+    "v": "187700",
+    "d": false,
+    "f": "=SUM(H11:H13)-SUM(H14:H17)",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "L. 187.700",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "H18",
+    "r": 18,
+    "c": 8,
+    "t": "number",
+    "v": "187700",
+    "d": false,
+    "f": "=SUM(H11:H13)-SUM(H14:H17)",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "L. 187.700",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Massimizzazione del reddito",
+    20,
+    2
+   ],
+   "originale": {
+    "a": "B20",
+    "r": 20,
+    "c": 2,
+    "t": "number",
+    "v": "-290000",
+    "d": false,
+    "f": "=1*B14+3*B15+6*B16-4*SUM(B14:B16)",
+    "nf": "\"L.\" #.##0;[Rosso]-\"L.\" #.##0",
+    "text": "-L. 290.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "B20",
+    "r": 20,
+    "c": 2,
+    "t": "number",
+    "v": "-290000",
+    "d": false,
+    "f": "=1*B14+3*B15+6*B16-4*SUM(B14:B16)",
+    "nf": "\"L. \"#.##0;[Rosso]\"-L. \"#.##0",
+    "text": "-L. 290.000",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Mix di prodotti",
+    17,
+    4
+   ],
+   "originale": {
+    "a": "D17",
+    "r": 17,
+    "c": 4,
+    "t": "number",
+    "v": "4732.180083601453",
+    "d": false,
+    "f": "=75*MAX(D9,0)^$H$15",
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 4.732",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D17",
+    "r": 17,
+    "c": 4,
+    "t": "number",
+    "v": "4732.18008360145",
+    "d": false,
+    "f": "=75*MAX(D9,0)^$H$15",
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 4.732",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Mix di prodotti",
+    17,
+    5
+   ],
+   "originale": {
+    "a": "E17",
+    "r": 17,
+    "c": 5,
+    "t": "number",
+    "v": "3154.7867224009683",
+    "d": false,
+    "f": "=50*MAX(E9,0)^$H$15",
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 3.155",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E17",
+    "r": 17,
+    "c": 5,
+    "t": "number",
+    "v": "3154.78672240097",
+    "d": false,
+    "f": "=50*MAX(E9,0)^$H$15",
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 3.155",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Mix di prodotti",
+    17,
+    6
+   ],
+   "originale": {
+    "a": "F17",
+    "r": 17,
+    "c": 6,
+    "t": "number",
+    "v": "2208.350705680678",
+    "d": false,
+    "f": "=35*MAX(F9,0)^$H$15",
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 2.208",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F17",
+    "r": 17,
+    "c": 6,
+    "t": "number",
+    "v": "2208.35070568068",
+    "d": false,
+    "f": "=35*MAX(F9,0)^$H$15",
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 2.208",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Mix di prodotti",
+    18,
+    4
+   ],
+   "originale": {
+    "a": "D18",
+    "r": 18,
+    "c": 4,
+    "t": "number",
+    "v": "10095.317511683099",
+    "d": false,
+    "f": "=SUM(D17:F17)",
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 10.095",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D18",
+    "r": 18,
+    "c": 4,
+    "t": "number",
+    "v": "10095.3175116831",
+    "d": false,
+    "f": "=SUM(D17:F17)",
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 10.095",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    5,
+    2
+   ],
+   "originale": {
+    "a": "B5",
+    "r": 5,
+    "c": 2,
+    "t": "number",
+    "v": "3591.5525890622844",
+    "d": false,
+    "f": "=35*B3*(B11+3000)^0.5",
+    "nf": "#.##0;-#.##0",
+    "text": "3.592",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "B5",
+    "r": 5,
+    "c": 2,
+    "t": "number",
+    "v": "3591.55258906228",
+    "d": false,
+    "f": "=35*B3*(B11+3000)^0.5",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "3.592 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    5,
+    3
+   ],
+   "originale": {
+    "a": "C5",
+    "r": 5,
+    "c": 3,
+    "t": "number",
+    "v": "4389.675386631681",
+    "d": false,
+    "f": "=35*C3*(C11+3000)^0.5",
+    "nf": "#.##0;-#.##0",
+    "text": "4.390",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C5",
+    "r": 5,
+    "c": 3,
+    "t": "number",
+    "v": "4389.67538663168",
+    "d": false,
+    "f": "=35*C3*(C11+3000)^0.5",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "4.390 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    5,
+    4
+   ],
+   "originale": {
+    "a": "D5",
+    "r": 5,
+    "c": 4,
+    "t": "number",
+    "v": "3192.491190277586",
+    "d": false,
+    "f": "=35*D3*(D11+3000)^0.5",
+    "nf": "#.##0;-#.##0",
+    "text": "3.192",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D5",
+    "r": 5,
+    "c": 4,
+    "t": "number",
+    "v": "3192.49119027759",
+    "d": false,
+    "f": "=35*D3*(D11+3000)^0.5",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "3.192 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    5,
+    5
+   ],
+   "originale": {
+    "a": "E5",
+    "r": 5,
+    "c": 5,
+    "t": "number",
+    "v": "4788.7367854163795",
+    "d": false,
+    "f": "=35*E3*(E11+3000)^0.5",
+    "nf": "#.##0;-#.##0",
+    "text": "4.789",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E5",
+    "r": 5,
+    "c": 5,
+    "t": "number",
+    "v": "4788.73678541638",
+    "d": false,
+    "f": "=35*E3*(E11+3000)^0.5",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "4.789 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    5,
+    6
+   ],
+   "originale": {
+    "a": "F5",
+    "r": 5,
+    "c": 6,
+    "t": "number",
+    "v": "15962.455951387932",
+    "d": false,
+    "f": "=SUM(B5:E5)",
+    "nf": "#.##0;-#.##0",
+    "text": "15.962",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F5",
+    "r": 5,
+    "c": 6,
+    "t": "number",
+    "v": "15962.4559513879",
+    "d": false,
+    "f": "=SUM(B5:E5)",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "15.962 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    6,
+    2
+   ],
+   "originale": {
+    "a": "B6",
+    "r": 6,
+    "c": 2,
+    "t": "number",
+    "v": "14366210.356249137",
+    "d": false,
+    "f": "=B5*$B$18",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 14.366.210",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "B6",
+    "r": 6,
+    "c": 2,
+    "t": "number",
+    "v": "14366210.3562491",
+    "d": false,
+    "f": "=B5*$B$18",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 14.366.210",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    6,
+    3
+   ],
+   "originale": {
+    "a": "C6",
+    "r": 6,
+    "c": 3,
+    "t": "number",
+    "v": "17558701.546526726",
+    "d": false,
+    "f": "=C5*$B$18",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 17.558.702",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C6",
+    "r": 6,
+    "c": 3,
+    "t": "number",
+    "v": "17558701.5465267",
+    "d": false,
+    "f": "=C5*$B$18",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 17.558.702",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    6,
+    4
+   ],
+   "originale": {
+    "a": "D6",
+    "r": 6,
+    "c": 4,
+    "t": "number",
+    "v": "12769964.761110345",
+    "d": false,
+    "f": "=D5*$B$18",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 12.769.965",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D6",
+    "r": 6,
+    "c": 4,
+    "t": "number",
+    "v": "12769964.7611103",
+    "d": false,
+    "f": "=D5*$B$18",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 12.769.965",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    6,
+    5
+   ],
+   "originale": {
+    "a": "E6",
+    "r": 6,
+    "c": 5,
+    "t": "number",
+    "v": "19154947.14166552",
+    "d": false,
+    "f": "=E5*$B$18",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 19.154.947",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E6",
+    "r": 6,
+    "c": 5,
+    "t": "number",
+    "v": "19154947.1416655",
+    "d": false,
+    "f": "=E5*$B$18",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 19.154.947",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    6,
+    6
+   ],
+   "originale": {
+    "a": "F6",
+    "r": 6,
+    "c": 6,
+    "t": "number",
+    "v": "63849823.80555172",
+    "d": false,
+    "f": "=SUM(B6:E6)",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 63.849.824",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F6",
+    "r": 6,
+    "c": 6,
+    "t": "number",
+    "v": "63849823.8055517",
+    "d": false,
+    "f": "=SUM(B6:E6)",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 63.849.824",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    7,
+    2
+   ],
+   "originale": {
+    "a": "B7",
+    "r": 7,
+    "c": 2,
+    "t": "number",
+    "v": "8978881.472655712",
+    "d": false,
+    "f": "=B5*$B$19",
+    "nf": "#.##0;-#.##0",
+    "text": "8.978.881",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "B7",
+    "r": 7,
+    "c": 2,
+    "t": "number",
+    "v": "8978881.47265571",
+    "d": false,
+    "f": "=B5*$B$19",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "8.978.881 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    7,
+    3
+   ],
+   "originale": {
+    "a": "C7",
+    "r": 7,
+    "c": 3,
+    "t": "number",
+    "v": "10974188.466579203",
+    "d": false,
+    "f": "=C5*$B$19",
+    "nf": "#.##0;-#.##0",
+    "text": "10.974.188",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C7",
+    "r": 7,
+    "c": 3,
+    "t": "number",
+    "v": "10974188.4665792",
+    "d": false,
+    "f": "=C5*$B$19",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "10.974.188 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    7,
+    4
+   ],
+   "originale": {
+    "a": "D7",
+    "r": 7,
+    "c": 4,
+    "t": "number",
+    "v": "7981227.975693965",
+    "d": false,
+    "f": "=D5*$B$19",
+    "nf": "#.##0;-#.##0",
+    "text": "7.981.228",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D7",
+    "r": 7,
+    "c": 4,
+    "t": "number",
+    "v": "7981227.97569397",
+    "d": false,
+    "f": "=D5*$B$19",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "7.981.228 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    7,
+    5
+   ],
+   "originale": {
+    "a": "E7",
+    "r": 7,
+    "c": 5,
+    "t": "number",
+    "v": "11971841.963540949",
+    "d": false,
+    "f": "=E5*$B$19",
+    "nf": "#.##0;-#.##0",
+    "text": "11.971.842",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E7",
+    "r": 7,
+    "c": 5,
+    "t": "number",
+    "v": "11971841.9635409",
+    "d": false,
+    "f": "=E5*$B$19",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "11.971.842 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    7,
+    6
+   ],
+   "originale": {
+    "a": "F7",
+    "r": 7,
+    "c": 6,
+    "t": "number",
+    "v": "39906139.878469825",
+    "d": false,
+    "f": "=SUM(B7:E7)",
+    "nf": "#.##0;-#.##0",
+    "text": "39.906.140",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F7",
+    "r": 7,
+    "c": 6,
+    "t": "number",
+    "v": "39906139.8784698",
+    "d": false,
+    "f": "=SUM(B7:E7)",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "39.906.140 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    8,
+    2
+   ],
+   "originale": {
+    "a": "B8",
+    "r": 8,
+    "c": 2,
+    "t": "number",
+    "v": "5387328.883593425",
+    "d": false,
+    "f": "=B6-B7",
+    "nf": "#.##0;-#.##0",
+    "text": "5.387.329",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "B8",
+    "r": 8,
+    "c": 2,
+    "t": "number",
+    "v": "5387328.88359343",
+    "d": false,
+    "f": "=B6-B7",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "5.387.329 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    8,
+    3
+   ],
+   "originale": {
+    "a": "C8",
+    "r": 8,
+    "c": 3,
+    "t": "number",
+    "v": "6584513.079947524",
+    "d": false,
+    "f": "=C6-C7",
+    "nf": "#.##0;-#.##0",
+    "text": "6.584.513",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C8",
+    "r": 8,
+    "c": 3,
+    "t": "number",
+    "v": "6584513.07994752",
+    "d": false,
+    "f": "=C6-C7",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "6.584.513 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    8,
+    4
+   ],
+   "originale": {
+    "a": "D8",
+    "r": 8,
+    "c": 4,
+    "t": "number",
+    "v": "4788736.78541638",
+    "d": false,
+    "f": "=D6-D7",
+    "nf": "#.##0;-#.##0",
+    "text": "4.788.737",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D8",
+    "r": 8,
+    "c": 4,
+    "t": "number",
+    "v": "4788736.78541638",
+    "d": false,
+    "f": "=D6-D7",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "4.788.737 ",
+    "merge": null
+   },
+   "campi": [
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    8,
+    5
+   ],
+   "originale": {
+    "a": "E8",
+    "r": 8,
+    "c": 5,
+    "t": "number",
+    "v": "7183105.178124569",
+    "d": false,
+    "f": "=E6-E7",
+    "nf": "#.##0;-#.##0",
+    "text": "7.183.105",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E8",
+    "r": 8,
+    "c": 5,
+    "t": "number",
+    "v": "7183105.17812457",
+    "d": false,
+    "f": "=E6-E7",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "7.183.105 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    8,
+    6
+   ],
+   "originale": {
+    "a": "F8",
+    "r": 8,
+    "c": 6,
+    "t": "number",
+    "v": "23943683.927081898",
+    "d": false,
+    "f": "=SUM(B8:E8)",
+    "nf": "#.##0;-#.##0",
+    "text": "23.943.684",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F8",
+    "r": 8,
+    "c": 6,
+    "t": "number",
+    "v": "23943683.9270819",
+    "d": false,
+    "f": "=SUM(B8:E8)",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "23.943.684 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    10,
+    2
+   ],
+   "originale": {
+    "a": "B10",
+    "r": 10,
+    "c": 2,
+    "t": "number",
+    "v": "8000",
+    "d": false,
+    "f": null,
+    "nf": "#.##0;-#.##0",
+    "text": "8.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "B10",
+    "r": 10,
+    "c": 2,
+    "t": "number",
+    "v": "8000",
+    "d": false,
+    "f": null,
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "8.000 ",
+    "merge": null
+   },
+   "campi": [
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    10,
+    3
+   ],
+   "originale": {
+    "a": "C10",
+    "r": 10,
+    "c": 3,
+    "t": "number",
+    "v": "8000",
+    "d": false,
+    "f": null,
+    "nf": "#.##0;-#.##0",
+    "text": "8.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C10",
+    "r": 10,
+    "c": 3,
+    "t": "number",
+    "v": "8000",
+    "d": false,
+    "f": null,
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "8.000 ",
+    "merge": null
+   },
+   "campi": [
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    10,
+    4
+   ],
+   "originale": {
+    "a": "D10",
+    "r": 10,
+    "c": 4,
+    "t": "number",
+    "v": "9000",
+    "d": false,
+    "f": null,
+    "nf": "#.##0;-#.##0",
+    "text": "9.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D10",
+    "r": 10,
+    "c": 4,
+    "t": "number",
+    "v": "9000",
+    "d": false,
+    "f": null,
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "9.000 ",
+    "merge": null
+   },
+   "campi": [
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    10,
+    5
+   ],
+   "originale": {
+    "a": "E10",
+    "r": 10,
+    "c": 5,
+    "t": "number",
+    "v": "9000",
+    "d": false,
+    "f": null,
+    "nf": "#.##0;-#.##0",
+    "text": "9.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E10",
+    "r": 10,
+    "c": 5,
+    "t": "number",
+    "v": "9000",
+    "d": false,
+    "f": null,
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "9.000 ",
+    "merge": null
+   },
+   "campi": [
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    10,
+    6
+   ],
+   "originale": {
+    "a": "F10",
+    "r": 10,
+    "c": 6,
+    "t": "number",
+    "v": "34000",
+    "d": false,
+    "f": "=SUM(B10:E10)",
+    "nf": "#.##0;-#.##0",
+    "text": "34.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F10",
+    "r": 10,
+    "c": 6,
+    "t": "number",
+    "v": "34000",
+    "d": false,
+    "f": "=SUM(B10:E10)",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "34.000 ",
+    "merge": null
+   },
+   "campi": [
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    11,
+    2
+   ],
+   "originale": {
+    "a": "B11",
+    "r": 11,
+    "c": 2,
+    "t": "number",
+    "v": "10000",
+    "d": false,
+    "f": "=10000",
+    "nf": "#.##0;-#.##0",
+    "text": "10.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "B11",
+    "r": 11,
+    "c": 2,
+    "t": "number",
+    "v": "10000",
+    "d": false,
+    "f": "=10000",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "10.000 ",
+    "merge": null
+   },
+   "campi": [
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    11,
+    3
+   ],
+   "originale": {
+    "a": "C11",
+    "r": 11,
+    "c": 3,
+    "t": "number",
+    "v": "10000",
+    "d": false,
+    "f": "=10000",
+    "nf": "#.##0;-#.##0",
+    "text": "10.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C11",
+    "r": 11,
+    "c": 3,
+    "t": "number",
+    "v": "10000",
+    "d": false,
+    "f": "=10000",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "10.000 ",
+    "merge": null
+   },
+   "campi": [
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    11,
+    4
+   ],
+   "originale": {
+    "a": "D11",
+    "r": 11,
+    "c": 4,
+    "t": "number",
+    "v": "10000",
+    "d": false,
+    "f": "=10000",
+    "nf": "#.##0;-#.##0",
+    "text": "10.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D11",
+    "r": 11,
+    "c": 4,
+    "t": "number",
+    "v": "10000",
+    "d": false,
+    "f": "=10000",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "10.000 ",
+    "merge": null
+   },
+   "campi": [
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    11,
+    5
+   ],
+   "originale": {
+    "a": "E11",
+    "r": 11,
+    "c": 5,
+    "t": "number",
+    "v": "10000",
+    "d": false,
+    "f": "=10000",
+    "nf": "#.##0;-#.##0",
+    "text": "10.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E11",
+    "r": 11,
+    "c": 5,
+    "t": "number",
+    "v": "10000",
+    "d": false,
+    "f": "=10000",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "10.000 ",
+    "merge": null
+   },
+   "campi": [
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    11,
+    6
+   ],
+   "originale": {
+    "a": "F11",
+    "r": 11,
+    "c": 6,
+    "t": "number",
+    "v": "40000",
+    "d": false,
+    "f": "=SUM(B11:E11)",
+    "nf": "#.##0;-#.##0",
+    "text": "40.000",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F11",
+    "r": 11,
+    "c": 6,
+    "t": "number",
+    "v": "40000",
+    "d": false,
+    "f": "=SUM(B11:E11)",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "40.000 ",
+    "merge": null
+   },
+   "campi": [
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    12,
+    2
+   ],
+   "originale": {
+    "a": "B12",
+    "r": 12,
+    "c": 2,
+    "t": "number",
+    "v": "2154931.5534373703",
+    "d": false,
+    "f": "=0.15*B6",
+    "nf": "#.##0;-#.##0",
+    "text": "2.154.932",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "B12",
+    "r": 12,
+    "c": 2,
+    "t": "number",
+    "v": "2154931.55343737",
+    "d": false,
+    "f": "=0.15*B6",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "2.154.932 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    12,
+    3
+   ],
+   "originale": {
+    "a": "C12",
+    "r": 12,
+    "c": 3,
+    "t": "number",
+    "v": "2633805.2319790088",
+    "d": false,
+    "f": "=0.15*C6",
+    "nf": "#.##0;-#.##0",
+    "text": "2.633.805",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C12",
+    "r": 12,
+    "c": 3,
+    "t": "number",
+    "v": "2633805.23197901",
+    "d": false,
+    "f": "=0.15*C6",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "2.633.805 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    12,
+    4
+   ],
+   "originale": {
+    "a": "D12",
+    "r": 12,
+    "c": 4,
+    "t": "number",
+    "v": "1915494.7141665516",
+    "d": false,
+    "f": "=0.15*D6",
+    "nf": "#.##0;-#.##0",
+    "text": "1.915.495",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D12",
+    "r": 12,
+    "c": 4,
+    "t": "number",
+    "v": "1915494.71416655",
+    "d": false,
+    "f": "=0.15*D6",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "1.915.495 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    12,
+    5
+   ],
+   "originale": {
+    "a": "E12",
+    "r": 12,
+    "c": 5,
+    "t": "number",
+    "v": "2873242.0712498277",
+    "d": false,
+    "f": "=0.15*E6",
+    "nf": "#.##0;-#.##0",
+    "text": "2.873.242",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E12",
+    "r": 12,
+    "c": 5,
+    "t": "number",
+    "v": "2873242.07124983",
+    "d": false,
+    "f": "=0.15*E6",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "2.873.242 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    12,
+    6
+   ],
+   "originale": {
+    "a": "F12",
+    "r": 12,
+    "c": 6,
+    "t": "number",
+    "v": "9577473.57083276",
+    "d": false,
+    "f": "=SUM(B12:E12)",
+    "nf": "#.##0;-#.##0",
+    "text": "9.577.474",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F12",
+    "r": 12,
+    "c": 6,
+    "t": "number",
+    "v": "9577473.57083276",
+    "d": false,
+    "f": "=SUM(B12:E12)",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "9.577.474 ",
+    "merge": null
+   },
+   "campi": [
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    13,
+    2
+   ],
+   "originale": {
+    "a": "B13",
+    "r": 13,
+    "c": 2,
+    "t": "number",
+    "v": "2172931.5534373703",
+    "d": false,
+    "f": "=SUM(B10:B12)",
+    "nf": "#.##0;-#.##0",
+    "text": "2.172.932",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "B13",
+    "r": 13,
+    "c": 2,
+    "t": "number",
+    "v": "2172931.55343737",
+    "d": false,
+    "f": "=SUM(B10:B12)",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "2.172.932 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    13,
+    3
+   ],
+   "originale": {
+    "a": "C13",
+    "r": 13,
+    "c": 3,
+    "t": "number",
+    "v": "2651805.2319790088",
+    "d": false,
+    "f": "=SUM(C10:C12)",
+    "nf": "#.##0;-#.##0",
+    "text": "2.651.805",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C13",
+    "r": 13,
+    "c": 3,
+    "t": "number",
+    "v": "2651805.23197901",
+    "d": false,
+    "f": "=SUM(C10:C12)",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "2.651.805 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    13,
+    4
+   ],
+   "originale": {
+    "a": "D13",
+    "r": 13,
+    "c": 4,
+    "t": "number",
+    "v": "1934494.7141665516",
+    "d": false,
+    "f": "=SUM(D10:D12)",
+    "nf": "#.##0;-#.##0",
+    "text": "1.934.495",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D13",
+    "r": 13,
+    "c": 4,
+    "t": "number",
+    "v": "1934494.71416655",
+    "d": false,
+    "f": "=SUM(D10:D12)",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "1.934.495 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    13,
+    5
+   ],
+   "originale": {
+    "a": "E13",
+    "r": 13,
+    "c": 5,
+    "t": "number",
+    "v": "2892242.0712498277",
+    "d": false,
+    "f": "=SUM(E10:E12)",
+    "nf": "#.##0;-#.##0",
+    "text": "2.892.242",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E13",
+    "r": 13,
+    "c": 5,
+    "t": "number",
+    "v": "2892242.07124983",
+    "d": false,
+    "f": "=SUM(E10:E12)",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "2.892.242 ",
+    "merge": null
+   },
+   "campi": [
+    "v",
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    13,
+    6
+   ],
+   "originale": {
+    "a": "F13",
+    "r": 13,
+    "c": 6,
+    "t": "number",
+    "v": "9651473.57083276",
+    "d": false,
+    "f": "=SUM(B13:E13)",
+    "nf": "#.##0;-#.##0",
+    "text": "9.651.474",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F13",
+    "r": 13,
+    "c": 6,
+    "t": "number",
+    "v": "9651473.57083276",
+    "d": false,
+    "f": "=SUM(B13:E13)",
+    "nf": "[$-409]#.##0_);(#.##0)",
+    "text": "9.651.474 ",
+    "merge": null
+   },
+   "campi": [
+    "nf",
+    "text"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    15,
+    2
+   ],
+   "originale": {
+    "a": "B15",
+    "r": 15,
+    "c": 2,
+    "t": "number",
+    "v": "3214397.330156055",
+    "d": false,
+    "f": "=B8-B13",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 3.214.397",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "B15",
+    "r": 15,
+    "c": 2,
+    "t": "number",
+    "v": "3214397.33015606",
+    "d": false,
+    "f": "=B8-B13",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 3.214.397",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    15,
+    3
+   ],
+   "originale": {
+    "a": "C15",
+    "r": 15,
+    "c": 3,
+    "t": "number",
+    "v": "3932707.847968515",
+    "d": false,
+    "f": "=C8-C13",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 3.932.708",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C15",
+    "r": 15,
+    "c": 3,
+    "t": "number",
+    "v": "3932707.84796852",
+    "d": false,
+    "f": "=C8-C13",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 3.932.708",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    15,
+    4
+   ],
+   "originale": {
+    "a": "D15",
+    "r": 15,
+    "c": 4,
+    "t": "number",
+    "v": "2854242.0712498277",
+    "d": false,
+    "f": "=D8-D13",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 2.854.242",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D15",
+    "r": 15,
+    "c": 4,
+    "t": "number",
+    "v": "2854242.07124983",
+    "d": false,
+    "f": "=D8-D13",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 2.854.242",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    15,
+    5
+   ],
+   "originale": {
+    "a": "E15",
+    "r": 15,
+    "c": 5,
+    "t": "number",
+    "v": "4290863.106874742",
+    "d": false,
+    "f": "=E8-E13",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 4.290.863",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E15",
+    "r": 15,
+    "c": 5,
+    "t": "number",
+    "v": "4290863.10687474",
+    "d": false,
+    "f": "=E8-E13",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 4.290.863",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    15,
+    6
+   ],
+   "originale": {
+    "a": "F15",
+    "r": 15,
+    "c": 6,
+    "t": "number",
+    "v": "14292210.356249139",
+    "d": false,
+    "f": "=SUM(B15:E15)",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 14.292.210",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F15",
+    "r": 15,
+    "c": 6,
+    "t": "number",
+    "v": "14292210.3562491",
+    "d": false,
+    "f": "=SUM(B15:E15)",
+    "nf": "[$L.-410] #.##0;-[$L.-410] #.##0",
+    "text": "L. 14.292.210",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    16,
+    2
+   ],
+   "originale": {
+    "a": "B16",
+    "r": 16,
+    "c": 2,
+    "t": "number",
+    "v": "0.22374705997241845",
+    "d": false,
+    "f": "=B15/B6",
+    "nf": "0%",
+    "text": "22%",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "B16",
+    "r": 16,
+    "c": 2,
+    "t": "number",
+    "v": "0.223747059972418",
+    "d": false,
+    "f": "=B15/B6",
+    "nf": "0%",
+    "text": "22%",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    16,
+    3
+   ],
+   "originale": {
+    "a": "C16",
+    "r": 16,
+    "c": 3,
+    "t": "number",
+    "v": "0.2239748672501607",
+    "d": false,
+    "f": "=C15/C6",
+    "nf": "0%",
+    "text": "22%",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C16",
+    "r": 16,
+    "c": 3,
+    "t": "number",
+    "v": "0.223974867250161",
+    "d": false,
+    "f": "=C15/C6",
+    "nf": "0%",
+    "text": "22%",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    16,
+    5
+   ],
+   "originale": {
+    "a": "E16",
+    "r": 16,
+    "c": 5,
+    "t": "number",
+    "v": "0.22400808914483133",
+    "d": false,
+    "f": "=E15/E6",
+    "nf": "0%",
+    "text": "22%",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E16",
+    "r": 16,
+    "c": 5,
+    "t": "number",
+    "v": "0.224008089144831",
+    "d": false,
+    "f": "=E15/E6",
+    "nf": "0%",
+    "text": "22%",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Panoramica",
+    16,
+    6
+   ],
+   "originale": {
+    "a": "F16",
+    "r": 16,
+    "c": 6,
+    "t": "number",
+    "v": "0.22384103047448717",
+    "d": false,
+    "f": "=F15/F6",
+    "nf": "0%",
+    "text": "22%",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F16",
+    "r": 16,
+    "c": 6,
+    "t": "number",
+    "v": "0.223841030474487",
+    "d": false,
+    "f": "=F15/F6",
+    "nf": "0%",
+    "text": "22%",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    10,
+    6
+   ],
+   "originale": {
+    "a": "F10",
+    "r": 10,
+    "c": 6,
+    "t": "number",
+    "v": "0.16000000000000003",
+    "d": false,
+    "f": "=E10*B10",
+    "nf": "0,000",
+    "text": "0,160",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F10",
+    "r": 10,
+    "c": 6,
+    "t": "number",
+    "v": "0.16",
+    "d": false,
+    "f": "=E10*B10",
+    "nf": "0,000",
+    "text": "0,160",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    10,
+    7
+   ],
+   "originale": {
+    "a": "G10",
+    "r": 10,
+    "c": 7,
+    "t": "number",
+    "v": "0.0016000000000000003",
+    "d": false,
+    "f": "=E10^2*C10",
+    "nf": "0,000",
+    "text": "0,002",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "G10",
+    "r": 10,
+    "c": 7,
+    "t": "number",
+    "v": "0.0016",
+    "d": false,
+    "f": "=E10^2*C10",
+    "nf": "0,000",
+    "text": "0,002",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    11,
+    7
+   ],
+   "originale": {
+    "a": "G11",
+    "r": 11,
+    "c": 7,
+    "t": "number",
+    "v": "0.008000000000000002",
+    "d": false,
+    "f": "=E11^2*C11",
+    "nf": "0,000",
+    "text": "0,008",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "G11",
+    "r": 11,
+    "c": 7,
+    "t": "number",
+    "v": "0.008",
+    "d": false,
+    "f": "=E11^2*C11",
+    "nf": "0,000",
+    "text": "0,008",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    12,
+    6
+   ],
+   "originale": {
+    "a": "F12",
+    "r": 12,
+    "c": 6,
+    "t": "number",
+    "v": "0.36000000000000004",
+    "d": false,
+    "f": "=E12*B12",
+    "nf": "0,000",
+    "text": "0,360",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F12",
+    "r": 12,
+    "c": 6,
+    "t": "number",
+    "v": "0.36",
+    "d": false,
+    "f": "=E12*B12",
+    "nf": "0,000",
+    "text": "0,360",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    12,
+    7
+   ],
+   "originale": {
+    "a": "G12",
+    "r": 12,
+    "c": 7,
+    "t": "number",
+    "v": "0.0048000000000000004",
+    "d": false,
+    "f": "=E12^2*C12",
+    "nf": "0,000",
+    "text": "0,005",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "G12",
+    "r": 12,
+    "c": 7,
+    "t": "number",
+    "v": "0.0048",
+    "d": false,
+    "f": "=E12^2*C12",
+    "nf": "0,000",
+    "text": "0,005",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    13,
+    6
+   ],
+   "originale": {
+    "a": "F13",
+    "r": 13,
+    "c": 6,
+    "t": "number",
+    "v": "0.44000000000000006",
+    "d": false,
+    "f": "=E13*B13",
+    "nf": "0,000",
+    "text": "0,440",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F13",
+    "r": 13,
+    "c": 6,
+    "t": "number",
+    "v": "0.44",
+    "d": false,
+    "f": "=E13*B13",
+    "nf": "0,000",
+    "text": "0,440",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    13,
+    7
+   ],
+   "originale": {
+    "a": "G13",
+    "r": 13,
+    "c": 7,
+    "t": "number",
+    "v": "0.016000000000000004",
+    "d": false,
+    "f": "=E13^2*C13",
+    "nf": "0,000",
+    "text": "0,016",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "G13",
+    "r": 13,
+    "c": 7,
+    "t": "number",
+    "v": "0.016",
+    "d": false,
+    "f": "=E13^2*C13",
+    "nf": "0,000",
+    "text": "0,016",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    16,
+    6
+   ],
+   "originale": {
+    "a": "F16",
+    "r": 16,
+    "c": 6,
+    "t": "number",
+    "v": "1.1600000000000001",
+    "d": false,
+    "f": "=SUM(F10:F14)",
+    "nf": "0,000",
+    "text": "1,160",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F16",
+    "r": 16,
+    "c": 6,
+    "t": "number",
+    "v": "1.16",
+    "d": false,
+    "f": "=SUM(F10:F14)",
+    "nf": "0,000",
+    "text": "1,160",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    16,
+    7
+   ],
+   "originale": {
+    "a": "G16",
+    "r": 16,
+    "c": 7,
+    "t": "number",
+    "v": "0.030400000000000007",
+    "d": false,
+    "f": "=SUM(G10:G14)",
+    "nf": "0,000",
+    "text": "0,030",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "G16",
+    "r": 16,
+    "c": 7,
+    "t": "number",
+    "v": "0.0304",
+    "d": false,
+    "f": "=SUM(G10:G14)",
+    "nf": "0,000",
+    "text": "0,030",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    18,
+    7
+   ],
+   "originale": {
+    "a": "G18",
+    "r": 18,
+    "c": 7,
+    "t": "number",
+    "v": "0.07076800000000001",
+    "d": false,
+    "f": "=G6*F16^2+G16",
+    "nf": "0,0%",
+    "text": "7,1%",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "G18",
+    "r": 18,
+    "c": 7,
+    "t": "number",
+    "v": "0.070768",
+    "d": false,
+    "f": "=G6*F16^2+G16",
+    "nf": "0,0%",
+    "text": "7,1%",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    21,
+    4
+   ],
+   "originale": {
+    "a": "D21",
+    "r": 21,
+    "c": 4,
+    "t": "number",
+    "v": "0.07076800000000001",
+    "d": false,
+    "f": "=MIN($G$18)",
+    "nf": "Standard",
+    "text": "0,070768",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D21",
+    "r": 21,
+    "c": 4,
+    "t": "number",
+    "v": "0.070768",
+    "d": false,
+    "f": "=MIN($G$18)",
+    "nf": "Standard",
+    "text": "0,070768",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    23,
+    1
+   ],
+   "originale": {
+    "a": "A23",
+    "r": 23,
+    "c": 1,
+    "t": "bool",
+    "v": "TRUE",
+    "d": false,
+    "f": "=$E$10>=0",
+    "nf": "Standard",
+    "text": "VERO",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "A23",
+    "r": 23,
+    "c": 1,
+    "t": "number",
+    "v": "1",
+    "d": false,
+    "f": "=$E$10>=0",
+    "nf": "Standard",
+    "text": "1",
+    "merge": null
+   },
+   "campi": [
+    "t",
+    "v",
+    "text"
+   ],
+   "classi": [
+    "tipo bool → number",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    23,
+    4
+   ],
+   "originale": {
+    "a": "D23",
+    "r": 23,
+    "c": 4,
+    "t": "bool",
+    "v": "TRUE",
+    "d": false,
+    "f": "=$E$10>=0",
+    "nf": "Standard",
+    "text": "VERO",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D23",
+    "r": 23,
+    "c": 4,
+    "t": "number",
+    "v": "1",
+    "d": false,
+    "f": "=$E$10>=0",
+    "nf": "Standard",
+    "text": "1",
+    "merge": null
+   },
+   "campi": [
+    "t",
+    "v",
+    "text"
+   ],
+   "classi": [
+    "tipo bool → number",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    24,
+    1
+   ],
+   "originale": {
+    "a": "A24",
+    "r": 24,
+    "c": 1,
+    "t": "bool",
+    "v": "TRUE",
+    "d": false,
+    "f": "=$E$11>=0",
+    "nf": "Standard",
+    "text": "VERO",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "A24",
+    "r": 24,
+    "c": 1,
+    "t": "number",
+    "v": "1",
+    "d": false,
+    "f": "=$E$11>=0",
+    "nf": "Standard",
+    "text": "1",
+    "merge": null
+   },
+   "campi": [
+    "t",
+    "v",
+    "text"
+   ],
+   "classi": [
+    "tipo bool → number",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    24,
+    4
+   ],
+   "originale": {
+    "a": "D24",
+    "r": 24,
+    "c": 4,
+    "t": "bool",
+    "v": "TRUE",
+    "d": false,
+    "f": "=$E$11>=0",
+    "nf": "Standard",
+    "text": "VERO",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D24",
+    "r": 24,
+    "c": 4,
+    "t": "number",
+    "v": "1",
+    "d": false,
+    "f": "=$E$11>=0",
+    "nf": "Standard",
+    "text": "1",
+    "merge": null
+   },
+   "campi": [
+    "t",
+    "v",
+    "text"
+   ],
+   "classi": [
+    "tipo bool → number",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    25,
+    1
+   ],
+   "originale": {
+    "a": "A25",
+    "r": 25,
+    "c": 1,
+    "t": "bool",
+    "v": "TRUE",
+    "d": false,
+    "f": "=$E$12>=0",
+    "nf": "Standard",
+    "text": "VERO",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "A25",
+    "r": 25,
+    "c": 1,
+    "t": "number",
+    "v": "1",
+    "d": false,
+    "f": "=$E$12>=0",
+    "nf": "Standard",
+    "text": "1",
+    "merge": null
+   },
+   "campi": [
+    "t",
+    "v",
+    "text"
+   ],
+   "classi": [
+    "tipo bool → number",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    25,
+    4
+   ],
+   "originale": {
+    "a": "D25",
+    "r": 25,
+    "c": 4,
+    "t": "bool",
+    "v": "TRUE",
+    "d": false,
+    "f": "=$E$12>=0",
+    "nf": "Standard",
+    "text": "VERO",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D25",
+    "r": 25,
+    "c": 4,
+    "t": "number",
+    "v": "1",
+    "d": false,
+    "f": "=$E$12>=0",
+    "nf": "Standard",
+    "text": "1",
+    "merge": null
+   },
+   "campi": [
+    "t",
+    "v",
+    "text"
+   ],
+   "classi": [
+    "tipo bool → number",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    26,
+    1
+   ],
+   "originale": {
+    "a": "A26",
+    "r": 26,
+    "c": 1,
+    "t": "bool",
+    "v": "TRUE",
+    "d": false,
+    "f": "=$E$13>=0",
+    "nf": "Standard",
+    "text": "VERO",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "A26",
+    "r": 26,
+    "c": 1,
+    "t": "number",
+    "v": "1",
+    "d": false,
+    "f": "=$E$13>=0",
+    "nf": "Standard",
+    "text": "1",
+    "merge": null
+   },
+   "campi": [
+    "t",
+    "v",
+    "text"
+   ],
+   "classi": [
+    "tipo bool → number",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    26,
+    4
+   ],
+   "originale": {
+    "a": "D26",
+    "r": 26,
+    "c": 4,
+    "t": "bool",
+    "v": "TRUE",
+    "d": false,
+    "f": "=$E$13>=0",
+    "nf": "Standard",
+    "text": "VERO",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D26",
+    "r": 26,
+    "c": 4,
+    "t": "number",
+    "v": "1",
+    "d": false,
+    "f": "=$E$13>=0",
+    "nf": "Standard",
+    "text": "1",
+    "merge": null
+   },
+   "campi": [
+    "t",
+    "v",
+    "text"
+   ],
+   "classi": [
+    "tipo bool → number",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    27,
+    1
+   ],
+   "originale": {
+    "a": "A27",
+    "r": 27,
+    "c": 1,
+    "t": "bool",
+    "v": "TRUE",
+    "d": false,
+    "f": "=$E$14>=0",
+    "nf": "Standard",
+    "text": "VERO",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "A27",
+    "r": 27,
+    "c": 1,
+    "t": "number",
+    "v": "1",
+    "d": false,
+    "f": "=$E$14>=0",
+    "nf": "Standard",
+    "text": "1",
+    "merge": null
+   },
+   "campi": [
+    "t",
+    "v",
+    "text"
+   ],
+   "classi": [
+    "tipo bool → number",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    27,
+    4
+   ],
+   "originale": {
+    "a": "D27",
+    "r": 27,
+    "c": 4,
+    "t": "bool",
+    "v": "TRUE",
+    "d": false,
+    "f": "=$E$14>=0",
+    "nf": "Standard",
+    "text": "VERO",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D27",
+    "r": 27,
+    "c": 4,
+    "t": "number",
+    "v": "1",
+    "d": false,
+    "f": "=$E$14>=0",
+    "nf": "Standard",
+    "text": "1",
+    "merge": null
+   },
+   "campi": [
+    "t",
+    "v",
+    "text"
+   ],
+   "classi": [
+    "tipo bool → number",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    28,
+    1
+   ],
+   "originale": {
+    "a": "A28",
+    "r": 28,
+    "c": 1,
+    "t": "bool",
+    "v": "TRUE",
+    "d": false,
+    "f": "=$E$16=1",
+    "nf": "Standard",
+    "text": "VERO",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "A28",
+    "r": 28,
+    "c": 1,
+    "t": "number",
+    "v": "1",
+    "d": false,
+    "f": "=$E$16=1",
+    "nf": "Standard",
+    "text": "1",
+    "merge": null
+   },
+   "campi": [
+    "t",
+    "v",
+    "text"
+   ],
+   "classi": [
+    "tipo bool → number",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    28,
+    4
+   ],
+   "originale": {
+    "a": "D28",
+    "r": 28,
+    "c": 4,
+    "t": "bool",
+    "v": "TRUE",
+    "d": false,
+    "f": "=$E$16=1",
+    "nf": "Standard",
+    "text": "VERO",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D28",
+    "r": 28,
+    "c": 4,
+    "t": "number",
+    "v": "1",
+    "d": false,
+    "f": "=$E$16=1",
+    "nf": "Standard",
+    "text": "1",
+    "merge": null
+   },
+   "campi": [
+    "t",
+    "v",
+    "text"
+   ],
+   "classi": [
+    "tipo bool → number",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    29,
+    1
+   ],
+   "originale": {
+    "a": "A29",
+    "r": 29,
+    "c": 1,
+    "t": "bool",
+    "v": "TRUE",
+    "d": false,
+    "f": "=$G$18<=0.071",
+    "nf": "Standard",
+    "text": "VERO",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "A29",
+    "r": 29,
+    "c": 1,
+    "t": "number",
+    "v": "1",
+    "d": false,
+    "f": "=$G$18<=0.071",
+    "nf": "Standard",
+    "text": "1",
+    "merge": null
+   },
+   "campi": [
+    "t",
+    "v",
+    "text"
+   ],
+   "classi": [
+    "tipo bool → number",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Portafoglio titoli",
+    29,
+    4
+   ],
+   "originale": {
+    "a": "D29",
+    "r": 29,
+    "c": 4,
+    "t": "bool",
+    "v": "TRUE",
+    "d": false,
+    "f": "=$E$18>=0.164",
+    "nf": "Standard",
+    "text": "VERO",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D29",
+    "r": 29,
+    "c": 4,
+    "t": "number",
+    "v": "1",
+    "d": false,
+    "f": "=$E$18>=0.164",
+    "nf": "Standard",
+    "text": "1",
+    "merge": null
+   },
+   "campi": [
+    "t",
+    "v",
+    "text"
+   ],
+   "classi": [
+    "tipo bool → number",
+    "testo visualizzato diverso"
+   ]
+  },
+  {
+   "cella": [
+    "Problema tecnico",
+    15,
+    7
+   ],
+   "originale": {
+    "a": "G15",
+    "r": 15,
+    "c": 7,
+    "t": "number",
+    "v": "0.2538891840303239",
+    "d": false,
+    "f": "=D20*D18",
+    "nf": "Standard",
+    "text": "0,253889",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "G15",
+    "r": 15,
+    "c": 7,
+    "t": "number",
+    "v": "0.253889184030324",
+    "d": false,
+    "f": "=D20*D18",
+    "nf": "Standard",
+    "text": "0,253889",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Problema tecnico",
+    17,
+    4
+   ],
+   "originale": {
+    "a": "D17",
+    "r": 17,
+    "c": 4,
+    "t": "number",
+    "v": "29.973947020704497",
+    "d": false,
+    "f": "=SQRT(D15-D16)",
+    "nf": "Standard",
+    "text": "29,97394702",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D17",
+    "r": 17,
+    "c": 4,
+    "t": "number",
+    "v": "29.9739470207045",
+    "d": false,
+    "f": "=SQRT(D15-D16)",
+    "nf": "Standard",
+    "text": "29,97394702",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Problema tecnico",
+    18,
+    4
+   ],
+   "originale": {
+    "a": "D18",
+    "r": 18,
+    "c": 4,
+    "t": "number",
+    "v": "0.07203652709511484",
+    "d": false,
+    "f": "=COS(t_*D17)",
+    "nf": "Standard",
+    "text": "0,072036527",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D18",
+    "r": 18,
+    "c": 4,
+    "t": "number",
+    "v": "0.0720365270951148",
+    "d": false,
+    "f": "=COS(t_*D17)",
+    "nf": "Standard",
+    "text": "0,072036527",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Problema tecnico",
+    20,
+    4
+   ],
+   "originale": {
+    "a": "D20",
+    "r": 20,
+    "c": 4,
+    "t": "number",
+    "v": "3.524450640091191",
+    "d": false,
+    "f": "=q0*EXP(D19)",
+    "nf": "Standard",
+    "text": "3,52445064",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D20",
+    "r": 20,
+    "c": 4,
+    "t": "number",
+    "v": "3.52445064009119",
+    "d": false,
+    "f": "=q0*EXP(D19)",
+    "nf": "Standard",
+    "text": "3,52445064",
+    "merge": null
+   },
+   "campi": [
+    "v"
+   ],
+   "classi": [
+    "valore memorizzato arrotondato a 15 cifre significative",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    16,
+    3
+   ],
+   "originale": {
+    "a": "C16",
+    "r": 16,
+    "c": 3,
+    "t": "number",
+    "v": "10",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 10",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C16",
+    "r": 16,
+    "c": 3,
+    "t": "number",
+    "v": "10",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 10",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    16,
+    4
+   ],
+   "originale": {
+    "a": "D16",
+    "r": 16,
+    "c": 4,
+    "t": "number",
+    "v": "8",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 8",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D16",
+    "r": 16,
+    "c": 4,
+    "t": "number",
+    "v": "8",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 8",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    16,
+    5
+   ],
+   "originale": {
+    "a": "E16",
+    "r": 16,
+    "c": 5,
+    "t": "number",
+    "v": "6",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 6",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E16",
+    "r": 16,
+    "c": 5,
+    "t": "number",
+    "v": "6",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 6",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    16,
+    6
+   ],
+   "originale": {
+    "a": "F16",
+    "r": 16,
+    "c": 6,
+    "t": "number",
+    "v": "5",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 5",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F16",
+    "r": 16,
+    "c": 6,
+    "t": "number",
+    "v": "5",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 5",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    16,
+    7
+   ],
+   "originale": {
+    "a": "G16",
+    "r": 16,
+    "c": 7,
+    "t": "number",
+    "v": "4",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 4",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "G16",
+    "r": 16,
+    "c": 7,
+    "t": "number",
+    "v": "4",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 4",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    17,
+    3
+   ],
+   "originale": {
+    "a": "C17",
+    "r": 17,
+    "c": 3,
+    "t": "number",
+    "v": "6",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 6",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C17",
+    "r": 17,
+    "c": 3,
+    "t": "number",
+    "v": "6",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 6",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    17,
+    4
+   ],
+   "originale": {
+    "a": "D17",
+    "r": 17,
+    "c": 4,
+    "t": "number",
+    "v": "5",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 5",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D17",
+    "r": 17,
+    "c": 4,
+    "t": "number",
+    "v": "5",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 5",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    17,
+    5
+   ],
+   "originale": {
+    "a": "E17",
+    "r": 17,
+    "c": 5,
+    "t": "number",
+    "v": "4",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 4",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E17",
+    "r": 17,
+    "c": 5,
+    "t": "number",
+    "v": "4",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 4",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    17,
+    6
+   ],
+   "originale": {
+    "a": "F17",
+    "r": 17,
+    "c": 6,
+    "t": "number",
+    "v": "3",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 3",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F17",
+    "r": 17,
+    "c": 6,
+    "t": "number",
+    "v": "3",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 3",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    17,
+    7
+   ],
+   "originale": {
+    "a": "G17",
+    "r": 17,
+    "c": 7,
+    "t": "number",
+    "v": "6",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 6",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "G17",
+    "r": 17,
+    "c": 7,
+    "t": "number",
+    "v": "6",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 6",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    18,
+    3
+   ],
+   "originale": {
+    "a": "C18",
+    "r": 18,
+    "c": 3,
+    "t": "number",
+    "v": "3",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 3",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C18",
+    "r": 18,
+    "c": 3,
+    "t": "number",
+    "v": "3",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 3",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    18,
+    4
+   ],
+   "originale": {
+    "a": "D18",
+    "r": 18,
+    "c": 4,
+    "t": "number",
+    "v": "4",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 4",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D18",
+    "r": 18,
+    "c": 4,
+    "t": "number",
+    "v": "4",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 4",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    18,
+    5
+   ],
+   "originale": {
+    "a": "E18",
+    "r": 18,
+    "c": 5,
+    "t": "number",
+    "v": "5",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 5",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E18",
+    "r": 18,
+    "c": 5,
+    "t": "number",
+    "v": "5",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 5",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    18,
+    6
+   ],
+   "originale": {
+    "a": "F18",
+    "r": 18,
+    "c": 6,
+    "t": "number",
+    "v": "5",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 5",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F18",
+    "r": 18,
+    "c": 6,
+    "t": "number",
+    "v": "5",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 5",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    18,
+    7
+   ],
+   "originale": {
+    "a": "G18",
+    "r": 18,
+    "c": 7,
+    "t": "number",
+    "v": "9",
+    "d": false,
+    "f": null,
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 9",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "G18",
+    "r": 18,
+    "c": 7,
+    "t": "number",
+    "v": "9",
+    "d": false,
+    "f": null,
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 9",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    20,
+    2
+   ],
+   "originale": {
+    "a": "B20",
+    "r": 20,
+    "c": 2,
+    "t": "number",
+    "v": "83",
+    "d": false,
+    "f": "=SUM(C20:G20)",
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 83",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "B20",
+    "r": 20,
+    "c": 2,
+    "t": "number",
+    "v": "83",
+    "d": false,
+    "f": "=SUM(C20:G20)",
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 83",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    20,
+    3
+   ],
+   "originale": {
+    "a": "C20",
+    "r": 20,
+    "c": 3,
+    "t": "number",
+    "v": "19",
+    "d": false,
+    "f": "=C8*C16+C9*C17+C10*C18",
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 19",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "C20",
+    "r": 20,
+    "c": 3,
+    "t": "number",
+    "v": "19",
+    "d": false,
+    "f": "=C8*C16+C9*C17+C10*C18",
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 19",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    20,
+    4
+   ],
+   "originale": {
+    "a": "D20",
+    "r": 20,
+    "c": 4,
+    "t": "number",
+    "v": "17",
+    "d": false,
+    "f": "=D8*D16+D9*D17+D10*D18",
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 17",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "D20",
+    "r": 20,
+    "c": 4,
+    "t": "number",
+    "v": "17",
+    "d": false,
+    "f": "=D8*D16+D9*D17+D10*D18",
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 17",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    20,
+    5
+   ],
+   "originale": {
+    "a": "E20",
+    "r": 20,
+    "c": 5,
+    "t": "number",
+    "v": "15",
+    "d": false,
+    "f": "=E8*E16+E9*E17+E10*E18",
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 15",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "E20",
+    "r": 20,
+    "c": 5,
+    "t": "number",
+    "v": "15",
+    "d": false,
+    "f": "=E8*E16+E9*E17+E10*E18",
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 15",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    20,
+    6
+   ],
+   "originale": {
+    "a": "F20",
+    "r": 20,
+    "c": 6,
+    "t": "number",
+    "v": "13",
+    "d": false,
+    "f": "=F8*F16+F9*F17+F10*F18",
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 13",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "F20",
+    "r": 20,
+    "c": 6,
+    "t": "number",
+    "v": "13",
+    "d": false,
+    "f": "=F8*F16+F9*F17+F10*F18",
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 13",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  },
+  {
+   "cella": [
+    "Trasporti",
+    20,
+    7
+   ],
+   "originale": {
+    "a": "G20",
+    "r": 20,
+    "c": 7,
+    "t": "number",
+    "v": "19",
+    "d": false,
+    "f": "=G8*G16+G9*G17+G10*G18",
+    "nf": "\"L.\" #.##0;-\"L.\" #.##0",
+    "text": "L. 19",
+    "merge": null
+   },
+   "normalizzato": {
+    "a": "G20",
+    "r": 20,
+    "c": 7,
+    "t": "number",
+    "v": "19",
+    "d": false,
+    "f": "=G8*G16+G9*G17+G10*G18",
+    "nf": "\"L. \"#.##0;\"-L. \"#.##0",
+    "text": "L. 19",
+    "merge": null
+   },
+   "campi": [
+    "nf"
+   ],
+   "classi": [
+    "formato numerico diverso",
+    "testo visualizzato identico"
+   ]
+  }
+ ]
+}

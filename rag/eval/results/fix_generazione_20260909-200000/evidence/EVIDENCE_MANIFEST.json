@@ -1,0 +1,377 @@
+{
+  "run": "fix_generazione_20260909-200000",
+  "packaged_on": "2026-09-14",
+  "note": "Conservazione di prove esistenti, non nuova esecuzione. File originali mantenuti localmente. Percorsi path relativi a rag/eval/results; source relativi alla root del progetto. Script conservati come .txt senza modifiche al contenuto.",
+  "files": [
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/ablazione2_B.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/ablazione2_B.json",
+      "bytes": 2676,
+      "sha256": "b9326c4247cbeece19c518262f6b9712982f80a9d7f2595fedcffdffce31ebb6"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/ablazione3_B.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/ablazione3_B.json",
+      "bytes": 14189,
+      "sha256": "688bd8d6d216544de108e5509b87cf520bb39ed7fac8a6f308abfa000066b777"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/ablazione_B.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/ablazione_B.json",
+      "bytes": 13573,
+      "sha256": "42306bf4778105cf37939d8cf5e5cb4ed38152273382b233e421ab7fe41ebb11"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/ablazione_graduata_B.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/ablazione_graduata_B.json",
+      "bytes": 13571,
+      "sha256": "aadd5a969b779a19342979aadc1e4b397ef860a1603da4080591563469c094b3"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/DIAGNOSI.md",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/DIAGNOSI.md",
+      "bytes": 8354,
+      "sha256": "51074d92b6e5fe009543d7cd4f4a16b350716654e8524955dabd32bf5f17efd6"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/prova_ordine_B.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/prova_ordine_B.json",
+      "bytes": 7984,
+      "sha256": "7656aba4865fb7214f14cfe377a5909787bd447b60314af0801fac207658aef4"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/prova_w2_A.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/prova_w2_A.json",
+      "bytes": 8810,
+      "sha256": "847dad335244dfd3cebf504439d1d5742b9f2adddebc000e51f98004f83108c8"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/prova_w2_B.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/prova_w2_B.json",
+      "bytes": 3598,
+      "sha256": "e036790095745483cca613a44c087f603f1b6cc768017d4a30862b8b73ca2ca5"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/prova_x4_B.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/prova_x4_B.json",
+      "bytes": 7153,
+      "sha256": "d62134e0427672ecd4aad42f4224bde5a057bd6fb5551ee905d23e6a0dc11f22"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/rep_orig_A_p1.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/rep_orig_A_p1.json",
+      "bytes": 13092,
+      "sha256": "77a7f5c2959d400e3118e4e3c112a4144b5997f8382a79dc8445196db8438424"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/rep_orig_A_p2.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/rep_orig_A_p2.json",
+      "bytes": 12859,
+      "sha256": "8bec4e7f13a5237b252731c28d4dd879a804bab4bc2ccf12d48cb808a97e6f2b"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/rep_orig_A_p3.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/rep_orig_A_p3.json",
+      "bytes": 13973,
+      "sha256": "bb51a62158cf0b248118c91bbe93fd01ca1abf1958a4620b77200b4d4d6aa6ee"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/rep_w1_A_p1.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/rep_w1_A_p1.json",
+      "bytes": 12019,
+      "sha256": "919d6651aa5f07375b003a6ed3913a1efb96e00896f29f9ed529870b10c80acb"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/rep_w1_A_p2.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/rep_w1_A_p2.json",
+      "bytes": 37106,
+      "sha256": "410b922bfc3ae48067445574776a7adbb7327df13dc0f1524116714c3d084bc9"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/rep_w1_A_p3.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/rep_w1_A_p3.json",
+      "bytes": 11451,
+      "sha256": "a7c961ff9ff5b4bdaa255aaa316fc9b98ee20134a84f8f7d228aefcf7ad79b0b"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/replay_v0_B.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/replay_v0_B.json",
+      "bytes": 2595,
+      "sha256": "f0bb346efb2b5432222296f1fe3367c571fc930bac0356355f1fe491f796c706"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/replay_w1_A_r1.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/replay_w1_A_r1.json",
+      "bytes": 1820,
+      "sha256": "909e172ad2a83b591f5433735b7cf81184e50aa1e227c65023bca1605e039018"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/replay_w1_A_r2.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/replay_w1_A_r2.json",
+      "bytes": 1932,
+      "sha256": "7776b71d8a3dd75d62902584453cb3c4dbd23a6ffb53686e5b42e2d697324f9b"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/replay_w1_A_r3.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/replay_w1_A_r3.json",
+      "bytes": 2349,
+      "sha256": "d643b8fa289362c873d36fc159628e9aeb99bd3fb3cc60de7ef9b2aab3ff71cb"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/replay_w1_B_r1.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/replay_w1_B_r1.json",
+      "bytes": 1794,
+      "sha256": "afbf2085a3b0f4e26d6aee92eec1532280ae95fc63e18a2d85be980187b2fa3c"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/replay_w1_B_r2.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/replay_w1_B_r2.json",
+      "bytes": 1529,
+      "sha256": "40d0a7df37325036161dc4308e611b571a67916a920b31fa9b93612096eb1eff"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/replay_w1_B_r3.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/replay_w1_B_r3.json",
+      "bytes": 2853,
+      "sha256": "bf4ec380024c70d22e5dcafce4022b3ea2a8686cb306f6acfdcd0f40e6571209"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/VARIANTI.md",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/VARIANTI.md",
+      "bytes": 3758,
+      "sha256": "fba83a98f6632cde06fb9e49f44d47830dfffa50d02bb85c8362cddffcc740c3"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diagnosi/varianti_B.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diagnosi/varianti_B.json",
+      "bytes": 8458,
+      "sha256": "93dd0029325d7d3cbf8ec06477cd4ae4c503a5f728f3dfdbab54d925f28be1d6"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diff/snapshot_w1.diff",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diff/snapshot_w1.diff",
+      "bytes": 3139,
+      "sha256": "832796bd643c49fa38ad20f866144d3ea8c6d43ae170bbc8f3b1eb0df8e676d9"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/diff/w1.diff",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/diff/w1.diff",
+      "bytes": 4934,
+      "sha256": "daa870ccfab4e504359fbcf5a9f98a12c5e96bca2d0ed550d255f758f2a12631"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/inventario_sha256.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/inventario_sha256.json",
+      "bytes": 11761,
+      "sha256": "8c1cfa5b75d4c4c186f9ee0a4405b98008905e06853bcb66f026d6b45f7d523d"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/manifest/congelamento.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/manifest/congelamento.json",
+      "bytes": 26542,
+      "sha256": "96c7c7f8b11e9c18291554fee599dc17482d7854288f2c9c9614aaea113cf7a2"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/out/diagnostici_w1_p1.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/out/diagnostici_w1_p1.json",
+      "bytes": 12436,
+      "sha256": "b7368a459888b875630710b62ec37d39cfb097e4b6a803d64a42fadf95716593"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/out/diagnostici_w1_p2.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/out/diagnostici_w1_p2.json",
+      "bytes": 13235,
+      "sha256": "39a37953962f4756671d4f69a99091d1e65acde50101cb21e7c3a88bda8ea67b"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/out/diagnostici_w1_p3.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/out/diagnostici_w1_p3.json",
+      "bytes": 12605,
+      "sha256": "77fa9fea9252d1b8d7ffce4110dc25eaed80f886d62a24537c0a092317270644"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/out/riscoring_archivio.json",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/out/riscoring_archivio.json",
+      "bytes": 4155,
+      "sha256": "6afa48c10b4470659f693d1a49755c5ec1de05c1aabf8ed0a3b53def6cc4e5c1"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/prompt/prompt_originale.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/prompt/prompt_originale.txt",
+      "bytes": 2909,
+      "sha256": "1702922e698c8c31d1088031915330bf8e871105b7bb25af7dccefc2953391c6"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/prompt/prompt_w1.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/prompt/prompt_w1.txt",
+      "bytes": 3031,
+      "sha256": "df53d41dff8293e7ad5fe36c2ad2c3022bc0f2bf90b4d6e9457ee73357341b3b"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/RESOCONTO.md",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/RESOCONTO.md",
+      "bytes": 15775,
+      "sha256": "dea295ddd327b25a1b649342d2859f3576a772f0e011e59c388179d5302a4cca"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/ablazione.py.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/ablazione.py",
+      "bytes": 2783,
+      "sha256": "a19f1d2ef80220408d3bc21fd66f90e74080d160b954cc4fb919a54c6b92d85b"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/ablazione2.py.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/ablazione2.py",
+      "bytes": 1910,
+      "sha256": "899efc8f6736d6d5775feca249c8d7285c25cbcb44bb8609c6b53f51efc516c9"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/ablazione3.py.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/ablazione3.py",
+      "bytes": 2147,
+      "sha256": "30cdd537efe5881f3bbcdb979a5a81864b77938267be1f107d2b30cb3efe6b3b"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/ablazione_graduata.py.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/ablazione_graduata.py",
+      "bytes": 2187,
+      "sha256": "ae3fcad1b612f006af2d7eb096eeb2d1fed9cd47ed7a58df28f034bce929a24e"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/assi2.py.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/assi2.py",
+      "bytes": 8325,
+      "sha256": "1937d753852a22715a2efe0295b1a2011f0525ea4e560ce8afe010011c692935"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/check_diagnostici.py.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/check_diagnostici.py",
+      "bytes": 3728,
+      "sha256": "178339723613c0aff49b5ccaf94e8c087f1b2477bbb689f03af71bd852725f6b"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/confronta_replay.py.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/confronta_replay.py",
+      "bytes": 2780,
+      "sha256": "13f95a3639b7ad8ffd44db23b4c23602fa971c429a1c7a9ab58f8ac7216044ec"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/congela.py.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/congela.py",
+      "bytes": 5311,
+      "sha256": "8e9591d2d7181f7e2fe279297cddea0253a30b0ba42ca3919a9cb0dc056a76fc"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/diagnostici.py.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/diagnostici.py",
+      "bytes": 17597,
+      "sha256": "33eb6ae56eef2b5f918a828e2c55512279d878b66df9f765bfffd80d8ee1c047"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/inventario.py.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/inventario.py",
+      "bytes": 2481,
+      "sha256": "2a842e80d11330072ad3cb279c87c1b1cd985a2bb5c56ee1f1500c68b8dbfeac"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/patch_snapshot_w1.py.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/patch_snapshot_w1.py",
+      "bytes": 3463,
+      "sha256": "9e5af232d94ca63740f901a2224c6d0f45da2a337ef292e5041d6d29f24ca73b"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/patch_w1.py.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/patch_w1.py",
+      "bytes": 8981,
+      "sha256": "1ddd45e0f348961b2cea2d8039ae914ee3eb4ccf6c515ac315dd92a4f7505ff5"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/prova_ordine.py.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/prova_ordine.py",
+      "bytes": 2192,
+      "sha256": "b82f53fc5c2d231ecfba0d1b5d3c1a403d4742e0639e2bb571ac4a51ed902339"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/prova_varianti.py.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/prova_varianti.py",
+      "bytes": 3133,
+      "sha256": "c800fe045ea07772e32348da3f8da141f99e43a9701fc33d3f0f0889fe23fc4d"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/prova_w2.py.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/prova_w2.py",
+      "bytes": 2197,
+      "sha256": "1020a68437cedb7bdbff161694d8c3d3033d9585fb82f0538f9b5fc7bed826f4"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/prova_x4.py.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/prova_x4.py",
+      "bytes": 2243,
+      "sha256": "b7d42672a034676711618818016e62cf1080e84b3fe2f325780e3e2c2d3892d0"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/replay.py.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/replay.py",
+      "bytes": 3914,
+      "sha256": "f7665998e28acfecba13663c14473729170bd35be4fcbf4bcded79aa71dcb0d9"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/riproduci_difetti_strumento.py.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/riproduci_difetti_strumento.py",
+      "bytes": 5092,
+      "sha256": "8b9af07648dfc75aca4286e7958274831d84c44543874af8d7fd0a2e6ef18b9a"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/riscora_archivio.py.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/riscora_archivio.py",
+      "bytes": 3811,
+      "sha256": "21c5436d5d040933e0e0d62647c9ba25ecb5a3ab04f905f1f4ddb11c045e25f4"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/scripts/run_suite.sh.txt",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/scripts/run_suite.sh",
+      "bytes": 1886,
+      "sha256": "8afb828e1f48af1969668f6af3f356a6c719f3dfd2d1e5ce5a7be8e9c3b865eb"
+    },
+    {
+      "path": "fix_generazione_20260909-200000/evidence/truth/domande_pdf_locali.yaml",
+      "source": "rag/eval/results/fix_generazione_20260909-200000/truth/domande_pdf_locali.yaml",
+      "bytes": 4140,
+      "sha256": "22eede74334b969b5f74cd3be7d69e2322fe42f3f6faae86ef6ddd23a11bcc74"
+    }
+  ],
+  "omitted_local_files": [
+    {
+      "path": "suite/suite-baseline.log",
+      "bytes": 2322
+    },
+    {
+      "path": "suite/suite-baseline.xml",
+      "bytes": 167822
+    },
+    {
+      "path": "suite/suite-candidate.log",
+      "bytes": 3027
+    },
+    {
+      "path": "suite/suite-candidate.xml",
+      "bytes": 167825
+    },
+    {
+      "path": "suite/suite-w1-snapshot.log",
+      "bytes": 2322
+    },
+    {
+      "path": "suite/suite-w1-snapshot.xml",
+      "bytes": 167822
+    },
+    {
+      "path": "suite/suite-w1.log",
+      "bytes": 6064
+    },
+    {
+      "path": "suite/suite-w1.xml",
+      "bytes": 172031
+    }
+  ]
+}

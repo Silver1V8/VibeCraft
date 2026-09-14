@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Costruisce DUE versioni di indice nel sandbox indicato, sulla sua istanza
+# Qdrant isolata.
+#   build_stack.sh <sandbox-dir> <qdrant-url> <log-file>
+#
+# Due versioni, non una: e' la precondizione reale di
+# test_index_rollback_local_failure_never_calls_qdrant_alias_helper, che chiama
+# resolve_rollback_target(None) e ha bisogno di una versione PRECEDENTE. Non e'
+# un trucco per far passare il test: e' lo stato che il test descrive.
+#
+# Isolamento: porta e volume Qdrant propri (6401 baseline / 6402 candidato),
+# database/ e docs/ dentro il sandbox, fuori dal repository. Nessun contatto con
+# 6333, con l'alias di produzione o con database/ del repository.
+set -euo pipefail
+SANDBOX="$1"
+QDRANT="$2"
+LOG="$3"
+VENV="C:/Users/Silve/Desktop/vibecraft/rag/.venv/Scripts/python.exe"
+
+export QDRANT_URL="$QDRANT"
+unset QDRANT_API_KEY || true
+export VIBECRAFT_LOG_LEVEL=INFO
+
+cd "$SANDBOX/rag"
+rm -rf database/versions database/CURRENT 2>/dev/null || true
+{
+  echo "sandbox:    $SANDBOX"
+  echo "collection: $(grep -m1 collection_name rag_config.yaml)"
+  echo "qdrant:     $QDRANT_URL"
+} | tee "$LOG"
+
+for giro in 1 2; do
+  echo "=== build $giro/2 ===" | tee -a "$LOG"
+  "$VENV" -B index.py >> "$LOG" 2>&1
+  echo "EXIT=$? CURRENT=$(cat database/CURRENT)" | tee -a "$LOG"
+  sleep 1  # i token di versione hanno risoluzione al secondo: due build vicine collidono
+done
+
+echo "versioni: $(ls database/versions | tr '\n' ' ')" | tee -a "$LOG"

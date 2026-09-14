@@ -1,0 +1,43 @@
+{
+  "etichetta": "w1-A-r3",
+  "modulo": "C:\\Users\\Silve\\AppData\\Local\\Temp\\claude\\C--Users-Silve-Desktop-vibecraft\\4b279f9d-0a05-4337-b2a4-157e29255185\\scratchpad\\w1\\rag\\core\\retrieval.py",
+  "contesti_da": "eval_A_p1.json",
+  "modello": [
+    "ollama",
+    "qwen3.5:9b"
+  ],
+  "num_ctx": 16384,
+  "temperature": 0.1,
+  "casi": {
+    "pdf-diag-3": {
+      "domanda": "Quale diagramma del catalogo documenta i checkpoint human-in-the-loop, e con quale peso?",
+      "risposta_attesa": "diag_6_2_hitl_checkpoints.svg.svg, 19.5 KB",
+      "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **`diag_6_2_hitl_checkpoints.svg.svg`**, classificato come artefatto di area **Governance** nel catalogo `catalogo_diagrammi_normativi.pdf`.\n\nIl peso (Authority) attribuito a questo diagramma è **0.30**.\nQuesta autorità deriva dalla classe della fonte indicata nell'intestazione del blocco: **[SENZA CLASSE]**, che corrisponde al valore decrescente di autorevolezza definito nella tabella delle classi fonti (`SENZA CLASSE` = 0.30).\n\n**Fatti verificati nel contesto:**\n*   **Identificatore file:** `diag_6_2_hitl_checkpoints.svg.svg` (estratto dalla sezione \"Registro dei file\" di `catalogo_diagrammi_normativi.pdf`).\n*   **Area/Classificazione:** `Governance` (estratto dalla stessa sezione).\n*   **Classe Fonte:** `[SENZA CLASSE]` (estratto dall'intestazione del blocco PDF).\n*   **Valore Authority:** `0.30` (estratto dalla sezione \"CLASSE-FONTI\" di `README.md`).\n\nLa divergenza tra il nome file (`diag_6_2_hitl_checkpoints.svg.svg`) e la descrizione nel catalogo (\"Checkpoint human-in-the-loop...\") è irrilevante per l'identificazione, poiché il nome contiene esplicitamente il prefisso `hitl` (Human-in-the-Loop) richiesto. Il documento PDF non menziona un peso diverso da quello derivato dalla sua classe dichiarata nell'indice generale (`README.md`).",
+      "errore": null,
+      "secondi": 13.5,
+      "prompt_char": 34449,
+      "classi": [
+        [
+          "NORMS",
+          0.9
+        ],
+        [
+          "REQUIREMENTS",
+          0.87
+        ],
+        [
+          "METADATA",
+          0.6
+        ],
+        [
+          "METHODOLOGY",
+          0.5
+        ],
+        [
+          "SENZA CLASSE",
+          0.3
+        ]
+      ]
+    }
+  }
+}

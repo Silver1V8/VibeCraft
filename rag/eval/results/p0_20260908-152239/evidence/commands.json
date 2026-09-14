@@ -1,0 +1,87 @@
+[
+  {
+    "name": "integrity",
+    "command": [
+      "C:\\Users\\Silve\\Desktop\\vibecraft\\rag\\.venv\\Scripts\\python.exe",
+      "-B",
+      "index.py",
+      "--check-integrity"
+    ],
+    "exit_code": 0,
+    "seconds": 10.405498899999657
+  },
+  {
+    "name": "suite",
+    "command": [
+      "C:\\Users\\Silve\\Desktop\\vibecraft\\rag\\.venv\\Scripts\\python.exe",
+      "-B",
+      "-m",
+      "pytest",
+      "-o",
+      "addopts=",
+      "-q",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "exit_code": 0,
+    "seconds": 100.00031170000148
+  },
+  {
+    "name": "lint",
+    "command": [
+      "uv",
+      "run",
+      "--no-sync",
+      "ruff",
+      "check",
+      "--no-cache",
+      "."
+    ],
+    "exit_code": 0,
+    "seconds": 0.07732580000083544
+  },
+  {
+    "name": "retrieval",
+    "command": [
+      "C:\\Users\\Silve\\Desktop\\vibecraft\\rag\\.venv\\Scripts\\python.exe",
+      "-B",
+      "-m",
+      "eval.run"
+    ],
+    "exit_code": 0,
+    "seconds": 51.47647430000143
+  },
+  {
+    "name": "multihop",
+    "command": [
+      "C:\\Users\\Silve\\Desktop\\vibecraft\\rag\\.venv\\Scripts\\python.exe",
+      "-B",
+      "-m",
+      "eval.run_multihop"
+    ],
+    "exit_code": 0,
+    "seconds": 8.780719900001714
+  },
+  {
+    "name": "nightly",
+    "command": [
+      "pwsh",
+      "-NoProfile",
+      "-File",
+      "scripts/nightly_consistency.ps1"
+    ],
+    "exit_code": 0,
+    "seconds": 74.67175050000151
+  },
+  {
+    "name": "integrity-final",
+    "command": [
+      "C:\\Users\\Silve\\Desktop\\vibecraft\\rag\\.venv\\Scripts\\python.exe",
+      "-B",
+      "index.py",
+      "--check-integrity"
+    ],
+    "exit_code": 0,
+    "seconds": 10.459987599999295
+  }
+]

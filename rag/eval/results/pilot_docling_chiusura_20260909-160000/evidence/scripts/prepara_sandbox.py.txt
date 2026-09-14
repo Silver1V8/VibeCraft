@@ -1,0 +1,68 @@
+"""FASE 3 — predisposizione del sandbox perche' la suite sia ESEGUIBILE.
+
+Le tre precondizioni mancanti, ciascuna con la sua causa accertata:
+
+1. test_reconciler_never_writes_to_qdrant_or_local_state
+   La fixture nomina `vibecraft_events__v1/__v2` alla lettera, mentre l'alias lo
+   parametrizza su `index.COLLECTION_NAME`. `list_qdrant_collections` filtra per
+   lignaggio configurato, quindi con una collection rinominata restituisce [].
+   Riprodotto: parse_qdrant_collection_version('vibecraft_events__v1') -> None
+   con COLLECTION_NAME='pilot_candidate_events', -> 'v1' con quello standard.
+   -> CAUSA AMBIENTALE. L'isolamento non ha bisogno di rinominare la collection:
+      basta un'ISTANZA Qdrant separata (porta e volume propri). Il nome torna
+      quello di lignaggio standard DENTRO il Qdrant isolato.
+
+2. test_index_rollback_local_failure_never_calls_qdrant_alias_helper
+   `resolve_rollback_target(None)` solleva ValueError («e' la versione piu'
+   vecchia») PRIMA di arrivare al `rollback_version` monkeypatchato, perche' il
+   sandbox aveva UNA sola versione di indice.
+   -> CAUSA AMBIENTALE: servono >= 2 versioni reali. Si costruisce l'indice due
+      volte; nessuna asserzione toccata.
+
+3. test_archivio_dichiara_di_essere_storico_quando_lo_e
+   L'archivio copiato porta `superseded_by: v20260908T132451`, cioe' la
+   provenienza della PRODUZIONE, mentre `database/CURRENT` del sandbox e' un'altra.
+   -> CAUSA AMBIENTALE: `superseded_by` e' un campo mantenuto a mano (lo dice il
+      commento nel file: «P0: versione attiva dopo full rebuild del 2026-09-08»).
+      Nel sandbox deve nominare la versione attiva DEL SANDBOX.
+
+Nessuna asserzione modificata, nessuno skip, nessun xfail, nessun test rimosso,
+nessuna modifica al repository.
+
+Uso: prepara_sandbox.py <sandbox> <qdrant-url> [--solo-archivio]
+"""
+
+import pathlib
+import re
+import sys
+
+SANDBOX = pathlib.Path(sys.argv[1]).resolve()
+QDRANT = sys.argv[2]
+SOLO_ARCHIVIO = "--solo-archivio" in sys.argv
+
+RAG = SANDBOX / "rag"
+CFG = RAG / "rag_config.yaml"
+ARCH = RAG / "eval" / "golden_attribution.yaml"
+
+if not SOLO_ARCHIVIO:
+    testo = CFG.read_text(encoding="utf-8")
+    nuovo, n = re.subn(r'(\n\s*collection_name:\s*)"[^"]*"', r'\1"vibecraft_events"', testo, count=1)
+    assert n == 1, "collection_name non trovato in rag_config.yaml"
+    if nuovo != testo:
+        CFG.write_text(nuovo, encoding="utf-8")
+    print(f"collection_name -> vibecraft_events  (isolamento per ENDPOINT: {QDRANT})")
+
+corrente = (RAG / "database" / "CURRENT")
+if corrente.is_file():
+    attiva = corrente.read_text(encoding="utf-8").strip()
+    testo = ARCH.read_text(encoding="utf-8")
+    nuovo, n = re.subn(r"(\n  superseded_by:\s*)v\d{8}T\d{6}", r"\g<1>" + attiva, testo, count=1)
+    assert n == 1, "superseded_by non trovato nell'archivio del sandbox"
+    ARCH.write_text(nuovo, encoding="utf-8")
+    versioni = sorted(p.name for p in (RAG / "database" / "versions").iterdir() if p.is_dir())
+    print(f"archivio superseded_by -> {attiva}")
+    print(f"versioni di indice nel sandbox: {len(versioni)} {versioni}")
+    if len(versioni) < 2:
+        print("  ATTENZIONE: servono >= 2 versioni per il test di rollback")
+else:
+    print("database/CURRENT assente: indicizzare prima")

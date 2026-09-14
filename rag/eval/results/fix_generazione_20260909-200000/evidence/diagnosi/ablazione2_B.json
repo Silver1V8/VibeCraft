@@ -1,0 +1,52 @@
+{
+  "solo blocco PDF, senza scala": {
+    "righe": [
+      {
+        "r": 1,
+        "kb": true,
+        "coeff": false,
+        "nega": false,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, situato nell'area **Governance**. Il suo peso è di **19.5 KB**."
+      },
+      {
+        "r": 2,
+        "kb": true,
+        "coeff": false,
+        "nega": false,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, situato nell'area **Governance**. Il suo peso è **19.5 KB**."
+      },
+      {
+        "r": 3,
+        "kb": true,
+        "coeff": false,
+        "nega": false,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, situato nell'area **Governance**. Il suo peso è di **19.5 KB**."
+      }
+    ]
+  },
+  "solo blocco PDF, con scala": {
+    "righe": [
+      {
+        "r": 1,
+        "kb": true,
+        "coeff": false,
+        "nega": false,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, situato nell'area **Governance**. Il suo peso è di **19.5 KB**.\n\nTali informazioni sono estratte dal file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf` (CLASSE: SENZA CLASSE). Nessuna fonte più autorevole (NORMS) enuncia vincoli o dati diversi su questo specifico artefatto; pertanto, i valori riportati nel documento senza classe sono quelli da utilizzare."
+      },
+      {
+        "r": 2,
+        "kb": true,
+        "coeff": false,
+        "nega": true,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, situato nell'area **Governance**. Il suo peso è di **19.5 KB**.\n\nTali informazioni sono riportate nel file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf` (§ Catalogo diagrammi), classificato come **[SENZA CLASSE]**. Poiché il contesto non contiene documenti della classe **NORMS**, la fonte più autorevole per questi dati è l'unica disponibile, ovvero il documento senza classe."
+      },
+      {
+        "r": 3,
+        "kb": true,
+        "coeff": false,
+        "nega": false,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, situato nell'area **Governance**. Il suo peso è di **19.5 KB**.\n\nTali informazioni sono riportate nel file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf` (CLASSE: [SENZA CLASSE])."
+      }
+    ]
+  }
+}

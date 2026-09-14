@@ -1,0 +1,75 @@
+"""Diff delle SOLE copie sperimentali rispetto al codice applicativo.
+
+Confronta ogni file di <sandbox>/rag con l'omonimo di rag/ del repository e
+scrive un diff unificato per ciascuna differenza, piu' un indice. Serve a
+rendere leggibile in un colpo d'occhio che cosa e' stato toccato nel sandbox e
+che cosa NON e' stato toccato nel repository.
+
+Uso: registra_diff.py <workdir> <etichetta> <sandbox>
+"""
+
+import difflib
+import hashlib
+import json
+import pathlib
+import sys
+
+W = pathlib.Path(sys.argv[1]).resolve()
+ETICHETTA = sys.argv[2]
+SANDBOX = pathlib.Path(sys.argv[3]).resolve()
+REPO = pathlib.Path("C:/Users/Silve/Desktop/vibecraft/rag")
+DEST = W / "diff"
+DEST.mkdir(parents=True, exist_ok=True)
+
+SALTA = {".venv", "database", "__pycache__", ".pytest_cache", "results", "static"}
+ESTENSIONI = {".py", ".yaml", ".yml", ".toml", ".lock", ".json", ".md", ".txt"}
+
+
+def sha(p):
+    return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+differenze, mancanti, aggiunti = [], [], []
+for p in sorted((SANDBOX / "rag").rglob("*")):
+    if not p.is_file() or p.suffix.lower() not in ESTENSIONI:
+        continue
+    rel = p.relative_to(SANDBOX / "rag")
+    if SALTA & set(rel.parts):
+        continue
+    orig = REPO / rel
+    if not orig.is_file():
+        aggiunti.append(str(rel).replace("\\", "/"))
+        continue
+    if sha(orig) == sha(p):
+        continue
+    a = orig.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
+    b = p.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
+    d = "".join(difflib.unified_diff(a, b, f"repo/rag/{rel}", f"{ETICHETTA}/rag/{rel}"))
+    nome = str(rel).replace("\\", "__").replace("/", "__") + ".diff"
+    (DEST / f"{ETICHETTA}__{nome}").write_text(d, encoding="utf-8")
+    differenze.append({"file": str(rel).replace("\\", "/"),
+                       "sha_repo": sha(orig)[:16], "sha_sandbox": sha(p)[:16],
+                       "diff": f"diff/{ETICHETTA}__{nome}",
+                       "righe_cambiate": sum(1 for r in d.splitlines()
+                                             if r[:1] in "+-" and r[:3] not in ("+++", "---"))})
+
+for p in sorted((REPO).rglob("*")):
+    if not p.is_file() or p.suffix.lower() not in ESTENSIONI:
+        continue
+    rel = p.relative_to(REPO)
+    if SALTA & set(rel.parts):
+        continue
+    if not (SANDBOX / "rag" / rel).is_file():
+        mancanti.append(str(rel).replace("\\", "/"))
+
+sintesi = {"etichetta": ETICHETTA, "sandbox": str(SANDBOX),
+           "file_diversi": differenze,
+           "file_solo_nel_sandbox": aggiunti,
+           "file_solo_nel_repository": mancanti[:50],
+           "n_solo_nel_repository": len(mancanti)}
+(DEST / f"indice_{ETICHETTA}.json").write_text(
+    json.dumps(sintesi, ensure_ascii=False, indent=2), encoding="utf-8")
+print(json.dumps({"etichetta": ETICHETTA, "diversi": [d["file"] for d in differenze],
+                  "righe": {d["file"]: d["righe_cambiate"] for d in differenze},
+                  "solo_sandbox": aggiunti, "solo_repo": len(mancanti)},
+                 ensure_ascii=False, indent=2))

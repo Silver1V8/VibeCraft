@@ -1,0 +1,181 @@
+"""Assi di valutazione riusati dall'audit (FASE 1) e dal confronto finale (FASE 5).
+
+Un solo posto per le definizioni: se un asse cambia, cambia per entrambe le
+misure, e il confronto prima/dopo resta confrontabile.
+"""
+
+import json  # noqa: F401
+import pathlib
+import re
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from citazioni import estrai_difettoso, normalize, verifica_citazioni  # noqa: E402,F401
+
+# valori attesi: COPIATI senza modifiche da
+# pilot_docling_finale_20260909-110000/scripts/score_risposte.py
+ATTESI = {
+    "pdf-diag-1": ["Knowledge"],
+    "pdf-diag-2": ["SVG", "46.4 KB"],
+    "pdf-diag-3": ["hitl_checkpoints", "19.5 KB"],
+    "pdf-diag-4": ["5", "1"],
+    "pdf-mock-1": ["2.4", "Manager"],
+    "pdf-mock-2": ["mockup_3_5_admin_dashboard", "3.4 KB"],
+    "pdf-mock-3": ["Area", "personale", "Dipendente"],
+    "pdf-mock-4": ["11", "4", "SVG", "HTML"],
+}
+
+DOC_ATTESO = {
+    "diag": "catalogo_diagrammi_normativi.pdf",
+    "mock": "catalogo_mockup_normativi.pdf",
+}
+
+# «... nella sezione "X"», «nella tabella «X»», «sotto la sezione **X**»
+SEZIONE = re.compile(
+    r"(?:sezion[ei]|tabell[ae]|paragraf[oi]|capitol[oi])\s+"
+    r"[«\"'“‘*`]{0,3}\s*([A-ZÀ-Ü][^«»\"”'’\n*`()\[\]]{2,60}?)\s*[»\"'”’*`]{1,3}",
+    re.UNICODE,
+)
+# nomi di file: il layout PDF spezza i nomi con spazi, quindi lo spazio e'
+# ammesso DENTRO il token e viene ricomposto prima del confronto.
+FILENAME = re.compile(r"\b([A-Za-z0-9_][A-Za-z0-9_. ]{3,60}?\.(?:svg|html|md|pdf|json|yaml|py))\b")
+NUMERO_NUDO = re.compile(r"^\d+(?:[.,]\d+)?$")
+
+# Diniego esplicito: la risposta dichiara che il contesto NON riporta il dato.
+# E' uno SCHERMO, non un verdetto: segnala la coppia «diniego + valore atteso
+# presente nel contesto», che e' una contraddizione da leggere. Nessun
+# riferimento alle domande del pilot: la regola e' sulla forma dell'asserzione.
+DINIEGO = re.compile(
+    r"non\s+(?:\*\*)?(?:è|e'|ne|lo|li|vi)?\s*(?:\*\*)?"
+    r"(?:riport\w+|contien\w+|specific\w+|indic\w+|fornis\w+|stabilis\w+|present\w+)"
+    r"|nessun\w*\s+(?:valore|dato|fonte|informazione|riferimento)",
+    re.IGNORECASE,
+)
+
+
+def despazia(s: str) -> str:
+    return re.sub(r"\s+", "", s).lower()
+
+
+def sezioni_del_testo(testo: str) -> list[tuple[str, str]]:
+    """(intestazione, corpo) per ogni sezione Markdown del testo indicizzato.
+    Se il testo non ha intestazioni, restituisce lista vuota: e' il caso del
+    loader pypdf, e va detto, non aggirato."""
+    righe = testo.splitlines()
+    tagli = [i for i, r in enumerate(righe) if re.match(r"^#{1,6}\s+\S", r)]
+    if not tagli:
+        return []
+    fuori = []
+    for n, i in enumerate(tagli):
+        fine = tagli[n + 1] if n + 1 < len(tagli) else len(righe)
+        titolo = righe[i].lstrip("#").strip()
+        fuori.append((titolo, "\n".join(righe[i + 1:fine])))
+    return fuori
+
+
+def controlla_sezioni(risposta: str, testo_fonte: str) -> list[dict]:
+    """Per ogni affermazione «nella sezione X» della risposta, verifica X contro
+    la struttura reale, e — quando la stessa frase porta un valore virgolettato
+    o fra backtick — verifica che quel valore cada davvero sotto X."""
+    sezioni = sezioni_del_testo(testo_fonte)
+    titoli = {normalize(t): (t, c) for t, c in sezioni}
+    esiti = []
+    for m in SEZIONE.finditer(risposta):
+        nome = m.group(1).strip()
+        # la frase che contiene l'affermazione, per pescarne il valore attribuito
+        inizio = risposta.rfind("\n", 0, m.start()) + 1
+        fine = risposta.find("\n", m.end())
+        frase = risposta[inizio: fine if fine > 0 else len(risposta)]
+        valori = [v for v in re.findall(r"[\"«“]([^\"»”\n]{3,120})[\"»”]", frase)]
+        valori += re.findall(r"`([^`\n]{3,120})`", frase)
+        # Il PERCORSO del documento non e' un valore contenuto in una sua sezione:
+        # «riportato nella tabella X del documento `a/b/c.pdf`» attribuisce X, non c.pdf.
+        valori = [v for v in valori
+                  if normalize(v) and normalize(v) != normalize(nome)
+                  and not re.search(r"\.(?:pdf|md|html|svg|json|yaml)$", v.strip())]
+
+        if not sezioni:
+            esiti.append({"sezione_dichiarata": nome, "esito": "fonte_senza_struttura",
+                          "nota": "il testo indicizzato non ha intestazioni: nessuna "
+                                  "affermazione di sezione e' sostenibile da questa fonte"})
+            continue
+        chiave = normalize(nome)
+        trovata = next((k for k in titoli if k == chiave), None)
+        if trovata is None:
+            trovata = next((k for k in titoli if chiave and (chiave in k or k in chiave)), None)
+        if trovata is None:
+            esiti.append({"sezione_dichiarata": nome, "esito": "sezione_inesistente",
+                          "intestazioni_reali": [t for t, _ in sezioni]})
+            continue
+        titolo_reale, corpo = titoli[trovata]
+        for v in valori:
+            nv = normalize(v)
+            if nv in normalize(corpo):
+                esiti.append({"sezione_dichiarata": nome, "sezione_reale": titolo_reale,
+                              "valore": v[:80], "esito": "coerente"})
+                continue
+            altrove = [t for t, c in sezioni if nv in normalize(c)]
+            esiti.append({
+                "sezione_dichiarata": nome, "sezione_reale": titolo_reale, "valore": v[:80],
+                "esito": "valore_in_altra_sezione" if altrove else "valore_non_trovato",
+                "sezione_effettiva": altrove[:2],
+            })
+        if not valori:
+            esiti.append({"sezione_dichiarata": nome, "sezione_reale": titolo_reale,
+                          "esito": "sezione_esiste_valore_non_isolabile"})
+    return esiti
+
+
+def ripulisci_nome(nome: str) -> str:
+    """Toglie le parole di prosa che il permesso di spazi DENTRO il nome si porta
+    dietro («Nel README.md» -> «README.md»). Il layout PDF spezza un identificatore
+    a meta', quindi il pezzo prima dello spazio contiene sempre `_` o `.`; una
+    parola italiana no. Si sfoglia da sinistra finche' resta un nome valido."""
+    parti = nome.strip().split(" ")
+    while len(parti) > 1 and "_" not in parti[0] and "." not in parti[0]:
+        parti = parti[1:]
+    return " ".join(parti)
+
+
+def identificatori_non_sostenuti(risposta: str, contesto: str) -> list[dict]:
+    ctx = despazia(contesto)
+    fuori = []
+    for nome in dict.fromkeys(ripulisci_nome(n) for n in FILENAME.findall(risposta)):
+        pulito = despazia(nome)
+        if pulito in ctx:
+            fuori.append({"nome": nome.strip(), "esito": "presente"})
+        else:
+            fuori.append({"nome": nome.strip(), "esito": "assente_dal_contesto"})
+    return fuori
+
+
+def presenza(risposta: str, attesi: list[str]) -> tuple[list[str], list[str]]:
+    """(mancanti_sottostringa, mancanti_confini_di_parola)."""
+    basso = risposta.lower()
+    manc_a = [t for t in attesi if t.lower() not in basso]
+    manc_b = []
+    for t in attesi:
+        if NUMERO_NUDO.match(t):
+            trovato = re.search(r"(?<![\w.,])" + re.escape(t) + r"(?![\w.,])", risposta) is not None
+        else:
+            trovato = t.lower() in basso
+        if not trovato:
+            manc_b.append(t)
+    return manc_a, manc_b
+
+
+
+
+def documenti_nominati(risposta: str, fonti: list[dict]) -> dict:
+    """Provenienza dichiarata: quali documenti del contesto la risposta NOMINA.
+
+    Serve al caso in cui una risposta corretta attinge a piu' fonti (per esempio
+    una specifica oltre al catalogo): usare una fonte in piu' non e' un errore,
+    non dichiararla lo e'. Confronto per nome di file, deterministico."""
+    nel_contesto = sorted({str(f["doc_id"]) for f in fonti})
+    nominati = [d for d in nel_contesto if pathlib.Path(d).name in risposta]
+    return {
+        "documenti_nel_contesto": nel_contesto,
+        "documenti_nominati": nominati,
+        "non_nominati": [d for d in nel_contesto if d not in nominati],
+    }

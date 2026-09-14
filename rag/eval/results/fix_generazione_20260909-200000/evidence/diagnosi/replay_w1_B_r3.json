@@ -1,0 +1,43 @@
+{
+  "etichetta": "w1-B-r3",
+  "modulo": "C:\\Users\\Silve\\AppData\\Local\\Temp\\claude\\C--Users-Silve-Desktop-vibecraft\\4b279f9d-0a05-4337-b2a4-157e29255185\\scratchpad\\w1\\rag\\core\\retrieval.py",
+  "contesti_da": "eval_B_p1.json",
+  "modello": [
+    "ollama",
+    "qwen3.5:9b"
+  ],
+  "num_ctx": 16384,
+  "temperature": 0.1,
+  "casi": {
+    "pdf-diag-3": {
+      "domanda": "Quale diagramma del catalogo documenta i checkpoint human-in-the-loop, e con quale peso?",
+      "risposta_attesa": "diag_6_2_hitl_checkpoints.svg.svg, 19.5 KB",
+      "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **`diag_6_2_hitl_checkpoints.svg.svg`**, classificato nell'area **Governance** con la finalità di illustrare \"Checkpoint human-in-the-loop e punti di controllo\".\n\nTale artefatto ha un peso (Authority) di **0.30**, poiché il blocco che lo elenca nel catalogo (`02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`) è classificato come **SENZA CLASSE**.\n\n**Nota sulla divergenza tra documento e codice:**\nIl documento `diag_6_2_hitl_checkpoints.svg.svg` (codice sorgente del file SVG) è una fonte al pari dei documenti. Tuttavia, il catalogo (`catalogo_diagrammi_normativi.pdf`) elenca questo file con estensione `.svg.svg`, mentre la tabella \"Registro dei file\" nella stessa sezione indica che tutti i diagrammi devono essere in formato **SVG** e specifica un peso di **19.5 KB**. Il nome del file nel registro è `diag_6_2_hitl_checkpoints.svg.sv g` (con spaziature anomale o duplicazioni nell'estensione), mentre il registro dei file elenca `diag_6_2_hitl_checkpoints.svg.sv g`. Esiste una divergenza nella rappresentazione del nome del file nel catalogo rispetto alla convenzione di naming descritta (mantenere il prefisso `diag_` seguito da area e nome descrittivo in snake_case), ma l'identificatore testuale fornito dal contesto per questo specifico artefatto è quello riportato nella tabella \"Registro dei file\".\n\nIl peso decrescente delle fonti ordina le autorità: **NORMS (0.85)** > **REQUIREMENTS (0.87)** > **METADATA (0.90)** > **METHODOLOGY (0.90)** > **SENZA CLASSE (0.30)**. Poiché il catalogo è classificato come `SENZA CLASSE`, il suo peso è 0.30, indipendentemente dal fatto che i diagrammi contengano informazioni su checkpoint HITL definiti in documenti di classe più alta (come `vibe_coding_workflow.md` di classe `METHODOLOGY`).",
+      "errore": null,
+      "secondi": 22.28,
+      "prompt_char": 34967,
+      "classi": [
+        [
+          "NORMS",
+          0.9
+        ],
+        [
+          "REQUIREMENTS",
+          0.87
+        ],
+        [
+          "METADATA",
+          0.6
+        ],
+        [
+          "METHODOLOGY",
+          0.5
+        ],
+        [
+          "SENZA CLASSE",
+          0.3
+        ]
+      ]
+    }
+  }
+}

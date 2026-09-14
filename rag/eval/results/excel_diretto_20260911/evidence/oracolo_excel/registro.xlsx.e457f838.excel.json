@@ -1,0 +1,290 @@
+{
+  "file": "C:\\Users\\Silve\\Desktop\\vibecraft\\rag\\eval\\results\\verifica_finale_20260910\\formati2\\fixture\\registro.xlsx",
+  "sha256": "E457F838F9F10FEF902F81E699718DFAFC9B5CC2B9E8DEBCD0F3BD04BE99CB01",
+  "excel": "16.0",
+  "charts_sheets": 0,
+  "sheets": [
+    {
+      "name": "Registro",
+      "visible": -1,
+      "shapes": 0,
+      "comments": 0,
+      "hyperlinks": 0,
+      "cells": [
+        {
+          "a": "A1",
+          "r": 1,
+          "c": 1,
+          "t": "text",
+          "v": "Codice",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "Codice",
+          "merge": null
+        },
+        {
+          "a": "B1",
+          "r": 1,
+          "c": 2,
+          "t": "text",
+          "v": "Stato",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "Stato",
+          "merge": null
+        },
+        {
+          "a": "C1",
+          "r": 1,
+          "c": 3,
+          "t": "text",
+          "v": "Quantità",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "Quantità",
+          "merge": null
+        },
+        {
+          "a": "D1",
+          "r": 1,
+          "c": 4,
+          "t": "text",
+          "v": "Data",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "Data",
+          "merge": null
+        },
+        {
+          "a": "A2",
+          "r": 2,
+          "c": 1,
+          "t": "text",
+          "v": "00123",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "00123",
+          "merge": null
+        },
+        {
+          "a": "B2",
+          "r": 2,
+          "c": 2,
+          "t": "text",
+          "v": "NA",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "NA",
+          "merge": null
+        },
+        {
+          "a": "C2",
+          "r": 2,
+          "c": 3,
+          "t": "number",
+          "v": "3",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "3",
+          "merge": null
+        },
+        {
+          "a": "D2",
+          "r": 2,
+          "c": 4,
+          "t": "number",
+          "v": "46275",
+          "d": true,
+          "f": null,
+          "nf": "aaaa-mm-gg",
+          "text": "########",
+          "merge": null
+        },
+        {
+          "a": "A3",
+          "r": 3,
+          "c": 1,
+          "t": "text",
+          "v": "00124",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "00124",
+          "merge": null
+        },
+        {
+          "a": "B3",
+          "r": 3,
+          "c": 2,
+          "t": "text",
+          "v": "N/A",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "N/A",
+          "merge": null
+        },
+        {
+          "a": "D3",
+          "r": 3,
+          "c": 4,
+          "t": "number",
+          "v": "46276",
+          "d": true,
+          "f": null,
+          "nf": "aaaa-mm-gg",
+          "text": "########",
+          "merge": null
+        },
+        {
+          "a": "A4",
+          "r": 4,
+          "c": 1,
+          "t": "text",
+          "v": "00125",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "00125",
+          "merge": null
+        },
+        {
+          "a": "B4",
+          "r": 4,
+          "c": 2,
+          "t": "text",
+          "v": "null",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "null",
+          "merge": null
+        },
+        {
+          "a": "C4",
+          "r": 4,
+          "c": 3,
+          "t": "number",
+          "v": "7",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "7",
+          "merge": null
+        },
+        {
+          "a": "A6",
+          "r": 6,
+          "c": 1,
+          "t": "text",
+          "v": "Riepilogo",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "Riepilogo",
+          "merge": null
+        },
+        {
+          "a": "B6",
+          "r": 6,
+          "c": 2,
+          "t": "text",
+          "v": "Totale",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "Totale",
+          "merge": null
+        },
+        {
+          "a": "A7",
+          "r": 7,
+          "c": 1,
+          "t": "text",
+          "v": "Pezzi",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "Pezzi",
+          "merge": null
+        },
+        {
+          "a": "B7",
+          "r": 7,
+          "c": 2,
+          "t": "number",
+          "v": "10",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "10",
+          "merge": null
+        }
+      ]
+    },
+    {
+      "name": "Contatti",
+      "visible": -1,
+      "shapes": 0,
+      "comments": 0,
+      "hyperlinks": 0,
+      "cells": [
+        {
+          "a": "A1",
+          "r": 1,
+          "c": 1,
+          "t": "text",
+          "v": "Nome",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "Nome",
+          "merge": null
+        },
+        {
+          "a": "B1",
+          "r": 1,
+          "c": 2,
+          "t": "text",
+          "v": "Città",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "Città",
+          "merge": null
+        },
+        {
+          "a": "A2",
+          "r": 2,
+          "c": 1,
+          "t": "text",
+          "v": "Anna",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "Anna",
+          "merge": null
+        },
+        {
+          "a": "B2",
+          "r": 2,
+          "c": 2,
+          "t": "text",
+          "v": "Forlì",
+          "d": false,
+          "f": null,
+          "nf": "Standard",
+          "text": "Forlì",
+          "merge": null
+        }
+      ]
+    }
+  ]
+}

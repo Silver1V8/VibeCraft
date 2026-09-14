@@ -1,0 +1,92 @@
+"""Riesecuzione nel venv SENZA [vlm], revisione PINNATA, processo nuovo.
+
+Scopo: riproducibilita' fra esecuzioni, non tempi. Una sola passata per
+documento. Verifica anche che i pesi caricati vengano davvero dallo snapshot
+della revisione pinnata e non dal ref mobile main.
+"""
+
+import hashlib
+import json
+import pathlib
+import sys
+import time
+
+REV = "982fe3b40f2fa73c365bdb1bcacf6c81b7184bfe"
+OUT = pathlib.Path(sys.argv[1])
+OUT.mkdir(parents=True, exist_ok=True)
+DOCS = {
+    "diagrammi": r"C:\Users\Silve\Desktop\vibecraft\docs\02_specs_normative\diagrams\catalogo_diagrammi_normativi.pdf",
+    "mockup": r"C:\Users\Silve\Desktop\vibecraft\docs\02_specs_normative\mockups\catalogo_mockup_normativi.pdf",
+}
+
+import psutil
+
+proc = psutil.Process()
+
+from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
+from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import VlmPipelineOptions
+from docling.datamodel import vlm_model_specs
+from docling.document_converter import DocumentConverter, PdfFormatOption
+from docling.pipeline.vlm_pipeline import VlmPipeline
+
+import importlib.util
+
+report = {
+    "esecuzione": "run2",
+    "revisione_pinnata": REV,
+    "av_installato": importlib.util.find_spec("av") is not None,
+    "qwen_vl_utils_installato": importlib.util.find_spec("qwen_vl_utils") is not None,
+    "documenti": {},
+}
+
+spec = vlm_model_specs.GRANITEDOCLING_TRANSFORMERS.model_copy(update={"revision": REV})
+report["revisione_effettiva_della_spec"] = spec.revision
+report["revisione_default_docling"] = vlm_model_specs.GRANITEDOCLING_TRANSFORMERS.revision
+
+opts = VlmPipelineOptions(
+    vlm_options=spec,
+    accelerator_options=AcceleratorOptions(device=AcceleratorDevice.CPU),
+)
+conv = DocumentConverter(
+    format_options={
+        InputFormat.PDF: PdfFormatOption(pipeline_cls=VlmPipeline, pipeline_options=opts)
+    }
+)
+
+for name, path in DOCS.items():
+    t0 = time.time()
+    res = conv.convert(path)
+    dt = round(time.time() - t0, 2)
+    doc = res.document
+    md = doc.export_to_markdown()
+    dt_path = OUT / f"granite_{name}.doctags.txt"
+    (OUT / f"granite_{name}.md").write_text(md, encoding="utf-8")
+    dt_path.write_text(doc.export_to_document_tokens(), encoding="utf-8")
+    report["documenti"][name] = {
+        "secondi": dt,
+        "status": str(res.status),
+        "chars_markdown": len(md),
+        "num_tabelle": len(doc.tables),
+        "forma_tabelle": [(t.data.num_rows, t.data.num_cols, len(t.data.table_cells)) for t in doc.tables],
+        "sha256_md": hashlib.sha256(md.encode("utf-8")).hexdigest(),
+        "sha256_doctags": hashlib.sha256(dt_path.read_bytes()).hexdigest(),
+    }
+
+# da quale snapshot sono arrivati davvero i pesi
+snap = [
+    str(p)
+    for p in pathlib.Path(sys.argv[2]).rglob("granite-docling-258M/snapshots/*")
+    if p.is_dir()
+]
+report["snapshot_presenti_in_cache"] = snap
+report["solo_revisione_pinnata_in_cache"] = len(snap) == 1 and REV in snap[0]
+
+report["av_in_sys_modules"] = "av" in sys.modules
+report["qwen_vl_utils_in_sys_modules"] = "qwen_vl_utils" in sys.modules
+report["rss_picco_mb"] = round(proc.memory_info().rss / 1e6, 1)
+
+(OUT / "granite_report_run2.json").write_text(
+    json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8"
+)
+print(json.dumps(report, indent=2, ensure_ascii=False))

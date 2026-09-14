@@ -1,0 +1,812 @@
+{
+ "casi": {
+  "docx": {
+   "markitdown": {
+    "errore": null,
+    "secondi": 0.189,
+    "rss_delta_mb": 34.4,
+    "caratteri": 432,
+    "sezioni_chunk": 2,
+    "titoli": [
+     [
+      1,
+      "Capitolo uno"
+     ],
+     [
+      2,
+      "Sezione uno punto uno"
+     ],
+     [
+      3,
+      "Dettaglio uno punto uno punto uno"
+     ],
+     [
+      1,
+      "Capitolo due"
+     ]
+    ],
+    "controlli": {
+     "testo e caratteri speciali": true,
+     "gerarchia titolo>H1>H2>H3": false,
+     "H1 fratelli allo stesso livello": true,
+     "lista puntata": true,
+     "lista annidata rientrata": false,
+     "lista numerata": true,
+     "tabella: riga associata": true,
+     "link con URL": true
+    },
+    "superati": "6/8"
+   },
+   "docling": {
+    "errore": null,
+    "secondi": 5.247,
+    "rss_delta_mb": 552.8,
+    "caratteri": 480,
+    "sezioni_chunk": 3,
+    "titoli": [
+     [
+      1,
+      "Manuale forniture"
+     ],
+     [
+      2,
+      "Capitolo uno"
+     ],
+     [
+      3,
+      "Sezione uno punto uno"
+     ],
+     [
+      4,
+      "Dettaglio uno punto uno punto uno"
+     ],
+     [
+      2,
+      "Capitolo due"
+     ]
+    ],
+    "controlli": {
+     "testo e caratteri speciali": true,
+     "gerarchia titolo>H1>H2>H3": true,
+     "H1 fratelli allo stesso livello": true,
+     "lista puntata": true,
+     "lista annidata rientrata": false,
+     "lista numerata": true,
+     "tabella: riga associata": true,
+     "link con URL": true
+    },
+    "superati": "7/8"
+   }
+  },
+  "pptx": {
+   "markitdown": {
+    "errore": null,
+    "secondi": 0.018,
+    "rss_delta_mb": 2.1,
+    "caratteri": 363,
+    "sezioni_chunk": 1,
+    "titoli": [
+     [
+      1,
+      "Piano di rilascio"
+     ],
+     [
+      1,
+      "Tabella rischi"
+     ],
+     [
+      3,
+      "Notes:"
+     ]
+    ],
+    "controlli": {
+     "titoli delle slide": true,
+     "slide separate e in ordine": true,
+     "elenco con sottolivello": false,
+     "tabella: riga associata": true,
+     "ordine di lettura dall'alto": true,
+     "note del relatore": true
+    },
+    "superati": "5/6"
+   },
+   "docling": {
+    "errore": null,
+    "secondi": 0.025,
+    "rss_delta_mb": 1.9,
+    "caratteri": 284,
+    "sezioni_chunk": 1,
+    "titoli": [
+     [
+      1,
+      "Piano di rilascio"
+     ],
+     [
+      1,
+      "Tabella rischi"
+     ]
+    ],
+    "controlli": {
+     "titoli delle slide": true,
+     "slide separate e in ordine": true,
+     "elenco con sottolivello": false,
+     "tabella: riga associata": true,
+     "ordine di lettura dall'alto": true,
+     "note del relatore": false
+    },
+    "superati": "4/6"
+   }
+  },
+  "xlsx": {
+   "markitdown": {
+    "errore": null,
+    "secondi": 0.035,
+    "rss_delta_mb": 2.1,
+    "caratteri": 213,
+    "sezioni_chunk": 2,
+    "titoli": [
+     [
+      2,
+      "Budget"
+     ],
+     [
+      2,
+      "Note città"
+     ]
+    ],
+    "controlli": {
+     "nomi dei fogli": true,
+     "valori": true,
+     "valore memorizzato della formula": true,
+     "nessun risultato inventato per la formula senza valore": true,
+     "nessun NaN spacciato per dato": false,
+     "unità e simboli": true
+    },
+    "superati": "5/6"
+   },
+   "docling": {
+    "errore": null,
+    "secondi": 0.007,
+    "rss_delta_mb": 0.0,
+    "caratteri": 294,
+    "sezioni_chunk": 1,
+    "titoli": [
+     [
+      1,
+      "budget"
+     ]
+    ],
+    "controlli": {
+     "nomi dei fogli": false,
+     "valori": true,
+     "valore memorizzato della formula": true,
+     "nessun risultato inventato per la formula senza valore": true,
+     "nessun NaN spacciato per dato": true,
+     "unità e simboli": true
+    },
+    "superati": "5/6"
+   },
+   "docling+fogli": {
+    "errore": null,
+    "secondi": 0.006,
+    "rss_delta_mb": 0.0,
+    "caratteri": 596,
+    "sezioni_chunk": 2,
+    "titoli": [
+     [
+      2,
+      "Budget"
+     ],
+     [
+      2,
+      "Note città"
+     ]
+    ],
+    "controlli": {
+     "nomi dei fogli": true,
+     "valori": true,
+     "valore memorizzato della formula": true,
+     "nessun risultato inventato per la formula senza valore": true,
+     "nessun NaN spacciato per dato": true,
+     "unità e simboli": true
+    },
+    "superati": "6/6"
+   }
+  },
+  "html": {
+   "markitdown": {
+    "errore": null,
+    "secondi": 0.01,
+    "rss_delta_mb": 0.1,
+    "caratteri": 401,
+    "sezioni_chunk": 2,
+    "titoli": [
+     [
+      1,
+      "Guida installazione"
+     ],
+     [
+      2,
+      "Passaggi"
+     ],
+     [
+      3,
+      "Parametri"
+     ]
+    ],
+    "controlli": {
+     "testo e accenti": true,
+     "gerarchia h1>h2>h3": true,
+     "lista numerata e annidata": true,
+     "tabella: riga associata": true,
+     "blocco di codice": true,
+     "link con URL": true,
+     "script escluso": true,
+     "nessun link a immagine locale": true
+    },
+    "superati": "8/8"
+   },
+   "docling": {
+    "errore": null,
+    "secondi": 0.017,
+    "rss_delta_mb": 0.0,
+    "caratteri": 388,
+    "sezioni_chunk": 2,
+    "titoli": [
+     [
+      1,
+      "Guida installazione"
+     ],
+     [
+      2,
+      "Passaggi"
+     ],
+     [
+      3,
+      "Parametri"
+     ]
+    ],
+    "controlli": {
+     "testo e accenti": true,
+     "gerarchia h1>h2>h3": true,
+     "lista numerata e annidata": true,
+     "tabella: riga associata": true,
+     "blocco di codice": true,
+     "link con URL": true,
+     "script escluso": true,
+     "nessun link a immagine locale": true
+    },
+    "superati": "8/8"
+   }
+  },
+  "html_latin1": {
+   "markitdown": {
+    "errore": null,
+    "secondi": 0.028,
+    "rss_delta_mb": 1.2,
+    "caratteri": 401,
+    "sezioni_chunk": 2,
+    "titoli": [
+     [
+      1,
+      "Guida installazione"
+     ],
+     [
+      2,
+      "Passaggi"
+     ],
+     [
+      3,
+      "Parametri"
+     ]
+    ],
+    "controlli": {
+     "testo e accenti": true,
+     "gerarchia h1>h2>h3": true,
+     "lista numerata e annidata": true,
+     "tabella: riga associata": true,
+     "blocco di codice": true,
+     "link con URL": true,
+     "script escluso": true,
+     "nessun link a immagine locale": true
+    },
+    "superati": "8/8"
+   },
+   "docling": {
+    "errore": null,
+    "secondi": 0.008,
+    "rss_delta_mb": 0.0,
+    "caratteri": 388,
+    "sezioni_chunk": 2,
+    "titoli": [
+     [
+      1,
+      "Guida installazione"
+     ],
+     [
+      2,
+      "Passaggi"
+     ],
+     [
+      3,
+      "Parametri"
+     ]
+    ],
+    "controlli": {
+     "testo e accenti": true,
+     "gerarchia h1>h2>h3": true,
+     "lista numerata e annidata": true,
+     "tabella: riga associata": true,
+     "blocco di codice": true,
+     "link con URL": true,
+     "script escluso": true,
+     "nessun link a immagine locale": true
+    },
+    "superati": "8/8"
+   },
+   "docling+utf8": {
+    "errore": null,
+    "secondi": 0.008,
+    "rss_delta_mb": 0.0,
+    "caratteri": 390,
+    "sezioni_chunk": 2,
+    "titoli": [
+     [
+      1,
+      "Guida installazione"
+     ],
+     [
+      2,
+      "Passaggi"
+     ],
+     [
+      3,
+      "Parametri"
+     ]
+    ],
+    "controlli": {
+     "testo e accenti": false,
+     "gerarchia h1>h2>h3": true,
+     "lista numerata e annidata": true,
+     "tabella: riga associata": true,
+     "blocco di codice": true,
+     "link con URL": true,
+     "script escluso": true,
+     "nessun link a immagine locale": true
+    },
+    "superati": "7/8"
+   }
+  },
+  "csv": {
+   "markitdown": {
+    "errore": null,
+    "secondi": 0.005,
+    "rss_delta_mb": 0.0,
+    "caratteri": 157,
+    "sezioni_chunk": 1,
+    "titoli": [
+     [
+      1,
+      "listino"
+     ]
+    ],
+    "controlli": {
+     "intestazione e righe associate": true,
+     "cella multilinea nella sua riga": true,
+     "virgolette doppie": true,
+     "simboli": true
+    },
+    "superati": "4/4"
+   },
+   "docling": {
+    "errore": null,
+    "secondi": 0.002,
+    "rss_delta_mb": 0.0,
+    "caratteri": 260,
+    "sezioni_chunk": 1,
+    "titoli": [
+     [
+      1,
+      "listino"
+     ]
+    ],
+    "controlli": {
+     "intestazione e righe associate": true,
+     "cella multilinea nella sua riga": true,
+     "virgolette doppie": true,
+     "simboli": true
+    },
+    "superati": "4/4"
+   }
+  },
+  "csv_semicolon": {
+   "markitdown": {
+    "errore": null,
+    "secondi": 0.116,
+    "rss_delta_mb": 0.2,
+    "caratteri": 73,
+    "sezioni_chunk": 1,
+    "titoli": [
+     [
+      1,
+      "citta"
+     ]
+    ],
+    "controlli": {
+     "delimitatore ;": true,
+     "accenti": true
+    },
+    "superati": "2/2"
+   },
+   "docling": {
+    "errore": "RuntimeError: docling failure: ['CsvDocumentBackend could not load document with hash 04b4bb6071984e8bbc9f6a9c5294e84db8288d48f8fbc37e9e7bdfc0aad1a6dd']",
+    "secondi": 0.001,
+    "rss_delta_mb": 0.1,
+    "caratteri": 0,
+    "sezioni_chunk": 0,
+    "titoli": [],
+    "controlli": {
+     "delimitatore ;": false,
+     "accenti": false
+    },
+    "superati": "0/2"
+   }
+  },
+  "txt": {
+   "markitdown": {
+    "errore": null,
+    "secondi": 0.006,
+    "rss_delta_mb": 0.0,
+    "caratteri": 124,
+    "sezioni_chunk": 1,
+    "titoli": [
+     [
+      1,
+      "questa riga non è un titolo"
+     ]
+    ],
+    "controlli": {
+     "testo verbatim, nessuna interpretazione": true,
+     "sintassi immagine letterale conservata": false,
+     "accenti": true
+    },
+    "superati": "2/3"
+   },
+   "docling": {
+    "errore": null,
+    "secondi": 0.005,
+    "rss_delta_mb": 0.0,
+    "caratteri": 136,
+    "sezioni_chunk": 1,
+    "titoli": [
+     [
+      1,
+      "questa riga non è un titolo"
+     ]
+    ],
+    "controlli": {
+     "testo verbatim, nessuna interpretazione": false,
+     "sintassi immagine letterale conservata": false,
+     "accenti": true
+    },
+    "superati": "1/3"
+   }
+  },
+  "json": {
+   "markitdown": {
+    "errore": null,
+    "secondi": 0.005,
+    "rss_delta_mb": 0.0,
+    "caratteri": 226,
+    "sezioni_chunk": 1,
+    "titoli": [
+     [
+      1,
+      "progetto"
+     ]
+    ],
+    "controlli": {
+     "struttura annidata e valori": true
+    },
+    "superati": "1/1"
+   }
+  },
+  "xml": {
+   "markitdown": {
+    "errore": null,
+    "secondi": 0.005,
+    "rss_delta_mb": 0.0,
+    "caratteri": 214,
+    "sezioni_chunk": 1,
+    "titoli": [
+     [
+      1,
+      "catalogo"
+     ]
+    ],
+    "controlli": {
+     "struttura e attributi": true
+    },
+    "superati": "1/1"
+   }
+  },
+  "epub": {
+   "markitdown": {
+    "errore": null,
+    "secondi": 0.007,
+    "rss_delta_mb": 0.0,
+    "caratteri": 203,
+    "sezioni_chunk": 1,
+    "titoli": [
+     [
+      1,
+      "Capitolo primo"
+     ],
+     [
+      1,
+      "Capitolo secondo"
+     ]
+    ],
+    "controlli": {
+     "capitoli in ordine": true,
+     "accenti": true,
+     "lista": true,
+     "tabella": true
+    },
+    "superati": "4/4"
+   },
+   "docling": {
+    "errore": null,
+    "secondi": 0.006,
+    "rss_delta_mb": 0.0,
+    "caratteri": 159,
+    "sezioni_chunk": 1,
+    "titoli": [
+     [
+      1,
+      "Capitolo primo"
+     ],
+     [
+      1,
+      "Capitolo secondo"
+     ]
+    ],
+    "controlli": {
+     "capitoli in ordine": true,
+     "accenti": true,
+     "lista": true,
+     "tabella": true
+    },
+    "superati": "4/4"
+   }
+  },
+  "pdf_digitale": {
+   "markitdown": {
+    "errore": null,
+    "secondi": 0.021,
+    "rss_delta_mb": 0.3,
+    "caratteri": 539,
+    "sezioni_chunk": 1,
+    "titoli": [
+     [
+      1,
+      "registro"
+     ]
+    ],
+    "controlli": {
+     "titoli": false,
+     "tabella completa": true,
+     "identificatori non escapati": true
+    },
+    "superati": "2/3"
+   },
+   "docling": {
+    "errore": null,
+    "secondi": 6.865,
+    "rss_delta_mb": 641.3,
+    "caratteri": 608,
+    "sezioni_chunk": 1,
+    "titoli": [
+     [
+      2,
+      "Registro forniture"
+     ],
+     [
+      3,
+      "Regole di consegna"
+     ],
+     [
+      3,
+      "Tabella dei lotti"
+     ],
+     [
+      4,
+      "Note operative"
+     ]
+    ],
+    "controlli": {
+     "titoli": true,
+     "tabella completa": true,
+     "identificatori non escapati": true
+    },
+    "superati": "3/3"
+   }
+  },
+  "pdf_scansione": {
+   "markitdown": {
+    "errore": "ConversionError: nessun testo estraibile da scansione.pdf",
+    "secondi": 0.007,
+    "rss_delta_mb": 0.0,
+    "caratteri": 0,
+    "sezioni_chunk": 0,
+    "titoli": [],
+    "controlli": {
+     "testo riconosciuto": false
+    },
+    "superati": "0/1"
+   },
+   "docling": {
+    "errore": null,
+    "secondi": 4.953,
+    "rss_delta_mb": 484.8,
+    "caratteri": 610,
+    "sezioni_chunk": 1,
+    "titoli": [
+     [
+      2,
+      "Registro forniture"
+     ],
+     [
+      3,
+      "Regole di consegna"
+     ],
+     [
+      4,
+      "Tabella dei lotti"
+     ],
+     [
+      5,
+      "Note operative"
+     ]
+    ],
+    "controlli": {
+     "testo riconosciuto": true
+    },
+    "superati": "1/1"
+   }
+  },
+  "pdf_misto": {
+   "markitdown": {
+    "errore": null,
+    "secondi": 0.026,
+    "rss_delta_mb": 0.0,
+    "caratteri": 536,
+    "sezioni_chunk": 1,
+    "titoli": [
+     [
+      1,
+      "misto"
+     ]
+    ],
+    "controlli": {
+     "pagina digitale": true,
+     "pagina scansionata": false
+    },
+    "superati": "1/2"
+   },
+   "docling": {
+    "errore": null,
+    "secondi": 5.11,
+    "rss_delta_mb": 19.3,
+    "caratteri": 1235,
+    "sezioni_chunk": 2,
+    "titoli": [
+     [
+      3,
+      "Registro forniture"
+     ],
+     [
+      2,
+      "Registro forniture"
+     ],
+     [
+      4,
+      "Regole di consegna"
+     ],
+     [
+      5,
+      "Tabella dei lotti"
+     ],
+     [
+      6,
+      "Note operative"
+     ]
+    ],
+    "controlli": {
+     "pagina digitale": true,
+     "pagina scansionata": true
+    },
+    "superati": "2/2"
+   }
+  },
+  "xls": {
+   "markitdown": {
+    "errore": null,
+    "secondi": 0.026,
+    "rss_delta_mb": 0.0,
+    "caratteri": 183,
+    "sezioni_chunk": 2,
+    "titoli": [
+     [
+      2,
+      "Budget"
+     ],
+     [
+      2,
+      "Note città"
+     ]
+    ],
+    "controlli": {
+     "nomi dei fogli": true,
+     "valori": true,
+     "nessun NaN spacciato per dato": true,
+     "unità e simboli": true
+    },
+    "superati": "4/4"
+   },
+   "docling": {
+    "errore": "RuntimeError: docling failure: ['An unexpected error occurred while opening the document budget.xls.']",
+    "secondi": 0.033,
+    "rss_delta_mb": 0.1,
+    "caratteri": 0,
+    "sezioni_chunk": 0,
+    "titoli": [],
+    "controlli": {
+     "nomi dei fogli": false,
+     "valori": false,
+     "nessun NaN spacciato per dato": false,
+     "unità e simboli": false
+    },
+    "superati": "0/4"
+   },
+   "docling+fogli": {
+    "errore": "RuntimeError: docling failure: ['An unexpected error occurred while opening the document budget.xls.']",
+    "secondi": 0.013,
+    "rss_delta_mb": 0.0,
+    "caratteri": 0,
+    "sezioni_chunk": 0,
+    "titoli": [],
+    "controlli": {
+     "nomi dei fogli": false,
+     "valori": false,
+     "nessun NaN spacciato per dato": false,
+     "unità e simboli": false
+    },
+    "superati": "0/4"
+   }
+  }
+ },
+ "errori_attesi": {
+  "pdf_protetto": {
+   "esito": "ConversionError",
+   "messaggio": "PDF illeggibile o danneggiato: protetto.pdf (FileNotDecryptedError: File has not been decrypted)"
+  },
+  "docx_corrotto": {
+   "esito": "CONVERTITO",
+   "motore": "markitdown",
+   "avvisi": []
+  },
+  "xlsx_vuoto": {
+   "esito": "ConversionError",
+   "messaggio": "file vuoto: vuoto.xlsx"
+  },
+  "pptx_corrotto": {
+   "esito": "CONVERTITO",
+   "motore": "markitdown",
+   "avvisi": []
+  }
+ },
+ "tempi_mediani": {
+  "markitdown": 0.018,
+  "docling": 0.017
+ }
+}

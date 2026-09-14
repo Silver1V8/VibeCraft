@@ -1,0 +1,67 @@
+"""Inventario SHA-256 di tutti gli artefatti prodotti dalla sessione, piu' la
+verifica che il repository applicativo non sia cambiato.
+
+Uso: inventario.py <workdir> <out.json>
+"""
+import hashlib
+import json
+import pathlib
+import subprocess
+import sys
+
+W = pathlib.Path(sys.argv[1]).resolve()
+OUT = pathlib.Path(sys.argv[2])
+RAG = pathlib.Path(r"C:\Users\Silve\Desktop\vibecraft\rag")
+REPO = RAG.parent
+
+
+def sha(p: pathlib.Path) -> str:
+    h = hashlib.sha256()
+    with p.open("rb") as f:
+        for blocco in iter(lambda: f.read(1 << 20), b""):
+            h.update(blocco)
+    return h.hexdigest()
+
+
+artefatti = {}
+for p in sorted(W.rglob("*")):
+    if p.is_file():
+        artefatti[str(p.relative_to(W)).replace("\\", "/")] = {
+            "byte": p.stat().st_size, "sha256": sha(p)}
+
+# invarianti applicativi: se uno di questi cambia, la sessione ha toccato
+# qualcosa che aveva dichiarato di non toccare.
+invarianti = {}
+for rel in ("core/retrieval.py", "core/chunking.py", "rag_config.yaml", "pyproject.toml",
+            "uv.lock", "eval/golden_set.yaml", "eval/golden_attribution.yaml",
+            "eval/results/history.jsonl", "tests/test_ask_prompt_cost.py",
+            "tests/test_ask_unified_llm.py", "tests/test_ask_authority_prompt.py",
+            "api/routes_retrieval.py"):
+    p = RAG / rel
+    invarianti[rel] = sha(p) if p.is_file() else None
+
+righe_history = sum(1 for _ in (RAG / "eval/results/history.jsonl").open(encoding="utf-8"))
+
+git = subprocess.run(["git", "-C", str(REPO), "status", "--porcelain"],
+                     capture_output=True, text=True).stdout.strip().splitlines()
+head = subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"],
+                      capture_output=True, text=True).stdout.strip()
+ramo = subprocess.run(["git", "-C", str(REPO), "branch", "--show-current"],
+                      capture_output=True, text=True).stdout.strip()
+
+dati = {
+    "workdir": str(W),
+    "n_artefatti": len(artefatti),
+    "artefatti": artefatti,
+    "invarianti_applicativi_sha256": invarianti,
+    "history_jsonl_righe": righe_history,
+    "git": {"ramo": ramo, "head": head, "status_porcelain": git},
+}
+OUT.parent.mkdir(parents=True, exist_ok=True)
+OUT.write_text(json.dumps(dati, indent=2, ensure_ascii=False), encoding="utf-8")
+print(f"artefatti: {len(artefatti)}")
+print(f"history.jsonl: {righe_history} righe")
+print(f"git: {ramo} @ {head[:12]}, {len(git)} voci in status")
+for r in git:
+    print("   ", r)
+print(f"-> {OUT}")

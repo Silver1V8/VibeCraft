@@ -1,0 +1,1593 @@
+{
+ "versioni": {
+  "docling": "2.126.0",
+  "docling-core": "2.95.0",
+  "markitdown": "0.1.7",
+  "openpyxl": "3.1.5",
+  "xlrd": "2.0.2",
+  "python-docx": "1.2.0",
+  "python-pptx": "1.0.2",
+  "python": "3.14.7",
+  "piattaforma": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+  "libreoffice": "LibreOffice 25.2.3.2 520(Build:2)"
+ },
+ "senza_lo": false,
+ "casi": {
+  "manuale.docx": {
+   "A": {
+    "errore": null,
+    "superati": "12/14",
+    "falliti": [
+     "gerarchia titolo>H1>H2>H3",
+     "lista annidata rientrata"
+    ],
+    "secondi_freddo": 0.272,
+    "secondi_caldo": 0.1945,
+    "rss_delta_mb": 45.4,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 860,
+    "sha256": "5aa5e06265104fd8140450a82dfa1eb41bf3678da197a67f2b8c6c6b26119c09",
+    "problemi_markdown": []
+   },
+   "B": {
+    "errore": null,
+    "superati": "11/14",
+    "falliti": [
+     "gerarchia titolo>H1>H2>H3",
+     "lista annidata rientrata",
+     "nota a piè di pagina"
+    ],
+    "secondi_freddo": 6.604,
+    "secondi_caldo": 0.09,
+    "rss_delta_mb": 306.2,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 911,
+    "sha256": "7b4017fd3653c097424b2338adeea0e7272859a826d60a2c637693621e73362f",
+    "problemi_markdown": []
+   },
+   "C": {
+    "errore": null,
+    "superati": "12/14",
+    "falliti": [
+     "lista annidata rientrata",
+     "nota a piè di pagina"
+    ],
+    "secondi_freddo": 1.912,
+    "secondi_caldo": 1.6025,
+    "rss_delta_mb": 5.0,
+    "libreoffice": {
+     "secondi": 1.847,
+     "picco_rss_mb": 230.3,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 913,
+    "sha256": "91080da23a374616b106e4677ba80e62b38f432dfbd8ee16faf3991f0f9d5a00",
+    "problemi_markdown": []
+   },
+   "D": {
+    "errore": null,
+    "superati": "12/14",
+    "falliti": [
+     "gerarchia titolo>H1>H2>H3",
+     "lista annidata rientrata"
+    ],
+    "secondi_freddo": 1.81,
+    "secondi_caldo": 1.775,
+    "rss_delta_mb": 17.2,
+    "libreoffice": {
+     "secondi": 1.408,
+     "picco_rss_mb": 223.4,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 860,
+    "sha256": "2af7c3f481fa2746cb33fd3b344bd72ef6f4bb9efbcd388297640f212d146520",
+    "problemi_markdown": []
+   }
+  },
+  "manuale.doc": {
+   "A": {
+    "errore": "ConversionError: formato non supportato: 'doc' (ammessi: md, pdf, docx, pptx, xlsx, xls, html, htm, txt, csv, json, xml, epub, msg)",
+    "superati": "0/14",
+    "falliti": [
+     "testo e caratteri speciali",
+     "gerarchia titolo>H1>H2>H3",
+     "H1 fratelli allo stesso livello",
+     "paragrafi distinti",
+     "lista puntata",
+     "lista annidata rientrata",
+     "lista numerata",
+     "tabella: riga associata",
+     "coppie campo-valore",
+     "etichetta e valore in linea",
+     "cella unita: intestazione e righe",
+     "link con URL",
+     "nota a piè di pagina",
+     "nessuna duplicazione"
+    ],
+    "secondi_freddo": 0.0,
+    "secondi_caldo": 0.0,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "problemi_markdown": []
+   },
+   "B": {
+    "errore": null,
+    "superati": "11/14",
+    "falliti": [
+     "gerarchia titolo>H1>H2>H3",
+     "lista annidata rientrata",
+     "nota a piè di pagina"
+    ],
+    "secondi_freddo": 1.324,
+    "secondi_caldo": 1.2685,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 914,
+    "sha256": "9e4b28cc4293c77302fa3c412d9301803c0fb42849193647c234aee5bd165435",
+    "problemi_markdown": []
+   },
+   "C": {
+    "errore": null,
+    "superati": "11/14",
+    "falliti": [
+     "gerarchia titolo>H1>H2>H3",
+     "lista annidata rientrata",
+     "nota a piè di pagina"
+    ],
+    "secondi_freddo": 1.309,
+    "secondi_caldo": 1.3094999999999999,
+    "rss_delta_mb": 0.1,
+    "libreoffice": {
+     "secondi": 1.251,
+     "picco_rss_mb": 226.4,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 914,
+    "sha256": "9e4b28cc4293c77302fa3c412d9301803c0fb42849193647c234aee5bd165435",
+    "problemi_markdown": []
+   },
+   "D": {
+    "errore": null,
+    "superati": "12/14",
+    "falliti": [
+     "gerarchia titolo>H1>H2>H3",
+     "lista annidata rientrata"
+    ],
+    "secondi_freddo": 1.332,
+    "secondi_caldo": 1.3745,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {
+     "secondi": 1.265,
+     "picco_rss_mb": 232.6,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 862,
+    "sha256": "3f5b13a6b066a6b9601a41f41db3e66a61af961f62bda696e0fd0f3525ace7c2",
+    "problemi_markdown": []
+   }
+  },
+  "specifica_word.docx": {
+   "A": {
+    "errore": null,
+    "superati": "4/4",
+    "falliti": [],
+    "secondi_freddo": 0.377,
+    "secondi_caldo": 0.1285,
+    "rss_delta_mb": 11.2,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 145,
+    "sha256": "d68f46affe5e6e3865468b989b1a021288e490df50e3a034e3e4c25d41a6950f",
+    "problemi_markdown": []
+   },
+   "B": {
+    "errore": null,
+    "superati": "3/4",
+    "falliti": [
+     "titolo documento a livello 1"
+    ],
+    "secondi_freddo": 0.028,
+    "secondi_caldo": 0.0265,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 148,
+    "sha256": "de952dc48c8095a4f915de0d2031288d8b9f7ea9ad077762ed7c0e4f56e60094",
+    "problemi_markdown": []
+   },
+   "C": {
+    "errore": null,
+    "superati": "3/4",
+    "falliti": [
+     "titolo documento a livello 1"
+    ],
+    "secondi_freddo": 1.353,
+    "secondi_caldo": 1.549,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {
+     "secondi": 1.321,
+     "picco_rss_mb": 267.1,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 148,
+    "sha256": "de952dc48c8095a4f915de0d2031288d8b9f7ea9ad077762ed7c0e4f56e60094",
+    "problemi_markdown": []
+   },
+   "D": {
+    "errore": null,
+    "superati": "4/4",
+    "falliti": [],
+    "secondi_freddo": 1.787,
+    "secondi_caldo": 1.7534999999999998,
+    "rss_delta_mb": -13.3,
+    "libreoffice": {
+     "secondi": 1.404,
+     "picco_rss_mb": 230.9,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 145,
+    "sha256": "d68f46affe5e6e3865468b989b1a021288e490df50e3a034e3e4c25d41a6950f",
+    "problemi_markdown": []
+   }
+  },
+  "specifica_word.doc": {
+   "A": {
+    "errore": "ConversionError: formato non supportato: 'doc' (ammessi: md, pdf, docx, pptx, xlsx, xls, html, htm, txt, csv, json, xml, epub, msg)",
+    "superati": "0/4",
+    "falliti": [
+     "titolo documento a livello 1",
+     "gerarchia",
+     "fratelli allo stesso livello",
+     "testo"
+    ],
+    "secondi_freddo": 0.0,
+    "secondi_caldo": 0.0,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "problemi_markdown": []
+   },
+   "B": {
+    "errore": null,
+    "superati": "3/4",
+    "falliti": [
+     "titolo documento a livello 1"
+    ],
+    "secondi_freddo": 1.34,
+    "secondi_caldo": 1.24,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 148,
+    "sha256": "de952dc48c8095a4f915de0d2031288d8b9f7ea9ad077762ed7c0e4f56e60094",
+    "problemi_markdown": []
+   },
+   "C": {
+    "errore": null,
+    "superati": "3/4",
+    "falliti": [
+     "titolo documento a livello 1"
+    ],
+    "secondi_freddo": 1.229,
+    "secondi_caldo": 1.1785,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {
+     "secondi": 1.205,
+     "picco_rss_mb": 233.0,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 148,
+    "sha256": "de952dc48c8095a4f915de0d2031288d8b9f7ea9ad077762ed7c0e4f56e60094",
+    "problemi_markdown": []
+   },
+   "D": {
+    "errore": null,
+    "superati": "4/4",
+    "falliti": [],
+    "secondi_freddo": 1.338,
+    "secondi_caldo": 1.2545,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {
+     "secondi": 1.296,
+     "picco_rss_mb": 221.8,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 145,
+    "sha256": "d68f46affe5e6e3865468b989b1a021288e490df50e3a034e3e4c25d41a6950f",
+    "problemi_markdown": []
+   }
+  },
+  "registro.xlsx": {
+   "A": {
+    "errore": null,
+    "superati": "12/14",
+    "falliti": [
+     "nessun orario inventato",
+     "valori memorizzati delle formule"
+    ],
+    "secondi_freddo": 0.023,
+    "secondi_caldo": 0.016,
+    "rss_delta_mb": 0.1,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 610,
+    "sha256": "a495eac18d1c46239a23fe967fe9fd08e872f55a9e01f317e5de53ab08509b6d",
+    "problemi_markdown": [],
+    "C7_osservato": "assente"
+   },
+   "B": {
+    "errore": null,
+    "superati": "12/14",
+    "falliti": [
+     "nessun orario inventato",
+     "valori memorizzati delle formule"
+    ],
+    "secondi_freddo": 0.008,
+    "secondi_caldo": 0.0085,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 610,
+    "sha256": "a495eac18d1c46239a23fe967fe9fd08e872f55a9e01f317e5de53ab08509b6d",
+    "problemi_markdown": [],
+    "C7_osservato": "assente"
+   },
+   "C": {
+    "errore": null,
+    "superati": "12/14",
+    "falliti": [
+     "nessun orario inventato",
+     "valori memorizzati delle formule"
+    ],
+    "secondi_freddo": 1.318,
+    "secondi_caldo": 1.28,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {
+     "secondi": 1.289,
+     "picco_rss_mb": 216.8,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 628,
+    "sha256": "a4707fb05bb6a4f3830b93efdb22f40f65aa370c54a99a4823cf4922b234b3ae",
+    "problemi_markdown": [],
+    "C7_osservato": "assente"
+   },
+   "D": {
+    "errore": null,
+    "superati": "10/14",
+    "falliti": [
+     "NA / N/A / null letterali",
+     "nessun orario inventato",
+     "valori memorizzati delle formule",
+     "nessun NaN/None/Unnamed"
+    ],
+    "secondi_freddo": 1.441,
+    "secondi_caldo": 1.3025,
+    "rss_delta_mb": 7.6,
+    "libreoffice": {
+     "secondi": 1.39,
+     "picco_rss_mb": 227.4,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 503,
+    "sha256": "e97cc60986d3dc4e205e7ea0fd6a613ffa19fbfa1d515e58db66f77b3872cff9",
+    "problemi_markdown": [],
+    "C7_osservato": "999 (memorizzato)"
+   }
+  },
+  "registro_excel.xlsx": {
+   "A": {
+    "errore": null,
+    "superati": "12/14",
+    "falliti": [
+     "nessun orario inventato",
+     "valori memorizzati delle formule"
+    ],
+    "secondi_freddo": 0.017,
+    "secondi_caldo": 0.0155,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 626,
+    "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b",
+    "problemi_markdown": [],
+    "C7_osservato": "assente"
+   },
+   "B": {
+    "errore": null,
+    "superati": "12/14",
+    "falliti": [
+     "nessun orario inventato",
+     "valori memorizzati delle formule"
+    ],
+    "secondi_freddo": 0.007,
+    "secondi_caldo": 0.007,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 626,
+    "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b",
+    "problemi_markdown": [],
+    "C7_osservato": "assente"
+   },
+   "C": {
+    "errore": null,
+    "superati": "12/14",
+    "falliti": [
+     "nessun orario inventato",
+     "valori memorizzati delle formule"
+    ],
+    "secondi_freddo": 1.291,
+    "secondi_caldo": 1.2635,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {
+     "secondi": 1.261,
+     "picco_rss_mb": 230.6,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 626,
+    "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b",
+    "problemi_markdown": [],
+    "C7_osservato": "assente"
+   },
+   "D": {
+    "errore": null,
+    "superati": "11/14",
+    "falliti": [
+     "NA / N/A / null letterali",
+     "nessun orario inventato",
+     "nessun NaN/None/Unnamed"
+    ],
+    "secondi_freddo": 1.298,
+    "secondi_caldo": 1.3119999999999998,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {
+     "secondi": 1.247,
+     "picco_rss_mb": 224.3,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 502,
+    "sha256": "c26c2e176aa6434c81b0f8ec8e0bbcae00f2a9354a57d87371ac213db6fa367c",
+    "problemi_markdown": [],
+    "C7_osservato": "10 (ricalcolato)"
+   }
+  },
+  "registro.xls": {
+   "A": {
+    "errore": null,
+    "superati": "11/14",
+    "falliti": [
+     "NA / N/A / null letterali",
+     "nessun orario inventato",
+     "nessun NaN/None/Unnamed"
+    ],
+    "secondi_freddo": 0.019,
+    "secondi_caldo": 0.013,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 502,
+    "sha256": "c26c2e176aa6434c81b0f8ec8e0bbcae00f2a9354a57d87371ac213db6fa367c",
+    "problemi_markdown": [],
+    "C7_osservato": "10 (ricalcolato)"
+   },
+   "B": {
+    "errore": null,
+    "superati": "12/14",
+    "falliti": [
+     "nessun orario inventato",
+     "valori memorizzati delle formule"
+    ],
+    "secondi_freddo": 1.184,
+    "secondi_caldo": 1.1865,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 626,
+    "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b",
+    "problemi_markdown": [],
+    "C7_osservato": "assente"
+   },
+   "C": {
+    "errore": null,
+    "superati": "12/14",
+    "falliti": [
+     "nessun orario inventato",
+     "valori memorizzati delle formule"
+    ],
+    "secondi_freddo": 1.238,
+    "secondi_caldo": 1.201,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {
+     "secondi": 1.196,
+     "picco_rss_mb": 228.6,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 626,
+    "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b",
+    "problemi_markdown": [],
+    "C7_osservato": "assente"
+   },
+   "D": {
+    "errore": null,
+    "superati": "11/14",
+    "falliti": [
+     "NA / N/A / null letterali",
+     "nessun orario inventato",
+     "nessun NaN/None/Unnamed"
+    ],
+    "secondi_freddo": 1.225,
+    "secondi_caldo": 1.2185000000000001,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {
+     "secondi": 1.165,
+     "picco_rss_mb": 232.7,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 502,
+    "sha256": "c26c2e176aa6434c81b0f8ec8e0bbcae00f2a9354a57d87371ac213db6fa367c",
+    "problemi_markdown": [],
+    "C7_osservato": "10 (ricalcolato)"
+   }
+  },
+  "rilascio.pptx": {
+   "A": {
+    "errore": null,
+    "superati": "7/8",
+    "falliti": [
+     "elenco con sottolivello"
+    ],
+    "secondi_freddo": 0.02,
+    "secondi_caldo": 0.016,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 363,
+    "sha256": "fa7d0abf19884b9ac7920664e0d7b5a4608c1ee2af2a99a2a59776b599eaefcb",
+    "problemi_markdown": []
+   },
+   "B": {
+    "errore": null,
+    "superati": "6/8",
+    "falliti": [
+     "elenco con sottolivello",
+     "note del relatore"
+    ],
+    "secondi_freddo": 0.032,
+    "secondi_caldo": 0.0245,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 284,
+    "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4",
+    "problemi_markdown": []
+   },
+   "C": {
+    "errore": null,
+    "superati": "6/8",
+    "falliti": [
+     "elenco con sottolivello",
+     "note del relatore"
+    ],
+    "secondi_freddo": 1.483,
+    "secondi_caldo": 1.444,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {
+     "secondi": 1.457,
+     "picco_rss_mb": 232.5,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 284,
+    "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4",
+    "problemi_markdown": []
+   },
+   "D": {
+    "errore": null,
+    "superati": "7/8",
+    "falliti": [
+     "elenco con sottolivello"
+    ],
+    "secondi_freddo": 1.454,
+    "secondi_caldo": 1.47,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {
+     "secondi": 1.424,
+     "picco_rss_mb": 224.4,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 363,
+    "sha256": "fa7d0abf19884b9ac7920664e0d7b5a4608c1ee2af2a99a2a59776b599eaefcb",
+    "problemi_markdown": []
+   }
+  },
+  "rilascio_pp.pptx": {
+   "A": {
+    "errore": null,
+    "superati": "7/8",
+    "falliti": [
+     "elenco con sottolivello"
+    ],
+    "secondi_freddo": 0.016,
+    "secondi_caldo": 0.016,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 363,
+    "sha256": "fa7d0abf19884b9ac7920664e0d7b5a4608c1ee2af2a99a2a59776b599eaefcb",
+    "problemi_markdown": []
+   },
+   "B": {
+    "errore": null,
+    "superati": "6/8",
+    "falliti": [
+     "elenco con sottolivello",
+     "note del relatore"
+    ],
+    "secondi_freddo": 0.03,
+    "secondi_caldo": 0.0235,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 284,
+    "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4",
+    "problemi_markdown": []
+   },
+   "C": {
+    "errore": null,
+    "superati": "6/8",
+    "falliti": [
+     "elenco con sottolivello",
+     "note del relatore"
+    ],
+    "secondi_freddo": 1.518,
+    "secondi_caldo": 1.4515,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {
+     "secondi": 1.49,
+     "picco_rss_mb": 232.5,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 284,
+    "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4",
+    "problemi_markdown": []
+   },
+   "D": {
+    "errore": null,
+    "superati": "7/8",
+    "falliti": [
+     "elenco con sottolivello"
+    ],
+    "secondi_freddo": 1.595,
+    "secondi_caldo": 1.475,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {
+     "secondi": 1.558,
+     "picco_rss_mb": 232.6,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 363,
+    "sha256": "fa7d0abf19884b9ac7920664e0d7b5a4608c1ee2af2a99a2a59776b599eaefcb",
+    "problemi_markdown": []
+   }
+  },
+  "rilascio.ppt": {
+   "A": {
+    "errore": "ConversionError: formato non supportato: 'ppt' (ammessi: md, pdf, docx, pptx, xlsx, xls, html, htm, txt, csv, json, xml, epub, msg)",
+    "superati": "0/8",
+    "falliti": [
+     "titoli delle slide",
+     "slide in ordine",
+     "testo",
+     "elenco con sottolivello",
+     "tabella: riga associata",
+     "ordine di lettura dall'alto",
+     "note del relatore",
+     "nessuna duplicazione"
+    ],
+    "secondi_freddo": 0.0,
+    "secondi_caldo": 0.0,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "problemi_markdown": []
+   },
+   "B": {
+    "errore": null,
+    "superati": "6/8",
+    "falliti": [
+     "elenco con sottolivello",
+     "note del relatore"
+    ],
+    "secondi_freddo": 1.189,
+    "secondi_caldo": 1.2429999999999999,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {},
+    "stabile_in_processo": true,
+    "caratteri": 284,
+    "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4",
+    "problemi_markdown": []
+   },
+   "C": {
+    "errore": null,
+    "superati": "6/8",
+    "falliti": [
+     "elenco con sottolivello",
+     "note del relatore"
+    ],
+    "secondi_freddo": 1.24,
+    "secondi_caldo": 1.278,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {
+     "secondi": 1.213,
+     "picco_rss_mb": 232.9,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 284,
+    "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4",
+    "problemi_markdown": []
+   },
+   "D": {
+    "errore": null,
+    "superati": "7/8",
+    "falliti": [
+     "elenco con sottolivello"
+    ],
+    "secondi_freddo": 1.222,
+    "secondi_caldo": 1.224,
+    "rss_delta_mb": 0.0,
+    "libreoffice": {
+     "secondi": 1.198,
+     "picco_rss_mb": 231.9,
+     "processi_residui": 0
+    },
+    "stabile_in_processo": true,
+    "caratteri": 363,
+    "sha256": "fa7d0abf19884b9ac7920664e0d7b5a4608c1ee2af2a99a2a59776b599eaefcb",
+    "problemi_markdown": []
+   }
+  }
+ },
+ "problemi": {
+  "vuoto.doc": {
+   "A": {
+    "esito": "errore",
+    "messaggio": "ConversionError: formato non supportato: 'doc' (ammessi: md, pdf, docx, pptx, xlsx, xls, html, htm, txt, csv, json, xml, epub, msg)",
+    "secondi": 0.0,
+    "libreoffice": {}
+   },
+   "B": {
+    "esito": "errore",
+    "messaggio": "ConversionError: nessun testo estraibile da vuoto.doc",
+    "secondi": 1.34,
+    "libreoffice": {}
+   },
+   "C": {
+    "esito": "errore",
+    "messaggio": "ConversionError: nessun testo estraibile da vuoto.docx",
+    "secondi": 1.272,
+    "libreoffice": {
+     "secondi": 1.252,
+     "picco_rss_mb": 229.3,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "esito": "errore",
+    "messaggio": "ConversionError: nessun testo estraibile da vuoto.docx",
+    "secondi": 1.202,
+    "libreoffice": {
+     "secondi": 1.18,
+     "picco_rss_mb": 230.0,
+     "processi_residui": 0
+    }
+   }
+  },
+  "vuoto.xls": {
+   "A": {
+    "esito": "errore",
+    "messaggio": "ConversionError: file vuoto: vuoto.xls",
+    "secondi": 0.0,
+    "libreoffice": {}
+   },
+   "B": {
+    "esito": "errore",
+    "messaggio": "ConversionError: nessun testo estraibile da vuoto.xls",
+    "secondi": 1.237,
+    "libreoffice": {}
+   },
+   "C": {
+    "esito": "errore",
+    "messaggio": "ConversionError: nessun testo estraibile da vuoto.xlsx",
+    "secondi": 1.237,
+    "libreoffice": {
+     "secondi": 1.207,
+     "picco_rss_mb": 231.2,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "esito": "CONVERTITO",
+    "messaggio": "## Sheet1\n|\n| |",
+    "secondi": 1.17,
+    "libreoffice": {
+     "secondi": 1.145,
+     "picco_rss_mb": 225.7,
+     "processi_residui": 0
+    }
+   }
+  },
+  "vuoto.ppt": {
+   "A": {
+    "esito": "errore",
+    "messaggio": "ConversionError: formato non supportato: 'ppt' (ammessi: md, pdf, docx, pptx, xlsx, xls, html, htm, txt, csv, json, xml, epub, msg)",
+    "secondi": 0.0,
+    "libreoffice": {}
+   },
+   "B": {
+    "esito": "errore",
+    "messaggio": "ConversionError: nessun testo estraibile da vuoto.ppt",
+    "secondi": 1.231,
+    "libreoffice": {}
+   },
+   "C": {
+    "esito": "errore",
+    "messaggio": "ConversionError: nessun testo estraibile da vuoto.pptx",
+    "secondi": 1.232,
+    "libreoffice": {
+     "secondi": 1.214,
+     "picco_rss_mb": 233.0,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "esito": "CONVERTITO",
+    "messaggio": "# vuoto\n\n<!-- Slide number: 1 -->\n#",
+    "secondi": 1.258,
+    "libreoffice": {
+     "secondi": 1.224,
+     "picco_rss_mb": 223.0,
+     "processi_residui": 0
+    }
+   }
+  },
+  "vuoto.docx": {
+   "A": {
+    "esito": "errore",
+    "messaggio": "ConversionError: file vuoto: vuoto.docx",
+    "secondi": 0.0,
+    "libreoffice": {}
+   },
+   "B": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: Docling failure: MsWordDocumentBackend could not load document with hash e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "secondi": 0.004,
+    "libreoffice": {}
+   },
+   "C": {
+    "esito": "errore",
+    "messaggio": "ConversionError: nessun testo estraibile da vuoto.docx",
+    "secondi": 1.351,
+    "libreoffice": {
+     "secondi": 1.328,
+     "picco_rss_mb": 232.4,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "esito": "errore",
+    "messaggio": "ConversionError: nessun testo estraibile da vuoto.docx",
+    "secondi": 1.328,
+    "libreoffice": {
+     "secondi": 1.306,
+     "picco_rss_mb": 225.5,
+     "processi_residui": 0
+    }
+   }
+  },
+  "vuoto.xlsx": {
+   "A": {
+    "esito": "errore",
+    "messaggio": "ConversionError: file vuoto: vuoto.xlsx",
+    "secondi": 0.0,
+    "libreoffice": {}
+   },
+   "B": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: Docling failure: MsExcelDocumentBackend could not load document with hash e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "secondi": 0.001,
+    "libreoffice": {}
+   },
+   "C": {
+    "esito": "errore",
+    "messaggio": "ConversionError: nessun testo estraibile da vuoto.xlsx",
+    "secondi": 1.217,
+    "libreoffice": {
+     "secondi": 1.188,
+     "picco_rss_mb": 231.1,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "esito": "CONVERTITO",
+    "messaggio": "## Sheet1\n|\n| |",
+    "secondi": 1.241,
+    "libreoffice": {
+     "secondi": 1.21,
+     "picco_rss_mb": 232.9,
+     "processi_residui": 0
+    }
+   }
+  },
+  "vuoto.pptx": {
+   "A": {
+    "esito": "errore",
+    "messaggio": "ConversionError: file vuoto: vuoto.pptx",
+    "secondi": 0.0,
+    "libreoffice": {}
+   },
+   "B": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: Docling failure: MsPowerpointDocumentBackend could not load document with hash e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "secondi": 0.001,
+    "libreoffice": {}
+   },
+   "C": {
+    "esito": "errore",
+    "messaggio": "ConversionError: nessun testo estraibile da vuoto.pptx",
+    "secondi": 1.396,
+    "libreoffice": {
+     "secondi": 1.375,
+     "picco_rss_mb": 230.9,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "esito": "CONVERTITO",
+    "messaggio": "# vuoto\n\n<!-- Slide number: 1 -->\n#",
+    "secondi": 1.416,
+    "libreoffice": {
+     "secondi": 1.378,
+     "picco_rss_mb": 231.9,
+     "processi_residui": 0
+    }
+   }
+  },
+  "troncato.doc": {
+   "A": {
+    "esito": "errore",
+    "messaggio": "ConversionError: formato non supportato: 'doc' (ammessi: md, pdf, docx, pptx, xlsx, xls, html, htm, txt, csv, json, xml, epub, msg)",
+    "secondi": 0.0,
+    "libreoffice": {}
+   },
+   "B": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: Docling failure: An unexpected error occurred while opening the document troncato.doc.",
+    "secondi": 1.391,
+    "libreoffice": {}
+   },
+   "C": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: LibreOffice non ha prodotto docx (exit 0): Warning: failed to launch javaldx - java may not function correctly\nError: source file could not be loaded",
+    "secondi": 1.301,
+    "libreoffice": {
+     "secondi": 1.285,
+     "picco_rss_mb": 227.5,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: LibreOffice non ha prodotto docx (exit 0): Warning: failed to launch javaldx - java may not function correctly\nError: source file could not be loaded",
+    "secondi": 1.344,
+    "libreoffice": {
+     "secondi": 1.318,
+     "picco_rss_mb": 224.9,
+     "processi_residui": 0
+    }
+   }
+  },
+  "troncato.xls": {
+   "A": {
+    "esito": "errore",
+    "messaggio": "ConversionError: conversione fallita per troncato.xls: File conversion failed after 1 attempts:\n - XlsConverter threw IndexError with message: array index out of range\n",
+    "secondi": 0.014,
+    "libreoffice": {}
+   },
+   "B": {
+    "esito": "CONVERTITO",
+    "messaggio": "## input\n\n| ��_x0011_ࡱ_x001a_�>_x0003_��\t_x0006__x0001_3_x0010_��������2������������������������������������������������",
+    "secondi": 1.242,
+    "libreoffice": {}
+   },
+   "C": {
+    "esito": "CONVERTITO",
+    "messaggio": "## input\n\n| ��_x0011_ࡱ_x001a_�>_x0003_��\t_x0006__x0001_3_x0010_��������2������������������������������������������������",
+    "secondi": 1.222,
+    "libreoffice": {
+     "secondi": 1.185,
+     "picco_rss_mb": 233.3,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "esito": "CONVERTITO",
+    "messaggio": "## input\n| ��\\_x0011\\_ࡱ\\_x001a\\_�>\\_x0003\\_�� \\_x0006\\_\\_x0001\\_3\\_x0010\\_��������2�������������������������������������",
+    "secondi": 1.326,
+    "libreoffice": {
+     "secondi": 1.262,
+     "picco_rss_mb": 232.7,
+     "processi_residui": 0
+    }
+   }
+  },
+  "troncato.ppt": {
+   "A": {
+    "esito": "errore",
+    "messaggio": "ConversionError: formato non supportato: 'ppt' (ammessi: md, pdf, docx, pptx, xlsx, xls, html, htm, txt, csv, json, xml, epub, msg)",
+    "secondi": 0.0,
+    "libreoffice": {}
+   },
+   "B": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: Docling failure: An unexpected error occurred while opening the document troncato.ppt.",
+    "secondi": 1.328,
+    "libreoffice": {}
+   },
+   "C": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: LibreOffice non ha prodotto pptx (exit 0): Warning: failed to launch javaldx - java may not function correctly\nError: source file could not be loaded",
+    "secondi": 1.223,
+    "libreoffice": {
+     "secondi": 1.209,
+     "picco_rss_mb": 229.2,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: LibreOffice non ha prodotto pptx (exit 0): Warning: failed to launch javaldx - java may not function correctly\nError: source file could not be loaded",
+    "secondi": 1.332,
+    "libreoffice": {
+     "secondi": 1.317,
+     "picco_rss_mb": 220.3,
+     "processi_residui": 0
+    }
+   }
+  },
+  "finto.doc": {
+   "A": {
+    "esito": "errore",
+    "messaggio": "ConversionError: formato non supportato: 'doc' (ammessi: md, pdf, docx, pptx, xlsx, xls, html, htm, txt, csv, json, xml, epub, msg)",
+    "secondi": 0.0,
+    "libreoffice": {}
+   },
+   "B": {
+    "esito": "CONVERTITO",
+    "messaggio": "Manuale forniture\n\nIntroduzione: città, perché, 3.000 €, ≥ 5 kg, 12 µm.\n\n## Capitolo uno\n\nPrimo paragrafo del capitolo u",
+    "secondi": 0.086,
+    "libreoffice": {}
+   },
+   "C": {
+    "esito": "CONVERTITO",
+    "messaggio": "# Manuale forniture\n\nIntroduzione: città, perché, 3.000 €, ≥ 5 kg, 12 µm.\n\n## Capitolo uno\n\nPrimo paragrafo del capitolo",
+    "secondi": 1.481,
+    "libreoffice": {
+     "secondi": 1.412,
+     "picco_rss_mb": 231.2,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "esito": "CONVERTITO",
+    "messaggio": "Manuale forniture\n\nIntroduzione: città, perché, 3.000 €, ≥ 5 kg, 12 µm.\n\n# Capitolo uno\n\nPrimo paragrafo del capitolo un",
+    "secondi": 1.8,
+    "libreoffice": {
+     "secondi": 1.326,
+     "picco_rss_mb": 230.1,
+     "processi_residui": 0
+    }
+   }
+  },
+  "finto.xls": {
+   "A": {
+    "esito": "errore",
+    "messaggio": "ConversionError: file danneggiato o non è un XLS valido: finto.xls",
+    "secondi": 0.0,
+    "libreoffice": {}
+   },
+   "B": {
+    "esito": "CONVERTITO",
+    "messaggio": "## Registro\n\nMagazzino Nord registro 2026\n\n|   Codice | Stato   |   Quantità | Data                |   Importo € |   Quo",
+    "secondi": 0.01,
+    "libreoffice": {}
+   },
+   "C": {
+    "esito": "CONVERTITO",
+    "messaggio": "## Registro\n\nMagazzino Nord registro 2026\n\n|   Codice | Stato   |   Quantità | Data                |   Importo € |   Quo",
+    "secondi": 1.335,
+    "libreoffice": {
+     "secondi": 1.301,
+     "picco_rss_mb": 231.9,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "esito": "CONVERTITO",
+    "messaggio": "## Registro\n| Magazzino Nord registro 2026 | Unnamed: 1 | Unnamed: 2 | Unnamed: 3 | Unnamed: 4 | Unnamed: 5 |\n| --- | --",
+    "secondi": 1.287,
+    "libreoffice": {
+     "secondi": 1.249,
+     "picco_rss_mb": 232.6,
+     "processi_residui": 0
+    }
+   }
+  },
+  "manuale_protetto.doc": {
+   "A": {
+    "esito": "errore",
+    "messaggio": "ConversionError: formato non supportato: 'doc' (ammessi: md, pdf, docx, pptx, xlsx, xls, html, htm, txt, csv, json, xml, epub, msg)",
+    "secondi": 0.0,
+    "libreoffice": {}
+   },
+   "B": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: Docling failure: An unexpected error occurred while opening the document manuale_protetto.doc.",
+    "secondi": 1.183,
+    "libreoffice": {}
+   },
+   "C": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: LibreOffice non ha prodotto docx (exit 0): Warning: failed to launch javaldx - java may not function correctly\nError: source file could not be loaded",
+    "secondi": 1.155,
+    "libreoffice": {
+     "secondi": 1.138,
+     "picco_rss_mb": 221.8,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: LibreOffice non ha prodotto docx (exit 0): Warning: failed to launch javaldx - java may not function correctly\nError: source file could not be loaded",
+    "secondi": 1.131,
+    "libreoffice": {
+     "secondi": 1.117,
+     "picco_rss_mb": 231.7,
+     "processi_residui": 0
+    }
+   }
+  },
+  "registro_protetto.xls": {
+   "A": {
+    "esito": "errore",
+    "messaggio": "ConversionError: conversione fallita per registro_protetto.xls: File conversion failed after 1 attempts:\n - XlsConverter threw XLRDError with message: Workbook is encrypted\n",
+    "secondi": 0.005,
+    "libreoffice": {}
+   },
+   "B": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: Docling failure: An unexpected error occurred while opening the document registro_protetto.xls.",
+    "secondi": 1.082,
+    "libreoffice": {}
+   },
+   "C": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: LibreOffice non ha prodotto xlsx (exit 0): Warning: failed to launch javaldx - java may not function correctly\nError: source file could not be loaded",
+    "secondi": 1.092,
+    "libreoffice": {
+     "secondi": 1.078,
+     "picco_rss_mb": 228.5,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: LibreOffice non ha prodotto xlsx (exit 0): Warning: failed to launch javaldx - java may not function correctly\nError: source file could not be loaded",
+    "secondi": 1.052,
+    "libreoffice": {
+     "secondi": 1.038,
+     "picco_rss_mb": 233.0,
+     "processi_residui": 0
+    }
+   }
+  },
+  "rilascio_protetto.ppt": {
+   "A": {
+    "esito": "errore",
+    "messaggio": "ConversionError: formato non supportato: 'ppt' (ammessi: md, pdf, docx, pptx, xlsx, xls, html, htm, txt, csv, json, xml, epub, msg)",
+    "secondi": 0.0,
+    "libreoffice": {}
+   },
+   "B": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: Docling failure: An unexpected error occurred while opening the document rilascio_protetto.ppt.",
+    "secondi": 1.076,
+    "libreoffice": {}
+   },
+   "C": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: LibreOffice non ha prodotto pptx (exit 0): Warning: failed to launch javaldx - java may not function correctly\nError: source file could not be loaded",
+    "secondi": 1.07,
+    "libreoffice": {
+     "secondi": 1.056,
+     "picco_rss_mb": 225.1,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: LibreOffice non ha prodotto pptx (exit 0): Warning: failed to launch javaldx - java may not function correctly\nError: source file could not be loaded",
+    "secondi": 1.093,
+    "libreoffice": {
+     "secondi": 1.079,
+     "picco_rss_mb": 232.9,
+     "processi_residui": 0
+    }
+   }
+  },
+  "manuale_protetto.docx": {
+   "A": {
+    "esito": "errore",
+    "messaggio": "ConversionError: file danneggiato o non è un DOCX valido: manuale_protetto.docx",
+    "secondi": 0.0,
+    "libreoffice": {}
+   },
+   "B": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: Docling failure: An unexpected error occurred while opening the document manuale_protetto.docx.",
+    "secondi": 1.276,
+    "libreoffice": {}
+   },
+   "C": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: LibreOffice non ha prodotto docx (exit 0): Warning: failed to launch javaldx - java may not function correctly\nError: source file could not be loaded",
+    "secondi": 1.26,
+    "libreoffice": {
+     "secondi": 1.245,
+     "picco_rss_mb": 232.9,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: LibreOffice non ha prodotto docx (exit 0): Warning: failed to launch javaldx - java may not function correctly\nError: source file could not be loaded",
+    "secondi": 1.261,
+    "libreoffice": {
+     "secondi": 1.247,
+     "picco_rss_mb": 231.7,
+     "processi_residui": 0
+    }
+   }
+  },
+  "registro_protetto.xlsx": {
+   "A": {
+    "esito": "errore",
+    "messaggio": "ConversionError: file danneggiato o non è un XLSX valido: registro_protetto.xlsx",
+    "secondi": 0.0,
+    "libreoffice": {}
+   },
+   "B": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: Docling failure: An unexpected error occurred while opening the document registro_protetto.xlsx.",
+    "secondi": 1.329,
+    "libreoffice": {}
+   },
+   "C": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: LibreOffice non ha prodotto xlsx (exit 0): Warning: failed to launch javaldx - java may not function correctly\nError: source file could not be loaded",
+    "secondi": 1.281,
+    "libreoffice": {
+     "secondi": 1.263,
+     "picco_rss_mb": 233.1,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: LibreOffice non ha prodotto xlsx (exit 0): Warning: failed to launch javaldx - java may not function correctly\nError: source file could not be loaded",
+    "secondi": 1.281,
+    "libreoffice": {
+     "secondi": 1.265,
+     "picco_rss_mb": 231.4,
+     "processi_residui": 0
+    }
+   }
+  },
+  "rilascio_protetto.pptx": {
+   "A": {
+    "esito": "errore",
+    "messaggio": "ConversionError: file danneggiato o non è un PPTX valido: rilascio_protetto.pptx",
+    "secondi": 0.0,
+    "libreoffice": {}
+   },
+   "B": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: Docling failure: An unexpected error occurred while opening the document rilascio_protetto.pptx.",
+    "secondi": 1.327,
+    "libreoffice": {}
+   },
+   "C": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: LibreOffice non ha prodotto pptx (exit 0): Warning: failed to launch javaldx - java may not function correctly\nError: source file could not be loaded",
+    "secondi": 1.263,
+    "libreoffice": {
+     "secondi": 1.248,
+     "picco_rss_mb": 219.9,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "esito": "errore",
+    "messaggio": "RuntimeError: LibreOffice non ha prodotto pptx (exit 0): Warning: failed to launch javaldx - java may not function correctly\nError: source file could not be loaded",
+    "secondi": 1.311,
+    "libreoffice": {
+     "secondi": 1.292,
+     "picco_rss_mb": 229.6,
+     "processi_residui": 0
+    }
+   }
+  }
+ },
+ "rete": {
+  "rete.xlsx/predefinito": {
+   "errore": null,
+   "richieste": []
+  },
+  "rete.xlsx/blindato": {
+   "errore": null,
+   "richieste": []
+  },
+  "rete.docx/predefinito": {
+   "errore": null,
+   "richieste": [
+    "rete.docx/predefinito: GET /immagine.png",
+    "rete.docx/predefinito: GET /immagine.png"
+   ]
+  },
+  "rete.docx/blindato": {
+   "errore": null,
+   "richieste": []
+  }
+ },
+ "campioni": {
+  "PROTTPLN.DOC": {
+   "A": {
+    "errore": "ConversionError: formato non supportato: 'doc' (ammessi: md, pdf, docx, pptx, xlsx, xls, html, htm, txt, csv, json, xml, epub, msg)",
+    "secondi": 0.0,
+    "caratteri": 0,
+    "copertura_testi_xlrd": null,
+    "fogli_xlrd": null,
+    "sezioni": 0,
+    "problemi_markdown": [],
+    "libreoffice": {}
+   },
+   "B": {
+    "errore": null,
+    "secondi": 1.288,
+    "caratteri": 306,
+    "copertura_testi_xlrd": null,
+    "fogli_xlrd": null,
+    "sezioni": 1,
+    "problemi_markdown": [],
+    "libreoffice": {}
+   },
+   "C": {
+    "errore": null,
+    "secondi": 1.224,
+    "caratteri": 306,
+    "copertura_testi_xlrd": null,
+    "fogli_xlrd": null,
+    "sezioni": 1,
+    "problemi_markdown": [],
+    "libreoffice": {
+     "secondi": 1.202,
+     "picco_rss_mb": 229.5,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "errore": null,
+    "secondi": 1.265,
+    "caratteri": 306,
+    "copertura_testi_xlrd": null,
+    "fogli_xlrd": null,
+    "sezioni": 1,
+    "problemi_markdown": [],
+    "libreoffice": {
+     "secondi": 1.22,
+     "picco_rss_mb": 232.5,
+     "processi_residui": 0
+    }
+   }
+  },
+  "PROTTPLN.PPT": {
+   "A": {
+    "errore": "ConversionError: formato non supportato: 'ppt' (ammessi: md, pdf, docx, pptx, xlsx, xls, html, htm, txt, csv, json, xml, epub, msg)",
+    "secondi": 0.0,
+    "caratteri": 0,
+    "copertura_testi_xlrd": null,
+    "fogli_xlrd": null,
+    "sezioni": 0,
+    "problemi_markdown": [],
+    "libreoffice": {}
+   },
+   "B": {
+    "errore": "RuntimeError: Docling failure: An unexpected error occurred while opening the document prottpln.ppt.",
+    "secondi": 1.28,
+    "caratteri": 0,
+    "copertura_testi_xlrd": null,
+    "fogli_xlrd": null,
+    "sezioni": 0,
+    "problemi_markdown": [],
+    "libreoffice": {}
+   },
+   "C": {
+    "errore": null,
+    "secondi": 1.198,
+    "caratteri": 311,
+    "copertura_testi_xlrd": null,
+    "fogli_xlrd": null,
+    "sezioni": 1,
+    "problemi_markdown": [],
+    "libreoffice": {
+     "secondi": 1.173,
+     "picco_rss_mb": 231.1,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "errore": null,
+    "secondi": 1.186,
+    "caratteri": 348,
+    "copertura_testi_xlrd": null,
+    "fogli_xlrd": null,
+    "sezioni": 2,
+    "problemi_markdown": [],
+    "libreoffice": {
+     "secondi": 1.158,
+     "picco_rss_mb": 232.6,
+     "processi_residui": 0
+    }
+   }
+  },
+  "PROTTPLN.XLS": {
+   "A": {
+    "errore": null,
+    "secondi": 0.012,
+    "caratteri": 379,
+    "copertura_testi_xlrd": 1.0,
+    "fogli_xlrd": 3,
+    "sezioni": 3,
+    "problemi_markdown": [
+     "tabella con colonne diverse: [1, 2]",
+     "tabella con colonne diverse: [1, 2]"
+    ],
+    "libreoffice": {}
+   },
+   "B": {
+    "errore": null,
+    "secondi": 1.287,
+    "caratteri": 670,
+    "copertura_testi_xlrd": 1.0,
+    "fogli_xlrd": 3,
+    "sezioni": 1,
+    "problemi_markdown": [],
+    "libreoffice": {}
+   },
+   "C": {
+    "errore": null,
+    "secondi": 1.227,
+    "caratteri": 670,
+    "copertura_testi_xlrd": 1.0,
+    "fogli_xlrd": 3,
+    "sezioni": 1,
+    "problemi_markdown": [],
+    "libreoffice": {
+     "secondi": 1.193,
+     "picco_rss_mb": 233.1,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "errore": null,
+    "secondi": 1.172,
+    "caratteri": 379,
+    "copertura_testi_xlrd": 1.0,
+    "fogli_xlrd": 3,
+    "sezioni": 3,
+    "problemi_markdown": [
+     "tabella con colonne diverse: [1, 2]",
+     "tabella con colonne diverse: [1, 2]"
+    ],
+    "libreoffice": {
+     "secondi": 1.14,
+     "picco_rss_mb": 225.6,
+     "processi_residui": 0
+    }
+   }
+  },
+  "SOLVSAMP.XLS": {
+   "A": {
+    "errore": null,
+    "secondi": 0.396,
+    "caratteri": 59596,
+    "copertura_testi_xlrd": 0.978,
+    "fogli_xlrd": 7,
+    "sezioni": 7,
+    "problemi_markdown": [],
+    "libreoffice": {}
+   },
+   "B": {
+    "errore": null,
+    "secondi": 1.462,
+    "caratteri": 50395,
+    "copertura_testi_xlrd": 1.0,
+    "fogli_xlrd": 7,
+    "sezioni": 7,
+    "problemi_markdown": [],
+    "libreoffice": {}
+   },
+   "C": {
+    "errore": null,
+    "secondi": 1.66,
+    "caratteri": 50395,
+    "copertura_testi_xlrd": 1.0,
+    "fogli_xlrd": 7,
+    "sezioni": 7,
+    "problemi_markdown": [],
+    "libreoffice": {
+     "secondi": 1.286,
+     "picco_rss_mb": 220.4,
+     "processi_residui": 0
+    }
+   },
+   "D": {
+    "errore": null,
+    "secondi": 2.068,
+    "caratteri": 59554,
+    "copertura_testi_xlrd": 0.978,
+    "fogli_xlrd": 7,
+    "sezioni": 7,
+    "problemi_markdown": [],
+    "libreoffice": {
+     "secondi": 1.287,
+     "picco_rss_mb": 232.8,
+     "processi_residui": 0
+    }
+   }
+  }
+ },
+ "richieste_http_totali": [
+  "rete.docx/predefinito: GET /immagine.png",
+  "rete.docx/predefinito: GET /immagine.png"
+ ],
+ "processi_soffice_a_fine_corsa": 0
+}

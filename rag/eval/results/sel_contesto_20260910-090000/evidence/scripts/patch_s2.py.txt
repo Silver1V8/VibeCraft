@@ -1,0 +1,184 @@
+"""S2 (H1) — pertinenza alla DOMANDA anche sul ponte IMPLEMENTS.
+
+## Perche' qui, e perche' cosi'
+
+`/ask` ha due rami di codice:
+  · **semantico** (`search_code_symbols`, routes_retrieval.py:209) — ordina per
+    coseno **domanda→simbolo** e ha gia' un pavimento, `code_search_min_score`
+    = 0.45;
+  · **ponte IMPLEMENTS** (`collect_implementing_code`, :492) — risale gli archi
+    dalle sezioni recuperate e ordina per somiglianza **codice→spec**, con una
+    soglia sul **peso dell'arco** (`code_context_min_weight` = 0.5). Nessun
+    filtro rispetto alla domanda.
+
+Misurato in-process (`scripts/composizione.py`, mediane, top_k=10):
+
+| insieme | blocchi codice | di cui dal ramo semantico |
+|---|---:|---:|
+| 8 domande PDF | 10 | **0** |
+| golden (58) | 12 | 8 |
+| multihop (8) | 12 | 8 |
+
+Sulle domande PDF **tutto** il codice arriva dal ponte, e il ramo che valuta la
+pertinenza alla domanda ne fa entrare zero. Su golden e multihop il ramo
+semantico contribuisce invece 8 blocchi su 12: quel codice serve.
+
+La correzione non rimuove il ponte — servirebbe a nulla toglierlo globalmente, e
+il mandato lo vieta. Applica al ponte **lo stesso segnale che il ramo semantico
+usa gia'**: il coseno domanda→simbolo, calcolato dalla **stessa funzione**
+(`retrieval.search_code_symbols`) ristretta con `subset_idx` ai soli simboli che
+il ponte ha proposto. Nessun classificatore nuovo, nessuna formula duplicata,
+nessun segnale che in produzione non esista.
+
+L'ordinamento del ponte e il campo `implements` restano intatti: il filtro decide
+solo **chi resta**, non l'ordine.
+
+## Parametro
+
+`retrieval.code_link_min_question_score` — pavimento di coseno domanda→simbolo
+per il ramo IMPLEMENTS. **0.0 = disattivato**, e il comportamento torna
+byte-identico a oggi: e' il default, quindi il codice patchato senza il valore in
+configurazione si comporta come la produzione.
+
+## Registrazione delle esclusioni
+
+Ogni simbolo scartato viene loggato a INFO con il suo punteggio e la soglia, e
+il conteggio finisce nella riga di osservabilita' di `/ask`. Il motivo e il
+segnale sono quindi nel log, non solo nel numero finale di blocchi.
+
+Uso: patch_s2.py <sandbox> [--revert]
+"""
+import hashlib
+import pathlib
+import sys
+
+CONFIG_VECCHIO = """CODE_CONTEXT_TOTAL_SNIPPETS: int = int(
+    _retrieval_cfg.get("code_context_total_snippets",
+                       CODE_SEARCH_MAX_SNIPPETS + CODE_CONTEXT_MAX_SNIPPETS)
+)
+"""
+CONFIG_NUOVO = """CODE_CONTEXT_TOTAL_SNIPPETS: int = int(
+    _retrieval_cfg.get("code_context_total_snippets",
+                       CODE_SEARCH_MAX_SNIPPETS + CODE_CONTEXT_MAX_SNIPPETS)
+)
+# PILOT S2. Pavimento di coseno DOMANDA->simbolo applicato al ramo IMPLEMENTS
+# (collect_implementing_code), che oggi filtra solo sul peso dell'ARCO e quindi puo'
+# iniettare codice pertinente alla spec recuperata ma non alla domanda. Stesso segnale e
+# stessa funzione del ramo semantico (search_code_symbols), ristretta ai simboli che il
+# ponte propone. 0.0 = disattivato: il contesto torna identico a prima.
+CODE_LINK_MIN_QUESTION_SCORE: float = float(
+    _retrieval_cfg.get("code_link_min_question_score", 0.0))
+"""
+
+IMPORT_VECCHIO = """    CODE_CONTEXT_TOTAL_SNIPPETS,
+"""
+IMPORT_NUOVO = """    CODE_CONTEXT_TOTAL_SNIPPETS,
+    CODE_LINK_MIN_QUESTION_SCORE,
+"""
+
+FILTRO_VECCHIO = """    # Priorità al ramo semantico: è ordinato per pertinenza alla domanda, mentre il ponte
+    # ordina per somiglianza codice→spec. Dedup per simbolo e tetto complessivo.
+    implementing_code = retrieval.merge_code_context(
+        code_hits, linked_code, max_snippets=CODE_CONTEXT_TOTAL_SNIPPETS,
+    )
+"""
+FILTRO_NUOVO = """    # PILOT S2 — pertinenza alla DOMANDA anche sul ponte IMPLEMENTS. Il ponte sceglie per
+    # prossimità nel grafo e somiglianza codice→spec: su una domanda che non parla di codice
+    # inietta comunque il suo tetto pieno (misurato: 10 blocchi su 10 nelle domande PDF, dove
+    # il ramo semantico ne fa entrare 0). Qui si applica lo STESSO segnale del ramo semantico
+    # — il coseno domanda→simbolo — chiamando la STESSA funzione ristretta con `subset_idx`
+    # ai soli simboli proposti dal ponte: nessuna formula duplicata, nessun segnale nuovo.
+    # 0.0 disattiva il filtro e il contesto torna identico a prima.
+    scartati_ponte: list[dict] = []
+    if CODE_LINK_MIN_QUESTION_SCORE > 0 and linked_code and query_encoding is not None:
+        # Solo i simboli VALUTABILI passano dal filtro. Un simbolo senza vettore denso non
+        # è in `code_ids`, quindi il coseno non esiste per lui: l'assenza del segnale non è
+        # una prova di irrilevanza, e scartarlo sarebbe escludere per mancanza di dati.
+        # Restano quindi dentro (fail-open), come restavano prima di questo filtro.
+        posizione = {sid: i for i, sid in enumerate(snap.code_ids)}
+        valutabili = [c for c in linked_code if c["symbol_id"] in posizione]
+        righe = [posizione[c["symbol_id"]] for c in valutabili]
+        pertinenti: set[str] = set()
+        if righe:
+            pertinenti = {c["symbol_id"] for c in await run_in_threadpool(
+                retrieval.search_code_symbols, query_encoding["dense"], snap.code_store,
+                max_snippets=len(righe), min_score=CODE_LINK_MIN_QUESTION_SCORE,
+                max_per_file=0, code_ids=snap.code_ids, code_matrix=snap.code_matrix,
+                subset_idx=righe,
+            )}
+        scartati_ponte = [{"symbol_id": c["symbol_id"], "file": c["file"], "name": c["name"],
+                           "peso_arco": c.get("weight"), "motivo": "coseno domanda→simbolo",
+                           "soglia": CODE_LINK_MIN_QUESTION_SCORE}
+                          for c in valutabili if c["symbol_id"] not in pertinenti]
+        if scartati_ponte:
+            logger.info(
+                "ask code_link_filter request_id=%s soglia=%s proposti=%d valutabili=%d "
+                "tenuti=%d scartati=%s", request_id, CODE_LINK_MIN_QUESTION_SCORE,
+                len(linked_code), len(valutabili), len(linked_code) - len(scartati_ponte),
+                ",".join(s["symbol_id"] for s in scartati_ponte))
+        esclusi = {s["symbol_id"] for s in scartati_ponte}
+        linked_code = [c for c in linked_code if c["symbol_id"] not in esclusi]
+
+    # Priorità al ramo semantico: è ordinato per pertinenza alla domanda, mentre il ponte
+    # ordina per somiglianza codice→spec. Dedup per simbolo e tetto complessivo.
+    implementing_code = retrieval.merge_code_context(
+        code_hits, linked_code, max_snippets=CODE_CONTEXT_TOTAL_SNIPPETS,
+    )
+"""
+
+SOSTITUZIONI = [
+    ("core/config.py", CONFIG_VECCHIO, CONFIG_NUOVO),
+    ("api/routes_retrieval.py", IMPORT_VECCHIO, IMPORT_NUOVO),
+    ("api/routes_retrieval.py", FILTRO_VECCHIO, FILTRO_NUOVO),
+]
+
+
+def main() -> int:
+    sandbox = pathlib.Path(sys.argv[1])
+    revert = "--revert" in sys.argv
+    tocca = sorted({rel for rel, _, _ in SOSTITUZIONI})
+
+    if revert:
+        ok = True
+        for rel in tocca:
+            t = sandbox / "rag" / rel
+            b = t.with_suffix(t.suffix + ".s2orig")
+            if not b.is_file():
+                continue
+            atteso = hashlib.sha256(b.read_bytes()).hexdigest()
+            t.write_bytes(b.read_bytes())
+            buono = hashlib.sha256(t.read_bytes()).hexdigest() == atteso
+            ok = ok and buono
+            b.unlink()
+            print(f"  ripristinato {rel}: {buono} sha256={atteso[:16]}")
+        return 0 if ok else 1
+
+    testi = {}
+    for rel in tocca:
+        t = sandbox / "rag" / rel
+        if not t.is_file():
+            print(f"ERRORE: {t} assente")
+            return 2
+        testi[rel] = t.read_text(encoding="utf-8")
+    if all(n in testi[rel] for rel, _, n in SOSTITUZIONI):
+        print("gia' applicata")
+        return 0
+    for rel, vecchio, _ in SOSTITUZIONI:
+        if testi[rel].count(vecchio) != 1:
+            print(f"ERRORE: in {rel} il blocco atteso compare {testi[rel].count(vecchio)} volte")
+            return 2
+    for rel in tocca:
+        t = sandbox / "rag" / rel
+        b = t.with_suffix(t.suffix + ".s2orig")
+        if not b.is_file():
+            b.write_bytes(t.read_bytes())
+    for rel, vecchio, nuovo in SOSTITUZIONI:
+        testi[rel] = testi[rel].replace(vecchio, nuovo)
+    for rel in tocca:
+        (sandbox / "rag" / rel).write_text(testi[rel], encoding="utf-8")
+        print(f"  applicata a {rel}  sha256={hashlib.sha256(testi[rel].encode('utf-8')).hexdigest()[:16]}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

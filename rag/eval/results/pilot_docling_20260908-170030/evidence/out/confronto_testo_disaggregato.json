@@ -1,0 +1,94 @@
+{
+  "loader_pypdf": {
+    "diagrammi": {
+      "contenuto_atteso": 12,
+      "contenuto_presente": 12,
+      "contenuto_mancante": [],
+      "arredo_di_pagina_residuo": [
+        "Pagina 1",
+        "Pagina 2",
+        "Vibecraft - inventario normativo"
+      ]
+    },
+    "mockup": {
+      "contenuto_atteso": 12,
+      "contenuto_presente": 12,
+      "contenuto_mancante": [],
+      "arredo_di_pagina_residuo": [
+        "Pagina 1",
+        "Pagina 2",
+        "Vibecraft - inventario normativo"
+      ]
+    }
+  },
+  "intake_markitdown": {
+    "diagrammi": {
+      "contenuto_atteso": 12,
+      "contenuto_presente": 12,
+      "contenuto_mancante": [],
+      "arredo_di_pagina_residuo": [
+        "Pagina 1",
+        "Pagina 2",
+        "Vibecraft - inventario normativo"
+      ]
+    },
+    "mockup": {
+      "contenuto_atteso": 12,
+      "contenuto_presente": 10,
+      "contenuto_mancante": [
+        "11",
+        "4"
+      ],
+      "arredo_di_pagina_residuo": [
+        "Pagina 1",
+        "Pagina 2",
+        "Vibecraft - inventario normativo"
+      ]
+    }
+  },
+  "docling_granite_grezzo": {
+    "diagrammi": {
+      "contenuto_atteso": 12,
+      "contenuto_presente": 12,
+      "contenuto_mancante": [],
+      "arredo_di_pagina_residuo": []
+    },
+    "mockup": {
+      "contenuto_atteso": 12,
+      "contenuto_presente": 8,
+      "contenuto_mancante": [
+        "Indice operativo delle interfacce di riferimento collegate alle specifiche normative.",
+        "11",
+        "4",
+        "SVG + HTML"
+      ],
+      "arredo_di_pagina_residuo": []
+    }
+  },
+  "docling_granite_refined": {
+    "diagrammi": {
+      "contenuto_atteso": 12,
+      "contenuto_presente": 9,
+      "contenuto_mancante": [
+        "5",
+        "cartella sorgente",
+        "formato"
+      ],
+      "arredo_di_pagina_residuo": []
+    },
+    "mockup": {
+      "contenuto_atteso": 12,
+      "contenuto_presente": 5,
+      "contenuto_mancante": [
+        "Indice operativo delle interfacce di riferimento collegate alle specifiche normative.",
+        "11",
+        "artefatti",
+        "4",
+        "aree funzionali",
+        "SVG + HTML",
+        "formati"
+      ],
+      "arredo_di_pagina_residuo": []
+    }
+  }
+}

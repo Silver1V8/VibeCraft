@@ -1,0 +1,127 @@
+"""VIA 1 — disambiguazione del LESSICO del corpus (solo nel sandbox).
+
+Causa accertata (diagnostico di soffitto, 2026-09-10): il corpus usa la parola
+nuda «peso» per due concetti diversi —
+  · la **dimensione** di un artefatto, che i cataloghi riportano nella colonna
+    «Formato / peso» (`SVG 19.5 KB`);
+  · il **coefficiente di autorevolezza**, che il corpus stesso chiama `Authority`.
+Il retrieval porta in finestra entrambe le accezioni perche' la domanda contiene
+«peso», e il modello sceglie quella che il corpus definisce con piu' forza.
+
+Questa correzione NON tocca la domanda congelata, ne' la risposta attesa, ne' le
+soglie, ne' il prompt, ne' il codice. Disambigua il **corpus**, che e' dove sta
+l'ambiguita'.
+
+## Edit A — coerenza terminologica in spec_graph_rag_ingestion.md
+
+Due sole righe usano «peso» senza qualificarlo. **Tre altri documenti del corpus
+lo qualificano gia'**:
+  · README.md:120                       «cambia il peso di autorita' dei documenti»
+  · policy_versionamento_documentale.md:93  «Determina il peso di autorita' nel ranking»
+  · inferenza_locale_o_remota.md:17      «sotto il peso di classe METHODOLOGY»
+e la tabella del README intitola la colonna **`Authority`**, non «peso».
+L'edit allinea le due righe rimaste alla convenzione che il corpus segue gia'
+altrove: e' una correzione di coerenza documentale, non un espediente.
+
+## Edit B — una voce nel glossario dei sinonimi
+
+`intent_synonym_mapping.md` §2 «Mappatura dei Sostantivi e dei Concetti» e' il
+meccanismo che il corpus si e' dato per risolvere proprio i termini ambigui, ed
+e' gia' applicato dal sistema tramite `[REGOLA-DIZIONARIO-RIGIDO]`. La voce
+dichiara l'accezione «peso di un file = dimensione», distinta da `Authority`.
+
+Non nomina i due cataloghi del pilot, non contiene la risposta attesa, non
+contiene `19.5 KB` ne' alcun nome di file: dichiara un termine, che e' cio' che
+un glossario fa. **Punto di giudizio dichiarato:** la voce cita la stringa
+«Formato / peso» come luogo in cui il dato e' riportato. E' il nome di una
+colonna che entrambi i cataloghi usano davvero, quindi e' documentazione vera;
+ma e' anche la stringa che compare nella fonte della domanda congelata, e va
+sottoposto a revisione umana.
+
+Uso: patch_corpus.py <sandbox> [--revert]
+"""
+import hashlib
+import pathlib
+import sys
+
+RIGA_91_V = ("Rinominare o rimuovere una di queste cartelle cambia la classificazione dei "
+             "documenti che contiene, e quindi il loro peso nel ranking.")
+RIGA_91_N = ("Rinominare o rimuovere una di queste cartelle cambia la classificazione dei "
+             "documenti che contiene, e quindi il loro peso di autorevolezza (`Authority`) "
+             "nel ranking.")
+
+RIGA_166_V = ("in sua assenza si applica il peso della classe, e in assenza anche di "
+              "`classification` il peso della fonte non classificata")
+RIGA_166_N = ("in sua assenza si applica il peso di autorevolezza della classe, e in assenza "
+              "anche di `classification` il peso di autorevolezza della fonte non classificata")
+
+INTESTAZIONE_V = ("| Termine Comune / Gergo | Definizione di Business | Riferimento Modello "
+                  "Dati Rigido | Etichetta Sicurezza / PII |\n|---|---|---|---|\n")
+VOCE_N = (
+    '| "Peso di un file", "Quanto pesa", "Quanto occupa", "Dimensione del file", "Formato / '
+    'peso" | **Dimensione su disco di un artefatto** (SVG, PNG, HTML, PDF), espressa in KB o MB '
+    'e riportata dai cataloghi degli artefatti nella colonna «Formato / peso». **Non e\' il '
+    'coefficiente di autorevolezza della fonte**, che in questo progetto si chiama `Authority` '
+    'ed e\' un numero fra 0 e 1: sono due grandezze distinte e non vanno scambiate. Se una '
+    'domanda chiede il «peso» di un file o di un artefatto, la risposta e\' la sua dimensione. '
+    '| Colonna «Formato / peso» dei cataloghi artefatti; `Authority` resta l\'attributo di '
+    'autorevolezza della FONTE | Nessuna |\n')
+
+SOSTITUZIONI = [
+    ("docs/02_specs_normative/spec_graph_rag_ingestion.md", RIGA_91_V, RIGA_91_N),
+    ("docs/02_specs_normative/spec_graph_rag_ingestion.md", RIGA_166_V, RIGA_166_N),
+    ("docs/04_knowledge_informative/intent_synonym_mapping.md",
+     INTESTAZIONE_V, INTESTAZIONE_V + VOCE_N),
+]
+
+
+def main() -> int:
+    sandbox = pathlib.Path(sys.argv[1])
+    revert = "--revert" in sys.argv
+    tocca = sorted({rel for rel, _, _ in SOSTITUZIONI})
+
+    if revert:
+        ok = True
+        for rel in tocca:
+            t = sandbox / rel
+            b = t.with_suffix(t.suffix + ".corpusorig")
+            if not b.is_file():
+                continue
+            atteso = hashlib.sha256(b.read_bytes()).hexdigest()
+            t.write_bytes(b.read_bytes())
+            buono = hashlib.sha256(t.read_bytes()).hexdigest() == atteso
+            ok = ok and buono
+            b.unlink()
+            print(f"  ripristinato {rel}: {buono} sha256={atteso[:16]}")
+        return 0 if ok else 1
+
+    testi = {}
+    for rel in tocca:
+        t = sandbox / rel
+        if not t.is_file():
+            print(f"ERRORE: {t} assente")
+            return 2
+        testi[rel] = t.read_text(encoding="utf-8")
+    if all(n in testi[rel] for rel, _, n in SOSTITUZIONI):
+        print("gia' applicata")
+        return 0
+    for rel, vecchio, _ in SOSTITUZIONI:
+        if testi[rel].count(vecchio) != 1:
+            print(f"ERRORE: in {rel} il testo atteso compare {testi[rel].count(vecchio)} volte")
+            return 2
+    for rel in tocca:
+        t = sandbox / rel
+        b = t.with_suffix(t.suffix + ".corpusorig")
+        if not b.is_file():
+            b.write_bytes(t.read_bytes())
+    for rel, vecchio, nuovo in SOSTITUZIONI:
+        testi[rel] = testi[rel].replace(vecchio, nuovo)
+    for rel in tocca:
+        (sandbox / rel).write_text(testi[rel], encoding="utf-8")
+        h = hashlib.sha256(testi[rel].encode("utf-8")).hexdigest()
+        print(f"  applicata a {rel}  sha256={h[:16]}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

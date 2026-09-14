@@ -1,0 +1,43 @@
+{
+  "perimetro": "conversione sui NUOVI input (copie con template corretto). Le righe degli altri motori nei report copiati sono storiche su input ORIGINALI: non un confronto a parita' di input.",
+  "riga_docling_standard": "e' il CANDIDATO FINALE (StandardPdfPipeline + heading_hierarchy nativo) su input corretti",
+  "input_sha256": {
+    "diagrammi": "e34c136655d83d0db6915b8d4b4f8f7294bf0509d6dba59d255ac39b377cc542",
+    "mockup": "7725b280a04b0d3eaf025eeff296dc49cc0855e26a5e275b1c37d84854a2832b"
+  },
+  "tabelle": 2,
+  "celle_dati": 75,
+  "intestazioni_tabellari": 9,
+  "domande_derivabili": 8,
+  "titoli_presenti": {
+    "diagrammi": [
+      "Catalogo diagrammi",
+      "Regole di organizzazione",
+      "Registro dei file",
+      "Percorso sorgente"
+    ],
+    "mockup": [
+      "Catalogo mockup",
+      "Regole di organizzazione",
+      "Registro dei file",
+      "Percorso sorgente"
+    ]
+  },
+  "titoli_inventati": 0,
+  "gerarchia_livelli": {
+    "diagrammi": {
+      "Catalogo diagrammi": 1,
+      "Regole di organizzazione": 2,
+      "Registro dei file": 2,
+      "Percorso sorgente": 3
+    },
+    "mockup": {
+      "Catalogo mockup": 1,
+      "Regole di organizzazione": 2,
+      "Registro dei file": 2,
+      "Percorso sorgente": 3
+    }
+  },
+  "gerarchia_attesa": "titolo=1; Regole di organizzazione = Registro dei file = 2; Percorso sorgente = 3",
+  "run1_run2_identici": true
+}

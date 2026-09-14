@@ -1,0 +1,172 @@
+{
+  "run": "p0_20260908-152239",
+  "packaged_on": "2026-09-14",
+  "note": "Conservazione di prove esistenti, non nuova esecuzione. File originali mantenuti localmente. Percorsi path relativi a rag/eval/results; source relativi alla root del progetto. Script conservati come .txt senza modifiche al contenuto.",
+  "files": [
+    {
+      "path": "p0_20260908-152239/evidence/archive-change.json",
+      "source": "rag/eval/results/p0_20260908-152239/archive-change.json",
+      "bytes": 126,
+      "sha256": "5311691a210e09967062c0fb0ea9573497f3ce7895313d4c825ccb62b43bc660"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/benchmark.json",
+      "source": "rag/eval/results/p0_20260908-152239/benchmark.json",
+      "bytes": 4504,
+      "sha256": "a9cce68af612fd134fc2e4706079efdaff4bc580d6a39a611b64a8cf79230b03"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/commands.json",
+      "source": "rag/eval/results/p0_20260908-152239/commands.json",
+      "bytes": 1773,
+      "sha256": "3ce79123f56871a815b6f4e7911bd64160b43def13729f1eb03e138b5e487f26"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/health-after.json",
+      "source": "rag/eval/results/p0_20260908-152239/health-after.json",
+      "bytes": 846,
+      "sha256": "4196b9920c3d92b8d52675308533f4a6d16e9791e0d5444546ec2cbddf79d624"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/health-before.json",
+      "source": "rag/eval/results/p0_20260908-152239/health-before.json",
+      "bytes": 846,
+      "sha256": "a1cbe1ec0b7f0a344046c282db2aa5bdef658da296871dccd002646a489f20be"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/index.json",
+      "source": "rag/eval/results/p0_20260908-152239/index.json",
+      "bytes": 36311,
+      "sha256": "958c1908a3ef4a4b24b1deb9616696fad7f07eef68ba866b1af345a826139402"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/multihop.json",
+      "source": "rag/eval/results/p0_20260908-152239/multihop.json",
+      "bytes": 11175,
+      "sha256": "49816f85d491a7faf7aa639beaec1b98b787ecf961257408ab59d4919f527a62"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/ollama-warmup.json",
+      "source": "rag/eval/results/p0_20260908-152239/ollama-warmup.json",
+      "bytes": 142,
+      "sha256": "4a01828f8bd3420b16473d65c276a359507ff59a89911848e27485348e1584a8"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/preflight.json",
+      "source": "rag/eval/results/p0_20260908-152239/preflight.json",
+      "bytes": 12611,
+      "sha256": "a971a91ef119cd6d5dbcc8ed089f317962fe238b33049d28bf63ed2aa5f15615"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/rebuild.json",
+      "source": "rag/eval/results/p0_20260908-152239/rebuild.json",
+      "bytes": 147,
+      "sha256": "06a7a3ddc0690acab8cceb1f2b66acbb4c658baa3af517678a5cb3ab1f2cbc1c"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/report-hashes.json",
+      "source": "rag/eval/results/p0_20260908-152239/report-hashes.json",
+      "bytes": 2133,
+      "sha256": "201e48422d21cec134b747ea7bca63965fac792731808669d00314f06f4db298"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/RESOCONTO.md",
+      "source": "rag/eval/results/p0_20260908-152239/RESOCONTO.md",
+      "bytes": 8049,
+      "sha256": "06f76cd6be179a828561bb06d643d09e81c06ae7c2c215b6e9222bc4df7d4273"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/retrieval.json",
+      "source": "rag/eval/results/p0_20260908-152239/retrieval.json",
+      "bytes": 35404,
+      "sha256": "01f528e7296295e69bd30de70e676f40b000b40dc9c00d9cd0b2a3ce6edcc030"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/runtime.json",
+      "source": "rag/eval/results/p0_20260908-152239/runtime.json",
+      "bytes": 3814,
+      "sha256": "c87142ca8e9bb9edfbba725599947585f33d521e31de9008634d4a39c93d47fd"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/server-process.json",
+      "source": "rag/eval/results/p0_20260908-152239/server-process.json",
+      "bytes": 19,
+      "sha256": "8384725d816c3f49e678409abf50cc9f7ddcd0aa860694487e640b10712f404a"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/verification.json",
+      "source": "rag/eval/results/p0_20260908-152239/verification.json",
+      "bytes": 1524,
+      "sha256": "fe079b83b001eab41616943716e8af5f1d334a5833973f4d50b5274f970d8655"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/original_eval/eval_20260908_153447.json",
+      "source": "rag/eval/results/eval_20260908_153447.json",
+      "bytes": 35404,
+      "sha256": "01f528e7296295e69bd30de70e676f40b000b40dc9c00d9cd0b2a3ce6edcc030"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/original_eval/eval_20260908_153902.json",
+      "source": "rag/eval/results/eval_20260908_153902.json",
+      "bytes": 35404,
+      "sha256": "e5d7214b43b1447159dc262b509f59d563a35738b49220b4a4e4d28b5f297710"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/original_eval/multihop_20260908_153456.json",
+      "source": "rag/eval/results/multihop_20260908_153456.json",
+      "bytes": 11175,
+      "sha256": "49816f85d491a7faf7aa639beaec1b98b787ecf961257408ab59d4919f527a62"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/original_eval/multihop_20260908_153912.json",
+      "source": "rag/eval/results/multihop_20260908_153912.json",
+      "bytes": 11175,
+      "sha256": "85d94aebe0bc578d5b8ccb541042c85da70389ed7bb18da042e5064d27f9d4ae"
+    },
+    {
+      "path": "p0_20260908-152239/evidence/gate_log_excerpt.json",
+      "source": "rag/eval/results/p0_20260908-152239/rebuild.log",
+      "kind": "exact_line_excerpt",
+      "bytes": 506,
+      "sha256": "f55326c1d3f930bad5bb53e9f2cf6eed2aa4846fb476718115de0941fb381d0f"
+    }
+  ],
+  "omitted_local_files": [
+    {
+      "path": "integrity-final.log",
+      "bytes": 2831
+    },
+    {
+      "path": "integrity.log",
+      "bytes": 2831
+    },
+    {
+      "path": "lint.log",
+      "bytes": 19
+    },
+    {
+      "path": "multihop.log",
+      "bytes": 2168
+    },
+    {
+      "path": "nightly.log",
+      "bytes": 822
+    },
+    {
+      "path": "rebuild.log",
+      "bytes": 48608
+    },
+    {
+      "path": "retrieval.log",
+      "bytes": 7891
+    },
+    {
+      "path": "server.log",
+      "bytes": 143115
+    },
+    {
+      "path": "suite.log",
+      "bytes": 1572
+    }
+  ]
+}

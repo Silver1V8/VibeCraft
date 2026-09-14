@@ -1,0 +1,164 @@
+"""FASE 5 — retrieval, risposte e attribuzione su uno stack sperimentale.
+
+Pipeline applicativa COMPLETA via HTTP: POST /ask fa ibrido denso+sparse+ColBERT,
+re-ranking di grafo, pesi di autorita' e sintesi con il modello locale, esattamente
+come in produzione. Niente dense-only, niente scorciatoie.
+
+Differenze rispetto allo script della sessione precedente, tutte correzioni di
+difetti accertati in FASE 1:
+
+  1. il testo dei chunk veniva letto cercando un campo `chunk_id` che in
+     chunks.json e' la CHIAVE del dizionario, non un campo del valore: la mappa
+     restava VUOTA, ogni `testo` archiviato era "" e i PDF non entravano mai nel
+     corpus di verifica delle citazioni. Ora la mappa si costruisce dalle chiavi.
+  2. l'estrattore delle citazioni era una ri-scrittura peggiore di
+     eval.attribution.quoted_spans (trattava l'apostrofo italiano da
+     delimitatore). Ora si riusa quello del repository — vedi scripts/citazioni.py.
+  3. il contesto verificato non era quello REALE: si ricostruiva da
+     /api/retrieve. Ora si legge `graph_context.context_text` della risposta di
+     /ask, cioe' esattamente il testo che il modello ha ricevuto.
+  4. si registra la PASSATA: la stabilita' fra passate e' una misura, non un
+     dettaglio, e la cache di /ask e' disattivata (VIBECRAFT_ASK_CACHE_SIZE=0)
+     perche' ogni passata sia una generazione vera.
+
+La verifica delle citazioni resta un `in` deterministico: non e' un giudizio di
+correttezza semantica e non sostituisce la lettura umana.
+
+Uso: eval_stack.py <nome-stack> <url-server> <sandbox> <out-dir> <passata>
+"""
+
+import json  # noqa: E402
+import pathlib  # noqa: E402
+import sys  # noqa: E402
+import time  # noqa: E402
+import urllib.error  # noqa: E402
+import urllib.parse  # noqa: E402
+import urllib.request  # noqa: E402
+
+STACK, URL = sys.argv[1], sys.argv[2].rstrip("/")
+SANDBOX, OUT, PASSATA = pathlib.Path(sys.argv[3]), pathlib.Path(sys.argv[4]), int(sys.argv[5])
+OUT.mkdir(parents=True, exist_ok=True)
+
+HERE = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+import yaml  # noqa: E402
+
+from citazioni import verifica_citazioni  # noqa: E402
+
+# domande CONGELATE: copiate senza modifiche dal supplemento locale della
+# sessione precedente (stesso file, stesso sha).
+qs = yaml.safe_load((HERE.parent / "truth/domande_pdf_locali.yaml").read_text(encoding="utf-8"))
+REL = {
+    "diagrammi": "02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf",
+    "mockup": "02_specs_normative/mockups/catalogo_mockup_normativi.pdf",
+}
+
+
+def post(path, payload, timeout=900):
+    req = urllib.request.Request(
+        URL + path, data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"}, method="POST")
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+def get(path, timeout=300):
+    with urllib.request.urlopen(URL + path, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+# --- chunk indicizzati: chiave = chunk_id (era il difetto n.1) -----------------
+_v = sorted((SANDBOX / "rag/database/versions").glob("*/chunks.json"))
+_raw = json.loads(_v[-1].read_text(encoding="utf-8"))
+CHUNKS = ({k: v.get("text", "") for k, v in _raw.items()} if isinstance(_raw, dict)
+          else {c["chunk_id"]: c.get("text", "") for c in _raw})
+assert CHUNKS, "mappa dei chunk vuota: e' esattamente il difetto che questo script corregge"
+assert any(".pdf" in k for k in CHUNKS), "nessun chunk da PDF nell'indice del sandbox"
+
+# corpus di verifica: i documenti testuali del sandbox PIU' il contenuto
+# INDICIZZATO dei PDF (per un PDF la fonte verificabile e' cio' che e' finito
+# nell'indice, cioe' cio' che il modello ha potuto vedere).
+DOCS = SANDBOX / "docs"
+corpus = {str(p.relative_to(DOCS)).replace("\\", "/"): p.read_text(encoding="utf-8", errors="ignore")
+          for p in DOCS.rglob("*") if p.is_file() and p.suffix.lower() in (".md", ".txt")}
+for cid, txt in CHUNKS.items():
+    if ".pdf" in cid:
+        corpus[cid] = txt
+
+salute = get("/api/health")
+report = {
+    "stack": STACK, "passata": PASSATA, "url": URL, "sandbox": str(SANDBOX),
+    "health": salute, "index_version_sandbox": _v[-1].parent.name,
+    "chunk_indicizzati": len(CHUNKS),
+    "cache_ask": "disattivata dal server (VIBECRAFT_ASK_CACHE_SIZE=0)",
+    "domande": {},
+}
+assert _v[-1].parent.name == salute["snapshot"]["version"], (
+    "l'indice riletto non e' quello servito", _v[-1].parent.name, salute["snapshot"]["version"])
+
+for q in qs["domande"]:
+    qid, testo, doc = q["id"], q["domanda"], q["fonte"]
+    atteso = REL[doc]
+
+    t0 = time.time()
+    errore = None
+    try:
+        a = post("/ask", {"question": testo, "top_k": 10})
+    except urllib.error.HTTPError as exc:
+        a, errore = {}, f"HTTP {exc.code}: {exc.read()[:300]!r}"
+    except Exception as exc:  # errore di trasporto: si registra, non si nasconde
+        a, errore = {}, f"{type(exc).__name__}: {exc}"
+    secondi = round(time.time() - t0, 1)
+
+    risposta = a.get("answer") or ""
+    contesto = (a.get("graph_context") or {}).get("context_text") or ""
+    punteggi = a.get("qdrant_scores") or []
+    fonti = []
+    for i, h in enumerate(punteggi):
+        fonti.append({
+            "rango": i + 1, "doc_id": h.get("doc_id"), "chunk_id": h.get("chunk_id"),
+            "section": h.get("section"), "score": h.get("score"),
+            "fused_rank_sum": h.get("fused_rank_sum"), "authority": h.get("authority"),
+            "testo": CHUNKS.get(h.get("chunk_id"), ""),
+        })
+    rango_atteso = next((f["rango"] for f in fonti if atteso in str(f["doc_id"])), None)
+
+    report["domande"][qid] = {
+        "domanda": testo,
+        "fonte_attesa": atteso,
+        "risposta_attesa": q["risposta_attesa"],
+        "errore_di_trasporto": errore,
+        "retrieval": {
+            "fonte_attesa_in_top10": rango_atteso is not None,
+            "rango_fonte_attesa": rango_atteso,
+            "fonte_attesa_nel_contesto": atteso in contesto,
+            "fonti": fonti,
+        },
+        "risposta": {
+            "testo": risposta,
+            "status": a.get("status"),
+            "cached": a.get("cached"),
+            "index_version": a.get("index_version"),
+            "secondi": secondi,
+            # un troncamento del trasporto si vede qui: risposta che finisce a meta'
+            "caratteri": len(risposta),
+            "finisce_a_meta": bool(risposta) and risposta.rstrip()[-1:] not in ".!?)`»\"'*:",
+            "citazioni_verificate": verifica_citazioni(risposta, corpus),
+        },
+        "contesto_inviato": contesto,
+    }
+    print(f"{qid:11s} p{PASSATA} rango={rango_atteso} status={a.get('status')} "
+          f"cached={a.get('cached')} {secondi}s", flush=True)
+
+(OUT / f"eval_{STACK}_p{PASSATA}.json").write_text(
+    json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+print(json.dumps({
+    "stack": STACK, "passata": PASSATA,
+    "fonte_attesa_in_top10": sum(1 for v in report["domande"].values()
+                                 if v["retrieval"]["fonte_attesa_in_top10"]),
+    "astensioni": sum(1 for v in report["domande"].values() if v["risposta"]["status"] == "abstained"),
+    "errori": [k for k, v in report["domande"].items() if v["errore_di_trasporto"]],
+    "citazioni_non_verificabili": sum(
+        1 for v in report["domande"].values()
+        for c in v["risposta"]["citazioni_verificate"] if c["esito"] != "verified"),
+}, ensure_ascii=False))

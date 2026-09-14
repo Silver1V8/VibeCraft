@@ -1,0 +1,1946 @@
+[
+  {
+    "file": "/app/rag/eval/results/libreoffice_20260910/fixture/registro.xlsx",
+    "sha256": "588a3d1436f98722f9851b2675a344f422b87391a42baf11db659720be4229ba",
+    "seconds": 0.0257,
+    "peak_tree_rss_mb": 189.7,
+    "markdown_sha256": "c58283f9962fda34f778e480d45e3d42d969a911883b1384cf06bcd0cc1f7d72",
+    "cells": 30,
+    "sheetnames_ok": true,
+    "blocks": [
+      [
+        "Registro",
+        "A1:F5"
+      ],
+      [
+        "Registro",
+        "A7:F7"
+      ],
+      [
+        "Contatti città",
+        "A1:B2"
+      ]
+    ],
+    "lost_row_associations": [],
+    "metadata": {
+      "source_filename": "registro.xlsx",
+      "sha256": "588a3d1436f98722f9851b2675a344f422b87391a42baf11db659720be4229ba",
+      "formato": "xlsx",
+      "converted_at": "2026-09-11T07:36:20.011121+00:00",
+      "n_chars": 938,
+      "motore": "openpyxl",
+      "versione_motore": "3.1.5",
+      "fallback": null,
+      "avvisi": [
+        "1 celle con formula non hanno un valore calcolato memorizzato nel file: nel Markdown sono vuote. Celle: Registro!F7. Nessuna formula è stata ricalcolata."
+      ]
+    },
+    "missing_or_changed": [],
+    "invented": [],
+    "PASS": true
+  },
+  {
+    "file": "/app/rag/eval/results/libreoffice_20260910/fixture/registro_excel.xlsx",
+    "sha256": "1fc40f0d58f9a146d15050f0ceb96ecb40852fd22eb45bf5c3566bd847f2f79c",
+    "seconds": 0.0149,
+    "peak_tree_rss_mb": 189.9,
+    "markdown_sha256": "e8a43465150c03b808410abd4edfc6923e8d05ddb58862b138d7d8f5ccb09ba7",
+    "cells": 31,
+    "sheetnames_ok": true,
+    "blocks": [
+      [
+        "Registro",
+        "A1:F5"
+      ],
+      [
+        "Registro",
+        "A7:F7"
+      ],
+      [
+        "Contatti città",
+        "A1:B2"
+      ]
+    ],
+    "lost_row_associations": [],
+    "metadata": {
+      "source_filename": "registro_excel.xlsx",
+      "sha256": "1fc40f0d58f9a146d15050f0ceb96ecb40852fd22eb45bf5c3566bd847f2f79c",
+      "formato": "xlsx",
+      "converted_at": "2026-09-11T07:36:20.052531+00:00",
+      "n_chars": 941,
+      "motore": "openpyxl",
+      "versione_motore": "3.1.5",
+      "fallback": null,
+      "avvisi": []
+    },
+    "missing_or_changed": [],
+    "invented": [],
+    "PASS": true
+  },
+  {
+    "file": "/app/rag/eval/results/libreoffice_20260910/fixture/registro.xls",
+    "sha256": "34afb1ad515d8214630c67024b5dda362d3f819616ab031acf2cdc5a534053c0",
+    "seconds": 1.4734,
+    "peak_tree_rss_mb": 427.7,
+    "markdown_sha256": "e8a43465150c03b808410abd4edfc6923e8d05ddb58862b138d7d8f5ccb09ba7",
+    "cells": 31,
+    "sheetnames_ok": true,
+    "blocks": [
+      [
+        "Registro",
+        "A1:F5"
+      ],
+      [
+        "Registro",
+        "A7:F7"
+      ],
+      [
+        "Contatti città",
+        "A1:B2"
+      ]
+    ],
+    "lost_row_associations": [],
+    "metadata": {
+      "source_filename": "registro.xls",
+      "sha256": "34afb1ad515d8214630c67024b5dda362d3f819616ab031acf2cdc5a534053c0",
+      "formato": "xls",
+      "converted_at": "2026-09-11T07:36:21.552543+00:00",
+      "n_chars": 941,
+      "motore": "openpyxl",
+      "versione_motore": "3.1.5",
+      "fallback": null,
+      "avvisi": [],
+      "normalizzazione": {
+        "motore": "libreoffice",
+        "versione": "LibreOffice 25.2.3.2 520(Build:2)",
+        "da": "xls",
+        "a": "xlsx"
+      }
+    },
+    "missing_or_changed": [],
+    "invented": [],
+    "PASS": true,
+    "normalization_changes": [],
+    "normalized_cells_preserved": true
+  },
+  {
+    "file": "/app/rag/eval/results/libreoffice_20260910/fixture/rete.xlsx",
+    "sha256": "56d2d1b3f97b9c23297de67aa3f7e2bf1c21a10b093fe5ac6105ac4bbba35706",
+    "seconds": 0.0121,
+    "peak_tree_rss_mb": 190.2,
+    "markdown_sha256": "0320159c27c04534c74fbbc16a3561cc5a95921b12a403d046a5e304fd8207e4",
+    "cells": 4,
+    "sheetnames_ok": true,
+    "blocks": [
+      [
+        "Rete",
+        "A1:B3"
+      ]
+    ],
+    "lost_row_associations": [],
+    "metadata": {
+      "source_filename": "rete.xlsx",
+      "sha256": "56d2d1b3f97b9c23297de67aa3f7e2bf1c21a10b093fe5ac6105ac4bbba35706",
+      "formato": "xlsx",
+      "converted_at": "2026-09-11T07:36:21.601058+00:00",
+      "n_chars": 262,
+      "motore": "openpyxl",
+      "versione_motore": "3.1.5",
+      "fallback": null,
+      "avvisi": [
+        "2 celle con formula non hanno un valore calcolato memorizzato nel file: nel Markdown sono vuote. Celle: Rete!B2, Rete!B3. Nessuna formula è stata ricalcolata."
+      ]
+    },
+    "missing_or_changed": [],
+    "invented": [],
+    "PASS": true
+  },
+  {
+    "file": "/app/rag/eval/results/verifica_finale_20260910/formati2/fixture/registro.xlsx",
+    "sha256": "e457f838f9f10fef902f81e699718dfafc9b5cc2b9e8debcd0f3bd04be99cb01",
+    "seconds": 0.0191,
+    "peak_tree_rss_mb": 190.2,
+    "markdown_sha256": "85d099e889b75b51c3dab5079bd7a33ace6c7721e78b308985e52b8458b337a4",
+    "cells": 22,
+    "sheetnames_ok": true,
+    "blocks": [
+      [
+        "Registro",
+        "A1:D4"
+      ],
+      [
+        "Registro",
+        "A6:D7"
+      ],
+      [
+        "Contatti",
+        "A1:B2"
+      ]
+    ],
+    "lost_row_associations": [],
+    "metadata": {
+      "source_filename": "registro.xlsx",
+      "sha256": "e457f838f9f10fef902f81e699718dfafc9b5cc2b9e8debcd0f3bd04be99cb01",
+      "formato": "xlsx",
+      "converted_at": "2026-09-11T07:36:21.651080+00:00",
+      "n_chars": 728,
+      "motore": "openpyxl",
+      "versione_motore": "3.1.5",
+      "fallback": null,
+      "avvisi": []
+    },
+    "missing_or_changed": [],
+    "invented": [],
+    "PASS": true
+  },
+  {
+    "file": "/app/rag/eval/results/verifica_finale_20260910/formati/fixture/budget.xlsx",
+    "sha256": "3d23d5d68a71188c52d88c82002193625c09edde01619c19ab85ec28cc380977",
+    "seconds": 0.0148,
+    "peak_tree_rss_mb": 190.2,
+    "markdown_sha256": "ac4520019b64b940b9962c4eb64cf4da815cfd3be92b8ef43f682f00449c75cb",
+    "cells": 15,
+    "sheetnames_ok": true,
+    "blocks": [
+      [
+        "Budget",
+        "A1:C4"
+      ],
+      [
+        "Note città",
+        "A1:B2"
+      ]
+    ],
+    "lost_row_associations": [],
+    "metadata": {
+      "source_filename": "budget.xlsx",
+      "sha256": "3d23d5d68a71188c52d88c82002193625c09edde01619c19ab85ec28cc380977",
+      "formato": "xlsx",
+      "converted_at": "2026-09-11T07:36:21.697305+00:00",
+      "n_chars": 578,
+      "motore": "openpyxl",
+      "versione_motore": "3.1.5",
+      "fallback": null,
+      "avvisi": [
+        "1 celle con formula non hanno un valore calcolato memorizzato nel file: nel Markdown sono vuote. Celle: Budget!C4. Nessuna formula è stata ricalcolata."
+      ]
+    },
+    "missing_or_changed": [],
+    "invented": [],
+    "PASS": true
+  },
+  {
+    "file": "/app/rag/eval/results/verifica_finale_20260910/formati/fixture/budget.xls",
+    "sha256": "9bae8d498c3115feeba2a83b33c5e01303758fdcf4bed2109844a9f8b6d70a55",
+    "seconds": 1.203,
+    "peak_tree_rss_mb": 428.0,
+    "markdown_sha256": "d0ac76f943089f3a54cb789991929073d0b1ef77554fd8eb0fac6df3f6dc0872",
+    "cells": 13,
+    "sheetnames_ok": true,
+    "blocks": [
+      [
+        "Budget",
+        "A1:C3"
+      ],
+      [
+        "Note città",
+        "A1:B2"
+      ]
+    ],
+    "lost_row_associations": [],
+    "metadata": {
+      "source_filename": "budget.xls",
+      "sha256": "9bae8d498c3115feeba2a83b33c5e01303758fdcf4bed2109844a9f8b6d70a55",
+      "formato": "xls",
+      "converted_at": "2026-09-11T07:36:22.930840+00:00",
+      "n_chars": 551,
+      "motore": "openpyxl",
+      "versione_motore": "3.1.5",
+      "fallback": null,
+      "avvisi": [],
+      "normalizzazione": {
+        "motore": "libreoffice",
+        "versione": "LibreOffice 25.2.3.2 520(Build:2)",
+        "da": "xls",
+        "a": "xlsx"
+      }
+    },
+    "missing_or_changed": [],
+    "invented": [],
+    "PASS": true,
+    "normalization_changes": [],
+    "normalized_cells_preserved": true
+  },
+  {
+    "file": "/app/rag/tests/fixtures/intake/legacy.xls",
+    "sha256": "34afb1ad515d8214630c67024b5dda362d3f819616ab031acf2cdc5a534053c0",
+    "seconds": 1.1918,
+    "peak_tree_rss_mb": 424.6,
+    "markdown_sha256": "e8a43465150c03b808410abd4edfc6923e8d05ddb58862b138d7d8f5ccb09ba7",
+    "cells": 31,
+    "sheetnames_ok": true,
+    "blocks": [
+      [
+        "Registro",
+        "A1:F5"
+      ],
+      [
+        "Registro",
+        "A7:F7"
+      ],
+      [
+        "Contatti città",
+        "A1:B2"
+      ]
+    ],
+    "lost_row_associations": [],
+    "metadata": {
+      "source_filename": "legacy.xls",
+      "sha256": "34afb1ad515d8214630c67024b5dda362d3f819616ab031acf2cdc5a534053c0",
+      "formato": "xls",
+      "converted_at": "2026-09-11T07:36:24.157881+00:00",
+      "n_chars": 941,
+      "motore": "openpyxl",
+      "versione_motore": "3.1.5",
+      "fallback": null,
+      "avvisi": [],
+      "normalizzazione": {
+        "motore": "libreoffice",
+        "versione": "LibreOffice 25.2.3.2 520(Build:2)",
+        "da": "xls",
+        "a": "xlsx"
+      }
+    },
+    "missing_or_changed": [],
+    "invented": [],
+    "PASS": true,
+    "normalization_changes": [],
+    "normalized_cells_preserved": true
+  },
+  {
+    "file": "/samples/PROTTPLN.XLS",
+    "sha256": "c59c01b651fe8e9aef81cb905d8961fe3bda3bd066ea6d702a442a55b8b6912d",
+    "seconds": 1.2292,
+    "peak_tree_rss_mb": 426.3,
+    "markdown_sha256": "d88da7944edafb50b1d4c74876ac36bb9e1f8b3f026f46aded4d597c9ea57a44",
+    "cells": 1,
+    "sheetnames_ok": true,
+    "blocks": [
+      [
+        "Sheet1",
+        "A1:A1"
+      ]
+    ],
+    "lost_row_associations": [],
+    "metadata": {
+      "source_filename": "PROTTPLN.XLS",
+      "sha256": "c59c01b651fe8e9aef81cb905d8961fe3bda3bd066ea6d702a442a55b8b6912d",
+      "formato": "xls",
+      "converted_at": "2026-09-11T07:36:25.417341+00:00",
+      "n_chars": 540,
+      "motore": "openpyxl",
+      "versione_motore": "3.1.5",
+      "fallback": null,
+      "avvisi": [],
+      "normalizzazione": {
+        "motore": "libreoffice",
+        "versione": "LibreOffice 25.2.3.2 520(Build:2)",
+        "da": "xls",
+        "a": "xlsx"
+      }
+    },
+    "missing_or_changed": [],
+    "invented": [],
+    "PASS": true,
+    "normalization_changes": [],
+    "normalized_cells_preserved": true
+  },
+  {
+    "file": "/samples/SOLVSAMP.XLS",
+    "sha256": "b7fefe55732c04a89825dcb087bfa872165b1752f00acbbed8f5e6cf81df2091",
+    "seconds": 2.0482,
+    "peak_tree_rss_mb": 428.0,
+    "markdown_sha256": "0709298c368cc0806eeaa55670e7dc10e7e8c97a24e416a4db26ce79924fadbb",
+    "cells": 883,
+    "sheetnames_ok": true,
+    "blocks": [
+      [
+        "Panoramica",
+        "A1:J3"
+      ],
+      [
+        "Panoramica",
+        "A5:J8"
+      ],
+      [
+        "Panoramica",
+        "A10:J13"
+      ],
+      [
+        "Panoramica",
+        "A15:J16"
+      ],
+      [
+        "Panoramica",
+        "A18:J19"
+      ],
+      [
+        "Panoramica",
+        "A21:J22"
+      ],
+      [
+        "Panoramica",
+        "A24:J26"
+      ],
+      [
+        "Panoramica",
+        "A28:J30"
+      ],
+      [
+        "Panoramica",
+        "A32:J33"
+      ],
+      [
+        "Panoramica",
+        "A35:J36"
+      ],
+      [
+        "Panoramica",
+        "A38:J39"
+      ],
+      [
+        "Panoramica",
+        "A41:J41"
+      ],
+      [
+        "Panoramica",
+        "A43:J43"
+      ],
+      [
+        "Panoramica",
+        "A45:J46"
+      ],
+      [
+        "Panoramica",
+        "A48:J49"
+      ],
+      [
+        "Panoramica",
+        "A51:J52"
+      ],
+      [
+        "Panoramica",
+        "A54:J55"
+      ],
+      [
+        "Panoramica",
+        "A57:J57"
+      ],
+      [
+        "Panoramica",
+        "A59:J59"
+      ],
+      [
+        "Panoramica",
+        "A61:J64"
+      ],
+      [
+        "Panoramica",
+        "A66:J67"
+      ],
+      [
+        "Panoramica",
+        "A69:J72"
+      ],
+      [
+        "Panoramica",
+        "A74:J76"
+      ],
+      [
+        "Panoramica",
+        "A78:J82"
+      ],
+      [
+        "Panoramica",
+        "A84:J86"
+      ],
+      [
+        "Panoramica",
+        "A88:J89"
+      ],
+      [
+        "Panoramica",
+        "A91:J91"
+      ],
+      [
+        "Panoramica",
+        "A93:J94"
+      ],
+      [
+        "Panoramica",
+        "A96:J103"
+      ],
+      [
+        "Panoramica",
+        "A105:J109"
+      ],
+      [
+        "Panoramica",
+        "A111:J112"
+      ],
+      [
+        "Panoramica",
+        "A114:J118"
+      ],
+      [
+        "Panoramica",
+        "A120:J122"
+      ],
+      [
+        "Panoramica",
+        "A124:J124"
+      ],
+      [
+        "Panoramica",
+        "A126:J129"
+      ],
+      [
+        "Panoramica",
+        "A131:J132"
+      ],
+      [
+        "Panoramica",
+        "A134:J140"
+      ],
+      [
+        "Panoramica",
+        "A142:J143"
+      ],
+      [
+        "Panoramica",
+        "A145:J147"
+      ],
+      [
+        "Panoramica",
+        "A149:J149"
+      ],
+      [
+        "Panoramica",
+        "A151:J154"
+      ],
+      [
+        "Panoramica",
+        "A156:J160"
+      ],
+      [
+        "Panoramica",
+        "A162:J166"
+      ],
+      [
+        "Panoramica",
+        "A168:J168"
+      ],
+      [
+        "Panoramica",
+        "A170:J174"
+      ],
+      [
+        "Panoramica",
+        "A176:J178"
+      ],
+      [
+        "Panoramica",
+        "A180:J182"
+      ],
+      [
+        "Panoramica",
+        "A184:J186"
+      ],
+      [
+        "Panoramica",
+        "A189:J191"
+      ],
+      [
+        "Panoramica",
+        "A193:J194"
+      ],
+      [
+        "Mix di prodotti",
+        "A1:L6"
+      ],
+      [
+        "Mix di prodotti",
+        "A8:L18"
+      ],
+      [
+        "Mix di prodotti",
+        "A20:L22"
+      ],
+      [
+        "Mix di prodotti",
+        "A24:L24"
+      ],
+      [
+        "Mix di prodotti",
+        "A26:L26"
+      ],
+      [
+        "Mix di prodotti",
+        "A28:L28"
+      ],
+      [
+        "Mix di prodotti",
+        "A30:L31"
+      ],
+      [
+        "Mix di prodotti",
+        "A33:L34"
+      ],
+      [
+        "Mix di prodotti",
+        "A36:L39"
+      ],
+      [
+        "Trasporti",
+        "A1:L4"
+      ],
+      [
+        "Trasporti",
+        "A6:L12"
+      ],
+      [
+        "Trasporti",
+        "A14:L18"
+      ],
+      [
+        "Trasporti",
+        "A20:L20"
+      ],
+      [
+        "Trasporti",
+        "A22:L26"
+      ],
+      [
+        "Trasporti",
+        "A28:L28"
+      ],
+      [
+        "Trasporti",
+        "A30:L30"
+      ],
+      [
+        "Trasporti",
+        "A32:L33"
+      ],
+      [
+        "Trasporti",
+        "A35:L36"
+      ],
+      [
+        "Trasporti",
+        "A38:L39"
+      ],
+      [
+        "Trasporti",
+        "A41:L42"
+      ],
+      [
+        "Trasporti",
+        "A44:L47"
+      ],
+      [
+        "Gestione del personale",
+        "A1:P3"
+      ],
+      [
+        "Gestione del personale",
+        "A6:P13"
+      ],
+      [
+        "Gestione del personale",
+        "A15:P15"
+      ],
+      [
+        "Gestione del personale",
+        "A17:P17"
+      ],
+      [
+        "Gestione del personale",
+        "A19:P20"
+      ],
+      [
+        "Gestione del personale",
+        "A22:P25"
+      ],
+      [
+        "Gestione del personale",
+        "A27:P27"
+      ],
+      [
+        "Gestione del personale",
+        "A29:P29"
+      ],
+      [
+        "Gestione del personale",
+        "A31:P31"
+      ],
+      [
+        "Gestione del personale",
+        "A33:P33"
+      ],
+      [
+        "Gestione del personale",
+        "A35:P35"
+      ],
+      [
+        "Gestione del personale",
+        "A37:P38"
+      ],
+      [
+        "Gestione del personale",
+        "A40:P40"
+      ],
+      [
+        "Gestione del personale",
+        "A42:P44"
+      ],
+      [
+        "Massimizzazione del reddito",
+        "A1:L3"
+      ],
+      [
+        "Massimizzazione del reddito",
+        "A5:L8"
+      ],
+      [
+        "Massimizzazione del reddito",
+        "A10:L18"
+      ],
+      [
+        "Massimizzazione del reddito",
+        "A20:L20"
+      ],
+      [
+        "Massimizzazione del reddito",
+        "A22:L24"
+      ],
+      [
+        "Massimizzazione del reddito",
+        "A26:L27"
+      ],
+      [
+        "Massimizzazione del reddito",
+        "A29:L30"
+      ],
+      [
+        "Massimizzazione del reddito",
+        "A32:L32"
+      ],
+      [
+        "Massimizzazione del reddito",
+        "A34:L34"
+      ],
+      [
+        "Massimizzazione del reddito",
+        "A36:L37"
+      ],
+      [
+        "Massimizzazione del reddito",
+        "A39:L41"
+      ],
+      [
+        "Massimizzazione del reddito",
+        "A43:L44"
+      ],
+      [
+        "Massimizzazione del reddito",
+        "A46:L47"
+      ],
+      [
+        "Massimizzazione del reddito",
+        "A49:L50"
+      ],
+      [
+        "Massimizzazione del reddito",
+        "A52:L56"
+      ],
+      [
+        "Massimizzazione del reddito",
+        "A58:L62"
+      ],
+      [
+        "Portafoglio titoli",
+        "A1:K4"
+      ],
+      [
+        "Portafoglio titoli",
+        "A6:K7"
+      ],
+      [
+        "Portafoglio titoli",
+        "A9:K18"
+      ],
+      [
+        "Portafoglio titoli",
+        "A20:K29"
+      ],
+      [
+        "Portafoglio titoli",
+        "A31:K33"
+      ],
+      [
+        "Portafoglio titoli",
+        "A35:K36"
+      ],
+      [
+        "Portafoglio titoli",
+        "A38:K40"
+      ],
+      [
+        "Portafoglio titoli",
+        "A42:K44"
+      ],
+      [
+        "Portafoglio titoli",
+        "A46:K46"
+      ],
+      [
+        "Portafoglio titoli",
+        "A48:K49"
+      ],
+      [
+        "Portafoglio titoli",
+        "A51:K51"
+      ],
+      [
+        "Portafoglio titoli",
+        "A53:K53"
+      ],
+      [
+        "Portafoglio titoli",
+        "A55:K55"
+      ],
+      [
+        "Portafoglio titoli",
+        "A57:K57"
+      ],
+      [
+        "Portafoglio titoli",
+        "A59:K59"
+      ],
+      [
+        "Portafoglio titoli",
+        "A61:K61"
+      ],
+      [
+        "Portafoglio titoli",
+        "A63:K67"
+      ],
+      [
+        "Portafoglio titoli",
+        "A69:K70"
+      ],
+      [
+        "Portafoglio titoli",
+        "A72:K74"
+      ],
+      [
+        "Portafoglio titoli",
+        "A76:K77"
+      ],
+      [
+        "Problema tecnico",
+        "A1:L3"
+      ],
+      [
+        "Problema tecnico",
+        "A5:L10"
+      ],
+      [
+        "Problema tecnico",
+        "A12:L13"
+      ],
+      [
+        "Problema tecnico",
+        "A15:L20"
+      ],
+      [
+        "Problema tecnico",
+        "A22:L25"
+      ],
+      [
+        "Problema tecnico",
+        "A27:L29"
+      ],
+      [
+        "Problema tecnico",
+        "A31:L32"
+      ],
+      [
+        "Problema tecnico",
+        "A34:L34"
+      ],
+      [
+        "Problema tecnico",
+        "A36:L36"
+      ],
+      [
+        "Problema tecnico",
+        "A38:L38"
+      ],
+      [
+        "Problema tecnico",
+        "A40:L40"
+      ],
+      [
+        "Problema tecnico",
+        "A42:L43"
+      ]
+    ],
+    "lost_row_associations": [
+      [
+        "Panoramica",
+        5,
+        [
+          "Unità vendute",
+          "3591.5525890622844",
+          "4389.675386631681",
+          "3192.491190277586",
+          "4788.7367854163795",
+          "15962.455951387932"
+        ]
+      ],
+      [
+        "Panoramica",
+        6,
+        [
+          "Fatturato",
+          "14366210.356249137",
+          "17558701.546526726",
+          "12769964.761110345",
+          "19154947.14166552",
+          "63849823.80555172",
+          "",
+          "Codice colore"
+        ]
+      ],
+      [
+        "Panoramica",
+        7,
+        [
+          "Costo del venduto",
+          "8978881.472655712",
+          "10974188.466579203",
+          "7981227.975693965",
+          "11971841.963540949",
+          "39906139.878469825"
+        ]
+      ],
+      [
+        "Panoramica",
+        8,
+        [
+          "Margine lordo",
+          "5387328.883593425",
+          "6584513.079947524",
+          "4788736.78541638",
+          "7183105.178124569",
+          "23943683.927081898",
+          "",
+          "",
+          "",
+          "   Cella obiettivo"
+        ]
+      ],
+      [
+        "Panoramica",
+        12,
+        [
+          "Spese generali",
+          "2154931.5534373703",
+          "2633805.2319790088",
+          "1915494.7141665516",
+          "2873242.0712498277",
+          "9577473.57083276",
+          "",
+          "",
+          "",
+          "   Vincoli"
+        ]
+      ],
+      [
+        "Panoramica",
+        13,
+        [
+          "Costo totale",
+          "2172931.5534373703",
+          "2651805.2319790088",
+          "1934494.7141665516",
+          "2892242.0712498277",
+          "9651473.57083276"
+        ]
+      ],
+      [
+        "Panoramica",
+        15,
+        [
+          "Utile operativo",
+          "3214397.330156055",
+          "3932707.847968515",
+          "2854242.0712498277",
+          "4290863.106874742",
+          "14292210.356249139"
+        ]
+      ],
+      [
+        "Panoramica",
+        16,
+        [
+          "Margine di profitto",
+          "0.22374705997241845",
+          "0.2239748672501607",
+          "0.223512133717247",
+          "0.22400808914483133",
+          "0.22384103047448717"
+        ]
+      ],
+      [
+        "Mix di prodotti",
+        17,
+        [
+          "Per prodotto",
+          "4732.180083601453",
+          "3154.7867224009683",
+          "2208.350705680678"
+        ]
+      ],
+      [
+        "Mix di prodotti",
+        18,
+        [
+          "Totale",
+          "10095.317511683099"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        10,
+        [
+          "Titolo A",
+          "0.8",
+          "0.04",
+          "",
+          "0.2",
+          "0.16000000000000003",
+          "0.0016000000000000003"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        11,
+        [
+          "Titolo B",
+          "1",
+          "0.2",
+          "",
+          "0.2",
+          "0.2",
+          "0.008000000000000002",
+          "",
+          "",
+          "",
+          "   Cella obiettivo"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        12,
+        [
+          "Titolo C",
+          "1.8",
+          "0.12",
+          "",
+          "0.2",
+          "0.36000000000000004",
+          "0.0048000000000000004"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        13,
+        [
+          "Titolo D",
+          "2.2",
+          "0.4",
+          "",
+          "0.2",
+          "0.44000000000000006",
+          "0.016000000000000004",
+          "",
+          "",
+          "",
+          "   Celle variabili"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        16,
+        [
+          "Totale",
+          "",
+          "",
+          "",
+          "1",
+          "1.1600000000000001",
+          "0.030400000000000007"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        18,
+        [
+          "Portafoglio:  ",
+          "",
+          "0.1644",
+          "",
+          "0.07076800000000001"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        21,
+        [
+          "0.1644",
+          "",
+          "",
+          "0.07076800000000001"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        23,
+        [
+          "True",
+          "",
+          "",
+          "True"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        24,
+        [
+          "True",
+          "",
+          "",
+          "True"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        25,
+        [
+          "True",
+          "",
+          "",
+          "True"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        26,
+        [
+          "True",
+          "",
+          "",
+          "True"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        27,
+        [
+          "True",
+          "",
+          "",
+          "True"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        28,
+        [
+          "True",
+          "",
+          "",
+          "True"
+        ]
+      ],
+      [
+        "Portafoglio titoli",
+        29,
+        [
+          "True",
+          "",
+          "",
+          "True"
+        ]
+      ],
+      [
+        "Problema tecnico",
+        15,
+        [
+          "1/(L*C)",
+          "",
+          "1250",
+          "",
+          "q[t] =",
+          "0.2538891840303239"
+        ]
+      ],
+      [
+        "Problema tecnico",
+        17,
+        [
+          "RADQ(B15-B16)",
+          "",
+          "29.973947020704497"
+        ]
+      ],
+      [
+        "Problema tecnico",
+        18,
+        [
+          "COS(T*B17)",
+          "",
+          "0.07203652709511484"
+        ]
+      ],
+      [
+        "Problema tecnico",
+        20,
+        [
+          "Q0*EXP(B19)",
+          "",
+          "3.524450640091191"
+        ]
+      ]
+    ],
+    "metadata": {
+      "source_filename": "SOLVSAMP.XLS",
+      "sha256": "b7fefe55732c04a89825dcb087bfa872165b1752f00acbbed8f5e6cf81df2091",
+      "formato": "xls",
+      "converted_at": "2026-09-11T07:36:27.515630+00:00",
+      "n_chars": 62200,
+      "motore": "openpyxl",
+      "versione_motore": "3.1.5",
+      "fallback": null,
+      "avvisi": [
+        "Immagini, grafici e oggetti di disegno non sono inclusi nel Markdown: restano nell'originale conservato in staging."
+      ],
+      "normalizzazione": {
+        "motore": "libreoffice",
+        "versione": "LibreOffice 25.2.3.2 520(Build:2)",
+        "da": "xls",
+        "a": "xlsx"
+      }
+    },
+    "missing_or_changed": [
+      [
+        "('Panoramica', 5, 2)",
+        "3591.5525890622844",
+        "3591.55258906228"
+      ],
+      [
+        "('Panoramica', 5, 3)",
+        "4389.675386631681",
+        "4389.67538663168"
+      ],
+      [
+        "('Panoramica', 5, 4)",
+        "3192.491190277586",
+        "3192.49119027759"
+      ],
+      [
+        "('Panoramica', 5, 5)",
+        "4788.7367854163795",
+        "4788.73678541638"
+      ],
+      [
+        "('Panoramica', 5, 6)",
+        "15962.455951387932",
+        "15962.4559513879"
+      ],
+      [
+        "('Panoramica', 6, 2)",
+        "14366210.356249137",
+        "14366210.3562491"
+      ],
+      [
+        "('Panoramica', 6, 3)",
+        "17558701.546526726",
+        "17558701.5465267"
+      ],
+      [
+        "('Panoramica', 6, 4)",
+        "12769964.761110345",
+        "12769964.7611103"
+      ],
+      [
+        "('Panoramica', 6, 5)",
+        "19154947.14166552",
+        "19154947.1416655"
+      ],
+      [
+        "('Panoramica', 6, 6)",
+        "63849823.80555172",
+        "63849823.8055517"
+      ],
+      [
+        "('Panoramica', 7, 2)",
+        "8978881.472655712",
+        "8978881.47265571"
+      ],
+      [
+        "('Panoramica', 7, 3)",
+        "10974188.466579203",
+        "10974188.4665792"
+      ],
+      [
+        "('Panoramica', 7, 4)",
+        "7981227.975693965",
+        "7981227.97569397"
+      ],
+      [
+        "('Panoramica', 7, 5)",
+        "11971841.963540949",
+        "11971841.9635409"
+      ],
+      [
+        "('Panoramica', 7, 6)",
+        "39906139.878469825",
+        "39906139.8784698"
+      ],
+      [
+        "('Panoramica', 8, 2)",
+        "5387328.883593425",
+        "5387328.88359343"
+      ],
+      [
+        "('Panoramica', 8, 3)",
+        "6584513.079947524",
+        "6584513.07994752"
+      ],
+      [
+        "('Panoramica', 8, 5)",
+        "7183105.178124569",
+        "7183105.17812457"
+      ],
+      [
+        "('Panoramica', 8, 6)",
+        "23943683.927081898",
+        "23943683.9270819"
+      ],
+      [
+        "('Panoramica', 12, 2)",
+        "2154931.5534373703",
+        "2154931.55343737"
+      ],
+      [
+        "('Panoramica', 12, 3)",
+        "2633805.2319790088",
+        "2633805.23197901"
+      ],
+      [
+        "('Panoramica', 12, 4)",
+        "1915494.7141665516",
+        "1915494.71416655"
+      ],
+      [
+        "('Panoramica', 12, 5)",
+        "2873242.0712498277",
+        "2873242.07124983"
+      ],
+      [
+        "('Panoramica', 13, 2)",
+        "2172931.5534373703",
+        "2172931.55343737"
+      ],
+      [
+        "('Panoramica', 13, 3)",
+        "2651805.2319790088",
+        "2651805.23197901"
+      ],
+      [
+        "('Panoramica', 13, 4)",
+        "1934494.7141665516",
+        "1934494.71416655"
+      ],
+      [
+        "('Panoramica', 13, 5)",
+        "2892242.0712498277",
+        "2892242.07124983"
+      ],
+      [
+        "('Panoramica', 15, 2)",
+        "3214397.330156055",
+        "3214397.33015606"
+      ],
+      [
+        "('Panoramica', 15, 3)",
+        "3932707.847968515",
+        "3932707.84796852"
+      ],
+      [
+        "('Panoramica', 15, 4)",
+        "2854242.0712498277",
+        "2854242.07124983"
+      ],
+      [
+        "('Panoramica', 15, 5)",
+        "4290863.106874742",
+        "4290863.10687474"
+      ],
+      [
+        "('Panoramica', 15, 6)",
+        "14292210.356249139",
+        "14292210.3562491"
+      ],
+      [
+        "('Panoramica', 16, 2)",
+        "0.22374705997241845",
+        "0.223747059972418"
+      ],
+      [
+        "('Panoramica', 16, 3)",
+        "0.2239748672501607",
+        "0.223974867250161"
+      ],
+      [
+        "('Panoramica', 16, 5)",
+        "0.22400808914483133",
+        "0.224008089144831"
+      ],
+      [
+        "('Panoramica', 16, 6)",
+        "0.22384103047448717",
+        "0.223841030474487"
+      ],
+      [
+        "('Mix di prodotti', 17, 4)",
+        "4732.180083601453",
+        "4732.18008360145"
+      ],
+      [
+        "('Mix di prodotti', 17, 5)",
+        "3154.7867224009683",
+        "3154.78672240097"
+      ],
+      [
+        "('Mix di prodotti', 17, 6)",
+        "2208.350705680678",
+        "2208.35070568068"
+      ],
+      [
+        "('Mix di prodotti', 18, 4)",
+        "10095.317511683099",
+        "10095.3175116831"
+      ],
+      [
+        "('Portafoglio titoli', 10, 6)",
+        "0.16000000000000003",
+        "0.16"
+      ],
+      [
+        "('Portafoglio titoli', 10, 7)",
+        "0.0016000000000000003",
+        "0.0016"
+      ],
+      [
+        "('Portafoglio titoli', 11, 7)",
+        "0.008000000000000002",
+        "0.008"
+      ],
+      [
+        "('Portafoglio titoli', 12, 6)",
+        "0.36000000000000004",
+        "0.36"
+      ],
+      [
+        "('Portafoglio titoli', 12, 7)",
+        "0.0048000000000000004",
+        "0.0048"
+      ],
+      [
+        "('Portafoglio titoli', 13, 6)",
+        "0.44000000000000006",
+        "0.44"
+      ],
+      [
+        "('Portafoglio titoli', 13, 7)",
+        "0.016000000000000004",
+        "0.016"
+      ],
+      [
+        "('Portafoglio titoli', 16, 6)",
+        "1.1600000000000001",
+        "1.16"
+      ],
+      [
+        "('Portafoglio titoli', 16, 7)",
+        "0.030400000000000007",
+        "0.0304"
+      ],
+      [
+        "('Portafoglio titoli', 18, 7)",
+        "0.07076800000000001",
+        "0.070768"
+      ],
+      [
+        "('Portafoglio titoli', 21, 4)",
+        "0.07076800000000001",
+        "0.070768"
+      ],
+      [
+        "('Portafoglio titoli', 23, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 23, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 24, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 24, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 25, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 25, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 26, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 26, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 27, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 27, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 28, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 28, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 29, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 29, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Problema tecnico', 15, 7)",
+        "0.2538891840303239",
+        "0.253889184030324"
+      ],
+      [
+        "('Problema tecnico', 17, 4)",
+        "29.973947020704497",
+        "29.9739470207045"
+      ],
+      [
+        "('Problema tecnico', 18, 4)",
+        "0.07203652709511484",
+        "0.0720365270951148"
+      ],
+      [
+        "('Problema tecnico', 20, 4)",
+        "3.524450640091191",
+        "3.52445064009119"
+      ]
+    ],
+    "invented": [],
+    "PASS": false,
+    "normalization_changes": [
+      [
+        "('Panoramica', 5, 2)",
+        "3591.5525890622844",
+        "3591.55258906228"
+      ],
+      [
+        "('Panoramica', 5, 3)",
+        "4389.675386631681",
+        "4389.67538663168"
+      ],
+      [
+        "('Panoramica', 5, 4)",
+        "3192.491190277586",
+        "3192.49119027759"
+      ],
+      [
+        "('Panoramica', 5, 5)",
+        "4788.7367854163795",
+        "4788.73678541638"
+      ],
+      [
+        "('Panoramica', 5, 6)",
+        "15962.455951387932",
+        "15962.4559513879"
+      ],
+      [
+        "('Panoramica', 6, 2)",
+        "14366210.356249137",
+        "14366210.3562491"
+      ],
+      [
+        "('Panoramica', 6, 3)",
+        "17558701.546526726",
+        "17558701.5465267"
+      ],
+      [
+        "('Panoramica', 6, 4)",
+        "12769964.761110345",
+        "12769964.7611103"
+      ],
+      [
+        "('Panoramica', 6, 5)",
+        "19154947.14166552",
+        "19154947.1416655"
+      ],
+      [
+        "('Panoramica', 6, 6)",
+        "63849823.80555172",
+        "63849823.8055517"
+      ],
+      [
+        "('Panoramica', 7, 2)",
+        "8978881.472655712",
+        "8978881.47265571"
+      ],
+      [
+        "('Panoramica', 7, 3)",
+        "10974188.466579203",
+        "10974188.4665792"
+      ],
+      [
+        "('Panoramica', 7, 4)",
+        "7981227.975693965",
+        "7981227.97569397"
+      ],
+      [
+        "('Panoramica', 7, 5)",
+        "11971841.963540949",
+        "11971841.9635409"
+      ],
+      [
+        "('Panoramica', 7, 6)",
+        "39906139.878469825",
+        "39906139.8784698"
+      ],
+      [
+        "('Panoramica', 8, 2)",
+        "5387328.883593425",
+        "5387328.88359343"
+      ],
+      [
+        "('Panoramica', 8, 3)",
+        "6584513.079947524",
+        "6584513.07994752"
+      ],
+      [
+        "('Panoramica', 8, 5)",
+        "7183105.178124569",
+        "7183105.17812457"
+      ],
+      [
+        "('Panoramica', 8, 6)",
+        "23943683.927081898",
+        "23943683.9270819"
+      ],
+      [
+        "('Panoramica', 12, 2)",
+        "2154931.5534373703",
+        "2154931.55343737"
+      ],
+      [
+        "('Panoramica', 12, 3)",
+        "2633805.2319790088",
+        "2633805.23197901"
+      ],
+      [
+        "('Panoramica', 12, 4)",
+        "1915494.7141665516",
+        "1915494.71416655"
+      ],
+      [
+        "('Panoramica', 12, 5)",
+        "2873242.0712498277",
+        "2873242.07124983"
+      ],
+      [
+        "('Panoramica', 13, 2)",
+        "2172931.5534373703",
+        "2172931.55343737"
+      ],
+      [
+        "('Panoramica', 13, 3)",
+        "2651805.2319790088",
+        "2651805.23197901"
+      ],
+      [
+        "('Panoramica', 13, 4)",
+        "1934494.7141665516",
+        "1934494.71416655"
+      ],
+      [
+        "('Panoramica', 13, 5)",
+        "2892242.0712498277",
+        "2892242.07124983"
+      ],
+      [
+        "('Panoramica', 15, 2)",
+        "3214397.330156055",
+        "3214397.33015606"
+      ],
+      [
+        "('Panoramica', 15, 3)",
+        "3932707.847968515",
+        "3932707.84796852"
+      ],
+      [
+        "('Panoramica', 15, 4)",
+        "2854242.0712498277",
+        "2854242.07124983"
+      ],
+      [
+        "('Panoramica', 15, 5)",
+        "4290863.106874742",
+        "4290863.10687474"
+      ],
+      [
+        "('Panoramica', 15, 6)",
+        "14292210.356249139",
+        "14292210.3562491"
+      ],
+      [
+        "('Panoramica', 16, 2)",
+        "0.22374705997241845",
+        "0.223747059972418"
+      ],
+      [
+        "('Panoramica', 16, 3)",
+        "0.2239748672501607",
+        "0.223974867250161"
+      ],
+      [
+        "('Panoramica', 16, 5)",
+        "0.22400808914483133",
+        "0.224008089144831"
+      ],
+      [
+        "('Panoramica', 16, 6)",
+        "0.22384103047448717",
+        "0.223841030474487"
+      ],
+      [
+        "('Mix di prodotti', 17, 4)",
+        "4732.180083601453",
+        "4732.18008360145"
+      ],
+      [
+        "('Mix di prodotti', 17, 5)",
+        "3154.7867224009683",
+        "3154.78672240097"
+      ],
+      [
+        "('Mix di prodotti', 17, 6)",
+        "2208.350705680678",
+        "2208.35070568068"
+      ],
+      [
+        "('Mix di prodotti', 18, 4)",
+        "10095.317511683099",
+        "10095.3175116831"
+      ],
+      [
+        "('Portafoglio titoli', 10, 6)",
+        "0.16000000000000003",
+        "0.16"
+      ],
+      [
+        "('Portafoglio titoli', 10, 7)",
+        "0.0016000000000000003",
+        "0.0016"
+      ],
+      [
+        "('Portafoglio titoli', 11, 7)",
+        "0.008000000000000002",
+        "0.008"
+      ],
+      [
+        "('Portafoglio titoli', 12, 6)",
+        "0.36000000000000004",
+        "0.36"
+      ],
+      [
+        "('Portafoglio titoli', 12, 7)",
+        "0.0048000000000000004",
+        "0.0048"
+      ],
+      [
+        "('Portafoglio titoli', 13, 6)",
+        "0.44000000000000006",
+        "0.44"
+      ],
+      [
+        "('Portafoglio titoli', 13, 7)",
+        "0.016000000000000004",
+        "0.016"
+      ],
+      [
+        "('Portafoglio titoli', 16, 6)",
+        "1.1600000000000001",
+        "1.16"
+      ],
+      [
+        "('Portafoglio titoli', 16, 7)",
+        "0.030400000000000007",
+        "0.0304"
+      ],
+      [
+        "('Portafoglio titoli', 18, 7)",
+        "0.07076800000000001",
+        "0.070768"
+      ],
+      [
+        "('Portafoglio titoli', 21, 4)",
+        "0.07076800000000001",
+        "0.070768"
+      ],
+      [
+        "('Portafoglio titoli', 23, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 23, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 24, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 24, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 25, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 25, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 26, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 26, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 27, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 27, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 28, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 28, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 29, 1)",
+        "True",
+        "1"
+      ],
+      [
+        "('Portafoglio titoli', 29, 4)",
+        "True",
+        "1"
+      ],
+      [
+        "('Problema tecnico', 15, 7)",
+        "0.2538891840303239",
+        "0.253889184030324"
+      ],
+      [
+        "('Problema tecnico', 17, 4)",
+        "29.973947020704497",
+        "29.9739470207045"
+      ],
+      [
+        "('Problema tecnico', 18, 4)",
+        "0.07203652709511484",
+        "0.0720365270951148"
+      ],
+      [
+        "('Problema tecnico', 20, 4)",
+        "3.524450640091191",
+        "3.52445064009119"
+      ]
+    ],
+    "normalized_cells_preserved": true
+  }
+]

@@ -1,0 +1,79 @@
+"""Aggiornamento MOTIVATO dello snapshot testuale del prompt base, nel sandbox.
+
+`tests/test_ask_unified_llm.py::test_build_ask_prompt_snapshot_testuale`
+fotografa alla lettera il prompt di sistema base. W1 lo cambia di proposito, in
+quattro punti del prompt base; lo snapshot va quindi aggiornato, non aggirato.
+
+Lo snapshot NON e' un test comportamentale: e' un rilevatore di modifiche, e
+serve a impedire che il prompt cambi in silenzio. Aggiornarlo insieme alla
+modifica e' il suo uso previsto; indebolirlo (renderlo una `in` invece di una
+uguaglianza, o cancellarlo) non lo sarebbe, e non viene fatto.
+
+Le garanzie che restano verificate SEPARATAMENTE, e che lo snapshot non copre:
+  · budget            tests/test_ask_prompt_cost.py — 994 token stimati su 1000
+  · comportamento     tests/test_ask_authority_prompt.py (scala, ordine,
+                      «vietato introdurre», assenza di «SQL»/«FOR UPDATE»),
+                      tests/test_ask_abstention.py (marcatore e regola)
+  · sicurezza         caso diagnostico G7 (istruzioni malevole nella fonte
+                      citate ma non obbedite) — invariato 3/3
+Un nuovo snapshot da solo non dimostra correttezza: e' per questo che le tre
+famiglie sopra sono misurate a parte e riportate nel RESOCONTO.
+
+Applica le stesse QUATTRO sostituzioni di `patch_w1.py` che toccano il prompt
+BASE (la quinta, `[CLASSE-FONTI]`, sta nel ramo condizionale e non compare nello
+snapshot, che e' costruito senza scala).
+
+Uso: patch_snapshot_w1.py <sandbox> [--revert]
+"""
+import hashlib
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from patch_w1 import SOSTITUZIONI  # noqa: E402
+
+# le prime quattro toccano il prompt base; la quinta e' [CLASSE-FONTI]
+BASE = [s for s in SOSTITUZIONI if "CLASSE-FONTI" not in s[0]]
+
+
+def main() -> int:
+    sandbox = pathlib.Path(sys.argv[1])
+    revert = "--revert" in sys.argv
+    target = sandbox / "rag" / "tests" / "test_ask_unified_llm.py"
+    backup = sandbox / "rag" / "tests" / "test_ask_unified_llm.py.w1orig"
+    if not target.is_file():
+        print(f"ERRORE: {target} assente")
+        return 2
+
+    if revert:
+        if not backup.is_file():
+            print("nessun backup: gia' originale")
+            return 0
+        atteso = hashlib.sha256(backup.read_bytes()).hexdigest()
+        target.write_bytes(backup.read_bytes())
+        ok = hashlib.sha256(target.read_bytes()).hexdigest() == atteso
+        backup.unlink()
+        print(f"snapshot RIPRISTINATO byte-esatto: {ok} sha256={atteso[:16]}")
+        return 0 if ok else 1
+
+    testo = target.read_text(encoding="utf-8")
+    if all(n in testo for _, _, n in BASE):
+        print("snapshot gia' aggiornato")
+        return 0
+    for desc, vecchio, _ in BASE:
+        if testo.count(vecchio) != 1:
+            print(f"ERRORE: «{desc}» trovato {testo.count(vecchio)} volte nello snapshot, non 1")
+            return 2
+    if not backup.is_file():
+        backup.write_bytes(target.read_bytes())
+    for _, vecchio, nuovo in BASE:
+        testo = testo.replace(vecchio, nuovo)
+    target.write_text(testo, encoding="utf-8")
+    print(f"snapshot AGGIORNATO ({len(BASE)} sostituzioni, le stesse del prompt base)")
+    print(f"  sha256 prima={hashlib.sha256(backup.read_bytes()).hexdigest()[:16]}")
+    print(f"  sha256 dopo ={hashlib.sha256(target.read_bytes()).hexdigest()[:16]}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,20 @@
+# Apre la sorgente di crea_fixture.py con Excel 16, ricalcola (è la creazione della fixture:
+# servono i risultati memorizzati da Excel), aggiunge una forma sul foglio «Affiancate» e salva
+# come XLSX (51) e XLS (56). Uso: pwsh -File salva_con_excel.ps1 -Src <xlsx> -OutDir <dir>
+param([Parameter(Mandatory)][string]$Src, [Parameter(Mandatory)][string]$OutDir)
+$ErrorActionPreference = 'Stop'
+$xl = New-Object -ComObject Excel.Application
+try {
+    $xl.Visible = $false; $xl.DisplayAlerts = $false; $xl.AutomationSecurity = 3
+    $wb = $xl.Workbooks.Open((Resolve-Path $Src).Path)
+    $null = $wb.Worksheets.Item('Affiancate').Shapes.AddShape(1, 300, 20, 60, 30)
+    $xl.CalculateFull()
+    $out = (Resolve-Path $OutDir).Path
+    $wb.SaveAs((Join-Path $out 'casi_excel.xlsx'), 51)
+    $wb.SaveAs((Join-Path $out 'casi_excel.xls'), 56)
+    $wb.Close($false)
+} finally {
+    $xl.Quit()
+    [void][Runtime.InteropServices.Marshal]::ReleaseComObject($xl)
+}
+Get-ChildItem (Join-Path $OutDir 'casi_excel.*') | ForEach-Object { "$($_.Name) $($_.Length)" }

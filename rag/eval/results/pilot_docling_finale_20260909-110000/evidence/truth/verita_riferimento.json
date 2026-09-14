@@ -1,0 +1,105 @@
+{
+  "metodo": "trascrizione visiva delle 4 pagine renderizzate con pypdfium2 scale=3 (1786x2526 px), lette come immagini; ritagli ingranditi 2x sulle celle ambigue. Il livello di testo del PDF NON e' stato usato per costruire la verita', solo come controllo incrociato successivo.",
+  "data": "2026-09-08",
+  "documenti": {
+    "diagrammi": {
+      "path": "docs/02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf",
+      "sha256": "9c0d51c52710efbd87aaf8599d7bde09e93ceefbdc206ad35c311d993c56f91f",
+      "bytes": 4658,
+      "pagine": 2
+    },
+    "mockup": {
+      "path": "docs/02_specs_normative/mockups/catalogo_mockup_normativi.pdf",
+      "sha256": "443ecfca8c8ab4fb706bf518c725e80272e52dfdc4b75b6759fb7d04a00aa1b2",
+      "bytes": 5312,
+      "pagine": 2
+    }
+  },
+  "normalizzazioni_dichiarate_prima_della_misura": {
+    "N1_soft_wrap": "un a-capo introdotto dalla larghezza della colonna dentro un valore logico unico viene rimosso unendo SENZA separatore. Casi osservati: diag_0_3_modules_relations_map + .svg ; diag_2_1_workflow_state_machin + e.svg ; diag_2_3_concurrency_pessimisti + c_lock.svg ; diag_5_2_graph_rag_structure.sv + g ; diag_6_2_hitl_checkpoints.svg.sv + g ; mockup_1_2_employee_dashb + oard.svg ; mockup_1_4_reservation_form. + svg ; mockup_1_5_employee_person + al_area.svg ; mockup_2_2_manager_approva + l_queue.svg ; mockup_2_4_notifications_tem + plates.svg ; mockup_3_2_admin_crud_even + ts.svg ; mockup_3_3_admin_global_mo + nitor.svg ; mockup_3_4_admin_export_mo + dal.svg ; mockup_3_5_admin_dashboard + _analytics.html ; Autenticazion + e",
+    "N2_formato_peso": "la colonna Formato / peso contiene DUE valori logici su due righe (formato, peso). La cella e' corretta se entrambi compaiono nell'ordine, con qualunque separatore (a-capo, spazio, <br>, barra). Nella verita' sono registrati separati da | come marcatore interno.",
+    "N3_letterale": "maiuscole, accenti e punteggiatura si confrontano letteralmente. Le intestazioni sono stampate SENZA accento (Finalita) e vanno trascritte cosi come stampate.",
+    "N4_markup": "grassetto e corsivo ignorati nel confronto; conta il testo.",
+    "N5_doppia_estensione": "diag_6_2_hitl_checkpoints.svg.svg ha davvero due estensioni nella fonte (verificato su ritaglio 2x). Correggerla in .svg conta come valore ALTERATO, non come normalizzazione."
+  },
+  "tabelle_del_cancello_1c": [
+    {
+      "id": "diagrammi_p2_registro",
+      "documento": "diagrammi",
+      "pagina": 2,
+      "titolo_sezione": "Registro dei file",
+      "colonne": 4,
+      "righe_dati": 5,
+      "intestazioni": ["File", "Area", "Finalita", "Formato / peso"],
+      "righe": [
+        ["diag_0_3_modules_relations_map.svg", "Architettura", "Mappa delle relazioni fra i moduli del sistema.", "SVG|46.4 KB"],
+        ["diag_2_1_workflow_state_machine.svg", "Workflow", "Macchina a stati del ciclo di prenotazione o richiesta.", "SVG|13.0 KB"],
+        ["diag_2_3_concurrency_pessimistic_lock.svg", "Workflow", "Gestione della concorrenza tramite lock pessimistico.", "SVG|15.6 KB"],
+        ["diag_5_2_graph_rag_structure.svg", "Knowledge", "Struttura del grafo e pipeline Graph RAG.", "SVG|11.2 KB"],
+        ["diag_6_2_hitl_checkpoints.svg.svg", "Governance", "Checkpoint human-in-the-loop e punti di controllo.", "SVG|19.5 KB"]
+      ]
+    },
+    {
+      "id": "mockup_p2_registro",
+      "documento": "mockup",
+      "pagina": 2,
+      "titolo_sezione": "Registro dei file",
+      "colonne": 5,
+      "righe_dati": 11,
+      "intestazioni": ["File", "Spec.", "Area", "Schermata", "Formato / peso"],
+      "righe": [
+        ["mockup_1_1_auth_login.svg", "1.1", "Autenticazione", "Schermata di accesso.", "SVG|21.3 KB"],
+        ["mockup_1_2_employee_dashboard.svg", "1.2", "Dipendente", "Dashboard operativa del dipendente.", "SVG|30.0 KB"],
+        ["mockup_1_3_event_details.svg", "1.3", "Dipendente", "Dettaglio di un evento o una prenotazione.", "SVG|18.4 KB"],
+        ["mockup_1_4_reservation_form.svg", "1.4", "Dipendente", "Form di inserimento prenotazione.", "SVG|23.4 KB"],
+        ["mockup_1_5_employee_personal_area.svg", "1.5", "Dipendente", "Area personale del dipendente.", "SVG|31.4 KB"],
+        ["mockup_2_2_manager_approval_queue.svg", "2.2", "Manager", "Coda di approvazione del responsabile.", "SVG|25.9 KB"],
+        ["mockup_2_4_notifications_templates.svg", "2.4", "Manager", "Gestione template di notifica.", "SVG|18.6 KB"],
+        ["mockup_3_2_admin_crud_events.svg", "3.2", "Admin", "Gestione CRUD degli eventi.", "SVG|27.4 KB"],
+        ["mockup_3_3_admin_global_monitor.svg", "3.3", "Admin", "Monitoraggio globale amministrativo.", "SVG|24.6 KB"],
+        ["mockup_3_4_admin_export_modal.svg", "3.4", "Admin", "Finestra di esportazione dati.", "SVG|12.2 KB"],
+        ["mockup_3_5_admin_dashboard_analytics.html", "3.5", "Admin", "Dashboard analytics amministrativa.", "HTML|3.4 KB"]
+      ]
+    }
+  ],
+  "conteggio_verificato": {
+    "tabelle": 2,
+    "celle_dati": 75,
+    "celle_intestazione": 9,
+    "dettaglio": "diagrammi 5x4=20 dati + 4 intestazioni; mockup 11x5=55 dati + 5 intestazioni. I numeri 75/9 della baseline sono CONFERMATI per i due registri di pagina 2."
+  },
+  "osservazione_non_prevista_dalla_baseline": {
+    "descrizione": "pagina 1 di ENTRAMBI i documenti contiene una terza struttura tabellare, Regole di organizzazione: 3 righe x 2 colonne, SENZA riga di intestazione, resa con bordi e sfondo di cella. La baseline (due tabelle, 75 celle, 9 intestazioni) contava solo i registri di pagina 2 e non la nominava.",
+    "diagrammi_p1_regole": [
+      ["1. Naming", "Mantieni il prefisso diag_, seguito da area o sezione e da un nome descrittivo in snake_case."],
+      ["2. Posizione", "Conserva qui solo diagrammi normativi; bozze e fonti editabili vanno in una sottocartella source."],
+      ["3. Aggiornamento", "Quando cambia una specifica correlata, aggiorna il diagramma e verifica il riferimento nella scheda sottostante."]
+    ],
+    "mockup_p1_regole": [
+      ["1. Naming", "Usa mockup_[spec]_[ruolo]_[schermata]; il numero deve coincidere con la specifica associata."],
+      ["2. Ruoli", "Raggruppa per Dipendente, Manager e Admin; mantieni SVG come riferimento statico e HTML per prototipi navigabili."],
+      ["3. Tracciabilita", "Ogni modifica a un flusso UX deve essere riconciliata con la specifica e annotata nel changelog del progetto."]
+    ],
+    "banda_kpi_p1": {
+      "diagrammi": [["5", "artefatti"], ["1", "cartella sorgente"], ["SVG", "formato"]],
+      "mockup": [["11", "artefatti"], ["4", "aree funzionali"], ["SVG + HTML", "formati"]],
+      "nota": "banda a 3 colonne con le etichette rese SOTTO la banda, in ordine verticale; l'associazione valore-etichetta e' posizionale, non strutturale nel PDF. Non e' una tabella del cancello."
+    },
+    "uso": "registrata come misura separata. NON altera i criteri 75/9 del cancello 1c, fissati prima di questa sessione."
+  },
+  "segmentazione_attesa_heading": {
+    "criterio": "titolo di sezione reso in grande, grassetto, blu scuro, sotto il titolo del documento",
+    "diagrammi": ["Catalogo diagrammi (titolo del documento)", "Regole di organizzazione", "Registro dei file", "Percorso sorgente"],
+    "mockup": ["Catalogo mockup (titolo del documento)", "Regole di organizzazione", "Registro dei file", "Percorso sorgente"],
+    "attesi_per_documento": {
+      "titolo_documento": 1,
+      "sezioni_di_pari_rango": 2,
+      "sezione_di_rango_inferiore": 1,
+      "nota": "Percorso sorgente e' reso in azzurro e piu' piccolo delle altre due intestazioni: e' un titolo di rango inferiore. Il conteggio e' registrato PRIMA della misura."
+    }
+  },
+  "testo_fuori_tabella_atteso": {
+    "diagrammi": ["Catalogo diagrammi", "Indice operativo per classificare, consultare e mantenere gli artefatti visuali normativi.", "5", "artefatti", "1", "cartella sorgente", "SVG", "formato", "Regole di organizzazione", "Registro dei file", "Percorso sorgente", "C:\\Users\\Silve\\Desktop\\vibecraft\\docs\\02_specs_normative\\diagrams", "Vibecraft - inventario normativo", "Pagina 1", "Pagina 2"],
+    "mockup": ["Catalogo mockup", "Indice operativo delle interfacce di riferimento collegate alle specifiche normative.", "11", "artefatti", "4", "aree funzionali", "SVG + HTML", "formati", "Regole di organizzazione", "Registro dei file", "Percorso sorgente", "C:\\Users\\Silve\\Desktop\\vibecraft\\docs\\02_specs_normative\\mockups", "Vibecraft - inventario normativo", "Pagina 1", "Pagina 2"]
+  }
+}

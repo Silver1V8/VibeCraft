@@ -1,0 +1,138 @@
+{
+  "loader_pypdf": {
+    "pdf-diag-1": {
+      "derivabile": false,
+      "motivo": "nessuna tabella markdown con intestazione riconoscibile"
+    },
+    "pdf-diag-2": {
+      "derivabile": false,
+      "motivo": "nessuna tabella markdown con intestazione riconoscibile"
+    },
+    "pdf-diag-3": {
+      "derivabile": false,
+      "motivo": "nessuna tabella markdown con intestazione riconoscibile"
+    },
+    "pdf-mock-1": {
+      "derivabile": false,
+      "motivo": "nessuna tabella markdown con intestazione riconoscibile"
+    },
+    "pdf-mock-2": {
+      "derivabile": false,
+      "motivo": "nessuna tabella markdown con intestazione riconoscibile"
+    },
+    "pdf-mock-3": {
+      "derivabile": false,
+      "motivo": "nessuna tabella markdown con intestazione riconoscibile"
+    },
+    "pdf-diag-4": {
+      "derivabile": false,
+      "motivo": "valori presenti ma associati all'etichetta solo per posizione"
+    },
+    "pdf-mock-4": {
+      "derivabile": false,
+      "motivo": "valori presenti ma associati all'etichetta solo per posizione"
+    }
+  },
+  "intake_markitdown": {
+    "pdf-diag-1": {
+      "derivabile": false,
+      "motivo": "nessuna tabella markdown con intestazione riconoscibile"
+    },
+    "pdf-diag-2": {
+      "derivabile": false,
+      "motivo": "nessuna tabella markdown con intestazione riconoscibile"
+    },
+    "pdf-diag-3": {
+      "derivabile": false,
+      "motivo": "nessuna tabella markdown con intestazione riconoscibile"
+    },
+    "pdf-mock-1": {
+      "derivabile": false,
+      "motivo": "nessuna tabella markdown con intestazione riconoscibile"
+    },
+    "pdf-mock-2": {
+      "derivabile": false,
+      "motivo": "nessuna tabella markdown con intestazione riconoscibile"
+    },
+    "pdf-mock-3": {
+      "derivabile": false,
+      "motivo": "nessuna tabella markdown con intestazione riconoscibile"
+    },
+    "pdf-diag-4": {
+      "derivabile": false,
+      "motivo": "valori presenti ma associati all'etichetta solo per posizione"
+    },
+    "pdf-mock-4": {
+      "derivabile": false,
+      "motivo": "valori assenti dall'output: ['11', '4']"
+    }
+  },
+  "docling_granite": {
+    "pdf-diag-1": {
+      "derivabile": true,
+      "motivo": ""
+    },
+    "pdf-diag-2": {
+      "derivabile": true,
+      "motivo": ""
+    },
+    "pdf-diag-3": {
+      "derivabile": true,
+      "motivo": ""
+    },
+    "pdf-mock-1": {
+      "derivabile": true,
+      "motivo": ""
+    },
+    "pdf-mock-2": {
+      "derivabile": true,
+      "motivo": ""
+    },
+    "pdf-mock-3": {
+      "derivabile": true,
+      "motivo": ""
+    },
+    "pdf-diag-4": {
+      "derivabile": false,
+      "motivo": "valori presenti ma associati all'etichetta solo per posizione"
+    },
+    "pdf-mock-4": {
+      "derivabile": false,
+      "motivo": "valori assenti dall'output: ['11', '4', 'SVG + HTML']"
+    }
+  },
+  "docling_standard": {
+    "pdf-diag-1": {
+      "derivabile": true,
+      "motivo": ""
+    },
+    "pdf-diag-2": {
+      "derivabile": true,
+      "motivo": ""
+    },
+    "pdf-diag-3": {
+      "derivabile": true,
+      "motivo": ""
+    },
+    "pdf-mock-1": {
+      "derivabile": true,
+      "motivo": ""
+    },
+    "pdf-mock-2": {
+      "derivabile": true,
+      "motivo": ""
+    },
+    "pdf-mock-3": {
+      "derivabile": true,
+      "motivo": ""
+    },
+    "pdf-diag-4": {
+      "derivabile": false,
+      "motivo": "valori presenti ma associati all'etichetta solo per posizione"
+    },
+    "pdf-mock-4": {
+      "derivabile": false,
+      "motivo": "valori presenti ma associati all'etichetta solo per posizione"
+    }
+  }
+}

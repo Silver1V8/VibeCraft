@@ -1,0 +1,890 @@
+{
+  "set": "golden",
+  "top_k": 10,
+  "saltati": 0,
+  "casi": 58,
+  "parametri": {
+    "GRAPH_CONTEXT_MAX_CHUNKS": 2,
+    "GRAPH_CONTEXT_MIN_RATIO": 0.0,
+    "CODE_LINK_MIN_QUESTION_SCORE": 0.0,
+    "CODE_CONTEXT_TOTAL_SNIPPETS": 6
+  },
+  "completi_doc": 58,
+  "completi_sezione": 58,
+  "attesi_assenti": 0,
+  "attesi_assenti_doc": 0,
+  "solo_via_grafo": 0,
+  "caratteri_mediani": 26342,
+  "esiti": [
+    {
+      "q": "come gestire il lock transazionale su una risorsa contesa in concorrenza",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 20927
+    },
+    {
+      "q": "due utenti consumano l'ultima unità disponibile nello stesso istante",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 28156
+    },
+    {
+      "q": "sicurezza degli accessi, autenticazione e verifica dell'identità",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 28486
+    },
+    {
+      "q": "quanto tempo può passare prima che la revoca di un account sia effettiva",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 32511
+    },
+    {
+      "q": "immutabilità dei dati e auditability del giornale di audit",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 33271
+    },
+    {
+      "q": "posso cancellare fisicamente un record che ha figli che lo referenziano",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 25459
+    },
+    {
+      "q": "gestione dei segreti e delle credenziali nel codice sorgente",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 30344
+    },
+    {
+      "q": "privacy, confine dei dati local-first e trattamento dei dati personali PII",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 27540
+    },
+    {
+      "q": "posso mandare dati reali nel contesto di un LLM remoto durante lo sviluppo",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 20661
+    },
+    {
+      "q": "qual è la lunghezza massima ammessa per una funzione",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 24758
+    },
+    {
+      "q": "come vanno gestite le eccezioni e i blocchi di cattura generici",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 27191
+    },
+    {
+      "q": "come si collega una riga di codice alla regola di business che implementa",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 25029
+    },
+    {
+      "q": "posso usare un sinonimo per nominare una variabile o devo seguire il glossario",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 19587
+    },
+    {
+      "q": "quando devo fermarmi e chiedere conferma umana prima di scrivere codice",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 27708
+    },
+    {
+      "q": "il silenzio dell'utente vale come approvazione di un checkpoint",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 24753
+    },
+    {
+      "q": "cosa devo fare se trovo un caso non coperto dalle specifiche",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 27890
+    },
+    {
+      "q": "posso aggiungere una funzionalità non richiesta se mi sembra utile",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 24560
+    },
+    {
+      "q": "il modello ha scritto codice sbagliato, di chi è la responsabilità",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 28401
+    },
+    {
+      "q": "come vengono segmentati i documenti in chunk durante l'indicizzazione",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 28592
+    },
+    {
+      "q": "quali blocchi di testo non devono mai essere spezzati dal chunker",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 29603
+    },
+    {
+      "q": "come funziona il boost di autorità nel ranking dei risultati",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 32174
+    },
+    {
+      "q": "cosa succede se modifico un documento senza incrementare la versione",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 25888
+    },
+    {
+      "q": "due documenti possono dichiarare lo stesso node_id nel grafo",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 29323
+    },
+    {
+      "q": "come faccio a sapere se il grafo è disallineato rispetto ai documenti",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 26834
+    },
+    {
+      "q": "che forma deve avere la risposta di errore di un endpoint",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 28502
+    },
+    {
+      "q": "posso includere lo stack trace nella risposta di errore al client",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 23920
+    },
+    {
+      "q": "quale status HTTP usare per un conflitto di concorrenza",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 25033
+    },
+    {
+      "q": "come si gestisce l'idempotenza e la paginazione delle collezioni",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 25372
+    },
+    {
+      "q": "differenza fra audit log e log applicativo",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 30845
+    },
+    {
+      "q": "come si correlano log tracing e audit di una stessa richiesta",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 30514
+    },
+    {
+      "q": "quando usare il livello ERROR invece di WARNING nei log",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 30998
+    },
+    {
+      "q": "come evitare che dati personali finiscano nei log o negli APM esterni",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 30647
+    },
+    {
+      "q": "quali metriche deve esporre un servizio e come deve funzionare l'health check",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 25680
+    },
+    {
+      "q": "che tipi di test servono e in che proporzione",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 24483
+    },
+    {
+      "q": "cosa fare con un test che fallisce in modo intermittente",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 26056
+    },
+    {
+      "q": "come si verifica che un safeguard sia davvero applicato",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 31176
+    },
+    {
+      "q": "come si testa correttamente un percorso protetto da lock pessimistico",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 23102
+    },
+    {
+      "q": "qual è la soglia minima di copertura dei test",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 27236
+    },
+    {
+      "q": "come deve essere l'aspetto grafico rispetto all'identità visiva aziendale",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 21717
+    },
+    {
+      "q": "posso scrivere un colore direttamente nel componente o devo usare i design token",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 29245
+    },
+    {
+      "q": "quale rapporto di contrasto devono rispettare i colori dell'interfaccia",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 26264
+    },
+    {
+      "q": "quando una funzionalità può essere considerata completata",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 23062
+    },
+    {
+      "q": "cosa va verificato prima del rilascio e del sign-off finale",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 17925
+    },
+    {
+      "q": "posso saltare una voce della checklist se non si applica al mio caso",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 23026
+    },
+    {
+      "q": "come si versionano i documenti della knowledge base",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 19493
+    },
+    {
+      "q": "quali campi sono obbligatori nel frontmatter di un documento",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 27943
+    },
+    {
+      "q": "quando serve incrementare la major invece della minor di un documento",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 29984
+    },
+    {
+      "q": "quali documenti compongono la baseline e come si avvia un nuovo progetto",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 23131
+    },
+    {
+      "q": "dove sono definiti i segnaposto da compilare per riusare la baseline",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 20657
+    },
+    {
+      "q": "cosa non deve mai finire committato in un repository git",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 31425
+    },
+    {
+      "q": "il correlation id va propagato anche sui record di audit",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 24114
+    },
+    {
+      "q": "cosa blocca l'ingestion quando qualcuno dimentica il bump di versione del documento",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 32887
+    },
+    {
+      "q": "quanti caratteri al massimo può avere un chunk e con quale severità viene segnalato lo sforamento",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 30375
+    },
+    {
+      "q": "in quale ordine il chunker tenta i tagli: blocchi atomici, poi H2, poi H3, poi paragrafi",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 26103
+    },
+    {
+      "q": "tracciabilità bidirezionale nei commenti fra riga di codice e regola di business",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 26262
+    },
+    {
+      "q": "posso mandare la motivazione scritta dal dipendente a un LLM remoto",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 15177
+    },
+    {
+      "q": "controllo stilistico della palette colori verificabile nel codice sorgente",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 24537
+    },
+    {
+      "q": "posso usare un servizio di inferenza remoto per il debug di un record reale",
+      "atteso": [
+        "semantico"
+      ],
+      "atteso_doc": [
+        "semantico"
+      ],
+      "completo": true,
+      "completo_doc": true,
+      "solo_via_grafo": 0,
+      "blocchi_grafo": 2,
+      "blocchi_totali": 12,
+      "caratteri": 26342
+    }
+  ]
+}

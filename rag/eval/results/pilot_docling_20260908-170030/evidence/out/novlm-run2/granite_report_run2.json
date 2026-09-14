@@ -1,0 +1,55 @@
+{
+  "esecuzione": "run2",
+  "revisione_pinnata": "982fe3b40f2fa73c365bdb1bcacf6c81b7184bfe",
+  "av_installato": false,
+  "qwen_vl_utils_installato": false,
+  "documenti": {
+    "diagrammi": {
+      "secondi": 284.0,
+      "status": "ConversionStatus.SUCCESS",
+      "chars_markdown": 1826,
+      "num_tabelle": 2,
+      "forma_tabelle": [
+        [
+          3,
+          2,
+          6
+        ],
+        [
+          6,
+          4,
+          24
+        ]
+      ],
+      "sha256_md": "48e61b02922b167aa2953d3580fcbf1100abc32f300b1d9fd42937e73ab42086",
+      "sha256_doctags": "fb32d5c16192a6200a83673afdb8acd05fbfd9806306bcdf02e08d47d89c31ad"
+    },
+    "mockup": {
+      "secondi": 291.48,
+      "status": "ConversionStatus.SUCCESS",
+      "chars_markdown": 2673,
+      "num_tabelle": 2,
+      "forma_tabelle": [
+        [
+          3,
+          2,
+          6
+        ],
+        [
+          12,
+          5,
+          60
+        ]
+      ],
+      "sha256_md": "facec37dd6763fd6ef5b572a1e84ed8292525b22e1541325f1a7135f88d860e6",
+      "sha256_doctags": "e0ddb0058554e0e49d043c699417ad4f0072dd9e01480eab515ad333cec29d3b"
+    }
+  },
+  "revisione_effettiva_della_spec": "982fe3b40f2fa73c365bdb1bcacf6c81b7184bfe",
+  "revisione_default_docling": "main",
+  "snapshot_presenti_in_cache": [],
+  "solo_revisione_pinnata_in_cache": false,
+  "av_in_sys_modules": false,
+  "qwen_vl_utils_in_sys_modules": false,
+  "rss_picco_mb": 1724.2
+}

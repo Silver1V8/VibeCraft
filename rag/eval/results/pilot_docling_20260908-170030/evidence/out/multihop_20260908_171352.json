@@ -1,0 +1,452 @@
+{
+  "timestamp": "2026-09-08T17:13:52",
+  "url": "http://127.0.0.1:8000",
+  "golden_set": "golden_multihop.yaml",
+  "n": 14,
+  "k": 10,
+  "trigger_m2": {
+    "fired": false,
+    "n_qualifying": 1,
+    "minimum": 3,
+    "qualifying_cases": [
+      "quali documenti esistono nel corpus?"
+    ]
+  },
+  "aggregate": {
+    "recall_media_A": 0.8538961038961039,
+    "A_passed": 9,
+    "B_exact": 6,
+    "B_valutabili": 6
+  },
+  "cases": [
+    {
+      "q": "quali documenti esistono nel corpus?",
+      "kind": "structural",
+      "target": null,
+      "A": {
+        "recall": 0.45454545454545453,
+        "passed": false,
+        "best_rank": 1,
+        "n_expected": 11,
+        "found": [
+          {
+            "doc": "00_meta_governance/policy_versionamento_documentale.md"
+          },
+          {
+            "doc": "00_meta_governance/safeguards_security.md"
+          },
+          {
+            "doc": "01_architecture_norms/coding_standards.md"
+          },
+          {
+            "doc": "02_specs_normative/spec_graph_rag_ingestion.md"
+          },
+          {
+            "doc": "README.md"
+          }
+        ],
+        "missing": [
+          {
+            "doc": "00_meta_governance/definition_of_done.md"
+          },
+          {
+            "doc": "01_architecture_norms/api_error_contract.md"
+          },
+          {
+            "doc": "01_architecture_norms/observability_standards.md"
+          },
+          {
+            "doc": "01_architecture_norms/testing_strategy.md"
+          },
+          {
+            "doc": "01_architecture_norms/ui_ux_brand_directives.md"
+          },
+          {
+            "doc": "04_knowledge_informative/vibe_coding_workflow.md"
+          }
+        ]
+      },
+      "B": {
+        "intent": "documenti",
+        "count": 42,
+        "exact_match": true,
+        "mismatches": []
+      },
+      "delta": "B>A"
+    },
+    {
+      "q": "quali sono le relazioni di safeguards_security.md?",
+      "kind": "structural",
+      "target": "00_meta_governance/safeguards_security.md",
+      "A": {
+        "recall": 1.0,
+        "passed": true,
+        "best_rank": 1,
+        "n_expected": 1,
+        "found": [
+          {
+            "doc": "safeguards_security"
+          }
+        ],
+        "missing": []
+      },
+      "B": {
+        "intent": "relazioni",
+        "count": 38,
+        "exact_match": true,
+        "mismatches": []
+      },
+      "delta": "pari"
+    },
+    {
+      "q": "cosa impatta la modifica di safeguards_security.md?",
+      "kind": "structural",
+      "target": "00_meta_governance/safeguards_security.md",
+      "A": {
+        "recall": 1.0,
+        "passed": true,
+        "best_rank": 1,
+        "n_expected": 1,
+        "found": [
+          {
+            "doc": "safeguards_security"
+          }
+        ],
+        "missing": []
+      },
+      "B": {
+        "intent": "impatto",
+        "count": 206,
+        "exact_match": true,
+        "mismatches": []
+      },
+      "delta": "pari"
+    },
+    {
+      "q": "quali relazioni ha api_error_contract.md?",
+      "kind": "structural",
+      "target": "01_architecture_norms/api_error_contract.md",
+      "A": {
+        "recall": 1.0,
+        "passed": true,
+        "best_rank": 1,
+        "n_expected": 1,
+        "found": [
+          {
+            "doc": "api_error_contract"
+          }
+        ],
+        "missing": []
+      },
+      "B": {
+        "intent": "relazioni",
+        "count": 32,
+        "exact_match": true,
+        "mismatches": []
+      },
+      "delta": "pari"
+    },
+    {
+      "q": "relazioni di testing_strategy.md",
+      "kind": "structural",
+      "target": "01_architecture_norms/testing_strategy.md",
+      "A": {
+        "recall": 1.0,
+        "passed": true,
+        "best_rank": 1,
+        "n_expected": 1,
+        "found": [
+          {
+            "doc": "testing_strategy"
+          }
+        ],
+        "missing": []
+      },
+      "B": {
+        "intent": "relazioni",
+        "count": 31,
+        "exact_match": true,
+        "mismatches": []
+      },
+      "delta": "pari"
+    },
+    {
+      "q": "cosa impatta observability_standards.md?",
+      "kind": "structural",
+      "target": "01_architecture_norms/observability_standards.md",
+      "A": {
+        "recall": 1.0,
+        "passed": true,
+        "best_rank": 2,
+        "n_expected": 1,
+        "found": [
+          {
+            "doc": "observability_standards"
+          }
+        ],
+        "missing": []
+      },
+      "B": {
+        "intent": "impatto",
+        "count": 96,
+        "exact_match": true,
+        "mismatches": []
+      },
+      "delta": "pari"
+    },
+    {
+      "q": "dove finisce il correlation id di una richiesta e chi lo impone?",
+      "kind": "multihop",
+      "target": null,
+      "A": {
+        "recall": 0.6666666666666666,
+        "passed": false,
+        "best_rank": 1,
+        "n_expected": 3,
+        "found": [
+          {
+            "doc": "observability_standards",
+            "section": "Log Strutturati e Correlazione"
+          },
+          {
+            "doc": "api_error_contract",
+            "section": "Forma dell'Errore"
+          }
+        ],
+        "missing": [
+          {
+            "doc": "safeguards_security",
+            "section": "Immutabilità"
+          }
+        ]
+      },
+      "B": {
+        "intent": "sconosciuto",
+        "count": 0,
+        "exact_match": null,
+        "mismatches": []
+      },
+      "delta": "A-only"
+    },
+    {
+      "q": "quali vincoli valgono sui dati personali fra log, test e chiamate a LLM esterni?",
+      "kind": "multihop",
+      "target": null,
+      "A": {
+        "recall": 0.6666666666666666,
+        "passed": false,
+        "best_rank": 1,
+        "n_expected": 3,
+        "found": [
+          {
+            "doc": "safeguards_security",
+            "section": "Privacy e Confine"
+          },
+          {
+            "doc": "observability_standards",
+            "section": "Confine di Privacy"
+          }
+        ],
+        "missing": [
+          {
+            "doc": "testing_strategy",
+            "section": "Gate di Qualità"
+          }
+        ]
+      },
+      "B": {
+        "intent": "sconosciuto",
+        "count": 0,
+        "exact_match": null,
+        "mismatches": []
+      },
+      "delta": "A-only"
+    },
+    {
+      "q": "come si implementa e come si verifica la protezione sull'ultima unità disponibile?",
+      "kind": "multihop",
+      "target": null,
+      "A": {
+        "recall": 0.6666666666666666,
+        "passed": false,
+        "best_rank": 1,
+        "n_expected": 3,
+        "found": [
+          {
+            "doc": "safeguards_security",
+            "section": "Concorrenza Critica"
+          },
+          {
+            "doc": "testing_strategy",
+            "section": "Tracciabilità fra Regole e Test"
+          }
+        ],
+        "missing": [
+          {
+            "doc": "api_error_contract",
+            "section": "Status HTTP"
+          }
+        ]
+      },
+      "B": {
+        "intent": "sconosciuto",
+        "count": 0,
+        "exact_match": null,
+        "mismatches": []
+      },
+      "delta": "A-only"
+    },
+    {
+      "q": "qual è la differenza fra il giornale di audit e i log applicativi?",
+      "kind": "multihop",
+      "target": null,
+      "A": {
+        "recall": 1.0,
+        "passed": true,
+        "best_rank": 1,
+        "n_expected": 2,
+        "found": [
+          {
+            "doc": "observability_standards",
+            "section": "Audit Log"
+          },
+          {
+            "doc": "safeguards_security",
+            "section": "Immutabilità"
+          }
+        ],
+        "missing": []
+      },
+      "B": {
+        "intent": "sconosciuto",
+        "count": 0,
+        "exact_match": null,
+        "mismatches": []
+      },
+      "delta": "A-only"
+    },
+    {
+      "q": "come faccio a sapere se una funzionalità è davvero finita?",
+      "kind": "multihop",
+      "target": null,
+      "A": {
+        "recall": 0.5,
+        "passed": false,
+        "best_rank": 5,
+        "n_expected": 2,
+        "found": [
+          {
+            "doc": "definition_of_done",
+            "section": "Livello Funzionalità"
+          }
+        ],
+        "missing": [
+          {
+            "doc": "vibe_coding_workflow",
+            "section": "Human-in-the-Loop"
+          }
+        ]
+      },
+      "B": {
+        "intent": "codice",
+        "count": 452,
+        "exact_match": null,
+        "mismatches": []
+      },
+      "delta": "A-only"
+    },
+    {
+      "q": "come si collega una regola documentata al codice che la implementa e al test che la verifica?",
+      "kind": "multihop",
+      "target": null,
+      "A": {
+        "recall": 1.0,
+        "passed": true,
+        "best_rank": 2,
+        "n_expected": 2,
+        "found": [
+          {
+            "doc": "coding_standards",
+            "section": "Tracciabilità della Governance"
+          },
+          {
+            "doc": "testing_strategy",
+            "section": "Tracciabilità fra Regole e Test"
+          }
+        ],
+        "missing": []
+      },
+      "B": {
+        "intent": "documenti",
+        "count": 42,
+        "exact_match": null,
+        "mismatches": []
+      },
+      "delta": "A-only"
+    },
+    {
+      "q": "cosa devo fare quando modifico un documento della knowledge base?",
+      "kind": "multihop",
+      "target": null,
+      "A": {
+        "recall": 1.0,
+        "passed": true,
+        "best_rank": 3,
+        "n_expected": 2,
+        "found": [
+          {
+            "doc": "policy_versionamento_documentale",
+            "section": "Regole di Gestione delle Versioni"
+          },
+          {
+            "doc": "spec_graph_rag_ingestion",
+            "section": "Aggiornamento Incrementale"
+          }
+        ],
+        "missing": []
+      },
+      "B": {
+        "intent": "documenti",
+        "count": 42,
+        "exact_match": null,
+        "mismatches": []
+      },
+      "delta": "A-only"
+    },
+    {
+      "q": "perché non posso scrivere un colore direttamente in un componente?",
+      "kind": "multihop",
+      "target": null,
+      "A": {
+        "recall": 1.0,
+        "passed": true,
+        "best_rank": 2,
+        "n_expected": 2,
+        "found": [
+          {
+            "doc": "ui_ux_brand_directives",
+            "section": "Design Token"
+          },
+          {
+            "doc": "coding_standards",
+            "section": "Metriche Strutturali"
+          }
+        ],
+        "missing": []
+      },
+      "B": {
+        "intent": "sconosciuto",
+        "count": 0,
+        "exact_match": null,
+        "mismatches": []
+      },
+      "delta": "A-only"
+    }
+  ],
+  "verdict": {
+    "passed": true,
+    "reasons": [],
+    "min_recall": 0.85,
+    "require_graph_exact": true
+  }
+}

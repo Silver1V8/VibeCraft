@@ -1,0 +1,18 @@
+<doctag><section_header_level_1><loc_149><loc_88><loc_351><loc_104>Catalogo diagrammi</section_header_level_1>
+<text><loc_48><loc_116><loc_396><loc_124>Indice operativo per classificare, consultare e mantenere gli artefatti visuali normativi.</text>
+<text><loc_113><loc_156><loc_126><loc_171>5</text>
+<text><loc_245><loc_156><loc_255><loc_171>1</text>
+<text><loc_359><loc_156><loc_404><loc_171>SVG</text>
+<text><loc_218><loc_192><loc_282><loc_222>artefatti cartella sorgente formato</text>
+<section_header_level_1><loc_48><loc_253><loc_208><loc_263>Regole di organizzazione</section_header_level_1>
+<otsl><loc_54><loc_270><loc_447><loc_327><fcel>1. Naming<fcel>Mantieni il prefisso  diag_ , seguito da area o sezione e da un nome descrittivo in snake_case.<nl><fcel>2. Posizione<fcel>Conserva qui solo diagrammi normativi; bozze e fonti editabili vanno in una sottocartella  source .<nl><fcel>3. Aggiornamento<fcel>Quando cambia una specifica correlata, aggiorna il diagramma e verifica il riferimento nella scheda  sottostante.<nl></otsl>
+<page_footer><loc_42><loc_481><loc_130><loc_486>Vibecraft - inventario normativo</page_footer>
+<page_footer><loc_432><loc_481><loc_457><loc_486>Pagina 1</page_footer>
+<page_break>
+<section_header_level_1><loc_48><loc_34><loc_149><loc_45>Registro dei file</section_header_level_1>
+<otsl><loc_47><loc_50><loc_453><loc_169><fcel>File<fcel>Area<fcel>Finalita<fcel>Formato / peso<nl><fcel>diag_0_3_modules_relations_map .svg<fcel>Architettura<fcel>Mappa delle relazioni fra i moduli del sistema.<fcel>SVG 46.4 KB<nl><fcel>diag_2_1_workflow_state_machin e.svg<fcel>Workflow<fcel>Macchina a stati del ciclo di prenotazione o richiesta.<fcel>SVG 13.0 KB<nl><fcel>diag_2_3_concurrency_pessimisti c_lock.svg<fcel>Workflow<fcel>Gestione della concorrenza tramite lock pessimistico.<fcel>SVG 15.6 KB<nl><fcel>diag_5_2_graph_rag_structure.sv g<fcel>Knowledge<fcel>Struttura del grafo e pipeline Graph RAG.<fcel>SVG 11.2 KB<nl><fcel>diag_6_2_hitl_checkpoints.svg.sv g<fcel>Governance<fcel>Checkpoint human-in-the-loop e punti di controllo.<fcel>SVG 19.5 KB<nl></otsl>
+<section_header_level_1><loc_48><loc_189><loc_129><loc_197>Percorso sorgente</section_header_level_1>
+<text><loc_47><loc_201><loc_249><loc_206>C:\Users\Silve\Desktop\vibecraft\docs\02_specs_normative\diagrams</text>
+<page_footer><loc_42><loc_481><loc_130><loc_486>Vibecraft - inventario normativo</page_footer>
+<page_footer><loc_432><loc_481><loc_457><loc_486>Pagina 2</page_footer>
+</doctag>

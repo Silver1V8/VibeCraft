@@ -1,0 +1,94 @@
+"""Controllo minimo ESEGUIBILE della logica introdotta da S2.
+
+Non e' un test del batch: e' il controllo della REGOLA, con vettori costruiti a
+mano, che deve fallire se la logica regredisce. Copre in particolare il difetto
+che la suite ha scoperto e che era MIO, non dei test:
+
+  · un simbolo del ponte SENZA vettore denso non e' valutabile, quindi non puo'
+    essere escluso dal coseno: deve restare (fail-open). La prima versione del
+    filtro lo scartava, e faceva cadere due test comportamentali
+    (`test_ask_inietta_codice_trovato_solo_dalla_ricerca_semantica`,
+    `test_ask_cappa_chunk_e_snippet_oltre_il_tetto`). Sono stati fatti passare
+    correggendo il filtro, non toccando le asserzioni.
+
+Uso: check_s2.py
+"""
+import pathlib
+import sys
+
+import numpy as np
+
+RAG = pathlib.Path(r"C:\Users\Silve\Desktop\vibecraft\rag")
+sys.path.insert(0, str(RAG))
+
+from core import retrieval  # noqa: E402
+
+
+def store():
+    """Tre simboli: due allineati alla domanda, uno ortogonale, uno senza vettore."""
+    return {
+        "f.ts::Vicino": {"name": "Vicino", "kind": "function", "file": "f.ts",
+                         "text": "a", "dense": np.array([1.0, 0.0, 0.0], dtype=np.float16)},
+        "f.ts::Medio": {"name": "Medio", "kind": "function", "file": "g.ts",
+                        "text": "b", "dense": np.array([0.6, 0.8, 0.0], dtype=np.float16)},
+        "f.ts::Lontano": {"name": "Lontano", "kind": "function", "file": "h.ts",
+                          "text": "c", "dense": np.array([0.0, 1.0, 0.0], dtype=np.float16)},
+        "f.ts::SenzaVettore": {"name": "SenzaVettore", "kind": "function", "file": "i.ts",
+                               "text": "d"},
+    }
+
+
+def filtra(linked_ids, soglia, domanda=(1.0, 0.0, 0.0)):
+    """Riproduce ESATTAMENTE la logica innestata in ask_rag: valutabili -> coseno ->
+    scartati; i non valutabili restano."""
+    cs = store()
+    ids = [sid for sid, e in cs.items() if e.get("dense") is not None]
+    m = np.asarray([cs[s]["dense"] for s in ids], dtype=np.float32)
+    m /= np.linalg.norm(m, axis=1, keepdims=True) + 1e-8
+    posizione = {sid: i for i, sid in enumerate(ids)}
+    valutabili = [s for s in linked_ids if s in posizione]
+    righe = [posizione[s] for s in valutabili]
+    tenuti = set()
+    if righe:
+        tenuti = {c["symbol_id"] for c in retrieval.search_code_symbols(
+            np.array(domanda), cs, max_snippets=len(righe), min_score=soglia,
+            max_per_file=0, code_ids=ids, code_matrix=m, subset_idx=righe)}
+    esclusi = {s for s in valutabili if s not in tenuti}
+    return [s for s in linked_ids if s not in esclusi], sorted(esclusi)
+
+
+TUTTI = ["f.ts::Vicino", "f.ts::Medio", "f.ts::Lontano", "f.ts::SenzaVettore"]
+
+CASI = [
+    ("soglia 0 non filtra nulla (default = no-op)",
+     lambda: filtra(TUTTI, 0.0)[0] == TUTTI),
+    ("soglia 0.35 tiene i pertinenti e scarta l'ortogonale",
+     lambda: filtra(TUTTI, 0.35)[1] == ["f.ts::Lontano"]),
+    ("il simbolo SENZA vettore resta anche con soglia alta (fail-open)",
+     lambda: "f.ts::SenzaVettore" in filtra(TUTTI, 0.9)[0]),
+    ("soglia 0.9 scarta anche il medio, non il vicino",
+     lambda: filtra(TUTTI, 0.9)[1] == ["f.ts::Lontano", "f.ts::Medio"]),
+    ("l'ordine del ponte e' conservato",
+     lambda: filtra(["f.ts::Medio", "f.ts::Vicino"], 0.35)[0] == ["f.ts::Medio", "f.ts::Vicino"]),
+    ("nessun candidato -> nessuna esclusione",
+     lambda: filtra([], 0.35) == ([], [])),
+    ("solo non valutabili -> nessuna esclusione",
+     lambda: filtra(["f.ts::SenzaVettore"], 0.9) == (["f.ts::SenzaVettore"], [])),
+]
+
+
+def main() -> int:
+    falliti = 0
+    for nome, f in CASI:
+        try:
+            ok = bool(f())
+        except Exception as exc:  # noqa: BLE001
+            ok, nome = False, f"{nome}  [{type(exc).__name__}: {exc}]"
+        falliti += not ok
+        print(f"  {'ok  ' if ok else 'FAIL'} {nome}")
+    print(f"\n{len(CASI) - falliti}/{len(CASI)} casi superati")
+    return 1 if falliti else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

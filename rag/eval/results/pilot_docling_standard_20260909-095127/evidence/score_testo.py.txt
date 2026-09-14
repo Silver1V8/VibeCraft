@@ -1,0 +1,76 @@
+"""Completezza e correttezza del testo FUORI tabella, e conteggio degli heading.
+
+- completezza: quanti frammenti attesi (registrati in verita_riferimento.json,
+  prima di vedere gli output) compaiono nell'output, tollerando gli a-capo.
+- correttezza: presenza di alterazioni di caratteri sui frammenti di prosa,
+  verificata parola per parola contro la fonte.
+- heading: quanti e quali, e se ne compaiono di inventati.
+"""
+
+import json
+import pathlib
+import re
+import sys
+
+P = pathlib.Path(sys.argv[1])
+truth = json.loads((P / "truth" / "verita_riferimento.json").read_text(encoding="utf-8"))
+
+FILES = {
+    "loader_pypdf": {"diagrammi": "baseline/loader_diagrammi.txt", "mockup": "baseline/loader_mockup.txt"},
+    "intake_markitdown": {"diagrammi": "baseline/markitdown_diagrammi.md", "mockup": "baseline/markitdown_mockup.md"},
+    "docling_granite": {"diagrammi": "granite/granite_diagrammi.md", "mockup": "granite/granite_mockup.md"},
+    "docling_standard": {"diagrammi": "standard/standard_diagrammi.md", "mockup": "standard/standard_mockup.md"},
+}
+
+HEAD = re.compile(r"^(#{1,6})\s+(.*)$", re.M)
+
+
+def flat(s):
+    # gli a-capo di impaginazione e l'escaping markdown non contano come differenza
+    s = s.replace("\\_", "_").replace("\\*", "*")
+    return re.sub(r"\s+", " ", s)
+
+
+report = {}
+for engine, files in FILES.items():
+    e = {"documenti": {}}
+    for doc, expected in truth["testo_fuori_tabella_atteso"].items():
+        text = (P / "compare" / files[doc]).read_text(encoding="utf-8")
+        f = flat(text)
+        fns = f.replace(" ", "")
+        present, missing = [], []
+        for frag in expected:
+            if frag in f or frag.replace(" ", "") in fns:
+                present.append(frag)
+            else:
+                missing.append(frag)
+        heads = [(len(h), t.strip()) for h, t in HEAD.findall(text)]
+        atteso_titoli = set(truth["segmentazione_attesa_heading"][doc])
+        atteso_norm = {t.split(" (")[0] for t in atteso_titoli}
+        inventati = [t for _, t in heads if t not in atteso_norm]
+        mancanti = [t for t in atteso_norm if t not in {x for _, x in heads}]
+        e["documenti"][doc] = {
+            "frammenti_attesi": len(expected),
+            "frammenti_presenti": len(present),
+            "frammenti_mancanti": missing,
+            "heading": [{"livello": lv, "testo": t} for lv, t in heads],
+            "n_heading": len(heads),
+            "livelli_distinti": sorted({lv for lv, _ in heads}),
+            "heading_inventati": inventati,
+            "heading_mancanti": mancanti,
+            "chars": len(text),
+        }
+    report[engine] = e
+
+(P / "confronto_testo.json").write_text(
+    json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+
+for eng, r in report.items():
+    for doc, d in r["documenti"].items():
+        print(f"{eng:26s} {doc:10s} testo {d['frammenti_presenti']}/{d['frammenti_attesi']}  "
+              f"heading {d['n_heading']} liv{d['livelli_distinti']}  "
+              f"inventati {len(d['heading_inventati'])}  mancanti {len(d['heading_mancanti'])}")
+        if d["frammenti_mancanti"]:
+            print(f"{'':26s} {'':10s}   mancanti: {d['frammenti_mancanti']}")
+        if d["heading_inventati"]:
+            print(f"{'':26s} {'':10s}   heading inventati: {d['heading_inventati']}")

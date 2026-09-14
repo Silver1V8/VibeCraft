@@ -1,0 +1,21 @@
+param([string[]]$Runs = @('baseline1', 'baseline2', 'candidate1', 'candidate2', 'gap1'))
+$ErrorActionPreference = 'Stop'
+$repo = (Resolve-Path (Join-Path $PSScriptRoot '../../../..')).Path
+$rag = Join-Path $repo 'rag'
+foreach ($run in $Runs) {
+    $mode = $run -replace '\d+$', ''
+    $out = Join-Path $PSScriptRoot $run
+    New-Item -ItemType Directory -Force $out | Out-Null
+    $arguments = @('run', '--rm', '--network', 'none',
+        '-v', "${rag}/core:/app/rag/core:ro",
+        '-v', "${rag}/rag_config.yaml:/app/rag/rag_config.yaml:ro",
+        '-v', "${rag}/eval:/app/rag/eval:ro",
+        '-v', "${rag}/tests:/app/rag/tests:ro",
+        '-v', "${out}:/out",
+        '-v', 'C:/Program Files/Microsoft Office/root/Office16/SAMPLES/SOLVSAMP.XLS:/samples/SOLVSAMP.XLS:ro',
+        '-v', 'C:/Program Files/Microsoft Office/root/Office16/1040/PROTTPLN.XLS:/samples/PROTTPLN.XLS:ro',
+        'vibecraft-lo-esperimento:20260910', 'python', '-B',
+        'eval/results/excel_fidelity_20260910/compare.py', $mode, '/out', '/samples')
+    & docker @arguments *> (Join-Path $out 'console.log')
+    "$run exit=$LASTEXITCODE"
+}

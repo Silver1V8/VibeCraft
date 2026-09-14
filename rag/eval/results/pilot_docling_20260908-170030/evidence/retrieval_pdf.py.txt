@@ -1,0 +1,116 @@
+"""Riga "Retrieval PDF" del cancello 1c, in collection SPERIMENTALI separate.
+
+ATTENZIONE ALLA PORTATA. Questo NON e' lo stack di retrieval di produzione:
+usa il solo vettore DENSO di bge-m3, senza sparse, senza ColBERT, senza
+re-ranking di grafo e senza pesi di autorita'. Misura una cosa piu' stretta e
+ben definita: *dato lo stesso chunker di produzione, la conversione rende la
+risposta recuperabile e ancorata alla fonte giusta?* Va letta come proxy, non
+come sostituto della riga cosi' com'e' formulata.
+
+Collection create: `pilot_docling_<motore>`. Nessun alias, nessuna promozione,
+nessun contatto con `vibecraft_events*`.
+"""
+
+import json
+import pathlib
+import sys
+import uuid
+
+sys.path.insert(0, r"C:\Users\Silve\Desktop\vibecraft\rag")
+
+P = pathlib.Path(sys.argv[1])
+import yaml
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, PointStruct, VectorParams
+
+from core.chunking import chunk_markdown
+from core.config import EMBEDDING_MODEL, QDRANT_URL
+
+qs = yaml.safe_load((P / "truth" / "domande_pdf_locali.yaml").read_text(encoding="utf-8"))
+truth = json.loads((P / "truth" / "verita_riferimento.json").read_text(encoding="utf-8"))
+
+ENGINES = {
+    "loader_pypdf": {"diagrammi": "baseline/loader_diagrammi.txt", "mockup": "baseline/loader_mockup.txt"},
+    "intake_markitdown": {"diagrammi": "baseline/markitdown_diagrammi.md", "mockup": "baseline/markitdown_mockup.md"},
+    "docling_granite_grezzo": {"diagrammi": "novlm/granite_diagrammi.md", "mockup": "novlm/granite_mockup.md"},
+    "docling_granite_refined": {"diagrammi": "refine/granite_diagrammi.refined.md", "mockup": "refine/granite_mockup.refined.md"},
+}
+REL = {
+    "diagrammi": "02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf",
+    "mockup": "02_specs_normative/mockups/catalogo_mockup_normativi.pdf",
+}
+# frammento che DEVE comparire nel chunk recuperato perche' la risposta sia ancorata
+ANCORE = {
+    "pdf-diag-1": ("diagrammi", ["diag_5_2_graph_rag_structure", "Knowledge"]),
+    "pdf-diag-2": ("diagrammi", ["diag_0_3_modules_relations_map", "46.4 KB"]),
+    "pdf-diag-3": ("diagrammi", ["hitl_checkpoints", "19.5 KB"]),
+    "pdf-diag-4": ("diagrammi", ["artefatti"]),
+    "pdf-mock-1": ("mockup", ["notifications_tem", "2.4", "Manager"]),
+    "pdf-mock-2": ("mockup", ["admin_dashboard", "3.4 KB"]),
+    "pdf-mock-3": ("mockup", ["employee_person", "Area personale del dipendente"]),
+    "pdf-mock-4": ("mockup", ["aree funzionali"]),
+}
+
+print("carico bge-m3 su CPU (la GPU ha Ollama residente)...", flush=True)
+from FlagEmbedding import BGEM3FlagModel
+
+model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False, devices=["cpu"])
+client = QdrantClient(url=QDRANT_URL)
+
+report = {
+    "portata": "solo vettore denso bge-m3; niente sparse/ColBERT/grafo/autorita'. Proxy, non lo stack di produzione.",
+    "collection_sperimentali": [], "motori": {},
+}
+
+for engine, files in ENGINES.items():
+    coll = f"pilot_docling_{engine}"
+    report["collection_sperimentali"].append(coll)
+    chunks = []
+    for doc, rel in REL.items():
+        text = (P / "out" / files[doc]).read_text(encoding="utf-8")
+        for c in chunk_markdown(rel, {}, text):
+            c["doc"] = doc
+            chunks.append(c)
+
+    vecs = model.encode([c["text"] for c in chunks], batch_size=4, max_length=8192,
+                        return_dense=True, return_sparse=False, return_colbert_vecs=False)["dense_vecs"]
+    if client.collection_exists(coll):
+        client.delete_collection(coll)
+    client.create_collection(coll, vectors_config=VectorParams(size=len(vecs[0]), distance=Distance.COSINE))
+    client.upsert(coll, points=[
+        PointStruct(id=str(uuid.uuid5(uuid.NAMESPACE_URL, c["chunk_id"])), vector=v.tolist(),
+                    payload={"chunk_id": c["chunk_id"], "doc_id": c["doc_id"],
+                             "section": c.get("section", ""), "text": c["text"], "doc": c["doc"]})
+        for c, v in zip(chunks, vecs)])
+
+    eng = {"n_chunk": len(chunks), "chunk_per_documento": {}, "domande": {}}
+    for d in ("diagrammi", "mockup"):
+        eng["chunk_per_documento"][d] = sum(1 for c in chunks if c["doc"] == d)
+
+    for q in qs["domande"]:
+        qid = q["id"]
+        doc, frammenti = ANCORE[qid]
+        qv = model.encode([q["domanda"]], return_dense=True, return_sparse=False,
+                          return_colbert_vecs=False)["dense_vecs"][0]
+        hits = client.query_points(coll, query=qv.tolist(), limit=3, with_payload=True).points
+        fonti = [h.payload["doc_id"] for h in hits]
+        fonte_ok = REL[doc] in fonti
+        top = hits[0].payload["text"] if hits else ""
+        testo_top3 = " ".join(h.payload["text"] for h in hits)
+        ancorata = all(f in testo_top3 for f in frammenti)
+        eng["domande"][qid] = {
+            "fonte_attesa_in_top3": fonte_ok,
+            "rango_fonte": (fonti.index(REL[doc]) + 1) if fonte_ok else None,
+            "risposta_ancorata_nel_top3": ancorata,
+            "frammenti_mancanti": [f for f in frammenti if f not in testo_top3],
+            "score_top1": round(hits[0].score, 4) if hits else None,
+        }
+    eng["fonte_in_top3"] = f"{sum(1 for v in eng['domande'].values() if v['fonte_attesa_in_top3'])}/8"
+    eng["risposte_ancorate"] = f"{sum(1 for v in eng['domande'].values() if v['risposta_ancorata_nel_top3'])}/8"
+    report["motori"][engine] = eng
+    print(f"{engine:26s} chunk {eng['n_chunk']:2d}  fonte_in_top3 {eng['fonte_in_top3']}  "
+          f"risposte ancorate {eng['risposte_ancorate']}", flush=True)
+
+(P / "out" / "retrieval_pdf.json").write_text(
+    json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+print("\nscritto out/retrieval_pdf.json")

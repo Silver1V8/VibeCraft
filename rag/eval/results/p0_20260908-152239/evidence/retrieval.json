@@ -1,0 +1,1238 @@
+{
+  "timestamp": "2026-09-08T15:34:47",
+  "url": "http://127.0.0.1:8000",
+  "n": 58,
+  "ks": [
+    1,
+    2,
+    5,
+    10
+  ],
+  "top3_k": 3,
+  "corpus": {
+    "available": true,
+    "state": "instantiated",
+    "tracked": 16,
+    "untracked": [
+      "docs/00_meta_governance/glossario_entita.md",
+      "docs/00_meta_governance/matrice_permessi.md",
+      "docs/02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf",
+      "docs/02_specs_normative/mockups/catalogo_mockup_normativi.pdf",
+      "docs/02_specs_normative/spec_analytics_3.5.md",
+      "docs/02_specs_normative/spec_area_pers_1.5.md",
+      "docs/02_specs_normative/spec_auth_1.1.md",
+      "docs/02_specs_normative/spec_concurrency_2.3.md",
+      "docs/02_specs_normative/spec_crud_admin_3.2.md",
+      "docs/02_specs_normative/spec_dash_1.2.md",
+      "docs/02_specs_normative/spec_det_1.3.md",
+      "docs/02_specs_normative/spec_export_3.4.md",
+      "docs/02_specs_normative/spec_form_1.4.md",
+      "docs/02_specs_normative/spec_mgr_panel_2.2.md",
+      "docs/02_specs_normative/spec_monitor_admin_3.3.md",
+      "docs/02_specs_normative/spec_notifications_2.4.md",
+      "docs/02_specs_normative/spec_wf_states_2.1.md",
+      "docs/03_changes_historical/fe2-canvas-review.md",
+      "docs/03_changes_historical/fe3-canvas-review.md",
+      "docs/03_changes_historical/fe4-canvas-review.md",
+      "docs/03_changes_historical/la1-canvas-review.md",
+      "docs/03_changes_historical/la2-canvas-review.md",
+      "docs/04_knowledge_informative/intent_synonym_mapping.md",
+      "docs/05_project_specs/spec_tech_backend.md",
+      "docs/05_project_specs/spec_tech_frontend.md",
+      "docs/05_project_specs/spec_tech_logic_agent.md"
+    ],
+    "diverging": [],
+    "instantiated": [
+      "docs/00_meta_governance/safeguards_security.md"
+    ]
+  },
+  "aggregate": {
+    "recall@1": 0.7068965517241379,
+    "recall@2": 0.8275862068965517,
+    "recall@5": 0.9482758620689655,
+    "recall@10": 1.0,
+    "source_in_top3": 0.896551724137931,
+    "mrr": 0.8113711001642037
+  },
+  "saturated": [
+    "recall@10"
+  ],
+  "adversarial": {
+    "n": 5,
+    "aggregate": {
+      "recall@1": 0.8,
+      "recall@2": 1.0,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "source_in_top3": 1.0,
+      "mrr": 0.9
+    },
+    "saturated": [
+      "recall@2",
+      "recall@5",
+      "recall@10"
+    ]
+  },
+  "cases": [
+    {
+      "q": "come gestire il lock transazionale su una risorsa contesa in concorrenza",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 2,
+      "metrics": {
+        "recall@1": 0.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 0.5,
+        "best_rank": 2,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "02_specs_normative/spec_concurrency_2.3.md",
+        "section": "1. Obiettivo e Contesto di Isolamento"
+      }
+    },
+    {
+      "q": "due utenti consumano l'ultima unità disponibile nello stesso istante",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/safeguards_security.md",
+        "section": "Categoria 2 — Concorrenza Critica sul Database"
+      }
+    },
+    {
+      "q": "sicurezza degli accessi, autenticazione e verifica dell'identità",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/safeguards_security.md",
+        "section": "Categoria 1 — Sicurezza Accessi e Identità"
+      }
+    },
+    {
+      "q": "quanto tempo può passare prima che la revoca di un account sia effettiva",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/safeguards_security.md",
+        "section": "Categoria 1 — Sicurezza Accessi e Identità"
+      }
+    },
+    {
+      "q": "immutabilità dei dati e auditability del giornale di audit",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/safeguards_security.md",
+        "section": "Categoria 3 — Immutabilità dei Dati e Auditability"
+      }
+    },
+    {
+      "q": "posso cancellare fisicamente un record che ha figli che lo referenziano",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/safeguards_security.md",
+        "section": "Categoria 3 — Immutabilità dei Dati e Auditability"
+      }
+    },
+    {
+      "q": "gestione dei segreti e delle credenziali nel codice sorgente",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/safeguards_security.md",
+        "section": "Categoria 4 — Sicurezza del Codice e Segreti"
+      }
+    },
+    {
+      "q": "privacy, confine dei dati local-first e trattamento dei dati personali PII",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/safeguards_security.md",
+        "section": "Categoria 5 — Privacy e Confine dei Dati Local-First"
+      }
+    },
+    {
+      "q": "posso mandare dati reali nel contesto di un LLM remoto durante lo sviluppo",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/safeguards_security.md",
+        "section": "Categoria 5 — Privacy e Confine dei Dati Local-First"
+      }
+    },
+    {
+      "q": "qual è la lunghezza massima ammessa per una funzione",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "01_architecture_norms/coding_standards.md",
+        "section": "2. Metriche Strutturali e Limiti del Codice"
+      }
+    },
+    {
+      "q": "come vanno gestite le eccezioni e i blocchi di cattura generici",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "01_architecture_norms/coding_standards.md",
+        "section": "2. Metriche Strutturali e Limiti del Codice"
+      }
+    },
+    {
+      "q": "come si collega una riga di codice alla regola di business che implementa",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 2,
+      "metrics": {
+        "recall@1": 0.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 0.5,
+        "best_rank": 2,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/safeguards_security.md",
+        "section": "Categoria 2 — Concorrenza Critica sul Database"
+      }
+    },
+    {
+      "q": "posso usare un sinonimo per nominare una variabile o devo seguire il glossario",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "01_architecture_norms/coding_standards.md",
+        "section": "3. Tracciabilità della Governance nel Codice Sorgente"
+      }
+    },
+    {
+      "q": "quando devo fermarmi e chiedere conferma umana prima di scrivere codice",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "04_knowledge_informative/vibe_coding_workflow.md",
+        "section": "Sezione 1 — Protocollo Human-in-the-Loop (HITL)"
+      }
+    },
+    {
+      "q": "il silenzio dell'utente vale come approvazione di un checkpoint",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "04_knowledge_informative/vibe_coding_workflow.md",
+        "section": "Sezione 1 — Protocollo Human-in-the-Loop (HITL)"
+      }
+    },
+    {
+      "q": "cosa devo fare se trovo un caso non coperto dalle specifiche",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "04_knowledge_informative/vibe_coding_workflow.md",
+        "section": "Sezione 3 — Gestione delle Deviazioni (Edge Cases)"
+      }
+    },
+    {
+      "q": "posso aggiungere una funzionalità non richiesta se mi sembra utile",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 3,
+      "metrics": {
+        "recall@1": 0.0,
+        "recall@2": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 0.3333333333333333,
+        "best_rank": 3,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/matrice_permessi.md",
+        "section": "Appendice: Indice Inverso (Ruolo → Funzionalità Concesse)"
+      }
+    },
+    {
+      "q": "il modello ha scritto codice sbagliato, di chi è la responsabilità",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 6,
+      "metrics": {
+        "recall@1": 0.0,
+        "recall@2": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "source_in_top3": 0.0,
+        "mrr": 0.16666666666666666,
+        "best_rank": 6,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/safeguards_security.md",
+        "section": "Categoria 2 — Concorrenza Critica sul Database"
+      }
+    },
+    {
+      "q": "come vengono segmentati i documenti in chunk durante l'indicizzazione",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 2,
+      "metrics": {
+        "recall@1": 0.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 0.5,
+        "best_rank": 2,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "02_specs_normative/spec_graph_rag_ingestion.md",
+        "section": "5. Regole di Aggiornamento Incrementale e Delta Ingestion"
+      }
+    },
+    {
+      "q": "quali blocchi di testo non devono mai essere spezzati dal chunker",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "02_specs_normative/spec_graph_rag_ingestion.md",
+        "section": "2. Requisiti di Chunking Dinamico e Compressione"
+      }
+    },
+    {
+      "q": "come funziona il boost di autorità nel ranking dei risultati",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "02_specs_normative/spec_graph_rag_ingestion.md",
+        "section": "4. Requisiti di Retrieval e Authority Boost"
+      }
+    },
+    {
+      "q": "cosa succede se modifico un documento senza incrementare la versione",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 3,
+      "metrics": {
+        "recall@1": 0.0,
+        "recall@2": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 0.3333333333333333,
+        "best_rank": 3,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/policy_versionamento_documentale.md",
+        "section": "2. Regole di Gestione delle Versioni"
+      }
+    },
+    {
+      "q": "due documenti possono dichiarare lo stesso node_id nel grafo",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 3,
+      "metrics": {
+        "recall@1": 0.0,
+        "recall@2": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 0.3333333333333333,
+        "best_rank": 3,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "README.md",
+        "section": "Vincoli di stabilità"
+      }
+    },
+    {
+      "q": "come faccio a sapere se il grafo è disallineato rispetto ai documenti",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 7,
+      "metrics": {
+        "recall@1": 0.0,
+        "recall@2": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "source_in_top3": 0.0,
+        "mrr": 0.14285714285714285,
+        "best_rank": 7,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/policy_versionamento_documentale.md",
+        "section": "1. Obiettivo e Controllo del Versionamento"
+      }
+    },
+    {
+      "q": "che forma deve avere la risposta di errore di un endpoint",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "01_architecture_norms/api_error_contract.md",
+        "section": "1. Forma dell'Errore"
+      }
+    },
+    {
+      "q": "posso includere lo stack trace nella risposta di errore al client",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 6,
+      "metrics": {
+        "recall@1": 0.0,
+        "recall@2": 0.0,
+        "recall@5": 0.0,
+        "recall@10": 1.0,
+        "source_in_top3": 0.0,
+        "mrr": 0.16666666666666666,
+        "best_rank": 6,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "05_project_specs/spec_tech_frontend.md",
+        "section": "1. Direzione Architetturale"
+      }
+    },
+    {
+      "q": "quale status HTTP usare per un conflitto di concorrenza",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "01_architecture_norms/api_error_contract.md",
+        "section": "2. Mappatura Semantica degli Status HTTP"
+      }
+    },
+    {
+      "q": "come si gestisce l'idempotenza e la paginazione delle collezioni",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "01_architecture_norms/api_error_contract.md",
+        "section": "3. Versionamento, Paginazione e Idempotenza"
+      }
+    },
+    {
+      "q": "differenza fra audit log e log applicativo",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "01_architecture_norms/observability_standards.md",
+        "section": "1. Distinzione Fondamentale: Audit Log ≠ Log Applicativo"
+      }
+    },
+    {
+      "q": "come si correlano log tracing e audit di una stessa richiesta",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 2,
+      "metrics": {
+        "recall@1": 0.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 0.5,
+        "best_rank": 2,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "02_specs_normative/spec_monitor_admin_3.3.md",
+        "section": "2. Regole di Tracciamento e Immutabilità"
+      }
+    },
+    {
+      "q": "quando usare il livello ERROR invece di WARNING nei log",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 2,
+      "metrics": {
+        "recall@1": 0.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 0.5,
+        "best_rank": 2,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/safeguards_security.md",
+        "section": "Categoria 2 — Concorrenza Critica sul Database"
+      }
+    },
+    {
+      "q": "come evitare che dati personali finiscano nei log o negli APM esterni",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "01_architecture_norms/observability_standards.md",
+        "section": "3. Confine di Privacy"
+      }
+    },
+    {
+      "q": "quali metriche deve esporre un servizio e come deve funzionare l'health check",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "01_architecture_norms/observability_standards.md",
+        "section": "4. Metriche, Salute e Alerting"
+      }
+    },
+    {
+      "q": "che tipi di test servono e in che proporzione",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "01_architecture_norms/testing_strategy.md",
+        "section": "1. Tassonomia dei Test"
+      }
+    },
+    {
+      "q": "cosa fare con un test che fallisce in modo intermittente",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "01_architecture_norms/testing_strategy.md",
+        "section": "1. Tassonomia dei Test"
+      }
+    },
+    {
+      "q": "come si verifica che un safeguard sia davvero applicato",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "01_architecture_norms/testing_strategy.md",
+        "section": "2. Tracciabilità fra Regole e Test"
+      }
+    },
+    {
+      "q": "come si testa correttamente un percorso protetto da lock pessimistico",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 4,
+      "metrics": {
+        "recall@1": 0.0,
+        "recall@2": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 0.0,
+        "mrr": 0.25,
+        "best_rank": 4,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "02_specs_normative/spec_concurrency_2.3.md",
+        "section": "4. Scenari Comportamentali BDD (Gherkin)"
+      }
+    },
+    {
+      "q": "qual è la soglia minima di copertura dei test",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "01_architecture_norms/testing_strategy.md",
+        "section": "3. Gate di Qualità"
+      }
+    },
+    {
+      "q": "come deve essere l'aspetto grafico rispetto all'identità visiva aziendale",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 2,
+      "metrics": {
+        "recall@1": 0.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 0.5,
+        "best_rank": 2,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "01_architecture_norms/ui_ux_brand_directives.md",
+        "section": "2. Direttive Vincolanti"
+      }
+    },
+    {
+      "q": "posso scrivere un colore direttamente nel componente o devo usare i design token",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "01_architecture_norms/ui_ux_brand_directives.md",
+        "section": "3. Contratto dei Design Token"
+      }
+    },
+    {
+      "q": "quale rapporto di contrasto devono rispettare i colori dell'interfaccia",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 4,
+      "metrics": {
+        "recall@1": 0.0,
+        "recall@2": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 0.0,
+        "mrr": 0.25,
+        "best_rank": 4,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "01_architecture_norms/ui_ux_brand_directives.md",
+        "section": "2. Direttive Vincolanti"
+      }
+    },
+    {
+      "q": "quando una funzionalità può essere considerata completata",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 3,
+      "metrics": {
+        "recall@1": 0.0,
+        "recall@2": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 0.3333333333333333,
+        "best_rank": 3,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/definition_of_done.md",
+        "section": "4. Checklist — Livello Rilascio"
+      }
+    },
+    {
+      "q": "cosa va verificato prima del rilascio e del sign-off finale",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/definition_of_done.md",
+        "section": "4. Checklist — Livello Rilascio"
+      }
+    },
+    {
+      "q": "posso saltare una voce della checklist se non si applica al mio caso",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/definition_of_done.md",
+        "section": "1. Principio"
+      }
+    },
+    {
+      "q": "come si versionano i documenti della knowledge base",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 4,
+      "metrics": {
+        "recall@1": 0.0,
+        "recall@2": 0.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 0.0,
+        "mrr": 0.25,
+        "best_rank": 4,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/policy_versionamento_documentale.md",
+        "section": "1. Obiettivo e Controllo del Versionamento"
+      }
+    },
+    {
+      "q": "quali campi sono obbligatori nel frontmatter di un documento",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/policy_versionamento_documentale.md",
+        "section": "3. Contratto del Frontmatter"
+      }
+    },
+    {
+      "q": "quando serve incrementare la major invece della minor di un documento",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/policy_versionamento_documentale.md",
+        "section": "2. Regole di Gestione delle Versioni"
+      }
+    },
+    {
+      "q": "quali documenti compongono la baseline e come si avvia un nuovo progetto",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "README.md",
+        "section": "Come si avvia un nuovo progetto"
+      }
+    },
+    {
+      "q": "dove sono definiti i segnaposto da compilare per riusare la baseline",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "README.md",
+        "section": "Convenzione dei segnaposto"
+      }
+    },
+    {
+      "q": "cosa non deve mai finire committato in un repository git",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/safeguards_security.md",
+        "section": "Categoria 4 — Sicurezza del Codice e Segreti"
+      }
+    },
+    {
+      "q": "il correlation id va propagato anche sui record di audit",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "01_architecture_norms/observability_standards.md",
+        "section": "2. Log Strutturati e Correlazione"
+      }
+    },
+    {
+      "q": "cosa blocca l'ingestion quando qualcuno dimentica il bump di versione del documento",
+      "adversarial": true,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "02_specs_normative/spec_graph_rag_ingestion.md",
+        "section": "5. Regole di Aggiornamento Incrementale e Delta Ingestion"
+      }
+    },
+    {
+      "q": "quanti caratteri al massimo può avere un chunk e con quale severità viene segnalato lo sforamento",
+      "adversarial": true,
+      "n_expected": 1,
+      "best_rank": 2,
+      "metrics": {
+        "recall@1": 0.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 0.5,
+        "best_rank": 2,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "04_knowledge_informative/graph_rag_ingestion_strategy.md",
+        "section": "2. Perché il limite di chunking è ~1500 caratteri (non 500, non 4000)"
+      }
+    },
+    {
+      "q": "in quale ordine il chunker tenta i tagli: blocchi atomici, poi H2, poi H3, poi paragrafi",
+      "adversarial": true,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "02_specs_normative/spec_graph_rag_ingestion.md",
+        "section": "2. Requisiti di Chunking Dinamico e Compressione"
+      }
+    },
+    {
+      "q": "tracciabilità bidirezionale nei commenti fra riga di codice e regola di business",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "01_architecture_norms/coding_standards.md",
+        "section": "3. Tracciabilità della Governance nel Codice Sorgente"
+      }
+    },
+    {
+      "q": "posso mandare la motivazione scritta dal dipendente a un LLM remoto",
+      "adversarial": false,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/safeguards_security.md",
+        "section": "Categoria 5 — Privacy e Confine dei Dati Local-First"
+      }
+    },
+    {
+      "q": "controllo stilistico della palette colori verificabile nel codice sorgente",
+      "adversarial": true,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "01_architecture_norms/ui_ux_brand_directives.md",
+        "section": "3. Contratto dei Design Token"
+      }
+    },
+    {
+      "q": "posso usare un servizio di inferenza remoto per il debug di un record reale",
+      "adversarial": true,
+      "n_expected": 1,
+      "best_rank": 1,
+      "metrics": {
+        "recall@1": 1.0,
+        "recall@2": 1.0,
+        "recall@5": 1.0,
+        "recall@10": 1.0,
+        "source_in_top3": 1.0,
+        "mrr": 1.0,
+        "best_rank": 1,
+        "n_expected": 1
+      },
+      "top1": {
+        "doc_id": "00_meta_governance/safeguards_security.md",
+        "section": "Categoria 5 — Privacy e Confine dei Dati Local-First"
+      }
+    }
+  ]
+}

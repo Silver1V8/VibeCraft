@@ -1,0 +1,116 @@
+"""Controllo di regressione della VARIANTE sul percorso che tocca: l'attribuzione.
+
+La variante restringe l'ambito di [CLASSE-FONTI], cioe' proprio la regola che
+esiste per far attribuire un vincolo alla fonte piu' autorevole che lo enuncia
+(A3 di rag/AUDIT.md). Il rischio da misurare e' che la restrizione indebolisca
+quel comportamento. Si misura sui casi della prova di controllo N3, che per
+ciascuna domanda DICHIARANO quale documento e' normativo — e hanno un
+distrattore lessicalmente vicino apposta.
+
+QUESTO NON E' IL GIUDICE N3. Non si usa nessun modello per giudicare e non si
+usa l'archivio storico come prova: si pone la stessa domanda al server e si
+verifica, con un `in` sul testo, se la risposta NOMINA il documento dichiarato
+normativo e se nomina il distrattore. E' uno SCHERMO deterministico con limiti
+dichiarati: dice se la variante ha spostato il comportamento, non se una
+risposta e' giusta.
+
+DUE MODI DI NOMINARE. Una risposta puo' attribuire per NOME DI FILE
+(«spec_graph_rag_ingestion.md») o per CLASSE («nella specifica [REQUIREMENTS]»).
+Il repository considera valido anche il secondo — eval.attribution.normalize_verdict
+lo dice esplicitamente: «la stessa lettura che il verdetto umano fa di 'nella
+specifica [REQUIREMENTS]'» — e mappa la classe sul documento del contesto che la
+porta, se e' uno solo. Uno schermo che contasse solo i nomi di file misurerebbe
+lo STILE della risposta, non l'attribuzione: qui si contano entrambi, con la
+funzione del repository, e il totale che conta e' `nominato` = nome OPPURE
+classe non ambigua.
+
+Golden generale e multihop NON sono pertinenti alla variante: entrambi
+interrogano GET /api/retrieve (e la route del grafo), non la generazione — vedi
+eval/run.py riga 112-114 e eval/run_multihop.py riga 4. Il prompt non entra
+nella loro misura. Si eseguono comunque una volta per stack, come prova di non
+regressione del RETRIEVAL fra baseline e candidato.
+
+Uso: regressione_attribuzione.py <etichetta> <url> <sandbox> <out-dir>
+"""
+
+import json
+import pathlib
+import re
+import sys
+import time
+import urllib.request
+
+ETICHETTA, URL = sys.argv[1], sys.argv[2].rstrip("/")
+SANDBOX, OUT = pathlib.Path(sys.argv[3]), pathlib.Path(sys.argv[4])
+OUT.mkdir(parents=True, exist_ok=True)
+
+sys.path.insert(0, str(SANDBOX / "rag"))
+import yaml  # noqa: E402
+
+from eval.attribution import _class_of, _stem, normalize_verdict  # noqa: E402
+
+casi = yaml.safe_load((SANDBOX / "rag/eval/golden_attribution.yaml").read_text(encoding="utf-8"))["cases"]
+
+
+def post(path, payload, timeout=900):
+    req = urllib.request.Request(URL + path, data=json.dumps(payload).encode("utf-8"),
+                                 headers={"Content-Type": "application/json"}, method="POST")
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+report = {"etichetta": ETICHETTA, "url": URL, "casi": {}}
+for c in casi:
+    normativo = (c["normative"] or {}).get("doc")
+    distrattore = pathlib.Path(c.get("distractor") or "").stem or None
+    t0 = time.time()
+    a = post("/ask", {"question": c["q"], "top_k": 10})
+    risposta = a.get("answer") or ""
+    contesto = (a.get("graph_context") or {}).get("context_text") or ""
+    # fonti del contesto, dalle intestazioni di blocco «--- doc § sezione [CLASSE] ---»
+    # la CLASSE va inclusa nella stringa: _class_of la cerca fra quadre, ed e' la
+    # stessa etichetta che _serialize_chunks mette nell'intestazione di blocco
+    # (classification, altrimenti status).
+    fonti = [f"{h.get('doc_id')} § {h.get('section')}"
+             + (f" [{h.get('classification') or h.get('status')}]"
+                if (h.get("classification") or h.get("status")) else "")
+             for h in (a.get("qdrant_scores") or [])]
+    per_nome = bool(normativo) and normativo in risposta
+    # classi citate fra quadre nella risposta, risolte con la funzione del repository
+    classi = set(re.findall(r"\[([A-Z_]{3,})\]", risposta))
+    per_classe = any(normalize_verdict(f"[{k}]", fonti) == normativo for k in classi) if normativo else False
+    classe_normativo = next((_class_of(f) for f in fonti if _stem(f) == normativo), None)
+    report["casi"][c["id"]] = {
+        "domanda": c["q"],
+        "normativo_dichiarato": normativo,
+        "classe_del_normativo_nel_contesto": classe_normativo,
+        "distrattore": distrattore,
+        "normativo_nel_contesto": bool(normativo) and normativo in contesto,
+        "normativo_nominato_per_nome": per_nome,
+        "normativo_nominato_per_classe": per_classe,
+        "normativo_nominato": per_nome or per_classe,
+        "classi_citate": sorted(classi),
+        "distrattore_nominato": bool(distrattore) and distrattore in risposta,
+        "status": a.get("status"),
+        "secondi": round(time.time() - t0, 1),
+        "fonti_nel_contesto": fonti,
+        "risposta": risposta,
+        "contesto_inviato": contesto,
+    }
+    print(f"{c['id']:26s} nome={report['casi'][c['id']]['normativo_nominato_per_nome']} "
+          f"classe={report['casi'][c['id']]['normativo_nominato_per_classe']} "
+          f"distr={report['casi'][c['id']]['distrattore_nominato']} "
+          f"status={a.get('status')}", flush=True)
+
+report["sintesi"] = {
+    "casi": len(casi),
+    "normativo_nominato": sum(v["normativo_nominato"] for v in report["casi"].values()),
+    "solo_per_nome": sum(v["normativo_nominato_per_nome"] for v in report["casi"].values()),
+    "solo_per_classe": sum(v["normativo_nominato_per_classe"] for v in report["casi"].values()),
+    "normativo_nel_contesto": sum(v["normativo_nel_contesto"] for v in report["casi"].values()),
+    "distrattore_nominato": sum(v["distrattore_nominato"] for v in report["casi"].values()),
+    "astensioni": [k for k, v in report["casi"].items() if v["status"] == "abstained"],
+}
+(OUT / f"attribuzione_{ETICHETTA}.json").write_text(
+    json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+print(json.dumps(report["sintesi"], ensure_ascii=False))

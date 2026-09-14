@@ -1,0 +1,96 @@
+{
+  "sorgente": "C:/Users/Silve/Desktop/vibecraft/rag/eval/results/sel_contesto_20260910-090000/out/comp_k5_S2_pdf.json",
+  "modello": [
+    "ollama",
+    "qwen3.5:9b"
+  ],
+  "casi": {
+    "V1-campo": {
+      "pdf-diag-3": {
+        "domanda": "Quale diagramma del catalogo documenta i checkpoint human-in-the-loop, e con quale peso?",
+        "prompt_tok": 6329,
+        "passate": [
+          {
+            "passata": 1,
+            "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, come riportato nel file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf` nella sezione \"Registro dei file\".\n\nIl peso (Authority) attribuito a questo documento è **0.30**.\nQuesta autorità deriva dalla classe della fonte indicata nel contesto come **[SENZA CLASSE]**, che secondo le regole di autorevolezza del corpus ha un valore decrescente pari a 0.30 rispetto alle altre classi (REQUIREMENTS 0.87, METADATA 0.60, METHODOLOGY 0.50).\n\n**Riepilogo estratto:**\n*   **Identificatore Diagramma:** `diag_6_2_hitl_checkpoints.svg.svg`\n*   **File Sorgente:** `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`\n*   **Classe Fonte:** [SENZA CLASSE]\n*   **Peso (Authority):** 0.30",
+            "secondi": 6.36,
+            "coeff": true,
+            "nega": false
+          },
+          {
+            "passata": 2,
+            "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, come riportato nel file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf` nella sezione \"Registro dei file\".\n\nIl peso (Authority) attribuito a questo documento è **0.30**.\nQuesta autorità deriva dalla classe della fonte indicata nel contesto come **[SENZA CLASSE]**, che corrisponde al valore di authority `0.30` definito nella tabella delle autorità del file `README.md`.",
+            "secondi": 2.08,
+            "coeff": true,
+            "nega": false
+          },
+          {
+            "passata": 3,
+            "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, come riportato nel file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`.\n\nTuttavia, il contesto non riporta un peso (valore numerico) specifico per questo diagramma. Il documento elenca solo le proprietà formali del file:\n*   **File:** diag_6_2_hitl_checkpoints.svg.svg\n*   **Area:** Governance\n*   **Finalità:** Checkpoint human-in-the-loop e punti di controllo.\n*   **Formato / peso:** SVG, 19.5 KB\n\nIl contesto non contiene una metrica di \"peso\" (es. un coefficiente di autorità o un valore decimale) associato a questo diagramma specifico.",
+            "secondi": 3.05,
+            "coeff": false,
+            "nega": true
+          }
+        ]
+      }
+    },
+    "V2-campo+T1": {
+      "pdf-diag-3": {
+        "domanda": "Quale diagramma del catalogo documenta i checkpoint human-in-the-loop, e con quale peso?",
+        "prompt_tok": 6320,
+        "passate": [
+          {
+            "passata": 1,
+            "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, come riportato nel file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`.\n\nTuttavia, il contesto **non riporta** un peso (authority) specifico per questo diagramma.\nLa tabella del catalogo elenca solo:\n*   File: `diag_6_2_hitl_checkpoints.svg.svg`\n*   Area: `Governance`\n*   Finalità: `Checkpoint human-in-the-loop e punti di controllo.`\n*   Formato/peso (dimensione file): `19.5 KB`\n\nNon esiste nel contesto un attributo \"Authority\" o \"peso\" associato a questo diagramma specifico, né una regola che stabilisca automaticamente il peso basandosi sulla classe \"Governance\" per gli artefatti visivi (il campo Authority è presente nella tabella README.md solo per i documenti testuali). Pertanto, non posso attribuire un valore numerico di authority al diagramma stesso.",
+            "secondi": 6.07,
+            "coeff": false,
+            "nega": true
+          },
+          {
+            "passata": 2,
+            "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, come riportato nel file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`.\n\nTuttavia, il contesto **non riporta** un peso (authority) specifico per questo diagramma.\nIl catalogo (`catalogo_diagrammi_normativi.pdf`) elenca solo:\n*   File: `diag_6_2_hitl_checkpoints.svg.svg`\n*   Area: `Governance`\n*   Finalità: `Checkpoint human-in-the-loop e punti di controllo.`\n*   Formato/peso: `SVG`, `19.5 KB`.\n\nNessun documento nel contesto (né il catalogo, né le specifiche normative, né la metadata) assegna un valore numerico di autorità o un coefficiente `authority` a questo artefatto visivo. L'unica fonte che definisce pesi (`authority`) è `spec_graph_rag_ingestion.md`, ma si riferisce esclusivamente al calcolo dello score dei chunk nel contesto window per il retrieval, non all'autorità degli artefatti del catalogo diagrammi.\n\nPertanto, sebbene il diagramma esista e sia identificato, **nessuna fonte più autorevole stabilisce un peso** per esso; l'unica \"misura\" disponibile è il suo peso file (`19.5 KB`), che non è un coefficiente di autorità logica.",
+            "secondi": 5.21,
+            "coeff": false,
+            "nega": true
+          },
+          {
+            "passata": 3,
+            "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, come riportato nel file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`.\n\nTuttavia, il contesto **non riporta** un peso (valore numerico o coefficiente) associato a questo diagramma.\nIl contesto elenca i pesi (`authority`) solo per i documenti testuali nella tabella di `README.md` (es. 0.90 per `vibe_coding_workflow.md`, 0.87 per `spec_graph_rag_ingestion.md`), ma non assegna un valore numerico ai file SVG del catalogo diagrammi, né definisce una regola che derivi il peso di un diagramma dalla classe della sua fonte (in questo caso `[SENZA CLASSE]`) o da altri attributi.\n\nPertanto:\n1.  **Identificatore del diagramma:** `diag_6_2_hitl_checkpoints.svg.svg`\n2.  **Peso:** Il contesto non riporta un peso per questo elemento.",
+            "secondi": 3.93,
+            "coeff": true,
+            "nega": true
+          }
+        ]
+      }
+    },
+    "V3-campo+riga2+T1": {
+      "pdf-diag-3": {
+        "domanda": "Quale diagramma del catalogo documenta i checkpoint human-in-the-loop, e con quale peso?",
+        "prompt_tok": 6368,
+        "passate": [
+          {
+            "passata": 1,
+            "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, come riportato nel file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf` nella sezione \"Registro dei file\".\n\nIl peso (Authority) associato a questo documento è **SENZA CLASSE**.\n\n**Motivazione:**\nNel file `catalogo_diagrammi_normativi.pdf`, la voce relativa al file `diag_6_2_hitl_checkpoints.svg.svg` indica esplicitamente come \"Classe\" il valore **Governance**, ma nella colonna \"Authority\" (presente nel file README.md che elenca i documenti e le loro classi/autorità) non è presente una classe specifica per i diagrammi, né un valore numerico di authority associato direttamente al file SVG nel contesto fornito.\nTuttavia, applicando la regola `[CLASSE-FONTI]`:\n1.  Il documento `catalogo_diagrammi_normativi.pdf` è classificato come **[SENZA CLASSE]** (vedi intestazione del blocco nel contesto).\n2.  La colonna \"Authority\" nel file `README.md` elenca valori numerici solo per documenti specifici (es. `safeguards_security.md` ha 0.98, `spec_graph_rag_ingestion.md` ha 0.87), ma non assegna un valore numerico ai diagrammi elencati nel PDF.\n3.  Poiché il contesto non riporta un valore numerico di authority per i diagrammi (il blocco README elenca documenti con Authority, ma i diagrammi sono elencati in un PDF separato senza una riga corrispondente nel tabellare del README che assegna un numero), e poiché la fonte del catalogo è classificata come **[SENZA CLASSE]**, il peso da attribuire è quello della classe della fonte.\n\n*Nota:* Sebbene il diagramma sia etichettato come \"Governance\" nella descrizione del file PDF, l'autorevolezza (Authority) dichiarata per la fonte che lo contiene (`catalogo_diagrammi_normativi.pdf`) è **SENZA CLASSE**. Non esiste nel contesto un valore numerico di authority specifico per i file SVG.",
+            "secondi": 10.06,
+            "coeff": true,
+            "nega": true
+          },
+          {
+            "passata": 2,
+            "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, come riportato nel registro dei file del documento `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`.\n\nTuttavia, il contesto **non riporta** un valore di peso (authority) associato a questo diagramma specifico.\nIl documento `catalogo_diagrammi_normativi.pdf` elenca solo:\n*   Nome file: `diag_6_2_hitl_checkpoints.svg.svg`\n*   Area: Governance\n*   Finalità: Checkpoint human-in-the-loop e punti di controllo.\n*   Formato/peso (file size): 19.5 KB\n\nNessuna delle fonti presenti nel contesto (`00_meta_governance/definition_of_done.md`, `02_specs_normative/spec_graph_rag_ingestion.md`, `README.md`) assegna un coefficiente di autorità (`authority`) o un valore numerico specifico a questo artefatto visivo. L'attribuzione del peso avviene solo per i documenti testuali elencati in `README.md` (es. 0.90, 0.87), non per i file SVG del catalogo diagrammi.",
+            "secondi": 4.43,
+            "coeff": true,
+            "nega": true
+          },
+          {
+            "passata": 3,
+            "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, come riportato nel registro dei file del documento `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`.\n\nTuttavia, il contesto **non riporta** un valore numerico di \"peso\" (authority) associato a questo diagramma specifico.\nIl documento `catalogo_diagrammi_normativi.pdf` elenca solo:\n*   Nome file: `diag_6_2_hitl_checkpoints.svg.svg`\n*   Area: `Governance`\n*   Finalità: `Checkpoint human-in-the-loop e punti di controllo.`\n*   Formato/peso (dimensione): `19.5 KB`\n\nNessuna delle fonti presenti nel contesto (`00_meta_governance/definition_of_done.md`, `02_specs_normative/spec_graph_rag_ingestion.md`, `README.md`) assegna un coefficiente di autorità (`authority`) o un valore numerico specifico a questo artefatto visivo. Il documento `README.md` elenca i pesi (Authority) per documenti testuali (es. `IRON_MEMORY` con 0.98, `METADATA` con 0.90), ma non per i file SVG del catalogo diagrammi.\n\nPertanto:\n1.  **Identificatore:** `diag_6_2_hitl_checkpoints.svg.svg`\n2.  **Peso (Authority):** Non definito nel contesto fornito.",
+            "secondi": 5.44,
+            "coeff": true,
+            "nega": true
+          }
+        ]
+      }
+    }
+  }
+}

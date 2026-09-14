@@ -1,0 +1,45 @@
+totale distribuzioni installate: 164
+
+### NUOVE (introdotte da docling[vlm]) ###
+  antlr4-python3-runtime       4.9.3          BSD
+  av                           18.1.0         BSD-3-Clause
+  colorlog                     6.12.0         MIT License
+  doclang                      0.7.3          Apache-2.0
+  docling                      2.126.0        MIT
+  docling-core                 2.95.0         MIT
+  docling-ibm-models           4.0.2          MIT
+  docling-parse                7.18.0         MIT
+  docling-slim                 2.126.0        MIT
+  faker                        40.38.0        MIT License
+  filetype                     1.2.0          MIT License
+  jsonref                      1.1.0          MIT
+  latex2mathml                 3.81.1         MIT
+  mail-parser                  4.6.4          Apache-2.0
+  marko                        2.2.4          MIT
+  mpire                        2.10.2         MIT License
+  omegaconf                    2.3.1          BSD License
+  opencv-python                5.0.0.93       Apache Software License
+  pdfminer.six                 20260107       MIT
+  pluggy                       1.6.0          MIT License
+  polyfactory                  3.3.0          MIT License
+  pyclipper                    1.4.0          OSI Approved; MIT License
+  pydantic-settings            2.15.0         MIT
+  pylatexenc                   2.11           MIT License
+  python-oxmsg                 0.0.2          MIT License
+  qwen-vl-utils                0.0.14         Apache Software License
+  rapidocr                     3.9.2          Apache-2.0
+  rtree                        1.4.1          MIT
+  semchunk                     3.2.5          MIT License
+  shapely                      2.1.2          BSD License
+  tabulate                     0.10.0         MIT
+  torchvision                  0.28.0         BSD
+  tree-sitter-c                0.24.2         MIT License
+  tree-sitter-python           0.25.0         MIT
+  websockets                   16.1.1         BSD-3-Clause
+
+### COPYLEFT / DA VERIFICARE (tutte) ###
+  [BASE] certifi                    2026.7.22      Mozilla Public License 2.0 (MPL 2.0)
+  [BASE] flagembedding              1.4.2          SCONOSCIUTA
+  [BASE] tqdm                       4.70.0         MPL-2.0 AND MIT
+
+nuove=35  base=129

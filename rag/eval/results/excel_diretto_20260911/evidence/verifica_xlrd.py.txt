@@ -1,0 +1,45 @@
+"""xlrd legge gli XLS come Excel? Confronto cella per cella con l'oracolo Excel (stesso file).
+Tipi, valori memorizzati (bit per bit per i numeri, seriali per le date), unioni, nomi dei fogli.
+Uso: python verifica_xlrd.py ORACOLO.excel.json [...]"""
+import json
+import sys
+from pathlib import Path
+
+import xlrd
+
+KIND = {xlrd.XL_CELL_TEXT: "text", xlrd.XL_CELL_NUMBER: "number", xlrd.XL_CELL_DATE: "number",
+        xlrd.XL_CELL_BOOLEAN: "bool", xlrd.XL_CELL_ERROR: "error"}
+bad = 0
+for oracle in sys.argv[1:]:
+    ex = json.loads(Path(oracle).read_text(encoding="utf-8-sig"))
+    bk = xlrd.open_workbook(ex["file"], formatting_info=True)
+    problems = []
+    if [s.name for s in bk.sheets()] != [s["name"] for s in ex["sheets"]]:
+        problems.append(("fogli", [s.name for s in bk.sheets()], [s["name"] for s in ex["sheets"]]))
+    for sh, es in zip(bk.sheets(), ex["sheets"]):
+        want = {(c["r"], c["c"]): c for c in es["cells"] if c["t"] != "empty"}
+        got = {}
+        for r in range(sh.nrows):
+            for c in range(sh.ncols):
+                cell = sh.cell(r, c)
+                if cell.ctype in KIND:
+                    v = cell.value
+                    v = ({1: "TRUE", 0: "FALSE"}[v] if cell.ctype == xlrd.XL_CELL_BOOLEAN
+                         else xlrd.error_text_from_code[v] if cell.ctype == xlrd.XL_CELL_ERROR
+                         else repr(float(v)) if cell.ctype in (xlrd.XL_CELL_NUMBER, xlrd.XL_CELL_DATE) else v)
+                    got[(r + 1, c + 1)] = (KIND[cell.ctype], v)
+        for key in want.keys() | got.keys():
+            w = want.get(key)
+            wv = (w["t"], repr(float(w["v"])) if w["t"] == "number" else w["v"]) if w else None
+            if wv != got.get(key):
+                problems.append((sh.name, key, wv, got.get(key)))
+        merges_x = sorted({c["merge"] for c in es["cells"] if c["merge"]})
+        merges_r = sorted(xlrd.formula.cellnameabs(r0, c0).replace("$", "") + (
+            ":" + xlrd.formula.cellnameabs(r1 - 1, c1 - 1).replace("$", "") if (r1 - r0, c1 - c0) != (1, 1) else "")
+            for r0, r1, c0, c1 in sh.merged_cells)
+        if merges_x != merges_r:
+            problems.append((sh.name, "unioni", merges_x, merges_r))
+    bad += len(problems)
+    print(Path(ex["file"]).name, "OK" if not problems else problems[:10],
+          f"({sum(len(s['cells']) for s in ex['sheets'])} celle Excel)")
+raise SystemExit(1 if bad else 0)

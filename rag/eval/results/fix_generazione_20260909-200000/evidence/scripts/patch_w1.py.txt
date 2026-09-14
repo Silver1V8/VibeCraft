@@ -1,0 +1,158 @@
+"""Variante W1 — correzione nel punto giusto: prompt BASE + [CLASSE-FONTI].
+
+Le due varianti precedenti restano NON_APPLICARE e non sono riattivate:
+  · [ATTRIBUZIONE-DICHIARATA] — aggiungeva un blocco, ~1180 token, non correggeva;
+  · V2 confinata a [CLASSE-FONTI] — nel budget, ma pdf-diag-3 irrisolto e
+    attribuzione di sezione invariata.
+
+W1 non si confina a [CLASSE-FONTI]: la diagnosi mostra che la causa principale
+sta nel prompt BASE, e lo snapshot testuale non e' un vincolo architetturale.
+
+## Diagnosi che giustifica ogni pezzo
+
+D1 (peso letto come Authority). Riprodotto OFFLINE rigiocando il contesto
+Docling archiviato: il modello identifica il file, glossa subito «peso
+(Authority)», e conclude che «il contesto non riporta il suo peso» mentre la
+riga di tabella `| diag_6_2_hitl_checkpoints.svg.sv g | Governance | ... | SVG
+19.5 KB |` e' nel blocco. Il contesto quindi NON e' la causa per Docling.
+Le due cause nel prompt:
+  a) la riga 2 del prompt base — «Rispondi alle domande estraendo i contratti e
+     i vincoli esatti» — impone un'inquadratura di governance a QUALUNQUE
+     domanda, comprese quelle fattuali. E' il pezzo che nessuna variante
+     precedente poteva toccare;
+  b) [CLASSE-FONTI] interpola numeri nudi senza mai dire che cosa misurino.
+
+D2 (attribuzione di sezione). Causa DIVERSA, e diversa fra i due parser:
+  · pypdf produce un chunk con `section = "(documento)"`
+    (`core/chunking.py:172,197`): l'intestazione di blocco e'
+    «... § (documento) [SENZA CLASSE]». Nessuna sezione e' dichiarata, quindi
+    NESSUNA affermazione di sezione e' sostenibile, e il modello ne inventa una
+    dal testo («Registro dei file»);
+  · Docling dichiara «§ Catalogo diagrammi», corretta, e il modello scende a
+    sotto-sezioni piu' fini di quanto l'intestazione sostenga.
+La regola di provenienza va quindi nel prompt BASE — dove vale sempre — e non
+dentro [CLASSE-FONTI], che compare solo quando le classi discriminano.
+
+## Le cinque modifiche, tutte a testo GIA' presente
+
+1. riga 2 del prompt base: da «estrai contratti e vincoli» a «rispondi alla
+   domanda posta», con l'enumerazione esplicita di cio' che si legge dalla fonte.
+2. coda di [CITAZIONE-VERIFICABILE]: compressa la tripla proibizione ridondante,
+   e aggiunta la regola di provenienza legata all'intestazione di blocco.
+3. [REGOLA-DIZIONARIO-RIGIDO]: «tassativamente ed espressamente» -> «tassativamente».
+4. [FONTE-CODICE]: «sono FATTI VERIFICATI, non invenzioni» -> «sono FATTI VERIFICATI».
+5. [CLASSE-FONTI]: riscritta piu' corta (-79 caratteri) e con la distinzione
+   esplicita fra coefficiente di autorevolezza e dato del documento.
+
+Budget: 2864 -> 2983 caratteri, **954 -> 994 token stimati** su 1000.
+E' la STIMA ~3 caratteri/token di `core.llm._ollama_payload`, la stessa che usa
+`tests/test_ask_prompt_cost.py`: **non e' un conteggio esatto di token**.
+Le riscritture 3, 4 e 5 liberano 113 caratteri che le aggiunte 1 e 2 spendono:
+ridondanza rimossa prima di aggiungere testo, come prescritto.
+
+## Cosa NON viene toccato
+
+`[REGOLA-ASTENSIONE]` e il suo marcatore, `[PRECEDENZA-FONTI]`, la riga 1
+(«Sei l'Ispettore di Governance di VibeCraft.», pretesa da
+tests/test_ask_unified_llm.py:144), la stringa «vietato introdurre», l'assenza
+di «SQL»/«FOR UPDATE», il formato della scala «NORMS (0.80) > METHODOLOGY
+(0.50)» e l'ordine [CLASSE-FONTI] prima di [PRECEDENZA-FONTI].
+
+Nessuna regola sui nomi dei PDF, nessun id di domanda, nessuna risposta
+precalcolata, nessuna equivalenza fissa «peso = KB», nessun filtro a posteriori,
+nessuna modifica di ranking, authority o parametri calibrati.
+
+Uso: patch_w1.py <sandbox> [--revert]
+"""
+import hashlib
+import pathlib
+import sys
+
+# (descrizione, testo attuale, testo nuovo) — sostituzioni testuali esatte
+SOSTITUZIONI = [
+    ("riga 2 del prompt base",
+     '        "Rispondi alle domande estraendo i contratti e i vincoli esatti.\\n"\n',
+     '        "Rispondi ALLA DOMANDA POSTA con i fatti del contesto: vincoli e contratti se la "\n'
+     '        "domanda li chiede, altrimenti il dato chiesto — valori, quantità, dimensioni, "\n'
+     '        "formati e unità si leggono nel testo della fonte.\\n"\n'),
+
+    ("coda di [CITAZIONE-VERIFICABILE] + regola di provenienza",
+     '        "codice, un identificatore o un vincolo tecnico che nel contesto non compare: non "\n'
+     '        "inventarlo, non dedurlo per analogia, non proporlo come esempio, ipotesi o vincolo "\n'
+     '        "«implicito». Se la domanda presuppone un elemento che il contesto non riporta, dichiara "\n'
+     '        "che il contesto non lo riporta invece di ricostruirlo.\\n"\n',
+     '        "codice, un identificatore o un vincolo tecnico che nel contesto non compare: non "\n'
+     '        "inventarlo, non dedurlo, non proporlo come ipotesi o vincolo «implicito». Se la domanda "\n'
+     '        "presuppone un elemento che il contesto non riporta, dichiara che non lo riporta invece "\n'
+     '        "di ricostruirlo. La provenienza è l\'intestazione del blocco: non nominare sezioni che "\n'
+     '        "non dichiara; senza sezione, cita il solo documento.\\n"\n'),
+
+    ("[REGOLA-DIZIONARIO-RIGIDO]: ridondanza",
+     "È tassativamente ed espressamente vietato inventare",
+     "È tassativamente vietato inventare"),
+
+    ("[FONTE-CODICE]: ridondanza",
+     '        "al pari dei documenti: nomi di classi, campi, parametri, tipi e query che vi compaiono sono FATTI VERIFICATI, "\n'
+     '        "non invenzioni, e vanno citati testualmente (con file e simbolo) quando rispondono alla domanda. "\n',
+     '        "al pari dei documenti: nomi di classi, campi, parametri, tipi e query che vi compaiono sono FATTI "\n'
+     '        "VERIFICATI e vanno citati testualmente (con file e simbolo) quando rispondono alla domanda. "\n'),
+
+    ("[CLASSE-FONTI]: riscrittura piu' corta con la distinzione dato/autorevolezza",
+     '            "\\n[CLASSE-FONTI]: ogni blocco del contesto porta fra parentesi quadre la CLASSE "\n'
+     '            "dichiarata dalla sua fonte. In questo contesto l\'autorevolezza dichiarata dagli "\n'
+     '            f"autori del corpus decresce così: {scala}. Un vincolo, una soglia, una severità "\n'
+     '            "o un\'eccezione vanno attribuiti alla fonte PIÙ autorevole che li enuncia. Una "\n'
+     '            "fonte meno autorevole può motivarli o illustrarli, e va citata dichiarando che fa "\n'
+     '            "questo: mai come la fonte del vincolo. Se un vincolo è enunciato SOLO da una fonte "\n'
+     '            "meno autorevole, riportalo dicendo esplicitamente che nessuna fonte più autorevole "\n'
+     '            "lo stabilisce."\n',
+     '            "\\n[CLASSE-FONTI]: ogni blocco porta fra parentesi quadre la CLASSE dichiarata dalla sua "\n'
+     '            f"fonte; l\'autorevolezza decresce così: {scala}. Quei numeri ordinano le FONTI e non sono "\n'
+     '            "dati dei documenti: non rispondono a domande su valori, quantità o dimensioni. Un vincolo, "\n'
+     '            "una soglia o un\'eccezione vanno attribuiti alla fonte PIÙ autorevole che li enuncia; una "\n'
+     '            "meno autorevole può illustrarli e va citata dichiarando che fa questo, mai come fonte del "\n'
+     '            "vincolo; se li enuncia SOLO lei, dillo esplicitamente."\n'),
+]
+
+
+def main() -> int:
+    sandbox = pathlib.Path(sys.argv[1])
+    revert = "--revert" in sys.argv
+    target = sandbox / "rag" / "core" / "retrieval.py"
+    backup = sandbox / "rag" / "core" / "retrieval.py.w1orig"
+    if not target.is_file():
+        print(f"ERRORE: {target} assente")
+        return 2
+
+    if revert:
+        if not backup.is_file():
+            print("nessun backup: gia' originale")
+            return 0
+        atteso = hashlib.sha256(backup.read_bytes()).hexdigest()
+        target.write_bytes(backup.read_bytes())
+        ok = hashlib.sha256(target.read_bytes()).hexdigest() == atteso
+        backup.unlink()
+        print(f"RIPRISTINATO byte-esatto: {ok} sha256={atteso[:16]}")
+        return 0 if ok else 1
+
+    testo = target.read_text(encoding="utf-8")
+    if all(n in testo for _, _, n in SOSTITUZIONI):
+        print("gia' applicata")
+        return 0
+    for desc, vecchio, _ in SOSTITUZIONI:
+        if testo.count(vecchio) != 1:
+            print(f"ERRORE: «{desc}» trovato {testo.count(vecchio)} volte, non 1")
+            return 2
+    if not backup.is_file():
+        backup.write_bytes(target.read_bytes())
+    for desc, vecchio, nuovo in SOSTITUZIONI:
+        testo = testo.replace(vecchio, nuovo)
+    target.write_text(testo, encoding="utf-8")
+    print(f"APPLICATA W1 a {target}  ({len(SOSTITUZIONI)} sostituzioni)")
+    print(f"  sha256 prima={hashlib.sha256(backup.read_bytes()).hexdigest()[:16]}")
+    print(f"  sha256 dopo ={hashlib.sha256(target.read_bytes()).hexdigest()[:16]}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

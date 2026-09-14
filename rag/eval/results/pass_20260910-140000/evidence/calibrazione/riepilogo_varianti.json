@@ -1,0 +1,155 @@
+[
+  {
+    "variante": "S0-originale",
+    "contesto": "k10+S2 9297 tok",
+    "token": 9297,
+    "kb_su_3": 0,
+    "coeff": 3,
+    "nega": 0,
+    "passa": 0
+  },
+  {
+    "variante": "T1-senza-numeri",
+    "contesto": "k10+S2 9297 tok",
+    "token": 9285,
+    "kb_su_3": 0,
+    "coeff": 0,
+    "nega": 1,
+    "passa": 0
+  },
+  {
+    "variante": "T2-ambito",
+    "contesto": "k10+S2 9297 tok",
+    "token": 9281,
+    "kb_su_3": 0,
+    "coeff": 3,
+    "nega": 0,
+    "passa": 0
+  },
+  {
+    "variante": "T3-ambito-lunga",
+    "contesto": "k10+S2 9297 tok",
+    "token": 9336,
+    "kb_su_3": 0,
+    "coeff": 3,
+    "nega": 0,
+    "passa": 0
+  },
+  {
+    "variante": "U1-riga2",
+    "contesto": "k10+S2 9297 tok",
+    "token": 9345,
+    "kb_su_3": 0,
+    "coeff": 3,
+    "nega": 0,
+    "passa": 0
+  },
+  {
+    "variante": "U2-riga2+ambito",
+    "contesto": "k10+S2 9297 tok",
+    "token": 9329,
+    "kb_su_3": 0,
+    "coeff": 3,
+    "nega": 1,
+    "passa": 0
+  },
+  {
+    "variante": "U3-riga2+senzanumeri",
+    "contesto": "k10+S2 9297 tok",
+    "token": 9333,
+    "kb_su_3": 0,
+    "coeff": 2,
+    "nega": 0,
+    "passa": 0
+  },
+  {
+    "variante": "V1-campo",
+    "contesto": "k10+S2 9297 tok",
+    "token": 9366,
+    "kb_su_3": 0,
+    "coeff": 3,
+    "nega": 0,
+    "passa": 0
+  },
+  {
+    "variante": "V2-campo+T1",
+    "contesto": "k10+S2 9297 tok",
+    "token": 9354,
+    "kb_su_3": 0,
+    "coeff": 0,
+    "nega": 1,
+    "passa": 0
+  },
+  {
+    "variante": "V3-campo+riga2+T1",
+    "contesto": "k10+S2 9297 tok",
+    "token": 9402,
+    "kb_su_3": 0,
+    "coeff": 3,
+    "nega": 2,
+    "passa": 0
+  },
+  {
+    "variante": "S0-originale",
+    "contesto": "k5+S2 6260 tok",
+    "token": 6260,
+    "kb_su_3": 0,
+    "coeff": 3,
+    "nega": 1,
+    "passa": 0
+  },
+  {
+    "variante": "T1-senza-numeri",
+    "contesto": "k5+S2 6260 tok",
+    "token": 6251,
+    "kb_su_3": 1,
+    "coeff": 0,
+    "nega": 3,
+    "passa": 0
+  },
+  {
+    "variante": "U3-riga2+senzanumeri",
+    "contesto": "k5+S2 6260 tok",
+    "token": 6299,
+    "kb_su_3": 1,
+    "coeff": 2,
+    "nega": 3,
+    "passa": 0
+  },
+  {
+    "variante": "U2-riga2+ambito",
+    "contesto": "k5+S2 6260 tok",
+    "token": 6292,
+    "kb_su_3": 1,
+    "coeff": 3,
+    "nega": 1,
+    "passa": 0
+  },
+  {
+    "variante": "V1-campo",
+    "contesto": "k5+S2 6260 tok",
+    "token": 6329,
+    "kb_su_3": 1,
+    "coeff": 2,
+    "nega": 1,
+    "passa": 0
+  },
+  {
+    "variante": "V2-campo+T1",
+    "contesto": "k5+S2 6260 tok",
+    "token": 6320,
+    "kb_su_3": 2,
+    "coeff": 1,
+    "nega": 3,
+    "passa": 0
+  },
+  {
+    "variante": "V3-campo+riga2+T1",
+    "contesto": "k5+S2 6260 tok",
+    "token": 6368,
+    "kb_su_3": 2,
+    "coeff": 3,
+    "nega": 3,
+    "passa": 0
+  }
+]

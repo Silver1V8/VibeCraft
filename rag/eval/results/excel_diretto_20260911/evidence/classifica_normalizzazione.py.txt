@@ -1,0 +1,66 @@
+"""Classifica ogni differenza fra un XLS originale e la sua normalizzazione LibreOffice → XLSX.
+
+Riferimento: l'originale letto da Excel 16 (oracolo_excel/, sola lettura, nessun ricalcolo).
+Per ogni cella confronta, separatamente: tipo, valore memorizzato, formula, formato numerico e
+testo visualizzato da Excel. Registra anche le 69 celle della sessione precedente, per verificare
+che siano tutte coperte. Uso: python classifica_normalizzazione.py ORIG.excel.json NORM.excel.json OUT.json
+"""
+import json
+import math
+import sys
+from pathlib import Path
+
+PREV = Path(__file__).parents[1] / "excel_fidelity_20260910/candidate1/results.json"
+
+
+def load(path):
+    data = json.loads(Path(path).read_text(encoding="utf-8-sig"))
+    return {(s["name"], c["r"], c["c"]): c for s in data["sheets"] for c in s["cells"]}
+
+
+def classify(o, n):
+    fields = [f for f in ("t", "v", "f", "nf", "text") if (o or {}).get(f) != (n or {}).get(f)]
+    if not fields:
+        return None
+    cat = []
+    if "t" in fields:
+        cat.append(f"tipo {o and o['t']} → {n and n['t']}")
+    if "v" in fields and o and n and o["t"] == n["t"] == "number":
+        a, b = float(o["v"]), float(n["v"])
+        # Mezza unità della 15ª cifra significativa: copre l'arrotondamento half-up decimale
+        # di LibreOffice anche dove l'half-even binario di Python andrebbe dall'altra parte.
+        half = 0.5 * 10 ** (math.floor(math.log10(abs(a))) - 14) if a else 0
+        cat.append("valore memorizzato arrotondato a 15 cifre significative"
+                   if abs(a - b) <= half + 4 * math.ulp(a) else f"valore memorizzato diverso ({a!r} → {b!r})")
+    elif "v" in fields and "t" not in fields:
+        cat.append("valore memorizzato diverso")
+    if "f" in fields:
+        cat.append("formula diversa" if o and n and o["f"] and n["f"] else "presenza della formula diversa")
+    if "nf" in fields:
+        cat.append("formato numerico diverso")
+    cat.append("testo visualizzato diverso" if "text" in fields else "testo visualizzato identico")
+    return {"campi": fields, "classi": cat}
+
+
+orig, norm = load(sys.argv[1]), load(sys.argv[2])
+rows = []
+for key in sorted(orig.keys() | norm.keys()):
+    c = classify(orig.get(key), norm.get(key))
+    if c:
+        rows.append({"cella": list(key), "originale": orig.get(key), "normalizzato": norm.get(key), **c})
+prev = []
+if PREV.exists():
+    for item in json.loads(PREV.read_text(encoding="utf-8")):
+        if item["file"].endswith("SOLVSAMP.XLS"):
+            prev = [eval(k) for k, *_ in item["normalization_changes"]]  # noqa: S307 (tuple letterale)
+found = {tuple(r["cella"]) for r in rows}
+summary = {}
+for r in rows:
+    summary[" + ".join(r["classi"])] = summary.get(" + ".join(r["classi"]), 0) + 1
+out = {"differenze": len(rows), "per_classe": summary,
+       "precedenti_69_coperte": all(k in found for k in prev), "precedenti": len(prev),
+       "nuove_rispetto_alle_69": sorted(found - set(prev)), "righe": rows}
+Path(sys.argv[3]).write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
+print(json.dumps({k: out[k] for k in ("differenze", "per_classe", "precedenti_69_coperte", "precedenti")},
+                 ensure_ascii=False, indent=1))
+print("nuove:", out["nuove_rispetto_alle_69"][:20])

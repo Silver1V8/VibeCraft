@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Avvia il server applicativo di UNO stack sperimentale e attende che sia pronto.
+#   avvia_server.sh <sandbox> <porta> <qdrant-url> <python> <log-file>
+#
+# CACHE: VIBECRAFT_ASK_CACHE_SIZE=0 disattiva la cache di /ask (core/ask_cache.py:
+# «0 = cache disattivata»). Senza, la seconda e la terza passata leggerebbero la
+# risposta della prima e la «stabilita' fra le passate» misurerebbe la cache.
+# La gestione della cache e' quindi: SPENTA, per costruzione, e dichiarata.
+set -euo pipefail
+SANDBOX="$1"; PORTA="$2"; QDRANT="$3"; PY="$4"; LOG="$5"
+
+export QDRANT_URL="$QDRANT"
+export VIBECRAFT_PORT="$PORTA"
+export VIBECRAFT_ASK_CACHE_SIZE=0
+export VIBECRAFT_LOG_LEVEL=INFO
+unset QDRANT_API_KEY || true
+
+cd "$SANDBOX/rag"
+"$PY" -B server.py > "$LOG" 2>&1 &
+echo $! > "$SANDBOX/.server.pid"
+
+for _ in $(seq 1 180); do
+  if curl -s -o /dev/null -w '' "http://127.0.0.1:$PORTA/api/health" 2>/dev/null; then
+    break
+  fi
+  sleep 2
+done
+curl -s "http://127.0.0.1:$PORTA/api/health" | head -c 400
+echo
+echo "pid=$(cat "$SANDBOX/.server.pid") porta=$PORTA qdrant=$QDRANT cache_ask=0"

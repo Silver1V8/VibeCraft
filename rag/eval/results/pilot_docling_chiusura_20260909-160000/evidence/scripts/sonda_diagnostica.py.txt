@@ -1,0 +1,84 @@
+"""Sonda diagnostica — PROVE AGGIUNTIVE, mai sostitutive delle domande congelate.
+
+Le otto domande del supplemento restano quelle che sono e continuano a valere.
+Qui si pongono, IN PIU', formulazioni piu' esplicite delle due domande su cui i
+controlli hanno trovato un difetto, per separare due cose che il risultato di
+`pdf-diag-3` confonde:
+
+  - il dato e' DERIVABILE dalla conversione? (cioe' Docling l'ha reso disponibile)
+  - il percorso di risposta lo RECUPERA quando la domanda usa la parola «peso»?
+
+Se la formulazione esplicita («quanti KB occupa…») ottiene 19.5 KB e quella
+congelata («con quale peso?») no, allora il difetto non e' nella conversione:
+e' nell'interazione fra il lessico della domanda e la scala di autorevolezza del
+prompt di sistema.
+
+Nessun risultato di questa sonda entra nel punteggio delle otto domande.
+
+Uso: sonda_diagnostica.py <etichetta> <url> <out-dir>
+"""
+
+import json
+import pathlib
+import sys
+import time
+import urllib.request
+
+ETICHETTA, URL, OUT = sys.argv[1], sys.argv[2].rstrip("/"), pathlib.Path(sys.argv[3])
+OUT.mkdir(parents=True, exist_ok=True)
+
+SONDE = [
+    {"id": "sonda-diag-3-kb",
+     "riferimento": "pdf-diag-3",
+     "domanda": "Quanti KB occupa il file diag_6_2_hitl_checkpoints.svg.svg "
+                "secondo il registro dei file del catalogo diagrammi?",
+     "atteso": ["19.5 KB"],
+     "perche": "la domanda congelata dice «con quale peso»; qui la parola «peso» "
+               "non compare e non puo' agganciarsi alla scala di autorevolezza"},
+    {"id": "sonda-diag-3-dimensione",
+     "riferimento": "pdf-diag-3",
+     "domanda": "Nel catalogo diagrammi, qual e' il valore della colonna "
+                "«Formato / peso» per la riga del diagramma dei checkpoint "
+                "human-in-the-loop?",
+     "atteso": ["19.5 KB"],
+     "perche": "nomina la COLONNA della tabella: se il dato non arriva nemmeno "
+               "cosi', il problema e' a monte della lettura della domanda"},
+    {"id": "sonda-diag-4-sezione",
+     "riferimento": "pdf-diag-4",
+     "domanda": "In quale sezione del catalogo diagrammi e' scritto il numero di "
+                "artefatti, e come si intitola esattamente quella sezione?",
+     "atteso": ["Catalogo diagrammi"],
+     "perche": "verifica se il modello sa nominare l'intestazione di blocco "
+               "quando gliela si chiede direttamente"},
+]
+
+
+def post(path, payload, timeout=900):
+    req = urllib.request.Request(URL + path, data=json.dumps(payload).encode("utf-8"),
+                                 headers={"Content-Type": "application/json"}, method="POST")
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+report = {"etichetta": ETICHETTA, "url": URL,
+          "avvertenza": "prove aggiuntive: non entrano nel punteggio delle otto domande congelate",
+          "sonde": {}}
+for s in SONDE:
+    t0 = time.time()
+    a = post("/ask", {"question": s["domanda"], "top_k": 10})
+    risposta = a.get("answer") or ""
+    contesto = (a.get("graph_context") or {}).get("context_text") or ""
+    report["sonde"][s["id"]] = {
+        **s,
+        "valori_mancanti": [v for v in s["atteso"] if v.lower() not in risposta.lower()],
+        "atteso_nel_contesto": all(v.lower() in contesto.lower() for v in s["atteso"]),
+        "status": a.get("status"),
+        "secondi": round(time.time() - t0, 1),
+        "risposta": risposta,
+    }
+    r = report["sonde"][s["id"]]
+    print(f"{s['id']:26s} valori_mancanti={r['valori_mancanti']} "
+          f"nel_contesto={r['atteso_nel_contesto']} status={r['status']}", flush=True)
+
+(OUT / f"sonda_{ETICHETTA}.json").write_text(
+    json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

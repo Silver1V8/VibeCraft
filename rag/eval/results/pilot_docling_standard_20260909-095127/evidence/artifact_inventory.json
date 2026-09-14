@@ -1,0 +1,387 @@
+[
+  {
+    "path": "confronto_celle.json",
+    "bytes": 3687,
+    "sha256": "4759bace11d751ef6f1ba52e672ff02800f3e953333771306877d9bc8e8d0787"
+  },
+  {
+    "path": "confronto_domande.json",
+    "bytes": 3689,
+    "sha256": "18061f6eb1fe42b3f8a25836c04819f29d180eaeea71a63c6eb356a9253fa230"
+  },
+  {
+    "path": "confronto_testo.json",
+    "bytes": 6009,
+    "sha256": "f7d01de3e16dc9ebeb5f67a085aca0d892a7cafc472504bbff8d156ebebc024b"
+  },
+  {
+    "path": "dependencies-freeze.txt",
+    "bytes": 38,
+    "sha256": "bcf0944e54ffa0c5ec36bf441059383894d11c1bad5f58f7288c29437ffcf9eb"
+  },
+  {
+    "path": "RESOCONTO.md",
+    "bytes": 6314,
+    "sha256": "912a379131adfa986d6b8abcb80a663fe2365aab8b7d88e2eba3a3db745e2bea"
+  },
+  {
+    "path": "run_standard.py",
+    "bytes": 3974,
+    "sha256": "68e76a098b45cf66f11fd6c2d37776b8dff17f3bfe60ac9176daef2388235414"
+  },
+  {
+    "path": "score_domande.py",
+    "bytes": 4208,
+    "sha256": "91836f22d00062e41856a063156712d271a9d15afda4f1e98a0e1b645dc06fef"
+  },
+  {
+    "path": "score_standard.py",
+    "bytes": 5759,
+    "sha256": "dae846084d82c8b8dd4ea2c9abcc986624108d662b8134b7b880ed4300fe8063"
+  },
+  {
+    "path": "score_testo.py",
+    "bytes": 3305,
+    "sha256": "e60c793d44c7c3e09baa8b961d40acaa642de848b1843933c52528717d3e0d30"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron\\.gitattributes",
+    "bytes": 1519,
+    "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron\\config.json",
+    "bytes": 3268,
+    "sha256": "fdea30805ce2f5666b147fca941dcdd27ad468e27d6ed21902207d3da056a97d"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron\\docling_heron_400.png",
+    "bytes": 96925,
+    "sha256": "e7f78610372b32a7938e480d2c7fa1c3037ee170bd82282a5bd026232f6e6f9e"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron\\model.safetensors",
+    "bytes": 171658996,
+    "sha256": "00333a43451945aaf89db8ca9c0a17e75d1537c17db60fdb91aa95f4c7929e0c"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron\\preprocessor_config.json",
+    "bytes": 444,
+    "sha256": "cd38cd59999e7a95d68e487fbe5132df3d4e5c32a0836add57e6126ba0c4eaf1"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron\\README.md",
+    "bytes": 3219,
+    "sha256": "175700839bc7808eac6af1d0c23e4f483606ab2276fe01122f4093e61a1a65b6"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron\\.cache\\huggingface\\.gitignore",
+    "bytes": 1,
+    "sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron\\.cache\\huggingface\\CACHEDIR.TAG",
+    "bytes": 195,
+    "sha256": "e8893e2dcb3f4545ef67a0a5b7b769113d38eef1aa61c7c7ba14659b02af955f"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron\\.cache\\huggingface\\download\\.gitattributes.metadata",
+    "bytes": 104,
+    "sha256": "8cb136bfd0a8bc6d7bbb21b3fd1e2e38131a95f4538453ef9cfb0e578c046b4d"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron\\.cache\\huggingface\\download\\config.json.metadata",
+    "bytes": 104,
+    "sha256": "68af8a1c033a283a14966557edcedd754e4e1b372dfc584bc5535fd099443ea9"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron\\.cache\\huggingface\\download\\docling_heron_400.png.metadata",
+    "bytes": 104,
+    "sha256": "556064a0aef0c5c5e42e2a87a4d72a4d06a226d2e3d22723ad21a0726a248a45"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron\\.cache\\huggingface\\download\\model.safetensors.metadata",
+    "bytes": 128,
+    "sha256": "b5d7f233c1a84b81f113d1a640cdb387c542f32673cf21653699a0e629b1c584"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron\\.cache\\huggingface\\download\\preprocessor_config.json.metadata",
+    "bytes": 104,
+    "sha256": "f4bfad5a58b9ee07a6ec0702a99f51dba5336b5e81b434a99edd9bba5f8d4236"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron\\.cache\\huggingface\\download\\README.md.metadata",
+    "bytes": 104,
+    "sha256": "4f67f7eafa407553e1d6f0fd37c6fe027e306be56634d206fdb6521204cb6858"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron\\.cache\\huggingface\\trees\\8f39ad3c0b4c58e9c2d2c84a38465abf757272d8.json",
+    "bytes": 887,
+    "sha256": "4432c535d8998a7af9a7c09dc926791fc507d46d811229205186d9b060615dde"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron-onnx\\.gitattributes",
+    "bytes": 1519,
+    "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron-onnx\\config.json",
+    "bytes": 878,
+    "sha256": "c6e67b6cdf64fa245779d0409bb994aa96e8c1790e15ec07a65843628e232180"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron-onnx\\model.onnx",
+    "bytes": 171220471,
+    "sha256": "59c81a3a2923042d85034ffc487f8f47e4854117e879aef89b2b9f728fb4922a"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron-onnx\\preprocessor_config.json",
+    "bytes": 445,
+    "sha256": "54d086cf0d7d371f7fac36e5d3a0dae31e211298affc816106cc376506799d58"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron-onnx\\README.md",
+    "bytes": 294,
+    "sha256": "48de0f07390f6823a225ce8aab348e7b57408534b56b71f1433ed6280456597f"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron-onnx\\.cache\\huggingface\\.gitignore",
+    "bytes": 1,
+    "sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron-onnx\\.cache\\huggingface\\CACHEDIR.TAG",
+    "bytes": 195,
+    "sha256": "e8893e2dcb3f4545ef67a0a5b7b769113d38eef1aa61c7c7ba14659b02af955f"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron-onnx\\.cache\\huggingface\\download\\.gitattributes.metadata",
+    "bytes": 103,
+    "sha256": "0b3ecfe390e8863f245dd91153378f43e4163b1702931a0c83c6ace799c3e5f1"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron-onnx\\.cache\\huggingface\\download\\config.json.metadata",
+    "bytes": 104,
+    "sha256": "15b44e2448e98759028959b580e1f308277611b49ca76b25e90bf3dff13bcae0"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron-onnx\\.cache\\huggingface\\download\\model.onnx.metadata",
+    "bytes": 128,
+    "sha256": "34a4a4a600546866e4e121cbbe8416a4f0733754edb3bbe7a8dfcbb93ff339dd"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron-onnx\\.cache\\huggingface\\download\\preprocessor_config.json.metadata",
+    "bytes": 104,
+    "sha256": "ab936f91d267b4fa4a659b7af908103142444a0aa31e725848ee77e22f0a1654"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron-onnx\\.cache\\huggingface\\download\\README.md.metadata",
+    "bytes": 104,
+    "sha256": "da5fdacf26a157e0b822cd4e6ff63ae06d845c0dff1e6d10345ae1a6e91e618c"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-layout-heron-onnx\\.cache\\huggingface\\trees\\40bde044036bb181c130ddf6c51792187268748f.json",
+    "bytes": 765,
+    "sha256": "f0d35adef2fb9c95b27b96dd51bb5d801593a241f4ae7014020d82e85e295bd2"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-models\\.gitattributes",
+    "bytes": 1905,
+    "sha256": "360aba3ff7ce75396f13f0a77925fe9e79997e8d4bac064595ebb00c82700386"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-models\\.gitignore",
+    "bytes": 5180,
+    "sha256": "b44b404189eaff3631c470946e7350c2e88cead304d332a8ad50325e6f56e95d"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-models\\config.json",
+    "bytes": 41,
+    "sha256": "9c34024dc28ff47b75818f415e769809798c29bf9bde6f2ccc63a4acb62396d9"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-models\\README.md",
+    "bytes": 3413,
+    "sha256": "d17f233378eff1240b623b36da76ee8b40afcca05d505949713bf03f7e00822a"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-models\\.cache\\huggingface\\.gitignore",
+    "bytes": 1,
+    "sha256": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-models\\.cache\\huggingface\\CACHEDIR.TAG",
+    "bytes": 195,
+    "sha256": "e8893e2dcb3f4545ef67a0a5b7b769113d38eef1aa61c7c7ba14659b02af955f"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-models\\.cache\\huggingface\\download\\.gitattributes.metadata",
+    "bytes": 104,
+    "sha256": "d51b04d097e1b66ff1c835e5133ebacc59c3341919f06ea5a560ab7315862928"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-models\\.cache\\huggingface\\download\\.gitignore.metadata",
+    "bytes": 104,
+    "sha256": "1332b80cb756fb91d28a5c0d7339eae21ac10f97e9f59a6dc5497ab6ca134177"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-models\\.cache\\huggingface\\download\\config.json.metadata",
+    "bytes": 103,
+    "sha256": "ca61da76bb6ce4e34b91c9751e2ba503b487ede061cfe10168b5ef709a593d6a"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-models\\.cache\\huggingface\\download\\README.md.metadata",
+    "bytes": 104,
+    "sha256": "f202437a16627d79466ce2dde9978907eebfd8818efc26bbdd092fa1e6d78881"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-models\\.cache\\huggingface\\download\\model_artifacts\\tableformer\\accurate\\tableformer_accurate.safetensors.metadata",
+    "bytes": 128,
+    "sha256": "58f0ea0c8fac10efd89ff509cb825fd3b741088b82c3da2f6902512715dd91b8"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-models\\.cache\\huggingface\\download\\model_artifacts\\tableformer\\accurate\\tm_config.json.metadata",
+    "bytes": 104,
+    "sha256": "b88305889ee6c758e65c855de462dc74426c7f1d9a5b97cd0fbbf0703c91cdf8"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-models\\.cache\\huggingface\\download\\model_artifacts\\tableformer\\fast\\tableformer_fast.safetensors.metadata",
+    "bytes": 128,
+    "sha256": "85aae55150fced633e5fbb6c4dc79f82bbaae37534ceec472d4e96ceb3613739"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-models\\.cache\\huggingface\\download\\model_artifacts\\tableformer\\fast\\tm_config.json.metadata",
+    "bytes": 104,
+    "sha256": "b7013010f1dcb3d80853ea2ee45e9d13710153c985f9caa4647f14e32e091460"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-models\\.cache\\huggingface\\trees\\fc0f2d45e2218ea24bce5045f58a389aed16dc23.json",
+    "bytes": 1445,
+    "sha256": "32e1c3c0c6a2c41b0ac1b380398f389715555fce0f245453756480046750a078"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-models\\model_artifacts\\tableformer\\accurate\\tableformer_accurate.safetensors",
+    "bytes": 212758388,
+    "sha256": "2a7d6c924b3cd12fb99a09280ca9c33a89c5d60b93253617d2e088c1a40374d9"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-models\\model_artifacts\\tableformer\\accurate\\tm_config.json",
+    "bytes": 7060,
+    "sha256": "984e122ceb8ccf84d84c9d2882f6f2302a44b4f1e577babd6289892c36f3cffd"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-models\\model_artifacts\\tableformer\\fast\\tableformer_fast.safetensors",
+    "bytes": 145453276,
+    "sha256": "3119563aab5a7c96fda4d621119b63fd8806272b86c30936d15507616422f718"
+  },
+  {
+    "path": "artifacts\\docling-project--docling-models\\model_artifacts\\tableformer\\fast\\tm_config.json",
+    "bytes": 7060,
+    "sha256": "dca6762508dddfae6d57d6cb4ef822c6000119dff0f3b6489db7413118c2622a"
+  },
+  {
+    "path": "compare\\baseline\\loader_diagrammi.txt",
+    "bytes": 1361,
+    "sha256": "ce456ab25080ee4d64c4a72542f7c23c16b594325dc51d8566e2e12288265a96"
+  },
+  {
+    "path": "compare\\baseline\\loader_mockup.txt",
+    "bytes": 1905,
+    "sha256": "81591ecc8b02f5b489a1b70814d672c6439ae26f95ed7cdd3b382aff0f3048ed"
+  },
+  {
+    "path": "compare\\baseline\\markitdown_diagrammi.md",
+    "bytes": 1644,
+    "sha256": "f4ec4f2deaa808cb7835082216f331a627b9f9bd1772d376681b4dc40d43e280"
+  },
+  {
+    "path": "compare\\baseline\\markitdown_mockup.md",
+    "bytes": 1848,
+    "sha256": "cf0070ff0642deac0e6b456ba0c3b329f7553f1e531dd4890f36148a6109fd4e"
+  },
+  {
+    "path": "compare\\granite\\granite_diagrammi.md",
+    "bytes": 1857,
+    "sha256": "3c5be08127b52d023b92f2ac59872b1362c1d77de267b2180beb3a7aeb46756b"
+  },
+  {
+    "path": "compare\\granite\\granite_mockup.md",
+    "bytes": 2712,
+    "sha256": "25af5e148c384a9a025fe3062f01244c6e53bde714904b9fc43c38925d9885f2"
+  },
+  {
+    "path": "compare\\standard\\standard_diagrammi.md",
+    "bytes": 1871,
+    "sha256": "a7c87149c2171f19f50e759e4e48373365f9c1b91e075b0c019440b50c6eb6c9"
+  },
+  {
+    "path": "compare\\standard\\standard_mockup.md",
+    "bytes": 2660,
+    "sha256": "4f5ede6cbddbbcfe91bbe2cc9f2af687055a931e1ff4958dee73498957fafd53"
+  },
+  {
+    "path": "logs\\session.log",
+    "bytes": 705,
+    "sha256": "a51cecc1e932e29dec93704c647fa8454b496392d6d5f5596b7bcdca7802a68d"
+  },
+  {
+    "path": "run1\\run_report.json",
+    "bytes": 5153,
+    "sha256": "3df8b53d7dc5b9259e76a4ee94628a15f50046e14a75c18a66c5fdfac8e24a9e"
+  },
+  {
+    "path": "run1\\standard_diagrammi.json",
+    "bytes": 53712,
+    "sha256": "3afecc2eef1472955e23c9e886bd909e97df7a5f07c3bd22b2704038c9b10b86"
+  },
+  {
+    "path": "run1\\standard_diagrammi.md",
+    "bytes": 1871,
+    "sha256": "a7c87149c2171f19f50e759e4e48373365f9c1b91e075b0c019440b50c6eb6c9"
+  },
+  {
+    "path": "run1\\standard_mockup.json",
+    "bytes": 97273,
+    "sha256": "3e1ce1be6a83c34a6c0ccf8bfd708bbc6a562d13cb76669b0f107789c8d3c7ce"
+  },
+  {
+    "path": "run1\\standard_mockup.md",
+    "bytes": 2660,
+    "sha256": "4f5ede6cbddbbcfe91bbe2cc9f2af687055a931e1ff4958dee73498957fafd53"
+  },
+  {
+    "path": "run2\\run_report.json",
+    "bytes": 5305,
+    "sha256": "950f433a713f480d798671c784b45bd95a1d194fdcf5d874dc0c37d8509051b1"
+  },
+  {
+    "path": "run2\\standard_diagrammi.json",
+    "bytes": 53712,
+    "sha256": "3afecc2eef1472955e23c9e886bd909e97df7a5f07c3bd22b2704038c9b10b86"
+  },
+  {
+    "path": "run2\\standard_diagrammi.md",
+    "bytes": 1871,
+    "sha256": "a7c87149c2171f19f50e759e4e48373365f9c1b91e075b0c019440b50c6eb6c9"
+  },
+  {
+    "path": "run2\\standard_mockup.json",
+    "bytes": 97273,
+    "sha256": "3e1ce1be6a83c34a6c0ccf8bfd708bbc6a562d13cb76669b0f107789c8d3c7ce"
+  },
+  {
+    "path": "run2\\standard_mockup.md",
+    "bytes": 2660,
+    "sha256": "4f5ede6cbddbbcfe91bbe2cc9f2af687055a931e1ff4958dee73498957fafd53"
+  },
+  {
+    "path": "truth\\domande_pdf_locali.yaml",
+    "bytes": 4140,
+    "sha256": "22eede74334b969b5f74cd3be7d69e2322fe42f3f6faae86ef6ddd23a11bcc74"
+  },
+  {
+    "path": "truth\\verita_riferimento.json",
+    "bytes": 8494,
+    "sha256": "c2494d30709931cfb6c062df20e59bd512a09084ea91fe914981a7c947fee3cc"
+  }
+]

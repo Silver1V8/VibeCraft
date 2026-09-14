@@ -1,0 +1,109 @@
+"""Correttezza DETERMINISTICA delle risposte + pacchetto di revisione umana.
+
+La correttezza e' misurata come presenza dei valori attesi nella risposta: e'
+un controllo meccanico, dichiarato, senza giudice LLM. NON e' un verdetto di
+attribuzione: quello richiede la lettura del manutentore, e il pacchetto
+`review/PACCHETTO_REVISIONE.md` serve a quello.
+
+Uso: score_risposte.py <workdir>
+"""
+
+import json
+import pathlib
+import sys
+
+W = pathlib.Path(sys.argv[1]).resolve()
+
+# valori che la risposta DEVE contenere, derivati dalle risposte attese congelate
+ATTESI = {
+    "pdf-diag-1": ["Knowledge"],
+    "pdf-diag-2": ["SVG", "46.4 KB"],
+    "pdf-diag-3": ["hitl_checkpoints", "19.5 KB"],
+    "pdf-diag-4": ["5", "1"],
+    "pdf-mock-1": ["2.4", "Manager"],
+    "pdf-mock-2": ["mockup_3_5_admin_dashboard", "3.4 KB"],
+    "pdf-mock-3": ["Area", "personale", "Dipendente"],
+    "pdf-mock-4": ["11", "4", "SVG", "HTML"],
+}
+
+
+def norm(s):
+    return " ".join((s or "").replace(" ", " ").split())
+
+
+stacks = {}
+for nome in ("baseline", "candidate"):
+    stacks[nome] = json.loads((W / "out" / f"eval_{nome}.json").read_text(encoding="utf-8"))
+
+righe, sintesi = [], {}
+for nome, d in stacks.items():
+    ok = 0
+    dett = {}
+    for qid, v in d["domande"].items():
+        testo = norm(v["risposta"]["testo"])
+        mancanti = [t for t in ATTESI[qid] if t.lower() not in testo.lower()]
+        dett[qid] = {
+            "valori_attesi": ATTESI[qid],
+            "valori_mancanti": mancanti,
+            "completa": not mancanti,
+            "rango_fonte_attesa": v["retrieval"]["rango_fonte_attesa"],
+            "fonte_in_top10": v["retrieval"]["fonte_attesa_in_top10"],
+        }
+        ok += not mancanti
+    sintesi[nome] = {
+        "risposte_con_tutti_i_valori_attesi": f"{ok}/8",
+        "fonte_attesa_in_top10": f"{sum(1 for x in dett.values() if x['fonte_in_top10'])}/8",
+        "ranghi": {q: x["rango_fonte_attesa"] for q, x in dett.items()},
+        "dettaglio": dett,
+    }
+
+(W / "out" / "confronto_risposte.json").write_text(
+    json.dumps(sintesi, ensure_ascii=False, indent=2), encoding="utf-8"
+)
+
+# ---- pacchetto compatto per la revisione UMANA ------------------------------
+out = ["# Pacchetto di revisione umana — attribuzione delle risposte",
+       "",
+       "Il cancello 1c chiede, per l'attribuzione, «schermo piu' **lettura umana**».",
+       "Il giudice N3 archiviato non e' qualificato a certificare risposte nuove",
+       "(20/24 in-sample, non supera S6) e il prompt vieta di sostituirlo con un altro",
+       "modello. Quindi **questo controllo resta pendente**: sotto c'e' tutto il",
+       "materiale per deciderlo, non una decisione gia' presa.",
+       "",
+       "Per ogni domanda: risposta attesa, le due risposte reali, la fonte attesa e il",
+       "suo rango, e le citazioni fra virgolette con esito della verifica deterministica.",
+       "",
+       "Domanda da porsi su ciascuna: **la risposta attribuisce il dato alla fonte",
+       "giusta?** Non basta che il dato sia corretto.",
+       ""]
+
+for qid in ATTESI:
+    b = stacks["baseline"]["domande"][qid]
+    c = stacks["candidate"]["domande"][qid]
+    out += [f"## {qid}", "",
+            f"**Domanda:** {b['domanda']}", "",
+            f"**Risposta attesa:** {b['risposta_attesa']}", "",
+            f"**Fonte attesa:** `{b['fonte_attesa']}` — rango baseline "
+            f"{b['retrieval']['rango_fonte_attesa']}, rango candidato {c['retrieval']['rango_fonte_attesa']}", ""]
+    for etichetta, x in (("BASELINE (pypdf)", b), ("CANDIDATO (Docling)", c)):
+        out += [f"### {etichetta}", "", "```text", norm(x["risposta"]["testo"])[:2200], "```", ""]
+        cit = x["risposta"]["citazioni_verificate"]
+        if cit:
+            out.append("Citazioni fra virgolette, verifica deterministica:")
+            out.append("")
+            for k in cit:
+                dove = ", ".join(k["trovato_in"]) if k["trovato_in"] else "—"
+                out.append(f"- `{k['esito']}` «{k['passo']}» → {dove}")
+            out.append("")
+        else:
+            out += ["Nessuna citazione fra virgolette nella risposta.", ""]
+    out += ["---", ""]
+
+(W / "review" / "PACCHETTO_REVISIONE.md").write_text("\n".join(out), encoding="utf-8")
+
+print(json.dumps({k: {kk: vv for kk, vv in v.items() if kk != "dettaglio"} for k, v in sintesi.items()},
+                 ensure_ascii=False, indent=2))
+for nome, v in sintesi.items():
+    for qid, x in v["dettaglio"].items():
+        if x["valori_mancanti"]:
+            print(f"  {nome:10s} {qid}: mancano {x['valori_mancanti']}")

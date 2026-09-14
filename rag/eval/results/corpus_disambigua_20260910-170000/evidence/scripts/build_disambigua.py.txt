@@ -1,0 +1,194 @@
+"""VIA 1 — cataloghi rigenerati con la colonna «peso» DISAMBIGUATA.
+
+Perche' qui e non nei documenti normativi: il primo tentativo ha qualificato
+«peso» -> «peso di autorevolezza» in `spec_graph_rag_ingestion.md` e ha reso il
+modello PIU' sicuro nell'errore (ha ripetuto la frase nuova applicandola
+all'artefatto). La voce aggiunta al glossario dei sinonimi non e' nemmeno
+arrivata in finestra: quel chunk non viene recuperato per questa domanda.
+Entrambe le modifiche sono state ritirate, byte per byte.
+
+La disambiguazione va dove il lettore guarda: **l'intestazione della colonna del
+catalogo**, che e' nella fonte che risponde ed e' in finestra ogni volta che la
+domanda e' rispondibile.
+
+  «Formato / peso»  ->  «Formato / peso (dimensione file)»
+
+La parola «peso» **resta**, perche' la domanda congelata la usa e non va resa
+piu' facile; si aggiunge solo che cosa significa. Non contiene la risposta
+attesa, non nomina file, non tocca valori.
+
+## Che cosa NON cambia, e come lo si verifica
+
+Il generatore costruisce il registro leggendo il filesystem
+(`build_file_catalogs.build_diagrams/build_mockups`, `size_label(f)`), quindi
+rigenerare potrebbe far derivare l'inventario. Lo script confronta il testo di
+pagina 2 vecchio e nuovo e **pretende** che l'unica differenza sia
+l'intestazione: stessi nomi di file, stesse aree, stesse finalita', **stesse
+dimensioni**. Se una sola cella cambia, si ferma.
+
+Pagina 1 viene rigenerata con la banda KPI corretta della sessione `sourcefix`
+(coppie esplicite valore+etichetta), che era gia' un risultato acquisito.
+
+## Perimetro
+
+Legge il generatore e i PDF di produzione; **non li modifica**. Scrive i PDF
+nuovi nel corpus del SANDBOX, con hash propri e distinti sia dagli originali di
+produzione sia dai candidati `sourcefix`.
+
+Uso (runtime con reportlab):
+    build_disambigua.py <sandbox>
+"""
+import hashlib
+import importlib.util
+import io
+import json
+import re
+import sys
+from pathlib import Path
+
+import pypdfium2
+from pypdf import PdfReader, PdfWriter
+from reportlab.platypus import SimpleDocTemplate, Spacer, Table, TableStyle
+
+ROOT = Path(r"C:\Users\Silve\Desktop\vibecraft")
+QUI = Path(__file__).resolve().parent
+OUT = QUI.parent / "out"
+
+spec = importlib.util.spec_from_file_location("catalogs", ROOT / "tmp/pdfs/build_file_catalogs.py")
+catalogs = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(catalogs)
+
+VECCHIA = "Formato / peso"
+NUOVA = "Formato / peso (dimensione file)"
+
+_P_ORIG = catalogs.P
+styles_globali = None
+
+
+def P_disambigua(testo, stile):
+    """Unico punto di intervento: l'intestazione di colonna. Ogni altra chiamata
+    passa inalterata al generatore vero."""
+    if testo == VECCHIA:
+        testo = NUOVA
+    return _P_ORIG(testo, stile)
+
+
+def kpi_band(pairs, styles):
+    """Banda KPI della sessione sourcefix: ogni coppia definita dal template e'
+    un'unica cella di corpo, mai un titolo."""
+    cells = [_P_ORIG(f"{value} {label}", styles["cover"]) for value, label in pairs]
+    return Table([cells], colWidths=[55 * catalogs.mm] * len(cells), style=TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), catalogs.PALE),
+        ("BOX", (0, 0), (-1, -1), .5, catalogs.TEAL),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 6 * catalogs.mm),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6 * catalogs.mm),
+    ]))
+
+
+def celle_dati(testo: str) -> list[str]:
+    """Righe di pagina 2 senza l'intestazione, per il confronto vecchio/nuovo.
+    L'intestazione nuova va a capo nella colonna da 26 mm, quindi vanno tolte
+    anche le righe di continuazione."""
+    righe = [r.strip() for r in testo.splitlines() if r.strip()]
+    scarta = (VECCHIA, NUOVA, "(dimensione", "dimensione file", "file)")
+    return [r for r in righe if not any(s in r for s in scarta)]
+
+
+def senza_se_stesso(build, cartella):
+    """Il catalogo VIVE dentro la cartella che inventaria: rigenerando oggi si
+    aggiungerebbe come artefatto («Da classificare»), cosa che l'originale non
+    fa — fu generato prima di esistere. Si esclude dal censimento, che e' cio'
+    che l'inventario originale rappresenta. E' l'unica differenza ammessa nella
+    raccolta dei file, ed e' verificata dal confronto riga per riga sotto."""
+    vero_rglob = Path.rglob
+
+    def rglob_filtrato(self, pattern):
+        for p in vero_rglob(self, pattern):
+            if p.name.startswith("catalogo_") and p.suffix.lower() == ".pdf":
+                continue
+            yield p
+
+    Path.rglob = rglob_filtrato
+    try:
+        return build(styles_globali)
+    finally:
+        Path.rglob = vero_rglob
+
+
+def main() -> int:
+    sandbox = Path(sys.argv[1])
+    styles = catalogs.styles()
+    documenti = [
+        ("diagrammi", "diagrams", catalogs.build_diagrams,
+         [("5", "artefatti"), ("1", "cartella sorgente"), ("SVG", "formato")]),
+        ("mockup", "mockups", catalogs.build_mockups,
+         [("11", "artefatti"), ("4", "aree funzionali"), ("SVG + HTML", "formati")]),
+    ]
+    report = {}
+    for nome, cartella, build, pairs in documenti:
+        originale = ROOT / f"docs/02_specs_normative/{cartella}/catalogo_{nome}_normativi.pdf"
+        prima = originale.read_bytes()
+
+        global styles_globali
+        styles_globali = styles
+        catalogs.P = P_disambigua          # intervento attivo solo durante build()
+        try:
+            story = senza_se_stesso(build, cartella)
+        finally:
+            catalogs.P = _P_ORIG
+        # banda KPI corretta (sourcefix): sostituisce tabella-titolo + etichette sparse
+        assert isinstance(story[4], Table), "struttura del template cambiata"
+        assert [p.getPlainText() for p in story[6:9]] == [lab for _, lab in pairs]
+        story[4:10] = [kpi_band(pairs, styles), Spacer(1, 14 * catalogs.mm)]
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer, pagesize=catalogs.A4, rightMargin=18 * catalogs.mm,
+            leftMargin=18 * catalogs.mm, topMargin=17 * catalogs.mm,
+            bottomMargin=20 * catalogs.mm)
+        doc.build(story, onFirstPage=catalogs.header_footer,
+                  onLaterPages=catalogs.header_footer)
+        nuovo = PdfReader(buffer)
+        assert len(nuovo.pages) == 2, f"{nome}: attese 2 pagine, trovate {len(nuovo.pages)}"
+
+        vecchio = PdfReader(io.BytesIO(prima))
+        t_vecchio, t_nuovo = vecchio.pages[1].extract_text(), nuovo.pages[1].extract_text()
+        assert NUOVA.split(" (")[0] in t_nuovo
+        assert "dimensione file" in re.sub(r"\s+", " ", t_nuovo), f"{nome}: intestazione non applicata"
+        d_v, d_n = celle_dati(t_vecchio), celle_dati(t_nuovo)
+        if d_v != d_n:
+            soli_v = [r for r in d_v if r not in d_n][:5]
+            soli_n = [r for r in d_n if r not in d_v][:5]
+            print(f"ERRORE {nome}: pagina 2 differisce oltre l'intestazione")
+            print(f"  solo nel vecchio: {soli_v}")
+            print(f"  solo nel nuovo  : {soli_n}")
+            return 2
+
+        scrittore = PdfWriter()
+        for p in nuovo.pages:
+            scrittore.add_page(p)
+        destinazione = sandbox / f"docs/02_specs_normative/{cartella}/catalogo_{nome}_normativi.pdf"
+        scrittore.write(destinazione)
+        assert originale.read_bytes() == prima, "il PDF di produzione e' stato toccato"
+
+        with pypdfium2.PdfDocument(str(destinazione)) as pdf:
+            for i in range(len(pdf)):
+                pdf[i].render(scale=1.5).to_pil().save(OUT / f"{nome}_disambigua_p{i+1}.png")
+
+        report[nome] = {
+            "sha256_produzione": hashlib.sha256(prima).hexdigest(),
+            "sha256_disambiguato": hashlib.sha256(destinazione.read_bytes()).hexdigest(),
+            "intestazione": f"{VECCHIA} -> {NUOVA}",
+            "righe_dati_pagina2_invariate": True,
+            "n_righe_dati": len(d_n),
+        }
+        print(f"  {nome}: pagina 2 invariata su {len(d_n)} righe dati; "
+              f"sha256 {report[nome]['sha256_disambiguato'][:16]}")
+    (OUT / "build_disambigua.json").write_text(json.dumps(report, indent=2, ensure_ascii=False),
+                                               encoding="utf-8")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

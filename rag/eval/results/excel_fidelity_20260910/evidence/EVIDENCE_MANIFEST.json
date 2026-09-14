@@ -1,0 +1,519 @@
+{
+  "run": "excel_fidelity_20260910",
+  "packaged_on": "2026-09-14",
+  "note": "Conservazione di prove esistenti, non nuova esecuzione. File originali mantenuti localmente. Percorsi path relativi a rag/eval/results; source relativi alla root del progetto. Script conservati come .txt senza modifiche al contenuto.",
+  "files": [
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline1/00-registro.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline1/00-registro.xlsx.md",
+      "bytes": 616,
+      "sha256": "a495eac18d1c46239a23fe967fe9fd08e872f55a9e01f317e5de53ab08509b6d"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline1/01-registro_excel.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline1/01-registro_excel.xlsx.md",
+      "bytes": 632,
+      "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline1/02-registro.xls.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline1/02-registro.xls.md",
+      "bytes": 632,
+      "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline1/03-rete.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline1/03-rete.xlsx.md",
+      "bytes": 120,
+      "sha256": "e1e02113d4c62d1ed79a783e3baf9c2335082f33ed3258f0a9b3a9ddc821f883"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline1/04-registro.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline1/04-registro.xlsx.md",
+      "bytes": 464,
+      "sha256": "2811d139b0e300ca4b4185559d87d9d90259604264fc373a8b42a34b65b5d63d"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline1/05-budget.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline1/05-budget.xlsx.md",
+      "bytes": 314,
+      "sha256": "5163eb2407be2b5418026c046bda9ab234ce154894ffbbb1ee5d3d2dadbc31a6"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline1/06-budget.xls.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline1/06-budget.xls.md",
+      "bytes": 274,
+      "sha256": "c0ab198f910234aee72ddfbdaf5ff19080d1bbe240ca91cc095e4ce85261da9c"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline1/07-legacy.xls.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline1/07-legacy.xls.md",
+      "bytes": 632,
+      "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline1/08-PROTTPLN.XLS.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline1/08-PROTTPLN.XLS.md",
+      "bytes": 672,
+      "sha256": "146e6477e58a2b513730abeae6b6530683435bf986926a10bf9e7b383fce791d"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline1/09-SOLVSAMP.XLS.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline1/09-SOLVSAMP.XLS.md",
+      "bytes": 50504,
+      "sha256": "18f65358ffc70a486d91c7fca714135798328f9189c1101f6c4c75ea75fbb901"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline1/results.json",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline1/results.json",
+      "bytes": 48834,
+      "sha256": "b0828d7ec816b3a2c849a25d686d34154fe40f4e150cd5306cdd72861d3657c8"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline2/00-registro.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline2/00-registro.xlsx.md",
+      "bytes": 616,
+      "sha256": "a495eac18d1c46239a23fe967fe9fd08e872f55a9e01f317e5de53ab08509b6d"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline2/01-registro_excel.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline2/01-registro_excel.xlsx.md",
+      "bytes": 632,
+      "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline2/02-registro.xls.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline2/02-registro.xls.md",
+      "bytes": 632,
+      "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline2/03-rete.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline2/03-rete.xlsx.md",
+      "bytes": 120,
+      "sha256": "e1e02113d4c62d1ed79a783e3baf9c2335082f33ed3258f0a9b3a9ddc821f883"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline2/04-registro.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline2/04-registro.xlsx.md",
+      "bytes": 464,
+      "sha256": "2811d139b0e300ca4b4185559d87d9d90259604264fc373a8b42a34b65b5d63d"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline2/05-budget.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline2/05-budget.xlsx.md",
+      "bytes": 314,
+      "sha256": "5163eb2407be2b5418026c046bda9ab234ce154894ffbbb1ee5d3d2dadbc31a6"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline2/06-budget.xls.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline2/06-budget.xls.md",
+      "bytes": 274,
+      "sha256": "c0ab198f910234aee72ddfbdaf5ff19080d1bbe240ca91cc095e4ce85261da9c"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline2/07-legacy.xls.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline2/07-legacy.xls.md",
+      "bytes": 632,
+      "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline2/08-PROTTPLN.XLS.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline2/08-PROTTPLN.XLS.md",
+      "bytes": 672,
+      "sha256": "146e6477e58a2b513730abeae6b6530683435bf986926a10bf9e7b383fce791d"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline2/09-SOLVSAMP.XLS.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline2/09-SOLVSAMP.XLS.md",
+      "bytes": 50504,
+      "sha256": "18f65358ffc70a486d91c7fca714135798328f9189c1101f6c4c75ea75fbb901"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/baseline2/results.json",
+      "source": "rag/eval/results/excel_fidelity_20260910/baseline2/results.json",
+      "bytes": 48833,
+      "sha256": "2d2dd44d6cd86459ffb7a4601a77080b0631b5f698d7eba135511b4a9bf4c2f8"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate-code-sha256.json",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate-code-sha256.json",
+      "bytes": 1024,
+      "sha256": "1bce37c1789023250f00d7d73b14bda0fb93958e436d9a0bcd98e591e46d22ee"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate1/00-registro.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate1/00-registro.xlsx.md",
+      "bytes": 944,
+      "sha256": "c58283f9962fda34f778e480d45e3d42d969a911883b1384cf06bcd0cc1f7d72"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate1/01-registro_excel.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate1/01-registro_excel.xlsx.md",
+      "bytes": 947,
+      "sha256": "e8a43465150c03b808410abd4edfc6923e8d05ddb58862b138d7d8f5ccb09ba7"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate1/02-registro.xls.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate1/02-registro.xls.md",
+      "bytes": 947,
+      "sha256": "e8a43465150c03b808410abd4edfc6923e8d05ddb58862b138d7d8f5ccb09ba7"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate1/03-rete.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate1/03-rete.xlsx.md",
+      "bytes": 262,
+      "sha256": "0320159c27c04534c74fbbc16a3561cc5a95921b12a403d046a5e304fd8207e4"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate1/04-registro.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate1/04-registro.xlsx.md",
+      "bytes": 731,
+      "sha256": "85d099e889b75b51c3dab5079bd7a33ace6c7721e78b308985e52b8458b337a4"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate1/05-budget.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate1/05-budget.xlsx.md",
+      "bytes": 582,
+      "sha256": "ac4520019b64b940b9962c4eb64cf4da815cfd3be92b8ef43f682f00449c75cb"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate1/06-budget.xls.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate1/06-budget.xls.md",
+      "bytes": 555,
+      "sha256": "d0ac76f943089f3a54cb789991929073d0b1ef77554fd8eb0fac6df3f6dc0872"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate1/07-legacy.xls.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate1/07-legacy.xls.md",
+      "bytes": 947,
+      "sha256": "e8a43465150c03b808410abd4edfc6923e8d05ddb58862b138d7d8f5ccb09ba7"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate1/08-PROTTPLN.XLS.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate1/08-PROTTPLN.XLS.md",
+      "bytes": 542,
+      "sha256": "d88da7944edafb50b1d4c74876ac36bb9e1f8b3f026f46aded4d597c9ea57a44"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate1/09-SOLVSAMP.XLS.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate1/09-SOLVSAMP.XLS.md",
+      "bytes": 62309,
+      "sha256": "0709298c368cc0806eeaa55670e7dc10e7e8c97a24e416a4db26ce79924fadbb"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate1/results.json",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate1/results.json",
+      "bytes": 39653,
+      "sha256": "47c9bd975eef18fca2b142836009bef77574815569a281921d631e3a9880b5a1"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate2/00-registro.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate2/00-registro.xlsx.md",
+      "bytes": 944,
+      "sha256": "c58283f9962fda34f778e480d45e3d42d969a911883b1384cf06bcd0cc1f7d72"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate2/01-registro_excel.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate2/01-registro_excel.xlsx.md",
+      "bytes": 947,
+      "sha256": "e8a43465150c03b808410abd4edfc6923e8d05ddb58862b138d7d8f5ccb09ba7"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate2/02-registro.xls.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate2/02-registro.xls.md",
+      "bytes": 947,
+      "sha256": "e8a43465150c03b808410abd4edfc6923e8d05ddb58862b138d7d8f5ccb09ba7"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate2/03-rete.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate2/03-rete.xlsx.md",
+      "bytes": 262,
+      "sha256": "0320159c27c04534c74fbbc16a3561cc5a95921b12a403d046a5e304fd8207e4"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate2/04-registro.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate2/04-registro.xlsx.md",
+      "bytes": 731,
+      "sha256": "85d099e889b75b51c3dab5079bd7a33ace6c7721e78b308985e52b8458b337a4"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate2/05-budget.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate2/05-budget.xlsx.md",
+      "bytes": 582,
+      "sha256": "ac4520019b64b940b9962c4eb64cf4da815cfd3be92b8ef43f682f00449c75cb"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate2/06-budget.xls.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate2/06-budget.xls.md",
+      "bytes": 555,
+      "sha256": "d0ac76f943089f3a54cb789991929073d0b1ef77554fd8eb0fac6df3f6dc0872"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate2/07-legacy.xls.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate2/07-legacy.xls.md",
+      "bytes": 947,
+      "sha256": "e8a43465150c03b808410abd4edfc6923e8d05ddb58862b138d7d8f5ccb09ba7"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate2/08-PROTTPLN.XLS.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate2/08-PROTTPLN.XLS.md",
+      "bytes": 542,
+      "sha256": "d88da7944edafb50b1d4c74876ac36bb9e1f8b3f026f46aded4d597c9ea57a44"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate2/09-SOLVSAMP.XLS.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate2/09-SOLVSAMP.XLS.md",
+      "bytes": 62309,
+      "sha256": "0709298c368cc0806eeaa55670e7dc10e7e8c97a24e416a4db26ce79924fadbb"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/candidate2/results.json",
+      "source": "rag/eval/results/excel_fidelity_20260910/candidate2/results.json",
+      "bytes": 39654,
+      "sha256": "b3c69412f1435cf188ab14b79bd2654179d1015a5bb886ba504a4a13189948c8"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/compare.py.txt",
+      "source": "rag/eval/results/excel_fidelity_20260910/compare.py",
+      "bytes": 8577,
+      "sha256": "e360fd0fc1a168ac372f0c67a71c4ffacdd27d603e66c00fc30e596ecc341bfb"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/gap1/00-registro.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/gap1/00-registro.xlsx.md",
+      "bytes": 705,
+      "sha256": "82893cb7435b452e559ab774c99b286cc4c3ed60c041c6cdd41b51ca66ba6148"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/gap1/01-registro_excel.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/gap1/01-registro_excel.xlsx.md",
+      "bytes": 705,
+      "sha256": "c3e5508c00d2687b2fc27e53610ced8ca0ccf15e895e91de58c63f7004d12d78"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/gap1/02-registro.xls.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/gap1/02-registro.xls.md",
+      "bytes": 705,
+      "sha256": "c3e5508c00d2687b2fc27e53610ced8ca0ccf15e895e91de58c63f7004d12d78"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/gap1/03-rete.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/gap1/03-rete.xlsx.md",
+      "bytes": 120,
+      "sha256": "e1e02113d4c62d1ed79a783e3baf9c2335082f33ed3258f0a9b3a9ddc821f883"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/gap1/04-registro.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/gap1/04-registro.xlsx.md",
+      "bytes": 564,
+      "sha256": "a6a3cedb4db4789ee31d66b635a4bbce430296d8d4a0238ec100f1b76de4f253"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/gap1/05-budget.xlsx.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/gap1/05-budget.xlsx.md",
+      "bytes": 314,
+      "sha256": "5163eb2407be2b5418026c046bda9ab234ce154894ffbbb1ee5d3d2dadbc31a6"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/gap1/06-budget.xls.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/gap1/06-budget.xls.md",
+      "bytes": 274,
+      "sha256": "c0ab198f910234aee72ddfbdaf5ff19080d1bbe240ca91cc095e4ce85261da9c"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/gap1/07-legacy.xls.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/gap1/07-legacy.xls.md",
+      "bytes": 705,
+      "sha256": "c3e5508c00d2687b2fc27e53610ced8ca0ccf15e895e91de58c63f7004d12d78"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/gap1/08-PROTTPLN.XLS.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/gap1/08-PROTTPLN.XLS.md",
+      "bytes": 672,
+      "sha256": "146e6477e58a2b513730abeae6b6530683435bf986926a10bf9e7b383fce791d"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/gap1/09-SOLVSAMP.XLS.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/gap1/09-SOLVSAMP.XLS.md",
+      "bytes": 106669,
+      "sha256": "d65a9cba43c1975bb0f722a2f49fec4ad227a39598a99979b1c999fdea8a5a8d"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/gap1/results.json",
+      "source": "rag/eval/results/excel_fidelity_20260910/gap1/results.json",
+      "bytes": 36567,
+      "sha256": "bc416dab47c2bdcb297c5de85090707dbe89bd0dfece7fe15b52d718da6b0275"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/intake_convert.before.txt",
+      "source": "rag/eval/results/excel_fidelity_20260910/intake_convert.before.txt",
+      "bytes": 35584,
+      "sha256": "68a4901410331b7cb951bc4f968fc2425abe54e6a5d278042313e93d7fb7567a"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/intake_convert.session.diff",
+      "source": "rag/eval/results/excel_fidelity_20260910/intake_convert.session.diff",
+      "bytes": 7717,
+      "sha256": "5635c8b7c063cbe40537fdab8e2c80a186a4a6090bc24ef1cfbbaa329bc22d4b"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/protected.before.json",
+      "source": "rag/eval/results/excel_fidelity_20260910/protected.before.json",
+      "bytes": 6824,
+      "sha256": "a73e26851f50896ea58e58e0f0a3444b85261030522557847abc9ae350acb8e7"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/remote-ci.json",
+      "source": "rag/eval/results/excel_fidelity_20260910/remote-ci.json",
+      "bytes": 375,
+      "sha256": "9b630215ef7f4fe4967dde4271d3a420819cd53078f1bda806da8b9dc60acda8"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/RESOCONTO.md",
+      "source": "rag/eval/results/excel_fidelity_20260910/RESOCONTO.md",
+      "bytes": 18165,
+      "sha256": "4b5aa713e92422168bf76b6ab575d09a251a3591cc5b1bf2e5523cad1f3ae457"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/run_comparison.ps1.txt",
+      "source": "rag/eval/results/excel_fidelity_20260910/run_comparison.ps1",
+      "bytes": 1125,
+      "sha256": "14b2d198c68c3765ecbb7708c730ea7a5203de5ff30b3922067386ad6e2f879c"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/status.after.txt",
+      "source": "rag/eval/results/excel_fidelity_20260910/status.after.txt",
+      "bytes": 2124,
+      "sha256": "450d6e2042ed086eab8bc79a31d8f4fff042b6c5defd0820577f675755e5cb94"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/status.before.txt",
+      "source": "rag/eval/results/excel_fidelity_20260910/status.before.txt",
+      "bytes": 2055,
+      "sha256": "daebdc51f0e238a83b00bdfe3c21138e850ea37bfd9f1997279ebca99b6fd1b7"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/strict-baseline.json",
+      "source": "rag/eval/results/excel_fidelity_20260910/strict-baseline.json",
+      "bytes": 224,
+      "sha256": "f913b040f0bb3d05eb61cfd3f8d674c99907d8abccc12f73de08cd4a77f0959d"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/strict-candidate.json",
+      "source": "rag/eval/results/excel_fidelity_20260910/strict-candidate.json",
+      "bytes": 390,
+      "sha256": "ff7b7f10c818cbaf046ff39f0df8bf70f50a6be8d6e7f8855e9e45c699975d9f"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/strict_gate.py.txt",
+      "source": "rag/eval/results/excel_fidelity_20260910/strict_gate.py",
+      "bytes": 1931,
+      "sha256": "c7c336e372664cb16ac3fca2e3fd6e1506dcf2a67f009b55ee23ea857f863852"
+    },
+    {
+      "path": "excel_fidelity_20260910/evidence/verification.json",
+      "source": "rag/eval/results/excel_fidelity_20260910/verification.json",
+      "bytes": 3845,
+      "sha256": "b6b08e83cf67ef9a7c654091179d27cb9bc49d4e36a5e3d533865f557b2dc9c7"
+    }
+  ],
+  "omitted_local_files": [
+    {
+      "path": "baseline1/console.log",
+      "bytes": 469
+    },
+    {
+      "path": "baseline2/console.log",
+      "bytes": 465
+    },
+    {
+      "path": "build-tests.log",
+      "bytes": 6810
+    },
+    {
+      "path": "candidate1/console.log",
+      "bytes": 718
+    },
+    {
+      "path": "candidate2/console.log",
+      "bytes": 716
+    },
+    {
+      "path": "container-targeted.log",
+      "bytes": 1344
+    },
+    {
+      "path": "diff-check.log",
+      "bytes": 1498
+    },
+    {
+      "path": "Dockerfile.tests",
+      "bytes": 168
+    },
+    {
+      "path": "escaping-red.log",
+      "bytes": 1047
+    },
+    {
+      "path": "gap1/console.log",
+      "bytes": 470
+    },
+    {
+      "path": "green.log",
+      "bytes": 100
+    },
+    {
+      "path": "host-excel-final.log",
+      "bytes": 311
+    },
+    {
+      "path": "lint-all.log",
+      "bytes": 21150
+    },
+    {
+      "path": "lint-changed.log",
+      "bytes": 20
+    },
+    {
+      "path": "preview-green.log",
+      "bytes": 72
+    },
+    {
+      "path": "preview-red.log",
+      "bytes": 923
+    },
+    {
+      "path": "red.log",
+      "bytes": 12822
+    },
+    {
+      "path": "strict-baseline.log",
+      "bytes": 0
+    },
+    {
+      "path": "strict-candidate.log",
+      "bytes": 0
+    },
+    {
+      "path": "suite-before-escaping-fix.log",
+      "bytes": 3864
+    },
+    {
+      "path": "suite-container-final.log",
+      "bytes": 2939
+    },
+    {
+      "path": "suite-container.log",
+      "bytes": 71973
+    },
+    {
+      "path": "sync.log",
+      "bytes": 30
+    },
+    {
+      "path": "targeted.log",
+      "bytes": 2153
+    }
+  ]
+}

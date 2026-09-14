@@ -1,0 +1,87 @@
+"""Source-template experiment: new PDFs, never overwrites the corpus.
+
+Reuses the actual catalog generator; fixes its KPI presentation only.
+Page 2 is copied from each original, avoiding inventory/size drift.
+"""
+import hashlib
+import importlib.util
+import io
+import json
+from pathlib import Path
+
+import pypdfium2
+from pypdf import PdfReader, PdfWriter
+from reportlab.platypus import PageBreak, Spacer, Table, TableStyle
+
+ROOT = Path(__file__).resolve().parents[4]
+OUT = Path(__file__).resolve().parent
+spec = importlib.util.spec_from_file_location("catalogs", ROOT / "tmp/pdfs/build_file_catalogs.py")
+catalogs = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(catalogs)
+
+
+def kpi_band(pairs, styles):
+    # Each source-defined pair is one text paragraph/cell, never a heading.
+    cells = [catalogs.P(f"{value} {label}", styles["cover"]) for value, label in pairs]
+    return Table([cells], colWidths=[55 * catalogs.mm] * len(cells), style=TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), catalogs.PALE),
+        ("BOX", (0, 0), (-1, -1), .5, catalogs.TEAL),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 6 * catalogs.mm),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6 * catalogs.mm),
+    ]))
+
+
+def main():
+    styles = catalogs.styles()
+    # Checks the generic template rule with different values, not golden answers.
+    probe = kpi_band([("27", "elementi"), ("9", "gruppi")], styles)
+    assert [p.getPlainText() for p in probe._cellvalues[0]] == ["27 elementi", "9 gruppi"]
+    assert all(p.style is styles["cover"] for p in probe._cellvalues[0])
+    documents = [
+        ("diagrammi", "diagrams", catalogs.build_diagrams,
+         [("5", "artefatti"), ("1", "cartella sorgente"), ("SVG", "formato")]),
+        ("mockup", "mockups", catalogs.build_mockups,
+         [("11", "artefatti"), ("4", "aree funzionali"), ("SVG + HTML", "formati")]),
+    ]
+    report = {}
+    for name, folder, build, pairs in documents:
+        original = ROOT / f"docs/02_specs_normative/{folder}/catalogo_{name}_normativi.pdf"
+        before = original.read_bytes()
+        story = build(styles)
+        assert isinstance(story[4], Table)
+        assert [p.getPlainText() for p in story[6:9]] == [label for _, label in pairs]
+        story[4:10] = [kpi_band(pairs, styles), Spacer(1, 14 * catalogs.mm)]
+        first_page = story[:next(i for i, item in enumerate(story) if isinstance(item, PageBreak))]
+        buffer = io.BytesIO()
+        from reportlab.platypus import SimpleDocTemplate
+        doc = SimpleDocTemplate(buffer, pagesize=catalogs.A4,
+            rightMargin=18 * catalogs.mm, leftMargin=18 * catalogs.mm,
+            topMargin=17 * catalogs.mm, bottomMargin=20 * catalogs.mm)
+        doc.build(first_page, onFirstPage=catalogs.header_footer)
+        generated = PdfReader(buffer)
+        assert len(generated.pages) == 1
+        old = PdfReader(io.BytesIO(before))
+        writer = PdfWriter()
+        writer.add_page(generated.pages[0])
+        writer.add_page(old.pages[1])
+        target = OUT / f"catalogo_{name}_normativi.pdf"
+        writer.write(target)
+        new = PdfReader(target)
+        assert new.pages[1].get_contents().get_data() == old.pages[1].get_contents().get_data()
+        assert new.pages[1].extract_text() == old.pages[1].extract_text()
+        assert original.read_bytes() == before
+        text = new.pages[0].extract_text()
+        assert all(f"{value} {label}" in text for value, label in pairs)
+        with pypdfium2.PdfDocument(str(target)) as pdf:
+            for i in range(len(pdf)):
+                pdf[i].render(scale=1.5).to_pil().save(OUT / f"{name}_p{i+1}.png")
+        report[name] = {"original_sha256": hashlib.sha256(before).hexdigest(),
+            "candidate_sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+            "page2_stream_and_text_unchanged": True, "explicit_pairs": pairs}
+    (OUT / "sourcefix_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+    print(json.dumps(report, indent=2))
+
+
+if __name__ == "__main__":
+    main()

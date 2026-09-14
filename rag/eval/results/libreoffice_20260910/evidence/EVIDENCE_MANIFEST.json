@@ -1,0 +1,803 @@
+{
+  "run": "libreoffice_20260910",
+  "packaged_on": "2026-09-14",
+  "note": "Conservazione di prove esistenti, non nuova esecuzione. File originali mantenuti localmente. Percorsi path relativi a rag/eval/results; source relativi alla root del progetto. Script conservati come .txt senza modifiche al contenuto.",
+  "files": [
+    {
+      "path": "libreoffice_20260910/evidence/out_base/manuale.doc.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/manuale.doc.A.md",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/manuale.doc.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/manuale.doc.B.md",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/manuale.docx.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/manuale.docx.A.md",
+      "bytes": 876,
+      "sha256": "5aa5e06265104fd8140450a82dfa1eb41bf3678da197a67f2b8c6c6b26119c09"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/manuale.docx.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/manuale.docx.B.md",
+      "bytes": 924,
+      "sha256": "7b4017fd3653c097424b2338adeea0e7272859a826d60a2c637693621e73362f"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/registro.xls.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/registro.xls.A.md",
+      "bytes": 508,
+      "sha256": "c26c2e176aa6434c81b0f8ec8e0bbcae00f2a9354a57d87371ac213db6fa367c"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/registro.xls.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/registro.xls.B.md",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/registro.xlsx.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/registro.xlsx.A.md",
+      "bytes": 616,
+      "sha256": "a495eac18d1c46239a23fe967fe9fd08e872f55a9e01f317e5de53ab08509b6d"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/registro.xlsx.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/registro.xlsx.B.md",
+      "bytes": 616,
+      "sha256": "a495eac18d1c46239a23fe967fe9fd08e872f55a9e01f317e5de53ab08509b6d"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/registro_excel.xlsx.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/registro_excel.xlsx.A.md",
+      "bytes": 632,
+      "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/registro_excel.xlsx.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/registro_excel.xlsx.B.md",
+      "bytes": 632,
+      "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/rilascio.ppt.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/rilascio.ppt.A.md",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/rilascio.ppt.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/rilascio.ppt.B.md",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/rilascio.pptx.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/rilascio.pptx.A.md",
+      "bytes": 363,
+      "sha256": "fa7d0abf19884b9ac7920664e0d7b5a4608c1ee2af2a99a2a59776b599eaefcb"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/rilascio.pptx.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/rilascio.pptx.B.md",
+      "bytes": 284,
+      "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/rilascio_pp.pptx.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/rilascio_pp.pptx.A.md",
+      "bytes": 363,
+      "sha256": "fa7d0abf19884b9ac7920664e0d7b5a4608c1ee2af2a99a2a59776b599eaefcb"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/rilascio_pp.pptx.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/rilascio_pp.pptx.B.md",
+      "bytes": 284,
+      "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/risultati.json",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/risultati.json",
+      "bytes": 19192,
+      "sha256": "670903aa2cd669c3166d373d2d44171974d2a1f8fb3b20920da413cbfe045f1d"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/specifica_word.doc.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/specifica_word.doc.A.md",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/specifica_word.doc.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/specifica_word.doc.B.md",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/specifica_word.docx.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/specifica_word.docx.A.md",
+      "bytes": 145,
+      "sha256": "d68f46affe5e6e3865468b989b1a021288e490df50e3a034e3e4c25d41a6950f"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_base/specifica_word.docx.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_base/specifica_word.docx.B.md",
+      "bytes": 148,
+      "sha256": "de952dc48c8095a4f915de0d2031288d8b9f7ea9ad077762ed7c0e4f56e60094"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/manuale.doc.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/manuale.doc.A.md",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/manuale.doc.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/manuale.doc.B.md",
+      "bytes": 927,
+      "sha256": "9e4b28cc4293c77302fa3c412d9301803c0fb42849193647c234aee5bd165435"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/manuale.doc.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/manuale.doc.C.md",
+      "bytes": 927,
+      "sha256": "9e4b28cc4293c77302fa3c412d9301803c0fb42849193647c234aee5bd165435"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/manuale.doc.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/manuale.doc.D.md",
+      "bytes": 878,
+      "sha256": "3f5b13a6b066a6b9601a41f41db3e66a61af961f62bda696e0fd0f3525ace7c2"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/manuale.docx.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/manuale.docx.A.md",
+      "bytes": 876,
+      "sha256": "5aa5e06265104fd8140450a82dfa1eb41bf3678da197a67f2b8c6c6b26119c09"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/manuale.docx.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/manuale.docx.B.md",
+      "bytes": 924,
+      "sha256": "7b4017fd3653c097424b2338adeea0e7272859a826d60a2c637693621e73362f"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/manuale.docx.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/manuale.docx.C.md",
+      "bytes": 926,
+      "sha256": "91080da23a374616b106e4677ba80e62b38f432dfbd8ee16faf3991f0f9d5a00"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/manuale.docx.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/manuale.docx.D.md",
+      "bytes": 876,
+      "sha256": "2af7c3f481fa2746cb33fd3b344bd72ef6f4bb9efbcd388297640f212d146520"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/registro.xls.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/registro.xls.A.md",
+      "bytes": 508,
+      "sha256": "c26c2e176aa6434c81b0f8ec8e0bbcae00f2a9354a57d87371ac213db6fa367c"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/registro.xls.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/registro.xls.B.md",
+      "bytes": 632,
+      "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/registro.xls.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/registro.xls.C.md",
+      "bytes": 632,
+      "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/registro.xls.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/registro.xls.D.md",
+      "bytes": 508,
+      "sha256": "c26c2e176aa6434c81b0f8ec8e0bbcae00f2a9354a57d87371ac213db6fa367c"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/registro.xlsx.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/registro.xlsx.A.md",
+      "bytes": 616,
+      "sha256": "a495eac18d1c46239a23fe967fe9fd08e872f55a9e01f317e5de53ab08509b6d"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/registro.xlsx.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/registro.xlsx.B.md",
+      "bytes": 616,
+      "sha256": "a495eac18d1c46239a23fe967fe9fd08e872f55a9e01f317e5de53ab08509b6d"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/registro.xlsx.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/registro.xlsx.C.md",
+      "bytes": 634,
+      "sha256": "a4707fb05bb6a4f3830b93efdb22f40f65aa370c54a99a4823cf4922b234b3ae"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/registro.xlsx.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/registro.xlsx.D.md",
+      "bytes": 509,
+      "sha256": "e97cc60986d3dc4e205e7ea0fd6a613ffa19fbfa1d515e58db66f77b3872cff9"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/registro_excel.xlsx.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/registro_excel.xlsx.A.md",
+      "bytes": 632,
+      "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/registro_excel.xlsx.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/registro_excel.xlsx.B.md",
+      "bytes": 632,
+      "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/registro_excel.xlsx.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/registro_excel.xlsx.C.md",
+      "bytes": 632,
+      "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/registro_excel.xlsx.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/registro_excel.xlsx.D.md",
+      "bytes": 508,
+      "sha256": "c26c2e176aa6434c81b0f8ec8e0bbcae00f2a9354a57d87371ac213db6fa367c"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/rilascio.ppt.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/rilascio.ppt.A.md",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/rilascio.ppt.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/rilascio.ppt.B.md",
+      "bytes": 284,
+      "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/rilascio.ppt.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/rilascio.ppt.C.md",
+      "bytes": 284,
+      "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/rilascio.ppt.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/rilascio.ppt.D.md",
+      "bytes": 363,
+      "sha256": "fa7d0abf19884b9ac7920664e0d7b5a4608c1ee2af2a99a2a59776b599eaefcb"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/rilascio.pptx.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/rilascio.pptx.A.md",
+      "bytes": 363,
+      "sha256": "fa7d0abf19884b9ac7920664e0d7b5a4608c1ee2af2a99a2a59776b599eaefcb"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/rilascio.pptx.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/rilascio.pptx.B.md",
+      "bytes": 284,
+      "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/rilascio.pptx.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/rilascio.pptx.C.md",
+      "bytes": 284,
+      "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/rilascio.pptx.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/rilascio.pptx.D.md",
+      "bytes": 363,
+      "sha256": "fa7d0abf19884b9ac7920664e0d7b5a4608c1ee2af2a99a2a59776b599eaefcb"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/rilascio_pp.pptx.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/rilascio_pp.pptx.A.md",
+      "bytes": 363,
+      "sha256": "fa7d0abf19884b9ac7920664e0d7b5a4608c1ee2af2a99a2a59776b599eaefcb"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/rilascio_pp.pptx.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/rilascio_pp.pptx.B.md",
+      "bytes": 284,
+      "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/rilascio_pp.pptx.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/rilascio_pp.pptx.C.md",
+      "bytes": 284,
+      "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/rilascio_pp.pptx.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/rilascio_pp.pptx.D.md",
+      "bytes": 363,
+      "sha256": "fa7d0abf19884b9ac7920664e0d7b5a4608c1ee2af2a99a2a59776b599eaefcb"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/risultati.json",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/risultati.json",
+      "bytes": 43644,
+      "sha256": "6816acb5b7da6028e7a07e6d4fafa26ccc0f42164c26a8826b1a1b7365c48437"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/specifica_word.doc.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/specifica_word.doc.A.md",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/specifica_word.doc.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/specifica_word.doc.B.md",
+      "bytes": 148,
+      "sha256": "de952dc48c8095a4f915de0d2031288d8b9f7ea9ad077762ed7c0e4f56e60094"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/specifica_word.doc.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/specifica_word.doc.C.md",
+      "bytes": 148,
+      "sha256": "de952dc48c8095a4f915de0d2031288d8b9f7ea9ad077762ed7c0e4f56e60094"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/specifica_word.doc.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/specifica_word.doc.D.md",
+      "bytes": 145,
+      "sha256": "d68f46affe5e6e3865468b989b1a021288e490df50e3a034e3e4c25d41a6950f"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/specifica_word.docx.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/specifica_word.docx.A.md",
+      "bytes": 145,
+      "sha256": "d68f46affe5e6e3865468b989b1a021288e490df50e3a034e3e4c25d41a6950f"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/specifica_word.docx.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/specifica_word.docx.B.md",
+      "bytes": 148,
+      "sha256": "de952dc48c8095a4f915de0d2031288d8b9f7ea9ad077762ed7c0e4f56e60094"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/specifica_word.docx.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/specifica_word.docx.C.md",
+      "bytes": 148,
+      "sha256": "de952dc48c8095a4f915de0d2031288d8b9f7ea9ad077762ed7c0e4f56e60094"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_1/specifica_word.docx.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_1/specifica_word.docx.D.md",
+      "bytes": 145,
+      "sha256": "d68f46affe5e6e3865468b989b1a021288e490df50e3a034e3e4c25d41a6950f"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/manuale.doc.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/manuale.doc.A.md",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/manuale.doc.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/manuale.doc.B.md",
+      "bytes": 927,
+      "sha256": "9e4b28cc4293c77302fa3c412d9301803c0fb42849193647c234aee5bd165435"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/manuale.doc.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/manuale.doc.C.md",
+      "bytes": 927,
+      "sha256": "9e4b28cc4293c77302fa3c412d9301803c0fb42849193647c234aee5bd165435"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/manuale.doc.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/manuale.doc.D.md",
+      "bytes": 878,
+      "sha256": "3f5b13a6b066a6b9601a41f41db3e66a61af961f62bda696e0fd0f3525ace7c2"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/manuale.docx.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/manuale.docx.A.md",
+      "bytes": 876,
+      "sha256": "5aa5e06265104fd8140450a82dfa1eb41bf3678da197a67f2b8c6c6b26119c09"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/manuale.docx.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/manuale.docx.B.md",
+      "bytes": 924,
+      "sha256": "7b4017fd3653c097424b2338adeea0e7272859a826d60a2c637693621e73362f"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/manuale.docx.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/manuale.docx.C.md",
+      "bytes": 926,
+      "sha256": "91080da23a374616b106e4677ba80e62b38f432dfbd8ee16faf3991f0f9d5a00"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/manuale.docx.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/manuale.docx.D.md",
+      "bytes": 876,
+      "sha256": "2af7c3f481fa2746cb33fd3b344bd72ef6f4bb9efbcd388297640f212d146520"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/registro.xls.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/registro.xls.A.md",
+      "bytes": 508,
+      "sha256": "c26c2e176aa6434c81b0f8ec8e0bbcae00f2a9354a57d87371ac213db6fa367c"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/registro.xls.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/registro.xls.B.md",
+      "bytes": 632,
+      "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/registro.xls.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/registro.xls.C.md",
+      "bytes": 632,
+      "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/registro.xls.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/registro.xls.D.md",
+      "bytes": 508,
+      "sha256": "c26c2e176aa6434c81b0f8ec8e0bbcae00f2a9354a57d87371ac213db6fa367c"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/registro.xlsx.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/registro.xlsx.A.md",
+      "bytes": 616,
+      "sha256": "a495eac18d1c46239a23fe967fe9fd08e872f55a9e01f317e5de53ab08509b6d"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/registro.xlsx.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/registro.xlsx.B.md",
+      "bytes": 616,
+      "sha256": "a495eac18d1c46239a23fe967fe9fd08e872f55a9e01f317e5de53ab08509b6d"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/registro.xlsx.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/registro.xlsx.C.md",
+      "bytes": 634,
+      "sha256": "a4707fb05bb6a4f3830b93efdb22f40f65aa370c54a99a4823cf4922b234b3ae"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/registro.xlsx.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/registro.xlsx.D.md",
+      "bytes": 509,
+      "sha256": "e97cc60986d3dc4e205e7ea0fd6a613ffa19fbfa1d515e58db66f77b3872cff9"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/registro_excel.xlsx.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/registro_excel.xlsx.A.md",
+      "bytes": 632,
+      "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/registro_excel.xlsx.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/registro_excel.xlsx.B.md",
+      "bytes": 632,
+      "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/registro_excel.xlsx.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/registro_excel.xlsx.C.md",
+      "bytes": 632,
+      "sha256": "806c9a51a2fdb9a1a4fe867bca22d648ad3fb3d0311bdf341afa3140990b094b"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/registro_excel.xlsx.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/registro_excel.xlsx.D.md",
+      "bytes": 508,
+      "sha256": "c26c2e176aa6434c81b0f8ec8e0bbcae00f2a9354a57d87371ac213db6fa367c"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/rilascio.ppt.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/rilascio.ppt.A.md",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/rilascio.ppt.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/rilascio.ppt.B.md",
+      "bytes": 284,
+      "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/rilascio.ppt.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/rilascio.ppt.C.md",
+      "bytes": 284,
+      "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/rilascio.ppt.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/rilascio.ppt.D.md",
+      "bytes": 363,
+      "sha256": "fa7d0abf19884b9ac7920664e0d7b5a4608c1ee2af2a99a2a59776b599eaefcb"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/rilascio.pptx.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/rilascio.pptx.A.md",
+      "bytes": 363,
+      "sha256": "fa7d0abf19884b9ac7920664e0d7b5a4608c1ee2af2a99a2a59776b599eaefcb"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/rilascio.pptx.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/rilascio.pptx.B.md",
+      "bytes": 284,
+      "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/rilascio.pptx.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/rilascio.pptx.C.md",
+      "bytes": 284,
+      "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/rilascio.pptx.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/rilascio.pptx.D.md",
+      "bytes": 363,
+      "sha256": "fa7d0abf19884b9ac7920664e0d7b5a4608c1ee2af2a99a2a59776b599eaefcb"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/rilascio_pp.pptx.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/rilascio_pp.pptx.A.md",
+      "bytes": 363,
+      "sha256": "fa7d0abf19884b9ac7920664e0d7b5a4608c1ee2af2a99a2a59776b599eaefcb"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/rilascio_pp.pptx.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/rilascio_pp.pptx.B.md",
+      "bytes": 284,
+      "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/rilascio_pp.pptx.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/rilascio_pp.pptx.C.md",
+      "bytes": 284,
+      "sha256": "2fc2302633eac9a1a7a5995a725f3a5ba80dfb7667c6bc12203d379d3f405cf4"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/rilascio_pp.pptx.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/rilascio_pp.pptx.D.md",
+      "bytes": 363,
+      "sha256": "fa7d0abf19884b9ac7920664e0d7b5a4608c1ee2af2a99a2a59776b599eaefcb"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/risultati.json",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/risultati.json",
+      "bytes": 43740,
+      "sha256": "c6981c03f6a6c49be6e0f035a1bd9d1d3ec28eaa153de96cc0b18c3b195304e9"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/specifica_word.doc.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/specifica_word.doc.A.md",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/specifica_word.doc.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/specifica_word.doc.B.md",
+      "bytes": 148,
+      "sha256": "de952dc48c8095a4f915de0d2031288d8b9f7ea9ad077762ed7c0e4f56e60094"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/specifica_word.doc.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/specifica_word.doc.C.md",
+      "bytes": 148,
+      "sha256": "de952dc48c8095a4f915de0d2031288d8b9f7ea9ad077762ed7c0e4f56e60094"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/specifica_word.doc.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/specifica_word.doc.D.md",
+      "bytes": 145,
+      "sha256": "d68f46affe5e6e3865468b989b1a021288e490df50e3a034e3e4c25d41a6950f"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/specifica_word.docx.A.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/specifica_word.docx.A.md",
+      "bytes": 145,
+      "sha256": "d68f46affe5e6e3865468b989b1a021288e490df50e3a034e3e4c25d41a6950f"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/specifica_word.docx.B.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/specifica_word.docx.B.md",
+      "bytes": 148,
+      "sha256": "de952dc48c8095a4f915de0d2031288d8b9f7ea9ad077762ed7c0e4f56e60094"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/specifica_word.docx.C.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/specifica_word.docx.C.md",
+      "bytes": 148,
+      "sha256": "de952dc48c8095a4f915de0d2031288d8b9f7ea9ad077762ed7c0e4f56e60094"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/out_lo_2/specifica_word.docx.D.md",
+      "source": "rag/eval/results/libreoffice_20260910/out_lo_2/specifica_word.docx.D.md",
+      "bytes": 145,
+      "sha256": "d68f46affe5e6e3865468b989b1a021288e490df50e3a034e3e4c25d41a6950f"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/RESOCONTO.md",
+      "source": "rag/eval/results/libreoffice_20260910/RESOCONTO.md",
+      "bytes": 25040,
+      "sha256": "3992dae4a6cf59c82021cf4574e4767926200af5909bc5bad7bc45d14e108bd7"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/scripts/attese.py.txt",
+      "source": "rag/eval/results/libreoffice_20260910/scripts/attese.py",
+      "bytes": 9140,
+      "sha256": "feac9497e856b936f63fc6260cd25b5284a7dca824dc56a10f119e40827899c3"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/scripts/esperimento.py.txt",
+      "source": "rag/eval/results/libreoffice_20260910/scripts/esperimento.py",
+      "bytes": 15724,
+      "sha256": "d6e52128613da6b95c7cef4d9eca7fea80cc342d25f232e6d5bace5ef2e025db"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/scripts/fixture.py.txt",
+      "source": "rag/eval/results/libreoffice_20260910/scripts/fixture.py",
+      "bytes": 8989,
+      "sha256": "a75380eca38261369bedb111c909850d08f407bf6eb6cd2f3f92981194740528"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/scripts/office_legacy.ps1.txt",
+      "source": "rag/eval/results/libreoffice_20260910/scripts/office_legacy.ps1",
+      "bytes": 2834,
+      "sha256": "1c881a52194c1c46a2b1c9e0571ec3398a815dd541b3b3778a0785526f2082e4"
+    },
+    {
+      "path": "libreoffice_20260910/evidence/ui/proxy.py.txt",
+      "source": "rag/eval/results/libreoffice_20260910/ui/proxy.py",
+      "bytes": 914,
+      "sha256": "715df68e905207ca6e0542f3d34325d270072244763a4e0c9e237c06cccca155"
+    }
+  ],
+  "omitted_local_files": [
+    {
+      "path": "docker/Dockerfile",
+      "bytes": 507
+    },
+    {
+      "path": "fixture/finto.doc",
+      "bytes": 29917
+    },
+    {
+      "path": "fixture/finto.xls",
+      "bytes": 5716
+    },
+    {
+      "path": "fixture/manuale.doc",
+      "bytes": 92160
+    },
+    {
+      "path": "fixture/manuale.docx",
+      "bytes": 29917
+    },
+    {
+      "path": "fixture/manuale_protetto.doc",
+      "bytes": 92160
+    },
+    {
+      "path": "fixture/manuale_protetto.docx",
+      "bytes": 35840
+    },
+    {
+      "path": "fixture/manuale_src.docx",
+      "bytes": 36005
+    },
+    {
+      "path": "fixture/registro.xls",
+      "bytes": 27136
+    },
+    {
+      "path": "fixture/registro.xlsx",
+      "bytes": 5716
+    },
+    {
+      "path": "fixture/registro_excel.xlsx",
+      "bytes": 9765
+    },
+    {
+      "path": "fixture/registro_protetto.xls",
+      "bytes": 27648
+    },
+    {
+      "path": "fixture/registro_protetto.xlsx",
+      "bytes": 16384
+    },
+    {
+      "path": "fixture/rete.docx",
+      "bytes": 35791
+    },
+    {
+      "path": "fixture/rete.xlsx",
+      "bytes": 4955
+    },
+    {
+      "path": "fixture/rilascio.ppt",
+      "bytes": 146432
+    },
+    {
+      "path": "fixture/rilascio.pptx",
+      "bytes": 35096
+    },
+    {
+      "path": "fixture/rilascio_pp.pptx",
+      "bytes": 39907
+    },
+    {
+      "path": "fixture/rilascio_protetto.ppt",
+      "bytes": 92160
+    },
+    {
+      "path": "fixture/rilascio_protetto.pptx",
+      "bytes": 46592
+    },
+    {
+      "path": "fixture/specifica.docx",
+      "bytes": 35389
+    },
+    {
+      "path": "fixture/specifica_word.doc",
+      "bytes": 82944
+    },
+    {
+      "path": "fixture/specifica_word.docx",
+      "bytes": 26615
+    },
+    {
+      "path": "fixture/troncato.doc",
+      "bytes": 4096
+    },
+    {
+      "path": "fixture/troncato.ppt",
+      "bytes": 4096
+    },
+    {
+      "path": "fixture/troncato.xls",
+      "bytes": 4096
+    },
+    {
+      "path": "fixture/vuoto.doc",
+      "bytes": 0
+    },
+    {
+      "path": "fixture/vuoto.docx",
+      "bytes": 0
+    },
+    {
+      "path": "fixture/vuoto.ppt",
+      "bytes": 0
+    },
+    {
+      "path": "fixture/vuoto.pptx",
+      "bytes": 0
+    },
+    {
+      "path": "fixture/vuoto.xls",
+      "bytes": 0
+    },
+    {
+      "path": "fixture/vuoto.xlsx",
+      "bytes": 0
+    },
+    {
+      "path": "out_base/console.log",
+      "bytes": 35481
+    },
+    {
+      "path": "out_lo_1/console.log",
+      "bytes": 24402
+    },
+    {
+      "path": "out_lo_2/console.log",
+      "bytes": 24497
+    }
+  ]
+}

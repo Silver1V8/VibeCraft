@@ -1,0 +1,151 @@
+"""FASE 5 — misure separate su tutte le passate di tutti gli stack.
+
+Ogni asse resta distinto: la presenza di un valore NON e' la correttezza della
+risposta, e nessuno dei due e' l'attribuzione. Tutte le passate sono registrate
+e conteggiate; non si sceglie la migliore.
+
+  presenza          valori attesi presenti (sottostringa, come la misura storica)
+                    e con confini di parola per i numeri nudi
+  diniego           la risposta dichiara assente un dato che il contesto porta
+  retrieval         fonte attesa presente nel contesto e suo rango
+  attribuzione_doc  la risposta nomina il documento atteso
+  attribuzione_sez  ogni «nella sezione X» verificata contro la struttura reale
+  citazioni         verificate / non verificabili (estrattore corretto)
+  identificatori    nomi di file citati ma assenti dal contesto
+  stabilita         quante passate concordano su ciascun asse
+  trasporto         errori HTTP, astensioni, risposte interrotte a meta'
+
+Uso: score_finale.py <workdir> <stack1> <stack2> ...
+"""
+
+import json
+import pathlib
+import re
+import sys
+
+HERE = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+from assi import (  # noqa: E402
+    ATTESI, DINIEGO, DOC_ATTESO, controlla_sezioni, despazia, documenti_nominati,
+    identificatori_non_sostenuti, presenza,
+)
+
+W = pathlib.Path(sys.argv[1]).resolve()
+STACKS = sys.argv[2:]
+OUT = W / "out"
+
+
+def possibile_troncamento(risposta: str) -> bool:
+    """Il segnale registrato da eval_stack.py — «non finisce con punteggiatura» —
+    da' falsi positivi su risposte che terminano con una RIGA DI TABELLA Markdown
+    o con un valore numerico piu' unita': verificato per ispezione su tutte e
+    nove le segnalazioni. Qui la chiusura legittima e' allargata a quei casi;
+    resta segnalato cio' che finisce davvero a meta'."""
+    t = (risposta or "").rstrip()
+    if not t:
+        return False
+    if t[-1] in ".!?)`»\"'*:|]":
+        return False
+    ultima = t.splitlines()[-1].strip()
+    if ultima.startswith("|") and ultima.count("|") >= 2:   # riga di tabella completa
+        return False
+    if re.search(r"\d+([.,]\d+)?\s*(KB|MB|GB|B|%|pt|px)$", t):  # valore piu' unita'
+        return False
+    return True
+
+
+def valuta(v, qid):
+    risposta = v["risposta"]["testo"]
+    contesto = v.get("contesto_inviato", "")
+    atteso = DOC_ATTESO["diag" if "diag" in qid else "mock"]
+    fonti = v["retrieval"]["fonti"]
+    blocco = next((f["testo"] for f in fonti if atteso in str(f["doc_id"])), "")
+    manc_a, manc_b = presenza(risposta, ATTESI[qid])
+    cit = v["risposta"]["citazioni_verificate"]
+    sez = controlla_sezioni(risposta, blocco)
+    ident = identificatori_non_sostenuti(risposta, contesto or "\n".join(
+        f"{f['doc_id']} § {f['section']}\n{f['testo']}" for f in fonti))
+    return {
+        "presenza_sottostringa": not manc_a, "mancanti_sottostringa": manc_a,
+        "presenza_confini_parola": not manc_b, "mancanti_confini_parola": manc_b,
+        "diniego_contraddetto": bool(DINIEGO.search(risposta)) and all(
+            despazia(t) in despazia(contesto or "") for t in ATTESI[qid]),
+        "frasi_di_diniego": sorted({m.group(0).strip() for m in DINIEGO.finditer(risposta)}),
+        "fonte_in_contesto": v["retrieval"].get("fonte_attesa_nel_contesto"),
+        "rango_fonte": v["retrieval"]["rango_fonte_attesa"],
+        "documento_nominato": atteso in risposta,
+        "provenienza": documenti_nominati(risposta, fonti),
+        "sezioni_dichiarate": sez,
+        "sezioni_sbagliate": [e for e in sez if e["esito"] not in
+                              ("coerente", "sezione_esiste_valore_non_isolabile")],
+        "citazioni_verificate": sum(1 for c in cit if c["esito"] == "verified"),
+        "citazioni_non_verificabili": sum(1 for c in cit if c["esito"] != "verified"),
+        "identificatori_non_sostenuti": [e["nome"] for e in ident if e["esito"] != "presente"],
+        "status": v["risposta"]["status"],
+        "cached": v["risposta"]["cached"],
+        "errore_di_trasporto": v.get("errore_di_trasporto"),
+        "possibile_troncamento": possibile_troncamento(risposta),
+        "finisce_senza_punteggiatura": v["risposta"]["finisce_a_meta"],
+        "caratteri": v["risposta"]["caratteri"],
+        "secondi": v["risposta"]["secondi"],
+    }
+
+
+tutto = {"stack": {}}
+for stack in STACKS:
+    passate = sorted(OUT.glob(f"eval_{stack}_p*.json"))
+    assert passate, f"nessuna passata per lo stack {stack}"
+    per_passata = {}
+    for f in passate:
+        d = json.loads(f.read_text(encoding="utf-8"))
+        n = d["passata"]
+        assert d["health"]["snapshot"]["version"] == d["index_version_sandbox"]
+        per_passata[n] = {
+            "index_version": d["index_version_sandbox"],
+            "domande": {qid: valuta(v, qid) for qid, v in d["domande"].items()},
+        }
+    # --- stabilita' fra passate --------------------------------------------
+    stabilita = {}
+    for qid in ATTESI:
+        viste = [p["domande"][qid] for p in per_passata.values()]
+        stabilita[qid] = {
+            "passate": len(viste),
+            "presenza_costante": len({v["presenza_confini_parola"] for v in viste}) == 1,
+            "presenza_per_passata": [v["presenza_confini_parola"] for v in viste],
+            "rango_costante": len({v["rango_fonte"] for v in viste}) == 1,
+            "ranghi": [v["rango_fonte"] for v in viste],
+            "diniego_per_passata": [v["diniego_contraddetto"] for v in viste],
+            "sezioni_sbagliate_per_passata": [len(v["sezioni_sbagliate"]) for v in viste],
+            "identificatori_per_passata": [len(v["identificatori_non_sostenuti"]) for v in viste],
+        }
+    n = len(per_passata)
+    tot = {
+        "passate": n,
+        "presenza_sottostringa": f"{sum(v['presenza_sottostringa'] for p in per_passata.values() for v in p['domande'].values())}/{8 * n}",
+        "presenza_confini_parola": f"{sum(v['presenza_confini_parola'] for p in per_passata.values() for v in p['domande'].values())}/{8 * n}",
+        "fonte_in_contesto": f"{sum(bool(v['fonte_in_contesto']) for p in per_passata.values() for v in p['domande'].values())}/{8 * n}",
+        "documento_nominato": f"{sum(v['documento_nominato'] for p in per_passata.values() for v in p['domande'].values())}/{8 * n}",
+        "risposte_con_diniego_contraddetto": sorted({
+            qid for p in per_passata.values() for qid, v in p["domande"].items() if v["diniego_contraddetto"]}),
+        "risposte_con_sezione_sbagliata": sorted({
+            qid for p in per_passata.values() for qid, v in p["domande"].items() if v["sezioni_sbagliate"]}),
+        "risposte_con_identificatori_non_sostenuti": sorted({
+            qid for p in per_passata.values() for qid, v in p["domande"].items()
+            if v["identificatori_non_sostenuti"]}),
+        "citazioni_verificate": sum(v["citazioni_verificate"] for p in per_passata.values() for v in p["domande"].values()),
+        "citazioni_non_verificabili": sum(v["citazioni_non_verificabili"] for p in per_passata.values() for v in p["domande"].values()),
+        "astensioni": sorted({qid for p in per_passata.values() for qid, v in p["domande"].items()
+                              if v["status"] == "abstained"}),
+        "errori_di_trasporto": [(qid, v["errore_di_trasporto"]) for p in per_passata.values()
+                                for qid, v in p["domande"].items() if v["errore_di_trasporto"]],
+        "risposte_interrotte": sorted({qid for p in per_passata.values() for qid, v in p["domande"].items()
+                                       if v["possibile_troncamento"]}),
+        "cache_hit": sorted({qid for p in per_passata.values() for qid, v in p["domande"].items() if v["cached"]}),
+        "instabili": sorted(q for q, s in stabilita.items()
+                            if not (s["presenza_costante"] and s["rango_costante"])),
+    }
+    tutto["stack"][stack] = {"totali": tot, "stabilita": stabilita, "passate": per_passata}
+
+(OUT / "confronto_finale.json").write_text(
+    json.dumps(tutto, ensure_ascii=False, indent=2), encoding="utf-8")
+print(json.dumps({k: v["totali"] for k, v in tutto["stack"].items()}, ensure_ascii=False, indent=2))

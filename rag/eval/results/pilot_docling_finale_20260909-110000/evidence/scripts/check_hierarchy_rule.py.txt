@@ -1,0 +1,107 @@
+"""Controllo eseguibile della regola di gerarchia. Assert, nessun framework.
+
+Tre asserzioni, tutte sul documento STRUTTURATO (non sul Markdown):
+
+1. INDIPENDENZA DALLE STRINGHE — su un PDF con vocabolario estraneo ai cataloghi
+   la regola produce comunque tre ranghi distinti e monotoni nella dimensione
+   del font. Se la gerarchia dipendesse dai titoli dei cataloghi, fallirebbe qui.
+
+2. AMBIGUITA' NON RISOLTA ARBITRARIAMENTE — due intestazioni con stile identico
+   devono ricevere lo STESSO livello. Un ordinamento fra le due sarebbe inventato.
+
+3. ABLAZIONE — spegnendo `use_style` (e restando senza bookmark e senza
+   numerazione) la gerarchia deve COLLASSARE a un livello unico. Dimostra che il
+   segnale operativo e' lo stile della fonte, non un default fortunato.
+
+Uso: check_hierarchy_rule.py <fixture_dir> <artifacts_dir>
+"""
+
+import pathlib
+import sys
+
+from docling.backend.docling_parse_backend import ThreadedDoclingParseDocumentBackend
+from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
+from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import (
+    HeadingHierarchyOptions,
+    PdfPipelineOptions,
+    TableFormerMode,
+    TableStructureOptions,
+)
+from docling.document_converter import DocumentConverter, PdfFormatOption
+from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
+from docling_core.types.doc.document import SectionHeaderItem
+
+FIX = pathlib.Path(sys.argv[1]).resolve()
+ARTIFACTS = pathlib.Path(sys.argv[2]).resolve()
+
+
+def converter(hh: HeadingHierarchyOptions) -> DocumentConverter:
+    opts = PdfPipelineOptions(
+        artifacts_path=ARTIFACTS,
+        do_ocr=False,
+        do_table_structure=True,
+        force_backend_text=True,
+        table_structure_options=TableStructureOptions(mode=TableFormerMode.ACCURATE, do_cell_matching=True),
+        accelerator_options=AcceleratorOptions(device=AcceleratorDevice.CPU),
+        do_code_enrichment=False,
+        do_formula_enrichment=False,
+        do_picture_description=False,
+        do_picture_classification=False,
+        enable_remote_services=False,
+        generate_parsed_pages=True,
+        heading_hierarchy_options=hh,
+    )
+    return DocumentConverter(
+        format_options={
+            InputFormat.PDF: PdfFormatOption(
+                pipeline_cls=StandardPdfPipeline, pipeline_options=opts,
+                backend=ThreadedDoclingParseDocumentBackend,
+            )
+        }
+    )
+
+
+def headings(conv, pdf):
+    doc = conv.convert(pdf).document
+    return [(it.level, it.text) for it, _ in doc.iterate_items() if isinstance(it, SectionHeaderItem)]
+
+
+ON = converter(HeadingHierarchyOptions(enabled=True))
+esiti = {}
+
+# ---- 1. indipendenza dalle stringhe -----------------------------------------
+h = headings(ON, FIX / "fixture_gerarchia.pdf")
+esiti["1_indipendenza_stringhe"] = h
+testi = [t for _, t in h]
+assert not any(
+    k in " ".join(testi) for k in ("Catalogo", "Registro", "Regole", "Percorso")
+), f"la fixture non deve usare il vocabolario dei cataloghi: {testi}"
+liv = {t: lv for lv, t in h}
+assert liv["Manuale di manutenzione idraulica"] == 1, h
+assert liv["Procedure di collaudo"] == liv["Materiali ammessi"] == 2, h
+assert liv["Nota di archiviazione"] == 3, h
+assert liv["Manuale di manutenzione idraulica"] < liv["Procedure di collaudo"] < liv["Nota di archiviazione"], h
+print("1. indipendenza dalle stringhe  OK  ->", h)
+
+# ---- 2. il caso ambiguo non viene ordinato arbitrariamente -------------------
+h = headings(ON, FIX / "fixture_ambigua.pdf")
+esiti["2_ambiguita"] = h
+liv = {t: lv for lv, t in h}
+a, b = liv["Temperature rilevate"], liv["Precipitazioni cumulate"]
+assert a == b, (
+    "due intestazioni con stile identico hanno ricevuto ranghi diversi: "
+    f"la gerarchia sarebbe inventata. {h}"
+)
+assert liv["Bollettino meteorologico regionale"] < a, h
+print(f"2. ambiguita non risolta arbitrariamente  OK  -> stesso livello {a} per entrambe")
+
+# ---- 3. ablazione: senza stile la gerarchia collassa -------------------------
+OFF = converter(HeadingHierarchyOptions(enabled=True, use_style=False, use_bookmarks=False, use_numbering=False))
+h = headings(OFF, FIX / "fixture_gerarchia.pdf")
+esiti["3_ablazione_senza_stile"] = h
+livelli = {lv for lv, _ in h}
+assert livelli == {1}, f"senza stile la gerarchia doveva collassare a un livello unico, invece: {h}"
+print("3. ablazione senza stile: gerarchia collassata a un solo livello  OK  ->", sorted(livelli))
+
+print("\nTUTTI I CONTROLLI SUPERATI")

@@ -1,0 +1,59 @@
+ M .github/workflows/ci.yml
+ M .gitignore
+ M Dockerfile
+ M rag/README.md
+ M rag/adr/README.md
+ M rag/api/routes_retrieval.py
+ M rag/core/config.py
+ M rag/core/doc_generation.py
+ M rag/core/indexing.py
+ M rag/core/intake.py
+ M rag/core/intake_clean.py
+ M rag/core/intake_convert.py
+ M rag/core/intake_refine.py
+ M rag/core/retrieval.py
+ M rag/eval/golden_attribution.yaml
+ M rag/eval/results/history.jsonl
+ M rag/pyproject.toml
+ M rag/rag_config.yaml
+ M rag/templates/intake.unified.html
+ M rag/tests/test_ask_unified_llm.py
+ M rag/tests/test_incremental_indexing.py
+ M rag/tests/test_intake_staging.py
+ M rag/tests/test_torch_platform_pin.py
+ M rag/uv.lock
+?? output/
+?? rag/adr/DOCLING_PIPELINE_ALTERNATIVA.md
+?? rag/adr/EVOLUZIONE.md
+?? rag/adr/NOTA_IMPLEMENTAZIONE_MIGLIORIE.md
+?? rag/core/intake_excel.py
+?? rag/eval/results/corpus_disambigua_20260910-170000/
+?? rag/eval/results/dep_docling_20260908-160000/
+?? rag/eval/results/excel_fidelity_20260910/
+?? rag/eval/results/fix_attribuzione_20260909-183000/
+?? rag/eval/results/fix_generazione_20260909-200000/
+?? rag/eval/results/implementazione_migliorie_20260910/
+?? rag/eval/results/libreoffice_20260910/
+?? rag/eval/results/p0_20260908-152239/
+?? rag/eval/results/pass_20260910-140000/
+?? rag/eval/results/pilot_docling_20260908-170030/
+?? rag/eval/results/pilot_docling_chiusura_20260909-160000/
+?? rag/eval/results/pilot_docling_finale_20260909-110000/
+?? rag/eval/results/pilot_docling_sourcefix_20260909/
+?? rag/eval/results/pilot_docling_standard_20260909-095127/
+?? rag/eval/results/sel_contesto_20260910-090000/
+?? rag/eval/results/verifica_finale_20260910/
+?? rag/scripts/docling_models.py
+?? rag/tests/fixtures/intake/legacy.doc
+?? rag/tests/fixtures/intake/legacy.ppt
+?? rag/tests/fixtures/intake/legacy.xls
+?? rag/tests/fixtures/intake/protetto.xls
+?? rag/tests/fixtures/intake/protetto.xlsx
+?? rag/tests/fixtures/intake/tabelle_titoli.pdf
+?? rag/tests/intake_excel_preview.cjs
+?? rag/tests/test_code_link_filter.py
+?? rag/tests/test_intake_docling.py
+?? rag/tests/test_intake_excel.py
+?? rag/tests/test_intake_libreoffice.py
+?? skills-lock.json
+?? tmp/

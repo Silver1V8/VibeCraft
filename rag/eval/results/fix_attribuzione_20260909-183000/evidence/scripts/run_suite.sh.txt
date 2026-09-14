@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Suite del sandbox sotto una catena dichiarata, con Qdrant OBBLIGATORIO.
+#   run_suite.sh <sandbox> <qdrant-url> <python> <log-file>
+#
+# VIBECRAFT_REQUIRE_QDRANT=1 e' la variabile che il repository stesso definisce
+# per impedire che uno skip mascheri un servizio assente (vedi il commento in
+# tests/test_qdrant_blue_green.py): con Qdrant irraggiungibile i test sollevano
+# invece di saltare. Nessun -k, nessun --deselect, nessun xfail aggiunto:
+# la suite gira intera.
+set -euo pipefail
+SANDBOX="$1"
+QDRANT="$2"
+PY="$3"
+LOG="$4"
+
+export QDRANT_URL="$QDRANT"
+export VIBECRAFT_REQUIRE_QDRANT=1
+unset QDRANT_API_KEY || true
+
+cd "$SANDBOX/rag"
+{
+  echo "sandbox:    $SANDBOX"
+  echo "python:     $PY"
+  echo "$("$PY" -V 2>&1)"
+  echo "qdrant:     $QDRANT_URL  ($(curl -s "$QDRANT/collections" | head -c 200))"
+  echo "collection: $(grep -m1 collection_name rag_config.yaml)"
+  echo "CURRENT:    $(cat database/CURRENT)"
+  echo "versioni:   $(ls database/versions | tr '\n' ' ')"
+  echo "superseded_by: $(grep -m1 'superseded_by' eval/golden_attribution.yaml)"
+  echo "---"
+} | tee "$LOG"
+
+# --junit-xml: la riga di riepilogo di pytest si perde nel redirect su Windows,
+# e «exit 0» non e' un conteggio. L'XML porta passati/falliti/saltati per davvero.
+XML="${LOG%.log}.xml"
+set +e
+"$PY" -B -m pytest tests -q -p no:cacheprovider --junit-xml "$XML" >> "$LOG" 2>&1
+echo "PYTEST_EXIT=$?" | tee -a "$LOG"
+set -e
+"$PY" -c "
+import sys, xml.etree.ElementTree as ET
+r = ET.parse(sys.argv[1]).getroot()
+s = r if r.tag == 'testsuite' else r[0]
+print('test={tests} falliti={failures} errori={errors} saltati={skipped} secondi={time}'.format(**s.attrib))
+for c in s:
+    for k in ('failure', 'error'):
+        if c.find(k) is not None:
+            print('  FALLITO', c.get('classname'), c.get('name'))
+" "$XML" | tee -a "$LOG"

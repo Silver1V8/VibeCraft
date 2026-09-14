@@ -1,0 +1,319 @@
+--- repo/rag/adr\EVOLUZIONE.md
++++ baseline/rag/adr\EVOLUZIONE.md
+@@ -2141,316 +2141,3 @@
+ Nessuna integrazione, modifica all'indice o collection. Prove, catena, revisioni,
+ pesi, hash, output e limiti sono in
+ `rag/eval/results/pilot_docling_standard_20260909-095127/RESOCONTO.md`.
+-
+-## Pilot Docling — candidato finale, gerarchia nativa — 2026-09-09
+-
+-**Verdetto: BLOCCATO**, con una sola verifica mancante e il materiale per
+-sbloccarla già pronto. Tutti i criteri tecnici misurabili in sessione sono
+-superati; resta l'**attribuzione**, che il cancello 1c vuole «schermo più
+-**lettura umana**» e che un agente non può firmare al posto del manutentore.
+-Non è `NON_APPLICARE`: nessun criterio misurato è fallito.
+-
+-**Perimetro:** riguarda il percorso su **documenti rigenerati con il template
+-corretto**, non i PDF originali immutabili né PDF esterni generici.
+-
+-Ramo `codex/evoluzione-p0`, HEAD `011e264c554895c651f0eba1dccb74bc4dc10f74`,
+-invariato. Nessun branch, commit, push, PR. `AGENTS.md` assente.
+-Artefatti: `rag/eval/results/pilot_docling_finale_20260909-110000/`.
+-
+-### La gerarchia si risolve con uno stage nativo, non con codice nostro
+-
+-Cercata prima nel sorgente installato, come previsto: esiste
+-`docling/models/stages/heading_hierarchy/`, con `HeadingHierarchyOptions` già
+-cablate in `StandardPdfPipeline`, **disattivate per default**. Assegnano il
+-rango con precedenza bookmark → numerazione → **stile**. I nostri PDF non hanno
+-segnalibri né numerazione: decide lo stile (25 / 16 / 11 pt del template), cioè
+-un'informazione verificabile della fonte.
+-
+-Le uniche due differenze rispetto alla configurazione congelata sono dichiarate:
+-`heading_hierarchy_options.enabled=True` e `generate_parsed_pages=True`.
+-
+-| | livello | atteso |
+-|---|---|---|
+-| `Catalogo diagrammi` / `Catalogo mockup` | **1** | titolo del documento |
+-| `Regole di organizzazione` | **2** | stesso rango di Registro |
+-| `Registro dei file` | **2** | stesso rango di Regole |
+-| `Percorso sorgente` | **3** | rango inferiore |
+-
+-`scripts/check_hierarchy_rule.py` lascia tre assert superati: la regola tiene su
+-un PDF con **vocabolario estraneo ai cataloghi**; due intestazioni di stile
+-**identico** ricevono lo **stesso** livello invece di essere ordinate a caso;
+-e con `use_style=False` la gerarchia **collassa**, il che prova che il segnale
+-operativo è lo stile e non un default fortunato.
+-
+-### Input nuovi, tenuti separati dagli originali
+-
+-Candidati `e34c1366…77cc542` (diagrammi) e `7725b280…4a2832b` (mockup), contro
+-gli originali `9c0d51c5…` e `443ecfca…`, che restano nel corpus **non toccati**.
+-Un assert del verificatore fallisce se il candidato legge un originale.
+-Domande, celle, normalizzazioni N1–N5 e soglie sono copiate **senza modifiche**.
+-
+-### Fedeltà, riproducibilità, risorse
+-
+-2/2 tabelle, **75/75** celle dati, **9/9** intestazioni, **8/8** domande
+-derivabili, 4/4 titoli attesi, **0** inventati, gerarchia corretta, nessun
+-contenuto fabbricato; `interfacce`, `[schermata]`, `11`, `4`, `SVG + HTML` tutti
+-presenti. I 3 frammenti mancanti sono **arredo** di pagina. Controllo visivo
+-delle quattro pagine eseguito.
+-
+-Registrato perché visibile a valle, benché il criterio congelato sia soddisfatto:
+-le tre coppie KPI restano corrette e adiacenti ma **due condividono un
+-paragrafo** (`1 cartella sorgente SVG formato`). Nessun valore perso, nessuna
+-coppia rotta: è raggruppamento di reading-order.
+-
+-Due esecuzioni offline in processi nuovi: Markdown e JSON **identici byte per
+-byte**. Tempi 13,5 / 4,8 s (run 1) e 12,7 / 4,2 s (run 2). **RSS picco 1588 MB**
+-con **campionamento continuo a 0,05 s** — metodo dichiarato, non un massimo a
+-pochi checkpoint.
+-
+-### Retrieval e attribuzione con la pipeline applicativa completa
+-
+-Due stack sperimentali sullo **stesso corpus** (42 documenti, i due PDF corretti
+-in **entrambi**) e stessi parametri calibrati; unica differenza, come i PDF
+-vengono letti — 14 righe in `_read_pdf` della **sola copia sandbox** del
+-candidato, con la conversione cercata per SHA-256. `rag/core/chunking.py` del
+-repository verificato invariato.
+-
+-Separazione: Qdrant sperimentale su `:6401` (container avviato e poi arrestato
+-da questa sessione), collection `pilot_baseline_events` / `pilot_candidate_events`,
+-porte 8101/8102, `database/` e `docs/` in sandbox fuori dal repository. Il
+-container Qdrant preesistente era di nuovo senza porta pubblicata: **non è stato
+-riavviato né rimosso**.
+-
+-| Misura | baseline (pypdf) | candidato (Docling) |
+-|---|---:|---:|
+-| recall@2 / mrr | 82,8 % / 0,811 | 82,8 % / 0,811 |
+-| multihop recall A / B exact | 0,854 / 6/6 | 0,854 / 6/6 |
+-| fonte attesa in top-10 (8 domande) | **8/8** | **8/8** |
+-| risposte con tutti i valori attesi | **7/8** | **8/8** |
+-
+-Golden e multihop identici fra gli stack e identici a P0: il golden non contiene
+-i PDF, quindi vale come **non regressione**, non come merito. Sul supplemento
+-PDF il candidato non perde nulla e l'unica risposta incompleta è del **baseline**.
+-
+-**L'attribuzione resta pendente.** Il giudice N3 archiviato non è qualificato a
+-certificare risposte nuove (20/24 in-sample, non supera S6) e sostituirlo con un
+-altro modello è vietato. È stata fatta la verifica **deterministica** dei passi
+-citati e la lettura puntuale; il pacchetto per il manutentore è in
+-`review/PACCHETTO_REVISIONE.md`, con due punti segnalati (`pdf-diag-4` attribuisce
+-la banda KPI alla sezione sbagliata; `pdf-mock-3` descrive la schermata con
+-dettagli presi da un documento di specifica).
+-
+-### Suite, compatibilità, licenze
+-
+-Suite sotto la catena candidata su codice applicativo **non modificato**:
+-**1339 passati, 3 falliti**. La stessa suite, stesso sandbox, sotto la catena
+-**applicativa** dà gli **stessi 3 fallimenti**: sono artefatti dello stato
+-sperimentale (indice a versione unica, collection rinominata, archivio
+-attribuzione che punta all'indice di produzione), **non** causati da Docling.
+-`ruff` pulito sugli script; `--check-integrity` exit 0.
+-
+-`torch 2.13.0+cu126`, marker CUDA, `onnxruntime`, `transformers`, ranking e
+-parametri calibrati **invariati**. Il gruppo dev ha aggiunto solo `pytest`,
+-`ruff`, `iniconfig`.
+-
+-**Licenze migliorate rispetto alle sessioni precedenti:** i pesi effettivi sono
+-`docling-layout-heron` **apache-2.0** e `docling-models` (TableFormer ACCURATE)
+-**cdla-permissive-2.0**. **Granite non è usato** e la catena resta **senza
+-`[vlm]`**: i binari GPL di `av` non sono nemmeno su disco. La forcella licenze
+-della Sessione 2 **non si applica** a questa configurazione.
+-
+-Test nativi eseguiti **solo** su `x86_64-pc-windows-msvc`. Linux e macOS restano
+-con risoluzione e wheel, non esecuzione.
+-
+-### Esiti precedenti conservati
+-
+-Granite (`NON_APPLICARE`, contenuto inventato) e StandardPdfPipeline sui PDF
+-originali (`NON_APPLICARE`, falso titolo e associazioni KPI perse) **restano
+-tali**: questa sessione non li ribalta, cambia gli **input**.
+-
+-### Cosa manca, e cosa andrà implementato dopo un PASS
+-
+-Manca **solo** la lettura di attribuzione del manutentore. Dopo un PASS
+-andranno implementati: il template corretto e la rigenerazione dei cataloghi con
+-nuova baseline; Docling come secondo motore con la configurazione sopra e i pesi
+-pinnati; gli interruttori `intake.conversion_engine` e
+-`retrieval.pdf_conversion_engine`; la dipendenza dichiarata dal file di
+-requisiti congelato, non da `docling==2.126.0`. Il difetto `torchvision +cpu`
+-resta aperto e irrilevante finché il motore gira su CPU.
+-
+-Dettaglio completo, script, manifest, output e inventario SHA-256 in
+-`rag/eval/results/pilot_docling_finale_20260909-110000/RESOCONTO.md`.
+-
+-## Pilot Docling — chiusura: audit, schermo citazioni, suite, attribuzione — 2026-09-09
+-
+-**Verdetto: BLOCCATO**, e non per una firma mancante. Il resoconto precedente
+-diceva «manca solo la lettura umana»: **non era sostenuto**. Rimisurando su tre
+-passate per stack è emerso un **difetto di risposta confermato e riproducibile**
+-(`pdf-diag-3` fallisce 0/3 in **tutti** gli stack), e la correzione generale
+-tentata è **NON_APPLICARE**.
+-
+-Perimetro invariato: **documenti rigenerati con il template corretto**, non i
+-PDF originali immutabili né PDF esterni generici.
+-
+-Ramo `codex/evoluzione-p0`, HEAD `011e264c554895c651f0eba1dccb74bc4dc10f74`,
+-invariato. Nessun branch, commit, push, PR. `AGENTS.md` assente.
+-Artefatti: `rag/eval/results/pilot_docling_chiusura_20260909-160000/` (94 file).
+-
+-### Cinque cose distinte
+-
+-| | esito |
+-|---|---|
+-| conversione Docling | **verificata**, riusata dopo controllo di integrità e corrispondenza |
+-| correzione del template | prerequisito, **non ancora implementata in produzione** |
+-| correzione generale di generazione (variante di prompt) | **NON_APPLICARE** |
+-| qualità e attribuzione finali | 7/8 stabile ovunque; **un difetto confermato**; sezione imperfetta in **entrambi** gli stack |
+-| autorizzazione all'integrazione | **non concessa** |
+-
+-### Tre difetti negli STRUMENTI della sessione precedente
+-
+-1. **Estrattore delle citazioni ri-scritto peggio.** `eval_stack.py` usava
+-   `[«"']([^«»"']{12,200})[»"']`: l'apostrofo ASCII come **delimitatore**, cioè
+-   ogni elisione italiana (`l'`, `dell'`, `all'`) apriva o chiudeva una
+-   citazione — da lì `) dedicata all`. Soglia in caratteri anziché in parole.
+-   **12 delle 15 «citazioni» archiviate erano artefatti di parsing.** Corretto
+-   riusando `eval.attribution.quoted_spans`, che il repository ha già e che
+-   `tests/test_attribution.py` copre; chiamanti verificati prima.
+-   `scripts/check_citazioni.py`: 7 casi su 7 (apostrofi interni, virgolette
+-   doppie, caporali, Markdown, delimitatore non chiuso, chiusura orfana,
+-   citazione inventata che **resta** non verificabile).
+-2. **Il corpus di verifica non conteneva i PDF.** La mappa dei chunk cercava un
+-   campo `chunk_id` che in `chunks.json` è la **chiave**: restava vuota, ogni
+-   `testo` archiviato è `""`, e i PDF non entravano mai nel corpus. Nessuna
+-   citazione tratta da un PDF poteva risultare verificata. Riletti i chunk
+-   dall'indice davvero interrogato, una citazione del baseline passa da
+-   `unverifiable` a `verified`.
+-3. **«8/8 completa» era un `in` su sottostringa**, con `["5", "1"]` come valori
+-   attesi di `pdf-diag-4`: due cifre nude.
+-
+-Audit completo delle **sedici** risposte archiviate su sette assi separati in
+-`audit/AUDIT_MISURE_PRECEDENTI.md`. Originali intatti: inventario di 61 file,
+-zero alterati.
+-
+-### La suite è verde, senza toccare un'asserzione
+-
+-| suite | test | falliti | saltati |
+-|---|---:|---:|---:|
+-| catena **candidata** (`venv-novlm`) | 1342 | **0** | **0** |
+-| catena **applicativa** | 1342 | **0** | **0** |
+-| catena applicativa **+ variante** | 1342 | **1** | 0 |
+-
+-Le tre cause erano tutte **ambientali**, riprodotte prima di correggere:
+-la fixture del reconciler nomina `vibecraft_events__*` alla lettera mentre
+-l'alias è parametrizzato (`parse_qdrant_collection_version` → `None` con la
+-collection rinominata); il test di rollback ha bisogno di una versione
+-**precedente**; l'archivio N3 portava il `superseded_by` della produzione.
+-Correzioni: **istanza Qdrant propria per stack** (porta e volume) invece della
+-rinomina — l'isolamento è per endpoint —, indice costruito **due volte**,
+-`superseded_by` coerente col sandbox. Nessuno skip, nessun xfail, nessuna
+-asserzione toccata; `core/retrieval.py`, `core/chunking.py` e `rag_config.yaml`
+-dei sandbox byte-identici al repository. `VIBECRAFT_REQUIRE_QDRANT=1`, quindi
+-**zero saltati** significa che i test con Qdrant reale sono girati davvero.
+-
+-### `pdf-diag-3`: causa accertata, e non è Docling
+-
+-Sonda diagnostica (prove **aggiuntive**, domande congelate intatte): chiedendo
+-«quanti **KB** occupa il file…» o «il valore della colonna «Formato / peso»…»,
+-**entrambi** gli stack rispondono **19.5 KB**. Il dato c'è, è nel contesto, è
+-recuperabile: la conversione ha fatto il suo lavoro.
+-
+-Con la parola «peso» nella domanda congelata, **nessuno dei due stack** risponde
+-in **nessuna** delle tre passate: agganciano «peso» alla scala di autorevolezza e
+-concludono `0.30` / `0.87` / `0.90`, o dichiarano il dato assente. La forma è
+-quella di `[CLASSE-FONTI]` in `core/retrieval.py`. **Collisione lessicale nella
+-generazione**, identica nei due stack.
+-
+-Stessa natura per `pdf-diag-4`: il PDF produce **un solo chunk**, la sua
+-`section` è `Catalogo diagrammi` e l'intestazione di blocco è corretta — la
+-risposta la cita testualmente e poi attribuisce la banda KPI a «Regole di
+-organizzazione» (che nel Markdown viene **dopo**) e a un «Indice operativo» che
+-non esiste. Non segmentazione, non metadati: **generazione**.
+-
+-### Variante `[ATTRIBUZIONE-DICHIARATA]` — NON_APPLICARE
+-
+-Correzione minima e generale: restringere l'**ambito** di `[CLASSE-FONTI]` (la
+-graduatoria governa i vincoli, non i dati che una fonte riporta sui propri
+-artefatti) e vincolare l'indicazione del luogo all'intestazione di blocco.
+-Nessuna regola sui due PDF, nessun riferimento al golden, nessun cambio di
+-ranking o parametri calibrati, nessun modello remoto, nessuna governance rimossa.
+-
+-1. **Non corregge il difetto**: `pdf-diag-3` resta 0/3 in entrambi gli stack.
+-2. **Non sposta l'attribuzione** oltre la variabilità dello strumento.
+-3. **Sfonda un budget dichiarato**:
+-   `test_costo_fisso_del_prompt_entro_il_budget` fallisce, prompt fisso da ~1000
+-   a **~1180 token stimati** — il budget che esiste perché la crescita del prompt
+-   portò `/ask` al 104% di `num_ctx` (A1).
+-
+-Miglioramento registrato ma insufficiente: documento atteso nominato **21/24**
+-contro 15/24 e 17/24. **L'esito NON_APPLICARE resta** anche se una variante
+-successiva superasse i controlli.
+-
+-### Confronto finale, tre passate per stack
+-
+-Cache di `/ask` **spenta** (`VIBECRAFT_ASK_CACHE_SIZE=0`): `cached: false` su
+-tutte e 96 le risposte. Tutte le passate conservate.
+-
+-| misura (24 = 8 domande × 3 passate) | baseline | candidato |
+-|---|---|---|
+-| valori attesi presenti | **21/24** | **21/24** |
+-| fonte attesa nel contesto inviato | **24/24** | **24/24** |
+-| documento atteso nominato | 17/24 | 15/24 |
+-| dato presente dichiarato assente | `pdf-diag-3` | `pdf-diag-3` |
+-| sezione attribuita male | 4 domande | 3 domande |
+-| astensioni · errori di trasporto · troncamenti | 0 · 0 · 0 | 0 · 0 · 0 |
+-| passate instabili | **0** | **0** |
+-| golden `recall@2` · multihop A · B exact | 0.828 · 0.854 · 6/6 | 0.828 · 0.854 · 6/6 |
+-
+-**Il «candidato 8/8 contro baseline 7/8» della sessione precedente era una
+-passata singola fortunata**: su tre passate i due stack sono **7/8 entrambi**,
+-con la stessa domanda mancante. Golden e multihop identici fra loro e a P0: non
+-regressione, non merito.
+-
+-I nove «troncamenti» segnalati dal predicato grezzo sono, all'ispezione, risposte
+-**complete** che finiscono con una riga di tabella o con `46.4 KB`: predicato
+-corretto, **zero troncamenti**.
+-
+-### Lo schermo di attribuzione, e i suoi limiti
+-
+-Non è il giudice N3 (nessun modello giudica; l'archivio storico **non** è usato
+-come prova). Conta se la risposta nomina il documento normativo per **nome o per
+-classe** — il repository considera valido «nella specifica [REQUIREMENTS]»
+-(`normalize_verdict`). Esiti: 5/8, 5/8, 5/8, 4/8 nelle quattro configurazioni.
+-
+-**Limite dichiarato**: una passata su otto casi. Con lo strumento letterale
+-superato, lo stesso stack ha dato 3, 3, 3 e 5 in quattro esecuzioni identiche:
+-variabilità ±2/8. Lo schermo **non rileva regressioni** attribuibili a Docling o
+-alla variante e **non ha la risoluzione per certificare** alcunché. La prima
+-versione contava solo i nomi di file e dava 3/8 al candidato contro 7/8 al
+-baseline: sarebbe stata una conclusione falsa — misurava lo **stile**.
+-
+-### Che cosa manca, esattamente
+-
+-1. **Una decisione del manutentore su `pdf-diag-3`**: un dato che una fonte
+-   riporta sui propri artefatti deve poter essere risposto anche quando la
+-   parola della domanda collide col lessico di governance? Se sì, la correzione
+-   va progettata dentro il budget del prompt fisso o fuori dal prompt; se no, va
+-   dichiarato che l'Ispettore di Governance non risponde a domande di dato.
+-2. **La lettura umana dell'attribuzione** (`review/PACCHETTO_REVISIONE.md`): sei
+-   domande segnalate in cima, tutte le risposte di tutte le passate, la sezione
+-   **effettiva** dal contesto realmente inviato.
+-3. **L'implementazione del template corretto** con nuova baseline.
+-
+-### Isolamento e stato del repository
+-
+-Due istanze Qdrant sperimentali con porta e volume propri (`:6401`, `:6402`);
+-produzione (`:6333`) **mai contattata**, container `qdrant`,
+-`vibecraft-qdrant-1` e `neo4j` **mai riavviati né rimossi**. Al termine:
+-stesso identico insieme di file modificati e non tracciati di inizio sessione,
+-più la sola nuova directory datata; hash invariati per `core/retrieval.py`,
+-`core/chunking.py`, `rag_config.yaml`, `golden_attribution.yaml`,
+-`golden_set.yaml`, `pyproject.toml`, `uv.lock`; `history.jsonl` invariato (135
+-righe, `57b1eecdd1c23983`) — golden e multihop con `--no-save`, dentro i sandbox.
+-`ruff` pulito su tutti gli script.
+-
+-Dettaglio completo in
+-`rag/eval/results/pilot_docling_chiusura_20260909-160000/RESOCONTO.md`.

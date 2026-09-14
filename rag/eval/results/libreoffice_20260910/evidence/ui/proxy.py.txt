@@ -1,0 +1,28 @@
+"""Inoltro TCP della SANDBOX UI: 0.0.0.0:8001 -> 127.0.0.1:8000 dentro il container.
+Il server resta sul loopback (VIBECRAFT_HOST=127.0.0.1) e vede il browser come client
+locale, esattamente come nell'uso reale sulla macchina dell'utente; senza, la porta
+pubblicata da Docker arriva dal gateway e la UI keyless riceve 401. Solo per la prova."""
+import asyncio
+
+
+async def _pipe(reader, writer):
+    try:
+        while data := await reader.read(65536):
+            writer.write(data)
+            await writer.drain()
+    finally:
+        writer.close()
+
+
+async def _client(reader, writer):
+    up_r, up_w = await asyncio.open_connection("127.0.0.1", 8000)
+    await asyncio.gather(_pipe(reader, up_w), _pipe(up_r, writer), return_exceptions=True)
+
+
+async def main():
+    server = await asyncio.start_server(_client, "0.0.0.0", 8001)
+    async with server:
+        await server.serve_forever()
+
+
+asyncio.run(main())

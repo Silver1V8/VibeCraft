@@ -1,0 +1,141 @@
+"""Fase 4 — retrieval e attribuzione REALI su uno stack sperimentale.
+
+Usa la pipeline applicativa completa via HTTP (POST /ask, GET /api/retrieve):
+ibrido denso+sparse+ColBERT, re-ranking di grafo e pesi di autorita' come in
+produzione. Nessuna scorciatoia dense-only.
+
+Per ciascuna delle 8 domande del supplemento locale registra: query, fonti
+recuperate con rango e punteggio, chunk_id, testo del chunk, risposta del
+modello locale, fonti citate dalla risposta e verifica DETERMINISTICA delle
+citazioni fra virgolette contro i documenti del corpus sperimentale.
+
+La verifica delle citazioni e' un `in` su file: e' deterministica e non usa
+alcun giudice LLM. Il verdetto di ATTRIBUZIONE resta al manutentore umano.
+
+Uso: eval_stack.py <nome-stack> <url-server> <sandbox-docs-dir> <out-dir>
+"""
+
+import json  # noqa: E402
+import pathlib  # noqa: E402
+import re  # noqa: E402
+import sys  # noqa: E402
+import time  # noqa: E402
+import urllib.parse  # noqa: E402
+import urllib.request  # noqa: E402
+
+STACK, URL, DOCS, OUT = sys.argv[1], sys.argv[2].rstrip("/"), pathlib.Path(sys.argv[3]), pathlib.Path(sys.argv[4])
+OUT.mkdir(parents=True, exist_ok=True)
+
+HERE = pathlib.Path(__file__).resolve().parent.parent
+import yaml  # noqa: E402
+
+qs = yaml.safe_load((HERE / "truth/domande_pdf_locali.yaml").read_text(encoding="utf-8"))
+REL = {
+    "diagrammi": "02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf",
+    "mockup": "02_specs_normative/mockups/catalogo_mockup_normativi.pdf",
+}
+
+
+def post(path, payload, timeout=600):
+    req = urllib.request.Request(
+        URL + path, data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"}, method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+def get(path, timeout=300):
+    with urllib.request.urlopen(URL + path, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+# testo dei documenti del corpus sperimentale, per la verifica deterministica
+corpus = {}
+for p in DOCS.rglob("*"):
+    if p.is_file() and p.suffix.lower() in (".md", ".txt"):
+        corpus[str(p.relative_to(DOCS)).replace("\\", "/")] = p.read_text(encoding="utf-8", errors="ignore")
+
+QUOTE = re.compile(r"[«\"']([^«»\"']{12,200})[»\"']")
+
+# testo dei chunk indicizzati, per riportare cosa ha visto il retrieval
+CHUNKS = {}
+_cv = sorted((DOCS.parent / "rag/database/versions").glob("*/chunks.json"))
+if _cv:
+    _raw = json.loads(_cv[-1].read_text(encoding="utf-8"))
+    _it = _raw.values() if isinstance(_raw, dict) else _raw
+    for _c in _it:
+        if isinstance(_c, dict) and _c.get("chunk_id"):
+            CHUNKS[_c["chunk_id"]] = _c.get("text", "")
+
+# i PDF non sono leggibili come testo: per loro la fonte verificabile e' il
+# contenuto INDICIZZATO, cioe' esattamente cio' che il modello ha potuto vedere.
+for _cid, _txt in CHUNKS.items():
+    if ".pdf" in _cid:
+        corpus[_cid] = _txt
+
+report = {"stack": STACK, "url": URL, "health": get("/api/health"), "domande": {}}
+
+for q in qs["domande"]:
+    qid, testo, doc = q["id"], q["domanda"], q["fonte"]
+    atteso = REL[doc]
+
+    r = get("/api/retrieve?q=" + urllib.parse.quote(testo) + "&k=10")
+    hits = r.get("results") or r.get("hits") or []
+    fonti = []
+    for i, h in enumerate(hits):
+        did = h.get("doc_id") or h.get("source") or ""
+        fonti.append({
+            "rango": i + 1, "doc_id": did, "chunk_id": h.get("chunk_id"),
+            "section": h.get("section"), "colbert_score": h.get("colbert_score"),
+            "fused_rank_sum": h.get("fused_rank_sum"), "authority": h.get("authority"),
+            "testo": CHUNKS.get(h.get("chunk_id"), "")[:1500],
+        })
+    rango_atteso = next((f["rango"] for f in fonti if atteso in str(f["doc_id"])), None)
+
+    t0 = time.time()
+    a = post("/ask", {"question": testo, "top_k": 10})
+    secondi = round(time.time() - t0, 1)
+    risposta = a.get("answer") or a.get("risposta") or ""
+    citate = a.get("sources") or a.get("fonti") or []
+
+    # verifica DETERMINISTICA delle citazioni fra virgolette
+    citazioni = []
+    for m in QUOTE.findall(risposta):
+        frammento = " ".join(m.split())
+        dove = [k for k, v in corpus.items() if frammento in " ".join(v.split())]
+        citazioni.append({
+            "passo": frammento[:160],
+            "esito": "verified" if dove else "unverifiable",
+            "trovato_in": dove[:3],
+        })
+
+    report["domande"][qid] = {
+        "domanda": testo,
+        "fonte_attesa": atteso,
+        "risposta_attesa": q["risposta_attesa"],
+        "retrieval": {
+            "fonte_attesa_in_top10": rango_atteso is not None,
+            "rango_fonte_attesa": rango_atteso,
+            "fonti": fonti,
+        },
+        "risposta": {
+            "testo": risposta,
+            "secondi": secondi,
+            "fonti_citate": citate,
+            "citazioni_verificate": citazioni,
+        },
+    }
+    print(f"{qid:11s} rango_fonte={rango_atteso}  citazioni={len(citazioni)}  {secondi}s", flush=True)
+
+sintesi = {
+    "fonte_attesa_in_top10": sum(1 for v in report["domande"].values() if v["retrieval"]["fonte_attesa_in_top10"]),
+    "totale_domande": len(report["domande"]),
+    "citazioni_non_verificabili": sum(
+        1 for v in report["domande"].values()
+        for c in v["risposta"]["citazioni_verificate"] if c["esito"] != "verified"
+    ),
+}
+report["sintesi"] = sintesi
+(OUT / f"eval_{STACK}.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+print(json.dumps(sintesi, ensure_ascii=False, indent=2))

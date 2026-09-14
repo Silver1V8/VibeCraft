@@ -1,0 +1,136 @@
+"""Confronto cella-per-cella di ogni output contro la verita' di riferimento.
+
+Applica SOLO le normalizzazioni N1-N5 dichiarate in truth/verita_riferimento.json,
+registrate prima di vedere gli output. Nessun aggiustamento a posteriori.
+
+Uso: score.py <truth.json> <out_dir> <report.json>
+"""
+
+import json
+import pathlib
+import re
+import sys
+
+truth = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+OUT = pathlib.Path(sys.argv[2])
+REPORT = pathlib.Path(sys.argv[3])
+
+BOLD = re.compile(r"\*\*|__|\*|`")
+WS = re.compile(r"\s+")
+
+
+def norm(s: str) -> str:
+    """N1 (soft wrap gia' risolto dal parser di riga), N3 letterale, N4 markup ignorato."""
+    s = BOLD.sub("", s or "")
+    s = s.replace("<br>", " ").replace("\\n", " ")
+    return WS.sub(" ", s).strip()
+
+
+def cell_ok(expected: str, got: str) -> bool:
+    e, g = norm(expected), norm(got)
+    if "|" in expected:  # N2: cella a due valori logici
+        parts = [norm(p) for p in expected.split("|")]
+        pos = 0
+        for p in parts:
+            i = g.find(p, pos)
+            if i < 0:
+                return False
+            pos = i + len(p)
+        return True
+    # N1: il candidato puo' aver conservato l'a-capo dentro il valore
+    return e == g or e == g.replace(" ", "")
+
+
+def parse_md_tables(text: str):
+    """Estrae le tabelle markdown ben formate: righe che iniziano e finiscono con |,
+    con una riga separatore. Restituisce lista di liste di celle."""
+    tables, cur = [], []
+    for line in text.splitlines():
+        s = line.strip()
+        if s.startswith("|") and s.endswith("|") and len(s) > 2:
+            cells = [c.strip() for c in s.strip("|").split("|")]
+            if all(re.fullmatch(r":?-{2,}:?", c) for c in cells if c):
+                continue  # riga separatore
+            cur.append(cells)
+        else:
+            if len(cur) >= 2:
+                tables.append(cur)
+            cur = []
+    if len(cur) >= 2:
+        tables.append(cur)
+    return tables
+
+
+def match_table(tables, headers):
+    """Sceglie la tabella con la migliore sovrapposizione di intestazione."""
+    want = {norm(h).lower() for h in headers}
+    best, best_score = None, 0
+    for t in tables:
+        head = {norm(c).lower() for c in t[0]}
+        score = len(want & head)
+        if score > best_score:
+            best, best_score = t, score
+    return best, best_score
+
+
+ENGINES = {
+    "loader_pypdf": {"diagrammi": "baseline/loader_diagrammi.txt", "mockup": "baseline/loader_mockup.txt"},
+    "intake_markitdown": {"diagrammi": "baseline/markitdown_diagrammi.md", "mockup": "baseline/markitdown_mockup.md"},
+    "docling_granite": {"diagrammi": "granite/granite_diagrammi.md", "mockup": "granite/granite_mockup.md"},
+    "docling_standard": {"diagrammi": "standard/standard_diagrammi.md", "mockup": "standard/standard_mockup.md"},
+}
+
+report = {}
+for engine, files in ENGINES.items():
+    eng = {"tabelle_complete": 0, "celle_dati_corrette": 0, "celle_intestazione_corrette": 0,
+           "celle_dati_totali": 0, "celle_intestazione_totali": 0, "valori_alterati": [],
+           "dettaglio": {}, "presente": True}
+    for tb in truth["tabelle_del_cancello_1c"]:
+        doc = tb["documento"]
+        p = OUT / files[doc]
+        eng["celle_dati_totali"] += tb["righe_dati"] * tb["colonne"]
+        eng["celle_intestazione_totali"] += len(tb["intestazioni"])
+        if not p.exists():
+            eng["presente"] = False
+            eng["dettaglio"][tb["id"]] = {"errore": f"output assente: {files[doc]}"}
+            continue
+        text = p.read_text(encoding="utf-8")
+        tables = parse_md_tables(text)
+        cand, score = match_table(tables, tb["intestazioni"])
+        d = {"tabelle_markdown_trovate": len(tables), "intestazioni_riconosciute": score}
+        if cand is None:
+            d.update({"tabella_completa": False, "motivo": "nessuna tabella markdown con intestazione riconoscibile",
+                      "celle_dati_corrette": 0, "celle_intestazione_corrette": 0})
+            eng["dettaglio"][tb["id"]] = d
+            continue
+
+        head_ok = sum(1 for i, h in enumerate(tb["intestazioni"])
+                      if i < len(cand[0]) and cell_ok(h, cand[0][i]))
+        body = cand[1:]
+        data_ok, wrong = 0, []
+        for r, row in enumerate(tb["righe"]):
+            for c, exp in enumerate(row):
+                got = body[r][c] if r < len(body) and c < len(body[r]) else ""
+                if cell_ok(exp, got):
+                    data_ok += 1
+                else:
+                    wrong.append({"riga": r + 1, "colonna": tb["intestazioni"][c],
+                                  "atteso": exp, "ottenuto": norm(got)[:80]})
+        complete = (len(body) == tb["righe_dati"] and len(cand[0]) == tb["colonne"]
+                    and head_ok == len(tb["intestazioni"]) and data_ok == tb["righe_dati"] * tb["colonne"])
+        d.update({"tabella_completa": complete, "righe_dati_trovate": len(body),
+                  "colonne_trovate": len(cand[0]), "celle_dati_corrette": data_ok,
+                  "celle_intestazione_corrette": head_ok, "celle_sbagliate": wrong})
+        eng["tabelle_complete"] += int(complete)
+        eng["celle_dati_corrette"] += data_ok
+        eng["celle_intestazione_corrette"] += head_ok
+        eng["valori_alterati"] += wrong
+        eng["dettaglio"][tb["id"]] = d
+    report[engine] = eng
+
+REPORT.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+for e, r in report.items():
+    print(f"{e:26s} tabelle {r['tabelle_complete']}/2  "
+          f"dati {r['celle_dati_corrette']}/{r['celle_dati_totali']}  "
+          f"intestazioni {r['celle_intestazione_corrette']}/{r['celle_intestazione_totali']}"
+          + ("" if r["presente"] else "   [output assente]"))

@@ -1,0 +1,104 @@
+"""Flusso intake end-to-end via HTTP contro il server della SANDBOX (porta 8123, Qdrant 6401,
+docs/ e database/ della sandbox). Nessun contatto con la produzione.
+
+Uso: <python del venv> e2e_api.py <sandbox_dir> <out.json>"""
+import hashlib
+import json
+import sys
+import threading
+from pathlib import Path
+
+import httpx
+from qdrant_client import QdrantClient
+from qdrant_client.models import FieldCondition, Filter, MatchValue
+
+S, OUT = Path(sys.argv[1]), Path(sys.argv[2])
+BASE = "http://127.0.0.1:8123"
+E = S / "rag/static/_e2e"
+KEY = next((ln.split("=", 1)[1].strip() for ln in (S / "rag/.env.local").read_text().splitlines()
+            if ln.startswith("VIBECRAFT_API_KEY=")), "")
+c = httpx.Client(base_url=BASE, headers={"X-API-Key": KEY}, timeout=600)
+report: dict = {"upload": {}, "preview": {}, "approve": {}, "controlli": {}}
+
+
+def tree(root: Path) -> dict[str, str]:
+    return {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in sorted(root.rglob("*")) if p.is_file()}
+
+
+docs0 = tree(S / "docs")
+current0 = (S / "rag/database/CURRENT").read_text().strip()
+
+for nome in ("nota_nativa.md", "tabelle_titoli.pdf", "scansione_tabelle.pdf", "sample.docx",
+             "sample.html", "vuoto.pdf", "corrotto.pdf", "programma.exe", "tabelle_titoli.pdf#dup"):
+    fname = nome.split("#")[0]
+    r = c.post("/api/intake/docs", files={"file": (fname, (E / fname).read_bytes())})
+    body = r.json()
+    report["upload"][nome] = {"status": r.status_code,
+                              "detail": body.get("detail"), "id": body.get("id"),
+                              "motore": (body.get("metadata") or {}).get("motore")}
+
+report["controlli"]["docs_invariato_prima_di_approve"] = tree(S / "docs") == docs0
+staged = {e["filename"]: e for e in c.get("/api/intake/staged").json()["staged"]}
+report["staged"] = sorted(staged)
+for fname, e in staged.items():
+    p = c.get(f"/api/intake/staged/{e['id']}/preview").json()
+    m = p["metadata"]
+    report["preview"][fname] = {k: m.get(k) for k in ("motore", "versione_motore", "fallback", "avvisi", "pdf", "sha256")}
+    report["preview"][fname]["markdown_inizio"] = p["markdown"][:300]
+
+# Doppia approvazione CONCORRENTE dello stesso documento: una sola deve riuscire.
+esiti: list[int] = []
+pdf_id = staged["tabelle_titoli.pdf"]["id"]
+
+
+def approva(nome_file: str) -> None:
+    esiti.append(c.post(f"/api/intake/staged/{pdf_id}/approve",
+                        json={"categoria": "02_specs_normative", "nome_file": nome_file}).status_code)
+thr = [threading.Thread(target=approva, args=(n,)) for n in ("registro-forniture", "registro-forniture-bis")]
+for t in thr:
+    t.start()
+for t in thr:
+    t.join()
+report["approve"]["concorrente_stesso_pdf"] = sorted(esiti)
+
+for fname, categoria, nome_file in (("nota_nativa.md", "04_knowledge_informative", "nota-nativa"),
+                                    ("scansione_tabelle.pdf", "04_knowledge_informative", "scansione-registro"),
+                                    ("sample.docx", "04_knowledge_informative", "documento-docx")):
+    r = c.post(f"/api/intake/staged/{staged[fname]['id']}/approve",
+               json={"categoria": categoria, "nome_file": nome_file})
+    report["approve"][fname] = {"status": r.status_code, "doc_path": r.json().get("doc_path"),
+                                "reindex": {k: (r.json().get("reindex") or {}).get(k)
+                                            for k in ("reindexed_docs", "upserted_chunks", "version")}}
+# Destinazione già esistente: stesso nome del DOCX appena pubblicato.
+r = c.post(f"/api/intake/staged/{staged['sample.html']['id']}/approve",
+           json={"categoria": "04_knowledge_informative", "nome_file": "documento-docx"})
+report["approve"]["html_su_nome_occupato"] = {"status": r.status_code, "detail": r.json().get("detail")}
+r = c.post(f"/api/intake/staged/{staged['sample.html']['id']}/reject", json={"motivo": "prova di rifiuto e2e"})
+report["approve"]["html_rifiutato"] = r.status_code
+
+docs1 = tree(S / "docs")
+nuovi = sorted(set(docs1) - set(docs0))
+report["controlli"]["nuovi_in_docs"] = nuovi
+report["controlli"]["solo_md_in_docs"] = all(n.endswith(".md") for n in nuovi)
+report["controlli"]["preesistenti_intatti"] = all(docs1.get(k) == v for k, v in docs0.items())
+journal = [json.loads(x) for x in (S / "rag/database/staging/intake.jsonl").read_text(encoding="utf-8").splitlines() if x.strip()]
+ultimi = {j["id"]: j for j in journal}
+originali = {}
+for j in ultimi.values():
+    cartella = "rejected" if j["status"] == "rejected" else "docs"
+    src = S / "rag/database/staging" / cartella / j["files"]["original"]
+    originali[j["filename"]] = {"stato": j["status"], "originale_presente": src.is_file(),
+                                "sha_uguale": src.is_file() and hashlib.sha256(src.read_bytes()).hexdigest() == j["metadata"]["sha256"]}
+report["controlli"]["originali"] = originali
+md_pubblicati = {n: (S / "docs" / n).read_text(encoding="utf-8") for n in nuovi}
+report["controlli"]["riferimenti_a_file_nei_md"] = {n: ("](" in t and "![" in t) for n, t in md_pubblicati.items()}
+q = QdrantClient(url="http://127.0.0.1:6401")
+report["controlli"]["punti_qdrant_per_doc"] = {
+    n: q.count("vibecraft_events", count_filter=Filter(must=[FieldCondition(
+        key="doc_id", match=MatchValue(value=n))])).count for n in nuovi}
+report["controlli"]["current"] = [current0, (S / "rag/database/CURRENT").read_text().strip()]
+OUT.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+print(json.dumps({k: v for k, v in report.items() if k != "preview"}, ensure_ascii=False, indent=1))
+print(json.dumps({f: {k: v for k, v in p.items() if k != "markdown_inizio"} for f, p in report["preview"].items()},
+                 ensure_ascii=False, indent=1))

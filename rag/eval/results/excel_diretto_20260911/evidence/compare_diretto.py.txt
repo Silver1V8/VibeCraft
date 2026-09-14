@@ -1,0 +1,277 @@
+"""Banco di fedeltà della lettura diretta Excel, in un processo nuovo.
+
+Uso (da rag/): python -B eval/results/excel_diretto_20260911/compare_diretto.py OUT [FILE ...]
+
+Riferimento: l'ORIGINALE letto da Excel 16 (oracolo_excel/*.excel.json, excel_oracle.ps1),
+indipendente da openpyxl e xlrd. Le attese sono ricavate qui dai valori memorizzati di Excel con
+regole scritte in questo file (numeri, date dal seriale, booleani, errori), non dal convertitore.
+Il Markdown si legge con markdown-it (CommonMark + tabelle GFM), come lo leggerebbe un lettore.
+
+Per ogni file: ogni cella non vuota alla sua coordinata, nessuna cella in più o duplicata, fogli
+e ordine, celle unite, elenco del testo dall'aspetto tipizzato, presenza dei formati non
+generali, formule senza risultato memorizzato tutte nell'avviso, regola geometrica (nessuna
+tabella attraversa una colonna vuota in tutto il foglio o una riga vuota nel proprio
+intervallo), righe dell'originale mai divise se non da una colonna vuota in tutto il foglio,
+metadati del motore. Nessun punteggio aggregato: un solo difetto = FAIL.
+"""
+import hashlib
+import html
+import json
+import re
+import sys
+import threading
+import time
+from datetime import datetime, timedelta
+from html.parser import HTMLParser
+from pathlib import Path
+
+import psutil
+from markdown_it import MarkdownIt
+from openpyxl.utils import column_index_from_string
+
+ROOT = Path.cwd()
+sys.path.insert(0, str(ROOT))
+from core.intake_convert import convert_to_markdown  # noqa: E402
+
+HERE = Path(__file__).resolve().parent
+ORACOLO = HERE / "oracolo_excel"
+DEFAULT = [ROOT / p for p in (
+    "eval/results/libreoffice_20260910/fixture/registro.xlsx",
+    "eval/results/libreoffice_20260910/fixture/registro_excel.xlsx",
+    "eval/results/libreoffice_20260910/fixture/registro.xls",
+    "eval/results/libreoffice_20260910/fixture/rete.xlsx",
+    "eval/results/verifica_finale_20260910/formati2/fixture/registro.xlsx",
+    "eval/results/verifica_finale_20260910/formati/fixture/budget.xlsx",
+    "eval/results/verifica_finale_20260910/formati/fixture/budget.xls",
+    "tests/fixtures/intake/legacy.xls",
+    "tests/fixtures/intake/casi_excel.xls",
+    "tests/fixtures/intake/casi_excel.xlsx",
+)]
+TYPED = re.compile(r"|[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?|TRUE|FALSE|#N/A|#[A-Z0-9/_]+[!?]"
+                   r"|\d{4}-\d\d-\d\d( \d\d:\d\d:\d\d(\.\d+)?)?|-?\d+:\d\d:\d\d(\.\d+)?")
+# Testo che Excel visualizza per un orario o una durata (separatore «:» o «.» secondo la lingua).
+TIME_TEXT = re.compile(r"-?\d+[:.]\d\d([:.]\d\d([,.]\d+)?)?")
+
+
+def uncached_formula(cell) -> bool:
+    """Excel in calcolo manuale legge come testo vuoto una formula senza risultato memorizzato:
+    nel contratto la cella è vuota e compare nell'avviso (prima esecuzione:
+    host_a_banco_da_correggere/, dove il banco la attendeva come testo vuoto)."""
+    return bool(cell["f"]) and cell["t"] == "text" and cell["v"] == ""
+
+
+def temporal(cell) -> bool:
+    """Data/ora secondo Excel: Value(10) è DateTime per le date; per orari e durate Excel dà un
+    Double, quindi vale il testo che visualizza (es. «0:00:00», «36:00:00»)."""
+    return cell["t"] == "number" and (cell.get("d") or bool(TIME_TEXT.fullmatch(cell["text"] or "")))
+
+
+def expected_text(cell):
+    """Rendering atteso dal valore memorizzato secondo il contratto, calcolato da Excel."""
+    t, v, nf = cell["t"], cell["v"], cell["nf"] or ""
+    if t in ("text", "bool", "error"):
+        return v
+    x = float(v)
+    if not temporal(cell):
+        return str(int(x)) if x.is_integer() and abs(x) < 1e16 else repr(x)
+    ms = round(x * 86_400_000)
+    bare = re.sub(r'"[^"]*"|\\.', "", nf)
+    if re.search(r"\[[hms]+\]", bare, re.I):                     # durata
+        s, f = divmod(abs(ms), 1000)
+        return f"{'-' if ms < 0 else ''}{s // 3600}:{s // 60 % 60:02}:{s % 60:02}" + (f".{f:03}" if f else "")
+    when = datetime(1899, 12, 30) + timedelta(milliseconds=ms + (86_400_000 if x < 60 else 0))
+    frac = f".{when.microsecond // 1000:03}" if when.microsecond else ""
+    if x < 1:
+        return when.strftime("%H:%M:%S") + frac
+    has_time = re.search(r"[hs]", re.sub(r"\[[^\]]*\]", "", bare), re.I)
+    if not has_time and (when.hour, when.minute, when.second, when.microsecond) == (0, 0, 0, 0):
+        return when.date().isoformat()
+    return when.strftime("%Y-%m-%d %H:%M:%S") + frac
+
+
+class Html(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.sheet, self.tag, self.buf, self.tables, self.row, self.names = None, None, "", [], [], []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ("h2", "td", "th"):
+            self.tag, self.buf = tag, ""
+        elif tag == "br" and self.tag:
+            self.buf += "\n"
+        elif tag == "table":
+            self.tables.append((self.sheet, []))
+        elif tag == "tr":
+            self.row = []
+
+    def handle_data(self, data):
+        if self.tag:
+            self.buf += data
+
+    def handle_endtag(self, tag):
+        if tag == "h2":
+            self.sheet, self.tag = self.buf, None
+            self.names.append(self.sheet)
+        elif tag in ("td", "th"):
+            self.row.append(self.buf)
+            self.tag = None
+        elif tag == "tr":
+            self.tables[-1][1].append(self.row)
+
+
+def expand(ranges: str) -> set:
+    out = set()
+    for part in filter(None, (p.strip() for p in ranges.rstrip(".").split(","))):
+        a, _, b = part.partition(":")
+        m1, m2 = re.fullmatch(r"([A-Z]+)(\d+)", a), re.fullmatch(r"([A-Z]+)(\d+)", b or a)
+        for r in range(int(m1[2]), int(m2[2]) + 1):
+            for c in range(column_index_from_string(m1[1]), column_index_from_string(m2[1]) + 1):
+                out.add((r, c))
+    return out
+
+
+def sections(md: str) -> dict:
+    """Righe elenco sotto ciascun titolo di foglio, dal Markdown grezzo (nome reso dal parser)."""
+    out, name = {}, None
+    for line in md.split("\n"):
+        if line.startswith("## "):
+            name = html.unescape(re.sub(r"<[^>]+>", "", MarkdownIt("commonmark").renderInline(line[3:])))
+            out[name] = []
+        elif name is not None and line.startswith("- "):
+            out[name].append(line[2:])
+    return out
+
+
+def uncached_in_warning(avvisi: list[str]) -> set:
+    out = set()
+    for a in avvisi:
+        if a.startswith("Formule senza valore memorizzato"):
+            elenco = a.split("vuote nel Markdown: ", 1)[1].split(". Nessuna", 1)[0]
+            for part in elenco.split("; "):
+                sheet, _, ranges = part.rpartition("!")
+                out |= {(sheet, r, c) for r, c in expand(ranges)}
+    return out
+
+
+def check(path: Path, idx: int, out: Path) -> dict:
+    sha = hashlib.sha256(path.read_bytes()).hexdigest()
+    oracle = json.loads((ORACOLO / f"{path.name}.{sha[:8]}.excel.json").read_text(encoding="utf-8-sig"))
+    stop, peak, proc = threading.Event(), [0], psutil.Process()
+
+    def sample():
+        while not stop.is_set():
+            try:
+                peak[0] = max(peak[0], sum(p.memory_info().rss for p in [proc, *proc.children(recursive=True)]))
+            except psutil.Error:
+                pass
+            stop.wait(0.01)
+    th = threading.Thread(target=sample, daemon=True)
+    th.start()
+    t0 = time.perf_counter()
+    result = convert_to_markdown(path, path.suffix[1:].lower())
+    elapsed = time.perf_counter() - t0
+    stop.set()
+    th.join()
+    md = result.markdown
+    (out / f"{idx:02}-{path.name}.md").write_bytes(md.encode("utf-8"))
+    p = Html()
+    p.feed(MarkdownIt("commonmark").enable("table").render(md))
+    problems, actual, tables = [], {}, []
+    for sheet, (header, *body) in p.tables:
+        cols = [column_index_from_string(h) for h in header[1:]]
+        rows = [int(r[0]) for r in body]
+        tables.append((sheet, cols, rows))
+        if cols != list(range(cols[0], cols[-1] + 1)) or rows != list(range(rows[0], rows[-1] + 1)):
+            problems.append(("coordinate non contigue", sheet, header, rows))
+        for row in body:
+            for col, text in zip(cols, row[1:]):
+                key = (sheet, int(row[0]), col)
+                if key in actual:
+                    problems.append(("duplicata", key))
+                if text:
+                    actual[key] = text
+    expected, merges, typed, formatted, occupied, uncached = {}, {}, {}, {}, {}, set()
+    for s in oracle["sheets"]:
+        name = s["name"]
+        occ = occupied.setdefault(name, set())
+        for c in s["cells"]:
+            if c["merge"]:
+                merges.setdefault(name, set()).add(c["merge"])
+                occ |= expand(c["merge"])
+            if uncached_formula(c):
+                uncached.add((name, c["r"], c["c"]))
+                continue
+            if c["t"] == "empty":
+                continue
+            occ.add((c["r"], c["c"]))
+            expected[(name, c["r"], c["c"])] = expected_text(c)
+            if c["t"] == "text" and TYPED.fullmatch(c["v"]):
+                typed.setdefault(name, set()).add((c["r"], c["c"]))
+            if c["t"] == "number" and c["nf"] not in ("General", "Standard"):
+                formatted.setdefault(name, set()).add((c["r"], c["c"]))
+    for key, want in expected.items():
+        if actual.get(key) != want:
+            problems.append(("valore", key, want, actual.get(key)))
+    problems += [("inventata", key, v) for key, v in actual.items() if key not in expected]
+    m = result.metadata
+    if path.suffix.lower() == ".xlsx" and uncached_in_warning(m["avvisi"]) != uncached:
+        problems.append(("formule senza risultato", sorted(uncached ^ uncached_in_warning(m["avvisi"]))))
+    names = [s["name"] for s in oracle["sheets"]]
+    if p.names != names:
+        problems.append(("fogli", p.names, names))
+    info = sections(md)
+    for name in names:
+        lines = info.get(name, [])
+        got_m = {x.strip() for ln in lines if ln.startswith("Celle unite")
+                 for x in ln.split(":", 1)[1].rstrip(".").split(",")}
+        if got_m != merges.get(name, set()):
+            problems.append(("unioni", name, sorted(got_m), sorted(merges.get(name, set()))))
+        got_t = set().union(*[expand(ln.split(":", 1)[1]) for ln in lines if ln.startswith("Testo, non")])
+        if got_t != typed.get(name, set()):
+            problems.append(("testo tipizzato", name, sorted(got_t ^ typed.get(name, set()))))
+        got_f = set()
+        for ln in lines:
+            if ln.startswith("Formati numerici"):
+                for mm in re.finditer(r"» ([A-Z0-9:, ]+?)(?=;|\.$)", ln):
+                    got_f |= expand(mm[1])
+        if got_f != formatted.get(name, set()):
+            problems.append(("formati", name, sorted(got_f ^ formatted.get(name, set()))))
+        occ = occupied.get(name, set())
+        empty_cols = set(range(1, max((c for _, c in occ), default=0) + 1)) - {c for _, c in occ}
+        for sheet, cols, rows in tables:
+            if sheet != name:
+                continue
+            if set(cols) & empty_cols:
+                problems.append(("tabella attraverso una colonna vuota", name, cols))
+            for r in rows:
+                if not any((r, c) in occ for c in cols):
+                    problems.append(("tabella attraverso una riga vuota", name, r, cols))
+        where = {(sheet, r, c): i for i, (sheet, cols, rows) in enumerate(tables) for r in rows for c in cols}
+        by_row = {}
+        for r, c in occ:
+            by_row.setdefault(r, []).append(c)
+        for r, cs in by_row.items():
+            cs.sort()
+            for a, b in zip(cs, cs[1:]):
+                if where.get((name, r, a)) != where.get((name, r, b)) and not (set(range(a + 1, b)) & empty_cols):
+                    problems.append(("riga divisa senza colonna vuota", name, r, a, b))
+    if m["motore"] != {".xls": "xlrd", ".xlsx": "openpyxl"}[path.suffix.lower()] or m["fallback"] or "normalizzazione" in m:
+        problems.append(("metadati", m["motore"], m["fallback"], m.get("normalizzazione")))
+    return {"file": str(path), "sha256": sha, "excel": oracle["excel"], "celle_originale": len(expected),
+            "formule_senza_risultato": len(uncached), "tabelle": len(tables), "secondi": round(elapsed, 4),
+            "picco_rss_albero_mb": round(peak[0] / 1e6, 1),
+            "markdown_sha256": hashlib.sha256(md.encode("utf-8")).hexdigest(), "LF_solo": "\r" not in md,
+            "avvisi": m["avvisi"], "motore": f"{m['motore']} {m['versione_motore']}",
+            "problemi": [list(map(str, x)) for x in problems], "PASS": not problems}
+
+
+if __name__ == "__main__":
+    out = Path(sys.argv[1])
+    out.mkdir(parents=True, exist_ok=True)
+    files = DEFAULT + [Path(f) for f in sys.argv[2:]]
+    results = []
+    for i, f in enumerate(files):
+        results.append(check(f, i, out))
+        print(f.name, "PASS" if results[-1]["PASS"] else f"FAIL {results[-1]['problemi'][:3]}", flush=True)
+    (out / "results.json").write_text(json.dumps(results, ensure_ascii=False, indent=1), encoding="utf-8")
+    raise SystemExit(0 if all(r["PASS"] for r in results) else 1)

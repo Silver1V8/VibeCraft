@@ -1,0 +1,15 @@
+import pypdfium2 as pdfium, pathlib, sys
+out = pathlib.Path(sys.argv[1])
+docs = {
+ "diagrammi": r"C:\Users\Silve\Desktop\vibecraft\docs\02_specs_normative\diagrams\catalogo_diagrammi_normativi.pdf",
+ "mockup":    r"C:\Users\Silve\Desktop\vibecraft\docs\02_specs_normative\mockups\catalogo_mockup_normativi.pdf",
+}
+for name, path in docs.items():
+    pdf = pdfium.PdfDocument(path)
+    print(name, "pages:", len(pdf))
+    for i in range(len(pdf)):
+        img = pdf[i].render(scale=3).to_pil()
+        f = out / f"{name}_p{i+1}.png"
+        img.save(f)
+        print("  ", f.name, img.size)
+    pdf.close()

@@ -1,0 +1,43 @@
+{
+  "etichetta": "v0-originale",
+  "modulo": "C:\\Users\\Silve\\Desktop\\vibecraft\\rag\\core\\retrieval.py",
+  "contesti_da": "eval_B_p1.json",
+  "modello": [
+    "ollama",
+    "qwen3.5:9b"
+  ],
+  "num_ctx": 16384,
+  "temperature": 0.1,
+  "casi": {
+    "pdf-diag-3": {
+      "domanda": "Quale diagramma del catalogo documenta i checkpoint human-in-the-loop, e con quale peso?",
+      "risposta_attesa": "diag_6_2_hitl_checkpoints.svg.svg, 19.5 KB",
+      "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **`diag_6_2_hitl_checkpoints.svg.svg`**, classificato nell'area **Governance** con la finalità di illustrare \"Checkpoint human-in-the-loop e punti di controllo\".\n\nTuttavia, il contesto fornito **non riporta un peso (Authority)** specifico per questo diagramma.\nNella tabella del file `README.md`, i diagrammi sono elencati nella sezione **\"Famiglie di identificatori\"** o nel registro dei file sotto la classe **[SENZA CLASSE]**, senza una colonna esplicita per l'autorità numerica come avviene per i documenti (es. `METADATA` 0.90, `NORMS` 0.85).\n\nPoiché il contesto non contiene un valore numerico di autorità per questo artefatto visivo:\n1.  Non posso attribuire un peso dedotto o inventato.\n2.  Il contesto dichiara esplicitamente che i diagrammi sono in una cartella separata (`docs/02_specs_normative/diagrams`) e il loro contenuto è descritto come \"Artefatti visuali normativi\".\n3.  Non esiste nel testo fornito un vincolo o una regola che stabilisca automaticamente il peso di un file SVG basato sulla sua classe (poiché la classe dichiarata per i diagrammi è **[SENZA CLASSE]**, ma non c'è una riga nella tabella `README.md` che mappi \"SENZA CLASSE\" a un valore numerico come 0.30; tale valore appare solo nel testo descrittivo della gerarchia delle fonti, non applicato automaticamente ai diagrammi).\n\n**Conclusione:**\nIl diagramma è **`diag_6_2_hitl_checkpoints.svg.svg`**. Il contesto **non riporta il suo peso**, poiché la tabella dei metadati del repository elenca i diagrammi senza assegnare loro un valore di Authority numerico, limitandosi a descriverne area e finalità.",
+      "errore": null,
+      "secondi": 12.1,
+      "prompt_char": 34848,
+      "classi": [
+        [
+          "NORMS",
+          0.9
+        ],
+        [
+          "REQUIREMENTS",
+          0.87
+        ],
+        [
+          "METADATA",
+          0.6
+        ],
+        [
+          "METHODOLOGY",
+          0.5
+        ],
+        [
+          "SENZA CLASSE",
+          0.3
+        ]
+      ]
+    }
+  }
+}

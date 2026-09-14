@@ -1,0 +1,44 @@
+"""Struttura del documento Docling e cluster del layout per un PDF, con la configurazione
+dell'app (core.intake_convert._docling_converter). Serve a confrontare piattaforme: se un
+elemento cambia etichetta (titolo -> testo) è la CONVERSIONE; se l'etichetta è la stessa e
+cambia il Markdown è la SERIALIZZAZIONE.
+
+Uso: python struttura_docling.py <pdf> <out.json>   (sys.path deve contenere rag/)
+"""
+import hashlib
+import importlib.metadata as md
+import io
+import json
+import platform
+import sys
+from pathlib import Path
+
+from core import intake_convert as ic
+from docling.datamodel.base_models import DocumentStream
+
+pdf, out = Path(sys.argv[1]), Path(sys.argv[2])
+data = pdf.read_bytes()
+res = ic._docling_converter(False).convert(DocumentStream(name=pdf.name, stream=io.BytesIO(data)))
+doc = res.document
+elementi = [{"label": str(it.label.value), "livello": getattr(it, "level", None), "testo": getattr(it, "text", "")[:80]}
+            for it, _ in doc.iterate_items()]
+cluster = []
+for page in res.pages:
+    layout = getattr(getattr(page, "predictions", None), "layout", None)
+    for c in (layout.clusters if layout else []):
+        testo = " ".join(cell.text for cell in c.cells)[:60]
+        cluster.append({"pagina": page.page_no, "label": str(c.label.value), "confidenza": round(c.confidence, 4),
+                        "bbox": [round(v, 1) for v in (c.bbox.l, c.bbox.t, c.bbox.r, c.bbox.b)], "testo": testo})
+import torch  # noqa: E402
+
+report = {"piattaforma": platform.platform(), "python": platform.python_version(),
+          "pacchetti": {p: md.version(p) for p in ("docling", "docling-core", "docling-parse", "docling-ibm-models", "torch", "torchvision")},
+          "torch_threads": torch.get_num_threads(), "blas": torch.__config__.show().split("BLAS_INFO=")[-1].split(",")[0] if "BLAS_INFO=" in torch.__config__.show() else "?",
+          "pdf_sha256": hashlib.sha256(data).hexdigest(),
+          "pesi": {k: ic.sha256_file(ic.INTAKE_DOCLING_MODELS_DIR / k) for k in ic.DOCLING_WEIGHTS},
+          "elementi": elementi, "cluster": cluster,
+          "markdown": doc.export_to_markdown(escape_underscores=False, image_placeholder="")}
+out.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+print(json.dumps({k: v for k, v in report.items() if k not in ("cluster", "markdown")}, ensure_ascii=False, indent=1))
+for c in cluster:
+    print(c)

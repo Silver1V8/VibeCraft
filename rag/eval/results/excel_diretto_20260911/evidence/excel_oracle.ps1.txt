@@ -1,0 +1,61 @@
+# Oracolo indipendente dal convertitore: Excel 16 legge l'ORIGINALE (una copia temporanea),
+# in sola lettura, calcolo manuale aperto prima del file (nessun ricalcolo), macro disattivate,
+# collegamenti non aggiornati, nessun salvataggio. Per ogni cella non vuota: valore memorizzato
+# (Value2, tipo COM), formula, formato, testo visualizzato, area unita. Più forme, commenti e
+# fogli grafico, per verificare gli avvisi sui contenuti esclusi.
+# Uso: pwsh -File excel_oracle.ps1 -OutDir <dir> -Files <file1>,<file2>
+param([Parameter(Mandatory)][string]$OutDir, [Parameter(Mandatory)][string[]]$Files)
+$ErrorActionPreference = 'Stop'
+$inv = [Globalization.CultureInfo]::InvariantCulture
+New-Item -ItemType Directory -Force $OutDir | Out-Null
+$tmp = Join-Path ([IO.Path]::GetTempPath()) ("excel_oracle_" + [guid]::NewGuid())
+New-Item -ItemType Directory $tmp | Out-Null
+$errors = @{ -2146826288 = '#NULL!'; -2146826281 = '#DIV/0!'; -2146826273 = '#VALUE!'; -2146826265 = '#REF!';
+             -2146826259 = '#NAME?'; -2146826252 = '#NUM!'; -2146826246 = '#N/A'; -2146826245 = '#GETTING_DATA' }
+$xl = New-Object -ComObject Excel.Application
+try {
+    $xl.Visible = $false; $xl.DisplayAlerts = $false; $xl.ScreenUpdating = $false
+    $xl.AutomationSecurity = 3          # msoAutomationSecurityForceDisable
+    $xl.AskToUpdateLinks = $false
+    $null = $xl.Workbooks.Add()
+    $xl.Calculation = -4135             # xlCalculationManual, prima di aprire l'originale
+    foreach ($file in $Files) {
+        $src = (Resolve-Path $file).Path
+        $before = (Get-FileHash $src -Algorithm SHA256).Hash
+        $copy = Join-Path $tmp ([IO.Path]::GetFileName($src))
+        Copy-Item $src $copy
+        $wb = $xl.Workbooks.Open($copy, 0, $true)   # UpdateLinks=0, ReadOnly=true
+        $sheets = @()
+        foreach ($ws in $wb.Worksheets) {
+            $cells = @()
+            foreach ($c in $ws.UsedRange.Cells) {
+                $v = $c.Value2
+                $hasF = [bool]$c.HasFormula
+                $merged = [bool]$c.MergeCells
+                if ($null -eq $v -and -not $hasF -and -not $merged) { continue }
+                $type = if ($null -eq $v) { 'empty' } elseif ($v -is [double]) { 'number' } elseif ($v -is [bool]) { 'bool' }
+                        elseif ($v -is [int]) { 'error' } else { 'text' }
+                $value = switch ($type) { 'number' { $v.ToString('R', $inv) } 'error' { $errors[[int]$v] } 'bool' { if ($v) { 'TRUE' } else { 'FALSE' } } default { $v } }
+                # Value(10) è DateTime solo se Excel considera la cella una data/ora: il suo
+                # giudizio, non quello delle librerie del convertitore.
+                $isDate = ($type -eq 'number') -and ($c.Value(10) -is [datetime])
+                $cells += [ordered]@{ a = $c.Address($false, $false); r = $c.Row; c = $c.Column; t = $type; v = $value; d = $isDate
+                    f = if ($hasF) { $c.Formula } else { $null }; nf = $c.NumberFormat; text = $c.Text
+                    merge = if ($merged) { $c.MergeArea.Address($false, $false) } else { $null } }
+            }
+            $sheets += [ordered]@{ name = $ws.Name; visible = $ws.Visible; shapes = $ws.Shapes.Count
+                comments = $ws.Comments.Count; hyperlinks = $ws.Hyperlinks.Count; cells = $cells }
+        }
+        $out = [ordered]@{ file = $src; sha256 = $before; excel = $xl.Version; charts_sheets = $wb.Charts.Count; sheets = $sheets }
+        $wb.Close($false)
+        if ((Get-FileHash $src -Algorithm SHA256).Hash -ne $before) { throw "originale modificato: $src" }
+        $name = [IO.Path]::GetFileName($src) + '.' + $before.Substring(0, 8).ToLower() + '.excel.json'
+        $out | ConvertTo-Json -Depth 6 | Set-Content -Encoding utf8NoBOM (Join-Path $OutDir $name)
+        "$name $($sheets.Count) fogli"
+    }
+} finally {
+    $xl.Workbooks | ForEach-Object { $_.Close($false) }
+    $xl.Quit()
+    [void][Runtime.InteropServices.Marshal]::ReleaseComObject($xl)
+    Remove-Item -Recurse -Force $tmp
+}

@@ -1,0 +1,12 @@
+import difflib, sys
+from pypdf import PdfReader
+import pypdfium2 as pdfium
+bk, sp = sys.argv[1], sys.argv[2]
+for sub, name in (("diagrams", "catalogo_diagrammi_normativi.pdf"), ("mockups", "catalogo_mockup_normativi.pdf")):
+    old, new = PdfReader(f"{bk}/02_specs_normative/{sub}/{name}"), PdfReader(f"output/pdf/{name}")
+    o2, n2 = old.pages[1].extract_text().splitlines(), new.pages[1].extract_text().splitlines()
+    diff = [l for l in difflib.unified_diff(o2, n2, lineterm="", n=0) if l[:1] in "+-" and not l.startswith(("+++", "---"))]
+    print(f"== {name}: pagine {len(old.pages)}->{len(new.pages)}; pagina 2 righe {len(o2)}->{len(n2)}; differenze: {diff}")
+    print("   p1 nuova  :", new.pages[0].extract_text().replace("\n", " | ")[:260])
+    print("   p1 vecchia:", old.pages[0].extract_text().replace("\n", " | ")[:260])
+    pdfium.PdfDocument(f"output/pdf/{name}")[0].render(scale=1.4).to_pil().save(f"{sp}/{name}.p1.png")

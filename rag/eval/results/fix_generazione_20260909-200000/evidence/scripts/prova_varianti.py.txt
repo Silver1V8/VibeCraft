@@ -1,0 +1,55 @@
+"""FASE 4 — prova mirata di piu' formulazioni, una alla volta, PRIMA del batch.
+Ogni variante e' una trasformazione testuale del prompt originale sul contesto
+archiviato. Le scartate restano registrate con il motivo."""
+import json
+import pathlib
+import sys
+import re
+RAG = pathlib.Path(r"C:\Users\Silve\Desktop\vibecraft\rag")
+sys.path.insert(0, str(RAG))
+from core import llm, retrieval  # noqa: E402
+ARCH = RAG / "eval/results/fix_attribuzione_20260909-183000/out"
+RIGA2 = "Rispondi alle domande estraendo i contratti e i vincoli esatti.\n"
+
+def x1(p):   # scala SENZA numeri
+    return re.sub(r"(\w+) \(\d\.\d\d\)", r"\1", p)
+def x2(p):   # numeri + divieto d'uso come dato + obbligo di guardare le colonne della fonte
+    return p.replace(RIGA2, RIGA2) .replace(
+      "lo stabilisce.",
+      "lo stabilisce. Quei coefficienti ordinano le FONTI e non sono dati dei documenti: non "
+      "rispondono a domande su grandezze. Prima di dichiarare assente un dato, cerca nei campi "
+      "che la fonte stessa nomina come la domanda.")
+def x3(p):   # solo l'obbligo di guardare i campi omonimi, senza toccare la scala
+    return p.replace("che il contesto non lo riporta invece di ricostruirlo.",
+      "che il contesto non lo riporta invece di ricostruirlo. Prima di dichiarare assente un "
+      "dato, cerca nei campi e nelle colonne che la fonte stessa nomina come la domanda.")
+VAR = {"x1-scala-senza-numeri": x1, "x2-scala+campi-omonimi": x2, "x3-solo-campi-omonimi": x3}
+
+cfg, n, uscita = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+quali = sys.argv[4].split(",") if len(sys.argv) > 4 else list(VAR)
+d = json.loads((ARCH/f"eval_{cfg}_p1.json").read_text(encoding="utf-8"))
+q = d["domande"]["pdf-diag-3"]
+ctx = q["contesto_inviato"]
+INT = re.compile(r"^--- (?P<doc>\S+) § (?P<sez>.*?) \[(?P<cls>[^\]]+)\] ---$", re.M)
+PESI = {"NORMS":0.9,"REQUIREMENTS":0.87,"METADATA":0.6,"METHODOLOGY":0.5,"SENZA CLASSE":0.3}
+viste={}
+for m in INT.finditer(ctx):
+    c=m.group("cls").split(";")[0].split(",")[0].strip().upper()
+    viste.setdefault(c,PESI.get(c,0.3))
+scala=sorted(viste.items(), key=lambda kv:-kv[1])
+base = retrieval.build_ask_prompt(ctx, q["domanda"], authority_classes=scala)
+res={}
+for nome in quali:
+    p = VAR[nome](base)
+    assert p != base, nome
+    righe=[]
+    for i in range(n):
+        r = llm.generate(p, purpose="ask")
+        kb="19.5 KB" in r
+        coeff=bool(re.search(r"\b0[.,](?:30|50|60|85|87|90)\b", r))
+        nega=bool(re.search(r"non\s+(?:è|e')?\s*(?:riport\w+|contien\w+|specific\w+|indic\w+|present\w+)|nessun\w*\s+valore", r, re.I))
+        righe.append({"r":i+1,"kb":kb,"coeff":coeff,"nega":nega,"risposta":r})
+    pulite=sum(x["kb"] and not x["coeff"] and not x["nega"] for x in righe)
+    print(f"  {nome:26} {len(p)//3:4}tok | 19.5KB {sum(x['kb'] for x in righe)}/{n} | coeff {sum(x['coeff'] for x in righe)}/{n} | nega {sum(x['nega'] for x in righe)}/{n} | PULITE {pulite}/{n}")
+    res[nome]={"token_stimati":len(p)//3,"righe":righe}
+pathlib.Path(uscita).write_text(json.dumps(res,indent=2,ensure_ascii=False),encoding="utf-8")

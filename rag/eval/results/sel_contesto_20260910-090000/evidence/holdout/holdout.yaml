@@ -1,0 +1,73 @@
+# Insieme SEPARATO — scritto PRIMA della scelta della variante finale, usato UNA volta sola.
+#
+# NON e' il golden condiviso e non lo tocca. NON e' il supplemento PDF: le otto domande
+# dei cataloghi sono ormai casi noti di regressione, non un holdout indipendente.
+#
+# Regole che mi sono dato scrivendolo:
+#   · nessuna domanda riguarda i due cataloghi PDF;
+#   · ogni attesa e' verificata per grep sul corpus del sandbox PRIMA di scriverla, e la
+#     riga di riscontro e' annotata in `riscontro`;
+#   · copre le categorie che FASE 3 pretende e che golden/multihop/diagnostici non coprono
+#     tutte: comportamento del codice, ponte spec->codice, fattuale con fonti della STESSA
+#     classe, fattuale con fonti di classi DIVERSE, multi-documento, dato assente.
+#     Il conflitto normativo e le istruzioni malevole restano coperti dai diagnostici di
+#     governance (G4, G7), che non vengono duplicati qui.
+#
+# Se dovesse servire a CORREGGERE la variante invece che a valutarla, va dichiarato e non
+# potra' piu' essere chiamato holdout.
+
+domande:
+  - id: ho-code-1
+    categoria: comportamento del codice
+    domanda: "Quali stati di RICHIESTA impediscono di sottomettere una nuova richiesta?"
+    risposta_attesa: ["IN_ATTESA_APPROVAZIONE", "APPROVATA"]
+    fonte_attesa: "frontend/src/features/booking-requests/rules.ts"
+    riscontro: "rules.ts:10 BLOCKING_REQUEST_STATES"
+
+  - id: ho-code-2
+    categoria: comportamento del codice
+    domanda: "Quali ruoli sono abilitati a sottomettere una richiesta?"
+    risposta_attesa: ["DIPENDENTE", "MANAGER"]
+    fonte_attesa: "frontend/src/features/booking-requests/rules.ts"
+    riscontro: "rules.ts:16 AUTHORIZED_ROLES"
+
+  - id: ho-ponte-1
+    categoria: collegamento specifica-codice
+    domanda: "Quale funzione decide che un evento e' esaurito, e su quale campo si basa?"
+    risposta_attesa: ["isSoldOut"]
+    risposta_accettabile_alternativa: ["stock_disponibile", "posti_residui"]
+    fonte_attesa: "frontend/src/lib/events/stock.ts"
+    riscontro: "stock.ts:26 isSoldOut(normalizedStock(event.stock_disponibile) <= 0)"
+
+  - id: ho-fatt-stessa-classe
+    categoria: fattuale, fonti della stessa classe (NORMS)
+    domanda: "Qual e' la dimensione massima di pagina prevista dal contratto di errore delle API?"
+    risposta_attesa: ["100"]
+    fonte_attesa: "01_architecture_norms/api_error_contract.md"
+    riscontro: "api_error_contract.md:57 <<LIMITE_PAGINA>> | 100 (default)"
+
+  - id: ho-fatt-classi-diverse
+    categoria: fattuale, fonti di classi diverse
+    domanda: "Quale dominio di posta e' ammesso all'autenticazione del progetto?"
+    risposta_attesa: ["@progettopa.it"]
+    fonte_attesa: "00_meta_governance/safeguards_security.md"
+    riscontro: "safeguards_security.md:107 <<DOMINIO_IDENTITA>> | @progettopa.it"
+
+  - id: ho-multidoc
+    categoria: multi-documento
+    domanda: "Quale status HTTP corrisponde a un conflitto di concorrenza e quale codice di errore usa il safeguard sulla risorsa esaurita?"
+    risposta_attesa: ["409", "RESOURCE_EXHAUSTED"]
+    fonte_attesa: "01_architecture_norms/api_error_contract.md"
+    riscontro: "api_error_contract.md:105 (409) e :147 (RESOURCE_EXHAUSTED | 409 | [SAFEGUARD-TXN-01])"
+
+  - id: ho-assente
+    categoria: dato assente
+    domanda: "Qual e' il numero di telefono del responsabile della sicurezza indicato nei safeguard?"
+    risposta_attesa: []
+    assenza_attesa: true
+    fonte_attesa: null
+    riscontro: >-
+      nessun numero di telefono nel corpus (zero occorrenze di un numero). La parola
+      «telefono» compare una sola volta, in safeguards_security.md:600, come CATEGORIA di
+      dato personale da redigere — non come un valore. E' voluto: la domanda deve essere
+      un dato assente accanto a un'esca lessicale, non un'assenza banale.

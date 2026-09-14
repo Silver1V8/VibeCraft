@@ -1,0 +1,122 @@
+"""FASE 1 — casi minimi che RIPRODUCONO i difetti dello schermo delle sezioni.
+
+Si esegue PRIMA della correzione, contro lo strumento vecchio
+(`pilot_docling_chiusura_20260909-160000/scripts/assi.py`), e deve FALLIRE:
+e' la prova che il difetto sospettato nella sessione precedente esiste davvero.
+Dopo la correzione si esegue contro `assi2.py` e deve passare.
+
+  riproduci_difetti_strumento.py vecchio   -> attesi i fallimenti (difetto presente)
+  riproduci_difetti_strumento.py nuovo     -> attesi zero fallimenti
+
+I difetti, entrambi osservati sulle risposte archiviate del 2026-09-09:
+
+  T1  L'etichetta di CLASSE del blocco (`[SENZA CLASSE]`, `CODICE ESISTENTE`)
+      viene raccolta come «valore attribuito alla sezione» perche' compare fra
+      backtick nella stessa frase. Non essendo nel corpo della sezione diventa
+      `valore_non_trovato`, e una affermazione di sezione CORRETTA
+      (sezione_dichiarata == sezione_reale) risulta errata.
+
+  T2  Stessa cosa con il nome di una CLASSE dichiarata (`NORMS`, `METHODOLOGY`)
+      o con lo stato di archiviazione.
+
+E i due casi di controllo che NON devono regredire:
+
+  T3  una sezione davvero inesistente resta un errore;
+  T4  un valore che sta in un'ALTRA sezione resta un errore.
+"""
+import pathlib
+import sys
+
+VECCHIO = pathlib.Path(
+    r"C:\Users\Silve\Desktop\vibecraft\rag\eval\results"
+    r"\pilot_docling_chiusura_20260909-160000\scripts")
+NUOVO = pathlib.Path(__file__).resolve().parent
+
+QUALE = (sys.argv[1] if len(sys.argv) > 1 else "nuovo").lower()
+if QUALE == "vecchio":
+    sys.path.insert(0, str(VECCHIO))
+    from assi import controlla_sezioni  # noqa: E402
+else:
+    sys.path.insert(0, str(VECCHIO))   # per le costanti condivise
+    sys.path.insert(0, str(NUOVO))
+    from assi2 import controlla_sezioni  # noqa: E402
+
+# Testo indicizzato di prova: due sezioni, valori distinti. Nomi e valori
+# estranei ai cataloghi del pilot.
+FONTE = """# manuale_sensori_v3.md
+## Registro delle mappe
+| File | Formato / peso |
+| sens_4_2_wiring.png | PNG 88.1 KB |
+
+## Prassi di reparto
+In reparto la taratura si fa a ogni cambio turno.
+"""
+
+CASI = [
+    # (id, risposta, deve_avere_errori, perche')
+    ("T1-etichetta-classe-backtick",
+     "Il dato compare nella sezione «Registro delle mappe», in un blocco marcato "
+     "`[SENZA CLASSE]` del contesto.",
+     False,
+     "l'affermazione di sezione e' CORRETTA; `[SENZA CLASSE]` e' un'etichetta di "
+     "classe del blocco, non un valore contenuto nella sezione"),
+    ("T1b-codice-esistente",
+     "Come indicato nella sezione «Registro delle mappe», non vi sono blocchi "
+     "`CODICE ESISTENTE` che contraddicano il dato.",
+     False,
+     "«CODICE ESISTENTE» e' l'etichetta di un blocco di contesto, non un valore"),
+    ("T2-nome-di-classe",
+     "Il valore e' riportato nella sezione «Registro delle mappe» della fonte "
+     "di classe `METHODOLOGY`.",
+     False,
+     "«METHODOLOGY» e' la classe della fonte, non un valore della sezione"),
+    ("T2b-stato-archiviato",
+     "Nella sezione «Prassi di reparto» la fonte risulta `SUPERSEDED`.",
+     False,
+     "«SUPERSEDED» e' uno stato di archiviazione, non un valore della sezione"),
+    # --- controlli di NON regressione: questi devono restare errori ---
+    ("T3-sezione-inesistente",
+     "Come scritto nella sezione «Tassonomia delle cartelle», il file pesa 88.1 KB.",
+     True,
+     "quella sezione non esiste: deve restare un errore"),
+    ("T4-valore-in-altra-sezione",
+     "Nella sezione «Prassi di reparto» e' indicato `PNG 88.1 KB`.",
+     True,
+     "il valore sta in «Registro delle mappe»: deve restare un errore"),
+    # --- controllo che il valore VERO continui a essere verificato ---
+    ("T5-valore-corretto",
+     "Nella sezione «Registro delle mappe» e' indicato `PNG 88.1 KB`.",
+     False,
+     "sezione giusta e valore davvero li' dentro: nessun errore"),
+]
+
+
+def errori(esiti: list[dict]) -> list[dict]:
+    """Un esito conta come ERRORE di attribuzione di sezione solo se la sezione
+    non esiste o il valore sta altrove. `sezione_esiste_valore_non_isolabile`
+    NON e' un errore: e' un'affermazione di sezione corretta e non falsificata."""
+    return [e for e in esiti
+            if e.get("esito") in ("sezione_inesistente", "valore_in_altra_sezione",
+                                  "valore_non_trovato", "fonte_senza_struttura")]
+
+
+def main() -> int:
+    falliti = 0
+    print(f"strumento sotto prova: {QUALE.upper()}\n")
+    for cid, risposta, attesi_errori, perche in CASI:
+        esiti = controlla_sezioni(risposta, FONTE)
+        err = errori(esiti)
+        ok = bool(err) == attesi_errori
+        falliti += not ok
+        stato = "ok  " if ok else "FAIL"
+        print(f"  {stato} {cid:32} errori={len(err)} (attesi {'>=1' if attesi_errori else '0'})")
+        if not ok:
+            print(f"       perche': {perche}")
+            for e in err:
+                print(f"       -> {e}")
+    print(f"\n{len(CASI) - falliti}/{len(CASI)} casi superati")
+    return 1 if falliti else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

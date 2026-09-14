@@ -1,0 +1,159 @@
+{
+  "run": "corpus_disambigua_20260910-170000",
+  "packaged_on": "2026-09-14",
+  "note": "Conservazione di prove esistenti, non nuova esecuzione. File originali mantenuti localmente. Percorsi path relativi a rag/eval/results; source relativi alla root del progetto. Script conservati come .txt senza modifiche al contenuto.",
+  "files": [
+    {
+      "path": "corpus_disambigua_20260910-170000/evidence/holdout/holdout.yaml",
+      "source": "rag/eval/results/corpus_disambigua_20260910-170000/holdout/holdout.yaml",
+      "bytes": 3783,
+      "sha256": "0799cb91140d961e9cc0ff48ab8724b0d78b0bc0287781534fbe8d1beb3824f1"
+    },
+    {
+      "path": "corpus_disambigua_20260910-170000/evidence/inventario_sha256.json",
+      "source": "rag/eval/results/corpus_disambigua_20260910-170000/inventario_sha256.json",
+      "bytes": 6550,
+      "sha256": "82f1d32972fb2cac86451ad9cbd3428576ea83a5f692ecb07e46a5f322831dc1"
+    },
+    {
+      "path": "corpus_disambigua_20260910-170000/evidence/out/build_disambigua.json",
+      "source": "rag/eval/results/corpus_disambigua_20260910-170000/out/build_disambigua.json",
+      "bytes": 712,
+      "sha256": "09c9c4676de2f25b346bcf6ec17ffa7ee8b1b16ef840760db6bb92b32d8c35d9"
+    },
+    {
+      "path": "corpus_disambigua_20260910-170000/evidence/out/comp_pdf_disamb.json",
+      "source": "rag/eval/results/corpus_disambigua_20260910-170000/out/comp_pdf_disamb.json",
+      "bytes": 239130,
+      "sha256": "cd3334187ac68c644b4f8b43692024cbc8592ee72f0c3abb29cb7e21efd1e644"
+    },
+    {
+      "path": "corpus_disambigua_20260910-170000/evidence/out/comp_pdf_S2.json",
+      "source": "rag/eval/results/corpus_disambigua_20260910-170000/out/comp_pdf_S2.json",
+      "bytes": 240345,
+      "sha256": "0b558026eb9a5c08b287f5ef4337ecf7128eb1fe1328aff97973eb2000722664"
+    },
+    {
+      "path": "corpus_disambigua_20260910-170000/evidence/out/comp_pdf_v2.json",
+      "source": "rag/eval/results/corpus_disambigua_20260910-170000/out/comp_pdf_v2.json",
+      "bytes": 237793,
+      "sha256": "da7601aaac8d06a671ab8199dcda5839f29ce4211537cc98a36b61228abb867b"
+    },
+    {
+      "path": "corpus_disambigua_20260910-170000/evidence/out/decisivo_scala.json",
+      "source": "rag/eval/results/corpus_disambigua_20260910-170000/out/decisivo_scala.json",
+      "bytes": 8058,
+      "sha256": "ee9eeb42d34b9533b926936e1b57ad6bc1328a020b8eb415ea326a77ff92ed32"
+    },
+    {
+      "path": "corpus_disambigua_20260910-170000/evidence/out/gen_pdf_disamb.json",
+      "source": "rag/eval/results/corpus_disambigua_20260910-170000/out/gen_pdf_disamb.json",
+      "bytes": 25099,
+      "sha256": "754d997b2a9fe903feaff7245cb7e443329034cd354bcf69aaec098a72d8bbf2"
+    },
+    {
+      "path": "corpus_disambigua_20260910-170000/evidence/out/gen_pdf_S2.json",
+      "source": "rag/eval/results/corpus_disambigua_20260910-170000/out/gen_pdf_S2.json",
+      "bytes": 22799,
+      "sha256": "ec4eeec4c5ebf0a97dada9ae1cb4c735052f085bcd014a579f67f2266c072ea6"
+    },
+    {
+      "path": "corpus_disambigua_20260910-170000/evidence/out/gen_pdf_v2.json",
+      "source": "rag/eval/results/corpus_disambigua_20260910-170000/out/gen_pdf_v2.json",
+      "bytes": 26311,
+      "sha256": "531f6321873d2067cec63cd60172df83868ba9e05e31ef0248ec5b27cde41991"
+    },
+    {
+      "path": "corpus_disambigua_20260910-170000/evidence/RESOCONTO.md",
+      "source": "rag/eval/results/corpus_disambigua_20260910-170000/RESOCONTO.md",
+      "bytes": 6292,
+      "sha256": "e6eff68484a540fbf42e56cfba1cb962a21240d2ef45e29f67e4279169740760"
+    },
+    {
+      "path": "corpus_disambigua_20260910-170000/evidence/scripts/build_disambigua.py.txt",
+      "source": "rag/eval/results/corpus_disambigua_20260910-170000/scripts/build_disambigua.py",
+      "bytes": 8196,
+      "sha256": "b3cef0c6b5155f33fce43a574828e460176c4730c1517279e25dc0135fd8b60a"
+    },
+    {
+      "path": "corpus_disambigua_20260910-170000/evidence/scripts/composizione.py.txt",
+      "source": "rag/eval/results/corpus_disambigua_20260910-170000/scripts/composizione.py",
+      "bytes": 8074,
+      "sha256": "884ed60e3de552a6682f7691cc8e3e1f3128c2ddf35a084fa6ac534ed8f7658d"
+    },
+    {
+      "path": "corpus_disambigua_20260910-170000/evidence/scripts/copertura.py.txt",
+      "source": "rag/eval/results/corpus_disambigua_20260910-170000/scripts/copertura.py",
+      "bytes": 5003,
+      "sha256": "e0a20359de39ce8c6002b1756b728ecb2fa163afd82e7e966cf36b4e2bf1de72"
+    },
+    {
+      "path": "corpus_disambigua_20260910-170000/evidence/scripts/inventario.py.txt",
+      "source": "rag/eval/results/corpus_disambigua_20260910-170000/scripts/inventario.py",
+      "bytes": 2481,
+      "sha256": "2a842e80d11330072ad3cb279c87c1b1cd985a2bb5c56ee1f1500c68b8dbfeac"
+    },
+    {
+      "path": "corpus_disambigua_20260910-170000/evidence/scripts/patch_corpus.py.txt",
+      "source": "rag/eval/results/corpus_disambigua_20260910-170000/scripts/patch_corpus.py",
+      "bytes": 6046,
+      "sha256": "6ec836306cd968c9e0843a27cd0614abb55caf3a7d715564e127a8244ac6453f"
+    },
+    {
+      "path": "corpus_disambigua_20260910-170000/evidence/scripts/patch_corpus2.py.txt",
+      "source": "rag/eval/results/corpus_disambigua_20260910-170000/scripts/patch_corpus2.py",
+      "bytes": 4443,
+      "sha256": "70ac1a320db4cbefb4031fc9acbde5a3dd1469cc2fa704ae59e5977a94fc2618"
+    },
+    {
+      "path": "corpus_disambigua_20260910-170000/evidence/scripts/sonda_generazione.py.txt",
+      "source": "rag/eval/results/corpus_disambigua_20260910-170000/scripts/sonda_generazione.py",
+      "bytes": 3336,
+      "sha256": "b7e2d1afa594a21fc0b529715b91112463d19260db107230bfbeed2c5c9aa1fe"
+    },
+    {
+      "path": "corpus_disambigua_20260910-170000/evidence/truth/domande_pdf_locali.yaml",
+      "source": "rag/eval/results/corpus_disambigua_20260910-170000/truth/domande_pdf_locali.yaml",
+      "bytes": 4140,
+      "sha256": "22eede74334b969b5f74cd3be7d69e2322fe42f3f6faae86ef6ddd23a11bcc74"
+    }
+  ],
+  "omitted_local_files": [
+    {
+      "path": "logs/integrita.log",
+      "bytes": 1365
+    },
+    {
+      "path": "logs/reindex.log",
+      "bytes": 48890
+    },
+    {
+      "path": "logs/reindex2.log",
+      "bytes": 48978
+    },
+    {
+      "path": "logs/reindex3.log",
+      "bytes": 48714
+    },
+    {
+      "path": "logs/rollback.log",
+      "bytes": 1124
+    },
+    {
+      "path": "out/diagrammi_disambigua_p1.png",
+      "bytes": 63105
+    },
+    {
+      "path": "out/diagrammi_disambigua_p2.png",
+      "bytes": 83358
+    },
+    {
+      "path": "out/mockup_disambigua_p1.png",
+      "bytes": 64471
+    },
+    {
+      "path": "out/mockup_disambigua_p2.png",
+      "bytes": 137407
+    }
+  ]
+}

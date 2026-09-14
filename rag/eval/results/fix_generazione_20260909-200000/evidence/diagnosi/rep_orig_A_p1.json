@@ -1,0 +1,277 @@
+{
+  "etichetta": "orig-A-p1",
+  "modulo": "C:\\Users\\Silve\\Desktop\\vibecraft\\rag\\core\\retrieval.py",
+  "contesti_da": "eval_A_p1.json",
+  "modello": [
+    "ollama",
+    "qwen3.5:9b"
+  ],
+  "num_ctx": 16384,
+  "temperature": 0.1,
+  "casi": {
+    "pdf-diag-1": {
+      "domanda": "Nel catalogo diagrammi, quale area e' associata al file diag_5_2_graph_rag_structure.svg?",
+      "risposta_attesa": "Knowledge",
+      "risposta": "Nel catalogo diagrammi, l'area associata al file `diag_5_2_graph_rag_structure.svg` è **Knowledge**.\n\nQuesta associazione è riportata testualmente nel documento `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`, nella sezione \"Registro dei file\", dove la riga relativa a tale file specifica:\n- **File:** `diag_5_2_graph_rag_structure.svg`\n- **Area:** `Knowledge`\n- **Finalità:** Struttura del grafo e pipeline Graph RAG.",
+      "errore": null,
+      "secondi": 6.27,
+      "prompt_char": 29504,
+      "classi": [
+        [
+          "AUTHORIZATION_POLICY",
+          0.9
+        ],
+        [
+          "REQUIREMENTS",
+          0.87
+        ],
+        [
+          "DATA_DICTIONARY",
+          0.7
+        ],
+        [
+          "METADATA",
+          0.6
+        ],
+        [
+          "METHODOLOGY",
+          0.5
+        ],
+        [
+          "SENZA CLASSE",
+          0.3
+        ]
+      ]
+    },
+    "pdf-diag-2": {
+      "domanda": "Nel catalogo diagrammi, qual e' il formato e il peso di diag_0_3_modules_relations_map.svg?",
+      "risposta_attesa": "SVG, 46.4 KB",
+      "risposta": "Nel catalogo diagrammi, per il file `diag_0_3_modules_relations_map.svg`:\n\n*   **Formato:** SVG\n*   **Peso:** 46.4 KB\n\nQuesti dati sono riportati testualmente nel registro dei file del documento `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf` (senza classe).",
+      "errore": null,
+      "secondi": 5.82,
+      "prompt_char": 36287,
+      "classi": [
+        [
+          "IRON_MEMORY",
+          1.0
+        ],
+        [
+          "AUTHORIZATION_POLICY",
+          0.9
+        ],
+        [
+          "REQUIREMENTS",
+          0.87
+        ],
+        [
+          "METADATA",
+          0.6
+        ],
+        [
+          "METHODOLOGY",
+          0.5
+        ],
+        [
+          "SENZA CLASSE",
+          0.3
+        ]
+      ]
+    },
+    "pdf-diag-3": {
+      "domanda": "Quale diagramma del catalogo documenta i checkpoint human-in-the-loop, e con quale peso?",
+      "risposta_attesa": "diag_6_2_hitl_checkpoints.svg.svg, 19.5 KB",
+      "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **`diag_6_2_hitl_checkpoints.svg.svg`**, classificato come artefatto di tipo **Governance**.\n\nSecondo la tabella \"Registro dei file\" nel documento `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`, questo file ha le seguenti caratteristiche:\n*   **File:** `diag_6_2_hitl_checkpoints.svg.svg`\n*   **Area:** Governance\n*   **Finalità:** Checkpoint human-in-the-loop e punti di controllo.\n*   **Formato:** SVG\n*   **Peso:** 19.5 KB\n\nIl peso (authority) attribuito a questo diagramma è **0.30**, poiché la fonte `catalogo_diagrammi_normativi.pdf` è classificata come **[SENZA CLASSE]**, che corrisponde al livello di autorità più basso nella gerarchia definita (`IRON_MEMORY` > `METADATA` > `METHODOLOGY` > `REQUIREMENTS` > **`SENZA CLASSE`**).\n\nIl contesto non riporta alcun vincolo tecnico specifico (come soglie, severità o formati) associato a questo diagramma nel catalogo; il documento si limita a elencare i file e le loro finalità.",
+      "errore": null,
+      "secondi": 9.73,
+      "prompt_char": 34330,
+      "classi": [
+        [
+          "NORMS",
+          0.9
+        ],
+        [
+          "REQUIREMENTS",
+          0.87
+        ],
+        [
+          "METADATA",
+          0.6
+        ],
+        [
+          "METHODOLOGY",
+          0.5
+        ],
+        [
+          "SENZA CLASSE",
+          0.3
+        ]
+      ]
+    },
+    "pdf-diag-4": {
+      "domanda": "Quanti artefatti contiene il catalogo diagrammi e quante cartelle sorgente dichiara?",
+      "risposta_attesa": "5 artefatti, 1 cartella sorgente",
+      "risposta": "Il contesto riporta che il catalogo diagrammi contiene **5 artefatti** e **1 cartella sorgente**.\n\nEcco i dettagli estratti testualmente dal documento `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`:\n\n*   **Artefatti:** Il testo dichiara esplicitamente \"5 artefatti\" nell'indice operativo.\n    *   Elenco degli artefatti (file):\n        1.  `diag_0_3_modules_relations_map.svg`\n        2.  `diag_2_1_workflow_state_machineme.svg`\n        3.  `diag_2_3_concurrency_pessimistic_lock.svg`\n        4.  `diag_5_2_graph_rag_structure.svg`\n        5.  `diag_6_2_hitl_checkpoints.svg.svg`\n*   **Cartelle sorgente:** Il testo dichiara esplicitamente \"1 cartella sorgente\".\n    *   Percorso specificato: `C:\\Users\\Silve\\Desktop\\vibecraft\\docs\\02_specs_normative\\diagrams`.\n\nNessun altro numero di artefatti o cartelle è menzionato in questo specifico documento.",
+      "errore": null,
+      "secondi": 10.66,
+      "prompt_char": 34965,
+      "classi": [
+        [
+          "IRON_MEMORY",
+          1.0
+        ],
+        [
+          "AUTHORIZATION_POLICY",
+          0.9
+        ],
+        [
+          "NORMS",
+          0.9
+        ],
+        [
+          "REQUIREMENTS",
+          0.87
+        ],
+        [
+          "METADATA",
+          0.6
+        ],
+        [
+          "METHODOLOGY",
+          0.5
+        ],
+        [
+          "SENZA CLASSE",
+          0.3
+        ]
+      ]
+    },
+    "pdf-mock-1": {
+      "domanda": "Nel catalogo mockup, quale numero di specifica e quale area sono associati a mockup_2_4_notifications_templates.svg?",
+      "risposta_attesa": "spec 2.4, area Manager",
+      "risposta": "Nel catalogo mockup, il file `mockup_2_4_notifications_templates.svg` è associato alla **specifica 2.4** e all'**area Manager**.\n\nQuesti dati sono estratti testualmente dal blocco `[SENZA CLASSE]` del documento `02_specs_normative/mockups/catalogo_mockup_normativi.pdf`:\n*   **File:** `mockup_2_4_notifications_templates.svg`\n*   **Spec.:** `2.4`\n*   **Area:** `Manager`\n*   **Schermata:** `Gestione template di notifica.`",
+      "errore": null,
+      "secondi": 6.22,
+      "prompt_char": 27882,
+      "classi": [
+        [
+          "NORMS",
+          0.9
+        ],
+        [
+          "REQUIREMENTS",
+          0.87
+        ],
+        [
+          "METADATA",
+          0.6
+        ],
+        [
+          "SENZA CLASSE",
+          0.3
+        ]
+      ]
+    },
+    "pdf-mock-2": {
+      "domanda": "Qual e' l'unico file del registro mockup in formato HTML e quanto pesa?",
+      "risposta_attesa": "mockup_3_5_admin_dashboard_analytics.html, 3.4 KB",
+      "risposta": "Il contesto riporta un **unico** file nel registro dei mockup con estensione `.html`:\n\n*   **File:** `mockup_3_5_admin_dashboard_analytics.html`\n*   **Peso:** `3.4 KB`\n\nTale file è classificato nell'area \"Admin\" e rappresenta la \"Dashboard analytics amministrativa\", come indicato nel documento `02_specs_normative/mockups/catalogo_mockup_normativi.pdf`.",
+      "errore": null,
+      "secondi": 5.97,
+      "prompt_char": 33224,
+      "classi": [
+        [
+          "IRON_MEMORY",
+          1.0
+        ],
+        [
+          "NORMS",
+          0.9
+        ],
+        [
+          "REQUIREMENTS",
+          0.87
+        ],
+        [
+          "DATA_DICTIONARY",
+          0.7
+        ],
+        [
+          "METADATA",
+          0.6
+        ],
+        [
+          "METHODOLOGY",
+          0.5
+        ],
+        [
+          "SENZA CLASSE",
+          0.3
+        ]
+      ]
+    },
+    "pdf-mock-3": {
+      "domanda": "Che cosa mostra la schermata mockup_1_5_employee_personal_area.svg e a quale area appartiene?",
+      "risposta_attesa": "Area personale del dipendente; area Dipendente",
+      "risposta": "La schermata **mockup_1_5_employee_personal_area.svg** mostra l'**Area Personale** (o \"Profilo Utente\") del dipendente.\n\nQuesta schermata appartiene all'area funzionale dedicata al monitoraggio dello storico e dello stato corrente di tutte le istanze di **RICHIESTA**, alla gestione dei record in fase di compilazione non ancora trasmessi e alla ricezione di riscontri immediati tramite notifiche popup (Toast). Garantisce trasparenza assoluta, consentendo al dipendente di tenere traccia delle proprie partecipazioni e dei feedback forniti dai manager senza la necessità di ricaricare la pagina.\n\n**Vincoli e identificatori estratti dal contesto:**\n*   **Identificatore file:** `mockup_1_5_employee_personal_area.svg` (formato SVG, peso 31.4 KB).\n*   **Entità gestita:** `RICHIESTA`.\n*   **Stati di RICHIESTA gestiti:** `BOZZA`, `IN_ATTESA_APPROVAZIONE`, `APPROVATA`, `ANNULLATA` (dedotto dagli scenari BDD e dalla matrice permessi).\n*   **Azione su bozze:** Eliminazione fisica del record dal database in conformità con `[REGOLA-PERS-02]`.\n*   **Notifica Toast di successo:** Messaggio \"Bozza eliminata con successo\" (colore verde).\n*   **Vincolo su eliminazione:** Inibizione dell'eliminazione fisica per stati `IN_ATTESA_APPROVAZIONE` o `APPROVATA`, applicazione della `[REGOLA-VAL-01]`.\n*   **Eccezione temporale:** Annullamento di una `RICHIESTA` approvata a meno di 5 giorni dall'evento restituisce errore HTTP 422 e applica la `[REGOLA-NOTIF-01]` con messaggio \"Impossibile annullare l'iscrizione a ridosso dell'evento\".\n*   **Ruolo utente:** `DIPENDENTE`.\n*   **Fonte autorevole del vincolo:** `[REQUIREMENTS]` (specifiche normative) e `[IRON_MEMORY]` (safeguards di sicurezza applicabili all'identità).",
+      "errore": null,
+      "secondi": 15.35,
+      "prompt_char": 32628,
+      "classi": [
+        [
+          "IRON_MEMORY",
+          1.0
+        ],
+        [
+          "AUTHORIZATION_POLICY",
+          0.9
+        ],
+        [
+          "NORMS",
+          0.9
+        ],
+        [
+          "REQUIREMENTS",
+          0.87
+        ],
+        [
+          "SENZA CLASSE",
+          0.3
+        ],
+        [
+          "REQUIREMENT",
+          0.3
+        ]
+      ]
+    },
+    "pdf-mock-4": {
+      "domanda": "Quanti artefatti e quante aree funzionali dichiara il catalogo mockup, e in quali formati?",
+      "risposta_attesa": "11 artefatti, 4 aree funzionali, formati SVG + HTML",
+      "risposta": "Il contesto riporta che il documento `02_specs_normative/mockups/catalogo_mockup_normativi.pdf` (CLASSE: [SENZA CLASSE]) dichiara esplicitamente i seguenti dati:\n\n*   **Artefatti:** 11 artefatti.\n*   **Aree funzionali:** 4 aree funzionali.\n*   **Formati:** SVG e HTML.\n\nEcco il dettaglio degli artefatti elencati nel registro dei file del documento citato, con i relativi formati:\n\n| File | Spec. | Area | Schermata | Formato / peso |\n|---|---|---|---|---|\n| `mockup_1_1_auth_login.svg` | 1.1 | Autenticazione | Schermata di accesso. | SVG |\n| `mockup_1_2_employee_dashboard.svg` | 1.2 | Dipendente | Dashboard operativa del dipendente. | SVG |\n| `mockup_1_3_event_details.svg` | 1.3 | Dipendente | Dettaglio di un evento o una prenotazione. | SVG |\n| `mockup_1_4_reservation_form.svg` | 1.4 | Dipendente | Form di inserimento prenotazione. | SVG |\n| `mockup_1_5_employee_personal_area.svg` | 1.5 | Dipendente | Area personale del dipendente. | SVG |\n| `mockup_2_2_manager_approval_queue.svg` | 2.2 | Manager | Coda di approvazione del responsabile. | SVG |\n| `mockup_2_4_notifications_templates.svg` | 2.4 | Manager | Gestione template di notifica. | SVG |\n| `mockup_3_2_admin_crud_events.svg` | 3.2 | Admin | Gestione CRUD degli eventi. | SVG |\n| `mockup_3_3_admin_global_monitor.svg` | 3.3 | Admin | Monitoraggio globale amministrativo. | SVG |\n| `mockup_3_4_admin_export_modal.svg` | 3.4 | Admin | Finestra di esportazione dati. | SVG |\n| `mockup_3_5_admin_dashboard_analytics.html` | 3.5 | Admin | Dashboard analytics amministrativa. | HTML |\n\n**Nota sulla divergenza tra documento e codice:**\nIl documento `[SENZA CLASSE]` elenca 11 file totali (10 SVG + 1 HTML). Il blocco «CODICE ESISTENTE» nel contesto fornito contiene i file di progetto (`package.json`, `.csproj`, `appsettings.json`) ma **non** include il contenuto testuale o binario dei file mockup SVG/HTML stessi. Pertanto, l'elenco degli artefatti visivi e i loro formati possono essere confermati **solo** tramite la fonte del documento `[SENZA CLASSE]`.",
+      "errore": null,
+      "secondi": 17.13,
+      "prompt_char": 28467,
+      "classi": [
+        [
+          "NORMS",
+          0.9
+        ],
+        [
+          "AUTHORIZATION_POLICY",
+          0.9
+        ],
+        [
+          "REQUIREMENTS",
+          0.87
+        ],
+        [
+          "SENZA CLASSE",
+          0.3
+        ],
+        [
+          "REQUIREMENT",
+          0.3
+        ]
+      ]
+    }
+  }
+}

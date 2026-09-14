@@ -1,0 +1,23 @@
+{
+  "etichetta": "baseline",
+  "sandbox": "C:\\Users\\Silve\\AppData\\Local\\Temp\\claude\\C--Users-Silve-Desktop-vibecraft\\bf54f804-fff5-40ce-ad46-d26ccb85ab43\\scratchpad\\sandbox-baseline",
+  "file_diversi": [
+    {
+      "file": "adr/EVOLUZIONE.md",
+      "sha_repo": "ba6e1aca9fff77b3",
+      "sha_sandbox": "d0335f04d2ff22e9",
+      "diff": "diff/baseline__adr__EVOLUZIONE.md.diff",
+      "righe_cambiate": 313
+    },
+    {
+      "file": "eval/golden_attribution.yaml",
+      "sha_repo": "62f8221dae8fedd1",
+      "sha_sandbox": "5db6098ad50e50f7",
+      "diff": "diff/baseline__eval__golden_attribution.yaml.diff",
+      "righe_cambiate": 2
+    }
+  ],
+  "file_solo_nel_sandbox": [],
+  "file_solo_nel_repository": [],
+  "n_solo_nel_repository": 0
+}

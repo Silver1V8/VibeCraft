@@ -1,0 +1,49 @@
+"""Refine locale (core/intake_refine + Ollama) sull'output GREZZO del candidato.
+
+Impostazioni documentate: window_chars = INTAKE_REFINE_WINDOW_CHARS di rag_config.yaml,
+modello = quello configurato per il purpose intake_refine. Nessuna scrittura in staging,
+nessun journal, nessuna indicizzazione: solo file nella directory di output del pilot.
+
+Uso: run_refine.py <input_dir> <output_dir> <prefisso>
+"""
+
+import hashlib
+import json
+import pathlib
+import sys
+import time
+
+sys.path.insert(0, r"C:\Users\Silve\Desktop\vibecraft\rag")
+
+IN, OUT, PREFIX = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), sys.argv[3]
+OUT.mkdir(parents=True, exist_ok=True)
+
+from core.config import INTAKE_REFINE_WINDOW_CHARS
+from core.intake_refine import refine_markdown
+
+rep = {"window_chars": INTAKE_REFINE_WINDOW_CHARS, "documenti": {}}
+for name in ("diagrammi", "mockup"):
+    src = IN / f"{PREFIX}_{name}.md"
+    if not src.exists():
+        rep["documenti"][name] = {"errore": f"input assente: {src.name}"}
+        continue
+    raw = src.read_text(encoding="utf-8")
+    t0 = time.time()
+    res = refine_markdown(raw, source_filename=f"catalogo_{name}_normativi.pdf")
+    dt = round(time.time() - t0, 1)
+    dst = OUT / f"{PREFIX}_{name}.refined.md"
+    dst.write_text(res.markdown, encoding="utf-8")
+    rep["documenti"][name] = {
+        "secondi": dt,
+        "chars_in": len(raw),
+        "chars_out": len(res.markdown),
+        "sha256_in": hashlib.sha256(raw.encode("utf-8")).hexdigest(),
+        "sha256_out": hashlib.sha256(res.markdown.encode("utf-8")).hexdigest(),
+        "stats": res.stats,
+        "semantic": res.semantic,
+    }
+
+(OUT / f"{PREFIX}_refine_report.json").write_text(
+    json.dumps(rep, indent=2, ensure_ascii=False, default=str), encoding="utf-8"
+)
+print(json.dumps(rep, indent=2, ensure_ascii=False, default=str))

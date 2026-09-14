@@ -1,0 +1,119 @@
+{
+  "index_version": "v20260908T132451",
+  "retrieve": {
+    "n": 10,
+    "p50_ms": 507.1,
+    "p95_ms": 530.25,
+    "queries": [
+      "come gestire il lock transazionale su una risorsa contesa in concorrenza",
+      "due utenti consumano l'ultima unità disponibile nello stesso istante",
+      "sicurezza degli accessi, autenticazione e verifica dell'identità",
+      "quanto tempo può passare prima che la revoca di un account sia effettiva",
+      "immutabilità dei dati e auditability del giornale di audit",
+      "posso cancellare fisicamente un record che ha figli che lo referenziano",
+      "gestione dei segreti e delle credenziali nel codice sorgente",
+      "privacy, confine dei dati local-first e trattamento dei dati personali PII",
+      "posso mandare dati reali nel contesto di un LLM remoto durante lo sviluppo",
+      "qual è la lunghezza massima ammessa per una funzione"
+    ]
+  },
+  "ask": {
+    "n": 10,
+    "p50_latency_total_ms": 18726.09,
+    "p95_latency_total_ms": 34439.44,
+    "max_latency_total_ms": 42942.76,
+    "avg_latency_retrieval_ms": 512.66,
+    "avg_latency_generation_ms": 18563.11,
+    "avg_latency_total_ms": 19362.13,
+    "avg_latency_total_ms_client": 19372.22,
+    "per_query": [
+      {
+        "question": "come gestire il lock transazionale su una risorsa contesa in concorrenza",
+        "latency_total_ms_client": 23168.05,
+        "latency_retrieval_ms": 491.38,
+        "latency_generation_ms": 22361.4,
+        "latency_total_ms": 23156.79
+      },
+      {
+        "question": "due utenti consumano l'ultima unità disponibile nello stesso istante",
+        "latency_total_ms_client": 21413.77,
+        "latency_retrieval_ms": 515.23,
+        "latency_generation_ms": 20570.31,
+        "latency_total_ms": 21404.4
+      },
+      {
+        "question": "sicurezza degli accessi, autenticazione e verifica dell'identità",
+        "latency_total_ms_client": 11891.03,
+        "latency_retrieval_ms": 478.69,
+        "latency_generation_ms": 11120.6,
+        "latency_total_ms": 11880.18
+      },
+      {
+        "question": "quanto tempo può passare prima che la revoca di un account sia effettiva",
+        "latency_total_ms_client": 8974.51,
+        "latency_retrieval_ms": 527.98,
+        "latency_generation_ms": 8152.95,
+        "latency_total_ms": 8963.85
+      },
+      {
+        "question": "immutabilità dei dati e auditability del giornale di audit",
+        "latency_total_ms_client": 42954.84,
+        "latency_retrieval_ms": 499.54,
+        "latency_generation_ms": 42211.98,
+        "latency_total_ms": 42942.76
+      },
+      {
+        "question": "posso cancellare fisicamente un record che ha figli che lo referenziano",
+        "latency_total_ms_client": 14950.75,
+        "latency_retrieval_ms": 555.18,
+        "latency_generation_ms": 14093.7,
+        "latency_total_ms": 14941.84
+      },
+      {
+        "question": "gestione dei segreti e delle credenziali nel codice sorgente",
+        "latency_total_ms_client": 24055.82,
+        "latency_retrieval_ms": 500.14,
+        "latency_generation_ms": 23291.35,
+        "latency_total_ms": 24046.49
+      },
+      {
+        "question": "privacy, confine dei dati local-first e trattamento dei dati personali PII",
+        "latency_total_ms_client": 22806.08,
+        "latency_retrieval_ms": 532.69,
+        "latency_generation_ms": 21992.85,
+        "latency_total_ms": 22795.49
+      },
+      {
+        "question": "posso mandare dati reali nel contesto di un LLM remoto durante lo sviluppo",
+        "latency_total_ms_client": 16056.55,
+        "latency_retrieval_ms": 509.34,
+        "latency_generation_ms": 15269.62,
+        "latency_total_ms": 16047.78
+      },
+      {
+        "question": "qual è la lunghezza massima ammessa per una funzione",
+        "latency_total_ms_client": 7450.85,
+        "latency_retrieval_ms": 516.43,
+        "latency_generation_ms": 6566.32,
+        "latency_total_ms": 7441.76
+      }
+    ]
+  },
+  "semantic_map": {
+    "n": 1,
+    "latency_ms": 308.72,
+    "n_points": 250,
+    "truncated": false
+  },
+  "full_rebuild": {
+    "exit_code": 0,
+    "wall_seconds": 395.6642396999996,
+    "before": "v20260907T151549",
+    "after": "v20260908T132451",
+    "retention": "15"
+  },
+  "incremental_noop": {
+    "skipped": true,
+    "reason": "P0: nessun incrementale autorizzato; stesso protocollo della misura iniziale"
+  }
+}

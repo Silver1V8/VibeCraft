@@ -1,0 +1,23 @@
+{
+  "scope": "conversion only, NEW INPUT HASHES; historical comparator rows use ORIGINAL inputs",
+  "tables": 2,
+  "data_cells": 75,
+  "headers": 9,
+  "questions": 8,
+  "headings": {
+    "diagrammi": [
+      "Catalogo diagrammi",
+      "Regole di organizzazione",
+      "Registro dei file",
+      "Percorso sorgente"
+    ],
+    "mockup": [
+      "Catalogo mockup",
+      "Regole di organizzazione",
+      "Registro dei file",
+      "Percorso sorgente"
+    ]
+  },
+  "repeat_outputs_byte_identical": true,
+  "retrieval_attribution_application_suite": "NOT RUN"
+}

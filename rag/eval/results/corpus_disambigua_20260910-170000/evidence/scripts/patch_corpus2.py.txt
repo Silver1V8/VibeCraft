@@ -1,0 +1,104 @@
+"""VIA 1, forma piena — UNA PAROLA, UN CONCETTO.
+
+Il primo tentativo aveva **qualificato** «peso» -> «peso di autorevolezza»: il
+modello ha semplicemente ripetuto la frase nuova applicandola all'artefatto, ed
+e' peggiorato. Qualificare non basta: finche' la parola resta disponibile per
+l'accezione di governance, la collisione resta.
+
+Qui la parola «peso» viene **tolta** dall'accezione di autorevolezza in tutto il
+corpus, e sostituita col nome che il progetto usa gia' nei metadati e nella
+tabella del README: **`Authority`**. Insieme alla colonna del catalogo, ora
+«Formato / peso (dimensione file)», il risultato e' che nel corpus «peso»
+significa **una cosa sola**: la dimensione di un file.
+
+E' una pulizia terminologica vera, non un espediente: il frontmatter dichiara
+`authority:`, il README intitola la colonna `Authority`, il codice legge
+`authority.boost_alpha`. Erano i testi in prosa a usare un sinonimo ambiguo.
+
+Non tocca: domande congelate, risposte attese, soglie, prompt, codice, valori.
+
+Uso: patch_corpus2.py <sandbox> [--revert]
+"""
+import hashlib
+import pathlib
+import sys
+
+SOSTITUZIONI = [
+    ("docs/02_specs_normative/spec_graph_rag_ingestion.md",
+     "e quindi il loro peso nel ranking",
+     "e quindi la loro `Authority` nel ranking"),
+    ("docs/02_specs_normative/spec_graph_rag_ingestion.md",
+     "in sua assenza si applica il peso della classe, e in assenza anche di "
+     "`classification` il peso della fonte non classificata",
+     "in sua assenza si applica l'`Authority` della classe, e in assenza anche di "
+     "`classification` l'`Authority` della fonte non classificata"),
+    ("docs/README.md",
+     "rinominarla cambia il peso di autorità dei documenti che contiene",
+     "rinominarla cambia l'`Authority` dei documenti che contiene"),
+    ("docs/00_meta_governance/policy_versionamento_documentale.md",
+     "Determina il peso di autorità nel ranking",
+     "Determina l'`Authority` nel ranking"),
+    ("docs/04_knowledge_informative/inferenza_locale_o_remota.md",
+     "Authority dichiarata a 0.40, sotto il peso di classe METHODOLOGY",
+     "Authority dichiarata a 0.40, sotto l'Authority di classe METHODOLOGY"),
+]
+
+
+def main() -> int:
+    sandbox = pathlib.Path(sys.argv[1])
+    revert = "--revert" in sys.argv
+    tocca = sorted({rel for rel, _, _ in SOSTITUZIONI})
+
+    if revert:
+        ok = True
+        for rel in tocca:
+            t = sandbox / rel
+            b = t.with_suffix(t.suffix + ".corpus2orig")
+            if not b.is_file():
+                continue
+            atteso = hashlib.sha256(b.read_bytes()).hexdigest()
+            t.write_bytes(b.read_bytes())
+            buono = hashlib.sha256(t.read_bytes()).hexdigest() == atteso
+            ok = ok and buono
+            b.unlink()
+            print(f"  ripristinato {rel}: {buono} sha256={atteso[:16]}")
+        return 0 if ok else 1
+
+    testi = {}
+    for rel in tocca:
+        t = sandbox / rel
+        if not t.is_file():
+            print(f"ERRORE: {t} assente")
+            return 2
+        testi[rel] = t.read_text(encoding="utf-8")
+    if all(n in testi[rel] for rel, _, n in SOSTITUZIONI):
+        print("gia' applicata")
+        return 0
+    for rel, vecchio, _ in SOSTITUZIONI:
+        if testi[rel].count(vecchio) != 1:
+            print(f"ERRORE: in {rel} «{vecchio[:45]}…» compare {testi[rel].count(vecchio)} volte")
+            return 2
+    for rel in tocca:
+        t = sandbox / rel
+        b = t.with_suffix(t.suffix + ".corpus2orig")
+        if not b.is_file():
+            b.write_bytes(t.read_bytes())
+    for rel, vecchio, nuovo in SOSTITUZIONI:
+        testi[rel] = testi[rel].replace(vecchio, nuovo)
+    for rel in tocca:
+        (sandbox / rel).write_text(testi[rel], encoding="utf-8")
+        print(f"  {rel}  -> sha256 {hashlib.sha256(testi[rel].encode('utf-8')).hexdigest()[:16]}")
+
+    # Controllo: nel corpus «peso» non deve piu' significare autorevolezza.
+    residui = []
+    for p in (sandbox / "docs").rglob("*.md"):
+        for i, riga in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
+            if "peso" in riga.lower() and any(
+                    k in riga for k in ("autorit", "autorevol", "ranking", "classe METHODOLOGY")):
+                residui.append(f"{p.relative_to(sandbox)}:{i}")
+    print(f"  residui «peso»=autorevolezza nel corpus: {len(residui)} {residui}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

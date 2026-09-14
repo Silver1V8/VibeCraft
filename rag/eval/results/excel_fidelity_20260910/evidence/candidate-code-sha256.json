@@ -1,0 +1,12 @@
+{
+  "rag/core/intake_excel.py": "696a7f37ae3eba7e936418da5a2ff443ecf633584e6a775f9e2e4d53d4f77521",
+  "rag/core/intake_convert.py": "485390837dd66bf4acbbc5f3fb9f1d6410dd2c2d28c58b545cd361876a29107e",
+  "rag/tests/test_intake_excel.py": "418f01dde557879f03cd14d7c44bdc31c822ea2feb51975e9e4f8aebab1e3bb0",
+  "rag/tests/test_intake_docling.py": "dc07ef63aef9a5555005645aeaf01d751b9382ce3c9be5ddd632628e82be4981",
+  "rag/tests/test_intake_libreoffice.py": "a888c2534904ff8ea872bcd54ba1772bab95e619341319980f791d80e0e9283b",
+  "rag/tests/intake_excel_preview.cjs": "34c2e8ae750ba5808f57c7974ba5469d10df872369ced39f5623dae625b820db",
+  "rag/templates/intake.unified.html": "7c515b0dc75f4259d2d454ec0c16598f65d31db83f2405b398a72c69f1933e08",
+  ".github/workflows/ci.yml": "c20baca8f6224fa03957c46e00bf021b7634b3aaa4ec9e0c50e8b75b02533b2c",
+  "rag/rag_config.yaml": "00a04890e3c6bd37a3bc5e6a08e46015e2a0ad31c72a4fe6f7379d1d05a165ef",
+  "rag/README.md": "3d061921a9fc8d91adeee0d10b2e8bebc084984f1addcdd11d51892695bbb18c"
+}

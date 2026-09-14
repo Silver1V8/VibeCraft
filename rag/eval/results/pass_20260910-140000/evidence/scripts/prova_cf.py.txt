@@ -1,0 +1,131 @@
+"""Prove mirate delle varianti di [CLASSE-FONTI] sui contesti REALI gia' costruiti
+dalla sonda di composizione (percorso applicativo, S2 attiva). Il prompt e' l'unica
+variabile; modello e impostazioni congelati."""
+import json
+import pathlib
+import re
+import sys
+import time
+
+RAG = pathlib.Path(r"C:\Users\Silve\Desktop\vibecraft\rag")
+sys.path.insert(0, str(RAG))
+from core import llm, retrieval  # noqa: E402
+
+INT = re.compile(r"^--- (?P<doc>\S+) § (?P<sez>.*?) \[(?P<cls>[^\]]+)\] ---$", re.M)
+PESI = {"IRON_MEMORY": 1.0, "AUTHORIZATION_POLICY": 0.9, "NORMS": 0.9, "REQUIREMENTS": 0.87,
+        "DATA_DICTIONARY": 0.7, "METADATA": 0.6, "METHODOLOGY": 0.5, "SENZA CLASSE": 0.3}
+COEFF = re.compile(r"\b0[.,](?:30|50|60|70|85|87|90|95)\b")
+NEGA = re.compile(r"non\s+(?:è|e')?\s*(?:riport\w+|contien\w+|specific\w+|indic\w+|"
+                  r"present\w+|fornis\w+)|nessun\w*\s+valore", re.I)
+
+
+def scala(ctx):
+    v = {}
+    for m in INT.finditer(ctx):
+        k = m.group("cls").split(";")[0].split(",")[0].strip().upper()
+        v.setdefault(k, PESI.get(k, 0.3))
+    return sorted(v.items(), key=lambda kv: -kv[1]) if len(v) >= 2 else []
+
+
+def blocco_cf(sc):
+    testo = " > ".join(f"{lab} ({p:.2f})" for lab, p in sc)
+    return (
+        "\n[CLASSE-FONTI]: ogni blocco del contesto porta fra parentesi quadre la CLASSE "
+        "dichiarata dalla sua fonte. In questo contesto l'autorevolezza dichiarata dagli "
+        f"autori del corpus decresce così: {testo}. Un vincolo, una soglia, una severità "
+        "o un'eccezione vanno attribuiti alla fonte PIÙ autorevole che li enuncia. Una "
+        "fonte meno autorevole può motivarli o illustrarli, e va citata dichiarando che fa "
+        "questo: mai come la fonte del vincolo. Se un vincolo è enunciato SOLO da una fonte "
+        "meno autorevole, riportalo dicendo esplicitamente che nessuna fonte più autorevole "
+        "lo stabilisce.")
+
+
+def T1(cf, sc):
+    return re.sub(r" \(\d\.\d\d\)", "", cf)
+
+
+def T2(cf, sc):
+    testo = " > ".join(f"{lab} ({p:.2f})" for lab, p in sc)
+    return (
+        "\n[CLASSE-FONTI]: ogni blocco porta fra parentesi quadre la CLASSE dichiarata dalla sua "
+        f"fonte; l'autorevolezza decresce così: {testo}. Quei coefficienti qualificano la FONTE, "
+        "non le cose che la fonte descrive: non attribuirli a un file, a un artefatto o a una riga "
+        "che la fonte elenca. Un vincolo, una soglia o un'eccezione vanno attribuiti alla fonte PIÙ "
+        "autorevole che li enuncia; una meno autorevole può illustrarli e va citata dichiarando che "
+        "fa questo, mai come fonte del vincolo; se li enuncia SOLO lei, dillo esplicitamente.")
+
+
+def T3(cf, sc):
+    return cf.replace(
+        "Un vincolo, una soglia, una severità",
+        "Quei coefficienti qualificano la FONTE, non le cose che descrive: non attribuirli a un "
+        "file o a una riga che elenca. Un vincolo, una soglia, una severità")
+
+
+RIGA2_VECCHIA = "Rispondi alle domande estraendo i contratti e i vincoli esatti.\n"
+RIGA2_NUOVA = ("Rispondi ALLA DOMANDA POSTA con i fatti del contesto: vincoli e contratti se la "
+               "domanda li chiede, altrimenti il dato chiesto — valori, quantità, dimensioni, "
+               "formati e unità si leggono nel testo della fonte.\n")
+
+# V: regola sul TERMINE della domanda risolto contro i nomi di campo della fonte.
+# E' inserita in coda a [CITAZIONE-VERIFICABILE], che gia' governa "cita cio' che il
+# contesto riporta"; non e' un blocco nuovo.
+ANCORA_CIT = "che il contesto non lo riporta invece di ricostruirlo."
+REGOLA_CAMPO = (ANCORA_CIT + " Se la domanda usa un termine che una fonte adopera come nome di "
+                "campo o di colonna, la risposta e' il valore di quel campo; l'accezione di "
+                "governance dello stesso termine si da' solo se la domanda la chiede.")
+
+VAR = {"S0-originale": None, "T1-senza-numeri": T1, "T2-ambito": T2, "T3-ambito-lunga": T3,
+       "U1-riga2": "riga2", "U2-riga2+ambito": "riga2+T2", "U3-riga2+senzanumeri": "riga2+T1",
+       "V1-campo": "campo", "V2-campo+T1": "campo+T1", "V3-campo+riga2+T1": "campo+riga2+T1"}
+
+
+def main() -> int:
+    sorgente, uscita, n = sys.argv[1], sys.argv[2], int(sys.argv[3])
+    quali = sys.argv[4].split(",") if len(sys.argv) > 4 else list(VAR)
+    ids = sys.argv[5].split(",") if len(sys.argv) > 5 else None
+    dati = json.loads(pathlib.Path(sorgente).read_text(encoding="utf-8"))
+    out = {"sorgente": sorgente, "modello": llm.resolve("ask"), "casi": {}}
+    for nome in quali:
+        f = VAR[nome]
+        out["casi"][nome] = {}
+        for qid, c in dati["casi"].items():
+            if ids and qid not in ids:
+                continue
+            if "contesto" not in c:
+                continue
+            ctx = c["contesto"]
+            sc = scala(ctx)
+            p = retrieval.build_ask_prompt(ctx, c["domanda"], authority_classes=sc)
+            if isinstance(f, str):
+                if "campo" in f:
+                    assert ANCORA_CIT in p
+                    p = p.replace(ANCORA_CIT, REGOLA_CAMPO)
+                if "riga2" in f:
+                    assert RIGA2_VECCHIA in p
+                    p = p.replace(RIGA2_VECCHIA, RIGA2_NUOVA)
+                if f.endswith("T2") and sc:
+                    p = p.replace(blocco_cf(sc), T2(blocco_cf(sc), sc))
+                elif f.endswith("T1") and sc:
+                    p = p.replace(blocco_cf(sc), T1(blocco_cf(sc), sc))
+            elif f and sc:
+                p = p.replace(blocco_cf(sc), f(blocco_cf(sc), sc))
+            righe = []
+            for i in range(n):
+                t0 = time.perf_counter()
+                r = llm.generate(p, purpose="ask")
+                righe.append({"passata": i + 1, "risposta": r,
+                              "secondi": round(time.perf_counter() - t0, 2),
+                              "coeff": bool(COEFF.search(r)), "nega": bool(NEGA.search(r))})
+            out["casi"][nome][qid] = {"domanda": c["domanda"], "prompt_tok": len(p) // 3,
+                                      "passate": righe}
+            kb = sum("19.5 KB" in x["risposta"] for x in righe) if qid == "pdf-diag-3" else None
+            extra = f" | 19.5KB {kb}/{n}" if kb is not None else ""
+            print(f"  {nome:18} {qid:12} {len(p)//3:5} tok | coeff "
+                  f"{sum(x['coeff'] for x in righe)}/{n} | nega {sum(x['nega'] for x in righe)}/{n}{extra}")
+    pathlib.Path(uscita).write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

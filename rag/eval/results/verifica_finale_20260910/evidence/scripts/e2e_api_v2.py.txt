@@ -1,0 +1,113 @@
+"""Flusso intake end-to-end via HTTP contro il server della SANDBOX2 (porta 8125, Qdrant
+6402, docs/ e database/ propri). Nessun contatto con la produzione.
+
+Uso: <python del venv> e2e_api_v2.py <sandbox_dir> <fixture_dir> <out.json>"""
+import hashlib
+import json
+import sys
+import threading
+from pathlib import Path
+
+import httpx
+from qdrant_client import QdrantClient
+from qdrant_client.models import FieldCondition, Filter, MatchValue
+
+S, FIX, OUT = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
+BASE = "http://127.0.0.1:8125"
+KEY = next((ln.split("=", 1)[1].strip() for ln in (S / "rag/.env.local").read_text().splitlines()
+            if ln.startswith("VIBECRAFT_API_KEY=")), "")
+c = httpx.Client(base_url=BASE, headers={"X-API-Key": KEY}, timeout=900)
+report: dict = {"upload": {}, "preview": {}, "approve": {}, "controlli": {}}
+
+
+def tree(root: Path) -> dict[str, str]:
+    return {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in sorted(root.rglob("*")) if p.is_file()}
+
+
+docs0 = tree(S / "docs")
+current0 = (S / "rag/database/CURRENT").read_text().strip()
+FILES = {
+    "nota.md": b"# Nota nativa e2e\n\n## Sezione\n\nTesto Markdown nativo, nessuna conversione.\n",
+    "registro.pdf": (FIX / "registro.pdf").read_bytes(),
+    "scansione.pdf": (FIX / "scansione.pdf").read_bytes(),
+    "misto.pdf": (FIX / "misto.pdf").read_bytes(),
+    "budget.xlsx": (FIX / "budget.xlsx").read_bytes(),
+    "rilascio.pptx": (FIX / "rilascio.pptx").read_bytes(),
+    "manuale.docx": (FIX / "manuale.docx").read_bytes(),
+    "guida_latin1.html": (FIX / "guida_latin1.html").read_bytes(),
+    "listino.csv": (FIX / "listino.csv").read_bytes(),
+    "libro.epub": (FIX / "libro.epub").read_bytes(),
+    "vuoto.pdf": b"",
+    "corrotto.pdf": b"%PDF-1.4\nnon un pdf vero\n",
+    "rotto.docx": b"PK\x03\x04 non un docx",
+    "protetto.pdf": (FIX / "protetto.pdf").read_bytes(),
+    "programma.exe": b"MZ",
+}
+for nome, data in [*FILES.items(), ("registro.pdf#duplicato", FILES["registro.pdf"])]:
+    fname = nome.split("#")[0]
+    r = c.post("/api/intake/docs", files={"file": (fname, data)})
+    body = r.json()
+    report["upload"][nome] = {"status": r.status_code, "detail": body.get("detail"), "id": body.get("id"),
+                              "motore": (body.get("metadata") or {}).get("motore")}
+    print(nome, r.status_code, report["upload"][nome]["motore"] or body.get("detail"), flush=True)
+
+report["controlli"]["docs_invariato_prima_di_approve"] = tree(S / "docs") == docs0
+staged = {e["filename"]: e for e in c.get("/api/intake/staged").json()["staged"]}
+for fname, e in staged.items():
+    m = c.get(f"/api/intake/staged/{e['id']}/preview").json()["metadata"]
+    report["preview"][fname] = {k: m.get(k) for k in ("motore", "versione_motore", "fallback", "avvisi", "pdf")}
+
+
+def concorrenti(richieste):
+    esiti: list[int] = []
+
+    def uno(doc_id, nome):
+        esiti.append(c.post(f"/api/intake/staged/{doc_id}/approve",
+                            json={"categoria": "04_knowledge_informative", "nome_file": nome}).status_code)
+    thr = [threading.Thread(target=uno, args=r) for r in richieste]
+    for t in thr:
+        t.start()
+    for t in thr:
+        t.join()
+    return sorted(esiti)
+
+
+report["approve"]["stesso_documento_due_nomi"] = concorrenti(
+    [(staged["registro.pdf"]["id"], "registro-e2e"), (staged["registro.pdf"]["id"], "registro-e2e-bis")])
+report["approve"]["due_documenti_stesso_nome"] = concorrenti(
+    [(staged["budget.xlsx"]["id"], "conteso-e2e"), (staged["rilascio.pptx"]["id"], "conteso-e2e")])
+for fname, nome in (("nota.md", "nota-e2e"), ("scansione.pdf", "scansione-e2e"), ("manuale.docx", "manuale-e2e"),
+                    ("misto.pdf", "misto-e2e")):
+    r = c.post(f"/api/intake/staged/{staged[fname]['id']}/approve",
+               json={"categoria": "04_knowledge_informative", "nome_file": nome})
+    report["approve"][fname] = r.status_code
+restanti = {e["filename"] for e in c.get("/api/intake/staged").json()["staged"]}
+perdente = next(f for f in ("budget.xlsx", "rilascio.pptx") if f in restanti)
+report["approve"]["perdente_poi_nome_libero"] = c.post(
+    f"/api/intake/staged/{staged[perdente]['id']}/approve",
+    json={"categoria": "04_knowledge_informative", "nome_file": "vincitore-rinviato-e2e"}).status_code
+report["approve"]["html_rifiutato"] = c.post(f"/api/intake/staged/{staged['guida_latin1.html']['id']}/reject",
+                                            json={"motivo": "prova di rifiuto e2e v2"}).status_code
+
+docs1 = tree(S / "docs")
+nuovi = sorted(set(docs1) - set(docs0))
+report["controlli"].update({
+    "nuovi_in_docs": nuovi,
+    "solo_md_in_docs": all(n.endswith(".md") for n in nuovi),
+    "preesistenti_intatti": all(docs1.get(k) == v for k, v in docs0.items()),
+})
+journal = [json.loads(x) for x in (S / "rag/database/staging/intake.jsonl").read_text(encoding="utf-8").splitlines() if x.strip()]
+ultimi = {j["id"]: j for j in journal}
+report["controlli"]["originali"] = {
+    j["filename"]: {"stato": j["status"], "sha_uguale": (lambda p: p.is_file() and hashlib.sha256(p.read_bytes()).hexdigest() == j["metadata"]["sha256"])(
+        S / "rag/database/staging" / ("rejected" if j["status"] == "rejected" else "docs") / j["files"]["original"])}
+    for j in ultimi.values()}
+report["controlli"]["immagini_nei_md"] = {n: "![" in (S / "docs" / n).read_text(encoding="utf-8") for n in nuovi}
+q = QdrantClient(url="http://127.0.0.1:6402")
+report["controlli"]["punti_qdrant_per_doc"] = {
+    n: q.count("vibecraft_events", count_filter=Filter(must=[FieldCondition(key="doc_id", match=MatchValue(value=n))])).count
+    for n in nuovi}
+report["controlli"]["current"] = [current0, (S / "rag/database/CURRENT").read_text().strip()]
+OUT.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+print(json.dumps({k: v for k, v in report.items() if k != "upload"}, ensure_ascii=False, indent=1))

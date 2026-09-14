@@ -1,0 +1,5 @@
+{
+  "independent_tables": true,
+  "markdown": "Contenuto delle celle del workbook, letto direttamente dal file. Ogni tabella è un intervallo di celle con le coordinate originali: la prima colonna è il numero di riga, A, B, C… sono le lettere di colonna, non intestazioni dei dati. Una colonna vuota in tutto il foglio separa gli intervalli e una riga vuota ne separa i blocchi: separazioni geometriche, non tabelle dichiarate nel file; celle con lo stesso numero di riga stanno sulla stessa riga del foglio. Valori memorizzati nel file: formule non ricalcolate, numeri senza formato di visualizzazione, date e ore ISO. Formattazione, convalide e oggetti grafici non sono riportati.\n\n## Sheet\n\n- Tabelle dichiarate nel file: Costi A1:B2; Persone D1:E2.\n\n### A1:B2\n\n| Riga | A | B |\n| --- | --- | --- |\n| 1 | Voce | Euro |\n| 2 | A | 12 |\n\n### D1:E2\n\n| Riga | D | E |\n| --- | --- | --- |\n| 1 | Persona | Anni |\n| 2 | Ada | 30 |",
+  "verdict": "PASS"
+}

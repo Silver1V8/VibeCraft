@@ -1,0 +1,187 @@
+"""FASE 1 — schermo delle sezioni corretto, e distinzioni eseguibili.
+
+Additivo: riusa `assi.py` della sessione precedente per tutto cio' che non
+cambia (ATTESI, DOC_ATTESO, DINIEGO, presenza, citazioni, ...) e sostituisce
+`controlla_sezioni`. Nessuna modifica al repository.
+
+## Il difetto corretto
+
+`assi.controlla_sezioni` raccoglie come «valore attribuito alla sezione X»
+qualunque stringa fra virgolette o backtick nella stessa frase. Le intestazioni
+di blocco del contesto portano pero' l'ETICHETTA DI CLASSE della fonte
+(`[SENZA CLASSE]`, `[METHODOLOGY]`, `[NORMS, ARCHIVED]`) e il contesto ha un
+blocco `CODICE ESISTENTE`: quando la risposta li cita, finiscono nei «valori»,
+non stanno nel corpo della sezione, e un'affermazione di sezione CORRETTA
+(`sezione_dichiarata == sezione_reale`) viene contata come errore.
+
+Riprodotto in `riproduci_difetti_strumento.py`: 4 casi su 7 falliscono con lo
+strumento vecchio, e i 3 controlli di non regressione passano.
+
+## Le cinque cose che ora vengono distinte
+
+`classifica_riferimento()` separa, con un controllo eseguibile per ciascuna:
+
+  classe        etichetta di autorevolezza della fonte o stato di archiviazione
+  documento     percorso o nome di file
+  sezione       titolo che compare fra le intestazioni della fonte
+  citazione     passo virgolettato verificabile nel testo della fonte
+  descrizione   prosa che non e' nessuna delle precedenti
+
+Solo cio' che e' `citazione` o `descrizione` puo' essere un «valore attribuito a
+una sezione»: una classe non lo e' mai, un percorso di documento nemmeno, e il
+titolo stesso della sezione neppure.
+
+## Semantica degli esiti (invariata dove contava)
+
+errori:      `sezione_inesistente`, `valore_in_altra_sezione`,
+             `valore_non_trovato`, `fonte_senza_struttura`
+non errori:  `coerente`, `sezione_corretta_senza_valore`
+
+`sezione_corretta_senza_valore` sostituisce
+`sezione_esiste_valore_non_isolabile`: il nome vecchio suggeriva un difetto,
+ma e' il caso di un'affermazione di sezione giusta che non porta con se' un
+valore falsificabile. Non era conteggiato come errore nemmeno prima; il nome
+nuovo evita che lo diventi per sbaglio.
+"""
+import pathlib
+import re
+import sys
+
+_CHIUSURA = pathlib.Path(
+    r"C:\Users\Silve\Desktop\vibecraft\rag\eval\results"
+    r"\pilot_docling_chiusura_20260909-160000\scripts")
+if str(_CHIUSURA) not in sys.path:
+    sys.path.insert(0, str(_CHIUSURA))
+
+from assi import (  # noqa: E402,F401
+    ATTESI, DINIEGO, DOC_ATTESO, FILENAME, NUMERO_NUDO, SEZIONE, despazia,
+    documenti_nominati, identificatori_non_sostenuti, normalize, presenza,
+    ripulisci_nome, sezioni_del_testo, verifica_citazioni,
+)
+
+# Etichette STRUTTURALI del contesto: non sono contenuto di una sezione.
+# Le classi note vengono dalla configurazione applicativa; le altre si
+# raccolgono dal contesto realmente inviato (vedi `etichette_dal_contesto`).
+STATI_ARCHIVIO = ("ARCHIVED", "DEPRECATED", "HISTORICAL", "OBSOLETE", "SUPERSEDED")
+ETICHETTE_FISSE = {
+    "SENZA CLASSE", "CODICE ESISTENTE", "IRON_MEMORY", "AUTHORIZATION_POLICY",
+    "DATA_DICTIONARY", "METHODOLOGY", "NORMS", "REQUIREMENTS", "METADATA",
+    "KNOWLEDGE", "SPECS", *STATI_ARCHIVIO,
+}
+_ESTENSIONI = r"\.(?:pdf|md|html|svg|json|yaml|yml|txt|py|png)$"
+_INTESTAZIONE = re.compile(r"^---\s+(?P<doc>\S+)\s+§\s*(?P<sez>.*?)\s*\[(?P<cls>[^\]]+)\]\s+---$",
+                           re.MULTILINE)
+
+
+def etichette_dal_contesto(contesto: str) -> set[str]:
+    """Le etichette di classe REALMENTE presenti nelle intestazioni di blocco del
+    contesto inviato. Prese dal dato, non indovinate: se il corpus dichiara una
+    classe nuova, lo schermo la riconosce senza dover essere aggiornato."""
+    trovate = set()
+    for m in _INTESTAZIONE.finditer(contesto or ""):
+        for pezzo in m.group("cls").split(","):
+            if pezzo.strip():
+                trovate.add(pezzo.strip().upper())
+    return trovate
+
+
+def e_etichetta(valore: str, etichette: set[str] | None = None) -> bool:
+    v = re.sub(r"^[\[\s]+|[\]\s]+$", "", valore or "").strip().upper()
+    if not v:
+        return False
+    note = ETICHETTE_FISSE | (etichette or set())
+    if v in note:
+        return True
+    # «NORMS, ARCHIVED» o «SENZA CLASSE, DEPRECATED»
+    pezzi = [p.strip() for p in v.split(",") if p.strip()]
+    return bool(pezzi) and all(p in note for p in pezzi)
+
+
+def e_documento(valore: str) -> bool:
+    return bool(re.search(_ESTENSIONI, (valore or "").strip(), re.IGNORECASE))
+
+
+def classifica_riferimento(valore: str, fonte: str = "", etichette: set[str] | None = None) -> str:
+    """classe | documento | sezione | citazione | descrizione."""
+    v = (valore or "").strip()
+    if not v:
+        return "descrizione"
+    if e_etichetta(v, etichette):
+        return "classe"
+    if e_documento(v):
+        return "documento"
+    titoli = {normalize(t) for t, _ in sezioni_del_testo(fonte)}
+    if normalize(v) in titoli:
+        return "sezione"
+    if normalize(v) and normalize(v) in normalize(fonte):
+        return "citazione"
+    return "descrizione"
+
+
+ESITI_ERRORE = ("sezione_inesistente", "valore_in_altra_sezione",
+                "valore_non_trovato", "fonte_senza_struttura")
+
+
+def errori_di_sezione(esiti: list[dict]) -> list[dict]:
+    return [e for e in esiti if e.get("esito") in ESITI_ERRORE]
+
+
+def controlla_sezioni(risposta: str, testo_fonte: str,
+                      contesto: str = "") -> list[dict]:
+    """Come `assi.controlla_sezioni`, ma i «valori» attribuiti a una sezione
+    escludono etichette di classe, percorsi di documento e il titolo stesso."""
+    sezioni = sezioni_del_testo(testo_fonte)
+    titoli = {normalize(t): (t, c) for t, c in sezioni}
+    etichette = etichette_dal_contesto(contesto)
+    esiti: list[dict] = []
+    for m in SEZIONE.finditer(risposta or ""):
+        nome = m.group(1).strip()
+        inizio = risposta.rfind("\n", 0, m.start()) + 1
+        fine = risposta.find("\n", m.end())
+        frase = risposta[inizio: fine if fine > 0 else len(risposta)]
+        grezzi = re.findall(r"[\"«“]([^\"»”\n]{3,120})[\"»”]", frase)
+        grezzi += re.findall(r"`([^`\n]{3,120})`", frase)
+
+        valori, scartati = [], []
+        for v in grezzi:
+            if not normalize(v) or normalize(v) == normalize(nome):
+                scartati.append({"valore": v[:80], "tipo": "sezione"})
+                continue
+            tipo = classifica_riferimento(v, testo_fonte, etichette)
+            if tipo in ("classe", "documento"):
+                scartati.append({"valore": v[:80], "tipo": tipo})
+                continue
+            valori.append(v)
+
+        if not sezioni:
+            esiti.append({"sezione_dichiarata": nome, "esito": "fonte_senza_struttura",
+                          "nota": "il testo indicizzato non ha intestazioni: nessuna "
+                                  "affermazione di sezione e' sostenibile da questa fonte"})
+            continue
+        chiave = normalize(nome)
+        trovata = next((k for k in titoli if k == chiave), None)
+        if trovata is None:
+            trovata = next((k for k in titoli if chiave and (chiave in k or k in chiave)), None)
+        if trovata is None:
+            esiti.append({"sezione_dichiarata": nome, "esito": "sezione_inesistente",
+                          "intestazioni_reali": [t for t, _ in sezioni],
+                          "scartati_non_valori": scartati})
+            continue
+        titolo_reale, corpo = titoli[trovata]
+        for v in valori:
+            nv = normalize(v)
+            if nv in normalize(corpo):
+                esiti.append({"sezione_dichiarata": nome, "sezione_reale": titolo_reale,
+                              "valore": v[:80], "esito": "coerente"})
+                continue
+            altrove = [t for t, c in sezioni if nv in normalize(c)]
+            esiti.append({
+                "sezione_dichiarata": nome, "sezione_reale": titolo_reale, "valore": v[:80],
+                "esito": "valore_in_altra_sezione" if altrove else "valore_non_trovato",
+                "sezione_effettiva": altrove[:2],
+            })
+        if not valori:
+            esiti.append({"sezione_dichiarata": nome, "sezione_reale": titolo_reale,
+                          "esito": "sezione_corretta_senza_valore",
+                          "scartati_non_valori": scartati})
+    return esiti

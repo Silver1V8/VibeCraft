@@ -1,0 +1,54 @@
+{
+  "A soffitto: -README -AuthBoost, scala senza numeri, regola campo": {
+    "token": 4273,
+    "righe": [
+      {
+        "passata": 1,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg**.\n\nSecondo il file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`, questo artefatto ha un peso di **19.5 KB**.",
+        "kb": true,
+        "coeff": false,
+        "nega": false
+      },
+      {
+        "passata": 2,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg**.\n\nSecondo il file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`, questo artefatto ha le seguenti caratteristiche:\n*   **Area:** Governance\n*   **Finalità:** Checkpoint human-in-the-loop e punti di controllo.\n*   **Formato / peso:** SVG, 19.5 KB.\n\nIl contesto non riporta un valore numerico esplicito per il \"peso\" (come una percentuale o un coefficiente) associato a questo diagramma nel catalogo; il termine \"peso\" è invece utilizzato nel file `00_meta_governance/definition_of_done.md` per indicare la **fiducia** (es. 0.900) e la **pertinenza** (es. 0.415) dei nodi del grafo di fonti, ma non viene applicato direttamente ai file del catalogo diagrammi come attributo numerico nel testo fornito.",
+        "kb": true,
+        "coeff": false,
+        "nega": true
+      },
+      {
+        "passata": 3,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, presente nel file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`.\n\nSecondo il catalogo fornito, questo artefatto ha un peso di **19.5 KB**.",
+        "kb": true,
+        "coeff": false,
+        "nega": false
+      }
+    ]
+  },
+  "B soffitto: -README -AuthBoost, prompt ORIGINALE": {
+    "token": 4213,
+    "righe": [
+      {
+        "passata": 1,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, presente nel file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`.\n\nSecondo il contesto fornito, questo diagramma ha un peso di **19.5 KB** (indicato nella colonna \"Formato / peso\").\n\n*Nota sulla fonte:* Il documento che elenca i file e le loro proprietà è classificato come **[SENZA CLASSE]** nel contesto (`02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`). Poiché il vincolo sul peso (19.5 KB) è enunciato esclusivamente da questa fonte, non vi sono fonti più autorevoli (come REQUIREMENTS o METADATA) che ne confermino o modifichino il valore; pertanto, si riporta tale dato come stabilito dalla fonte meno autorevole presente nel corpus per questo specifico attributo.",
+        "kb": true,
+        "coeff": false,
+        "nega": false
+      },
+      {
+        "passata": 2,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, presente nel file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`.\n\nTale diagramma ha un peso di **19.5 KB**.",
+        "kb": true,
+        "coeff": false,
+        "nega": false
+      },
+      {
+        "passata": 3,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, presente nel file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`.\n\nSecondo il contesto fornito, questo diagramma ha un peso (fiducia) di **0.900**.\n\n**Motivazione del peso:**\nIl valore 0.900 deriva dall'attributo `fiducia` associato al blocco `00_meta_governance/definition_of_done.md` nel contesto grafo, dove si legge: \"via grafo: 1 hop, fiducia 0.900\". Poiché la domanda richiede un elemento presente nel catalogo (il diagramma) e il contesto collega esplicitamente i checkpoint HITL a questo documento di governance con tale valore di fiducia, il peso è quello riportato.\n\n**Nota sulla fonte:**\nSebbene il file `catalogo_diagrammi_normativi.pdf` sia classificato come `[SENZA CLASSE]` (peso 0.30) nel contesto, la domanda chiede \"con quale peso\". Nel grafo di conoscenza fornito, l'entità specifica del diagramma è collegata al documento `definition_of_done.md` con un attributo esplicito di fiducia pari a 0.900. Pertanto, il valore da riportare è quello dichiarato nel contesto (`0.900`) e non il peso generico della classe del file PDF.",
+        "kb": false,
+        "coeff": true,
+        "nega": false
+      }
+    ]
+  }
+}

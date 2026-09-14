@@ -1,0 +1,92 @@
+"""S2 sulle RISPOSTE: stesse domande dell'holdout, stesso indice, stesso modello e prompt,
+soglia 0.0 contro 0.35, N passate ciascuna. In-process e in SOLA LETTURA come
+verifica_s2.py della sessione precedente (niente lifespan: niente riparazione dell'alias né
+GC); a differenza di quella qui l'LLM è quello vero (purpose "ask") e la cache di /ask è spenta.
+
+L'holdout NON è più un insieme mai visto: è stato scritto per la calibrazione di S2 e usato
+per misurarne la composizione del contesto. Qui serve da campione fisso, non da prova cieca.
+
+Uso (da rag/): uv run --no-sync python -B <questo> <out.json> [passate]
+"""
+import json
+import pathlib
+import re
+import sys
+import time
+
+RAG = pathlib.Path.cwd()
+sys.path.insert(0, str(RAG))
+
+import yaml  # noqa: E402
+from fastapi import FastAPI  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+
+from api import deps, routes_retrieval  # noqa: E402
+from core import llm  # noqa: E402
+
+HOLDOUT = RAG / "eval/results/sel_contesto_20260910-090000/holdout/holdout.yaml"
+TELEFONO = re.compile(r"\+?\d[\d .\-/]{6,}\d")
+
+
+def valuta(d: dict, answer: str, status: str) -> dict:
+    if d.get("assenza_attesa"):
+        corretta = not TELEFONO.search(answer)
+        return {"corretta": corretta, "criterio": "nessun numero di telefono inventato", "astensione": status}
+    attese = [str(x) for x in d.get("risposta_attesa") or []]
+    alternative = [str(x) for x in d.get("risposta_accettabile_alternativa") or []]
+    presenti = [x for x in attese if x.lower() in answer.lower()]
+    ok = len(presenti) == len(attese) or (alternative and all(a.lower() in answer.lower() for a in alternative))
+    return {"corretta": bool(ok), "attesi_presenti": presenti, "attesi": attese}
+
+
+def main() -> int:
+    out, passate = pathlib.Path(sys.argv[1]), int(sys.argv[2]) if len(sys.argv) > 2 else 3
+    deps.API_KEY = None
+    routes_retrieval._cache_get = lambda app_, key: None
+    routes_retrieval._cache_set = lambda app_, key, payload: None
+    routes_retrieval.maybe_reload_graph = lambda: None
+    deps.state["embed_model"] = deps.BGEM3FlagModel(deps.EMBEDDING_MODEL, use_fp16=False, devices="cpu")
+    deps.state["qdrant"] = deps.QdrantClient(url=deps.QDRANT_URL, api_key=deps.QDRANT_API_KEY)
+    arts = deps.load_artifacts(required=("graph",))
+    snap = deps._build_snapshot(arts.graph, arts.colbert_store, arts.chunks_store,
+                                deps.load_rule_descriptions(), arts.code_store)
+    deps.state["snapshot"] = snap
+    app = FastAPI()
+    app.include_router(routes_retrieval.router)
+    client = TestClient(app, client=("127.0.0.1", 54321))
+    domande = yaml.safe_load(HOLDOUT.read_text(encoding="utf-8"))["domande"]
+
+    report = {"index_version": snap.version, "modello": llm.resolve("ask"),
+              "temperatura": llm.OLLAMA_TEMPERATURE, "top_k": 5, "passate": passate,
+              "cache_ask": "spenta", "risposte": []}
+    for soglia in (0.0, 0.35):
+        routes_retrieval.CODE_LINK_MIN_QUESTION_SCORE = soglia
+        for d in domande:
+            for i in range(passate):
+                t0 = time.perf_counter()
+                r = client.post("/ask", json={"question": d["domanda"], "top_k": 5})
+                body = r.json() if r.status_code == 200 else {"status": f"HTTP {r.status_code}", "answer": r.text}
+                answer = body.get("answer") or ""
+                riga = {"soglia": soglia, "id": d["id"], "passata": i, "secondi": round(time.perf_counter() - t0, 1),
+                        "status": body.get("status"), "answer": answer,
+                        "codice": [(c["file"], c["name"], c["source"]) for c in body.get("implementing_code") or []],
+                        "fonti": [s.get("doc_id") for s in body.get("sources") or []],
+                        "contesto": (body.get("graph_context") or {}).get("context_text"),
+                        **valuta(d, answer, body.get("status"))}
+                report["risposte"].append(riga)
+                print(f"{soglia} {d['id']:<22} p{i} {riga['corretta']} {riga['secondi']}s", flush=True)
+    routes_retrieval.CODE_LINK_MIN_QUESTION_SCORE = 0.35
+    riassunto = {}
+    for soglia in (0.0, 0.35):
+        righe = [r for r in report["risposte"] if r["soglia"] == soglia]
+        riassunto[str(soglia)] = {"corrette": sum(r["corretta"] for r in righe), "totale": len(righe),
+                                  "per_domanda": {d["id"]: sum(r["corretta"] for r in righe if r["id"] == d["id"])
+                                                  for d in domande}}
+    report["riassunto"] = riassunto
+    out.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(json.dumps(riassunto, ensure_ascii=False, indent=1))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

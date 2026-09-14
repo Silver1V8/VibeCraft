@@ -1,0 +1,118 @@
+{
+  "loader_pypdf": {
+    "tabelle_complete": 0,
+    "celle_dati_corrette": 0,
+    "celle_intestazione_corrette": 0,
+    "celle_dati_totali": 75,
+    "celle_intestazione_totali": 9,
+    "valori_alterati": [],
+    "dettaglio": {
+      "diagrammi_p2_registro": {
+        "tabelle_markdown_trovate": 0,
+        "intestazioni_riconosciute": 0,
+        "tabella_completa": false,
+        "motivo": "nessuna tabella markdown con intestazione riconoscibile",
+        "celle_dati_corrette": 0,
+        "celle_intestazione_corrette": 0
+      },
+      "mockup_p2_registro": {
+        "tabelle_markdown_trovate": 0,
+        "intestazioni_riconosciute": 0,
+        "tabella_completa": false,
+        "motivo": "nessuna tabella markdown con intestazione riconoscibile",
+        "celle_dati_corrette": 0,
+        "celle_intestazione_corrette": 0
+      }
+    },
+    "presente": true
+  },
+  "intake_markitdown": {
+    "tabelle_complete": 0,
+    "celle_dati_corrette": 0,
+    "celle_intestazione_corrette": 0,
+    "celle_dati_totali": 75,
+    "celle_intestazione_totali": 9,
+    "valori_alterati": [],
+    "dettaglio": {
+      "diagrammi_p2_registro": {
+        "tabelle_markdown_trovate": 0,
+        "intestazioni_riconosciute": 0,
+        "tabella_completa": false,
+        "motivo": "nessuna tabella markdown con intestazione riconoscibile",
+        "celle_dati_corrette": 0,
+        "celle_intestazione_corrette": 0
+      },
+      "mockup_p2_registro": {
+        "tabelle_markdown_trovate": 0,
+        "intestazioni_riconosciute": 0,
+        "tabella_completa": false,
+        "motivo": "nessuna tabella markdown con intestazione riconoscibile",
+        "celle_dati_corrette": 0,
+        "celle_intestazione_corrette": 0
+      }
+    },
+    "presente": true
+  },
+  "docling_granite": {
+    "tabelle_complete": 2,
+    "celle_dati_corrette": 75,
+    "celle_intestazione_corrette": 9,
+    "celle_dati_totali": 75,
+    "celle_intestazione_totali": 9,
+    "valori_alterati": [],
+    "dettaglio": {
+      "diagrammi_p2_registro": {
+        "tabelle_markdown_trovate": 2,
+        "intestazioni_riconosciute": 4,
+        "tabella_completa": true,
+        "righe_dati_trovate": 5,
+        "colonne_trovate": 4,
+        "celle_dati_corrette": 20,
+        "celle_intestazione_corrette": 4,
+        "celle_sbagliate": []
+      },
+      "mockup_p2_registro": {
+        "tabelle_markdown_trovate": 2,
+        "intestazioni_riconosciute": 5,
+        "tabella_completa": true,
+        "righe_dati_trovate": 11,
+        "colonne_trovate": 5,
+        "celle_dati_corrette": 55,
+        "celle_intestazione_corrette": 5,
+        "celle_sbagliate": []
+      }
+    },
+    "presente": true
+  },
+  "docling_standard": {
+    "tabelle_complete": 2,
+    "celle_dati_corrette": 75,
+    "celle_intestazione_corrette": 9,
+    "celle_dati_totali": 75,
+    "celle_intestazione_totali": 9,
+    "valori_alterati": [],
+    "dettaglio": {
+      "diagrammi_p2_registro": {
+        "tabelle_markdown_trovate": 2,
+        "intestazioni_riconosciute": 4,
+        "tabella_completa": true,
+        "righe_dati_trovate": 5,
+        "colonne_trovate": 4,
+        "celle_dati_corrette": 20,
+        "celle_intestazione_corrette": 4,
+        "celle_sbagliate": []
+      },
+      "mockup_p2_registro": {
+        "tabelle_markdown_trovate": 2,
+        "intestazioni_riconosciute": 5,
+        "tabella_completa": true,
+        "righe_dati_trovate": 11,
+        "colonne_trovate": 5,
+        "celle_dati_corrette": 55,
+        "celle_intestazione_corrette": 5,
+        "celle_sbagliate": []
+      }
+    },
+    "presente": true
+  }
+}

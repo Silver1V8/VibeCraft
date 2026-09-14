@@ -1,0 +1,64 @@
+"""FASE 1 (coda) — rivalutazione UNIFORME delle 96 risposte archiviate del
+confronto fattoriale A/B/C/D con lo schermo delle sezioni CORRETTO (assi2).
+
+Gli originali non vengono toccati: si legge `fix_attribuzione_.../out/eval_*.json`
+e si scrive un nuovo file. Il confronto prima/dopo dello STRUMENTO e' esplicito,
+cosi' si vede quanta parte del conteggio precedente era artefatto.
+"""
+import json
+import pathlib
+import sys
+import re
+D = pathlib.Path(r"C:\Users\Silve\Desktop\vibecraft\rag\eval\results\fix_generazione_20260909-200000")
+sys.path.insert(0, str(D/"scripts"))
+VECCHIO = pathlib.Path(r"C:\Users\Silve\Desktop\vibecraft\rag\eval\results\pilot_docling_chiusura_20260909-160000\scripts")
+sys.path.insert(0, str(VECCHIO))
+import assi as vecchio  # noqa: E402
+from assi2 import ATTESI, DINIEGO, DOC_ATTESO, controlla_sezioni, despazia, errori_di_sezione  # noqa: E402
+ARCH = pathlib.Path(r"C:\Users\Silve\Desktop\vibecraft\rag\eval\results\fix_attribuzione_20260909-183000\out")
+SB = pathlib.Path(r"C:\Users\Silve\AppData\Local\Temp\claude\C--Users-Silve-Desktop-vibecraft\bf54f804-fff5-40ce-ad46-d26ccb85ab43\scratchpad")
+def chunks(nome):
+    base = SB/nome/"rag/database"
+    cur = (base/"CURRENT").read_text().strip()
+    return json.loads((base/"versions"/cur/"chunks.json").read_text(encoding="utf-8"))
+TESTI = {"A": chunks("sandbox-baseline"), "B": chunks("sandbox-candidate")}
+TESTI["C"], TESTI["D"] = TESTI["A"], TESTI["B"]
+def testo_pdf(cfg, qid):
+    doc = DOC_ATTESO["diag" if "diag" in qid else "mock"]
+    return "\n".join(v.get("text","") for k,v in TESTI[cfg].items() if doc in k)
+out = {}
+for cfg in "ABCD":
+    agg = {"presenza":0,"doc":0,"sez_err_nuovo":0,"sez_err_vecchio":0,"diniego":0,"n":0,"per_domanda":{}}
+    for p in (1,2,3):
+        d = json.loads((ARCH/f"eval_{cfg}_p{p}.json").read_text(encoding="utf-8"))
+        for qid, q in d["domande"].items():
+            r = q["risposta"]["testo"] if isinstance(q["risposta"],dict) else (q["risposta"] or "")
+            ctx = q.get("contesto_inviato") or ""
+            fonte = testo_pdf(cfg, qid)
+            pres = all(re.search(rf"(?<![\w.]){re.escape(a)}(?![\w])", r) or despazia(a) in despazia(r) for a in ATTESI[qid])
+            doc = DOC_ATTESO["diag" if "diag" in qid else "mock"]
+            nom = doc in r or despazia(doc) in despazia(r)
+            en = errori_di_sezione(controlla_sezioni(r, fonte, ctx))
+            ev = [e for e in vecchio.controlla_sezioni(r, fonte)
+                  if e.get("esito") in ("sezione_inesistente","valore_in_altra_sezione","valore_non_trovato","fonte_senza_struttura")]
+            neg = bool(DINIEGO.search(r)) and pres
+            agg["presenza"]+=pres
+            agg["doc"]+=nom
+            agg["sez_err_nuovo"]+=len(en)
+            agg["sez_err_vecchio"]+=len(ev)
+            agg["diniego"]+=neg
+            agg["n"]+=1
+            agg["per_domanda"].setdefault(qid, {"pres":0,"doc":0,"sez":0,"neg":0})
+            agg["per_domanda"][qid]["pres"]+=pres
+            agg["per_domanda"][qid]["doc"]+=nom
+            agg["per_domanda"][qid]["sez"]+=len(en)
+            agg["per_domanda"][qid]["neg"]+=neg
+    out[cfg]=agg
+print(f"{'cfg':4}{'presenza':>10}{'documento':>11}{'sez.err VECCHIO':>17}{'sez.err NUOVO':>15}{'diniego':>9}")
+for cfg in "ABCD":
+    a=out[cfg]
+    print(f"{cfg:4}{a['presenza']:>7}/{a['n']}{a['doc']:>8}/{a['n']}{a['sez_err_vecchio']:>17}{a['sez_err_nuovo']:>15}{a['diniego']:>9}")
+tv=sum(out[c]['sez_err_vecchio'] for c in 'ABCD')
+tn=sum(out[c]['sez_err_nuovo'] for c in 'ABCD')
+print(f"\nerrori di sezione totali: strumento vecchio {tv} -> corretto {tn}  ({tv-tn} erano artefatti)")
+(D/"out/riscoring_archivio.json").write_text(json.dumps(out,indent=2,ensure_ascii=False),encoding="utf-8")

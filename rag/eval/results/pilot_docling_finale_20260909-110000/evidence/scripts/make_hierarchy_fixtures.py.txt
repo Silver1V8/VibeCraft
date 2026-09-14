@@ -1,0 +1,79 @@
+"""Fixture sintetiche per il controllo della regola di gerarchia.
+
+Vocabolario deliberatamente ESTRANEO ai cataloghi (nessun "Catalogo", "Registro",
+"Regole", "Percorso"): se la gerarchia dipendesse dalle stringhe dei cataloghi,
+qui fallirebbe.
+
+A) fixture_gerarchia.pdf   — tre ranghi distinti per dimensione font (28 / 15 / 10),
+                             stesso schema del template ma testi diversi.
+B) fixture_ambigua.pdf     — due intestazioni con stile IDENTICO (stessa famiglia,
+                             dimensione, peso, cassa). Non esiste segnale che le
+                             ordini: il controllo pretende che ricevano lo STESSO
+                             livello, non un ordine inventato.
+
+Richiede reportlab (presente nel runtime PDF, non nel venv Docling).
+Uso: make_hierarchy_fixtures.py <out_dir>
+"""
+
+import pathlib
+import sys
+
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import mm
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+
+OUT = pathlib.Path(sys.argv[1]).resolve()
+OUT.mkdir(parents=True, exist_ok=True)
+base = getSampleStyleSheet()
+
+big = ParagraphStyle("Big", parent=base["Title"], fontName="Helvetica-Bold", fontSize=28, leading=33)
+mid = ParagraphStyle("Mid", parent=base["Heading1"], fontName="Helvetica-Bold", fontSize=15, leading=19)
+small = ParagraphStyle("Small", parent=base["Heading2"], fontName="Helvetica-Bold", fontSize=10, leading=13)
+body = ParagraphStyle("Body", parent=base["BodyText"], fontSize=9.2, leading=13)
+
+
+def build(path, story):
+    SimpleDocTemplate(
+        str(path), pagesize=A4, rightMargin=18 * mm, leftMargin=18 * mm,
+        topMargin=17 * mm, bottomMargin=20 * mm, title=path.stem, author="fixture",
+    ).build(story)
+
+
+# --- A) tre ranghi distinti, testi estranei al dominio dei cataloghi -----------
+build(
+    OUT / "fixture_gerarchia.pdf",
+    [
+        Spacer(1, 20 * mm),
+        Paragraph("Manuale di manutenzione idraulica", big),
+        Paragraph("Documento operativo per la manutenzione degli impianti.", body),
+        Spacer(1, 8 * mm),
+        Paragraph("Procedure di collaudo", mid),
+        Paragraph("Il collaudo verifica la tenuta delle giunzioni a freddo.", body),
+        Spacer(1, 4 * mm),
+        Paragraph("Materiali ammessi", mid),
+        Paragraph("Sono ammessi acciaio inossidabile e polietilene reticolato.", body),
+        Spacer(1, 4 * mm),
+        Paragraph("Nota di archiviazione", small),
+        Paragraph("Conservare i verbali per dieci anni.", body),
+    ],
+)
+
+# --- B) caso ambiguo: due intestazioni con stile identico ---------------------
+build(
+    OUT / "fixture_ambigua.pdf",
+    [
+        Spacer(1, 20 * mm),
+        Paragraph("Bollettino meteorologico regionale", big),
+        Paragraph("Sintesi delle osservazioni giornaliere.", body),
+        Spacer(1, 8 * mm),
+        Paragraph("Temperature rilevate", mid),
+        Paragraph("Le minime si sono attestate sotto la media stagionale.", body),
+        Spacer(1, 4 * mm),
+        Paragraph("Precipitazioni cumulate", mid),
+        Paragraph("Gli accumuli maggiori interessano il settore orientale.", body),
+    ],
+)
+
+for f in sorted(OUT.glob("fixture_*.pdf")):
+    print(f.name, f.stat().st_size, "byte")

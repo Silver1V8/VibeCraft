@@ -1,0 +1,59 @@
+"""DIAGNOSTICO DI SOFFITTO — non una variante distribuibile.
+
+Toglie dal contesto i due blocchi che INSEGNANO la glossa «peso = autorevolezza»
+(`README.md`, che tabula documento->authority, e `spec_graph_rag_ingestion.md §
+Requisiti di Retrieval e Authority Boost`, che definisce «il peso della classe»)
+e usa la scala senza numeri piu' la regola sul nome di campo.
+
+Serve a stabilire se ESISTE una combinazione che risolve `pdf-diag-3`. Non e'
+proponibile: quei due blocchi sono recuperati perche' la domanda contiene la
+parola «peso», e sono pertinenti a quel token — nessuna regola generale di
+pertinenza puo' escluderli senza conoscere la risposta attesa.
+"""
+import json
+import pathlib
+import re
+import sys
+
+RAG = pathlib.Path(r"C:\Users\Silve\Desktop\vibecraft\rag")
+sys.path.insert(0, str(RAG))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from core import llm, retrieval  # noqa: E402
+from prova_cf import ANCORA_CIT, COEFF, NEGA, REGOLA_CAMPO, T1, blocco_cf, scala  # noqa: E402
+
+
+def togli(ctx, frammenti):
+    pezzi = re.split(r"(?m)^(--- .*? ---)$", ctx)
+    fuori = [pezzi[0]]
+    for i in range(1, len(pezzi), 2):
+        if any(f in pezzi[i] for f in frammenti):
+            continue
+        fuori += [pezzi[i], pezzi[i + 1]]
+    return "".join(fuori)
+
+
+d = json.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))
+c = d["casi"]["pdf-diag-3"]
+n = int(sys.argv[3])
+res = {}
+for nome, frammenti, senza_numeri, campo in (
+        ("A soffitto: -README -AuthBoost, scala senza numeri, regola campo",
+         ["README.md ", "Authority Boost"], True, True),
+        ("B soffitto: -README -AuthBoost, prompt ORIGINALE",
+         ["README.md ", "Authority Boost"], False, False)):
+    ctx = togli(c["contesto"], frammenti)
+    sc = scala(ctx)
+    p = retrieval.build_ask_prompt(ctx, c["domanda"], authority_classes=sc)
+    if campo:
+        p = p.replace(ANCORA_CIT, REGOLA_CAMPO)
+    if senza_numeri and sc:
+        p = p.replace(blocco_cf(sc), T1(blocco_cf(sc), sc))
+    righe = []
+    for i in range(n):
+        r = llm.generate(p, purpose="ask")
+        righe.append({"passata": i + 1, "risposta": r, "kb": "19.5 KB" in r,
+                      "coeff": bool(COEFF.search(r)), "nega": bool(NEGA.search(r))})
+    print(f"  {nome[:52]:54} {len(p)//3:5} tok | 19.5KB {sum(x['kb'] for x in righe)}/{n} | "
+          f"coeff {sum(x['coeff'] for x in righe)}/{n} | nega {sum(x['nega'] for x in righe)}/{n}")
+    res[nome] = {"token": len(p) // 3, "righe": righe}
+pathlib.Path(sys.argv[2]).write_text(json.dumps(res, indent=2, ensure_ascii=False), encoding="utf-8")

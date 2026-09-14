@@ -1,0 +1,149 @@
+"""Pacchetto di revisione umana — compatto ma completo.
+
+Per ogni domanda e ogni stack: la risposta di ogni passata, la fonte e la
+sezione EFFETTIVE (quelle dell'intestazione di blocco del contesto, non quelle
+che la risposta dichiara), l'estratto pertinente del contesto, l'esito di ogni
+controllo automatico e i punti che richiedono giudizio umano.
+
+Nessuna risposta e' nascosta: quelle problematiche sono in cima alla lista dei
+punti da leggere, non omesse.
+
+Uso: pacchetto_revisione.py <workdir> <stack1> <stack2> ...
+"""
+
+import json
+import pathlib
+import sys
+
+W = pathlib.Path(sys.argv[1]).resolve()
+STACKS = sys.argv[2:]
+OUT = W / "out"
+conf = json.loads((OUT / "confronto_finale.json").read_text(encoding="utf-8"))
+
+dati = {}
+for stack in STACKS:
+    for f in sorted(OUT.glob(f"eval_{stack}_p*.json")):
+        d = json.loads(f.read_text(encoding="utf-8"))
+        dati[(stack, d["passata"])] = d
+
+
+def estratto(v, atteso, righe=14):
+    """Le righe del contesto REALMENTE inviato che riguardano la fonte attesa."""
+    ctx = v.get("contesto_inviato") or ""
+    blocchi = ctx.split("--- ")
+    for b in blocchi:
+        if b.startswith(atteso):
+            corpo = b.splitlines()
+            return "--- " + "\n".join(corpo[:righe])
+    return "(la fonte attesa non compare nel contesto inviato)"
+
+
+righe = [
+    "# Pacchetto di revisione umana — pilot Docling, chiusura",
+    "",
+    "Il cancello 1c chiede, per l'attribuzione, «schermo piu' **lettura umana**».",
+    "Gli schermi automatici stanno tutti qui sotto, con il loro esito; la lettura",
+    "e' quella che manca e che nessuno strumento di questa sessione puo' firmare.",
+    "",
+    "Il giudice N3 archiviato NON e' usato: non e' qualificato a certificare risposte",
+    "nuove (20/24 in-sample, non supera S6) e il suo archivio storico non e' prova",
+    "dell'attribuzione di queste risposte.",
+    "",
+    "**Come leggere.** Per ogni domanda: la fonte e la sezione EFFETTIVE (dal contesto",
+    "inviato al modello, non da cio' che la risposta dichiara), l'estratto pertinente,",
+    "poi ogni passata di ogni stack con l'esito dei controlli. Le domande su cui un",
+    "controllo automatico ha trovato qualcosa sono elencate qui sotto, e sono quelle",
+    "da leggere per prime.",
+    "",
+    "## Punti che richiedono giudizio umano",
+    "",
+]
+
+# i punti caldi: qualunque domanda che in qualunque stack/passata abbia un esito rosso
+caldi: dict[str, set[str]] = {}
+for stack in STACKS:
+    t = conf["stack"][stack]["totali"]
+    for etichetta, elenco in (
+            ("dato presente dichiarato assente", t["risposte_con_diniego_contraddetto"]),
+            ("sezione attribuita male", t["risposte_con_sezione_sbagliata"]),
+            ("identificatore non sostenuto dal contesto", t["risposte_con_identificatori_non_sostenuti"]),
+            ("valori attesi mancanti", []),
+            ("astensione", t["astensioni"]),
+            ("risposta interrotta", t["risposte_interrotte"]),
+    ):
+        for qid in elenco:
+            caldi.setdefault(qid, set()).add(f"{etichetta} ({stack})")
+
+for stack in STACKS:
+    for n, p in conf["stack"][stack]["passate"].items():
+        for qid, v in p["domande"].items():
+            if not v["presenza_confini_parola"]:
+                caldi.setdefault(qid, set()).add(
+                    f"valori attesi mancanti {v['mancanti_confini_parola']} ({stack}, tutte le passate)"
+                    if all(not conf["stack"][stack]["passate"][m]["domande"][qid]["presenza_confini_parola"]
+                           for m in conf["stack"][stack]["passate"])
+                    else f"valori attesi mancanti {v['mancanti_confini_parola']} ({stack} p{n})")
+
+if caldi:
+    for qid in sorted(caldi):
+        righe.append(f"- **{qid}** — " + "; ".join(sorted(caldi[qid])))
+else:
+    righe.append("- nessun controllo automatico ha segnalato anomalie; resta la lettura di merito.")
+righe += ["", "---", ""]
+
+for qid in ("pdf-diag-1", "pdf-diag-2", "pdf-diag-3", "pdf-diag-4",
+            "pdf-mock-1", "pdf-mock-2", "pdf-mock-3", "pdf-mock-4"):
+    base = dati[(STACKS[0], 1)]["domande"][qid]
+    atteso = base["fonte_attesa"]
+    righe += [f"## {qid}" + ("  ⚠" if qid in caldi else ""), "",
+              f"**Domanda:** {base['domanda']}", "",
+              f"**Risposta attesa (congelata):** {base['risposta_attesa']}", "",
+              f"**Fonte attesa:** `{atteso}`", ""]
+    if qid in caldi:
+        righe += ["**Da decidere:** " + "; ".join(sorted(caldi[qid])), ""]
+
+    v0 = dati[(STACKS[-1], 1)]["domande"][qid]
+    sezioni_reali = sorted({f"{f['doc_id']} § {f['section']}" for f in v0["retrieval"]["fonti"]
+                            if atteso in str(f["doc_id"])})
+    righe += ["**Sezione effettiva nel contesto** (intestazione di blocco): "
+              + (", ".join(f"`{s}`" for s in sezioni_reali) or "—"), "",
+              "**Estratto pertinente del contesto inviato:**", "", "```text",
+              estratto(v0, atteso), "```", ""]
+
+    for stack in STACKS:
+        for n in sorted(conf["stack"][stack]["passate"], key=int):
+            v = dati[(stack, int(n))]["domande"][qid]
+            e = conf["stack"][stack]["passate"][n]["domande"][qid]
+            esiti = [
+                f"valori attesi: {'tutti presenti' if e['presenza_confini_parola'] else 'MANCANO ' + str(e['mancanti_confini_parola'])}",
+                f"fonte attesa nel contesto: {'si' if e['fonte_in_contesto'] else 'NO'} (rango {e['rango_fonte']})",
+                f"documento nominato: {'si' if e['documento_nominato'] else 'no'}",
+                f"sezioni dichiarate errate: {len(e['sezioni_sbagliate'])}",
+                f"citazioni verificate/non verificabili: {e['citazioni_verificate']}/{e['citazioni_non_verificabili']}",
+                f"identificatori non sostenuti: {e['identificatori_non_sostenuti'] or 'nessuno'}",
+                f"dato presente dichiarato assente: {'SI' if e['diniego_contraddetto'] else 'no'}",
+                f"status: {e['status']}, cached: {e['cached']}, {e['secondi']}s",
+            ]
+            righe += [f"### {stack} — passata {n}", "", "```text",
+                      " ".join((v["risposta"]["testo"] or "(vuota)").split())[:2400], "```", "",
+                      "Controlli: " + " · ".join(esiti), ""]
+            for s in e["sezioni_sbagliate"]:
+                righe.append(f"  - sezione dichiarata «{s['sezione_dichiarata']}» → `{s['esito']}`"
+                             + (f" (effettiva: {s.get('sezione_effettiva')})" if s.get("sezione_effettiva") else ""))
+            for c in v["risposta"]["citazioni_verificate"]:
+                righe.append(f"  - citazione `{c['esito']}` «{c['passo'][:120]}»"
+                             + (f" → {', '.join(c['trovato_in'])}" if c["trovato_in"] else ""))
+            righe.append("")
+    righe += ["---", ""]
+
+righe += [
+    "## Risposte integrali",
+    "",
+    "Ogni risposta di ogni passata, con il contesto inviato per intero, sta in",
+    "`out/eval_<stack>_p<passata>.json`. Nessuna e' stata omessa da questo pacchetto.",
+    "",
+]
+
+(W / "review" / "PACCHETTO_REVISIONE.md").write_text("\n".join(righe), encoding="utf-8")
+print(f"pacchetto scritto: {len(righe)} righe, {len(caldi)} domande da leggere per prime")
+print(json.dumps({k: sorted(v) for k, v in caldi.items()}, ensure_ascii=False, indent=2))

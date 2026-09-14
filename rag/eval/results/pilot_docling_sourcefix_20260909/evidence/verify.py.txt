@@ -1,0 +1,52 @@
+"""Run the frozen scorers without editing their criteria.
+
+Other engine rows remain HISTORICAL ORIGINAL-INPUT results, not a paired benchmark.
+Only docling_standard refers to the repaired-source candidates.
+"""
+import hashlib
+import json
+from pathlib import Path
+import re
+import runpy
+import shutil
+import sys
+
+HERE = Path(__file__).resolve().parent
+OLD = HERE.parent / "pilot_docling_standard_20260909-095127"
+shutil.copytree(OLD / "compare", HERE / "compare", dirs_exist_ok=True)
+shutil.copytree(OLD / "truth", HERE / "truth", dirs_exist_ok=True)
+for name in ("diagrammi", "mockup"):
+    shutil.copyfile(HERE / "run1" / f"standard_{name}.md", HERE / "compare/standard" / f"standard_{name}.md")
+for script, args in [
+    ("score_standard.py", [HERE / "truth/verita_riferimento.json", HERE / "compare", HERE / "confronto_celle.json"]),
+    ("score_domande.py", [HERE]),
+    ("score_testo.py", [HERE]),
+]:
+    sys.argv = [str(OLD / script), *map(str, args)]
+    runpy.run_path(str(OLD / script), run_name="__main__")
+
+cells = json.loads((HERE / "confronto_celle.json").read_text(encoding="utf-8"))["docling_standard"]
+questions = json.loads((HERE / "confronto_domande.json").read_text(encoding="utf-8"))["docling_standard"]
+truth = json.loads((HERE / "truth/verita_riferimento.json").read_text(encoding="utf-8"))
+assert cells["tabelle_complete"] == 2
+assert cells["celle_dati_corrette"] == 75
+assert cells["celle_intestazione_corrette"] == 9
+assert all(q["derivabile"] for q in questions.values())
+headings = {}
+for name in ("diagrammi", "mockup"):
+    md = (HERE / "run1" / f"standard_{name}.md").read_text(encoding="utf-8")
+    got = re.findall(r"^#{1,6}\s+(.+)$", md, re.M)
+    expected = [h.split(" (")[0] for h in truth["segmentazione_attesa_heading"][name]]
+    assert sorted(got) == sorted(expected), (name, got, expected)
+    headings[name] = got
+    for ext in ("md", "json"):
+        assert (HERE / "run1" / f"standard_{name}.{ext}").read_bytes() == (HERE / "run2" / f"standard_{name}.{ext}").read_bytes()
+summary = {"scope": "conversion only, NEW INPUT HASHES; historical comparator rows use ORIGINAL inputs",
+    "tables": 2, "data_cells": 75, "headers": 9, "questions": 8,
+    "headings": headings, "repeat_outputs_byte_identical": True,
+    "retrieval_attribution_application_suite": "NOT RUN"}
+(HERE / "verification.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+inventory = {str(p.relative_to(HERE)): hashlib.sha256(p.read_bytes()).hexdigest()
+             for p in sorted(HERE.rglob("*")) if p.is_file() and p.name != "inventory.json"}
+(HERE / "inventory.json").write_text(json.dumps(inventory, indent=2), encoding="utf-8")
+print(json.dumps(summary, indent=2))

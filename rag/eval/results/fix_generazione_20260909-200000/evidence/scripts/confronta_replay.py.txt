@@ -1,0 +1,42 @@
+"""Confronto W1 vs originale sui replay: presenza, attribuzione documento,
+affermazioni di sezione (schermo CORRETTO assi2), diniego contraddetto."""
+import json
+import pathlib
+import sys
+import re
+D = pathlib.Path(r"C:\Users\Silve\Desktop\vibecraft\rag\eval\results\fix_generazione_20260909-200000")
+sys.path.insert(0, str(D/"scripts"))
+from assi2 import ATTESI, DINIEGO, DOC_ATTESO, controlla_sezioni, despazia, errori_di_sezione  # noqa: E402
+ARCH = pathlib.Path(r"C:\Users\Silve\Desktop\vibecraft\rag\eval\results\fix_attribuzione_20260909-183000\out")
+CH = json.loads((pathlib.Path(r"C:\Users\Silve\AppData\Local\Temp\claude\C--Users-Silve-Desktop-vibecraft\bf54f804-fff5-40ce-ad46-d26ccb85ab43\scratchpad\sandbox-baseline\rag\database\versions")/
+                 (pathlib.Path(r"C:\Users\Silve\AppData\Local\Temp\claude\C--Users-Silve-Desktop-vibecraft\bf54f804-fff5-40ce-ad46-d26ccb85ab43\scratchpad\sandbox-baseline\rag\database\CURRENT").read_text().strip())/"chunks.json").read_text(encoding="utf-8"))
+TESTI = {k: v.get("text","") for k,v in CH.items()}
+sorgente = json.loads((ARCH/"eval_A_p1.json").read_text(encoding="utf-8"))
+CTX = {q: v["contesto_inviato"] for q,v in sorgente["domande"].items()}
+def testo_pdf(qid):
+    doc = DOC_ATTESO["diag" if "diag" in qid else "mock"]
+    return "\n".join(t for k,t in TESTI.items() if doc in k)
+for lab, pref in (("originale","rep_orig_A"), ("W1","rep_w1_A")):
+    tot = {"presenza":0,"doc":0,"sez_err":0,"diniego":0,"n":0}
+    per_dom = {}
+    for p in (1,2,3):
+        d = json.loads((D/"diagnosi"/f"{pref}_p{p}.json").read_text(encoding="utf-8"))
+        for qid, c in d["casi"].items():
+            r = c["risposta"] or ""
+            attesi = ATTESI[qid]
+            pres = all(re.search(rf"(?<![\w.]){re.escape(a)}(?![\w])", r) or despazia(a) in despazia(r) for a in attesi)
+            doc = DOC_ATTESO["diag" if "diag" in qid else "mock"]
+            nom = doc in r or despazia(doc) in despazia(r)
+            err = errori_di_sezione(controlla_sezioni(r, testo_pdf(qid), CTX.get(qid,"")))
+            neg = bool(DINIEGO.search(r)) and pres
+            tot["presenza"]+=pres
+            tot["doc"]+=nom
+            tot["sez_err"]+=len(err)
+            tot["diniego"]+=neg
+            tot["n"]+=1
+            per_dom.setdefault(qid, []).append((pres,nom,len(err),neg))
+    print(f"### {lab}: presenza {tot['presenza']}/{tot['n']} | documento {tot['doc']}/{tot['n']} | "
+          f"errori sezione {tot['sez_err']} | diniego contraddetto {tot['diniego']}")
+    for qid, v in sorted(per_dom.items()):
+        print(f"    {qid:12} presenza {sum(x[0] for x in v)}/3  doc {sum(x[1] for x in v)}/3  "
+              f"sez_err {sum(x[2] for x in v)}  diniego {sum(x[3] for x in v)}")

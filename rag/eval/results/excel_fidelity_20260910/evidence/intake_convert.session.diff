@@ -1,0 +1,137 @@
+--- intake_convert.before
++++ rag/core/intake_convert.py
+@@ -6,14 +6,15 @@
+ rag/adr/NOTA_IMPLEMENTAZIONE_MIGLIORIE.md):
+ 
+     md                               nativo: non passa di qui (core/intake.py, solo decodifica)
+-    pdf, xlsx                        Docling se intake.docling.enabled, altrimenti MarkItDown
++    pdf                              Docling se intake.docling.enabled, altrimenti MarkItDown
++    xlsx                             openpyxl (griglie con coordinate originali)
+     altri formati di allowed_formats MarkItDown
+     doc, xls, ppt                    LibreOffice (profilo blindato) -> docx, xlsx, pptx, poi le righe sopra
+ 
+ Scelta per formato sugli stessi input e dopo il cleaner reale (confronto riproducibile in
+ rag/eval/results/verifica_finale_20260910/). XLSX: MarkItDown passa da pandas, che svuota le
+-celle letterali «NA»/«N/A»/«null» e scrive 7.0 e NaN; Docling conserva le celle, e i nomi
+-dei fogli si recuperano dall'albero del documento. DOCX: esito ambiguo (Docling rende meglio
++celle letterali «NA»/«N/A»/«null» e scrive 7.0 e NaN; Docling frammenta le righe sparse. Openpyxl conserva valori e coordinate
++senza inferire tabelle (rag/eval/results/excel_fidelity_20260910/). DOCX: esito ambiguo (Docling rende meglio
+ un titolo in stile Title, ma porta a `##` un titolo in Heading 1), resta MarkItDown. PPTX:
+ MarkItDown conserva le note del relatore. CSV: Docling fallisce sul `;` latin-1. HTML e EPUB
+ alla pari; TXT, JSON, XML, MSG solo MarkItDown. DOC/XLS/PPT: LibreOffice li porta al
+@@ -85,7 +86,7 @@
+     metadata: dict
+ 
+ 
+-DOCLING_FORMATS = frozenset({"pdf", "xlsx"})
++DOCLING_FORMATS = frozenset({"pdf"})
+ 
+ # Pesi effettivi della catena verificata: layout Heron @8f39ad3c e TableFormer ACCURATE di
+ # docling-models v2.3.0 @fc0f2d45 (pilot finale), RapidOCR 3.9.2 PP-OCRv6 per l'OCR `it`.
+@@ -205,70 +206,8 @@
+     return converter
+ 
+ 
+-# Fogli di calcolo: backend openpyxl di Docling, nessun modello né peso. Convertitore e lock
+-# propri, così un XLSX non aspetta dietro un PDF lungo.
+-_xlsx_lock = threading.Lock()
+-_xlsx_converter = None
+-
+-
+-def _convert_xlsx_docling(data: bytes, nome_file: str) -> tuple[str, list[str]]:
+-    """Un'intestazione `##` per foglio presa dall'albero del documento (ogni foglio è un
+-    gruppo col suo nome): l'export predefinito di Docling perde i nomi dei fogli. Valori
+-    MEMORIZZATI nelle celle (openpyxl data_only): una formula mai calcolata resta vuota."""
+-    global _xlsx_converter
+-    with _xlsx_lock:
+-        if _xlsx_converter is None:
+-            try:
+-                from docling.datamodel.base_models import InputFormat
+-                from docling.document_converter import DocumentConverter
+-            except ImportError as exc:
+-                raise DoclingUnavailableError(f"docling non importabile: {exc}") from exc
+-            _xlsx_converter = DocumentConverter(allowed_formats=[InputFormat.XLSX])
+-        from docling.datamodel.base_models import ConversionStatus, DocumentStream
+-        from docling_core.transforms.serializer.markdown import MarkdownDocSerializer, MarkdownParams
+-        result = _xlsx_converter.convert(DocumentStream(name=nome_file, stream=io.BytesIO(data)),
+-                                         raises_on_error=False)
+-    if result.status != ConversionStatus.SUCCESS:
+-        raise RuntimeError(f"Docling: conversione {result.status.value} ({_docling_errors(result)})")
+-    doc = result.document
+-    ser = MarkdownDocSerializer(doc=doc, params=MarkdownParams(escape_underscores=False,
+-                                                                 image_placeholder=""))
+-    parti = []
+-    for ref in doc.body.children:
+-        item = ref.resolve(doc)
+-        testo = ser.serialize(item=item).text.strip()
+-        nome = getattr(item, "name", "")
+-        if testo:
+-            parti.append(f"## {nome}\n\n{testo}" if nome else testo)
+-    avvisi = []
+-    if doc.pictures:
+-        avvisi.append(f"{len(doc.pictures)} immagini o grafici non sono inclusi nel Markdown: "
+-                      f"restano solo nell'originale conservato in staging.")
+-    senza_valore = _formule_senza_valore(data)
+-    if senza_valore:
+-        avvisi.append(f"{senza_valore} celle con formula non hanno un valore calcolato memorizzato "
+-                      f"nel file (tipico dei fogli scritti da un programma e mai aperti in Excel): "
+-                      f"nel Markdown sono vuote. Apri e salva il file in Excel o LibreOffice per "
+-                      f"memorizzare i risultati, poi ricaricalo.")
+-    return normalize_markdown("\n\n".join(parti)), avvisi
+-
+-
+-def _formule_senza_valore(data: bytes) -> int:
+-    """Celle con formula ma senza risultato memorizzato: Docling legge i valori memorizzati
+-    (openpyxl data_only), quindi le rende vuote. Senza questo conteggio la cella spariva in
+-    silenzio. Non si ricalcola nulla: un valore inventato sarebbe peggio di uno assente."""
+-    import openpyxl
+-    formule = openpyxl.load_workbook(io.BytesIO(data), read_only=True)
+-    valori = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+-    n = 0
+-    for ws_f, ws_v in zip(formule.worksheets, valori.worksheets):
+-        for rf, rv in zip(ws_f.iter_rows(values_only=True), ws_v.iter_rows(values_only=True)):
+-            n += sum(1 for f, v in zip(rf, rv) if isinstance(f, str) and f.startswith("=") and v is None)
+-    return n
+-
+-
+ def engine_version(motore: str) -> str | None:
+-    """Versione installata del motore (`docling`, `markitdown`); None per `nativo`."""
++    """Versione installata del motore (`docling`, `markitdown`, `openpyxl`); None per `nativo`."""
+     try:
+         return importlib.metadata.version(motore)
+     except importlib.metadata.PackageNotFoundError:
+@@ -362,7 +301,7 @@
+ _ENCRYPTED_PACKAGE = "EncryptedPackage".encode("utf-16-le")
+ 
+ # Formati binari legacy: LibreOffice headless li NORMALIZZA nel formato moderno, poi decide la
+-# matrice del formato moderno (DOC→DOCX→MarkItDown, XLS→XLSX→Docling, PPT→PPTX→MarkItDown).
++# matrice del formato moderno (DOC→DOCX→MarkItDown, XLS→XLSX→openpyxl, PPT→PPTX→MarkItDown).
+ # Misurato in rag/eval/results/libreoffice_20260910/: sui formati moderni LibreOffice non
+ # migliora l'estrazione, quindi non li tocca. Mai il LibreOffice interno di Docling: profilo
+ # predefinito (misurato: scarica le immagini collegate) e fallito su un PPT reale.
+@@ -604,6 +543,11 @@
+             fallback = {"da": "libreoffice", "motivo": motivo}
+             logger.warning("intake: LibreOffice non ha normalizzato %s, uso MarkItDown: %s",
+                            nome_file, motivo)
++    if instradamento == "xlsx":
++        from core.intake_excel import convert_xlsx
++        markdown, avvisi_excel = convert_xlsx(data)
++        motore = "openpyxl"
++        avvisi.extend(avvisi_excel)
+     if instradamento in DOCLING_FORMATS and INTAKE_DOCLING_ENABLED:
+         if fmt == "pdf":
+             pagine = _pdf_text_per_page(data, nome_file)
+@@ -612,12 +556,7 @@
+                         "ocr": False}
+             extra["pdf"] = info_pdf
+         try:
+-            if fmt == "pdf":
+-                markdown, avvisi_docling, info_pdf["ocr"] = _convert_pdf_docling(data, nome_file, pagine)
+-            else:
+-                markdown, avvisi_docling = _convert_xlsx_docling(data, nome_motore)
+-                if not markdown:
+-                    raise ConversionError(f"nessun testo estraibile da {nome_file}")
++            markdown, avvisi_docling, info_pdf["ocr"] = _convert_pdf_docling(data, nome_file, pagine)
+             motore = "docling"
+             avvisi.extend(avvisi_docling)
+         except ConversionError:

@@ -1,0 +1,149 @@
+"""Pilot Docling/Granite su CPU, ambiente SENZA extra [vlm].
+
+Registra: tempi (caricamento a freddo vs esecuzioni successive), memoria,
+presenza di av/qwen_vl_utils in sys.modules, output markdown e struttura
+delle tabelle. Nessuna scrittura fuori dalla directory di output passata.
+"""
+
+import json
+import os
+import pathlib
+import sys
+import time
+
+REV = "982fe3b40f2fa73c365bdb1bcacf6c81b7184bfe"
+OUT = pathlib.Path(sys.argv[1])
+DOCS = {
+    "diagrammi": r"C:\Users\Silve\Desktop\vibecraft\docs\02_specs_normative\diagrams\catalogo_diagrammi_normativi.pdf",
+    "mockup": r"C:\Users\Silve\Desktop\vibecraft\docs\02_specs_normative\mockups\catalogo_mockup_normativi.pdf",
+}
+
+import psutil
+
+proc = psutil.Process()
+
+
+def rss_mb():
+    return round(proc.memory_info().rss / 1e6, 1)
+
+
+report = {"revisione_modello": REV, "device": "cpu", "fasi": {}, "documenti": {}}
+report["rss_avvio_mb"] = rss_mb()
+
+t0 = time.time()
+from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
+from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import VlmPipelineOptions
+from docling.datamodel import vlm_model_specs
+from docling.document_converter import DocumentConverter, PdfFormatOption
+from docling.pipeline.vlm_pipeline import VlmPipeline
+
+report["fasi"]["import_docling_s"] = round(time.time() - t0, 2)
+report["rss_dopo_import_mb"] = rss_mb()
+
+import torch
+
+report["torch"] = {
+    "version": torch.__version__,
+    "cuda_available": torch.cuda.is_available(),
+    "threads": torch.get_num_threads(),
+}
+
+# revisione PINNATA: il default della spec e' il ref mobile "main"
+spec = vlm_model_specs.GRANITEDOCLING_TRANSFORMERS.model_copy(update={"revision": REV})
+report["spec"] = {
+    "repo_id": spec.repo_id,
+    "revision": spec.revision,
+    "inference_framework": str(spec.inference_framework),
+    "transformers_model_type": str(spec.transformers_model_type),
+    "response_format": str(spec.response_format),
+    "scale": spec.scale,
+    "max_size": getattr(spec, "max_size", None),
+    "max_new_tokens": spec.max_new_tokens,
+    "temperature": spec.temperature,
+    "torch_dtype": str(spec.torch_dtype),
+    "prompt": spec.prompt,
+}
+
+opts = VlmPipelineOptions(
+    vlm_options=spec,
+    accelerator_options=AcceleratorOptions(device=AcceleratorDevice.CPU),
+)
+report["accelerator"] = {
+    "device": str(opts.accelerator_options.device),
+    "num_threads": opts.accelerator_options.num_threads,
+}
+
+t0 = time.time()
+conv = DocumentConverter(
+    format_options={
+        InputFormat.PDF: PdfFormatOption(pipeline_cls=VlmPipeline, pipeline_options=opts)
+    }
+)
+report["fasi"]["costruzione_converter_s"] = round(time.time() - t0, 2)
+
+runs = []
+for i, (name, path) in enumerate(list(DOCS.items())):
+    t0 = time.time()
+    res = conv.convert(path)
+    dt = round(time.time() - t0, 2)
+    doc = res.document
+    md = doc.export_to_markdown()
+    (OUT / f"granite_{name}.md").write_text(md, encoding="utf-8")
+    (OUT / f"granite_{name}.doctags.txt").write_text(
+        doc.export_to_document_tokens(), encoding="utf-8"
+    )
+    tables = []
+    for t in doc.tables:
+        d = t.data
+        tables.append(
+            {
+                "num_rows": d.num_rows,
+                "num_cols": d.num_cols,
+                "grid_cells": len(d.table_cells),
+                "markdown": t.export_to_markdown(doc),
+            }
+        )
+    report["documenti"][name] = {
+        "secondi": dt,
+        "ordine_esecuzione": i + 1,
+        "status": str(res.status),
+        "pagine": len(doc.pages),
+        "chars_markdown": len(md),
+        "num_tabelle": len(doc.tables),
+        "tabelle": tables,
+        "rss_dopo_mb": rss_mb(),
+        "headings": [
+            {"level": getattr(it, "level", None), "text": it.text}
+            for it in doc.texts
+            if getattr(it, "label", None)
+            and str(it.label) in ("DocItemLabel.SECTION_HEADER", "DocItemLabel.TITLE")
+        ],
+    }
+    runs.append(dt)
+
+# seconda passata sugli stessi input: modello gia' caricato
+for name, path in DOCS.items():
+    t0 = time.time()
+    conv.convert(path)
+    report["documenti"][name]["secondi_seconda_passata"] = round(time.time() - t0, 2)
+
+report["rss_picco_mb"] = rss_mb()
+report["av_caricato"] = "av" in sys.modules
+report["qwen_vl_utils_caricato"] = "qwen_vl_utils" in sys.modules
+report["moduli_transformers_caricati"] = sorted(
+    m for m in sys.modules if m.startswith("transformers.models.idefics3")
+)
+
+(OUT / "granite_report.json").write_text(
+    json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8"
+)
+print(json.dumps({k: v for k, v in report.items() if k != "documenti"}, indent=2, ensure_ascii=False))
+for n, d in report["documenti"].items():
+    print(
+        n,
+        "secondi:", d["secondi"],
+        "| 2a passata:", d.get("secondi_seconda_passata"),
+        "| tabelle:", d["num_tabelle"],
+        "| chars:", d["chars_markdown"],
+    )

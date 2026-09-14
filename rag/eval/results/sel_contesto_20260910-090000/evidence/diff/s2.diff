@@ -1,0 +1,85 @@
+########## api/routes_retrieval.py ##########
+--- api/routes_retrieval.py	2026-09-07 14:38:13.924211600 +0200
++++ /c/Users/Silve/AppData/Local/Temp/claude/C--Users-Silve-Desktop-vibecraft/bf54f804-fff5-40ce-ad46-d26ccb85ab43/scratchpad/sandbox-baseline/rag/api/routes_retrieval.py	2026-09-09 18:47:16.329555500 +0200
+@@ -27,6 +27,7 @@
+     CODE_CONTEXT_MAX_SNIPPETS,
+     CODE_CONTEXT_MIN_WEIGHT,
+     CODE_CONTEXT_TOTAL_SNIPPETS,
++    CODE_LINK_MIN_QUESTION_SCORE,
+     CODE_SEARCH_API_MAX_K,
+     CODE_SEARCH_API_SNIPPET_CHARS,
+     CODE_SEARCH_MAX_PER_FILE,
+@@ -493,6 +494,43 @@
+         graph, snap.code_store, code_anchor_nodes,
+         min_weight=CODE_CONTEXT_MIN_WEIGHT, max_snippets=CODE_CONTEXT_MAX_SNIPPETS,
+     )
++    # PILOT S2 — pertinenza alla DOMANDA anche sul ponte IMPLEMENTS. Il ponte sceglie per
++    # prossimità nel grafo e somiglianza codice→spec: su una domanda che non parla di codice
++    # inietta comunque il suo tetto pieno (misurato: 10 blocchi su 10 nelle domande PDF, dove
++    # il ramo semantico ne fa entrare 0). Qui si applica lo STESSO segnale del ramo semantico
++    # — il coseno domanda→simbolo — chiamando la STESSA funzione ristretta con `subset_idx`
++    # ai soli simboli proposti dal ponte: nessuna formula duplicata, nessun segnale nuovo.
++    # 0.0 disattiva il filtro e il contesto torna identico a prima.
++    scartati_ponte: list[dict] = []
++    if CODE_LINK_MIN_QUESTION_SCORE > 0 and linked_code and query_encoding is not None:
++        # Solo i simboli VALUTABILI passano dal filtro. Un simbolo senza vettore denso non
++        # è in `code_ids`, quindi il coseno non esiste per lui: l'assenza del segnale non è
++        # una prova di irrilevanza, e scartarlo sarebbe escludere per mancanza di dati.
++        # Restano quindi dentro (fail-open), come restavano prima di questo filtro.
++        posizione = {sid: i for i, sid in enumerate(snap.code_ids)}
++        valutabili = [c for c in linked_code if c["symbol_id"] in posizione]
++        righe = [posizione[c["symbol_id"]] for c in valutabili]
++        pertinenti: set[str] = set()
++        if righe:
++            pertinenti = {c["symbol_id"] for c in await run_in_threadpool(
++                retrieval.search_code_symbols, query_encoding["dense"], snap.code_store,
++                max_snippets=len(righe), min_score=CODE_LINK_MIN_QUESTION_SCORE,
++                max_per_file=0, code_ids=snap.code_ids, code_matrix=snap.code_matrix,
++                subset_idx=righe,
++            )}
++        scartati_ponte = [{"symbol_id": c["symbol_id"], "file": c["file"], "name": c["name"],
++                           "peso_arco": c.get("weight"), "motivo": "coseno domanda→simbolo",
++                           "soglia": CODE_LINK_MIN_QUESTION_SCORE}
++                          for c in valutabili if c["symbol_id"] not in pertinenti]
++        if scartati_ponte:
++            logger.info(
++                "ask code_link_filter request_id=%s soglia=%s proposti=%d valutabili=%d "
++                "tenuti=%d scartati=%s", request_id, CODE_LINK_MIN_QUESTION_SCORE,
++                len(linked_code), len(valutabili), len(linked_code) - len(scartati_ponte),
++                ",".join(s["symbol_id"] for s in scartati_ponte))
++        esclusi = {s["symbol_id"] for s in scartati_ponte}
++        linked_code = [c for c in linked_code if c["symbol_id"] not in esclusi]
++
+     # Priorità al ramo semantico: è ordinato per pertinenza alla domanda, mentre il ponte
+     # ordina per somiglianza codice→spec. Dedup per simbolo e tetto complessivo.
+     implementing_code = retrieval.merge_code_context(
+########## core/config.py ##########
+--- core/config.py	2026-09-07 10:25:21.041639400 +0200
++++ /c/Users/Silve/AppData/Local/Temp/claude/C--Users-Silve-Desktop-vibecraft/bf54f804-fff5-40ce-ad46-d26ccb85ab43/scratchpad/sandbox-baseline/rag/core/config.py	2026-09-09 18:47:16.329555500 +0200
+@@ -330,6 +330,13 @@
+     _retrieval_cfg.get("code_context_total_snippets",
+                        CODE_SEARCH_MAX_SNIPPETS + CODE_CONTEXT_MAX_SNIPPETS)
+ )
++# PILOT S2. Pavimento di coseno DOMANDA->simbolo applicato al ramo IMPLEMENTS
++# (collect_implementing_code), che oggi filtra solo sul peso dell'ARCO e quindi puo'
++# iniettare codice pertinente alla spec recuperata ma non alla domanda. Stesso segnale e
++# stessa funzione del ramo semantico (search_code_symbols), ristretta ai simboli che il
++# ponte propone. 0.0 = disattivato: il contesto torna identico a prima.
++CODE_LINK_MIN_QUESTION_SCORE: float = float(
++    _retrieval_cfg.get("code_link_min_question_score", 0.0))
+ # Tetti dell'endpoint GET /api/code/search (api/routes_retrieval.py), che espone la stessa
+ # ricerca semantica sui simboli a un agente esterno. Sono tetti di CONTESTO, non di qualità:
+ # l'endpoint esiste per far leggere all'agente MENO codice (gli dice quali file aprire), quindi
+########## rag_config.yaml ##########
+--- rag_config.yaml	2026-09-07 13:18:55.711260000 +0200
++++ /c/Users/Silve/AppData/Local/Temp/claude/C--Users-Silve-Desktop-vibecraft/bf54f804-fff5-40ce-ad46-d26ccb85ab43/scratchpad/sandbox-baseline/rag/rag_config.yaml	2026-09-09 18:47:16.543612200 +0200
+@@ -185,6 +185,9 @@
+   # Tetto COMPLESSIVO sui due rami sommati (dedup per simbolo, priorità al ramo semantico):
+   # senza, il contesto crescerebbe come la somma dei tetti. Default = somma dei due.
+   code_context_total_snippets: 12
++  # PILOT S2: pavimento di coseno DOMANDA->simbolo sul ponte IMPLEMENTS.
++  # 0.0 = disattivato (comportamento identico alla produzione).
++  code_link_min_question_score: 0.35
+ 
+   # Tetti dell'endpoint GET /api/code/search, che espone la stessa ricerca semantica sui simboli
+   # a un agente ESTERNO (Claude Code, Cursor) perché scelga quali file aprire invece di leggere

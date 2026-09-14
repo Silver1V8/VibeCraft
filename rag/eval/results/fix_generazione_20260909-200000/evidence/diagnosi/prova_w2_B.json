@@ -1,0 +1,27 @@
+{
+  "cfg": "B",
+  "riga2": "Rispondi ALLA DOMANDA POSTA con i fatti del contesto: vincoli e contratti se la domanda li chiede, altrimenti il dato chiesto — valori, quantità, dimensioni e unità — preso dalla riga o voce che nomina l'elemento di cui parli, mai da un'altra riga o entità.\n",
+  "prove": [
+    {
+      "r": 1,
+      "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, classificato nell'area **Governance** con finalità sui \"Checkpoint human-in-the-loop e punti di controllo\".\n\nTuttavia, il contesto fornito **non riporta un peso (Authority)** specifico per questo diagramma.\nLa tabella `README.md` elenca i pesi delle fonti documentali (`IRON_MEMORY`, `METADATA`, `NORMS`, `REQUIREMENTS`, `METHODOLOGY`) e le famiglie di identificatori, ma non assegna un valore numerico alla voce del catalogo diagrammi.\n\nPoiché il contesto non contiene l'elemento richiesto (il peso per questo specifico artefatto visivo), dichiaro che il contesto non lo riporta invece di ricostruirlo.",
+      "kb": false,
+      "coeff": false,
+      "nega": true
+    },
+    {
+      "r": 2,
+      "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **`diag_6_2_hitl_checkpoints.svg.svg`**, classificato nell'area **Governance** con la finalità di illustrare \"Checkpoint human-in-the-loop e punti di controllo\".\n\nTuttavia, il contesto **non riporta un peso (Authority)** specifico per questo diagramma.\nLa tabella del catalogo (`02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`) elenca solo:\n*   File\n*   Area\n*   Finalità\n*   Formato / peso (es. \"SVG 19.5 KB\" indica il peso file, non l'autorevolezza).\n\nNella sezione **README.md**, la colonna `Authority` è associata ai documenti testuali (`00_meta_governance/safeguards_security.md`, `definition_of_done.md`, ecc.) e alle loro classi (`IRON_MEMORY`, `METADATA`, `NORMS`, `REQUIREMENTS`, `METHODOLOGY`). Non esiste una riga o voce nel contesto che assegni un valore di autorità (es. 0.90, 0.87) direttamente al file SVG del catalogo diagrammi.\n\nPertanto, sebbene il diagramma esista e sia identificato, **nessuna fonte più autorevole** (NORMS > REQUIREMENTS > METADATA > METHODOLOGY) nel contesto fornito stabilisce un coefficiente di autorità per questo artefatto visivo specifico; l'unica \"pesatura\" presente è quella del formato file (19.5 KB).",
+      "kb": true,
+      "coeff": true,
+      "nega": true
+    },
+    {
+      "r": 3,
+      "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **`diag_6_2_hitl_checkpoints.svg.svg`**, classificato nell'area **Governance** con la finalità di illustrare \"Checkpoint human-in-the-loop e punti di controllo\".\n\nTuttavia, il contesto **non riporta un peso (Authority)** specifico per questo diagramma.\nLa tabella `README.md` elenca i pesi delle fonti documentali (`NORMS`, `REQUIREMENTS`, `METADATA`, `METHODOLOGY`) ma non assegna un valore numerico ai singoli file SVG del catalogo diagrammi, che sono classificati come **SENZA CLASSE** nella sezione di metadati relativa al catalogo.\n\nPoiché il contesto non contiene una fonte più autorevole (come `NORMS` o `IRON_MEMORY`) che stabilisca esplicitamente il peso per questo artefatto visivo specifico, e poiché la tabella del catalogo non lo attribuisce a una classe con autorità dichiarata, **nessuna fonte più autorevole stabilisce un valore di Authority per `diag_6_2_hitl_checkpoints.svg.svg`**.",
+      "kb": false,
+      "coeff": false,
+      "nega": true
+    }
+  ]
+}

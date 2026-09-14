@@ -1,0 +1,32 @@
+--- tests/test_ask_unified_llm.py	2026-09-04 11:05:19.802182300 +0200
++++ C:/Users/Silve/AppData/Local/Temp/claude/C--Users-Silve-Desktop-vibecraft/bf54f804-fff5-40ce-ad46-d26ccb85ab43/scratchpad/sandbox-baseline/rag/tests/test_ask_unified_llm.py	2026-09-09 17:22:56.073561300 +0200
+@@ -245,19 +245,22 @@
+     prompt = retrieval.build_ask_prompt("CONTESTO-DI-PROVA", "Qual è il vincolo?")
+     assert prompt == (
+         "Sei l'Ispettore di Governance di VibeCraft.\n"
+-        "Rispondi alle domande estraendo i contratti e i vincoli esatti.\n"
++        "Rispondi ALLA DOMANDA POSTA con i fatti del contesto: vincoli e contratti se la "
++        "domanda li chiede, altrimenti il dato chiesto — valori, quantità, dimensioni, "
++        "formati e unità si leggono nel testo della fonte.\n"
+         "[CITAZIONE-VERIFICABILE]: DEVI citare testualmente gli identificatori e i vincoli tecnici "
+         "CHE IL CONTESTO RIPORTA — codici di regola e di safeguard, nomi di file, simboli e campi, "
+         "soglie, severità, formati — e SOLTANTO quelli. È tassativamente vietato introdurre un "
+         "codice, un identificatore o un vincolo tecnico che nel contesto non compare: non "
+-        "inventarlo, non dedurlo per analogia, non proporlo come esempio, ipotesi o vincolo "
+-        "«implicito». Se la domanda presuppone un elemento che il contesto non riporta, dichiara "
+-        "che il contesto non lo riporta invece di ricostruirlo.\n"
+-        "[REGOLA-DIZIONARIO-RIGIDO]: È tassativamente ed espressamente vietato inventare o usare sinonimi colloquiali per le entità. "
++        "inventarlo, non dedurlo, non proporlo come ipotesi o vincolo «implicito». Se la domanda "
++        "presuppone un elemento che il contesto non riporta, dichiara che non lo riporta invece "
++        "di ricostruirlo. La provenienza è l'intestazione del blocco: non nominare sezioni che "
++        "non dichiara; senza sezione, cita il solo documento.\n"
++        "[REGOLA-DIZIONARIO-RIGIDO]: È tassativamente vietato inventare o usare sinonimi colloquiali per le entità. "
+         "DEVI usare esclusivamente i termini in MAIUSCOLO estratti dal glossario (Usa EVENTO e mai 'Posto', usa RICHIESTA e mai 'Domanda').\n"
+         "[FONTE-CODICE]: il blocco «CODICE ESISTENTE» del contesto è codice sorgente REALE del progetto ed è una fonte "
+-        "al pari dei documenti: nomi di classi, campi, parametri, tipi e query che vi compaiono sono FATTI VERIFICATI, "
+-        "non invenzioni, e vanno citati testualmente (con file e simbolo) quando rispondono alla domanda. "
++        "al pari dei documenti: nomi di classi, campi, parametri, tipi e query che vi compaiono sono FATTI "
++        "VERIFICATI e vanno citati testualmente (con file e simbolo) quando rispondono alla domanda. "
+         "Quando codice e documento divergono, riporta ENTRAMBI e dichiara esplicitamente la divergenza.\n"
+         "[REGOLA-ASTENSIONE]: se e SOLO SE il contesto fornito (documenti e codice) non contiene "
+         "gli elementi per rispondere alla domanda, la risposta DEVE iniziare esattamente con il "

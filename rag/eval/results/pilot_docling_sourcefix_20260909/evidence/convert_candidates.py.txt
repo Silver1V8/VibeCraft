@@ -1,0 +1,48 @@
+"""Run unchanged Standard pipeline settings on the repaired-source candidates."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import sys
+import time
+
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+from docling.backend.docling_parse_backend import ThreadedDoclingParseDocumentBackend
+from docling.datamodel.base_models import InputFormat
+from docling.datamodel.accelerator_options import AcceleratorOptions, AcceleratorDevice
+from docling.datamodel.pipeline_options import PdfPipelineOptions, TableStructureOptions
+from docling.document_converter import DocumentConverter, PdfFormatOption
+from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
+
+HERE = Path(__file__).resolve().parent
+PREVIOUS = HERE.parent / "pilot_docling_standard_20260909-095127"
+out = HERE / sys.argv[1]
+out.mkdir(exist_ok=True)
+previous = json.loads((PREVIOUS / "run2/run_report.json").read_text(encoding="utf-8"))
+options = PdfPipelineOptions(
+    artifacts_path=PREVIOUS / "artifacts", do_ocr=False, do_table_structure=True,
+    force_backend_text=True, do_code_enrichment=False, do_formula_enrichment=False,
+    do_picture_description=False, do_picture_classification=False, enable_remote_services=False,
+    accelerator_options=AcceleratorOptions(device=AcceleratorDevice.CPU),
+    table_structure_options=TableStructureOptions(mode="accurate", do_cell_matching=True),
+)
+assert options.model_dump(mode="json") == previous["configuration"]
+assert not options.do_ocr and not options.do_code_enrichment and not options.do_formula_enrichment
+assert options.force_backend_text and not options.enable_remote_services
+converter = DocumentConverter(format_options={InputFormat.PDF: PdfFormatOption(
+    pipeline_cls=StandardPdfPipeline, pipeline_options=options,
+    backend=ThreadedDoclingParseDocumentBackend)})
+report = {"configuration": options.model_dump(mode="json"), "documents": {}}
+for name in ("diagrammi", "mockup"):
+    source = HERE / f"catalogo_{name}_normativi.pdf"
+    start = time.perf_counter()
+    result = converter.convert(source)
+    assert str(result.status) == "ConversionStatus.SUCCESS", result.status
+    doc = result.document
+    (out / f"standard_{name}.md").write_text(doc.export_to_markdown(), encoding="utf-8", newline="\n")
+    (out / f"standard_{name}.json").write_text(json.dumps(doc.export_to_dict(), ensure_ascii=False, indent=2), encoding="utf-8", newline="\n")
+    report["documents"][name] = {"seconds": time.perf_counter() - start,
+        "input_sha256": hashlib.sha256(source.read_bytes()).hexdigest()}
+(out / "run_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+print(json.dumps(report["documents"], indent=2))

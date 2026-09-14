@@ -1,0 +1,95 @@
+"""Reproducible Docling StandardPdfPipeline pilot; writes only below OUT."""
+
+import hashlib
+import importlib.metadata
+import json
+import os
+import pathlib
+import platform
+import sys
+import time
+
+import psutil
+
+ROOT = pathlib.Path(__file__).resolve().parents[4]
+OUT = pathlib.Path(sys.argv[1]).resolve()
+ARTIFACTS = pathlib.Path(sys.argv[2]).resolve()
+DOCS = {
+    "diagrammi": ROOT / "docs/02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf",
+    "mockup": ROOT / "docs/02_specs_normative/mockups/catalogo_mockup_normativi.pdf",
+}
+
+from docling.backend.docling_parse_backend import ThreadedDoclingParseDocumentBackend
+from docling.datamodel.accelerator_options import AcceleratorDevice, AcceleratorOptions
+from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import PdfPipelineOptions, TableFormerMode, TableStructureOptions
+from docling.document_converter import DocumentConverter, PdfFormatOption
+from docling.pipeline.standard_pdf_pipeline import StandardPdfPipeline
+
+OUT.mkdir(parents=True, exist_ok=True)
+proc = psutil.Process()
+rss_peak = proc.memory_info().rss
+
+
+def rss_mb():
+    global rss_peak
+    rss_peak = max(rss_peak, proc.memory_info().rss)
+    return round(proc.memory_info().rss / 1e6, 1)
+
+
+options = PdfPipelineOptions(
+    artifacts_path=ARTIFACTS,
+    do_ocr=False,
+    do_table_structure=True,
+    force_backend_text=True,
+    table_structure_options=TableStructureOptions(mode=TableFormerMode.ACCURATE, do_cell_matching=True),
+    accelerator_options=AcceleratorOptions(device=AcceleratorDevice.CPU),
+    do_code_enrichment=False,
+    do_formula_enrichment=False,
+    do_picture_description=False,
+    do_picture_classification=False,
+    enable_remote_services=False,
+)
+fmt = PdfFormatOption(
+    pipeline_cls=StandardPdfPipeline,
+    pipeline_options=options,
+    backend=ThreadedDoclingParseDocumentBackend,
+)
+report = {
+    "python": platform.python_version(),
+    "packages": {n: importlib.metadata.version(n) for n in ("docling", "docling-core", "docling-ibm-models", "docling-parse", "onnxruntime", "torch")},
+    "pipeline": f"{StandardPdfPipeline.__module__}.{StandardPdfPipeline.__name__}",
+    "backend": f"{fmt.backend.__module__}.{fmt.backend.__name__}",
+    "configuration": options.model_dump(mode="json"),
+    "effective_table_structure_options": {
+        "type": type(options.table_structure_options).__name__,
+        "mode": str(options.table_structure_options.mode),
+        "do_cell_matching": options.table_structure_options.do_cell_matching,
+    },
+    "artifacts_path": str(ARTIFACTS),
+    "offline_env": {k: os.environ.get(k) for k in ("HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE")},
+    "input_sha256": {k: hashlib.sha256(v.read_bytes()).hexdigest() for k, v in DOCS.items()},
+    "documents": {},
+    "rss_start_mb": rss_mb(),
+}
+t0 = time.perf_counter()
+converter = DocumentConverter(format_options={InputFormat.PDF: fmt})
+report["converter_init_seconds"] = round(time.perf_counter() - t0, 3)
+
+for name, path in DOCS.items():
+    t0 = time.perf_counter()
+    result = converter.convert(path)
+    elapsed = time.perf_counter() - t0
+    doc = result.document
+    md = doc.export_to_markdown()
+    (OUT / f"standard_{name}.md").write_text(md, encoding="utf-8", newline="\n")
+    (OUT / f"standard_{name}.json").write_text(json.dumps(doc.export_to_dict(), ensure_ascii=False, indent=2), encoding="utf-8", newline="\n")
+    report["documents"][name] = {
+        "status": str(result.status), "pages": len(doc.pages), "seconds": round(elapsed, 3),
+        "seconds_per_page": round(elapsed / len(doc.pages), 3), "tables": len(doc.tables),
+        "table_shapes": [[t.data.num_rows, t.data.num_cols] for t in doc.tables], "rss_mb": rss_mb(),
+    }
+
+report["rss_peak_observed_mb"] = round(rss_peak / 1e6, 1)
+(OUT / "run_report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8", newline="\n")
+print(json.dumps(report, ensure_ascii=False, indent=2))

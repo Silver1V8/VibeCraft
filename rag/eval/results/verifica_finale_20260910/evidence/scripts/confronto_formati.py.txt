@@ -1,0 +1,457 @@
+"""Confronto Docling / MarkItDown per ogni formato ammesso dall'intake.
+
+Le fixture sono sintetiche e generate qui (riproducibili); le ATTESE di ogni fixture sono
+scritte in questo file prima di guardare gli output. Ogni motore passa dal percorso che
+avrebbe nell'intake:
+  markitdown  core.intake_convert.convert_to_markdown con Docling spento (clean_markdown,
+              immagini locali tolte, titolo di fallback): il percorso applicativo attuale;
+  docling     DocumentConverter della versione installata + stesso export dell'app
+              (escape_underscores=False, niente segnaposto) + normalize_markdown + stesse
+              regole finali; per i PDF il percorso applicativo attuale (Docling acceso).
+Varianti con un'ipotesi dichiarata: `docling+utf8` per l'HTML (transcodifica prima del
+backend, che decodifica sempre in UTF-8), `docling+fogli` per XLSX/XLS (intestazione per
+foglio dall'albero del documento: verifica se la perdita dei nomi è dell'export).
+
+Uso (da rag/): uv run --no-sync python -B <questo> <out_dir> [<xls_fixture>]
+"""
+import io
+import json
+import re
+import statistics
+import sys
+import time
+import zipfile
+from pathlib import Path
+
+import psutil
+
+RAG = Path.cwd()
+sys.path.insert(0, str(RAG))
+
+from core import intake_convert as ic  # noqa: E402
+from core.chunking import chunk_markdown  # noqa: E402
+from core.intake_clean import normalize_markdown  # noqa: E402
+
+OUT = Path(sys.argv[1])
+FIX = OUT / "fixture"
+FIX.mkdir(parents=True, exist_ok=True)
+XLS = Path(sys.argv[2]) if len(sys.argv) > 2 else None
+
+
+# ---------------------------------------------------------------------------
+# Fixture
+# ---------------------------------------------------------------------------
+def _hyperlink(paragraph, url, text):
+    from docx.opc.constants import RELATIONSHIP_TYPE as RT
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    r_id = paragraph.part.relate_to(url, RT.HYPERLINK, is_external=True)
+    link = OxmlElement("w:hyperlink")
+    link.set(qn("r:id"), r_id)
+    run = OxmlElement("w:r")
+    t = OxmlElement("w:t")
+    t.text = text
+    run.append(t)
+    link.append(run)
+    paragraph._p.append(link)
+
+
+def fixture_docx() -> bytes:
+    from docx import Document
+    d = Document()
+    d.add_heading("Manuale forniture", level=0)
+    d.add_paragraph("Introduzione: città, perché, 3.000 €, ≥ 5 kg, 12 µm.")
+    d.add_heading("Capitolo uno", 1)
+    d.add_heading("Sezione uno punto uno", 2)
+    d.add_heading("Dettaglio uno punto uno punto uno", 3)
+    d.add_paragraph("Primo punto", style="List Bullet")
+    d.add_paragraph("Sottopunto annidato", style="List Bullet 2")
+    d.add_paragraph("Passo numerato uno", style="List Number")
+    t = d.add_table(rows=3, cols=3)
+    for i, row in enumerate([["Codice", "Descrizione", "Valore"], ["A1", "Cavo rame", "12,5 kg"],
+                             ["B2", "Isolante", "0,75 m"]]):
+        for j, v in enumerate(row):
+            t.cell(i, j).text = v
+    p = d.add_paragraph("Vedi la ")
+    _hyperlink(p, "https://example.org/specifica", "specifica esterna")
+    d.add_heading("Capitolo due", 1)
+    d.add_paragraph("Chiusura del documento.")
+    b = io.BytesIO()
+    d.save(b)
+    return b.getvalue()
+
+
+def fixture_pptx() -> bytes:
+    from pptx import Presentation
+    from pptx.util import Inches
+    prs = Presentation()
+    s1 = prs.slides.add_slide(prs.slide_layouts[1])
+    s1.shapes.title.text = "Piano di rilascio"
+    body = s1.placeholders[1].text_frame
+    body.text = "Fase uno: verifica"
+    sub = body.add_paragraph()
+    sub.text = "Controllo accessi"
+    sub.level = 1
+    body.add_paragraph().text = "Fase due: rilascio"
+    s2 = prs.slides.add_slide(prs.slide_layouts[5])
+    s2.shapes.title.text = "Tabella rischi"
+    tb = s2.shapes.add_table(3, 2, Inches(1), Inches(2), Inches(6), Inches(1.5)).table
+    for i, row in enumerate([["Rischio", "Impatto"], ["Ritardo fornitore", "alto"], ["Bug critico", "medio"]]):
+        for j, v in enumerate(row):
+            tb.cell(i, j).text = v
+    s2.notes_slide.notes_text_frame.text = "Nota per il relatore: citare il 12% di margine."
+    s3 = prs.slides.add_slide(prs.slide_layouts[6])
+    # Inserito PRIMA il blocco in basso: l'ordine di lettura atteso è dall'alto.
+    s3.shapes.add_textbox(Inches(1), Inches(5), Inches(6), Inches(1)).text_frame.text = "Secondo blocco in basso"
+    s3.shapes.add_textbox(Inches(1), Inches(1), Inches(6), Inches(1)).text_frame.text = "Primo blocco in alto"
+    b = io.BytesIO()
+    prs.save(b)
+    return b.getvalue()
+
+
+def fixture_xlsx() -> bytes:
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Budget"
+    for row in [["Voce", "Importo €", "Quantità"], ["Hardware", 1200, 3], ["Licenze", 300.5, 10]]:
+        ws.append(row)
+    ws["A4"], ws["B4"], ws["C4"] = "Totale", "=SUM(B2:B3)", "=C2*2"
+    ws2 = wb.create_sheet("Note città")
+    ws2.append(["Voce", "Percentuale"])
+    ws2.append(["Margine", 0.12])
+    b = io.BytesIO()
+    wb.save(b)
+    # Valore MEMORIZZATO solo per B4 (come dopo un calcolo di Excel); C4 resta senza.
+    src = zipfile.ZipFile(io.BytesIO(b.getvalue()))
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
+        for item in src.infolist():
+            data = src.read(item.filename)
+            if item.filename == "xl/worksheets/sheet1.xml":
+                data, n = re.subn(rb'(<c r="B4"[^>]*>)<f>SUM\(B2:B3\)</f>(<v\s*/>|<v></v>)?',
+                                  rb"\1<f>SUM(B2:B3)</f><v>1500.5</v>", data)
+                assert n == 1, "iniezione del valore memorizzato fallita"
+            dst.writestr(item, data)
+    return out.getvalue()
+
+
+HTML = """<!DOCTYPE html><html><head><meta charset="{cs}"><title>Guida installazione</title>
+<script>var x = "script da scartare";</script></head><body>
+<nav>Menu di navigazione</nav>
+<h1>Guida installazione</h1><p>Requisiti per la città di Forlì: perché serve Python ≥ 3.14?</p>
+<h2>Passaggi</h2><ol><li>Scarica il pacchetto</li><li>Configura<ul><li>Porta 8000</li></ul></li></ol>
+<h3>Parametri</h3>
+<table><thead><tr><th>Nome</th><th>Valore</th></tr></thead>
+<tbody><tr><td>timeout</td><td>300 s</td></tr><tr><td>soglia</td><td>0,35</td></tr></tbody></table>
+<pre><code>uv sync --frozen
+uv run python server.py</code></pre>
+<p>Dettagli nella <a href="https://example.org/docs">documentazione ufficiale</a>.</p>
+<img src="schema.png" alt="schema"><footer>Piè di pagina del sito</footer></body></html>"""
+
+
+def fixture_epub() -> bytes:
+    b = io.BytesIO()
+    with zipfile.ZipFile(b, "w") as z:
+        z.writestr("mimetype", "application/epub+zip", compress_type=zipfile.ZIP_STORED)
+        z.writestr("META-INF/container.xml", '<?xml version="1.0"?><container version="1.0" '
+                   'xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile '
+                   'full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>'
+                   '</rootfiles></container>')
+        z.writestr("OEBPS/content.opf", '<?xml version="1.0"?><package xmlns="http://www.idpf.org/2007/opf" '
+                   'version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
+                   '<dc:identifier id="id">vc-epub</dc:identifier><dc:title>Libro prova</dc:title>'
+                   '<dc:language>it</dc:language></metadata><manifest>'
+                   '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>'
+                   '<item id="c2" href="c2.xhtml" media-type="application/xhtml+xml"/></manifest>'
+                   '<spine><itemref idref="c1"/><itemref idref="c2"/></spine></package>')
+        page = ('<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml">'
+                '<head><title>{t}</title></head><body>{b}</body></html>')
+        z.writestr("OEBPS/c1.xhtml", page.format(t="Capitolo primo", b="<h1>Capitolo primo</h1>"
+                   "<p>Testo con accenti: perché è così.</p><ul><li>Voce elenco</li></ul>"))
+        z.writestr("OEBPS/c2.xhtml", page.format(t="Capitolo secondo", b="<h1>Capitolo secondo</h1>"
+                   "<table><tr><th>Chiave</th><th>Valore</th></tr><tr><td>alfa</td><td>42 kg</td></tr></table>"))
+    return b.getvalue()
+
+
+def fixture_pdfs() -> dict[str, bytes]:
+    import pypdfium2 as pdfium
+    from pypdf import PdfReader, PdfWriter
+    digitale = (RAG / "tests/fixtures/intake/tabelle_titoli.pdf").read_bytes()
+    doc = pdfium.PdfDocument(digitale)
+    img = doc[0].render(scale=150 / 72).to_pil().convert("L")
+    buf = io.BytesIO()
+    img.save(buf, format="PDF", resolution=150)
+    scansione = buf.getvalue()
+    w = PdfWriter()
+    for src in (digitale, scansione):
+        w.add_page(PdfReader(io.BytesIO(src)).pages[0])
+    b = io.BytesIO()
+    w.write(b)
+    misto = b.getvalue()
+    w = PdfWriter()
+    w.add_page(PdfReader(io.BytesIO(digitale)).pages[0])
+    w.encrypt(user_password="segreta", owner_password="segreta")
+    b = io.BytesIO()
+    w.write(b)
+    return {"digitale": digitale, "scansione": scansione, "misto": misto, "protetto": b.getvalue()}
+
+
+TXT = ("# questa riga non è un titolo\n* asterisco letterale\n![non un'immagine](x.png)\n"
+       "Riga con accenti: città, perché, 3 € al kg.\n    indentazione conservata\n")
+CSV_UTF8 = 'Codice,Descrizione,Prezzo €\nA1,"Cavo, rame",12.5\nB2,"Nota su\ndue righe",3\nC3,"Virgolette ""doppie""",0\n'
+CSV_SEMI = "Codice;Città;Quantità\nA1;Forlì;3\nB2;Cefalù;4\n"
+JSON = json.dumps({"progetto": "VibeCraft", "moduli": [{"nome": "intake", "formati": ["pdf", "docx"]},
+                                                        {"nome": "retrieval", "soglia": 0.35}],
+                   "note": "città e perché"}, ensure_ascii=False, indent=2)
+XML = ('<?xml version="1.0" encoding="UTF-8"?><catalogo><articolo codice="A1"><nome>Cavo rame</nome>'
+       '<peso unita="kg">12,5</peso></articolo><articolo codice="B2"><nome>Isolante città</nome></articolo></catalogo>')
+
+
+# ---------------------------------------------------------------------------
+# Controlli (attese scritte prima degli output)
+# ---------------------------------------------------------------------------
+def heads(md):
+    return [(len(m.group(1)), m.group(2).strip()) for m in re.finditer(r"(?m)^(#{1,6})\s+(.*)$", md)]
+
+
+def lvl(md, text):
+    return next((n for n, t in heads(md) if text in t), None)
+
+
+def riga(md, *cells):
+    return any(ln.lstrip().startswith("|") and all(c in ln for c in cells) for ln in md.splitlines())
+
+
+def voce(md, text):
+    return re.search(rf"(?m)^\s*([-*+]|\d+[.)])\s+.*{re.escape(text)}", md) is not None
+
+
+def rientro(md, text):
+    ln = next((ln for ln in md.splitlines() if text in ln), None)
+    return None if ln is None else len(ln) - len(ln.lstrip())
+
+
+def prima(md, a, b):
+    return 0 <= md.find(a) < md.find(b)
+
+
+def tutti(md, *parole):
+    return all(p in md for p in parole)
+
+
+def gerarchia(md, *titoli):
+    livelli = [lvl(md, t) for t in titoli]
+    return None not in livelli and all(a < b for a, b in zip(livelli, livelli[1:]))
+
+
+ATTESE = {
+    "docx": [
+        ("testo e caratteri speciali", lambda m: tutti(m, "città", "perché", "3.000 €", "≥ 5 kg", "12 µm")),
+        ("gerarchia titolo>H1>H2>H3", lambda m: gerarchia(m, "Manuale forniture", "Capitolo uno",
+                                                            "Sezione uno punto uno", "Dettaglio uno punto uno")),
+        ("H1 fratelli allo stesso livello", lambda m: lvl(m, "Capitolo uno") == lvl(m, "Capitolo due") is not None),
+        ("lista puntata", lambda m: voce(m, "Primo punto")),
+        ("lista annidata rientrata", lambda m: (rientro(m, "Sottopunto") or 0) > (rientro(m, "Primo punto") or 0)),
+        ("lista numerata", lambda m: voce(m, "Passo numerato uno")),
+        ("tabella: riga associata", lambda m: riga(m, "A1", "Cavo rame", "12,5 kg")),
+        ("link con URL", lambda m: "[specifica esterna](https://example.org/specifica)" in m),
+    ],
+    "pptx": [
+        ("titoli delle slide", lambda m: tutti(m, "Piano di rilascio", "Tabella rischi")),
+        ("slide separate e in ordine", lambda m: prima(m, "Piano di rilascio", "Tabella rischi")
+         and prima(m, "Tabella rischi", "Primo blocco")),
+        ("elenco con sottolivello", lambda m: voce(m, "Fase uno") and (rientro(m, "Controllo accessi") or 0) > (rientro(m, "Fase uno") or 0)),
+        ("tabella: riga associata", lambda m: riga(m, "Ritardo fornitore", "alto")),
+        ("ordine di lettura dall'alto", lambda m: prima(m, "Primo blocco in alto", "Secondo blocco in basso")),
+        ("note del relatore", lambda m: "12% di margine" in m),
+    ],
+    "xlsx": [
+        ("nomi dei fogli", lambda m: tutti(m, "Budget", "Note città")),
+        ("valori", lambda m: riga(m, "Hardware", "1200") and riga(m, "Licenze", "300.5")),
+        ("valore memorizzato della formula", lambda m: riga(m, "Totale", "1500.5")),
+        ("nessun risultato inventato per la formula senza valore", lambda m: not re.search(r"Totale[^\n]*\|\s*6\s*\|", m)),
+        ("nessun NaN spacciato per dato", lambda m: "NaN" not in m),
+        ("unità e simboli", lambda m: tutti(m, "Importo €", "Quantità")),
+    ],
+    "html": [
+        ("testo e accenti", lambda m: tutti(m, "città di Forlì", "perché", "≥ 3.14")),
+        ("gerarchia h1>h2>h3", lambda m: gerarchia(m, "Guida installazione", "Passaggi", "Parametri")),
+        ("lista numerata e annidata", lambda m: voce(m, "Scarica il pacchetto") and (rientro(m, "Porta 8000") or 0) > (rientro(m, "Configura") or 0)),
+        ("tabella: riga associata", lambda m: riga(m, "timeout", "300 s") and riga(m, "soglia", "0,35")),
+        ("blocco di codice", lambda m: re.search(r"```[^\n]*\nuv sync --frozen\nuv run python server.py\n```", m) is not None),
+        ("link con URL", lambda m: "[documentazione ufficiale](https://example.org/docs)" in m),
+        ("script escluso", lambda m: "script da scartare" not in m),
+        ("nessun link a immagine locale", lambda m: "schema.png" not in m),
+    ],
+    "csv": [
+        ("intestazione e righe associate", lambda m: riga(m, "A1", "Cavo, rame", "12.5")),
+        ("cella multilinea nella sua riga", lambda m: riga(m, "B2", "Nota su") and "due righe" in m),
+        ("virgolette doppie", lambda m: 'Virgolette "doppie"' in m),
+        ("simboli", lambda m: "Prezzo €" in m),
+    ],
+    "csv_semicolon": [
+        ("delimitatore ;", lambda m: riga(m, "A1", "Forlì", "3")),
+        ("accenti", lambda m: tutti(m, "Città", "Cefalù", "Quantità")),
+    ],
+    "txt": [
+        ("testo verbatim, nessuna interpretazione", lambda m: tutti(m, "# questa riga non è un titolo", "* asterisco letterale")),
+        ("sintassi immagine letterale conservata", lambda m: "![non un'immagine](x.png)" in m),
+        ("accenti", lambda m: "città, perché, 3 € al kg" in m),
+    ],
+    "json": [("struttura annidata e valori", lambda m: tutti(m, '"nome": "retrieval"', '"soglia": 0.35', "città e perché"))],
+    "xml": [("struttura e attributi", lambda m: tutti(m, 'codice="A1"', "Cavo rame", 'unita="kg"', "Isolante città"))],
+    "epub": [
+        ("capitoli in ordine", lambda m: prima(m, "Capitolo primo", "Capitolo secondo")),
+        ("accenti", lambda m: "perché è così" in m),
+        ("lista", lambda m: voce(m, "Voce elenco")),
+        ("tabella", lambda m: riga(m, "alfa", "42 kg")),
+    ],
+    "pdf_digitale": [
+        ("titoli", lambda m: gerarchia(m, "Registro forniture", "Regole di consegna")),
+        ("tabella completa", lambda m: all(riga(m, *r) for r in (("L-01", "Acme Srl", "120", "consegnato"),
+                                                                  ("L-02", "Beta SpA", "45", "in attesa"),
+                                                                  ("L-03", "Gamma Coop", "7", "annullato")))),
+        ("identificatori non escapati", lambda m: "identificativo_lotto" in m),
+    ],
+    "pdf_scansione": [("testo riconosciuto", lambda m: tutti(m, "Registro forniture", "Beta SpA", "città"))],
+    "pdf_misto": [("pagina digitale", lambda m: "identificativo_lotto" in m),
+                  ("pagina scansionata", lambda m: m.count("Beta SpA") >= 2)],
+}
+ATTESE["xls"] = [a for a in ATTESE["xlsx"] if a[0] not in ("valore memorizzato della formula",
+                                                          "nessun risultato inventato per la formula senza valore")]
+ATTESE["html_latin1"] = ATTESE["html"]
+
+
+# ---------------------------------------------------------------------------
+# Motori
+# ---------------------------------------------------------------------------
+_generic = None
+
+
+def _docling_generic():
+    global _generic
+    if _generic is None:
+        from docling.datamodel.base_models import InputFormat
+        from docling.document_converter import DocumentConverter
+        _generic = DocumentConverter(allowed_formats=[
+            InputFormat.DOCX, InputFormat.PPTX, InputFormat.XLSX, InputFormat.XLS, InputFormat.HTML,
+            InputFormat.CSV, InputFormat.MD, InputFormat.EPUB, InputFormat.EMAIL])
+    return _generic
+
+
+def _finisci(md: str, nome: str) -> str:
+    md, _n = ic._LOCAL_IMAGE_RE.subn("", md)
+    md = normalize_markdown(md)
+    if md and not ic._HEADING_RE.search(md):
+        md = f"# {Path(nome).stem}\n\n{md}"
+    return md
+
+
+def docling(data: bytes, nome: str, fogli: bool = False) -> str:
+    from docling.datamodel.base_models import DocumentStream
+    r = _docling_generic().convert(DocumentStream(name=nome, stream=io.BytesIO(data)), raises_on_error=False)
+    if r.status.value not in ("success", "partial_success"):
+        raise RuntimeError(f"docling {r.status.value}: {[str(e.error_message) for e in r.errors]}")
+    d = r.document
+    if not fogli:
+        return _finisci(d.export_to_markdown(escape_underscores=False, image_placeholder=""), nome)
+    parti = []
+    for grp in d.body.children:
+        g = grp.resolve(d)
+        nome_foglio = getattr(g, "name", "") or ""
+        testo = d.export_to_markdown(escape_underscores=False, image_placeholder="",
+                                     page_no=(g.prov[0].page_no if getattr(g, "prov", None) else None))
+        parti.append(f"## {nome_foglio}\n\n{testo}")
+    return _finisci("\n\n".join(parti), nome)
+
+
+def markitdown(data: bytes, fmt: str, nome: str) -> str:
+    ic.INTAKE_DOCLING_ENABLED = False
+    try:
+        return ic.convert_to_markdown(data, fmt, filename=nome).markdown
+    finally:
+        ic.INTAKE_DOCLING_ENABLED = True
+
+
+def docling_pdf(data: bytes, nome: str) -> tuple[str, dict]:
+    ic.INTAKE_DOCLING_ENABLED = True
+    r = ic.convert_to_markdown(data, "pdf", filename=nome)
+    return r.markdown, r.metadata
+
+
+def misura(fn):
+    proc = psutil.Process()
+    rss0, t0 = proc.memory_info().rss, time.perf_counter()
+    try:
+        md, err = fn(), None
+    except Exception as exc:  # l'errore è un esito del confronto
+        md, err = "", f"{type(exc).__name__}: {exc}"[:300]
+    return md, err, round(time.perf_counter() - t0, 3), round((proc.memory_info().rss - rss0) / 1e6, 1)
+
+
+def main() -> int:
+    pdf = fixture_pdfs()
+    casi = {
+        "docx": ("docx", "manuale.docx", fixture_docx()),
+        "pptx": ("pptx", "rilascio.pptx", fixture_pptx()),
+        "xlsx": ("xlsx", "budget.xlsx", fixture_xlsx()),
+        "html": ("html", "guida.html", HTML.format(cs="utf-8").encode("utf-8")),
+        "html_latin1": ("html", "guida_latin1.html", HTML.format(cs="iso-8859-1").replace("≥", "&ge;").encode("latin-1")),
+        "csv": ("csv", "listino.csv", CSV_UTF8.encode("utf-8")),
+        "csv_semicolon": ("csv", "citta.csv", CSV_SEMI.encode("latin-1")),
+        "txt": ("txt", "note.txt", TXT.encode("utf-8")),
+        "json": ("json", "progetto.json", JSON.encode("utf-8")),
+        "xml": ("xml", "catalogo.xml", XML.encode("utf-8")),
+        "epub": ("epub", "libro.epub", fixture_epub()),
+        "pdf_digitale": ("pdf", "registro.pdf", pdf["digitale"]),
+        "pdf_scansione": ("pdf", "scansione.pdf", pdf["scansione"]),
+        "pdf_misto": ("pdf", "misto.pdf", pdf["misto"]),
+    }
+    if XLS and XLS.is_file():
+        casi["xls"] = ("xls", "budget.xls", XLS.read_bytes())
+    report: dict = {"casi": {}, "errori_attesi": {}}
+    for caso, (fmt, nome, data) in casi.items():
+        (FIX / nome).write_bytes(data)
+        motori = {"markitdown": lambda: markitdown(data, fmt, nome)}
+        if fmt == "pdf":
+            motori["docling"] = lambda: docling_pdf(data, nome)[0]
+        elif fmt in ("docx", "pptx", "xlsx", "xls", "html", "csv", "txt", "epub"):
+            motori["docling"] = lambda: docling(data, nome)
+        if caso == "html_latin1":
+            motori["docling+utf8"] = lambda: docling(data.decode(ic._detect_charset(data)).encode("utf-8"), nome)
+        if fmt in ("xlsx", "xls"):
+            motori["docling+fogli"] = lambda: docling(data, nome, fogli=True)
+        esiti = {}
+        for motore, fn in motori.items():
+            md, err, sec, mb = misura(fn)
+            (OUT / f"{caso}.{motore}.md").write_text(md, encoding="utf-8")
+            controlli = {nome_c: bool(md) and bool(c(md)) for nome_c, c in ATTESE.get(caso, [])}
+            esiti[motore] = {"errore": err, "secondi": sec, "rss_delta_mb": mb, "caratteri": len(md),
+                             "sezioni_chunk": len(chunk_markdown("x.md", {"id": "x"}, md)) if md else 0,
+                             "titoli": heads(md)[:12], "controlli": controlli,
+                             "superati": f"{sum(controlli.values())}/{len(controlli)}"}
+        report["casi"][caso] = esiti
+        print(f"{caso:14} " + " | ".join(f"{m}: {e['superati']} {e['secondi']}s" + (f" ERR {e['errore'][:60]}" if e["errore"] else "")
+                                         for m, e in esiti.items()), flush=True)
+    # File problematici: il percorso applicativo deve dare un errore chiaro, non un documento.
+    for caso, (fmt, nome, data) in {"pdf_protetto": ("pdf", "protetto.pdf", pdf["protetto"]),
+                                     "docx_corrotto": ("docx", "rotto.docx", b"PK\x03\x04 non uno zip"),
+                                     "xlsx_vuoto": ("xlsx", "vuoto.xlsx", b""),
+                                     "pptx_corrotto": ("pptx", "rotto.pptx", b"non un pptx")}.items():
+        try:
+            r = ic.convert_to_markdown(data, fmt, filename=nome)
+            report["errori_attesi"][caso] = {"esito": "CONVERTITO", "motore": r.metadata["motore"], "avvisi": r.metadata["avvisi"]}
+        except ic.ConversionError as exc:
+            report["errori_attesi"][caso] = {"esito": "ConversionError", "messaggio": str(exc)[:200]}
+        except Exception as exc:  # un'eccezione grezza è un difetto del percorso
+            report["errori_attesi"][caso] = {"esito": f"ECCEZIONE GREZZA {type(exc).__name__}", "messaggio": str(exc)[:200]}
+        print(caso, report["errori_attesi"][caso], flush=True)
+    report["tempi_mediani"] = {m: statistics.median(e[m]["secondi"] for e in report["casi"].values() if m in e)
+                               for m in ("markitdown", "docling")}
+    (OUT / "confronto.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

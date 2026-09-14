@@ -1,0 +1,157 @@
+"""FASE 1 — audit delle 16 risposte archiviate (8 baseline + 8 candidato).
+
+Rivaluta TUTTE le risposte, non solo quelle segnalate, tenendo separati gli
+assi che il resoconto precedente aveva fuso in un unico «completa 8/8»:
+
+  A. presenza_valori      controllo di sottostringa, IDENTICO al precedente
+                          (score_risposte.py), riportato per confronto e
+                          dichiarato per quello che e': meccanico.
+  B. presenza_robusta     stessa lista di valori, ma con confini di parola per i
+                          valori NUMERICI nudi: «5» e «1» come sottostringa
+                          combaciano con qualunque cifra in qualunque parola.
+  C. citazioni            estrattore CORRETTO (scripts/citazioni.py, che riusa
+                          eval.attribution.quoted_spans) — prima/dopo.
+  D. attribuzione_doc     la risposta nomina il documento atteso?
+  E. attribuzione_sezione ogni «nella sezione X» / «nella tabella X» della
+                          risposta e' verificata contro la struttura REALE del
+                          testo indicizzato: X esiste come intestazione? il
+                          valore attribuito a X cade davvero sotto X?
+  F. identificatori       nomi di file citati dalla risposta assenti dal
+                          contesto (dopo aver ricomposto gli spazi che il
+                          layout PDF inserisce dentro i nomi).
+
+Nessun asse riscrive domande, risposte attese o soglie. L'asse A e' conservato
+tale e quale proprio per rendere visibile quanto valga poco da solo.
+
+La lettura semantica («la risposta risponde alla domanda?») NON e' qui: e' in
+review/PACCHETTO_REVISIONE.md, dichiarata come lettura d'agente e sottoposta al
+manutentore. Un `in` non e' una verifica di correttezza semantica.
+
+Uso: audit_risposte.py <eval-dir> <out-dir> <etichetta>
+
+<out-dir> deve contenere indice_precedente_<stack>/{chunks.json,VERSIONE}, cioe'
+la copia archiviata dell'indice davvero interrogato: in eval_*.json il testo del
+chunk e' VUOTO (difetto accertato) e il sandbox e' stato ricostruito in FASE 3.
+"""
+
+import json
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from citazioni import estrai_difettoso, verifica_citazioni  # noqa: E402
+
+SRC = pathlib.Path(sys.argv[1]).resolve()
+OUT = pathlib.Path(sys.argv[2]).resolve()
+ETICHETTA = sys.argv[3]
+INDICE = {"baseline": OUT / "indice_precedente_baseline",
+          "candidate": OUT / "indice_precedente_candidate"}
+OUT.mkdir(parents=True, exist_ok=True)
+
+
+def chunk_integrali(dove: pathlib.Path) -> tuple[dict[str, dict], str]:
+    """(mappa chunk_id -> record, versione dell'indice). `dove` e' la copia
+    archiviata dell'indice INTERROGATO (audit/indice_precedente_<stack>/), non il
+    sandbox: FASE 3 lo ha ricostruito, e leggere il nuovo significherebbe
+    misurare un contesto che il modello non ha mai visto."""
+    raw = json.loads((dove / "chunks.json").read_text(encoding="utf-8"))
+    mappa = raw if isinstance(raw, dict) else {c["chunk_id"]: c for c in raw}
+    return mappa, (dove / "VERSIONE").read_text(encoding="utf-8").strip()
+
+from assi import (  # noqa: E402
+    ATTESI, DINIEGO, DOC_ATTESO, controlla_sezioni, despazia,
+    identificatori_non_sostenuti, presenza,
+)
+
+risultato = {"origine": str(SRC), "etichetta": ETICHETTA, "stack": {}}
+
+for stack in ("baseline", "candidate"):
+    f = SRC / "out" / f"eval_{stack}.json"
+    if not f.is_file():
+        f = SRC / f"eval_{stack}.json"
+    dati = json.loads(f.read_text(encoding="utf-8"))
+    CH, versione_indice = chunk_integrali(INDICE[stack])
+    # l'indice riletto DEVE essere quello interrogato: altrimenti il testo del chunk
+    # non e' cio' che il modello ha visto e l'audit misurerebbe un'altra cosa.
+    assert versione_indice == dati["health"]["snapshot"]["version"], (
+        stack, versione_indice, dati["health"]["snapshot"]["version"])
+    per_stack = {}
+    for qid, v in dati["domande"].items():
+        risposta = v["risposta"]["testo"]
+        fonti = v["retrieval"]["fonti"]
+        atteso = DOC_ATTESO["diag" if "diag" in qid else "mock"]
+        # DIFETTO ACCERTATO nell'archivio: eval_stack.py registro' `testo` VUOTO per
+        # ogni chunk (cercava un campo `chunk_id` che in chunks.json e' la CHIAVE del
+        # dizionario, non un campo del valore). Il testo si rilegge quindi dall'indice
+        # del sandbox, che e' la stessa versione interrogata (verificata sotto).
+        def testo(f_):
+            c = CH.get(f_["chunk_id"]) or {}
+            return c.get("text") or f_.get("testo") or ""
+
+        blocco = next((testo(f_) for f_ in fonti if atteso in str(f_["doc_id"])), "")
+        # il contesto reale porta anche le intestazioni di blocco «documento § sezione»
+        contesto = "\n".join(f"{f_['doc_id']} § {f_['section']}\n{testo(f_)}" for f_ in fonti)
+        corpus = {str(f_["doc_id"]): testo(f_) for f_ in fonti if testo(f_)}
+
+        manc_a, manc_b = presenza(risposta, ATTESI[qid])
+        prima = estrai_difettoso(risposta)
+        dopo = verifica_citazioni(risposta, corpus)
+
+        per_stack[qid] = {
+            "A_presenza_valori": {"mancanti": manc_a, "tutti_presenti": not manc_a},
+            "B_presenza_robusta": {"mancanti": manc_b, "tutti_presenti": not manc_b},
+            "C_citazioni": {
+                "prima_estrattore_difettoso": prima,
+                "prima_n": len(prima),
+                "dopo_estrattore_corretto": dopo,
+                "dopo_n": len(dopo),
+                "dopo_verificate": sum(1 for c in dopo if c["esito"] == "verified"),
+                "dopo_non_verificabili": sum(1 for c in dopo if c["esito"] != "verified"),
+            },
+            "D_attribuzione_doc": {
+                "documento_atteso": atteso,
+                "nominato_nella_risposta": atteso in risposta,
+                "rango_fonte_attesa": v["retrieval"]["rango_fonte_attesa"],
+                "fonte_in_top10": v["retrieval"]["fonte_attesa_in_top10"],
+            },
+            "E_attribuzione_sezione": controlla_sezioni(risposta, blocco),
+            "F_identificatori": identificatori_non_sostenuti(risposta, contesto),
+            "G_diniego": {
+                "frasi_di_diniego": sorted({m.group(0).strip() for m in DINIEGO.finditer(risposta)}),
+                "valori_attesi_presenti_nel_contesto": [
+                    t for t in ATTESI[qid] if despazia(t) in despazia(contesto)],
+                "valori_attesi_totali": len(ATTESI[qid]),
+                "contraddizione_da_leggere": bool(DINIEGO.search(risposta)) and all(
+                    despazia(t) in despazia(contesto) for t in ATTESI[qid]),
+            },
+        }
+    risultato["stack"][stack] = per_stack
+
+# --- sintesi ------------------------------------------------------------------
+sintesi = {}
+for stack, per_stack in risultato["stack"].items():
+    sez_rotte = {q: [e for e in x["E_attribuzione_sezione"]
+                     if e["esito"] not in ("coerente", "sezione_esiste_valore_non_isolabile")]
+                 for q, x in per_stack.items()}
+    ident_rotti = {q: [e for e in x["F_identificatori"] if e["esito"] != "presente"]
+                   for q, x in per_stack.items()}
+    sintesi[stack] = {
+        "A_valori_presenti": f"{sum(x['A_presenza_valori']['tutti_presenti'] for x in per_stack.values())}/8",
+        "B_valori_presenti_confini_parola":
+            f"{sum(x['B_presenza_robusta']['tutti_presenti'] for x in per_stack.values())}/8",
+        "C_citazioni_prima": sum(x["C_citazioni"]["prima_n"] for x in per_stack.values()),
+        "C_citazioni_dopo": sum(x["C_citazioni"]["dopo_n"] for x in per_stack.values()),
+        "C_verificate_dopo": sum(x["C_citazioni"]["dopo_verificate"] for x in per_stack.values()),
+        "D_documento_nominato":
+            f"{sum(x['D_attribuzione_doc']['nominato_nella_risposta'] for x in per_stack.values())}/8",
+        "E_domande_con_sezione_sbagliata": sorted(q for q, e in sez_rotte.items() if e),
+        "F_domande_con_identificatori_non_sostenuti": sorted(q for q, e in ident_rotti.items() if e),
+        "F_dettaglio": {q: [e["nome"] for e in e_] for q, e_ in ident_rotti.items() if e_},
+        "G_domande_con_diniego_contraddetto": sorted(
+            q for q, x in per_stack.items() if x["G_diniego"]["contraddizione_da_leggere"]),
+    }
+risultato["sintesi"] = sintesi
+
+(OUT / f"audit_{ETICHETTA}.json").write_text(
+    json.dumps(risultato, ensure_ascii=False, indent=2), encoding="utf-8")
+print(json.dumps(sintesi, ensure_ascii=False, indent=2))

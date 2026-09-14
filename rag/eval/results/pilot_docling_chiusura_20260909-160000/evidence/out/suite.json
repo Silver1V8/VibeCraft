@@ -1,0 +1,28 @@
+{
+  "suite-catena-applicativa": {
+    "tests": 1342,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "secondi": 94.296,
+    "falliti": []
+  },
+  "suite-catena-candidata": {
+    "tests": 1342,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "secondi": 103.353,
+    "falliti": []
+  },
+  "suite-variante": {
+    "tests": 1342,
+    "failures": 1,
+    "errors": 0,
+    "skipped": 0,
+    "secondi": 99.067,
+    "falliti": [
+      "tests.test_ask_prompt_cost::test_costo_fisso_del_prompt_entro_il_budget"
+    ]
+  }
+}

@@ -1,0 +1,224 @@
+{
+  "sorgente": "C:/Users/Silve/Desktop/vibecraft/rag/eval/results/sel_contesto_20260910-090000/holdout/comp_S2.json",
+  "parametri": {
+    "GRAPH_CONTEXT_MAX_CHUNKS": 3,
+    "GRAPH_CONTEXT_MIN_RATIO": 0.0,
+    "CODE_CONTEXT_TOTAL_SNIPPETS": 12,
+    "CODE_CONTEXT_MAX_SNIPPETS": 10,
+    "CODE_SEARCH_MAX_SNIPPETS": 8,
+    "CODE_CONTEXT_MIN_WEIGHT": 0.5,
+    "CODE_SEARCH_MIN_SCORE": 0.45,
+    "CODE_LINK_MIN_QUESTION_SCORE": 0.35
+  },
+  "modello": [
+    "ollama",
+    "qwen3.5:9b"
+  ],
+  "temperature": 0.1,
+  "prompt": "ORIGINALE (congelato)",
+  "casi": {
+    "ho-code-1": {
+      "domanda": "Quali stati di RICHIESTA impediscono di sottomettere una nuova richiesta?",
+      "prompt_char": 34243,
+      "prompt_token_stimati": 11414,
+      "quote": {
+        "totale": 31645,
+        "semantico": 17426,
+        "grafo": 6460,
+        "codice": 7759
+      },
+      "passate": [
+        {
+          "passata": 1,
+          "risposta": "In base al contesto fornito, gli stati della risorsa `RICHIESTA` che impediscono la sottomissione di una nuova richiesta sono identificati dalle seguenti regole e implementazioni:\n\n1.  **Stato `'RIFIUTATA'`**:\n    *   **Vincolo Normativo:** La specifica `[REGOLA-INT-01] Immutabilità post-rifiuto` (in `02_specs_normative/spec_wf_states_2.1.md`) stabilisce che lo stato `'RIFIUTATA'` è un nodo foglia terminale definitivo e nessun attore può modificare ulteriormente lo stato o riportarlo in lavorazione.\n    *   **Implementazione:** La funzione `isRejectedState` (in `frontend/src/features/booking-requests/rules.ts`) restituisce `true` se `stato === \"RIFIUTATA\"`. Il componente `MyRequestRow` applica uno stile visivo di errore (`border-error`, `bg-error/10`) quando lo stato è `'RIFIUTATA'`, indicando che la richiesta non è più attiva per nuove azioni.\n\n2.  **Stati `'IN_ATTESA_APPROVAZIONE'` e `'APPROVATA'`**:\n    *   **Vincolo Normativo:** La specifica `[REGOLA-INT-01] Validazione di idoneità preventiva dell'utente` (in `02_specs_normative/spec_form_1.4.md`) richiede che il client verifichi se l'`UTENTE` corrente non ha già una `RICHIESTA` attiva per lo stesso `EVENTO` in stato `'IN_ATTESA_APPROVAZIONE'` o `'APPROVATA'`.\n    *   **Implementazione:** La funzione `isBlockingRequest` (in `frontend/src/features/booking-requests/rules.ts`) utilizza la costante `BLOCKING_REQUEST_STATES` per determinare se una richiesta esistente blocca nuove sottomissioni. Sebbene il contesto non elenchi esplicitamente i valori di questa costante in un blocco di codice completo, l'implementazione logica e le funzioni correlate (`hasActiveRequest`, `isSoldOut`) confermano che la presenza di una richiesta attiva (definita come tale quando è in `'IN_ATTESA_APPROVAZIONE'` o `'APPROVATA'`) blocca l'interazione.\n    *   **Effetto:** Quando uno di questi stati è presente, il pulsante di sottomissione viene disabilitato (`disabled`) e lo stato attuale della richiesta (\"In Attesa\" o \"Iscritto\") viene mostrato (in `frontend/src/components/events/EventCard.tsx` e `CreateBookingFormInner`).\n\n**Nota sulla divergenza tra specifiche:**\nLa specifica `[REGOLA-WF-02] Transizioni di Stato Ammissibili` (in `02_specs_normative/spec_wf_states_2.1.md`) menziona esplicitamente la transizione da `'APPROVATA'` verso `'ANNULLATA'`, ma non descrive esplicitamente il blocco della sottomissione per un utente diverso o lo stesso utente in uno stato `'APPROVATA'` come condizione di \"blocco\" nel testo normativo, sebbene l'implementazione (`isBlockingRequest`) e la specifica `[REGOLA-INT-01] Validazione di idoneità preventiva dell'utente` (in `02_specs_normative/spec_form_1.4.md`) lo facciano per `'IN_ATTESA_APPROVAZIONE'`. Il contesto normativo non menziona esplicitamente che uno stato `'APPROVATA'` blocchi la sottomissione per un *nuovo* utente, ma l'implementazione e la logica di business implicano che una richiesta esistente (indipendentemente dallo stato attivo) impedisca nuove iscrizioni. Tuttavia, il vincolo esplicito di \"blocco\" è definito per `'IN_ATTESA_APPROVAZIONE'` e `'APPROVATA'` nella specifica `[REGOLA-INT-01] Validazione di idoneità preventiva dell'utente`.\n\nIn sintesi, gli stati che impediscono la sottomissione sono:\n*   `'RIFIUTATA'` (nodo terminale).\n*   `'IN_ATTESA_APPROVAZIONE'` (richiesta attiva in attesa).\n*   `'APPROVATA'` (richiesta già accettata, impedendo ulteriori iscrizioni per lo stesso evento/utente o bloccando l'interazione generale se la richiesta esiste).\n\nIl contesto non riporta esplicitamente uno stato `'ANNULLATA'` come condizione di blocco per nuove sottomissioni, ma piuttosto come stato finale dopo revoca.",
+          "errore": null,
+          "secondi": 17.48,
+          "nega": true,
+          "coefficiente": false
+        },
+        {
+          "passata": 2,
+          "risposta": "Gli stati di `RICHIESTA` che impediscono la sottomissione di una nuova richiesta per lo stesso utente e evento sono definiti dalla combinazione delle regole di business e dalle implementazioni nel codice esistente.\n\nSecondo la specifica normativa **[02_specs_normative/spec_dash_1.2.md § 3. Validazioni dell'Interfaccia e Inibizioni di Input]**, il pulsante di sottomissione deve essere disabilitato se l'utente possiede già una `RICHIESTA` associata a quel determinato `EVENTO` in stato **'IN_ATTESA_APPROVAZIONE'** o **'APPROVATA'**.\n\nInoltre, la specifica **[02_specs_normative/spec_wf_states_2.1.md § 2. Regole di Transizione e Workflow]** stabilisce che da `'APPROVATA'` è possibile transire solo verso `'ANNULLATA'`, rendendo implicitamente lo stato `'APPROVATA'` (e anche `'IN_ATTESA_APPROVAZIONE'`) come condizione di blocco per nuove sottomissioni.\n\nIl codice esistente conferma e implementa questi vincoli:\n1.  La funzione `isBlockingRequest` in **`frontend/src/features/booking-requests/rules.ts`** controlla se una `RICHIESTA` esistente blocca l'azione. Sebbene il codice estratto mostri solo la firma della funzione, la logica si basa sugli stati definiti nelle specifiche.\n2.  La funzione `hasActiveRequest` in **`frontend/src/lib/events/stock.ts`** verifica se esiste una richiesta attiva (`event.richiesta_utente != null`), che corrisponde alla presenza di uno stato `'IN_ATTESA_APPROVAZIONE'` o `'APPROVATA'`.\n3.  Il componente `CreateBookingFormInner` in **`frontend/src/features/booking-requests/components/CreateBookingForm.tsx`** utilizza la funzione `isBlockingRequest(richiestaEsistente)` per determinare se disabilitare l'inserimento di nuove richieste.\n\nPertanto, gli stati che impediscono la sottomissione sono:\n*   `'IN_ATTESA_APPROVAZIONE'`\n*   `'APPROVATA'`\n\nLo stato `'RIFIUTATA'` non blocca la sottomissione (la specifica `[02_specs_normative/spec_wf_states_2.1.md § 3. Validazioni e Vincoli di Integrità Transazionale]` definisce `'RIFIUTATA'` come nodo foglia, ma non vieta una nuova richiesta per lo stesso evento; il blocco è legato all'esistenza di una richiesta *attiva* o *approvata*). Lo stato `'ANNULLATA'` permette teoricamente una nuova richiesta (a meno che non ci siano altre regole di business non esplicitate nel contesto fornito, ma la specifica menziona solo le richieste \"attive\" come blocco).",
+          "errore": null,
+          "secondi": 10.79,
+          "nega": false,
+          "coefficiente": false
+        }
+      ]
+    },
+    "ho-code-2": {
+      "domanda": "Quali ruoli sono abilitati a sottomettere una richiesta?",
+      "prompt_char": 39272,
+      "prompt_token_stimati": 13090,
+      "quote": {
+        "totale": 36651,
+        "semantico": 19564,
+        "grafo": 9527,
+        "codice": 7560
+      },
+      "passate": [
+        {
+          "passata": 1,
+          "risposta": "I ruoli abilitati a sottomettere una richiesta sono **DIPENDENTE** e **MANAGER**.\n\nQuesta conclusione si basa esclusivamente sui seguenti elementi estratti dal contesto:\n\n1.  **Matrice dei Permessi (AUTHORIZATION_POLICY):** Nel documento `00_meta_governance/matrice_permessi.md`, la funzionalità **F-02 Sottomette richiesta** presenta una spunta di autorizzazione (`✅`) per i ruoli **DIPENDENTE** e **MANAGER**, mentre mostra un segno di negazione (`❌`) per **ADMIN_HR** e **ADMIN_IT**.\n2.  **Indice Inverso (AUTHORIZATION_POLICY):** Nell'appendice dello stesso documento, la sezione `MANAGER —[PUÒ_ESEGUIRE]→` elenca esplicitamente **F-02 Sottomette richiesta**, confermando l'eredità delle capacità di **DIPENDENTE**.\n3.  **Codice Esistente (DATA_DICTIONARY / REQUIREMENT):** Il file `frontend/src/features/booking-requests/rules.ts` contiene la funzione `isAuthorizedRole`, che verifica se il ruolo dell'utente è incluso nell'array `AUTHORIZED_ROLES`. Sebbene l'elenco completo non sia visibile nel frammento, la logica di business definita nelle specifiche normative (documenti **REQUIREMENTS** e **AUTHORIZATION_POLICY**) vincola questa autorizzazione esclusivamente ai due ruoli sopra citati.\n\nNessun altro ruolo menzionato nel contesto possiede il permesso per eseguire l'azione **Sottomette richiesta**.",
+          "errore": null,
+          "secondi": 6.08,
+          "nega": false,
+          "coefficiente": false
+        },
+        {
+          "passata": 2,
+          "risposta": "In base al contesto fornito, i ruoli abilitati a sottomettere una richiesta sono **DIPENDENTE** e **MANAGER**.\n\nEcco l'estrazione testuale dei contratti e vincoli esatti che lo dimostrano:\n\n1.  **Vincolo di Permessi (RBAC):**\n    *   Nel documento `00_meta_governance/matrice_permessi.md` (§ 2), la funzionalità **F-02** (`Sottomette richiesta`) ha un segno di spunta (**✅**) per i ruoli **DIPENDENTE** e **MANAGER**, mentre è esplicitamente negata (**❌**) per `ADMIN_HR` e `ADMIN_IT`.\n    *   Nell'appendice dello stesso documento, si legge:\n        *   `DIPENDENTE` —[**PUÒ_ESEGUIRE**]→ `Sottomette richiesta`\n        *   `MANAGER` —[**PUÒ_ESEGUIRE**]→ `Sottomette richiesta` *(in quanto eredita le capacità di DIPENDENTE per il Portale Utente)*\n        *   `ADMIN_HR` —[**NON_PUÒ_ESEGUIRE**]→ `Sottomette richiesta`\n        *   `ADMIN_IT` —[**NON_PUÒ_ESEGUIRE**]→ `Sottomette richiesta`\n\n2.  **Vincolo di Implementazione (Codice):**\n    *   Nel file `frontend/src/features/booking-requests/rules.ts`, la funzione `isAuthorizedRole` verifica se il ruolo è incluso nell'array `AUTHORIZED_ROLES`. Sebbene l'array non sia esplicitamente stampato nel testo fornito, la logica della funzione e le specifiche correlate (`02_specs_normative/spec_form_1.4.md`) confermano che solo i ruoli con permesso **PUÒ_ESEGUIRE** possono invocare il submit.\n    *   Nel file `frontend/src/features/booking-requests/components/CreateBookingForm.tsx`, la variabile `authorized` è calcolata tramite `isAuthorizedRole(ruoloUtente)`. Se `authorized` è falso (come per `ADMIN_HR` o `ADMIN_IT`), l'invio viene bloccato.\n\n3.  **Vincolo di Entità e Workflow:**\n    *   Nel glossario `00_meta_governance/glossario_entita.md`, l'entità **RICHIESTA** è definita come \"La pratica formale sottomessa da un `UTENTE` con ruolo `DIPENDENTE`...\". Il contesto specifica che il ruolo di default per ogni nuovo utente è `DIPENDENTE`.\n    *   La funzione `isBlockingRequest` nel codice gestisce lo stato della richiesta, presupponendo che la richiesta sia stata sottomessa da un utente autorizzato (non amministrativo).\n\n**Conclusione:**\nSolo i ruoli **DIPENDENTE** e **MANAGER** possono sottomettere una richiesta. I ruoli `ADMIN_HR` e `ADMIN_IT` non possono farlo, come stabilito dalla matrice dei permessi e confermato dal codice che blocca l'accesso al form per questi ruoli (HTTP 403).",
+          "errore": null,
+          "secondi": 12.1,
+          "nega": false,
+          "coefficiente": false
+        }
+      ]
+    },
+    "ho-ponte-1": {
+      "domanda": "Quale funzione decide che un evento e' esaurito, e su quale campo si basa?",
+      "prompt_char": 37688,
+      "prompt_token_stimati": 12562,
+      "quote": {
+        "totale": 35049,
+        "semantico": 17982,
+        "grafo": 9527,
+        "codice": 7540
+      },
+      "passate": [
+        {
+          "passata": 1,
+          "risposta": "La funzione che decide se un evento è esaurito è **`isSoldOut`**, definita nel file **`frontend/src/features/booking-requests/rules.ts`** (e replicata in **`frontend/src/lib/events/stock.ts`**), e si basa esclusivamente sul campo **`posti_residui`** dell'entità **`EVENTO`**.\n\nEcco i dettagli estratti testualmente dal contesto:\n\n1.  **Funzione:** `isSoldOut`\n    *   **File:** `frontend/src/features/booking-requests/rules.ts`\n    *   **Vincolo logico (codice):** `return evento.posti_residui <= 0;`\n    *   **Fonte specifica:** Implementa la regola `[REGOLA-FORM-01]` che stabilisce: \"Quando il calcolo dinamico dei posti residui descritto nella [REGOLA-DASH-02] restituisce un valore pari a zero, l'interfaccia grafica della Card Evento deve mutare stato visivo...\".\n\n2.  **Funzione alternativa (naming diverso):** `isSoldOut`\n    *   **File:** `frontend/src/lib/events/stock.ts`\n    *   **Vincolo logico (codice):** `return normalizedStock(event.stock_disponibile) <= 0;`\n    *   **Nota di divergenza:** In questo file, il campo utilizzato è **`stock_disponibile`** (normalizzato), mentre nel glossario e nelle specifiche normative l'entità `EVENTO` utilizza il campo **`posti_residui`**. Entrambi i campi rappresentano la stessa risorsa contesa.\n\n3.  **Campo di riferimento:**\n    *   **Entità:** `EVENTO`\n    *   **Campo:** `posti_residui` (definito nel glossario come `INTEGER`, gestito dal sistema, formula: `posti_totali − COUNT(RICHIESTA WHERE evento_id = id AND stato = 'APPROVATA')`).\n    *   **Vincolo di soglia:** Il valore deve essere `<= 0` per considerare l'evento esaurito.\n\n4.  **Regola applicativa:** `[REGOLA-FORM-01]` (Specificata in `02_specs_normative/spec_dash_1.2.md`)\n    *   **Descrizione:** \"Quando il calcolo dinamico dei posti residui descritto nella [REGOLA-DASH-02] restituisce un valore pari a zero, l'interfaccia grafica della Card Evento deve mutare stato visivo: il pulsante di sottomissione 'Partecipa' deve essere disabilitato (stato HTML `disabled`) e deve comparire un badge testuale rosso recante la dicitura 'Sold Out'.\"\n\n5.  **Funzione composita:** `isInteractionBlocked`\n    *   **File:** `frontend/src/lib/events/stock.ts`\n    *   **Logica:** Combina il risultato di `isSoldOut` (basato su `stock_disponibile`) con la presenza di una richiesta duplicata (`hasActiveRequest`).\n\n**Sintesi del vincolo tecnico estratto:**\nLa decisione di esaurimento si basa sul confronto tra il valore del campo **`posti_residui`** (o `stock_disponibile` nel modulo stock) e la soglia **0**. Se `valore <= 0`, l'evento è considerato esaurito.",
+          "errore": null,
+          "secondi": 13.05,
+          "nega": false,
+          "coefficiente": false
+        },
+        {
+          "passata": 2,
+          "risposta": "La funzione che decide se un evento è esaurito è `isSoldOut`, definita nei file di codice `frontend/src/features/booking-requests/rules.ts` e `frontend/src/lib/events/stock.ts`.\n\nQuesta funzione si basa esclusivamente sul campo **`posti_residui`** dell'entità `EVENTO` (o `stock_disponibile` nel codice TypeScript, che mappano lo stesso concetto).\n\nEcco i vincoli e le regole esatte estratti dal contesto:\n\n1.  **Logica di calcolo:**\n    *   Nel file `frontend/src/features/booking-requests/rules.ts`, la funzione restituisce `true` se `evento.posti_residui <= 0`.\n    *   Nel file `frontend/src/lib/events/stock.ts`, la funzione restituisce `true` se `normalizedStock(event.stock_disponibile) <= 0`.\n\n2.  **Vincoli di integrità del database:**\n    *   Il campo `posti_residui` è soggetto al vincolo logico: `CHECK (posti_residui >= 0 AND posti_residui <= posti_totali)` (fonte: `00_meta_governance/glossario_entita.md`).\n    *   La formula operativa per il calcolo è: `posti_totali − COUNT(RICHIESTA WHERE evento_id = id AND stato = 'APPROVATA')` (fonte: `00_meta_governance/glossario_entita.md`).\n\n3.  **Regole di inibizione dell'interfaccia:**\n    *   Se la funzione restituisce `true` (evento esaurito), si applica `[REGOLA-FORM-01]`: il pulsante \"Partecipa\" deve essere disabilitato (`disabled`) e comparire un badge rosso con la dicitura \"Sold Out\".\n    *   La funzione `isInteractionBlocked` combina questo risultato con la presenza di una richiesta duplicata: `return isSoldOut(event) || hasActiveRequest(event);`.\n\n4.  **Safeguard transazionale:**\n    *   Il decremento di `posti_residui` deve avvenire sotto un lock pessimistico (`SELECT ... FOR UPDATE`) per evitare over-booking, come specificato in `[SAFEGUARD-TXN-01]`.",
+          "errore": null,
+          "secondi": 8.78,
+          "nega": false,
+          "coefficiente": false
+        }
+      ]
+    },
+    "ho-fatt-stessa-classe": {
+      "domanda": "Qual e' la dimensione massima di pagina prevista dal contratto di errore delle API?",
+      "prompt_char": 39304,
+      "prompt_token_stimati": 13101,
+      "quote": {
+        "totale": 36678,
+        "semantico": 16763,
+        "grafo": 9426,
+        "codice": 10489
+      },
+      "passate": [
+        {
+          "passata": 1,
+          "risposta": "La dimensione massima di pagina prevista dal contratto di errore delle API è `100`.\n\nQuesto valore è definito nel documento **`01_architecture_norms/api_error_contract.md`** (§ 0 — Contratto di Istanziazione) all'interno del parametro **`<<LIMITE_PAGINA>>`**, dove il valore nel progetto è specificato come `100 *(default)*`.\n\nIl vincolo operativo associato a questo parametro è enunciato nella **[REGOLA-API-07] Paginazione obbligatoria sulle collezioni** (§ 3. Versionamento, Paginazione e Idempotenza), la quale impone che nessun endpoint di collezione restituisca un insieme non limitato e che la dimensione di pagina sia limitata a `<<LIMITE_PAGINA>>`.",
+          "errore": null,
+          "secondi": 3.46,
+          "nega": false,
+          "coefficiente": false
+        },
+        {
+          "passata": 2,
+          "risposta": "La dimensione massima di pagina prevista dal contratto di errore delle API è `100`.\n\nQuesto valore è definito nel documento **`01_architecture_norms/api_error_contract.md`** (§ 0 — Contratto di Istanziazione) all'interno del parametro **`<<LIMITE_PAGINA>>`**, che ha come \"Valore nel progetto\" esattamente `100`.\n\nIl vincolo è ulteriormente specificato nella **[REGOLA-API-07]** dello stesso documento, la quale impone che la dimensione di pagina sia limitata a `<<LIMITE_PAGINA>>` per evitare il degrado o l'esaurimento della memoria.",
+          "errore": null,
+          "secondi": 2.54,
+          "nega": false,
+          "coefficiente": false
+        }
+      ]
+    },
+    "ho-fatt-classi-diverse": {
+      "domanda": "Quale dominio di posta e' ammesso all'autenticazione del progetto?",
+      "prompt_char": 45831,
+      "prompt_token_stimati": 15277,
+      "quote": {
+        "totale": 43146,
+        "semantico": 25131,
+        "grafo": 7275,
+        "codice": 10740
+      },
+      "passate": [
+        {
+          "passata": 1,
+          "risposta": "Il contesto riporta esplicitamente che il dominio di posta ammesso all'autenticazione è **`@progettopa.it`**.\n\nQuesto vincolo è definito testualmente nei seguenti elementi:\n\n1.  **Identificatore della regola:** `[SAFEGUARD-SEC-01]` Allowlist di Identità Verificata Lato Server.\n2.  **Vincolo tecnico (Invariante):** La condizione logica che non deve mai essere violata è: `session_create() MUST NOT be called UNLESS: identity.domain ∈ @progettopa.it`.\n3.  **Fonte autorevole:** Il blocco `00_meta_governance/safeguards_security.md` classificato come `[IRON_MEMORY]`, che ha l'autorevolezza massima (1.00) rispetto alle altre fonti (es. `REQUIREMENT` a 0.87 o `DATA_DICTIONARY` a 0.70).\n4.  **Contesto di istanziazione:** La tabella in `00_meta_governance/safeguards_security.md § Sezione 0 — Contratto di Istanziazione` mappa il parametro `<<DOMINIO_IDENTITA>>` al valore `@progettopa.it`.\n5.  **Vincolo sul campo DB:** Nel glossario `UTENTE` (`00_meta_governance/glossario_entita.md`), il campo `email` ha il vincolo logico: \"Deve appartenere al dominio `@progettopa.it` (verificato server-side post-OAuth...)\".\n6.  **Codice di errore per violazione:** In caso di identità fuori dall'allowlist, deve essere restituito l'errore `AuthorizationError: DOMAIN_NOT_ALLOWED` con il redirect `/login?error=DOMAIN_NOT_ALLOWED`.\n\nNessun altro dominio è menzionato come ammesso; qualsiasi identità autenticata presso provider diversi o account personali (fuori da questo dominio) deve essere rigettata.",
+          "errore": null,
+          "secondi": 7.71,
+          "nega": false,
+          "coefficiente": true
+        },
+        {
+          "passata": 2,
+          "risposta": "Il contesto riporta che il dominio di posta ammesso all'autenticazione è **`@progettopa.it`**.\n\nQuesto vincolo è stabilito testualmente nei seguenti documenti e codici:\n\n1.  **Design Contract (Safeguard `[SAFEGUARD-SEC-01]`)**:\n    *   Il sistema deve verificare che l'identità appartenga all'allowlist **`@progettopa.it`**.\n    *   La condizione logica richiede: `identity.domain ∈ @progettopa.it`.\n    *   In caso di violazione, il redirect è `/login?error=DOMAIN_NOT_ALLOWED`.\n\n2.  **Sezione 0 — Contratto di Istanziazione**:\n    *   Il parametro **`<<DOMINIO_IDENTITA>>`** ha valore istanziato: **`@progettopa.it`**.\n\n3.  **Glossario Entità (`UTENTE`)**:\n    *   L'attributo `email` deve appartenere al dominio **`@progettopa.it`** (verificato server-side).\n    *   Il constraint DB suggerito è: `CHECK (email LIKE '%@progettopa.it')`.\n\n4.  **Scenario di Accettazione BDD**:\n    *   Il test verifica che l'email restituita da Google OAuth termini con **`@progettopa.it`**.",
+          "errore": null,
+          "secondi": 5.4,
+          "nega": false,
+          "coefficiente": false
+        }
+      ]
+    },
+    "ho-multidoc": {
+      "domanda": "Quale status HTTP corrisponde a un conflitto di concorrenza e quale codice di errore usa il safeguard sulla risorsa esaurita?",
+      "prompt_char": 35961,
+      "prompt_token_stimati": 11987,
+      "quote": {
+        "totale": 33314,
+        "semantico": 18885,
+        "grafo": 6050,
+        "codice": 8379
+      },
+      "passate": [
+        {
+          "passata": 1,
+          "risposta": "Basandomi sul contesto fornito, ecco i contratti e i vincoli estratti testualmente:\n\n**Status HTTP per conflitto di concorrenza:**\nIl documento `01_architecture_norms/api_error_contract.md` (§ 2. Mappatura Semantica degli Status HTTP) stabilisce che lo status da utilizzare è **`409`**.\nLa tabella specifica:\n- **Status:** `409`\n- **Quando:** Conflitto di stato o di concorrenza\n- **Esempio di `code`:** `RESOURCE_EXHAUSTED`, `ENTITY_DELETION_BLOCKED`, `STATE_CONFLICT`\n\n**Codice di errore per la risorsa esaurita (Safeguard):**\nIl documento `01_architecture_norms/api_error_contract.md` (§ 4. Catalogo Minimo degli Errori) e il blocco `[SAFEGUARD-TXN-01]` in `00_meta_governance/safeguards_security.md` indicano che il codice simbolico stabile associato al decremento fallito o alla risorsa esaurita è **`RESOURCE_EXHAUSTED`**.\n\n**Vincoli tecnici e fonti:**\n- Il vincolo di usare `409` per conflitti è enunciato in `[REGOLA-API-04]` (fonte: `NORMS`).\n- L'uso del codice `RESOURCE_EXHAUSTED` è richiesto dal safeguard `[SAFEGUARD-TXN-01]` e `[SAFEGUARD-TXN-04]` (fonte: `IRON_MEMORY`) e mappato esplicitamente nel catalogo errori.\n- Il contesto dichiara che il codice sorgente (`CODICE ESISTENTE`) è una fonte verificata al pari dei documenti, confermando che i nomi di classi, campi e parametri citati sono fatti verificati.\n\n**Divergenza:**\nNel contesto non rilevo divergenze tra codice e documento per quanto riguarda questi specifici identificatori; entrambi concordano su `409` come status e `RESOURCE_EXHAUSTED` come codice simbolico per la risorsa esaurita.",
+          "errore": null,
+          "secondi": 8.08,
+          "nega": false,
+          "coefficiente": false
+        },
+        {
+          "passata": 2,
+          "risposta": "Basandomi sul contesto fornito, ecco i contratti e i vincoli estratti testualmente:\n\n**Status HTTP per conflitto di concorrenza:**\nIl contesto riporta che lo status **`409`** corrisponde a un \"Conflitto di stato o di concorrenza\".\n*   **Fonte:** `01_architecture_norms/api_error_contract.md § 2. Mappatura Semantica degli Status HTTP [NORMS]` nella tabella sotto `[REGOLA-API-04]`.\n\n**Codice di errore per risorsa esaurita:**\nIl contesto riporta che il codice simbolico **`RESOURCE_EXHAUSTED`** è associato allo status `409` e al caso specifico della \"risorsa scarsa contesa\" (categoria 2).\n*   **Fonte:** `01_architecture_norms/api_error_contract.md § 2. Mappatura Semantica degli Status HTTP [NORMS]` nella tabella sotto `[REGOLA-API-04]`.\n*   **Fonte:** `01_architecture_norms/api_error_contract.md § 4. Catalogo Minimo degli Errori [NORMS]` che mappa `RESOURCE_EXHAUSTED` allo status `409` e lo attribuisce ai safeguard `[SAFEGUARD-TXN-01]`, `[SAFEGUARD-TXN-04]`.\n*   **Fonte:** `00_meta_governance/safeguards_security.md § Categoria 2 — Concorrenza Critica sul Database [IRON_MEMORY]` che definisce il pattern \"risorsa scarsa contesa\".\n\n**Vincoli tecnici e identificatori correlati:**\n*   Il codice simbolico **`RESOURCE_EXHAUSTED`** è parte del contratto pubblico (`code`) che i client si programmano sopra.\n*   La violazione di questo vincolo (es. over-booking) produce un errore deterministico al perdente della race condition, gestito dal safeguard `[SAFEGUARD-TXN-04]`.",
+          "errore": null,
+          "secondi": 7.66,
+          "nega": false,
+          "coefficiente": false
+        }
+      ]
+    },
+    "ho-assente": {
+      "domanda": "Qual e' il numero di telefono del responsabile della sicurezza indicato nei safeguard?",
+      "prompt_char": 34760,
+      "prompt_token_stimati": 11586,
+      "quote": {
+        "totale": 32192,
+        "semantico": 21500,
+        "grafo": 2737,
+        "codice": 7955
+      },
+      "passate": [
+        {
+          "passata": 1,
+          "risposta": "[ASTENSIONE]\nIl contesto fornito non riporta il numero di telefono del responsabile della sicurezza. I documenti citati (in particolare `safeguards_security.md`, `glossario_entita.md` e i file di test) definiscono entità come `UTENTE`, `RICHIESTA`, `EVENTO`, `NOTIFICA` e specificano campi PII quali `email`, `nome`, `cognome`, ma non contengono alcun valore numerico per un numero di telefono né identificano esplicitamente un \"responsabile della sicurezza\" con tale dato. Il contesto menziona solo un esempio generico di utente (`responsabile@progettopa.it`) nei test, senza attribuirgli un numero telefonico.",
+          "errore": null,
+          "secondi": 6.63,
+          "nega": true,
+          "coefficiente": false
+        },
+        {
+          "passata": 2,
+          "risposta": "[ASTENSIONE]\nIl contesto fornito non riporta il numero di telefono del responsabile della sicurezza. I documenti citati (in particolare `safeguards_security.md`, `glossario_entita.md` e i file di test) definiscono entità come `UTENTE`, `RICHIESTA`, `EVENTO`, `NOTIFICA` e specificano campi PII quali `email`, `nome`, `cognome`, ma non contengono alcun valore per un campo `telefono` né identificano esplicitamente un \"responsabile della sicurezza\" con un numero di contatto associato. La tabella dei parametri in `00_meta_governance/safeguards_security.md § Sezione 0 — Contratto di Istanziazione` elenca i campi PII come `email`, `nome`, `cognome`, `motivazione`, `commento_manager`, `note_aggiuntive`, ma non include il telefono. Pertanto, non è possibile estrarre tale vincolo o identificatore dal contesto esistente senza violare la regola di astensione.",
+          "errore": null,
+          "secondi": 3.94,
+          "nega": true,
+          "coefficiente": false
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,231 @@
+{
+ "docx_h1": {
+  "markitdown": {
+   "errore": null,
+   "secondi": 0.181,
+   "titoli": [
+    [
+     1,
+     "Specifica tecnica pagamenti"
+    ],
+    [
+     2,
+     "Requisiti"
+    ],
+    [
+     2,
+     "Allegati"
+    ]
+   ],
+   "controlli": {
+    "titolo documento a livello 1": true,
+    "gerarchia": true,
+    "fratelli allo stesso livello": true,
+    "tabella con cella unita: riga associata": true,
+    "intestazione della tabella": true
+   },
+   "superati": "5/5"
+  },
+  "docling": {
+   "errore": null,
+   "secondi": 5.257,
+   "titoli": [
+    [
+     2,
+     "Specifica tecnica pagamenti"
+    ],
+    [
+     3,
+     "Requisiti"
+    ],
+    [
+     3,
+     "Allegati"
+    ]
+   ],
+   "controlli": {
+    "titolo documento a livello 1": false,
+    "gerarchia": true,
+    "fratelli allo stesso livello": true,
+    "tabella con cella unita: riga associata": true,
+    "intestazione della tabella": true
+   },
+   "superati": "4/5"
+  }
+ },
+ "docx_sample": {
+  "markitdown": {
+   "errore": null,
+   "secondi": 0.135,
+   "titoli": [
+    [
+     1,
+     "Titolo DOCX di prova"
+    ],
+    [
+     2,
+     "Sezione seconda"
+    ]
+   ],
+   "controlli": {},
+   "superati": "0/0"
+  },
+  "docling": {
+   "errore": null,
+   "secondi": 0.025,
+   "titoli": [
+    [
+     2,
+     "Titolo DOCX di prova"
+    ],
+    [
+     3,
+     "Sezione seconda"
+    ]
+   ],
+   "controlli": {},
+   "superati": "0/0"
+  }
+ },
+ "xlsx_valori": {
+  "markitdown": {
+   "errore": null,
+   "secondi": 0.071,
+   "titoli": [
+    [
+     2,
+     "Registro"
+    ],
+    [
+     2,
+     "Contatti"
+    ]
+   ],
+   "controlli": {
+    "nomi dei fogli": true,
+    "zeri iniziali dei codici": true,
+    "celle letterali NA / N/A / null conservate": false,
+    "intero non trasformato in decimale": false,
+    "data leggibile senza orario inventato": true,
+    "seconda tabella del foglio": true,
+    "accenti": true,
+    "nessun NaN": false
+   },
+   "superati": "5/8"
+  },
+  "docling": {
+   "errore": null,
+   "secondi": 0.01,
+   "titoli": [
+    [
+     1,
+     "registro"
+    ]
+   ],
+   "controlli": {
+    "nomi dei fogli": false,
+    "zeri iniziali dei codici": true,
+    "celle letterali NA / N/A / null conservate": true,
+    "intero non trasformato in decimale": true,
+    "data leggibile senza orario inventato": false,
+    "seconda tabella del foglio": true,
+    "accenti": true,
+    "nessun NaN": true
+   },
+   "superati": "6/8"
+  },
+  "docling_per_foglio": {
+   "errore": null,
+   "secondi": 0.006,
+   "titoli": [
+    [
+     2,
+     "Registro"
+    ],
+    [
+     2,
+     "Contatti"
+    ]
+   ],
+   "controlli": {
+    "nomi dei fogli": true,
+    "zeri iniziali dei codici": true,
+    "celle letterali NA / N/A / null conservate": true,
+    "intero non trasformato in decimale": true,
+    "data leggibile senza orario inventato": false,
+    "seconda tabella del foglio": true,
+    "accenti": true,
+    "nessun NaN": true
+   },
+   "superati": "7/8"
+  }
+ },
+ "html_latin1_senza_meta": {
+  "markitdown": {
+   "errore": null,
+   "secondi": 0.415,
+   "titoli": [
+    [
+     1,
+     "Guida installazione"
+    ],
+    [
+     2,
+     "Passaggi"
+    ],
+    [
+     3,
+     "Parametri"
+    ]
+   ],
+   "controlli": {
+    "accenti": true
+   },
+   "superati": "1/1"
+  },
+  "docling": {
+   "errore": null,
+   "secondi": 0.016,
+   "titoli": [
+    [
+     1,
+     "Guida installazione"
+    ],
+    [
+     2,
+     "Passaggi"
+    ],
+    [
+     3,
+     "Parametri"
+    ]
+   ],
+   "controlli": {
+    "accenti": false
+   },
+   "superati": "0/1"
+  },
+  "docling+utf8": {
+   "errore": null,
+   "secondi": 0.007,
+   "titoli": [
+    [
+     1,
+     "Guida installazione"
+    ],
+    [
+     2,
+     "Passaggi"
+    ],
+    [
+     3,
+     "Parametri"
+    ]
+   ],
+   "controlli": {
+    "accenti": true
+   },
+   "superati": "1/1"
+  }
+ }
+}

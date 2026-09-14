@@ -1,0 +1,213 @@
+{
+  "run": "pilot_docling_sourcefix_20260909",
+  "packaged_on": "2026-09-14",
+  "note": "Conservazione di prove esistenti, non nuova esecuzione. File originali mantenuti localmente. Percorsi path relativi a rag/eval/results; source relativi alla root del progetto. Script conservati come .txt senza modifiche al contenuto.",
+  "files": [
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/build_candidates.py.txt",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/build_candidates.py",
+      "bytes": 4084,
+      "sha256": "dd2f916a4627fefa40e2fb3e0baf11d2e5013298ade5595d84e0ca9c9fc37f89"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/compare/baseline/loader_diagrammi.txt",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/compare/baseline/loader_diagrammi.txt",
+      "bytes": 1361,
+      "sha256": "ce456ab25080ee4d64c4a72542f7c23c16b594325dc51d8566e2e12288265a96"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/compare/baseline/loader_mockup.txt",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/compare/baseline/loader_mockup.txt",
+      "bytes": 1905,
+      "sha256": "81591ecc8b02f5b489a1b70814d672c6439ae26f95ed7cdd3b382aff0f3048ed"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/compare/baseline/markitdown_diagrammi.md",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/compare/baseline/markitdown_diagrammi.md",
+      "bytes": 1644,
+      "sha256": "f4ec4f2deaa808cb7835082216f331a627b9f9bd1772d376681b4dc40d43e280"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/compare/baseline/markitdown_mockup.md",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/compare/baseline/markitdown_mockup.md",
+      "bytes": 1848,
+      "sha256": "cf0070ff0642deac0e6b456ba0c3b329f7553f1e531dd4890f36148a6109fd4e"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/compare/granite/granite_diagrammi.md",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/compare/granite/granite_diagrammi.md",
+      "bytes": 1857,
+      "sha256": "3c5be08127b52d023b92f2ac59872b1362c1d77de267b2180beb3a7aeb46756b"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/compare/granite/granite_mockup.md",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/compare/granite/granite_mockup.md",
+      "bytes": 2712,
+      "sha256": "25af5e148c384a9a025fe3062f01244c6e53bde714904b9fc43c38925d9885f2"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/compare/standard/standard_diagrammi.md",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/compare/standard/standard_diagrammi.md",
+      "bytes": 1820,
+      "sha256": "ec650a198cf77554bf35481fd15dc0b2f5565d642d3e1e3a1eb7e83e009fcb7a"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/compare/standard/standard_mockup.md",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/compare/standard/standard_mockup.md",
+      "bytes": 2655,
+      "sha256": "d57c0ca6858981685aeed1a62ab1f5282c0105df6ad9bca38893764e16bcfebb"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/confronto_celle.json",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/confronto_celle.json",
+      "bytes": 3687,
+      "sha256": "4759bace11d751ef6f1ba52e672ff02800f3e953333771306877d9bc8e8d0787"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/confronto_domande.json",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/confronto_domande.json",
+      "bytes": 3565,
+      "sha256": "00e4f9a79148f8338ad2af80f982ef6546611259411e783266111a7c168d22ec"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/confronto_testo.json",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/confronto_testo.json",
+      "bytes": 5886,
+      "sha256": "6565489d0d35e126eaa51afebee21a275b33e54d50b4e559f0bade22ede0ec54"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/convert_candidates.py.txt",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/convert_candidates.py",
+      "bytes": 2709,
+      "sha256": "347a8716ba9b227ffded7ead68a8bbf4fdb8f9c25d3f0c7f32935b9aba991c8b"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/inventory.json",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/inventory.json",
+      "bytes": 3528,
+      "sha256": "a798263fc937b4b58f84201473b50ab7229ae1796d4c790e6c31c7fc2047e230"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/RESOCONTO.md",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/RESOCONTO.md",
+      "bytes": 5579,
+      "sha256": "867ce7dcb6dbd38667488067f686a65d2f44624410d217c55b65647b793bab2b"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/run1/run_report.json",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/run1/run_report.json",
+      "bytes": 4079,
+      "sha256": "3b587f580ebc95c2a21f1e209a8235b0afde00aa3858ce071eaa5d62373ecf9c"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/run1/standard_diagrammi.json",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/run1/standard_diagrammi.json",
+      "bytes": 50555,
+      "sha256": "981678c211df879d2ede269c245f5dd901f7424706be359711072359da4b0cf3"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/run1/standard_diagrammi.md",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/run1/standard_diagrammi.md",
+      "bytes": 1820,
+      "sha256": "ec650a198cf77554bf35481fd15dc0b2f5565d642d3e1e3a1eb7e83e009fcb7a"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/run1/standard_mockup.json",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/run1/standard_mockup.json",
+      "bytes": 96409,
+      "sha256": "2420eb31f90c4b772a61ae018ef90a0ccdb24e2976264fbe09a88508a39ee10e"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/run1/standard_mockup.md",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/run1/standard_mockup.md",
+      "bytes": 2655,
+      "sha256": "d57c0ca6858981685aeed1a62ab1f5282c0105df6ad9bca38893764e16bcfebb"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/run2/run_report.json",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/run2/run_report.json",
+      "bytes": 4078,
+      "sha256": "8f1f1a657d1e962f4d54a3de0f0d4897b4fc7e6cca6224f4899ea3616f7554a1"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/run2/standard_diagrammi.json",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/run2/standard_diagrammi.json",
+      "bytes": 50555,
+      "sha256": "981678c211df879d2ede269c245f5dd901f7424706be359711072359da4b0cf3"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/run2/standard_diagrammi.md",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/run2/standard_diagrammi.md",
+      "bytes": 1820,
+      "sha256": "ec650a198cf77554bf35481fd15dc0b2f5565d642d3e1e3a1eb7e83e009fcb7a"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/run2/standard_mockup.json",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/run2/standard_mockup.json",
+      "bytes": 96409,
+      "sha256": "2420eb31f90c4b772a61ae018ef90a0ccdb24e2976264fbe09a88508a39ee10e"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/run2/standard_mockup.md",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/run2/standard_mockup.md",
+      "bytes": 2655,
+      "sha256": "d57c0ca6858981685aeed1a62ab1f5282c0105df6ad9bca38893764e16bcfebb"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/sourcefix_report.json",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/sourcefix_report.json",
+      "bytes": 918,
+      "sha256": "e353076fc32fa6f91a3c8cdba149d87beacd023526b7adadfee32876cdb3c88b"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/truth/domande_pdf_locali.yaml",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/truth/domande_pdf_locali.yaml",
+      "bytes": 4140,
+      "sha256": "22eede74334b969b5f74cd3be7d69e2322fe42f3f6faae86ef6ddd23a11bcc74"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/truth/verita_riferimento.json",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/truth/verita_riferimento.json",
+      "bytes": 8494,
+      "sha256": "c2494d30709931cfb6c062df20e59bd512a09084ea91fe914981a7c947fee3cc"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/verification.json",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/verification.json",
+      "bytes": 582,
+      "sha256": "8c77b0472942a41ad7c9e17207dc4263fa9989e9a0cccf551a9a1bd2d45e368f"
+    },
+    {
+      "path": "pilot_docling_sourcefix_20260909/evidence/verify.py.txt",
+      "source": "rag/eval/results/pilot_docling_sourcefix_20260909/verify.py",
+      "bytes": 2718,
+      "sha256": "a72b8011913aabf83b6873723d212525e72d28496d546fe7d4a8535efd9cbbf3"
+    }
+  ],
+  "omitted_local_files": [
+    {
+      "path": "catalogo_diagrammi_normativi.pdf",
+      "bytes": 4471
+    },
+    {
+      "path": "catalogo_mockup_normativi.pdf",
+      "bytes": 5097
+    },
+    {
+      "path": "diagrammi_p1.png",
+      "bytes": 63105
+    },
+    {
+      "path": "diagrammi_p2.png",
+      "bytes": 80831
+    },
+    {
+      "path": "mockup_p1.png",
+      "bytes": 64471
+    },
+    {
+      "path": "mockup_p2.png",
+      "bytes": 135170
+    }
+  ]
+}

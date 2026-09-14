@@ -1,0 +1,23 @@
+import io
+from pathlib import Path
+import openpyxl
+import pypdfium2 as pdfium
+from core.intake_convert import convert_to_markdown
+pdf = Path("/fix/tabelle_titoli.pdf").read_bytes()
+r = convert_to_markdown(pdf, "pdf", filename="t.pdf")
+assert r.metadata["motore"] == "docling" and r.metadata["fallback"] is None, r.metadata
+assert "#### Note operative" in r.markdown and "| L-02" in r.markdown, r.markdown
+img = pdfium.PdfDocument(pdf)[0].render(scale=150 / 72).to_pil().convert("L")
+buf = io.BytesIO()
+img.save(buf, format="PDF", resolution=150)
+s = convert_to_markdown(buf.getvalue(), "pdf", filename="s.pdf")
+assert s.metadata["pdf"]["ocr"] and s.metadata["fallback"] is None and "Beta SpA" in s.markdown, s.metadata
+wb = openpyxl.Workbook()
+wb.active.title = "Budget"
+wb.active.append(["Voce", "Stato"])
+wb.active.append(["A", "NA"])
+buf = io.BytesIO()
+wb.save(buf)
+x = convert_to_markdown(buf.getvalue(), "xlsx", filename="b.xlsx")
+assert x.metadata["motore"] == "docling" and "## Budget" in x.markdown and "NA" in x.markdown, x.markdown
+print("Docling nell'immagine: PDF, OCR e XLSX ok")

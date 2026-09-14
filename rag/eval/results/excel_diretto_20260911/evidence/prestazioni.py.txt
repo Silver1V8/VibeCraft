@@ -1,0 +1,49 @@
+"""Tempo e picco di memoria di UNA conversione, in un processo nuovo (uso: python -B
+prestazioni.py FILE [FILE ...], da rag/). Per ogni file stampa una riga JSON. Con --genera DIR
+scrive prima i campioni sintetici rappresentativi (openpyxl write_only, valori noti)."""
+import hashlib
+import json
+import sys
+import threading
+import time
+from pathlib import Path
+
+import psutil
+
+sys.path.insert(0, str(Path.cwd()))
+
+
+def genera(out: Path) -> None:
+    import openpyxl
+    for righe, colonne in ((10_000, 10), (90_000, 11)):
+        wb = openpyxl.Workbook(write_only=True)
+        ws = wb.create_sheet("Dati")
+        ws.append([f"Colonna {c}" for c in range(colonne)])
+        for r in range(righe):
+            ws.append([f"cod_{r:06}", r, r * 1.5, None if r % 7 else "NA", *range(colonne - 4)])
+        wb.save(out / f"sintetico_{righe * colonne // 1000}k.xlsx")
+
+
+if __name__ == "__main__":
+    if sys.argv[1] == "--genera":
+        genera(Path(sys.argv[2]))
+        raise SystemExit
+    from core.intake_convert import convert_to_markdown  # dopo il campionatore: import compreso
+    for f in map(Path, sys.argv[1:]):
+        stop, peak, proc = threading.Event(), [0], psutil.Process()
+
+        def sample():
+            while not stop.is_set():
+                peak[0] = max(peak[0], proc.memory_info().rss)
+                stop.wait(0.005)
+        th = threading.Thread(target=sample, daemon=True)
+        base = proc.memory_info().rss
+        th.start()
+        t0 = time.perf_counter()
+        md = convert_to_markdown(f, f.suffix[1:].lower()).markdown
+        dt = time.perf_counter() - t0
+        stop.set()
+        th.join()
+        print(json.dumps({"file": f.name, "byte": f.stat().st_size, "secondi": round(dt, 3),
+                          "rss_prima_mb": round(base / 1e6, 1), "picco_rss_mb": round(peak[0] / 1e6, 1),
+                          "markdown_byte": len(md.encode()), "md_sha256": hashlib.sha256(md.encode()).hexdigest()}))

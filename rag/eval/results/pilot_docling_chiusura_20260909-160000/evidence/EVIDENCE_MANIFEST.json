@@ -1,0 +1,507 @@
+{
+  "run": "pilot_docling_chiusura_20260909-160000",
+  "packaged_on": "2026-09-14",
+  "note": "Conservazione di prove esistenti, non nuova esecuzione. File originali mantenuti localmente. Percorsi path relativi a rag/eval/results; source relativi alla root del progetto. Script conservati come .txt senza modifiche al contenuto.",
+  "files": [
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/audit/audit_finale_20260909-110000.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/audit/audit_finale_20260909-110000.json",
+      "bytes": 28642,
+      "sha256": "712a643473fa8d058e22cca69a119ba1427949595a675e477f100ecf1ed76188"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/audit/AUDIT_MISURE_PRECEDENTI.md",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/audit/AUDIT_MISURE_PRECEDENTI.md",
+      "bytes": 11557,
+      "sha256": "ae9059a9f70f993132899401a78e9a0fb3b427af3cb42772747ced6e9bd25cbc"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/audit/indice_precedente_baseline/chunks.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/audit/indice_precedente_baseline/chunks.json",
+      "bytes": 443413,
+      "sha256": "3dd68c31e3bc7d42b53b342b499ad86074f58674d4b6cb74b36a115a55a00d54"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/audit/indice_precedente_baseline/index_manifest.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/audit/indice_precedente_baseline/index_manifest.json",
+      "bytes": 35150,
+      "sha256": "f50dea3219b693147e6b2528b4ca3390cf832b9b2ba89d3e38dbbc9d085f71bf"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/audit/indice_precedente_candidate/chunks.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/audit/indice_precedente_candidate/chunks.json",
+      "bytes": 444697,
+      "sha256": "6b927d6dea5e8cdd32094f138227608a62b587ff3fcd190590ccfd6ea8a1a717"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/audit/indice_precedente_candidate/index_manifest.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/audit/indice_precedente_candidate/index_manifest.json",
+      "bytes": 35152,
+      "sha256": "3db91abe49c8ddad3a45927c71c9052d31a0fed58c91c52ac01e9f297f76722f"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/diff/baseline__adr__EVOLUZIONE.md.diff",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/diff/baseline__adr__EVOLUZIONE.md.diff",
+      "bytes": 17790,
+      "sha256": "8c6e9b08156bb8f6cf724cf51a84f42a5e8a7413114a4ae7894be27164695acd"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/diff/baseline__eval__golden_attribution.yaml.diff",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/diff/baseline__eval__golden_attribution.yaml.diff",
+      "bytes": 439,
+      "sha256": "e30f503a8489086c22d9b36d8ac5fe92bc2929689258e7590cde0b93a38376ee"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/diff/candidate__adr__EVOLUZIONE.md.diff",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/diff/candidate__adr__EVOLUZIONE.md.diff",
+      "bytes": 17791,
+      "sha256": "8b0bbb565fe95c64f7f72f170e078d6d96b50f79110aff6bbbcef7e070366112"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/diff/candidate__core__chunking.py.diff",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/diff/candidate__core__chunking.py.diff",
+      "bytes": 879,
+      "sha256": "b5690fe6ce14363a6be9e126ff5d92d484bee1bc4d74cdc3628d0c66f03f399c"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/diff/candidate__eval__golden_attribution.yaml.diff",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/diff/candidate__eval__golden_attribution.yaml.diff",
+      "bytes": 440,
+      "sha256": "ea146afac2d7a421bf45b6669017c042d02cd7eae31cc3fa98cd8f0c09e2bcb7"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/diff/indice_baseline.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/diff/indice_baseline.json",
+      "bytes": 777,
+      "sha256": "8673e6dd2cc14fc919d52e5fcadcf782cb33bca2f5acbca76f64dca5727ec989"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/diff/indice_candidate.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/diff/indice_candidate.json",
+      "bytes": 997,
+      "sha256": "1cbb079afa7fd69da6003b72cf9dd52fd0feb7fed68ef47fc93fdb1013852d03"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/inventario_sha256.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/inventario_sha256.json",
+      "bytes": 13648,
+      "sha256": "db2d0c615337f1ccfc13e0504498ad15eadc412942e72f5332e59f62bdf37dbe"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/manifest/manifest.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/manifest/manifest.json",
+      "bytes": 3432,
+      "sha256": "d55d57fe4fc9ff5fa34f45d080da819a595ae89df7d9563a44d3449e4de85879"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/attribuzione_baseline-variante.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/attribuzione_baseline-variante.json",
+      "bytes": 301099,
+      "sha256": "1cff90d070ee3c3a8c70fe3bb3eea0418246585941d1eb5a89a188b9e7a568bf"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/attribuzione_baseline.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/attribuzione_baseline.json",
+      "bytes": 304834,
+      "sha256": "a87d180af32c61d608738d1704cb78049a6a30cac5fdc2779683fc64153878e0"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/attribuzione_candidate-r2.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/attribuzione_candidate-r2.json",
+      "bytes": 25370,
+      "sha256": "0f7fd9315147b9948cdefac0d9e42aa2de40ce10f3e2e9865064b340de676bc4"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/attribuzione_candidate-r3.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/attribuzione_candidate-r3.json",
+      "bytes": 20370,
+      "sha256": "b9c2cce50e1d061a1aaa57c6cf5ca267a819b2158f019a1048bd7d7637739d27"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/attribuzione_candidate-variante.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/attribuzione_candidate-variante.json",
+      "bytes": 304702,
+      "sha256": "672d7c6a55cb18f1550780427937a7e0365841d270137115023de704e2d9f5e4"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/attribuzione_candidate.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/attribuzione_candidate.json",
+      "bytes": 304265,
+      "sha256": "bf33f3e5f1fc5f9b1ebc264acd6c0c91aa79b1e4be71fac2f11f348cf1626794"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/confronto_finale.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/confronto_finale.json",
+      "bytes": 258890,
+      "sha256": "34f8c3c35cb6c2309adf73610a9a6e4e7fb52a7461cf4c519c05bb3f18ff3910"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_baseline-variante_p1.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/eval_baseline-variante_p1.json",
+      "bytes": 442848,
+      "sha256": "e04f13f245919df6fe7016b0311b70c42ea01b35f873781f7dd43b762ce6c831"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_baseline-variante_p2.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/eval_baseline-variante_p2.json",
+      "bytes": 441070,
+      "sha256": "08e923dc3204244a10a2ea635eaf754f4d0eef390cde06e366f2db76a86288ef"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_baseline-variante_p3.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/eval_baseline-variante_p3.json",
+      "bytes": 442965,
+      "sha256": "e664995f460adbd33ef504499cf984d1e4deeedf2b86aa0b5d0de0e798d628c3"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_baseline_p1.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/eval_baseline_p1.json",
+      "bytes": 442599,
+      "sha256": "44dd85070a4e86f4ab48ddaf84f898f0a2b75076fba0d7e7689b361d9e6937fc"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_baseline_p2.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/eval_baseline_p2.json",
+      "bytes": 443424,
+      "sha256": "341e779f0f215b63de6bdef1d845b32a9f1ee3c26a9e4589aecaa57ab53a1725"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_baseline_p3.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/eval_baseline_p3.json",
+      "bytes": 441464,
+      "sha256": "c0e1793269afe0a0c9e0e62d8c5c3b74bb92f1692f35b64645fea6ea3b0970fa"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_candidate-variante_p1.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/eval_candidate-variante_p1.json",
+      "bytes": 459950,
+      "sha256": "7f87db14b74d07fe55ec5827de0f2db3960f72b7efd8771765ae2052a7b51a93"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_candidate-variante_p2.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/eval_candidate-variante_p2.json",
+      "bytes": 460853,
+      "sha256": "427cecce3301e899d758b96ba37e16d559e8d12f0f9ecd66d175f0a92ed60ab0"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_candidate-variante_p3.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/eval_candidate-variante_p3.json",
+      "bytes": 460238,
+      "sha256": "8ce26bbbd78e3eed3ba256852f446ba22bc350960a1b2ca519f1dd7983de8c14"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_candidate_p1.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/eval_candidate_p1.json",
+      "bytes": 459997,
+      "sha256": "486838ff46d8cbe08e70b50db89846bf56556f4733d0a2d97e1c090a255100e2"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_candidate_p2.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/eval_candidate_p2.json",
+      "bytes": 460256,
+      "sha256": "f902359365b34fc6750515c40478bc5f6b92c85a546b23aa10906e7475010ba2"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_candidate_p3.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/eval_candidate_p3.json",
+      "bytes": 460541,
+      "sha256": "3fba820334c3b228382ae2fa8a925d601cc9b8fcb936aa6b07f45db413785724"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/sonda_baseline.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/sonda_baseline.json",
+      "bytes": 3737,
+      "sha256": "1f1c35f2a77f39ca5edc735c390b37933a290a35afb66696cfca40285a172ea1"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/sonda_candidate.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/sonda_candidate.json",
+      "bytes": 3405,
+      "sha256": "bb3caeb4df7739be6cc124fd6bed1a1613aba127d373da3f97667080e6072337"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/suite.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/suite.json",
+      "bytes": 556,
+      "sha256": "2962c372adf0810d2a33942da9a5ddbee884d22b269a73d31ca9e9659048b25b"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/out/verifica_riuso.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/out/verifica_riuso.json",
+      "bytes": 2182,
+      "sha256": "bb65d94343399447a7c2e328a2a1790c37971fcd58893ca607eb05727506cad6"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/RESOCONTO.md",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/RESOCONTO.md",
+      "bytes": 16617,
+      "sha256": "2c091deaa553c8155590e2426d745e370c32725074eb4b66ffb87ea451250db0"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/review/PACCHETTO_REVISIONE.md",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/review/PACCHETTO_REVISIONE.md",
+      "bytes": 68028,
+      "sha256": "7a75a9a90480d4fadec989c66e791eb6b93f032cc86241aee9f5e483c4112616"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/scripts/assi.py.txt",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/scripts/assi.py",
+      "bytes": 8148,
+      "sha256": "62a26b8e879ad75f029351b43698c3542eb6583aca91f1e06e9f158325c0b368"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/scripts/audit_risposte.py.txt",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/scripts/audit_risposte.py",
+      "bytes": 8683,
+      "sha256": "5229966ab311fbc5be016a2fdb9d258c1fae02eb5af68ed645ce47ea21cb47af"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/scripts/avvia_server.sh.txt",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/scripts/avvia_server.sh",
+      "bytes": 1103,
+      "sha256": "dc3413602d64bddca4274ac73212ec289e88aac02d78f2e7a2d0854911d0a234"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/scripts/build_stack.sh.txt",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/scripts/build_stack.sh",
+      "bytes": 1458,
+      "sha256": "a1c7a4cb4be582f35a88c24075f6106288476d511cd981e9d882a022d4083f78"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/scripts/check_citazioni.py.txt",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/scripts/check_citazioni.py",
+      "bytes": 3536,
+      "sha256": "cd8cb4711064e0a30c9eee3503dc3bce613d1cd8c01ae7623bc7e2ba09dc202b"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/scripts/citazioni.py.txt",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/scripts/citazioni.py",
+      "bytes": 3090,
+      "sha256": "fe7f502387e32e579839e9c3c2b51b322cc6e239815d6c6a5ae45289174b29dd"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/scripts/eval_stack.py.txt",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/scripts/eval_stack.py",
+      "bytes": 7477,
+      "sha256": "24179229c838c82ddbfca3031c3f7d962a21ea180c999b0d40bd50e192504158"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/scripts/fase5.sh.txt",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/scripts/fase5.sh",
+      "bytes": 2052,
+      "sha256": "56293cc37d3d7e20028d47d06b339dfcb08ff1dceee08f9e5c0745005f2cd8c8"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/scripts/make_manifest.py.txt",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/scripts/make_manifest.py",
+      "bytes": 5624,
+      "sha256": "da2a7f13f781026abffe66fd6ca5a4eec723ee5176ff8853c5ec1c4d5fd27672"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/scripts/pacchetto_revisione.py.txt",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/scripts/pacchetto_revisione.py",
+      "bytes": 7476,
+      "sha256": "e2c0ab6abdf75c3c147a2528c92ec1241ab14c38a0203c5c36b3e536a197b31b"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/scripts/patch_variante_prompt.py.txt",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/scripts/patch_variante_prompt.py",
+      "bytes": 4487,
+      "sha256": "6625016252b69a6d25dc0fad3611ef9a84074c10390945aaa575c1221cc10437"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/scripts/prepara_sandbox.py.txt",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/scripts/prepara_sandbox.py",
+      "bytes": 3255,
+      "sha256": "2704fcab17823b5bcc40ced9833e02f54c0c9436e31a4e6ac6e62324793d7f78"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/scripts/registra_diff.py.txt",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/scripts/registra_diff.py",
+      "bytes": 3073,
+      "sha256": "47dfccdf3f026590ac9429fbadb8c00a4bc0cee4be01953ae3519bfbf68982a4"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/scripts/regressione_attribuzione.py.txt",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/scripts/regressione_attribuzione.py",
+      "bytes": 6114,
+      "sha256": "12e4b0e3b64e9b2ee12228efb07013122b13abca1b4cb3b1126f7f56fba4a3fb"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/scripts/rileggi_sonda.py.txt",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/scripts/rileggi_sonda.py",
+      "bytes": 2250,
+      "sha256": "f12827af38c9404f9c8b786bbf5358cec927d0d52b22be419cf5a7d42e225a65"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/scripts/run_suite.sh.txt",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/scripts/run_suite.sh",
+      "bytes": 1886,
+      "sha256": "8afb828e1f48af1969668f6af3f356a6c719f3dfd2d1e5ce5a7be8e9c3b865eb"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/scripts/score_finale.py.txt",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/scripts/score_finale.py",
+      "bytes": 8336,
+      "sha256": "dd29fe54eeb66d54aff370902140e9a4849c5cf8c30667015e426e5059a0c685"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/scripts/sonda_diagnostica.py.txt",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/scripts/sonda_diagnostica.py",
+      "bytes": 3740,
+      "sha256": "08125acf002fc0693dec2d5b2d119d56abb617b10ebb8978bc594ee191d9ba02"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/scripts/verifica_riuso.py.txt",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/scripts/verifica_riuso.py",
+      "bytes": 4793,
+      "sha256": "d8efab971033f28eefedfcacd721142f21904d11ee99c243a343fbb2452ea3e7"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/truth/domande_pdf_locali.yaml",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/truth/domande_pdf_locali.yaml",
+      "bytes": 4140,
+      "sha256": "22eede74334b969b5f74cd3be7d69e2322fe42f3f6faae86ef6ddd23a11bcc74"
+    },
+    {
+      "path": "pilot_docling_chiusura_20260909-160000/evidence/truth/verita_riferimento.json",
+      "source": "rag/eval/results/pilot_docling_chiusura_20260909-160000/truth/verita_riferimento.json",
+      "bytes": 8494,
+      "sha256": "c2494d30709931cfb6c062df20e59bd512a09084ea91fe914981a7c947fee3cc"
+    }
+  ],
+  "omitted_local_files": [
+    {
+      "path": "audit/indice_precedente_baseline/VERSIONE",
+      "bytes": 17
+    },
+    {
+      "path": "audit/indice_precedente_candidate/VERSIONE",
+      "bytes": 17
+    },
+    {
+      "path": "logs/attribuzione-baseline-variante.log",
+      "bytes": 734
+    },
+    {
+      "path": "logs/attribuzione-candidate-variante.log",
+      "bytes": 767
+    },
+    {
+      "path": "logs/attribuzione-candidate.log",
+      "bytes": 710
+    },
+    {
+      "path": "logs/eval-baseline-variante.log",
+      "bytes": 1789
+    },
+    {
+      "path": "logs/eval-baseline.log",
+      "bytes": 1760
+    },
+    {
+      "path": "logs/eval-candidate-variante.log",
+      "bytes": 1789
+    },
+    {
+      "path": "logs/eval-candidate.log",
+      "bytes": 1761
+    },
+    {
+      "path": "logs/golden-baseline.log",
+      "bytes": 7678
+    },
+    {
+      "path": "logs/golden-candidate.log",
+      "bytes": 7678
+    },
+    {
+      "path": "logs/index-baseline.log",
+      "bytes": 101989
+    },
+    {
+      "path": "logs/index-candidate.log",
+      "bytes": 101551
+    },
+    {
+      "path": "logs/multihop-baseline.log",
+      "bytes": 2062
+    },
+    {
+      "path": "logs/multihop-candidate.log",
+      "bytes": 2062
+    },
+    {
+      "path": "logs/server-attrib-baseline.log",
+      "bytes": 15090
+    },
+    {
+      "path": "logs/server-attrib-candidate-r.log",
+      "bytes": 25988
+    },
+    {
+      "path": "logs/server-attrib2-baseline-variante.log",
+      "bytes": 15067
+    },
+    {
+      "path": "logs/server-attrib2-baseline.log",
+      "bytes": 15077
+    },
+    {
+      "path": "logs/server-attrib2-candidate-variante.log",
+      "bytes": 15075
+    },
+    {
+      "path": "logs/server-attrib2-candidate.log",
+      "bytes": 15071
+    },
+    {
+      "path": "logs/server-baseline-variante.log",
+      "bytes": 46505
+    },
+    {
+      "path": "logs/server-baseline.log",
+      "bytes": 94139
+    },
+    {
+      "path": "logs/server-candidate-variante.log",
+      "bytes": 46499
+    },
+    {
+      "path": "logs/server-candidate.log",
+      "bytes": 104974
+    },
+    {
+      "path": "logs/server-sonda-baseline.log",
+      "bytes": 8019
+    },
+    {
+      "path": "logs/server-sonda-candidate.log",
+      "bytes": 8017
+    },
+    {
+      "path": "logs/suite-catena-applicativa.log",
+      "bytes": 2276
+    },
+    {
+      "path": "logs/suite-catena-applicativa.xml",
+      "bytes": 167824
+    },
+    {
+      "path": "logs/suite-catena-candidata.log",
+      "bytes": 3027
+    },
+    {
+      "path": "logs/suite-catena-candidata.xml",
+      "bytes": 167825
+    },
+    {
+      "path": "logs/suite-variante.log",
+      "bytes": 3600
+    },
+    {
+      "path": "logs/suite-variante.xml",
+      "bytes": 169094
+    }
+  ]
+}

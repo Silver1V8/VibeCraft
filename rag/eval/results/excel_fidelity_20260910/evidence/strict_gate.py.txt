@@ -1,0 +1,47 @@
+"""Strict acceptance: independent workbook tables must not share an output table.
+
+This is intentionally separate from checks of coordinate retention. A coordinate
+grid is not sufficient evidence of semantic table separation. Exit 1 blocks CI.
+Use --baseline to run the exact converter saved before this experiment.
+"""
+import io
+import json
+import sys
+import types
+from pathlib import Path
+
+import openpyxl
+from openpyxl.worksheet.table import Table
+
+sys.path.insert(0, str(Path.cwd()))
+from core.intake_convert import convert_to_markdown  # noqa: E402
+
+
+def check(convert):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(["Voce", "Euro", None, "Persona", "Anni"])
+    ws.append(["A", 12, None, "Ada", 30])
+    ws.add_table(Table(displayName="Costi", ref="A1:B2"))
+    ws.add_table(Table(displayName="Persone", ref="D1:E2"))
+    buf = io.BytesIO()
+    wb.save(buf)
+    md = convert(buf.getvalue(), "xlsx", filename="indipendenti.xlsx").markdown
+    blocks = [block for block in md.split("\n\n") if block.startswith("|")]
+    separate = (any("Voce" in b and "12" in b and "Persona" not in b for b in blocks)
+                and any("Persona" in b and "Ada" in b and "Voce" not in b for b in blocks))
+    return {"independent_tables": separate, "markdown": md,
+            "verdict": "PASS" if separate else "NON_APPLICARE"}
+
+
+if __name__ == "__main__":
+    converter = convert_to_markdown
+    if "--baseline" in sys.argv:
+        baseline = types.ModuleType("excel_before_gate")
+        sys.modules[baseline.__name__] = baseline
+        source = Path(__file__).with_name("intake_convert.before.txt").read_text(encoding="utf-8")
+        exec(compile(source, "intake_convert.before.txt", "exec"), baseline.__dict__)
+        converter = baseline.convert_to_markdown
+    result = check(converter)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    raise SystemExit(0 if result["independent_tables"] else 1)

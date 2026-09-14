@@ -1,0 +1,20 @@
+"""SHA-256 dello stato protetto: corpus docs/, staging (cataloghi compresi), CURRENT, storico.
+Uso dalla radice del repository: python protetti.py OUT.json [CONFRONTA.json]"""
+import hashlib
+import json
+import sys
+from pathlib import Path
+
+ROOTS = ["docs", "rag/database/staging", "rag/database/CURRENT", "rag/eval/results/history.jsonl"]
+snap = {}
+for root in map(Path, ROOTS):
+    for p in sorted([root] if root.is_file() else root.rglob("*")):
+        if p.is_file():
+            snap[p.as_posix()] = hashlib.sha256(p.read_bytes()).hexdigest()
+Path(sys.argv[1]).write_text(json.dumps(snap, indent=1), encoding="utf-8")
+print(len(snap), "file; CURRENT =", Path("rag/database/CURRENT").read_text().strip())
+if len(sys.argv) > 2:
+    old = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+    diff = {k for k in old.keys() | snap.keys() if old.get(k) != snap.get(k)}
+    print("INVARIATO" if not diff else f"CAMBIATI: {sorted(diff)}")
+    raise SystemExit(1 if diff else 0)

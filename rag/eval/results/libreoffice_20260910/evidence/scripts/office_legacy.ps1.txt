@@ -1,0 +1,59 @@
+# Versioni legacy (DOC, XLS, PPT), copie salvate da Office e varianti protette, prodotte da
+# Word, Excel e PowerPoint 16 installati: produttori indipendenti da LibreOffice.
+# Nessuna impostazione di Office viene modificata; le applicazioni si chiudono alla fine.
+# Uso: pwsh -File office_legacy.ps1 <fixture_dir>
+param([Parameter(Mandatory)] [string]$Dir)
+$ErrorActionPreference = 'Stop'
+$Dir = (Resolve-Path $Dir).Path
+$missing = [System.Reflection.Missing]::Value
+
+$word = New-Object -ComObject Word.Application
+$word.Visible = $false; $word.DisplayAlerts = 0
+try {
+    # manuale: nota a piè di pagina aggiunta da Word, poi DOCX e DOC salvati da Word
+    $d = $word.Documents.Open("$Dir\manuale_src.docx", $false, $false)
+    $p = @($d.Paragraphs) | Where-Object { $_.Range.Text -like 'Chiusura del documento*' } | Select-Object -First 1
+    $r = $p.Range; [void]$r.MoveEnd(1, -1); $r.Collapse(0)
+    [void]$d.Footnotes.Add($r, $missing, 'Nota a piè di pagina: fonte interna 2026.')
+    $d.SaveAs2("$Dir\manuale.docx", 16)
+    $d.SaveAs2("$Dir\manuale.doc", 0)
+    $d.SaveAs2("$Dir\manuale_protetto.doc", 0, $false, 'segreta')
+    $d.SaveAs2("$Dir\manuale_protetto.docx", 16, $false, 'segreta')
+    $d.Close(0)
+    $d = $word.Documents.Open("$Dir\specifica.docx", $false, $false)
+    $d.SaveAs2("$Dir\specifica_word.docx", 16)
+    $d.SaveAs2("$Dir\specifica_word.doc", 0)
+    $d.Close(0)
+} finally { $word.Quit() }
+
+$xl = New-Object -ComObject Excel.Application
+$xl.Visible = $false; $xl.DisplayAlerts = $false
+try {
+    $wb = $xl.Workbooks.Open("$Dir\registro.xlsx")
+    $wb.SaveAs("$Dir\registro_excel.xlsx", 51)
+    $wb.SaveAs("$Dir\registro.xls", 56)
+    $wb.SaveAs("$Dir\registro_protetto.xls", 56, 'segreta')
+    $wb.SaveAs("$Dir\registro_protetto.xlsx", 51, 'segreta')
+    $wb.Close($false)
+} finally { $xl.Quit() }
+
+$pp = New-Object -ComObject PowerPoint.Application
+try {
+    $pr = $pp.Presentations.Open("$Dir\rilascio.pptx", 0, 0, 0)
+    $pr.SaveAs("$Dir\rilascio_pp.pptx", 24)
+    $pr.SaveAs("$Dir\rilascio.ppt", 1)
+    $pr.Password = 'segreta'
+    $pr.SaveAs("$Dir\rilascio_protetto.ppt", 1)
+    $pr.SaveAs("$Dir\rilascio_protetto.pptx", 24)
+    $pr.Close()
+} finally { $pp.Quit() }
+
+# File problematici: vuoti, troncati (intestazione OLE intatta, resto mancante), rinominati.
+foreach ($e in 'doc', 'xls', 'ppt', 'docx', 'xlsx', 'pptx') { [IO.File]::WriteAllBytes("$Dir\vuoto.$e", [byte[]]@()) }
+foreach ($pair in @(@('manuale.doc', 'troncato.doc'), @('registro.xls', 'troncato.xls'), @('rilascio.ppt', 'troncato.ppt'))) {
+    $bytes = [IO.File]::ReadAllBytes("$Dir\$($pair[0])")
+    [IO.File]::WriteAllBytes("$Dir\$($pair[1])", $bytes[0..4095])
+}
+Copy-Item "$Dir\manuale.docx" "$Dir\finto.doc"
+Copy-Item "$Dir\registro.xlsx" "$Dir\finto.xls"
+Get-ChildItem $Dir | Select-Object Name, Length | Format-Table -AutoSize

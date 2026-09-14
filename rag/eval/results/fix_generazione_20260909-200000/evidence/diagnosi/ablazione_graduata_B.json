@@ -1,0 +1,137 @@
+{
+  "pdf+0": {
+    "token_prompt": 1541,
+    "contesto_char": 1993,
+    "righe": [
+      {
+        "r": 1,
+        "kb": true,
+        "coeff": false,
+        "nega": false,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, situato nell'area **Governance**. Il suo peso è di **19.5 KB**.\n\nNessun vincolo tecnico, soglia o identificatore aggiuntivo è enunciato nel contesto fornito per questa specifica entità; pertanto, non vengono riportati altri codici o parametri oltre a quelli estratti testualmente dalla tabella «Registro dei file» del documento [SENZA CLASSE]."
+      },
+      {
+        "r": 2,
+        "kb": true,
+        "coeff": false,
+        "nega": false,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, situato nell'area **Governance**. Il suo peso è di **19.5 KB**.\n\nNessun vincolo tecnico, soglia o identificatore aggiuntivo relativo a questa specifica domanda è enunciato nel contesto fornito; pertanto, non vengono riportati altri codici o regole oltre a quelli estratti testualmente dalla tabella «Registro dei file» del documento `catalogo_diagrammi_normativi.pdf` (CLASSE: SENZA CLASSE)."
+      },
+      {
+        "r": 3,
+        "kb": true,
+        "coeff": false,
+        "nega": true,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, situato nell'area **Governance**. Il suo peso è **19.5 KB**.\n\nQuesta informazione è riportata nel file `catalogo_diagrammi_normativi.pdf` (classe: [SENZA CLASSE]). Poiché il contesto non contiene documenti di classe NORMS, REQUIREMENTS o METADATA che enuncino questo vincolo tecnico (il peso del file), la fonte più autorevole disponibile per stabilire questo dato è proprio il documento fornito, sebbene esso sia classificato come [SENZA CLASSE]."
+      }
+    ]
+  },
+  "pdf+2": {
+    "token_prompt": 2906,
+    "contesto_char": 6088,
+    "righe": [
+      {
+        "r": 1,
+        "kb": true,
+        "coeff": false,
+        "nega": true,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.sv g**, situato nell'area **Governance** con finalità di \"Checkpoint human-in-the-loop e punti di controllo\".\n\nQuesto file ha un peso di **19.5 KB**.\n\nIl contesto non riporta alcun altro diagramma dedicato specificamente ai checkpoint HITL; gli altri diagrammi elencati nel catalogo (relazioni moduli, macchina a stati, concorrenza pessimistica, grafo RAG) trattano ambiti diversi."
+      },
+      {
+        "r": 2,
+        "kb": false,
+        "coeff": true,
+        "nega": false,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.sv g**, situato nell'area **Governance** (file: `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`).\n\nIl peso attribuito a questo vincolo è **0.30**.\nQuesta valutazione deriva dal fatto che il file del catalogo (`catalogo_diagrammi_normativi.pdf`) è classificato come **[SENZA CLASSE]**, che ha un'autorevolezza dichiarata di 0.30 (la più bassa tra le fonti presenti), mentre la documentazione dettagliata sul protocollo HITL si trova in `vibe_coding_workflow.md` con classe **[METHODOLOGY]** (peso 0.50). Poiché il vincolo specifico (il diagramma) è elencato nel catalogo senza classe, si applica il peso della sua fonte dichiarata."
+      },
+      {
+        "r": 3,
+        "kb": true,
+        "coeff": true,
+        "nega": false,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.sv g**, situato nell'area **Governance** con la finalità di tracciare i \"Checkpoint human-in-the-loop e punti di controllo\".\n\nQuesto diagramma ha un peso dichiarato di **19.5 KB**.\n\nLa fonte che enuncia questo vincolo è il file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`, classificato come **[SENZA CLASSE]** (peso autorevolezza 0.30). Poiché non ci sono altre fonti nel contesto che definiscono o confermano questo specifico identificatore di file, la fonte meno autorevole è l'unica a stabilire il vincolo."
+      }
+    ]
+  },
+  "pdf+4": {
+    "token_prompt": 4953,
+    "contesto_char": 12229,
+    "righe": [
+      {
+        "r": 1,
+        "kb": false,
+        "coeff": true,
+        "nega": true,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg** (noto anche come `diag_6_2_hitl_checkpoints.svg` nel registro dei file), situato nell'area **Governance**.\n\nIl peso attribuito a questo documento, in base alla sua fonte dichiarata, è **0.30**, poiché la sua classe è **[SENZA CLASSE]** (come specificato nella tabella \"Registro dei file\" del catalogo diagrammi).\n\n**Nota sulla divergenza di autorità:**\nSebbene il documento `diag_6_2_hitl_checkpoints.svg.svg` sia l'artefatto visivo corretto per i checkpoint HITL, la specifica normativa che definisce i dettagli operativi di questi checkpoint (es. `[REGOLA-HITL-01]`, `[REGOLA-HITL-05]`) si trova nel documento `vibe_coding_workflow.md` classificato come **[METHODOLOGY]** con un peso di **0.50**.\nSecondo la regola di attribuzione delle fonti, il vincolo o la specifica tecnica (la descrizione dei checkpoint) deve essere attribuito alla fonte più autorevole che lo enuncia (`vibe_coding_workflow.md`, 0.50), mentre il diagramma visivo (`diag_6_2_hitl_checkpoints.svg.svg`) funge da rappresentazione grafica con il suo peso intrinseco di **0.30**. Il contesto non riporta un vincolo tecnico specifico che si applichi *esclusivamente* al file SVG a discapito del documento metodologico, ma li distingue per classe e funzione (visivo vs testo normativo)."
+      },
+      {
+        "r": 2,
+        "kb": true,
+        "coeff": false,
+        "nega": false,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg** (presente nel file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf` nella sezione \"Registro dei file\", colonna \"File\").\n\nQuesto diagramma ha un peso di **19.5 KB**, come indicato nella stessa tabella del catalogo (\"Formato / peso\")."
+      },
+      {
+        "r": 3,
+        "kb": false,
+        "coeff": true,
+        "nega": false,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg** (file: `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`, area: Governance, finalità: Checkpoint human-in-the-loop e punti di controllo).\n\nIl peso attribuito a questo diagramma è **SENZA CLASSE**, con un'autorevolezza dichiarata di **0.30**."
+      }
+    ]
+  },
+  "pdf+8": {
+    "token_prompt": 6940,
+    "contesto_char": 18190,
+    "righe": [
+      {
+        "r": 1,
+        "kb": false,
+        "coeff": true,
+        "nega": false,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg** (presente nel file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf` nella sezione \"Registro dei file\").\n\nIl peso attribuito a questo vincolo/documento è **0.30**, poiché la sua fonte è classificata come **[SENZA CLASSE]**, che corrisponde al livello di autorità più basso nel contesto fornito (inferiore a NORMS, REQUIREMENTS, METADATA e METHODOLOGY)."
+      },
+      {
+        "r": 2,
+        "kb": false,
+        "coeff": true,
+        "nega": false,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg** (presente nel file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf` nella sezione \"Registro dei file\", colonna \"File\").\n\nIl peso attribuito a questo diagramma, in base alla classe della sua fonte (`[SENZA CLASSE]`), è **0.30**.\n\n**Motivazione del calcolo del peso:**\nSecondo la regola `[CLASSE-FONTI]`, l'autorevolezza decresce così: `NORMS` (0.90) > `REQUIREMENTS` (0.87) > `METADATA` (0.60) > `METHODOLOGY` (0.50) > `SENZA CLASSE` (0.30).\nIl file `catalogo_diagrammi_normativi.pdf` è classificato esplicitamente come `[SENZA CLASSE]` nel contesto fornito. Pertanto, il peso applicabile al vincolo o all'artefatto contenuto in quel documento è 0.30.\n\n**Nota sulla fonte del contenuto:**\nIl contenuto specifico dei checkpoint (i dettagli operativi) è descritto nel documento `04_knowledge_informative/vibe_coding_workflow.md` classificato come `[METHODOLOGY]`. Sebbene il testo descriva i checkpoint, la domanda chiede specificamente quale *diagramma* del catalogo li documenti. Il catalogo (`catalogo_diagrammi_normativi.pdf`) elenca solo `diag_6_2_hitl_checkpoints.svg.svg` con la finalità \"Checkpoint human-in-the-loop e punti di controllo\"."
+      },
+      {
+        "r": 3,
+        "kb": true,
+        "coeff": true,
+        "nega": true,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg**, classificato nell'area **Governance** (secondo il file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`).\n\nPer quanto riguarda il peso, il contesto fornito **non riporta** alcun valore numerico di \"peso\" associato a questo diagramma specifico.\nIl contesto elenca solo:\n*   Il percorso del file sorgente: `C:\\Users\\Silve\\Desktop\\vibecraft\\docs\\02\\_specs\\_normative\\diagrams`.\n*   Il formato e il peso in KB per i file SVG nel catalogo (es. 19.5 KB per `diag_6_2_hitl_checkpoints.svg.svg`), ma non definisce un \"peso\" come metrica di autorità o priorità associata al diagramma stesso.\n*   I pesi delle **fonti documentali** (Authority) sono definiti nel file `README.md` per i documenti testuali (es. `04_knowledge_informative/vibe_coding_workflow.md` ha Authority 0.90), ma non per gli artefatti visivi del catalogo diagrammi.\n\nPertanto, non è possibile citare un peso numerico o una classe di autorità per il diagramma in quanto tali elementi non compaiono nel contesto fornito per questa entità specifica."
+      }
+    ]
+  },
+  "pdf+22": {
+    "token_prompt": 11616,
+    "contesto_char": 32216,
+    "righe": [
+      {
+        "r": 1,
+        "kb": false,
+        "coeff": true,
+        "nega": false,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **`diag_6_2_hitl_checkpoints.svg`**, situato nella cartella sorgente `C:\\Users\\Silve\\Desktop\\vibecraft\\docs\\02\\_specs\\_normative\\diagrams`.\n\n**Peso (Authority):**\nIl diagramma ha la classe **[SENZA CLASSE]**.\nSecondo la gerarchia di autorità dichiarata nel contesto (`NORMS` > `REQUIREMENTS` > `METADATA` > `METHODOLOGY` > **`SENZA CLASSE`**), questo è il peso più basso possibile.\n\n**Nota sulla fonte del vincolo:**\nIl contenuto dei checkpoint (i 5 step specifici) è enunciato nel documento `04_knowledge_informative/vibe_coding_workflow.md`, che ha la classe **[METHODOLOGY]** e un'autorevolezza di **0.50**.\nPoiché il diagramma non cita esplicitamente i dettagli dei checkpoint (solo il nome del file), e la specifica tecnica (`vibe_coding_workflow.md`) è l'unica fonte autorevole a definire il contenuto, il vincolo tecnico \"i checkpoint sono definiti in `vibe_coding_workflow.md`\" deve essere attribuito alla fonte **[METHODOLOGY]**. Il diagramma serve solo come artefatto visivo (classe [SENZA CLASSE]) che rimanda a quella specifica per i dettagli operativi."
+      },
+      {
+        "r": 2,
+        "kb": false,
+        "coeff": true,
+        "nega": false,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **diag_6_2_hitl_checkpoints.svg.svg** (presente nel file `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf` nella cartella sorgente `C:\\Users\\Silve\\Desktop\\vibecraft\\docs\\02\\_specs\\_normative\\diagrams`).\n\nIl peso attribuito a questo diagramma è **SENZA CLASSE** (0.30), come indicato nel registro dei file del catalogo e confermato dalla classificazione della fonte nel documento di indice `README.md`."
+      },
+      {
+        "r": 3,
+        "kb": false,
+        "coeff": true,
+        "nega": false,
+        "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **`diag_6_2_hitl_checkpoints.svg`**, situato nella cartella sorgente `C:\\Users\\Silve\\Desktop\\vibecraft\\docs\\02\\_specs\\_normative\\diagrams`.\n\n**Peso (Authority):**\nIl diagramma ha la classe **[SENZA CLASSE]**.\nSecondo la gerarchia di autorità dichiarata nel contesto (`NORMS` 0.90 > `REQUIREMENTS` 0.87 > `METADATA` 0.60 > `METHODOLOGY` 0.50 > **`SENZA CLASSE` 0.30**), il peso attribuito a questo artefatto è **0.30**.\n\n**Nota sulla divergenza di fonte:**\nSebbene la specifica `[REGOLA-HITL-01]` in `vibe_coding_workflow.md` (classe `[METHODOLOGY]`, peso 0.50) definisca i checkpoint e le regole operative, il documento che *documenta visivamente* tali checkpoint è il file SVG sopra citato. Poiché il file SVG non dichiara una classe esplicitamente diversa da quella di default per gli artefatti visuali nel catalogo (o se classificato come `SENZA CLASSE` nel registro), si applica la soglia minima del corpus. La specifica `[METHODOLOGY]` descrive *cosa* deve essere documentato, ma il diagramma stesso porta il peso della sua classe dichiarata o implicita di default nel catalogo."
+      }
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+Riproduzioni eseguite l'11/09/2026 all'inizio della sessione, PRIMA di ogni modifica, sull'host
+(rag/.venv, Docling 2.126.0, openpyxl 3.1.5). Il candidato attivo aveva gli SHA-256 di
+excel_fidelity_20260910/candidate-code-sha256.json (verificati file per file, tutti uguali);
+le sue copie sono in candidato_non_applicare/ (SHA256SUMS).
+
+1) Fusione delle tabelle affiancate - candidato NON_APPLICARE (gate di excel_fidelity_20260910)
+   comando: .venv/Scripts/python.exe -B eval/results/excel_fidelity_20260910/strict_gate.py
+   esito:   verdict NON_APPLICARE, exit 1. Markdown prodotto (identico a strict-candidate.json):
+
+   ### A1:E2
+   | Riga | A | B | C | D | E |
+   | --- | --- | --- | --- | --- | --- |
+   | 1 | Voce | Euro |  | Persona | Anni |
+   | 2 | A | 12 |  | Ada | 30 |
+
+   Causa: il candidato usava per ogni blocco tutte le colonne fra gli estremi del FOGLIO
+   (min_col..max_col) e separava i blocchi solo con le righe vuote. Nessuna regola separava le
+   colonne: due tabelle affiancate finivano sempre nella stessa tabella Markdown.
+
+   Stesso gate con --baseline (convertitore Docling salvato in intake_convert.before.txt):
+   verdict PASS, exit 0 (Docling separa per componenti connesse).
+
+2) Perdita dell'associazione nella riga «Totale» - baseline Docling (intake_convert.before.txt)
+   sorgente: eval/results/libreoffice_20260910/fixture/registro_excel.xlsx, riga 7 =
+   A7 «Totale», B7 vuota, C7 10, D7 vuota, E7 1500.5, F7 2401 (valori memorizzati da Excel).
+   uscita (identica a excel_fidelity_20260910/baseline1/01-registro_excel.xlsx.md):
+
+   | Totale   |
+   |----------|
+
+   | 10   |
+   |------|
+
+   | 1500.5   | 2401   |
+   |----------|--------|
+
+   Causa: il backend Excel di Docling cerca componenti connesse con una BFS a 4 direzioni e
+   gap_tolerance=0: B7 e D7 vuote spezzano la riga in tre tabelle senza coordinate, e
+   «10» non è più associato né a «Totale» né all'intestazione «Quantità» (C2).
+   gap_tolerance=1 ricompone la riga ma fonde tabelle indipendenti separate da una riga vuota
+   (excel_fidelity_20260910/gap1/04-registro.xlsx.md): nessuna delle due varianti è fedele.
+
+3) Alterazioni della normalizzazione XLS (LibreOffice 25.2.3.2) - SOLVSAMP.XLS
+   normalizzati/SOLVSAMP.XLS.lo.xlsx rigenerato con core.intake_convert._normalize_legacy nel
+   container vibecraft-lo-esperimento:20260910 (--network none). Classificazione cella per
+   cella contro l'originale letto da Excel 16: classificazione_SOLVSAMP.json.

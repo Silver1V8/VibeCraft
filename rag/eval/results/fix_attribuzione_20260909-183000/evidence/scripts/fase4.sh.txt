@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# FASE 4 — confronto fattoriale 2x2, UNA configurazione per invocazione.
+#
+#   A  parser attuale (pypdf)   + istruzioni originali
+#   B  Docling candidato        + istruzioni originali
+#   C  parser attuale (pypdf)   + correzione V2
+#   D  Docling candidato        + correzione V2
+#
+# L'unica cosa che cambia fra A/C e fra B/D e' il testo di [CLASSE-FONTI] nella
+# copia sandbox di core/retrieval.py. Corpus, indice, collection, modello,
+# num_ctx, temperatura, domande e soglie restano identici — il patch tocca la
+# sola generazione, non il retrieval.
+#
+# MAI due configurazioni in parallelo: due server che si contendono GPU e Ollama
+# falsificano tempi e risposte. Cache di /ask spenta (VIBECRAFT_ASK_CACHE_SIZE=0
+# in avvia_server.sh): ogni passata e' una generazione vera.
+#
+#   fase4.sh <A|B|C|D> [golden]
+set -euo pipefail
+CFG="$1"; shift || true
+EXTRA=" $* "
+
+W="C:/Users/Silve/Desktop/vibecraft/rag/eval/results/fix_attribuzione_20260909-183000"
+PS="C:/Users/Silve/AppData/Local/Temp/claude/C--Users-Silve-Desktop-vibecraft/bf54f804-fff5-40ce-ad46-d26ccb85ab43/scratchpad"
+PY="C:/Users/Silve/Desktop/vibecraft/rag/.venv/Scripts/python.exe"
+
+case "$CFG" in
+  A) SANDBOX="$PS/sandbox-baseline";  PORTA=8101; QDRANT="http://127.0.0.1:6401"; PATCH=no  ;;
+  B) SANDBOX="$PS/sandbox-candidate"; PORTA=8102; QDRANT="http://127.0.0.1:6402"; PATCH=no  ;;
+  C) SANDBOX="$PS/sandbox-baseline";  PORTA=8101; QDRANT="http://127.0.0.1:6401"; PATCH=si  ;;
+  D) SANDBOX="$PS/sandbox-candidate"; PORTA=8102; QDRANT="http://127.0.0.1:6402"; PATCH=si  ;;
+  *) echo "configurazione ignota: $CFG"; exit 2 ;;
+esac
+
+if [ "$PATCH" = si ]; then
+  "$PY" -B "$W/scripts/patch_v2.py" "$SANDBOX"
+else
+  # garantisce lo stato ORIGINALE anche se una corsa precedente aveva patchato
+  "$PY" -B "$W/scripts/patch_v2.py" "$SANDBOX" --revert 2>/dev/null || true
+fi
+
+# prova che il prompt in vigore e' quello atteso, PRIMA di generare
+"$PY" -B "$W/scripts/verifica_prompt.py" "$CFG" "$SANDBOX" "$W/out/prompt_$CFG.json"
+
+bash "$W/scripts/avvia_server.sh" "$SANDBOX" "$PORTA" "$QDRANT" "$PY" "$W/logs/server-$CFG.log"
+
+for p in 1 2 3; do
+  "$PY" -B "$W/scripts/eval_stack.py" "$CFG" "http://127.0.0.1:$PORTA" \
+        "$SANDBOX" "$W/out" "$p" 2>&1 | tee -a "$W/logs/eval-$CFG.log"
+done
+
+case "$EXTRA" in *" golden "*)
+  cd "$SANDBOX/rag"
+  QDRANT_URL="$QDRANT" "$PY" -B -m eval.run --url "http://127.0.0.1:$PORTA" --no-save \
+      > "$W/logs/golden-$CFG.log" 2>&1 || true
+  QDRANT_URL="$QDRANT" "$PY" -B -m eval.run_multihop --url "http://127.0.0.1:$PORTA" --no-save \
+      > "$W/logs/multihop-$CFG.log" 2>&1 || true
+  tail -4 "$W/logs/golden-$CFG.log"; tail -4 "$W/logs/multihop-$CFG.log"
+;; esac
+
+kill "$(cat "$SANDBOX/.server.pid")" 2>/dev/null || true
+sleep 3
+
+if [ "$PATCH" = si ]; then
+  "$PY" -B "$W/scripts/patch_v2.py" "$SANDBOX" --revert
+fi
+echo "configurazione $CFG completata, server arrestato, sandbox riportato all'originale"

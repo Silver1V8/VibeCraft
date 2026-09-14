@@ -1,0 +1,86 @@
+"""FASE 4 — variante sperimentale del prompt: [ATTRIBUZIONE-DICHIARATA].
+
+VARIANTE SEPARATA. Non fa parte della proposta «integrazione Docling»: tocca il
+comportamento generale delle risposte e va valutata con i suoi controlli di
+regressione, come dice il piano.
+
+Difetti che intende correggere, entrambi accertati in FASE 1 su ENTRAMBI gli
+stack (quindi non causati dal parser):
+
+  D1 — pdf-diag-3. La domanda chiede il «peso» di un file, cioe' la sua
+       dimensione; il contesto la riporta («SVG 19.5 KB»). [CLASSE-FONTI]
+       enuncia una graduatoria di autorevolezza con pesi numerici, e il modello
+       vi aggancia la parola: il baseline risponde 0.90 (Authority della classe
+       METHODOLOGY), il candidato cita «19.5 KB» in un inciso e poi CONCLUDE che
+       «il contesto non riporta un valore di peso». Un dato presente dichiarato
+       assente e' un difetto di attribuzione, non un dettaglio di forma.
+
+  D2 — pdf-diag-4. L'intestazione di blocco del contesto dice
+       «... § Catalogo diagrammi». La risposta attribuisce la banda KPI alla
+       sezione «Regole di organizzazione» (che nel Markdown viene DOPO) e cita
+       una sezione «Indice operativo» che non esiste. Il chunk e' uno solo e
+       porta l'etichetta giusta: l'errore nasce nella GENERAZIONE, non nella
+       segmentazione ne' nei metadati.
+
+La regola quindi RESTRINGE l'ambito di [CLASSE-FONTI] (che resta intatta) e
+vincola l'indicazione del luogo all'intestazione dichiarata. Non nomina i due
+PDF, non nomina il golden, non tocca ranking, authority o parametri calibrati,
+non rimuove nessuna istruzione di governance, non introduce modelli remoti.
+
+Collocazione: dentro il ramo `if authority_classes:`, subito dopo il testo di
+[CLASSE-FONTI] e PRIMA di [PRECEDENZA-FONTI]. Cosi' lo snapshot testuale del
+system prompt di base (tests/test_ask_unified_llm.py) resta invariato e
+l'ordine preteso da tests/test_ask_authority_prompt.py e' rispettato.
+LIMITE DICHIARATO: con fonti tutte sullo stesso livello di autorita'
+`authority_scale` restituisce [] e la regola non compare.
+
+Uso: patch_variante_prompt.py <sandbox> [--revert]
+"""
+
+import pathlib
+import sys
+
+SANDBOX = pathlib.Path(sys.argv[1]).resolve()
+REVERT = "--revert" in sys.argv
+FILE = SANDBOX / "rag" / "core" / "retrieval.py"
+
+ANCORA = """            "lo stabilisce."
+        )
+"""
+REGOLA = """            "lo stabilisce."
+        )
+        # --- VARIANTE SPERIMENTALE (pilot Docling, chiusura) ---------------------
+        # Restringe l'AMBITO della graduatoria appena enunciata: governa i vincoli,
+        # non i dati che una fonte riporta su se stessa. Senza questo confine la
+        # parola «peso» di una domanda («quanto pesa il file X?») viene agganciata
+        # alla scala di autorita', e il modello o sostituisce il coefficiente di
+        # classe al valore, o dichiara assente un dato che ha sotto gli occhi.
+        # Seconda meta': l'indicazione del LUOGO deve stare all'intestazione di
+        # blocco dichiarata, invece di scendere a sotto-sezioni indovinate.
+        system_prompt += (
+            "\\n[ATTRIBUZIONE-DICHIARATA]: la graduatoria qui sopra governa i VINCOLI — "
+            "regole, soglie, severita', eccezioni — non i DATI che una fonte riporta su se "
+            "stessa o sui propri artefatti: un nome, un formato, una dimensione, una data, "
+            "un conteggio. Un dato del genere e' un fatto della fonte che lo riporta. Se il "
+            "contesto lo contiene, riportalo con il valore che il contesto porta: non "
+            "dichiararlo assente e non sostituirgli il peso di classe della fonte. E quando "
+            "indichi DOVE un elemento e' scritto, usa l'intestazione di blocco del contesto "
+            "(«documento § sezione») e nient'altro: non attribuirlo a una sezione, a una "
+            "tabella o a un paragrafo che quell'intestazione non dichiara."
+        )
+"""
+
+testo = FILE.read_text(encoding="utf-8")
+marcatore = "[ATTRIBUZIONE-DICHIARATA]"
+
+if REVERT:
+    assert marcatore in testo, "la variante non e' applicata"
+    FILE.write_text(testo.replace(REGOLA, ANCORA), encoding="utf-8")
+    print(f"variante RIMOSSA da {FILE}")
+else:
+    if marcatore in testo:
+        print("variante gia' applicata")
+        sys.exit(0)
+    assert testo.count(ANCORA) == 1, f"ancora non univoca ({testo.count(ANCORA)} occorrenze)"
+    FILE.write_text(testo.replace(ANCORA, REGOLA), encoding="utf-8")
+    print(f"variante APPLICATA a {FILE}")

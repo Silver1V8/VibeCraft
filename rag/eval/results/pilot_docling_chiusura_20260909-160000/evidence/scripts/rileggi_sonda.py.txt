@@ -1,0 +1,51 @@
+"""Rilettura della sonda diagnostica: il controllo di sottostringa e' CONFONDUTO.
+
+`sonda-diag-4-sezione` chiede come si intitola la sezione e attendeva
+«Catalogo diagrammi». La risposta contiene quella stringa comunque, perche'
+riecheggia la domanda («La sezione del catalogo diagrammi...»): il controllo
+segnava `mancanti=[]` senza che il modello avesse nominato l'intestazione.
+
+Qui si distinguono i due candidati con due flag separati, calcolati sulle
+risposte GIA' salvate (nessuna nuova inferenza), e si registra quale dei due il
+modello indica come titolo.
+
+Uso: rileggi_sonda.py <workdir>
+"""
+
+import json
+import pathlib
+import re
+import sys
+
+W = pathlib.Path(sys.argv[1]).resolve()
+INTESTAZIONE = "catalogo diagrammi"
+INTRODUZIONE = "indice operativo"
+# la frase che dichiara il titolo: «intitolata X», «si intitola X», «e' la sezione X»
+DICHIARA = re.compile(r"(?:intitol\w+|titolo\w*\s+(?:e'|è|:)|sezione\s+(?:e'|è)\s*)", re.IGNORECASE)
+
+fuori = {}
+for f in sorted(W.glob("out/sonda_*.json")):
+    d = json.loads(f.read_text(encoding="utf-8"))
+    s = d["sonde"].get("sonda-diag-4-sezione")
+    if not s:
+        continue
+    r = s["risposta"]
+    basso = r.lower()
+    # a quale dei due si riferisce la frase che DICHIARA il titolo
+    m = DICHIARA.search(r)
+    coda = basso[m.end():m.end() + 200] if m else ""
+    s["controllo_sottostringa_confondUTO"] = True
+    s["contiene_intestazione_reale"] = INTESTAZIONE in basso
+    s["contiene_frase_introduttiva"] = INTRODUZIONE in basso
+    s["titolo_dichiarato"] = ("frase introduttiva" if INTRODUZIONE in coda
+                              else "intestazione reale" if INTESTAZIONE in coda
+                              else "non isolabile")
+    d["nota"] = ("Il controllo di sottostringa su questa sonda non prova nulla: la "
+                 "stringa attesa ricompare nell'eco della domanda. Vale il campo "
+                 "`titolo_dichiarato`.")
+    f.write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
+    fuori[d["etichetta"]] = {k: s[k] for k in
+                             ("contiene_intestazione_reale", "contiene_frase_introduttiva",
+                              "titolo_dichiarato")}
+
+print(json.dumps(fuori, ensure_ascii=False, indent=2))

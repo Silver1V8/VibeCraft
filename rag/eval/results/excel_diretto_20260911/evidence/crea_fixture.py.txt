@@ -1,0 +1,56 @@
+"""Sorgente della fixture dei casi Excel: valori NOTI scritti con openpyxl, poi aperti e salvati
+da Excel 16 in XLSX e XLS (salva_con_excel.ps1), che memorizza i risultati delle formule e
+aggiunge una forma. I test confrontano la conversione con questi valori, non con un altro
+convertitore. Uso: python crea_fixture.py OUT.xlsx"""
+import sys
+from datetime import datetime, time
+
+import openpyxl
+from openpyxl.comments import Comment
+
+wb = openpyxl.Workbook()
+ws = wb.active
+ws.title = "Registro"
+ws["A1"] = "Registro casi"
+ws.merge_cells("A1:F1")
+rows = {
+    2: ["Codice", "Stato", "Quantità", "Data", "Importo", "Quota"],
+    3: ["00123", "NA", 3, datetime(2026, 9, 10), 1200.5, 0.12],
+    4: ["00124", "N/A", None, datetime(2026, 9, 11), 0, False],
+    5: ["00125", "null", 7, time(0, 0), "False", True],
+    7: ["Totale", None, "=SUM(C3:C5)", None, "=SUM(E3:E5)", "=E3*2"],
+    9: ["Errori", "=1/0", "=NA()", "#N/A", "TRUE", "0"],
+    10: ["Durata", 1.5, datetime(2026, 9, 10, 13, 45, 30, 250000), "a|b", "riga1\nriga2",
+         "*grassetto* _x_ codice_articolo <b>&amp;"],
+    11: ["  spazi  ", "\\percorso\\", "~~barrato~~", "`code`", "[link](http://x)", "=non formula"],
+}
+for r, values in rows.items():
+    for c, value in enumerate(values, 1):
+        ws.cell(r, c, value)
+ws["F11"].data_type = "s"          # testo che inizia con «=», non una formula
+ws["D9"].data_type = "s"           # il TESTO «#N/A»: openpyxl lo scriverebbe come errore
+ws["D3"].number_format = "yyyy-mm-dd"
+ws["D4"].number_format = "yyyy-mm-dd hh:mm:ss"
+ws["D5"].number_format = "hh:mm:ss"
+ws["F3"].number_format = "0%"
+ws["C5"].number_format = "00000"
+ws["B10"].number_format = "[h]:mm:ss"
+ws["C10"].number_format = "dd/mm/yyyy hh:mm:ss.000"
+ws["A7"].comment = Comment("Nota sul totale", "Revisore")
+ws["F2"].hyperlink = "https://example.org/quota"
+
+aff = wb.create_sheet("Affiancate")
+for r, values in {1: ["Voce", "Euro", None, "Persona", "Anni"], 2: ["A", 12, None, "Ada", 30],
+                  3: ["B", 7, None, "Bruno", 41], 5: ["Nota", "Valore"], 6: ["x", 1]}.items():
+    for c, value in enumerate(values, 1):
+        aff.cell(r, c, value)
+wb.create_sheet("Vuoto")
+wb.create_sheet("Nascosto")["A1"] = "valore nascosto"
+wb["Nascosto"].sheet_state = "hidden"
+uni = wb.create_sheet("Unite")
+uni["B2"] = "blocco"
+uni.merge_cells("B2:C3")
+uni["A5"] = "verticale"
+uni.merge_cells("A5:A7")
+uni["D2"] = "accanto"
+wb.save(sys.argv[1])

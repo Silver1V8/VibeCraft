@@ -1,0 +1,65 @@
+"""Controllo minimo eseguibile: riproduce il difetto e prova che il riuso lo chiude.
+
+Casi richiesti: apostrofi italiani dentro parole, virgolette doppie, caporali,
+Markdown, delimitatori non chiusi. Ogni caso e' un assert: se l'estrazione
+regredisce, questo file fallisce.
+
+Uso: check_citazioni.py
+"""
+
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from citazioni import estrai, estrai_difettoso, verifica_citazioni  # noqa: E402
+
+# --- 1. apostrofi italiani DENTRO le parole: e' il difetto osservato -----------
+# Testo reale, da pdf-mock-3 (baseline e candidato, identico nei due stack).
+APOSTROFI = ("La schermata mostra l'**Area Personale** (o \"Profilo Utente\") dedicata "
+             "all'`` `UTENTE` `` registrato all'interno del portale.")
+
+difettoso = estrai_difettoso(APOSTROFI)
+assert ") dedicata all" in difettoso, ("il difetto non si riproduce piu': il confronto "
+                                      f"prima/dopo perde senso. Estratti: {difettoso}")
+buono = estrai(APOSTROFI)
+assert not any("dedicata all" == p.strip() or p.strip().startswith(")") for p in buono), buono
+# l'unico virgolettato vero e' «Profilo Utente»: 2 parole, sotto la soglia di 5.
+assert buono == [], f"nessun passo citabile in questa frase, estratti: {buono}"
+
+# --- 2. virgolette doppie -----------------------------------------------------
+DOPPIE = 'Il documento dice "il diagramma documenta i checkpoint human-in-the-loop" e null\'altro.'
+assert estrai(DOPPIE) == ["il diagramma documenta i checkpoint human-in-the-loop"], estrai(DOPPIE)
+
+# --- 3. caporali --------------------------------------------------------------
+CAPORALI = "Vale «la forma attenuata score per uno meno alpha piu alpha per authority» qui."
+assert estrai(CAPORALI) == ["la forma attenuata score per uno meno alpha piu alpha per authority"]
+
+# --- 4. Markdown dentro e attorno al passo ------------------------------------
+MARKDOWN = ('Nella tabella **"Registro dei file"** si legge "`diag_5_2_graph_rag_structure.svg` '
+            'appartiene all\'area Knowledge del catalogo".')
+md = estrai(MARKDOWN)
+assert len(md) == 1 and "Knowledge" in md[0], md
+# il passo estratto conserva gli ornamenti; e' `normalize` a toglierli sui DUE lati
+corpus = {"doc.md": "il file diag_5_2_graph_rag_structure.svg appartiene all'area Knowledge del catalogo"}
+esiti = verifica_citazioni(MARKDOWN, corpus)
+assert [e["esito"] for e in esiti] == ["verified"], esiti
+assert esiti[0]["trovato_in"] == ["doc.md"], esiti
+
+# --- 5. delimitatori NON chiusi ----------------------------------------------
+# Un'apertura senza chiusura non deve produrre un passo, e non deve inghiottire
+# il resto del testo.
+NON_CHIUSI = 'Il documento apre «una citazione che non viene mai chiusa e prosegue fino alla fine.'
+assert estrai(NON_CHIUSI) == [], estrai(NON_CHIUSI)
+# viceversa: una chiusura orfana non apre nulla.
+ORFANA = 'Testo qualunque abbastanza lungo da superare la soglia di parole» e poi altro testo.'
+assert estrai(ORFANA) == [], estrai(ORFANA)
+
+# --- 6. una citazione non verificabile RESTA tale -----------------------------
+INVENTATA = 'La fonte afferma "un vincolo che nel corpus non compare in nessuna forma".'
+esiti = verifica_citazioni(INVENTATA, corpus)
+assert [e["esito"] for e in esiti] == ["unverifiable"], esiti
+
+# --- 7. l'assenza di citazioni non e' un'attribuzione corretta ----------------
+assert verifica_citazioni("Nessun passo fra virgolette in questa risposta.", corpus) == []
+
+print("check_citazioni: 7/7 casi superati")

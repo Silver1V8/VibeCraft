@@ -1,0 +1,117 @@
+"""FASE 4 — congelamento: tutto cio' che deve restare identico fra A, B, C e D.
+
+Registra, PRIMA del confronto: hash del corpus dei due sandbox, versioni e
+manifest degli indici, collection interrogate, configurazione del modello,
+parametri calibrati, e hash dei file applicativi che non devono cambiare.
+
+Se una di queste voci differisce fra le configurazioni in modo non previsto, il
+confronto non e' fattoriale e va dichiarato tale.
+
+Uso: congela.py <out.json>
+"""
+import hashlib
+import json
+import pathlib
+import sys
+import urllib.request
+
+RAG = pathlib.Path(r"C:\Users\Silve\Desktop\vibecraft\rag")
+PS = pathlib.Path(r"C:\Users\Silve\AppData\Local\Temp\claude"
+                  r"\C--Users-Silve-Desktop-vibecraft"
+                  r"\bf54f804-fff5-40ce-ad46-d26ccb85ab43\scratchpad")
+SANDBOX = {"baseline (A,C)": PS / "sandbox-baseline", "candidate (B,D)": PS / "sandbox-candidate"}
+QDRANT = {"baseline (A,C)": "http://127.0.0.1:6401", "candidate (B,D)": "http://127.0.0.1:6402"}
+
+
+def sha(p: pathlib.Path) -> str:
+    return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+def corpus_hash(root: pathlib.Path) -> dict:
+    """Inventario del corpus: ogni file con dimensione e SHA-256. I PDF
+    RIGENERATI devono avere hash DIVERSI dagli originali di produzione, ed e'
+    la differenza che rende il perimetro dichiarabile."""
+    voci = {}
+    for p in sorted(root.rglob("*")):
+        if p.is_file():
+            voci[str(p.relative_to(root)).replace("\\", "/")] = {
+                "byte": p.stat().st_size, "sha256": sha(p)}
+    return voci
+
+
+def collections(url: str) -> list[str]:
+    try:
+        with urllib.request.urlopen(url + "/collections", timeout=30) as r:
+            d = json.loads(r.read().decode("utf-8"))
+        return sorted(c["name"] for c in d["result"]["collections"])
+    except Exception as exc:  # noqa: BLE001
+        return [f"ERRORE: {type(exc).__name__}: {exc}"]
+
+
+dati = {"sandbox": {}, "produzione_non_toccata": {}, "modello": {}, "parametri_calibrati": {}}
+
+sys.path.insert(0, str(RAG))
+from core import config as cfg  # noqa: E402
+from core import llm  # noqa: E402
+
+prov, modello = llm.resolve("ask")
+dati["modello"] = {"provider": prov, "modello": modello, "num_ctx": llm.OLLAMA_NUM_CTX,
+                   "think": llm.OLLAMA_THINK, "temperature": llm.OLLAMA_TEMPERATURE}
+dati["parametri_calibrati"] = {
+    "AUTHORITY_BOOST_ALPHA": cfg.AUTHORITY_BOOST_ALPHA,
+    "GRAPH_CONTEXT_MAX_CHUNKS": cfg.GRAPH_CONTEXT_MAX_CHUNKS,
+    "SECTION_RESTATEMENT_WEIGHT": cfg.SECTION_RESTATEMENT_WEIGHT,
+    "GOVERNED_MAX_CHUNKS": cfg.GOVERNED_MAX_CHUNKS,
+    "AUTHORITY_CLASS_WEIGHTS": cfg.AUTHORITY_CLASS_WEIGHTS,
+    "nota": "S11: alpha, tetto grafo e peso sezione sono accoppiati e NON sono stati toccati",
+}
+
+for nome, sb in SANDBOX.items():
+    corpus = corpus_hash(sb / "docs")
+    corrente = (sb / "rag/database/CURRENT").read_text(encoding="utf-8").strip()
+    versioni = sorted(p.name for p in (sb / "rag/database/versions").iterdir() if p.is_dir())
+    man = sb / f"rag/database/versions/{corrente}/index_manifest.json"
+    dati["sandbox"][nome] = {
+        "percorso": str(sb),
+        "qdrant": QDRANT[nome],
+        "collections_qdrant": collections(QDRANT[nome]),
+        "versione_corrente": corrente,
+        "versioni_disponibili": versioni,
+        "n_file_corpus": len(corpus),
+        "sha256_corpus": corpus,
+        "manifest_indice_sha256": sha(man) if man.is_file() else None,
+        "sha256_core_retrieval": sha(sb / "rag/core/retrieval.py"),
+        "sha256_core_chunking": sha(sb / "rag/core/chunking.py"),
+        "sha256_rag_config": sha(sb / "rag/rag_config.yaml"),
+    }
+
+# Il repository applicativo: queste voci NON devono cambiare durante la sessione.
+for rel in ("core/retrieval.py", "core/chunking.py", "rag_config.yaml", "pyproject.toml",
+            "uv.lock", "eval/golden_set.yaml", "eval/golden_attribution.yaml",
+            "eval/results/history.jsonl", "tests/test_ask_prompt_cost.py",
+            "tests/test_ask_unified_llm.py", "tests/test_ask_authority_prompt.py"):
+    p = RAG / rel
+    dati["produzione_non_toccata"][rel] = sha(p) if p.is_file() else None
+
+# PDF di produzione: hash, per distinguerli dai rigenerati nei sandbox
+for rel in ("docs/02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf",
+            "docs/02_specs_normative/mockups/catalogo_mockup_normativi.pdf"):
+    p = RAG.parent / rel
+    dati["produzione_non_toccata"][rel] = sha(p) if p.is_file() else None
+
+out = pathlib.Path(sys.argv[1])
+out.parent.mkdir(parents=True, exist_ok=True)
+out.write_text(json.dumps(dati, indent=2, ensure_ascii=False), encoding="utf-8")
+
+a, b = dati["sandbox"]["baseline (A,C)"], dati["sandbox"]["candidate (B,D)"]
+print(f"corpus baseline : {a['n_file_corpus']} file, indice {a['versione_corrente']}")
+print(f"corpus candidate: {b['n_file_corpus']} file, indice {b['versione_corrente']}")
+comuni = set(a["sha256_corpus"]) & set(b["sha256_corpus"])
+diversi = [k for k in sorted(comuni)
+           if a["sha256_corpus"][k]["sha256"] != b["sha256_corpus"][k]["sha256"]]
+print(f"file comuni: {len(comuni)}, con contenuto DIVERSO fra i due sandbox: {len(diversi)}")
+for k in diversi[:5]:
+    print(f"   {k}")
+print(f"modello: {dati['modello']}")
+print(f"parametri calibrati: {dati['parametri_calibrati']}")
+print(f"-> {out}")

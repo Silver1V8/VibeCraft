@@ -1,0 +1,331 @@
+"""Banco Office/LibreOffice. Gira DENTRO il container, con --network none, cwd /app/rag e
+core/ + rag_config.yaml del working tree montati in sola lettura: il percorso A è quello
+applicativo attuale, non una copia.
+
+Varianti (dove il formato le ammette):
+  A  routing corrente: core.intake_convert.convert_to_markdown con la configurazione reale.
+  B  Docling diretto sul file. Per DOC/XLS/PPT Docling 2.126.0 invoca DA SÉ LibreOffice
+     (backend/docx/drawingml/utils.convert_to_modern_format: profilo vuoto con i default,
+     timeout 120 s). Stesso export dell'app; un `##` per foglio nei fogli di calcolo.
+  C  LibreOffice headless con profilo BLINDATO -> formato moderno -> Docling (per l'XLSX
+     esattamente core.intake_convert._convert_xlsx_docling).
+  D  stesso LibreOffice -> formato moderno -> MarkItDown (percorso dell'app a Docling spento):
+     separa il beneficio della normalizzazione da quello dell'estrattore.
+Mai PDF: la conversione in PDF perderebbe struttura, note, formule e collegamenti.
+
+Uso: python esperimento.py <fixture_dir> <out_dir> [--senza-lo] [--campioni <dir>]
+"""
+import hashlib
+import http.server
+import importlib.metadata
+import io
+import json
+import os
+import platform
+import shutil
+import signal
+import statistics
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+from pathlib import Path
+
+import psutil
+
+sys.path.insert(0, str(Path.cwd()))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import attese as at  # noqa: E402
+from core import intake_convert as ic  # noqa: E402
+from core.intake_clean import normalize_markdown  # noqa: E402
+
+FIX = Path(sys.argv[1])
+OUT = Path(sys.argv[2])
+OUT.mkdir(parents=True, exist_ok=True)
+SENZA_LO = "--senza-lo" in sys.argv
+CAMPIONI = Path(sys.argv[sys.argv.index("--campioni") + 1]) if "--campioni" in sys.argv else None
+RIPETIZIONI = 3
+MODERNO = {"doc": "docx", "xls": "xlsx", "ppt": "pptx", "docx": "docx", "xlsx": "xlsx", "pptx": "pptx"}
+
+# Profilo LibreOffice blindato. Chiavi e default letti da main.xcd della versione installata:
+#   macro: DisableMacrosExecution (default false) -> true, MacroSecurityLevel (default 2) -> 3;
+#   Calc Content/Update/Link (default 2 = su richiesta) -> 1 = mai;
+#   Writer Content/Update/Link (default 1 = su richiesta; 0 sempre, 2 mai) -> 2 = mai;
+#   Writer Content/Update/Field (default true) -> false: i campi restano come memorizzati;
+#   Calc Formula/Load OOXMLRecalcMode e ODFRecalcMode (default 1 = mai) -> 1, esplicito;
+#   BlockUntrustedRefererLinks (default false) -> true.
+XCU = """<?xml version="1.0" encoding="UTF-8"?>
+<oor:items xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<item oor:path="/org.openoffice.Office.Common/Security/Scripting"><prop oor:name="DisableMacrosExecution" oor:op="fuse"><value>true</value></prop></item>
+<item oor:path="/org.openoffice.Office.Common/Security/Scripting"><prop oor:name="MacroSecurityLevel" oor:op="fuse"><value>3</value></prop></item>
+<item oor:path="/org.openoffice.Office.Common/Security/Scripting"><prop oor:name="BlockUntrustedRefererLinks" oor:op="fuse"><value>true</value></prop></item>
+<item oor:path="/org.openoffice.Office.Calc/Content/Update"><prop oor:name="Link" oor:op="fuse"><value>1</value></prop></item>
+<item oor:path="/org.openoffice.Office.Writer/Content/Update"><prop oor:name="Link" oor:op="fuse"><value>2</value></prop></item>
+<item oor:path="/org.openoffice.Office.Writer/Content/Update"><prop oor:name="Field" oor:op="fuse"><value>false</value></prop></item>
+<item oor:path="/org.openoffice.Office.Calc/Formula/Load"><prop oor:name="OOXMLRecalcMode" oor:op="fuse"><value>1</value></prop></item>
+<item oor:path="/org.openoffice.Office.Calc/Formula/Load"><prop oor:name="ODFRecalcMode" oor:op="fuse"><value>1</value></prop></item>
+</oor:items>
+"""
+
+ultimo_lo: dict = {}
+
+
+def _processi_soffice() -> int:
+    return sum(1 for p in psutil.process_iter(["name"]) if "soffice" in (p.info["name"] or ""))
+
+
+def lo_convert(data: bytes, src: str, dst: str, *, blindato: bool = True, timeout: float = 60) -> bytes:
+    """Un profilo temporaneo DISTINTO per ogni esecuzione, gruppo di processi ucciso al
+    timeout, cartella temporanea rimossa sempre; l'originale non viene mai toccato (si
+    converte una copia)."""
+    tmp = Path(tempfile.mkdtemp(prefix="lo_"))
+    profilo = tmp / "profilo"
+    (profilo / "user").mkdir(parents=True)
+    if blindato:
+        (profilo / "user" / "registrymodifications.xcu").write_text(XCU, encoding="utf-8")
+    inp = tmp / f"input.{src}"
+    inp.write_bytes(data)
+    outdir = tmp / "out"
+    outdir.mkdir()
+    cmd = ["soffice", f"-env:UserInstallation={profilo.as_uri()}", "--headless", "--invisible",
+           "--nologo", "--norestore", "--nodefault", "--nolockcheck",
+           "--convert-to", dst, "--outdir", str(outdir), str(inp)]
+    picco = [0]
+    t0 = time.perf_counter()
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+    fine = threading.Event()
+
+    def campiona():
+        while not fine.is_set():
+            try:
+                albero = [psutil.Process(proc.pid), *psutil.Process(proc.pid).children(recursive=True)]
+                picco[0] = max(picco[0], sum(p.memory_info().rss for p in albero))
+            except psutil.Error:
+                pass
+            fine.wait(0.02)
+    th = threading.Thread(target=campiona, daemon=True)
+    th.start()
+    try:
+        try:
+            _, err = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGKILL)
+            proc.communicate()
+            raise TimeoutError(f"LibreOffice oltre {timeout:g} s: processo terminato")
+        finally:
+            fine.set()
+            th.join()
+            ultimo_lo.update(secondi=round(time.perf_counter() - t0, 3), picco_rss_mb=round(picco[0] / 1e6, 1),
+                             processi_residui=_processi_soffice())
+        res = outdir / f"input.{dst}"
+        if proc.returncode != 0 or not res.exists():
+            raise RuntimeError(f"LibreOffice non ha prodotto {dst} (exit {proc.returncode}): "
+                               f"{err.decode(errors='replace').strip()[-300:]}")
+        return res.read_bytes()
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+_conv = None
+
+
+def _docling_doc(data: bytes, nome: str):
+    global _conv
+    from docling.datamodel.base_models import ConversionStatus, DocumentStream, InputFormat
+    from docling.document_converter import DocumentConverter
+    if _conv is None:
+        _conv = DocumentConverter(allowed_formats=[InputFormat.DOCX, InputFormat.PPTX, InputFormat.XLSX,
+                                                   InputFormat.DOC, InputFormat.XLS, InputFormat.PPT])
+    r = _conv.convert(DocumentStream(name=nome, stream=io.BytesIO(data)), raises_on_error=False)
+    if r.status not in (ConversionStatus.SUCCESS, ConversionStatus.PARTIAL_SUCCESS):
+        raise RuntimeError(f"Docling {r.status.value}: {ic._docling_errors(r)}")
+    return r.document
+
+
+def _serializza(doc, fogli: bool) -> str:
+    from docling_core.transforms.serializer.markdown import MarkdownDocSerializer, MarkdownParams
+    if not fogli:
+        return doc.export_to_markdown(escape_underscores=False, image_placeholder="")
+    ser = MarkdownDocSerializer(doc=doc, params=MarkdownParams(escape_underscores=False, image_placeholder=""))
+    parti = []
+    for ref in doc.body.children:
+        item = ref.resolve(doc)
+        testo = ser.serialize(item=item).text.strip()
+        nome = getattr(item, "name", "")
+        if testo:
+            parti.append(f"## {nome}\n\n{testo}" if nome else testo)
+    return "\n\n".join(parti)
+
+
+def _finisci(md: str, nome: str, fmt: str) -> str:
+    md = normalize_markdown(md)
+    if fmt in ic._IMAGE_FORMATS:
+        md = normalize_markdown(ic._drop_local_images(md)[0])
+    if md and not ic._HEADING_RE.search(md):
+        md = f"# {Path(nome).stem}\n\n{md}"
+    if not md:
+        raise ic.ConversionError(f"nessun testo estraibile da {nome}")
+    return md
+
+
+def var_a(data, fmt, nome):
+    return ic.convert_to_markdown(data, fmt, filename=nome).markdown
+
+
+def var_b(data, fmt, nome):
+    return _finisci(_serializza(_docling_doc(data, nome), fmt in ("xls", "xlsx")), nome, fmt)
+
+
+def var_c(data, fmt, nome):
+    mod = MODERNO[fmt]
+    moderno = lo_convert(data, fmt, mod)
+    nome_mod = f"{Path(nome).stem}.{mod}"
+    if mod == "xlsx":
+        return _finisci(ic._convert_xlsx_docling(moderno, nome_mod)[0], nome_mod, mod)
+    return _finisci(_serializza(_docling_doc(moderno, nome_mod), False), nome_mod, mod)
+
+
+def var_d(data, fmt, nome):
+    mod = MODERNO[fmt]
+    moderno = lo_convert(data, fmt, mod)
+    ic.INTAKE_DOCLING_ENABLED = False
+    try:
+        return ic.convert_to_markdown(moderno, mod, filename=f"{Path(nome).stem}.{mod}").markdown
+    finally:
+        ic.INTAKE_DOCLING_ENABLED = True
+
+
+VARIANTI = {"A": var_a, "B": var_b} if SENZA_LO else {"A": var_a, "B": var_b, "C": var_c, "D": var_d}
+
+
+def esegui(fn, data, fmt, nome):
+    proc = psutil.Process()
+    rss0, t0 = proc.memory_info().rss, time.perf_counter()
+    ultimo_lo.clear()
+    try:
+        md, err = fn(data, fmt, nome), None
+    except Exception as exc:  # l'errore è un esito del confronto
+        md, err = "", f"{type(exc).__name__}: {exc}"[:400]
+    return md, err, round(time.perf_counter() - t0, 3), round((proc.memory_info().rss - rss0) / 1e6, 1), dict(ultimo_lo)
+
+
+richieste_http: list[str] = []
+
+
+class _Sonda(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):  # noqa: N802
+        richieste_http.append(f"{CASO_CORRENTE[0]}: GET {self.path}")
+        self.send_response(404)
+        self.end_headers()
+
+    def log_message(self, *_a):
+        pass
+
+
+CASO_CORRENTE = ["-"]
+
+
+def main() -> int:
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 8765), _Sonda)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    versioni = {p: importlib.metadata.version(p) for p in ("docling", "docling-core", "markitdown", "openpyxl", "xlrd", "python-docx", "python-pptx")}
+    versioni["python"] = platform.python_version()
+    versioni["piattaforma"] = platform.platform()
+    if not SENZA_LO:
+        versioni["libreoffice"] = subprocess.run(["soffice", "--version"], capture_output=True, text=True).stdout.strip()
+    report: dict = {"versioni": versioni, "senza_lo": SENZA_LO, "casi": {}, "problemi": {}, "rete": {}, "campioni": {}}
+
+    principali = ["manuale.docx", "manuale.doc", "specifica_word.docx", "specifica_word.doc",
+                  "registro.xlsx", "registro_excel.xlsx", "registro.xls",
+                  "rilascio.pptx", "rilascio_pp.pptx", "rilascio.ppt"]
+    for nome in principali:
+        data = (FIX / nome).read_bytes()
+        fmt = nome.rsplit(".", 1)[1]
+        esiti = {}
+        for v, fn in VARIANTI.items():
+            CASO_CORRENTE[0] = f"{nome}/{v}"
+            prove = [esegui(fn, data, fmt, nome) for _ in range(RIPETIZIONI)]
+            md, err = prove[0][0], prove[0][1]
+            (OUT / f"{nome}.{v}.md").write_text(md, encoding="utf-8", newline="\n")
+            controlli = {n: bool(md) and bool(c(md)) for n, c in at.attese_per(nome)}
+            e = {"errore": err, "superati": f"{sum(controlli.values())}/{len(controlli)}",
+                 "falliti": [k for k, ok in controlli.items() if not ok],
+                 "secondi_freddo": prove[0][2], "secondi_caldo": statistics.median(p[2] for p in prove[1:]),
+                 "rss_delta_mb": prove[0][3], "libreoffice": prove[0][4],
+                 "stabile_in_processo": len({p[0] for p in prove}) == 1,
+                 "caratteri": len(md), "sha256": hashlib.sha256(md.encode()).hexdigest(),
+                 "problemi_markdown": at.problemi_markdown(md) if md else []}
+            if nome.startswith("registro"):
+                e["C7_osservato"] = at.osservato_c7(md) if md else "-"
+            esiti[v] = e
+            print(f"{nome:22} {v} {e['superati']:>6} {e['secondi_freddo']:>6}s/{e['secondi_caldo']:>6}s "
+                  f"falliti={e['falliti']}" + (f" ERR {err[:90]}" if err else ""), flush=True)
+        report["casi"][nome] = esiti
+
+    problemi = ["vuoto.doc", "vuoto.xls", "vuoto.ppt", "vuoto.docx", "vuoto.xlsx", "vuoto.pptx",
+                "troncato.doc", "troncato.xls", "troncato.ppt", "finto.doc", "finto.xls",
+                "manuale_protetto.doc", "registro_protetto.xls", "rilascio_protetto.ppt",
+                "manuale_protetto.docx", "registro_protetto.xlsx", "rilascio_protetto.pptx"]
+    for nome in problemi:
+        data = (FIX / nome).read_bytes()
+        fmt = nome.rsplit(".", 1)[1]
+        esiti = {}
+        for v, fn in VARIANTI.items():
+            CASO_CORRENTE[0] = f"{nome}/{v}"
+            md, err, sec, _mb, lo = esegui(fn, data, fmt, nome)
+            esiti[v] = {"esito": "errore" if err else "CONVERTITO", "messaggio": err or md[:120],
+                        "secondi": sec, "libreoffice": lo}
+            print(f"{nome:24} {v} {esiti[v]['esito']:10} {sec:>6}s {(err or md)[:110]!r}", flush=True)
+        report["problemi"][nome] = esiti
+
+    if not SENZA_LO:
+        for nome in ("rete.xlsx", "rete.docx"):
+            fmt = nome.rsplit(".", 1)[1]
+            for blindato in (False, True):
+                etichetta = f"{nome}/{'blindato' if blindato else 'predefinito'}"
+                CASO_CORRENTE[0] = etichetta
+                prima_n = len(richieste_http)
+                try:
+                    lo_convert((FIX / nome).read_bytes(), fmt, fmt, blindato=blindato)
+                    err = None
+                except Exception as exc:
+                    err = f"{type(exc).__name__}: {exc}"[:200]
+                time.sleep(1)
+                report["rete"][etichetta] = {"errore": err, "richieste": richieste_http[prima_n:]}
+                print(etichetta, report["rete"][etichetta], flush=True)
+
+    if CAMPIONI:
+        import xlrd
+        for p in sorted(CAMPIONI.iterdir()):
+            fmt = p.suffix.lower().lstrip(".")
+            data = p.read_bytes()
+            verita = None
+            if fmt == "xls":
+                wb = xlrd.open_workbook(file_contents=data)
+                verita = {str(c.value).strip() for sh in wb.sheets() for r in range(sh.nrows)
+                          for c in sh.row(r) if c.ctype == xlrd.XL_CELL_TEXT and len(str(c.value).strip()) >= 3}
+            esiti = {}
+            for v, fn in VARIANTI.items():
+                CASO_CORRENTE[0] = f"{p.name}/{v}"
+                md, err, sec, _mb, lo = esegui(fn, data, fmt, p.name.lower())
+                cop = None
+                if verita and md:
+                    cop = round(sum(1 for t in verita if t in md) / len(verita), 3)
+                esiti[v] = {"errore": err, "secondi": sec, "caratteri": len(md), "copertura_testi_xlrd": cop,
+                            "fogli_xlrd": len(xlrd.open_workbook(file_contents=data).sheets()) if fmt == "xls" else None,
+                            "sezioni": len(at.heads(md)), "problemi_markdown": at.problemi_markdown(md)[:3] if md else [],
+                            "libreoffice": lo}
+                print(f"{p.name:16} {v} {sec:>6}s car={len(md):>6} copertura={cop}" + (f" ERR {err[:90]}" if err else ""), flush=True)
+            report["campioni"][p.name] = esiti
+
+    report["richieste_http_totali"] = richieste_http
+    report["processi_soffice_a_fine_corsa"] = _processi_soffice() if not SENZA_LO else None
+    (OUT / "risultati.json").write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+    server.shutdown()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

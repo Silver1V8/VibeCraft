@@ -1,0 +1,958 @@
+{
+  "origine": "C:\\Users\\Silve\\Desktop\\vibecraft\\rag\\eval\\results\\pilot_docling_finale_20260909-110000",
+  "etichetta": "finale_20260909-110000",
+  "stack": {
+    "baseline": {
+      "pdf-diag-1": {
+        "A_presenza_valori": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "B_presenza_robusta": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "C_citazioni": {
+          "prima_estrattore_difettoso": [],
+          "prima_n": 0,
+          "dopo_estrattore_corretto": [],
+          "dopo_n": 0,
+          "dopo_verificate": 0,
+          "dopo_non_verificabili": 0
+        },
+        "D_attribuzione_doc": {
+          "documento_atteso": "catalogo_diagrammi_normativi.pdf",
+          "nominato_nella_risposta": false,
+          "rango_fonte_attesa": 1,
+          "fonte_in_top10": true
+        },
+        "E_attribuzione_sezione": [],
+        "F_identificatori": [
+          {
+            "nome": "diag_5_2_graph_rag_structure.svg",
+            "esito": "presente"
+          }
+        ],
+        "G_diniego": {
+          "frasi_di_diniego": [],
+          "valori_attesi_presenti_nel_contesto": [
+            "Knowledge"
+          ],
+          "valori_attesi_totali": 1,
+          "contraddizione_da_leggere": false
+        }
+      },
+      "pdf-diag-2": {
+        "A_presenza_valori": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "B_presenza_robusta": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "C_citazioni": {
+          "prima_estrattore_difettoso": [
+            "Registro dei file"
+          ],
+          "prima_n": 1,
+          "dopo_estrattore_corretto": [],
+          "dopo_n": 0,
+          "dopo_verificate": 0,
+          "dopo_non_verificabili": 0
+        },
+        "D_attribuzione_doc": {
+          "documento_atteso": "catalogo_diagrammi_normativi.pdf",
+          "nominato_nella_risposta": true,
+          "rango_fonte_attesa": 1,
+          "fonte_in_top10": true
+        },
+        "E_attribuzione_sezione": [
+          {
+            "sezione_dichiarata": "Registro dei file",
+            "esito": "sezione_inesistente",
+            "intestazioni_reali": [
+              "02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf",
+              "(documento)"
+            ]
+          }
+        ],
+        "F_identificatori": [
+          {
+            "nome": "diag_0_3_modules_relations_map.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "catalogo_diagrammi_normativi.pdf",
+            "esito": "presente"
+          }
+        ],
+        "G_diniego": {
+          "frasi_di_diniego": [],
+          "valori_attesi_presenti_nel_contesto": [
+            "SVG",
+            "46.4 KB"
+          ],
+          "valori_attesi_totali": 2,
+          "contraddizione_da_leggere": false
+        }
+      },
+      "pdf-diag-3": {
+        "A_presenza_valori": {
+          "mancanti": [
+            "19.5 KB"
+          ],
+          "tutti_presenti": false
+        },
+        "B_presenza_robusta": {
+          "mancanti": [
+            "19.5 KB"
+          ],
+          "tutti_presenti": false
+        },
+        "C_citazioni": {
+          "prima_estrattore_difettoso": [
+            "Checkpoint human-in-the-loop e punti di controllo"
+          ],
+          "prima_n": 1,
+          "dopo_estrattore_corretto": [
+            {
+              "passo": "Checkpoint human-in-the-loop e punti di controllo",
+              "parole": 6,
+              "esito": "verified",
+              "trovato_in": [
+                "02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf"
+              ]
+            }
+          ],
+          "dopo_n": 1,
+          "dopo_verificate": 1,
+          "dopo_non_verificabili": 0
+        },
+        "D_attribuzione_doc": {
+          "documento_atteso": "catalogo_diagrammi_normativi.pdf",
+          "nominato_nella_risposta": true,
+          "rango_fonte_attesa": 3,
+          "fonte_in_top10": true
+        },
+        "E_attribuzione_sezione": [],
+        "F_identificatori": [
+          {
+            "nome": "diag_6_2_hitl_checkpoints.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "vibe_coding_workflow.md",
+            "esito": "presente"
+          },
+          {
+            "nome": "catalogo_diagrammi_normativi.pdf",
+            "esito": "presente"
+          },
+          {
+            "nome": "README.md",
+            "esito": "presente"
+          }
+        ],
+        "G_diniego": {
+          "frasi_di_diniego": [],
+          "valori_attesi_presenti_nel_contesto": [
+            "hitl_checkpoints",
+            "19.5 KB"
+          ],
+          "valori_attesi_totali": 2,
+          "contraddizione_da_leggere": false
+        }
+      },
+      "pdf-diag-4": {
+        "A_presenza_valori": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "B_presenza_robusta": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "C_citazioni": {
+          "prima_estrattore_difettoso": [
+            "e successivamente nel registro dei file). * **Cartelle sorgente:** 1 (elencato nella riga"
+          ],
+          "prima_n": 1,
+          "dopo_estrattore_corretto": [
+            {
+              "passo": "e successivamente nel registro dei file).\n*   **Cartelle sorgente:** 1 (elencato nella riga",
+              "parole": 13,
+              "esito": "unverifiable",
+              "trovato_in": []
+            }
+          ],
+          "dopo_n": 1,
+          "dopo_verificate": 0,
+          "dopo_non_verificabili": 1
+        },
+        "D_attribuzione_doc": {
+          "documento_atteso": "catalogo_diagrammi_normativi.pdf",
+          "nominato_nella_risposta": true,
+          "rango_fonte_attesa": 1,
+          "fonte_in_top10": true
+        },
+        "E_attribuzione_sezione": [],
+        "F_identificatori": [
+          {
+            "nome": "catalogo_diagrammi_normativi.pdf",
+            "esito": "presente"
+          }
+        ],
+        "G_diniego": {
+          "frasi_di_diniego": [],
+          "valori_attesi_presenti_nel_contesto": [
+            "5",
+            "1"
+          ],
+          "valori_attesi_totali": 2,
+          "contraddizione_da_leggere": false
+        }
+      },
+      "pdf-mock-1": {
+        "A_presenza_valori": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "B_presenza_robusta": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "C_citazioni": {
+          "prima_estrattore_difettoso": [],
+          "prima_n": 0,
+          "dopo_estrattore_corretto": [],
+          "dopo_n": 0,
+          "dopo_verificate": 0,
+          "dopo_non_verificabili": 0
+        },
+        "D_attribuzione_doc": {
+          "documento_atteso": "catalogo_mockup_normativi.pdf",
+          "nominato_nella_risposta": false,
+          "rango_fonte_attesa": 1,
+          "fonte_in_top10": true
+        },
+        "E_attribuzione_sezione": [],
+        "F_identificatori": [
+          {
+            "nome": "mockup_2_4_notifications_templates.svg",
+            "esito": "presente"
+          }
+        ],
+        "G_diniego": {
+          "frasi_di_diniego": [],
+          "valori_attesi_presenti_nel_contesto": [
+            "2.4",
+            "Manager"
+          ],
+          "valori_attesi_totali": 2,
+          "contraddizione_da_leggere": false
+        }
+      },
+      "pdf-mock-2": {
+        "A_presenza_valori": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "B_presenza_robusta": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "C_citazioni": {
+          "prima_estrattore_difettoso": [
+            "Registro dei file"
+          ],
+          "prima_n": 1,
+          "dopo_estrattore_corretto": [],
+          "dopo_n": 0,
+          "dopo_verificate": 0,
+          "dopo_non_verificabili": 0
+        },
+        "D_attribuzione_doc": {
+          "documento_atteso": "catalogo_mockup_normativi.pdf",
+          "nominato_nella_risposta": true,
+          "rango_fonte_attesa": 1,
+          "fonte_in_top10": true
+        },
+        "E_attribuzione_sezione": [
+          {
+            "sezione_dichiarata": "Registro dei file",
+            "esito": "sezione_inesistente",
+            "intestazioni_reali": [
+              "02_specs_normative/mockups/catalogo_mockup_normativi.pdf",
+              "(documento)"
+            ]
+          }
+        ],
+        "F_identificatori": [
+          {
+            "nome": "mockup_3_5_admin_dashboard_analytics.html",
+            "esito": "presente"
+          },
+          {
+            "nome": "catalogo_mockup_normativi.pdf",
+            "esito": "presente"
+          }
+        ],
+        "G_diniego": {
+          "frasi_di_diniego": [],
+          "valori_attesi_presenti_nel_contesto": [
+            "mockup_3_5_admin_dashboard",
+            "3.4 KB"
+          ],
+          "valori_attesi_totali": 2,
+          "contraddizione_da_leggere": false
+        }
+      },
+      "pdf-mock-3": {
+        "A_presenza_valori": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "B_presenza_robusta": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "C_citazioni": {
+          "prima_estrattore_difettoso": [
+            "**Area Personale** (o",
+            ") dedicata all",
+            "esito delle operazioni tramite un sistema standardizzato di notifiche popup (Toast). L"
+          ],
+          "prima_n": 3,
+          "dopo_estrattore_corretto": [],
+          "dopo_n": 0,
+          "dopo_verificate": 0,
+          "dopo_non_verificabili": 0
+        },
+        "D_attribuzione_doc": {
+          "documento_atteso": "catalogo_mockup_normativi.pdf",
+          "nominato_nella_risposta": false,
+          "rango_fonte_attesa": 10,
+          "fonte_in_top10": true
+        },
+        "E_attribuzione_sezione": [],
+        "F_identificatori": [
+          {
+            "nome": "mockup_1_5_employee_personal_area.svg",
+            "esito": "presente"
+          }
+        ],
+        "G_diniego": {
+          "frasi_di_diniego": [],
+          "valori_attesi_presenti_nel_contesto": [
+            "Area",
+            "personale",
+            "Dipendente"
+          ],
+          "valori_attesi_totali": 3,
+          "contraddizione_da_leggere": false
+        }
+      },
+      "pdf-mock-4": {
+        "A_presenza_valori": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "B_presenza_robusta": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "C_citazioni": {
+          "prima_estrattore_difettoso": [],
+          "prima_n": 0,
+          "dopo_estrattore_corretto": [],
+          "dopo_n": 0,
+          "dopo_verificate": 0,
+          "dopo_non_verificabili": 0
+        },
+        "D_attribuzione_doc": {
+          "documento_atteso": "catalogo_mockup_normativi.pdf",
+          "nominato_nella_risposta": true,
+          "rango_fonte_attesa": 1,
+          "fonte_in_top10": true
+        },
+        "E_attribuzione_sezione": [],
+        "F_identificatori": [
+          {
+            "nome": "catalogo_mockup_normativi.pdf",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_1_1_auth_login.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_1_2_employee_dashboard.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_1_3_event_details.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_1_4_reservation_form.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_1_5_employee_personal_area.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_2_2_manager_approval_queue.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_2_4_notifications_templates.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_3_2_admin_crud_events.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_3_3_admin_global_monitor.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_3_4_admin_export_modal.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_3_5_admin_dashboard_analytics.html",
+            "esito": "presente"
+          },
+          {
+            "nome": "spec_area_pers_1.5.md",
+            "esito": "presente"
+          }
+        ],
+        "G_diniego": {
+          "frasi_di_diniego": [],
+          "valori_attesi_presenti_nel_contesto": [
+            "11",
+            "4",
+            "SVG",
+            "HTML"
+          ],
+          "valori_attesi_totali": 4,
+          "contraddizione_da_leggere": false
+        }
+      }
+    },
+    "candidate": {
+      "pdf-diag-1": {
+        "A_presenza_valori": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "B_presenza_robusta": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "C_citazioni": {
+          "prima_estrattore_difettoso": [
+            "Registro dei file"
+          ],
+          "prima_n": 1,
+          "dopo_estrattore_corretto": [],
+          "dopo_n": 0,
+          "dopo_verificate": 0,
+          "dopo_non_verificabili": 0
+        },
+        "D_attribuzione_doc": {
+          "documento_atteso": "catalogo_diagrammi_normativi.pdf",
+          "nominato_nella_risposta": true,
+          "rango_fonte_attesa": 1,
+          "fonte_in_top10": true
+        },
+        "E_attribuzione_sezione": [
+          {
+            "sezione_dichiarata": "Registro dei file",
+            "sezione_reale": "Registro dei file",
+            "esito": "sezione_esiste_valore_non_isolabile"
+          }
+        ],
+        "F_identificatori": [
+          {
+            "nome": "diag_5_2_graph_rag_structure.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "catalogo_diagrammi_normativi.pdf",
+            "esito": "presente"
+          }
+        ],
+        "G_diniego": {
+          "frasi_di_diniego": [],
+          "valori_attesi_presenti_nel_contesto": [
+            "Knowledge"
+          ],
+          "valori_attesi_totali": 1,
+          "contraddizione_da_leggere": false
+        }
+      },
+      "pdf-diag-2": {
+        "A_presenza_valori": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "B_presenza_robusta": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "C_citazioni": {
+          "prima_estrattore_difettoso": [],
+          "prima_n": 0,
+          "dopo_estrattore_corretto": [],
+          "dopo_n": 0,
+          "dopo_verificate": 0,
+          "dopo_non_verificabili": 0
+        },
+        "D_attribuzione_doc": {
+          "documento_atteso": "catalogo_diagrammi_normativi.pdf",
+          "nominato_nella_risposta": false,
+          "rango_fonte_attesa": 1,
+          "fonte_in_top10": true
+        },
+        "E_attribuzione_sezione": [],
+        "F_identificatori": [
+          {
+            "nome": "diag_0_3_modules_relations_map .svg",
+            "esito": "presente"
+          }
+        ],
+        "G_diniego": {
+          "frasi_di_diniego": [],
+          "valori_attesi_presenti_nel_contesto": [
+            "SVG",
+            "46.4 KB"
+          ],
+          "valori_attesi_totali": 2,
+          "contraddizione_da_leggere": false
+        }
+      },
+      "pdf-diag-3": {
+        "A_presenza_valori": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "B_presenza_robusta": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "C_citazioni": {
+          "prima_estrattore_difettoso": [],
+          "prima_n": 0,
+          "dopo_estrattore_corretto": [],
+          "dopo_n": 0,
+          "dopo_verificate": 0,
+          "dopo_non_verificabili": 0
+        },
+        "D_attribuzione_doc": {
+          "documento_atteso": "catalogo_diagrammi_normativi.pdf",
+          "nominato_nella_risposta": true,
+          "rango_fonte_attesa": 5,
+          "fonte_in_top10": true
+        },
+        "E_attribuzione_sezione": [],
+        "F_identificatori": [
+          {
+            "nome": "diag_6_2_hitl_checkpoints.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "catalogo_diagrammi_normativi.pdf",
+            "esito": "presente"
+          }
+        ],
+        "G_diniego": {
+          "frasi_di_diniego": [
+            "nessuna fonte",
+            "non riporta"
+          ],
+          "valori_attesi_presenti_nel_contesto": [
+            "hitl_checkpoints",
+            "19.5 KB"
+          ],
+          "valori_attesi_totali": 2,
+          "contraddizione_da_leggere": true
+        }
+      },
+      "pdf-diag-4": {
+        "A_presenza_valori": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "B_presenza_robusta": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "C_citazioni": {
+          "prima_estrattore_difettoso": [
+            "(citato nella sezione",
+            "). * **Numero di cartelle sorgente:**",
+            "(citato nella sezione"
+          ],
+          "prima_n": 3,
+          "dopo_estrattore_corretto": [
+            {
+              "passo": ").\n*   **Numero di cartelle sorgente:**",
+              "parole": 6,
+              "esito": "unverifiable",
+              "trovato_in": []
+            }
+          ],
+          "dopo_n": 1,
+          "dopo_verificate": 0,
+          "dopo_non_verificabili": 1
+        },
+        "D_attribuzione_doc": {
+          "documento_atteso": "catalogo_diagrammi_normativi.pdf",
+          "nominato_nella_risposta": true,
+          "rango_fonte_attesa": 1,
+          "fonte_in_top10": true
+        },
+        "E_attribuzione_sezione": [
+          {
+            "sezione_dichiarata": "Indice operativo",
+            "esito": "sezione_inesistente",
+            "intestazioni_reali": [
+              "02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf",
+              "Catalogo diagrammi",
+              "Regole di organizzazione",
+              "Registro dei file",
+              "Percorso sorgente"
+            ]
+          },
+          {
+            "sezione_dichiarata": "Regole di organizzazione",
+            "sezione_reale": "Regole di organizzazione",
+            "valore": "1 cartella sorgente SVG formato",
+            "esito": "valore_in_altra_sezione",
+            "sezione_effettiva": [
+              "Catalogo diagrammi"
+            ]
+          }
+        ],
+        "F_identificatori": [
+          {
+            "nome": "catalogo_diagrammi_normativi.pdf",
+            "esito": "presente"
+          },
+          {
+            "nome": "diag_0_3_modules_relations_map .svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "diag_2_1_workflow_state_machin e.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "diag_2_3_concurrency_pessimisti c_lock.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "diag_6_2_hitl_checkpoints.svg",
+            "esito": "presente"
+          }
+        ],
+        "G_diniego": {
+          "frasi_di_diniego": [],
+          "valori_attesi_presenti_nel_contesto": [
+            "5",
+            "1"
+          ],
+          "valori_attesi_totali": 2,
+          "contraddizione_da_leggere": false
+        }
+      },
+      "pdf-mock-1": {
+        "A_presenza_valori": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "B_presenza_robusta": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "C_citazioni": {
+          "prima_estrattore_difettoso": [
+            "**Area Manager**. Questa associazione è riportata testualmente nella tabella"
+          ],
+          "prima_n": 1,
+          "dopo_estrattore_corretto": [],
+          "dopo_n": 0,
+          "dopo_verificate": 0,
+          "dopo_non_verificabili": 0
+        },
+        "D_attribuzione_doc": {
+          "documento_atteso": "catalogo_mockup_normativi.pdf",
+          "nominato_nella_risposta": true,
+          "rango_fonte_attesa": 1,
+          "fonte_in_top10": true
+        },
+        "E_attribuzione_sezione": [
+          {
+            "sezione_dichiarata": "Registro dei file",
+            "sezione_reale": "Registro dei file",
+            "esito": "sezione_esiste_valore_non_isolabile"
+          }
+        ],
+        "F_identificatori": [
+          {
+            "nome": "mockup_2_4_notifications_templates.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "catalogo_mockup_normativi.pdf",
+            "esito": "presente"
+          }
+        ],
+        "G_diniego": {
+          "frasi_di_diniego": [],
+          "valori_attesi_presenti_nel_contesto": [
+            "2.4",
+            "Manager"
+          ],
+          "valori_attesi_totali": 2,
+          "contraddizione_da_leggere": false
+        }
+      },
+      "pdf-mock-2": {
+        "A_presenza_valori": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "B_presenza_robusta": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "C_citazioni": {
+          "prima_estrattore_difettoso": [],
+          "prima_n": 0,
+          "dopo_estrattore_corretto": [],
+          "dopo_n": 0,
+          "dopo_verificate": 0,
+          "dopo_non_verificabili": 0
+        },
+        "D_attribuzione_doc": {
+          "documento_atteso": "catalogo_mockup_normativi.pdf",
+          "nominato_nella_risposta": true,
+          "rango_fonte_attesa": 1,
+          "fonte_in_top10": true
+        },
+        "E_attribuzione_sezione": [],
+        "F_identificatori": [
+          {
+            "nome": "mockup_3_5_admin_dashboard_analytics.html",
+            "esito": "presente"
+          },
+          {
+            "nome": "catalogo_mockup_normativi.pdf",
+            "esito": "presente"
+          }
+        ],
+        "G_diniego": {
+          "frasi_di_diniego": [],
+          "valori_attesi_presenti_nel_contesto": [
+            "mockup_3_5_admin_dashboard",
+            "3.4 KB"
+          ],
+          "valori_attesi_totali": 2,
+          "contraddizione_da_leggere": false
+        }
+      },
+      "pdf-mock-3": {
+        "A_presenza_valori": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "B_presenza_robusta": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "C_citazioni": {
+          "prima_estrattore_difettoso": [
+            "**Area Personale del dipendente** (o",
+            ") dedicata all",
+            "esito delle operazioni tramite un sistema standardizzato di notifiche popup (Toast). L"
+          ],
+          "prima_n": 3,
+          "dopo_estrattore_corretto": [],
+          "dopo_n": 0,
+          "dopo_verificate": 0,
+          "dopo_non_verificabili": 0
+        },
+        "D_attribuzione_doc": {
+          "documento_atteso": "catalogo_mockup_normativi.pdf",
+          "nominato_nella_risposta": true,
+          "rango_fonte_attesa": 2,
+          "fonte_in_top10": true
+        },
+        "E_attribuzione_sezione": [],
+        "F_identificatori": [
+          {
+            "nome": "mockup_1_5_employee_personal_area.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "spec_area_pers_1.5.md",
+            "esito": "presente"
+          },
+          {
+            "nome": "catalogo_mockup_normativi.pdf",
+            "esito": "presente"
+          }
+        ],
+        "G_diniego": {
+          "frasi_di_diniego": [],
+          "valori_attesi_presenti_nel_contesto": [
+            "Area",
+            "personale",
+            "Dipendente"
+          ],
+          "valori_attesi_totali": 3,
+          "contraddizione_da_leggere": false
+        }
+      },
+      "pdf-mock-4": {
+        "A_presenza_valori": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "B_presenza_robusta": {
+          "mancanti": [],
+          "tutti_presenti": true
+        },
+        "C_citazioni": {
+          "prima_estrattore_difettoso": [],
+          "prima_n": 0,
+          "dopo_estrattore_corretto": [],
+          "dopo_n": 0,
+          "dopo_verificate": 0,
+          "dopo_non_verificabili": 0
+        },
+        "D_attribuzione_doc": {
+          "documento_atteso": "catalogo_mockup_normativi.pdf",
+          "nominato_nella_risposta": true,
+          "rango_fonte_attesa": 1,
+          "fonte_in_top10": true
+        },
+        "E_attribuzione_sezione": [],
+        "F_identificatori": [
+          {
+            "nome": "catalogo_mockup_normativi.pdf",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_1_1_auth_login.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_1_2_employee_dashboard.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_1_3_event_details.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_1_4_reservation_form.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_1_5_employee_personal_area.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_2_2_manager_approval_queue.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_2_4_notification_templates.svg",
+            "esito": "assente_dal_contesto"
+          },
+          {
+            "nome": "mockup_3_2_admin_crud_events.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_3_3_admin_global_monitor.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_3_4_admin_export_modal.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_3_5_admin_dashboard_analytics.html",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_1_5_employee_person al_area.svg",
+            "esito": "presente"
+          },
+          {
+            "nome": "mockup_2_2_manager_approva l_queue.svg",
+            "esito": "presente"
+          }
+        ],
+        "G_diniego": {
+          "frasi_di_diniego": [],
+          "valori_attesi_presenti_nel_contesto": [
+            "11",
+            "4",
+            "SVG",
+            "HTML"
+          ],
+          "valori_attesi_totali": 4,
+          "contraddizione_da_leggere": false
+        }
+      }
+    }
+  },
+  "sintesi": {
+    "baseline": {
+      "A_valori_presenti": "7/8",
+      "B_valori_presenti_confini_parola": "7/8",
+      "C_citazioni_prima": 7,
+      "C_citazioni_dopo": 2,
+      "C_verificate_dopo": 1,
+      "D_documento_nominato": "5/8",
+      "E_domande_con_sezione_sbagliata": [
+        "pdf-diag-2",
+        "pdf-mock-2"
+      ],
+      "F_domande_con_identificatori_non_sostenuti": [],
+      "F_dettaglio": {},
+      "G_domande_con_diniego_contraddetto": []
+    },
+    "candidate": {
+      "A_valori_presenti": "8/8",
+      "B_valori_presenti_confini_parola": "8/8",
+      "C_citazioni_prima": 8,
+      "C_citazioni_dopo": 1,
+      "C_verificate_dopo": 0,
+      "D_documento_nominato": "7/8",
+      "E_domande_con_sezione_sbagliata": [
+        "pdf-diag-4"
+      ],
+      "F_domande_con_identificatori_non_sostenuti": [
+        "pdf-mock-4"
+      ],
+      "F_dettaglio": {
+        "pdf-mock-4": [
+          "mockup_2_4_notification_templates.svg"
+        ]
+      },
+      "G_domande_con_diniego_contraddetto": [
+        "pdf-diag-3"
+      ]
+    }
+  }
+}

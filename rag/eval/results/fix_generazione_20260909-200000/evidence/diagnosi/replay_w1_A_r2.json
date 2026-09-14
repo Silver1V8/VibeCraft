@@ -1,0 +1,43 @@
+{
+  "etichetta": "w1-A-r2",
+  "modulo": "C:\\Users\\Silve\\AppData\\Local\\Temp\\claude\\C--Users-Silve-Desktop-vibecraft\\4b279f9d-0a05-4337-b2a4-157e29255185\\scratchpad\\w1\\rag\\core\\retrieval.py",
+  "contesti_da": "eval_A_p1.json",
+  "modello": [
+    "ollama",
+    "qwen3.5:9b"
+  ],
+  "num_ctx": 16384,
+  "temperature": 0.1,
+  "casi": {
+    "pdf-diag-3": {
+      "domanda": "Quale diagramma del catalogo documenta i checkpoint human-in-the-loop, e con quale peso?",
+      "risposta_attesa": "diag_6_2_hitl_checkpoints.svg.svg, 19.5 KB",
+      "risposta": "Il diagramma che documenta i checkpoint human-in-the-loop è **`diag_6_2_hitl_checkpoints.svg.svg`**, classificato come artefatto di tipo **Governance**.\n\nSecondo la tabella «Registro dei file» del documento `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf`, questo file ha un peso (dimensione) di **19.5 KB** e il suo scopo è illustrare i \"Checkpoint human-in-the-loop e punti di controllo\".\n\nLa fonte che enuncia la classificazione del diagramma è `02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf` (classe **SENZA CLASSE**, peso 0.30), mentre il contenuto descrittivo proviene dallo stesso documento. Non sono presenti altre fonti autorevoli (NORMS, REQUIREMENTS) che definiscano un diverso peso o una diversa classificazione per questo specifico diagramma nel contesto fornito; pertanto, la classificazione e il peso riportati nel catalogo sono i dati verificabili unici disponibili.",
+      "errore": null,
+      "secondi": 8.57,
+      "prompt_char": 34449,
+      "classi": [
+        [
+          "NORMS",
+          0.9
+        ],
+        [
+          "REQUIREMENTS",
+          0.87
+        ],
+        [
+          "METADATA",
+          0.6
+        ],
+        [
+          "METHODOLOGY",
+          0.5
+        ],
+        [
+          "SENZA CLASSE",
+          0.3
+        ]
+      ]
+    }
+  }
+}

@@ -1,0 +1,65 @@
+"""Baseline: i DUE percorsi di produzione sugli stessi PDF, in memoria.
+
+A) percorso loader PDF diretto  -> core.chunking.read_document (pypdf)
+B) percorso conversione intake  -> core.intake_convert.convert_to_markdown (markitdown + intake_clean)
+
+Nessuna scrittura nel corpus, nessuna indicizzazione, nessun staging.
+"""
+
+import hashlib
+import json
+import pathlib
+import sys
+import time
+
+sys.path.insert(0, r"C:\Users\Silve\Desktop\vibecraft\rag")
+
+OUT = pathlib.Path(sys.argv[1])
+DOCS = {
+    "diagrammi": pathlib.Path(
+        r"C:\Users\Silve\Desktop\vibecraft\docs\02_specs_normative\diagrams\catalogo_diagrammi_normativi.pdf"
+    ),
+    "mockup": pathlib.Path(
+        r"C:\Users\Silve\Desktop\vibecraft\docs\02_specs_normative\mockups\catalogo_mockup_normativi.pdf"
+    ),
+}
+
+from core.chunking import chunk_markdown, read_document
+from core.intake_convert import convert_to_markdown
+
+rep = {}
+for name, path in DOCS.items():
+    entry = {"sha256_input": hashlib.sha256(path.read_bytes()).hexdigest()}
+
+    t0 = time.time()
+    fm, body = read_document(path)
+    entry["loader"] = {
+        "secondi": round(time.time() - t0, 3),
+        "frontmatter": fm,
+        "chars": len(body),
+        "sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
+        "righe_con_pipe": sum(1 for r in body.splitlines() if "|" in r),
+        "heading_h2": sum(1 for r in body.splitlines() if r.startswith("## ")),
+    }
+    (OUT / f"loader_{name}.txt").write_text(body, encoding="utf-8")
+    chunks = chunk_markdown(f"02_specs_normative/{path.parent.name}/{path.name}", fm, body)
+    entry["loader"]["chunk"] = len(chunks)
+    entry["loader"]["chunk_ids"] = [c["chunk_id"] for c in chunks]
+
+    t0 = time.time()
+    res = convert_to_markdown(path, "pdf", filename=path.name)
+    entry["intake_markitdown"] = {
+        "secondi": round(time.time() - t0, 3),
+        "chars": len(res.markdown),
+        "sha256": hashlib.sha256(res.markdown.encode("utf-8")).hexdigest(),
+        "metadata": res.metadata,
+        "righe_con_pipe": sum(1 for r in res.markdown.splitlines() if "|" in r),
+        "heading_h2": sum(1 for r in res.markdown.splitlines() if r.startswith("## ")),
+    }
+    (OUT / f"markitdown_{name}.md").write_text(res.markdown, encoding="utf-8")
+    rep[name] = entry
+
+(OUT / "baseline_report.json").write_text(
+    json.dumps(rep, indent=2, ensure_ascii=False), encoding="utf-8"
+)
+print(json.dumps(rep, indent=2, ensure_ascii=False))

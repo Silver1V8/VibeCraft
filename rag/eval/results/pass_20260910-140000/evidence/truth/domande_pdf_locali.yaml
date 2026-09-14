@@ -1,0 +1,84 @@
+# Supplemento LOCALE del pilot Docling (cancello 1c, riga "Retrieval PDF").
+#
+# NON e' e NON deve diventare parte di rag/eval/golden_set.yaml: quei PDF non sono
+# tracciati da git e inserirli fra gli attesi del golden condiviso farebbe scattare
+# il trigger A6 (rag/adr/AUDIT.md:4013). Le fonti sono identificate per SHA-256,
+# non per path, cosi' la domanda resta verificabile anche se il file si sposta.
+#
+# Otto domande, quattro per PDF, registrate PRIMA di leggere l'output del candidato.
+# Sei su otto richiedono l'associazione corretta cella-colonna-riga: e' il punto
+# della misura. Due leggono la banda KPI di pagina 1.
+
+fonti:
+  diagrammi:
+    path: docs/02_specs_normative/diagrams/catalogo_diagrammi_normativi.pdf
+    sha256: 9c0d51c52710efbd87aaf8599d7bde09e93ceefbdc206ad35c311d993c56f91f
+  mockup:
+    path: docs/02_specs_normative/mockups/catalogo_mockup_normativi.pdf
+    sha256: 443ecfca8c8ab4fb706bf518c725e80272e52dfdc4b75b6759fb7d04a00aa1b2
+
+domande:
+  - id: pdf-diag-1
+    domanda: "Nel catalogo diagrammi, quale area e' associata al file diag_5_2_graph_rag_structure.svg?"
+    fonte: diagrammi
+    ancora: {pagina: 2, tabella: diagrammi_p2_registro, riga: 4, colonna: Area}
+    risposta_attesa: "Knowledge"
+    richiede_associazione_cella: true
+
+  - id: pdf-diag-2
+    domanda: "Nel catalogo diagrammi, qual e' il formato e il peso di diag_0_3_modules_relations_map.svg?"
+    fonte: diagrammi
+    ancora: {pagina: 2, tabella: diagrammi_p2_registro, riga: 1, colonna: "Formato / peso"}
+    risposta_attesa: "SVG, 46.4 KB"
+    richiede_associazione_cella: true
+
+  - id: pdf-diag-3
+    domanda: "Quale diagramma del catalogo documenta i checkpoint human-in-the-loop, e con quale peso?"
+    fonte: diagrammi
+    ancora: {pagina: 2, tabella: diagrammi_p2_registro, riga: 5, colonna: "File + Finalita + Formato / peso"}
+    risposta_attesa: "diag_6_2_hitl_checkpoints.svg.svg, 19.5 KB"
+    richiede_associazione_cella: true
+    nota: "il nome ha davvero due estensioni .svg.svg nella fonte; una risposta che scrive .svg conta come valore alterato"
+
+  - id: pdf-diag-4
+    domanda: "Quanti artefatti contiene il catalogo diagrammi e quante cartelle sorgente dichiara?"
+    fonte: diagrammi
+    ancora: {pagina: 1, struttura: banda_kpi}
+    risposta_attesa: "5 artefatti, 1 cartella sorgente"
+    richiede_associazione_cella: false
+
+  - id: pdf-mock-1
+    domanda: "Nel catalogo mockup, quale numero di specifica e quale area sono associati a mockup_2_4_notifications_templates.svg?"
+    fonte: mockup
+    ancora: {pagina: 2, tabella: mockup_p2_registro, riga: 7, colonna: "Spec. + Area"}
+    risposta_attesa: "spec 2.4, area Manager"
+    richiede_associazione_cella: true
+
+  - id: pdf-mock-2
+    domanda: "Qual e' l'unico file del registro mockup in formato HTML e quanto pesa?"
+    fonte: mockup
+    ancora: {pagina: 2, tabella: mockup_p2_registro, riga: 11, colonna: "File + Formato / peso"}
+    risposta_attesa: "mockup_3_5_admin_dashboard_analytics.html, 3.4 KB"
+    richiede_associazione_cella: true
+
+  - id: pdf-mock-3
+    domanda: "Che cosa mostra la schermata mockup_1_5_employee_personal_area.svg e a quale area appartiene?"
+    fonte: mockup
+    ancora: {pagina: 2, tabella: mockup_p2_registro, riga: 5, colonna: "Schermata + Area"}
+    risposta_attesa: "Area personale del dipendente; area Dipendente"
+    richiede_associazione_cella: true
+
+  - id: pdf-mock-4
+    domanda: "Quanti artefatti e quante aree funzionali dichiara il catalogo mockup, e in quali formati?"
+    fonte: mockup
+    ancora: {pagina: 1, struttura: banda_kpi}
+    risposta_attesa: "11 artefatti, 4 aree funzionali, formati SVG + HTML"
+    richiede_associazione_cella: false
+
+criterio_di_valutazione:
+  descrizione: >-
+    Per ogni domanda si verifica se la risposta e' DERIVABILE dall'output di conversione,
+    cioe' se il testo convertito contiene i valori attesi con l'associazione corretta.
+    Non e' una misura di generazione LLM: e' una misura di che cosa il parsing rende
+    disponibile a valle. Una risposta "derivabile solo per posizione" (i valori ci sono
+    ma l'associazione va indovinata dall'ordine) NON conta come derivabile.

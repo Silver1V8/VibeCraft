@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# FASE 5 — confronto finale riproducibile, uno stack per invocazione.
+#   fase5.sh <etichetta> <sandbox> <porta> <qdrant-url> [golden] [attrib]
+#
+# MAI due stack in parallelo: due server che si contendono GPU e Ollama
+# falsificano i tempi e, con un modello caricato a meta', anche le risposte.
+#
+# Tre passate sulle otto domande congelate. Cache di /ask spenta
+# (VIBECRAFT_ASK_CACHE_SIZE=0, vedi avvia_server.sh): ogni passata e' una
+# generazione vera. Tutte le passate vengono salvate — nessuna selezione.
+#
+#   golden  esegue anche golden generale e multihop (misure di RETRIEVAL:
+#           interrogano GET /api/retrieve, non la generazione)
+#   attrib  esegue lo schermo deterministico di attribuzione sui casi N3
+set -euo pipefail
+ETICHETTA="$1"; SANDBOX="$2"; PORTA="$3"; QDRANT="$4"; shift 4
+EXTRA=" $* "
+W="C:/Users/Silve/Desktop/vibecraft/rag/eval/results/pilot_docling_chiusura_20260909-160000"
+PY="C:/Users/Silve/Desktop/vibecraft/rag/.venv/Scripts/python.exe"
+
+bash "$W/scripts/avvia_server.sh" "$SANDBOX" "$PORTA" "$QDRANT" "$PY" "$W/logs/server-$ETICHETTA.log"
+
+for p in 1 2 3; do
+  "$PY" -B "$W/scripts/eval_stack.py" "$ETICHETTA" "http://127.0.0.1:$PORTA" \
+        "$SANDBOX" "$W/out" "$p" 2>&1 | tee -a "$W/logs/eval-$ETICHETTA.log"
+done
+
+case "$EXTRA" in *" attrib "*)
+  "$PY" -B "$W/scripts/regressione_attribuzione.py" "$ETICHETTA" \
+        "http://127.0.0.1:$PORTA" "$SANDBOX" "$W/out" 2>&1 | tee "$W/logs/attribuzione-$ETICHETTA.log"
+;; esac
+
+case "$EXTRA" in *" golden "*)
+  cd "$SANDBOX/rag"
+  QDRANT_URL="$QDRANT" "$PY" -B -m eval.run --url "http://127.0.0.1:$PORTA" --no-save \
+      > "$W/logs/golden-$ETICHETTA.log" 2>&1 || true
+  QDRANT_URL="$QDRANT" "$PY" -B -m eval.run_multihop --url "http://127.0.0.1:$PORTA" --no-save \
+      > "$W/logs/multihop-$ETICHETTA.log" 2>&1 || true
+  tail -5 "$W/logs/golden-$ETICHETTA.log"
+  tail -5 "$W/logs/multihop-$ETICHETTA.log"
+;; esac
+
+kill "$(cat "$SANDBOX/.server.pid")" 2>/dev/null || true
+sleep 3
+echo "stack $ETICHETTA completato, server arrestato"

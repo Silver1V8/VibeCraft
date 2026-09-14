@@ -1,0 +1,39 @@
+"""Genera tests/fixtures/intake/tabelle_titoli.pdf: PDF digitale con titolo, due livelli
+di intestazione (stili 24/15/12 pt), una tabella con griglia e testo con accenti.
+Lessico volutamente estraneo ai cataloghi del corpus. Uso: make_fixture.py <out.pdf>"""
+import sys
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+title = ParagraphStyle("t", fontName="Helvetica-Bold", fontSize=24, leading=29, spaceAfter=6 * mm)
+h2 = ParagraphStyle("h2", fontName="Helvetica-Bold", fontSize=15, leading=19, spaceBefore=5 * mm, spaceAfter=3 * mm)
+h3 = ParagraphStyle("h3", fontName="Helvetica-Bold", fontSize=12, leading=15, spaceBefore=4 * mm, spaceAfter=2 * mm)
+body = ParagraphStyle("b", fontName="Helvetica", fontSize=10, leading=14)
+cell = ParagraphStyle("c", fontName="Helvetica", fontSize=9.5, leading=12)
+
+rows = [["Lotto", "Fornitore", "Quantità", "Stato"],
+        ["L-01", "Acme Srl", "120", "consegnato"],
+        ["L-02", "Beta SpA", "45", "in attesa"],
+        ["L-03", "Gamma Coop", "7", "annullato"]]
+table = Table([[Paragraph(c, cell) for c in r] for r in rows], colWidths=[30 * mm, 50 * mm, 30 * mm, 40 * mm])
+table.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+                           ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#DDDDDD"))]))
+
+story = [
+    Paragraph("Registro forniture", title),
+    Paragraph("Documento di prova per la conversione dell'intake.", body),
+    Paragraph("Regole di consegna", h2),
+    Paragraph("Ogni lotto è verificato all'arrivo; la città di destinazione è indicata nel "
+              "codice identificativo_lotto e la qualità è controllata a campione.", body),
+    Paragraph("Tabella dei lotti", h2),
+    table,
+    Paragraph("Note operative", h3),
+    Paragraph("Il responsabile può sospendere una consegna già pianificata.", body),
+    Spacer(1, 4 * mm),
+]
+SimpleDocTemplate(sys.argv[1], pagesize=A4, title="Registro forniture", author="VibeCraft test",
+                  invariant=1).build(story)
