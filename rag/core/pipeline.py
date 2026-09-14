@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 from core import llm, retrieval, spec_format
-from core.config import CHANGES_DIR, CODE_DIR, RAG_DIR, SERVER_BASE_URL, TECH_QUERY_TEMPLATE
+from core.config import CHANGES_DIR, CODE_DIR, DOCS_DIR, RAG_DIR, SERVER_BASE_URL, TECH_QUERY_TEMPLATE
 
 # Le 7 sezioni obbligatorie del REASONS Canvas (copertura strutturale e confidence).
 CANVAS_SECTIONS = ("Requirements", "Entities", "Approach", "Structure", "Operations", "Norms", "Safeguards")
@@ -265,7 +265,21 @@ def build_index_hint_block(dev_type: str = "", base_url: str = SERVER_BASE_URL) 
         f"risposta e annulla gran parte del risparmio.\n"
         f"  GET /api/graph/impact?node=<symbol_id>&depth=2 — cosa viene impattato da un simbolo, "
         f"prima di modificarlo.\n"
-        f"  GET /api/retrieve?q=<domanda>&k=5 — sezioni normative pertinenti (documenti, non codice).\n"
+        f"  GET /api/retrieve?q=<domanda>&k=5&include_text=true — estratti documentali con testo "
+        f"e provenienza (documenti, non codice).\n"
+        f"Valuta le fonti usando classification, status e source_label: le fonti normative attive "
+        f"stabiliscono i vincoli nel proprio ambito; le fonti informative spiegano o illustrano, "
+        f"senza introdurre requisiti; le fonti archiviate (ARCHIVED, DEPRECATED, HISTORICAL, "
+        f"OBSOLETE) valgono come contesto storico, non come norme vigenti. Se classe o stato "
+        f"non sono chiari, verifica la fonte prima di attribuirle valore normativo. Rispetta le "
+        f"precedenze dichiarate e il ranking restituito: un punteggio alto o una data recente "
+        f"non rendono da soli normativa una fonte. Cita doc_id e section per i vincoli usati.\n"
+        f"Se text_truncated=true e quell'estratto sostiene una decisione, leggi prima il testo "
+        f"completo della fonte indicata da doc_id, relativo alla cartella sorgente '{DOCS_DIR}', "
+        f"con Read o gli strumenti già disponibili per il suo formato. Non dedurre eccezioni "
+        f"o condizioni dalla parte omessa. Se la fonte completa non è accessibile, dichiara "
+        f"il punto aperto e sospendi quella decisione. Conserva index_version come provenienza "
+        f"della ricerca e segnala eventuali differenze rispetto alla fonte letta.\n"
         f"Regole d'uso, tassative: l'indice serve SOLO a scegliere cosa leggere; è uno snapshot "
         f"dell'ultima indicizzazione e può essere disallineato rispetto al filesystem, quindi ogni "
         f"file che modifichi va letto per intero prima di scriverci e nessuna riga di codice va "

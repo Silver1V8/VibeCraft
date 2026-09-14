@@ -1,5 +1,6 @@
 """Contratti MCP/HTTP: snapshot, default e limiti senza servizi esterni."""
 from dataclasses import replace
+import re
 
 import networkx as nx
 import pytest
@@ -7,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api import deps, routes_graph, routes_retrieval
-from core import retrieval
+from core import pipeline, retrieval
 
 
 @pytest.fixture
@@ -62,6 +63,29 @@ def test_http_default_results_unchanged(env, monkeypatch):
     assert body['k'] == 5
     assert body['index_version'] == 'v-old'
     assert client.get('/api/retrieve', params={'q': 'x', 'text_max_chars': 0}).status_code == 422
+
+
+def test_external_prompt_retrieval_returns_text_provenance_and_truncation(env, monkeypatch, tmp_path):
+    client, snap = env
+    source_dir = tmp_path / 'fonti'
+    monkeypatch.setattr(pipeline, 'DOCS_DIR', source_dir)
+    snap.chunks['a']['text'] = 'A' * 2000 + ' Eccezione da leggere prima di decidere.'
+    hit = {'chunk_id': 'a', 'doc_id': 'norma.md', 'section': 'Vincoli',
+           'classification': 'REQUIREMENTS', 'status': 'ENFORCED', 'authority': 0.9}
+    monkeypatch.setattr(retrieval, 'hybrid_search', lambda *a, **kw: [hit])
+    prompt = pipeline.build_final_prompt('feat', 'backend', 'external')
+    assert str(source_dir) in prompt
+    url = re.search(r'GET (/api/retrieve\?\S+)', prompt).group(1)
+    response = client.get(url)
+    assert response.status_code == 200
+    body = response.json()
+    result = body['results'][0]
+    assert result['text'] == 'A' * 2000
+    assert result['text_truncated'] is True
+    assert result['text_chars'] == len(snap.chunks['a']['text'])
+    assert result['source_label'] == 'REQUIREMENTS'
+    assert all(result[key] == value for key, value in hit.items())
+    assert body['index_version'] == 'v-old'
 
 
 def test_graph_limits_are_explicit_and_read_only(env):
