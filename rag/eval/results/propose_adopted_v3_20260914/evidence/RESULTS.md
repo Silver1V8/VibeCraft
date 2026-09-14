@@ -1,5 +1,11 @@
 # V3 adottata contro bd87bd7^ — conteggi descrittivi
 
+**Aggiornamento del parser, senza rigenerazioni:** gli stati nella tabella sotto
+sono quelli della misura originale. Il difetto di riconoscimento dei titoli
+numerati è corretto: [ricalcolo sui medesimi sei file](PARSER_RECHECK.json),
+5 valid, 1 invalid, 0 missing. Sei punti dichiarati nel testo non significavano
+sei resoconti accettati: prima della correzione erano validi soltanto due.
+
 Sei nuove risposte del prompt a8b2416 e sei vecchie riutilizzate. Nessuna revisione sostanziale.
 F toccata non equivale a caso nominale/negativo coperto o scenario soddisfatto.
 FE3-F4 ha perimetro ambiguo: presenza separata, assenza NON conteggiata come lacuna.

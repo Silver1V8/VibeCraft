@@ -5,7 +5,10 @@ successivo all'adozione di V3. Nessuna nuova generazione per questo aggiornament
 Domanda: **le modifiche a Propose hanno migliorato la qualità? Risposta:
 beneficio strutturale osservato, miglioramento qualitativo non ancora dimostrato.**
 Il prompt attuale dichiara punti aperti in 6/6 campioni contro 0/6 e non riduce
-il numero di scenari o le F toccate. Non è stata rivalutata la correttezza delle
+il numero di scenari o le F toccate. Sono dichiarazioni nel testo: prima della
+correzione del parser solo 2/6 resoconti erano riconosciuti validi dalla pipeline;
+dopo la correzione sono 5/6, con un JSON malformato correttamente invalid.
+Non è stata rivalutata la correttezza delle
 ambiguità dichiarate né la copertura nominale/negativa: questi conteggi non bastano
 a concludere un miglioramento sostanziale. Esito conclusivo e riserve in §6.
 
@@ -254,6 +257,10 @@ la sezione; il nuovo dichiara un record per campione. Questo dato NON sostituisc
 il precedente 0/27→3/27 sulle ambiguità preregistrate riconosciute correttamente:
 denominatore e oggetto misurato sono diversi, e non c'è una nuova revisione
 sostanziale. In LA2 r2 un record è leggibile ma il JSON è malformato.
+I sei record dichiarati nel testo NON erano sei resoconti riconosciuti dal
+sistema: il parser precedente ne accettava soltanto due. Il beneficio testuale
+e l'utilizzabilità nella pipeline sono due misure diverse; la seconda era
+peggiore per un difetto del parser, non per la numerazione legittima dell'output.
 
 Con la formulazione adottata, il numero di scenari non cala: FE3 rimane a
 sette, LA2 passa da sette a 8–10. Anche le F toccate restano uguali nelle tre
@@ -282,25 +289,44 @@ confini delle funzionalità rimane un problema aperto anche dopo l'adozione V3.
 
 In `la2_current_r2.md` manca soltanto la graffa finale dell'oggetto esterno:
 il payload termina con `}}]` anziché `}}]}`. Nessun campo obbligatorio manca,
-il fence è chiuso e non c'è testo estraneo nel blocco. Aggiungere la graffa
-soltanto in memoria rende validi JSON e schema; la risposta grezza è invariata.
+il fence è chiuso e non c'è testo estraneo nel blocco. Il parser non aggiunge
+la graffa né tenta altre riparazioni. La risposta grezza è invariata.
 
-Il titolo è però `## 4. Punti aperti`, non quello canonico `## Punti aperti`:
-`read_report()` non trova la sezione e restituisce **missing** prima di leggere
-il JSON. Sul lotto attuale gli stati effettivi sono **valid 2/6, missing 4/6,
-invalid 0/6**. La sintassi JSON malformata si osserva in **1/6**; non equivale
-a uno stato invalid osservato end-to-end. Con il solo titolo canonico,
-quel payload non corretto restituisce invalid. Gli altri tre titoli numerati
-rendono missing anche JSON sintatticamente validi.
+Il titolo `## 4. Punti aperti` è una variante legittima della struttura del
+documento. Il parser precedente esigeva `## Punti aperti` alla lettera:
+restituiva **missing** prima di leggere il JSON. Prima della correzione gli
+stati erano **valid 2/6, missing 4/6, invalid 0/6**. Era un difetto del parser,
+non un errore del modello nella scelta della numerazione. La graffa mancante
+rimane invece un errore dell'output.
 
-Una precisazione minima proponibile, NON applicata in questo intervento:
-«Non numerare il titolo `## Punti aperti`. Prima di chiudere il fence json,
-verifica di aver chiuso anche l'oggetto esterno: dopo la `]` di open_points
-serve la `}` finale.» La graffa mancante è un caso su sei, insufficiente per
-definirlo ricorrente; il titolo numerato ricorre quattro volte su sei.
-La precisazione non garantisce JSON valido e non sostituisce il controllo runtime.
+Il parser corretto riconosce soltanto l'H2 Punti aperti, senza distinzione di
+maiuscole/minuscole, con spaziatura variabile e numerazione araba opzionale
+(anche multilivello, punto o parentesi). Non riconosce intestazioni generiche
+e continua a ignorare quelle dentro fence e a rifiutare sezioni duplicate.
+Il JSON resta rigoroso, senza aggiungere parentesi nemmeno in memoria.
+
+Ricalcolo sulle sei risposte originali, usate anche come fixture dei test:
+
+| Campione | Prima | Dopo |
+|---|---|---|
+| fe3_current_r1 | valid | valid |
+| fe3_current_r2 | valid | valid |
+| fe3_current_r3 | missing | valid |
+| la2_current_r1 | missing | valid |
+| la2_current_r2 | missing | invalid |
+| la2_current_r3 | missing | valid |
+
+**Dopo: valid 5/6, invalid 1/6, missing 0/6.** Diagnostica del caso troncato:
+`JSON dei punti aperti non valido: Expecting ',' delimiter (riga 1, colonna 447).
+Nessuna riparazione automatica.` [Ricalcolo e hash](propose_adopted_v3_20260914/evidence/PARSER_RECHECK.json).
+I conteggi originali in STRUCTURAL.json restano storici; nessuna rigenerazione.
+
+La precedente proposta di vietare la numerazione nel prompt è ritirata:
+avrebbe chiesto al modello di aggirare una fragilità del parser. Resta prevista
+nel commit del prompt la sola verifica della graffa finale prima di chiudere
+il fence JSON. Non garantisce JSON valido e non sostituisce il controllo runtime.
 
 Conclusione aggiornata: **più punti dichiarati senza regressione dei conteggi
 strutturali nel lotto osservato; miglioramento qualitativo ancora da verificare.**
-Nessuna modifica al prompt o al parser per questo aggiornamento. Nessun pilot
-e nessun gate avviati.
+Corretto il parser; aggiornamento del prompt separato. Nessun pilot e nessun
+gate avviati.

@@ -1,0 +1,54 @@
+{
+  "parser_sha256": "e99ff0830876dc225246afdda7dc99bacfedb280e5fd75f4e13e386717e4a7f6",
+  "source_measurements": "STRUCTURAL.json",
+  "generated_samples": 0,
+  "raw_responses_unchanged": true,
+  "counts": {
+    "valid": 5,
+    "invalid": 1
+  },
+  "samples": [
+    {
+      "sample_id": "fe3_current_r1",
+      "response_sha256": "4a59f86f3e370c5c06d9deabf2608ee0699f4a6633f42f91bd3eb75563114439",
+      "before": "valid",
+      "after": "valid",
+      "error": null
+    },
+    {
+      "sample_id": "fe3_current_r2",
+      "response_sha256": "f74619300af6b1df474d9f79ef0734d1e80cb601ba0eff3721df5028cfb4e7e9",
+      "before": "valid",
+      "after": "valid",
+      "error": null
+    },
+    {
+      "sample_id": "fe3_current_r3",
+      "response_sha256": "2549cf89e4bbcf36a45ecec7c19147ee052c670a37a6254a176d3953287e507a",
+      "before": "missing",
+      "after": "valid",
+      "error": null
+    },
+    {
+      "sample_id": "la2_current_r1",
+      "response_sha256": "b6892f43a3d86f8c05f34b417487bb0d7f3789707f7d9bd4709b57db8a8fd611",
+      "before": "missing",
+      "after": "valid",
+      "error": null
+    },
+    {
+      "sample_id": "la2_current_r2",
+      "response_sha256": "c754bc719ed207d0d34b90ce055cdd8274bf2e51f690bbaa825209a175dece88",
+      "before": "missing",
+      "after": "invalid",
+      "error": "JSON dei punti aperti non valido: Expecting ',' delimiter (riga 1, colonna 447). Nessuna riparazione automatica."
+    },
+    {
+      "sample_id": "la2_current_r3",
+      "response_sha256": "d218db12fce1f96b7d98d9023f80b5724c69fe83ca022b41cf928d68ee920b40",
+      "before": "missing",
+      "after": "valid",
+      "error": null
+    }
+  ]
+}

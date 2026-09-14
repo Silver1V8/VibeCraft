@@ -1,5 +1,6 @@
 """Il silenzio del modello non certifica l'assenza di punti aperti."""
 import json
+from pathlib import Path
 
 import pytest
 
@@ -71,3 +72,50 @@ def test_spec_normalization_preserves_report_and_scenarios():
     normalized = normalize_spec(scenario + '\n\n' + report([point()]))
     assert scenario in normalized
     assert read_report(normalized)['open_points'] == [point()]
+
+
+@pytest.mark.parametrize('heading', [
+    '## Punti aperti', '## 4. Punti aperti', '## 4 Punti aperti',
+    '## 4) Punti aperti', '## (4) Punti aperti', '## 4.2. Punti aperti',
+    '  ##\t12.3)\tPUNTI   APERTI  ', '## punti aperti',
+])
+def test_report_heading_numbering_and_spacing(heading):
+    result = read_report(report([point()]).replace('## Punti aperti', heading))
+    assert result['open_points_status'] == 'valid'
+    assert result['open_points'] == [point()]
+
+
+@pytest.mark.parametrize('heading', [
+    '# Punti aperti', '### Punti aperti', '## Altri punti aperti',
+    '## Punti aperti risolti', '## 4. Questioni aperte', '## 4Punti aperti',
+    '## Punti aperti: dettagli', '##4. Punti aperti',
+])
+def test_other_headings_are_not_reports(heading):
+    assert read_report(report([]).replace('## Punti aperti', heading))['open_points_status'] == 'missing'
+
+
+def test_numbered_reports_remain_unambiguous_and_outside_fences():
+    numbered = report([]).replace('## Punti aperti', '## 4. Punti aperti')
+    assert read_report(report([]) + '\n' + numbered)['open_points_status'] == 'invalid'
+    assert read_report('````markdown\n' + numbered + '\n````')['open_points_status'] == 'missing'
+
+
+@pytest.mark.parametrize('sample,status', [
+    ('fe3_current_r1', 'valid'), ('fe3_current_r2', 'valid'), ('fe3_current_r3', 'valid'),
+    ('la2_current_r1', 'valid'), ('la2_current_r2', 'invalid'), ('la2_current_r3', 'valid'),
+])
+def test_real_propose_samples_without_json_repair(sample, status):
+    # Fixture originali già tracciate: nessuna copia corretta né rigenerazione.
+    path = (Path(__file__).resolve().parents[1] / 'eval/results'
+            / 'propose_adopted_v3_20260914/evidence/responses' / f'{sample}.md')
+    raw = path.read_text(encoding='utf-8')
+    result = read_report(raw)
+    assert result['open_points_status'] == status
+    if status == 'valid':
+        assert len(result['open_points']) == 1
+        assert result['open_points'][0]['id'] == 'OP-001'
+    else:
+        assert result['open_points'] is None
+        assert 'JSON' in result['open_points_error']
+        assert 'riga 1' in result['open_points_error']
+        assert 'colonna 447' in result['open_points_error']

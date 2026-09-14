@@ -125,7 +125,10 @@ def _unique_keys(pairs):
 
 
 def read_report(value) -> dict:
-    """Legge JSON strutturato o la sezione finale canonica, ignorando esempi dentro fence."""
+    """Legge JSON rigoroso o la sezione finale Punti aperti, anche numerata.
+
+    Ignora esempi dentro fence; non ripara JSON incompleto o malformato.
+    """
     result = {'open_points_status': 'missing', 'research_policy': dict(POLICY)}
     if value is None:
         return result
@@ -148,7 +151,13 @@ def read_report(value) -> dict:
                             fence = token
                         elif token[0] == fence[0] and len(token) >= len(fence) and not suffix.strip():
                             fence = None
-                    elif fence is None and re.fullmatch(r'## Punti aperti\s*', line):
+                    # Solo H2 Punti aperti; numerazione araba anche multilivello,
+                    # punto/parentesi e spaziatura non cambiano il significato.
+                    elif fence is None and re.fullmatch(
+                        r'[ \t]{0,3}##[ \t]+(?:(?:[0-9]+(?:\.[0-9]+)*[.)]?|'
+                        r'\([0-9]+(?:\.[0-9]+)*\))[ \t]+)?Punti[ \t]+aperti[ \t]*',
+                        line, re.IGNORECASE,
+                    ):
                         headings.append(index)
                 if not headings:
                     return result
@@ -164,5 +173,8 @@ def read_report(value) -> dict:
         validated = Report.model_validate(value)
         return {**result, 'open_points_status': 'valid', **validated.model_dump()}
     except ValueError as exc:
+        error = (f'JSON dei punti aperti non valido: {exc.msg} '
+                 f'(riga {exc.lineno}, colonna {exc.colno}). Nessuna riparazione automatica.'
+                 if isinstance(exc, json.JSONDecodeError) else str(exc))
         return {**result, 'open_points_status': 'invalid', 'open_points': None,
-                'open_points_error': str(exc)}
+                'open_points_error': error}

@@ -11,8 +11,10 @@ sei risposte nuove contro le sei `bd87bd7^` conservate, senza giudizio sostanzia
 Il prompt attuale include anche il resoconto advisory: non isola la sola modifica
 sulle ambiguità. Il resoconto finale conserva i tre giri precedenti e include
 ora l'esito successivo: più punti dichiarati senza calo dei conteggi strutturali;
-qualità sostanziale non rivalutata. Distingue JSON malformato (1/6) da stato
-runtime invalid (0/6).
+qualità sostanziale non rivalutata. I punti dichiarati nel testo erano 6/6,
+ma il parser ne riconosceva solo 2/6 come resoconti validi. Corretto il
+riconoscimento dei titoli numerati: ora 5/6 valid e 1/6 invalid per JSON
+malformato, senza riparazioni automatiche. [Ricalcolo](propose_adopted_v3_20260914/evidence/PARSER_RECHECK.json).
 
 `history.jsonl` conserva gli eventi aggregati della pagina `/eval`. I dati che
 permettono di esaminarli vivono in `<run>/evidence/`. Fuori da quella cartella gli
