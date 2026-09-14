@@ -2,6 +2,7 @@
 import asyncio
 import json
 import os
+import re
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -12,6 +13,38 @@ from mcp.client.stdio import StdioServerParameters
 
 from mcp_server import backend_url, create_server
 from agent_bridge import _build_agent_options
+from core import pipeline
+
+
+@pytest.mark.parametrize('dev_type', ['frontend', ''])
+def test_external_prompt_examples_call_real_mcp_tools(dev_type):
+    prompt = pipeline.build_final_prompt('feat', dev_type, 'external')
+    examples = re.findall(r'- mcp__vibecraft__(\w+) con (\{[^\n]*\})\.', prompt)
+    expected = {'vibecraft_retrieve': '/api/retrieve',
+                'vibecraft_code_search': '/api/code/search',
+                'vibecraft_graph_query': '/api/graph/query'}
+    assert {name for name, _ in examples} == set(expected)
+    assert prompt.index('Canale preferito: MCP') < prompt.index('Fallback HTTP')
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(200, json={'path': request.url.path})
+
+    async def run():
+        async with Client(create_server(transport=httpx.MockTransport(handler))) as client:
+            for name, raw in examples:
+                result = await client.call_tool(name, json.loads(raw))
+                assert not result.is_error
+                assert result.structured_content['path'] == expected[name]
+                params = calls[-1].url.params
+                if name == 'vibecraft_retrieve':
+                    assert params['include_text'] == 'true'
+                elif name == 'vibecraft_code_search':
+                    assert params['dev_type'] == dev_type and params['snippet'] == 'false'
+                else:
+                    assert params['q'] == 'impatto' and params['target']
+    asyncio.run(run())
 
 
 @pytest.mark.parametrize('url', ['https://example.org', 'http://127.0.0.1.evil',

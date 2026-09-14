@@ -229,7 +229,7 @@ def load_dev_type(folder: Path) -> str:
 # Consumatori riconosciuti del prompt finale. Non è una preferenza di stile: cambia COSA il
 # destinatario è in grado di eseguire.
 #   "external" — Claude Code / Cursor lanciati fuori da questo server: hanno una shell e possono
-#                interrogare l'indice via HTTP, quindi il prompt include il blocco di
+#                interrogare l'indice via MCP o HTTP, quindi il prompt include il blocco di
 #                orientamento qui sotto.
 #   "agent"    — esecuzione in-app: Suggest/Agentic consultano l'indice via MCP;
 #                One-shot riceve il contratto allegato e non dispone di tool.
@@ -237,7 +237,7 @@ FINAL_PROMPT_CONSUMERS = ("external", "agent")
 
 
 def build_index_hint_block(dev_type: str = "", base_url: str = SERVER_BASE_URL) -> str:
-    """Blocco di orientamento sull'indice del progetto per un agente che PUÒ fare HTTP.
+    """Orientamento per agenti esterni: MCP preferito, HTTP come fallback.
 
     Serve a un problema misurabile: senza, un agente che deve integrare codice in code/ ripiega
     su Glob+Read a tappeto, cioè legge (e paga) l'intero ambito per trovare i due file che gli
@@ -254,11 +254,26 @@ def build_index_hint_block(dev_type: str = "", base_url: str = SERVER_BASE_URL) 
     · il fallback esplicito su Read/Grep evita che un server spento blocchi l'implementazione,
       che è ciò che l'agente deve consegnare."""
     scope = f"&dev_type={dev_type}" if dev_type else ""
+    search_params = json.dumps({"params": {"q": "<simbolo o comportamento della feature>",
+                                          "k": 5, "dev_type": dev_type, "snippet": False}},
+                               ensure_ascii=False)
     return (
         f"\n\nOrientamento nel codice esistente (facoltativo ma consigliato): questo progetto "
-        f"espone un indice semantico su {base_url} — header 'X-API-Key: $VIBECRAFT_API_KEY', "
-        f"omettibile se chiami da localhost. Usalo per decidere QUALI file aprire, invece di "
-        f"esplorare code/ a tappeto:\n"
+        f"espone un indice semantico. Dopo aver letto Canvas e Spec, usalo per decidere QUALI "
+        f"file aprire, invece di esplorare code/ a tappeto.\n"
+        f"Canale preferito: MCP, se il client espone i tool VibeCraft. I nomi seguenti usano "
+        f"il prefisso Claude Code per il server 'vibecraft'; negli altri client usa i nomi "
+        f"corrispondenti effettivamente esposti.\n"
+        f"- mcp__vibecraft__vibecraft_code_search con {search_params}. "
+        f"Apri i file pertinenti; snippet=true solo se i nomi non bastano.\n"
+        '- mcp__vibecraft__vibecraft_graph_query con {"params":{"q":"impatto",'
+        '"target":"<symbol_id restituito dalla ricerca>","limit":20}}. '
+        "Verifica le dipendenze prima di modificare un simbolo condiviso.\n"
+        '- mcp__vibecraft__vibecraft_retrieve con {"params":{"q":"<vincolo da chiarire>",'
+        '"k":3,"include_text":true,"text_max_chars":1500}}. Recupera le fonti pertinenti.\n'
+        f"Fallback HTTP: se i tool MCP non sono disponibili o il bridge non è raggiungibile, "
+        f"usa gli endpoint seguenti su {base_url}, con header 'X-API-Key: $VIBECRAFT_API_KEY' "
+        f"(omettibile da localhost). Non duplicare via HTTP una consultazione MCP riuscita.\n"
         f"  GET /api/code/search?q=<cosa+cerchi>&k=5{scope} — simboli più pertinenti; il campo "
         f"'files' è l'elenco dei file da aprire, 'results' i simboli con il loro path. Aggiungi "
         f"&snippet=true SOLO se il nome del simbolo non basta a decidere: riporta il testo nella "
@@ -267,6 +282,7 @@ def build_index_hint_block(dev_type: str = "", base_url: str = SERVER_BASE_URL) 
         f"prima di modificarlo.\n"
         f"  GET /api/retrieve?q=<domanda>&k=5&include_text=true — estratti documentali con testo "
         f"e provenienza (documenti, non codice).\n"
+        f"Le regole seguenti valgono per entrambi i canali. "
         f"Valuta le fonti usando classification, status e source_label: le fonti normative attive "
         f"stabiliscono i vincoli nel proprio ambito; le fonti informative spiegano o illustrano, "
         f"senza introdurre requisiti; le fonti archiviate (ARCHIVED, DEPRECATED, HISTORICAL, "
@@ -293,7 +309,7 @@ def build_final_prompt(folder_name: str, dev_type: str = "", consumer: str = "ex
     """Costruisce il prompt finale per Claude Code, scoperto sull'unica cartella code/<dev_type>
     se una tipologia di sviluppo è stata indicata, altrimenti con la distribuzione multi-cartella storica.
 
-    `consumer` seleziona HTTP esterno o MCP in-app; `mode` distingue le capacità
+    `consumer` seleziona il prompt esterno o in-app; `mode` distingue le capacità
     in-app. I percorsi assoluti evitano ambiguità con la cwd agentic (code/)."""
     if consumer == "agent":
         return build_agent_prompt(folder_name, dev_type, mode)
