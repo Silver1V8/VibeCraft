@@ -35,6 +35,7 @@ from api.models import (
 )
 from api.routes_reindex import enqueue_full_rebuild
 from core import canvas_review, llm, pipeline, retrieval, spec_format
+from core.open_points import read_report
 from core.config import (
     CHANGES_DIR,
     GOVERNED_MAX_CHUNKS,
@@ -349,6 +350,7 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest):
         "path": "spec.md",
         "content": spec_content,
         "final_prompt": final_prompt,
+        **read_report(spec_content),
     }
 
 
@@ -634,13 +636,15 @@ async def pipeline_export(feature: str, dev_type: str = ""):
 
     dev = dev_type or load_dev_type(folder)
     ctx = await embed_in_threadpool(_agent_context, feature, dev, current_snapshot())
+    spec = rd("spec.md")
     return {
         "feature": feature,
         "feature_folder": folder_name,
         "dev_type": dev,
         "explore": rd("explore.md"),
         "canvas": rd("canvas.md"),
-        "spec": rd("spec.md"),
+        "spec": spec,
+        **read_report(spec),
         "final_prompt": build_final_prompt(folder_name, dev),
         "agent_context": ctx,
     }
@@ -671,7 +675,9 @@ async def pipeline_get_file(feature: str, name: str):
     file_path = folder / name
     if not file_path.exists():
         raise HTTPException(status_code=404, detail=f"{name} non trovato per la feature '{folder.name}'.")
-    return {"feature_folder": folder.name, "path": name, "content": file_path.read_text(encoding="utf-8")}
+    content = file_path.read_text(encoding="utf-8")
+    return {"feature_folder": folder.name, "path": name, "content": content,
+            **(read_report(content) if name == "spec.md" else {})}
 
 
 @router.post("/api/pipeline/file/save",
@@ -682,4 +688,5 @@ async def pipeline_save_file(req: PipelineFileSaveRequest):
         raise HTTPException(status_code=400, detail=f"File non consentito: {req.name}")
     folder = _safe_feature_dir(req.feature, create=True)
     (folder / req.name).write_text(req.content, encoding="utf-8")
-    return {"feature_folder": folder.name, "path": req.name, "content": req.content}
+    return {"feature_folder": folder.name, "path": req.name, "content": req.content,
+            **(read_report(req.content) if req.name == "spec.md" else {})}

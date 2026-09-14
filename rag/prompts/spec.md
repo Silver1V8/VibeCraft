@@ -39,8 +39,10 @@
     esplicita. L'assunzione non è un requisito approvato: non usarla per fissare l'esito di
     uno scenario. Indica quali comportamenti restano senza copertura fino alla risposta.
     Per la copertura che eccede i 4 scenari, elenca i casi mancanti e la domanda da risolvere;
-    se non occorre un'assunzione, scrivi "Assunzione: nessuna; copertura da confermare".
+    se non occorre un'assunzione, usa assumption: null nel resoconto strutturato.
     Non dichiarare completa la copertura in presenza di casi mancanti o punti irrisolti.
+
+{open_points_block}
 
     ==========================================================================
     FORMATO DEGLI SCENARI — obbligatorio, sempre, senza varianti: vale per ogni
@@ -110,7 +112,7 @@ SCENARIO: S02 - Recupero negato su fascicolo inesistente
     - DENTRO IL BLOCCO nient'altro che la riga SCENARIO e i passi: nessun commento, nessun
       testo libero, nessuna riga di prosa.
 
-    Prima di rispondere rileggi ciò che hai scritto e conta: le righe di backtick sono il
-    doppio degli scenari? Ogni blocco contiene un GIVEN, un WHEN e un THEN? Ogni passo comincia
+    Prima di rispondere rileggi ciò che hai scritto e conta: le righe di backtick dei soli
+    blocchi gherkin sono il doppio degli scenari? Ogni blocco gherkin contiene un GIVEN, un WHEN e un THEN? Ogni passo comincia
     con GIVEN, WHEN, THEN o AND in maiuscolo? Se una delle tre risposte è no, riscrivi lo spec:
     non consegnarlo così.

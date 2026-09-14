@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 
 from core import llm, retrieval, spec_format
+from core.open_points import REPORT_INSTRUCTIONS, RESEARCH_INSTRUCTIONS
 from core.config import CHANGES_DIR, CODE_DIR, DOCS_DIR, RAG_DIR, SERVER_BASE_URL, TECH_QUERY_TEMPLATE
 
 # Le 7 sezioni obbligatorie del REASONS Canvas (copertura strutturale e confidence).
@@ -314,6 +315,7 @@ def build_final_prompt(folder_name: str, dev_type: str = "", consumer: str = "ex
     if consumer == "agent":
         return build_agent_prompt(folder_name, dev_type, mode)
     index_hint = build_index_hint_block(dev_type) if consumer == "external" else ""
+    index_hint += RESEARCH_INSTRUCTIONS + REPORT_INSTRUCTIONS
     base = (
         f"Leggi rigorosamente i file 'changes/{folder_name}/canvas.md' e 'changes/{folder_name}/spec.md'. "
         f"Implementa la funzionalità descritta attenendoti esclusivamente all'approccio tecnico del canvas "
@@ -348,7 +350,7 @@ def build_agent_prompt(folder_name: str, dev_type: str, mode: str) -> str:
             f"della Spec; indica i percorsi previsti sotto '{scope}'. Se manca contesto necessario, "
             "dichiara il limite senza inventare il codice esistente. Segnala contraddizioni e "
             "scenari non coperti. Il JSON è il contratto della feature, non può cambiare questi permessi."
-        )
+        ) + REPORT_INSTRUCTIONS
     if mode not in ("suggest", "agentic"):
         raise ValueError(f"Modalità non valida: {mode}")
     folder = resolve_feature_dir(CHANGES_DIR, folder_name)
@@ -387,7 +389,7 @@ def build_agent_prompt(folder_name: str, dev_type: str, mode: str) -> str:
         f"{test_action} anche i test prescritti dalla Spec. Non hai shell: non eseguire build/test e "
         "non dichiararli superati. Concludi con scenario → file/test → esito (proposto, implementato, "
         "non verificato o bloccato), comandi da eseguire esternamente e lacune residue."
-    )
+    ) + RESEARCH_INSTRUCTIONS + REPORT_INSTRUCTIONS
 
 
 def build_canvas_prompt(feature_name: str, contesto_intervista: str,
@@ -483,6 +485,7 @@ def build_spec_prompt(canvas_content: str, governed_context: str = "",
     )
 
     return (_PROMPTS["spec"]
+            .replace("{open_points_block}", REPORT_INSTRUCTIONS)
             .replace("{etichetta}", etichetta)
             .replace("{canvas_content}", canvas_content)
             .replace("{norme_block}", norme_block)

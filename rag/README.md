@@ -1285,3 +1285,43 @@ variabilità fra le due esecuzioni del backend: non è il tempo totale di retrie
 Il limite di accettazione del delta p95 è **10 secondi (10.000 ms)**, aggiornato
 su richiesta del manutentore dopo le misure della sessione 5. Il JSON registra
 `overhead_limit_ms` insieme all'esito; il timeout delle chiamate resta 30 s di default.
+
+### Ricerca e punti aperti: perimetro advisory
+
+Propose e conclusione dell'agente condividono lo schema `core/open_points.py`:
+sezione finale `## Punti aperti`, un fence `json` con `{"open_points":[...]}`,
+fuori dagli scenari Gherkin. Ogni punto conserva ID, funzionalità, domanda originale
+(`original_question`), domanda attuale, assunzione da confermare, casi scoperti,
+motivo e resoconto dell'ultimo giro di ricerca. Prima di ogni ricerca l'agente
+dichiara la domanda e l'informazione mancante; dopo dichiara le nuove evidenze.
+Se non ne ottiene, chiude quel ramo con `reason: no_new_evidence` e lo mantiene
+nella stessa lista dei punti aperti di Propose. La chiusura riguarda la ricerca,
+non la risoluzione del punto: gli altri rami indipendenti possono proseguire.
+
+Conta solo contenuto pertinente non già nel contesto accumulato, riferito a
+documento/chunk e porzione letta, file/simbolo o relazione. Ranking, parafrasi,
+ID o versioni diversi con lo stesso contenuto non bastano; leggere la parte
+prima troncata può aggiungere evidenza. Il runtime **non verifica** novità,
+pertinenza, sequenza delle ricerche o arresto del ramo: `research_policy`
+dichiara `enforcement: advisory` e `verification: agent_reported`.
+Gli ID li assegna l'agente: `id_reuse_verified: false` e
+`original_question_verified: false` espongono il limite anti-parafrasi.
+La domanda originale rende due punti simili ispezionabili, ma l'agente può
+ancora cambiarla o assegnare un altro ID; nessun confronto semantico è applicato.
+
+Propose, lettura/salvataggio Spec, export del contratto e risultato NDJSON
+restituiscono `open_points_status`:
+
+| Stato | Payload | Significato |
+| --- | --- | --- |
+| `missing` | `open_points` assente | Resoconto/campo non fornito, anche per Spec precedenti |
+| `invalid` | `open_points: null`, `open_points_error` | Resoconto presente ma malformato |
+| `valid` | `open_points: []` oppure lista | Schema valido, contenuto dichiarato dall'agente |
+
+Solo `valid` con lista vuota mostra «Terminato senza punti aperti» in UI,
+con il limite advisory accanto. Gli altri stati sono distinti e uno stream
+senza risultato finale è segnalato come interrotto. Il testo originale resta
+nella Spec (anche `spec.raw.md` per Propose) o negli eventi testuali del bridge.
+Il prompt esterno usa lo stesso protocollo, ma il suo output non rientra
+automaticamente nella pipeline. Non è ancora presente un vincolo sull'avvio
+dell'implementazione: lo stato è già leggibile a macchina per il futuro harness.

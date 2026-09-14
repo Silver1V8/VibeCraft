@@ -451,7 +451,8 @@
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisione · spec.md</span>
             <span class="text-xs text-amber-400 font-medium">Approva per sbloccare il prompt finale</span>
           </div>
-          <label for="spec-md-editor"></label><textarea id="spec-md-editor" class="md-editor flex-1 min-h-[380px] w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          <label for="spec-md-editor"></label><textarea id="spec-md-editor" oninput="document.getElementById('spec-open-points-status').textContent = '⚠ Modifiche non salvate: resoconto da verificare.'" class="md-editor flex-1 min-h-[380px] w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          <p id="spec-open-points-status" role="status" class="text-xs text-slate-300 whitespace-pre-wrap">⚠ Resoconto dei punti aperti non disponibile.</p>
           <div class="flex items-center gap-2 mt-3 shrink-0">
             <button onclick="saveMdFile('spec.md', 'spec-md-editor')" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
             <button onclick="generatePropose()" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">🔄 Rigenera</button>
@@ -748,6 +749,7 @@
       await loadDevTypes(savedDevType);
 
       // Prova a recuperare eventuali file già generati per riprendere la review
+      document.getElementById('spec-open-points-status').textContent = openPointsSummary({});
       let furthestStep = 1;
       for (const [fname, editorId, reviewId, step] of [
         ['explore.md', 'explore-md-editor', 'review-explore', 1],
@@ -763,6 +765,7 @@
             furthestStep = step;
 
             if (fname === 'spec.md') {
+              document.getElementById('spec-open-points-status').textContent = openPointsSummary(data);
               // Best-effort: se il prompt non si recupera, il resto della review si carica
               // comunque (la card resta vuota e si ripopola rigenerando le specifiche).
               try {
@@ -926,6 +929,7 @@
         }
         const data = await res.json();
         document.getElementById('spec-md-editor').value = data.content;
+        document.getElementById('spec-open-points-status').textContent = openPointsSummary(data);
         setPanelVisible('review-spec', true);
         document.getElementById('final-prompt-box').textContent = data.final_prompt;
         window._finalPrompt = data.final_prompt;
@@ -1017,6 +1021,19 @@
     }
 
     /* ──────────── ESECUZIONE CON CLAUDE AGENT SDK ──────────── */
+    function openPointsSummary(data) {
+      const limits = '\nRicerca advisory: novità delle evidenze e riuso degli ID non verificati; validità solo strutturale.';
+      if (data.open_points_status === 'invalid') {
+        return '❌ Resoconto malformato: ' + (data.open_points_error || 'schema non valido') + limits;
+      }
+      if (data.open_points_status !== 'valid') return '⚠ Resoconto assente: punti aperti non determinabili.' + limits;
+      if (!Array.isArray(data.open_points)) return '❌ Resoconto malformato: open_points non è una lista.' + limits;
+      if (!data.open_points.length) return 'Terminato senza punti aperti (dichiarazione dell’agente).' + limits;
+      return `⚠ ${data.open_points.length} punti aperti dichiarati:\n` + data.open_points.map(p =>
+        `${p.id} · ${p.reason} · ${p.original_question}\nDomanda attuale: ${p.question}`
+      ).join('\n') + limits;
+    }
+
     async function runWithAgent() {
       const shown = window._finalPrompt || document.getElementById('final-prompt-box').textContent;
       if (!shown.trim()) { toast('Nessun prompt finale disponibile: genera prima le specifiche.', 'error'); return; }
@@ -1061,35 +1078,26 @@
           throw new Error(err.detail || `HTTP ${res.status}`);
         }
 
-        // Lo stream è NDJSON: un evento JSON per riga
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop();  // ultima riga potenzialmente incompleta
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            const ev = JSON.parse(line);
+        let terminated = false;
+        await consumeNdjson(res, ev => {
             if (ev.type === 'text') {
               out.textContent += ev.text + '\n';
             } else if (ev.type === 'tool_use') {
               out.textContent += `  🔧 [${ev.tool}]\n`;
             } else if (ev.type === 'result') {
+              terminated = true;
               const secs = ev.duration_ms != null ? (ev.duration_ms / 1000).toFixed(1) + 's' : '—';
               const cost = ev.total_cost_usd != null ? '$' + ev.total_cost_usd.toFixed(4) : '—';
-              out.textContent += `\n${ev.is_error ? '❌ Terminato con errore' : '✅ Completato'} · ${secs} · ${cost} · ${ev.num_turns ?? '—'} turni\n`;
+              out.textContent += `\n${ev.is_error ? '❌ Terminato con errore' : 'Esecuzione terminata'} · ${secs} · ${cost} · ${ev.num_turns ?? '—'} turni\n${openPointsSummary(ev)}\n`;
             } else if (ev.type === 'error') {
-              out.textContent += `\n❌ Errore: ${ev.message}\n`;
+              terminated = true;
+              out.textContent += `\n❌ Errore: ${ev.message}\n${openPointsSummary(ev)}\n`;
             }
             out.scrollTop = out.scrollHeight;
-          }
-        }
+        });
+        if (!terminated) throw new Error('Stream interrotto senza risultato finale');
       } catch (e) {
-        out.textContent += `\n❌ Errore: ${e.message}\n`;
+        out.textContent += `\n❌ Errore: ${e.message}\n${openPointsSummary({})}\n`;
       } finally {
         btn.disabled = false;
       }
@@ -1326,14 +1334,21 @@
     /* ──────────── SHARED: SAVE EDITED MD FILE ──────────── */
     async function saveMdFile(name, editorId) {
       if (!featureName) return;
+      const savingFeature = featureName;
       const content = document.getElementById(editorId).value;
       try {
         const res = await fetch('/api/pipeline/file/save', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ feature: featureName, name, content }),
+          body: JSON.stringify({ feature: savingFeature, name, content }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (name === 'spec.md') {
+          const data = await res.json();
+          if (featureName === savingFeature && document.getElementById(editorId).value === content) {
+            document.getElementById('spec-open-points-status').textContent = openPointsSummary(data);
+          }
+        }
         await refreshFilesControl();
       } catch (e) {
         toast(`Errore nel salvataggio di ${name}: ${e.message}`, 'error');

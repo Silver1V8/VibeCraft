@@ -59,6 +59,8 @@ from typing import Any
 from claude_agent_sdk import ClaudeAgentOptions, HookMatcher, query
 from claude_agent_sdk.types import AssistantMessage, ResultMessage, TextBlock, ToolUseBlock
 
+from core.open_points import read_report
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # Radice operativa della modalità agentic: l'unica area in cui può scrivere.
@@ -298,25 +300,39 @@ def _ensure_loop() -> asyncio.AbstractEventLoop:
 # ---------------------------------------------------------------------------
 async def _run_agent(prompt: str, mode: str, model: str, out: queue.Queue) -> None:
     """Esegue query() sull'event loop dedicato e pubblica gli eventi sulla coda."""
+    final_text = []
+    terminated = False
     try:
         options = _build_agent_options(mode, model)
         async for message in query(prompt=prompt, options=options):
             if isinstance(message, AssistantMessage):
                 for block in message.content:
                     if isinstance(block, TextBlock):
+                        final_text.append(block.text)
                         out.put({"type": "text", "text": block.text})
                     elif isinstance(block, ToolUseBlock):
+                        final_text.clear()  # Un report precedente ad altri tool non è quello finale.
                         out.put({"type": "tool_use", "tool": block.name})
             elif isinstance(message, ResultMessage):
+                terminated = True
+                report = getattr(message, "structured_output", None)
+                if report is None:
+                    report = getattr(message, "result", None)
+                if report is None:
+                    report = '\n'.join(final_text)
                 out.put({
                     "type": "result",
                     "is_error": bool(getattr(message, "is_error", False)),
                     "duration_ms": getattr(message, "duration_ms", None),
                     "total_cost_usd": getattr(message, "total_cost_usd", None),
                     "num_turns": getattr(message, "num_turns", None),
+                    **read_report(report),
                 })
+        if not terminated:
+            out.put({"type": "error", "message": "Stream interrotto senza risultato finale",
+                     **read_report(None)})
     except Exception as exc:  # noqa: BLE001 — l'errore va riportato al client
-        out.put({"type": "error", "message": f"{type(exc).__name__}: {exc}"})
+        out.put({"type": "error", "message": f"{type(exc).__name__}: {exc}", **read_report(None)})
     finally:
         out.put(None)  # sentinella di fine stream
 

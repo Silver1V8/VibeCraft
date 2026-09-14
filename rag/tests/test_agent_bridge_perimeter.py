@@ -307,3 +307,39 @@ def test_run_agent_streaming_reports_errors_as_ndjson(monkeypatch):
 def test_run_agent_streaming_rejects_unknown_mode():
     with pytest.raises(ValueError):
         list(agent_bridge.run_agent_streaming("hi", "nonexistent", "sonnet"))
+
+
+@pytest.mark.parametrize('result,structured,status', [
+    ('{"open_points":[]}', None, 'valid'),
+    ('{"open_points":null}', None, 'invalid'),
+    ('Nessun report', None, 'missing'),
+    ('{"open_points":[]}', {'open_points': None}, 'invalid'),
+])
+def test_final_report_state_is_explicit(monkeypatch, result, structured, status):
+    message = ResultMessage(subtype='success', duration_ms=5, duration_api_ms=1,
+                            is_error=False, num_turns=1, session_id='s',
+                            result=result, structured_output=structured)
+    monkeypatch.setattr(agent_bridge, 'query', _fake_query_factory([message]))
+    event = json.loads(list(agent_bridge.run_agent_streaming('hi', 'suggest'))[-1])
+    assert event['open_points_status'] == status
+    assert event['research_policy']['enforcement'] == 'advisory'
+
+
+@pytest.mark.parametrize('tool_after_report', [False, True])
+def test_only_final_assistant_text_can_supply_report(monkeypatch, tool_after_report):
+    messages = [AssistantMessage(content=[TextBlock(text='{"open_points":[]}')], model='m')]
+    if tool_after_report:
+        messages.append(AssistantMessage(content=[ToolUseBlock(id='t', name='Read', input={})], model='m'))
+    messages.append(ResultMessage(subtype='success', duration_ms=5, duration_api_ms=1,
+                                  is_error=False, num_turns=1, session_id='s'))
+    monkeypatch.setattr(agent_bridge, 'query', _fake_query_factory(messages))
+    event = json.loads(list(agent_bridge.run_agent_streaming('hi', 'suggest'))[-1])
+    assert event['open_points_status'] == ('missing' if tool_after_report else 'valid')
+
+
+def test_stream_without_result_is_incomplete(monkeypatch):
+    monkeypatch.setattr(agent_bridge, 'query', _fake_query_factory([]))
+    event = json.loads(list(agent_bridge.run_agent_streaming('hi', 'suggest'))[-1])
+    assert event['type'] == 'error'
+    assert event['open_points_status'] == 'missing'
+    assert 'open_points' not in event
