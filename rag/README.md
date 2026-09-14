@@ -1325,3 +1325,68 @@ nella Spec (anche `spec.raw.md` per Propose) o negli eventi testuali del bridge.
 Il prompt esterno usa lo stesso protocollo, ma il suo output non rientra
 automaticamente nella pipeline. Non è ancora presente un vincolo sull'avvio
 dell'implementazione: lo stato è già leggibile a macchina per il futuro harness.
+
+### Decisioni approvate per il gate — ancora da implementare
+
+Sequenza concordata: **recorder provider minimo → ablazione prompt → decisione
+sul pilot → eventuale baseline A → commit dedicato all'isolamento delle
+impostazioni → gate → misure B e C**. Nessuno starter prima della decisione;
+se approvato, checkpoint dopo un'ora di preparazione. Il recorder SDK è rinviato
+al pilot. `eval/provider_recorder.py` osserva Ollama solo se attivato esplicitamente
+da un runner di valutazione in un processo separato, seriale. Il server non lo
+importa: nessuna registrazione in produzione. Copia i payload prima dell'estrazione
+del testo, senza cambiare richieste, retry o cache; conserva i contatori restituiti,
+mai token stimati. Gli errori del recorder rendono incompleta la misura, senza
+ritentare la generazione. I test acceso/spento usano il vero percorso provider
+con risposte HTTP simulate, inclusi errori e retry. Non promette overhead nullo.
+Queste sono decisioni di progetto,
+non garanzie già applicate dal runtime attuale.
+
+Il commit di isolamento imposterà `setting_sources=[]` esplicitamente
+per **suggest, oneshot e agentic**, preservando l'hook SDK di confinamento
+delle scritture di agentic. Il test degli hook coprirà tutte e tre le modalità:
+un hook innocuo in un ambiente temporaneo deve creare una sentinella quando
+le impostazioni sono caricate esplicitamente (controllo positivo), e non deve
+eseguire con le opzioni isolate. La sola assenza dei tool non basta come prova.
+Il test avrà in testa il commento: "Il controllo positivo prova che l'hook
+è eseguibile: senza, il test negativo potrebbe passare perché il fixture è
+rotto, non perché l'isolamento funziona."
+Se emergono dipendenze operative dalle impostazioni locali, fermare il lavoro
+e segnalarle prima di procedere, senza riabilitarle implicitamente.
+Garanzia prevista: **nessuna scrittura applicativa comandabile dall'agente
+o dagli hook locali nelle modalità senza scritture**; agentic conserva le
+scritture applicative confinate previste. Non si promette che il processo non
+scriva alcun byte, per esempio nei propri file di sessione.
+
+Garanzia dell'accettazione nel design approvato:
+
+> L'accettazione non è esposta agli strumenti dell'agente; non è certificata
+> come decisione umana dalla credenziale condivisa.
+
+La garanzia e i requisiti di provenienza sono annotati anche accanto al record
+`OpenPoint` in `core/open_points.py`. Quando verrà implementata l'accettazione,
+la garanzia resterà presso il suo record o la sua funzione e i requisiti di
+`origin_verified` accompagneranno il punto esatto dove il server lo scrive.
+Quel writer non esiste ancora: la nota nel codice descrive un obbligo futuro.
+
+Un punto `accepted` resta esplicitamente irrisolto; `resolved` registra una
+risoluzione, mentre `unaddressed` segnala l'assenza di una decisione. L'accettazione
+è legata al contenuto integrale del punto, non al solo ID, e la decisione entra
+nell'impronta del contratto eseguibile. Accettare una lacuna non rende soddisfatti
+gli scenari interessati; `uncovered_scenarios: []` non certifica la marginalità.
+
+Il futuro record di decisione conserverà provenienza dichiarata, metadati
+osservati della chiamata ed esecuzioni attive sulla stessa feature, con
+**`origin_verified: false` obbligatorio e imposto dal server**, non configurabile
+né promuovibile tramite input del chiamante. Schema e test dovranno rifiutare
+`true` nel protocollo basato sulla chiave condivisa.
+Per poter introdurre `true` serviranno un'identità personale autenticata
+(non una chiave condivisa), un legame verificato dal server fra identità e
+provenienza della richiesta e una revisione esplicita di questa garanzia.
+Un nome dichiarato, un header che dice "UI" o il possesso della chiave non bastano;
+neppure l'identità personale prova da sola che qualcuno abbia letto il punto.
+
+Possiamo contare le accettazioni **avvenute durante** un'esecuzione dell'agente,
+non possiamo chiamarle accettazioni **effettuate dall'agente**. La correlazione
+temporale non distingue una sessione UI concorrente da una richiesta automatica.
+La selezione finale degli eventi e delle metriche rimane al design della Fase 2.

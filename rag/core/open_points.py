@@ -15,6 +15,20 @@ class Research(BaseModel):
     verification: Literal['agent_reported']
 
 
+# Decisioni approvate per il futuro record di accettazione; NON implementate qui.
+# Garanzia da conservare accanto a quel record o alla funzione di accettazione:
+# "L'accettazione non è esposta agli strumenti dell'agente; non è certificata
+# come decisione umana dalla credenziale condivisa."
+#
+# Quando verrà creato il writer del record, collocare ANCHE accanto alla scrittura
+# di origin_verified questa prescrizione: il server imporrà false, non sarà un
+# valore configurabile o fornito dal chiamante; schema e test rifiuteranno true.
+# Per introdurre true serviranno identità personale autenticata (non una chiave
+# condivisa), provenienza della richiesta verificata dal server e revisione
+# esplicita della garanzia. Un nome, un header "UI" o una coincidenza temporale
+# con un'esecuzione non bastano; l'identità non prova da sola la lettura del punto.
+# Questa nota vive presso OpenPoint finché record e writer non esistono: non
+# costituisce un controllo applicato dal parser dei resoconti.
 class OpenPoint(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True)
     id: str = Field(pattern=r'^OP-\d{3,}$')

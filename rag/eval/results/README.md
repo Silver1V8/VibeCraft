@@ -43,6 +43,10 @@ dettaglio per caso (2), `none` quando non è stata rintracciata una prova
 indipendente (4). `full` descrive la disponibilità del report, non certifica la
 riproducibilità dell'ambiente né la qualità della risposta. I record precedenti
 senza questo campo non sono stati classificati: l'assenza non significa `full`.
+Alla verifica del 14 settembre 2026, lo storico contiene 137 record: solo questi
+11 sono classificati e gli altri 126 non lo sono. La suddivisione 5 / 2 / 4 e
+qualsiasi riepilogo basato sul campo `evidence` descrivono quindi soltanto il
+sottoinsieme classificato, non l'intero storico.
 
 Gli orari seguenti sono UTC. I report dell'8 settembre usano l'ora locale italiana
 (UTC+2); il nome `153456` precede di circa un secondo l'append dello storico.
@@ -70,6 +74,20 @@ Le quattro lacune non sono state riempite duplicando lo storico o rieseguendo
 oggi il codice: nessuna delle due operazioni produrrebbe la prova della run
 storica. I quattro eventi sono conservati con `evidence: "none"`, senza
 attribuire loro prove o verifiche che non abbiamo recuperato.
+
+## Giudice di attribuzione — concordanza sul campione di taratura
+
+Il risultato storico 20/24 è una concordanza sui medesimi 24 record usati per
+tarare il prompt del giudice, attraverso sei varianti, come documentato in
+[AUDIT, S14](../../adr/AUDIT.md). Non è una stima di accuratezza su casi nuovi:
+non va usato come affidabilità del giudice, limite di errore o base per le
+conclusioni della Fase 2. Resta esclusivamente un risultato di taratura.
+
+Una futura stima di accuratezza richiede record con verdetti umani indipendenti,
+mai usati per scegliere o modificare il prompt, e il congelamento del giudice
+prima della valutazione. I risultati del giudice restano separati dai
+[verdetti umani archiviati](../golden_attribution.yaml): questa nota non li
+modifica e non certifica la loro validità sull'indice attuale.
 
 ## Punto aperto — cache condivisa dei prossimi pilot Docling
 
