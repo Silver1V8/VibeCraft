@@ -1,0 +1,1466 @@
+{
+  "samples": [
+    {
+      "feature": "fe3",
+      "arm": "bd87bd7^",
+      "repetition": 1,
+      "sample_id": "P11",
+      "response_sha256": "c88dbd15f4fb9fe5c00a356cb1bffcf8a04f31ce80ecdda6412e82ee6084b9be",
+      "scenario_count": 7,
+      "closed_gherkin_fences": 7,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 31,
+          "header": "SCENARIO: S01 - Invio richiesta con dati validi e alloggio richiesto",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente inserisce una motivazione valida contenente 150 caratteri\n  AND seleziona la checkbox \"Necessità alloggio\"\n  WHEN l'utente clicca sul pulsante \"Partecipa\"\n  THEN il sistema disabilita il pulsante e mostra uno stato di caricamento\n  AND invia con successo la RICHIESTA al backend\n  AND visualizza un messaggio di conferma positivo",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 42,
+          "header": "SCENARIO: S02 - Invio richiesta senza motivazione",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente lascia vuoto il campo \"Motivazione\"\n  WHEN l'utente clicca sul pulsante \"Partecipa\"\n  THEN il sistema evidenzia il campo in rosso con un messaggio di errore\n  AND disabilita il pulsante impedendo l'invio della RICHIESTA",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 51,
+          "header": "SCENARIO: S03 - Invio richiesta con motivazione troppo lunga",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente inserisce una motivazione contenente 550 caratteri\n  WHEN l'utente clicca sul pulsante \"Partecipa\"\n  THEN il sistema evidenzia il campo in rosso con un messaggio di errore\n  AND disabilita il pulsante impedendo l'invio della RICHIESTA",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 60,
+          "header": "SCENARIO: S04 - Invio richiesta senza necessità alloggio",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente inserisce una motivazione valida contenente 120 caratteri\n  AND non seleziona la checkbox \"Necessità alloggio\"\n  WHEN l'utente clicca sul pulsante \"Partecipa\"\n  THEN il sistema disabilita il pulsante e mostra uno stato di caricamento\n  AND invia con successo la RICHIESTA al backend con preferenze nulle per l'alloggio",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 5,
+          "line": 70,
+          "header": "SCENARIO: S05 - Invio fallito a causa di errore server",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente inserisce una motivazione valida e seleziona la necessità alloggio\n  WHEN l'utente clicca sul pulsante \"Partecipa\" e il backend restituisce un errore 500\n  THEN il sistema mostra uno stato di caricamento temporaneo\n  AND visualizza un messaggio di errore generato da sonner o UI standard",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 6,
+          "line": 79,
+          "header": "SCENARIO: S06 - Disabilitazione pulsante durante caricamento",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente clicca sul pulsante \"Partecipa\" con dati validi\n  WHEN la chiamata API è in corso (Round Trip Time)\n  THEN il sistema mantiene il pulsante disabilitato e mostra uno spinner\n  AND impedisce all'utente di inviare nuovamente la RICHIESTA prima della risposta",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 7,
+          "line": 88,
+          "header": "SCENARIO: S07 - Reset stato form dopo errore",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form di prenotazione per un EVENTO attivo\n  AND l'utente clicca sul pulsante \"Partecipa\" e riceve un messaggio di errore\n  WHEN l'utente corregge i dati o attende la fine del timeout\n  THEN il sistema ripristina lo stato abilitato del pulsante se i dati sono validi\n  AND permette all'utente di riprovare l'invio della RICHIESTA",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": false,
+      "open_points_count": 0,
+      "open_points_sections": [],
+      "exact_duplicate_pairs": [],
+      "declared_points": 0,
+      "count_note": null,
+      "runtime_report_status": "missing",
+      "F_touched": [
+        1,
+        2,
+        3
+      ],
+      "scenario_to_F": [
+        [
+          1,
+          2,
+          3
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          1,
+          2,
+          3
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ]
+      ]
+    },
+    {
+      "feature": "la2",
+      "arm": "bd87bd7^",
+      "repetition": 1,
+      "sample_id": "P02",
+      "response_sha256": "b5a8e0bfe0ccac4287452cdbaafa375af6b4cc3e03ef0787bf0e93dc7b0cad74",
+      "scenario_count": 7,
+      "closed_gherkin_fences": 7,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 19,
+          "header": "SCENARIO: S01 - Invio riuscito via Email per trigger dinamico",
+          "text": "  GIVEN una RICHIESTA in stato \"Revisato\" che attiva un trigger dinamico\n  AND il sistema identifica come destinatario l'utente dipendente associato\n  WHEN il consumer invia la notifica tramite il canale EMAIL\n  THEN lo stato della NOTIFICA viene aggiornato a \"CONSEGNATA\"\n  AND il contatore tentativo_n rimane uguale a 1",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 28,
+          "header": "SCENARIO: S02 - Fallimento Email e retry su Slack per trigger dinamico",
+          "text": "  GIVEN una RICHIESTA in stato \"Revisato\" che attiva un trigger dinamico\n  WHEN il sistema tenta l'invio via EMAIL ma riceve un errore di delivery\n  AND il contatore tentativo_n è inferiore a 3\n  THEN il sistema attende il periodo di backoff configurato\n  E tenta l'invio tramite il canale SLACK",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E tenta l'invio tramite il canale SLACK"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 37,
+          "header": "SCENARIO: S03 - Fallimento definitivo e logging silenzioso",
+          "text": "  GIVEN una RICHIESTA che innesca un evento trigger\n  WHEN entrambi i canali EMAIL e SLACK falliscono definitivamente\n  AND il contatore tentativo_n raggiunge il limite massimo di 3\n  THEN lo stato della NOTIFICA viene impostato a \"FALLITA\"\n  E il sistema registra un log strutturato con livello ERROR",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E il sistema registra un log strutturato con livello ERROR"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 46,
+          "header": "SCENARIO: S04 - Innesco trigger statico per scadenza imminente",
+          "text": "  GIVEN una RICHIESTA con countdown temporale inferiore alla soglia definita\n  AND il job StaticTriggerJob esegue la scansione periodica\n  WHEN il sistema rileva che la scadenza è prossima\n  THEN pubblica un evento asincrono su RabbitMQ per notifica \"SCADENZA_IMMINENTE\"",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 5,
+          "line": 54,
+          "header": "SCENARIO: S05 - Gestione fallimento del job di trigger statico",
+          "text": "  GIVEN una RICHIESTA in attesa di scadenza imminente\n  WHEN il job StaticTriggerJob non riesce a pubblicare l'evento su RabbitMQ\n  THEN il sistema registra un log strutturato con livello WARNING\n  E non blocca la pratica né attiva fallback alternativi",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E non blocca la pratica né attiva fallback alternativi"
+          ]
+        },
+        {
+          "ordinal": 6,
+          "line": 62,
+          "header": "SCENARIO: S06 - Propagazione CorrelationId end-to-end",
+          "text": "  GIVEN una RICHIESTA che genera un evento di notifica\n  WHEN l'evento viene accodato su RabbitMQ e elaborato dal consumer\n  THEN ogni log generato durante il ciclo di consegna include il campo correlationId",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 7,
+          "line": 69,
+          "header": "SCENARIO: S07 - Invio fallito per utente non valido",
+          "text": "  GIVEN una RICHIESTA che tenta di inviare a un UTENTE inesistente nel database\n  WHEN il sistema verifica l'esistenza dell'UTENTE prima della creazione del record NOTIFICA\n  THEN la notifica non viene creata e si registra un log strutturato con livello ERROR",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": false,
+      "open_points_count": 0,
+      "open_points_sections": [],
+      "exact_duplicate_pairs": [],
+      "declared_points": 0,
+      "count_note": null,
+      "runtime_report_status": "missing",
+      "F_touched": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "scenario_to_F": [
+        [
+          1,
+          3
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        [
+          2
+        ],
+        [
+          2
+        ],
+        [],
+        [
+          1
+        ]
+      ]
+    },
+    {
+      "feature": "fe3",
+      "arm": "bd87bd7^",
+      "repetition": 2,
+      "sample_id": "P03",
+      "response_sha256": "74adc5bc1643be6cc226b2a442b70bfce3a050d5932fdc685a257a7fb4934d5f",
+      "scenario_count": 7,
+      "closed_gherkin_fences": 7,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 15,
+          "header": "SCENARIO: S01 - Invio riuscito della richiesta di partecipazione",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente inserisce una motivazione valida inferiore a 500 caratteri\n  AND seleziona la preferenza \"Necessità alloggio\" come falsa\n  WHEN l'utente clicca sul pulsante \"Partecipa\"\n  THEN il sistema disabilita immediatamente il pulsante e mostra uno stato di caricamento\n  AND invia con successo il payload JSON al backend\n  AND visualizza un messaggio di conferma Toast indicando la richiesta inviata",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 26,
+          "header": "SCENARIO: S02 - Invio bloccato per motivazione vuota",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  WHEN l'utente clicca sul pulsante \"Partecipa\" senza inserire alcuna motivazione\n  THEN il sistema evidenzia in rosso il campo della motivazione come obbligatorio\n  AND disabilita il pulsante \"Partecipa\" impedendo la sottomissione\n  AND non invia alcun payload al backend",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 35,
+          "header": "SCENARIO: S03 - Invio bloccato per superamento limite caratteri",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente inserisce una motivazione di 550 caratteri nella casella di testo\n  THEN il sistema evidenzia in rosso il campo della motivazione\n  AND mostra un contatore dei caratteri residui negativo o a zero\n  AND disabilita il pulsante \"Partecipa\" impedendo la sottomissione",
+          "missing_keywords": [
+            "WHEN"
+          ],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 44,
+          "header": "SCENARIO: S04 - Gestione errore di rete durante la sottomissione",
+          "text": "  GIVEN un UTENTE autenticato ha compilato correttamente il form e clicca su \"Partecipa\"\n  AND il backend restituisce un errore HTTP 500 o un timeout durante l'elaborazione\n  THEN il sistema interrompe lo stato di caricamento del pulsante\n  AND visualizza un messaggio di errore Toast generato da sonner con testo descrittivo\n  AND riabilita i controlli del form permettendo all'utente di correggere e riprovare",
+          "missing_keywords": [
+            "WHEN"
+          ],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 5,
+          "line": 53,
+          "header": "SCENARIO: S05 - Gestione input non valido nel campo preferenze alloggio",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente seleziona la preferenza \"Necessità alloggio\" come vera\n  WHEN l'utente tenta di inviare il form senza aver toccato altri campi critici\n  THEN il sistema accetta la selezione booleana come valida\n  AND include correttamente lo stato della preferenza nel payload JSON inviato",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 6,
+          "line": 62,
+          "header": "SCENARIO: S06 - Prevenzione duplicati durante la chiamata API",
+          "text": "  GIVEN un UTENTE autenticato ha cliccato su \"Partecipa\" per inviare una richiesta\n  AND il sistema sta elaborando l'invio asincrono tramite TanStack Query\n  WHEN l'utente tenta di cliccare nuovamente sul pulsante \"Partecipa\" prima della risposta\n  THEN il sistema mantiene lo stato del pulsante disabilitato e mostra uno spinner\n  AND impedisce la generazione di una seconda chiamata API parallela",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 7,
+          "line": 71,
+          "header": "SCENARIO: S07 - Reset dello stato form dopo successo o errore",
+          "text": "  GIVEN un UTENTE ha completato l'invio della richiesta (sia con successo che con errore)\n  WHEN il messaggio Toast scompare dalla UI dopo alcuni secondi\n  THEN il sistema riabilita i controlli del form e resetta lo stato di caricamento\n  AND permette all'utente di modificare nuovamente la motivazione o le preferenze",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": false,
+      "open_points_count": 0,
+      "open_points_sections": [],
+      "exact_duplicate_pairs": [],
+      "declared_points": 0,
+      "count_note": null,
+      "runtime_report_status": "missing",
+      "F_touched": [
+        1,
+        2,
+        3
+      ],
+      "scenario_to_F": [
+        [
+          1,
+          2,
+          3
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          3
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ]
+      ]
+    },
+    {
+      "feature": "la2",
+      "arm": "bd87bd7^",
+      "repetition": 2,
+      "sample_id": "P09",
+      "response_sha256": "7fafd727c319ae0901a5fa4a36ea2b6f29b5ff1f47b61e9c3b51f254a3d4ecb2",
+      "scenario_count": 7,
+      "closed_gherkin_fences": 7,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 18,
+          "header": "SCENARIO: S01 - Invio notifica su trigger dinamico a dipendente",
+          "text": "  GIVEN una RICHIESTA in stato \"Bozza\" che passa a \"Revisato\"\n  AND la configurazione workflow indica di notificare il DIPENDENTE\n  WHEN il sistema rileva il cambio di stato e pubblica l'evento su RabbitMQ\n  THEN crea un record NOTIFICA con stato IN_CODA\n  E invia il messaggio al canale EMAIL del destinatario",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E invia il messaggio al canale EMAIL del destinatario"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 27,
+          "header": "SCENARIO: S02 - Gestione fallimento iniziale dell'email e backoff Slack",
+          "text": "  GIVEN una RICHIESTA in stato \"Revisato\" che richiede notifica al DIPENDENTE\n  AND il server SMTP è temporaneamente non raggiungibile per l'invio EMAIL\n  WHEN il sistema tenta l'invio via EmailChannelAdapter e riceve errore di rete\n  THEN incrementa il contatore tentativo_n a 1\n  E registra un log WARNING con livello \"backoff in corso\"\n  E attende 15 minuti prima di tentare Slack",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E registra un log WARNING con livello \"backoff in corso\"",
+            "  E attende 15 minuti prima di tentare Slack"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 37,
+          "header": "SCENARIO: S03 - Invio riuscito su canale alternativo dopo fallimento Email",
+          "text": "  GIVEN una RICHIESTA che ha subito il primo tentativo EMAIL fallito\n  AND sono passati 15 minuti dal primo tentativo\n  WHEN il sistema tenta l'invio via SlackChannelAdapter\n  THEN invia con successo il messaggio sul canale Slack\n  E aggiorna lo stato della NOTIFICA a CONSEGNATA",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E aggiorna lo stato della NOTIFICA a CONSEGNATA"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 46,
+          "header": "SCENARIO: S04 - Fallimento definitivo dopo esaurimento tentativi",
+          "text": "  GIVEN una RICHIESTA che ha fallito su EMAIL al primo tentativo\n  AND il secondo tentativo su Slack è anch'esso fallito per timeout provider\n  WHEN il sistema raggiunge il limite massimo di tentativi (tentativo_n = 3)\n  THEN aggiorna lo stato della NOTIFICA a FALLITA\n  E registra un log strutturato con livello ERROR e stato FALLO definitivamente",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E registra un log strutturato con livello ERROR e stato FALLO definitivamente"
+          ]
+        },
+        {
+          "ordinal": 5,
+          "line": 55,
+          "header": "SCENARIO: S05 - Innesco notifica statica per scadenza imminente",
+          "text": "  GIVEN una RICHIESTA con countdown temporale impostato su 1 giorno\n  AND il job StaticTriggerJob esegue la scansione periodica\n  WHEN il countdown scende sotto la soglia di attivazione\n  THEN pubblica un evento trigger per \"SCADENZA_IMMINENTE\"\n  E istanzia lo Strategy appropriato per determinare i destinatari",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E istanzia lo Strategy appropriato per determinare i destinatari"
+          ]
+        },
+        {
+          "ordinal": 6,
+          "line": 64,
+          "header": "SCENARIO: S06 - Propagazione correlationId in tutti i log e messaggi",
+          "text": "  GIVEN una RICHIESTA che innesca la notifica LA2\n  AND il middleware genera un correlationId univoco al momento dell'evento\n  WHEN il sistema scrive i log di invio, fallimento o consegna\n  THEN ogni riga di log contiene il campo correlationId valido\n  E il messaggio RabbitMQ include lo stesso identificatore per il tracing",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E il messaggio RabbitMQ include lo stesso identificatore per il tracing"
+          ]
+        },
+        {
+          "ordinal": 7,
+          "line": 73,
+          "header": "SCENARIO: S07 - Isolamento del Logic Agent da flussi UI",
+          "text": "  GIVEN un utente che interagisce con l'interfaccia principale della pratica\n  AND la logica di routing e invio notifiche risiede nel progetto logic-agent\n  WHEN lo stato della RICHIESTA cambia indipendentemente dall'UI\n  THEN il Logic Agent elabora l'evento asincronamente senza bloccare l'UI\n  E non esprime logiche di presentazione o query SQL grezze nel core",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E non esprime logiche di presentazione o query SQL grezze nel core"
+          ]
+        }
+      ],
+      "open_points_present": false,
+      "open_points_count": 0,
+      "open_points_sections": [],
+      "exact_duplicate_pairs": [],
+      "declared_points": 0,
+      "count_note": null,
+      "runtime_report_status": "missing",
+      "F_touched": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "scenario_to_F": [
+        [
+          1,
+          3
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        [
+          1,
+          2
+        ],
+        [],
+        []
+      ]
+    },
+    {
+      "feature": "fe3",
+      "arm": "bd87bd7^",
+      "repetition": 3,
+      "sample_id": "P06",
+      "response_sha256": "21231a0527f8fa55e0d002a7d0f77b2c6985cbc2fefc5325c3f8f867133b01f5",
+      "scenario_count": 7,
+      "closed_gherkin_fences": 7,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 37,
+          "header": "SCENARIO: S01 - Invio richiesta con dati validi",
+          "text": "  GIVEN un utente autenticato visualizza il form per l'EVENTO \"Conferenza Tech\"\n  AND l'utente inserisce una motivazione di 120 caratteri nel campo textarea\n  AND seleziona la checkbox \"Necessità alloggio: Sì\"\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema disabilita immediatamente il pulsante e mostra uno spinner\n  AND invia con successo il payload JSON al backend tramite TanStack Query\n  AND visualizza un messaggio di conferma Toast dopo il completamento della chiamata",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 48,
+          "header": "SCENARIO: S02 - Invio bloccato per motivazione vuota",
+          "text": "  GIVEN un utente autenticato visualizza il form per l'EVENTO \"Conferenza Tech\"\n  AND il campo motivazione è vuoto o contiene solo spazi bianchi\n  WHEN tenta di cliccare sul pulsante \"Partecipa\"\n  THEN il sistema mantiene il pulsante abilitato solo se lo schema non rileva errore, ma impedisce l'invio\n  AND visualizza un messaggio di errore nel form indicando che la motivazione è obbligatoria",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 57,
+          "header": "SCENARIO: S03 - Invio bloccato per superamento limite caratteri",
+          "text": "  GIVEN un utente autenticato visualizza il form per l'EVENTO \"Conferenza Tech\"\n  AND l'utente inserisce una motivazione di 550 caratteri nel campo textarea\n  WHEN tenta di cliccare sul pulsante \"Partecipa\"\n  THEN il sistema evidenzia il bordo del textarea in rosso\n  AND disabilita il pulsante \"Partecipa\" impedendo la trasmissione dei dati",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 66,
+          "header": "SCENARIO: S04 - Gestione errore server durante sottomissione",
+          "text": "  GIVEN un utente autenticato sta compilando il form per l'EVENTO \"Conferenza Tech\"\n  AND l'utente inserisce una motivazione valida e clicca su \"Partecipa\"\n  WHEN il backend restituisce un errore HTTP 500 o un timeout durante la chiamata API\n  THEN il sistema visualizza un alert Toast con il messaggio di errore generato da sonner\n  AND riabilita il pulsante dopo che lo stato di loading è stato risolto",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 5,
+          "line": 75,
+          "header": "SCENARIO: S05 - Disattivazione dinamica del contatore caratteri",
+          "text": "  GIVEN un utente autenticato visualizza il form per l'EVENTO \"Conferenza Tech\"\n  AND l'utente inserisce progressivamente testo fino a raggiungere i 499 caratteri\n  WHEN aggiunge un ulteriore carattere portando il totale a 501\n  THEN il contatore dei caratteri residui si aggiorna immediatamente mostrando \"-1\"\n  AND il sistema evidenzia visivamente il campo come invalido",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 6,
+          "line": 84,
+          "header": "SCENARIO: S06 - Selezione preferenze alloggio opzionale",
+          "text": "  GIVEN un utente autenticato visualizza il form per l'EVENTO \"Conferenza Tech\"\n  AND l'utente lascia la checkbox \"Necessità alloggio\" deselezionata (falso)\n  WHEN clicca sul pulsante \"Partecipa\" con tutti gli altri campi validi\n  THEN il sistema invia il payload JSON con il valore booleano false per la preferenza alloggio\n  AND conferma l'invio tramite il feedback visivo standard",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 7,
+          "line": 93,
+          "header": "SCENARIO: S07 - Prevenzione duplicati durante caricamento",
+          "text": "  GIVEN un utente autenticato sta inviando una richiesta per l'EVENTO \"Conferenza Tech\"\n  AND il pulsante \"Partecipa\" è nello stato di caricamento (disabled)\n  WHEN l'utente tenta di cliccare ripetutamente sul pulsante prima che la chiamata si concluda\n  THEN il sistema ignora tutti i click successivi mantenendo lo stato disabled\n  AND evita la generazione di chiamate API parallele duplicate",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": false,
+      "open_points_count": 0,
+      "open_points_sections": [],
+      "exact_duplicate_pairs": [],
+      "declared_points": 0,
+      "count_note": null,
+      "runtime_report_status": "missing",
+      "F_touched": [
+        1,
+        2,
+        3
+      ],
+      "scenario_to_F": [
+        [
+          1,
+          2,
+          3
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          3
+        ],
+        [
+          1
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          3
+        ]
+      ]
+    },
+    {
+      "feature": "la2",
+      "arm": "bd87bd7^",
+      "repetition": 3,
+      "sample_id": "P07",
+      "response_sha256": "81a3c87f4d93c8eebaa7817b6c87e651b1c2294503f3053811e14199b4e86cc9",
+      "scenario_count": 7,
+      "closed_gherkin_fences": 7,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 19,
+          "header": "SCENARIO: S01 - Invio notifica su trigger dinamico di stato",
+          "text": "  GIVEN una RICHIESTA in stato \"Bozza\" associata a un UTENTE dipendente\n  AND lo stato della RICHIESTA cambia a \"Revisato\"\n  WHEN il sistema rileva la transizione e pubblica l'evento su RabbitMQ\n  THEN crea un record NOTIFICA con stato IN_CODA\n  E invia la notifica via Email al destinatario configurato per lo stato \"Revisato\"",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E invia la notifica via Email al destinatario configurato per lo stato \"Revisato\""
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 28,
+          "header": "SCENARIO: S02 - Invio fallito definitivamente dopo esaurimento tentativi",
+          "text": "  GIVEN una RICHIESTA che richiede una notifica di scadenza imminente\n  AND il canale Email fallisce nel primo tentativo a causa di un errore SMTP\n  AND il sistema attende il backoff e tenta l'invio via Slack\n  E anche il canale Slack fallisce definitivamente\n  THEN lo stato della NOTIFICA viene aggiornato a FALLITA\n  E il contatore dei tentativi raggiunge il limite massimo di 3",
+          "missing_keywords": [
+            "WHEN"
+          ],
+          "non_english_steps": [
+            "  E anche il canale Slack fallisce definitivamente",
+            "  E il contatore dei tentativi raggiunge il limite massimo di 3"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 38,
+          "header": "SCENARIO: S03 - Routing dinamico al Responsabile invece che al Dipendente",
+          "text": "  GIVEN una RICHIESTA in stato \"Annullata\"\n  AND la configurazione workflow definisce che per questo stato il destinatario è il RESPONSABILE\n  WHEN lo stato cambia o scatta il trigger statico\n  THEN il sistema seleziona l'UTENTE responsabile tramite lo Strategy pattern\n  E invia la notifica esclusivamente al Responsabile, ignorando il Dipendente",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E invia la notifica esclusivamente al Responsabile, ignorando il Dipendente"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 47,
+          "header": "SCENARIO: S04 - Gestione backoff multi-canale con timeout di 15 minuti",
+          "text": "  GIVEN una RICHIESTA che innesca un evento trigger dinamico\n  AND l'invio Email fallisce e il sistema incrementa il contatore tentativo_n a 1\n  WHEN il sistema applica il backoff configurato di 15 minuti\n  THEN tenta l'invio sul canale Slack successivo al timeout\n  E registra un log WARNING indicando che è in corso il retry su canale alternativo",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E registra un log WARNING indicando che è in corso il retry su canale alternativo"
+          ]
+        },
+        {
+          "ordinal": 5,
+          "line": 56,
+          "header": "SCENARIO: S05 - Trigger statico per scadenza imminente",
+          "text": "  GIVEN una RICHIESTA con countdown temporale impostato a 2 giorni\n  AND il job StaticTriggerJob esegue la scansione periodica delle scadenze\n  WHEN il countdown scende sotto la soglia di attivazione\n  THEN il job pubblica un evento trigger per \"SCADENZA_IMMINENTE\"\n  E il consumer elabora l'evento creando il record NOTIFICA corrispondente",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E il consumer elabora l'evento creando il record NOTIFICA corrispondente"
+          ]
+        },
+        {
+          "ordinal": 6,
+          "line": 65,
+          "header": "SCENARIO: S06 - Logging strutturato dell'anomalia al fallimento definitivo",
+          "text": "  GIVEN una sequenza di invio che ha esaurito tutti i canali disponibili\n  AND lo stato della NOTIFICA è impostato su FALLITA\n  WHEN il sistema conclude la sequenza di retry\n  THEN genera un log strutturato con livello ERROR\n  E include nel payload del log il correlationId e il dettaglio dell'anomalia",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E include nel payload del log il correlationId e il dettaglio dell'anomalia"
+          ]
+        },
+        {
+          "ordinal": 7,
+          "line": 74,
+          "header": "SCENARIO: S07 - Idempotenza tramite Inbox Pattern",
+          "text": "  GIVEN una RICHIESTA che innesca due eventi trigger identici nello stesso intervallo di tempo\n  AND il consumer MassTransit riceve i messaggi duplicati dalla coda RabbitMQ\n  WHEN il sistema elabora il primo messaggio e lo memorizza nell'Inbox\n  THEN ignora il secondo messaggio per lo stesso evento\n  E aggiorna la NOTIFICA solo una volta, evitando duplicazioni nella consegna",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E aggiorna la NOTIFICA solo una volta, evitando duplicazioni nella consegna"
+          ]
+        }
+      ],
+      "open_points_present": false,
+      "open_points_count": 0,
+      "open_points_sections": [],
+      "exact_duplicate_pairs": [],
+      "declared_points": 0,
+      "count_note": null,
+      "runtime_report_status": "missing",
+      "F_touched": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "scenario_to_F": [
+        [
+          1,
+          3
+        ],
+        [
+          3,
+          4
+        ],
+        [
+          1
+        ],
+        [
+          3
+        ],
+        [
+          2
+        ],
+        [
+          4
+        ],
+        [
+          5
+        ]
+      ]
+    },
+    {
+      "feature": "fe3",
+      "arm": "current",
+      "repetition": 1,
+      "sample_id": "fe3_current_r1",
+      "response_sha256": "4a59f86f3e370c5c06d9deabf2608ee0699f4a6633f42f91bd3eb75563114439",
+      "scenario_count": 7,
+      "closed_gherkin_fences": 7,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 21,
+          "header": "SCENARIO: S01 - Invio form con motivazione valida",
+          "text": "  GIVEN un utente autenticato visualizza il form per un EVENTO attivo\n  AND l'utente inserisce una motivazione di 250 caratteri nel campo dedicato\n  WHEN l'utente clicca sul pulsante \"Partecipa\"\n  THEN il sistema accetta l'inserimento senza errori visivi\n  AND disabilita il pulsante durante la chiamata API\n  AND inoltra il payload con il testo della motivazione al backend",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 31,
+          "header": "SCENARIO: S02 - Blocco invio per superamento limite caratteri",
+          "text": "  GIVEN un utente autenticato visualizza il form per un EVENTO attivo\n  AND l'utente inserisce una motivazione di 550 caratteri nel campo dedicato\n  WHEN l'utente tenta di cliccare sul pulsante \"Partecipa\"\n  THEN il sistema evidenzia il bordo del campo in rosso\n  AND mostra il messaggio \"Limite superato\"\n  AND disabilita il pulsante impedendo la trasmissione dei dati",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 41,
+          "header": "SCENARIO: S03 - Invio form con motivazione vuota",
+          "text": "  GIVEN un utente autenticato visualizza il form per un EVENTO attivo\n  AND il campo motivazione è vuoto o contiene solo spazi bianchi\n  WHEN l'utente clicca sul pulsante \"Partecipa\"\n  THEN il sistema evidenzia il campo come mancante\n  AND impedisce la sottomissione della richiesta",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 54,
+          "header": "SCENARIO: S04 - Selezione preferenza alloggio necessaria",
+          "text": "  GIVEN un utente autenticato visualizza il form per un EVENTO attivo\n  AND l'utente attiva la checkbox \"Necessità alloggio\"\n  WHEN l'utente clicca sul pulsante \"Partecipa\"\n  THEN il sistema include nel payload il flag booleano per l'alloggio\n  AND inoltra la richiesta con successo al backend",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 5,
+          "line": 63,
+          "header": "SCENARIO: S05 - Selezione preferenza alloggio non necessaria",
+          "text": "  GIVEN un utente autenticato visualizza il form per un EVENTO attivo\n  AND l'utente lascia disattivata la checkbox \"Necessità alloggio\"\n  WHEN l'utente clicca sul pulsante \"Partecipa\"\n  THEN il sistema include nel payload il valore booleano falso per l'alloggio\n  AND inoltra la richiesta con successo al backend",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 6,
+          "line": 76,
+          "header": "SCENARIO: S06 - Disattivazione pulsante durante caricamento",
+          "text": "  GIVEN un utente autenticato ha compilato correttamente il form\n  AND l'utente clicca sul pulsante \"Partecipa\"\n  WHEN la chiamata API è in corso (stato loading)\n  THEN il sistema sostituisce il testo del pulsante con uno spinner\n  AND mantiene il pulsante nello stato disabilitato",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 7,
+          "line": 85,
+          "header": "SCENARIO: S07 - Gestione errore di sottomissione lato server",
+          "text": "  GIVEN un utente autenticato ha compilato correttamente il form\n  WHEN l'utente clicca su \"Partecipa\" e il backend restituisce un errore 500 o timeout\n  THEN il sistema visualizza un messaggio Toast con il dettaglio dell'errore\n  AND ripristina lo stato abilitato del pulsante dopo la risoluzione dell'errore",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": null,
+      "open_points_sections": [
+        {
+          "line": 94,
+          "heading": "## Punti aperti",
+          "records": [],
+          "enumerable": false,
+          "text": "\n```json\n{\"open_points\":[{\"id\":\"OP-001\",\"functionality\":\"Gestione delle Preferenze e Stato Iniziale\",\"original_question\":\"Quali preferenze oltre all'alloggio sono menzionate nell'intervista?\", \"question\":\"Quali altri campi di preferenza (es. dieta, accessibilità) devono essere gestiti nel form?\", \"assumption\":null,\"uncovered_scenarios\":[\"Selezione preferenza X necessaria\", \"Selezione preferenza X non necessaria\"], \"reason\":\"missing_coverage\",\"research\":{\"status\":\"not_started\",\"new_evidence\":[],\"verification\":\"agent_reported\"}}]}\n```"
+        }
+      ],
+      "exact_duplicate_pairs": [],
+      "declared_points": 1,
+      "count_note": null,
+      "runtime_report_status": "valid",
+      "F_touched": [
+        1,
+        2,
+        3
+      ],
+      "scenario_to_F": [
+        [
+          1,
+          3
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ]
+      ]
+    },
+    {
+      "feature": "la2",
+      "arm": "current",
+      "repetition": 1,
+      "sample_id": "la2_current_r1",
+      "response_sha256": "b6892f43a3d86f8c05f34b417487bb0d7f3789707f7d9bd4709b57db8a8fd611",
+      "scenario_count": 8,
+      "closed_gherkin_fences": 8,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 21,
+          "header": "SCENARIO: S01 - Invio notifica su cambio stato a dipendente",
+          "text": "  GIVEN una RICHIESTA in stato \"Bozza\"\n  AND un utente con ruolo \"DIPENDENTE\" associato alla RICHIESTA\n  WHEN lo stato della RICHIESTA cambia in \"Revisato\"\n  THEN il sistema crea un record NOTIFICA con stato \"IN_CODA\" e tentativo_n = 1\n  E accoda l'evento di invio al canale EMAIL",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E accoda l'evento di invio al canale EMAIL"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 30,
+          "header": "SCENARIO: S02 - Invio notifica su cambio stato a responsabile",
+          "text": "  GIVEN una RICHIESTA in stato \"Bozza\"\n  AND un utente con ruolo \"RESPONSABILE\" associato alla RICHIESTA\n  WHEN lo stato della RICHIESTA cambia in \"Approvato\"\n  THEN il sistema crea un record NOTIFICA con stato \"IN_CODA\" e tentativo_n = 1\n  E accoda l'evento di invio al canale EMAIL",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E accoda l'evento di invio al canale EMAIL"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 39,
+          "header": "SCENARIO: S03 - Invio notifica su cambio stato a entrambi i ruoli",
+          "text": "  GIVEN una RICHIESTA in stato \"Bozza\"\n  AND un utente con ruolo \"DIPENDENTE\" associato alla RICHIESTA\n  AND un utente con ruolo \"RESPONSABILE\" associato alla RICHIESTA\n  WHEN lo stato della RICHIESTA cambia in \"In Attesa Approvazione\"\n  THEN il sistema crea due record NOTIFICA distinti, uno per ogni ruolo\n  E accoda l'evento di invio al canale EMAIL per entrambi i destinatari",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E accoda l'evento di invio al canale EMAIL per entrambi i destinatari"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 51,
+          "header": "SCENARIO: S04 - Notifica scadenza imminente attivata da job periodico",
+          "text": "  GIVEN una RICHIESTA con countdown temporale <= X giorni\n  AND il job StaticTriggerJob è in esecuzione\n  WHEN il job rileva che la scadenza è prossima\n  THEN il sistema pubblica un evento trigger per \"SCADENZA_IMMINENTE\"\n  E crea un record NOTIFICA con stato \"IN_CODA\" e tentativo_n = 1",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E crea un record NOTIFICA con stato \"IN_CODA\" e tentativo_n = 1"
+          ]
+        },
+        {
+          "ordinal": 5,
+          "line": 62,
+          "header": "SCENARIO: S05 - Tentativo fallito su Email, retry su Slack",
+          "text": "  GIVEN una RICHIESTA che innesca una notifica EMAIL\n  WHEN il canale EMAIL fallisce nel primo tentativo (tentativo_n = 1)\n  THEN il sistema incrementa tentativo_n a 2\n  E attende un periodo di backoff configurato (15 minuti)\n  E tenta l'invio tramite il canale SLACK",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E attende un periodo di backoff configurato (15 minuti)",
+            "  E tenta l'invio tramite il canale SLACK"
+          ]
+        },
+        {
+          "ordinal": 6,
+          "line": 71,
+          "header": "SCENARIO: S06 - Fallimento definitivo su entrambi i canali",
+          "text": "  GIVEN una RICHIESTA che innesca una notifica EMAIL\n  AND il canale EMAIL fallisce nel primo tentativo\n  AND il canale SLACK fallisce nel secondo tentativo (tentativo_n = 2)\n  WHEN si raggiunge il limite massimo dei tentativi (3)\n  THEN il sistema aggiorna lo stato della NOTIFICA a \"FALLITA\"\n  E genera un log strutturato con livello \"ERROR\" e stato \"FALLITA\"",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E genera un log strutturato con livello \"ERROR\" e stato \"FALLITA\""
+          ]
+        },
+        {
+          "ordinal": 7,
+          "line": 81,
+          "header": "SCENARIO: S07 - Consegna riuscita su Slack dopo fallimento Email",
+          "text": "  GIVEN una RICHIESTA che innesca una notifica EMAIL\n  WHEN il canale EMAIL fallisce nel primo tentativo (tentativo_n = 1)\n  AND il canale SLACK riesce nel secondo tentativo (tentativo_n = 2)\n  THEN il sistema aggiorna lo stato della NOTIFICA a \"CONSEGNATA\"\n  E ferma la sequenza di retry per quell'evento",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E ferma la sequenza di retry per quell'evento"
+          ]
+        },
+        {
+          "ordinal": 8,
+          "line": 92,
+          "header": "SCENARIO: S08 - Log strutturato su fallimento definitivo",
+          "text": "  GIVEN una notifica che ha raggiunto lo stato \"FALLITA\" dopo tutti i tentativi\n  WHEN il sistema registra l'anomalia\n  THEN genera un log JSON con campi obbligatori: timestamp, level=\"ERROR\", message, correlationId\n  E incrementa il contatore dei tentativi fino al limite massimo (3)",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E incrementa il contatore dei tentativi fino al limite massimo (3)"
+          ]
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": null,
+      "open_points_sections": [
+        {
+          "line": 99,
+          "heading": "## 4. Punti aperti",
+          "records": [],
+          "enumerable": false,
+          "text": "\n```json\n{\"open_points\":[{\"id\":\"OP-001\",\"functionality\":\"Innesco Trigger Statico\",\"original_question\":\"Qual è il valore soglia esatto del countdown per attivare la notifica di scadenza imminente?\", \"question\":\"Il job StaticTriggerJob utilizza un valore fisso (es. 3 giorni) o uno configurabile via workflow?\", \"assumption\":null,\"uncovered_scenarios\":[\"S04\"], \"reason\":\"missing_coverage\",\"research\":{\"status\":\"not_started\",\"new_evidence\":[],\"verification\":\"agent_reported\"}}]\n}\n```"
+        }
+      ],
+      "exact_duplicate_pairs": [],
+      "declared_points": 1,
+      "count_note": null,
+      "runtime_report_status": "missing",
+      "F_touched": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "scenario_to_F": [
+        [
+          1,
+          3
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          2
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ]
+      ]
+    },
+    {
+      "feature": "fe3",
+      "arm": "current",
+      "repetition": 2,
+      "sample_id": "fe3_current_r2",
+      "response_sha256": "f74619300af6b1df474d9f79ef0734d1e80cb601ba0eff3721df5028cfb4e7e9",
+      "scenario_count": 7,
+      "closed_gherkin_fences": 7,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 21,
+          "header": "SCENARIO: S01 - Invio form con motivazione valida",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente inserisce una motivazione di 250 caratteri nel campo dedicato\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema evidenzia il campo come valido\n  AND disabilita il pulsante durante la chiamata API\n  AND inoltra con successo il payload JSON al backend",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 31,
+          "header": "SCENARIO: S02 - Blocco invio per motivazione vuota",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente non inserisce alcun testo nel campo motivazione\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema evidenzia il campo con bordo rosso\n  AND mostra il messaggio di errore \"Il campo motivazione è obbligatorio\"\n  AND disabilita il pulsante impedendo la trasmissione dei dati",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 41,
+          "header": "SCENARIO: S03 - Blocco invio per superamento limite caratteri",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente inserisce una motivazione di 550 caratteri nel campo dedicato\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema evidenzia il campo con bordo rosso\n  AND mostra il messaggio informativo \"La motivazione non può superare i 500 caratteri\"\n  AND disabilita il pulsante impedendo la trasmissione dei dati",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 55,
+          "header": "SCENARIO: S04 - Selezione della necessità alloggio",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente attiva la checkbox \"Necessaria struttura per l'alloggio\"\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema include nel payload JSON il valore booleano true per la preferenza alloggio\n  AND inoltra con successo il payload al backend",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 5,
+          "line": 64,
+          "header": "SCENARIO: S05 - Selezione della non necessità alloggio",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente lascia disattivata la checkbox \"Necessaria struttura per l'alloggio\"\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema include nel payload JSON il valore booleano false per la preferenza alloggio\n  AND inoltra con successo il payload al backend",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 6,
+          "line": 77,
+          "header": "SCENARIO: S06 - Disattivazione pulsante durante caricamento",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente ha compilato tutti i campi correttamente\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema sostituisce il testo del pulsante con uno spinner di caricamento\n  AND disabilita immediatamente il controllo HTML del pulsante",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 7,
+          "line": 86,
+          "header": "SCENARIO: S07 - Gestione errore timeout durante sottomissione",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente clicca sul pulsante \"Partecipa\" con dati validi\n  WHEN il backend non risponde entro il tempo limite (timeout HTTP)\n  THEN il sistema mostra un alert Toast con messaggio di errore generico\n  AND riabilita il pulsante dopo la visualizzazione dell'errore",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": null,
+      "open_points_sections": [
+        {
+          "line": 96,
+          "heading": "## Punti aperti",
+          "records": [],
+          "enumerable": false,
+          "text": "\n```json\n{\"open_points\":[{\"id\":\"OP-001\",\"functionality\":\"Gestione delle Preferenze e Alloggio\",\"original_question\":\"Quali altre preferenze connesse all'alloggio sono gestite?\", \"question\":\"Il Canvas menziona 'altre preferenze connesse' ma non specifica quali campi (es. tipo di camera, numero ospiti).\",\"assumption\":null,\"uncovered_scenarios\":[\"Invio form con preferenza alloggio e tipo camera selezionato\"],\"reason\":\"missing_coverage\",\"research\":{\"status\":\"not_started\",\"new_evidence\":[],\"verification\":\"agent_reported\"}}]\n}\n```"
+        }
+      ],
+      "exact_duplicate_pairs": [],
+      "declared_points": 1,
+      "count_note": null,
+      "runtime_report_status": "valid",
+      "F_touched": [
+        1,
+        2,
+        3
+      ],
+      "scenario_to_F": [
+        [
+          1,
+          3
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ]
+      ]
+    },
+    {
+      "feature": "la2",
+      "arm": "current",
+      "repetition": 2,
+      "sample_id": "la2_current_r2",
+      "response_sha256": "c754bc719ed207d0d34b90ce055cdd8274bf2e51f690bbaa825209a175dece88",
+      "scenario_count": 10,
+      "closed_gherkin_fences": 10,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 21,
+          "header": "SCENARIO: S01 - Invio notifica su cambio stato a dipendente",
+          "text": "  GIVEN una RICHIESTA in stato \"Bozza\" associata a un UTENTE dipendente\n  AND la configurazione workflow indica che lo stato \"Revisato\" richiede notifica al dipendente\n  WHEN l'operatore cambia lo stato della RICHIESTA in \"Revisato\"\n  THEN il sistema pubblica un evento su RabbitMQ contenente l'ID della RICHIESTA\n  E crea un record NOTIFICA con stato IN_CODA e tentativo_n = 1\n  E tenta l'invio tramite EmailChannelAdapter",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E crea un record NOTIFICA con stato IN_CODA e tentativo_n = 1",
+            "  E tenta l'invio tramite EmailChannelAdapter"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 31,
+          "header": "SCENARIO: S02 - Invio notifica su cambio stato a responsabile",
+          "text": "  GIVEN una RICHIESTA in stato \"In Attesa\" associata a un UTENTE responsabile\n  AND la configurazione workflow indica che lo stato \"Approvato\" richiede notifica al responsabile\n  WHEN l'operatore cambia lo stato della RICHIESTA in \"Approvato\"\n  THEN il sistema pubblica un evento su RabbitMQ contenente l'ID della RICHIESTA\n  E crea un record NOTIFICA con stato IN_CODA e tentativo_n = 1\n  E tenta l'invio tramite EmailChannelAdapter",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E crea un record NOTIFICA con stato IN_CODA e tentativo_n = 1",
+            "  E tenta l'invio tramite EmailChannelAdapter"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 41,
+          "header": "SCENARIO: S03 - Invio notifica a entrambi i ruoli",
+          "text": "  GIVEN una RICHIESTA in stato \"Rifiutato\" associata a un UTENTE dipendente e uno responsabile\n  AND la configurazione workflow indica che lo stato \"Rifiutato\" richiede notifica a entrambi\n  WHEN l'operatore cambia lo stato della RICHIESTA in \"Rifiutato\"\n  THEN il sistema pubblica eventi separati per ciascun destinatario su RabbitMQ\n  E crea due record NOTIFICA distinti, ciascuno con tentativo_n = 1",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E crea due record NOTIFICA distinti, ciascuno con tentativo_n = 1"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 52,
+          "header": "SCENARIO: S04 - Notifica scadenza imminente attivata da job",
+          "text": "  GIVEN una RICHIESTA con countdown temporale impostato a 2 giorni\n  AND il job StaticTriggerJob esegue la scansione periodica delle scadenze\n  WHEN il countdown scende sotto la soglia di attivazione (es. 1 giorno)\n  THEN il job pubblica un evento su RabbitMQ per \"SCADENZA_IMMINENTE\"\n  E crea un record NOTIFICA con stato IN_CODA e tentativo_n = 1",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E crea un record NOTIFICA con stato IN_CODA e tentativo_n = 1"
+          ]
+        },
+        {
+          "ordinal": 5,
+          "line": 61,
+          "header": "SCENARIO: S05 - Scadenza non attivata per countdown insufficiente",
+          "text": "  GIVEN una RICHIESTA con countdown temporale impostato a 3 giorni\n  AND il job StaticTriggerJob esegue la scansione periodica\n  WHEN il countdown è ancora superiore alla soglia di attivazione\n  THEN il sistema non pubblica eventi su RabbitMQ\n  E non crea record NOTIFICA per questa richiesta in questo ciclo",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E non crea record NOTIFICA per questa richiesta in questo ciclo"
+          ]
+        },
+        {
+          "ordinal": 6,
+          "line": 72,
+          "header": "SCENARIO: S06 - Fallimento Email, tentativo Slack dopo backoff",
+          "text": "  GIVEN un evento trigger pubblicato su RabbitMQ\n  AND il sistema tenta l'invio via EmailChannelAdapter che fallisce (es. SMTP offline)\n  WHEN il sistema incrementa tentativo_n a 1 e applica il backoff di 15 minuti\n  THEN dopo il periodo di attesa, il sistema riprende la sequenza\n  E tenta l'invio tramite SlackChannelAdapter",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E tenta l'invio tramite SlackChannelAdapter"
+          ]
+        },
+        {
+          "ordinal": 7,
+          "line": 81,
+          "header": "SCENARIO: S07 - Fallimento definitivo entrambi i canali",
+          "text": "  GIVEN un evento trigger pubblicato su RabbitMQ\n  AND EmailChannelAdapter fallisce al primo tentativo\n  AND SlackChannelAdapter fallisce al secondo tentativo (tentativo_n = 2)\n  WHEN il sistema raggiunge il limite massimo di tentativi (3) o esaurisce le opzioni\n  THEN il sistema aggiorna lo stato della NOTIFICA a FALLITA\n  E registra un log strutturato con livello ERROR e stato FALLO definitivamente",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E registra un log strutturato con livello ERROR e stato FALLO definitivamente"
+          ]
+        },
+        {
+          "ordinal": 8,
+          "line": 91,
+          "header": "SCENARIO: S08 - Consegna riuscita su Slack dopo fallimento Email",
+          "text": "  GIVEN un evento trigger pubblicato su RabbitMQ\n  AND EmailChannelAdapter fallisce al primo tentativo\n  WHEN il sistema tenta l'invio tramite SlackChannelAdapter dopo il backoff\n  THEN SlackChannelAdapter invia con successo il messaggio\n  E il sistema aggiorna lo stato della NOTIFICA a CONSEGNATA",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E il sistema aggiorna lo stato della NOTIFICA a CONSEGNATA"
+          ]
+        },
+        {
+          "ordinal": 9,
+          "line": 102,
+          "header": "SCENARIO: S09 - Log strutturato su fallimento definitivo",
+          "text": "  GIVEN un evento trigger che ha esaurito tutti i tentativi di invio\n  WHEN il sistema determina lo stato FALLITA per la NOTIFICA\n  THEN il sistema genera un log strutturato con campi timestamp, level (ERROR), message e correlationId\n  E incrementa il contatore dei tentativi fino al limite massimo (3) nel record",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E incrementa il contatore dei tentativi fino al limite massimo (3) nel record"
+          ]
+        },
+        {
+          "ordinal": 10,
+          "line": 110,
+          "header": "SCENARIO: S10 - Propagazione CorrelationId end-to-end",
+          "text": "  GIVEN una RICHIESTA che innesca un evento di notifica\n  WHEN l'evento viene elaborato dal consumer e genera log o errori\n  THEN ogni riga di log generata include il campo correlationId ereditato dall'evento\n  E il tracing OpenTelemetry accompagna il messaggio attraverso le code RabbitMQ",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E il tracing OpenTelemetry accompagna il messaggio attraverso le code RabbitMQ"
+          ]
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": null,
+      "open_points_sections": [
+        {
+          "line": 117,
+          "heading": "## 4. Punti aperti",
+          "records": [],
+          "enumerable": false,
+          "text": "\n```json\n{\"open_points\":[{\"id\":\"OP-001\",\"functionality\":\"Innesco Trigger Statico\",\"original_question\":\"Qual è la soglia esatta di countdown per attivare la notifica?\", \"question\":\"Il job StaticTriggerJob utilizza una soglia fissa (es. <= 24h) o variabile configurabile per ogni richiesta?\", \"assumption\":null,\"uncovered_scenarios\":[\"S05\"], \"reason\":\"missing_coverage\",\"research\":{\"status\":\"not_started\",\"new_evidence\":[],\"verification\":\"agent_reported\"}}]\n```"
+        }
+      ],
+      "exact_duplicate_pairs": [],
+      "declared_points": 1,
+      "count_note": {
+        "count": 1,
+        "method": "manual_read_invalid_json",
+        "reason": "Un solo record OP-001 leggibile nel fence finale; manca la graffa di chiusura dell'oggetto esterno. Il JSON è malformato e non è riparato. La sezione numerata è inoltre missing per il parser applicativo. Conteggio dichiarativo, non report valido."
+      },
+      "runtime_report_status": "missing",
+      "F_touched": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "scenario_to_F": [
+        [
+          1,
+          3
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          1
+        ],
+        [
+          2
+        ],
+        [
+          2
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        []
+      ]
+    },
+    {
+      "feature": "fe3",
+      "arm": "current",
+      "repetition": 3,
+      "sample_id": "fe3_current_r3",
+      "response_sha256": "2549cf89e4bbcf36a45ecec7c19147ee052c670a37a6254a176d3953287e507a",
+      "scenario_count": 7,
+      "closed_gherkin_fences": 7,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 21,
+          "header": "SCENARIO: S01 - Invio form con motivazione valida",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente inserisce una motivazione contenente esattamente 250 caratteri\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema accetta l'inserimento senza errori\n  AND disabilita il pulsante di invio durante la chiamata API",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 2,
+          "line": 30,
+          "header": "SCENARIO: S02 - Blocco invio per superamento limite caratteri motivazione",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente inserisce una motivazione contenente 551 caratteri\n  WHEN tenta di cliccare sul pulsante \"Partecipa\"\n  THEN il sistema evidenzia la casella con bordo rosso\n  AND mostra il messaggio \"Limite superato\"\n  AND disabilita il pulsante \"Partecipa\" impedendo l'invio",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 3,
+          "line": 40,
+          "header": "SCENARIO: S03 - Invio form con campo motivazione vuoto",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente non inserisce alcun testo nel campo motivazione\n  WHEN tenta di cliccare sul pulsante \"Partecipa\"\n  THEN il sistema evidenzia la casella come mancante\n  AND disabilita il pulsante \"Partecipa\"\n  AND impedisce la trasmissione del payload al backend",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 4,
+          "line": 54,
+          "header": "SCENARIO: S04 - Invio form con preferenza alloggio attiva",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente seleziona l'opzione \"Necessaria struttura per alloggio\"\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema include la flag di necessità alloggio nel payload JSON\n  AND inoltra correttamente la richiesta al backend",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 5,
+          "line": 63,
+          "header": "SCENARIO: S05 - Invio form con preferenza alloggio disattivata",
+          "text": "  GIVEN un UTENTE autenticato visualizza il form per un EVENTO attivo\n  AND l'utente seleziona l'opzione \"Non necessaria struttura per alloggio\"\n  WHEN clicca sul pulsante \"Partecipa\"\n  THEN il sistema include la flag di non necessità nel payload JSON\n  AND inoltra correttamente la richiesta al backend",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 6,
+          "line": 76,
+          "header": "SCENARIO: S06 - Disattivazione pulsante durante chiamata API",
+          "text": "  GIVEN un UTENTE autenticato ha compilato correttamente il form\n  AND clicca sul pulsante \"Partecipa\"\n  WHEN la chiamata API è in corso (Round Trip Time)\n  THEN il sistema sostituisce il testo del pulsante con uno spinner visivo\n  AND mantiene il pulsante nello stato HTML `disabled`",
+          "missing_keywords": [],
+          "non_english_steps": []
+        },
+        {
+          "ordinal": 7,
+          "line": 85,
+          "header": "SCENARIO: S07 - Gestione errore lato server durante sottomissione",
+          "text": "  GIVEN un UTENTE autenticato ha compilato correttamente il form\n  WHEN clicca sul pulsante \"Partecipa\" e il backend restituisce un errore 500 o timeout\n  THEN il sistema visualizza un alert Toast con il messaggio di errore\n  AND ripristina lo stato visivo del form dopo la chiusura dell'alert",
+          "missing_keywords": [],
+          "non_english_steps": []
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": null,
+      "open_points_sections": [
+        {
+          "line": 94,
+          "heading": "## 3. Punti aperti",
+          "records": [],
+          "enumerable": false,
+          "text": "\n```json\n{\"open_points\":[{\"id\":\"OP-001\",\"functionality\":\"Gestione delle Preferenze (Alloggio)\",\"original_question\":\"Quali altre preferenze connesse sono gestite oltre all'alloggio?\", \"question\":\"Il Canvas menziona 'altre preferenze connesse' ma non elenca quali. È necessario definire campi aggiuntivi o limitarsi a un generico campo testo per le note sulle preferenze?\", \"assumption\":null,\"uncovered_scenarios\":[\"Invio form con altre preferenze specifiche (es. dieta, accessibilità)\"], \"reason\":\"missing_coverage\",\"research\":{\"status\":\"not_started\",\"new_evidence\":[],\"verification\":\"agent_reported\"}}]\n}\n```"
+        }
+      ],
+      "exact_duplicate_pairs": [],
+      "declared_points": 1,
+      "count_note": null,
+      "runtime_report_status": "missing",
+      "F_touched": [
+        1,
+        2,
+        3
+      ],
+      "scenario_to_F": [
+        [
+          1,
+          3
+        ],
+        [
+          1
+        ],
+        [
+          1
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          3
+        ],
+        [
+          3
+        ]
+      ]
+    },
+    {
+      "feature": "la2",
+      "arm": "current",
+      "repetition": 3,
+      "sample_id": "la2_current_r3",
+      "response_sha256": "d218db12fce1f96b7d98d9023f80b5724c69fe83ca022b41cf928d68ee920b40",
+      "scenario_count": 8,
+      "closed_gherkin_fences": 8,
+      "scenarios": [
+        {
+          "ordinal": 1,
+          "line": 35,
+          "header": "SCENARIO: S01 - Invio notifica Email su trigger dinamico riuscito",
+          "text": "  GIVEN una RICHIESTA con stato cambiato da \"Bozza\" a \"Revisato\"\n  AND un record NOTIFICA creato in stato IN_CODA per il dipendente target\n  WHEN il consumer NotificationConsumer elabora l'evento di cambio stato\n  THEN invia la notifica via Email tramite EmailChannelAdapter\n  E aggiorna lo stato della NOTIFICA su CONSEGNATA\n  E registra un log di livello INFO con successo",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E aggiorna lo stato della NOTIFICA su CONSEGNATA",
+            "  E registra un log di livello INFO con successo"
+          ]
+        },
+        {
+          "ordinal": 2,
+          "line": 45,
+          "header": "SCENARIO: S02 - Invio notifica Slack su trigger dinamico riuscito",
+          "text": "  GIVEN una RICHIESTA con stato cambiato da \"Bozza\" a \"Revisato\"\n  AND un record NOTIFICA creato in stato IN_CODA per il responsabile target\n  WHEN il consumer NotificationConsumer elabora l'evento di cambio stato\n  THEN invia la notifica via Slack tramite SlackChannelAdapter\n  E aggiorna lo stato della NOTIFICA su CONSEGNATA\n  E registra un log di livello INFO con successo",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E aggiorna lo stato della NOTIFICA su CONSEGNATA",
+            "  E registra un log di livello INFO con successo"
+          ]
+        },
+        {
+          "ordinal": 3,
+          "line": 55,
+          "header": "SCENARIO: S03 - Gestione fallimento Email e retry su Slack (Backoff)",
+          "text": "  GIVEN una RICHIESTA che innesca una notifica per il dipendente\n  AND il record NOTIFICA creato in stato IN_CODA\n  WHEN l'invio via Email tramite EmailChannelAdapter fallisce al primo tentativo\n  THEN incrementa il contatore tentativo_n a 1\n  E imposta lo stato della NOTIFICA su IN_CODA con backoff di 15 minuti\n  E dopo il backoff tenta l'invio via Slack tramite SlackChannelAdapter",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E imposta lo stato della NOTIFICA su IN_CODA con backoff di 15 minuti",
+            "  E dopo il backoff tenta l'invio via Slack tramite SlackChannelAdapter"
+          ]
+        },
+        {
+          "ordinal": 4,
+          "line": 65,
+          "header": "SCENARIO: S04 - Fallimento definitivo e logging anomalia",
+          "text": "  GIVEN una RICHIESTA che innesca una notifica per il dipendente\n  AND un record NOTIFICA creato con tentativo_n = 1 su Email fallito\n  WHEN anche l'invio via Slack al secondo tentativo fallisce\n  THEN incrementa il contatore tentativo_n a 2\n  E se si raggiunge il limite di tentativi (tentativo_n = 3) o entrambi i canali falliscono definitivamente\n  E aggiorna lo stato della NOTIFICA su FALLITA\n  E registra un log strutturato di livello ERROR con messaggio \"invio mancato\"",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E se si raggiunge il limite di tentativi (tentativo_n = 3) o entrambi i canali falliscono definitivamente",
+            "  E aggiorna lo stato della NOTIFICA su FALLITA",
+            "  E registra un log strutturato di livello ERROR con messaggio \"invio mancato\""
+          ]
+        },
+        {
+          "ordinal": 5,
+          "line": 76,
+          "header": "SCENARIO: S05 - Innesco trigger statico per scadenza imminente",
+          "text": "  GIVEN una RICHIESTA in attesa con countdown <= X giorni\n  AND il job StaticTriggerJob Quartz.NET esegue la scansione periodica\n  WHEN il countdown scade o raggiunge la soglia di allerta\n  THEN pubblica un evento asincrono su RabbitMQ per \"SCADENZA_IMMINENTE\"\n  E crea un record NOTIFICA in stato IN_CODA per il destinatario configurato",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E crea un record NOTIFICA in stato IN_CODA per il destinatario configurato"
+          ]
+        },
+        {
+          "ordinal": 6,
+          "line": 85,
+          "header": "SCENARIO: S06 - Gestione utente non valido prima dell'invio",
+          "text": "  GIVEN una RICHIESTA che richiede notifica a un UTENTE target\n  AND l'UTENTE destinatario risulta inesistente o invalido nel sistema\n  WHEN il consumer NotificationConsumer elabora l'evento trigger\n  THEN non crea record NOTIFICA per quell'utente specifico\n  E registra un log di livello WARNING indicando \"destinatario non trovato\"",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E registra un log di livello WARNING indicando \"destinatario non trovato\""
+          ]
+        },
+        {
+          "ordinal": 7,
+          "line": 94,
+          "header": "SCENARIO: S07 - Propagazione CorrelationId end-to-end",
+          "text": "  GIVEN una RICHIESTA con un correlationId generato in ingresso\n  WHEN il consumer elabora l'evento e invia la notifica su RabbitMQ\n  THEN il messaggio nella coda RabbitMQ contiene lo stesso correlationId\n  E ogni log generato (INFO, WARNING, ERROR) include il campo correlationId",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E ogni log generato (INFO, WARNING, ERROR) include il campo correlationId"
+          ]
+        },
+        {
+          "ordinal": 8,
+          "line": 102,
+          "header": "SCENARIO: S08 - Invio Email riuscito con rollback transazionale",
+          "text": "  GIVEN una RICHIESTA che innesca un evento trigger dinamico\n  AND la scrittura del record NOTIFICA avviene in transazione Outbox\n  WHEN l'invio via Email è riuscito ma il database fallisce dopo\n  THEN il sistema rollback immediatamente la transazione\n  E lo stato della NOTIFICA non viene aggiornato a CONSEGNATA",
+          "missing_keywords": [],
+          "non_english_steps": [
+            "  E lo stato della NOTIFICA non viene aggiornato a CONSEGNATA"
+          ]
+        }
+      ],
+      "open_points_present": true,
+      "open_points_count": null,
+      "open_points_sections": [
+        {
+          "line": 110,
+          "heading": "## 5. Punti aperti",
+          "records": [],
+          "enumerable": false,
+          "text": "\n```json\n{\"open_points\":[{\"id\":\"OP-001\",\"functionality\":\"Trigger Statico (S05)\",\"original_question\":\"Qual è esattamente il valore di X giorni per la soglia?\", \"question\":\"Il job Quartz.NET utilizza una finestra fissa o dinamica basata su configurazione?\", \"assumption\":null,\"uncovered_scenarios\":[],\"reason\":\"missing_coverage\",\"research\":{\"status\":\"not_started\",\"new_evidence\":[],\"verification\":\"agent_reported\"}}]}\n```"
+        }
+      ],
+      "exact_duplicate_pairs": [],
+      "declared_points": 1,
+      "count_note": null,
+      "runtime_report_status": "missing",
+      "F_touched": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "scenario_to_F": [
+        [
+          1,
+          3
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          3
+        ],
+        [
+          4
+        ],
+        [
+          2
+        ],
+        [
+          1
+        ],
+        [],
+        [
+          5
+        ]
+      ]
+    }
+  ]
+}

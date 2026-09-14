@@ -1,0 +1,107 @@
+"""Sola lettura di risposte conservate; nessun import del runner/provider."""
+import hashlib
+import json
+import re
+import runpy
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent.parent
+sys.path.insert(0, str(HERE.parents[3]))
+from core.open_points import read_report  # noqa: E402 — usa il checkout individuato sopra
+
+parser = runpy.run_path(str(ROOT / "propose_count_ablation_20260914/evidence/summarize_structural.py.txt"))
+
+
+def declared_points(parsed):
+    if not parsed["open_points_present"]:
+        return 0  # Zero dichiarazioni osservate, NON certificazione di lista valida vuota.
+    count = 0
+    for section in parsed["open_points_sections"]:
+        blocks = re.findall(r"```json\s*\n(.*?)\n```", section["text"], re.S)
+        if blocks:
+            if len(blocks) != 1:
+                return None
+            try:
+                value = json.loads(blocks[0])["open_points"]
+            except (ValueError, KeyError, TypeError):
+                return None
+            if not isinstance(value, list):
+                return None
+            count += len(value)
+        elif section["enumerable"]:
+            count += len(section["records"])
+        else:
+            return None
+    return count
+
+
+def main():
+    parser["check"]()
+    parse = parser["parse"]
+    assert declared_points(parse('## 4. Punti aperti\n```json\n{"open_points":[{}]}\n```')) == 1
+    assert declared_points(parse('## Punti aperti\n```json\n{"open_points":[]}\n```')) == 0
+    assert declared_points(parse('## Punti aperti\n```json\nNON JSON\n```')) is None
+    state = json.loads((HERE / "run_status.json").read_text(encoding="utf-8"))
+    assert state["status"] == "completed", state
+    manifest = json.loads((HERE / "manifest.json").read_text(encoding="utf-8"))
+    mapping = json.loads((HERE / "MAPPING.json").read_text(encoding="utf-8"))
+    rows = []
+    for arm, cases, folder in (("bd87bd7^", manifest["comparison_cases"], ROOT / "propose_ablation_20260914/evidence"),
+                               ("current", manifest["schedule"], HERE)):
+        for case in cases:
+            sid = case["sample_id"]
+            path = folder / "responses" / (sid + ".md")
+            raw = path.read_text(encoding="utf-8")
+            parsed = parse(raw)
+            assigned = mapping["scenario_to_F"][sid]
+            assert len(assigned) == parsed["scenario_count"], sid
+            touched = sorted({f for fs in assigned for f in fs})
+            assert set(touched) <= set(range(1, 5 if case["feature"] == "fe3" else 6))
+            count = declared_points(parsed)
+            override = mapping["declared_points_overrides"].get(sid)
+            if override:
+                assert count is None, "La nota manuale non deve sovrascrivere un conteggio leggibile"
+                assert len(re.findall(r'"id"\s*:\s*"OP-\d+"', raw)) == override["count"]
+                count = override["count"]
+            rows.append({**case, "arm": arm, "response_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                         **parsed, "declared_points": count, "count_note": override,
+                         "runtime_report_status": read_report(raw)["open_points_status"],
+                         "F_touched": touched, "scenario_to_F": assigned})
+    (HERE / "STRUCTURAL.json").write_text(json.dumps({"samples": rows}, ensure_ascii=False, indent=2), encoding="utf-8")
+    text = ["# V3 adottata contro bd87bd7^ — conteggi descrittivi", "",
+            "Sei nuove risposte del prompt a8b2416 e sei vecchie riutilizzate. Nessuna revisione sostanziale.",
+            "F toccata non equivale a caso nominale/negativo coperto o scenario soddisfatto.",
+            "FE3-F4 ha perimetro ambiguo: presenza separata, assenza NON conteggiata come lacuna.",
+            "Mappatura letta dall'assistente; conteggi non equivalgono a verdetti umani.", "",
+            "| Feature | Gruppo | Campione | Scenari | F toccate (FE3: solo F1–F3) | FE3-F4 | Sezione PA | Punti dichiarati | Stato report runtime |",
+            "|---|---|---|---:|---|---|---|---:|---|"]
+    for row in sorted(rows, key=lambda r:(r["feature"], r["arm"], r["repetition"])):
+        fs = row["F_touched"]
+        fe3 = row["feature"] == "fe3"
+        listed = [f for f in fs if not fe3 or f != 4]
+        text.append(f'| {row["feature"].upper()} | {row["arm"]} | {row["sample_id"]} | {row["scenario_count"]} | '
+                    + ", ".join("F"+str(f) for f in listed)
+                    + f' | {("sì" if 4 in fs else "no") if fe3 else "—"} | '
+                    + f'{"sì" if row["open_points_present"] else "no"} | {row["declared_points"]} | {row["runtime_report_status"]} |')
+    text += ["", "Punti dichiarati conta record, non domande interne o dubbi correttamente dichiarati.",
+             "Zero con sezione assente significa zero dichiarazioni osservate, non un report valido con [].",
+             "Un titolo numerato può avere record JSON leggibili ma risultare missing al parser applicativo:",
+             "la forma canonica richiede esattamente `## Punti aperti`. Non si correggono gli output.", "",
+             "LA2 current r2: il punto dichiarato è contato per lettura (un record OP-001), ma il JSON",
+             "manca della graffa finale. Non è un resoconto valido; nota conservata in MAPPING.json.", "",
+             "Il prompt attuale include conteggio V3, nota sul limite e resoconto strutturato advisory.",
+             "Il confronto con bd87bd7^ NON isola la sola modifica sulle ambiguità, né elimina la deriva fra lotti.",
+             "Protocollo e fonti sono congelati; riserva F4 applicata simmetricamente senza riscrivere le schede storiche.", "",
+             f'Durata delle sei generazioni: {state["elapsed_seconds"]:.3f} secondi.', "",
+             "[Protocollo](PROTOCOL.md) · [Addendum](ADDENDUM.md) · [Manifest](manifest.json) · "
+             "[Risposte nuove](responses/) · [Mappatura](MAPPING.json) · [Conteggi](STRUCTURAL.json) · "
+             "[Verifica](VERIFICATION.json)", ""]
+    (HERE / "RESULTS.md").write_text("\n".join(text), encoding="utf-8")
+    print("\n".join(text))
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+    main()

@@ -1,0 +1,15 @@
+{
+  "status": "passed",
+  "new_samples": 6,
+  "reused_samples": 6,
+  "provider_attempts": 6,
+  "frozen_hashes_verified": 14,
+  "comparison_files_unchanged": 12,
+  "application_prompt_unchanged": true,
+  "raw_response_matches_provider": true,
+  "request_options_verified": true,
+  "input_tokens": 47526,
+  "output_tokens": 8281,
+  "aggregation_self_check": "passed",
+  "provider_calls_during_verification": 0
+}

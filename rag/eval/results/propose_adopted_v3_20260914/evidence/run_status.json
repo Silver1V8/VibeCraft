@@ -1,0 +1,58 @@
+{
+  "started_at": "2026-09-14T14:00:19.775976+00:00",
+  "status": "completed",
+  "quality_status": "not_evaluated",
+  "samples": [
+    {
+      "feature": "fe3",
+      "arm": "current",
+      "repetition": 1,
+      "sample_id": "fe3_current_r1",
+      "status": "completed",
+      "capture_complete": true
+    },
+    {
+      "feature": "la2",
+      "arm": "current",
+      "repetition": 1,
+      "sample_id": "la2_current_r1",
+      "status": "completed",
+      "capture_complete": true
+    },
+    {
+      "feature": "fe3",
+      "arm": "current",
+      "repetition": 2,
+      "sample_id": "fe3_current_r2",
+      "status": "completed",
+      "capture_complete": true
+    },
+    {
+      "feature": "la2",
+      "arm": "current",
+      "repetition": 2,
+      "sample_id": "la2_current_r2",
+      "status": "completed",
+      "capture_complete": true
+    },
+    {
+      "feature": "fe3",
+      "arm": "current",
+      "repetition": 3,
+      "sample_id": "fe3_current_r3",
+      "status": "completed",
+      "capture_complete": true
+    },
+    {
+      "feature": "la2",
+      "arm": "current",
+      "repetition": 3,
+      "sample_id": "la2_current_r3",
+      "status": "completed",
+      "capture_complete": true
+    }
+  ],
+  "planned": 6,
+  "elapsed_seconds": 177.31198439999935,
+  "finished_at": "2026-09-14T14:03:17.087958+00:00"
+}

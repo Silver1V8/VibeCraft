@@ -1,0 +1,78 @@
+"""Congela il prompt applicativo e riusa il runner provider già verificato."""
+import asyncio
+import json
+import runpy
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent.parent
+OLD = ROOT / "propose_ablation_20260914/evidence"
+RUNNER = ROOT / "propose_count_ablation_20260914/evidence/run_variants.py.txt"
+historical = runpy.run_path(str(RUNNER), run_name="historical")
+g = historical["run"].__globals__
+g["HERE"] = HERE
+sha, dump = g["sha"], g["dump"]
+
+
+def prepare():
+    assert not (HERE / "manifest.json").exists(), "Freeze già presente"
+    prior = json.loads((OLD / "manifest.json").read_text(encoding="utf-8"))
+    assert sha(OLD / "manifest.json") == (OLD / "PREREGISTERED.sha256").read_text().split()[0]
+    for name, digest in prior["hashes"].items():
+        assert sha(OLD / name) == digest, name
+    (HERE / "inputs").mkdir(exist_ok=False)
+    for name in ("fe3_canvas.md", "la2_canvas.md", "fe3_context.md", "la2_context.md",
+                 "spec_form_1.4.md", "spec_notifications_2.4.md", "observability_standards.md"):
+        (HERE / "inputs" / name).write_bytes((OLD / "inputs" / name).read_bytes())
+    (HERE / "PROTOCOL.md").write_bytes((OLD / "PROTOCOL.md").read_bytes())
+    (HERE / "inputs/current_spec.md").write_bytes((g["RAG"] / "prompts/spec.md").read_bytes())
+    for feature, dev in (("fe3", "frontend"), ("la2", "logicAgent")):
+        prompt = g["pipeline"].build_spec_prompt(
+            (HERE / "inputs" / (feature + "_canvas.md")).read_text(encoding="utf-8"),
+            (HERE / "inputs" / (feature + "_context.md")).read_text(encoding="utf-8"), dev, feature)
+        (HERE / "inputs" / (feature + "_current_prompt.md")).write_text(prompt, encoding="utf-8")
+        options = g["llm"]._ollama_payload("qwen3.5:9b", prompt)
+        del options["prompt"]
+        assert options == prior["payload_options"]
+    assert g["llm"].resolve("propose") == ("ollama", "qwen3.5:9b")
+    info = g["model_info"]()
+    assert info["digest"] == prior["model"]["digest"]
+    old_cases = [s for s in prior["schedule"] if s["arm"] == "old"]
+    assert len(old_cases) == 6
+    comparison = {"responses/" + s["sample_id"] + suffix:
+                  sha(OLD / ("responses/" + s["sample_id"] + suffix))
+                  for s in old_cases for suffix in (".md", "_provider.json")}
+    files = [HERE / "PROTOCOL.md", HERE / "ADDENDUM.md", Path(__file__),
+             HERE / "agentic_smoke.json"] + list((HERE / "inputs").iterdir())
+    manifest = {
+        "frozen_at": datetime.now(timezone.utc).isoformat(),
+        "code_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+        "provider": "ollama", "model": info, "payload_options": prior["payload_options"],
+        "schedule": [{"feature": f, "arm": "current", "repetition": r,
+                      "sample_id": f"{f}_current_r{r}"} for r in (1, 2, 3) for f in ("fe3", "la2")],
+        "wall_budget_seconds": 1800, "comparison_cases": old_cases,
+        "comparison_hashes": comparison, "reused_runner_sha256": sha(RUNNER),
+        "hashes": {p.relative_to(HERE).as_posix(): sha(p) for p in files},
+        "application_prompt_sha256": sha(g["RAG"] / "prompts/spec.md"),
+        "quality_status": "not_evaluated",
+    }
+    dump(HERE / "manifest.json", manifest)
+    (HERE / "PREREGISTERED.sha256").write_text(sha(HERE / "manifest.json") + "  manifest.json\n", encoding="utf-8")
+    print("FROZEN: 6 nuove; 6 vecchie riutilizzate; nessuna generazione.", flush=True)
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")
+    if sys.argv[1:] == ["prepare"]:
+        prepare()
+    elif sys.argv[1:] == ["run"]:
+        manifest = json.loads((HERE / "manifest.json").read_text(encoding="utf-8"))
+        assert sha(RUNNER) == manifest["reused_runner_sha256"]
+        for name, digest in manifest["comparison_hashes"].items():
+            assert sha(OLD / name) == digest, name
+        asyncio.run(historical["run"]())
+    else:
+        raise SystemExit("prepare | run")

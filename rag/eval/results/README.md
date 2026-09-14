@@ -1,9 +1,15 @@
 # Evidenze delle valutazioni
 
 **Fase 2 chiusa, 14 settembre 2026:** [resoconto finale dei tre giri Propose](FASE2_PROPOSE_20260914.md).
-Miglioramento qualitativo non dimostrato; V3 non adottata, V4 respinta.
+Alla chiusura: miglioramento qualitativo non dimostrato; V3 non adottata, V4 respinta.
 Il resoconto include la riserva sul perimetro FE3-F4, da applicare anche ai
 conteggi FE3 riportati più sotto. Nessuno starter o pilot avviato.
+
+**Passaggio successivo:** V3 adottata in `a8b2416`, con limite noto sui confini
+delle funzionalità. [Confronto strutturale dopo l'adozione](propose_adopted_v3_20260914/evidence/RESULTS.md):
+sei risposte nuove contro le sei `bd87bd7^` conservate, senza giudizio sostanziale.
+Il prompt attuale include anche il resoconto advisory: non isola la sola modifica
+sulle ambiguità. Il resoconto finale dei tre giri precedenti rimane storico.
 
 `history.jsonl` conserva gli eventi aggregati della pagina `/eval`. I dati che
 permettono di esaminarli vivono in `<run>/evidence/`. Fuori da quella cartella gli
