@@ -13,10 +13,14 @@
 
     Ogni scenario deve avere per soggetto la feature del Canvas e descriverne un COMPORTAMENTO
     osservabile. Non scrivere scenari che verificano lo stack, le librerie o gli strumenti in sé.
-    Niente scenari duplicati: se due differiscono solo nella formulazione, tienine uno. Per ogni
-    funzionalità descritta dal Canvas servono ALMENO due scenari: un caso nominale e un caso
-    negativo o di errore. In tutto scrivi da 4 a 7 scenari, non di più: pochi scenari completi
-    e ben formati valgono più di molti scenari lunghi e monchi.
+    Niente scenari duplicati: se due differiscono solo nella formulazione, tienine uno.
+    Per ogni funzionalità descritta dal Canvas scrivi da un minimo di 2 a un massimo di 4
+    scenari, includendo almeno un caso nominale e uno negativo o di errore. Non c'è un tetto
+    complessivo per lo spec: il totale è la somma degli scenari delle singole funzionalità.
+    Se una funzionalità richiede più di 4 scenari, non suddividere il Canvas: dichiara la
+    copertura mancante nella sezione "Punti aperti", senza presentarla come già soddisfatta.
+    Non inventare requisiti per raggiungere il minimo: se un'ambiguità impedisce di formulare
+    un caso verificabile, dichiara anche quel caso mancante nei punti aperti.
 
     Non inventare funzionalità non presenti nel Canvas o nei vincoli normativi. Se uno scenario
     nomina una tecnologia o mostra codice, usa ESCLUSIVAMENTE le tecnologie già citate nel
@@ -28,9 +32,15 @@
     trasformati in scenari. Se uno scenario non è riconducibile a una frase del Canvas, toglilo.
 
     Rispondi esclusivamente con il contenuto del file Markdown, senza preamboli né commenti
-    prima o dopo. Scrivi SOLO la versione definitiva: niente note a margine, auto-correzioni,
-    domande o dubbi inline («*Correzione*: ...», «*Nota*: assumiamo...») — se un punto è
-    ambiguo, scegli l'interpretazione più coerente col Canvas e scrivila come decisione.
+    prima o dopo. Scrivi SOLO la versione definitiva, senza auto-correzioni o dubbi inline
+    nei passi degli scenari. Se un punto è ambiguo, non risolverlo d'autorità: aggiungilo a una
+    sezione "Punti aperti" del documento, FUORI dai blocchi gherkin. Per ciascun punto indica
+    la funzionalità coinvolta, l'assunzione proposta DA CONFERMARE e una domanda aperta
+    esplicita. L'assunzione non è un requisito approvato: non usarla per fissare l'esito di
+    uno scenario. Indica quali comportamenti restano senza copertura fino alla risposta.
+    Per la copertura che eccede i 4 scenari, elenca i casi mancanti e la domanda da risolvere;
+    se non occorre un'assunzione, scrivi "Assunzione: nessuna; copertura da confermare".
+    Non dichiarare completa la copertura in presenza di casi mancanti o punti irrisolti.
 
     ==========================================================================
     FORMATO DEGLI SCENARI — obbligatorio, sempre, senza varianti: vale per ogni
