@@ -15,9 +15,12 @@ function node(tag) {
     add(option) {this.options.push(option);},
     appendChild(child) {this.children.push(child); if (child.type === 'checkbox') checks.push(child);}};
 }
-for (const id of ['gate-status', 'gate-decisions', 'validate-btn', 'validate-report-box', 'validate-structural']) node('div').id = id;
+for (const id of ['gate-status', 'gate-decisions', 'gate-comparison', 'validate-btn', 'validate-report-box', 'validate-structural']) node('div').id = id;
 const finding = {rule:'scenari_insufficienti', message:'Solo uno scenario', finding_hash:'finding-hash', associable:true, covered_by:null};
-const data = {spec_hash:'spec-hash', gate:{open_points_status:'valid', reasons:[], warnings:[]},
+const data = {validation_id:'val-old', comparison:{validation_id:'val-old',
+  canvas:{current:'<script>current canvas</script>',validated:'validated canvas'},
+  spec:{current:'current spec',validated:'validated spec'}},
+  spec_hash:'spec-hash', gate:{open_points_status:'valid', reasons:[], warnings:[]},
   structural_findings:[finding], point_decisions:[{point_hash:'point-hash', status:'unaddressed', point:{id:'OP-001', question:'Caso negativo?'}}]};
 let responseStatus = 'passed';
 const context = vm.createContext({URLSearchParams, featureName:'demo', JSON,
@@ -40,6 +43,16 @@ vm.runInContext(code, context);
   assert.equal(checks[0].checked,false);
   assert.equal(nodes['decision-status'].value,'');
   assert.match(nodes['gate-status'].textContent,/non esaminato/);
+  assert.match(nodes['gate-status'].textContent,/val-old/);
+  await context.compareValidatedVersion();
+  function allText(n) {return [n.textContent, ...n.children.map(allText)].join('\n');}
+  assert.match(allText(nodes['gate-comparison']), /<script>current canvas<\/script>/);
+  assert.match(allText(nodes['gate-comparison']), /validated canvas/);
+  assert.match(allText(nodes['gate-comparison']), /validated spec/);
+  // Un edit non deve cambiare il riferimento al contratto che aveva passato i controlli.
+  data.comparison.spec.current = 'edited spec';
+  await context.refreshGateReview();
+  assert.equal(new URLSearchParams(requests.at(-1).url.split('?')[1]).get('validation_id'), 'val-old');
   await context.recordPointDecision();
   assert.equal(requests.filter(r=>r.url.endsWith('/decision')).length,0);
   nodes['decision-point'].value='point-hash'; nodes['decision-status'].value='accepted';
@@ -52,6 +65,7 @@ vm.runInContext(code, context);
   assert.equal('origin_verified' in body,false);
   assert.equal(checks[0].checked,false); // il refresh non riaccetta per estensione
   await context.runValidate();
+  assert.equal(new URLSearchParams(requests.at(-1).url.split('?')[1]).get('validation_id'), 'val-test');
   assert.match(nodes['validate-report-box'].textContent,/Solo uno scenario/);
   assert.match(nodes['validate-report-box'].textContent,/coperto da dec-test/);
   assert.match(nodes['validate-report-box'].textContent,/Nome dichiarato/);
@@ -61,7 +75,21 @@ vm.runInContext(code, context);
   await context.runValidate();
   assert.match(nodes['validate-report-box'].textContent,/unavailable/);
   assert.match(nodes['validate-report-box'].textContent,/provider offline/);
-  assert.match(nodes['validate-report-box'].textContent,/avvio non è ancora vincolato/);
+  assert.doesNotMatch(html,/avvio non è ancora vincolato/i);
   assert.equal(nodes['validate-btn'].disabled,false);
+  context.featureName='no-validation'; data.validation_id=null; data.comparison=null;
+  await context.refreshGateReview();
+  await context.compareValidatedVersion();
+  assert.match(nodes['gate-status'].textContent,/Validazione assente/);
+  assert.match(allText(nodes['gate-comparison']),/Confronto non disponibile/);
+  assert.doesNotMatch(allText(nodes['gate-comparison']),/validated canvas|validated spec/);
+  // Un refresh precedente alla rivalidazione non può ripristinare il vecchio riferimento.
+  context.featureName='race'; let release;
+  context.fetch=()=>new Promise(resolve=>{release=resolve;});
+  const pending=context.refreshGateReview();
+  vm.runInContext("validationRefs.set('race','val-new')",context);
+  release({ok:true,json:async()=>({...data,validation_id:'val-stale'})});
+  await pending;
+  assert.equal(vm.runInContext("validationRefs.get('race')",context),'val-new');
   console.log('Pipeline validation UI checks passed');
 })().catch(e=>{console.error(e);process.exitCode=1;});

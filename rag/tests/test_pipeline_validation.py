@@ -82,7 +82,7 @@ def test_unassociated_finding_blocks_and_association_is_explicit_visible(env):
     assert accept(client, state, [state['structural_findings'][0]['finding_hash']]).status_code == 200
     out = client.post('/api/pipeline/validate', json={'feature': 'demo'}).json()
     assert out['passed'] is True
-    assert out['gate']['allowed'] is True and out['execution_enforced'] is False
+    assert out['gate']['allowed'] is True and out['execution_enforced'] is True
     finding = out['structural_findings'][0]
     assert finding['rule'] == 'scenari_insufficienti'
     assert finding['review_status'] == 'covered'

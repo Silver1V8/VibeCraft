@@ -1,10 +1,8 @@
 # Gate della pipeline — piano approvato e stato di implementazione
 
-**L'avvio non è ancora vincolato.** I primi due commit introducono nucleo,
-persistenza, validazione strutturata e decisioni dell’operatore con UI.
-Il vecchio avvio SDK resta disponibile senza enforcement. Il gate
-diventa operativo soltanto con il terzo commit; allora questa avvertenza va
-rimossa anche dal README e dalle docstring dei moduli.
+**Enforcement attivo sulla sola modalità agentic.** UI e avvio usano il punto
+decisionale unico, ricalcolato dal server. Suggest/oneshot restano consultivi;
+il gate non governa processi esterni avviati autonomamente.
 
 Design approvato nella conversazione del 14 settembre 2026. Obiettivo: eseguire
 in modalità agentic soltanto un contratto validato, congelato e riconoscibile.
@@ -44,8 +42,8 @@ Nessuna nuova dipendenza, nessun force, formato GIVEN/WHEN/THEN invariato.
   di identità personale autenticata per cambiarlo. Nessun tool agente lo espone.
 - [x] Route validate/stato e UI consumano evaluate_gate; test integrazione con
   guasti retrieval/modello, JSON malformato, stale, decisioni legate alla Spec e associazioni esplicite.
-- [x] Documentare ancora **l'avvio non è ancora vincolato**; test, lint, commit,
-  push e fermarsi per revisione.
+- [x] Consegnare separatamente validazione e decisioni prima dell’enforcement;
+  test, lint, commit e push verificati.
 
 Verifiche del secondo commit: 464 test Python passati (inclusi MCP e controllo
 positivo SDK nelle tre modalità), due controlli UI Node passati, Ruff sull'intero
@@ -53,26 +51,34 @@ positivo SDK nelle tre modalità), due controlli UI Node passati, Ruff sull'inte
 
 ## Commit 3 — avvio, UI ed eventi
 
-- [ ] agent/run riceve feature e validation_id, rilegge i fatti server e usa
+- [x] agent/run riceve feature e validation_id, rilegge i fatti server e usa
   evaluate_gate; agentic rifiutato prima dello stream con 409/503 dettagliato.
   Suggest/oneshot disponibili con i blocchi visibili.
-- [ ] Prompt server costruito dai testi/decisioni congelati, nessun prompt
+- [x] Prompt server costruito dai testi/decisioni congelati, nessun prompt
   arbitrario del client o lettura tardiva dei file mutabili come contratto.
-- [ ] Coordinare salvataggi, decisioni e ammissione sulla stessa feature; non
+- [x] Coordinare salvataggi, decisioni e ammissione sulla stessa feature; non
   tenere il lock durante la validazione LLM. Conservare il confinamento SDK.
-- [ ] `events.jsonl`: validation_finished, execution_blocked, execution_started,
+- [x] `events.jsonl`: validation_finished, execution_blocked, execution_started,
   execution_finished, open_point_decision_recorded; attempt_id e
   retry_of_attempt_id verificato dal server. Avvio non registrabile = 503.
-- [ ] Test end-to-end di bypass client, mismatch, race, outage, eventi e UI;
+- [x] Test end-to-end di bypass client, mismatch, race, outage, eventi e UI;
   rimuovere le diciture transitorie da README, questo documento e docstring.
 - [ ] Misurare dimensione record e numero di validazioni per feature osservata,
-  senza generazioni aggiuntive o stime presentate come dati reali.
-- [ ] Test, lint, commit, push; fermarsi.
+  nella prova reale richiesta dopo il push; non presentare fixture come dati operativi.
+- [x] Test, lint, commit, push; fermarsi.
+
+Verifica del terzo commit: 544 test Python passati, inclusi lock, journal,
+confinamento SDK, MCP e archiviazione; controlli UI Node e Ruff passati.
+La prova operativa dopo il push è distinta: tutti i contratti reali presenti
+(LA3 attiva, FE1–FE4 e LA1–LA2 archiviate) hanno resoconto missing. Non aggiungere
+una lista vuota né registrare accettazioni al posto dell'operatore per farla
+passare. Al controllo iniziale non esistono record operativi: nessuna dimensione
+tipica o numero di rivalidazioni per feature conclusa è ancora misurabile.
 
 ## Record e invarianti del nucleo
 
 `database/pipeline/validations/<feature>/<validation_id>.json` contiene:
-schema_version, validation_id, feature, dev_type, started_at, finished_at,
+schema_version, validation_id, attempt_id, feature, dev_type, started_at, finished_at,
 status, passed, contract, open_points_status, checks, validator, sources,
 warnings, structural_findings, semantic_findings. I rilievi originali restano
 visibili anche se coperti, insieme al riferimento alla decisione. Lo schema eseguibile è `ValidationRecord` in `core/pipeline_gate.py`.
@@ -107,7 +113,7 @@ di index_version non blocca. Il loader server deve segnalare indisponibilità
 dei dati con availability: una mappa vuota non deve nascondere un errore.
 
 I record decisione sono scritti dal server sotto
-`database/pipeline/decisions/<feature>/<decision_id>.json`; gli eventi nel terzo
+`database/pipeline/decisions/<feature>/<decision_id>.json`; gli eventi sono
 sotto `database/pipeline/events.jsonl`, separati da `eval/results/history.jsonl`.
 Nessuna pulizia o rotazione automatica. Record locale corrotto è un guasto
 operativo, record inesistente è assenza di validazione; non sono intercambiabili.
@@ -171,3 +177,55 @@ in activity_scope); le esecuzioni senza feature sono registrate separatamente.
 Con più worker non rappresenta tutte le esecuzioni: prima di interpretare zero
 come assenza occorre un registro condiviso. La sovrapposizione temporale non
 certifica chi abbia chiamato l'endpoint. Nessuna telemetria o nuova dipendenza.
+
+## Ammissione, concorrenza e registro eventi
+
+La richiesta agentic identifica feature e validation_id. Il server rilegge
+contratto, decisioni, record e impronte delle fonti; `evaluate_gate` restituisce
+allowed, reasons con user_action/operator_action/retryable e warnings. Non usa
+allowed del client (campo rifiutato) né il suo prompt (ignorato in agentic).
+409 segnala il mismatch con nomi dei documenti e validazione di riferimento;
+503 prevale quando coesistono guasti, conservando tutti i reasons disponibili.
+
+Un lock OS per feature, `locks/<feature>.lock`, coordina salvataggi Canvas/Spec,
+metadati, decisioni, spostamento finale in archivio, snapshot iniziale/finale
+della validazione e ammissione. La chiamata LLM e la review prima dell'archivio
+sono fuori dal lock. Il lock non dura per l'intera implementazione: questa usa
+il contratto congelato e non rilegge changes/ per decidere cosa è autorizzato.
+Il lock coordina i writer applicativi, non impedisce edit esterni arbitrari del
+filesystem. Le modalità suggest/oneshot non dipendono dal lock di ammissione.
+
+Prima di schedulare la coroutine SDK si scrive e fsynca execution_started;
+un errore impedisce agentic con 503. Lo scheduling è immediato, non dipende
+dalla prima lettura dello stream HTTP. execution_finished segue la coroutine
+SDK anche se il client si disconnette. Un crash del processo o un errore finale
+di storage lascia il tentativo senza conclusione: non equivale a completamento.
+L'errore finale è esposto nello stream e nel log server. Nessun retry automatico
+del modello. Nessuna pulizia/rotazione del journal.
+
+`events.jsonl` contiene cinque tipi: validation_finished, execution_blocked,
+execution_started, execution_finished, open_point_decision_recorded. Ogni
+record ha event, feature, recorded_at server, attempt_id e retry_of_attempt_id
+(null se non pertinente). Gli eventi di esecuzione hanno mode, validation_id,
+gate/reasons/warnings e open_points_status; la fine aggiunge outcome e lo stato
+del resoconto prodotto. La validazione aggiunge status/passed. La decisione
+aggiunge decision_id, point_hash, status, autore/provenienza dichiarati,
+metadati osservati, tentativi attivi e origin_verified=false. Le associazioni
+restano rintracciabili anche nel record immutabile della decisione.
+
+Il server verifica che retry_of_attempt_id identifichi un execution_blocked
+della stessa feature. Un ID inventato, di altra feature o di un avvio riuscito
+non certifica una ripresa. Se la verifica non è possibile, il riferimento non
+viene propagato come verificato. `attempt_recorded: false` nel rifiuto dichiara
+che nemmeno il blocco è stato registrato: la UI non lo usa come riferimento.
+Il journal viene verificato sotto lo stesso lock dell'append: un tail troncato
+richiede intervento operativo, non viene riparato né ignorato per partire.
+
+Persistenza del record e append del suo evento sono due operazioni locali:
+se il secondo fallisce, il record può già esistere e l'API restituisce 503.
+Ricaricare il record prima di ripetere; la misura deve segnalare l'evento mancante.
+I record conclusi non vengono cancellati per compensare un guasto del journal.
+Per contare riprese si usano i link verificati; per contare blocchi ripetuti
+si raggruppa per feature; per onere operativo si leggono le action dei reasons.
+Nomi e provenienze dichiarate non sono identità certificate: origin_verified
+resta false anche nella misura delle associazioni.

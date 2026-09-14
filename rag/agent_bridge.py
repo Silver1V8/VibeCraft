@@ -47,6 +47,7 @@ dalla modalità agentic (pipeline dedicata / esecuzione manuale).
 """
 
 import asyncio
+import logging
 import json
 import os
 import queue
@@ -301,16 +302,18 @@ def _ensure_loop() -> asyncio.AbstractEventLoop:
 # ---------------------------------------------------------------------------
 # Esecuzione con streaming degli eventi
 # ---------------------------------------------------------------------------
-async def _run_agent(prompt: str, mode: str, model: str, out: queue.Queue, *, feature: str | None = None) -> None:
+async def _run_agent(prompt: str, mode: str, model: str, out: queue.Queue, *, feature: str | None = None,
+                     attempt_id=None, on_finish=None) -> None:
     """Esegue query() sull'event loop dedicato e pubblica gli eventi sulla coda."""
     from core.pipeline_activity import track
-    with track(feature):
-        await _run_agent_messages(prompt, mode, model, out)
+    with track(feature, attempt_id):
+        await _run_agent_messages(prompt, mode, model, out, on_finish=on_finish)
 
 
-async def _run_agent_messages(prompt, mode, model, out):
+async def _run_agent_messages(prompt, mode, model, out, *, on_finish=None):
     final_text = []
     terminated = False
+    outcome = {'type': 'error', 'message': 'Esecuzione interrotta', **read_report(None)}
     try:
         options = _build_agent_options(mode, model)
         async for message in query(prompt=prompt, options=options):
@@ -329,24 +332,34 @@ async def _run_agent_messages(prompt, mode, model, out):
                     report = getattr(message, "result", None)
                 if report is None:
                     report = '\n'.join(final_text)
-                out.put({
+                outcome = {
                     "type": "result",
                     "is_error": bool(getattr(message, "is_error", False)),
                     "duration_ms": getattr(message, "duration_ms", None),
                     "total_cost_usd": getattr(message, "total_cost_usd", None),
                     "num_turns": getattr(message, "num_turns", None),
                     **read_report(report),
-                })
+                }
+                out.put(outcome)
         if not terminated:
             out.put({"type": "error", "message": "Stream interrotto senza risultato finale",
                      **read_report(None)})
     except Exception as exc:  # noqa: BLE001 — l'errore va riportato al client
-        out.put({"type": "error", "message": f"{type(exc).__name__}: {exc}", **read_report(None)})
+        outcome = {"type": "error", "message": f"{type(exc).__name__}: {exc}", **read_report(None)}
+        out.put(outcome)
     finally:
+        if on_finish:
+            try:
+                on_finish(outcome)
+            except Exception as exc:
+                logging.getLogger(__name__).error('Registrazione fine esecuzione fallita: %s', exc)
+                out.put({'type': 'error', 'message': f'Registrazione fine esecuzione fallita: {exc}',
+                         **read_report(None)})
         out.put(None)  # sentinella di fine stream
 
 
-def run_agent_streaming(prompt: str, mode: str, model: str = "sonnet", *, feature: str | None = None):
+def run_agent_streaming(prompt: str, mode: str, model: str = "sonnet", *, feature: str | None = None,
+                        attempt_id=None, on_finish=None):
     """
     Generatore sincrono di eventi NDJSON, consumabile da StreamingResponse.
     FastAPI lo esegue nel threadpool, quindi la lettura bloccante dalla coda
@@ -357,10 +370,14 @@ def run_agent_streaming(prompt: str, mode: str, model: str = "sonnet", *, featur
 
     loop = _ensure_loop()
     out: queue.Queue = queue.Queue()
-    asyncio.run_coroutine_threadsafe(_run_agent(prompt, mode, model, out, feature=feature), loop)
-
-    while True:
-        event = out.get()
-        if event is None:
-            break
-        yield json.dumps(event, ensure_ascii=False) + "\n"
+    # Ammissione e scheduling avvengono ora, sotto il lock della feature del chiamante;
+    # non attendono la prima lettura HTTP. La fine viene registrata anche se il client esce.
+    asyncio.run_coroutine_threadsafe(_run_agent(prompt, mode, model, out, feature=feature,
+                                               attempt_id=attempt_id, on_finish=on_finish), loop)
+    def consume():
+        while True:
+            event = out.get()
+            if event is None:
+                break
+            yield json.dumps(event, ensure_ascii=False) + "\n"
+    return consume()

@@ -6,27 +6,36 @@ const path = require('node:path');
 const vm = require('node:vm');
 const html = fs.readFileSync(path.join(__dirname, '../templates/pipeline.unified.html'), 'utf8');
 const functions = html.slice(html.indexOf('    async function fetchFinalPrompt('), html.indexOf('    function getFeatureName('))
+  + html.slice(html.indexOf('    function gateApiError('), html.indexOf('    /* ──────────── ESECUZIONE CON CLAUDE AGENT SDK'))
   + html.slice(html.indexOf('    function openPointsSummary('), html.indexOf('    /* ──────────── STEP 4:'))
   + html.slice(html.indexOf('    async function saveMdFile('), html.indexOf('    /* Ctrl+Enter'));
 
-async function check(mode, unavailable = false, event = null) {
+async function check(mode, unavailable = false, event = null, blockStatus = null, validationId = 'val-server') {
   const requests = [];
   const errors = [];
   const nodes = {
     'agent-mode-select': { value: mode }, 'agent-model-select': { value: 'sonnet' },
     'agent-run-btn': { disabled: false }, 'agent-output': { style: {}, textContent: '' },
   };
+  for (const id of ['gate-status','gate-decisions','gate-comparison']) nodes[id] = {textContent:'',children:[],appendChild(n){this.children.push(n);}};
+  const denial = {allowed:false,validation_id:'val-server',attempt_id:'attempt-blocked',
+    reasons:[{code:'contract_changed',message:'Contratto cambiato',action:'user_action',next_step:'Rivalida',changed:['canvas','spec']},
+      {code:'sources_unavailable',message:'Fonti indisponibili',action:'operator_action',next_step:'Ripristina indice',changed:['policy.md']}],
+    warnings:[{code:'unreviewed_corpus_changes',message:'Pertinenza non rivalutata',changed:['other.md']}]};
   const context = vm.createContext({
     URLSearchParams, TextDecoder, featureName: 'feat', devType: 'frontend',
-    window: { _finalPrompt: 'PROMPT ESTERNO', __VIBECRAFT_AGENT_API_KEY__: 'synthetic' },
-    document: { getElementById: id => nodes[id] },
+    window: { _finalPrompt: mode === 'agentic' ? '' : 'PROMPT ESTERNO', __VIBECRAFT_AGENT_API_KEY__: 'synthetic' },
+    document: { getElementById: id => nodes[id],createElement:()=>({textContent:'',appendChild(){}}) },
     toast: message => errors.push(message), confirmDialog: async () => true,
     fetch: async (url, options) => {
       requests.push({ url, options });
+      if (url.startsWith('/api/pipeline/gate')) return {ok:true,json:async()=>({
+        validation_id:validationId,comparison:null,gate:{allowed:false,reasons:[],warnings:[]},point_decisions:[],structural_findings:[]})};
       if (url.startsWith('/api/pipeline/final-prompt')) return {
         ok: !unavailable, json: async () => unavailable
           ? { detail: 'Contratto non disponibile' } : { final_prompt: `CONTRATTO ${mode}` },
       };
+      if (blockStatus) return {ok:false,status:blockStatus,json:async()=>({detail:denial})};
       // Due chunk, nessun newline finale: verifica anche l'ultimo evento.
       const bytes = Buffer.from(event ? JSON.stringify(event) : '');
       const chunks = [bytes.subarray(0, 8), bytes.subarray(8)];
@@ -36,18 +45,32 @@ async function check(mode, unavailable = false, event = null) {
   });
   vm.runInContext(functions, context);
   await context.runWithAgent();
-  const params = new URLSearchParams(requests[0].url.split('?')[1]);
-  assert.equal(params.get('consumer'), 'agent');
-  assert.equal(params.get('mode'), mode);
-  assert.equal(params.get('dev_type'), 'frontend');
+  const promptRequest = requests.find(r=>r.url.startsWith('/api/pipeline/final-prompt'));
+  if (mode === 'agentic') assert.equal(promptRequest,undefined);
+  else {
+    const params = new URLSearchParams(promptRequest.url.split('?')[1]);
+    assert.equal(params.get('consumer'), 'agent');
+    assert.equal(params.get('mode'), mode);
+    assert.equal(params.get('dev_type'), 'frontend');
+  }
+  const runs = () => requests.filter(r=>r.url==='/api/pipeline/agent/run');
   if (unavailable) {
-    assert.equal(requests.length, 1); // Nessun agent/run col prompt esterno.
+    assert.equal(runs().length, 0); // Nessun agent/run col prompt esterno.
     assert.deepEqual(errors, ['Contratto non disponibile']);
   } else {
-    assert.equal(requests[1].url, '/api/pipeline/agent/run');
-    assert.deepEqual(JSON.parse(requests[1].options.body), {
-      prompt: `CONTRATTO ${mode}`, mode, model: 'sonnet', feature: 'feat',
+    assert.deepEqual(JSON.parse(runs()[0].options.body), {
+      ...(mode === 'agentic' ? {} : {prompt:`CONTRATTO ${mode}`}), mode, model: 'sonnet', feature: 'feat',validation_id:validationId,
     });
+  }
+  if (blockStatus) {
+    for (const text of ['contract_changed','user_action','operator_action','Rivalida','Ripristina indice','canvas','spec','policy.md','other.md','attempt-blocked']) {
+      assert.ok(nodes['agent-output'].textContent.includes(text),text);
+    }
+    await context.runWithAgent();
+    assert.equal(JSON.parse(runs().at(-1).options.body).retry_of_attempt_id,'attempt-blocked');
+    context.featureName='another-feature';
+    await context.runWithAgent();
+    assert.equal('retry_of_attempt_id' in JSON.parse(runs().at(-1).options.body),false);
   }
   assert.equal(nodes['agent-run-btn'].disabled, false);
   return nodes['agent-output'].textContent;
@@ -72,7 +95,16 @@ async function checkSave(change) {
 
 (async () => {
   for (const mode of ['suggest', 'agentic', 'oneshot']) await check(mode);
-  await check('agentic', true);
+  await check('suggest', true);
+  await check('agentic',false,null,null,null); // Il server decide anche con riferimento assente.
+  for (const status of [409,503]) await check('agentic',false,null,status);
+  for (const mode of ['suggest','oneshot']) {
+    const advisory=await check(mode,false,{type:'gate',attempt_id:'advisory-attempt',gate:{allowed:false,
+      reasons:[{code:'validation_missing',message:'Validazione assente',action:'user_action',next_step:'Valida'}],
+      warnings:[{message:'Pertinenza non rivalutata',changed:['other.md']}]}});
+    assert.match(advisory,/validation_missing/); assert.match(advisory,/Pertinenza non rivalutata.*other.md/);
+    assert.match(advisory,/advisory-attempt/);
+  }
   for (const status of ['missing', 'invalid', 'valid']) {
     const text = await check('suggest', false, {type: 'result', open_points_status: status,
       ...(status === 'valid' ? {open_points: []} : {})});

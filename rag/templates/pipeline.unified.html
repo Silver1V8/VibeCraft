@@ -466,9 +466,11 @@
             <button id="validate-btn" onclick="runValidate()" class="text-xs font-semibold text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition disabled:opacity-50">Valida canvas + spec</button>
           </div>
           <p class="text-xs text-slate-400 mb-2">Verifica strutturale (7 sezioni del Canvas, scenari BDD) e coerenza semantica contro i vincoli normativi del Graph RAG, prima di lanciare Claude.</p>
-          <p class="text-xs text-amber-400 mb-2">L’avvio non è ancora vincolato.</p>
+          <p class="text-xs text-amber-400 mb-2">Agentic richiede il via libera del server sul contratto corrente. Suggest-only e One-shot restano disponibili con avvisi.</p>
           <button onclick="refreshGateReview()" class="text-xs underline">Rivedi punti aperti e associazioni</button>
           <pre id="gate-status" class="text-xs whitespace-pre-wrap my-2"></pre>
+          <button onclick="compareValidatedVersion()" class="text-xs underline">Confronta con la versione validata</button>
+          <div id="gate-comparison" class="text-xs my-2"></div>
           <div id="gate-decisions" class="text-xs space-y-2"></div>
           <div id="validate-structural" class="flex flex-wrap gap-2 mb-2 text-xs font-mono"></div>
           <pre id="validate-report-box" class="hidden text-xs text-slate-200 whitespace-pre-wrap leading-relaxed bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-72 overflow-y-auto"></pre>
@@ -734,6 +736,7 @@
         if (data.files.spec) markStepDone(3, 'generato');
 
         document.getElementById('feature-folder-hint').textContent = `changes/${data.feature_folder}/`;
+        await refreshGateReview();
       } catch (e) { /* silenzioso: pannello di controllo best-effort */ }
     }
 
@@ -951,13 +954,22 @@
       document.getElementById('validate-card').classList.remove('hidden');
       document.getElementById('final-prompt-card').classList.remove('hidden');
       document.getElementById('final-prompt-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      refreshGateReview();
     }
 
     /* ──────────── VALIDAZIONE GOVERNANCE (pre-apply) ──────────── */
     function gateApiError(data) {
       const detail = data.detail || data.gate || data;
       if (typeof detail === 'string') return detail;
-      return (detail.reasons || []).map(r => `${r.message} ${r.next_step}`).join('\n') || 'Richiesta non riuscita';
+      return gateMessages(detail).join('\n') || 'Richiesta non riuscita';
+    }
+
+    const validationRefs = new Map();
+    const blockedAttempts = new Map();
+    function gateMessages(gate) {
+      return [...(gate.reasons || []), ...(gate.warnings || [])].map(item =>
+        [item.code, item.action, item.message, item.next_step,
+          item.changed?.length ? `Elementi cambiati: ${item.changed.join(', ')}` : ''].filter(Boolean).join(' · '));
     }
 
     function describeFinding(f) {
@@ -973,9 +985,7 @@
       lines.push(...(data.semantic_findings || []).map(describeFinding));
       lines.push('Le lacune coperte da decisione non sono scenari soddisfatti.');
       if (data.scenario_scope?.off_scope?.length) lines.push('Rilievi euristici di pertinenza (advisory): ' + JSON.stringify(data.scenario_scope.off_scope));
-      lines.push(...(data.gate?.reasons || []).map(r => `${r.code} · ${r.action}: ${r.message} ${r.next_step}`));
-      lines.push(...(data.gate?.warnings || []).map(w => `${w.message} ${(w.changed || []).join(', ')}`));
-      lines.push('L’avvio non è ancora vincolato.');
+      lines.push(...gateMessages(data.gate || {}));
       return lines.filter(Boolean).join('\n\n');
     }
 
@@ -993,8 +1003,10 @@
         const data = await res.json();
         if (featureName !== validatingFeature) return;
         if (!res.ok && data.status !== 'unavailable') throw new Error(gateApiError(data));
+        validationRefs.set(validatingFeature, data.validation_id || null);
         box.textContent = validationSummary(data);
         document.getElementById('validate-structural').textContent = `Controlli: ${data.checks?.structural?.status || 'unavailable'} / ${data.checks?.semantic?.status || 'unavailable'}`;
+        await refreshGateReview();
       } catch (e) {
         if (featureName === validatingFeature) box.textContent = `Validazione non disponibile: ${e.message}`;
       } finally { btn.disabled = false; }
@@ -1006,21 +1018,47 @@
       const reviewingFeature = featureName;
       gateReview = null;
       document.getElementById('gate-decisions').textContent = '';
+      document.getElementById('gate-comparison').textContent = '';
       try {
-        const res = await fetch('/api/pipeline/gate?' + new URLSearchParams({feature: reviewingFeature}));
+        const params = new URLSearchParams({feature: reviewingFeature});
+        const selected = validationRefs.get(reviewingFeature);
+        if (selected) params.set('validation_id', selected);
+        const res = await fetch('/api/pipeline/gate?' + params);
         const data = await res.json();
-        if (featureName !== reviewingFeature) return;
+        if (featureName !== reviewingFeature || validationRefs.get(reviewingFeature) !== selected) return;
         if (!res.ok) throw new Error(gateApiError(data));
+        if (!selected) validationRefs.set(reviewingFeature, data.validation_id || null);
         gateReview = {data, feature: reviewingFeature};
         document.getElementById('gate-status').textContent = [
+          data.validation_id ? `Validazione: ${data.validation_id}` : 'Validazione assente.',
           `Stato resoconto: ${data.gate.open_points_status ?? 'non leggibile'}`,
-          ...(data.gate.reasons || []).map(r => `${r.action}: ${r.message} ${r.next_step}`),
-          ...(data.gate.warnings || []).map(w => w.message + ' ' + w.changed.join(', ')),
+          ...gateMessages(data.gate),
           ...(data.structural_findings || []).map(describeFinding),
         ].join('\n');
         renderDecisionEditor(data);
       } catch (e) {
         if (featureName === reviewingFeature) document.getElementById('gate-status').textContent = e.message;
+      }
+    }
+
+    async function compareValidatedVersion() {
+      await refreshGateReview();
+      const host = document.getElementById('gate-comparison');
+      const comparison = gateReview?.feature === featureName ? gateReview.data.comparison : null;
+      host.textContent = comparison ? `Confronto con la validazione ${comparison.validation_id}`
+        : 'Confronto non disponibile: versione validata assente o non leggibile.';
+      if (!comparison) return;
+      for (const name of ['canvas', 'spec']) {
+        const row = document.createElement('div');
+        row.className = 'grid grid-cols-1 md:grid-cols-2 gap-2 my-2';
+        for (const [key, label] of [['current', 'corrente salvato'], ['validated', 'validato']]) {
+          const column = document.createElement('div');
+          const title = document.createElement('p'); title.textContent = `${name}.md · ${label}`;
+          const text = document.createElement('pre'); text.textContent = comparison[name][key];
+          text.className = 'whitespace-pre-wrap break-words bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-72 overflow-auto';
+          column.appendChild(title); column.appendChild(text); row.appendChild(column);
+        }
+        host.appendChild(row);
       }
     }
 
@@ -1102,21 +1140,22 @@
     }
 
     async function runWithAgent() {
-      const shown = window._finalPrompt || document.getElementById('final-prompt-box').textContent;
-      if (!shown.trim()) { toast('Nessun prompt finale disponibile: genera prima le specifiche.', 'error'); return; }
-
       const mode = document.getElementById('agent-mode-select').value;
       const model = document.getElementById('agent-model-select').value;
       // La modalità determina tool e contesto: niente fallback sul prompt HTTP esterno.
       if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
+      const runningFeature = featureName;
+      await refreshGateReview();
+      if (featureName !== runningFeature) return;
       let prompt;
       try {
-        prompt = await fetchFinalPrompt(featureName, devType, 'agent', mode);
+        if (mode !== 'agentic') prompt = await fetchFinalPrompt(runningFeature, devType, 'agent', mode);
       } catch (err) { toast(err.message, 'error'); return; }
       if (mode === 'agentic' && !await confirmDialog(
         'La modalità Agentic scrive file nel progetto. Continuare?',
         { title: 'Modalità Agentic', confirmText: 'Continua', danger: true }
       )) return;
+      if (featureName !== runningFeature) return;
 
       const btn = document.getElementById('agent-run-btn');
       const out = document.getElementById('agent-output');
@@ -1138,16 +1177,30 @@
         const res = await fetch('/api/pipeline/agent/run', {
           method: 'POST',
           headers,
-          body: JSON.stringify({ prompt, mode, model, feature: featureName }),
+          body: JSON.stringify({ prompt, mode, model, feature: runningFeature,
+            validation_id: validationRefs.get(runningFeature) || null,
+            ...(blockedAttempts.has(runningFeature) ? {retry_of_attempt_id: blockedAttempts.get(runningFeature)} : {}) }),
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({ detail: res.statusText }));
-          throw new Error(err.detail || `HTTP ${res.status}`);
+          const gate = err.detail;
+          if ([409, 503].includes(res.status) && gate?.allowed === false) {
+            if (gate.attempt_id) blockedAttempts.set(runningFeature, gate.attempt_id);
+            out.textContent += `Avvio bloccato dal server · validazione: ${gate.validation_id || 'assente'} · tentativo: ${gate.attempt_id || 'non registrato'}\n`;
+            if (gate.retry_of_attempt_id) out.textContent += `Ripresa del tentativo: ${gate.retry_of_attempt_id}\n`;
+            out.textContent += gateMessages(gate).join('\n') + '\n';
+            return;
+          }
+          throw new Error(gateApiError(err));
         }
+        blockedAttempts.delete(runningFeature);
 
         let terminated = false;
         await consumeNdjson(res, ev => {
-            if (ev.type === 'text') {
+            if (ev.type === 'gate') {
+              out.textContent += `Gate del server${mode === 'agentic' ? '' : ' (advisory)'} · validazione: ${ev.gate.validation_id || 'assente'} · tentativo: ${ev.attempt_id || 'non registrato'}\n`;
+              out.textContent += gateMessages(ev.gate).join('\n') + '\n';
+            } else if (ev.type === 'text') {
               out.textContent += ev.text + '\n';
             } else if (ev.type === 'tool_use') {
               out.textContent += `  🔧 [${ev.tool}]\n`;

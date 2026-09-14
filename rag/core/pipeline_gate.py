@@ -1,6 +1,6 @@
-"""Contratto e decisione pura del gate. L'avvio API non è ancora vincolato.
+"""Contratto e decisione pura del gate. L'avvio agentic usa questo gate.
 
-Nessun I/O o LLM in evaluate_gate: UI e avvio useranno gli stessi fatti server.
+Nessun I/O o LLM in evaluate_gate: UI e avvio usano gli stessi fatti server.
 Gli esiti semantici restano giudizi del validatore, non prove di correttezza.
 """
 import hashlib
@@ -199,6 +199,7 @@ class Reason(Notice):
 
 class ValidationRecord(Record):
     schema_version: Literal[1] = 1
+    attempt_id: str | None = Field(default=None, pattern=r'^attempt-[0-9a-f]{32}$')
     validation_id: str = Field(pattern=r'^val-[0-9a-f]{32}$')
     feature: Feature
     dev_type: str
@@ -244,6 +245,7 @@ class ValidationRecord(Record):
 def new_validation(contract: Contract) -> ValidationRecord:
     return ValidationRecord(validation_id='val-' + uuid4().hex, feature=contract.feature,
                             dev_type=contract.dev_type, started_at=_now(), status='running', passed=False,
+                            attempt_id='attempt-' + uuid4().hex,
                             contract=contract.model_dump(),
                             open_points_status=read_report(contract.spec.text)['open_points_status'])
 
@@ -288,7 +290,7 @@ class GateDecision(Record):
 
 
 def evaluate_gate(current_contract: Contract | None, validation: ValidationRecord | None,
-                  source_state: SourceState, availability=()) -> GateDecision:
+                  source_state: SourceState, availability=(), *, retry_reference_valid=True) -> GateDecision:
     """UNICO punto decisionale, senza I/O. allowed riguarda agentic, mai suggest/oneshot.
 
     I chiamanti devono fornire fatti riletti dal server. Nessun TTL né force.
@@ -309,6 +311,10 @@ def evaluate_gate(current_contract: Contract | None, validation: ValidationRecor
         step = ('Ripristina storage o configurazione del servizio; poi riprova.'
                 if issue.action == 'operator_action' else 'Riprova quando il servizio è disponibile.')
         block(issue.code, issue.message, step, action=issue.action, http_status=503)
+
+    if not retry_reference_valid:
+        block('retry_reference_invalid', 'Il tentativo precedente non è un avvio bloccato della stessa feature.',
+              'Usa il riferimento restituito dal rifiuto precedente oppure avvia senza riferimento di ripresa.')
 
     if c is None:
         if not reasons:

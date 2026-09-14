@@ -9,8 +9,8 @@ _active: dict[str, str | None] = {}
 
 
 @contextmanager
-def track(feature: str | None):
-    attempt = 'attempt-' + uuid4().hex
+def track(feature: str | None, attempt_id: str | None = None):
+    attempt = attempt_id or 'attempt-' + uuid4().hex
     with _lock:
         _active[attempt] = feature
     try:

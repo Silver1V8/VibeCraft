@@ -1,9 +1,11 @@
 """Persistenza atomica delle validazioni; nessuna pulizia o rotazione automatica.
 
-L'avvio API non è ancora vincolato. Errori di storage non diventano record assenti.
+L'avvio agentic usa questo gate. Errori di storage non diventano record assenti.
 """
 import json
+import os
 import re
+from contextlib import contextmanager
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -30,6 +32,67 @@ class PipelineStorageBusyError(PipelineStorageError):
 class PipelineStore:
     def __init__(self, root: Path = DATABASE_DIR / 'pipeline'):
         self.root = root
+
+    @contextmanager
+    def feature_lock(self, feature):
+        self._validation_path(feature, 'val-' + '0' * 32)
+        try:
+            with writer_lock(timeout_seconds=0, lock_path=self.root / 'locks' / (feature + '.lock')):
+                yield
+        except WriterLockBusyError as exc:
+            raise PipelineStorageBusyError('Operazione concorrente sulla feature: riprova.') from exc
+        except OSError as exc:
+            raise PipelineStorageError(f'Storage della feature non disponibile: {exc}') from exc
+
+    def _read_events_unlocked(self):
+        path = self.root / 'events.jsonl'
+        if not path.resolve().is_relative_to(self.root.resolve()):
+            raise ValueError('Registro eventi fuori da pipeline')
+        if not path.exists():
+            return []
+        text = path.read_text(encoding='utf-8')
+        if text and not text.endswith('\n'):
+            raise ValueError('Registro eventi troncato: intervento operativo richiesto')
+        events = [json.loads(line, object_pairs_hook=_unique_keys) for line in text.splitlines()]
+        if any(not isinstance(e, dict) or not {'event', 'attempt_id', 'feature', 'recorded_at'} <= e.keys()
+               for e in events):
+            raise ValueError('Record evento incompleto')
+        return events
+
+    def read_events(self):
+        """Un journal corrotto non equivale a nessun tentativo precedente."""
+        try:
+            with writer_lock(lock_path=self.root / '.events.lock'):
+                return self._read_events_unlocked()
+        except WriterLockBusyError as exc:
+            raise PipelineStorageBusyError('Registro eventi occupato: riprova.') from exc
+        except (OSError, ValueError, UnicodeError) as exc:
+            raise PipelineStorageError(f'Registro eventi non disponibile: {exc}') from exc
+
+    def retry_exists(self, feature, attempt_id):
+        return attempt_id is None or any(e['event'] == 'execution_blocked' and e['feature'] == feature
+                                        and e['attempt_id'] == attempt_id for e in self.read_events())
+
+    def append_event(self, event, *, feature, attempt_id, retry_of_attempt_id=None, **details):
+        if event not in ('validation_finished', 'execution_blocked', 'execution_started',
+                         'execution_finished', 'open_point_decision_recorded'):
+            raise ValueError('Evento pipeline non riconosciuto')
+        record = dict(details, event=event, feature=feature, attempt_id=attempt_id,
+                      retry_of_attempt_id=retry_of_attempt_id, recorded_at=_now())
+        data = (json.dumps(record, ensure_ascii=False, allow_nan=False) + '\n').encode('utf-8')
+        try:
+            # ponytail: journal piccolo riletto sotto lock a ogni append; indicizzare se la crescita lo richiede.
+            with writer_lock(lock_path=self.root / '.events.lock'):
+                self._read_events_unlocked()  # un tail corrotto non rende registrabile l’avvio
+                with (self.root / 'events.jsonl').open('ab') as stream:
+                    stream.write(data)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+        except WriterLockBusyError as exc:
+            raise PipelineStorageBusyError('Registrazione evento occupata: riprova.') from exc
+        except (OSError, ValueError, UnicodeError) as exc:
+            raise PipelineStorageError(f'Registrazione evento non disponibile: {exc}') from exc
+        return record
 
     def _validation_path(self, feature: str, identifier: str) -> Path:
         if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', feature):

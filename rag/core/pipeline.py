@@ -339,7 +339,7 @@ def build_final_prompt(folder_name: str, dev_type: str = "", consumer: str = "ex
     ) + index_hint
 
 
-def build_agent_prompt(folder_name: str, dev_type: str, mode: str) -> str:
+def build_agent_prompt(folder_name: str, dev_type: str, mode: str, *, contract=None) -> str:
     """Contratto operativo del prompt in-app, senza retrieval o I/O."""
     scope = str((CODE_DIR / dev_type).resolve())
     if mode == "oneshot":
@@ -354,6 +354,12 @@ def build_agent_prompt(folder_name: str, dev_type: str, mode: str) -> str:
     if mode not in ("suggest", "agentic"):
         raise ValueError(f"Modalità non valida: {mode}")
     folder = resolve_feature_dir(CHANGES_DIR, folder_name)
+    contract_instruction = (f"Contratto: leggi '{folder / 'canvas.md'}' e '{folder / 'spec.md'}'. "
+                            if contract is None else
+                            "Contratto autorizzato: usa esclusivamente Canvas, Spec e decisioni congelati "
+                            "allegati a questo prompt. Non sostituirli con i file mutabili di changes/. "
+                            "Le lacune accepted restano dichiarate, non inventare la parte accettata "
+                            "e non contarla come scenario soddisfatto. ")
     action = ("Analizza e proponi modifiche; sei in sola lettura, non applicare file."
               if mode == "suggest" else f"Implementa la feature scrivendo esclusivamente sotto '{scope}'.")
     test_action = "Proponi" if mode == "suggest" else "Implementa"
@@ -362,7 +368,7 @@ def build_agent_prompt(folder_name: str, dev_type: str, mode: str) -> str:
                                ensure_ascii=False)
     return (
         f"Obiettivo: {action}\n"
-        f"Contratto: leggi '{folder / 'canvas.md'}' e '{folder / 'spec.md'}'. "
+        f"{contract_instruction}"
         "Segui Approach del Canvas e copri gli scenari GIVEN/WHEN/THEN della Spec. "
         "Se i requisiti sono contraddittori o insufficienti, segnala il punto e fermati "
         "sulla parte bloccata; non inventare comportamenti.\n"
@@ -389,7 +395,12 @@ def build_agent_prompt(folder_name: str, dev_type: str, mode: str) -> str:
         f"{test_action} anche i test prescritti dalla Spec. Non hai shell: non eseguire build/test e "
         "non dichiararli superati. Concludi con scenario → file/test → esito (proposto, implementato, "
         "non verificato o bloccato), comandi da eseguire esternamente e lacune residue."
-    ) + RESEARCH_INSTRUCTIONS + REPORT_INSTRUCTIONS
+    ) + RESEARCH_INSTRUCTIONS + REPORT_INSTRUCTIONS + (
+        '\n--- CANVAS CONGELATO ---\n' + contract.canvas.text
+        + '\n--- SPEC CONGELATA ---\n' + contract.spec.text
+        + '\n--- DECISIONI REGISTRATE ---\n'
+        + json.dumps([d.model_dump() for d in contract.decisions], ensure_ascii=False)
+        if contract is not None else '')
 
 
 def build_canvas_prompt(feature_name: str, contesto_intervista: str,

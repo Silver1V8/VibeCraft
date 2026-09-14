@@ -60,10 +60,19 @@ class ProposeGenerateRequest(BaseModel):
 
 
 class AgentRunRequest(BaseModel):
-    prompt: str
-    feature: str | None = None  # correlazione dichiarata; enforcement dal commit 3
+    model_config = ConfigDict(extra='forbid')
+    prompt: str = ''  # ignorato in agentic; il contratto arriva dalla validazione
+    feature: str | None = None
+    validation_id: str | None = Field(default=None, pattern=r'^val-[0-9a-f]{32}$')
+    retry_of_attempt_id: str | None = Field(default=None, pattern=r'^attempt-[0-9a-f]{32}$')
     mode: str = "suggest"   # suggest | agentic | oneshot
     model: str = "sonnet"   # alias Claude: sonnet | opus | haiku
+
+    @model_validator(mode='after')
+    def agentic_requires_feature(self):
+        if self.mode == 'agentic' and not (self.feature or '').strip():
+            raise ValueError('La modalità agentic richiede una feature; il prompt client non autorizza l’avvio')
+        return self
 
 
 class DriftCheckRequest(BaseModel):

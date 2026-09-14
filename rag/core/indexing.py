@@ -2395,7 +2395,10 @@ def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_mode
         log(f"⚠️ Estrazione candidato di eval saltata: {e}")
 
     try:
-        shutil.move(str(source_dir), str(target_dir))
+        from core.pipeline_store import PipelineStore
+        # La review LLM resta fuori dal lock; solo la mutazione del contratto si coordina con l'ammissione.
+        with PipelineStore().feature_lock(feature_folder):
+            shutil.move(str(source_dir), str(target_dir))
         log(f"✅ Feature archiviata con successo in: {target_dir}")
 
         if reindex:

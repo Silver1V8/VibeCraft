@@ -18,7 +18,7 @@ class Research(BaseModel):
 # Decisioni server implementate in core.pipeline_store.PipelineStore.record_decision.
 # Lo schema PointDecision è in core.pipeline_gate; OpenPoint resta il resoconto
 # dell'agente e non contiene autorizzazioni auto-concedibili.
-# L'avvio non è ancora vincolato (terzo commit del gate).
+# L’avvio agentic richiede il contratto validato e le decisioni registrate.
 #
 # Decisioni approvate per il record di accettazione:
 # Garanzia da conservare accanto a quel record o alla funzione di accettazione:

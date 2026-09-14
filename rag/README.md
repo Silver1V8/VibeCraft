@@ -1323,17 +1323,21 @@ con il limite advisory accanto. Gli altri stati sono distinti e uno stream
 senza risultato finale è segnalato come interrotto. Il testo originale resta
 nella Spec (anche `spec.raw.md` per Propose) o negli eventi testuali del bridge.
 Il prompt esterno usa lo stesso protocollo, ma il suo output non rientra
-automaticamente nella pipeline. Non è ancora presente un vincolo sull'avvio
-dell'implementazione: lo stato è già leggibile a macchina per il futuro harness.
+automaticamente nella pipeline. Il gate seguente vincola gli avvii agentic
+eseguiti dal server; non governa le esecuzioni esterne avviate autonomamente.
 
-### Gate — validazione e decisioni, avvio non ancora vincolato
+### Gate — enforcement agentic, validazione e decisioni
 
-**L'avvio non è ancora vincolato.** I primi due commit implementano contratto,
-persistenza atomica, validazione strutturata e decisioni dell'operatore.
-La UI mostra il risultato di `evaluate_gate` ricalcolato dal server tramite
-`GET /api/pipeline/gate`. `POST /api/pipeline/validate` conserva il controllo;
-`POST /api/pipeline/open-points/decision` richiede la chiave anche da localhost.
-Il terzo commit vincolerà agentic e registrerà gli eventi JSONL.
+**L'avvio agentic richiede una validazione superata del contratto corrente.**
+`POST /api/pipeline/agent/run` riceve feature e validation_id e ricalcola
+`evaluate_gate` sul server; non accetta allowed/force e ignora il prompt client
+in agentic. Il prompt è costruito da Canvas, Spec e decisioni congelati nel
+record. Suggest/oneshot restano disponibili, con i motivi del gate visibili.
+La UI «Confronta con la versione validata» mostra i testi conservati e quelli
+correnti; senza validazione dichiara l'assenza del confronto.
+Il 409 indica documenti, validazione e rimedio; il 503 segnala l'infrastruttura
+e conserva anche gli altri reasons. L'avvio agentic non parte se non può essere
+registrato in `database/pipeline/events.jsonl`.
 [Piano e schema dei record](PIPELINE_GATE.md).
 
 Il nucleo distingue missing/invalid, unaddressed, mismatch, failed/stale e
@@ -1357,7 +1361,7 @@ con risposte HTTP simulate, inclusi errori e retry. Non promette overhead nullo.
 La Fase 2 è ora [chiusa](eval/results/FASE2_PROPOSE_20260914.md), senza pilot.
 La sequenza approvata è isolamento delle impostazioni → adozione V3 → gate,
 con un checkpoint per ogni commit. L'isolamento è applicato come segue;
-l'enforcement dell'avvio e gli eventi restano da implementare.
+l'enforcement dell'avvio e gli eventi sono implementati.
 
 Il bridge imposta `setting_sources=[]` esplicitamente
 per **suggest, oneshot e agentic**, preservando l'hook SDK di confinamento
@@ -1411,8 +1415,10 @@ temporale non distingue una sessione UI concorrente da una richiesta automatica.
 La correlazione attuale osserva il solo processo server: `activity_scope`
 riporta il PID, le esecuzioni prive di feature sono elencate separatamente.
 Una lista vuota non prova assenza di agenti su altri processi; la feature del
-vecchio endpoint è ancora dichiarata dal client. Gli eventi approvati dalla
-Fase 2 arriveranno con il terzo commit.
+client in suggest/oneshot resta dichiarata; in agentic viene confrontata con
+il record validato. Gli eventi della Fase 2 sono nel journal della pipeline,
+separati dallo storico delle valutazioni. Un tentativo senza evento conclusivo
+non certifica il completamento; un errore di registrazione indica misura incompleta.
 
 I rilievi strutturali globali `scenari_insufficienti` e `caso_negativo_mancante`
 restano bloccanti finché l'operatore non li associa esplicitamente a un punto

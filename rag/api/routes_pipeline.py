@@ -3,6 +3,8 @@ esecuzione via Claude Agent SDK, dry-run, [AGENT CONTEXT], export e gestione fil
 handler orchestrano I/O e concorrenza (async/threadpool/streaming) e iniettano le risorse
 di runtime dallo stato (api.deps) nelle funzioni pure di core.pipeline / core.retrieval."""
 import functools
+from contextlib import nullcontext, contextmanager
+from uuid import uuid4
 import json
 from pathlib import Path
 from typing import Any
@@ -39,7 +41,7 @@ from core import canvas_review, llm, pipeline, retrieval, spec_format, pipeline_
 from core import pipeline_activity
 from core.artifacts import manifest_path
 from core.pipeline_store import PipelineStore, PipelineStorageError, PipelineStorageBusyError
-from core.writer_lock import writer_lock, WriterLockBusyError
+from core.writer_lock import WriterLockBusyError
 from core.open_points import read_report
 from core.config import (
     CHANGES_DIR,
@@ -179,22 +181,91 @@ async def agent_modes():
 
 @router.post("/api/pipeline/agent/run", dependencies=[Depends(require_api_key_strict)])
 async def agent_run(req: AgentRunRequest):
-    """
-    Esegue il prompt finale della pipeline direttamente tramite il Claude Agent SDK,
-    trasformando la dashboard da finestra sul progetto a strumento operativo.
-    L'SDK gira su un thread dedicato (vedi agent_bridge.py); gli eventi arrivano
-    al client come stream NDJSON.
-    """
+    """Ammissione ricalcolata dal server; solo agentic richiede il contratto validato."""
     if req.mode not in AGENT_MODES:
         raise HTTPException(status_code=400, detail=f"Modalità non valida: {req.mode}")
-    if not req.prompt.strip():
+    if req.mode != 'agentic' and not req.prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt vuoto.")
+    feature = _safe_slug(req.feature) if req.feature else None
+    attempt = 'attempt-' + uuid4().hex
 
-    return StreamingResponse(
-        run_agent_streaming(req.prompt, req.mode, req.model,
-                            **({'feature': _safe_slug(req.feature)} if req.feature else {})),
-        media_type="application/x-ndjson",
-    )
+    def admit():
+        with pipeline_store.feature_lock(feature) if req.mode == 'agentic' else nullcontext():
+            contract, record, issues = None, None, []
+            try:
+                if feature:
+                    contract = _read_gate_contract(feature)
+                    if req.validation_id:
+                        record = pipeline_store.read_validation(feature, req.validation_id)
+            except (PipelineStorageError, OSError, UnicodeError) as exc:
+                issues.append(gate.AvailabilityIssue(code='storage_unavailable', message=str(exc),
+                                                    action=getattr(exc, 'action', 'operator_action')))
+            retry_valid = True
+            try:
+                retry_valid = pipeline_store.retry_exists(feature, req.retry_of_attempt_id)
+            except PipelineStorageError as exc:
+                retry_valid = None  # non verificato: non propagare la provenienza dichiarata dal client
+                issues.append(gate.AvailabilityIssue(code='storage_unavailable', message=str(exc), action=exc.action))
+            payload = _gate_payload(contract, record, issues, retry_reference_valid=retry_valid is not False)
+            decision = payload['gate']
+            retry = req.retry_of_attempt_id if retry_valid else None
+            details = dict(feature=feature, attempt_id=attempt, retry_of_attempt_id=retry,
+                           validation_id=req.validation_id, mode=req.mode, gate=decision,
+                           open_points_status=decision['open_points_status'])
+            if req.mode == 'agentic' and not decision['allowed']:
+                attempt_recorded = False
+                try:
+                    pipeline_store.append_event('execution_blocked', **details)
+                    attempt_recorded = True
+                except PipelineStorageError as exc:
+                    issues.append(gate.AvailabilityIssue(code='storage_unavailable', message=str(exc), action=exc.action))
+                    decision = _gate_payload(contract, record, issues, retry_reference_valid=retry_valid is not False)['gate']
+                raise HTTPException(status_code=decision['http_status'], detail={**decision, 'attempt_id':attempt,
+                                     'retry_of_attempt_id':retry, 'attempt_recorded':attempt_recorded})
+            prompt = req.prompt
+            if req.mode == 'agentic':
+                prompt = pipeline.build_agent_prompt(record.feature, record.dev_type, 'agentic', contract=record.contract)
+                prompt += '\nValidazione autorizzante: ' + record.validation_id
+            try:
+                pipeline_store.append_event('execution_started', **details)
+            except PipelineStorageError as exc:
+                if req.mode == 'agentic':
+                    issues.append(gate.AvailabilityIssue(code='storage_unavailable', message=str(exc), action=exc.action))
+                    decision = _gate_payload(contract, record, issues)['gate']
+                    raise HTTPException(status_code=503, detail={**decision, 'attempt_id':attempt,
+                                         'retry_of_attempt_id':retry, 'attempt_recorded':False}) from exc
+                issues.append(gate.AvailabilityIssue(code='storage_unavailable',
+                    message=str(exc) + '; misura incompleta.', action=exc.action))
+                decision = _gate_payload(contract, record, issues)['gate']
+            def finished(outcome):
+                pipeline_store.append_event('execution_finished', **details,
+                    outcome='failed' if outcome.get('is_error') or outcome['type'] != 'result' else 'completed',
+                    result_open_points_status=outcome.get('open_points_status', 'missing'))
+            try:
+                stream = run_agent_streaming(prompt, req.mode, req.model, feature=feature,
+                                             attempt_id=attempt, on_finish=finished)
+            except Exception as exc:
+                finished({'type':'error'})
+                raise _gate_storage_error(PipelineStorageError(f'Runtime agente non disponibile: {exc}')) from exc
+            def output():
+                yield json.dumps(dict(type='gate', gate=decision, attempt_id=attempt,
+                                      retry_of_attempt_id=retry), ensure_ascii=False) + '\n'
+                yield from stream
+            return StreamingResponse(output(), media_type='application/x-ndjson')
+    try:
+        return await run_in_threadpool(admit)
+    except PipelineStorageError as exc:
+        error = _gate_storage_error(exc)
+        recorded = False
+        try:
+            pipeline_store.append_event('execution_blocked', feature=feature, attempt_id=attempt,
+                validation_id=req.validation_id, mode=req.mode, gate=error.detail,
+                open_points_status=error.detail['open_points_status'])
+            recorded = True
+        except PipelineStorageError:
+            pass  # il 503 resta esplicito; nessun riferimento verificabile alla ripresa
+        error.detail.update(attempt_id=attempt, retry_of_attempt_id=None, attempt_recorded=recorded)
+        raise error from exc
 
 
 @router.get("/api/pipeline/dev-types")
@@ -228,7 +299,8 @@ async def pipeline_explore_save(req: ExploreSaveRequest):
     """Salva il log dell'intervista in changes/<feature>/explore.md."""
     folder = _safe_feature_dir(req.feature_name, create=True)
     dev_type = _safe_dev_type(req.dev_type)
-    save_dev_type(folder, dev_type)
+    with _feature_lock(folder.name):
+        save_dev_type(folder, dev_type)
     dev_type_line = f"**Tipo di sviluppo:** {dev_type}\n\n" if dev_type else ""
     file_path = folder / "explore.md"
     content = f"# Intervista Explore: {req.feature_name}\n\n{dev_type_line}{req.interview_log}"
@@ -265,8 +337,9 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
 
     # Persiste in meta.json QUALI documenti hanno ancorato questo canvas (normativi + tecnici):
     # all'archive diventano gli `expected` di un caso candidato per il golden-set di eval.
-    pipeline.save_governed_sources(
-        folder, pipeline.governed_docs_from_context(governed_context + "\n\n" + contesto_tecnico))
+    with _feature_lock(folder.name):
+        pipeline.save_governed_sources(
+            folder, pipeline.governed_docs_from_context(governed_context + "\n\n" + contesto_tecnico))
 
     # Canvas che apprende (parte 2): le divergenze emerse nelle review delle change
     # archiviate più simili diventano "lezioni" nel prompt ('' se non esistono review).
@@ -285,8 +358,9 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
         canvas_content = await llm.agenerate(prompt_strutturato, purpose="canvas")
     except llm.LLMError as exc:
         raise HTTPException(status_code=502, detail=f"Generazione del Canvas fallita: {exc}") from exc
-    (folder / "canvas.md").write_text(canvas_content, encoding="utf-8")
-    save_dev_type(folder, dev_type)
+    with _feature_lock(folder.name):
+        (folder / "canvas.md").write_text(canvas_content, encoding="utf-8")
+        save_dev_type(folder, dev_type)
     return {"feature_folder": folder.name, "path": "canvas.md", "content": canvas_content}
 
 
@@ -329,7 +403,8 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest):
     # L'output GREZZO del modello si conserva sempre, prima di qualunque riscrittura: quando
     # lo spec finale sorprende, la prima domanda è «l'ha scritto così il modello o l'ha
     # cambiato la normalizzazione?», e senza il grezzo non ha risposta.
-    (folder / "spec.raw.md").write_text(spec_grezza, encoding="utf-8")
+    with _feature_lock(folder.name):
+        (folder / "spec.raw.md").write_text(spec_grezza, encoding="utf-8")
 
     # Normalizzazione SINTATTICA: il modello locale sbaglia sistematicamente la forma (tutti
     # gli scenari in un blocco solo, `E` al posto di AND) e nessuna riformulazione del prompt
@@ -347,8 +422,9 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest):
                     f"L'output grezzo del modello è in changes/{folder_name}/spec.raw.md. "
                     "Rigenera la Spec."),
         ) from exc
-    (folder / "spec.md").write_text(spec_content, encoding="utf-8")
-    save_dev_type(folder, dev_type)
+    with _feature_lock(folder.name):
+        (folder / "spec.md").write_text(spec_content, encoding="utf-8")
+        save_dev_type(folder, dev_type)
 
     final_prompt = build_final_prompt(folder_name, dev_type)
 
@@ -469,6 +545,15 @@ async def pipeline_archive_stream(req: ArchiveRequest):
     return StreamingResponse(gen(), media_type="application/x-ndjson")
 
 
+@contextmanager
+def _feature_lock(feature):
+    try:
+        with pipeline_store.feature_lock(feature):
+            yield
+    except PipelineStorageError as exc:
+        raise _gate_storage_error(exc) from exc
+
+
 def _read_gate_contract(feature: str):
     folder = _safe_feature_dir(feature)
     def read(name):
@@ -506,12 +591,12 @@ def _gate_storage_error(exc):
     return HTTPException(status_code=503, detail=gate.evaluate_gate(None, None, gate.SourceState(), [issue]).model_dump())
 
 
-def _gate_payload(contract, record, issues=()):
+def _gate_payload(contract, record, issues=(), *, retry_reference_valid=True):
     issues = list(issues)
     if contract is None:
-        return dict(feature_folder=record.feature, spec_hash=None, validation_id=record.validation_id,
-                    gate=gate.evaluate_gate(None, record, gate.SourceState(), issues).model_dump(),
-                    point_decisions=None, structural_findings=[], execution_enforced=False)
+        return dict(feature_folder=record.feature if record else None, spec_hash=None, validation_id=record.validation_id if record else None,
+                    gate=gate.evaluate_gate(None, record, gate.SourceState(), issues, retry_reference_valid=retry_reference_valid).model_dump(),
+                    point_decisions=None, structural_findings=[], comparison=None, execution_enforced=True)
     try:
         sources = _validation_source_state()
     except (validation.ValidationUnavailable, OSError) as exc:
@@ -520,9 +605,12 @@ def _gate_payload(contract, record, issues=()):
     structural, _, findings = validation.structural_check(contract)
     return dict(feature_folder=contract.feature, spec_hash=contract.spec.hash,
                 validation_id=record.validation_id if record else None,
-                gate=gate.evaluate_gate(contract, record, sources, issues).model_dump(),
+                gate=gate.evaluate_gate(contract, record, sources, issues, retry_reference_valid=retry_reference_valid).model_dump(),
                 structural=structural, structural_findings=findings,
-                point_decisions=validation.point_states(contract), execution_enforced=False)
+                point_decisions=validation.point_states(contract), execution_enforced=True,
+                comparison=(dict(validation_id=record.validation_id,
+                    **{name: dict(current=getattr(contract, name).text, validated=getattr(record.contract, name).text)
+                       for name in ('canvas', 'spec')}) if record and record.feature == contract.feature else None))
 
 
 @router.get("/api/pipeline/gate")
@@ -548,7 +636,7 @@ async def pipeline_point_decision(req: OpenPointDecisionRequest, request: Reques
     """
     feature = _safe_slug(req.feature)
     def record():
-        with writer_lock(timeout_seconds=0, lock_path=pipeline_store.root / "decisions" / feature / ".operator.lock"):
+        with _feature_lock(feature):
             contract = _read_gate_contract(feature)
             states = validation.point_states(contract)
             point = next((p['point'] for p in states or [] if p['point_hash'] == req.point_hash), None)
@@ -570,7 +658,13 @@ async def pipeline_point_decision(req: OpenPointDecisionRequest, request: Reques
                 status=req.status, motivation=req.motivation, declared_by=req.declared_by,
                 declared_origin=req.declared_origin, observed_metadata=observed, active_attempt_ids=active,
                 coverage_findings=selected)
-            return {"decision": decision.model_dump(), "execution_enforced": False}
+            pipeline_store.append_event('open_point_decision_recorded', feature=feature,
+                attempt_id='attempt-' + uuid4().hex, decision_id=decision.decision_id,
+                point_hash=decision.point_hash, status=decision.status, declared_by=decision.declared_by,
+                declared_origin=decision.declared_origin, origin_verified=decision.origin_verified,
+                observed_metadata=decision.observed_metadata, active_attempt_ids=decision.active_attempt_ids,
+                coverage_findings=[f.model_dump() for f in decision.coverage_findings])
+            return {"decision": decision.model_dump(), "execution_enforced": True}
     try:
         return await run_in_threadpool(record)
     except WriterLockBusyError as exc:
@@ -580,10 +674,14 @@ async def pipeline_point_decision(req: OpenPointDecisionRequest, request: Reques
 
 
 async def _validate_feature(feature: str) -> dict:
-    """Valida uno snapshot; l'avvio non è ancora vincolato (commit 3)."""
-    contract = await run_in_threadpool(_read_gate_contract, feature)
-    started = gate.new_validation(contract)
-    await run_in_threadpool(pipeline_store.write_validation, started)
+    """Valida uno snapshot; verifica finale e persistenza coordinate con l’ammissione."""
+    def start_validation():
+        with _feature_lock(feature):
+            initial = gate.new_validation(_read_gate_contract(feature))
+            pipeline_store.write_validation(initial)
+            return initial
+    started = await run_in_threadpool(start_validation)
+    contract = started.contract
     structural, structural_check, structural_findings = validation.structural_check(contract)
     snap = current_snapshot()
     scope = pipeline.check_scenario_scope(contract.spec.text, contract.canvas.text,
@@ -609,25 +707,32 @@ async def _validate_feature(feature: str) -> dict:
     except (validation.ValidationUnavailable, llm.LLMError, ValueError, OSError) as exc:
         error = str(exc)
         semantic_check = gate.Check(status="unavailable", details=[error])
-    issues = []
-    try:
-        current = await run_in_threadpool(_read_gate_contract, feature)
-    except (PipelineStorageError, OSError, UnicodeError) as exc:
-        current, error = None, str(exc)
-        issues.append(gate.AvailabilityIssue(code='storage_unavailable', message=error, action='operator_action'))
-        semantic_check = gate.Check(status='unavailable', details=[error])
-    result = gate.finish_validation(started, current or started.contract,
-        gate.ValidationChecks(structural=structural_check, semantic=semantic_check), sources=sources, validator=evidence)
-    result.structural_findings = structural_findings
-    result.semantic_findings = semantic_findings
-    payload = await run_in_threadpool(_gate_payload, current, result, issues)
-    result.warnings = [gate.Notice.model_validate(w) for w in payload['gate']['warnings']]
-    await run_in_threadpool(pipeline_store.write_validation, result)
-    return {**payload, "status": result.status, "passed": result.passed,
-            "validation_available": result.status != "unavailable", "validation_error": error,
-            "llm_error": error, "report": semantic_report.summary if semantic_report else None,
-            "checks": result.checks.model_dump(), "structural": structural, "scenario_scope": scope,
-            "structural_findings": structural_findings, "semantic_findings": semantic_findings}
+    def finish():
+        with _feature_lock(feature):
+            final_error, final_semantic_check = error, semantic_check
+            issues = []
+            try:
+                current = _read_gate_contract(feature)
+            except (PipelineStorageError, OSError, UnicodeError) as exc:
+                current, final_error = None, str(exc)
+                issues.append(gate.AvailabilityIssue(code='storage_unavailable', message=final_error, action='operator_action'))
+                final_semantic_check = gate.Check(status='unavailable', details=[final_error])
+            result = gate.finish_validation(started, current or started.contract,
+                gate.ValidationChecks(structural=structural_check, semantic=final_semantic_check), sources=sources, validator=evidence)
+            result.structural_findings = structural_findings
+            result.semantic_findings = semantic_findings
+            payload = _gate_payload(current, result, issues)
+            result.warnings = [gate.Notice.model_validate(w) for w in payload['gate']['warnings']]
+            pipeline_store.write_validation(result)
+            pipeline_store.append_event('validation_finished', feature=feature, attempt_id=result.attempt_id,
+                validation_id=result.validation_id, status=result.status, passed=result.passed,
+                open_points_status=result.open_points_status, gate=payload['gate'])
+            return {**payload, "status": result.status, "passed": result.passed,
+                    "validation_available": result.status != "unavailable", "validation_error": final_error,
+                    "llm_error": final_error, "report": semantic_report.summary if semantic_report else None,
+                    "checks": result.checks.model_dump(), "structural": structural, "scenario_scope": scope,
+                    "structural_findings": structural_findings, "semantic_findings": semantic_findings}
+    return await run_in_threadpool(finish)
 
 
 @router.post("/api/pipeline/validate", dependencies=[Depends(require_not_cross_site_request)])
@@ -793,6 +898,10 @@ async def pipeline_save_file(req: PipelineFileSaveRequest):
     if req.name not in PIPELINE_FILES:
         raise HTTPException(status_code=400, detail=f"File non consentito: {req.name}")
     folder = _safe_feature_dir(req.feature, create=True)
-    (folder / req.name).write_text(req.content, encoding="utf-8")
+    try:
+        with _feature_lock(folder.name):
+            (folder / req.name).write_text(req.content, encoding="utf-8")
+    except PipelineStorageError as exc:
+        raise _gate_storage_error(exc) from exc
     return {"feature_folder": folder.name, "path": req.name, "content": req.content,
             **(read_report(req.content) if req.name == "spec.md" else {})}
