@@ -41,6 +41,8 @@ rag/database/staging/rejected/*
 !rag/database/staging/rejected/.gitkeep
 # Alert dei batch notturni (append-only, letti da /api/health)
 rag/database/alerts.jsonl
+# Contratti, decisioni e contatori del gate: stato locale, non evidenze di eval.
+rag/database/pipeline/
 # File del writer lock cross-processo (il mutex è il lock OS, il file resta su disco)
 rag/database/.writer.lock
 # Pesi locali di Docling/RapidOCR per l'intake (centinaia di MB, verificati per SHA-256 al

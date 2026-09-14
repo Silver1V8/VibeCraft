@@ -1326,7 +1326,21 @@ Il prompt esterno usa lo stesso protocollo, ma il suo output non rientra
 automaticamente nella pipeline. Non è ancora presente un vincolo sull'avvio
 dell'implementazione: lo stato è già leggibile a macchina per il futuro harness.
 
-### Decisioni approvate per il gate — ancora da implementare
+### Gate — nucleo implementato, avvio non ancora vincolato
+
+**L'avvio non è ancora vincolato.** Il primo dei tre commit introduce soltanto
+`core/pipeline_gate.py` (hash, record e punto decisionale puro) e
+`core/pipeline_store.py` (persistenza atomica, record conclusi immutabili).
+Route, prompt di validazione, UI e avvio SDK restano invariati. Il secondo
+commit collegherà validazione e decisioni dell'operatore; il terzo vincolerà
+agentic e registrerà gli eventi. [Piano e schema dei record](PIPELINE_GATE.md).
+
+Il nucleo distingue missing/invalid, unaddressed, mismatch, failed/stale e
+unavailable, con azioni user_action/operator_action/retryable. Blocca sui soli
+documenti forniti al validatore; il resto del corpus produce un avviso. Nessun
+TTL, riparazione JSON, normalize_spec nel calcolo dell'hash o force.
+Il difetto di retrieval che maschera i guasti come zero risultati esiste anche
+fuori da Validate: quei percorsi non vengono corretti in questo intervento.
 
 Sequenza originaria: **recorder provider minimo → ablazione prompt → decisione
 sul pilot → eventuale baseline A → commit dedicato all'isolamento delle
