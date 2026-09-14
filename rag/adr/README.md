@@ -12,8 +12,8 @@ dentro inquinerebbe il retrieval.
 
 ## Le altre tracce
 
-Non ogni decisione entra in un ADR numerato: le tre sotto sono registri correnti — misure,
-riscontri e backlog che si accumulano sessione dopo sessione — non singole decisioni chiuse.
+Non ogni decisione entra in un ADR numerato: le tracce sotto raccolgono registri e piani —
+misure, riscontri e lavoro futuro — non singole decisioni chiuse.
 Vivono qui per la stessa ragione degli ADR sopra: sono cronaca di sviluppo, non corpus da
 indicizzare.
 
@@ -22,3 +22,6 @@ indicizzare.
 | [`AUDIT.md`](AUDIT.md) | l'audit del progetto: run di misura, riscontri, indagini e le sessioni che li hanno chiusi |
 | [`RESIDUI.md`](RESIDUI.md) | il backlog derivato dall'audit — cosa resta aperto, triato in sessioni con un prompt pronto |
 | [`DISTRIBUTION.md`](DISTRIBUTION.md) | il piano di distribuzione: numeri, forcelle e decisioni sul packaging |
+| [`EVOLUZIONE.md`](EVOLUZIONE.md) | il piano di evoluzione approvato: baseline locali, cancelli misurabili, rollback e forcelle ancora aperte |
+| [`DOCLING_PIPELINE_ALTERNATIVA.md`](DOCLING_PIPELINE_ALTERNATIVA.md) | la proposta di pipeline Docling alternativa al pilot Granite, con configurazione e criteri di valutazione |
+| [`NOTA_IMPLEMENTAZIONE_MIGLIORIE.md`](NOTA_IMPLEMENTAZIONE_MIGLIORIE.md) | migliorie e bugfix emersi dal pilot Docling e indipendenti da esso: causa, diff, verifiche, rischio e rollback |
