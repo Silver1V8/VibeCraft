@@ -7,8 +7,8 @@ Perimetri, runner per runner:
             dentro PROJECT_ROOT (niente .git né file .env*); in agentic le scritture passano
             da agent_bridge._path_escapes_code, la stessa decisione testata dell'hook Claude.
   - codex : solo suggest/oneshot, `codex exec --sandbox read-only`.
-  - cursor: solo suggest/oneshot, `agent -p` senza --force: per la documentazione Cursor le
-            modifiche restano proposte. Non verificato dai nostri test.
+  - cursor: solo suggest/oneshot, `agent -p --mode plan|ask --sandbox enabled`: `-p` da solo ha
+            scrittura e shell, la sola lettura la danno le modalità plan/ask.
 Agentic resta a claude e local perché il confinamento delle scritture delle CLI esterne
 non è verificabile qui. Il prompt va sempre su stdin, mai negli argomenti: gli shim .cmd
 di npm su Windows passerebbero il testo a cmd.exe, che ne interpreta i metacaratteri.
@@ -46,6 +46,9 @@ _TOOL_OUTPUT_CHARS = 6000  # num_ctx 16K: un solo file grande non deve saturare 
 _LIST_LIMIT = 200
 _GREP_LIMIT = 100
 _SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__"}
+# Nomi da `codex features list` (codex-cli 0.154.0).
+_CODEX_DISABLED_FEATURES = ("plugins", "apps", "browser_use", "computer_use", "image_generation",
+                            "multi_agent", "hooks", "skill_mcp_dependency_install")
 
 
 def validate_run(runner: str, mode: str, model: str) -> str | None:
@@ -251,15 +254,24 @@ def run_local(prompt: str, mode: str, model: str, *, chat=_ollama_chat,
 # ---------------------------------------------------------------------------
 # CLI esterne
 # ---------------------------------------------------------------------------
-def cli_command(runner: str, model: str, cwd: Path, last_message: Path) -> list[str]:
+def cli_command(runner: str, model: str, cwd: Path, last_message: Path, mode: str = "suggest") -> list[str]:
     exe = shutil.which(RUNNERS[runner]["bin"])
     if not exe:
         raise RuntimeError(f"'{RUNNERS[runner]['bin']}' non trovato nel PATH: installa {RUNNERS[runner]['label']}.")
     if runner == "codex":
         cmd = [exe, "exec", "--json", "--sandbox", "read-only", "--skip-git-repo-check", "--ephemeral",
                "-C", str(cwd), "--output-last-message", str(last_message)]
+        # Equivalente di setting_sources=[] per Claude: senza, Codex carica plugin e skill da
+        # ~/.codex (misurato: leggeva SKILL.md fuori dal progetto) e ha tool che comandano
+        # desktop e browser, che il sandbox read-only sui comandi shell non copre.
+        for feature in _CODEX_DISABLED_FEATURES:
+            cmd += ["--disable", feature]
     else:
-        cmd = [exe, "-p", "--output-format", "stream-json"]
+        # `agent -p` ha TUTTI i tool, scrittura e shell compresi (agent --help, 2026.09.10): senza
+        # --force non è sola lettura. La sola lettura sono le modalità plan/ask; --trust evita il
+        # prompt interattivo di fiducia sul workspace, che bloccherebbe un'esecuzione headless.
+        cmd = [exe, "-p", "--output-format", "stream-json", "--mode", "plan" if mode == "suggest" else "ask",
+               "--sandbox", "enabled", "--trust", "--workspace", str(cwd)]
     if model:
         cmd += ["--model", model]
     return cmd + (["-"] if runner == "codex" else [])
@@ -293,7 +305,7 @@ def run_cli(runner: str, prompt: str, mode: str, model: str, *, project_root: Pa
     with tempfile.TemporaryDirectory() as tmp:
         last_message, stderr_path = Path(tmp) / "last.txt", Path(tmp) / "stderr.txt"
         with stderr_path.open("w+", encoding="utf-8", errors="replace") as stderr:
-            proc = popen(cli_command(runner, model, project_root, last_message), cwd=project_root,
+            proc = popen(cli_command(runner, model, project_root, last_message, mode), cwd=project_root,
                          stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr,
                          text=True, encoding="utf-8", errors="replace")
             timer = threading.Timer(timeout, proc.kill)

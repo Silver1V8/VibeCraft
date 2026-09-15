@@ -429,8 +429,11 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
   risultato del tool. Output dei tool troncato a 6.000 caratteri per la finestra di 16K.
 - **`codex` / `cursor`**: solo `suggest` e `oneshot` (rifiutati con 400 in `agentic`),
   perché il confinamento delle loro scritture non è verificabile dai nostri test. Codex
-  gira con `--sandbox read-only`; Cursor con `agent -p` senza `--force`, dove per la
-  documentazione Cursor le modifiche restano proposte — non verificato qui.
+  gira con `--sandbox read-only`: verificato dal vivo il 2026-09-15 (codex-cli 0.154.0),
+  un `Set-Content` in `code/` è stato negato e il file non è stato creato. Cursor gira con
+  `agent -p --mode plan|ask --sandbox enabled`: `-p` da solo ha **scrittura e shell**
+  (`agent --help`), quindi la sola lettura la danno le modalità plan/ask, non l'assenza
+  di `--force`. Il sandbox di Codex read-only non limita le **letture** fuori dal progetto.
 - **Argomenti delle CLI**: il prompt passa su stdin, mai in argv (gli shim `.cmd` di npm
   su Windows lo farebbero interpretare a `cmd.exe`); il nome modello è vincolato da
   `^(|[A-Za-z0-9][\w.:/-]{0,99})$`, quindi non può iniziare con `-` né contenere metacaratteri.

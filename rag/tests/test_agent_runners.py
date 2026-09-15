@@ -105,8 +105,14 @@ def test_cli_commands_are_read_only_and_keep_prompt_off_argv(monkeypatch, tmp_pa
     monkeypatch.setattr(ar.shutil, "which", lambda b: f"C:/bin/{b}.cmd")
     codex = ar.cli_command("codex", "gpt-5", tmp_path, tmp_path / "last.txt")
     assert codex[1] == "exec" and codex[codex.index("--sandbox") + 1] == "read-only" and codex[-1] == "-"
-    cursor = ar.cli_command("cursor", "", tmp_path, tmp_path / "last.txt")
-    assert "--force" not in cursor and "--yolo" not in cursor
+    disabled = {codex[i + 1] for i, arg in enumerate(codex) if arg == "--disable"}
+    assert {"plugins", "computer_use", "browser_use", "hooks"} <= disabled
+    for mode, expected in (("suggest", "plan"), ("oneshot", "ask")):
+        cursor = ar.cli_command("cursor", "", tmp_path, tmp_path / "last.txt", mode)
+        # `agent -p` da solo ha scrittura e shell: la sola lettura è --mode plan|ask.
+        assert cursor[cursor.index("--mode") + 1] == expected
+        assert cursor[cursor.index("--sandbox") + 1] == "enabled"
+        assert "--force" not in cursor and "--yolo" not in cursor
 
 
 def test_cli_missing_binary_is_reported(monkeypatch, tmp_path):
