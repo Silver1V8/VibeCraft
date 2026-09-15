@@ -979,8 +979,20 @@
       return `${f.rule || f.kind} · ${f.message}\n${coverage}`;
     }
 
+    function admissionSummary(gate) {
+      if (gate?.allowed === true) return 'Avvio agentic: consentito';
+      const reason = gate?.allowed === false
+        ? (gate.reasons || []).map(item => item.message).filter(Boolean).join('; ') || 'motivo non disponibile'
+        : 'stato del gate non disponibile';
+      return `Avvio agentic: bloccato — ${reason}`;
+    }
+
     function validationSummary(data) {
-      const lines = [`Validazione ${data.validation_id}: ${data.status}`, data.validation_error || data.report || ''];
+      const statuses = [data.checks?.structural?.status, data.checks?.semantic?.status];
+      const checks = statuses.some(status => !['pass', 'fail'].includes(status)) ? 'non disponibili'
+        : statuses.includes('fail') ? 'falliti' : 'superati';
+      const lines = [`Controlli di validazione: ${checks}`, admissionSummary(data.gate),
+        `Validazione ${data.validation_id}: ${data.status}`, data.validation_error || data.report || ''];
       lines.push(...(data.structural_findings || []).map(describeFinding));
       lines.push(...(data.semantic_findings || []).map(describeFinding));
       lines.push('Le lacune coperte da decisione non sono scenari soddisfatti.');
@@ -1030,6 +1042,7 @@
         if (!selected) validationRefs.set(reviewingFeature, data.validation_id || null);
         gateReview = {data, feature: reviewingFeature};
         document.getElementById('gate-status').textContent = [
+          admissionSummary(data.gate),
           data.validation_id ? `Validazione: ${data.validation_id}` : 'Validazione assente.',
           `Stato resoconto: ${data.gate.open_points_status ?? 'non leggibile'}`,
           ...gateMessages(data.gate),

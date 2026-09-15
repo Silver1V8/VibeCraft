@@ -37,6 +37,18 @@ const context = vm.createContext({URLSearchParams, featureName:'demo', JSON,
     return {ok:true, json:async()=>data};
   }});
 vm.runInContext(code, context);
+// Il caso reale passed/allowed divergenti deve essere leggibile senza conoscere il gate.
+const realBlocked = JSON.parse(fs.readFileSync(path.join(__dirname,
+  '../eval/results/gate_end_to_end_20260914/evidence/validate-2.response.txt'), 'utf8'));
+assert.match(context.validationSummary(realBlocked), /Controlli di validazione: superati/);
+assert.match(context.validationSummary(realBlocked), /Avvio agentic: bloccato — .*research/s);
+for (const [status, label] of [['pass', 'superati'], ['fail', 'falliti'], ['unavailable', 'non disponibili']]) {
+  const text = context.validationSummary({checks:{structural:{status:'pass'}, semantic:{status}},
+    gate:{allowed:status === 'pass', reasons:[{message:'Motivo del blocco'}]}});
+  assert.match(text, new RegExp(`Controlli di validazione: ${label}`));
+  assert.match(text, status === 'pass' ? /Avvio agentic: consentito/ : /Avvio agentic: bloccato — Motivo del blocco/);
+}
+assert.match(context.validationSummary({}), /Avvio agentic: bloccato — stato del gate non disponibile/);
 (async()=>{
   await context.refreshGateReview();
   assert.equal(checks.length,1);
