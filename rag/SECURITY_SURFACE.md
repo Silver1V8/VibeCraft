@@ -379,7 +379,7 @@ Il prompt arbitrario del client non autorizza scritture; allowed/force sono
 rifiutati. Il journal deve registrare l'avvio prima dello scheduling SDK.
 409 espone mismatch/rimedio, 503 segnala infrastruttura mantenendo gli altri
 reasons disponibili. Suggest/oneshot rimangono consultivi con i blocchi visibili.
-I limiti di identità e concorrenza sono descritti in [PIPELINE_GATE.md](PIPELINE_GATE.md).
+I limiti di identità e concorrenza sono descritti in [PIPELINE_GATE.md](adr/PIPELINE_GATE.md).
 
 `POST /api/pipeline/agent/run` (riga 8) è l'unica route che **scrive file / esegue**
 tramite il Claude Agent SDK. Oltre all'auth (`require_api_key_strict`, invariata), la

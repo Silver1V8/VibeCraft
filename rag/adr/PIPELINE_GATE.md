@@ -1,4 +1,4 @@
-# Gate della pipeline — piano approvato e stato di implementazione
+# Gate della pipeline — stato operativo e decisioni al 15 settembre 2026
 
 **Enforcement attivo sulla sola modalità agentic.** UI e avvio usano il punto
 decisionale unico, ricalcolato dal server. Suggest/oneshot restano consultivi;
@@ -7,6 +7,88 @@ il gate non governa processi esterni avviati autonomamente.
 Design approvato nella conversazione del 14 settembre 2026. Obiettivo: eseguire
 in modalità agentic soltanto un contratto validato, congelato e riconoscibile.
 Nessuna nuova dipendenza, nessun force, formato GIVEN/WHEN/THEN invariato.
+
+## Stato alla chiusura della sessione
+
+**Gate operativo; ciclo end-to-end reale verificato il 15 settembre 2026.**
+Sulla nuova feature `gate-probe-posti`: Canvas → Propose → Validate → modifica
+volontaria del Canvas → avvio rifiutato con 409 → rivalidazione → avvio agentic
+riuscito → 16 test Node superati. Canvas e Propose erano stati acquisiti il
+14 settembre; la ripresa ha incluso un 503 per JSON malformato e un solo
+recupero manuale dichiarato. Nessuna accettazione inventata, nessun force e
+nessuna riparazione automatica. Feature implementata e testata, non archiviata
+né distribuita. La prova usa API e SDK reali; non è una prova browser della UI.
+
+Dati osservati su **un solo ciclo completato**, su due revisioni del validatore:
+
+- **6 validazioni per feature conclusa**, incluse le tre iniziali e il 503.
+- **Circa 39,8 KiB mediani per record**: 40 780,5 byte sui sei record.
+- **Circa 240 KiB per ciclo completo**: 247 085 byte, ossia 241,3 KiB, per i
+  sei record di validazione; journal eventi e copie delle evidenze esclusi.
+- **Nessuna rotazione o pulizia automatica introdotta.** Il dato serve a
+  decidere più avanti; non è una stima generalizzabile delle feature future.
+
+Implementazione: `452b88d`; evidenze del ciclo completo: `f911b12`.
+I tre record originali restano identici byte per byte. Risposte, tempi, errori e
+misure sono nei resoconti del [14 settembre](../eval/results/gate_end_to_end_20260914/evidence/RESULTS.md)
+e del [15 settembre](../eval/results/gate_end_to_end_20260915/evidence/RESULTS.md).
+
+## Registro unico degli attriti delle due prove
+
+Questi sono i punti in cui qualcuno potrebbe cercare una scorciatoia.
+La soglia di oltre dieci secondi di ragionamento è stata annotata manualmente,
+non cronometrata. Il registro comprende problemi del prodotto e degli strumenti
+usati per la prova; le correzioni non cancellano gli attriti osservati.
+
+1. **F01 — Preparazione dei servizi:** individuare il Qdrant corretto fra più
+   container e distinguere un servizio spento da un validatore indisponibile.
+   Avviati i servizi esistenti, senza reindicizzare.
+2. **F02 — Canvas incoerente su -0:** valido nei Requirements, invalido nella
+   lista dei test; Approach contemplava conversioni vietate dal brief.
+   Originale conservato, Canvas corretto esplicitamente.
+3. **F03 — Dubbio artificiale su 2.0:** distinguere una domanda del modello da
+   un requisito irrisolto. Il validatore bloccava 2.0 ma non segnalava -0.
+   Verifica Node, chiarimento Canvas e rigenerazione Spec, senza accettazioni.
+4. **F04 — passed non significa allowed:** JSON sintatticamente valido ma
+   report invalid per research alla radice; controlli passed, avvio bloccato.
+   Correzione esplicita della Spec, nessuna riparazione nel parser. La UI ora
+   espone separatamente esito dei controlli e ammissione, con il motivo.
+5. **F05 — coverage che dichiara assenza di lacune:** capire che il rilievo è
+   contraddittorio, non che occorre indovinare una modifica del contratto.
+   Prima prova interrotta senza override; problema ancora aperto.
+6. **F06 — 503 per JSON malformato in suggestions:** virgolette non escapate
+   e graffa finale mancante rendono inutilizzabile tutto il resoconto.
+   Un solo recupero manuale preregistrato, nessun repair; entrambi i record conservati.
+7. **F07 — Errore Unicode del runner locale:** distinguere il fallimento della
+   stampa cp1252 dal completamento SDK. Stream e tempi erano già salvati;
+   letti dal file senza ripetere la sessione. Test Node eseguiti separatamente,
+   perché l'agente non dispone di Bash. È un attrito dello strumento della prova.
+
+## Problemi aperti e rischi residui
+
+- **Coverage contraddittoria:** strutturalmente conforme, bloccante, non
+  riconosciuta. Due resoconti conformi su tre non bastano a dichiararla risolta.
+- **Controllo semantico sui resoconti:** rinviato. Prima serve un dato su quanti
+  resoconti contraddittori compaiano nell'uso reale; nessuna chiamata aggiuntiva ora.
+- **Modello dei rilievi:** kind confonde argomento, esistenza del difetto ed
+  effetto sul gate, causa comune dei tre attriti di design (punti aperti bloccanti,
+  associazione rilievo/accettazione, classificazione contraddittoria).
+  Prompt e separazione suggestions lo affrontano solo in parte.
+- **Problema in suggestions o nella sintesi:** resta inascoltato. Non autorizza
+  direttamente nulla, ma la sua omissione dai controlli può contribuire a un
+  falso via libera. Rischio residuo accettato, non risolto.
+- **Feature archiviate missing:** non superano il gate agentic nello stato
+  attuale. È una conseguenza attesa della generazione precedente al punto 4:
+  per riprenderle occorre rigenerare la Spec con il prompt attuale e revisionarla,
+  non inserire una lista vuota o accettare lacune mai esaminate.
+- **Retrieval fuori dalla validazione:** converte ancora errori in lista vuota
+  e contesto vuoto. Documentato, non corretto fuori dal percorso Validate.
+- **Perimetro FE3-F4:** da decidere con chi possiede il Canvas. Il protocollo
+  aveva trattato come certo un ambito ambiguo; il gate non risolve quella decisione.
+  [Riserva e fonti nella Fase 2](../eval/results/FASE2_PROPOSE_20260914.md#3-difetto-del-protocollo-e-tredici-rilievi).
+
+I percorsi tecnici in codice nel seguito sono relativi alla directory `rag/`;
+i collegamenti Markdown sono relativi alla collocazione di questo documento.
 
 ## Commit 1 — nucleo e persistenza
 
@@ -82,7 +164,7 @@ creata dall'inizio, senza forzare lo sblocco dell'archivio.
 `database/pipeline/validations/<feature>/<validation_id>.json` contiene:
 schema_version, validation_id, attempt_id, feature, dev_type, started_at, finished_at,
 status, passed, contract, open_points_status, checks, validator, sources,
-warnings, structural_findings, semantic_findings. I rilievi originali restano
+warnings, structural_findings, semantic_findings, suggestions. I rilievi originali restano
 visibili anche se coperti, insieme al riferimento alla decisione. Lo schema eseguibile è `ValidationRecord` in `core/pipeline_gate.py`.
 
 Il contratto conserva canvas/spec `{text, hash}`, decisioni integrali e
@@ -142,8 +224,8 @@ I tre record nuovi hanno mediana 39 549 byte (38.6 KiB); sui sei, mediana
 40 780.5 byte (39.8 KiB), totale 247 085 byte. Tutti i record originali sono
 rimasti identici, verificati tramite SHA-256. Nessuna decisione o deroga inventata.
 
-[Prima parte e cinque attriti](eval/results/gate_end_to_end_20260914/evidence/RESULTS.md).
-[Conclusione, tempi, record, 409 e due nuovi attriti](eval/results/gate_end_to_end_20260915/evidence/RESULTS.md).
+[Prima parte e cinque attriti](../eval/results/gate_end_to_end_20260914/evidence/RESULTS.md).
+[Conclusione, tempi, record, 409 e due nuovi attriti](../eval/results/gate_end_to_end_20260915/evidence/RESULTS.md).
 Due nuovi resoconti conformi su tre; il terzo è JSON malformato, non assenza
 verificata di contraddizioni. Nessun giudizio di affidabilità da questo campione.
 running→esito aggiorna lo stesso file, una rivalidazione ne crea uno nuovo.
@@ -153,8 +235,8 @@ Nessuna retention introdotta.
 
 Questa estensione NON era nel progetto inizialmente approvato. È il secondo
 attrito tra rilievo globale e decisione puntuale, dopo i punti aperti che
-bloccavano indiscriminatamente. Se emerge una terza volta, riesaminare il
-problema strutturale per intero, senza aggiungere una deroga caso per caso.
+bloccavano indiscriminatamente. Si era concordato di riesaminare il problema
+strutturale per intero alla terza occorrenza, poi emersa nella prova reale.
 
 Il terzo attrito si è presentato nella prova reale del 14 settembre: un finding
 `coverage` dichiarava assenza di lacune. La revisione del 15 settembre individua
@@ -203,9 +285,8 @@ descrive copertura completa resta strutturalmente conforme, bloccante e non
 riconosciuta dal parser: sarà misurata sui nuovi resoconti. Nessuna ricerca
 nella prosa per approvare e nessun secondo giudizio LLM introdotto.
 
-I cinque attriti operativi, compreso passed/allowed, restano nel
-[resoconto della prova](eval/results/gate_end_to_end_20260914/evidence/RESULTS.md#attriti-oltre-dieci-secondi)
-e nei record `frictions.jsonl` accanto: non sono cancellati dalla correzione UI.
+Tutti e sette gli attriti delle due prove sono raccolti nel registro unico sopra;
+i record originali `frictions.jsonl` restano nelle rispettive cartelle di evidenza.
 
 Il controllo strutturale esistente produce `scenari_insufficienti` e
 `caso_negativo_mancante` senza identificare F o OP. Nessuna equivalenza viene

@@ -1338,7 +1338,7 @@ correnti; senza validazione dichiara l'assenza del confronto.
 Il 409 indica documenti, validazione e rimedio; il 503 segnala l'infrastruttura
 e conserva anche gli altri reasons. L'avvio agentic non parte se non può essere
 registrato in `database/pipeline/events.jsonl`.
-[Piano e schema dei record](PIPELINE_GATE.md).
+[Piano e schema dei record](adr/PIPELINE_GATE.md).
 
 Il nucleo distingue missing/invalid, unaddressed, mismatch, failed/stale e
 unavailable, con azioni user_action/operator_action/retryable. Blocca sui soli

@@ -25,3 +25,4 @@ indicizzare.
 | [`EVOLUZIONE.md`](EVOLUZIONE.md) | il piano di evoluzione approvato: baseline locali, cancelli misurabili, rollback e forcelle ancora aperte |
 | [`DOCLING_PIPELINE_ALTERNATIVA.md`](DOCLING_PIPELINE_ALTERNATIVA.md) | la proposta di pipeline Docling alternativa al pilot Granite, con configurazione e criteri di valutazione |
 | [`NOTA_IMPLEMENTAZIONE_MIGLIORIE.md`](NOTA_IMPLEMENTAZIONE_MIGLIORIE.md) | migliorie e bugfix emersi dal pilot Docling e indipendenti da esso: causa, diff, verifiche, rischio e rollback |
+| [`PIPELINE_GATE.md`](PIPELINE_GATE.md) | gate operativo, ciclo end-to-end verificato il 15 settembre 2026, misure, registro degli attriti e problemi aperti |
