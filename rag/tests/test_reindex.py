@@ -9,7 +9,7 @@ import time
 
 import pytest
 
-from api.reindex import ReindexManager, extract_gitlab_paths
+from api.reindex import ReindexJob, ReindexManager, extract_gitlab_paths
 from core import indexing
 from core.indexing import IndexPlan
 
@@ -140,7 +140,132 @@ def test_job_starts_and_reloads_on_success():
     assert finished.status == "completed"
     assert finished.result == result
     assert finished.finished_at is not None
+
+
+def test_completed_build_is_not_ready_until_reload_finishes():
+    mgr = ReindexManager()
+    reload_started = threading.Event()
+    release_reload = threading.Event()
+
+    def reload():
+        reload_started.set()
+        release_reload.wait(timeout=5)
+        return "v-ready"
+
+    job, _ = mgr.start(["a"], lambda paths: {"noop": False}, reload)
+    assert reload_started.wait(timeout=5)
+    current = mgr.get(job.id).to_dict()
+    assert current["status"] == "completed"
+    assert current["finished_at"] is not None
+    assert current["reload_status"] == "pending"
+    assert current["snapshot_ready_duration_seconds"] is None
+
+    release_reload.set()
+    assert mgr.join_all()
+    ready = mgr.get(job.id).to_dict()
+    assert ready["reload_status"] == "completed"
+    assert ready["published_token"] == "v-ready"
+    assert ready["reload_duration_seconds"] is not None
+    assert ready["snapshot_ready_duration_seconds"] is not None
+
+
+def test_pending_job_waits_for_previous_reload_before_build():
+    mgr = ReindexManager()
+    reload_started = threading.Event()
+    release_reload = threading.Event()
+    second_started = threading.Event()
+
+    def reload():
+        reload_started.set()
+        release_reload.wait(timeout=5)
+        return "v1"
+
+    mgr.start(["a"], lambda paths: {"noop": False}, reload)
+    second, queued = mgr.start(
+        ["b"], lambda paths: second_started.set() or {"noop": False}, lambda: "v2"
+    )
+    assert queued is True
+    assert reload_started.wait(timeout=5)
+    assert not second_started.is_set()
+    release_reload.set()
+    assert mgr.join_all()
+    assert second_started.is_set()
+    assert mgr.get(second.id).queue_duration_seconds is not None
+
+
+def test_journal_error_does_not_stall_pending_dispatch(monkeypatch):
+    mgr = ReindexManager()
+    first_started = threading.Event()
+    release_first = threading.Event()
+    second_started = threading.Event()
+
+    def first_run(paths):
+        first_started.set()
+        release_first.wait(timeout=5)
+        return {"noop": False}
+
+    mgr.start(["a"], first_run, lambda: "v1")
+    assert first_started.wait(timeout=5)
+    mgr.start(["b"], lambda paths: second_started.set() or {"noop": False}, lambda: "v2")
+    monkeypatch.setattr(mgr, "_record", lambda job: (_ for _ in ()).throw(OSError("disk full")))
+    release_first.set()
+
+    assert mgr.join_all()
+    assert second_started.is_set()
+    assert not mgr.is_running
+
+
+def test_reload_none_is_observable_without_inventing_token():
+    mgr = ReindexManager()
+    job, _ = mgr.start(["a"], lambda paths: {"noop": False}, lambda: None)
+    assert mgr.join_all()
+    final = mgr.get(job.id).to_dict()
+    assert final["status"] == "completed"
+    assert final["reload_status"] == "incomplete"
+    assert final["published_token"] is None
+    assert final["snapshot_ready_duration_seconds"] is None
     assert not mgr.is_running  # slot liberato
+
+
+def test_reload_completed_is_not_serialized_without_readiness_fields():
+    job = ReindexJob(["a"])
+    job.reload_status = "completed"
+    assert job.to_dict()["reload_status"] == "pending"
+
+
+def test_reload_failure_is_separate_from_build_failure():
+    mgr = ReindexManager()
+
+    def boom():
+        raise RuntimeError("reload rotto")
+
+    job, _ = mgr.start(["a"], lambda paths: {"noop": False}, boom)
+    assert mgr.join_all()
+    final = mgr.get(job.id).to_dict()
+    assert final["status"] == "completed"
+    assert final["error"] is None
+    assert final["reload_status"] == "failed"
+    assert "reload rotto" in final["reload_error"]
+    assert final["published_token"] is None
+
+
+def test_failed_writer_lock_still_records_wait_duration(monkeypatch):
+    import api.reindex as reindex_mod
+
+    class BusyLock:
+        def __enter__(self):
+            raise RuntimeError("busy")
+
+        def __exit__(self, *args):
+            return False
+
+    monkeypatch.setattr(reindex_mod, "writer_lock", lambda **kwargs: BusyLock())
+    mgr = ReindexManager()
+    job, _ = mgr.start(["a"], lambda paths: {}, lambda: "never")
+    assert mgr.join_all()
+    final = mgr.get(job.id).to_dict()
+    assert final["status"] == "failed"
+    assert final["writer_lock_wait_seconds"] is not None
 
 
 def test_second_request_is_queued_and_paths_coalesced():
@@ -990,6 +1115,9 @@ def test_journal_running_job_marked_interrupted_at_load(tmp_path):
     assert restored is not None
     assert restored.status == "interrupted"
     assert restored.finished_at is not None
+    assert restored.queue_duration_seconds is None
+    assert restored.reload_duration_seconds is None
+    assert restored.snapshot_ready_duration_seconds is None
 
     # La transizione 'interrupted' è persistita: un secondo load resta terminale.
     again = ReindexManager(journal_path=journal)
@@ -1010,6 +1138,8 @@ def test_journal_compaction_keeps_only_last_state(tmp_path, monkeypatch):
         assert done.wait(timeout=5)
         assert _wait(lambda jid=job.id: mgr.get(jid).status == "completed")
         ids.append(job.id)
+
+    assert mgr.join_all()
 
     # Dopo la compattazione ci deve essere al più UNA riga per job.
     lines = [line for line in journal.read_text(encoding="utf-8").splitlines() if line.strip()]

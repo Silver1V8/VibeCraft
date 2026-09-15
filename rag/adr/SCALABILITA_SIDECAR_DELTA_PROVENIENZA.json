@@ -1,0 +1,26 @@
+[
+  {
+    "source": "C:\\Users\\Silve\\Desktop\\vibecraft\\rag\\adr\\SCALABILITA_SIDECAR_DELTA.md",
+    "copy": "rag/adr/SCALABILITA_SIDECAR_DELTA.md",
+    "sha256": "FDCA16DFF118203D9AA31C7673A7370169E4FF4F8919DDB5746801CA8C619BF4",
+    "copy_sha256": "FDCA16DFF118203D9AA31C7673A7370169E4FF4F8919DDB5746801CA8C619BF4"
+  },
+  {
+    "source": "C:\\Users\\Silve\\Desktop\\vibecraft\\rag\\adr\\2026-09-15-colbert-storage-sources.md",
+    "copy": "rag/adr/2026-09-15-colbert-storage-sources.md",
+    "sha256": "E44D89BBBFFF5977E987A7D698D4EA2CB511C72576232EFB858FD248D26C6CD0",
+    "copy_sha256": "E44D89BBBFFF5977E987A7D698D4EA2CB511C72576232EFB858FD248D26C6CD0"
+  },
+  {
+    "source": "C:\\Users\\Silve\\Desktop\\vibecraft\\rag\\eval\\results\\colbert_memory_20260915\\evidence\\memory.json",
+    "copy": "rag/eval/results/colbert_memory_20260915/evidence/memory.json",
+    "sha256": "015BEFB115840D58B458659D5D744A6CD7BE7F667FF975472A5C358EDF92FF0E",
+    "copy_sha256": "015BEFB115840D58B458659D5D744A6CD7BE7F667FF975472A5C358EDF92FF0E"
+  },
+  {
+    "source": "C:\\Users\\Silve\\Desktop\\vibecraft\\rag\\eval\\results\\colbert_memory_20260915\\evidence\\METHOD.md",
+    "copy": "rag/eval/results/colbert_memory_20260915/evidence/METHOD.md",
+    "sha256": "4106CFE1B996976320FB200603D6B7BFC0549E76D92D80CD249B519F83367E29",
+    "copy_sha256": "4106CFE1B996976320FB200603D6B7BFC0549E76D92D80CD249B519F83367E29"
+  }
+]

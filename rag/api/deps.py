@@ -464,7 +464,7 @@ async def lifespan(application: FastAPI):
 # ---------------------------------------------------------------------------
 # Auto-reload dell'indice in memoria (dopo una re-indicizzazione da CLI o pipeline)
 # ---------------------------------------------------------------------------
-def reload_index_state() -> None:
+def reload_index_state() -> str | float | None:
     """Ricarica in memoria grafo, multivettori ColBERT e sidecar chunk dai file appena
     rigenerati dalla re-indicizzazione, così che il server rifletta subito la nuova base
     di conoscenza senza riavvio.
@@ -485,13 +485,14 @@ def reload_index_state() -> None:
         # evita di ritentare (e ri-loggare) il reload a ogni richiesta successiva. Una
         # nuova build completa cambierà di nuovo l'mtime e ritenterà il reload.
         state["_graph_mtime"] = _graph_version()
-        return
+        return None
 
     # Rebind ATOMICO: un solo IndexSnapshot completo sostituisce quello precedente.
     # Nessuna mutazione in place → nessun handler può osservare una versione mista.
     state["snapshot"] = _build_snapshot(arts.graph, arts.colbert_store, arts.chunks_store,
                                         rule_descriptions, arts.code_store, version=arts.version)
     state["_graph_mtime"] = state["snapshot"].version
+    return state["snapshot"].version
 
 
 def maybe_reload_graph() -> None:

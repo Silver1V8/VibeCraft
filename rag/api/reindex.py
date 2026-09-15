@@ -95,12 +95,27 @@ class ReindexJob:
         self.changed_paths: list[str] | None = changed_paths
         self.result: dict | None = None
         self.error: str | None = None
+        self.queue_duration_seconds: float | None = None
+        self.writer_lock_wait_seconds: float | None = None
+        self.build_duration_seconds: float | None = None
+        self.reload_status: str | None = None
+        self.reload_duration_seconds: float | None = None
+        self.reload_error: str | None = None
+        self.published_token: str | float | None = None
+        self.snapshot_ready_duration_seconds: float | None = None
+        self.coalesced: bool = False
+        self._created_monotonic: float | None = time.monotonic()
         # Callback iniettate dal chiamante: conservate sul job così un job accodato può
         # essere avviato dal dispatch del pending senza che il chiamante sia più presente.
         self._run_reindex = None
         self._on_success = None
 
     def to_dict(self) -> dict:
+        reload_status = self.reload_status
+        if reload_status == "completed" and (
+                self.published_token is None or self.reload_duration_seconds is None or
+                self.snapshot_ready_duration_seconds is None):
+            reload_status = "pending"
         return {
             "job_id": self.id,
             "status": self.status,
@@ -110,6 +125,15 @@ class ReindexJob:
             "changed_paths": self.changed_paths,
             "result": self.result,
             "error": self.error,
+            "queue_duration_seconds": self.queue_duration_seconds,
+            "writer_lock_wait_seconds": self.writer_lock_wait_seconds,
+            "build_duration_seconds": self.build_duration_seconds,
+            "reload_status": reload_status,
+            "reload_duration_seconds": self.reload_duration_seconds,
+            "reload_error": self.reload_error,
+            "published_token": self.published_token,
+            "snapshot_ready_duration_seconds": self.snapshot_ready_duration_seconds,
+            "coalesced": self.coalesced,
         }
 
     @classmethod
@@ -126,6 +150,16 @@ class ReindexJob:
         job.changed_paths = data.get("changed_paths")
         job.result = data.get("result")
         job.error = data.get("error")
+        job.queue_duration_seconds = data.get("queue_duration_seconds")
+        job.writer_lock_wait_seconds = data.get("writer_lock_wait_seconds")
+        job.build_duration_seconds = data.get("build_duration_seconds")
+        job.reload_status = data.get("reload_status")
+        job.reload_duration_seconds = data.get("reload_duration_seconds")
+        job.reload_error = data.get("reload_error")
+        job.published_token = data.get("published_token")
+        job.snapshot_ready_duration_seconds = data.get("snapshot_ready_duration_seconds")
+        job.coalesced = data.get("coalesced", False)
+        job._created_monotonic = None
         job._run_reindex = None
         job._on_success = None
         return job
@@ -230,7 +264,8 @@ class ReindexManager:
                 return
             with self._lock:
                 snapshot = [self._jobs[jid].to_dict() for jid in self._order if jid in self._jobs]
-            tmp = self._journal_path.with_suffix(self._journal_path.suffix + ".tmp")
+            tmp = self._journal_path.with_suffix(
+                self._journal_path.suffix + f".tmp.{threading.get_ident()}")
             with tmp.open("w", encoding="utf-8") as fh:
                 for rec in snapshot:
                     fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
@@ -241,6 +276,12 @@ class ReindexManager:
         """Journala la transizione corrente di `job` e, se serve, compatta."""
         self._append_journal(job.to_dict())
         self._maybe_compact()
+
+    def _record_safely(self, job: ReindexJob) -> None:
+        try:
+            self._record(job)
+        except Exception as exc:
+            logger.error("Journal reindex non scrivibile (%s: %s).", type(exc).__name__, exc)
 
     def get(self, job_id: str) -> ReindexJob | None:
         with self._lock:
@@ -293,6 +334,7 @@ class ReindexManager:
                 self._dispatch(job)
                 result = (job, False)
             elif self._pending is not None:
+                self._pending.coalesced = True
                 # Fusione nel pending esistente: un solo pending massimo.
                 if self._pending.kind == "full":
                     pass  # un full pending sussume qualunque richiesta successiva
@@ -308,6 +350,7 @@ class ReindexManager:
                         self._pending.changed_paths, changed_paths
                     )
                 result = (self._pending, True)
+                to_record.append(self._pending)
             else:
                 pending = self._make_job(changed_paths, run_reindex, on_success,
                                          status="queued", kind=kind)
@@ -346,33 +389,69 @@ class ReindexManager:
         sta ancora eseguendo il reload: usare join_all per una sincronizzazione reale prima
         che il test ritorni. Restituisce False se qualche thread è ancora vivo al timeout."""
         deadline = time.monotonic() + timeout
-        for thread in list(self._threads):
-            thread.join(timeout=max(0.0, deadline - time.monotonic()))
+        index = 0
+        while index < len(self._threads):
+            self._threads[index].join(timeout=max(0.0, deadline - time.monotonic()))
+            index += 1
         return all(not t.is_alive() for t in self._threads)
 
     def _run(self, job: ReindexJob) -> None:
+        started = time.monotonic()
+        job.queue_duration_seconds = (max(0.0, started - job._created_monotonic)
+                                      if job._created_monotonic is not None else None)
         try:
             # Writer lock cross-processo attorno alla SOLA esecuzione del reindex: server
             # e CLI (index.py) non scrivono mai gli artefatti in contemporanea. Un
             # WriterLockBusyError al timeout cade nell'except sotto: job "failed" con
             # l'errore del lock nel journal, slot liberato e pending dispatchato come
             # per qualunque altro fallimento.
+            lock_started = time.monotonic()
             with writer_lock(timeout_seconds=_WRITER_LOCK_TIMEOUT_SECONDS):
-                job.result = job._run_reindex(job.changed_paths)
+                job.writer_lock_wait_seconds = max(0.0, time.monotonic() - lock_started)
+                build_started = time.monotonic()
+                try:
+                    job.result = job._run_reindex(job.changed_paths)
+                finally:
+                    job.build_duration_seconds = max(0.0, time.monotonic() - build_started)
             # Un run può declassare l'esito con result["job_status"]: oggi solo
             # "completed_not_promoted" (eval gate sotto soglia: versione costruita ma
             # CURRENT non spostato). Qualunque altro valore resta "completed".
             override = job.result.get("job_status") if isinstance(job.result, dict) else None
-            job.status = "completed_not_promoted" if override == "completed_not_promoted" else "completed"
+            next_status = "completed_not_promoted" if override == "completed_not_promoted" else "completed"
+            job.reload_status = "pending" if next_status == "completed" else "not_required"
+            job.status = next_status
         except Exception as exc:
+            if job.writer_lock_wait_seconds is None:
+                job.writer_lock_wait_seconds = max(0.0, time.monotonic() - lock_started)
             job.status = "failed"
             job.error = f"{type(exc).__name__}: {exc}"
+        job.finished_at = _now_iso()
+        if job.reload_status is None:
+            job.reload_status = "not_required"
+        # La build è terminale e osservabile prima del reload; lo slot resta occupato.
+        try:
+            self._record_safely(job)
+            # on_success solo se la build è stata promossa.
+            if job.status == "completed":
+                reload_started = time.monotonic()
+                try:
+                    token = job._on_success()
+                    job.reload_duration_seconds = max(0.0, time.monotonic() - reload_started)
+                    if token is None:
+                        job.reload_status = "incomplete"
+                    else:
+                        job.published_token = token
+                        job.snapshot_ready_duration_seconds = max(
+                            0.0, time.monotonic() - job._created_monotonic)
+                        job.reload_status = "completed"
+                except Exception as exc:
+                    job.reload_duration_seconds = max(0.0, time.monotonic() - reload_started)
+                    job.reload_error = f"{type(exc).__name__}: {exc}"
+                    job.reload_status = "failed"
+                    logger.warning("Reload post-reindex fallito (%s: %s).", type(exc).__name__, exc)
+                self._record_safely(job)
         finally:
-            job.finished_at = _now_iso()
-            # Sezione critica unica: libera lo slot e, se c'è un pending, lo promuove a
-            # running e lo dispatcha PRIMA di rilasciare il lock. Così non c'è race tra la
-            # fine di questo job e un `start` concorrente: o start vede lo slot occupato e
-            # accoda (e noi lo raccogliamo qui), o lo vede libero e parte lui.
+            # Reload e dispatch restano serializzati; il journal non può bloccare la coda.
             next_job: ReindexJob | None = None
             with self._lock:
                 self._running_id = None
@@ -382,17 +461,5 @@ class ReindexManager:
                     next_job.status = "running"
                     self._running_id = next_job.id
                     self._dispatch(next_job)
-        # Journal fuori dal lock: transizione terminale di questo job e, se promosso, la
-        # transizione "running" del pending.
-        self._record(job)
-        if next_job is not None:
-            self._record(next_job)
-        # on_success (reload in memoria) solo se la build è stata promossa: dopo un
-        # "completed_not_promoted" CURRENT è invariato e non c'è nulla da ricaricare.
-        if job.status == "completed":
-            try:
-                job._on_success()
-            except Exception as exc:
-                # Il reload è best-effort: reload_index_state è già tollerante agli
-                # artefatti incoerenti; qui logghiamo soltanto senza far fallire il job.
-                logger.warning("Reload post-reindex fallito (%s: %s).", type(exc).__name__, exc)
+            if next_job is not None:
+                self._record_safely(next_job)
