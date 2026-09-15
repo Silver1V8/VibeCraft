@@ -14,7 +14,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from agent_bridge import AGENT_MODES
-from agent_runners import RUNNERS, list_runners, run_streaming, validate_run
+from agent_runners import RUNNERS, list_runners, run_streaming as run_agent_streaming, validate_run
 from api.deps import (
     IndexSnapshot,
     current_snapshot,
@@ -252,8 +252,8 @@ async def agent_run(req: AgentRunRequest):
                     outcome='failed' if outcome.get('is_error') or outcome['type'] != 'result' else 'completed',
                     result_open_points_status=outcome.get('open_points_status', 'missing'))
             try:
-                stream = run_streaming(req.runner, prompt, req.mode, req.model, feature=feature,
-                                       attempt_id=attempt, on_finish=finished)
+                stream = run_agent_streaming(req.runner, prompt, req.mode, req.model, feature=feature,
+                                             attempt_id=attempt, on_finish=finished)
             except Exception as exc:
                 finished({'type':'error'})
                 raise _gate_storage_error(PipelineStorageError(f'Runtime agente non disponibile: {exc}')) from exc

@@ -29,7 +29,7 @@ def runner(monkeypatch):
         if kwargs.get('on_finish'):
             kwargs['on_finish']({'type': 'result', 'is_error': False, 'open_points_status': 'valid'})
         return iter(['{"type":"result","is_error":false}\n'])
-    monkeypatch.setattr(routes, 'run_streaming', start)
+    monkeypatch.setattr(routes, 'run_agent_streaming', start)
     return calls
 
 
@@ -84,6 +84,28 @@ def test_advisory_modes_remain_available_with_gate_reasons(env, monkeypatch, mod
     prelude = json.loads(response.text.splitlines()[0])
     assert prelude['type'] == 'gate' and not prelude['gate']['allowed']
     assert prelude['gate']['reasons']
+
+
+def test_agent_route_streams_runner_result_and_records_completion(env, monkeypatch):
+    import agent_runners
+
+    def local_events(prompt, mode, model):
+        yield {'type': 'text', 'text': f'{model}: {prompt} ({mode})'}
+        yield {'type': 'result', 'is_error': False, 'open_points_status': 'valid'}
+
+    monkeypatch.setattr(agent_runners, 'run_local', local_events)
+    _, store, client = env
+    response = client.post('/api/pipeline/agent/run', json={
+        'feature': 'demo', 'runner': 'local', 'model': 'test-model',
+        'mode': 'suggest', 'prompt': 'Analizza',
+    })
+    assert response.status_code == 200, response.text
+    events = [json.loads(line) for line in response.text.splitlines()]
+    assert [event['type'] for event in events] == ['gate', 'text', 'result']
+    assert events[1]['text'] == 'test-model: Analizza (suggest)'
+    finished = next(e for e in store.read_events() if e['event'] == 'execution_finished')
+    assert finished['attempt_id'] == events[0]['attempt_id']
+    assert finished['outcome'] == 'completed'
 
 
 def test_unrecordable_admission_returns_503_and_never_starts(env, monkeypatch):
