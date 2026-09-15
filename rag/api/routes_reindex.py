@@ -12,6 +12,7 @@ una versione nuova e la promuovono a fine build riuscita, solo dopo che l'eval-g
 /api/index/rollback sposta il puntatore CURRENT alla versione precedente (o a quella
 indicata) e ricarica lo snapshot."""
 import logging
+import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
@@ -80,11 +81,18 @@ def _run_reindex(changed_paths) -> dict:
     """Esegue l'incrementale con un modello di embedding GPU dedicato (vedi
     _reindex_embed_model) e il client Qdrant del server. Gira sul thread daemon del
     ReindexManager, quindi è bloccante ma fuori dall'event loop."""
-    return incremental_index(
+    started = time.perf_counter()
+    embed_model = _reindex_embed_model()
+    init_model = time.perf_counter() - started
+    result = incremental_index(
         qdrant=state.get("qdrant"),
-        embed_model=_reindex_embed_model(),
+        embed_model=embed_model,
         changed_paths=changed_paths,
     )
+    result.setdefault("phase_timings_seconds", {})["init_model"] = (
+        result.get("phase_timings_seconds", {}).get("init_model", 0.0) + init_model
+    )
+    return result
 
 
 def _eval_gate(version: str, embed_model) -> dict:
@@ -132,12 +140,26 @@ def _run_full_rebuild(changed_paths) -> dict:
     indisponibilità breve ma reale fra le due chiamate. Se il layout è già migrato o
     l'installazione è fresca, la migrazione è un no-op. Subito dopo lo swap, il GC
     rimuove le collection versionate orfane."""
+    started = time.perf_counter()
     embed_model = _reindex_embed_model()
+    init_model = time.perf_counter() - started
+    collector = {
+        "phase_timings_seconds": {phase: 0.0 for phase in
+                                  ("init_model", "scan_hash", "load", "parsing_embedding",
+                                   "qdrant", "relink", "save_hash", "eval_gate", "promote")},
+        "counts": {},
+    }
     version = build_graph_and_index(qdrant=state.get("qdrant"),
-                                    embed_model=embed_model, promote=False)
-    result = {"full_rebuild": True, "version": version}
+                                    embed_model=embed_model, promote=False,
+                                    collector=collector)
+    timings = collector["phase_timings_seconds"]
+    timings["init_model"] += init_model
+    result = {"full_rebuild": True, "version": version,
+              "phase_timings_seconds": timings, "counts": collector["counts"]}
     if version:  # None solo con build finta nei test
+        started = time.perf_counter()
         gate = _eval_gate(version, embed_model)
+        timings["eval_gate"] = time.perf_counter() - started
         result["eval"] = {kk: gate[kk] for kk in
                           ("recall", "k", "min_recall", "n", "skipped", "advisory") if kk in gate}
         if not gate.get("passed"):
@@ -147,6 +169,7 @@ def _run_full_rebuild(changed_paths) -> dict:
                            version, result["eval"])
             return result
 
+        started = time.perf_counter()
         promote_version(version)
         collection_name = _qdrant_collection_for_version(version)
         _migrate_legacy_collection_if_needed(state.get("qdrant"), COLLECTION_NAME, emit=logger.info)
@@ -155,6 +178,7 @@ def _run_full_rebuild(changed_paths) -> dict:
         # — dopo promote (retention locale già applicata) e dopo lo swap, dentro il
         # single-writer del ReindexManager (mai job full concorrenti).
         gc_orphaned_qdrant_collections(state.get("qdrant"), emit=logger.info)
+        timings["promote"] += time.perf_counter() - started
     result["promoted"] = True
     return result
 

@@ -2453,6 +2453,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "psutil" },
     { name = "pypdfium2" },
     { name = "pytest" },
     { name = "ruff" },

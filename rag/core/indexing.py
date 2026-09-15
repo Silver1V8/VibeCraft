@@ -8,6 +8,7 @@ import logging
 import re
 import shutil
 import subprocess
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -88,6 +89,17 @@ from core.config import (
 )
 
 logger = logging.getLogger(__name__)
+
+_INDEX_PHASES = ("init_model", "scan_hash", "load", "parsing_embedding",
+                 "qdrant", "relink", "save_hash", "eval_gate", "promote")
+
+
+def _new_phase_timings() -> dict[str, float]:
+    return {phase: 0.0 for phase in _INDEX_PHASES}
+
+
+def _colbert_token_count(store: dict) -> int:
+    return sum(getattr(value, "shape", (len(value),))[0] for value in store.values())
 
 # Namespace fisso per derivare l'ID del punto Qdrant dal chunk_id in modo DETERMINISTICO
 # (uuid5): lo stesso chunk_id produce sempre lo stesso id, base dell'incrementale idempotente.
@@ -755,12 +767,14 @@ class FullState:
     n_docs: int = 0
 
 
-def _build_full_state(embed_model, docs_dir: Path, code_dir: Path, emit=None) -> FullState:
+def _build_full_state(embed_model, docs_dir: Path, code_dir: Path, emit=None,
+                      phase_timings: dict[str, float] | None = None) -> FullState:
     """Costruisce da zero l'intero stato dell'indice (grafo + chunk + sidecar) a partire
     dai file, SENZA alcun I/O su disco o Qdrant. Funzione pura (a parità di modello e input
     produce lo stesso grafo): è l'unica fonte di verità della topologia 'da rebuild', usata
     sia dal full rebuild reale sia dal check di coerenza (index.py --check-graph)."""
     _log = emit or logger.info
+    parsing_started = time.perf_counter()
     G = nx.DiGraph()
     all_chunks: list[dict] = []
     n_docs = 0
@@ -794,6 +808,9 @@ def _build_full_state(embed_model, docs_dir: Path, code_dir: Path, emit=None) ->
     # Indipendente dalla presenza di documenti: i simboli di codice esistono comunque come
     # nodi (senza IMPLEMENTS finché non c'è uno spazio-documenti a cui agganciarsi), così
     # full rebuild e incrementale restano allineati anche quando docs/ è temporaneamente vuoto.
+    if phase_timings is not None:
+        phase_timings["parsing_embedding"] += time.perf_counter() - parsing_started
+    code_parsing_started = time.perf_counter()
     code_store: dict = {}
     try:
         code_symbols = collect_code_symbols(code_dir)
@@ -808,8 +825,14 @@ def _build_full_state(embed_model, docs_dir: Path, code_dir: Path, emit=None) ->
             doc_dense16 = [dense_store[cid] for cid in doc_chunk_ids]
             doc_parent16 = [chunks_store[cid]["doc_id"] for cid in doc_chunk_ids]
             scores: dict = {}
+            if phase_timings is not None:
+                phase_timings["parsing_embedding"] += time.perf_counter() - code_parsing_started
+            relink_started = time.perf_counter()
             n_impl = link_symbols(G, code_symbols, sym_dense16, doc_dense16, doc_parent16,
                                   chunk_ids=doc_chunk_ids, scores_out=scores)
+            if phase_timings is not None:
+                phase_timings["relink"] += time.perf_counter() - relink_started
+            code_parsing_started = time.perf_counter()
             code_store = {
                 s["id"]: {"name": s["name"], "kind": s["kind"], "file": s["file"],
                           "dev_type": s["dev_type"], "text": s["text"],
@@ -823,15 +846,21 @@ def _build_full_state(embed_model, docs_dir: Path, code_dir: Path, emit=None) ->
     except Exception as e:
         _log(f"⚠️ Indicizzazione del codice saltata: {e}")
 
+    if phase_timings is not None:
+        phase_timings["parsing_embedding"] += time.perf_counter() - code_parsing_started
+
     # Connette i documenti tra loro dalle relazioni di autorità del frontmatter (doc->doc),
     # risolvendo gli alias di versione. Ultimo passo: tutti i nodi-documento sono presenti.
+    relink_started = time.perf_counter()
     _resolve_authority_aliases(G)
+    if phase_timings is not None:
+        phase_timings["relink"] += time.perf_counter() - relink_started
 
     return FullState(G, points, colbert_store, chunks_store, dense_store, code_store, n_docs)
 
 
 def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, emit=None,
-                          promote: bool = True) -> str | None:
+                          promote: bool = True, collector: dict | None = None) -> str | None:
     """Esegue l'indicizzazione completa (Fase 0 e Fase 4) e restituisce il nome della
     versione blue/green scritta.
 
@@ -871,10 +900,14 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     ruotati dalla retention locale).
     """
     _log = emit or logger.info
+    timings = _new_phase_timings()
     own_qdrant = qdrant is None
     if embed_model is None:
+        started = time.perf_counter()
         _log(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")
         embed_model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
+        timings["init_model"] = time.perf_counter() - started
+    started = time.perf_counter()
     if qdrant is None:
         qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
@@ -885,9 +918,12 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     # e la produzione (nome diverso, COLLECTION_NAME) non va mai toccata da questa
     # chiamata — solo alla promozione, tramite l'alias swap più sotto.
     _ensure_collection(qdrant, recreate=False, collection_name=collection_name)
+    timings["qdrant"] += time.perf_counter() - started
 
-    state = _build_full_state(embed_model, DOCS_DIR, CODE_DIR, emit=_log)
+    state = _build_full_state(embed_model, DOCS_DIR, CODE_DIR, emit=_log,
+                              phase_timings=timings)
     G = state.graph
+    started = time.perf_counter()
     if state.points:
         # A fette (default 256, VIBECRAFT_QDRANT_UPSERT_BATCH): un unico upsert monolitico
         # su migliaia di punti rischia il timeout gRPC/HTTP lato client. Un fallimento a
@@ -897,10 +933,16 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
         batch_size = qdrant_upsert_batch_from_env()
         for i in range(0, len(state.points), batch_size):
             qdrant.upsert(collection_name=collection_name, points=state.points[i:i + batch_size])
+    timings["qdrant"] += time.perf_counter() - started
 
     # Salva grafo + vettori + sidecar nei formati correnti (JSON/.npz) nella versione
     # decisa sopra, tramite l'unico punto di I/O (core.artifacts). Scrittura atomica:
     # un crash a metà non lascia artefatti troncati né una versione attiva rotta.
+    started = time.perf_counter()
+    doc_hashes = _docs_hashes()
+    code_hashes = _code_hashes()
+    timings["scan_hash"] = time.perf_counter() - started
+    started = time.perf_counter()
     version = save_artifacts(G, state.colbert_store, state.chunks_store, state.dense_store,
                              state.code_store, version=version)
 
@@ -909,7 +951,9 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     _log(f"📦 Qdrant: {len(state.points)} chunk (da {state.n_docs} documenti) nella collection '{collection_name}'.")
 
     write_index_manifest(len(state.points), G.number_of_nodes(), G.number_of_edges(),
-                        version=version, qdrant_collection=collection_name)
+                        version=version, qdrant_collection=collection_name,
+                        doc_hashes=doc_hashes, code_hashes=code_hashes)
+    timings["save_hash"] = time.perf_counter() - started
     _log(f"🧾 Manifest indicizzazione salvato in: {manifest_path(version)}")
 
     if promote and version:
@@ -920,9 +964,12 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
         # sempre ciò che questa build ha davvero scritto, mai una collection diversa.
         # graph/restatements: il gate deve leggere lo STESSO ordinamento che il server servirà
         # (precedenza S4, peso di sezione N4), non quello nudo — R26.
+        started = time.perf_counter()
         gate = gate_promotion(version, qdrant, embed_model, state.colbert_store, emit=_log,
                               collection_name=collection_name, graph=G,
                               restatements=restatement_sections(state.chunks_store))
+        timings["eval_gate"] = time.perf_counter() - started
+        started = time.perf_counter()
         if not gate.get("passed"):
             _log(f"⛔ Promozione RIFIUTATA dall'eval-gate: CURRENT resta invariato. "
                  f"Versione {version} salvata ma NON attiva. Investigare il calo di qualità.")
@@ -942,9 +989,23 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
             # single-writer di questo job, mai concorrente.
             gc_orphaned_qdrant_collections(qdrant, emit=_log)
             _log(f"🔁 Versione promossa: CURRENT → {version} (swap atomico, rollback: index.py --rollback).")
+        timings["promote"] = time.perf_counter() - started
 
     if own_qdrant:
         qdrant.close()
+    if collector is not None:
+        collector.update({
+            "phase_timings_seconds": timings,
+            "counts": {
+                "docs_added": state.n_docs, "docs_modified": 0, "docs_removed": 0,
+                "code_added": len(code_hashes), "code_modified": 0, "code_removed": 0,
+                "chunks_processed": len(state.points), "chunks_indexed": len(state.chunks_store),
+                "colbert_tokens_processed": _colbert_token_count(state.colbert_store),
+                "colbert_tokens_indexed": _colbert_token_count(state.colbert_store),
+                "code_tokens_processed": None,
+                "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+            },
+        })
     return version
 
 
@@ -1739,6 +1800,7 @@ def apply_incremental_indexing(
     code_store: dict | None = None,
     code_delta: tuple[list[str], list[str], list[str]] | None = None,
     code_dir: Path | None = None,
+    phase_timings: dict[str, float] | None = None,
 ) -> dict:
     """Esegue il piano del delta sugli oggetti passati (Qdrant + grafo + sidecar), mutandoli
     in-place. NON fa I/O su disco né gestisce il modello: quelli restano al chiamante
@@ -1761,6 +1823,8 @@ def apply_incremental_indexing(
     `dense_store`/`code_store`/`code_delta`/`code_dir` sono opzionali: se assenti la funzione
     si comporta come prima (nessun ricalcolo dei code-link), preservando i chiamanti legacy."""
     _log = emit or logger.info
+    apply_started = time.perf_counter()
+    qdrant_seconds = 0.0
     # Snapshot delle entità PRIMA di toccare i documenti: serve a capire, a valle, quali
     # entità sono comparse/sparite e quindi quali simboli hanno REFERENCES da ricalcolare.
     entities_before = _entity_nodes(graph)
@@ -1769,7 +1833,9 @@ def apply_incremental_indexing(
 
     # 1. Purge (Qdrant + sidecar + grafo) dei documenti non più validi nella loro forma attuale
     if to_delete:
+        started = time.perf_counter()
         _delete_doc_chunks(qdrant, to_delete)
+        qdrant_seconds += time.perf_counter() - started
         dead_set = set(to_delete)
         dead_chunks = [cid for cid, meta in chunks_store.items() if meta.get("doc_id") in dead_set]
         for cid in dead_chunks:
@@ -1782,6 +1848,7 @@ def apply_incremental_indexing(
 
     # 2. (Ri)indicizzazione dei soli documenti nuovi/modificati
     upserted = 0
+    processed_colbert_tokens = 0
     new_chunk_ids: list[str] = []
     if to_index:
         assert docs_dir is not None, "docs_dir richiesto quando ci sono documenti da (ri)indicizzare"
@@ -1805,7 +1872,10 @@ def apply_incremental_indexing(
         if new_chunks:
             _log(f"\nVettorializzazione incrementale di {len(new_chunks)} chunk (da {len(to_index)} documenti)...")
             points, colbert_partial, chunks_partial, _dense = _encode_chunks_to_points(embed_model, new_chunks)
+            processed_colbert_tokens = _colbert_token_count(colbert_partial)
+            started = time.perf_counter()
             qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
+            qdrant_seconds += time.perf_counter() - started
             colbert_store.update(colbert_partial)
             chunks_store.update(chunks_partial)
             if dense_store is not None:
@@ -1825,6 +1895,7 @@ def apply_incremental_indexing(
                 graph, code_dir, code_store, embed_model,
                 code_added, code_removed, code_modified, _log,
             )
+        relink_started = time.perf_counter()
         # Selezione MIRATA dei simboli il cui argmax IMPLEMENTS può essere cambiato per via
         # del delta documenti — invece di rilincare tutto quando i documenti cambiano.
         # L'argmax è una proprietà globale, ma può spostarsi solo in due casi:
@@ -1853,7 +1924,16 @@ def apply_incremental_indexing(
     # Riconnette i doc->doc dalle relazioni di autorità: non distruttivo e idempotente, così
     # il grafo incrementale resta deterministicamente equivalente al full rebuild (che lo fa
     # in _build_full_state). Va eseguito su TUTTO il grafo dopo aver applicato il delta.
+    else:
+        relink_started = time.perf_counter()
     _resolve_authority_aliases(graph)
+    relink_seconds = time.perf_counter() - relink_started
+    if phase_timings is not None:
+        phase_timings["qdrant"] += qdrant_seconds
+        phase_timings["relink"] += relink_seconds
+        phase_timings["parsing_embedding"] += max(
+            0.0, time.perf_counter() - apply_started - qdrant_seconds - relink_seconds,
+        )
 
     return {
         "planned": plan.as_dict(),
@@ -1865,6 +1945,16 @@ def apply_incremental_indexing(
         "code_modified": len(code_modified),
         "implements_edges": implements,
         "pruned_entities": orphans,
+        "counts": {
+            "docs_added": len(plan.new), "docs_modified": len(plan.modified),
+            "docs_removed": len(plan.deleted), "code_added": len(code_added),
+            "code_modified": len(code_modified), "code_removed": len(code_removed),
+            "chunks_processed": upserted, "chunks_indexed": len(chunks_store),
+            "colbert_tokens_processed": processed_colbert_tokens,
+            "colbert_tokens_indexed": _colbert_token_count(colbert_store),
+            "code_tokens_processed": None,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        },
     }
 
 
@@ -1884,8 +1974,10 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     il diff hash resta la fonte di verità — quindi non può indicizzare nulla che un delta
     completo non avrebbe toccato. Se None, si considera l'intero docs/ + code/ come sempre."""
     _log = emit or logger.info
+    timings = _new_phase_timings()
     own_qdrant = qdrant is None
 
+    started = time.perf_counter()
     current = _docs_hashes()
     manifest = _read_manifest()
     plan = plan_incremental_indexing(current, manifest)
@@ -1893,6 +1985,7 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     # Delta sul codice: gemello del piano documenti, così l'incrementale reagisce anche a
     # nuovi file di codice / modifiche / cancellazioni sotto code/ (non solo a docs/).
     current_code = _code_hashes()
+    timings["scan_hash"] = time.perf_counter() - started
     old_code = manifest.get("code_hashes", {}) if isinstance(manifest, dict) else {}
     code_added, code_removed, code_modified, _uc = _diff_hashes(old_code, current_code)
 
@@ -1909,7 +2002,15 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
 
     if manifest is not None and plan.is_noop and not code_changed:
         _log("✅ Nessun cambiamento in docs/ o code/: indice già aggiornato (no-op, nessuna scrittura).")
-        return {"noop": True, "planned": plan.as_dict(), "reindexed_docs": 0, "deleted_docs": 0, "upserted_chunks": 0}
+        return {"noop": True, "planned": plan.as_dict(), "reindexed_docs": 0,
+                "deleted_docs": 0, "upserted_chunks": 0,
+                "phase_timings_seconds": timings,
+                "counts": {"docs_added": 0, "docs_modified": 0, "docs_removed": 0,
+                           "code_added": 0, "code_modified": 0, "code_removed": 0,
+                           "chunks_processed": 0, "chunks_indexed": None,
+                           "colbert_tokens_processed": 0, "colbert_tokens_indexed": None,
+                           "code_tokens_processed": None,
+                           "code_tokens_unavailable_reason": "embedding output does not expose code token counts"}}
 
     _log(f"📋 Piano incrementale: {len(plan.new)} nuovi, {len(plan.modified)} modificati, "
          f"{len(plan.deleted)} cancellati, {len(plan.unchanged)} invariati (saltati). "
@@ -1918,8 +2019,11 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     # Il modello serve solo se c'è qualcosa da (ri)embeddare: documenti nuovi/modificati
     # oppure file di codice nuovi/modificati. Un run di solo-delete non paga bge-m3.
     if embed_model is None and (plan.to_index() or code_added or code_modified):
+        started = time.perf_counter()
         _log(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")
         embed_model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
+        timings["init_model"] = time.perf_counter() - started
+    started = time.perf_counter()
     if qdrant is None:
         qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
@@ -1965,10 +2069,13 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
         # da assicurare né da guardare: l'alias risolve per costruzione a una
         # collection fisica esistente (stato "legacy" del reconciler, nessun abort).
         _ensure_collection(qdrant, recreate=False, collection_name=COLLECTION_NAME)
+    timings["qdrant"] += time.perf_counter() - started
 
     # Carica lo stato precedente dagli artefatti. Gli artefatti assenti diventano il
     # loro default vuoto.
+    started = time.perf_counter()
     arts = load_artifacts()
+    timings["load"] = time.perf_counter() - started
     graph: nx.DiGraph = arts.graph if arts.graph is not None else nx.DiGraph()
     colbert_store: dict = arts.colbert_store
     chunks_store: dict = arts.chunks_store
@@ -1979,11 +2086,13 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
         plan, DOCS_DIR, qdrant, embed_model, graph, colbert_store, chunks_store, emit=_log,
         dense_store=dense_store, code_store=code_store,
         code_delta=(code_added, code_removed, code_modified), code_dir=CODE_DIR,
+        phase_timings=timings,
     )
 
     # Persistenza: nuova versione blue/green (artefatti atomici JSON/.npz) + manifest
     # coerente nella stessa versione (documents = chunk totali), poi promozione: gli
     # incrementali promuovono sempre (il gate BLOCCANTE riguarda solo i job full del manager).
+    started = time.perf_counter()
     version = save_artifacts(graph, colbert_store, chunks_store, dense_store, code_store)
     # Lineage blue/green: il manifest figlio eredita `parent_qdrant_collection`
     # (calcolato sopra, prima della guardia di lineage). Bootstrap/fresh install senza
@@ -2003,9 +2112,13 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     write_index_manifest(len(chunks_store), graph.number_of_nodes(), graph.number_of_edges(),
                          version=version, qdrant_collection=parent_qdrant_collection,
                          doc_hashes=doc_hashes, code_hashes=code_hashes)
+    timings["save_hash"] = time.perf_counter() - started
+    started = time.perf_counter()
     if version:  # None solo con save_artifacts finto nei test
         promote_version(version)
+    timings["promote"] = time.perf_counter() - started
     stats["version"] = version
+    stats["phase_timings_seconds"] = timings
 
     _log(f"🧾 Manifest aggiornato: {len(chunks_store)} chunk, {graph.number_of_nodes()} nodi, {graph.number_of_edges()} archi.")
     _log(f"🔁 Versione promossa: CURRENT → {version}.")
