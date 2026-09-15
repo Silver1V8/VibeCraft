@@ -2,6 +2,8 @@
 
 Stato: preparazione, nessun risultato di capacità ancora disponibile.
 
+Checkpoint PAUSED_USAGE dopo la strumentazione: commit 4a1539c (1a) ed e8d8940 (1b/1c), review indipendenti approvate. Suite integrata di sei file: test_reindex.py, test_bench.py, test_retrieve_reload.py, test_incremental_indexing.py, test_index_timings.py, test_bench_process.py. Windows 184 passed in 23.34s; Linux 184 passed in 27.64s, exit0, log *-phase1-integrated.txt. Windows usa runtime read-only e --basetemp eval/results/sidecar_20260915/sandbox/pytest-phase1-integrated; Linux usa snapshot sandbox/post1-integrated, stesso harness isolato sotto descritto, -o addopts= -q e basetemp /tmp/sidecar-pytest. Psutil Linux 7.2.2 è già nell'immagine. Questi test non sostituiscono boot/query/delta con modello e Qdrant reali.
+
 Checkout di lavoro: C:/Users/Silve/.codex/worktrees/0628/vibecraft.
 Baseline codice: 4f35acf7ad18034c42203090189dfccfdbe42611. Archivio ottenuto con
 `git archive --format=zip --output=<run>/sandbox/baseline-4f35acf.zip 4f35acf7ad18034c42203090189dfccfdbe42611`,

@@ -1,0 +1,310 @@
+from api import routes_reindex
+from core import indexing as index
+from test_incremental_indexing import StatefulFakeQdrant, StubEmbed, _spec, _wire_tmp_index
+
+
+PHASES = {
+    "init_model", "scan_hash", "load", "parsing_embedding",
+    "qdrant", "relink", "save_hash", "promote",
+}
+
+
+def test_incremental_reports_real_phase_timings_and_work_counts(monkeypatch, tmp_path):
+    docs_dir, _ = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+
+    result = index.incremental_index(qdrant=StatefulFakeQdrant(), embed_model=StubEmbed())
+
+    assert set(result["phase_timings_seconds"]) == PHASES
+    assert all(value >= 0 for value in result["phase_timings_seconds"].values())
+    assert result["counts"]["docs_added"] == 1
+    assert result["counts"]["chunks_processed"] == result["counts"]["chunks_indexed"] > 0
+    assert result["counts"]["colbert_tokens_processed"] == result["counts"]["colbert_tokens_indexed"] > 0
+    assert result["counts"]["code_tokens_processed"] is None
+    assert result["counts"]["code_tokens_unavailable_reason"]
+
+
+def test_full_rebuild_populates_optional_observability_collector(monkeypatch, tmp_path):
+    docs_dir, _ = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    collector = {}
+
+    version = index.build_graph_and_index(
+        qdrant=StatefulFakeQdrant(), embed_model=StubEmbed(), collector=collector,
+    )
+
+    assert isinstance(version, str)
+    assert set(collector["phase_timings_seconds"]) == PHASES
+    assert collector["counts"]["docs_added"] == 1
+    assert collector["counts"]["chunks_processed"] == collector["counts"]["chunks_indexed"] > 0
+    assert collector["counts"]["colbert_tokens_processed"] == collector["counts"]["colbert_tokens_indexed"] > 0
+
+
+def test_route_measures_model_initialization_and_eval_separately(monkeypatch):
+    model = object()
+    monkeypatch.setattr(routes_reindex, "_reindex_embed_model", lambda: model)
+    monkeypatch.setattr(
+        routes_reindex,
+        "build_graph_and_index",
+        lambda **kwargs: kwargs["collector"].update({
+            "phase_timings_seconds": {phase: 0.0 for phase in PHASES},
+            "counts": {},
+        }) or "v-test",
+    )
+    monkeypatch.setattr(routes_reindex, "_eval_gate", lambda *_: {"passed": False})
+
+    result = routes_reindex._run_full_rebuild(None)
+
+    assert result["phase_timings_seconds"]["init_model"] >= 0
+    assert result["phase_timings_seconds"]["eval_gate"] >= 0
+    assert result["counts"] == {}
+"""Campiona un workload esplicito senza attribuire capacità non misurate."""
+import argparse
+import json
+import platform
+import shutil
+import subprocess
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+import psutil
+
+
+def _utc() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+
+
+def _missing(reason: str) -> tuple[None, str]:
+    return None, reason
+
+
+def parse_proc_status(text: str) -> dict:
+    """Estrae KiB da /proc/*/status; assenze restano None con il motivo."""
+    fields = {"VmRSS": "rss_bytes", "RssAnon": "rss_anon_bytes"}
+    values = {name: None for name in fields.values()}
+    reasons = {name: "campo assente in /proc/1/status" for name in fields.values()}
+    for line in text.splitlines():
+        key, _, value = line.partition(":")
+        if key not in fields:
+            continue
+        try:
+            values[fields[key]] = int(value.split()[0]) * 1024
+            reasons[fields[key]] = None
+        except (IndexError, ValueError):
+            reasons[fields[key]] = "valore non interpretabile in /proc/1/status"
+    return {**values, **{f"{key}_reason": value for key, value in reasons.items()}}
+
+
+def parse_smaps_rollup(text: str) -> dict:
+    """Private_Clean + Private_Dirty, distinti da RSS/USS."""
+    values = {}
+    for line in text.splitlines():
+        key, _, value = line.partition(":")
+        if key in ("Private_Clean", "Private_Dirty"):
+            try:
+                values[key] = int(value.split()[0]) * 1024
+            except (IndexError, ValueError):
+                pass
+    if len(values) != 2:
+        return {"private_bytes": None, "private_bytes_reason": "campi privati assenti in smaps_rollup"}
+    return {"private_bytes": values["Private_Clean"] + values["Private_Dirty"], "private_bytes_reason": None}
+
+
+def _read_cgroup() -> dict:
+    current = Path("/sys/fs/cgroup/memory.current")
+    maximum = Path("/sys/fs/cgroup/memory.max")
+    if not current.is_file() or not maximum.is_file():
+        return {"usage_bytes": None, "limit_bytes": None,
+                "reason": "cgroup v2 memory files non disponibili"}
+    try:
+        limit = maximum.read_text().strip()
+        return {"usage_bytes": int(current.read_text().strip()),
+                "limit_bytes": None if limit == "max" else int(limit), "reason": None}
+    except (OSError, ValueError) as exc:
+        return {"usage_bytes": None, "limit_bytes": None, "reason": str(exc)}
+
+
+def _process_sample(pid: int) -> dict:
+    row = {"pid": pid, "ppid": None, "rss_bytes": None, "private_bytes": None,
+           "uss_bytes": None, "io_read_bytes": None, "io_write_bytes": None,
+           "cpu_user_seconds": None, "cpu_system_seconds": None, "reason": None}
+    try:
+        process = psutil.Process(pid)
+        with process.oneshot():
+            memory = process.memory_info()
+            row.update(ppid=process.ppid(), rss_bytes=memory.rss)
+            if hasattr(memory, "private"):
+                row["private_bytes"] = memory.private
+            else:
+                row["private_bytes_reason"] = "private Windows non supportata"
+            try:
+                row["uss_bytes"] = process.memory_full_info().uss
+            except (psutil.AccessDenied, AttributeError) as exc:
+                row["uss_bytes_reason"] = str(exc)
+            try:
+                io = process.io_counters()
+                row.update(io_read_bytes=io.read_bytes, io_write_bytes=io.write_bytes)
+            except (psutil.AccessDenied, AttributeError) as exc:
+                row["io_reason"] = str(exc)
+            cpu = process.cpu_times()
+            row.update(cpu_user_seconds=cpu.user, cpu_system_seconds=cpu.system)
+    except (psutil.AccessDenied, psutil.NoSuchProcess) as exc:
+        row["reason"] = str(exc)
+    return row
+
+
+def _system_sample() -> dict:
+    memory = psutil.virtual_memory()
+    swap = psutil.swap_memory()
+    return {"virtual_memory_total_bytes": memory.total, "virtual_memory_available_bytes": memory.available,
+            "swap_total_bytes": swap.total, "swap_used_bytes": swap.used, "cgroup": _read_cgroup()}
+
+
+def _docker_qdrant(name: str) -> dict:
+    if not shutil.which("docker"):
+        return {"rss_bytes": None, "private_bytes": None, "reason": "docker non disponibile"}
+    try:
+        find = "for p in /proc/[0-9]*; do [ \"$(cat $p/comm 2>/dev/null)\" = qdrant ] && basename $p && exit; done; exit 1"
+        pid = subprocess.run(["docker", "exec", name, "sh", "-c", find], text=True,
+                             capture_output=True, timeout=10, check=True).stdout.strip()
+        def read(path: str) -> str:
+            return subprocess.run(["docker", "exec", name, "cat", path], text=True,
+                                  capture_output=True, timeout=10, check=True).stdout
+        status = parse_proc_status(read(f"/proc/{pid}/status"))
+        private = parse_smaps_rollup(read(f"/proc/{pid}/smaps_rollup"))
+        cgroup = _read_container_cgroup(read)
+        return {"pid": int(pid), **status, **private, "cgroup": cgroup, "reason": None}
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {"rss_bytes": None, "private_bytes": None, "reason": str(exc)}
+
+
+def _read_container_cgroup(read) -> dict:
+    try:
+        current, maximum, stat = (read("/sys/fs/cgroup/memory.current").strip(),
+                                  read("/sys/fs/cgroup/memory.max").strip(),
+                                  read("/sys/fs/cgroup/memory.stat"))
+        cache = next((line.split()[1] for line in stat.splitlines() if line.startswith("file ")), None)
+        return {"usage_bytes": int(current), "limit_bytes": None if maximum == "max" else int(maximum),
+                "cache_bytes": int(cache) if cache is not None else None,
+                "reason": None if cache is not None else "cache non presente in memory.stat"}
+    except (OSError, ValueError, StopIteration, subprocess.SubprocessError) as exc:
+        return {"usage_bytes": None, "limit_bytes": None, "cache_bytes": None, "reason": str(exc)}
+
+
+def _sample(root: psutil.Process, qdrant_container: str | None, include_qdrant: bool) -> dict:
+    try:
+        processes = [root, *root.children(recursive=True)]
+    except (psutil.AccessDenied, psutil.NoSuchProcess):
+        processes = [root]
+    return {"utc": _utc(), "monotonic_seconds": time.monotonic(),
+            "processes": [_process_sample(process.pid) for process in processes],
+            "system": _system_sample(), "device": {"kind": "cpu/default", "memory_bytes": None,
+            "reason": "GPU non misurata: NVIDIA API non implementata"},
+            "qdrant": _docker_qdrant(qdrant_container) if include_qdrant else None}
+
+
+def _stop_workload(process: subprocess.Popen) -> None:
+    if process.poll() is not None:
+        return
+    try:
+        psutil.Process(process.pid).terminate()
+        process.wait(timeout=5)
+    except (psutil.Error, subprocess.TimeoutExpired):
+        # ponytail: 5 s di grace; kill solo dopo Ctrl-C/errore per evitare orfani.
+        try:
+            psutil.Process(process.pid).kill()
+        except psutil.Error:
+            pass
+
+
+def run_sampler(command: list[str], output: Path, interval: float = 0.2,
+                qdrant_container: str | None = None) -> int:
+    if interval <= 0:
+        raise ValueError("--interval deve essere positivo")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    stdout_path = output.with_suffix(".stdout.log")
+    stderr_path = output.with_suffix(".stderr.log")
+    raw_path = output.with_suffix(".jsonl")
+    started_monotonic, started_utc = time.monotonic(), _utc()
+    error = None
+    with stdout_path.open("w", encoding="utf-8") as stdout, stderr_path.open("w", encoding="utf-8") as stderr:
+        process = subprocess.Popen(command, stdout=stdout, stderr=stderr, text=True)
+        root = psutil.Process(process.pid)
+        next_qdrant = started_monotonic
+        try:
+            with raw_path.open("w", encoding="utf-8") as raw:
+                while process.poll() is None:
+                    now = time.monotonic()
+                    row = _sample(root, qdrant_container, qdrant_container is not None and now >= next_qdrant)
+                    if qdrant_container is not None and now >= next_qdrant:
+                        next_qdrant = now + 1.0
+                    raw.write(json.dumps(row, ensure_ascii=False) + "\n")
+                    raw.flush()
+                    time.sleep(interval)
+        except BaseException as exc:
+            error = f"{type(exc).__name__}: {exc}"
+            _stop_workload(process)
+        finally:
+            if process.poll() is None:
+                _stop_workload(process)
+    payload = {"schema_version": 1, "started_utc": started_utc, "finished_utc": _utc(),
+               "runtime_seconds": round(time.monotonic() - started_monotonic, 3), "command": command,
+               "interval_seconds": interval, "qdrant_container": qdrant_container, "exit_code": process.returncode,
+               "raw_samples": str(raw_path), "stdout": str(stdout_path), "stderr": str(stderr_path),
+               "python": sys.version, "platform": platform.platform(), "sampler_error": error,
+               "shutdown_note": "Il workload deve gestire shutdown sicuro; Ctrl-C/errore riceve terminate, poi kill dopo 5 s."}
+    output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return 1 if error else (process.returncode or 0)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--interval", type=float, default=0.2)
+    parser.add_argument("--qdrant-container")
+    parser.add_argument("command", nargs=argparse.REMAINDER, help="workload dopo --")
+    args = parser.parse_args()
+    command = args.command[1:] if args.command[:1] == ["--"] else args.command
+    if not command:
+        parser.error("specificare COMMAND ARG... dopo --")
+    try:
+        return run_sampler(command, args.output, args.interval, args.qdrant_container)
+    except ValueError as exc:
+        parser.error(str(exc))
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+import json
+import sys
+
+from scripts import bench_process
+
+
+def test_sampler_salva_campioni_e_exit_code(tmp_path):
+    output = tmp_path / "report.json"
+    code = bench_process.run_sampler(
+        [sys.executable, "-c", "x=bytearray(2_000_000); import time; time.sleep(.25)"], output, .05)
+    report = json.loads(output.read_text(encoding="utf-8"))
+    samples = [json.loads(line) for line in output.with_suffix(".jsonl").read_text(encoding="utf-8").splitlines()]
+    assert code == 0
+    assert report["exit_code"] == 0
+    assert samples and samples[0]["processes"][0]["rss_bytes"] is not None
+    assert samples[0]["device"]["memory_bytes"] is None
+    assert output.with_suffix(".stdout.log").exists()
+    assert output.with_suffix(".stderr.log").exists()
+
+
+def test_parse_proc_status_non_inventa_campi_assenti():
+    parsed = bench_process.parse_proc_status("Name:\tqdrant\nVmRSS:\t12 kB\n")
+    assert parsed["rss_bytes"] == 12 * 1024
+    assert parsed["rss_anon_bytes"] is None
+    assert parsed["rss_anon_bytes_reason"]
+
+
+def test_parse_smaps_rollup_somma_solo_private_clean_e_dirty():
+    parsed = bench_process.parse_smaps_rollup("Rss: 99 kB\nPrivate_Clean: 3 kB\nPrivate_Dirty: 7 kB\n")
+    assert parsed["private_bytes"] == 10 * 1024
