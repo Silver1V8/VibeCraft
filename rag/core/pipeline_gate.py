@@ -215,6 +215,9 @@ class ValidationRecord(Record):
     warnings: list[Notice] = Field(default_factory=list)
     structural_findings: list[dict] = Field(default_factory=list)
     semantic_findings: list[dict] = Field(default_factory=list)
+    # None distingue i record precedenti/unavailable da una lista esaminata vuota.
+    # Non entra nei controlli o nel gate: non certifica assenza di problemi omessi.
+    suggestions: list[Text] | None = None
 
     @model_validator(mode='after')
     def consistent_result(self):

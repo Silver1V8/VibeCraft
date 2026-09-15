@@ -15,7 +15,7 @@ class ValidationUnavailable(RuntimeError):
 
 
 class SemanticFinding(Record):
-    kind: Literal['conflict', 'coverage', 'out_of_scope', 'recommendation']
+    kind: Literal['conflict', 'coverage', 'out_of_scope']
     message: Text
     contract_quote: Text | None
     source_doc_id: Text | None
@@ -26,6 +26,7 @@ class SemanticFinding(Record):
 class SemanticReport(Record):
     summary: Text
     findings: list[SemanticFinding]
+    suggestions: list[Text]
 
 
 def decision_reference(decision):
@@ -91,7 +92,7 @@ def read_semantic(raw: str, contract: Contract, sources: ValidationSources):
         # La corrispondenza semantica al punto è riferita dal modello, non provata.
         covered = decision_reference(decision) if decision else None
         output.append({**finding.model_dump(), 'covered_by': covered, 'scenario_satisfied': False,
-                       'blocking': finding.kind != 'recommendation' and covered is None})
+                       'blocking': covered is None})
     check = Check(status='fail' if any(f['blocking'] for f in output) else 'pass',
                   details=[f['message'] + (f" [decisione {f['covered_by']['decision_id']}; non certifica copertura]"
                                           if f['covered_by'] else '') for f in output])

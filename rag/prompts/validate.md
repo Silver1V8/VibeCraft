@@ -26,8 +26,14 @@
       Non usare coverage per dire che la copertura è completa o che hai esaminato i test.
     - out_of_scope: comportamento richiesto dal contratto ma fuori ambito, bloccante.
       Cita la frase esatta del contratto che lo richiede.
-    - recommendation: suggerimento facoltativo, non bloccante, su un miglioramento o
-      rischio ipotetico. Non usarlo per declassare violazioni attuali o lacune obbligatorie.
+    I consigli facoltativi su miglioramenti o rischi ipotetici vanno in suggestions,
+    separati dai findings e senza effetto sul gate. Un problema non diventa un
+    suggerimento perché è minore: violazioni attuali e lacune obbligatorie restano findings.
+    Suggerire COME verificare un requisito può essere un suggerimento; dichiarare
+    facoltativo il requisito prescritto non lo è. Un requisito del Canvas resta
+    obbligatorio anche quando il consiglio riguarda la forma della verifica.
+    Per esempio, se il Canvas prescrive il test di 2.0, quel test resta dovuto;
+    proporre uno scenario BDD aggiuntivo o test parametrizzati non ne riduce l'obbligo.
     Le constatazioni positive (assenza di conflitti, copertura soddisfatta, rispetto
     dell'ambito) vanno SOLO in summary, MAI in findings. Non creare un finding per
     ciascun argomento esaminato: findings può essere [] quando non emergono rilievi.
@@ -38,11 +44,14 @@
     L'associazione dei rilievi strutturali globali è riservata all'operatore.
 
     Rispondi SOLO con un oggetto JSON valido, senza fence o altra prosa:
-    {"summary":"Sintesi concisa", "findings":[]}
+    {"summary":"Sintesi concisa", "findings":[], "suggestions":[]}
+    Tutti e tre i campi sono obbligatori. suggestions è una lista di stringhe non
+    vuote, [] se non hai consigli facoltativi. Non inserire oggetti o kind nella lista.
     Ogni finding ha TUTTI questi campi:
     {"kind":"conflict", "message":"Descrizione", "contract_quote":"Citazione esatta",
      "source_doc_id":null, "source_quote":null, "open_point_hash":null}
-    kind ammette conflict, coverage, out_of_scope, recommendation.
+    kind ammette SOLO conflict, coverage, out_of_scope. recommendation nei findings
+    rende il resoconto non conforme: il server non lo sposta né lo ripara.
     conflict e out_of_scope richiedono una citazione esatta del Canvas o della Spec;
     per gli altri contract_quote può essere null. Se citi una fonte, source_doc_id
     e source_quote devono essere entrambi presenti e ricavati dal contesto fornito.

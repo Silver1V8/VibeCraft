@@ -49,6 +49,11 @@ for (const [status, label] of [['pass', 'superati'], ['fail', 'falliti'], ['unav
   assert.match(text, status === 'pass' ? /Avvio agentic: consentito/ : /Avvio agentic: bloccato — Motivo del blocco/);
 }
 assert.match(context.validationSummary({}), /Avvio agentic: bloccato — stato del gate non disponibile/);
+const withAdvice = context.validationSummary({checks:{structural:{status:'pass'},semantic:{status:'pass'}},
+  gate:{allowed:true}, suggestions:['Consiglio <script>test</script>']});
+assert.match(withAdvice, /Avvio agentic: consentito/);
+assert.match(withAdvice, /Suggerimenti facoltativi — nessun effetto sul gate:\n• Consiglio <script>test<\/script>/);
+assert.doesNotMatch(withAdvice, /non esaminato|coperto da/);
 (async()=>{
   await context.refreshGateReview();
   assert.equal(checks.length,1);

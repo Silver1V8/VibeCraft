@@ -1,6 +1,7 @@
 """Validazione reale con I/O isolato; solo provider e ricerca remoti simulati."""
 import asyncio
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import networkx as nx
@@ -24,8 +25,63 @@ def spec(points=()):
     return SCENARIO + '## 4. Punti aperti\n```json\n' + json.dumps({'open_points': list(points)}) + '\n```'
 
 
-def semantic(findings=()):
-    return json.dumps(dict(summary='Controllo concluso.', findings=list(findings)))
+def semantic(findings=(), suggestions=()):
+    return json.dumps(dict(summary='Controllo concluso.', findings=list(findings), suggestions=list(suggestions)))
+
+
+def test_suggestions_are_persisted_but_never_cover_findings(env, monkeypatch):
+    folder, store, client = env
+    (folder / 'spec.md').write_text(spec().replace('## 4. Punti aperti',
+        SCENARIO.replace('S01', 'S02').replace('Invio richiesta', 'Errore richiesta') + '## 4. Punti aperti'), encoding='utf-8')
+    advice = ['Usare test parametrizzati per verificare i requisiti obbligatori.']
+    raw = semantic(suggestions=advice)
+    async def generate(*a, **kw):
+        return raw
+    monkeypatch.setattr(routes.llm, 'agenerate', generate)
+    out = client.post('/api/pipeline/validate', json={'feature': 'demo'}).json()
+    assert out['status'] == 'passed' and out['gate']['allowed']
+    assert out['suggestions'] == advice and out['semantic_findings'] == []
+    saved = store.read_validation('demo', out['validation_id'])
+    assert saved.suggestions == advice and saved.validator.raw_response == raw
+    raw = semantic([dict(kind='coverage', message='Manca un caso richiesto.', contract_quote=None,
+        source_doc_id=None, source_quote=None, open_point_hash=None)], advice)
+    out = client.post('/api/pipeline/validate', json={'feature': 'demo'}).json()
+    assert out['status'] == 'failed' and not out['gate']['allowed']
+    assert out['suggestions'] == advice and out['semantic_findings'][0]['blocking']
+
+
+@pytest.mark.parametrize('suggestions', [None, 'Consiglio', [''], [{'message': 'Consiglio'}]])
+def test_suggestions_must_be_an_explicit_list_of_nonempty_text(env, monkeypatch, suggestions):
+    async def generate(*a, **kw):
+        return json.dumps(dict(summary='Sintesi', findings=[], suggestions=suggestions))
+    monkeypatch.setattr(routes.llm, 'agenerate', generate)
+    response = env[2].post('/api/pipeline/validate', json={'feature': 'demo'})
+    assert response.status_code == 503 and response.json()['status'] == 'unavailable'
+
+
+def test_recommendation_in_findings_is_not_moved_or_approved(env, monkeypatch):
+    raw = semantic([dict(kind='recommendation', message='Consiglio', contract_quote=None,
+        source_doc_id=None, source_quote=None, open_point_hash=None)])
+    async def generate(*a, **kw):
+        return raw
+    monkeypatch.setattr(routes.llm, 'agenerate', generate)
+    response = env[2].post('/api/pipeline/validate', json={'feature': 'demo'})
+    out = response.json()
+    assert response.status_code == 503 and out['status'] == 'unavailable'
+    assert out['suggestions'] is None
+    assert env[1].read_validation('demo', out['validation_id']).validator.raw_response == raw
+
+
+def test_original_records_are_readable_unchanged_but_old_reports_are_nonconforming():
+    folder = Path(__file__).parents[1] / 'eval/results/gate_end_to_end_20260914/evidence/validations'
+    paths = list(folder.glob('*.json'))
+    assert len(paths) == 3
+    for path in paths:
+        original = path.read_bytes()
+        record = gate.ValidationRecord.model_validate_json(original)
+        with pytest.raises(ValueError):
+            validation.read_semantic(record.validator.raw_response, record.contract, record.sources)
+        assert path.read_bytes() == original
 
 
 @pytest.fixture

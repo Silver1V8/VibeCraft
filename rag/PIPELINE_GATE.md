@@ -164,24 +164,37 @@ riservando le constatazioni positive alla sintesi. La UI distingue
 controlli sullo snapshot, il secondo da `gate.allowed` e dai motivi server;
 non si deduce l'ammissione da `passed` o dalla prosa del modello.
 
-Regola deterministica ancora da decidere, NON implementata: il divieto della
-coppia `contract_quote` + `source_quote` nelle recommendation intercetta zero
-delle quattro recommendation nei tre record conservati della prova. Tutte hanno
-entrambe le citazioni null, anche quando nominano fonti nella descrizione.
-Zero rifiuti in questo campione non stima i falsi positivi della regola: manca
-un caso con la coppia di citazioni. Citare un contratto e una fonte insieme non
-dimostra inoltre una violazione: può documentare conformità o un miglioramento.
+### Separazione implementata il 15 settembre 2026
 
-Alternativa proposta, da approvare: eliminare `recommendation` dai findings
-ammessi; un valore non ammesso rende la validazione unavailable, non failed e
-mai passed. I consigli facoltativi resterebbero nella sintesi non autorizzante.
-La nuova regola rifiuterebbe due dei tre resoconti storici (quattro finding),
-senza dimostrare che siano violazioni: sarebbe un cambio di contratto di output.
-Nessun record storico viene riscritto. La proposta elimina la categoria
-autodichiarata non bloccante, non garantisce che il modello non ometta problemi
-o li relegi nella sintesi. Non risolve deterministicamente la contraddizione
-coverage/testo. Nessun controllo semantico aggiuntivo, nessuna nuova generazione
-e nessuna efficacia dichiarata prima di una misura reale.
+Il divieto della coppia `contract_quote` + `source_quote` nelle recommendation
+è stato scartato: intercettava zero dei quattro consigli conservati e la coppia
+di citazioni non prova da sola una violazione. Scartato anche il divieto dei
+consigli nell'intero resoconto: avrebbe introdotto indisponibilità evitabile.
+
+Il resoconto del validatore richiede `summary`, `findings` e `suggestions`.
+`findings` ammette solo conflict, coverage, out_of_scope: tutte le categorie
+sono bloccanti salvo le decisioni pertinenti già consentite per coverage.
+`suggestions` è una lista di stringhe non vuote, anche vuota; consigli conservati
+nel record e nella risposta API e visibili in UI, senza effetto sul gate.
+Un kind non ammesso nei findings o un campo suggestions assente/malformato
+rende la nuova validazione unavailable. Nessuno spostamento automatico.
+Suggerire COME verificare un requisito non lo rende facoltativo: il test di
+2.0 prescritto dal Canvas resta obbligatorio anche suggerendo un'altra forma
+BDD o una suite parametrizzata. Un problema minore resta un problema.
+
+Nessuna migrazione: i tre record del 14 settembre e i loro JSON originali
+restano immutati. Le risposte originali non sono conformi al nuovo schema;
+i record storici restano leggibili. `suggestions: null` in memoria distingue
+un record precedente (o un resoconto non acquisito) da una lista nuova vuota.
+Questo campo non modifica hash del contratto, decisioni o algoritmo del gate.
+
+Limite residuo accettato: la separazione NON garantisce che tutti i problemi
+finiscano nei findings. Un problema in suggestions o nella sintesi non autorizza
+direttamente nulla, ma resta inascoltato; la sua omissione dai controlli può
+contribuire a un falso via libera. Il rischio non è risolto. La coverage che
+descrive copertura completa resta strutturalmente conforme, bloccante e non
+riconosciuta dal parser: sarà misurata sui nuovi resoconti. Nessuna ricerca
+nella prosa per approvare e nessun secondo giudizio LLM introdotto.
 
 I cinque attriti operativi, compreso passed/allowed, restano nel
 [resoconto della prova](eval/results/gate_end_to_end_20260914/evidence/RESULTS.md#attriti-oltre-dieci-secondi)

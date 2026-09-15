@@ -721,6 +721,7 @@ async def _validate_feature(feature: str) -> dict:
                 gate.ValidationChecks(structural=structural_check, semantic=final_semantic_check), sources=sources, validator=evidence)
             result.structural_findings = structural_findings
             result.semantic_findings = semantic_findings
+            result.suggestions = semantic_report.suggestions if semantic_report else None
             payload = _gate_payload(current, result, issues)
             result.warnings = [gate.Notice.model_validate(w) for w in payload['gate']['warnings']]
             pipeline_store.write_validation(result)
@@ -731,7 +732,8 @@ async def _validate_feature(feature: str) -> dict:
                     "validation_available": result.status != "unavailable", "validation_error": final_error,
                     "llm_error": final_error, "report": semantic_report.summary if semantic_report else None,
                     "checks": result.checks.model_dump(), "structural": structural, "scenario_scope": scope,
-                    "structural_findings": structural_findings, "semantic_findings": semantic_findings}
+                    "structural_findings": structural_findings, "semantic_findings": semantic_findings,
+                    "suggestions": result.suggestions}
     return await run_in_threadpool(finish)
 
 

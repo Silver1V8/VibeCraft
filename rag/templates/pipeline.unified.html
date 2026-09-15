@@ -995,6 +995,8 @@
         `Validazione ${data.validation_id}: ${data.status}`, data.validation_error || data.report || ''];
       lines.push(...(data.structural_findings || []).map(describeFinding));
       lines.push(...(data.semantic_findings || []).map(describeFinding));
+      if (data.suggestions?.length) lines.push('Suggerimenti facoltativi — nessun effetto sul gate:\n'
+        + data.suggestions.map(text => `• ${text}`).join('\n'));
       lines.push('Le lacune coperte da decisione non sono scenari soddisfatti.');
       if (data.scenario_scope?.off_scope?.length) lines.push('Rilievi euristici di pertinenza (advisory): ' + JSON.stringify(data.scenario_scope.off_scope));
       lines.push(...gateMessages(data.gate || {}));
