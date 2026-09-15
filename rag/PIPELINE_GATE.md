@@ -63,7 +63,7 @@ positivo SDK nelle tre modalità), due controlli UI Node passati, Ruff sull'inte
   retry_of_attempt_id verificato dal server. Avvio non registrabile = 503.
 - [x] Test end-to-end di bypass client, mismatch, race, outage, eventi e UI;
   rimuovere le diciture transitorie da README, questo documento e docstring.
-- [ ] Misurare dimensione record e numero di validazioni per feature osservata,
+- [x] Misurare dimensione record e numero di validazioni per feature osservata,
   nella prova reale richiesta dopo il push; non presentare fixture come dati operativi.
 - [x] Test, lint, commit, push; fermarsi.
 
@@ -130,17 +130,24 @@ validazione. Gli altri percorsi restano da correggere in un intervento separato.
 
 ## Crescita dei record
 
-Prima misura operativa del 14 settembre 2026 sulla nuova feature
-`gate-probe-posti`: tre record da 41 744, 44 245 e 42 489 byte; mediana
-42 489 byte (41.5 KiB). La feature NON è conclusa: un rilievo semantico
-classificato coverage dichiara assenza di lacune e blocca comunque, come
-richiede lo schema. Nessuna accettazione inventata o retry fino al successo.
-Il numero di validazioni per feature conclusa resta non misurato.
+La prima misura del 14 settembre sulla feature `gate-probe-posti` aveva tre
+record (41 744, 44 245, 42 489 byte), mediana 41.5 KiB, e la feature incompleta.
+La ripresa del 15 settembre con suggestions separate ha completato il ciclo:
+Validate → modifica Canvas → 409 → rivalidazione (un 503 e un recupero manuale
+limitato) → avvio agentic riuscito → 16 test Node superati.
 
-[Passaggi, tempi, rifiuto 409 reale e attriti](eval/results/gate_end_to_end_20260914/evidence/RESULTS.md).
-I record reali includono testi, risposta grezza e fonti; la misura è locale a
-questa feature minima, non una stima generale. running→esito aggiorna lo stesso
-file, mentre una rivalidazione ne crea uno nuovo. Nessuna retention introdotta.
+Sei validazioni complessive per questa singola implementazione conclusa e non
+archiviata, su due revisioni del validatore: non una media generalizzabile.
+I tre record nuovi hanno mediana 39 549 byte (38.6 KiB); sui sei, mediana
+40 780.5 byte (39.8 KiB), totale 247 085 byte. Tutti i record originali sono
+rimasti identici, verificati tramite SHA-256. Nessuna decisione o deroga inventata.
+
+[Prima parte e cinque attriti](eval/results/gate_end_to_end_20260914/evidence/RESULTS.md).
+[Conclusione, tempi, record, 409 e due nuovi attriti](eval/results/gate_end_to_end_20260915/evidence/RESULTS.md).
+Due nuovi resoconti conformi su tre; il terzo è JSON malformato, non assenza
+verificata di contraddizioni. Nessun giudizio di affidabilità da questo campione.
+running→esito aggiorna lo stesso file, una rivalidazione ne crea uno nuovo.
+Nessuna retention introdotta.
 
 ## Associazioni esplicite — scelta emersa durante l’implementazione
 

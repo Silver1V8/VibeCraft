@@ -1,0 +1,48 @@
+/**
+ * gate-probe-posti
+ * Funzione pura per validare e formattare il numero di posti residui.
+ * Nessuna dipendenza esterna, nessun accesso a rete/DB.
+ */
+
+/**
+ * Valida `value` e restituisce l'etichetta testuale corrispondente ai posti residui.
+ *
+ * Regole:
+ * - 0 (incluso -0) -> "Nessun posto disponibile"
+ * - 1 -> "1 posto disponibile"
+ * - [2, 9999] -> "<value> posti disponibili"
+ * - Altrimenti solleva TypeError("posti non validi")
+ *
+ * L'input non viene mai convertito, arrotondato o normalizzato prima della validazione.
+ *
+ * @param {number} value
+ * @returns {string}
+ */
+function formatRemainingSeats(value) {
+  if (typeof value !== 'number') {
+    throw new TypeError('posti non validi');
+  }
+
+  if (!Number.isInteger(value)) {
+    // Copre anche NaN e +/-Infinity, per cui Number.isInteger restituisce false.
+    throw new TypeError('posti non validi');
+  }
+
+  if (value < 0 || value > 9999) {
+    throw new TypeError('posti non validi');
+  }
+
+  // -0 è trattato come 0 tramite confronto numerico (0 === -0 è true),
+  // senza alcuna conversione dell'input.
+  if (value === 0) {
+    return 'Nessun posto disponibile';
+  }
+
+  if (value === 1) {
+    return '1 posto disponibile';
+  }
+
+  return `${value} posti disponibili`;
+}
+
+export { formatRemainingSeats };

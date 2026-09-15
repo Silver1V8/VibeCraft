@@ -1,0 +1,113 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { formatRemainingSeats } from './remaining-seats.mjs';
+
+// --- S01: 0 posti (caso nominale) ---
+test('S01 - 0 posti restituisce "Nessun posto disponibile"', () => {
+  assert.equal(formatRemainingSeats(0), 'Nessun posto disponibile');
+});
+
+// --- S02: -0 posti (caso negativo -0, trattato come 0) ---
+test('S02 - -0 posti restituisce "Nessun posto disponibile"', () => {
+  assert.equal(formatRemainingSeats(-0), 'Nessun posto disponibile');
+});
+
+// --- S03: 1 posto (caso nominale) ---
+test('S03 - 1 posto restituisce "1 posto disponibile"', () => {
+  assert.equal(formatRemainingSeats(1), '1 posto disponibile');
+});
+
+// --- S04: 500 posti (intervallo standard) ---
+test('S04 - 500 posti restituisce "500 posti disponibili"', () => {
+  assert.equal(formatRemainingSeats(500), '500 posti disponibili');
+});
+
+// --- S05: 9999 posti (capienza massima) ---
+test('S05 - 9999 posti restituisce "9999 posti disponibili"', () => {
+  assert.equal(formatRemainingSeats(9999), '9999 posti disponibili');
+});
+
+// --- Caso aggiuntivo dal Canvas: 2.0 equivale a 2 (nessuna frazione) ---
+test('2.0 posti equivale a 2 e restituisce "2 posti disponibili"', () => {
+  assert.equal(formatRemainingSeats(2.0), '2 posti disponibili');
+});
+
+// --- S06: valore negativo ---
+test('S06 - -1 solleva TypeError "posti non validi"', () => {
+  assert.throws(
+    () => formatRemainingSeats(-1),
+    (err) => err instanceof TypeError && err.message === 'posti non validi'
+  );
+});
+
+// --- S07: valore superiore al limite ---
+test('S07 - 10000 solleva TypeError "posti non validi"', () => {
+  assert.throws(
+    () => formatRemainingSeats(10000),
+    (err) => err instanceof TypeError && err.message === 'posti non validi'
+  );
+});
+
+// --- S08: frazione ---
+test('S08 - 1.5 solleva TypeError "posti non validi"', () => {
+  assert.throws(
+    () => formatRemainingSeats(1.5),
+    (err) => err instanceof TypeError && err.message === 'posti non validi'
+  );
+});
+
+// --- S09: input stringa numerica ---
+test('S09 - "2" (stringa) solleva TypeError "posti non validi"', () => {
+  assert.throws(
+    () => formatRemainingSeats('2'),
+    (err) => err instanceof TypeError && err.message === 'posti non validi'
+  );
+});
+
+// --- S10: input null ---
+test('S10 - null solleva TypeError "posti non validi"', () => {
+  assert.throws(
+    () => formatRemainingSeats(null),
+    (err) => err instanceof TypeError && err.message === 'posti non validi'
+  );
+});
+
+// --- S11: input NaN ---
+test('S11 - NaN solleva TypeError "posti non validi"', () => {
+  assert.throws(
+    () => formatRemainingSeats(NaN),
+    (err) => err instanceof TypeError && err.message === 'posti non validi'
+  );
+});
+
+// --- S12: input Infinity ---
+test('S12 - Infinity solleva TypeError "posti non validi"', () => {
+  assert.throws(
+    () => formatRemainingSeats(Infinity),
+    (err) => err instanceof TypeError && err.message === 'posti non validi'
+  );
+});
+
+// --- Caso aggiuntivo: -Infinity ---
+test('-Infinity solleva TypeError "posti non validi"', () => {
+  assert.throws(
+    () => formatRemainingSeats(-Infinity),
+    (err) => err instanceof TypeError && err.message === 'posti non validi'
+  );
+});
+
+// --- S13: input booleano ---
+test('S13 - true solleva TypeError "posti non validi"', () => {
+  assert.throws(
+    () => formatRemainingSeats(true),
+    (err) => err instanceof TypeError && err.message === 'posti non validi'
+  );
+});
+
+// --- Caso aggiuntivo: input undefined ---
+test('undefined solleva TypeError "posti non validi"', () => {
+  assert.throws(
+    () => formatRemainingSeats(undefined),
+    (err) => err instanceof TypeError && err.message === 'posti non validi'
+  );
+});

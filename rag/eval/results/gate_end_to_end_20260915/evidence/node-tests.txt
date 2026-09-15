@@ -1,0 +1,106 @@
+TAP version 13
+# Subtest: S01 - 0 posti restituisce "Nessun posto disponibile"
+ok 1 - S01 - 0 posti restituisce "Nessun posto disponibile"
+  ---
+  duration_ms: 1.5365
+  type: 'test'
+  ...
+# Subtest: S02 - -0 posti restituisce "Nessun posto disponibile"
+ok 2 - S02 - -0 posti restituisce "Nessun posto disponibile"
+  ---
+  duration_ms: 0.1047
+  type: 'test'
+  ...
+# Subtest: S03 - 1 posto restituisce "1 posto disponibile"
+ok 3 - S03 - 1 posto restituisce "1 posto disponibile"
+  ---
+  duration_ms: 0.0905
+  type: 'test'
+  ...
+# Subtest: S04 - 500 posti restituisce "500 posti disponibili"
+ok 4 - S04 - 500 posti restituisce "500 posti disponibili"
+  ---
+  duration_ms: 0.0954
+  type: 'test'
+  ...
+# Subtest: S05 - 9999 posti restituisce "9999 posti disponibili"
+ok 5 - S05 - 9999 posti restituisce "9999 posti disponibili"
+  ---
+  duration_ms: 0.183
+  type: 'test'
+  ...
+# Subtest: 2.0 posti equivale a 2 e restituisce "2 posti disponibili"
+ok 6 - 2.0 posti equivale a 2 e restituisce "2 posti disponibili"
+  ---
+  duration_ms: 0.1119
+  type: 'test'
+  ...
+# Subtest: S06 - -1 solleva TypeError "posti non validi"
+ok 7 - S06 - -1 solleva TypeError "posti non validi"
+  ---
+  duration_ms: 0.5501
+  type: 'test'
+  ...
+# Subtest: S07 - 10000 solleva TypeError "posti non validi"
+ok 8 - S07 - 10000 solleva TypeError "posti non validi"
+  ---
+  duration_ms: 0.1314
+  type: 'test'
+  ...
+# Subtest: S08 - 1.5 solleva TypeError "posti non validi"
+ok 9 - S08 - 1.5 solleva TypeError "posti non validi"
+  ---
+  duration_ms: 0.2035
+  type: 'test'
+  ...
+# Subtest: S09 - "2" (stringa) solleva TypeError "posti non validi"
+ok 10 - S09 - "2" (stringa) solleva TypeError "posti non validi"
+  ---
+  duration_ms: 0.2359
+  type: 'test'
+  ...
+# Subtest: S10 - null solleva TypeError "posti non validi"
+ok 11 - S10 - null solleva TypeError "posti non validi"
+  ---
+  duration_ms: 0.179
+  type: 'test'
+  ...
+# Subtest: S11 - NaN solleva TypeError "posti non validi"
+ok 12 - S11 - NaN solleva TypeError "posti non validi"
+  ---
+  duration_ms: 0.1286
+  type: 'test'
+  ...
+# Subtest: S12 - Infinity solleva TypeError "posti non validi"
+ok 13 - S12 - Infinity solleva TypeError "posti non validi"
+  ---
+  duration_ms: 0.1307
+  type: 'test'
+  ...
+# Subtest: -Infinity solleva TypeError "posti non validi"
+ok 14 - -Infinity solleva TypeError "posti non validi"
+  ---
+  duration_ms: 0.1026
+  type: 'test'
+  ...
+# Subtest: S13 - true solleva TypeError "posti non validi"
+ok 15 - S13 - true solleva TypeError "posti non validi"
+  ---
+  duration_ms: 0.1435
+  type: 'test'
+  ...
+# Subtest: undefined solleva TypeError "posti non validi"
+ok 16 - undefined solleva TypeError "posti non validi"
+  ---
+  duration_ms: 0.201
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 80.6043

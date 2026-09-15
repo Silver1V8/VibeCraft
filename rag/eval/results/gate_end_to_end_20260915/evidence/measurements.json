@@ -1,0 +1,113 @@
+{
+  "feature": "gate-probe-posti",
+  "implementation_completed": true,
+  "archived": false,
+  "validation_records": [
+    {
+      "validation_id": "val-d77105f5ad994bd48226782c36de4a79",
+      "status": "failed",
+      "bytes": 41744,
+      "started_at": "2026-09-14T16:24:28.440247+00:00",
+      "finished_at": "2026-09-14T16:24:43.131165+00:00",
+      "open_points_status": "valid",
+      "suggestions_count": null
+    },
+    {
+      "validation_id": "val-e56a102f7d164170a4f038eac192cc1a",
+      "status": "passed",
+      "bytes": 44245,
+      "started_at": "2026-09-14T16:30:05.798456+00:00",
+      "finished_at": "2026-09-14T16:30:24.466769+00:00",
+      "open_points_status": "invalid",
+      "suggestions_count": null
+    },
+    {
+      "validation_id": "val-60c27c8d6dee4577a465a9b638f87086",
+      "status": "failed",
+      "bytes": 42489,
+      "started_at": "2026-09-14T16:30:59.839586+00:00",
+      "finished_at": "2026-09-14T16:31:15.008503+00:00",
+      "open_points_status": "valid",
+      "suggestions_count": null
+    },
+    {
+      "validation_id": "val-e355c024c65147fba5f20f60eb2b68a9",
+      "status": "passed",
+      "bytes": 39241,
+      "started_at": "2026-09-15T07:30:49.075215+00:00",
+      "finished_at": "2026-09-15T07:31:16.431326+00:00",
+      "open_points_status": "valid",
+      "suggestions_count": 1
+    },
+    {
+      "validation_id": "val-1c4dc25feb074c34a2477e78ff934349",
+      "status": "unavailable",
+      "bytes": 39817,
+      "started_at": "2026-09-15T07:31:34.303288+00:00",
+      "finished_at": "2026-09-15T07:31:48.139668+00:00",
+      "open_points_status": "valid",
+      "suggestions_count": null
+    },
+    {
+      "validation_id": "val-f3ea0d38b2d0421c895cbb87c08d23b2",
+      "status": "passed",
+      "bytes": 39549,
+      "started_at": "2026-09-15T07:32:39.498590+00:00",
+      "finished_at": "2026-09-15T07:32:47.097031+00:00",
+      "open_points_status": "valid",
+      "suggestions_count": 1
+    }
+  ],
+  "validations_per_completed_feature": 6,
+  "new_validations": 3,
+  "median_bytes_all": 40780.5,
+  "total_bytes_all": 247085,
+  "median_bytes_new": 39549,
+  "api_seconds_new": 84.641,
+  "api_seconds_total": 302.841,
+  "agent_result": {
+    "type": "result",
+    "is_error": false,
+    "duration_ms": 32389,
+    "total_cost_usd": 0.12424840000000001,
+    "num_turns": 4,
+    "open_points_status": "valid",
+    "research_policy": {
+      "enforcement": "advisory",
+      "verification": "agent_reported",
+      "id_assignment": "agent",
+      "id_reuse_verified": false,
+      "original_question_verified": false
+    },
+    "open_points": []
+  },
+  "execution_finished": {
+    "validation_id": "val-f3ea0d38b2d0421c895cbb87c08d23b2",
+    "mode": "agentic",
+    "gate": {
+      "allowed": true,
+      "validation_id": "val-f3ea0d38b2d0421c895cbb87c08d23b2",
+      "contract_hash": "sha256:5dd388bc97fcd6002b78cce9a935932f71c634428e6631c42330d7eb2d946fbf",
+      "open_points_status": "valid",
+      "reasons": [],
+      "warnings": [],
+      "http_status": 200
+    },
+    "open_points_status": "valid",
+    "outcome": "completed",
+    "result_open_points_status": "valid",
+    "event": "execution_finished",
+    "feature": "gate-probe-posti",
+    "attempt_id": "attempt-52cfb2b473624494a53327c1258c805d",
+    "retry_of_attempt_id": "attempt-fc095b0646c147dc887f0df66e417f4f",
+    "recorded_at": "2026-09-15T07:33:31.852754+00:00"
+  },
+  "tests": {
+    "command": "node --test --test-reporter=tap code/frontend/gate-probe/remaining-seats.test.mjs",
+    "exit_code": 0,
+    "tests": 16,
+    "started_at": "2026-09-15T07:34:38.057436+00:00",
+    "seconds": 0.133
+  },
+  "old_records_byte_identical": true
+}
