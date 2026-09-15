@@ -178,6 +178,24 @@
     /* Classe aggiunta via JS (markStepDone): connettore per i passi completati */
     .step-line.done { background: linear-gradient(180deg, var(--step-line-done-start) 0%, var(--step-line-done-end) 100%); }
 
+    /* Campi dell'editor decisioni: creati da JS senza classi, restavano nativi
+       (fondo bianco, testo grigio) e in riga. Stessi token del select
+       "Tipo di sviluppo". option: la tendina aperta non eredita il fondo del
+       select su Windows, va colorata a parte — per tutte le select della pagina. */
+    #gate-decisions label { display: block; }
+    #gate-decisions select,
+    #gate-decisions input:not([type="checkbox"]),
+    #gate-decisions textarea {
+      display: block; width: 100%; margin-top: 0.25rem;
+      background: var(--slate-800); color: var(--slate-100);
+      border: 1px solid var(--slate-700); border-radius: 0.5rem; padding: 0.4rem 0.6rem;
+    }
+    #gate-decisions textarea { min-height: 5rem; }
+    #gate-decisions input[type="checkbox"] { margin-right: 0.4rem; accent-color: var(--brand-500); }
+    #gate-decisions button { border: 1px solid var(--slate-700); border-radius: 0.5rem; padding: 0.4rem 0.8rem; }
+    select option { background: var(--slate-900); color: var(--slate-100); }
+    select option:checked { background: var(--slate-700); }
+
     /* NB: matrix-rain, scanlines, glow-text e la regola di hide nel tema Classico
        vivono ora in /static/shared.css (identici tra le pagine). */
   </style>
