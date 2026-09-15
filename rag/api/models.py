@@ -66,7 +66,10 @@ class AgentRunRequest(BaseModel):
     validation_id: str | None = Field(default=None, pattern=r'^val-[0-9a-f]{32}$')
     retry_of_attempt_id: str | None = Field(default=None, pattern=r'^attempt-[0-9a-f]{32}$')
     mode: str = "suggest"   # suggest | agentic | oneshot
-    model: str = "sonnet"   # alias Claude: sonnet | opus | haiku
+    runner: Literal['claude', 'local', 'codex', 'cursor'] = 'claude'
+    # Alias Claude (sonnet|opus|haiku) o nome modello del runner; '' = predefinito della CLI.
+    # Finisce negli argomenti delle CLI: niente '-' iniziale né metacaratteri (agent_runners.MODEL_RE).
+    model: str = Field(default="sonnet", pattern=r'^(|[A-Za-z0-9][\w.:/-]{0,99})$')
 
     @model_validator(mode='after')
     def agentic_requires_feature(self):

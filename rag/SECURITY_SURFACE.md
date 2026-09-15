@@ -416,6 +416,25 @@ lettura ampia: `Read`/`Glob`/`Grep` non sono ristretti a `code/`, quindi l'agent
 niente build/test in-modalità; (d) la blocklist dei segmenti riservati può rifiutare un
 `docs/` legittimo dentro `code/` (scelta conservativa, fail-closed).
 
+### Runner alternativi (`agent_runners.py`)
+
+La stessa route accetta `runner` (`claude` | `local` | `codex` | `cursor`); ammissione,
+gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agent/runners`
+(nessuna auth, sola lettura) elenca disponibilità, modalità e modelli.
+
+- **`local` (Ollama `/api/chat`)**: i tool li esegue VibeCraft, il modello li chiede soltanto.
+  Nessuna shell. Letture confinate a `PROJECT_ROOT`, con `.git/` e `.env*` negati (più
+  stretto di Claude, limite b). In `agentic` `write_file`/`edit_file` passano da
+  `_path_escapes_code`, la stessa decisione del hook Claude; il deny torna al modello come
+  risultato del tool. Output dei tool troncato a 6.000 caratteri per la finestra di 16K.
+- **`codex` / `cursor`**: solo `suggest` e `oneshot` (rifiutati con 400 in `agentic`),
+  perché il confinamento delle loro scritture non è verificabile dai nostri test. Codex
+  gira con `--sandbox read-only`; Cursor con `agent -p` senza `--force`, dove per la
+  documentazione Cursor le modifiche restano proposte — non verificato qui.
+- **Argomenti delle CLI**: il prompt passa su stdin, mai in argv (gli shim `.cmd` di npm
+  su Windows lo farebbero interpretare a `cmd.exe`); il nome modello è vincolato da
+  `^(|[A-Za-z0-9][\w.:/-]{0,99})$`, quindi non può iniziare con `-` né contenere metacaratteri.
+
 ---
 
 ## Appendice A — Superfici app-level (fuori dalle 59, montate in `server.py`)

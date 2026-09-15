@@ -390,10 +390,10 @@ def test_http_agent_run_accepts_localhost_with_correct_key(monkeypatch, tmp_path
     from core.pipeline_store import PipelineStore
     monkeypatch.setattr(routes_pipeline, "pipeline_store", PipelineStore(tmp_path / "pipeline"))
 
-    def fake_stream(prompt, mode, model, **kwargs):
+    def fake_stream(runner, prompt, mode, model, **kwargs):
         yield '{"type": "result", "is_error": false}\n'
 
-    monkeypatch.setattr(routes_pipeline, "run_agent_streaming", fake_stream)
+    monkeypatch.setattr(routes_pipeline, "run_streaming", fake_stream)
     client = _make_client(routes_pipeline.router)
     r = client.post(
         "/api/pipeline/agent/run",

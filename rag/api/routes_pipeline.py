@@ -13,7 +13,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from agent_bridge import AGENT_MODES, run_agent_streaming
+from agent_bridge import AGENT_MODES
+from agent_runners import RUNNERS, list_runners, run_streaming, validate_run
 from api.deps import (
     IndexSnapshot,
     current_snapshot,
@@ -179,11 +180,19 @@ async def agent_modes():
     return {"modes": [{"id": k, "label": v["label"]} for k, v in AGENT_MODES.items()]}
 
 
+@router.get("/api/pipeline/agent/runners")
+async def agent_runners():
+    """Runner disponibili (Claude, LLM locale, Codex, Cursor) con modalità e modelli."""
+    return {"runners": await run_in_threadpool(list_runners)}
+
+
 @router.post("/api/pipeline/agent/run", dependencies=[Depends(require_api_key_strict)])
 async def agent_run(req: AgentRunRequest):
     """Ammissione ricalcolata dal server; solo agentic richiede il contratto validato."""
     if req.mode not in AGENT_MODES:
         raise HTTPException(status_code=400, detail=f"Modalità non valida: {req.mode}")
+    if reason := validate_run(req.runner, req.mode, req.model):
+        raise HTTPException(status_code=400, detail=reason)
     if req.mode != 'agentic' and not req.prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt vuoto.")
     feature = _safe_slug(req.feature) if req.feature else None
@@ -224,7 +233,8 @@ async def agent_run(req: AgentRunRequest):
                                      'retry_of_attempt_id':retry, 'attempt_recorded':attempt_recorded})
             prompt = req.prompt
             if req.mode == 'agentic':
-                prompt = pipeline.build_agent_prompt(record.feature, record.dev_type, 'agentic', contract=record.contract)
+                prompt = pipeline.build_agent_prompt(record.feature, record.dev_type, 'agentic',
+                                                     contract=record.contract, mcp=req.runner == 'claude')
                 prompt += '\nValidazione autorizzante: ' + record.validation_id
             try:
                 pipeline_store.append_event('execution_started', **details)
@@ -242,8 +252,8 @@ async def agent_run(req: AgentRunRequest):
                     outcome='failed' if outcome.get('is_error') or outcome['type'] != 'result' else 'completed',
                     result_open_points_status=outcome.get('open_points_status', 'missing'))
             try:
-                stream = run_agent_streaming(prompt, req.mode, req.model, feature=feature,
-                                             attempt_id=attempt, on_finish=finished)
+                stream = run_streaming(req.runner, prompt, req.mode, req.model, feature=feature,
+                                       attempt_id=attempt, on_finish=finished)
             except Exception as exc:
                 finished({'type':'error'})
                 raise _gate_storage_error(PipelineStorageError(f'Runtime agente non disponibile: {exc}')) from exc
@@ -439,7 +449,7 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest):
 
 @router.get("/api/pipeline/final-prompt")
 async def pipeline_final_prompt(feature: str, dev_type: str = "", consumer: str = "external",
-                                mode: str = "agentic"):
+                                mode: str = "agentic", runner: str = "claude"):
     """Template unico per HTTP esterno e MCP in-app. One-shot riceve Canvas/Spec
     nel prompt perché non ha strumenti di lettura. Nessuna chiamata al modello."""
     if consumer not in FINAL_PROMPT_CONSUMERS:
@@ -449,9 +459,11 @@ async def pipeline_final_prompt(feature: str, dev_type: str = "", consumer: str 
         )
     if consumer == "agent" and mode not in AGENT_MODES:
         raise HTTPException(status_code=400, detail=f"Modalità non valida: {mode}")
+    if runner not in RUNNERS:
+        raise HTTPException(status_code=400, detail=f"Runner non valido: {runner}")
     folder = _safe_feature_dir(feature)
     dev = _safe_dev_type(dev_type or load_dev_type(folder))
-    prompt = build_final_prompt(folder.name, dev, consumer, mode=mode)
+    prompt = build_final_prompt(folder.name, dev, consumer, mode=mode, mcp=runner == "claude")
     if consumer == "agent" and mode == "oneshot":
         try:
             contract = {name: (folder / name).read_text(encoding="utf-8")

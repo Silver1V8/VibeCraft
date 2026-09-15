@@ -24,13 +24,22 @@ def validated(client):
 
 def runner(monkeypatch):
     calls = []
-    def start(prompt, mode, model, **kwargs):
+    def start(runner_id, prompt, mode, model, **kwargs):
         calls.append((prompt, mode, kwargs))
         if kwargs.get('on_finish'):
             kwargs['on_finish']({'type': 'result', 'is_error': False, 'open_points_status': 'valid'})
         return iter(['{"type":"result","is_error":false}\n'])
-    monkeypatch.setattr(routes, 'run_agent_streaming', start)
+    monkeypatch.setattr(routes, 'run_streaming', start)
     return calls
+
+
+def test_external_cli_runners_cannot_start_agentic(env, monkeypatch):
+    _, _, client = env
+    calls = runner(monkeypatch)
+    vid = validated(client)
+    for bad in (dict(runner='codex'), dict(runner='cursor'), dict(runner='local', model='--force')):
+        r = client.post('/api/pipeline/agent/run', json=dict(feature='demo', validation_id=vid, mode='agentic', **bad))
+        assert r.status_code in (400, 422) and not calls
 
 
 def test_modified_contract_blocks_then_revalidation_admits_frozen_text(env, monkeypatch):

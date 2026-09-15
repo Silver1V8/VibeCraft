@@ -198,6 +198,17 @@ AGENT_MODES: dict[str, dict] = {
 }
 
 
+def _max_turns() -> int:
+    """Tetto di turni per le modalità con tool, condiviso con i runner di agent_runners."""
+    try:
+        max_turns = int(os.environ.get("VIBECRAFT_AGENT_MAX_TURNS", "30"))
+        if not 1 <= max_turns <= 200:
+            raise ValueError
+    except ValueError:
+        raise ValueError("VIBECRAFT_AGENT_MAX_TURNS deve essere un intero fra 1 e 200.") from None
+    return max_turns
+
+
 def _build_agent_options(mode: str, model: str) -> ClaudeAgentOptions:
     """Costruisce le ClaudeAgentOptions per una modalità. Isolata dal resto per
     essere asseribile con precisione nei test."""
@@ -227,13 +238,7 @@ def _build_agent_options(mode: str, model: str) -> ClaudeAgentOptions:
                 kwargs["cli_path"] = str(native)
 
     if mode != "oneshot":
-        try:
-            max_turns = int(os.environ.get("VIBECRAFT_AGENT_MAX_TURNS", "30"))
-            if not 1 <= max_turns <= 200:
-                raise ValueError
-        except ValueError:
-            raise ValueError("VIBECRAFT_AGENT_MAX_TURNS deve essere un intero fra 1 e 200.") from None
-        kwargs["max_turns"] = max_turns
+        kwargs["max_turns"] = _max_turns()
         # Stesso interprete/checkout del backend; ambiente ereditato, nessuna chiave
         # nel prompt o negli argomenti CLI. Il server MCP resta un adattatore HTTP.
         kwargs["mcp_servers"] = {"vibecraft": {
@@ -348,14 +353,20 @@ async def _run_agent_messages(prompt, mode, model, out, *, on_finish=None):
         outcome = {"type": "error", "message": f"{type(exc).__name__}: {exc}", **read_report(None)}
         out.put(outcome)
     finally:
-        if on_finish:
-            try:
-                on_finish(outcome)
-            except Exception as exc:
-                logging.getLogger(__name__).error('Registrazione fine esecuzione fallita: %s', exc)
-                out.put({'type': 'error', 'message': f'Registrazione fine esecuzione fallita: {exc}',
-                         **read_report(None)})
-        out.put(None)  # sentinella di fine stream
+        _finish(out, outcome, on_finish)
+
+
+def _finish(out: queue.Queue, outcome: dict, on_finish) -> None:
+    """Registra la fine (anche se il client è uscito) e chiude lo stream. Condivisa con
+    i runner di agent_runners, così ogni esecuzione termina allo stesso modo."""
+    if on_finish:
+        try:
+            on_finish(outcome)
+        except Exception as exc:
+            logging.getLogger(__name__).error('Registrazione fine esecuzione fallita: %s', exc)
+            out.put({'type': 'error', 'message': f'Registrazione fine esecuzione fallita: {exc}',
+                     **read_report(None)})
+    out.put(None)  # sentinella di fine stream
 
 
 def run_agent_streaming(prompt: str, mode: str, model: str = "sonnet", *, feature: str | None = None,
