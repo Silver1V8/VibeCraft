@@ -316,10 +316,10 @@
                 <div class="text-3xl mb-3">🔀</div>
                 <h2 class="text-xl font-bold mb-2">6. La Pipeline VibeCraft</h2>
                 <p class="text-sm font-mono bg-emerald-50 p-1 rounded text-emerald-700 mb-2">core/pipeline.py</p>
-                <p class="text-sm text-slate-600 mb-2">Explore, Canvas, Propose, Validate — con Drift e Archive a chiudere il ciclo, grounded sul grafo.</p>
+                <p class="text-sm text-slate-600 mb-2">Explore, Canvas, Propose, Validate, poi l'agente — con Drift e Archive a chiudere il ciclo, grounded sul grafo.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Explore → Canvas → Propose → Validate, con <strong>Drift check</strong> e <strong>Archive</strong> a chiudere il ciclo. Canvas e Propose sono <strong>grounded nel Graph RAG</strong>; all'archive la <strong>canvas review</strong> confronta il Canvas col diff reale e le lezioni rientrano nei prompt futuri.</p>
+                  <p class="mt-2">Explore → Canvas → Propose → Validate → esecuzione dell'agente, con <strong>Drift check</strong> e <strong>Archive</strong> a chiudere il ciclo. Canvas e Propose sono <strong>grounded nel Graph RAG</strong>; Propose chiude con i <strong>punti aperti</strong> in JSON (<code class="bg-gray-200 px-1 rounded font-mono">core/open_points.py</code>, perimetro advisory). L'avvio agentic passa dal <strong>gate del contratto</strong> (card 15) e l'agente può girare su quattro runner (card 16). All'archive la <strong>canvas review</strong> confronta il Canvas col diff reale e le lezioni rientrano nei prompt futuri.</p>
                 </details>
             </div>
 
@@ -389,7 +389,55 @@
                 <p class="text-sm text-slate-600 mb-2">La recall non e solo misurata ma storicizzata: /eval la grafica nel tempo e le regressioni diventano alert.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">La recall non è più solo misurata a ogni promozione ma <strong>storicizzata</strong> (<code class="bg-gray-200 px-1 rounded font-mono">history.jsonl</code> append-only) e resa un trend: la pagina <strong>/eval</strong> grafica recall@10 nel tempo (marcatori gate vs eval manuale), <code class="bg-gray-200 px-1 rounded font-mono">/api/health</code> espone il trend up/flat/down e le <strong>regressioni lente</strong> diventano alert.</p>
+                  <p class="mt-2">La recall non è più solo misurata a ogni promozione ma <strong>storicizzata</strong> (<code class="bg-gray-200 px-1 rounded font-mono">history.jsonl</code> append-only) e resa un trend: la pagina <strong>/eval</strong> grafica nel tempo la recall del gate (oggi <code class="bg-gray-200 px-1 rounded font-mono">recall@2</code>, soglia 0.75 da <code class="bg-gray-200 px-1 rounded font-mono">eval_gate</code>) (marcatori gate vs eval manuale), <code class="bg-gray-200 px-1 rounded font-mono">/api/health</code> espone il trend up/flat/down e le <strong>regressioni lente</strong> diventano alert.</p>
+                </details>
+            </div>
+
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+
+            <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-blue-500 p-6">
+                <div class="text-3xl mb-3">📥</div>
+                <h2 class="text-xl font-bold mb-2">13. L'Intake con Review</h2>
+                <p class="text-sm font-mono bg-blue-50 p-1 rounded text-blue-700 mb-2">core/intake.py + /intake</p>
+                <p class="text-sm text-slate-600 mb-2">Unico ingresso di documenti e progetti: tutto passa da uno staging e da un'approvazione esplicita.</p>
+                <details class="text-sm text-slate-600">
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
+                  <p class="mt-2">Cinque flussi, un solo staging: genera con Ollama, importa documenti, raffina con LLM (opt-in, a finestre, con forbice di lunghezza), review, import di progetti in <code class="bg-gray-200 px-1 rounded font-mono">code/</code> con <strong>plan/apply additivo</strong> (mai sovrascritture). Conversione <strong>in locale</strong> con una matrice misurata: <strong>Docling</strong> per i PDF (OCR solo sulle scansioni), <strong>lettura diretta</strong> di XLSX/XLS (openpyxl, xlrd), <strong>LibreOffice</strong> headless per DOC/PPT, MarkItDown per il resto. <code class="bg-gray-200 px-1 rounded font-mono">approve</code> non sovrascrive mai un file in <code class="bg-gray-200 px-1 rounded font-mono">docs/</code> e reindicizza la sola path, sotto writer lock.</p>
+                </details>
+            </div>
+
+            <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-emerald-500 p-6">
+                <div class="text-3xl mb-3">🔌</div>
+                <h2 class="text-xl font-bold mb-2">14. L'MCP di Sola Lettura</h2>
+                <p class="text-sm font-mono bg-emerald-50 p-1 rounded text-emerald-700 mb-2">mcp_server.py (stdio)</p>
+                <p class="text-sm text-slate-600 mb-2">Tre tool locali per gli agenti: retrieval, ricerca nel codice, query sul grafo. Nessuna scrittura.</p>
+                <details class="text-sm text-slate-600">
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
+                  <p class="mt-2"><code class="bg-gray-200 px-1 rounded font-mono">vibecraft_retrieve</code>, <code class="bg-gray-200 px-1 rounded font-mono">vibecraft_code_search</code>, <code class="bg-gray-200 px-1 rounded font-mono">vibecraft_graph_query</code>: un adattatore stdio sopra il backend HTTP, raggiungibile <strong>solo su loopback</strong> (niente redirect, proxy o credenziali nell'URL). Limiti espliciti su k, testo e dimensione (oltre 2 MiB la risposta è rifiutata), troncamenti dichiarati. Non espone <code class="bg-gray-200 px-1 rounded font-mono">/ask</code>, intake, reindex, shell né l'avvio dell'agente. È il contesto su richiesta del runner Claude in-app.</p>
+                </details>
+            </div>
+
+            <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-purple-500 p-6">
+                <div class="text-3xl mb-3">🚦</div>
+                <h2 class="text-xl font-bold mb-2">15. Il Gate del Contratto</h2>
+                <p class="text-sm font-mono bg-purple-50 p-1 rounded text-purple-700 mb-2">core/pipeline_gate.py + pipeline_store.py</p>
+                <p class="text-sm text-slate-600 mb-2">In agentic parte solo un contratto validato e congelato: il server ricalcola l'ammissione, il client non può forzarla.</p>
+                <details class="text-sm text-slate-600">
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
+                  <p class="mt-2">Validate congela Canvas, Spec, decisioni e fonti in un record con hash SHA-256; <code class="bg-gray-200 px-1 rounded font-mono">evaluate_gate</code> distingue missing/invalid, mismatch, stale e unavailable (<strong>409</strong> se il contratto è cambiato, <strong>503</strong> se l'infrastruttura manca). I rilievi bloccanti sono separati dai <strong>suggerimenti</strong>, che non toccano il gate. Le decisioni dell'operatore (accepted/resolved) hanno <code class="bg-gray-200 px-1 rounded font-mono">origin_verified: false</code> imposto dal server. Ogni blocco e avvio finisce in <code class="bg-gray-200 px-1 rounded font-mono">database/pipeline/events.jsonl</code>. Ciclo reale end-to-end verificato il 15 settembre 2026; restano aperti la coverage contraddittoria e il retrieval che maschera i guasti fuori da Validate.</p>
+                </details>
+            </div>
+
+            <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-orange-500 p-6">
+                <div class="text-3xl mb-3">🤖</div>
+                <h2 class="text-xl font-bold mb-2">16. I Runner dell'Agente</h2>
+                <p class="text-sm font-mono bg-orange-50 p-1 rounded text-orange-700 mb-2">agent_bridge.py + agent_runners.py</p>
+                <p class="text-sm text-slate-600 mb-2">Claude Code, Ollama locale, Codex CLI e Cursor CLI dietro la stessa route, lo stesso gate e lo stesso stream.</p>
+                <details class="text-sm text-slate-600">
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
+                  <p class="mt-2"><strong>Claude</strong>: SDK con impostazioni locali isolate, tre tool MCP, scritture confinate a <code class="bg-gray-200 px-1 rounded font-mono">code/</code> da un hook. <strong>Ollama</strong>: il loop di tool lo esegue VibeCraft, niente shell, stesse regole di confinamento. <strong>Codex</strong> (<code class="bg-gray-200 px-1 rounded font-mono">--sandbox read-only</code>, verificato dal vivo) e <strong>Cursor</strong> (<code class="bg-gray-200 px-1 rounded font-mono">--mode plan|ask</code>, non ancora provato): solo suggest/oneshot, perché le loro scritture non sono verificabili dai nostri test. Prompt sempre su stdin, mai negli argomenti. <code class="bg-gray-200 px-1 rounded font-mono">GET /api/pipeline/agent/runners</code> dice quali sono installati.</p>
                 </details>
             </div>
 

@@ -1,7 +1,16 @@
 # rag/ — Console Graph-RAG
 
 Indicizzazione (core/indexing), retrieval ibrido e pipeline Explore → Canvas →
-Propose (core/) esposti via FastAPI (api/). Entrypoint: `server.py`, `index.py`.
+Propose → Validate (core/) esposti via FastAPI (api/). Entrypoint: `server.py`,
+`index.py`, `mcp_server.py` (MCP locale di sola lettura).
+
+Stato al 2026-09-15, in breve: intake con staging e review (Docling, lettura diretta
+Excel, LibreOffice per DOC/PPT); tre tool MCP di sola lettura usati anche dagli agenti
+in-app; gate del contratto sull'avvio agentic (validazione congelata, decisioni
+dell'operatore, journal eventi — ciclo reale verificato, vedi
+[adr/PIPELINE_GATE.md](adr/PIPELINE_GATE.md)); quattro runner per l'agente
+(Claude Code, Ollama locale, Codex CLI, Cursor CLI — vedi
+[Runner dell'agente](#runner-dellagente-claude-ollama-codex-cursor)).
 
 Le decisioni architetturali significative sono raccolte in
 [rag/adr/](adr/README.md) (Architecture Decision Records).
@@ -534,7 +543,7 @@ La corsa standard riporta il recall a **k ∈ {1, 2, 5, 10}**, e non per complet
   a k=10 e k=5 su una griglia interamente satura e concluse — correttamente ma
   inutilmente — che nessuna combinazione era distinguibile.
 - **il sottoinsieme avversariale ha una voce a sé.** I casi marcati
-  `adversarial: true` nel golden-set (oggi 4 su 55) contrappongono una fonte a
+  `adversarial: true` nel golden-set (oggi 5 su 58) contrappongono una fonte a
   bassa autorità che matcha lessicalmente *meglio* della normativa che risponde:
   sono l'unico posto dove il boost di autorità può essere falsificato, e nella
   media coi casi facili il loro movimento sarebbe invisibile.
@@ -858,7 +867,8 @@ sposta il puntatore. Gli **incrementali** promuovono a fine build riuscita, senz
 passare dal gate (finché M6 non decide diversamente). I **full** — sia la CLI
 (`python index.py`) sia i job del ReindexManager — prima di promuovere eseguono
 l'**eval-gate del golden-set sulla nuova versione** (in process, config
-`rag_config.yaml` → `eval_gate.*`: `enabled`, `min_recall` default 0.90, `blocking`):
+`rag_config.yaml` → `eval_gate.*`: `enabled`, `k` (oggi 2), `min_recall` — 0.90 se
+assente, oggi 0.75 in config —, `blocking`):
 sotto soglia (e gate bloccante) la versione resta su disco **non promossa**, il job
 termina `completed_not_promoted` col report nell'esito e il server continua a
 servire la versione precedente. Se il gate è disattivo, il golden-set manca, o
@@ -1193,8 +1203,33 @@ One-shot ha un solo turno. Gli errori di configurazione chiudono lo stream con e
 Su Windows viene usato, se presente accanto allo shim npm, il binario nativo
 `node_modules/@anthropic-ai/claude-code/bin/claude.exe`; lo shim `.cmd` non viene eseguito.
 
+### Runner dell'agente: Claude, Ollama, Codex, Cursor
+
+`POST /api/pipeline/agent/run` accetta `runner` (`claude` | `local` | `codex` | `cursor`,
+default `claude`) accanto a `mode`; `GET /api/pipeline/agent/runners` elenca quelli
+davvero disponibili sulla macchina del server (binario nel PATH, modelli Ollama installati).
+Ammissione, gate, journal e formato NDJSON dello stream sono gli stessi per tutti
+([agent_runners.py](agent_runners.py)). Il nome modello è vincolato da una regex: finisce
+negli argomenti delle CLI, quindi niente `-` iniziale né metacaratteri.
+
+| runner | modalità | contesto | perimetro |
+|---|---|---|---|
+| `claude` | suggest, agentic, oneshot | tre tool MCP | bridge SDK descritto sopra |
+| `local` (Ollama `/api/chat`) | suggest, agentic, oneshot | `read_file`/`list_files`/`grep` | i tool li esegue VibeCraft, niente shell; letture in `PROJECT_ROOT` senza `.git` né `.env*`; in agentic `write_file`/`edit_file` passano da `_path_escapes_code`, la stessa decisione dell'hook Claude; output dei tool troncato a 6.000 caratteri |
+| `codex` | suggest, oneshot | lettura della CLI | `codex exec --sandbox read-only`, plugin/app/browser/hook disattivati con `--disable` |
+| `cursor` | suggest, oneshot | lettura della CLI | `agent -p --mode plan` (suggest) o `--mode ask` (oneshot) con `--sandbox enabled`: `-p` da solo ha scrittura e shell |
+
+Agentic resta a `claude` e `local`: il confinamento delle scritture delle CLI esterne non è
+verificabile dai nostri test (400 se richiesto). Il prompt passa **sempre su stdin**, mai in
+argv: gli shim `.cmd` di npm su Windows lo farebbero interpretare a `cmd.exe`. Solo `claude`
+riceve il prompt con i tool MCP; gli altri ricevono la variante che chiede di cercare i file
+pertinenti con i propri strumenti di lettura. Timeout delle CLI:
+`VIBECRAFT_AGENT_TIMEOUT_SECONDS` (default 1800). Stato delle verifiche: Codex verificato dal
+vivo (codex-cli 0.154.0: scrittura in `code/` negata, suggest reale su LA3 con resoconto
+valido); Cursor **non ancora provato** su un'esecuzione reale.
+
 Verifica locale senza provider o corpus privato:
-`python -m pytest tests/test_agent_bridge_perimeter.py tests/test_pipeline.py tests/test_mcp_server.py tests/test_mcp_http.py`
+`python -m pytest tests/test_agent_bridge_perimeter.py tests/test_agent_runners.py tests/test_pipeline.py tests/test_mcp_server.py tests/test_mcp_http.py`
 e `node tests/pipeline_agent.cjs`. Il test stdio avvia il server dalla configurazione
 del bridge e controlla i tre tool contro un backend HTTP con dati sintetici.
 
@@ -1271,8 +1306,11 @@ o interruttore aggiuntivo. In container eseguire il processo **dentro lo stesso
 container del backend**, per esempio `docker exec -i <container> python -B mcp_server.py`
 (senza `-t`); il backend resta su loopback dal punto di vista dell'adattatore.
 
-L'esecuzione in-app collega questi tool a Claude: gli estratti richiesti entrano
-nel contesto del modello remoto. One-shot invia invece Canvas e Spec nel prompt.
+L'esecuzione in-app collega questi tool al solo runner `claude`: gli estratti richiesti
+entrano nel contesto del modello remoto. One-shot invia invece Canvas e Spec nel prompt.
+I runner `codex` e `cursor` non usano l'MCP ma leggono con i propri strumenti a partire
+dalla radice del progetto, `docs/` compreso: ciò che leggono va al rispettivo provider
+remoto. Solo `local` resta interamente sulla macchina.
 L'accesso al corpus privato da altri client o provider richiede autorizzazione
 esplicita. I test automatici usano dati sintetici e non chiamano il modello.
 Il server MCP resta di sola lettura: non espone `/ask`,
@@ -1333,6 +1371,7 @@ eseguiti dal server; non governa le esecuzioni esterne avviate autonomamente.
 `evaluate_gate` sul server; non accetta allowed/force e ignora il prompt client
 in agentic. Il prompt è costruito da Canvas, Spec e decisioni congelati nel
 record. Suggest/oneshot restano disponibili, con i motivi del gate visibili.
+Il gate è identico per ogni runner; agentic è ammesso solo con `claude` e `local`.
 La UI «Confronta con la versione validata» mostra i testi conservati e quelli
 correnti; senza validazione dichiara l'assenza del confronto.
 Il 409 indica documenti, validazione e rimedio; il 503 segnala l'infrastruttura
