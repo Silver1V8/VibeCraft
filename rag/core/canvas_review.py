@@ -94,16 +94,26 @@ def collect_change_diff(feature_folder: str, change_dir: Path, repo_root: Path =
     return ""
 
 
-def build_canvas_review_prompt(feature_folder: str, canvas_sections: str, code_diff: str) -> str:
-    """Prompt deterministico per il confronto canvas <-> codice all'archive."""
+def build_canvas_review_prompt(feature_folder: str, canvas_sections: str, code_diff: str,
+                               spec: str = "") -> str:
+    """Prompt deterministico per il confronto canvas <-> codice all'archive. La spec
+    (scenari Gherkin) ha precedenza sul canvas, come nel check drift: senza, una regola
+    imposta da uno scenario ma non nominata dal canvas (su BE1 la capienza minima 5 di S04)
+    veniva riportata come divergenza del codice."""
+    spec_block = f"""
+--- SPEC DELLA FEATURE (scenari; ha PRECEDENZA sul canvas) ---
+{spec}
+""" if spec.strip() else ""
     return f"""
 Sei un Revisore Tecnico. La feature '{feature_folder}' sta per essere archiviata.
 Confronta il contratto di design (sezioni Operations, Structure e Safeguards del
 REASONS Canvas) con le modifiche reali al codice.
+Il codice che implementa una regola richiesta dalla spec NON è una divergenza, anche se
+il canvas non la nomina: segnalala semmai come lacuna del canvas.
 
 --- SEZIONI DEL CANVAS ---
 {canvas_sections if canvas_sections else "(sezioni Operations/Structure/Safeguards non trovate nel canvas)"}
-
+{spec_block}
 --- MODIFICHE REALI AL CODICE (diff o file della change) ---
 {code_diff if code_diff else "(nessun diff o file di codice ricostruibile per questa change)"}
 
@@ -342,8 +352,10 @@ def generate_canvas_review(feature_folder: str, change_dir: Path,
     try:
         canvas_text = canvas_path.read_text(encoding="utf-8")
         sections = extract_canvas_sections(canvas_text)
+        spec_path = change_dir / "spec.md"
+        spec = spec_path.read_text(encoding="utf-8") if spec_path.exists() else ""
         diff = code or collect_change_diff(feature_folder, change_dir, repo_root)
-        prompt = build_canvas_review_prompt(feature_folder, sections, diff)
+        prompt = build_canvas_review_prompt(feature_folder, sections, diff, spec)
         if OLLAMA_NUM_CTX and len(diff) > 0:
             # Stessa stima del guardrail di core/llm.py (~3 caratteri/token): il diff
             # riempie al più il 60% della finestra, il resto va a prompt e generazione.
@@ -351,7 +363,7 @@ def generate_canvas_review(feature_folder: str, change_dir: Path,
             room = int(OLLAMA_NUM_CTX * 3 * 0.6) - (len(prompt) - len(diff))
             if len(diff) > room:
                 diff = diff[:max(room, 0)] + "\n… [diff troncato: supera la finestra di contesto] …"
-                prompt = build_canvas_review_prompt(feature_folder, sections, diff)
+                prompt = build_canvas_review_prompt(feature_folder, sections, diff, spec)
         review = (llm or _call_llm_sync)(prompt)
     except Exception as e:
         return None, f"LLM non raggiungibile o review fallita: {e}"

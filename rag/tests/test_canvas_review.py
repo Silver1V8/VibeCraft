@@ -323,3 +323,18 @@ def test_archive_passa_alla_review_il_codice_del_drift(archive_env, monkeypatch)
     index.archive_feature("feat-demo", emit=lambda m: None)
     assert "--- FILE: Reporting.cs ---\nclass Reporting {}" in seen["code"]
     assert "ReportingTests" not in seen["code"]
+
+
+def test_generate_canvas_review_passa_la_spec_con_precedenza(tmp_path):
+    change_dir = _make_change(tmp_path)
+    (change_dir / "spec.md").write_text("SCENARIO: S04 - capienza >= 5", encoding="utf-8")
+    seen = {}
+
+    def fake_llm(prompt):
+        seen["prompt"] = prompt
+        return "## Fedeltà\nFedeltà: alto"
+
+    cr.generate_canvas_review("feat-demo", change_dir, repo_root=tmp_path, llm=fake_llm, code="x")
+    assert "S04 - capienza >= 5" in seen["prompt"]
+    assert "PRECEDENZA" in seen["prompt"]
+    assert "SPEC DELLA FEATURE" not in cr.build_canvas_review_prompt("f", "s", "d")
