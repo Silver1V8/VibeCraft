@@ -72,7 +72,7 @@ def collect_change_diff(feature_folder: str, change_dir: Path, repo_root: Path =
     # scambiato per il codice della change BE1 (83 KB di diff estraneo).
     log_out = _git(["log", "--reverse", "--format=%H %s", "-i", f"--grep={feature_folder}"], repo_root)
     word = re.compile(rf"(?<![\w-]){re.escape(feature_folder)}(?![\w-])", re.IGNORECASE)
-    shas = [sha for sha, _, subject in (l.partition(" ") for l in log_out.splitlines())
+    shas = [sha for sha, _, subject in (line.partition(" ") for line in log_out.splitlines())
             if word.search(subject)]
     if shas:
         first, last = shas[0], shas[-1]

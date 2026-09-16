@@ -279,14 +279,18 @@ def test_collect_change_diff_ignora_slug_solo_nel_corpo_del_commit(tmp_path):
     def git(*a):
         subprocess.run(["git", *a], cwd=tmp_path, check=True, capture_output=True)
     git("init", "-q")
-    git("config", "user.email", "t@t"); git("config", "user.name", "t")
+    git("config", "user.email", "t@t")
+    git("config", "user.name", "t")
     (tmp_path / "a.py").write_text("x = 1\n")
-    git("add", "."); git("commit", "-qm", "base")
+    git("add", ".")
+    git("commit", "-qm", "base")
     (tmp_path / "a.py").write_text("x = 2\n")
-    git("add", "."); git("commit", "-qm", "feat(drift): altro", "-m", "Misurato su BE1.")
+    git("add", ".")
+    git("commit", "-qm", "feat(drift): altro", "-m", "Misurato su BE1.")
     assert cr.collect_change_diff("be1", tmp_path / "nochange", repo_root=tmp_path) == ""
     (tmp_path / "a.py").write_text("x = 3\n")
-    git("add", "."); git("commit", "-qm", "feat(be1): codice vero")
+    git("add", ".")
+    git("commit", "-qm", "feat(be1): codice vero")
     assert "+x = 3" in cr.collect_change_diff("be1", tmp_path / "nochange", repo_root=tmp_path)
 
 
