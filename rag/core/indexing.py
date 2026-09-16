@@ -2192,12 +2192,35 @@ def _canvas_priority_dirs(canvas_content: str, *roots: Path) -> list[Path]:
     return dirs
 
 
+_CITED_BLOCK = re.compile(r"`([^`\n]+)`")
+_IDENTIFIER = re.compile(r"[A-Za-z_][\w-]{3,}")
+
+
+def _normalize_symbol(name: str) -> str:
+    """capienza_massima, CapienzaMassima e my-requests-list confrontati alla pari."""
+    return re.sub(r"[_-]", "", name).lower()
+
+
+def _cited_symbols(text: str) -> set[str]:
+    """Identificatori citati tra backtick nel contratto (canvas + spec), normalizzati:
+    `EventCard.tsx` → eventcard, `const isSoldOut = ...` → issoldout. Solo token con forma
+    da identificatore (maiuscole, underscore o trattini): parole come `events` o `stock`
+    compaiono in file qualsiasi e non distinguono nulla."""
+    return {
+        _normalize_symbol(token)
+        for block in _CITED_BLOCK.findall(text)
+        for token in _IDENTIFIER.findall(block)
+        if token != token.lower() or "_" in token or "-" in token
+    }
+
+
 def _feature_code_sources(feature_dir: Path, canvas_content: str) -> list[tuple[Path, list[Path]]]:
     """Il codice di una change, come lo vede il check drift: (radice, file) per la cartella
     della feature e per code/<dev_type> (dove Claude Code scrive l'implementazione).
     Stessa lista di estensioni del code index: una copia locale escludeva .cs/.java/.sql.
-    In ogni radice i file sotto le cartelle citate dal Canvas (§4 Structure) vengono per
-    primi: se il budget non basta, restano fuori file di altre feature, non questi."""
+    In ogni radice vengono per primi i file più legati al contratto (simboli citati da
+    canvas e spec, poi cartelle citate dal Canvas §4 Structure): se il budget non basta,
+    restano fuori file di altre feature, non questi."""
     search_dirs = [feature_dir]
     dev_type = _load_dev_type(feature_dir)
     if dev_type:
@@ -2205,9 +2228,20 @@ def _feature_code_sources(feature_dir: Path, canvas_content: str) -> list[tuple[
     priority_dirs = _canvas_priority_dirs(
         canvas_content, CODE_DIR, *([CODE_DIR / dev_type] if dev_type else [])
     )
+    spec_path = feature_dir / "spec.md"
+    spec = spec_path.read_text(encoding="utf-8") if spec_path.exists() else ""
+    symbols = _cited_symbols(canvas_content + "\n" + spec)
 
-    def rank(path: Path) -> int:
-        return 0 if any(path.is_relative_to(d) for d in priority_dirs) else 1
+    def rank(path: Path) -> tuple[int, int]:
+        # Prima i file che citano più simboli del contratto (su fe2 il canvas dava un
+        # percorso inesistente per EventCard e isSoldOut stava in lib/events/stock.ts; su
+        # la3 la verifica posti/budget stava in un orchestratore mai nominato), poi quelli
+        # sotto le cartelle citate.
+        text = path.read_text(encoding="utf-8", errors="replace")
+        words = {_normalize_symbol(w) for w in re.findall(r"\w+", text)}
+        words.add(_normalize_symbol(path.name.split(".")[0]))
+        in_dir = any(path.is_relative_to(d) for d in priority_dirs)
+        return -len(symbols & words), 0 if in_dir else 1
 
     sources = []
     for base in search_dirs:

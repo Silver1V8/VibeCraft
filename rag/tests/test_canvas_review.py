@@ -342,3 +342,26 @@ def test_generate_canvas_review_passa_la_spec_con_precedenza(tmp_path):
     assert "S04 - capienza >= 5" in seen["prompt"]
     assert "PRECEDENZA" in seen["prompt"]
     assert "SPEC DELLA FEATURE" not in cr.build_canvas_review_prompt("f", "s", "d")
+
+
+def test_review_code_mette_prima_i_file_che_citano_i_simboli_del_contratto(archive_env, monkeypatch):
+    """Canvas con percorso inesistente (come fe2) e simboli snake_case vs PascalCase (come la3)."""
+    change_dir = _make_change(archive_env)
+    (change_dir / "meta.json").write_text('{"dev_type": "frontend"}', encoding="utf-8")
+    (change_dir / "canvas.md").write_text(
+        "## Structure\n- `src/features/events/components/EventCard.tsx`\n", encoding="utf-8")
+    (change_dir / "spec.md").write_text("La regola `isSoldOut`, la lista `events` e `capienza_massima`.", encoding="utf-8")
+    code = archive_env / "code" / "frontend"
+    for rel, text in {
+        "src/a/aaa.ts": "const events = []",          # parola generica: non promuove
+        "src/b/Other.tsx": "export const Other = 1",
+        "src/components/EventCard.tsx": "export function EventCard() {}",
+        "src/lib/stock.ts": "export function isSoldOut() {}",
+        "src/z/Orchestrator.cs": "if (isSoldOut(e) || e.CapienzaMassima < 5) {}",
+    }.items():
+        (code / rel).parent.mkdir(parents=True, exist_ok=True)
+        (code / rel).write_text(text, encoding="utf-8")
+    monkeypatch.setattr(index, "CODE_DIR", archive_env / "code")
+    labels = [l for l in index._review_code(change_dir).splitlines() if l.startswith("--- FILE:")]
+    assert labels[:3] == ["--- FILE: src/z/Orchestrator.cs ---",
+                          "--- FILE: src/components/EventCard.tsx ---", "--- FILE: src/lib/stock.ts ---"]
