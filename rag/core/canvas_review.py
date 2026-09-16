@@ -13,7 +13,7 @@ import yaml
 
 from code_index import CODE_EXTS
 from core import llm
-from core.config import PROJECT_ROOT, RAG_DIR
+from core.config import OLLAMA_NUM_CTX, PROJECT_ROOT, RAG_DIR
 
 # Le sezioni del Canvas confrontate con il codice: cosa fa (Operations), come è
 # organizzato (Structure) e quali protezioni promette (Safeguards).
@@ -67,7 +67,13 @@ def collect_change_diff(feature_folder: str, change_dir: Path, repo_root: Path =
     slug della feature; 2) fallback sul contenuto corrente dei file elencati in
     tasks.md; 3) stringa vuota se non c'è nulla di ricostruibile.
     """
-    shas = _git(["log", "--reverse", "--format=%H", "-i", f"--grep={feature_folder}"], repo_root).split()
+    # Solo i commit che citano lo slug nel SUBJECT come parola intera: --grep cerca anche
+    # nel corpo, e un commit di vibecraft che nomina "BE1" come banco di prova veniva
+    # scambiato per il codice della change BE1 (83 KB di diff estraneo).
+    log_out = _git(["log", "--reverse", "--format=%H %s", "-i", f"--grep={feature_folder}"], repo_root)
+    word = re.compile(rf"(?<![\w-]){re.escape(feature_folder)}(?![\w-])", re.IGNORECASE)
+    shas = [sha for sha, _, subject in (l.partition(" ") for l in log_out.splitlines())
+            if word.search(subject)]
     if shas:
         first, last = shas[0], shas[-1]
         base = _git(["rev-parse", f"{first}^"], repo_root).strip()
@@ -318,8 +324,12 @@ def _call_llm_sync(prompt: str) -> str:
 
 
 def generate_canvas_review(feature_folder: str, change_dir: Path,
-                           repo_root: Path = PROJECT_ROOT, llm=None) -> tuple[str | None, str | None]:
+                           repo_root: Path = PROJECT_ROOT, llm=None,
+                           code: str = "") -> tuple[str | None, str | None]:
     """Genera il contenuto di canvas_review.md per la change in archiviazione.
+
+    `code` è il codice che il check drift analizza (cartella della change + code/<dev_type>):
+    se non vuoto ha la precedenza sul diff git, che vede solo il repo di vibecraft.
 
     Restituisce (contenuto, None) in caso di successo oppure (None, warning) se la
     review va saltata (canvas assente o LLM non raggiungibile). Non solleva mai:
@@ -332,8 +342,16 @@ def generate_canvas_review(feature_folder: str, change_dir: Path,
     try:
         canvas_text = canvas_path.read_text(encoding="utf-8")
         sections = extract_canvas_sections(canvas_text)
-        diff = collect_change_diff(feature_folder, change_dir, repo_root)
+        diff = code or collect_change_diff(feature_folder, change_dir, repo_root)
         prompt = build_canvas_review_prompt(feature_folder, sections, diff)
+        if OLLAMA_NUM_CTX and len(diff) > 0:
+            # Stessa stima del guardrail di core/llm.py (~3 caratteri/token): il diff
+            # riempie al più il 60% della finestra, il resto va a prompt e generazione.
+            # ponytail: taglio in coda, un riassunto per file se le review parziali non bastano
+            room = int(OLLAMA_NUM_CTX * 3 * 0.6) - (len(prompt) - len(diff))
+            if len(diff) > room:
+                diff = diff[:max(room, 0)] + "\n… [diff troncato: supera la finestra di contesto] …"
+                prompt = build_canvas_review_prompt(feature_folder, sections, diff)
         review = (llm or _call_llm_sync)(prompt)
     except Exception as e:
         return None, f"LLM non raggiungibile o review fallita: {e}"

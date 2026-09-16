@@ -246,7 +246,7 @@ def test_archive_saves_review_and_historical_copy(archive_env, monkeypatch):
     _make_change(archive_env)
     monkeypatch.setattr(
         index, "generate_canvas_review",
-        lambda folder, change_dir: ("# Canvas Review: feat-demo\n\nFedeltà: alto\n", None),
+        lambda folder, change_dir, **kw: ("# Canvas Review: feat-demo\n\nFedeltà: alto\n", None),
     )
     log = index.archive_feature("feat-demo", emit=lambda m: None)
     archived = archive_env / "changes" / "archive" / "feat-demo"
@@ -261,7 +261,7 @@ def test_archive_skips_review_with_warning_when_llm_down(archive_env, monkeypatc
     _make_change(archive_env)
     monkeypatch.setattr(
         index, "generate_canvas_review",
-        lambda folder, change_dir: (None, "LLM non raggiungibile o review fallita: connessione rifiutata"),
+        lambda folder, change_dir, **kw: (None, "LLM non raggiungibile o review fallita: connessione rifiutata"),
     )
     log = index.archive_feature("feat-demo", emit=lambda m: None)
     archived = archive_env / "changes" / "archive" / "feat-demo"
@@ -271,3 +271,55 @@ def test_archive_skips_review_with_warning_when_llm_down(archive_env, monkeypatc
     meta = json.loads((archived / "meta.json").read_text(encoding="utf-8"))
     assert meta["canvas_review"]["status"] == "skipped"
     assert "non raggiungibile" in meta["canvas_review"]["reason"]
+
+
+def test_collect_change_diff_ignora_slug_solo_nel_corpo_del_commit(tmp_path):
+    """Un commit che nomina lo slug solo nel corpo (es. 'misurato su BE1') non è codice della change."""
+    import subprocess
+    def git(*a):
+        subprocess.run(["git", *a], cwd=tmp_path, check=True, capture_output=True)
+    git("init", "-q")
+    git("config", "user.email", "t@t"); git("config", "user.name", "t")
+    (tmp_path / "a.py").write_text("x = 1\n")
+    git("add", "."); git("commit", "-qm", "base")
+    (tmp_path / "a.py").write_text("x = 2\n")
+    git("add", "."); git("commit", "-qm", "feat(drift): altro", "-m", "Misurato su BE1.")
+    assert cr.collect_change_diff("be1", tmp_path / "nochange", repo_root=tmp_path) == ""
+    (tmp_path / "a.py").write_text("x = 3\n")
+    git("add", "."); git("commit", "-qm", "feat(be1): codice vero")
+    assert "+x = 3" in cr.collect_change_diff("be1", tmp_path / "nochange", repo_root=tmp_path)
+
+
+def test_generate_canvas_review_tronca_diff_oltre_la_finestra(tmp_path, monkeypatch):
+    monkeypatch.setattr(cr, "OLLAMA_NUM_CTX", 1000)
+    monkeypatch.setattr(cr, "collect_change_diff", lambda *a, **k: "+riga\n" * 5000)
+    change_dir = _make_change(tmp_path)
+    seen = {}
+    def fake_llm(prompt):
+        seen["prompt"] = prompt
+        return "## Fedeltà\nFedeltà: medio"
+    content, warning = cr.generate_canvas_review("feat-demo", change_dir, repo_root=tmp_path, llm=fake_llm)
+    assert warning is None
+    assert "diff troncato" in seen["prompt"]
+    assert len(seen["prompt"]) // 3 < 1000
+
+
+def test_archive_passa_alla_review_il_codice_del_drift(archive_env, monkeypatch):
+    """La review riceve il codice di code/<dev_type> (quello del check drift), senza i test."""
+    change_dir = _make_change(archive_env)
+    (change_dir / "meta.json").write_text('{"dev_type": "backend"}', encoding="utf-8")
+    code = archive_env / "code" / "backend"
+    (code / "tests").mkdir(parents=True)
+    (code / "Reporting.cs").write_text("class Reporting {}", encoding="utf-8")
+    (code / "tests" / "ReportingTests.cs").write_text("class ReportingTests {}", encoding="utf-8")
+    monkeypatch.setattr(index, "CODE_DIR", archive_env / "code")
+    seen = {}
+
+    def fake_review(folder, change_dir, **kw):
+        seen["code"] = kw["code"]
+        return None, "test"
+
+    monkeypatch.setattr(index, "generate_canvas_review", fake_review)
+    index.archive_feature("feat-demo", emit=lambda m: None)
+    assert "--- FILE: Reporting.cs ---\nclass Reporting {}" in seen["code"]
+    assert "ReportingTests" not in seen["code"]

@@ -2192,6 +2192,51 @@ def _canvas_priority_dirs(canvas_content: str, *roots: Path) -> list[Path]:
     return dirs
 
 
+def _feature_code_sources(feature_dir: Path, canvas_content: str) -> list[tuple[Path, list[Path]]]:
+    """Il codice di una change, come lo vede il check drift: (radice, file) per la cartella
+    della feature e per code/<dev_type> (dove Claude Code scrive l'implementazione).
+    Stessa lista di estensioni del code index: una copia locale escludeva .cs/.java/.sql.
+    In ogni radice i file sotto le cartelle citate dal Canvas (§4 Structure) vengono per
+    primi: se il budget non basta, restano fuori file di altre feature, non questi."""
+    search_dirs = [feature_dir]
+    dev_type = _load_dev_type(feature_dir)
+    if dev_type:
+        search_dirs.append(CODE_DIR / dev_type)
+    priority_dirs = _canvas_priority_dirs(
+        canvas_content, CODE_DIR, *([CODE_DIR / dev_type] if dev_type else [])
+    )
+
+    def rank(path: Path) -> int:
+        return 0 if any(path.is_relative_to(d) for d in priority_dirs) else 1
+
+    sources = []
+    for base in search_dirs:
+        if not base.exists():
+            continue
+        files = [
+            path
+            for path in sorted(base.rglob("*"))
+            if path.is_file() and path.suffix in CODE_EXTS and not (CODE_EXCLUDED_DIRS & set(path.parts))
+        ]
+        sources.append((base, sorted(files, key=rank)))
+    return sources
+
+
+def _review_code(feature_dir: Path) -> str:
+    """Il codice analizzato dal drift, per la canvas review all'archive (test e file
+    generati esclusi, come nella revisione a lotti). '' se non c'è codice."""
+    canvas_path = feature_dir / "canvas.md"
+    canvas = canvas_path.read_text(encoding="utf-8") if canvas_path.exists() else ""
+    pieces = []
+    for base, files in _feature_code_sources(feature_dir, canvas):
+        for path in files:
+            if drift.is_generated_path(path.name) or drift.is_test_path(path.relative_to(base).parts):
+                continue
+            text = path.read_text(encoding="utf-8", errors="replace")
+            pieces.append(f"--- FILE: {path.relative_to(base).as_posix()} ---\n{text}")
+    return "\n\n".join(pieces)
+
+
 def _drift_code_budget(fixed_chars: int) -> int:
     """Caratteri di codice per lotto: il tetto `_DRIFT_MAX_CODE_CHARS`, ridotto a quanto
     resta della finestra di contesto dopo la parte fissa del prompt (Canvas, Spec, regole).
@@ -2245,16 +2290,6 @@ def check_drift(feature_name: str, emit=None) -> str:
     # Code scrive di fatto l'implementazione (il tipo di sviluppo è in meta.json).
     # Stessa lista del code index: una copia locale escludeva .cs/.java/.sql e il drift
     # di feature backend .NET/Java risultava "nessun file di codice".
-    code_exts = CODE_EXTS
-    search_dirs = [feature_dir_path]
-    dev_type = _load_dev_type(feature_dir_path)
-    if dev_type:
-        search_dirs.append(CODE_DIR / dev_type)
-
-    priority_dirs = _canvas_priority_dirs(
-        canvas_content, CODE_DIR, *([CODE_DIR / dev_type] if dev_type else [])
-    )
-
     # Ordine di analisi: prima i file citati dal Canvas, poi il resto del codice. Test e file
     # generati (migrazioni EF, designer) sono esclusi dalla revisione a lotti ma restano
     # nell'indice dei simboli (e i generati anche nella verifica delle mancanze): su BE1 i
@@ -2264,22 +2299,8 @@ def check_drift(feature_name: str, emit=None) -> str:
     generated: list[str] = []
     tests: list[str] = []
     symbols: list[dict] = []
-    for base in search_dirs:
-        if not base.exists():
-            continue
-        files = [
-            path
-            for path in sorted(base.rglob("*"))
-            if path.is_file() and path.suffix in code_exts and not (CODE_EXCLUDED_DIRS & set(path.parts))
-        ]
-
-        # I file citati esplicitamente dal Canvas (§4 Structure) vanno analizzati per primi:
-        # se i lotti non bastano, restano fuori file di altre feature nella stessa
-        # cartella dev_type, non quelli normati da questo Canvas.
-        def rank(path: Path) -> int:
-            return 0 if any(path.is_relative_to(d) for d in priority_dirs) else 1
-
-        for path in sorted(files, key=rank):
+    for base, files in _feature_code_sources(feature_dir_path, canvas_content):
+        for path in files:
             # Path relativo alla radice di ricerca (non solo il nome file): più file
             # con lo stesso basename (es. `schema.ts` in moduli diversi) altrimenti
             # diventano indistinguibili nel prompt e l'LLM confonde i vincoli tra loro.
@@ -2475,7 +2496,8 @@ def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_mode
     # saltata con warning nel meta.json: l'archiviazione NON deve mai fallirne.
     try:
         log("🧾 Canvas review: confronto il codice della change con il canvas...")
-        review, warning = generate_canvas_review(feature_folder, source_dir)
+        review, warning = generate_canvas_review(feature_folder, source_dir,
+                                                 code=_review_code(source_dir))
         if review is not None:
             (source_dir / REVIEW_FILENAME).write_text(review, encoding="utf-8")
             historical = DOCS_DIR / HISTORICAL_SUBDIR / f"{feature_folder}-canvas-review.md"
