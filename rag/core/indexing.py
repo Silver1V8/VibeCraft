@@ -65,7 +65,7 @@ from core.chunking import (
     extract_entities,
     read_document,
 )
-from core import llm
+from core import drift, llm
 from core.eval_gate import gate_promotion
 from core.retrieval import restatement_sections
 from core.graph_ops import edge_nature, edge_reliability, edge_trust_attrs
@@ -2140,10 +2140,20 @@ def _load_dev_type(feature_dir: Path) -> str:
         return ""
 
 
-# Tetto sui caratteri di codice iniettati nel prompt di drift: anche escludendo node_modules,
-# una feature con molti file sorgente potrebbe comunque superare la finestra di contesto.
-# Meglio troncare con un avviso esplicito che affidarsi al solo guardrail di core/llm.py.
+# Tetto sui caratteri di codice per LOTTO del check drift (il codice non è più troncato:
+# eccedenze e file grandi finiscono in lotti successivi). Il tetto effettivo è il minimo
+# tra questo valore e quanto resta della finestra di contesto di Ollama dopo Canvas,
+# Spec e istruzioni (vedi _drift_code_budget).
 _DRIFT_MAX_CODE_CHARS = 40_000
+# Numero massimo di lotti (= chiamate LLM di revisione, più una di copertura): oltre,
+# i file restano fuori e vengono DICHIARATI come non analizzati, nel prompt e nel report.
+_DRIFT_MAX_BATCHES = 6
+# Tetto ai riesami mirati (una chiamata LLM breve per rilievo): i rilievi oltre il tetto
+# restano nel verdetto, marcati come non riesaminati.
+_DRIFT_MAX_RECHECKS = 12
+# Quota della finestra di contesto usata dal prompt (stima ~3 caratteri/token, come il
+# guardrail di core/llm.py): il resto è per la risposta JSON.
+_DRIFT_PROMPT_CTX_SHARE = 0.75
 
 # Path/cartelle citati tra backtick nel Canvas (es. §4 Structure — "Implementato in
 # `frontend/src/features/booking-requests/components/CreateBookingForm.tsx`").
@@ -2182,12 +2192,29 @@ def _canvas_priority_dirs(canvas_content: str, *roots: Path) -> list[Path]:
     return dirs
 
 
+def _drift_code_budget(fixed_chars: int) -> int:
+    """Caratteri di codice per lotto: il tetto `_DRIFT_MAX_CODE_CHARS`, ridotto a quanto
+    resta della finestra di contesto dopo la parte fissa del prompt (Canvas, Spec, regole).
+    Senza, Canvas + Spec + 40.000 caratteri superavano num_ctx e core/llm.py rifiutava
+    il prompt (o, appena sotto, Ollama troncava dall'alto)."""
+    budget = _DRIFT_MAX_CODE_CHARS
+    if llm.OLLAMA_NUM_CTX:
+        ctx_chars = int(llm.OLLAMA_NUM_CTX * 3 * _DRIFT_PROMPT_CTX_SHARE) - fixed_chars
+        budget = min(budget, max(ctx_chars, 2_000))
+    return budget
+
+
 def check_drift(feature_name: str, emit=None) -> str:
-    """Controlla se il codice generato si è discostato dalle specifiche del Canvas.
+    """Controlla se il codice generato si è discostato dal contratto (Canvas + Spec).
 
     Restituisce il report testuale (oltre a stamparlo/emetterlo), così da poterlo
     mostrare anche nel box dedicato dell'interfaccia della pipeline, senza terminale.
     `emit` (default: logger.info) permette lo streaming SSE del progresso.
+
+    Flusso (logica pura in core/drift.py): pre-check deterministico delle dipendenze nei
+    manifest → revisione a lotti entro la finestra di contesto → controllo di copertura
+    sull'indice dei simboli → verifica in Python di citazioni e termini → riesame mirato
+    dei drift sopravvissuti → verdetto calcolato dai rilievi rimasti.
     """
     _log = emit or logger.info
     try:
@@ -2207,6 +2234,11 @@ def check_drift(feature_name: str, emit=None) -> str:
         return msg
 
     canvas_content = canvas_path.read_text(encoding="utf-8")
+    # La Spec (scenari Gherkin + punti aperti) è fonte normativa con precedenza sul
+    # Canvas: senza, requisiti imposti da uno scenario (es. AUDIT_LOG sull'export in
+    # BE1/S07) venivano segnalati come drift perché il Canvas non li citava.
+    spec_path = feature_dir_path / "spec.md"
+    spec_content = spec_path.read_text(encoding="utf-8") if spec_path.exists() else ""
 
     # Raccoglie il codice da confrontare: sia dall'eventuale codice presente nella
     # cartella della feature, sia dalla sottocartella code/<dev_type> dove Claude
@@ -2223,8 +2255,15 @@ def check_drift(feature_name: str, emit=None) -> str:
         canvas_content, CODE_DIR, *([CODE_DIR / dev_type] if dev_type else [])
     )
 
-    codice_generato = ""
-    truncated = False
+    # Ordine di analisi: prima i file citati dal Canvas, poi il resto del codice. Test e file
+    # generati (migrazioni EF, designer) sono esclusi dalla revisione a lotti ma restano
+    # nell'indice dei simboli (e i generati anche nella verifica delle mancanze): su BE1 i
+    # rilievi sui test ("il test non verifica X") erano rumore, non drift del codice.
+    ordered: list[tuple[str, str]] = []
+    all_texts: dict[str, str] = {}
+    generated: list[str] = []
+    tests: list[str] = []
+    symbols: list[dict] = []
     for base in search_dirs:
         if not base.exists():
             continue
@@ -2233,63 +2272,128 @@ def check_drift(feature_name: str, emit=None) -> str:
             for path in sorted(base.rglob("*"))
             if path.is_file() and path.suffix in code_exts and not (CODE_EXCLUDED_DIRS & set(path.parts))
         ]
-        # I file citati esplicitamente dal Canvas (§4 Structure) vanno iniettati per primi:
-        # se il tetto di caratteri viene raggiunto, deve tagliare fuori file di altre
-        # feature nella stessa cartella dev_type, non quelli normati da questo Canvas.
-        prioritized = [path for path in files if any(path.is_relative_to(d) for d in priority_dirs)]
-        prioritized_set = set(prioritized)
-        ordered = prioritized + [path for path in files if path not in prioritized_set]
 
-        for path in ordered:
-            if len(codice_generato) >= _DRIFT_MAX_CODE_CHARS:
-                truncated = True
-                break
+        # I file citati esplicitamente dal Canvas (§4 Structure) vanno analizzati per primi:
+        # se i lotti non bastano, restano fuori file di altre feature nella stessa
+        # cartella dev_type, non quelli normati da questo Canvas.
+        def rank(path: Path) -> int:
+            return 0 if any(path.is_relative_to(d) for d in priority_dirs) else 1
+
+        for path in sorted(files, key=rank):
             # Path relativo alla radice di ricerca (non solo il nome file): più file
             # con lo stesso basename (es. `schema.ts` in moduli diversi) altrimenti
             # diventano indistinguibili nel prompt e l'LLM confonde i vincoli tra loro.
-            relative_label = path.relative_to(base)
-            chunk = f"\n--- FILE: {relative_label} ---\n{path.read_text(encoding='utf-8')}\n"
-            remaining = _DRIFT_MAX_CODE_CHARS - len(codice_generato)
-            if len(chunk) > remaining:
-                # Anche UN solo file può superare il tetto (es. un componente generato molto
-                # lungo): senza questo taglio, il controllo sul giro successivo non basta,
-                # perché qui non c'è un giro successivo.
-                chunk = chunk[:remaining]
-                truncated = True
-                codice_generato += chunk
-                break
-            codice_generato += chunk
+            label = path.relative_to(base).as_posix()
+            text = path.read_text(encoding="utf-8", errors="replace")
+            all_texts[label] = text
+            if drift.is_generated_path(path.name):
+                generated.append(label)
+            elif drift.is_test_path(path.relative_to(base).parts):
+                tests.append(label)
+            else:
+                ordered.append((label, text))
+        try:
+            symbols += collect_code_symbols(base)
+        except Exception:
+            logger.warning("Indice simboli non disponibile per %s: copertura senza simboli.", base, exc_info=True)
 
-    if not codice_generato:
+    if not ordered:
         _log("⚠️ Attenzione: Nessun file di codice sorgente trovato. Claude Code / Cursor ha già scritto il codice?")
-    elif truncated:
-        codice_generato = codice_generato[:_DRIFT_MAX_CODE_CHARS]
-        codice_generato += "\n… [codice troncato: troppi file sorgente per il check drift] …"
-        _log(f"⚠️ Codice troncato a {_DRIFT_MAX_CODE_CHARS} caratteri: la feature ha più file sorgente di quanti il check drift possa iniettare nel prompt.")
+        ordered = [("(nessun file)", "(Nessun file di codice sorgente trovato.)")]
 
-    prompt_drift = f"""
-    Sei un Revisore del Codice esperto.
-    Il tuo compito è verificare il "Drift" (disallineamento) tra il contratto iniziale (REASONS Canvas) e il codice effettivamente scritto.
+    # Pre-check deterministico: dipendenze dichiarate nei manifest (csproj, pom, gradle,
+    # package.json) incrociate con le tecnologie in grassetto del Canvas.
+    deps = drift.manifest_dependencies(symbols)
+    tech_found = drift.match_canvas_technologies(canvas_content, deps)
+    alternatives = drift.satisfied_alternatives(canvas_content, tech_found)
+    prechecks = drift.format_prechecks(deps, tech_found)
+    for term, dep, manifest in tech_found:
+        _log(f"✔️ Pre-check: '{term}' presente nei manifest come {dep} ({manifest}).")
 
-    --- CONTRATTO (CANVAS) ---
-    {canvas_content}
+    all_labels = [label for label, _ in ordered] + tests + generated
+    fixed = len(drift.build_batch_prompt(canvas_content, spec_content, prechecks, "", 0, 0, all_labels))
+    budget = _drift_code_budget(fixed)
+    batches, skipped = drift.make_batches(ordered, budget, _DRIFT_MAX_BATCHES)
+    left_out = skipped + generated
+    coverage = (f"{len(ordered) - len(skipped)} file analizzati in {len(batches)} lotto/i "
+                f"da ≤{budget} caratteri"
+                + (f"; test usati solo come evidenza: {len(tests)}" if tests else "")
+                + (f"; non analizzati: {', '.join(left_out)}" if left_out else "; nessun file escluso"))
+    _log(f"📦 Copertura: {coverage}.")
+    if skipped:
+        _log(f"⚠️ Oltre {_DRIFT_MAX_BATCHES} lotti: {len(skipped)} file non analizzati (elencati nel report).")
 
-    --- CODICE GENERATO ---
-    {codice_generato if codice_generato else "(Nessun file di codice sorgente trovato.)"}
-
-    Rispondi in modo conciso indicando:
-    1. Se il codice rispetta le entità e i vincoli del Canvas (SI/NO).
-    2. Eventuali difetti, allucinazioni o librerie inventate dal programmatore/IA che non erano previste.
-    Se va tutto bene, rispondi con "✅ NESSUN DRIFT RILEVATO. Il codice è conforme."
-    """
-
-    _log("🧠 Analisi del codice in corso tramite LLM...")
+    contract_norm = drift.norm(canvas_content + "\n" + spec_content)
+    # Testo in cui cercare i termini delle "mancanze": tutto il codice tranne i test (un test
+    # che nomina una funzionalità non prova che esista; su BE1 il nome del test CSV citato
+    # tra i termini smentiva la mancanza dell'export Excel), minuscolo e senza commenti.
+    searchable = {label: drift.strip_comments(text).lower()
+                  for label, text in all_texts.items() if label not in tests}
+    findings: list[dict] = []
+    failures: list[str] = []
     try:
-        report = llm.generate(prompt_drift, purpose="drift")
+        for i, batch in enumerate(batches, 1):
+            seen = {label for label, _h, _c in batch}
+            prompt = drift.build_batch_prompt(
+                canvas_content, spec_content, prechecks, drift.render_batch(batch),
+                i, len(batches), [label for label in all_labels if label not in seen],
+            )
+            _log(f"🧠 Analisi del lotto {i}/{len(batches)} ({len(seen)} file) tramite LLM...")
+            parsed = drift.parse_findings(llm.generate(prompt, purpose="drift"))
+            if parsed is None:
+                failures.append(f"Lotto {i}: risposta dell'LLM non interpretabile come JSON.")
+                continue
+            findings += [drift.verify_code_finding(f, batch, contract_norm, searchable) for f in parsed]
+
+        _log("🧠 Controllo di copertura dei requisiti sull'indice dei simboli...")
+        summary = drift.symbol_summary(symbols, budget)
+        prompt = drift.build_coverage_prompt(canvas_content, spec_content, prechecks, summary, left_out)
+        parsed = drift.parse_findings(llm.generate(prompt, purpose="drift"))
+        if parsed is None:
+            failures.append("Copertura: risposta dell'LLM non interpretabile come JSON.")
+        else:
+            findings += [drift.verify_coverage_finding(f, searchable, contract_norm) for f in parsed]
+        drift.discard_satisfied_alternatives(findings, alternatives)
+        findings = drift.dedupe(findings)
+
+        # Riesame mirato dei drift sopravvissuti (lotti e copertura): una citazione reale o un
+        # termine assente non bastano, il modello locale ne traeva spesso conclusioni opposte
+        # a ciò che il codice mostrava, o cercava nomi inventati.
+        to_recheck = [f for f in findings if f["categoria"] == "drift" and not f["scartato"]]
+        for f in to_recheck[_DRIFT_MAX_RECHECKS:]:
+            f["descrizione"] += " [non riesaminato: oltre il tetto dei riesami]"
+        to_recheck = to_recheck[:_DRIFT_MAX_RECHECKS]
+        for n, f in enumerate(to_recheck, 1):
+            _log(f"🔎 Riesame del rilievo {n}/{len(to_recheck)} ({f['file'] or 'copertura'})...")
+            # Codice citato, indice simboli e codice che cita gli identificativi del requisito,
+            # entro lo stesso budget di un lotto.
+            context = drift.code_context(all_texts.get(f["file"], ""), f["evidenza"], budget // 3)
+            block = drift.requirement_context(f["requisito"], canvas_content, spec_content)
+            prompt = drift.build_recheck_prompt(
+                canvas_content, spec_content, f, context,
+                drift.symbol_summary(symbols, budget // 3),
+                drift.related_code(block, dict(ordered), budget // 3, f"{f['descrizione']}\n{f['evidenza']}"),
+            )
+            outcome, reason = drift.parse_recheck(llm.generate(prompt, purpose="drift"))
+            if outcome == "rispettato":
+                f["scartato"] = f"riesame: non è una violazione ({reason or 'nessun motivo indicato'})"
+            elif outcome == "punto_aperto":
+                # Non un drift, ma resta visibile: su BE1 l'export Excel mancante (Canvas "CSV o
+                # Excel", Spec OP-001) veniva altrimenti scartato del tutto.
+                f["categoria"] = "punto_aperto"
+                f["descrizione"] += f" [riesame: punto aperto — {reason or 'nessun motivo indicato'}]"
+            elif outcome is None:
+                f["descrizione"] += " [riesame non interpretabile: rilievo mantenuto]"
     except llm.LLMError as e:
-        # Il controllo drift è tollerante: l'errore diventa parte del report, mai
-        # un'eccezione verso l'interfaccia.
+        # Il controllo drift è tollerante: l'errore diventa il report, mai un'eccezione
+        # verso l'interfaccia. Si interrompe subito: le chiamate successive fallirebbero
+        # allo stesso modo (generate ha già ritentato gli errori transitori).
         report = f"❌ Errore durante il check drift: {e}"
+    else:
+        discarded = sum(1 for f in findings if f["scartato"])
+        if discarded:
+            _log(f"🧹 {discarded} rilievo/i scartato/i dalla verifica deterministica.")
+        report = drift.build_report(findings, coverage=coverage, prechecks_found=tech_found, failures=failures)
 
     _log("\n" + "=" * 50)
     _log("📊 REPORT DRIFT:")

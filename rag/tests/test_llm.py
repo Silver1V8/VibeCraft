@@ -926,25 +926,395 @@ def test_llm_settings_budget_con_tipi_sbagliati_fallisce():
         }, boot=True)
 
 
-def test_check_drift_tronca_oltre_il_tetto_di_caratteri(fake_settings, monkeypatch, tmp_path):
-    # Anche escludendo node_modules, una feature con molti file sorgente legittimi
-    # potrebbe superare la finestra di contesto: meglio un troncamento esplicito e
-    # segnalato che un prompt enorme spedito a Ollama.
+# ---------------------------------------------------------------------------
+# Check drift affidabile (core/drift.py): Spec come fonte normativa, lotti al posto del
+# troncamento cieco, rilievi JSON verificati sul codice reale, verdetto calcolato.
+# Banco di prova: i falsi positivi dei run reali su BE1 (AUDIT_LOG sull'export imposto
+# da S07, "MinIO mancante" in un .csproj tagliato dal troncamento, ...).
+
+def _drift_feature(tmp_path, monkeypatch, canvas="## Requirements\ncontratto", spec=None, dev_type="backend"):
     from core import indexing
-
-    monkeypatch.setattr(indexing, "_DRIFT_MAX_CODE_CHARS", 100)
-    captured = {}
-    monkeypatch.setattr(indexing.llm, "generate",
-                        lambda prompt, *, purpose: captured.setdefault("prompt", prompt) or "OK")
-
-    feature = tmp_path / "changes" / "feat-x"
+    feature = tmp_path / "changes" / "be1"
     feature.mkdir(parents=True)
-    (feature / "canvas.md").write_text("## Requirements\n", encoding="utf-8")
+    (feature / "canvas.md").write_text(canvas, encoding="utf-8")
+    if spec is not None:
+        (feature / "spec.md").write_text(spec, encoding="utf-8")
+    (feature / "meta.json").write_text(f'{{"dev_type": "{dev_type}"}}', encoding="utf-8")
     monkeypatch.setattr(indexing, "CHANGES_DIR", tmp_path / "changes")
     monkeypatch.setattr(indexing, "CODE_DIR", tmp_path / "code")
-    (feature / "big.py").write_text("y" * 500, encoding="utf-8")
+    code = tmp_path / "code" / dev_type
+    code.mkdir(parents=True)
+    return code
 
+
+def _drift_llm(monkeypatch, batch_json='{"rilievi": []}', coverage_json='{"rilievi": []}',
+               recheck_json='{"esito": "violato", "motivo": "confermato"}'):
+    """LLM finto: risponde in base al tipo di prompt (lotto, riesame o copertura) e li registra."""
+    from core import indexing
+    prompts = []
+
+    def fake(prompt, *, purpose):
+        prompts.append(prompt)
+        if "Controllo di COPERTURA" in prompt:
+            return coverage_json
+        return recheck_json if "AFFERMAZIONE DA VERIFICARE" in prompt else batch_json
+
+    monkeypatch.setattr(indexing.llm, "generate", fake)
+    return prompts
+
+
+def test_check_drift_include_la_spec_nel_prompt_con_precedenza(fake_settings, monkeypatch, tmp_path):
+    from core import indexing
+    code = _drift_feature(tmp_path, monkeypatch, spec="SCENARIO: S07 - export\nTHEN registra AUDIT_LOG con commento \"ESPORTAZIONE_CSV\"")
+    (code / "Reporting.cs").write_text("class Reporting {}", encoding="utf-8")
+    prompts = _drift_llm(monkeypatch)
+
+    report = indexing.check_drift("be1", emit=lambda _m: None)
+
+    assert prompts and all("ESPORTAZIONE_CSV" in p for p in prompts)
+    assert "SPEC (prevale sul Canvas)" in prompts[0]
+    assert report.startswith("✅ NESSUN DRIFT RILEVATO")
+
+
+def test_check_drift_scarta_rilievo_con_citazione_inesistente(fake_settings, monkeypatch, tmp_path):
+    from core import indexing
+    code = _drift_feature(tmp_path, monkeypatch, canvas="## Safeguards\n- Ogni endpoint deve verificare l'autorizzazione.")
+    (code / "Program.cs").write_text('app.MapGet("/budget").RequireAuthorization("CanManageEvent");', encoding="utf-8")
+    finding = ('{"rilievi": [{"categoria": "drift", "gravita": "alta", "sezione": "Canvas §7",'
+               ' "requisito": "Ogni endpoint deve verificare l\'autorizzazione", "file": "Program.cs",'
+               ' "evidenza": "app.MapDelete(\\"/events\\").AllowAnonymous();", "descrizione": "endpoint aperto"}]}')
+    _drift_llm(monkeypatch, batch_json=finding)
+
+    report = indexing.check_drift("be1", emit=lambda _m: None)
+
+    assert report.startswith("✅ NESSUN DRIFT RILEVATO")
+    assert "SCARTATI DALLA VERIFICA AUTOMATICA" in report
+    assert "citazione del codice non trovata" in report
+
+
+def test_check_drift_conferma_rilievo_con_citazione_reale(fake_settings, monkeypatch, tmp_path):
+    from core import indexing
+    code = _drift_feature(tmp_path, monkeypatch, canvas="## Safeguards\n- Ogni endpoint deve verificare l'autorizzazione.")
+    (code / "Program.cs").write_text('app.MapDelete("/events")\n    .AllowAnonymous();', encoding="utf-8")
+    finding = ('{"rilievi": [{"categoria": "drift", "gravita": "alta", "sezione": "Canvas §7",'
+               ' "requisito": "Ogni endpoint deve verificare l\'autorizzazione", "file": "Program.cs",'
+               ' "evidenza": "app.MapDelete(\\"/events\\") .AllowAnonymous();", "descrizione": "endpoint aperto"},'
+               ' {"categoria": "conforme", "requisito": "RBAC", "evidenza": "x", "descrizione": "ok"}]}')
+    _drift_llm(monkeypatch, batch_json=f"```json\n{finding}\n```")
+
+    report = indexing.check_drift("be1", emit=lambda _m: None)
+
+    assert report.startswith("⚠️ DRIFT RILEVATO: 1 ")  # il rilievo "conforme" non conta
+    assert "Evidenza: Program.cs" in report
+
+
+def test_check_drift_riesame_scarta_il_rilievo_smentito(fake_settings, monkeypatch, tmp_path):
+    # Citazione reale ma conclusione sbagliata (BE1: "AuditLog solo sull'export" citando
+    # proprio la riga dell'export): il riesame mirato la scarta.
+    from core import indexing
+    code = _drift_feature(tmp_path, monkeypatch, canvas="## Operations\n- Ogni comando di scrittura persiste una riga AuditLog.")
+    (code / "Reporting.cs").write_text('db.AuditLogs.Add(new AuditLog("ESPORTAZIONE_CSV"));', encoding="utf-8")
+    finding = ('{"rilievi": [{"categoria": "drift", "sezione": "Canvas §5",'
+               ' "requisito": "Ogni comando di scrittura persiste una riga AuditLog", "file": "Reporting.cs",'
+               ' "evidenza": "db.AuditLogs.Add(new AuditLog(\\"ESPORTAZIONE_CSV\\"));", "descrizione": "audit solo sull\'export"}]}')
+    prompts = _drift_llm(monkeypatch, batch_json=finding,
+                         recheck_json='{"esito": "rispettato", "motivo": "l\'audit è presente"}')
+
+    report = indexing.check_drift("be1", emit=lambda _m: None)
+
+    recheck = [p for p in prompts if "AFFERMAZIONE DA VERIFICARE" in p]
+    assert len(recheck) == 1 and 'db.AuditLogs.Add(new AuditLog("ESPORTAZIONE_CSV"));' in recheck[0]
+    assert report.startswith("✅ NESSUN DRIFT RILEVATO")
+    assert "riesame: non è una violazione (l'audit è presente)" in report
+
+
+def test_drift_riesame_riceve_lo_scenario_intero_del_requisito():
+    from core import drift
+    spec = ("```gherkin\nSCENARIO: S02 - Creazione evento fallita per mancanza di locandina\n"
+            "  THEN rifiuta\n  AND non genera alcuna riga nell'entità AUDIT_LOG relativa alla scrittura fallita\n```\n\n"
+            "```gherkin\nSCENARIO: S07 - Esportazione\n  AND registra l'esportazione nell'entità AUDIT_LOG\n```")
+    context = drift.requirement_context(
+        "AND non genera alcuna riga nell'entità AUDIT_LOG relativa alla scrittura fallita", "## Canvas", spec)
+    assert "S02 - Creazione evento fallita per mancanza di locandina" in context
+    assert "S07" not in context
+
+
+def test_check_drift_dichiara_i_file_non_visti(fake_settings, monkeypatch, tmp_path):
+    from core import indexing
+    monkeypatch.setattr(indexing, "_DRIFT_MAX_CODE_CHARS", 300)
+    code = _drift_feature(tmp_path, monkeypatch)
+    # Ogni file sta in un lotto da 300 caratteri, i due insieme no.
+    (code / "A.cs").write_text("class A {}\n" * 12, encoding="utf-8")
+    (code / "B.cs").write_text("class B {}\n" * 12, encoding="utf-8")
+    prompts = _drift_llm(monkeypatch)
+
+    report = indexing.check_drift("be1", emit=lambda _m: None)
+
+    first, second = prompts[0], prompts[1]
+    non_visti = "IN QUESTO LOTTO NON VEDI"
+    assert "--- FILE: A.cs ---" in first and "- B.cs" in first.split(non_visti)[1]
+    assert "--- FILE: B.cs ---" in second and "- A.cs" in second.split(non_visti)[1]
+    assert "2 file analizzati in 2 lotto/i" in report
+
+    # Oltre il numero massimo di lotti i file restano fuori, ma dichiarati.
+    monkeypatch.setattr(indexing, "_DRIFT_MAX_BATCHES", 1)
+    prompts.clear()
+    report = indexing.check_drift("be1", emit=lambda _m: None)
+    assert "non analizzati: B.cs" in report
+    assert "- B.cs" in prompts[-1].split("FILE NON ANALIZZATI NEI LOTTI")[1]  # anche alla copertura
+
+
+def test_check_drift_divide_i_file_grandi_invece_di_troncarli(fake_settings, monkeypatch, tmp_path):
+    # Il vecchio tetto troncava il codice e l'LLM affermava l'assenza di ciò che stava
+    # nella parte tagliata (BE1: "manca MinIO" con Minio nel .csproj).
+    from core import indexing
+    monkeypatch.setattr(indexing, "_DRIFT_MAX_CODE_CHARS", 300)
+    code = _drift_feature(tmp_path, monkeypatch)
+    (code / "Big.cs").write_text("".join(f"// riga {i}\n" for i in range(60)), encoding="utf-8")
+    prompts = _drift_llm(monkeypatch)
+
+    indexing.check_drift("be1", emit=lambda _m: None)
+
+    batches = [p for p in prompts if "Controllo di COPERTURA" not in p]
+    assert len(batches) > 1
+    assert "Big.cs (parte 1/" in batches[0]
+    seen = "".join(batches)
+    assert all(f"// riga {i}\n" in seen for i in range(60))
+    assert "[codice troncato" not in seen
+
+
+def test_check_drift_precheck_dipendenza_presente_nel_manifest(fake_settings, monkeypatch, tmp_path):
+    from core import indexing
+    code = _drift_feature(tmp_path, monkeypatch, canvas="## Approach\n- Usare **MinIO o Azure Blob Storage** per le locandine.")
+    (code / "Portal.Infrastructure.csproj").write_text(
+        '<Project Sdk="Microsoft.NET.Sdk"><ItemGroup>'
+        '<PackageReference Include="Minio" Version="7.0.0" /></ItemGroup></Project>', encoding="utf-8")
+    (code / "Storage.cs").write_text("class PosterStorage {}", encoding="utf-8")
+    coverage = ('{"rilievi": [{"categoria": "drift", "sezione": "Canvas §3",'
+                ' "requisito": "Usare MinIO o Azure Blob Storage per le locandine",'
+                ' "termini": ["Minio"], "descrizione": "libreria MinIO assente dal csproj"}]}')
+    prompts = _drift_llm(monkeypatch, coverage_json=coverage)
     logs = []
-    indexing.check_drift("feat x", emit=logs.append)
-    assert "[codice troncato" in captured["prompt"]
-    assert any("troncato" in m for m in logs)
+
+    report = indexing.check_drift("be1", emit=logs.append)
+
+    assert "- MinIO: presente come `Minio` in Portal.Infrastructure.csproj" in prompts[0]
+    assert any("Pre-check: 'MinIO'" in m for m in logs)
+    assert report.startswith("✅ NESSUN DRIFT RILEVATO")
+    assert "'Minio' è presente nel codice" in report
+
+
+def test_check_drift_conferma_mancanza_con_termini_assenti(fake_settings, monkeypatch, tmp_path):
+    # Il vero disallineamento trovato su BE1 (export Excel mancante) deve restare un drift.
+    from core import indexing
+    code = _drift_feature(tmp_path, monkeypatch,
+                          canvas="## Requirements\n- Scaricare i partecipanti in formati CSV o Excel.")
+    # Un termine citato solo in un commento o in un test non smentisce la mancanza.
+    (code / "Reporting.cs").write_text(
+        "class Reporting {\n    // CSV compatibile con l'apertura in Excel\n    string ToCsv() => \"\"; /* niente xlsx */\n}",
+        encoding="utf-8")
+    (code / "tests").mkdir()
+    (code / "tests" / "ExportTests.cs").write_text("void Export_Xlsx_IsRejected() {}", encoding="utf-8")
+    coverage = ('{"rilievi": [{"categoria": "drift", "gravita": "media", "sezione": "Canvas §1",'
+                ' "requisito": "Scaricare i partecipanti in formati CSV o Excel",'
+                ' "termini": ["Excel", "Xlsx"], "descrizione": "manca l\'export Excel"}]}')
+    _drift_llm(monkeypatch, coverage_json=coverage)
+
+    report = indexing.check_drift("be1", emit=lambda _m: None)
+
+    assert report.startswith("⚠️ DRIFT RILEVATO: 1 ")
+    assert "Termini cercati (assenti nel codice): Excel, Xlsx" in report
+
+
+def test_check_drift_mancanza_dal_lotto_smentita_da_un_altro_file(fake_settings, monkeypatch, tmp_path):
+    # BE1: "in Reporting.cs manca la validazione del budget", che sta in EventCommands.cs.
+    from core import indexing
+    monkeypatch.setattr(indexing, "_DRIFT_MAX_CODE_CHARS", 300)
+    code = _drift_feature(tmp_path, monkeypatch, canvas="## Requirements\n- Rifiutare la pubblicazione se il budget è insufficiente.")
+    (code / "EventCommands.cs").write_text('throw new ValidationException("BUDGET_INSUFFICIENTE");\n' * 5, encoding="utf-8")
+    (code / "Reporting.cs").write_text("public sealed class BudgetQueries { }\n" * 5, encoding="utf-8")
+    finding = ('{"rilievi": [{"categoria": "drift", "tipo": "mancanza", "sezione": "Canvas §1",'
+               ' "requisito": "Rifiutare la pubblicazione se il budget è insufficiente", "file": "Reporting.cs",'
+               ' "evidenza": "public sealed class BudgetQueries { ... }", "termini": ["BUDGET_INSUFFICIENTE"],'
+               ' "descrizione": "manca la validazione del budget"}]}')
+    _drift_llm(monkeypatch, batch_json=finding)
+
+    report = indexing.check_drift("be1", emit=lambda _m: None)
+
+    assert report.startswith("✅ NESSUN DRIFT RILEVATO")
+    assert "'BUDGET_INSUFFICIENTE' è presente nel codice (EventCommands.cs)" in report
+
+
+def test_check_drift_alternativa_tecnica_soddisfatta_non_e_una_mancanza(fake_settings, monkeypatch, tmp_path):
+    from core import indexing
+    code = _drift_feature(tmp_path, monkeypatch, canvas="## Approach\n- Usare **MinIO o Azure Blob Storage** per le locandine.")
+    (code / "Infra.csproj").write_text(
+        '<Project><ItemGroup><PackageReference Include="Minio" /></ItemGroup></Project>', encoding="utf-8")
+    coverage = ('{"rilievi": [{"categoria": "drift", "requisito": "Usare MinIO o Azure Blob Storage per le locandine",'
+                ' "termini": ["Azure Blob Storage"], "descrizione": "manca Azure"}]}')
+    _drift_llm(monkeypatch, coverage_json=coverage)
+
+    report = indexing.check_drift("be1", emit=lambda _m: None)
+
+    assert report.startswith("✅ NESSUN DRIFT RILEVATO")
+    assert "alternativa tecnica già soddisfatta da MinIO (Minio in Infra.csproj)" in report
+
+
+def test_check_drift_riesame_mancanza_vede_il_codice_degli_identificativi(fake_settings, monkeypatch, tmp_path):
+    # "Publish() non controlla il budget" con un nome inventato: il riesame deve vedere
+    # l'handler (altro file) che cita BUDGET_ANNUO, identificativo dello scenario.
+    from core import indexing
+    spec = "```gherkin\nSCENARIO: S03 - Pubblicazione fallita\n  AND costo superiore al saldo del BUDGET_ANNUO\n  THEN rifiuta la transizione applicando la validazione del budget\n```"
+    code = _drift_feature(tmp_path, monkeypatch, spec=spec)
+    (code / "Event.cs").write_text("public void Publish() { Status = PUBBLICATO; }", encoding="utf-8")
+    (code / "EventCommands.cs").write_text('if (cost > residual) throw new Err("saldo del BUDGET_ANNUO");', encoding="utf-8")
+    finding = ('{"rilievi": [{"categoria": "drift", "tipo": "mancanza", "requisito": "rifiuta la transizione applicando la validazione del budget",'
+               ' "file": "Event.cs", "evidenza": "public void Publish()", "termini": ["BudgetExceededException"],'
+               ' "descrizione": "nessun controllo del budget"}]}')
+    prompts = _drift_llm(monkeypatch, batch_json=finding)
+
+    indexing.check_drift("be1", emit=lambda _m: None)
+
+    recheck = next(p for p in prompts if "AFFERMAZIONE DA VERIFICARE" in p)
+    related = recheck.split("CITA GLI IDENTIFICATIVI DEL REQUISITO ---")[1]
+    assert "--- EventCommands.cs (riga 1) ---" in related and "saldo del BUDGET_ANNUO" in related
+
+
+def test_drift_related_code_usa_gli_identificatori_del_rilievo():
+    # "Publish() non valida che `MaxCapacity` sia >= 5": il validator è in un altro file e
+    # il requisito S04 non ha identificativi MAIUSCOLI che lo raggiungano.
+    from core import drift
+    sources = {"Event.cs": "public int MaxCapacity { get; }",
+               "Validators.cs": "class X {}\n" * 30 + "RuleFor(e => e.MaxCapacity).GreaterThanOrEqualTo(MinCapacity);"}
+    requirement = "THEN restituisce un errore: la capienza deve essere almeno 5"
+    assert drift.related_code(requirement, sources, 2000) == ""
+    out = drift.related_code(requirement, sources, 2000, "Publish() non valida che `MaxCapacity` sia >= 5")
+    assert "--- Validators.cs (riga 31) ---" in out and "GreaterThanOrEqualTo(MinCapacity)" in out
+
+
+def test_check_drift_riesame_anche_per_la_copertura(fake_settings, monkeypatch, tmp_path):
+    # Mancanza con nome inventato (ValidateCapacity) ma requisito coperto altrove.
+    from core import indexing
+    code = _drift_feature(tmp_path, monkeypatch, canvas="## Requirements\n- La capienza deve essere almeno 5.")
+    (code / "Validators.cs").write_text("RuleFor(e => e.MaxCapacity).GreaterThanOrEqualTo(5);", encoding="utf-8")
+    coverage = ('{"rilievi": [{"categoria": "drift", "requisito": "La capienza deve essere almeno 5",'
+                ' "termini": ["ValidateCapacity"], "descrizione": "manca la validazione"}]}')
+    prompts = _drift_llm(monkeypatch, coverage_json=coverage,
+                         recheck_json='{"esito": "rispettato", "motivo": "coperto dal validator"}')
+
+    report = indexing.check_drift("be1", emit=lambda _m: None)
+
+    recheck = [p for p in prompts if "AFFERMAZIONE DA VERIFICARE" in p]
+    assert len(recheck) == 1 and "rilievo di copertura" in recheck[0]
+    assert report.startswith("✅ NESSUN DRIFT RILEVATO")
+    assert "riesame: non è una violazione (coperto dal validator)" in report
+
+
+def test_check_drift_contraddizione_con_termini_presenti_e_scartata(fake_settings, monkeypatch, tmp_path):
+    from core import indexing
+    code = _drift_feature(tmp_path, monkeypatch, canvas="## Norms\n- I log devono usare Serilog.")
+    (code / "Program.cs").write_text("builder.Host.UseSerilog();\nvar x = 1;", encoding="utf-8")
+    finding = ('{"rilievi": [{"categoria": "drift", "tipo": "contraddizione", "requisito": "I log devono usare Serilog",'
+               ' "file": "Program.cs", "evidenza": "var x = 1;", "termini": ["Serilog"], "descrizione": "niente Serilog"}]}')
+    _drift_llm(monkeypatch, batch_json=finding)
+
+    report = indexing.check_drift("be1", emit=lambda _m: None)
+
+    assert report.startswith("✅ NESSUN DRIFT RILEVATO")
+    assert "'Serilog' è presente nel codice (Program.cs)" in report
+
+
+def test_check_drift_punto_aperto_non_implementato_resta_nel_verdetto(fake_settings, monkeypatch, tmp_path):
+    # BE1 senza export Excel: il Canvas chiede "CSV o Excel", la Spec lascia XLSX aperto
+    # (OP-001). Non è un drift, ma non può finire sotto un ✅.
+    from core import indexing
+    code = _drift_feature(tmp_path, monkeypatch, canvas="## Requirements\n- Scaricare i partecipanti in formati CSV o Excel.")
+    (code / "Reporting.cs").write_text("class Reporting { string ToCsv() => \"\"; }", encoding="utf-8")
+    coverage = ('{"rilievi": [{"categoria": "punto_aperto", "sezione": "Spec OP-001",'
+                ' "requisito": "Scaricare i partecipanti in formati CSV o Excel",'
+                ' "termini": ["Xlsx"], "descrizione": "XLSX non implementato"}]}')
+    _drift_llm(monkeypatch, coverage_json=coverage)
+
+    report = indexing.check_drift("be1", emit=lambda _m: None)
+
+    assert report.startswith("⚠️ PUNTI APERTI DA DECIDERE: nessun drift, ma 1 ")
+    assert "Termini cercati (assenti nel codice): Xlsx" in report
+
+
+def test_check_drift_riesame_punto_aperto_declassa_senza_nascondere(fake_settings, monkeypatch, tmp_path):
+    # BE1 senza Excel: il riesame giudicava XLSX "punto aperto" (Spec OP-001) e il vero
+    # disallineamento spariva tra gli scartati.
+    from core import indexing
+    code = _drift_feature(tmp_path, monkeypatch, canvas="## Requirements\n- Scaricare i partecipanti in formati CSV o Excel.")
+    (code / "Reporting.cs").write_text('Formats = { "csv" };', encoding="utf-8")
+    coverage = ('{"rilievi": [{"categoria": "drift", "requisito": "Scaricare i partecipanti in formati CSV o Excel",'
+                ' "termini": ["Xlsx"], "descrizione": "manca Excel"}]}')
+    _drift_llm(monkeypatch, coverage_json=coverage,
+               recheck_json='{"esito": "punto_aperto", "motivo": "XLSX è in OP-001"}')
+
+    report = indexing.check_drift("be1", emit=lambda _m: None)
+
+    assert report.startswith("⚠️ PUNTI APERTI DA DECIDERE")
+    assert "[riesame: punto aperto — XLSX è in OP-001]" in report
+
+
+def test_drift_nome_composto_ipotetico_non_prova_una_mancanza():
+    # Termini osservati nei run reali su BE1: falsi positivi con nomi inventati le cui parti
+    # esistono tutte, veri positivi (export Excel assente) con parti assenti.
+    from core import drift
+    searchable = {"EventCommands.cs": "logger.logerror(ex); await tx.rollbackasync(); begintransactionasync(); "
+                                      "new validationexception(); maxcapacity; capacity",
+                  "Reporting.cs": "export csv"}
+
+    def check(terms):
+        out = drift._base({"tipo": "mancanza", "termini": terms})
+        return drift._terms_absent(out, searchable), out["scartato"]
+
+    ok, reason = check(["CapacityValidationException"])
+    assert not ok and reason.startswith("nome ipotetico: le parti di 'CapacityValidationException'")
+    assert not check(["RollbackTransaction"])[0]
+    assert check(["ExcelExporter", "ToXlsx"]) == (True, "")
+    assert check(["XLSX"]) == (True, "")
+
+
+def test_drift_dedupe_unisce_le_mancanze_con_termini_sovrapposti():
+    from core import drift
+    gaps = [drift._base({"tipo": "mancanza", "requisito": r, "termini": t})
+            for r, t in (("CSV o Excel", ["Xlsx", "Excel"]), ("export excel", ["XlsxDocumentFormat"]),
+                         ("S04 capienza", ["MaxCapacity"]))]
+    assert [g["requisito"] for g in drift.dedupe(gaps)] == ["CSV o Excel", "S04 capienza"]
+
+
+def test_drift_parse_findings_recupera_json_malformato():
+    # Risposte reali di qwen3.5:9b su BE1: virgolette del codice non escape, rilievi
+    # concatenati come chiavi ripetute di un solo oggetto, risposta troncata.
+    from core import drift
+    text = ('{"rilievi":[{"categoria":"drift","requisito":"S07 export","file":"Reporting.cs",'
+            '"evidenza":"Formats = { "csv" };","descrizione":"solo csv","categoria":"drift",'
+            '"requisito":"S02 audit","evidenza":"db.AuditLogs.Add(x);","termini":["Audit"],"descrizione":"tronc')
+    findings = drift.parse_findings(text)
+    assert [f["evidenza"] for f in findings] == ['Formats = { "csv" };', "db.AuditLogs.Add(x);"]
+    assert findings[1]["termini"] == ["Audit"] and findings[1]["descrizione"] == "tronc"
+    assert drift.parse_findings('{"rilievi": []}') == []
+    assert drift.parse_findings("nessun problema") is None
+    assert drift.parse_recheck('{"richiesto": "x "y"", "esito": "rispettato", "motivo": "ok"}') == ("rispettato", "ok")
+    assert drift.parse_recheck('{"violato": false, "motivo": "ok"}') == ("rispettato", "ok")  # formato booleano
+    assert drift.parse_recheck("non so") == (None, "")
+    # "Rispettato perché XLSX è un punto aperto" (risposta reale su BE1 senza Excel).
+    assert drift.parse_recheck('{"esito": "rispettato", "motivo": "XLSX è un punto aperto della Spec"}')[0] == "punto_aperto"
+    # Citazione su più righe con una riga intermedia saltata dal modello.
+    code = drift.norm('reports.MapGet("/export", async (h) =>\n{\n    var file = await h.Handle(cmd);\n});')
+    assert drift.quote_in('reports.MapGet("/export", async (h) =>\n    var file = await h.Handle(cmd);', code)
+    assert not drift.quote_in('reports.MapGet("/export", async (h) =>\n    var file = Inventato();', code)
+
+
+def test_check_drift_risposta_non_json_rende_la_verifica_incompleta(fake_settings, monkeypatch, tmp_path):
+    from core import indexing
+    code = _drift_feature(tmp_path, monkeypatch)
+    (code / "A.cs").write_text("class A {}", encoding="utf-8")
+    _drift_llm(monkeypatch, batch_json="Il codice è conforme, direi.")
+
+    report = indexing.check_drift("be1", emit=lambda _m: None)
+
+    assert report.startswith("⚠️ VERIFICA INCOMPLETA")
+    assert "Lotto 1: risposta dell'LLM non interpretabile" in report

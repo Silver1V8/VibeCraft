@@ -988,6 +988,48 @@ Un'istanza fresca per job costa solo qualche secondo di caricamento,
 trascurabile rispetto al lavoro di embedding che segue — non vale la pena
 condividere l'istanza fra i due usi.
 
+## Check drift (Step 4): rilievi verificati, verdetto calcolato
+
+`core.indexing.check_drift` orchestra, `core/drift.py` contiene la logica pura. Il check
+storico passava all'LLM il solo Canvas e 40.000 caratteri di codice troncati alla cieca, e
+ne mostrava il testo libero: su BE1 segnalava come drift requisiti imposti dalla Spec,
+librerie "mancanti" che stavano nei file tagliati, verdetti NO che si davano torto da soli.
+
+1. **Contratto = Canvas + Spec**, con precedenza dichiarata alla Spec: uno scenario vince
+   sul Canvas, un punto aperto non è un difetto.
+2. **Lotti, non troncamento**: i file (prima quelli citati dal Canvas) sono distribuiti in
+   lotti entro `ollama_num_ctx`; un file grande è diviso in parti. Ogni prompt elenca i file
+   che il modello *non* vede. Test e migrazioni generate restano fuori dai lotti.
+3. **Pre-check deterministico**: le tecnologie in grassetto nel Canvas sono cercate tra le
+   dipendenze dei manifest (csproj, pom, gradle, package.json, dal code index) e date al
+   modello come fatti; un'alternativa tecnica già soddisfatta ("MinIO o Azure") non può
+   diventare una mancanza.
+4. **Rilievi JSON verificati in Python**: la citazione del codice deve esistere nei file
+   visti; ogni "mancanza" porta dei termini che non devono comparire nel codice (commenti e
+   test esclusi); il JSON malformato del modello locale si recupera rilievo per rilievo.
+5. **Controllo di copertura** sull'indice dei simboli di tutto il progetto.
+6. **Riesame mirato** di ogni drift sopravvissuto: scenario intero, codice citato, indice
+   dei simboli e righe che citano gli identificativi del requisito; esito `violato`,
+   `rispettato` (scartato) o `punto_aperto` (declassato ma visibile).
+7. **Verdetto calcolato**: `✅ NESSUN DRIFT`, `⚠️ DRIFT RILEVATO`, `⚠️ PUNTI APERTI DA
+   DECIDERE` (requisito assente ma aperto nella Spec) o `⚠️ VERIFICA INCOMPLETA` (risposta
+   non interpretabile). La UI colora lo Step 4 da questa prima riga; gli scartati restano
+   nel report con il motivo.
+
+Costo: un lotto ogni ~17.500 caratteri di codice, più copertura e riesami. Su BE1 servono
+40–85 s con qwen3.5:9b sulla RTX 3070 Ti, contro i 12–20 s del check storico.
+
+Misurato il 2026-09-16 su BE1 (5 run per caso, temperatura 0.1):
+
+| Caso | Check storico | Check attuale |
+|---|---|---|
+| Codice conforme | NO in 2/2 run, 6–9 rilievi falsi (file "mancanti" solo perché troncati) | ✅ in 4/5 run; 1 run con 1 falso positivo |
+| Copia senza export Excel (vero drift) | Excel non citato; report "NO" chiuso da "✅ NESSUN DRIFT" | segnalato in 5/5 run (4 DRIFT, 1 PUNTI APERTI) |
+
+Limite noto: il falso positivo residuo è sempre una "mancanza" con un nome inventato di cui
+il riesame non riconosce l'implementazione altrove. Il modello locale resta un giudice
+debole: il report mostra sempre gli scartati e il loro motivo, così l'esito si verifica a mano.
+
 ## Esclusioni dalla scansione del codice generato
 
 `CODE_EXCLUDED_DIRS` (core/config.py) è la lista condivisa di cartelle mai
