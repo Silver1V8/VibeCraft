@@ -2211,7 +2211,9 @@ def check_drift(feature_name: str, emit=None) -> str:
     # Raccoglie il codice da confrontare: sia dall'eventuale codice presente nella
     # cartella della feature, sia dalla sottocartella code/<dev_type> dove Claude
     # Code scrive di fatto l'implementazione (il tipo di sviluppo è in meta.json).
-    code_exts = ('.js', '.ts', '.tsx', '.py', '.html', '.css')
+    # Stessa lista del code index: una copia locale escludeva .cs/.java/.sql e il drift
+    # di feature backend .NET/Java risultava "nessun file di codice".
+    code_exts = CODE_EXTS
     search_dirs = [feature_dir_path]
     dev_type = _load_dev_type(feature_dir_path)
     if dev_type:

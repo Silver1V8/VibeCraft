@@ -11,6 +11,7 @@ from pathlib import Path
 
 import yaml
 
+from code_index import CODE_EXTS
 from core import llm
 from core.config import PROJECT_ROOT, RAG_DIR
 
@@ -22,7 +23,7 @@ REVIEW_FILENAME = "canvas_review.md"
 HISTORICAL_SUBDIR = "03_changes_historical"
 
 # Estensioni considerate "codice della change" quando si legge dai file di tasks.md.
-_CODE_EXTS = (".js", ".ts", ".tsx", ".py", ".html", ".css")
+_CODE_EXTS = tuple(CODE_EXTS)
 
 
 def extract_canvas_sections(canvas_text: str, names: tuple[str, ...] = REVIEW_SECTIONS) -> str:

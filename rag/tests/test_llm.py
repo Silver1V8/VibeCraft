@@ -583,6 +583,33 @@ def test_check_drift_esclude_node_modules_e_altre_cartelle_di_build(fake_setting
     assert "node_modules" not in captured["prompt"]
 
 
+def test_check_drift_include_codice_dotnet(fake_settings, monkeypatch, tmp_path):
+    # Regressione: la lista estensioni locale escludeva .cs e il drift di una feature
+    # backend .NET riportava "Nessun file di codice sorgente trovato".
+    from core import indexing
+
+    captured = {}
+    monkeypatch.setattr(indexing.llm, "generate", lambda prompt, *, purpose: captured.setdefault("prompt", prompt))
+
+    feature = tmp_path / "changes" / "be1"
+    feature.mkdir(parents=True)
+    (feature / "canvas.md").write_text("## Requirements\ncontratto", encoding="utf-8")
+    (feature / "meta.json").write_text('{"dev_type": "backend"}', encoding="utf-8")
+    monkeypatch.setattr(indexing, "CHANGES_DIR", tmp_path / "changes")
+    monkeypatch.setattr(indexing, "CODE_DIR", tmp_path / "code")
+
+    src = tmp_path / "code" / "backend" / "src" / "Portal.Api"
+    (src / "bin").mkdir(parents=True)
+    (src / "Program.cs").write_text("var app = 1;", encoding="utf-8")
+    (src / "bin" / "Generated.cs").write_text("// build", encoding="utf-8")
+
+    logs = []
+    indexing.check_drift("be1", emit=logs.append)
+    assert "Program.cs" in captured["prompt"]
+    assert "Generated.cs" not in captured["prompt"]
+    assert not any("Nessun file di codice" in m for m in logs)
+
+
 # ---------------------------------------------------------------------------
 # Logging strutturato della spesa Anthropic (token e costo stimato): il layer LLM
 # scartava message.usage dopo la risposta di Anthropic. Un fake module iniettato al
