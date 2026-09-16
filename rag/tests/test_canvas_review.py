@@ -362,6 +362,7 @@ def test_review_code_mette_prima_i_file_che_citano_i_simboli_del_contratto(archi
         (code / rel).parent.mkdir(parents=True, exist_ok=True)
         (code / rel).write_text(text, encoding="utf-8")
     monkeypatch.setattr(index, "CODE_DIR", archive_env / "code")
-    labels = [l for l in index._review_code(change_dir).splitlines() if l.startswith("--- FILE:")]
+    labels = [line for line in index._review_code(change_dir).splitlines()
+              if line.startswith("--- FILE:")]
     assert labels[:3] == ["--- FILE: src/z/Orchestrator.cs ---",
                           "--- FILE: src/components/EventCard.tsx ---", "--- FILE: src/lib/stock.ts ---"]
