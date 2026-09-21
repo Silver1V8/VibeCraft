@@ -1,5 +1,27 @@
 # Evidenze delle valutazioni
 
+## Scalabilità sidecar — 21 settembre 2026
+
+Implementazione integrata in `3eda61a`: ColBERT NPY per documento, letture a
+richiesta, riuso dei file invariati e misure del delta reale.
+
+| Evidenza | Cosa dimostra |
+|---|---|
+| [Reader](sidecar_readers_20260921/evidence/summary.csv) | Nell'esperimento I/O, incremento USS al caricamento: 233.312.256 byte eager NPZ contro 528.384 byte NPY; non è la memoria dell'intero servizio |
+| [Full e migrazione](sidecar_npy_20260921/evidence/PHASE5.md) | Picco RSS 6,436 → 3,152 GiB su 32 documenti / 64 chunk; una prova per variante. Migrazione degli array persistiti esatta |
+| [Delta e compromessi](sidecar_npy_20260921/evidence/PHASE6.md) | 150 prove per versione; a N=100/k=100 documenti, mediana 15,934 → 58,099 s fino allo snapshot pronto |
+| [Curve T(N,k)](sidecar_npy_20260921/evidence/phase6-summary/summary.md) | Mediane e intervalli per documenti, codice e misto; differenze rispetto al no-op |
+| [Retention](sidecar_retention_20260921/evidence/retention-summary.md) | Riuso degli hard link, lettori protetti e spazio fisico deduplicato su NTFS |
+
+Il codice misurato è `708a142`, confrontato con `0f479b2`; la revisione finale
+corregge l'attribuzione delle scritture NPY da `parsing_embedding` a `save_hash`.
+I breakdown storici conservano il limite documentato in PHASE6; totali, byte e
+risorse non sono stati ricalcolati. Non sono misure di qualità delle risposte LLM.
+Corpus e hardware limitano la generalizzazione: nessun crossover delta/full,
+capacità massima o soglia universale di sharding dimostrati.
+
+## Valutazioni Propose e conservazione delle evidenze
+
 **Fase 2 chiusa, 14 settembre 2026:** [resoconto finale dei tre giri Propose](FASE2_PROPOSE_20260914.md).
 Alla chiusura: miglioramento qualitativo non dimostrato; V3 non adottata, V4 respinta.
 Il resoconto include la riserva sul perimetro FE3-F4, da applicare anche ai

@@ -14,7 +14,7 @@ Le risposte sono ancorate alle fonti recuperate; citazioni, risultati parziali e
 aperti restano da verificare. Il retrieval non garantisce che ogni informazione utile
 del corpus sia stata trovata.
 
-Stato della documentazione: **15 settembre 2026**.
+Stato della documentazione: **21 settembre 2026**.
 
 ## Cosa fa
 
@@ -32,6 +32,8 @@ Stato della documentazione: **15 settembre 2026**.
 - **MCP locale di sola lettura** per retrieval, ricerca nel codice e interrogazione del grafo.
 - **Versionamento blue/green** dell'indice, eval-gate sui rebuild completi e rollback
   con verifica della collection Qdrant di destinazione.
+- **ColBERT su disco**, in file NPY per documento con lettura dei soli chunk richiesti;
+  benchmark del delta reale con memoria misurata e risultati riproducibili.
 
 ## Pipeline e agenti
 
@@ -281,7 +283,22 @@ Tre casi, in ordine di costo:
 |---|---|
 | Solo i documenti | `index.py --incremental` — reindicizza i soli file toccati |
 | Il **modello di embedding** (`rag_config.yaml`) | **Full rebuild** obbligatorio: i vettori vecchi non sono confrontabili con i nuovi. Il manifest registra il modello usato, quindi la differenza è rilevabile e non silenziosa |
-| Il **formato degli artefatti** | I formati correnti sono JSON e NPZ. Il vecchio layout piatto JSON/NPZ resta leggibile; il fallback ai `.pkl` è stato rimosso: gli indici solo pickle richiedono un rebuild |
+| Il **formato degli artefatti** | JSON, ColBERT in NPY per documento, dense/code in NPZ. Un ColBERT NPZ versionato richiede la migrazione sotto prima di un delta non vuoto; il vecchio layout piatto richiede una nuova build per passare a NPY. Gli indici solo pickle richiedono un rebuild |
+
+Per un indice **versionato** che usa ancora `colbert.npz`, dalla directory `rag/`:
+
+```bash
+uv run python index.py --check-integrity
+uv run python index.py --migrate-colbert-npy
+uv run python index.py --check-integrity
+```
+
+In Docker usa gli stessi argomenti con
+`docker compose --profile cpu run --rm app-cpu python index.py` dalla radice.
+La conversione verifica l'uguaglianza dei vettori senza ricalcolare gli embedding,
+pubblica una nuova versione e conserva Qdrant. Non ripara disallineamenti preesistenti:
+se il controllo segnala punti extra o mancanti, va prima diagnosticata la differenza.
+Gli indici già NPY non richiedono questa conversione.
 
 Per tornare a una versione conservata, dalla directory `rag/`:
 
@@ -301,6 +318,25 @@ L'eval-gate riguarda i rebuild completi; gli incrementali promuovono direttament
 Una metrica sotto soglia blocca la promozione se il gate è configurato come bloccante;
 un errore nell'esecuzione della valutazione o l'assenza del golden set lasciano invece
 passare la promozione. Questo gate è distinto da quello che autorizza l'avvio agentic.
+
+## Scalabilità: risultati e limiti
+
+ColBERT viene letto a richiesta e i delta riusano i file dei documenti invariati.
+Grafo, metadati e vettori dense/code mantengono costi globali: il corpus non diventa
+illimitato e il costo complessivo del delta non dipende soltanto dai file modificati.
+
+- Una prova full su CPU, 32 documenti / 64 chunk, ha ridotto il picco RSS campionato
+  da **6,436 a 3,152 GiB**. È una prova per variante; formato e raggruppamento
+  dell'encoding cambiano insieme, quindi non è una garanzia per ogni corpus.
+- Le curve del delta includono **150 prove per versione**, con corpus documenti,
+  codice e misto. Con 100 piccoli documenti tutti modificati, la mediana fino allo
+  snapshot pronto passa da **15,934 a 58,099 s**: meno RAM non significa più velocità
+  in ogni caso. Il batching limitato è stato studiato, ma non ancora implementato.
+- Non sono state fissate soglie universali di volume o di sharding. ColBERT rimane
+  locale; il backend multivettore Qdrant non è stato introdotto.
+
+Metodi, curve e limiti: [evidenze della scalabilità](rag/eval/results/README.md#scalabilità-sidecar--21-settembre-2026)
+e [istruzioni del benchmark](rag/README.md#delta-reale-isolato).
 
 ## Configurazione
 

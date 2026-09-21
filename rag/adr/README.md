@@ -32,3 +32,12 @@ indicizzare.
 - [Piano originale](SCALABILITA_SIDECAR_DELTA.md), conservato come fonte dei requisiti.
 - [Matrice finale e decisioni](SCALABILITA_SIDECAR_DELTA_MATRICE.md), con i limiti delle prove e i rami condizionali non attivati.
 - [Risultati finali, curve e compromessi](../eval/results/sidecar_npy_20260921/evidence/PHASE6.md), con migrazione, retention e studio del batching.
+
+Integrata su `main` in `3eda61a`: NPY per documento e letture a richiesta,
+migrazione NPZ esplicita e benchmark del delta reale. La review finale ha corretto
+l'attribuzione dei tempi di scrittura e il recupero dei reload interrotti.
+Verifica d'integrazione: 1.767 test passati su Windows (5 saltati per pesi Docling
+assenti), 438 su Linux (9 saltati per Git assente, coperti su Windows).
+Il risparmio di memoria è misurato; i delta numerosi di piccoli documenti possono
+rallentare. Batching limitato studiato, sharding e ColBERT su Qdrant non attivati.
+Per aggiornare un indice esistente seguire la [procedura operativa](../README.md#artefatti-dellindice-formati-sicuri-ispezionabili-e-versionati-bluegreen).

@@ -220,6 +220,7 @@
                 Architettura Graph RAG (Local-First)
             </h1>
             <p class="text-lg text-slate-600">Mappa visuale dei moduli <code class="font-mono">core/</code> + <code class="font-mono">api/</code>, degli artefatti dell'indice e del flusso di interrogazione ibrido.</p>
+            <p class="text-sm text-slate-500 mt-2">Documentazione aggiornata al 21 settembre 2026.</p>
         </header>
 
         <!-- Fascia KPI: dati REALI da /api/health, non numeri decorativi.
@@ -271,7 +272,7 @@
                 <p class="text-sm text-slate-600 mb-2">Ricerca ibrida dense + sparse su Qdrant, rerank ColBERT, autorita dichiarata e precedenza fra fonti.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Database vettoriale in <strong>server mode</strong> (via <code class="bg-gray-200 px-1 rounded font-mono">QDRANT_URL</code>, niente lock locale). Ricerca <strong>ibrida dense + sparse</strong> con fusione per rank, poi <strong>rerank ColBERT</strong>, ri-ponderazione per <strong>autorità</strong> e infine la <strong>precedenza dichiarata</strong> fra fonti (se un autore scrive <code class="bg-gray-200 px-1 rounded font-mono">SUPERA_IN_PRIORITÀ</code> verso un altro documento, nessun chunk del subordinato precede il prevalente: la decisione umana viene per ultima e vince). L'autorità è quella <strong>dichiarata nel frontmatter</strong> del documento, con il peso di classe come ripiego e un peso più basso e distinto per le fonti <strong>senza classificazione</strong>. La forma è <strong>attenuata</strong> — <code class="bg-gray-200 px-1 rounded font-mono">score × ((1−α) + α·authority)</code>, non la moltiplicazione piena: misurato, α=1 costa 15 punti di recall@5. I pesi vivono in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code> e si ricalibrano sul golden set con <code class="bg-gray-200 px-1 rounded font-mono">eval/calibrate_authority.py</code> — sempre con split di validazione e a un <em>k</em> dove la recall non sia satura. <code class="bg-gray-200 px-1 rounded font-mono">bge-m3</code> gira su <strong>CPU per le query</strong> e su <strong>GPU per il reindex</strong> batch: la VRAM è condivisa con Ollama.</p>
+                  <p class="mt-2">Database vettoriale in <strong>server mode</strong> (via <code class="bg-gray-200 px-1 rounded font-mono">QDRANT_URL</code>, niente lock locale). Ricerca <strong>ibrida dense + sparse</strong> con fusione per rank, poi <strong>rerank ColBERT locale</strong> con lettura a richiesta dei chunk dai sidecar NPY su disco, ri-ponderazione per <strong>autorità</strong> e infine la <strong>precedenza dichiarata</strong> fra fonti (se un autore scrive <code class="bg-gray-200 px-1 rounded font-mono">SUPERA_IN_PRIORITÀ</code> verso un altro documento, nessun chunk del subordinato precede il prevalente: la decisione umana viene per ultima e vince). L'autorità è quella <strong>dichiarata nel frontmatter</strong> del documento, con il peso di classe come ripiego e un peso più basso e distinto per le fonti <strong>senza classificazione</strong>. La forma è <strong>attenuata</strong> — <code class="bg-gray-200 px-1 rounded font-mono">score × ((1−α) + α·authority)</code>, non la moltiplicazione piena: misurato, α=1 costa 15 punti di recall@5. I pesi vivono in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code> e si ricalibrano sul golden set con <code class="bg-gray-200 px-1 rounded font-mono">eval/calibrate_authority.py</code> — sempre con split di validazione e a un <em>k</em> dove la recall non sia satura. <code class="bg-gray-200 px-1 rounded font-mono">bge-m3</code> gira su <strong>CPU per le query</strong> e su <strong>GPU per il reindex</strong> batch: la VRAM è condivisa con Ollama.</p>
                 </details>
             </div>
 
@@ -282,7 +283,7 @@
                 <p class="text-sm text-slate-600 mb-2">Nodi a livello di sezione e archi tipizzati con natura e affidabilita: alimenta BFS, Impact Ripple e Semantic Map.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Nodi a <strong>livello di sezione</strong> (non solo doc): i chunk diventano nodi e il <strong>code-link è per sezione</strong>. Archi tipizzati dal frontmatter più <strong>alias di autorità risolti in archi doc→doc</strong> che connettono il KG. Ogni arco porta una <strong>natura</strong> — <em>strutturale</em> (dedotta dal filesystem o da un parser: se è sbagliata è un bug), <em>curata</em> (dichiarata da un umano nel frontmatter), <em>inferita</em> (congettura di un algoritmo, penalizzata per costruzione) — e la relativa <strong>affidabilità</strong>. Da lì la <strong>fiducia sul cammino</strong> (<code class="bg-gray-200 px-1 rounded font-mono">trust_paths</code>): un nodo raggiunto via grafo vale <code class="bg-gray-200 px-1 rounded font-mono">1/lunghezza × Π(affidabilità)</code> sul cammino più breve — non PageRank, perché serve un punteggio relativo alla domanda, non una centralità globale. I nodi <code class="bg-gray-200 px-1 rounded font-mono">entity</code>/<code class="bg-gray-200 px-1 rounded font-mono">MENTIONS</code> passano da un <strong>vaglio di forma</strong> (<code class="bg-gray-200 px-1 rounded font-mono">extract_entities</code>) che scarta checkbox, link e segnaposto dei template — solo riferimenti veri, niente rumore. Artefatti <strong>sicuri e ispezionabili</strong> (JSON + .npz, addio pickle). Alimenta BFS, <strong>Impact Ripple</strong> e <strong>Semantic Map</strong>.</p>
+                  <p class="mt-2">Nodi a <strong>livello di sezione</strong> (non solo doc): i chunk diventano nodi e il <strong>code-link è per sezione</strong>. Archi tipizzati dal frontmatter più <strong>alias di autorità risolti in archi doc→doc</strong> che connettono il KG. Ogni arco porta una <strong>natura</strong> — <em>strutturale</em> (dedotta dal filesystem o da un parser: se è sbagliata è un bug), <em>curata</em> (dichiarata da un umano nel frontmatter), <em>inferita</em> (congettura di un algoritmo, penalizzata per costruzione) — e la relativa <strong>affidabilità</strong>. Da lì la <strong>fiducia sul cammino</strong> (<code class="bg-gray-200 px-1 rounded font-mono">trust_paths</code>): un nodo raggiunto via grafo vale <code class="bg-gray-200 px-1 rounded font-mono">1/lunghezza × Π(affidabilità)</code> sul cammino più breve — non PageRank, perché serve un punteggio relativo alla domanda, non una centralità globale. I nodi <code class="bg-gray-200 px-1 rounded font-mono">entity</code>/<code class="bg-gray-200 px-1 rounded font-mono">MENTIONS</code> passano da un <strong>vaglio di forma</strong> (<code class="bg-gray-200 px-1 rounded font-mono">extract_entities</code>) che scarta checkbox, link e segnaposto dei template — solo riferimenti veri, niente rumore. Artefatti <strong>sicuri e ispezionabili</strong> (JSON + NPY/NPZ, senza pickle). Alimenta BFS, <strong>Impact Ripple</strong> e <strong>Semantic Map</strong>.</p>
                 </details>
             </div>
 
@@ -330,7 +331,7 @@
                 <p class="text-sm text-slate-600 mb-2">Un solo scrittore per l'indice: coda a coalescing, writer lock cross-processo, journal persistente.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2"><strong>Un solo scrittore</strong> per l'indice: reindex incrementale e archive passano dalla stessa <strong>coda a coalescing</strong> del ReindexManager (webhook ravvicinati fusi, mai persi), con job-id interrogabili e <strong>journal JSONL</strong> persistente. La mutua esclusione vale anche <strong>cross-processo</strong>: CLI e server si escludono con un <strong>writer lock</strong> OS (<code class="bg-gray-200 px-1 rounded font-mono">database/.writer.lock</code>), niente artefatti misti. Trigger via <strong>webhook GitLab</strong> con secret token o manuale dalla console.</p>
+                  <p class="mt-2"><strong>Un solo scrittore</strong> per l'indice: reindex incrementale e archive passano dalla stessa <strong>coda a coalescing</strong> del ReindexManager (webhook ravvicinati fusi, mai persi), con job-id interrogabili e <strong>journal JSONL</strong> persistente. La mutua esclusione vale anche <strong>cross-processo</strong>: CLI e server si escludono con un <strong>writer lock</strong> OS (<code class="bg-gray-200 px-1 rounded font-mono">database/.writer.lock</code>), niente artefatti misti. Il journal distingue fine build e snapshot pronto; dopo un crash un reload pendente è marcato interrotto, conservando l’esito della build. Trigger via <strong>webhook GitLab</strong> con secret token o manuale dalla console.</p>
                 </details>
             </div>
 
@@ -338,10 +339,11 @@
                 <div class="text-3xl mb-3">📦</div>
                 <h2 class="text-xl font-bold mb-2">8. Gli Artefatti (blue/green)</h2>
                 <p class="text-sm font-mono bg-orange-50 p-1 rounded text-orange-700 mb-2">core/artifacts.py</p>
-                <p class="text-sm text-slate-600 mb-2">Ogni build e una nuova versione: swap atomico del puntatore CURRENT, rollback istantaneo.</p>
+                <p class="text-sm text-slate-600 mb-2">ColBERT su disco, letto quando serve. Versioni immutabili e riuso dei documenti invariati.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Unico punto di I/O dell'indice (<code class="bg-gray-200 px-1 rounded font-mono">graph.json</code>, <code class="bg-gray-200 px-1 rounded font-mono">chunks.json</code>, <code class="bg-gray-200 px-1 rounded font-mono">*.npz</code> fp16). Ogni build scrive una <strong>nuova versione</strong> in <code class="bg-gray-200 px-1 rounded font-mono">database/versions/v&lt;ts&gt;/</code>: lo <strong>swap è atomico</strong> spostando il puntatore <code class="bg-gray-200 px-1 rounded font-mono">CURRENT</code>, il <strong>rollback è istantaneo</strong>. Qdrant è versionato solo per i full rebuild (collection candidata + alias); gli incrementali lo mutano in place.</p>
+                  <p class="mt-2">Grafo e metadati in JSON; ColBERT in <strong>NPY fp16 per documento</strong>, con indice JSON degli offset; dense e codice restano NPZ. Il reader mappa il file, copia il solo chunk richiesto e chiude la mappa. I delta riusano i file immutati tramite hard link, con copia come fallback. La retention conserva le versioni ancora usate dai lettori.</p>
+                  <p class="mt-2">Ogni build scrive una nuova versione: lo swap del puntatore <code class="bg-gray-200 px-1 rounded font-mono">CURRENT</code> è atomico. Qdrant è versionato solo per i full rebuild; un rollback fra incrementali <strong>non riavvolge i punti Qdrant</strong>. Gli indici NPZ restano leggibili, ma richiedono <code class="bg-gray-200 px-1 rounded font-mono">index.py --migrate-colbert-npy</code> prima di un delta non vuoto. Eseguire <code class="bg-gray-200 px-1 rounded font-mono">index.py --check-integrity</code> prima e dopo: la migrazione non ripara Qdrant.</p>
                 </details>
             </div>
 
@@ -364,10 +366,10 @@
                 <div class="text-3xl mb-3">✅</div>
                 <h2 class="text-xl font-bold mb-2">10. L'Eval-Gate Continuo</h2>
                 <p class="text-sm font-mono bg-emerald-50 p-1 rounded text-emerald-700 mb-2">core/eval_gate.py + golden set</p>
-                <p class="text-sm text-slate-600 mb-2">Prima di promuovere una versione, il retrieval e valutato: sotto soglia la promozione e bloccata.</p>
+                <p class="text-sm text-slate-600 mb-2">Sui rebuild completi il retrieval è valutato; una metrica sotto soglia blocca se il gate è configurato come bloccante.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Prima di spostare <code class="bg-gray-200 px-1 rounded font-mono">CURRENT</code> su una nuova versione, il retrieval è valutato sul golden set: se recall@k scende sotto soglia la <strong>promozione è bloccata</strong> e parte un alert critico. Una regressione del ranking <strong>non diventa più CURRENT in silenzio</strong>. Il gate misura anche la <strong>saturazione</strong> della propria metrica: se recall@k vale 1.000 su <em>tutti</em> i casi non è severo, è cieco — lo supera qualunque candidata, anche peggiorata — e lo dichiara con un alert. Il golden set contiene per questo casi <strong>avversariali</strong>, in cui una fonte a bassa autorità matcha lessicalmente meglio della normativa che risponde: sono l'unico posto dove il boost di autorità può essere falsificato.</p>
+                  <p class="mt-2">Sui <strong>rebuild completi</strong> il retrieval è valutato sul golden set prima della promozione: se recall@k scende sotto soglia e il gate è bloccante, la promozione viene fermata. Gli incrementali promuovono direttamente. Un candidato illeggibile blocca il gate API; errori della valutazione o golden set assente possono invece lasciare passare la promozione. Il gate misura anche la <strong>saturazione</strong> della propria metrica: se recall@k vale 1.000 su <em>tutti</em> i casi non è severo, è cieco — lo supera qualunque candidata, anche peggiorata — e lo dichiara con un alert. Il golden set contiene per questo casi <strong>avversariali</strong>, in cui una fonte a bassa autorità matcha lessicalmente meglio della normativa che risponde: sono l'unico posto dove il boost di autorità può essere falsificato.</p>
                 </details>
             </div>
 
@@ -443,6 +445,25 @@
 
         </div>
 
+        <section class="bg-white glass-card rounded-xl shadow-lg p-6 mb-12" aria-labelledby="sidecar-title">
+            <h2 id="sidecar-title" class="text-xl font-bold mb-3">Scalabilità misurata: meno RAM, delta non sempre più veloci</h2>
+            <p class="text-sm text-slate-600 mb-4">Misure del 21 settembre 2026 su Windows e CPU a quattro thread. Sono esperimenti separati, non indicatori in tempo reale.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="font-semibold mb-2">Memoria durante la build</h3>
+                    <p class="text-2xl font-bold mb-2">6,436 → 3,152 GiB</p>
+                    <p class="text-sm text-slate-600">Picco RSS campionato su 32 documenti / 64 chunk: una prova per variante. Formato e raggruppamento dell’encoding cambiano insieme; il risultato non vale automaticamente per ogni corpus.</p>
+                </div>
+                <div>
+                    <h3 class="font-semibold mb-2">Delta di 100 piccoli documenti</h3>
+                    <p class="text-2xl font-bold mb-2">15,934 → 58,099 s</p>
+                    <p class="text-sm text-slate-600">Mediana di cinque prove, da NPZ a NPY, fino allo snapshot pronto. L’encoding per documento rallenta questo caso. Le curve complete coprono 150 prove per versione su documenti, codice e misto.</p>
+                </div>
+            </div>
+            <p class="text-sm text-slate-600 mt-4">Con un documento modificato su 100, il writer scrive 51.328 byte NPY e riusa 99 file. Grafo, metadati e vettori dense/code mantengono costi globali. Batching limitato studiato ma non implementato; nessuna soglia universale di volume o sharding dimostrata.</p>
+            <p class="text-sm mt-3"><a class="underline" href="https://github.com/Silver1V8/VibeCraft/blob/main/rag/eval/results/sidecar_npy_20260921/evidence/PHASE5.md">Metodo della prova full</a> · <a class="underline" href="https://github.com/Silver1V8/VibeCraft/blob/main/rag/eval/results/sidecar_npy_20260921/evidence/PHASE6.md">Curve, compromessi e limiti</a></p>
+        </section>
+
         <div class="mt-8 bg-blue-50 text-blue-800 p-4 rounded-lg border border-blue-200">
             <p><strong>💡 La Magia del Determinismo:</strong> allo Step 0 un <strong>router deterministico</strong> (<code class="bg-gray-200 px-1 rounded font-mono">core/router.py</code>, sole regole lessicali) intercetta le domande <strong>strutturali</strong> — enumerazioni, relazioni, impatto, adiacenza — e le risponde direttamente dal grafo (<code class="bg-gray-200 px-1 rounded font-mono">graph_answer</code>) <strong>senza LLM</strong>. Per tutte le altre l'LLM interviene solo allo Step 6: tutto il "pescaggio" del contesto (Step 1-5: ricerca ibrida, rerank ColBERT, autorità dichiarata, precedenza fra fonti, espansione BFS pesata dalla fiducia sul cammino) è fatto in modo rigoroso e senza allucinazioni da Qdrant e NetworkX, e la sintesi finale passa dal layer unico <code class="bg-gray-200 px-1 rounded font-mono">core/llm.py</code> (purpose <code class="bg-gray-200 px-1 rounded font-mono">ask</code>), lo stesso usato dal resto della pipeline.</p>
         </div>
@@ -478,7 +499,8 @@ graph TD
     GA[("NetworkX: graph_ops.graph_query<br>risposta diretta nodi/archi<br>status: graph_answer · no LLM")]:::networkx
     V{"Embedding bge-m3<br>dense + sparse"}:::fastapi
     Q[("Qdrant server (Docker)<br>Ricerca ibrida Top-K<br>fusione per rank")]:::qdrant
-    CB{"Rerank ColBERT<br>+ peso autorità<br>+ precedenza fra fonti"}:::qdrant
+    NPY[("Sidecar ColBERT NPY<br>su disco, per documento")]:::fastapi
+    CB{"Rerank ColBERT locale<br>+ peso autorità<br>+ precedenza fra fonti"}:::fastapi
     G[("NetworkX (graph.json)<br>Espansione BFS + fiducia sul cammino<br>seed = doc dei chunk")]:::networkx
     C["Contesto chunk-aware:<br>testo delle SEZIONI recuperate<br>+ struttura del grafo"]:::fastapi
     O{"core/llm.py · purpose ask<br>provider da config<br>(Ollama / Claude)"}:::ollama
@@ -491,6 +513,7 @@ graph TD
     RT -->|"altrimenti → hybrid"| V
     V -->|"1. Vettori Domanda"| Q
     Q -->|"2. Candidati Top-K"| CB
+    NPY -->|"Chunk richiesti"| CB
     CB -->|"3. Chunk ri-ordinati"| G
     G -->|"4. Nodi Estesi"| C
     C -->|"5. Prompt Rigido + Fascicolo"| O

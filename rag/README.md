@@ -4,7 +4,10 @@ Indicizzazione (core/indexing), retrieval ibrido e pipeline Explore → Canvas �
 Propose → Validate (core/) esposti via FastAPI (api/). Entrypoint: `server.py`,
 `index.py`, `mcp_server.py` (MCP locale di sola lettura).
 
-Stato al 2026-09-15, in breve: intake con staging e review (Docling, lettura diretta
+Stato al 2026-09-21, in breve: ColBERT NPY per documento, lettura a richiesta,
+delta reale misurato e migrazione esplicita degli indici NPZ (vedi
+[artefatti](#artefatti-dellindice-formati-sicuri-ispezionabili-e-versionati-bluegreen));
+intake con staging e review (Docling, lettura diretta
 Excel, LibreOffice per DOC/PPT); tre tool MCP di sola lettura usati anche dagli agenti
 in-app; gate del contratto sull'avvio agentic (validazione congelata, decisioni
 dell'operatore, journal eventi — ciclo reale verificato, vedi
@@ -141,8 +144,8 @@ Due meccanismi tengono l'indice allineato al codebase senza intervento manuale:
 `POST /api/reindex` lancia un reindex incrementale in background e risponde
 subito `202` con un `job_id`; `GET /api/reindex/{job_id}` ne riporta lo stato
 (`queued`/`running`/`completed`/`failed`) col risultato o l'errore. A fine job
-riuscito il server ricarica in memoria grafo/ColBERT/chunk riusando
-`reload_index_state` (api/deps.py). `GET /api/reindex` (senza id) elenca gli
+riuscito il server aggiorna grafo e chunk in memoria e apre il reader ColBERT
+a richiesta tramite `reload_index_state` (api/deps.py). `GET /api/reindex` (senza id) elenca gli
 ultimi `N` job (`?limit=`, default 20, più recente prima), utile per debug e UI.
 Auth: `X-API-Key` come tutti i `/api/*`.
 
@@ -150,7 +153,12 @@ Lo storico dei job è **persistente ai riavvii**: ogni transizione di stato
 (`created`/`completed`/`failed`) appende una riga JSON al journal append-only
 `database/reindex_jobs.jsonl`. Al boot il `ReindexManager` ricostruisce lo storico
 dal journal (l'ultima riga per `job_id` vince); i job rimasti `running` (crash a
-metà) vengono marcati `interrupted`. Il file si auto-compatta quando supera ~1MB
+metà) vengono marcati `interrupted`. Anche un `reload_status: pending` diventa
+`interrupted` al riavvio: il processo di reload non sopravvive al crash, mentre
+l'esito di una build già completata resta conservato. Il journal distingue durata
+della build, durata del reload e tempo fino allo snapshot pronto; `completed` da
+solo non certifica che il server stia già servendo la nuova versione.
+Il file si auto-compatta quando supera ~1MB
 (riscritto tenendo solo l'ultimo stato di ogni job) e **non va committato** (è in
 `.gitignore`).
 
@@ -839,6 +847,31 @@ misurato. L'esecuzione richiede il runtime/modello offline e il container Qdrant
 dedicati documentati in `adr/sidecar-work/phase2-report.md`; il comando ordinario
 sopra resta il benchmark del servizio esistente.
 
+### Risultati sidecar del 21 settembre 2026
+
+Le [curve prima/dopo](eval/results/sidecar_npy_20260921/evidence/PHASE6.md)
+coprono 30 celle e 150 prove valide per versione: cinque ripetizioni per
+combinazione di N, k e corpus. Su Windows/CPU a quattro thread, N=100 e k=100,
+la mediana fino allo snapshot pronto passa da 15,934 a 58,099 s per i documenti,
+da 18,804 a 19,497 s per il codice e da 19,132 a 38,602 s per il misto.
+L'encoding per documento penalizza i delta numerosi di piccoli testi.
+
+La [prova full](eval/results/sidecar_npy_20260921/evidence/PHASE5.md), su un corpus
+diverso di 32 documenti / 64 chunk, riduce RSS massimo campionato da 6,436 a
+3,152 GiB e USS da 5,087 a 1,753 GiB. Una sola prova per variante, formato e
+raggruppamento dell'encoding cambiati insieme: non isola l'effetto del formato.
+Non va confrontata con i delta per ricavare una soglia full/incrementale.
+
+Per k=1, a N=100 documenti, il writer scrive 51.328 byte NPY e riusa 99 file
+tramite hard link; sono byte logici, non traffico fisico del disco. Il batching
+limitato è solo uno studio; sharding e multivettori Qdrant non sono attivati.
+La [matrice finale](adr/SCALABILITA_SIDECAR_DELTA_MATRICE.md) documenta le decisioni.
+
+Nel codice delle misure storiche le scritture NPY per documento erano incluse in
+`parsing_embedding`. La revisione integrata su main le attribuisce a `save_hash`,
+inclusi fsync e hash, sia nel full sia nel delta. I raw storici non sono stati
+riscritti: i totali restano validi, il breakdown conserva questo limite.
+
 **Regola:** nessuna ottimizzazione di retrieval, chunking, ranking o indicizzazione
 senza prima confrontare un bench "prima" e uno "dopo" — la sensazione che qualcosa
 sia più veloce non sostituisce un numero salvato in `eval/results/`.
@@ -881,13 +914,19 @@ Prima di un nuovo delta su un indice NPZ esistente, convertire la versione
 **già versionata** attiva, senza nuovo embedding:
 
 ```bash
+python index.py --check-integrity
 python index.py --migrate-colbert-npy
 python index.py --check-integrity
 ```
 
 La conversione crea una candidata separata, verifica array e hash e solo dopo
 sposta CURRENT; conserva la collection Qdrant esistente. Un errore prima della
-promozione lascia attiva la versione precedente. Il controllo integrità esplicito
+promozione lascia attiva la versione precedente. Non verifica né ripara i punti
+Qdrant: se l'integrità segnala un disallineamento, confrontare gli ID e i relativi
+payload con `chunks.json`, senza eliminare punti solo per far coincidere i conteggi.
+La divergenza di un documento locale da Git è un avviso separato: un reindex usa
+la copia su disco e non decide quale versione del documento sia autoritativa.
+Il controllo integrità esplicito
 rilegge tutti i byte. Il delta ordinario verifica indice e file nuovi, ma eredita
 gli hash attestati dei file immutati: non equivale a riverificare quei byte e non
 rileva una loro successiva alterazione esterna senza il controllo profondo.
@@ -1009,8 +1048,9 @@ versione nuova (mai riscritta). In lettura, se `CURRENT` non esiste ma in
 `database/` ci sono i file flat storici (JSON/`.npz`), `load_artifacts()` li carica
 come versione `legacy`; la prima build successiva crea la struttura versionata e la
 promozione fa vincere CURRENT sul layout flat. Il fallback ai vecchi pickle `*.pkl`
-è stato **rimosso** (A13, `rag/AUDIT.md`): nessuna installazione ne scrive più da
-quando `save_artifacts()` emette solo JSON/`.npz`, e mantenere `pickle.load` su un
+è stato **rimosso** (A13, `adr/AUDIT.md`): nessuna installazione ne scrive più
+dal passaggio ai formati JSON/NumPy (oggi NPY per ColBERT e NPZ per dense/code).
+Mantenere `pickle.load` su un
 formato che nessuno produce più era superficie di deserializzazione arbitraria
 senza alcun beneficio.
 
