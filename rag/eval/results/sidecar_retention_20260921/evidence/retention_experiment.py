@@ -81,7 +81,7 @@ def pinned_reader(frozen_rag, database, version):
         fingerprint = {"chunk": key, "sha256": _sha(vector.tobytes()),
                        "shape": list(vector.shape), "dtype": str(vector.dtype),
                        "loaded_colbert_chunks": len(arts.colbert_store)}
-        print(json.dumps({"status": "READY", "version": version, "fingerprint": fingerprint}), flush=True)
+        print(json.dumps({"status": "READY", "version": version, "pid": os.getpid(), "fingerprint": fingerprint}), flush=True)
         for line in sys.stdin:
             if line.strip() == "CHECK":
                 current = store[key]
@@ -146,7 +146,7 @@ def close_pinned_reader(child):
 
 
 def run(paths):
-    payload = {"status": "running", "parameters": {"n": 10, "mode": "docs", "k": 1, "deltas": 5,
+    payload = {"status": "running", "pid": os.getpid(), "parameters": {"n": 10, "mode": "docs", "k": 1, "deltas": 5,
                "keep_versions": 3, "collection": paths["collection"], "server_url": delta.URL, "qdrant_url": delta.QDRANT_URL,
                "restore_between_jobs": False, "old_reader_cross_process": "F5 lease-backed pinned reader"}, "events": [], "steps": [],
                "resources": {"materialized": None, "required_wrapper": "bench_process.py must wrap this process; this driver does not fabricate RSS or I/O"}}
@@ -177,7 +177,7 @@ def run(paths):
             job = delta._request_job(); ended = time.monotonic(); delta.validate_job(job, "docs", [file], 1); delta._join_writer()
             status, versions = delta._http("GET", "/api/index/versions")
             if status != 200 or versions.get("current") != job["published_token"] or not check_index_integrity(emit=lambda *_: None)["ok"]: fail("current token or integrity invalid")
-            step = {"step": index + 1, "mutation": {"path": file.relative_to(paths["checkout"]).as_posix(), "before_sha256": delta._sha(before), "after_sha256": delta._sha(after), "bytes": len(after)}, "job": job, "elapsed_seconds": ended - started, "state": snapshot(paths, qdrant, job["published_token"])}
+            step = {"step": index + 1, "started_monotonic": started, "ended_monotonic": ended, "mutation": {"path": file.relative_to(paths["checkout"]).as_posix(), "before_sha256": delta._sha(before), "after_sha256": delta._sha(after), "bytes": len(after)}, "job": job, "elapsed_seconds": ended - started, "state": snapshot(paths, qdrant, job["published_token"])}
             step["pinned_reader"] = check_pinned_reader(pinned, payload["pinned_reader"]["fingerprint"])
             payload["steps"].append(step); event(payload, "delta_ready", step=index + 1); save(paths["output"] / "result.json", payload)
         if baseline["published_token"] not in payload["steps"][-1]["state"]["versions"]:
@@ -185,7 +185,7 @@ def run(paths):
         payload["pinned_reader_closed"] = close_pinned_reader(pinned); pinned = None
         from core.artifacts import list_versions, prune_versions
         removed = prune_versions(keep=3)
-        payload["retention_after_reader_close"] = {"removed": removed, "versions": list_versions()}
+        payload["retention_after_reader_close"] = {"removed": removed, "versions": list_versions(), "disk": inventory(paths["database"])}
         if baseline["published_token"] not in removed or baseline["published_token"] in payload["retention_after_reader_close"]["versions"]:
             fail("baseline was not pruned after reader close")
         stop.set(); reader.join(); reader = None; payload["reader_queries"] = reader_rows

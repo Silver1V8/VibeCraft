@@ -1,3 +1,7 @@
+# Esito finale
+
+Prova completata exit0 il 21 settembre 2026: mediane encode-only globale7,408s, per-documento27,337s, gruppi12 13,404s. Tre ripetizioni; i dettagli e limiti sono in PHASE6.md e batching-study.json. Il testo seguente conserva il protocollo approvato prima della run.
+
 # F6-03: studio isolato del raggruppamento encoder
 
 Il driver `encoding_batching_study.py` usa **solo** i 100 documenti della baseline F3 `sidecar_delta_post_20260921_docs_n100`, non la copia NPY F6 in mutazione. Prima dell'esecuzione verifica per ogni file dimensione e SHA-256 registrati nel `result.json` F3, poi usa `read_document` e `chunk_markdown` canonici e richiede esattamente 100 chunk univoci, uno per documento. Verifica anche la query ColBERT già salvata. Il self-check è passato: 100 chunk, query 4×1024, gruppi attesi 1/100/9; nessun modello caricato.

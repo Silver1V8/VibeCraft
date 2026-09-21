@@ -1,0 +1,3665 @@
+{
+  "scope": "completed NPY-only delta results, nine standard cells, five repeats per k",
+  "limits": [
+    "synthetic corpus; OS cache uncontrolled",
+    "ColBERT hardlinked/copied bytes are logical file sizes, not process I/O counters",
+    "inherited_hashes_not_reverified is a file count, not bytes",
+    "missing no-op writer stats remain null; no old-vs-new process I/O comparison"
+  ],
+  "rows": [
+    {
+      "n": 10,
+      "mode": "code",
+      "k": 0,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_code_n10\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 0.019964800001616823,
+        "min": 0.017721299998811446,
+        "max": 0.029191900001023896,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "hardlinked_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "copied_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "files",
+          "reason": "no-op did not emit ColBERT writer stats"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "not emitted for no-op"
+        },
+        "chunks_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "not emitted for no-op"
+        },
+        "colbert_tokens_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 0.0,
+        "scan_hash": 0.0112068000016734,
+        "load": 0.0,
+        "parsing_embedding": 0.0,
+        "qdrant": 0.0,
+        "relink": 0.0,
+        "save_hash": 0.0,
+        "eval_gate": 0.0,
+        "promote": 0.0
+      }
+    },
+    {
+      "n": 10,
+      "mode": "code",
+      "k": 1,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_code_n10\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 3.6574478999973508,
+        "min": 3.5379074000011315,
+        "max": 3.7137125999979617,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.307536300002539,
+        "scan_hash": 0.005270300000120187,
+        "load": 0.005052100001194049,
+        "parsing_embedding": 0.6754334999968705,
+        "qdrant": 0.03769339999780641,
+        "relink": 0.00019320000137668103,
+        "save_hash": 0.055528299999423325,
+        "eval_gate": 0.0,
+        "promote": 0.024237300000095274
+      }
+    },
+    {
+      "n": 10,
+      "mode": "code",
+      "k": 10,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_code_n10\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 5.867659900002764,
+        "min": 5.850743200000579,
+        "max": 6.132481500000722,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 10,
+          "min": 10,
+          "max": 10,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.2431412000005366,
+        "scan_hash": 0.021447099999932107,
+        "load": 0.005959800000709947,
+        "parsing_embedding": 3.0617054000031203,
+        "qdrant": 0.034809900000254856,
+        "relink": 0.0002538999979151413,
+        "save_hash": 0.058557699998345925,
+        "eval_gate": 0.0,
+        "promote": 0.0210808999981964
+      }
+    },
+    {
+      "n": 10,
+      "mode": "docs",
+      "k": 0,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_docs_n10\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 0.022171500000695232,
+        "min": 0.011743700000806712,
+        "max": 0.024007100000744686,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "hardlinked_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "copied_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "files",
+          "reason": "no-op did not emit ColBERT writer stats"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "not emitted for no-op"
+        },
+        "chunks_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "not emitted for no-op"
+        },
+        "colbert_tokens_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 0.0,
+        "scan_hash": 0.01236369999969611,
+        "load": 0.0,
+        "parsing_embedding": 0.0,
+        "qdrant": 0.0,
+        "relink": 0.0,
+        "save_hash": 0.0,
+        "eval_gate": 0.0,
+        "promote": 0.0
+      }
+    },
+    {
+      "n": 10,
+      "mode": "docs",
+      "k": 1,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_docs_n10\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 3.807497499998135,
+        "min": 3.7458203000023786,
+        "max": 3.90892470000108,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 51328,
+          "min": 51328,
+          "max": 51328,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 498816,
+          "min": 498816,
+          "max": 498816,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 9,
+          "min": 9,
+          "max": 9,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 10,
+          "min": 10,
+          "max": 10,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 268,
+          "min": 268,
+          "max": 268,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 25,
+          "min": 25,
+          "max": 25,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.2820835999991687,
+        "scan_hash": 0.011686599998938618,
+        "load": 0.020259000000805827,
+        "parsing_embedding": 0.6366345000024012,
+        "qdrant": 0.06808769999770448,
+        "relink": 8.10999990790151e-05,
+        "save_hash": 0.10424129999955767,
+        "eval_gate": 0.0,
+        "promote": 0.05930799999987357
+      }
+    },
+    {
+      "n": 10,
+      "mode": "docs",
+      "k": 10,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_docs_n10\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 8.844667899997148,
+        "min": 8.281318800000008,
+        "max": 8.975432200000796,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 550144,
+          "min": 550144,
+          "max": 550144,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 10,
+          "min": 10,
+          "max": 10,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 10,
+          "min": 10,
+          "max": 10,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 268,
+          "min": 268,
+          "max": 268,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 268,
+          "min": 268,
+          "max": 268,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 10,
+          "min": 10,
+          "max": 10,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.2650977999983297,
+        "scan_hash": 0.01800780000121449,
+        "load": 0.020816399999603163,
+        "parsing_embedding": 5.330400599999848,
+        "qdrant": 0.2475955999980215,
+        "relink": 8.789999992586672e-05,
+        "save_hash": 0.09085849999974016,
+        "eval_gate": 0.0,
+        "promote": 0.05306910000217613
+      }
+    },
+    {
+      "n": 10,
+      "mode": "mixed",
+      "k": 0,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_mixed_n10\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 0.02555710000160616,
+        "min": 0.020763199998327764,
+        "max": 0.02700349999940954,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "hardlinked_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "copied_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "files",
+          "reason": "no-op did not emit ColBERT writer stats"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "not emitted for no-op"
+        },
+        "chunks_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "not emitted for no-op"
+        },
+        "colbert_tokens_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 0.0,
+        "scan_hash": 0.0134087999977055,
+        "load": 0.0,
+        "parsing_embedding": 0.0,
+        "qdrant": 0.0,
+        "relink": 0.0,
+        "save_hash": 0.0,
+        "eval_gate": 0.0,
+        "promote": 0.0
+      }
+    },
+    {
+      "n": 10,
+      "mode": "mixed",
+      "k": 1,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_mixed_n10\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 3.6778500999971584,
+        "min": 3.5736467000024277,
+        "max": 4.138425399996777,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 51328,
+          "min": 51328,
+          "max": 51328,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 221696,
+          "min": 221696,
+          "max": 221696,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 4,
+          "min": 4,
+          "max": 4,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 133,
+          "min": 133,
+          "max": 133,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 25,
+          "min": 25,
+          "max": 25,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.310336099999404,
+        "scan_hash": 0.013399999999819556,
+        "load": 0.014834500001597917,
+        "parsing_embedding": 0.637149700000009,
+        "qdrant": 0.06040620000203489,
+        "relink": 0.0002266000010422431,
+        "save_hash": 0.07667990000118152,
+        "eval_gate": 0.0,
+        "promote": 0.03894829999990179
+      }
+    },
+    {
+      "n": 10,
+      "mode": "mixed",
+      "k": 10,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_mixed_n10\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 7.135817700000189,
+        "min": 7.068338599998242,
+        "max": 7.540955100001156,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 273024,
+          "min": 273024,
+          "max": 273024,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 133,
+          "min": 133,
+          "max": 133,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 133,
+          "min": 133,
+          "max": 133,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.182322299999214,
+        "scan_hash": 0.017642300001170952,
+        "load": 0.012337100000877399,
+        "parsing_embedding": 4.112394100004167,
+        "qdrant": 0.15598680000039167,
+        "relink": 0.0006653999989794102,
+        "save_hash": 0.07410019999952056,
+        "eval_gate": 0.0,
+        "promote": 0.039586000002600485
+      }
+    },
+    {
+      "n": 30,
+      "mode": "code",
+      "k": 0,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_code_n30\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 0.03449760000148672,
+        "min": 0.01807339999868418,
+        "max": 0.04105780000099912,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "hardlinked_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "copied_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "files",
+          "reason": "no-op did not emit ColBERT writer stats"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "not emitted for no-op"
+        },
+        "chunks_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "not emitted for no-op"
+        },
+        "colbert_tokens_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 0.0,
+        "scan_hash": 0.024256900000182213,
+        "load": 0.0,
+        "parsing_embedding": 0.0,
+        "qdrant": 0.0,
+        "relink": 0.0,
+        "save_hash": 0.0,
+        "eval_gate": 0.0,
+        "promote": 0.0
+      }
+    },
+    {
+      "n": 30,
+      "mode": "code",
+      "k": 1,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_code_n30\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 3.6636797999999544,
+        "min": 3.5944369999997434,
+        "max": 3.798427800000354,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.1858902999993006,
+        "scan_hash": 0.028950100000656676,
+        "load": 0.007922299999336246,
+        "parsing_embedding": 0.7408490000052552,
+        "qdrant": 0.03376830000343034,
+        "relink": 0.00022659999740426429,
+        "save_hash": 0.07091310000032536,
+        "eval_gate": 0.0,
+        "promote": 0.027384799999708775
+      }
+    },
+    {
+      "n": 30,
+      "mode": "code",
+      "k": 10,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_code_n30\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 5.892115399998147,
+        "min": 5.769437999999354,
+        "max": 6.593225700002222,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 10,
+          "min": 10,
+          "max": 10,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.1650967999994464,
+        "scan_hash": 0.03170920000047772,
+        "load": 0.00903919999836944,
+        "parsing_embedding": 3.0016304000018863,
+        "qdrant": 0.01801839999825461,
+        "relink": 0.0003082000002905261,
+        "save_hash": 0.06376599999930477,
+        "eval_gate": 0.0,
+        "promote": 0.025733299997227732
+      }
+    },
+    {
+      "n": 30,
+      "mode": "docs",
+      "k": 0,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_docs_n30\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 0.020065400000021327,
+        "min": 0.0189009999994596,
+        "max": 0.03982279999763705,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "hardlinked_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "copied_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "files",
+          "reason": "no-op did not emit ColBERT writer stats"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "not emitted for no-op"
+        },
+        "chunks_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "not emitted for no-op"
+        },
+        "colbert_tokens_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 0.0,
+        "scan_hash": 0.011399799997889204,
+        "load": 0.0,
+        "parsing_embedding": 0.0,
+        "qdrant": 0.0,
+        "relink": 0.0,
+        "save_hash": 0.0,
+        "eval_gate": 0.0,
+        "promote": 0.0
+      }
+    },
+    {
+      "n": 30,
+      "mode": "docs",
+      "k": 1,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_docs_n30\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 4.094320700001845,
+        "min": 3.930669499997748,
+        "max": 4.328378499998507,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 51328,
+          "min": 51328,
+          "max": 51328,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 1633920,
+          "min": 1633920,
+          "max": 1633920,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 29,
+          "min": 29,
+          "max": 29,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 30,
+          "min": 30,
+          "max": 30,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 821,
+          "min": 821,
+          "max": 821,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 25,
+          "min": 25,
+          "max": 25,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.2741328999982215,
+        "scan_hash": 0.01950859999851673,
+        "load": 0.0512352000005194,
+        "parsing_embedding": 0.6860052999982145,
+        "qdrant": 0.07196269999622018,
+        "relink": 0.0001205000007757917,
+        "save_hash": 0.20880789999864646,
+        "eval_gate": 0.0,
+        "promote": 0.12199420000251848
+      }
+    },
+    {
+      "n": 30,
+      "mode": "docs",
+      "k": 10,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_docs_n30\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 9.17923200000223,
+        "min": 8.521631700001308,
+        "max": 9.556748599999992,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 550144,
+          "min": 550144,
+          "max": 550144,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 1135104,
+          "min": 1135104,
+          "max": 1135104,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 20,
+          "min": 20,
+          "max": 20,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 30,
+          "min": 30,
+          "max": 30,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 10,
+          "min": 10,
+          "max": 10,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 821,
+          "min": 821,
+          "max": 821,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 268,
+          "min": 268,
+          "max": 268,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 10,
+          "min": 10,
+          "max": 10,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.3452023999998346,
+        "scan_hash": 0.025102999999944586,
+        "load": 0.051156099998479476,
+        "parsing_embedding": 5.555442100001528,
+        "qdrant": 0.2149494000041159,
+        "relink": 0.00016289999985019676,
+        "save_hash": 0.22455489999993006,
+        "eval_gate": 0.0,
+        "promote": 0.12383799999952316
+      }
+    },
+    {
+      "n": 30,
+      "mode": "mixed",
+      "k": 0,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_mixed_n30\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 0.0396666999986337,
+        "min": 0.020767999998497544,
+        "max": 0.04096930000014254,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "hardlinked_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "copied_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "files",
+          "reason": "no-op did not emit ColBERT writer stats"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "not emitted for no-op"
+        },
+        "chunks_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "not emitted for no-op"
+        },
+        "colbert_tokens_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 0.0,
+        "scan_hash": 0.030174799998349044,
+        "load": 0.0,
+        "parsing_embedding": 0.0,
+        "qdrant": 0.0,
+        "relink": 0.0,
+        "save_hash": 0.0,
+        "eval_gate": 0.0,
+        "promote": 0.0
+      }
+    },
+    {
+      "n": 30,
+      "mode": "mixed",
+      "k": 1,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_mixed_n30\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 3.8479427000020223,
+        "min": 3.7101024000003235,
+        "max": 3.9895547999985865,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 51328,
+          "min": 51328,
+          "max": 51328,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 782080,
+          "min": 782080,
+          "max": 782080,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 14,
+          "min": 14,
+          "max": 14,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 15,
+          "min": 15,
+          "max": 15,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 406,
+          "min": 406,
+          "max": 406,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 25,
+          "min": 25,
+          "max": 25,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.274310400000104,
+        "scan_hash": 0.024499299997842172,
+        "load": 0.031163800002104836,
+        "parsing_embedding": 0.6224475999988499,
+        "qdrant": 0.0723775000005844,
+        "relink": 0.00028300000121816993,
+        "save_hash": 0.1586142000014661,
+        "eval_gate": 0.0,
+        "promote": 0.0830857000000833
+      }
+    },
+    {
+      "n": 30,
+      "mode": "mixed",
+      "k": 10,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_mixed_n30\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 7.640789199998835,
+        "min": 7.128420500001084,
+        "max": 7.8006726000021445,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 273024,
+          "min": 273024,
+          "max": 273024,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 560384,
+          "min": 560384,
+          "max": 560384,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 10,
+          "min": 10,
+          "max": 10,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 15,
+          "min": 15,
+          "max": 15,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 406,
+          "min": 406,
+          "max": 406,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 133,
+          "min": 133,
+          "max": 133,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.2328033999983745,
+        "scan_hash": 0.022889199997734977,
+        "load": 0.03144539999993867,
+        "parsing_embedding": 4.3033202000042365,
+        "qdrant": 0.15415199999915785,
+        "relink": 0.001152400000137277,
+        "save_hash": 0.15434649999951944,
+        "eval_gate": 0.0,
+        "promote": 0.07022150000193506
+      }
+    },
+    {
+      "n": 100,
+      "mode": "code",
+      "k": 0,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_code_n100\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 0.05494179999732296,
+        "min": 0.03977350000059232,
+        "max": 0.06605080000008456,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "hardlinked_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "copied_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "files",
+          "reason": "no-op did not emit ColBERT writer stats"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "not emitted for no-op"
+        },
+        "chunks_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "not emitted for no-op"
+        },
+        "colbert_tokens_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 0.0,
+        "scan_hash": 0.046196100000088336,
+        "load": 0.0,
+        "parsing_embedding": 0.0,
+        "qdrant": 0.0,
+        "relink": 0.0,
+        "save_hash": 0.0,
+        "eval_gate": 0.0,
+        "promote": 0.0
+      }
+    },
+    {
+      "n": 100,
+      "mode": "code",
+      "k": 1,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_code_n100\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 3.799795200000517,
+        "min": 3.5548100999985763,
+        "max": 3.9658877000001667,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.1696762000028684,
+        "scan_hash": 0.05014149999988149,
+        "load": 0.020859199998085387,
+        "parsing_embedding": 0.771667900000466,
+        "qdrant": 0.03790070000104606,
+        "relink": 0.0003842999976768624,
+        "save_hash": 0.09532519999993383,
+        "eval_gate": 0.0,
+        "promote": 0.035376200001337565
+      }
+    },
+    {
+      "n": 100,
+      "mode": "code",
+      "k": 10,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_code_n100\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 6.0091892999989795,
+        "min": 5.834706000001461,
+        "max": 6.141433299999335,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 10,
+          "min": 10,
+          "max": 10,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.1730511999994633,
+        "scan_hash": 0.06078999999954249,
+        "load": 0.02264179999838234,
+        "parsing_embedding": 3.006770600000891,
+        "qdrant": 0.0318647999993118,
+        "relink": 0.00047619999895687215,
+        "save_hash": 0.1059741999997641,
+        "eval_gate": 0.0,
+        "promote": 0.03631329999916488
+      }
+    },
+    {
+      "n": 100,
+      "mode": "code",
+      "k": 100,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_code_n100\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 19.496823599998606,
+        "min": 19.366422900002362,
+        "max": 21.701527199998964,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 100,
+          "min": 100,
+          "max": 100,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.100216200000432,
+        "scan_hash": 0.1443412000007811,
+        "load": 0.014538100000208942,
+        "parsing_embedding": 16.5040599999993,
+        "qdrant": 0.01950550000037765,
+        "relink": 0.0011917999981960747,
+        "save_hash": 0.0885904999995546,
+        "eval_gate": 0.0,
+        "promote": 0.03262489999906393
+      }
+    },
+    {
+      "n": 100,
+      "mode": "docs",
+      "k": 0,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_docs_n100\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 0.04223239999919315,
+        "min": 0.0382367999991402,
+        "max": 0.06165120000150637,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "hardlinked_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "copied_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "files",
+          "reason": "no-op did not emit ColBERT writer stats"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "not emitted for no-op"
+        },
+        "chunks_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "not emitted for no-op"
+        },
+        "colbert_tokens_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 0.0,
+        "scan_hash": 0.03135889999975916,
+        "load": 0.0,
+        "parsing_embedding": 0.0,
+        "qdrant": 0.0,
+        "relink": 0.0,
+        "save_hash": 0.0,
+        "eval_gate": 0.0,
+        "promote": 0.0
+      }
+    },
+    {
+      "n": 100,
+      "mode": "docs",
+      "k": 1,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_docs_n100\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 4.943860600000335,
+        "min": 4.720682099999976,
+        "max": 5.023177799997939,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 51328,
+          "min": 51328,
+          "max": 51328,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 5626240,
+          "min": 5626240,
+          "max": 5626240,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 99,
+          "min": 99,
+          "max": 99,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 100,
+          "min": 100,
+          "max": 100,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 2766,
+          "min": 2766,
+          "max": 2766,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 25,
+          "min": 25,
+          "max": 25,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.2001880000025267,
+        "scan_hash": 0.02779069999814965,
+        "load": 0.15189399999871966,
+        "parsing_embedding": 0.6421557999965444,
+        "qdrant": 0.0618097000005946,
+        "relink": 0.00029010000071139075,
+        "save_hash": 0.6450167000002693,
+        "eval_gate": 0.0,
+        "promote": 0.3356504000003042
+      }
+    },
+    {
+      "n": 100,
+      "mode": "docs",
+      "k": 10,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_docs_n100\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 9.650519099999656,
+        "min": 8.977955300000758,
+        "max": 10.284186500000942,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 550144,
+          "min": 550144,
+          "max": 550144,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 5127424,
+          "min": 5127424,
+          "max": 5127424,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 90,
+          "min": 90,
+          "max": 90,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 100,
+          "min": 100,
+          "max": 100,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 10,
+          "min": 10,
+          "max": 10,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 2766,
+          "min": 2766,
+          "max": 2766,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 268,
+          "min": 268,
+          "max": 268,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 10,
+          "min": 10,
+          "max": 10,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.238798400001542,
+        "scan_hash": 0.05228929999793763,
+        "load": 0.14637930000026245,
+        "parsing_embedding": 5.016973099998722,
+        "qdrant": 0.21673919999375357,
+        "relink": 0.00033519999851705506,
+        "save_hash": 0.6232957000029273,
+        "eval_gate": 0.0,
+        "promote": 0.3603964000030828
+      }
+    },
+    {
+      "n": 100,
+      "mode": "docs",
+      "k": 100,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_docs_n100\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 58.09869619999881,
+        "min": 54.21981489999962,
+        "max": 61.50630459999957,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 5677568,
+          "min": 5677568,
+          "max": 5677568,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 100,
+          "min": 100,
+          "max": 100,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 100,
+          "min": 100,
+          "max": 100,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 2766,
+          "min": 2766,
+          "max": 2766,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 2766,
+          "min": 2766,
+          "max": 2766,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 100,
+          "min": 100,
+          "max": 100,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.199946299999283,
+        "scan_hash": 0.18423690000054194,
+        "load": 0.16327100000125938,
+        "parsing_embedding": 52.18868220000513,
+        "qdrant": 2.0948975999963295,
+        "relink": 0.0003207000008842442,
+        "save_hash": 0.3983961999983876,
+        "eval_gate": 0.0,
+        "promote": 0.3523851999998442
+      }
+    },
+    {
+      "n": 100,
+      "mode": "mixed",
+      "k": 0,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_mixed_n100\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 0.04127190000144765,
+        "min": 0.03159120000054827,
+        "max": 0.06054579999909038,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "hardlinked_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "copied_bytes": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "bytes",
+          "reason": "no-op did not emit ColBERT writer stats"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "files",
+          "reason": "no-op did not emit ColBERT writer stats"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "not emitted for no-op"
+        },
+        "chunks_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "not emitted for no-op"
+        },
+        "colbert_tokens_processed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 0.0,
+        "scan_hash": 0.03153800000291085,
+        "load": 0.0,
+        "parsing_embedding": 0.0,
+        "qdrant": 0.0,
+        "relink": 0.0,
+        "save_hash": 0.0,
+        "eval_gate": 0.0,
+        "promote": 0.0
+      }
+    },
+    {
+      "n": 100,
+      "mode": "mixed",
+      "k": 1,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_mixed_n100\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 4.416612000000896,
+        "min": 4.2800743999978295,
+        "max": 4.668525900000532,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 51328,
+          "min": 51328,
+          "max": 51328,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 2773120,
+          "min": 2773120,
+          "max": 2773120,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 49,
+          "min": 49,
+          "max": 49,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 50,
+          "min": 50,
+          "max": 50,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 1376,
+          "min": 1376,
+          "max": 1376,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 25,
+          "min": 25,
+          "max": 25,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 1,
+          "min": 1,
+          "max": 1,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.2391037000015785,
+        "scan_hash": 0.05445070000132546,
+        "load": 0.10299060000033933,
+        "parsing_embedding": 0.6462172999999893,
+        "qdrant": 0.07186700000238488,
+        "relink": 0.000590899999224348,
+        "save_hash": 0.3862474999987171,
+        "eval_gate": 0.0,
+        "promote": 0.20915659999809577
+      }
+    },
+    {
+      "n": 100,
+      "mode": "mixed",
+      "k": 10,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_mixed_n100\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 8.146021000000474,
+        "min": 7.667599500000506,
+        "max": 8.690739900001063,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 273024,
+          "min": 273024,
+          "max": 273024,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 2551424,
+          "min": 2551424,
+          "max": 2551424,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 45,
+          "min": 45,
+          "max": 45,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 50,
+          "min": 50,
+          "max": 50,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 1376,
+          "min": 1376,
+          "max": 1376,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 133,
+          "min": 133,
+          "max": 133,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 5,
+          "min": 5,
+          "max": 5,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.1955635999984224,
+        "scan_hash": 0.05099730000074487,
+        "load": 0.09749110000120709,
+        "parsing_embedding": 4.326681999998982,
+        "qdrant": 0.14196910000100615,
+        "relink": 0.0016179999984160531,
+        "save_hash": 0.3535489999994752,
+        "eval_gate": 0.0,
+        "promote": 0.20456699999704142
+      }
+    },
+    {
+      "n": 100,
+      "mode": "mixed",
+      "k": 100,
+      "repeats": 5,
+      "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_mixed_n100\\evidence\\result.json",
+      "snapshot_ready_seconds": {
+        "median": 38.60225050000008,
+        "min": 36.84692290000021,
+        "max": 40.56148949999988,
+        "unit": "seconds"
+      },
+      "colbert_io": {
+        "written_bytes": {
+          "median": 2824448,
+          "min": 2824448,
+          "max": 2824448,
+          "unit": "bytes"
+        },
+        "hardlinked_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "copied_bytes": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "bytes"
+        },
+        "inherited_hashes_not_reverified": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "files"
+        }
+      },
+      "counts": {
+        "chunks_indexed": {
+          "median": 50,
+          "min": 50,
+          "max": 50,
+          "unit": "count"
+        },
+        "chunks_processed": {
+          "median": 50,
+          "min": 50,
+          "max": 50,
+          "unit": "count"
+        },
+        "code_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_modified": {
+          "median": 50,
+          "min": 50,
+          "max": 50,
+          "unit": "count"
+        },
+        "code_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "code_tokens_processed": {
+          "median": null,
+          "min": null,
+          "max": null,
+          "unit": "count",
+          "reason": "embedding output does not expose code token counts"
+        },
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
+        "colbert_tokens_indexed": {
+          "median": 1376,
+          "min": 1376,
+          "max": 1376,
+          "unit": "count"
+        },
+        "colbert_tokens_processed": {
+          "median": 1376,
+          "min": 1376,
+          "max": 1376,
+          "unit": "count"
+        },
+        "docs_added": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        },
+        "docs_modified": {
+          "median": 50,
+          "min": 50,
+          "max": 50,
+          "unit": "count"
+        },
+        "docs_removed": {
+          "median": 0,
+          "min": 0,
+          "max": 0,
+          "unit": "count"
+        }
+      },
+      "phase_median_seconds": {
+        "init_model": 2.320800900000904,
+        "scan_hash": 0.17078469999978552,
+        "load": 0.06970999999975902,
+        "parsing_embedding": 33.88334509999913,
+        "qdrant": 0.9461303000134649,
+        "relink": 0.002189900002122158,
+        "save_hash": 0.24680019999868819,
+        "eval_gate": 0.0,
+        "promote": 0.20479550000163727
+      }
+    }
+  ]
+}

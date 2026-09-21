@@ -1,0 +1,57 @@
+{
+  "pid": 20380,
+  "result": {
+    "planned": {
+      "unchanged": [],
+      "new": [
+        "d000.md",
+        "d001.md",
+        "d002.md",
+        "d003.md",
+        "d004.md"
+      ],
+      "modified": [],
+      "deleted": []
+    },
+    "reindexed_docs": 5,
+    "deleted_docs": 0,
+    "upserted_chunks": 5,
+    "code_added": 5,
+    "code_removed": 0,
+    "code_modified": 0,
+    "implements_edges": 5,
+    "pruned_entities": 0,
+    "counts": {
+      "docs_added": 5,
+      "docs_modified": 0,
+      "docs_removed": 0,
+      "code_added": 5,
+      "code_modified": 0,
+      "code_removed": 0,
+      "chunks_processed": 5,
+      "chunks_indexed": 5,
+      "colbert_tokens_processed": 133,
+      "colbert_tokens_indexed": 133,
+      "code_tokens_processed": null,
+      "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+    },
+    "version": "v20260921T134330",
+    "colbert_io_bytes": {
+      "written_bytes": 273024,
+      "hardlinked_bytes": 0,
+      "copied_bytes": 0,
+      "inherited_hashes_not_reverified": 0
+    },
+    "phase_timings_seconds": {
+      "init_model": 2.2150924999987183,
+      "scan_hash": 0.0025680999970063567,
+      "load": 0.00024090000079013407,
+      "parsing_embedding": 3.3659737999987556,
+      "qdrant": 0.3829756000013731,
+      "relink": 0.0005027000006521121,
+      "save_hash": 0.08393109999815351,
+      "eval_gate": 0.0,
+      "promote": 0.032107999999425374
+    }
+  }
+}

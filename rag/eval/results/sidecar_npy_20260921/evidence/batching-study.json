@@ -1,0 +1,5564 @@
+{
+  "label": "encoding-only synthetic corpus study; no Qdrant/full retrieval",
+  "source": {
+    "result": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_post_20260921_docs_n100\\evidence\\result.json",
+    "docs": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_post_20260921_docs_n100\\sandbox\\experiment\\docs",
+    "query": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_readers_20260921\\evidence\\historical-candidates.json",
+    "chunk_count": 100,
+    "docs_sha256": {
+      "d000.md": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+      "d001.md": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+      "d002.md": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+      "d003.md": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+      "d004.md": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+      "d005.md": "74d4e33ac71d12964756a8cb9415591a0d3cdf7e4c14a1a93ef0b4592aacdd0a",
+      "d006.md": "955e2381cff1c12d332627292a66ba12847550a8c59a04b1f6bc0b74e72e26ef",
+      "d007.md": "d1127fc92ef4d8eea946df94c52157db395d8fff85a68cfbdd463198a99f0e0a",
+      "d008.md": "9e3e92a5dfaf1f9296db53503a37170ded5a933759c89d7ef7925111dc35f263",
+      "d009.md": "8d35a52c8f9480e2a2145087cc87967a6927820251b861552bbb947668c5b69d",
+      "d010.md": "fd47f5050fd63693c2cfb1716fcc01860194a7e25a3c14bb1188042a3c1efcc5",
+      "d011.md": "e02e2dd65eb8edfb1507958770be1dcf2e08113003cd6b06579c24c41dfe86c4",
+      "d012.md": "dd42b52c20460757ed80aad70315971f750face2132bfdc4e44da83e77ab67e2",
+      "d013.md": "05869bc2916a91cd31f8205aa052a5bff23855e20e258ff04e819fd0ead4fbaf",
+      "d014.md": "336f4b84fc334946ef349ae12036946be8aebbc8b8ecbadc538dc3a667a62252",
+      "d015.md": "83e482cd6be5bedaf5e09da6b2ae8e3b36f0137b08dbe4b2a4d14ad9d72e74d9",
+      "d016.md": "75f25f94ee7a2731221ab0d43ac44804bca36030459e94ea78578094cb5bb16f",
+      "d017.md": "4a599e0db8838ab1f54c773eb2502699a33e320140110bbded35fe5f0e444ec7",
+      "d018.md": "64f114851df7db25a9cff2ab2cfe8844427f70c00bcef0c3b5e51142a830ceb4",
+      "d019.md": "8d943d772b9de742fa050c9cf96d2bf62126042255d40a973c6699b42b743d33",
+      "d020.md": "d6e66015d9047f985a413d137f3562198f96558661d23a7eb73937bfcb94d802",
+      "d021.md": "da844cd0fb656c54cf426487ddfbb6dd6201384e6acd9dbe26f645d74b8dd77d",
+      "d022.md": "07139677bbc10314a973a42d505906c0032386e360921630440b589cb7556312",
+      "d023.md": "988b873cca10479b8a0d4da2f35f7e981f606d27ee3be1250206a72e16b305ed",
+      "d024.md": "1458532af8495a3add7d7580b8b4664841dd5b0efbf8b9d917cb2b2bbed3fac0",
+      "d025.md": "66d00cdb8bc4d9914b5f8259890b9cfc1ad8da483b2e9a48861f05e0c720059f",
+      "d026.md": "99139add11214670a3fb74781bbf0869199797a18827d46c2d089aabf99eb338",
+      "d027.md": "3403fbd2cf64e5ef75b4ace15caeebbefcf5cc09eb47a065dadbda3091a8400f",
+      "d028.md": "e9a8d5f43e43c8d1797a116a4f95c4662e890203685e7c717f9b4ad7701282d9",
+      "d029.md": "4f20f7678d086eb137dd7d5810210c462c0453eaccd7bbbf1d37b741782aa5d8",
+      "d030.md": "1b87756213470b4c5a3261bd2de3fe51d695d962868df03d6ee541c46b51ea79",
+      "d031.md": "4f891ffd58af85bd7772503b52f20445941d04808842f77e0f19c25217723350",
+      "d032.md": "744249f9d108a8bf06b6385586e2759fccae0d5343f8c17033f44ce36ef28c71",
+      "d033.md": "331b36237ee5349c1799350a0ccb313fe56d00818fc3ce6d7795f62ecdde189f",
+      "d034.md": "cbfc3938dca5fc7279950d3d349661d360652c50bb8b30e5373c49f1b46d810b",
+      "d035.md": "373630444155087b29ac8971272f7b32dc9ffd03279ac56e83fe31da923c5878",
+      "d036.md": "0e77ec6fe26ca3bf0fdb4da1ca47b4b987f2011e2ace7dd52fd2b78b1cd01939",
+      "d037.md": "0a5fa5db66b4b7d75ef98651c393862eae399772913fa4b37c848a8c5d3648db",
+      "d038.md": "6e92b3edcd1e330286268f2adf05c1ac7addc5e4d34f69ca4e5ff8288d1e73cd",
+      "d039.md": "4812b514c62c1bcc44498dc3fecee9ee1c1c754b658fe031c67a9e2d47fdb99d",
+      "d040.md": "2f67cfaae39f5a457a6882ac41e77852a915ca098db4566c44b27f1d8aa45a77",
+      "d041.md": "88d2a2fbf6fdb242cb0fcc0cef02dd8a7f83a9c87df3a871e0a4debc3bb0ef43",
+      "d042.md": "4c57aef89a3856fe857c66964d5ef3d389d76f4dacee18d0070b0da35febae1c",
+      "d043.md": "aebfb70258b5b96e72618c48e9a02c7eb91a8eb93994888c51c276befa1a2c22",
+      "d044.md": "1e86a659de475f39ca513f28def7294fe40a921dbda15e7074e747ef160d497f",
+      "d045.md": "c1d907fe83833ec57a3d40cd0119175547a3f2987249fbc15933548085cb1b5a",
+      "d046.md": "1686f2cb18f1d2e76fa1a1229282c63fb5a39b3788830950af50a71acf000873",
+      "d047.md": "994f7ce213de40ee60a7f23d854a271aee55804692a8b0738a59b2b69cdeb77b",
+      "d048.md": "5186c03a538d08a6dcfb79e4cbd6f67bc2f79538a38480397dfcf9393db8fabd",
+      "d049.md": "13ab41e24add7edf7514dabb3e2e41f38e6e9ce638ed3dcedd5f48d36f9aca09",
+      "d050.md": "12f1adf670cbf387a3923ba0663c9e5fdc0a4935b722d81f0c3be32e8592c6c3",
+      "d051.md": "f01d699bf3dec67c0cfa6939ffebfd1652cdf769249d2839ddfa701651b7aee5",
+      "d052.md": "4997d22ec5f29e857e28611d78dc8c89311c84192f969268bc0fc6f7dc3300b7",
+      "d053.md": "aae32809d1a45593250e2c5e0b69eedd7e63e9160cfc74cab422eaec73b95d29",
+      "d054.md": "d3f09ee023dd71ab3dea133274e912371aa600eddedd9b6619191a020a4e3c88",
+      "d055.md": "8e39168505404506861322d3ea59a465299df3213ba24dea7f7bfc8ba77e434f",
+      "d056.md": "e7d49aec0ff345243c2bcc3c80178c44226a597a0efd94d8b29d6994d96ed497",
+      "d057.md": "733c60c30e6c9d2e67b9184508998a28e005c369705610488f8018a3e9989d8c",
+      "d058.md": "17d2c58aeee734cbeb6f9df68109425463f2505a3bfd4817b1d3d80d1c958c28",
+      "d059.md": "795f6e0a6cbdacc9a3d0780c3806fd9e4f41a4130c76470bd86c223ceb515abf",
+      "d060.md": "871b59ee993f09c447a9946efd3787587ab8cf1de9219439f25262a6f06669b2",
+      "d061.md": "bebe5109d01b9a67989dded6ea601f1af32e87f98e11d6543ca8990404e9249c",
+      "d062.md": "b85efd20fac8970cb632012fe4024c26e40ff4803b51ac8443b92cd61fb0fc19",
+      "d063.md": "5a04e2759c1c2b0155a126b455be5bf443110644712ae746d3c9b894c3b48749",
+      "d064.md": "f4181ed6d036553a1abf763b8fa591ecb248747a3c70c924711e2150b711043e",
+      "d065.md": "38663b7b22b2bd12298b82b54b042baea27af7f35942ffab690db378bd3ac1f5",
+      "d066.md": "26900322a91d5823143bd0699b4f12bab6724f214f7efa70f14a73b00e4a6ea2",
+      "d067.md": "95af3d8e7493fc9e97ebe7411dc491675112fa64bbb47b8804f2abdadbf9104f",
+      "d068.md": "efd784680b2daa6887eef0c013ebb522c02c713dc6bcb662ff1e395015dbafcf",
+      "d069.md": "88d075561678fb4be9373b34fe868ffb88da2048e5db7031bfb05d99b537c0e3",
+      "d070.md": "5bee14ba96e0ef4e52cb9267e0115221633b5ac64e2abdf9c9e046b7d1cede85",
+      "d071.md": "c490a526c4cc2661f5a49755e267aaf6e1335ba3721bae4b365973d2f732a61b",
+      "d072.md": "fce09d39623e60888cbdcf5e78af83b052ef4ee3d09e34977029bc00ead13a51",
+      "d073.md": "566aa5fb0939660f60294920cd406f2e85013873fe00367b6fc65c79af8435e1",
+      "d074.md": "0bce78f5e0faca2de6521734dcaf9b469370c8427966d9cc2c5bbd136a12a963",
+      "d075.md": "891dc2b1ee75583b23487cdb6553a5280c1ce344dc6fc58c964e1c16b2427687",
+      "d076.md": "8937510b4127ece66187a4e21770b58e2417e9e4a360e4d4242effc5724f88b3",
+      "d077.md": "13a8f3620bf354c6a87e1a87e4ab1ee8ade1b7f87dd0155acc58366cfedbb7ea",
+      "d078.md": "a73ea6dcc7d92db51ff7e8e846a78bf9f042975e17e12feef447454ea59a8a87",
+      "d079.md": "add02f109e86cc4acacd7ac430c29413c0aa0badb84e74ca02011e9ac1ac31e5",
+      "d080.md": "14bdfcc2ce980c63eca527dabcc4e8290f9613c3c4d5b606fa27b7055046d7e2",
+      "d081.md": "2383b2fc165bf509cdd3e573123ee3a47d8657fe235383a2cc46ee0879d92e72",
+      "d082.md": "7030533e5f9f80bb1362f5a32c481e18e0d23e9d33335ea49279c41805526822",
+      "d083.md": "3312a4d69e1a952ead178134241ae7bae7b35ca2157e078a6cdd8863818213f4",
+      "d084.md": "c75fd31ff054cc53c928148979a7fb5bbbce9f754c99783fcac90fdbfdce92ad",
+      "d085.md": "8d5141cbdeb29c468fb55dec54f49c72bc9cc8b8ab3eca04cc80579e4e138ac5",
+      "d086.md": "db805bf9f3ddde21d69e5d7720d94512c544021d32c9501cb9db2391b57a5d3a",
+      "d087.md": "b7a828eec783aa3723436886cbd18f60f5da8bbdb0ea2d562f37a76e7f9134ae",
+      "d088.md": "0d388413d4fcb1cabb7e644330ce97ca42cbfe8169498d6e07d3b9f2e8ba2a92",
+      "d089.md": "4cd2aca253e454dc370aa5388d04b802f9642d321da4b8745abb468a3385e953",
+      "d090.md": "5281a90634e5cff2025d1e26c99031ae6cc6a41c9b0d6a935123b2297be86d1c",
+      "d091.md": "e7a9c01a4816bf01e837b0eb33cd8000e9050d5fd804ecd501d2883f1e8cfce1",
+      "d092.md": "472dcddfbca3a773582b63f3c5cb8963c9ad00509720ae52b6c3db7e975f6b50",
+      "d093.md": "3f1d2867ad38ab78a068a159beb104d673dfd96a3c86f67ac829ba37f4591b2d",
+      "d094.md": "e4f7c052de193286ccde9b1e0435958f8ebe24de6501514eb30ee39a93e31f4d",
+      "d095.md": "b5697e2ace1048bc6c2621216ad8909b5028134620dbeb1106c6b515ac96c5a1",
+      "d096.md": "e37a261529c954b6a8c0e307001be6a6a0a61f5ffa7564467c487a66f203bc88",
+      "d097.md": "f348ebab8f918657770aa47c10bdb33c5981649af6be66ba3dacfe5a999815c3",
+      "d098.md": "5d94ca27bf302b7b40f0eb3010b4f91a27ab42dcf1436eee72c0fcaf25fcf17d",
+      "d099.md": "41a0459afdb09862c5278ad15891a047c0b81d1b2ae60b46accbbbe3be549d4b"
+    },
+    "query_sha256": "9a5b7d22a3db4b9bf65d4c26b8161e5486a8a5860cc55f37d5bf1a40110ff197"
+  },
+  "model": "BAAI/bge-m3",
+  "model_cpu_threads": 4,
+  "batch_size": 12,
+  "warmup": {
+    "global": {
+      "seconds": 7.63728319999791,
+      "calls": 1,
+      "group_sizes": [
+        100
+      ]
+    },
+    "per_document": {
+      "seconds": 28.852124399989407,
+      "calls": 100,
+      "group_sizes": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    "groups_12": {
+      "seconds": 14.448844500009727,
+      "calls": 9,
+      "group_sizes": [
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        12,
+        4
+      ]
+    }
+  },
+  "measured_order": [
+    [
+      "global",
+      "per_document",
+      "groups_12"
+    ],
+    [
+      "per_document",
+      "groups_12",
+      "global"
+    ],
+    [
+      "groups_12",
+      "global",
+      "per_document"
+    ]
+  ],
+  "trials": {
+    "global": [
+      {
+        "repeat": 0,
+        "encode_seconds": 7.407768799999758,
+        "calls": 1,
+        "group_sizes": [
+          100
+        ]
+      },
+      {
+        "repeat": 1,
+        "encode_seconds": 7.424963199999183,
+        "calls": 1,
+        "group_sizes": [
+          100
+        ]
+      },
+      {
+        "repeat": 2,
+        "encode_seconds": 7.166101700000581,
+        "calls": 1,
+        "group_sizes": [
+          100
+        ]
+      }
+    ],
+    "per_document": [
+      {
+        "repeat": 0,
+        "encode_seconds": 27.33695570000782,
+        "calls": 100,
+        "group_sizes": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "repeat": 1,
+        "encode_seconds": 26.951722900008463,
+        "calls": 100,
+        "group_sizes": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "repeat": 2,
+        "encode_seconds": 27.729970199980016,
+        "calls": 100,
+        "group_sizes": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ]
+      }
+    ],
+    "groups_12": [
+      {
+        "repeat": 0,
+        "encode_seconds": 13.403688899998087,
+        "calls": 9,
+        "group_sizes": [
+          12,
+          12,
+          12,
+          12,
+          12,
+          12,
+          12,
+          12,
+          4
+        ]
+      },
+      {
+        "repeat": 1,
+        "encode_seconds": 13.243346400005976,
+        "calls": 9,
+        "group_sizes": [
+          12,
+          12,
+          12,
+          12,
+          12,
+          12,
+          12,
+          12,
+          4
+        ]
+      },
+      {
+        "repeat": 2,
+        "encode_seconds": 13.534087900003215,
+        "calls": 9,
+        "group_sizes": [
+          12,
+          12,
+          12,
+          12,
+          12,
+          12,
+          12,
+          12,
+          4
+        ]
+      }
+    ]
+  },
+  "medians_encode_seconds": {
+    "global": 7.407768799999758,
+    "per_document": 27.33695570000782,
+    "groups_12": 13.403688899998087
+  },
+  "vector_metadata": {
+    "global": {
+      "d000.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          25,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d001.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d002.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d003.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d004.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d005.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d006.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d007.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d008.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d009.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d010.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d011.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d012.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d013.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d014.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d015.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d016.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d017.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 23,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d018.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d019.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d020.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d021.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d022.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d023.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d024.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d025.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d026.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d027.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d028.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d029.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d030.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d031.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d032.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d033.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d034.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d035.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d036.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d037.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d038.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d039.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d040.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d041.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d042.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d043.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d044.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d045.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d046.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d047.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d048.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d049.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d050.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d051.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d052.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d053.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d054.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d055.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d056.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d057.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d058.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d059.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d060.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d061.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d062.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d063.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d064.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d065.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d066.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d067.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d068.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d069.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d070.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d071.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d072.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d073.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d074.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d075.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d076.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d077.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d078.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d079.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d080.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d081.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d082.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d083.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d084.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d085.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d086.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d087.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d088.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d089.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d090.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 19,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d091.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d092.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d093.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d094.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d095.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d096.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d097.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d098.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d099.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      }
+    },
+    "per_document": {
+      "d000.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          25,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d001.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d002.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d003.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d004.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d005.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d006.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d007.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d008.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d009.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d010.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d011.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d012.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d013.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d014.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d015.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d016.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d017.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 23,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d018.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d019.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d020.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d021.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d022.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d023.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d024.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d025.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d026.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d027.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d028.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d029.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d030.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d031.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d032.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d033.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d034.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d035.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d036.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d037.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d038.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d039.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d040.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d041.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d042.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d043.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d044.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d045.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d046.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d047.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d048.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d049.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d050.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d051.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d052.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d053.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d054.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d055.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d056.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d057.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d058.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d059.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d060.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d061.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d062.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d063.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d064.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d065.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d066.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d067.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d068.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d069.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d070.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d071.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d072.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d073.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d074.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d075.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d076.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d077.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d078.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d079.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d080.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d081.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d082.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d083.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d084.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d085.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d086.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d087.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d088.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d089.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d090.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 19,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d091.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d092.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d093.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d094.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d095.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d096.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d097.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d098.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d099.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      }
+    },
+    "groups_12": {
+      "d000.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          25,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d001.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d002.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d003.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d004.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d005.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d006.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d007.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d008.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d009.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d010.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d011.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d012.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d013.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d014.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d015.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d016.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d017.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 23,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d018.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d019.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d020.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d021.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d022.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d023.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d024.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d025.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d026.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d027.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d028.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d029.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d030.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d031.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d032.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d033.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d034.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d035.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d036.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d037.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d038.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d039.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d040.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d041.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d042.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d043.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d044.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d045.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d046.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d047.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d048.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d049.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d050.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d051.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d052.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d053.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d054.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d055.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d056.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d057.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d058.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d059.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d060.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d061.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d062.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d063.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d064.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d065.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d066.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d067.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d068.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d069.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d070.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d071.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d072.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d073.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d074.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d075.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d076.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d077.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d078.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d079.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d080.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d081.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d082.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d083.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d084.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d085.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d086.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d087.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d088.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d089.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d090.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 19,
+        "colbert_shape": [
+          26,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d091.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d092.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d093.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d094.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d095.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d096.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 20,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d097.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          28,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d098.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 22,
+        "colbert_shape": [
+          29,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      },
+      "d099.md#00-documento": {
+        "dense_shape": [
+          1024
+        ],
+        "dense_dtype": "float32",
+        "sparse_terms": 21,
+        "colbert_shape": [
+          27,
+          1024
+        ],
+        "colbert_dtype": "float16"
+      }
+    }
+  },
+  "vector_comparisons": {
+    "global_vs_per_document": {
+      "different_chunks": {
+        "dense": 0,
+        "sparse": 0,
+        "colbert": 53
+      },
+      "different_values": {
+        "dense": 0,
+        "sparse": 0,
+        "colbert": 87
+      },
+      "max_abs_difference": {
+        "dense": 0.0,
+        "sparse": 0.0,
+        "colbert": 3.0517578125e-05
+      },
+      "sparse_key_different_ids": [],
+      "shape_different": []
+    },
+    "global_vs_groups_12": {
+      "different_chunks": {
+        "dense": 0,
+        "sparse": 0,
+        "colbert": 0
+      },
+      "different_values": {
+        "dense": 0,
+        "sparse": 0,
+        "colbert": 0
+      },
+      "max_abs_difference": {
+        "dense": 0.0,
+        "sparse": 0.0,
+        "colbert": 0.0
+      },
+      "sparse_key_different_ids": [],
+      "shape_different": []
+    },
+    "groups_12_vs_per_document": {
+      "different_chunks": {
+        "dense": 0,
+        "sparse": 0,
+        "colbert": 53
+      },
+      "different_values": {
+        "dense": 0,
+        "sparse": 0,
+        "colbert": 87
+      },
+      "max_abs_difference": {
+        "dense": 0.0,
+        "sparse": 0.0,
+        "colbert": 3.0517578125e-05
+      },
+      "sparse_key_different_ids": [],
+      "shape_different": []
+    }
+  },
+  "colbert_replay": {
+    "cached_query": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_readers_20260921\\evidence\\historical-candidates.json",
+    "scope": "same 100 IDs plus missing; cached query, not full retrieval",
+    "rankings": {
+      "global": [
+        [
+          "d038.md#00-documento",
+          0.5333
+        ],
+        [
+          "d068.md#00-documento",
+          0.5302
+        ],
+        [
+          "d008.md#00-documento",
+          0.5278
+        ],
+        [
+          "d098.md#00-documento",
+          0.527
+        ],
+        [
+          "d058.md#00-documento",
+          0.5202
+        ],
+        [
+          "d065.md#00-documento",
+          0.5188
+        ],
+        [
+          "d035.md#00-documento",
+          0.518
+        ],
+        [
+          "d016.md#00-documento",
+          0.5169
+        ],
+        [
+          "d086.md#00-documento",
+          0.5169
+        ],
+        [
+          "d032.md#00-documento",
+          0.5163
+        ],
+        [
+          "d048.md#00-documento",
+          0.516
+        ],
+        [
+          "d088.md#00-documento",
+          0.5157
+        ],
+        [
+          "d085.md#00-documento",
+          0.5154
+        ],
+        [
+          "d095.md#00-documento",
+          0.5153
+        ],
+        [
+          "d028.md#00-documento",
+          0.5138
+        ],
+        [
+          "d006.md#00-documento",
+          0.5137
+        ],
+        [
+          "d062.md#00-documento",
+          0.5132
+        ],
+        [
+          "d005.md#00-documento",
+          0.5126
+        ],
+        [
+          "d034.md#00-documento",
+          0.5117
+        ],
+        [
+          "d002.md#00-documento",
+          0.5116
+        ],
+        [
+          "d018.md#00-documento",
+          0.5116
+        ],
+        [
+          "d046.md#00-documento",
+          0.5112
+        ],
+        [
+          "d089.md#00-documento",
+          0.5108
+        ],
+        [
+          "d029.md#00-documento",
+          0.5106
+        ],
+        [
+          "d019.md#00-documento",
+          0.5104
+        ],
+        [
+          "d083.md#00-documento",
+          0.5104
+        ],
+        [
+          "d092.md#00-documento",
+          0.5103
+        ],
+        [
+          "d055.md#00-documento",
+          0.5101
+        ],
+        [
+          "d082.md#00-documento",
+          0.5101
+        ],
+        [
+          "d036.md#00-documento",
+          0.5093
+        ],
+        [
+          "d094.md#00-documento",
+          0.5088
+        ],
+        [
+          "d064.md#00-documento",
+          0.5083
+        ],
+        [
+          "d004.md#00-documento",
+          0.5081
+        ],
+        [
+          "d056.md#00-documento",
+          0.5071
+        ],
+        [
+          "d043.md#00-documento",
+          0.5067
+        ],
+        [
+          "d014.md#00-documento",
+          0.5063
+        ],
+        [
+          "d044.md#00-documento",
+          0.5062
+        ],
+        [
+          "d003.md#00-documento",
+          0.5059
+        ],
+        [
+          "d023.md#00-documento",
+          0.5057
+        ],
+        [
+          "d001.md#00-documento",
+          0.5052
+        ],
+        [
+          "d096.md#00-documento",
+          0.5049
+        ],
+        [
+          "d025.md#00-documento",
+          0.5047
+        ],
+        [
+          "d011.md#00-documento",
+          0.5045
+        ],
+        [
+          "d059.md#00-documento",
+          0.5045
+        ],
+        [
+          "d063.md#00-documento",
+          0.5044
+        ],
+        [
+          "d049.md#00-documento",
+          0.5041
+        ],
+        [
+          "d022.md#00-documento",
+          0.5031
+        ],
+        [
+          "d053.md#00-documento",
+          0.5027
+        ],
+        [
+          "d097.md#00-documento",
+          0.5023
+        ],
+        [
+          "d020.md#00-documento",
+          0.5022
+        ],
+        [
+          "d093.md#00-documento",
+          0.5022
+        ],
+        [
+          "d045.md#00-documento",
+          0.5016
+        ],
+        [
+          "d066.md#00-documento",
+          0.5014
+        ],
+        [
+          "d026.md#00-documento",
+          0.5013
+        ],
+        [
+          "d039.md#00-documento",
+          0.5007
+        ],
+        [
+          "d009.md#00-documento",
+          0.5006
+        ],
+        [
+          "d069.md#00-documento",
+          0.5003
+        ],
+        [
+          "d033.md#00-documento",
+          0.5002
+        ],
+        [
+          "d037.md#00-documento",
+          0.5
+        ],
+        [
+          "d084.md#00-documento",
+          0.5
+        ],
+        [
+          "d042.md#00-documento",
+          0.4999
+        ],
+        [
+          "d052.md#00-documento",
+          0.4998
+        ],
+        [
+          "d015.md#00-documento",
+          0.4997
+        ],
+        [
+          "d031.md#00-documento",
+          0.4995
+        ],
+        [
+          "d067.md#00-documento",
+          0.4993
+        ],
+        [
+          "d050.md#00-documento",
+          0.4992
+        ],
+        [
+          "d047.md#00-documento",
+          0.498
+        ],
+        [
+          "d061.md#00-documento",
+          0.498
+        ],
+        [
+          "d017.md#00-documento",
+          0.4979
+        ],
+        [
+          "d080.md#00-documento",
+          0.496
+        ],
+        [
+          "d099.md#00-documento",
+          0.4949
+        ],
+        [
+          "d041.md#00-documento",
+          0.494
+        ],
+        [
+          "d054.md#00-documento",
+          0.494
+        ],
+        [
+          "d024.md#00-documento",
+          0.4935
+        ],
+        [
+          "d087.md#00-documento",
+          0.4924
+        ],
+        [
+          "d078.md#00-documento",
+          0.4916
+        ],
+        [
+          "d081.md#00-documento",
+          0.4914
+        ],
+        [
+          "d079.md#00-documento",
+          0.491
+        ],
+        [
+          "d007.md#00-documento",
+          0.4908
+        ],
+        [
+          "d091.md#00-documento",
+          0.4907
+        ],
+        [
+          "d040.md#00-documento",
+          0.4906
+        ],
+        [
+          "d060.md#00-documento",
+          0.4901
+        ],
+        [
+          "d090.md#00-documento",
+          0.4897
+        ],
+        [
+          "d012.md#00-documento",
+          0.4895
+        ],
+        [
+          "d076.md#00-documento",
+          0.4894
+        ],
+        [
+          "d010.md#00-documento",
+          0.4887
+        ],
+        [
+          "d073.md#00-documento",
+          0.488
+        ],
+        [
+          "d021.md#00-documento",
+          0.4873
+        ],
+        [
+          "d074.md#00-documento",
+          0.4869
+        ],
+        [
+          "d030.md#00-documento",
+          0.4867
+        ],
+        [
+          "d013.md#00-documento",
+          0.4855
+        ],
+        [
+          "d057.md#00-documento",
+          0.4855
+        ],
+        [
+          "d075.md#00-documento",
+          0.4855
+        ],
+        [
+          "d000.md#00-documento",
+          0.4847
+        ],
+        [
+          "d051.md#00-documento",
+          0.4825
+        ],
+        [
+          "d077.md#00-documento",
+          0.4791
+        ],
+        [
+          "d072.md#00-documento",
+          0.4755
+        ],
+        [
+          "d027.md#00-documento",
+          0.475
+        ],
+        [
+          "d070.md#00-documento",
+          0.4714
+        ],
+        [
+          "d071.md#00-documento",
+          0.4708
+        ],
+        [
+          "missing.synthetic#00",
+          null
+        ]
+      ],
+      "per_document": [
+        [
+          "d038.md#00-documento",
+          0.5333
+        ],
+        [
+          "d068.md#00-documento",
+          0.5302
+        ],
+        [
+          "d008.md#00-documento",
+          0.5278
+        ],
+        [
+          "d098.md#00-documento",
+          0.527
+        ],
+        [
+          "d058.md#00-documento",
+          0.5202
+        ],
+        [
+          "d065.md#00-documento",
+          0.5188
+        ],
+        [
+          "d035.md#00-documento",
+          0.518
+        ],
+        [
+          "d016.md#00-documento",
+          0.5169
+        ],
+        [
+          "d086.md#00-documento",
+          0.5169
+        ],
+        [
+          "d032.md#00-documento",
+          0.5163
+        ],
+        [
+          "d048.md#00-documento",
+          0.516
+        ],
+        [
+          "d088.md#00-documento",
+          0.5157
+        ],
+        [
+          "d085.md#00-documento",
+          0.5154
+        ],
+        [
+          "d095.md#00-documento",
+          0.5153
+        ],
+        [
+          "d028.md#00-documento",
+          0.5138
+        ],
+        [
+          "d006.md#00-documento",
+          0.5137
+        ],
+        [
+          "d062.md#00-documento",
+          0.5132
+        ],
+        [
+          "d005.md#00-documento",
+          0.5126
+        ],
+        [
+          "d034.md#00-documento",
+          0.5117
+        ],
+        [
+          "d002.md#00-documento",
+          0.5116
+        ],
+        [
+          "d018.md#00-documento",
+          0.5116
+        ],
+        [
+          "d046.md#00-documento",
+          0.5112
+        ],
+        [
+          "d089.md#00-documento",
+          0.5108
+        ],
+        [
+          "d029.md#00-documento",
+          0.5106
+        ],
+        [
+          "d019.md#00-documento",
+          0.5104
+        ],
+        [
+          "d083.md#00-documento",
+          0.5104
+        ],
+        [
+          "d092.md#00-documento",
+          0.5103
+        ],
+        [
+          "d055.md#00-documento",
+          0.5101
+        ],
+        [
+          "d082.md#00-documento",
+          0.5101
+        ],
+        [
+          "d036.md#00-documento",
+          0.5093
+        ],
+        [
+          "d094.md#00-documento",
+          0.5088
+        ],
+        [
+          "d064.md#00-documento",
+          0.5083
+        ],
+        [
+          "d004.md#00-documento",
+          0.5081
+        ],
+        [
+          "d056.md#00-documento",
+          0.5071
+        ],
+        [
+          "d043.md#00-documento",
+          0.5067
+        ],
+        [
+          "d014.md#00-documento",
+          0.5063
+        ],
+        [
+          "d044.md#00-documento",
+          0.5062
+        ],
+        [
+          "d003.md#00-documento",
+          0.5059
+        ],
+        [
+          "d023.md#00-documento",
+          0.5057
+        ],
+        [
+          "d001.md#00-documento",
+          0.5052
+        ],
+        [
+          "d096.md#00-documento",
+          0.5049
+        ],
+        [
+          "d025.md#00-documento",
+          0.5047
+        ],
+        [
+          "d011.md#00-documento",
+          0.5045
+        ],
+        [
+          "d059.md#00-documento",
+          0.5045
+        ],
+        [
+          "d063.md#00-documento",
+          0.5044
+        ],
+        [
+          "d049.md#00-documento",
+          0.5041
+        ],
+        [
+          "d022.md#00-documento",
+          0.5031
+        ],
+        [
+          "d053.md#00-documento",
+          0.5027
+        ],
+        [
+          "d097.md#00-documento",
+          0.5023
+        ],
+        [
+          "d020.md#00-documento",
+          0.5022
+        ],
+        [
+          "d093.md#00-documento",
+          0.5022
+        ],
+        [
+          "d045.md#00-documento",
+          0.5016
+        ],
+        [
+          "d066.md#00-documento",
+          0.5014
+        ],
+        [
+          "d026.md#00-documento",
+          0.5013
+        ],
+        [
+          "d039.md#00-documento",
+          0.5007
+        ],
+        [
+          "d009.md#00-documento",
+          0.5006
+        ],
+        [
+          "d069.md#00-documento",
+          0.5003
+        ],
+        [
+          "d033.md#00-documento",
+          0.5002
+        ],
+        [
+          "d037.md#00-documento",
+          0.5
+        ],
+        [
+          "d084.md#00-documento",
+          0.5
+        ],
+        [
+          "d042.md#00-documento",
+          0.4999
+        ],
+        [
+          "d052.md#00-documento",
+          0.4998
+        ],
+        [
+          "d015.md#00-documento",
+          0.4997
+        ],
+        [
+          "d031.md#00-documento",
+          0.4995
+        ],
+        [
+          "d067.md#00-documento",
+          0.4993
+        ],
+        [
+          "d050.md#00-documento",
+          0.4992
+        ],
+        [
+          "d047.md#00-documento",
+          0.498
+        ],
+        [
+          "d061.md#00-documento",
+          0.498
+        ],
+        [
+          "d017.md#00-documento",
+          0.4979
+        ],
+        [
+          "d080.md#00-documento",
+          0.496
+        ],
+        [
+          "d099.md#00-documento",
+          0.4949
+        ],
+        [
+          "d041.md#00-documento",
+          0.494
+        ],
+        [
+          "d054.md#00-documento",
+          0.494
+        ],
+        [
+          "d024.md#00-documento",
+          0.4935
+        ],
+        [
+          "d087.md#00-documento",
+          0.4924
+        ],
+        [
+          "d078.md#00-documento",
+          0.4916
+        ],
+        [
+          "d081.md#00-documento",
+          0.4914
+        ],
+        [
+          "d079.md#00-documento",
+          0.491
+        ],
+        [
+          "d007.md#00-documento",
+          0.4908
+        ],
+        [
+          "d091.md#00-documento",
+          0.4907
+        ],
+        [
+          "d040.md#00-documento",
+          0.4906
+        ],
+        [
+          "d060.md#00-documento",
+          0.4901
+        ],
+        [
+          "d090.md#00-documento",
+          0.4897
+        ],
+        [
+          "d012.md#00-documento",
+          0.4895
+        ],
+        [
+          "d076.md#00-documento",
+          0.4894
+        ],
+        [
+          "d010.md#00-documento",
+          0.4887
+        ],
+        [
+          "d073.md#00-documento",
+          0.488
+        ],
+        [
+          "d021.md#00-documento",
+          0.4873
+        ],
+        [
+          "d074.md#00-documento",
+          0.4869
+        ],
+        [
+          "d030.md#00-documento",
+          0.4867
+        ],
+        [
+          "d013.md#00-documento",
+          0.4855
+        ],
+        [
+          "d057.md#00-documento",
+          0.4855
+        ],
+        [
+          "d075.md#00-documento",
+          0.4855
+        ],
+        [
+          "d000.md#00-documento",
+          0.4847
+        ],
+        [
+          "d051.md#00-documento",
+          0.4825
+        ],
+        [
+          "d077.md#00-documento",
+          0.4791
+        ],
+        [
+          "d072.md#00-documento",
+          0.4755
+        ],
+        [
+          "d027.md#00-documento",
+          0.475
+        ],
+        [
+          "d070.md#00-documento",
+          0.4714
+        ],
+        [
+          "d071.md#00-documento",
+          0.4708
+        ],
+        [
+          "missing.synthetic#00",
+          null
+        ]
+      ],
+      "groups_12": [
+        [
+          "d038.md#00-documento",
+          0.5333
+        ],
+        [
+          "d068.md#00-documento",
+          0.5302
+        ],
+        [
+          "d008.md#00-documento",
+          0.5278
+        ],
+        [
+          "d098.md#00-documento",
+          0.527
+        ],
+        [
+          "d058.md#00-documento",
+          0.5202
+        ],
+        [
+          "d065.md#00-documento",
+          0.5188
+        ],
+        [
+          "d035.md#00-documento",
+          0.518
+        ],
+        [
+          "d016.md#00-documento",
+          0.5169
+        ],
+        [
+          "d086.md#00-documento",
+          0.5169
+        ],
+        [
+          "d032.md#00-documento",
+          0.5163
+        ],
+        [
+          "d048.md#00-documento",
+          0.516
+        ],
+        [
+          "d088.md#00-documento",
+          0.5157
+        ],
+        [
+          "d085.md#00-documento",
+          0.5154
+        ],
+        [
+          "d095.md#00-documento",
+          0.5153
+        ],
+        [
+          "d028.md#00-documento",
+          0.5138
+        ],
+        [
+          "d006.md#00-documento",
+          0.5137
+        ],
+        [
+          "d062.md#00-documento",
+          0.5132
+        ],
+        [
+          "d005.md#00-documento",
+          0.5126
+        ],
+        [
+          "d034.md#00-documento",
+          0.5117
+        ],
+        [
+          "d002.md#00-documento",
+          0.5116
+        ],
+        [
+          "d018.md#00-documento",
+          0.5116
+        ],
+        [
+          "d046.md#00-documento",
+          0.5112
+        ],
+        [
+          "d089.md#00-documento",
+          0.5108
+        ],
+        [
+          "d029.md#00-documento",
+          0.5106
+        ],
+        [
+          "d019.md#00-documento",
+          0.5104
+        ],
+        [
+          "d083.md#00-documento",
+          0.5104
+        ],
+        [
+          "d092.md#00-documento",
+          0.5103
+        ],
+        [
+          "d055.md#00-documento",
+          0.5101
+        ],
+        [
+          "d082.md#00-documento",
+          0.5101
+        ],
+        [
+          "d036.md#00-documento",
+          0.5093
+        ],
+        [
+          "d094.md#00-documento",
+          0.5088
+        ],
+        [
+          "d064.md#00-documento",
+          0.5083
+        ],
+        [
+          "d004.md#00-documento",
+          0.5081
+        ],
+        [
+          "d056.md#00-documento",
+          0.5071
+        ],
+        [
+          "d043.md#00-documento",
+          0.5067
+        ],
+        [
+          "d014.md#00-documento",
+          0.5063
+        ],
+        [
+          "d044.md#00-documento",
+          0.5062
+        ],
+        [
+          "d003.md#00-documento",
+          0.5059
+        ],
+        [
+          "d023.md#00-documento",
+          0.5057
+        ],
+        [
+          "d001.md#00-documento",
+          0.5052
+        ],
+        [
+          "d096.md#00-documento",
+          0.5049
+        ],
+        [
+          "d025.md#00-documento",
+          0.5047
+        ],
+        [
+          "d011.md#00-documento",
+          0.5045
+        ],
+        [
+          "d059.md#00-documento",
+          0.5045
+        ],
+        [
+          "d063.md#00-documento",
+          0.5044
+        ],
+        [
+          "d049.md#00-documento",
+          0.5041
+        ],
+        [
+          "d022.md#00-documento",
+          0.5031
+        ],
+        [
+          "d053.md#00-documento",
+          0.5027
+        ],
+        [
+          "d097.md#00-documento",
+          0.5023
+        ],
+        [
+          "d020.md#00-documento",
+          0.5022
+        ],
+        [
+          "d093.md#00-documento",
+          0.5022
+        ],
+        [
+          "d045.md#00-documento",
+          0.5016
+        ],
+        [
+          "d066.md#00-documento",
+          0.5014
+        ],
+        [
+          "d026.md#00-documento",
+          0.5013
+        ],
+        [
+          "d039.md#00-documento",
+          0.5007
+        ],
+        [
+          "d009.md#00-documento",
+          0.5006
+        ],
+        [
+          "d069.md#00-documento",
+          0.5003
+        ],
+        [
+          "d033.md#00-documento",
+          0.5002
+        ],
+        [
+          "d037.md#00-documento",
+          0.5
+        ],
+        [
+          "d084.md#00-documento",
+          0.5
+        ],
+        [
+          "d042.md#00-documento",
+          0.4999
+        ],
+        [
+          "d052.md#00-documento",
+          0.4998
+        ],
+        [
+          "d015.md#00-documento",
+          0.4997
+        ],
+        [
+          "d031.md#00-documento",
+          0.4995
+        ],
+        [
+          "d067.md#00-documento",
+          0.4993
+        ],
+        [
+          "d050.md#00-documento",
+          0.4992
+        ],
+        [
+          "d047.md#00-documento",
+          0.498
+        ],
+        [
+          "d061.md#00-documento",
+          0.498
+        ],
+        [
+          "d017.md#00-documento",
+          0.4979
+        ],
+        [
+          "d080.md#00-documento",
+          0.496
+        ],
+        [
+          "d099.md#00-documento",
+          0.4949
+        ],
+        [
+          "d041.md#00-documento",
+          0.494
+        ],
+        [
+          "d054.md#00-documento",
+          0.494
+        ],
+        [
+          "d024.md#00-documento",
+          0.4935
+        ],
+        [
+          "d087.md#00-documento",
+          0.4924
+        ],
+        [
+          "d078.md#00-documento",
+          0.4916
+        ],
+        [
+          "d081.md#00-documento",
+          0.4914
+        ],
+        [
+          "d079.md#00-documento",
+          0.491
+        ],
+        [
+          "d007.md#00-documento",
+          0.4908
+        ],
+        [
+          "d091.md#00-documento",
+          0.4907
+        ],
+        [
+          "d040.md#00-documento",
+          0.4906
+        ],
+        [
+          "d060.md#00-documento",
+          0.4901
+        ],
+        [
+          "d090.md#00-documento",
+          0.4897
+        ],
+        [
+          "d012.md#00-documento",
+          0.4895
+        ],
+        [
+          "d076.md#00-documento",
+          0.4894
+        ],
+        [
+          "d010.md#00-documento",
+          0.4887
+        ],
+        [
+          "d073.md#00-documento",
+          0.488
+        ],
+        [
+          "d021.md#00-documento",
+          0.4873
+        ],
+        [
+          "d074.md#00-documento",
+          0.4869
+        ],
+        [
+          "d030.md#00-documento",
+          0.4867
+        ],
+        [
+          "d013.md#00-documento",
+          0.4855
+        ],
+        [
+          "d057.md#00-documento",
+          0.4855
+        ],
+        [
+          "d075.md#00-documento",
+          0.4855
+        ],
+        [
+          "d000.md#00-documento",
+          0.4847
+        ],
+        [
+          "d051.md#00-documento",
+          0.4825
+        ],
+        [
+          "d077.md#00-documento",
+          0.4791
+        ],
+        [
+          "d072.md#00-documento",
+          0.4755
+        ],
+        [
+          "d027.md#00-documento",
+          0.475
+        ],
+        [
+          "d070.md#00-documento",
+          0.4714
+        ],
+        [
+          "d071.md#00-documento",
+          0.4708
+        ],
+        [
+          "missing.synthetic#00",
+          null
+        ]
+      ]
+    },
+    "pair_exact": {
+      "global_vs_per_document": true,
+      "global_vs_groups_12": true,
+      "groups_12_vs_per_document": true
+    }
+  }
+}
