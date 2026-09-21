@@ -531,9 +531,10 @@ def test_docs_git_rileva_un_file_tracciato_sparito_dal_disco(tmp_path, git_dispo
     assert r["state"] == "diverging" and r["diverging"] == ["docs/norma.md"]
 
 
-def test_docs_git_degrada_senza_repository(tmp_path):
+def test_docs_git_degrada_senza_repository(tmp_path, monkeypatch):
     """Fuori da un repo git il check non deve sollevare: è un'osservazione, non un gate."""
     (tmp_path / "docs").mkdir()
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
     r = indexing.observe_docs_git_divergence(root=tmp_path, docs_dir=tmp_path / "docs")
     assert r["state"] == "unavailable" and r["reason"] and r["diverging"] == []
 

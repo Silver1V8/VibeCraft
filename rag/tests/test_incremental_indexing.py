@@ -288,6 +288,34 @@ def test_incremental_index_noop_returns_early(monkeypatch, tmp_path):
     assert out["reindexed_docs"] == 0 and out["deleted_docs"] == 0
 
 
+def test_incremental_only_delete_does_not_construct_embed_model(monkeypatch):
+    monkeypatch.setattr(index, "_docs_hashes", lambda: {})
+    monkeypatch.setattr(index, "_code_hashes", lambda: {})
+    monkeypatch.setattr(index, "_read_manifest",
+                        lambda: {"doc_hashes": {"a.md": "old"}, "code_hashes": {}})
+    monkeypatch.setattr(index, "BGEM3FlagModel",
+                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("model loaded")))
+    monkeypatch.setattr(index, "QdrantClient",
+                        lambda **k: (_ for _ in ()).throw(RuntimeError("after model decision")))
+    with pytest.raises(RuntimeError, match="after model decision"):
+        index.incremental_index()
+
+
+def test_incremental_modified_content_constructs_embed_model(monkeypatch):
+    monkeypatch.setattr(index, "_docs_hashes", lambda: {"a.md": "new"})
+    monkeypatch.setattr(index, "_code_hashes", lambda: {})
+    monkeypatch.setattr(index, "_read_manifest",
+                        lambda: {"doc_hashes": {"a.md": "old"}, "code_hashes": {}})
+    models = []
+    monkeypatch.setattr(index, "BGEM3FlagModel",
+                        lambda *a, **k: models.append((a, k)) or object())
+    monkeypatch.setattr(index, "QdrantClient",
+                        lambda **k: (_ for _ in ()).throw(RuntimeError("after model decision")))
+    with pytest.raises(RuntimeError, match="after model decision"):
+        index.incremental_index()
+    assert len(models) == 1
+
+
 # ---------------------------------------------------------------------------
 # 5. Ciclo full→incrementale end-to-end: link spec↔codice non stale, senza rebuild.
 #    Fake leggeri (nessun torch, nessun Qdrant reale): un modello stub deterministico

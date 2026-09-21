@@ -5,6 +5,8 @@
 2. reload COERENTE (api.deps.reload_index_state): se uno degli artefatti (grafo,
    ColBERT, chunk) è mancante o corrotto, lo stato in memoria precedente va mantenuto,
    non degradato."""
+from pathlib import Path
+
 import numpy as np
 import networkx as nx
 import pytest
@@ -76,6 +78,17 @@ def test_write_index_manifest_has_version(tmp_path, monkeypatch):
     assert data["version"] == data["created_at"]
     assert "artifact_hashes" in data
     assert list(tmp_path.iterdir()) == [manifest_path]   # nessun .tmp orfano
+
+
+def test_artifact_hashes_stream_full_file_without_read_bytes(tmp_path, monkeypatch):
+    import hashlib
+    data = b"colbert" * 100_000
+    (tmp_path / "graph.json").write_bytes(data)
+    monkeypatch.setattr(artifacts, "artifact_dir", lambda version=None: tmp_path)
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, "read_bytes", lambda self: (_ for _ in ()).throw(AssertionError("read_bytes")))
+        hashes = artifacts.artifact_hashes()
+    assert hashes["graph.json"] == hashlib.sha256(data).hexdigest()
 
 
 # ---------------------------------------------------------------------------

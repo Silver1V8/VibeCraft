@@ -2,7 +2,6 @@
 + sidecar ColBERT/chunk, con indicizzazione completa e incrementale (delta), manifest, controllo
 del Drift e archiviazione. Il caricamento/chunking dei documenti vive in core/chunking.py; la
 configurazione in core/config.py. Le risorse pesanti (Qdrant, embedding) sono iniettabili."""
-import hashlib
 import json
 import logging
 import re
@@ -52,6 +51,7 @@ from core.artifacts import (
     manifest_path,
     promote_version,
     save_artifacts,
+    sha256_file,
 )
 from core.canvas_review import (
     HISTORICAL_SUBDIR,
@@ -1018,7 +1018,7 @@ def _docs_hashes() -> dict[str, str]:
     hashes: dict[str, str] = {}
     for filepath_obj in sorted(p for p in DOCS_DIR.rglob("*") if p.is_file() and p.suffix.lower() in DOC_EXTS):
         rel_path = filepath_obj.relative_to(DOCS_DIR).as_posix()
-        hashes[rel_path] = hashlib.sha256(filepath_obj.read_bytes()).hexdigest()
+        hashes[rel_path] = sha256_file(filepath_obj)
     return hashes
 
 
@@ -1032,7 +1032,7 @@ def _code_hashes() -> dict[str, str]:
         if CODE_EXCLUDED_DIRS & set(filepath_obj.relative_to(CODE_DIR).parts):
             continue
         rel_path = filepath_obj.relative_to(CODE_DIR).as_posix()
-        hashes[rel_path] = hashlib.sha256(filepath_obj.read_bytes()).hexdigest()
+        hashes[rel_path] = sha256_file(filepath_obj)
     return hashes
 
 

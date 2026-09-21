@@ -19,6 +19,8 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
 from api.deps import (
+    _graph_version,
+    current_snapshot,
     reload_index_state,
     require_api_key,
     require_gitlab_token,
@@ -69,7 +71,7 @@ manager = ReindexManager(journal_path=REINDEX_JOURNAL_PATH)
 
 
 def _reindex_embed_model():
-    """Istanza di bge-m3 dedicata ai job di reindex, separata da quella del server
+    """Istanza di bge-m3 dedicata ai job full, separata da quella del server
     (state["embed_model"], su CPU per le query interattive — vedi api/deps.py). I job
     processano migliaia di chunk/simboli in batch: qui serve la GPU. Un'istanza fresca
     per job costa solo qualche secondo di caricamento, trascurabile rispetto al lavoro
@@ -78,20 +80,17 @@ def _reindex_embed_model():
 
 
 def _run_reindex(changed_paths) -> dict:
-    """Esegue l'incrementale con un modello di embedding GPU dedicato (vedi
-    _reindex_embed_model) e il client Qdrant del server. Gira sul thread daemon del
-    ReindexManager, quindi è bloccante ma fuori dall'event loop."""
-    started = time.perf_counter()
-    embed_model = _reindex_embed_model()
-    init_model = time.perf_counter() - started
+    """Il core crea il modello dedicato solo quando il delta contiene contenuto."""
     result = incremental_index(
         qdrant=state.get("qdrant"),
-        embed_model=embed_model,
+        embed_model=None,
         changed_paths=changed_paths,
     )
-    result.setdefault("phase_timings_seconds", {})["init_model"] = (
-        result.get("phase_timings_seconds", {}).get("init_model", 0.0) + init_model
-    )
+    if result.get("noop") is True:
+        disk_version = current_version() or _graph_version()
+        snapshot = current_snapshot()
+        if snapshot is not None and snapshot.version == disk_version:
+            result["snapshot_token"] = snapshot.version
     return result
 
 

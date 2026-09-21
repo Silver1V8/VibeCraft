@@ -229,6 +229,7 @@ def _job_sequence_handler(statuses: list[str], *, noop=True, reload_status="comp
             "result": {"noop": noop}, "reload_status": reload_status,
             "published_token": "v1" if reload_status == "completed" else None,
             "build_duration_seconds": 2.0,
+            "reload_duration_seconds": 0.0 if reload_status == "completed" else None,
             "snapshot_ready_duration_seconds": 3.0 if reload_status == "completed" else None,
             "coalesced": coalesced,
         })
@@ -265,6 +266,29 @@ def test_bench_incremental_noop_invalidates_incomplete_reload(monkeypatch):
         result = bench.bench_incremental_noop(client, URL)
     assert result["valid"] is False
     assert "reload" in result["invalid_reason"]
+
+
+def test_bench_incremental_noop_accepts_zero_reload_duration(monkeypatch):
+    monkeypatch.setattr(bench.time, "sleep", lambda s: None)
+    with _client(_job_sequence_handler(["completed"])) as client:
+        result = bench.bench_incremental_noop(client, URL)
+    assert result["valid"] is True
+    assert result["reload_duration_seconds"] == 0
+
+
+def test_bench_incremental_noop_invalidates_missing_readiness_duration(monkeypatch):
+    monkeypatch.setattr(bench.time, "sleep", lambda s: None)
+    base = _job_sequence_handler(["completed"])
+    def handler(request):
+        response = base(request)
+        if request.method == "GET":
+            body = response.json()
+            body["snapshot_ready_duration_seconds"] = None
+            return httpx2.Response(200, json=body)
+        return response
+    with _client(handler) as client:
+        result = bench.bench_incremental_noop(client, URL)
+    assert result["valid"] is False
 
 
 def test_bench_incremental_noop_invalidates_coalesced_queue(monkeypatch):

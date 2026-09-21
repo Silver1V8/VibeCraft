@@ -33,6 +33,7 @@ mutano in place, senza candidata né versionamento.
 Qualunque altro modulo (core.indexing, api.deps) passa da qui: nessun pickle.load/dump
 diretto altrove."""
 import json
+import hashlib
 import logging
 import os
 import shutil
@@ -488,17 +489,20 @@ def load_artifacts(required: tuple[str, ...] = (), version: str | None = None) -
     )
 
 
+def sha256_file(path: Path) -> str:
+    with path.open("rb") as file:
+        return hashlib.file_digest(file, "sha256").hexdigest()
+
+
 def artifact_hashes(version: str | None = None) -> dict[str, str]:
     """SHA-256 di ogni file artefatto presente nella directory della versione indicata
     (default: la versione attiva; per il layout legacy i flat in database/). Chiave =
     nome file. Alimenta il manifest così il check di coerenza può validare anche
     l'integrità dei file artefatto, non solo dei documenti sorgente."""
-    import hashlib
-
     base = artifact_dir(version)
     hashes: dict[str, str] = {}
     for fname in _ARTIFACT_FILENAMES:
         path = base / fname
         if path.exists():
-            hashes[fname] = hashlib.sha256(path.read_bytes()).hexdigest()
+            hashes[fname] = sha256_file(path)
     return hashes

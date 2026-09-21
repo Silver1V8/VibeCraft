@@ -433,22 +433,34 @@ class ReindexManager:
             self._record_safely(job)
             # on_success solo se la build è stata promossa.
             if job.status == "completed":
-                reload_started = time.monotonic()
-                try:
-                    token = job._on_success()
-                    job.reload_duration_seconds = max(0.0, time.monotonic() - reload_started)
-                    if token is None:
-                        job.reload_status = "incomplete"
-                    else:
+                if (isinstance(job.result, dict) and job.result.get("noop") is True and
+                        job.result.get("snapshot_token") is not None):
+                    # La route ha verificato che lo snapshot servito coincide con CURRENT;
+                    # uno snapshot stale non porta il token e usa il callback normale.
+                    token = job.result.get("snapshot_token")
+                    job.reload_duration_seconds = 0.0
+                    job.reload_status = "completed" if token is not None else "incomplete"
+                    if token is not None:
                         job.published_token = token
                         job.snapshot_ready_duration_seconds = max(
                             0.0, time.monotonic() - job._created_monotonic)
-                        job.reload_status = "completed"
-                except Exception as exc:
-                    job.reload_duration_seconds = max(0.0, time.monotonic() - reload_started)
-                    job.reload_error = f"{type(exc).__name__}: {exc}"
-                    job.reload_status = "failed"
-                    logger.warning("Reload post-reindex fallito (%s: %s).", type(exc).__name__, exc)
+                else:
+                    reload_started = time.monotonic()
+                    try:
+                        token = job._on_success()
+                        job.reload_duration_seconds = max(0.0, time.monotonic() - reload_started)
+                        if token is None:
+                            job.reload_status = "incomplete"
+                        else:
+                            job.published_token = token
+                            job.snapshot_ready_duration_seconds = max(
+                                0.0, time.monotonic() - job._created_monotonic)
+                            job.reload_status = "completed"
+                    except Exception as exc:
+                        job.reload_duration_seconds = max(0.0, time.monotonic() - reload_started)
+                        job.reload_error = f"{type(exc).__name__}: {exc}"
+                        job.reload_status = "failed"
+                        logger.warning("Reload post-reindex fallito (%s: %s).", type(exc).__name__, exc)
                 self._record_safely(job)
         finally:
             # Reload e dispatch restano serializzati; il journal non può bloccare la coda.

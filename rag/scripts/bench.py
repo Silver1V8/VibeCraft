@@ -255,6 +255,9 @@ def bench_incremental_noop(client: httpx2.Client, url: str) -> dict:
     elif job.get("reload_status") != "completed" or job.get("published_token") is None:
         result.update(valid=False,
                       invalid_reason=f"reload {job.get('reload_status') or 'non osservabile'}")
+    elif any(not isinstance(job.get(field), (int, float)) or job[field] < 0
+             for field in ("reload_duration_seconds", "snapshot_ready_duration_seconds")):
+        result.update(valid=False, invalid_reason="durate reload/readiness mancanti")
     return result
 
 

@@ -169,6 +169,47 @@ def test_completed_build_is_not_ready_until_reload_finishes():
     assert ready["snapshot_ready_duration_seconds"] is not None
 
 
+def test_noop_uses_served_snapshot_token_without_reload():
+    mgr = ReindexManager()
+    called = []
+    job, _ = mgr.start([], lambda paths: {"noop": True, "snapshot_token": "served-v1"},
+                       lambda: called.append("reload") or "wrong")
+    assert mgr.join_all()
+    ready = mgr.get(job.id).to_dict()
+    assert called == []
+    assert ready["reload_status"] == "completed"
+    assert ready["published_token"] == "served-v1"
+    assert ready["reload_duration_seconds"] == 0
+    assert ready["snapshot_ready_duration_seconds"] is not None
+
+
+def test_noop_without_observed_snapshot_is_incomplete():
+    mgr = ReindexManager()
+    calls = []
+    job, _ = mgr.start([], lambda paths: {"noop": True},
+                       lambda: calls.append("reload") or None)
+    assert mgr.join_all()
+    ready = mgr.get(job.id).to_dict()
+    assert calls == ["reload"]
+    assert ready["reload_status"] == "incomplete"
+    assert ready["published_token"] is None
+
+
+def test_stale_noop_reloads_with_real_duration_and_separate_failure():
+    mgr = ReindexManager()
+    def reload():
+        time.sleep(0.01)
+        raise RuntimeError("stale reload failed")
+    job, _ = mgr.start([], lambda paths: {"noop": True}, reload)
+    assert mgr.join_all()
+    ready = mgr.get(job.id).to_dict()
+    assert ready["status"] == "completed"
+    assert ready["reload_status"] == "failed"
+    assert ready["reload_duration_seconds"] >= 0.01
+    assert "stale reload failed" in ready["reload_error"]
+    assert ready["published_token"] is None
+
+
 def test_pending_job_waits_for_previous_reload_before_build():
     mgr = ReindexManager()
     reload_started = threading.Event()
@@ -982,6 +1023,8 @@ def test_index_rollback_local_failure_never_calls_qdrant_alias_helper(monkeypatc
 
     monkeypatch.setattr(rr, "writer_lock", lambda *a, **k: contextlib.nullcontext())
     monkeypatch.setitem(rr.state, "qdrant", "fake-qdrant-client")
+    monkeypatch.setattr(rr, "resolve_rollback_target", lambda target: "v-missing")
+    monkeypatch.setattr(rr, "assert_rollback_target_has_vectors", lambda *a: None)
 
     def _boom(target):
         raise FileNotFoundError(f"versione inesistente: {target}")

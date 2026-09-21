@@ -1,5 +1,7 @@
 import networkx as nx
 import numpy as np
+import hashlib
+from pathlib import Path
 
 from api import routes_reindex
 from core import indexing as index
@@ -129,3 +131,44 @@ def test_route_measures_model_initialization_and_eval_separately(monkeypatch):
     assert result["phase_timings_seconds"]["init_model"] >= 0
     assert result["phase_timings_seconds"]["eval_gate"] >= 0
     assert result["counts"] == {}
+
+
+def test_incremental_route_defers_model_to_core_for_noop_and_content(monkeypatch):
+    received = []
+    monkeypatch.setattr(routes_reindex, "_reindex_embed_model",
+                        lambda: (_ for _ in ()).throw(AssertionError("route loaded model")))
+    monkeypatch.setattr(routes_reindex, "incremental_index",
+                        lambda **kwargs: received.append(kwargs) or {"noop": False,
+                            "phase_timings_seconds": {"init_model": 1.25}})
+    routes_reindex._run_reindex(None)
+    assert received[0]["embed_model"] is None
+    assert received[0]["qdrant"] is routes_reindex.state.get("qdrant")
+
+
+def test_incremental_route_noop_marks_token_only_when_snapshot_aligned(monkeypatch):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(routes_reindex, "incremental_index", lambda **kwargs: {"noop": True})
+    monkeypatch.setattr(routes_reindex, "current_version", lambda: "v2")
+    served = {"version": "v1"}
+    monkeypatch.setattr(routes_reindex, "current_snapshot",
+                        lambda: SimpleNamespace(version=served["version"]))
+    assert "snapshot_token" not in routes_reindex._run_reindex(None)
+    served["version"] = "v2"
+    assert routes_reindex._run_reindex(None)["snapshot_token"] == "v2"
+
+
+def test_source_hashes_stream_docs_and_code(monkeypatch, tmp_path):
+    docs = tmp_path / "docs"
+    code = tmp_path / "code"
+    docs.mkdir()
+    code.mkdir()
+    data = b"VarianteA" * 100_000
+    (docs / "a.md").write_bytes(data)
+    (code / "a.py").write_bytes(data)
+    monkeypatch.setattr(index, "DOCS_DIR", docs)
+    monkeypatch.setattr(index, "CODE_DIR", code)
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, "read_bytes", lambda self: (_ for _ in ()).throw(AssertionError("read_bytes")))
+        assert index._docs_hashes() == {"a.md": hashlib.sha256(data).hexdigest()}
+        assert index._code_hashes() == {"a.py": hashlib.sha256(data).hexdigest()}

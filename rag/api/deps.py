@@ -455,6 +455,10 @@ async def lifespan(application: FastAPI):
     state["_graph_mtime"] = state["snapshot"].version
     logger.info("Server pronto.")
 
+    # Il generatore lifespan rimane sospeso a yield: i locali del boot non devono
+    # trattenere il vecchio snapshot dopo un reload.
+    del arts, graph, colbert_store, chunks, code_store, rule_descriptions
+
     yield  # il server è in esecuzione
 
     logger.info("Shutdown: rilascio risorse.")
