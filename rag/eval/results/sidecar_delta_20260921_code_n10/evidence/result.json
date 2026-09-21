@@ -1,0 +1,2860 @@
+{
+  "status": "completed",
+  "pid": 23904,
+  "parameters": {
+    "n": 10,
+    "mode": "code",
+    "k": [
+      0,
+      1,
+      10
+    ],
+    "repeats": 5,
+    "query_pause_seconds": 0.15,
+    "qdrant_url": "http://127.0.0.1:16333",
+    "server_url": "http://127.0.0.1:18000",
+    "collection": "sidecar_0628_code_n10_pre",
+    "restore_io_outside_measurement": true
+  },
+  "events": [
+    {
+      "event": "bootstrap_start",
+      "utc": "2026-09-21T10:29:35.027074+00:00",
+      "monotonic": 11692.6428099
+    },
+    {
+      "event": "bootstrap_end",
+      "utc": "2026-09-21T10:29:50.636682+00:00",
+      "monotonic": 11708.2524154
+    },
+    {
+      "event": "baseline_frozen",
+      "utc": "2026-09-21T10:30:05.508999+00:00",
+      "monotonic": 11723.124729
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T10:30:06.392514+00:00",
+      "monotonic": 11724.0082445,
+      "repeat": 0,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T10:30:09.191351+00:00",
+      "monotonic": 11726.8070814,
+      "repeat": 0,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T10:30:09.538268+00:00",
+      "monotonic": 11727.1539992,
+      "repeat": 0,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T10:30:09.544815+00:00",
+      "monotonic": 11727.1605432,
+      "repeat": 0,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T10:30:13.489679+00:00",
+      "monotonic": 11731.1054113,
+      "repeat": 0,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T10:30:13.832814+00:00",
+      "monotonic": 11731.4485438,
+      "repeat": 0,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T10:30:13.844566+00:00",
+      "monotonic": 11731.4602963,
+      "repeat": 0,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T10:30:19.989248+00:00",
+      "monotonic": 11737.6049775,
+      "repeat": 0,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T10:30:20.328236+00:00",
+      "monotonic": 11737.9439665,
+      "repeat": 0,
+      "k": 10
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T10:30:20.334541+00:00",
+      "monotonic": 11737.9502697,
+      "repeat": 1,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T10:30:23.206618+00:00",
+      "monotonic": 11740.8223478,
+      "repeat": 1,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T10:30:23.552986+00:00",
+      "monotonic": 11741.1687156,
+      "repeat": 1,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T10:30:23.559542+00:00",
+      "monotonic": 11741.1752686,
+      "repeat": 1,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T10:30:27.742869+00:00",
+      "monotonic": 11745.3585977,
+      "repeat": 1,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T10:30:28.081310+00:00",
+      "monotonic": 11745.6970393,
+      "repeat": 1,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T10:30:28.093256+00:00",
+      "monotonic": 11745.7089842,
+      "repeat": 1,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T10:30:34.070008+00:00",
+      "monotonic": 11751.6857366,
+      "repeat": 1,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T10:30:34.395706+00:00",
+      "monotonic": 11752.0114334,
+      "repeat": 1,
+      "k": 10
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T10:30:34.401861+00:00",
+      "monotonic": 11752.0175884,
+      "repeat": 2,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T10:30:37.363007+00:00",
+      "monotonic": 11754.9787354,
+      "repeat": 2,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T10:30:37.671281+00:00",
+      "monotonic": 11755.2870098,
+      "repeat": 2,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T10:30:37.678139+00:00",
+      "monotonic": 11755.2938633,
+      "repeat": 2,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T10:30:41.816584+00:00",
+      "monotonic": 11759.4323132,
+      "repeat": 2,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T10:30:42.172379+00:00",
+      "monotonic": 11759.788107,
+      "repeat": 2,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T10:30:42.184401+00:00",
+      "monotonic": 11759.8001283,
+      "repeat": 2,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T10:30:48.145874+00:00",
+      "monotonic": 11765.7616005,
+      "repeat": 2,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T10:30:48.503196+00:00",
+      "monotonic": 11766.1189233,
+      "repeat": 2,
+      "k": 10
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T10:30:48.509875+00:00",
+      "monotonic": 11766.1255989,
+      "repeat": 3,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T10:30:51.483675+00:00",
+      "monotonic": 11769.099401,
+      "repeat": 3,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T10:30:51.834030+00:00",
+      "monotonic": 11769.4497572,
+      "repeat": 3,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T10:30:51.841890+00:00",
+      "monotonic": 11769.4576165,
+      "repeat": 3,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T10:30:55.818642+00:00",
+      "monotonic": 11773.4343724,
+      "repeat": 3,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T10:30:56.145935+00:00",
+      "monotonic": 11773.7616615,
+      "repeat": 3,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T10:30:56.158597+00:00",
+      "monotonic": 11773.7743217,
+      "repeat": 3,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T10:31:02.058029+00:00",
+      "monotonic": 11779.6737556,
+      "repeat": 3,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T10:31:02.374568+00:00",
+      "monotonic": 11779.9902946,
+      "repeat": 3,
+      "k": 10
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T10:31:02.381042+00:00",
+      "monotonic": 11779.9967815,
+      "repeat": 4,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T10:31:05.261786+00:00",
+      "monotonic": 11782.8775114,
+      "repeat": 4,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T10:31:05.594573+00:00",
+      "monotonic": 11783.2102985,
+      "repeat": 4,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T10:31:05.601900+00:00",
+      "monotonic": 11783.2176229,
+      "repeat": 4,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T10:31:09.939257+00:00",
+      "monotonic": 11787.5549819,
+      "repeat": 4,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T10:31:10.299338+00:00",
+      "monotonic": 11787.9150637,
+      "repeat": 4,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T10:31:10.311916+00:00",
+      "monotonic": 11787.9276382,
+      "repeat": 4,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T10:31:16.293962+00:00",
+      "monotonic": 11793.9097001,
+      "repeat": 4,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T10:31:16.643693+00:00",
+      "monotonic": 11794.2594174,
+      "repeat": 4,
+      "k": 10
+    }
+  ],
+  "samples": [
+    {
+      "repeat": 0,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 11724.0090473,
+          "end_monotonic": 11726.6723076,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "77bce3a0427a4c6aa8ede833c3b04e9a",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T10:30:06.398990+00:00",
+        "finished_at": "2026-09-21T10:30:08.967710+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 2.1276101999992534,
+            "scan_hash": 0.0033981999986281153,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0007463999991159653,
+        "writer_lock_wait_seconds": 0.007893699999840464,
+        "build_duration_seconds": 2.5595640999999887,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.004864900000029593,
+        "reload_error": null,
+        "published_token": "v20260921T102948",
+        "snapshot_ready_duration_seconds": 2.574345400000311,
+        "coalesced": false
+      },
+      "elapsed_seconds": 2.6540105000003678,
+      "started_monotonic": 11724.0082474,
+      "ended_monotonic": 11726.6622579,
+      "current_version": "v20260921T102948",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_code_n10_pre",
+          "actual": "sidecar_0628_code_n10_pre"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 0,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 11727.1611072,
+          "end_monotonic": 11729.555942,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11729.7203905,
+          "end_monotonic": 11729.97255,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11730.1306142,
+          "end_monotonic": 11730.8181899,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "code/c000.py",
+          "before_sha256": "182d33ce41a041ca064e7ee4140701c67a7f1afd1614e3fa9cf650725787368e",
+          "after_sha256": "b909c35ca8260c6fbaec14d28e72dc03e832aeb80b9eb1b0eb6833231792c9ec",
+          "bytes": 97,
+          "code_symbol": "caso_000"
+        }
+      ],
+      "job": {
+        "job_id": "2f5447fd305644d581b7d65b25ec6fed",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T10:30:09.548181+00:00",
+        "finished_at": "2026-09-21T10:30:13.054230+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 1,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 1,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": 0,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": 0,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T103012",
+          "phase_timings_seconds": {
+            "init_model": 2.215111200001047,
+            "scan_hash": 0.0121142999996664,
+            "load": 0.003813799999988987,
+            "parsing_embedding": 0.6909580000010465,
+            "qdrant": 0.027418700001362595,
+            "relink": 0.00016990000040095765,
+            "save_hash": 0.07236130000092089,
+            "eval_gate": 0.0,
+            "promote": 0.0063669999999547144
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0004490999999688938,
+        "writer_lock_wait_seconds": 0.005927699998210301,
+        "build_duration_seconds": 3.4990564999989147,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.012404099999912432,
+        "reload_error": null,
+        "published_token": "v20260921T103012",
+        "snapshot_ready_duration_seconds": 3.519142199998896,
+        "coalesced": false
+      },
+      "elapsed_seconds": 3.7914681999991444,
+      "started_monotonic": 11727.160545,
+      "ended_monotonic": 11730.9520132,
+      "current_version": "v20260921T103012",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_code_n10_pre",
+          "actual": "sidecar_0628_code_n10_pre"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 0,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 11731.4611904,
+          "end_monotonic": 11733.8052086,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11733.9545273,
+          "end_monotonic": 11734.2374482,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11734.3908998,
+          "end_monotonic": 11734.7397124,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11734.8923655,
+          "end_monotonic": 11735.1434056,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11735.2976302,
+          "end_monotonic": 11735.5875984,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11735.7508933,
+          "end_monotonic": 11736.0105221,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11736.1719239,
+          "end_monotonic": 11736.4779139,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11736.6300972,
+          "end_monotonic": 11737.3390989,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "code/c000.py",
+          "before_sha256": "182d33ce41a041ca064e7ee4140701c67a7f1afd1614e3fa9cf650725787368e",
+          "after_sha256": "b909c35ca8260c6fbaec14d28e72dc03e832aeb80b9eb1b0eb6833231792c9ec",
+          "bytes": 97,
+          "code_symbol": "caso_000"
+        },
+        {
+          "path": "code/c001.py",
+          "before_sha256": "126c07100d66355eb47698c6bd3e3a8252660f7a87c71f378c90781e2593cc68",
+          "after_sha256": "d09b4bcb474de3b17f5e7477e690b979075fae6052ea2c599a501f007f64fc82",
+          "bytes": 102,
+          "code_symbol": "caso_001"
+        },
+        {
+          "path": "code/c002.py",
+          "before_sha256": "8ef46d494279267903b871a9299279e7a14ba7d65aec05a6e804f6b70b5e2961",
+          "after_sha256": "252171380ef501d12d94a7db9b04bcdb42b87a7b21b611a31f8e81d3a8e5348e",
+          "bytes": 107,
+          "code_symbol": "caso_002"
+        },
+        {
+          "path": "code/c003.py",
+          "before_sha256": "ed64029ea4ea7a71c529611993a723cc9dce1c394d6f94561a13b8fe6a0e4d5c",
+          "after_sha256": "d262d787d8f656d50f96b3a1107fbb8cd6ac0b156acde787feb65f3f7c13b827",
+          "bytes": 97,
+          "code_symbol": "caso_003"
+        },
+        {
+          "path": "code/c004.py",
+          "before_sha256": "d422f9b4238eb7e3168ca6f347e4cda30f38739edfdebe6870988edd8674da3f",
+          "after_sha256": "4d09d7a305e23b3394a15dc7ab4b011d49c9af1d6e855897b6d20fbe9c4fce7e",
+          "bytes": 102,
+          "code_symbol": "caso_004"
+        },
+        {
+          "path": "code/c005.py",
+          "before_sha256": "10e6a855cbce0e79f50459ad1ae85f7ace32b62a3cf79bc1f12aef4671c6f567",
+          "after_sha256": "9dcaf1ed836fc0d806c956f3b3be73d2219d0f647391965f9cec18df41757e5e",
+          "bytes": 107,
+          "code_symbol": "caso_005"
+        },
+        {
+          "path": "code/c006.py",
+          "before_sha256": "0a23e3695a5268beade68ab5ce14af41359856ed619434a70c4e70606b1cc9a4",
+          "after_sha256": "7d124804e0aa5cf5c4a8047f3c60adb1e6f0fb2f08e2810bfa0bb8181eaaadd9",
+          "bytes": 97,
+          "code_symbol": "caso_006"
+        },
+        {
+          "path": "code/c007.py",
+          "before_sha256": "a03b2362b3f4befb1f89cf948f64466370eb27a48c2ff0ead9f3f2573358f7db",
+          "after_sha256": "70d416d7d408e20b5ddd899938788b1b239be39696484a79952d2e2fe4791d24",
+          "bytes": 102,
+          "code_symbol": "caso_007"
+        },
+        {
+          "path": "code/c008.py",
+          "before_sha256": "f7e27ac680f45466c9dabde9096d165022fb19fee8f8370c022f68f1f31202e7",
+          "after_sha256": "2587d910f96bf4d19aec680fecd2f4a1a52ef54ce553de6014afa0a489813de6",
+          "bytes": 107,
+          "code_symbol": "caso_008"
+        },
+        {
+          "path": "code/c009.py",
+          "before_sha256": "aab845e49effb815b77b31f665b6be92b55d04e9dae3e441e490d8afb20eead3",
+          "after_sha256": "7ae7c5398c2b8adcbad4aa91ca64702b808cfcee6a14296af001ebc9aec2dd06",
+          "bytes": 97,
+          "code_symbol": "caso_009"
+        }
+      ],
+      "job": {
+        "job_id": "271bfb63b7ce4a2586fa7f09e7be82b8",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T10:30:13.851656+00:00",
+        "finished_at": "2026-09-21T10:30:19.545563+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 10,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 10,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": 0,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": 0,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T103019",
+          "phase_timings_seconds": {
+            "init_model": 2.214637999999468,
+            "scan_hash": 0.06343089999973017,
+            "load": 0.004475300000194693,
+            "parsing_embedding": 2.849992299998121,
+            "qdrant": 0.01414199999999255,
+            "relink": 0.0002447000006213784,
+            "save_hash": 0.05925290000050154,
+            "eval_gate": 0.0,
+            "promote": 0.006759300000339863
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0019701000001077773,
+        "writer_lock_wait_seconds": 0.006672400000752532,
+        "build_duration_seconds": 5.684638000000632,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.012021199998343945,
+        "reload_error": null,
+        "published_token": "v20260921T103019",
+        "snapshot_ready_duration_seconds": 5.706728600000133,
+        "coalesced": false
+      },
+      "elapsed_seconds": 5.972141500000362,
+      "started_monotonic": 11731.4602985,
+      "ended_monotonic": 11737.43244,
+      "current_version": "v20260921T103019",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_code_n10_pre",
+          "actual": "sidecar_0628_code_n10_pre"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 1,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 11737.9509259,
+          "end_monotonic": 11740.6740431,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "34c38f9c0618488ab9a198292cfd246e",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T10:30:20.340203+00:00",
+        "finished_at": "2026-09-21T10:30:22.971096+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 2.1934934000000794,
+            "scan_hash": 0.0034572999993542908,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0006415000007109484,
+        "writer_lock_wait_seconds": 0.007577099999252823,
+        "build_duration_seconds": 2.6221307999985584,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.005242600000201492,
+        "reload_error": null,
+        "published_token": "v20260921T102948",
+        "snapshot_ready_duration_seconds": 2.636743799999749,
+        "coalesced": false
+      },
+      "elapsed_seconds": 2.7060619999992923,
+      "started_monotonic": 11737.950272,
+      "ended_monotonic": 11740.656334,
+      "current_version": "v20260921T102948",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_code_n10_pre",
+          "actual": "sidecar_0628_code_n10_pre"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 1,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 11741.1758619,
+          "end_monotonic": 11743.4857123,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11743.6420559,
+          "end_monotonic": 11743.887371,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11744.0493311,
+          "end_monotonic": 11744.8204335,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11744.9849962,
+          "end_monotonic": 11745.2205078,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T103026",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "code/c000.py",
+          "before_sha256": "182d33ce41a041ca064e7ee4140701c67a7f1afd1614e3fa9cf650725787368e",
+          "after_sha256": "b909c35ca8260c6fbaec14d28e72dc03e832aeb80b9eb1b0eb6833231792c9ec",
+          "bytes": 97,
+          "code_symbol": "caso_000"
+        }
+      ],
+      "job": {
+        "job_id": "54b0feabf2c54a398a03395a2b1e1f48",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T10:30:23.573993+00:00",
+        "finished_at": "2026-09-21T10:30:26.988069+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 1,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 1,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": 0,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": 0,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T103026",
+          "phase_timings_seconds": {
+            "init_model": 2.169944999999643,
+            "scan_hash": 0.0039615000005142065,
+            "load": 0.004820500000278116,
+            "parsing_embedding": 0.635430099999212,
+            "qdrant": 0.04465849999905913,
+            "relink": 0.0002483000007487135,
+            "save_hash": 0.043783700000858516,
+            "eval_gate": 0.0,
+            "promote": 0.005603300000075251
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0008943000011640834,
+        "writer_lock_wait_seconds": 0.006944000000657979,
+        "build_duration_seconds": 3.4052036000011867,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.011228499999560881,
+        "reload_error": null,
+        "published_token": "v20260921T103026",
+        "snapshot_ready_duration_seconds": 3.4263827000013407,
+        "coalesced": false
+      },
+      "elapsed_seconds": 3.93284020000101,
+      "started_monotonic": 11741.1752705,
+      "ended_monotonic": 11745.1081107,
+      "current_version": "v20260921T103026",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_code_n10_pre",
+          "actual": "sidecar_0628_code_n10_pre"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 1,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 11745.7095846,
+          "end_monotonic": 11747.8684599,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11748.0328146,
+          "end_monotonic": 11748.3401166,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11748.502363,
+          "end_monotonic": 11748.8346445,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11748.9869288,
+          "end_monotonic": 11749.2606013,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11749.4226218,
+          "end_monotonic": 11749.7357683,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11749.8910252,
+          "end_monotonic": 11750.1222657,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11750.281495,
+          "end_monotonic": 11750.5843091,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11750.740782,
+          "end_monotonic": 11751.4462492,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "code/c000.py",
+          "before_sha256": "182d33ce41a041ca064e7ee4140701c67a7f1afd1614e3fa9cf650725787368e",
+          "after_sha256": "b909c35ca8260c6fbaec14d28e72dc03e832aeb80b9eb1b0eb6833231792c9ec",
+          "bytes": 97,
+          "code_symbol": "caso_000"
+        },
+        {
+          "path": "code/c001.py",
+          "before_sha256": "126c07100d66355eb47698c6bd3e3a8252660f7a87c71f378c90781e2593cc68",
+          "after_sha256": "d09b4bcb474de3b17f5e7477e690b979075fae6052ea2c599a501f007f64fc82",
+          "bytes": 102,
+          "code_symbol": "caso_001"
+        },
+        {
+          "path": "code/c002.py",
+          "before_sha256": "8ef46d494279267903b871a9299279e7a14ba7d65aec05a6e804f6b70b5e2961",
+          "after_sha256": "252171380ef501d12d94a7db9b04bcdb42b87a7b21b611a31f8e81d3a8e5348e",
+          "bytes": 107,
+          "code_symbol": "caso_002"
+        },
+        {
+          "path": "code/c003.py",
+          "before_sha256": "ed64029ea4ea7a71c529611993a723cc9dce1c394d6f94561a13b8fe6a0e4d5c",
+          "after_sha256": "d262d787d8f656d50f96b3a1107fbb8cd6ac0b156acde787feb65f3f7c13b827",
+          "bytes": 97,
+          "code_symbol": "caso_003"
+        },
+        {
+          "path": "code/c004.py",
+          "before_sha256": "d422f9b4238eb7e3168ca6f347e4cda30f38739edfdebe6870988edd8674da3f",
+          "after_sha256": "4d09d7a305e23b3394a15dc7ab4b011d49c9af1d6e855897b6d20fbe9c4fce7e",
+          "bytes": 102,
+          "code_symbol": "caso_004"
+        },
+        {
+          "path": "code/c005.py",
+          "before_sha256": "10e6a855cbce0e79f50459ad1ae85f7ace32b62a3cf79bc1f12aef4671c6f567",
+          "after_sha256": "9dcaf1ed836fc0d806c956f3b3be73d2219d0f647391965f9cec18df41757e5e",
+          "bytes": 107,
+          "code_symbol": "caso_005"
+        },
+        {
+          "path": "code/c006.py",
+          "before_sha256": "0a23e3695a5268beade68ab5ce14af41359856ed619434a70c4e70606b1cc9a4",
+          "after_sha256": "7d124804e0aa5cf5c4a8047f3c60adb1e6f0fb2f08e2810bfa0bb8181eaaadd9",
+          "bytes": 97,
+          "code_symbol": "caso_006"
+        },
+        {
+          "path": "code/c007.py",
+          "before_sha256": "a03b2362b3f4befb1f89cf948f64466370eb27a48c2ff0ead9f3f2573358f7db",
+          "after_sha256": "70d416d7d408e20b5ddd899938788b1b239be39696484a79952d2e2fe4791d24",
+          "bytes": 102,
+          "code_symbol": "caso_007"
+        },
+        {
+          "path": "code/c008.py",
+          "before_sha256": "f7e27ac680f45466c9dabde9096d165022fb19fee8f8370c022f68f1f31202e7",
+          "after_sha256": "2587d910f96bf4d19aec680fecd2f4a1a52ef54ce553de6014afa0a489813de6",
+          "bytes": 107,
+          "code_symbol": "caso_008"
+        },
+        {
+          "path": "code/c009.py",
+          "before_sha256": "aab845e49effb815b77b31f665b6be92b55d04e9dae3e441e490d8afb20eead3",
+          "after_sha256": "7ae7c5398c2b8adcbad4aa91ca64702b808cfcee6a14296af001ebc9aec2dd06",
+          "bytes": 97,
+          "code_symbol": "caso_009"
+        }
+      ],
+      "job": {
+        "job_id": "5dc3762e52ef4d7c96bbfdc3e845062e",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T10:30:28.105472+00:00",
+        "finished_at": "2026-09-21T10:30:33.627859+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 10,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 10,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": 0,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": 0,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T103033",
+          "phase_timings_seconds": {
+            "init_model": 2.0423565999990387,
+            "scan_hash": 0.010204700000031153,
+            "load": 0.004864999998972053,
+            "parsing_embedding": 2.899229300001025,
+            "qdrant": 0.022751699998480035,
+            "relink": 0.00024509999821020756,
+            "save_hash": 0.04759530000046652,
+            "eval_gate": 0.0,
+            "promote": 0.0074874999991152436
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0008181000011973083,
+        "writer_lock_wait_seconds": 0.009750200000780751,
+        "build_duration_seconds": 5.511263099999269,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.0117924000005587,
+        "reload_error": null,
+        "published_token": "v20260921T103033",
+        "snapshot_ready_duration_seconds": 5.535026800000196,
+        "coalesced": false
+      },
+      "elapsed_seconds": 5.813473800000793,
+      "started_monotonic": 11745.7089865,
+      "ended_monotonic": 11751.5224603,
+      "current_version": "v20260921T103033",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_code_n10_pre",
+          "actual": "sidecar_0628_code_n10_pre"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 2,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 11752.018184,
+          "end_monotonic": 11754.8098658,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "81585c78c64e4b73a926fdbbd0eec657",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T10:30:34.419360+00:00",
+        "finished_at": "2026-09-21T10:30:37.122274+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 2.2747275000001537,
+            "scan_hash": 0.005433300000731833,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0008113000003504567,
+        "writer_lock_wait_seconds": 0.00634399999944435,
+        "build_duration_seconds": 2.6947739999995974,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.006171900000481401,
+        "reload_error": null,
+        "published_token": "v20260921T102948",
+        "snapshot_ready_duration_seconds": 2.7098396999990655,
+        "coalesced": false
+      },
+      "elapsed_seconds": 2.7955869999987044,
+      "started_monotonic": 11752.0175904,
+      "ended_monotonic": 11754.8131774,
+      "current_version": "v20260921T102948",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_code_n10_pre",
+          "actual": "sidecar_0628_code_n10_pre"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 2,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 11755.2944321,
+          "end_monotonic": 11757.5601772,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11757.718515,
+          "end_monotonic": 11757.9476367,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11758.1118193,
+          "end_monotonic": 11759.1561513,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "code/c000.py",
+          "before_sha256": "182d33ce41a041ca064e7ee4140701c67a7f1afd1614e3fa9cf650725787368e",
+          "after_sha256": "b909c35ca8260c6fbaec14d28e72dc03e832aeb80b9eb1b0eb6833231792c9ec",
+          "bytes": 97,
+          "code_symbol": "caso_000"
+        }
+      ],
+      "job": {
+        "job_id": "744855971914457683b033c5ac9e02a6",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T10:30:37.698742+00:00",
+        "finished_at": "2026-09-21T10:30:41.388043+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 1,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 1,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": 0,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": 0,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T103040",
+          "phase_timings_seconds": {
+            "init_model": 2.1392422999997507,
+            "scan_hash": 0.008124800000587129,
+            "load": 0.004510900000241236,
+            "parsing_embedding": 0.6443245000009483,
+            "qdrant": 0.03863830000045709,
+            "relink": 0.00022589999935007654,
+            "save_hash": 0.0770302000000811,
+            "eval_gate": 0.0,
+            "promote": 0.00728029999845603
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0008341999982803827,
+        "writer_lock_wait_seconds": 0.006410600000890554,
+        "build_duration_seconds": 3.6812669999999343,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.013802199999190634,
+        "reload_error": null,
+        "published_token": "v20260921T103040",
+        "snapshot_ready_duration_seconds": 3.7039798999994673,
+        "coalesced": false
+      },
+      "elapsed_seconds": 3.9371051999987685,
+      "started_monotonic": 11755.2938651,
+      "ended_monotonic": 11759.2309703,
+      "current_version": "v20260921T103040",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_code_n10_pre",
+          "actual": "sidecar_0628_code_n10_pre"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 2,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 11759.8007701,
+          "end_monotonic": 11762.1082073,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11762.2672996,
+          "end_monotonic": 11762.5570272,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11762.7198612,
+          "end_monotonic": 11762.9499751,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11763.1136088,
+          "end_monotonic": 11763.3709112,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11763.5337648,
+          "end_monotonic": 11763.7846208,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11763.9385788,
+          "end_monotonic": 11764.1819193,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11764.3440981,
+          "end_monotonic": 11764.6420687,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11764.800809,
+          "end_monotonic": 11765.5224678,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "code/c000.py",
+          "before_sha256": "182d33ce41a041ca064e7ee4140701c67a7f1afd1614e3fa9cf650725787368e",
+          "after_sha256": "b909c35ca8260c6fbaec14d28e72dc03e832aeb80b9eb1b0eb6833231792c9ec",
+          "bytes": 97,
+          "code_symbol": "caso_000"
+        },
+        {
+          "path": "code/c001.py",
+          "before_sha256": "126c07100d66355eb47698c6bd3e3a8252660f7a87c71f378c90781e2593cc68",
+          "after_sha256": "d09b4bcb474de3b17f5e7477e690b979075fae6052ea2c599a501f007f64fc82",
+          "bytes": 102,
+          "code_symbol": "caso_001"
+        },
+        {
+          "path": "code/c002.py",
+          "before_sha256": "8ef46d494279267903b871a9299279e7a14ba7d65aec05a6e804f6b70b5e2961",
+          "after_sha256": "252171380ef501d12d94a7db9b04bcdb42b87a7b21b611a31f8e81d3a8e5348e",
+          "bytes": 107,
+          "code_symbol": "caso_002"
+        },
+        {
+          "path": "code/c003.py",
+          "before_sha256": "ed64029ea4ea7a71c529611993a723cc9dce1c394d6f94561a13b8fe6a0e4d5c",
+          "after_sha256": "d262d787d8f656d50f96b3a1107fbb8cd6ac0b156acde787feb65f3f7c13b827",
+          "bytes": 97,
+          "code_symbol": "caso_003"
+        },
+        {
+          "path": "code/c004.py",
+          "before_sha256": "d422f9b4238eb7e3168ca6f347e4cda30f38739edfdebe6870988edd8674da3f",
+          "after_sha256": "4d09d7a305e23b3394a15dc7ab4b011d49c9af1d6e855897b6d20fbe9c4fce7e",
+          "bytes": 102,
+          "code_symbol": "caso_004"
+        },
+        {
+          "path": "code/c005.py",
+          "before_sha256": "10e6a855cbce0e79f50459ad1ae85f7ace32b62a3cf79bc1f12aef4671c6f567",
+          "after_sha256": "9dcaf1ed836fc0d806c956f3b3be73d2219d0f647391965f9cec18df41757e5e",
+          "bytes": 107,
+          "code_symbol": "caso_005"
+        },
+        {
+          "path": "code/c006.py",
+          "before_sha256": "0a23e3695a5268beade68ab5ce14af41359856ed619434a70c4e70606b1cc9a4",
+          "after_sha256": "7d124804e0aa5cf5c4a8047f3c60adb1e6f0fb2f08e2810bfa0bb8181eaaadd9",
+          "bytes": 97,
+          "code_symbol": "caso_006"
+        },
+        {
+          "path": "code/c007.py",
+          "before_sha256": "a03b2362b3f4befb1f89cf948f64466370eb27a48c2ff0ead9f3f2573358f7db",
+          "after_sha256": "70d416d7d408e20b5ddd899938788b1b239be39696484a79952d2e2fe4791d24",
+          "bytes": 102,
+          "code_symbol": "caso_007"
+        },
+        {
+          "path": "code/c008.py",
+          "before_sha256": "f7e27ac680f45466c9dabde9096d165022fb19fee8f8370c022f68f1f31202e7",
+          "after_sha256": "2587d910f96bf4d19aec680fecd2f4a1a52ef54ce553de6014afa0a489813de6",
+          "bytes": 107,
+          "code_symbol": "caso_008"
+        },
+        {
+          "path": "code/c009.py",
+          "before_sha256": "aab845e49effb815b77b31f665b6be92b55d04e9dae3e441e490d8afb20eead3",
+          "after_sha256": "7ae7c5398c2b8adcbad4aa91ca64702b808cfcee6a14296af001ebc9aec2dd06",
+          "bytes": 97,
+          "code_symbol": "caso_009"
+        }
+      ],
+      "job": {
+        "job_id": "92b1f10f319445279cf55004c03a28a1",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T10:30:42.187876+00:00",
+        "finished_at": "2026-09-21T10:30:47.737671+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 10,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 10,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": 0,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": 0,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T103047",
+          "phase_timings_seconds": {
+            "init_model": 2.179932300001383,
+            "scan_hash": 0.009914199999911943,
+            "load": 0.005621300000711926,
+            "parsing_embedding": 2.7910073999992164,
+            "qdrant": 0.013922899999670335,
+            "relink": 0.0003885000005539041,
+            "save_hash": 0.05014389999996638,
+            "eval_gate": 0.0,
+            "promote": 0.006210100000316743
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0005008999996789498,
+        "writer_lock_wait_seconds": 0.0067310000013094395,
+        "build_duration_seconds": 5.542207500000586,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.01159390000066196,
+        "reload_error": null,
+        "published_token": "v20260921T103047",
+        "snapshot_ready_duration_seconds": 5.5624306999998225,
+        "coalesced": false
+      },
+      "elapsed_seconds": 5.815958199998931,
+      "started_monotonic": 11759.8001308,
+      "ended_monotonic": 11765.616089,
+      "current_version": "v20260921T103047",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_code_n10_pre",
+          "actual": "sidecar_0628_code_n10_pre"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 3,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 11766.1261763,
+          "end_monotonic": 11768.9082468,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "6d677cb3a11e4e7985a868121f5ee4bb",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T10:30:48.516454+00:00",
+        "finished_at": "2026-09-21T10:30:51.203441+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 2.25397619999967,
+            "scan_hash": 0.0034021999999822583,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.000595799998336588,
+        "writer_lock_wait_seconds": 0.0064354999994975515,
+        "build_duration_seconds": 2.679261999999653,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.005221499999606749,
+        "reload_error": null,
+        "published_token": "v20260921T102948",
+        "snapshot_ready_duration_seconds": 2.6928969000000507,
+        "coalesced": false
+      },
+      "elapsed_seconds": 2.765603800000463,
+      "started_monotonic": 11766.1256006,
+      "ended_monotonic": 11768.8912044,
+      "current_version": "v20260921T102948",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_code_n10_pre",
+          "actual": "sidecar_0628_code_n10_pre"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 3,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 11769.4583133,
+          "end_monotonic": 11771.6389636,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11771.7990973,
+          "end_monotonic": 11772.0341799,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11772.1880338,
+          "end_monotonic": 11772.8991662,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11773.0642236,
+          "end_monotonic": 11773.267946,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T103054",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "code/c000.py",
+          "before_sha256": "182d33ce41a041ca064e7ee4140701c67a7f1afd1614e3fa9cf650725787368e",
+          "after_sha256": "b909c35ca8260c6fbaec14d28e72dc03e832aeb80b9eb1b0eb6833231792c9ec",
+          "bytes": 97,
+          "code_symbol": "caso_000"
+        }
+      ],
+      "job": {
+        "job_id": "1f282fda93a548d58b09c59f102d5c7f",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T10:30:51.849023+00:00",
+        "finished_at": "2026-09-21T10:30:55.112293+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 1,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 1,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": 0,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": 0,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T103054",
+          "phase_timings_seconds": {
+            "init_model": 2.0404933000008896,
+            "scan_hash": 0.004014300000562798,
+            "load": 0.005363199999919743,
+            "parsing_embedding": 0.6247303999989526,
+            "qdrant": 0.03870120000101451,
+            "relink": 0.0001494999996793922,
+            "save_hash": 0.0452832999999373,
+            "eval_gate": 0.0,
+            "promote": 0.005662600000505336
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.000611699999353732,
+        "writer_lock_wait_seconds": 0.007457199999407749,
+        "build_duration_seconds": 3.2534369000004517,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.01186760000018694,
+        "reload_error": null,
+        "published_token": "v20260921T103054",
+        "snapshot_ready_duration_seconds": 3.277235699999437,
+        "coalesced": false
+      },
+      "elapsed_seconds": 3.7766240000000835,
+      "started_monotonic": 11769.4576189,
+      "ended_monotonic": 11773.2342429,
+      "current_version": "v20260921T103054",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_code_n10_pre",
+          "actual": "sidecar_0628_code_n10_pre"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 3,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 11773.7750087,
+          "end_monotonic": 11775.9292537,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11776.094181,
+          "end_monotonic": 11776.3217903,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11776.4851469,
+          "end_monotonic": 11776.7308035,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11776.89246,
+          "end_monotonic": 11777.1321356,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11777.2963994,
+          "end_monotonic": 11777.5865458,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11777.737294,
+          "end_monotonic": 11778.0829348,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11778.2368875,
+          "end_monotonic": 11778.6304101,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11778.7835855,
+          "end_monotonic": 11779.4639237,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "code/c000.py",
+          "before_sha256": "182d33ce41a041ca064e7ee4140701c67a7f1afd1614e3fa9cf650725787368e",
+          "after_sha256": "b909c35ca8260c6fbaec14d28e72dc03e832aeb80b9eb1b0eb6833231792c9ec",
+          "bytes": 97,
+          "code_symbol": "caso_000"
+        },
+        {
+          "path": "code/c001.py",
+          "before_sha256": "126c07100d66355eb47698c6bd3e3a8252660f7a87c71f378c90781e2593cc68",
+          "after_sha256": "d09b4bcb474de3b17f5e7477e690b979075fae6052ea2c599a501f007f64fc82",
+          "bytes": 102,
+          "code_symbol": "caso_001"
+        },
+        {
+          "path": "code/c002.py",
+          "before_sha256": "8ef46d494279267903b871a9299279e7a14ba7d65aec05a6e804f6b70b5e2961",
+          "after_sha256": "252171380ef501d12d94a7db9b04bcdb42b87a7b21b611a31f8e81d3a8e5348e",
+          "bytes": 107,
+          "code_symbol": "caso_002"
+        },
+        {
+          "path": "code/c003.py",
+          "before_sha256": "ed64029ea4ea7a71c529611993a723cc9dce1c394d6f94561a13b8fe6a0e4d5c",
+          "after_sha256": "d262d787d8f656d50f96b3a1107fbb8cd6ac0b156acde787feb65f3f7c13b827",
+          "bytes": 97,
+          "code_symbol": "caso_003"
+        },
+        {
+          "path": "code/c004.py",
+          "before_sha256": "d422f9b4238eb7e3168ca6f347e4cda30f38739edfdebe6870988edd8674da3f",
+          "after_sha256": "4d09d7a305e23b3394a15dc7ab4b011d49c9af1d6e855897b6d20fbe9c4fce7e",
+          "bytes": 102,
+          "code_symbol": "caso_004"
+        },
+        {
+          "path": "code/c005.py",
+          "before_sha256": "10e6a855cbce0e79f50459ad1ae85f7ace32b62a3cf79bc1f12aef4671c6f567",
+          "after_sha256": "9dcaf1ed836fc0d806c956f3b3be73d2219d0f647391965f9cec18df41757e5e",
+          "bytes": 107,
+          "code_symbol": "caso_005"
+        },
+        {
+          "path": "code/c006.py",
+          "before_sha256": "0a23e3695a5268beade68ab5ce14af41359856ed619434a70c4e70606b1cc9a4",
+          "after_sha256": "7d124804e0aa5cf5c4a8047f3c60adb1e6f0fb2f08e2810bfa0bb8181eaaadd9",
+          "bytes": 97,
+          "code_symbol": "caso_006"
+        },
+        {
+          "path": "code/c007.py",
+          "before_sha256": "a03b2362b3f4befb1f89cf948f64466370eb27a48c2ff0ead9f3f2573358f7db",
+          "after_sha256": "70d416d7d408e20b5ddd899938788b1b239be39696484a79952d2e2fe4791d24",
+          "bytes": 102,
+          "code_symbol": "caso_007"
+        },
+        {
+          "path": "code/c008.py",
+          "before_sha256": "f7e27ac680f45466c9dabde9096d165022fb19fee8f8370c022f68f1f31202e7",
+          "after_sha256": "2587d910f96bf4d19aec680fecd2f4a1a52ef54ce553de6014afa0a489813de6",
+          "bytes": 107,
+          "code_symbol": "caso_008"
+        },
+        {
+          "path": "code/c009.py",
+          "before_sha256": "aab845e49effb815b77b31f665b6be92b55d04e9dae3e441e490d8afb20eead3",
+          "after_sha256": "7ae7c5398c2b8adcbad4aa91ca64702b808cfcee6a14296af001ebc9aec2dd06",
+          "bytes": 97,
+          "code_symbol": "caso_009"
+        }
+      ],
+      "job": {
+        "job_id": "b24d70b378a445c5a8b3225824ab0255",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T10:30:56.163747+00:00",
+        "finished_at": "2026-09-21T10:31:01.647220+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 10,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 10,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": 0,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": 0,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T103101",
+          "phase_timings_seconds": {
+            "init_model": 2.035414399999354,
+            "scan_hash": 0.00991249999970023,
+            "load": 0.004445099999429658,
+            "parsing_embedding": 2.8853614999989077,
+            "qdrant": 0.032603699999526725,
+            "relink": 0.00026419999994686805,
+            "save_hash": 0.0419995000011113,
+            "eval_gate": 0.0,
+            "promote": 0.006150799999886658
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0005727000007027527,
+        "writer_lock_wait_seconds": 0.006844400000773021,
+        "build_duration_seconds": 5.475372300001254,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.012096200000087265,
+        "reload_error": null,
+        "published_token": "v20260921T103101",
+        "snapshot_ready_duration_seconds": 5.496456099999705,
+        "coalesced": false
+      },
+      "elapsed_seconds": 5.778028799999447,
+      "started_monotonic": 11773.7743245,
+      "ended_monotonic": 11779.5523533,
+      "current_version": "v20260921T103101",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_code_n10_pre",
+          "actual": "sidecar_0628_code_n10_pre"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 4,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 11779.9973765,
+          "end_monotonic": 11782.7207261,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "076b0b2532b24cc38c834b0661c2da6b",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T10:31:02.402780+00:00",
+        "finished_at": "2026-09-21T10:31:05.038511+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 2.2006171999983053,
+            "scan_hash": 0.005148399999598041,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0007982000006450107,
+        "writer_lock_wait_seconds": 0.006425999999919441,
+        "build_duration_seconds": 2.62791930000094,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.004445700000360375,
+        "reload_error": null,
+        "published_token": "v20260921T102948",
+        "snapshot_ready_duration_seconds": 2.6409636000007595,
+        "coalesced": false
+      },
+      "elapsed_seconds": 2.737514899999951,
+      "started_monotonic": 11779.9967837,
+      "ended_monotonic": 11782.7342986,
+      "current_version": "v20260921T102948",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_code_n10_pre",
+          "actual": "sidecar_0628_code_n10_pre"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 4,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 11783.2185066,
+          "end_monotonic": 11785.6410551,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11785.7997013,
+          "end_monotonic": 11786.1305272,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11786.5689875,
+          "end_monotonic": 11787.0021309,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T103108",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11787.1564924,
+          "end_monotonic": 11787.3912163,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T103108",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "code/c000.py",
+          "before_sha256": "182d33ce41a041ca064e7ee4140701c67a7f1afd1614e3fa9cf650725787368e",
+          "after_sha256": "b909c35ca8260c6fbaec14d28e72dc03e832aeb80b9eb1b0eb6833231792c9ec",
+          "bytes": 97,
+          "code_symbol": "caso_000"
+        }
+      ],
+      "job": {
+        "job_id": "6fc813ba54794bc4be66c5125d6367ca",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T10:31:05.607389+00:00",
+        "finished_at": "2026-09-21T10:31:09.172236+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 1,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 1,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": 0,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": 0,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T103108",
+          "phase_timings_seconds": {
+            "init_model": 2.143393799999103,
+            "scan_hash": 0.00479780000023311,
+            "load": 0.005612899998595822,
+            "parsing_embedding": 0.7765053000002808,
+            "qdrant": 0.07083000000056927,
+            "relink": 0.00014960000044084154,
+            "save_hash": 0.042185100001006504,
+            "eval_gate": 0.0,
+            "promote": 0.006000400000630179
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0006327999999484746,
+        "writer_lock_wait_seconds": 0.006999799999903189,
+        "build_duration_seconds": 3.556788099998812,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.011699200000293786,
+        "reload_error": null,
+        "published_token": "v20260921T103108",
+        "snapshot_ready_duration_seconds": 3.577507099998911,
+        "coalesced": false
+      },
+      "elapsed_seconds": 4.08711939999921,
+      "started_monotonic": 11783.2176249,
+      "ended_monotonic": 11787.3047443,
+      "current_version": "v20260921T103108",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_code_n10_pre",
+          "actual": "sidecar_0628_code_n10_pre"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 4,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 11787.9282802,
+          "end_monotonic": 11790.1057015,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11790.2683241,
+          "end_monotonic": 11790.6454735,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11790.7980798,
+          "end_monotonic": 11791.0437951,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11791.2043629,
+          "end_monotonic": 11791.4232487,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11791.5783726,
+          "end_monotonic": 11791.8181992,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11791.9688455,
+          "end_monotonic": 11792.2166562,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11792.3754276,
+          "end_monotonic": 11792.725126,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11792.8774567,
+          "end_monotonic": 11793.6114454,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T102948",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "code/c000.py",
+          "before_sha256": "182d33ce41a041ca064e7ee4140701c67a7f1afd1614e3fa9cf650725787368e",
+          "after_sha256": "b909c35ca8260c6fbaec14d28e72dc03e832aeb80b9eb1b0eb6833231792c9ec",
+          "bytes": 97,
+          "code_symbol": "caso_000"
+        },
+        {
+          "path": "code/c001.py",
+          "before_sha256": "126c07100d66355eb47698c6bd3e3a8252660f7a87c71f378c90781e2593cc68",
+          "after_sha256": "d09b4bcb474de3b17f5e7477e690b979075fae6052ea2c599a501f007f64fc82",
+          "bytes": 102,
+          "code_symbol": "caso_001"
+        },
+        {
+          "path": "code/c002.py",
+          "before_sha256": "8ef46d494279267903b871a9299279e7a14ba7d65aec05a6e804f6b70b5e2961",
+          "after_sha256": "252171380ef501d12d94a7db9b04bcdb42b87a7b21b611a31f8e81d3a8e5348e",
+          "bytes": 107,
+          "code_symbol": "caso_002"
+        },
+        {
+          "path": "code/c003.py",
+          "before_sha256": "ed64029ea4ea7a71c529611993a723cc9dce1c394d6f94561a13b8fe6a0e4d5c",
+          "after_sha256": "d262d787d8f656d50f96b3a1107fbb8cd6ac0b156acde787feb65f3f7c13b827",
+          "bytes": 97,
+          "code_symbol": "caso_003"
+        },
+        {
+          "path": "code/c004.py",
+          "before_sha256": "d422f9b4238eb7e3168ca6f347e4cda30f38739edfdebe6870988edd8674da3f",
+          "after_sha256": "4d09d7a305e23b3394a15dc7ab4b011d49c9af1d6e855897b6d20fbe9c4fce7e",
+          "bytes": 102,
+          "code_symbol": "caso_004"
+        },
+        {
+          "path": "code/c005.py",
+          "before_sha256": "10e6a855cbce0e79f50459ad1ae85f7ace32b62a3cf79bc1f12aef4671c6f567",
+          "after_sha256": "9dcaf1ed836fc0d806c956f3b3be73d2219d0f647391965f9cec18df41757e5e",
+          "bytes": 107,
+          "code_symbol": "caso_005"
+        },
+        {
+          "path": "code/c006.py",
+          "before_sha256": "0a23e3695a5268beade68ab5ce14af41359856ed619434a70c4e70606b1cc9a4",
+          "after_sha256": "7d124804e0aa5cf5c4a8047f3c60adb1e6f0fb2f08e2810bfa0bb8181eaaadd9",
+          "bytes": 97,
+          "code_symbol": "caso_006"
+        },
+        {
+          "path": "code/c007.py",
+          "before_sha256": "a03b2362b3f4befb1f89cf948f64466370eb27a48c2ff0ead9f3f2573358f7db",
+          "after_sha256": "70d416d7d408e20b5ddd899938788b1b239be39696484a79952d2e2fe4791d24",
+          "bytes": 102,
+          "code_symbol": "caso_007"
+        },
+        {
+          "path": "code/c008.py",
+          "before_sha256": "f7e27ac680f45466c9dabde9096d165022fb19fee8f8370c022f68f1f31202e7",
+          "after_sha256": "2587d910f96bf4d19aec680fecd2f4a1a52ef54ce553de6014afa0a489813de6",
+          "bytes": 107,
+          "code_symbol": "caso_008"
+        },
+        {
+          "path": "code/c009.py",
+          "before_sha256": "aab845e49effb815b77b31f665b6be92b55d04e9dae3e441e490d8afb20eead3",
+          "after_sha256": "7ae7c5398c2b8adcbad4aa91ca64702b808cfcee6a14296af001ebc9aec2dd06",
+          "bytes": 97,
+          "code_symbol": "caso_009"
+        }
+      ],
+      "job": {
+        "job_id": "4ed441785249440eb786d40dd3bc2262",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T10:31:10.325140+00:00",
+        "finished_at": "2026-09-21T10:31:15.841434+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 10,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 10,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": 0,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": 0,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T103115",
+          "phase_timings_seconds": {
+            "init_model": 2.052666399998998,
+            "scan_hash": 0.010455100000399398,
+            "load": 0.004322900000261143,
+            "parsing_embedding": 2.8864747999996325,
+            "qdrant": 0.029291299999385956,
+            "relink": 0.00025319999986095354,
+            "save_hash": 0.044621400000323774,
+            "eval_gate": 0.0,
+            "promote": 0.0060350000003381865
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0007445999999617925,
+        "writer_lock_wait_seconds": 0.006091000001106295,
+        "build_duration_seconds": 5.508772299999691,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.012262400001418428,
+        "reload_error": null,
+        "published_token": "v20260921T103115",
+        "snapshot_ready_duration_seconds": 5.529198099999121,
+        "coalesced": false
+      },
+      "elapsed_seconds": 5.8082687000005535,
+      "started_monotonic": 11787.9276405,
+      "ended_monotonic": 11793.7359092,
+      "current_version": "v20260921T103115",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_code_n10_pre",
+          "actual": "sidecar_0628_code_n10_pre"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    }
+  ],
+  "qdrant_collections_before": [
+    "sidecar_0628_docs_n100_pre",
+    "sidecar_0628_docs_n10_pre",
+    "sidecar_0628_docs_n30_pre",
+    "sidecar_0628_smoke_docs_n10_pre",
+    "sidecar_0628_snapshot_probe"
+  ],
+  "corpus": {
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_code_n10/sandbox/experiment/code/c000.py": {
+      "sha256": "182d33ce41a041ca064e7ee4140701c67a7f1afd1614e3fa9cf650725787368e",
+      "bytes": 97
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_code_n10/sandbox/experiment/code/c001.py": {
+      "sha256": "126c07100d66355eb47698c6bd3e3a8252660f7a87c71f378c90781e2593cc68",
+      "bytes": 102
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_code_n10/sandbox/experiment/code/c002.py": {
+      "sha256": "8ef46d494279267903b871a9299279e7a14ba7d65aec05a6e804f6b70b5e2961",
+      "bytes": 107
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_code_n10/sandbox/experiment/code/c003.py": {
+      "sha256": "ed64029ea4ea7a71c529611993a723cc9dce1c394d6f94561a13b8fe6a0e4d5c",
+      "bytes": 97
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_code_n10/sandbox/experiment/code/c004.py": {
+      "sha256": "d422f9b4238eb7e3168ca6f347e4cda30f38739edfdebe6870988edd8674da3f",
+      "bytes": 102
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_code_n10/sandbox/experiment/code/c005.py": {
+      "sha256": "10e6a855cbce0e79f50459ad1ae85f7ace32b62a3cf79bc1f12aef4671c6f567",
+      "bytes": 107
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_code_n10/sandbox/experiment/code/c006.py": {
+      "sha256": "0a23e3695a5268beade68ab5ce14af41359856ed619434a70c4e70606b1cc9a4",
+      "bytes": 97
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_code_n10/sandbox/experiment/code/c007.py": {
+      "sha256": "a03b2362b3f4befb1f89cf948f64466370eb27a48c2ff0ead9f3f2573358f7db",
+      "bytes": 102
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_code_n10/sandbox/experiment/code/c008.py": {
+      "sha256": "f7e27ac680f45466c9dabde9096d165022fb19fee8f8370c022f68f1f31202e7",
+      "bytes": 107
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_code_n10/sandbox/experiment/code/c009.py": {
+      "sha256": "aab845e49effb815b77b31f665b6be92b55d04e9dae3e441e490d8afb20eead3",
+      "bytes": 97
+    }
+  },
+  "bootstrap": {
+    "pid": 27376,
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "\nLoading weights:   0%|          | 0/391 [00:00<?, ?it/s]\nLoading weights: 100%|██████████| 391/391 [00:00<00:00, 6719.38it/s]\n"
+  },
+  "bootstrap_result_file": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_20260921_code_n10\\workload\\bootstrap.json",
+  "baseline_verification_job": {
+    "job_id": "6e4f3ebc9b4442e78bc82251b11aed93",
+    "status": "completed",
+    "kind": "incremental",
+    "created_at": "2026-09-21T10:30:02.204639+00:00",
+    "finished_at": "2026-09-21T10:30:04.722436+00:00",
+    "changed_paths": null,
+    "result": {
+      "noop": true,
+      "planned": {
+        "unchanged": [],
+        "new": [],
+        "modified": [],
+        "deleted": []
+      },
+      "reindexed_docs": 0,
+      "deleted_docs": 0,
+      "upserted_chunks": 0,
+      "phase_timings_seconds": {
+        "init_model": 2.0823592000015196,
+        "scan_hash": 0.002710099999603699,
+        "load": 0.0,
+        "parsing_embedding": 0.0,
+        "qdrant": 0.0,
+        "relink": 0.0,
+        "save_hash": 0.0,
+        "eval_gate": 0.0,
+        "promote": 0.0
+      },
+      "counts": {
+        "docs_added": 0,
+        "docs_modified": 0,
+        "docs_removed": 0,
+        "code_added": 0,
+        "code_modified": 0,
+        "code_removed": 0,
+        "chunks_processed": 0,
+        "chunks_indexed": null,
+        "colbert_tokens_processed": 0,
+        "colbert_tokens_indexed": null,
+        "code_tokens_processed": null,
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+      }
+    },
+    "error": null,
+    "queue_duration_seconds": 0.00042469999971217476,
+    "writer_lock_wait_seconds": 0.005400099998951191,
+    "build_duration_seconds": 2.5112303999994765,
+    "reload_status": "completed",
+    "reload_duration_seconds": 0.00437199999942095,
+    "reload_error": null,
+    "published_token": "v20260921T102948",
+    "snapshot_ready_duration_seconds": 2.524531199998819,
+    "coalesced": false
+  },
+  "baseline_integrity": {
+    "ok": true,
+    "stale": false,
+    "artifacts_corrupted": false,
+    "qdrant_mismatch": false,
+    "qdrant_unreachable": false,
+    "problems": [],
+    "qdrant_alias": {
+      "state": "aligned",
+      "expected": "sidecar_0628_code_n10_pre",
+      "actual": "sidecar_0628_code_n10_pre"
+    },
+    "docs_git": {
+      "state": "aligned",
+      "diverging": [],
+      "instantiated": [],
+      "untracked": [],
+      "tracked": 0,
+      "reason": "nessun file tracciato sotto docs/"
+    }
+  },
+  "baseline_database": {
+    "CURRENT": {
+      "sha256": "e5fa69bcca3dbb0a218019dd3a1689e04ca51ba257e24ad6dac31b76cde0f3ab",
+      "bytes": 17
+    },
+    "versions/v20260921T102948/chunks.json": {
+      "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "bytes": 2
+    },
+    "versions/v20260921T102948/code.json": {
+      "sha256": "35bc8b946e813c2afc1d0ce7fedf7be3a3c8f51392cee3fc302fca6da6be7c72",
+      "bytes": 4147
+    },
+    "versions/v20260921T102948/code.npz": {
+      "sha256": "19663ca9309c3f6dfad13a213f2f78b9020878e81a81cd3560055d78ba03c01c",
+      "bytes": 21608
+    },
+    "versions/v20260921T102948/colbert.npz": {
+      "sha256": "d6ce6cd51c04cba7e94f732d0ea50b266b9e80ecb69488d135a8e31f2e887ae2",
+      "bytes": 205
+    },
+    "versions/v20260921T102948/dense.npz": {
+      "sha256": "d6ce6cd51c04cba7e94f732d0ea50b266b9e80ecb69488d135a8e31f2e887ae2",
+      "bytes": 205
+    },
+    "versions/v20260921T102948/graph.json": {
+      "sha256": "dba5b828ab56fb1eada2105fe59199f5048008e8a8eeebc68fefe4258f3e4c88",
+      "bytes": 1752
+    },
+    "versions/v20260921T102948/index_manifest.json": {
+      "sha256": "1f984bf7a282ef7960826e453749214c0c0abec893ee90b5b8b9a6363aef86cf",
+      "bytes": 1709
+    }
+  },
+  "baseline_points": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "baseline_current": "763230323630393231543130323934380a",
+  "qdrant_snapshot": "sidecar_0628_code_n10_pre-5053832752275878-2026-09-21-10-30-05.snapshot",
+  "baseline_queries": [
+    {
+      "query": "prenotazione evento posti",
+      "endpoint": "/api/code/search",
+      "start_monotonic": 11723.124732,
+      "end_monotonic": 11723.5807252,
+      "status": 200,
+      "results": 3
+    },
+    {
+      "query": "pagamenti accettati",
+      "endpoint": "/api/code/search",
+      "start_monotonic": 11723.5807291,
+      "end_monotonic": 11723.7805835,
+      "status": 200,
+      "results": 3
+    },
+    {
+      "query": "notifiche prenotazione",
+      "endpoint": "/api/code/search",
+      "start_monotonic": 11723.7805873,
+      "end_monotonic": 11724.0018797,
+      "status": 200,
+      "results": 3
+    }
+  ]
+}

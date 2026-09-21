@@ -1,0 +1,74 @@
+{
+  "updated_utc": "2026-09-21T10:51:19.981945+00:00",
+  "core_commit": "914a170",
+  "driver_commit": "17ce3ca",
+  "active_exec_session": null,
+  "quota_remaining": 81,
+  "ordinaryUsageAllowed": true,
+  "families": [
+    {
+      "mode": "docs",
+      "n": 10,
+      "status": "completed",
+      "samples": 15,
+      "error": null
+    },
+    {
+      "mode": "docs",
+      "n": 30,
+      "status": "completed",
+      "samples": 15,
+      "error": null
+    },
+    {
+      "mode": "docs",
+      "n": 100,
+      "status": "completed",
+      "samples": 20,
+      "error": null
+    },
+    {
+      "mode": "code",
+      "n": 10,
+      "status": "completed",
+      "samples": 15,
+      "error": null
+    },
+    {
+      "mode": "code",
+      "n": 30,
+      "status": "completed",
+      "samples": 15,
+      "error": null
+    },
+    {
+      "mode": "code",
+      "n": 100,
+      "status": "completed",
+      "samples": 20,
+      "error": null
+    },
+    {
+      "mode": "mixed",
+      "n": 10,
+      "status": "completed",
+      "samples": 15,
+      "error": null
+    },
+    {
+      "mode": "mixed",
+      "n": 30,
+      "status": "completed",
+      "samples": 15,
+      "error": null
+    },
+    {
+      "mode": "mixed",
+      "n": 100,
+      "status": "completed",
+      "samples": 20,
+      "error": null
+    }
+  ],
+  "status": "PHASE2_VERIFIED_PHASE3_IMPLEMENTATION"
+}

@@ -1,6 +1,6 @@
 # Scalabilità sidecar — checkpoint
 
-Stato: RUNNING_PHASE_2. Task: 01a0a441-79f6-7912-93ac-86a6e12518ee.
+Stato: RUNNING_PHASE_3. Task: 01a0a441-79f6-7912-93ac-86a6e12518ee.
 Worktree: C:/Users/Silve/.codex/worktrees/0628/vibecraft. HEAD iniziale: 4f35acf7ad18034c42203090189dfccfdbe42611. Branch: codex/sidecar-delta-0628. Ultimo commit funzionale: e8d8940; journal/readiness: 4a1539c. Nessun push/merge/pubblicazione.
 Heartbeat: ripresa-astra-scalabilit-sidecar, ACTIVE confermato dalla task chiamante. Pausa <=15%; ripresa solo ordinaryUsageAllowed e >=25% per finestre codex disponibili. Spark escluso.
 
@@ -71,3 +71,29 @@ Seconda calibrazione `calibration-20260921-r2` riuscita exit0: integrity ok, noo
 Nuovo Qdrant dedicato attivo IDd3925ae83db66bb7f76fb53c09d62ebdc5d469be043514c1b9e79fe9b717101f, storage sandbox/qdrant-r2. Vecchio contenitore dedicato rinominato sidecar-0628-qdrant-failed-calibration, fermo, preservato; vecchioDB archiviato sandbox/calibration-failed-database. Nessun processo benchmark attivo.
 
 Sol phase2 implementa brief phase2-brief.md: driver guarded reale N10/30/100 docs/code/mixed, cinque ripetizioni, restorefile+indice tramite snapshot Qdrant, querycontesa. Non ha permesso di avviare modello/container prima della review; PM prepara esecuzione. Quota92% residua. F3–6 non avviate. Il prossimo passo è review F2/test essenziali Windows/Linux, poi smoke reale e famiglie sequenziali, senza duplicare run attive.
+
+## F2 esecuzione reale in corso, 21 settembre ore12:26 locali
+
+HEAD17ce3ca (driverF2+smoke), predecessore914a170 (F1+fixalias). Review F2fix1 APPROVATA, 36test Windows e36Linux verdi; log Linuxportabilityfailed conservato e fix testscoped verificato. Smoke docsN10k0/1reps1 riuscito, escluso dalle curve. Aggregatore Terra summarize_delta.py pronto (CSV/MD/SVG, no mock confusi con misure), PM summarize_resources.py verificato sui15campioni reali docsN10.
+
+Qdrant bindWindows snapshotrecover falliva500 WAL; container d3925... preservato fermo come sidecar-0628-qdrant-bind-r2. Nuovo container attivo de6aa3529ba7556925ea447e9fe1fc9817dc420f3450bb1c2616981f3021d4be, stesso nome sidecar-0628-qdrant/porta16333/1GiB/2CPU, volumeDocker nativo sidecar-0628-qdrant-native-f2. Probe nativo dimostra restorevero identico. Le precedenti collection sperimentali restano nel container; il sampler misura tutto Qdrant, non solo la famiglia corrente (limite dichiarato nei resourceJSON). Nessun target operativo toccato.
+
+Famiglie ufficiali concluse exit0: sidecar_delta_20260921_docs_n10 e docs_n30, 15campioni validi e restore_verified ciascuna, 5reps×k0/1/10. JSON/CSV/log/samples sotto rispettive evidence; baseline-db resta workload/baseline-database. MedianeT readiness N10:2.62664/3.37828/5.08410; N30:2.58107/3.50654/5.26721. Queryvuote durantek=N sono degrado osservato, non mascherate: N10totale29/55query, nessunHTTPerror.
+
+ATTIVA: docs_n100, session52619, driver bench.py --real-delta N100 docs k0,1,10,100 reps5 con sampler. Non duplicare/rilanciare. Dopo questa famiglia restano code_n10/30/100 e mixed_n10/30/100, già preparate vuote conconfigpropria. Prima di ogni famiglia leggerequota e verificareprocessi/risultati. Quota84% residua ordinarytrue. Nessunworkerattivo; F3briefpreparato ma NONdelegato, attenderebaselineF2complete. Nessuna ottimizzazioneproduttiva iniziata.
+
+## F2 checkpoint aggiornato — 21 settembre, sei famiglie concluse
+
+Docs e code N10/30/100 completati exit0: 100 campioni totali validi e restore_verified, cinque ripetizioni per cella. Raw copiati in evidence, riepiloghi risorse generati per tutte le sei famiglie. CodeN100 mediane T k0/1/10/100: 2.61430/3.56532/5.64534/19.01669s. Nessun benchmark Python residuo prima della nuova famiglia.
+
+ATTIVA mixedN10, session57833; poi restano mixedN30/N100. Non rilanciare. Qdrant nativo de6aa352... invariato. Quota83% ordinarytrue, no spendblock. Sol review1d verifica indipendentemente le sei evidenze e gli aggregatori; non chiude F2 prima delle miste. F3 ancora non delegata.
+
+## F2 ultima famiglia attiva
+
+MixedN10 e N30 concluse exit0, 15 campioni validi/ripristinati ciascuna: totale130. Raw e resources in evidence. ATTIVA mixedN100 session45169; nessun duplicato. Review parziale indipendente approva docs/code e aggregatori senza correzioni. Quota82% ordinarytrue. F3–6 non implementate; F4 ha solo brief preparatorio.
+
+## F2 chiusa e F3 avviata — 21 settembre ore12:53 locali
+
+F2 tutte9famiglie terminate exit0, 150campioni validi/ripristinati, 30celle×5. Aggregato CSV/MD/SVG/PDF e raw/resources completi. Review indipendente phase2-evidence-review APPROVATA F2/U02; PM ha rasterizzato il PDF e controllato grafico (etichette/assi/intervalli leggibili). PHASE2.md descrive corpus brevissimo, tempi, contesa/risposte vuote e limiti; niente soglia o full crossover. Nessun processo benchmark residuo.
+
+Sol phase2 riusato per F3-01..04, brief phase3-brief.md: lazy modello, noop pronto sullo snapshot realmente servito, release boot, hash streaming; test essenziali e report. Non avvia modelli/container né committa. PM chiude commit evidenze F2, quindi review/test Linux e prepara confronto post. F3-05 resta aperta fino a ripetizione150prove. Quota81% ordinarytrue, Qdrant de6aa352... conservato attivo; per post creare volume nativo equivalente separato preservando precedente.
