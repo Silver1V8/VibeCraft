@@ -10,7 +10,7 @@ Corpus sintetico breve: stessa formula ciclica di tre lunghezze; ogni file ha un
 
 ## Corpus e contesa
 
-| Modo | N file | byte sorgenti | chunk docs | token ColBERT | query durante job | risposte vuote | errori HTTP | max RSS server MiB osservato | max USS MiB osservato |
+| Modo | N file | byte sorgenti | chunk docs | token ColBERT | query nella finestra osservata | risposte vuote | errori HTTP | max RSS server MiB osservato | max USS MiB osservato |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | docs | 10 | 665 | 10 | 268 | 55 | 29 | 0 | 4090.50 | 1531.30 |
 | docs | 30 | 2010 | 30 | 821 | 64 | 0 | 0 | 4103.48 | 1562.59 |
@@ -55,3 +55,5 @@ Le mediane delle fasi non si sommano necessariamente alla mediana di T; il tempo
 - Nessuna soglia universale e nessun incrocio incrementale/full: budget prodotto non definiti e full non eseguito. F3 deve ripetere le stesse150prove; F4 resta necessario per il reader a richiesta.
 
 Verifica indipendente: `rag/adr/sidecar-work/phase2-evidence-review.md`. Test driver:36Windows e36Linux. Nessuna migrazione di formato in questa fase.
+
+Precisazione temporale: il reader parte attorno alla richiesta HTTP e può completare l’ultima query dopo il ritorno del polling. Le latenze includono queste richieste sovrapposte; non si afferma che ogni query ricada interamente nella build misurata dal journal.

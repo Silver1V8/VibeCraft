@@ -1,0 +1,45 @@
+{
+  "pid": 26604,
+  "result": {
+    "planned": {
+      "unchanged": [],
+      "new": [],
+      "modified": [],
+      "deleted": []
+    },
+    "reindexed_docs": 0,
+    "deleted_docs": 0,
+    "upserted_chunks": 0,
+    "code_added": 100,
+    "code_removed": 0,
+    "code_modified": 0,
+    "implements_edges": 0,
+    "pruned_entities": 0,
+    "counts": {
+      "docs_added": 0,
+      "docs_modified": 0,
+      "docs_removed": 0,
+      "code_added": 100,
+      "code_modified": 0,
+      "code_removed": 0,
+      "chunks_processed": 0,
+      "chunks_indexed": 0,
+      "colbert_tokens_processed": 0,
+      "colbert_tokens_indexed": 0,
+      "code_tokens_processed": null,
+      "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+    },
+    "version": "v20260921T111955",
+    "phase_timings_seconds": {
+      "init_model": 2.1204560000005586,
+      "scan_hash": 0.01965849999942293,
+      "load": 0.0004144000013184268,
+      "parsing_embedding": 13.335169300000416,
+      "qdrant": 0.26340689999960887,
+      "relink": 0.0008950999999797205,
+      "save_hash": 0.0735103999995772,
+      "eval_gate": 0.0,
+      "promote": 0.0055216999990079785
+    }
+  }
+}

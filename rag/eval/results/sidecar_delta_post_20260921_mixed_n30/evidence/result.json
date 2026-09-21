@@ -1,0 +1,3552 @@
+{
+  "status": "completed",
+  "pid": 6036,
+  "parameters": {
+    "n": 30,
+    "mode": "mixed",
+    "k": [
+      0,
+      1,
+      10
+    ],
+    "repeats": 5,
+    "query_pause_seconds": 0.15,
+    "qdrant_url": "http://127.0.0.1:16333",
+    "server_url": "http://127.0.0.1:18000",
+    "collection": "sidecar_0628_mixed_n30_post",
+    "restore_io_outside_measurement": true
+  },
+  "events": [
+    {
+      "event": "bootstrap_start",
+      "utc": "2026-09-21T11:25:26.984679+00:00",
+      "monotonic": 15044.6002814
+    },
+    {
+      "event": "bootstrap_end",
+      "utc": "2026-09-21T11:25:46.183016+00:00",
+      "monotonic": 15063.7986156
+    },
+    {
+      "event": "baseline_frozen",
+      "utc": "2026-09-21T11:25:58.565733+00:00",
+      "monotonic": 15076.1813297
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:25:59.492739+00:00",
+      "monotonic": 15077.1083362,
+      "repeat": 0,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:26:00.270805+00:00",
+      "monotonic": 15077.8864037,
+      "repeat": 0,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:26:00.804475+00:00",
+      "monotonic": 15078.4200764,
+      "repeat": 0,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:26:00.814949+00:00",
+      "monotonic": 15078.4305488,
+      "repeat": 0,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:26:05.058275+00:00",
+      "monotonic": 15082.6738736,
+      "repeat": 0,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:26:05.524059+00:00",
+      "monotonic": 15083.1396578,
+      "repeat": 0,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:26:05.538851+00:00",
+      "monotonic": 15083.1544483,
+      "repeat": 0,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:26:12.035063+00:00",
+      "monotonic": 15089.6506608,
+      "repeat": 0,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:26:12.479456+00:00",
+      "monotonic": 15090.0950547,
+      "repeat": 0,
+      "k": 10
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:26:12.489668+00:00",
+      "monotonic": 15090.1052637,
+      "repeat": 1,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:26:13.236150+00:00",
+      "monotonic": 15090.8517488,
+      "repeat": 1,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:26:13.659196+00:00",
+      "monotonic": 15091.2748098,
+      "repeat": 1,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:26:13.669574+00:00",
+      "monotonic": 15091.2851713,
+      "repeat": 1,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:26:17.781928+00:00",
+      "monotonic": 15095.3975268,
+      "repeat": 1,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:26:18.271561+00:00",
+      "monotonic": 15095.8871606,
+      "repeat": 1,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:26:18.286554+00:00",
+      "monotonic": 15095.902152,
+      "repeat": 1,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:26:24.364117+00:00",
+      "monotonic": 15101.9797158,
+      "repeat": 1,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:26:24.818543+00:00",
+      "monotonic": 15102.4341407,
+      "repeat": 1,
+      "k": 10
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:26:24.828748+00:00",
+      "monotonic": 15102.4443446,
+      "repeat": 2,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:26:25.645463+00:00",
+      "monotonic": 15103.2610611,
+      "repeat": 2,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:26:26.078211+00:00",
+      "monotonic": 15103.69381,
+      "repeat": 2,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:26:26.088489+00:00",
+      "monotonic": 15103.7040841,
+      "repeat": 2,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:26:29.868401+00:00",
+      "monotonic": 15107.4839997,
+      "repeat": 2,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:26:30.319723+00:00",
+      "monotonic": 15107.9353222,
+      "repeat": 2,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:26:30.335269+00:00",
+      "monotonic": 15107.9508677,
+      "repeat": 2,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:26:36.503091+00:00",
+      "monotonic": 15114.1186898,
+      "repeat": 2,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:26:36.971767+00:00",
+      "monotonic": 15114.5873658,
+      "repeat": 2,
+      "k": 10
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:26:36.981830+00:00",
+      "monotonic": 15114.5974256,
+      "repeat": 3,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:26:37.760701+00:00",
+      "monotonic": 15115.3762985,
+      "repeat": 3,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:26:38.203489+00:00",
+      "monotonic": 15115.8190877,
+      "repeat": 3,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:26:38.214563+00:00",
+      "monotonic": 15115.8301597,
+      "repeat": 3,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:26:42.533597+00:00",
+      "monotonic": 15120.1491965,
+      "repeat": 3,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:26:42.999569+00:00",
+      "monotonic": 15120.6151673,
+      "repeat": 3,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:26:43.015522+00:00",
+      "monotonic": 15120.6311207,
+      "repeat": 3,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:26:49.098659+00:00",
+      "monotonic": 15126.7142581,
+      "repeat": 3,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:26:49.561442+00:00",
+      "monotonic": 15127.1770402,
+      "repeat": 3,
+      "k": 10
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:26:49.571155+00:00",
+      "monotonic": 15127.186751,
+      "repeat": 4,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:26:50.378715+00:00",
+      "monotonic": 15127.994313,
+      "repeat": 4,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:26:50.805135+00:00",
+      "monotonic": 15128.4207344,
+      "repeat": 4,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:26:50.815393+00:00",
+      "monotonic": 15128.4309909,
+      "repeat": 4,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:26:54.986290+00:00",
+      "monotonic": 15132.601889,
+      "repeat": 4,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:26:55.443649+00:00",
+      "monotonic": 15133.0592479,
+      "repeat": 4,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:26:55.459695+00:00",
+      "monotonic": 15133.075293,
+      "repeat": 4,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:27:01.725000+00:00",
+      "monotonic": 15139.3405992,
+      "repeat": 4,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:27:02.179160+00:00",
+      "monotonic": 15139.794761,
+      "repeat": 4,
+      "k": 10
+    }
+  ],
+  "samples": [
+    {
+      "repeat": 0,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 15077.1090592,
+          "end_monotonic": 15077.3503915,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15077.5147776,
+          "end_monotonic": 15077.7255068,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "86d92fd198834d41935b794715cb6f7a",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:25:59.498345+00:00",
+        "finished_at": "2026-09-21T11:25:59.532690+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md"
+            ],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 0.0,
+            "scan_hash": 0.02252520000001823,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "snapshot_token": "v20260921T112544"
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0003679000001284294,
+        "writer_lock_wait_seconds": 0.010779599999295897,
+        "build_duration_seconds": 0.02302349999990838,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.0,
+        "reload_error": null,
+        "published_token": "v20260921T112544",
+        "snapshot_ready_duration_seconds": 0.03505829999994603,
+        "coalesced": false
+      },
+      "elapsed_seconds": 0.5174435999997513,
+      "started_monotonic": 15077.1083384,
+      "ended_monotonic": 15077.625782,
+      "current_version": "v20260921T112544",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_mixed_n30_post",
+          "actual": "sidecar_0628_mixed_n30_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 0,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 15078.4315287,
+          "end_monotonic": 15080.8078452,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15080.9670015,
+          "end_monotonic": 15081.2026099,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15081.3602909,
+          "end_monotonic": 15082.0826922,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15082.2360092,
+          "end_monotonic": 15082.5364772,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112603",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "dd10edeb80164da294929240154af5b4",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:26:00.823265+00:00",
+        "finished_at": "2026-09-21T11:26:04.301910+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 1,
+          "deleted_docs": 0,
+          "upserted_chunks": 1,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 1,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 1,
+            "chunks_indexed": 15,
+            "colbert_tokens_processed": 25,
+            "colbert_tokens_indexed": 406,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T112603",
+          "phase_timings_seconds": {
+            "init_model": 2.2134213999997883,
+            "scan_hash": 0.02010849999896891,
+            "load": 0.01371839999956137,
+            "parsing_embedding": 0.5414134000002377,
+            "qdrant": 0.0856822000023385,
+            "relink": 0.00027299999965180177,
+            "save_hash": 0.1141884000007849,
+            "eval_gate": 0.0,
+            "promote": 0.004755399999339716
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0032494000006408896,
+        "writer_lock_wait_seconds": 0.010330900000553811,
+        "build_duration_seconds": 3.4648140000008425,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.026719100000264007,
+        "reload_error": null,
+        "published_token": "v20260921T112603",
+        "snapshot_ready_duration_seconds": 3.5060415000007197,
+        "coalesced": false
+      },
+      "elapsed_seconds": 4.008289700001114,
+      "started_monotonic": 15078.4305517,
+      "ended_monotonic": 15082.4388414,
+      "current_version": "v20260921T112603",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_mixed_n30_post",
+          "actual": "sidecar_0628_mixed_n30_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 0,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 15083.1550481,
+          "end_monotonic": 15085.522051,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15085.6755441,
+          "end_monotonic": 15085.9206183,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15086.081738,
+          "end_monotonic": 15086.3874593,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15086.5459096,
+          "end_monotonic": 15086.7901894,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15086.9388618,
+          "end_monotonic": 15087.1949112,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15087.3460334,
+          "end_monotonic": 15087.6968296,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15087.8607504,
+          "end_monotonic": 15088.1263738,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15088.2816348,
+          "end_monotonic": 15089.0479615,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15089.2039851,
+          "end_monotonic": 15089.4825189,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112610",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d001.md",
+          "before_sha256": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+          "after_sha256": "bbea20e8af1d5027478bc50b632d9be5af6c0c4e4e6c77923f123119eaf62dd2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d002.md",
+          "before_sha256": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+          "after_sha256": "aac5a99d6afb42f1e84774a8e1dd53ec1b8bffb334a61012a4a39f65e6b0be85",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d003.md",
+          "before_sha256": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+          "after_sha256": "592f75dbdc042e03606815315cb92133c3e53c10a23a168a3e9661b29391bca9",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d004.md",
+          "before_sha256": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+          "after_sha256": "a4d31bfbfebe3eeae2d29b0a7d8b70f31904ccc373249b013c2332c7954a4bc2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "code/c015.py",
+          "before_sha256": "b250ff628b2886a33d23482e943f176013ca5d7959c9f823741d23d1e636b69e",
+          "after_sha256": "93597d06e778f2495b4c4ae54810c2fa3be4e1bd0f7d652fa957ea221e71a21a",
+          "bytes": 97,
+          "code_symbol": "caso_015"
+        },
+        {
+          "path": "code/c016.py",
+          "before_sha256": "833a0d20971f1b8705cf7a5b2716242cfe3d3f39cecdeb290775e9e46b287304",
+          "after_sha256": "5c7d4b0001ad23192c6ed643a280bed0f04238a64042826bb6c4f612fbd7dccc",
+          "bytes": 102,
+          "code_symbol": "caso_016"
+        },
+        {
+          "path": "code/c017.py",
+          "before_sha256": "07e63bde1a3e03c5163d90b76bcc4b05e1f123d6939fa268028ce2443c93ea1d",
+          "after_sha256": "a3d43a064e680de890a759238929ec666a0812abcf9365c4047707b6a3b3170e",
+          "bytes": 107,
+          "code_symbol": "caso_017"
+        },
+        {
+          "path": "code/c018.py",
+          "before_sha256": "1fd081128510e29c6cc37c19a8ac8bd5c4590f76a5357f59f25723f0c72bc748",
+          "after_sha256": "04a949d1dff2abdceb476f9fde62eff941f92d9ce965bfeeb264e22ac28e8b23",
+          "bytes": 97,
+          "code_symbol": "caso_018"
+        },
+        {
+          "path": "code/c019.py",
+          "before_sha256": "3f1e436bfbf800abd4e96ac5e91f288bf952ee828577115a0a9c80abf48d2563",
+          "after_sha256": "c7977243597feb524dd485794df5490adfc406085bcf65dcd1f4c5cc827a78fd",
+          "bytes": 102,
+          "code_symbol": "caso_019"
+        }
+      ],
+      "job": {
+        "job_id": "66c2a39200864cd0888eaefd4859c7d4",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:26:05.559233+00:00",
+        "finished_at": "2026-09-21T11:26:11.389661+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 5,
+          "deleted_docs": 0,
+          "upserted_chunks": 5,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 5,
+          "implements_edges": 6,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 5,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 5,
+            "code_removed": 0,
+            "chunks_processed": 5,
+            "chunks_indexed": 15,
+            "colbert_tokens_processed": 133,
+            "colbert_tokens_indexed": 406,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T112610",
+          "phase_timings_seconds": {
+            "init_model": 2.2081525000012334,
+            "scan_hash": 0.023235300001033465,
+            "load": 0.016723800001273048,
+            "parsing_embedding": 2.9136641999975836,
+            "qdrant": 0.06814830000257643,
+            "relink": 0.0011021000009350246,
+            "save_hash": 0.1159231000001455,
+            "eval_gate": 0.0,
+            "promote": 0.005992399999740883
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.00087340000027325,
+        "writer_lock_wait_seconds": 0.00643829999899026,
+        "build_duration_seconds": 5.82287340000039,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.0231926000014937,
+        "reload_error": null,
+        "published_token": "v20260921T112610",
+        "snapshot_ready_duration_seconds": 5.854339299999992,
+        "coalesced": false
+      },
+      "elapsed_seconds": 6.135800500000187,
+      "started_monotonic": 15083.1544503,
+      "ended_monotonic": 15089.2902508,
+      "current_version": "v20260921T112610",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_mixed_n30_post",
+          "actual": "sidecar_0628_mixed_n30_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 1,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 15090.1058905,
+          "end_monotonic": 15090.3335429,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15090.4863799,
+          "end_monotonic": 15090.7012399,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "dc37a0ad7a4347c49453bc6978fba374",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:26:12.515499+00:00",
+        "finished_at": "2026-09-21T11:26:12.533848+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md"
+            ],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 0.0,
+            "scan_hash": 0.008867800001098658,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "snapshot_token": "v20260921T112544"
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0008422999999311287,
+        "writer_lock_wait_seconds": 0.008002700000361074,
+        "build_duration_seconds": 0.00932720000128029,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.0,
+        "reload_error": null,
+        "published_token": "v20260921T112544",
+        "snapshot_ready_duration_seconds": 0.01910209999914514,
+        "coalesced": false
+      },
+      "elapsed_seconds": 0.5362927999995009,
+      "started_monotonic": 15090.1052653,
+      "ended_monotonic": 15090.6415581,
+      "current_version": "v20260921T112544",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_mixed_n30_post",
+          "actual": "sidecar_0628_mixed_n30_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 1,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 15091.285799,
+          "end_monotonic": 15093.6316682,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15093.782372,
+          "end_monotonic": 15094.0195425,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15094.1735615,
+          "end_monotonic": 15094.8779536,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15095.0338086,
+          "end_monotonic": 15095.2591161,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112616",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "29a70d75204b43cf818924c28999e801",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:26:13.675120+00:00",
+        "finished_at": "2026-09-21T11:26:17.103593+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 1,
+          "deleted_docs": 0,
+          "upserted_chunks": 1,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 1,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 1,
+            "chunks_indexed": 15,
+            "colbert_tokens_processed": 25,
+            "colbert_tokens_indexed": 406,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T112616",
+          "phase_timings_seconds": {
+            "init_model": 2.130383300000176,
+            "scan_hash": 0.023049800000080722,
+            "load": 0.015781500000230153,
+            "parsing_embedding": 0.5504686000003858,
+            "qdrant": 0.10112699999808683,
+            "relink": 0.0002715999999054475,
+            "save_hash": 0.10604520000015327,
+            "eval_gate": 0.0,
+            "promote": 0.0060268999986874405
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0014049000001250533,
+        "writer_lock_wait_seconds": 0.008872700000210898,
+        "build_duration_seconds": 3.417846799999097,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.024164700000255834,
+        "reload_error": null,
+        "published_token": "v20260921T112616",
+        "snapshot_ready_duration_seconds": 3.454820599999948,
+        "coalesced": false
+      },
+      "elapsed_seconds": 3.9412007999999332,
+      "started_monotonic": 15091.2851733,
+      "ended_monotonic": 15095.2263741,
+      "current_version": "v20260921T112616",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_mixed_n30_post",
+          "actual": "sidecar_0628_mixed_n30_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 1,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 15095.9028372,
+          "end_monotonic": 15098.1321126,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15098.2974049,
+          "end_monotonic": 15098.6291042,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15098.7827547,
+          "end_monotonic": 15099.0247583,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15099.1895358,
+          "end_monotonic": 15099.5385331,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15099.6895547,
+          "end_monotonic": 15099.9429462,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15100.0953905,
+          "end_monotonic": 15100.3661097,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15100.5164546,
+          "end_monotonic": 15100.8562649,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15101.0166064,
+          "end_monotonic": 15101.7493989,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d001.md",
+          "before_sha256": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+          "after_sha256": "bbea20e8af1d5027478bc50b632d9be5af6c0c4e4e6c77923f123119eaf62dd2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d002.md",
+          "before_sha256": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+          "after_sha256": "aac5a99d6afb42f1e84774a8e1dd53ec1b8bffb334a61012a4a39f65e6b0be85",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d003.md",
+          "before_sha256": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+          "after_sha256": "592f75dbdc042e03606815315cb92133c3e53c10a23a168a3e9661b29391bca9",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d004.md",
+          "before_sha256": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+          "after_sha256": "a4d31bfbfebe3eeae2d29b0a7d8b70f31904ccc373249b013c2332c7954a4bc2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "code/c015.py",
+          "before_sha256": "b250ff628b2886a33d23482e943f176013ca5d7959c9f823741d23d1e636b69e",
+          "after_sha256": "93597d06e778f2495b4c4ae54810c2fa3be4e1bd0f7d652fa957ea221e71a21a",
+          "bytes": 97,
+          "code_symbol": "caso_015"
+        },
+        {
+          "path": "code/c016.py",
+          "before_sha256": "833a0d20971f1b8705cf7a5b2716242cfe3d3f39cecdeb290775e9e46b287304",
+          "after_sha256": "5c7d4b0001ad23192c6ed643a280bed0f04238a64042826bb6c4f612fbd7dccc",
+          "bytes": 102,
+          "code_symbol": "caso_016"
+        },
+        {
+          "path": "code/c017.py",
+          "before_sha256": "07e63bde1a3e03c5163d90b76bcc4b05e1f123d6939fa268028ce2443c93ea1d",
+          "after_sha256": "a3d43a064e680de890a759238929ec666a0812abcf9365c4047707b6a3b3170e",
+          "bytes": 107,
+          "code_symbol": "caso_017"
+        },
+        {
+          "path": "code/c018.py",
+          "before_sha256": "1fd081128510e29c6cc37c19a8ac8bd5c4590f76a5357f59f25723f0c72bc748",
+          "after_sha256": "04a949d1dff2abdceb476f9fde62eff941f92d9ce965bfeeb264e22ac28e8b23",
+          "bytes": 97,
+          "code_symbol": "caso_018"
+        },
+        {
+          "path": "code/c019.py",
+          "before_sha256": "3f1e436bfbf800abd4e96ac5e91f288bf952ee828577115a0a9c80abf48d2563",
+          "after_sha256": "c7977243597feb524dd485794df5490adfc406085bcf65dcd1f4c5cc827a78fd",
+          "bytes": 102,
+          "code_symbol": "caso_019"
+        }
+      ],
+      "job": {
+        "job_id": "f3519fc53ac64e819018be0ee2f68402",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:26:18.291498+00:00",
+        "finished_at": "2026-09-21T11:26:23.963244+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 5,
+          "deleted_docs": 0,
+          "upserted_chunks": 5,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 5,
+          "implements_edges": 6,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 5,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 5,
+            "code_removed": 0,
+            "chunks_processed": 5,
+            "chunks_indexed": 15,
+            "colbert_tokens_processed": 133,
+            "colbert_tokens_indexed": 406,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T112623",
+          "phase_timings_seconds": {
+            "init_model": 2.0910420999989583,
+            "scan_hash": 0.025339699999676668,
+            "load": 0.014281599998867023,
+            "parsing_embedding": 2.903328899998087,
+            "qdrant": 0.04486179999912565,
+            "relink": 0.0007903000005171634,
+            "save_hash": 0.10028059999967809,
+            "eval_gate": 0.0,
+            "promote": 0.006509900000310154
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.001046699999278644,
+        "writer_lock_wait_seconds": 0.005844100000103936,
+        "build_duration_seconds": 5.664480600000388,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.02772000000004482,
+        "reload_error": null,
+        "published_token": "v20260921T112623",
+        "snapshot_ready_duration_seconds": 5.700300900000002,
+        "coalesced": false
+      },
+      "elapsed_seconds": 5.952240200000233,
+      "started_monotonic": 15095.9021543,
+      "ended_monotonic": 15101.8543945,
+      "current_version": "v20260921T112623",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_mixed_n30_post",
+          "actual": "sidecar_0628_mixed_n30_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 2,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 15102.4449262,
+          "end_monotonic": 15102.7309595,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15102.8923794,
+          "end_monotonic": 15103.0918586,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "1f83244187a94cf491f6f5e5ee8b7b47",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:26:24.835042+00:00",
+        "finished_at": "2026-09-21T11:26:24.874830+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md"
+            ],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 0.0,
+            "scan_hash": 0.0319565000008879,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "snapshot_token": "v20260921T112544"
+        },
+        "error": null,
+        "queue_duration_seconds": 0.000506899999891175,
+        "writer_lock_wait_seconds": 0.006664500000624685,
+        "build_duration_seconds": 0.032456400000228314,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.0,
+        "reload_error": null,
+        "published_token": "v20260921T112544",
+        "snapshot_ready_duration_seconds": 0.040382299999691895,
+        "coalesced": false
+      },
+      "elapsed_seconds": 0.5185440999994171,
+      "started_monotonic": 15102.4443468,
+      "ended_monotonic": 15102.9628909,
+      "current_version": "v20260921T112544",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_mixed_n30_post",
+          "actual": "sidecar_0628_mixed_n30_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 2,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 15103.7047933,
+          "end_monotonic": 15106.0359717,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15106.1887769,
+          "end_monotonic": 15106.471602,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15106.6257269,
+          "end_monotonic": 15107.3256913,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "ed6b30d76c3748a7b458110020e18e39",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:26:26.109846+00:00",
+        "finished_at": "2026-09-21T11:26:29.526001+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 1,
+          "deleted_docs": 0,
+          "upserted_chunks": 1,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 1,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 1,
+            "chunks_indexed": 15,
+            "colbert_tokens_processed": 25,
+            "colbert_tokens_indexed": 406,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T112628",
+          "phase_timings_seconds": {
+            "init_model": 2.176607100000183,
+            "scan_hash": 0.02932139999938954,
+            "load": 0.013381500000832602,
+            "parsing_embedding": 0.5704215000005206,
+            "qdrant": 0.06159930000103486,
+            "relink": 0.0002936000000772765,
+            "save_hash": 0.10603400000036345,
+            "eval_gate": 0.0,
+            "promote": 0.00485359999947832
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0007894999998825369,
+        "writer_lock_wait_seconds": 0.006072199999834993,
+        "build_duration_seconds": 3.408960599999773,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.023602499999469728,
+        "reload_error": null,
+        "published_token": "v20260921T112628",
+        "snapshot_ready_duration_seconds": 3.44049669999913,
+        "coalesced": false
+      },
+      "elapsed_seconds": 3.475874300000214,
+      "started_monotonic": 15103.7040861,
+      "ended_monotonic": 15107.1799604,
+      "current_version": "v20260921T112628",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_mixed_n30_post",
+          "actual": "sidecar_0628_mixed_n30_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 2,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 15107.9515436,
+          "end_monotonic": 15110.157601,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15110.3153023,
+          "end_monotonic": 15110.5883097,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15110.7522785,
+          "end_monotonic": 15111.0139044,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15111.173525,
+          "end_monotonic": 15111.4127218,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15111.5636983,
+          "end_monotonic": 15111.871295,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15112.0325879,
+          "end_monotonic": 15112.2668129,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15112.421954,
+          "end_monotonic": 15112.7836091,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15112.9390807,
+          "end_monotonic": 15113.1937888,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15113.4806855,
+          "end_monotonic": 15113.9686868,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112635",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d001.md",
+          "before_sha256": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+          "after_sha256": "bbea20e8af1d5027478bc50b632d9be5af6c0c4e4e6c77923f123119eaf62dd2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d002.md",
+          "before_sha256": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+          "after_sha256": "aac5a99d6afb42f1e84774a8e1dd53ec1b8bffb334a61012a4a39f65e6b0be85",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d003.md",
+          "before_sha256": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+          "after_sha256": "592f75dbdc042e03606815315cb92133c3e53c10a23a168a3e9661b29391bca9",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d004.md",
+          "before_sha256": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+          "after_sha256": "a4d31bfbfebe3eeae2d29b0a7d8b70f31904ccc373249b013c2332c7954a4bc2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "code/c015.py",
+          "before_sha256": "b250ff628b2886a33d23482e943f176013ca5d7959c9f823741d23d1e636b69e",
+          "after_sha256": "93597d06e778f2495b4c4ae54810c2fa3be4e1bd0f7d652fa957ea221e71a21a",
+          "bytes": 97,
+          "code_symbol": "caso_015"
+        },
+        {
+          "path": "code/c016.py",
+          "before_sha256": "833a0d20971f1b8705cf7a5b2716242cfe3d3f39cecdeb290775e9e46b287304",
+          "after_sha256": "5c7d4b0001ad23192c6ed643a280bed0f04238a64042826bb6c4f612fbd7dccc",
+          "bytes": 102,
+          "code_symbol": "caso_016"
+        },
+        {
+          "path": "code/c017.py",
+          "before_sha256": "07e63bde1a3e03c5163d90b76bcc4b05e1f123d6939fa268028ce2443c93ea1d",
+          "after_sha256": "a3d43a064e680de890a759238929ec666a0812abcf9365c4047707b6a3b3170e",
+          "bytes": 107,
+          "code_symbol": "caso_017"
+        },
+        {
+          "path": "code/c018.py",
+          "before_sha256": "1fd081128510e29c6cc37c19a8ac8bd5c4590f76a5357f59f25723f0c72bc748",
+          "after_sha256": "04a949d1dff2abdceb476f9fde62eff941f92d9ce965bfeeb264e22ac28e8b23",
+          "bytes": 97,
+          "code_symbol": "caso_018"
+        },
+        {
+          "path": "code/c019.py",
+          "before_sha256": "3f1e436bfbf800abd4e96ac5e91f288bf952ee828577115a0a9c80abf48d2563",
+          "after_sha256": "c7977243597feb524dd485794df5490adfc406085bcf65dcd1f4c5cc827a78fd",
+          "bytes": 102,
+          "code_symbol": "caso_019"
+        }
+      ],
+      "job": {
+        "job_id": "3431fd7c559d4be29386a6749dbf65c3",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:26:30.356439+00:00",
+        "finished_at": "2026-09-21T11:26:36.097191+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 5,
+          "deleted_docs": 0,
+          "upserted_chunks": 5,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 5,
+          "implements_edges": 6,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 5,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 5,
+            "code_removed": 0,
+            "chunks_processed": 5,
+            "chunks_indexed": 15,
+            "colbert_tokens_processed": 133,
+            "colbert_tokens_indexed": 406,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T112635",
+          "phase_timings_seconds": {
+            "init_model": 2.0899668999991263,
+            "scan_hash": 0.017655499999818858,
+            "load": 0.015369900000223424,
+            "parsing_embedding": 2.9253587999992305,
+            "qdrant": 0.11201640000035695,
+            "relink": 0.0008625999998912448,
+            "save_hash": 0.08686330000091402,
+            "eval_gate": 0.0,
+            "promote": 0.005509500000698608
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0007175999999162741,
+        "writer_lock_wait_seconds": 0.0065133999996760394,
+        "build_duration_seconds": 5.733026899999459,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.03595300000051793,
+        "reload_error": null,
+        "published_token": "v20260921T112635",
+        "snapshot_ready_duration_seconds": 5.778155999998489,
+        "coalesced": false
+      },
+      "elapsed_seconds": 5.8082297000000835,
+      "started_monotonic": 15107.9508702,
+      "ended_monotonic": 15113.7590999,
+      "current_version": "v20260921T112635",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_mixed_n30_post",
+          "actual": "sidecar_0628_mixed_n30_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 3,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 15114.5979379,
+          "end_monotonic": 15114.8831577,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15115.0332033,
+          "end_monotonic": 15115.2350998,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "6cc2b40360a040b6aa0f317cd0bded6c",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:26:36.985138+00:00",
+        "finished_at": "2026-09-21T11:26:37.023476+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md"
+            ],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 0.0,
+            "scan_hash": 0.03081440000096336,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "snapshot_token": "v20260921T112544"
+        },
+        "error": null,
+        "queue_duration_seconds": 0.00046889999975974206,
+        "writer_lock_wait_seconds": 0.0057573999984015245,
+        "build_duration_seconds": 0.031829699999434524,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.0,
+        "reload_error": null,
+        "published_token": "v20260921T112544",
+        "snapshot_ready_duration_seconds": 0.03964590000032331,
+        "coalesced": false
+      },
+      "elapsed_seconds": 0.5116735999999946,
+      "started_monotonic": 15114.5974272,
+      "ended_monotonic": 15115.1091008,
+      "current_version": "v20260921T112544",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_mixed_n30_post",
+          "actual": "sidecar_0628_mixed_n30_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 3,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 15115.8307141,
+          "end_monotonic": 15118.1644902,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15118.3272078,
+          "end_monotonic": 15118.6839886,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15118.836062,
+          "end_monotonic": 15119.5685761,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15119.7201798,
+          "end_monotonic": 15119.956822,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112641",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "c756b0a04de4480bb7a6e9ee10038cb3",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:26:38.217935+00:00",
+        "finished_at": "2026-09-21T11:26:41.733384+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 1,
+          "deleted_docs": 0,
+          "upserted_chunks": 1,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 1,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 1,
+            "chunks_indexed": 15,
+            "colbert_tokens_processed": 25,
+            "colbert_tokens_indexed": 406,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T112641",
+          "phase_timings_seconds": {
+            "init_model": 2.1706921000004513,
+            "scan_hash": 0.021841700001459685,
+            "load": 0.013501999999789405,
+            "parsing_embedding": 0.6614886999996088,
+            "qdrant": 0.06282390000160376,
+            "relink": 0.0008832000003167195,
+            "save_hash": 0.09633650000068883,
+            "eval_gate": 0.0,
+            "promote": 0.004098999999769148
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.00045279999903868884,
+        "writer_lock_wait_seconds": 0.005474699999467703,
+        "build_duration_seconds": 3.5092657999994117,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.023659599999518832,
+        "reload_error": null,
+        "published_token": "v20260921T112641",
+        "snapshot_ready_duration_seconds": 3.541854199998852,
+        "coalesced": false
+      },
+      "elapsed_seconds": 4.02539059999981,
+      "started_monotonic": 15115.8301615,
+      "ended_monotonic": 15119.8555521,
+      "current_version": "v20260921T112641",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_mixed_n30_post",
+          "actual": "sidecar_0628_mixed_n30_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 3,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 15120.63178,
+          "end_monotonic": 15122.8598658,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15123.0172277,
+          "end_monotonic": 15123.2409586,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15123.391951,
+          "end_monotonic": 15123.660401,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15123.8134702,
+          "end_monotonic": 15124.0623309,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15124.2198917,
+          "end_monotonic": 15124.4746996,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15124.62967,
+          "end_monotonic": 15124.9178818,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15125.0806971,
+          "end_monotonic": 15125.3293923,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15125.4915746,
+          "end_monotonic": 15126.0455186,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15126.2505658,
+          "end_monotonic": 15126.5368217,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112648",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d001.md",
+          "before_sha256": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+          "after_sha256": "bbea20e8af1d5027478bc50b632d9be5af6c0c4e4e6c77923f123119eaf62dd2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d002.md",
+          "before_sha256": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+          "after_sha256": "aac5a99d6afb42f1e84774a8e1dd53ec1b8bffb334a61012a4a39f65e6b0be85",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d003.md",
+          "before_sha256": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+          "after_sha256": "592f75dbdc042e03606815315cb92133c3e53c10a23a168a3e9661b29391bca9",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d004.md",
+          "before_sha256": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+          "after_sha256": "a4d31bfbfebe3eeae2d29b0a7d8b70f31904ccc373249b013c2332c7954a4bc2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "code/c015.py",
+          "before_sha256": "b250ff628b2886a33d23482e943f176013ca5d7959c9f823741d23d1e636b69e",
+          "after_sha256": "93597d06e778f2495b4c4ae54810c2fa3be4e1bd0f7d652fa957ea221e71a21a",
+          "bytes": 97,
+          "code_symbol": "caso_015"
+        },
+        {
+          "path": "code/c016.py",
+          "before_sha256": "833a0d20971f1b8705cf7a5b2716242cfe3d3f39cecdeb290775e9e46b287304",
+          "after_sha256": "5c7d4b0001ad23192c6ed643a280bed0f04238a64042826bb6c4f612fbd7dccc",
+          "bytes": 102,
+          "code_symbol": "caso_016"
+        },
+        {
+          "path": "code/c017.py",
+          "before_sha256": "07e63bde1a3e03c5163d90b76bcc4b05e1f123d6939fa268028ce2443c93ea1d",
+          "after_sha256": "a3d43a064e680de890a759238929ec666a0812abcf9365c4047707b6a3b3170e",
+          "bytes": 107,
+          "code_symbol": "caso_017"
+        },
+        {
+          "path": "code/c018.py",
+          "before_sha256": "1fd081128510e29c6cc37c19a8ac8bd5c4590f76a5357f59f25723f0c72bc748",
+          "after_sha256": "04a949d1dff2abdceb476f9fde62eff941f92d9ce965bfeeb264e22ac28e8b23",
+          "bytes": 97,
+          "code_symbol": "caso_018"
+        },
+        {
+          "path": "code/c019.py",
+          "before_sha256": "3f1e436bfbf800abd4e96ac5e91f288bf952ee828577115a0a9c80abf48d2563",
+          "after_sha256": "c7977243597feb524dd485794df5490adfc406085bcf65dcd1f4c5cc827a78fd",
+          "bytes": 102,
+          "code_symbol": "caso_019"
+        }
+      ],
+      "job": {
+        "job_id": "daaf4480dac24fc18098f91e95e193e0",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:26:43.020163+00:00",
+        "finished_at": "2026-09-21T11:26:48.635658+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 5,
+          "deleted_docs": 0,
+          "upserted_chunks": 5,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 5,
+          "implements_edges": 6,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 5,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 5,
+            "code_removed": 0,
+            "chunks_processed": 5,
+            "chunks_indexed": 15,
+            "colbert_tokens_processed": 133,
+            "colbert_tokens_indexed": 406,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T112648",
+          "phase_timings_seconds": {
+            "init_model": 2.044479700000011,
+            "scan_hash": 0.026641599999493337,
+            "load": 0.015297099998861086,
+            "parsing_embedding": 2.8630154999991646,
+            "qdrant": 0.0837202000002435,
+            "relink": 0.0010308000000804896,
+            "save_hash": 0.11848400000053516,
+            "eval_gate": 0.0,
+            "promote": 0.006996399999479763
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0007734999999229331,
+        "writer_lock_wait_seconds": 0.006851400001323782,
+        "build_duration_seconds": 5.607467600000746,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.03867969999919296,
+        "reload_error": null,
+        "published_token": "v20260921T112648",
+        "snapshot_ready_duration_seconds": 5.6561244999993505,
+        "coalesced": false
+      },
+      "elapsed_seconds": 5.918387400000938,
+      "started_monotonic": 15120.6311233,
+      "ended_monotonic": 15126.5495107,
+      "current_version": "v20260921T112648",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_mixed_n30_post",
+          "actual": "sidecar_0628_mixed_n30_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 4,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 15127.1872716,
+          "end_monotonic": 15127.4743149,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15127.6256133,
+          "end_monotonic": 15127.8588023,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "b271680ee4074f9e86ad3ddd016c9b19",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:26:49.574609+00:00",
+        "finished_at": "2026-09-21T11:26:49.587383+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md"
+            ],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 0.0,
+            "scan_hash": 0.006495699999504723,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "snapshot_token": "v20260921T112544"
+        },
+        "error": null,
+        "queue_duration_seconds": 0.00046660000043630134,
+        "writer_lock_wait_seconds": 0.005332700000508339,
+        "build_duration_seconds": 0.0067901999991590856,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.0,
+        "reload_error": null,
+        "published_token": "v20260921T112544",
+        "snapshot_ready_duration_seconds": 0.013993300000947784,
+        "coalesced": false
+      },
+      "elapsed_seconds": 0.5125177999998414,
+      "started_monotonic": 15127.1867526,
+      "ended_monotonic": 15127.6992704,
+      "current_version": "v20260921T112544",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_mixed_n30_post",
+          "actual": "sidecar_0628_mixed_n30_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 4,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 15128.4320853,
+          "end_monotonic": 15130.7214482,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15130.8777332,
+          "end_monotonic": 15131.1207085,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15131.2812669,
+          "end_monotonic": 15132.0123529,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15132.1725733,
+          "end_monotonic": 15132.430925,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112653",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "8643d67475a7476e90f8ec2c777df466",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:26:50.822506+00:00",
+        "finished_at": "2026-09-21T11:26:54.227003+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 1,
+          "deleted_docs": 0,
+          "upserted_chunks": 1,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 1,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 1,
+            "chunks_indexed": 15,
+            "colbert_tokens_processed": 25,
+            "colbert_tokens_indexed": 406,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T112653",
+          "phase_timings_seconds": {
+            "init_model": 2.1163440000000264,
+            "scan_hash": 0.027292900000247755,
+            "load": 0.014289799999460229,
+            "parsing_embedding": 0.554933000001256,
+            "qdrant": 0.08359229999950912,
+            "relink": 0.00024930000108724926,
+            "save_hash": 0.10426710000137973,
+            "eval_gate": 0.0,
+            "promote": 0.006444500000725384
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0007948000002215849,
+        "writer_lock_wait_seconds": 0.005992599999444792,
+        "build_duration_seconds": 3.39724699999897,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.023434300001099473,
+        "reload_error": null,
+        "published_token": "v20260921T112653",
+        "snapshot_ready_duration_seconds": 3.429841799999849,
+        "coalesced": false
+      },
+      "elapsed_seconds": 3.9190967999984423,
+      "started_monotonic": 15128.4309936,
+      "ended_monotonic": 15132.3500904,
+      "current_version": "v20260921T112653",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_mixed_n30_post",
+          "actual": "sidecar_0628_mixed_n30_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 4,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 15133.0760146,
+          "end_monotonic": 15135.2495712,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15135.4069811,
+          "end_monotonic": 15135.6957275,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15135.8468286,
+          "end_monotonic": 15136.0926932,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15136.2523259,
+          "end_monotonic": 15136.5563285,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15136.7052444,
+          "end_monotonic": 15137.0220203,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15137.1770934,
+          "end_monotonic": 15137.4518829,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15137.6094182,
+          "end_monotonic": 15137.9203961,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15138.0795857,
+          "end_monotonic": 15138.7922368,
+          "endpoint": "/api/code/search",
+          "status": 200,
+          "index_version": "v20260921T112544",
+          "results": 3
+        },
+        {
+          "start_monotonic": 15138.9541719,
+          "end_monotonic": 15139.1939407,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T112700",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d001.md",
+          "before_sha256": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+          "after_sha256": "bbea20e8af1d5027478bc50b632d9be5af6c0c4e4e6c77923f123119eaf62dd2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d002.md",
+          "before_sha256": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+          "after_sha256": "aac5a99d6afb42f1e84774a8e1dd53ec1b8bffb334a61012a4a39f65e6b0be85",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d003.md",
+          "before_sha256": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+          "after_sha256": "592f75dbdc042e03606815315cb92133c3e53c10a23a168a3e9661b29391bca9",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d004.md",
+          "before_sha256": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+          "after_sha256": "a4d31bfbfebe3eeae2d29b0a7d8b70f31904ccc373249b013c2332c7954a4bc2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "code/c015.py",
+          "before_sha256": "b250ff628b2886a33d23482e943f176013ca5d7959c9f823741d23d1e636b69e",
+          "after_sha256": "93597d06e778f2495b4c4ae54810c2fa3be4e1bd0f7d652fa957ea221e71a21a",
+          "bytes": 97,
+          "code_symbol": "caso_015"
+        },
+        {
+          "path": "code/c016.py",
+          "before_sha256": "833a0d20971f1b8705cf7a5b2716242cfe3d3f39cecdeb290775e9e46b287304",
+          "after_sha256": "5c7d4b0001ad23192c6ed643a280bed0f04238a64042826bb6c4f612fbd7dccc",
+          "bytes": 102,
+          "code_symbol": "caso_016"
+        },
+        {
+          "path": "code/c017.py",
+          "before_sha256": "07e63bde1a3e03c5163d90b76bcc4b05e1f123d6939fa268028ce2443c93ea1d",
+          "after_sha256": "a3d43a064e680de890a759238929ec666a0812abcf9365c4047707b6a3b3170e",
+          "bytes": 107,
+          "code_symbol": "caso_017"
+        },
+        {
+          "path": "code/c018.py",
+          "before_sha256": "1fd081128510e29c6cc37c19a8ac8bd5c4590f76a5357f59f25723f0c72bc748",
+          "after_sha256": "04a949d1dff2abdceb476f9fde62eff941f92d9ce965bfeeb264e22ac28e8b23",
+          "bytes": 97,
+          "code_symbol": "caso_018"
+        },
+        {
+          "path": "code/c019.py",
+          "before_sha256": "3f1e436bfbf800abd4e96ac5e91f288bf952ee828577115a0a9c80abf48d2563",
+          "after_sha256": "c7977243597feb524dd485794df5490adfc406085bcf65dcd1f4c5cc827a78fd",
+          "bytes": 102,
+          "code_symbol": "caso_019"
+        }
+      ],
+      "job": {
+        "job_id": "f11c518c462949d686b3cf397b236fcf",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:26:55.464813+00:00",
+        "finished_at": "2026-09-21T11:27:01.102787+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 5,
+          "deleted_docs": 0,
+          "upserted_chunks": 5,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 5,
+          "implements_edges": 6,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 5,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 5,
+            "code_removed": 0,
+            "chunks_processed": 5,
+            "chunks_indexed": 15,
+            "colbert_tokens_processed": 133,
+            "colbert_tokens_indexed": 406,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T112700",
+          "phase_timings_seconds": {
+            "init_model": 2.0336785999988933,
+            "scan_hash": 0.025553299999955925,
+            "load": 0.012761699999828124,
+            "parsing_embedding": 2.926871099998607,
+            "qdrant": 0.06440009999823815,
+            "relink": 0.0016932000016822712,
+            "save_hash": 0.09758310000142956,
+            "eval_gate": 0.0,
+            "promote": 0.006192599999849335
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.000830599999972037,
+        "writer_lock_wait_seconds": 0.006060200001229532,
+        "build_duration_seconds": 5.630795700000817,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.025961400000596768,
+        "reload_error": null,
+        "published_token": "v20260921T112700",
+        "snapshot_ready_duration_seconds": 5.664849400000094,
+        "coalesced": false
+      },
+      "elapsed_seconds": 5.960156299999653,
+      "started_monotonic": 15133.0752951,
+      "ended_monotonic": 15139.0354514,
+      "current_version": "v20260921T112700",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_mixed_n30_post",
+          "actual": "sidecar_0628_mixed_n30_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    }
+  ],
+  "qdrant_collections_before": [
+    "sidecar_0628_code_n100_post",
+    "sidecar_0628_code_n10_post",
+    "sidecar_0628_code_n30_post",
+    "sidecar_0628_docs_n100_post",
+    "sidecar_0628_docs_n10_post",
+    "sidecar_0628_docs_n30_post",
+    "sidecar_0628_mixed_n10_post",
+    "sidecar_0628_smoke_docs_n10_post",
+    "sidecar_0628_snapshot_probe"
+  ],
+  "corpus": {
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/docs/d000.md": {
+      "sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/docs/d001.md": {
+      "sha256": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/docs/d002.md": {
+      "sha256": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/docs/d003.md": {
+      "sha256": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/docs/d004.md": {
+      "sha256": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/docs/d005.md": {
+      "sha256": "74d4e33ac71d12964756a8cb9415591a0d3cdf7e4c14a1a93ef0b4592aacdd0a",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/docs/d006.md": {
+      "sha256": "955e2381cff1c12d332627292a66ba12847550a8c59a04b1f6bc0b74e72e26ef",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/docs/d007.md": {
+      "sha256": "d1127fc92ef4d8eea946df94c52157db395d8fff85a68cfbdd463198a99f0e0a",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/docs/d008.md": {
+      "sha256": "9e3e92a5dfaf1f9296db53503a37170ded5a933759c89d7ef7925111dc35f263",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/docs/d009.md": {
+      "sha256": "8d35a52c8f9480e2a2145087cc87967a6927820251b861552bbb947668c5b69d",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/docs/d010.md": {
+      "sha256": "fd47f5050fd63693c2cfb1716fcc01860194a7e25a3c14bb1188042a3c1efcc5",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/docs/d011.md": {
+      "sha256": "e02e2dd65eb8edfb1507958770be1dcf2e08113003cd6b06579c24c41dfe86c4",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/docs/d012.md": {
+      "sha256": "dd42b52c20460757ed80aad70315971f750face2132bfdc4e44da83e77ab67e2",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/docs/d013.md": {
+      "sha256": "05869bc2916a91cd31f8205aa052a5bff23855e20e258ff04e819fd0ead4fbaf",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/docs/d014.md": {
+      "sha256": "336f4b84fc334946ef349ae12036946be8aebbc8b8ecbadc538dc3a667a62252",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/code/c015.py": {
+      "sha256": "b250ff628b2886a33d23482e943f176013ca5d7959c9f823741d23d1e636b69e",
+      "bytes": 97
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/code/c016.py": {
+      "sha256": "833a0d20971f1b8705cf7a5b2716242cfe3d3f39cecdeb290775e9e46b287304",
+      "bytes": 102
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/code/c017.py": {
+      "sha256": "07e63bde1a3e03c5163d90b76bcc4b05e1f123d6939fa268028ce2443c93ea1d",
+      "bytes": 107
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/code/c018.py": {
+      "sha256": "1fd081128510e29c6cc37c19a8ac8bd5c4590f76a5357f59f25723f0c72bc748",
+      "bytes": 97
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/code/c019.py": {
+      "sha256": "3f1e436bfbf800abd4e96ac5e91f288bf952ee828577115a0a9c80abf48d2563",
+      "bytes": 102
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/code/c020.py": {
+      "sha256": "e8d4048d61a329d1ec2b755d20a4f055fa2cac8abbc6f26233a5045d72d5622c",
+      "bytes": 107
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/code/c021.py": {
+      "sha256": "1d5a935d3138cc7415235de9c4c29f0f5197d131f4afc1afff59306c6ac7f02a",
+      "bytes": 97
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/code/c022.py": {
+      "sha256": "df2bddd09f2c6f238905b1fe38b4ce316a9d185ddf495fe99e7c54dc6d513326",
+      "bytes": 102
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/code/c023.py": {
+      "sha256": "368898a96f87bd31a9c0f62066968324474053f3be9ead730e914bdfcb977591",
+      "bytes": 107
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/code/c024.py": {
+      "sha256": "9332f6aab6424cf6584d87a33fd06c6be5b6e5959555895ac379fe33789157fa",
+      "bytes": 97
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/code/c025.py": {
+      "sha256": "86bdd855d1bf5a9b511742e455a04fdf55d173732a8ea896b88ecd59c25bd29f",
+      "bytes": 102
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/code/c026.py": {
+      "sha256": "81fcf799a85658268de939e157d07c1ea9faa086c8f7c4b9d9d47482c0610978",
+      "bytes": 107
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/code/c027.py": {
+      "sha256": "9175365ca3432c24397a5e100f87cd86ce2a4cc870d06452755e34285bec8ac9",
+      "bytes": 97
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/code/c028.py": {
+      "sha256": "1a305e3eae6cfaa60c07deffb9fff5a4379a5b48c8f1ee7d631b70490751a6ff",
+      "bytes": 102
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_mixed_n30/sandbox/experiment/code/c029.py": {
+      "sha256": "ea6c96fa8a458db24d830b84b79ba6d94b739ed36377483c7625a7db1f9f6259",
+      "bytes": 107
+    }
+  },
+  "bootstrap": {
+    "pid": 21952,
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "\nLoading weights:   0%|          | 0/391 [00:00<?, ?it/s]\nLoading weights: 100%|██████████| 391/391 [00:00<00:00, 10642.89it/s]\n\npre tokenize:   0%|          | 0/2 [00:00<?, ?it/s]\npre tokenize: 100%|██████████| 2/2 [00:00<00:00, 886.75it/s]\n\nInference Embeddings:   0%|          | 0/2 [00:00<?, ?it/s]\nInference Embeddings:  50%|█████     | 1/2 [00:01<00:01,  1.06s/it]\nInference Embeddings: 100%|██████████| 2/2 [00:01<00:00,  1.61it/s]\nInference Embeddings: 100%|██████████| 2/2 [00:01<00:00,  1.46it/s]\n\npre tokenize:   0%|          | 0/2 [00:00<?, ?it/s]\npre tokenize: 100%|██████████| 2/2 [00:00<00:00, 1883.39it/s]\n\nInference Embeddings:   0%|          | 0/2 [00:00<?, ?it/s]\nInference Embeddings:  50%|█████     | 1/2 [00:01<00:01,  1.44s/it]\nInference Embeddings: 100%|██████████| 2/2 [00:01<00:00,  1.22it/s]\nInference Embeddings: 100%|██████████| 2/2 [00:01<00:00,  1.10it/s]\n"
+  },
+  "bootstrap_result_file": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_post_20260921_mixed_n30\\workload\\bootstrap.json",
+  "baseline_verification_job": {
+    "job_id": "aa09b12e48034a93ae7ecdea4223bf25",
+    "status": "completed",
+    "kind": "incremental",
+    "created_at": "2026-09-21T11:25:57.676995+00:00",
+    "finished_at": "2026-09-21T11:25:57.691276+00:00",
+    "changed_paths": null,
+    "result": {
+      "noop": true,
+      "planned": {
+        "unchanged": [
+          "d000.md",
+          "d001.md",
+          "d002.md",
+          "d003.md",
+          "d004.md",
+          "d005.md",
+          "d006.md",
+          "d007.md",
+          "d008.md",
+          "d009.md",
+          "d010.md",
+          "d011.md",
+          "d012.md",
+          "d013.md",
+          "d014.md"
+        ],
+        "new": [],
+        "modified": [],
+        "deleted": []
+      },
+      "reindexed_docs": 0,
+      "deleted_docs": 0,
+      "upserted_chunks": 0,
+      "phase_timings_seconds": {
+        "init_model": 0.0,
+        "scan_hash": 0.006740999999237829,
+        "load": 0.0,
+        "parsing_embedding": 0.0,
+        "qdrant": 0.0,
+        "relink": 0.0,
+        "save_hash": 0.0,
+        "eval_gate": 0.0,
+        "promote": 0.0
+      },
+      "counts": {
+        "docs_added": 0,
+        "docs_modified": 0,
+        "docs_removed": 0,
+        "code_added": 0,
+        "code_modified": 0,
+        "code_removed": 0,
+        "chunks_processed": 0,
+        "chunks_indexed": null,
+        "colbert_tokens_processed": 0,
+        "colbert_tokens_indexed": null,
+        "code_tokens_processed": null,
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+      },
+      "snapshot_token": "v20260921T112544"
+    },
+    "error": null,
+    "queue_duration_seconds": 0.00045119999958842527,
+    "writer_lock_wait_seconds": 0.006583799999134499,
+    "build_duration_seconds": 0.007069999999657739,
+    "reload_status": "completed",
+    "reload_duration_seconds": 0.0,
+    "reload_error": null,
+    "published_token": "v20260921T112544",
+    "snapshot_ready_duration_seconds": 0.015538299998297589,
+    "coalesced": false
+  },
+  "baseline_integrity": {
+    "ok": true,
+    "stale": false,
+    "artifacts_corrupted": false,
+    "qdrant_mismatch": false,
+    "qdrant_unreachable": false,
+    "problems": [],
+    "qdrant_alias": {
+      "state": "aligned",
+      "expected": "sidecar_0628_mixed_n30_post",
+      "actual": "sidecar_0628_mixed_n30_post"
+    },
+    "docs_git": {
+      "state": "aligned",
+      "diverging": [],
+      "instantiated": [],
+      "untracked": [
+        "docs/d000.md",
+        "docs/d001.md",
+        "docs/d002.md",
+        "docs/d003.md",
+        "docs/d004.md",
+        "docs/d005.md",
+        "docs/d006.md",
+        "docs/d007.md",
+        "docs/d008.md",
+        "docs/d009.md",
+        "docs/d010.md",
+        "docs/d011.md",
+        "docs/d012.md",
+        "docs/d013.md",
+        "docs/d014.md"
+      ],
+      "tracked": 0,
+      "reason": "nessun file tracciato sotto docs/"
+    }
+  },
+  "baseline_database": {
+    "CURRENT": {
+      "sha256": "e94c567fdc67196b258dbbaab2b631ceb253ed011315d49237d45e17f960fb54",
+      "bytes": 17
+    },
+    "versions/v20260921T112544/chunks.json": {
+      "sha256": "3eb3836cf65d70747362e23f389ade53c7946ce630f671b1cf8a005946ba54f9",
+      "bytes": 2987
+    },
+    "versions/v20260921T112544/code.json": {
+      "sha256": "a1f26539328f11ab976d88e1e48c75ff71fe8268f8553cc96f0b5fc6dc524749",
+      "bytes": 6988
+    },
+    "versions/v20260921T112544/code.npz": {
+      "sha256": "fd322e785848ddbbdea8b4c849a4b1ee143c4ad5e52e5855be111b04b06c7d1a",
+      "bytes": 32283
+    },
+    "versions/v20260921T112544/colbert.npz": {
+      "sha256": "dfe827edfab0d78f01f0b16fb34f8ab9a16fc06878791fbee71b24277767e693",
+      "bytes": 770413
+    },
+    "versions/v20260921T112544/dense.npz": {
+      "sha256": "e8b676c141777e612a191ad2c946779f64ff56bb74b2674076ef33010cdb82d4",
+      "bytes": 32287
+    },
+    "versions/v20260921T112544/graph.json": {
+      "sha256": "d4fb6eb8e9b9ca04858867b7d05baf29fc8cc0e70e3ed2fa7e9c7a3b8abe65ba",
+      "bytes": 10936
+    },
+    "versions/v20260921T112544/index_manifest.json": {
+      "sha256": "2432aff1ac568bc37672729b21c410d495379850b967a9f0c5ebd0004db4fab8",
+      "bytes": 3377
+    }
+  },
+  "baseline_points": {
+    "count": 15,
+    "sha256": "227d029871c89767db985f66e92fb0a59fc725438d36f1efd2c230649590db6f"
+  },
+  "baseline_current": "763230323630393231543131323534340a",
+  "qdrant_snapshot": "sidecar_0628_mixed_n30_post-2041657226223039-2026-09-21-11-25-58.snapshot",
+  "baseline_queries": [
+    {
+      "query": "prenotazione evento posti",
+      "endpoint": "/api/retrieve",
+      "start_monotonic": 15076.1813322,
+      "end_monotonic": 15076.6971229,
+      "status": 200,
+      "results": 3
+    },
+    {
+      "query": "pagamenti accettati",
+      "endpoint": "/api/code/search",
+      "start_monotonic": 15076.6971268,
+      "end_monotonic": 15076.8905154,
+      "status": 200,
+      "results": 3
+    },
+    {
+      "query": "notifiche prenotazione",
+      "endpoint": "/api/retrieve",
+      "start_monotonic": 15076.8905188,
+      "end_monotonic": 15077.098703,
+      "status": 200,
+      "results": 3
+    }
+  ]
+}

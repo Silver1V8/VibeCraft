@@ -1,6 +1,6 @@
 # Scalabilità sidecar — checkpoint
 
-Stato: RUNNING_PHASE_3. Task: 01a0a441-79f6-7912-93ac-86a6e12518ee.
+Stato: RUNNING_PHASE_4. Task: 01a0a441-79f6-7912-93ac-86a6e12518ee.
 Worktree: C:/Users/Silve/.codex/worktrees/0628/vibecraft. HEAD iniziale: 4f35acf7ad18034c42203090189dfccfdbe42611. Branch: codex/sidecar-delta-0628. Ultimo commit funzionale: e8d8940; journal/readiness: 4a1539c. Nessun push/merge/pubblicazione.
 Heartbeat: ripresa-astra-scalabilit-sidecar, ACTIVE confermato dalla task chiamante. Pausa <=15%; ripresa solo ordinaryUsageAllowed e >=25% per finestre codex disponibili. Spark escluso.
 
@@ -101,3 +101,21 @@ Sol phase2 riusato per F3-01..04, brief phase3-brief.md: lazy modello, noop pron
 F2 evidenze fissate nel commit0876476. PM ha fermato graceful senza timeout/kill il contenitore F2 de6aa352... e conservato nome sidecar-0628-qdrant-native-f2 e volume originario. Nuovo contenitore F3 fa005441f96141732e8a924d11003aa895f889eb4436d8f27a3ddd261a2efb70, nome sidecar-0628-qdrant, volume sidecar-0628-qdrant-native-f3, stessi image/1GiB/2CPU/porta16333. Probe reale create/change/recover identico in qdrant-native-f3-snapshot-probe.json. Nessun benchmark attivo; implementer phase2 lavora F3. Preparare smoke e nove famiglie post soltanto dopo review e test.
 
 F3-01..04 implementate, review Sol APPROVATA. Windows277passed in due suite, Linux268passed/9skip per Git assente nelcontainer (logconservato); Ruff/diffcheck passati. Due test preesistenti isolati dal DB/repo antenato, nessun rollbackproduttivo cambiato. Workerphase2 terminato. Prossimo: commit F3, nuova copia codice congelato, smoke post e9famiglie, nessun benchmark attivo ora. Quota79% ordinarytrue.
+
+## F3 misure post avviate
+
+Codice0f479b2 congelato in archivio/copie: phase3-prepared-environment.json. Smoke post docsN10k0/1reps1 exit0, vero noop init0/reload0/tokenservito e readiness circa0.02s; delta1 circa3.51s. Entrambi ripristinati, smoke escluso dal confronto. ATTIVA serie ufficiale post docsN10 session54809; restano8famiglie preparate. Nessun test/modello concorrente. Terra phase2_summary prepara solo aggregatore confronto offline, Solreviewer idle. Quota77% ordinarytrue. ContainerF3 fa005441... attivo, F2 preservato fermo. Prossimo: convalidare ogni famiglia/copiare raw e resources; poi aggregato/reviewindipendente e chiusura F3.
+
+## F3 post: documenti conclusi, codice in corso
+
+Tutte3famiglie docs post concluse exit0,50campioni validi/ripristinati, raw e resources in evidence. Noop mediana N10/30/100:0.01753/0.03542/0.06312s; delta1/10/100 rimane vicino alla baseline. ATTIVA codeN10 session74495; proseguire codeN30/N100 poi mixedN10/30/N100. `evidence/series-post-progress.json` è il record aggiornato dopo ogni avvio con sessione e conteggi: riconciliare quel file con processi e result.json, non ripetere le famiglie concluse.
+
+Terra phase2_summary corregge2guard dell’aggregatorecompare_delta.py (config noncomparabile devefallire, sampler/resources devono esserevalidi); Sol review1d attende fix. Non alterano codice misurato. Quota75% ordinarytrue. F4/F5/F6 restano aperte.
+
+## F3 chiusa, F4 preparazione sperimentale — 21 settembre
+
+Tutte9post concluse exit0,150prove valide/ripristinate. Compare_delta approvato dopo guardconfig/sampler, confronto30celle e grafico post generati, visualQA PDF/PNG passato. Review indipendente phase3-evidence-review APPROVATA F3-05. PHASE3.md: noop migliora tutte9celle (circa2.55–2.68s risparmiati), delta contenuto non accelera in modo generale. Corpus+puntiQdrant identici e vettoricodeNPZ9coppie uguali; YAML10coppie identiche salvocollection/lineending. Nessuna soglia o crossover.
+
+Ruling U03: riduzione misurata e invarianti verificate. La clausola «se coprevolume/budgetrimanda» non si attiva con budget nondefiniti per scelta utente; F3 è conclusa e si procedeF4, senza richiedereinput ripetuto né dichiarare budget coperti.
+
+Sol phase2 riusato per driver/prototipi F4 in nuova run sidecar_readers_20260921; ownership soloevidence/sandbox/report, no produzione, modelli/container o realbenchmark fino areview. Deve confrontare 3reader su storici257chunk/112429token e retrieval completo sulla baselineF3mixedN100/collection sidecar_0628_mixed_n100_post; casi grafo/missing/concorrenza/oldsnapshot. PM chiude commit F3evidenze, poi prepara run. Nessunbenchmark attivo. QdrantF3 fa005441... resta attivo, tuttiF2preservati fermi. Quota72% ordinarytrue. F5 ancora condizionale, F6 aperta. Non duplicaretask/monitor.

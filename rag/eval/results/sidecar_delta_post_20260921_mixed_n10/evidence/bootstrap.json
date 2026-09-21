@@ -1,0 +1,51 @@
+{
+  "pid": 33000,
+  "result": {
+    "planned": {
+      "unchanged": [],
+      "new": [
+        "d000.md",
+        "d001.md",
+        "d002.md",
+        "d003.md",
+        "d004.md"
+      ],
+      "modified": [],
+      "deleted": []
+    },
+    "reindexed_docs": 5,
+    "deleted_docs": 0,
+    "upserted_chunks": 5,
+    "code_added": 5,
+    "code_removed": 0,
+    "code_modified": 0,
+    "implements_edges": 5,
+    "pruned_entities": 0,
+    "counts": {
+      "docs_added": 5,
+      "docs_modified": 0,
+      "docs_removed": 0,
+      "code_added": 5,
+      "code_modified": 0,
+      "code_removed": 0,
+      "chunks_processed": 5,
+      "chunks_indexed": 5,
+      "colbert_tokens_processed": 133,
+      "colbert_tokens_indexed": 133,
+      "code_tokens_processed": null,
+      "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+    },
+    "version": "v20260921T112346",
+    "phase_timings_seconds": {
+      "init_model": 2.1010955999990983,
+      "scan_hash": 0.0025569000008545117,
+      "load": 0.0003077000001212582,
+      "parsing_embedding": 2.4416895999966073,
+      "qdrant": 0.27916670000013255,
+      "relink": 0.0005307000010361662,
+      "save_hash": 0.08689099999901373,
+      "eval_gate": 0.0,
+      "promote": 0.006518300000607269
+    }
+  }
+}
