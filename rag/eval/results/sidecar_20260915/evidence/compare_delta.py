@@ -1,4 +1,4 @@
-"""Compare nine completed pre-F3 and post-F3 sidecar delta result files."""
+"""Compare two series of nine completed sidecar delta result files."""
 import argparse
 import csv
 import json
@@ -112,7 +112,7 @@ def run(pre_files, post_files, output, synthetic=False):
     output.mkdir(); rows = sum((compare_pair(by_pre[cell], by_post[cell]) for cell in sorted(CELLS)), [])
     with (output / "comparison.csv").open("w", newline="", encoding="utf-8") as f: writer = csv.DictWriter(f, fieldnames=list(rows[0])); writer.writeheader(); writer.writerows(rows)
     (output / "comparison.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
-    lines = ["# F3 pre/post delta comparison", "", "SYNTHETIC FORMAT SELF-CHECK — not a measurement." if synthetic else "Completed-run comparison; no p95, budget, or crossover claim.", "", "| mode | N | k | pre T median s | post T median s | change s | pre ΔT(noop) s | post ΔT(noop) s |", "|---|---:|---:|---:|---:|---:|---:|---:|"]
+    lines = ["# Pre/post delta comparison", "", "SYNTHETIC FORMAT SELF-CHECK — not a measurement." if synthetic else "Completed-run comparison; no p95, budget, or crossover claim.", "", "| mode | N | k | pre T median s | post T median s | change s | pre ΔT(noop) s | post ΔT(noop) s |", "|---|---:|---:|---:|---:|---:|---:|---:|"]
     lines += [f"| {r['mode']} | {r['n']} | {r['k']} | {r['pre_T_median_s']:.3f} | {r['post_T_median_s']:.3f} | {r['T_median_change_s']:.3f} | {r['pre_paired_T_minus_noop_s']:.3f} | {r['post_paired_T_minus_noop_s']:.3f} |" for r in rows]
     lines += ["", "ΔT is T(k)-T(0), not embedding-only. F3 fast no-op may avoid model loading, so a larger ΔT does not itself mean a larger absolute delta duration. Resource maxima are sampled lower bounds. Query entries are HTTP-observation windows: the reader starts around the request and may finish after the recorded HTTP end, so they do not prove overlap with the writer for each query. Mixed endpoint frequency varies with job duration and is reported, not normalized."]
     (output / "comparison.md").write_text("\n".join(lines), encoding="utf-8")
