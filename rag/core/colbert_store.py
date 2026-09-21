@@ -13,6 +13,7 @@ from pathlib import Path
 
 import numpy as np
 
+from core.config import DENSE_DIM
 from core.writer_lock import VersionLease, try_version_lease
 
 FORMAT = 1
@@ -181,10 +182,11 @@ class ColbertStore(Mapping[str, np.ndarray]):
 class ColbertWriter:
     """Write each changed document immediately, then link/copy unchanged parent files."""
 
-    def __init__(self, root: str | Path, dim: int, *, parent: ColbertStore | None = None,
+    def __init__(self, root: str | Path, dim: int | None, *, parent: ColbertStore | None = None,
                  verified_parent_hashes: Mapping[str, str] | None = None,
                  removed_docs: set[str] | frozenset[str] = frozenset()):
-        if type(dim) is not int or dim <= 0 or (parent is not None and parent.index["dim"] != dim):
+        if ((dim is not None and (type(dim) is not int or dim <= 0))
+                or (parent is not None and dim is not None and parent.index["dim"] != dim)):
             raise ValueError("invalid/incompatible dimension")
         if parent is not None:
             expected = {name: meta["sha256"] for name, meta in parent.index["files"].items()}
@@ -192,18 +194,19 @@ class ColbertWriter:
                 raise ValueError("parent file hashes must be explicitly attested before reuse")
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=False)
-        self.dim = dim
+        self.dim = dim if dim is not None else (parent.index["dim"] if parent is not None and parent.index["chunks"] else None)
         self.parent = parent
         self.removed_docs = set(removed_docs)
         self.changed_docs: set[str] = set()
         self.chunks: dict = {}
         self.files: dict = {}
+        self.new_files: set[str] = set()
         self.stats = {"written_bytes": 0, "hardlinked_bytes": 0, "copied_bytes": 0,
                       "inherited_hashes_not_reverified": 0}
         self.finished = False
 
     def add_document(self, doc_id: str, vectors: Mapping[str, np.ndarray]) -> None:
-        if self.finished or not isinstance(doc_id, str) or not doc_id or doc_id in self.changed_docs or doc_id in self.removed_docs:
+        if self.finished or not isinstance(doc_id, str) or not doc_id or doc_id in self.changed_docs:
             raise ValueError("invalid/duplicate/removed document")
         if not vectors:
             raise ValueError("empty document vectors")
@@ -212,6 +215,8 @@ class ColbertWriter:
         cursor = 0
         for chunk_id, value in vectors.items():
             array = np.asarray(value)
+            if self.dim is None and array.ndim == 2:
+                self.dim = int(array.shape[1])
             if not isinstance(chunk_id, str) or not chunk_id or chunk_id in self.chunks or array.dtype != np.float16 or array.ndim != 2 or array.shape[1] != self.dim or array.shape[0] == 0:
                 raise ValueError(f"invalid vector chunk: {chunk_id!r}")
             arrays.append(array)
@@ -235,9 +240,11 @@ class ColbertWriter:
                 os.unlink(temp_name)
         size = (self.root / name).stat().st_size
         self.files[name] = {"sha256": digest, "bytes": size, "rows": cursor}
+        self.new_files.add(name)
         for chunk_id, start, stop in spans:
             self.chunks[chunk_id] = {"doc_id": doc_id, "file": name, "start": start, "stop": stop}
         self.changed_docs.add(doc_id)
+        self.removed_docs.discard(doc_id)
         self.stats["written_bytes"] += size
 
     def remove_document(self, doc_id: str) -> None:
@@ -268,7 +275,7 @@ class ColbertWriter:
                     self.files[name] = dict(self.parent.index["files"][name])
                     self.stats["inherited_hashes_not_reverified"] += 1
                 self.chunks[key] = dict(entry)
-        index = {"format": FORMAT, "dtype": "float16", "dim": self.dim,
+        index = {"format": FORMAT, "dtype": "float16", "dim": self.dim or DENSE_DIM,
                  "chunks": self.chunks, "files": self.files}
         temp = self.root / "index.json.tmp"
         with temp.open("w", encoding="utf-8") as stream:
@@ -281,3 +288,12 @@ class ColbertWriter:
             raise AssertionError("index validation failed")
         self.finished = True
         return dict(self.stats)
+
+    @property
+    def token_count(self) -> int:
+        own = sum(item["stop"] - item["start"] for item in self.chunks.values())
+        if self.parent is None:
+            return own
+        return own + sum(item["stop"] - item["start"]
+                         for item in self.parent.index["chunks"].values()
+                         if item["doc_id"] not in self.changed_docs | self.removed_docs)

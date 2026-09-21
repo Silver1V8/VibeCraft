@@ -123,6 +123,8 @@ def _write_valid_artifacts():
         dense_store={},
         code_store={},
     )
+    artifacts._atomic_write_json(artifacts.manifest_path(version),
+                                 {"artifact_hashes": artifacts.artifact_hashes(version)})
     artifacts.promote_version(version)
 
 
@@ -197,7 +199,7 @@ def test_reload_with_corrupt_artifact_keeps_previous(tmp_path, monkeypatch):
     _write_valid_artifacts()
 
     # Corrompe uno degli artefatti della versione ATTIVA con byte non deserializzabili
-    (artifacts.artifact_dir() / "colbert.npz").write_bytes(b"\x00\x01 non e' un npz valido")
+    (artifacts.artifact_dir() / "colbert" / "index.json").write_bytes(b"\x00\x01 non e' JSON valido")
 
     old = _seed_old_snapshot(deps)
 

@@ -135,9 +135,16 @@ def test_restore_reinstates_source_and_database_bytes_after_exception(tmp_path, 
     artifact = db / "CURRENT"
     source.write_bytes(b"VarianteA\r\n")
     artifact.write_bytes(b"v1")
+    lock_dir = db / ".reader-locks"
+    lock_dir.mkdir()
+    lock_file = lock_dir / "v1.lock"
+    lock_file.write_bytes(b"stable-inode")
+    lock_inode = lock_file.stat().st_ino
     paths = {"database": db, "output": output, "collection": "sidecar_0628_test"}
     monkeypatch.setattr(delta, "RESULTS", results)
     delta._backup_database(paths)
+    assert not (output / "baseline-database" / ".reader-locks").exists()
+    assert ".reader-locks/v1.lock" not in delta._database_fingerprint(db)
     source.write_bytes(b"VarianteB\r\n")
     artifact.write_bytes(b"v2")
     (db / "new-artifact").write_bytes(b"extra")
@@ -160,6 +167,35 @@ def test_restore_reinstates_source_and_database_bytes_after_exception(tmp_path, 
     assert source.read_bytes() == b"VarianteA\r\n"
     assert artifact.read_bytes() == b"v1"
     assert not (db / "new-artifact").exists()
+    assert lock_file.read_bytes() == b"stable-inode"
+    assert lock_file.stat().st_ino == lock_inode
+
+
+def test_restore_refuses_pinned_version_before_changing_sources(tmp_path, monkeypatch):
+    results = tmp_path / "results"
+    db = results / "run" / "sandbox" / "experiment" / "rag" / "database"
+    output = results / "run" / "out"
+    db.mkdir(parents=True)
+    output.mkdir(parents=True)
+    (db / "versions" / "v1").mkdir(parents=True)
+    source = results / "run" / "sandbox" / "experiment" / "docs" / "a.md"
+    source.parent.mkdir()
+    source.write_bytes(b"changed")
+    monkeypatch.setattr(delta, "RESULTS", results)
+    @contextmanager
+    def lock(**_kwargs):
+        yield
+    import core.writer_lock
+    monkeypatch.setattr(core.writer_lock, "writer_lock", lock)
+    lease = core.writer_lock.try_version_lease(db, "v1")
+    try:
+        with pytest.raises(BlockingIOError, match="reader"):
+            delta._restore_files({"database": db, "output": output, "collection": "sidecar_0628_test"},
+                                 {source: b"baseline"}, object(), object())
+        assert source.read_bytes() == b"changed"
+        assert (db / "versions" / "v1").exists()
+    finally:
+        lease.close()
 
 
 def test_run_restores_real_files_when_sample_job_raises(tmp_path, monkeypatch):

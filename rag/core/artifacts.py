@@ -3,7 +3,8 @@
 Formati SICURI e ISPEZIONABILI (mai un blob binario arbitrario):
 
   - grafo NetworkX      -> graph.json  (node-link, attributi normalizzati JSON-safe)
-  - multivettori ColBERT-> colbert.npz (fp16, chiave = chunk_id)
+  - multivettori ColBERT-> colbert/index.json + NPY fp16 per documento
+    (colbert.npz resta leggibile per rollback delle versioni precedenti)
   - vettori densi chunk -> dense.npz   (fp16, chiave = chunk_id)
   - vettori densi codice-> code.npz    (fp16, chiave = symbol_id)
   - metadati chunk      -> chunks.json (chunk_id -> {doc_id, section, text})
@@ -38,6 +39,7 @@ import logging
 import os
 import shutil
 import tempfile
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -52,8 +54,11 @@ from core.config import (
     COLBERT_NPZ_PATH,
     DATABASE_DIR,
     DENSE_NPZ_PATH,
+    DENSE_DIM,
     GRAPH_JSON_PATH,
 )
+from core.colbert_store import ColbertStore, ColbertWriter
+from core.writer_lock import try_version_lease
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +199,8 @@ def _new_version_name() -> str:
     existing = list_versions()
     last = existing[-1] if existing else ""
     name, n = base, 1
-    while name <= last or (versions_root() / name).exists():
+    while (name <= last or (versions_root() / name).exists()
+           or (DATABASE_DIR / ".colbert-staging" / name).exists()):
         n += 1
         name = f"{base}-{n:02d}"
     return name
@@ -222,6 +228,31 @@ def promote_version(version: str) -> None:
         raise FileNotFoundError(
             f"Versione '{version}' assente o incompleta (nessun graph.json): non promuovibile."
         )
+    npy_dir = version_dir(version) / "colbert"
+    if npy_dir.exists():
+        manifest_file = manifest_path(version)
+        if not manifest_file.is_file():
+            raise FileNotFoundError(f"candidate NPY manifest missing: {version}")
+        arts = load_artifacts(required=("graph", "colbert", "chunks", "dense", "code"),
+                              version=version)
+        store = arts.colbert_store
+        try:
+            if set(store) != set(arts.chunks_store):
+                raise ValueError("candidate ColBERT/chunk keys differ")
+            manifest = _load_json(manifest_file)
+            expected = manifest.get("artifact_hashes")
+            if not isinstance(expected, dict) or artifact_hashes(version) != expected:
+                raise ValueError(f"candidate NPY artifact hashes differ from manifest: {version}")
+            fresh = manifest.get("colbert_new_files")
+            if fresh is None:
+                fresh = list(store.index["files"])
+            if not isinstance(fresh, list) or any(name not in store.index["files"] for name in fresh):
+                raise ValueError("invalid candidate new-file list")
+            for name in fresh:
+                if sha256_file(npy_dir / name) != expected[f"colbert/{name}"]:
+                    raise ValueError(f"candidate NPY file hash differs from manifest: {name}")
+        finally:
+            store.close()
     _atomic_write_text(DATABASE_DIR / CURRENT_FILENAME, version + "\n")
     logger.info("Versione indice promossa: CURRENT -> %s", version)
     prune_versions()
@@ -237,10 +268,24 @@ def prune_versions(keep: int | None = None) -> list[str]:
         return []
     active = current_version_token()
     doomed = [v for v in versions[:-keep] if v != active]
+    removed = []
     for name in doomed:
-        shutil.rmtree(versions_root() / name, ignore_errors=True)
-        logger.info("Retention indice: versione rimossa: %s", name)
-    return doomed
+        lease = try_version_lease(DATABASE_DIR, name, exclusive=True)
+        if lease is None:
+            logger.info("Retention indice: versione ancora letta, riproverò: %s", name)
+            continue
+        with lease:
+            try:
+                shutil.rmtree(versions_root() / name)
+            except OSError as exc:
+                logger.warning("Retention indice: rimozione fallita per %s (retry futuro): %s", name, exc)
+                continue
+            if (versions_root() / name).exists():
+                logger.warning("Retention indice: versione ancora presente dopo rmtree: %s", name)
+                continue
+            removed.append(name)
+            logger.info("Retention indice: versione rimossa: %s", name)
+    return removed
 
 
 def resolve_rollback_target(target: str | None = None) -> str:
@@ -380,7 +425,7 @@ class Artifacts:
     come distinzione utile. `version` la versione blue/green da cui si è letto
     ('legacy' per il layout flat)."""
     graph: nx.DiGraph | None = None
-    colbert_store: dict = field(default_factory=dict)
+    colbert_store: Mapping = field(default_factory=dict)
     chunks_store: dict = field(default_factory=dict)
     dense_store: dict = field(default_factory=dict)
     code_store: dict = field(default_factory=dict)
@@ -388,7 +433,7 @@ class Artifacts:
     version: str | None = None
 
 
-def save_artifacts(graph, colbert_store: dict, chunks_store: dict,
+def save_artifacts(graph, colbert_store: Mapping | ColbertWriter, chunks_store: dict,
                    dense_store: dict, code_store: dict,
                    version: str | None = None) -> str:
     """Persiste TUTTI gli artefatti dell'indice in una directory di versione
@@ -415,10 +460,26 @@ def save_artifacts(graph, colbert_store: dict, chunks_store: dict,
         raise FileExistsError(
             f"Versione '{version}' già esistente in {vdir}: save_artifacts non sovrascrive mai una build persistita."
         )
+    if isinstance(colbert_store, ColbertWriter):
+        writer = colbert_store
+    else:
+        stage = DATABASE_DIR / ".colbert-staging" / version / "colbert"
+        writer = ColbertWriter(stage, _colbert_dim(colbert_store))
+        doc_keys: dict[str, list[str]] = {}
+        for key in colbert_store:
+            doc_keys.setdefault(chunks_store[key]["doc_id"], []).append(key)
+        for doc_id, keys in doc_keys.items():
+            writer.add_document(doc_id, {key: colbert_store[key] for key in keys})
+    if not writer.finished:
+        writer.finish()
+    if set(writer.chunks) != set(chunks_store):
+        raise ValueError("ColBERT/chunks sidecar keys differ before save")
     vdir.mkdir(parents=True)
     code_dense, code_meta = _split_code_store(code_store)
     _atomic_write_json(vdir / "graph.json", _graph_to_json(graph))
-    _save_vectors(vdir / "colbert.npz", colbert_store)
+    shutil.move(str(writer.root), str(vdir / "colbert"))
+    if writer.root.parent == DATABASE_DIR / ".colbert-staging" / version:
+        writer.root.parent.rmdir()
     _save_vectors(vdir / "dense.npz", dense_store)
     _save_vectors(vdir / "code.npz", code_dense)
     _atomic_write_json(vdir / "chunks.json", chunks_store)
@@ -426,16 +487,44 @@ def save_artifacts(graph, colbert_store: dict, chunks_store: dict,
     return version
 
 
+def _colbert_dim(store: Mapping) -> int:
+    first = next(iter(store.values()), None)
+    if first is None:
+        return DENSE_DIM  # empty docs/code-only index: no vectors to infer dimension
+    array = np.asarray(first)
+    if array.ndim != 2:
+        raise ValueError("invalid ColBERT vector matrix")
+    return int(array.shape[1])
+
+
 def _load_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def load_artifacts(required: tuple[str, ...] = (), version: str | None = None) -> Artifacts:
+def load_artifacts(required: tuple[str, ...] = (), version: str | None = None,
+                   *, skip_colbert: bool = False) -> Artifacts:
+    """Load one version; retry an implicit CURRENT read if promotion wins the lease race."""
+    if skip_colbert and "colbert" in required:
+        raise ValueError("cannot require ColBERT while skipping its load")
+    if version is not None:
+        return _load_artifacts_once(required, version, skip_colbert)
+    for _ in range(3):
+        selected = current_version()
+        try:
+            return _load_artifacts_once(required, selected, skip_colbert)
+        except (BlockingIOError, FileNotFoundError):
+            if current_version() == selected:
+                raise
+    raise RuntimeError("CURRENT changed repeatedly during artifact load")
+
+
+def _load_artifacts_once(required: tuple[str, ...], version: str | None,
+                         skip_colbert: bool) -> Artifacts:
     """Carica gli artefatti dell'indice dalla versione indicata (default: quella attiva,
     risolta via CURRENT). Se non esiste alcuna versione promossa si legge il layout
-    LEGACY flat in database/ (formati correnti JSON/.npz — il fallback ai vecchi pickle
+    LEGACY flat in database/ (formati storici JSON/.npz — il fallback ai vecchi pickle
     è stato rimosso, A13: nessuna installazione ne ha più prodotti da quando
-    `save_artifacts()` scrive solo JSON/.npz, e nessuno ne è rimasto da migrare).
+    `save_artifacts()` scriveva solo JSON/.npz, e nessuno ne è rimasto da migrare).
 
     `required` elenca i tipi di artefatto ("graph", "colbert", "chunks", "dense",
     "code") la cui assenza deve sollevare FileNotFoundError: così il chiamante può
@@ -443,7 +532,7 @@ def load_artifacts(required: tuple[str, ...] = (), version: str | None = None) -
     diventano il loro default vuoto (grafo None, dict {}).
 
     Solleva se un file esiste ma è illeggibile/corrotto (il chiamante decide se degradare)."""
-    name = version or current_version()
+    name = version
     if name is not None and name != LEGACY_VERSION:
         vdir = version_dir(name)
         if not vdir.is_dir():
@@ -455,38 +544,62 @@ def load_artifacts(required: tuple[str, ...] = (), version: str | None = None) -
                      "chunks.json": CHUNKS_JSON_PATH, "dense.npz": DENSE_NPZ_PATH,
                      "code.npz": CODE_NPZ_PATH, "code.json": CODE_JSON_PATH}
 
-    def _pick(kind: str, new_path: Path, new_loader, empty):
-        if new_path.exists():
-            return new_loader(new_path)
-        if kind in required:
-            raise FileNotFoundError(f"Artefatto '{kind}' assente: {new_path} non trovato.")
-        return empty() if callable(empty) else empty
-
-    graph = _pick("graph", new_paths["graph.json"],
-                  lambda p: _graph_from_json(_load_json(p)), lambda: None)
-    colbert_store = _pick("colbert", new_paths["colbert.npz"], _load_vectors, dict)
-    chunks_store = _pick("chunks", new_paths["chunks.json"], _load_json, dict)
-    dense_store = _pick("dense", new_paths["dense.npz"], _load_vectors, dict)
-
-    # code: i nuovi formati sono DUE file (npz + json).
-    code_json_path, code_npz_path = new_paths["code.json"], new_paths["code.npz"]
-    if code_json_path.exists():
-        code_meta = _load_json(code_json_path)
-        code_dense = _load_vectors(code_npz_path) if code_npz_path.exists() else {}
-        code_store = _merge_code_store(code_dense, code_meta)
-    elif "code" in required:
-        raise FileNotFoundError(f"Artefatto 'code' assente: {code_json_path} non trovato.")
+    npy_dir = vdir / "colbert" if name not in (None, LEGACY_VERSION) else None
+    if skip_colbert:
+        colbert_store = {}
+        lease = try_version_lease(DATABASE_DIR, name) if name not in (None, LEGACY_VERSION) else None
+        if name not in (None, LEGACY_VERSION) and lease is None:
+            raise BlockingIOError(f"version {name} is being removed")
+        if name not in (None, LEGACY_VERSION) and not vdir.is_dir():
+            lease.close()
+            raise FileNotFoundError(f"version {name} vanished before reader load")
+    elif npy_dir is not None and npy_dir.is_dir():
+        colbert_store = ColbertStore.open_version(DATABASE_DIR, name)
+        lease = None
     else:
-        code_store = {}
+        lease = try_version_lease(DATABASE_DIR, name) if name not in (None, LEGACY_VERSION) else None
+        if name not in (None, LEGACY_VERSION) and lease is None:
+            raise BlockingIOError(f"version {name} is being removed")
+        if name not in (None, LEGACY_VERSION) and not vdir.is_dir():
+            lease.close()
+            raise FileNotFoundError(f"version {name} vanished before reader load")
+        colbert_store = None
 
-    return Artifacts(
-        graph=graph,
-        colbert_store=colbert_store,
-        chunks_store=chunks_store,
-        dense_store=dense_store,
-        code_store=code_store,
-        version=name,
-    )
+    try:
+        def _pick(kind: str, new_path: Path, new_loader, empty):
+            if new_path.exists():
+                return new_loader(new_path)
+            if kind in required:
+                raise FileNotFoundError(f"Artefatto '{kind}' assente: {new_path} non trovato.")
+            return empty() if callable(empty) else empty
+
+        graph = _pick("graph", new_paths["graph.json"],
+                      lambda p: _graph_from_json(_load_json(p)), lambda: None)
+        if colbert_store is None:
+            colbert_store = _pick("colbert", new_paths["colbert.npz"], _load_vectors, dict)
+        chunks_store = _pick("chunks", new_paths["chunks.json"], _load_json, dict)
+        dense_store = _pick("dense", new_paths["dense.npz"], _load_vectors, dict)
+
+        code_json_path, code_npz_path = new_paths["code.json"], new_paths["code.npz"]
+        if code_json_path.exists():
+            code_meta = _load_json(code_json_path)
+            code_dense = _load_vectors(code_npz_path) if code_npz_path.exists() else {}
+            code_store = _merge_code_store(code_dense, code_meta)
+        elif "code" in required:
+            raise FileNotFoundError(f"Artefatto 'code' assente: {code_json_path} non trovato.")
+        else:
+            code_store = {}
+
+        return Artifacts(graph=graph, colbert_store=colbert_store,
+                         chunks_store=chunks_store, dense_store=dense_store,
+                         code_store=code_store, version=name)
+    except BaseException:
+        if isinstance(colbert_store, ColbertStore):
+            colbert_store.close()
+        raise
+    finally:
+        if lease is not None:
+            lease.close()
 
 
 def sha256_file(path: Path) -> str:
@@ -494,15 +607,91 @@ def sha256_file(path: Path) -> str:
         return hashlib.file_digest(file, "sha256").hexdigest()
 
 
-def artifact_hashes(version: str | None = None) -> dict[str, str]:
+def artifact_hashes(version: str | None = None, *, deep: bool = False) -> dict[str, str]:
     """SHA-256 di ogni file artefatto presente nella directory della versione indicata
     (default: la versione attiva; per il layout legacy i flat in database/). Chiave =
     nome file. Alimenta il manifest così il check di coerenza può validare anche
     l'integrità dei file artefatto, non solo dei documenti sorgente."""
-    base = artifact_dir(version)
-    hashes: dict[str, str] = {}
-    for fname in _ARTIFACT_FILENAMES:
-        path = base / fname
-        if path.exists():
-            hashes[fname] = sha256_file(path)
-    return hashes
+    name = version or current_version()
+    lease = try_version_lease(DATABASE_DIR, name) if name not in (None, LEGACY_VERSION) else None
+    if name not in (None, LEGACY_VERSION) and lease is None:
+        raise BlockingIOError(f"version {name} is being removed")
+    try:
+        base = artifact_dir(name)
+        hashes: dict[str, str] = {}
+        for fname in _ARTIFACT_FILENAMES:
+            path = base / fname
+            if path.exists():
+                hashes[fname] = sha256_file(path)
+        npy_dir = base / "colbert"
+        if npy_dir.is_dir():
+            store = ColbertStore(npy_dir)
+            hashes["colbert/index.json"] = sha256_file(npy_dir / "index.json")
+            checked = store.verify_full_hashes() if deep else {
+                fname: meta["sha256"] for fname, meta in store.index["files"].items()}
+            hashes.update({f"colbert/{fname}": digest for fname, digest in checked.items()})
+        return hashes
+    finally:
+        if lease is not None:
+            lease.close()
+
+
+def migrate_colbert_npy() -> str:
+    """Convert the active NPZ to an unpublished NPY candidate, then move CURRENT.
+
+    The CLI holds the global writer lock. Only one document's ColBERT arrays are
+    decompressed at a time; dense/code metadata retain their existing load cost.
+    Qdrant is unchanged because every vector is copied exactly from the NPZ.
+    """
+    source = current_version()
+    if source in (None, LEGACY_VERSION):
+        raise ValueError("migration requires a versioned NPZ index")
+    source_dir = version_dir(source)
+    if (source_dir / "colbert").exists() or not (source_dir / "colbert.npz").is_file():
+        raise ValueError("active version is not an NPZ ColBERT index")
+    old_manifest = json.loads((source_dir / MANIFEST_FILENAME).read_text(encoding="utf-8"))
+    expected = old_manifest.get("artifact_hashes")
+    if not isinstance(expected, dict) or artifact_hashes(source, deep=True) != expected:
+        raise ValueError("source artifact hashes do not match manifest")
+    lease = try_version_lease(DATABASE_DIR, source)
+    if lease is None:
+        raise BlockingIOError(f"version {source} is being removed")
+    version = _new_version_name()
+    stage = DATABASE_DIR / ".colbert-staging" / version / "colbert"
+    try:
+        arts = load_artifacts(version=source, required=("graph", "chunks", "dense", "code"),
+                              skip_colbert=True)
+        writer = ColbertWriter(stage, None)
+        groups: dict[str, list[tuple[str, int]]] = {}
+        with np.load(source_dir / "colbert.npz", allow_pickle=False) as data:
+            keys = [str(key) for key in data["keys"]]
+            if len(keys) != len(set(keys)) or set(keys) != set(arts.chunks_store):
+                raise ValueError("NPZ keys differ from chunk metadata")
+            for index, key in enumerate(keys):
+                groups.setdefault(arts.chunks_store[key]["doc_id"], []).append((key, index))
+            for doc_id, members in groups.items():
+                writer.add_document(doc_id, {key: data[f"v{index}"] for key, index in members})
+        save_artifacts(arts.graph, writer, arts.chunks_store, arts.dense_store,
+                       arts.code_store, version=version)
+        candidate = ColbertStore.open_version(DATABASE_DIR, version)
+        try:
+            with np.load(source_dir / "colbert.npz", allow_pickle=False) as data:
+                for index, key in enumerate(keys):
+                    if not np.array_equal(candidate[key], data[f"v{index}"]):
+                        raise ValueError(f"NPY conversion changed vector: {key}")
+            converted_hashes = artifact_hashes(version, deep=True)
+        finally:
+            candidate.close()
+        new_manifest = dict(old_manifest, artifact_hashes=converted_hashes,
+                            colbert_new_files=sorted(writer.new_files))
+        _atomic_write_json(manifest_path(version), new_manifest)
+        if artifact_hashes(version, deep=True) != new_manifest["artifact_hashes"]:
+            raise ValueError("candidate artifact hashes changed before publication")
+        promote_version(version)
+        return version
+    finally:
+        lease.close()
+        if stage.exists():
+            shutil.rmtree(stage)
+        if stage.parent.exists() and not any(stage.parent.iterdir()):
+            stage.parent.rmdir()

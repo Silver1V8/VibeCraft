@@ -67,6 +67,8 @@ def test_direct_full_collector_separates_eval_gate_from_promotion(monkeypatch, t
     monkeypatch.setattr(index, "_code_hashes", lambda: {})
     monkeypatch.setattr(index, "save_artifacts", lambda *a, **k: "v-test")
     monkeypatch.setattr(index, "write_index_manifest", lambda *a, **k: None)
+    from core.artifacts import Artifacts
+    monkeypatch.setattr(index, "load_artifacts", lambda *a, **k: Artifacts(colbert_store={}))
     monkeypatch.setattr(index, "gate_promotion", _advancing(clock, 13, {"passed": True}))
     monkeypatch.setattr(index, "promote_version", _advancing(clock, 17))
     monkeypatch.setattr(index, "_migrate_legacy_collection_if_needed", _advancing(clock, 19))

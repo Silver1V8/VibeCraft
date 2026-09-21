@@ -71,7 +71,7 @@ class VersionLease:
 
 def try_version_lease(database_dir: str | Path, version: str, *, exclusive: bool = False) -> VersionLease | None:
     """Nonblocking shared reader or exclusive retention lease. Never unlink lock files."""
-    if not re.fullmatch(r"v[0-9A-Za-z-]+", version):
+    if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z-]*", version):
         raise ValueError(f"invalid version name: {version!r}")
     base = Path(database_dir)
     if base.is_symlink() or (hasattr(base, "is_junction") and base.is_junction()):

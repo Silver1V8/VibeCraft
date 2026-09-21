@@ -10,6 +10,7 @@ import os
 import queue
 import re
 import threading
+from collections.abc import Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -192,7 +193,7 @@ def require_gitlab_token(request: Request) -> None:
 @dataclass(frozen=True)
 class IndexSnapshot:
     graph: object | None
-    colbert_store: dict
+    colbert_store: Mapping
     chunks: dict
     rule_descriptions: dict
     # Sidecar dei simboli di codice (symbol_id -> {name, kind, file, dev_type, text, ...}):
@@ -462,6 +463,7 @@ async def lifespan(application: FastAPI):
     yield  # il server è in esecuzione
 
     logger.info("Shutdown: rilascio risorse.")
+    state["snapshot"] = None
     state["qdrant"].close()
 
 

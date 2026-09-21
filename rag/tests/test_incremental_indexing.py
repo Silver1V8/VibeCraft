@@ -5,6 +5,7 @@ import json
 from typing import Any, cast
 
 import networkx as nx
+import numpy as np
 import pytest
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct
@@ -323,8 +324,6 @@ def test_incremental_modified_content_constructs_embed_model(monkeypatch):
 # ---------------------------------------------------------------------------
 from types import SimpleNamespace  # noqa: E402
 
-import numpy as np  # noqa: E402
-
 from core import eval_metrics  # noqa: E402
 
 
@@ -514,6 +513,52 @@ def test_spec_modification_updates_code_links(monkeypatch, tmp_path):
 
     report = index.check_graph_consistency(embed_model=stub, docs_dir=docs_dir, code_dir=code_dir)
     assert report["consistent"] is True, report
+
+
+def test_delta_reuses_unchanged_npy_and_keeps_pinned_parent(monkeypatch, tmp_path):
+    docs_dir, _ = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "a.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    (docs_dir / "b.md").write_text(_spec("BETA"), encoding="utf-8")
+    monkeypatch.setenv("VIBECRAFT_INDEX_KEEP", "1")
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+    parent = index.build_graph_and_index(qdrant=q, embed_model=stub)
+    old = _artifacts.load_artifacts(version=parent).colbert_store
+    b_key = next(key for key in old if key.startswith("b.md#"))
+    a_key = next(key for key in old if key.startswith("a.md#"))
+    old_b_file = _artifacts.version_dir(parent) / "colbert" / old.index["chunks"][b_key]["file"]
+    old_a_file = _artifacts.version_dir(parent) / "colbert" / old.index["chunks"][a_key]["file"]
+    old_a = old[a_key]
+
+    (docs_dir / "a.md").write_text(_spec("ZETA"), encoding="utf-8")
+    stats = index.incremental_index(qdrant=q, embed_model=stub)
+    child = stats["version"]
+    fresh = _artifacts.load_artifacts(version=child).colbert_store
+    new_b_file = _artifacts.version_dir(child) / "colbert" / fresh.index["chunks"][b_key]["file"]
+    new_a_file = _artifacts.version_dir(child) / "colbert" / fresh.index["chunks"][a_key]["file"]
+    assert old_b_file.samefile(new_b_file)
+    assert not old_a_file.samefile(new_a_file)
+    assert np.array_equal(old[a_key], old_a)
+    assert stats["colbert_io_bytes"]["hardlinked_bytes"] > 0
+    assert parent in _artifacts.list_versions()  # reader lease defeats keep=1
+    fresh.close()
+    old.close()
+    assert parent in _artifacts.prune_versions(keep=1)
+
+
+def test_delta_changed_document_becoming_empty_removes_old_vectors(monkeypatch, tmp_path):
+    docs_dir, _ = _wire_tmp_index(monkeypatch, tmp_path)
+    path = docs_dir / "a.md"
+    path.write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+    index.build_graph_and_index(qdrant=q, embed_model=stub)
+    assert any(key.startswith("a.md#") for key in _artifacts.load_artifacts().colbert_store)
+    path.write_text("   \n", encoding="utf-8")
+    stats = index.incremental_index(qdrant=q, embed_model=stub)
+    assert stats["upserted_chunks"] == 0
+    assert not any(key.startswith("a.md#") for key in _artifacts.load_artifacts().colbert_store)
+    assert not q.points
 
 
 def test_deleted_linked_file_removes_orphan_nodes_and_edges(monkeypatch, tmp_path):
@@ -1456,7 +1501,7 @@ def test_incremental_index_bootstrap_when_alias_already_exists_skips_ensure_coll
     # sempre col suo default, quindi non può produrre questo stato).
     v_legacy = index.save_artifacts(nx.DiGraph(), {}, {}, {}, {})
     legacy_manifest_path = _artifacts.version_dir(v_legacy) / "index_manifest.json"
-    legacy_manifest_path.write_text(json.dumps({"version": v_legacy}), encoding="utf-8")
+    legacy_manifest_path.write_text(json.dumps({"version": v_legacy, "artifact_hashes": _artifacts.artifact_hashes(v_legacy)}), encoding="utf-8")
     index.promote_version(v_legacy)
 
     def _boom(*a, **k):
@@ -1618,7 +1663,7 @@ def test_incremental_lineage_guard_skips_repair_on_legacy_manifest_with_alias(mo
     # test di bootstrap: write_index_manifest lo riempirebbe sempre col default).
     v_legacy = index.save_artifacts(nx.DiGraph(), {}, {}, {}, {})
     legacy_manifest_path = _artifacts.version_dir(v_legacy) / "index_manifest.json"
-    legacy_manifest_path.write_text(json.dumps({"version": v_legacy}), encoding="utf-8")
+    legacy_manifest_path.write_text(json.dumps({"version": v_legacy, "artifact_hashes": _artifacts.artifact_hashes(v_legacy)}), encoding="utf-8")
     index.promote_version(v_legacy)
 
     def _boom(*a, **k):
@@ -1983,6 +2028,39 @@ def test_full_rebuild_upserts_in_a_single_call_when_batch_covers_all_points(monk
 
     assert len(q.upsert_batches) == 1
     assert len(q.upsert_batches[0]) == 10
+
+
+def test_full_staged_colbert_is_removed_on_build_failure(monkeypatch, tmp_path):
+    _wire_tmp_index(monkeypatch, tmp_path)
+    q = StatefulFakeQdrant()
+    def fail_after_first_document(*_args, **kwargs):
+        kwargs["colbert_writer"].add_document(
+            "a.md", {"a.md#00": np.ones((2, 4), dtype="float16")})
+        raise RuntimeError("injected encoder failure")
+    monkeypatch.setattr(index, "_build_full_state", fail_after_first_document)
+    with pytest.raises(RuntimeError, match="injected encoder failure"):
+        index.build_graph_and_index(qdrant=q, embed_model=object())
+    assert not list((_artifacts.DATABASE_DIR / ".colbert-staging").rglob("*.npy"))
+    assert _artifacts.current_version_token() is None
+
+
+def test_delta_staged_colbert_is_removed_on_apply_failure(monkeypatch, tmp_path):
+    docs_dir, _ = _wire_tmp_index(monkeypatch, tmp_path)
+    path = docs_dir / "a.md"
+    path.write_text(_spec("ALPHA"), encoding="utf-8")
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+    stub, q = StubEmbed(), StatefulFakeQdrant()
+    parent = index.build_graph_and_index(qdrant=q, embed_model=stub)
+    path.write_text(_spec("BETA"), encoding="utf-8")
+    def fail_after_stage(*_args, **kwargs):
+        kwargs["colbert_writer"].add_document(
+            "a.md", {"a.md#00": np.ones((2, 4), dtype="float16")})
+        raise RuntimeError("injected delta failure")
+    monkeypatch.setattr(index, "apply_incremental_indexing", fail_after_stage)
+    with pytest.raises(RuntimeError, match="injected delta failure"):
+        index.incremental_index(qdrant=q, embed_model=stub)
+    assert _artifacts.current_version_token() == parent
+    assert not list((_artifacts.DATABASE_DIR / ".colbert-staging").rglob("*.npy"))
 
 
 def test_full_rebuild_upsert_failure_propagates_and_blocks_promotion(monkeypatch, tmp_path):

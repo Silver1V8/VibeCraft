@@ -776,6 +776,55 @@ def test_eval_gate_passes_the_version_candidate_collection_to_gate_promotion(tmp
     assert captured["collection_name"] != rr.COLLECTION_NAME
 
 
+def test_eval_gate_loads_candidate_with_real_loader_signature_and_releases_reader(monkeypatch):
+    from types import SimpleNamespace
+    import api.routes_reindex as rr
+    loaded = []
+    class Reader(dict):
+        def close(self):
+            loaded.append("closed")
+    reader = Reader()
+    def load(*, required, version):
+        loaded.append((required, version))
+        return SimpleNamespace(colbert_store=reader, graph=None, chunks_store={})
+    monkeypatch.setattr(rr, "load_artifacts", load)
+    monkeypatch.setattr(rr, "_qdrant_collection_for_version", lambda _version: "candidate")
+    monkeypatch.setattr(rr, "gate_promotion", lambda *_a, **_k: {"passed": False})
+    assert rr._eval_gate("v-candidate", object()) == {"passed": False}
+    assert loaded == [(("graph", "colbert", "chunks"), "v-candidate"), "closed"]
+
+
+def test_full_job_exposes_colbert_io_bytes(monkeypatch):
+    import api.routes_reindex as rr
+    monkeypatch.setattr(rr, "_reindex_embed_model", lambda: object())
+    def build(**kwargs):
+        kwargs["collector"].update(colbert_io_bytes={"written_bytes": 123,
+                                                    "hardlinked_bytes": 0,
+                                                    "copied_bytes": 0,
+                                                    "inherited_hashes_not_reverified": 0})
+        return None
+    monkeypatch.setattr(rr, "build_graph_and_index", build)
+    result = rr._run_full_rebuild(None)
+    assert result["colbert_io_bytes"]["written_bytes"] == 123
+
+
+def test_full_gate_load_error_blocks_publication_and_keeps_current(tmp_path, monkeypatch):
+    import api.routes_reindex as rr
+    from core import artifacts
+    monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)
+    (tmp_path / "CURRENT").write_text("v-old\n", encoding="utf-8")
+    monkeypatch.setattr(rr, "_reindex_embed_model", lambda: object())
+    monkeypatch.setattr(rr, "build_graph_and_index", lambda **_kw: "v-new")
+    def bad_load(**_kw):
+        raise ValueError("candidate chunks corrupt")
+    monkeypatch.setattr(rr, "load_artifacts", bad_load)
+    monkeypatch.setattr(rr, "promote_version", lambda _v: pytest.fail("corrupt candidate promoted"))
+    result = rr._run_full_rebuild(None)
+    assert result["job_status"] == "completed_not_promoted"
+    assert result["promoted"] is False
+    assert (tmp_path / "CURRENT").read_text(encoding="utf-8") == "v-old\n"
+
+
 # ---------------------------------------------------------------------------
 # POST /api/index/rollback riallinea l'alias Qdrant (rollback_qdrant_alias_if_needed,
 # core.indexing) DOPO il rollback locale puro (rollback_version, core.artifacts) — mai

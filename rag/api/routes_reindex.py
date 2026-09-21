@@ -98,20 +98,24 @@ def _eval_gate(version: str, embed_model) -> dict:
     """Eval-gate sulla versione APPENA COSTRUITA (non ancora promossa): carica i suoi sidecar
     e delega alla logica canonica core.eval_gate.gate_promotion, valutando la STESSA
     collection candidata su cui quella versione è stata costruita (letta dal suo
-    manifest), mai la produzione. Fail-open se gli artefatti candidati non sono
-    caricabili."""
+    manifest), mai la produzione. Un candidato illeggibile non supera il gate."""
     try:
-        arts = load_artifacts(required=("graph", "colbert", "chunks"), version=version,
-                              emit=lambda *_a, **_k: None)
+        arts = load_artifacts(required=("graph", "colbert", "chunks"), version=version)
     except Exception as exc:
-        logger.warning("Eval-gate: artefatti candidati %s non caricabili (%s): promozione diretta.",
+        logger.warning("Eval-gate: artefatti candidati %s non caricabili (%s): promozione bloccata.",
                        version, exc)
-        return {"passed": True, "skipped": "load_error", "version": version}
+        return {"passed": False, "skipped": "load_error", "version": version,
+                "error": f"{type(exc).__name__}: {exc}"}
     collection_name = _qdrant_collection_for_version(version)
-    return gate_promotion(version, state.get("qdrant"), embed_model,
-                          arts.colbert_store, emit=logger.info, collection_name=collection_name,
-                          graph=arts.graph,
-                          restatements=retrieval.restatement_sections(arts.chunks_store))
+    try:
+        return gate_promotion(version, state.get("qdrant"), embed_model,
+                              arts.colbert_store, emit=logger.info, collection_name=collection_name,
+                              graph=arts.graph,
+                              restatements=retrieval.restatement_sections(arts.chunks_store))
+    finally:
+        close = getattr(arts.colbert_store, "close", None)
+        if close is not None:
+            close()
 
 
 def _run_full_rebuild(changed_paths) -> dict:
@@ -155,6 +159,8 @@ def _run_full_rebuild(changed_paths) -> dict:
     timings["init_model"] += init_model
     result = {"full_rebuild": True, "version": version,
               "phase_timings_seconds": timings, "counts": collector["counts"]}
+    if "colbert_io_bytes" in collector:
+        result["colbert_io_bytes"] = collector["colbert_io_bytes"]
     if version:  # None solo con build finta nei test
         started = time.perf_counter()
         gate = _eval_gate(version, embed_model)

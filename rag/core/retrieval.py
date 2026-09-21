@@ -6,7 +6,7 @@ parametri espliciti dai chiamanti (dependency injection), non lette da uno stato
 import heapq
 import logging
 import re
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 from typing import Any
 
 import networkx as nx
@@ -300,7 +300,7 @@ def encode_query(embed_model, question: str) -> dict:
     }
 
 
-def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_store: dict,
+def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_store: Mapping,
                   query_filter: Filter | None = None,
                   collection_name: str = COLLECTION_NAME,
                   query_encoding: dict | None = None,
@@ -849,7 +849,7 @@ def colbert_maxsim(colbert_query, chunk_vectors) -> float | None:
     return round(float(sim.max(axis=1).mean()), 4)
 
 
-def rank_sections_by_relevance(chunk_ids, *, colbert_store: dict, colbert_query,
+def rank_sections_by_relevance(chunk_ids, *, colbert_store: Mapping, colbert_query,
                                min_score: float = 0.0) -> list[tuple[str, float | None]]:
     """Sezioni ordinate per pertinenza alla DOMANDA, dalla più pertinente (ADR 0002 / S3).
 

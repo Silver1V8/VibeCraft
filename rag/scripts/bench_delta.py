@@ -11,6 +11,7 @@ import subprocess
 import sys
 import threading
 import time
+from contextlib import ExitStack
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlencode
@@ -254,26 +255,36 @@ def _point_digest(qdrant, collection: str) -> dict:
 def _backup_database(paths: dict) -> dict:
     backup = paths["output"] / "baseline-database"
     _safe(backup, RESULTS)
-    shutil.copytree(paths["database"], backup, ignore=shutil.ignore_patterns(".writer.lock", "reindex_jobs.jsonl", "alerts.jsonl"))
+    shutil.copytree(paths["database"], backup, ignore=shutil.ignore_patterns(".writer.lock", ".reader-locks", "reindex_jobs.jsonl", "alerts.jsonl"))
     return _fingerprint([p for p in backup.rglob("*") if p.is_file()])
 
 
 def _database_fingerprint(root: Path) -> dict:
     return {p.relative_to(root).as_posix(): {"sha256": _sha(p.read_bytes()), "bytes": p.stat().st_size}
-            for p in root.rglob("*") if p.is_file() and p.name not in
+            for p in root.rglob("*") if p.is_file() and ".reader-locks" not in p.relative_to(root).parts and p.name not in
             (".writer.lock", "reindex_jobs.jsonl", "alerts.jsonl")}
 
 
 def _restore_files(paths: dict, original: dict[Path, bytes], qdrant, snapshot) -> None:
-    from core.writer_lock import writer_lock
+    from core.writer_lock import try_version_lease, writer_lock
     db = paths["database"]
     backup = paths["output"] / "baseline-database"
-    with writer_lock(timeout_seconds=60):
+    with writer_lock(timeout_seconds=60), ExitStack() as leases:
+        versions = db / "versions"
+        if versions.is_dir():
+            for folder in versions.iterdir():
+                if folder.is_dir():
+                    lease = try_version_lease(db, folder.name, exclusive=True)
+                    if lease is None:
+                        raise BlockingIOError(f"database restore blocked by reader of {folder.name}")
+                    leases.enter_context(lease)
         for path, data in original.items():
             _safe(path, RESULTS)
             path.write_bytes(data)
         for path in sorted(db.rglob("*"), key=lambda p: len(p.parts), reverse=True):
             _safe(path, RESULTS)
+            if ".reader-locks" in path.relative_to(db).parts:
+                continue
             if path.is_file() and path.name not in (".writer.lock", "reindex_jobs.jsonl", "alerts.jsonl"):
                 path.unlink()
             elif path.is_dir() and not any(path.iterdir()):
@@ -400,7 +411,7 @@ def run(paths: dict, n: int, mode: str, ks: list[int], repeats: int) -> int:
         sys.path.insert(0, str(paths["rag"]))
         import uvicorn
         import server as server_module
-        from api.deps import reload_index_state
+        from api.deps import reload_index_state, state as server_state
         from core.indexing import check_index_integrity
         from qdrant_client import QdrantClient
         qdrant = QdrantClient(url=QDRANT_URL, timeout=300)
@@ -500,6 +511,10 @@ def run(paths: dict, n: int, mode: str, ks: list[int], repeats: int) -> int:
                     _join_writer()
                     # Restore is deliberately outside measured interval.
                     try:
+                        # No HTTP readers or writer remain. Drop the server's active
+                        # Mapping before removing version directories; its OS lease
+                        # must never be invalidated by deleting the lock file.
+                        server_state["snapshot"] = None
                         _restore_files(paths, original, qdrant, snapshot)
                         reload_index_state()
                         restored = (_fingerprint(files) == payload["corpus"] and

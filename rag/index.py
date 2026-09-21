@@ -1,7 +1,7 @@
 """Entrypoint CLI dell'indicizzazione Graph-RAG. La logica vive ora in core/indexing.py
 (costruzione dell'indice, manifest, incrementale, Drift, archiviazione) e core/chunking.py
 (caricamento e chunking dei documenti). Questo file resta solo come interfaccia a riga di
-comando: `python index.py [--incremental | --check-drift F | --archive F | --index-status |
+comando: `python index.py [--incremental | --migrate-colbert-npy | --check-drift F | --archive F | --index-status |
 --rollback [VERSIONE]]`."""
 import argparse
 import json
@@ -42,8 +42,9 @@ if __name__ == "__main__":
     parser.add_argument("--archive", type=str, metavar="FEATURE", help="Archivia la feature e re-indicizza il database")
     parser.add_argument("--index-status", action="store_true", help="Verifica se l'indice è aggiornato rispetto ai documenti in docs/")
     parser.add_argument("--incremental", action="store_true", help="Indicizzazione incrementale: (ri)indicizza solo i doc nuovi/modificati, rimuove i cancellati, salta gli invariati")
+    parser.add_argument("--migrate-colbert-npy", action="store_true", help="Converte la versione NPZ attiva in una nuova candidata NPY e la promuove dopo verifica esatta")
     parser.add_argument("--check-graph", action="store_true", help="Confronta il grafo incrementale persistito con quello di un full rebuild sugli stessi input e segnala differenze")
-    parser.add_argument("--check-integrity", action="store_true", help="Check economico di integrità dell'indice (manifest, hash sorgenti, artefatti, conteggio Qdrant) — zero embedding; exit 1 se ci sono problemi")
+    parser.add_argument("--check-integrity", action="store_true", help="Check completo di integrità dell'indice (manifest, hash sorgenti, byte degli artefatti, conteggio Qdrant) — zero embedding; exit 1 se ci sono problemi")
     parser.add_argument("--rollback", nargs="?", const="__PREVIOUS__", default=None, metavar="VERSION",
                         help="Rollback blue/green ISTANTANEO: sposta il puntatore database/CURRENT alla versione indicata (default: la precedente) e riallinea l'alias Qdrant alla collection di quella versione. Nessuna build. NB: se la collection della versione target non esiste più su Qdrant il rollback viene RIFIUTATO prima di toccare CURRENT (serve una re-indicizzazione completa); a Qdrant irraggiungibile il pre-check si salta e l'alias viene riparato al boot")
 
@@ -139,6 +140,9 @@ if __name__ == "__main__":
             report = check_graph_consistency()
             print(json.dumps(report, ensure_ascii=False, indent=2))
             sys.exit(0 if report.get("consistent") else 1)
+        elif args.migrate_colbert_npy:
+            from core.artifacts import migrate_colbert_npy
+            print(f"ColBERT NPY promosso: {migrate_colbert_npy()}")
         elif args.incremental:
             print("Avvio indicizzazione incrementale (delta rispetto al manifest)...\n")
             incremental_index()
