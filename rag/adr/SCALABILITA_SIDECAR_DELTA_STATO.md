@@ -1,6 +1,6 @@
 # Scalabilità sidecar — checkpoint
 
-Stato: RUNNING_PHASE_4. Task: 01a0a441-79f6-7912-93ac-86a6e12518ee.
+Stato: RUNNING_PHASE_5. Task: 01a0a441-79f6-7912-93ac-86a6e12518ee.
 Worktree: C:/Users/Silve/.codex/worktrees/0628/vibecraft. HEAD iniziale: 4f35acf7ad18034c42203090189dfccfdbe42611. Branch: codex/sidecar-delta-0628. Ultimo commit funzionale: e8d8940; journal/readiness: 4a1539c. Nessun push/merge/pubblicazione.
 Heartbeat: ripresa-astra-scalabilit-sidecar, ACTIVE confermato dalla task chiamante. Pausa <=15%; ripresa solo ordinaryUsageAllowed e >=25% per finestre codex disponibili. Spark escluso.
 
@@ -119,3 +119,9 @@ Tutte9post concluse exit0,150prove valide/ripristinate. Compare_delta approvato 
 Ruling U03: riduzione misurata e invarianti verificate. La clausola «se coprevolume/budgetrimanda» non si attiva con budget nondefiniti per scelta utente; F3 è conclusa e si procedeF4, senza richiedereinput ripetuto né dichiarare budget coperti.
 
 Sol phase2 riusato per driver/prototipi F4 in nuova run sidecar_readers_20260921; ownership soloevidence/sandbox/report, no produzione, modelli/container o realbenchmark fino areview. Deve confrontare 3reader su storici257chunk/112429token e retrieval completo sulla baselineF3mixedN100/collection sidecar_0628_mixed_n100_post; casi grafo/missing/concorrenza/oldsnapshot. PM chiude commit F3evidenze, poi prepara run. Nessunbenchmark attivo. QdrantF3 fa005441... resta attivo, tuttiF2preservati fermi. Quota72% ordinarytrue. F5 ancora condizionale, F6 aperta. Non duplicaretask/monitor.
+
+## F4 verificata e decisione F5 — 21 settembre
+
+Driver199cd78 review approvata dopo4guardfix. 15replay I/O storici+15retrieval completi F3mixedN100, exit0, ranking/score identici;257+50array paritari, snapshot differente/concorrenza testatiWin/Linux. PHASE4.md e phase4-evidence-review APPROVATO. NPY caldo storico0.139s vs lazyNPZ0.259s ed eager0.076s; USSload0.50/0.57/222.5MiB. Fullpiccolo NPYpiùlentodieager7–27ms, esplicito. NTFSNPZ195739648Ballocati, NPY230420480Ballocati (+17.7%). Nessunbudgetcoperto o miglioramentoreindex dichiarato.
+
+DecisionePM: procedeF5 NPY perdoc, conforme ramo giàautorizzato e revisione indipendente. Noteimplementationphase5 descrivono leasecrossprocess perversione, writerimmutabile/bounded, hashintegrità e migrazionecandidata/rollback. Nessuna implementazioneF5ancora iniziata; prossimoSol unitàreader/writer/lease, poi integrazione e test/review. F6 aperta; helperdiskinventoryWindows/Linuxapprovato, preflightretention corretto (driverdeltaF2ripristinaogni prova, serveaccumulo separato). Nessunbenchmarkattivo. ContainerF3 fa005441... attivo e fontistoriche/F3 immutate verificato postrun. Quotafresh68% ordinarytrue; no task/monitor duplicati.

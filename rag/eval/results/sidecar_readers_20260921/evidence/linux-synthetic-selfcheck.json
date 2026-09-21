@@ -1,0 +1,20 @@
+{
+  "chunks": 2,
+  "ranked": [
+    [
+      "doc/a#1",
+      138.0
+    ],
+    [
+      "doc/b#2",
+      82.0
+    ],
+    [
+      "missing",
+      null
+    ]
+  ],
+  "concurrent_reads_per_reader": 6,
+  "old_reader_preserved": true,
+  "new_reader_updated_only": true
+}
