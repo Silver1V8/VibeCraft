@@ -173,3 +173,11 @@ Pairedretrieval session82906 exit0,3query top3: candidati ID/ordine identici,ran
 QdrantF3 fa005441... fermato graceful e preservato come sidecar-0628-qdrant-native-f3. NuovoF6 sidecar-0628-qdrant ID2b2831f678b4ce762de18862623b0f1b08f9fca04241075fd63810c4d8ab57c8, volume sidecar-0628-qdrant-native-f6, stessi image/1GiB/2CPU/porta16333. Metadati container inNPYevidence.
 
 SmokeNPY docsN10k0/1reps1 session74550 TERMINATO exit0,2campioni validi/ripristinati; escluso dallecurve. ATTIVO docsN10 ufficiale session39294 (15prove),708a142congelato. Restano altre8famiglie e retentioncumulativa. Nessunmodellotestconcorrente. Quota46%ordinarytrue, no spendingblock. Aggiornareprogress dopo ogni famiglia; nonrilanciare completate.
+
+## F6 documenti conclusi — ore15:35 locali
+
+DocsN10/30/100 terminate exit0:50prove valide/ripristinate, result/bootstrap/summary/resources copiati in evidence. ContainerF6 invariato. ATTIVO codeN10 session22875; restano codeN30/N100 e mixedN10/N30/N100, poi retention. `sidecar_npy_20260921/evidence/progress.json` mantiene la sessione corrente: riconciliare prima di riprendere.
+
+Misure docsN100 mostrano rallentamento k100 (prime prove55–62s vsF3circa16s), dominato parsing/embedding49–55s. Non nascondere regressione né dedurre miglioramento generale dal full storico. F6-03 attiva studio batching/hardware: Sol ha preparato solo driver sperimentale encoding_batching_study.py, pre-run APPROVATO in phase6-batching-driver-review.md. Eseguirlo dopo tutte le misure ufficiali/retention, CPU4offline1modello3varianti+warmup3ripetizioni; no modifica produzione autorizzata dall'esperimento stesso. Causa plausibile: chiamata encoder/calibrazione per documento piccolo, batch12 limitato all'interno di ogni chiamata.
+
+Quota42%ordinarytrue (finestre codex disponibili), no spendingblock. HEADaa1ffe3 conserva driver F6 approvati; codice misurato resta708a142. ReviewfinalecodeAPPROVATA, soloevidenzeF6pending. Nessun duplicatotask/monitor/processo.
