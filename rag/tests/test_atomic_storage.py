@@ -5,6 +5,8 @@
 2. reload COERENTE (api.deps.reload_index_state): se uno degli artefatti (grafo,
    ColBERT, chunk) è mancante o corrotto, lo stato in memoria precedente va mantenuto,
    non degradato."""
+from pathlib import Path
+
 import numpy as np
 import networkx as nx
 import pytest
@@ -78,6 +80,17 @@ def test_write_index_manifest_has_version(tmp_path, monkeypatch):
     assert list(tmp_path.iterdir()) == [manifest_path]   # nessun .tmp orfano
 
 
+def test_artifact_hashes_stream_full_file_without_read_bytes(tmp_path, monkeypatch):
+    import hashlib
+    data = b"colbert" * 100_000
+    (tmp_path / "graph.json").write_bytes(data)
+    monkeypatch.setattr(artifacts, "artifact_dir", lambda version=None: tmp_path)
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, "read_bytes", lambda self: (_ for _ in ()).throw(AssertionError("read_bytes")))
+        hashes = artifacts.artifact_hashes()
+    assert hashes["graph.json"] == hashlib.sha256(data).hexdigest()
+
+
 # ---------------------------------------------------------------------------
 # 2. Reload coerente con artefatto corrotto/mancante
 # ---------------------------------------------------------------------------
@@ -110,6 +123,8 @@ def _write_valid_artifacts():
         dense_store={},
         code_store={},
     )
+    artifacts._atomic_write_json(artifacts.manifest_path(version),
+                                 {"artifact_hashes": artifacts.artifact_hashes(version)})
     artifacts.promote_version(version)
 
 
@@ -184,7 +199,7 @@ def test_reload_with_corrupt_artifact_keeps_previous(tmp_path, monkeypatch):
     _write_valid_artifacts()
 
     # Corrompe uno degli artefatti della versione ATTIVA con byte non deserializzabili
-    (artifacts.artifact_dir() / "colbert.npz").write_bytes(b"\x00\x01 non e' un npz valido")
+    (artifacts.artifact_dir() / "colbert" / "index.json").write_bytes(b"\x00\x01 non e' JSON valido")
 
     old = _seed_old_snapshot(deps)
 

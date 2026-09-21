@@ -1,0 +1,369 @@
+{
+  "source_result": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_retention_20260921\\evidence\\result.json",
+  "source_sampler": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_retention_20260921\\evidence\\process.json",
+  "source_raw": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_retention_20260921\\evidence\\process.jsonl",
+  "status": "completed",
+  "sampler_exit_code": 0,
+  "sampler_interval_seconds": 0.1,
+  "main_process": {
+    "pid": 31304,
+    "sample_count": 438,
+    "sampled_max_bytes": {
+      "rss_bytes": 4203126784,
+      "private_bytes": 6835048448,
+      "uss_bytes": 1538973696
+    }
+  },
+  "pinned_reader_process": {
+    "pid": 33564,
+    "sample_count": 119,
+    "sampled_max_bytes": {
+      "rss_bytes": 62169088,
+      "private_bytes": 149250048,
+      "uss_bytes": 45760512
+    }
+  },
+  "pinned_reader": {
+    "ready_pid": 33564,
+    "baseline_version": "v20260921T135520",
+    "fingerprint": {
+      "chunk": "d000.md#00-documento",
+      "sha256": "5e350e31494b38175c83a8d4b68e6d39b385c2fd4204d9afcfcbf5a6c90f570c",
+      "shape": [
+        25,
+        1024
+      ],
+      "dtype": "float16",
+      "loaded_colbert_chunks": 10
+    },
+    "stable_across_five_checks": true,
+    "closed": true
+  },
+  "baseline": {
+    "version": "v20260921T135520",
+    "versions": [
+      "v20260921T135520"
+    ],
+    "disk": {
+      "logical_size_bytes": 588344,
+      "physical_allocated_bytes_deduplicated": 626984,
+      "physical_allocation_errors": null,
+      "allocation_method": "GetFileInformationByHandleEx(FileStandardInfo)",
+      "file_count": 21
+    },
+    "qdrant_points": {
+      "count": 10,
+      "sha256": "87c0b3f582655f77ff3e14825253f179a88e42da45283154d6641502c536907c"
+    }
+  },
+  "steps": [
+    {
+      "step": 1,
+      "started_monotonic": 24057.1731715,
+      "ended_monotonic": 24061.3209948,
+      "request_window_seconds": 4.147823300001619,
+      "version": "v20260921T135541",
+      "versions": [
+        "v20260921T135520",
+        "v20260921T135541"
+      ],
+      "disk": {
+        "logical_size_bytes": 1176563,
+        "physical_allocated_bytes_deduplicated": 725504,
+        "physical_allocation_errors": null,
+        "allocation_method": "GetFileInformationByHandleEx(FileStandardInfo)",
+        "file_count": 39
+      },
+      "main_process_window": {
+        "pid": 31304,
+        "sample_count": 23,
+        "sampled_max_bytes": {
+          "rss_bytes": 4136603648,
+          "private_bytes": 6754725888,
+          "uss_bytes": 1460944896
+        }
+      },
+      "queries_overlapping_window": {
+        "count": 3,
+        "empty_results": 0,
+        "errors": 0,
+        "endpoints": {
+          "/api/retrieve": 3
+        }
+      },
+      "queries_contained_in_window": {
+        "count": 1,
+        "empty_results": 0,
+        "errors": 0,
+        "endpoints": {
+          "/api/retrieve": 1
+        }
+      },
+      "qdrant_points": {
+        "count": 10,
+        "sha256": "939922304f555a6154136491d78da2a645f8a389e2078a5da9595e5333afc509"
+      }
+    },
+    {
+      "step": 2,
+      "started_monotonic": 24061.612105,
+      "ended_monotonic": 24065.4517293,
+      "request_window_seconds": 3.8396242999988317,
+      "version": "v20260921T135546",
+      "versions": [
+        "v20260921T135520",
+        "v20260921T135541",
+        "v20260921T135546"
+      ],
+      "disk": {
+        "logical_size_bytes": 1764779,
+        "physical_allocated_bytes_deduplicated": 828120,
+        "physical_allocation_errors": null,
+        "allocation_method": "GetFileInformationByHandleEx(FileStandardInfo)",
+        "file_count": 57
+      },
+      "main_process_window": {
+        "pid": 31304,
+        "sample_count": 20,
+        "sampled_max_bytes": {
+          "rss_bytes": 4153647104,
+          "private_bytes": 6775660544,
+          "uss_bytes": 1471000576
+        }
+      },
+      "queries_overlapping_window": {
+        "count": 3,
+        "empty_results": 0,
+        "errors": 0,
+        "endpoints": {
+          "/api/retrieve": 3
+        }
+      },
+      "queries_contained_in_window": {
+        "count": 2,
+        "empty_results": 0,
+        "errors": 0,
+        "endpoints": {
+          "/api/retrieve": 2
+        }
+      },
+      "qdrant_points": {
+        "count": 10,
+        "sha256": "b788f445367c5b1402ed8fa152083ebcfade284ba49719d23d43a5b1642f5d25"
+      }
+    },
+    {
+      "step": 3,
+      "started_monotonic": 24065.7812663,
+      "ended_monotonic": 24069.369593,
+      "request_window_seconds": 3.5883266999990155,
+      "version": "v20260921T135550",
+      "versions": [
+        "v20260921T135520",
+        "v20260921T135541",
+        "v20260921T135546",
+        "v20260921T135550"
+      ],
+      "disk": {
+        "logical_size_bytes": 2352990,
+        "physical_allocated_bytes_deduplicated": 934832,
+        "physical_allocation_errors": null,
+        "allocation_method": "GetFileInformationByHandleEx(FileStandardInfo)",
+        "file_count": 75
+      },
+      "main_process_window": {
+        "pid": 31304,
+        "sample_count": 19,
+        "sampled_max_bytes": {
+          "rss_bytes": 4174237696,
+          "private_bytes": 6801158144,
+          "uss_bytes": 1500557312
+        }
+      },
+      "queries_overlapping_window": {
+        "count": 4,
+        "empty_results": 0,
+        "errors": 0,
+        "endpoints": {
+          "/api/retrieve": 4
+        }
+      },
+      "queries_contained_in_window": {
+        "count": 2,
+        "empty_results": 0,
+        "errors": 0,
+        "endpoints": {
+          "/api/retrieve": 2
+        }
+      },
+      "qdrant_points": {
+        "count": 10,
+        "sha256": "01a1083bee35ed639cda1e33bd78478dd00f0b5c4cfb2b7a023a87bf15b8384e"
+      }
+    },
+    {
+      "step": 4,
+      "started_monotonic": 24069.7037236,
+      "ended_monotonic": 24073.5562331,
+      "request_window_seconds": 3.8525095000004512,
+      "version": "v20260921T135554",
+      "versions": [
+        "v20260921T135520",
+        "v20260921T135546",
+        "v20260921T135550",
+        "v20260921T135554"
+      ],
+      "disk": {
+        "logical_size_bytes": 2356983,
+        "physical_allocated_bytes_deduplicated": 996272,
+        "physical_allocation_errors": null,
+        "allocation_method": "GetFileInformationByHandleEx(FileStandardInfo)",
+        "file_count": 76
+      },
+      "main_process_window": {
+        "pid": 31304,
+        "sample_count": 20,
+        "sampled_max_bytes": {
+          "rss_bytes": 4191010816,
+          "private_bytes": 6820216832,
+          "uss_bytes": 1516023808
+        }
+      },
+      "queries_overlapping_window": {
+        "count": 3,
+        "empty_results": 0,
+        "errors": 0,
+        "endpoints": {
+          "/api/retrieve": 3
+        }
+      },
+      "queries_contained_in_window": {
+        "count": 3,
+        "empty_results": 0,
+        "errors": 0,
+        "endpoints": {
+          "/api/retrieve": 3
+        }
+      },
+      "qdrant_points": {
+        "count": 10,
+        "sha256": "43c17cdf6debbdafec01b9299f1d1e19d3a5909bc8521b129025c55378228c55"
+      }
+    },
+    {
+      "step": 5,
+      "started_monotonic": 24073.8656454,
+      "ended_monotonic": 24077.9661504,
+      "request_window_seconds": 4.10050499999852,
+      "version": "v20260921T135558",
+      "versions": [
+        "v20260921T135520",
+        "v20260921T135550",
+        "v20260921T135554",
+        "v20260921T135558"
+      ],
+      "disk": {
+        "logical_size_bytes": 2360970,
+        "physical_allocated_bytes_deduplicated": 1057712,
+        "physical_allocation_errors": null,
+        "allocation_method": "GetFileInformationByHandleEx(FileStandardInfo)",
+        "file_count": 77
+      },
+      "main_process_window": {
+        "pid": 31304,
+        "sample_count": 22,
+        "sampled_max_bytes": {
+          "rss_bytes": 4203126784,
+          "private_bytes": 6835048448,
+          "uss_bytes": 1538973696
+        }
+      },
+      "queries_overlapping_window": {
+        "count": 5,
+        "empty_results": 0,
+        "errors": 0,
+        "endpoints": {
+          "/api/retrieve": 5
+        }
+      },
+      "queries_contained_in_window": {
+        "count": 3,
+        "empty_results": 0,
+        "errors": 0,
+        "endpoints": {
+          "/api/retrieve": 3
+        }
+      },
+      "qdrant_points": {
+        "count": 10,
+        "sha256": "797f856e8749c3eb184f219f3567154bcf79ad17cd539e91424a90b985c716e3"
+      }
+    }
+  ],
+  "after_reader_close": {
+    "removed": [
+      "v20260921T135520"
+    ],
+    "versions": [
+      "v20260921T135550",
+      "v20260921T135554",
+      "v20260921T135558"
+    ],
+    "disk": {
+      "logical_size_bytes": 1776041,
+      "physical_allocated_bytes_deduplicated": 844504,
+      "physical_allocation_errors": null,
+      "allocation_method": "GetFileInformationByHandleEx(FileStandardInfo)",
+      "file_count": 60
+    }
+  },
+  "queries_global": {
+    "count": 19,
+    "empty_results": 0,
+    "errors": 0,
+    "endpoints": {
+      "/api/retrieve": 19
+    }
+  },
+  "qdrant_container_separate": {
+    "sample_count": 436,
+    "sampled_max_bytes": {
+      "rss_bytes": 483721216,
+      "rss_anon_bytes": 23724032,
+      "private_bytes": 481587200
+    },
+    "cgroup_sampled_max_bytes": {
+      "usage_bytes": 538873856,
+      "cache_bytes": 501829632
+    },
+    "final_record": {
+      "pid": 7,
+      "rss_bytes": 483557376,
+      "rss_anon_bytes": 23547904,
+      "rss_bytes_reason": null,
+      "rss_anon_bytes_reason": null,
+      "private_bytes": 481439744,
+      "private_bytes_reason": null,
+      "cgroup": {
+        "usage_bytes": 537980928,
+        "limit_bytes": 1073741824,
+        "cache_bytes": 501829632,
+        "reason": null
+      },
+      "reason": null,
+      "deadline_monotonic": 24080.8009311,
+      "finished_monotonic": 24081.1015476,
+      "duration_seconds": 0.295
+    },
+    "cached_row_count": 436,
+    "distinct_observations": 68,
+    "distinct_sampled_observations": 67,
+    "sample_count_label": "cached rows carrying last Qdrant probe; not independent observations"
+  },
+  "limits": [
+    "Memory maxima are sampled lower bounds; main and pinned reader are reported separately, never summed.",
+    "Step monotonic windows cover HTTP job request through response, not the whole writer/readiness duration.",
+    "A query overlaps a step if its [start,end] intersects the step window; the same query may count in more than one step. Contained queries are listed separately.",
+    "Physical allocated bytes are deduplicated by file identity within each local database inventory; Qdrant container memory is separate."
+  ]
+}

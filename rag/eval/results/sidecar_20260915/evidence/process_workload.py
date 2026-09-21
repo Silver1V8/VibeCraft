@@ -1,0 +1,378 @@
+"""Piccolo run reale Phase 1d; preparato, non avviarlo senza sandbox dedicata."""
+import argparse
+import hashlib
+import json
+import os
+import signal
+import subprocess
+import sys
+import threading
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+
+
+HOST = "127.0.0.1"
+PORT = 18000
+BASE_URL = f"http://{HOST}:{PORT}"
+QDRANT_URL = "http://127.0.0.1:16333"
+EXPECTED_COLLECTION = "sidecar_0628_benchmark"
+READY_TIMEOUT_SECONDS = 180.0
+JOB_TIMEOUT_SECONDS = 300.0
+POLL_SECONDS = 0.5
+QUERIES = (
+    "Come posso prenotare un evento e vedere i posti disponibili?",
+    "Quali pagamenti sono accettati?",
+    "Come funzionano le notifiche della prenotazione?",
+)
+
+
+class StopRequested(Exception):
+    pass
+
+
+def _utc() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+
+
+def _inside(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
+def _tree_fingerprint(*roots: Path) -> dict:
+    digest = hashlib.sha256()
+    count = 0
+    for root in roots:
+        for item in sorted(p for p in root.rglob("*") if p.is_file()):
+            digest.update(item.relative_to(root).as_posix().encode())
+            digest.update(hashlib.sha256(item.read_bytes()).digest())
+            count += 1
+    return {"sha256": digest.hexdigest(), "files": count}
+
+
+def _load_config(path: Path) -> dict:
+    import yaml  # available runtime dependency; core is deliberately not imported yet
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise RuntimeError("rag_config.yaml non contiene una mappa")
+    return data
+
+
+def validate_paths(checkout_arg: str, output_arg: str, *, allow_output_exists: bool = False) -> dict:
+    raw_checkout = Path(checkout_arg)
+    raw_output = Path(output_arg)
+    if not raw_checkout.is_absolute() or not raw_output.is_absolute():
+        raise RuntimeError("--checkout e --output-dir devono essere assoluti")
+    if raw_checkout.is_symlink() or raw_checkout.parent.is_symlink():
+        raise RuntimeError("checkout o sandbox non puo essere un link")
+    checkout = raw_checkout.resolve(strict=True)
+    run = Path(__file__).resolve().parent.parent
+    expected = run / "sandbox" / "experiment"
+    if checkout != expected.resolve(strict=True):
+        raise RuntimeError("checkout deve essere esattamente <run>/sandbox/experiment")
+    rag = checkout / "rag"
+    config_path = rag / "rag_config.yaml"
+    if not rag.is_dir() or not config_path.is_file():
+        raise RuntimeError("checkout incompleto: manca rag/rag_config.yaml")
+    config = _load_config(config_path)
+    paths = config.get("paths") or {}
+    docs = (checkout / str(paths.get("docs_dir", "./docs")).lstrip("./")).resolve()
+    configured_code = (checkout / str(paths.get("codebase_dir", "./code")).lstrip("./")).resolve()
+    code = (checkout / "code").resolve()  # core.config.CODE_DIR is fixed to PROJECT_ROOT/code
+    database = (rag / "database").resolve()
+    for name, path in (("rag", rag.resolve()), ("database", database), ("docs", docs),
+                       ("configured code", configured_code), ("code", code)):
+        if not _inside(path, checkout) or not path.exists():
+            raise RuntimeError(f"{name} non risolve dentro il checkout: {path}")
+    collection = ((config.get("vector_database") or {}).get("collection_name"))
+    if collection != EXPECTED_COLLECTION:
+        raise RuntimeError(f"collection attesa {EXPECTED_COLLECTION!r}, trovata {collection!r}")
+    output = raw_output.resolve()
+    if not _inside(output, run) or _inside(output, checkout):
+        raise RuntimeError("output-dir deve essere dedicata, sotto <run> e fuori dal checkout")
+    result_path = output / "phase1d-result.json"
+    if output.exists() and not allow_output_exists:
+        raise RuntimeError(f"output-dir deve essere nuova e dedicata: {output}")
+    if result_path.exists():
+        raise RuntimeError(f"risultato gia presente: {result_path}")
+    return {"checkout": checkout, "run": run, "rag": rag.resolve(), "docs": docs,
+            "code": code, "database": database, "output": output, "result": result_path}
+
+
+def _save(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def _event(payload: dict, name: str, **data) -> None:
+    payload["events"].append({"at_utc": _utc(), "event": name, "pid": os.getpid(),
+                              "monotonic_sequence": len(payload["events"]),
+                              "monotonic_seconds": round(time.monotonic() - payload["_started_monotonic"], 6), **data})
+
+
+def _http(method: str, path: str, body: dict | None = None) -> tuple[int, dict]:
+    data = None if body is None else json.dumps(body).encode("utf-8")
+    request = Request(BASE_URL + path, data=data, method=method,
+                      headers={"Content-Type": "application/json"} if data else {})
+    try:
+        with urlopen(request, timeout=15) as response:
+            return response.status, json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        return exc.code, json.loads(exc.read().decode("utf-8"))
+    except (URLError, TimeoutError) as exc:
+        raise RuntimeError(f"HTTP {method} {path}: {exc}") from exc
+
+
+def _assert_running(stop: threading.Event) -> None:
+    if stop.is_set():
+        raise StopRequested("stop richiesto al punto sicuro")
+
+
+def _install_stop_handlers(stop: threading.Event) -> dict:
+    def request_stop(*_args):
+        stop.set()
+    old = {}
+    for sig in (signal.SIGINT, signal.SIGTERM, getattr(signal, "SIGBREAK", None)):
+        if sig is not None:
+            old[sig] = signal.signal(sig, request_stop)
+    return old
+
+
+def _restore_stop_handlers(old: dict) -> None:
+    for sig, handler in old.items():
+        signal.signal(sig, handler)
+
+
+def _wait_ready(server, stop: threading.Event) -> None:
+    deadline = time.monotonic() + READY_TIMEOUT_SECONDS
+    while time.monotonic() < deadline:
+        _assert_running(stop)
+        if server.started:
+            status, _ = _http("GET", "/api/reindex")
+            if status == 200:
+                return
+        time.sleep(POLL_SECONDS)
+    raise RuntimeError(f"server non pronto entro {READY_TIMEOUT_SECONDS}s")
+
+
+def _wait_job(job_id: str, stop: threading.Event) -> dict:
+    deadline = time.monotonic() + JOB_TIMEOUT_SECONDS
+    last = None
+    while time.monotonic() < deadline:
+        _assert_running(stop)
+        status, last = _http("GET", f"/api/reindex/{job_id}")
+        if status != 200:
+            raise RuntimeError(f"job {job_id}: HTTP {status}")
+        if last.get("status") in {"completed", "completed_not_promoted", "failed", "interrupted"} and last.get("reload_status") != "pending":
+            return last
+        time.sleep(POLL_SECONDS)
+    return {**(last or {}), "_poll_timed_out": True}
+
+
+def _require_completed(job: dict, *, noop: bool | None = None, delta: bool = False) -> None:
+    assert not job.get("_poll_timed_out"), "job timeout"
+    assert job.get("status") == "completed", job
+    assert job.get("reload_status") == "completed", job
+    assert job.get("published_token") is not None, job
+    result = job.get("result") or {}
+    if noop is not None:
+        assert result.get("noop") is noop, result
+    if delta:
+        plan = result.get("plan") or result.get("planned") or {}
+        assert plan.get("modified") == ["prenotazioni.md"], plan
+        assert result.get("reindexed_docs") == 1, result
+        counts = result.get("counts") or {}
+        assert counts.get("chunks_processed", 0) > 0, result
+        assert counts.get("colbert_tokens_processed", 0) > 0, result
+        assert job.get("published_token") == result.get("version"), (job, result)
+
+
+def _bootstrap(paths: dict, *, self_check: bool = False) -> int:
+    stop = threading.Event()
+    old = _install_stop_handlers(stop)
+    try:
+        if self_check:
+            _save(paths["output"] / "phase1d-bootstrap-selfcheck.json",
+                  {"at_utc": _utc(), "pid": os.getpid(), "ppid": os.getppid(), "self_check": True})
+            return 0
+        sys.path.insert(0, str(paths["rag"]))
+        from core.indexing import incremental_index
+        from core.writer_lock import writer_lock
+        _assert_running(stop)
+        with writer_lock():
+            result = incremental_index()
+        _save(paths["output"] / "phase1d-bootstrap.json", {"at_utc": _utc(), "pid": os.getpid(), "result": result})
+        _assert_running(stop)
+        assert isinstance(result, dict), result
+        return 0
+    finally:
+        _restore_stop_handlers(old)
+
+
+def run(paths: dict) -> int:
+    stop = threading.Event()
+    payload = {"status": "running", "prepared_by": "phase1d", "pid": os.getpid(),
+               "parameters": {"host": HOST, "port": PORT, "qdrant_url": QDRANT_URL,
+                              "collection": EXPECTED_COLLECTION, "queries": list(QUERIES),
+                              "readiness_timeout_seconds": READY_TIMEOUT_SECONDS,
+               "job_timeout_seconds": JOB_TIMEOUT_SECONDS}, "events": [], "results": {},
+               "_started_monotonic": time.monotonic()}
+    original_bytes = None
+    server = None
+    server_thread = None
+    old_handlers = _install_stop_handlers(stop)
+    old_env = {}
+    exit_code = 1
+    try:
+        paths["output"].mkdir(parents=True, exist_ok=False)
+        payload["fingerprint_initial"] = _tree_fingerprint(paths["docs"], paths["code"])
+        _event(payload, "bootstrap_start")
+        env = {"PYTHONDONTWRITEBYTECODE": "1", "CUDA_VISIBLE_DEVICES": "-1", "HF_HUB_OFFLINE": "1",
+               "OMP_NUM_THREADS": "4", "MKL_NUM_THREADS": "4", "QDRANT_URL": QDRANT_URL,
+               "VIBECRAFT_HOST": HOST, "VIBECRAFT_PORT": str(PORT)}
+        old_env = {key: os.environ.get(key) for key in env}
+        os.environ.update(env)
+        child = subprocess.Popen([sys.executable, "-B", str(Path(__file__).resolve()), "--bootstrap",
+                                  "--checkout", str(paths["checkout"]), "--output-dir", str(paths["output"])],
+                                 cwd=paths["rag"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        stdout, stderr = child.communicate()
+        payload["results"]["bootstrap"] = {"pid": child.pid, "returncode": child.returncode,
+                                              "stdout": stdout, "stderr": stderr}
+        _event(payload, "bootstrap_end", returncode=child.returncode, child_pid=child.pid)
+        _assert_running(stop)
+        assert child.returncode == 0, payload["results"]["bootstrap"]
+        sys.path.insert(0, str(paths["rag"]))
+        import uvicorn
+        import server as server_module
+        from api import routes_reindex
+        from core.indexing import check_index_integrity
+        _event(payload, "integrity_start")
+        payload["results"]["integrity"] = check_index_integrity(emit=lambda *_: None)
+        _event(payload, "integrity_end")
+        server = uvicorn.Server(uvicorn.Config(server_module.app, host=HOST, port=PORT, log_level="warning"))
+        _event(payload, "boot_start")
+        server_thread = threading.Thread(target=server.run, name="phase1d-http", daemon=False)
+        server_thread.start()
+        _wait_ready(server, stop)
+        _event(payload, "boot_ready")
+        for query in QUERIES:
+            _assert_running(stop)
+            _event(payload, "query_start", query=query)
+            status, body = _http("GET", "/api/retrieve?" + urlencode({"q": query, "k": 3}))
+            assert status == 200 and len(body.get("results") or []) > 0, body
+            payload["results"].setdefault("queries", []).append(body)
+            _event(payload, "query_end", query=query, result_count=len(body["results"]))
+        _event(payload, "noop_start")
+        status, queued = _http("POST", "/api/reindex")
+        assert status == 202 and queued.get("job_id"), queued
+        noop = _wait_job(queued["job_id"], stop)
+        payload["results"]["noop"] = noop
+        _require_completed(noop, noop=True)
+        _event(payload, "noop_ready", job_id=queued["job_id"])
+        target = paths["docs"] / "prenotazioni.md"
+        original_bytes = target.read_bytes()
+        original = original_bytes.decode("utf-8")
+        assert "VarianteA" in original and "VarianteB" not in original, "fixture delta non pronta"
+        before = hashlib.sha256(original_bytes).hexdigest()
+        changed = original.replace("VarianteA", "VarianteB")
+        changed_bytes = changed.encode("utf-8")
+        assert len(changed_bytes) == len(original_bytes), "delta deve preservare la lunghezza in byte"
+        target.write_bytes(changed_bytes)
+        written = target.read_bytes()
+        assert len(written) == len(original_bytes), "delta scritto con lunghezza byte errata"
+        after = hashlib.sha256(written).hexdigest()
+        assert after != before, "hash delta invariato"
+        _event(payload, "delta_start", path="prenotazioni.md", before_sha256=before, after_sha256=after)
+        status, queued = _http("POST", "/api/reindex")
+        assert status == 202 and queued.get("job_id"), queued
+        delta = _wait_job(queued["job_id"], stop)
+        payload["results"]["delta"] = delta
+        _require_completed(delta, delta=True)
+        _event(payload, "delta_ready", job_id=queued["job_id"])
+        payload["status"] = "completed"
+        exit_code = 0
+    except StopRequested as exc:
+        payload["status"] = "stopped"
+        payload["error"] = str(exc)
+        exit_code = 2
+    except Exception as exc:
+        payload["status"] = "failed"
+        payload["error"] = f"{type(exc).__name__}: {exc}"
+        exit_code = 1
+    finally:
+        if server is not None:
+            _event(payload, "shutdown_start")
+            try:
+                from api import routes_reindex
+                joined = routes_reindex.manager.join_all(timeout=5)
+                while not joined:
+                    _event(payload, "shutdown_waiting_jobs")
+                    joined = routes_reindex.manager.join_all(timeout=5)
+                payload["reindex_threads_joined"] = joined
+            except Exception as exc:
+                payload["shutdown_join_error"] = f"{type(exc).__name__}: {exc}"
+            server.should_exit = True
+            if server_thread is not None:
+                server_thread.join(timeout=5)
+                while server_thread.is_alive():
+                    _event(payload, "shutdown_waiting_server")
+                    server_thread.join(timeout=5)
+                payload["server_thread_alive"] = server_thread.is_alive()
+            _event(payload, "shutdown_end")
+        if original_bytes is not None:
+            target = paths["docs"] / "prenotazioni.md"
+            target.write_bytes(original_bytes)
+            payload["source_restored"] = target.read_bytes() == original_bytes
+            payload["index_final_state"] = "not_restored; inspect recorded job/version"
+        payload["fingerprint_final"] = _tree_fingerprint(paths["docs"], paths["code"])
+        if (not payload.get("source_restored", True)
+                or payload["fingerprint_final"] != payload.get("fingerprint_initial")):
+            payload["status"] = "failed"
+            payload["restore_error"] = "sorgenti finali diversi dal fingerprint iniziale"
+            exit_code = 1
+        _restore_stop_handlers(old_handlers)
+        for key, value in old_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+        _save(paths["result"], payload)
+    return exit_code
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--checkout", required=True)
+    parser.add_argument("--output-dir", required=True)
+    parser.add_argument("--bootstrap", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--self-check", action="store_true", help=argparse.SUPPRESS)
+    args = parser.parse_args()
+    paths = validate_paths(args.checkout, args.output_dir,
+                           allow_output_exists=args.bootstrap or args.self_check)
+    if args.self_check and not args.bootstrap:
+        metadata = paths["output"] / "phase1d-bootstrap-selfcheck.json"
+        if metadata.exists():
+            raise RuntimeError(f"metadata self-check gia presente: {metadata}")
+        child = subprocess.Popen([sys.executable, "-B", str(Path(__file__).resolve()), "--bootstrap", "--self-check",
+                                  "--checkout", str(paths["checkout"]), "--output-dir", str(paths["output"])],
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        stdout, stderr = child.communicate()
+        child_metadata = json.loads(metadata.read_text(encoding="utf-8")) if metadata.exists() else {}
+        assert child.returncode == 0 and child.pid > 0 and not stdout and not stderr, (child.returncode, stdout, stderr)
+        assert child_metadata.get("pid", 0) > 0 and child_metadata.get("self_check") is True, child_metadata
+        assert child_metadata["pid"] == child.pid or child_metadata.get("ppid") == child.pid, (child.pid, child_metadata)
+        print(json.dumps({"validated_checkout": str(paths["checkout"]), "popen_pid": child.pid,
+                          "bootstrap_pid": child_metadata["pid"], "bootstrap_ppid": child_metadata["ppid"]}))
+        return 0
+    return _bootstrap(paths, self_check=args.self_check) if args.bootstrap else run(paths)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

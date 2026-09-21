@@ -1,0 +1,14 @@
+# Review indipendente F5A — formato NPY, writer e lease
+
+**Verdetti dopo fix: conformità APPROVATO; qualità APPROVATO per l’unità A isolata.** Review statica di `colbert_store.py`, `writer_lock.py`, `test_colbert_store.py` e brief F5. Non ho modificato produzione né avviato benchmark o modelli. La suite mirata Windows di 25 test è dichiarata dal worker; PM verifica Linux separatamente. L'unità A non è ancora collegata ai percorsi produttivi.
+
+## Chiusura dei finding
+
+1. **Path di versione risolto**, `rag/core/colbert_store.py:67-85`: `open_version()` rifiuta symlink/junction di database, `versions`, versione e `colbert` prima e dopo la lease, verifica che il target risolto resti sotto database e rilascia il lease se il load fallisce. `try_version_lease()` rifiuta inoltre link nella directory/file lock. Il nuovo test copre la componente versione collegata. La directory database è trusted dal chiamante B; questa unità impedisce l'escape attraverso le componenti che gestisce.
+2. **Attestazione del padre resa precondizione**, `rag/core/colbert_store.py:181-190`: il writer richiede una mappa esplicita `verified_parent_hashes` uguale alla tabella del parent prima di creare il target; test di omissione/mismatch. Questo evita l'ereditarietà accidentale da una semplice apertura che valida solo header. La mappa da sola non prova che i byte siano stati riverificati: B deve fornirla da manifest già attestato o da `verify_full_hashes()`, dichiarando l'assunzione di immutabilità. Il delta ordinario non è costretto a rileggere O(N) byte.
+
+## Aspetti conformi e confine B
+
+L'indice contiene formato/dtype/dimensione, chunk→file/start/stop e metadati hash/byte/righe. I nomi sono opachi, la validazione rifiuta file fuori schema, header/dtype/shape e offset mancanti/sovrapposti; `get()` copia soltanto lo slice fp16 e chiude la memmap. Il check hash profondo è separato dalla normale apertura. Il writer accetta un documento per volta, salva file immutabili, esclude i rimossi, riusa via hard link o copia esplicitamente misurata; mantiene solo indice/metadati e il documento corrente, senza cache globale. La prova cross-process mostra due shared lease e exclusive negato fino alla chiusura dell'ultimo; la prova di morte processo mostra il rilascio OS. `weakref.finalize` rilascia il lease se il Mapping viene raccolto; il test esplicito `close()` copre il percorso deterministico.
+
+**Integrazione B:** acquisire lease prima del load, mantenere il Mapping nello snapshot e non chiamare `close()` al rebind se richieste vecchie lo possiedono. Prune deve prendere exclusive non bloccante sotto writer lock e registrare `pinned`/errore/rimozione reale; le prove A coprono la primitiva, non ancora questo lifecycle. Il writer B deve attestare il manifest/hash del padre prima del riuso e fare check profondo esplicito della candidata quando richiesto. Restano F5-04 encoding segmentato, migrazione/rollback e suite full/delta Windows/Linux.

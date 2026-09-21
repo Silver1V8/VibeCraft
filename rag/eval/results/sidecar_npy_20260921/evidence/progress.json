@@ -1,0 +1,25 @@
+{
+  "status": "VERIFIED_COMPLETE",
+  "active_session": null,
+  "pre_exit": 0,
+  "pre_build_seconds": 859.1601547999999,
+  "pre_counts": {
+    "docs_added": 32,
+    "docs_modified": 0,
+    "docs_removed": 0,
+    "code_added": 0,
+    "code_modified": 0,
+    "code_removed": 0,
+    "chunks_processed": 64,
+    "chunks_indexed": 64,
+    "colbert_tokens_processed": 28659,
+    "colbert_tokens_indexed": 28659,
+    "code_tokens_processed": null,
+    "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+  },
+  "quota_remaining_percent": 38,
+  "ordinary_usage_allowed": true,
+  "post_code_commit": "708a142",
+  "phase6_prepared_families": 11,
+  "completed_samples": 150
+}

@@ -1,0 +1,15 @@
+# Fase 1b — breakdown core, senza ottimizzare
+
+Parte di SCALABILITA_SIDECAR_DELTA.md F1-01/F1-04. Proprietà: rag/core/indexing.py, rag/api/routes_reindex.py, rag/tests/test_incremental_indexing.py. Puoi aggiungere un test mirato separato rag/tests/test_index_timings.py se necessario per evitare sovrapposizione a test_reindex.py (altro worker). Report: rag/adr/sidecar-work/phase1b-report.md. NON toccare api/reindex.py, api/deps.py, scripts/bench.py o test_reindex/test_bench/test_retrieve_reload.
+
+Obiettivo: misure monotone reali del core incremental e full e modello inizializzato nella route. Usare time.perf_counter; nessun framework di profiling. Contratto proposto: result['phase_timings_seconds'] con init_model, scan_hash, load, parsing_embedding, qdrant, relink, save_hash, promote (nomi unità secondi espliciti). Il full mantiene return versione stringa, collector opzionale consente alla route di aggiungere stesso breakdown al dict del job; eval_gate misurato separatamente. Conservare tutti i contratti preesistenti, caller con fake, lock, promozione e scoring.
+
+Tracciare il flusso completo e i caller prima di cambiare firme. I tempi devono coprire i percorsi realmente eseguiti, non doppio conteggio annidato; dichiarare chiaramente se una metrica contiene lavoro accessorio. Un'operazione saltata può avere 0 nella nuova run; un valore ignoto/non strumentato non deve essere inventato. Fallimenti devono mantenere eccezioni esistenti; non chiamare completed una run parziale.
+
+F1 richiede anche conteggi effettivi: per delta doc/code aggiunti/modificati/rimossi, chunk e token ColBERT elaborati/indice (shape output reale, non stima char); per full conteggi equivalenti nel collector. Non aggiungere tokenizzazione extra costosa solo per metriche; se token codice non osservabili dichiarare null/motivo. Questi conteggi alimenteranno curva vera F2. Byte I/O e memoria saranno campionati fuori processo in unità successiva; non implementare sampler ora.
+
+NESSUNA ottimizzazione F3: route deve ancora creare il modello anche su no-op per misurare baseline; non streaming hash, no skip reload, no formato NPY, no changed_paths mirato, no batching nuovo. Solo osservabilità. Test di regressione nuovi prima del codice e suite focused di incremental_indexing più test timing. Test controllati verificano contratti, non capacità. Non avviare modello reale/benchmark GPU/RAM né rete. Nessun commit/push/merge e nessun subagente.
+
+Runtime read-only C:/Users/Silve/Desktop/vibecraft/rag/.venv/Scripts/python.exe -B -m pytest dalla directory rag di QUESTO worktree; PYTHONDONTWRITEBYTECODE=1 e --basetemp nel worktree. Quota get_usage_limits inizio/fine e circa 5min, bucket codex non Spark; stop <=15% remaining, ordinaryUsageAllowed false/spendControlReached/lettura non osservabile. Scrivere report e avvisare PM al primo punto sicuro. Non acquisti/reset/retry-loop. Ricevuto stop PM, checkpoint e pausa.
+
+Report con comando/esito test prima/dopo, descrizione semantica metriche, copertura reale e parti non osservabili, eventuali limiti e prossimo passo. Non dichiarare tutta F1 chiusa.

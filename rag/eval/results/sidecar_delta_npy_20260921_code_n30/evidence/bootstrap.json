@@ -1,0 +1,51 @@
+{
+  "pid": 18720,
+  "result": {
+    "planned": {
+      "unchanged": [],
+      "new": [],
+      "modified": [],
+      "deleted": []
+    },
+    "reindexed_docs": 0,
+    "deleted_docs": 0,
+    "upserted_chunks": 0,
+    "code_added": 30,
+    "code_removed": 0,
+    "code_modified": 0,
+    "implements_edges": 0,
+    "pruned_entities": 0,
+    "counts": {
+      "docs_added": 0,
+      "docs_modified": 0,
+      "docs_removed": 0,
+      "code_added": 30,
+      "code_modified": 0,
+      "code_removed": 0,
+      "chunks_processed": 0,
+      "chunks_indexed": 0,
+      "colbert_tokens_processed": 0,
+      "colbert_tokens_indexed": 0,
+      "code_tokens_processed": null,
+      "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+    },
+    "version": "v20260921T133721",
+    "colbert_io_bytes": {
+      "written_bytes": 0,
+      "hardlinked_bytes": 0,
+      "copied_bytes": 0,
+      "inherited_hashes_not_reverified": 0
+    },
+    "phase_timings_seconds": {
+      "init_model": 2.2401089999984833,
+      "scan_hash": 0.007328900002903538,
+      "load": 0.0002507999997760635,
+      "parsing_embedding": 5.43459090000033,
+      "qdrant": 0.2931490999981179,
+      "relink": 0.000396399998862762,
+      "save_hash": 0.06754730000102427,
+      "eval_gate": 0.0,
+      "promote": 0.023039499999867985
+    }
+  }
+}

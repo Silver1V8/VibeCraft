@@ -1,0 +1,16 @@
+# Audit finale statico del codice F1–F5 prima delle evidenze F6
+
+**Verdetto sul codice: APPROVATO, senza nuovi blocker concreti nel perimetro esaminato. Evidenza F6: PENDING.** Ho confrontato il delta `4f35acf7..708a142` in `rag/core`, `rag/api`, `rag/scripts` e relativi test con la [matrice ADR](../SCALABILITA_SIDECAR_DELTA_MATRICE.md) e le review F1–F5. Nessun modello, benchmark, container o suite è stato lanciato per questo audit. Il controllo non sostituisce le misure F6 ancora in corso.
+
+| Contratto | Esito statico e prove già disponibili |
+| --- | --- |
+| F1/F2, G-01/G-02 | Journal, readiness e misure distinguono esito job da reload; driver delta valida isolamento, baseline, conteggi, restore e campioni. Le review F1/F2 e le run 150+150 F2/F3 documentano questi percorsi. |
+| F3 e C-04/C-06/C-09 | No-op non avvia il modello né reload superfluo; hash writer streaming e lifecycle del riferimento boot restano coperti da test e review F3. Nessuna modifica successiva nel delta esaminato indica un bypass nuovo. |
+| F5-01/03, G-03/G-04 | Il reader NPY conserva l'API `Mapping`, valida indice e riferimenti file; `load_artifacts` mantiene lease e retry bounded quando CURRENT cambia; promozione NPY richiede manifest, hash e caricabilità dei metadata prima del commit. Il gate full API è fail-closed e chiude il reader candidato. Suite Windows/Linux e review F5B hanno coperto i regressivi; migrazione reale ha verificato 257 array/112.429 token e rollback. |
+| F5-02/04, R-05/R-07 | Full usa writer per documento e invia punti Qdrant per documento; delta passa changed/removed+parent, riusa file immutabili solo con hash attestati e registra byte scritti/linkati/copiati. La misura full pre/post 32/64/28.659 mostra minori tempo e picchi, ma formato e batching cambiano insieme: il beneficio I/O del delta richiede F6. |
+| F5-05, R-06/R-10 | Lease cross-process proteggono reader/versioni; prune registra rimozione solo riuscita e il restore bench prende exclusive lease prima di mutare. Le review F5B e F6 preflight coprono test Windows/Linux e percorso locale; retention cumulativa reale rimane da misurare in F6. |
+| F5-06/07 | Migrazione locale NPZ→NPY ha esito 0, sorgenti intatte, parità esatta degli array e ritorno a CURRENT iniziale. Il paired retrieval reale sulle due candidate full ha ID/ordine dei candidati e top-3 finale identici su tre query; i valori raw float differiscono e questa limitazione è dichiarata nella [review delle misure](phase5-measurement-review.md). |
+
+Non rilevo un requisito G/R/C scomparso nel codice o un percorso di errore nuovo privo di guard che giustifichi un fix prima delle run F6. Restano **condizionali alle evidenze F6**: curve `T(N,k)` dopo F5, byte I/O attribuibili al delta, disco fisico con hard link deduplicati, query concorrenti e retention reale. I rami Qdrant MaxSim/sharding sono decisioni successive al profilo misurato, non un difetto del codice corrente. Questa review non dichiara budget universali né equivalenza per query non provate.
+
+Riferimenti: [review F5B](phase5b-review.md), [review misura F5](phase5-measurement-review.md), [audit matrice F1–F4](phase1-4-matrix-audit.md), [review retention preflight](phase6-retention-driver-review.md).

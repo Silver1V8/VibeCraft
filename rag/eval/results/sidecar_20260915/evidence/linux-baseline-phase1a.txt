@@ -1,0 +1,37 @@
+.................FF..................................................... [ 90%]
+........                                                                 [100%]
+=================================== FAILURES ===================================
+________________ test_archive_feature_reindex_false_skips_build ________________
+
+tmp_path = PosixPath('/tmp/sidecar-pytest/test_archive_feature_reindex_f0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77da47680410>
+
+    def test_archive_feature_reindex_false_skips_build(tmp_path, monkeypatch):
+        """Con reindex=False (modalità server) archive_feature archivia ma NON chiama
+        build_graph_and_index: la ricostruzione spetta alla coda del ReindexManager."""
+        changes, built = _make_archive_env(tmp_path, monkeypatch)
+        log = indexing.archive_feature("feat-demo", emit=lambda m: None, reindex=False)
+>       assert (changes / "archive" / "feat-demo").exists()
+E       AssertionError: assert False
+E        +  where False = exists()
+E        +    where exists = ((PosixPath('/tmp/sidecar-pytest/test_archive_feature_reindex_f0/changes') / 'archive') / 'feat-demo').exists
+
+tests/test_reindex.py:354: AssertionError
+______________ test_archive_feature_default_still_rebuilds_inline ______________
+
+tmp_path = PosixPath('/tmp/sidecar-pytest/test_archive_feature_default_s0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77da47753530>
+
+    def test_archive_feature_default_still_rebuilds_inline(tmp_path, monkeypatch):
+        """Il default (CLI, fuori dal server) resta la ricostruzione inline."""
+        changes, built = _make_archive_env(tmp_path, monkeypatch)
+        indexing.archive_feature("feat-demo", emit=lambda m: None)
+>       assert (changes / "archive" / "feat-demo").exists()
+E       AssertionError: assert False
+E        +  where False = exists()
+E        +    where exists = ((PosixPath('/tmp/sidecar-pytest/test_archive_feature_default_s0/changes') / 'archive') / 'feat-demo').exists
+
+tests/test_reindex.py:363: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_reindex.py::test_archive_feature_reindex_false_skips_build
+FAILED tests/test_reindex.py::test_archive_feature_default_still_rebuilds_inline

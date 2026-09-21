@@ -1,0 +1,782 @@
+
+diff --git "a/rag\\eval\\results\\sidecar_20260915\\sandbox\\review1bc-before\\rag\\core\\indexing.py" b/rag/core/indexing.py
+index ef2747c..b560af5 100644
+--- "a/rag\\eval\\results\\sidecar_20260915\\sandbox\\review1bc-before\\rag\\core\\indexing.py"
++++ b/rag/core/indexing.py
+@@ -74,41 +74,41 @@ from core.pipeline import InvalidFeatureNameError, resolve_feature_dir
+ from core.chunking import split_frontmatter
+ from core.config import (
+     AUTHORITY_PRECEDENCE_RELATION,
+     CHANGES_DIR,
+     CODE_DIR,
+     CODE_EXCLUDED_DIRS,
+     COLLECTION_NAME,
+     DENSE_DIM,
+     DOC_EXTS,
+     DOCS_DIR,
+     EMBEDDING_MODEL,
+     PROJECT_ROOT,
+     QDRANT_API_KEY,
+     QDRANT_URL,
+     qdrant_upsert_batch_from_env,
+ )
+ 
+ logger = logging.getLogger(__name__)
+ 
+ _INDEX_PHASES = ("init_model", "scan_hash", "load", "parsing_embedding",
+-                 "qdrant", "relink", "save_hash", "promote")
++                 "qdrant", "relink", "save_hash", "eval_gate", "promote")
+ 
+ 
+ def _new_phase_timings() -> dict[str, float]:
+     return {phase: 0.0 for phase in _INDEX_PHASES}
+ 
+ 
+ def _colbert_token_count(store: dict) -> int:
+     return sum(getattr(value, "shape", (len(value),))[0] for value in store.values())
+ 
+ # Namespace fisso per derivare l'ID del punto Qdrant dal chunk_id in modo DETERMINISTICO
+ # (uuid5): lo stesso chunk_id produce sempre lo stesso id, base dell'incrementale idempotente.
+ _POINT_ID_NAMESPACE = uuid.UUID("6f9619ff-8b86-d011-b42d-00c04fc964ff")
+ 
+ 
+ def _point_id(chunk_id: str) -> str:
+     """ID Qdrant deterministico e stabile per un chunk (uuid5 del chunk_id)."""
+     return str(uuid.uuid5(_POINT_ID_NAMESPACE, chunk_id))
+ 
+ 
+ def _add_doc_to_graph(G: nx.DiGraph, rel_path: str, metadata: dict, body: str) -> tuple[int, int]:
+@@ -757,105 +757,118 @@ def gc_orphaned_qdrant_collections(qdrant: QdrantClient, *, base: str = COLLECTI
+ class FullState:
+     """Stato completo prodotto da un'indicizzazione da zero (in memoria, senza I/O):
+     grafo + punti Qdrant + tutti i sidecar. È l'output condiviso dal full rebuild (che lo
+     persiste) e dal check di coerenza (che confronta il solo grafo con quello persistito)."""
+     graph: nx.DiGraph
+     points: list = field(default_factory=list)
+     colbert_store: dict = field(default_factory=dict)
+     chunks_store: dict = field(default_factory=dict)
+     dense_store: dict = field(default_factory=dict)
+     code_store: dict = field(default_factory=dict)
+     n_docs: int = 0
+ 
+ 
+ def _build_full_state(embed_model, docs_dir: Path, code_dir: Path, emit=None,
+                       phase_timings: dict[str, float] | None = None) -> FullState:
+     """Costruisce da zero l'intero stato dell'indice (grafo + chunk + sidecar) a partire
+     dai file, SENZA alcun I/O su disco o Qdrant. Funzione pura (a parità di modello e input
+     produce lo stesso grafo): è l'unica fonte di verità della topologia 'da rebuild', usata
+     sia dal full rebuild reale sia dal check di coerenza (index.py --check-graph)."""
+     _log = emit or logger.info
++    parsing_started = time.perf_counter()
+     G = nx.DiGraph()
+     all_chunks: list[dict] = []
+     n_docs = 0
+ 
+     all_docs = sorted(p for p in docs_dir.rglob("*") if p.is_file() and p.suffix.lower() in DOC_EXTS)
+     for filepath_obj in all_docs:
+         rel_path = filepath_obj.relative_to(docs_dir).as_posix()
+         metadata, body = read_document(filepath_obj)
+         if not body.strip():
+             _log(f"  (saltato, corpo vuoto o loader assente: {rel_path})")
+             continue
+         n_entities, typed_edges = _add_doc_to_graph(G, rel_path, metadata, body)
+         doc_chunks = chunk_markdown(rel_path, metadata, body)
+         _add_section_nodes(G, rel_path, doc_chunks, metadata)
+         for c in doc_chunks:
+             c["metadata"] = metadata
+         all_chunks.extend(doc_chunks)
+         n_docs += 1
+         _log(f"  Analizzato: {rel_path} — {n_entities} entità, {len(doc_chunks)} chunk, {typed_edges} relazioni tipizzate")
+ 
+     points: list = []
+     colbert_store: dict = {}
+     chunks_store: dict = {}
+     dense_store: dict = {}
+     if all_chunks:
+         _log(f"\nVettorializzazione di {len(all_chunks)} chunk (da {n_docs} documenti) con {EMBEDDING_MODEL} (dense + sparse + colbert)...")
+         points, colbert_store, chunks_store, dense_vecs = _encode_chunks_to_points(embed_model, all_chunks)
+         dense_store = _dense_map(all_chunks, dense_vecs)
+ 
+     # Fase Codice: nodi dei simboli + archi IMPLEMENTS (chunk-doc più simile) e REFERENCES.
+     # Indipendente dalla presenza di documenti: i simboli di codice esistono comunque come
+     # nodi (senza IMPLEMENTS finché non c'è uno spazio-documenti a cui agganciarsi), così
+     # full rebuild e incrementale restano allineati anche quando docs/ è temporaneamente vuoto.
+-    relink_started = time.perf_counter()
++    if phase_timings is not None:
++        phase_timings["parsing_embedding"] += time.perf_counter() - parsing_started
++    code_parsing_started = time.perf_counter()
+     code_store: dict = {}
+     try:
+         code_symbols = collect_code_symbols(code_dir)
+         if code_symbols:
+             add_symbol_nodes(G, code_symbols)
+             sym_dense = embed_symbols(embed_model, code_symbols)
+             # Linka usando gli STESSI vettori fp16 che finiscono nei sidecar: così il
+             # ricalcolo incrementale (che legge fp16) riproduce esattamente questi archi,
+             # e il check di coerenza non segnala falsi positivi da differenza di precisione.
+             sym_dense16 = sym_dense.astype("float16") if sym_dense.size else sym_dense
+             doc_chunk_ids = [c["chunk_id"] for c in all_chunks if c["chunk_id"] in dense_store]
+             doc_dense16 = [dense_store[cid] for cid in doc_chunk_ids]
+             doc_parent16 = [chunks_store[cid]["doc_id"] for cid in doc_chunk_ids]
+             scores: dict = {}
++            if phase_timings is not None:
++                phase_timings["parsing_embedding"] += time.perf_counter() - code_parsing_started
++            relink_started = time.perf_counter()
+             n_impl = link_symbols(G, code_symbols, sym_dense16, doc_dense16, doc_parent16,
+                                   chunk_ids=doc_chunk_ids, scores_out=scores)
++            if phase_timings is not None:
++                phase_timings["relink"] += time.perf_counter() - relink_started
++            code_parsing_started = time.perf_counter()
+             code_store = {
+                 s["id"]: {"name": s["name"], "kind": s["kind"], "file": s["file"],
+                           "dev_type": s["dev_type"], "text": s["text"],
+                           "dense": sym_dense16[i],
+                           **scores.get(s["id"], {})}
+                 for i, s in enumerate(code_symbols)
+             }
+             _log(f"🧩 Codice indicizzato: {len(code_symbols)} simboli, {n_impl} archi IMPLEMENTS verso i documenti.")
+         else:
+             _log("🧩 Nessun simbolo di codice trovato sotto code/ (verrà indicizzato quando Claude scriverà il codice).")
+     except Exception as e:
+         _log(f"⚠️ Indicizzazione del codice saltata: {e}")
+ 
++    if phase_timings is not None:
++        phase_timings["parsing_embedding"] += time.perf_counter() - code_parsing_started
++
+     # Connette i documenti tra loro dalle relazioni di autorità del frontmatter (doc->doc),
+     # risolvendo gli alias di versione. Ultimo passo: tutti i nodi-documento sono presenti.
++    relink_started = time.perf_counter()
+     _resolve_authority_aliases(G)
+     if phase_timings is not None:
+         phase_timings["relink"] += time.perf_counter() - relink_started
+ 
+     return FullState(G, points, colbert_store, chunks_store, dense_store, code_store, n_docs)
+ 
+ 
+ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, emit=None,
+                           promote: bool = True, collector: dict | None = None) -> str | None:
+     """Esegue l'indicizzazione completa (Fase 0 e Fase 4) e restituisce il nome della
+     versione blue/green scritta.
+ 
+     Il modello di embedding può essere iniettato dall'esterno: quando il server
+     FastAPI innesca la re-indicizzazione riusa quello già caricato, evitando un
+     ricaricamento che richiede minuti di CPU. Il client Qdrant (server mode) è
+     invece economico da aprire, ma viene comunque riusato quando disponibile.
+ 
+     `emit` è un callback di log (default: logger.info) usato per lo streaming SSE del
+     progresso verso l'interfaccia; se None si stampa su stdout come sempre.
+ 
+@@ -890,92 +903,90 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None,
+     timings = _new_phase_timings()
+     own_qdrant = qdrant is None
+     if embed_model is None:
+         started = time.perf_counter()
+         _log(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")
+         embed_model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
+         timings["init_model"] = time.perf_counter() - started
+     started = time.perf_counter()
+     if qdrant is None:
+         qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+ 
+     version = _new_version_name()
+     collection_name = qdrant_collection_name(version)
+ 
+     # Mai recreate: la candidata è un nome nuovo per costruzione, niente da droppare,
+     # e la produzione (nome diverso, COLLECTION_NAME) non va mai toccata da questa
+     # chiamata — solo alla promozione, tramite l'alias swap più sotto.
+     _ensure_collection(qdrant, recreate=False, collection_name=collection_name)
+     timings["qdrant"] += time.perf_counter() - started
+ 
+-    started = time.perf_counter()
+     state = _build_full_state(embed_model, DOCS_DIR, CODE_DIR, emit=_log,
+                               phase_timings=timings)
+-    timings["parsing_embedding"] = max(
+-        0.0, time.perf_counter() - started - timings["relink"],
+-    )
+     G = state.graph
+     started = time.perf_counter()
+     if state.points:
+         # A fette (default 256, VIBECRAFT_QDRANT_UPSERT_BATCH): un unico upsert monolitico
+         # su migliaia di punti rischia il timeout gRPC/HTTP lato client. Un fallimento a
+         # metà lascia la candidata (versione + collection) esattamente orfana come oggi:
+         # niente retry né rollback parziale, l'eccezione propaga e il job fallisce senza
+         # toccare CURRENT (vedi docstring sopra sull'ordine di promozione).
+         batch_size = qdrant_upsert_batch_from_env()
+         for i in range(0, len(state.points), batch_size):
+             qdrant.upsert(collection_name=collection_name, points=state.points[i:i + batch_size])
+     timings["qdrant"] += time.perf_counter() - started
+ 
+     # Salva grafo + vettori + sidecar nei formati correnti (JSON/.npz) nella versione
+     # decisa sopra, tramite l'unico punto di I/O (core.artifacts). Scrittura atomica:
+     # un crash a metà non lascia artefatti troncati né una versione attiva rotta.
+     started = time.perf_counter()
+     doc_hashes = _docs_hashes()
+     code_hashes = _code_hashes()
+     timings["scan_hash"] = time.perf_counter() - started
+     started = time.perf_counter()
+     version = save_artifacts(G, state.colbert_store, state.chunks_store, state.dense_store,
+                              state.code_store, version=version)
+ 
+     _log(f"\n✅ Artefatti indice salvati nella versione {version} (grafo JSON, vettori .npz, sidecar).")
+     _log(f"📊 Grafo: {G.number_of_nodes()} nodi, {G.number_of_edges()} archi.")
+     _log(f"📦 Qdrant: {len(state.points)} chunk (da {state.n_docs} documenti) nella collection '{collection_name}'.")
+ 
+     write_index_manifest(len(state.points), G.number_of_nodes(), G.number_of_edges(),
+                         version=version, qdrant_collection=collection_name,
+                         doc_hashes=doc_hashes, code_hashes=code_hashes)
+     timings["save_hash"] = time.perf_counter() - started
+     _log(f"🧾 Manifest indicizzazione salvato in: {manifest_path(version)}")
+ 
+     if promote and version:
+-        started = time.perf_counter()
+         # Eval-gate: valuta la recall della versione candidata sul golden set PRIMA di spostare
+         # CURRENT. Lo stato candidato è in memoria e Qdrant è già popolato: la valutazione
+         # riflette il retrieval che verrebbe servito. Se regredisce, la promozione è bloccata.
+         # collection_name è la STESSA collection appena costruita sopra: il gate misura
+         # sempre ciò che questa build ha davvero scritto, mai una collection diversa.
+         # graph/restatements: il gate deve leggere lo STESSO ordinamento che il server servirà
+         # (precedenza S4, peso di sezione N4), non quello nudo — R26.
++        started = time.perf_counter()
+         gate = gate_promotion(version, qdrant, embed_model, state.colbert_store, emit=_log,
+                               collection_name=collection_name, graph=G,
+                               restatements=restatement_sections(state.chunks_store))
++        timings["eval_gate"] = time.perf_counter() - started
++        started = time.perf_counter()
+         if not gate.get("passed"):
+             _log(f"⛔ Promozione RIFIUTATA dall'eval-gate: CURRENT resta invariato. "
+                  f"Versione {version} salvata ma NON attiva. Investigare il calo di qualità.")
+         else:
+             # Ordine NON NEGOZIABILE: CURRENT prima (il commit point locale), poi
+             # l'eventuale migrazione one-shot legacy→alias e infine l'alias swap.
+             # `collection_name` è la STESSA variabile locale usata per costruire
+             # questa versione — non una ricostruzione indipendente del nome, quindi
+             # mai ambigua.
+             promote_version(version)
+             _migrate_legacy_collection_if_needed(qdrant, COLLECTION_NAME, emit=_log)
+             _swap_alias(qdrant, COLLECTION_NAME, collection_name)
+             _log(f"🔀 Alias Qdrant '{COLLECTION_NAME}' → {collection_name} (blue/green).")
+             # promote_version() sopra ha già applicato la retention locale
+             # (prune_versions), quindi _referenced_qdrant_collections() qui dentro
+             # riflette già le versioni sopravvissute — solo DOPO lo swap, nel
+             # single-writer di questo job, mai concorrente.
+             gc_orphaned_qdrant_collections(qdrant, emit=_log)
+             _log(f"🔁 Versione promossa: CURRENT → {version} (swap atomico, rollback: index.py --rollback).")
+         timings["promote"] = time.perf_counter() - started
+@@ -1860,76 +1871,78 @@ def apply_incremental_indexing(
+ 
+         if new_chunks:
+             _log(f"\nVettorializzazione incrementale di {len(new_chunks)} chunk (da {len(to_index)} documenti)...")
+             points, colbert_partial, chunks_partial, _dense = _encode_chunks_to_points(embed_model, new_chunks)
+             processed_colbert_tokens = _colbert_token_count(colbert_partial)
+             started = time.perf_counter()
+             qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
+             qdrant_seconds += time.perf_counter() - started
+             colbert_store.update(colbert_partial)
+             chunks_store.update(chunks_partial)
+             if dense_store is not None:
+                 dense_store.update(_dense_map(new_chunks, _dense))
+             new_chunk_ids = [c["chunk_id"] for c in new_chunks]
+             upserted = len(points)
+         _log(f"➕ (Ri)indicizzati {len(to_index)} documenti → {upserted} chunk upsertati.")
+ 
+     # 3-4. Delta del codice + ricalcolo mirato dei code-link (solo se i sidecar sono forniti).
+     code_added, code_removed, code_modified = code_delta or ([], [], [])
+     implements = 0
+     orphans = 0
+-    relink_started = time.perf_counter()
+     if code_store is not None and dense_store is not None:
+         touched: set[str] = set()
+         if code_dir is not None and (code_added or code_removed or code_modified):
+             touched |= _apply_code_delta(
+                 graph, code_dir, code_store, embed_model,
+                 code_added, code_removed, code_modified, _log,
+             )
++        relink_started = time.perf_counter()
+         # Selezione MIRATA dei simboli il cui argmax IMPLEMENTS può essere cambiato per via
+         # del delta documenti — invece di rilincare tutto quando i documenti cambiano.
+         # L'argmax è una proprietà globale, ma può spostarsi solo in due casi:
+         #   (a) il chunk vincente del simbolo apparteneva a un doc rimosso/modificato → il
+         #       vincitore è sparito, va ricalcolato;
+         #   (b) un chunk NUOVO/ri-embeddato raggiunge una similarità >= al best_score del
+         #       simbolo → il nuovo chunk può diventare il vincitore.
+         # Gli altri simboli hanno vincitore intatto e nessun nuovo concorrente più forte:
+         # per costruzione l'argmax non si muove, quindi NON si toccano.
+         touched |= _symbols_with_stale_argmax(code_store, set(to_delete))
+         touched |= _symbols_beaten_by_new_chunks(code_store, dense_store, new_chunk_ids)
+         # Prima si potano le entità che nessun documento cita più (rimuove anche i REFERENCES
+         # stale del codice verso di esse), POI si ricalcolano i link: così REFERENCES viene
+         # ricostruito sull'insieme di entità valido, identico a quello del full rebuild.
+         orphans = _prune_unsupported_entities(graph)
+         # REFERENCES codice->entità: se l'insieme delle entità citabili è cambiato, i soli
+         # simboli i cui token intersecano le entità aggiunte/rimosse possono avere archi
+         # diversi (le entità potate hanno già perso gli archi con la rimozione del nodo).
+         changed_entities = entities_before ^ _entity_nodes(graph)
+         touched |= _symbols_referencing_entities(code_store, changed_entities)
+         implements = _relink_touched_symbols(graph, code_store, chunks_store, dense_store, touched)
+         if touched or orphans:
+             _log(f"🔗 Code-link ricalcolati per {len(touched)} simboli toccati → {implements} IMPLEMENTS; "
+                  f"{orphans} entità orfane potate.")
+ 
+     # Riconnette i doc->doc dalle relazioni di autorità: non distruttivo e idempotente, così
+     # il grafo incrementale resta deterministicamente equivalente al full rebuild (che lo fa
+     # in _build_full_state). Va eseguito su TUTTO il grafo dopo aver applicato il delta.
++    else:
++        relink_started = time.perf_counter()
+     _resolve_authority_aliases(graph)
+     relink_seconds = time.perf_counter() - relink_started
+     if phase_timings is not None:
+         phase_timings["qdrant"] += qdrant_seconds
+         phase_timings["relink"] += relink_seconds
+         phase_timings["parsing_embedding"] += max(
+             0.0, time.perf_counter() - apply_started - qdrant_seconds - relink_seconds,
+         )
+ 
+     return {
+         "planned": plan.as_dict(),
+         "reindexed_docs": len(to_index),
+         "deleted_docs": len(plan.deleted),
+         "upserted_chunks": upserted,
+         "code_added": len(code_added),
+         "code_removed": len(code_removed),
+         "code_modified": len(code_modified),
+         "implements_edges": implements,
+         "pruned_entities": orphans,
+         "counts": {
+diff --git "a/rag\\eval\\results\\sidecar_20260915\\sandbox\\review1bc-before\\rag\\api\\routes_reindex.py" b/rag/api/routes_reindex.py
+index d0ea146..8553723 100644
+--- "a/rag\\eval\\results\\sidecar_20260915\\sandbox\\review1bc-before\\rag\\api\\routes_reindex.py"
++++ b/rag/api/routes_reindex.py
+@@ -129,41 +129,41 @@ def _run_full_rebuild(changed_paths) -> dict:
+     candidata resta orfana su Qdrant, rimossa dal GC del prossimo job/boot riuscito.
+ 
+     A gate passato, la promozione sposta PRIMA CURRENT (il commit point locale) e
+     SOLO DOPO l'alias `COLLECTION_NAME` sulla collection candidata — la stessa
+     dichiarata nel manifest della versione appena promossa
+     (`_qdrant_collection_for_version`: unico source of truth, mai una ricostruzione
+     indipendente del nome). In mezzo, SOLO se necessario, la migrazione one-shot
+     legacy→alias (`_migrate_legacy_collection_if_needed`): se `COLLECTION_NAME` esiste
+     ancora come collection FISICA (installazione non ancora migrata), viene
+     cancellata per liberare il nome subito prima dello swap che la ricrea come alias
+     — l'UNICA operazione irreversibile di questo meccanismo, con una finestra di
+     indisponibilità breve ma reale fra le due chiamate. Se il layout è già migrato o
+     l'installazione è fresca, la migrazione è un no-op. Subito dopo lo swap, il GC
+     rimuove le collection versionate orfane."""
+     started = time.perf_counter()
+     embed_model = _reindex_embed_model()
+     init_model = time.perf_counter() - started
+     collector = {
+         "phase_timings_seconds": {phase: 0.0 for phase in
+                                   ("init_model", "scan_hash", "load", "parsing_embedding",
+-                                   "qdrant", "relink", "save_hash", "promote")},
++                                   "qdrant", "relink", "save_hash", "eval_gate", "promote")},
+         "counts": {},
+     }
+     version = build_graph_and_index(qdrant=state.get("qdrant"),
+                                     embed_model=embed_model, promote=False,
+                                     collector=collector)
+     timings = collector["phase_timings_seconds"]
+     timings["init_model"] += init_model
+     result = {"full_rebuild": True, "version": version,
+               "phase_timings_seconds": timings, "counts": collector["counts"]}
+     if version:  # None solo con build finta nei test
+         started = time.perf_counter()
+         gate = _eval_gate(version, embed_model)
+         timings["eval_gate"] = time.perf_counter() - started
+         result["eval"] = {kk: gate[kk] for kk in
+                           ("recall", "k", "min_recall", "n", "skipped", "advisory") if kk in gate}
+         if not gate.get("passed"):
+             result["promoted"] = False
+             result["job_status"] = "completed_not_promoted"
+             logger.warning("Full rebuild %s NON promosso: eval-gate sotto soglia (%s).",
+                            version, result["eval"])
+diff --git "a/rag\\eval\\results\\sidecar_20260915\\sandbox\\review1bc-before\\rag\\tests\\test_index_timings.py" b/rag/tests/test_index_timings.py
+index 1f8209f..272e7db 100644
+--- "a/rag\\eval\\results\\sidecar_20260915\\sandbox\\review1bc-before\\rag\\tests\\test_index_timings.py"
++++ b/rag/tests/test_index_timings.py
+@@ -1,31 +1,101 @@
++import networkx as nx
++import numpy as np
++
+ from api import routes_reindex
+ from core import indexing as index
+ from test_incremental_indexing import StatefulFakeQdrant, StubEmbed, _spec, _wire_tmp_index
+ 
+ 
+ PHASES = {
+     "init_model", "scan_hash", "load", "parsing_embedding",
+-    "qdrant", "relink", "save_hash", "promote",
++    "qdrant", "relink", "save_hash", "eval_gate", "promote",
+ }
+ 
+ 
++def _advancing(clock, seconds, result=None):
++    def operation(*_args, **_kwargs):
++        clock[0] += seconds
++        return result
++    return operation
++
++
++def test_full_attributes_code_extraction_embedding_to_parsing_not_relink(monkeypatch, tmp_path):
++    clock = [0.0]
++    monkeypatch.setattr(index.time, "perf_counter", lambda: clock[0])
++    symbol = {"id": "x.py::f", "name": "f", "kind": "function", "file": "x.py",
++              "dev_type": "backend", "text": "def f(): pass"}
++    monkeypatch.setattr(index, "collect_code_symbols", _advancing(clock, 3, [symbol]))
++    monkeypatch.setattr(index, "embed_symbols", _advancing(clock, 5, np.ones((1, 2))))
++    monkeypatch.setattr(index, "link_symbols", _advancing(clock, 7, 1))
++    monkeypatch.setattr(index, "_resolve_authority_aliases", _advancing(clock, 11, 0))
++    timings = index._new_phase_timings()
++
++    index._build_full_state(StubEmbed(), tmp_path, tmp_path, phase_timings=timings)
++
++    assert timings["parsing_embedding"] == 8
++    assert timings["relink"] == 18
++
++
++def test_incremental_attributes_code_extraction_embedding_to_parsing_not_relink(monkeypatch, tmp_path):
++    clock = [0.0]
++    monkeypatch.setattr(index.time, "perf_counter", lambda: clock[0])
++    monkeypatch.setattr(index, "_apply_code_delta", _advancing(clock, 8, {"x.py::f"}))
++    monkeypatch.setattr(index, "_symbols_with_stale_argmax", lambda *_: set())
++    monkeypatch.setattr(index, "_symbols_beaten_by_new_chunks", lambda *_: set())
++    monkeypatch.setattr(index, "_symbols_referencing_entities", lambda *_: set())
++    monkeypatch.setattr(index, "_relink_touched_symbols", _advancing(clock, 7, 1))
++    monkeypatch.setattr(index, "_resolve_authority_aliases", _advancing(clock, 11, 0))
++    timings = index._new_phase_timings()
++
++    index.apply_incremental_indexing(
++        index.IndexPlan(), tmp_path, StatefulFakeQdrant(), StubEmbed(),
++        nx.DiGraph(), {}, {}, dense_store={}, code_store={},
++        code_delta=(["x.py"], [], []), code_dir=tmp_path, phase_timings=timings,
++    )
++
++    assert timings["parsing_embedding"] == 8
++    assert timings["relink"] == 18
++
++
++def test_direct_full_collector_separates_eval_gate_from_promotion(monkeypatch, tmp_path):
++    clock = [0.0]
++    monkeypatch.setattr(index.time, "perf_counter", lambda: clock[0])
++    monkeypatch.setattr(index, "_build_full_state", lambda *a, **k: index.FullState(nx.DiGraph()))
++    monkeypatch.setattr(index, "_docs_hashes", lambda: {})
++    monkeypatch.setattr(index, "_code_hashes", lambda: {})
++    monkeypatch.setattr(index, "save_artifacts", lambda *a, **k: "v-test")
++    monkeypatch.setattr(index, "write_index_manifest", lambda *a, **k: None)
++    monkeypatch.setattr(index, "gate_promotion", _advancing(clock, 13, {"passed": True}))
++    monkeypatch.setattr(index, "promote_version", _advancing(clock, 17))
++    monkeypatch.setattr(index, "_migrate_legacy_collection_if_needed", _advancing(clock, 19))
++    monkeypatch.setattr(index, "_swap_alias", _advancing(clock, 23))
++    monkeypatch.setattr(index, "gc_orphaned_qdrant_collections", _advancing(clock, 29))
++    collector = {}
++
++    index.build_graph_and_index(qdrant=StatefulFakeQdrant(), embed_model=StubEmbed(),
++                                collector=collector)
++
++    assert collector["phase_timings_seconds"]["eval_gate"] == 13
++    assert collector["phase_timings_seconds"]["promote"] == 88
++
++
+ def test_incremental_reports_real_phase_timings_and_work_counts(monkeypatch, tmp_path):
+     docs_dir, _ = _wire_tmp_index(monkeypatch, tmp_path)
+     (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+ 
+     result = index.incremental_index(qdrant=StatefulFakeQdrant(), embed_model=StubEmbed())
+ 
+     assert set(result["phase_timings_seconds"]) == PHASES
+     assert all(value >= 0 for value in result["phase_timings_seconds"].values())
+     assert result["counts"]["docs_added"] == 1
+     assert result["counts"]["chunks_processed"] == result["counts"]["chunks_indexed"] > 0
+     assert result["counts"]["colbert_tokens_processed"] == result["counts"]["colbert_tokens_indexed"] > 0
+     assert result["counts"]["code_tokens_processed"] is None
+     assert result["counts"]["code_tokens_unavailable_reason"]
+ 
+ 
+ def test_full_rebuild_populates_optional_observability_collector(monkeypatch, tmp_path):
+     docs_dir, _ = _wire_tmp_index(monkeypatch, tmp_path)
+     (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+     monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
+     collector = {}
+diff --git "a/rag\\eval\\results\\sidecar_20260915\\sandbox\\review1bc-before\\rag\\scripts\\bench_process.py" b/rag/scripts/bench_process.py
+index 57ae197..a13a10d 100644
+--- "a/rag\\eval\\results\\sidecar_20260915\\sandbox\\review1bc-before\\rag\\scripts\\bench_process.py"
++++ b/rag/scripts/bench_process.py
+@@ -1,27 +1,30 @@
+ """Campiona un workload esplicito senza attribuire capacità non misurate."""
+ import argparse
+ import json
++import os
+ import platform
+ import shutil
++import signal
+ import subprocess
+ import sys
++import threading
+ import time
+ from datetime import datetime, timezone
+ from pathlib import Path
+ 
+ import psutil
+ 
+ 
+ def _utc() -> str:
+     return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+ 
+ 
+ def _missing(reason: str) -> tuple[None, str]:
+     return None, reason
+ 
+ 
+ def parse_proc_status(text: str) -> dict:
+     """Estrae KiB da /proc/*/status; assenze restano None con il motivo."""
+     fields = {"VmRSS": "rss_bytes", "RssAnon": "rss_anon_bytes"}
+     values = {name: None for name in fields.values()}
+     reasons = {name: "campo assente in /proc/1/status" for name in fields.values()}
+@@ -89,129 +92,167 @@ def _process_sample(pid: int) -> dict:
+             except (psutil.AccessDenied, AttributeError) as exc:
+                 row["io_reason"] = str(exc)
+             cpu = process.cpu_times()
+             row.update(cpu_user_seconds=cpu.user, cpu_system_seconds=cpu.system)
+     except (psutil.AccessDenied, psutil.NoSuchProcess) as exc:
+         row["reason"] = str(exc)
+     return row
+ 
+ 
+ def _system_sample() -> dict:
+     memory = psutil.virtual_memory()
+     swap = psutil.swap_memory()
+     return {"virtual_memory_total_bytes": memory.total, "virtual_memory_available_bytes": memory.available,
+             "swap_total_bytes": swap.total, "swap_used_bytes": swap.used, "cgroup": _read_cgroup()}
+ 
+ 
+ def _docker_qdrant(name: str) -> dict:
+     if not shutil.which("docker"):
+         return {"rss_bytes": None, "private_bytes": None, "reason": "docker non disponibile"}
+     try:
+-        find = "for p in /proc/[0-9]*; do [ \"$(cat $p/comm 2>/dev/null)\" = qdrant ] && basename $p && exit; done; exit 1"
+-        pid = subprocess.run(["docker", "exec", name, "sh", "-c", find], text=True,
+-                             capture_output=True, timeout=10, check=True).stdout.strip()
+-        def read(path: str) -> str:
+-            return subprocess.run(["docker", "exec", name, "cat", path], text=True,
+-                                  capture_output=True, timeout=10, check=True).stdout
+-        status = parse_proc_status(read(f"/proc/{pid}/status"))
+-        private = parse_smaps_rollup(read(f"/proc/{pid}/smaps_rollup"))
+-        cgroup = _read_container_cgroup(read)
++        script = ("for p in /proc/[0-9]*; do [ \"$(cat $p/comm 2>/dev/null)\" = qdrant ] && "
++                  "pid=${p##*/} && break; done; [ -n \"$pid\" ] || exit 1; "
++                  "printf '__PID__=%s\\n__STATUS__\\n' \"$pid\"; cat /proc/$pid/status; "
++                  "printf '__SMAPS__\\n'; cat /proc/$pid/smaps_rollup; printf '__CURRENT__\\n'; "
++                  "cat /sys/fs/cgroup/memory.current; printf '__MAX__\\n'; cat /sys/fs/cgroup/memory.max; "
++                  "printf '__STAT__\\n'; cat /sys/fs/cgroup/memory.stat")
++        completed = subprocess.run(["docker", "exec", name, "sh", "-c", script], text=True,
++                                   capture_output=True, timeout=10, check=True)
++        pid = completed.stdout.split("__PID__=", 1)[1].splitlines()[0]
++        status = parse_proc_status(completed.stdout.split("__STATUS__\n", 1)[1].split("__SMAPS__\n", 1)[0])
++        private = parse_smaps_rollup(completed.stdout.split("__SMAPS__\n", 1)[1].split("__CURRENT__\n", 1)[0])
++        cgroup = _parse_container_cgroup(completed.stdout.split("__CURRENT__\n", 1)[1])
+         return {"pid": int(pid), **status, **private, "cgroup": cgroup, "reason": None}
+     except (OSError, subprocess.SubprocessError) as exc:
+         return {"rss_bytes": None, "private_bytes": None, "reason": str(exc)}
+ 
+ 
+-def _read_container_cgroup(read) -> dict:
++def _parse_container_cgroup(text: str) -> dict:
+     try:
+-        current, maximum, stat = (read("/sys/fs/cgroup/memory.current").strip(),
+-                                  read("/sys/fs/cgroup/memory.max").strip(),
+-                                  read("/sys/fs/cgroup/memory.stat"))
++        current, remainder = text.split("__MAX__\n", 1)
++        maximum, stat = remainder.split("__STAT__\n", 1)
++        current, maximum = current.strip(), maximum.strip()
+         cache = next((line.split()[1] for line in stat.splitlines() if line.startswith("file ")), None)
+         return {"usage_bytes": int(current), "limit_bytes": None if maximum == "max" else int(maximum),
+                 "cache_bytes": int(cache) if cache is not None else None,
+                 "reason": None if cache is not None else "cache non presente in memory.stat"}
+     except (OSError, ValueError, StopIteration, subprocess.SubprocessError) as exc:
+         return {"usage_bytes": None, "limit_bytes": None, "cache_bytes": None, "reason": str(exc)}
+ 
+ 
+-def _sample(root: psutil.Process, qdrant_container: str | None, include_qdrant: bool) -> dict:
++def _sample(root: psutil.Process, qdrant: dict | None) -> dict:
+     try:
+         processes = [root, *root.children(recursive=True)]
+     except (psutil.AccessDenied, psutil.NoSuchProcess):
+         processes = [root]
+     return {"utc": _utc(), "monotonic_seconds": time.monotonic(),
+             "processes": [_process_sample(process.pid) for process in processes],
+             "system": _system_sample(), "device": {"kind": "cpu/default", "memory_bytes": None,
+             "reason": "GPU non misurata: NVIDIA API non implementata"},
+-            "qdrant": _docker_qdrant(qdrant_container) if include_qdrant else None}
++            "qdrant": qdrant}, {process.pid for process in processes}
+ 
+ 
+-def _stop_workload(process: subprocess.Popen) -> None:
++def _request_graceful_stop(process: subprocess.Popen) -> dict:
++    """Solo una richiesta graceful: nessun timeout né kill automatico."""
+     if process.poll() is not None:
+-        return
+-    try:
+-        psutil.Process(process.pid).terminate()
+-        process.wait(timeout=5)
+-    except (psutil.Error, subprocess.TimeoutExpired):
+-        # ponytail: 5 s di grace; kill solo dopo Ctrl-C/errore per evitare orfani.
++        return {"requested": False, "reason": "workload già terminato"}
++    if os.name == "nt" and hasattr(signal, "CTRL_BREAK_EVENT"):
++        try:
++            process.send_signal(signal.CTRL_BREAK_EVENT)
++            return {"requested": True, "signal": "CTRL_BREAK_EVENT", "scope": "process group"}
++        except OSError as exc:
++            return {"requested": False, "reason": f"CTRL_BREAK_EVENT non inviabile: {exc}"}
++    if os.name != "nt":
+         try:
+-            psutil.Process(process.pid).kill()
+-        except psutil.Error:
+-            pass
++            os.killpg(process.pid, signal.SIGTERM)
++            return {"requested": True, "signal": "SIGTERM", "scope": "process group"}
++        except OSError as exc:
++            return {"requested": False, "reason": f"SIGTERM gruppo non inviabile: {exc}"}
++    return {"requested": False, "reason": "gruppo graceful non garantibile su questa piattaforma"}
++
++
++def _wait_for_workload(process: subprocess.Popen, known_pids: set[int]) -> None:
++    """Non forza PID: aspetta root e figli già osservati, anche dopo un errore sampler."""
++    while process.poll() is None or any(psutil.pid_exists(pid) for pid in known_pids if pid != process.pid):
++        time.sleep(0.05)
+ 
+ 
+ def run_sampler(command: list[str], output: Path, interval: float = 0.2,
+                 qdrant_container: str | None = None) -> int:
+     if interval <= 0:
+         raise ValueError("--interval deve essere positivo")
+     output.parent.mkdir(parents=True, exist_ok=True)
+     stdout_path = output.with_suffix(".stdout.log")
+     stderr_path = output.with_suffix(".stderr.log")
+     raw_path = output.with_suffix(".jsonl")
+     started_monotonic, started_utc = time.monotonic(), _utc()
+     error = None
++    process = None
++    known_pids: set[int] = set()
++    shutdown = {"requested": False, "reason": "nessuna richiesta stop"}
++    qdrant_state = {"sample": None, "thread": None, "deadline_monotonic": started_monotonic}
++
++    def start_qdrant(now: float) -> None:
++        deadline = qdrant_state["deadline_monotonic"]
++        if not qdrant_container or now < deadline or qdrant_state["thread"] and qdrant_state["thread"].is_alive():
++            return
++        while qdrant_state["deadline_monotonic"] <= now:
++            qdrant_state["deadline_monotonic"] += 1.0
++        def collect() -> None:
++            begun = time.monotonic()
++            qdrant_state["sample"] = {**_docker_qdrant(qdrant_container), "deadline_monotonic": deadline,
++                                       "finished_monotonic": time.monotonic(),
++                                       "duration_seconds": round(time.monotonic() - begun, 3)}
++        qdrant_state["thread"] = threading.Thread(target=collect, daemon=True)
++        qdrant_state["thread"].start()
++
+     with stdout_path.open("w", encoding="utf-8") as stdout, stderr_path.open("w", encoding="utf-8") as stderr:
+-        process = subprocess.Popen(command, stdout=stdout, stderr=stderr, text=True)
+-        root = psutil.Process(process.pid)
+-        next_qdrant = started_monotonic
+         try:
++            flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
++            process = subprocess.Popen(command, stdout=stdout, stderr=stderr, text=True,
++                                       creationflags=flags, start_new_session=os.name != "nt")
++            root = psutil.Process(process.pid)
+             with raw_path.open("w", encoding="utf-8") as raw:
+                 while process.poll() is None:
+                     now = time.monotonic()
+-                    row = _sample(root, qdrant_container, qdrant_container is not None and now >= next_qdrant)
+-                    if qdrant_container is not None and now >= next_qdrant:
+-                        next_qdrant = now + 1.0
++                    start_qdrant(now)
++                    row, discovered = _sample(root, qdrant_state["sample"])
++                    known_pids.update(discovered)
+                     raw.write(json.dumps(row, ensure_ascii=False) + "\n")
+                     raw.flush()
+                     time.sleep(interval)
+         except BaseException as exc:
+             error = f"{type(exc).__name__}: {exc}"
+-            _stop_workload(process)
++            if isinstance(exc, KeyboardInterrupt) and process is not None:
++                shutdown = _request_graceful_stop(process)
+         finally:
+-            if process.poll() is None:
+-                _stop_workload(process)
++            if process is not None:
++                _wait_for_workload(process, known_pids)
++            elif not raw_path.exists():
++                raw_path.write_text("", encoding="utf-8")
+     payload = {"schema_version": 1, "started_utc": started_utc, "finished_utc": _utc(),
+                "runtime_seconds": round(time.monotonic() - started_monotonic, 3), "command": command,
+-               "interval_seconds": interval, "qdrant_container": qdrant_container, "exit_code": process.returncode,
++               "interval_seconds": interval, "qdrant_container": qdrant_container,
++               "exit_code": process.returncode if process is not None else None,
+                "raw_samples": str(raw_path), "stdout": str(stdout_path), "stderr": str(stderr_path),
+                "python": sys.version, "platform": platform.platform(), "sampler_error": error,
+-               "shutdown_note": "Il workload deve gestire shutdown sicuro; Ctrl-C/errore riceve terminate, poi kill dopo 5 s."}
++               "shutdown": shutdown, "shutdown_note": "Nessun kill automatico: su errore si attende il termine naturale; Ctrl-C richiede solo stop graceful di gruppo quando supportato."}
+     output.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+     return 1 if error else (process.returncode or 0)
+ 
+ 
+ def main() -> int:
+     parser = argparse.ArgumentParser(description=__doc__)
+     parser.add_argument("--output", type=Path, required=True)
+     parser.add_argument("--interval", type=float, default=0.2)
+     parser.add_argument("--qdrant-container")
+     parser.add_argument("command", nargs=argparse.REMAINDER, help="workload dopo --")
+     args = parser.parse_args()
+     command = args.command[1:] if args.command[:1] == ["--"] else args.command
+     if not command:
+         parser.error("specificare COMMAND ARG... dopo --")
+     try:
+         return run_sampler(command, args.output, args.interval, args.qdrant_container)
+     except ValueError as exc:
+         parser.error(str(exc))
+ 
+ 
+diff --git "a/rag\\eval\\results\\sidecar_20260915\\sandbox\\review1bc-before\\rag\\tests\\test_bench_process.py" b/rag/tests/test_bench_process.py
+index c4a1148..87046f4 100644
+--- "a/rag\\eval\\results\\sidecar_20260915\\sandbox\\review1bc-before\\rag\\tests\\test_bench_process.py"
++++ b/rag/tests/test_bench_process.py
+@@ -11,20 +11,40 @@ def test_sampler_salva_campioni_e_exit_code(tmp_path):
+     report = json.loads(output.read_text(encoding="utf-8"))
+     samples = [json.loads(line) for line in output.with_suffix(".jsonl").read_text(encoding="utf-8").splitlines()]
+     assert code == 0
+     assert report["exit_code"] == 0
+     assert samples and samples[0]["processes"][0]["rss_bytes"] is not None
+     assert samples[0]["device"]["memory_bytes"] is None
+     assert output.with_suffix(".stdout.log").exists()
+     assert output.with_suffix(".stderr.log").exists()
+ 
+ 
+ def test_parse_proc_status_non_inventa_campi_assenti():
+     parsed = bench_process.parse_proc_status("Name:\tqdrant\nVmRSS:\t12 kB\n")
+     assert parsed["rss_bytes"] == 12 * 1024
+     assert parsed["rss_anon_bytes"] is None
+     assert parsed["rss_anon_bytes_reason"]
+ 
+ 
+ def test_parse_smaps_rollup_somma_solo_private_clean_e_dirty():
+     parsed = bench_process.parse_smaps_rollup("Rss: 99 kB\nPrivate_Clean: 3 kB\nPrivate_Dirty: 7 kB\n")
+     assert parsed["private_bytes"] == 10 * 1024
++
++
++def test_sampler_attende_figlio_gia_scoperto(tmp_path):
++    output = tmp_path / "children.json"
++    child = ("import subprocess,sys,time; subprocess.Popen([sys.executable, '-c', "
++             "'import time; time.sleep(.2)']); time.sleep(.05)")
++    code = bench_process.run_sampler([sys.executable, "-c", child], output, .01)
++    report = json.loads(output.read_text(encoding="utf-8"))
++    assert code == 0
++    assert report["runtime_seconds"] >= .15
++
++
++def test_sampler_scrive_report_se_comando_non_avviabile(tmp_path):
++    output = tmp_path / "missing.json"
++    code = bench_process.run_sampler(["comando-che-non-esiste-phase1c"], output)
++    report = json.loads(output.read_text(encoding="utf-8"))
++    assert code == 1
++    assert report["exit_code"] is None
++    assert "FileNotFoundError" in report["sampler_error"]
++    assert output.with_suffix(".jsonl").exists()

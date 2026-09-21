@@ -1,0 +1,14 @@
+phase1c fix round 2 — Windows evidence
+
+Command:
+PYTHONDONTWRITEBYTECODE=1 C:/Users/Silve/Desktop/vibecraft/rag/.venv/Scripts/python.exe -B -m pytest tests/test_bench_process.py --basetemp eval/results/sidecar_20260915/sandbox/pytest1c-fix2/
+
+Result: 8 passed in 3.67s
+Exit code: 0
+
+Static check:
+C:/Users/Silve/Desktop/vibecraft/rag/.venv/Scripts/python.exe -B -m ruff check scripts/bench_process.py tests/test_bench_process.py
+Result: All checks passed!
+Exit code: 0
+
+No benchmark, GPU, or container start was run.

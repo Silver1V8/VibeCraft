@@ -18,6 +18,7 @@ Su Windows il byte lockato sta a un offset alto, oltre i dati: msvcrt.locking è
 mandatorio sulla regione lockata, e lockare il byte 0 renderebbe illeggibile la
 diagnostica agli altri processi mentre il lock è tenuto."""
 import os
+import re
 import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -27,6 +28,8 @@ from core.config import DATABASE_DIR
 
 if os.name == "nt":
     import msvcrt
+    import ctypes
+    from ctypes import wintypes
 else:
     import fcntl
 
@@ -42,6 +45,109 @@ _POLL_INTERVAL_SECONDS = 0.1
 
 class WriterLockBusyError(RuntimeError):
     """Un altro processo detiene il writer lock (timeout di acquisizione scaduto)."""
+
+
+class VersionLease:
+    """OS lock on a persistent per-version file, outside the deletable version dir."""
+
+    def __init__(self, fd: int):
+        self._fd = fd
+
+    def close(self) -> None:
+        if self._fd is None:
+            return
+        fd, self._fd = self._fd, None
+        try:
+            _unlock_version(fd)
+        finally:
+            os.close(fd)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_exc):
+        self.close()
+
+
+def try_version_lease(database_dir: str | Path, version: str, *, exclusive: bool = False) -> VersionLease | None:
+    """Nonblocking shared reader or exclusive retention lease. Never unlink lock files."""
+    if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z-]*", version):
+        raise ValueError(f"invalid version name: {version!r}")
+    base = Path(database_dir)
+    if base.is_symlink() or (hasattr(base, "is_junction") and base.is_junction()):
+        raise ValueError("linked database path forbidden for version lease")
+    locks = base / ".reader-locks"
+    if locks.is_symlink() or (hasattr(locks, "is_junction") and locks.is_junction()):
+        raise ValueError("linked lease directory forbidden")
+    locks.mkdir(parents=True, exist_ok=True)
+    path = locks / f"{version}.lock"
+    if path.is_symlink() or (hasattr(path, "is_junction") and path.is_junction()):
+        raise ValueError("linked lease file forbidden")
+    flags = os.O_RDWR | os.O_CREAT
+    if os.name == "nt":
+        flags |= os.O_BINARY
+    fd = os.open(path, flags, 0o644)
+    try:
+        if os.name == "nt":
+            if not _try_version_lock_windows(fd, exclusive):
+                os.close(fd)
+                return None
+        else:
+            try:
+                fcntl.flock(fd, (fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH) | fcntl.LOCK_NB)
+            except BlockingIOError:
+                os.close(fd)
+                return None
+        return VersionLease(fd)
+    except BaseException:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        raise
+
+
+if os.name == "nt":
+    class _OVERLAPPED(ctypes.Structure):
+        _fields_ = [("Internal", ctypes.c_size_t), ("InternalHigh", ctypes.c_size_t),
+                    ("Offset", wintypes.DWORD), ("OffsetHigh", wintypes.DWORD),
+                    ("hEvent", wintypes.HANDLE)]
+
+    _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    _lock_file_ex = _kernel32.LockFileEx
+    _lock_file_ex.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD,
+                              wintypes.DWORD, wintypes.DWORD, ctypes.POINTER(_OVERLAPPED)]
+    _lock_file_ex.restype = wintypes.BOOL
+    _unlock_file_ex = _kernel32.UnlockFileEx
+    _unlock_file_ex.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD,
+                                wintypes.DWORD, ctypes.POINTER(_OVERLAPPED)]
+    _unlock_file_ex.restype = wintypes.BOOL
+
+    def _version_overlap() -> _OVERLAPPED:
+        overlap = _OVERLAPPED()
+        overlap.Offset = _WIN_LOCK_OFFSET
+        return overlap
+
+    def _try_version_lock_windows(fd: int, exclusive: bool) -> bool:
+        flags = 0x1 | (0x2 if exclusive else 0)  # FAIL_IMMEDIATELY, EXCLUSIVE_LOCK
+        ok = _lock_file_ex(msvcrt.get_osfhandle(fd), flags, 0, 1, 0,
+                           ctypes.byref(_version_overlap()))
+        if ok:
+            return True
+        error = ctypes.get_last_error()
+        if error == 33:  # ERROR_LOCK_VIOLATION
+            return False
+        raise ctypes.WinError(error)
+
+
+def _unlock_version(fd: int) -> None:
+    if os.name == "nt":
+        ok = _unlock_file_ex(msvcrt.get_osfhandle(fd), 0, 1, 0,
+                             ctypes.byref(_version_overlap()))
+        if not ok:
+            raise ctypes.WinError(ctypes.get_last_error())
+    else:
+        fcntl.flock(fd, fcntl.LOCK_UN)
 
 
 def default_lock_path() -> Path:

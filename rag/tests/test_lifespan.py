@@ -11,6 +11,8 @@ candidata di una build CLI ancora in corso (manifest non ancora su disco). Se il
 al file)."""
 import asyncio
 import contextlib
+import gc
+import weakref
 
 import networkx as nx
 from fastapi import FastAPI
@@ -64,6 +66,28 @@ def test_lifespan_boot_does_not_fail_with_legacy_alias_state(monkeypatch):
         captured = _run_lifespan_once()  # non deve sollevare
         assert captured["qdrant"] is not None
         assert captured["snapshot"] is not None
+    finally:
+        deps.state.clear()
+        deps.state.update(original_state)
+
+
+def test_lifespan_releases_boot_graph_after_reload_without_readers(monkeypatch):
+    original_state = dict(deps.state)
+    _patch_heavy_resources(monkeypatch, repair_result={"state": "legacy", "expected": None,
+                                                     "actual": None, "repaired": False})
+    versions = iter(("v1", "v2"))
+    monkeypatch.setattr(deps, "load_artifacts",
+                        lambda required=(): Artifacts(graph=nx.DiGraph(), version=next(versions)))
+
+    async def exercise():
+        async with deps.lifespan(FastAPI()):
+            first = weakref.ref(deps.current_snapshot().graph)
+            assert deps.reload_index_state() == "v2"
+            gc.collect()
+            assert first() is None
+
+    try:
+        asyncio.run(exercise())
     finally:
         deps.state.clear()
         deps.state.update(original_state)

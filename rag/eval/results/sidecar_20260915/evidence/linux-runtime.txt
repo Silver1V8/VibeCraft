@@ -1,0 +1,11 @@
+{
+  "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.41",
+  "python": "3.14.7 (main, Sep  1 2026, 00:05:20) [GCC 14.2.0]",
+  "packages": {
+    "numpy": "2.5.2",
+    "torch": "2.13.0+cpu",
+    "qdrant-client": "1.19.0",
+    "FlagEmbedding": "1.4.2"
+  },
+  "pytest_available": false
+}

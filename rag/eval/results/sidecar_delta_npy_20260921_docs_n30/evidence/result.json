@@ -1,0 +1,4325 @@
+{
+  "status": "completed",
+  "pid": 30736,
+  "parameters": {
+    "n": 30,
+    "mode": "docs",
+    "k": [
+      0,
+      1,
+      10
+    ],
+    "repeats": 5,
+    "query_pause_seconds": 0.15,
+    "qdrant_url": "http://127.0.0.1:16333",
+    "server_url": "http://127.0.0.1:18000",
+    "collection": "sidecar_0628_docs_n30_npy",
+    "restore_io_outside_measurement": true
+  },
+  "events": [
+    {
+      "event": "bootstrap_start",
+      "utc": "2026-09-21T13:23:45.706958+00:00",
+      "monotonic": 22143.3225649
+    },
+    {
+      "event": "bootstrap_end",
+      "utc": "2026-09-21T13:24:12.844445+00:00",
+      "monotonic": 22170.4600515
+    },
+    {
+      "event": "baseline_frozen",
+      "utc": "2026-09-21T13:24:26.683904+00:00",
+      "monotonic": 22184.2995053
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T13:24:27.798824+00:00",
+      "monotonic": 22185.4144253,
+      "repeat": 0,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T13:24:28.775505+00:00",
+      "monotonic": 22186.3911068,
+      "repeat": 0,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T13:24:29.707374+00:00",
+      "monotonic": 22187.3229767,
+      "repeat": 0,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T13:24:29.724699+00:00",
+      "monotonic": 22187.3403012,
+      "repeat": 0,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T13:24:34.540335+00:00",
+      "monotonic": 22192.1559416,
+      "repeat": 0,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T13:24:35.525037+00:00",
+      "monotonic": 22193.1406445,
+      "repeat": 0,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T13:24:35.551189+00:00",
+      "monotonic": 22193.1667923,
+      "repeat": 0,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T13:24:45.859282+00:00",
+      "monotonic": 22203.474884,
+      "repeat": 0,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T13:24:46.848451+00:00",
+      "monotonic": 22204.4640538,
+      "repeat": 0,
+      "k": 10
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T13:24:46.866187+00:00",
+      "monotonic": 22204.481787,
+      "repeat": 1,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T13:24:47.881011+00:00",
+      "monotonic": 22205.4966141,
+      "repeat": 1,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T13:24:48.764843+00:00",
+      "monotonic": 22206.3804454,
+      "repeat": 1,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T13:24:48.783955+00:00",
+      "monotonic": 22206.3995561,
+      "repeat": 1,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T13:24:53.397546+00:00",
+      "monotonic": 22211.0131521,
+      "repeat": 1,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T13:24:54.521129+00:00",
+      "monotonic": 22212.1367661,
+      "repeat": 1,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T13:24:54.550272+00:00",
+      "monotonic": 22212.1658739,
+      "repeat": 1,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T13:25:04.335072+00:00",
+      "monotonic": 22221.9506775,
+      "repeat": 1,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T13:25:05.323362+00:00",
+      "monotonic": 22222.9389658,
+      "repeat": 1,
+      "k": 10
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T13:25:05.341442+00:00",
+      "monotonic": 22222.9570431,
+      "repeat": 2,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T13:25:06.314044+00:00",
+      "monotonic": 22223.9296501,
+      "repeat": 2,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T13:25:07.210536+00:00",
+      "monotonic": 22224.8261408,
+      "repeat": 2,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T13:25:07.231156+00:00",
+      "monotonic": 22224.8467602,
+      "repeat": 2,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T13:25:12.326042+00:00",
+      "monotonic": 22229.9416447,
+      "repeat": 2,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T13:25:13.309060+00:00",
+      "monotonic": 22230.9246648,
+      "repeat": 2,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T13:25:13.335333+00:00",
+      "monotonic": 22230.9509353,
+      "repeat": 2,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T13:25:23.055626+00:00",
+      "monotonic": 22240.6712285,
+      "repeat": 2,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T13:25:24.020960+00:00",
+      "monotonic": 22241.6365636,
+      "repeat": 2,
+      "k": 10
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T13:25:24.039999+00:00",
+      "monotonic": 22241.6556012,
+      "repeat": 3,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T13:25:24.947337+00:00",
+      "monotonic": 22242.5629388,
+      "repeat": 3,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T13:25:25.872037+00:00",
+      "monotonic": 22243.4876392,
+      "repeat": 3,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T13:25:25.892354+00:00",
+      "monotonic": 22243.5079549,
+      "repeat": 3,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T13:25:30.605624+00:00",
+      "monotonic": 22248.2212344,
+      "repeat": 3,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T13:25:31.589909+00:00",
+      "monotonic": 22249.2055121,
+      "repeat": 3,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T13:25:31.616864+00:00",
+      "monotonic": 22249.2324656,
+      "repeat": 3,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T13:25:41.293570+00:00",
+      "monotonic": 22258.9091716,
+      "repeat": 3,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T13:25:42.289061+00:00",
+      "monotonic": 22259.9046635,
+      "repeat": 3,
+      "k": 10
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T13:25:42.308343+00:00",
+      "monotonic": 22259.9239449,
+      "repeat": 4,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T13:25:42.916870+00:00",
+      "monotonic": 22260.5324722,
+      "repeat": 4,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T13:25:43.825383+00:00",
+      "monotonic": 22261.4409902,
+      "repeat": 4,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T13:25:43.845694+00:00",
+      "monotonic": 22261.4612961,
+      "repeat": 4,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T13:25:48.224134+00:00",
+      "monotonic": 22265.8397359,
+      "repeat": 4,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T13:25:49.208387+00:00",
+      "monotonic": 22266.8239881,
+      "repeat": 4,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T13:25:49.233803+00:00",
+      "monotonic": 22266.8494048,
+      "repeat": 4,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T13:25:58.206888+00:00",
+      "monotonic": 22275.8224904,
+      "repeat": 4,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T13:25:59.145171+00:00",
+      "monotonic": 22276.7607738,
+      "repeat": 4,
+      "k": 10
+    }
+  ],
+  "samples": [
+    {
+      "repeat": 0,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 22185.4151187,
+          "end_monotonic": 22185.7719903,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22185.921982,
+          "end_monotonic": 22186.1934852,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "0c73c0818364466ea7625a3e43bf5737",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T13:24:27.805869+00:00",
+        "finished_at": "2026-09-21T13:24:27.843815+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md",
+              "d015.md",
+              "d016.md",
+              "d017.md",
+              "d018.md",
+              "d019.md",
+              "d020.md",
+              "d021.md",
+              "d022.md",
+              "d023.md",
+              "d024.md",
+              "d025.md",
+              "d026.md",
+              "d027.md",
+              "d028.md",
+              "d029.md"
+            ],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 0.0,
+            "scan_hash": 0.0291092999977991,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "snapshot_token": "v20260921T132357"
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0005108999976073392,
+        "writer_lock_wait_seconds": 0.0073262000005343,
+        "build_duration_seconds": 0.02992399999857298,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.0,
+        "reload_error": null,
+        "published_token": "v20260921T132357",
+        "snapshot_ready_duration_seconds": 0.0385997999983374,
+        "coalesced": false
+      },
+      "elapsed_seconds": 0.5185029999993276,
+      "started_monotonic": 22185.4144277,
+      "ended_monotonic": 22185.9329307,
+      "current_version": "v20260921T132357",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n30_npy",
+          "actual": "sidecar_0628_docs_n30_npy"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md",
+            "docs/d015.md",
+            "docs/d016.md",
+            "docs/d017.md",
+            "docs/d018.md",
+            "docs/d019.md",
+            "docs/d020.md",
+            "docs/d021.md",
+            "docs/d022.md",
+            "docs/d023.md",
+            "docs/d024.md",
+            "docs/d025.md",
+            "docs/d026.md",
+            "docs/d027.md",
+            "docs/d028.md",
+            "docs/d029.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 0,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 22187.3409742,
+          "end_monotonic": 22189.8458751,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22190.0022016,
+          "end_monotonic": 22190.3823285,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22190.5333534,
+          "end_monotonic": 22191.4594641,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22191.6101419,
+          "end_monotonic": 22191.8976433,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132432",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "81715b5cb365439fb5ab8e8042d8e3b1",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T13:24:29.729001+00:00",
+        "finished_at": "2026-09-21T13:24:33.769602+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md",
+              "d015.md",
+              "d016.md",
+              "d017.md",
+              "d018.md",
+              "d019.md",
+              "d020.md",
+              "d021.md",
+              "d022.md",
+              "d023.md",
+              "d024.md",
+              "d025.md",
+              "d026.md",
+              "d027.md",
+              "d028.md",
+              "d029.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 1,
+          "deleted_docs": 0,
+          "upserted_chunks": 1,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 1,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 1,
+            "chunks_indexed": 30,
+            "colbert_tokens_processed": 25,
+            "colbert_tokens_indexed": 821,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T132432",
+          "colbert_io_bytes": {
+            "written_bytes": 51328,
+            "hardlinked_bytes": 1633920,
+            "copied_bytes": 0,
+            "inherited_hashes_not_reverified": 29
+          },
+          "phase_timings_seconds": {
+            "init_model": 2.2975839999999152,
+            "scan_hash": 0.01950859999851673,
+            "load": 0.0530776000014157,
+            "parsing_embedding": 0.6689413000058266,
+            "qdrant": 0.07196269999622018,
+            "relink": 0.0001205000007757917,
+            "save_hash": 0.24104199999783305,
+            "eval_gate": 0.0,
+            "promote": 0.12027200000011362
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0006815999986429233,
+        "writer_lock_wait_seconds": 0.0070328000001609325,
+        "build_duration_seconds": 4.032613300001685,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.0705922000015562,
+        "reload_error": null,
+        "published_token": "v20260921T132432",
+        "snapshot_ready_duration_seconds": 4.1118011999969895,
+        "coalesced": false
+      },
+      "elapsed_seconds": 4.3096587,
+      "started_monotonic": 22187.3403037,
+      "ended_monotonic": 22191.6499624,
+      "current_version": "v20260921T132432",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n30_npy",
+          "actual": "sidecar_0628_docs_n30_npy"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md",
+            "docs/d015.md",
+            "docs/d016.md",
+            "docs/d017.md",
+            "docs/d018.md",
+            "docs/d019.md",
+            "docs/d020.md",
+            "docs/d021.md",
+            "docs/d022.md",
+            "docs/d023.md",
+            "docs/d024.md",
+            "docs/d025.md",
+            "docs/d026.md",
+            "docs/d027.md",
+            "docs/d028.md",
+            "docs/d029.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 0,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 22193.1677962,
+          "end_monotonic": 22195.6925597,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22195.8452758,
+          "end_monotonic": 22196.4225468,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22196.5776577,
+          "end_monotonic": 22197.1301914,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22197.2845885,
+          "end_monotonic": 22197.6091918,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22197.7670946,
+          "end_monotonic": 22198.2744982,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22198.4376686,
+          "end_monotonic": 22198.9063015,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22199.0643241,
+          "end_monotonic": 22199.6975077,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22199.8467296,
+          "end_monotonic": 22200.2681131,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22200.424514,
+          "end_monotonic": 22200.8783234,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22201.0321648,
+          "end_monotonic": 22201.5722821,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22201.730057,
+          "end_monotonic": 22202.0767661,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22202.4083525,
+          "end_monotonic": 22203.1715267,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132438",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d001.md",
+          "before_sha256": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+          "after_sha256": "bbea20e8af1d5027478bc50b632d9be5af6c0c4e4e6c77923f123119eaf62dd2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d002.md",
+          "before_sha256": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+          "after_sha256": "aac5a99d6afb42f1e84774a8e1dd53ec1b8bffb334a61012a4a39f65e6b0be85",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d003.md",
+          "before_sha256": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+          "after_sha256": "592f75dbdc042e03606815315cb92133c3e53c10a23a168a3e9661b29391bca9",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d004.md",
+          "before_sha256": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+          "after_sha256": "a4d31bfbfebe3eeae2d29b0a7d8b70f31904ccc373249b013c2332c7954a4bc2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d005.md",
+          "before_sha256": "74d4e33ac71d12964756a8cb9415591a0d3cdf7e4c14a1a93ef0b4592aacdd0a",
+          "after_sha256": "5eb1d88671f1d366a5eedb0983e20a533280576d15fe029243a67cdff056b82c",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d006.md",
+          "before_sha256": "955e2381cff1c12d332627292a66ba12847550a8c59a04b1f6bc0b74e72e26ef",
+          "after_sha256": "2f3935e7580dd9377dbd58ac891d4284e14c2309e603baf22c4e923edffb9153",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d007.md",
+          "before_sha256": "d1127fc92ef4d8eea946df94c52157db395d8fff85a68cfbdd463198a99f0e0a",
+          "after_sha256": "e05144b25c4471eaf4c11061fe957e0ad1061a90c50765bf5c81432f2a15008a",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d008.md",
+          "before_sha256": "9e3e92a5dfaf1f9296db53503a37170ded5a933759c89d7ef7925111dc35f263",
+          "after_sha256": "2e1e8bc64598c183449911f067b2c5cdfd8795ce3d28be4f197738a3225ba987",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d009.md",
+          "before_sha256": "8d35a52c8f9480e2a2145087cc87967a6927820251b861552bbb947668c5b69d",
+          "after_sha256": "7c7e8387145aa91d5d398fc4d1ddd821177cf9e278047a72e656b61d0a65ffac",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "b2748292e1fe454883c35a485ac99f4c",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T13:24:35.575709+00:00",
+        "finished_at": "2026-09-21T13:24:45.037165+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md",
+              "d015.md",
+              "d016.md",
+              "d017.md",
+              "d018.md",
+              "d019.md",
+              "d020.md",
+              "d021.md",
+              "d022.md",
+              "d023.md",
+              "d024.md",
+              "d025.md",
+              "d026.md",
+              "d027.md",
+              "d028.md",
+              "d029.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 10,
+          "deleted_docs": 0,
+          "upserted_chunks": 10,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 10,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 10,
+            "chunks_indexed": 30,
+            "colbert_tokens_processed": 268,
+            "colbert_tokens_indexed": 821,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T132438",
+          "colbert_io_bytes": {
+            "written_bytes": 550144,
+            "hardlinked_bytes": 1135104,
+            "copied_bytes": 0,
+            "inherited_hashes_not_reverified": 20
+          },
+          "phase_timings_seconds": {
+            "init_model": 2.3452023999998346,
+            "scan_hash": 0.016460700000607176,
+            "load": 0.05068570000003092,
+            "parsing_embedding": 5.963385499999276,
+            "qdrant": 0.20207169999775942,
+            "relink": 0.0001322999996773433,
+            "save_hash": 0.24268079999819747,
+            "eval_gate": 0.0,
+            "promote": 0.12383799999952316
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0007903000005171634,
+        "writer_lock_wait_seconds": 0.006890399999974761,
+        "build_duration_seconds": 9.453355599998758,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.09426269999676151,
+        "reload_error": null,
+        "published_token": "v20260921T132438",
+        "snapshot_ready_duration_seconds": 9.556748599999992,
+        "coalesced": false
+      },
+      "elapsed_seconds": 10.079208800001652,
+      "started_monotonic": 22193.1667943,
+      "ended_monotonic": 22203.2460031,
+      "current_version": "v20260921T132438",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n30_npy",
+          "actual": "sidecar_0628_docs_n30_npy"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md",
+            "docs/d015.md",
+            "docs/d016.md",
+            "docs/d017.md",
+            "docs/d018.md",
+            "docs/d019.md",
+            "docs/d020.md",
+            "docs/d021.md",
+            "docs/d022.md",
+            "docs/d023.md",
+            "docs/d024.md",
+            "docs/d025.md",
+            "docs/d026.md",
+            "docs/d027.md",
+            "docs/d028.md",
+            "docs/d029.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 1,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 22204.4824637,
+          "end_monotonic": 22204.79328,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22204.9546669,
+          "end_monotonic": 22205.2562185,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "4cce77cc5def45ba8ddd208fe23d0c02",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T13:24:46.871106+00:00",
+        "finished_at": "2026-09-21T13:24:46.910216+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md",
+              "d015.md",
+              "d016.md",
+              "d017.md",
+              "d018.md",
+              "d019.md",
+              "d020.md",
+              "d021.md",
+              "d022.md",
+              "d023.md",
+              "d024.md",
+              "d025.md",
+              "d026.md",
+              "d027.md",
+              "d028.md",
+              "d029.md"
+            ],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 0.0,
+            "scan_hash": 0.03204639999967185,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "snapshot_token": "v20260921T132357"
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0005547000000660773,
+        "writer_lock_wait_seconds": 0.005769799998233793,
+        "build_duration_seconds": 0.0325379999994766,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.0,
+        "reload_error": null,
+        "published_token": "v20260921T132357",
+        "snapshot_ready_duration_seconds": 0.03982279999763705,
+        "coalesced": false
+      },
+      "elapsed_seconds": 0.5191517999992357,
+      "started_monotonic": 22204.481789,
+      "ended_monotonic": 22205.0009408,
+      "current_version": "v20260921T132357",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n30_npy",
+          "actual": "sidecar_0628_docs_n30_npy"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md",
+            "docs/d015.md",
+            "docs/d016.md",
+            "docs/d017.md",
+            "docs/d018.md",
+            "docs/d019.md",
+            "docs/d020.md",
+            "docs/d021.md",
+            "docs/d022.md",
+            "docs/d023.md",
+            "docs/d024.md",
+            "docs/d025.md",
+            "docs/d026.md",
+            "docs/d027.md",
+            "docs/d028.md",
+            "docs/d029.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 1,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 22206.4003391,
+          "end_monotonic": 22208.858411,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22209.0145523,
+          "end_monotonic": 22209.3811538,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22209.5325171,
+          "end_monotonic": 22209.8703449,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22210.159028,
+          "end_monotonic": 22210.7455953,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132451",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "9104349763264f91bf4f25453a42db54",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T13:24:48.787417+00:00",
+        "finished_at": "2026-09-21T13:24:52.769192+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md",
+              "d015.md",
+              "d016.md",
+              "d017.md",
+              "d018.md",
+              "d019.md",
+              "d020.md",
+              "d021.md",
+              "d022.md",
+              "d023.md",
+              "d024.md",
+              "d025.md",
+              "d026.md",
+              "d027.md",
+              "d028.md",
+              "d029.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 1,
+          "deleted_docs": 0,
+          "upserted_chunks": 1,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 1,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 1,
+            "chunks_indexed": 30,
+            "colbert_tokens_processed": 25,
+            "colbert_tokens_indexed": 821,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T132451",
+          "colbert_io_bytes": {
+            "written_bytes": 51328,
+            "hardlinked_bytes": 1633920,
+            "copied_bytes": 0,
+            "inherited_hashes_not_reverified": 29
+          },
+          "phase_timings_seconds": {
+            "init_model": 2.2741328999982215,
+            "scan_hash": 0.007271700000273995,
+            "load": 0.04871909999928903,
+            "parsing_embedding": 0.6860052999982145,
+            "qdrant": 0.07198900000366848,
+            "relink": 0.00015859999984968454,
+            "save_hash": 0.2328004000009969,
+            "eval_gate": 0.0,
+            "promote": 0.14021900000079768
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0006600000015168916,
+        "writer_lock_wait_seconds": 0.006493400000181282,
+        "build_duration_seconds": 3.974381899999571,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.11149120000118273,
+        "reload_error": null,
+        "published_token": "v20260921T132451",
+        "snapshot_ready_duration_seconds": 4.094320700001845,
+        "coalesced": false
+      },
+      "elapsed_seconds": 4.1003283000027295,
+      "started_monotonic": 22206.3995582,
+      "ended_monotonic": 22210.4998865,
+      "current_version": "v20260921T132451",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n30_npy",
+          "actual": "sidecar_0628_docs_n30_npy"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md",
+            "docs/d015.md",
+            "docs/d016.md",
+            "docs/d017.md",
+            "docs/d018.md",
+            "docs/d019.md",
+            "docs/d020.md",
+            "docs/d021.md",
+            "docs/d022.md",
+            "docs/d023.md",
+            "docs/d024.md",
+            "docs/d025.md",
+            "docs/d026.md",
+            "docs/d027.md",
+            "docs/d028.md",
+            "docs/d029.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 1,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 22212.1668037,
+          "end_monotonic": 22214.6931993,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22214.8462602,
+          "end_monotonic": 22215.2737248,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22215.4376327,
+          "end_monotonic": 22215.8293114,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22215.9933786,
+          "end_monotonic": 22216.3963183,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22216.5473579,
+          "end_monotonic": 22216.9624676,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22217.1261433,
+          "end_monotonic": 22217.8127084,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22217.969724,
+          "end_monotonic": 22218.3897793,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22218.5474221,
+          "end_monotonic": 22219.0220006,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22219.1727218,
+          "end_monotonic": 22219.5108581,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22219.6725939,
+          "end_monotonic": 22220.1706774,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22220.3296767,
+          "end_monotonic": 22221.1760273,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22221.3293934,
+          "end_monotonic": 22221.61741,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132457",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d001.md",
+          "before_sha256": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+          "after_sha256": "bbea20e8af1d5027478bc50b632d9be5af6c0c4e4e6c77923f123119eaf62dd2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d002.md",
+          "before_sha256": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+          "after_sha256": "aac5a99d6afb42f1e84774a8e1dd53ec1b8bffb334a61012a4a39f65e6b0be85",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d003.md",
+          "before_sha256": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+          "after_sha256": "592f75dbdc042e03606815315cb92133c3e53c10a23a168a3e9661b29391bca9",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d004.md",
+          "before_sha256": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+          "after_sha256": "a4d31bfbfebe3eeae2d29b0a7d8b70f31904ccc373249b013c2332c7954a4bc2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d005.md",
+          "before_sha256": "74d4e33ac71d12964756a8cb9415591a0d3cdf7e4c14a1a93ef0b4592aacdd0a",
+          "after_sha256": "5eb1d88671f1d366a5eedb0983e20a533280576d15fe029243a67cdff056b82c",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d006.md",
+          "before_sha256": "955e2381cff1c12d332627292a66ba12847550a8c59a04b1f6bc0b74e72e26ef",
+          "after_sha256": "2f3935e7580dd9377dbd58ac891d4284e14c2309e603baf22c4e923edffb9153",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d007.md",
+          "before_sha256": "d1127fc92ef4d8eea946df94c52157db395d8fff85a68cfbdd463198a99f0e0a",
+          "after_sha256": "e05144b25c4471eaf4c11061fe957e0ad1061a90c50765bf5c81432f2a15008a",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d008.md",
+          "before_sha256": "9e3e92a5dfaf1f9296db53503a37170ded5a933759c89d7ef7925111dc35f263",
+          "after_sha256": "2e1e8bc64598c183449911f067b2c5cdfd8795ce3d28be4f197738a3225ba987",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d009.md",
+          "before_sha256": "8d35a52c8f9480e2a2145087cc87967a6927820251b861552bbb947668c5b69d",
+          "after_sha256": "7c7e8387145aa91d5d398fc4d1ddd821177cf9e278047a72e656b61d0a65ffac",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "e1c88d60ca9046d18665a9366960d454",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T13:24:54.556551+00:00",
+        "finished_at": "2026-09-21T13:25:03.496859+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md",
+              "d015.md",
+              "d016.md",
+              "d017.md",
+              "d018.md",
+              "d019.md",
+              "d020.md",
+              "d021.md",
+              "d022.md",
+              "d023.md",
+              "d024.md",
+              "d025.md",
+              "d026.md",
+              "d027.md",
+              "d028.md",
+              "d029.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 10,
+          "deleted_docs": 0,
+          "upserted_chunks": 10,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 10,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 10,
+            "chunks_indexed": 30,
+            "colbert_tokens_processed": 268,
+            "colbert_tokens_indexed": 821,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T132457",
+          "colbert_io_bytes": {
+            "written_bytes": 550144,
+            "hardlinked_bytes": 1135104,
+            "copied_bytes": 0,
+            "inherited_hashes_not_reverified": 20
+          },
+          "phase_timings_seconds": {
+            "init_model": 2.357010600000649,
+            "scan_hash": 0.026742700003524078,
+            "load": 0.047168100001727,
+            "parsing_embedding": 5.432428699998127,
+            "qdrant": 0.19521879999956582,
+            "relink": 0.00016289999985019676,
+            "save_hash": 0.2249009000006481,
+            "eval_gate": 0.0,
+            "promote": 0.12015379999866127
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.002100800000334857,
+        "writer_lock_wait_seconds": 0.005878900003153831,
+        "build_duration_seconds": 8.931737999999314,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.07448460000159685,
+        "reload_error": null,
+        "published_token": "v20260921T132457",
+        "snapshot_ready_duration_seconds": 9.015413900000567,
+        "coalesced": false
+      },
+      "elapsed_seconds": 9.192898700002843,
+      "started_monotonic": 22212.1658769,
+      "ended_monotonic": 22221.3587756,
+      "current_version": "v20260921T132457",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n30_npy",
+          "actual": "sidecar_0628_docs_n30_npy"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md",
+            "docs/d015.md",
+            "docs/d016.md",
+            "docs/d017.md",
+            "docs/d018.md",
+            "docs/d019.md",
+            "docs/d020.md",
+            "docs/d021.md",
+            "docs/d022.md",
+            "docs/d023.md",
+            "docs/d024.md",
+            "docs/d025.md",
+            "docs/d026.md",
+            "docs/d027.md",
+            "docs/d028.md",
+            "docs/d029.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 2,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 22222.9578785,
+          "end_monotonic": 22223.2413703,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22223.406843,
+          "end_monotonic": 22223.6493549,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "19eb863f5d064b4eb7b75e0c8804cd65",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T13:25:05.356049+00:00",
+        "finished_at": "2026-09-21T13:25:05.375156+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md",
+              "d015.md",
+              "d016.md",
+              "d017.md",
+              "d018.md",
+              "d019.md",
+              "d020.md",
+              "d021.md",
+              "d022.md",
+              "d023.md",
+              "d024.md",
+              "d025.md",
+              "d026.md",
+              "d027.md",
+              "d028.md",
+              "d029.md"
+            ],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 0.0,
+            "scan_hash": 0.009199100000842009,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "snapshot_token": "v20260921T132357"
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0011741999987862073,
+        "writer_lock_wait_seconds": 0.007565899999462999,
+        "build_duration_seconds": 0.009684000000561355,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.0,
+        "reload_error": null,
+        "published_token": "v20260921T132357",
+        "snapshot_ready_duration_seconds": 0.020065400000021327,
+        "coalesced": false
+      },
+      "elapsed_seconds": 0.5243307000018831,
+      "started_monotonic": 22222.9570454,
+      "ended_monotonic": 22223.4813761,
+      "current_version": "v20260921T132357",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n30_npy",
+          "actual": "sidecar_0628_docs_n30_npy"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md",
+            "docs/d015.md",
+            "docs/d016.md",
+            "docs/d017.md",
+            "docs/d018.md",
+            "docs/d019.md",
+            "docs/d020.md",
+            "docs/d021.md",
+            "docs/d022.md",
+            "docs/d023.md",
+            "docs/d024.md",
+            "docs/d025.md",
+            "docs/d026.md",
+            "docs/d027.md",
+            "docs/d028.md",
+            "docs/d029.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 2,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 22224.8476913,
+          "end_monotonic": 22227.6260723,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22227.782622,
+          "end_monotonic": 22228.2754131,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22228.4378482,
+          "end_monotonic": 22229.3016575,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22229.4537504,
+          "end_monotonic": 22229.6960327,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132509",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "265277af282a4618a1741a01ea2aeff2",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T13:25:07.236791+00:00",
+        "finished_at": "2026-09-21T13:25:11.491271+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md",
+              "d015.md",
+              "d016.md",
+              "d017.md",
+              "d018.md",
+              "d019.md",
+              "d020.md",
+              "d021.md",
+              "d022.md",
+              "d023.md",
+              "d024.md",
+              "d025.md",
+              "d026.md",
+              "d027.md",
+              "d028.md",
+              "d029.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 1,
+          "deleted_docs": 0,
+          "upserted_chunks": 1,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 1,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 1,
+            "chunks_indexed": 30,
+            "colbert_tokens_processed": 25,
+            "colbert_tokens_indexed": 821,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T132509",
+          "colbert_io_bytes": {
+            "written_bytes": 51328,
+            "hardlinked_bytes": 1633920,
+            "copied_bytes": 0,
+            "inherited_hashes_not_reverified": 29
+          },
+          "phase_timings_seconds": {
+            "init_model": 2.3566695999979856,
+            "scan_hash": 0.03015890000096988,
+            "load": 0.05223240000123042,
+            "parsing_embedding": 0.8010497000032046,
+            "qdrant": 0.15001979999942705,
+            "relink": 0.000167199999850709,
+            "save_hash": 0.18494850000206497,
+            "eval_gate": 0.0,
+            "promote": 0.147603599998547
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0010419999998703133,
+        "writer_lock_wait_seconds": 0.007012800000666175,
+        "build_duration_seconds": 4.245786399998906,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.07177230000161217,
+        "reload_error": null,
+        "published_token": "v20260921T132509",
+        "snapshot_ready_duration_seconds": 4.328378499998507,
+        "coalesced": false
+      },
+      "elapsed_seconds": 4.76753380000082,
+      "started_monotonic": 22224.8467634,
+      "ended_monotonic": 22229.6142972,
+      "current_version": "v20260921T132509",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n30_npy",
+          "actual": "sidecar_0628_docs_n30_npy"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md",
+            "docs/d015.md",
+            "docs/d016.md",
+            "docs/d017.md",
+            "docs/d018.md",
+            "docs/d019.md",
+            "docs/d020.md",
+            "docs/d021.md",
+            "docs/d022.md",
+            "docs/d023.md",
+            "docs/d024.md",
+            "docs/d025.md",
+            "docs/d026.md",
+            "docs/d027.md",
+            "docs/d028.md",
+            "docs/d029.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 2,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 22230.9520159,
+          "end_monotonic": 22233.4480919,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22233.6096716,
+          "end_monotonic": 22233.9205929,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22234.082137,
+          "end_monotonic": 22234.5377774,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22234.6891191,
+          "end_monotonic": 22235.3394977,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22235.5003271,
+          "end_monotonic": 22235.9105443,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22236.0652643,
+          "end_monotonic": 22236.4642673,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22236.6273882,
+          "end_monotonic": 22236.9758942,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22237.1260418,
+          "end_monotonic": 22237.5032083,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22237.6564503,
+          "end_monotonic": 22238.016453,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22238.1725962,
+          "end_monotonic": 22238.4910418,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22238.6427763,
+          "end_monotonic": 22239.0001834,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22239.1595853,
+          "end_monotonic": 22239.5158277,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22239.7833566,
+          "end_monotonic": 22240.461404,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132515",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d001.md",
+          "before_sha256": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+          "after_sha256": "bbea20e8af1d5027478bc50b632d9be5af6c0c4e4e6c77923f123119eaf62dd2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d002.md",
+          "before_sha256": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+          "after_sha256": "aac5a99d6afb42f1e84774a8e1dd53ec1b8bffb334a61012a4a39f65e6b0be85",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d003.md",
+          "before_sha256": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+          "after_sha256": "592f75dbdc042e03606815315cb92133c3e53c10a23a168a3e9661b29391bca9",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d004.md",
+          "before_sha256": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+          "after_sha256": "a4d31bfbfebe3eeae2d29b0a7d8b70f31904ccc373249b013c2332c7954a4bc2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d005.md",
+          "before_sha256": "74d4e33ac71d12964756a8cb9415591a0d3cdf7e4c14a1a93ef0b4592aacdd0a",
+          "after_sha256": "5eb1d88671f1d366a5eedb0983e20a533280576d15fe029243a67cdff056b82c",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d006.md",
+          "before_sha256": "955e2381cff1c12d332627292a66ba12847550a8c59a04b1f6bc0b74e72e26ef",
+          "after_sha256": "2f3935e7580dd9377dbd58ac891d4284e14c2309e603baf22c4e923edffb9153",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d007.md",
+          "before_sha256": "d1127fc92ef4d8eea946df94c52157db395d8fff85a68cfbdd463198a99f0e0a",
+          "after_sha256": "e05144b25c4471eaf4c11061fe957e0ad1061a90c50765bf5c81432f2a15008a",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d008.md",
+          "before_sha256": "9e3e92a5dfaf1f9296db53503a37170ded5a933759c89d7ef7925111dc35f263",
+          "after_sha256": "2e1e8bc64598c183449911f067b2c5cdfd8795ce3d28be4f197738a3225ba987",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d009.md",
+          "before_sha256": "8d35a52c8f9480e2a2145087cc87967a6927820251b861552bbb947668c5b69d",
+          "after_sha256": "7c7e8387145aa91d5d398fc4d1ddd821177cf9e278047a72e656b61d0a65ffac",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "386c1ba159ac43c5af5a3e94effc2071",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T13:25:13.340911+00:00",
+        "finished_at": "2026-09-21T13:25:22.414296+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md",
+              "d015.md",
+              "d016.md",
+              "d017.md",
+              "d018.md",
+              "d019.md",
+              "d020.md",
+              "d021.md",
+              "d022.md",
+              "d023.md",
+              "d024.md",
+              "d025.md",
+              "d026.md",
+              "d027.md",
+              "d028.md",
+              "d029.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 10,
+          "deleted_docs": 0,
+          "upserted_chunks": 10,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 10,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 10,
+            "chunks_indexed": 30,
+            "colbert_tokens_processed": 268,
+            "colbert_tokens_indexed": 821,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T132515",
+          "colbert_io_bytes": {
+            "written_bytes": 550144,
+            "hardlinked_bytes": 1135104,
+            "copied_bytes": 0,
+            "inherited_hashes_not_reverified": 20
+          },
+          "phase_timings_seconds": {
+            "init_model": 2.2846580000004906,
+            "scan_hash": 0.025102999999944586,
+            "load": 0.05562199999985751,
+            "parsing_embedding": 5.555442100001528,
+            "qdrant": 0.29134330000306363,
+            "relink": 0.00017949999892152846,
+            "save_hash": 0.22455489999993006,
+            "eval_gate": 0.0,
+            "promote": 0.12919550000151503
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0013448999998217914,
+        "writer_lock_wait_seconds": 0.014654599999630591,
+        "build_duration_seconds": 9.056834299997718,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.11715150000236463,
+        "reload_error": null,
+        "published_token": "v20260921T132515",
+        "snapshot_ready_duration_seconds": 9.191142599996965,
+        "coalesced": false
+      },
+      "elapsed_seconds": 9.340795399999479,
+      "started_monotonic": 22230.9509381,
+      "ended_monotonic": 22240.2917335,
+      "current_version": "v20260921T132515",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n30_npy",
+          "actual": "sidecar_0628_docs_n30_npy"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md",
+            "docs/d015.md",
+            "docs/d016.md",
+            "docs/d017.md",
+            "docs/d018.md",
+            "docs/d019.md",
+            "docs/d020.md",
+            "docs/d021.md",
+            "docs/d022.md",
+            "docs/d023.md",
+            "docs/d024.md",
+            "docs/d025.md",
+            "docs/d026.md",
+            "docs/d027.md",
+            "docs/d028.md",
+            "docs/d029.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 3,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 22241.6562905,
+          "end_monotonic": 22241.8989679,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22242.0489796,
+          "end_monotonic": 22242.3600768,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "2da8afd38f3b4e62829fa0333eb0a355",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T13:25:24.059766+00:00",
+        "finished_at": "2026-09-21T13:25:24.077743+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md",
+              "d015.md",
+              "d016.md",
+              "d017.md",
+              "d018.md",
+              "d019.md",
+              "d020.md",
+              "d021.md",
+              "d022.md",
+              "d023.md",
+              "d024.md",
+              "d025.md",
+              "d026.md",
+              "d027.md",
+              "d028.md",
+              "d029.md"
+            ],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 0.0,
+            "scan_hash": 0.010008299999753945,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "snapshot_token": "v20260921T132357"
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0008190999978978653,
+        "writer_lock_wait_seconds": 0.006370200000674231,
+        "build_duration_seconds": 0.010625299997627735,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.0,
+        "reload_error": null,
+        "published_token": "v20260921T132357",
+        "snapshot_ready_duration_seconds": 0.0189009999994596,
+        "coalesced": false
+      },
+      "elapsed_seconds": 0.5297916999988956,
+      "started_monotonic": 22241.6556036,
+      "ended_monotonic": 22242.1853953,
+      "current_version": "v20260921T132357",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n30_npy",
+          "actual": "sidecar_0628_docs_n30_npy"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md",
+            "docs/d015.md",
+            "docs/d016.md",
+            "docs/d017.md",
+            "docs/d018.md",
+            "docs/d019.md",
+            "docs/d020.md",
+            "docs/d021.md",
+            "docs/d022.md",
+            "docs/d023.md",
+            "docs/d024.md",
+            "docs/d025.md",
+            "docs/d026.md",
+            "docs/d027.md",
+            "docs/d028.md",
+            "docs/d029.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 3,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 22243.5087246,
+          "end_monotonic": 22245.866957,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22246.0317783,
+          "end_monotonic": 22246.3865061,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22246.5481911,
+          "end_monotonic": 22247.5047323,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22247.6567535,
+          "end_monotonic": 22247.9158557,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132528",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "0075f2dd6ec5489f834221c884271fbd",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T13:25:25.895963+00:00",
+        "finished_at": "2026-09-21T13:25:29.806446+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md",
+              "d015.md",
+              "d016.md",
+              "d017.md",
+              "d018.md",
+              "d019.md",
+              "d020.md",
+              "d021.md",
+              "d022.md",
+              "d023.md",
+              "d024.md",
+              "d025.md",
+              "d026.md",
+              "d027.md",
+              "d028.md",
+              "d029.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 1,
+          "deleted_docs": 0,
+          "upserted_chunks": 1,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 1,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 1,
+            "chunks_indexed": 30,
+            "colbert_tokens_processed": 25,
+            "colbert_tokens_indexed": 821,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T132528",
+          "colbert_io_bytes": {
+            "written_bytes": 51328,
+            "hardlinked_bytes": 1633920,
+            "copied_bytes": 0,
+            "inherited_hashes_not_reverified": 29
+          },
+          "phase_timings_seconds": {
+            "init_model": 2.1973722000002454,
+            "scan_hash": 0.008084400000370806,
+            "load": 0.048932900001091184,
+            "parsing_embedding": 0.7022006999977748,
+            "qdrant": 0.06624850000298466,
+            "relink": 0.00011079999967478216,
+            "save_hash": 0.20880789999864646,
+            "eval_gate": 0.0,
+            "promote": 0.11704599999939092
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0006089999988034833,
+        "writer_lock_wait_seconds": 0.0057849000004353,
+        "build_duration_seconds": 3.903687899997749,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.06650269999954617,
+        "reload_error": null,
+        "published_token": "v20260921T132528",
+        "snapshot_ready_duration_seconds": 3.9776655999994546,
+        "coalesced": false
+      },
+      "elapsed_seconds": 4.199215399999957,
+      "started_monotonic": 22243.507957,
+      "ended_monotonic": 22247.7071724,
+      "current_version": "v20260921T132528",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n30_npy",
+          "actual": "sidecar_0628_docs_n30_npy"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md",
+            "docs/d015.md",
+            "docs/d016.md",
+            "docs/d017.md",
+            "docs/d018.md",
+            "docs/d019.md",
+            "docs/d020.md",
+            "docs/d021.md",
+            "docs/d022.md",
+            "docs/d023.md",
+            "docs/d024.md",
+            "docs/d025.md",
+            "docs/d026.md",
+            "docs/d027.md",
+            "docs/d028.md",
+            "docs/d029.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 3,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 22249.2332556,
+          "end_monotonic": 22251.7901048,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22251.9537232,
+          "end_monotonic": 22252.6430134,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22252.7985868,
+          "end_monotonic": 22253.2821091,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22253.4398291,
+          "end_monotonic": 22254.2503011,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22254.4094358,
+          "end_monotonic": 22254.7835819,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22254.9370658,
+          "end_monotonic": 22255.4650262,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22255.617557,
+          "end_monotonic": 22255.9599821,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22256.1243227,
+          "end_monotonic": 22256.5248966,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22256.6856457,
+          "end_monotonic": 22256.9935384,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22257.1566808,
+          "end_monotonic": 22257.6366864,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22258.0488371,
+          "end_monotonic": 22258.7016564,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132534",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d001.md",
+          "before_sha256": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+          "after_sha256": "bbea20e8af1d5027478bc50b632d9be5af6c0c4e4e6c77923f123119eaf62dd2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d002.md",
+          "before_sha256": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+          "after_sha256": "aac5a99d6afb42f1e84774a8e1dd53ec1b8bffb334a61012a4a39f65e6b0be85",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d003.md",
+          "before_sha256": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+          "after_sha256": "592f75dbdc042e03606815315cb92133c3e53c10a23a168a3e9661b29391bca9",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d004.md",
+          "before_sha256": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+          "after_sha256": "a4d31bfbfebe3eeae2d29b0a7d8b70f31904ccc373249b013c2332c7954a4bc2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d005.md",
+          "before_sha256": "74d4e33ac71d12964756a8cb9415591a0d3cdf7e4c14a1a93ef0b4592aacdd0a",
+          "after_sha256": "5eb1d88671f1d366a5eedb0983e20a533280576d15fe029243a67cdff056b82c",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d006.md",
+          "before_sha256": "955e2381cff1c12d332627292a66ba12847550a8c59a04b1f6bc0b74e72e26ef",
+          "after_sha256": "2f3935e7580dd9377dbd58ac891d4284e14c2309e603baf22c4e923edffb9153",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d007.md",
+          "before_sha256": "d1127fc92ef4d8eea946df94c52157db395d8fff85a68cfbdd463198a99f0e0a",
+          "after_sha256": "e05144b25c4471eaf4c11061fe957e0ad1061a90c50765bf5c81432f2a15008a",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d008.md",
+          "before_sha256": "9e3e92a5dfaf1f9296db53503a37170ded5a933759c89d7ef7925111dc35f263",
+          "after_sha256": "2e1e8bc64598c183449911f067b2c5cdfd8795ce3d28be4f197738a3225ba987",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d009.md",
+          "before_sha256": "8d35a52c8f9480e2a2145087cc87967a6927820251b861552bbb947668c5b69d",
+          "after_sha256": "7c7e8387145aa91d5d398fc4d1ddd821177cf9e278047a72e656b61d0a65ffac",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "f97fd804242248c7ad2240ceb7e8953f",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T13:25:31.622925+00:00",
+        "finished_at": "2026-09-21T13:25:40.697199+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md",
+              "d015.md",
+              "d016.md",
+              "d017.md",
+              "d018.md",
+              "d019.md",
+              "d020.md",
+              "d021.md",
+              "d022.md",
+              "d023.md",
+              "d024.md",
+              "d025.md",
+              "d026.md",
+              "d027.md",
+              "d028.md",
+              "d029.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 10,
+          "deleted_docs": 0,
+          "upserted_chunks": 10,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 10,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 10,
+            "chunks_indexed": 30,
+            "colbert_tokens_processed": 268,
+            "colbert_tokens_indexed": 821,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T132534",
+          "colbert_io_bytes": {
+            "written_bytes": 550144,
+            "hardlinked_bytes": 1135104,
+            "copied_bytes": 0,
+            "inherited_hashes_not_reverified": 20
+          },
+          "phase_timings_seconds": {
+            "init_model": 2.370654000002105,
+            "scan_hash": 0.026558199999271892,
+            "load": 0.051156099998479476,
+            "parsing_embedding": 5.5978276999958325,
+            "qdrant": 0.2149494000041159,
+            "relink": 0.00014659999942523427,
+            "save_hash": 0.18964240000059363,
+            "eval_gate": 0.0,
+            "promote": 0.08542640000086976
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0007760000007692724,
+        "writer_lock_wait_seconds": 0.007319100001041079,
+        "build_duration_seconds": 9.065701499999705,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.10395910000079311,
+        "reload_error": null,
+        "published_token": "v20260921T132534",
+        "snapshot_ready_duration_seconds": 9.17923200000223,
+        "coalesced": false
+      },
+      "elapsed_seconds": 9.188566299999366,
+      "started_monotonic": 22249.2324684,
+      "ended_monotonic": 22258.4210347,
+      "current_version": "v20260921T132534",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n30_npy",
+          "actual": "sidecar_0628_docs_n30_npy"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md",
+            "docs/d015.md",
+            "docs/d016.md",
+            "docs/d017.md",
+            "docs/d018.md",
+            "docs/d019.md",
+            "docs/d020.md",
+            "docs/d021.md",
+            "docs/d022.md",
+            "docs/d023.md",
+            "docs/d024.md",
+            "docs/d025.md",
+            "docs/d026.md",
+            "docs/d027.md",
+            "docs/d028.md",
+            "docs/d029.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 4,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 22259.924628,
+          "end_monotonic": 22260.269879,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "186f8f9e5a11470ba29c070a2ac9034f",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T13:25:42.311741+00:00",
+        "finished_at": "2026-09-21T13:25:42.330551+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md",
+              "d015.md",
+              "d016.md",
+              "d017.md",
+              "d018.md",
+              "d019.md",
+              "d020.md",
+              "d021.md",
+              "d022.md",
+              "d023.md",
+              "d024.md",
+              "d025.md",
+              "d026.md",
+              "d027.md",
+              "d028.md",
+              "d029.md"
+            ],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 0.0,
+            "scan_hash": 0.011399799997889204,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "snapshot_token": "v20260921T132357"
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0005901999975321814,
+        "writer_lock_wait_seconds": 0.005792799998744158,
+        "build_duration_seconds": 0.0121915000017907,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.0,
+        "reload_error": null,
+        "published_token": "v20260921T132357",
+        "snapshot_ready_duration_seconds": 0.019697899999300716,
+        "coalesced": false
+      },
+      "elapsed_seconds": 0.03328659999897354,
+      "started_monotonic": 22259.9239471,
+      "ended_monotonic": 22259.9572337,
+      "current_version": "v20260921T132357",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n30_npy",
+          "actual": "sidecar_0628_docs_n30_npy"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md",
+            "docs/d015.md",
+            "docs/d016.md",
+            "docs/d017.md",
+            "docs/d018.md",
+            "docs/d019.md",
+            "docs/d020.md",
+            "docs/d021.md",
+            "docs/d022.md",
+            "docs/d023.md",
+            "docs/d024.md",
+            "docs/d025.md",
+            "docs/d026.md",
+            "docs/d027.md",
+            "docs/d028.md",
+            "docs/d029.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 4,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 22261.4620272,
+          "end_monotonic": 22263.8550966,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22264.0150999,
+          "end_monotonic": 22264.3919829,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22264.5487742,
+          "end_monotonic": 22265.4507363,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "27f41c8971db40adb83860951863bd3f",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T13:25:43.852588+00:00",
+        "finished_at": "2026-09-21T13:25:47.710230+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md",
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md",
+              "d015.md",
+              "d016.md",
+              "d017.md",
+              "d018.md",
+              "d019.md",
+              "d020.md",
+              "d021.md",
+              "d022.md",
+              "d023.md",
+              "d024.md",
+              "d025.md",
+              "d026.md",
+              "d027.md",
+              "d028.md",
+              "d029.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 1,
+          "deleted_docs": 0,
+          "upserted_chunks": 1,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 1,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 1,
+            "chunks_indexed": 30,
+            "colbert_tokens_processed": 25,
+            "colbert_tokens_indexed": 821,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T132546",
+          "colbert_io_bytes": {
+            "written_bytes": 51328,
+            "hardlinked_bytes": 1633920,
+            "copied_bytes": 0,
+            "inherited_hashes_not_reverified": 29
+          },
+          "phase_timings_seconds": {
+            "init_model": 2.1828160000004573,
+            "scan_hash": 0.029654800000571413,
+            "load": 0.0512352000005194,
+            "parsing_embedding": 0.6720276000050944,
+            "qdrant": 0.046070699998381315,
+            "relink": 0.00011079999967478216,
+            "save_hash": 0.20762620000095922,
+            "eval_gate": 0.0,
+            "promote": 0.12199420000251848
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0005987999975332059,
+        "writer_lock_wait_seconds": 0.006891699998959666,
+        "build_duration_seconds": 3.8479353000002448,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.07221380000191857,
+        "reload_error": null,
+        "published_token": "v20260921T132546",
+        "snapshot_ready_duration_seconds": 3.930669499997748,
+        "coalesced": false
+      },
+      "elapsed_seconds": 4.105877999998484,
+      "started_monotonic": 22261.4612984,
+      "ended_monotonic": 22265.5671764,
+      "current_version": "v20260921T132546",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n30_npy",
+          "actual": "sidecar_0628_docs_n30_npy"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md",
+            "docs/d015.md",
+            "docs/d016.md",
+            "docs/d017.md",
+            "docs/d018.md",
+            "docs/d019.md",
+            "docs/d020.md",
+            "docs/d021.md",
+            "docs/d022.md",
+            "docs/d023.md",
+            "docs/d024.md",
+            "docs/d025.md",
+            "docs/d026.md",
+            "docs/d027.md",
+            "docs/d028.md",
+            "docs/d029.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 4,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 22266.8501351,
+          "end_monotonic": 22269.1793999,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22269.3367877,
+          "end_monotonic": 22269.6768225,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22269.8305192,
+          "end_monotonic": 22270.2372909,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22270.3920526,
+          "end_monotonic": 22270.7038578,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22270.8611558,
+          "end_monotonic": 22271.2071745,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22271.3601558,
+          "end_monotonic": 22271.8093991,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22271.9697828,
+          "end_monotonic": 22272.3668579,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22272.5181777,
+          "end_monotonic": 22272.8663244,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22273.0299324,
+          "end_monotonic": 22273.4326275,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22273.5939948,
+          "end_monotonic": 22273.8855401,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22274.0465381,
+          "end_monotonic": 22274.5436355,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        },
+        {
+          "start_monotonic": 22274.7058244,
+          "end_monotonic": 22275.5439086,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T132357",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d001.md",
+          "before_sha256": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+          "after_sha256": "bbea20e8af1d5027478bc50b632d9be5af6c0c4e4e6c77923f123119eaf62dd2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d002.md",
+          "before_sha256": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+          "after_sha256": "aac5a99d6afb42f1e84774a8e1dd53ec1b8bffb334a61012a4a39f65e6b0be85",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d003.md",
+          "before_sha256": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+          "after_sha256": "592f75dbdc042e03606815315cb92133c3e53c10a23a168a3e9661b29391bca9",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d004.md",
+          "before_sha256": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+          "after_sha256": "a4d31bfbfebe3eeae2d29b0a7d8b70f31904ccc373249b013c2332c7954a4bc2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d005.md",
+          "before_sha256": "74d4e33ac71d12964756a8cb9415591a0d3cdf7e4c14a1a93ef0b4592aacdd0a",
+          "after_sha256": "5eb1d88671f1d366a5eedb0983e20a533280576d15fe029243a67cdff056b82c",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d006.md",
+          "before_sha256": "955e2381cff1c12d332627292a66ba12847550a8c59a04b1f6bc0b74e72e26ef",
+          "after_sha256": "2f3935e7580dd9377dbd58ac891d4284e14c2309e603baf22c4e923edffb9153",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d007.md",
+          "before_sha256": "d1127fc92ef4d8eea946df94c52157db395d8fff85a68cfbdd463198a99f0e0a",
+          "after_sha256": "e05144b25c4471eaf4c11061fe957e0ad1061a90c50765bf5c81432f2a15008a",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d008.md",
+          "before_sha256": "9e3e92a5dfaf1f9296db53503a37170ded5a933759c89d7ef7925111dc35f263",
+          "after_sha256": "2e1e8bc64598c183449911f067b2c5cdfd8795ce3d28be4f197738a3225ba987",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d009.md",
+          "before_sha256": "8d35a52c8f9480e2a2145087cc87967a6927820251b861552bbb947668c5b69d",
+          "after_sha256": "7c7e8387145aa91d5d398fc4d1ddd821177cf9e278047a72e656b61d0a65ffac",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "eb00085f52a94b90b999dc1134ecc207",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T13:25:49.251561+00:00",
+        "finished_at": "2026-09-21T13:25:57.697833+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d010.md",
+              "d011.md",
+              "d012.md",
+              "d013.md",
+              "d014.md",
+              "d015.md",
+              "d016.md",
+              "d017.md",
+              "d018.md",
+              "d019.md",
+              "d020.md",
+              "d021.md",
+              "d022.md",
+              "d023.md",
+              "d024.md",
+              "d025.md",
+              "d026.md",
+              "d027.md",
+              "d028.md",
+              "d029.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 10,
+          "deleted_docs": 0,
+          "upserted_chunks": 10,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 10,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 10,
+            "chunks_indexed": 30,
+            "colbert_tokens_processed": 268,
+            "colbert_tokens_indexed": 821,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T132551",
+          "colbert_io_bytes": {
+            "written_bytes": 550144,
+            "hardlinked_bytes": 1135104,
+            "copied_bytes": 0,
+            "inherited_hashes_not_reverified": 20
+          },
+          "phase_timings_seconds": {
+            "init_model": 2.1441072999987227,
+            "scan_hash": 0.015560799998638686,
+            "load": 0.05257509999864851,
+            "parsing_embedding": 5.157828599996719,
+            "qdrant": 0.24351750000278116,
+            "relink": 0.00018170000112149864,
+            "save_hash": 0.1809614000012516,
+            "eval_gate": 0.0,
+            "promote": 0.13516679999884218
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0007375999994110316,
+        "writer_lock_wait_seconds": 0.006466599999839673,
+        "build_duration_seconds": 8.438293400002294,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.07446599999821046,
+        "reload_error": null,
+        "published_token": "v20260921T132551",
+        "snapshot_ready_duration_seconds": 8.521631700001308,
+        "coalesced": false
+      },
+      "elapsed_seconds": 8.717000200002076,
+      "started_monotonic": 22266.8494071,
+      "ended_monotonic": 22275.5664073,
+      "current_version": "v20260921T132551",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n30_npy",
+          "actual": "sidecar_0628_docs_n30_npy"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md",
+            "docs/d010.md",
+            "docs/d011.md",
+            "docs/d012.md",
+            "docs/d013.md",
+            "docs/d014.md",
+            "docs/d015.md",
+            "docs/d016.md",
+            "docs/d017.md",
+            "docs/d018.md",
+            "docs/d019.md",
+            "docs/d020.md",
+            "docs/d021.md",
+            "docs/d022.md",
+            "docs/d023.md",
+            "docs/d024.md",
+            "docs/d025.md",
+            "docs/d026.md",
+            "docs/d027.md",
+            "docs/d028.md",
+            "docs/d029.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    }
+  ],
+  "qdrant_collections_before": [
+    "sidecar_0628_docs_n10_npy",
+    "sidecar_0628_smoke_docs_n10_npy"
+  ],
+  "corpus": {
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d000.md": {
+      "sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d001.md": {
+      "sha256": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d002.md": {
+      "sha256": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d003.md": {
+      "sha256": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d004.md": {
+      "sha256": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d005.md": {
+      "sha256": "74d4e33ac71d12964756a8cb9415591a0d3cdf7e4c14a1a93ef0b4592aacdd0a",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d006.md": {
+      "sha256": "955e2381cff1c12d332627292a66ba12847550a8c59a04b1f6bc0b74e72e26ef",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d007.md": {
+      "sha256": "d1127fc92ef4d8eea946df94c52157db395d8fff85a68cfbdd463198a99f0e0a",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d008.md": {
+      "sha256": "9e3e92a5dfaf1f9296db53503a37170ded5a933759c89d7ef7925111dc35f263",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d009.md": {
+      "sha256": "8d35a52c8f9480e2a2145087cc87967a6927820251b861552bbb947668c5b69d",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d010.md": {
+      "sha256": "fd47f5050fd63693c2cfb1716fcc01860194a7e25a3c14bb1188042a3c1efcc5",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d011.md": {
+      "sha256": "e02e2dd65eb8edfb1507958770be1dcf2e08113003cd6b06579c24c41dfe86c4",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d012.md": {
+      "sha256": "dd42b52c20460757ed80aad70315971f750face2132bfdc4e44da83e77ab67e2",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d013.md": {
+      "sha256": "05869bc2916a91cd31f8205aa052a5bff23855e20e258ff04e819fd0ead4fbaf",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d014.md": {
+      "sha256": "336f4b84fc334946ef349ae12036946be8aebbc8b8ecbadc538dc3a667a62252",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d015.md": {
+      "sha256": "83e482cd6be5bedaf5e09da6b2ae8e3b36f0137b08dbe4b2a4d14ad9d72e74d9",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d016.md": {
+      "sha256": "75f25f94ee7a2731221ab0d43ac44804bca36030459e94ea78578094cb5bb16f",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d017.md": {
+      "sha256": "4a599e0db8838ab1f54c773eb2502699a33e320140110bbded35fe5f0e444ec7",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d018.md": {
+      "sha256": "64f114851df7db25a9cff2ab2cfe8844427f70c00bcef0c3b5e51142a830ceb4",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d019.md": {
+      "sha256": "8d943d772b9de742fa050c9cf96d2bf62126042255d40a973c6699b42b743d33",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d020.md": {
+      "sha256": "d6e66015d9047f985a413d137f3562198f96558661d23a7eb73937bfcb94d802",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d021.md": {
+      "sha256": "da844cd0fb656c54cf426487ddfbb6dd6201384e6acd9dbe26f645d74b8dd77d",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d022.md": {
+      "sha256": "07139677bbc10314a973a42d505906c0032386e360921630440b589cb7556312",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d023.md": {
+      "sha256": "988b873cca10479b8a0d4da2f35f7e981f606d27ee3be1250206a72e16b305ed",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d024.md": {
+      "sha256": "1458532af8495a3add7d7580b8b4664841dd5b0efbf8b9d917cb2b2bbed3fac0",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d025.md": {
+      "sha256": "66d00cdb8bc4d9914b5f8259890b9cfc1ad8da483b2e9a48861f05e0c720059f",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d026.md": {
+      "sha256": "99139add11214670a3fb74781bbf0869199797a18827d46c2d089aabf99eb338",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d027.md": {
+      "sha256": "3403fbd2cf64e5ef75b4ace15caeebbefcf5cc09eb47a065dadbda3091a8400f",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d028.md": {
+      "sha256": "e9a8d5f43e43c8d1797a116a4f95c4662e890203685e7c717f9b4ad7701282d9",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_npy_20260921_docs_n30/sandbox/experiment/docs/d029.md": {
+      "sha256": "4f20f7678d086eb137dd7d5810210c462c0453eaccd7bbbf1d37b741782aa5d8",
+      "bytes": 72
+    }
+  },
+  "bootstrap": {
+    "pid": 26916,
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "\nLoading weights:   0%|          | 0/391 [00:00<?, ?it/s]\nLoading weights: 100%|██████████| 391/391 [00:00<00:00, 8709.73it/s]\n"
+  },
+  "bootstrap_result_file": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_docs_n30\\workload\\bootstrap.json",
+  "baseline_verification_job": {
+    "job_id": "1ac08ffaf9a24c40b623a513bbff799c",
+    "status": "completed",
+    "kind": "incremental",
+    "created_at": "2026-09-21T13:24:25.513224+00:00",
+    "finished_at": "2026-09-21T13:24:25.531280+00:00",
+    "changed_paths": null,
+    "result": {
+      "noop": true,
+      "planned": {
+        "unchanged": [
+          "d000.md",
+          "d001.md",
+          "d002.md",
+          "d003.md",
+          "d004.md",
+          "d005.md",
+          "d006.md",
+          "d007.md",
+          "d008.md",
+          "d009.md",
+          "d010.md",
+          "d011.md",
+          "d012.md",
+          "d013.md",
+          "d014.md",
+          "d015.md",
+          "d016.md",
+          "d017.md",
+          "d018.md",
+          "d019.md",
+          "d020.md",
+          "d021.md",
+          "d022.md",
+          "d023.md",
+          "d024.md",
+          "d025.md",
+          "d026.md",
+          "d027.md",
+          "d028.md",
+          "d029.md"
+        ],
+        "new": [],
+        "modified": [],
+        "deleted": []
+      },
+      "reindexed_docs": 0,
+      "deleted_docs": 0,
+      "upserted_chunks": 0,
+      "phase_timings_seconds": {
+        "init_model": 0.0,
+        "scan_hash": 0.008643599998322316,
+        "load": 0.0,
+        "parsing_embedding": 0.0,
+        "qdrant": 0.0,
+        "relink": 0.0,
+        "save_hash": 0.0,
+        "eval_gate": 0.0,
+        "promote": 0.0
+      },
+      "counts": {
+        "docs_added": 0,
+        "docs_modified": 0,
+        "docs_removed": 0,
+        "code_added": 0,
+        "code_modified": 0,
+        "code_removed": 0,
+        "chunks_processed": 0,
+        "chunks_indexed": null,
+        "colbert_tokens_processed": 0,
+        "colbert_tokens_indexed": null,
+        "code_tokens_processed": null,
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+      },
+      "snapshot_token": "v20260921T132357"
+    },
+    "error": null,
+    "queue_duration_seconds": 0.0004206000012345612,
+    "writer_lock_wait_seconds": 0.008244399999966845,
+    "build_duration_seconds": 0.009177899999485817,
+    "reload_status": "completed",
+    "reload_duration_seconds": 0.0,
+    "reload_error": null,
+    "published_token": "v20260921T132357",
+    "snapshot_ready_duration_seconds": 0.01920619999873452,
+    "coalesced": false
+  },
+  "baseline_integrity": {
+    "ok": true,
+    "stale": false,
+    "artifacts_corrupted": false,
+    "qdrant_mismatch": false,
+    "qdrant_unreachable": false,
+    "problems": [],
+    "qdrant_alias": {
+      "state": "aligned",
+      "expected": "sidecar_0628_docs_n30_npy",
+      "actual": "sidecar_0628_docs_n30_npy"
+    },
+    "docs_git": {
+      "state": "aligned",
+      "diverging": [],
+      "instantiated": [],
+      "untracked": [
+        "docs/d000.md",
+        "docs/d001.md",
+        "docs/d002.md",
+        "docs/d003.md",
+        "docs/d004.md",
+        "docs/d005.md",
+        "docs/d006.md",
+        "docs/d007.md",
+        "docs/d008.md",
+        "docs/d009.md",
+        "docs/d010.md",
+        "docs/d011.md",
+        "docs/d012.md",
+        "docs/d013.md",
+        "docs/d014.md",
+        "docs/d015.md",
+        "docs/d016.md",
+        "docs/d017.md",
+        "docs/d018.md",
+        "docs/d019.md",
+        "docs/d020.md",
+        "docs/d021.md",
+        "docs/d022.md",
+        "docs/d023.md",
+        "docs/d024.md",
+        "docs/d025.md",
+        "docs/d026.md",
+        "docs/d027.md",
+        "docs/d028.md",
+        "docs/d029.md"
+      ],
+      "tracked": 0,
+      "reason": "nessun file tracciato sotto docs/"
+    }
+  },
+  "baseline_database": {
+    "CURRENT": {
+      "sha256": "165245025d8479b08cf350d0b559fac89fb0f19ece334d342c5d511e655faf7b",
+      "bytes": 17
+    },
+    "versions/v20260921T132357/chunks.json": {
+      "sha256": "5f98c27aab41d7464c2851b7a344f2269ab0bb38f3da7f3d2416aefdca4b8013",
+      "bytes": 5972
+    },
+    "versions/v20260921T132357/code.json": {
+      "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "bytes": 2
+    },
+    "versions/v20260921T132357/code.npz": {
+      "sha256": "d6ce6cd51c04cba7e94f732d0ea50b266b9e80ecb69488d135a8e31f2e887ae2",
+      "bytes": 205
+    },
+    "versions/v20260921T132357/dense.npz": {
+      "sha256": "ce3c7534707acf0de17b99d505c77009e8a55570f5c1d2d6a28e93069ef0ef4d",
+      "bytes": 64335
+    },
+    "versions/v20260921T132357/graph.json": {
+      "sha256": "8b9e24db27cc678154d71178e45366e4f46947ed66b9b7fc1ffdcb211a7d946b",
+      "bytes": 10804
+    },
+    "versions/v20260921T132357/index_manifest.json": {
+      "sha256": "6984c3467c890c4067a2d9fc875c321f0f7ca8262bf7343cd576998123ae2dd6",
+      "bytes": 10367
+    },
+    "versions/v20260921T132357/colbert/d-0eda73f9dfb6351967d3859c1f07ffc7aed41e7cfbccacbcebe763d578f24f41.npy": {
+      "sha256": "52b43c005aa143c0beac8c4fcc2eecf6bdcd8e4282ff99affbdd09160e8d046e",
+      "bytes": 55424
+    },
+    "versions/v20260921T132357/colbert/d-16a03486a57535a06aa85121c2a78739219eb137f65e0f086d3930f166bb775e.npy": {
+      "sha256": "e8f5bc16781f8cd8be02fc5e9eee2f595fc498ae24dd439c72abf57c258e2c83",
+      "bytes": 57472
+    },
+    "versions/v20260921T132357/colbert/d-1c06a0c218a11aaaf6fdd7ba43f289252c8a4c71973ef9777af407347b465fa0.npy": {
+      "sha256": "2d69926195e80175ca4d8dc1e208fcbddc574f73b9201a96a4cff4a23d3290d4",
+      "bytes": 55424
+    },
+    "versions/v20260921T132357/colbert/d-1d53cc70a949062bf3defc675124ce295873f2435d0f4d978f00101047b60067.npy": {
+      "sha256": "13a8493c8b09f518b78c90035ab9c3a4a7d5133a161919e77aad6e704863ca2a",
+      "bytes": 51328
+    },
+    "versions/v20260921T132357/colbert/d-27a534546e7a2345a59cde81eb617b2c12cc609d9c1651c2377e93470268b6c1.npy": {
+      "sha256": "ad7d1b72455c7792eef8d9ce6e963a21082cf7b2ff8cf7a389611cdeb45ca609",
+      "bytes": 59520
+    },
+    "versions/v20260921T132357/colbert/d-28f52f71def6c4ef098ec153aa5fb22f7001b2516f536ec76f9fd439ee169be4.npy": {
+      "sha256": "5ac6d2e436667260a31c023d7eb650d25c83497516e6ff030982700ae77c88a1",
+      "bytes": 57472
+    },
+    "versions/v20260921T132357/colbert/d-335d4b243b5d714a621ec1ed9e3e706c55fa5647eb4cb7c567aae2349cb5f48b.npy": {
+      "sha256": "b5f55af94d2e18120b76763e20134cb264742b3d17e816ea56362ff78e5644d9",
+      "bytes": 55424
+    },
+    "versions/v20260921T132357/colbert/d-33da4648033a57744a0c6bfc1071a3107587b046e0b71dc5b167546f68378e53.npy": {
+      "sha256": "f0a35a4667c55346e86293b5a41bf132c980da5bc805fae622a827f1a1f9422b",
+      "bytes": 53376
+    },
+    "versions/v20260921T132357/colbert/d-47d32f1f0b8dc24629293ff78b41f9e293727a66e2ae1115a8af0de0172cec03.npy": {
+      "sha256": "f492567d875efaaf85ad3b060a59a70b46c49969ebea3f1211062c1c268017ed",
+      "bytes": 59520
+    },
+    "versions/v20260921T132357/colbert/d-5141baac73be0abd25e00c4acbc7a90370e99fb30e7e1771b2dd3a8ec361e241.npy": {
+      "sha256": "db84609c7e4a4f99a3733c0535547fb339ea9d5439ac8491c2ed1d7e0252b201",
+      "bytes": 59520
+    },
+    "versions/v20260921T132357/colbert/d-5c781b4f7d379b66fc6429c2e5ea99ac8132014cf80d1de4226b04b513dff0ff.npy": {
+      "sha256": "cb246b3c55ddea133879d9db2ab6b267a99f4244cd8d41b9858f6264e20ea0eb",
+      "bytes": 59520
+    },
+    "versions/v20260921T132357/colbert/d-6e17cca3332ab2f7a2209790cd1c01416e17cb1850ff95c2567715f03f614016.npy": {
+      "sha256": "436b04f28f56ef22e5f6a250000535f10961db673638dadb5102d9630f615457",
+      "bytes": 57472
+    },
+    "versions/v20260921T132357/colbert/d-74ce8e9d10bb11eb2feaedab200edee68874b5bc1e28d082ccb4d282d02c109d.npy": {
+      "sha256": "df046b7e9ae6721e230e9645d44e25546a2cb28e8eee908b7b26189702349036",
+      "bytes": 59520
+    },
+    "versions/v20260921T132357/colbert/d-7e8260bd35e7393e1d51e94f13466bc1b59468909d675693755a03910e505af1.npy": {
+      "sha256": "789c4d47a48c418be0cfe043c39937bb1f53a76c565c0becf872f74af48a1c78",
+      "bytes": 55424
+    },
+    "versions/v20260921T132357/colbert/d-7f2af89cf9fa1a7c5617962e668b8d312305c6990d0feccbc75bdc0b68c80f03.npy": {
+      "sha256": "3081273758ab49a9a673f1674f2de637c5589240b273804bc0952d5284a49317",
+      "bytes": 57472
+    },
+    "versions/v20260921T132357/colbert/d-8ab4606fff2f31c1593829b0442898d51319562e0faf1515f3e2c3684146c559.npy": {
+      "sha256": "4f43722f0ad6245de73882ebbec8ed7448d20351a98d8fec8d9db2f71f255333",
+      "bytes": 53376
+    },
+    "versions/v20260921T132357/colbert/d-8b97645146519d48910922f32d4ed9af06ecd8c131ee3a42a0fabe401cbf2073.npy": {
+      "sha256": "d7ad73931d13fdd33fb73583c8e2e56d7b61a703e4bb536d6341a19b718486f3",
+      "bytes": 57472
+    },
+    "versions/v20260921T132357/colbert/d-9746d79a7194d4c0d16cd15a7ea28b181807a55b1fc1c5b7ba8cffb5fcf7ed8a.npy": {
+      "sha256": "f8a290cfa9a04f21d633769358b04839e4abd6e1a7bce2ad9c8688c1255715fe",
+      "bytes": 55424
+    },
+    "versions/v20260921T132357/colbert/d-a077c78b7b8acdf2e2d84aa0c642832c6de6ccb618f9640f8203e59ccc47d1e5.npy": {
+      "sha256": "eb1b800f92965b6bcc5832a0f060ba86ffe63248f7f5274759cabc47a9035813",
+      "bytes": 53376
+    },
+    "versions/v20260921T132357/colbert/d-a3b8c480aa69a268edd3799c2852952cdfea525ec6e9363eb57f812e83e0d432.npy": {
+      "sha256": "fb62175938dd22b7d6168cf42d4773422103bc81e7f174d9dcb4575cfefd0b37",
+      "bytes": 57472
+    },
+    "versions/v20260921T132357/colbert/d-b62c8f749c1998a9fe10faf813b7fd0118fb5307981ffecae138eda065152daa.npy": {
+      "sha256": "bf8b44c35ea049f48c0b30d3bd28c097b1926238823711b7161fe0e1d070bd68",
+      "bytes": 57472
+    },
+    "versions/v20260921T132357/colbert/d-c20c2853f98e336e39329e6aacdc5a7754efca5f9782beca73fb5c94d1be2eb1.npy": {
+      "sha256": "ac65799841414ce3481ed49499794c5efbe2b3cd8fd13e2fb97ef95d2d1613e2",
+      "bytes": 57472
+    },
+    "versions/v20260921T132357/colbert/d-c63aff6220d738804e0a1a685ee11a901f93053365013f5c769c27b748371eb6.npy": {
+      "sha256": "4fe22ca05c5136d6d08faa0022ee5b952f3f972cf9ba93cff2f73ab17e295f71",
+      "bytes": 55424
+    },
+    "versions/v20260921T132357/colbert/d-cc19a74dfcafd58e7b14386c331ba7337884e55b1bb3e5f9c8ec853fc4c7955e.npy": {
+      "sha256": "364967546165a689bf859cd0fe3bd4736074b984614f01ea49a101872f88f812",
+      "bytes": 55424
+    },
+    "versions/v20260921T132357/colbert/d-ccad9b2989a6ea4b937cd26364bb52bbf2ed8abf9aa78b23bf00e22ff8f51377.npy": {
+      "sha256": "d70d6e9862ae86d04abbba0515b1efc5f1e1a140fac2aecc1f34344d00ca9817",
+      "bytes": 55424
+    },
+    "versions/v20260921T132357/colbert/d-e567962e7116b524fb4c24b02ce782658ebbbfa3b7733260ca204ee49f3c65af.npy": {
+      "sha256": "bda280bec810315328952e2526b55c5462cbb2f0b7fc1db1af7e03be096d9f6a",
+      "bytes": 57472
+    },
+    "versions/v20260921T132357/colbert/d-e7abf3069b439dc9db0b2b5e037904879c9d467366b4da02247fc00d321d76f1.npy": {
+      "sha256": "461059250cb28d350d0889dc0d32e23d0761d2fd226d5669bdc98e0b8f374f37",
+      "bytes": 55424
+    },
+    "versions/v20260921T132357/colbert/d-e9333d608572b5e03c6599d07082e11986119b186a320a9538a1373392c0dfb9.npy": {
+      "sha256": "66bcbe7c66439cce8a0f8f9309edad1c94b981af92d7370df5aef7c7836851f4",
+      "bytes": 53376
+    },
+    "versions/v20260921T132357/colbert/d-f331438448716be428bdb7946acfc5808809b72154001391889511fe69f233c1.npy": {
+      "sha256": "b800cee2e518c31ab9b6334aed50238279a39b488d42f6738581d25081acf821",
+      "bytes": 53376
+    },
+    "versions/v20260921T132357/colbert/d-f89c5a2fdb7f7b1d0e5d1ee9a2c2063eecf45f5edbb5869067fd7460449638e7.npy": {
+      "sha256": "3fbcdc48d1375c3ff4dac712794a40cda54923130b4274e68562a4a00f4e1cca",
+      "bytes": 53376
+    },
+    "versions/v20260921T132357/colbert/index.json": {
+      "sha256": "52128e1b6ea07dbdb5f28641473b3b53ecbf7a50e2031a9820619e4d0671a3c0",
+      "bytes": 9632
+    }
+  },
+  "baseline_points": {
+    "count": 30,
+    "sha256": "a1fb340191e3b774f14aec909500891ef00daa71779d8a4a03d8d6987244c60f"
+  },
+  "baseline_current": "763230323630393231543133323335370a",
+  "qdrant_snapshot": "sidecar_0628_docs_n30_npy-8961474949484263-2026-09-21-13-24-26.snapshot",
+  "baseline_queries": [
+    {
+      "query": "prenotazione evento posti",
+      "endpoint": "/api/retrieve",
+      "start_monotonic": 22184.2995096,
+      "end_monotonic": 22184.8716667,
+      "status": 200,
+      "results": 3
+    },
+    {
+      "query": "pagamenti accettati",
+      "endpoint": "/api/retrieve",
+      "start_monotonic": 22184.871671,
+      "end_monotonic": 22185.1423938,
+      "status": 200,
+      "results": 3
+    },
+    {
+      "query": "notifiche prenotazione",
+      "endpoint": "/api/retrieve",
+      "start_monotonic": 22185.1424067,
+      "end_monotonic": 22185.3955245,
+      "status": 200,
+      "results": 3
+    }
+  ]
+}

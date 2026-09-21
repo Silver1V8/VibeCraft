@@ -209,7 +209,8 @@ def test_bench_semantic_map_skipped_se_server_giu():
 # incremental_noop / full_rebuild: coda + polling del journal
 # ---------------------------------------------------------------------------
 
-def _job_sequence_handler(statuses: list[str]):
+def _job_sequence_handler(statuses: list[str], *, noop=True, reload_status="completed",
+                          coalesced=False):
     """Handler che simula POST /api/reindex (accoda un job) seguito da GET
     /api/reindex/{job_id} che avanza attraverso `statuses` a ogni chiamata successiva
     (l'ultimo status si ripete se interrogato oltre la lunghezza della lista)."""
@@ -225,6 +226,12 @@ def _job_sequence_handler(statuses: list[str]):
             "job_id": "job-1", "status": status,
             "created_at": "2026-07-21T10:00:00+00:00",
             "finished_at": "2026-07-21T10:00:05+00:00" if status in bench._TERMINAL_JOB_STATES else None,
+            "result": {"noop": noop}, "reload_status": reload_status,
+            "published_token": "v1" if reload_status == "completed" else None,
+            "build_duration_seconds": 2.0,
+            "reload_duration_seconds": 0.0 if reload_status == "completed" else None,
+            "snapshot_ready_duration_seconds": 3.0 if reload_status == "completed" else None,
+            "coalesced": coalesced,
         })
 
     return handler
@@ -239,8 +246,76 @@ def test_bench_incremental_noop_polla_fino_a_stato_terminale(monkeypatch):
 
     assert result["status"] == "completed"
     assert result["job_id"] == "job-1"
-    assert result["duration_seconds"] == pytest.approx(5.0)
+    assert result["build_duration_seconds"] == pytest.approx(2.0)
+    assert result["historical_wall_seconds"] == pytest.approx(5.0)
+    assert result["snapshot_ready_duration_seconds"] == pytest.approx(3.0)
     assert "note" in result
+
+
+def test_bench_incremental_noop_invalidates_false_noop(monkeypatch):
+    monkeypatch.setattr(bench.time, "sleep", lambda s: None)
+    with _client(_job_sequence_handler(["completed"], noop=False)) as client:
+        result = bench.bench_incremental_noop(client, URL)
+    assert result["valid"] is False
+    assert "noop" in result["invalid_reason"]
+
+
+def test_bench_incremental_noop_invalidates_incomplete_reload(monkeypatch):
+    monkeypatch.setattr(bench.time, "sleep", lambda s: None)
+    with _client(_job_sequence_handler(["completed"], reload_status="incomplete")) as client:
+        result = bench.bench_incremental_noop(client, URL)
+    assert result["valid"] is False
+    assert "reload" in result["invalid_reason"]
+
+
+def test_bench_incremental_noop_accepts_zero_reload_duration(monkeypatch):
+    monkeypatch.setattr(bench.time, "sleep", lambda s: None)
+    with _client(_job_sequence_handler(["completed"])) as client:
+        result = bench.bench_incremental_noop(client, URL)
+    assert result["valid"] is True
+    assert result["reload_duration_seconds"] == 0
+
+
+def test_bench_incremental_noop_invalidates_missing_readiness_duration(monkeypatch):
+    monkeypatch.setattr(bench.time, "sleep", lambda s: None)
+    base = _job_sequence_handler(["completed"])
+    def handler(request):
+        response = base(request)
+        if request.method == "GET":
+            body = response.json()
+            body["snapshot_ready_duration_seconds"] = None
+            return httpx2.Response(200, json=body)
+        return response
+    with _client(handler) as client:
+        result = bench.bench_incremental_noop(client, URL)
+    assert result["valid"] is False
+
+
+def test_bench_incremental_noop_invalidates_coalesced_queue(monkeypatch):
+    monkeypatch.setattr(bench.time, "sleep", lambda s: None)
+    handler = _job_sequence_handler(["completed"])
+
+    def coalesced(request):
+        response = handler(request)
+        if request.method == "GET":
+            body = json.loads(response.content)
+            body["coalesced"] = True
+            return httpx2.Response(200, json=body)
+        return response
+
+    with _client(coalesced) as client:
+        result = bench.bench_incremental_noop(client, URL)
+    assert result["valid"] is False
+    assert "fusa" in result["invalid_reason"]
+
+
+def test_bench_incremental_noop_timeout_pending_is_invalid(monkeypatch):
+    monkeypatch.setattr(bench.time, "sleep", lambda s: None)
+    monkeypatch.setattr(bench, "INCREMENTAL_POLL_TIMEOUT_SECONDS", -1)
+    with _client(_job_sequence_handler(["completed"], reload_status="pending")) as client:
+        result = bench.bench_incremental_noop(client, URL)
+    assert result["valid"] is False
+    assert "timeout" in result["invalid_reason"]
 
 
 def test_bench_incremental_noop_skipped_senza_job_id():
@@ -273,6 +348,14 @@ def test_bench_full_rebuild_gira_se_abilitato(monkeypatch):
 
     assert result["status"] == "completed"
     assert "skipped" not in result
+
+
+def test_bench_full_rebuild_invalidates_coalesced_queue(monkeypatch):
+    monkeypatch.setattr(bench.time, "sleep", lambda s: None)
+    with _client(_job_sequence_handler(["completed"], coalesced=True)) as client:
+        result = bench.bench_full_rebuild(client, URL, enabled=True)
+    assert result["valid"] is False
+    assert "fusa" in result["invalid_reason"]
 
 
 # ---------------------------------------------------------------------------

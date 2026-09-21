@@ -1,0 +1,74 @@
+{
+  "updated_utc": "2026-09-21T11:33:55.869607+00:00",
+  "phase": "RUNNING_PHASE3_POST",
+  "code_commit": "0f479b2",
+  "active_exec_session": null,
+  "quota_remaining": 72,
+  "ordinaryUsageAllowed": true,
+  "families": [
+    {
+      "mode": "docs",
+      "n": 10,
+      "status": "completed",
+      "samples": 15,
+      "error": null
+    },
+    {
+      "mode": "docs",
+      "n": 30,
+      "status": "completed",
+      "samples": 15,
+      "error": null
+    },
+    {
+      "mode": "docs",
+      "n": 100,
+      "status": "completed",
+      "samples": 20,
+      "error": null
+    },
+    {
+      "mode": "code",
+      "n": 10,
+      "status": "completed",
+      "samples": 15,
+      "error": null
+    },
+    {
+      "mode": "code",
+      "n": 30,
+      "status": "completed",
+      "samples": 15,
+      "error": null
+    },
+    {
+      "mode": "code",
+      "n": 100,
+      "status": "completed",
+      "samples": 20,
+      "error": null
+    },
+    {
+      "mode": "mixed",
+      "n": 10,
+      "status": "completed",
+      "samples": 15,
+      "error": null
+    },
+    {
+      "mode": "mixed",
+      "n": 30,
+      "status": "completed",
+      "samples": 15,
+      "error": null
+    },
+    {
+      "mode": "mixed",
+      "n": 100,
+      "status": "completed",
+      "samples": 20,
+      "error": null
+    }
+  ],
+  "status": "PHASE3_VERIFIED_PHASE4_PREPARATION"
+}

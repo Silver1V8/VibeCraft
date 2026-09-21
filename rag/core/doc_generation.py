@@ -20,6 +20,7 @@ import tempfile
 import threading
 import time
 import uuid
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -55,7 +56,7 @@ def _now_iso() -> str:
 # ---------------------------------------------------------------------------
 # Grounding: contesto normativo (hybrid_search) + lezioni dalle canvas review
 # ---------------------------------------------------------------------------
-def _grounded_context(descrizione: str, *, qdrant, embed_model, colbert_store: dict | None,
+def _grounded_context(descrizione: str, *, qdrant, embed_model, colbert_store: Mapping | None,
                       chunks_store: dict | None, search=None) -> str:
     """Sezioni più pertinenti a `descrizione` (hybrid_search, core.retrieval), serializzate
     con citazione "doc_id § sezione". '' se manca qualunque risorsa di retrieval: la
@@ -88,7 +89,7 @@ def _grounded_context(descrizione: str, *, qdrant, embed_model, colbert_store: d
     return "\n\n".join(parts)
 
 
-def _canvas_lessons(descrizione: str, *, qdrant, embed_model, colbert_store: dict | None,
+def _canvas_lessons(descrizione: str, *, qdrant, embed_model, colbert_store: Mapping | None,
                     chunks_store: dict | None) -> str:
     """Lezioni dalle canvas review archiviate più simili (stesso meccanismo del Canvas,
     core.canvas_review.retrieve_canvas_lessons): '' se non ce ne sono o l'indice non è pronto."""
@@ -285,7 +286,7 @@ def _journal_discarded(base_dir, *, indice: int, motivo: str) -> dict:
 # vedi GenerationManager sotto — mai sull'event loop).
 # ---------------------------------------------------------------------------
 def generate_docs(descrizione: str, n_file: int, categoria_target: str, *,
-                  qdrant=None, embed_model=None, colbert_store: dict | None = None,
+                  qdrant=None, embed_model=None, colbert_store: Mapping | None = None,
                   chunks_store: dict | None = None,
                   base_dir: str | Path | None = None,
                   search=None, generate=None) -> dict:

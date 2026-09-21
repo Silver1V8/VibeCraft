@@ -1,0 +1,133 @@
+.......F............................                                     [100%]
+=================================== FAILURES ===================================
+_____________ test_run_restores_real_files_when_sample_job_raises ______________
+
+tmp_path = PosixPath('/tmp/sidecar-phase2-final/test_run_restores_real_files_w0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e5876569310>
+
+    def test_run_restores_real_files_when_sample_job_raises(tmp_path, monkeypatch):
+        results = tmp_path / "results"
+        checkout = results / "run" / "sandbox" / "experiment"
+        rag = checkout / "rag"
+        db = rag / "database"
+        for path in (db, checkout / "docs", checkout / "code"):
+            path.mkdir(parents=True)
+        output = results / "run" / "workload"
+        paths = {"checkout": checkout, "rag": rag, "docs": checkout / "docs",
+                 "code": checkout / "code", "database": db, "output": output,
+                 "collection": "sidecar_0628_test"}
+        monkeypatch.setattr(delta, "RESULTS", results)
+        monkeypatch.setattr(delta, "_join_writer", lambda: None)
+        monkeypatch.setattr(delta, "_point_digest", lambda *_: {"count": 1, "sha256": "same"})
+        monkeypatch.setattr(delta, "_http", lambda *_: (200, {"results": [{"id": 1}]}))
+    
+        class Qdrant:
+            def __init__(self, **_kwargs):
+                pass
+            def get_collections(self):
+                return types.SimpleNamespace(collections=[])
+            def get_aliases(self):
+                return types.SimpleNamespace(aliases=[])
+            def create_snapshot(self, **_kwargs):
+                return types.SimpleNamespace(name="baseline.snapshot")
+            def recover_snapshot(self, **_kwargs):
+                return True
+            def close(self):
+                pass
+    
+        import qdrant_client
+        monkeypatch.setattr(qdrant_client, "QdrantClient", Qdrant)
+    
+        class Child:
+            pid = 123
+            returncode = 0
+            def communicate(self):
+                (db / "CURRENT").write_bytes(b"v1")
+                return "", ""
+        monkeypatch.setattr(delta.subprocess, "Popen", lambda *_a, **_k: Child())
+    
+        class Server:
+            started = False
+            should_exit = False
+            def __init__(self, *_args):
+                pass
+            def run(self):
+                self.started = True
+                while not self.should_exit:
+                    time.sleep(0.01)
+        import uvicorn
+        monkeypatch.setattr(uvicorn, "Server", Server)
+        monkeypatch.setattr(uvicorn, "Config", lambda *_a, **_k: object())
+        monkeypatch.setitem(sys.modules, "server", types.SimpleNamespace(app=object()))
+>       import api.deps
+
+tests/test_bench_delta.py:219: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+api/deps.py:22: in <module>
+    from FlagEmbedding import BGEM3FlagModel
+/app/rag/.venv/lib/python3.14/site-packages/FlagEmbedding/__init__.py:1: in <module>
+    from .abc.inference import *
+/app/rag/.venv/lib/python3.14/site-packages/FlagEmbedding/abc/inference/__init__.py:1: in <module>
+    from .AbsEmbedder import AbsEmbedder
+/app/rag/.venv/lib/python3.14/site-packages/FlagEmbedding/abc/inference/AbsEmbedder.py:12: in <module>
+    import torch
+/app/rag/.venv/lib/python3.14/site-packages/torch/__init__.py:2189: in <module>
+    _C._initExtension(_manager_path())
+/app/rag/.venv/lib/python3.14/site-packages/torch/cuda/__init__.py:30: in <module>
+    from ._utils import _get_device_index
+/app/rag/.venv/lib/python3.14/site-packages/torch/cuda/_utils.py:9: in <module>
+    from cuda.bindings import (  # pyrefly: ignore[missing-import]
+cuda/bindings/runtime.pyx:1: in init cuda.bindings.runtime
+    ???
+cuda/bindings/cyruntime.pyx:942: in init cuda.bindings.cyruntime
+    ???
+/app/rag/.venv/lib/python3.14/site-packages/cuda/pathfinder/__init__.py:22: in <module>
+    from cuda.pathfinder._dynamic_libs.load_nvidia_dynamic_lib import load_nvidia_dynamic_lib as load_nvidia_dynamic_lib
+/app/rag/.venv/lib/python3.14/site-packages/cuda/pathfinder/_dynamic_libs/load_nvidia_dynamic_lib.py:20: in <module>
+    from cuda.pathfinder._dynamic_libs.platform_loader import LOADER
+/app/rag/.venv/lib/python3.14/site-packages/cuda/pathfinder/_dynamic_libs/platform_loader.py:37: in <module>
+    from cuda.pathfinder._dynamic_libs import load_dl_linux as _impl
+/app/rag/.venv/lib/python3.14/site-packages/cuda/pathfinder/_dynamic_libs/load_dl_linux.py:36: in <module>
+    LIBDL = _load_libdl()
+            ^^^^^^^^^^^^^
+/app/rag/.venv/lib/python3.14/site-packages/cuda/pathfinder/_dynamic_libs/load_dl_linux.py:29: in _load_libdl
+    name = ctypes.util.find_library("dl") or "libdl.so.2"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.14/ctypes/util.py:440: in find_library
+    return _findSoname_ldconfig(name) or \
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'dl'
+
+    def _findSoname_ldconfig(name):
+        import struct
+        if struct.calcsize('l') == 4:
+            machine = os.uname().machine + '-32'
+        else:
+            machine = os.uname().machine + '-64'
+        mach_map = {
+            'x86_64-64': 'libc6,x86-64',
+            'ppc64-64': 'libc6,64bit',
+            'sparc64-64': 'libc6,64bit',
+            's390x-64': 'libc6,64bit',
+            'ia64-64': 'libc6,IA-64',
+            }
+        abi_type = mach_map.get(machine, 'libc6')
+    
+        # XXX assuming GLIBC's ldconfig (with option -p)
+        regex = r'\s+(lib%s\.[^\s]+)\s+\(%s'
+        regex = os.fsencode(regex % (re.escape(name), abi_type))
+        try:
+>           with subprocess.Popen(['/sbin/ldconfig', '-p'],
+                                  stdin=subprocess.DEVNULL,
+                                  stderr=subprocess.DEVNULL,
+                                  stdout=subprocess.PIPE,
+                                  env={'LC_ALL': 'C', 'LANG': 'C'}) as p:
+E                                 TypeError: 'test_bench_delta.test_run_restores_real_files_when_sample_job_raises.<locals>.Child' object does not support the context manager protocol (missed __exit__ method)
+
+/usr/local/lib/python3.14/ctypes/util.py:401: TypeError
+=========================== short test summary info ============================
+FAILED tests/test_bench_delta.py::test_run_restores_real_files_when_sample_job_raises
+1 failed, 35 passed in 8.26s
+pytest_exit_code=1

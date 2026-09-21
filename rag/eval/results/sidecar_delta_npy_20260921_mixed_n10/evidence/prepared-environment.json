@@ -1,0 +1,14 @@
+{
+  "code_commit": "708a142",
+  "archive_sha256": "f7f6e923fa0c95d57f60b7de03aa620e77801599b5114b9f224918998ab2944e",
+  "collection": "sidecar_0628_mixed_n10_npy",
+  "n": 10,
+  "mode": "mixed",
+  "smoke": false,
+  "retention": false,
+  "checkouts": [
+    "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_mixed_n10\\sandbox\\experiment"
+  ],
+  "config_sha256": "d9f3aa2783887727f31b4dba3107af9b4a5c3e5ac26cc32375888440fce74bd5",
+  "corpus_and_database_initially_empty": true
+}

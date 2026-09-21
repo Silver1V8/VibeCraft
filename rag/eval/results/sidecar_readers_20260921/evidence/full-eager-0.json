@@ -1,0 +1,259 @@
+{
+  "kind": "eager",
+  "repeat": 0,
+  "pid": 14984,
+  "python": "3.14.6 (tags/v3.14.6:c63aec6, Jun 10 2026, 10:26:10) [MSC v.1944 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "collection": "sidecar_0628_mixed_n100_post",
+  "model_loaded_before_baseline": true,
+  "python_hash_seed": "0",
+  "validated_baseline": {
+    "current_hex": "763230323630393231543131323735360a",
+    "points": {
+      "count": 50,
+      "sha256": "eb51fd1022f70aa415ea21dcfdc0bdad9d32cd3c71937373b5e59ce8a51be532"
+    },
+    "artifact_hashes": {
+      "CURRENT": "df16046ce9efdb4476425e1f30f90bb1fb800524bff735e7f50436ef24b257af",
+      "versions/v20260921T112756/chunks.json": "20ac86c9609338acd2a852b4720f827d61f9d36ba149224a00fd3d19025c6b42",
+      "versions/v20260921T112756/code.json": "8f6516cd7b49093d4cc12717522c78f911ba60cde2028e032050b213aa291da5",
+      "versions/v20260921T112756/code.npz": "5b91f4a35211e55a29cec8638fb9952331a8f19800df4af083e923933240f4be",
+      "versions/v20260921T112756/colbert.npz": "63694eb21314363e81475353928bf0d666e0dde76ec9eef0610bbe6c99857619",
+      "versions/v20260921T112756/dense.npz": "adce14c09189abd4e1ab052c05e695468dc33cc6b9fd952143a75520fad8082b",
+      "versions/v20260921T112756/graph.json": "5c1a86a4c988f7436d00c17f3a26efc16e555b5fa35bb22839b69423dc481058",
+      "versions/v20260921T112756/index_manifest.json": "f5ce4fc350b10bff225a103bfcc4c02e90dfa905a55748c637cff4a140143129"
+    }
+  },
+  "baseline_after_model_import": {
+    "rss_bytes": 1235161088,
+    "uss_bytes": 1006718976,
+    "private_bytes": 3971833856,
+    "read_bytes": 268614207,
+    "write_bytes": 412,
+    "open_files": 4,
+    "maps": 3017
+  },
+  "after_load": {
+    "rss_bytes": 1236037632,
+    "uss_bytes": 1007046656,
+    "private_bytes": 3972362240,
+    "read_bytes": 271370014,
+    "write_bytes": 412,
+    "open_files": 4,
+    "maps": 3017
+  },
+  "after_retrieval": {
+    "rss_bytes": 2469990400,
+    "uss_bytes": 1020301312,
+    "private_bytes": 3994791936,
+    "read_bytes": 275044126,
+    "write_bytes": 1270,
+    "open_files": 4,
+    "maps": 3129
+  },
+  "load_s": 0.01837599999998929,
+  "queries": [
+    {
+      "question": "prenotazione evento posti",
+      "encode_s": 0.4236806999979308,
+      "retrieval_s": 0.037406600000394974,
+      "results": [
+        {
+          "chunk_id": "d038.md#00-documento",
+          "doc_id": "d038.md",
+          "section": "(documento)",
+          "dense_rank": 1,
+          "sparse_rank": null,
+          "dense_score": 0.5077,
+          "sparse_score": null,
+          "fused_rank_sum": 12,
+          "colbert_score": 0.5333,
+          "classification": "",
+          "status": "",
+          "authority": 0.3
+        },
+        {
+          "chunk_id": "d008.md#00-documento",
+          "doc_id": "d008.md",
+          "section": "(documento)",
+          "dense_rank": 6,
+          "sparse_rank": null,
+          "dense_score": 0.4988,
+          "sparse_score": null,
+          "fused_rank_sum": 17,
+          "colbert_score": 0.5278,
+          "classification": "",
+          "status": "",
+          "authority": 0.3
+        },
+        {
+          "chunk_id": "d035.md#00-documento",
+          "doc_id": "d035.md",
+          "section": "(documento)",
+          "dense_rank": 10,
+          "sparse_rank": null,
+          "dense_score": 0.4958,
+          "sparse_score": null,
+          "fused_rank_sum": 21,
+          "colbert_score": 0.518,
+          "classification": "",
+          "status": "",
+          "authority": 0.3
+        }
+      ],
+      "graph_branch": [
+        [
+          "d038.md#00-documento",
+          0.5333
+        ],
+        [
+          "d008.md#00-documento",
+          0.5278
+        ],
+        [
+          "d035.md#00-documento",
+          0.518
+        ],
+        [
+          "missing",
+          null
+        ]
+      ]
+    },
+    {
+      "question": "pagamenti accettati",
+      "encode_s": 0.18463649999830523,
+      "retrieval_s": 0.01409830000193324,
+      "results": [
+        {
+          "chunk_id": "d029.md#00-documento",
+          "doc_id": "d029.md",
+          "section": "(documento)",
+          "dense_rank": 1,
+          "sparse_rank": null,
+          "dense_score": 0.4865,
+          "sparse_score": null,
+          "fused_rank_sum": 12,
+          "colbert_score": 0.5638,
+          "classification": "",
+          "status": "",
+          "authority": 0.3
+        },
+        {
+          "chunk_id": "d017.md#00-documento",
+          "doc_id": "d017.md",
+          "section": "(documento)",
+          "dense_rank": 4,
+          "sparse_rank": null,
+          "dense_score": 0.4817,
+          "sparse_score": null,
+          "fused_rank_sum": 15,
+          "colbert_score": 0.5575,
+          "classification": "",
+          "status": "",
+          "authority": 0.3
+        },
+        {
+          "chunk_id": "d037.md#00-documento",
+          "doc_id": "d037.md",
+          "section": "(documento)",
+          "dense_rank": 3,
+          "sparse_rank": null,
+          "dense_score": 0.4851,
+          "sparse_score": null,
+          "fused_rank_sum": 14,
+          "colbert_score": 0.5517,
+          "classification": "",
+          "status": "",
+          "authority": 0.3
+        }
+      ],
+      "graph_branch": [
+        [
+          "d029.md#00-documento",
+          0.5638
+        ],
+        [
+          "d017.md#00-documento",
+          0.5575
+        ],
+        [
+          "d037.md#00-documento",
+          0.5517
+        ],
+        [
+          "missing",
+          null
+        ]
+      ]
+    },
+    {
+      "question": "notifiche prenotazione",
+      "encode_s": 0.1634420999980648,
+      "retrieval_s": 0.02511450000019977,
+      "results": [
+        {
+          "chunk_id": "d014.md#00-documento",
+          "doc_id": "d014.md",
+          "section": "(documento)",
+          "dense_rank": null,
+          "sparse_rank": 2,
+          "dense_score": null,
+          "sparse_score": 0.05,
+          "fused_rank_sum": 13,
+          "colbert_score": 0.6849,
+          "classification": "",
+          "status": "",
+          "authority": 0.3
+        },
+        {
+          "chunk_id": "d045.md#00-documento",
+          "doc_id": "d045.md",
+          "section": "(documento)",
+          "dense_rank": 2,
+          "sparse_rank": 1,
+          "dense_score": 0.6181,
+          "sparse_score": 0.0529,
+          "fused_rank_sum": 3,
+          "colbert_score": 0.6836,
+          "classification": "",
+          "status": "",
+          "authority": 0.3
+        },
+        {
+          "chunk_id": "d002.md#00-documento",
+          "doc_id": "d002.md",
+          "section": "(documento)",
+          "dense_rank": 8,
+          "sparse_rank": null,
+          "dense_score": 0.6125,
+          "sparse_score": null,
+          "fused_rank_sum": 19,
+          "colbert_score": 0.6824,
+          "classification": "",
+          "status": "",
+          "authority": 0.3
+        }
+      ],
+      "graph_branch": [
+        [
+          "d014.md#00-documento",
+          0.6849
+        ],
+        [
+          "d045.md#00-documento",
+          0.6836
+        ],
+        [
+          "d002.md#00-documento",
+          0.6824
+        ],
+        [
+          "missing",
+          null
+        ]
+      ]
+    }
+  ],
+  "label": "complete retrieval: real encode + Qdrant + canonical hybrid_search"
+}

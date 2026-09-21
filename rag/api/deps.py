@@ -10,6 +10,7 @@ import os
 import queue
 import re
 import threading
+from collections.abc import Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -192,7 +193,7 @@ def require_gitlab_token(request: Request) -> None:
 @dataclass(frozen=True)
 class IndexSnapshot:
     graph: object | None
-    colbert_store: dict
+    colbert_store: Mapping
     chunks: dict
     rule_descriptions: dict
     # Sidecar dei simboli di codice (symbol_id -> {name, kind, file, dev_type, text, ...}):
@@ -455,16 +456,21 @@ async def lifespan(application: FastAPI):
     state["_graph_mtime"] = state["snapshot"].version
     logger.info("Server pronto.")
 
+    # Il generatore lifespan rimane sospeso a yield: i locali del boot non devono
+    # trattenere il vecchio snapshot dopo un reload.
+    del arts, graph, colbert_store, chunks, code_store, rule_descriptions
+
     yield  # il server è in esecuzione
 
     logger.info("Shutdown: rilascio risorse.")
+    state["snapshot"] = None
     state["qdrant"].close()
 
 
 # ---------------------------------------------------------------------------
 # Auto-reload dell'indice in memoria (dopo una re-indicizzazione da CLI o pipeline)
 # ---------------------------------------------------------------------------
-def reload_index_state() -> None:
+def reload_index_state() -> str | float | None:
     """Ricarica in memoria grafo, multivettori ColBERT e sidecar chunk dai file appena
     rigenerati dalla re-indicizzazione, così che il server rifletta subito la nuova base
     di conoscenza senza riavvio.
@@ -485,13 +491,14 @@ def reload_index_state() -> None:
         # evita di ritentare (e ri-loggare) il reload a ogni richiesta successiva. Una
         # nuova build completa cambierà di nuovo l'mtime e ritenterà il reload.
         state["_graph_mtime"] = _graph_version()
-        return
+        return None
 
     # Rebind ATOMICO: un solo IndexSnapshot completo sostituisce quello precedente.
     # Nessuna mutazione in place → nessun handler può osservare una versione mista.
     state["snapshot"] = _build_snapshot(arts.graph, arts.colbert_store, arts.chunks_store,
                                         rule_descriptions, arts.code_store, version=arts.version)
     state["_graph_mtime"] = state["snapshot"].version
+    return state["snapshot"].version
 
 
 def maybe_reload_graph() -> None:

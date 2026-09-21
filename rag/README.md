@@ -180,7 +180,8 @@ direttamente, fuori dalla coda: con il server acceso preferisci `POST /api/reind
 
 **Un solo scrittore anche cross-processo (writer lock).** CLI e server non si
 corrompono più a vicenda: ogni ramo che SCRIVE gli artefatti — i comandi CLI di
-scrittura (`index.py`: build, `--incremental`, `--archive`, `--rollback`) e i job
+scrittura (`index.py`: build, `--incremental`, `--archive`, `--rollback`,
+`--migrate-colbert-npy`) e i job
 del ReindexManager — gira per l'intera durata sotto un lock advisory a livello di
 sistema operativo su `database/.writer.lock` ([core/writer_lock.py](core/writer_lock.py):
 `msvcrt.locking` su Windows, `fcntl.flock` su POSIX). Il mutex è il lock OS
@@ -815,9 +816,28 @@ Lo **streaming incrementale** della risposta non c'è, ed è l'unico modo per ab
 il tempo *percepito*: cambierebbe il contratto di `/ask` (oggi un JSON unico con
 risposta, contesto grafo e punteggi) e resta fuori da questa baseline.
 
-**Il delta incrementale VERO** (con un file davvero modificato) non è automatizzato:
-va misurato a mano modificando un file in `docs/` o `code/` e rilanciando `POST
-/api/reindex`, confrontando la durata col job no-op salvato qui.
+### Delta reale isolato
+
+La modalità `--real-delta` genera un corpus sintetico in un checkout dedicato con
+`docs/`, `code/` e `rag/database/` inizialmente vuoti. Il checkout deve essere
+esattamente `rag/eval/results/<run>/sandbox/experiment`; la collection Qdrant deve
+iniziare con `sidecar_0628_`. Server e Qdrant usano solo `127.0.0.1:18000` e
+`127.0.0.1:16333`. Eseguire un processo fresco per ciascuna delle nove famiglie
+`N=10,30,100 × docs,code,mixed`, con output e collection nuovi per famiglia:
+
+```bash
+python -B scripts/bench.py --real-delta --checkout C:/path/to/rag/eval/results/<run>/sandbox/experiment --output-dir C:/path/to/rag/eval/results/<run>/delta-output --n 10 --mode docs --k 0,1,10 --repeats 5
+```
+
+Per `N=100` aggiungere `100` a `--k`; `k>N` fallisce. Il driver avvia bootstrap
+incrementale e server HTTP reali, poi per ogni campione verifica job, readiness,
+integrità e query concorrenti. Ripristina byte sorgenti, artefatti e snapshot
+Qdrant prima del campione seguente. `result.json` conserva eventi monotoni,
+journal e campioni anche se la run fallisce; `summary.csv` contiene mediana/min/max
+e differenze abbinate `T(N,k)-T(N,0)`. Il restore I/O resta fuori dal tempo
+misurato. L'esecuzione richiede il runtime/modello offline e il container Qdrant
+dedicati documentati in `adr/sidecar-work/phase2-report.md`; il comando ordinario
+sopra resta il benchmark del servizio esistente.
 
 **Regola:** nessuna ottimizzazione di retrieval, chunking, ranking o indicizzazione
 senza prima confrontare un bench "prima" e uno "dopo" — la sensazione che qualcosa
@@ -830,17 +850,17 @@ comando qui sopra, da eseguire ed allegare alla PR.
 
 ## Artefatti dell'indice: formati sicuri, ispezionabili e versionati (blue/green)
 
-L'indice persiste in `rag/database/` tramite [core/artifacts.py](core/artifacts.py),
-**unico punto di I/O**: né `core/indexing.py` né `api/deps.py` toccano i file
-direttamente. I formati sono sicuri (nessun `pickle`, che è fragile tra versioni
+L'indice persiste in `rag/database/` tramite [core/artifacts.py](core/artifacts.py)
+e il reader/writer per documento [core/colbert_store.py](core/colbert_store.py).
+I formati sono sicuri (nessun `pickle`, che è fragile tra versioni
 e un vettore d'attacco se qualcuno scrive in `database/`) e ispezionabili:
 
 | Artefatto | File | Formato |
 |-----------|------|---------|
 | Grafo NetworkX | `graph.json` | node-link JSON (`nx.node_link_data`), attributi normalizzati JSON-safe |
-| Multivettori ColBERT | `colbert.npz` | `np.savez_compressed`, fp16, chiave = `chunk_id` |
-| Vettori densi dei chunk | `dense.npz` | idem, chiave = `chunk_id` |
-| Vettori densi dei simboli | `code.npz` | idem, chiave = `symbol_id` |
+| Multivettori ColBERT | `colbert/index.json` + `colbert/d-<hash>.npy` | NPY fp16 per documento, indice con file e offset per `chunk_id`; lettura del solo chunk richiesto |
+| Vettori densi dei chunk | `dense.npz` | `np.savez_compressed`, fp16, chiave = `chunk_id` |
+| Vettori densi dei simboli | `code.npz` | `np.savez_compressed`, fp16, chiave = `symbol_id` |
 | Sidecar testuale dei chunk | `chunks.json` | `chunk_id → {doc_id, section, text}` |
 | Sidecar testuale del codice | `code.json` | `symbol_id → {name, kind, file, dev_type, text, deps, refs, links}` |
 
@@ -849,6 +869,28 @@ tipi non-JSON (date, `Path`): `_json_safe` li normalizza (una data → la sua IS
 string) così `graph.json` è sempre serializzabile. I vettori restano **fp16
 bit-identici** al round-trip. Ogni scrittura è **atomica** (`_atomic_write`): un
 crash a metà non lascia file troncati.
+
+Le nuove build scrivono solo il formato ColBERT NPY. I delta riusano i file dei
+documenti invariati tramite hard link, con copia come fallback; i file riusati non
+vengono modificati. Full e delta persistono un documento alla volta: il limite dei
+vettori temporanei dipende ancora dal documento più grande e dal batch del modello.
+Grafo, metadati, dense e codice conservano costi globali.
+
+Le versioni precedenti in `colbert.npz` restano leggibili, anche per il rollback.
+Prima di un nuovo delta su un indice NPZ esistente, convertire la versione
+**già versionata** attiva, senza nuovo embedding:
+
+```bash
+python index.py --migrate-colbert-npy
+python index.py --check-integrity
+```
+
+La conversione crea una candidata separata, verifica array e hash e solo dopo
+sposta CURRENT; conserva la collection Qdrant esistente. Un errore prima della
+promozione lascia attiva la versione precedente. Il controllo integrità esplicito
+rilegge tutti i byte. Il delta ordinario verifica indice e file nuovi, ma eredita
+gli hash attestati dei file immutati: non equivale a riverificare quei byte e non
+rileva una loro successiva alterazione esterna senza il controllo profondo.
 
 ### Versionamento blue/green: swap atomico, rollback istantaneo
 
@@ -873,6 +915,9 @@ sotto soglia (e gate bloccante) la versione resta su disco **non promossa**, il 
 termina `completed_not_promoted` col report nell'esito e il server continua a
 servire la versione precedente. Se il gate è disattivo, il golden-set manca, o
 l'eval fallisce, la promozione è diretta (fail-open).
+Una candidata che non può essere caricata correttamente blocca invece la
+promozione; le candidate NPY devono superare anche i controlli di completezza e
+coerenza degli artefatti prima dello spostamento di CURRENT.
 
 Il gate misura anche la **saturazione** della propria metrica e, se `recall@k`
 vale 1.000 su tutti i casi, scrive un alert `warning`: a quel k non è un gate
@@ -900,6 +945,10 @@ Equivalente HTTP: `POST /api/index/rollback` (corpo opzionale
 **Retention**: dopo ogni promozione restano le ultime N versioni (default 5, env
 `VIBECRAFT_INDEX_KEEP`); la versione puntata da CURRENT non viene **mai** eliminata,
 anche se più vecchia delle N conservate (caso post-rollback).
+Le versioni ancora usate da lettori, anche in altri processi, vengono conservate
+tramite lease OS. Il prune ritenta alla chiamata successiva; registra una rimozione
+solo se riuscita e segnala gli errori. I piccoli file in `database/.reader-locks/`
+persistono deliberatamente e non vanno cancellati mentre il sistema è in uso.
 
 ### Blue/green Qdrant (collection versionate + alias)
 

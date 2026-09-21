@@ -21,6 +21,7 @@ Nessuna dipendenza dal package eval/: il golden set è caricato via GOLDEN_SET_P
 da core.eval_metrics (stesso layer)."""
 import json
 import logging
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -65,7 +66,7 @@ def record_alert(level: str, message: str, *, path: Path | None = None, **detail
     return alert
 
 
-def evaluate_recall(qdrant, embed_model, colbert_store: dict, *, k: int = EVAL_GATE_K,
+def evaluate_recall(qdrant, embed_model, colbert_store: Mapping, *, k: int = EVAL_GATE_K,
                     cases: list[dict] | None = None,
                     collection_name: str = COLLECTION_NAME,
                     graph=None, restatements=frozenset()) -> dict:
@@ -118,7 +119,7 @@ def evaluate_recall(qdrant, embed_model, colbert_store: dict, *, k: int = EVAL_G
             "saturated": f"recall@{k}" in (report.get("saturated") or [])}
 
 
-def gate_promotion(version: str, qdrant, embed_model, colbert_store: dict, *,
+def gate_promotion(version: str, qdrant, embed_model, colbert_store: Mapping, *,
                    k: int = EVAL_GATE_K, min_recall: float = EVAL_GATE_MIN_RECALL,
                    blocking: bool = EVAL_GATE_BLOCKING, cases: list[dict] | None = None,
                    emit=None, collection_name: str = COLLECTION_NAME,

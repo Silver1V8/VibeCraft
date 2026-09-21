@@ -12,12 +12,15 @@ una versione nuova e la promuovono a fine build riuscita, solo dopo che l'eval-g
 /api/index/rollback sposta il puntatore CURRENT alla versione precedente (o a quella
 indicata) e ricarica lo snapshot."""
 import logging
+import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 
 from api.deps import (
+    _graph_version,
+    current_snapshot,
     reload_index_state,
     require_api_key,
     require_gitlab_token,
@@ -68,7 +71,7 @@ manager = ReindexManager(journal_path=REINDEX_JOURNAL_PATH)
 
 
 def _reindex_embed_model():
-    """Istanza di bge-m3 dedicata ai job di reindex, separata da quella del server
+    """Istanza di bge-m3 dedicata ai job full, separata da quella del server
     (state["embed_model"], su CPU per le query interattive — vedi api/deps.py). I job
     processano migliaia di chunk/simboli in batch: qui serve la GPU. Un'istanza fresca
     per job costa solo qualche secondo di caricamento, trascurabile rispetto al lavoro
@@ -77,34 +80,42 @@ def _reindex_embed_model():
 
 
 def _run_reindex(changed_paths) -> dict:
-    """Esegue l'incrementale con un modello di embedding GPU dedicato (vedi
-    _reindex_embed_model) e il client Qdrant del server. Gira sul thread daemon del
-    ReindexManager, quindi è bloccante ma fuori dall'event loop."""
-    return incremental_index(
+    """Il core crea il modello dedicato solo quando il delta contiene contenuto."""
+    result = incremental_index(
         qdrant=state.get("qdrant"),
-        embed_model=_reindex_embed_model(),
+        embed_model=None,
         changed_paths=changed_paths,
     )
+    if result.get("noop") is True:
+        disk_version = current_version() or _graph_version()
+        snapshot = current_snapshot()
+        if snapshot is not None and snapshot.version == disk_version:
+            result["snapshot_token"] = snapshot.version
+    return result
 
 
 def _eval_gate(version: str, embed_model) -> dict:
     """Eval-gate sulla versione APPENA COSTRUITA (non ancora promossa): carica i suoi sidecar
     e delega alla logica canonica core.eval_gate.gate_promotion, valutando la STESSA
     collection candidata su cui quella versione è stata costruita (letta dal suo
-    manifest), mai la produzione. Fail-open se gli artefatti candidati non sono
-    caricabili."""
+    manifest), mai la produzione. Un candidato illeggibile non supera il gate."""
     try:
-        arts = load_artifacts(required=("graph", "colbert", "chunks"), version=version,
-                              emit=lambda *_a, **_k: None)
+        arts = load_artifacts(required=("graph", "colbert", "chunks"), version=version)
     except Exception as exc:
-        logger.warning("Eval-gate: artefatti candidati %s non caricabili (%s): promozione diretta.",
+        logger.warning("Eval-gate: artefatti candidati %s non caricabili (%s): promozione bloccata.",
                        version, exc)
-        return {"passed": True, "skipped": "load_error", "version": version}
+        return {"passed": False, "skipped": "load_error", "version": version,
+                "error": f"{type(exc).__name__}: {exc}"}
     collection_name = _qdrant_collection_for_version(version)
-    return gate_promotion(version, state.get("qdrant"), embed_model,
-                          arts.colbert_store, emit=logger.info, collection_name=collection_name,
-                          graph=arts.graph,
-                          restatements=retrieval.restatement_sections(arts.chunks_store))
+    try:
+        return gate_promotion(version, state.get("qdrant"), embed_model,
+                              arts.colbert_store, emit=logger.info, collection_name=collection_name,
+                              graph=arts.graph,
+                              restatements=retrieval.restatement_sections(arts.chunks_store))
+    finally:
+        close = getattr(arts.colbert_store, "close", None)
+        if close is not None:
+            close()
 
 
 def _run_full_rebuild(changed_paths) -> dict:
@@ -132,12 +143,28 @@ def _run_full_rebuild(changed_paths) -> dict:
     indisponibilità breve ma reale fra le due chiamate. Se il layout è già migrato o
     l'installazione è fresca, la migrazione è un no-op. Subito dopo lo swap, il GC
     rimuove le collection versionate orfane."""
+    started = time.perf_counter()
     embed_model = _reindex_embed_model()
+    init_model = time.perf_counter() - started
+    collector = {
+        "phase_timings_seconds": {phase: 0.0 for phase in
+                                  ("init_model", "scan_hash", "load", "parsing_embedding",
+                                   "qdrant", "relink", "save_hash", "eval_gate", "promote")},
+        "counts": {},
+    }
     version = build_graph_and_index(qdrant=state.get("qdrant"),
-                                    embed_model=embed_model, promote=False)
-    result = {"full_rebuild": True, "version": version}
+                                    embed_model=embed_model, promote=False,
+                                    collector=collector)
+    timings = collector["phase_timings_seconds"]
+    timings["init_model"] += init_model
+    result = {"full_rebuild": True, "version": version,
+              "phase_timings_seconds": timings, "counts": collector["counts"]}
+    if "colbert_io_bytes" in collector:
+        result["colbert_io_bytes"] = collector["colbert_io_bytes"]
     if version:  # None solo con build finta nei test
+        started = time.perf_counter()
         gate = _eval_gate(version, embed_model)
+        timings["eval_gate"] = time.perf_counter() - started
         result["eval"] = {kk: gate[kk] for kk in
                           ("recall", "k", "min_recall", "n", "skipped", "advisory") if kk in gate}
         if not gate.get("passed"):
@@ -147,6 +174,7 @@ def _run_full_rebuild(changed_paths) -> dict:
                            version, result["eval"])
             return result
 
+        started = time.perf_counter()
         promote_version(version)
         collection_name = _qdrant_collection_for_version(version)
         _migrate_legacy_collection_if_needed(state.get("qdrant"), COLLECTION_NAME, emit=logger.info)
@@ -155,6 +183,7 @@ def _run_full_rebuild(changed_paths) -> dict:
         # — dopo promote (retention locale già applicata) e dopo lo swap, dentro il
         # single-writer del ReindexManager (mai job full concorrenti).
         gc_orphaned_qdrant_collections(state.get("qdrant"), emit=logger.info)
+        timings["promote"] += time.perf_counter() - started
     result["promoted"] = True
     return result
 

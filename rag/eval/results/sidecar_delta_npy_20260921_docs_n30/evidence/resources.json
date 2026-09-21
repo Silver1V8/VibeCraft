@@ -1,0 +1,448 @@
+{
+  "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_npy_20260921_docs_n30\\evidence\\result.json",
+  "parameters": {
+    "n": 30,
+    "mode": "docs",
+    "k": [
+      0,
+      1,
+      10
+    ],
+    "repeats": 5,
+    "query_pause_seconds": 0.15,
+    "qdrant_url": "http://127.0.0.1:16333",
+    "server_url": "http://127.0.0.1:18000",
+    "collection": "sidecar_0628_docs_n30_npy",
+    "restore_io_outside_measurement": true
+  },
+  "server_pid": 30736,
+  "sampling_interval_seconds": {
+    "min": 0.11941200000001118,
+    "median": 0.17097895000006247,
+    "max": 0.6060093999985838
+  },
+  "baseline_query_latency_seconds": {
+    "min": 0.25311779999901773,
+    "median": 0.27072279999993043,
+    "max": 0.5721570999994583
+  },
+  "qdrant_collections_before": [
+    "sidecar_0628_docs_n10_npy",
+    "sidecar_0628_smoke_docs_n10_npy"
+  ],
+  "samples": [
+    {
+      "repeat": 0,
+      "k": 0,
+      "observed_samples": 3,
+      "server_sampled_maxima": {
+        "rss_bytes": 2566807552,
+        "private_bytes": 4113711104,
+        "uss_bytes": 1097940992
+      },
+      "sampled_counter_differences": {
+        "io_read_bytes": 1137152,
+        "io_write_bytes": 534,
+        "cpu_user_seconds": 0.625,
+        "cpu_system_seconds": 0.28125
+      },
+      "qdrant_distinct_observations": 0,
+      "qdrant_rss_peak_bytes": null,
+      "qdrant_private_peak_bytes": null,
+      "query_latency_seconds": {
+        "min": 0.27150320000146166,
+        "median": 0.31418740000117396,
+        "max": 0.35687160000088625
+      },
+      "query_count": 2,
+      "empty_query_count": 0,
+      "query_error_count": 0
+    },
+    {
+      "repeat": 0,
+      "k": 1,
+      "observed_samples": 24,
+      "server_sampled_maxima": {
+        "rss_bytes": 4137750528,
+        "private_bytes": 6754979840,
+        "uss_bytes": 1466843136
+      },
+      "sampled_counter_differences": {
+        "io_read_bytes": 85106744,
+        "io_write_bytes": 159849,
+        "cpu_user_seconds": 5.921875,
+        "cpu_system_seconds": 4.703125
+      },
+      "qdrant_distinct_observations": 4,
+      "qdrant_rss_peak_bytes": 229421056,
+      "qdrant_private_peak_bytes": 227450880,
+      "query_latency_seconds": {
+        "min": 0.28750139999829116,
+        "median": 0.6531188000008115,
+        "max": 2.504900899999484
+      },
+      "query_count": 4,
+      "empty_query_count": 0,
+      "query_error_count": 0
+    },
+    {
+      "repeat": 0,
+      "k": 10,
+      "observed_samples": 50,
+      "server_sampled_maxima": {
+        "rss_bytes": 4161679360,
+        "private_bytes": 6779801600,
+        "uss_bytes": 1478836224
+      },
+      "sampled_counter_differences": {
+        "io_read_bytes": 99673440,
+        "io_write_bytes": 666667,
+        "cpu_user_seconds": 18.5625,
+        "cpu_system_seconds": 10.9375
+      },
+      "qdrant_distinct_observations": 9,
+      "qdrant_rss_peak_bytes": 229863424,
+      "qdrant_private_peak_bytes": 228024320,
+      "query_latency_seconds": {
+        "min": 0.3246032999995805,
+        "median": 0.523760450001646,
+        "max": 2.524763500001427
+      },
+      "query_count": 12,
+      "empty_query_count": 0,
+      "query_error_count": 0
+    },
+    {
+      "repeat": 1,
+      "k": 0,
+      "observed_samples": 3,
+      "server_sampled_maxima": {
+        "rss_bytes": 2636738560,
+        "private_bytes": 4193824768,
+        "uss_bytes": 1167798272
+      },
+      "sampled_counter_differences": {
+        "io_read_bytes": 1137169,
+        "io_write_bytes": 670,
+        "cpu_user_seconds": 0.5,
+        "cpu_system_seconds": 0.265625
+      },
+      "qdrant_distinct_observations": 0,
+      "qdrant_rss_peak_bytes": null,
+      "qdrant_private_peak_bytes": null,
+      "query_latency_seconds": {
+        "min": 0.30155159999776515,
+        "median": 0.306183950000559,
+        "max": 0.3108163000033528
+      },
+      "query_count": 2,
+      "empty_query_count": 0,
+      "query_error_count": 0
+    },
+    {
+      "repeat": 1,
+      "k": 1,
+      "observed_samples": 23,
+      "server_sampled_maxima": {
+        "rss_bytes": 4176465920,
+        "private_bytes": 6802468864,
+        "uss_bytes": 1493712896
+      },
+      "sampled_counter_differences": {
+        "io_read_bytes": 85254256,
+        "io_write_bytes": 157752,
+        "cpu_user_seconds": 5.453125,
+        "cpu_system_seconds": 4.140625
+      },
+      "qdrant_distinct_observations": 4,
+      "qdrant_rss_peak_bytes": 229314560,
+      "qdrant_private_peak_bytes": 227454976,
+      "query_latency_seconds": {
+        "min": 0.3378277999981947,
+        "median": 0.47658440000122937,
+        "max": 2.4580719000005047
+      },
+      "query_count": 4,
+      "empty_query_count": 0,
+      "query_error_count": 0
+    },
+    {
+      "repeat": 1,
+      "k": 10,
+      "observed_samples": 47,
+      "server_sampled_maxima": {
+        "rss_bytes": 4208136192,
+        "private_bytes": 6839140352,
+        "uss_bytes": 1525293056
+      },
+      "sampled_counter_differences": {
+        "io_read_bytes": 96143565,
+        "io_write_bytes": 666098,
+        "cpu_user_seconds": 17.578125,
+        "cpu_system_seconds": 11.671875
+      },
+      "qdrant_distinct_observations": 10,
+      "qdrant_rss_peak_bytes": 229785600,
+      "qdrant_private_peak_bytes": 227766272,
+      "query_latency_seconds": {
+        "min": 0.288016599999537,
+        "median": 0.4237599500011129,
+        "max": 2.526395599998068
+      },
+      "query_count": 12,
+      "empty_query_count": 0,
+      "query_error_count": 0
+    },
+    {
+      "repeat": 2,
+      "k": 0,
+      "observed_samples": 3,
+      "server_sampled_maxima": {
+        "rss_bytes": 2748100608,
+        "private_bytes": 4324749312,
+        "uss_bytes": 1279152128
+      },
+      "sampled_counter_differences": {
+        "io_read_bytes": 1137169,
+        "io_write_bytes": 610,
+        "cpu_user_seconds": 0.5,
+        "cpu_system_seconds": 0.296875
+      },
+      "qdrant_distinct_observations": 1,
+      "qdrant_rss_peak_bytes": 229044224,
+      "qdrant_private_peak_bytes": 227172352,
+      "query_latency_seconds": {
+        "min": 0.24251189999995404,
+        "median": 0.26300184999854537,
+        "max": 0.2834917999971367
+      },
+      "query_count": 2,
+      "empty_query_count": 0,
+      "query_error_count": 0
+    },
+    {
+      "repeat": 2,
+      "k": 1,
+      "observed_samples": 26,
+      "server_sampled_maxima": {
+        "rss_bytes": 4229918720,
+        "private_bytes": 6858526720,
+        "uss_bytes": 1547165696
+      },
+      "sampled_counter_differences": {
+        "io_read_bytes": 85106744,
+        "io_write_bytes": 159833,
+        "cpu_user_seconds": 6.734375,
+        "cpu_system_seconds": 4.359375
+      },
+      "qdrant_distinct_observations": 5,
+      "qdrant_rss_peak_bytes": 229539840,
+      "qdrant_private_peak_bytes": 227643392,
+      "query_latency_seconds": {
+        "min": 0.24228230000153417,
+        "median": 0.6783002000011038,
+        "max": 2.7783810000000813
+      },
+      "query_count": 4,
+      "empty_query_count": 0,
+      "query_error_count": 0
+    },
+    {
+      "repeat": 2,
+      "k": 10,
+      "observed_samples": 46,
+      "server_sampled_maxima": {
+        "rss_bytes": 4228259840,
+        "private_bytes": 6858756096,
+        "uss_bytes": 1545416704
+      },
+      "sampled_counter_differences": {
+        "io_read_bytes": 101270385,
+        "io_write_bytes": 666948,
+        "cpu_user_seconds": 19.109375,
+        "cpu_system_seconds": 10.859375
+      },
+      "qdrant_distinct_observations": 10,
+      "qdrant_rss_peak_bytes": 229535744,
+      "qdrant_private_peak_bytes": 227434496,
+      "query_latency_seconds": {
+        "min": 0.3109213000025193,
+        "median": 0.377166500002204,
+        "max": 2.496076000003086
+      },
+      "query_count": 13,
+      "empty_query_count": 0,
+      "query_error_count": 0
+    },
+    {
+      "repeat": 3,
+      "k": 0,
+      "observed_samples": 3,
+      "server_sampled_maxima": {
+        "rss_bytes": 2822504448,
+        "private_bytes": 4385353728,
+        "uss_bytes": 1353564160
+      },
+      "sampled_counter_differences": {
+        "io_read_bytes": 1137169,
+        "io_write_bytes": 522,
+        "cpu_user_seconds": 0.4375,
+        "cpu_system_seconds": 0.421875
+      },
+      "qdrant_distinct_observations": 1,
+      "qdrant_rss_peak_bytes": 229351424,
+      "qdrant_private_peak_bytes": 227192832,
+      "query_latency_seconds": {
+        "min": 0.24267740000141202,
+        "median": 0.27688730000045325,
+        "max": 0.3110971999994945
+      },
+      "query_count": 2,
+      "empty_query_count": 0,
+      "query_error_count": 0
+    },
+    {
+      "repeat": 3,
+      "k": 1,
+      "observed_samples": 23,
+      "server_sampled_maxima": {
+        "rss_bytes": 4251099136,
+        "private_bytes": 6881296384,
+        "uss_bytes": 1568346112
+      },
+      "sampled_counter_differences": {
+        "io_read_bytes": 85098622,
+        "io_write_bytes": 159708,
+        "cpu_user_seconds": 6.265625,
+        "cpu_system_seconds": 3.65625
+      },
+      "qdrant_distinct_observations": 4,
+      "qdrant_rss_peak_bytes": 229531648,
+      "qdrant_private_peak_bytes": 227725312,
+      "query_latency_seconds": {
+        "min": 0.2591022000015073,
+        "median": 0.655634500000815,
+        "max": 2.358232399998087
+      },
+      "query_count": 4,
+      "empty_query_count": 0,
+      "query_error_count": 0
+    },
+    {
+      "repeat": 3,
+      "k": 10,
+      "observed_samples": 44,
+      "server_sampled_maxima": {
+        "rss_bytes": 4261076992,
+        "private_bytes": 6893776896,
+        "uss_bytes": 1578233856
+      },
+      "sampled_counter_differences": {
+        "io_read_bytes": 97214116,
+        "io_write_bytes": 663348,
+        "cpu_user_seconds": 17.984375,
+        "cpu_system_seconds": 9.578125
+      },
+      "qdrant_distinct_observations": 9,
+      "qdrant_rss_peak_bytes": 229478400,
+      "qdrant_private_peak_bytes": 227274752,
+      "query_latency_seconds": {
+        "min": 0.30789269999877433,
+        "median": 0.4835223000009137,
+        "max": 2.556849199998396
+      },
+      "query_count": 11,
+      "empty_query_count": 0,
+      "query_error_count": 0
+    },
+    {
+      "repeat": 4,
+      "k": 0,
+      "observed_samples": 0,
+      "server_sampled_maxima": {
+        "rss_bytes": null,
+        "private_bytes": null,
+        "uss_bytes": null
+      },
+      "sampled_counter_differences": {
+        "io_read_bytes": null,
+        "io_write_bytes": null,
+        "cpu_user_seconds": null,
+        "cpu_system_seconds": null
+      },
+      "qdrant_distinct_observations": 0,
+      "qdrant_rss_peak_bytes": null,
+      "qdrant_private_peak_bytes": null,
+      "query_latency_seconds": {
+        "min": 0.34525099999882514,
+        "median": 0.34525099999882514,
+        "max": 0.34525099999882514
+      },
+      "query_count": 1,
+      "empty_query_count": 0,
+      "query_error_count": 0
+    },
+    {
+      "repeat": 4,
+      "k": 1,
+      "observed_samples": 23,
+      "server_sampled_maxima": {
+        "rss_bytes": 4274688000,
+        "private_bytes": 6904410112,
+        "uss_bytes": 1591672832
+      },
+      "sampled_counter_differences": {
+        "io_read_bytes": 85098622,
+        "io_write_bytes": 159709,
+        "cpu_user_seconds": 6.078125,
+        "cpu_system_seconds": 4.0625
+      },
+      "qdrant_distinct_observations": 4,
+      "qdrant_rss_peak_bytes": 229564416,
+      "qdrant_private_peak_bytes": 227549184,
+      "query_latency_seconds": {
+        "min": 0.37688300000081654,
+        "median": 0.9019621000006737,
+        "max": 2.393069400000968
+      },
+      "query_count": 3,
+      "empty_query_count": 0,
+      "query_error_count": 0
+    },
+    {
+      "repeat": 4,
+      "k": 10,
+      "observed_samples": 44,
+      "server_sampled_maxima": {
+        "rss_bytes": 4290633728,
+        "private_bytes": 6918369280,
+        "uss_bytes": 1607790592
+      },
+      "sampled_counter_differences": {
+        "io_read_bytes": 96134758,
+        "io_write_bytes": 666492,
+        "cpu_user_seconds": 18.90625,
+        "cpu_system_seconds": 11.40625
+      },
+      "qdrant_distinct_observations": 9,
+      "qdrant_rss_peak_bytes": 229617664,
+      "qdrant_private_peak_bytes": 227659776,
+      "query_latency_seconds": {
+        "min": 0.2915452999986883,
+        "median": 0.3998850999996648,
+        "max": 2.329264799998782
+      },
+      "query_count": 12,
+      "empty_query_count": 0,
+      "query_error_count": 0
+    }
+  ],
+  "limits": [
+    "Sampled maxima are lower bounds; null means no observation, not zero.",
+    "Server RSS is not summed with shared processes. Windows private is committed memory; USS is resident private memory.",
+    "Memory and counters cover sampled HTTP observation intervals, not exact journal build/reload boundaries.",
+    "I/O counters are process counters, not physical disk traffic; differences omit unsampled interval edges.",
+    "Qdrant is the whole dedicated server, including previous experimental collections retained in this series.",
+    "Query latency includes overlapping background reader requests; zero-result responses are reported as degradation."
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "pre_build_seconds": 859.1601547999999,
+  "post_build_seconds": 487.7752329000032,
+  "time_change_percent": -43.22650670251925,
+  "resources": {
+    "rss_bytes": {
+      "pre_bytes": 6910664704,
+      "post_bytes": 3384897536,
+      "pre_gib": 6.436058044433594,
+      "post_gib": 3.1524314880371094,
+      "change_percent": -51.01921912025671
+    },
+    "private_bytes": {
+      "pre_bytes": 8534343680,
+      "post_bytes": 4952924160,
+      "pre_gib": 7.9482269287109375,
+      "post_gib": 4.612770080566406,
+      "change_percent": -41.964791368701945
+    },
+    "uss_bytes": {
+      "pre_bytes": 5462532096,
+      "post_bytes": 1881829376,
+      "pre_gib": 5.087379455566406,
+      "post_gib": 1.7525901794433594,
+      "change_percent": -65.55023672303929
+    }
+  },
+  "verification": {
+    "corpus_unchanged_and_same_pre": true,
+    "config_unchanged_and_same_except_collection": true,
+    "frozen_code_unchanged": true,
+    "verified_code_files": 284,
+    "current_absent": true,
+    "candidate_integrity": true,
+    "counts_equal": true,
+    "qdrant_points_equal": false,
+    "pre_points": {
+      "count": 64,
+      "sha256": "12cd44a9ce92b671e34916dd74be6fbd181f3df26a4d367d8b25a1cba5acce9b"
+    },
+    "post_points": {
+      "count": 64,
+      "sha256": "11ad1fedc47dc749202c94a0338fae40785f93453b26faeb45d417f4fe63bdb3"
+    }
+  },
+  "limits": "One real full candidate per variant; format and encoding grouping change together; sampled lower-bound peaks; no publish/gate/readiness/crossover or capacity claim."
+}

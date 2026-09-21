@@ -1,0 +1,233 @@
+[
+    {
+        "Id": "2b2831f678b4ce762de18862623b0f1b08f9fca04241075fd63810c4d8ab57c8",
+        "Created": "2026-09-21T13:19:46.346931895Z",
+        "Path": "./entrypoint.sh",
+        "Args": [],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 62266,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-09-21T13:19:46.497060128Z",
+            "FinishedAt": "0001-01-01T00:00:00Z"
+        },
+        "Image": "sha256:057ee3a8da769fe7310dd3537b4dc7583bf87a95ce8ac43c0af5a46bc580d1fc",
+        "ResolvConfPath": "/var/lib/docker/containers/2b2831f678b4ce762de18862623b0f1b08f9fca04241075fd63810c4d8ab57c8/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/2b2831f678b4ce762de18862623b0f1b08f9fca04241075fd63810c4d8ab57c8/hostname",
+        "HostsPath": "/var/lib/docker/containers/2b2831f678b4ce762de18862623b0f1b08f9fca04241075fd63810c4d8ab57c8/hosts",
+        "LogPath": "/var/lib/docker/containers/2b2831f678b4ce762de18862623b0f1b08f9fca04241075fd63810c4d8ab57c8/2b2831f678b4ce762de18862623b0f1b08f9fca04241075fd63810c4d8ab57c8-json.log",
+        "Name": "/sidecar-0628-qdrant",
+        "RestartCount": 0,
+        "Driver": "overlayfs",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "sidecar-0628-qdrant-native-f6:/qdrant/storage"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "bridge",
+            "PortBindings": {
+                "6333/tcp": [
+                    {
+                        "HostIp": "127.0.0.1",
+                        "HostPort": "16333"
+                    }
+                ]
+            },
+            "RestartPolicy": {
+                "Name": "no",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "private",
+            "Dns": null,
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": null,
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": null,
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 1073741824,
+            "NanoCpus": 2000000000,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": [],
+            "BlkioDeviceReadBps": [],
+            "BlkioDeviceWriteBps": [],
+            "BlkioDeviceReadIOps": [],
+            "BlkioDeviceWriteIOps": [],
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": [],
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 2147483648,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": null,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "Storage": {
+            "RootFS": {
+                "Snapshot": {
+                    "Name": "overlayfs"
+                }
+            }
+        },
+        "Mounts": [
+            {
+                "Type": "volume",
+                "Name": "sidecar-0628-qdrant-native-f6",
+                "Source": "/var/lib/docker/volumes/sidecar-0628-qdrant-native-f6/_data",
+                "Destination": "/qdrant/storage",
+                "Driver": "local",
+                "Mode": "z",
+                "RW": true,
+                "Propagation": ""
+            }
+        ],
+        "Config": {
+            "Hostname": "2b2831f678b4",
+            "Domainname": "",
+            "User": "0:0",
+            "AttachStdin": false,
+            "AttachStdout": false,
+            "AttachStderr": false,
+            "ExposedPorts": {
+                "6333/tcp": {},
+                "6334/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "DIR=",
+                "TZ=Etc/UTC",
+                "RUN_MODE=production"
+            ],
+            "Cmd": [
+                "./entrypoint.sh"
+            ],
+            "Image": "qdrant/qdrant:v1.19.0",
+            "Volumes": null,
+            "WorkingDir": "/qdrant",
+            "Entrypoint": null,
+            "Labels": {
+                "org.opencontainers.image.description": "Official Qdrant image",
+                "org.opencontainers.image.documentation": "https://qdrant.com/docs",
+                "org.opencontainers.image.source": "https://github.com/qdrant/qdrant",
+                "org.opencontainers.image.title": "Qdrant",
+                "org.opencontainers.image.url": "https://qdrant.com/",
+                "org.opencontainers.image.vendor": "Qdrant",
+                "org.opencontainers.image.version": "v1.19.0",
+                "vibecraft.sidecar-worktree": "0628"
+            }
+        },
+        "NetworkSettings": {
+            "SandboxID": "dd9793f31c24f415e5e8f0cfb30d4a711e39b1776785d41638ac10b73efb3a77",
+            "SandboxKey": "/var/run/docker/netns/dd9793f31c24",
+            "Ports": {
+                "6333/tcp": [
+                    {
+                        "HostIp": "127.0.0.1",
+                        "HostPort": "16333"
+                    }
+                ]
+            },
+            "Networks": {
+                "bridge": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "0ea1ec1ab103dc8f0623325cda91c02e57e54e80a545c97111b304fac5f089d0",
+                    "EndpointID": "8e65b86e575138df19937923a44d6ca62623ed7bd2fce45d1790d3ab366f80f6",
+                    "Gateway": "172.17.0.1",
+                    "IPAddress": "172.17.0.2",
+                    "MacAddress": "ea:30:81:c9:64:d8",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": null
+                }
+            }
+        },
+        "ImageManifestDescriptor": {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:6c0652f8d6925b22f2f6f0e0a5365a6c9dbc8768bd6e70ccc1cdc14847e452a0",
+            "size": 2934,
+            "platform": {
+                "architecture": "amd64",
+                "os": "linux"
+            }
+        }
+    }
+]

@@ -66,6 +66,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "psutil>=7.2.2",
     "pytest>=9.1.1",
     # Fabbrica il PDF finto di tests/test_intake_convert.py. Esplicita e non
     # transitiva (arriva anche da pdfplumber) perche' un test la importa

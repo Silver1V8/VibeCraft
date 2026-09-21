@@ -1,0 +1,3212 @@
+{
+  "status": "completed",
+  "pid": 9584,
+  "parameters": {
+    "n": 10,
+    "mode": "docs",
+    "k": [
+      0,
+      1,
+      10
+    ],
+    "repeats": 5,
+    "query_pause_seconds": 0.15,
+    "qdrant_url": "http://127.0.0.1:16333",
+    "server_url": "http://127.0.0.1:18000",
+    "collection": "sidecar_0628_docs_n10_post",
+    "restore_io_outside_measurement": true
+  },
+  "events": [
+    {
+      "event": "bootstrap_start",
+      "utc": "2026-09-21T11:06:13.031985+00:00",
+      "monotonic": 13890.6475881
+    },
+    {
+      "event": "bootstrap_end",
+      "utc": "2026-09-21T11:06:29.009879+00:00",
+      "monotonic": 13906.6254803
+    },
+    {
+      "event": "baseline_frozen",
+      "utc": "2026-09-21T11:06:41.931504+00:00",
+      "monotonic": 13919.5471018
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:06:43.004203+00:00",
+      "monotonic": 13920.6198044,
+      "repeat": 0,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:06:43.809774+00:00",
+      "monotonic": 13921.4253725,
+      "repeat": 0,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:06:44.254448+00:00",
+      "monotonic": 13921.8700469,
+      "repeat": 0,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:06:44.261156+00:00",
+      "monotonic": 13921.8767528,
+      "repeat": 0,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:06:48.418216+00:00",
+      "monotonic": 13926.0338146,
+      "repeat": 0,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:06:48.792888+00:00",
+      "monotonic": 13926.4084876,
+      "repeat": 0,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:06:48.804777+00:00",
+      "monotonic": 13926.4203757,
+      "repeat": 0,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:06:54.811965+00:00",
+      "monotonic": 13932.4275644,
+      "repeat": 0,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:06:55.200027+00:00",
+      "monotonic": 13932.8156347,
+      "repeat": 0,
+      "k": 10
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:06:55.207752+00:00",
+      "monotonic": 13932.8233506,
+      "repeat": 1,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:06:56.005582+00:00",
+      "monotonic": 13933.6211809,
+      "repeat": 1,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:06:56.408256+00:00",
+      "monotonic": 13934.0238555,
+      "repeat": 1,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:06:56.415235+00:00",
+      "monotonic": 13934.030833,
+      "repeat": 1,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:07:00.578071+00:00",
+      "monotonic": 13938.1936701,
+      "repeat": 1,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:07:00.941789+00:00",
+      "monotonic": 13938.5573875,
+      "repeat": 1,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:07:00.954326+00:00",
+      "monotonic": 13938.5699241,
+      "repeat": 1,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:07:06.612123+00:00",
+      "monotonic": 13944.2277217,
+      "repeat": 1,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:07:07.050651+00:00",
+      "monotonic": 13944.6662526,
+      "repeat": 1,
+      "k": 10
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:07:07.057054+00:00",
+      "monotonic": 13944.6726506,
+      "repeat": 2,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:07:07.934838+00:00",
+      "monotonic": 13945.5504357,
+      "repeat": 2,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:07:08.336207+00:00",
+      "monotonic": 13945.9518082,
+      "repeat": 2,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:07:08.345239+00:00",
+      "monotonic": 13945.9608407,
+      "repeat": 2,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:07:12.176539+00:00",
+      "monotonic": 13949.7921372,
+      "repeat": 2,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:07:12.579854+00:00",
+      "monotonic": 13950.1954529,
+      "repeat": 2,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:07:12.592202+00:00",
+      "monotonic": 13950.2077981,
+      "repeat": 2,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:07:18.391675+00:00",
+      "monotonic": 13956.0072737,
+      "repeat": 2,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:07:18.788297+00:00",
+      "monotonic": 13956.403898,
+      "repeat": 2,
+      "k": 10
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:07:18.794987+00:00",
+      "monotonic": 13956.4105854,
+      "repeat": 3,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:07:19.611643+00:00",
+      "monotonic": 13957.2272414,
+      "repeat": 3,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:07:20.004881+00:00",
+      "monotonic": 13957.6204794,
+      "repeat": 3,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:07:20.012365+00:00",
+      "monotonic": 13957.6279603,
+      "repeat": 3,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:07:23.708922+00:00",
+      "monotonic": 13961.3245217,
+      "repeat": 3,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:07:24.099127+00:00",
+      "monotonic": 13961.7147255,
+      "repeat": 3,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:07:24.111745+00:00",
+      "monotonic": 13961.7273407,
+      "repeat": 3,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:07:29.520377+00:00",
+      "monotonic": 13967.1359759,
+      "repeat": 3,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:07:29.943271+00:00",
+      "monotonic": 13967.5588712,
+      "repeat": 3,
+      "k": 10
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:07:29.950208+00:00",
+      "monotonic": 13967.5658053,
+      "repeat": 4,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:07:30.760391+00:00",
+      "monotonic": 13968.3759893,
+      "repeat": 4,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:07:31.157374+00:00",
+      "monotonic": 13968.7729724,
+      "repeat": 4,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:07:31.165050+00:00",
+      "monotonic": 13968.7806609,
+      "repeat": 4,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:07:34.907796+00:00",
+      "monotonic": 13972.5233955,
+      "repeat": 4,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:07:35.291896+00:00",
+      "monotonic": 13972.907493,
+      "repeat": 4,
+      "k": 1
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T11:07:35.304481+00:00",
+      "monotonic": 13972.92008,
+      "repeat": 4,
+      "k": 10
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T11:07:40.591716+00:00",
+      "monotonic": 13978.2073306,
+      "repeat": 4,
+      "k": 10
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T11:07:40.972012+00:00",
+      "monotonic": 13978.5876113,
+      "repeat": 4,
+      "k": 10
+    }
+  ],
+  "samples": [
+    {
+      "repeat": 0,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 13920.6204949,
+          "end_monotonic": 13920.8860415,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        },
+        {
+          "start_monotonic": 13921.0492068,
+          "end_monotonic": 13921.2793725,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "b6d4d91d952246f093d3a59a3c7b3649",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:06:43.010288+00:00",
+        "finished_at": "2026-09-21T11:06:43.026713+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 0.0,
+            "scan_hash": 0.007486900000003516,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "snapshot_token": "v20260921T110626"
+        },
+        "error": null,
+        "queue_duration_seconds": 0.000760800001444295,
+        "writer_lock_wait_seconds": 0.007198100000096019,
+        "build_duration_seconds": 0.008162500000253203,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.0,
+        "reload_error": null,
+        "published_token": "v20260921T110626",
+        "snapshot_ready_duration_seconds": 0.01753180000014254,
+        "coalesced": false
+      },
+      "elapsed_seconds": 0.5181379000005109,
+      "started_monotonic": 13920.619807,
+      "ended_monotonic": 13921.1379449,
+      "current_version": "v20260921T110626",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n10_post",
+          "actual": "sidecar_0628_docs_n10_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 0,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 13921.8773282,
+          "end_monotonic": 13924.5245929,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        },
+        {
+          "start_monotonic": 13924.6891831,
+          "end_monotonic": 13925.0691048,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        },
+        {
+          "start_monotonic": 13925.3855437,
+          "end_monotonic": 13925.8990676,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110647",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "570a91b19216438c85a6bad8cd461149",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:06:44.265857+00:00",
+        "finished_at": "2026-09-21T11:06:48.001543+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 1,
+          "deleted_docs": 0,
+          "upserted_chunks": 1,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 1,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 1,
+            "chunks_indexed": 10,
+            "colbert_tokens_processed": 25,
+            "colbert_tokens_indexed": 268,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T110647",
+          "phase_timings_seconds": {
+            "init_model": 2.4016013000000385,
+            "scan_hash": 0.01136930000029679,
+            "load": 0.007965900000272086,
+            "parsing_embedding": 0.6989590000030148,
+            "qdrant": 0.06004409999695781,
+            "relink": 7.379999988188501e-05,
+            "save_hash": 0.06853620000038063,
+            "eval_gate": 0.0,
+            "promote": 0.005380000000513974
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0005630999985442031,
+        "writer_lock_wait_seconds": 0.007134599998607882,
+        "build_duration_seconds": 3.7274859999997716,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.02062350000051083,
+        "reload_error": null,
+        "published_token": "v20260921T110647",
+        "snapshot_ready_duration_seconds": 3.7573962999995274,
+        "coalesced": false
+      },
+      "elapsed_seconds": 3.7733773999989353,
+      "started_monotonic": 13921.8767549,
+      "ended_monotonic": 13925.6501323,
+      "current_version": "v20260921T110647",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n10_post",
+          "actual": "sidecar_0628_docs_n10_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 0,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 13926.4210679,
+          "end_monotonic": 13928.9899023,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13929.1454049,
+          "end_monotonic": 13929.4210196,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13929.5815701,
+          "end_monotonic": 13929.929715,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13930.0951234,
+          "end_monotonic": 13930.4264513,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13930.5783459,
+          "end_monotonic": 13930.9841024,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13931.1471218,
+          "end_monotonic": 13931.4522975,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        },
+        {
+          "start_monotonic": 13931.7292681,
+          "end_monotonic": 13932.2703422,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110653",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d001.md",
+          "before_sha256": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+          "after_sha256": "bbea20e8af1d5027478bc50b632d9be5af6c0c4e4e6c77923f123119eaf62dd2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d002.md",
+          "before_sha256": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+          "after_sha256": "aac5a99d6afb42f1e84774a8e1dd53ec1b8bffb334a61012a4a39f65e6b0be85",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d003.md",
+          "before_sha256": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+          "after_sha256": "592f75dbdc042e03606815315cb92133c3e53c10a23a168a3e9661b29391bca9",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d004.md",
+          "before_sha256": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+          "after_sha256": "a4d31bfbfebe3eeae2d29b0a7d8b70f31904ccc373249b013c2332c7954a4bc2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d005.md",
+          "before_sha256": "74d4e33ac71d12964756a8cb9415591a0d3cdf7e4c14a1a93ef0b4592aacdd0a",
+          "after_sha256": "5eb1d88671f1d366a5eedb0983e20a533280576d15fe029243a67cdff056b82c",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d006.md",
+          "before_sha256": "955e2381cff1c12d332627292a66ba12847550a8c59a04b1f6bc0b74e72e26ef",
+          "after_sha256": "2f3935e7580dd9377dbd58ac891d4284e14c2309e603baf22c4e923edffb9153",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d007.md",
+          "before_sha256": "d1127fc92ef4d8eea946df94c52157db395d8fff85a68cfbdd463198a99f0e0a",
+          "after_sha256": "e05144b25c4471eaf4c11061fe957e0ad1061a90c50765bf5c81432f2a15008a",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d008.md",
+          "before_sha256": "9e3e92a5dfaf1f9296db53503a37170ded5a933759c89d7ef7925111dc35f263",
+          "after_sha256": "2e1e8bc64598c183449911f067b2c5cdfd8795ce3d28be4f197738a3225ba987",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d009.md",
+          "before_sha256": "8d35a52c8f9480e2a2145087cc87967a6927820251b861552bbb947668c5b69d",
+          "after_sha256": "7c7e8387145aa91d5d398fc4d1ddd821177cf9e278047a72e656b61d0a65ffac",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "0c6704e9e50d401ab63a6a10ecf3a585",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:06:48.809487+00:00",
+        "finished_at": "2026-09-21T11:06:54.385991+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 10,
+          "deleted_docs": 0,
+          "upserted_chunks": 10,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 10,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 10,
+            "chunks_indexed": 10,
+            "colbert_tokens_processed": 268,
+            "colbert_tokens_indexed": 268,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T110653",
+          "phase_timings_seconds": {
+            "init_model": 2.351959000001443,
+            "scan_hash": 0.03257110000049579,
+            "load": 0.009726000000227941,
+            "parsing_embedding": 2.4614883000012924,
+            "qdrant": 0.06574849999924481,
+            "relink": 7.499999992433004e-05,
+            "save_hash": 0.09190589999889198,
+            "eval_gate": 0.0,
+            "promote": 0.005477299999256502
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0005357999998523155,
+        "writer_lock_wait_seconds": 0.009621100000003935,
+        "build_duration_seconds": 5.566105899999457,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.01750229999925068,
+        "reload_error": null,
+        "published_token": "v20260921T110653",
+        "snapshot_ready_duration_seconds": 5.595442599998933,
+        "coalesced": false
+      },
+      "elapsed_seconds": 5.6096778999999515,
+      "started_monotonic": 13926.4203776,
+      "ended_monotonic": 13932.0300555,
+      "current_version": "v20260921T110653",
+      "empty_results_count": 5,
+      "empty_results_rate": 0.7142857142857143,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n10_post",
+          "actual": "sidecar_0628_docs_n10_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 1,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 13932.8242727,
+          "end_monotonic": 13933.0784706,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        },
+        {
+          "start_monotonic": 13933.2346647,
+          "end_monotonic": 13933.4870022,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "6afc26c96ffb44ac8dca4b6439e1ead7",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:06:55.212436+00:00",
+        "finished_at": "2026-09-21T11:06:55.232216+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 0.0,
+            "scan_hash": 0.00984500000049593,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "snapshot_token": "v20260921T110626"
+        },
+        "error": null,
+        "queue_duration_seconds": 0.00042159999975410756,
+        "writer_lock_wait_seconds": 0.006326299999273033,
+        "build_duration_seconds": 0.012751000000207569,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.0,
+        "reload_error": null,
+        "published_token": "v20260921T110626",
+        "snapshot_ready_duration_seconds": 0.02097470000080648,
+        "coalesced": false
+      },
+      "elapsed_seconds": 0.529162400000132,
+      "started_monotonic": 13932.8233528,
+      "ended_monotonic": 13933.3525152,
+      "current_version": "v20260921T110626",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n10_post",
+          "actual": "sidecar_0628_docs_n10_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 1,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 13934.0314475,
+          "end_monotonic": 13936.3218085,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        },
+        {
+          "start_monotonic": 13936.4857344,
+          "end_monotonic": 13936.7840159,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        },
+        {
+          "start_monotonic": 13936.9379463,
+          "end_monotonic": 13937.658665,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        },
+        {
+          "start_monotonic": 13937.814257,
+          "end_monotonic": 13938.0615865,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110659",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "c9d13e889cff4f9cae05302c875b9381",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:06:56.432845+00:00",
+        "finished_at": "2026-09-21T11:06:59.867831+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 1,
+          "deleted_docs": 0,
+          "upserted_chunks": 1,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 1,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 1,
+            "chunks_indexed": 10,
+            "colbert_tokens_processed": 25,
+            "colbert_tokens_indexed": 268,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T110659",
+          "phase_timings_seconds": {
+            "init_model": 2.1655278999987786,
+            "scan_hash": 0.004897700000583427,
+            "load": 0.008661299998493632,
+            "parsing_embedding": 0.619886199998291,
+            "qdrant": 0.07972259999951348,
+            "relink": 6.660000144620426e-05,
+            "save_hash": 0.08047029999943334,
+            "eval_gate": 0.0,
+            "promote": 0.005968199999188073
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0008462000005238224,
+        "writer_lock_wait_seconds": 0.007474300000467338,
+        "build_duration_seconds": 3.426460299999235,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.020886199999949895,
+        "reload_error": null,
+        "published_token": "v20260921T110659",
+        "snapshot_ready_duration_seconds": 3.4564362000000983,
+        "coalesced": false
+      },
+      "elapsed_seconds": 3.9654466999982105,
+      "started_monotonic": 13934.0308507,
+      "ended_monotonic": 13937.9962974,
+      "current_version": "v20260921T110659",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n10_post",
+          "actual": "sidecar_0628_docs_n10_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 1,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 13938.5706106,
+          "end_monotonic": 13940.9120129,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13941.0655339,
+          "end_monotonic": 13941.3360567,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13941.500346,
+          "end_monotonic": 13941.7946766,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13941.9558518,
+          "end_monotonic": 13942.2371963,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13942.3912149,
+          "end_monotonic": 13942.7224631,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13942.8755751,
+          "end_monotonic": 13943.1877934,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13943.5698235,
+          "end_monotonic": 13944.1006419,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110705",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d001.md",
+          "before_sha256": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+          "after_sha256": "bbea20e8af1d5027478bc50b632d9be5af6c0c4e4e6c77923f123119eaf62dd2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d002.md",
+          "before_sha256": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+          "after_sha256": "aac5a99d6afb42f1e84774a8e1dd53ec1b8bffb334a61012a4a39f65e6b0be85",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d003.md",
+          "before_sha256": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+          "after_sha256": "592f75dbdc042e03606815315cb92133c3e53c10a23a168a3e9661b29391bca9",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d004.md",
+          "before_sha256": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+          "after_sha256": "a4d31bfbfebe3eeae2d29b0a7d8b70f31904ccc373249b013c2332c7954a4bc2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d005.md",
+          "before_sha256": "74d4e33ac71d12964756a8cb9415591a0d3cdf7e4c14a1a93ef0b4592aacdd0a",
+          "after_sha256": "5eb1d88671f1d366a5eedb0983e20a533280576d15fe029243a67cdff056b82c",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d006.md",
+          "before_sha256": "955e2381cff1c12d332627292a66ba12847550a8c59a04b1f6bc0b74e72e26ef",
+          "after_sha256": "2f3935e7580dd9377dbd58ac891d4284e14c2309e603baf22c4e923edffb9153",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d007.md",
+          "before_sha256": "d1127fc92ef4d8eea946df94c52157db395d8fff85a68cfbdd463198a99f0e0a",
+          "after_sha256": "e05144b25c4471eaf4c11061fe957e0ad1061a90c50765bf5c81432f2a15008a",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d008.md",
+          "before_sha256": "9e3e92a5dfaf1f9296db53503a37170ded5a933759c89d7ef7925111dc35f263",
+          "after_sha256": "2e1e8bc64598c183449911f067b2c5cdfd8795ce3d28be4f197738a3225ba987",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d009.md",
+          "before_sha256": "8d35a52c8f9480e2a2145087cc87967a6927820251b861552bbb947668c5b69d",
+          "after_sha256": "7c7e8387145aa91d5d398fc4d1ddd821177cf9e278047a72e656b61d0a65ffac",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "fd6744a8492344999040515223ed7fc0",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:07:00.982135+00:00",
+        "finished_at": "2026-09-21T11:07:06.176512+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 10,
+          "deleted_docs": 0,
+          "upserted_chunks": 10,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 10,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 10,
+            "chunks_indexed": 10,
+            "colbert_tokens_processed": 268,
+            "colbert_tokens_indexed": 268,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T110705",
+          "phase_timings_seconds": {
+            "init_model": 2.1800268000006326,
+            "scan_hash": 0.012710900000456604,
+            "load": 0.01092640000024403,
+            "parsing_embedding": 2.3504968999986886,
+            "qdrant": 0.06690700000035577,
+            "relink": 0.0001371000016661128,
+            "save_hash": 0.06627089999892632,
+            "eval_gate": 0.0,
+            "promote": 0.005423099999461556
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0009497000010014744,
+        "writer_lock_wait_seconds": 0.007184799998867675,
+        "build_duration_seconds": 5.185887300000104,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.020980899998903624,
+        "reload_error": null,
+        "published_token": "v20260921T110705",
+        "snapshot_ready_duration_seconds": 5.216919000000416,
+        "coalesced": false
+      },
+      "elapsed_seconds": 5.25305329999901,
+      "started_monotonic": 13938.5699263,
+      "ended_monotonic": 13943.8229796,
+      "current_version": "v20260921T110705",
+      "empty_results_count": 6,
+      "empty_results_rate": 0.8571428571428571,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n10_post",
+          "actual": "sidecar_0628_docs_n10_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 2,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 13944.673342,
+          "end_monotonic": 13944.9847391,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        },
+        {
+          "start_monotonic": 13945.1450578,
+          "end_monotonic": 13945.3585839,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "02b9e17ab62f4c2fb5c6e85c0ed0fb78",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:07:07.060500+00:00",
+        "finished_at": "2026-09-21T11:07:07.070622+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 0.0,
+            "scan_hash": 0.0029227000013634097,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "snapshot_token": "v20260921T110626"
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0005911000007472467,
+        "writer_lock_wait_seconds": 0.006103300000177114,
+        "build_duration_seconds": 0.0032342999984393828,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.0,
+        "reload_error": null,
+        "published_token": "v20260921T110626",
+        "snapshot_ready_duration_seconds": 0.010659300000043004,
+        "coalesced": false
+      },
+      "elapsed_seconds": 0.5121411999989505,
+      "started_monotonic": 13944.6726548,
+      "ended_monotonic": 13945.184796,
+      "current_version": "v20260921T110626",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n10_post",
+          "actual": "sidecar_0628_docs_n10_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 2,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 13945.9618573,
+          "end_monotonic": 13948.3071358,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        },
+        {
+          "start_monotonic": 13948.4686829,
+          "end_monotonic": 13948.7729753,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        },
+        {
+          "start_monotonic": 13949.1534809,
+          "end_monotonic": 13949.6456213,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110711",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "865d2a173b5d41acb2c4f93f274eb62a",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:07:08.352759+00:00",
+        "finished_at": "2026-09-21T11:07:11.752129+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 1,
+          "deleted_docs": 0,
+          "upserted_chunks": 1,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 1,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 1,
+            "chunks_indexed": 10,
+            "colbert_tokens_processed": 25,
+            "colbert_tokens_indexed": 268,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T110711",
+          "phase_timings_seconds": {
+            "init_model": 2.17532299999948,
+            "scan_hash": 0.020811700000194833,
+            "load": 0.008343000001332257,
+            "parsing_embedding": 0.5807964999985415,
+            "qdrant": 0.06263190000026952,
+            "relink": 6.740000026184134e-05,
+            "save_hash": 0.0751892999996926,
+            "eval_gate": 0.0,
+            "promote": 0.005288099999233964
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0008368999988306314,
+        "writer_lock_wait_seconds": 0.009439999999813153,
+        "build_duration_seconds": 3.388735499998802,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.02119429999947897,
+        "reload_error": null,
+        "published_token": "v20260921T110711",
+        "snapshot_ready_duration_seconds": 3.4213285999994696,
+        "coalesced": false
+      },
+      "elapsed_seconds": 3.4478375999988202,
+      "started_monotonic": 13945.9608439,
+      "ended_monotonic": 13949.4086815,
+      "current_version": "v20260921T110711",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n10_post",
+          "actual": "sidecar_0628_docs_n10_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 2,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 13950.2083681,
+          "end_monotonic": 13952.3965191,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13952.5483292,
+          "end_monotonic": 13952.8215522,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13952.9854735,
+          "end_monotonic": 13953.2452889,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13953.4065098,
+          "end_monotonic": 13953.7134645,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13953.8759659,
+          "end_monotonic": 13954.1446052,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13954.2974281,
+          "end_monotonic": 13954.6043497,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13954.9437949,
+          "end_monotonic": 13955.4633576,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110717",
+          "results": 3
+        },
+        {
+          "start_monotonic": 13955.6255375,
+          "end_monotonic": 13955.858429,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110717",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d001.md",
+          "before_sha256": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+          "after_sha256": "bbea20e8af1d5027478bc50b632d9be5af6c0c4e4e6c77923f123119eaf62dd2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d002.md",
+          "before_sha256": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+          "after_sha256": "aac5a99d6afb42f1e84774a8e1dd53ec1b8bffb334a61012a4a39f65e6b0be85",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d003.md",
+          "before_sha256": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+          "after_sha256": "592f75dbdc042e03606815315cb92133c3e53c10a23a168a3e9661b29391bca9",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d004.md",
+          "before_sha256": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+          "after_sha256": "a4d31bfbfebe3eeae2d29b0a7d8b70f31904ccc373249b013c2332c7954a4bc2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d005.md",
+          "before_sha256": "74d4e33ac71d12964756a8cb9415591a0d3cdf7e4c14a1a93ef0b4592aacdd0a",
+          "after_sha256": "5eb1d88671f1d366a5eedb0983e20a533280576d15fe029243a67cdff056b82c",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d006.md",
+          "before_sha256": "955e2381cff1c12d332627292a66ba12847550a8c59a04b1f6bc0b74e72e26ef",
+          "after_sha256": "2f3935e7580dd9377dbd58ac891d4284e14c2309e603baf22c4e923edffb9153",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d007.md",
+          "before_sha256": "d1127fc92ef4d8eea946df94c52157db395d8fff85a68cfbdd463198a99f0e0a",
+          "after_sha256": "e05144b25c4471eaf4c11061fe957e0ad1061a90c50765bf5c81432f2a15008a",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d008.md",
+          "before_sha256": "9e3e92a5dfaf1f9296db53503a37170ded5a933759c89d7ef7925111dc35f263",
+          "after_sha256": "2e1e8bc64598c183449911f067b2c5cdfd8795ce3d28be4f197738a3225ba987",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d009.md",
+          "before_sha256": "8d35a52c8f9480e2a2145087cc87967a6927820251b861552bbb947668c5b69d",
+          "after_sha256": "7c7e8387145aa91d5d398fc4d1ddd821177cf9e278047a72e656b61d0a65ffac",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "c81208e109324293af44b69f8f6e537d",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:07:12.595614+00:00",
+        "finished_at": "2026-09-21T11:07:17.543642+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 10,
+          "deleted_docs": 0,
+          "upserted_chunks": 10,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 10,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 10,
+            "chunks_indexed": 10,
+            "colbert_tokens_processed": 268,
+            "colbert_tokens_indexed": 268,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T110717",
+          "phase_timings_seconds": {
+            "init_model": 2.031130600000324,
+            "scan_hash": 0.016577899999902,
+            "load": 0.00877079999918351,
+            "parsing_embedding": 2.297477099999014,
+            "qdrant": 0.05091320000065025,
+            "relink": 6.600000051548705e-05,
+            "save_hash": 0.06423829999948794,
+            "eval_gate": 0.0,
+            "promote": 0.005425199999081087
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0004558000000542961,
+        "writer_lock_wait_seconds": 0.00578499999937776,
+        "build_duration_seconds": 4.941534100000354,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.019171599999026512,
+        "reload_error": null,
+        "published_token": "v20260921T110717",
+        "snapshot_ready_duration_seconds": 4.968536799999129,
+        "coalesced": false
+      },
+      "elapsed_seconds": 5.482393899999806,
+      "started_monotonic": 13950.2078,
+      "ended_monotonic": 13955.6901939,
+      "current_version": "v20260921T110717",
+      "empty_results_count": 6,
+      "empty_results_rate": 0.75,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n10_post",
+          "actual": "sidecar_0628_docs_n10_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 3,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 13956.4113747,
+          "end_monotonic": 13956.6679668,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        },
+        {
+          "start_monotonic": 13956.8293852,
+          "end_monotonic": 13957.0860995,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "d383393e4ae440f98a822f5089d94f39",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:07:18.823379+00:00",
+        "finished_at": "2026-09-21T11:07:18.835902+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 0.0,
+            "scan_hash": 0.0038652000002912246,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "snapshot_token": "v20260921T110626"
+        },
+        "error": null,
+        "queue_duration_seconds": 0.000921599999855971,
+        "writer_lock_wait_seconds": 0.007019599999694037,
+        "build_duration_seconds": 0.004349499999079853,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.0,
+        "reload_error": null,
+        "published_token": "v20260921T110626",
+        "snapshot_ready_duration_seconds": 0.013283299998875009,
+        "coalesced": false
+      },
+      "elapsed_seconds": 0.538113800001156,
+      "started_monotonic": 13956.4105881,
+      "ended_monotonic": 13956.9487019,
+      "current_version": "v20260921T110626",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n10_post",
+          "actual": "sidecar_0628_docs_n10_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 3,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 13957.6284844,
+          "end_monotonic": 13959.8588626,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        },
+        {
+          "start_monotonic": 13960.0175549,
+          "end_monotonic": 13960.2706711,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        },
+        {
+          "start_monotonic": 13960.4215597,
+          "end_monotonic": 13961.1230902,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "dce3c1b685b345099fe62d44acfd1f17",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:07:20.017295+00:00",
+        "finished_at": "2026-09-21T11:07:23.286903+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 1,
+          "deleted_docs": 0,
+          "upserted_chunks": 1,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 1,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 1,
+            "chunks_indexed": 10,
+            "colbert_tokens_processed": 25,
+            "colbert_tokens_indexed": 268,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T110722",
+          "phase_timings_seconds": {
+            "init_model": 2.068523699999787,
+            "scan_hash": 0.011237000000619446,
+            "load": 0.009993100000428967,
+            "parsing_embedding": 0.5674777000022004,
+            "qdrant": 0.05874779999976454,
+            "relink": 6.899999971210491e-05,
+            "save_hash": 0.0764761999998882,
+            "eval_gate": 0.0,
+            "promote": 0.005674200001521967
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0006912999997439329,
+        "writer_lock_wait_seconds": 0.00763820000065607,
+        "build_duration_seconds": 3.260933400000795,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.021478499998920597,
+        "reload_error": null,
+        "published_token": "v20260921T110722",
+        "snapshot_ready_duration_seconds": 3.2920276999993803,
+        "coalesced": false
+      },
+      "elapsed_seconds": 3.560438800001066,
+      "started_monotonic": 13957.6279619,
+      "ended_monotonic": 13961.1884007,
+      "current_version": "v20260921T110722",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n10_post",
+          "actual": "sidecar_0628_docs_n10_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 3,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 13961.727956,
+          "end_monotonic": 13963.9273363,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13964.0801564,
+          "end_monotonic": 13964.3360085,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13964.499816,
+          "end_monotonic": 13964.756417,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13964.9068151,
+          "end_monotonic": 13965.1559628,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13965.3139439,
+          "end_monotonic": 13965.6222211,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13965.7836331,
+          "end_monotonic": 13966.0713518,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13966.221207,
+          "end_monotonic": 13966.9310954,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d001.md",
+          "before_sha256": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+          "after_sha256": "bbea20e8af1d5027478bc50b632d9be5af6c0c4e4e6c77923f123119eaf62dd2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d002.md",
+          "before_sha256": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+          "after_sha256": "aac5a99d6afb42f1e84774a8e1dd53ec1b8bffb334a61012a4a39f65e6b0be85",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d003.md",
+          "before_sha256": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+          "after_sha256": "592f75dbdc042e03606815315cb92133c3e53c10a23a168a3e9661b29391bca9",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d004.md",
+          "before_sha256": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+          "after_sha256": "a4d31bfbfebe3eeae2d29b0a7d8b70f31904ccc373249b013c2332c7954a4bc2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d005.md",
+          "before_sha256": "74d4e33ac71d12964756a8cb9415591a0d3cdf7e4c14a1a93ef0b4592aacdd0a",
+          "after_sha256": "5eb1d88671f1d366a5eedb0983e20a533280576d15fe029243a67cdff056b82c",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d006.md",
+          "before_sha256": "955e2381cff1c12d332627292a66ba12847550a8c59a04b1f6bc0b74e72e26ef",
+          "after_sha256": "2f3935e7580dd9377dbd58ac891d4284e14c2309e603baf22c4e923edffb9153",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d007.md",
+          "before_sha256": "d1127fc92ef4d8eea946df94c52157db395d8fff85a68cfbdd463198a99f0e0a",
+          "after_sha256": "e05144b25c4471eaf4c11061fe957e0ad1061a90c50765bf5c81432f2a15008a",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d008.md",
+          "before_sha256": "9e3e92a5dfaf1f9296db53503a37170ded5a933759c89d7ef7925111dc35f263",
+          "after_sha256": "2e1e8bc64598c183449911f067b2c5cdfd8795ce3d28be4f197738a3225ba987",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d009.md",
+          "before_sha256": "8d35a52c8f9480e2a2145087cc87967a6927820251b861552bbb947668c5b69d",
+          "after_sha256": "7c7e8387145aa91d5d398fc4d1ddd821177cf9e278047a72e656b61d0a65ffac",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "4a5cf8750f39423694e50991e142608b",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:07:24.117990+00:00",
+        "finished_at": "2026-09-21T11:07:29.089764+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 10,
+          "deleted_docs": 0,
+          "upserted_chunks": 10,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 10,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 10,
+            "chunks_indexed": 10,
+            "colbert_tokens_processed": 268,
+            "colbert_tokens_indexed": 268,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T110728",
+          "phase_timings_seconds": {
+            "init_model": 2.027170900000783,
+            "scan_hash": 0.017846500000814558,
+            "load": 0.009240499999577878,
+            "parsing_embedding": 2.2788982999991276,
+            "qdrant": 0.08358869999938179,
+            "relink": 6.22000006842427e-05,
+            "save_hash": 0.06307180000112567,
+            "eval_gate": 0.0,
+            "promote": 0.00631249999969441
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0004791999999724794,
+        "writer_lock_wait_seconds": 0.0070095000010041986,
+        "build_duration_seconds": 4.964055100001133,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.015998599999875296,
+        "reload_error": null,
+        "published_token": "v20260921T110728",
+        "snapshot_ready_duration_seconds": 4.988572899999781,
+        "coalesced": false
+      },
+      "elapsed_seconds": 5.255284900000333,
+      "started_monotonic": 13961.7273427,
+      "ended_monotonic": 13966.9826276,
+      "current_version": "v20260921T110728",
+      "empty_results_count": 6,
+      "empty_results_rate": 0.8571428571428571,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n10_post",
+          "actual": "sidecar_0628_docs_n10_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 4,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 13967.5665363,
+          "end_monotonic": 13967.8409109,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        },
+        {
+          "start_monotonic": 13968.0002046,
+          "end_monotonic": 13968.2305843,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "17197ea6cb884e42a1dd41729d5ada5a",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:07:29.955723+00:00",
+        "finished_at": "2026-09-21T11:07:29.979136+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 0.0,
+            "scan_hash": 0.014291399998910492,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "snapshot_token": "v20260921T110626"
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0005440000004455214,
+        "writer_lock_wait_seconds": 0.007129800000257092,
+        "build_duration_seconds": 0.015450299999429262,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.0,
+        "reload_error": null,
+        "published_token": "v20260921T110626",
+        "snapshot_ready_duration_seconds": 0.02430599999934202,
+        "coalesced": false
+      },
+      "elapsed_seconds": 0.5176126000005752,
+      "started_monotonic": 13967.5658076,
+      "ended_monotonic": 13968.0834202,
+      "current_version": "v20260921T110626",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n10_post",
+          "actual": "sidecar_0628_docs_n10_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 4,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 13968.7811836,
+          "end_monotonic": 13971.0720408,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        },
+        {
+          "start_monotonic": 13971.236318,
+          "end_monotonic": 13971.4998337,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        },
+        {
+          "start_monotonic": 13971.6556585,
+          "end_monotonic": 13972.3659331,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "0007c4f49d2849c8b7ad37609c84ee25",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:07:31.183279+00:00",
+        "finished_at": "2026-09-21T11:07:34.525515+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 1,
+          "deleted_docs": 0,
+          "upserted_chunks": 1,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 1,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 1,
+            "chunks_indexed": 10,
+            "colbert_tokens_processed": 25,
+            "colbert_tokens_indexed": 268,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T110733",
+          "phase_timings_seconds": {
+            "init_model": 2.1213416999999026,
+            "scan_hash": 0.004870900000241818,
+            "load": 0.009861000000455533,
+            "parsing_embedding": 0.5827552000009746,
+            "qdrant": 0.0757752999998047,
+            "relink": 8.280000110971741e-05,
+            "save_hash": 0.07342439999956696,
+            "eval_gate": 0.0,
+            "promote": 0.006613599998672726
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0008462000005238224,
+        "writer_lock_wait_seconds": 0.006637899999986985,
+        "build_duration_seconds": 3.3343715999999404,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.01630949999889708,
+        "reload_error": null,
+        "published_token": "v20260921T110733",
+        "snapshot_ready_duration_seconds": 3.359212800000023,
+        "coalesced": false
+      },
+      "elapsed_seconds": 3.404487199999494,
+      "started_monotonic": 13968.7806627,
+      "ended_monotonic": 13972.1851499,
+      "current_version": "v20260921T110733",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n10_post",
+          "actual": "sidecar_0628_docs_n10_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 4,
+      "k": 10,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 13972.9208052,
+          "end_monotonic": 13975.1287368,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13975.2831306,
+          "end_monotonic": 13975.5798212,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13975.7347103,
+          "end_monotonic": 13975.9904353,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13976.1422122,
+          "end_monotonic": 13976.4209465,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13976.5786231,
+          "end_monotonic": 13976.8440579,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13977.0011402,
+          "end_monotonic": 13977.262539,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110626",
+          "results": 0
+        },
+        {
+          "start_monotonic": 13977.6182354,
+          "end_monotonic": 13978.081335,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T110739",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d001.md",
+          "before_sha256": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+          "after_sha256": "bbea20e8af1d5027478bc50b632d9be5af6c0c4e4e6c77923f123119eaf62dd2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d002.md",
+          "before_sha256": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+          "after_sha256": "aac5a99d6afb42f1e84774a8e1dd53ec1b8bffb334a61012a4a39f65e6b0be85",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d003.md",
+          "before_sha256": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+          "after_sha256": "592f75dbdc042e03606815315cb92133c3e53c10a23a168a3e9661b29391bca9",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d004.md",
+          "before_sha256": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+          "after_sha256": "a4d31bfbfebe3eeae2d29b0a7d8b70f31904ccc373249b013c2332c7954a4bc2",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d005.md",
+          "before_sha256": "74d4e33ac71d12964756a8cb9415591a0d3cdf7e4c14a1a93ef0b4592aacdd0a",
+          "after_sha256": "5eb1d88671f1d366a5eedb0983e20a533280576d15fe029243a67cdff056b82c",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d006.md",
+          "before_sha256": "955e2381cff1c12d332627292a66ba12847550a8c59a04b1f6bc0b74e72e26ef",
+          "after_sha256": "2f3935e7580dd9377dbd58ac891d4284e14c2309e603baf22c4e923edffb9153",
+          "bytes": 62,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d007.md",
+          "before_sha256": "d1127fc92ef4d8eea946df94c52157db395d8fff85a68cfbdd463198a99f0e0a",
+          "after_sha256": "e05144b25c4471eaf4c11061fe957e0ad1061a90c50765bf5c81432f2a15008a",
+          "bytes": 67,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d008.md",
+          "before_sha256": "9e3e92a5dfaf1f9296db53503a37170ded5a933759c89d7ef7925111dc35f263",
+          "after_sha256": "2e1e8bc64598c183449911f067b2c5cdfd8795ce3d28be4f197738a3225ba987",
+          "bytes": 72,
+          "code_symbol": null
+        },
+        {
+          "path": "docs/d009.md",
+          "before_sha256": "8d35a52c8f9480e2a2145087cc87967a6927820251b861552bbb947668c5b69d",
+          "after_sha256": "7c7e8387145aa91d5d398fc4d1ddd821177cf9e278047a72e656b61d0a65ffac",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "109bb19c42f349b78c041f57c350fb1b",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T11:07:35.309563+00:00",
+        "finished_at": "2026-09-21T11:07:40.209920+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [],
+            "new": [],
+            "modified": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 10,
+          "deleted_docs": 0,
+          "upserted_chunks": 10,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 10,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 10,
+            "chunks_indexed": 10,
+            "colbert_tokens_processed": 268,
+            "colbert_tokens_indexed": 268,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T110739",
+          "phase_timings_seconds": {
+            "init_model": 2.0162536000007094,
+            "scan_hash": 0.02147970000078203,
+            "load": 0.010171299998546601,
+            "parsing_embedding": 2.257117399998606,
+            "qdrant": 0.057166400001733564,
+            "relink": 6.759999996575061e-05,
+            "save_hash": 0.06253389999983483,
+            "eval_gate": 0.0,
+            "promote": 0.0058363999996799976
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0006431000001612119,
+        "writer_lock_wait_seconds": 0.008225699999456992,
+        "build_duration_seconds": 4.891247800000201,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.017738900000040303,
+        "reload_error": null,
+        "published_token": "v20260921T110739",
+        "snapshot_ready_duration_seconds": 4.919142299999294,
+        "coalesced": false
+      },
+      "elapsed_seconds": 4.932213599999159,
+      "started_monotonic": 13972.9200825,
+      "ended_monotonic": 13977.8522961,
+      "current_version": "v20260921T110739",
+      "empty_results_count": 6,
+      "empty_results_rate": 0.8571428571428571,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_docs_n10_post",
+          "actual": "sidecar_0628_docs_n10_post"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    }
+  ],
+  "qdrant_collections_before": [
+    "sidecar_0628_smoke_docs_n10_post",
+    "sidecar_0628_snapshot_probe"
+  ],
+  "corpus": {
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_docs_n10/sandbox/experiment/docs/d000.md": {
+      "sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_docs_n10/sandbox/experiment/docs/d001.md": {
+      "sha256": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_docs_n10/sandbox/experiment/docs/d002.md": {
+      "sha256": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_docs_n10/sandbox/experiment/docs/d003.md": {
+      "sha256": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_docs_n10/sandbox/experiment/docs/d004.md": {
+      "sha256": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_docs_n10/sandbox/experiment/docs/d005.md": {
+      "sha256": "74d4e33ac71d12964756a8cb9415591a0d3cdf7e4c14a1a93ef0b4592aacdd0a",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_docs_n10/sandbox/experiment/docs/d006.md": {
+      "sha256": "955e2381cff1c12d332627292a66ba12847550a8c59a04b1f6bc0b74e72e26ef",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_docs_n10/sandbox/experiment/docs/d007.md": {
+      "sha256": "d1127fc92ef4d8eea946df94c52157db395d8fff85a68cfbdd463198a99f0e0a",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_docs_n10/sandbox/experiment/docs/d008.md": {
+      "sha256": "9e3e92a5dfaf1f9296db53503a37170ded5a933759c89d7ef7925111dc35f263",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_post_20260921_docs_n10/sandbox/experiment/docs/d009.md": {
+      "sha256": "8d35a52c8f9480e2a2145087cc87967a6927820251b861552bbb947668c5b69d",
+      "bytes": 62
+    }
+  },
+  "bootstrap": {
+    "pid": 2872,
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "\nLoading weights:   0%|          | 0/391 [00:00<?, ?it/s]\nLoading weights: 100%|██████████| 391/391 [00:00<00:00, 8891.59it/s]\n"
+  },
+  "bootstrap_result_file": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_post_20260921_docs_n10\\workload\\bootstrap.json",
+  "baseline_verification_job": {
+    "job_id": "e902f9e556ea430f96eb2cdac2216027",
+    "status": "completed",
+    "kind": "incremental",
+    "created_at": "2026-09-21T11:06:41.045402+00:00",
+    "finished_at": "2026-09-21T11:06:41.055201+00:00",
+    "changed_paths": null,
+    "result": {
+      "noop": true,
+      "planned": {
+        "unchanged": [
+          "d000.md",
+          "d001.md",
+          "d002.md",
+          "d003.md",
+          "d004.md",
+          "d005.md",
+          "d006.md",
+          "d007.md",
+          "d008.md",
+          "d009.md"
+        ],
+        "new": [],
+        "modified": [],
+        "deleted": []
+      },
+      "reindexed_docs": 0,
+      "deleted_docs": 0,
+      "upserted_chunks": 0,
+      "phase_timings_seconds": {
+        "init_model": 0.0,
+        "scan_hash": 0.002809499999784748,
+        "load": 0.0,
+        "parsing_embedding": 0.0,
+        "qdrant": 0.0,
+        "relink": 0.0,
+        "save_hash": 0.0,
+        "eval_gate": 0.0,
+        "promote": 0.0
+      },
+      "counts": {
+        "docs_added": 0,
+        "docs_modified": 0,
+        "docs_removed": 0,
+        "code_added": 0,
+        "code_modified": 0,
+        "code_removed": 0,
+        "chunks_processed": 0,
+        "chunks_indexed": null,
+        "colbert_tokens_processed": 0,
+        "colbert_tokens_indexed": null,
+        "code_tokens_processed": null,
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+      },
+      "snapshot_token": "v20260921T110626"
+    },
+    "error": null,
+    "queue_duration_seconds": 0.000440800000433228,
+    "writer_lock_wait_seconds": 0.006031000000803033,
+    "build_duration_seconds": 0.003109399998720619,
+    "reload_status": "completed",
+    "reload_duration_seconds": 0.0,
+    "reload_error": null,
+    "published_token": "v20260921T110626",
+    "snapshot_ready_duration_seconds": 0.011497900000904338,
+    "coalesced": false
+  },
+  "baseline_integrity": {
+    "ok": true,
+    "stale": false,
+    "artifacts_corrupted": false,
+    "qdrant_mismatch": false,
+    "qdrant_unreachable": false,
+    "problems": [],
+    "qdrant_alias": {
+      "state": "aligned",
+      "expected": "sidecar_0628_docs_n10_post",
+      "actual": "sidecar_0628_docs_n10_post"
+    },
+    "docs_git": {
+      "state": "aligned",
+      "diverging": [],
+      "instantiated": [],
+      "untracked": [
+        "docs/d000.md",
+        "docs/d001.md",
+        "docs/d002.md",
+        "docs/d003.md",
+        "docs/d004.md",
+        "docs/d005.md",
+        "docs/d006.md",
+        "docs/d007.md",
+        "docs/d008.md",
+        "docs/d009.md"
+      ],
+      "tracked": 0,
+      "reason": "nessun file tracciato sotto docs/"
+    }
+  },
+  "baseline_database": {
+    "CURRENT": {
+      "sha256": "0fdbedec0344e75794ff0d81a707382c03cfa55694890cdcf0c7ed5e5ce86830",
+      "bytes": 17
+    },
+    "versions/v20260921T110626/chunks.json": {
+      "sha256": "aa2118adee2303ac348d230439ad8ff199b886983646a60a13658cbab72bac99",
+      "bytes": 1987
+    },
+    "versions/v20260921T110626/code.json": {
+      "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "bytes": 2
+    },
+    "versions/v20260921T110626/code.npz": {
+      "sha256": "d6ce6cd51c04cba7e94f732d0ea50b266b9e80ecb69488d135a8e31f2e887ae2",
+      "bytes": 205
+    },
+    "versions/v20260921T110626/colbert.npz": {
+      "sha256": "4ce7d0f533af82fcf0bff9710e1f6c768c5016f1f684289feb05c075f77c8e50",
+      "bytes": 508734
+    },
+    "versions/v20260921T110626/dense.npz": {
+      "sha256": "d82c51bdc04bf9128fd4255922027d32d727474df8bcd9cf60431328f1f99e59",
+      "bytes": 21606
+    },
+    "versions/v20260921T110626/graph.json": {
+      "sha256": "7ed189352a6a189779c4d8f134c851cfbc0439e0dc72ab185fbad828f90ca8a0",
+      "bytes": 3664
+    },
+    "versions/v20260921T110626/index_manifest.json": {
+      "sha256": "631a7956d229eafb855ae05d5bfc544ea66a914bb1b60145d82e60db7fbebe92",
+      "bytes": 1713
+    }
+  },
+  "baseline_points": {
+    "count": 10,
+    "sha256": "87c0b3f582655f77ff3e14825253f179a88e42da45283154d6641502c536907c"
+  },
+  "baseline_current": "763230323630393231543131303632360a",
+  "qdrant_snapshot": "sidecar_0628_docs_n10_post-2041657226223039-2026-09-21-11-06-41.snapshot",
+  "baseline_queries": [
+    {
+      "query": "prenotazione evento posti",
+      "endpoint": "/api/retrieve",
+      "start_monotonic": 13919.5471048,
+      "end_monotonic": 13920.1202809,
+      "status": 200,
+      "results": 3
+    },
+    {
+      "query": "pagamenti accettati",
+      "endpoint": "/api/retrieve",
+      "start_monotonic": 13920.1202853,
+      "end_monotonic": 13920.3625417,
+      "status": 200,
+      "results": 3
+    },
+    {
+      "query": "notifiche prenotazione",
+      "endpoint": "/api/retrieve",
+      "start_monotonic": 13920.3625458,
+      "end_monotonic": 13920.6140847,
+      "status": 200,
+      "results": 3
+    }
+  ]
+}

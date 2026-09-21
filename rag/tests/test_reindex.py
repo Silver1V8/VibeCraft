@@ -9,7 +9,7 @@ import time
 
 import pytest
 
-from api.reindex import ReindexManager, extract_gitlab_paths
+from api.reindex import ReindexJob, ReindexManager, extract_gitlab_paths
 from core import indexing
 from core.indexing import IndexPlan
 
@@ -140,7 +140,173 @@ def test_job_starts_and_reloads_on_success():
     assert finished.status == "completed"
     assert finished.result == result
     assert finished.finished_at is not None
+
+
+def test_completed_build_is_not_ready_until_reload_finishes():
+    mgr = ReindexManager()
+    reload_started = threading.Event()
+    release_reload = threading.Event()
+
+    def reload():
+        reload_started.set()
+        release_reload.wait(timeout=5)
+        return "v-ready"
+
+    job, _ = mgr.start(["a"], lambda paths: {"noop": False}, reload)
+    assert reload_started.wait(timeout=5)
+    current = mgr.get(job.id).to_dict()
+    assert current["status"] == "completed"
+    assert current["finished_at"] is not None
+    assert current["reload_status"] == "pending"
+    assert current["snapshot_ready_duration_seconds"] is None
+
+    release_reload.set()
+    assert mgr.join_all()
+    ready = mgr.get(job.id).to_dict()
+    assert ready["reload_status"] == "completed"
+    assert ready["published_token"] == "v-ready"
+    assert ready["reload_duration_seconds"] is not None
+    assert ready["snapshot_ready_duration_seconds"] is not None
+
+
+def test_noop_uses_served_snapshot_token_without_reload():
+    mgr = ReindexManager()
+    called = []
+    job, _ = mgr.start([], lambda paths: {"noop": True, "snapshot_token": "served-v1"},
+                       lambda: called.append("reload") or "wrong")
+    assert mgr.join_all()
+    ready = mgr.get(job.id).to_dict()
+    assert called == []
+    assert ready["reload_status"] == "completed"
+    assert ready["published_token"] == "served-v1"
+    assert ready["reload_duration_seconds"] == 0
+    assert ready["snapshot_ready_duration_seconds"] is not None
+
+
+def test_noop_without_observed_snapshot_is_incomplete():
+    mgr = ReindexManager()
+    calls = []
+    job, _ = mgr.start([], lambda paths: {"noop": True},
+                       lambda: calls.append("reload") or None)
+    assert mgr.join_all()
+    ready = mgr.get(job.id).to_dict()
+    assert calls == ["reload"]
+    assert ready["reload_status"] == "incomplete"
+    assert ready["published_token"] is None
+
+
+def test_stale_noop_reloads_with_real_duration_and_separate_failure():
+    mgr = ReindexManager()
+    def reload():
+        time.sleep(0.01)
+        raise RuntimeError("stale reload failed")
+    job, _ = mgr.start([], lambda paths: {"noop": True}, reload)
+    assert mgr.join_all()
+    ready = mgr.get(job.id).to_dict()
+    assert ready["status"] == "completed"
+    assert ready["reload_status"] == "failed"
+    assert ready["reload_duration_seconds"] >= 0.01
+    assert "stale reload failed" in ready["reload_error"]
+    assert ready["published_token"] is None
+
+
+def test_pending_job_waits_for_previous_reload_before_build():
+    mgr = ReindexManager()
+    reload_started = threading.Event()
+    release_reload = threading.Event()
+    second_started = threading.Event()
+
+    def reload():
+        reload_started.set()
+        release_reload.wait(timeout=5)
+        return "v1"
+
+    mgr.start(["a"], lambda paths: {"noop": False}, reload)
+    second, queued = mgr.start(
+        ["b"], lambda paths: second_started.set() or {"noop": False}, lambda: "v2"
+    )
+    assert queued is True
+    assert reload_started.wait(timeout=5)
+    assert not second_started.is_set()
+    release_reload.set()
+    assert mgr.join_all()
+    assert second_started.is_set()
+    assert mgr.get(second.id).queue_duration_seconds is not None
+
+
+def test_journal_error_does_not_stall_pending_dispatch(monkeypatch):
+    mgr = ReindexManager()
+    first_started = threading.Event()
+    release_first = threading.Event()
+    second_started = threading.Event()
+
+    def first_run(paths):
+        first_started.set()
+        release_first.wait(timeout=5)
+        return {"noop": False}
+
+    mgr.start(["a"], first_run, lambda: "v1")
+    assert first_started.wait(timeout=5)
+    mgr.start(["b"], lambda paths: second_started.set() or {"noop": False}, lambda: "v2")
+    monkeypatch.setattr(mgr, "_record", lambda job: (_ for _ in ()).throw(OSError("disk full")))
+    release_first.set()
+
+    assert mgr.join_all()
+    assert second_started.is_set()
+    assert not mgr.is_running
+
+
+def test_reload_none_is_observable_without_inventing_token():
+    mgr = ReindexManager()
+    job, _ = mgr.start(["a"], lambda paths: {"noop": False}, lambda: None)
+    assert mgr.join_all()
+    final = mgr.get(job.id).to_dict()
+    assert final["status"] == "completed"
+    assert final["reload_status"] == "incomplete"
+    assert final["published_token"] is None
+    assert final["snapshot_ready_duration_seconds"] is None
     assert not mgr.is_running  # slot liberato
+
+
+def test_reload_completed_is_not_serialized_without_readiness_fields():
+    job = ReindexJob(["a"])
+    job.reload_status = "completed"
+    assert job.to_dict()["reload_status"] == "pending"
+
+
+def test_reload_failure_is_separate_from_build_failure():
+    mgr = ReindexManager()
+
+    def boom():
+        raise RuntimeError("reload rotto")
+
+    job, _ = mgr.start(["a"], lambda paths: {"noop": False}, boom)
+    assert mgr.join_all()
+    final = mgr.get(job.id).to_dict()
+    assert final["status"] == "completed"
+    assert final["error"] is None
+    assert final["reload_status"] == "failed"
+    assert "reload rotto" in final["reload_error"]
+    assert final["published_token"] is None
+
+
+def test_failed_writer_lock_still_records_wait_duration(monkeypatch):
+    import api.reindex as reindex_mod
+
+    class BusyLock:
+        def __enter__(self):
+            raise RuntimeError("busy")
+
+        def __exit__(self, *args):
+            return False
+
+    monkeypatch.setattr(reindex_mod, "writer_lock", lambda **kwargs: BusyLock())
+    mgr = ReindexManager()
+    job, _ = mgr.start(["a"], lambda paths: {}, lambda: "never")
+    assert mgr.join_all()
+    final = mgr.get(job.id).to_dict()
+    assert final["status"] == "failed"
+    assert final["writer_lock_wait_seconds"] is not None
 
 
 def test_second_request_is_queued_and_paths_coalesced():
@@ -610,6 +776,55 @@ def test_eval_gate_passes_the_version_candidate_collection_to_gate_promotion(tmp
     assert captured["collection_name"] != rr.COLLECTION_NAME
 
 
+def test_eval_gate_loads_candidate_with_real_loader_signature_and_releases_reader(monkeypatch):
+    from types import SimpleNamespace
+    import api.routes_reindex as rr
+    loaded = []
+    class Reader(dict):
+        def close(self):
+            loaded.append("closed")
+    reader = Reader()
+    def load(*, required, version):
+        loaded.append((required, version))
+        return SimpleNamespace(colbert_store=reader, graph=None, chunks_store={})
+    monkeypatch.setattr(rr, "load_artifacts", load)
+    monkeypatch.setattr(rr, "_qdrant_collection_for_version", lambda _version: "candidate")
+    monkeypatch.setattr(rr, "gate_promotion", lambda *_a, **_k: {"passed": False})
+    assert rr._eval_gate("v-candidate", object()) == {"passed": False}
+    assert loaded == [(("graph", "colbert", "chunks"), "v-candidate"), "closed"]
+
+
+def test_full_job_exposes_colbert_io_bytes(monkeypatch):
+    import api.routes_reindex as rr
+    monkeypatch.setattr(rr, "_reindex_embed_model", lambda: object())
+    def build(**kwargs):
+        kwargs["collector"].update(colbert_io_bytes={"written_bytes": 123,
+                                                    "hardlinked_bytes": 0,
+                                                    "copied_bytes": 0,
+                                                    "inherited_hashes_not_reverified": 0})
+        return None
+    monkeypatch.setattr(rr, "build_graph_and_index", build)
+    result = rr._run_full_rebuild(None)
+    assert result["colbert_io_bytes"]["written_bytes"] == 123
+
+
+def test_full_gate_load_error_blocks_publication_and_keeps_current(tmp_path, monkeypatch):
+    import api.routes_reindex as rr
+    from core import artifacts
+    monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)
+    (tmp_path / "CURRENT").write_text("v-old\n", encoding="utf-8")
+    monkeypatch.setattr(rr, "_reindex_embed_model", lambda: object())
+    monkeypatch.setattr(rr, "build_graph_and_index", lambda **_kw: "v-new")
+    def bad_load(**_kw):
+        raise ValueError("candidate chunks corrupt")
+    monkeypatch.setattr(rr, "load_artifacts", bad_load)
+    monkeypatch.setattr(rr, "promote_version", lambda _v: pytest.fail("corrupt candidate promoted"))
+    result = rr._run_full_rebuild(None)
+    assert result["job_status"] == "completed_not_promoted"
+    assert result["promoted"] is False
+    assert (tmp_path / "CURRENT").read_text(encoding="utf-8") == "v-old\n"
+
+
 # ---------------------------------------------------------------------------
 # POST /api/index/rollback riallinea l'alias Qdrant (rollback_qdrant_alias_if_needed,
 # core.indexing) DOPO il rollback locale puro (rollback_version, core.artifacts) — mai
@@ -857,6 +1072,8 @@ def test_index_rollback_local_failure_never_calls_qdrant_alias_helper(monkeypatc
 
     monkeypatch.setattr(rr, "writer_lock", lambda *a, **k: contextlib.nullcontext())
     monkeypatch.setitem(rr.state, "qdrant", "fake-qdrant-client")
+    monkeypatch.setattr(rr, "resolve_rollback_target", lambda target: "v-missing")
+    monkeypatch.setattr(rr, "assert_rollback_target_has_vectors", lambda *a: None)
 
     def _boom(target):
         raise FileNotFoundError(f"versione inesistente: {target}")
@@ -990,10 +1207,36 @@ def test_journal_running_job_marked_interrupted_at_load(tmp_path):
     assert restored is not None
     assert restored.status == "interrupted"
     assert restored.finished_at is not None
+    assert restored.queue_duration_seconds is None
+    assert restored.reload_duration_seconds is None
+    assert restored.snapshot_ready_duration_seconds is None
 
     # La transizione 'interrupted' è persistita: un secondo load resta terminale.
     again = ReindexManager(journal_path=journal)
     assert again.get("abc123").status == "interrupted"
+
+
+def test_journal_pending_reload_marked_interrupted_without_changing_build(tmp_path):
+    journal = tmp_path / "reindex_jobs.jsonl"
+    job = ReindexJob(None, status="completed")
+    job.result = {"version": "v-completed"}
+    job.finished_at = "2026-01-01T00:00:01+00:00"
+    job.reload_status = "pending"
+    journal.write_text(json.dumps(job.to_dict()) + "\n", encoding="utf-8")
+
+    revived = ReindexManager(journal_path=journal)
+    restored = revived.get(job.id).to_dict()
+    assert restored["status"] == "completed"
+    assert restored["result"] == job.result
+    assert restored["finished_at"] == job.finished_at
+    assert restored["reload_status"] == "interrupted"
+    assert restored["published_token"] is None
+    assert restored["reload_duration_seconds"] is None
+    assert restored["snapshot_ready_duration_seconds"] is None
+    assert not revived.is_running
+    assert not revived._threads
+    assert json.loads(journal.read_text(encoding="utf-8").splitlines()[-1]) == restored
+    assert ReindexManager(journal_path=journal).get(job.id).to_dict() == restored
 
 
 def test_journal_compaction_keeps_only_last_state(tmp_path, monkeypatch):
@@ -1010,6 +1253,8 @@ def test_journal_compaction_keeps_only_last_state(tmp_path, monkeypatch):
         assert done.wait(timeout=5)
         assert _wait(lambda jid=job.id: mgr.get(jid).status == "completed")
         ids.append(job.id)
+
+    assert mgr.join_all()
 
     # Dopo la compattazione ci deve essere al più UNA riga per job.
     lines = [line for line in journal.read_text(encoding="utf-8").splitlines() if line.strip()]

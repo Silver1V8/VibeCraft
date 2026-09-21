@@ -2,7 +2,11 @@
 aggiornato, rollback istantaneo, retention che non tocca mai la versione attiva,
 retrocompatibilità col layout flat legacy e auto-reload del server che segue CURRENT."""
 import networkx as nx
+import numpy as np
 import pytest
+import shutil
+import subprocess
+import sys
 
 from core import artifacts
 
@@ -32,7 +36,10 @@ def _graph(marker: str) -> nx.DiGraph:
 
 def _save(marker: str) -> str:
     """Salva una versione il cui grafo contiene il solo nodo `marker` (riconoscibile)."""
-    return artifacts.save_artifacts(_graph(marker), {}, {}, {}, {})
+    version = artifacts.save_artifacts(_graph(marker), {}, {}, {}, {})
+    artifacts._atomic_write_json(artifacts.manifest_path(version),
+                                 {"artifact_hashes": artifacts.artifact_hashes(version)})
+    return version
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +71,28 @@ def test_promote_moves_current_and_load_follows(db):
     assert "b" in artifacts.load_artifacts().graph
     # La versione non attiva resta su disco, leggibile esplicitamente.
     assert "a" in artifacts.load_artifacts(version=v1).graph
+
+
+def test_implicit_load_retries_current_changed_before_lease(db, monkeypatch):
+    old, new = _save("old"), _save("new")
+    artifacts.promote_version(old)
+    real_open = artifacts.ColbertStore.open_version
+    calls = 0
+    def racing_open(database, version):
+        nonlocal calls
+        calls += 1
+        if version == old:
+            artifacts._atomic_write_text(db / "CURRENT", new + "\n")
+            shutil.rmtree(artifacts.version_dir(old))
+            raise FileNotFoundError("old version pruned before lease")
+        return real_open(database, version)
+    monkeypatch.setattr(artifacts.ColbertStore, "open_version", racing_open)
+    loaded = artifacts.load_artifacts(required=("graph", "colbert"))
+    assert loaded.version == new and "new" in loaded.graph
+    assert calls == 2
+    loaded.colbert_store.close()
+    with pytest.raises(FileNotFoundError):
+        artifacts.load_artifacts(version=old)
 
 
 def test_promote_rejects_missing_or_legacy_version(db):
@@ -191,6 +220,49 @@ def test_retention_env_invalid_falls_back_to_default(db, monkeypatch):
     assert len(artifacts.list_versions()) == artifacts.DEFAULT_KEEP_VERSIONS
 
 
+def test_retention_pinned_reader_and_failed_delete_are_retried(db, monkeypatch):
+    old = _save("old")
+    reader = artifacts.load_artifacts(version=old).colbert_store
+    _save("middle")
+    _save("new")
+    assert old not in artifacts.prune_versions(keep=1)
+    assert artifacts.version_dir(old).exists()
+    reader.close()
+
+    real_rmtree = shutil.rmtree
+    def fail_old(path, *args, **kwargs):
+        if path == artifacts.version_dir(old):
+            raise PermissionError("simulated Windows open-file failure")
+        return real_rmtree(path, *args, **kwargs)
+    monkeypatch.setattr(artifacts.shutil, "rmtree", fail_old)
+    assert old not in artifacts.prune_versions(keep=1)
+    assert artifacts.version_dir(old).exists()
+    monkeypatch.setattr(artifacts.shutil, "rmtree", real_rmtree)
+    assert old in artifacts.prune_versions(keep=1)
+    assert not artifacts.version_dir(old).exists()
+
+
+def test_retention_respects_reader_in_another_process(db):
+    old = _save("old")
+    _save("new")
+    script = ("import sys; from core.colbert_store import ColbertStore; "
+              "store=ColbertStore.open_version(sys.argv[1],sys.argv[2]); "
+              "print('READY',flush=True); sys.stdin.readline(); store.close()")
+    child = subprocess.Popen([sys.executable, "-B", "-c", script, str(db), old],
+                             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, text=True)
+    try:
+        assert child.stdout.readline().strip() == "READY"
+        assert old not in artifacts.prune_versions(keep=1)
+        assert artifacts.version_dir(old).exists()
+    finally:
+        child.stdin.write("done\n")
+        child.stdin.flush()
+        child.communicate(timeout=20)
+    assert child.returncode == 0
+    assert old in artifacts.prune_versions(keep=1)
+
+
 # ---------------------------------------------------------------------------
 # Retrocompat: layout flat legacy senza CURRENT
 # ---------------------------------------------------------------------------
@@ -243,14 +315,19 @@ def _patch_deps(monkeypatch, db):
 def test_server_reload_follows_current(db, monkeypatch):
     deps = _patch_deps(monkeypatch, db)
 
-    v1 = artifacts.save_artifacts(_graph("a"), {"c": 1}, {"c": {}}, {}, {})
+    vector = np.ones((1, 2), dtype=np.float16)
+    v1 = artifacts.save_artifacts(_graph("a"), {"c": vector}, {"c": {"doc_id": "a"}}, {}, {})
+    artifacts._atomic_write_json(artifacts.manifest_path(v1),
+                                 {"artifact_hashes": artifacts.artifact_hashes(v1)})
     artifacts.promote_version(v1)
     deps.reload_index_state()
     assert "a" in deps.current_snapshot().graph
     assert deps.current_snapshot().version == v1    # la version dello snapshot è CURRENT
 
     # Promozione di una nuova versione: maybe_reload_graph vede CURRENT cambiato.
-    v2 = artifacts.save_artifacts(_graph("b"), {"c": 1}, {"c": {}}, {}, {})
+    v2 = artifacts.save_artifacts(_graph("b"), {"c": vector}, {"c": {"doc_id": "b"}}, {}, {})
+    artifacts._atomic_write_json(artifacts.manifest_path(v2),
+                                 {"artifact_hashes": artifacts.artifact_hashes(v2)})
     artifacts.promote_version(v2)
     deps.maybe_reload_graph()
     assert "b" in deps.current_snapshot().graph

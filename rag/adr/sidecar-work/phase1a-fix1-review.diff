@@ -1,0 +1,776 @@
+
+diff --git "a/rag\\eval\\results\\sidecar_20260915\\sandbox\\review1a-before\\rag\\api\\reindex.py" b/rag/api/reindex.py
+index 37b84e1..07f2a37 100644
+--- "a/rag\\eval\\results\\sidecar_20260915\\sandbox\\review1a-before\\rag\\api\\reindex.py"
++++ b/rag/api/reindex.py
+@@ -84,73 +84,78 @@ class ReindexJob:
+ 
+     Un job può nascere `queued` (accodato/fuso mentre un altro gira) e passare a `running`
+     quando viene effettivamente avviato dal dispatch del pending a fine job precedente."""
+ 
+     def __init__(self, changed_paths: list[str] | None, status: str = "running",
+                  kind: str = "incremental"):
+         self.id: str = uuid.uuid4().hex
+         self.status: str = status
+         self.kind: str = kind
+         self.created_at: str = _now_iso()
+         self.finished_at: str | None = None
+         self.changed_paths: list[str] | None = changed_paths
+         self.result: dict | None = None
+         self.error: str | None = None
+         self.queue_duration_seconds: float | None = None
+         self.writer_lock_wait_seconds: float | None = None
+         self.build_duration_seconds: float | None = None
+         self.reload_status: str | None = None
+         self.reload_duration_seconds: float | None = None
+         self.reload_error: str | None = None
+         self.published_token: str | float | None = None
+         self.snapshot_ready_duration_seconds: float | None = None
+         self.coalesced: bool = False
+         self._created_monotonic: float | None = time.monotonic()
+         # Callback iniettate dal chiamante: conservate sul job così un job accodato può
+         # essere avviato dal dispatch del pending senza che il chiamante sia più presente.
+         self._run_reindex = None
+         self._on_success = None
+ 
+     def to_dict(self) -> dict:
++        reload_status = self.reload_status
++        if reload_status == "completed" and (
++                self.published_token is None or self.reload_duration_seconds is None or
++                self.snapshot_ready_duration_seconds is None):
++            reload_status = "pending"
+         return {
+             "job_id": self.id,
+             "status": self.status,
+             "kind": self.kind,
+             "created_at": self.created_at,
+             "finished_at": self.finished_at,
+             "changed_paths": self.changed_paths,
+             "result": self.result,
+             "error": self.error,
+             "queue_duration_seconds": self.queue_duration_seconds,
+             "writer_lock_wait_seconds": self.writer_lock_wait_seconds,
+             "build_duration_seconds": self.build_duration_seconds,
+-            "reload_status": self.reload_status,
++            "reload_status": reload_status,
+             "reload_duration_seconds": self.reload_duration_seconds,
+             "reload_error": self.reload_error,
+             "published_token": self.published_token,
+             "snapshot_ready_duration_seconds": self.snapshot_ready_duration_seconds,
+             "coalesced": self.coalesced,
+         }
+ 
+     @classmethod
+     def from_dict(cls, data: dict) -> "ReindexJob":
+         """Ricostruisce un job storico dal journal. Il job risultante è "morto": non ha
+         callback (sono già state eseguite o perse col riavvio), serve solo alla lettura
+         dello stato via get()/list_recent()."""
+         job = cls.__new__(cls)
+         job.id = data["job_id"]
+         job.status = data.get("status", "interrupted")
+         job.kind = data.get("kind", "incremental")
+         job.created_at = data.get("created_at")
+         job.finished_at = data.get("finished_at")
+         job.changed_paths = data.get("changed_paths")
+         job.result = data.get("result")
+         job.error = data.get("error")
+         job.queue_duration_seconds = data.get("queue_duration_seconds")
+         job.writer_lock_wait_seconds = data.get("writer_lock_wait_seconds")
+         job.build_duration_seconds = data.get("build_duration_seconds")
+         job.reload_status = data.get("reload_status")
+         job.reload_duration_seconds = data.get("reload_duration_seconds")
+         job.reload_error = data.get("reload_error")
+         job.published_token = data.get("published_token")
+         job.snapshot_ready_duration_seconds = data.get("snapshot_ready_duration_seconds")
+         job.coalesced = data.get("coalesced", False)
+@@ -245,60 +250,66 @@ class ReindexManager:
+                 fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+                 fh.flush()
+ 
+     def _maybe_compact(self) -> None:
+         """Rotazione semplice: se il journal supera ~1MB, lo riscrive tenendo solo l'ultimo
+         stato di ogni job (una riga per job, nell'ordine di comparsa)."""
+         if self._journal_path is None:
+             return
+         with self._journal_lock:
+             try:
+                 size = self._journal_path.stat().st_size
+             except OSError:
+                 return
+             if size <= _JOURNAL_MAX_BYTES:
+                 return
+             with self._lock:
+                 snapshot = [self._jobs[jid].to_dict() for jid in self._order if jid in self._jobs]
+             tmp = self._journal_path.with_suffix(
+                 self._journal_path.suffix + f".tmp.{threading.get_ident()}")
+             with tmp.open("w", encoding="utf-8") as fh:
+                 for rec in snapshot:
+                     fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                 fh.flush()
+             os.replace(tmp, self._journal_path)
+ 
+     def _record(self, job: ReindexJob) -> None:
+         """Journala la transizione corrente di `job` e, se serve, compatta."""
+         self._append_journal(job.to_dict())
+         self._maybe_compact()
+ 
++    def _record_safely(self, job: ReindexJob) -> None:
++        try:
++            self._record(job)
++        except Exception as exc:
++            logger.error("Journal reindex non scrivibile (%s: %s).", type(exc).__name__, exc)
++
+     def get(self, job_id: str) -> ReindexJob | None:
+         with self._lock:
+             return self._jobs.get(job_id)
+ 
+     def list_recent(self, limit: int = 20) -> list[dict]:
+         """Ultimi `limit` job serializzati, più recente prima — per debug e per la UI."""
+         with self._lock:
+             ids = self._order[-limit:] if limit else self._order[:]
+             jobs = [self._jobs[jid] for jid in ids if jid in self._jobs]
+         return [job.to_dict() for job in reversed(jobs)]
+ 
+     @property
+     def is_running(self) -> bool:
+         with self._lock:
+             return self._running_id is not None
+ 
+     @property
+     def pending_id(self) -> str | None:
+         with self._lock:
+             return self._pending.id if self._pending is not None else None
+ 
+     def start(self, changed_paths, run_reindex, on_success,
+               kind: str = "incremental") -> tuple[ReindexJob, bool]:
+         """Avvia o accoda un reindex in background. Restituisce `(job, queued)`:
+         - `(job, False)` se parte subito (nessun reindex in corso);
+         - `(job, True)` se è stato accodato o fuso nel pending esistente.
+ 
+         `run_reindex(changed_paths) -> dict` esegue l'indicizzazione (bloccante);
+         `on_success()` viene chiamato a fine job SOLO se riuscito (reload in memoria).
+         `kind` è "incremental" (delta su changed_paths) o "full" (ricostruzione completa,
+@@ -379,74 +390,76 @@ class ReindexManager:
+         che il test ritorni. Restituisce False se qualche thread è ancora vivo al timeout."""
+         deadline = time.monotonic() + timeout
+         index = 0
+         while index < len(self._threads):
+             self._threads[index].join(timeout=max(0.0, deadline - time.monotonic()))
+             index += 1
+         return all(not t.is_alive() for t in self._threads)
+ 
+     def _run(self, job: ReindexJob) -> None:
+         started = time.monotonic()
+         job.queue_duration_seconds = (max(0.0, started - job._created_monotonic)
+                                       if job._created_monotonic is not None else None)
+         try:
+             # Writer lock cross-processo attorno alla SOLA esecuzione del reindex: server
+             # e CLI (index.py) non scrivono mai gli artefatti in contemporanea. Un
+             # WriterLockBusyError al timeout cade nell'except sotto: job "failed" con
+             # l'errore del lock nel journal, slot liberato e pending dispatchato come
+             # per qualunque altro fallimento.
+             lock_started = time.monotonic()
+             with writer_lock(timeout_seconds=_WRITER_LOCK_TIMEOUT_SECONDS):
+                 job.writer_lock_wait_seconds = max(0.0, time.monotonic() - lock_started)
+                 build_started = time.monotonic()
+                 try:
+                     job.result = job._run_reindex(job.changed_paths)
+                 finally:
+                     job.build_duration_seconds = max(0.0, time.monotonic() - build_started)
+             # Un run può declassare l'esito con result["job_status"]: oggi solo
+             # "completed_not_promoted" (eval gate sotto soglia: versione costruita ma
+             # CURRENT non spostato). Qualunque altro valore resta "completed".
+             override = job.result.get("job_status") if isinstance(job.result, dict) else None
+-            job.status = "completed_not_promoted" if override == "completed_not_promoted" else "completed"
++            next_status = "completed_not_promoted" if override == "completed_not_promoted" else "completed"
++            job.reload_status = "pending" if next_status == "completed" else "not_required"
++            job.status = next_status
+         except Exception as exc:
+             if job.writer_lock_wait_seconds is None:
+                 job.writer_lock_wait_seconds = max(0.0, time.monotonic() - lock_started)
+             job.status = "failed"
+             job.error = f"{type(exc).__name__}: {exc}"
+         job.finished_at = _now_iso()
+-        job.reload_status = "pending" if job.status == "completed" else "not_required"
++        if job.reload_status is None:
++            job.reload_status = "not_required"
+         # La build è terminale e osservabile prima del reload; lo slot resta occupato.
+-        self._record(job)
+-        # on_success (reload in memoria) solo se la build è stata promossa: dopo un
+-        # "completed_not_promoted" CURRENT è invariato e non c'è nulla da ricaricare.
+-        if job.status == "completed":
+-            reload_started = time.monotonic()
+-            try:
+-                token = job._on_success()
+-                job.reload_duration_seconds = max(0.0, time.monotonic() - reload_started)
+-                if token is None:
+-                    job.reload_status = "incomplete"
+-                else:
+-                    job.reload_status = "completed"
+-                    job.published_token = token
+-                    job.snapshot_ready_duration_seconds = max(
+-                        0.0, time.monotonic() - job._created_monotonic)
+-            except Exception as exc:
+-                job.reload_duration_seconds = max(0.0, time.monotonic() - reload_started)
+-                job.reload_status = "failed"
+-                job.reload_error = f"{type(exc).__name__}: {exc}"
+-                logger.warning("Reload post-reindex fallito (%s: %s).", type(exc).__name__, exc)
+-            self._record(job)
+-
+-        # Reload e dispatch restano serializzati: una build successiva non può promuovere
+-        # CURRENT mentre lo snapshot della precedente è ancora in caricamento.
+-        next_job: ReindexJob | None = None
+-        with self._lock:
+-            self._running_id = None
+-            if self._pending is not None:
+-                next_job = self._pending
+-                self._pending = None
+-                next_job.status = "running"
+-                self._running_id = next_job.id
+-                self._dispatch(next_job)
+-        if next_job is not None:
+-            self._record(next_job)
++        try:
++            self._record_safely(job)
++            # on_success solo se la build è stata promossa.
++            if job.status == "completed":
++                reload_started = time.monotonic()
++                try:
++                    token = job._on_success()
++                    job.reload_duration_seconds = max(0.0, time.monotonic() - reload_started)
++                    if token is None:
++                        job.reload_status = "incomplete"
++                    else:
++                        job.published_token = token
++                        job.snapshot_ready_duration_seconds = max(
++                            0.0, time.monotonic() - job._created_monotonic)
++                        job.reload_status = "completed"
++                except Exception as exc:
++                    job.reload_duration_seconds = max(0.0, time.monotonic() - reload_started)
++                    job.reload_error = f"{type(exc).__name__}: {exc}"
++                    job.reload_status = "failed"
++                    logger.warning("Reload post-reindex fallito (%s: %s).", type(exc).__name__, exc)
++                self._record_safely(job)
++        finally:
++            # Reload e dispatch restano serializzati; il journal non può bloccare la coda.
++            next_job: ReindexJob | None = None
++            with self._lock:
++                self._running_id = None
++                if self._pending is not None:
++                    next_job = self._pending
++                    self._pending = None
++                    next_job.status = "running"
++                    self._running_id = next_job.id
++                    self._dispatch(next_job)
++            if next_job is not None:
++                self._record_safely(next_job)
+diff --git "a/rag\\eval\\results\\sidecar_20260915\\sandbox\\review1a-before\\rag\\scripts\\bench.py" b/rag/scripts/bench.py
+index 34ac89e..c04d453 100644
+--- "a/rag\\eval\\results\\sidecar_20260915\\sandbox\\review1a-before\\rag\\scripts\\bench.py"
++++ b/rag/scripts/bench.py
+@@ -172,151 +172,159 @@ def bench_semantic_map(client: httpx2.Client, url: str) -> dict:
+     t0 = time.perf_counter()
+     try:
+         r = client.get(f"{url}/api/graph/semantic-map")
+         r.raise_for_status()
+     except httpx2.HTTPError as exc:
+         return _skip(f"/api/graph/semantic-map non raggiungibile: {exc}")
+     elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)
+     body = r.json()
+     return {
+         "n": 1,
+         "latency_ms": elapsed_ms,
+         "n_points": len(body.get("points", [])),
+         "truncated": body.get("truncated"),
+     }
+ 
+ 
+ def _poll_job(client: httpx2.Client, url: str, job_id: str, timeout_seconds: float,
+              interval_seconds: float = REINDEX_POLL_INTERVAL_SECONDS) -> tuple[dict | None, float]:
+     """Poll di GET /api/reindex/{job_id} finché lo stato non è terminale o scade il
+     timeout. Restituisce (job, wall_clock_seconds); job è None se il timeout scade prima
+     di un esito terminale."""
+     t0 = time.perf_counter()
+     while True:
+         r = client.get(f"{url}/api/reindex/{job_id}")
+         r.raise_for_status()
+         job = r.json()
+         if (job.get("status") in _TERMINAL_JOB_STATES and
+                 job.get("reload_status") != "pending"):
+             return job, time.perf_counter() - t0
+         if time.perf_counter() - t0 > timeout_seconds:
+-            return None, time.perf_counter() - t0
++            return {**job, "_poll_timed_out": True}, time.perf_counter() - t0
+         time.sleep(interval_seconds)
+ 
+ 
+ def _job_duration_seconds(job: dict) -> float | None:
+     if not job.get("created_at") or not job.get("finished_at"):
+         return None
+     return (datetime.fromisoformat(job["finished_at"]) -
+             datetime.fromisoformat(job["created_at"])).total_seconds()
+ 
+ 
+ def bench_incremental_noop(client: httpx2.Client, url: str) -> dict:
+     """POST /api/reindex SENZA modifiche (nessun file toccato: il vero no-op) e durata
+     del job dal journal. NON è il delta reale — quello si misura solo modificando
+     davvero un file e rilanciando POST /api/reindex, a mano."""
+     try:
+         r = client.post(f"{url}/api/reindex")
+         r.raise_for_status()
+     except httpx2.HTTPError as exc:
+         return _skip(f"POST /api/reindex non raggiungibile: {exc}")
+     job_id = r.json().get("job_id")
+     if not job_id:
+         return _skip("POST /api/reindex non ha restituito un job_id")
+     job, wall_clock_s = _poll_job(client, url, job_id, INCREMENTAL_POLL_TIMEOUT_SECONDS)
+     if job is None:
+         return _skip(f"job di reindex {job_id} non terminato entro {INCREMENTAL_POLL_TIMEOUT_SECONDS}s")
+     result = {
+         "n": 1,
+         "job_id": job_id,
+         "status": job.get("status"),
+         "valid": True,
+         "historical_wall_seconds": _job_duration_seconds(job),
+         "wall_clock_seconds": round(wall_clock_s, 2),
+         "queue_duration_seconds": job.get("queue_duration_seconds"),
+         "writer_lock_wait_seconds": job.get("writer_lock_wait_seconds"),
+         "build_duration_seconds": job.get("build_duration_seconds"),
+         "reload_duration_seconds": job.get("reload_duration_seconds"),
+         "snapshot_ready_duration_seconds": job.get("snapshot_ready_duration_seconds"),
+         "published_token": job.get("published_token"),
+         "note": (
+             "no-op REALE: nessun file modificato prima di questa chiamata, quindi il delta "
+-            "interno è vuoto (misura l'overhead fisso: scansione manifest, diff a zero file). "
++            "interno deve risultare vuoto; la misura è valida solo dopo questa verifica. "
+             "Il delta VERO (con modifiche effettive) va misurato a mano — modifica un file in "
+             "docs/ o code/ e rilancia POST /api/reindex — non è automatizzato in questo bench."
+         ),
+     }
+-    if job.get("coalesced"):
++    if job.get("_poll_timed_out"):
++        result.update(valid=False, invalid_reason="timeout: snapshot non pronto")
++    elif job.get("coalesced"):
+         result.update(valid=False, invalid_reason="richiesta fusa nella coda")
+     elif (job.get("result") or {}).get("noop") is not True:
+         result.update(valid=False, invalid_reason="result.noop non è true")
+     elif job.get("reload_status") != "completed" or job.get("published_token") is None:
+         result.update(valid=False,
+                       invalid_reason=f"reload {job.get('reload_status') or 'non osservabile'}")
+     return result
+ 
+ 
+ def bench_full_rebuild(client: httpx2.Client, url: str, enabled: bool) -> dict:
+     """POST /api/reindex {"full": true}: SOLO se `enabled` (flag --with-rebuild esplicito).
+     Di default saltato: è un'operazione lunga e costosa (ricostruzione completa + eval-gate)."""
+     if not enabled:
+         return _skip("full rebuild eseguito solo con --with-rebuild esplicito (operazione lunga)")
+     try:
+         r = client.post(f"{url}/api/reindex", json={"full": True})
+         r.raise_for_status()
+     except httpx2.HTTPError as exc:
+         return _skip(f"POST /api/reindex (full) non raggiungibile: {exc}")
+     job_id = r.json().get("job_id")
+     if not job_id:
+         return _skip("POST /api/reindex (full) non ha restituito un job_id")
+     job, wall_clock_s = _poll_job(client, url, job_id, FULL_REBUILD_POLL_TIMEOUT_SECONDS)
+     if job is None:
+         return _skip(f"full rebuild {job_id} non terminato entro {FULL_REBUILD_POLL_TIMEOUT_SECONDS}s")
+     result = {
+         "n": 1,
+         "job_id": job_id,
+         "status": job.get("status"),
+-        "valid": (job.get("status") == "completed" and
++        "valid": (not job.get("_poll_timed_out") and not job.get("coalesced") and
++                  job.get("status") == "completed" and
+                   job.get("reload_status") == "completed" and
+                   job.get("published_token") is not None),
+         "historical_wall_seconds": _job_duration_seconds(job),
+         "wall_clock_seconds": round(wall_clock_s, 2),
+         "queue_duration_seconds": job.get("queue_duration_seconds"),
+         "writer_lock_wait_seconds": job.get("writer_lock_wait_seconds"),
+         "build_duration_seconds": job.get("build_duration_seconds"),
+         "reload_duration_seconds": job.get("reload_duration_seconds"),
+         "snapshot_ready_duration_seconds": job.get("snapshot_ready_duration_seconds"),
+         "published_token": job.get("published_token"),
+     }
+     if not result["valid"]:
+-        result["invalid_reason"] = (
+-            f"build/reload non pronto: {job.get('status')}/{job.get('reload_status')}")
++        if job.get("_poll_timed_out"):
++            result["invalid_reason"] = "timeout: snapshot non pronto"
++        elif job.get("coalesced"):
++            result["invalid_reason"] = "richiesta fusa nella coda"
++        else:
++            result["invalid_reason"] = (
++                f"build/reload non pronto: {job.get('status')}/{job.get('reload_status')}")
+     return result
+ 
+ 
+ def get_index_version(client: httpx2.Client, url: str) -> str | None:
+     try:
+         r = client.get(f"{url}/api/index/versions")
+         r.raise_for_status()
+         return r.json().get("current")
+     except httpx2.HTTPError:
+         return None
+ 
+ 
+ def run_bench(client: httpx2.Client, url: str, with_rebuild: bool) -> dict:
+     return {
+         "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+         "url": url,
+         "index_version": get_index_version(client, url),
+         "retrieve": bench_retrieve(client, url),
+         "ask": bench_ask(client, url),
+         "semantic_map": bench_semantic_map(client, url),
+         "incremental_noop": bench_incremental_noop(client, url),
+         "full_rebuild": bench_full_rebuild(client, url, enabled=with_rebuild),
+     }
+ 
+ 
+ def save_results(payload: dict) -> Path:
+     RESULTS_DIR.mkdir(exist_ok=True)
+     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+     out = RESULTS_DIR / f"bench_{ts}.json"
+     out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+diff --git "a/rag\\eval\\results\\sidecar_20260915\\sandbox\\review1a-before\\rag\\tests\\test_reindex.py" b/rag/tests/test_reindex.py
+index 9e80716..b26ca42 100644
+--- "a/rag\\eval\\results\\sidecar_20260915\\sandbox\\review1a-before\\rag\\tests\\test_reindex.py"
++++ b/rag/tests/test_reindex.py
+@@ -1,42 +1,42 @@
+ """Test del reindex incrementale automatico: estrazione dei path da un payload webhook
+ GitLab, restrizione del piano del delta ai path segnalati, e il ReindexManager (job che
+ parte, coda con coalescing dei path, reload in memoria a fine job). Nessun modello/Qdrant
+ reale: il reindex è iniettato come fake che controlliamo dai test."""
+ import contextlib
+ import json
+ import threading
+ import time
+ 
+ import pytest
+ 
+-from api.reindex import ReindexManager, extract_gitlab_paths
++from api.reindex import ReindexJob, ReindexManager, extract_gitlab_paths
+ from core import indexing
+ from core.indexing import IndexPlan
+ 
+ 
+ @pytest.fixture(autouse=True)
+ def _noop_writer_lock(monkeypatch):
+     """Neutralizza il writer lock cross-processo in TUTTI i test di questo file: qui si
+     esercitano coda/coalescing/journal, non la mutua esclusione (coperta da
+     test_writer_lock.py). Senza il no-op i job (thread daemon, anche residui del test
+     precedente) contenderebbero il lock reale su database/.writer.lock."""
+     import api.reindex as reindex_mod
+     monkeypatch.setattr(reindex_mod, "writer_lock",
+                         lambda *a, **k: contextlib.nullcontext())
+ 
+ 
+ # ---------------------------------------------------------------------------
+ # extract_gitlab_paths — payload webhook GitLab
+ # ---------------------------------------------------------------------------
+ def test_extract_paths_from_push_event():
+     payload = {
+         "object_kind": "push",
+         "commits": [
+             {"added": ["docs/a.md"], "modified": ["code/x.py"], "removed": []},
+             {"added": [], "modified": ["docs/a.md"], "removed": ["docs/old.md"]},
+         ],
+     }
+     assert extract_gitlab_paths(payload) == ["code/x.py", "docs/a.md", "docs/old.md"]
+ 
+ 
+ def test_extract_paths_explicit_override():
+@@ -166,72 +166,100 @@ def test_completed_build_is_not_ready_until_reload_finishes():
+     assert ready["reload_status"] == "completed"
+     assert ready["published_token"] == "v-ready"
+     assert ready["reload_duration_seconds"] is not None
+     assert ready["snapshot_ready_duration_seconds"] is not None
+ 
+ 
+ def test_pending_job_waits_for_previous_reload_before_build():
+     mgr = ReindexManager()
+     reload_started = threading.Event()
+     release_reload = threading.Event()
+     second_started = threading.Event()
+ 
+     def reload():
+         reload_started.set()
+         release_reload.wait(timeout=5)
+         return "v1"
+ 
+     mgr.start(["a"], lambda paths: {"noop": False}, reload)
+     second, queued = mgr.start(
+         ["b"], lambda paths: second_started.set() or {"noop": False}, lambda: "v2"
+     )
+     assert queued is True
+     assert reload_started.wait(timeout=5)
+     assert not second_started.is_set()
+     release_reload.set()
+     assert mgr.join_all()
+     assert second_started.is_set()
+     assert mgr.get(second.id).queue_duration_seconds is not None
+ 
+ 
++def test_journal_error_does_not_stall_pending_dispatch(monkeypatch):
++    mgr = ReindexManager()
++    first_started = threading.Event()
++    release_first = threading.Event()
++    second_started = threading.Event()
++
++    def first_run(paths):
++        first_started.set()
++        release_first.wait(timeout=5)
++        return {"noop": False}
++
++    mgr.start(["a"], first_run, lambda: "v1")
++    assert first_started.wait(timeout=5)
++    mgr.start(["b"], lambda paths: second_started.set() or {"noop": False}, lambda: "v2")
++    monkeypatch.setattr(mgr, "_record", lambda job: (_ for _ in ()).throw(OSError("disk full")))
++    release_first.set()
++
++    assert mgr.join_all()
++    assert second_started.is_set()
++    assert not mgr.is_running
++
++
+ def test_reload_none_is_observable_without_inventing_token():
+     mgr = ReindexManager()
+     job, _ = mgr.start(["a"], lambda paths: {"noop": False}, lambda: None)
+     assert mgr.join_all()
+     final = mgr.get(job.id).to_dict()
+     assert final["status"] == "completed"
+     assert final["reload_status"] == "incomplete"
+     assert final["published_token"] is None
+     assert final["snapshot_ready_duration_seconds"] is None
+     assert not mgr.is_running  # slot liberato
+ 
+ 
++def test_reload_completed_is_not_serialized_without_readiness_fields():
++    job = ReindexJob(["a"])
++    job.reload_status = "completed"
++    assert job.to_dict()["reload_status"] == "pending"
++
++
+ def test_reload_failure_is_separate_from_build_failure():
+     mgr = ReindexManager()
+ 
+     def boom():
+         raise RuntimeError("reload rotto")
+ 
+     job, _ = mgr.start(["a"], lambda paths: {"noop": False}, boom)
+     assert mgr.join_all()
+     final = mgr.get(job.id).to_dict()
+     assert final["status"] == "completed"
+     assert final["error"] is None
+     assert final["reload_status"] == "failed"
+     assert "reload rotto" in final["reload_error"]
+     assert final["published_token"] is None
+ 
+ 
+ def test_failed_writer_lock_still_records_wait_duration(monkeypatch):
+     import api.reindex as reindex_mod
+ 
+     class BusyLock:
+         def __enter__(self):
+             raise RuntimeError("busy")
+ 
+         def __exit__(self, *args):
+             return False
+ 
+     monkeypatch.setattr(reindex_mod, "writer_lock", lambda **kwargs: BusyLock())
+     mgr = ReindexManager()
+     job, _ = mgr.start(["a"], lambda paths: {}, lambda: "never")
+     assert mgr.join_all()
+diff --git "a/rag\\eval\\results\\sidecar_20260915\\sandbox\\review1a-before\\rag\\tests\\test_bench.py" b/rag/tests/test_bench.py
+index 34ef581..05cf2d7 100644
+--- "a/rag\\eval\\results\\sidecar_20260915\\sandbox\\review1a-before\\rag\\tests\\test_bench.py"
++++ b/rag/tests/test_bench.py
+@@ -182,166 +182,185 @@ def test_bench_ask_skipped_se_server_giu():
+ def test_bench_semantic_map_riporta_truncated_e_n_points():
+     def handler(request: httpx2.Request) -> httpx2.Response:
+         assert request.url.path == "/api/graph/semantic-map"
+         return httpx2.Response(200, json={
+             "points": [{"id": "a"}, {"id": "b"}], "duplicates": [], "truncated": True,
+         })
+ 
+     with _client(handler) as client:
+         result = bench.bench_semantic_map(client, URL)
+ 
+     assert result["n"] == 1
+     assert result["n_points"] == 2
+     assert result["truncated"] is True
+     assert result["latency_ms"] >= 0
+ 
+ 
+ def test_bench_semantic_map_skipped_se_server_giu():
+     def handler(request: httpx2.Request) -> httpx2.Response:
+         raise httpx2.ConnectError("giu", request=request)
+ 
+     with _client(handler) as client:
+         result = bench.bench_semantic_map(client, URL)
+ 
+     assert result["skipped"] is True
+ 
+ 
+ # ---------------------------------------------------------------------------
+ # incremental_noop / full_rebuild: coda + polling del journal
+ # ---------------------------------------------------------------------------
+ 
+-def _job_sequence_handler(statuses: list[str], *, noop=True, reload_status="completed"):
++def _job_sequence_handler(statuses: list[str], *, noop=True, reload_status="completed",
++                          coalesced=False):
+     """Handler che simula POST /api/reindex (accoda un job) seguito da GET
+     /api/reindex/{job_id} che avanza attraverso `statuses` a ogni chiamata successiva
+     (l'ultimo status si ripete se interrogato oltre la lunghezza della lista)."""
+     calls = {"get": 0}
+ 
+     def handler(request: httpx2.Request) -> httpx2.Response:
+         if request.method == "POST":
+             return httpx2.Response(202, json={"job_id": "job-1", "status": "queued"})
+         idx = min(calls["get"], len(statuses) - 1)
+         calls["get"] += 1
+         status = statuses[idx]
+         return httpx2.Response(200, json={
+             "job_id": "job-1", "status": status,
+             "created_at": "2026-07-21T10:00:00+00:00",
+             "finished_at": "2026-07-21T10:00:05+00:00" if status in bench._TERMINAL_JOB_STATES else None,
+             "result": {"noop": noop}, "reload_status": reload_status,
+             "published_token": "v1" if reload_status == "completed" else None,
+             "build_duration_seconds": 2.0,
+             "snapshot_ready_duration_seconds": 3.0 if reload_status == "completed" else None,
++            "coalesced": coalesced,
+         })
+ 
+     return handler
+ 
+ 
+ def test_bench_incremental_noop_polla_fino_a_stato_terminale(monkeypatch):
+     monkeypatch.setattr(bench.time, "sleep", lambda s: None)
+     handler = _job_sequence_handler(["queued", "running", "completed"])
+ 
+     with _client(handler) as client:
+         result = bench.bench_incremental_noop(client, URL)
+ 
+     assert result["status"] == "completed"
+     assert result["job_id"] == "job-1"
+     assert result["build_duration_seconds"] == pytest.approx(2.0)
+     assert result["historical_wall_seconds"] == pytest.approx(5.0)
+     assert result["snapshot_ready_duration_seconds"] == pytest.approx(3.0)
+     assert "note" in result
+ 
+ 
+ def test_bench_incremental_noop_invalidates_false_noop(monkeypatch):
+     monkeypatch.setattr(bench.time, "sleep", lambda s: None)
+     with _client(_job_sequence_handler(["completed"], noop=False)) as client:
+         result = bench.bench_incremental_noop(client, URL)
+     assert result["valid"] is False
+     assert "noop" in result["invalid_reason"]
+ 
+ 
+ def test_bench_incremental_noop_invalidates_incomplete_reload(monkeypatch):
+     monkeypatch.setattr(bench.time, "sleep", lambda s: None)
+     with _client(_job_sequence_handler(["completed"], reload_status="incomplete")) as client:
+         result = bench.bench_incremental_noop(client, URL)
+     assert result["valid"] is False
+     assert "reload" in result["invalid_reason"]
+ 
+ 
+ def test_bench_incremental_noop_invalidates_coalesced_queue(monkeypatch):
+     monkeypatch.setattr(bench.time, "sleep", lambda s: None)
+     handler = _job_sequence_handler(["completed"])
+ 
+     def coalesced(request):
+         response = handler(request)
+         if request.method == "GET":
+             body = json.loads(response.content)
+             body["coalesced"] = True
+             return httpx2.Response(200, json=body)
+         return response
+ 
+     with _client(coalesced) as client:
+         result = bench.bench_incremental_noop(client, URL)
+     assert result["valid"] is False
+     assert "fusa" in result["invalid_reason"]
+ 
+ 
++def test_bench_incremental_noop_timeout_pending_is_invalid(monkeypatch):
++    monkeypatch.setattr(bench.time, "sleep", lambda s: None)
++    monkeypatch.setattr(bench, "INCREMENTAL_POLL_TIMEOUT_SECONDS", -1)
++    with _client(_job_sequence_handler(["completed"], reload_status="pending")) as client:
++        result = bench.bench_incremental_noop(client, URL)
++    assert result["valid"] is False
++    assert "timeout" in result["invalid_reason"]
++
++
+ def test_bench_incremental_noop_skipped_senza_job_id():
+     def handler(request: httpx2.Request) -> httpx2.Response:
+         return httpx2.Response(202, json={})
+ 
+     with _client(handler) as client:
+         result = bench.bench_incremental_noop(client, URL)
+ 
+     assert result["skipped"] is True
+ 
+ 
+ def test_bench_full_rebuild_skipped_di_default():
+     def handler(request: httpx2.Request) -> httpx2.Response:
+         raise AssertionError("non deve chiamare il server se enabled=False")
+ 
+     with _client(handler) as client:
+         result = bench.bench_full_rebuild(client, URL, enabled=False)
+ 
+     assert result == {"skipped": True,
+                       "reason": "full rebuild eseguito solo con --with-rebuild esplicito (operazione lunga)"}
+ 
+ 
+ def test_bench_full_rebuild_gira_se_abilitato(monkeypatch):
+     monkeypatch.setattr(bench.time, "sleep", lambda s: None)
+     handler = _job_sequence_handler(["running", "completed"])
+ 
+     with _client(handler) as client:
+         result = bench.bench_full_rebuild(client, URL, enabled=True)
+ 
+     assert result["status"] == "completed"
+     assert "skipped" not in result
+ 
+ 
++def test_bench_full_rebuild_invalidates_coalesced_queue(monkeypatch):
++    monkeypatch.setattr(bench.time, "sleep", lambda s: None)
++    with _client(_job_sequence_handler(["completed"], coalesced=True)) as client:
++        result = bench.bench_full_rebuild(client, URL, enabled=True)
++    assert result["valid"] is False
++    assert "fusa" in result["invalid_reason"]
++
++
+ # ---------------------------------------------------------------------------
+ # get_index_version
+ # ---------------------------------------------------------------------------
+ 
+ def test_get_index_version_legge_current():
+     def handler(request: httpx2.Request) -> httpx2.Response:
+         return httpx2.Response(200, json={"current": "v20260721T100000", "versions": []})
+ 
+     with _client(handler) as client:
+         assert bench.get_index_version(client, URL) == "v20260721T100000"
+ 
+ 
+ def test_get_index_version_none_se_server_giu():
+     def handler(request: httpx2.Request) -> httpx2.Response:
+         raise httpx2.ConnectError("giu", request=request)
+ 
+     with _client(handler) as client:
+         assert bench.get_index_version(client, URL) is None
+ 
+ 
+ # ---------------------------------------------------------------------------
+ # save_results: struttura del JSON scritto su disco
+ # ---------------------------------------------------------------------------
+ 
+ def test_save_results_scrive_json_valido_con_le_chiavi_attese(tmp_path, monkeypatch):
+     monkeypatch.setattr(bench, "RESULTS_DIR", tmp_path)
+     payload = {
+         "timestamp": "2026-07-21T10:00:00+00:00", "url": URL, "index_version": "v1",
+         "retrieve": {"n": 10, "p50_ms": 1.0, "p95_ms": 2.0, "queries": []},
+         "ask": {"n": 3},

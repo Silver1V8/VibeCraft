@@ -61,3 +61,13 @@ def test_retrieve_ricarica_lo_snapshot(retrieve_env):
 
     assert r.status_code == 200
     assert reloads["n"] == 1, "api_retrieve deve chiamare maybe_reload_graph come /ask"
+
+
+def test_reload_index_state_returns_published_snapshot_token(monkeypatch):
+    arts = type("Artifacts", (), {
+        "graph": None, "colbert_store": {}, "chunks_store": {}, "code_store": {},
+        "version": "v-published",
+    })()
+    monkeypatch.setattr(deps, "load_artifacts", lambda required=(): arts)
+    monkeypatch.setattr(deps, "load_rule_descriptions", lambda: {})
+    assert deps.reload_index_state() == "v-published"

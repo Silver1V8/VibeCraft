@@ -1,0 +1,58 @@
+{
+  "chunks": 50,
+  "ranked": [
+    [
+      "d000.md#00-documento",
+      1.0
+    ],
+    [
+      "d001.md#00-documento",
+      0.923
+    ],
+    [
+      "d007.md#00-documento",
+      0.9059
+    ],
+    [
+      "d005.md#00-documento",
+      0.9012
+    ],
+    [
+      "d002.md#00-documento",
+      0.9004
+    ],
+    [
+      "d010.md#00-documento",
+      0.8991
+    ],
+    [
+      "d006.md#00-documento",
+      0.8987
+    ],
+    [
+      "d003.md#00-documento",
+      0.8911
+    ],
+    [
+      "d004.md#00-documento",
+      0.8848
+    ],
+    [
+      "d008.md#00-documento",
+      0.8842
+    ],
+    [
+      "d011.md#00-documento",
+      0.8802
+    ],
+    [
+      "d009.md#00-documento",
+      0.8745
+    ],
+    [
+      "missing",
+      null
+    ]
+  ],
+  "concurrent_reads_per_reader": 48
+}

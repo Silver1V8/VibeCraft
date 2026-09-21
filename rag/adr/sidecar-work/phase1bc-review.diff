@@ -1,0 +1,1262 @@
+diff --git a/rag/api/routes_reindex.py b/rag/api/routes_reindex.py
+index 8e50dee..d0ea146 100644
+--- a/rag/api/routes_reindex.py
++++ b/rag/api/routes_reindex.py
+@@ -1,197 +1,221 @@
+ """Route del reindex incrementale automatico: POST /api/reindex lancia (o accoda) un reindex
+ in background e risponde 202 con il job-id — se un reindex è già in corso la richiesta viene
+ accodata/fusa in un unico pending (coalescing dei path) invece di essere rifiutata, così i
+ webhook GitLab ravvicinati non si perdono. GET /api/reindex/{job_id} ne riporta lo stato
+ (queued/running/completed/failed). L'endpoint accetta anche un payload webhook GitLab
+ (push/merge) da cui estrae i path modificati, per limitare il delta a ciò che è cambiato.
+ A fine job riusa reload_index_state (il meccanismo di auto-reload esistente).
+ 
+ Qui vive anche la gestione delle VERSIONI blue/green dell'indice: i job full scrivono
+ una versione nuova e la promuovono a fine build riuscita, solo dopo che l'eval-gate
+ (core.eval_gate, config eval_gate.*) conferma la recall sul golden-set sopra soglia; POST
+ /api/index/rollback sposta il puntatore CURRENT alla versione precedente (o a quella
+ indicata) e ricarica lo snapshot."""
+ import logging
++import time
+ 
+ from fastapi import APIRouter, Depends, HTTPException, Request
+ from fastapi.concurrency import run_in_threadpool
+ from fastapi.responses import JSONResponse
+ 
+ from api.deps import (
+     reload_index_state,
+     require_api_key,
+     require_gitlab_token,
+     require_not_cross_site_request,
+     state,
+ )
+ from api.reindex import ReindexManager, extract_gitlab_paths
+ from core.artifacts import (
+     current_version,
+     list_versions,
+     load_artifacts,
+     promote_version,
+     resolve_rollback_target,
+     rollback_version,
+ )
+ from core.config import REINDEX_JOURNAL_PATH
+ from core import retrieval
+ from core.eval_gate import gate_promotion, record_alert
+ from core.config import COLLECTION_NAME, EMBEDDING_MODEL
+ from core.indexing import (
+     RollbackTargetCollectionMissing,
+     _migrate_legacy_collection_if_needed,
+     _qdrant_collection_for_version,
+     _swap_alias,
+     assert_rollback_target_has_vectors,
+     build_graph_and_index,
+     gc_orphaned_qdrant_collections,
+     incremental_index,
+     rollback_qdrant_alias_if_needed,
+     rollback_shares_collection_with_later_versions,
+ )
+ from core.writer_lock import WriterLockBusyError, writer_lock
+ from FlagEmbedding import BGEM3FlagModel
+ 
+ logger = logging.getLogger(__name__)
+ 
+ router = APIRouter(dependencies=[Depends(require_api_key)])
+ 
+ # Timeout CORTO del writer lock attorno al rollback via HTTP: è una richiesta
+ # interattiva, mentre un job full del ReindexManager tiene il lock per MINUTI. Meglio
+ # un 409 rapido ("riprova a job finito") che un'attesa lunga sull'event loop. Distinto
+ # dai 30s del manager (api.reindex._WRITER_LOCK_TIMEOUT_SECONDS): là il job È il lavoro.
+ _ROLLBACK_WRITER_LOCK_TIMEOUT_SECONDS = 2
+ 
+ # Un solo manager per processo: serializza i reindex e conserva lo stato dei job. Il journal
+ # JSONL rende lo storico persistente ai riavvii (ricostruito dal manager al boot).
+ manager = ReindexManager(journal_path=REINDEX_JOURNAL_PATH)
+ 
+ 
+ def _reindex_embed_model():
+     """Istanza di bge-m3 dedicata ai job di reindex, separata da quella del server
+     (state["embed_model"], su CPU per le query interattive — vedi api/deps.py). I job
+     processano migliaia di chunk/simboli in batch: qui serve la GPU. Un'istanza fresca
+     per job costa solo qualche secondo di caricamento, trascurabile rispetto al lavoro
+     di embedding che segue."""
+     return BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
+ 
+ 
+ def _run_reindex(changed_paths) -> dict:
+     """Esegue l'incrementale con un modello di embedding GPU dedicato (vedi
+     _reindex_embed_model) e il client Qdrant del server. Gira sul thread daemon del
+     ReindexManager, quindi è bloccante ma fuori dall'event loop."""
+-    return incremental_index(
++    started = time.perf_counter()
++    embed_model = _reindex_embed_model()
++    init_model = time.perf_counter() - started
++    result = incremental_index(
+         qdrant=state.get("qdrant"),
+-        embed_model=_reindex_embed_model(),
++        embed_model=embed_model,
+         changed_paths=changed_paths,
+     )
++    result.setdefault("phase_timings_seconds", {})["init_model"] = (
++        result.get("phase_timings_seconds", {}).get("init_model", 0.0) + init_model
++    )
++    return result
+ 
+ 
+ def _eval_gate(version: str, embed_model) -> dict:
+     """Eval-gate sulla versione APPENA COSTRUITA (non ancora promossa): carica i suoi sidecar
+     e delega alla logica canonica core.eval_gate.gate_promotion, valutando la STESSA
+     collection candidata su cui quella versione è stata costruita (letta dal suo
+     manifest), mai la produzione. Fail-open se gli artefatti candidati non sono
+     caricabili."""
+     try:
+         arts = load_artifacts(required=("graph", "colbert", "chunks"), version=version,
+                               emit=lambda *_a, **_k: None)
+     except Exception as exc:
+         logger.warning("Eval-gate: artefatti candidati %s non caricabili (%s): promozione diretta.",
+                        version, exc)
+         return {"passed": True, "skipped": "load_error", "version": version}
+     collection_name = _qdrant_collection_for_version(version)
+     return gate_promotion(version, state.get("qdrant"), embed_model,
+                           arts.colbert_store, emit=logger.info, collection_name=collection_name,
+                           graph=arts.graph,
+                           restatements=retrieval.restatement_sections(arts.chunks_store))
+ 
+ 
+ def _run_full_rebuild(changed_paths) -> dict:
+     """Job "full": ricostruzione completa (build_graph_and_index) con un modello di embedding
+     GPU dedicato (vedi _reindex_embed_model), riusato anche per l'eval-gate che segue.
+     `changed_paths` è ignorato (un full non ha delta). Gira sul thread daemon del
+     ReindexManager: è così che OGNI scrittura degli artefatti passa da un solo scrittore.
+ 
+     Blue/green: la build scrive una versione NUOVA (su una collection candidata
+     versionata) senza promuoverla; la promozione passa dall'eval-gate (config
+     eval_gate.*): se la recall sul golden-set scende sotto soglia e il gate è in
+     modalità blocking, la versione resta su disco NON promossa (CURRENT invariato) e
+     il job termina "completed_not_promoted" col report nell'esito — la collection
+     candidata resta orfana su Qdrant, rimossa dal GC del prossimo job/boot riuscito.
+ 
+     A gate passato, la promozione sposta PRIMA CURRENT (il commit point locale) e
+     SOLO DOPO l'alias `COLLECTION_NAME` sulla collection candidata — la stessa
+     dichiarata nel manifest della versione appena promossa
+     (`_qdrant_collection_for_version`: unico source of truth, mai una ricostruzione
+     indipendente del nome). In mezzo, SOLO se necessario, la migrazione one-shot
+     legacy→alias (`_migrate_legacy_collection_if_needed`): se `COLLECTION_NAME` esiste
+     ancora come collection FISICA (installazione non ancora migrata), viene
+     cancellata per liberare il nome subito prima dello swap che la ricrea come alias
+     — l'UNICA operazione irreversibile di questo meccanismo, con una finestra di
+     indisponibilità breve ma reale fra le due chiamate. Se il layout è già migrato o
+     l'installazione è fresca, la migrazione è un no-op. Subito dopo lo swap, il GC
+     rimuove le collection versionate orfane."""
++    started = time.perf_counter()
+     embed_model = _reindex_embed_model()
++    init_model = time.perf_counter() - started
++    collector = {
++        "phase_timings_seconds": {phase: 0.0 for phase in
++                                  ("init_model", "scan_hash", "load", "parsing_embedding",
++                                   "qdrant", "relink", "save_hash", "promote")},
++        "counts": {},
++    }
+     version = build_graph_and_index(qdrant=state.get("qdrant"),
+-                                    embed_model=embed_model, promote=False)
+-    result = {"full_rebuild": True, "version": version}
++                                    embed_model=embed_model, promote=False,
++                                    collector=collector)
++    timings = collector["phase_timings_seconds"]
++    timings["init_model"] += init_model
++    result = {"full_rebuild": True, "version": version,
++              "phase_timings_seconds": timings, "counts": collector["counts"]}
+     if version:  # None solo con build finta nei test
++        started = time.perf_counter()
+         gate = _eval_gate(version, embed_model)
++        timings["eval_gate"] = time.perf_counter() - started
+         result["eval"] = {kk: gate[kk] for kk in
+                           ("recall", "k", "min_recall", "n", "skipped", "advisory") if kk in gate}
+         if not gate.get("passed"):
+             result["promoted"] = False
+             result["job_status"] = "completed_not_promoted"
+             logger.warning("Full rebuild %s NON promosso: eval-gate sotto soglia (%s).",
+                            version, result["eval"])
+             return result
+ 
++        started = time.perf_counter()
+         promote_version(version)
+         collection_name = _qdrant_collection_for_version(version)
+         _migrate_legacy_collection_if_needed(state.get("qdrant"), COLLECTION_NAME, emit=logger.info)
+         _swap_alias(state.get("qdrant"), COLLECTION_NAME, collection_name)
+         # GC: stesso punto consentito del path CLI (core.indexing.build_graph_and_index)
+         # — dopo promote (retention locale già applicata) e dopo lo swap, dentro il
+         # single-writer del ReindexManager (mai job full concorrenti).
+         gc_orphaned_qdrant_collections(state.get("qdrant"), emit=logger.info)
++        timings["promote"] += time.perf_counter() - started
+     result["promoted"] = True
+     return result
+ 
+ 
+ def enqueue_full_rebuild() -> tuple:
+     """Accoda (o fonde) un full rebuild nella coda del manager. Restituisce `(job, queued)`.
+     Usata anche dalle route dell'archive (Step 5), che non devono più chiamare
+     build_graph_and_index inline: un solo scrittore per costruzione."""
+     return manager.start(None, _run_full_rebuild, reload_index_state, kind="full")
+ 
+ 
+ @router.post("/api/reindex", dependencies=[Depends(require_gitlab_token),
+                                            Depends(require_not_cross_site_request)])
+ async def start_reindex(request: Request):
+     """Avvia (o accoda) un reindex incrementale in background e risponde 202 con il job-id.
+ 
+     Il corpo è opzionale: se contiene un payload webhook GitLab (push) o un override
+     esplicito `{"paths": [...]}`, i path modificati limitano il delta; altrimenti si fa
+     un incrementale completo su docs/ + code/. Un corpo `{"full": true}` richiede invece
+     un FULL REBUILD (build_graph_and_index) via coda. Se un reindex è già in corso la
+     richiesta NON viene rifiutata: è accodata/fusa in un unico pending e la risposta
+     riporta `{"job_id": <id del pending>, "queued": true}`."""
+     try:
+         payload = await request.json()
+     except Exception:
+         payload = None  # corpo assente o non-JSON: incrementale completo
+ 
+     if isinstance(payload, dict) and payload.get("full") is True:
+         job, queued = enqueue_full_rebuild()
+     else:
+         changed_paths = extract_gitlab_paths(payload) if payload is not None else None
+         job, queued = manager.start(changed_paths, _run_reindex, reload_index_state)
+     content = job.to_dict()
+     if queued:
+         content["queued"] = True
+     return JSONResponse(status_code=202, content=content)
+ 
+ 
+ @router.get("/api/reindex")
+ async def list_reindex(limit: int = 20):
+diff --git a/rag/core/indexing.py b/rag/core/indexing.py
+index 59edf1c..ef2747c 100644
+--- a/rag/core/indexing.py
++++ b/rag/core/indexing.py
+@@ -1,50 +1,51 @@
+ """Costruzione dell'indice Graph-RAG: grafo NetworkX + collection Qdrant (hybrid dense/sparse)
+ + sidecar ColBERT/chunk, con indicizzazione completa e incrementale (delta), manifest, controllo
+ del Drift e archiviazione. Il caricamento/chunking dei documenti vive in core/chunking.py; la
+ configurazione in core/config.py. Le risorse pesanti (Qdrant, embedding) sono iniettabili."""
+ import hashlib
+ import json
+ import logging
+ import re
+ import shutil
+ import subprocess
++import time
+ import uuid
+ from dataclasses import dataclass, field
+ from datetime import datetime, timezone
+ from pathlib import Path
+ 
+ import networkx as nx
+ import numpy as np
+ from FlagEmbedding import BGEM3FlagModel
+ from qdrant_client import QdrantClient
+ from qdrant_client.models import (
+     CreateAlias,
+     CreateAliasOperation,
+     DeleteAlias,
+     DeleteAliasOperation,
+     Distance,
+     FieldCondition,
+     Filter,
+     FilterSelector,
+     MatchAny,
+     PointStruct,
+     SparseVector,
+     SparseVectorParams,
+     VectorParams,
+ )
+ 
+ from code_index import (
+     CODE_EXTS,
+     add_symbol_nodes,
+     collect_code_symbols,
+     embed_symbols,
+     link_symbols,
+     referenced_entity_tokens,
+ )
+ from core.artifacts import (
+     _atomic_write_text,
+     _new_version_name,
+     artifact_dir,
+     artifact_hashes,
+     list_versions,
+     load_artifacts,
+@@ -52,80 +53,91 @@ from core.artifacts import (
+     promote_version,
+     save_artifacts,
+ )
+ from core.canvas_review import (
+     HISTORICAL_SUBDIR,
+     REVIEW_FILENAME,
+     append_eval_candidate,
+     extract_eval_candidate,
+     generate_canvas_review,
+ )
+ from core.chunking import (
+     add_frontmatter_edges,
+     chunk_markdown,
+     extract_entities,
+     read_document,
+ )
+ from core import llm
+ from core.eval_gate import gate_promotion
+ from core.retrieval import restatement_sections
+ from core.graph_ops import edge_nature, edge_reliability, edge_trust_attrs
+ from core.pipeline import InvalidFeatureNameError, resolve_feature_dir
+ from core.chunking import split_frontmatter
+ from core.config import (
+     AUTHORITY_PRECEDENCE_RELATION,
+     CHANGES_DIR,
+     CODE_DIR,
+     CODE_EXCLUDED_DIRS,
+     COLLECTION_NAME,
+     DENSE_DIM,
+     DOC_EXTS,
+     DOCS_DIR,
+     EMBEDDING_MODEL,
+     PROJECT_ROOT,
+     QDRANT_API_KEY,
+     QDRANT_URL,
+     qdrant_upsert_batch_from_env,
+ )
+ 
+ logger = logging.getLogger(__name__)
+ 
++_INDEX_PHASES = ("init_model", "scan_hash", "load", "parsing_embedding",
++                 "qdrant", "relink", "save_hash", "promote")
++
++
++def _new_phase_timings() -> dict[str, float]:
++    return {phase: 0.0 for phase in _INDEX_PHASES}
++
++
++def _colbert_token_count(store: dict) -> int:
++    return sum(getattr(value, "shape", (len(value),))[0] for value in store.values())
++
+ # Namespace fisso per derivare l'ID del punto Qdrant dal chunk_id in modo DETERMINISTICO
+ # (uuid5): lo stesso chunk_id produce sempre lo stesso id, base dell'incrementale idempotente.
+ _POINT_ID_NAMESPACE = uuid.UUID("6f9619ff-8b86-d011-b42d-00c04fc964ff")
+ 
+ 
+ def _point_id(chunk_id: str) -> str:
+     """ID Qdrant deterministico e stabile per un chunk (uuid5 del chunk_id)."""
+     return str(uuid.uuid5(_POINT_ID_NAMESPACE, chunk_id))
+ 
+ 
+ def _add_doc_to_graph(G: nx.DiGraph, rel_path: str, metadata: dict, body: str) -> tuple[int, int]:
+     """Aggiunge (o riaggiunge) al grafo il nodo-documento, le entità citate (archi
+     MENTIONS) e le relazioni tipizzate del frontmatter. Condiviso dal full rebuild e
+     dall'indicizzazione incrementale, così la costruzione del grafo per-documento è
+     identica nei due percorsi. Restituisce (numero_entità, numero_relazioni_tipizzate)."""
+     G.add_node(rel_path, type="document", **metadata)
+     entities = extract_entities(body)
+     for entity in entities:
+         G.add_node(entity, type="entity")
+         G.add_edge(rel_path, entity, relation="MENTIONS", **edge_trust_attrs("MENTIONS"))
+     typed_edges = add_frontmatter_edges(G, rel_path, metadata)
+     return len(entities), typed_edges
+ 
+ 
+ # Attributi di autorità che una sezione eredita dal documento padre: sono ciò che guida la
+ # ri-ponderazione in core.retrieval (_authority_weight), che deve poter leggere questi campi
+ # sia dal payload Qdrant sia dal nodo del grafo. Restare in sync con le sorgenti del peso lette
+ # da _authority_weight (AUTHORITY_CLASS_WEIGHTS per la classe, `authority` per-documento).
+ #
+ # `authority` è qui perché il payload Qdrant di ogni chunk porta il frontmatter INTERO del
+ # documento padre (splat di c["metadata"]), mentre il nodo-sezione porta solo questi attributi:
+ # se il coefficiente dichiarato mancasse alla sezione, lo stesso chunk peserebbe diversamente a
+ # seconda della strada da cui lo si legge — dichiarato via Qdrant, di classe via grafo.
+ _SECTION_INHERITED_ATTRS = ("classification", "status", "authority")
+ 
+ 
+ def _add_section_nodes(G: nx.DiGraph, doc_id: str, chunks: list[dict], metadata: dict) -> int:
+     """Aggiunge un nodo-SEZIONE (type="section", id = chunk_id) per ogni chunk del documento,
+     con arco `sezione -[PART_OF]-> documento`. La sezione eredita dal documento gli attributi di
+     autorità (classification/status/authority). È il livello di granularità su cui il codice
+@@ -718,270 +730,308 @@ def gc_orphaned_qdrant_collections(qdrant: QdrantClient, *, base: str = COLLECTI
+       (build_graph_and_index/_run_full_rebuild dopo lo swap, o il lifespan) è l'unico
+       responsabile di questa garanzia, non questa funzione."""
+     _log = emit or logger.info
+     # NESSUNA versione locale => NESSUN GC. Un insieme di riferimenti vuoto significa "non
+     # ho basi per giudicare cosa sia orfano", non "e' orfano tutto": senza questa guardia il
+     # GC cancella ogni collection versionata che trova.
+     #
+     # Non e' teorico, e' successo (rag/AUDIT.md, A20): un container avviato con database/
+     # vuoto e puntato a un Qdrant CONDIVISO con un'installazione nativa ha distrutto le
+     # collection di quest'ultima al primo boot. L'alias corrente sopravvive sempre (e'
+     # gia' un invariante), quindi il sistema restava in piedi — ma i rollback alle versioni
+     # precedenti no, ed e' esattamente cio' che il blue/green esiste per garantire.
+     if not list_versions():
+         logger.warning(
+             "GC delle collection Qdrant SALTATO: nessuna versione locale in database/versions/. "
+             "Con un indice locale vuoto non e' possibile distinguere una collection orfana da "
+             "una che appartiene a un'altra installazione che condivide questo Qdrant.")
+         return []
+     referenced = _referenced_qdrant_collections()
+     alias_target = _read_alias_target(qdrant, base)
+     removed = gc_qdrant_collections(qdrant, referenced=referenced, alias_target=alias_target, base=base)
+     if removed:
+         _log(f"🗑️  GC collection Qdrant orfane: {', '.join(removed)}.")
+     return removed
+ 
+ 
+ @dataclass
+ class FullState:
+     """Stato completo prodotto da un'indicizzazione da zero (in memoria, senza I/O):
+     grafo + punti Qdrant + tutti i sidecar. È l'output condiviso dal full rebuild (che lo
+     persiste) e dal check di coerenza (che confronta il solo grafo con quello persistito)."""
+     graph: nx.DiGraph
+     points: list = field(default_factory=list)
+     colbert_store: dict = field(default_factory=dict)
+     chunks_store: dict = field(default_factory=dict)
+     dense_store: dict = field(default_factory=dict)
+     code_store: dict = field(default_factory=dict)
+     n_docs: int = 0
+ 
+ 
+-def _build_full_state(embed_model, docs_dir: Path, code_dir: Path, emit=None) -> FullState:
++def _build_full_state(embed_model, docs_dir: Path, code_dir: Path, emit=None,
++                      phase_timings: dict[str, float] | None = None) -> FullState:
+     """Costruisce da zero l'intero stato dell'indice (grafo + chunk + sidecar) a partire
+     dai file, SENZA alcun I/O su disco o Qdrant. Funzione pura (a parità di modello e input
+     produce lo stesso grafo): è l'unica fonte di verità della topologia 'da rebuild', usata
+     sia dal full rebuild reale sia dal check di coerenza (index.py --check-graph)."""
+     _log = emit or logger.info
+     G = nx.DiGraph()
+     all_chunks: list[dict] = []
+     n_docs = 0
+ 
+     all_docs = sorted(p for p in docs_dir.rglob("*") if p.is_file() and p.suffix.lower() in DOC_EXTS)
+     for filepath_obj in all_docs:
+         rel_path = filepath_obj.relative_to(docs_dir).as_posix()
+         metadata, body = read_document(filepath_obj)
+         if not body.strip():
+             _log(f"  (saltato, corpo vuoto o loader assente: {rel_path})")
+             continue
+         n_entities, typed_edges = _add_doc_to_graph(G, rel_path, metadata, body)
+         doc_chunks = chunk_markdown(rel_path, metadata, body)
+         _add_section_nodes(G, rel_path, doc_chunks, metadata)
+         for c in doc_chunks:
+             c["metadata"] = metadata
+         all_chunks.extend(doc_chunks)
+         n_docs += 1
+         _log(f"  Analizzato: {rel_path} — {n_entities} entità, {len(doc_chunks)} chunk, {typed_edges} relazioni tipizzate")
+ 
+     points: list = []
+     colbert_store: dict = {}
+     chunks_store: dict = {}
+     dense_store: dict = {}
+     if all_chunks:
+         _log(f"\nVettorializzazione di {len(all_chunks)} chunk (da {n_docs} documenti) con {EMBEDDING_MODEL} (dense + sparse + colbert)...")
+         points, colbert_store, chunks_store, dense_vecs = _encode_chunks_to_points(embed_model, all_chunks)
+         dense_store = _dense_map(all_chunks, dense_vecs)
+ 
+     # Fase Codice: nodi dei simboli + archi IMPLEMENTS (chunk-doc più simile) e REFERENCES.
+     # Indipendente dalla presenza di documenti: i simboli di codice esistono comunque come
+     # nodi (senza IMPLEMENTS finché non c'è uno spazio-documenti a cui agganciarsi), così
+     # full rebuild e incrementale restano allineati anche quando docs/ è temporaneamente vuoto.
++    relink_started = time.perf_counter()
+     code_store: dict = {}
+     try:
+         code_symbols = collect_code_symbols(code_dir)
+         if code_symbols:
+             add_symbol_nodes(G, code_symbols)
+             sym_dense = embed_symbols(embed_model, code_symbols)
+             # Linka usando gli STESSI vettori fp16 che finiscono nei sidecar: così il
+             # ricalcolo incrementale (che legge fp16) riproduce esattamente questi archi,
+             # e il check di coerenza non segnala falsi positivi da differenza di precisione.
+             sym_dense16 = sym_dense.astype("float16") if sym_dense.size else sym_dense
+             doc_chunk_ids = [c["chunk_id"] for c in all_chunks if c["chunk_id"] in dense_store]
+             doc_dense16 = [dense_store[cid] for cid in doc_chunk_ids]
+             doc_parent16 = [chunks_store[cid]["doc_id"] for cid in doc_chunk_ids]
+             scores: dict = {}
+             n_impl = link_symbols(G, code_symbols, sym_dense16, doc_dense16, doc_parent16,
+                                   chunk_ids=doc_chunk_ids, scores_out=scores)
+             code_store = {
+                 s["id"]: {"name": s["name"], "kind": s["kind"], "file": s["file"],
+                           "dev_type": s["dev_type"], "text": s["text"],
+                           "dense": sym_dense16[i],
+                           **scores.get(s["id"], {})}
+                 for i, s in enumerate(code_symbols)
+             }
+             _log(f"🧩 Codice indicizzato: {len(code_symbols)} simboli, {n_impl} archi IMPLEMENTS verso i documenti.")
+         else:
+             _log("🧩 Nessun simbolo di codice trovato sotto code/ (verrà indicizzato quando Claude scriverà il codice).")
+     except Exception as e:
+         _log(f"⚠️ Indicizzazione del codice saltata: {e}")
+ 
+     # Connette i documenti tra loro dalle relazioni di autorità del frontmatter (doc->doc),
+     # risolvendo gli alias di versione. Ultimo passo: tutti i nodi-documento sono presenti.
+     _resolve_authority_aliases(G)
++    if phase_timings is not None:
++        phase_timings["relink"] += time.perf_counter() - relink_started
+ 
+     return FullState(G, points, colbert_store, chunks_store, dense_store, code_store, n_docs)
+ 
+ 
+ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, emit=None,
+-                          promote: bool = True) -> str | None:
++                          promote: bool = True, collector: dict | None = None) -> str | None:
+     """Esegue l'indicizzazione completa (Fase 0 e Fase 4) e restituisce il nome della
+     versione blue/green scritta.
+ 
+     Il modello di embedding può essere iniettato dall'esterno: quando il server
+     FastAPI innesca la re-indicizzazione riusa quello già caricato, evitando un
+     ricaricamento che richiede minuti di CPU. Il client Qdrant (server mode) è
+     invece economico da aprire, ma viene comunque riusato quando disponibile.
+ 
+     `emit` è un callback di log (default: logger.info) usato per lo streaming SSE del
+     progresso verso l'interfaccia; se None si stampa su stdout come sempre.
+ 
+     `promote=False` lascia la nuova versione NON attiva (CURRENT invariato): è il gancio
+     per la promozione condizionata dei job full del ReindexManager (eval gate) — il
+     chiamante promuove poi con `core.artifacts.promote_version(nome)`.
+ 
+     Nome di versione e nome di collection sono DECISI UNA SOLA VOLTA all'inizio della
+     funzione e riusati fino al salvataggio degli artefatti, al manifest e ai log.
+ 
+     Blue/green Qdrant: `collection_name` è sempre la collection CANDIDATA versionata
+     (`qdrant_collection_name(version)`), creata senza mai droppare/ricreare nulla
+     (`recreate=False`: è un nome nuovo per costruzione, e soprattutto non deve MAI
+     coincidere con — né quindi mai toccare — la collection di produzione, che resta
+     COLLECTION_NAME). Il manifest registra quale collection ospita questa versione
+     (`qdrant_collection`) e l'eval-gate valuta quella stessa candidata. Se il gate
+     passa, la promozione sposta PRIMA CURRENT (il commit point locale) e SOLO DOPO
+     l'alias `COLLECTION_NAME` sulla candidata (`_swap_alias`) — ordine non
+     negoziabile. In mezzo, SOLO se necessario, la migrazione one-shot legacy→alias
+     (`_migrate_legacy_collection_if_needed`): se `COLLECTION_NAME` esiste ancora come
+     collection FISICA (installazione non ancora migrata — Qdrant non ammette un
+     alias omonimo a una collection), viene cancellata per liberare il nome, SUBITO
+     prima dello swap che la ricrea come alias — l'UNICA operazione irreversibile di
+     questo meccanismo, con una finestra di indisponibilità breve ma reale fra le due
+     chiamate (loggata esplicitamente). Se il layout è già migrato (alias esistente) o
+     l'installazione è fresca (nessuna collisione), la migrazione è un no-op: nessun
+     delete, solo lo swap. Subito dopo lo swap, il GC (`gc_orphaned_qdrant_collections`)
+     rimuove le collection versionate orfane (build crashati/non promossi, lineage già
+     ruotati dalla retention locale).
+     """
+     _log = emit or logger.info
++    timings = _new_phase_timings()
+     own_qdrant = qdrant is None
+     if embed_model is None:
++        started = time.perf_counter()
+         _log(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")
+         embed_model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
++        timings["init_model"] = time.perf_counter() - started
++    started = time.perf_counter()
+     if qdrant is None:
+         qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+ 
+     version = _new_version_name()
+     collection_name = qdrant_collection_name(version)
+ 
+     # Mai recreate: la candidata è un nome nuovo per costruzione, niente da droppare,
+     # e la produzione (nome diverso, COLLECTION_NAME) non va mai toccata da questa
+     # chiamata — solo alla promozione, tramite l'alias swap più sotto.
+     _ensure_collection(qdrant, recreate=False, collection_name=collection_name)
++    timings["qdrant"] += time.perf_counter() - started
+ 
+-    state = _build_full_state(embed_model, DOCS_DIR, CODE_DIR, emit=_log)
++    started = time.perf_counter()
++    state = _build_full_state(embed_model, DOCS_DIR, CODE_DIR, emit=_log,
++                              phase_timings=timings)
++    timings["parsing_embedding"] = max(
++        0.0, time.perf_counter() - started - timings["relink"],
++    )
+     G = state.graph
++    started = time.perf_counter()
+     if state.points:
+         # A fette (default 256, VIBECRAFT_QDRANT_UPSERT_BATCH): un unico upsert monolitico
+         # su migliaia di punti rischia il timeout gRPC/HTTP lato client. Un fallimento a
+         # metà lascia la candidata (versione + collection) esattamente orfana come oggi:
+         # niente retry né rollback parziale, l'eccezione propaga e il job fallisce senza
+         # toccare CURRENT (vedi docstring sopra sull'ordine di promozione).
+         batch_size = qdrant_upsert_batch_from_env()
+         for i in range(0, len(state.points), batch_size):
+             qdrant.upsert(collection_name=collection_name, points=state.points[i:i + batch_size])
++    timings["qdrant"] += time.perf_counter() - started
+ 
+     # Salva grafo + vettori + sidecar nei formati correnti (JSON/.npz) nella versione
+     # decisa sopra, tramite l'unico punto di I/O (core.artifacts). Scrittura atomica:
+     # un crash a metà non lascia artefatti troncati né una versione attiva rotta.
++    started = time.perf_counter()
++    doc_hashes = _docs_hashes()
++    code_hashes = _code_hashes()
++    timings["scan_hash"] = time.perf_counter() - started
++    started = time.perf_counter()
+     version = save_artifacts(G, state.colbert_store, state.chunks_store, state.dense_store,
+                              state.code_store, version=version)
+ 
+     _log(f"\n✅ Artefatti indice salvati nella versione {version} (grafo JSON, vettori .npz, sidecar).")
+     _log(f"📊 Grafo: {G.number_of_nodes()} nodi, {G.number_of_edges()} archi.")
+     _log(f"📦 Qdrant: {len(state.points)} chunk (da {state.n_docs} documenti) nella collection '{collection_name}'.")
+ 
+     write_index_manifest(len(state.points), G.number_of_nodes(), G.number_of_edges(),
+-                        version=version, qdrant_collection=collection_name)
++                        version=version, qdrant_collection=collection_name,
++                        doc_hashes=doc_hashes, code_hashes=code_hashes)
++    timings["save_hash"] = time.perf_counter() - started
+     _log(f"🧾 Manifest indicizzazione salvato in: {manifest_path(version)}")
+ 
+     if promote and version:
++        started = time.perf_counter()
+         # Eval-gate: valuta la recall della versione candidata sul golden set PRIMA di spostare
+         # CURRENT. Lo stato candidato è in memoria e Qdrant è già popolato: la valutazione
+         # riflette il retrieval che verrebbe servito. Se regredisce, la promozione è bloccata.
+         # collection_name è la STESSA collection appena costruita sopra: il gate misura
+         # sempre ciò che questa build ha davvero scritto, mai una collection diversa.
+         # graph/restatements: il gate deve leggere lo STESSO ordinamento che il server servirà
+         # (precedenza S4, peso di sezione N4), non quello nudo — R26.
+         gate = gate_promotion(version, qdrant, embed_model, state.colbert_store, emit=_log,
+                               collection_name=collection_name, graph=G,
+                               restatements=restatement_sections(state.chunks_store))
+         if not gate.get("passed"):
+             _log(f"⛔ Promozione RIFIUTATA dall'eval-gate: CURRENT resta invariato. "
+                  f"Versione {version} salvata ma NON attiva. Investigare il calo di qualità.")
+         else:
+             # Ordine NON NEGOZIABILE: CURRENT prima (il commit point locale), poi
+             # l'eventuale migrazione one-shot legacy→alias e infine l'alias swap.
+             # `collection_name` è la STESSA variabile locale usata per costruire
+             # questa versione — non una ricostruzione indipendente del nome, quindi
+             # mai ambigua.
+             promote_version(version)
+             _migrate_legacy_collection_if_needed(qdrant, COLLECTION_NAME, emit=_log)
+             _swap_alias(qdrant, COLLECTION_NAME, collection_name)
+             _log(f"🔀 Alias Qdrant '{COLLECTION_NAME}' → {collection_name} (blue/green).")
+             # promote_version() sopra ha già applicato la retention locale
+             # (prune_versions), quindi _referenced_qdrant_collections() qui dentro
+             # riflette già le versioni sopravvissute — solo DOPO lo swap, nel
+             # single-writer di questo job, mai concorrente.
+             gc_orphaned_qdrant_collections(qdrant, emit=_log)
+             _log(f"🔁 Versione promossa: CURRENT → {version} (swap atomico, rollback: index.py --rollback).")
++        timings["promote"] = time.perf_counter() - started
+ 
+     if own_qdrant:
+         qdrant.close()
++    if collector is not None:
++        collector.update({
++            "phase_timings_seconds": timings,
++            "counts": {
++                "docs_added": state.n_docs, "docs_modified": 0, "docs_removed": 0,
++                "code_added": len(code_hashes), "code_modified": 0, "code_removed": 0,
++                "chunks_processed": len(state.points), "chunks_indexed": len(state.chunks_store),
++                "colbert_tokens_processed": _colbert_token_count(state.colbert_store),
++                "colbert_tokens_indexed": _colbert_token_count(state.colbert_store),
++                "code_tokens_processed": None,
++                "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
++            },
++        })
+     return version
+ 
+ 
+ def _docs_hashes() -> dict[str, str]:
+     """Calcola l'hash SHA-256 di ogni documento indicizzabile in docs/ (chiave = percorso relativo)."""
+     hashes: dict[str, str] = {}
+     for filepath_obj in sorted(p for p in DOCS_DIR.rglob("*") if p.is_file() and p.suffix.lower() in DOC_EXTS):
+         rel_path = filepath_obj.relative_to(DOCS_DIR).as_posix()
+         hashes[rel_path] = hashlib.sha256(filepath_obj.read_bytes()).hexdigest()
+     return hashes
+ 
+ 
+ def _code_hashes() -> dict[str, str]:
+     """Hash SHA-256 di ogni file di codice sotto code/ (chiave = percorso relativo a code/).
+     Base del delta incrementale sul codice, gemella di _docs_hashes per i documenti."""
+     hashes: dict[str, str] = {}
+     if not CODE_DIR.exists():
+         return hashes
+     for filepath_obj in sorted(p for p in CODE_DIR.rglob("*") if p.is_file() and p.suffix in CODE_EXTS):
+         if CODE_EXCLUDED_DIRS & set(filepath_obj.relative_to(CODE_DIR).parts):
+             continue
+         rel_path = filepath_obj.relative_to(CODE_DIR).as_posix()
+         hashes[rel_path] = hashlib.sha256(filepath_obj.read_bytes()).hexdigest()
+     return hashes
+ 
+ 
+ def write_index_manifest(points_count: int, nodes: int = 0, edges: int = 0,
+                          version: str | None = None,
+                          qdrant_collection: str | None = None,
+                          doc_hashes: dict[str, str] | None = None,
+                          code_hashes: dict[str, str] | None = None) -> None:
+     """Persiste lo snapshot dell'indice (config modello, conteggi, hash dei documenti)
+     DENTRO la directory della versione indicata (default: la versione attiva; per il
+     layout legacy resta il flat database/index_manifest.json): ogni versione blue/green
+     è autodescritta, così dopo un rollback anche staleness e integrità si misurano
+     contro la versione effettivamente attiva.
+ 
+     Il campo `version` del manifest (timestamp ISO) viene scritto INSIEME agli artefatti:
+     identifica in modo univoco questo giro di indicizzazione.
+ 
+@@ -1702,347 +1752,397 @@ def _symbols_beaten_by_new_chunks(code_store: dict, dense_store: dict,
+     sids = [sid for sid, meta in code_store.items() if "dense" in meta]
+     if not valid_new or not sids:
+         return set()
+     sym_mat = np.asarray([code_store[sid]["dense"] for sid in sids], dtype=np.float32)
+     new_mat = np.asarray([dense_store[cid] for cid in valid_new], dtype=np.float32)
+     sym_norm = sym_mat / (np.linalg.norm(sym_mat, axis=1, keepdims=True) + 1e-8)
+     new_norm = new_mat / (np.linalg.norm(new_mat, axis=1, keepdims=True) + 1e-8)
+     max_new = (sym_norm @ new_norm.T).max(axis=1)  # miglior chunk nuovo per simbolo
+     touched: set[str] = set()
+     for i, sid in enumerate(sids):
+         best = code_store[sid].get("best_score")
+         if best is None or float(max_new[i]) >= float(best) - eps:
+             touched.add(sid)
+     return touched
+ 
+ 
+ def _symbols_referencing_entities(code_store: dict, changed_entities: set[str]) -> set[str]:
+     """Simboli i cui token-entità nel testo intersecano le entità aggiunte/rimosse: sono i
+     soli il cui insieme di archi REFERENCES verso le entità può cambiare. (Gli archi verso
+     entità potate cadono già con la rimozione del nodo; qui si intercettano soprattutto le
+     entità NUOVE, che vanno collegate ai simboli che le citano.)"""
+     if not changed_entities:
+         return set()
+     return {sid for sid, meta in code_store.items()
+             if referenced_entity_tokens(meta.get("text", "")) & changed_entities}
+ 
+ 
+ def apply_incremental_indexing(
+     plan: IndexPlan,
+     docs_dir: Path | None,
+     qdrant: QdrantClient,
+     embed_model,
+     graph: nx.DiGraph,
+     colbert_store: dict,
+     chunks_store: dict,
+     emit=None,
+     dense_store: dict | None = None,
+     code_store: dict | None = None,
+     code_delta: tuple[list[str], list[str], list[str]] | None = None,
+     code_dir: Path | None = None,
++    phase_timings: dict[str, float] | None = None,
+ ) -> dict:
+     """Esegue il piano del delta sugli oggetti passati (Qdrant + grafo + sidecar), mutandoli
+     in-place. NON fa I/O su disco né gestisce il modello: quelli restano al chiamante
+     (incremental_index), così questa funzione è deterministica e testabile con fake leggeri.
+ 
+     Passi (idempotenti):
+       1. purge dei chunk dei documenti modificati+cancellati da Qdrant (delete-by-filter),
+          dai sidecar (colbert/chunks/dense) e dei relativi nodi-documento dal grafo;
+       2. (ri)vettorializzazione dei documenti nuovi+modificati e upsert con id deterministici,
+          con re-inserimento dei nodi-documento nel grafo;
+       3. delta sui file di codice (simboli aggiunti/rimossi/modificati);
+       4. ricalcolo mirato degli archi spec<->codice (IMPLEMENTS/REFERENCES) per i SOLI nodi
+          che possono essere cambiati: i simboli nuovi/modificati, quelli il cui chunk
+          vincente stava in un doc rimosso/modificato, quelli battuti da un chunk nuovo, e
+          quelli che citano un'entità aggiunta/rimossa. Gli altri hanno argmax invariato per
+          costruzione e non si toccano. Infine potatura delle entità rimaste orfane. Il
+          risultato è deterministicamente equivalente al full rebuild (lo prova
+          check_graph_consistency), ma il costo è proporzionale al delta, non all'indice.
+ 
+     `dense_store`/`code_store`/`code_delta`/`code_dir` sono opzionali: se assenti la funzione
+     si comporta come prima (nessun ricalcolo dei code-link), preservando i chiamanti legacy."""
+     _log = emit or logger.info
++    apply_started = time.perf_counter()
++    qdrant_seconds = 0.0
+     # Snapshot delle entità PRIMA di toccare i documenti: serve a capire, a valle, quali
+     # entità sono comparse/sparite e quindi quali simboli hanno REFERENCES da ricalcolare.
+     entities_before = _entity_nodes(graph)
+     to_delete = plan.to_delete()   # modificati + cancellati
+     to_index = plan.to_index()     # nuovi + modificati
+ 
+     # 1. Purge (Qdrant + sidecar + grafo) dei documenti non più validi nella loro forma attuale
+     if to_delete:
++        started = time.perf_counter()
+         _delete_doc_chunks(qdrant, to_delete)
++        qdrant_seconds += time.perf_counter() - started
+         dead_set = set(to_delete)
+         dead_chunks = [cid for cid, meta in chunks_store.items() if meta.get("doc_id") in dead_set]
+         for cid in dead_chunks:
+             colbert_store.pop(cid, None)
+             chunks_store.pop(cid, None)
+             if dense_store is not None:
+                 dense_store.pop(cid, None)
+         _remove_doc_nodes_from_graph(graph, to_delete)
+         _log(f"🗑️  Rimossi i chunk di {len(to_delete)} documenti (modificati/cancellati): {len(dead_chunks)} chunk purgati da Qdrant, sidecar e grafo.")
+ 
+     # 2. (Ri)indicizzazione dei soli documenti nuovi/modificati
+     upserted = 0
++    processed_colbert_tokens = 0
+     new_chunk_ids: list[str] = []
+     if to_index:
+         assert docs_dir is not None, "docs_dir richiesto quando ci sono documenti da (ri)indicizzare"
+         new_chunks: list[dict] = []
+         for rel_path in to_index:
+             fp = docs_dir / rel_path
+             if not fp.exists():
+                 _log(f"  (saltato, file assente: {rel_path})")
+                 continue
+             metadata, body = read_document(fp)
+             if not body.strip():
+                 _log(f"  (saltato, corpo vuoto o loader assente: {rel_path})")
+                 continue
+             _add_doc_to_graph(graph, rel_path, metadata, body)
+             doc_chunks = chunk_markdown(rel_path, metadata, body)
+             _add_section_nodes(graph, rel_path, doc_chunks, metadata)
+             for c in doc_chunks:
+                 c["metadata"] = metadata
+             new_chunks.extend(doc_chunks)
+ 
+         if new_chunks:
+             _log(f"\nVettorializzazione incrementale di {len(new_chunks)} chunk (da {len(to_index)} documenti)...")
+             points, colbert_partial, chunks_partial, _dense = _encode_chunks_to_points(embed_model, new_chunks)
++            processed_colbert_tokens = _colbert_token_count(colbert_partial)
++            started = time.perf_counter()
+             qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
++            qdrant_seconds += time.perf_counter() - started
+             colbert_store.update(colbert_partial)
+             chunks_store.update(chunks_partial)
+             if dense_store is not None:
+                 dense_store.update(_dense_map(new_chunks, _dense))
+             new_chunk_ids = [c["chunk_id"] for c in new_chunks]
+             upserted = len(points)
+         _log(f"➕ (Ri)indicizzati {len(to_index)} documenti → {upserted} chunk upsertati.")
+ 
+     # 3-4. Delta del codice + ricalcolo mirato dei code-link (solo se i sidecar sono forniti).
+     code_added, code_removed, code_modified = code_delta or ([], [], [])
+     implements = 0
+     orphans = 0
++    relink_started = time.perf_counter()
+     if code_store is not None and dense_store is not None:
+         touched: set[str] = set()
+         if code_dir is not None and (code_added or code_removed or code_modified):
+             touched |= _apply_code_delta(
+                 graph, code_dir, code_store, embed_model,
+                 code_added, code_removed, code_modified, _log,
+             )
+         # Selezione MIRATA dei simboli il cui argmax IMPLEMENTS può essere cambiato per via
+         # del delta documenti — invece di rilincare tutto quando i documenti cambiano.
+         # L'argmax è una proprietà globale, ma può spostarsi solo in due casi:
+         #   (a) il chunk vincente del simbolo apparteneva a un doc rimosso/modificato → il
+         #       vincitore è sparito, va ricalcolato;
+         #   (b) un chunk NUOVO/ri-embeddato raggiunge una similarità >= al best_score del
+         #       simbolo → il nuovo chunk può diventare il vincitore.
+         # Gli altri simboli hanno vincitore intatto e nessun nuovo concorrente più forte:
+         # per costruzione l'argmax non si muove, quindi NON si toccano.
+         touched |= _symbols_with_stale_argmax(code_store, set(to_delete))
+         touched |= _symbols_beaten_by_new_chunks(code_store, dense_store, new_chunk_ids)
+         # Prima si potano le entità che nessun documento cita più (rimuove anche i REFERENCES
+         # stale del codice verso di esse), POI si ricalcolano i link: così REFERENCES viene
+         # ricostruito sull'insieme di entità valido, identico a quello del full rebuild.
+         orphans = _prune_unsupported_entities(graph)
+         # REFERENCES codice->entità: se l'insieme delle entità citabili è cambiato, i soli
+         # simboli i cui token intersecano le entità aggiunte/rimosse possono avere archi
+         # diversi (le entità potate hanno già perso gli archi con la rimozione del nodo).
+         changed_entities = entities_before ^ _entity_nodes(graph)
+         touched |= _symbols_referencing_entities(code_store, changed_entities)
+         implements = _relink_touched_symbols(graph, code_store, chunks_store, dense_store, touched)
+         if touched or orphans:
+             _log(f"🔗 Code-link ricalcolati per {len(touched)} simboli toccati → {implements} IMPLEMENTS; "
+                  f"{orphans} entità orfane potate.")
+ 
+     # Riconnette i doc->doc dalle relazioni di autorità: non distruttivo e idempotente, così
+     # il grafo incrementale resta deterministicamente equivalente al full rebuild (che lo fa
+     # in _build_full_state). Va eseguito su TUTTO il grafo dopo aver applicato il delta.
+     _resolve_authority_aliases(graph)
++    relink_seconds = time.perf_counter() - relink_started
++    if phase_timings is not None:
++        phase_timings["qdrant"] += qdrant_seconds
++        phase_timings["relink"] += relink_seconds
++        phase_timings["parsing_embedding"] += max(
++            0.0, time.perf_counter() - apply_started - qdrant_seconds - relink_seconds,
++        )
+ 
+     return {
+         "planned": plan.as_dict(),
+         "reindexed_docs": len(to_index),
+         "deleted_docs": len(plan.deleted),
+         "upserted_chunks": upserted,
+         "code_added": len(code_added),
+         "code_removed": len(code_removed),
+         "code_modified": len(code_modified),
+         "implements_edges": implements,
+         "pruned_entities": orphans,
++        "counts": {
++            "docs_added": len(plan.new), "docs_modified": len(plan.modified),
++            "docs_removed": len(plan.deleted), "code_added": len(code_added),
++            "code_modified": len(code_modified), "code_removed": len(code_removed),
++            "chunks_processed": upserted, "chunks_indexed": len(chunks_store),
++            "colbert_tokens_processed": processed_colbert_tokens,
++            "colbert_tokens_indexed": _colbert_token_count(colbert_store),
++            "code_tokens_processed": None,
++            "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
++        },
+     }
+ 
+ 
+ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit=None,
+                       changed_paths: list[str] | None = None) -> dict:
+     """Orchestratore dell'indicizzazione incrementale: manifest → piano → esecuzione → persistenza.
+ 
+     - Salta del tutto i documenti invariati (nessun re-embed).
+     - Se non c'è nulla da fare (e il manifest esiste) è un no-op: nessuna scrittura su
+       Qdrant, sidecar o manifest → idempotente sulle run ripetute.
+     - Manifest assente/corrotto ⇒ il piano marca tutto come 'new' (equivale al full rebuild),
+       ma senza droppare la collection: i punti vengono upsertati con id deterministici.
+ 
+     `changed_paths` (opzionale, path relativi alla root del repo — es. estratti da un webhook
+     GitLab push/merge) restringe il delta ai soli file segnalati: si evita di ri-hashare/ri-
+     embeddare tutto quando si sa già cosa è cambiato. È solo un limite superiore al lavoro —
+     il diff hash resta la fonte di verità — quindi non può indicizzare nulla che un delta
+     completo non avrebbe toccato. Se None, si considera l'intero docs/ + code/ come sempre."""
+     _log = emit or logger.info
++    timings = _new_phase_timings()
+     own_qdrant = qdrant is None
+ 
++    started = time.perf_counter()
+     current = _docs_hashes()
+     manifest = _read_manifest()
+     plan = plan_incremental_indexing(current, manifest)
+ 
+     # Delta sul codice: gemello del piano documenti, così l'incrementale reagisce anche a
+     # nuovi file di codice / modifiche / cancellazioni sotto code/ (non solo a docs/).
+     current_code = _code_hashes()
++    timings["scan_hash"] = time.perf_counter() - started
+     old_code = manifest.get("code_hashes", {}) if isinstance(manifest, dict) else {}
+     code_added, code_removed, code_modified, _uc = _diff_hashes(old_code, current_code)
+ 
+     # Webhook: restringi piano documenti e delta codice ai soli path segnalati (limita il lavoro).
+     if changed_paths is not None:
+         docs_rel, code_rel = _partition_changed_paths(changed_paths)
+         plan = _restrict_plan(plan, docs_rel)
+         code_added = [p for p in code_added if p in code_rel]
+         code_modified = [p for p in code_modified if p in code_rel]
+         code_removed = [p for p in code_removed if p in code_rel]
+         _log(f"🎯 Delta ristretto ai path del webhook: {len(docs_rel)} doc, {len(code_rel)} file di codice segnalati.")
+ 
+     code_changed = bool(code_added or code_removed or code_modified)
+ 
+     if manifest is not None and plan.is_noop and not code_changed:
+         _log("✅ Nessun cambiamento in docs/ o code/: indice già aggiornato (no-op, nessuna scrittura).")
+-        return {"noop": True, "planned": plan.as_dict(), "reindexed_docs": 0, "deleted_docs": 0, "upserted_chunks": 0}
++        return {"noop": True, "planned": plan.as_dict(), "reindexed_docs": 0,
++                "deleted_docs": 0, "upserted_chunks": 0,
++                "phase_timings_seconds": timings,
++                "counts": {"docs_added": 0, "docs_modified": 0, "docs_removed": 0,
++                           "code_added": 0, "code_modified": 0, "code_removed": 0,
++                           "chunks_processed": 0, "chunks_indexed": None,
++                           "colbert_tokens_processed": 0, "colbert_tokens_indexed": None,
++                           "code_tokens_processed": None,
++                           "code_tokens_unavailable_reason": "embedding output does not expose code token counts"}}
+ 
+     _log(f"📋 Piano incrementale: {len(plan.new)} nuovi, {len(plan.modified)} modificati, "
+          f"{len(plan.deleted)} cancellati, {len(plan.unchanged)} invariati (saltati). "
+          f"Codice: +{len(code_added)} ~{len(code_modified)} -{len(code_removed)}.")
+ 
+     # Il modello serve solo se c'è qualcosa da (ri)embeddare: documenti nuovi/modificati
+     # oppure file di codice nuovi/modificati. Un run di solo-delete non paga bge-m3.
+     if embed_model is None and (plan.to_index() or code_added or code_modified):
++        started = time.perf_counter()
+         _log(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")
+         embed_model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
++        timings["init_model"] = time.perf_counter() - started
++    started = time.perf_counter()
+     if qdrant is None:
+         qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+ 
+     # Lineage blue/green: il manifest figlio erediterà qdrant_collection dal padre
+     # (`manifest`, letto a inizio funzione — è ancora quello della versione attiva,
+     # perché la promote di questa versione avviene solo DOPO).
+     parent_qdrant_collection = manifest.get("qdrant_collection") if isinstance(manifest, dict) else None
+ 
+     if parent_qdrant_collection is not None:
+         # Guardia di lineage: PRIMA di qualunque scrittura (delete/upsert/ensure)
+         # l'alias deve puntare alla collection del padre. Questo è un punto writer,
+         # quindi la riparazione mirata è consentita: repair_qdrant_alias sposta
+         # l'alias sulla collection attesa se esiste, e non tocca nulla altrimenti.
+         # Se dopo la riparazione lo stato resta divergente o senza alias, si
+         # abortisce: le point-operation sotto passano per l'alias, e scrivere con
+         # l'alias fuori lineage upserterebbe/cancellerebbe su una collection che
+         # non è quella del padre.
+         repair = repair_qdrant_alias(qdrant, emit=_log)
+         if repair["state"] in ("diverging", "missing") and not repair["repaired"]:
+             raise RuntimeError(
+                 f"Alias Qdrant '{COLLECTION_NAME}' in stato '{repair['state']}': attesa la "
+                 f"collection del padre '{repair['expected']}', target attuale "
+                 f"'{repair['actual']}', e riparazione impossibile (la collection attesa non "
+                 f"esiste su Qdrant). Incrementale abortito senza scritture: full rebuild richiesto."
+             )
+         # La collection fisica del padre deve ESISTERE già: il percorso incrementale
+         # non crea MAI una collection mancante della lineage — una create qui
+         # produrrebbe una collection vuota "legittimata" dall'alias, mascherando la
+         # perdita dei vettori del padre. Post-riparazione l'alias punta a questa
+         # collection per costruzione, quindi le point-operation sull'alias sono sicure.
+         if not _qdrant_collection_exists(qdrant, parent_qdrant_collection):
+             raise RuntimeError(
+                 f"Collection del padre '{parent_qdrant_collection}' assente su Qdrant: "
+                 f"l'incrementale non la ricrea mai — full rebuild richiesto."
+             )
+     elif _read_alias_target(qdrant, COLLECTION_NAME) is None:
+         # Bootstrap (nessun manifest padre, o manifest antecedente all'introduzione
+         # del campo qdrant_collection) SENZA alias: vero fresh install o layout non
+         # ancora migrato — COLLECTION_NAME è la collection fisica storica, creata
+         # solo se assente (mai ricreata, i punti sono preservati), esattamente come
+         # prima di questo fix. Se invece l'alias esiste GIÀ (manifest legacy con
+         # migrazione avvenuta altrove, es. rollback molto indietro), non c'è nulla
+         # da assicurare né da guardare: l'alias risolve per costruzione a una
+         # collection fisica esistente (stato "legacy" del reconciler, nessun abort).
+         _ensure_collection(qdrant, recreate=False, collection_name=COLLECTION_NAME)
++    timings["qdrant"] += time.perf_counter() - started
+ 
+     # Carica lo stato precedente dagli artefatti. Gli artefatti assenti diventano il
+     # loro default vuoto.
++    started = time.perf_counter()
+     arts = load_artifacts()
++    timings["load"] = time.perf_counter() - started
+     graph: nx.DiGraph = arts.graph if arts.graph is not None else nx.DiGraph()
+     colbert_store: dict = arts.colbert_store
+     chunks_store: dict = arts.chunks_store
+     dense_store: dict = arts.dense_store
+     code_store: dict = arts.code_store
+ 
+     stats = apply_incremental_indexing(
+         plan, DOCS_DIR, qdrant, embed_model, graph, colbert_store, chunks_store, emit=_log,
+         dense_store=dense_store, code_store=code_store,
+         code_delta=(code_added, code_removed, code_modified), code_dir=CODE_DIR,
++        phase_timings=timings,
+     )
+ 
+     # Persistenza: nuova versione blue/green (artefatti atomici JSON/.npz) + manifest
+     # coerente nella stessa versione (documents = chunk totali), poi promozione: gli
+     # incrementali promuovono sempre (il gate BLOCCANTE riguarda solo i job full del manager).
++    started = time.perf_counter()
+     version = save_artifacts(graph, colbert_store, chunks_store, dense_store, code_store)
+     # Lineage blue/green: il manifest figlio eredita `parent_qdrant_collection`
+     # (calcolato sopra, prima della guardia di lineage). Bootstrap/fresh install senza
+     # manifest padre o senza il campo: None qui, che write_index_manifest risolve nel
+     # suo stesso default storico (COLLECTION_NAME). L'incrementale non promuove MAI
+     # l'alias su una nuova collection: al più lo RIPARA verso quella del padre
+     # (guardia sopra, prima di ogni scrittura), e il manifest ne eredita solo il nome.
+     # Il manifest descrive ciò che l'indice CONTIENE, non ciò che c'è su disco: con un delta
+     # ristretto (changed_paths — l'approve dell'intake, un webhook) i documenti non elaborati,
+     # cancellazioni comprese, conservano la voce precedente e restano visibili come stale.
+     # Ricalcolarli da disco li faceva sparire dal manifest lasciandone i punti in Qdrant.
+     old_docs = manifest.get("doc_hashes", {}) if isinstance(manifest, dict) else {}
+     doc_hashes = {p: h for p, h in old_docs.items() if p not in plan.deleted}
+     doc_hashes.update({p: current[p] for p in [*plan.new, *plan.modified]})
+     code_hashes = {p: h for p, h in old_code.items() if p not in code_removed}
+     code_hashes.update({p: current_code[p] for p in [*code_added, *code_modified]})
+     write_index_manifest(len(chunks_store), graph.number_of_nodes(), graph.number_of_edges(),
+                          version=version, qdrant_collection=parent_qdrant_collection,
+                          doc_hashes=doc_hashes, code_hashes=code_hashes)
++    timings["save_hash"] = time.perf_counter() - started
++    started = time.perf_counter()
+     if version:  # None solo con save_artifacts finto nei test
+         promote_version(version)
++    timings["promote"] = time.perf_counter() - started
+     stats["version"] = version
++    stats["phase_timings_seconds"] = timings
+ 
+     _log(f"🧾 Manifest aggiornato: {len(chunks_store)} chunk, {graph.number_of_nodes()} nodi, {graph.number_of_edges()} archi.")
+     _log(f"🔁 Versione promossa: CURRENT → {version}.")
+     _log("🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).")
+ 
+     if own_qdrant:
+         qdrant.close()
+ 
+     return stats
+ 
+ 
+ def _edge_set(G: nx.DiGraph) -> set[tuple[str, str, str]]:
+     """Rappresenta il grafo come insieme di archi tipizzati (u, v, relation): confronto
+     stabile e indipendente dagli attributi non strutturali (es. il peso degli IMPLEMENTS)."""
+     return {(u, v, str(d.get("relation"))) for u, v, d in G.edges(data=True)}
+ 
+ 
+ def _node_type_set(G: nx.DiGraph) -> set[tuple[str, str]]:
+     """Insieme (id, type) dei nodi: cattura sia la presenza sia il tipo di ciascun nodo."""
+     return {(n, str(a.get("type"))) for n, a in G.nodes(data=True)}
+ 
+ 
+ def precedence_cycles(G: nx.DiGraph, relation: str = AUTHORITY_PRECEDENCE_RELATION) -> list[list[str]]:
+     """Cicli fra le precedenze dichiarate nel corpus (ADR 0002 / S4).
+ 
+     `A supera in priorità B` e `B supera in priorità A` è un corpus MALFORMATO: nessuna delle
+     due fonti può prevalere, e il retrieval non ha modo di risolvere il conflitto che gli
+     autori credevano di aver risolto. A runtime apply_precedence si limita a loggare e a
+     lasciare l'ordine invariato — è la scelta giusta dentro una richiesta, ma vuol dire che il
+     difetto resta invisibile finché qualcuno non legge i log. Qui emerge dove va emerso: in
+     fase di indicizzazione, come difetto del corpus.
+ 
+     Considera solo gli archi fra DOCUMENTI (gli archi-alias verso nodi-entità non sono
+     precedenze fra fonti). Restituisce la lista dei cicli, ciascuno come lista di doc_id."""
+     if not relation:
+         return []
+     prec = nx.DiGraph()
+     for u, v, d in G.edges(data=True):
+         if (d.get("relation") == relation
+                 and G.nodes.get(u, {}).get("type") == "document"
+diff --git a/rag/pyproject.toml b/rag/pyproject.toml
+index 4b031c9..0abe9b2 100644
+--- a/rag/pyproject.toml
++++ b/rag/pyproject.toml
+@@ -29,80 +29,81 @@ dependencies = [
+     "httpx2>=2.9.1",
+     "markdownify>=1.2.3",
+     "markitdown[docx,outlook,pdf,pptx,xls,xlsx]==0.1.7",
+     "mcp==2.1.0",
+     "networkx>=3.6.1",
+     "numpy==2.5.2",
+     # Lettori di documenti di core/chunking.read_document. Dichiarate ENTRAMBE:
+     # pypdf non c'era (i PDF venivano indicizzati vuoti, vedi AUDIT A19) e openpyxl
+     # arrivava solo come transitiva di markitdown, cioe' funzionava per fortuna.
+     "openpyxl>=3.1.5",
+     # Lettura diretta degli XLS nell'intake (core/intake_excel.py): prima arrivava solo come
+     # transitiva di markitdown[xls]. Importata dall'app, quindi dichiarata qui.
+     "xlrd>=2.0.2",
+     "pydantic>=2.13.4",
+     "pypdf>=6.1.3",
+     "python-docx>=1.2.0",
+     "python-dotenv==1.2.3",
+     "pyyaml>=6.0.3",
+     "qdrant-client==1.19.0",
+     # PINNATA di proposito. Con l'indice CUDA ristretto per piattaforma (tool.uv.sources)
+     # torch arriva da DUE registri: cu126 su linux/win-amd64, PyPI altrove. Senza pin uv
+     # risolve ogni ramo per conto suo e macOS finiva su 2.14.0 mentre tutti gli altri
+     # stavano su 2.13.0 — la stessa deriva di versione che il Dockerfile documenta di aver
+     # gia' subito una volta. Verificato che PyPI abbia la wheel corrispondente
+     # (torch-2.13.0-cp314-cp314-macosx_14_0_arm64.whl), altrimenti il pin sposterebbe solo
+     # il problema. Da tenere allineata al `uv pip install torch==...` del target cpu.
+     "torch==2.13.0",
+     # DIRETTA di proposito, benché la usi solo Docling: [tool.uv.sources] vale soltanto per
+     # le dipendenze dirette, e torchvision deve seguire l'indice di torch (vedi sotto).
+     # Pinnata alla versione compilata per torch 2.13.0.
+     "torchvision==0.28.0",
+     "tree-sitter>=0.26.0",
+     "tree-sitter-javascript>=0.25.0",
+     "tree-sitter-language-pack==1.15.8",
+     "tree-sitter-typescript>=0.23.2",
+     "uvicorn==0.52.4",
+ ]
+ 
+ [dependency-groups]
+ dev = [
++    "psutil>=7.2.2",
+     "pytest>=9.1.1",
+     # Fabbrica il PDF finto di tests/test_intake_convert.py. Esplicita e non
+     # transitiva (arriva anche da pdfplumber) perche' un test la importa
+     # direttamente. Sostituisce pymupdf, che e' AGPL-3.0.
+     "pypdfium2>=5.13.0",
+     "ruff>=0.16.5",
+ ]
+ 
+ [tool.uv.sources]
+ # L'indice CUDA vale SOLO dove le sue wheel esistono davvero. Il marcatore non è
+ # difensivo: è la trascrizione dell'elenco di wheel che uv.lock contiene per
+ # torch 2.13.0+cu126 — `manylinux_2_28_{x86_64,aarch64}` e `win_amd64`, nient'altro.
+ # Senza di esso `uv sync` FALLISCE su macOS (Intel e ARM) e su Windows ARM con
+ # "doesn't have a source distribution or wheel for the current platform": misurato
+ # con `uv sync --frozen --dry-run --python-platform <p>` su sei piattaforme (A15).
+ # Lì torch arriva da PyPI, che quelle wheel le ha.
+ #
+ # NON risolve la macchina CPU-only x86_64: quella sincronizza già oggi (la build CUDA
+ # si installa e gira su CPU, con torch.cuda.is_available() = False), solo pesante —
+ # per lei esiste il target `cpu` del Dockerfile. Scegliere CPU-vs-CUDA sulla STESSA
+ # piattaforma richiederebbe extra in conflitto (`uv sync --extra cpu`), cioè cambiare
+ # il comando di installazione per tutti: fuori da questo riscontro.
+ torch = [
+     { index = "pytorch-cu126", marker = "sys_platform == 'linux' or (sys_platform == 'win32' and platform_machine == 'AMD64')" },
+ ]
+ # torchvision (arriva con Docling) DEVE venire dallo stesso indice di torch, con lo stesso
+ # marcatore. Da PyPI arriverebbe `0.28.0+cu130` su Linux accanto a torch `+cu126`: al primo
+ # import torchvision confronta i major CUDA e solleva RuntimeError (12 != 13). Su Windows
+ # arriverebbe `+cpu`, con le operazioni compilate (nms) assenti sul backend CUDA mentre
+ # torch.cuda.is_available() resta True. cu126 pubblica 0.28.0 per linux x86_64/aarch64 e
+ # win_amd64, cioè esattamente le piattaforme del marcatore; altrove PyPI, come torch.
+ torchvision = [
+     { index = "pytorch-cu126", marker = "sys_platform == 'linux' or (sys_platform == 'win32' and platform_machine == 'AMD64')" },
+ ]
+ 
+ [[tool.uv.index]]
+ name = "pytorch-cu126"
+ url = "https://download.pytorch.org/whl/cu126"
+ explicit = true
+ 
+diff --git a/rag/uv.lock b/rag/uv.lock
+index 5b68d26..40483b1 100644
+--- a/rag/uv.lock
++++ b/rag/uv.lock
+@@ -2416,80 +2416,81 @@ version = "0.1.0"
+ source = { virtual = "." }
+ dependencies = [
+     { name = "aiohttp" },
+     { name = "beautifulsoup4" },
+     { name = "claude-agent-sdk" },
+     { name = "docling" },
+     { name = "docling-core" },
+     { name = "docling-ibm-models" },
+     { name = "docling-parse" },
+     { name = "fastapi" },
+     { name = "flagembedding" },
+     { name = "h2" },
+     { name = "httpx" },
+     { name = "httpx2" },
+     { name = "markdownify" },
+     { name = "markitdown", extra = ["docx", "outlook", "pdf", "pptx", "xls", "xlsx"] },
+     { name = "mcp" },
+     { name = "networkx" },
+     { name = "numpy" },
+     { name = "openpyxl" },
+     { name = "pydantic" },
+     { name = "pypdf" },
+     { name = "python-docx" },
+     { name = "python-dotenv" },
+     { name = "pyyaml" },
+     { name = "qdrant-client" },
+     { name = "torch", version = "2.13.0", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine != 'AMD64' and sys_platform == 'win32') or (sys_platform != 'linux' and sys_platform != 'win32')" },
+     { name = "torch", version = "2.13.0+cu126", source = { registry = "https://download.pytorch.org/whl/cu126" }, marker = "(platform_machine == 'AMD64' and sys_platform == 'win32') or sys_platform == 'linux'" },
+     { name = "torchvision", version = "0.28.0", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine != 'AMD64' and sys_platform == 'win32') or (sys_platform != 'linux' and sys_platform != 'win32')" },
+     { name = "torchvision", version = "0.28.0+cu126", source = { registry = "https://download.pytorch.org/whl/cu126" }, marker = "(platform_machine == 'AMD64' and sys_platform == 'win32') or sys_platform == 'linux'" },
+     { name = "tree-sitter" },
+     { name = "tree-sitter-javascript" },
+     { name = "tree-sitter-language-pack" },
+     { name = "tree-sitter-typescript" },
+     { name = "uvicorn" },
+     { name = "xlrd" },
+ ]
+ 
+ [package.dev-dependencies]
+ dev = [
++    { name = "psutil" },
+     { name = "pypdfium2" },
+     { name = "pytest" },
+     { name = "ruff" },
+ ]
+ 
+ [package.metadata]
+ requires-dist = [
+     { name = "aiohttp", specifier = "==3.14.3" },
+     { name = "beautifulsoup4", specifier = ">=4.15.0" },
+     { name = "claude-agent-sdk", specifier = "==0.2.144" },
+     { name = "docling", specifier = "==2.126.0" },
+     { name = "docling-core", specifier = "==2.95.0" },
+     { name = "docling-ibm-models", specifier = "==4.0.2" },
+     { name = "docling-parse", specifier = "==7.18.0" },
+     { name = "fastapi", specifier = "==0.141.1" },
+     { name = "flagembedding", specifier = "==1.4.2" },
+     { name = "h2", specifier = "==4.4.1" },
+     { name = "httpx", specifier = ">=0.28.1" },
+     { name = "httpx2", specifier = ">=2.9.1" },
+     { name = "markdownify", specifier = ">=1.2.3" },
+     { name = "markitdown", extras = ["docx", "outlook", "pdf", "pptx", "xls", "xlsx"], specifier = "==0.1.7" },
+     { name = "mcp", specifier = "==2.1.0" },
+     { name = "networkx", specifier = ">=3.6.1" },
+     { name = "numpy", specifier = "==2.5.2" },
+     { name = "openpyxl", specifier = ">=3.1.5" },
+     { name = "pydantic", specifier = ">=2.13.4" },
+     { name = "pypdf", specifier = ">=6.1.3" },
+     { name = "python-docx", specifier = ">=1.2.0" },
+     { name = "python-dotenv", specifier = "==1.2.3" },
+     { name = "pyyaml", specifier = ">=6.0.3" },
+     { name = "qdrant-client", specifier = "==1.19.0" },
+     { name = "torch", marker = "(platform_machine != 'AMD64' and sys_platform == 'win32') or (sys_platform != 'linux' and sys_platform != 'win32')", specifier = "==2.13.0" },
+     { name = "torch", marker = "(platform_machine == 'AMD64' and sys_platform == 'win32') or sys_platform == 'linux'", specifier = "==2.13.0", index = "https://download.pytorch.org/whl/cu126" },
+     { name = "torchvision", marker = "(platform_machine != 'AMD64' and sys_platform == 'win32') or (sys_platform != 'linux' and sys_platform != 'win32')", specifier = "==0.28.0" },
+     { name = "torchvision", marker = "(platform_machine == 'AMD64' and sys_platform == 'win32') or sys_platform == 'linux'", specifier = "==0.28.0", index = "https://download.pytorch.org/whl/cu126" },
+     { name = "tree-sitter", specifier = ">=0.26.0" },
+     { name = "tree-sitter-javascript", specifier = ">=0.25.0" },
+     { name = "tree-sitter-language-pack", specifier = "==1.15.8" },
+     { name = "tree-sitter-typescript", specifier = ">=0.23.2" },
+     { name = "uvicorn", specifier = "==0.52.4" },

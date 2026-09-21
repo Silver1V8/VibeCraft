@@ -1,0 +1,804 @@
+{
+  "source": {
+    "pre_result": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_fullmemory_pre_20260921\\evidence\\result.json",
+    "post_result": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_fullmemory_post_20260921\\evidence\\result.json",
+    "pre_version": "v20260921T123405",
+    "post_version": "v20260921T125911",
+    "pre_collection": "sidecar_0628_fullmemory_pre__v20260921T123405",
+    "post_collection": "sidecar_0628_fullmemory_post__v20260921T125911",
+    "query_file": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_readers_20260921\\evidence\\historical-candidates.json"
+  },
+  "method": "Read-only Qdrant scroll and frozen artifact comparison; no model or new retrieval; exact equality reported separately from numeric differences.",
+  "qdrant": {
+    "pre_count": 64,
+    "post_count": 64,
+    "same_scroll_order": true,
+    "missing_in_post": [],
+    "new_in_post": [],
+    "payload_different_ids": [],
+    "payload_key_order_different_ids": [],
+    "dense_different_points": 50,
+    "dense_different_elements": 49623,
+    "dense_max_abs_difference": 2.30999999996373e-07,
+    "sparse_index_order_different_ids": [],
+    "sparse_index_set_different_ids": [],
+    "sparse_value_different_points": 50,
+    "sparse_value_different_elements": 5743,
+    "sparse_max_abs_difference": 2.4659999999995796e-06,
+    "examples": [
+      {
+        "id": "a1a50df8-3fc6-5960-87cd-054ce5027c17",
+        "chunk_id": "chunk-24.md#01-entit-audit-log",
+        "dense": {
+          "same_shape": true,
+          "elements": 1024,
+          "different_elements": 1004,
+          "max_abs_difference": 1.5000000000431335e-07,
+          "mean_abs_difference": 3.454869140615518e-08
+        },
+        "sparse": {
+          "same_shape": true,
+          "elements": 473,
+          "different_elements": 467,
+          "max_abs_difference": 2.4659999999995796e-06,
+          "mean_abs_difference": 1.091978858355134e-07
+        }
+      },
+      {
+        "id": "625e7d49-06e5-53bc-8f42-41ca667e57c0",
+        "chunk_id": "chunk-21.md#01-entit-utente",
+        "dense": {
+          "same_shape": true,
+          "elements": 1024,
+          "different_elements": 993,
+          "max_abs_difference": 1.4700000000068825e-07,
+          "mean_abs_difference": 3.370236689453523e-08
+        },
+        "sparse": {
+          "same_shape": true,
+          "elements": 467,
+          "different_elements": 455,
+          "max_abs_difference": 1.8459999999997923e-06,
+          "mean_abs_difference": 1.2019993575991297e-07
+        }
+      },
+      {
+        "id": "42c22551-752d-56fb-b747-77d698f69b9d",
+        "chunk_id": "chunk-03.md#01-3-storico-delle-versioni-rilasci",
+        "dense": {
+          "same_shape": true,
+          "elements": 1024,
+          "different_elements": 1011,
+          "max_abs_difference": 1.7250000000114396e-07,
+          "mean_abs_difference": 4.2574653320263774e-08
+        },
+        "sparse": {
+          "same_shape": true,
+          "elements": 477,
+          "different_elements": 469,
+          "max_abs_difference": 1.7360000000004455e-06,
+          "mean_abs_difference": 1.1974696016721278e-07
+        }
+      },
+      {
+        "id": "40ddcda9-3513-5326-99a8-12d5ad52b769",
+        "chunk_id": "chunk-28.md#01-1-profili-degli-attori",
+        "dense": {
+          "same_shape": true,
+          "elements": 1024,
+          "different_elements": 1009,
+          "max_abs_difference": 2.30999999996373e-07,
+          "mean_abs_difference": 5.531544335943932e-08
+        },
+        "sparse": {
+          "same_shape": true,
+          "elements": 597,
+          "different_elements": 579,
+          "max_abs_difference": 1.5039999999993947e-06,
+          "mean_abs_difference": 1.0608710217722603e-07
+        }
+      },
+      {
+        "id": "a0094f30-890f-53bd-9868-52942312038c",
+        "chunk_id": "chunk-22.md#01-entit-richiesta",
+        "dense": {
+          "same_shape": true,
+          "elements": 1024,
+          "different_elements": 1009,
+          "max_abs_difference": 2.300000000003688e-07,
+          "mean_abs_difference": 5.131922167972645e-08
+        },
+        "sparse": {
+          "same_shape": true,
+          "elements": 669,
+          "different_elements": 647,
+          "max_abs_difference": 1.4599999999947988e-06,
+          "mean_abs_difference": 1.1288863976078183e-07
+        }
+      },
+      {
+        "id": "2dc8a775-9642-5663-99d4-929466f0f443",
+        "chunk_id": "chunk-23.md#01-entit-notifica",
+        "dense": {
+          "same_shape": true,
+          "elements": 1024,
+          "different_elements": 1007,
+          "max_abs_difference": 2.0799999999980556e-07,
+          "mean_abs_difference": 4.108666601558323e-08
+        },
+        "sparse": {
+          "same_shape": true,
+          "elements": 479,
+          "different_elements": 466,
+          "max_abs_difference": 1.456599999999711e-06,
+          "mean_abs_difference": 1.1322225469755106e-07
+        }
+      },
+      {
+        "id": "8bd6bedf-9bec-524c-9ace-c7eed43d92d1",
+        "chunk_id": "chunk-04.md#01-4-scenari-comportamentali-bdd-gh",
+        "dense": {
+          "same_shape": true,
+          "elements": 1024,
+          "different_elements": 990,
+          "max_abs_difference": 1.1400000000244548e-07,
+          "mean_abs_difference": 2.424658203118762e-08
+        },
+        "sparse": {
+          "same_shape": true,
+          "elements": 86,
+          "different_elements": 84,
+          "max_abs_difference": 1.33700000000056e-06,
+          "mean_abs_difference": 1.0777034883756038e-07
+        }
+      },
+      {
+        "id": "d9775096-afde-5590-90c4-dfbe0a94bd4a",
+        "chunk_id": "chunk-20.md#01-entit-evento",
+        "dense": {
+          "same_shape": true,
+          "elements": 1024,
+          "different_elements": 1012,
+          "max_abs_difference": 2.2699999999847842e-07,
+          "mean_abs_difference": 4.406839160148964e-08
+        },
+        "sparse": {
+          "same_shape": true,
+          "elements": 591,
+          "different_elements": 569,
+          "max_abs_difference": 1.1799999999895228e-06,
+          "mean_abs_difference": 9.628121827445402e-08
+        }
+      },
+      {
+        "id": "f1301b3b-88f9-5d13-af41-bf645dccf73d",
+        "chunk_id": "chunk-29.md#01-2-matrice-dei-permessi",
+        "dense": {
+          "same_shape": true,
+          "elements": 1024,
+          "different_elements": 1006,
+          "max_abs_difference": 1.4300000000105895e-07,
+          "mean_abs_difference": 3.094450605474166e-08
+        },
+        "sparse": {
+          "same_shape": true,
+          "elements": 173,
+          "different_elements": 166,
+          "max_abs_difference": 8.345000000000748e-07,
+          "mean_abs_difference": 1.0021040462376473e-07
+        }
+      },
+      {
+        "id": "306e92b8-813b-5b1b-9bd0-1586c416df61",
+        "chunk_id": "chunk-18.md#01-indice-delle-entit",
+        "dense": {
+          "same_shape": true,
+          "elements": 1024,
+          "different_elements": 992,
+          "max_abs_difference": 1.1320000000043795e-07,
+          "mean_abs_difference": 2.6750703125033525e-08
+        },
+        "sparse": {
+          "same_shape": true,
+          "elements": 102,
+          "different_elements": 102,
+          "max_abs_difference": 7.380000000001274e-07,
+          "mean_abs_difference": 1.2677588235327358e-07
+        }
+      }
+    ]
+  },
+  "artifacts": {
+    "graph.json": {
+      "sha256_pre": "742313f886d15d4854d43e8eb158270fbfaf609c1d5e604a1fd5094a296efc75",
+      "sha256_post": "742313f886d15d4854d43e8eb158270fbfaf609c1d5e604a1fd5094a296efc75",
+      "byte_identical": true
+    },
+    "chunks.json": {
+      "sha256_pre": "37bf9db9a4220629c645c7e3ba1dc7d376752b8ad2bcd936ed0470d66cb6f230",
+      "sha256_post": "37bf9db9a4220629c645c7e3ba1dc7d376752b8ad2bcd936ed0470d66cb6f230",
+      "byte_identical": true
+    },
+    "code.json": {
+      "sha256_pre": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "sha256_post": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "byte_identical": true
+    },
+    "dense.npz": {
+      "sha256_pre": "d0f63ca80061b031e9731ab15093379e969d93dc012518a47d7eb213f7a15900",
+      "sha256_post": "c0109c27d4dcf71653bd01a7397ff8f268e572fb5bbe47a500e4a7dcce4a6913",
+      "byte_identical": false
+    },
+    "code.npz": {
+      "sha256_pre": "d6ce6cd51c04cba7e94f732d0ea50b266b9e80ecb69488d135a8e31f2e887ae2",
+      "sha256_post": "d6ce6cd51c04cba7e94f732d0ea50b266b9e80ecb69488d135a8e31f2e887ae2",
+      "byte_identical": true
+    }
+  },
+  "dense_sidecar": {
+    "pre_chunks": 64,
+    "post_chunks": 64,
+    "missing_in_post": [],
+    "new_in_post": [],
+    "different_chunk_count": 50,
+    "different_element_count": 329,
+    "max_abs_difference": 3.0517578125e-05,
+    "different_chunk_ids": [
+      "chunk-00.md#00-preambolo",
+      "chunk-01.md#00-preambolo",
+      "chunk-01.md#01-1-obiettivo-e-controllo-del-vers",
+      "chunk-02.md#00-preambolo",
+      "chunk-03.md#00-preambolo",
+      "chunk-03.md#01-3-storico-delle-versioni-rilasci",
+      "chunk-04.md#00-preambolo",
+      "chunk-04.md#01-4-scenari-comportamentali-bdd-gh",
+      "chunk-05.md#00-preambolo",
+      "chunk-05.md#01-preambolo",
+      "chunk-06.md#00-preambolo",
+      "chunk-07.md#00-preambolo",
+      "chunk-08.md#00-preambolo",
+      "chunk-08.md#01-1-principio",
+      "chunk-09.md#00-preambolo",
+      "chunk-09.md#01-2-checklist-livello-task",
+      "chunk-10.md#00-preambolo",
+      "chunk-11.md#00-preambolo",
+      "chunk-11.md#01-4-checklist-livello-rilascio",
+      "chunk-12.md#00-preambolo",
+      "chunk-12.md#01-5-registrazione-del-sign-off",
+      "chunk-13.md#00-preambolo",
+      "chunk-13.md#01-sign-off-modulo-v-x-y-z",
+      "chunk-14.md#00-preambolo",
+      "chunk-14.md#01-6-scenari-comportamentali-bdd-gh",
+      "chunk-15.md#00-preambolo",
+      "chunk-15.md#01-7-riepilogo-delle-regole",
+      "chunk-16.md#00-preambolo",
+      "chunk-16.md#01-preambolo",
+      "chunk-17.md#01-vibecraft-sistema-di-gestione-ev",
+      "chunk-18.md#01-indice-delle-entit",
+      "chunk-19.md#01-mappa-erd-sintetica",
+      "chunk-20.md#01-entit-evento",
+      "chunk-21.md#01-entit-utente",
+      "chunk-22.md#01-entit-richiesta",
+      "chunk-23.md#01-entit-notifica",
+      "chunk-24.md#00-preambolo",
+      "chunk-24.md#01-entit-audit-log",
+      "chunk-25.md#01-appendice-mappa-completa-dei-vin",
+      "chunk-26.md#00-preambolo",
+      "chunk-26.md#01-preambolo",
+      "chunk-27.md#00-preambolo",
+      "chunk-27.md#01-vibecraft-sistema-di-gestione-ev",
+      "chunk-28.md#00-preambolo",
+      "chunk-28.md#01-1-profili-degli-attori",
+      "chunk-29.md#00-preambolo",
+      "chunk-29.md#01-2-matrice-dei-permessi",
+      "chunk-30.md#00-preambolo",
+      "chunk-31.md#00-preambolo",
+      "chunk-31.md#01-appendice-indice-inverso-ruolo-f"
+    ]
+  },
+  "colbert_sidecar": {
+    "pre_chunks": 64,
+    "post_chunks": 64,
+    "missing_in_post": [],
+    "new_in_post": [],
+    "different_chunk_count": 50,
+    "different_element_count": 368605,
+    "max_abs_difference": 6.103515625e-05,
+    "different_chunks": [
+      {
+        "chunk_id": "chunk-00.md#00-preambolo",
+        "same_shape": true,
+        "elements": 34816,
+        "different_elements": 268,
+        "max_abs_difference": 3.0517578125e-05,
+        "mean_abs_difference": 2.7600703213144752e-08
+      },
+      {
+        "chunk_id": "chunk-01.md#00-preambolo",
+        "same_shape": true,
+        "elements": 34816,
+        "different_elements": 284,
+        "max_abs_difference": 3.0517578125e-05,
+        "mean_abs_difference": 3.314241493011222e-08
+      },
+      {
+        "chunk_id": "chunk-01.md#01-1-obiettivo-e-controllo-del-vers",
+        "same_shape": true,
+        "elements": 174080,
+        "different_elements": 2479,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 6.313202902674674e-08
+      },
+      {
+        "chunk_id": "chunk-02.md#00-preambolo",
+        "same_shape": true,
+        "elements": 34816,
+        "different_elements": 300,
+        "max_abs_difference": 3.0517578125e-05,
+        "mean_abs_difference": 2.6400598204311203e-08
+      },
+      {
+        "chunk_id": "chunk-03.md#00-preambolo",
+        "same_shape": true,
+        "elements": 34816,
+        "different_elements": 316,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 4.938064033494276e-08
+      },
+      {
+        "chunk_id": "chunk-03.md#01-3-storico-delle-versioni-rilasci",
+        "same_shape": true,
+        "elements": 1591296,
+        "different_elements": 29273,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 6.66783738430671e-08
+      },
+      {
+        "chunk_id": "chunk-04.md#00-preambolo",
+        "same_shape": true,
+        "elements": 34816,
+        "different_elements": 254,
+        "max_abs_difference": 3.0517578125e-05,
+        "mean_abs_difference": 3.3558428506640825e-08
+      },
+      {
+        "chunk_id": "chunk-04.md#01-4-scenari-comportamentali-bdd-gh",
+        "same_shape": true,
+        "elements": 176128,
+        "different_elements": 2619,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 6.717468644384034e-08
+      },
+      {
+        "chunk_id": "chunk-05.md#00-preambolo",
+        "same_shape": true,
+        "elements": 34816,
+        "different_elements": 233,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 2.4517409174757844e-08
+      },
+      {
+        "chunk_id": "chunk-05.md#01-preambolo",
+        "same_shape": true,
+        "elements": 28672,
+        "different_elements": 192,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 2.804985602519342e-08
+      },
+      {
+        "chunk_id": "chunk-06.md#00-preambolo",
+        "same_shape": true,
+        "elements": 34816,
+        "different_elements": 240,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 2.8862439862945502e-08
+      },
+      {
+        "chunk_id": "chunk-07.md#00-preambolo",
+        "same_shape": true,
+        "elements": 34816,
+        "different_elements": 250,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 2.5334028417573256e-08
+      },
+      {
+        "chunk_id": "chunk-08.md#00-preambolo",
+        "same_shape": true,
+        "elements": 34816,
+        "different_elements": 263,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 3.883649375947083e-08
+      },
+      {
+        "chunk_id": "chunk-08.md#01-1-principio",
+        "same_shape": true,
+        "elements": 307200,
+        "different_elements": 4210,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 6.436350910613934e-08
+      },
+      {
+        "chunk_id": "chunk-09.md#00-preambolo",
+        "same_shape": true,
+        "elements": 34816,
+        "different_elements": 250,
+        "max_abs_difference": 3.0517578125e-05,
+        "mean_abs_difference": 2.8458410216604963e-08
+      },
+      {
+        "chunk_id": "chunk-09.md#01-2-checklist-livello-task",
+        "same_shape": true,
+        "elements": 263168,
+        "different_elements": 4689,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 8.999198812860923e-08
+      },
+      {
+        "chunk_id": "chunk-10.md#00-preambolo",
+        "same_shape": true,
+        "elements": 34816,
+        "different_elements": 254,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 3.3092767219333086e-08
+      },
+      {
+        "chunk_id": "chunk-11.md#00-preambolo",
+        "same_shape": true,
+        "elements": 34816,
+        "different_elements": 228,
+        "max_abs_difference": 3.0517578125e-05,
+        "mean_abs_difference": 2.3132409243022696e-08
+      },
+      {
+        "chunk_id": "chunk-11.md#01-4-checklist-livello-rilascio",
+        "same_shape": true,
+        "elements": 323584,
+        "different_elements": 6688,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 9.313686249801253e-08
+      },
+      {
+        "chunk_id": "chunk-12.md#00-preambolo",
+        "same_shape": true,
+        "elements": 34816,
+        "different_elements": 297,
+        "max_abs_difference": 3.0517578125e-05,
+        "mean_abs_difference": 3.231209976708188e-08
+      },
+      {
+        "chunk_id": "chunk-12.md#01-5-registrazione-del-sign-off",
+        "same_shape": true,
+        "elements": 58368,
+        "different_elements": 447,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 3.186409900847234e-08
+      },
+      {
+        "chunk_id": "chunk-13.md#00-preambolo",
+        "same_shape": true,
+        "elements": 34816,
+        "different_elements": 236,
+        "max_abs_difference": 3.0517578125e-05,
+        "mean_abs_difference": 2.4762223748599783e-08
+      },
+      {
+        "chunk_id": "chunk-13.md#01-sign-off-modulo-v-x-y-z",
+        "same_shape": true,
+        "elements": 209920,
+        "different_elements": 2258,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 4.507686443081716e-08
+      },
+      {
+        "chunk_id": "chunk-14.md#00-preambolo",
+        "same_shape": true,
+        "elements": 34816,
+        "different_elements": 263,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 2.580311368493473e-08
+      },
+      {
+        "chunk_id": "chunk-14.md#01-6-scenari-comportamentali-bdd-gh",
+        "same_shape": true,
+        "elements": 187392,
+        "different_elements": 2073,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 4.772455660534687e-08
+      },
+      {
+        "chunk_id": "chunk-15.md#00-preambolo",
+        "same_shape": true,
+        "elements": 34816,
+        "different_elements": 259,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 2.4936846731340185e-08
+      },
+      {
+        "chunk_id": "chunk-15.md#01-7-riepilogo-delle-regole",
+        "same_shape": true,
+        "elements": 148480,
+        "different_elements": 1403,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 3.574552528303245e-08
+      },
+      {
+        "chunk_id": "chunk-16.md#00-preambolo",
+        "same_shape": true,
+        "elements": 35840,
+        "different_elements": 280,
+        "max_abs_difference": 3.0517578125e-05,
+        "mean_abs_difference": 3.2918926860604964e-08
+      },
+      {
+        "chunk_id": "chunk-16.md#01-preambolo",
+        "same_shape": true,
+        "elements": 29696,
+        "different_elements": 225,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 2.672735216288731e-08
+      },
+      {
+        "chunk_id": "chunk-17.md#01-vibecraft-sistema-di-gestione-ev",
+        "same_shape": true,
+        "elements": 226304,
+        "different_elements": 5482,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 1.3667975270033423e-07
+      },
+      {
+        "chunk_id": "chunk-18.md#01-indice-delle-entit",
+        "same_shape": true,
+        "elements": 306176,
+        "different_elements": 8235,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 1.3959228861640926e-07
+      },
+      {
+        "chunk_id": "chunk-19.md#01-mappa-erd-sintetica",
+        "same_shape": true,
+        "elements": 193536,
+        "different_elements": 3191,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 8.115903400476016e-08
+      },
+      {
+        "chunk_id": "chunk-20.md#01-entit-evento",
+        "same_shape": true,
+        "elements": 2463744,
+        "different_elements": 35089,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 5.6627997896283345e-08
+      },
+      {
+        "chunk_id": "chunk-21.md#01-entit-utente",
+        "same_shape": true,
+        "elements": 1854464,
+        "different_elements": 24865,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 5.928908275725235e-08
+      },
+      {
+        "chunk_id": "chunk-22.md#01-entit-richiesta",
+        "same_shape": true,
+        "elements": 3482624,
+        "different_elements": 65078,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 8.275585620938172e-08
+      },
+      {
+        "chunk_id": "chunk-23.md#01-entit-notifica",
+        "same_shape": true,
+        "elements": 1987584,
+        "different_elements": 37267,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 7.469512331253902e-08
+      },
+      {
+        "chunk_id": "chunk-24.md#00-preambolo",
+        "same_shape": true,
+        "elements": 35840,
+        "different_elements": 247,
+        "max_abs_difference": 3.0517578125e-05,
+        "mean_abs_difference": 2.4690026683466775e-08
+      },
+      {
+        "chunk_id": "chunk-24.md#01-entit-audit-log",
+        "same_shape": true,
+        "elements": 1748992,
+        "different_elements": 25069,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 6.009351415232487e-08
+      },
+      {
+        "chunk_id": "chunk-25.md#01-appendice-mappa-completa-dei-vin",
+        "same_shape": true,
+        "elements": 647168,
+        "different_elements": 11365,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 8.039822642797534e-08
+      },
+      {
+        "chunk_id": "chunk-26.md#00-preambolo",
+        "same_shape": true,
+        "elements": 32768,
+        "different_elements": 246,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 2.7333953767083585e-08
+      },
+      {
+        "chunk_id": "chunk-26.md#01-preambolo",
+        "same_shape": true,
+        "elements": 26624,
+        "different_elements": 228,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 2.871428687985127e-08
+      },
+      {
+        "chunk_id": "chunk-27.md#00-preambolo",
+        "same_shape": true,
+        "elements": 32768,
+        "different_elements": 251,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 2.931665221694857e-08
+      },
+      {
+        "chunk_id": "chunk-27.md#01-vibecraft-sistema-di-gestione-ev",
+        "same_shape": true,
+        "elements": 282624,
+        "different_elements": 3938,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 5.986932091468918e-08
+      },
+      {
+        "chunk_id": "chunk-28.md#00-preambolo",
+        "same_shape": true,
+        "elements": 32768,
+        "different_elements": 243,
+        "max_abs_difference": 3.0517578125e-05,
+        "mean_abs_difference": 3.032437234651297e-08
+      },
+      {
+        "chunk_id": "chunk-28.md#01-1-profili-degli-attori",
+        "same_shape": true,
+        "elements": 2932736,
+        "different_elements": 53607,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 7.679567990340709e-08
+      },
+      {
+        "chunk_id": "chunk-29.md#00-preambolo",
+        "same_shape": true,
+        "elements": 32768,
+        "different_elements": 252,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 3.009699867106974e-08
+      },
+      {
+        "chunk_id": "chunk-29.md#01-2-matrice-dei-permessi",
+        "same_shape": true,
+        "elements": 839680,
+        "different_elements": 15095,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 8.588249329477549e-08
+      },
+      {
+        "chunk_id": "chunk-30.md#00-preambolo",
+        "same_shape": true,
+        "elements": 32768,
+        "different_elements": 249,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 2.8339854907244444e-08
+      },
+      {
+        "chunk_id": "chunk-31.md#00-preambolo",
+        "same_shape": true,
+        "elements": 32768,
+        "different_elements": 281,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 4.005414666607976e-08
+      },
+      {
+        "chunk_id": "chunk-31.md#01-appendice-indice-inverso-ruolo-f",
+        "same_shape": true,
+        "elements": 543744,
+        "different_elements": 17296,
+        "max_abs_difference": 6.103515625e-05,
+        "mean_abs_difference": 1.497575688735352e-07
+      }
+    ]
+  },
+  "fixed_query_replay": {
+    "question": "prenotazione evento posti",
+    "candidate_count": 65,
+    "missing_score": null,
+    "score_different_count": 0,
+    "score_different_ids": [],
+    "ranking_identical": true,
+    "ordered_ids_identical": true,
+    "top10_pre": [
+      [
+        "chunk-22.md#01-entit-richiesta",
+        0.6374
+      ],
+      [
+        "chunk-20.md#01-entit-evento",
+        0.6232
+      ],
+      [
+        "chunk-30.md#01-3-mapping-degli-archi-del-grafo",
+        0.5439
+      ],
+      [
+        "chunk-28.md#01-1-profili-degli-attori",
+        0.5156
+      ],
+      [
+        "chunk-25.md#01-appendice-mappa-completa-dei-vin",
+        0.4908
+      ],
+      [
+        "chunk-19.md#01-mappa-erd-sintetica",
+        0.4697
+      ],
+      [
+        "chunk-23.md#01-entit-notifica",
+        0.4668
+      ],
+      [
+        "chunk-31.md#01-appendice-indice-inverso-ruolo-f",
+        0.4585
+      ],
+      [
+        "chunk-29.md#01-2-matrice-dei-permessi",
+        0.4578
+      ],
+      [
+        "chunk-21.md#01-entit-utente",
+        0.4492
+      ]
+    ],
+    "top10_post": [
+      [
+        "chunk-22.md#01-entit-richiesta",
+        0.6374
+      ],
+      [
+        "chunk-20.md#01-entit-evento",
+        0.6232
+      ],
+      [
+        "chunk-30.md#01-3-mapping-degli-archi-del-grafo",
+        0.5439
+      ],
+      [
+        "chunk-28.md#01-1-profili-degli-attori",
+        0.5156
+      ],
+      [
+        "chunk-25.md#01-appendice-mappa-completa-dei-vin",
+        0.4908
+      ],
+      [
+        "chunk-19.md#01-mappa-erd-sintetica",
+        0.4697
+      ],
+      [
+        "chunk-23.md#01-entit-notifica",
+        0.4668
+      ],
+      [
+        "chunk-31.md#01-appendice-indice-inverso-ruolo-f",
+        0.4585
+      ],
+      [
+        "chunk-29.md#01-2-matrice-dei-permessi",
+        0.4578
+      ],
+      [
+        "chunk-21.md#01-entit-utente",
+        0.4492
+      ]
+    ],
+    "scope": "Fixed query and all 64 known chunk IDs plus one missing ID; no Qdrant search, encode, graph expansion, or full retrieval."
+  }
+}

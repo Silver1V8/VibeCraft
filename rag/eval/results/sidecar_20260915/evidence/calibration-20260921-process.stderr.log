@@ -1,0 +1,49 @@
+2026-09-21 11:47:45,225 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_benchmark/points/count "HTTP/1.1 200 OK"
+2026-09-21 11:47:45,228 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
+2026-09-21 11:47:45,230 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
+2026-09-21 11:47:45,255 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
+2026-09-21 11:47:45,262 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
+2026-09-21 11:47:45,343 INFO api.deps: Caricamento modello embedding: BAAI/bge-m3 ...
+Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]Loading weights: 100%|██████████| 391/391 [00:00<00:00, 9133.49it/s]
+2026-09-21 11:47:47,602 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
+2026-09-21 11:47:47,606 INFO api.deps: Connessione a Qdrant (server mode): http://127.0.0.1:16333 ...
+2026-09-21 11:47:47,635 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
+2026-09-21 11:47:47,651 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
+2026-09-21 11:47:47,667 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
+2026-09-21 11:47:47,671 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
+2026-09-21 11:47:47,674 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/aliases "HTTP/1.1 409 Conflict"
+2026-09-21 11:47:47,675 INFO api.deps: Stato alias Qdrant (riconciliazione): unknown (expected=None, actual=None, repaired=False) — UnexpectedResponse: Unexpected Response: 409 (Conflict)
+Raw response content:
+b'{"status":{"error":"Wrong input: Collection `sidecar_0628_benchmark` already exists!"},"time":0.000040704}'
+2026-09-21 11:47:47,700 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
+2026-09-21 11:47:47,703 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
+2026-09-21 11:47:47,704 INFO api.deps: Caricamento artefatti indice (grafo JSON, ColBERT/chunk) ...
+2026-09-21 11:47:47,713 INFO api.deps: Grafo caricato: 13 nodi, 10 archi.
+2026-09-21 11:47:47,713 INFO api.deps: Multivettori ColBERT caricati: 9 chunk. Chunk sidecar: 9 sezioni. Simboli codice: 1.
+2026-09-21 11:47:47,713 INFO api.deps: Caricamento descrizioni regole dai file spec...
+2026-09-21 11:47:47,714 INFO api.deps: Entità indicizzate (0): []
+2026-09-21 11:47:47,714 INFO api.deps: Server pronto.
+pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 1277.97it/s]
+Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.57it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.56it/s]
+2026-09-21 11:47:48,342 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_benchmark/points/query "HTTP/1.1 200 OK"
+2026-09-21 11:47:48,350 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_benchmark/points/query "HTTP/1.1 200 OK"
+pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3179.91it/s]
+Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.71it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.70it/s]
+2026-09-21 11:47:48,588 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_benchmark/points/query "HTTP/1.1 200 OK"
+2026-09-21 11:47:48,594 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_benchmark/points/query "HTTP/1.1 200 OK"
+pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3518.71it/s]
+Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.99it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.98it/s]
+2026-09-21 11:47:48,900 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_benchmark/points/query "HTTP/1.1 200 OK"
+2026-09-21 11:47:48,916 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_benchmark/points/query "HTTP/1.1 200 OK"
+Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]Loading weights: 100%|██████████| 391/391 [00:00<00:00, 8635.71it/s]
+2026-09-21 11:47:51,177 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
+2026-09-21 11:47:51,182 INFO core.indexing: ✅ Nessun cambiamento in docs/ o code/: indice già aggiornato (no-op, nessuna scrittura).
+2026-09-21 11:47:51,603 INFO api.deps: Entità indicizzate (0): []
+Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]Loading weights: 100%|██████████| 391/391 [00:00<00:00, 8146.55it/s]
+2026-09-21 11:47:54,183 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
+2026-09-21 11:47:54,188 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 1 modificati, 0 cancellati, 2 invariati (saltati). Codice: +0 ~0 -0.
+2026-09-21 11:47:54,193 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
+2026-09-21 11:47:54,214 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
+2026-09-21 11:47:54,230 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
+2026-09-21 11:47:54,233 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/aliases "HTTP/1.1 409 Conflict"
+2026-09-21 11:47:54,852 INFO api.deps: Shutdown: rilascio risorse.

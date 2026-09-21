@@ -23,9 +23,8 @@ Sezioni misurate:
     4. POST /api/reindex (incrementale, no-op reale: nessun file toccato) — durata dal journal.
     5. POST /api/reindex {"full": true} — SOLO con --with-rebuild; di default "skipped".
 
-Il delta incrementale VERO (con file effettivamente modificati) non è automatizzato qui:
-va misurato a mano modificando un file in docs/ o code/ e rilanciando POST /api/reindex
-(vedi la nota nella sezione "incremental_noop" del JSON).
+Il delta incrementale VERO (con file effettivamente modificati) usa la modalità
+esplicita --real-delta e un checkout sperimentale dedicato (vedi README).
 """
 import argparse
 import json
@@ -38,7 +37,9 @@ import httpx2
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from eval.run import RESULTS_DIR, load_cases  # noqa: E402
+if "--real-delta" not in sys.argv:
+    # The dedicated child must never preload core.config from this operational checkout.
+    from eval.run import RESULTS_DIR, load_cases  # noqa: E402
 
 N_RETRIEVE_QUERIES = 10
 RETRIEVE_K = 5
@@ -195,10 +196,11 @@ def _poll_job(client: httpx2.Client, url: str, job_id: str, timeout_seconds: flo
         r = client.get(f"{url}/api/reindex/{job_id}")
         r.raise_for_status()
         job = r.json()
-        if job.get("status") in _TERMINAL_JOB_STATES:
+        if (job.get("status") in _TERMINAL_JOB_STATES and
+                job.get("reload_status") != "pending"):
             return job, time.perf_counter() - t0
         if time.perf_counter() - t0 > timeout_seconds:
-            return None, time.perf_counter() - t0
+            return {**job, "_poll_timed_out": True}, time.perf_counter() - t0
         time.sleep(interval_seconds)
 
 
@@ -211,8 +213,8 @@ def _job_duration_seconds(job: dict) -> float | None:
 
 def bench_incremental_noop(client: httpx2.Client, url: str) -> dict:
     """POST /api/reindex SENZA modifiche (nessun file toccato: il vero no-op) e durata
-    del job dal journal. NON è il delta reale — quello si misura solo modificando
-    davvero un file e rilanciando POST /api/reindex, a mano."""
+    del job dal journal. Il delta con modifiche reali usa la modalità isolata
+    --real-delta."""
     try:
         r = client.post(f"{url}/api/reindex")
         r.raise_for_status()
@@ -224,19 +226,38 @@ def bench_incremental_noop(client: httpx2.Client, url: str) -> dict:
     job, wall_clock_s = _poll_job(client, url, job_id, INCREMENTAL_POLL_TIMEOUT_SECONDS)
     if job is None:
         return _skip(f"job di reindex {job_id} non terminato entro {INCREMENTAL_POLL_TIMEOUT_SECONDS}s")
-    return {
+    result = {
         "n": 1,
         "job_id": job_id,
         "status": job.get("status"),
-        "duration_seconds": _job_duration_seconds(job),
+        "valid": True,
+        "historical_wall_seconds": _job_duration_seconds(job),
         "wall_clock_seconds": round(wall_clock_s, 2),
+        "queue_duration_seconds": job.get("queue_duration_seconds"),
+        "writer_lock_wait_seconds": job.get("writer_lock_wait_seconds"),
+        "build_duration_seconds": job.get("build_duration_seconds"),
+        "reload_duration_seconds": job.get("reload_duration_seconds"),
+        "snapshot_ready_duration_seconds": job.get("snapshot_ready_duration_seconds"),
+        "published_token": job.get("published_token"),
         "note": (
             "no-op REALE: nessun file modificato prima di questa chiamata, quindi il delta "
-            "interno è vuoto (misura l'overhead fisso: scansione manifest, diff a zero file). "
-            "Il delta VERO (con modifiche effettive) va misurato a mano — modifica un file in "
-            "docs/ o code/ e rilancia POST /api/reindex — non è automatizzato in questo bench."
+            "interno deve risultare vuoto; la misura è valida solo dopo questa verifica. "
+            "Per il delta con modifiche effettive usare --real-delta in un checkout isolato."
         ),
     }
+    if job.get("_poll_timed_out"):
+        result.update(valid=False, invalid_reason="timeout: snapshot non pronto")
+    elif job.get("coalesced"):
+        result.update(valid=False, invalid_reason="richiesta fusa nella coda")
+    elif (job.get("result") or {}).get("noop") is not True:
+        result.update(valid=False, invalid_reason="result.noop non è true")
+    elif job.get("reload_status") != "completed" or job.get("published_token") is None:
+        result.update(valid=False,
+                      invalid_reason=f"reload {job.get('reload_status') or 'non osservabile'}")
+    elif any(not isinstance(job.get(field), (int, float)) or job[field] < 0
+             for field in ("reload_duration_seconds", "snapshot_ready_duration_seconds")):
+        result.update(valid=False, invalid_reason="durate reload/readiness mancanti")
+    return result
 
 
 def bench_full_rebuild(client: httpx2.Client, url: str, enabled: bool) -> dict:
@@ -255,13 +276,32 @@ def bench_full_rebuild(client: httpx2.Client, url: str, enabled: bool) -> dict:
     job, wall_clock_s = _poll_job(client, url, job_id, FULL_REBUILD_POLL_TIMEOUT_SECONDS)
     if job is None:
         return _skip(f"full rebuild {job_id} non terminato entro {FULL_REBUILD_POLL_TIMEOUT_SECONDS}s")
-    return {
+    result = {
         "n": 1,
         "job_id": job_id,
         "status": job.get("status"),
-        "duration_seconds": _job_duration_seconds(job),
+        "valid": (not job.get("_poll_timed_out") and not job.get("coalesced") and
+                  job.get("status") == "completed" and
+                  job.get("reload_status") == "completed" and
+                  job.get("published_token") is not None),
+        "historical_wall_seconds": _job_duration_seconds(job),
         "wall_clock_seconds": round(wall_clock_s, 2),
+        "queue_duration_seconds": job.get("queue_duration_seconds"),
+        "writer_lock_wait_seconds": job.get("writer_lock_wait_seconds"),
+        "build_duration_seconds": job.get("build_duration_seconds"),
+        "reload_duration_seconds": job.get("reload_duration_seconds"),
+        "snapshot_ready_duration_seconds": job.get("snapshot_ready_duration_seconds"),
+        "published_token": job.get("published_token"),
     }
+    if not result["valid"]:
+        if job.get("_poll_timed_out"):
+            result["invalid_reason"] = "timeout: snapshot non pronto"
+        elif job.get("coalesced"):
+            result["invalid_reason"] = "richiesta fusa nella coda"
+        else:
+            result["invalid_reason"] = (
+                f"build/reload non pronto: {job.get('status')}/{job.get('reload_status')}")
+    return result
 
 
 def get_index_version(client: httpx2.Client, url: str) -> str | None:
@@ -314,7 +354,23 @@ def main() -> int:
                     help="accoda anche un full rebuild e ne misura la durata dal journal (lento: minuti)")
     ap.add_argument("--skip-rebuild", action="store_true",
                     help="esplicita il default (nessun full rebuild); vince su --with-rebuild se entrambi passati")
+    ap.add_argument("--real-delta", action="store_true",
+                    help="esegue il benchmark incrementale in un checkout dedicato")
+    ap.add_argument("--checkout")
+    ap.add_argument("--output-dir")
+    ap.add_argument("--n", type=int)
+    ap.add_argument("--mode", choices=("docs", "code", "mixed"))
+    ap.add_argument("--k", help="lista separata da virgole, incluso 0")
+    ap.add_argument("--repeats", type=int, default=5)
     a = ap.parse_args()
+
+    if a.real_delta:
+        if not all((a.checkout, a.output_dir, a.n, a.mode, a.k)):
+            ap.error("--real-delta richiede --checkout --output-dir --n --mode --k")
+        from scripts import bench_delta
+        return bench_delta.main(["--checkout", a.checkout, "--output-dir", a.output_dir,
+                                 "--n", str(a.n), "--mode", a.mode, "--k", a.k,
+                                 "--repeats", str(a.repeats)])
 
     with_rebuild = a.with_rebuild and not a.skip_rebuild
 
