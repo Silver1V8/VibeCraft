@@ -26,3 +26,9 @@ indicizzare.
 | [`DOCLING_PIPELINE_ALTERNATIVA.md`](DOCLING_PIPELINE_ALTERNATIVA.md) | la proposta di pipeline Docling alternativa al pilot Granite, con configurazione e criteri di valutazione |
 | [`NOTA_IMPLEMENTAZIONE_MIGLIORIE.md`](NOTA_IMPLEMENTAZIONE_MIGLIORIE.md) | migliorie e bugfix emersi dal pilot Docling e indipendenti da esso: causa, diff, verifiche, rischio e rollback |
 | [`PIPELINE_GATE.md`](PIPELINE_GATE.md) | gate operativo, ciclo end-to-end verificato il 15 settembre 2026, misure, registro degli attriti e problemi aperti |
+
+## Scalabilità sidecar — esecuzione del 21 settembre 2026
+
+- [Piano originale](SCALABILITA_SIDECAR_DELTA.md), conservato come fonte dei requisiti.
+- [Matrice finale e decisioni](SCALABILITA_SIDECAR_DELTA_MATRICE.md), con i limiti delle prove e i rami condizionali non attivati.
+- [Risultati finali, curve e compromessi](../eval/results/sidecar_npy_20260921/evidence/PHASE6.md), con migrazione, retention e studio del batching.

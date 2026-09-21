@@ -1,8 +1,8 @@
 # Scalabilità sidecar — checkpoint
 
-Stato: RUNNING_PHASE_6. Task: 01a0a441-79f6-7912-93ac-86a6e12518ee. Stato operativo aggiornato nell'ultima sezione; le sezioni precedenti sono lo storico.
-Worktree: C:/Users/Silve/.codex/worktrees/0628/vibecraft. HEAD iniziale: 4f35acf7ad18034c42203090189dfccfdbe42611. Branch: codex/sidecar-delta-0628. Ultimo commit funzionale: e8d8940; journal/readiness: 4a1539c. Nessun push/merge/pubblicazione.
-Heartbeat: ripresa-astra-scalabilit-sidecar, ACTIVE confermato dalla task chiamante. Pausa <=15%; ripresa solo ordinaryUsageAllowed e >=25% per finestre codex disponibili. Spark escluso.
+Stato: VERIFIED_COMPLETE. Task: 01a0a441-79f6-7912-93ac-86a6e12518ee. Stato operativo aggiornato nell'ultima sezione; le sezioni precedenti sono lo storico.
+Worktree: C:/Users/Silve/.codex/worktrees/0628/vibecraft. HEAD iniziale: 4f35acf7ad18034c42203090189dfccfdbe42611. Branch: codex/sidecar-delta-0628. Ultimo commit funzionale: 708a142; evidenze F6: f8f92f2. Nessun push/merge/pubblicazione.
+Heartbeat: ripresa-astra-scalabilit-sidecar, RIMOSSO tramite automation_update dopo chiusura verificata. Pausa <=15%; ripresa solo ordinaryUsageAllowed e >=25% per finestre codex disponibili. Spark escluso.
 
 ## Ricognizione
 
@@ -181,3 +181,13 @@ DocsN10/30/100 terminate exit0:50prove valide/ripristinate, result/bootstrap/sum
 Misure docsN100 mostrano rallentamento k100 (prime prove55–62s vsF3circa16s), dominato parsing/embedding49–55s. Non nascondere regressione né dedurre miglioramento generale dal full storico. F6-03 attiva studio batching/hardware: Sol ha preparato solo driver sperimentale encoding_batching_study.py, pre-run APPROVATO in phase6-batching-driver-review.md. Eseguirlo dopo tutte le misure ufficiali/retention, CPU4offline1modello3varianti+warmup3ripetizioni; no modifica produzione autorizzata dall'esperimento stesso. Causa plausibile: chiamata encoder/calibrazione per documento piccolo, batch12 limitato all'interno di ogni chiamata.
 
 Quota42%ordinarytrue (finestre codex disponibili), no spendingblock. HEADaa1ffe3 conserva driver F6 approvati; codice misurato resta708a142. ReviewfinalecodeAPPROVATA, soloevidenzeF6pending. Nessun duplicatotask/monitor/processo.
+
+## Chiusura verificata — 21 settembre 2026
+
+Tutte le fasi applicabili F1–F6 e U01–U06 concluse e verificate; matrice finale esplicita i rami non attivati. F6 fissata in f8f92f2: 150/150 prove, 30celle×5, 45noop init/reload0, confronto rigoroso con F3 post, corpus/config/284filecodice percheckout immutati. CSV/JSON/SVG/PDF e raw conservati, grafico PDF rasterizzato e verificato visivamente. Nessun processo benchmark/modello sperimentale attivo.
+
+Retention reale: cinque delta consecutivi, lettore pinned invariato, versione iniziale conservata oltre keep3 finché in uso, poi rimossa realmente (4→3versioni); fisico deduplicato1057712→844504B. Query150prove:1804osservazioni,20retrievevuote/0errori; retention19query/0vuote/0errori. Finestre diverse, nessun confronto causale normalizzato. SummaryQdrant corretto e revisionato:67sonde distintamente campionate+1finale=68, non436osservazioni cached.
+
+StudioF6-03 reale conclusoexit0:100testi piccoli,3ripetizioni+warmup,encode-only globale7.408s/perdoc27.337s/gruppi12 13.404s. Parità vettori global/gruppi12 esatta nella prima ripetizione; perdoc87valoriColBERTfp16 diversi,score/rankcachedidentici. È uno studio, non una modifica produttiva. DecisionePM: prossimo candidato per throughput è batching limitato da verificare end-to-end; Qdrant/sharding non attivati, scan/save non dominanti, budgetundefined. Regressione reale docsN100k10015.934→58.099s e mixed19.132→38.602s esplicitata, nessuna accelerazione universale/capacità/crossover dichiarata.
+
+Review indipendente codice e tutte le evidenze finali APPROVATE (phase6-final-code-review.md, phase6-evidence-review.md). Produzione identica a708a142, già405testWindows/396Linux+9skipGit copertiWindows. Nessun test aggiuntivo necessario per sole evidenze/documentazione successive. QdrantF6 ID2b2831... fermato graceful e preservato con volume; tutte le precedenti istanze sperimentali conservate, nessuna risorsa operativa toccata. Nessun push/merge/pubblicazione. Report finale: ../eval/results/sidecar_npy_20260921/evidence/PHASE6.md. Heartbeat rimosso tramite automation_update: deleteStatus=deleted.
