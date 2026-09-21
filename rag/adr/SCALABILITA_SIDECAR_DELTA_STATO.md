@@ -1,6 +1,6 @@
 # Scalabilità sidecar — checkpoint
 
-Stato: RUNNING_PHASE_5. Task: 01a0a441-79f6-7912-93ac-86a6e12518ee.
+Stato: RUNNING_PHASE_6. Task: 01a0a441-79f6-7912-93ac-86a6e12518ee. Stato operativo aggiornato nell'ultima sezione; le sezioni precedenti sono lo storico.
 Worktree: C:/Users/Silve/.codex/worktrees/0628/vibecraft. HEAD iniziale: 4f35acf7ad18034c42203090189dfccfdbe42611. Branch: codex/sidecar-delta-0628. Ultimo commit funzionale: e8d8940; journal/readiness: 4a1539c. Nessun push/merge/pubblicazione.
 Heartbeat: ripresa-astra-scalabilit-sidecar, ACTIVE confermato dalla task chiamante. Pausa <=15%; ripresa solo ordinaryUsageAllowed e >=25% per finestre codex disponibili. Spark escluso.
 
@@ -125,3 +125,51 @@ Sol phase2 riusato per driver/prototipi F4 in nuova run sidecar_readers_20260921
 Driver199cd78 review approvata dopo4guardfix. 15replay I/O storici+15retrieval completi F3mixedN100, exit0, ranking/score identici;257+50array paritari, snapshot differente/concorrenza testatiWin/Linux. PHASE4.md e phase4-evidence-review APPROVATO. NPY caldo storico0.139s vs lazyNPZ0.259s ed eager0.076s; USSload0.50/0.57/222.5MiB. Fullpiccolo NPYpiùlentodieager7–27ms, esplicito. NTFSNPZ195739648Ballocati, NPY230420480Ballocati (+17.7%). Nessunbudgetcoperto o miglioramentoreindex dichiarato.
 
 DecisionePM: procedeF5 NPY perdoc, conforme ramo giàautorizzato e revisione indipendente. Noteimplementationphase5 descrivono leasecrossprocess perversione, writerimmutabile/bounded, hashintegrità e migrazionecandidata/rollback. Nessuna implementazioneF5ancora iniziata; prossimoSol unitàreader/writer/lease, poi integrazione e test/review. F6 aperta; helperdiskinventoryWindows/Linuxapprovato, preflightretention corretto (driverdeltaF2ripristinaogni prova, serveaccumulo separato). Nessunbenchmarkattivo. ContainerF3 fa005441... attivo e fontistoriche/F3 immutate verificato postrun. Quotafresh68% ordinarytrue; no task/monitor duplicati.
+
+## F5A attiva — ultimo checkpoint operativo
+
+Worker Sol /root/phase2 implementa SOLO reader/writer ColbertStore e lease in writer_lock con test mirati; non ancora collegati ad artifacts/indexing/deps. API/compromessi in phase5-brief.md. F4evidenze/decisione fissate29bf280. Worker Terra /root/phase2_summary prepara driver cumulativo F6 solo evidence/retention_experiment.py, nessun run reale. ReviewerSol idle dopo auditmatrice; prossima review F5A. PM ha chiuso cinque findingC storici già verificati secondo phase1-4-matrix-audit, senza dichiarare chiusi vincoli G/R continui.
+
+Nessun benchmark/modello attivo. Ultima quota65%residuo ordinaryAllowedtrue. Problema da gestire in F5B/bench: bench_delta restore deve preservare/escludere filelease dai backup/fingerprint, quiescerequery/joinwriter e rilasciare snapshot prima del ripristino; non aggirare lease produttiva. _colbert_token_count deve usare offsetmetadataNPY per evitare lettura globale. F5A Windows prima, LinuxPM e review indipendente poi; non duplicare agenti/run.
+
+## F5A verificata, F5B in integrazione — 21 settembre ore14:25 locali
+
+HEAD a1cd42a: reader/writer/lease F5A approvati dopo correzioni di contenimento percorsi e attestazione degli hash padre. 27 test Windows e 27 Linux passati; lease shared reale Windows con LockFileEx, POSIX flock. Record in phase5a-report/review e sidecar_npy_20260921/evidence/linux-phase5a-fix1.txt. F5 resta aperta: modulo isolato non equivale a integrazione o misura reale.
+
+Sol /root/phase2 integra artifacts/indexing/consumer, migrazione e retention, test e compatibilità del ripristino bench_delta. Non committare o congelare la produzione finché non consegna. Reviewer /root/review1d controlla il driver full_candidate_experiment; Terra /root/phase2_summary prepara soltanto corpus derivato identico pre/post dai primi32chunk storici e copia F3 congelata, senza modelli. Driver retention cumulativo già approvato staticamente; nessuna run F5/F6 reale avviata, nessun benchmark/modello attivo. Qdrant F3 invariato.
+
+Quota fresca61% residuo, ordinaryUsageAllowed=true, spendControlReached=false, seconda finestra non disponibile. Prossimo: test/review F5B Windows/Linux, smoke reale per formato e possibili differenze numeriche dell'encoding per-documento (FlagEmbedding ordina globalmente per lunghezza nel vecchio percorso), poi misure fullcandidate/picco e curve150prove F6, retention cumulativa e disco deduplicato. Non assumere digest identico prima di misurarlo, né dichiarare incrocio full/delta da candidate senza gate/promozione.
+
+## F5B review statica corretta; full precedente attivo — ore14:40 locali
+
+ATTIVO sampler session40452, workloadPID29016: sidecar_fullmemory_pre_20260921/workload/result.json, codiceF3 congelato0f479b2,32documentiderivati da testi storici. Non duplicare. Driver fullcandidate pre-run APPROVATO; CURRENT/alias devono restare assenti, deepintegrity esplicita. Metodologia in sidecar_npy_20260921/evidence/FULL_MEMORY_METHOD.md. Questa è candidatafull esplorativa, nonincrocio full/delta. Sol attende fine benchmark per testfinali, nessunmodellotestconcorrente. Stato macchina/provenienza in evidence; codepre267file identici all'archivio.
+
+Prova reale separata encoding_batch_parity completata:10chunk, puntiQdrantidentici,4valori fp16 cambiano max3.814697265625e-6;3query MaxSimscore/rankidentici. Reviewindipendente conferma limiti: nonparitàbyteuniversale e nonretrievalfull. F5B statica PENDING_TESTS, due finding risolti (manifest obbligatorio primaCURRENT; retryboundedload quandoCURRENTcambia durantelease). Restano suiteWin/Linux, reviewfinale e misurepost/F6. Quota56%ordinarytrue, nospendblock; heartbeatattivo.
+
+## F5B verificata e congelata; full NPY attivo — ore15:03 locali
+
+HEAD708a142 contiene integrazione F5B, CLI migrazione, loader/lease/prune, check profondi e gate full fail-closed per candidata illeggibile; README aggiornato. Review indipendente F5B APPROVATA. Windows405pass, Linux396pass+9skipGit (copertiWindows),17file; raw linux-phase5b.txt. Ruff/diffcheck passati dopo sola rimozione importduplicato test. Nessuna produzione in modifica.
+
+Fullpre F3 TERMINATO exit0:32docs64chunks28659token,859.160sbuild,gate/promote0,CURRENT/aliasassenti. RSSmassimoosservato6910664704B,USS5462532096B,private8534343680B;4487campionibuild. Reviewraw/resourcesapprovata, input+267filecodeimmutati. Run sidecar_fullmemory_pre_20260921/evidence completa. Metodo fullcandidate distingue solo1prova/variante, modello/calibrazione inclusi, niente capacità/crossover.
+
+ATTIVO fullpostNPY session64284, sidecar_fullmemory_post_20260921/workload;708a142congelato,stessi32files, attualmente22fileperdocpersistiti. Non duplicare e nessuntest/modelloconcorrente. Quota50%ordinarytrue ultima lettura14:58. Archivio sandbox/phase5-code-708a142.zip; post e migration checkout preparati con284file congelati e DBinizialmentevuoto, provenienza relativa. Primo tentativopreparazione post trovava docs unlivellosbagliato, fermato primaesecuzione; recupero verificato byteperbyte e corpus32copiato dal percorso docs corretto.
+
+Terra corregge driver migration_experiment secondo reviewSol (7fileexact/no links, CURRENT/layout/hash/array/provenienzaprima-dopo), nessunrun. PM ha SCRITTO, non ancora eseguito prepare_phase6.py per smoke+9famiglie+retention/copiaguardata; attendere finefullpost prima del lavoro I/O. F6richiede nuova istanzaQdrantnativa equivalente preservandoF3, smoke,150prove comparabili,retentioncumulativa/disco. Nessun ramoQdrant/sharding attivato senza dati; budgetundefined restano curve.
+
+## F5 misure full e migrazione concluse; parità ricerca in verifica
+
+Full post session64284 TERMINATO exit0: stessi32documenti/64chunk/28659token, build487.775s rispetto859.160s; RSS massimo osservato3384897536B rispetto6910664704B. Una sola prova per variante, corpus derivato storico, encoding raggruppato diversamente: non attribuire tutta la riduzione al formato né dichiarare capacità/crossover. Input e284file congelati immutati, integrità profonda verificata, CURRENT/alias assenti.
+
+Diagnosi indipendente full-numeric-parity: ID/payload/graph/chunks identici,50/64vettori differiscono numericamente; replay ColBERT salvato dà65score/ranking identici. Non è retrieval completo. Solphase2 prepara driver paired fullretrieval read-only prima di ruotare QdrantF3; nessun modello attivo ora. ReviewerSol verifica evidenze full/migrazione.
+
+Migrazione storica session24490 TERMINATA exit0:257array esattamente preservati,112429token, candidataNPY/hash profondi verificati prima del rollback; CURRENT nuovamentev20260911T155042, ranking/missing identici,7fonti immutate. Nessun Qdrant contattato. Risultati copiati in sidecar_migration_20260921/evidence.
+
+F6 preparazione ESEGUITA: smoke+9famiglieNPY+retention (11checkout) congelati708a142, manifest phase6-prepared-environment.json. Nessuna misuraF6 iniziata. QdrantF3 fa005441... resta attivo per pairedretrieval; poi preservarlo fermo e creareF6 volume equivalente. Quota47%residuo ordinarytrue/spendfalse. Automazione attiva; non duplicare run.
+
+## F6 avviata dopo parità paired verificata — ore15:22 locali
+
+Pairedretrieval session82906 exit0,3query top3: candidati ID/ordine identici,ranking finale esatto3/3; punteggi grezziQdrant diversi, nessuna paritàuniversale dichiarata. Reviewindipendente APPROVATA. PHASE5.md raccoglie implementazione/test/misure/limiti;U05 resta aperta per byteI/OdeltaF6.
+
+QdrantF3 fa005441... fermato graceful e preservato come sidecar-0628-qdrant-native-f3. NuovoF6 sidecar-0628-qdrant ID2b2831f678b4ce762de18862623b0f1b08f9fca04241075fd63810c4d8ab57c8, volume sidecar-0628-qdrant-native-f6, stessi image/1GiB/2CPU/porta16333. Metadati container inNPYevidence.
+
+SmokeNPY docsN10k0/1reps1 session74550 TERMINATO exit0,2campioni validi/ripristinati; escluso dallecurve. ATTIVO docsN10 ufficiale session39294 (15prove),708a142congelato. Restano altre8famiglie e retentioncumulativa. Nessunmodellotestconcorrente. Quota46%ordinarytrue, no spendingblock. Aggiornareprogress dopo ogni famiglia; nonrilanciare completate.
