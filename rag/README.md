@@ -815,9 +815,28 @@ Lo **streaming incrementale** della risposta non c'è, ed è l'unico modo per ab
 il tempo *percepito*: cambierebbe il contratto di `/ask` (oggi un JSON unico con
 risposta, contesto grafo e punteggi) e resta fuori da questa baseline.
 
-**Il delta incrementale VERO** (con un file davvero modificato) non è automatizzato:
-va misurato a mano modificando un file in `docs/` o `code/` e rilanciando `POST
-/api/reindex`, confrontando la durata col job no-op salvato qui.
+### Delta reale isolato
+
+La modalità `--real-delta` genera un corpus sintetico in un checkout dedicato con
+`docs/`, `code/` e `rag/database/` inizialmente vuoti. Il checkout deve essere
+esattamente `rag/eval/results/<run>/sandbox/experiment`; la collection Qdrant deve
+iniziare con `sidecar_0628_`. Server e Qdrant usano solo `127.0.0.1:18000` e
+`127.0.0.1:16333`. Eseguire un processo fresco per ciascuna delle nove famiglie
+`N=10,30,100 × docs,code,mixed`, con output e collection nuovi per famiglia:
+
+```bash
+python -B scripts/bench.py --real-delta --checkout C:/path/to/rag/eval/results/<run>/sandbox/experiment --output-dir C:/path/to/rag/eval/results/<run>/delta-output --n 10 --mode docs --k 0,1,10 --repeats 5
+```
+
+Per `N=100` aggiungere `100` a `--k`; `k>N` fallisce. Il driver avvia bootstrap
+incrementale e server HTTP reali, poi per ogni campione verifica job, readiness,
+integrità e query concorrenti. Ripristina byte sorgenti, artefatti e snapshot
+Qdrant prima del campione seguente. `result.json` conserva eventi monotoni,
+journal e campioni anche se la run fallisce; `summary.csv` contiene mediana/min/max
+e differenze abbinate `T(N,k)-T(N,0)`. Il restore I/O resta fuori dal tempo
+misurato. L'esecuzione richiede il runtime/modello offline e il container Qdrant
+dedicati documentati in `adr/sidecar-work/phase2-report.md`; il comando ordinario
+sopra resta il benchmark del servizio esistente.
 
 **Regola:** nessuna ottimizzazione di retrieval, chunking, ranking o indicizzazione
 senza prima confrontare un bench "prima" e uno "dopo" — la sensazione che qualcosa

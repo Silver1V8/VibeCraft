@@ -23,9 +23,8 @@ Sezioni misurate:
     4. POST /api/reindex (incrementale, no-op reale: nessun file toccato) — durata dal journal.
     5. POST /api/reindex {"full": true} — SOLO con --with-rebuild; di default "skipped".
 
-Il delta incrementale VERO (con file effettivamente modificati) non è automatizzato qui:
-va misurato a mano modificando un file in docs/ o code/ e rilanciando POST /api/reindex
-(vedi la nota nella sezione "incremental_noop" del JSON).
+Il delta incrementale VERO (con file effettivamente modificati) usa la modalità
+esplicita --real-delta e un checkout sperimentale dedicato (vedi README).
 """
 import argparse
 import json
@@ -38,7 +37,9 @@ import httpx2
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from eval.run import RESULTS_DIR, load_cases  # noqa: E402
+if "--real-delta" not in sys.argv:
+    # The dedicated child must never preload core.config from this operational checkout.
+    from eval.run import RESULTS_DIR, load_cases  # noqa: E402
 
 N_RETRIEVE_QUERIES = 10
 RETRIEVE_K = 5
@@ -351,7 +352,23 @@ def main() -> int:
                     help="accoda anche un full rebuild e ne misura la durata dal journal (lento: minuti)")
     ap.add_argument("--skip-rebuild", action="store_true",
                     help="esplicita il default (nessun full rebuild); vince su --with-rebuild se entrambi passati")
+    ap.add_argument("--real-delta", action="store_true",
+                    help="esegue il benchmark incrementale in un checkout dedicato")
+    ap.add_argument("--checkout")
+    ap.add_argument("--output-dir")
+    ap.add_argument("--n", type=int)
+    ap.add_argument("--mode", choices=("docs", "code", "mixed"))
+    ap.add_argument("--k", help="lista separata da virgole, incluso 0")
+    ap.add_argument("--repeats", type=int, default=5)
     a = ap.parse_args()
+
+    if a.real_delta:
+        if not all((a.checkout, a.output_dir, a.n, a.mode, a.k)):
+            ap.error("--real-delta richiede --checkout --output-dir --n --mode --k")
+        from scripts import bench_delta
+        return bench_delta.main(["--checkout", a.checkout, "--output-dir", a.output_dir,
+                                 "--n", str(a.n), "--mode", a.mode, "--k", a.k,
+                                 "--repeats", str(a.repeats)])
 
     with_rebuild = a.with_rebuild and not a.skip_rebuild
 

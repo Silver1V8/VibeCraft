@@ -50,3 +50,10 @@ eliminando le copie temporanee. Qdrant dedicato (ancora vuoto) fermato subito; n
 o evidenza fuori sandbox toccata. Baseline rigenerata con hash archivio identico e sette artefatti storici
 ricopiati con hash identici a historical-artifacts-provenance.json. Ogni prova successiva usa
 una sottodirectory esclusiva sandbox/pytest-<unità>-<run>. Nessun risultato di capacità deriva da questo incidente.
+# Fase 2: filesystem Qdrant verificato prima delle curve
+
+Il probe `sidecar_0628_snapshot_probe` ha mostrato che il bind mount Windows della calibrazione non ripristina correttamente gli snapshot: HTTP500, WAL first-index non deserializzabile, dopo circa34s. La creazione aveva superato il timeout5s del client ma continuato sul server; il probe ha riusato lo snapshot concluso, senza rilanciare la creazione. Log conservato in `qdrant-bind-snapshot-failure.log`. Container e storage del caso fallito restano fermi (`sidecar-0628-qdrant-bind-r2`, sandbox/qdrant-r2).
+
+Ripetendo lo stesso probe con la stessa immagine Qdrant1.19.0 e gli stessi limiti1GiB/2CPU su volume Docker nativo, lo snapshot è64512byte, create0.256s, recovery0.191s, dati/payload/vettori identici alla baseline e punto aggiunto rimosso. Evidenza `qdrant-native-snapshot-probe.json`. Il problema dipende dalla combinazione sperimentata con bind Windows; non si pretende di aver diagnosticato internamente Qdrant o tutti i filesystem.
+
+Tutte le famiglie F2 e i confronti successivi useranno il volume dedicato `sidecar-0628-qdrant-native-f2`, container attivo IDde6aa3529ba7556925ea447e9fe1fc9817dc420f3450bb1c2616981f3021d4be. Nessuna modifica WAL o altri parametri del motore. Di conseguenza F1 resta calibrazione del vecchio ambiente, non baseline numerica direttamente comparabile alle curve F2/F3. Preparazione checkout/corpus vuoti in `phase2-prepared-environment.json`; dati sintetici generati dal driver dopo review.

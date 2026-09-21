@@ -1,0 +1,574 @@
+{
+  "status": "completed",
+  "pid": 28276,
+  "parameters": {
+    "n": 10,
+    "mode": "docs",
+    "k": [
+      0,
+      1
+    ],
+    "repeats": 1,
+    "query_pause_seconds": 0.15,
+    "qdrant_url": "http://127.0.0.1:16333",
+    "server_url": "http://127.0.0.1:18000",
+    "collection": "sidecar_0628_smoke_docs_n10_pre",
+    "restore_io_outside_measurement": true
+  },
+  "events": [
+    {
+      "event": "bootstrap_start",
+      "utc": "2026-09-21T10:18:18.784790+00:00",
+      "monotonic": 11016.4005948
+    },
+    {
+      "event": "bootstrap_end",
+      "utc": "2026-09-21T10:18:34.134721+00:00",
+      "monotonic": 11031.7505188
+    },
+    {
+      "event": "baseline_frozen",
+      "utc": "2026-09-21T10:18:49.451862+00:00",
+      "monotonic": 11047.0676589
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T10:18:50.394169+00:00",
+      "monotonic": 11048.0099655,
+      "repeat": 0,
+      "k": 0
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T10:18:53.278372+00:00",
+      "monotonic": 11050.8941706,
+      "repeat": 0,
+      "k": 0
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T10:18:53.819282+00:00",
+      "monotonic": 11051.435087,
+      "repeat": 0,
+      "k": 0
+    },
+    {
+      "event": "sample_start",
+      "utc": "2026-09-21T10:18:53.824991+00:00",
+      "monotonic": 11051.4407894,
+      "repeat": 0,
+      "k": 1
+    },
+    {
+      "event": "sample_ready",
+      "utc": "2026-09-21T10:18:58.060632+00:00",
+      "monotonic": 11055.6764331,
+      "repeat": 0,
+      "k": 1
+    },
+    {
+      "event": "sample_restored",
+      "utc": "2026-09-21T10:18:58.470740+00:00",
+      "monotonic": 11056.0865379,
+      "repeat": 0,
+      "k": 1
+    }
+  ],
+  "samples": [
+    {
+      "repeat": 0,
+      "k": 0,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 11048.0106727,
+          "end_monotonic": 11050.7330918,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T101832",
+          "results": 3
+        }
+      ],
+      "job": {
+        "job_id": "13e65c59040840e7848d3b4d38703107",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T10:18:50.399727+00:00",
+        "finished_at": "2026-09-21T10:18:52.993386+00:00",
+        "changed_paths": null,
+        "result": {
+          "noop": true,
+          "planned": {
+            "unchanged": [
+              "d000.md",
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "new": [],
+            "modified": [],
+            "deleted": []
+          },
+          "reindexed_docs": 0,
+          "deleted_docs": 0,
+          "upserted_chunks": 0,
+          "phase_timings_seconds": {
+            "init_model": 2.1595305999999255,
+            "scan_hash": 0.0033284000001003733,
+            "load": 0.0,
+            "parsing_embedding": 0.0,
+            "qdrant": 0.0,
+            "relink": 0.0,
+            "save_hash": 0.0,
+            "eval_gate": 0.0,
+            "promote": 0.0
+          },
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 0,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 0,
+            "chunks_indexed": null,
+            "colbert_tokens_processed": 0,
+            "colbert_tokens_indexed": null,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0005111000009492273,
+        "writer_lock_wait_seconds": 0.006890100001328392,
+        "build_duration_seconds": 2.5856653999999253,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.013527600000088569,
+        "reload_error": null,
+        "published_token": "v20260921T101832",
+        "snapshot_ready_duration_seconds": 2.6081879000012123,
+        "coalesced": false
+      },
+      "elapsed_seconds": 2.6874090999990585,
+      "started_monotonic": 11048.0099676,
+      "ended_monotonic": 11050.6973767,
+      "current_version": "v20260921T101832",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_smoke_docs_n10_pre",
+          "actual": "sidecar_0628_smoke_docs_n10_pre"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    },
+    {
+      "repeat": 0,
+      "k": 1,
+      "valid": true,
+      "queries": [
+        {
+          "start_monotonic": 11051.4418751,
+          "end_monotonic": 11053.7646314,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T101832",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11053.9241343,
+          "end_monotonic": 11054.277482,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T101832",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11054.6245505,
+          "end_monotonic": 11055.1100983,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T101856",
+          "results": 3
+        },
+        {
+          "start_monotonic": 11055.2663229,
+          "end_monotonic": 11055.5213814,
+          "endpoint": "/api/retrieve",
+          "status": 200,
+          "index_version": "v20260921T101856",
+          "results": 3
+        }
+      ],
+      "mutations": [
+        {
+          "path": "docs/d000.md",
+          "before_sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+          "after_sha256": "896ca5356c4a555d2b3740ff6d6d47fc5c65c384bc45b5663178df93428657cf",
+          "bytes": 62,
+          "code_symbol": null
+        }
+      ],
+      "job": {
+        "job_id": "5d55c7d59f0d482881f76bc9248a6971",
+        "status": "completed",
+        "kind": "incremental",
+        "created_at": "2026-09-21T10:18:53.830548+00:00",
+        "finished_at": "2026-09-21T10:18:57.230882+00:00",
+        "changed_paths": null,
+        "result": {
+          "planned": {
+            "unchanged": [
+              "d001.md",
+              "d002.md",
+              "d003.md",
+              "d004.md",
+              "d005.md",
+              "d006.md",
+              "d007.md",
+              "d008.md",
+              "d009.md"
+            ],
+            "new": [],
+            "modified": [
+              "d000.md"
+            ],
+            "deleted": []
+          },
+          "reindexed_docs": 1,
+          "deleted_docs": 0,
+          "upserted_chunks": 1,
+          "code_added": 0,
+          "code_removed": 0,
+          "code_modified": 0,
+          "implements_edges": 0,
+          "pruned_entities": 0,
+          "counts": {
+            "docs_added": 0,
+            "docs_modified": 1,
+            "docs_removed": 0,
+            "code_added": 0,
+            "code_modified": 0,
+            "code_removed": 0,
+            "chunks_processed": 1,
+            "chunks_indexed": 10,
+            "colbert_tokens_processed": 25,
+            "colbert_tokens_indexed": 268,
+            "code_tokens_processed": null,
+            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+          },
+          "version": "v20260921T101856",
+          "phase_timings_seconds": {
+            "init_model": 2.144956199999797,
+            "scan_hash": 0.010997900000802474,
+            "load": 0.009548699999868404,
+            "parsing_embedding": 0.6085219999986293,
+            "qdrant": 0.07107420000102138,
+            "relink": 7.650000043213367e-05,
+            "save_hash": 0.07829880000099365,
+            "eval_gate": 0.0,
+            "promote": 0.005137800000738935
+          }
+        },
+        "error": null,
+        "queue_duration_seconds": 0.0005737000010412885,
+        "writer_lock_wait_seconds": 0.008495699999912176,
+        "build_duration_seconds": 3.390950500001054,
+        "reload_status": "completed",
+        "reload_duration_seconds": 0.019335200000568875,
+        "reload_error": null,
+        "published_token": "v20260921T101856",
+        "snapshot_ready_duration_seconds": 3.4207519000010507,
+        "coalesced": false
+      },
+      "elapsed_seconds": 3.939646700000594,
+      "started_monotonic": 11051.4407918,
+      "ended_monotonic": 11055.3804385,
+      "current_version": "v20260921T101856",
+      "empty_results_count": 0,
+      "empty_results_rate": 0.0,
+      "integrity": {
+        "ok": true,
+        "stale": false,
+        "artifacts_corrupted": false,
+        "qdrant_mismatch": false,
+        "qdrant_unreachable": false,
+        "problems": [],
+        "qdrant_alias": {
+          "state": "aligned",
+          "expected": "sidecar_0628_smoke_docs_n10_pre",
+          "actual": "sidecar_0628_smoke_docs_n10_pre"
+        },
+        "docs_git": {
+          "state": "aligned",
+          "diverging": [],
+          "instantiated": [],
+          "untracked": [
+            "docs/d000.md",
+            "docs/d001.md",
+            "docs/d002.md",
+            "docs/d003.md",
+            "docs/d004.md",
+            "docs/d005.md",
+            "docs/d006.md",
+            "docs/d007.md",
+            "docs/d008.md",
+            "docs/d009.md"
+          ],
+          "tracked": 0,
+          "reason": "nessun file tracciato sotto docs/"
+        }
+      },
+      "restore_verified": true
+    }
+  ],
+  "qdrant_collections_before": [
+    "sidecar_0628_snapshot_probe"
+  ],
+  "corpus": {
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_smoke_docs_n10/sandbox/experiment/docs/d000.md": {
+      "sha256": "b9199c2e657217c4b1d7a43c3ec56eb6125b6f3321e41fc5a31da7aeabaca49b",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_smoke_docs_n10/sandbox/experiment/docs/d001.md": {
+      "sha256": "699157caca2e848af7742f631bf3cd93db8ca950e051208dd5869546de0e5cdc",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_smoke_docs_n10/sandbox/experiment/docs/d002.md": {
+      "sha256": "2f4f0a432b5c3b1663b6b1c89b5d539fef86a06edf8da8090ed709dee505b071",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_smoke_docs_n10/sandbox/experiment/docs/d003.md": {
+      "sha256": "77ae934b6557e7171b0afe3662ec0925285e885ea351d9eea8ba4f8840ee836f",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_smoke_docs_n10/sandbox/experiment/docs/d004.md": {
+      "sha256": "0333baaf8e656dc919ee5db617fb7a3974aceeb0eb5fb000bd76091cda600aef",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_smoke_docs_n10/sandbox/experiment/docs/d005.md": {
+      "sha256": "74d4e33ac71d12964756a8cb9415591a0d3cdf7e4c14a1a93ef0b4592aacdd0a",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_smoke_docs_n10/sandbox/experiment/docs/d006.md": {
+      "sha256": "955e2381cff1c12d332627292a66ba12847550a8c59a04b1f6bc0b74e72e26ef",
+      "bytes": 62
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_smoke_docs_n10/sandbox/experiment/docs/d007.md": {
+      "sha256": "d1127fc92ef4d8eea946df94c52157db395d8fff85a68cfbdd463198a99f0e0a",
+      "bytes": 67
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_smoke_docs_n10/sandbox/experiment/docs/d008.md": {
+      "sha256": "9e3e92a5dfaf1f9296db53503a37170ded5a933759c89d7ef7925111dc35f263",
+      "bytes": 72
+    },
+    "C:/Users/Silve/.codex/worktrees/0628/vibecraft/rag/eval/results/sidecar_delta_20260921_smoke_docs_n10/sandbox/experiment/docs/d009.md": {
+      "sha256": "8d35a52c8f9480e2a2145087cc87967a6927820251b861552bbb947668c5b69d",
+      "bytes": 62
+    }
+  },
+  "bootstrap": {
+    "pid": 5528,
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "\nLoading weights:   0%|          | 0/391 [00:00<?, ?it/s]\nLoading weights: 100%|██████████| 391/391 [00:00<00:00, 9909.74it/s]\n"
+  },
+  "bootstrap_result_file": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_20260921_smoke_docs_n10\\workload\\bootstrap.json",
+  "baseline_verification_job": {
+    "job_id": "5e7e64c5259748b7a43606213bfffad1",
+    "status": "completed",
+    "kind": "incremental",
+    "created_at": "2026-09-21T10:18:45.787218+00:00",
+    "finished_at": "2026-09-21T10:18:48.591867+00:00",
+    "changed_paths": null,
+    "result": {
+      "noop": true,
+      "planned": {
+        "unchanged": [
+          "d000.md",
+          "d001.md",
+          "d002.md",
+          "d003.md",
+          "d004.md",
+          "d005.md",
+          "d006.md",
+          "d007.md",
+          "d008.md",
+          "d009.md"
+        ],
+        "new": [],
+        "modified": [],
+        "deleted": []
+      },
+      "reindexed_docs": 0,
+      "deleted_docs": 0,
+      "upserted_chunks": 0,
+      "phase_timings_seconds": {
+        "init_model": 2.380128099999638,
+        "scan_hash": 0.0024759000007179566,
+        "load": 0.0,
+        "parsing_embedding": 0.0,
+        "qdrant": 0.0,
+        "relink": 0.0,
+        "save_hash": 0.0,
+        "eval_gate": 0.0,
+        "promote": 0.0
+      },
+      "counts": {
+        "docs_added": 0,
+        "docs_modified": 0,
+        "docs_removed": 0,
+        "code_added": 0,
+        "code_modified": 0,
+        "code_removed": 0,
+        "chunks_processed": 0,
+        "chunks_indexed": null,
+        "colbert_tokens_processed": 0,
+        "colbert_tokens_indexed": null,
+        "code_tokens_processed": null,
+        "code_tokens_unavailable_reason": "embedding output does not expose code token counts"
+      }
+    },
+    "error": null,
+    "queue_duration_seconds": 0.000497900000482332,
+    "writer_lock_wait_seconds": 0.006683499999780906,
+    "build_duration_seconds": 2.796856700000717,
+    "reload_status": "completed",
+    "reload_duration_seconds": 0.008886999999958789,
+    "reload_error": null,
+    "published_token": "v20260921T101832",
+    "snapshot_ready_duration_seconds": 2.815932100000282,
+    "coalesced": false
+  },
+  "baseline_integrity": {
+    "ok": true,
+    "stale": false,
+    "artifacts_corrupted": false,
+    "qdrant_mismatch": false,
+    "qdrant_unreachable": false,
+    "problems": [],
+    "qdrant_alias": {
+      "state": "aligned",
+      "expected": "sidecar_0628_smoke_docs_n10_pre",
+      "actual": "sidecar_0628_smoke_docs_n10_pre"
+    },
+    "docs_git": {
+      "state": "aligned",
+      "diverging": [],
+      "instantiated": [],
+      "untracked": [
+        "docs/d000.md",
+        "docs/d001.md",
+        "docs/d002.md",
+        "docs/d003.md",
+        "docs/d004.md",
+        "docs/d005.md",
+        "docs/d006.md",
+        "docs/d007.md",
+        "docs/d008.md",
+        "docs/d009.md"
+      ],
+      "tracked": 0,
+      "reason": "nessun file tracciato sotto docs/"
+    }
+  },
+  "baseline_database": {
+    "CURRENT": {
+      "sha256": "ad5d69138320ab30214041cbd65359c884c77306b976dfdc73f9e69a543e35f7",
+      "bytes": 17
+    },
+    "versions/v20260921T101832/chunks.json": {
+      "sha256": "aa2118adee2303ac348d230439ad8ff199b886983646a60a13658cbab72bac99",
+      "bytes": 1987
+    },
+    "versions/v20260921T101832/code.json": {
+      "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "bytes": 2
+    },
+    "versions/v20260921T101832/code.npz": {
+      "sha256": "d6ce6cd51c04cba7e94f732d0ea50b266b9e80ecb69488d135a8e31f2e887ae2",
+      "bytes": 205
+    },
+    "versions/v20260921T101832/colbert.npz": {
+      "sha256": "4ce7d0f533af82fcf0bff9710e1f6c768c5016f1f684289feb05c075f77c8e50",
+      "bytes": 508734
+    },
+    "versions/v20260921T101832/dense.npz": {
+      "sha256": "d82c51bdc04bf9128fd4255922027d32d727474df8bcd9cf60431328f1f99e59",
+      "bytes": 21606
+    },
+    "versions/v20260921T101832/graph.json": {
+      "sha256": "7ed189352a6a189779c4d8f134c851cfbc0439e0dc72ab185fbad828f90ca8a0",
+      "bytes": 3664
+    },
+    "versions/v20260921T101832/index_manifest.json": {
+      "sha256": "515a0cb475c5a51fb2694a7f640d49f554b693daf6fe4dd6ab43537f7f221bb5",
+      "bytes": 1723
+    }
+  },
+  "baseline_points": {
+    "count": 10,
+    "sha256": "87c0b3f582655f77ff3e14825253f179a88e42da45283154d6641502c536907c"
+  },
+  "baseline_current": "763230323630393231543130313833320a",
+  "qdrant_snapshot": "sidecar_0628_smoke_docs_n10_pre-5053832752275878-2026-09-21-10-18-49.snapshot",
+  "baseline_queries": [
+    {
+      "query": "prenotazione evento posti",
+      "endpoint": "/api/retrieve",
+      "start_monotonic": 11047.0676616,
+      "end_monotonic": 11047.5461073,
+      "status": 200,
+      "results": 3
+    },
+    {
+      "query": "pagamenti accettati",
+      "endpoint": "/api/retrieve",
+      "start_monotonic": 11047.5461108,
+      "end_monotonic": 11047.7928511,
+      "status": 200,
+      "results": 3
+    },
+    {
+      "query": "notifiche prenotazione",
+      "endpoint": "/api/retrieve",
+      "start_monotonic": 11047.7928551,
+      "end_monotonic": 11048.0037653,
+      "status": 200,
+      "results": 3
+    }
+  ]
+}
