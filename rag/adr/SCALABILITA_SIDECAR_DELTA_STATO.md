@@ -1,6 +1,6 @@
 # Scalabilità sidecar — checkpoint
 
-Stato: PAUSED_USAGE. Task: 01a0a441-79f6-7912-93ac-86a6e12518ee.
+Stato: RUNNING_PHASE_2. Task: 01a0a441-79f6-7912-93ac-86a6e12518ee.
 Worktree: C:/Users/Silve/.codex/worktrees/0628/vibecraft. HEAD iniziale: 4f35acf7ad18034c42203090189dfccfdbe42611. Branch: codex/sidecar-delta-0628. Ultimo commit funzionale: e8d8940; journal/readiness: 4a1539c. Nessun push/merge/pubblicazione.
 Heartbeat: ripresa-astra-scalabilit-sidecar, ACTIVE confermato dalla task chiamante. Pausa <=15%; ripresa solo ordinaryUsageAllowed e >=25% per finestre codex disponibili. Spark escluso.
 
@@ -39,9 +39,35 @@ Ruling: conservare brief/report e ledger sotto rag/adr/sidecar-work, anziché sc
 
 ## Ripresa concreta
 
-1. Leggere quote reali; proseguire soltanto >=25% per tutte le finestre codex disponibili e uso ordinario consentito. Heartbeat verificato ACTIVE nella task corrente, non duplicarlo né disattivarlo per questa pausa.
-2. Riconciliare git, agenti e processi. I due run pytest sono terminati; il container test Linux usa --rm. Qdrant dedicato è fermo, porte 16333/18000 senza listener; nessun modello/server benchmark avviato.
-3. Implementare l'unità piccola descritta in sidecar-work/phase1d-brief.md, finora SOLO PREPARATA e non delegata: driver reale CPU con corpus isolato, bootstrap incrementale, boot/query/noop/k1/reload, campioni processo/Qdrant. Preparare sandbox/experiment e ricreare sandbox/qdrant prima di riavviare il container dedicato. Verificare collection, percorsi e porte prima di ogni mutazione. Nessun risultato reale ancora disponibile.
-4. Completare F1 metadati/misure, poi F2 T(N,k) con ripristino file E indice, almeno tre N e cinque ripetizioni per cella. Token codice oggi null con motivo: non inventare conteggi. Non anticipare ottimizzazioni F3. F4 confronta reader; F5/F6 mantengono le condizioni del piano.
+Ripresa 2026-09-21T09:20Z: quota codex 99% residuo, ordinaryUsageAllowed=true, spendControlReached=false, reset 1790587202; altra finestra non disponibile. HEAD 232d515, nessuna modifica funzionale pendente, soltanto temp non tracciati. Nessun worker o Python attivo. Container dedicato precedente non più presente (container operativi ancora esclusi), porte dedicate libere: ricreare soltanto risorsa sperimentale. Nuovo Terra phase1d prepara il driver, PM prepara sandbox; review separata prima della run. Si continua a usare il ledger durevole ADR già stabilito, non si redistribuiscono le unità completate.
 
-File temporanei non tracciati conservati: .pytest-tmp-phase1*, sandbox/ alla root e snapshot/diff di review sotto ADR. Non confonderli con output finale; non cancellare automaticamente dopo il precedente rifiuto di cleanup al worker. Ogni modifica funzionale è nei due commit locali indicati. Brief/report/evidenze e questo checkpoint restano nel worktree. Nessun input prodotto mancante blocca le curve: budget non definiti è una scelta esplicita dell'utente.
+## Stato corrente dopo la prima misura reale (21 settembre)
+
+Quota codex 93% residua, ordinaryUsageAllowed=true, spendControlReached=false; seconda finestra non disponibile. Nessuna pausa quota.
+
+Qdrant dedicato ATTIVO, ID4585573c7f4e577d51442ee2ae41ebea6fbb6e570634cfda1d1bb2d388ccd9a8, porta16333, collection sidecar_0628_benchmark. I riferimenti precedenti al vecchio container fermo e alla mancata esecuzione sono storici. Driver Terra phase1d APPROVATO da Sol review1d (fix2); sintassi/selfcheck byte CRLF e relazione PID/PPID reali passati. Driver e report non ancora committati.
+
+Run reale `evidence/calibration-20260921` con sampler `calibration-20260921-process.json/jsonl`: TERMINATA exit1, nessun Python benchmark residuo. Bootstrap incrementale reale: 3 documenti, 9 chunk, 343 token ColBERT e 1 file codice; boot e tre query con risultati riusciti. No-op verificato, readiness 2.682s (init modello 2.250s). Delta1 fallito 409 Qdrant «Collection already exists»: manifest fresh bootstrap dichiara la collection fisica omonima alla base e il reconciler tenta un alias omonimo. Questa è l'ipotesi da confermare con regression; nessuna fase viene chiusa dal run fallito.
+
+Sorgenti ripristinati byte per byte, fingerprint iniziale=finale, writer terminati e server spento. Il campo index_final_state del risultato originale è troppo assertivo in caso di errore: non prova una modifica riuscita dell'indice. Driver aggiornato a dicitura conservativa per le prossime run; raw originali conservati. Riepilogo parziale in `calibration-20260921-partial-summary.json`: campioni osservati, non picchi assoluti, nessuna somma RSS condivisa né soglia di capacità.
+
+Sol `bootstrap_alias` sta diagnosticando/fissando esclusivamente core/indexing.py e test correlati; rapporto atteso `sidecar-work/bootstrap-alias-report.md`. Nessun altro worker o benchmark attivo. PM conserva e analizza evidenze; non avviare duplicati.
+
+Ruling: il venv Windows può lanciare Python con PID diverso da Popen; verificare PID oppure PPID del child contro Popen. Il delta sperimentale scrive byte UTF-8 di lunghezza invariata, preservando CRLF. Campioni sampler richiesti 0.1s, mediana effettiva0.140s nella prima run; non dichiarare precisione temporale superiore ai dati.
+
+## Prossimo passo
+
+1. Review indipendente del fix alias dopo regression red/green; test pertinenti Windows/Linux. Non applicare ottimizzazioni F3 prima della curva F2.
+2. Ripetere calibrazione in output NUOVO con baseline dedicata vuota, preservando database/log precedenti e toccando soltanto risorse sperimentali verificate. Non rilanciare finché un benchmark è attivo.
+3. Completare F1 metadati/misure e matrice, poi F2 T(N,k) con ripristino file E indice, almeno tre N e cinque ripetizioni per cella. Token codice oggi null con motivo, nessun conteggio inventato.
+4. F3 dopo baseline; F4 confronto reader; F5/F6 con rami condizionali e dati. Budget non definiti significa curve hardware-specifiche, non blocco né soglie universali.
+
+File temporanei e snapshot di review conservati; nessuna cancellazione automatica. Ogni pytest usa una leaf esclusiva, mai sandboxroot. Nessun push/merge/pubblicazione o modifica checkout sorgente.
+
+## Fase 1 verificata, avvio Fase 2
+
+Seconda calibrazione `calibration-20260921-r2` riuscita exit0: integrity ok, noop vero, delta1/3chunk/114token, readiness2.62875/4.18727s, fingerprint ripristinato, writer/server chiusi. Summary e PHASE1.md descrivono memoria e limiti: reload11–15ms troppo breve per picco separato, hostcache non disponibile, token codice null motivato. Review indipendente phase1-evidence-review.md approva U-01; attribuzione causale non misurata del tempo residuo rimossa. Nessuna soglia di capacità. Fixalias reviewapprovata, 85test Windows, suiteLinux exit0.
+
+Nuovo Qdrant dedicato attivo IDd3925ae83db66bb7f76fb53c09d62ebdc5d469be043514c1b9e79fe9b717101f, storage sandbox/qdrant-r2. Vecchio contenitore dedicato rinominato sidecar-0628-qdrant-failed-calibration, fermo, preservato; vecchioDB archiviato sandbox/calibration-failed-database. Nessun processo benchmark attivo.
+
+Sol phase2 implementa brief phase2-brief.md: driver guarded reale N10/30/100 docs/code/mixed, cinque ripetizioni, restorefile+indice tramite snapshot Qdrant, querycontesa. Non ha permesso di avviare modello/container prima della review; PM prepara esecuzione. Quota92% residua. F3–6 non avviate. Il prossimo passo è review F2/test essenziali Windows/Linux, poi smoke reale e famiglie sequenziali, senza duplicare run attive.

@@ -2,6 +2,12 @@
 
 Stato: preparazione, nessun risultato di capacità ancora disponibile.
 
+## Ripresa e calibrazione del 21 settembre
+
+Checkout sperimentale `sandbox/experiment`: estratto con `git archive e8d8940 rag`; archivio SHA256 `3ef45f04ab4670872dd3302d97788d8254d427a8dd659de86aadb26b4d538058`. Nessuna `.env.local` o database operativo copiato. Corpus e sola configurazione sperimentale riproducibili con `evidence/calibration-corpus-config.zip` (tre markdown italiani brevi e una funzione Python); hash individuali, byte e ambiente in `environment-20260921.json`. La prova piccola valida il metodo, non rappresenta la distribuzione o la capacità del prodotto.
+
+Il precedente container dedicato non era più presente alla ripresa. Ricreato `sidecar-0628-qdrant`, ID `4585573c7f4e577d51442ee2ae41ebea6fbb6e570634cfda1d1bb2d388ccd9a8`, stessa immagine/porta/storage indicati sotto; limite sperimentale 1 GiB e 2 CPU, non budget prodotto. Preflight reale `qdrant-preflight-20260921.json`: nessuna collection, PID Qdrant 7, campionamento RSS/private/cgroup disponibile. Porte applicazione18000 e Qdrant16333 libere prima dell'avvio dedicato. Nessun processo Python preesistente rilevato. CPU forzata e quattro thread per il driver previsto, modello cache locale revision `5617a9f61b028005a4858fdac845db406aefb181`; nessun servizio LLM richiesto.
+
 Checkpoint PAUSED_USAGE dopo la strumentazione: commit 4a1539c (1a) ed e8d8940 (1b/1c), review indipendenti approvate. Suite integrata di sei file: test_reindex.py, test_bench.py, test_retrieve_reload.py, test_incremental_indexing.py, test_index_timings.py, test_bench_process.py. Windows 184 passed in 23.34s; Linux 184 passed in 27.64s, exit0, log *-phase1-integrated.txt. Windows usa runtime read-only e --basetemp eval/results/sidecar_20260915/sandbox/pytest-phase1-integrated; Linux usa snapshot sandbox/post1-integrated, stesso harness isolato sotto descritto, -o addopts= -q e basetemp /tmp/sidecar-pytest. Psutil Linux 7.2.2 è già nell'immagine. Questi test non sostituiscono boot/query/delta con modello e Qdrant reali.
 
 Checkout di lavoro: C:/Users/Silve/.codex/worktrees/0628/vibecraft.

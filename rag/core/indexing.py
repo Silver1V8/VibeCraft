@@ -518,6 +518,8 @@ def rollback_qdrant_alias_if_needed(qdrant: QdrantClient, target_version: str, e
     _log = emit or logger.info
     expected = _qdrant_collection_for_version(target_version)
     actual = _read_alias_target(qdrant, COLLECTION_NAME)
+    if actual is None and expected == COLLECTION_NAME and _qdrant_collection_exists(qdrant, expected):
+        actual = expected
     if actual == expected:
         _log(f"ℹ️  Alias Qdrant '{COLLECTION_NAME}' già allineato a '{expected}': nessuna "
              f"operazione (rollback intra-lineage verso {target_version}).")
@@ -621,6 +623,8 @@ def reconcile_qdrant_alias(qdrant: QdrantClient, *, base: str = COLLECTION_NAME)
     actual = _read_alias_target(qdrant, base)
     if not expected:
         return {"state": "legacy", "expected": expected, "actual": actual}
+    if actual is None and expected == base and _qdrant_collection_exists(qdrant, base):
+        actual = base
     if actual is None:
         return {"state": "missing", "expected": expected, "actual": None}
     if actual == expected:

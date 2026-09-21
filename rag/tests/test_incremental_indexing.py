@@ -1651,6 +1651,24 @@ def test_repair_qdrant_alias_fixes_missing_state(monkeypatch, tmp_path):
     assert q.aliases[index.COLLECTION_NAME] == c1
 
 
+def test_bootstrap_physical_collection_is_aligned_without_alias(monkeypatch, tmp_path):
+    _wire_tmp_index(monkeypatch, tmp_path)
+    q = StatefulFakeQdrant()
+    v1 = index.save_artifacts(nx.DiGraph(), {}, {}, {}, {})
+    index.write_index_manifest(0, version=v1, qdrant_collection=index.COLLECTION_NAME)
+    index.promote_version(v1)
+    q.collections.add(index.COLLECTION_NAME)
+
+    assert index.reconcile_qdrant_alias(q) == {
+        "state": "aligned", "expected": index.COLLECTION_NAME,
+        "actual": index.COLLECTION_NAME,
+    }
+    assert index.repair_qdrant_alias(q)["repaired"] is False
+    assert q.aliases == {}
+    assert index.rollback_qdrant_alias_if_needed(q, v1)["state"] == "noop"
+    assert q.aliases == {}
+
+
 def test_repair_qdrant_alias_declines_when_target_collection_missing(monkeypatch, tmp_path):
     """La collection attesa non esiste più su Qdrant: nessuna correzione automatica
     distruttiva, nessun alias creato/spostato — solo repaired=False esplicito."""
