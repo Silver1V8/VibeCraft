@@ -246,6 +246,16 @@
     /* Score bar */
     .score-bar { transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
 
+    /* La casella della domanda cresce con il testo (field-sizing nativo, nessun JS) fino a
+       40vh, poi scrolla: a 166px fissi una domanda lunga scrollava dalla quindicesima riga.
+       Il minimo resta quello delle classi, e dove field-sizing non è supportato non cambia
+       nulla. Come textarea.chat-compose in pipeline.unified.html. */
+    textarea.autogrow {
+      field-sizing: content;
+      max-height: 40vh;
+      overflow-y: auto;
+    }
+
     /* Answer fade-in */
     @keyframes fadeSlideUp {
       from { opacity:0; transform:translateY(12px); }
@@ -389,7 +399,7 @@
             id="question-input"
             rows="7"
             placeholder="Es. Quali eventi sono previsti a giugno?"
-            class="w-full resize-y min-h-[160px] rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+            class="autogrow w-full resize-y min-h-[160px] rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
           ></textarea>
         </div>
 
