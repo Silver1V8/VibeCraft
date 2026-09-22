@@ -544,11 +544,20 @@
                 <option value="opus">🚀 Opus</option>
                 <option value="haiku">⚡ Haiku</option>
               </select>
-              <label for="agent-mode-select"></label><select id="agent-mode-select"
+              <label for="agent-mode-select"></label><select id="agent-mode-select" onchange="syncAttemptsAvailability()"
                                                              class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="suggest">🔍 Suggest-only (sola lettura)</option>
                 <option value="agentic">⚡ Agentic (scrive nel progetto)</option>
                 <option value="oneshot">💬 One-shot (nessun tool)</option>
+              </select>
+              <!-- Tentativi: quante volte il server può rilanciare l'agente se la suite di
+                   code/<dev_type> resta rossa. Vale solo in agentic (le altre modalità non
+                   scrivono codice, quindi non c'è niente da verificare). Le opzioni le
+                   popola loadRunners() dal tetto vero del server. -->
+              <label for="agent-attempts-select" class="text-xs text-slate-400">Tentativi</label>
+              <select id="agent-attempts-select" title="Rilanci automatici finché la suite dell'ambito non passa"
+                      class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50">
+                <option value="1">1 · nessun rilancio</option>
               </select>
               <button id="agent-run-btn" onclick="runWithAgent()"
                 class="rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-xs font-semibold px-4 py-1.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
@@ -1201,7 +1210,9 @@
       try {
         const res = await fetch('/api/pipeline/agent/runners');
         if (!res.ok) return;
-        agentRunners = (await res.json()).runners;
+        const body = await res.json();
+        agentRunners = body.runners;
+        fillAttempts(body.max_attempts);
       } catch { return; }
       const select = document.getElementById('agent-runner-select');
       select.textContent = '';
@@ -1214,6 +1225,31 @@
       onRunnerChange();
     }
 
+    /* Opzioni della tendina "Tentativi", dal tetto dichiarato dal server: offrirne di più
+       significherebbe far scegliere un numero che il server poi taglia in silenzio. */
+    function fillAttempts(ceiling) {
+      const select = document.getElementById('agent-attempts-select');
+      const previous = select.value;
+      const max = Math.max(1, Math.min(Number(ceiling) || 1, 10));
+      select.textContent = '';
+      for (let n = 1; n <= max; n++) {
+        select.add(new Option(n === 1 ? '1 · nessun rilancio' : `${n} · rilancia se la suite è rossa`, String(n)));
+      }
+      select.value = (Number(previous) >= 1 && Number(previous) <= max) ? previous : '1';
+    }
+
+    /* Il rilancio si appoggia alla suite eseguita dal server, che gira solo dopo un run
+       agentic: nelle altre modalità non c'è codice nuovo da provare, e la tendina resta
+       spenta invece di promettere qualcosa che non accadrà. */
+    function syncAttemptsAvailability() {
+      const agentic = document.getElementById('agent-mode-select').value === 'agentic';
+      const select = document.getElementById('agent-attempts-select');
+      select.disabled = !agentic;
+      select.title = agentic
+        ? 'Rilanci automatici finché la suite dell\'ambito non passa'
+        : 'Solo in modalità Agentic: le altre non scrivono codice da verificare';
+    }
+
     function onRunnerChange() {
       const runner = agentRunners.find(r => r.id === document.getElementById('agent-runner-select').value);
       if (!runner) return;
@@ -1224,12 +1260,16 @@
       const modes = document.getElementById('agent-mode-select');
       for (const o of modes.options) o.disabled = !runner.modes.includes(o.value);
       if (!runner.modes.includes(modes.value)) modes.value = runner.modes[0];
+      syncAttemptsAvailability();
     }
 
     async function runWithAgent() {
       const mode = document.getElementById('agent-mode-select').value;
       const model = document.getElementById('agent-model-select').value;
       const runner = document.getElementById('agent-runner-select').value;
+      // Fuori da agentic la tendina è spenta e il server non verifica: chiedere rilanci
+      // sarebbe una richiesta senza effetto.
+      const attempts = mode === 'agentic' ? Number(document.getElementById('agent-attempts-select').value) || 1 : 1;
       // La modalità determina tool e contesto: niente fallback sul prompt HTTP esterno.
       if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
       const runningFeature = featureName;
@@ -1266,6 +1306,7 @@
           method: 'POST',
           headers,
           body: JSON.stringify({ prompt, mode, runner, model, feature: runningFeature,
+            max_attempts: attempts,
             validation_id: validationRefs.get(runningFeature) || null,
             ...(blockedAttempts.has(runningFeature) ? {retry_of_attempt_id: blockedAttempts.get(runningFeature)} : {}) }),
         });
@@ -1300,6 +1341,30 @@
             } else if (ev.type === 'error') {
               terminated = true;
               out.textContent += `\n❌ Errore: ${ev.message}\n${openPointsSummary(ev)}\n`;
+            } else if (ev.type === 'verification') {
+              // Esito della suite ESEGUITA dal server: l'unica riga di questo output che non
+              // riporta una dichiarazione dell'agente.
+              const icona = ev.status === 'passed' ? '✅' : (ev.status === 'failed' ? '❌' : '⚠️');
+              const comando = ev.command && ev.command.length ? ev.command.join(' ') : '—';
+              out.textContent += `\n${icona} Verifica eseguita dal server · code/${ev.dev_type} · ${comando}`
+                + ` · esito: ${ev.status}${ev.exit_code != null ? ` (exit ${ev.exit_code})` : ''}`
+                + ` · ${ev.duration_seconds}s\n`;
+              if (ev.reason) out.textContent += `   ${ev.reason}\n`;
+              if (ev.status === 'unavailable') {
+                out.textContent += '   La feature resta NON verificata: manca lo strumento di misura, non si ritenta.\n';
+              }
+              if (ev.output_tail) out.textContent += ev.output_tail.trimEnd() + '\n';
+              if (ev.status === 'failed' && ev.attempts_left === 0) {
+                out.textContent += '   Nessun tentativo rimasto: la feature resta NON verificata.\n';
+              }
+            } else if (ev.type === 'retry') {
+              out.textContent += `\n🔁 Rilancio dell'agente con le failure in prompt · tentativo ${ev.attempt_id}`
+                + ` (ripresa di ${ev.retry_of_attempt_id}) · ancora ${ev.attempts_left} dopo questo\n\n`;
+            } else if (ev.type === 'retry_blocked') {
+              terminated = true;
+              out.textContent += `\n⚠️ Rilancio non effettuato: ${ev.detail}\n`;
+            } else if (ev.type === 'verification_unrecorded') {
+              out.textContent += `\n⚠️ Esito della verifica non registrato nel journal: ${ev.detail}\n`;
             }
             out.scrollTop = out.scrollHeight;
         });

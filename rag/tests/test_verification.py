@@ -221,3 +221,16 @@ def test_ogni_giro_e_registrato_nel_journal(loop_env, monkeypatch):
     assert avvii[1]['retry_of_attempt_id'] == verifiche[1]['attempt_id']
     # L'output della suite non entra nel journal: resta nello stream.
     assert all('output' not in v for v in verifiche)
+
+
+def test_la_ui_riceve_il_tetto_vero_del_server(monkeypatch):
+    """La tendina "Tentativi" si popola da qui: offrire più opzioni del tetto reale
+    significherebbe far scegliere un numero che il server poi taglia in silenzio."""
+    import asyncio
+
+    monkeypatch.setattr(verification, '_settings', lambda: {'max_attempts': 4})
+    body = asyncio.run(routes_pipeline.agent_runners())
+    assert body['max_attempts'] == 4 and 'runners' in body
+
+    monkeypatch.setattr(verification, '_settings', lambda: {})
+    assert asyncio.run(routes_pipeline.agent_runners())['max_attempts'] == 1

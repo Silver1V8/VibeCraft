@@ -182,8 +182,13 @@ async def agent_modes():
 
 @router.get("/api/pipeline/agent/runners")
 async def agent_runners():
-    """Runner disponibili (Claude, LLM locale, Codex, Cursor) con modalità e modelli."""
-    return {"runners": await run_in_threadpool(list_runners)}
+    """Runner disponibili (Claude, LLM locale, Codex, Cursor) con modalità e modelli.
+
+    `max_attempts` è il tetto dei run per richiesta agentic (il primo più i rilanci
+    automatici sulle failure della suite): lo espone il server perché la tendina della UI
+    non offra un numero che poi verrebbe tagliato in silenzio."""
+    return {"runners": await run_in_threadpool(list_runners),
+            "max_attempts": int((verification._settings().get('max_attempts') or 1))}
 
 
 def _verification_event(result, attempt_id, attempts_left) -> str:
