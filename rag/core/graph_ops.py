@@ -176,6 +176,44 @@ def build_context(graph: nx.DiGraph, nodes: set[str]) -> str:
     return "\n".join(lines)
 
 
+def node_description(node_id: str, attrs: dict, rule_descriptions: dict) -> str:
+    """Descrizione breve di un nodo per il pannello di dettaglio della dashboard.
+
+    Solo le entità hanno una descrizione dichiarata (`[CHIAVE]`: <testo>` nei .md,
+    vedi api.deps.load_rule_descriptions). Per gli altri tipi si compone una riga dai
+    metadati già presenti sul nodo, invece di lasciare il pannello vuoto: niente LLM,
+    niente nuovo artefatto da mantenere allineato."""
+    node_type = attrs.get("type", "")
+
+    if node_type == "document":
+        graph_rag = attrs.get("graph_rag") or {}
+        scope = graph_rag.get("scope") if isinstance(graph_rag, dict) else None
+        # `scope` di graph_rag è una frase; lo `scope` di primo livello è un tag
+        # ("cross-project") e non descrive nulla, quindi non lo si usa.
+        if isinstance(scope, str) and scope.strip():
+            return scope.strip()
+        title = attrs.get("title")
+        return str(title).strip() if title else ""
+
+    if node_type == "section":
+        section = str(attrs.get("section") or "").strip()
+        doc_id = str(attrs.get("doc_id") or "").strip()
+        if section and doc_id:
+            return f"Sezione «{section}» di {doc_id}"
+        return f"Sezione di {doc_id}" if doc_id else ""
+
+    if node_type == "code":
+        kind = str(attrs.get("kind") or "simbolo").strip()
+        file = str(attrs.get("file") or "").strip()
+        dev_type = str(attrs.get("dev_type") or "").strip()
+        parts = [kind + (f" in {file}" if file else "")]
+        if dev_type:
+            parts.append(f"ambito {dev_type}")
+        return " — ".join(parts)
+
+    return rule_descriptions.get(node_id, "")
+
+
 def full_graph(graph: nx.DiGraph, rule_descriptions: dict) -> dict:
     """Serializza l'intero grafo statico (tutti i nodi e gli archi) in formato JSON."""
     nodes = [
@@ -183,7 +221,7 @@ def full_graph(graph: nx.DiGraph, rule_descriptions: dict) -> dict:
             "id": node_id,
             "type": attrs.get("type", "unknown"),
             "title": attrs.get("title", node_id),
-            "description": rule_descriptions.get(node_id, ""),
+            "description": node_description(node_id, attrs, rule_descriptions),
             # Pilastro REASONS di appartenenza (dal frontmatter YAML), per la colorazione cromatica del grafo
             "classification": attrs.get("classification", ""),
             # Metadati dei nodi di codice (assenti sui documenti/entità)
@@ -436,3 +474,23 @@ def graph_query(q: str, graph: nx.DiGraph, target: str | None = None) -> dict:
         "suggerimenti": ["quali documenti esistono?", "quali entità?", "quale codice?",
                          "relazioni di <NODO>", "cosa impatta <NODO>"],
     }
+
+
+def _selftest_node_description() -> None:
+    """Check minimo di node_description (ponytail: assert, niente framework)."""
+    rd = {"REGOLA-HITL-01": "Ogni modifica passa da revisione umana."}
+    assert node_description("REGOLA-HITL-01", {"type": "entity"}, rd).startswith("Ogni modifica")
+    assert node_description("d.md", {"type": "document", "graph_rag": {"scope": "Traccia le versioni"},
+                                     "title": "T"}, rd) == "Traccia le versioni"
+    # scope di primo livello ("cross-project") non è una descrizione: vince il title
+    assert node_description("d.md", {"type": "document", "scope": "cross-project", "title": "T"}, rd) == "T"
+    assert node_description("d.md#01-x", {"type": "section", "section": "Scopo", "doc_id": "d.md"}, rd) \
+        == "Sezione «Scopo» di d.md"
+    assert node_description("sym", {"type": "code", "kind": "function", "file": "a.py",
+                                    "dev_type": "backend"}, rd) == "function in a.py — ambito backend"
+    assert node_description("ignoto", {"type": "unknown"}, rd) == ""
+    print("node_description OK")
+
+
+if __name__ == "__main__":
+    _selftest_node_description()

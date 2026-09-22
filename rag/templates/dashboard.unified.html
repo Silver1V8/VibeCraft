@@ -1260,8 +1260,12 @@
       ];
       const p = node.pillar && REASONS_PILLARS[node.pillar];
       if (p) {
+        // Il colore del pilastro vive nei token del tema (pillarPalette), non in
+        // REASONS_PILLARS: leggerlo da p.color lanciava un TypeError e lasciava il
+        // pannello a metà su ogni nodo classificato.
+        const bd = pillarPalette(node.pillar).border;
         badges.push(
-          `<span class="px-2 py-0.5 rounded-full" style="color:${p.color.border};border:1px solid ${p.color.border};background:${p.color.border}1a">${p.label}</span>`
+          `<span class="px-2 py-0.5 rounded-full" style="color:${bd};border:1px solid ${bd};background:${bd}1a">${p.label}</span>`
         );
       }
       if (node.classification) {

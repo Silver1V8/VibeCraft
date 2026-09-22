@@ -122,6 +122,13 @@ def _add_doc_to_graph(G: nx.DiGraph, rel_path: str, metadata: dict, body: str) -
     MENTIONS) e le relazioni tipizzate del frontmatter. Condiviso dal full rebuild e
     dall'indicizzazione incrementale, così la costruzione del grafo per-documento è
     identica nei due percorsi. Restituisce (numero_entità, numero_relazioni_tipizzate)."""
+    # Un documento senza frontmatter (tipico dei canvas-review generati) non ha `title`:
+    # il pannello di dettaglio della dashboard resterebbe senza descrizione. Il primo H1
+    # del corpo è il titolo che l'autore ha già scritto, non un'invenzione.
+    if not metadata.get("title"):
+        h1 = next((ln[2:].strip() for ln in body.splitlines() if ln.startswith("# ")), "")
+        if h1:
+            metadata = {**metadata, "title": h1}
     G.add_node(rel_path, type="document", **metadata)
     entities = extract_entities(body)
     for entity in entities:

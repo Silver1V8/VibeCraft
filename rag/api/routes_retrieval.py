@@ -272,7 +272,7 @@ async def ask_rag(request: Request, query: AskQuery):
         {
             "id": node_id,
             "type": graph.nodes[node_id].get("type", "unknown"),
-            "description": rule_descriptions.get(node_id, ""),
+            "description": graph_ops.node_description(node_id, graph.nodes[node_id], rule_descriptions),
             # Pilastro REASONS di appartenenza (dal frontmatter YAML), per la colorazione cromatica del grafo
             "classification": graph.nodes[node_id].get("classification", ""),
             # Fiducia nel cammino percorso dai seed fino a qui, e sua lunghezza (S3): danno
