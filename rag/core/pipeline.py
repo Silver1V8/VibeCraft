@@ -258,50 +258,52 @@ def build_index_hint_block(dev_type: str = "", base_url: str = SERVER_BASE_URL) 
     search_params = json.dumps({"params": {"q": "<simbolo o comportamento della feature>",
                                           "k": 5, "dev_type": dev_type, "snippet": False}},
                                ensure_ascii=False)
+    # Le righe dei tre esempi MCP e quelle `GET ...` restano INTERE, una per tool: i test
+    # (tests/test_mcp_server.py, tests/test_mcp_http.py) le estraggono con una regex che non
+    # attraversa i newline, e un a-capo di cortesia le renderebbe invisibili.
     return (
-        f"\n\nOrientamento nel codice esistente (facoltativo ma consigliato): questo progetto "
-        f"espone un indice semantico. Dopo aver letto Canvas e Spec, usalo per decidere QUALI "
-        f"file aprire, invece di esplorare code/ a tappeto.\n"
-        f"Canale preferito: MCP, se il client espone i tool VibeCraft. I nomi seguenti usano "
-        f"il prefisso Claude Code per il server 'vibecraft'; negli altri client usa i nomi "
-        f"corrispondenti effettivamente esposti.\n"
-        f"- mcp__vibecraft__vibecraft_code_search con {search_params}. "
-        f"Apri i file pertinenti; snippet=true solo se i nomi non bastano.\n"
-        '- mcp__vibecraft__vibecraft_graph_query con {"params":{"q":"impatto",'
-        '"target":"<symbol_id restituito dalla ricerca>","limit":20}}. '
-        "Verifica le dipendenze prima di modificare un simbolo condiviso.\n"
-        '- mcp__vibecraft__vibecraft_retrieve con {"params":{"q":"<vincolo da chiarire>",'
-        '"k":3,"include_text":true,"text_max_chars":1500}}. Recupera le fonti pertinenti.\n'
-        f"Fallback HTTP: se i tool MCP non sono disponibili o il bridge non è raggiungibile, "
-        f"usa gli endpoint seguenti su {base_url}, con header 'X-API-Key: $VIBECRAFT_API_KEY' "
-        f"(omettibile da localhost). Non duplicare via HTTP una consultazione MCP riuscita.\n"
-        f"  GET /api/code/search?q=<cosa+cerchi>&k=5{scope} — simboli più pertinenti; il campo "
-        f"'files' è l'elenco dei file da aprire, 'results' i simboli con il loro path. Aggiungi "
-        f"&snippet=true SOLO se il nome del simbolo non basta a decidere: riporta il testo nella "
-        f"risposta e annulla gran parte del risparmio.\n"
-        f"  GET /api/graph/impact?node=<symbol_id>&depth=2 — cosa viene impattato da un simbolo, "
-        f"prima di modificarlo.\n"
-        f"  GET /api/retrieve?q=<domanda>&k=5&include_text=true — estratti documentali con testo "
-        f"e provenienza (documenti, non codice).\n"
-        f"Le regole seguenti valgono per entrambi i canali. "
-        f"Valuta le fonti usando classification, status e source_label: le fonti normative attive "
-        f"stabiliscono i vincoli nel proprio ambito; le fonti informative spiegano o illustrano, "
-        f"senza introdurre requisiti; le fonti archiviate (ARCHIVED, DEPRECATED, HISTORICAL, "
-        f"OBSOLETE) valgono come contesto storico, non come norme vigenti. Se classe o stato "
-        f"non sono chiari, verifica la fonte prima di attribuirle valore normativo. Rispetta le "
-        f"precedenze dichiarate e il ranking restituito: un punteggio alto o una data recente "
-        f"non rendono da soli normativa una fonte. Cita doc_id e section per i vincoli usati.\n"
-        f"Se text_truncated=true e quell'estratto sostiene una decisione, leggi prima il testo "
-        f"completo della fonte indicata da doc_id, relativo alla cartella sorgente '{DOCS_DIR}', "
-        f"con Read o gli strumenti già disponibili per il suo formato. Non dedurre eccezioni "
-        f"o condizioni dalla parte omessa. Se la fonte completa non è accessibile, dichiara "
-        f"il punto aperto e sospendi quella decisione. Conserva index_version come provenienza "
-        f"della ricerca e segnala eventuali differenze rispetto alla fonte letta.\n"
-        f"Regole d'uso, tassative: l'indice serve SOLO a scegliere cosa leggere; è uno snapshot "
-        f"dell'ultima indicizzazione e può essere disallineato rispetto al filesystem, quindi ogni "
-        f"file che modifichi va letto per intero prima di scriverci e nessuna riga di codice va "
-        f"dedotta dai frammenti dell'indice. Se l'indice non risponde, procedi normalmente con "
-        f"Read/Grep: è una scorciatoia, non una dipendenza."
+        f"\n\nORIENTAMENTO NEL CODICE ESISTENTE (facoltativo, consigliato)\n"
+        f"  Il progetto espone un indice semantico: dopo aver letto Canvas e Spec, usalo per decidere\n"
+        f"  QUALI file aprire, invece di esplorare code/ a tappeto. Serve SOLO a scegliere cosa\n"
+        f"  leggere: è uno snapshot dell'ultima indicizzazione e può essere disallineato rispetto al\n"
+        f"  filesystem, quindi ogni file che modifichi va letto per intero prima di scriverci, e\n"
+        f"  nessuna riga di codice va dedotta dai suoi frammenti. Se l'indice non risponde, procedi\n"
+        f"  con Read/Grep: è una scorciatoia, non una dipendenza.\n"
+        f"\n"
+        f"  Canale preferito: MCP, se il client espone i tool VibeCraft. I nomi qui sotto usano il\n"
+        f"  prefisso di Claude Code per il server 'vibecraft'; negli altri client usa i nomi\n"
+        f"  corrispondenti effettivamente esposti.\n"
+        f"  - mcp__vibecraft__vibecraft_code_search con {search_params}. Apri i file pertinenti; snippet=true solo se i nomi non bastano.\n"
+        '  - mcp__vibecraft__vibecraft_graph_query con {"params":{"q":"impatto","target":"<symbol_id restituito dalla ricerca>","limit":20}}. Verifica le dipendenze prima di modificare un simbolo condiviso.\n'
+        '  - mcp__vibecraft__vibecraft_retrieve con {"params":{"q":"<vincolo da chiarire>","k":3,"include_text":true,"text_max_chars":1500}}. Recupera le fonti pertinenti.\n'
+        f"\n"
+        f"  Fallback HTTP, solo se i tool MCP non sono disponibili o il bridge non è raggiungibile, su\n"
+        f"  {base_url} con header 'X-API-Key: $VIBECRAFT_API_KEY' (omettibile da localhost).\n"
+        f"  Non duplicare via HTTP una consultazione MCP riuscita.\n"
+        f"    GET /api/code/search?q=<cosa+cerchi>&k=5{scope}\n"
+        f"        Simboli più pertinenti: 'files' è l'elenco dei file da aprire, 'results' i simboli\n"
+        f"        con il loro path. Aggiungi &snippet=true SOLO se il nome del simbolo non basta a\n"
+        f"        decidere: riporta il testo nella risposta e annulla gran parte del risparmio.\n"
+        f"    GET /api/graph/impact?node=<symbol_id>&depth=2\n"
+        f"        Cosa viene impattato da un simbolo, prima di modificarlo.\n"
+        f"    GET /api/retrieve?q=<domanda>&k=5&include_text=true\n"
+        f"        Estratti documentali con testo e provenienza (documenti, non codice).\n"
+        f"\nVALUTAZIONE DELLE FONTI (vale per entrambi i canali)\n"
+        f"  Leggi classification, status e source_label:\n"
+        f"  - normative attive: stabiliscono i vincoli nel proprio ambito;\n"
+        f"  - informative: spiegano o illustrano, senza introdurre requisiti;\n"
+        f"  - archiviate (ARCHIVED, DEPRECATED, HISTORICAL, OBSOLETE): contesto storico, non\n"
+        f"    norme vigenti.\n"
+        f"  Se classe o stato non sono chiari, verifica la fonte prima di attribuirle valore normativo.\n"
+        f"  Rispetta le precedenze dichiarate e il ranking restituito: un punteggio alto o una data\n"
+        f"  recente non rendono da soli normativa una fonte. Cita doc_id e section per i vincoli usati.\n"
+        f"  Se text_truncated=true e quell'estratto sostiene una decisione, leggi prima il testo\n"
+        f"  completo della fonte indicata da doc_id, relativo alla cartella sorgente\n"
+        f"  '{DOCS_DIR}',\n"
+        f"  con Read o gli strumenti già disponibili per il suo formato. Non dedurre eccezioni o\n"
+        f"  condizioni dalla parte omessa. Se la fonte completa non è accessibile, dichiara il punto\n"
+        f"  aperto e sospendi quella decisione. Conserva index_version come provenienza della ricerca\n"
+        f"  e segnala differenze rispetto alla fonte letta."
     )
 
 
@@ -317,25 +319,31 @@ def build_final_prompt(folder_name: str, dev_type: str = "", consumer: str = "ex
     index_hint = build_index_hint_block(dev_type) if consumer == "external" else ""
     index_hint += RESEARCH_INSTRUCTIONS + REPORT_INSTRUCTIONS
     base = (
-        f"Leggi rigorosamente i file 'changes/{folder_name}/canvas.md' e 'changes/{folder_name}/spec.md'. "
-        f"Implementa la funzionalità descritta attenendoti esclusivamente all'approccio tecnico del canvas "
-        f"e soddisfacendo al 100% tutti gli scenari comportamentali GIVEN/WHEN/THEN della specifica. "
-        f"Non inventare logiche, componenti o comportamenti che non siano esplicitamente normati in questi due documenti. "
+        f"OBIETTIVO\n"
+        f"  Implementa la funzionalità descritta da due documenti, letti rigorosamente:\n"
+        f"    'changes/{folder_name}/canvas.md' — l'approccio tecnico da seguire;\n"
+        f"    'changes/{folder_name}/spec.md'   — gli scenari GIVEN/WHEN/THEN da soddisfare al 100%.\n"
+        f"  Attieniti esclusivamente a questi due documenti: non inventare logiche, componenti o\n"
+        f"  comportamenti che non vi siano esplicitamente normati.\n"
     )
     if dev_type:
         return base + (
-            f"Prima di scrivere, esamina il contenuto esistente di 'code/{dev_type}/' e integra il nuovo "
-            f"codice nella struttura che trovi, senza rigenerare da zero ciò che esiste già. "
-            f"Se la specifica prescrive test per gli scenari, implementali insieme al codice. "
-            f"Scrivi ESCLUSIVAMENTE il codice generato nella cartella 'code/{dev_type}/', poiché il tipo di "
-            f"sviluppo richiesto per questa feature è '{dev_type}'. Non creare né modificare file in altre "
-            f"sottocartelle di 'code/'."
+            f"  Se la specifica prescrive test per gli scenari, implementali insieme al codice.\n"
+            f"\nAMBITO DI SCRITTURA\n"
+            f"  Scrivi ESCLUSIVAMENTE il codice generato nella cartella 'code/{dev_type}/', poiché il tipo\n"
+            f"  di sviluppo richiesto per questa feature è '{dev_type}'. Non creare né modificare file in\n"
+            f"  altre sottocartelle di 'code/'.\n"
+            f"  Prima di scrivere, esamina il contenuto esistente di 'code/{dev_type}/' e integra il nuovo\n"
+            f"  codice nella struttura che trovi, senza rigenerare da zero ciò che esiste già."
         ) + index_hint
     return base + (
-        "Scrivi il codice generato nella cartella corretta sotto 'code/', in base al tipo di sviluppo richiesto: "
-        "'code/backend' per la logica lato server e le API, 'code/logicAgent' per la logica degli agenti/LLM, "
-        "'code/frontend' per l'interfaccia utente. Se la funzionalità coinvolge più ambiti, distribuisci i file "
-        "nelle rispettive sottocartelle mantenendo la separazione delle responsabilità."
+        "\nAMBITO DI SCRITTURA\n"
+        "  Scrivi il codice nella cartella corretta sotto 'code/', in base al tipo di sviluppo:\n"
+        "    'code/backend'    — logica lato server e API;\n"
+        "    'code/logicAgent' — logica degli agenti/LLM;\n"
+        "    'code/frontend'   — interfaccia utente.\n"
+        "  Se la funzionalità coinvolge più ambiti, distribuisci i file nelle rispettive\n"
+        "  sottocartelle mantenendo la separazione delle responsabilità."
     ) + index_hint
 
 

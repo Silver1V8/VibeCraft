@@ -72,50 +72,56 @@ POLICY = dict(enforcement='advisory', verification='agent_reported', id_assignme
               id_reuse_verified=False, original_question_verified=False)
 
 REPORT_INSTRUCTIONS = '''
-
-Resoconto condiviso dei punti aperti (Propose e conclusione dell'agente): termina il documento
-con UNA sezione esattamente "## Punti aperti", fuori dai blocchi gherkin, contenente SOLO
-un fence json con {"open_points":[...]}. Usa [] soltanto se dichiari esplicitamente nessun
-punto irrisolto. Ogni elemento ha TUTTI i campi di questo esempio (non copiarne i contenuti):
-{"id":"OP-001","functionality":"Accesso","original_question":"Chi può accedere?",
-"question":"Quali ruoli sono ammessi?","assumption":null,"uncovered_scenarios":["Accesso negato"],
-"reason":"unconfirmed_requirement","research":{"status":"not_started","new_evidence":[],
-"verification":"agent_reported"}}
-reason ammette unconfirmed_requirement, missing_coverage, no_new_evidence, source_unavailable.
-research.status ammette not_started (nessuna ricerca) o closed (ramo terminato); new_evidence
-elenca riferimenti concreti alle nuove evidenze dell'ultimo giro, [] se assenti. no_new_evidence
-richiede closed e []; not_started richiede []. assumption è null quando non serve, altrimenti
-è una proposta DA CONFERMARE, mai un requisito approvato. uncovered_scenarios elenca i casi
-scoperti. Gli ID OP-001, OP-002, ... sono univoci nel report: conserva quelli già presenti
-nella Spec. La stessa domanda conserva ID e original_question anche se question viene
-riformulata; non aprire un nuovo ID per aggirare un ramo chiuso. Conserva i punti irrisolti
-di Propose in questa stessa lista, senza un registro parallelo per i blocchi di ricerca.
-Limiti: enforcement: advisory; verification: agent_reported. Gli ID sono assegnati dall'agente:
-il runtime controlla la struttura, NON verifica riuso degli ID, fedeltà di original_question,
-equivalenza delle parafrasi, novità o pertinenza delle fonti. original_question rende le
-domande ispezionabili a posteriori, non costituisce un controllo anti-parafrasi.
-Un report assente o malformato viene segnalato missing o invalid, mai convertito in [].
-La validità strutturale non certifica copertura né successo dell'implementazione.
+RESOCONTO DEI PUNTI APERTI (Propose e conclusione dell'agente)
+  Termina il documento con UNA sezione esattamente "## Punti aperti", fuori dai blocchi
+  gherkin, contenente SOLO un fence json con {"open_points":[...]}. Usa [] soltanto per
+  dichiarare esplicitamente nessun punto irrisolto.
+  Ogni elemento ha TUTTI i campi di questo esempio (non copiarne i contenuti):
+    {"id":"OP-001","functionality":"Accesso","original_question":"Chi può accedere?",
+     "question":"Quali ruoli sono ammessi?","assumption":null,
+     "uncovered_scenarios":["Accesso negato"],"reason":"unconfirmed_requirement",
+     "research":{"status":"not_started","new_evidence":[],"verification":"agent_reported"}}
+  I campi:
+  - reason: unconfirmed_requirement | missing_coverage | no_new_evidence | source_unavailable.
+  - research.status: not_started (nessuna ricerca) o closed (ramo terminato); new_evidence
+    elenca riferimenti concreti alle nuove evidenze dell'ultimo giro, [] se assenti.
+    no_new_evidence richiede closed e []; not_started richiede [].
+  - assumption: null quando non serve, altrimenti una proposta DA CONFERMARE, mai un
+    requisito approvato.
+  - uncovered_scenarios: i casi scoperti.
+  - id: OP-001, OP-002, ... univoci nel report; conserva quelli già presenti nella Spec. La
+    stessa domanda conserva id e original_question anche se question viene riformulata: non
+    aprire un nuovo id per aggirare un ramo chiuso.
+  Conserva i punti irrisolti di Propose in questa stessa lista, senza un registro parallelo
+  per i blocchi di ricerca.
+  Limiti: enforcement advisory, verification agent_reported, ID assegnati dall'agente. Il
+  runtime controlla la struttura; NON verifica riuso degli ID, fedeltà di original_question,
+  equivalenza delle parafrasi, novità o pertinenza delle fonti. original_question rende le
+  domande ispezionabili a posteriori, non è un controllo anti-parafrasi. Un report assente o
+  malformato viene segnalato missing o invalid, mai convertito in []. La validità strutturale
+  non certifica copertura né successo dell'implementazione.
 '''
 
 RESEARCH_INSTRUCTIONS = '''
 
-Regola di avanzamento della ricerca (advisory, oltre al limite di turni): PRIMA di ogni ricerca
-dichiara ID del punto aperto, original_question, domanda precisa del giro e informazione mancante.
-DOPO dichiara new_evidence con riferimenti e contenuto nuovo, oppure no_new_evidence.
-Confronta con TUTTO il contesto accumulato, incluso Canvas/Spec e letture precedenti: conta
-come nuova evidenza solo contenuto pertinente alla domanda e non ancora disponibile, identificato
-da documento/chunk e porzione testuale, file/simbolo e contenuto letto, o relazione del grafo.
-Un ID diverso con lo stesso contenuto, un nuovo ranking/score/index_version, il riordino e la
-parafrasi della query NON contano. Un testo completo conta solo per la porzione prima troncata
-e ora effettivamente letta. Metadati da soli non provano un requisito. Se l'estratto è decisivo
-e troncato, la lettura mirata del testo completo conclude quel giro prima di dichiararne l'esito.
-Se il giro non produce nuove evidenze, CHIUDI quel ramo: nessun'altra ricerca o fallback sulla
-stessa domanda, neppure riformulandola. Nel resoconto finale conserva il punto con
-reason=no_new_evidence, research.status=closed, new_evidence=[] e i casi scoperti. Un'altra
-domanda indipendente può proseguire. Le istruzioni di fallback valgono solo finché il ramo
-non è chiuso. Non aggirare il blocco con assunzioni implicite. La novità è dichiarata
-dall'agente, non verificata confrontando a runtime risultati o fingerprint dei tool.
+AVANZAMENTO DELLA RICERCA (advisory, oltre al limite di turni)
+  PRIMA di ogni ricerca dichiara: ID del punto aperto, original_question, domanda precisa del
+  giro, informazione mancante. DOPO dichiara new_evidence, con riferimenti e contenuto nuovo,
+  oppure no_new_evidence.
+  Conta come nuova evidenza solo contenuto pertinente alla domanda e non già disponibile in
+  TUTTO il contesto accumulato (Canvas/Spec e letture precedenti), identificato da
+  documento/chunk e porzione testuale, file/simbolo e contenuto letto, o relazione del grafo.
+  NON contano: un ID diverso con lo stesso contenuto, un nuovo ranking/score/index_version, il
+  riordino, la parafrasi della query, i metadati da soli. Un testo completo conta solo per la
+  porzione prima troncata e ora effettivamente letta; se l'estratto è decisivo e troncato, la
+  lettura mirata del testo completo conclude quel giro prima di dichiararne l'esito.
+  Se il giro non produce nuove evidenze, CHIUDI quel ramo: nessun'altra ricerca o fallback
+  sulla stessa domanda, neppure riformulandola, e nessuna assunzione implicita per aggirare il
+  blocco. Le istruzioni di fallback valgono solo finché il ramo non è chiuso. Nel resoconto
+  finale conserva il punto con reason=no_new_evidence, research.status=closed, new_evidence=[]
+  e i casi scoperti. Un'altra domanda indipendente può proseguire.
+  La novità è dichiarata dall'agente, non verificata confrontando a runtime risultati o
+  fingerprint dei tool.
 '''
 
 
