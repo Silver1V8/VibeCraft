@@ -123,6 +123,18 @@
 
     .chat-scroll { scroll-behavior: smooth; }
 
+    /* La casella dell'intervista cresce con il testo (field-sizing nativo, nessun JS)
+       fino a 40vh, poi scrolla. Dove field-sizing non è supportato restano le 4 righe
+       di `rows` e il resize manuale verticale. */
+    textarea.chat-compose {
+      field-sizing: content;
+      min-height: 5.5rem;
+      max-height: 40vh;
+      overflow-y: auto;
+      line-height: 1.5;
+      resize: vertical;
+    }
+
     textarea.md-editor {
       font-family: 'JetBrains Mono', ui-monospace, monospace;
       font-size: 12.5px;
@@ -363,9 +375,9 @@
             <span id="explore-status" class="text-xs text-slate-400"></span>
           </div>
           <div id="chat-log" class="chat-scroll flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-0"></div>
-          <div class="p-3 border-t border-slate-800 flex items-stretch gap-2 shrink-0">
-            <label for="chat-input"></label><textarea id="chat-input" rows="2" placeholder="Rispondi al Tech Lead IA… (Ctrl+Invio per inviare)"
-                                                      class="flex-1 resize-none rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          <div class="p-3 border-t border-slate-800 flex items-end gap-2 shrink-0">
+            <label for="chat-input"></label><textarea id="chat-input" rows="4" placeholder="Rispondi al Tech Lead IA… (Ctrl+Invio per inviare)"
+                                                      class="chat-compose flex-1 rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
             <button id="chat-send-btn" onclick="sendExploreTurn()"
               class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
               Invia
