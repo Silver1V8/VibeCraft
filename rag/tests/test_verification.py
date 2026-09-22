@@ -49,7 +49,10 @@ def test_cosa_non_e_un_verde(configured, monkeypatch, scenario, atteso):
     """Nessuna di queste situazioni può valere come verifica superata: sono i casi in cui
     un gate distratto restituirebbe una prova che non ha."""
     dev_type = 'frontend'
-    runner = lambda *a, **k: _Completed(0)
+
+    def runner(*a, **k):
+        return _Completed(0)
+
     if scenario == 'comando_assente':
         dev_type = 'backend'  # non dichiarato nella config del test
     elif scenario == 'eseguibile_assente':
