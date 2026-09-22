@@ -140,6 +140,12 @@
       font-size: 12.5px;
       line-height: 1.65;
       tab-size: 2;
+      /* Il minimo era fisso in px (360/380, dichiarato nelle classi): a viewport basso
+         (~560px di altezza) spingeva "Salva modifiche" e "Approva" FUORI dallo schermo,
+         rendendo il passo non completabile. Relativo all'altezza, resta ~352px sui
+         monitor normali e si stringe dove non c'è spazio. */
+      min-height: min(22rem, 40vh);
+      resize: vertical;
     }
 
     /* Testo su superficie primaria: `text-white` su bg-blue-600 dava 2,17:1 nel
@@ -395,7 +401,7 @@
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisione · explore.md</span>
             <span class="text-xs text-amber-400 font-medium">Approva prima di continuare</span>
           </div>
-          <label for="explore-md-editor"></label><textarea id="explore-md-editor" class="md-editor flex-1 min-h-[360px] w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          <label for="explore-md-editor"></label><textarea id="explore-md-editor" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
           <div class="flex items-center gap-2 mt-3 shrink-0">
             <button onclick="saveMdFile('explore.md', 'explore-md-editor')" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
             <button onclick="approveAndGoToCanvas()" class="ml-auto rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva → vai a Canvas</button>
@@ -481,7 +487,7 @@
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisione · spec.md</span>
             <span class="text-xs text-amber-400 font-medium">Approva per sbloccare il prompt finale</span>
           </div>
-          <label for="spec-md-editor"></label><textarea id="spec-md-editor" oninput="document.getElementById('spec-open-points-status').textContent = '⚠ Modifiche non salvate: resoconto da verificare.'" class="md-editor flex-1 min-h-[380px] w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          <label for="spec-md-editor"></label><textarea id="spec-md-editor" oninput="document.getElementById('spec-open-points-status').textContent = '⚠ Modifiche non salvate: resoconto da verificare.'" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
           <p id="spec-open-points-status" role="status" class="text-xs text-slate-300 whitespace-pre-wrap">⚠ Resoconto dei punti aperti non disponibile.</p>
           <div class="flex items-center gap-2 mt-3 shrink-0">
             <button onclick="saveMdFile('spec.md', 'spec-md-editor')" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
