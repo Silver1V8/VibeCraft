@@ -39,7 +39,7 @@ from api.models import (
 )
 from api.routes_reindex import enqueue_full_rebuild
 from core import canvas_review, llm, pipeline, retrieval, spec_format, pipeline_gate as gate, pipeline_validation as validation
-from core import pipeline_activity
+from core import pipeline_activity, verification
 from core.artifacts import manifest_path
 from core.pipeline_store import PipelineStore, PipelineStorageError, PipelineStorageBusyError
 from core.writer_lock import WriterLockBusyError
@@ -186,6 +186,90 @@ async def agent_runners():
     return {"runners": await run_in_threadpool(list_runners)}
 
 
+def _verification_event(result, attempt_id, attempts_left) -> str:
+    payload = dict(result.as_dict(), type='verification', attempt_id=attempt_id,
+                   attempts_left=attempts_left)
+    payload.pop('output', None)  # l'output intero resta fuori dallo stream di controllo
+    payload['output_tail'] = result.output[-1200:]
+    return json.dumps(payload, ensure_ascii=False) + '\n'
+
+
+def _verified_runs(req, record, prompt, stream, attempt, retry, details):
+    """Stream del run, poi la VERIFICA ESEGUITA dal server, poi l'eventuale rilancio.
+
+    È qui che "implementato" smette di essere una dichiarazione: l'agente non ha shell e
+    il suo resoconto è agent_reported, quindi l'unico esito osservato è quello della suite
+    eseguita dal server su code/<dev_type> (core/verification.py).
+
+    Il rilancio è un `while` sul risultato di quella suite, non un secondo modello che
+    giudica il primo: finché la suite è rossa e restano tentativi, si riparte dallo stesso
+    contratto con l'output delle failure in coda al prompt. Ogni giro è un retry registrato
+    nel journal (retry_of_attempt_id), quindi la catena resta ispezionabile.
+
+    Un esito 'unavailable' NON conta come verde e NON viene ritentato: manca lo strumento
+    di misura, e rilanciare l'agente non produrrebbe informazione nuova."""
+    yield from stream
+    # Solo agentic scrive codice: in suggest non si applica (sola lettura) e oneshot non ha file.
+    if req.mode != 'agentic' or record is None:
+        return
+
+    ceiling = int((verification._settings().get('max_attempts') or 1))
+    attempts_left = max(0, min(req.max_attempts, ceiling) - 1)
+    current, current_details = attempt, details
+
+    while True:
+        result = verification.run_suite(record.dev_type)
+        try:
+            pipeline_store.append_event(
+                'verification_finished', feature=current_details['feature'], attempt_id=current,
+                retry_of_attempt_id=current_details.get('retry_of_attempt_id'),
+                status=result.status, dev_type=result.dev_type, command=result.command,
+                exit_code=result.exit_code, duration_seconds=result.duration_seconds,
+                reason=result.reason)
+        except PipelineStorageError as exc:
+            # Il journal non registra: l'esito resta comunque nello stream, dichiarato come
+            # non registrato. Non si finge che la verifica non sia avvenuta.
+            yield json.dumps(dict(type='verification_unrecorded', attempt_id=current,
+                                  detail=str(exc)), ensure_ascii=False) + '\n'
+
+        retry_possible = result.status == verification.FAILED and attempts_left > 0
+        yield _verification_event(result, current, attempts_left if retry_possible else 0)
+        if not retry_possible:
+            return
+
+        attempts_left -= 1
+        previous, current = current, 'attempt-' + uuid4().hex
+        current_details = dict(details, attempt_id=current, retry_of_attempt_id=previous)
+        retry_prompt = prompt + verification.failure_brief(result)
+        try:
+            pipeline_store.append_event('execution_started', **current_details)
+        except PipelineStorageError as exc:
+            yield json.dumps(dict(type='retry_blocked', attempt_id=current,
+                                  detail=f'Rilancio non registrabile: {exc}'), ensure_ascii=False) + '\n'
+            return
+
+        yield json.dumps(dict(type='retry', attempt_id=current, retry_of_attempt_id=previous,
+                              attempts_left=attempts_left), ensure_ascii=False) + '\n'
+        try:
+            next_stream = run_agent_streaming(req.runner, retry_prompt, req.mode, req.model,
+                                              feature=current_details['feature'], attempt_id=current,
+                                              on_finish=_finished_recorder(current_details))
+        except Exception as exc:
+            _finished_recorder(current_details)({'type': 'error'})
+            yield json.dumps(dict(type='retry_blocked', attempt_id=current,
+                                  detail=f'Runtime agente non disponibile: {exc}'), ensure_ascii=False) + '\n'
+            return
+        yield from next_stream
+
+
+def _finished_recorder(attempt_details):
+    def finished(outcome):
+        pipeline_store.append_event('execution_finished', **attempt_details,
+            outcome='failed' if outcome.get('is_error') or outcome['type'] != 'result' else 'completed',
+            result_open_points_status=outcome.get('open_points_status', 'missing'))
+    return finished
+
+
 @router.post("/api/pipeline/agent/run", dependencies=[Depends(require_api_key_strict)])
 async def agent_run(req: AgentRunRequest):
     """Ammissione ricalcolata dal server; solo agentic richiede il contratto validato."""
@@ -247,10 +331,7 @@ async def agent_run(req: AgentRunRequest):
                 issues.append(gate.AvailabilityIssue(code='storage_unavailable',
                     message=str(exc) + '; misura incompleta.', action=exc.action))
                 decision = _gate_payload(contract, record, issues)['gate']
-            def finished(outcome):
-                pipeline_store.append_event('execution_finished', **details,
-                    outcome='failed' if outcome.get('is_error') or outcome['type'] != 'result' else 'completed',
-                    result_open_points_status=outcome.get('open_points_status', 'missing'))
+            finished = _finished_recorder(details)
             try:
                 stream = run_agent_streaming(req.runner, prompt, req.mode, req.model, feature=feature,
                                              attempt_id=attempt, on_finish=finished)
@@ -260,7 +341,7 @@ async def agent_run(req: AgentRunRequest):
             def output():
                 yield json.dumps(dict(type='gate', gate=decision, attempt_id=attempt,
                                       retry_of_attempt_id=retry), ensure_ascii=False) + '\n'
-                yield from stream
+                yield from _verified_runs(req, record, prompt, stream, attempt, retry, details)
             return StreamingResponse(output(), media_type='application/x-ndjson')
     try:
         return await run_in_threadpool(admit)

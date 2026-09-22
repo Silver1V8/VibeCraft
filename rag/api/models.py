@@ -70,6 +70,10 @@ class AgentRunRequest(BaseModel):
     # Alias Claude (sonnet|opus|haiku) o nome modello del runner; '' = predefinito della CLI.
     # Finisce negli argomenti delle CLI: niente '-' iniziale né metacaratteri (agent_runners.MODEL_RE).
     model: str = Field(default="sonnet", pattern=r'^(|[A-Za-z0-9][\w.:/-]{0,99})$')
+    # Run totali consentiti per questa richiesta agentic: il primo più i rilanci automatici
+    # sulle failure della suite. Il tetto vero è verification.max_attempts in rag_config.yaml:
+    # il client può chiedere meno, mai più. 1 = nessun rilancio.
+    max_attempts: int = Field(default=1, ge=1, le=10)
 
     @model_validator(mode='after')
     def agentic_requires_feature(self):
