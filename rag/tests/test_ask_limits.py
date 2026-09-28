@@ -26,3 +26,8 @@ def test_top_k_oltre_il_tetto_e_rifiutato():
 def test_default_invariato():
     """Il default resta 5: nessun chiamante esistente cambia comportamento."""
     assert AskQuery(question="q").top_k == 5
+
+
+def test_stream_e_opt_in_e_non_cambia_il_json_storico():
+    assert AskQuery(question="q").stream is False
+    assert AskQuery(question="q", stream=True).stream is True

@@ -10,6 +10,7 @@ class AskQuery(BaseModel):
     # Vincoli di input: domanda non vuota, top_k/bfs_depth entro limiti sensati per
     # evitare richieste degeneri (k enorme → carico, depth enorme → esplosione BFS).
     question: str = Field(min_length=1, max_length=4000)
+    stream: bool = False
     # top_k <= 20 è un vincolo di CORRETTEZZA, non di carico: il contesto di /ask cresce
     # con k (ogni chunk vale fino a ASK_MAX_CHARS_PER_CHUNK=3000 caratteri), e oltre la
     # ventina supera la finestra di Ollama (llm_settings.ollama_num_ctx=16384), che TRONCA

@@ -39,7 +39,7 @@ from core.config import (
 logger = logging.getLogger(__name__)
 
 
-def _ollama_payload(model: str, prompt: str) -> dict:
+def _ollama_payload(model: str, prompt: str, *, stream: bool = False) -> dict:
     """Payload di /api/generate. I campi opzionali sono inclusi solo se configurati
     (omessi, il payload resta quello storico):
     · `think` (llm_settings.ollama_think) — con i modelli thinking (qwen3.5) `false` evita
@@ -58,7 +58,7 @@ def _ollama_payload(model: str, prompt: str) -> dict:
     dal client) produce oggi ~17.013 token stimati su num_ctx=16384 — 104%, non un caso
     limite raro — e senza questo guardrail la risposta tornava comunque `status:
     "success"`. Sotto la soglia resta un `logger.warning` (rischio, non certezza)."""
-    payload = {"model": model, "prompt": prompt, "stream": False}
+    payload = {"model": model, "prompt": prompt, "stream": stream}
     if OLLAMA_THINK is not None:
         payload["think"] = OLLAMA_THINK
     options = {}
@@ -327,6 +327,52 @@ async def _ollama_agenerate(model: str, prompt: str, timeout: float) -> str:
         raise LLMError(f"[ERRORE GENERICO OLLAMA]: {e}") from e
 
 
+async def _ollama_astream(model: str, prompt: str, timeout: float):
+    """Legge lo stream NDJSON nativo di Ollama e chiude la connessione su cancellazione."""
+    saw_nonwhitespace = False
+    done = False
+    try:
+        async with httpx2.AsyncClient(timeout=timeout) as client:
+            async with client.stream(
+                "POST", OLLAMA_GENERATE_URL, json=_ollama_payload(model, prompt, stream=True),
+            ) as response:
+                if response.status_code == 404:
+                    raise LLMError(
+                        f"[ERRORE OLLAMA]: Il modello '{model}' non è stato trovato. "
+                        f"Esegui 'ollama pull {model}'.")
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.strip():
+                        continue
+                    try:
+                        event = json.loads(line)
+                    except (json.JSONDecodeError, TypeError) as exc:
+                        raise LLMError("[ERRORE GENERICO OLLAMA]: evento stream non JSON.") from exc
+                    if event.get("error"):
+                        raise LLMError(f"[ERRORE GENERICO OLLAMA]: {event['error']}")
+                    text = event.get("response", "")
+                    if not isinstance(text, str):
+                        raise LLMError("[ERRORE GENERICO OLLAMA]: campo response non testuale.")
+                    if text:
+                        saw_nonwhitespace = saw_nonwhitespace or bool(text.strip())
+                        yield text
+                    if event.get("done") is True:
+                        done = True
+                        break
+        if not done:
+            raise LLMError("[ERRORE DI CONNESSIONE]: stream Ollama terminato senza evento done.")
+        if not saw_nonwhitespace:
+            raise LLMError("[ERRORE OLLAMA]: risposta vuota o priva del campo 'response' (generazione fallita).")
+    except LLMError:
+        raise
+    except httpx2.ConnectError as exc:
+        raise LLMError("[ERRORE DI CONNESSIONE]: Impossibile raggiungere Ollama. Assicurati che l'applicazione Ollama sia avviata.") from exc
+    except httpx2.TimeoutException as exc:
+        raise LLMError("[ERRORE DI TIMEOUT]: Ollama sta impiegando troppo tempo a rispondere.") from exc
+    except Exception as exc:
+        raise LLMError(f"[ERRORE GENERICO OLLAMA]: {exc}") from exc
+
+
 # ---------------------------------------------------------------------------
 # Provider: anthropic (Claude API — SDK ufficiale, API key da ANTHROPIC_API_KEY)
 # ---------------------------------------------------------------------------
@@ -449,6 +495,7 @@ _PROVIDERS: dict[str, tuple] = {
     "ollama": (_ollama_generate, _ollama_agenerate),
     "anthropic": (_anthropic_generate, _anthropic_agenerate),
 }
+_STREAM_PROVIDERS: dict[str, object] = {"ollama": _ollama_astream}
 
 
 def register_provider(name: str, sync_fn, async_fn=None) -> None:
@@ -459,6 +506,24 @@ def register_provider(name: str, sync_fn, async_fn=None) -> None:
         async def async_fn(model, prompt, timeout, _sync=sync_fn):
             return _sync(model, prompt, timeout)
     _PROVIDERS[name] = (sync_fn, async_fn)
+    _STREAM_PROVIDERS.pop(name, None)
+
+
+def register_streaming_provider(name: str, async_stream_fn) -> None:
+    """Registra lo stream nativo di un provider già presente nel registry storico."""
+    if name not in _PROVIDERS:
+        raise LLMError(f"Provider LLM non supportato: '{name}'")
+    _STREAM_PROVIDERS[name] = async_stream_fn
+
+
+def resolve_stream(purpose: str) -> tuple[str, str, bool]:
+    """Risolve una volta provider, modello e disponibilità dello streaming nativo."""
+    provider, model = resolve(purpose)
+    return provider, model, provider in _STREAM_PROVIDERS
+
+
+def streaming_native(purpose: str) -> bool:
+    return resolve_stream(purpose)[2]
 
 
 def _provider_fns(provider: str) -> tuple:
@@ -520,5 +585,42 @@ async def agenerate(
             if attempt >= max_attempts or not _is_transient(e):
                 raise
             logger.warning("Tentativo %d/%d fallito per '%s' (%s): %s", attempt, max_attempts, purpose, provider, e)
+            await asyncio.sleep(min(2 ** attempt, 10))
+            attempt += 1
+
+
+async def astream(
+    prompt: str, *, purpose: str, timeout: float = OLLAMA_TIMEOUT_SECONDS, max_attempts: int = 3,
+    resolved: tuple[str, str, bool] | None = None,
+):
+    """Emette testo incrementale; ritenta errori transitori solo prima del primo delta."""
+    provider, model, native = resolved or resolve_stream(purpose)
+    _, async_fn = _provider_fns(provider)
+    attempt = 1
+    while True:
+        emitted = False
+        try:
+            if native:
+                stream = _STREAM_PROVIDERS[provider](model, prompt, timeout)
+                try:
+                    async for part in stream:
+                        if part:
+                            emitted = True
+                            yield part
+                finally:
+                    close = getattr(stream, "aclose", None)
+                    if close is not None:
+                        await close()
+            else:
+                part = await async_fn(model, prompt, timeout)
+                if part:
+                    emitted = True
+                    yield part
+            return
+        except LLMError as exc:
+            if emitted or attempt >= max_attempts or not _is_transient(exc):
+                raise
+            logger.warning("Tentativo stream %d/%d fallito per '%s' (%s): %s",
+                           attempt, max_attempts, purpose, provider, exc)
             await asyncio.sleep(min(2 ** attempt, 10))
             attempt += 1

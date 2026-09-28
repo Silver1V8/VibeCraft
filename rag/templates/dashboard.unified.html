@@ -1570,6 +1570,83 @@
         </div>`;
     }
 
+    /* ASK_STREAM_PARSER_START */
+    function createAskStreamParser(onEvent) {
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let terminal = false;
+
+      function parseLine(line) {
+        if (!line.trim()) return;
+        if (terminal) throw new Error('Dati ricevuti dopo l’evento terminale.');
+        const event = JSON.parse(line);
+        if (!event || !['meta', 'delta', 'result', 'error'].includes(event.type)) {
+          throw new Error('Evento streaming /ask non valido.');
+        }
+        onEvent(event);
+        if (event.type === 'result' || event.type === 'error') terminal = true;
+      }
+
+      return {
+        push(chunk, done) {
+          buffer += decoder.decode(chunk, { stream: !done });
+          let newline;
+          while ((newline = buffer.indexOf('\n')) !== -1) {
+            parseLine(buffer.slice(0, newline));
+            buffer = buffer.slice(newline + 1);
+          }
+          if (done) {
+            parseLine(buffer);
+            buffer = '';
+            if (!terminal) throw new Error('Stream /ask terminato senza evento terminale.');
+          }
+          return terminal;
+        },
+      };
+    }
+    /* ASK_STREAM_PARSER_END */
+
+    function renderAskResult(data) {
+      /* ── ANSWER ── */
+      const answerCard = document.getElementById('answer-card');
+      const answerText = document.getElementById('answer-text');
+      answerText.textContent = data.answer || '(nessuna risposta)';
+      answerText.className   = 'answer-appear text-sm text-slate-200 leading-relaxed whitespace-pre-wrap max-h-72 overflow-y-auto pr-1';
+      void answerText.offsetWidth; // reflow per restart animation
+
+      const elapsed = data.elaboration_seconds ?? data.elapsed_seconds;
+      const badge   = document.getElementById('elapsed-badge');
+      badge.textContent = elapsed != null ? `⏱ ${elapsed}s` : '';
+      answerCard.classList.remove('hidden');
+
+      /* ── GRAPH ── */
+      const gc = data.graph_context || {};
+      const expandedNodes = gc.expanded_nodes || [];
+      const graphEdges    = gc.graph_edges    || [];
+      const seedNodes     = gc.seed_nodes     || [];
+
+      if (expandedNodes.length > 0) {
+        // Salva i dati in memoria per il ripristino istantaneo
+        lastQueryGraphData = { nodes: expandedNodes, edges: graphEdges, seedNodes };
+        buildGraph(expandedNodes, graphEdges, seedNodes);
+      }
+
+      /* ── PROMPT CONTEXT ── */
+      const contextText = gc.context_text || '';
+      document.getElementById('raw-context-box').textContent =
+        contextText || 'Nessun testo di contesto disponibile.';
+      document.getElementById('context-chars').textContent =
+        contextText ? `${contextText.length.toLocaleString('it-IT')} caratteri` : '';
+
+      /* ── JSON RESPONSE ── */
+      lastJsonPanelData = data;   // per il ridisegno al cambio di tema (onThemeChange)
+      renderJsonPanel(data);
+
+      /* ── SCORES ── */
+      renderScores(data.qdrant_scores);
+      setStatus('success');
+    }
+
     /* ──────────── MAIN QUERY ──────────── */
     async function submitQuery() {
       const question = document.getElementById('question-input').value.trim();
@@ -1589,10 +1666,10 @@
       setStatus('loading');
 
       try {
-        const res  = await fetch('/ask', {
+        const res = await fetch('/ask', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question, top_k: topK, bfs_depth: bfsDep }),
+          body: JSON.stringify({ question, top_k: topK, bfs_depth: bfsDep, stream: true }),
         });
 
         if (!res.ok) {
@@ -1600,47 +1677,38 @@
           throw new Error(err.detail || `HTTP ${res.status}`);
         }
 
-        const data = await res.json();
+        if (!res.body) throw new Error('Il browser non supporta lo streaming della risposta.');
+        const reader = res.body.getReader();
+        let readerFinished = false;
+        let finalData = null;
+        let streamedAnswer = '';
+        const parser = createAskStreamParser(event => {
+          if (event.type === 'delta') {
+            streamedAnswer += event.text || '';
+            const answerText = document.getElementById('answer-text');
+            answerText.textContent = streamedAnswer;
+            answerText.className = 'text-sm text-slate-200 leading-relaxed whitespace-pre-wrap max-h-72 overflow-y-auto pr-1';
+            document.getElementById('answer-card').classList.remove('hidden');
+          } else if (event.type === 'result') {
+            finalData = event.value;
+          } else if (event.type === 'error') {
+            throw new Error(event.detail || 'Errore durante lo streaming /ask.');
+          }
+        });
 
-        /* ── ANSWER ── */
-        const answerCard = document.getElementById('answer-card');
-        const answerText = document.getElementById('answer-text');
-        answerText.textContent = data.answer || '(nessuna risposta)';
-        answerText.className   = 'answer-appear text-sm text-slate-200 leading-relaxed whitespace-pre-wrap max-h-72 overflow-y-auto pr-1';
-        void answerText.offsetWidth; // reflow per restart animation
-
-        const elapsed = data.elaboration_seconds ?? data.elapsed_seconds;
-        const badge   = document.getElementById('elapsed-badge');
-        badge.textContent = elapsed != null ? `⏱ ${elapsed}s` : '';
-        answerCard.classList.remove('hidden');
-
-        /* ── GRAPH ── */
-        const gc = data.graph_context || {};
-        const expandedNodes = gc.expanded_nodes || [];
-        const graphEdges    = gc.graph_edges    || [];
-        const seedNodes     = gc.seed_nodes     || [];
-
-        if (expandedNodes.length > 0) {
-          // Salva i dati in memoria per il ripristino istantaneo
-          lastQueryGraphData = { nodes: expandedNodes, edges: graphEdges, seedNodes };
-          buildGraph(expandedNodes, graphEdges, seedNodes);
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            parser.push(value, done);
+            if (done) {
+              readerFinished = true;
+              break;
+            }
+          }
+        } finally {
+          if (!readerFinished) await reader.cancel().catch(() => {});
         }
-
-        /* ── PROMPT CONTEXT ── */
-        const contextText = gc.context_text || '';
-        document.getElementById('raw-context-box').textContent =
-          contextText || 'Nessun testo di contesto disponibile.';
-        document.getElementById('context-chars').textContent =
-          contextText ? `${contextText.length.toLocaleString('it-IT')} caratteri` : '';
-
-        /* ── JSON RESPONSE ── */
-        lastJsonPanelData = data;   // per il ridisegno al cambio di tema (onThemeChange)
-        renderJsonPanel(data);
-
-        /* ── SCORES ── */
-        renderScores(data.qdrant_scores);
-
-        setStatus('success');
+        renderAskResult(finalData);
       } catch (e) {
         const answerCard = document.getElementById('answer-card');
         const answerText = document.getElementById('answer-text');

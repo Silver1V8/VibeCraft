@@ -511,6 +511,173 @@ def test_agenerate_non_ritenta_su_errore_non_transitorio(fake_settings, monkeypa
     assert len(calls) == 1
 
 
+def test_astream_fallback_emette_la_risposta_completa(fake_settings):
+    """Un provider senza protocollo streaming resta utilizzabile e viene dichiarato non nativo."""
+    llm.register_provider("fake", lambda model, prompt, timeout: "RISPOSTA COMPLETA")
+
+    async def collect():
+        return [part async for part in llm.astream("prompt", purpose="ask")]
+
+    assert llm.streaming_native("ask") is False
+    assert asyncio.run(collect()) == ["RISPOSTA COMPLETA"]
+
+
+def test_astream_non_ritenta_dopo_il_primo_delta(fake_settings, monkeypatch):
+    """Un retry dopo testo visibile duplicherebbe la risposta nel client."""
+    calls = []
+
+    async def broken_stream(model, prompt, timeout):
+        calls.append(1)
+        yield "prima parte"
+        raise llm.LLMError("[ERRORE DI CONNESSIONE]: stream interrotto")
+
+    llm.register_streaming_provider("fake", broken_stream)
+
+    async def collect():
+        parts = []
+        with pytest.raises(llm.LLMError, match="stream interrotto"):
+            async for part in llm.astream("prompt", purpose="ask", max_attempts=3):
+                parts.append(part)
+        return parts
+
+    monkeypatch.setattr(llm.asyncio, "sleep", lambda _s: None)
+    assert asyncio.run(collect()) == ["prima parte"]
+    assert len(calls) == 1
+
+
+def test_astream_ritenta_prima_del_primo_delta(fake_settings, monkeypatch):
+    calls = []
+
+    async def flaky_stream(model, prompt, timeout):
+        calls.append(1)
+        if len(calls) == 1:
+            raise llm.LLMError("[ERRORE DI TIMEOUT]: nessun testo ricevuto")
+        yield "ok"
+
+    async def no_sleep(_seconds):
+        return None
+
+    llm.register_streaming_provider("fake", flaky_stream)
+    monkeypatch.setattr(llm.asyncio, "sleep", no_sleep)
+
+    async def collect():
+        return [part async for part in llm.astream("prompt", purpose="ask", max_attempts=3)]
+
+    assert asyncio.run(collect()) == ["ok"]
+    assert len(calls) == 2
+
+
+def _make_fake_stream_client(lines, observed):
+    class Response:
+        status_code = 200
+
+        def raise_for_status(self):
+            return None
+
+        async def aiter_lines(self):
+            for line in lines:
+                yield line
+
+    class Stream:
+        async def __aenter__(self):
+            return Response()
+
+        async def __aexit__(self, *exc):
+            observed["stream_closed"] = True
+            return False
+
+    class Client:
+        def __init__(self, *args, **kwargs):
+            observed["timeout"] = kwargs.get("timeout")
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *exc):
+            observed["client_closed"] = True
+            return False
+
+        def stream(self, method, url, *, json):
+            observed.update(method=method, url=url, payload=json)
+            return Stream()
+
+    return Client
+
+
+def test_ollama_astream_emette_delta_ndjson_e_richiede_stream(monkeypatch):
+    import json
+
+    observed = {}
+    lines = [
+        json.dumps({"model": "m", "response": "prima ", "done": False}),
+        json.dumps({"model": "m", "response": "parte", "done": False}),
+        json.dumps({"model": "m", "response": "", "done": True}),
+    ]
+    monkeypatch.setattr(llm.httpx2, "AsyncClient", _make_fake_stream_client(lines, observed))
+
+    async def collect():
+        return [part async for part in llm._ollama_astream("m", "prompt", timeout=7)]
+
+    assert asyncio.run(collect()) == ["prima ", "parte"]
+    assert observed["payload"]["stream"] is True
+    assert observed["stream_closed"] is True and observed["client_closed"] is True
+
+
+def test_ollama_astream_rifiuta_eof_senza_done(monkeypatch):
+    import json
+
+    observed = {}
+    monkeypatch.setattr(
+        llm.httpx2, "AsyncClient",
+        _make_fake_stream_client([json.dumps({"response": "parziale", "done": False})], observed),
+    )
+
+    async def collect():
+        return [part async for part in llm._ollama_astream("m", "prompt", timeout=7)]
+
+    with pytest.raises(llm.LLMError, match="terminato senza evento done"):
+        asyncio.run(collect())
+    assert observed["stream_closed"] is True and observed["client_closed"] is True
+
+
+def test_astream_aclose_chiude_subito_il_provider_nativo(fake_settings):
+    observed = {"closed": False}
+
+    async def native(*_args):
+        try:
+            yield "prima"
+            yield "seconda"
+        finally:
+            observed["closed"] = True
+
+    llm.register_provider("fake", lambda *_args: "fallback")
+    llm.register_streaming_provider("fake", native)
+
+    async def consume_one():
+        stream = llm.astream("prompt", purpose="ask")
+        assert await anext(stream) == "prima"
+        await stream.aclose()
+
+    asyncio.run(consume_one())
+    assert observed["closed"] is True
+
+
+def test_ollama_astream_rifiuta_response_non_stringa(monkeypatch):
+    import json
+
+    observed = {}
+    monkeypatch.setattr(
+        llm.httpx2, "AsyncClient",
+        _make_fake_stream_client([json.dumps({"response": {"bad": True}, "done": True})], observed),
+    )
+
+    async def collect():
+        return [part async for part in llm._ollama_astream("m", "prompt", timeout=7)]
+
+    with pytest.raises(llm.LLMError, match="campo response non testuale"):
+        asyncio.run(collect())
+
+
 def test_ollama_payload_warna_se_il_prompt_sfiora_la_finestra(monkeypatch, caplog):
     # Il default 4096 di Ollama troncava i prompt SILENZIOSAMENTE (canvas mozzato, intervista
     # mai letta): con num_ctx configurato, un prompt vicino alla finestra deve almeno lasciare

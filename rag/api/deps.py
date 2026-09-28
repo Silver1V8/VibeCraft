@@ -6,6 +6,7 @@ import asyncio
 import hmac
 import json
 import logging
+import math
 import os
 import queue
 import re
@@ -29,6 +30,7 @@ from core.writer_lock import WriterLockBusyError, writer_lock
 from core.config import (
     EMBEDDING_MODEL,
     GRAPH_JSON_PATH,
+    OLLAMA_TIMEOUT_SECONDS,
     PROJECT_ROOT,
     QDRANT_API_KEY,
     QDRANT_URL,
@@ -225,6 +227,8 @@ class IndexSnapshot:
     # matrice del codice: e' identica a ogni richiesta. Default vuoto = peso di sezione
     # disattivato, che e' il comportamento dei chiamanti storici (test, snapshot costruiti a mano).
     restatements: frozenset = frozenset()
+    # Collection fisica coerente con gli artefatti; None sui layout/test legacy.
+    collection_name: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -249,9 +253,91 @@ EMBED_CONCURRENCY = int(os.environ.get("VIBECRAFT_EMBED_CONCURRENCY", "2"))
 embed_semaphore = asyncio.Semaphore(EMBED_CONCURRENCY)
 
 
+class AskRuntime:
+    """Limiti per-processo legati alla singola app FastAPI."""
+
+    def __init__(self, *, max_active: int, llm_concurrency: int,
+                 llm_queue_timeout: float, total_timeout: float):
+        values = {
+            "max_active": max_active,
+            "llm_concurrency": llm_concurrency,
+            "llm_queue_timeout": llm_queue_timeout,
+            "total_timeout": total_timeout,
+        }
+        for name, value in values.items():
+            if value <= 0 or not math.isfinite(value):
+                raise ValueError(f"{name} deve essere positivo")
+        self.max_active = max_active
+        self.llm_queue_timeout = llm_queue_timeout
+        self.total_timeout = total_timeout
+        self.active = 0
+        self.llm = asyncio.Semaphore(llm_concurrency)
+
+    def try_admit(self) -> bool:
+        # Tutti i chiamanti vivono sull'event loop dell'app: nessun await fra check e incremento.
+        if self.active >= self.max_active:
+            return False
+        self.active += 1
+        return True
+
+    def release(self) -> None:
+        if self.active > 0:
+            self.active -= 1
+
+    async def acquire_llm(self) -> None:
+        await asyncio.wait_for(self.llm.acquire(), timeout=self.llm_queue_timeout)
+
+    def release_llm(self) -> None:
+        self.llm.release()
+
+
+def _ask_runtime_from_env() -> AskRuntime:
+    try:
+        return AskRuntime(
+            max_active=int(os.environ.get("VIBECRAFT_ASK_MAX_ACTIVE", "8")),
+            llm_concurrency=int(os.environ.get("VIBECRAFT_LLM_CONCURRENCY", "2")),
+            llm_queue_timeout=float(os.environ.get("VIBECRAFT_LLM_QUEUE_TIMEOUT_SECONDS", "30")),
+            total_timeout=float(os.environ.get(
+                "VIBECRAFT_ASK_TIMEOUT_SECONDS", str(OLLAMA_TIMEOUT_SECONDS + 60))),
+        )
+    except ValueError as exc:
+        raise RuntimeError(f"Configurazione limiti /ask non valida: {exc}") from exc
+
+
+def ask_runtime_for_app(application: FastAPI) -> AskRuntime:
+    runtime = getattr(application.state, "ask_runtime", None)
+    if runtime is None:
+        runtime = _ask_runtime_from_env()
+        application.state.ask_runtime = runtime
+    return runtime
+
+
 async def embed_in_threadpool(fn, *a, **k):
     async with embed_semaphore:
-        return await run_in_threadpool(fn, *a, **k)
+        return await run_in_threadpool_until_complete(fn, *a, **k)
+
+
+async def run_in_threadpool_until_complete(fn, *a, **k):
+    """Su cancel attende il worker reale prima di restituire lo slot al chiamante."""
+    worker = asyncio.create_task(run_in_threadpool(fn, *a, **k))
+    try:
+        return await asyncio.shield(worker)
+    except asyncio.CancelledError:
+        while not worker.done():
+            try:
+                await asyncio.shield(worker)
+            except asyncio.CancelledError:
+                # Una seconda cancel non deve rendere nuovamente abbandonabile il thread.
+                continue
+            except BaseException:
+                # L'esito tardivo viene consumato sotto; il chiamante resta cancellato.
+                break
+        try:
+            worker.result()
+        except BaseException:
+            # La cancellazione della richiesta ha precedenza sull'esito tardivo del worker.
+            pass
+        raise
 
 
 def current_snapshot() -> IndexSnapshot | None:
@@ -352,6 +438,7 @@ def _build_snapshot(graph, colbert_store, chunks, rule_descriptions, code_store,
     elif version is None:
         version = _graph_version()
     code_ids, code_matrix = _prep_code_matrix(code_store)
+    collection_name = qdrant_collection_for_version(version)
     return IndexSnapshot(
         graph=graph,
         colbert_store=colbert_store,
@@ -363,6 +450,7 @@ def _build_snapshot(graph, colbert_store, chunks, rule_descriptions, code_store,
         code_matrix=code_matrix,
         code_dev_type_idx=_prep_dev_type_index(code_ids, code_store),
         restatements=retrieval.restatement_sections(chunks),
+        collection_name=None if collection_name == "unknown" else collection_name,
     )
 
 
@@ -392,6 +480,7 @@ def load_rule_descriptions() -> dict[str, str]:
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     """Carica le risorse pesanti al boot e le libera allo shutdown."""
+    ask_runtime_for_app(application)
     logger.info("Caricamento modello embedding: %s ...", EMBEDDING_MODEL)
     # CPU per le query interattive (/ask, graph query): una singola embedding costa ms
     # anche su CPU. GPU riservata ai job di reindex, che processano migliaia di chunk/

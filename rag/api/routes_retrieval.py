@@ -1,24 +1,29 @@
 """Route di retrieval: /ask (RAG completo con sintesi LLM e contesto grafo) e /api/retrieve
 (retrieval puro per eval/debug). Gli handler iniettano le risorse di runtime dallo stato
 (api.deps) nelle funzioni pure di core.retrieval / core.graph_ops."""
+import asyncio
+import json
 import logging
 import re
 import time
 import uuid
+from contextlib import aclosing
 
 import networkx as nx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import StreamingResponse
 from qdrant_client import QdrantClient
 from FlagEmbedding import BGEM3FlagModel
 
 from api.deps import (
+    ask_runtime_for_app,
     current_snapshot,
     embed_in_threadpool,
     maybe_reload_graph,
     qdrant_collection_for_version,
     require_api_key,
     require_not_cross_site_request,
+    run_in_threadpool_until_complete,
     state,
 )
 from api.models import AskQuery
@@ -95,20 +100,34 @@ _ASTENSIONE_RE = re.compile(
     r"^[\s*#`]*" + re.escape(retrieval.ASK_ABSTENTION_MARKER) + r"[*#`]*\s*")
 
 
-@router.post("/ask", dependencies=[Depends(require_not_cross_site_request)])
-async def ask_rag(request: Request, query: AskQuery):
-    request_id = uuid.uuid4().hex
-    request_start = time.time()
+async def _emit(emit, event: dict) -> None:
+    if emit is not None:
+        await emit(event)
 
+
+def _ask_resources():
+    """Cattura una sola volta lo snapshot e valida la readiness prima degli header."""
     maybe_reload_graph()
     snap = current_snapshot()
     qdrant: QdrantClient = state["qdrant"]
     embed_model: BGEM3FlagModel = state["embed_model"]
-
     if snap is None or snap.graph is None or qdrant is None or embed_model is None:
         raise HTTPException(status_code=503, detail="Server non ancora inizializzato.")
+    return snap, qdrant, embed_model
+
+
+async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resources=None):
+    request_id = uuid.uuid4().hex
+    request_start = time.time()
+
+    snap, qdrant, embed_model = resources or _ask_resources()
     graph: nx.DiGraph = snap.graph
     index_version = snap.version
+    qdrant_collection = snap.collection_name or qdrant_collection_for_version(index_version)
+    collection = qdrant_collection
+    if qdrant_collection == "unknown":
+        # Compatibilità col layout flat e con gli snapshot storici costruiti a mano nei test.
+        collection = COLLECTION_NAME
 
     # 0. Router deterministico M2: le domande STRUTTURALI (enumerazioni, relazioni,
     #    impatto, adiacenza — i casi B>A del report M1) sono risposte direttamente da
@@ -116,8 +135,13 @@ async def ask_rag(request: Request, query: AskQuery):
     #    grafo in memoria: offload in threadpool per non bloccare l'event loop.
     retrieval_strategy = question_router.route_question(query.question)
     if retrieval_strategy == "graph":
+        await _emit(emit, {
+            "type": "meta", "request_id": request_id, "index_version": index_version,
+            "qdrant_collection": qdrant_collection, "retrieval_strategy": retrieval_strategy,
+            "cached": False, "streaming_native": False,
+        })
         graph_start = time.time()
-        graph_result = await run_in_threadpool(
+        graph_result = await run_in_threadpool_until_complete(
             graph_ops.graph_query, query.question, graph, query.target,
         )
         latency_graph_ms = round((time.time() - graph_start) * 1000, 2)
@@ -128,11 +152,11 @@ async def ask_rag(request: Request, query: AskQuery):
             "ask request_id=%s index_version=%s qdrant_collection=%s qdrant_alias=%s "
             "retrieval_strategy=%s top_k=%s n_results=%s latency_retrieval_ms=%s "
             "latency_generation_ms=%s latency_total_ms=%s",
-            request_id, index_version, qdrant_collection_for_version(index_version),
+            request_id, index_version, qdrant_collection,
             COLLECTION_NAME, retrieval_strategy, query.top_k, graph_result.get("count", 0),
             latency_graph_ms, 0, latency_total_ms,
         )
-        return {
+        payload = {
             "status": "graph_answer",
             "graph_result": graph_result,
             "request_id": request_id,
@@ -145,6 +169,7 @@ async def ask_rag(request: Request, query: AskQuery):
                 "total_ms": latency_total_ms,
             },
         }
+        return payload
 
     # 0b. Cache semantica del ramo "hybrid": a parità di (index_version, strategia, top_k,
     #     bfs_depth, domanda normalizzata) retrieval e sintesi rifarebbero lo stesso lavoro,
@@ -166,20 +191,36 @@ async def ask_rag(request: Request, query: AskQuery):
             "ask request_id=%s index_version=%s qdrant_collection=%s qdrant_alias=%s "
             "retrieval_strategy=%s top_k=%s n_results=%s latency_retrieval_ms=%s "
             "latency_generation_ms=%s latency_total_ms=%s cached=true",
-            request_id, index_version, qdrant_collection_for_version(index_version),
+            request_id, index_version, qdrant_collection,
             COLLECTION_NAME, retrieval_strategy, query.top_k,
             len(cached.get("qdrant_scores", [])), 0, 0, latency_total_ms,
         )
         # request_id, latenze ed elaboration_seconds sono di QUESTA richiesta (quelli
         # cachati appartengono alla richiesta che ha popolato la voce e sarebbero
         # fuorvianti); il resto del payload è servito tal quale, senza mutare la voce.
-        return {
+        payload = {
             **cached,
             "cached": True,
             "request_id": request_id,
             "elaboration_seconds": 0.0,
             "latency": {"retrieval_ms": 0, "generation_ms": 0, "total_ms": latency_total_ms},
         }
+        await _emit(emit, {
+            "type": "meta", "request_id": request_id, "index_version": index_version,
+            "qdrant_collection": qdrant_collection, "retrieval_strategy": retrieval_strategy,
+            "cached": True, "streaming_native": False,
+        })
+        if payload.get("answer"):
+            await _emit(emit, {"type": "delta", "text": payload["answer"]})
+        return payload
+
+    stream_resolved = llm.resolve_stream("ask") if emit is not None else None
+    await _emit(emit, {
+        "type": "meta", "request_id": request_id, "index_version": index_version,
+        "qdrant_collection": qdrant_collection, "retrieval_strategy": retrieval_strategy,
+        "cached": False,
+        "streaming_native": stream_resolved[2] if stream_resolved is not None else False,
+    })
 
     # 1-2. Ricerca ibrida sui DOCUMENTI: dense + sparse (fusione per rank) + rerank ColBERT.
     #    La query è codificata UNA volta sola (forward pass bge-m3, la più cara della
@@ -194,10 +235,11 @@ async def ask_rag(request: Request, query: AskQuery):
         retrieval.encode_query, embed_model, query.question)
     # `graph` alimenta la fase di PRECEDENZA (S4): senza, apply_precedence è un no-op e la
     # precedenza dichiarata dagli autori resterebbe di nuovo un metadato morto.
-    search_results = await embed_in_threadpool(
+    search_results = await run_in_threadpool_until_complete(
         retrieval.hybrid_search, query.question, query.top_k,
         qdrant=qdrant, embed_model=embed_model, colbert_store=snap.colbert_store,
-        query_encoding=query_encoding, graph=graph, restatements=snap.restatements,
+        collection_name=collection, query_encoding=query_encoding,
+        graph=graph, restatements=snap.restatements,
     )
 
     # 2b. Ricerca semantica DIRETTA sul codice, indipendente dai documenti recuperati: il
@@ -206,7 +248,7 @@ async def ask_rag(request: Request, query: AskQuery):
     #     Senza questo ramo il codice arrivava SOLO di rimbalzo dalle sezioni recuperate
     #     (ponte IMPLEMENTS, punto 4c) e i simboli che nessuna spec descrive — i DTO con
     #     l'elenco dei campi, gli helper — restavano invisibili alla risposta.
-    code_hits = await run_in_threadpool(
+    code_hits = await run_in_threadpool_until_complete(
         retrieval.search_code_symbols, query_encoding["dense"], snap.code_store,
         max_snippets=CODE_SEARCH_MAX_SNIPPETS, min_score=CODE_SEARCH_MIN_SCORE,
         max_per_file=CODE_SEARCH_MAX_PER_FILE,
@@ -498,7 +540,7 @@ async def ask_rag(request: Request, query: AskQuery):
     # inietterebbe comunque il suo tetto. Stesso pavimento di pertinenza alla domanda del
     # ramo semantico, ristretto ai simboli del ponte (0.0 = disattivato).
     if CODE_LINK_MIN_QUESTION_SCORE > 0 and linked_code and query_encoding is not None:
-        linked_code, scartati_ponte = await run_in_threadpool(
+        linked_code, scartati_ponte = await run_in_threadpool_until_complete(
             retrieval.filter_linked_code_by_question, linked_code, query_encoding["dense"],
             snap.code_store, min_score=CODE_LINK_MIN_QUESTION_SCORE,
             code_ids=snap.code_ids, code_matrix=snap.code_matrix)
@@ -525,13 +567,35 @@ async def ask_rag(request: Request, query: AskQuery):
     #    contesto + domanda). Su LLMError la risposta è un 502 esplicito: MAI un testo
     #    d'errore dentro "answer" con status "success".
     start_time = time.time()
+    prompt = retrieval.build_ask_prompt(
+        context, query.question, precedences=precedenze,
+        authority_classes=retrieval.authority_scale(fonti_nel_contesto),
+    )
+    runtime = ask_runtime_for_app(request.app)
     try:
-        answer = await llm.agenerate(
-            retrieval.build_ask_prompt(context, query.question, precedences=precedenze,
-                                       authority_classes=retrieval.authority_scale(fonti_nel_contesto)),
-            purpose="ask")
-    except llm.LLMError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        await runtime.acquire_llm()
+    except TimeoutError as exc:
+        raise HTTPException(
+            status_code=503, detail="Coda inferenza piena: riprova più tardi.",
+            headers={"Retry-After": "1"},
+        ) from exc
+    try:
+        try:
+            if emit is None:
+                answer = await llm.agenerate(prompt, purpose="ask")
+            else:
+                parts = []
+                async with aclosing(llm.astream(
+                    prompt, purpose="ask", resolved=stream_resolved,
+                )) as stream:
+                    async for part in stream:
+                        parts.append(part)
+                        await _emit(emit, {"type": "delta", "text": part})
+                answer = "".join(parts)
+        except llm.LLMError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+    finally:
+        runtime.release_llm()
     end_time = time.time()
 
     # A16: l'astensione esisteva già come prosa corretta e motivata, ma "status": "success"
@@ -551,7 +615,6 @@ async def ask_rag(request: Request, query: AskQuery):
     # ordinate e stabili. qdrant_collection è letta dal manifest della versione dello
     # snapshot via cache in-process (deps.qdrant_collection_for_version): nessuna
     # chiamata Qdrant aggiuntiva per-request.
-    qdrant_collection = qdrant_collection_for_version(index_version)
     latency_generation_ms = round((end_time - start_time) * 1000, 2)
     latency_total_ms = round((time.time() - request_start) * 1000, 2)
     logger.info(
@@ -608,6 +671,76 @@ async def ask_rag(request: Request, query: AskQuery):
     # risposta — anche quando la risposta è "il contesto non basta".
     _cache_set(request.app, cache_key, payload)
     return payload
+
+
+def _stream_error(exc: Exception) -> dict:
+    if isinstance(exc, HTTPException):
+        detail = exc.detail
+    elif isinstance(exc, TimeoutError):
+        detail = "Timeout totale della richiesta /ask."
+    else:
+        detail = f"{type(exc).__name__}: {exc}"
+    return {"type": "error", "detail": str(detail)}
+
+
+async def _ask_stream(request: Request, query: AskQuery, runtime, resources):
+    queue: asyncio.Queue = asyncio.Queue(maxsize=1)
+
+    async def produce() -> None:
+        try:
+            async with asyncio.timeout(runtime.total_timeout):
+                payload = await _ask_pipeline(
+                    request, query, emit=queue.put, resources=resources,
+                )
+            await queue.put({"type": "result", "value": payload})
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            await queue.put(_stream_error(exc))
+
+    producer = asyncio.create_task(produce())
+    try:
+        while True:
+            event = await queue.get()
+            yield json.dumps(event, ensure_ascii=False) + "\n"
+            if event["type"] in ("result", "error"):
+                break
+    finally:
+        if not producer.done():
+            producer.cancel()
+        try:
+            await producer
+        except asyncio.CancelledError:
+            pass
+        runtime.release()
+
+
+@router.post("/ask", dependencies=[Depends(require_not_cross_site_request)])
+async def ask_rag(request: Request, query: AskQuery):
+    runtime = ask_runtime_for_app(request.app)
+    if not runtime.try_admit():
+        raise HTTPException(
+            status_code=429, detail="Troppe richieste /ask attive.",
+            headers={"Retry-After": "1"},
+        )
+    try:
+        resources = _ask_resources()
+    except Exception:
+        runtime.release()
+        raise
+    if query.stream:
+        return StreamingResponse(
+            _ask_stream(request, query, runtime, resources),
+            media_type="application/x-ndjson",
+            headers={"Cache-Control": "no-store"},
+        )
+    try:
+        async with asyncio.timeout(runtime.total_timeout):
+            return await _ask_pipeline(request, query, resources=resources)
+    except TimeoutError as exc:
+        raise HTTPException(status_code=504, detail="Timeout totale della richiesta /ask.") from exc
+    finally:
+        runtime.release()
 
 
 @router.get("/api/retrieve")
@@ -768,7 +901,7 @@ async def api_code_search(
                     "note": f"Nessun simbolo indicizzato per l'ambito '{dev_type}'."}
 
     encoding = await embed_in_threadpool(retrieval.encode_query, embed_model, q)
-    hits = await run_in_threadpool(
+    hits = await run_in_threadpool_until_complete(
         retrieval.search_code_symbols, encoding["dense"], snap.code_store,
         max_snippets=k, min_score=min_score, max_per_file=max_per_file,
         code_ids=snap.code_ids, code_matrix=snap.code_matrix, subset_idx=subset_idx,
