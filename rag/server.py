@@ -14,26 +14,45 @@ for _stream in (sys.stdout, sys.stderr):
         pass
 
 import logging
+import mimetypes
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from core.config import ROLE, SERVER_BIND_IS_LOCAL, STATIC_DIR, setup_logging
+from core.config import ALLOWED_HOSTS, ROLE, SERVER_BIND_IS_LOCAL, STATIC_DIR, setup_logging
 
 # Configurazione centrale del logging PRIMA degli import applicativi: i moduli usano
 # logging.getLogger(__name__) e vedono formato/livello (VIBECRAFT_LOG_LEVEL) coerenti.
 setup_logging()
 logger = logging.getLogger(__name__)
 
-from api.deps import API_KEY, NO_CACHE_HEADERS, lifespan
+from api.deps import API_KEY, NO_CACHE_HEADERS, HostHeaderGuard, SecurityHeadersMiddleware, lifespan
 from api import routes_graph, routes_health, routes_pages, routes_retrieval
 
 if ROLE != "reader":
     from api import routes_intake, routes_pipeline, routes_reindex
 
 app = FastAPI(title="VibeCraft Graph-RAG Console", lifespan=lifespan)
+
+# Header Host validato PRIMA di ogni route (statici compresi): chiude il DNS rebinding, che
+# altrimenti renderebbe same-origin una pagina ostile risolta su 127.0.0.1 e le farebbe
+# ereditare il bypass loopback e la chiave iniettata in /pipeline — vedi api/deps.py::
+# HostHeaderGuard. Host estranei (nomi di LAN, reverse proxy) si aggiungono con
+# VIBECRAFT_ALLOWED_HOSTS; il default ammette solo il loopback.
+app.add_middleware(HostHeaderGuard, allowed_hosts=ALLOWED_HOSTS)
+
+# Anti-framing (X-Frame-Options + CSP frame-ancestors) e nosniff/Referrer-Policy su OGNI
+# risposta — vedi api/deps.py::SecurityHeadersMiddleware. Aggiunto DOPO HostHeaderGuard, cioè
+# più esterno (add_middleware antepone): così anche il 400 del Host estraneo porta gli header.
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Con `nosniff` il browser rifiuta uno script servito con un MIME non JavaScript: StaticFiles
+# ricava il tipo da mimetypes, che su Windows legge anche il registro, dove .js può essere
+# mappato a text/plain da software di terze parti. Tipi fissati qui, indipendenti dalla macchina.
+for _ext, _mime in ((".js", "text/javascript"), (".css", "text/css"), (".svg", "image/svg+xml")):
+    mimetypes.add_type(_mime, _ext)
 
 # shared.css / shared.js cambiano spesso durante lo sviluppo locale, ma
 # StaticFiles li servirebbe con caching euristico del browser (nessun
@@ -54,6 +73,21 @@ def _shared_css() -> FileResponse:
 @app.get("/static/shared.js", include_in_schema=False)
 def _shared_js() -> FileResponse:
     return FileResponse(STATIC_DIR / "shared.js", media_type="text/javascript", headers=NO_CACHE_HEADERS)
+
+
+# Script delle pagine (static/pages/*.js): erano <script> inline nei template, spostati per
+# la CSP (script-src 'self'). Cambiano insieme all'HTML, quindi stesso NO_CACHE_HEADERS di
+# shared.js per lo stesso motivo. Serviti solo i file presenti al boot (nessun path costruito
+# dalla richiesta): un nome sconosciuto è 404.
+_PAGE_SCRIPTS = {p.name: p for p in (STATIC_DIR / "pages").glob("*.js")}
+
+
+@app.get("/static/pages/{name}", include_in_schema=False)
+def _page_script(name: str) -> FileResponse:
+    path = _PAGE_SCRIPTS.get(name)
+    if path is None:
+        raise HTTPException(status_code=404)
+    return FileResponse(path, media_type="text/javascript", headers=NO_CACHE_HEADERS)
 
 
 # Asset statici condivisi (shared.css / shared.js) estratti dai template per

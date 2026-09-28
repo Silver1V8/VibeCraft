@@ -226,6 +226,20 @@ def test_ogni_giro_e_registrato_nel_journal(loop_env, monkeypatch):
     assert all('output' not in v for v in verifiche)
 
 
+def test_budget_esaurito_blocca_il_rilancio_claude(loop_env, monkeypatch):
+    """Il budget Claude si esaurisce durante la catena: il rilancio non parte, non viene
+    registrato come avviato e lo stream lo dichiara con retry_blocked."""
+    from core import llm
+    _esiti(monkeypatch, verification.FAILED)
+    monkeypatch.setattr(llm, 'budget_exhausted', lambda: (1.5, 1.0))
+    eventi = _consuma(max_attempts=3)
+
+    assert eventi[-1]['type'] == 'retry_blocked'
+    assert 'Budget Claude giornaliero esaurito' in eventi[-1]['detail']
+    assert not loop_env.run
+    assert not [e for e in loop_env.eventi if e['event'] == 'execution_started']
+
+
 def test_la_ui_riceve_il_tetto_vero_del_server(monkeypatch):
     """La tendina "Tentativi" si popola da qui: offrire più opzioni del tetto reale
     significherebbe far scegliere un numero che il server poi taglia in silenzio."""

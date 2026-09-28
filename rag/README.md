@@ -112,6 +112,15 @@ persiste opzionalmente su file (`budget.spend_file`, altrimenti solo in-memory,
 azzerato al riavvio) e non fa mai fallire una chiamata: qualunque errore interno del
 guard (config malformata, file illeggibile) viene loggato e si resta sul provider
 risolto. `spend_today_usd()` espone la spesa corrente per diagnostica.
+Nello stesso contatore entra il costo dei run dell'agente Claude
+(`POST /api/pipeline/agent/run`, runner `claude`): a fine run `agent_bridge` registra il
+`total_cost_usd` riportato dall'SDK (anche per run falliti; niente se lo stream si
+interrompe prima del risultato), senza bisogno di `pricing`. Non avendo un provider
+locale su cui degradare, con budget attivo e soglia raggiunta i nuovi run `claude` (e i
+rilanci automatici dopo una verifica fallita) sono **rifiutati** con 429 e
+`Retry-After` fino alla mezzanotte UTC; i runner `local`, `codex` e `cursor` non sono
+toccati dal budget. La soglia è **morbida**: il costo è noto solo a fine run, quindi i
+run già ammessi o in corso possono superarla e bloccano soltanto quelli successivi.
 
 **Breakdown di latenza in risposta (M3/F3).** Sia il ramo `hybrid` sia il ramo
 `graph` restituiscono, oltre a `request_id` e `index_version`, un oggetto
@@ -207,7 +216,9 @@ webhook in sicurezza imposta **entrambe** le variabili d'ambiente: `VIBECRAFT_AP
 (header `X-Gitlab-Token`, il *Secret token* del webhook GitLab). Quando
 `VIBECRAFT_GITLAB_TOKEN` è impostata, `POST /api/reindex` esige il token corretto
 (confronto a tempo costante con `hmac.compare_digest`) **in aggiunta** a `X-API-Key`;
-se non è impostata il comportamento resta invariato (solo `X-API-Key`). Dal payload
+se non è impostata il comportamento resta invariato (solo `X-API-Key`). Il `<host>` del
+webhook va anche ammesso nell'header `Host` (`VIBECRAFT_ALLOWED_HOSTS` o
+`VIBECRAFT_BASE_URL`), altrimenti la richiesta riceve 400. Dal payload
 push vengono estratti i path modificati
 (`commits[].added/modified/removed`) e passati al plan del delta indexing per
 limitare il lavoro ai soli file cambiati; un payload merge request (senza elenco
@@ -277,7 +288,10 @@ POSIX `.sh`) lo esegue e, **solo se trova drift**, lancia un full rebuild che
 riallinea tutto. Dopo il rebuild il server rileva il puntatore `database/CURRENT`
 spostato (la promozione della nuova versione blue/green; per i layout legacy senza
 CURRENT, l'mtime di `graph.json`) e ricarica gli artefatti alla prima richiesta
-(`maybe_reload_graph`).
+(`maybe_reload_graph`). Il caricamento gira in un thread del threadpool (l'event loop
+continua a servire le altre richieste) ed è serializzato da un lock con doppio controllo
+della versione: più richieste concorrenti, o una richiesta e il reload di fine job,
+producono un solo caricamento.
 
 Scheduling — Windows Task Scheduler:
 
@@ -327,8 +341,8 @@ incrementale.
   | DOC, PPT | **LibreOffice** headless → DOCX, PPTX, poi la riga del formato moderno |
 
   La scelta viene da un confronto sugli stessi input, dopo il cleaner reale, con attese
-  scritte prima (`eval/results/verifica_finale_20260910/`). Fogli di calcolo
-  (`eval/results/excel_diretto_20260911/RESOCONTO.md`): MarkItDown passa da pandas, che svuota
+  scritte prima (`archive/eval-results/verifica_finale_20260910/`). Fogli di calcolo
+  (`archive/eval-results/excel_diretto_20260911/RESOCONTO.md`): MarkItDown passa da pandas, che svuota
   le celle «NA», «N/A», «null» e scrive `7.0` e `NaN`; Docling divide in più tabelle una riga
   con celle vuote intermedie; LibreOffice arrotonda a 15 cifre i numeri degli XLS e trasforma i
   booleani in numeri. La lettura diretta produce, per foglio, intervalli di celle con le
@@ -346,7 +360,7 @@ incrementale.
   decide la riga del formato moderno; senza LibreOffice DOC e PPT danno un errore. Mai il
   LibreOffice interno di Docling (profilo predefinito:
   misurato, scarica le immagini collegate). Sui formati moderni LibreOffice non migliora nulla
-  e non viene usato (`eval/results/libreoffice_20260910/`). Un contenitore non valido (DOCX,
+  e non viene usato (`archive/eval-results/libreoffice_20260910/`). Un contenitore non valido (DOCX,
   PPTX, XLSX, EPUB non ZIP; DOC, XLS, PPT senza la struttura OLE attesa; MSG senza firma OLE) è
   un errore, non un documento di byte grezzi; un OOXML o XLS cifrato è «protetto da password».
   Configurazione dei PDF, quella del pilot finale:
@@ -865,19 +879,19 @@ Qdrant prima del campione seguente. `result.json` conserva eventi monotoni,
 journal e campioni anche se la run fallisce; `summary.csv` contiene mediana/min/max
 e differenze abbinate `T(N,k)-T(N,0)`. Il restore I/O resta fuori dal tempo
 misurato. L'esecuzione richiede il runtime/modello offline e il container Qdrant
-dedicati documentati in `adr/sidecar-work/phase2-report.md`; il comando ordinario
+dedicati documentati in `../archive/adr/sidecar-work/phase2-report.md`; il comando ordinario
 sopra resta il benchmark del servizio esistente.
 
 ### Risultati sidecar del 21 settembre 2026
 
-Le [curve prima/dopo](eval/results/sidecar_npy_20260921/evidence/PHASE6.md)
+Le [curve prima/dopo](../archive/eval-results/sidecar_npy_20260921/evidence/PHASE6.md)
 coprono 30 celle e 150 prove valide per versione: cinque ripetizioni per
 combinazione di N, k e corpus. Su Windows/CPU a quattro thread, N=100 e k=100,
 la mediana fino allo snapshot pronto passa da 15,934 a 58,099 s per i documenti,
 da 18,804 a 19,497 s per il codice e da 19,132 a 38,602 s per il misto.
 L'encoding per documento penalizza i delta numerosi di piccoli testi.
 
-La [prova full](eval/results/sidecar_npy_20260921/evidence/PHASE5.md), su un corpus
+La [prova full](../archive/eval-results/sidecar_npy_20260921/evidence/PHASE5.md), su un corpus
 diverso di 32 documenti / 64 chunk, riduce RSS massimo campionato da 6,436 a
 3,152 GiB e USS da 5,087 a 1,753 GiB. Una sola prova per variante, formato e
 raggruppamento dell'encoding cambiati insieme: non isola l'effetto del formato.
@@ -918,6 +932,8 @@ una generazione: vanno misurate separatamente.
 | `VIBECRAFT_LLM_CONCURRENCY` | 2 | Generazioni `/ask` contemporanee per processo |
 | `VIBECRAFT_LLM_QUEUE_TIMEOUT_SECONDS` | 30 | Attesa massima dello slot di generazione |
 | `VIBECRAFT_ASK_TIMEOUT_SECONDS` | Timeout Ollama + 60 | Scadenza della pipeline; un thread già avviato termina prima di restituire capacità |
+| `VIBECRAFT_GENERATION_MAX_ACTIVE` | 2 | Job LLM attivi per processo, in totale tra generate, refine e project brief; eccesso 429 |
+| `VIBECRAFT_GENERATION_MAX_FINISHED` | 100 | Job terminati conservati per tipo (generate, refine, brief) per il polling dello stato; oltre si scartano i più vecchi (mai quelli in corso), il GET risponde 404 |
 | `VIBECRAFT_ROLE` | `standalone` | `standalone`, `reader` oppure `writer` |
 | `VIBECRAFT_INDEX_MODE` | `legacy` | `legacy` oppure `immutable` |
 | `VIBECRAFT_DATABASE_DIR` | `rag/database` | Directory indice e coordinamento locale |
@@ -956,7 +972,11 @@ $env:VIBECRAFT_OLLAMA_URL = 'http://127.0.0.1:21434'
 Tutti devono usare gli stessi modelli/configurazione indice e la stessa directory
 locale. Il reader richiede una chiave API esplicita anche da loopback: un proxy
 locale deve inoltrare una credenziale verificata, senza fidarsi di
-`X-Forwarded-For`. La UI richiede la chiave al primo 401 e non la riceve dal server.
+`X-Forwarded-For`. Se il proxy inoltra un header `Host` diverso dal loopback, quel nome
+va aggiunto a `VIBECRAFT_ALLOWED_HOSTS` nei processi a valle: ogni processo rifiuta con
+400 gli `Host` non riconosciuti (difesa dal DNS rebinding, vedi
+[SECURITY_SURFACE.md](SECURITY_SURFACE.md) Fatto 9).
+La UI richiede la chiave al primo 401 e non la riceve dal server.
 Le route di scrittura e i relativi manager non sono caricati nel reader.
 Quando il servizio Qdrant offre credenziali di sola lettura, configurare quelle
 nei processi reader tramite `QDRANT_API_KEY`; non distribuire loro la chiave writer.
@@ -1183,7 +1203,7 @@ condividere l'istanza fra i due usi.
 
 ## Check drift (Step 4): rilievi verificati, verdetto calcolato
 
-`core.indexing.check_drift` orchestra, `core/drift.py` contiene la logica pura. Il check
+`core.drift_check.check_drift` orchestra, `core/drift.py` contiene la logica pura. Il check
 storico passava all'LLM il solo Canvas e 40.000 caratteri di codice troncati alla cieca, e
 ne mostrava il testo libero: su BE1 segnalava come drift requisiti imposti dalla Spec,
 librerie "mancanti" che stavano nei file tagliati, verdetti NO che si davano torto da soli.
@@ -1236,7 +1256,7 @@ scansionate sotto `code/`: dipendenze installate e output di build
 2. `code_index.collect_code_symbols` — estrazione simboli per il grafo (full
    rebuild E incrementale: l'incrementale filtra a valle sui file "toccati",
    ma la scansione grezza sotto è la stessa);
-3. il check drift (`core.indexing`, scansione per il confronto codice↔canvas).
+3. il check drift (`core.drift_check`, scansione per il confronto codice↔canvas).
 
 Senza questo filtro un `npm install`/`dotnet build` già eseguito nel repo fa
 esplodere sia il prompt di drift (Ollama risponde 500) sia il grafo di codice:

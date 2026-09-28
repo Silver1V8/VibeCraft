@@ -74,7 +74,7 @@ def test_validate_dev_type_rejects_unknown_type(tmp_path, monkeypatch):
 
 
 def test_validate_dev_type_rejects_path_traversal_attempt(tmp_path, monkeypatch):
-    # dev_type diventa CODE_DIR / dev_type in core.indexing.check_drift: un tentativo
+    # dev_type diventa CODE_DIR / dev_type in core.drift_check.check_drift: un tentativo
     # di uscire da code/ non è tra le sottocartelle esistenti, quindi va rifiutato
     # esattamente come un dev_type sconosciuto qualunque (stessa whitelist).
     (tmp_path / "backend").mkdir()

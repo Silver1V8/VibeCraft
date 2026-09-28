@@ -1,6 +1,7 @@
 """Route di analisi del grafo: grafo completo, Impact Ripple, Semantic Map e query
 deterministica. Handler sottili: leggono lo stato, validano e delegano a core.graph_ops."""
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.concurrency import run_in_threadpool
 from qdrant_client import QdrantClient
 
 from api.deps import (current_snapshot, maybe_reload_graph, require_api_key,
@@ -31,7 +32,7 @@ async def canvas_quality(last_n: int = Query(default=10, ge=1, le=50)):
 @router.get("/api/graph/all")
 async def get_full_graph():
     """Restituisce l'intero grafo statico (tutti i nodi e gli archi) in formato JSON."""
-    maybe_reload_graph()
+    await run_in_threadpool(maybe_reload_graph)
     snap = current_snapshot()
     if snap is None or snap.graph is None:
         raise HTTPException(status_code=503, detail="Grafo non ancora inizializzato.")
@@ -51,7 +52,7 @@ async def graph_impact(
     modifico questo nodo?' in modo deterministico (nessun LLM).
 
     Input validato: `node` non vuoto, `depth` in [1, 6] (evita BFS incontrollate)."""
-    maybe_reload_graph()
+    await run_in_threadpool(maybe_reload_graph)
     snap = current_snapshot()
     if snap is None or snap.graph is None:
         raise HTTPException(status_code=503, detail="Grafo non ancora inizializzato.")
@@ -67,7 +68,7 @@ async def graph_semantic_map():
     SVD sui vettori densi bge-m3 in Qdrant). Le community e i nodi 'ponte' sono calcolati
     a livello di documento padre (co-menzione di entità) e ereditati dai chunk; i duplicati
     sono sezioni molto simili appartenenti a documenti diversi. Solo numpy/networkx."""
-    maybe_reload_graph()
+    await run_in_threadpool(maybe_reload_graph)
     snap = current_snapshot()
     qdrant: QdrantClient = state["qdrant"]
     if snap is None or snap.graph is None or qdrant is None:
@@ -92,7 +93,7 @@ async def graph_query(
 
     `target` opzionale: nodo bersaglio esplicito (es. doc_id da un click sulla Semantic Map),
     così l'intent resta dedotto da `q` ma il nodo non dipende dal match testuale."""
-    maybe_reload_graph()
+    await run_in_threadpool(maybe_reload_graph)
     snap = current_snapshot()
     if snap is None or snap.graph is None:
         raise HTTPException(status_code=503, detail="Grafo non ancora inizializzato.")

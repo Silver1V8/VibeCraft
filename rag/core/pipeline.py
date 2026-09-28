@@ -107,7 +107,7 @@ def list_dev_types() -> list[str]:
 class InvalidDevTypeError(ValueError):
     """dev_type non tra le sottocartelle esistenti di code/ (list_dev_types()): mai
     persistito né usato per comporre un percorso — diventa un componente di path
-    (CODE_DIR / dev_type in core.indexing.check_drift), quindi solo i valori della
+    (CODE_DIR / dev_type in core.drift_check.check_drift), quindi solo i valori della
     whitelist esistente sono ammessi, mai un valore arbitrario fornito dal chiamante."""
 
 

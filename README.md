@@ -201,8 +201,8 @@ solo Qdrant. Il backend nativo legge invece `rag/.env.local`; da loopback non ri
 la chiave.
 
 Se qualcosa non parte, **chiedi al preflight invece di indovinare**: verifica versione di
-Python, Qdrant, Ollama e il suo modello, spazio su disco, GPU e porta — e per ogni problema
-stampa il rimedio.
+Python, Qdrant, Ollama e il suo modello, spazio su disco, GPU, LibreOffice (DOC/PPT) e porta
+— e per ogni problema stampa il rimedio.
 
 ```bash
 # Dalla directory rag/
@@ -390,6 +390,30 @@ autenticazione. È una scelta deliberata per l'uso locale.
 `VIBECRAFT_API_KEY`.** Con un bind non-loopback le funzioni che hanno senso solo in locale
 (selettore di cartelle nativo, scansione di un percorso arbitrario del filesystem) vengono
 disattivate automaticamente — ma il resto della superficie va protetto da te.
+
+Il server accetta solo richieste con header `Host` riconosciuto (difesa dal DNS
+rebinding): `127.0.0.1`, `localhost`, `::1`, l'indirizzo di `VIBECRAFT_HOST` se è
+specifico e l'host di `VIBECRAFT_BASE_URL`; gli altri ricevono **400**. Se raggiungi il
+server con un altro nome (hostname di LAN, reverse proxy), aggiungilo a
+**`VIBECRAFT_ALLOWED_HOSTS`**, lista separata da virgole (es.
+`VIBECRAFT_ALLOWED_HOSTS=vibecraft.lan,192.168.1.20`). Nessuna wildcard (le voci con `*`
+sono ignorate con un avviso): elenca solo nomi di cui controlli il DNS.
+
+Ogni risposta vieta di essere incorniciata (`X-Frame-Options: DENY`,
+`Content-Security-Policy: frame-ancestors 'none'`, difesa dal clickjacking) e porta
+`X-Content-Type-Options: nosniff` e `Referrer-Policy: same-origin`: la console **non** si
+può incorporare in un `<iframe>` di un'altra pagina, nemmeno di una dashboard interna.
+
+Le risposte portano anche una **Content-Security-Policy** completa: `script-src 'self'`
+senza `unsafe-inline`/`unsafe-eval` (il browser esegue solo gli script serviti da
+`/static/`), nessuna fonte esterna (`default-src 'self'`). Per questo i template in
+`rag/templates/` non contengono `<script>` né handler `onclick=`/`onchange=` inline: il
+codice di ogni pagina sta in `rag/static/pages/<pagina>.js` e i controlli dichiarano
+l'azione con `data-click`/`data-change`/`data-input`, registrata con `registerActions()`
+(`rag/static/shared.js`); `rag/tests/test_csp.py` lo verifica. Gli stili inline restano
+permessi (`style-src 'unsafe-inline'`) perché Tailwind gira come runtime nel browser. Chi
+aggiunge una pagina o un pulsante segue lo stesso schema: un handler inline verrebbe
+bloccato in silenzio.
 
 La superficie di attacco è mappata rotta per rotta in
 [`rag/SECURITY_SURFACE.md`](rag/SECURITY_SURFACE.md).

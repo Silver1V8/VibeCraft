@@ -58,7 +58,7 @@ RSS misura memoria residente del processo; USS quella residente privata. `nbytes
 
 Il payload non compresso è solo 1,176 volte il NPZ attuale: su questo corpus la compressione risparmia circa il 15% rispetto ai buffer grezzi. Non è una misura di un formato NPY realizzato; header, offset, metadati e retention aggiungono spazio.
 
-**Limite:** non sono stati misurati il picco del server, il reindex con modello, Qdrant o il delta reale. Non estrapolare da 42 documenti un massimo di corpus. [JSON grezzo](../eval/results/colbert_memory_20260915/evidence/memory.json), [metodo riproducibile](../eval/results/colbert_memory_20260915/evidence/METHOD.md).
+**Limite:** non sono stati misurati il picco del server, il reindex con modello, Qdrant o il delta reale. Non estrapolare da 42 documenti un massimo di corpus. [JSON grezzo](../../archive/eval-results/colbert_memory_20260915/evidence/memory.json), [metodo riproducibile](../../archive/eval-results/colbert_memory_20260915/evidence/METHOD.md).
 
 ## 3. Cosa fa davvero il codice
 

@@ -31,7 +31,7 @@ indicizzare.
 
 - [Piano originale](SCALABILITA_SIDECAR_DELTA.md), conservato come fonte dei requisiti.
 - [Matrice finale e decisioni](SCALABILITA_SIDECAR_DELTA_MATRICE.md), con i limiti delle prove e i rami condizionali non attivati.
-- [Risultati finali, curve e compromessi](../eval/results/sidecar_npy_20260921/evidence/PHASE6.md), con migrazione, retention e studio del batching.
+- [Risultati finali, curve e compromessi](../../archive/eval-results/sidecar_npy_20260921/evidence/PHASE6.md), con migrazione, retention e studio del batching.
 
 Integrata su `main` in `3eda61a`: NPY per documento e letture a richiesta,
 migrazione NPZ esplicita e benchmark del delta reale. La review finale ha corretto

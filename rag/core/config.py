@@ -4,6 +4,7 @@ provider LLM e costanti condivise. Unico punto di verità importato dal server F
 import logging
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import yaml
 from dotenv import load_dotenv
@@ -20,7 +21,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env.local", override=Fals
 
 # Cartelle da escludere sempre dalla scansione del codice generato (dipendenze installate
 # e output di build, mai scritte dall'agente e potenzialmente enormi): condivisa da
-# code_index (estrazione simboli) e core.indexing (hash delta + drift check). Senza questo
+# code_index (estrazione simboli), core.indexing (hash delta) e core.drift_check (drift check). Senza questo
 # filtro un rglob("*") su un progetto con `npm install`/`dotnet build` già eseguiti include
 # node_modules/bin/obj per intero — decine di migliaia di file che gonfiano sia il prompt
 # di drift sia il grafo di codice (misurato: +16708 nodi/+131780 edge da un solo
@@ -120,17 +121,85 @@ SERVER_BIND_IS_LOCAL: bool = SERVER_HOST in {"127.0.0.1", "::1", "localhost"}
 # VIBECRAFT_PORT) così un server spostato di porta non consegna ai prompt un URL sbagliato;
 # VIBECRAFT_BASE_URL lo forza quando il server sta dietro un reverse proxy o su un altro host.
 # Un host IPv6 va fra parentesi quadre nell'URL (RFC 3986): senza, "::1" produce
-# "http://::1:8000", che nessun client sa risolvere.
-_URL_HOST = f"[{SERVER_HOST}]" if ":" in SERVER_HOST else SERVER_HOST
+# "http://::1:8000", che nessun client sa risolvere. Un bind wildcard (0.0.0.0, ::, il
+# default dell'immagine Docker) non è un indirizzo da CONTATTARE: l'URL usa il loopback, che
+# ogni bind wildcard serve ed è ammesso dal controllo dell'header Host (ALLOWED_HOSTS) —
+# "http://0.0.0.0:8000" riceverebbe 400.
+_WILDCARD_BINDS = {"", "0.0.0.0", "::"}
+
+
+def _normalize_host(value: str) -> str:
+    """Hostname confrontabile: minuscolo, senza parentesi IPv6 né punto finale (FQDN)."""
+    host = value.strip().lower()
+    if host.startswith("[") and host.endswith("]"):
+        host = host[1:-1]
+    return host.rstrip(".")
+
+
+def _url_host(server_host: str) -> str:
+    """Host da scrivere nell'URL derivato dal bind: loopback per un bind wildcard,
+    parentesi quadre per un IPv6."""
+    host = _normalize_host(server_host)
+    if host in _WILDCARD_BINDS:
+        return "127.0.0.1"
+    return f"[{host}]" if ":" in host else server_host.strip()
+
+
+_URL_HOST = _url_host(SERVER_HOST)
 SERVER_BASE_URL: str = (
     os.environ.get("VIBECRAFT_BASE_URL") or f"http://{_URL_HOST}:{SERVER_PORT}"
 ).rstrip("/")
+
+# Hostname accettati nell'header Host (api.deps.HostHeaderGuard, difesa dal DNS rebinding).
+# Il loopback c'è sempre: è il default di bind e l'indirizzo che usano healthcheck Docker,
+# mcp_server.py e gli script. Poi, se esistono: l'interfaccia di bind quando è un indirizzo
+# SPECIFICO (0.0.0.0 e :: ascoltano ovunque ma nessun browser li manda come Host), l'host
+# di VIBECRAFT_BASE_URL (il nome con cui il server dichiara di essere raggiunto) e la lista
+# esplicita VIBECRAFT_ALLOWED_HOSTS (separata da virgole, per LAN/reverse proxy). Niente
+# wildcard: un "*" riaprirebbe esattamente il rebinding che il controllo chiude.
+_LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1")
+
+
+def build_allowed_hosts(server_host: str, base_url: str | None, extra: str | None) -> frozenset[str]:
+    """Insieme degli hostname ammessi nell'header Host (vedi il commento sopra)."""
+    hosts = set(_LOOPBACK_HOSTS)
+    bind = _normalize_host(server_host)
+    if bind not in _WILDCARD_BINDS:
+        hosts.add(bind)
+    if base_url:
+        try:
+            base_host = urlsplit(base_url.strip()).hostname  # già minuscolo e senza parentesi
+        except ValueError:  # URL malformato (es. "[::1" senza chiusura): nessun host da aggiungere
+            base_host = None
+        if base_host:
+            hosts.add(_normalize_host(base_host))
+    for item in (extra or "").split(","):
+        if not item.strip():
+            continue
+        if "*" in item:
+            # Ignorata e segnalata all'avvio: chi scrive "*" si aspetta un effetto che qui
+            # non c'è, e un rifiuto silenzioso sembrerebbe un bug del server.
+            logging.getLogger(__name__).warning(
+                "VIBECRAFT_ALLOWED_HOSTS: voce %r ignorata — le wildcard non sono supportate, "
+                "elenca i nomi esatti.", item.strip())
+            continue
+        hosts.add(_normalize_host(item))
+    return frozenset(hosts)
+
+
+ALLOWED_HOSTS: frozenset[str] = build_allowed_hosts(
+    SERVER_HOST, os.environ.get("VIBECRAFT_BASE_URL"), os.environ.get("VIBECRAFT_ALLOWED_HOSTS"),
+)
 
 with open(CONFIG_PATH, "r", encoding="utf-8") as _f:
     config = yaml.safe_load(_f)
 
 COLLECTION_NAME: str = config["vector_database"]["collection_name"]
 EMBEDDING_MODEL: str = config["vector_database"]["embedding_model"]
+
+# Provider LLM registrati (core/llm.py _PROVIDERS): lista di provider supportati.
+# Viene usata per validare il blocco llm_settings al boot.
+VALID_LLM_PROVIDERS: frozenset[str] = frozenset({"ollama", "anthropic"})
 
 
 class BudgetSettings(BaseModel):
@@ -179,16 +248,40 @@ class LLMSettings(BaseModel):
         """Controlli che valgono SOLO alla validazione di avvio (context={"boot": True}),
         non alla ri-validazione per richiesta fatta da core.llm.resolve(): lì un
         `models` vuoto deve continuare a produrre l'LLMError storico, non un errore di
-        validazione (retrocompatibilità sui messaggi d'errore)."""
+        validazione (retrocompatibilità sui messaggi d'errore).
+
+        Al boot valida anche che:
+        - active_provider, ogni provider di purposes, e budget.fallback_provider (se impostato)
+          siano registrati in core.llm._PROVIDERS (sincronizzati da core.config.VALID_LLM_PROVIDERS)."""
         if not (info.context or {}).get("boot"):
             return self
         if not self.models:
             raise ValueError(
                 "llm_settings.models è vuoto: serve almeno una voce provider -> modello.")
+        # Valida che active_provider sia un provider registrato
+        if self.active_provider not in VALID_LLM_PROVIDERS:
+            raise ValueError(
+                f"active_provider '{self.active_provider}' non è registrato. "
+                f"Provider ammessi: {', '.join(sorted(VALID_LLM_PROVIDERS))}.")
         if self.active_provider not in self.models:
             raise ValueError(
                 f"llm_settings.models non ha un modello per active_provider "
                 f"'{self.active_provider}' (presenti: {', '.join(sorted(self.models)) or 'nessuno'}).")
+        # Valida che ogni provider dei purpose sia registrato
+        if self.purposes:
+            for purpose_name, purpose_config in self.purposes.items():
+                if isinstance(purpose_config, dict):
+                    provider = purpose_config.get("provider")
+                    if provider and provider not in VALID_LLM_PROVIDERS:
+                        raise ValueError(
+                            f"Provider '{provider}' nel purpose '{purpose_name}' non è registrato. "
+                            f"Provider ammessi: {', '.join(sorted(VALID_LLM_PROVIDERS))}.")
+        # Valida che budget.fallback_provider sia registrato (se impostato)
+        if self.budget and self.budget.fallback_provider:
+            if self.budget.fallback_provider not in VALID_LLM_PROVIDERS:
+                raise ValueError(
+                    f"budget.fallback_provider '{self.budget.fallback_provider}' non è registrato. "
+                    f"Provider ammessi: {', '.join(sorted(VALID_LLM_PROVIDERS))}.")
         return self
 
 
@@ -196,8 +289,9 @@ def validate_llm_settings(raw, *, boot: bool = False) -> LLMSettings:
     """Valida il blocco llm_settings grezzo (dict da YAML) restituendo il modello tipato.
     Solleva pydantic.ValidationError con un messaggio leggibile se manca active_provider
     o se i tipi non tornano. Il contratto è deliberatamente ASIMMETRICO:
-    · boot=True  → aggiunge i controlli di coerenza (models non vuoto e con una voce per
-      active_provider): usato solo all'avvio, fallisce presto e forte;
+    · boot=True  → aggiunge i controlli di coerenza (models non vuoto, active_provider e
+      provider di purposes e budget.fallback_provider registrati): usato solo all'avvio,
+      fallisce presto e forte;
     · boot=False → validazione di soli tipi; i casi di configurazione incompleta restano
       a core.llm.resolve(), che ne produce i messaggi LLMError storici.
     L'asimmetria è bloccata dai test `test_contratto_*` in tests/test_llm.py."""

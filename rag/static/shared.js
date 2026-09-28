@@ -8,6 +8,8 @@
      · matrix rain     — sfondo animato (rAF, rispetta prefers-reduced-motion)
      · setUiTheme()    — theme switcher (cookie + live-flip, nessun reload)
      · initNavigation()— evidenzia la pagina corrente nella nav
+     · registerActions()— azioni data-click/data-change/data-input al posto degli
+                         handler inline, vietati dalla CSP
 
    Il redraw specifico di ogni pagina (mermaid, canvas del grafo, …) NON vive
    qui: si aggancia definendo `window.onThemeChange`, invocato da setUiTheme
@@ -68,6 +70,18 @@ function themeVar(name, fallback) {
    L'aggancio e' UN wrapper su window.fetch invece di 42 modifiche ai punti di chiamata:
    shared.js e' caricato nel <head> di ogni pagina, prima degli script che fanno richieste. */
 const API_KEY_STORAGE = 'vibecraft-api-key';
+
+/* La chiave iniettata arriva in un <meta name="vibecraft-agent-api-key"> e non più in uno
+   <script> inline, vietato dalla CSP (script-src 'self'). Il server lo mette subito dopo
+   <head>, quindi è già nel DOM quando questo file (caricato più avanti nel <head>) gira:
+   la variabile globale resta l'interfaccia per il resto del codice. */
+(function () {
+  const meta = document.querySelector('meta[name="vibecraft-agent-api-key"]');
+  if (meta && meta.content) window.__VIBECRAFT_AGENT_API_KEY__ = meta.content;
+  // Tolto dal DOM dopo la lettura: la chiave non resta come attributo raggiungibile da
+  // selettori CSS (gli stili inline restano ammessi dalla CSP).
+  if (meta) meta.remove();
+})();
 
 function apiKey() {
   if (window.__VIBECRAFT_AGENT_API_KEY__) return window.__VIBECRAFT_AGENT_API_KEY__;
@@ -393,6 +407,36 @@ function initNavigation() {
     }
   });
 }
+
+/* ──────────── AZIONI DICHIARATIVE (niente handler inline) ────────────
+   La CSP vieta gli handler inline `on*=` (script-src 'self', senza 'unsafe-inline'): un
+   elemento dichiara l'azione con `data-click` / `data-change` / `data-input`, e UN
+   listener delegato su document la esegue. Delegato perché serve anche al markup generato
+   dopo (innerHTML con i pulsanti dello staging, i "Riprova" degli errori…).
+
+   Si esegue SOLO un'azione registrata con registerActions(): il nome nell'attributo è una
+   chiave del registro, mai il nome di una funzione globale qualsiasi — un attributo
+   iniettato non può quindi chiamare codice arbitrario. L'handler riceve (elemento, evento);
+   l'eventuale argomento viaggia in `data-arg` (testo, mai codice). */
+const _uiActions = Object.create(null);
+function registerActions(map) {
+  Object.assign(_uiActions, map);
+}
+['click', 'change', 'input'].forEach(function (type) {
+  const attr = 'data-' + type;
+  document.addEventListener(type, function (event) {
+    const el = event.target instanceof Element ? event.target.closest('[' + attr + ']') : null;
+    if (!el) return;
+    const name = el.getAttribute(attr);
+    const action = _uiActions[name];
+    if (typeof action !== 'function') {
+      console.error('Azione UI non registrata: ' + name);
+      return;
+    }
+    action(el, event);
+  });
+});
+registerActions({ setUiTheme: el => setUiTheme(el.value) });
 
 /* ──────────── BOOTSTRAP ──────────── */
 document.addEventListener('DOMContentLoaded', function () {

@@ -2,7 +2,7 @@
 
 ## Excel per lettura diretta — 2026-09-11: PASS
 
-Resoconto, prove, oracolo e rollback: `rag/eval/results/excel_diretto_20260911/RESOCONTO.md`.
+Resoconto, prove, oracolo e rollback: `archive/eval-results/excel_diretto_20260911/RESOCONTO.md`.
 Questa sezione prevale su quelle successive, compresa la «Fedeltà Excel» qui sotto.
 
 - **Percorso**: XLSX → openpyxl 3.1.5, XLS → xlrd 2.0.2, entrambi sull'originale
@@ -29,7 +29,7 @@ Questa sezione prevale su quelle successive, compresa la «Fedeltà Excel» qui 
 
 ## Fedeltà Excel — 2026-09-11: NON_APPLICARE (superata dalla sezione precedente)
 
-Resoconto, attese, output e log: `rag/eval/results/excel_fidelity_20260910/RESOCONTO.md`.
+Resoconto, attese, output e log: `archive/eval-results/excel_fidelity_20260910/RESOCONTO.md`.
 Questa sezione descrive il **candidato non committato nel working tree**, non un backend
 approvato per il corpus, e prevale sulle matrici storiche successive.
 
@@ -58,7 +58,7 @@ approvato per il corpus, e prevale sulle matrici storiche successive.
 
 ## Revisione finale, cataloghi e LibreOffice — 2026-09-10 (sera)
 
-Resoconto completo, prove, script e comandi: `rag/eval/results/libreoffice_20260910/RESOCONTO.md`.
+Resoconto completo, prove, script e comandi: `archive/eval-results/libreoffice_20260910/RESOCONTO.md`.
 Questa sezione prevale sulle successive dove le contraddice (in particolare: XLS non è più su
 MarkItDown quando LibreOffice è disponibile).
 
@@ -96,7 +96,7 @@ MarkItDown quando LibreOffice è disponibile).
 
 ## Chiusura — 2026-09-10 (verifica finale)
 
-Resoconto completo, prove e script: `rag/eval/results/verifica_finale_20260910/RESOCONTO.md`.
+Resoconto completo, prove e script: `archive/eval-results/verifica_finale_20260910/RESOCONTO.md`.
 Questa sezione prevale su quella successiva dove la contraddice.
 
 - **Matrice definitiva dei motori** (confronto per formato sugli stessi input, dopo il cleaner
@@ -128,7 +128,7 @@ Questa sezione prevale su quella successiva dove la contraddice.
 Ramo `codex/docling-intake`, creato da `codex/evoluzione-p0` a HEAD
 `011e264c554895c651f0eba1dccb74bc4dc10f74` conservando tutte le modifiche preesistenti.
 Nessun commit, push o PR. `AGENTS.md` assente. Prove, script e log in
-`rag/eval/results/implementazione_migliorie_20260910/`. Questa sezione descrive il
+`archive/eval-results/implementazione_migliorie_20260910/`. Questa sezione descrive il
 comportamento **realmente implementato** e prevale sugli esempi sperimentali più sotto.
 
 ### 1. S2 — pertinenza alla domanda sul ponte IMPLEMENTS: attiva a 0.35
@@ -320,7 +320,7 @@ precedenze e ranking non sono stati modificati.
 - **Intake su MarkItDown**: `intake.docling.enabled: false`, riavvio. I documenti già
   approvati restano come sono (sono `.md` in `docs/`).
 - **Dipendenze**: le versioni precedenti sono in
-  `rag/eval/results/implementazione_migliorie_20260910/baseline/` (`pyproject.toml.prima`,
+  `archive/eval-results/implementazione_migliorie_20260910/baseline/` (`pyproject.toml.prima`,
   `uv.lock.prima`, hash uguali ai riferimenti R.4). Copiarle su `rag/pyproject.toml` e
   `rag/uv.lock`, poi da `rag/` `uv sync --frozen`; ripristinare anche le righe del
   `Dockerfile`. I pesi in `rag/database/models/` restano inerti e si possono eliminare a mano.
@@ -570,7 +570,7 @@ CODE_LINK_MIN_QUESTION_SCORE: float = float(
   code_link_min_question_score: 0.35
 ```
 
-Diff completo e applicabile: `rag/eval/results/sel_contesto_20260910-090000/diff/s2.diff`
+Diff completo e applicabile: `archive/eval-results/sel_contesto_20260910-090000/diff/s2.diff`
 (**47 righe aggiunte, 0 rimosse**, 3 file).
 
 ## Il `fail-open` non è un dettaglio
@@ -606,7 +606,7 @@ Oltre a **[V]**:
 
 - **controllo della regola**, 7 casi (soglia 0 = no-op, ortogonale scartato,
   simbolo senza vettore che resta, ordine del ponte conservato, nessun candidato,
-  solo non valutabili): `rag/eval/results/sel_contesto_20260910-090000/scripts/check_s2.py`
+  solo non valutabili): `archive/eval-results/sel_contesto_20260910-090000/scripts/check_s2.py`
   → atteso **7/7**. Va portato in `tests/` come test vero al momento
   dell'implementazione;
 - **no-op a 0.0**: con la soglia a `0.0` il contesto deve essere **byte-identico**
@@ -674,7 +674,7 @@ per i diagrammi e `[("11", "artefatti"), ("4", "aree funzionali"),
 ("SVG + HTML", "formati")]` per i mockup — **da derivare**, vedi #3.
 
 Implementazione già scritta e provata:
-`rag/eval/results/pilot_docling_sourcefix_20260909/build_candidates.py`.
+`archive/eval-results/pilot_docling_sourcefix_20260909/build_candidates.py`.
 
 ## Verifiche
 
@@ -750,7 +750,7 @@ che li confronti con la lista: un conteggio che mente è peggio di un conteggio
 assente.
 
 Filtro già scritto e provato (`senza_se_stesso`) in
-`rag/eval/results/corpus_disambigua_20260910-170000/scripts/build_disambigua.py`,
+`archive/eval-results/corpus_disambigua_20260910-170000/scripts/build_disambigua.py`,
 insieme al confronto riga-per-riga di pagina 2 che protegge dalla deriva
 dell'inventario.
 

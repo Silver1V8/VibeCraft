@@ -14,12 +14,13 @@ import threading
 from collections.abc import Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+from html import escape as html_escape
 from pathlib import Path
 
 import numpy as np
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response
 from qdrant_client import QdrantClient
 from FlagEmbedding import BGEM3FlagModel
 
@@ -55,8 +56,19 @@ API_KEY = os.environ.get("VIBECRAFT_API_KEY")
 def _valid_api_key(request: Request) -> bool:
     """True se l'header X-API-Key della richiesta corrisponde a VIBECRAFT_API_KEY (e la
     chiave è configurata). Condivisa da require_api_key (bypass su localhost) e
-    require_api_key_strict (nessun bypass, per gli endpoint mutanti)."""
-    return bool(API_KEY) and request.headers.get("X-API-Key") == API_KEY
+    require_api_key_strict (nessun bypass, per gli endpoint mutanti).
+
+    Confronto a tempo costante (hmac.compare_digest, come require_gitlab_token): un `==`
+    esce al primo carattere diverso e rende la chiave indovinabile per prefissi misurando
+    i tempi di risposta. Entrambi i lati sono codificati in UTF-8 perché compare_digest
+    rifiuta (TypeError) le str non ASCII: l'uguaglianza dei bytes UTF-8 equivale a quella
+    delle str, quindi la semantica resta quella del vecchio `==`."""
+    if not API_KEY:
+        return False
+    provided = request.headers.get("X-API-Key")
+    if provided is None:
+        return False
+    return hmac.compare_digest(provided.encode("utf-8"), API_KEY.encode("utf-8"))
 
 
 def _is_local_request(request: Request) -> bool:
@@ -181,8 +193,199 @@ def require_gitlab_token(request: Request) -> None:
     if not GITLAB_TOKEN:
         return
     provided = request.headers.get("X-Gitlab-Token", "")
-    if not hmac.compare_digest(provided, GITLAB_TOKEN):
+    # Bytes UTF-8, come in _valid_api_key: compare_digest su str non ASCII (header decodificato
+    # latin-1 o token con accenti) solleva TypeError, cioè un 500 invece del 401.
+    if not hmac.compare_digest(provided.encode("utf-8"), GITLAB_TOKEN.encode("utf-8")):
         raise HTTPException(status_code=401, detail="Token webhook GitLab mancante o errato.")
+
+
+# ---------------------------------------------------------------------------
+# Validazione dell'header Host — difesa dal DNS rebinding
+# ---------------------------------------------------------------------------
+def host_from_header(value: str | None) -> str | None:
+    """Hostname normalizzato di un header Host (minuscolo, senza porta, senza parentesi
+    IPv6 né punto finale), o None se l'header manca o è malformato. `[::1]:8000` -> `::1`:
+    lo split ingenuo sui due punti (quello di starlette TrustedHostMiddleware) darebbe `[`
+    e rifiuterebbe il loopback IPv6. Un IPv6 senza parentesi è ambiguo con la porta, quindi
+    malformato; lo è anche una porta presente ma vuota o non numerica, e un nome con
+    etichette vuote (`..`)."""
+    if not value:
+        return None
+    value = value.strip().lower()
+    if value.startswith("["):
+        end = value.find("]")
+        if end == -1:
+            return None
+        host, rest = value[1:end], value[end + 1:]
+        if rest and not rest.startswith(":"):
+            return None
+        port = rest[1:] if rest else None
+    else:
+        if value.count(":") > 1:
+            return None
+        host, sep, port = value.partition(":")
+        port = port if sep else None
+    if port is not None and not (port.isascii() and port.isdigit()):
+        return None
+    if ".." in host:
+        return None
+    host = host.rstrip(".")
+    return host or None
+
+
+class HostHeaderGuard:
+    """Middleware ASGI: 400 per ogni richiesta HTTP/WebSocket il cui header Host non è in
+    `allowed_hosts` (core.config.ALLOWED_HOSTS: loopback + bind specifico + host di
+    VIBECRAFT_BASE_URL + VIBECRAFT_ALLOWED_HOSTS).
+
+    Perché serve: _is_local_request guarda l'IP del client, non il nome con cui il browser
+    crede di parlare al server. Con il DNS rebinding una pagina ostile su attacker.example
+    fa risolvere il PROPRIO nome a 127.0.0.1 dopo il caricamento: le sue fetch() verso
+    attacker.example:8000 arrivano qui da 127.0.0.1, sono same-origin per il browser
+    (quindi può LEGGERE le risposte) e passano il bypass loopback di require_api_key — e
+    GET /pipeline le consegnerebbe persino la chiave iniettata (inject_agent_api_key).
+    L'unica traccia dell'attacco che il server vede è l'header Host, che il browser scrive
+    con il nome dell'origine e il JS non può falsificare (forbidden header): è quello che
+    si controlla qui, prima di qualunque route, statici compresi.
+
+    Equivalente minimo di starlette TrustedHostMiddleware, riscritto per il parsing IPv6
+    (vedi host_from_header); niente wildcard né redirect www."""
+
+    _MAX_WARNED = 64
+
+    def __init__(self, app, allowed_hosts):
+        self.app = app
+        self.allowed_hosts = frozenset(allowed_hosts)
+        self._warned: set[str] = set()
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] not in ("http", "websocket"):
+            await self.app(scope, receive, send)
+            return
+        raw = None
+        for name, value in scope.get("headers") or ():
+            if name == b"host":
+                raw = value.decode("latin-1")
+                break
+        if host_from_header(raw) in self.allowed_hosts:
+            await self.app(scope, receive, send)
+            return
+        # Un WARNING per host distinto (per diagnosticare un nome legittimo mancante), poi
+        # DEBUG: una pagina ostile in loop non deve poter inondare il log. L'insieme dei nomi
+        # già segnalati è limitato, così nemmeno Host sempre diversi fanno crescere la memoria.
+        shown = (raw or "")[:100]
+        if shown not in self._warned and len(self._warned) < self._MAX_WARNED:
+            self._warned.add(shown)
+            log = logger.warning
+        else:
+            log = logger.debug
+        log("Richiesta rifiutata: header Host non consentito %r "
+            "(aggiungilo a VIBECRAFT_ALLOWED_HOSTS se è legittimo).", shown)
+        response = PlainTextResponse("Invalid host header", status_code=400)
+        await response(scope, receive, send)
+
+
+# ---------------------------------------------------------------------------
+# Header di sicurezza su ogni risposta — difesa dal clickjacking
+# ---------------------------------------------------------------------------
+# Anti-framing, igiene e Content-Security-Policy. Nomi minuscoli: è la forma in cui
+# Starlette scrive gli header ASGI.
+SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
+    (b"x-frame-options", b"DENY"),
+    (b"x-content-type-options", b"nosniff"),
+    (b"referrer-policy", b"same-origin"),
+)
+_CSP = b"content-security-policy"
+_FRAME_ANCESTORS = b"frame-ancestors 'none'"
+
+# CSP della console. Il punto è `script-src 'self'` SENZA 'unsafe-inline' né 'unsafe-eval':
+# un frammento HTML che sfuggisse all'escape (dato del corpus, titolo di un documento in
+# staging) non può eseguire nulla — né <script> iniettati né handler `onerror=`/`onclick=`.
+# Per questo i template non hanno script né handler inline: il codice sta in
+# /static/pages/*.js e le azioni passano da `data-click`/`data-change`/`data-input`
+# (registerActions in /static/shared.js); la chiave di /pipeline arriva in un <meta>.
+# Residuo accettato: `style-src 'unsafe-inline'`. Il runtime Tailwind
+# (/static/vendor/tailwind.min.js) genera il CSS nel browser in un <style>, mermaid e
+# vis/3d-force-graph scrivono stili inline, i template usano `style="..."`; togliere
+# 'unsafe-inline' dagli stili richiede CSS Tailwind precompilato (un tool di build che
+# l'ambiente non ha). Il rischio residuo è l'iniezione di CSS (defacement, esfiltrazione
+# lenta via selettori), non l'esecuzione di codice.
+# `img-src data: blob:` per le icone SVG inline e gli export dei canvas; `worker-src blob:`
+# per i worker che le librerie grafiche possono creare. Tutto il resto solo same-origin:
+# la console è local-first, nessuna CDN (vedi i vendor in /static/vendor/).
+CONTENT_SECURITY_POLICY = (
+    b"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+    b"img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; "
+    b"worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'; "
+    + _FRAME_ANCESTORS
+)
+# Swagger UI / ReDoc di FastAPI caricano JS e CSS da cdn.jsdelivr.net e hanno uno script
+# inline: con la CSP completa sarebbero pagine bianche. Ricevono solo l'anti-framing.
+CSP_EXEMPT_PATHS = frozenset({"/docs", "/docs/oauth2-redirect", "/redoc"})
+
+
+def with_security_headers(headers, csp: bytes = CONTENT_SECURITY_POLICY) -> list[tuple[bytes, bytes]]:
+    """Header ASGI di una risposta con gli header di SECURITY_HEADERS e la CSP `csp`
+    aggiunti. Mai sovrascrive ciò che la route ha già deciso: un header già presente
+    (confronto case-insensitive sul nome) resta com'è; una CSP già presente riceve
+    `frame-ancestors 'none'` in coda solo se non ne dichiara una propria."""
+    out = list(headers or ())
+    present = {name.lower() for name, _ in out}
+    for name, value in SECURITY_HEADERS:
+        if name not in present:
+            out.append((name, value))
+    csp_idx = [i for i, (name, _) in enumerate(out) if name.lower() == _CSP]
+    if not csp_idx:
+        out.append((_CSP, csp))
+    elif not any(b"frame-ancestors" in out[i][1].lower() for i in csp_idx):
+        name, value = out[csp_idx[0]]
+        value = value.rstrip().rstrip(b";").rstrip()
+        out[csp_idx[0]] = (name, (value + b"; " if value else b"") + _FRAME_ANCESTORS)
+    return out
+
+
+class SecurityHeadersMiddleware:
+    """Middleware ASGI: aggiunge a OGNI risposta HTTP `X-Frame-Options: DENY`,
+    `Content-Security-Policy` (CONTENT_SECURITY_POLICY; solo `frame-ancestors 'none'` per
+    CSP_EXEMPT_PATHS), `X-Content-Type-Options: nosniff` e `Referrer-Policy: same-origin`
+    (vedi with_security_headers per la regola di fusione).
+
+    Perché serve: le pagine della console hanno pulsanti che scrivono (pipeline, intake,
+    reindex, rollback) e nessuna risposta vietava di essere incorniciata. Una pagina ostile
+    poteva caricare http://127.0.0.1:8000/pipeline in un <iframe> trasparente e far
+    cliccare all'utente i pulsanti veri (clickjacking): le fetch partono DALLA pagina
+    incorniciata, quindi sono same-origin — `require_not_cross_site_request` le lascia
+    passare e il bypass loopback le autentica. `frame-ancestors` è lo standard, XFO copre i
+    browser che non lo applicano.
+
+    Su tutte le risposte, non solo sulle HTML: gli header sono innocui su JSON/statici/NDJSON,
+    e un filtro sul content-type lascerebbe fuori proprio i casi imprevisti (/docs, un errore
+    HTML di libreria, una pagina nuova servita come file). `nosniff` è sicuro perché ogni
+    script/foglio della console arriva con il MIME giusto (server.py registra i tipi degli
+    statici senza dipendere dal registro di Windows). `same-origin` non tocca le richieste
+    della console (il Referer same-origin resta) e non lo usa nessun controllo lato server.
+
+    Gli header si aggiungono sul messaggio `http.response.start`, prima del body: le
+    risposte in streaming (/ask NDJSON, stream della pipeline) passano senza buffering.
+    Per questo è ASGI puro come HostHeaderGuard e non BaseHTTPMiddleware. Montato come
+    middleware più esterno fra i nostri, copre anche il 400 di HostHeaderGuard; i 500 non
+    gestiti li genera ServerErrorMiddleware di Starlette, che sta ancora fuori."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        csp = _FRAME_ANCESTORS if scope.get("path") in CSP_EXEMPT_PATHS else CONTENT_SECURITY_POLICY
+
+        async def send_with_headers(message):
+            if message["type"] == "http.response.start":
+                message = {**message, "headers": with_security_headers(message.get("headers"), csp)}
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
 
 
 # ---------------------------------------------------------------------------
@@ -667,6 +870,15 @@ async def lifespan(application: FastAPI):
 # ---------------------------------------------------------------------------
 # Auto-reload dell'indice in memoria (dopo una re-indicizzazione da CLI o pipeline)
 # ---------------------------------------------------------------------------
+# Serializza i reload (auto-reload dalle richieste, on_success del thread di reindex,
+# rollback, intake): due caricamenti paralleli raddoppierebbero memoria e I/O, e l'ultimo a
+# pubblicare vincerebbe anche se più vecchio. Lock NON rientrante: sotto lock nulla rientra
+# nel reload (_load_index_snapshot non chiama maybe_reload_graph né reload_index_state, e le
+# lease di versione sono try non bloccanti), quindi niente deadlock nemmeno col thread di
+# reindex che lo prende a fine job.
+_reload_lock = threading.Lock()
+
+
 def reload_index_state() -> str | float | None:
     """Ricarica in memoria grafo, multivettori ColBERT e sidecar chunk dai file appena
     rigenerati dalla re-indicizzazione, così che il server rifletta subito la nuova base
@@ -677,7 +889,18 @@ def reload_index_state() -> str | float | None:
     stato viene sostituito. Se anche uno solo è mancante o corrotto (es. una re-
     indicizzazione ancora in corso o abortita), si logga un warning e si MANTIENE la
     versione precedente in memoria, evitando di degradare il server (grafo senza
-    ColBERT/chunk)."""
+    ColBERT/chunk).
+
+    Bloccante (I/O e deserializzazione pesanti): dagli handler async va chiamata via
+    run_in_threadpool. Ricarica SEMPRE (i chiamanti espliciti — fine job, rollback,
+    intake — possono aver cambiato i documenti senza cambiare versione), ma serializzata
+    con gli altri reload tramite _reload_lock."""
+    with _reload_lock:
+        return _reload_index_state_locked()
+
+
+def _reload_index_state_locked() -> str | float | None:
+    """Corpo di reload_index_state: il chiamante DEVE detenere _reload_lock."""
     try:
         snapshot = _load_index_snapshot()
     except Exception as exc:
@@ -702,7 +925,14 @@ def maybe_reload_graph() -> None:
     """Auto-reload: se la versione dell'indice su disco è cambiata (database/CURRENT
     spostato da una promozione o da un rollback; per i layout legacy, mtime del grafo
     flat), ricarica l'indice in memoria alla prima richiesta successiva, senza dover
-    riavviare il server."""
+    riavviare il server.
+
+    Bloccante: gli handler async la chiamano con `await run_in_threadpool(...)`, così un
+    caricamento lungo non ferma l'event loop (health, streaming e le altre route continuano
+    a rispondere). Doppio controllo: il confronto senza lock è il percorso veloce di ogni
+    richiesta; chi deve ricaricare prende _reload_lock e RICONTROLLA la baseline, perché
+    nel frattempo un'altra richiesta (o il thread di reindex) può aver già caricato la
+    stessa versione — in quel caso non la si ricarica una seconda volta."""
     if current_snapshot() is None:
         return
     mtime = _graph_version()
@@ -712,9 +942,14 @@ def maybe_reload_graph() -> None:
     if prev is None:
         state["_graph_mtime"] = mtime
         return
-    if mtime != prev:
+    if mtime == prev:
+        return
+    with _reload_lock:
+        mtime = _graph_version()
+        if mtime is None or mtime == state.get("_graph_mtime"):
+            return
         logger.info("Grafo cambiato su disco: ricarico grafo/ColBERT/regole in memoria.")
-        reload_index_state()
+        _reload_index_state_locked()
 
 
 def run_streaming(target, *args):
@@ -813,14 +1048,17 @@ def serve_page(request: Request, unified_name: str, matrix_name: str, classic_na
     return FileResponse(legacy_path, media_type="text/html", headers=NO_CACHE_HEADERS)
 
 
-_HEAD_CLOSE_RE = re.compile(r"</head>", re.IGNORECASE)
+# Subito dopo <head>: il <meta> deve precedere /static/shared.js, che lo legge al caricamento.
+_HEAD_OPEN_RE = re.compile(r"<head\b[^>]*>", re.IGNORECASE)
 
 
 def inject_agent_api_key(html: str, request: Request) -> str:
     """Inietta la X-API-Key richiesta da /api/pipeline/agent/run (require_api_key_strict,
     l'UNICO endpoint che non bypassa mai localhost — esegue shell/scrittura file via Claude
-    Agent SDK) come variabile JS same-origin, SOLO per richieste locali (stessa condizione
-    di require_api_key, vedi _is_local_request).
+    Agent SDK) in un `<meta name="vibecraft-agent-api-key">` subito dopo `<head>`, SOLO per
+    richieste locali (stessa condizione di require_api_key, vedi _is_local_request).
+    /static/shared.js lo copia in `window.__VIBECRAFT_AGENT_API_KEY__`. Un <meta> e non uno
+    <script> inline: la CSP (CONTENT_SECURITY_POLICY) vieta gli script inline.
 
     Perché è sicuro anche se sembra "ridare" il bypass che require_api_key_strict nega
     apposta: la Same-Origin Policy del browser impedisce a uno script di un'ALTRA origine
@@ -836,8 +1074,8 @@ def inject_agent_api_key(html: str, request: Request) -> str:
     pagina servita a un client remoto."""
     if not API_KEY or not _is_local_request(request):
         return html
-    match = _HEAD_CLOSE_RE.search(html)
+    match = _HEAD_OPEN_RE.search(html)
     if not match:
         return html
-    script = f"<script>window.__VIBECRAFT_AGENT_API_KEY__={json.dumps(API_KEY)};</script>"
-    return html[:match.start()] + script + html[match.start():]
+    meta = f'<meta name="vibecraft-agent-api-key" content="{html_escape(API_KEY, quote=True)}" />'
+    return html[:match.end()] + meta + html[match.end():]

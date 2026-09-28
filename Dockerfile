@@ -123,10 +123,10 @@ ENV PYTHONUNBUFFERED=1 \
 # titolo a testo. Liberation è metricamente compatibile con quelle famiglie.
 # LibreOffice headless, SOLO i moduli senza interfaccia: normalizza DOC/PPT nel formato
 # moderno prima della conversione (core/intake_convert.py, profilo blindato per ogni file).
-# Gli XLS non lo usano: xlrd li legge direttamente (rag/eval/results/excel_diretto_20260911/).
+# Gli XLS non lo usano: xlrd li legge direttamente (archive/eval-results/excel_diretto_20260911/).
 # calc-nogui non serve più all'intake XLS; toglierlo richiede ricostruire l'immagine e
 # riverificare DOC/PPT, non fatto in quella sessione.
-# Misurato: +443 MB non compressi (rag/eval/results/libreoffice_20260910/). I formati moderni
+# Misurato: +443 MB non compressi (archive/eval-results/libreoffice_20260910/). I formati moderni
 # non lo usano.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libxcb1 libgl1 libglib2.0-0 fonts-liberation \

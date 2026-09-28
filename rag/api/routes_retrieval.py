@@ -11,6 +11,7 @@ from contextlib import aclosing
 
 import networkx as nx
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 from qdrant_client import QdrantClient
 from FlagEmbedding import BGEM3FlagModel
@@ -106,9 +107,9 @@ async def _emit(emit, event: dict) -> None:
         await emit(event)
 
 
-def _ask_resources():
+async def _ask_resources():
     """Cattura una sola volta lo snapshot e valida la readiness prima degli header."""
-    maybe_reload_graph()
+    await run_in_threadpool(maybe_reload_graph)
     snap = current_snapshot()
     qdrant: QdrantClient = state["qdrant"]
     embed_model: BGEM3FlagModel = state["embed_model"]
@@ -121,7 +122,7 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
     request_id = uuid.uuid4().hex
     request_start = time.time()
 
-    snap, qdrant, embed_model = resources or _ask_resources()
+    snap, qdrant, embed_model = resources or await _ask_resources()
     graph: nx.DiGraph = snap.graph
     index_version = snap.version
     qdrant_collection = snap.collection_name or qdrant_collection_for_version(index_version)
@@ -757,7 +758,7 @@ async def ask_rag(request: Request, query: AskQuery):
             headers={"Retry-After": "1"},
         )
     try:
-        resources = _ask_resources()
+        resources = await _ask_resources()
     except Exception:
         runtime.release()
         raise
@@ -795,7 +796,7 @@ async def api_retrieve(
     quelli vecchi, e il ranking esce da uno stato MISTO. Il danno non è teorico: è proprio
     questa la route su cui gira eval.run, cioè lo strumento con cui si decide se una modifica
     ha migliorato o peggiorato il sistema — e lo sbaglio era silenzioso, con numeri plausibili."""
-    maybe_reload_graph()
+    await run_in_threadpool(maybe_reload_graph)
     snap = current_snapshot()
     if state.get("qdrant") is None or state.get("embed_model") is None or snap is None:
         raise HTTPException(status_code=503, detail="Indice non ancora pronto.")
@@ -902,7 +903,7 @@ async def api_code_search(
     La risposta NON è una fonte di verità sul contenuto dei file: è uno snapshot dell'ultima
     indicizzazione e serve solo a scegliere cosa leggere. `index_version` dice su quale versione
     dell'indice è stata calcolata."""
-    maybe_reload_graph()
+    await run_in_threadpool(maybe_reload_graph)
     snap = current_snapshot()
     embed_model: BGEM3FlagModel = state.get("embed_model")
     if snap is None or embed_model is None:

@@ -2,7 +2,7 @@
 
 ## Superficie MCP locale (sessione 5, 2026-09-11)
 
-`mcp_server.py` espone **tre tool stdio**, distinti dalle **59 route HTTP** sotto:
+`mcp_server.py` espone **tre tool stdio**, distinti dalle **60 route HTTP** sotto:
 `vibecraft_retrieve` → GET `/api/retrieve`, `vibecraft_code_search` → GET
 `/api/code/search`, `vibecraft_graph_query` → GET `/api/graph/query`.
 Nessuna porta MCP, risorsa filesystem, prompt o tool aggiuntivo. Il confine di accesso
@@ -37,7 +37,13 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
 > una proposta: è la **mappa del codice corrente**, con la matrice §2 tenuta allineata da
 > `test_every_post_route_is_classified` in
 > [`tests/test_security_fixes.py`](tests/test_security_fixes.py) — ogni POST registrato
-> deve comparire nella matrice o fra le esclusioni motivate, o la suite fallisce.
+> deve comparire nella matrice o fra le esclusioni motivate, o la suite fallisce. Da
+> `test_every_route_is_classified_in_security_surface` (stesso file), la stessa garanzia
+> vale per **ogni** route, di **qualsiasi** metodo, registrata sui router (entrambi i
+> ruoli, standalone/writer e `VIBECRAFT_ROLE=reader`) o montata direttamente su `app` in
+> `server.py` (Appendice A): il parser legge la tabella §1 e l'Appendice A da questo stesso
+> file markdown, non un secondo elenco da tenere sincronizzato a mano — e i conteggi di
+> §Metodologia sono ricontati dal codice, non più dichiarati a mano.
 >
 > **Riverificato il 2026-09-07**: i conteggi di §Metodologia sono stati ricontati sul
 > codice (57 route, 24 POST, per-file esatti) e reggono. Sono cambiate due cose dal
@@ -52,25 +58,33 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
 
 ## Metodologia e conteggio
 
-- **Route registrate sui router: 59** — contate con `grep -c '^@router\.'` su
+- **Route registrate sui router: 60** — contate con `grep -c '^@router\.'` su
   `api/routes_*.py`:
   - `routes_pages.py` → 6
-  - `routes_pipeline.py` → 23
+  - `routes_pipeline.py` → 24
   - `routes_reindex.py` → 5
   - `routes_retrieval.py` → 3
   - `routes_graph.py` → 5
   - `routes_health.py` → 2
   - `routes_intake.py` → 15
-- **La tabella §1 ha 59 righe numerate** (una per route registrata) → il conteggio
+- **La tabella §1 ha 60 righe numerate** (una per route registrata) → il conteggio
   coincide con il criterio di completezza. La numerazione segue l'ordine di
   `include_router` in [`server.py`](server.py), poi l'ordine originario nel file;
-  le due nuove route del gate sono aggiunte in coda per conservare i riferimenti.
+  le due nuove route del gate e, più tardi, `GET /api/pipeline/agent/runners` (riga 60,
+  aggiunta coi runner alternativi, §5) sono aggiunte in coda per conservare i riferimenti.
+  Questi conteggi sono verificati dal codice, non solo dichiarati, da
+  `test_declared_route_counts_match_code` in
+  [`tests/test_security_fixes.py`](tests/test_security_fixes.py): un router che guadagna
+  una route senza che questa sezione o la tabella §1 vengano aggiornate fa fallire la
+  suite, invece di lasciare che i due si scollino in silenzio. Il ruolo `reader` monta un
+  sottoinsieme di questi stessi router/route (mai una route aggiuntiva): verificato da
+  `test_reader_role_routes_are_a_subset_of_matrix`.
 - **POST totali: 25** — 22 con la dependency anti-cross-site, 3 esclusi con motivazione
   (§2C). Nessun POST non classificato (asserito dalla suite).
-- Fuori dai router, montati sull'app in [`server.py`](server.py): 2 route esplicite per
-  `shared.css`/`shared.js`, 1 mount statico (`/static`) e 3 route di default di FastAPI
+- Fuori dai router, montati sull'app in [`server.py`](server.py): 3 route esplicite per
+  `shared.css`/`shared.js`/`pages/*.js`, 1 mount statico (`/static`) e 3 route di default di FastAPI
   (`/docs`, `/redoc`, `/openapi.json`) + `/docs/oauth2-redirect`. Sono elencate
-  nell'**Appendice A** (non conteggiate nelle 59 perché non registrate sui router), ma
+  nell'**Appendice A** (non conteggiate nelle 60 perché non registrate sui router), ma
   hanno rilievo di sicurezza e vanno lette.
 
 ### Fatti architetturali verificati (valgono per tutta la tabella)
@@ -164,9 +178,94 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
    raggiungibile nulla che prima non lo fosse — un attaccante cross-site non può leggere
    quel `localStorage` (è origin-scoped) né far partire la richiesta (Fatti 1-2).
 
+9. **Header `Host` validato prima di ogni route** (`HostHeaderGuard` in
+   [`api/deps.py`](api/deps.py), montato in [`server.py`](server.py); dal 2026-09-28).
+   Il bypass del Fatto 3 guarda l'IP del client, non il nome con cui il browser crede di
+   parlare al server: con il **DNS rebinding** una pagina su `attacker.example` fa
+   risolvere il proprio nome a `127.0.0.1`, le sue `fetch()` arrivano da loopback (auth
+   bypassata) e sono **same-origin** per il browser, che quindi ne lascia leggere le
+   risposte — verificato prima della correzione: `Host: attacker.example:8000` da
+   `127.0.0.1` otteneva `200` su `/api/pipeline/dev-types` e `/pipeline` **con la chiave
+   iniettata**. Ora ogni richiesta HTTP/WebSocket con `Host` fuori dall'insieme ammesso
+   riceve **400** prima di pagine, API e statici. Ammessi: `127.0.0.1`, `localhost`, `::1`
+   (anche `[::1]:porta`), l'interfaccia di bind se è un indirizzo specifico (non
+   `0.0.0.0`/`::`), l'host di `VIBECRAFT_BASE_URL` e la lista `VIBECRAFT_ALLOWED_HOSTS`
+   (virgole). Nessuna wildcard: una voce con `*` è ignorata con un warning all'avvio;
+   `testserver` (TestClient) **non** è ammesso. `Host` è un forbidden header: il JS della
+   pagina ostile non può riscriverlo. I rifiuti sono loggati con un WARNING per host
+   distinto, poi a DEBUG. Con un bind wildcard e senza `VIBECRAFT_BASE_URL`, l'URL
+   derivato che i prompt dell'agente riportano (`SERVER_BASE_URL`) usa `127.0.0.1`, non
+   `0.0.0.0`, che riceverebbe 400. **Nessuna configurazione serve nel setup di default**
+   (bind locale, oppure Docker con la porta pubblicata su `127.0.0.1`): healthcheck,
+   `mcp_server.py` e script usano il loopback numerico e il browser manda `127.0.0.1:8000`
+   o `localhost:8000`. **Serve** `VIBECRAFT_ALLOWED_HOSTS` (o `VIBECRAFT_BASE_URL`) quando il
+   server viene raggiunto con un altro nome: hostname o IP di LAN con bind `0.0.0.0`,
+   reverse proxy che inoltra il proprio `Host`, webhook GitLab verso un nome pubblico.
+
+10. **Nessuna risposta è incorniciabile** (`SecurityHeadersMiddleware` in
+   [`api/deps.py`](api/deps.py), montato in [`server.py`](server.py); dal 2026-09-28).
+   Prima nessuna risposta inviava `X-Frame-Options` né `Content-Security-Policy`
+   (verificato: `/pipeline`, `/intake`, `/` rispondevano senza): una pagina ostile poteva
+   caricare la console in un `<iframe>` trasparente e far cliccare all'utente i pulsanti
+   veri (pipeline, intake, reindex, rollback) — **clickjacking**. Il Fatto 7 non lo ferma:
+   le fetch partono dalla pagina incorniciata, quindi sono `same-origin`, e il bypass
+   loopback (Fatto 3) le autentica. Ora **ogni** risposta HTTP (pagine, API JSON, statici,
+   404, il 400 di `HostHeaderGuard`, stream NDJSON) porta `X-Frame-Options: DENY` e
+   `Content-Security-Policy: frame-ancestors 'none'`, più `X-Content-Type-Options: nosniff`
+   e `Referrer-Policy: same-origin`. Su tutte e non solo sulle HTML per scelta: sono
+   innocui sulle altre e un filtro sul content-type lascerebbe fuori proprio i casi
+   imprevisti (`/docs`, pagine nuove). Header già impostati da una route non vengono
+   sovrascritti; una CSP già presente riceve `frame-ancestors 'none'` in coda solo se non
+   ne dichiara una propria. Middleware **ASGI puro** che agisce su `http.response.start`:
+   lo streaming di `/ask` non viene bufferizzato. `nosniff` è sicuro perché ogni script e
+   foglio di stile arriva con il MIME corretto (`server.py` fissa i tipi `.js`/`.css`/`.svg`
+   contro il registro di Windows). Residuo: i 500 non gestiti li produce
+   `ServerErrorMiddleware` di Starlette, esterno a tutti i middleware utente, e non portano
+   gli header (testo semplice senza azioni).
+
+11. **CSP completa: nessuno script inline eseguibile** (`CONTENT_SECURITY_POLICY` in
+   [`api/deps.py`](api/deps.py), servita da `SecurityHeadersMiddleware`; dal 2026-09-28).
+   La policy, **bloccante**, su ogni risposta:
+   `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
+   img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self';
+   worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self';
+   frame-ancestors 'none'`. `script-src 'self'` **senza** `'unsafe-inline'` né
+   `'unsafe-eval'`: un frammento HTML che sfuggisse all'escape (dati del corpus, titolo o
+   id di un documento in staging) non esegue nulla — né `<script>` né handler
+   `onerror=`/`onclick=` (difesa in profondità sopra l'escape di `escapeHtml`). Per
+   arrivarci: (a) gli `<script>` inline dei 6 template sono in `static/pages/*.js`
+   (route esplicita con `NO_CACHE_HEADERS` come `shared.js`, solo i file presenti al
+   boot); (b) i ~70 handler `on*=` — anche quelli nel markup generato in JS, come i
+   pulsanti dello staging di `/intake` che interpolavano `entry.id` in un `onclick` —
+   sono diventati `data-click`/`data-change`/`data-input` eseguiti da un listener
+   delegato in `shared.js` che chiama **solo** azioni registrate con `registerActions()`
+   (l'attributo nomina una chiave del registro, mai una funzione globale; l'argomento
+   viaggia in `data-arg`, testo con escape); (c) la chiave di `/pipeline` arriva in un
+   `<meta name="vibecraft-agent-api-key">` con escape HTML invece che in uno `<script>`
+   (vedi §4 #6). `/docs`, `/redoc` e `/docs/oauth2-redirect` (Swagger/ReDoc caricano da
+   CDN e hanno script inline) ricevono solo `frame-ancestors 'none'`.
+   **Verificata in Chromium** (Playwright, 2026-09-28) su tutte le pagine (`/`,
+   `/pipeline`, `/intake`, `/eval`, `/analysis`, `/infografica`): nessuna violazione CSP,
+   nessun errore JS, e le azioni spostate funzionano (tab, grafo 3D con 3d-force-graph e
+   2D con vis.js, passi della pipeline, staging e anteprima con id ostile, "Riprova" nel
+   markup generato, cambio tema, diagramma mermaid); un `onerror`/`onclick` iniettato
+   viene bloccato (`script-src-attr`). Unico evento registrato: la sonda del global
+   object di webpack in `vis.min.js` (`Function("return this")()` dentro un `try`, con
+   fallback su `window`) — bloccata, catturata dalla libreria, nessun effetto.
+   3d-force-graph genera codice con `new Function` solo nel motore `ngraph`, che la
+   dashboard non usa (motore `d3` di default). Guardie in CI: `tests/test_csp.py` fallisce
+   se un template reintroduce `<script>` inline, handler `on*=` o URL `javascript:`, se
+   uno script di pagina genera markup con `on*=`, o se un `data-click` nomina un'azione
+   non registrata. **Residuo accettato: `style-src 'unsafe-inline'`.** Il runtime
+   Tailwind (`static/vendor/tailwind.min.js`) genera il CSS nel browser dentro uno
+   `<style>`, mermaid/vis/3d-force-graph scrivono stili inline e i template usano
+   `style="..."`; toglierlo richiede un CSS Tailwind precompilato, cioè un tool di build
+   che l'ambiente non ha. Il rischio che resta è l'iniezione di CSS (defacement,
+   esfiltrazione lenta via selettori), non l'esecuzione di codice.
+
 ---
 
-## 1. Tabella completa delle route (59 righe)
+## 1. Tabella completa delle route (60 righe)
 
 Legenda **Body**: *assente* = nessun body dichiarato · *query/path* = solo parametri URL ·
 *JSON Pydantic* = modello con campi obbligatori · *JSON opz.* = `Request` grezza con
@@ -182,7 +281,7 @@ oltre a `require_api_key` del router.
 | # | Metodo | Path | Auth effettiva (nel codice) | Body | Consegnabile x-site | Effetto | Blast | Protezione (nel codice) |
 |--:|--------|------|-----------------------------|------|---------------------|---------|-------|-------------------------|
 | 1 | GET | `/` | nessuna | assente | Sì | read-only (serve HTML) | Basso | nessuna |
-| 2 | GET | `/pipeline` | nessuna | assente | Sì | read-only (serve HTML) + **inietta `VIBECRAFT_API_KEY`** in `window.__VIBECRAFT_AGENT_API_KEY__` — SOLO per client locali (vedi §4 #6) | Basso | nessuna (SOP del browser) |
+| 2 | GET | `/pipeline` | nessuna | assente | Sì | read-only (serve HTML) + **inietta `VIBECRAFT_API_KEY`** in `<meta name="vibecraft-agent-api-key">` (letto da `shared.js` in `window.__VIBECRAFT_AGENT_API_KEY__`) — SOLO per client locali (vedi §4 #6) | Basso | nessuna (SOP del browser) |
 | 3 | GET | `/infografica` | nessuna | assente | Sì | read-only (serve HTML) | Basso | nessuna |
 | 4 | GET | `/analysis` | nessuna | assente | Sì | read-only (serve HTML) | Basso | nessuna |
 | 5 | GET | `/eval` | nessuna | assente | Sì | read-only (serve HTML) | Basso | nessuna |
@@ -228,18 +327,19 @@ oltre a `require_api_key` del router.
 | 45 | GET | `/api/intake/staged/{doc_id}/preview` | require_api_key | path | Sì | read-only (journal + markdown derivato) | Basso | nessuna |
 | 46 | POST | `/api/intake/staged/{doc_id}/approve` | require_api_key | JSON Pydantic | No (preflight) | **scrive `docs/<categoria>/`** + **reindex delta** (Qdrant + CURRENT) sotto writer lock + reload snapshot | **Alto** | **anti-x-site** |
 | 47 | POST | `/api/intake/staged/{doc_id}/reject` | require_api_key | **JSON tutto-opz.** (`motivo` con default) | **Sì (bodyless)** | **scrive staging** (sposta in `staging/rejected/`, journal); `docs/` e indice intatti | Medio | **anti-x-site** |
-| 48 | POST | `/api/intake/generate` | require_api_key | JSON Pydantic | No (preflight) | avvia job LLM (Ollama) → documenti in staging | Medio (DoS/costo) | **anti-x-site** |
+| 48 | POST | `/api/intake/generate` | require_api_key | JSON Pydantic | No (preflight) | avvia job LLM (Ollama) → documenti in staging; tetto GLOBALE di job attivi condiviso con 50 e 56 (`VIBECRAFT_GENERATION_MAX_ACTIVE`, oltre: 429) | Medio (DoS/costo) | **anti-x-site** |
 | 49 | GET | `/api/intake/generate/{job_id}` | require_api_key | path | Sì | read-only (stato job) | Basso | nessuna |
-| 50 | POST | `/api/intake/staged/{doc_id}/refine` | require_api_key | **assente** | **Sì (bodyless)** | avvia job LLM di raffinazione → **scrive staging** | Medio (DoS/costo) | **anti-x-site** |
+| 50 | POST | `/api/intake/staged/{doc_id}/refine` | require_api_key | **assente** | **Sì (bodyless)** | avvia job LLM di raffinazione → **scrive staging**; tetto globale di job attivi condiviso fra 48, 50 e 56 (429) | Medio (DoS/costo) | **anti-x-site** |
 | 51 | GET | `/api/intake/refine/{job_id}` | require_api_key | path | Sì | read-only (stato job) | Basso | nessuna |
 | 52 | POST | `/api/intake/project/browse-path` | require_api_key | **assente** | **Sì (bodyless)** | **apre un dialogo tkinter MODALE sul desktop della macchina server** e occupa un thread finché non viene chiuso (vedi §4 #7) | Medio | **anti-x-site + local-bind** |
 | 53 | POST | `/api/intake/project/plan` | require_api_key | JSON Pydantic | No (preflight) | read-only ma **scansiona un path arbitrario del filesystem del server** e ne restituisce l'elenco file (vedi §4 #8) | Medio (info-disclosure) | **anti-x-site + local-bind** |
 | 54 | POST | `/api/intake/project/apply` | require_api_key | **JSON tutto-opz.** (`plan_id`/`plan` entrambi opzionali) | **Sì (bodyless)** | **copia file in `code/<target>/`** + backup zip + journal + **reindex delta** sotto writer lock | **Alto** | **anti-x-site** |
 | 55 | GET | `/api/intake/project/imports` | require_api_key | query | Sì | read-only (journal) | Basso | nessuna |
-| 56 | POST | `/api/intake/project/brief` | require_api_key | JSON Pydantic | No (preflight) | avvia job LLM sul grafo → documento in staging | Medio (DoS/costo) | **anti-x-site** |
+| 56 | POST | `/api/intake/project/brief` | require_api_key | JSON Pydantic | No (preflight) | avvia job LLM sul grafo → documento in staging; tetto globale di job attivi condiviso fra 48, 50 e 56 (429) | Medio (DoS/costo) | **anti-x-site** |
 | 57 | GET | `/api/intake/project/brief/{job_id}` | require_api_key | path | Sì | read-only (stato job) | Basso | nessuna |
 | 58 | GET | `/api/pipeline/gate` | require_api_key | query | Sì | read-only (ricalcola ammissibilità, decisioni e rilievi) | Basso | nessuna |
 | 59 | POST | `/api/pipeline/open-points/decision` | require_api_key **+ require_api_key_strict** | JSON Pydantic stretto | **No (strict)** | scrive decisione operatore e associazioni esplicite, non avvia l'agente | **Alto** | **strict** |
+| 60 | GET | `/api/pipeline/agent/runners` | require_api_key | assente | Sì | read-only (elenco runner disponibili — Claude/local/Codex/Cursor —, modalità e modelli; interroga Ollama `/api/tags` con timeout 2 s e il PATH per i binari: rivela i modelli locali installati e quali CLI sono presenti sul server, §5) | Basso | nessuna |
 
 ### Nota sulle route a corpo consegnabile — dove la dependency è l'UNICO controllo
 
@@ -311,7 +411,7 @@ dependency è a costo nullo e non rompe la UI same-origin.
 | POST `/api/pipeline/agent/run` (8) | **Già `require_api_key_strict`** — protezione *più forte* dell'anti-cross-site (chiave sempre richiesta, anche da localhost). Aggiungere Sec-Fetch-Site è ridondante e **non va indebolito** sostituendo lo strict. Asserito da `_STRICT_ROUTES` e da `test_excluded_route_does_not_declare_anti_cross_site_dependency`. |
 | POST `/api/pipeline/open-points/decision` (59) | Chiave obbligatoria anche da localhost; stesso confine strict di agent/run. Non esposta ai tool agente. Provenienza dichiarata, `origin_verified: false`, nessuna identità personale certificata. |
 | POST `/api/pipeline/canvas/dry-run` (22) | POST ma **read-only** (retrieval/embedding, nessuna scrittura, nessun LLM di generazione) e body Pydantic obbligatorio → non consegnabile. Solo rischio DoS-CPU. |
-| Tutte le **GET** (1-7, 9, 14, 20-21, 23-26, 29-31, 34-42, 44-45, 49, 51, 55, 57, 58) | Read-only per contratto. Anti-cross-site su GET **romperebbe** navigazione/embedding cross-origin legittimi senza proteggere nulla. Le GET CPU-pesanti (`/api/retrieve` 34, `/api/code/search` 35, `/api/graph/semantic-map` 39) restano un rischio DoS-CPU **accettato** (§4 #4). `maybe_reload_graph` invocato da alcune GET è un reload interno idempotente, non una mutazione pilotabile dall'attaccante. |
+| Tutte le **GET** (1-7, 9, 14, 20-21, 23-26, 29-31, 34-42, 44-45, 49, 51, 55, 57, 58, 60) | Read-only per contratto. Anti-cross-site su GET **romperebbe** navigazione/embedding cross-origin legittimi senza proteggere nulla. Le GET CPU-pesanti (`/api/retrieve` 34, `/api/code/search` 35, `/api/graph/semantic-map` 39) restano un rischio DoS-CPU **accettato** (§4 #4). `maybe_reload_graph` invocato da alcune GET è un reload interno idempotente, non una mutazione pilotabile dall'attaccante. Le GET 44, 45 e 55 (journal di intake) **non** passano più da `ensure_staging_dirs`: fino alla revisione del 2026-09-28 quella funzione creava `staging/docs\|projects\|rejected` e faceva `touch` di `intake.jsonl` anche su una semplice lettura, materializzando `staging/` da un GET su un'istanza dove nessuno aveva ancora caricato nulla — corretto con `core.intake.staging_paths_readonly` (stessi percorsi, nessuna creazione; `_journal_state` gestisce già un journal assente come stato vuoto), usato ora da `list_staged`, `get_preview` e `project_brief.applied_imports`. Le scritture (`stage_document`, `approve`, `reject`, refine, import) restano su `ensure_staging_dirs` e continuano a creare le cartelle. |
 | Pagine HTML (1-6) e mount `/static` | Shell statiche pubbliche, nessun dato, nessuna auth by design. Eccezione documentata: `/pipeline` (2) inietta la API key per i soli client locali → §4 #6. |
 
 **Sintesi ambito:** **22 POST protetti** su 25 (13 mutanti §2A + 9 LLM/filesystem §2B).
@@ -365,7 +465,7 @@ mentre il ramo "come oggi" dia il 422 — la business logic non viene mai esegui
 | 3 | **Client cross-site non-browser** (curl/script sulla LAN se il bind supera localhost). Non inviano `Sec-Fetch-Site` → la guardia non li ferma. | **Accettato per design.** Sec-Fetch-Site difende il vettore CSRF-da-browser, non l'accesso programmatico. La barriera per quest'ultimo resta `VIBECRAFT_API_KEY` + bind `127.0.0.1` (fail-closed già presente in `server.py`). |
 | 4 | **DoS-CPU/costo sulle GET read-only** (`/api/retrieve` 34, `/api/code/search` 35, `/api/graph/semantic-map` 39): un trigger cross-site di massa consuma embedding/SVD senza mutare stato. | **Accettato.** I POST-LLM sono ora tutti coperti (§2B), quindi il grosso è chiuso. Per le GET CPU un rate-limit resta **debito annotato**: `/api/code/search` ha già tetti di risposta (`k ≤ 25`) ma non di frequenza. |
 | 5 | **`/docs`, `/redoc`, `/openapi.json` non autenticati** (Appendice A). Espongono l'intero schema delle route a chiunque raggiunga il server. | **Accettato in locale**; in caso di esposizione, disabilitare (`FastAPI(docs_url=None, redoc_url=None, openapi_url=None)`) o proteggerli. Info-disclosure, non mutazione. |
-| 6 | **`GET /pipeline` (2) inietta `VIBECRAFT_API_KEY` nell'HTML** come `window.__VIBECRAFT_AGENT_API_KEY__`, su una route senza auth. | **Accettato, per costruzione.** L'iniezione avviene **solo** per client locali (`_is_local_request`, stessa condizione del bypass di `require_api_key`) e la Same-Origin Policy impedisce a una pagina di un'altra origine di **leggere** il body della risposta: può solo navigarci o fare fetch opachi. Se il server è esposto oltre localhost l'iniezione si disattiva da sola, quindi la chiave non raggiunge mai un client remoto. Resta un rischio se l'utente esegue codice ostile *nella propria pagina* — fuori dal modello di minaccia. |
+| 6 | **`GET /pipeline` (2) inietta `VIBECRAFT_API_KEY` nell'HTML** in un `<meta name="vibecraft-agent-api-key">` con escape HTML (non più uno `<script>` inline, vietato dalla CSP — Fatto 11), che `shared.js` copia in `window.__VIBECRAFT_AGENT_API_KEY__`, su una route senza auth. | **Accettato, per costruzione.** L'iniezione avviene **solo** per client locali (`_is_local_request`, stessa condizione del bypass di `require_api_key`) e la Same-Origin Policy impedisce a una pagina di un'altra origine di **leggere** il body della risposta: può solo navigarci o fare fetch opachi. Se il server è esposto oltre localhost l'iniezione si disattiva da sola, quindi la chiave non raggiunge mai un client remoto. La SOP da sola **non** bastava: il DNS rebinding rende same-origin una pagina ostile risolta su `127.0.0.1` — chiuso dalla validazione di `Host` (Fatto 9), che rifiuta con 400 ogni nome non ammesso prima che la pagina venga servita. Residuo **ridimensionato**: (a) codice ostile eseguito *nella propria pagina* — fuori dal modello di minaccia; (b) un host aggiunto a `VIBECRAFT_ALLOWED_HOSTS` il cui DNS sia controllato da terzi riapre il vettore per quel nome — la lista va limitata a nomi che si controllano. |
 | 7 | **`POST /api/intake/project/browse-path` (52) apre un dialogo nativo sul desktop del server** ed è **consegnabile bodyless**. Senza guardie, una pagina ostile farebbe comparire un selettore di cartelle sulla macchina che ospita il server e occuperebbe un thread del pool finché non viene chiuso. | **Chiuso su entrambi gli assi.** Browser di terzi: anti-cross-site (403 prima dell'handler). Bind aperto: `require_local_bind` **spegne** la route (403 per chiunque, API key inclusa) — era il debito annotato dalla revisione precedente, ora implementato, perché con server e utente su macchine diverse la funzione non è "più rischiosa", è priva di senso. Residuo **accettato**: con bind locale, un client sulla stessa macchina può innescarla — ma su quella macchina il dialogo è appunto la funzione richiesta. |
 | 8 | **`POST /api/intake/project/plan` (53) enumera un path arbitrario del filesystem del server** e ne restituisce i file classificati: è info-disclosure per un chiamante che raggiunge l'endpoint. | **Chiuso su entrambi gli assi.** Le validazioni di `core.project_import` (path assoluto, esistente, directory, mai dentro il repo né lo staging) riducono l'abuso ma **non** limitano *quale* directory sia scansionabile: il contenimento vero è che il chiamante deve essere sulla macchina stessa. Anti-cross-site copre il browser di terzi; `require_local_bind` spegne la route se il bind supera il loopback, quando l'enumerazione diventerebbe remota. Residuo **accettato** con bind locale: chi chiama da quella macchina ha già accesso al filesystem. |
 
@@ -420,7 +520,7 @@ niente build/test in-modalità; (d) la blocklist dei segmenti riservati può rif
 
 La stessa route accetta `runner` (`claude` | `local` | `codex` | `cursor`); ammissione,
 gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agent/runners`
-(nessuna auth, sola lettura) elenca disponibilità, modalità e modelli.
+(`require_api_key` del router, sola lettura) elenca disponibilità, modalità e modelli.
 
 - **`local` (Ollama `/api/chat`)**: i tool li esegue VibeCraft, il modello li chiede soltanto.
   Nessuna shell. Letture confinate a `PROJECT_ROOT`, con `.git/` e `.env*` negati (più
@@ -437,15 +537,25 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
 - **Argomenti delle CLI**: il prompt passa su stdin, mai in argv (gli shim `.cmd` di npm
   su Windows lo farebbero interpretare a `cmd.exe`); il nome modello è vincolato da
   `^(|[A-Za-z0-9][\w.:/-]{0,99})$`, quindi non può iniziare con `-` né contenere metacaratteri.
+- **Costo (DoS economico)**: il runner `claude` è l'unico che spende sull'account
+  Anthropic. Il suo `total_cost_usd` di fine run entra nel contatore giornaliero di
+  `llm_settings.budget` (lo stesso delle chiamate LLM, `core/llm.py`); con `daily_usd`
+  impostato e soglia raggiunta la route risponde **429** (con `Retry-After` fino alla
+  mezzanotte UTC) prima di gate e journal, e i rilanci automatici emettono
+  `retry_blocked`. `local` è gratuito; `codex`/`cursor` fatturano su account propri e non
+  riportano un costo: non sono limitati. Senza blocco `budget` nessun limite di spesa.
+  La soglia è **morbida**: il costo si conosce solo a fine run, quindi run già ammessi o
+  in corso (anche più d'uno in parallelo) possono superarla; bloccano i successivi.
 
 ---
 
-## Appendice A — Superfici app-level (fuori dalle 59, montate in `server.py`)
+## Appendice A — Superfici app-level (fuori dalle 60, montate in `server.py`)
 
 | Metodo | Path | Auth | Effetto | Nota |
 |--------|------|------|---------|------|
 | GET | `/static/shared.css` | nessuna | read-only (asset) | Route esplicita (non il mount) per servirla con `NO_CACHE_HEADERS`: in cache, l'HTML fresco referenzierebbe classi CSS non ancora presenti. |
 | GET | `/static/shared.js` | nessuna | read-only (asset) | Idem. |
+| GET | `/static/pages/{name}` | nessuna | read-only (asset) | Idem, per gli script delle pagine (erano inline nei template, spostati per la CSP — Fatto 11). Solo i file presenti in `static/pages/` al boot, altrimenti 404. |
 | GET | `/static/*` | nessuna | read-only (asset statici) | `app.mount(StaticFiles)`; vendor pinnati, cache di default del browser. |
 | GET | `/openapi.json` | nessuna | read-only (schema) | Default FastAPI. Rivela tutte le route → vedi rischio #5. |
 | GET | `/docs` | nessuna | read-only (Swagger UI) | Default FastAPI. |
@@ -456,8 +566,8 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
 
 ## Report finale
 
-- **Conteggio route registrate sui router: 59** (6 pages · 23 pipeline · 5 reindex ·
-  3 retrieval · 5 graph · 2 health · 15 intake) — **coincide** con le 59 righe della
+- **Conteggio route registrate sui router: 60** (6 pages · 24 pipeline · 5 reindex ·
+  3 retrieval · 5 graph · 2 health · 15 intake) — **coincide** con le 60 righe della
   tabella §1. Fuori conteggio: 2 route asset + 1 mount statico + 4 route di default
   FastAPI (Appendice A).
 - **POST: 25** — **22 protetti** da `require_not_cross_site_request`, 3 esclusi con
@@ -478,5 +588,13 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
   l'unico caso in cui una route smette di esistere invece di essere protetta: la loro
   utilità dipende dal fatto che server e utente siano la stessa macchina, quindi con un
   bind aperto non resta nulla da proteggere.
+- **Header `Host` validato su tutta l'app** (Fatto 9): trasversale alle 60 route e
+  all'Appendice A, chiude il DNS rebinding verso il bypass loopback e l'iniezione della
+  chiave in `/pipeline`; host estranei solo tramite `VIBECRAFT_ALLOWED_HOSTS`.
+- **Anti-framing su tutta l'app** (Fatto 10): `X-Frame-Options: DENY` e
+  `frame-ancestors 'none'` su ogni risposta chiudono il clickjacking delle pagine con
+  azioni che scrivono. CSP completa (Fatto 11): `script-src 'self'` senza
+  `unsafe-inline`/`unsafe-eval`, nessuno script né handler inline nei template; residuo
+  `style-src 'unsafe-inline'` per il runtime Tailwind.
 - **Debiti annotati:** rate-limit sulle GET CPU-pesanti (§4 #4); `/docs`/`/openapi.json`
   da chiudere in caso di esposizione (§4 #5).

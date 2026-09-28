@@ -13,13 +13,13 @@
   },
   {
     "source": "C:\\Users\\Silve\\Desktop\\vibecraft\\rag\\eval\\results\\colbert_memory_20260915\\evidence\\memory.json",
-    "copy": "rag/eval/results/colbert_memory_20260915/evidence/memory.json",
+    "copy": "archive/eval-results/colbert_memory_20260915/evidence/memory.json",
     "sha256": "015BEFB115840D58B458659D5D744A6CD7BE7F667FF975472A5C358EDF92FF0E",
     "copy_sha256": "015BEFB115840D58B458659D5D744A6CD7BE7F667FF975472A5C358EDF92FF0E"
   },
   {
     "source": "C:\\Users\\Silve\\Desktop\\vibecraft\\rag\\eval\\results\\colbert_memory_20260915\\evidence\\METHOD.md",
-    "copy": "rag/eval/results/colbert_memory_20260915/evidence/METHOD.md",
+    "copy": "archive/eval-results/colbert_memory_20260915/evidence/METHOD.md",
     "sha256": "4106CFE1B996976320FB200603D6B7BFC0549E76D92D80CD249B519F83367E29",
     "copy_sha256": "4106CFE1B996976320FB200603D6B7BFC0549E76D92D80CD249B519F83367E29"
   }

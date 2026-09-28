@@ -610,7 +610,7 @@ def test_cancel_durante_emit_chiude_subito_lo_stream_llm_esterno(ask_app):
 
     async def scenario():
         request = Request({"type": "http", "app": app})
-        resources = routes_retrieval._ask_resources()
+        resources = await routes_retrieval._ask_resources()
         task = asyncio.create_task(routes_retrieval._ask_pipeline(
             request, AskQuery(question="backpressure"),
             emit=blocked_emit, resources=resources,

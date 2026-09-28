@@ -9,25 +9,7 @@
   <!-- Servito da /static/vendor/: nessuna dipendenza da CDN esterni (local-first). -->
   <script src="/static/vendor/tailwind.min.js"></script>
 
-  <script>
-    /* Tailwind punta a CSS variables: le classi (bg-slate-900, text-blue-400, ecc.)
-       sono generate UNA volta sola con `var(--...)` come valore colore. Il cambio
-       tema (:root[data-theme]) aggiorna le variabili e ridipinge tutto senza
-       rigenerare le classi Tailwind -> è così che funziona il live-flip. */
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brand:  { 50:'var(--brand-50)',100:'var(--brand-100)',200:'var(--brand-200)',300:'var(--brand-300)',400:'var(--brand-400)',500:'var(--brand-500)',600:'var(--brand-600)',700:'var(--brand-700)',800:'var(--brand-800)',900:'var(--brand-900)',950:'var(--brand-950)' },
-            slate:  { 50:'var(--slate-50)', 100:'var(--slate-100)',200:'var(--slate-200)',300:'var(--slate-300)',400:'var(--slate-400)',500:'var(--slate-500)',600:'var(--slate-600)',700:'var(--slate-700)',800:'var(--slate-800)',900:'var(--slate-900)',950:'var(--slate-950)' },
-            blue:   { 50:'var(--blue-50)',  100:'var(--blue-100)', 200:'var(--blue-200)', 300:'var(--blue-300)', 400:'var(--blue-400)', 500:'var(--blue-500)', 600:'var(--blue-600)', 700:'var(--blue-700)', 800:'var(--blue-800)', 900:'var(--blue-900)', 950:'var(--blue-950)' },
-            purple: { 50:'var(--purple-50)',100:'var(--purple-100)',200:'var(--purple-200)',300:'var(--purple-300)',400:'var(--purple-400)',500:'var(--purple-500)',600:'var(--purple-600)',700:'var(--purple-700)',800:'var(--purple-800)',900:'var(--purple-900)',950:'var(--purple-950)' },
-          },
-          fontFamily: { sans: ['var(--font-main)'] }
-        }
-      }
-    }
-  </script>
+  <script src="/static/pages/tailwind-config.js"></script>
 
   <!-- Asset condivisi (estratti dai template per non duplicare CSS/JS) -->
   <link rel="stylesheet" href="/static/shared.css" />
@@ -259,7 +241,7 @@
          selettore restava verde fluorescente anche nel tema Classico, dove
          stonava con tutto il resto. Ora usa i token e segue il tema. La <label>
          era vuota: sostituita da aria-label, che dà davvero un nome al controllo. -->
-    <select id="theme-switcher" onchange="setUiTheme(this.value)" aria-label="Tema dell'interfaccia"
+    <select id="theme-switcher" data-change="setUiTheme" aria-label="Tema dell'interfaccia"
             class="shrink-0 rounded-md px-2.5 py-1.5 text-xs font-mono cursor-pointer bg-slate-800 border border-slate-700 text-slate-200">
       <option value="matrix">🟢 Matrix</option>
       <option value="classic">☀️ Classico</option>
@@ -278,7 +260,7 @@
         <label for="feature-name-input"></label><input id="feature-name-input" type="text" placeholder="Es. form eventi"
                                                        class="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" />
         <div class="flex items-center gap-2 mt-2">
-          <button id="load-feature-btn" onclick="loadFeatureStatus()"
+          <button id="load-feature-btn" data-click="loadFeatureStatus"
             class="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold py-2 transition">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -289,7 +271,7 @@
         <p id="feature-folder-hint" class="text-xs text-slate-400 mt-2 font-mono"></p>
 
         <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mt-4 mb-2">Tipo di sviluppo</label>
-        <label for="dev-type-select"></label><select id="dev-type-select" onchange="onDevTypeChange()"
+        <label for="dev-type-select"></label><select id="dev-type-select" data-change="onDevTypeChange"
                                                      class="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
           <option value="">Caricamento…</option>
         </select>
@@ -305,7 +287,7 @@
             <div id="step-dot-1" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold step-dot-current shrink-0">1</div>
             <div class="step-line w-0.5 flex-1 my-1" id="step-line-1"></div>
           </div>
-          <button onclick="goToStep(1)" class="text-left pb-5 group">
+          <button data-click="goToStep" data-arg="1" class="text-left pb-5 group">
             <div class="text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition">Explore</div>
             <div class="text-xs text-slate-400">Intervista requisiti</div>
             <div id="step-badge-1" class="mt-1 text-xs font-mono step-badge-pending">non generato</div>
@@ -317,7 +299,7 @@
             <div id="step-dot-2" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold step-dot-pending shrink-0">2</div>
             <div class="step-line w-0.5 flex-1 my-1" id="step-line-2"></div>
           </div>
-          <button onclick="goToStep(2)" class="text-left pb-5 group">
+          <button data-click="goToStep" data-arg="2" class="text-left pb-5 group">
             <div class="text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition">Canvas</div>
             <div class="text-xs text-slate-400">REASONS Canvas</div>
             <div id="step-badge-2" class="mt-1 text-xs font-mono step-badge-pending">non generato</div>
@@ -329,7 +311,7 @@
             <div id="step-dot-3" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold step-dot-pending shrink-0">3</div>
             <div class="step-line w-0.5 flex-1 my-1" id="step-line-3"></div>
           </div>
-          <button onclick="goToStep(3)" class="text-left pb-5 group">
+          <button data-click="goToStep" data-arg="3" class="text-left pb-5 group">
             <div class="text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition">Propose</div>
             <div class="text-xs text-slate-400">Spec + Prompt finale</div>
             <div id="step-badge-3" class="mt-1 text-xs font-mono step-badge-pending">non generato</div>
@@ -341,7 +323,7 @@
             <div id="step-dot-4" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold step-dot-pending shrink-0">4</div>
             <div class="step-line w-0.5 flex-1 my-1" id="step-line-4"></div>
           </div>
-          <button onclick="goToStep(4)" class="text-left pb-5 group">
+          <button data-click="goToStep" data-arg="4" class="text-left pb-5 group">
             <div class="text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition">Drift</div>
             <div class="text-xs text-slate-400">Verifica disallineamento</div>
             <div id="step-badge-4" class="mt-1 text-xs font-mono step-badge-pending">non eseguito</div>
@@ -352,7 +334,7 @@
           <div class="flex flex-col items-center">
             <div id="step-dot-5" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold step-dot-pending shrink-0">5</div>
           </div>
-          <button onclick="goToStep(5)" class="text-left group">
+          <button data-click="goToStep" data-arg="5" class="text-left group">
             <div class="text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition">Archivia</div>
             <div class="text-xs text-slate-400">Archivio + Re-index</div>
             <div id="step-badge-5" class="mt-1 text-xs font-mono step-badge-pending">non eseguito</div>
@@ -384,11 +366,11 @@
           <div class="p-3 border-t border-slate-800 flex items-end gap-2 shrink-0">
             <label for="chat-input"></label><textarea id="chat-input" rows="4" placeholder="Rispondi al Tech Lead IA… (Ctrl+Invio per inviare)"
                                                       class="chat-compose flex-1 rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-            <button id="chat-send-btn" onclick="sendExploreTurn()"
+            <button id="chat-send-btn" data-click="sendExploreTurn"
               class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
               Invia
             </button>
-            <button id="chat-finish-btn" onclick="finishExplore()"
+            <button id="chat-finish-btn" data-click="finishExplore"
               class="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
               Termina e genera explore.md
             </button>
@@ -403,8 +385,8 @@
           </div>
           <label for="explore-md-editor"></label><textarea id="explore-md-editor" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
           <div class="flex items-center gap-2 mt-3 shrink-0">
-            <button onclick="saveMdFile('explore.md', 'explore-md-editor')" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
-            <button onclick="approveAndGoToCanvas()" class="ml-auto rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva → vai a Canvas</button>
+            <button data-click="saveMdFile" data-arg="explore.md" data-arg2="explore-md-editor" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
+            <button data-click="approveAndGoToCanvas" class="ml-auto rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva → vai a Canvas</button>
           </div>
         </div>
       </div>
@@ -418,11 +400,11 @@
               <p class="text-xs text-slate-400 mt-0.5">Generato a partire da <code class="text-slate-400">explore.md</code>, con le 7 sezioni: Requirements, Entities, Approach, Structure, Operations, Norms, Safeguards.</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-              <button id="canvas-dryrun-btn" onclick="runCanvasDryRun()"
+              <button id="canvas-dryrun-btn" data-click="runCanvasDryRun"
                 class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50">
                 🔎 Dry-run
               </button>
-              <button id="canvas-generate-btn" onclick="generateCanvas()"
+              <button id="canvas-generate-btn" data-click="generateCanvas"
                 class="rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
                 Genera Canvas
               </button>
@@ -451,9 +433,9 @@
           </div>
           <label for="canvas-md-editor"></label><textarea id="canvas-md-editor" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
           <div class="flex items-center gap-2 mt-3 shrink-0">
-            <button onclick="saveMdFile('canvas.md', 'canvas-md-editor')" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
-            <button onclick="generateCanvas()" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">🔄 Rigenera</button>
-            <button onclick="approveAndGoToPropose()" class="ml-auto rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva → vai a Propose</button>
+            <button data-click="saveMdFile" data-arg="canvas.md" data-arg2="canvas-md-editor" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
+            <button data-click="generateCanvas" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">🔄 Rigenera</button>
+            <button data-click="approveAndGoToPropose" class="ml-auto rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva → vai a Propose</button>
           </div>
         </div>
       </div>
@@ -466,7 +448,7 @@
               <div class="text-sm font-semibold text-slate-200">⚙️ Propose · Specifiche BDD</div>
               <p class="text-xs text-slate-400 mt-0.5">Genera <code class="text-slate-400">spec.md</code> (scenari GIVEN/WHEN/THEN) dal Canvas approvato e il prompt finale pronto per Claude Code.</p>
             </div>
-            <button id="propose-generate-btn" onclick="generatePropose()"
+            <button id="propose-generate-btn" data-click="generatePropose"
               class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
               Genera Spec
             </button>
@@ -487,25 +469,25 @@
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisione · spec.md</span>
             <span class="text-xs text-amber-400 font-medium">Approva per sbloccare il prompt finale</span>
           </div>
-          <label for="spec-md-editor"></label><textarea id="spec-md-editor" oninput="document.getElementById('spec-open-points-status').textContent = '⚠ Modifiche non salvate: resoconto da verificare.'" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          <label for="spec-md-editor"></label><textarea id="spec-md-editor" data-input="specEdited" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
           <p id="spec-open-points-status" role="status" class="text-xs text-slate-300 whitespace-pre-wrap">⚠ Resoconto dei punti aperti non disponibile.</p>
           <div class="flex items-center gap-2 mt-3 shrink-0">
-            <button onclick="saveMdFile('spec.md', 'spec-md-editor')" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
-            <button onclick="generatePropose()" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">🔄 Rigenera</button>
-            <button onclick="approveSpec()" class="ml-auto rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva spec.md</button>
+            <button data-click="saveMdFile" data-arg="spec.md" data-arg2="spec-md-editor" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
+            <button data-click="generatePropose" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">🔄 Rigenera</button>
+            <button data-click="approveSpec" class="ml-auto rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva spec.md</button>
           </div>
         </div>
 
         <div id="validate-card" class="hidden rounded-xl glass-card p-4 shrink-0 fade-in">
           <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <span class="text-xs font-semibold text-amber-400 uppercase tracking-widest">🛡️ Validazione governance (pre-apply)</span>
-            <button id="validate-btn" onclick="runValidate()" class="text-xs font-semibold text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition disabled:opacity-50">Valida canvas + spec</button>
+            <button id="validate-btn" data-click="runValidate" class="text-xs font-semibold text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition disabled:opacity-50">Valida canvas + spec</button>
           </div>
           <p class="text-xs text-slate-400 mb-2">Verifica strutturale (7 sezioni del Canvas, scenari BDD) e coerenza semantica contro i vincoli normativi del Graph RAG, prima di lanciare Claude.</p>
           <p class="text-xs text-amber-400 mb-2">Agentic richiede il via libera del server sul contratto corrente. Suggest-only e One-shot restano disponibili con avvisi.</p>
-          <button onclick="refreshGateReview()" class="text-xs underline">Rivedi punti aperti e associazioni</button>
+          <button data-click="refreshGateReview" class="text-xs underline">Rivedi punti aperti e associazioni</button>
           <pre id="gate-status" class="text-xs whitespace-pre-wrap my-2"></pre>
-          <button onclick="compareValidatedVersion()" class="text-xs underline">Confronta con la versione validata</button>
+          <button data-click="compareValidatedVersion" class="text-xs underline">Confronta con la versione validata</button>
           <div id="gate-comparison" class="text-xs my-2"></div>
           <div id="gate-decisions" class="text-xs space-y-2"></div>
           <div id="validate-structural" class="flex flex-wrap gap-2 mb-2 text-xs font-mono"></div>
@@ -516,10 +498,10 @@
           <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <span class="text-xs font-semibold text-emerald-400 uppercase tracking-widest">🚀 Prompt finale per Claude Code / Cursor</span>
             <div class="flex items-center gap-2 flex-wrap">
-              <button id="agent-context-btn" onclick="loadAgentContext()" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">🧠 Agent Context</button>
-              <button onclick="exportBundle()" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">⬇️ Export JSON</button>
-              <button onclick="goToStep(4)" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">➡️ Verifica Drift</button>
-              <button onclick="copyFinalPrompt(this)" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">Copia</button>
+              <button id="agent-context-btn" data-click="loadAgentContext" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">🧠 Agent Context</button>
+              <button data-click="exportBundle" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">⬇️ Export JSON</button>
+              <button data-click="goToStep" data-arg="4" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">➡️ Verifica Drift</button>
+              <button data-click="copyFinalPrompt" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">Copia</button>
             </div>
           </div>
           <pre id="final-prompt-box" class="text-xs text-emerald-200 whitespace-pre-wrap leading-relaxed bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-64 overflow-y-auto"></pre>
@@ -534,7 +516,7 @@
           <div class="mt-4 pt-4 border-t border-slate-800">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">🤖 Esegui con agente</span>
-              <label for="agent-runner-select"></label><select id="agent-runner-select" onchange="onRunnerChange()"
+              <label for="agent-runner-select"></label><select id="agent-runner-select" data-change="onRunnerChange"
                                                                class="ml-auto rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="claude">Claude Code</option>
               </select>
@@ -544,7 +526,7 @@
                 <option value="opus">🚀 Opus</option>
                 <option value="haiku">⚡ Haiku</option>
               </select>
-              <label for="agent-mode-select"></label><select id="agent-mode-select" onchange="syncAttemptsAvailability()"
+              <label for="agent-mode-select"></label><select id="agent-mode-select" data-change="syncAttemptsAvailability"
                                                              class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="suggest">🔍 Suggest-only (sola lettura)</option>
                 <option value="agentic">⚡ Agentic (scrive nel progetto)</option>
@@ -559,7 +541,7 @@
                       class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50">
                 <option value="1">1 · nessun rilancio</option>
               </select>
-              <button id="agent-run-btn" onclick="runWithAgent()"
+              <button id="agent-run-btn" data-click="runWithAgent"
                 class="rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-xs font-semibold px-4 py-1.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
                 ▶ Esegui
               </button>
@@ -578,7 +560,7 @@
               <div class="text-sm font-semibold text-slate-200">🔍 Verifica del Drift</div>
               <p class="text-xs text-slate-400 mt-0.5">Confronta il contratto (<code class="text-slate-400">canvas.md</code> e <code class="text-slate-400">spec.md</code>, che prevale) con il codice effettivamente scritto: ogni rilievo cita il codice ed è verificato sui file reali prima di entrare nel verdetto. Equivale a <code class="text-slate-400">index.py --check-drift</code>, eseguito tramite LLM locale (Ollama).</p>
             </div>
-            <button id="drift-check-btn" onclick="runDriftCheck()"
+            <button id="drift-check-btn" data-click="runDriftCheck"
               class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
               Esegui verifica
             </button>
@@ -597,7 +579,7 @@
         <div id="drift-report-card" class="hidden rounded-xl glass-card p-4 shrink-0 fade-in">
           <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">📊 Report Drift · Ollama</span>
-            <button onclick="goToStep(5)" class="text-xs font-semibold text-emerald-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-emerald-800 rounded-lg px-3 py-1.5 transition">➡️ Vai all'Archiviazione</button>
+            <button data-click="goToStep" data-arg="5" class="text-xs font-semibold text-emerald-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-emerald-800 rounded-lg px-3 py-1.5 transition">➡️ Vai all'Archiviazione</button>
           </div>
           <pre id="drift-report-box" class="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-96 overflow-y-auto"></pre>
         </div>
@@ -611,7 +593,7 @@
               <div class="text-sm font-semibold text-slate-200">📦 Archiviazione e Re-indicizzazione</div>
               <p class="text-xs text-slate-400 mt-0.5">Sposta <code class="text-slate-400">changes/&lt;feature&gt;</code> in <code class="text-slate-400">changes/archive/</code> e ricostruisce il Graph RAG locale (grafo + Qdrant + ColBERT). Equivale a <code class="text-slate-400">index.py --archive</code>. Operazione conclusiva e non reversibile dall'interfaccia.</p>
             </div>
-            <button id="archive-btn" onclick="runArchive()"
+            <button id="archive-btn" data-click="runArchive"
               class="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
               Archivia e re-indicizza
             </button>
@@ -639,1012 +621,6 @@
   </main>
 
   <!-- ═══════════════════ JAVASCRIPT ═══════════════════ -->
-  <script>
-    /* startMatrixRain / stopMatrixRain: vedi /static/shared.js */
-
-    let currentStep = 1;
-    let exploreHistory = "";
-    let interviewLog = "";
-    let featureName = "";
-    let devType = "";
-
-    /* Prompt finale della feature, chiesto al server invece di ricostruito qui.
-       Il template è deterministico (nessun LLM) ma ha DUE forme — "external" per Claude
-       Code/Cursor, che possono interrogare l'indice via HTTP, e "agent" per l'esecuzione
-       in-app, che usa MCP secondo la modalità — e viveva in due copie, Python e JS: la
-       copia JS era già rimasta indietro di una frase rispetto a core/pipeline.py. Una sola
-       sorgente di verità, interrogabile: GET /api/pipeline/final-prompt. */
-    async function fetchFinalPrompt(feature, devTypeValue, consumer, mode = 'agentic', runner = 'claude') {
-      const params = new URLSearchParams({ feature, dev_type: devTypeValue || '', consumer, mode, runner });
-      const res = await fetch(`/api/pipeline/final-prompt?${params}`);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: res.statusText }));
-        throw new Error(err.detail || `HTTP ${res.status}`);
-      }
-      return (await res.json()).final_prompt;
-    }
-
-    function getFeatureName() {
-      return document.getElementById('feature-name-input').value.trim();
-    }
-
-    function onDevTypeChange() {
-      devType = document.getElementById('dev-type-select').value;
-    }
-
-    /* Popola la tendina con le sottocartelle reali di code/ (backend, frontend, logicAgent, ...). */
-    async function loadDevTypes(selected) {
-      const select = document.getElementById('dev-type-select');
-      try {
-        const res = await fetch('/api/pipeline/dev-types');
-        const data = await res.json();
-        const options = ['<option value="">— seleziona —</option>']
-          .concat(data.dev_types.map(t => `<option value="${t}">${t}</option>`));
-        select.innerHTML = options.join('');
-      } catch (e) {
-        select.innerHTML = '<option value="">— errore caricamento —</option>';
-      }
-      if (selected) select.value = selected;
-      devType = select.value;
-    }
-
-    /* Mostra/nasconde un pannello flex-col in modo atomico: 'hidden' e 'flex'
-       non sono mai presenti insieme, per non dipendere dall'ordine con cui
-       Tailwind genera le utility (altrimenti la cascata decide chi vince). */
-    function setPanelVisible(id, visible) {
-      const el = document.getElementById(id);
-      el.classList.toggle('hidden', !visible);
-      el.classList.toggle('flex', visible);
-    }
-
-    /* ──────────── STEPPER NAVIGATION ──────────── */
-    function goToStep(step) {
-      if (!featureName && step !== 1) {
-        toast('Inserisci prima il nome della feature.', 'error');
-        return;
-      }
-      currentStep = step;
-      [1, 2, 3, 4, 5].forEach(i => {
-        setPanelVisible(`panel-step-${i}`, i === step);
-        // Non si sovrascrive uno stato TERMINALE (completato, con avvisi,
-        // fallito): prima ogni navigazione riscriveva il className di tutti i
-        // pallini, quindi un passo già completato tornava grigio appena si
-        // andava altrove — restava il glifo ✓ ma con i colori di "in attesa".
-        const stato = stepStates[i];
-        if (stato === 'done' || stato === 'warning' || stato === 'failed') return;
-        setStepState(i, i === step ? 'current' : 'pending');
-      });
-    }
-
-    /* ──────────── STATO DEI PASSI ────────────
-       Lo stepper conosceva due soli stati: corrente (blu) e completato (verde).
-       Mancavano "in esecuzione", "con avvisi" e "fallito" — e markStepDone
-       veniva chiamato al COMPLETAMENTO dello stream, non al successo: un drift
-       check pieno di disallineamenti marcava comunque il passo ✓ verde. Lo
-       stepper mentiva, ed è il posto peggiore dove farlo, perché è l'unica
-       sintesi dello stato della feature.
-
-       Ogni stato ha glifo + colore + etichetta testuale: non dipende dal colore,
-       il che conta doppio in Matrix dove il verde è anche il colore di sfondo. */
-    /* Le classi sono quelle STATICHE definite nel <style> di questa pagina
-       (.step-dot-* / .step-badge-*), non utility Tailwind: vedi il commento
-       accanto alle regole per il motivo. */
-    const STEP_STATES = {
-      pending: { glifo: n => String(n), stato: 'pending', label: 'in attesa' },
-      current: { glifo: n => String(n), stato: 'current', label: 'in corso' },
-      running: { glifo: () => '⋯',      stato: 'running', label: 'in esecuzione…' },
-      done:    { glifo: () => '✓',      stato: 'done',    label: 'completato' },
-      warning: { glifo: () => '⚠',      stato: 'warning', label: 'con avvisi' },
-      failed:  { glifo: () => '✕',      stato: 'failed',  label: 'fallito' },
-    };
-
-    /* Stato corrente di ogni passo: serve a goToStep per non calpestare gli
-       stati terminali durante la navigazione. */
-    const stepStates = { 1: 'current', 2: 'pending', 3: 'pending', 4: 'pending', 5: 'pending' };
-
-    function setStepState(step, state, label) {
-      const s = STEP_STATES[state] || STEP_STATES.pending;
-      stepStates[step] = state;
-      const dot = document.getElementById(`step-dot-${step}`);
-      dot.className = `w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 step-dot-${s.stato}`;
-      dot.textContent = s.glifo(step);
-      const badge = document.getElementById(`step-badge-${step}`);
-      badge.textContent = label || s.label;
-      badge.className = `mt-1 text-xs font-mono step-badge-${s.stato}`;
-      const line = document.getElementById(`step-line-${step}`);
-      if (line) line.classList.toggle('done', state === 'done');
-    }
-
-    /* Manteniamo markStepDone come alias: è chiamato da parecchi punti e questo
-       evita un refactor a tappeto per un rename. */
-    function markStepDone(step, label) { setStepState(step, 'done', label || 'generato'); }
-
-    /* ──────────── FILE CONTROL PANEL ──────────── */
-    async function refreshFilesControl() {
-      if (!featureName) return;
-      try {
-        const res = await fetch(`/api/pipeline/status?feature=${encodeURIComponent(featureName)}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        const list = document.getElementById('files-control-list');
-        const rows = [
-          ['explore', 'explore.md', 1],
-          ['canvas', 'canvas.md', 2],
-          ['spec', 'spec.md', 3],
-        ];
-        list.innerHTML = rows.map(([key, fname]) => {
-          const ok = data.files[key];
-          return `<div class="flex items-center justify-between rounded-lg border ${ok ? 'border-emerald-900 bg-emerald-950/40' : 'border-slate-800 bg-slate-950'} px-3 py-2">
-            <span class="font-mono text-slate-300">${fname}</span>
-            <span class="${ok ? 'text-emerald-300' : 'text-slate-400'} font-semibold">${ok ? '✅ pronto' : '— assente'}</span>
-          </div>`;
-        }).join('');
-
-        if (data.files.explore) markStepDone(1, 'generato');
-        if (data.files.canvas) markStepDone(2, 'generato');
-        if (data.files.spec) markStepDone(3, 'generato');
-
-        document.getElementById('feature-folder-hint').textContent = `changes/${data.feature_folder}/`;
-        await refreshGateReview();
-      } catch (e) { /* silenzioso: pannello di controllo best-effort */ }
-    }
-
-    /* ──────────── LOAD / RESUME FEATURE ──────────── */
-    async function loadFeatureStatus() {
-      const name = getFeatureName();
-      if (!name) { document.getElementById('feature-name-input').focus(); return; }
-      featureName = name;
-
-      // Recupera il tipo di sviluppo eventualmente già salvato per questa feature
-      // e ripopola la tendina di conseguenza, prima di ricostruire il prompt finale.
-      let savedDevType = "";
-      try {
-        const statusRes = await fetch(`/api/pipeline/status?feature=${encodeURIComponent(featureName)}`);
-        if (statusRes.ok) savedDevType = (await statusRes.json()).dev_type || "";
-      } catch (e) { /* best-effort */ }
-      await loadDevTypes(savedDevType);
-
-      // Prova a recuperare eventuali file già generati per riprendere la review
-      document.getElementById('spec-open-points-status').textContent = openPointsSummary({});
-      let furthestStep = 1;
-      for (const [fname, editorId, reviewId, step] of [
-        ['explore.md', 'explore-md-editor', 'review-explore', 1],
-        ['canvas.md', 'canvas-md-editor', 'review-canvas', 2],
-        ['spec.md', 'spec-md-editor', 'review-spec', 3],
-      ]) {
-        try {
-          const res = await fetch(`/api/pipeline/file?feature=${encodeURIComponent(featureName)}&name=${fname}`);
-          if (res.ok) {
-            const data = await res.json();
-            document.getElementById(editorId).value = data.content;
-            setPanelVisible(reviewId, true);
-            furthestStep = step;
-
-            if (fname === 'spec.md') {
-              document.getElementById('spec-open-points-status').textContent = openPointsSummary(data);
-              // Best-effort: se il prompt non si recupera, il resto della review si carica
-              // comunque (la card resta vuota e si ripopola rigenerando le specifiche).
-              try {
-                const finalPrompt = await fetchFinalPrompt(featureName, devType, 'external');
-                window._finalPrompt = finalPrompt;
-                document.getElementById('final-prompt-box').textContent = finalPrompt;
-              } catch (err) { /* prompt non recuperabile, ignora */ }
-            }
-          }
-        } catch (e) { /* file non presente, ignora */ }
-      }
-
-      // Riprende automaticamente dall'ultimo step con contenuto già generato,
-      // altrimenti il pannello popolato resterebbe nascosto dietro allo step 1.
-      goToStep(furthestStep);
-
-      await refreshFilesControl();
-    }
-
-    /* ──────────── STEP 1: EXPLORE ──────────── */
-    function appendChatBubble(role, text) {
-      const log = document.getElementById('chat-log');
-      const isUser = role === 'user';
-      const bubble = document.createElement('div');
-      bubble.className = `fade-in max-w-[80%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
-        isUser ? 'self-end bg-blue-600 text-white' : 'self-start bg-slate-800 text-slate-100'
-      }`;
-      bubble.textContent = text;
-      log.appendChild(bubble);
-      log.scrollTop = log.scrollHeight;
-    }
-
-    async function sendExploreTurn() {
-      const name = getFeatureName();
-      if (!name) { document.getElementById('feature-name-input').focus(); return; }
-      featureName = name;
-      if (!devType) { toast('Seleziona prima il tipo di sviluppo.', 'error'); return; }
-
-      const input = document.getElementById('chat-input');
-      const userInput = input.value.trim();
-      if (!userInput) { input.focus(); return; }
-
-      appendChatBubble('user', userInput);
-      interviewLog += `**Utente:** ${userInput}\n\n`;
-      input.value = '';
-
-      const sendBtn = document.getElementById('chat-send-btn');
-      sendBtn.disabled = true;
-      document.getElementById('explore-status').textContent = 'IA sta rispondendo…';
-
-      try {
-        const res = await fetch('/api/pipeline/explore/turn', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ feature_name: featureName, history: exploreHistory, user_input: userInput, dev_type: devType }),
-        });
-        const data = await res.json();
-        exploreHistory = data.history;
-        appendChatBubble('ai', data.ai_response);
-        interviewLog += `**IA:** ${data.ai_response}\n\n`;
-        document.getElementById('explore-status').textContent = '';
-      } catch (e) {
-        appendChatBubble('ai', `❌ Errore: ${e.message}`);
-        document.getElementById('explore-status').textContent = 'Errore di connessione';
-      } finally {
-        sendBtn.disabled = false;
-        input.focus();
-      }
-    }
-
-    async function finishExplore() {
-      const name = getFeatureName();
-      if (!name) { document.getElementById('feature-name-input').focus(); return; }
-      featureName = name;
-      if (!devType) { toast('Seleziona prima il tipo di sviluppo.', 'error'); return; }
-
-      if (!interviewLog) {
-        toast("Nessuna risposta registrata nell'intervista: scrivi almeno un turno prima di terminare.", 'error');
-        return;
-      }
-
-      const btn = document.getElementById('chat-finish-btn');
-      btn.disabled = true;
-      try {
-        const res = await fetch('/api/pipeline/explore/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ feature_name: featureName, interview_log: interviewLog, dev_type: devType }),
-        });
-        const data = await res.json();
-        document.getElementById('explore-md-editor').value = data.content;
-        setPanelVisible('review-explore', true);
-        markStepDone(1, 'generato');
-        await refreshFilesControl();
-      } catch (e) {
-        toast(`Errore nel salvataggio di explore.md: ${e.message}`, 'error');
-      } finally {
-        btn.disabled = false;
-      }
-    }
-
-    function approveAndGoToCanvas() {
-      goToStep(2);
-    }
-
-    /* ──────────── STEP 2: CANVAS ──────────── */
-    async function generateCanvas() {
-      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
-      if (!devType) { toast('Seleziona prima il tipo di sviluppo.', 'error'); return; }
-      const btn = document.getElementById('canvas-generate-btn');
-      btn.disabled = true;
-      setPanelVisible('canvas-loader', true);
-      setPanelVisible('review-canvas', false);
-
-      try {
-        const res = await fetch('/api/pipeline/canvas/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ feature_name: featureName, dev_type: devType }),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ detail: res.statusText }));
-          throw new Error(err.detail || `HTTP ${res.status}`);
-        }
-        const data = await res.json();
-        document.getElementById('canvas-md-editor').value = data.content;
-        setPanelVisible('review-canvas', true);
-        markStepDone(2, 'generato');
-        await refreshFilesControl();
-      } catch (e) {
-        toast(`Errore nella generazione del Canvas: ${e.message}`, 'error');
-      } finally {
-        btn.disabled = false;
-        setPanelVisible('canvas-loader', false);
-      }
-    }
-
-    function approveAndGoToPropose() {
-      goToStep(3);
-    }
-
-    /* ──────────── STEP 3: PROPOSE ──────────── */
-    async function generatePropose() {
-      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
-      if (!devType) { toast('Seleziona prima il tipo di sviluppo.', 'error'); return; }
-      const btn = document.getElementById('propose-generate-btn');
-      btn.disabled = true;
-      setPanelVisible('propose-loader', true);
-      setPanelVisible('review-spec', false);
-      document.getElementById('final-prompt-card').classList.add('hidden');
-
-      try {
-        const res = await fetch('/api/pipeline/propose/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ feature_folder: featureName, dev_type: devType }),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ detail: res.statusText }));
-          throw new Error(err.detail || `HTTP ${res.status}`);
-        }
-        const data = await res.json();
-        document.getElementById('spec-md-editor').value = data.content;
-        document.getElementById('spec-open-points-status').textContent = openPointsSummary(data);
-        setPanelVisible('review-spec', true);
-        document.getElementById('final-prompt-box').textContent = data.final_prompt;
-        window._finalPrompt = data.final_prompt;
-        markStepDone(3, 'generato');
-        await refreshFilesControl();
-      } catch (e) {
-        toast(`Errore nella generazione delle specifiche: ${e.message}`, 'error');
-      } finally {
-        btn.disabled = false;
-        setPanelVisible('propose-loader', false);
-      }
-    }
-
-    function approveSpec() {
-      document.getElementById('validate-card').classList.remove('hidden');
-      document.getElementById('final-prompt-card').classList.remove('hidden');
-      document.getElementById('final-prompt-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      refreshGateReview();
-    }
-
-    /* ──────────── VALIDAZIONE GOVERNANCE (pre-apply) ──────────── */
-    function gateApiError(data) {
-      const detail = data.detail || data.gate || data;
-      if (typeof detail === 'string') return detail;
-      return gateMessages(detail).join('\n') || 'Richiesta non riuscita';
-    }
-
-    const validationRefs = new Map();
-    const blockedAttempts = new Map();
-    function gateMessages(gate) {
-      return [...(gate.reasons || []), ...(gate.warnings || [])].map(item =>
-        [item.code, item.action, item.message, item.next_step,
-          item.changed?.length ? `Elementi cambiati: ${item.changed.join(', ')}` : ''].filter(Boolean).join(' · '));
-    }
-
-    function describeFinding(f) {
-      const who = f.covered_by;
-      const coverage = who ? `coperto da ${who.decision_id} · nome dichiarato: ${who.declared_by} · ${who.recorded_at} · origin_verified: false`
-        : 'non esaminato / non coperto';
-      return `${f.rule || f.kind} · ${f.message}\n${coverage}`;
-    }
-
-    function admissionSummary(gate) {
-      if (gate?.allowed === true) return 'Avvio agentic: consentito';
-      const reason = gate?.allowed === false
-        ? (gate.reasons || []).map(item => item.message).filter(Boolean).join('; ') || 'motivo non disponibile'
-        : 'stato del gate non disponibile';
-      return `Avvio agentic: bloccato — ${reason}`;
-    }
-
-    function validationSummary(data) {
-      const statuses = [data.checks?.structural?.status, data.checks?.semantic?.status];
-      const checks = statuses.some(status => !['pass', 'fail'].includes(status)) ? 'non disponibili'
-        : statuses.includes('fail') ? 'falliti' : 'superati';
-      const lines = [`Controlli di validazione: ${checks}`, admissionSummary(data.gate),
-        `Validazione ${data.validation_id}: ${data.status}`, data.validation_error || data.report || ''];
-      lines.push(...(data.structural_findings || []).map(describeFinding));
-      lines.push(...(data.semantic_findings || []).map(describeFinding));
-      if (data.suggestions?.length) lines.push('Suggerimenti facoltativi — nessun effetto sul gate:\n'
-        + data.suggestions.map(text => `• ${text}`).join('\n'));
-      lines.push('Le lacune coperte da decisione non sono scenari soddisfatti.');
-      if (data.scenario_scope?.off_scope?.length) lines.push('Rilievi euristici di pertinenza (advisory): ' + JSON.stringify(data.scenario_scope.off_scope));
-      lines.push(...gateMessages(data.gate || {}));
-      return lines.filter(Boolean).join('\n\n');
-    }
-
-    async function runValidate() {
-      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
-      const validatingFeature = featureName;
-      const btn = document.getElementById('validate-btn');
-      const box = document.getElementById('validate-report-box');
-      btn.disabled = true;
-      box.classList.remove('hidden');
-      box.textContent = 'Validazione in corso…';
-      try {
-        const res = await fetch('/api/pipeline/validate', {method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({feature: validatingFeature})});
-        const data = await res.json();
-        if (featureName !== validatingFeature) return;
-        if (!res.ok && data.status !== 'unavailable') throw new Error(gateApiError(data));
-        validationRefs.set(validatingFeature, data.validation_id || null);
-        box.textContent = validationSummary(data);
-        document.getElementById('validate-structural').textContent = `Controlli: ${data.checks?.structural?.status || 'unavailable'} / ${data.checks?.semantic?.status || 'unavailable'}`;
-        await refreshGateReview();
-      } catch (e) {
-        if (featureName === validatingFeature) box.textContent = `Validazione non disponibile: ${e.message}`;
-      } finally { btn.disabled = false; }
-    }
-
-    let gateReview = null;
-    async function refreshGateReview() {
-      if (!featureName) return;
-      const reviewingFeature = featureName;
-      gateReview = null;
-      document.getElementById('gate-decisions').textContent = '';
-      document.getElementById('gate-comparison').textContent = '';
-      try {
-        const params = new URLSearchParams({feature: reviewingFeature});
-        const selected = validationRefs.get(reviewingFeature);
-        if (selected) params.set('validation_id', selected);
-        const res = await fetch('/api/pipeline/gate?' + params);
-        const data = await res.json();
-        if (featureName !== reviewingFeature || validationRefs.get(reviewingFeature) !== selected) return;
-        if (!res.ok) throw new Error(gateApiError(data));
-        if (!selected) validationRefs.set(reviewingFeature, data.validation_id || null);
-        gateReview = {data, feature: reviewingFeature};
-        document.getElementById('gate-status').textContent = [
-          admissionSummary(data.gate),
-          data.validation_id ? `Validazione: ${data.validation_id}` : 'Validazione assente.',
-          `Stato resoconto: ${data.gate.open_points_status ?? 'non leggibile'}`,
-          ...gateMessages(data.gate),
-          ...(data.structural_findings || []).map(describeFinding),
-        ].join('\n');
-        renderDecisionEditor(data);
-      } catch (e) {
-        if (featureName === reviewingFeature) document.getElementById('gate-status').textContent = e.message;
-      }
-    }
-
-    async function compareValidatedVersion() {
-      await refreshGateReview();
-      const host = document.getElementById('gate-comparison');
-      const comparison = gateReview?.feature === featureName ? gateReview.data.comparison : null;
-      host.textContent = comparison ? `Confronto con la validazione ${comparison.validation_id}`
-        : 'Confronto non disponibile: versione validata assente o non leggibile.';
-      if (!comparison) return;
-      for (const name of ['canvas', 'spec']) {
-        const row = document.createElement('div');
-        row.className = 'grid grid-cols-1 md:grid-cols-2 gap-2 my-2';
-        for (const [key, label] of [['current', 'corrente salvato'], ['validated', 'validato']]) {
-          const column = document.createElement('div');
-          const title = document.createElement('p'); title.textContent = `${name}.md · ${label}`;
-          const text = document.createElement('pre'); text.textContent = comparison[name][key];
-          text.className = 'whitespace-pre-wrap break-words bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-72 overflow-auto';
-          column.appendChild(title); column.appendChild(text); row.appendChild(column);
-        }
-        host.appendChild(row);
-      }
-    }
-
-    function renderDecisionEditor(data) {
-      const host = document.getElementById('gate-decisions');
-      host.textContent = '';
-      function element(tag, text, id) {
-        const node = document.createElement(tag);
-        if (text) node.textContent = text;
-        if (id) node.id = id;
-        host.appendChild(node);
-        return node;
-      }
-      element('p', "L'accettazione non è esposta agli strumenti dell'agente; non è certificata come decisione umana dalla credenziale condivisa.");
-      if (!Array.isArray(data.point_decisions)) { element('p', 'Resoconto assente o invalido: correggilo prima di decidere.'); return; }
-      if (!data.point_decisions.length) { element('p', 'Nessun punto aperto dichiarato.'); return; }
-      for (const p of data.point_decisions) element('pre', `${p.point.id} · ${p.status}\n${JSON.stringify(p.point, null, 2)}` +
-        (p.decision ? `\nDecisione ${p.decision.decision_id} · nome dichiarato ${p.decision.declared_by} · ${p.decision.recorded_at} · origin_verified: false\n${p.decision.motivation}` : ''));
-      element('label', 'Punto esaminato').htmlFor = 'decision-point';
-      const points = element('select', '', 'decision-point');
-      points.add(new Option('Seleziona il punto esaminato', ''));
-      for (const p of data.point_decisions) points.add(new Option(`${p.point.id}: ${p.point.question}`, p.point_hash));
-      element('label', 'Decisione esplicita').htmlFor = 'decision-status';
-      const status = element('select', '', 'decision-status');
-      status.add(new Option('Seleziona la decisione', ''));
-      status.add(new Option('Accetto la lacuna e procedo', 'accepted'));
-      status.add(new Option('Registro la risoluzione', 'resolved'));
-      element('label', 'Nome dichiarato (non identità verificata)', 'decision-by-label').htmlFor = 'decision-by';
-      element('input', '', 'decision-by');
-      element('label', 'Motivazione / risoluzione', 'decision-reason-label').htmlFor = 'decision-reason';
-      element('textarea', '', 'decision-reason');
-      element('p', 'Associazioni esplicite: seleziona solo i rilievi di copertura esaminati per questo punto. Nessuna selezione automatica.');
-      for (const f of data.structural_findings.filter(f => f.associable)) {
-        const label = element('label', '');
-        const check = document.createElement('input'); check.type = 'checkbox'; check.value = f.finding_hash;
-        check.className = 'coverage-association'; label.appendChild(check);
-        label.appendChild(document.createTextNode(describeFinding(f)));
-      }
-      const submit = element('button', 'Registra decisione', 'decision-submit');
-      submit.onclick = recordPointDecision;
-    }
-
-    async function recordPointDecision() {
-      const review = gateReview;
-      if (!review || review.feature !== featureName) return;
-      const value = id => document.getElementById(id).value.trim();
-      const status = value('decision-status'), point = value('decision-point');
-      const motivation = value('decision-reason'), declaredBy = value('decision-by');
-      const hashes = [...document.querySelectorAll('#gate-decisions .coverage-association:checked')].map(n => n.value);
-      if (!point || !status || !motivation || !declaredBy) { toast('Seleziona punto e decisione, indica nome dichiarato e motivazione.', 'error'); return; }
-      if (hashes.length && status !== 'accepted') { toast('Solo accepted può coprire un rilievo.', 'error'); return; }
-      const btn = document.getElementById('decision-submit'); btn.disabled = true;
-      const headers = {'Content-Type': 'application/json'};
-      const key = window.__VIBECRAFT_AGENT_API_KEY__ || localStorage.getItem('vibecraft_agent_api_key');
-      if (key) headers['X-API-Key'] = key;
-      try {
-        const res = await fetch('/api/pipeline/open-points/decision', {method: 'POST', headers,
-          body: JSON.stringify({feature: review.feature, spec_hash: review.data.spec_hash, point_hash: point,
-            status, motivation, declared_by: declaredBy, declared_origin: 'ui', coverage_finding_hashes: hashes})});
-        const data = await res.json();
-        if (!res.ok) throw new Error(gateApiError(data));
-        if (featureName === review.feature) { await refreshGateReview(); toast('Decisione registrata. Rivalida il contratto.'); }
-      } catch (e) { toast(e.message, 'error'); }
-      finally { btn.disabled = false; }
-    }
-
-    /* ──────────── ESECUZIONE CON CLAUDE AGENT SDK ──────────── */
-    function openPointsSummary(data) {
-      const limits = '\nRicerca advisory: novità delle evidenze e riuso degli ID non verificati; validità solo strutturale.';
-      if (data.open_points_status === 'invalid') {
-        return '❌ Resoconto malformato: ' + (data.open_points_error || 'schema non valido') + limits;
-      }
-      if (data.open_points_status !== 'valid') return '⚠ Resoconto assente: punti aperti non determinabili.' + limits;
-      if (!Array.isArray(data.open_points)) return '❌ Resoconto malformato: open_points non è una lista.' + limits;
-      if (!data.open_points.length) return 'Terminato senza punti aperti (dichiarazione dell’agente).' + limits;
-      return `⚠ ${data.open_points.length} punti aperti dichiarati:\n` + data.open_points.map(p =>
-        `${p.id} · ${p.reason} · ${p.original_question}\nDomanda attuale: ${p.question}`
-      ).join('\n') + limits;
-    }
-
-    // Runner dal server (/api/pipeline/agent/runners): disponibilità reale, modelli e modalità
-    // ammesse. Se la chiamata fallisce restano le opzioni statiche di Claude Code.
-    let agentRunners = [];
-    async function loadRunners() {
-      try {
-        const res = await fetch('/api/pipeline/agent/runners');
-        if (!res.ok) return;
-        const body = await res.json();
-        agentRunners = body.runners;
-        fillAttempts(body.max_attempts);
-      } catch { return; }
-      const select = document.getElementById('agent-runner-select');
-      select.textContent = '';
-      for (const r of agentRunners) {
-        const option = new Option(r.available ? r.label : `${r.label} (non installato)`, r.id);
-        option.disabled = !r.available;
-        select.add(option);
-      }
-      select.value = (agentRunners.find(r => r.available) || agentRunners[0] || {}).id || 'claude';
-      onRunnerChange();
-    }
-
-    /* Opzioni della tendina "Tentativi", dal tetto dichiarato dal server: offrirne di più
-       significherebbe far scegliere un numero che il server poi taglia in silenzio. */
-    function fillAttempts(ceiling) {
-      const select = document.getElementById('agent-attempts-select');
-      const previous = select.value;
-      const max = Math.max(1, Math.min(Number(ceiling) || 1, 10));
-      select.textContent = '';
-      for (let n = 1; n <= max; n++) {
-        select.add(new Option(n === 1 ? '1 · nessun rilancio' : `${n} · rilancia se la suite è rossa`, String(n)));
-      }
-      select.value = (Number(previous) >= 1 && Number(previous) <= max) ? previous : '1';
-    }
-
-    /* Il rilancio si appoggia alla suite eseguita dal server, che gira solo dopo un run
-       agentic: nelle altre modalità non c'è codice nuovo da provare, e la tendina resta
-       spenta invece di promettere qualcosa che non accadrà. */
-    function syncAttemptsAvailability() {
-      const agentic = document.getElementById('agent-mode-select').value === 'agentic';
-      const select = document.getElementById('agent-attempts-select');
-      select.disabled = !agentic;
-      select.title = agentic
-        ? 'Rilanci automatici finché la suite dell\'ambito non passa'
-        : 'Solo in modalità Agentic: le altre non scrivono codice da verificare';
-    }
-
-    function onRunnerChange() {
-      const runner = agentRunners.find(r => r.id === document.getElementById('agent-runner-select').value);
-      if (!runner) return;
-      const models = document.getElementById('agent-model-select');
-      models.textContent = '';
-      if (!runner.models.length) models.add(new Option('Modello predefinito', ''));
-      for (const m of runner.models) models.add(new Option(m, m));
-      const modes = document.getElementById('agent-mode-select');
-      for (const o of modes.options) o.disabled = !runner.modes.includes(o.value);
-      if (!runner.modes.includes(modes.value)) modes.value = runner.modes[0];
-      syncAttemptsAvailability();
-    }
-
-    async function runWithAgent() {
-      const mode = document.getElementById('agent-mode-select').value;
-      const model = document.getElementById('agent-model-select').value;
-      const runner = document.getElementById('agent-runner-select').value;
-      // Fuori da agentic la tendina è spenta e il server non verifica: chiedere rilanci
-      // sarebbe una richiesta senza effetto.
-      const attempts = mode === 'agentic' ? Number(document.getElementById('agent-attempts-select').value) || 1 : 1;
-      // La modalità determina tool e contesto: niente fallback sul prompt HTTP esterno.
-      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
-      const runningFeature = featureName;
-      await refreshGateReview();
-      if (featureName !== runningFeature) return;
-      let prompt;
-      try {
-        if (mode !== 'agentic') prompt = await fetchFinalPrompt(runningFeature, devType, 'agent', mode, runner);
-      } catch (err) { toast(err.message, 'error'); return; }
-      if (mode === 'agentic' && !await confirmDialog(
-        'La modalità Agentic scrive file nel progetto. Continuare?',
-        { title: 'Modalità Agentic', confirmText: 'Continua', danger: true }
-      )) return;
-      if (featureName !== runningFeature) return;
-
-      const btn = document.getElementById('agent-run-btn');
-      const out = document.getElementById('agent-output');
-      btn.disabled = true;
-      out.style.display = '';
-      out.textContent = `⏳ Avvio ${runner} (${model || 'modello predefinito'}) in modalità "${mode}"…\n\n`;
-
-      // X-API-Key richiesta sempre (anche da localhost) per questo endpoint — vedi
-      // api/deps.py::require_api_key_strict. Il server la inietta da solo a ogni
-      // caricamento della pagina (inject_agent_api_key, SOLO per client locali) in
-      // window.__VIBECRAFT_AGENT_API_KEY__: niente piu' da fare a mano dopo un riavvio.
-      // localStorage resta come fallback (es. se in futuro servisse impostarla a mano
-      // da console: localStorage.setItem('vibecraft_agent_api_key', '...')).
-      const apiKey = window.__VIBECRAFT_AGENT_API_KEY__ || localStorage.getItem('vibecraft_agent_api_key') || '';
-      const headers = { 'Content-Type': 'application/json' };
-      if (apiKey) headers['X-API-Key'] = apiKey;
-
-      try {
-        const res = await fetch('/api/pipeline/agent/run', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ prompt, mode, runner, model, feature: runningFeature,
-            max_attempts: attempts,
-            validation_id: validationRefs.get(runningFeature) || null,
-            ...(blockedAttempts.has(runningFeature) ? {retry_of_attempt_id: blockedAttempts.get(runningFeature)} : {}) }),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ detail: res.statusText }));
-          const gate = err.detail;
-          if ([409, 503].includes(res.status) && gate?.allowed === false) {
-            if (gate.attempt_id) blockedAttempts.set(runningFeature, gate.attempt_id);
-            out.textContent += `Avvio bloccato dal server · validazione: ${gate.validation_id || 'assente'} · tentativo: ${gate.attempt_id || 'non registrato'}\n`;
-            if (gate.retry_of_attempt_id) out.textContent += `Ripresa del tentativo: ${gate.retry_of_attempt_id}\n`;
-            out.textContent += gateMessages(gate).join('\n') + '\n';
-            return;
-          }
-          throw new Error(gateApiError(err));
-        }
-        blockedAttempts.delete(runningFeature);
-
-        let terminated = false;
-        await consumeNdjson(res, ev => {
-            if (ev.type === 'gate') {
-              out.textContent += `Gate del server${mode === 'agentic' ? '' : ' (advisory)'} · validazione: ${ev.gate.validation_id || 'assente'} · tentativo: ${ev.attempt_id || 'non registrato'}\n`;
-              out.textContent += gateMessages(ev.gate).join('\n') + '\n';
-            } else if (ev.type === 'text') {
-              out.textContent += ev.text + '\n';
-            } else if (ev.type === 'tool_use') {
-              out.textContent += `  🔧 [${ev.tool}]\n`;
-            } else if (ev.type === 'result') {
-              terminated = true;
-              const secs = ev.duration_ms != null ? (ev.duration_ms / 1000).toFixed(1) + 's' : '—';
-              const cost = ev.total_cost_usd != null ? '$' + ev.total_cost_usd.toFixed(4) : '—';
-              out.textContent += `\n${ev.is_error ? '❌ Terminato con errore' : 'Esecuzione terminata'} · ${secs} · ${cost} · ${ev.num_turns ?? '—'} turni\n${openPointsSummary(ev)}\n`;
-            } else if (ev.type === 'error') {
-              terminated = true;
-              out.textContent += `\n❌ Errore: ${ev.message}\n${openPointsSummary(ev)}\n`;
-            } else if (ev.type === 'verification') {
-              // Esito della suite ESEGUITA dal server: l'unica riga di questo output che non
-              // riporta una dichiarazione dell'agente.
-              const icona = ev.status === 'passed' ? '✅' : (ev.status === 'failed' ? '❌' : '⚠️');
-              const comando = ev.command && ev.command.length ? ev.command.join(' ') : '—';
-              out.textContent += `\n${icona} Verifica eseguita dal server · code/${ev.dev_type} · ${comando}`
-                + ` · esito: ${ev.status}${ev.exit_code != null ? ` (exit ${ev.exit_code})` : ''}`
-                + ` · ${ev.duration_seconds}s\n`;
-              if (ev.reason) out.textContent += `   ${ev.reason}\n`;
-              if (ev.status === 'unavailable') {
-                out.textContent += '   La feature resta NON verificata: manca lo strumento di misura, non si ritenta.\n';
-              }
-              if (ev.output_tail) out.textContent += ev.output_tail.trimEnd() + '\n';
-              if (ev.status === 'failed' && ev.attempts_left === 0) {
-                out.textContent += '   Nessun tentativo rimasto: la feature resta NON verificata.\n';
-              }
-            } else if (ev.type === 'retry') {
-              out.textContent += `\n🔁 Rilancio dell'agente con le failure in prompt · tentativo ${ev.attempt_id}`
-                + ` (ripresa di ${ev.retry_of_attempt_id}) · ancora ${ev.attempts_left} dopo questo\n\n`;
-            } else if (ev.type === 'retry_blocked') {
-              terminated = true;
-              out.textContent += `\n⚠️ Rilancio non effettuato: ${ev.detail}\n`;
-            } else if (ev.type === 'verification_unrecorded') {
-              out.textContent += `\n⚠️ Esito della verifica non registrato nel journal: ${ev.detail}\n`;
-            }
-            out.scrollTop = out.scrollHeight;
-        });
-        if (!terminated) throw new Error('Stream interrotto senza risultato finale');
-      } catch (e) {
-        out.textContent += `\n❌ Errore: ${e.message}\n${openPointsSummary({})}\n`;
-      } finally {
-        btn.disabled = false;
-      }
-    }
-
-    /* ──────────── CONSUMER NDJSON (streaming drift/archive) ──────────── */
-    async function consumeNdjson(res, onEvent) {
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop();
-        for (const line of lines) { if (line.trim()) onEvent(JSON.parse(line)); }
-      }
-      if (buffer.trim()) onEvent(JSON.parse(buffer));
-    }
-
-    /* ──────────── STEP 4: VERIFICA DEL DRIFT (streaming) ──────────── */
-    async function runDriftCheck() {
-      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
-      const btn = document.getElementById('drift-check-btn');
-      const box = document.getElementById('drift-report-box');
-      btn.disabled = true;
-      setPanelVisible('drift-loader', true);
-      setStepState(4, 'running');
-      let hadError = false;
-      box.textContent = '';
-      document.getElementById('drift-report-card').classList.remove('hidden');
-      try {
-        const res = await fetch('/api/pipeline/drift/check/stream', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ feature: featureName }),
-        });
-        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(e.detail || `HTTP ${res.status}`); }
-        setPanelVisible('drift-loader', false);
-        // Il verdetto dipende da cosa è passato nello stream, non dal fatto che
-        // lo stream sia finito: prima bastava che terminasse per marcare il passo
-        // ✓ completato, anche con disallineamenti gravi dentro al report.
-        // Il report (evento 'result') inizia con il verdetto calcolato da core/drift.py:
-        // solo "✅ NESSUN DRIFT" conta come verificato.
-        let verdict = '';
-        await consumeNdjson(res, ev => {
-          if (ev.type === 'log') box.textContent += ev.line + '\n';
-          else if (ev.type === 'result') verdict = String(ev.value || '');
-          else if (ev.type === 'error') { hadError = true; box.textContent += `\n❌ ${ev.message}\n`; }
-          box.scrollTop = box.scrollHeight;
-        });
-        const clean = !hadError && verdict.startsWith('✅');
-        const label = hadError || verdict.startsWith('❌') ? 'verifica fallita'
-          : verdict.startsWith('⚠️ DRIFT') ? 'drift rilevato'
-          : verdict.startsWith('⚠️ PUNTI APERTI') ? 'punti aperti da decidere'
-          : clean ? 'verificato' : 'verifica incompleta';
-        setStepState(4, clean ? 'done' : 'failed', label);
-        if (!clean) toast(`Drift check: ${label}. Leggi il report.`, 'warning');
-      } catch (e) {
-        box.textContent += `\n❌ Errore: ${e.message}`;
-        setStepState(4, 'failed', 'verifica fallita');
-        toast(`Verifica del drift fallita: ${e.message}`, 'error');
-      } finally {
-        btn.disabled = false;
-        setPanelVisible('drift-loader', false);
-      }
-    }
-
-    /* ──────────── STEP 5: ARCHIVIAZIONE + RE-INDICIZZAZIONE (streaming) ──────────── */
-    async function runArchive() {
-      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
-      if (!await confirmDialog(
-        `Archiviare la feature "${featureName}" e ricostruire il Graph RAG?\nLa cartella verrà spostata in changes/archive/ e l'operazione non è reversibile dall'interfaccia.`,
-        { title: 'Archiviazione feature', confirmText: 'Archivia', danger: true }
-      )) return;
-
-      const btn = document.getElementById('archive-btn');
-      const box = document.getElementById('archive-report-box');
-      btn.disabled = true;
-      setPanelVisible('archive-loader', true);
-      setStepState(5, 'running');
-      let hadError = false;
-      box.textContent = '';
-      document.getElementById('archive-report-card').classList.remove('hidden');
-      try {
-        const res = await fetch('/api/pipeline/archive/stream', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ feature: featureName }),
-        });
-        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(e.detail || `HTTP ${res.status}`); }
-        setPanelVisible('archive-loader', false);
-        await consumeNdjson(res, ev => {
-          if (ev.type === 'log') box.textContent += ev.line + '\n';
-          else if (ev.type === 'reloaded') box.textContent += '\n🔄 Indice ricaricato in memoria.\n';
-          else if (ev.type === 'reindex_queued') {
-            box.textContent += `\n🔄 Re-indicizzazione accodata, job ${ev.job_id} (stato su /api/reindex/${ev.job_id}).\n`;
-            pollReindexJob(ev.job_id, box);
-          }
-          else if (ev.type === 'error') { hadError = true; box.textContent += `\n❌ ${ev.message}\n`; }
-          box.scrollTop = box.scrollHeight;
-        });
-        setStepState(5, hadError ? 'failed' : 'done', hadError ? 'errori in archiviazione' : 'archiviato');
-        await refreshFilesControl();
-      } catch (e) {
-        box.textContent += `\n❌ Errore: ${e.message}`;
-        setStepState(5, 'failed', 'archiviazione fallita');
-        toast(`Archiviazione fallita: ${e.message}`, 'error');
-      } finally {
-        btn.disabled = false;
-        setPanelVisible('archive-loader', false);
-      }
-    }
-
-    /* ──────────── NOTIFICA A FINE RE-INDICIZZAZIONE (poll job in background) ──────────── */
-    const _TERMINAL_REINDEX_STATES = ['completed', 'completed_not_promoted', 'failed', 'interrupted'];
-    const _REINDEX_STATUS_LABELS = {
-      completed: 'completata',
-      completed_not_promoted: 'completata ma NON promossa (eval-gate sotto soglia)',
-      failed: 'fallita',
-      interrupted: 'interrotta',
-    };
-
-    async function notifyReindexDone(message, ok) {
-      toast(message, ok ? 'success' : 'warning');
-      if (typeof Notification === 'undefined') return;
-      try {
-        let perm = Notification.permission;
-        if (perm === 'default') perm = await Notification.requestPermission();
-        if (perm === 'granted') new Notification('VibeCraft — Re-indicizzazione', { body: message });
-      } catch (_e) { /* Notification bloccata/non disponibile: il toast basta comunque. */ }
-    }
-
-    function pollReindexJob(jobId, box) {
-      const POLL_MS = 4000;
-      const tick = async () => {
-        let job;
-        try {
-          const res = await fetch(`/api/reindex/${jobId}`);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          job = await res.json();
-        } catch (e) {
-          box.textContent += `\n⚠ Impossibile verificare lo stato del job ${jobId}: ${e.message}\n`;
-          box.scrollTop = box.scrollHeight;
-          return;
-        }
-        if (!_TERMINAL_REINDEX_STATES.includes(job.status)) { setTimeout(tick, POLL_MS); return; }
-        const ok = job.status === 'completed';
-        const label = _REINDEX_STATUS_LABELS[job.status] || job.status;
-        const message = `Re-indicizzazione ${label} (job ${jobId}).`;
-        box.textContent += `\n${ok ? '✅' : '⚠'} ${message}\n`;
-        box.scrollTop = box.scrollHeight;
-        notifyReindexDone(message, ok);
-      };
-      setTimeout(tick, POLL_MS);
-    }
-
-    function copyFinalPrompt(btn) {
-      const text = window._finalPrompt || document.getElementById('final-prompt-box').textContent;
-      navigator.clipboard.writeText(text).then(() => {
-        const original = btn.textContent;
-        btn.textContent = 'Copiato ✓';
-        setTimeout(() => { btn.textContent = original; }, 1500);
-      }).catch(() => {
-        const original = btn.textContent;
-        btn.textContent = 'Copia non riuscita';
-        setTimeout(() => { btn.textContent = original; }, 1500);
-      });
-    }
-
-    /* ──────────── DRY-RUN CANVAS (nessun token speso) ──────────── */
-    async function runCanvasDryRun() {
-      const name = getFeatureName();
-      if (!name) { document.getElementById('feature-name-input').focus(); return; }
-      featureName = name;
-      const btn = document.getElementById('canvas-dryrun-btn');
-      const card = document.getElementById('dryrun-card');
-      const body = document.getElementById('dryrun-body');
-      btn.disabled = true;
-      card.classList.remove('hidden');
-      body.innerHTML = '<span class="text-slate-400">Recupero sorgenti…</span>';
-      try {
-        const res = await fetch('/api/pipeline/canvas/dry-run', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ feature_name: featureName, dev_type: devType }),
-        });
-        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(e.detail || `HTTP ${res.status}`); }
-        const data = await res.json();
-        if (data.note) { body.innerHTML = `<span class="text-amber-400">${data.note}</span>`; return; }
-        const fmt = v => (v === null || v === undefined) ? '—' : (typeof v === 'number' ? v.toFixed(3) : v);
-        // `branch` distingue il ramo di dominio da quello tecnico (scoping per dev_type):
-        // senza, due sezioni con punteggi simili sembrerebbero venire dalla stessa domanda.
-        const src = (data.sources || []).map(s =>
-          `<div class="flex justify-between gap-2 border-b border-slate-800 py-1"><span class="font-mono truncate">${s.branch ? `<span class="text-blue-400">[${s.branch}]</span> ` : ''}${s.doc_id}${s.section ? ' § ' + s.section : ''}</span><span class="font-mono text-slate-400 shrink-0">D ${fmt(s.dense_score)} · S ${fmt(s.sparse_score)} · CB ${fmt(s.colbert_score)} · A ${fmt(s.authority)}</span></div>`).join('') || '<span class="text-slate-400">nessuna sorgente</span>';
-        const gov = (data.governed_docs || []).map(g =>
-          `<span class="inline-block mr-2 mb-1 rounded border border-slate-700 px-2 py-0.5">${g.doc_id} <span class="text-blue-400">A ${fmt(g.authority)}</span> · ${g.chars} char</span>`).join('') || '<span class="text-slate-400">nessuno</span>';
-        body.innerHTML = `<div class="mb-2"><div class="text-slate-400 mb-1">Retrieval (ranking ibrido):</div>${src}</div>
-          <div><div class="text-slate-400 mb-1">Documenti normativi che verrebbero iniettati:</div>${gov}</div>`;
-      } catch (e) {
-        body.innerHTML = `<span class="text-red-400">❌ ${e.message}</span>`;
-      } finally { btn.disabled = false; }
-    }
-
-    /* ──────────── AGENT CONTEXT (blocco strutturato + confidence, Art. 1) ──────────── */
-    async function loadAgentContext() {
-      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
-      const btn = document.getElementById('agent-context-btn');
-      const wrap = document.getElementById('agent-context-wrap');
-      const box = document.getElementById('agent-context-box');
-      btn.disabled = true;
-      wrap.classList.remove('hidden');
-      box.textContent = '⏳ Costruzione del contesto…';
-      try {
-        const res = await fetch(`/api/pipeline/agent-context?feature=${encodeURIComponent(featureName)}&dev_type=${encodeURIComponent(devType)}`);
-        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(e.detail || `HTTP ${res.status}`); }
-        const data = await res.json();
-        document.getElementById('agent-confidence').textContent = `${data.confidence} (${data.confidence_label})`;
-        box.textContent = data.text || '(vuoto)';
-      } catch (e) {
-        box.textContent = `❌ Errore: ${e.message}`;
-      } finally { btn.disabled = false; }
-    }
-
-    /* ──────────── EXPORT JSON del design contract ──────────── */
-    async function exportBundle() {
-      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
-      try {
-        const res = await fetch(`/api/pipeline/export?feature=${encodeURIComponent(featureName)}&dev_type=${encodeURIComponent(devType)}`);
-        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(e.detail || `HTTP ${res.status}`); }
-        const data = await res.json();
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = `${data.feature_folder || 'feature'}.contract.json`;
-        document.body.appendChild(a); a.click(); a.remove();
-        URL.revokeObjectURL(url);
-      } catch (e) {
-        toast(`Errore export: ${e.message}`, 'error');
-      }
-    }
-
-    /* ──────────── SHARED: SAVE EDITED MD FILE ──────────── */
-    async function saveMdFile(name, editorId) {
-      if (!featureName) return;
-      const savingFeature = featureName;
-      const content = document.getElementById(editorId).value;
-      try {
-        const res = await fetch('/api/pipeline/file/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ feature: savingFeature, name, content }),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        if (name === 'spec.md') {
-          const data = await res.json();
-          if (featureName === savingFeature && document.getElementById(editorId).value === content) {
-            document.getElementById('spec-open-points-status').textContent = openPointsSummary(data);
-          }
-        }
-        await refreshFilesControl();
-      } catch (e) {
-        toast(`Errore nel salvataggio di ${name}: ${e.message}`, 'error');
-      }
-    }
-
-    /* Ctrl+Enter per inviare in chat */
-    document.getElementById('chat-input').addEventListener('keydown', e => {
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendExploreTurn();
-    });
-
-    /* Popola subito la tendina dei tipi di sviluppo, ancora prima di caricare una feature */
-    loadDevTypes();
-    loadRunners();
-  </script>
+  <script src="/static/pages/pipeline.js"></script>
 </body>
 </html>

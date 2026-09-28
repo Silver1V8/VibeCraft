@@ -108,7 +108,7 @@ def env(tmp_path, monkeypatch):
     # risolvono nel layout flat legacy dentro tmp_path.
     monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)
     monkeypatch.setattr(artifacts, "GRAPH_JSON_PATH", tmp_path / "graph.json")
-    monkeypatch.setattr(indexing, "_docs_hashes", lambda: dict(doc_hashes))
+    monkeypatch.setattr(indexing, "docs_hashes", lambda: dict(doc_hashes))
     monkeypatch.setattr(indexing, "_code_hashes", lambda: dict(code_hashes))
     monkeypatch.setattr(indexing, "artifact_hashes", lambda: dict(art_hashes))
     return {"manifest": manifest_path, "chunks": chunks_path, "colbert": colbert_path,
@@ -171,7 +171,7 @@ def test_manifest_corrupt(env):
 def test_source_hash_divergence_marks_stale(env):
     # b.md modificato e nuovo.md aggiunto rispetto al manifest.
     env["monkeypatch"].setattr(
-        indexing, "_docs_hashes", lambda: {"a.md": "h1", "b.md": "DIVERSO", "nuovo.md": "h9"}
+        indexing, "docs_hashes", lambda: {"a.md": "h1", "b.md": "DIVERSO", "nuovo.md": "h9"}
     )
     report = _check(env)
     assert report["ok"] is False
@@ -201,7 +201,7 @@ def test_artifact_hash_mismatch_marks_corrupted(env):
 
 def test_manifest_without_artifact_hashes_marks_corrupted(env):
     env["manifest"].write_text(json.dumps({"doc_hashes": {}, "code_hashes": {}}), encoding="utf-8")
-    env["monkeypatch"].setattr(indexing, "_docs_hashes", lambda: {})
+    env["monkeypatch"].setattr(indexing, "docs_hashes", lambda: {})
     env["monkeypatch"].setattr(indexing, "_code_hashes", lambda: {})
     report = _check(env)
     assert report["artifacts_corrupted"] is True

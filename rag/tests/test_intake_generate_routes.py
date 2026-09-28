@@ -57,6 +57,54 @@ def test_route_generate_returns_202_with_job_id_then_done_status(tmp_path, monke
     assert body["result"]["n_generati"] == 1
 
 
+def test_route_generate_beyond_active_ceiling_returns_429(tmp_path, monkeypatch):
+    import threading
+
+    client = _client(tmp_path, monkeypatch)
+    monkeypatch.setattr(routes_intake, "_generation_manager",
+                        doc_generation.GenerationManager(slots=doc_generation.GenerationSlots(1)))
+    gate = threading.Event()
+    monkeypatch.setattr(routes_intake, "_server_generate",
+                        lambda *a: gate.wait(5) and {"n_generati": 0})
+    body = {"descrizione": "genera", "n_file": 1}
+    try:
+        assert client.post("/api/intake/generate", json=body).status_code == 202
+        busy = client.post("/api/intake/generate", json=body)
+        assert busy.status_code == 429
+        assert "Troppi job LLM attivi" in busy.json()["detail"] and busy.headers["Retry-After"]
+    finally:
+        gate.set()
+    assert routes_intake._generation_manager.join_all(timeout=5)
+    assert client.post("/api/intake/generate", json=body).status_code == 202
+
+
+def test_generate_job_takes_the_slot_shared_with_refine_and_brief(tmp_path, monkeypatch):
+    """Tetto GLOBALE: un job di generazione in corso fa rispondere 429 anche a refine e
+    project brief (stesso GenerationSlots condiviso fra i tre manager)."""
+    import threading
+
+    from core import project_brief
+
+    client = _client(tmp_path, monkeypatch)
+    slots = doc_generation.GenerationSlots(1)
+    for name in ("_generation_manager", "_refine_manager", "_brief_manager"):
+        monkeypatch.setattr(routes_intake, name, doc_generation.GenerationManager(slots=slots))
+    monkeypatch.setattr(intake, "require_staged", lambda doc_id: None)
+    monkeypatch.setattr(project_brief, "require_applied_import", lambda *a: None)
+    gate = threading.Event()
+    monkeypatch.setattr(routes_intake, "_server_generate",
+                        lambda *a: gate.wait(5) and {"n_generati": 0})
+    try:
+        assert client.post("/api/intake/generate", json={"descrizione": "g"}).status_code == 202
+        assert client.post("/api/intake/staged/abc/refine").status_code == 429
+        brief = client.post("/api/intake/project/brief", json={"target": "backend"})
+        assert brief.status_code == 429, brief.text
+    finally:
+        gate.set()
+    assert routes_intake._generation_manager.join_all(timeout=5)
+    assert slots.active == 0
+
+
 def test_route_generate_empty_descrizione_returns_422(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
     resp = client.post("/api/intake/generate", json={"descrizione": "   "})

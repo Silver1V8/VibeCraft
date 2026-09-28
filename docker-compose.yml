@@ -20,7 +20,10 @@
 services:
 
   qdrant:
-    image: qdrant/qdrant:latest
+    # Immagine pinnata a v1.19.0 per allineamento con qdrant-client==1.19.0 nel codice (rag/uv.lock).
+    # La CI (.github/workflows/ci.yml) usa la stessa versione per i 5 test d'integrazione.
+    # Aggiorna qui e in CI insieme quando necessario.
+    image: qdrant/qdrant:v1.19.0
     restart: unless-stopped
     # Porta esposta solo su localhost, coerente con il default 127.0.0.1 del server RAG.
     ports:
@@ -40,7 +43,12 @@ services:
   # ─────────────────────────────────────────────────────────────────────────
 
   ollama:
-    image: ollama/ollama:latest
+    # Immagine pinnata a 0.34.4 (release stabile, tag pubblicato su Docker Hub il 2026-09-24).
+    # NB: le release GitHub hanno la v (v0.34.4), i tag Docker di Ollama no (0.34.4);
+    # Qdrant invece usa la v anche su Docker Hub (v1.19.0).
+    # Per aggiornare: scegliere una release stabile su https://github.com/ollama/ollama/releases,
+    # verificare che il tag esista su Docker Hub e cambiarlo qui e in ollama-gpu.
+    image: ollama/ollama:0.34.4
     profiles: ["cpu"]
     restart: unless-stopped
     ports:
@@ -50,7 +58,8 @@ services:
       - ollama_models:/root/.ollama
 
   ollama-gpu:
-    image: ollama/ollama:latest
+    # Stessa versione pinnata di `ollama` (vedi sopra): aggiornarle insieme.
+    image: ollama/ollama:0.34.4
     profiles: ["gpu"]
     restart: unless-stopped
     ports:

@@ -22,6 +22,7 @@ import networkx as nx
 
 from core import artifacts
 from core import indexing as index
+from core import qdrant_versions
 
 
 # ---------------------------------------------------------------------------
@@ -415,7 +416,7 @@ def test_precheck_rollback_non_blocca_se_qdrant_e_irraggiungibile(versions_db):
 
 
 def test_reconciler_reports_legacy_when_no_manifest(monkeypatch):
-    monkeypatch.setattr(index, "_read_manifest", lambda: None)
+    monkeypatch.setattr(qdrant_versions, "_read_manifest", lambda: None)
     q = AliasAwareFakeQdrant()
     report = index.reconcile_qdrant_alias(q)
     assert report["state"] == "legacy"
@@ -423,21 +424,21 @@ def test_reconciler_reports_legacy_when_no_manifest(monkeypatch):
 
 
 def test_reconciler_reports_legacy_when_manifest_lacks_qdrant_collection(monkeypatch):
-    monkeypatch.setattr(index, "_read_manifest", lambda: {"version": "v1"})  # niente qdrant_collection
+    monkeypatch.setattr(qdrant_versions, "_read_manifest", lambda: {"version": "v1"})  # niente qdrant_collection
     q = AliasAwareFakeQdrant()
     report = index.reconcile_qdrant_alias(q)
     assert report["state"] == "legacy"
 
 
 def test_reconciler_reports_missing_when_alias_not_set(monkeypatch):
-    monkeypatch.setattr(index, "_read_manifest", lambda: {"qdrant_collection": "vibecraft_events__v1"})
+    monkeypatch.setattr(qdrant_versions, "_read_manifest", lambda: {"qdrant_collection": "vibecraft_events__v1"})
     q = AliasAwareFakeQdrant(collections={"vibecraft_events__v1"})  # nessun alias creato
     report = index.reconcile_qdrant_alias(q)
     assert report == {"state": "missing", "expected": "vibecraft_events__v1", "actual": None}
 
 
 def test_reconciler_reports_aligned_when_alias_matches_expected(monkeypatch):
-    monkeypatch.setattr(index, "_read_manifest", lambda: {"qdrant_collection": "vibecraft_events__v1"})
+    monkeypatch.setattr(qdrant_versions, "_read_manifest", lambda: {"qdrant_collection": "vibecraft_events__v1"})
     q = AliasAwareFakeQdrant(collections={"vibecraft_events__v1"},
                              aliases={index.COLLECTION_NAME: "vibecraft_events__v1"})
     report = index.reconcile_qdrant_alias(q)
@@ -447,7 +448,7 @@ def test_reconciler_reports_aligned_when_alias_matches_expected(monkeypatch):
 def test_reconciler_reports_diverging_when_alias_points_elsewhere(monkeypatch):
     # CURRENT è avanzato a v2, ma l'alias punta ancora a v1 (es. crash tra il commit
     # locale e lo swap dell'alias — vedi design, finestra sub-secondo tollerata).
-    monkeypatch.setattr(index, "_read_manifest", lambda: {"qdrant_collection": "vibecraft_events__v2"})
+    monkeypatch.setattr(qdrant_versions, "_read_manifest", lambda: {"qdrant_collection": "vibecraft_events__v2"})
     q = AliasAwareFakeQdrant(collections={"vibecraft_events__v1", "vibecraft_events__v2"},
                              aliases={index.COLLECTION_NAME: "vibecraft_events__v1"})
     report = index.reconcile_qdrant_alias(q)
@@ -459,7 +460,7 @@ def test_reconciler_reports_diverging_when_alias_points_elsewhere(monkeypatch):
 def test_reconciler_never_writes_to_qdrant_or_local_state(monkeypatch):
     """Sola osservazione: qualunque sia lo stato, reconcile_qdrant_alias non deve mai
     chiamare update_collection_aliases né create/delete_collection."""
-    monkeypatch.setattr(index, "_read_manifest", lambda: {"qdrant_collection": "vibecraft_events__v2"})
+    monkeypatch.setattr(qdrant_versions, "_read_manifest", lambda: {"qdrant_collection": "vibecraft_events__v2"})
     q = AliasAwareFakeQdrant(collections={"vibecraft_events__v1", "vibecraft_events__v2"},
                              aliases={index.COLLECTION_NAME: "vibecraft_events__v1"})
     index.reconcile_qdrant_alias(q)

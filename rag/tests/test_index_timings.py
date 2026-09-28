@@ -98,7 +98,7 @@ def test_direct_full_collector_separates_eval_gate_from_promotion(monkeypatch, t
     clock = [0.0]
     monkeypatch.setattr(index.time, "perf_counter", lambda: clock[0])
     monkeypatch.setattr(index, "_build_full_state", lambda *a, **k: index.FullState(nx.DiGraph()))
-    monkeypatch.setattr(index, "_docs_hashes", lambda: {})
+    monkeypatch.setattr(index, "docs_hashes", lambda: {})
     monkeypatch.setattr(index, "_code_hashes", lambda: {})
     monkeypatch.setattr(index, "save_artifacts", lambda *a, **k: "v-test")
     monkeypatch.setattr(index, "write_index_manifest", lambda *a, **k: None)
@@ -207,5 +207,5 @@ def test_source_hashes_stream_docs_and_code(monkeypatch, tmp_path):
     monkeypatch.setattr(index, "CODE_DIR", code)
     with monkeypatch.context() as patch:
         patch.setattr(Path, "read_bytes", lambda self: (_ for _ in ()).throw(AssertionError("read_bytes")))
-        assert index._docs_hashes() == {"a.md": hashlib.sha256(data).hexdigest()}
+        assert index.docs_hashes() == {"a.md": hashlib.sha256(data).hexdigest()}
         assert index._code_hashes() == {"a.py": hashlib.sha256(data).hexdigest()}

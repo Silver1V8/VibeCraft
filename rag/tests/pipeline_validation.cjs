@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
-const html = fs.readFileSync(path.join(__dirname, '../templates/pipeline.unified.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '../static/pages/pipeline.js'), 'utf8');
 const code = html.slice(html.indexOf('    function gateApiError('), html.indexOf('    /* ──────────── ESECUZIONE CON CLAUDE AGENT SDK'));
 const nodes = {}, checks = [], requests = [], errors = [];
 function node(tag) {

@@ -8,28 +8,7 @@
     <!-- Serviti da /static/vendor/: nessuna dipendenza da CDN esterni (local-first). -->
     <script src="/static/vendor/tailwind.min.js"></script>
     <script src="/static/vendor/mermaid.min.js"></script>
-    <script>
-      /* Tailwind punta a CSS variables: le classi (bg-white, text-slate-800, border-purple-500…)
-         sono generate UNA volta con var(--...) come valore colore. Il cambio tema
-         (:root[data-theme]) aggiorna le variabili senza rigenerare le classi -> live-flip. */
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              white:  'var(--white)',
-              slate:  { 50:'var(--slate-50)',100:'var(--slate-100)',200:'var(--slate-200)',300:'var(--slate-300)',400:'var(--slate-400)',500:'var(--slate-500)',600:'var(--slate-600)',700:'var(--slate-700)',800:'var(--slate-800)',900:'var(--slate-900)',950:'var(--slate-950)' },
-              blue:   { 50:'var(--blue-50)',  100:'var(--blue-100)', 200:'var(--blue-200)', 300:'var(--blue-300)', 400:'var(--blue-400)', 500:'var(--blue-500)', 600:'var(--blue-600)', 700:'var(--blue-700)', 800:'var(--blue-800)', 900:'var(--blue-900)', 950:'var(--blue-950)' },
-              purple: { 50:'var(--purple-50)',100:'var(--purple-100)',200:'var(--purple-200)',300:'var(--purple-300)',400:'var(--purple-400)',500:'var(--purple-500)',600:'var(--purple-600)',700:'var(--purple-700)',800:'var(--purple-800)',900:'var(--purple-900)',950:'var(--purple-950)' },
-              emerald:{ 50:'var(--emerald-50)',100:'var(--emerald-100)',200:'var(--emerald-200)',300:'var(--emerald-300)',400:'var(--emerald-400)',500:'var(--emerald-500)',600:'var(--emerald-600)',700:'var(--emerald-700)',800:'var(--emerald-800)',900:'var(--emerald-900)',950:'var(--emerald-950)' },
-              orange: { 50:'var(--orange-50)',100:'var(--orange-100)',200:'var(--orange-200)',300:'var(--orange-300)',400:'var(--orange-400)',500:'var(--orange-500)',600:'var(--orange-600)',700:'var(--orange-700)',800:'var(--orange-800)',900:'var(--orange-900)',950:'var(--orange-950)' },
-              pink:   { 600:'var(--pink-600)' },
-              gray:   { 200:'var(--gray-200)' },
-            },
-            fontFamily: { sans: ['var(--font-main)'] }
-          }
-        }
-      }
-    </script>
+    <script src="/static/pages/tailwind-config-infografica.js"></script>
 
     <!-- Asset condivisi (estratti dai template per non duplicare CSS/JS) -->
     <link rel="stylesheet" href="/static/shared.css" />
@@ -209,7 +188,7 @@
                  anche nel tema Classico (pagina chiara), dove era fuori posto.
                  Ora segue i token del tema. La <label> vuota non dava alcun nome
                  accessibile: sostituita da aria-label. -->
-            <select id="theme-switcher" onchange="setUiTheme(this.value)" aria-label="Tema dell'interfaccia"
+            <select id="theme-switcher" data-change="setUiTheme" aria-label="Tema dell'interfaccia"
                     class="ml-auto rounded-md px-2.5 py-1.5 text-xs font-mono cursor-pointer bg-white border border-slate-200 text-slate-600">
               <option value="matrix">🟢 Matrix</option>
               <option value="classic">☀️ Classico</option>
@@ -294,7 +273,7 @@
                 <p class="text-sm text-slate-600 mb-2">Un solo client per tutte le chiamate generative: provider e modello si scelgono per scopo.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Le chiamate generative della pipeline (drift, canvas, propose, validate, explore, review) passano da un layer unico: provider e modello si scelgono <strong>per scopo</strong> in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code> (es. Ollama per il drift, Claude per il canvas). Riceve solo il fascicolo scremato dai motori deterministici. <strong>Anche <code class="bg-gray-200 px-1 rounded font-mono">POST /ask</code></strong> passa da qui (purpose <code class="bg-gray-200 px-1 rounded font-mono">ask</code>): un solo client, stessi guardrail. Un <strong>budget guard giornaliero</strong> sulla spesa Claude è pronto in <code class="bg-gray-200 px-1 rounded font-mono">core/llm.py</code>, ma <strong>spento di default</strong>: il blocco <code class="bg-gray-200 px-1 rounded font-mono">llm_settings.budget</code> è commentato in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code>, perché con <code class="bg-gray-200 px-1 rounded font-mono">active_provider: ollama</code> nessun purpose chiama Claude oggi — non c'è spesa da proteggere. Va scommentato quando un purpose passa su <code class="bg-gray-200 px-1 rounded font-mono">anthropic</code>: da quel momento, superata la soglia (<code class="bg-gray-200 px-1 rounded font-mono">daily_usd</code>), i purpose su Claude deviano automaticamente su Ollama, senza mai far fallire una generazione.</p>
+                  <p class="mt-2">Le chiamate generative della pipeline (drift, canvas, propose, validate, explore, review) passano da un layer unico: provider e modello si scelgono <strong>per scopo</strong> in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code> (es. Ollama per il drift, Claude per il canvas). Riceve solo il fascicolo scremato dai motori deterministici. <strong>Anche <code class="bg-gray-200 px-1 rounded font-mono">POST /ask</code></strong> passa da qui (purpose <code class="bg-gray-200 px-1 rounded font-mono">ask</code>): un solo client, stessi guardrail. Un <strong>budget guard giornaliero</strong> sulla spesa Claude è pronto in <code class="bg-gray-200 px-1 rounded font-mono">core/llm.py</code>, ma <strong>spento di default</strong>: il blocco <code class="bg-gray-200 px-1 rounded font-mono">llm_settings.budget</code> è commentato in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code>, perché con <code class="bg-gray-200 px-1 rounded font-mono">active_provider: ollama</code> nessun purpose chiama Claude oggi — non c'è spesa da proteggere. Va scommentato quando un purpose passa su <code class="bg-gray-200 px-1 rounded font-mono">anthropic</code>: da quel momento, superata la soglia (<code class="bg-gray-200 px-1 rounded font-mono">daily_usd</code>), i purpose su Claude deviano automaticamente su Ollama, senza mai far fallire una generazione. Fanno eccezione i run dell'agente Claude (<code class="bg-gray-200 px-1 rounded font-mono">POST /api/pipeline/agent/run</code>, runner <code class="bg-gray-200 px-1 rounded font-mono">claude</code>): il loro costo entra nello stesso contatore e, non avendo un fallback, oltre soglia vengono <strong>rifiutati con 429</strong> (soglia morbida: i run già in corso possono superarla).</p>
                 </details>
             </div>
 
@@ -461,7 +440,7 @@
                 </div>
             </div>
             <p class="text-sm text-slate-600 mt-4">Con un documento modificato su 100, il writer scrive 51.328 byte NPY e riusa 99 file. Grafo, metadati e vettori dense/code mantengono costi globali. Batching limitato studiato ma non implementato; nessuna soglia universale di volume o sharding dimostrata.</p>
-            <p class="text-sm mt-3"><a class="underline" href="https://github.com/Silver1V8/VibeCraft/blob/main/rag/eval/results/sidecar_npy_20260921/evidence/PHASE5.md">Metodo della prova full</a> · <a class="underline" href="https://github.com/Silver1V8/VibeCraft/blob/main/rag/eval/results/sidecar_npy_20260921/evidence/PHASE6.md">Curve, compromessi e limiti</a></p>
+            <p class="text-sm mt-3"><a class="underline" href="https://github.com/Silver1V8/VibeCraft/blob/main/archive/eval-results/sidecar_npy_20260921/evidence/PHASE5.md">Metodo della prova full</a> · <a class="underline" href="https://github.com/Silver1V8/VibeCraft/blob/main/archive/eval-results/sidecar_npy_20260921/evidence/PHASE6.md">Curve, compromessi e limiti</a></p>
         </section>
 
         <div class="mt-8 bg-blue-50 text-blue-800 p-4 rounded-lg border border-blue-200">
@@ -470,152 +449,6 @@
 
     </main>
 
-    <script>
-      /* themeVar / startMatrixRain / stopMatrixRain: vedi /static/shared.js.
-         Al cambio tema shared.js invoca window.onThemeChange -> ridisegna Mermaid. */
-      window.onThemeChange = function () { renderMermaidDiagram(); };
-
-      /* ──────────── MERMAID: diagramma ricostruito a runtime dai colori del tema ──────────── */
-      let mermaidRenderSeq = 0;
-      function buildMermaidSource() {
-        const userFill = themeVar('--mm-user-fill'),         userStroke = themeVar('--mm-user-stroke'),         userText = themeVar('--mm-user-text');
-        const apiFill  = themeVar('--mm-fastapi-fill'),       apiStroke  = themeVar('--mm-fastapi-stroke'),      apiText  = themeVar('--mm-fastapi-text');
-        const qFill    = themeVar('--mm-qdrant-fill'),        qStroke    = themeVar('--mm-qdrant-stroke'),       qText    = themeVar('--mm-qdrant-text');
-        const nxFill   = themeVar('--mm-networkx-fill'),      nxStroke   = themeVar('--mm-networkx-stroke'),     nxText   = themeVar('--mm-networkx-text');
-        const olFill   = themeVar('--mm-ollama-fill'),        olStroke   = themeVar('--mm-ollama-stroke'),       olText   = themeVar('--mm-ollama-text');
-        const font     = themeVar('--mm-font', 'ui-sans-serif, system-ui');
-
-        return `%%{init: {'theme': 'base', 'themeVariables': { 'fontFamily': '${font}'}}}%%
-graph TD
-    classDef user fill:${userFill},stroke:${userStroke},stroke-width:2px,color:${userText};
-    classDef fastapi fill:${apiFill},stroke:${apiStroke},stroke-width:2px,color:${apiText};
-    classDef qdrant fill:${qFill},stroke:${qStroke},stroke-width:2px,color:${qText};
-    classDef networkx fill:${nxFill},stroke:${nxStroke},stroke-width:2px,color:${nxText};
-    classDef ollama fill:${olFill},stroke:${olStroke},stroke-width:2px,color:${olText};
-
-    U["Utente / App"]:::user
-    S("FastAPI: api/routes_retrieval.py<br>Rotta POST /ask (X-API-Key)"):::fastapi
-    RT{"core/router.py (M2)<br>domanda strutturale?"}:::fastapi
-    GA[("NetworkX: graph_ops.graph_query<br>risposta diretta nodi/archi<br>status: graph_answer · no LLM")]:::networkx
-    V{"Embedding bge-m3<br>dense + sparse"}:::fastapi
-    Q[("Qdrant server (Docker)<br>Ricerca ibrida Top-K<br>fusione per rank")]:::qdrant
-    NPY[("Sidecar ColBERT NPY<br>su disco, per documento")]:::fastapi
-    CB{"Rerank ColBERT locale<br>+ peso autorità<br>+ precedenza fra fonti"}:::fastapi
-    G[("NetworkX (graph.json)<br>Espansione BFS + fiducia sul cammino<br>seed = doc dei chunk")]:::networkx
-    C["Contesto chunk-aware:<br>testo delle SEZIONI recuperate<br>+ struttura del grafo"]:::fastapi
-    O{"core/llm.py · purpose ask<br>provider da config<br>(Ollama / Claude)"}:::ollama
-    R["JSON: answer + graph_context<br>+ breakdown ranking + latency"]:::user
-
-    U -->|"Domanda JSON"| S
-    S -->|"0. Router deterministico"| RT
-    RT -->|"strutturale → graph"| GA
-    GA -->|"graph_result"| R
-    RT -->|"altrimenti → hybrid"| V
-    V -->|"1. Vettori Domanda"| Q
-    Q -->|"2. Candidati Top-K"| CB
-    NPY -->|"Chunk richiesti"| CB
-    CB -->|"3. Chunk ri-ordinati"| G
-    G -->|"4. Nodi Estesi"| C
-    C -->|"5. Prompt Rigido + Fascicolo"| O
-    O -->|"6. Testo Sintetizzato"| S
-    S -->|"7. Ritorno payload"| R`;
-      }
-
-      async function renderMermaidDiagram() {
-        const container = document.getElementById('rag-mermaid');
-        const seq = ++mermaidRenderSeq;
-        mermaid.initialize({
-          startOnLoad: false,
-          theme: 'base',
-          themeVariables: {
-            primaryColor: themeVar('--mm-primary'),
-            primaryTextColor: themeVar('--mm-primary-text'),
-            primaryBorderColor: themeVar('--mm-primary-border'),
-            lineColor: themeVar('--mm-line'),
-            secondaryColor: themeVar('--mm-secondary'),
-            tertiaryColor: themeVar('--mm-tertiary'),
-            edgeLabelBackground: themeVar('--mm-edge-bg'),
-            background: themeVar('--mm-bg'),
-            fontFamily: themeVar('--mm-font', 'ui-sans-serif, system-ui'),
-            fontSize: '15px',
-          },
-          // Spaziatura di default (~50px) comprimeva gli 11 nodi in una colonna
-          // stretta: piu respiro fra un livello e l'altro del flusso TD.
-          flowchart: { nodeSpacing: 40, rankSpacing: 65, padding: 12 },
-        });
-        const source = buildMermaidSource();
-        try {
-          const { svg } = await mermaid.render('rag-mermaid-svg-' + seq, source);
-          if (seq === mermaidRenderSeq) container.innerHTML = svg;
-        } catch (e) {
-          container.innerHTML = `<p style="color:#f87171">Errore nel rendering del diagramma: ${e.message}</p>`;
-        }
-      }
-
-      /* ──────────── KPI REALI DA /api/health ────────────
-         La pagina descriveva il sistema senza mostrarne un solo dato: nessuna
-         metrica, nessuna fonte, nessuna evidenza. Dodici blocchi che dichiarano
-         capacita non generano fiducia — questi numeri si, perche vengono
-         dall'indice vivo e cambiano insieme a lui. */
-      /* `href` opzionale: dove esiste una pagina che approfondisce il dato, la
-         card ci porta. Erano dodici blocchi senza una sola azione possibile. */
-      function kpiCard(etichetta, valore, nota, tono, href) {
-        const colori = { ok: 'text-emerald-700', warn: 'text-orange-700', bad: 'text-pink-600', neutro: 'text-slate-800' };
-        // La dimensione segue la lunghezza: un identificatore di versione non
-        // sta in 143px a 24px di corpo, e a 375px la card sforava.
-        const v = String(valore);
-        const corpo = v.length > 13 ? 'text-base' : v.length > 8 ? 'text-xl' : 'text-2xl';
-        const dentro = `
-          <div class="text-xs uppercase tracking-widest text-slate-500 mb-1">${escapeHtml(etichetta)}</div>
-          <div class="${corpo} font-bold font-mono break-words ${colori[tono] || colori.neutro}">${escapeHtml(v)}</div>
-          ${nota ? `<div class="text-xs text-slate-500 mt-1 break-words">${escapeHtml(nota)}</div>` : ''}`;
-        const base = 'bg-white glass-card rounded-xl p-4 border-t-4 border-slate-700 block min-w-0';
-        return href
-          ? `<a href="${href}" class="${base} no-underline hover-lift">${dentro}
-               <div class="text-xs text-blue-700 mt-2">Apri →</div></a>`
-          : `<div class="${base}">${dentro}</div>`;
-      }
-
-      async function caricaKpi() {
-        const grid = document.getElementById('kpi-grid');
-        const stato = document.getElementById('kpi-stato');
-        try {
-          const res = await fetch('/api/health');
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          const h = await res.json();
-          const snap = h.snapshot || {}, ev = h.eval || {}, dep = h.dependencies || {};
-          const nf = n => (typeof n === 'number' ? n.toLocaleString('it-IT') : '—');
-          const recall = typeof ev.last_recall === 'number'
-            ? (ev.last_recall * 100).toFixed(1) + '%' : '—';
-          const trend = { up: '↑ in salita', down: '↓ in discesa', flat: '→ stabile' }[ev.trend] || ev.trend || '';
-          // Il tono segue la soglia dell'eval-gate, che ora arriva NEL PAYLOAD (A2b): era
-          // scritta a mano come 0.9 mentre il gate stava gia' a 0.75, quindi la dashboard
-          // poteva colorare di rosso una recall che il gate accettava senza riserve.
-          const soglia = typeof ev.min_recall === 'number' ? ev.min_recall : 0.9;
-          const tonoRecall = typeof ev.last_recall !== 'number' ? 'neutro'
-                           : ev.last_recall >= soglia ? 'ok' : 'bad';
-
-          grid.innerHTML = [
-            kpiCard(ev.key || 'recall', recall, trend + ' · ' + (ev.history_points ?? 0) + ' misurazioni', tonoRecall, '/eval'),
-            kpiCard('Nodi nel grafo', nf(snap.graph_nodes), nf(snap.graph_edges) + ' archi', 'neutro', '/analysis'),
-            kpiCard('Sezioni indicizzate', nf(snap.chunks), 'chunk con vettori ColBERT', 'neutro', '/'),
-            kpiCard('Versione CURRENT', snap.version || '—', (h.manifest && h.manifest.stale) ? 'manifest da aggiornare' : 'manifest allineato',
-                    (h.manifest && h.manifest.stale) ? 'warn' : 'ok'),
-            kpiCard('Qdrant', dep.qdrant ? 'raggiungibile' : 'non raggiungibile', 'database vettoriale', dep.qdrant ? 'ok' : 'bad'),
-            kpiCard('Ollama', dep.ollama ? 'raggiungibile' : 'non raggiungibile', 'LLM locale', dep.ollama ? 'ok' : 'bad'),
-          ].join('');
-
-          stato.textContent = 'stato: ' + (h.status || '—');
-          stato.className = 'text-xs font-mono ' +
-            (h.status === 'ok' ? 'text-emerald-700' : h.status === 'degraded' ? 'text-orange-700' : 'text-slate-500');
-        } catch (e) {
-          grid.innerHTML = `<p class="text-sm col-span-full text-slate-600">Stato non disponibile (${escapeHtml(e.message)}).
-            <button class="btn btn-secondary" style="margin-left:.5rem" onclick="caricaKpi()">Riprova</button></p>`;
-          stato.textContent = '';
-        }
-      }
-
-      document.addEventListener('DOMContentLoaded', () => { renderMermaidDiagram(); caricaKpi(); });
-    </script>
+    <script src="/static/pages/infografica.js"></script>
 </body>
 </html>

@@ -110,24 +110,22 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def ensure_staging_dirs(base_dir: str | Path | None = None) -> dict[str, Path]:
-    """Crea (se mancanti) le cartelle dell'area di staging e il file del journal, e ne
-    restituisce i percorsi. Lazy e idempotente — va chiamata dagli entrypoint che toccano
-    staging/, mai assunta creata al solo import del modulo (stesso principio degli
-    artefatti di database/, vedi core/artifacts.py e core/writer_lock.py).
-
-    `base_dir` è il seam per i test (default: INTAKE_STAGING_DIR, risolta da
-    rag_config.yaml → intake.staging_dir)."""
+def _staging_paths(base_dir: str | Path | None, *, create: bool) -> dict[str, Path]:
+    """Percorsi dell'area di staging. `create=True` crea le cartelle e il journal se
+    mancanti (comportamento storico, usato da ensure_staging_dirs); `create=False` li
+    restituisce senza toccare il filesystem — per le sole letture, vedi
+    staging_paths_readonly."""
     root = Path(base_dir) if base_dir is not None else INTAKE_STAGING_DIR
     docs_dir = root / "docs"
     projects_dir = root / "projects"
     rejected_dir = root / "rejected"
     journal_path = root / "intake.jsonl"
 
-    for d in (docs_dir, projects_dir, rejected_dir):
-        d.mkdir(parents=True, exist_ok=True)
-    if not journal_path.exists():
-        journal_path.touch()
+    if create:
+        for d in (docs_dir, projects_dir, rejected_dir):
+            d.mkdir(parents=True, exist_ok=True)
+        if not journal_path.exists():
+            journal_path.touch()
 
     return {
         "root": root,
@@ -136,6 +134,32 @@ def ensure_staging_dirs(base_dir: str | Path | None = None) -> dict[str, Path]:
         "rejected": rejected_dir,
         "journal": journal_path,
     }
+
+
+def ensure_staging_dirs(base_dir: str | Path | None = None) -> dict[str, Path]:
+    """Crea (se mancanti) le cartelle dell'area di staging e il file del journal, e ne
+    restituisce i percorsi. Lazy e idempotente — va chiamata dagli entrypoint che SCRIVONO
+    in staging/ (stage, approve, reject, refine, import), mai assunta creata al solo
+    import del modulo (stesso principio degli artefatti di database/, vedi
+    core/artifacts.py e core/writer_lock.py).
+
+    Le sole letture (list_staged, get_preview, project_brief.applied_imports) usano invece
+    `staging_paths_readonly`: un GET non deve materializzare cartelle/journal su un
+    'staging/' mai esistito solo perché è stato interrogato — vedi SECURITY_SURFACE.md §1,
+    GET /api/intake/staged, /api/intake/staged/{doc_id}/preview e /api/intake/project/imports.
+
+    `base_dir` è il seam per i test (default: INTAKE_STAGING_DIR, risolta da
+    rag_config.yaml → intake.staging_dir)."""
+    return _staging_paths(base_dir, create=True)
+
+
+def staging_paths_readonly(base_dir: str | Path | None = None) -> dict[str, Path]:
+    """Stessi percorsi di ensure_staging_dirs ma SENZA crearli: per le letture. Se
+    staging/ non esiste ancora, i path restituiti puntano a file/cartelle inesistenti —
+    `_journal_state` gestisce già un journal.exists() False restituendo lo stato vuoto
+    ({}), quindi il chiamante vede correttamente 'nessun documento' senza che nulla venga
+    scritto su disco."""
+    return _staging_paths(base_dir, create=False)
 
 
 # ---------------------------------------------------------------------------
@@ -293,14 +317,16 @@ def stage_document(filename: str, content: bytes, *, base_dir: str | Path | None
 
 
 def list_staged(base_dir: str | Path | None = None) -> list[dict]:
-    """Documenti attualmente in stato 'staged', in ordine di staging."""
-    paths = ensure_staging_dirs(base_dir)
+    """Documenti attualmente in stato 'staged', in ordine di staging. Sola lettura: non
+    crea staging/ se non esiste ancora (nessun documento è semplicemente lista vuota)."""
+    paths = staging_paths_readonly(base_dir)
     return [e for e in _journal_state(paths).values() if e.get("status") == "staged"]
 
 
 def get_preview(doc_id: str, base_dir: str | Path | None = None) -> dict:
-    """Entry + markdown derivato di un documento in staging (solo stato 'staged')."""
-    paths = ensure_staging_dirs(base_dir)
+    """Entry + markdown derivato di un documento in staging (solo stato 'staged'). Sola
+    lettura: non crea staging/ se non esiste ancora (doc_id non trovato, come oggi)."""
+    paths = staging_paths_readonly(base_dir)
     entry = _require_staged(paths, doc_id)
     markdown_path = paths["docs"] / entry["files"]["markdown"]
     try:

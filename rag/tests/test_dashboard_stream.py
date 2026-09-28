@@ -4,7 +4,8 @@ import subprocess
 from pathlib import Path
 
 
-DASHBOARD = Path(__file__).parents[1] / "templates" / "dashboard.unified.html"
+# Script della dashboard (era inline nel template, spostato in static/pages/ per la CSP).
+DASHBOARD = Path(__file__).parents[1] / "static" / "pages" / "dashboard.js"
 
 
 def test_dashboard_parser_gestisce_confini_utf8_e_terminale():

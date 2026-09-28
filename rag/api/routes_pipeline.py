@@ -3,6 +3,7 @@ esecuzione via Claude Agent SDK, dry-run, [AGENT CONTEXT], export e gestione fil
 handler orchestrano I/O e concorrenza (async/threadpool/streaming) e iniettano le risorse
 di runtime dallo stato (api.deps) nelle funzioni pure di core.pipeline / core.retrieval."""
 import functools
+from datetime import datetime, timedelta, timezone
 from contextlib import nullcontext, contextmanager
 from uuid import uuid4
 import json
@@ -51,7 +52,7 @@ from core.config import (
     TECH_MAX_CHUNKS,
     TECH_SCOPE_TAG_KEY,
 )
-from core.indexing import archive_feature, check_drift, check_index_integrity, index_status, _docs_hashes
+from core.indexing import archive_feature, check_drift, check_index_integrity, docs_hashes, index_status
 from core.pipeline import (
     FINAL_PROMPT_CONSUMERS,
     InvalidDevTypeError,
@@ -86,7 +87,7 @@ def _safe_slug(feature_name: str) -> str:
 def _safe_dev_type(dev_type: str) -> str:
     """validate_dev_type con conversione esplicita in 400 Bad Request: un dev_type
     fuori dalla whitelist di list_dev_types() (diventerebbe CODE_DIR / dev_type in
-    core.indexing.check_drift) viene rifiutato PRIMA di generare/scrivere alcunché,
+    core.drift_check.check_drift) viene rifiutato PRIMA di generare/scrivere alcunché,
     invece di far fallire a metà lavoro la chiamata a save_dev_type."""
     try:
         return validate_dev_type(dev_type)
@@ -241,6 +242,10 @@ def _verified_runs(req, record, prompt, stream, attempt, retry, details):
         yield _verification_event(result, current, attempts_left if retry_possible else 0)
         if not retry_possible:
             return
+        if blocked := _budget_block(req.runner):
+            yield json.dumps(dict(type='retry_blocked', attempt_id=current, detail=blocked),
+                             ensure_ascii=False) + '\n'
+            return
 
         attempts_left -= 1
         previous, current = current, 'attempt-' + uuid4().hex
@@ -267,6 +272,28 @@ def _verified_runs(req, record, prompt, stream, attempt, retry, details):
         yield from next_stream
 
 
+# Runner il cui costo finisce nel budget Claude giornaliero (llm_settings.budget): solo
+# `claude` spende sull'account Anthropic e riporta total_cost_usd. `local` (Ollama) è
+# gratuito; codex/cursor fatturano su account propri e non riportano un costo.
+_BUDGETED_RUNNERS = frozenset({'claude'})
+
+
+def _budget_block(runner: str) -> str | None:
+    """Messaggio di rifiuto se il runner è a pagamento e il budget del giorno è esaurito."""
+    if runner not in _BUDGETED_RUNNERS or (hit := llm.budget_exhausted()) is None:
+        return None
+    spent, threshold = hit
+    return (f'Budget Claude giornaliero esaurito (spesa {spent:.2f} USD, soglia {threshold:.2f} USD): '
+            'i run del runner claude riprendono dopo la mezzanotte UTC. Usa il runner locale '
+            'o alza llm_settings.budget.daily_usd.')
+
+
+def _seconds_to_utc_midnight() -> int:
+    now = datetime.now(timezone.utc)
+    return max(1, int((now.replace(hour=0, minute=0, second=0, microsecond=0)
+                       + timedelta(days=1) - now).total_seconds()))
+
+
 def _finished_recorder(attempt_details):
     def finished(outcome):
         pipeline_store.append_event('execution_finished', **attempt_details,
@@ -284,6 +311,11 @@ async def agent_run(req: AgentRunRequest):
         raise HTTPException(status_code=400, detail=reason)
     if req.mode != 'agentic' and not req.prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt vuoto.")
+    # Budget prima di gate e journal: il rifiuto non è un esito del contratto. 429 come le
+    # altre quote del server (/ask), con Retry-After fino all'azzeramento del contatore.
+    if blocked := await run_in_threadpool(_budget_block, req.runner):
+        raise HTTPException(status_code=429, detail=blocked,
+                            headers={'Retry-After': str(_seconds_to_utc_midnight())})
     feature = _safe_slug(req.feature) if req.feature else None
     attempt = 'attempt-' + uuid4().hex
 
@@ -421,7 +453,7 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
     # invece di affidarsi a un contesto statico scritto a mano. Il dev_type è risolto qui
     # perché guida anche il ramo tecnico del retrieval, non solo la cartella di output.
     # Validato SUBITO (whitelist di list_dev_types()), prima di spendere un retrieval/LLM:
-    # diventa un componente di path (CODE_DIR / dev_type) in core.indexing.check_drift.
+    # diventa un componente di path (CODE_DIR / dev_type) in core.drift_check.check_drift.
     dev_type = _safe_dev_type(req.dev_type or load_dev_type(folder))
     snap = current_snapshot()
     query = f"{req.feature_name}\n{contesto_intervista[:2000]}"
@@ -473,7 +505,7 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest):
 
     canvas_content = canvas_path.read_text(encoding="utf-8")
     # Validato SUBITO (whitelist di list_dev_types()), prima di spendere un retrieval/LLM:
-    # diventa un componente di path (CODE_DIR / dev_type) in core.indexing.check_drift.
+    # diventa un componente di path (CODE_DIR / dev_type) in core.drift_check.check_drift.
     dev_type = _safe_dev_type(req.dev_type or load_dev_type(folder))
 
     # Recupera i vincoli normativi dal Graph RAG per generare scenari BDD che coprano
@@ -680,7 +712,7 @@ def _validation_manifest(snap):
 def _validation_source_state():
     snap = current_snapshot()
     _validation_manifest(snap)  # assenza/corruzione non diventa corpus vuoto
-    return gate.SourceState(index_version=snap.version, doc_hashes=_docs_hashes())
+    return gate.SourceState(index_version=snap.version, doc_hashes=docs_hashes())
 
 
 def _gate_storage_error(exc):
@@ -870,8 +902,13 @@ async def pipeline_canvas_dry_run(req: CanvasGenerateRequest):
 
     Rispecchia i DUE rami di _governed_context (dominio + tecnico per dev_type): mostrarne
     uno solo farebbe promettere al dry-run un contesto diverso da quello che il canvas
-    riceve davvero. Ogni sorgente porta il ramo da cui viene."""
-    folder = _safe_feature_dir(req.feature_name, create=True)
+    riceve davvero. Ogni sorgente porta il ramo da cui viene.
+
+    read-only per davvero (SECURITY_SURFACE.md, riga #22 della matrice §2): NON crea la cartella della
+    feature (create=False, il default) — se non esiste ancora semplicemente non c'è
+    explore.md/meta.json da leggere. Creare una cartella qui sarebbe una scrittura da
+    un endpoint escluso dalla guardia anti-cross-site perché dichiarato read-only."""
+    folder = _safe_feature_dir(req.feature_name)
     explore_path = folder / "explore.md"
     interview = explore_path.read_text(encoding="utf-8") if explore_path.exists() else ""
     query = f"{req.feature_name}\n{interview[:2000]}"

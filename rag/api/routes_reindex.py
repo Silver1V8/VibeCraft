@@ -257,7 +257,7 @@ def _rollback_under_writer_lock(target) -> tuple:
     rollback_qdrant_alias_if_needed (riallinea l'alias Qdrant) — dentro un solo writer
     lock cross-processo, restituendo `(name, qdrant_alias, shared_later)`.
 
-    `shared_later` (rollback_shares_collection_with_later_versions, core.indexing) è
+    `shared_later` (rollback_shares_collection_with_later_versions, core.qdrant_versions) è
     la lista delle versioni POSTERIORI al target che dichiarano la sua stessa
     collection Qdrant: lista non vuota = incrementali successivi l'hanno mutata in
     place e il rollback locale NON riavvolge Qdrant. La detection legge i manifest,
@@ -313,7 +313,7 @@ async def index_rollback(request: Request):
 
     core.artifacts.rollback_version resta puro locale (sposta solo CURRENT). DOPO il
     rollback locale l'alias `COLLECTION_NAME` viene riallineato alla collection della
-    versione target (rollback_qdrant_alias_if_needed, core.indexing): cross-lineage →
+    versione target (rollback_qdrant_alias_if_needed, core.qdrant_versions): cross-lineage →
     swap; intra-lineage (alias già corretto) → no-op.
 
     Se la collection della versione target NON esiste più su Qdrant il rollback è

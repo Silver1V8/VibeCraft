@@ -31,6 +31,7 @@ from core.config import (
     OLLAMA_TIMEOUT_SECONDS,
     OLLAMA_URL,
     RAG_DIR,
+    VALID_LLM_PROVIDERS,
     LLMSettings,
     config,
     validate_llm_settings,
@@ -136,7 +137,9 @@ def _llm_settings() -> LLMSettings:
 # Il contatore si alimenta dal costo già calcolato per il log strutturato delle
 # chiamate Anthropic (_log_anthropic_usage, più sotto): senza `llm_settings.pricing`
 # per quel modello il costo non è noto e non viene contato nulla — il guard resta
-# quindi inerte, come quando il blocco `budget` manca del tutto.
+# quindi inerte, come quando il blocco `budget` manca del tutto. Seconda fonte: il
+# costo di fine run dell'agente Claude (agent_bridge), riportato dall'SDK; oltre soglia
+# quei run vengono rifiutati con 429 (budget_exhausted), non deviati.
 #
 # Regola di sicurezza valida per TUTTO questo blocco: il guard non deve MAI far
 # fallire una generazione. Ogni errore interno (config malformata, file di spesa
@@ -188,8 +191,9 @@ def _read_spend(path: Path | None) -> tuple[str, float]:
 
 
 def _record_spend(cost_usd: float) -> None:
-    """Aggiunge il costo di UNA chiamata Anthropic riuscita al totale del giorno UTC
-    corrente (azzerandolo se l'ultimo aggiornamento è di ieri). Thread-safe."""
+    """Aggiunge il costo di UNA chiamata Anthropic riuscita, o di UN run del runner
+    agente `claude` (agent_bridge, anche fallito se l'SDK ne riporta il costo), al totale
+    del giorno UTC corrente (azzerandolo se l'ultimo aggiornamento è di ieri). Thread-safe."""
     try:
         if not cost_usd or cost_usd <= 0:
             return
@@ -219,6 +223,24 @@ def spend_today_usd() -> float:
     except Exception:
         logger.warning("Impossibile leggere il contatore di spesa Claude.", exc_info=True)
         return 0.0
+
+
+def budget_exhausted() -> tuple[float, float] | None:
+    """(spesa, soglia) se il budget giornaliero è attivo (`budget.daily_usd` impostato) e
+    la spesa del giorno UTC l'ha raggiunto, altrimenti None. Usata da POST
+    /api/pipeline/agent/run: un run dell'agente Claude non ha un provider locale su cui
+    degradare, quindi oltre soglia viene rifiutato invece che deviato. Come il resto del
+    guard non fa mai fallire la chiamata: un errore interno vale "budget non esaurito"."""
+    try:
+        budget = _budget_settings()
+        if budget is None or budget.daily_usd is None:
+            return None
+        threshold = float(budget.daily_usd)
+        spent = spend_today_usd()
+        return (spent, threshold) if spent >= threshold else None
+    except Exception:
+        logger.warning("Budget guard non applicabile ai run agente.", exc_info=True)
+        return None
 
 
 def _budget_fallback(provider: str, model: str, settings: LLMSettings) -> tuple[str, str]:
@@ -412,8 +434,10 @@ def _log_anthropic_usage(model: str, message) -> None:
     fallire la generazione: qualunque errore nel calcolo/logging viene inghiottito.
 
     Lo stesso costo stimato alimenta il contatore giornaliero del budget guard
-    (_record_spend): è l'unico punto in cui la spesa Claude viene contabilizzata,
-    quindi solo le chiamate RIUSCITE e con un prezzo configurato incidono sul tetto."""
+    (_record_spend): per le chiamate dirette è l'unico punto in cui la spesa Claude
+    viene contabilizzata, quindi solo le chiamate RIUSCITE e con un prezzo configurato
+    incidono sul tetto. L'altra fonte è il costo di fine run dell'agente Claude
+    (agent_bridge), riportato direttamente dall'SDK senza bisogno di `pricing`."""
     try:
         usage = getattr(message, "usage", None)
         if usage is None:
@@ -496,6 +520,17 @@ _PROVIDERS: dict[str, tuple] = {
     "anthropic": (_anthropic_generate, _anthropic_agenerate),
 }
 _STREAM_PROVIDERS: dict[str, object] = {"ollama": _ollama_astream}
+
+# Controllo di sincronizzazione al modulo-load: i provider registrati qui devono
+# corrispondere esattamente a VALID_LLM_PROVIDERS in config.py. Se divergono,
+# la validazione config è compromessa.
+_check_sync = set(_PROVIDERS)
+if _check_sync != VALID_LLM_PROVIDERS:
+    raise RuntimeError(
+        f"Errore interno: provider registrati in core/llm.py {_check_sync} non concordano con "
+        f"VALID_LLM_PROVIDERS in core/config.py {VALID_LLM_PROVIDERS}. "
+        f"Sincronizzali prima di eseguire il server."
+    )
 
 
 def register_provider(name: str, sync_fn, async_fn=None) -> None:

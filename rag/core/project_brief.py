@@ -102,7 +102,9 @@ def applied_imports(target: str | None = None, base_dir=None) -> list[dict]:
     {"target", "progetto", "src", "applied_at", "import_id"}."""
     if target is not None:
         _validate_target(target)
-    paths = intake.ensure_staging_dirs(base_dir)
+    # Sola lettura (GET /api/intake/project/imports): non crea staging/ se non esiste
+    # ancora — vedi core.intake.staging_paths_readonly.
+    paths = intake.staging_paths_readonly(base_dir)
     per_progetto: dict[tuple[str, str], dict] = {}
     for rec in intake._journal_state(paths).values():
         if rec.get("type") != "project_import" or rec.get("status") != "applied":

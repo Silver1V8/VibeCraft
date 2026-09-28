@@ -17,7 +17,7 @@ from core.config import INTAKE_DOCLING_MODELS_DIR  # noqa: E402
 from core.intake_convert import DOCLING_WEIGHTS, OCR_LANG, OCR_WEIGHTS, sha256_file  # noqa: E402
 
 # Commit dei repository Hugging Face da cui vengono i pesi verificati dal pilot finale
-# (rag/eval/results/pilot_docling_finale_20260909-110000/manifest/). Docling di suo
+# (archive/eval-results/pilot_docling_finale_20260909-110000/manifest/). Docling di suo
 # scaricherebbe il layout da `main`, un riferimento mobile.
 HF_REVISIONS = {
     "docling-project/docling-layout-heron": "8f39ad3c0b4c58e9c2d2c84a38465abf757272d8",

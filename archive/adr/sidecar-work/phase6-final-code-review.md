@@ -1,6 +1,6 @@
 # Audit finale statico del codice F1–F5 prima delle evidenze F6
 
-**Verdetto sul codice: APPROVATO, senza nuovi blocker concreti nel perimetro esaminato. Evidenza F6: PENDING.** Ho confrontato il delta `4f35acf7..708a142` in `rag/core`, `rag/api`, `rag/scripts` e relativi test con la [matrice ADR](../SCALABILITA_SIDECAR_DELTA_MATRICE.md) e le review F1–F5. Nessun modello, benchmark, container o suite è stato lanciato per questo audit. Il controllo non sostituisce le misure F6 ancora in corso.
+**Verdetto sul codice: APPROVATO, senza nuovi blocker concreti nel perimetro esaminato. Evidenza F6: PENDING.** Ho confrontato il delta `4f35acf7..708a142` in `rag/core`, `rag/api`, `rag/scripts` e relativi test con la [matrice ADR](../../../rag/adr/SCALABILITA_SIDECAR_DELTA_MATRICE.md) e le review F1–F5. Nessun modello, benchmark, container o suite è stato lanciato per questo audit. Il controllo non sostituisce le misure F6 ancora in corso.
 
 | Contratto | Esito statico e prove già disponibili |
 | --- | --- |

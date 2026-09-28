@@ -13,6 +13,7 @@ from qdrant_client.models import PointStruct
 from core import artifacts as _artifacts
 from core import config as _config
 from core import indexing as index
+from core import qdrant_versions
 from core import retrieval
 
 
@@ -273,7 +274,7 @@ def test_incremental_index_noop_returns_early(monkeypatch, tmp_path):
     non costruisce mai il client Qdrant né il modello (idempotenza sulle run ripetute)."""
     current = {"a.md": "h1", "b.md": "h2"}
     code = {"backend/svc.py": "c1"}
-    monkeypatch.setattr(index, "_docs_hashes", lambda: dict(current))
+    monkeypatch.setattr(index, "docs_hashes", lambda: dict(current))
     monkeypatch.setattr(index, "_code_hashes", lambda: dict(code))
     monkeypatch.setattr(index, "_read_manifest",
                         lambda: {"doc_hashes": dict(current), "code_hashes": dict(code)})
@@ -290,7 +291,7 @@ def test_incremental_index_noop_returns_early(monkeypatch, tmp_path):
 
 
 def test_incremental_only_delete_does_not_construct_embed_model(monkeypatch):
-    monkeypatch.setattr(index, "_docs_hashes", lambda: {})
+    monkeypatch.setattr(index, "docs_hashes", lambda: {})
     monkeypatch.setattr(index, "_code_hashes", lambda: {})
     monkeypatch.setattr(index, "_read_manifest",
                         lambda: {"doc_hashes": {"a.md": "old"}, "code_hashes": {}})
@@ -303,7 +304,7 @@ def test_incremental_only_delete_does_not_construct_embed_model(monkeypatch):
 
 
 def test_incremental_modified_content_constructs_embed_model(monkeypatch):
-    monkeypatch.setattr(index, "_docs_hashes", lambda: {"a.md": "new"})
+    monkeypatch.setattr(index, "docs_hashes", lambda: {"a.md": "new"})
     monkeypatch.setattr(index, "_code_hashes", lambda: {})
     monkeypatch.setattr(index, "_read_manifest",
                         lambda: {"doc_hashes": {"a.md": "old"}, "code_hashes": {}})
@@ -1270,6 +1271,10 @@ def test_full_rebuild_never_calls_reconciler_repair_helpers(monkeypatch, tmp_pat
 
     monkeypatch.setattr(index, "repair_qdrant_alias", _boom)
     monkeypatch.setattr(index, "reconcile_and_repair_qdrant_alias", _boom)
+    # Le chiamate indirette nate dentro core.qdrant_versions (es. dal GC) non passano
+    # dal re-export di indexing: vanno intercettate anche lì.
+    monkeypatch.setattr(qdrant_versions, "repair_qdrant_alias", _boom)
+    monkeypatch.setattr(qdrant_versions, "reconcile_and_repair_qdrant_alias", _boom)
 
     version = index.build_graph_and_index(qdrant=q, embed_model=stub)
     assert version  # arrivato qui senza eccezioni: nessun helper di riparazione chiamato
@@ -1426,6 +1431,9 @@ def test_incremental_index_never_calls_swap_alias(monkeypatch, tmp_path):
     def _boom(*a, **k):
         raise AssertionError("incremental_index non deve mai chiamare _swap_alias")
     monkeypatch.setattr(index, "_swap_alias", _boom)
+    # Anche lo swap raggiunto indirettamente (repair_qdrant_alias della guardia di
+    # lineage) vive in core.qdrant_versions e lì va intercettato.
+    monkeypatch.setattr(qdrant_versions, "_swap_alias", _boom)
 
     (docs_dir / "spec.md").write_text(_spec("BETA"), encoding="utf-8")
     stats = index.incremental_index(qdrant=q, embed_model=stub)
@@ -1682,6 +1690,10 @@ def test_incremental_lineage_guard_skips_repair_on_legacy_manifest_with_alias(mo
         raise AssertionError("manifest legacy: la guardia di lineage non va invocata")
     monkeypatch.setattr(index, "repair_qdrant_alias", _boom)
     monkeypatch.setattr(index, "reconcile_and_repair_qdrant_alias", _boom)
+    # Le chiamate indirette nate dentro core.qdrant_versions (es. dal GC) non passano
+    # dal re-export di indexing: vanno intercettate anche lì.
+    monkeypatch.setattr(qdrant_versions, "repair_qdrant_alias", _boom)
+    monkeypatch.setattr(qdrant_versions, "reconcile_and_repair_qdrant_alias", _boom)
 
     (docs_dir / "spec.md").write_text(_spec("BETA"), encoding="utf-8")
     stats = index.incremental_index(qdrant=q, embed_model=stub)
@@ -1878,7 +1890,7 @@ def test_gc_orphaned_qdrant_collections_removes_safe_orphans_after_prune(monkeyp
     q.collections.add(c2)
     q.aliases[index.COLLECTION_NAME] = c2
 
-    assert v1 not in index.list_versions()  # confermato: v1 potata dalla retention
+    assert v1 not in _artifacts.list_versions()  # confermato: v1 potata dalla retention
 
     removed = index.gc_orphaned_qdrant_collections(q)
     assert removed == [c1]
@@ -2111,7 +2123,7 @@ def test_full_rebuild_upsert_failure_propagates_and_blocks_promotion(monkeypatch
 
     assert len(q.upsert_batches) == 2       # 1a fetta riuscita, 2a tentata e fallita
     assert len(q.points) == 256             # solo la 1a fetta è arrivata a destinazione
-    assert index.list_versions() == []      # mai salvata: nessuna candidata persistita
+    assert _artifacts.list_versions() == []      # mai salvata: nessuna candidata persistita
 
 
 def test_qdrant_blue_green_flag_no_longer_exists_in_core_config():
@@ -2200,7 +2212,7 @@ def test_delta_ristretto_non_dimentica_le_cancellazioni_non_elaborate(tmp_path, 
     assert "nuovo.md" in doc_ids()
     assert "vecchio.md" in doc_ids()  # non elaborato: i punti restano...
     assert "vecchio.md" in index._read_manifest()["doc_hashes"]  # ...e il manifest lo dichiara
-    assert index.plan_incremental_indexing(index._docs_hashes(), index._read_manifest()).deleted == ["vecchio.md"]
+    assert index.plan_incremental_indexing(index.docs_hashes(), index._read_manifest()).deleted == ["vecchio.md"]
 
     index.incremental_index(qdrant=q, embed_model=stub)
     assert doc_ids() == {"a.md", "nuovo.md"}

@@ -7,6 +7,7 @@ import json
 import pytest
 
 from core import canvas_review as cr
+from core import drift_check, feature_archive
 from core import indexing as index
 
 CANVAS = """# REASONS Canvas: demo
@@ -236,8 +237,8 @@ def archive_env(tmp_path, monkeypatch):
     changes = tmp_path / "changes"
     docs = tmp_path / "docs"
     docs.mkdir()
-    monkeypatch.setattr(index, "CHANGES_DIR", changes)
-    monkeypatch.setattr(index, "DOCS_DIR", docs)
+    monkeypatch.setattr(feature_archive, "CHANGES_DIR", changes)
+    monkeypatch.setattr(feature_archive, "DOCS_DIR", docs)
     monkeypatch.setattr(index, "build_graph_and_index", lambda **kw: None)
     return tmp_path
 
@@ -245,7 +246,7 @@ def archive_env(tmp_path, monkeypatch):
 def test_archive_saves_review_and_historical_copy(archive_env, monkeypatch):
     _make_change(archive_env)
     monkeypatch.setattr(
-        index, "generate_canvas_review",
+        feature_archive, "generate_canvas_review",
         lambda folder, change_dir, **kw: ("# Canvas Review: feat-demo\n\nFedeltà: alto\n", None),
     )
     log = index.archive_feature("feat-demo", emit=lambda m: None)
@@ -260,7 +261,7 @@ def test_archive_saves_review_and_historical_copy(archive_env, monkeypatch):
 def test_archive_skips_review_with_warning_when_llm_down(archive_env, monkeypatch):
     _make_change(archive_env)
     monkeypatch.setattr(
-        index, "generate_canvas_review",
+        feature_archive, "generate_canvas_review",
         lambda folder, change_dir, **kw: (None, "LLM non raggiungibile o review fallita: connessione rifiutata"),
     )
     log = index.archive_feature("feat-demo", emit=lambda m: None)
@@ -316,14 +317,14 @@ def test_archive_passa_alla_review_il_codice_del_drift(archive_env, monkeypatch)
     (code / "tests").mkdir(parents=True)
     (code / "Reporting.cs").write_text("class Reporting {}", encoding="utf-8")
     (code / "tests" / "ReportingTests.cs").write_text("class ReportingTests {}", encoding="utf-8")
-    monkeypatch.setattr(index, "CODE_DIR", archive_env / "code")
+    monkeypatch.setattr(drift_check, "CODE_DIR", archive_env / "code")
     seen = {}
 
     def fake_review(folder, change_dir, **kw):
         seen["code"] = kw["code"]
         return None, "test"
 
-    monkeypatch.setattr(index, "generate_canvas_review", fake_review)
+    monkeypatch.setattr(feature_archive, "generate_canvas_review", fake_review)
     index.archive_feature("feat-demo", emit=lambda m: None)
     assert "--- FILE: Reporting.cs ---\nclass Reporting {}" in seen["code"]
     assert "ReportingTests" not in seen["code"]
@@ -361,8 +362,8 @@ def test_review_code_mette_prima_i_file_che_citano_i_simboli_del_contratto(archi
     }.items():
         (code / rel).parent.mkdir(parents=True, exist_ok=True)
         (code / rel).write_text(text, encoding="utf-8")
-    monkeypatch.setattr(index, "CODE_DIR", archive_env / "code")
-    labels = [line for line in index._review_code(change_dir).splitlines()
+    monkeypatch.setattr(drift_check, "CODE_DIR", archive_env / "code")
+    labels = [line for line in drift_check._review_code(change_dir).splitlines()
               if line.startswith("--- FILE:")]
     assert labels[:3] == ["--- FILE: src/z/Orchestrator.cs ---",
                           "--- FILE: src/components/EventCard.tsx ---", "--- FILE: src/lib/stock.ts ---"]

@@ -32,6 +32,7 @@ for _s in (sys.stdout, sys.stderr):  # accenti e simboli safe su console Windows
 from core.config import (  # noqa: E402
     DATABASE_DIR,
     EMBEDDING_MODEL,
+    INTAKE_LIBREOFFICE_ENABLED,
     LLM_SETTINGS,
     OLLAMA_URL,
     QDRANT_URL,
@@ -42,6 +43,9 @@ from core.config import (  # noqa: E402
 # Spazio minimo consigliato: bge-m3 (4,3 GB) + qwen3.5:9b (6,6 GB) + indice e margine.
 SPAZIO_MINIMO_GB = 20
 PYTHON_MINIMO = (3, 14)
+# Un preflight deve fallire in fretta: non aspettiamo il timeout intero configurato per una
+# conversione vera (default 120 s) solo per sapere se un filtro funziona o soffice risponde.
+LIBREOFFICE_PROBE_TIMEOUT_SECONDS = 30
 
 esiti: list[tuple[str, str, str]] = []  # (livello, titolo, dettaglio)
 
@@ -158,6 +162,67 @@ def controlla_gpu() -> None:
                       "domande restano usabili.")
 
 
+def controlla_libreoffice() -> None:
+    """DOC e PPT passano da LibreOffice headless (core/intake_convert.py) prima del motore
+    documentale: qui non basta che il comando esista, serve che i filtri di Writer e Impress
+    funzionino davvero. Senza, `--convert-to` fallisce SENZA aprire il file, e senza questo
+    controllo l'errore arrivava all'utente come "file protetto da password o danneggiato" —
+    fuorviante su un documento valido. Mai bloccante: chi non carica DOC/PPT non ne ha bisogno.
+    Import di core.intake_convert QUI (non in testa al file, come core.config): il preflight
+    deve poter fallire in fretta con un timeout dedicato, mai aspettare quanto una conversione
+    vera se il motore e' bloccato — v. probe_filtro/libreoffice_version(timeout=...)."""
+    import core.intake_convert as ic
+
+    if not INTAKE_LIBREOFFICE_ENABLED:
+        avviso("LibreOffice", "conversione DOC/PPT disattivata (intake.libreoffice.enabled: "
+                              "false in rag_config.yaml). Nessun problema se non carichi questi formati.")
+        return
+    if ic._libreoffice_cmd() is None:
+        avviso("LibreOffice", "comando non trovato (soffice/libreoffice nel PATH, o "
+                              "intake.libreoffice.command): i file DOC e PPT non si "
+                              "convertiranno. Installa libreoffice-writer-nogui e "
+                              "libreoffice-impress-nogui (Debian/Ubuntu, vedi Dockerfile) o "
+                              "l'equivalente per la tua distribuzione.")
+        return
+
+    mancanti = []
+    for moderno in sorted(set(ic.LEGACY_FORMATS.values())):
+        try:
+            funziona = ic.probe_filtro(moderno, timeout=LIBREOFFICE_PROBE_TIMEOUT_SECONDS)
+        except TimeoutError:
+            # Fermati al primo timeout: se soffice non risponde per un formato, aspettarne
+            # altrettanti per gli altri non aggiunge informazione, solo tempo.
+            avviso("LibreOffice", f"non risponde entro {LIBREOFFICE_PROBE_TIMEOUT_SECONDS:g} s "
+                                  f"durante la verifica del filtro per {moderno}: il comando "
+                                  f"potrebbe essere bloccato. Riprova; se e' solo lento, le "
+                                  f"conversioni reali usano intake.libreoffice.timeout_seconds "
+                                  f"({ic.INTAKE_LIBREOFFICE_TIMEOUT_SECONDS:g} s).")
+            return
+        except ic.LibreOfficeUnavailableError as exc:
+            avviso("LibreOffice", f"comando trovato ma non disponibile durante la verifica: {exc}")
+            return
+        if not funziona:
+            mancanti.append(moderno)
+    if mancanti:
+        avviso("LibreOffice", f"comando trovato, ma il filtro per {', '.join(mancanti)} non "
+                              f"funziona (modulo mancante, tipico di un'installazione con solo "
+                              f"libreoffice-core): installa libreoffice-writer-nogui, "
+                              f"libreoffice-impress-nogui e libreoffice-calc-nogui "
+                              f"(Debian/Ubuntu, vedi Dockerfile) o l'equivalente per la tua "
+                              f"distribuzione.")
+        return
+
+    try:
+        versione = ic.libreoffice_version(timeout=LIBREOFFICE_PROBE_TIMEOUT_SECONDS)
+    except TimeoutError:
+        avviso("LibreOffice", f"i filtri funzionano, ma `soffice --version` non risponde entro "
+                              f"{LIBREOFFICE_PROBE_TIMEOUT_SECONDS:g} s: il comando potrebbe "
+                              f"essere bloccato.")
+        return
+    ok("LibreOffice", f"filtri {', '.join(sorted(set(ic.LEGACY_FORMATS.values())))} funzionanti "
+                      f"({versione})")
+
+
 def controlla_porta() -> None:
     with socket.socket() as s:
         s.settimeout(2)
@@ -174,7 +239,7 @@ def main() -> int:
     print("VibeCraft — preflight\n")
     for controllo in (controlla_python, controlla_qdrant, controlla_ollama,
                       controlla_spazio, controlla_modello_embedding,
-                      controlla_gpu, controlla_porta):
+                      controlla_gpu, controlla_libreoffice, controlla_porta):
         controllo()
 
     simboli = {"ok": "  OK  ", "avviso": " AVVISO", "errore": " ERRORE"}

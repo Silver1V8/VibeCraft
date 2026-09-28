@@ -43,11 +43,11 @@ interno del modello. Il calo di copertura è spiegabile dal minor numero di
 scenari senza attribuirlo alla modifica sulle assunzioni. Il primo confronto
 non isola le due cause e non dimostra che dichiarare dubbi peggiori la qualità.
 
-Fonti: [protocollo](propose_ablation_20260914/evidence/PROTOCOL.md),
-[metodo](propose_ablation_20260914/evidence/HUMAN_REVIEW.md),
-[schede FE3](propose_ablation_20260914/evidence/REVIEW_FE3.md),
-[schede LA2](propose_ablation_20260914/evidence/REVIEW_LA2.md),
-[chiave](propose_ablation_20260914/evidence/AFTER_REVIEW/KEY.json).
+Fonti: [protocollo](../../../archive/eval-results/propose_ablation_20260914/evidence/PROTOCOL.md),
+[metodo](../../../archive/eval-results/propose_ablation_20260914/evidence/HUMAN_REVIEW.md),
+[schede FE3](../../../archive/eval-results/propose_ablation_20260914/evidence/REVIEW_FE3.md),
+[schede LA2](../../../archive/eval-results/propose_ablation_20260914/evidence/REVIEW_LA2.md),
+[chiave](../../../archive/eval-results/propose_ablation_20260914/evidence/AFTER_REVIEW/KEY.json).
 I riepiloghi meccanici in AFTER_REVIEW precedono la revisione: i verdetti e
 le correzioni finali si leggono nelle schede, non nei campi pending di quei file.
 
@@ -96,20 +96,20 @@ varianti provate risolve questo problema; non è una prova di impossibilità
 per qualunque prompt futuro. L'inventario esplicito di V4 non ne garantisce
 completezza o ancoraggio corretto.
 
-Dettagli e valori individuali: [secondo giro](propose_count_ablation_20260914/evidence/RESULTS.md)
-e [terzo giro](propose_inventory_ablation_20260914/evidence/RESULTS.md).
+Dettagli e valori individuali: [secondo giro](../../../archive/eval-results/propose_count_ablation_20260914/evidence/RESULTS.md)
+e [terzo giro](../../../archive/eval-results/propose_inventory_ablation_20260914/evidence/RESULTS.md).
 
 ## 3. Difetto del protocollo e tredici rilievi
 
 FE3-F4 era preregistrata come funzionalità attesa. La
-[fonte normativa](propose_inventory_ablation_20260914/evidence/inputs/spec_form_1.4.md)
+[fonte normativa](../../../archive/eval-results/propose_inventory_ablation_20260914/evidence/inputs/spec_form_1.4.md)
 la prescrive: REGOLA-INT-01 (righe 67–70) richiede la verifica asincrona
 prima di visualizzare il form per richieste APPROVATA/IN_ATTESA_APPROVAZIONE;
 lo scenario alle righe 98–102 impone il badge al posto del form per APPROVATA.
 È un comportamento del frontend all'accesso al form, non una semplice
 precondizione astratta; «prima» non lo assegna da solo a un'altra feature.
 
-Il [Canvas FE3](propose_inventory_ablation_20260914/evidence/inputs/fe3_canvas.md)
+Il [Canvas FE3](../../../archive/eval-results/propose_inventory_ablation_20260914/evidence/inputs/fe3_canvas.md)
 non assegna chiaramente l'implementazione a FE3: Approach, riga 15, parla
 del recupero del record «se necessario per validazioni future o contesto».
 Safeguards, riga 41, fa derivare visibilità e abilitazione dall'interfaccia
@@ -207,9 +207,9 @@ righe in sei campioni, non nove righe su dodici campioni.
 
 Circa 20 minuti macchina per i tre giri iniziali, circa 22 minuti e 24 secondi
 includendo il confronto successivo: somma dei tempi registrati, non del tempo
-umano di preparazione, lettura e revisione. Fonti: [misure del primo giro](propose_ablation_20260914/evidence/AFTER_REVIEW/MEASUREMENTS.json),
-[secondo giro](propose_count_ablation_20260914/evidence/RESULTS.md),
-[verifica del terzo](propose_inventory_ablation_20260914/evidence/VERIFICATION.json).
+umano di preparazione, lettura e revisione. Fonti: [misure del primo giro](../../../archive/eval-results/propose_ablation_20260914/evidence/AFTER_REVIEW/MEASUREMENTS.json),
+[secondo giro](../../../archive/eval-results/propose_count_ablation_20260914/evidence/RESULTS.md),
+[verifica del terzo](../../../archive/eval-results/propose_inventory_ablation_20260914/evidence/VERIFICATION.json).
 Zero starter preparati; pilot mai avviato. Le 4–8 ore erano una stima di
 preparazione degli starter, non un costo sostenuto né il tempo del solo pilot.
 Procedere direttamente avrebbe misurato una pipeline contenente la regressione

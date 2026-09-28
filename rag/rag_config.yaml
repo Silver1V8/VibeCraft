@@ -2,14 +2,13 @@
 # Configurazione globale del sistema Graph-RAG
 
 llm_settings:
-  # Valori supportati: "anthropic" (Claude 3.5 Sonnet), "openai" (GPT-4o), "ollama" (locale)
+  # Valori supportati: "anthropic" (claude-sonnet-5), "ollama" (locale)
   #active_provider: "anthropic"
   active_provider: "ollama"
   
   # Modelli specifici per provider
   models:
     anthropic: "claude-sonnet-5"
-    openai: "gpt-4o"
     ollama: "qwen3.5:9b" # generazione recente, 6.6GB: sta interamente negli 8GB di VRAM di una 3070 Ti
 
   # Thinking dei modelli Ollama che lo supportano (qwen3.5). false = disattivato: la pipeline
@@ -72,8 +71,11 @@ llm_settings:
   # Raggiunta la soglia, i purpose risolti su anthropic passano a fallback_provider
   # con un WARNING; se quel provider non ha un modello in `models` non si degrada e
   # si resta su Claude — un problema di costo non deve diventare un fallimento di
-  # generazione. spend_file (opzionale, relativo a rag/) fa sopravvivere il totale ai
-  # riavvii; omesso, il contatore è in-memory e riparte da zero a ogni avvio.
+  # generazione. Eccezione: i run dell'agente Claude (POST /api/pipeline/agent/run,
+  # runner `claude`) contano il total_cost_usd dell'SDK nello stesso contatore e, non
+  # avendo un fallback, oltre soglia vengono RIFIUTATI con 429 (soglia morbida: i run già
+  # in corso possono superarla). spend_file (opzionale, relativo a rag/) fa sopravvivere
+  # il totale ai riavvii; omesso, il contatore è in-memory e riparte da zero a ogni avvio.
   #budget:
   #  daily_usd: 5.0
   #  fallback_provider: "ollama"
@@ -192,7 +194,7 @@ retrieval:
   # del contesto a runtime: cambiarlo richiede un riavvio, non una reindicizzazione.
   # 0.35 verificato il 2026-09-10 sul corpus corrente (golden 58, multihop 8, holdout 7, top_k
   # 5 e 10): testo documentale invariato, copertura invariata, no-op a 0.0 byte-identico a
-  # prima (rag/eval/results/implementazione_migliorie_20260910/). 0.45 costava copertura.
+  # prima (archive/eval-results/implementazione_migliorie_20260910/). 0.45 costava copertura.
   code_link_min_question_score: 0.35
 
   # Tetti dell'endpoint GET /api/code/search, che espone la stessa ricerca semantica sui simboli
@@ -554,8 +556,8 @@ intake:
     timeout_seconds: 300
   # Formati binari legacy DOC e PPT: LibreOffice headless li normalizza nel formato moderno
   # (DOCX, PPTX), poi vale la matrice del formato moderno. Sui formati moderni LibreOffice non ha
-  # migliorato l'estrazione (rag/eval/results/libreoffice_20260910/); gli XLS non passano di qui,
-  # li legge xlrd senza alterare numeri e booleani (rag/eval/results/excel_diretto_20260911/).
+  # migliorato l'estrazione (archive/eval-results/libreoffice_20260910/); gli XLS non passano di qui,
+  # li legge xlrd senza alterare numeri e booleani (archive/eval-results/excel_diretto_20260911/).
   # Ogni conversione usa un profilo temporaneo blindato (macro spente, collegamenti mai
   # aggiornati, nessun ricalcolo delle formule). Se LibreOffice manca o non risponde, DOC e PPT
   # danno un errore esplicito. enabled: false = come "manca".

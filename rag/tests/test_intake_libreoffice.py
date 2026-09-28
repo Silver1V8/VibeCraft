@@ -1,6 +1,6 @@
 """Formati binari legacy DOC e PPT: LibreOffice headless con profilo blindato li normalizza
 nel formato moderno, poi vale la matrice del formato moderno. Confronto e scelta:
-rag/eval/results/libreoffice_20260910/RESOCONTO.md. Gli XLS non passano più da LibreOffice
+archive/eval-results/libreoffice_20260910/RESOCONTO.md. Gli XLS non passano più da LibreOffice
 (lettura diretta con xlrd, tests/test_intake_excel.py); qui restano solo nel controllo del
 contenitore OLE. Fixture: file prodotti da Word, Excel e PowerPoint 16, non dal round trip.
 
@@ -10,6 +10,7 @@ profilo e pulizia si provano con un finto soffice e girano ovunque."""
 import hashlib
 import json
 import os
+import shutil
 import sys
 import textwrap
 import time
@@ -25,6 +26,14 @@ from core.intake_convert import ConversionError, convert_to_markdown
 from test_intake_staging import _lock, _noop_reindex
 
 FIXTURES = Path(__file__).parent / "fixtures" / "intake"
+
+
+@pytest.fixture(autouse=True)
+def _reset_probe_cache(monkeypatch):
+    """probe_filtro cache-a in modulo SOLO gli esiti True (v. core/intake_convert.py): senza
+    reset, un test con LibreOffice vero che lo popola "inquinerebbe" i test successivi col
+    finto soffice, che invece devono vedere il filtro come non ancora verificato."""
+    monkeypatch.setattr(intake_convert, "_filtro_ok", {})
 
 
 @pytest.fixture
@@ -68,6 +77,17 @@ _FINTO = textwrap.dedent('''
         fh.write(json.dumps(rec) + "\\n")
     if modo == "dormi":
         time.sleep(60)
+    if modo == "senza_filtro":  # soffice reale senza il modulo Writer/Impress: stampa questo,
+        # niente file di uscita (misurato lanciando soffice reale senza libreoffice-calc-nogui).
+        print("Error: no export filter for /tmp/x/uscita/documento.docx found, aborting.")
+        sys.exit(1)
+    if modo == "non_carica":  # AMBIGUO (rivalidazione #13): questo testo esce IDENTICO, con
+        # LO 24.2.7.2, sia per un modulo assente sia per un DOC/PPT protetto o corrotto
+        # (misurato: file di prova cifrati e con lo stream principale azzerato/casuale).
+        # Qui rappresenta un finto soffice che non carica MAI nulla, sonda compresa: il probe
+        # deve concludere "filtro assente" (mai la certezza del solo testo).
+        print("Error: source file could not be loaded")
+        sys.exit(0)
 ''')
 
 
@@ -170,6 +190,61 @@ def test_nessuna_uscita_di_libreoffice_errore_chiaro(finto_soffice):
         convert_to_markdown((FIXTURES / "legacy.ppt").read_bytes(), "ppt", filename="x.ppt")
 
 
+def test_modulo_libreoffice_assente_messaggio_distinto_da_danneggiato(finto_soffice, monkeypatch):
+    """Un soffice senza il modulo Writer/Impress (es. immagine con solo libreoffice-core)
+    stampa "no export filter", MAI un messaggio che nomini il documento: l'errore deve dirlo,
+    non far credere che il DOC/PPT sia protetto o rotto (rivalidazione punto #13)."""
+    monkeypatch.setenv("FINTO_SOFFICE_MODO", "senza_filtro")
+    with pytest.raises(ConversionError) as exc_info:
+        convert_to_markdown((FIXTURES / "legacy.doc").read_bytes(), "doc", filename="manuale.doc")
+    messaggio = str(exc_info.value)
+    assert "modulo" in messaggio and "filtro" in messaggio
+    assert "protetto da password o danneggiato" not in messaggio
+    assert "libreoffice-writer-nogui" in messaggio and "libreoffice-impress-nogui" in messaggio
+
+
+def test_caricamento_fallito_ambiguo_confermato_modulo_assente_dal_probe(finto_soffice, monkeypatch):
+    """"source file could not be loaded" è AMBIGUO (rivalidazione #13, seconda revisione): un
+    soffice finto che lo stampa SEMPRE, documento e sonda compresi, rappresenta un modulo
+    davvero assente — il probe lo conferma e il messaggio deve dire "modulo mancante", mai
+    "protetto da password o danneggiato" (che quello stesso testo produce anche per un
+    documento vero corrotto, v. test sotto con LibreOffice reale)."""
+    monkeypatch.setenv("FINTO_SOFFICE_MODO", "non_carica")
+    with pytest.raises(ConversionError) as exc_info:
+        convert_to_markdown((FIXTURES / "legacy.doc").read_bytes(), "doc", filename="manuale.doc")
+    messaggio = str(exc_info.value)
+    assert "modulo" in messaggio and "filtro" in messaggio
+    assert "protetto da password o danneggiato" not in messaggio
+
+
+def test_caricamento_ambiguo_con_probe_in_errore_resta_protetto_o_danneggiato(finto_soffice, monkeypatch):
+    """Se il probe stesso fallisce (motore lento o non disponibile in quel momento) non è una
+    prova che il filtro manchi: resta il messaggio predefinito, mai "modulo mancante"."""
+    monkeypatch.setenv("FINTO_SOFFICE_MODO", "non_carica")
+
+    def _probe_in_timeout(*_a, **_k):
+        raise TimeoutError("sonda oltre il timeout")
+    monkeypatch.setattr(intake_convert, "probe_filtro", _probe_in_timeout)
+    with pytest.raises(ConversionError, match="protetto da password o danneggiato"):
+        convert_to_markdown((FIXTURES / "legacy.doc").read_bytes(), "doc", filename="manuale.doc")
+
+
+def test_doc_con_stream_azzerato_su_soffice_vero_resta_protetto_o_danneggiato(libreoffice_reale, tmp_path):
+    """Rivalidazione #13 (seconda revisione): misurato con LO 24.2.7.2 reale che "source file
+    could not be loaded" esce IDENTICO per un modulo assente e per un DOC con lo stream
+    WordDocument azzerato (struttura OLE intatta, _check_ole lo lascia passare). Con Writer
+    presente in questo container, probe_filtro lo conferma e il messaggio deve restare quello
+    del documento — mai "modulo mancante" su un file che LibreOffice sa aprire."""
+    import olefile
+    percorso = tmp_path / "zero.doc"
+    shutil.copy(FIXTURES / "legacy.doc", percorso)
+    with olefile.OleFileIO(str(percorso), write_mode=True) as ole:
+        n = ole.get_size("WordDocument")
+        ole.write_stream("WordDocument", b"\0" * n)
+    with pytest.raises(ConversionError, match="protetto da password o danneggiato"):
+        convert_to_markdown(percorso.read_bytes(), "doc", filename="zero.doc")
+
+
 def test_timeout_termina_l_intero_albero_di_processi(finto_soffice, monkeypatch):
     monkeypatch.setenv("FINTO_SOFFICE_MODO", "dormi")
     monkeypatch.setattr(intake_convert, "INTAKE_LIBREOFFICE_TIMEOUT_SECONDS", 3)
@@ -192,3 +267,54 @@ def test_doc_e_ppt_senza_libreoffice_errore_esplicito(monkeypatch):
     for formato in ("doc", "ppt"):
         with pytest.raises(ConversionError, match=f"salva il file come .{formato}x"):
             convert_to_markdown((FIXTURES / f"legacy.{formato}").read_bytes(), formato, filename=f"f.{formato}")
+
+
+# ---------------------------------------------------------------------------
+# probe_filtro: usato da scripts/doctor.py per dire se Writer/Impress funzionano
+# ---------------------------------------------------------------------------
+def test_probe_filtro_writer_e_impress_presenti(libreoffice_reale):
+    """Coerente col container di questo punto: libreoffice-writer-nogui e
+    libreoffice-impress-nogui sono installati, i filtri devono risultare presenti."""
+    assert intake_convert.probe_filtro("docx") is True
+    assert intake_convert.probe_filtro("pptx") is True
+
+
+def test_probe_filtro_assente_con_soffice_finto(finto_soffice, monkeypatch):
+    monkeypatch.setenv("FINTO_SOFFICE_MODO", "senza_filtro")
+    assert intake_convert.probe_filtro("docx") is False
+
+
+def test_probe_filtro_propaga_libreoffice_assente(monkeypatch):
+    """Se LibreOffice manca del tutto non è un "filtro assente": la chiamata deve fallire con
+    l'errore vero (motore non disponibile), mai un esito silenzioso che nasconda il problema
+    (rivalidazione #13, seconda revisione: un True indebito qui mascherava anche un motore
+    bloccato come "filtri a posto" in scripts/doctor.py)."""
+    monkeypatch.setattr(intake_convert, "INTAKE_LIBREOFFICE_ENABLED", False)
+    with pytest.raises(intake_convert.LibreOfficeUnavailableError):
+        intake_convert.probe_filtro("docx")
+
+
+def test_probe_filtro_propaga_timeout(finto_soffice, monkeypatch):
+    """Un motore bloccato non è "filtro assente" né "filtro presente": il chiamante (qui
+    scripts/doctor.py) deve poter distinguere il timeout, non ricevere un esito silenzioso."""
+    monkeypatch.setenv("FINTO_SOFFICE_MODO", "dormi")
+    with pytest.raises(TimeoutError):
+        intake_convert.probe_filtro("docx", timeout=2)
+
+
+def test_probe_filtro_falso_non_cache_ato(finto_soffice, monkeypatch):
+    """Cache di processo SOLO per True (rivalidazione #13): un esito False non deve restare
+    cache-ato, altrimenti un problema transitorio escluderebbe per sempre conversioni che
+    invece funzionerebbero."""
+    monkeypatch.setenv("FINTO_SOFFICE_MODO", "senza_filtro")
+    assert intake_convert.probe_filtro("docx") is False
+    assert intake_convert._filtro_ok == {}
+
+
+def test_probe_filtro_vero_cache_ato_evita_una_seconda_invocazione(libreoffice_reale, monkeypatch):
+    assert intake_convert.probe_filtro("docx") is True
+    assert intake_convert._filtro_ok == {"docx": True}
+    # Con la cache, una seconda chiamata non deve invocare di nuovo soffice: un comando che
+    # farebbe fallire qualunque invocazione reale lo dimostra.
+    monkeypatch.setattr(intake_convert, "_libreoffice_cmd", lambda: None)
+    assert intake_convert.probe_filtro("docx") is True

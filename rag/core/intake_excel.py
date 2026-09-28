@@ -1,6 +1,6 @@
 """Excel → Markdown per l'intake: lettura DIRETTA dell'originale, XLSX con openpyxl e XLS con
 xlrd, senza normalizzazioni intermedie né tabelle dedotte. Prove e scelte:
-rag/eval/results/excel_diretto_20260911/RESOCONTO.md.
+archive/eval-results/excel_diretto_20260911/RESOCONTO.md.
 
 Contratto della rappresentazione:
 - una sezione `##` per foglio, nell'ordine del workbook, compresi i fogli vuoti o nascosti;

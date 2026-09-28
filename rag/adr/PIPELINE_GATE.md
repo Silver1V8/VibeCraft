@@ -31,7 +31,7 @@ Dati osservati su **un solo ciclo completato**, su due revisioni del validatore:
 Implementazione: `452b88d`; evidenze del ciclo completo: `f911b12`.
 I tre record originali restano identici byte per byte. Risposte, tempi, errori e
 misure sono nei resoconti del [14 settembre](../eval/results/gate_end_to_end_20260914/evidence/RESULTS.md)
-e del [15 settembre](../eval/results/gate_end_to_end_20260915/evidence/RESULTS.md).
+e del [15 settembre](../../archive/eval-results/gate_end_to_end_20260915/evidence/RESULTS.md).
 
 ## Registro unico degli attriti delle due prove
 
@@ -225,7 +225,7 @@ I tre record nuovi hanno mediana 39 549 byte (38.6 KiB); sui sei, mediana
 rimasti identici, verificati tramite SHA-256. Nessuna decisione o deroga inventata.
 
 [Prima parte e cinque attriti](../eval/results/gate_end_to_end_20260914/evidence/RESULTS.md).
-[Conclusione, tempi, record, 409 e due nuovi attriti](../eval/results/gate_end_to_end_20260915/evidence/RESULTS.md).
+[Conclusione, tempi, record, 409 e due nuovi attriti](../../archive/eval-results/gate_end_to_end_20260915/evidence/RESULTS.md).
 Due nuovi resoconti conformi su tre; il terzo è JSON malformato, non assenza
 verificata di contraddizioni. Nessun giudizio di affidabilità da questo campione.
 running→esito aggiorna lo stesso file, una rivalidazione ne crea uno nuovo.

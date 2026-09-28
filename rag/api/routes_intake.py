@@ -87,7 +87,20 @@ class GenerateRequest(BaseModel):
 
 # Un solo manager per processo: nessuna coda/coalescing (i job di generazione sono
 # indipendenti, non toccano mai il writer lock di docs/+indice — vedi core.doc_generation).
-_generation_manager = doc_generation.GenerationManager()
+# Tetto di job LLM attivi CONDIVISO fra generazione, raffinazione e project brief
+# (VIBECRAFT_GENERATION_MAX_ACTIVE, in totale): i tre job usano lo stesso modello, un
+# tetto per manager lo moltiplicherebbe. Retention dei terminati per manager
+# (VIBECRAFT_GENERATION_MAX_FINISHED). Entrambe lette alla prima start.
+_job_slots = doc_generation.GenerationSlots()
+_generation_manager = doc_generation.GenerationManager(slots=_job_slots)
+
+
+def _start_job(manager: doc_generation.GenerationManager, *args) -> doc_generation.GenerationJob:
+    """manager.start(*args), con il tetto di job attivi tradotto in 429 come /ask."""
+    try:
+        return manager.start(*args)
+    except doc_generation.GenerationBusyError as exc:
+        raise HTTPException(status_code=429, detail=str(exc), headers={"Retry-After": "5"}) from exc
 
 
 def _server_reindex(changed_paths):
@@ -212,7 +225,8 @@ async def start_generation(payload: GenerateRequest):
     si legge da GET /api/intake/generate/{job_id}."""
     if not payload.descrizione.strip():
         raise HTTPException(status_code=422, detail="descrizione vuota")
-    job = _generation_manager.start(
+    job = _start_job(
+        _generation_manager,
         payload.descrizione, payload.n_file, payload.categoria_suggerita,
         lambda: _server_generate(payload.descrizione, payload.n_file, payload.categoria_suggerita),
     )
@@ -236,7 +250,7 @@ async def generation_status(job_id: str):
 # ---------------------------------------------------------------------------
 # Manager dedicato: stessi thread daemon degli altri job, istanza separata per non
 # mescolare i job di raffinazione con quelli di generazione e brief.
-_refine_manager = doc_generation.GenerationManager()
+_refine_manager = doc_generation.GenerationManager(slots=_job_slots)
 
 
 @router.post("/api/intake/staged/{doc_id}/refine",
@@ -251,7 +265,8 @@ async def refine_staged_document(doc_id: str):
         await run_in_threadpool(intake.require_staged, doc_id)
     except Exception as exc:
         _raise_http(exc)
-    job = _refine_manager.start(
+    job = _start_job(
+        _refine_manager,
         f"refine {doc_id}", 1, "",
         lambda: intake_refine.refine_staged_document(doc_id),
     )
@@ -405,7 +420,7 @@ class ProjectBriefRequest(BaseModel):
 
 # Manager dedicato ai brief: stessi thread daemon del GenerationManager S3, istanza
 # separata per non mescolare i job (e i monkeypatch dei test) con la generazione doc.
-_brief_manager = doc_generation.GenerationManager()
+_brief_manager = doc_generation.GenerationManager(slots=_job_slots)
 
 
 def _server_brief(target: str, progetto: str | None) -> dict:
@@ -443,7 +458,8 @@ async def start_project_brief(payload: ProjectBriefRequest):
     except Exception as exc:
         _raise_http(exc)
     etichetta = f"{payload.target}/{payload.progetto}" if payload.progetto else payload.target
-    job = _brief_manager.start(
+    job = _start_job(
+        _brief_manager,
         f"project brief {etichetta}", 1, project_brief.BRIEF_CATEGORIA_SUGGERITA,
         lambda: _server_brief(payload.target, payload.progetto),
     )
