@@ -201,8 +201,8 @@ solo Qdrant. Il backend nativo legge invece `rag/.env.local`; da loopback non ri
 la chiave.
 
 Se qualcosa non parte, **chiedi al preflight invece di indovinare**: verifica versione di
-Python, Qdrant, Ollama e il suo modello, spazio su disco, GPU e porta — e per ogni problema
-stampa il rimedio.
+Python, Qdrant, Ollama e il suo modello, spazio su disco, GPU, LibreOffice (DOC/PPT) e porta
+— e per ogni problema stampa il rimedio.
 
 ```bash
 # Dalla directory rag/

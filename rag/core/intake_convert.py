@@ -340,6 +340,23 @@ _LO_PROFILE = """<?xml version="1.0" encoding="UTF-8"?>
 """
 _WIN_SOFFICE = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "LibreOffice" / "program" / "soffice.com"
 
+# Pacchetti Debian/Ubuntu installati dal Dockerfile per i filtri usati qui: se ne manca uno
+# (es. immagine con solo libreoffice-core, senza i moduli "-nogui"), `--convert-to` fallisce
+# SENZA aprire il documento, con un messaggio del motore che nomina il filtro, non il file.
+# Confuso con "file protetto o danneggiato" prima di questa distinzione (v. _FILTRO_ASSENTE_RE).
+_LO_PACCHETTI = "libreoffice-writer-nogui, libreoffice-impress-nogui, libreoffice-calc-nogui"
+
+# Frase che LibreOffice stampa quando il filtro di import o export non esiste (modulo
+# mancante): CERTA, mai per un documento aperto ma protetto o danneggiato — misurata lanciando
+# soffice reale senza il modulo Calc (`Error: no export filter for .../sonda.xlsx found,
+# aborting.`). "source file could not be loaded" invece è AMBIGUA: con LO 24.2.7.2 esce
+# IDENTICA sia per un modulo assente sia per un DOC/PPT protetto da password o con lo stream
+# principale corrotto (misurato: file di prova con password e con lo stream WordDocument
+# azzerato producono esattamente questo testo) — va disambiguata con probe_filtro, mai dedotta
+# dal solo testo (rivalidazione del punto #13, 2026-09-28).
+_FILTRO_ASSENTE_RE = re.compile(r"no (?:export|import) filter", re.IGNORECASE)
+_CARICAMENTO_FALLITO_RE = re.compile(r"source file could not be loaded", re.IGNORECASE)
+
 
 class LibreOfficeUnavailableError(RuntimeError):
     """LibreOffice disattivato o non installato: non è un difetto del documento."""
@@ -390,17 +407,101 @@ def _libreoffice(argomenti: list[str], tmp: Path, timeout: float) -> tuple[int, 
 _lo_version: str | None = None
 
 
-def libreoffice_version() -> str:
+def libreoffice_version(timeout: float = 60) -> str:
+    """`timeout` è configurabile (default 60 s, il costo normale di un avvio a freddo): un
+    preflight (scripts/doctor.py) può passarne uno più corto per non restare bloccato quanto
+    una conversione vera se il motore non risponde. TimeoutError si propaga, mai catturata qui:
+    un motore che non risponde non è una versione "sconosciuta", è un errore da segnalare."""
     global _lo_version
     if _lo_version is None:
         tmp = Path(tempfile.mkdtemp(prefix="vibecraft_lo_"))
         try:
-            testo = _libreoffice(["--version"], tmp, 60)[1]
+            testo = _libreoffice(["--version"], tmp, timeout)[1]
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
         _lo_version = next((r.strip() for r in testo.splitlines() if r.startswith("LibreOffice")),
                            "sconosciuta")
     return _lo_version
+
+
+# Sonde minime (ODT/ODP: ZIP con mimetype non compresso, manifest e content.xml essenziali,
+# nessun testo dell'utente) usate SOLO da probe_filtro: dicono con certezza se il filtro di
+# esportazione verso .docx/.pptx esiste, invece di indovinarlo dal testo dell'errore
+# (_FILTRO_ASSENTE_RE), che cambia fra versioni e lingue di LibreOffice. Usate da
+# scripts/doctor.py per un preflight a server spento, senza un documento reale sottomano.
+_SONDA_MIMETYPE = {"docx": "application/vnd.oasis.opendocument.text",
+                   "pptx": "application/vnd.oasis.opendocument.presentation"}
+_SONDA_ESTENSIONE = {"docx": "odt", "pptx": "odp"}
+_SONDA_CORPO = {
+    "docx": b"<office:text><text:p>sonda</text:p></office:text>",
+    "pptx": (b'<office:presentation><draw:page draw:name="p1" '
+             b'draw:master-page-name="Default"/></office:presentation>'),
+}
+
+
+def _documento_sonda(moderno: str) -> bytes:
+    mimetype = _SONDA_MIMETYPE[moderno]
+    manifest = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" '
+        'manifest:version="1.2">'
+        f'<manifest:file-entry manifest:full-path="/" manifest:version="1.2" '
+        f'manifest:media-type="{mimetype}"/>'
+        '<manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/>'
+        '</manifest:manifest>'
+    ).encode()
+    content = (
+        b'<?xml version="1.0" encoding="UTF-8"?>'
+        b'<office:document-content '
+        b'xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+        b'xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" '
+        b'xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" '
+        b'xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0" '
+        b'office:version="1.2">' + _SONDA_CORPO[moderno] + b'</office:document-content>'
+    )
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        zi = zipfile.ZipInfo("mimetype")
+        zi.compress_type = zipfile.ZIP_STORED
+        z.writestr(zi, mimetype.encode())
+        z.writestr("META-INF/manifest.xml", manifest)
+        z.writestr("content.xml", content)
+    return buf.getvalue()
+
+
+# Esito cache-ato di probe_filtro: SOLO True (il filtro funziona e non cambia finché
+# l'immagine non cambia). Un False non si cache-a: potrebbe essere un fluke o un problema
+# transitorio del motore, ed escluderlo per il resto del processo negherebbe conversioni che
+# invece funzionerebbero.
+_filtro_ok: dict[str, bool] = {}
+
+
+def probe_filtro(moderno: str, timeout: float | None = None) -> bool:
+    """True se LibreOffice sa esportare verso `moderno` ("docx" o "pptx"): conversione reale di
+    una sonda minima valida, mai del documento dell'utente. `timeout` predefinito a
+    intake.libreoffice.timeout_seconds; un chiamante che deve fallire in fretta (scripts/
+    doctor.py) ne passa uno più corto. LibreOfficeUnavailableError e TimeoutError si propagano
+    SENZA essere catturate qui: non sono "filtro assente" (motore assente o bloccato, non
+    modulo mancante) e il chiamante deve poterle distinguere, non riceverne un esito silenzioso
+    (rivalidazione del punto #13: un True indebito per il timeout mascherava un motore bloccato
+    come "filtri a posto")."""
+    if _filtro_ok.get(moderno):
+        return True
+    timeout = INTAKE_LIBREOFFICE_TIMEOUT_SECONDS if timeout is None else timeout
+    tmp = Path(tempfile.mkdtemp(prefix="vibecraft_lo_sonda_"))
+    try:
+        sorgente = tmp / f"sonda.{_SONDA_ESTENSIONE[moderno]}"
+        sorgente.write_bytes(_documento_sonda(moderno))
+        uscita = tmp / "uscita"
+        uscita.mkdir()
+        codice, _testo = _libreoffice(
+            ["--convert-to", moderno, "--outdir", str(uscita), str(sorgente)], tmp, timeout)
+        ok = codice == 0 and (uscita / f"sonda.{moderno}").is_file()
+        if ok:
+            _filtro_ok[moderno] = True
+        return ok
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def _check_ole(data: bytes, fmt: str, nome_file: str) -> None:
@@ -416,8 +517,13 @@ def _check_ole(data: bytes, fmt: str, nome_file: str) -> None:
 
 def _normalize_legacy(data: bytes, fmt: str, nome_file: str) -> bytes:
     """DOC/XLS/PPT → DOCX/XLSX/PPTX, su una COPIA in una cartella temporanea rimossa sempre.
-    ConversionError se LibreOffice non riesce ad aprire il file (password, struttura interna
-    danneggiata); LibreOfficeUnavailableError o TimeoutError se il motore manca o non risponde."""
+    ConversionError se LibreOffice non riesce ad aprire il file: per il DOCUMENTO (password,
+    struttura interna danneggiata) o per l'AMBIENTE (modulo Writer/Impress mancante). Il testo
+    del motore lo dice con certezza solo per "no export/import filter"; "source file could not
+    be loaded" è ambiguo (esce identico per un modulo assente e per un documento protetto o
+    corrotto, v. _CARICAMENTO_FALLITO_RE) e va disambiguato con probe_filtro — mai un difetto
+    del documento presentato come "modulo mancante", e viceversa.
+    LibreOfficeUnavailableError o TimeoutError se il motore manca del tutto o non risponde."""
     moderno = LEGACY_FORMATS[fmt]
     tmp = Path(tempfile.mkdtemp(prefix="vibecraft_lo_"))
     try:
@@ -425,10 +531,26 @@ def _normalize_legacy(data: bytes, fmt: str, nome_file: str) -> bytes:
         sorgente.write_bytes(data)
         uscita = tmp / "uscita"
         uscita.mkdir()
-        codice, _testo = _libreoffice(["--convert-to", moderno, "--outdir", str(uscita), str(sorgente)],
-                                      tmp, INTAKE_LIBREOFFICE_TIMEOUT_SECONDS)
+        codice, testo = _libreoffice(["--convert-to", moderno, "--outdir", str(uscita), str(sorgente)],
+                                     tmp, INTAKE_LIBREOFFICE_TIMEOUT_SECONDS)
         risultato = uscita / f"documento.{moderno}"
         if codice != 0 or not risultato.is_file():
+            filtro_assente = _FILTRO_ASSENTE_RE.search(testo) is not None
+            if not filtro_assente and _CARICAMENTO_FALLITO_RE.search(testo):
+                try:
+                    filtro_assente = not probe_filtro(moderno)
+                except (LibreOfficeUnavailableError, TimeoutError):
+                    # Il motore ha problemi propri in questo momento: non è una prova che il
+                    # filtro manchi, e non trasformiamo un guasto transitorio in una diagnosi
+                    # sui pacchetti. Il messaggio predefinito (sotto) resta corretto in ogni
+                    # caso: il documento non si è convertito, qualunque sia la causa.
+                    filtro_assente = False
+            if filtro_assente:
+                raise ConversionError(
+                    f"LibreOffice qui non ha il modulo per convertire .{fmt} (filtro assente, "
+                    f"tipico di un'installazione con solo libreoffice-core): installa "
+                    f"{_LO_PACCHETTI} (Debian/Ubuntu, vedi Dockerfile) o l'equivalente per la "
+                    f"tua distribuzione, poi ricarica {nome_file}")
             raise ConversionError(f"LibreOffice non ha potuto aprire {nome_file} (protetto da password "
                                   f"o danneggiato): rimuovi l'eventuale protezione e ricaricalo")
         return risultato.read_bytes()
