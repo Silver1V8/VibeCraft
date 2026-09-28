@@ -15,9 +15,32 @@ rag/.env.local
 # Cache di sviluppo
 .pytest_cache/
 **/.pytest_cache/
-rag/eval/results/*.json
+.ruff_cache/
+**/.ruff_cache/
+.mypy_cache/
+**/.mypy_cache/
 code/frontend/.next/
 code/frontend/tsconfig.tsbuildinfo
+
+# Run puntuali delle eval (rag/eval/run.py, run_multihop.py, gli script "evidence/" degli
+# esperimenti di scalabilità): audit di sviluppo, non letti da alcun codice a runtime.
+# SOLO history.jsonl serve nell'immagine — lo legge rag/core/eval_history.py, dietro
+# GET /api/eval-history e la pagina /eval (rag/api/routes_health.py, routes_pages.py).
+#
+# NIENTE slash finale come "solo directory": BuildKit normalizza i pattern con
+# filepath.Clean PRIMA di interpretarli (moby/patternmatcher, ignorefile.ReadAll), quindi
+# "rag/eval/results/*/" diventa "rag/eval/results/*" e — a differenza di .gitignore —
+# matcha qualunque voce a quel livello, file compresi: escluderebbe anche history.jsonl.
+# Verificato con moby/patternmatcher v0.6.1 vero (non un'approssimazione): stessa
+# esclusione dell'intera cartella, poi si re-include il solo file che serve.
+rag/eval/results/
+!rag/eval/results/history.jsonl
+
+# Test: non entrano nella build Docker ne' in CI (il job `docker` fa `docker build` e poi
+# `docker run ... python -c "import server, index"` — pytest gira nel job `test`, fuori
+# da Docker, vedi .github/workflows/ci.yml). Le fixture montate nei `docker run` di CI
+# arrivano da bind mount sull'host, non da COPY: il contesto di build non deve portarle.
+rag/tests/
 
 # Storia e strumenti che non servono a runtime
 .git/
@@ -26,13 +49,12 @@ code/frontend/tsconfig.tsbuildinfo
 .claude/
 docs.local-backup-*/
 
-# Documenti di lavoro dell'audit: utili nel repository, inutili nell'immagine. Spostati in
-# rag/adr/ perché sono cronaca di sviluppo, non parte del prodotto che gira — stessa ragione
-# per cui adr/ non sta sotto docs/ (il corpus indicizzato). RESIDUI.md (il backlog derivato
-# dall'audit) non era mai stato aggiunto qui: stessa categoria, stessa esclusione.
-rag/adr/AUDIT.md
-rag/adr/DISTRIBUTION.md
-rag/adr/RESIDUI.md
+# Documenti di lavoro dell'audit: utili nel repository, inutili nell'immagine — cronaca di
+# sviluppo, non parte del prodotto che gira, stessa ragione per cui adr/ non sta sotto docs/
+# (il corpus indicizzato). Nessun codice a runtime legge rag/adr/ (solo commenti/docstring
+# ci rimandano, es. core/retrieval.py, core/intake_convert.py): l'intera cartella esce,
+# non solo i tre file piu' pesanti come prima (AUDIT.md, DISTRIBUTION.md, RESIDUI.md).
+rag/adr/
 
 # Artefatti di build dentro code/: sono le STESSE directory che l'indicizzatore gia' scarta
 # (core/config.CODE_EXCLUDED_DIRS), quindi non servono nemmeno a lui. In un checkout pulito
