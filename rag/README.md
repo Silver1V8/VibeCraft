@@ -207,7 +207,9 @@ webhook in sicurezza imposta **entrambe** le variabili d'ambiente: `VIBECRAFT_AP
 (header `X-Gitlab-Token`, il *Secret token* del webhook GitLab). Quando
 `VIBECRAFT_GITLAB_TOKEN` è impostata, `POST /api/reindex` esige il token corretto
 (confronto a tempo costante con `hmac.compare_digest`) **in aggiunta** a `X-API-Key`;
-se non è impostata il comportamento resta invariato (solo `X-API-Key`). Dal payload
+se non è impostata il comportamento resta invariato (solo `X-API-Key`). Il `<host>` del
+webhook va anche ammesso nell'header `Host` (`VIBECRAFT_ALLOWED_HOSTS` o
+`VIBECRAFT_BASE_URL`), altrimenti la richiesta riceve 400. Dal payload
 push vengono estratti i path modificati
 (`commits[].added/modified/removed`) e passati al plan del delta indexing per
 limitare il lavoro ai soli file cambiati; un payload merge request (senza elenco
@@ -956,7 +958,11 @@ $env:VIBECRAFT_OLLAMA_URL = 'http://127.0.0.1:21434'
 Tutti devono usare gli stessi modelli/configurazione indice e la stessa directory
 locale. Il reader richiede una chiave API esplicita anche da loopback: un proxy
 locale deve inoltrare una credenziale verificata, senza fidarsi di
-`X-Forwarded-For`. La UI richiede la chiave al primo 401 e non la riceve dal server.
+`X-Forwarded-For`. Se il proxy inoltra un header `Host` diverso dal loopback, quel nome
+va aggiunto a `VIBECRAFT_ALLOWED_HOSTS` nei processi a valle: ogni processo rifiuta con
+400 gli `Host` non riconosciuti (difesa dal DNS rebinding, vedi
+[SECURITY_SURFACE.md](SECURITY_SURFACE.md) Fatto 9).
+La UI richiede la chiave al primo 401 e non la riceve dal server.
 Le route di scrittura e i relativi manager non sono caricati nel reader.
 Quando il servizio Qdrant offre credenziali di sola lettura, configurare quelle
 nei processi reader tramite `QDRANT_API_KEY`; non distribuire loro la chiave writer.

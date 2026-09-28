@@ -164,6 +164,30 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
    raggiungibile nulla che prima non lo fosse — un attaccante cross-site non può leggere
    quel `localStorage` (è origin-scoped) né far partire la richiesta (Fatti 1-2).
 
+9. **Header `Host` validato prima di ogni route** (`HostHeaderGuard` in
+   [`api/deps.py`](api/deps.py), montato in [`server.py`](server.py); dal 2026-09-28).
+   Il bypass del Fatto 3 guarda l'IP del client, non il nome con cui il browser crede di
+   parlare al server: con il **DNS rebinding** una pagina su `attacker.example` fa
+   risolvere il proprio nome a `127.0.0.1`, le sue `fetch()` arrivano da loopback (auth
+   bypassata) e sono **same-origin** per il browser, che quindi ne lascia leggere le
+   risposte — verificato prima della correzione: `Host: attacker.example:8000` da
+   `127.0.0.1` otteneva `200` su `/api/pipeline/dev-types` e `/pipeline` **con la chiave
+   iniettata**. Ora ogni richiesta HTTP/WebSocket con `Host` fuori dall'insieme ammesso
+   riceve **400** prima di pagine, API e statici. Ammessi: `127.0.0.1`, `localhost`, `::1`
+   (anche `[::1]:porta`), l'interfaccia di bind se è un indirizzo specifico (non
+   `0.0.0.0`/`::`), l'host di `VIBECRAFT_BASE_URL` e la lista `VIBECRAFT_ALLOWED_HOSTS`
+   (virgole). Nessuna wildcard: una voce con `*` è ignorata con un warning all'avvio;
+   `testserver` (TestClient) **non** è ammesso. `Host` è un forbidden header: il JS della
+   pagina ostile non può riscriverlo. I rifiuti sono loggati con un WARNING per host
+   distinto, poi a DEBUG. Con un bind wildcard e senza `VIBECRAFT_BASE_URL`, l'URL
+   derivato che i prompt dell'agente riportano (`SERVER_BASE_URL`) usa `127.0.0.1`, non
+   `0.0.0.0`, che riceverebbe 400. **Nessuna configurazione serve nel setup di default**
+   (bind locale, oppure Docker con la porta pubblicata su `127.0.0.1`): healthcheck,
+   `mcp_server.py` e script usano il loopback numerico e il browser manda `127.0.0.1:8000`
+   o `localhost:8000`. **Serve** `VIBECRAFT_ALLOWED_HOSTS` (o `VIBECRAFT_BASE_URL`) quando il
+   server viene raggiunto con un altro nome: hostname o IP di LAN con bind `0.0.0.0`,
+   reverse proxy che inoltra il proprio `Host`, webhook GitLab verso un nome pubblico.
+
 ---
 
 ## 1. Tabella completa delle route (59 righe)
@@ -365,7 +389,7 @@ mentre il ramo "come oggi" dia il 422 — la business logic non viene mai esegui
 | 3 | **Client cross-site non-browser** (curl/script sulla LAN se il bind supera localhost). Non inviano `Sec-Fetch-Site` → la guardia non li ferma. | **Accettato per design.** Sec-Fetch-Site difende il vettore CSRF-da-browser, non l'accesso programmatico. La barriera per quest'ultimo resta `VIBECRAFT_API_KEY` + bind `127.0.0.1` (fail-closed già presente in `server.py`). |
 | 4 | **DoS-CPU/costo sulle GET read-only** (`/api/retrieve` 34, `/api/code/search` 35, `/api/graph/semantic-map` 39): un trigger cross-site di massa consuma embedding/SVD senza mutare stato. | **Accettato.** I POST-LLM sono ora tutti coperti (§2B), quindi il grosso è chiuso. Per le GET CPU un rate-limit resta **debito annotato**: `/api/code/search` ha già tetti di risposta (`k ≤ 25`) ma non di frequenza. |
 | 5 | **`/docs`, `/redoc`, `/openapi.json` non autenticati** (Appendice A). Espongono l'intero schema delle route a chiunque raggiunga il server. | **Accettato in locale**; in caso di esposizione, disabilitare (`FastAPI(docs_url=None, redoc_url=None, openapi_url=None)`) o proteggerli. Info-disclosure, non mutazione. |
-| 6 | **`GET /pipeline` (2) inietta `VIBECRAFT_API_KEY` nell'HTML** come `window.__VIBECRAFT_AGENT_API_KEY__`, su una route senza auth. | **Accettato, per costruzione.** L'iniezione avviene **solo** per client locali (`_is_local_request`, stessa condizione del bypass di `require_api_key`) e la Same-Origin Policy impedisce a una pagina di un'altra origine di **leggere** il body della risposta: può solo navigarci o fare fetch opachi. Se il server è esposto oltre localhost l'iniezione si disattiva da sola, quindi la chiave non raggiunge mai un client remoto. Resta un rischio se l'utente esegue codice ostile *nella propria pagina* — fuori dal modello di minaccia. |
+| 6 | **`GET /pipeline` (2) inietta `VIBECRAFT_API_KEY` nell'HTML** come `window.__VIBECRAFT_AGENT_API_KEY__`, su una route senza auth. | **Accettato, per costruzione.** L'iniezione avviene **solo** per client locali (`_is_local_request`, stessa condizione del bypass di `require_api_key`) e la Same-Origin Policy impedisce a una pagina di un'altra origine di **leggere** il body della risposta: può solo navigarci o fare fetch opachi. Se il server è esposto oltre localhost l'iniezione si disattiva da sola, quindi la chiave non raggiunge mai un client remoto. La SOP da sola **non** bastava: il DNS rebinding rende same-origin una pagina ostile risolta su `127.0.0.1` — chiuso dalla validazione di `Host` (Fatto 9), che rifiuta con 400 ogni nome non ammesso prima che la pagina venga servita. Residuo **ridimensionato**: (a) codice ostile eseguito *nella propria pagina* — fuori dal modello di minaccia; (b) un host aggiunto a `VIBECRAFT_ALLOWED_HOSTS` il cui DNS sia controllato da terzi riapre il vettore per quel nome — la lista va limitata a nomi che si controllano. |
 | 7 | **`POST /api/intake/project/browse-path` (52) apre un dialogo nativo sul desktop del server** ed è **consegnabile bodyless**. Senza guardie, una pagina ostile farebbe comparire un selettore di cartelle sulla macchina che ospita il server e occuperebbe un thread del pool finché non viene chiuso. | **Chiuso su entrambi gli assi.** Browser di terzi: anti-cross-site (403 prima dell'handler). Bind aperto: `require_local_bind` **spegne** la route (403 per chiunque, API key inclusa) — era il debito annotato dalla revisione precedente, ora implementato, perché con server e utente su macchine diverse la funzione non è "più rischiosa", è priva di senso. Residuo **accettato**: con bind locale, un client sulla stessa macchina può innescarla — ma su quella macchina il dialogo è appunto la funzione richiesta. |
 | 8 | **`POST /api/intake/project/plan` (53) enumera un path arbitrario del filesystem del server** e ne restituisce i file classificati: è info-disclosure per un chiamante che raggiunge l'endpoint. | **Chiuso su entrambi gli assi.** Le validazioni di `core.project_import` (path assoluto, esistente, directory, mai dentro il repo né lo staging) riducono l'abuso ma **non** limitano *quale* directory sia scansionabile: il contenimento vero è che il chiamante deve essere sulla macchina stessa. Anti-cross-site copre il browser di terzi; `require_local_bind` spegne la route se il bind supera il loopback, quando l'enumerazione diventerebbe remota. Residuo **accettato** con bind locale: chi chiama da quella macchina ha già accesso al filesystem. |
 
@@ -478,5 +502,8 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
   l'unico caso in cui una route smette di esistere invece di essere protetta: la loro
   utilità dipende dal fatto che server e utente siano la stessa macchina, quindi con un
   bind aperto non resta nulla da proteggere.
+- **Header `Host` validato su tutta l'app** (Fatto 9): trasversale alle 59 route e
+  all'Appendice A, chiude il DNS rebinding verso il bypass loopback e l'iniezione della
+  chiave in `/pipeline`; host estranei solo tramite `VIBECRAFT_ALLOWED_HOSTS`.
 - **Debiti annotati:** rate-limit sulle GET CPU-pesanti (§4 #4); `/docs`/`/openapi.json`
   da chiudere in caso di esposizione (§4 #5).

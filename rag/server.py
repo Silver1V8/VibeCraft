@@ -20,20 +20,27 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from core.config import ROLE, SERVER_BIND_IS_LOCAL, STATIC_DIR, setup_logging
+from core.config import ALLOWED_HOSTS, ROLE, SERVER_BIND_IS_LOCAL, STATIC_DIR, setup_logging
 
 # Configurazione centrale del logging PRIMA degli import applicativi: i moduli usano
 # logging.getLogger(__name__) e vedono formato/livello (VIBECRAFT_LOG_LEVEL) coerenti.
 setup_logging()
 logger = logging.getLogger(__name__)
 
-from api.deps import API_KEY, NO_CACHE_HEADERS, lifespan
+from api.deps import API_KEY, NO_CACHE_HEADERS, HostHeaderGuard, lifespan
 from api import routes_graph, routes_health, routes_pages, routes_retrieval
 
 if ROLE != "reader":
     from api import routes_intake, routes_pipeline, routes_reindex
 
 app = FastAPI(title="VibeCraft Graph-RAG Console", lifespan=lifespan)
+
+# Header Host validato PRIMA di ogni route (statici compresi): chiude il DNS rebinding, che
+# altrimenti renderebbe same-origin una pagina ostile risolta su 127.0.0.1 e le farebbe
+# ereditare il bypass loopback e la chiave iniettata in /pipeline — vedi api/deps.py::
+# HostHeaderGuard. Host estranei (nomi di LAN, reverse proxy) si aggiungono con
+# VIBECRAFT_ALLOWED_HOSTS; il default ammette solo il loopback.
+app.add_middleware(HostHeaderGuard, allowed_hosts=ALLOWED_HOSTS)
 
 # shared.css / shared.js cambiano spesso durante lo sviluppo locale, ma
 # StaticFiles li servirebbe con caching euristico del browser (nessun

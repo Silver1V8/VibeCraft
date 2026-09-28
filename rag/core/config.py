@@ -4,6 +4,7 @@ provider LLM e costanti condivise. Unico punto di verità importato dal server F
 import logging
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import yaml
 from dotenv import load_dotenv
@@ -120,11 +121,75 @@ SERVER_BIND_IS_LOCAL: bool = SERVER_HOST in {"127.0.0.1", "::1", "localhost"}
 # VIBECRAFT_PORT) così un server spostato di porta non consegna ai prompt un URL sbagliato;
 # VIBECRAFT_BASE_URL lo forza quando il server sta dietro un reverse proxy o su un altro host.
 # Un host IPv6 va fra parentesi quadre nell'URL (RFC 3986): senza, "::1" produce
-# "http://::1:8000", che nessun client sa risolvere.
-_URL_HOST = f"[{SERVER_HOST}]" if ":" in SERVER_HOST else SERVER_HOST
+# "http://::1:8000", che nessun client sa risolvere. Un bind wildcard (0.0.0.0, ::, il
+# default dell'immagine Docker) non è un indirizzo da CONTATTARE: l'URL usa il loopback, che
+# ogni bind wildcard serve ed è ammesso dal controllo dell'header Host (ALLOWED_HOSTS) —
+# "http://0.0.0.0:8000" riceverebbe 400.
+_WILDCARD_BINDS = {"", "0.0.0.0", "::"}
+
+
+def _normalize_host(value: str) -> str:
+    """Hostname confrontabile: minuscolo, senza parentesi IPv6 né punto finale (FQDN)."""
+    host = value.strip().lower()
+    if host.startswith("[") and host.endswith("]"):
+        host = host[1:-1]
+    return host.rstrip(".")
+
+
+def _url_host(server_host: str) -> str:
+    """Host da scrivere nell'URL derivato dal bind: loopback per un bind wildcard,
+    parentesi quadre per un IPv6."""
+    host = _normalize_host(server_host)
+    if host in _WILDCARD_BINDS:
+        return "127.0.0.1"
+    return f"[{host}]" if ":" in host else server_host.strip()
+
+
+_URL_HOST = _url_host(SERVER_HOST)
 SERVER_BASE_URL: str = (
     os.environ.get("VIBECRAFT_BASE_URL") or f"http://{_URL_HOST}:{SERVER_PORT}"
 ).rstrip("/")
+
+# Hostname accettati nell'header Host (api.deps.HostHeaderGuard, difesa dal DNS rebinding).
+# Il loopback c'è sempre: è il default di bind e l'indirizzo che usano healthcheck Docker,
+# mcp_server.py e gli script. Poi, se esistono: l'interfaccia di bind quando è un indirizzo
+# SPECIFICO (0.0.0.0 e :: ascoltano ovunque ma nessun browser li manda come Host), l'host
+# di VIBECRAFT_BASE_URL (il nome con cui il server dichiara di essere raggiunto) e la lista
+# esplicita VIBECRAFT_ALLOWED_HOSTS (separata da virgole, per LAN/reverse proxy). Niente
+# wildcard: un "*" riaprirebbe esattamente il rebinding che il controllo chiude.
+_LOOPBACK_HOSTS = ("127.0.0.1", "localhost", "::1")
+
+
+def build_allowed_hosts(server_host: str, base_url: str | None, extra: str | None) -> frozenset[str]:
+    """Insieme degli hostname ammessi nell'header Host (vedi il commento sopra)."""
+    hosts = set(_LOOPBACK_HOSTS)
+    bind = _normalize_host(server_host)
+    if bind not in _WILDCARD_BINDS:
+        hosts.add(bind)
+    if base_url:
+        try:
+            base_host = urlsplit(base_url.strip()).hostname  # già minuscolo e senza parentesi
+        except ValueError:  # URL malformato (es. "[::1" senza chiusura): nessun host da aggiungere
+            base_host = None
+        if base_host:
+            hosts.add(_normalize_host(base_host))
+    for item in (extra or "").split(","):
+        if not item.strip():
+            continue
+        if "*" in item:
+            # Ignorata e segnalata all'avvio: chi scrive "*" si aspetta un effetto che qui
+            # non c'è, e un rifiuto silenzioso sembrerebbe un bug del server.
+            logging.getLogger(__name__).warning(
+                "VIBECRAFT_ALLOWED_HOSTS: voce %r ignorata — le wildcard non sono supportate, "
+                "elenca i nomi esatti.", item.strip())
+            continue
+        hosts.add(_normalize_host(item))
+    return frozenset(hosts)
+
+
+ALLOWED_HOSTS: frozenset[str] = build_allowed_hosts(
+    SERVER_HOST, os.environ.get("VIBECRAFT_BASE_URL"), os.environ.get("VIBECRAFT_ALLOWED_HOSTS"),
+)
 
 with open(CONFIG_PATH, "r", encoding="utf-8") as _f:
     config = yaml.safe_load(_f)

@@ -391,6 +391,14 @@ autenticazione. È una scelta deliberata per l'uso locale.
 (selettore di cartelle nativo, scansione di un percorso arbitrario del filesystem) vengono
 disattivate automaticamente — ma il resto della superficie va protetto da te.
 
+Il server accetta solo richieste con header `Host` riconosciuto (difesa dal DNS
+rebinding): `127.0.0.1`, `localhost`, `::1`, l'indirizzo di `VIBECRAFT_HOST` se è
+specifico e l'host di `VIBECRAFT_BASE_URL`; gli altri ricevono **400**. Se raggiungi il
+server con un altro nome (hostname di LAN, reverse proxy), aggiungilo a
+**`VIBECRAFT_ALLOWED_HOSTS`**, lista separata da virgole (es.
+`VIBECRAFT_ALLOWED_HOSTS=vibecraft.lan,192.168.1.20`). Nessuna wildcard (le voci con `*`
+sono ignorate con un avviso): elenca solo nomi di cui controlli il DNS.
+
 La superficie di attacco è mappata rotta per rotta in
 [`rag/SECURITY_SURFACE.md`](rag/SECURITY_SURFACE.md).
 
