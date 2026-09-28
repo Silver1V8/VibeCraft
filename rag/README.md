@@ -288,7 +288,10 @@ POSIX `.sh`) lo esegue e, **solo se trova drift**, lancia un full rebuild che
 riallinea tutto. Dopo il rebuild il server rileva il puntatore `database/CURRENT`
 spostato (la promozione della nuova versione blue/green; per i layout legacy senza
 CURRENT, l'mtime di `graph.json`) e ricarica gli artefatti alla prima richiesta
-(`maybe_reload_graph`).
+(`maybe_reload_graph`). Il caricamento gira in un thread del threadpool (l'event loop
+continua a servire le altre richieste) ed è serializzato da un lock con doppio controllo
+della versione: più richieste concorrenti, o una richiesta e il reload di fine job,
+producono un solo caricamento.
 
 Scheduling — Windows Task Scheduler:
 

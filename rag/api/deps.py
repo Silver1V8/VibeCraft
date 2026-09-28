@@ -766,6 +766,15 @@ async def lifespan(application: FastAPI):
 # ---------------------------------------------------------------------------
 # Auto-reload dell'indice in memoria (dopo una re-indicizzazione da CLI o pipeline)
 # ---------------------------------------------------------------------------
+# Serializza i reload (auto-reload dalle richieste, on_success del thread di reindex,
+# rollback, intake): due caricamenti paralleli raddoppierebbero memoria e I/O, e l'ultimo a
+# pubblicare vincerebbe anche se più vecchio. Lock NON rientrante: sotto lock nulla rientra
+# nel reload (_load_index_snapshot non chiama maybe_reload_graph né reload_index_state, e le
+# lease di versione sono try non bloccanti), quindi niente deadlock nemmeno col thread di
+# reindex che lo prende a fine job.
+_reload_lock = threading.Lock()
+
+
 def reload_index_state() -> str | float | None:
     """Ricarica in memoria grafo, multivettori ColBERT e sidecar chunk dai file appena
     rigenerati dalla re-indicizzazione, così che il server rifletta subito la nuova base
@@ -776,7 +785,18 @@ def reload_index_state() -> str | float | None:
     stato viene sostituito. Se anche uno solo è mancante o corrotto (es. una re-
     indicizzazione ancora in corso o abortita), si logga un warning e si MANTIENE la
     versione precedente in memoria, evitando di degradare il server (grafo senza
-    ColBERT/chunk)."""
+    ColBERT/chunk).
+
+    Bloccante (I/O e deserializzazione pesanti): dagli handler async va chiamata via
+    run_in_threadpool. Ricarica SEMPRE (i chiamanti espliciti — fine job, rollback,
+    intake — possono aver cambiato i documenti senza cambiare versione), ma serializzata
+    con gli altri reload tramite _reload_lock."""
+    with _reload_lock:
+        return _reload_index_state_locked()
+
+
+def _reload_index_state_locked() -> str | float | None:
+    """Corpo di reload_index_state: il chiamante DEVE detenere _reload_lock."""
     try:
         snapshot = _load_index_snapshot()
     except Exception as exc:
@@ -801,7 +821,14 @@ def maybe_reload_graph() -> None:
     """Auto-reload: se la versione dell'indice su disco è cambiata (database/CURRENT
     spostato da una promozione o da un rollback; per i layout legacy, mtime del grafo
     flat), ricarica l'indice in memoria alla prima richiesta successiva, senza dover
-    riavviare il server."""
+    riavviare il server.
+
+    Bloccante: gli handler async la chiamano con `await run_in_threadpool(...)`, così un
+    caricamento lungo non ferma l'event loop (health, streaming e le altre route continuano
+    a rispondere). Doppio controllo: il confronto senza lock è il percorso veloce di ogni
+    richiesta; chi deve ricaricare prende _reload_lock e RICONTROLLA la baseline, perché
+    nel frattempo un'altra richiesta (o il thread di reindex) può aver già caricato la
+    stessa versione — in quel caso non la si ricarica una seconda volta."""
     if current_snapshot() is None:
         return
     mtime = _graph_version()
@@ -811,9 +838,14 @@ def maybe_reload_graph() -> None:
     if prev is None:
         state["_graph_mtime"] = mtime
         return
-    if mtime != prev:
+    if mtime == prev:
+        return
+    with _reload_lock:
+        mtime = _graph_version()
+        if mtime is None or mtime == state.get("_graph_mtime"):
+            return
         logger.info("Grafo cambiato su disco: ricarico grafo/ColBERT/regole in memoria.")
-        reload_index_state()
+        _reload_index_state_locked()
 
 
 def run_streaming(target, *args):
