@@ -20,6 +20,12 @@ dove conta che sia FastAPI a valutare le dependency (non solo la loro presenza n
 lista), si usa invece un vero fastapi.testclient.TestClient.
 """
 import asyncio
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI, HTTPException
@@ -1010,3 +1016,252 @@ def test_http_local_only_route_reaches_handler_with_loopback_bind(monkeypatch):
     r = client.post("/api/intake/project/plan",
                     json={"path": "/percorso/che/non/esiste", "target": "backend"})
     assert r.status_code != 403, r.text
+
+
+# ===========================================================================
+# Classificazione ESAUSTIVA di TUTTE le route (punto #11 della review): il verso che
+# `test_every_post_route_is_classified` non copriva (solo POST). Qui il confronto non è
+# con un secondo elenco Python da tenere sincronizzato a mano, ma con un PARSER della
+# tabella §1 e dell'Appendice A di SECURITY_SURFACE.md — lo stesso file che il documento
+# dichiara "mappa del codice corrente": se la tabella non viene aggiornata, il parser
+# legge il testo vecchio e il confronto con le route vere fallisce.
+# ===========================================================================
+RAG_DIR = Path(__file__).parents[1]
+SECURITY_SURFACE_PATH = RAG_DIR / "SECURITY_SURFACE.md"
+
+# Righe numerate della tabella §1: "| 12 | POST | `/api/pipeline/...` | ...". Il gruppo
+# path è sempre il primo (e unico) backtick-quoted token dopo il metodo.
+_MATRIX_ROW_RE = re.compile(
+    r"^\|\s*\d+\s*\|\s*(GET|POST|PUT|PATCH|DELETE)\s*\|\s*`([^`]+)`", re.MULTILINE)
+# Righe dell'Appendice A: "| GET | `/openapi.json` | ...` (nessun numero in colonna 1).
+_APPENDIX_ROW_RE = re.compile(
+    r"^\|\s*(GET|POST|PUT|PATCH|DELETE)\s*\|\s*`([^`]+)`\s*\|", re.MULTILINE)
+
+
+def _security_surface_text() -> str:
+    return SECURITY_SURFACE_PATH.read_text(encoding="utf-8")
+
+
+def _parse_matrix_routes() -> set[tuple[str, str]]:
+    """(metodo, path) di ogni riga numerata della tabella §1 — i 60 route registrati sui
+    router applicativi."""
+    text = _security_surface_text()
+    section = text.split("## 1. Tabella completa delle route", 1)[1]
+    section = section.split("\n---", 1)[0]
+    routes = {(m, p) for m, p in _MATRIX_ROW_RE.findall(section)}
+    assert len(routes) >= 55, "parser della tabella §1 vuoto o rotto: pattern non trovato"
+    return routes
+
+
+def _parse_appendix_a_routes() -> set[tuple[str, str]]:
+    """(metodo, path) dell'Appendice A: route montate direttamente su `app` in server.py,
+    fuori dai 7 router applicativi. `/static/*` (riga leggibile per un umano) è
+    normalizzato al path del Mount vero, `/static` (nessuna route letterale con quel
+    path esiste: è StaticFiles)."""
+    text = _security_surface_text()
+    section = text.split("## Appendice A", 1)[1]
+    routes = set()
+    for method, path in _APPENDIX_ROW_RE.findall(section):
+        if path == "/static/*":
+            path = "/static"
+        routes.add((method, path))
+    assert len(routes) >= 6, "parser dell'Appendice A vuoto o rotto: pattern non trovato"
+    return routes
+
+
+def _all_router_routes() -> set[tuple[str, str]]:
+    """(metodo, path) di OGNI route registrata sui 7 router applicativi (ruolo
+    standalone/writer: è il superinsieme che include anche tutto ciò che il ruolo
+    `reader` monta — vedi server.py, `if ROLE != "reader"`), con TUTTI i metodi
+    dichiarati — non solo POST. HEAD è escluso: FastAPI lo aggiunge da sé a ogni GET,
+    non è una route dichiarata separatamente né una riga a parte in tabella."""
+    result = set()
+    for router in _ALL_ROUTERS:
+        for route in router.routes:
+            methods = getattr(route, "methods", None) or set()
+            for method in methods - {"HEAD"}:
+                result.add((method, route.path))
+    return result
+
+
+def _app_level_extra_routes() -> set[tuple[str, str]]:
+    """(metodo, path) delle route montate direttamente su `app` in server.py, FUORI dai 7
+    router applicativi: le due route esplicite shared.css/shared.js, il mount /static e
+    le route di default di FastAPI (/docs, /redoc, /openapi.json, /docs/oauth2-redirect)
+    — esattamente l'Appendice A. Importa il modulo server reale (stesso pattern di
+    tests/test_host_header.py) e ne ispeziona app.routes filtrando via i 7 router
+    applicativi (`_IncludedRouter`, già coperti da _all_router_routes)."""
+    import server as _server
+    from starlette.routing import Mount
+
+    result = set()
+    for route in _server.app.routes:
+        if type(route).__name__ == "_IncludedRouter":
+            continue
+        if isinstance(route, Mount):
+            result.add(("GET", route.path))
+            continue
+        methods = getattr(route, "methods", None) or set()
+        for method in methods - {"HEAD"}:
+            result.add((method, route.path))
+    return result
+
+
+def test_no_websocket_route_is_registered():
+    """Precondizione del punto #11: la classificazione qui sotto copre solo route
+    HTTP (GET/POST/...). Se in futuro compare un WebSocket, questo test lo segnala PRIMA
+    che sfugga silenziosamente alla matrice (che non ha una colonna per il protocollo)."""
+    from starlette.routing import WebSocketRoute
+    for router in _ALL_ROUTERS:
+        for route in router.routes:
+            assert not isinstance(route, WebSocketRoute), (
+                f"nuova route WebSocket non classificata: {route.path} — "
+                "estendi il parser e la matrice prima di aggiungerla"
+            )
+
+
+def test_every_route_is_classified_in_security_surface():
+    """Il verso esteso a TUTTI i metodi (non solo POST) e a TUTTE le route (non solo
+    quelle sui router: anche le extra montate su `app`). Ogni route del codice deve
+    comparire nella tabella §1 o nell'Appendice A di SECURITY_SURFACE.md, e nessuna riga
+    della tabella/Appendice deve essere fantasma (route rimossa dal codice ma rimasta
+    documentata)."""
+    documented = _parse_matrix_routes() | _parse_appendix_a_routes()
+    registered = _all_router_routes() | _app_level_extra_routes()
+    missing = registered - documented
+    assert missing == set(), (
+        f"Route registrate ma non documentate in SECURITY_SURFACE.md: {sorted(missing)} "
+        "— aggiungile alla tabella §1 (o all'Appendice A se montate fuori dai router) e "
+        "aggiorna §Metodologia/Report finale."
+    )
+    phantom = documented - registered
+    assert phantom == set(), (
+        f"Route documentate ma non registrate nel codice (fantasma): {sorted(phantom)} "
+        "— rimuovile dalla tabella §1/Appendice A e aggiorna i conteggi."
+    )
+
+
+def test_declared_route_counts_match_code():
+    """I conteggi dichiarati in §Metodologia (totale + per-file) non sono più affermazioni
+    a mano: sono ricontati da `_ALL_ROUTERS` (stessa fonte di verità di
+    `test_every_route_is_classified_in_security_surface`) e confrontati col testo del
+    documento. Un router che guadagna una route senza che il documento venga aggiornato fa
+    fallire QUESTO test, non solo quello di classificazione — i due proteggono aspetti
+    diversi: qui i conteggi, sopra il contenuto riga per riga."""
+    text = _security_surface_text()
+
+    total_match = re.search(r"Route registrate sui router:\s*(\d+)", text)
+    assert total_match, "sezione §Metodologia non trovata o riformulata: aggiorna il parser"
+    declared_total = int(total_match.group(1))
+    actual_total = sum(len(r.routes) for r in _ALL_ROUTERS)
+    assert declared_total == actual_total, (
+        f"§Metodologia dichiara {declared_total} route registrate, il codice ne ha "
+        f"{actual_total}: aggiorna 'Route registrate sui router' e la tabella §1."
+    )
+
+    # Righe "`routes_X.py` → N" nella stessa sezione: confrontate 1:1 col router
+    # corrispondente (stesso ordine dei nomi file usato dal resto del documento).
+    per_file_declared = dict(re.findall(r"`(routes_\w+\.py)`\s*→\s*(\d+)", text))
+    per_file_declared = {k: int(v) for k, v in per_file_declared.items()}
+    module_by_filename = {
+        "routes_pages.py": routes_pages.router,
+        "routes_pipeline.py": routes_pipeline.router,
+        "routes_reindex.py": routes_reindex.router,
+        "routes_retrieval.py": routes_retrieval.router,
+        "routes_graph.py": routes_graph.router,
+        "routes_health.py": routes_health.router,
+        "routes_intake.py": routes_intake.router,
+    }
+    assert set(per_file_declared) == set(module_by_filename), (
+        "l'elenco per-file di §Metodologia non elenca esattamente i 7 router applicativi"
+    )
+    for filename, declared_count in per_file_declared.items():
+        actual_count = len(module_by_filename[filename].routes)
+        assert declared_count == actual_count, (
+            f"§Metodologia dichiara {declared_count} route per {filename}, il codice ne "
+            f"ha {actual_count}."
+        )
+
+    # La tabella §1 dichiara il proprio conteggio nel titolo di sezione ("N righe") e nel
+    # numero effettivo di righe numerate: entrambi devono coincidere col totale sopra.
+    title_match = re.search(r"## 1\. Tabella completa delle route \((\d+) righe\)", text)
+    assert title_match, "titolo della tabella §1 non trovato o riformulato"
+    assert int(title_match.group(1)) == actual_total
+    assert len(_parse_matrix_routes()) == actual_total
+
+
+def _reader_role_env(tmp_path):
+    return dict(
+        os.environ, VIBECRAFT_ROLE="reader", VIBECRAFT_INDEX_MODE="immutable",
+        VIBECRAFT_DATABASE_DIR=str(tmp_path), VIBECRAFT_API_KEY="reader-secret",
+        QDRANT_URL="http://127.0.0.1:16333", HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1",
+    )
+
+
+def _dump_app_routes_script() -> str:
+    """Script eseguito in un sottoprocesso pulito (ROLE è letto una volta a import time da
+    core.config, quindi va cambiato PRIMA dell'import: stesso schema di
+    tests/test_host_header.py::test_guard_is_active_in_reader_role). Stampa la lista
+    (metodo, path) di server.app come JSON, una riga, sull'ultimo rigo di stdout."""
+    return (
+        "import json\n"
+        "import server\n"
+        "from starlette.routing import Mount\n"
+        "out = []\n"
+        "for route in server.app.routes:\n"
+        "    if type(route).__name__ == '_IncludedRouter':\n"
+        "        for r in route.original_router.routes:\n"
+        "            for method in (getattr(r, 'methods', None) or set()) - {'HEAD'}:\n"
+        "                out.append([method, r.path])\n"
+        "        continue\n"
+        "    if isinstance(route, Mount):\n"
+        "        out.append(['GET', route.path])\n"
+        "        continue\n"
+        "    for method in (getattr(route, 'methods', None) or set()) - {'HEAD'}:\n"
+        "        out.append([method, route.path])\n"
+        "print(json.dumps(out))\n"
+    )
+
+
+def _dump_app_routes(env) -> set[tuple[str, str]]:
+    result = subprocess.run([sys.executable, "-c", _dump_app_routes_script()],
+                            cwd=RAG_DIR, env=env, check=True,
+                            capture_output=True, text=True, encoding="utf-8")
+    return {tuple(pair) for pair in json.loads(result.stdout.strip().splitlines()[-1])}
+
+
+def test_writer_role_app_routes_match_router_introspection(tmp_path):
+    """Il ruolo standalone/writer (il default; nessun VIBECRAFT_ROLE impostato) monta TUTTI
+    i router applicativi con `router` (non `reader_router`): l'app reale (server.app)
+    deve corrispondere esattamente a _all_router_routes() + _app_level_extra_routes(),
+    così la garanzia di test_every_route_is_classified_in_security_surface (che introspeziona
+    i router direttamente, senza costruire l'app) vale davvero per l'app che gira."""
+    env = dict(os.environ, VIBECRAFT_DATABASE_DIR=str(tmp_path),
+              QDRANT_URL="http://127.0.0.1:16333", HF_HUB_OFFLINE="1", TRANSFORMERS_OFFLINE="1")
+    env.pop("VIBECRAFT_ROLE", None)
+    app_routes = _dump_app_routes(env)
+    assert app_routes == _all_router_routes() | _app_level_extra_routes()
+
+
+def test_reader_role_routes_are_a_subset_of_matrix(tmp_path):
+    """Il ruolo `reader` (VIBECRAFT_ROLE=reader) monta un sottoinsieme ridotto — mai
+    aggiuntivo — dei router/route del ruolo standalone/writer (server.py: reader_router al
+    posto di router per pages/graph/health; pipeline/reindex/intake del tutto assenti).
+    Qui non si assume che sia un sottoinsieme: si costruisce l'app reale col ruolo reader
+    e si verifica contro la STESSA matrice (§1 + Appendice A) usata per il writer — se un
+    domani reader_router guadagnasse una route propria non presente altrove, questo test
+    la scoprirebbe comunque, perché il confronto è con la documentazione, non con l'app
+    writer."""
+    documented = _parse_matrix_routes() | _parse_appendix_a_routes()
+    reader_routes = _dump_app_routes(_reader_role_env(tmp_path))
+    missing = reader_routes - documented
+    assert missing == set(), (
+        f"Route del ruolo reader non documentate in SECURITY_SURFACE.md: {sorted(missing)}"
+    )
+    # Nessuna route "solo reader": tutto ciò che reader monta è già coperto dal
+    # writer/standalone (nessun endpoint esclusivo del ruolo a bassi privilegi).
+    writer_routes = _all_router_routes() | _app_level_extra_routes()
+    assert reader_routes <= writer_routes, (
+        "il ruolo reader espone una route che il ruolo writer non ha: "
+        f"{sorted(reader_routes - writer_routes)}"
+    )

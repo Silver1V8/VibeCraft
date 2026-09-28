@@ -280,6 +280,16 @@ def test_applied_imports_lists_one_entry_per_project(staging):
         == ["web", "GD102_WSGDA", "GD172_WSProtocollo"]
 
 
+def test_applied_imports_does_not_create_staging_area(staging):
+    """GET /api/intake/project/imports (SECURITY_SURFACE.md §1 riga 55) è classificata
+    read-only: senza import mai avvenuti, staging/ non esiste — la lettura non deve
+    materializzarla. Fallisce senza il fix (applied_imports passava da
+    intake.ensure_staging_dirs)."""
+    assert not staging.exists()
+    assert project_brief.applied_imports("backend", base_dir=staging) == []
+    assert not staging.exists()
+
+
 def test_brief_defaults_to_last_imported_project_not_the_whole_target(staging):
     """Il caso reale: due progetti in code/backend/, l'ultimo importato è quello di cui
     l'utente vuole il brief. Il prompt deve contenere i suoi simboli e NON quelli

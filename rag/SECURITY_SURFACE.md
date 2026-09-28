@@ -2,7 +2,7 @@
 
 ## Superficie MCP locale (sessione 5, 2026-09-11)
 
-`mcp_server.py` espone **tre tool stdio**, distinti dalle **59 route HTTP** sotto:
+`mcp_server.py` espone **tre tool stdio**, distinti dalle **60 route HTTP** sotto:
 `vibecraft_retrieve` → GET `/api/retrieve`, `vibecraft_code_search` → GET
 `/api/code/search`, `vibecraft_graph_query` → GET `/api/graph/query`.
 Nessuna porta MCP, risorsa filesystem, prompt o tool aggiuntivo. Il confine di accesso
@@ -37,7 +37,13 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
 > una proposta: è la **mappa del codice corrente**, con la matrice §2 tenuta allineata da
 > `test_every_post_route_is_classified` in
 > [`tests/test_security_fixes.py`](tests/test_security_fixes.py) — ogni POST registrato
-> deve comparire nella matrice o fra le esclusioni motivate, o la suite fallisce.
+> deve comparire nella matrice o fra le esclusioni motivate, o la suite fallisce. Da
+> `test_every_route_is_classified_in_security_surface` (stesso file), la stessa garanzia
+> vale per **ogni** route, di **qualsiasi** metodo, registrata sui router (entrambi i
+> ruoli, standalone/writer e `VIBECRAFT_ROLE=reader`) o montata direttamente su `app` in
+> `server.py` (Appendice A): il parser legge la tabella §1 e l'Appendice A da questo stesso
+> file markdown, non un secondo elenco da tenere sincronizzato a mano — e i conteggi di
+> §Metodologia sono ricontati dal codice, non più dichiarati a mano.
 >
 > **Riverificato il 2026-09-07**: i conteggi di §Metodologia sono stati ricontati sul
 > codice (57 route, 24 POST, per-file esatti) e reggono. Sono cambiate due cose dal
@@ -52,25 +58,33 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
 
 ## Metodologia e conteggio
 
-- **Route registrate sui router: 59** — contate con `grep -c '^@router\.'` su
+- **Route registrate sui router: 60** — contate con `grep -c '^@router\.'` su
   `api/routes_*.py`:
   - `routes_pages.py` → 6
-  - `routes_pipeline.py` → 23
+  - `routes_pipeline.py` → 24
   - `routes_reindex.py` → 5
   - `routes_retrieval.py` → 3
   - `routes_graph.py` → 5
   - `routes_health.py` → 2
   - `routes_intake.py` → 15
-- **La tabella §1 ha 59 righe numerate** (una per route registrata) → il conteggio
+- **La tabella §1 ha 60 righe numerate** (una per route registrata) → il conteggio
   coincide con il criterio di completezza. La numerazione segue l'ordine di
   `include_router` in [`server.py`](server.py), poi l'ordine originario nel file;
-  le due nuove route del gate sono aggiunte in coda per conservare i riferimenti.
+  le due nuove route del gate e, più tardi, `GET /api/pipeline/agent/runners` (riga 60,
+  aggiunta coi runner alternativi, §5) sono aggiunte in coda per conservare i riferimenti.
+  Questi conteggi sono verificati dal codice, non solo dichiarati, da
+  `test_declared_route_counts_match_code` in
+  [`tests/test_security_fixes.py`](tests/test_security_fixes.py): un router che guadagna
+  una route senza che questa sezione o la tabella §1 vengano aggiornate fa fallire la
+  suite, invece di lasciare che i due si scollino in silenzio. Il ruolo `reader` monta un
+  sottoinsieme di questi stessi router/route (mai una route aggiuntiva): verificato da
+  `test_reader_role_routes_are_a_subset_of_matrix`.
 - **POST totali: 25** — 22 con la dependency anti-cross-site, 3 esclusi con motivazione
   (§2C). Nessun POST non classificato (asserito dalla suite).
 - Fuori dai router, montati sull'app in [`server.py`](server.py): 3 route esplicite per
   `shared.css`/`shared.js`/`pages/*.js`, 1 mount statico (`/static`) e 3 route di default di FastAPI
   (`/docs`, `/redoc`, `/openapi.json`) + `/docs/oauth2-redirect`. Sono elencate
-  nell'**Appendice A** (non conteggiate nelle 59 perché non registrate sui router), ma
+  nell'**Appendice A** (non conteggiate nelle 60 perché non registrate sui router), ma
   hanno rilievo di sicurezza e vanno lette.
 
 ### Fatti architetturali verificati (valgono per tutta la tabella)
@@ -251,7 +265,7 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
 
 ---
 
-## 1. Tabella completa delle route (59 righe)
+## 1. Tabella completa delle route (60 righe)
 
 Legenda **Body**: *assente* = nessun body dichiarato · *query/path* = solo parametri URL ·
 *JSON Pydantic* = modello con campi obbligatori · *JSON opz.* = `Request` grezza con
@@ -325,6 +339,7 @@ oltre a `require_api_key` del router.
 | 57 | GET | `/api/intake/project/brief/{job_id}` | require_api_key | path | Sì | read-only (stato job) | Basso | nessuna |
 | 58 | GET | `/api/pipeline/gate` | require_api_key | query | Sì | read-only (ricalcola ammissibilità, decisioni e rilievi) | Basso | nessuna |
 | 59 | POST | `/api/pipeline/open-points/decision` | require_api_key **+ require_api_key_strict** | JSON Pydantic stretto | **No (strict)** | scrive decisione operatore e associazioni esplicite, non avvia l'agente | **Alto** | **strict** |
+| 60 | GET | `/api/pipeline/agent/runners` | require_api_key | assente | Sì | read-only (elenco runner disponibili — Claude/local/Codex/Cursor —, modalità e modelli; interroga Ollama `/api/tags` con timeout 2 s e il PATH per i binari: rivela i modelli locali installati e quali CLI sono presenti sul server, §5) | Basso | nessuna |
 
 ### Nota sulle route a corpo consegnabile — dove la dependency è l'UNICO controllo
 
@@ -396,7 +411,7 @@ dependency è a costo nullo e non rompe la UI same-origin.
 | POST `/api/pipeline/agent/run` (8) | **Già `require_api_key_strict`** — protezione *più forte* dell'anti-cross-site (chiave sempre richiesta, anche da localhost). Aggiungere Sec-Fetch-Site è ridondante e **non va indebolito** sostituendo lo strict. Asserito da `_STRICT_ROUTES` e da `test_excluded_route_does_not_declare_anti_cross_site_dependency`. |
 | POST `/api/pipeline/open-points/decision` (59) | Chiave obbligatoria anche da localhost; stesso confine strict di agent/run. Non esposta ai tool agente. Provenienza dichiarata, `origin_verified: false`, nessuna identità personale certificata. |
 | POST `/api/pipeline/canvas/dry-run` (22) | POST ma **read-only** (retrieval/embedding, nessuna scrittura, nessun LLM di generazione) e body Pydantic obbligatorio → non consegnabile. Solo rischio DoS-CPU. |
-| Tutte le **GET** (1-7, 9, 14, 20-21, 23-26, 29-31, 34-42, 44-45, 49, 51, 55, 57, 58) | Read-only per contratto. Anti-cross-site su GET **romperebbe** navigazione/embedding cross-origin legittimi senza proteggere nulla. Le GET CPU-pesanti (`/api/retrieve` 34, `/api/code/search` 35, `/api/graph/semantic-map` 39) restano un rischio DoS-CPU **accettato** (§4 #4). `maybe_reload_graph` invocato da alcune GET è un reload interno idempotente, non una mutazione pilotabile dall'attaccante. |
+| Tutte le **GET** (1-7, 9, 14, 20-21, 23-26, 29-31, 34-42, 44-45, 49, 51, 55, 57, 58, 60) | Read-only per contratto. Anti-cross-site su GET **romperebbe** navigazione/embedding cross-origin legittimi senza proteggere nulla. Le GET CPU-pesanti (`/api/retrieve` 34, `/api/code/search` 35, `/api/graph/semantic-map` 39) restano un rischio DoS-CPU **accettato** (§4 #4). `maybe_reload_graph` invocato da alcune GET è un reload interno idempotente, non una mutazione pilotabile dall'attaccante. Le GET 44, 45 e 55 (journal di intake) **non** passano più da `ensure_staging_dirs`: fino alla revisione del 2026-09-28 quella funzione creava `staging/docs\|projects\|rejected` e faceva `touch` di `intake.jsonl` anche su una semplice lettura, materializzando `staging/` da un GET su un'istanza dove nessuno aveva ancora caricato nulla — corretto con `core.intake.staging_paths_readonly` (stessi percorsi, nessuna creazione; `_journal_state` gestisce già un journal assente come stato vuoto), usato ora da `list_staged`, `get_preview` e `project_brief.applied_imports`. Le scritture (`stage_document`, `approve`, `reject`, refine, import) restano su `ensure_staging_dirs` e continuano a creare le cartelle. |
 | Pagine HTML (1-6) e mount `/static` | Shell statiche pubbliche, nessun dato, nessuna auth by design. Eccezione documentata: `/pipeline` (2) inietta la API key per i soli client locali → §4 #6. |
 
 **Sintesi ambito:** **22 POST protetti** su 25 (13 mutanti §2A + 9 LLM/filesystem §2B).
@@ -505,7 +520,7 @@ niente build/test in-modalità; (d) la blocklist dei segmenti riservati può rif
 
 La stessa route accetta `runner` (`claude` | `local` | `codex` | `cursor`); ammissione,
 gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agent/runners`
-(nessuna auth, sola lettura) elenca disponibilità, modalità e modelli.
+(`require_api_key` del router, sola lettura) elenca disponibilità, modalità e modelli.
 
 - **`local` (Ollama `/api/chat`)**: i tool li esegue VibeCraft, il modello li chiede soltanto.
   Nessuna shell. Letture confinate a `PROJECT_ROOT`, con `.git/` e `.env*` negati (più
@@ -534,7 +549,7 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
 
 ---
 
-## Appendice A — Superfici app-level (fuori dalle 59, montate in `server.py`)
+## Appendice A — Superfici app-level (fuori dalle 60, montate in `server.py`)
 
 | Metodo | Path | Auth | Effetto | Nota |
 |--------|------|------|---------|------|
@@ -551,8 +566,8 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
 
 ## Report finale
 
-- **Conteggio route registrate sui router: 59** (6 pages · 23 pipeline · 5 reindex ·
-  3 retrieval · 5 graph · 2 health · 15 intake) — **coincide** con le 59 righe della
+- **Conteggio route registrate sui router: 60** (6 pages · 24 pipeline · 5 reindex ·
+  3 retrieval · 5 graph · 2 health · 15 intake) — **coincide** con le 60 righe della
   tabella §1. Fuori conteggio: 2 route asset + 1 mount statico + 4 route di default
   FastAPI (Appendice A).
 - **POST: 25** — **22 protetti** da `require_not_cross_site_request`, 3 esclusi con
@@ -573,7 +588,7 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
   l'unico caso in cui una route smette di esistere invece di essere protetta: la loro
   utilità dipende dal fatto che server e utente siano la stessa macchina, quindi con un
   bind aperto non resta nulla da proteggere.
-- **Header `Host` validato su tutta l'app** (Fatto 9): trasversale alle 59 route e
+- **Header `Host` validato su tutta l'app** (Fatto 9): trasversale alle 60 route e
   all'Appendice A, chiude il DNS rebinding verso il bypass loopback e l'iniezione della
   chiave in `/pipeline`; host estranei solo tramite `VIBECRAFT_ALLOWED_HOSTS`.
 - **Anti-framing su tutta l'app** (Fatto 10): `X-Frame-Options: DENY` e

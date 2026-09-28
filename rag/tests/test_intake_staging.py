@@ -136,6 +136,33 @@ def test_preview_unknown_id_raises_not_found(staging_dir):
         intake.get_preview("inesistente")
 
 
+def test_list_staged_does_not_create_staging_area(staging_dir):
+    """GET /api/intake/staged (SECURITY_SURFACE.md §1 riga 44) è classificata read-only:
+    una lettura su uno staging/ mai esistito non deve materializzarlo su disco. Prima
+    del fix, list_staged passava da ensure_staging_dirs e creava docs/projects/rejected/
+    + il journal a ogni chiamata — fallisce senza la modifica (staging_dir non esiste)."""
+    assert not staging_dir.exists()
+    assert intake.list_staged() == []
+    assert not staging_dir.exists()
+
+
+def test_get_preview_unknown_id_does_not_create_staging_area(staging_dir):
+    """Idem per GET /api/intake/staged/{doc_id}/preview (riga 45): il 404 di dominio non
+    deve avere l'effetto collaterale di creare staging/."""
+    assert not staging_dir.exists()
+    with pytest.raises(intake.StagedDocumentNotFoundError):
+        intake.get_preview("inesistente")
+    assert not staging_dir.exists()
+
+
+def test_list_staged_still_reads_existing_staging_area(staging_dir):
+    """Compatibilità: se staging/ esiste già (documenti reali), la lettura funziona come
+    prima — read-only non significa 'ignora ciò che c'è'."""
+    record = intake.stage_document("nota.txt", b"testo di prova")
+    assert staging_dir.exists()
+    assert [e["id"] for e in intake.list_staged()] == [record["id"]]
+
+
 # ---------------------------------------------------------------------------
 # approve: e2e con l'indicizzazione delta reale (sandbox, StubEmbed + fake Qdrant)
 # ---------------------------------------------------------------------------
