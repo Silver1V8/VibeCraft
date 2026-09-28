@@ -1,17 +1,18 @@
 # Stato — scalabilità orizzontale
 
-## Checkpoint 2026-09-28 — lavoro ripreso
+## Checkpoint 2026-09-28 — software verificato, gate reali aperti
 
 - Workspace: `C:/Users/Silve/.codex/worktrees/horizontal-scaling/vibecraft`.
 - Branch `codex/horizontal-scaling`; base `ea0cf91425a5d01b39ed821c714cd397a6e0d2b0`; primo commit documenti `b575487`.
 - [x] Audit, specifica e piano approvati dalla root; esecuzione già autorizzata dall'utente.
 - [x] P0 harness:49 test verdi, ruff/diff-check puliti; review PM conclusa. Baseline reale separata bloccata.
 - [ ] P0 baseline HTTP reale: bloccata (vedi sotto).
-- [ ] P1 pin collection/ammissione/streaming: implementato, review PM e verifica cancellazione in corso; codice non ancora committato.
-- [ ] P2 reader/writer/immutabilità locale: storage in implementazione parallela; API reader segue P1.
-- [ ] P3 matrice reale k=1,4,8 e review finale.
+- [x] P1 pin collection/ammissione/streaming: commit `215960a`, review PM e verifiche superate.
+- [x] P2 reader/writer/immutabilità locale: storage `f8fc368`, API reader/lifecycle e prova OS due lettori `810f1f7`; test e review PM superati.
+- [ ] P3 matrice reale k=1,4,8 e confronto HTTP uno/due reader.
+- [x] Review finale Astra root: codice `810f1f7`, nessun finding aperto; verifica indipendente101 pass.
 
-Quota alla ripresa99%, ultima PM90% residua, uso consentito. Stop precedente al5% rispettato. Verificare quota prima/dopo ogni fase/fanout: stop <=5% qualunque finestra o ordinaryUsageAllowed=false/spendControlReached; ripresa solo >=15% tutte e uso consentito. Mai reset/acquisti. Heartbeat root.
+Quota alla ripresa99%, finale78% residua, uso consentito e nessun limite di spesa raggiunto. Stop precedente al5% rispettato. Verificare quota prima/dopo ogni fase/fanout: stop <=5% qualunque finestra o ordinaryUsageAllowed=false/spendControlReached; ripresa solo >=15% tutte e uso consentito. Nessun reset consumato né acquisto. Heartbeat root.
 
 ## Evidenze e blocchi
 
@@ -31,4 +32,23 @@ Eseguire test da `worktree/rag` con `C:/Users/Silve/Desktop/vibecraft/rag/.venv/
 
 ## Estensione harness P3
 
-Sonde cancel separate e GPUpeak opzionale implementate:55 test bench pass,ruff/diff-check pass; review PM escluso cleanupGPU dal throughput e impedito falso cancel dopoEOF. Nessuna prova live. P0 commit `c9ab3df`. Baseline P2 prima edit:158 test pass. P1 Sol ancora in corso.
+Sonde cancel separate e GPUpeak opzionale implementate:55 test bench pass,ruff/diff-check pass; review PM escluso cleanupGPU dal throughput e impedito falso cancel dopoEOF. Nessuna prova live. P0 commit `c9ab3df`. Baseline P2 prima edit:158 test pass (include l'incidente descritto sopra).
+
+## Verifiche P1/P2 storage
+
+Tutti i run finali seguenti hanno usato `QDRANT_URL=http://127.0.0.1:16333` con servizio fermo e `HF_HUB_OFFLINE=1`; P1 anche `TRANSFORMERS_OFFLINE=1`. Nessun `VIBECRAFT_TEST_QDRANT_URL` per le suite locali. Comandi da `worktree/rag`, Python indicato sopra.
+
+- P1: `pytest tests/test_ask_unified_llm.py tests/test_ask_streaming.py tests/test_ask_router.py tests/test_ask_prompt_cost.py tests/test_ask_observability.py tests/test_ask_limits.py tests/test_ask_cache.py tests/test_ask_authority_prompt.py tests/test_ask_abstention.py tests/test_dashboard_stream.py tests/test_llm.py -q`:178 pass. Poi aggiunta prova first-delta con ASGI diretto e provider sospeso; `pytest tests/test_ask_streaming.py -q`:21 pass. Non presentare il totale aggiornato179 come una suite intera rieseguita.
+- P2 storage: `pytest -o addopts='' -q tests/test_storage_modes.py tests/test_artifacts.py tests/test_atomic_storage.py tests/test_versioning.py tests/test_qdrant_blue_green.py tests/test_writer_lock.py tests/test_colbert_store.py tests/test_incremental_indexing.py tests/test_lifespan.py tests/test_reindex.py`:282 pass,5 skip (reale Qdrant non autorizzato),31.43s.
+- Ruff sui file Python cambiati in ciascuna fase e diff-check: pass. Workflow YAML validato: entrambi gli step Qdrant espongono endpoint test esplicito. Review PM: cancel CPU conserva capacità fino fine thread, upstream chiuso sotto backpressure, dense/sparse pinned anche con alias cambiato, full legacy non viene dichiarato immutabile, snapshot lease conserva manifest/collection.
+- P2 API/lifecycle: `pytest tests/test_ask_streaming.py tests/test_reader_mode.py -q`:43 pass; regressioni `test_lifespan`, `test_health`, `test_mcp_http`, `test_atomic_storage`, `test_retrieve_reload`, `test_graph_ops`, `test_security_fixes`:264 pass. Comandi/output e ruff in `horizontal-bench/verification-20260928/api-tests.txt`.
+- Due processi NPZ reali, writer/GC finti su directory temporanea: `pytest -o addopts='' -q tests/test_reader_process_leases.py`:1 pass in9.61s; ruff pass. Entrambi trattengono v1 durante v2/v3 e rollbackv2; uscita ordinata primo e crash controllato secondo provano rilascio OS e successiva pulizia. Nessun HTTP, modello o Qdrant reale in questa prova.
+- Review finale root sul codice `810f1f7` approvata entro il perimetro software. Tre finding (slot su errore header, deadline invio lento, health collection fisica assente) corretti e coperti. Verifica indipendente101 pass in20.65s; comando/esito/limiti in `horizontal-bench/verification-20260928/REVIEW_FINALE.md`. Audit incidente `6f9ef93`; P3 harness `83940fc`.
+
+## Prossimo passo / heartbeat
+
+Il software P0/P1/P2 è implementato, verificato e approvato dalla review root entro i limiti sopra; non è una consegna end-to-end completa. I sottoagenti implementatori sono idle. Nessun push/deploy. Non resta lavoro software noto prima dello sblocco P3.
+
+Per P3 servono la rimozione del blocco di avvio HTTP e una decisione sul modello/backend (qwen35 attuale serializza). Non riprovare l'avvio rifiutato in altra forma, non scaricare modelli senza autorizzazione. Quando sbloccato: baseline sorgente ea0cf91 e candidato su stessi corpus/config, k=1,4,8,30 campioni/cohort, cache-off/hit separate, raw/TTFT/throughput/errori/cancel/memoria e uno vs due reader.
+
+Finché restano solo questi gate esterni, **non ripetere suite o implementazione a ogni heartbeat** senza nuovo codice o rimozione del blocco. L'automazione root resta attiva finché il completamento richiesto non è verificato; nessun dato prestazionale inventato dai fake o dalle due sonde Ollama.

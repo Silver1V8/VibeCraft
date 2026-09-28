@@ -723,11 +723,14 @@ Qdrant e Ollama possono restare spenti: la suite li mocka ovunque (httpx2.MockTr
 attributi di `core.llm` monkeypatchati, `fastapi.testclient.TestClient` in-process). I
 soli 5 test che parlano con un Qdrant reale
 ([tests/test_qdrant_blue_green.py](tests/test_qdrant_blue_green.py), sezione
-"OPZIONALE / SKIPPABLE") si auto-saltano con `pytest.skip` quando la connessione
-fallisce — non richiedono Docker per il verde.
+"OPZIONALE / SKIPPABLE") richiedono l'opt-in `VIBECRAFT_TEST_QDRANT_URL` verso un
+servizio dedicato ai test. Senza questa variabile saltano prima di connettersi;
+non usano il `QDRANT_URL` dell'applicazione. In CI `VIBECRAFT_REQUIRE_QDRANT=1`
+rende obbligatoria sia la configurazione esplicita sia la disponibilità del servizio.
 
-**Quei cinque valgono un `docker compose up -d qdrant` prima di toccare il
-blue/green**: sono l'unico posto dove le assunzioni sulla semantica di Qdrant
+**Eseguire quei cinque su un Qdrant di test dedicato prima di toccare il
+blue/green**, per esempio impostando `VIBECRAFT_TEST_QDRANT_URL=http://127.0.0.1:16333`
+quando quel servizio è predisposto: sono il posto dove le assunzioni sulla semantica di Qdrant
 (atomicità del batch di alias, risoluzione dell'alias nelle point-operation —
 `upsert` *e* `delete`-by-filter —, invalidazione degli alias alla cancellazione
 della collection) vengono verificate contro il servizio vero invece che contro
@@ -779,13 +782,14 @@ uv run python scripts/bench.py --with-rebuild      # accoda anche un full rebuil
 ```
 
 Per il carico concorrente read-only di `/ask`, che non esegue reindex, usare il percorso
-separato con un servizio isolato e una provenienza del server distinta dal checkout client:
+separato con un servizio isolato e una provenienza del server distinta dal checkout client.
+Per questa cohort avviare il server dedicato con `VIBECRAFT_ASK_CACHE_SIZE=0`:
 
 ```bash
 uv run python scripts/bench.py --concurrency-bench --url http://127.0.0.1:18000 \
   --concurrency 1 4 8 --requests 30 --warmup 3 --response-mode json \
   --queries adr/horizontal-bench/queries.json --out adr/horizontal-bench/run \
-  --metadata adr/horizontal-bench/server-metadata.json --timeout 300
+  --metadata adr/horizontal-bench/server-metadata.json --cache-cohort cache-off --timeout 300
 ```
 
 Scrive raw JSONL e un summary per ogni livello; cache off e cache calda vanno eseguite in
@@ -837,9 +841,9 @@ Il p95 su 10 campioni sta di fatto sul massimo osservato — è un limite del ca
 non della misura, e va letto come "l'attesa peggiore vista in questa run", non come un
 percentile stabile. La console non lascia comunque quell'attesa muta: il loader di
 `/ask` conta i secondi trascorsi, così 30 secondi restano distinguibili da un blocco.
-Lo **streaming incrementale** della risposta non c'è, ed è l'unico modo per abbassare
-il tempo *percepito*: cambierebbe il contratto di `/ask` (oggi un JSON unico con
-risposta, contesto grafo e punteggi) e resta fuori da questa baseline.
+Questa baseline storica precede lo **streaming incrementale** e misura il JSON unico
+con risposta, contesto grafo e punteggi. Non misura il tempo al primo testo della
+modalità streaming descritta sotto, né il carico concorrente.
 
 ### Delta reale isolato
 
@@ -897,6 +901,89 @@ I test pytest ([tests/test_bench.py](tests/test_bench.py)) coprono solo la
 **meccanica** dello script (percentili, aggregazione, polling del journal, struttura
 del JSON) con un server finto (`httpx2.MockTransport`): le latenze vere restano il
 comando qui sopra, da eseguire ed allegare alla PR.
+
+## Streaming e repliche locali opt-in
+
+`POST /ask` mantiene il JSON storico come default. Con `"stream": true` restituisce
+NDJSON: `meta`, zero o più `delta` con campo `text`, infine `result` con campo `value`
+contenente il payload completo, oppure `error` con `detail`. Il risultato finale
+normalizza anche l'astensione; i delta sono provvisori. `meta.streaming_native`
+distingue il provider nativo da un adattatore che emette tutto il testo alla fine.
+La dashboard usa questa modalità. Cache e risposte del grafo possono non richiedere
+una generazione: vanno misurate separatamente.
+
+| Variabile | Default | Ambito |
+|---|---|---|
+| `VIBECRAFT_ASK_MAX_ACTIVE` | 8 | Richieste `/ask` attive per processo; eccesso 429 |
+| `VIBECRAFT_LLM_CONCURRENCY` | 2 | Generazioni `/ask` contemporanee per processo |
+| `VIBECRAFT_LLM_QUEUE_TIMEOUT_SECONDS` | 30 | Attesa massima dello slot di generazione |
+| `VIBECRAFT_ASK_TIMEOUT_SECONDS` | Timeout Ollama + 60 | Scadenza della pipeline; un thread già avviato termina prima di restituire capacità |
+| `VIBECRAFT_ROLE` | `standalone` | `standalone`, `reader` oppure `writer` |
+| `VIBECRAFT_INDEX_MODE` | `legacy` | `legacy` oppure `immutable` |
+| `VIBECRAFT_DATABASE_DIR` | `rag/database` | Directory indice e coordinamento locale |
+
+8 e 2 sono limiti iniziali configurabili, non capacità dimostrate. Più processi
+moltiplicano sia i limiti verso il motore sia la memoria del modello embedding e
+degli snapshot. Non aumentare automaticamente il numero di worker.
+
+### Un writer e due reader sulla stessa macchina
+
+Reader e writer richiedono `VIBECRAFT_INDEX_MODE=immutable`. Preparare un database
+dedicato, con Qdrant e motore esplicitamente selezionati, usando il full rebuild
+`python index.py` nel profilo writer. Il marker persistente `.immutable-index`
+impedisce successivi incrementali anche se un comando dimentica la variabile di
+ambiente; un full fallito può lasciare intenzionalmente questa protezione attiva.
+La modalità non converte automaticamente un incrementale in un full costoso:
+il comando viene rifiutato con un messaggio esplicito.
+
+Esempio di configurazione PowerShell da applicare **in ogni processo**, adattando
+i percorsi a un ambiente dedicato già predisposto. Non avvia né modifica i servizi:
+
+```powershell
+$env:VIBECRAFT_INDEX_MODE = 'immutable'
+$env:VIBECRAFT_DATABASE_DIR = 'C:/vibecraft-lab/database'
+$env:QDRANT_URL = 'http://127.0.0.1:16333'
+$env:VIBECRAFT_OLLAMA_URL = 'http://127.0.0.1:21434'
+# Impostare VIBECRAFT_API_KEY nel processo tramite il proprio gestore di segreti.
+```
+
+| Processo | Variabili aggiuntive | Comando da `rag/` |
+|---|---|---|
+| Writer designato | `VIBECRAFT_ROLE=writer`, `VIBECRAFT_PORT=18000` | `python server.py` |
+| Reader A | `VIBECRAFT_ROLE=reader`, `VIBECRAFT_PORT=18001` | `python server.py` |
+| Reader B | `VIBECRAFT_ROLE=reader`, `VIBECRAFT_PORT=18002` | `python server.py` |
+
+Tutti devono usare gli stessi modelli/configurazione indice e la stessa directory
+locale. Il reader richiede una chiave API esplicita anche da loopback: un proxy
+locale deve inoltrare una credenziale verificata, senza fidarsi di
+`X-Forwarded-For`. La UI richiede la chiave al primo 401 e non la riceve dal server.
+Le route di scrittura e i relativi manager non sono caricati nel reader.
+Quando il servizio Qdrant offre credenziali di sola lettura, configurare quelle
+nei processi reader tramite `QDRANT_API_KEY`; non distribuire loro la chiave writer.
+
+I dati nelle directory di versione possono essere in sola lettura; il
+coordinamento `.reader-locks` richiede scrittura condivisa locale. Ogni snapshot
+trattiene una lease fino al termine delle richieste che lo usano: retention e GC
+conservano così anche il manifest e la collection Qdrant associata. Non montare
+l'intero database come strettamente read-only. Il lock OS coordina un writer
+designato e i suoi comandi CLI; non è un sistema di elezione o failover.
+All'avvio/reload il reader confronta manifest e hash degli artefatti usando il
+validatore storage esistente. Per NPY controlla indice e hash registrati; questo
+controllo non equivale a una nuova scansione profonda di tutti i byte dei vettori.
+
+### Limiti verificati e prossima misura
+
+Con Ollama 0.34.4 e il modello locale qwen3.5:9b, il motore impone un solo slot per
+l'architettura qwen35: richieste HTTP sovrapposte non producono inferenze parallele.
+Le [prove reali](adr/horizontal-bench/preflight-20260928/README.md) lo documentano.
+La matrice applicativa k=1,4,8 e il confronto tra uno e due reader non sono ancora
+eseguiti; nessun miglioramento di throughput o TTFT è dichiarato.
+
+Le repliche su host diversi richiedono un meccanismo verificato di distribuzione
+delle versioni e di conservazione delle collection ancora in uso. Le lease locali
+non costituiscono un protocollo distribuito; questo scenario non è supportato
+dall'implementazione corrente. Specifica, gate e stato sono in
+[SCALABILITA_ORIZZONTALE.md](adr/SCALABILITA_ORIZZONTALE.md) e documenti collegati.
 
 ## Artefatti dell'indice: formati sicuri, ispezionabili e versionati (blue/green)
 
