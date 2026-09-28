@@ -2,14 +2,13 @@
 # Configurazione globale del sistema Graph-RAG
 
 llm_settings:
-  # Valori supportati: "anthropic" (Claude 3.5 Sonnet), "openai" (GPT-4o), "ollama" (locale)
+  # Valori supportati: "anthropic" (claude-sonnet-5), "ollama" (locale)
   #active_provider: "anthropic"
   active_provider: "ollama"
   
   # Modelli specifici per provider
   models:
     anthropic: "claude-sonnet-5"
-    openai: "gpt-4o"
     ollama: "qwen3.5:9b" # generazione recente, 6.6GB: sta interamente negli 8GB di VRAM di una 3070 Ti
 
   # Thinking dei modelli Ollama che lo supportano (qwen3.5). false = disattivato: la pipeline

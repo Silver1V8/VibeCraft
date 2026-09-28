@@ -219,6 +219,99 @@ def test_provider_non_supportato(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# Validazione provider registrati al boot (punto #12)
+# ---------------------------------------------------------------------------
+
+def test_valid_llm_providers_sincronizzati_con_registry():
+    """VALID_LLM_PROVIDERS in config.py e _PROVIDERS in llm.py devono corrispondere
+    esattamente (la discrepanza è un errore di sincronizzazione)."""
+    from core.config import VALID_LLM_PROVIDERS
+
+    assert VALID_LLM_PROVIDERS == {"ollama", "anthropic"}
+    assert VALID_LLM_PROVIDERS <= set(llm._PROVIDERS)
+
+
+def test_llm_settings_active_provider_non_registrato_errore_al_boot():
+    """active_provider non in VALID_LLM_PROVIDERS -> ValidationError al boot con
+    elenco dei provider ammessi."""
+    from pydantic import ValidationError
+
+    from core.config import validate_llm_settings
+
+    with pytest.raises(ValidationError) as exc:
+        validate_llm_settings(
+            {"active_provider": "openai", "models": {"openai": "gpt-4o"}}, boot=True)
+    err_msg = str(exc.value)
+    assert "active_provider" in err_msg
+    assert "openai" in err_msg
+    assert "non è registrato" in err_msg
+    # Verifica che il messaggio elenchi i provider ammessi in ordine alfabetico
+    assert "Provider ammessi: anthropic, ollama" in err_msg
+
+
+def test_llm_settings_purpose_provider_non_registrato_errore_al_boot():
+    """Provider di un purpose non in VALID_LLM_PROVIDERS -> ValidationError al boot."""
+    from pydantic import ValidationError
+
+    from core.config import validate_llm_settings
+
+    with pytest.raises(ValidationError) as exc:
+        validate_llm_settings(
+            {
+                "active_provider": "ollama",
+                "models": {"ollama": "qwen3.5:9b"},
+                "purposes": {
+                    "canvas": {"provider": "openai", "model": "gpt-4o"},
+                },
+            },
+            boot=True)
+    err_msg = str(exc.value)
+    assert "openai" in err_msg
+    assert "canvas" in err_msg
+    assert "non è registrato" in err_msg
+
+
+def test_llm_settings_budget_fallback_provider_non_registrato_errore_al_boot():
+    """budget.fallback_provider non in VALID_LLM_PROVIDERS -> ValidationError al boot."""
+    from pydantic import ValidationError
+
+    from core.config import validate_llm_settings
+
+    with pytest.raises(ValidationError) as exc:
+        validate_llm_settings(
+            {
+                "active_provider": "anthropic",
+                "models": {"anthropic": "claude-sonnet-5"},
+                "budget": {"daily_usd": 5.0, "fallback_provider": "groq"},
+            },
+            boot=True)
+    err_msg = str(exc.value)
+    assert "groq" in err_msg
+    assert "fallback_provider" in err_msg
+    assert "non è registrato" in err_msg
+
+
+def test_llm_settings_provider_valido_non_solleva_errore():
+    """Config con provider validi (ollama, anthropic) e budget fallback valido passa."""
+    from core.config import validate_llm_settings
+
+    s = validate_llm_settings(
+        {
+            "active_provider": "ollama",
+            "models": {"ollama": "qwen3.5:9b", "anthropic": "claude-sonnet-5"},
+            "purposes": {
+                "canvas": {"provider": "anthropic"},
+                "drift": {"provider": "ollama"},
+            },
+            "budget": {"daily_usd": 5.0, "fallback_provider": "ollama"},
+        },
+        boot=True)
+    assert s.active_provider == "ollama"
+    assert s.purposes["canvas"]["provider"] == "anthropic"
+    assert s.budget.fallback_provider == "ollama"
+
+
+# ---------------------------------------------------------------------------
 # Provider fake end-to-end (sync + async, step pipeline senza HTTP)
 # ---------------------------------------------------------------------------
 

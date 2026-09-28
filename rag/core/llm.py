@@ -31,6 +31,7 @@ from core.config import (
     OLLAMA_TIMEOUT_SECONDS,
     OLLAMA_URL,
     RAG_DIR,
+    VALID_LLM_PROVIDERS,
     LLMSettings,
     config,
     validate_llm_settings,
@@ -519,6 +520,17 @@ _PROVIDERS: dict[str, tuple] = {
     "anthropic": (_anthropic_generate, _anthropic_agenerate),
 }
 _STREAM_PROVIDERS: dict[str, object] = {"ollama": _ollama_astream}
+
+# Controllo di sincronizzazione al modulo-load: i provider registrati qui devono
+# corrispondere esattamente a VALID_LLM_PROVIDERS in config.py. Se divergono,
+# la validazione config è compromessa.
+_check_sync = set(_PROVIDERS)
+if _check_sync != VALID_LLM_PROVIDERS:
+    raise RuntimeError(
+        f"Errore interno: provider registrati in core/llm.py {_check_sync} non concordano con "
+        f"VALID_LLM_PROVIDERS in core/config.py {VALID_LLM_PROVIDERS}. "
+        f"Sincronizzali prima di eseguire il server."
+    )
 
 
 def register_provider(name: str, sync_fn, async_fn=None) -> None:

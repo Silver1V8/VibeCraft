@@ -197,6 +197,10 @@ with open(CONFIG_PATH, "r", encoding="utf-8") as _f:
 COLLECTION_NAME: str = config["vector_database"]["collection_name"]
 EMBEDDING_MODEL: str = config["vector_database"]["embedding_model"]
 
+# Provider LLM registrati (core/llm.py _PROVIDERS): lista di provider supportati.
+# Viene usata per validare il blocco llm_settings al boot.
+VALID_LLM_PROVIDERS: frozenset[str] = frozenset({"ollama", "anthropic"})
+
 
 class BudgetSettings(BaseModel):
     """Blocco `llm_settings.budget`: tetto di spesa GIORNALIERO (UTC) sulle chiamate
@@ -244,16 +248,40 @@ class LLMSettings(BaseModel):
         """Controlli che valgono SOLO alla validazione di avvio (context={"boot": True}),
         non alla ri-validazione per richiesta fatta da core.llm.resolve(): lì un
         `models` vuoto deve continuare a produrre l'LLMError storico, non un errore di
-        validazione (retrocompatibilità sui messaggi d'errore)."""
+        validazione (retrocompatibilità sui messaggi d'errore).
+
+        Al boot valida anche che:
+        - active_provider, ogni provider di purposes, e budget.fallback_provider (se impostato)
+          siano registrati in core.llm._PROVIDERS (sincronizzati da core.config.VALID_LLM_PROVIDERS)."""
         if not (info.context or {}).get("boot"):
             return self
         if not self.models:
             raise ValueError(
                 "llm_settings.models è vuoto: serve almeno una voce provider -> modello.")
+        # Valida che active_provider sia un provider registrato
+        if self.active_provider not in VALID_LLM_PROVIDERS:
+            raise ValueError(
+                f"active_provider '{self.active_provider}' non è registrato. "
+                f"Provider ammessi: {', '.join(sorted(VALID_LLM_PROVIDERS))}.")
         if self.active_provider not in self.models:
             raise ValueError(
                 f"llm_settings.models non ha un modello per active_provider "
                 f"'{self.active_provider}' (presenti: {', '.join(sorted(self.models)) or 'nessuno'}).")
+        # Valida che ogni provider dei purpose sia registrato
+        if self.purposes:
+            for purpose_name, purpose_config in self.purposes.items():
+                if isinstance(purpose_config, dict):
+                    provider = purpose_config.get("provider")
+                    if provider and provider not in VALID_LLM_PROVIDERS:
+                        raise ValueError(
+                            f"Provider '{provider}' nel purpose '{purpose_name}' non è registrato. "
+                            f"Provider ammessi: {', '.join(sorted(VALID_LLM_PROVIDERS))}.")
+        # Valida che budget.fallback_provider sia registrato (se impostato)
+        if self.budget and self.budget.fallback_provider:
+            if self.budget.fallback_provider not in VALID_LLM_PROVIDERS:
+                raise ValueError(
+                    f"budget.fallback_provider '{self.budget.fallback_provider}' non è registrato. "
+                    f"Provider ammessi: {', '.join(sorted(VALID_LLM_PROVIDERS))}.")
         return self
 
 
@@ -261,8 +289,9 @@ def validate_llm_settings(raw, *, boot: bool = False) -> LLMSettings:
     """Valida il blocco llm_settings grezzo (dict da YAML) restituendo il modello tipato.
     Solleva pydantic.ValidationError con un messaggio leggibile se manca active_provider
     o se i tipi non tornano. Il contratto è deliberatamente ASIMMETRICO:
-    · boot=True  → aggiunge i controlli di coerenza (models non vuoto e con una voce per
-      active_provider): usato solo all'avvio, fallisce presto e forte;
+    · boot=True  → aggiunge i controlli di coerenza (models non vuoto, active_provider e
+      provider di purposes e budget.fallback_provider registrati): usato solo all'avvio,
+      fallisce presto e forte;
     · boot=False → validazione di soli tipi; i casi di configurazione incompleta restano
       a core.llm.resolve(), che ne produce i messaggi LLMError storici.
     L'asimmetria è bloccata dai test `test_contratto_*` in tests/test_llm.py."""
