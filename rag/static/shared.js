@@ -78,6 +78,9 @@ const API_KEY_STORAGE = 'vibecraft-api-key';
 (function () {
   const meta = document.querySelector('meta[name="vibecraft-agent-api-key"]');
   if (meta && meta.content) window.__VIBECRAFT_AGENT_API_KEY__ = meta.content;
+  // Tolto dal DOM dopo la lettura: la chiave non resta come attributo raggiungibile da
+  // selettori CSS (gli stili inline restano ammessi dalla CSP).
+  if (meta) meta.remove();
 })();
 
 function apiKey() {

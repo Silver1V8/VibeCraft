@@ -14,12 +14,12 @@ from starlette.responses import JSONResponse, StreamingResponse
 
 import api.deps as deps
 from api import routes_pipeline
-from api.deps import SecurityHeadersMiddleware, with_security_headers
+from api.deps import CONTENT_SECURITY_POLICY, SecurityHeadersMiddleware, with_security_headers
 
 LOCAL_CLIENT = ("127.0.0.1", 50000)
 EXPECTED = {
     "x-frame-options": "DENY",
-    "content-security-policy": "frame-ancestors 'none'",
+    "content-security-policy": CONTENT_SECURITY_POLICY.decode(),
     "x-content-type-options": "nosniff",
     "referrer-policy": "same-origin",
 }
@@ -132,7 +132,7 @@ def test_streaming_is_not_buffered():
     assert messages[0]["type"] == "http.response.start"
     headers = {k.decode(): v.decode() for k, v in messages[0]["headers"]}
     assert headers["x-frame-options"] == "DENY"
-    assert headers["content-security-policy"] == "frame-ancestors 'none'"
+    assert headers["content-security-policy"] == CONTENT_SECURITY_POLICY.decode()
     bodies = [m.get("body", b"") for m in messages[1:]]
     assert b"".join(bodies) == b"primo\nultimo\n"
 

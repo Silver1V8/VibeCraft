@@ -288,8 +288,8 @@ class HostHeaderGuard:
 # ---------------------------------------------------------------------------
 # Header di sicurezza su ogni risposta — difesa dal clickjacking
 # ---------------------------------------------------------------------------
-# Solo anti-framing e igiene: la CSP completa (script-src & co.) è una fase successiva, qui
-# non si imposta. Nomi minuscoli: è la forma in cui Starlette scrive gli header ASGI.
+# Anti-framing, igiene e Content-Security-Policy. Nomi minuscoli: è la forma in cui
+# Starlette scrive gli header ASGI.
 SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
     (b"x-frame-options", b"DENY"),
     (b"x-content-type-options", b"nosniff"),
@@ -298,12 +298,37 @@ SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
 _CSP = b"content-security-policy"
 _FRAME_ANCESTORS = b"frame-ancestors 'none'"
 
+# CSP della console. Il punto è `script-src 'self'` SENZA 'unsafe-inline' né 'unsafe-eval':
+# un frammento HTML che sfuggisse all'escape (dato del corpus, titolo di un documento in
+# staging) non può eseguire nulla — né <script> iniettati né handler `onerror=`/`onclick=`.
+# Per questo i template non hanno script né handler inline: il codice sta in
+# /static/pages/*.js e le azioni passano da `data-click`/`data-change`/`data-input`
+# (registerActions in /static/shared.js); la chiave di /pipeline arriva in un <meta>.
+# Residuo accettato: `style-src 'unsafe-inline'`. Il runtime Tailwind
+# (/static/vendor/tailwind.min.js) genera il CSS nel browser in un <style>, mermaid e
+# vis/3d-force-graph scrivono stili inline, i template usano `style="..."`; togliere
+# 'unsafe-inline' dagli stili richiede CSS Tailwind precompilato (un tool di build che
+# l'ambiente non ha). Il rischio residuo è l'iniezione di CSS (defacement, esfiltrazione
+# lenta via selettori), non l'esecuzione di codice.
+# `img-src data: blob:` per le icone SVG inline e gli export dei canvas; `worker-src blob:`
+# per i worker che le librerie grafiche possono creare. Tutto il resto solo same-origin:
+# la console è local-first, nessuna CDN (vedi i vendor in /static/vendor/).
+CONTENT_SECURITY_POLICY = (
+    b"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+    b"img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; "
+    b"worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'; "
+    + _FRAME_ANCESTORS
+)
+# Swagger UI / ReDoc di FastAPI caricano JS e CSS da cdn.jsdelivr.net e hanno uno script
+# inline: con la CSP completa sarebbero pagine bianche. Ricevono solo l'anti-framing.
+CSP_EXEMPT_PATHS = frozenset({"/docs", "/docs/oauth2-redirect", "/redoc"})
 
-def with_security_headers(headers) -> list[tuple[bytes, bytes]]:
-    """Header ASGI di una risposta con gli header di SECURITY_HEADERS e la direttiva
-    `frame-ancestors 'none'` aggiunti. Mai sovrascrive ciò che la route ha già deciso:
-    un header già presente (confronto case-insensitive sul nome) resta com'è; una CSP già
-    presente riceve `frame-ancestors 'none'` in coda solo se non ne dichiara una propria."""
+
+def with_security_headers(headers, csp: bytes = CONTENT_SECURITY_POLICY) -> list[tuple[bytes, bytes]]:
+    """Header ASGI di una risposta con gli header di SECURITY_HEADERS e la CSP `csp`
+    aggiunti. Mai sovrascrive ciò che la route ha già deciso: un header già presente
+    (confronto case-insensitive sul nome) resta com'è; una CSP già presente riceve
+    `frame-ancestors 'none'` in coda solo se non ne dichiara una propria."""
     out = list(headers or ())
     present = {name.lower() for name, _ in out}
     for name, value in SECURITY_HEADERS:
@@ -311,7 +336,7 @@ def with_security_headers(headers) -> list[tuple[bytes, bytes]]:
             out.append((name, value))
     csp_idx = [i for i, (name, _) in enumerate(out) if name.lower() == _CSP]
     if not csp_idx:
-        out.append((_CSP, _FRAME_ANCESTORS))
+        out.append((_CSP, csp))
     elif not any(b"frame-ancestors" in out[i][1].lower() for i in csp_idx):
         name, value = out[csp_idx[0]]
         value = value.rstrip().rstrip(b";").rstrip()
@@ -321,8 +346,9 @@ def with_security_headers(headers) -> list[tuple[bytes, bytes]]:
 
 class SecurityHeadersMiddleware:
     """Middleware ASGI: aggiunge a OGNI risposta HTTP `X-Frame-Options: DENY`,
-    `Content-Security-Policy: frame-ancestors 'none'`, `X-Content-Type-Options: nosniff` e
-    `Referrer-Policy: same-origin` (vedi with_security_headers per la regola di fusione).
+    `Content-Security-Policy` (CONTENT_SECURITY_POLICY; solo `frame-ancestors 'none'` per
+    CSP_EXEMPT_PATHS), `X-Content-Type-Options: nosniff` e `Referrer-Policy: same-origin`
+    (vedi with_security_headers per la regola di fusione).
 
     Perché serve: le pagine della console hanno pulsanti che scrivono (pipeline, intake,
     reindex, rollback) e nessuna risposta vietava di essere incorniciata. Una pagina ostile
@@ -352,10 +378,11 @@ class SecurityHeadersMiddleware:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
+        csp = _FRAME_ANCESTORS if scope.get("path") in CSP_EXEMPT_PATHS else CONTENT_SECURITY_POLICY
 
         async def send_with_headers(message):
             if message["type"] == "http.response.start":
-                message = {**message, "headers": with_security_headers(message.get("headers"))}
+                message = {**message, "headers": with_security_headers(message.get("headers"), csp)}
             await send(message)
 
         await self.app(scope, receive, send_with_headers)

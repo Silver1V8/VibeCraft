@@ -288,7 +288,7 @@
       detail.innerHTML = '<p class="status">Caricamento anteprima…</p>';
       detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       try {
-        const res = await fetch(`/api/intake/staged/${id}/preview`);
+        const res = await fetch(`/api/intake/staged/${encodeURIComponent(id)}/preview`);
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
 
@@ -348,7 +348,7 @@
       setReviewBusy(true);
       out.className = 'status'; out.textContent = 'Approvazione in corso…';
       try {
-        const res = await fetch(`/api/intake/staged/${id}/approve`, {
+        const res = await fetch(`/api/intake/staged/${encodeURIComponent(id)}/approve`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ categoria, nome_file: nomeFile }),
         });
@@ -373,7 +373,7 @@
       const out = document.getElementById('preview-result');
       out.className = 'status'; out.textContent = 'Raffinazione avviata: può richiedere alcuni minuti…';
       try {
-        const res = await fetch(`/api/intake/staged/${id}/refine`, { method: 'POST' });
+        const res = await fetch(`/api/intake/staged/${encodeURIComponent(id)}/refine`, { method: 'POST' });
         const job = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(job.detail || `HTTP ${res.status}`);
 
@@ -408,7 +408,7 @@
       setReviewBusy(true);
       out.className = 'status'; out.textContent = 'Rifiuto in corso…';
       try {
-        const res = await fetch(`/api/intake/staged/${id}/reject`, {
+        const res = await fetch(`/api/intake/staged/${encodeURIComponent(id)}/reject`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ motivo }),
         });

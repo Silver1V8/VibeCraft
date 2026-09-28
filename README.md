@@ -404,6 +404,17 @@ Ogni risposta vieta di essere incorniciata (`X-Frame-Options: DENY`,
 `X-Content-Type-Options: nosniff` e `Referrer-Policy: same-origin`: la console **non** si
 può incorporare in un `<iframe>` di un'altra pagina, nemmeno di una dashboard interna.
 
+Le risposte portano anche una **Content-Security-Policy** completa: `script-src 'self'`
+senza `unsafe-inline`/`unsafe-eval` (il browser esegue solo gli script serviti da
+`/static/`), nessuna fonte esterna (`default-src 'self'`). Per questo i template in
+`rag/templates/` non contengono `<script>` né handler `onclick=`/`onchange=` inline: il
+codice di ogni pagina sta in `rag/static/pages/<pagina>.js` e i controlli dichiarano
+l'azione con `data-click`/`data-change`/`data-input`, registrata con `registerActions()`
+(`rag/static/shared.js`); `rag/tests/test_csp.py` lo verifica. Gli stili inline restano
+permessi (`style-src 'unsafe-inline'`) perché Tailwind gira come runtime nel browser. Chi
+aggiunge una pagina o un pulsante segue lo stesso schema: un handler inline verrebbe
+bloccato in silenzio.
+
 La superficie di attacco è mappata rotta per rotta in
 [`rag/SECURITY_SURFACE.md`](rag/SECURITY_SURFACE.md).
 
