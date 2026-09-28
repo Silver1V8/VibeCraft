@@ -75,7 +75,10 @@ class PipelineStore:
 
     def append_event(self, event, *, feature, attempt_id, retry_of_attempt_id=None, **details):
         if event not in ('validation_finished', 'execution_blocked', 'execution_started',
-                         'execution_finished', 'open_point_decision_recorded'):
+                         'execution_finished', 'open_point_decision_recorded',
+                         # Esito della suite eseguita DAL SERVER dopo un run (core/verification.py):
+                         # è l'unico evento del journal che non riporta una dichiarazione dell'agente.
+                         'verification_finished'):
             raise ValueError('Evento pipeline non riconosciuto')
         record = dict(details, event=event, feature=feature, attempt_id=attempt_id,
                       retry_of_attempt_id=retry_of_attempt_id, recorded_at=_now())

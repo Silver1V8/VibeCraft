@@ -674,3 +674,25 @@ code_parsers:
     - "dockerfile"
     - "dockerfile.*"
     - "*.dockerfile"
+
+# Verifica ESEGUITA del codice prodotto da un run agentico (core/verification.py).
+# Il resoconto dei punti aperti e' dichiarato dall'agente e nessun runner ha una shell:
+# senza questo blocco "implementato e verificato" resta un'opinione del modello. Qui il
+# SERVER esegue la suite dell'ambito dopo il run e l'esito diventa la condizione d'uscita
+# del rilancio automatico (api/routes_pipeline.py).
+#
+# I comandi sono liste argv eseguite SENZA shell, e vengono solo da qui: ne' il modello
+# ne' il client possono sceglierli. Un ambito senza comando non e' un verde: l'esito e'
+# 'unavailable' e la feature resta dichiarata non verificata.
+verification:
+  enabled: true
+  timeout_seconds: 900
+  max_output_chars: 4000
+  # Numero massimo di run per una singola richiesta agentic: il primo piu' i rilanci
+  # automatici sulle failure. 1 = nessun rilancio (comportamento storico). Il client puo'
+  # chiedere meno, mai piu' di questo tetto.
+  max_attempts: 3
+  commands:
+    frontend: ["npm", "test"]          # package.json -> vitest run
+    backend: ["dotnet", "test"]        # Portal.sln
+    logicAgent: ["dotnet", "test"]     # Portal.LogicAgent.slnx
