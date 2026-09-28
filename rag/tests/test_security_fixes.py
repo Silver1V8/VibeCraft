@@ -1,7 +1,7 @@
 """Test mirati sul blocco P0/P1 della code review (2026-07-17):
 
 1. Path traversal sui nomi feature (slugify_feature / resolve_feature_dir / feature_dir,
-   core.indexing.check_drift / archive_feature, e i route handler di api/routes_pipeline.py
+   core.drift_check.check_drift / core.feature_archive.archive_feature, e i route handler di api/routes_pipeline.py
    che compongono un percorso da un feature name fornito dal chiamante).
 2. X-API-Key SEMPRE richiesta (anche da localhost) SOLO su /api/pipeline/agent/run
    (api.deps.require_api_key_strict) — l'unico endpoint con esecuzione shell/scrittura
@@ -44,7 +44,7 @@ from api.models import (
     ProposeGenerateRequest,
     ValidateRequest,
 )
-from core import indexing, llm, pipeline
+from core import drift_check, feature_archive, llm, pipeline
 
 
 # ===========================================================================
@@ -109,7 +109,7 @@ def test_feature_dir_rejects_traversal_and_creates_nothing(tmp_path, monkeypatch
 
 
 # ---------------------------------------------------------------------------
-# core.indexing: check_drift / archive_feature — riproducono l'attacco critico
+# core.drift_check.check_drift / core.feature_archive.archive_feature — riproducono l'attacco critico
 # della code review (feature_name=".." risolveva a CHANGES_DIR/".." nel codice
 # pre-fix, ossia la directory PADRE di changes/).
 # ---------------------------------------------------------------------------
@@ -121,10 +121,10 @@ def test_archive_feature_rejects_dotdot_traversal_no_filesystem_touch(tmp_path, 
     # sarebbe stato spostato dentro changes/archive/.. da shutil.move.
     marker = tmp_path / "should-never-move.txt"
     marker.write_text("canary", encoding="utf-8")
-    monkeypatch.setattr(indexing, "CHANGES_DIR", changes)
-    monkeypatch.setattr(indexing, "DOCS_DIR", docs)
+    monkeypatch.setattr(feature_archive, "CHANGES_DIR", changes)
+    monkeypatch.setattr(feature_archive, "DOCS_DIR", docs)
 
-    log = indexing.archive_feature("..", emit=lambda m: None)
+    log = feature_archive.archive_feature("..", emit=lambda m: None)
 
     assert "Nome feature non valido" in log
     assert marker.exists()        # la project root non è stata toccata
@@ -138,10 +138,10 @@ def test_archive_feature_sanitizes_traversal_with_extra_text(tmp_path, monkeypat
     changes = tmp_path / "changes"
     docs = tmp_path / "docs"
     docs.mkdir()
-    monkeypatch.setattr(indexing, "CHANGES_DIR", changes)
-    monkeypatch.setattr(indexing, "DOCS_DIR", docs)
+    monkeypatch.setattr(feature_archive, "CHANGES_DIR", changes)
+    monkeypatch.setattr(feature_archive, "DOCS_DIR", docs)
 
-    log = indexing.archive_feature("../../escape", emit=lambda m: None)
+    log = feature_archive.archive_feature("../../escape", emit=lambda m: None)
 
     assert "Non c'è nulla da archiviare" in log or "non esiste" in log
     assert not changes.exists()  # nessuna directory creata: lo slug sanificato non esiste
@@ -149,10 +149,10 @@ def test_archive_feature_sanitizes_traversal_with_extra_text(tmp_path, monkeypat
 
 def test_check_drift_rejects_dotdot_traversal(tmp_path, monkeypatch):
     changes = tmp_path / "changes"
-    monkeypatch.setattr(indexing, "CHANGES_DIR", changes)
-    monkeypatch.setattr(indexing, "CODE_DIR", tmp_path / "code")
+    monkeypatch.setattr(drift_check, "CHANGES_DIR", changes)
+    monkeypatch.setattr(drift_check, "CODE_DIR", tmp_path / "code")
 
-    report = indexing.check_drift("..", emit=lambda m: None)
+    report = drift_check.check_drift("..", emit=lambda m: None)
 
     assert "Nome feature non valido" in report
     assert not changes.exists()
@@ -614,7 +614,7 @@ def test_propose_generate_still_persists_on_success(changes_env, fake_llm_settin
 # ===========================================================================
 # 5. Path escape via dev_type: consentito solo se in list_dev_types() — la stessa
 # whitelist che già popola la tendina di scelta, nessuna regex nuova. dev_type
-# diventa un componente di path (CODE_DIR / dev_type) in core.indexing.check_drift.
+# diventa un componente di path (CODE_DIR / dev_type) in core.drift_check.check_drift.
 # ===========================================================================
 @pytest.fixture
 def code_dir_env(changes_env, tmp_path, monkeypatch):

@@ -1,7 +1,10 @@
 """Costruzione dell'indice Graph-RAG: grafo NetworkX + collection Qdrant (hybrid dense/sparse)
-+ sidecar ColBERT/chunk, con indicizzazione completa e incrementale (delta), manifest, controllo
-del Drift e archiviazione. Il caricamento/chunking dei documenti vive in core/chunking.py; la
-configurazione in core/config.py. Le risorse pesanti (Qdrant, embedding) sono iniettabili."""
++ sidecar ColBERT/chunk, con indicizzazione completa e incrementale (delta), manifest e check
+di integrità/coerenza. Il caricamento/chunking dei documenti vive in core/chunking.py; la
+configurazione in core/config.py; il blue/green Qdrant (alias, rollback, reconciler, GC) in
+core/qdrant_versions.py; il check drift in core/drift_check.py; l'archiviazione delle change
+in core/feature_archive.py (nomi re-esportati qui). Le risorse pesanti (Qdrant, embedding)
+sono iniettabili."""
 import json
 import logging
 import re
@@ -19,10 +22,6 @@ import numpy as np
 from FlagEmbedding import BGEM3FlagModel
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
-    CreateAlias,
-    CreateAliasOperation,
-    DeleteAlias,
-    DeleteAliasOperation,
     Distance,
     FieldCondition,
     Filter,
@@ -45,11 +44,11 @@ from code_index import (
 from core.artifacts import (
     _atomic_write_text,
     _new_version_name,
+    _read_manifest,
     activate_immutable_index,
     artifact_dir,
     artifact_hashes,
     immutable_index_active,
-    list_versions,
     load_artifacts,
     manifest_path,
     promote_version,
@@ -59,28 +58,18 @@ from core.artifacts import (
 from core.colbert_store import ColbertWriter
 from core.colbert_store import ColbertStore
 from core import artifacts as artifact_module
-from core.canvas_review import (
-    HISTORICAL_SUBDIR,
-    REVIEW_FILENAME,
-    append_eval_candidate,
-    extract_eval_candidate,
-    generate_canvas_review,
-)
 from core.chunking import (
     add_frontmatter_edges,
     chunk_markdown,
     extract_entities,
     read_document,
 )
-from core import drift, llm
 from core.eval_gate import gate_promotion
 from core.retrieval import restatement_sections
 from core.graph_ops import edge_nature, edge_reliability, edge_trust_attrs
-from core.pipeline import InvalidFeatureNameError, resolve_feature_dir
 from core.chunking import split_frontmatter
 from core.config import (
     AUTHORITY_PRECEDENCE_RELATION,
-    CHANGES_DIR,
     CODE_DIR,
     CODE_EXCLUDED_DIRS,
     COLLECTION_NAME,
@@ -92,6 +81,33 @@ from core.config import (
     QDRANT_API_KEY,
     QDRANT_URL,
     qdrant_upsert_batch_from_env,
+)
+# Moduli estratti da questo file (blue/green Qdrant, check drift, archiviazione): i nomi
+# restano importabili da core.indexing per i chiamanti esistenti (CLI, route, test). Un
+# monkeypatch su core.indexing.X colpisce solo le chiamate fatte DA QUESTO modulo: per
+# intercettare le chiamate interne ai moduli estratti va patchato il modulo che le contiene.
+from core.drift_check import check_drift  # noqa: F401
+from core.feature_archive import archive_feature  # noqa: F401
+from core.qdrant_versions import (  # noqa: F401
+    RollbackTargetCollectionMissing,
+    _migrate_legacy_collection_if_needed,
+    _qdrant_collection_exists,
+    _qdrant_collection_for_version,
+    _read_alias_target,
+    _referenced_qdrant_collections,
+    _swap_alias,
+    assert_rollback_target_has_vectors,
+    gc_orphaned_qdrant_collections,
+    gc_qdrant_collections,
+    list_qdrant_collections,
+    observe_qdrant_alias,
+    parse_qdrant_collection_version,
+    qdrant_collection_name,
+    reconcile_and_repair_qdrant_alias,
+    reconcile_qdrant_alias,
+    repair_qdrant_alias,
+    rollback_qdrant_alias_if_needed,
+    rollback_shares_collection_with_later_versions,
 )
 
 logger = logging.getLogger(__name__)
@@ -338,440 +354,6 @@ def _ensure_collection(qdrant: QdrantClient, recreate: bool = False,
         )
 
 
-# ---------------------------------------------------------------------------
-# Blue/green Qdrant (collection versionate + alias) — helper cablati nei percorsi
-# di produzione: build_graph_and_index (build sulla candidata, promote, migrazione
-# one-shot, alias swap, GC), incremental_index (eredita la collection fisica del
-# padre, non muove mai l'alias), rollback (index.py/api/routes_reindex.py), e il
-# lifespan del server (riconciliazione + GC pre-serving al boot).
-#
-# Schema di naming: COLLECTION_NAME resta l'ALIAS che /ask e /api/retrieve
-# interrogheranno sempre; ogni versione dell'indice scrive invece su una collection
-# FISICA "{COLLECTION_NAME}__{version}" (qdrant_collection_name), dove `version` è lo
-# STESSO token della directory locale in database/versions/ (e dello stesso valore
-# scritto nel manifest come "qdrant_collection", vedi write_index_manifest). Il
-# separatore "__" è riservato e mai prodotto da _new_version_name (i cui token sono
-# "v<timestamp>[-NN]"), quindi il parsing inverso non è mai ambiguo.
-# ---------------------------------------------------------------------------
-_QDRANT_COLLECTION_SEP = "__"
-
-
-def qdrant_collection_name(version: str, *, base: str = COLLECTION_NAME) -> str:
-    """Nome della collection FISICA che ospiterà i vettori della versione `version`.
-    `base` (default COLLECTION_NAME) resta anche il nome dell'ALIAS che punterà, dopo
-    la promozione, alla collection della versione attiva."""
-    return f"{base}{_QDRANT_COLLECTION_SEP}{version}"
-
-
-def parse_qdrant_collection_version(name: str, *, base: str = COLLECTION_NAME) -> str | None:
-    """Inversa di qdrant_collection_name: estrae il token di versione da un nome di
-    collection fisica, o None se `name` non segue quello schema — cioè non è una
-    collection versionata di questo progetto (per esempio è l'alias stesso, o una
-    collection estranea non gestita da questo indice)."""
-    prefix = f"{base}{_QDRANT_COLLECTION_SEP}"
-    if not name.startswith(prefix):
-        return None
-    version = name[len(prefix):]
-    return version or None
-
-
-def _declared_qdrant_collection(version: str) -> str | None:
-    """Campo qdrant_collection dichiarato dal manifest di `version`, o None se il
-    manifest è assente/illeggibile o non porta il campo (manifest legacy antecedenti
-    alla sua introduzione). Lettura tollerante condivisa: chi ha bisogno di un nome
-    sempre valido vi aggiunge il fallback (_qdrant_collection_for_version); chi
-    invece distingue "dichiarato" da "non dichiarato" usa il None così com'è
-    (_referenced_qdrant_collections, rollback_shares_collection_with_later_versions)."""
-    try:
-        manifest = json.loads(manifest_path(version).read_text(encoding="utf-8"))
-    except Exception:
-        return None
-    return manifest.get("qdrant_collection") if isinstance(manifest, dict) else None
-
-
-def _qdrant_collection_for_version(version: str) -> str:
-    """Collection Qdrant su cui `version` è stata costruita, letta dal suo manifest
-    (campo qdrant_collection — scritto da write_index_manifest). Condivisa da CLI
-    (index.py) e server (api/routes_reindex.py, che la importa da qui invece di
-    ridefinirla): entrambi i path di rollback ne hanno bisogno per risalire alla
-    collection della versione TARGET senza ricostruirne il nome autonomamente. È la
-    collection candidata/promossa di quella build, mai la produzione corrente.
-    Fallback a COLLECTION_NAME se il manifest è illeggibile o non dichiara il campo
-    (manifest antecedenti all'introduzione di questo campo)."""
-    return _declared_qdrant_collection(version) or COLLECTION_NAME
-
-
-def _read_alias_target(qdrant: QdrantClient, alias: str) -> str | None:
-    """Collection fisica a cui punta attualmente `alias`, o None se l'alias non esiste.
-    Qdrant non offre una risoluzione diretta "alias -> collection" per singolo nome:
-    si enumerano tutti gli alias del cluster (get_aliases) e si filtra su alias_name."""
-    response = qdrant.get_aliases()
-    for a in response.aliases:
-        if a.alias_name == alias:
-            return a.collection_name
-    return None
-
-
-def _qdrant_collection_exists(qdrant: QdrantClient, collection_name: str) -> bool:
-    """True se `collection_name` esiste come collection FISICA in Qdrant. get_collections()
-    elenca sempre e solo le collection fisiche, mai gli alias: se `collection_name` è
-    un alias (o non esiste affatto), questa funzione restituisce False. È la base sia
-    del pre-check prima di uno swap sia della migrazione one-shot legacy→alias
-    (_migrate_legacy_collection_if_needed): Qdrant rifiuta la creazione di un alias
-    omonimo a una collection fisica esistente."""
-    return any(c.name == collection_name for c in qdrant.get_collections().collections)
-
-
-def _migrate_legacy_collection_if_needed(qdrant: QdrantClient, alias: str, emit=None) -> bool:
-    """Migrazione ONE-SHOT legacy→alias, usata dal full rebuild subito prima della
-    promozione: l'UNICA operazione irreversibile del meccanismo blue/green. Se
-    `alias` esiste ancora come collection FISICA (installazione non ancora
-    migrata), la cancella — libera il nome perché `_swap_alias`, chiamata SUBITO
-    dopo dal chiamante, possa ricrearlo come alias. No-op (False, nessuna
-    cancellazione) se `alias` non è una collection fisica: layout già migrato (è
-    già un alias, `_swap_alias` lo sposta senza toccare nulla) o installazione
-    fresca (non esiste affatto, `_swap_alias` lo crea da zero).
-
-    Va chiamata SOLO dopo che CURRENT è già stato promosso (build completata, gate
-    passato) e SOLO da chi chiama `_swap_alias` subito dopo — non è un passo
-    indipendente. Fra il delete e la create dell'alias c'è una finestra di
-    indisponibilità BREVE ma REALE (nessun nome, né collection né alias, risolve
-    temporaneamente `alias`): se il processo si interrompe in quella finestra, il
-    reconciler la osserva come stato "missing" e la ripara al prossimo boot o
-    scrittura (reconcile_and_repair_qdrant_alias), senza bisogno di un nuovo
-    rebuild. Avviene al più una volta nella vita di un'installazione: dopo la prima
-    migrazione riuscita, `alias` non è più una collection fisica e le chiamate
-    successive sono no-op."""
-    _log = emit or logger.info
-    if not _qdrant_collection_exists(qdrant, alias):
-        return False
-    _log(f"⚠️  Migrazione legacy→alias ONE-SHOT: '{alias}' esiste ancora come collection "
-         f"fisica di produzione — la cancello ORA per liberare il nome all'alias "
-         f"(azione IRREVERSIBILE, finestra di indisponibilità minima, una sola volta "
-         f"nella vita di questa installazione).")
-    qdrant.delete_collection(alias)
-    _log(f"🗑️  Collection legacy '{alias}' cancellata: il nome è libero per l'alias.")
-    return True
-
-
-def _swap_alias(qdrant: QdrantClient, alias: str, target_collection: str) -> None:
-    """Sposta `alias` su `target_collection` con un'unica richiesta ATOMICA
-    (update_collection_aliases): se l'alias punta già altrove, il delete del vecchio
-    puntamento e la create del nuovo viaggiano nello STESSO batch, che Qdrant applica
-    indivisibilmente — mai un istante senza alias, mai due target contemporaneamente.
-    Idempotente: se l'alias punta già a `target_collection`, non invia alcuna
-    richiesta (nessuna operazione, nessun log, nessun effetto osservabile)."""
-    current = _read_alias_target(qdrant, alias)
-    if current == target_collection:
-        return
-    operations = []
-    if current is not None:
-        operations.append(DeleteAliasOperation(delete_alias=DeleteAlias(alias_name=alias)))
-    operations.append(
-        CreateAliasOperation(
-            create_alias=CreateAlias(collection_name=target_collection, alias_name=alias)
-        )
-    )
-    qdrant.update_collection_aliases(change_aliases_operations=operations)
-
-
-class RollbackTargetCollectionMissing(RuntimeError):
-    """La collection Qdrant della versione target di un rollback non esiste più.
-    Sollevata PRIMA di qualunque mutazione (vedi assert_rollback_target_has_vectors)."""
-
-
-def assert_rollback_target_has_vectors(qdrant: QdrantClient, target_version: str) -> None:
-    """Pre-check di un rollback, da chiamare PRIMA di `rollback_version` (che sposta
-    CURRENT): la collection Qdrant dichiarata da `target_version` deve esistere ancora.
-
-    Perché prima e non dopo (rag/AUDIT.md A20, RESIDUI R14): `rollback_version` è locale
-    e riesce SEMPRE, mentre `rollback_qdrant_alias_if_needed` — che gira dopo — si limita
-    a NON spostare l'alias e restituire "missing_target_collection". Il risultato è uno
-    stato MISTO durevole: CURRENT (grafo e sidecar) sulla versione target, produzione
-    Qdrant sui vettori di un'altra build. Nessuno lo ripara (repair_qdrant_alias non
-    inventa collection) e — misurato il 2026-09-04 su questo indice — `check_index_integrity`
-    lo dichiarava `ok: true`, perché le due build hanno lo stesso numero di chunk e il
-    passo 5 confronta solo un conteggio. Meglio rifiutare il rollback e lasciare il
-    sistema dov'è: i vettori vanno ricostruiti, non aggirati.
-
-    Qdrant irraggiungibile ⇒ NESSUN blocco: il pre-check si salta e il comportamento
-    resta quello di sempre (rollback locale, alias riparato al prossimo boot). La sonda
-    è la stessa get_collections di `_qdrant_collection_exists`: se solleva, il server non
-    risponde e non c'è nulla da verificare."""
-    expected = _qdrant_collection_for_version(target_version)
-    try:
-        exists = _qdrant_collection_exists(qdrant, expected)
-        actual = _read_alias_target(qdrant, COLLECTION_NAME)
-    except Exception:
-        return
-    if not exists:
-        raise RollbackTargetCollectionMissing(
-            f"rollback a '{target_version}' RIFIUTATO: la sua collection Qdrant "
-            f"'{expected}' non esiste più (artefatti locali presenti, vettori no). "
-            f"Attivarla lascerebbe CURRENT su {target_version} e la produzione su "
-            f"'{actual}': stato misto che nessun reconciler ripara. Serve una "
-            f"re-indicizzazione completa (full rebuild) per ricostruire quei vettori."
-        )
-
-
-def rollback_qdrant_alias_if_needed(qdrant: QdrantClient, target_version: str, emit=None) -> dict:
-    """Allinea l'alias Qdrant (COLLECTION_NAME) alla versione TARGET di un rollback.
-    `core.artifacts.rollback_version` resta puro locale (sposta solo il puntatore
-    CURRENT su disco): questa funzione vive nel chiamante (CLI/server) e si occupa
-    esclusivamente della parte Qdrant, chiamata DOPO che il rollback locale è già
-    andato a buon fine.
-
-    Nessuna correzione automatica distruttiva: se la collection della versione target
-    non esiste più su Qdrant, l'alias NON viene toccato e lo stato lo dice esplicitamente
-    ("missing_target_collection") — CURRENT risulta avanzato ma la produzione resta
-    invariata finché non arriva un full rebuild o un intervento manuale (nessun GC
-    automatico né reconciler riparatore: fuori scope di questa funzione).
-
-    Restituisce {"state": "noop"|"swapped"|"missing_target_collection",
-    "expected": <collection attesa per target_version>, "actual": <target attuale
-    dell'alias, None se l'alias non esiste ancora>}."""
-    _log = emit or logger.info
-    expected = _qdrant_collection_for_version(target_version)
-    actual = _read_alias_target(qdrant, COLLECTION_NAME)
-    if actual is None and expected == COLLECTION_NAME and _qdrant_collection_exists(qdrant, expected):
-        actual = expected
-    if actual == expected:
-        _log(f"ℹ️  Alias Qdrant '{COLLECTION_NAME}' già allineato a '{expected}': nessuna "
-             f"operazione (rollback intra-lineage verso {target_version}).")
-        return {"state": "noop", "expected": expected, "actual": actual}
-    if not _qdrant_collection_exists(qdrant, expected):
-        _log(f"⚠️  Rollback: la collection '{expected}' (versione {target_version}) non "
-             f"esiste più su Qdrant — l'alias NON viene spostato (nessuna correzione "
-             f"automatica). CURRENT punta ora a {target_version} ma la produzione resta "
-             f"su '{actual}'. Serve un full rebuild o un intervento manuale.")
-        return {"state": "missing_target_collection", "expected": expected, "actual": actual}
-    _swap_alias(qdrant, COLLECTION_NAME, expected)
-    _log(f"🔀 Alias Qdrant '{COLLECTION_NAME}' → {expected} (rollback blue/green verso "
-         f"{target_version}).")
-    return {"state": "swapped", "expected": expected, "actual": expected}
-
-
-def rollback_shares_collection_with_later_versions(target_version: str) -> list[str]:
-    """Versioni POSTERIORI a `target_version` il cui manifest dichiara la sua STESSA
-    collection Qdrant (in ordine cronologico). Helper PURO locale (solo lettura dei
-    manifest, nessun client Qdrant), per i chiamanti del rollback (CLI e server):
-    gli incrementali ereditano la collection della versione promossa e la mutano IN
-    PLACE (nessuna candidata, nessun gate — vincolo noto, vedi core.eval_gate),
-    quindi se una versione successiva condivide la collection del target il rollback
-    locale NON riavvolge i punti Qdrant scritti dopo la build del target. Lista non
-    vuota = warning "shared_collection_not_rewound"; rimedio: full rebuild.
-
-    Stessa tolleranza di _referenced_qdrant_collections: manifest illeggibili o senza
-    campo qdrant_collection (legacy) sono ignorati. Se è il TARGET a non dichiarare
-    la collection, la condivisione non è rilevabile e si restituisce [] (nessun falso
-    allarme sui lineage pre-versionamento). Le versioni PRECEDENTI al target non
-    contano: solo chi ha scritto DOPO la sua build può averne mutato la collection."""
-    target_collection = _declared_qdrant_collection(target_version)
-    if not target_collection:
-        return []
-    return [v for v in list_versions()
-            if v > target_version and _declared_qdrant_collection(v) == target_collection]
-
-
-def list_qdrant_collections(qdrant: QdrantClient, *, base: str = COLLECTION_NAME) -> list[str]:
-    """Nomi delle collection FISICHE versionate di questo progetto presenti su Qdrant
-    (quelle che seguono lo schema di qdrant_collection_name), in ordine alfabetico —
-    che per il formato del token di versione coincide con quello cronologico. Non
-    include l'alias: get_collections elenca solo collection fisiche, mai gli alias."""
-    names = (c.name for c in qdrant.get_collections().collections)
-    return sorted(n for n in names if parse_qdrant_collection_version(n, base=base) is not None)
-
-
-def _referenced_qdrant_collections() -> set[str]:
-    """Collection fisiche ancora referenziate da un manifest di versione SOPRAVVISSUTA
-    su disco (database/versions/<v>/index_manifest.json -> campo qdrant_collection).
-    Solo I/O locale (nessun client Qdrant, coerente con core.artifacts): è, insieme al
-    target corrente dell'alias, l'insieme che il GC non deve mai cancellare."""
-    referenced: set[str] = set()
-    for v in list_versions():
-        collection = _declared_qdrant_collection(v)
-        if collection:
-            referenced.add(collection)
-    return referenced
-
-
-def gc_qdrant_collections(qdrant: QdrantClient, *, referenced: set[str],
-                          alias_target: str | None = None,
-                          base: str = COLLECTION_NAME) -> list[str]:
-    """Cancella le collection versionate ORFANE: presenti su Qdrant ma né puntate
-    dall'alias (`alias_target`) né referenziate da un manifest sopravvissuto
-    (`referenced`) — tipicamente candidate di build crashati, bloccate dall'eval-gate,
-    o lineage già ruotati dalla retention locale (core.artifacts.prune_versions).
-    `referenced`/`alias_target` sono parametri espliciti (non ricalcolati qui) così la
-    funzione resta pura e testabile senza un vero stato locale su disco — il chiamante
-    di un passo successivo li otterrà da _referenced_qdrant_collections() e
-    _read_alias_target(). Restituisce i nomi effettivamente rimossi."""
-    keep = set(referenced)
-    if alias_target is not None:
-        keep.add(alias_target)
-    doomed = [n for n in list_qdrant_collections(qdrant, base=base) if n not in keep]
-    for name in doomed:
-        qdrant.delete_collection(name)
-    return doomed
-
-
-def reconcile_qdrant_alias(qdrant: QdrantClient, *, base: str = COLLECTION_NAME) -> dict:
-    """Confronta lo stato ATTESO (il campo qdrant_collection nel manifest della
-    versione attualmente attiva, letto da _read_manifest) con quello REALE (il target
-    corrente dell'alias `base` su Qdrant, via _read_alias_target) e restituisce una
-    classificazione. Funzione di sola OSSERVAZIONE: non scrive mai nulla (né su
-    Qdrant né in locale) — la decisione se e come riparare (chiamare _swap_alias)
-    resta a un passo successivo del piano, che userà questo stesso output.
-
-    `state` restituito:
-    - "legacy": nessuna versione attiva ha ancora un manifest con qdrant_collection
-      (indice mai costruito, layout flat pre-versionamento, o manifest scritto da
-      prima di questo campo). Non c'è ancora un blue/green Qdrant da riconciliare.
-    - "missing": la versione attiva dichiara una collection attesa, ma l'alias non
-      esiste affatto su Qdrant.
-    - "aligned": l'alias punta esattamente alla collection attesa.
-    - "diverging": l'alias esiste ma punta a una collection diversa da quella attesa
-      (es. CURRENT è avanzato oltre l'ultimo swap, o un rollback ha spostato CURRENT
-      senza spostare l'alias)."""
-    manifest = _read_manifest()
-    expected = manifest.get("qdrant_collection") if isinstance(manifest, dict) else None
-    actual = _read_alias_target(qdrant, base)
-    if not expected:
-        return {"state": "legacy", "expected": expected, "actual": actual}
-    if actual is None and expected == base and _qdrant_collection_exists(qdrant, base):
-        actual = base
-    if actual is None:
-        return {"state": "missing", "expected": expected, "actual": None}
-    if actual == expected:
-        return {"state": "aligned", "expected": expected, "actual": actual}
-    return {"state": "diverging", "expected": expected, "actual": actual}
-
-
-def observe_qdrant_alias(qdrant: QdrantClient | None = None) -> dict:
-    """Wrapper SICURO di reconcile_qdrant_alias per i punti di sola osservazione
-    runtime (check di integrità): a differenza della funzione pura, non solleva
-    mai — gestisce da sé apertura/chiusura del client se non iniettato, e degrada a
-    stato "unknown" se la lettura fallisce (Qdrant irraggiungibile, errore di rete,
-    metodo non supportato dal client, ecc.).
-
-    Resta PURA OSSERVAZIONE: non scrive mai nulla su Qdrant né in locale, non ripara
-    alcuna divergenza. La riparazione vera e propria (alias swap sulla base di
-    questo stesso stato) vive in repair_qdrant_alias/reconcile_and_repair_qdrant_alias,
-    usati al boot del server e nei percorsi writer — non qui, che resta un helper di
-    sola lettura per il check di integrità."""
-    own_qdrant = qdrant is None
-    try:
-        if own_qdrant:
-            qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-        return reconcile_qdrant_alias(qdrant)
-    except Exception as exc:
-        return {"state": "unknown", "expected": None, "actual": None,
-                "error": f"{type(exc).__name__}: {exc}"}
-    finally:
-        if own_qdrant and qdrant is not None:
-            try:
-                qdrant.close()
-            except Exception:
-                pass
-
-
-def repair_qdrant_alias(qdrant: QdrantClient, *, base: str = COLLECTION_NAME, emit=None) -> dict:
-    """Riparazione MIRATA della divergenza alias/CURRENT osservata da
-    reconcile_qdrant_alias: a differenza sua, questa scrive su Qdrant — ma solo nei
-    due casi in cui è sicuro farlo:
-    - "diverging" (CURRENT è avanzato oltre l'ultimo swap, es. un rollback lasciato
-      con l'alias non corretto): sposta l'alias sulla collection ATTESA (`expected`,
-      dal manifest della versione attiva), se esiste.
-    - "missing" (nessun alias, es. un crash fra il delete di una collection e la
-      create dell'alias durante una migrazione): crea l'alias verso `expected`, se
-      la collection esiste.
-
-    Conservativa per costruzione: se `expected` non esiste come collection fisica, non
-    fa NULLA (nessuna creazione, nessuna collection "inventata") e lo segnala con
-    `repaired: False` — lo stesso limite già imposto al rollback
-    (rollback_qdrant_alias_if_needed). Gli stati "legacy" (nessuna versione attiva ha
-    ancora un manifest con qdrant_collection) e "aligned" (nulla da fare) sono no-op
-    espliciti. "unknown" non è mai prodotto qui (solo dal wrapper sicuro sotto, in
-    caso di errore)."""
-    _log = emit or logger.info
-    report = reconcile_qdrant_alias(qdrant, base=base)
-    state = report["state"]
-    if state not in ("missing", "diverging"):
-        return {**report, "repaired": False}
-    expected = report["expected"]
-    if not _qdrant_collection_exists(qdrant, expected):
-        _log(f"⚠️  Reconciler: stato '{state}' ma la collection attesa '{expected}' non esiste "
-             f"su Qdrant — nessuna riparazione automatica (nessuna collection inventata). "
-             f"Serve un full rebuild o un intervento manuale.")
-        return {**report, "repaired": False}
-    _swap_alias(qdrant, base, expected)
-    _log(f"🔧 Reconciler: alias '{base}' riparato ({state} → {expected}).")
-    return {**report, "repaired": True}
-
-
-def reconcile_and_repair_qdrant_alias(qdrant: QdrantClient | None = None, emit=None) -> dict:
-    """Wrapper SICURO di repair_qdrant_alias per i punti di riparazione consentiti
-    (boot pre-serving, percorsi writer subito dopo promote/alias swap): come
-    observe_qdrant_alias, non solleva mai — gestisce da sé apertura/chiusura del
-    client se non iniettato e degrada a stato "unknown" se la lettura/riparazione
-    fallisce (Qdrant irraggiungibile, errore di rete, ecc.). Un Qdrant temporaneamente
-    non disponibile non deve mai impedire il boot del server né interrompere un job."""
-    _log = emit or logger.info
-    own_qdrant = qdrant is None
-    try:
-        if own_qdrant:
-            qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-        return repair_qdrant_alias(qdrant, emit=_log)
-    except Exception as exc:
-        return {"state": "unknown", "expected": None, "actual": None, "repaired": False,
-                "error": f"{type(exc).__name__}: {exc}"}
-    finally:
-        if own_qdrant and qdrant is not None:
-            try:
-                qdrant.close()
-            except Exception:
-                pass
-
-
-def gc_orphaned_qdrant_collections(qdrant: QdrantClient, *, base: str = COLLECTION_NAME,
-                                   emit=None) -> list[str]:
-    """Wrapper SICURO di gc_qdrant_collections per i punti consentiti (dopo un
-    promote/alias-swap riuscito nei percorsi writer single-writer, e al boot
-    pre-serving) — non un GC generico richiamabile ovunque. Ricalcola `referenced`
-    (_referenced_qdrant_collections, I/O locale) e `alias_target` (_read_alias_target,
-    lo stato REALE post-swap) al momento della chiamata, così rispetta sempre gli
-    invarianti stretti:
-    - mai la collection puntata ORA dall'alias (produzione corrente);
-    - mai una collection ancora referenziata da un manifest sopravvissuto — incluso
-      quello della versione appena promossa/candidata del job in corso, che è per
-      costruzione sempre nell'insieme referenced (il suo manifest esiste su disco);
-    - mai chiamata concorrentemente fuori dal single-writer o dal boot: il chiamante
-      (build_graph_and_index/_run_full_rebuild dopo lo swap, o il lifespan) è l'unico
-      responsabile di questa garanzia, non questa funzione."""
-    _log = emit or logger.info
-    # NESSUNA versione locale => NESSUN GC. Un insieme di riferimenti vuoto significa "non
-    # ho basi per giudicare cosa sia orfano", non "e' orfano tutto": senza questa guardia il
-    # GC cancella ogni collection versionata che trova.
-    #
-    # Non e' teorico, e' successo (rag/AUDIT.md, A20): un container avviato con database/
-    # vuoto e puntato a un Qdrant CONDIVISO con un'installazione nativa ha distrutto le
-    # collection di quest'ultima al primo boot. L'alias corrente sopravvive sempre (e'
-    # gia' un invariante), quindi il sistema restava in piedi — ma i rollback alle versioni
-    # precedenti no, ed e' esattamente cio' che il blue/green esiste per garantire.
-    if not list_versions():
-        logger.warning(
-            "GC delle collection Qdrant SALTATO: nessuna versione locale in database/versions/. "
-            "Con un indice locale vuoto non e' possibile distinguere una collection orfana da "
-            "una che appartiene a un'altra installazione che condivide questo Qdrant.")
-        return []
-    referenced = _referenced_qdrant_collections()
-    alias_target = _read_alias_target(qdrant, base)
-    removed = gc_qdrant_collections(qdrant, referenced=referenced, alias_target=alias_target, base=base)
-    if removed:
-        _log(f"🗑️  GC collection Qdrant orfane: {', '.join(removed)}.")
-    return removed
-
-
 @dataclass
 class FullState:
     """Full-build state. The production path streams ColBERT and points per document;
@@ -999,7 +581,7 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
                 qdrant.upsert(collection_name=collection_name, points=state.points[i:i + batch_size])
         timings["qdrant"] += time.perf_counter() - started
         started = time.perf_counter()
-        doc_hashes = _docs_hashes()
+        doc_hashes = docs_hashes()
         code_hashes = _code_hashes()
         timings["scan_hash"] = time.perf_counter() - started
         started = time.perf_counter()
@@ -1088,8 +670,9 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     return version
 
 
-def _docs_hashes() -> dict[str, str]:
-    """Calcola l'hash SHA-256 di ogni documento indicizzabile in docs/ (chiave = percorso relativo)."""
+def docs_hashes() -> dict[str, str]:
+    """Calcola l'hash SHA-256 di ogni documento indicizzabile in docs/ (chiave = percorso relativo).
+    Pubblica: la usa anche api/routes_pipeline (stato sorgente del gate di pipeline)."""
     hashes: dict[str, str] = {}
     for filepath_obj in sorted(p for p in DOCS_DIR.rglob("*") if p.is_file() and p.suffix.lower() in DOC_EXTS):
         rel_path = filepath_obj.relative_to(DOCS_DIR).as_posix()
@@ -1099,7 +682,7 @@ def _docs_hashes() -> dict[str, str]:
 
 def _code_hashes() -> dict[str, str]:
     """Hash SHA-256 di ogni file di codice sotto code/ (chiave = percorso relativo a code/).
-    Base del delta incrementale sul codice, gemella di _docs_hashes per i documenti."""
+    Base del delta incrementale sul codice, gemella di docs_hashes per i documenti."""
     hashes: dict[str, str] = {}
     if not CODE_DIR.exists():
         return hashes
@@ -1147,7 +730,7 @@ def write_index_manifest(points_count: int, nodes: int = 0, edges: int = 0,
         "graph_edges": edges,
         # Default: gli hash su disco (full rebuild, che indicizza tutto). L'incrementale passa
         # gli hash di ciò che ha davvero elaborato: vedi incremental_index.
-        "doc_hashes": doc_hashes if doc_hashes is not None else _docs_hashes(),
+        "doc_hashes": doc_hashes if doc_hashes is not None else docs_hashes(),
         "code_hashes": code_hashes if code_hashes is not None else _code_hashes(),
         # Hash dei file artefatto della STESSA versione (grafo JSON, vettori .npz,
         # sidecar): permette al check di coerenza di validarne anche l'integrità.
@@ -1171,20 +754,6 @@ def _diff_hashes(old: dict[str, str], new: dict[str, str]) -> tuple[list[str], l
     return added, removed, modified, unchanged
 
 
-def _read_manifest() -> dict | None:
-    """Legge il manifest della VERSIONE ATTIVA se presente e leggibile, altrimenti None
-    (assente o corrotto). Il chiamante interpreta None come 'nessuna base nota' → tutto
-    da (ri)indicizzare."""
-    path = manifest_path()
-    if not path.exists():
-        return None
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        return data if isinstance(data, dict) else None
-    except Exception:
-        return None
-
-
 def index_status() -> dict:
     """Confronta gli hash correnti di docs/ con quelli del manifest (della versione
     attiva) per dire se l'indice è aggiornato o va rigenerato, elencando i documenti
@@ -1197,7 +766,7 @@ def index_status() -> dict:
     except Exception as exc:
         return {"indexed": False, "stale": True, "reason": f"manifest illeggibile: {exc}", "changed": []}
 
-    added, removed, modified, _unchanged = _diff_hashes(manifest.get("doc_hashes", {}), _docs_hashes())
+    added, removed, modified, _unchanged = _diff_hashes(manifest.get("doc_hashes", {}), docs_hashes())
     changed = [f"+ {p}" for p in added] + [f"- {p}" for p in removed] + [f"~ {p}" for p in modified]
     return {
         "indexed": True,
@@ -1452,7 +1021,7 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
 
     # 2) Sorgenti vs manifest: differenze ⇒ indice stale (delta incrementale sufficiente).
     for label, old, new in (
-        ("docs", manifest.get("doc_hashes", {}), _docs_hashes()),
+        ("docs", manifest.get("doc_hashes", {}), docs_hashes()),
         ("code", manifest.get("code_hashes", {}), _code_hashes()),
     ):
         added, removed, modified, _unchanged = _diff_hashes(old, new)
@@ -2111,7 +1680,7 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     own_qdrant = qdrant is None
 
     started = time.perf_counter()
-    current = _docs_hashes()
+    current = docs_hashes()
     manifest = _read_manifest()
     plan = plan_incremental_indexing(current, manifest)
 
@@ -2395,450 +1964,3 @@ def check_graph_consistency(embed_model=None, docs_dir: Path | None = None,
              f"{len(missing_nodes)} nodi mancanti, {len(extra_nodes)} nodi in eccesso, "
              f"{len(missing_edges)} archi mancanti, {len(extra_edges)} archi in eccesso.")
     return report
-
-
-def _load_dev_type(feature_dir: Path) -> str:
-    """Legge il tipo di sviluppo salvato in <feature_dir>/meta.json, se presente.
-    `feature_dir` è già il percorso risolto (e validato) della feature, non più
-    una stringa da ri-comporre: evita una seconda concatenazione non verificata."""
-    meta_path = feature_dir / "meta.json"
-    if not meta_path.exists():
-        return ""
-    try:
-        return json.loads(meta_path.read_text(encoding="utf-8")).get("dev_type", "")
-    except Exception:
-        return ""
-
-
-# Tetto sui caratteri di codice per LOTTO del check drift (il codice non è più troncato:
-# eccedenze e file grandi finiscono in lotti successivi). Il tetto effettivo è il minimo
-# tra questo valore e quanto resta della finestra di contesto di Ollama dopo Canvas,
-# Spec e istruzioni (vedi _drift_code_budget).
-_DRIFT_MAX_CODE_CHARS = 40_000
-# Numero massimo di lotti (= chiamate LLM di revisione, più una di copertura): oltre,
-# i file restano fuori e vengono DICHIARATI come non analizzati, nel prompt e nel report.
-_DRIFT_MAX_BATCHES = 6
-# Tetto ai riesami mirati (una chiamata LLM breve per rilievo): i rilievi oltre il tetto
-# restano nel verdetto, marcati come non riesaminati.
-_DRIFT_MAX_RECHECKS = 12
-# Quota della finestra di contesto usata dal prompt (stima ~3 caratteri/token, come il
-# guardrail di core/llm.py): il resto è per la risposta JSON.
-_DRIFT_PROMPT_CTX_SHARE = 0.75
-
-# Path/cartelle citati tra backtick nel Canvas (es. §4 Structure — "Implementato in
-# `frontend/src/features/booking-requests/components/CreateBookingForm.tsx`").
-_CANVAS_PATH_TOKEN_PATTERN = re.compile(r"`([\w./-]+/[\w.-]+/?)`")
-
-
-def _canvas_priority_dirs(canvas_content: str, *roots: Path) -> list[Path]:
-    """Risolve i path citati nel Canvas contro le radici di ricerca del drift.
-
-    Quando `dev_type` punta a una cartella condivisa da più feature (es. l'intero
-    `code/frontend`), senza questo il tetto `_DRIFT_MAX_CODE_CHARS` si esaurisce
-    sui file di altre feature prima di arrivare a quelli davvero normati dal
-    Canvas sotto revisione, troncando proprio il codice rilevante.
-    """
-    dirs: list[Path] = []
-    seen: set[Path] = set()
-    for token in _CANVAS_PATH_TOKEN_PATTERN.findall(canvas_content):
-        token = token.strip().rstrip("/")
-        if not token or "/" not in token:
-            continue
-        candidate = Path(token)
-        anchor = candidate.parent if candidate.suffix else candidate
-        for root in roots:
-            root = root.resolve()
-            # Include anche la cartella padre dell'anchor (es. `.../booking-requests`
-            # oltre a `.../booking-requests/components`): il Canvas cita in genere solo
-            # il file/cartella del layer UI, ma file "fratelli" come schema.ts o
-            # rules.ts nella stessa feature sono altrettanto pertinenti al drift.
-            for candidate_dir in (anchor, anchor.parent):
-                resolved = (root / candidate_dir).resolve()
-                if resolved == root:
-                    continue
-                if resolved.is_dir() and resolved not in seen:
-                    seen.add(resolved)
-                    dirs.append(resolved)
-    return dirs
-
-
-_CITED_BLOCK = re.compile(r"`([^`\n]+)`")
-_IDENTIFIER = re.compile(r"[A-Za-z_][\w-]{3,}")
-
-
-def _normalize_symbol(name: str) -> str:
-    """capienza_massima, CapienzaMassima e my-requests-list confrontati alla pari."""
-    return re.sub(r"[_-]", "", name).lower()
-
-
-def _cited_symbols(text: str) -> set[str]:
-    """Identificatori citati tra backtick nel contratto (canvas + spec), normalizzati:
-    `EventCard.tsx` → eventcard, `const isSoldOut = ...` → issoldout. Solo token con forma
-    da identificatore (maiuscole, underscore o trattini): parole come `events` o `stock`
-    compaiono in file qualsiasi e non distinguono nulla."""
-    return {
-        _normalize_symbol(token)
-        for block in _CITED_BLOCK.findall(text)
-        for token in _IDENTIFIER.findall(block)
-        if token != token.lower() or "_" in token or "-" in token
-    }
-
-
-def _feature_code_sources(feature_dir: Path, canvas_content: str) -> list[tuple[Path, list[Path]]]:
-    """Il codice di una change, come lo vede il check drift: (radice, file) per la cartella
-    della feature e per code/<dev_type> (dove Claude Code scrive l'implementazione).
-    Stessa lista di estensioni del code index: una copia locale escludeva .cs/.java/.sql.
-    In ogni radice vengono per primi i file più legati al contratto (simboli citati da
-    canvas e spec, poi cartelle citate dal Canvas §4 Structure): se il budget non basta,
-    restano fuori file di altre feature, non questi."""
-    search_dirs = [feature_dir]
-    dev_type = _load_dev_type(feature_dir)
-    if dev_type:
-        search_dirs.append(CODE_DIR / dev_type)
-    priority_dirs = _canvas_priority_dirs(
-        canvas_content, CODE_DIR, *([CODE_DIR / dev_type] if dev_type else [])
-    )
-    spec_path = feature_dir / "spec.md"
-    spec = spec_path.read_text(encoding="utf-8") if spec_path.exists() else ""
-    symbols = _cited_symbols(canvas_content + "\n" + spec)
-
-    def rank(path: Path) -> tuple[int, int]:
-        # Prima i file che citano più simboli del contratto (su fe2 il canvas dava un
-        # percorso inesistente per EventCard e isSoldOut stava in lib/events/stock.ts; su
-        # la3 la verifica posti/budget stava in un orchestratore mai nominato), poi quelli
-        # sotto le cartelle citate.
-        text = path.read_text(encoding="utf-8", errors="replace")
-        words = {_normalize_symbol(w) for w in re.findall(r"\w+", text)}
-        words.add(_normalize_symbol(path.name.split(".")[0]))
-        in_dir = any(path.is_relative_to(d) for d in priority_dirs)
-        return -len(symbols & words), 0 if in_dir else 1
-
-    sources = []
-    for base in search_dirs:
-        if not base.exists():
-            continue
-        files = [
-            path
-            for path in sorted(base.rglob("*"))
-            if path.is_file() and path.suffix in CODE_EXTS and not (CODE_EXCLUDED_DIRS & set(path.parts))
-        ]
-        sources.append((base, sorted(files, key=rank)))
-    return sources
-
-
-def _review_code(feature_dir: Path) -> str:
-    """Il codice analizzato dal drift, per la canvas review all'archive (test e file
-    generati esclusi, come nella revisione a lotti). '' se non c'è codice."""
-    canvas_path = feature_dir / "canvas.md"
-    canvas = canvas_path.read_text(encoding="utf-8") if canvas_path.exists() else ""
-    pieces = []
-    for base, files in _feature_code_sources(feature_dir, canvas):
-        for path in files:
-            if drift.is_generated_path(path.name) or drift.is_test_path(path.relative_to(base).parts):
-                continue
-            text = path.read_text(encoding="utf-8", errors="replace")
-            pieces.append(f"--- FILE: {path.relative_to(base).as_posix()} ---\n{text}")
-    return "\n\n".join(pieces)
-
-
-def _drift_code_budget(fixed_chars: int) -> int:
-    """Caratteri di codice per lotto: il tetto `_DRIFT_MAX_CODE_CHARS`, ridotto a quanto
-    resta della finestra di contesto dopo la parte fissa del prompt (Canvas, Spec, regole).
-    Senza, Canvas + Spec + 40.000 caratteri superavano num_ctx e core/llm.py rifiutava
-    il prompt (o, appena sotto, Ollama troncava dall'alto)."""
-    budget = _DRIFT_MAX_CODE_CHARS
-    if llm.OLLAMA_NUM_CTX:
-        ctx_chars = int(llm.OLLAMA_NUM_CTX * 3 * _DRIFT_PROMPT_CTX_SHARE) - fixed_chars
-        budget = min(budget, max(ctx_chars, 2_000))
-    return budget
-
-
-def check_drift(feature_name: str, emit=None) -> str:
-    """Controlla se il codice generato si è discostato dal contratto (Canvas + Spec).
-
-    Restituisce il report testuale (oltre a stamparlo/emetterlo), così da poterlo
-    mostrare anche nel box dedicato dell'interfaccia della pipeline, senza terminale.
-    `emit` (default: logger.info) permette lo streaming SSE del progresso.
-
-    Flusso (logica pura in core/drift.py): pre-check deterministico delle dipendenze nei
-    manifest → revisione a lotti entro la finestra di contesto → controllo di copertura
-    sull'indice dei simboli → verifica in Python di citazioni e termini → riesame mirato
-    dei drift sopravvissuti → verdetto calcolato dai rilievi rimasti.
-    """
-    _log = emit or logger.info
-    try:
-        feature_dir_path = resolve_feature_dir(CHANGES_DIR, feature_name)
-    except InvalidFeatureNameError as exc:
-        msg = f"❌ Nome feature non valido: {exc}"
-        _log(msg)
-        return msg
-    feature_folder = feature_dir_path.name
-    _log(f"\n🔍 Avvio controllo Drift (Disallineamento) per: 'changes/{feature_folder}'...")
-
-    canvas_path = feature_dir_path / "canvas.md"
-
-    if not canvas_path.exists():
-        msg = f"❌ Errore: Non trovo il file {canvas_path}."
-        _log(msg)
-        return msg
-
-    canvas_content = canvas_path.read_text(encoding="utf-8")
-    # La Spec (scenari Gherkin + punti aperti) è fonte normativa con precedenza sul
-    # Canvas: senza, requisiti imposti da uno scenario (es. AUDIT_LOG sull'export in
-    # BE1/S07) venivano segnalati come drift perché il Canvas non li citava.
-    spec_path = feature_dir_path / "spec.md"
-    spec_content = spec_path.read_text(encoding="utf-8") if spec_path.exists() else ""
-
-    # Raccoglie il codice da confrontare: sia dall'eventuale codice presente nella
-    # cartella della feature, sia dalla sottocartella code/<dev_type> dove Claude
-    # Code scrive di fatto l'implementazione (il tipo di sviluppo è in meta.json).
-    # Stessa lista del code index: una copia locale escludeva .cs/.java/.sql e il drift
-    # di feature backend .NET/Java risultava "nessun file di codice".
-    # Ordine di analisi: prima i file citati dal Canvas, poi il resto del codice. Test e file
-    # generati (migrazioni EF, designer) sono esclusi dalla revisione a lotti ma restano
-    # nell'indice dei simboli (e i generati anche nella verifica delle mancanze): su BE1 i
-    # rilievi sui test ("il test non verifica X") erano rumore, non drift del codice.
-    ordered: list[tuple[str, str]] = []
-    all_texts: dict[str, str] = {}
-    generated: list[str] = []
-    tests: list[str] = []
-    symbols: list[dict] = []
-    for base, files in _feature_code_sources(feature_dir_path, canvas_content):
-        for path in files:
-            # Path relativo alla radice di ricerca (non solo il nome file): più file
-            # con lo stesso basename (es. `schema.ts` in moduli diversi) altrimenti
-            # diventano indistinguibili nel prompt e l'LLM confonde i vincoli tra loro.
-            label = path.relative_to(base).as_posix()
-            text = path.read_text(encoding="utf-8", errors="replace")
-            all_texts[label] = text
-            if drift.is_generated_path(path.name):
-                generated.append(label)
-            elif drift.is_test_path(path.relative_to(base).parts):
-                tests.append(label)
-            else:
-                ordered.append((label, text))
-        try:
-            symbols += collect_code_symbols(base)
-        except Exception:
-            logger.warning("Indice simboli non disponibile per %s: copertura senza simboli.", base, exc_info=True)
-
-    if not ordered:
-        _log("⚠️ Attenzione: Nessun file di codice sorgente trovato. Claude Code / Cursor ha già scritto il codice?")
-        ordered = [("(nessun file)", "(Nessun file di codice sorgente trovato.)")]
-
-    # Pre-check deterministico: dipendenze dichiarate nei manifest (csproj, pom, gradle,
-    # package.json) incrociate con le tecnologie in grassetto del Canvas.
-    deps = drift.manifest_dependencies(symbols)
-    tech_found = drift.match_canvas_technologies(canvas_content, deps)
-    alternatives = drift.satisfied_alternatives(canvas_content, tech_found)
-    prechecks = drift.format_prechecks(deps, tech_found)
-    for term, dep, manifest in tech_found:
-        _log(f"✔️ Pre-check: '{term}' presente nei manifest come {dep} ({manifest}).")
-
-    all_labels = [label for label, _ in ordered] + tests + generated
-    fixed = len(drift.build_batch_prompt(canvas_content, spec_content, prechecks, "", 0, 0, all_labels))
-    budget = _drift_code_budget(fixed)
-    batches, skipped = drift.make_batches(ordered, budget, _DRIFT_MAX_BATCHES)
-    left_out = skipped + generated
-    coverage = (f"{len(ordered) - len(skipped)} file analizzati in {len(batches)} lotto/i "
-                f"da ≤{budget} caratteri"
-                + (f"; test usati solo come evidenza: {len(tests)}" if tests else "")
-                + (f"; non analizzati: {', '.join(left_out)}" if left_out else "; nessun file escluso"))
-    _log(f"📦 Copertura: {coverage}.")
-    if skipped:
-        _log(f"⚠️ Oltre {_DRIFT_MAX_BATCHES} lotti: {len(skipped)} file non analizzati (elencati nel report).")
-
-    contract_norm = drift.norm(canvas_content + "\n" + spec_content)
-    # Testo in cui cercare i termini delle "mancanze": tutto il codice tranne i test (un test
-    # che nomina una funzionalità non prova che esista; su BE1 il nome del test CSV citato
-    # tra i termini smentiva la mancanza dell'export Excel), minuscolo e senza commenti.
-    searchable = {label: drift.strip_comments(text).lower()
-                  for label, text in all_texts.items() if label not in tests}
-    findings: list[dict] = []
-    failures: list[str] = []
-    try:
-        for i, batch in enumerate(batches, 1):
-            seen = {label for label, _h, _c in batch}
-            prompt = drift.build_batch_prompt(
-                canvas_content, spec_content, prechecks, drift.render_batch(batch),
-                i, len(batches), [label for label in all_labels if label not in seen],
-            )
-            _log(f"🧠 Analisi del lotto {i}/{len(batches)} ({len(seen)} file) tramite LLM...")
-            parsed = drift.parse_findings(llm.generate(prompt, purpose="drift"))
-            if parsed is None:
-                failures.append(f"Lotto {i}: risposta dell'LLM non interpretabile come JSON.")
-                continue
-            findings += [drift.verify_code_finding(f, batch, contract_norm, searchable) for f in parsed]
-
-        _log("🧠 Controllo di copertura dei requisiti sull'indice dei simboli...")
-        summary = drift.symbol_summary(symbols, budget)
-        prompt = drift.build_coverage_prompt(canvas_content, spec_content, prechecks, summary, left_out)
-        parsed = drift.parse_findings(llm.generate(prompt, purpose="drift"))
-        if parsed is None:
-            failures.append("Copertura: risposta dell'LLM non interpretabile come JSON.")
-        else:
-            findings += [drift.verify_coverage_finding(f, searchable, contract_norm) for f in parsed]
-        drift.discard_satisfied_alternatives(findings, alternatives)
-        findings = drift.dedupe(findings)
-
-        # Riesame mirato dei drift sopravvissuti (lotti e copertura): una citazione reale o un
-        # termine assente non bastano, il modello locale ne traeva spesso conclusioni opposte
-        # a ciò che il codice mostrava, o cercava nomi inventati.
-        to_recheck = [f for f in findings if f["categoria"] == "drift" and not f["scartato"]]
-        for f in to_recheck[_DRIFT_MAX_RECHECKS:]:
-            f["descrizione"] += " [non riesaminato: oltre il tetto dei riesami]"
-        to_recheck = to_recheck[:_DRIFT_MAX_RECHECKS]
-        for n, f in enumerate(to_recheck, 1):
-            _log(f"🔎 Riesame del rilievo {n}/{len(to_recheck)} ({f['file'] or 'copertura'})...")
-            # Codice citato, indice simboli e codice che cita gli identificativi del requisito,
-            # entro lo stesso budget di un lotto.
-            context = drift.code_context(all_texts.get(f["file"], ""), f["evidenza"], budget // 3)
-            block = drift.requirement_context(f["requisito"], canvas_content, spec_content)
-            prompt = drift.build_recheck_prompt(
-                canvas_content, spec_content, f, context,
-                drift.symbol_summary(symbols, budget // 3),
-                drift.related_code(block, dict(ordered), budget // 3, f"{f['descrizione']}\n{f['evidenza']}"),
-            )
-            outcome, reason = drift.parse_recheck(llm.generate(prompt, purpose="drift"))
-            if outcome == "rispettato":
-                f["scartato"] = f"riesame: non è una violazione ({reason or 'nessun motivo indicato'})"
-            elif outcome == "punto_aperto":
-                # Non un drift, ma resta visibile: su BE1 l'export Excel mancante (Canvas "CSV o
-                # Excel", Spec OP-001) veniva altrimenti scartato del tutto.
-                f["categoria"] = "punto_aperto"
-                f["descrizione"] += f" [riesame: punto aperto — {reason or 'nessun motivo indicato'}]"
-            elif outcome is None:
-                f["descrizione"] += " [riesame non interpretabile: rilievo mantenuto]"
-    except llm.LLMError as e:
-        # Il controllo drift è tollerante: l'errore diventa il report, mai un'eccezione
-        # verso l'interfaccia. Si interrompe subito: le chiamate successive fallirebbero
-        # allo stesso modo (generate ha già ritentato gli errori transitori).
-        report = f"❌ Errore durante il check drift: {e}"
-    else:
-        discarded = sum(1 for f in findings if f["scartato"])
-        if discarded:
-            _log(f"🧹 {discarded} rilievo/i scartato/i dalla verifica deterministica.")
-        report = drift.build_report(findings, coverage=coverage, prechecks_found=tech_found, failures=failures)
-
-    _log("\n" + "=" * 50)
-    _log("📊 REPORT DRIFT:")
-    _log(report)
-    _log("=" * 50 + "\n")
-    return report
-
-
-def _record_review_skip(change_dir: Path, reason: str) -> None:
-    """Registra nel manifest della change (meta.json) che la canvas review è stata
-    saltata e perché, così l'assenza del file è documentata e non ambigua."""
-    meta_path = change_dir / "meta.json"
-    meta = {}
-    if meta_path.exists():
-        try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        except Exception:
-            meta = {}
-    meta["canvas_review"] = {
-        "status": "skipped",
-        "reason": reason,
-        "at": datetime.now(timezone.utc).isoformat(),
-    }
-    try:
-        meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
-    except Exception:
-        pass  # anche il fallimento della registrazione non deve bloccare l'archive
-
-
-def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_model=None,
-                    emit=None, reindex: bool = True) -> str:
-    """Sposta la cartella in 'archive' (con canvas review) e, se `reindex=True`, innesca
-    la re-indicizzazione completa inline.
-
-    `reindex=False` esegue SOLO la fase di archiviazione: è la modalità usata dal server,
-    dove la ricostruzione dell'indice deve passare dalla coda del ReindexManager (un solo
-    scrittore per costruzione) e non essere eseguita qui. La CLI (index.py), che gira
-    fuori dal server, mantiene il default inline.
-
-    Restituisce il log testuale dell'operazione (oltre a stamparlo/emetterlo). Le
-    risorse pesanti possono essere iniettate dal server per riusare modello e client
-    Qdrant già aperti; `emit` permette lo streaming SSE del progresso.
-    """
-    _emit = emit or logger.info
-    lines: list[str] = []
-
-    def log(msg: str) -> None:
-        _emit(msg)
-        lines.append(msg)
-
-    try:
-        source_dir = resolve_feature_dir(CHANGES_DIR, feature_name)
-    except InvalidFeatureNameError as exc:
-        log(f"❌ Nome feature non valido: {exc}")
-        return "\n".join(lines)
-    feature_folder = source_dir.name
-    log(f"\n📦 Avvio archiviazione per la feature: '{feature_folder}'...")
-
-    archive_base_dir = CHANGES_DIR / "archive"
-    try:
-        # feature_folder è già uno slug valido (appena prodotto sopra): questa validazione
-        # è difesa in profondità, non attesa a fallire — protegge comunque da eventuali
-        # modifiche future alle invarianti di resolve_feature_dir/archive_base_dir.
-        target_dir = resolve_feature_dir(archive_base_dir, feature_folder)
-    except InvalidFeatureNameError as exc:
-        log(f"❌ Percorso di archiviazione non valido: {exc}")
-        return "\n".join(lines)
-
-    if not source_dir.exists():
-        log(f"❌ Errore: La cartella {source_dir} non esiste. Non c'è nulla da archiviare.")
-        return "\n".join(lines)
-
-    archive_base_dir.mkdir(parents=True, exist_ok=True)
-
-    # Canvas che apprende: confronta il diff reale del codice della change con il
-    # canvas e salva canvas_review.md nella cartella (che sta per essere archiviata);
-    # una copia va in docs/03_changes_historical/ così la re-indicizzazione la ingloba
-    # come contesto storico interrogabile. Se l'LLM non è raggiungibile la review viene
-    # saltata con warning nel meta.json: l'archiviazione NON deve mai fallirne.
-    try:
-        log("🧾 Canvas review: confronto il codice della change con il canvas...")
-        review, warning = generate_canvas_review(feature_folder, source_dir,
-                                                 code=_review_code(source_dir))
-        if review is not None:
-            (source_dir / REVIEW_FILENAME).write_text(review, encoding="utf-8")
-            historical = DOCS_DIR / HISTORICAL_SUBDIR / f"{feature_folder}-canvas-review.md"
-            historical.parent.mkdir(parents=True, exist_ok=True)
-            historical.write_text(review, encoding="utf-8")
-            log(f"✅ Canvas review salvata in {REVIEW_FILENAME} (+ copia storica in docs/{HISTORICAL_SUBDIR}/).")
-        else:
-            log(f"⚠️ Canvas review saltata: {warning}")
-            _record_review_skip(source_dir, warning or "motivo sconosciuto")
-    except Exception as e:  # difensivo: nessun problema della review blocca l'archive
-        log(f"⚠️ Canvas review saltata per errore imprevisto: {e}")
-        _record_review_skip(source_dir, str(e))
-
-    # Golden-set che cresce dalle change: estrae (deterministicamente, nessun LLM) un
-    # caso candidato di eval — query = intento della feature, expected = documenti
-    # normativi usati dal retrieval governato per il canvas — e lo accoda a
-    # eval/candidates.yaml. La promozione nel golden-set resta una revisione umana.
-    try:
-        candidate = extract_eval_candidate(feature_folder, source_dir)
-        if candidate and append_eval_candidate(candidate):
-            log(f"🧪 Candidato di eval accodato a eval/candidates.yaml (q: {candidate['q'][:60]}...)")
-    except Exception as e:  # anche il candidato non deve mai bloccare l'archive
-        log(f"⚠️ Estrazione candidato di eval saltata: {e}")
-
-    try:
-        from core.pipeline_store import PipelineStore
-        # La review LLM resta fuori dal lock; solo la mutazione del contratto si coordina con l'ammissione.
-        with PipelineStore().feature_lock(feature_folder):
-            shutil.move(str(source_dir), str(target_dir))
-        log(f"✅ Feature archiviata con successo in: {target_dir}")
-
-        if reindex:
-            log("🔄 Innesco la re-indicizzazione del Graph RAG locale...")
-            build_graph_and_index(qdrant=qdrant, embed_model=embed_model, emit=_emit)
-            log("✅ Re-indicizzazione completata! Il Graph RAG ha appreso la nuova feature.")
-
-    except Exception as e:
-        log(f"❌ Errore durante l'archiviazione: {e}")
-
-    return "\n".join(lines)

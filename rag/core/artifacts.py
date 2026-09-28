@@ -182,6 +182,20 @@ def manifest_path(version: str | None = None) -> Path:
     return artifact_dir(version) / MANIFEST_FILENAME
 
 
+def _read_manifest() -> dict | None:
+    """Legge il manifest della VERSIONE ATTIVA se presente e leggibile, altrimenti None
+    (assente o corrotto). Il chiamante interpreta None come 'nessuna base nota' → tutto
+    da (ri)indicizzare."""
+    path = manifest_path()
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
 def immutable_index_active() -> bool:
     """Sticky immutable profile: explicit config or a marker left by a full build."""
     return INDEX_MODE == "immutable" or (DATABASE_DIR / IMMUTABLE_MARKER_FILENAME).is_file()

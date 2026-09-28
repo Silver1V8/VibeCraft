@@ -1,7 +1,7 @@
 """Canvas che apprende (parte 1): al momento dell'archive confronta il diff reale del
 codice della change con le sezioni Operations/Structure/Safeguards del REASONS Canvas
 tramite l'LLM locale e produce canvas_review.md (divergenze, sezioni accurate, giudizio
-di fedeltà). Logica pura e iniettabile: il chiamante (core/indexing.archive_feature)
+di fedeltà). Logica pura e iniettabile: il chiamante (core/feature_archive.archive_feature)
 decide dove salvare il file e come reagire se l'LLM non è raggiungibile."""
 import json
 import re

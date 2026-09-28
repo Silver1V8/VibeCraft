@@ -1203,7 +1203,7 @@ condividere l'istanza fra i due usi.
 
 ## Check drift (Step 4): rilievi verificati, verdetto calcolato
 
-`core.indexing.check_drift` orchestra, `core/drift.py` contiene la logica pura. Il check
+`core.drift_check.check_drift` orchestra, `core/drift.py` contiene la logica pura. Il check
 storico passava all'LLM il solo Canvas e 40.000 caratteri di codice troncati alla cieca, e
 ne mostrava il testo libero: su BE1 segnalava come drift requisiti imposti dalla Spec,
 librerie "mancanti" che stavano nei file tagliati, verdetti NO che si davano torto da soli.
@@ -1256,7 +1256,7 @@ scansionate sotto `code/`: dipendenze installate e output di build
 2. `code_index.collect_code_symbols` — estrazione simboli per il grafo (full
    rebuild E incrementale: l'incrementale filtra a valle sui file "toccati",
    ma la scansione grezza sotto è la stessa);
-3. il check drift (`core.indexing`, scansione per il confronto codice↔canvas).
+3. il check drift (`core.drift_check`, scansione per il confronto codice↔canvas).
 
 Senza questo filtro un `npm install`/`dotnet build` già eseguito nel repo fa
 esplodere sia il prompt di drift (Ollama risponde 500) sia il grafo di codice:

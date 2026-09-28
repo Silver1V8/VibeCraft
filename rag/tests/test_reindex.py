@@ -10,7 +10,7 @@ import time
 import pytest
 
 from api.reindex import ReindexJob, ReindexManager, extract_gitlab_paths
-from core import indexing
+from core import feature_archive, indexing
 from core.indexing import IndexPlan
 
 
@@ -75,7 +75,7 @@ def test_restrict_plan_keeps_only_allowed_docs():
 
 def test_incremental_index_restricts_to_changed_paths(monkeypatch):
     """changed_paths limita il lavoro: solo i path del webhook finiscono nel piano eseguito."""
-    monkeypatch.setattr(indexing, "_docs_hashes", lambda: {"a.md": "h1", "b.md": "h2"})
+    monkeypatch.setattr(indexing, "docs_hashes", lambda: {"a.md": "h1", "b.md": "h2"})
     monkeypatch.setattr(indexing, "_code_hashes", lambda: {})
     monkeypatch.setattr(indexing, "_read_manifest", lambda: {"doc_hashes": {}, "code_hashes": {}})
     monkeypatch.setattr(indexing, "_ensure_collection", lambda *a, **k: None)
@@ -502,10 +502,10 @@ def _make_archive_env(tmp_path, monkeypatch):
     docs.mkdir()
     (changes / "feat-demo").mkdir(parents=True)
     (changes / "feat-demo" / "canvas.md").write_text("# canvas", encoding="utf-8")
-    monkeypatch.setattr(indexing, "CHANGES_DIR", changes)
-    monkeypatch.setattr(indexing, "DOCS_DIR", docs)
+    monkeypatch.setattr(feature_archive, "CHANGES_DIR", changes)
+    monkeypatch.setattr(feature_archive, "DOCS_DIR", docs)
     monkeypatch.setattr(
-        indexing, "generate_canvas_review", lambda folder, change_dir: (None, "LLM off")
+        feature_archive, "generate_canvas_review", lambda folder, change_dir: (None, "LLM off")
     )
     built = []
     monkeypatch.setattr(indexing, "build_graph_and_index", lambda **kw: built.append(kw))

@@ -1,5 +1,5 @@
 """Check drift affidabile (pipeline, step 4): logica pura usata da
-core/indexing.check_drift, che resta l'orchestratore (lettura file, chiamate LLM).
+core/drift_check.check_drift, che resta l'orchestratore (lettura file, chiamate LLM).
 
 Perché esiste: il check storico passava all'LLM il solo Canvas e ~40.000 caratteri di
 codice troncati alla cieca, e ne pubblicava il testo libero. Sul caso reale BE1 questo

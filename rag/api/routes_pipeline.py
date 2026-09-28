@@ -52,7 +52,7 @@ from core.config import (
     TECH_MAX_CHUNKS,
     TECH_SCOPE_TAG_KEY,
 )
-from core.indexing import archive_feature, check_drift, check_index_integrity, index_status, _docs_hashes
+from core.indexing import archive_feature, check_drift, check_index_integrity, docs_hashes, index_status
 from core.pipeline import (
     FINAL_PROMPT_CONSUMERS,
     InvalidDevTypeError,
@@ -87,7 +87,7 @@ def _safe_slug(feature_name: str) -> str:
 def _safe_dev_type(dev_type: str) -> str:
     """validate_dev_type con conversione esplicita in 400 Bad Request: un dev_type
     fuori dalla whitelist di list_dev_types() (diventerebbe CODE_DIR / dev_type in
-    core.indexing.check_drift) viene rifiutato PRIMA di generare/scrivere alcunché,
+    core.drift_check.check_drift) viene rifiutato PRIMA di generare/scrivere alcunché,
     invece di far fallire a metà lavoro la chiamata a save_dev_type."""
     try:
         return validate_dev_type(dev_type)
@@ -453,7 +453,7 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest):
     # invece di affidarsi a un contesto statico scritto a mano. Il dev_type è risolto qui
     # perché guida anche il ramo tecnico del retrieval, non solo la cartella di output.
     # Validato SUBITO (whitelist di list_dev_types()), prima di spendere un retrieval/LLM:
-    # diventa un componente di path (CODE_DIR / dev_type) in core.indexing.check_drift.
+    # diventa un componente di path (CODE_DIR / dev_type) in core.drift_check.check_drift.
     dev_type = _safe_dev_type(req.dev_type or load_dev_type(folder))
     snap = current_snapshot()
     query = f"{req.feature_name}\n{contesto_intervista[:2000]}"
@@ -505,7 +505,7 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest):
 
     canvas_content = canvas_path.read_text(encoding="utf-8")
     # Validato SUBITO (whitelist di list_dev_types()), prima di spendere un retrieval/LLM:
-    # diventa un componente di path (CODE_DIR / dev_type) in core.indexing.check_drift.
+    # diventa un componente di path (CODE_DIR / dev_type) in core.drift_check.check_drift.
     dev_type = _safe_dev_type(req.dev_type or load_dev_type(folder))
 
     # Recupera i vincoli normativi dal Graph RAG per generare scenari BDD che coprano
@@ -712,7 +712,7 @@ def _validation_manifest(snap):
 def _validation_source_state():
     snap = current_snapshot()
     _validation_manifest(snap)  # assenza/corruzione non diventa corpus vuoto
-    return gate.SourceState(index_version=snap.version, doc_hashes=_docs_hashes())
+    return gate.SourceState(index_version=snap.version, doc_hashes=docs_hashes())
 
 
 def _gate_storage_error(exc):

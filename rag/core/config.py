@@ -21,7 +21,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env.local", override=Fals
 
 # Cartelle da escludere sempre dalla scansione del codice generato (dipendenze installate
 # e output di build, mai scritte dall'agente e potenzialmente enormi): condivisa da
-# code_index (estrazione simboli) e core.indexing (hash delta + drift check). Senza questo
+# code_index (estrazione simboli), core.indexing (hash delta) e core.drift_check (drift check). Senza questo
 # filtro un rglob("*") su un progetto con `npm install`/`dotnet build` già eseguiti include
 # node_modules/bin/obj per intero — decine di migliaia di file che gonfiano sia il prompt
 # di drift sia il grafo di codice (misurato: +16708 nodi/+131780 edge da un solo
