@@ -548,7 +548,7 @@ graph TD
           const { svg } = await mermaid.render('rag-mermaid-svg-' + seq, source);
           if (seq === mermaidRenderSeq) container.innerHTML = svg;
         } catch (e) {
-          container.innerHTML = `<p style="color:#f87171">Errore nel rendering del diagramma: ${e.message}</p>`;
+          container.innerHTML = `<p style="color:#f87171">Errore nel rendering del diagramma: ${escapeHtml(e.message)}</p>`;
         }
       }
 

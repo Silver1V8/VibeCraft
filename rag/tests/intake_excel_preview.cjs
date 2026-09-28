@@ -5,9 +5,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const template = fs.readFileSync(path.join(__dirname, '../templates/intake.unified.html'), 'utf8');
-const code = template.slice(template.indexOf('    function escapeHtml('), template.indexOf('    function formatDate('));
+// escapeHtml è quella di /static/shared.js, che la pagina carica in <head>.
+const shared = fs.readFileSync(path.join(__dirname, '../static/shared.js'), 'utf8');
+const escapeCode = shared.slice(shared.indexOf('function escapeHtml('), shared.indexOf('\n}\n', shared.indexOf('function escapeHtml(')) + 3);
+const code = template.slice(template.indexOf('    function inlineMd('), template.indexOf('    function formatDate('));
 const context = vm.createContext({});
-vm.runInContext(code, context);
+vm.runInContext(escapeCode + code, context);
 
 // Uscita di core/intake_excel.py: escape backslash, entità per gli spazi di bordo, <br> per LF.
 const md = [

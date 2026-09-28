@@ -967,7 +967,9 @@
           .nodeColor('color')
           .nodeVal('val')
           .linkColor('color')
-          .linkLabel('label')
+          // linkLabel finisce in innerHTML del tooltip di 3d-force-graph (come nodeLabel):
+          // la label è la relazione dell'arco, stringa libera del frontmatter del corpus.
+          .linkLabel(l => escapeHtml(l.label || ''))
           .linkWidth(0.6)
           .linkDirectionalArrowRelPos(1)
           .onNodeClick(n => renderNodeDetails(n.id))
@@ -1393,7 +1395,7 @@
 
       list.innerHTML = '';
       const maxScore = Math.max(...scores.map(s => s.score));
-      const fmt = v => (v === null || v === undefined) ? '—' : (typeof v === 'number' ? v.toFixed(3) : v);
+      const fmt = v => (v === null || v === undefined) ? '—' : (typeof v === 'number' ? v.toFixed(3) : escapeHtml(v));
       scores.forEach(s => {
         const pct = maxScore > 0 ? (s.score / maxScore * 100).toFixed(1) : 0;
         const short = (s.doc_id || '—').length > 36

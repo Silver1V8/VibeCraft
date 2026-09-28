@@ -93,6 +93,12 @@ jobs:
       - name: Preview Excel - coordinate, caratteri letterali e HTML non eseguibile
         run: node rag/tests/intake_excel_preview.cjs
 
+      - name: Dry-run pipeline - titoli del corpus, note ed errori restano testo (niente XSS)
+        run: node rag/tests/pipeline_dryrun_escape.cjs
+
+      - name: Dashboard - relazioni degli archi e punteggi del corpus restano testo (niente XSS)
+        run: node rag/tests/dashboard_graph_escape.cjs
+
       - name: Fedeltà Excel - nessuna fusione di tabelle indipendenti
         working-directory: rag
         run: uv run --frozen pytest tests/test_intake_excel.py -k tabelle_affiancate_e_sovrapposte_restano_distinte

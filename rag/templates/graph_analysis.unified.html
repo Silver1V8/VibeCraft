@@ -518,15 +518,14 @@
           const mutedText = themeVar('--muted-text', '#4dbf6e');
           tip.style.display = 'block';
           tip.style.left = (mx + 12) + 'px'; tip.style.top = (my + 12) + 'px';
-          tip.innerHTML = `${escapeHtml(best.id)}<br><span style="color:${mutedText}">${best.type}${best.kind ? ' · ' + best.kind : ''} · anello ${best.ring}</span>`;
+          tip.innerHTML = `${escapeHtml(best.id)}<br><span style="color:${mutedText}">${escapeHtml(best.type)}${best.kind ? ' · ' + escapeHtml(best.kind) : ''} · anello ${best.ring}</span>`;
         } else { tip.style.display = 'none'; }
       });
       canvas.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
     })();
 
-    function escapeHtml(s) {
-      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
+    /* escapeHtml vive in /static/shared.js (escapa anche l'apice singolo): la copia
+       locale, dichiarata dopo, la sovrascriveva con una versione che non lo gestiva. */
 
     /* ══════════ QUERY DETERMINISTICA ══════════ */
     // `target` opzionale: id di nodo esplicito (es. click su un punto della Semantic Map).
