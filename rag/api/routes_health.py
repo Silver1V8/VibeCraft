@@ -15,15 +15,20 @@ from fastapi import APIRouter, Depends
 from fastapi.concurrency import run_in_threadpool
 
 from api.deps import current_snapshot, require_api_key, state
-from api.routes_reindex import manager
-from core.config import ALERTS_PATH
-from core.eval_history import eval_health, load_history
-from core.indexing import index_status
+from core.config import ALERTS_PATH, ROLE
 from core import llm
+
+if ROLE != "reader":
+    from api.routes_reindex import manager
+    from core.eval_history import eval_health, load_history
+    from core.indexing import index_status
+else:
+    manager = None
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
+reader_router = APIRouter(dependencies=[Depends(require_api_key)])
 
 # Un alert dei batch notturni più vecchio di così non degrada più lo stato.
 ALERT_MAX_AGE_HOURS = 48
@@ -32,18 +37,27 @@ ALERT_MAX_AGE_HOURS = 48
 OLLAMA_PING_TIMEOUT_SECONDS = 2.0
 
 
-def check_qdrant(qdrant) -> bool:
-    """True se il client Qdrant risponde a get_collections (client assente ⇒ False).
-    Il client del server è creato con il timeout di default (5s), quindi il check
-    resta breve anche a Qdrant spento."""
+def _qdrant_collection_names(qdrant) -> set[str] | None:
+    """Collection visibili, oppure None se Qdrant non è raggiungibile."""
     if qdrant is None:
-        return False
+        return None
     try:
-        qdrant.get_collections()
-        return True
+        response = qdrant.get_collections()
+        collections = getattr(response, "collections", response) or []
+        names: set[str] = set()
+        for item in collections:
+            name = item.get("name") if isinstance(item, dict) else getattr(item, "name", None)
+            if isinstance(name, str):
+                names.add(name)
+        return names
     except Exception as exc:
         logger.warning("Qdrant non raggiungibile: %s", exc)
-        return False
+        return None
+
+
+def check_qdrant(qdrant) -> bool:
+    """True se il client Qdrant risponde a get_collections (client assente ⇒ False)."""
+    return _qdrant_collection_names(qdrant) is not None
 
 
 def check_ollama(timeout: float = OLLAMA_PING_TIMEOUT_SECONDS) -> bool:
@@ -82,9 +96,10 @@ def read_last_alert(path: Path = ALERTS_PATH, max_age_hours: float = ALERT_MAX_A
     return alert
 
 
-def build_health(*, snapshot, manager, qdrant, status_fn=index_status,
+def build_health(*, snapshot, manager=None, qdrant, status_fn=None,
                  ollama_check=check_ollama, alerts_path: Path = ALERTS_PATH,
-                 now: float | None = None) -> dict:
+                 now: float | None = None, role: str = ROLE,
+                 reload_error: str | None = None, eval_health_fn=None) -> dict:
     """Assembla il report di health. `status` è "ok" solo se `reasons` è vuota;
     ogni difetto (snapshot assente, indice stale, dipendenza giù, ultimo reindex
     fallito, alert notturno recente) aggiunge un motivo leggibile."""
@@ -106,37 +121,63 @@ def build_health(*, snapshot, manager, qdrant, status_fn=index_status,
             "graph_nodes": snapshot.graph.number_of_nodes(),
             "graph_edges": snapshot.graph.number_of_edges(),
             "chunks": len(snapshot.chunks),
+            "qdrant_collection": snapshot.collection_name,
         }
 
-    # Manifest: riusa index_status ma senza la lista completa dei file cambiati.
-    st = status_fn()
-    manifest_report = {
-        "indexed": st.get("indexed", False),
-        "version": st.get("version"),
-        "stale": st.get("stale", True),
-        "changed_count": len(st.get("changed", [])),
-    }
-    if not manifest_report["indexed"]:
-        reasons.append(f"manifest assente o illeggibile ({st.get('reason', '?')})")
-    elif manifest_report["stale"]:
-        reasons.append(f"indice stale: {manifest_report['changed_count']} file cambiati rispetto al manifest")
+    if role == "reader":
+        manifest = snapshot.index_manifest if snapshot is not None else {}
+        manifest_report = {
+            "indexed": bool(manifest),
+            "version": snapshot.version if snapshot is not None else None,
+            "stale": reload_error is not None,
+            "changed_count": 0,
+            "immutable": manifest.get("immutable"),
+            "qdrant_collection": manifest.get("qdrant_collection"),
+        }
+        if not manifest:
+            reasons.append("manifest immutabile non caricato nello snapshot")
+        if reload_error:
+            reasons.append(f"reload indice fallito: {reload_error}")
+        reindex_report = None
+    else:
+        # Manifest: riusa index_status ma senza la lista completa dei file cambiati.
+        status_fn = status_fn or index_status
+        st = status_fn()
+        manifest_report = {
+            "indexed": st.get("indexed", False),
+            "version": st.get("version"),
+            "stale": st.get("stale", True),
+            "changed_count": len(st.get("changed", [])),
+        }
+        if not manifest_report["indexed"]:
+            reasons.append(f"manifest assente o illeggibile ({st.get('reason', '?')})")
+        elif manifest_report["stale"]:
+            reasons.append(
+                f"indice stale: {manifest_report['changed_count']} file cambiati rispetto al manifest"
+            )
 
-    # Ultimo job di reindex + pending in coda.
-    recent = manager.list_recent(1)
-    last_job = None
-    if recent:
-        j = recent[0]
-        last_job = {"job_id": j["job_id"], "kind": j["kind"],
-                    "status": j["status"], "finished_at": j["finished_at"]}
-        if j["status"] == "failed":
-            reasons.append(f"ultimo reindex fallito: {j.get('error') or j['job_id']}")
-    reindex_report = {"last_job": last_job, "pending": manager.pending_id is not None}
+        # Ultimo job di reindex + pending in coda.
+        recent = manager.list_recent(1)
+        last_job = None
+        if recent:
+            j = recent[0]
+            last_job = {"job_id": j["job_id"], "kind": j["kind"],
+                        "status": j["status"], "finished_at": j["finished_at"]}
+            if j["status"] == "failed":
+                reasons.append(f"ultimo reindex fallito: {j.get('error') or j['job_id']}")
+        reindex_report = {"last_job": last_job, "pending": manager.pending_id is not None}
 
     # Dipendenze: Qdrant (necessario), Ollama (best-effort, mai bloccante > 2s).
-    qdrant_ok = check_qdrant(qdrant)
+    qdrant_collections = _qdrant_collection_names(qdrant)
+    qdrant_ok = qdrant_collections is not None
     ollama_ok = ollama_check()
     if not qdrant_ok:
         reasons.append("Qdrant non raggiungibile")
+    elif (role == "reader" and snapshot is not None and snapshot.collection_name
+          and snapshot.collection_name not in qdrant_collections):
+        reasons.append(
+            f"collection Qdrant dello snapshot assente: {snapshot.collection_name}"
+        )
     if not ollama_ok:
         reasons.append("Ollama non raggiungibile")
 
@@ -144,15 +185,20 @@ def build_health(*, snapshot, manager, qdrant, status_fn=index_status,
     # gli script notturni scrivono {script, error}, mentre core.eval_gate.record_alert
     # (eval-gate e il warning di rollback su collection condivisa) scrive
     # {level, source, message, ...}. Il campo "script" distingue i due formati.
-    alert = read_last_alert(alerts_path)
+    alert = None if role == "reader" else read_last_alert(alerts_path)
     if alert is not None:
         if "script" in alert:
             reasons.append(f"alert notturno recente: {alert.get('script', '?')} — {alert.get('error', '?')}")
         else:
             reasons.append(f"alert recente ({alert.get('source', '?')}): {alert.get('message', '?')}")
 
+    eval_report = None
+    if role != "reader":
+        eval_report = (eval_health_fn or eval_health)()
     return {
         "status": "ok" if not reasons else "degraded",
+        "role": role,
+        "read_only": role == "reader",
         "reasons": reasons,
         "snapshot": snap_report,
         "manifest": manifest_report,
@@ -163,10 +209,11 @@ def build_health(*, snapshot, manager, qdrant, status_fn=index_status,
         # rispetto alla media mobile. Se è "down" la recall sta calando: segnale da indagare.
         # La metrica è quella del gate (`key` nel payload, oggi recall@2), non un k fisso: vedi
         # il commento su GATE_RECALL_KEY in core/eval_history.py.
-        "eval": eval_health(),
+        "eval": eval_report,
     }
 
 
+@reader_router.get("/api/health")
 @router.get("/api/health")
 async def api_health():
     """Stato complessivo del servizio: snapshot, manifest, coda di reindex, dipendenze
@@ -176,6 +223,8 @@ async def api_health():
         snapshot=current_snapshot(),
         manager=manager,
         qdrant=state.get("qdrant"),
+        role=ROLE,
+        reload_error=state.get("reload_error"),
     )
 
 

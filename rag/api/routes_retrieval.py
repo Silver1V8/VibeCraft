@@ -44,6 +44,7 @@ from core.config import (
     GRAPH_CONTEXT_MAX_CHUNKS,
     GRAPH_CONTEXT_MIN_RATIO,
     PROJECT_ROOT,
+    ROLE,
 )
 
 logger = logging.getLogger(__name__)
@@ -361,6 +362,11 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
 
     # Fallback legacy: senza sidecar dei chunk, inietta i documenti seed (col cap per blocco)
     if not context_parts:
+        if ROLE == "reader" and search_results:
+            raise HTTPException(
+                status_code=503,
+                detail="Testo dei chunk assente dallo snapshot immutabile.",
+            )
         for doc_id in seed_nodes:
             doc_path = PROJECT_ROOT / "docs" / doc_id
             if doc_path.exists():
@@ -688,14 +694,19 @@ async def _ask_stream(request: Request, query: AskQuery, runtime, resources):
 
     async def produce() -> None:
         try:
-            async with asyncio.timeout(runtime.total_timeout):
-                payload = await _ask_pipeline(
-                    request, query, emit=queue.put, resources=resources,
-                )
+            payload = await _ask_pipeline(
+                request, query, emit=queue.put, resources=resources,
+            )
             await queue.put({"type": "result", "value": payload})
         except asyncio.CancelledError:
             raise
         except Exception as exc:
+            # Se il consumer ha chiuso la risposta, non può più drenare la coda. In
+            # particolare un errore sollevato dal ``finally`` del provider dopo la
+            # cancellazione non deve bloccarsi tentando di accodare un evento terminale.
+            task = asyncio.current_task()
+            if task is not None and task.cancelling():
+                raise
             await queue.put(_stream_error(exc))
 
     producer = asyncio.create_task(produce())
@@ -712,7 +723,29 @@ async def _ask_stream(request: Request, query: AskQuery, runtime, resources):
             await producer
         except asyncio.CancelledError:
             pass
-        runtime.release()
+
+
+class _AskStreamingResponse(StreamingResponse):
+    """Estende deadline e cleanup a header/body ASGI, anche se l'iteratore non parte."""
+
+    def __init__(self, iterator, runtime):
+        super().__init__(
+            iterator, media_type="application/x-ndjson",
+            headers={"Cache-Control": "no-store"},
+        )
+        self._runtime = runtime
+
+    async def __call__(self, scope, receive, send) -> None:
+        try:
+            async with asyncio.timeout(self._runtime.total_timeout):
+                await super().__call__(scope, receive, send)
+        finally:
+            close = getattr(self.body_iterator, "aclose", None)
+            try:
+                if close is not None:
+                    await close()
+            finally:
+                self._runtime.release()
 
 
 @router.post("/ask", dependencies=[Depends(require_not_cross_site_request)])
@@ -729,10 +762,8 @@ async def ask_rag(request: Request, query: AskQuery):
         runtime.release()
         raise
     if query.stream:
-        return StreamingResponse(
-            _ask_stream(request, query, runtime, resources),
-            media_type="application/x-ndjson",
-            headers={"Cache-Control": "no-store"},
+        return _AskStreamingResponse(
+            _ask_stream(request, query, runtime, resources), runtime,
         )
     try:
         async with asyncio.timeout(runtime.total_timeout):
@@ -768,7 +799,7 @@ async def api_retrieve(
     snap = current_snapshot()
     if state.get("qdrant") is None or state.get("embed_model") is None or snap is None:
         raise HTTPException(status_code=503, detail="Indice non ancora pronto.")
-    collection = qdrant_collection_for_version(snap.version)
+    collection = snap.collection_name or qdrant_collection_for_version(snap.version)
     if collection == "unknown":
         if isinstance(snap.version, str) and snap.version != "legacy":
             raise HTTPException(status_code=503, detail="Collection dello snapshot non disponibile.")

@@ -1,0 +1,28 @@
+Working directory: C:\Users\Silve\.codex\worktrees\horizontal-scaling\vibecraft\rag
+
+Command:
+$env:QDRANT_URL='http://127.0.0.1:16333'; $env:HF_HUB_OFFLINE='1'; $env:TRANSFORMERS_OFFLINE='1'; Remove-Item Env:VIBECRAFT_TEST_QDRANT_URL -ErrorAction SilentlyContinue; & 'C:\Users\Silve\Desktop\vibecraft\rag\.venv\Scripts\python.exe' -m pytest tests/test_ask_streaming.py tests/test_reader_mode.py -q
+
+stdout/stderr:
+...........................................                              [100%]
+
+Exit code: 0
+
+Command:
+$env:QDRANT_URL='http://127.0.0.1:16333'; $env:HF_HUB_OFFLINE='1'; $env:TRANSFORMERS_OFFLINE='1'; Remove-Item Env:VIBECRAFT_TEST_QDRANT_URL -ErrorAction SilentlyContinue; & 'C:\Users\Silve\Desktop\vibecraft\rag\.venv\Scripts\python.exe' -m pytest tests/test_lifespan.py tests/test_health.py tests/test_mcp_http.py tests/test_atomic_storage.py tests/test_retrieve_reload.py tests/test_graph_ops.py tests/test_security_fixes.py -q
+
+stdout/stderr:
+........................................................................ [ 27%]
+........................................................................ [ 54%]
+........................................................................ [ 81%]
+................................................                         [100%]
+
+Exit code: 0
+
+Command:
+$env:QDRANT_URL='http://127.0.0.1:16333'; $env:HF_HUB_OFFLINE='1'; $env:TRANSFORMERS_OFFLINE='1'; Remove-Item Env:VIBECRAFT_TEST_QDRANT_URL -ErrorAction SilentlyContinue; & 'C:\Users\Silve\Desktop\vibecraft\rag\.venv\Scripts\python.exe' -m ruff check api/deps.py api/routes_health.py api/routes_pages.py api/routes_graph.py api/routes_retrieval.py core/graph_ops.py server.py tests/test_reader_mode.py tests/test_ask_streaming.py tests/test_lifespan.py tests/test_retrieve_reload.py
+
+stdout/stderr:
+All checks passed!
+
+Exit code: 0

@@ -309,7 +309,7 @@ def _find_duplicates(
     return duplicates[:top]
 
 
-def semantic_map(graph: nx.DiGraph, qdrant) -> dict:
+def semantic_map(graph: nx.DiGraph, qdrant, *, collection_name: str = COLLECTION_NAME) -> dict:
     """Semantic Map: proietta i CHUNK (sezioni) in 2D per prossimità semantica (PCA via
     SVD sui vettori densi bge-m3 in Qdrant). Le community e i nodi 'ponte' sono calcolati
     a livello di documento padre (co-menzione di entità) e ereditati dai chunk; i duplicati
@@ -319,7 +319,7 @@ def semantic_map(graph: nx.DiGraph, qdrant) -> dict:
     # O il benchmark in scripts/bench_semantic_map.py supera 2s — nessuna delle due
     # condizioni è ancora vera, quindi non la implementiamo qui.
     scrolled, next_page_offset = qdrant.scroll(
-        collection_name=COLLECTION_NAME, limit=10000, with_vectors=True, with_payload=True
+        collection_name=collection_name, limit=10000, with_vectors=True, with_payload=True
     )
     truncated = next_page_offset is not None
     if truncated:

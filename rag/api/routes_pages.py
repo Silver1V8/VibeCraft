@@ -9,8 +9,10 @@ from fastapi.responses import HTMLResponse
 from api.deps import NO_CACHE_HEADERS, inject_agent_api_key, serve_page
 
 router = APIRouter()
+reader_router = APIRouter()
 
 
+@reader_router.get("/", include_in_schema=False)
 @router.get("/", include_in_schema=False)
 async def serve_dashboard(request: Request):
     """Serve la dashboard HTML interattiva."""
@@ -30,12 +32,14 @@ async def serve_pipeline(request: Request):
     return response
 
 
+@reader_router.get("/infografica", include_in_schema=False)
 @router.get("/infografica", include_in_schema=False)
 async def serve_infografica(request: Request):
     """Serve l'infografica statica del sistema RAG."""
     return serve_page(request, "infografica.unified.html", "InfograficaRAG.html", "InfograficaRAG_classic.html")
 
 
+@reader_router.get("/analysis", include_in_schema=False)
 @router.get("/analysis", include_in_schema=False)
 async def serve_analysis(request: Request):
     """Serve la pagina di analisi del grafo (Semantic Map + Impact Ripple)."""

@@ -10,7 +10,7 @@ import pytest
 import httpx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from starlette.requests import Request
+from starlette.requests import ClientDisconnect, Request
 
 import api.deps as deps
 from api import routes_retrieval
@@ -169,6 +169,157 @@ def test_stream_asgi_invia_il_primo_delta_prima_che_il_provider_finisca(
     assert runtime.active == 0
 
 
+def _ask_asgi_scope(body: bytes) -> dict:
+    return {
+        "type": "http", "asgi": {"version": "3.0", "spec_version": "2.4"},
+        "http_version": "1.1", "method": "POST", "scheme": "http",
+        "path": "/ask", "raw_path": b"/ask", "query_string": b"", "root_path": "",
+        "headers": [(b"content-type", b"application/json")],
+        "client": ("127.0.0.1", 54321), "server": ("test", 80), "state": {},
+        "_body": body,
+    }
+
+
+async def _receive_once(scope):
+    body = scope.pop("_body", None)
+    if body is not None:
+        return {"type": "http.request", "body": body, "more_body": False}
+    await asyncio.Event().wait()
+
+
+def test_stream_send_start_fallito_non_perde_slot(ask_app):
+    app, _calls = ask_app
+    runtime = deps.AskRuntime(max_active=8, llm_concurrency=2, llm_queue_timeout=3,
+                              total_timeout=10)
+    app.state.ask_runtime = runtime
+    scope = _ask_asgi_scope(json.dumps({"question": "start", "stream": True}).encode())
+
+    async def send(message):
+        if message["type"] == "http.response.start":
+            raise OSError("client disconnesso prima degli header")
+
+    async def scenario():
+        with pytest.raises(ClientDisconnect):
+            await app(scope, lambda: _receive_once(scope), send)
+
+    asyncio.run(scenario())
+    assert runtime.active == 0
+
+
+def test_stream_send_body_fallito_chiude_provider_e_libera_slot(ask_app, monkeypatch):
+    app, _calls = ask_app
+    runtime = deps.AskRuntime(max_active=8, llm_concurrency=2, llm_queue_timeout=3,
+                              total_timeout=10)
+    app.state.ask_runtime = runtime
+    monkeypatch.setattr(routes_retrieval.question_router, "route_question", lambda _q: "hybrid")
+    closed = asyncio.Event()
+    never = asyncio.Event()
+
+    async def provider(*_args):
+        try:
+            yield "prima"
+            await never.wait()
+        finally:
+            closed.set()
+
+    llm.register_streaming_provider("fake", provider)
+    scope = _ask_asgi_scope(json.dumps({"question": "body", "stream": True}).encode())
+
+    async def send(message):
+        if (message["type"] == "http.response.body"
+                and b'"type": "delta"' in message.get("body", b"")):
+            raise OSError("client disconnesso sul body")
+
+    async def scenario():
+        with pytest.raises(ClientDisconnect):
+            await app(scope, lambda: _receive_once(scope), send)
+        await asyncio.wait_for(closed.wait(), timeout=2)
+
+    asyncio.run(scenario())
+    assert runtime.active == 0
+
+
+def test_stream_send_fallito_non_blocca_se_il_cleanup_provider_fallisce(
+    ask_app, monkeypatch,
+):
+    app, _calls = ask_app
+    runtime = deps.AskRuntime(max_active=8, llm_concurrency=2, llm_queue_timeout=3,
+                              total_timeout=10)
+    app.state.ask_runtime = runtime
+    monkeypatch.setattr(routes_retrieval.question_router, "route_question", lambda _q: "hybrid")
+    closed = asyncio.Event()
+    never = asyncio.Event()
+
+    async def provider(*_args):
+        try:
+            yield "prima"
+            await never.wait()
+        finally:
+            closed.set()
+            raise RuntimeError("cleanup provider fallito")
+
+    llm.register_streaming_provider("fake", provider)
+    scope = _ask_asgi_scope(json.dumps({"question": "body", "stream": True}).encode())
+
+    async def send(message):
+        if (message["type"] == "http.response.body"
+                and b'"type": "delta"' in message.get("body", b"")):
+            raise OSError("client disconnesso sul body")
+
+    async def scenario():
+        task = asyncio.create_task(app(scope, lambda: _receive_once(scope), send))
+        done, pending = await asyncio.wait({task}, timeout=2)
+        if pending:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        assert task in done, "la risposta è rimasta bloccata nel cleanup del provider"
+        with pytest.raises(Exception):
+            task.result()
+        await asyncio.wait_for(closed.wait(), timeout=2)
+
+    asyncio.run(scenario())
+    assert runtime.active == 0
+
+
+def test_stream_deadline_include_client_lento_e_libera_slot(ask_app, monkeypatch):
+    app, _calls = ask_app
+    runtime = deps.AskRuntime(max_active=8, llm_concurrency=2, llm_queue_timeout=3,
+                              total_timeout=0.02)
+    app.state.ask_runtime = runtime
+    monkeypatch.setattr(routes_retrieval.question_router, "route_question", lambda _q: "hybrid")
+    closed = asyncio.Event()
+    never = asyncio.Event()
+
+    async def provider(*_args):
+        try:
+            yield "prima"
+            await never.wait()
+        finally:
+            closed.set()
+
+    llm.register_streaming_provider("fake", provider)
+    scope = _ask_asgi_scope(json.dumps({"question": "lento", "stream": True}).encode())
+
+    async def send(message):
+        if (message["type"] == "http.response.body"
+                and b'"type": "delta"' in message.get("body", b"")):
+            await never.wait()
+
+    async def scenario():
+        task = asyncio.create_task(app(scope, lambda: _receive_once(scope), send))
+        done, pending = await asyncio.wait({task}, timeout=0.5)
+        if pending:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        assert task in done, "la deadline non ha interrotto il client lento"
+        with pytest.raises(TimeoutError):
+            task.result()
+        await asyncio.wait_for(closed.wait(), timeout=2)
+
+    asyncio.run(scenario())
+    assert runtime.active == 0
+
+
 def test_json_resta_sul_provider_agenerate(ask_app):
     app, calls = ask_app
     with TestClient(app, client=("127.0.0.1", 54321)) as client:
@@ -178,6 +329,42 @@ def test_json_resta_sul_provider_agenerate(ask_app):
     assert response.json()["answer"] == "risposta completa"
     assert calls["json"] == 1 and calls["stream"] == 0
     assert calls["collections"] == ["collection_v1"]
+
+
+def test_reader_non_ripiega_sui_documenti_live_se_manca_un_chunk(ask_app, monkeypatch):
+    app, _calls = ask_app
+    snapshot = routes_retrieval.current_snapshot()
+    snapshot.chunks.clear()
+    monkeypatch.setattr(routes_retrieval, "ROLE", "reader")
+
+    with TestClient(app, client=("127.0.0.1", 54321)) as client:
+        response = client.post("/ask", json={"question": "chunk mancante"})
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Testo dei chunk assente dallo snapshot immutabile."
+
+
+def test_reader_risponde_con_solo_codice_senza_fallback_ai_documenti(ask_app, monkeypatch):
+    app, _calls = ask_app
+    monkeypatch.setattr(routes_retrieval, "ROLE", "reader")
+    monkeypatch.setattr(retrieval, "hybrid_search", lambda *_a, **_k: [])
+    monkeypatch.setattr(retrieval, "search_code_symbols", lambda *_a, **_k: [{
+        "symbol_id": "api.dto.Request",
+        "file": "api/dto.py",
+        "name": "Request",
+        "kind": "class",
+        "implements": "",
+        "text": "class Request: pass",
+        "source": "semantic",
+        "score": 0.9,
+    }])
+
+    with TestClient(app, client=("127.0.0.1", 54321)) as client:
+        response = client.post("/ask", json={"question": "Mostra il DTO"})
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
+    assert response.json()["implementing_code"][0]["symbol_id"] == "api.dto.Request"
 
 
 def test_runtime_ammette_solo_il_numero_configurato_e_recupera_slot():
@@ -585,12 +772,11 @@ def test_timeout_totale_e_finito_per_json_e_stream(ask_app, monkeypatch):
     monkeypatch.setattr(routes_retrieval, "_ask_pipeline", blocked_pipeline)
     with TestClient(app, client=("127.0.0.1", 54321)) as client:
         json_response = client.post("/ask", json={"question": "timeout JSON"})
-        stream_response = client.post(
-            "/ask", json={"question": "timeout stream", "stream": True},
-        )
+        with pytest.raises(TimeoutError):
+            client.post(
+                "/ask", json={"question": "timeout stream", "stream": True},
+            )
 
     assert json_response.status_code == 504
     assert json_response.json()["detail"] == "Timeout totale della richiesta /ask."
-    events = [json.loads(line) for line in stream_response.text.splitlines()]
-    assert events == [{"type": "error", "detail": "Timeout totale della richiesta /ask."}]
     assert runtime.active == 0

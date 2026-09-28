@@ -68,6 +68,6 @@ def test_reload_index_state_returns_published_snapshot_token(monkeypatch):
         "graph": None, "colbert_store": {}, "chunks_store": {}, "code_store": {},
         "version": "v-published",
     })()
-    monkeypatch.setattr(deps, "load_artifacts", lambda required=(): arts)
+    monkeypatch.setattr(deps, "load_artifacts", lambda required=(), **_kwargs: arts)
     monkeypatch.setattr(deps, "load_rule_descriptions", lambda: {})
     assert deps.reload_index_state() == "v-published"

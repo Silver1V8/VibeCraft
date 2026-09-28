@@ -33,7 +33,10 @@ class _FakeLifespanQdrant:
 def _patch_heavy_resources(monkeypatch, *, repair_result: dict, gc_result: list | None = None):
     monkeypatch.setattr(deps, "BGEM3FlagModel", lambda *a, **k: object())
     monkeypatch.setattr(deps, "QdrantClient", lambda *a, **k: _FakeLifespanQdrant())
-    monkeypatch.setattr(deps, "load_artifacts", lambda required=(): Artifacts(graph=nx.DiGraph()))
+    monkeypatch.setattr(
+        deps, "load_artifacts",
+        lambda required=(), **_kwargs: Artifacts(graph=nx.DiGraph()),
+    )
     monkeypatch.setattr(deps, "load_rule_descriptions", lambda: {})
     monkeypatch.setattr(deps, "reconcile_and_repair_qdrant_alias", lambda qdrant: dict(repair_result))
     monkeypatch.setattr(deps, "gc_orphaned_qdrant_collections", lambda qdrant: list(gc_result or []))
@@ -77,7 +80,8 @@ def test_lifespan_releases_boot_graph_after_reload_without_readers(monkeypatch):
                                                      "actual": None, "repaired": False})
     versions = iter(("v1", "v2"))
     monkeypatch.setattr(deps, "load_artifacts",
-                        lambda required=(): Artifacts(graph=nx.DiGraph(), version=next(versions)))
+                        lambda required=(), **_kwargs:
+                        Artifacts(graph=nx.DiGraph(), version=next(versions)))
 
     async def exercise():
         async with deps.lifespan(FastAPI()):
@@ -144,7 +148,10 @@ def test_lifespan_reconciles_and_gcs_using_the_same_qdrant_client_stored_in_stat
 
     monkeypatch.setattr(deps, "BGEM3FlagModel", lambda *a, **k: object())
     monkeypatch.setattr(deps, "QdrantClient", lambda *a, **k: _FakeLifespanQdrant())
-    monkeypatch.setattr(deps, "load_artifacts", lambda required=(): Artifacts(graph=nx.DiGraph()))
+    monkeypatch.setattr(
+        deps, "load_artifacts",
+        lambda required=(), **_kwargs: Artifacts(graph=nx.DiGraph()),
+    )
     monkeypatch.setattr(deps, "load_rule_descriptions", lambda: {})
     monkeypatch.setattr(deps, "reconcile_and_repair_qdrant_alias", _spy_repair)
     monkeypatch.setattr(deps, "gc_orphaned_qdrant_collections", _spy_gc)
@@ -173,7 +180,10 @@ def test_lifespan_runs_repair_before_gc(monkeypatch):
 
     monkeypatch.setattr(deps, "BGEM3FlagModel", lambda *a, **k: object())
     monkeypatch.setattr(deps, "QdrantClient", lambda *a, **k: _FakeLifespanQdrant())
-    monkeypatch.setattr(deps, "load_artifacts", lambda required=(): Artifacts(graph=nx.DiGraph()))
+    monkeypatch.setattr(
+        deps, "load_artifacts",
+        lambda required=(), **_kwargs: Artifacts(graph=nx.DiGraph()),
+    )
     monkeypatch.setattr(deps, "load_rule_descriptions", lambda: {})
     monkeypatch.setattr(deps, "reconcile_and_repair_qdrant_alias", _spy_repair)
     monkeypatch.setattr(deps, "gc_orphaned_qdrant_collections", _spy_gc)
@@ -197,7 +207,10 @@ def test_lifespan_skips_reconcile_and_gc_when_writer_lock_busy(monkeypatch, capl
 
     monkeypatch.setattr(deps, "BGEM3FlagModel", lambda *a, **k: object())
     monkeypatch.setattr(deps, "QdrantClient", lambda *a, **k: _FakeLifespanQdrant())
-    monkeypatch.setattr(deps, "load_artifacts", lambda required=(): Artifacts(graph=nx.DiGraph()))
+    monkeypatch.setattr(
+        deps, "load_artifacts",
+        lambda required=(), **_kwargs: Artifacts(graph=nx.DiGraph()),
+    )
     monkeypatch.setattr(deps, "load_rule_descriptions", lambda: {})
     monkeypatch.setattr(deps, "reconcile_and_repair_qdrant_alias",
                         lambda qdrant: repair_calls.append(qdrant) or
@@ -258,7 +271,10 @@ def test_lifespan_runs_reconcile_and_gc_inside_writer_lock(monkeypatch):
 
     monkeypatch.setattr(deps, "BGEM3FlagModel", lambda *a, **k: object())
     monkeypatch.setattr(deps, "QdrantClient", lambda *a, **k: _FakeLifespanQdrant())
-    monkeypatch.setattr(deps, "load_artifacts", lambda required=(): Artifacts(graph=nx.DiGraph()))
+    monkeypatch.setattr(
+        deps, "load_artifacts",
+        lambda required=(), **_kwargs: Artifacts(graph=nx.DiGraph()),
+    )
     monkeypatch.setattr(deps, "load_rule_descriptions", lambda: {})
     monkeypatch.setattr(deps, "reconcile_and_repair_qdrant_alias", _spy_repair)
     monkeypatch.setattr(deps, "gc_orphaned_qdrant_collections", _spy_gc)

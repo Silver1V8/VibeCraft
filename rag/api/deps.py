@@ -24,16 +24,21 @@ from qdrant_client import QdrantClient
 from FlagEmbedding import BGEM3FlagModel
 
 from core import retrieval
-from core.artifacts import current_version_token, load_artifacts, manifest_path
+from core.artifacts import (IMMUTABLE_MARKER_FILENAME, LEGACY_VERSION,
+                            artifact_hashes, current_version_token, load_artifacts,
+                            manifest_path)
 from core.indexing import gc_orphaned_qdrant_collections, reconcile_and_repair_qdrant_alias
 from core.writer_lock import WriterLockBusyError, writer_lock
 from core.config import (
+    COLLECTION_NAME,
+    DATABASE_DIR,
     EMBEDDING_MODEL,
     GRAPH_JSON_PATH,
     OLLAMA_TIMEOUT_SECONDS,
     PROJECT_ROOT,
     QDRANT_API_KEY,
     QDRANT_URL,
+    ROLE,
     SERVER_BIND_IS_LOCAL,
     SERVER_HOST,
     TEMPLATES_DIR,
@@ -66,7 +71,7 @@ def require_api_key(request: Request) -> None:
     """Lascia passare le richieste da localhost; per tutte le altre, richiede
     l'header X-API-Key (env VIBECRAFT_API_KEY). Se la chiave non è configurata,
     le richieste non locali vengono sempre rifiutate (fail-closed)."""
-    if _is_local_request(request):
+    if ROLE != "reader" and _is_local_request(request):
         return
     if not _valid_api_key(request):
         raise HTTPException(status_code=401, detail="API key richiesta per accesso non locale.")
@@ -229,6 +234,10 @@ class IndexSnapshot:
     restatements: frozenset = frozenset()
     # Collection fisica coerente con gli artefatti; None sui layout/test legacy.
     collection_name: str | None = None
+    # Manifest letto mentre la lease della stessa versione era detenuta.
+    index_manifest: dict = field(default_factory=dict)
+    # Lease condivisa: resta viva quanto lo snapshot, incluse richieste già in volo al reload.
+    version_lease: object | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -241,6 +250,7 @@ state: dict = {
     "snapshot": None,
     "qdrant": None,
     "embed_model": None,
+    "reload_error": None,
 }
 
 
@@ -427,7 +437,8 @@ def _prep_dev_type_index(code_ids: list[str], code_store: dict) -> dict[str, "np
 
 
 def _build_snapshot(graph, colbert_store, chunks, rule_descriptions, code_store,
-                    *, version=None) -> IndexSnapshot:
+                    *, version=None, collection_name=None, index_manifest=None,
+                    version_lease=None) -> IndexSnapshot:
     """Assembla un IndexSnapshot con la versione degli artefatti già caricati e
     precalcolando la matrice densa del codice e l'indice per ambito (una volta per reindex,
     non per richiesta)."""
@@ -438,7 +449,7 @@ def _build_snapshot(graph, colbert_store, chunks, rule_descriptions, code_store,
     elif version is None:
         version = _graph_version()
     code_ids, code_matrix = _prep_code_matrix(code_store)
-    collection_name = qdrant_collection_for_version(version)
+    resolved_collection = collection_name or qdrant_collection_for_version(version)
     return IndexSnapshot(
         graph=graph,
         colbert_store=colbert_store,
@@ -450,7 +461,9 @@ def _build_snapshot(graph, colbert_store, chunks, rule_descriptions, code_store,
         code_matrix=code_matrix,
         code_dev_type_idx=_prep_dev_type_index(code_ids, code_store),
         restatements=retrieval.restatement_sections(chunks),
-        collection_name=None if collection_name == "unknown" else collection_name,
+        collection_name=None if resolved_collection == "unknown" else resolved_collection,
+        index_manifest=index_manifest or {},
+        version_lease=version_lease,
     )
 
 
@@ -477,9 +490,106 @@ def load_rule_descriptions() -> dict[str, str]:
     return descriptions
 
 
+_RULE_DESCRIPTION_RE = re.compile(r"`\[([A-Z0-9][A-Z0-9_\- ]*)]`:\s*(.+)")
+
+
+def rule_descriptions_from_chunks(chunks: Mapping) -> dict[str, str]:
+    """Deriva le descrizioni dal bundle versionato, senza leggere i documenti live."""
+    descriptions: dict[str, str] = {}
+    for chunk_id in sorted(chunks):
+        text = str((chunks.get(chunk_id) or {}).get("text") or "")
+        for match in _RULE_DESCRIPTION_RE.finditer(text):
+            descriptions[match.group(1).strip()] = match.group(2).strip()
+    return descriptions
+
+
+def _reader_manifest(version) -> dict:
+    if not (DATABASE_DIR / IMMUTABLE_MARKER_FILENAME).is_file():
+        raise RuntimeError(
+            f"Reader rifiutato: marker {IMMUTABLE_MARKER_FILENAME} assente in {DATABASE_DIR}."
+        )
+    if not isinstance(version, str) or not version or version == LEGACY_VERSION:
+        raise RuntimeError("Reader rifiutato: serve una versione immutabile non legacy.")
+    try:
+        manifest = json.loads(manifest_path(version).read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+        raise RuntimeError(
+            f"Reader rifiutato: manifest della versione '{version}' assente o illeggibile."
+        ) from exc
+    expected = f"{COLLECTION_NAME}__{version}"
+    if not isinstance(manifest, dict):
+        raise RuntimeError(f"Reader rifiutato: manifest della versione '{version}' non valido.")
+    if manifest.get("immutable") is not True or manifest.get("qdrant_collection") != expected:
+        raise RuntimeError(
+            f"Reader rifiutato: la versione '{version}' non dichiara la collection "
+            f"fisica immutabile '{expected}'."
+        )
+    expected_hashes = manifest.get("artifact_hashes")
+    if not isinstance(expected_hashes, dict) or artifact_hashes(version) != expected_hashes:
+        raise RuntimeError(
+            f"Reader rifiutato: hash degli artefatti della versione '{version}' non coerenti."
+        )
+    return manifest
+
+
+def _close_unpublished_artifacts(arts) -> None:
+    lease = getattr(arts, "version_lease", None)
+    if lease is not None:
+        lease.close()
+    store = getattr(arts, "colbert_store", None)
+    close = getattr(store, "close", None)
+    if close is not None:
+        close()
+
+
+def _load_index_snapshot(*, boot: bool = False) -> IndexSnapshot:
+    required = (("graph", "colbert", "chunks") if ROLE == "reader" or not boot
+                else ("graph",))
+    arts = load_artifacts(required=required, retain_lease=True)
+    try:
+        if ROLE == "reader":
+            manifest = _reader_manifest(arts.version)
+            if set(arts.colbert_store) != set(arts.chunks_store):
+                raise RuntimeError(
+                    "Reader rifiutato: chiavi ColBERT e chunks dello snapshot non coincidono."
+                )
+            if any(not isinstance(entry, dict) or not isinstance(entry.get("text"), str)
+                   for entry in arts.chunks_store.values()):
+                raise RuntimeError(
+                    "Reader rifiutato: ogni chunk deve contenere testo versionato completo."
+                )
+            descriptions = rule_descriptions_from_chunks(arts.chunks_store)
+            collection_name = manifest["qdrant_collection"]
+        else:
+            descriptions = load_rule_descriptions()
+            collection_name = None
+            try:
+                manifest = json.loads(manifest_path(arts.version).read_text(encoding="utf-8"))
+            except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                manifest = {}
+        return _build_snapshot(
+            arts.graph, arts.colbert_store, arts.chunks_store, descriptions,
+            arts.code_store, version=arts.version, collection_name=collection_name,
+            index_manifest=manifest, version_lease=getattr(arts, "version_lease", None),
+        )
+    except BaseException:
+        _close_unpublished_artifacts(arts)
+        raise
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     """Carica le risorse pesanti al boot e le libera allo shutdown."""
+    if ROLE == "reader":
+        if not API_KEY:
+            raise RuntimeError(
+                "VIBECRAFT_ROLE=reader richiede VIBECRAFT_API_KEY: il bypass loopback "
+                "è disabilitato per le repliche."
+            )
+        if not (DATABASE_DIR / IMMUTABLE_MARKER_FILENAME).is_file():
+            raise RuntimeError(
+                f"Reader rifiutato: marker {IMMUTABLE_MARKER_FILENAME} assente in {DATABASE_DIR}."
+            )
     ask_runtime_for_app(application)
     logger.info("Caricamento modello embedding: %s ...", EMBEDDING_MODEL)
     # CPU per le query interattive (/ask, graph query): una singola embedding costa ms
@@ -506,48 +616,46 @@ async def lifespan(application: FastAPI):
     # writer attivo) si salta riconciliazione+GC per questo avvio — mai un motivo di
     # fallimento del boot, il server serve comunque in lettura con l'alias non
     # riconciliato, che verrà sistemato dal prossimo job o boot.
-    try:
-        with writer_lock(timeout_seconds=5):
-            alias_state = reconcile_and_repair_qdrant_alias(state["qdrant"])
-            logger.info("Stato alias Qdrant (riconciliazione): %s (expected=%s, actual=%s, repaired=%s)%s",
-                       alias_state["state"], alias_state.get("expected"), alias_state.get("actual"),
-                       alias_state.get("repaired"),
-                       f" — {alias_state['error']}" if alias_state.get("error") else "")
+    if ROLE != "reader":
+        try:
+            with writer_lock(timeout_seconds=5):
+                alias_state = reconcile_and_repair_qdrant_alias(state["qdrant"])
+                logger.info("Stato alias Qdrant (riconciliazione): %s (expected=%s, actual=%s, repaired=%s)%s",
+                           alias_state["state"], alias_state.get("expected"), alias_state.get("actual"),
+                           alias_state.get("repaired"),
+                           f" — {alias_state['error']}" if alias_state.get("error") else "")
 
-            # GC delle collection Qdrant orfane, stesso punto pre-serving consentito: al
-            # boot nessun altro writer è concorrente (garantito dal lock qui sopra).
-            gc_orphaned_qdrant_collections(state["qdrant"])
-    except WriterLockBusyError:
-        logger.warning("Writer attivo durante il boot: riconciliazione alias e GC saltati, "
-                        "verranno rieseguiti dal prossimo job o boot.")
+                # GC delle collection Qdrant orfane, stesso punto pre-serving consentito: al
+                # boot nessun altro writer è concorrente (garantito dal lock qui sopra).
+                gc_orphaned_qdrant_collections(state["qdrant"])
+        except WriterLockBusyError:
+            logger.warning("Writer attivo durante il boot: riconciliazione alias e GC saltati, "
+                            "verranno rieseguiti dal prossimo job o boot.")
 
     logger.info("Caricamento artefatti indice (grafo JSON, ColBERT/chunk) ...")
     try:
-        arts = load_artifacts(required=("graph",))
+        snapshot = _load_index_snapshot(boot=True)
     except FileNotFoundError:
         raise RuntimeError(
             "Grafo non trovato (graph.json assente). Esegui prima 'python index.py' per indicizzare."
         )
-    graph = arts.graph
-    colbert_store = arts.colbert_store
-    chunks = arts.chunks_store
-    code_store = arts.code_store
+    graph = snapshot.graph
+    colbert_store = snapshot.colbert_store
+    chunks = snapshot.chunks
+    code_store = snapshot.code_store
     logger.info("Grafo caricato: %d nodi, %d archi.", graph.number_of_nodes(), graph.number_of_edges())
     logger.info("Multivettori ColBERT caricati: %d chunk. Chunk sidecar: %d sezioni. Simboli codice: %d.",
                 len(colbert_store), len(chunks), len(code_store))
 
-    logger.info("Caricamento descrizioni regole dai file spec...")
-    rule_descriptions = load_rule_descriptions()
-
     # Rebind atomico dello snapshot iniziale (un solo assegnamento).
-    state["snapshot"] = _build_snapshot(graph, colbert_store, chunks, rule_descriptions, code_store,
-                                        version=arts.version)
+    state["snapshot"] = snapshot
     state["_graph_mtime"] = state["snapshot"].version
+    state["reload_error"] = None
     logger.info("Server pronto.")
 
     # Il generatore lifespan rimane sospeso a yield: i locali del boot non devono
     # trattenere il vecchio snapshot dopo un reload.
-    del arts, graph, colbert_store, chunks, code_store, rule_descriptions
+    del snapshot, graph, colbert_store, chunks, code_store
 
     yield  # il server è in esecuzione
 
@@ -571,9 +679,9 @@ def reload_index_state() -> str | float | None:
     versione precedente in memoria, evitando di degradare il server (grafo senza
     ColBERT/chunk)."""
     try:
-        arts = load_artifacts(required=("graph", "colbert", "chunks"))
-        rule_descriptions = load_rule_descriptions()
+        snapshot = _load_index_snapshot()
     except Exception as exc:
+        state["reload_error"] = f"{type(exc).__name__}: {exc}"
         logger.warning("Reload indice annullato (%s: %s): artefatto mancante o corrotto, "
                        "mantengo in memoria la versione precedente.", type(exc).__name__, exc)
         # Aggiorna comunque il baseline mtime: se il file è corrotto in modo persistente,
@@ -584,9 +692,9 @@ def reload_index_state() -> str | float | None:
 
     # Rebind ATOMICO: un solo IndexSnapshot completo sostituisce quello precedente.
     # Nessuna mutazione in place → nessun handler può osservare una versione mista.
-    state["snapshot"] = _build_snapshot(arts.graph, arts.colbert_store, arts.chunks_store,
-                                        rule_descriptions, arts.code_store, version=arts.version)
+    state["snapshot"] = snapshot
     state["_graph_mtime"] = state["snapshot"].version
+    state["reload_error"] = None
     return state["snapshot"].version
 
 

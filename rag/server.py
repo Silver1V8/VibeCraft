@@ -20,7 +20,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from core.config import SERVER_BIND_IS_LOCAL, STATIC_DIR, setup_logging
+from core.config import ROLE, SERVER_BIND_IS_LOCAL, STATIC_DIR, setup_logging
 
 # Configurazione centrale del logging PRIMA degli import applicativi: i moduli usano
 # logging.getLogger(__name__) e vedono formato/livello (VIBECRAFT_LOG_LEVEL) coerenti.
@@ -28,15 +28,10 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 from api.deps import API_KEY, NO_CACHE_HEADERS, lifespan
-from api import (
-    routes_graph,
-    routes_health,
-    routes_intake,
-    routes_pages,
-    routes_pipeline,
-    routes_reindex,
-    routes_retrieval,
-)
+from api import routes_graph, routes_health, routes_pages, routes_retrieval
+
+if ROLE != "reader":
+    from api import routes_intake, routes_pipeline, routes_reindex
 
 app = FastAPI(title="VibeCraft Graph-RAG Console", lifespan=lifespan)
 
@@ -66,13 +61,15 @@ def _shared_js() -> FileResponse:
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # Pagine HTML (aperte) + router API protetti da X-API-Key (require_api_key a livello di router).
-app.include_router(routes_pages.router)
-app.include_router(routes_pipeline.router)
-app.include_router(routes_reindex.router)
+app.include_router(routes_pages.reader_router if ROLE == "reader" else routes_pages.router)
+if ROLE != "reader":
+    app.include_router(routes_pipeline.router)
+    app.include_router(routes_reindex.router)
 app.include_router(routes_retrieval.router)
-app.include_router(routes_graph.router)
-app.include_router(routes_health.router)
-app.include_router(routes_intake.router)
+app.include_router(routes_graph.reader_router if ROLE == "reader" else routes_graph.router)
+app.include_router(routes_health.reader_router if ROLE == "reader" else routes_health.router)
+if ROLE != "reader":
+    app.include_router(routes_intake.router)
 
 
 # ---------------------------------------------------------------------------
