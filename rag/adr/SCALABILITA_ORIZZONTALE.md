@@ -51,7 +51,7 @@ Ruoli: `standalone` (default storico), `reader`, `writer`. Reader espone solo pa
 
 Il profilo indice `immutable` è obbligatorio per reader/writer replicati:
 
-1. Ogni pubblicazione ha una nuova collection fisica e artefatti completi: grafo, chunk, ColBERT, codice, descrizioni regole. Il manifest dichiara formato, collection, hash e immutabilità.
+1. Ogni pubblicazione ha una nuova collection fisica e artefatti completi: grafo, chunk, ColBERT e codice. Le descrizioni regole sono derivate deterministicamente dai chunk versionati, senza leggere docs live né duplicare un artefatto. Il manifest dichiara formato, collection, hash e immutabilità.
 2. L'incrementale con modifiche viene **rifiutato** con messaggio che richiede full rebuild esplicito nel profilo immutable. No-op può restare no-op. API/webhook non devono convertire silenziosamente un delta in job GPU completo: indicano operazione non supportata. Qualunque entrypoint che trova il marker persistente immutable deve rispettarlo anche senza env, per impedire ritorni accidentali a mutazioni in place. Il full esplicito esistente costruisce una collection candidata.
 3. Build, validazione/eval e manifest precedono promozione atomica di CURRENT. La richiesta cattura un solo snapshot e usa sempre la sua collection fisica; non si affida all'alias. Manifest mancante/invalido causa errore di readiness, senza fallback all'alias nel reader.
 4. Descrizioni salvate o derivate esclusivamente dai chunk versionati. Il reader non legge docs live per ricostruire il contesto. Versione incompleta rifiutata prima del serving; reload fallito conserva l'ultima valida e segnala readiness degradata.

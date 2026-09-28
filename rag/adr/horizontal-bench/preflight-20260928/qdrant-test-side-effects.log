@@ -1,0 +1,176 @@
+2026-09-28T07:44:23.705876Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 197 "-" "python-client/1.19.0 python/3.14.6" 0.007163
+2026-09-28T07:44:23.734889Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_scaffolding_a
+2026-09-28T07:44:23.743039Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_scaffolding_a HTTP/1.1" 200 72 "-" "python-client/1.19.0 python/3.14.6" 0.012370
+2026-09-28T07:44:23.764191Z  INFO storage::content_manager::toc::collection_meta_ops: Creating collection _test_blue_green_scaffolding_a
+2026-09-28T07:44:24.015456Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_scaffolding_a HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.251533
+2026-09-28T07:44:24.019648Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_scaffolding_b
+2026-09-28T07:44:24.019924Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_scaffolding_b HTTP/1.1" 200 72 "-" "python-client/1.19.0 python/3.14.6" 0.000430
+2026-09-28T07:44:24.045359Z  INFO storage::content_manager::toc::collection_meta_ops: Creating collection _test_blue_green_scaffolding_b
+2026-09-28T07:44:24.274733Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_scaffolding_b HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.229630
+2026-09-28T07:44:24.298209Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 128 "-" "python-client/1.19.0 python/3.14.6" 0.000202
+2026-09-28T07:44:24.316938Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/aliases HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.015244
+2026-09-28T07:44:24.344697Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 160 "-" "python-client/1.19.0 python/3.14.6" 0.000182
+2026-09-28T07:44:24.360647Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 159 "-" "python-client/1.19.0 python/3.14.6" 0.000179
+2026-09-28T07:44:24.387641Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/aliases HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.023342
+2026-09-28T07:44:24.406570Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 159 "-" "python-client/1.19.0 python/3.14.6" 0.000160
+2026-09-28T07:44:24.425778Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_scaffolding_alias/points?wait=true HTTP/1.1" 200 91 "-" "python-client/1.19.0 python/3.14.6" 0.015457
+2026-09-28T07:44:24.459824Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/_test_blue_green_scaffolding_b/points/count HTTP/1.1" 200 78 "-" "python-client/1.19.0 python/3.14.6" 0.004471
+2026-09-28T07:44:24.465900Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/_test_blue_green_scaffolding_a/points/count HTTP/1.1" 200 78 "-" "python-client/1.19.0 python/3.14.6" 0.001121
+2026-09-28T07:44:24.484926Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_scaffolding_a
+2026-09-28T07:44:24.492416Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_scaffolding_a HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.007573
+2026-09-28T07:44:24.516214Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_scaffolding_b
+2026-09-28T07:44:24.538232Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_scaffolding_b HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.022145
+2026-09-28T07:44:24.566097Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 194 "-" "python-client/1.19.0 python/3.14.6" 0.000292
+2026-09-28T07:44:24.569262Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_legacy_collision
+2026-09-28T07:44:24.569536Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_legacy_collision HTTP/1.1" 200 72 "-" "python-client/1.19.0 python/3.14.6" 0.000388
+2026-09-28T07:44:24.572649Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_legacy_collision_target
+2026-09-28T07:44:24.572901Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_legacy_collision_target HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.000319
+2026-09-28T07:44:24.576738Z  INFO storage::content_manager::toc::collection_meta_ops: Creating collection _test_blue_green_legacy_collision
+2026-09-28T07:44:24.815496Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_legacy_collision HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.238866
+2026-09-28T07:44:24.831759Z  INFO storage::content_manager::toc::collection_meta_ops: Creating collection _test_blue_green_legacy_collision_target
+2026-09-28T07:44:25.067940Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_legacy_collision_target HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.236274
+2026-09-28T07:44:25.085638Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 225 "-" "python-client/1.19.0 python/3.14.6" 0.000215
+2026-09-28T07:44:25.089226Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 127 "-" "python-client/1.19.0 python/3.14.6" 0.000247
+2026-09-28T07:44:25.092627Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/aliases HTTP/1.1" 409 122 "-" "python-client/1.19.0 python/3.14.6" 0.000165
+2026-09-28T07:44:25.095897Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 126 "-" "python-client/1.19.0 python/3.14.6" 0.000147
+2026-09-28T07:44:25.116807Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 223 "-" "python-client/1.19.0 python/3.14.6" 0.000164
+2026-09-28T07:44:25.119898Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_legacy_collision
+2026-09-28T07:44:25.125636Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_legacy_collision HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.005817
+2026-09-28T07:44:25.148408Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 221 "-" "python-client/1.19.0 python/3.14.6" 0.000167
+2026-09-28T07:44:25.164544Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 127 "-" "python-client/1.19.0 python/3.14.6" 0.000189
+2026-09-28T07:44:25.179196Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/aliases HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.011664
+2026-09-28T07:44:25.182303Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 160 "-" "python-client/1.19.0 python/3.14.6" 0.000145
+2026-09-28T07:44:25.185334Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_legacy_collision
+2026-09-28T07:44:25.185516Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_legacy_collision HTTP/1.1" 200 72 "-" "python-client/1.19.0 python/3.14.6" 0.000270
+2026-09-28T07:44:25.188198Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_legacy_collision_target
+2026-09-28T07:44:25.206756Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_legacy_collision_target HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.018597
+2026-09-28T07:44:25.242169Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 194 "-" "python-client/1.19.0 python/3.14.6" 0.000178
+2026-09-28T07:44:25.245161Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_ensure_physical
+2026-09-28T07:44:25.245382Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_ensure_physical HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.000264
+2026-09-28T07:44:25.258102Z  INFO storage::content_manager::toc::collection_meta_ops: Creating collection _test_blue_green_ensure_physical
+2026-09-28T07:44:25.476004Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_ensure_physical HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.218000
+2026-09-28T07:44:25.497162Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 126 "-" "python-client/1.19.0 python/3.14.6" 0.000176
+2026-09-28T07:44:25.524964Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/aliases HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.012772
+2026-09-28T07:44:25.543787Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 160 "-" "python-client/1.19.0 python/3.14.6" 0.000318
+2026-09-28T07:44:25.547643Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 218 "-" "python-client/1.19.0 python/3.14.6" 0.000238
+2026-09-28T07:44:25.574603Z  INFO storage::content_manager::toc::collection_meta_ops: Creating collection _test_blue_green_ensure_alias
+2026-09-28T07:44:25.574993Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_ensure_alias HTTP/1.1" 400 148 "-" "python-client/1.19.0 python/3.14.6" 0.000575
+2026-09-28T07:44:25.578584Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 221 "-" "python-client/1.19.0 python/3.14.6" 0.000281
+2026-09-28T07:44:25.605578Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/aliases HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.000336
+2026-09-28T07:44:25.608908Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_ensure_physical
+2026-09-28T07:44:25.626855Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_ensure_physical HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.017998
+2026-09-28T07:44:25.683666Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 194 "-" "python-client/1.19.0 python/3.14.6" 0.000181
+2026-09-28T07:44:25.699251Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_delete_physical
+2026-09-28T07:44:25.699448Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_delete_physical HTTP/1.1" 200 72 "-" "python-client/1.19.0 python/3.14.6" 0.000255
+2026-09-28T07:44:25.715262Z  INFO storage::content_manager::toc::collection_meta_ops: Creating collection _test_blue_green_delete_physical
+2026-09-28T07:44:25.933157Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_delete_physical HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.218025
+2026-09-28T07:44:25.953228Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 127 "-" "python-client/1.19.0 python/3.14.6" 0.000213
+2026-09-28T07:44:25.981136Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/aliases HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.012149
+2026-09-28T07:44:25.991313Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_delete_physical/points?wait=true HTTP/1.1" 200 91 "-" "python-client/1.19.0 python/3.14.6" 0.003451
+2026-09-28T07:44:25.995844Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/_test_blue_green_delete_physical/points/count HTTP/1.1" 200 78 "-" "python-client/1.19.0 python/3.14.6" 0.000601
+2026-09-28T07:44:26.005157Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/_test_blue_green_delete_alias/points/delete?wait=true HTTP/1.1" 200 91 "-" "python-client/1.19.0 python/3.14.6" 0.005197
+2026-09-28T07:44:26.033938Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/_test_blue_green_delete_physical/points/count HTTP/1.1" 200 78 "-" "python-client/1.19.0 python/3.14.6" 0.001616
+2026-09-28T07:44:26.039118Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/_test_blue_green_delete_physical/points/scroll HTTP/1.1" 200 123 "-" "python-client/1.19.0 python/3.14.6" 0.001154
+2026-09-28T07:44:26.062307Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_delete_physical
+2026-09-28T07:44:26.082108Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_delete_physical HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.019857
+2026-09-28T07:44:26.322805Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 196 "-" "python-client/1.19.0 python/3.14.6" 0.000209
+2026-09-28T07:44:26.344885Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_dangling_physical
+2026-09-28T07:44:26.345326Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_dangling_physical HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.000601
+2026-09-28T07:44:26.360401Z  INFO storage::content_manager::toc::collection_meta_ops: Creating collection _test_blue_green_dangling_physical
+2026-09-28T07:44:26.589360Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_dangling_physical HTTP/1.1" 200 70 "-" "python-client/1.19.0 python/3.14.6" 0.229054
+2026-09-28T07:44:26.594280Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 128 "-" "python-client/1.19.0 python/3.14.6" 0.000324
+2026-09-28T07:44:26.609792Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/aliases HTTP/1.1" 200 70 "-" "python-client/1.19.0 python/3.14.6" 0.011640
+2026-09-28T07:44:26.613481Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 162 "-" "python-client/1.19.0 python/3.14.6" 0.000209
+2026-09-28T07:44:26.626841Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_dangling_physical
+2026-09-28T07:44:26.644514Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_dangling_physical HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.017774
+2026-09-28T07:44:26.648041Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 126 "-" "python-client/1.19.0 python/3.14.6" 0.000131
+2026-09-28T07:44:26.650657Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_dangling_physical
+2026-09-28T07:44:26.650854Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_dangling_physical HTTP/1.1" 200 72 "-" "python-client/1.19.0 python/3.14.6" 0.000234
+2026-09-28T08:06:22.982901Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 197 "-" "python-client/1.19.0 python/3.14.6" 0.000968
+2026-09-28T08:06:23.006459Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_scaffolding_a
+2026-09-28T08:06:23.006954Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_scaffolding_a HTTP/1.1" 200 72 "-" "python-client/1.19.0 python/3.14.6" 0.000648
+2026-09-28T08:06:23.021446Z  INFO storage::content_manager::toc::collection_meta_ops: Creating collection _test_blue_green_scaffolding_a
+2026-09-28T08:06:23.257832Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_scaffolding_a HTTP/1.1" 200 70 "-" "python-client/1.19.0 python/3.14.6" 0.236591
+2026-09-28T08:06:23.271376Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_scaffolding_b
+2026-09-28T08:06:23.271816Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_scaffolding_b HTTP/1.1" 200 72 "-" "python-client/1.19.0 python/3.14.6" 0.000646
+2026-09-28T08:06:23.287048Z  INFO storage::content_manager::toc::collection_meta_ops: Creating collection _test_blue_green_scaffolding_b
+2026-09-28T08:06:23.528009Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_scaffolding_b HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.241081
+2026-09-28T08:06:23.534299Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 129 "-" "python-client/1.19.0 python/3.14.6" 0.000328
+2026-09-28T08:06:23.568268Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/aliases HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.012649
+2026-09-28T08:06:23.584312Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 159 "-" "python-client/1.19.0 python/3.14.6" 0.000222
+2026-09-28T08:06:23.600095Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 158 "-" "python-client/1.19.0 python/3.14.6" 0.000224
+2026-09-28T08:06:23.638777Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/aliases HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.023331
+2026-09-28T08:06:23.661596Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 159 "-" "python-client/1.19.0 python/3.14.6" 0.000193
+2026-09-28T08:06:23.681704Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_scaffolding_alias/points?wait=true HTTP/1.1" 200 91 "-" "python-client/1.19.0 python/3.14.6" 0.004008
+2026-09-28T08:06:23.687206Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/_test_blue_green_scaffolding_b/points/count HTTP/1.1" 200 78 "-" "python-client/1.19.0 python/3.14.6" 0.001009
+2026-09-28T08:06:23.710150Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/_test_blue_green_scaffolding_a/points/count HTTP/1.1" 200 78 "-" "python-client/1.19.0 python/3.14.6" 0.000572
+2026-09-28T08:06:23.713485Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_scaffolding_a
+2026-09-28T08:06:23.720306Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_scaffolding_a HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.006873
+2026-09-28T08:06:23.723528Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_scaffolding_b
+2026-09-28T08:06:23.742698Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_scaffolding_b HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.019208
+2026-09-28T08:06:23.787109Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 197 "-" "python-client/1.19.0 python/3.14.6" 0.000198
+2026-09-28T08:06:23.804928Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_legacy_collision
+2026-09-28T08:06:23.805365Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_legacy_collision HTTP/1.1" 200 72 "-" "python-client/1.19.0 python/3.14.6" 0.000746
+2026-09-28T08:06:23.818713Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_legacy_collision_target
+2026-09-28T08:06:23.819058Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_legacy_collision_target HTTP/1.1" 200 72 "-" "python-client/1.19.0 python/3.14.6" 0.000413
+2026-09-28T08:06:23.822911Z  INFO storage::content_manager::toc::collection_meta_ops: Creating collection _test_blue_green_legacy_collision
+2026-09-28T08:06:24.051985Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_legacy_collision HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.229162
+2026-09-28T08:06:24.055711Z  INFO storage::content_manager::toc::collection_meta_ops: Creating collection _test_blue_green_legacy_collision_target
+2026-09-28T08:06:24.282415Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_legacy_collision_target HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.226771
+2026-09-28T08:06:24.307939Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 224 "-" "python-client/1.19.0 python/3.14.6" 0.000166
+2026-09-28T08:06:24.312039Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 126 "-" "python-client/1.19.0 python/3.14.6" 0.000159
+2026-09-28T08:06:24.339907Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/aliases HTTP/1.1" 409 122 "-" "python-client/1.19.0 python/3.14.6" 0.000252
+2026-09-28T08:06:24.366958Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 127 "-" "python-client/1.19.0 python/3.14.6" 0.000161
+2026-09-28T08:06:24.369861Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 221 "-" "python-client/1.19.0 python/3.14.6" 0.000115
+2026-09-28T08:06:24.382247Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_legacy_collision
+2026-09-28T08:06:24.390042Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_legacy_collision HTTP/1.1" 200 70 "-" "python-client/1.19.0 python/3.14.6" 0.007839
+2026-09-28T08:06:24.394133Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 223 "-" "python-client/1.19.0 python/3.14.6" 0.000163
+2026-09-28T08:06:24.416713Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 126 "-" "python-client/1.19.0 python/3.14.6" 0.000275
+2026-09-28T08:06:24.468263Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/aliases HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.047689
+2026-09-28T08:06:24.471931Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 162 "-" "python-client/1.19.0 python/3.14.6" 0.000174
+2026-09-28T08:06:24.490429Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_legacy_collision
+2026-09-28T08:06:24.490644Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_legacy_collision HTTP/1.1" 200 72 "-" "python-client/1.19.0 python/3.14.6" 0.000269
+2026-09-28T08:06:24.494226Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_legacy_collision_target
+2026-09-28T08:06:24.512354Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_legacy_collision_target HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.018162
+2026-09-28T08:06:24.553266Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 197 "-" "python-client/1.19.0 python/3.14.6" 0.000738
+2026-09-28T08:06:24.568553Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_ensure_physical
+2026-09-28T08:06:24.568968Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_ensure_physical HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.000527
+2026-09-28T08:06:24.586882Z  INFO storage::content_manager::toc::collection_meta_ops: Creating collection _test_blue_green_ensure_physical
+2026-09-28T08:06:24.826453Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_ensure_physical HTTP/1.1" 200 70 "-" "python-client/1.19.0 python/3.14.6" 0.239718
+2026-09-28T08:06:24.851449Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 129 "-" "python-client/1.19.0 python/3.14.6" 0.000196
+2026-09-28T08:06:24.880760Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/aliases HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.014058
+2026-09-28T08:06:24.884391Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 159 "-" "python-client/1.19.0 python/3.14.6" 0.000185
+2026-09-28T08:06:24.914925Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 219 "-" "python-client/1.19.0 python/3.14.6" 0.000151
+2026-09-28T08:06:24.918858Z  INFO storage::content_manager::toc::collection_meta_ops: Creating collection _test_blue_green_ensure_alias
+2026-09-28T08:06:24.919054Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_ensure_alias HTTP/1.1" 400 146 "-" "python-client/1.19.0 python/3.14.6" 0.000281
+2026-09-28T08:06:24.943560Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 218 "-" "python-client/1.19.0 python/3.14.6" 0.000168
+2026-09-28T08:06:24.947409Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/aliases HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.000138
+2026-09-28T08:06:24.974369Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_ensure_physical
+2026-09-28T08:06:24.993725Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_ensure_physical HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.019413
+2026-09-28T08:06:25.036255Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 194 "-" "python-client/1.19.0 python/3.14.6" 0.000133
+2026-09-28T08:06:25.051295Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_delete_physical
+2026-09-28T08:06:25.051515Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_delete_physical HTTP/1.1" 200 72 "-" "python-client/1.19.0 python/3.14.6" 0.000279
+2026-09-28T08:06:25.066278Z  INFO storage::content_manager::toc::collection_meta_ops: Creating collection _test_blue_green_delete_physical
+2026-09-28T08:06:25.295087Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_delete_physical HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.228871
+2026-09-28T08:06:25.299117Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 127 "-" "python-client/1.19.0 python/3.14.6" 0.000183
+2026-09-28T08:06:25.333884Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/aliases HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.012547
+2026-09-28T08:06:25.358744Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_delete_physical/points?wait=true HTTP/1.1" 200 91 "-" "python-client/1.19.0 python/3.14.6" 0.007417
+2026-09-28T08:06:25.363457Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/_test_blue_green_delete_physical/points/count HTTP/1.1" 200 78 "-" "python-client/1.19.0 python/3.14.6" 0.000479
+2026-09-28T08:06:25.371145Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/_test_blue_green_delete_alias/points/delete?wait=true HTTP/1.1" 200 91 "-" "python-client/1.19.0 python/3.14.6" 0.003512
+2026-09-28T08:06:25.400086Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/_test_blue_green_delete_physical/points/count HTTP/1.1" 200 78 "-" "python-client/1.19.0 python/3.14.6" 0.000499
+2026-09-28T08:06:25.405257Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/_test_blue_green_delete_physical/points/scroll HTTP/1.1" 200 122 "-" "python-client/1.19.0 python/3.14.6" 0.001101
+2026-09-28T08:06:25.409263Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_delete_physical
+2026-09-28T08:06:25.427738Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_delete_physical HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.018557
+2026-09-28T08:06:25.474805Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /collections HTTP/1.1" 200 194 "-" "python-client/1.19.0 python/3.14.6" 0.000231
+2026-09-28T08:06:25.479037Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_dangling_physical
+2026-09-28T08:06:25.479249Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_dangling_physical HTTP/1.1" 200 72 "-" "python-client/1.19.0 python/3.14.6" 0.000281
+2026-09-28T08:06:25.483770Z  INFO storage::content_manager::toc::collection_meta_ops: Creating collection _test_blue_green_dangling_physical
+2026-09-28T08:06:25.714047Z  INFO actix_web::middleware::logger: 172.19.0.1 "PUT /collections/_test_blue_green_dangling_physical HTTP/1.1" 200 70 "-" "python-client/1.19.0 python/3.14.6" 0.230342
+2026-09-28T08:06:25.718893Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 128 "-" "python-client/1.19.0 python/3.14.6" 0.000147
+2026-09-28T08:06:25.753853Z  INFO actix_web::middleware::logger: 172.19.0.1 "POST /collections/aliases HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.011656
+2026-09-28T08:06:25.758434Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 162 "-" "python-client/1.19.0 python/3.14.6" 0.000137
+2026-09-28T08:06:25.761653Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_dangling_physical
+2026-09-28T08:06:25.780003Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_dangling_physical HTTP/1.1" 200 71 "-" "python-client/1.19.0 python/3.14.6" 0.018454
+2026-09-28T08:06:25.804990Z  INFO actix_web::middleware::logger: 172.19.0.1 "GET /aliases HTTP/1.1" 200 128 "-" "python-client/1.19.0 python/3.14.6" 0.000481
+2026-09-28T08:06:25.819333Z  INFO storage::content_manager::toc::collection_meta_ops: Deleting collection _test_blue_green_dangling_physical
+2026-09-28T08:06:25.819728Z  INFO actix_web::middleware::logger: 172.19.0.1 "DELETE /collections/_test_blue_green_dangling_physical HTTP/1.1" 200 72 "-" "python-client/1.19.0 python/3.14.6" 0.000512

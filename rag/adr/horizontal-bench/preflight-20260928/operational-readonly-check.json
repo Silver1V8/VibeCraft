@@ -1,0 +1,15 @@
+{
+  "utc": "2026-09-28T08:09:15.963979+00:00",
+  "read_only": true,
+  "version": "v20260922T095110",
+  "collection": "vibecraft_events__v20260922T095110",
+  "manifest_sha256": "422f1667abf87517fa91d1d89e32d16bddb579e4527ef0022054da8d9df15a26",
+  "chunks_sha256": "cf5b84fcd3be3c0a747cb1414c3229d1f7ebb4e1ceb0c652cbca7bb739fed724",
+  "sidecar_chunks": 286,
+  "qdrant_points": 286,
+  "missing_chunk_ids": [],
+  "extra_chunk_ids": [],
+  "duplicate_chunk_ids": 0,
+  "alias_matches": true,
+  "limits": "Consistenza attuale di nomi/ID/conteggi; non certifica immutabilita storica, contenuto dei vettori, altre collection o corpus completo."
+}

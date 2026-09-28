@@ -15,3 +15,7 @@ La sonda era inizialmente predisposta come CPU con CUDA_VISIBLE_DEVICES=-1, ma O
 Sorgente ea0cf91425a5d01b39ed821c714cd397a6e0d2b0 estratta nel laboratorio ignorato `rag/database/qdrant_data/horizontal-lab/baseline`. Corpus dedicato di prova sui prestiti bibliotecari:1documento,5chunk,6nodi,5archi. Indicizzazione reale BGEM3 CPU, Qdrant1.19.0 isolato su16333; collection horizontal_bench__v20260928T073137. Eval gate corpus produzione disattivato solo nella configurazione di questo laboratorio; contesto4096/temperatura0 da mantenere uguali nel confronto. Nessun accesso in scrittura a database operativi.
 
 Avvio baseline HTTP localhost18000 rifiutato dalla revisione automatica con messaggio `blocked by policy`, senza motivazione specifica. Non tentato aggiramento. Matrice HTTP k=1,4,8, confronto candidate/baseline, TTFT e memoria per reader NON eseguiti. I dati presenti sono solo preflight, non una verifica end-to-end.
+
+## Incidente successivo nelle suite di test
+
+Il laboratorio sopra è isolato, ma due suite eseguite successivamente hanno usato involontariamente Qdrant operativo6333 per cinque integrazioni con collection dedicate `_test_blue_green_*`. I log confermano le scritture; non è corretto estendere l'isolamento del laboratorio a tutto il lavoro. Vedi [audit delimitato](QDRANT_TEST_AUDIT.md) e relativo estratto dei log. Nessun cleanup operativo è stato eseguito durante l'audit.
