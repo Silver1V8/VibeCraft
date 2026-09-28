@@ -399,6 +399,11 @@ server con un altro nome (hostname di LAN, reverse proxy), aggiungilo a
 `VIBECRAFT_ALLOWED_HOSTS=vibecraft.lan,192.168.1.20`). Nessuna wildcard (le voci con `*`
 sono ignorate con un avviso): elenca solo nomi di cui controlli il DNS.
 
+Ogni risposta vieta di essere incorniciata (`X-Frame-Options: DENY`,
+`Content-Security-Policy: frame-ancestors 'none'`, difesa dal clickjacking) e porta
+`X-Content-Type-Options: nosniff` e `Referrer-Policy: same-origin`: la console **non** si
+può incorporare in un `<iframe>` di un'altra pagina, nemmeno di una dashboard interna.
+
 La superficie di attacco è mappata rotta per rotta in
 [`rag/SECURITY_SURFACE.md`](rag/SECURITY_SURFACE.md).
 

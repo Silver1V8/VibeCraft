@@ -285,6 +285,82 @@ class HostHeaderGuard:
 
 
 # ---------------------------------------------------------------------------
+# Header di sicurezza su ogni risposta — difesa dal clickjacking
+# ---------------------------------------------------------------------------
+# Solo anti-framing e igiene: la CSP completa (script-src & co.) è una fase successiva, qui
+# non si imposta. Nomi minuscoli: è la forma in cui Starlette scrive gli header ASGI.
+SECURITY_HEADERS: tuple[tuple[bytes, bytes], ...] = (
+    (b"x-frame-options", b"DENY"),
+    (b"x-content-type-options", b"nosniff"),
+    (b"referrer-policy", b"same-origin"),
+)
+_CSP = b"content-security-policy"
+_FRAME_ANCESTORS = b"frame-ancestors 'none'"
+
+
+def with_security_headers(headers) -> list[tuple[bytes, bytes]]:
+    """Header ASGI di una risposta con gli header di SECURITY_HEADERS e la direttiva
+    `frame-ancestors 'none'` aggiunti. Mai sovrascrive ciò che la route ha già deciso:
+    un header già presente (confronto case-insensitive sul nome) resta com'è; una CSP già
+    presente riceve `frame-ancestors 'none'` in coda solo se non ne dichiara una propria."""
+    out = list(headers or ())
+    present = {name.lower() for name, _ in out}
+    for name, value in SECURITY_HEADERS:
+        if name not in present:
+            out.append((name, value))
+    csp_idx = [i for i, (name, _) in enumerate(out) if name.lower() == _CSP]
+    if not csp_idx:
+        out.append((_CSP, _FRAME_ANCESTORS))
+    elif not any(b"frame-ancestors" in out[i][1].lower() for i in csp_idx):
+        name, value = out[csp_idx[0]]
+        value = value.rstrip().rstrip(b";").rstrip()
+        out[csp_idx[0]] = (name, (value + b"; " if value else b"") + _FRAME_ANCESTORS)
+    return out
+
+
+class SecurityHeadersMiddleware:
+    """Middleware ASGI: aggiunge a OGNI risposta HTTP `X-Frame-Options: DENY`,
+    `Content-Security-Policy: frame-ancestors 'none'`, `X-Content-Type-Options: nosniff` e
+    `Referrer-Policy: same-origin` (vedi with_security_headers per la regola di fusione).
+
+    Perché serve: le pagine della console hanno pulsanti che scrivono (pipeline, intake,
+    reindex, rollback) e nessuna risposta vietava di essere incorniciata. Una pagina ostile
+    poteva caricare http://127.0.0.1:8000/pipeline in un <iframe> trasparente e far
+    cliccare all'utente i pulsanti veri (clickjacking): le fetch partono DALLA pagina
+    incorniciata, quindi sono same-origin — `require_not_cross_site_request` le lascia
+    passare e il bypass loopback le autentica. `frame-ancestors` è lo standard, XFO copre i
+    browser che non lo applicano.
+
+    Su tutte le risposte, non solo sulle HTML: gli header sono innocui su JSON/statici/NDJSON,
+    e un filtro sul content-type lascerebbe fuori proprio i casi imprevisti (/docs, un errore
+    HTML di libreria, una pagina nuova servita come file). `nosniff` è sicuro perché ogni
+    script/foglio della console arriva con il MIME giusto (server.py registra i tipi degli
+    statici senza dipendere dal registro di Windows). `same-origin` non tocca le richieste
+    della console (il Referer same-origin resta) e non lo usa nessun controllo lato server.
+
+    Gli header si aggiungono sul messaggio `http.response.start`, prima del body: le
+    risposte in streaming (/ask NDJSON, stream della pipeline) passano senza buffering.
+    Per questo è ASGI puro come HostHeaderGuard e non BaseHTTPMiddleware. Montato come
+    middleware più esterno fra i nostri, copre anche il 400 di HostHeaderGuard; i 500 non
+    gestiti li genera ServerErrorMiddleware di Starlette, che sta ancora fuori."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_headers(message):
+            if message["type"] == "http.response.start":
+                message = {**message, "headers": with_security_headers(message.get("headers"))}
+            await send(message)
+
+        await self.app(scope, receive, send_with_headers)
+
+
+# ---------------------------------------------------------------------------
 # Snapshot immutabile degli artefatti dell'indice (HARDENING #3, risolto)
 # ---------------------------------------------------------------------------
 # Gli artefatti che cambiano insieme a ogni re-indicizzazione (grafo, ColBERT,

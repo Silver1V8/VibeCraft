@@ -14,6 +14,7 @@ for _stream in (sys.stdout, sys.stderr):
         pass
 
 import logging
+import mimetypes
 
 import uvicorn
 from fastapi import FastAPI
@@ -27,7 +28,7 @@ from core.config import ALLOWED_HOSTS, ROLE, SERVER_BIND_IS_LOCAL, STATIC_DIR, s
 setup_logging()
 logger = logging.getLogger(__name__)
 
-from api.deps import API_KEY, NO_CACHE_HEADERS, HostHeaderGuard, lifespan
+from api.deps import API_KEY, NO_CACHE_HEADERS, HostHeaderGuard, SecurityHeadersMiddleware, lifespan
 from api import routes_graph, routes_health, routes_pages, routes_retrieval
 
 if ROLE != "reader":
@@ -41,6 +42,17 @@ app = FastAPI(title="VibeCraft Graph-RAG Console", lifespan=lifespan)
 # HostHeaderGuard. Host estranei (nomi di LAN, reverse proxy) si aggiungono con
 # VIBECRAFT_ALLOWED_HOSTS; il default ammette solo il loopback.
 app.add_middleware(HostHeaderGuard, allowed_hosts=ALLOWED_HOSTS)
+
+# Anti-framing (X-Frame-Options + CSP frame-ancestors) e nosniff/Referrer-Policy su OGNI
+# risposta — vedi api/deps.py::SecurityHeadersMiddleware. Aggiunto DOPO HostHeaderGuard, cioè
+# più esterno (add_middleware antepone): così anche il 400 del Host estraneo porta gli header.
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Con `nosniff` il browser rifiuta uno script servito con un MIME non JavaScript: StaticFiles
+# ricava il tipo da mimetypes, che su Windows legge anche il registro, dove .js può essere
+# mappato a text/plain da software di terze parti. Tipi fissati qui, indipendenti dalla macchina.
+for _ext, _mime in ((".js", "text/javascript"), (".css", "text/css"), (".svg", "image/svg+xml")):
+    mimetypes.add_type(_mime, _ext)
 
 # shared.css / shared.js cambiano spesso durante lo sviluppo locale, ma
 # StaticFiles li servirebbe con caching euristico del browser (nessun

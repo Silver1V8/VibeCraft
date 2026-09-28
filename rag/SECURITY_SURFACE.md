@@ -188,6 +188,28 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
    server viene raggiunto con un altro nome: hostname o IP di LAN con bind `0.0.0.0`,
    reverse proxy che inoltra il proprio `Host`, webhook GitLab verso un nome pubblico.
 
+10. **Nessuna risposta è incorniciabile** (`SecurityHeadersMiddleware` in
+   [`api/deps.py`](api/deps.py), montato in [`server.py`](server.py); dal 2026-09-28).
+   Prima nessuna risposta inviava `X-Frame-Options` né `Content-Security-Policy`
+   (verificato: `/pipeline`, `/intake`, `/` rispondevano senza): una pagina ostile poteva
+   caricare la console in un `<iframe>` trasparente e far cliccare all'utente i pulsanti
+   veri (pipeline, intake, reindex, rollback) — **clickjacking**. Il Fatto 7 non lo ferma:
+   le fetch partono dalla pagina incorniciata, quindi sono `same-origin`, e il bypass
+   loopback (Fatto 3) le autentica. Ora **ogni** risposta HTTP (pagine, API JSON, statici,
+   404, il 400 di `HostHeaderGuard`, stream NDJSON) porta `X-Frame-Options: DENY` e
+   `Content-Security-Policy: frame-ancestors 'none'`, più `X-Content-Type-Options: nosniff`
+   e `Referrer-Policy: same-origin`. Su tutte e non solo sulle HTML per scelta: sono
+   innocui sulle altre e un filtro sul content-type lascerebbe fuori proprio i casi
+   imprevisti (`/docs`, pagine nuove). Header già impostati da una route non vengono
+   sovrascritti; una CSP già presente riceve `frame-ancestors 'none'` in coda solo se non
+   ne dichiara una propria. Middleware **ASGI puro** che agisce su `http.response.start`:
+   lo streaming di `/ask` non viene bufferizzato. `nosniff` è sicuro perché ogni script e
+   foglio di stile arriva con il MIME corretto (`server.py` fissa i tipi `.js`/`.css`/`.svg`
+   contro il registro di Windows). **Non** è ancora una CSP completa (`script-src` ecc.):
+   è una fase successiva. Residuo: i 500 non gestiti li produce `ServerErrorMiddleware` di
+   Starlette, esterno a tutti i middleware utente, e non portano gli header (testo semplice
+   senza azioni).
+
 ---
 
 ## 1. Tabella completa delle route (59 righe)
@@ -514,5 +536,8 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
 - **Header `Host` validato su tutta l'app** (Fatto 9): trasversale alle 59 route e
   all'Appendice A, chiude il DNS rebinding verso il bypass loopback e l'iniezione della
   chiave in `/pipeline`; host estranei solo tramite `VIBECRAFT_ALLOWED_HOSTS`.
+- **Anti-framing su tutta l'app** (Fatto 10): `X-Frame-Options: DENY` e
+  `frame-ancestors 'none'` su ogni risposta chiudono il clickjacking delle pagine con
+  azioni che scrivono; CSP completa con `script-src` ancora da fare.
 - **Debiti annotati:** rate-limit sulle GET CPU-pesanti (§4 #4); `/docs`/`/openapi.json`
   da chiudere in caso di esposizione (§4 #5).
