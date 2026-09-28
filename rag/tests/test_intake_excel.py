@@ -1,6 +1,6 @@
 """Excel nell'intake: lettura diretta, XLSX con openpyxl e XLS con xlrd (core/intake_excel.py).
 
-Le attese sono i valori SCRITTI nella fixture (eval/results/excel_diretto_20260911/
+Le attese sono i valori SCRITTI nella fixture (archive/eval-results/excel_diretto_20260911/
 crea_fixture.py, poi salvata da Excel 16 in XLS e XLSX) o costruiti nel test, mai l'uscita di un
 altro convertitore. Il Markdown si legge con un parser CommonMark/GFM reale (markdown-it), come
 lo leggerebbe chi lo usa: si verificano celle, coordinate e relazioni, non la presenza di parole.

@@ -216,6 +216,17 @@ def test_venv_e_database_restano_esclusi(patterns):
     assert _is_excluded("rag/database/qdrant/snapshot.bin", patterns)
 
 
+@pytest.mark.parametrize("rel_path", [
+    "archive/eval-results/run_x/evidence/a.json",
+    "archive/adr/sidecar-work/a.md",
+    "archive/README.md",
+])
+def test_archivio_escluso(patterns, rel_path):
+    """archive/ è materiale storico: fuori dal contesto di build (il Dockerfile non lo
+    copia comunque, ma il contesto è la radice del repo)."""
+    assert _is_excluded(rel_path, patterns)
+
+
 def test_slash_finale_equivale_a_pattern_senza_slash():
     """filepath.Clean toglie lo slash finale prima del match: 'x/*/' ed 'x/*' devono
     produrre ESATTAMENTE lo stesso risultato, su un file quanto su una directory — non

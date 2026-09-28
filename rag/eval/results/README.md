@@ -7,11 +7,11 @@ richiesta, riuso dei file invariati e misure del delta reale.
 
 | Evidenza | Cosa dimostra |
 |---|---|
-| [Reader](sidecar_readers_20260921/evidence/summary.csv) | Nell'esperimento I/O, incremento USS al caricamento: 233.312.256 byte eager NPZ contro 528.384 byte NPY; non è la memoria dell'intero servizio |
-| [Full e migrazione](sidecar_npy_20260921/evidence/PHASE5.md) | Picco RSS 6,436 → 3,152 GiB su 32 documenti / 64 chunk; una prova per variante. Migrazione degli array persistiti esatta |
-| [Delta e compromessi](sidecar_npy_20260921/evidence/PHASE6.md) | 150 prove per versione; a N=100/k=100 documenti, mediana 15,934 → 58,099 s fino allo snapshot pronto |
-| [Curve T(N,k)](sidecar_npy_20260921/evidence/phase6-summary/summary.md) | Mediane e intervalli per documenti, codice e misto; differenze rispetto al no-op |
-| [Retention](sidecar_retention_20260921/evidence/retention-summary.md) | Riuso degli hard link, lettori protetti e spazio fisico deduplicato su NTFS |
+| [Reader](../../../archive/eval-results/sidecar_readers_20260921/evidence/summary.csv) | Nell'esperimento I/O, incremento USS al caricamento: 233.312.256 byte eager NPZ contro 528.384 byte NPY; non è la memoria dell'intero servizio |
+| [Full e migrazione](../../../archive/eval-results/sidecar_npy_20260921/evidence/PHASE5.md) | Picco RSS 6,436 → 3,152 GiB su 32 documenti / 64 chunk; una prova per variante. Migrazione degli array persistiti esatta |
+| [Delta e compromessi](../../../archive/eval-results/sidecar_npy_20260921/evidence/PHASE6.md) | 150 prove per versione; a N=100/k=100 documenti, mediana 15,934 → 58,099 s fino allo snapshot pronto |
+| [Curve T(N,k)](../../../archive/eval-results/sidecar_npy_20260921/evidence/phase6-summary/summary.md) | Mediane e intervalli per documenti, codice e misto; differenze rispetto al no-op |
+| [Retention](../../../archive/eval-results/sidecar_retention_20260921/evidence/retention-summary.md) | Riuso degli hard link, lettori protetti e spazio fisico deduplicato su NTFS |
 
 Il codice misurato è `708a142`, confrontato con `0f479b2`; la revisione finale
 corregge l'attribuzione delle scritture NPY da `parsing_embedding` a `save_hash`.
@@ -104,8 +104,8 @@ P0/pilot; questa correlazione non sostituisce un identificatore salvato nella ru
 | 08/09 13:34:57 multihop | `v20260908T132451` | [Report multihop](p0_20260908-152239/evidence/original_eval/multihop_20260908_153456.json) | Report per caso |
 | 08/09 13:39:02 eval.run | `v20260908T132451` | [Report retrieval](p0_20260908-152239/evidence/original_eval/eval_20260908_153902.json) | Report per caso |
 | 08/09 13:39:12 multihop | `v20260908T132451` | [Report multihop](p0_20260908-152239/evidence/original_eval/multihop_20260908_153912.json) | Report per caso |
-| 08/09 15:13:52 multihop | `v20260908T132451` | [Report multihop](pilot_docling_20260908-170030/evidence/out/multihop_20260908_171352.json) | Report per caso |
-| 10/09 12:18:45 gate | `v20260910T121150` | [Estratto del log originale](verifica_finale_20260910/evidence/gate_log_excerpt.json) | Recall@2, soglia, numero casi e promozione; nessun dettaglio per caso del gate |
+| 08/09 15:13:52 multihop | `v20260908T132451` | [Report multihop](../../../archive/eval-results/pilot_docling_20260908-170030/evidence/out/multihop_20260908_171352.json) | Report per caso |
+| 10/09 12:18:45 gate | `v20260910T121150` | [Estratto del log originale](../../../archive/eval-results/verifica_finale_20260910/evidence/gate_log_excerpt.json) | Recall@2, soglia, numero casi e promozione; nessun dettaglio per caso del gate |
 | 11/09 15:54:05 gate | `v20260911T155042` | Nessun report autonomo rintracciato | Solo evento aggregato locale; mancano prove indipendenti del gate |
 
 Le quattro lacune non sono state riempite duplicando lo storico o rieseguendo
@@ -135,12 +135,12 @@ congelati e lo stesso modello. Le due modifiche di `bd87bd7` — assunzioni
 dichiarate/punti aperti e numero di scenari per funzionalità — sono misurate
 insieme: questo confronto non ne separa gli effetti e non misura MCP o il gate.
 
-Evidenze: [protocollo](propose_ablation_20260914/evidence/PROTOCOL.md),
-[nota di metodo](propose_ablation_20260914/evidence/HUMAN_REVIEW.md),
-[schede FE3](propose_ablation_20260914/evidence/REVIEW_FE3.md),
-[schede LA2](propose_ablation_20260914/evidence/REVIEW_LA2.md),
-[chiave](propose_ablation_20260914/evidence/AFTER_REVIEW/KEY.json) e
-[misure provider](propose_ablation_20260914/evidence/AFTER_REVIEW/MEASUREMENTS.json).
+Evidenze: [protocollo](../../../archive/eval-results/propose_ablation_20260914/evidence/PROTOCOL.md),
+[nota di metodo](../../../archive/eval-results/propose_ablation_20260914/evidence/HUMAN_REVIEW.md),
+[schede FE3](../../../archive/eval-results/propose_ablation_20260914/evidence/REVIEW_FE3.md),
+[schede LA2](../../../archive/eval-results/propose_ablation_20260914/evidence/REVIEW_LA2.md),
+[chiave](../../../archive/eval-results/propose_ablation_20260914/evidence/AFTER_REVIEW/KEY.json) e
+[misure provider](../../../archive/eval-results/propose_ablation_20260914/evidence/AFTER_REVIEW/MEASUREMENTS.json).
 La nota di metodo e le intestazioni delle schede sono state completate prima
 dell'apertura della chiave. La revisione è umana con assistenza di Claude;
 ordine di accesso alle fonti diverso fra FE3 e LA2, 13 rilievi sul protocollo
@@ -184,8 +184,8 @@ schede aggiornate. Nessuno starter o pilot avviato.
 ## Punto aperto — cache condivisa dei prossimi pilot Docling
 
 I circa 701 MB di pesi trovati nella run del pilot isolato non derivano dal
-percorso applicativo attuale: [lo script storico](pilot_docling_standard_20260909-095127/evidence/run_standard.py.txt)
-riceveva `artifacts_path` come argomento e [il report della run](pilot_docling_standard_20260909-095127/evidence/run2/run_report.json)
+percorso applicativo attuale: [lo script storico](../../../archive/eval-results/pilot_docling_standard_20260909-095127/evidence/run_standard.py.txt)
+riceveva `artifacts_path` come argomento e [il report della run](../../../archive/eval-results/pilot_docling_standard_20260909-095127/evidence/run2/run_report.json)
 lo colloca in `pilot_docling_standard_20260909-095127/artifacts`.
 L'applicazione usa già `intake.docling.models_dir`, configurato come
 `rag/database/models/docling`, e verifica gli SHA-256 prima del caricamento

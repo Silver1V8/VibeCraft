@@ -341,8 +341,8 @@ incrementale.
   | DOC, PPT | **LibreOffice** headless → DOCX, PPTX, poi la riga del formato moderno |
 
   La scelta viene da un confronto sugli stessi input, dopo il cleaner reale, con attese
-  scritte prima (`eval/results/verifica_finale_20260910/`). Fogli di calcolo
-  (`eval/results/excel_diretto_20260911/RESOCONTO.md`): MarkItDown passa da pandas, che svuota
+  scritte prima (`archive/eval-results/verifica_finale_20260910/`). Fogli di calcolo
+  (`archive/eval-results/excel_diretto_20260911/RESOCONTO.md`): MarkItDown passa da pandas, che svuota
   le celle «NA», «N/A», «null» e scrive `7.0` e `NaN`; Docling divide in più tabelle una riga
   con celle vuote intermedie; LibreOffice arrotonda a 15 cifre i numeri degli XLS e trasforma i
   booleani in numeri. La lettura diretta produce, per foglio, intervalli di celle con le
@@ -360,7 +360,7 @@ incrementale.
   decide la riga del formato moderno; senza LibreOffice DOC e PPT danno un errore. Mai il
   LibreOffice interno di Docling (profilo predefinito:
   misurato, scarica le immagini collegate). Sui formati moderni LibreOffice non migliora nulla
-  e non viene usato (`eval/results/libreoffice_20260910/`). Un contenitore non valido (DOCX,
+  e non viene usato (`archive/eval-results/libreoffice_20260910/`). Un contenitore non valido (DOCX,
   PPTX, XLSX, EPUB non ZIP; DOC, XLS, PPT senza la struttura OLE attesa; MSG senza firma OLE) è
   un errore, non un documento di byte grezzi; un OOXML o XLS cifrato è «protetto da password».
   Configurazione dei PDF, quella del pilot finale:
@@ -879,19 +879,19 @@ Qdrant prima del campione seguente. `result.json` conserva eventi monotoni,
 journal e campioni anche se la run fallisce; `summary.csv` contiene mediana/min/max
 e differenze abbinate `T(N,k)-T(N,0)`. Il restore I/O resta fuori dal tempo
 misurato. L'esecuzione richiede il runtime/modello offline e il container Qdrant
-dedicati documentati in `adr/sidecar-work/phase2-report.md`; il comando ordinario
+dedicati documentati in `../archive/adr/sidecar-work/phase2-report.md`; il comando ordinario
 sopra resta il benchmark del servizio esistente.
 
 ### Risultati sidecar del 21 settembre 2026
 
-Le [curve prima/dopo](eval/results/sidecar_npy_20260921/evidence/PHASE6.md)
+Le [curve prima/dopo](../archive/eval-results/sidecar_npy_20260921/evidence/PHASE6.md)
 coprono 30 celle e 150 prove valide per versione: cinque ripetizioni per
 combinazione di N, k e corpus. Su Windows/CPU a quattro thread, N=100 e k=100,
 la mediana fino allo snapshot pronto passa da 15,934 a 58,099 s per i documenti,
 da 18,804 a 19,497 s per il codice e da 19,132 a 38,602 s per il misto.
 L'encoding per documento penalizza i delta numerosi di piccoli testi.
 
-La [prova full](eval/results/sidecar_npy_20260921/evidence/PHASE5.md), su un corpus
+La [prova full](../archive/eval-results/sidecar_npy_20260921/evidence/PHASE5.md), su un corpus
 diverso di 32 documenti / 64 chunk, riduce RSS massimo campionato da 6,436 a
 3,152 GiB e USS da 5,087 a 1,753 GiB. Una sola prova per variante, formato e
 raggruppamento dell'encoding cambiati insieme: non isola l'effetto del formato.

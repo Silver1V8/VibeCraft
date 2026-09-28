@@ -50,7 +50,7 @@ Nel pilot il testo nativo preservava contenuti alterati da Granite. Questa candi
 
 ## Esperimento minimo per riaprire la valutazione
 
-1. Riutilizzare gli stessi PDF identificati per hash e la verità di riferimento in `rag/eval/results/pilot_docling_20260908-170030/truth/`. Nessuna modifica alla produzione.
+1. Riutilizzare gli stessi PDF identificati per hash e la verità di riferimento in `archive/eval-results/pilot_docling_20260908-170030/truth/`. Nessuna modifica alla produzione.
 2. Congelare catena, configurazione e pesi; convertire entrambi i PDF in un ambiente isolato, salvando Markdown e JSON strutturato. Non applicare refine alla prima candidata.
 3. Verificare 2 tabelle, 75 celle dati e 9 intestazioni con le normalizzazioni già dichiarate. Verificare separatamente tutto il testo fuori tabella, in particolare `11 / 4 / SVG + HTML`, `interfacce`, `[schermata]`, le altre bande KPI e l'assenza del blocco SQL inventato. Non limitare il controllo a queste stringhe note.
 4. Ripetere in un processo nuovo con gli stessi pesi offline; confrontare i byte dei file, distinguendo eventuali campi variabili del JSON. Registrare tempi a freddo/caldo e memoria. Non promettere un fattore di accelerazione prima delle misure.

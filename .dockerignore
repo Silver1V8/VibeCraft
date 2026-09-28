@@ -56,6 +56,14 @@ docs.local-backup-*/
 # non solo i tre file piu' pesanti come prima (AUDIT.md, DISTRIBUTION.md, RESIDUI.md).
 rag/adr/
 
+# Materiale storico spostato fuori da rag/ (ex rag/adr/sidecar-work/ e le run pesanti di
+# rag/eval/results/, ~119 MB): il Dockerfile non lo COPY-a mai (copia solo rag/, docs/ e
+# code/, mai la radice), quindi non finirebbe comunque nell'immagine. Va comunque escluso
+# dal CONTESTO di build — "docker build ." usa la radice del repo come contesto — perche'
+# altrimenti verrebbe spedito al daemon a ogni build per poi essere scartato, la stessa
+# ragione per cui rag/.venv/ e' escluso sopra.
+archive/
+
 # Artefatti di build dentro code/: sono le STESSE directory che l'indicizzatore gia' scarta
 # (core/config.CODE_EXCLUDED_DIRS), quindi non servono nemmeno a lui. In un checkout pulito
 # code/ e' vuota e questo non cambia nulla; su una copia di lavoro evita di impacchettare

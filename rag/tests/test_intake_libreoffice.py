@@ -1,6 +1,6 @@
 """Formati binari legacy DOC e PPT: LibreOffice headless con profilo blindato li normalizza
 nel formato moderno, poi vale la matrice del formato moderno. Confronto e scelta:
-rag/eval/results/libreoffice_20260910/RESOCONTO.md. Gli XLS non passano più da LibreOffice
+archive/eval-results/libreoffice_20260910/RESOCONTO.md. Gli XLS non passano più da LibreOffice
 (lettura diretta con xlrd, tests/test_intake_excel.py); qui restano solo nel controllo del
 contenitore OLE. Fixture: file prodotti da Word, Excel e PowerPoint 16, non dal round trip.
 

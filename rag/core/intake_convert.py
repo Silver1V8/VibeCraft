@@ -12,7 +12,7 @@ rag/adr/NOTA_IMPLEMENTAZIONE_MIGLIORIE.md):
     doc, ppt                         LibreOffice (profilo blindato) -> docx, pptx, poi le righe sopra
 
 Scelta per formato sugli stessi input e dopo il cleaner reale (confronto riproducibile in
-rag/eval/results/verifica_finale_20260910/). Fogli di calcolo (rag/eval/results/
+archive/eval-results/verifica_finale_20260910/). Fogli di calcolo (archive/eval-results/
 excel_diretto_20260911/): MarkItDown passa da pandas, che svuota le celle letterali «NA»/
 «N/A»/«null» e scrive 7.0 e NaN; Docling divide in più tabelle una riga con celle vuote
 intermedie; LibreOffice, per gli XLS, arrotonda i numeri memorizzati a 15 cifre e trasforma i
@@ -21,7 +21,7 @@ tabelle, e non ha ripieghi. DOCX: esito ambiguo (Docling rende meglio
 un titolo in stile Title, ma porta a `##` un titolo in Heading 1), resta MarkItDown. PPTX:
 MarkItDown conserva le note del relatore. CSV: Docling fallisce sul `;` latin-1. HTML e EPUB
 alla pari; TXT, JSON, XML, MSG solo MarkItDown. DOC/PPT: LibreOffice li porta al
-formato moderno e poi vale la riga di quello (rag/eval/results/libreoffice_20260910/).
+formato moderno e poi vale la riga di quello (archive/eval-results/libreoffice_20260910/).
 Configurazione dei PDF = quella del pilot finale:
 StandardPdfPipeline, CPU esplicita, TableFormer ACCURATE con cell matching, testo del backend,
 gerarchia dei titoli dallo stile (heading_hierarchy + parsed pages), niente VLM/Granite, niente
@@ -307,11 +307,11 @@ _ENCRYPTED_PACKAGE = "EncryptedPackage".encode("utf-16-le")
 
 # Formati binari legacy: LibreOffice headless li NORMALIZZA nel formato moderno, poi decide la
 # matrice del formato moderno (DOC→DOCX→MarkItDown, PPT→PPTX→MarkItDown). Misurato in
-# rag/eval/results/libreoffice_20260910/: sui formati moderni LibreOffice non migliora
+# archive/eval-results/libreoffice_20260910/: sui formati moderni LibreOffice non migliora
 # l'estrazione, quindi non li tocca. Mai il LibreOffice interno di Docling: profilo predefinito
 # (misurato: scarica le immagini collegate) e fallito su un PPT reale. XLS non passa di qui:
 # la normalizzazione arrotondava i numeri a 15 cifre e trasformava i booleani in numeri
-# (rag/eval/results/excel_diretto_20260911/), xlrd legge l'originale come Excel.
+# (archive/eval-results/excel_diretto_20260911/), xlrd legge l'originale come Excel.
 LEGACY_FORMATS = {"doc": "docx", "ppt": "pptx"}
 # Stream che il binario DEVE contenere: un file troncato conserva la firma OLE ma non la
 # struttura, e LibreOffice lo aprirebbe come testo producendo byte spazzatura (misurato).

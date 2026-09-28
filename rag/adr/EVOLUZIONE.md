@@ -1671,7 +1671,7 @@ container separato resta l'opzione — con misure proprie, che non sono state pr
 
 ### Istruzioni riproducibili
 
-Artefatti: `rag/eval/results/dep_docling_20260908-160000/` — `summary.json` (tutti
+Artefatti: `archive/eval-results/dep_docling_20260908-160000/` — `summary.json` (tutti
 i riscontri con hash SHA-256 degli altri file), `requirements-candidate-win_amd64.txt`
 (la catena pinnata: **è questa** l'unità riproducibile), `requirements-baseline-win_amd64.txt`,
 `requirements-candidate-mac_arm64-F3.txt`, `diff-dipendenze-win_amd64.txt`,
@@ -1754,10 +1754,10 @@ ricerca ricorsiva ripetuta, conferma P0 e sessione 2. Preesistenti conservate:
 `rag/eval/results/history.jsonl` (le righe preesistenti sono intatte; questa
 sessione ne ha **appesa una** via `eval.run_multihop`, vedi sotto), e i non
 tracciati `rag/adr/EVOLUZIONE.md`,
-`rag/eval/results/p0_20260908-152239/`, `rag/eval/results/dep_docling_20260908-160000/`,
+`rag/eval/results/p0_20260908-152239/`, `archive/eval-results/dep_docling_20260908-160000/`,
 `skills-lock.json`, `tmp/`. Il venv `[vlm]` della sessione 2 **non è stato alterato**.
 
-Artefatti: `rag/eval/results/pilot_docling_20260908-170030/`.
+Artefatti: `archive/eval-results/pilot_docling_20260908-170030/`.
 
 ### Gli input sono gli stessi della baseline
 
@@ -2140,7 +2140,7 @@ derivabili. Il criterio sezioni del cancello 1c fallisce; retrieval, attribuzion
 golden generale e suite applicativa non sono stati eseguiti dopo l'abbandono.
 Nessuna integrazione, modifica all'indice o collection. Prove, catena, revisioni,
 pesi, hash, output e limiti sono in
-`rag/eval/results/pilot_docling_standard_20260909-095127/RESOCONTO.md`.
+`archive/eval-results/pilot_docling_standard_20260909-095127/RESOCONTO.md`.
 
 ## Pilot Docling — candidato finale, gerarchia nativa — 2026-09-09
 
@@ -2155,7 +2155,7 @@ corretto**, non i PDF originali immutabili né PDF esterni generici.
 
 Ramo `codex/evoluzione-p0`, HEAD `011e264c554895c651f0eba1dccb74bc4dc10f74`,
 invariato. Nessun branch, commit, push, PR. `AGENTS.md` assente.
-Artefatti: `rag/eval/results/pilot_docling_finale_20260909-110000/`.
+Artefatti: `archive/eval-results/pilot_docling_finale_20260909-110000/`.
 
 ### La gerarchia si risolve con uno stage nativo, non con codice nostro
 
@@ -2279,7 +2279,7 @@ requisiti congelato, non da `docling==2.126.0`. Il difetto `torchvision +cpu`
 resta aperto e irrilevante finché il motore gira su CPU.
 
 Dettaglio completo, script, manifest, output e inventario SHA-256 in
-`rag/eval/results/pilot_docling_finale_20260909-110000/RESOCONTO.md`.
+`archive/eval-results/pilot_docling_finale_20260909-110000/RESOCONTO.md`.
 
 ## Pilot Docling — chiusura: audit, schermo citazioni, suite, attribuzione — 2026-09-09
 
@@ -2294,7 +2294,7 @@ PDF originali immutabili né PDF esterni generici.
 
 Ramo `codex/evoluzione-p0`, HEAD `011e264c554895c651f0eba1dccb74bc4dc10f74`,
 invariato. Nessun branch, commit, push, PR. `AGENTS.md` assente.
-Artefatti: `rag/eval/results/pilot_docling_chiusura_20260909-160000/` (94 file).
+Artefatti: `archive/eval-results/pilot_docling_chiusura_20260909-160000/` (94 file).
 
 ### Cinque cose distinte
 
@@ -2453,7 +2453,7 @@ righe, `57b1eecdd1c23983`) — golden e multihop con `--no-save`, dentro i sandb
 `ruff` pulito su tutti gli script.
 
 Dettaglio completo in
-`rag/eval/results/pilot_docling_chiusura_20260909-160000/RESOCONTO.md`.
+`archive/eval-results/pilot_docling_chiusura_20260909-160000/RESOCONTO.md`.
 
 
 ## Correzione peso/Authority e attribuzione — 2026-09-09
@@ -2463,7 +2463,7 @@ resta un **difetto confermato**. Perimetro: solo ambiente isolato; nulla
 integrato in produzione. Ramo `codex/evoluzione-p0`, HEAD
 `011e264c554895c651f0eba1dccb74bc4dc10f74`, invariato. `AGENTS.md` assente.
 Resoconto completo, artefatti e inventario SHA-256 in
-`rag/eval/results/fix_attribuzione_20260909-183000/`.
+`archive/eval-results/fix_attribuzione_20260909-183000/`.
 
 I due verdetti restano distinti, e nessuno autorizza l'integrazione:
 
@@ -2583,7 +2583,7 @@ il contesto che `/ask` invia (`CODE_CONTEXT_TOTAL_SNIPPETS`,
 `GRAPH_CONTEXT_MAX_CHUNKS`, `GOVERNED_MAX_CHUNKS` — parametri calibrati, fuori
 perimetro) oppure adottare un modello con miglior richiamo su contesto lungo
 (R29). **Non e' una firma mancante**, e non viene chiesta una revisione umana per
-sanarlo. Artefatti in `rag/eval/results/fix_generazione_20260909-200000/`.
+sanarlo. Artefatti in `archive/eval-results/fix_generazione_20260909-200000/`.
 Ramo `codex/evoluzione-p0`, HEAD `011e264c…`, invariato. `AGENTS.md` assente.
 
 ### `pdf-diag-3` non e' correggibile dal prompt, ed e' misurato
@@ -2689,7 +2689,7 @@ perche' le prove di oggi hanno **confutato** la causa che avevo indicato.
 Serve decidere se autorizzare una modifica **mirata a `[CLASSE-FONTI]`**: e' la
 sola leva che le misure sostengono ancora, e sta fuori dall'autorizzazione di
 questa sessione (prompt congelato all'originale). Artefatti in
-`rag/eval/results/sel_contesto_20260910-090000/`. Ramo `codex/evoluzione-p0`,
+`archive/eval-results/sel_contesto_20260910-090000/`. Ramo `codex/evoluzione-p0`,
 HEAD `011e264c…`, invariato. `AGENTS.md` assente. Nulla integrato.
 
 ### Tre correzioni alla mappa dei parametri
@@ -2774,7 +2774,7 @@ non viene presentato come tale.
 **Esito: PASS non raggiunto, e non dichiarato.** Con l'autorizzazione a modificare
 in modo mirato `[CLASSE-FONTI]` ho provato **17 varianti di prompt** su due taglie
 di contesto: nessuna soddisfa il criterio congelato di `pdf-diag-3`. Artefatti in
-`rag/eval/results/pass_20260910-140000/`. Ramo `codex/evoluzione-p0`, HEAD
+`archive/eval-results/pass_20260910-140000/`. Ramo `codex/evoluzione-p0`, HEAD
 `011e264c…`, invariato. Prompt di produzione non modificato.
 
 ### Il tetto delle varianti di prompt
@@ -2845,7 +2845,7 @@ inutile riprovare varianti di prompt: il tetto e' noto e la causa e' altrove.
 **Esito: NON_APPLICARE per la via 1; PASS non raggiunto.** Ma la sessione chiude
 una domanda aperta e **refuta il diagnostico di soffitto** della mattina: la
 parola ambigua nel corpus **non era la causa**. Artefatti in
-`rag/eval/results/corpus_disambigua_20260910-170000/`. Produzione mai toccata,
+`archive/eval-results/corpus_disambigua_20260910-170000/`. Produzione mai toccata,
 sandbox riportato allo stato di partenza.
 
 ### Tre forme, sempre piu' forti

@@ -194,7 +194,7 @@ retrieval:
   # del contesto a runtime: cambiarlo richiede un riavvio, non una reindicizzazione.
   # 0.35 verificato il 2026-09-10 sul corpus corrente (golden 58, multihop 8, holdout 7, top_k
   # 5 e 10): testo documentale invariato, copertura invariata, no-op a 0.0 byte-identico a
-  # prima (rag/eval/results/implementazione_migliorie_20260910/). 0.45 costava copertura.
+  # prima (archive/eval-results/implementazione_migliorie_20260910/). 0.45 costava copertura.
   code_link_min_question_score: 0.35
 
   # Tetti dell'endpoint GET /api/code/search, che espone la stessa ricerca semantica sui simboli
@@ -556,8 +556,8 @@ intake:
     timeout_seconds: 300
   # Formati binari legacy DOC e PPT: LibreOffice headless li normalizza nel formato moderno
   # (DOCX, PPTX), poi vale la matrice del formato moderno. Sui formati moderni LibreOffice non ha
-  # migliorato l'estrazione (rag/eval/results/libreoffice_20260910/); gli XLS non passano di qui,
-  # li legge xlrd senza alterare numeri e booleani (rag/eval/results/excel_diretto_20260911/).
+  # migliorato l'estrazione (archive/eval-results/libreoffice_20260910/); gli XLS non passano di qui,
+  # li legge xlrd senza alterare numeri e booleani (archive/eval-results/excel_diretto_20260911/).
   # Ogni conversione usa un profilo temporaneo blindato (macro spente, collegamenti mai
   # aggiornati, nessun ricalcolo delle formule). Se LibreOffice manca o non risponde, DOC e PPT
   # danno un errore esplicito. enabled: false = come "manca".

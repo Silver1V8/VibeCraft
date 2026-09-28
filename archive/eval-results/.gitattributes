@@ -1,0 +1,5 @@
+# Evidenze storiche: preservare i byte originali e gli SHA-256 anche con autocrlf.
+# Stessa regola di rag/eval/results/.gitattributes, che non si applica più qui perché
+# .gitattributes non è ereditato da una cartella spostata: le run con evidence/ sono
+# archiviate sotto archive/eval-results/, non più sotto rag/eval/results/.
+*/evidence/** -text
