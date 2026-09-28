@@ -226,6 +226,36 @@ def test_route_canvas_dry_run_rejects_traversal(changes_env):
     assert not changes_env.exists()
 
 
+def test_route_canvas_dry_run_does_not_create_feature_folder(changes_env):
+    """canvas/dry-run è classificato read-only in SECURITY_SURFACE.md (riga #22 della matrice §2) e per
+    questo escluso dalla guardia anti-cross-site (§2C): se creasse comunque la cartella
+    della feature, una pagina cross-site potrebbe farle creare cartelle a piacere su
+    disco. Una feature MAI vista prima non deve produrre alcuna cartella (né changes_env
+    stessa, che non esiste ancora prima della chiamata) — fallisce senza la modifica,
+    che passava create=True a _safe_feature_dir."""
+    req = CanvasGenerateRequest(feature_name="feature mai vista", dev_type="")
+    result = asyncio.run(routes_pipeline.pipeline_canvas_dry_run(req))
+    assert result["feature_folder"] == "feature-mai-vista"
+    assert not changes_env.exists()
+
+
+def test_route_canvas_dry_run_works_on_existing_feature(changes_env):
+    """Compatibilità: se la cartella esiste già (explore.md salvato in precedenza), il
+    dry-run continua a leggerla e a rispondere come prima — read-only non significa
+    'rompe il flusso normale'."""
+    folder = changes_env / "feat-demo"
+    folder.mkdir(parents=True)
+    (folder / "explore.md").write_text("intervista di esempio", encoding="utf-8")
+    req = CanvasGenerateRequest(feature_name="feat demo", dev_type="")
+
+    result = asyncio.run(routes_pipeline.pipeline_canvas_dry_run(req))
+
+    assert result["feature_folder"] == "feat-demo"
+    assert "intervista di esempio" in result["query_preview"]
+    assert result["sources"] == []  # nessun indice pronto nel test: ramo "Indice non ancora pronto."
+    assert folder.exists()  # la cartella pre-esistente non viene toccata/rimossa
+
+
 def test_route_status_rejects_traversal(changes_env):
     _assert_bad_request(routes_pipeline.pipeline_status(feature=".."))
 

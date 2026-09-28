@@ -902,8 +902,13 @@ async def pipeline_canvas_dry_run(req: CanvasGenerateRequest):
 
     Rispecchia i DUE rami di _governed_context (dominio + tecnico per dev_type): mostrarne
     uno solo farebbe promettere al dry-run un contesto diverso da quello che il canvas
-    riceve davvero. Ogni sorgente porta il ramo da cui viene."""
-    folder = _safe_feature_dir(req.feature_name, create=True)
+    riceve davvero. Ogni sorgente porta il ramo da cui viene.
+
+    read-only per davvero (SECURITY_SURFACE.md, riga #22 della matrice §2): NON crea la cartella della
+    feature (create=False, il default) — se non esiste ancora semplicemente non c'è
+    explore.md/meta.json da leggere. Creare una cartella qui sarebbe una scrittura da
+    un endpoint escluso dalla guardia anti-cross-site perché dichiarato read-only."""
+    folder = _safe_feature_dir(req.feature_name)
     explore_path = folder / "explore.md"
     interview = explore_path.read_text(encoding="utf-8") if explore_path.exists() else ""
     query = f"{req.feature_name}\n{interview[:2000]}"
