@@ -94,6 +94,8 @@ Eseguire matrice `--response-mode stream` e JSON con cache off, poi hit calda se
 
 ## P3 — misura finale e consegna (Terra, giudizio Astra)
 
+Decisione utente 2026-09-28: mantenere Qwen3.5:9b. La prova di inferenze realmente parallele resta differita, con serializzazione documentata come limite accettato; nessuna installazione alternativa. Restano obbligatorie la matrice HTTP/streaming e le prove dei reader con lo stesso modello, appena sbloccato l'avvio dei servizi dedicati.
+
 - [ ] Stessa matrice e corpus baseline/candidato, almeno30 richieste/k fattibili, cache off/on separata; confronto 1 e 2 reader locali con RSS di ogni processo e totale. Evitare inferenze spurie da cache o sole query graph.
 - [ ] Test burst e tre sonde di cancellazione per k, fuori dai percentili principali, con conteggi finali degli slot; prova due inferenze Ollama reali sovrapposte su servizio isolato se hardware lo permette. Se mancano le risorse, riportare limite/blocco senza dichiarare completamento end-to-end.
 - [ ] Eseguire controlli repository per i file modificati e test di regressione pertinenti; ampliare soltanto se emergono problemi. Comandi/results esatti nel checkpoint.

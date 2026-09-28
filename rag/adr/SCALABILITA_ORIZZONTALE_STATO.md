@@ -49,7 +49,9 @@ Tutti i run finali seguenti hanno usato `QDRANT_URL=http://127.0.0.1:16333` con 
 
 Il software P0/P1/P2 è implementato, verificato e approvato dalla review root entro i limiti sopra; non è una consegna end-to-end completa. I sottoagenti implementatori sono idle. Nessun push/deploy. Non resta lavoro software noto prima dello sblocco P3.
 
-Per P3 servono la rimozione del blocco di avvio HTTP e una decisione sul modello/backend (qwen35 attuale serializza). Non riprovare l'avvio rifiutato in altra forma, non scaricare modelli senza autorizzazione. Quando sbloccato: baseline sorgente ea0cf91 e candidato su stessi corpus/config, k=1,4,8,30 campioni/cohort, cache-off/hit separate, raw/TTFT/throughput/errori/cancel/memoria e uno vs due reader.
+Decisione utente 2026-09-28: mantenere per ora Qwen3.5:9b. La scelta del modello non è più pendente; l'inferenza serializzata dell'abbinamento attuale resta un limite accettato per questa fase, non un risultato di parallelismo. Non installare modelli o backend alternativi.
+
+Per P3 resta la rimozione del blocco di avvio HTTP e dei servizi dedicati. Non riprovare l'avvio rifiutato in altra forma. Quando sbloccato: baseline sorgente ea0cf91 e candidato con Qwen3.5:9b sugli stessi corpus/config, k=1,4,8,30 campioni/cohort, cache-off/hit separate, raw/TTFT/throughput/errori/cancel/memoria e uno vs due reader. Verificare richieste concorrenti e streaming; riportare separatamente il limite dell'inferenza serializzata.
 
 Finché restano solo questi gate esterni, **non ripetere suite o implementazione a ogni heartbeat** senza nuovo codice o rimozione del blocco. L'automazione root resta attiva finché il completamento richiesto non è verificato; nessun dato prestazionale inventato dai fake o dalle due sonde Ollama.
 
