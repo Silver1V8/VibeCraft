@@ -1,4 +1,4 @@
-// Il codice reale del pannello dry-run e della tendina dev-types (estratto dal template),
+// Il codice reale del pannello dry-run e della tendina dev-types (in /static/pages/pipeline.js, era nel template),
 // eseguito con escapeHtml di /static/shared.js e un DOM finto, senza browser né dipendenze.
 // Titoli e nomi del corpus (anche importati da file esterni), note e messaggi d'errore del
 // server finivano in innerHTML senza escape: un titolo `<img onerror=…>` veniva eseguito.
@@ -8,7 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const template = fs.readFileSync(path.join(__dirname, '../templates/pipeline.unified.html'), 'utf8');
+const template = fs.readFileSync(path.join(__dirname, '../static/pages/pipeline.js'), 'utf8');
 const shared = fs.readFileSync(path.join(__dirname, '../static/shared.js'), 'utf8');
 function slice(src, start, end) {
   const a = src.indexOf(start), b = src.indexOf(end, a + 1);

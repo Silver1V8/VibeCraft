@@ -1,10 +1,10 @@
-// Il codice reale della preview inline (estratto dal template), senza browser né dipendenze.
+// Il codice reale della preview inline (in /static/pages/intake.js, era nel template), senza browser né dipendenze.
 // Uso: node tests/intake_excel_preview.cjs
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const template = fs.readFileSync(path.join(__dirname, '../templates/intake.unified.html'), 'utf8');
+const template = fs.readFileSync(path.join(__dirname, '../static/pages/intake.js'), 'utf8');
 // escapeHtml è quella di /static/shared.js, che la pagina carica in <head>.
 const shared = fs.readFileSync(path.join(__dirname, '../static/shared.js'), 'utf8');
 const escapeCode = shared.slice(shared.indexOf('function escapeHtml('), shared.indexOf('\n}\n', shared.indexOf('function escapeHtml(')) + 3);

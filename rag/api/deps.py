@@ -14,6 +14,7 @@ import threading
 from collections.abc import Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+from html import escape as html_escape
 from pathlib import Path
 
 import numpy as np
@@ -1020,14 +1021,17 @@ def serve_page(request: Request, unified_name: str, matrix_name: str, classic_na
     return FileResponse(legacy_path, media_type="text/html", headers=NO_CACHE_HEADERS)
 
 
-_HEAD_CLOSE_RE = re.compile(r"</head>", re.IGNORECASE)
+# Subito dopo <head>: il <meta> deve precedere /static/shared.js, che lo legge al caricamento.
+_HEAD_OPEN_RE = re.compile(r"<head\b[^>]*>", re.IGNORECASE)
 
 
 def inject_agent_api_key(html: str, request: Request) -> str:
     """Inietta la X-API-Key richiesta da /api/pipeline/agent/run (require_api_key_strict,
     l'UNICO endpoint che non bypassa mai localhost — esegue shell/scrittura file via Claude
-    Agent SDK) come variabile JS same-origin, SOLO per richieste locali (stessa condizione
-    di require_api_key, vedi _is_local_request).
+    Agent SDK) in un `<meta name="vibecraft-agent-api-key">` subito dopo `<head>`, SOLO per
+    richieste locali (stessa condizione di require_api_key, vedi _is_local_request).
+    /static/shared.js lo copia in `window.__VIBECRAFT_AGENT_API_KEY__`. Un <meta> e non uno
+    <script> inline: la CSP (CONTENT_SECURITY_POLICY) vieta gli script inline.
 
     Perché è sicuro anche se sembra "ridare" il bypass che require_api_key_strict nega
     apposta: la Same-Origin Policy del browser impedisce a uno script di un'ALTRA origine
@@ -1043,8 +1047,8 @@ def inject_agent_api_key(html: str, request: Request) -> str:
     pagina servita a un client remoto."""
     if not API_KEY or not _is_local_request(request):
         return html
-    match = _HEAD_CLOSE_RE.search(html)
+    match = _HEAD_OPEN_RE.search(html)
     if not match:
         return html
-    script = f"<script>window.__VIBECRAFT_AGENT_API_KEY__={json.dumps(API_KEY)};</script>"
-    return html[:match.start()] + script + html[match.start():]
+    meta = f'<meta name="vibecraft-agent-api-key" content="{html_escape(API_KEY, quote=True)}" />'
+    return html[:match.end()] + meta + html[match.end():]

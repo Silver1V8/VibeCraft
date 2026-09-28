@@ -17,7 +17,7 @@ import logging
 import mimetypes
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -73,6 +73,21 @@ def _shared_css() -> FileResponse:
 @app.get("/static/shared.js", include_in_schema=False)
 def _shared_js() -> FileResponse:
     return FileResponse(STATIC_DIR / "shared.js", media_type="text/javascript", headers=NO_CACHE_HEADERS)
+
+
+# Script delle pagine (static/pages/*.js): erano <script> inline nei template, spostati per
+# la CSP (script-src 'self'). Cambiano insieme all'HTML, quindi stesso NO_CACHE_HEADERS di
+# shared.js per lo stesso motivo. Serviti solo i file presenti al boot (nessun path costruito
+# dalla richiesta): un nome sconosciuto è 404.
+_PAGE_SCRIPTS = {p.name: p for p in (STATIC_DIR / "pages").glob("*.js")}
+
+
+@app.get("/static/pages/{name}", include_in_schema=False)
+def _page_script(name: str) -> FileResponse:
+    path = _PAGE_SCRIPTS.get(name)
+    if path is None:
+        raise HTTPException(status_code=404)
+    return FileResponse(path, media_type="text/javascript", headers=NO_CACHE_HEADERS)
 
 
 # Asset statici condivisi (shared.css / shared.js) estratti dai template per

@@ -1,4 +1,4 @@
-// Il codice reale della dashboard (estratto dal template) che mette dati del corpus in HTML:
+// Il codice reale della dashboard (in /static/pages/dashboard.js, era nel template) che mette dati del corpus in HTML:
 // tooltip del grafo 3D (nodeLabel/linkLabel di 3d-force-graph finiscono in innerHTML) e
 // lista dei punteggi. Eseguito con escapeHtml di /static/shared.js, senza browser.
 // La relazione di un arco è una stringa libera del frontmatter (graph_rag.edges[].type).
@@ -8,7 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const template = fs.readFileSync(path.join(__dirname, '../templates/dashboard.unified.html'), 'utf8');
+const template = fs.readFileSync(path.join(__dirname, '../static/pages/dashboard.js'), 'utf8');
 const shared = fs.readFileSync(path.join(__dirname, '../static/shared.js'), 'utf8');
 function slice(src, start, end) {
   const a = src.indexOf(start), b = src.indexOf(end, a + 1);

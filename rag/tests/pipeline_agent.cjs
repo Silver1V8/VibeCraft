@@ -1,10 +1,10 @@
-// Codice reale del template: selezione modalità, contratto inviato e arresto su errore.
+// Codice reale della pagina (/static/pages/pipeline.js): selezione modalità, contratto inviato e arresto su errore.
 // Eseguire con: node tests/pipeline_agent.cjs
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const html = fs.readFileSync(path.join(__dirname, '../templates/pipeline.unified.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '../static/pages/pipeline.js'), 'utf8');
 const functions = html.slice(html.indexOf('    async function fetchFinalPrompt('), html.indexOf('    function getFeatureName('))
   + html.slice(html.indexOf('    function gateApiError('), html.indexOf('    /* ──────────── ESECUZIONE CON CLAUDE AGENT SDK'))
   + html.slice(html.indexOf('    function openPointsSummary('), html.indexOf('    /* ──────────── STEP 4:'))
