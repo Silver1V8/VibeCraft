@@ -105,6 +105,10 @@ def validate_concurrency_args(args) -> None:
         raise ValueError("concurrency/requests devono essere positivi; warmup >= 0")
     if not math.isfinite(args.timeout) or args.timeout <= 0:
         raise ValueError("timeout deve essere positivo e finito")
+    if getattr(args, "cancel_probes", 0) < 0:
+        raise ValueError("cancel-probes deve essere >= 0")
+    if getattr(args, "cancel_probes", 0) and getattr(args, "response_mode", "json") != "stream":
+        raise ValueError("--cancel-probes richiede --response-mode stream")
 
 
 def bench_retrieve(client: httpx2.Client, url: str, n: int = N_RETRIEVE_QUERIES) -> dict:
@@ -383,6 +387,10 @@ def main() -> int:
     ap.add_argument("--metadata", help="file JSON con provenienza del server/laboratorio")
     ap.add_argument("--api-pid", type=int)
     ap.add_argument("--engine-pid", type=int)
+    ap.add_argument("--cancel-probes", type=int, default=0,
+                    help="sonde stream da interrompere dopo il primo testo per ogni k")
+    ap.add_argument("--sample-gpu", action="store_true",
+                    help="campiona nvidia-smi durante ogni cella (memoria device globale condivisa)")
     a = ap.parse_args()
 
     if a.concurrency_bench:

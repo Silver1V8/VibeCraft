@@ -218,3 +218,166 @@ def test_concurrency_args_rifiutano_timeout_non_finito():
     args = SimpleNamespace(concurrency=[1], requests=1, warmup=0, timeout=float("inf"))
     with pytest.raises(ValueError, match="finito"):
         bench.validate_concurrency_args(args)
+
+
+def test_sonda_cancel_stream_chiude_upstream_e_non_altera_metriche_principali():
+    closed = asyncio.Event()
+    calls = 0
+
+    class ControlledStream(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            yield b'{"type":"meta","request_id":"probe"}\n'
+            yield b'{"type":"delta","text":"primo"}\n'
+            await asyncio.Event().wait()
+
+        async def aclose(self):
+            closed.set()
+
+    async def handler(request):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return httpx.Response(200, content=(
+                b'{"type":"delta","text":"misura"}\n'
+                b'{"type":"result","value":{"status":"success"}}\n'))
+        return httpx.Response(200, stream=ControlledStream())
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            result = await subject.run_cell(client, "http://fake", ["q"], concurrency=1, requests=1,
+                                            warmup=0, response_mode="stream", timeout=1,
+                                            cancel_probes=1)
+            await asyncio.wait_for(closed.wait(), timeout=1)
+            return result
+
+    result = asyncio.run(run())
+    assert result["summary"]["n"] == 1
+    assert result["summary"]["successes"] == 1
+    assert result["summary"]["cancelled"] == 0
+    assert len(result["rows"]) == 1
+    probe = result["cancel_probes"][0]
+    assert probe["outcome"] == "cancelled"
+    assert probe["text_bytes"] == len("primo".encode())
+    assert probe["dispatch_monotonic"] <= probe["first_text_monotonic"] <= probe["finish_monotonic"]
+
+
+def test_sonda_stream_senza_testo_dichiara_no_first_text():
+    calls = 0
+
+    async def handler(request):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return httpx.Response(200, content=(
+                b'{"type":"delta","text":"misura"}\n'
+                b'{"type":"result","value":{"status":"success"}}\n'))
+        return httpx.Response(200, content=b'{"type":"result","value":{"status":"graph_answer"}}\n')
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await subject.run_cell(client, "http://fake", ["q"], concurrency=1, requests=1,
+                                          warmup=0, response_mode="stream", timeout=1, cancel_probes=1)
+
+    probe = asyncio.run(run())["cancel_probes"][0]
+    assert probe["outcome"] == "probe_not_cancelled"
+    assert probe["reason"] == "no_first_text"
+
+
+def test_sonda_delta_solo_a_eof_non_dichiara_cancellazione():
+    calls = 0
+
+    async def handler(request):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return httpx.Response(200, content=(
+                b'{"type":"delta","text":"misura"}\n'
+                b'{"type":"result","value":{"status":"success"}}\n'))
+        return httpx.Response(200, content=b'{"type":"delta","text":"gia-finito"}')
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await subject.run_cell(client, "http://fake", ["q"], concurrency=1, requests=1,
+                                          warmup=0, response_mode="stream", timeout=1, cancel_probes=1)
+
+    probe = asyncio.run(run())["cancel_probes"][0]
+    assert probe["outcome"] == "probe_not_cancelled"
+    assert probe["reason"] == "stream_already_ended"
+
+
+def test_tempo_cleanup_gpu_non_entra_nel_throughput(monkeypatch):
+    cleanup_started = asyncio.Event()
+    release_cleanup = asyncio.Event()
+    clock = iter((0.0, 0.0, 0.0, 1.0, 100.0)).__next__
+
+    async def slow_gpu(stop):
+        await stop.wait()
+        cleanup_started.set()
+        await release_cleanup.wait()
+        clock()
+        return {"scope": "device_global_shared_host", "peak_memory_bytes": None,
+                "per_device_peak_memory_bytes": None, "samples": 0, "reason": "fake"}
+
+    monkeypatch.setattr(subject, "sample_gpu_peak", slow_gpu)
+
+    async def handler(request):
+        return httpx.Response(200, json={"status": "success"})
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            task = asyncio.create_task(subject.run_cell(client, "http://fake", ["q"], concurrency=1,
+                                                        requests=1, warmup=0, response_mode="json", timeout=1,
+                                                        clock=clock, sample_gpu=True))
+            await cleanup_started.wait()
+            release_cleanup.set()
+            return await task
+
+    assert asyncio.run(run())["summary"]["wall_seconds"] == 1.0
+
+
+def test_cancellazione_esterna_durante_sonda_non_viene_ingoiettata():
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    calls = 0
+
+    class WaitingStream(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            entered.set()
+            await release.wait()
+            yield b'{"type":"delta","text":"tardi"}\n'
+
+        async def aclose(self):
+            return None
+
+    async def handler(request):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return httpx.Response(200, content=(
+                b'{"type":"delta","text":"misura"}\n'
+                b'{"type":"result","value":{"status":"success"}}\n'))
+        return httpx.Response(200, stream=WaitingStream())
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            task = asyncio.create_task(subject.run_cell(client, "http://fake", ["q"], concurrency=1,
+                                                        requests=1, warmup=0, response_mode="stream", timeout=5,
+                                                        cancel_probes=1))
+            await entered.wait()
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+    asyncio.run(run())
+
+
+def test_gpu_sampler_stub_dichiara_host_condiviso():
+    async def run():
+        stop = asyncio.Event()
+        stop.set()
+        return await subject.sample_gpu_peak(stop, interval=0, sample=lambda: [10, 20])
+
+    result = asyncio.run(run())
+    assert result["scope"] == "device_global_shared_host"
+    assert result["peak_memory_bytes"] == 30 * 1024 * 1024
+    assert result["per_device_peak_memory_bytes"] == [10 * 1024 * 1024, 20 * 1024 * 1024]

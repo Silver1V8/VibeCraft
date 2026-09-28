@@ -11,7 +11,7 @@
 - [ ] P2 reader/writer/immutabilità locale.
 - [ ] P3 matrice reale k=1,4,8 e review finale.
 
-Quota alla ripresa99%, ultima PM95% residua, uso consentito. Stop precedente al5% rispettato. Verificare quota prima/dopo ogni fase/fanout: stop <=5% qualunque finestra o ordinaryUsageAllowed=false/spendControlReached; ripresa solo >=15% tutte e uso consentito. Mai reset/acquisti. Heartbeat root.
+Quota alla ripresa99%, ultima PM92% residua, uso consentito. Stop precedente al5% rispettato. Verificare quota prima/dopo ogni fase/fanout: stop <=5% qualunque finestra o ordinaryUsageAllowed=false/spendControlReached; ripresa solo >=15% tutte e uso consentito. Mai reset/acquisti. Heartbeat root.
 
 ## Evidenze e blocchi
 
@@ -27,3 +27,7 @@ Quota alla ripresa99%, ultima PM95% residua, uso consentito. Stop precedente al5
 Leggere spec+piano nello stesso percorso; conservare modifiche parziali. Sol applicazione, Terra benchmark, PM review; massimo2 sottoagenti attivi. Root review finale trasversale. Solo worktree, niente DB operativo, installazioni GPU/modelli, push main o deploy.
 
 Eseguire test da `worktree/rag` con `C:/Users/Silve/Desktop/vibecraft/rag/.venv/Scripts/python.exe -m pytest ...`; comandi per fase nel piano. P0 ingresso `scripts/bench.py --concurrency-bench`, solo POST /ask, senza reindex del benchmark storico. P1/P2 possono proseguire indipendentemente dal blocco hardware/avvio, ma la consegna deve dichiarare P3 incompleto.
+
+## Estensione harness P3
+
+Sonde cancel separate e GPUpeak opzionale implementate:55 test bench pass,ruff/diff-check pass; review PM escluso cleanupGPU dal throughput e impedito falso cancel dopoEOF. Nessuna prova live. P0 commit `c9ab3df`. Baseline P2 prima edit:158 test pass. P1 Sol ancora in corso.

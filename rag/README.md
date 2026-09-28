@@ -789,7 +789,11 @@ uv run python scripts/bench.py --concurrency-bench --url http://127.0.0.1:18000 
 ```
 
 Scrive raw JSONL e un summary per ogni livello; cache off e cache calda vanno eseguite in
-cohort distinte e dichiarate con `--cache-cohort`.
+cohort distinte e dichiarate con `--cache-cohort`. In modalità stream,
+`--cancel-probes 3` aggiunge tre sonde per k che chiudono la risposta dopo il primo
+testo, salvate separatamente dai percentili principali. `--sample-gpu` abilita il
+campionamento opzionale della memoria GPU dell’intero dispositivo condiviso;
+`--api-pid` e `--engine-pid` campionano RSS del processo e dei suoi figli.
 
 Cosa misura, in ordine: `GET /api/retrieve` su 10 query del golden-set (p50/p95);
 `POST /ask` su 10 query del golden-set (p50/p95/max del totale + medie del

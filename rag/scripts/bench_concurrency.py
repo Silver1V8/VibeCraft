@@ -39,12 +39,15 @@ def load_metadata(path):
 
 
 def run_metadata(args, queries):
+    command = ["scripts/bench.py", "--concurrency-bench", "--url", args.url,
+               "--concurrency", *map(str, args.concurrency), "--requests", str(args.requests),
+               "--warmup", str(args.warmup), "--response-mode", args.response_mode,
+               "--queries", args.queries, "--out", args.out, "--timeout", str(args.timeout),
+               "--cache-cohort", args.cache_cohort, "--cancel-probes", str(args.cancel_probes)]
+    if args.sample_gpu:
+        command.append("--sample-gpu")
     return {
-        "command": ["scripts/bench.py", "--concurrency-bench", "--url", args.url,
-                    "--concurrency", *map(str, args.concurrency), "--requests", str(args.requests),
-                    "--warmup", str(args.warmup), "--response-mode", args.response_mode,
-                    "--queries", args.queries, "--out", args.out, "--timeout", str(args.timeout),
-                    "--cache-cohort", args.cache_cohort],
+        "command": command,
         "queries_sha256": hashlib.sha256(json.dumps(queries, ensure_ascii=False).encode()).hexdigest(),
         "timeout_seconds": args.timeout, "ask_top_k": 5,
     }
@@ -65,7 +68,7 @@ def _sha(path):
         return None, str(exc)
 
 
-async def consume_ndjson(chunks, *, started, clock=time.perf_counter):
+async def consume_ndjson(chunks, *, started, clock=time.perf_counter, stop_after_first_text=False):
     """Legge NDJSON incrementale: solo delta testuale determina TTFT."""
     decoder = codecs.getincrementaldecoder("utf-8")()
     pending = ""
@@ -76,6 +79,12 @@ async def consume_ndjson(chunks, *, started, clock=time.perf_counter):
     terminal = None
     error = None
     result = None
+    stopped_after_first_text = False
+
+    def parsed():
+        return {"ttft_ms": ttft_ms, "first_text_monotonic": first_text_monotonic,
+                "terminal": terminal, "error": error, "meta": meta, "result": result,
+                "text_bytes": text_bytes, "stopped_after_first_text": stopped_after_first_text}
 
     def handle(line):
         nonlocal meta, text_bytes, ttft_ms, first_text_monotonic, terminal, error, result
@@ -121,13 +130,15 @@ async def consume_ndjson(chunks, *, started, clock=time.perf_counter):
             line, pending = pending.split("\n", 1)
             if line.strip():
                 handle(line)
+                if stop_after_first_text and ttft_ms is not None:
+                    stopped_after_first_text = True
+                    return parsed()
     pending += decoder.decode(b"", final=True)
     if pending.strip():
         handle(pending)
     if terminal is None and error is None:
         error = "EOF senza evento terminale"
-    return {"ttft_ms": ttft_ms, "first_text_monotonic": first_text_monotonic,
-            "terminal": terminal, "error": error, "meta": meta, "result": result, "text_bytes": text_bytes}
+    return parsed()
 
 
 async def _one(client, url, question, response_mode, timeout, clock):
@@ -181,6 +192,42 @@ async def _one(client, url, question, response_mode, timeout, clock):
     return row
 
 
+async def _cancel_probe(client, url, question, timeout, clock):
+    """Interrompe uno stream subito dopo il primo delta testuale; non è una misura primaria."""
+    started = clock()
+    row = {"question": question, "dispatch_monotonic": started, "first_text_monotonic": None,
+           "finish_monotonic": None, "response_mode": "stream", "status_code": None,
+           "terminal_event": None, "text_bytes": 0, "outcome": "probe_not_cancelled",
+           "reason": None, "probe": "cancel_after_first_text"}
+    try:
+        async with asyncio.timeout(timeout):
+            async with client.stream("POST", f"{url}/ask", json={"question": question, "stream": True},
+                                     timeout=timeout) as response:
+                row["status_code"] = response.status_code
+                if response.is_error:
+                    row["reason"] = f"HTTP {response.status_code}"
+                else:
+                    parsed = await consume_ndjson(response.aiter_bytes(), started=started, clock=clock,
+                                                  stop_after_first_text=True)
+                    row.update(first_text_monotonic=parsed["first_text_monotonic"],
+                               terminal_event=parsed["terminal"], text_bytes=parsed["text_bytes"],
+                               stream_error=parsed["error"])
+                    if parsed["stopped_after_first_text"]:
+                        await response.aclose()
+                        row["outcome"] = "cancelled"
+                    else:
+                        row["reason"] = "no_first_text" if parsed["ttft_ms"] is None else "stream_already_ended"
+    except asyncio.CancelledError:
+        raise
+    except TimeoutError:
+        row["reason"] = f"timeout totale {timeout}s"
+    except (httpx.HTTPError, ValueError) as exc:
+        row["reason"] = f"{type(exc).__name__}: {exc}"
+    finally:
+        row["finish_monotonic"] = clock()
+    return row
+
+
 def _summary(rows, started, finished):
     successes = [row for row in rows if row["outcome"] == "success"]
     total = max(finished - started, 0.000001)
@@ -207,7 +254,8 @@ def _set_application_status(row, payload):
 
 
 async def run_cell(client, url, queries, *, concurrency, requests, warmup, response_mode, timeout,
-                   clock=time.perf_counter, api_pid=None, engine_pid=None):
+                   clock=time.perf_counter, api_pid=None, engine_pid=None, cancel_probes=0,
+                   sample_gpu=False):
     """Closed-loop bounded: warm-up escluso, esattamente `requests` righe misurate."""
     if concurrency < 1 or requests < 1 or not queries:
         raise ValueError("concurrency, requests e queries devono essere non vuoti/positivi")
@@ -216,6 +264,7 @@ async def run_cell(client, url, queries, *, concurrency, requests, warmup, respo
     started = clock()
     stop_sampling = asyncio.Event()
     sampler = asyncio.create_task(sample_memory_peaks(api_pid, engine_pid, stop_sampling))
+    gpu_sampler = asyncio.create_task(sample_gpu_peak(stop_sampling)) if sample_gpu else None
     semaphore = asyncio.Semaphore(concurrency)
 
     async def measured(index):
@@ -224,11 +273,22 @@ async def run_cell(client, url, queries, *, concurrency, requests, warmup, respo
 
     try:
         rows = await asyncio.gather(*(measured(index) for index in range(requests)))
+        finished = clock()
     finally:
         stop_sampling.set()
         memory_peaks = await sampler
-    finished = clock()
-    return {"rows": rows, "summary": _summary(rows, started, finished), "memory_peaks": memory_peaks}
+        gpu_peak = await gpu_sampler if gpu_sampler is not None else {
+            "scope": "device_global_shared_host", "peak_memory_bytes": None,
+            "per_device_peak_memory_bytes": None, "samples": 0,
+            "reason": "--sample-gpu non abilitato"}
+    probes = []
+    if cancel_probes:
+        probes = [await _cancel_probe(client, url, queries[index % len(queries)], timeout, clock)
+                  for index in range(cancel_probes)]
+    summary = _summary(rows, started, finished)
+    summary["cancellation_probes_not_run"] = not bool(cancel_probes)
+    return {"rows": rows, "summary": summary, "memory_peaks": memory_peaks,
+            "gpu_peak": gpu_peak, "cancel_probes": probes}
 
 
 async def sample_memory_peaks(api_pid, engine_pid, stop, interval=0.2):
@@ -263,6 +323,52 @@ async def sample_memory_peaks(api_pid, engine_pid, stop, interval=0.2):
     return {"interval_seconds": interval, "samples": samples, **peaks}
 
 
+def _gpu_memory_sample():
+    completed = subprocess.run(
+        ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
+        text=True, capture_output=True, timeout=2, check=True,
+    )
+    return [int(line.strip()) for line in completed.stdout.splitlines() if line.strip()]
+
+
+async def sample_gpu_peak(stop, interval=0.2, sample=_gpu_memory_sample):
+    """Picco nvidia-smi opzionale: memoria device globale, quindi condivisa dall'host."""
+    peaks = None
+    peak_total_mib = None
+    samples = 0
+    reason = None
+    while True:
+        try:
+            used_mib = await asyncio.to_thread(sample)
+            if not used_mib:
+                reason = "nvidia-smi non ha restituito dispositivi"
+            else:
+                if peaks is None:
+                    peaks = [0] * len(used_mib)
+                if len(peaks) != len(used_mib):
+                    reason = "numero GPU variato durante il campionamento"
+                else:
+                    peaks = [max(old, current) for old, current in zip(peaks, used_mib)]
+                    peak_total_mib = max(peak_total_mib or 0, sum(used_mib))
+        except (OSError, subprocess.SubprocessError, ValueError) as exc:
+            reason = str(exc)
+            break
+        samples += 1
+        if stop.is_set():
+            break
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=interval)
+            break
+        except TimeoutError:
+            pass
+    per_device = None if peaks is None else [value * 1024 * 1024 for value in peaks]
+    return {"scope": "device_global_shared_host", "interval_seconds": interval, "samples": samples,
+            "peak_memory_bytes": None if peak_total_mib is None else peak_total_mib * 1024 * 1024,
+            "per_device_peak_memory_bytes": per_device,
+            "sum_of_device_peaks_memory_bytes": None if per_device is None else sum(per_device),
+            "reason": reason}
+
+
 def runtime_metadata(api_pid=None, engine_pid=None):
     memory = {"total_bytes": None, "reason": "psutil non disponibile"}
     processes = {}
@@ -291,7 +397,10 @@ def runtime_metadata(api_pid=None, engine_pid=None):
             "client_diff_reason": diff_reason, "python": sys.version, "httpx_version": httpx.__version__,
             "platform": platform.platform(), "uv_lock_sha256": lock_hash, "uv_lock_reason": lock_reason,
             "cpu_count": os.cpu_count(), "memory": memory, "processes": processes,
-            "gpu": {"value": gpu_text, "reason": gpu_reason, "nvidia_smi": shutil.which("nvidia-smi")},
+            "gpu": {"value": gpu_text, "reason": gpu_reason, "nvidia_smi": shutil.which("nvidia-smi"),
+                    "scope": "device_global_shared_host"},
+            "engine": {"pid": engine_pid, "acceleration": None,
+                       "reason": "accelerazione non inferita: dichiararla nel metadata del server"},
             "ollama": {"url": os.environ.get("VIBECRAFT_OLLAMA_URL"),
                        "model": os.environ.get("VIBECRAFT_OLLAMA_MODEL") or os.environ.get("OLLAMA_MODEL"),
                        "num_ctx": os.environ.get("VIBECRAFT_OLLAMA_NUM_CTX") or os.environ.get("OLLAMA_NUM_CTX"),
@@ -303,9 +412,17 @@ def _save(out, cell, metadata):
     out.mkdir(parents=True, exist_ok=True)
     raw = out / f"raw-k{cell['concurrency']}.jsonl"
     raw.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in cell["rows"]), encoding="utf-8")
-    summary = {"metadata": metadata, "memory_peaks": cell["memory_peaks"],
-               "gpu_peak": {"peak_memory_bytes": None, "reason": "P0 non campiona un picco GPU; metadata.gpu è istantanea"},
+    probe_raw = out / f"raw-cancel-k{cell['concurrency']}.jsonl"
+    if cell["cancel_probes"]:
+        probe_raw.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in cell["cancel_probes"]),
+                             encoding="utf-8")
+    summary = {"metadata": metadata, "memory_peaks": cell["memory_peaks"], "gpu_peak": cell["gpu_peak"],
                "config": {key: cell[key] for key in ("concurrency", "requests", "warmup", "response_mode", "cache_cohort")}, **cell["summary"], "raw": raw.name}
+    summary["cancellation_probes"] = {"requested": cell["cancel_probes_requested"],
+                                      "executed": len(cell["cancel_probes"]),
+                                      "cancelled": sum(row["outcome"] == "cancelled" for row in cell["cancel_probes"]),
+                                      "probe_not_cancelled": sum(row["outcome"] == "probe_not_cancelled" for row in cell["cancel_probes"]),
+                                      "raw": probe_raw.name if cell["cancel_probes"] else None}
     (out / f"summary-k{cell['concurrency']}.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
@@ -326,9 +443,11 @@ def main_from_args(args):
                 result = await run_cell(client, args.url.rstrip("/"), queries, concurrency=concurrency,
                                         requests=args.requests, warmup=args.warmup,
                                         response_mode=args.response_mode, timeout=args.timeout,
-                                        api_pid=args.api_pid, engine_pid=args.engine_pid)
+                                        api_pid=args.api_pid, engine_pid=args.engine_pid,
+                                        cancel_probes=args.cancel_probes, sample_gpu=args.sample_gpu)
                 _save(Path(args.out), {**result, "concurrency": concurrency, "requests": args.requests,
                                         "warmup": args.warmup, "response_mode": args.response_mode,
-                                        "cache_cohort": args.cache_cohort}, metadata)
+                                        "cache_cohort": args.cache_cohort,
+                                        "cancel_probes_requested": args.cancel_probes}, metadata)
     asyncio.run(run_all())
     return 0
