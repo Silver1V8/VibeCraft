@@ -228,3 +228,63 @@ def test_retry_reference_must_be_blocked_and_same_feature(env):
     assert not store.retry_exists('demo', 'started')
     assert not store.retry_exists('demo', 'blocked')
     assert store.retry_exists('other', 'blocked')
+
+
+# ---------------------------------------------------------------------------
+# Budget Claude giornaliero sui run agente: il costo di fine run entra nello stesso
+# contatore delle chiamate LLM e, oltre soglia, il runner a pagamento viene rifiutato.
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def budget(monkeypatch):
+    """Contatore di spesa isolato e budget attivo a 1 USD (solo in-memory)."""
+    from core import llm
+    monkeypatch.setitem(llm._spend_state, 'day', '')
+    monkeypatch.setitem(llm._spend_state, 'usd', 0.0)
+    monkeypatch.setitem(llm.config, 'llm_settings', {
+        'active_provider': 'ollama', 'models': {'ollama': 'qwen3.5:9b'},
+        'budget': {'daily_usd': 1.0}})
+    return llm
+
+
+def test_sdk_run_cost_is_recorded_even_when_the_run_fails(budget, monkeypatch):
+    import agent_bridge
+
+    class FakeResult:
+        is_error, duration_ms, num_turns, total_cost_usd = True, 10, 3, 0.42
+        structured_output, result = None, 'errore a metà'
+
+    async def query(**kwargs):
+        yield FakeResult()
+    monkeypatch.setattr(agent_bridge, 'ResultMessage', FakeResult)
+    monkeypatch.setattr(agent_bridge, 'query', query)
+    monkeypatch.setattr(agent_bridge, '_build_agent_options', lambda *a: None)
+    events = [json.loads(line) for line in agent_bridge.run_agent_streaming('test', 'suggest')]
+    assert events[-1]['total_cost_usd'] == 0.42 and events[-1]['is_error']
+    assert budget.spend_today_usd() == pytest.approx(0.42)
+
+
+def test_exhausted_budget_rejects_claude_runs_with_429(env, budget, monkeypatch):
+    calls = runner(monkeypatch)
+    budget._record_spend(1.5)
+    response = env[2].post('/api/pipeline/agent/run', json={'feature': 'demo', 'mode': 'suggest',
+                                                           'runner': 'claude', 'prompt': 'Analizza'})
+    assert response.status_code == 429 and not calls
+    assert 'Budget Claude giornaliero esaurito' in response.json()['detail']
+    assert int(response.headers['Retry-After']) > 0
+
+
+def test_exhausted_budget_does_not_block_free_runners(env, budget, monkeypatch):
+    calls = runner(monkeypatch)
+    budget._record_spend(1.5)
+    response = env[2].post('/api/pipeline/agent/run', json={'feature': 'demo', 'mode': 'suggest',
+                                                           'runner': 'local', 'model': '',
+                                                           'prompt': 'Analizza'})
+    assert response.status_code == 200 and calls
+
+
+def test_claude_runs_below_budget_are_admitted(env, budget, monkeypatch):
+    calls = runner(monkeypatch)
+    budget._record_spend(0.5)
+    response = env[2].post('/api/pipeline/agent/run', json={'feature': 'demo', 'mode': 'suggest',
+                                                           'runner': 'claude', 'prompt': 'Analizza'})
+    assert response.status_code == 200 and calls

@@ -48,6 +48,7 @@ dalla modalità agentic (pipeline dedicata / esecuzione manuale).
 
 import asyncio
 import logging
+import math
 import json
 import os
 import queue
@@ -60,6 +61,7 @@ from typing import Any
 from claude_agent_sdk import ClaudeAgentOptions, HookMatcher, query
 from claude_agent_sdk.types import AssistantMessage, ResultMessage, TextBlock, ToolUseBlock
 
+from core import llm
 from core.open_points import read_report
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -318,6 +320,7 @@ async def _run_agent(prompt: str, mode: str, model: str, out: queue.Queue, *, fe
 async def _run_agent_messages(prompt, mode, model, out, *, on_finish=None):
     final_text = []
     terminated = False
+    cost_usd = None  # costo dichiarato dall'SDK nel ResultMessage (anche con is_error)
     outcome = {'type': 'error', 'message': 'Esecuzione interrotta', **read_report(None)}
     try:
         options = _build_agent_options(mode, model)
@@ -332,6 +335,7 @@ async def _run_agent_messages(prompt, mode, model, out, *, on_finish=None):
                         out.put({"type": "tool_use", "tool": block.name})
             elif isinstance(message, ResultMessage):
                 terminated = True
+                cost_usd = getattr(message, "total_cost_usd", None)
                 report = getattr(message, "structured_output", None)
                 if report is None:
                     report = getattr(message, "result", None)
@@ -353,7 +357,23 @@ async def _run_agent_messages(prompt, mode, model, out, *, on_finish=None):
         outcome = {"type": "error", "message": f"{type(exc).__name__}: {exc}", **read_report(None)}
         out.put(outcome)
     finally:
+        _record_run_cost(cost_usd)
         _finish(out, outcome, on_finish)
+
+
+def _record_run_cost(cost_usd) -> None:
+    """Registra il costo del run nello stesso contatore giornaliero delle chiamate LLM
+    (core.llm._record_spend), su cui POST /api/pipeline/agent/run valuta il budget.
+    Vale anche per run falliti o interrotti dopo il ResultMessage: la spesa è avvenuta.
+    Senza costo noto (stream interrotto prima del risultato) non c'è nulla da contare."""
+    try:
+        if cost_usd is not None:
+            cost = float(cost_usd)
+            if not math.isfinite(cost):  # NaN/inf avvelenerebbero il totale del giorno
+                raise ValueError
+            llm._record_spend(cost)
+    except (TypeError, ValueError):
+        logging.getLogger(__name__).warning("Costo del run agente non numerico: %r", cost_usd)
 
 
 def _finish(out: queue.Queue, outcome: dict, on_finish) -> None:

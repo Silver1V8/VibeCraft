@@ -461,6 +461,15 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
 - **Argomenti delle CLI**: il prompt passa su stdin, mai in argv (gli shim `.cmd` di npm
   su Windows lo farebbero interpretare a `cmd.exe`); il nome modello è vincolato da
   `^(|[A-Za-z0-9][\w.:/-]{0,99})$`, quindi non può iniziare con `-` né contenere metacaratteri.
+- **Costo (DoS economico)**: il runner `claude` è l'unico che spende sull'account
+  Anthropic. Il suo `total_cost_usd` di fine run entra nel contatore giornaliero di
+  `llm_settings.budget` (lo stesso delle chiamate LLM, `core/llm.py`); con `daily_usd`
+  impostato e soglia raggiunta la route risponde **429** (con `Retry-After` fino alla
+  mezzanotte UTC) prima di gate e journal, e i rilanci automatici emettono
+  `retry_blocked`. `local` è gratuito; `codex`/`cursor` fatturano su account propri e non
+  riportano un costo: non sono limitati. Senza blocco `budget` nessun limite di spesa.
+  La soglia è **morbida**: il costo si conosce solo a fine run, quindi run già ammessi o
+  in corso (anche più d'uno in parallelo) possono superarla; bloccano i successivi.
 
 ---
 

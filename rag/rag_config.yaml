@@ -72,8 +72,11 @@ llm_settings:
   # Raggiunta la soglia, i purpose risolti su anthropic passano a fallback_provider
   # con un WARNING; se quel provider non ha un modello in `models` non si degrada e
   # si resta su Claude — un problema di costo non deve diventare un fallimento di
-  # generazione. spend_file (opzionale, relativo a rag/) fa sopravvivere il totale ai
-  # riavvii; omesso, il contatore è in-memory e riparte da zero a ogni avvio.
+  # generazione. Eccezione: i run dell'agente Claude (POST /api/pipeline/agent/run,
+  # runner `claude`) contano il total_cost_usd dell'SDK nello stesso contatore e, non
+  # avendo un fallback, oltre soglia vengono RIFIUTATI con 429 (soglia morbida: i run già
+  # in corso possono superarla). spend_file (opzionale, relativo a rag/) fa sopravvivere
+  # il totale ai riavvii; omesso, il contatore è in-memory e riparte da zero a ogni avvio.
   #budget:
   #  daily_usd: 5.0
   #  fallback_provider: "ollama"

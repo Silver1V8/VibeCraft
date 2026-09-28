@@ -112,6 +112,15 @@ persiste opzionalmente su file (`budget.spend_file`, altrimenti solo in-memory,
 azzerato al riavvio) e non fa mai fallire una chiamata: qualunque errore interno del
 guard (config malformata, file illeggibile) viene loggato e si resta sul provider
 risolto. `spend_today_usd()` espone la spesa corrente per diagnostica.
+Nello stesso contatore entra il costo dei run dell'agente Claude
+(`POST /api/pipeline/agent/run`, runner `claude`): a fine run `agent_bridge` registra il
+`total_cost_usd` riportato dall'SDK (anche per run falliti; niente se lo stream si
+interrompe prima del risultato), senza bisogno di `pricing`. Non avendo un provider
+locale su cui degradare, con budget attivo e soglia raggiunta i nuovi run `claude` (e i
+rilanci automatici dopo una verifica fallita) sono **rifiutati** con 429 e
+`Retry-After` fino alla mezzanotte UTC; i runner `local`, `codex` e `cursor` non sono
+toccati dal budget. La soglia è **morbida**: il costo è noto solo a fine run, quindi i
+run già ammessi o in corso possono superarla e bloccano soltanto quelli successivi.
 
 **Breakdown di latenza in risposta (M3/F3).** Sia il ramo `hybrid` sia il ramo
 `graph` restituiscono, oltre a `request_id` e `index_version`, un oggetto
