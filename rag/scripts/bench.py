@@ -28,6 +28,7 @@ esplicita --real-delta e un checkout sperimentale dedicato (vedi README).
 """
 import argparse
 import json
+import math
 import sys
 import time
 from datetime import datetime, timezone
@@ -37,7 +38,7 @@ import httpx2
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-if "--real-delta" not in sys.argv:
+if "--real-delta" not in sys.argv and "--concurrency-bench" not in sys.argv:
     # The dedicated child must never preload core.config from this operational checkout.
     from eval.run import RESULTS_DIR, load_cases  # noqa: E402
 
@@ -97,6 +98,13 @@ def _avg(values: list[float]) -> float | None:
 
 def _skip(reason: str) -> dict:
     return {"skipped": True, "reason": reason}
+
+
+def validate_concurrency_args(args) -> None:
+    if min(args.concurrency) < 1 or args.requests < 1 or args.warmup < 0:
+        raise ValueError("concurrency/requests devono essere positivi; warmup >= 0")
+    if not math.isfinite(args.timeout) or args.timeout <= 0:
+        raise ValueError("timeout deve essere positivo e finito")
 
 
 def bench_retrieve(client: httpx2.Client, url: str, n: int = N_RETRIEVE_QUERIES) -> dict:
@@ -362,7 +370,32 @@ def main() -> int:
     ap.add_argument("--mode", choices=("docs", "code", "mixed"))
     ap.add_argument("--k", help="lista separata da virgole, incluso 0")
     ap.add_argument("--repeats", type=int, default=5)
+    ap.add_argument("--concurrency-bench", action="store_true",
+                    help="misura solo POST /ask concorrenti; non accoda reindex")
+    ap.add_argument("--concurrency", type=int, nargs="+", default=[1, 4, 8])
+    ap.add_argument("--requests", type=int, default=30)
+    ap.add_argument("--warmup", type=int, default=3)
+    ap.add_argument("--response-mode", choices=("json", "stream"), default="json")
+    ap.add_argument("--queries")
+    ap.add_argument("--out")
+    ap.add_argument("--timeout", type=float, default=300)
+    ap.add_argument("--cache-cohort", default="unknown")
+    ap.add_argument("--metadata", help="file JSON con provenienza del server/laboratorio")
+    ap.add_argument("--api-pid", type=int)
+    ap.add_argument("--engine-pid", type=int)
     a = ap.parse_args()
+
+    if a.concurrency_bench:
+        if a.real_delta or a.with_rebuild:
+            ap.error("--concurrency-bench è incompatibile con --real-delta e --with-rebuild")
+        if not a.queries or not a.out:
+            ap.error("--concurrency-bench richiede --queries e --out")
+        try:
+            validate_concurrency_args(a)
+        except ValueError as exc:
+            ap.error(str(exc))
+        from scripts import bench_concurrency
+        return bench_concurrency.main_from_args(a)
 
     if a.real_delta:
         if not all((a.checkout, a.output_dir, a.n, a.mode, a.k)):

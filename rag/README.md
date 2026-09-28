@@ -778,6 +778,19 @@ uv run python scripts/bench.py --url http://127.0.0.1:8000
 uv run python scripts/bench.py --with-rebuild      # accoda anche un full rebuild (lento: minuti)
 ```
 
+Per il carico concorrente read-only di `/ask`, che non esegue reindex, usare il percorso
+separato con un servizio isolato e una provenienza del server distinta dal checkout client:
+
+```bash
+uv run python scripts/bench.py --concurrency-bench --url http://127.0.0.1:18000 \
+  --concurrency 1 4 8 --requests 30 --warmup 3 --response-mode json \
+  --queries adr/horizontal-bench/queries.json --out adr/horizontal-bench/run \
+  --metadata adr/horizontal-bench/server-metadata.json --timeout 300
+```
+
+Scrive raw JSONL e un summary per ogni livello; cache off e cache calda vanno eseguite in
+cohort distinte e dichiarate con `--cache-cohort`.
+
 Cosa misura, in ordine: `GET /api/retrieve` su 10 query del golden-set (p50/p95);
 `POST /ask` su 10 query del golden-set (p50/p95/max del totale + medie del
 breakdown — vedi nota sotto); `GET

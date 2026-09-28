@@ -1,6 +1,6 @@
 # Scalabilità orizzontale — specifica
 
-Stato: proposta da sottoporre alla root prima dell'implementazione. Audit 2026-09-22, base `ea0cf91425a5d01b39ed821c714cd397a6e0d2b0`, branch `codex/horizontal-scaling`.
+Stato: approvata dalla root per implementazione progressiva; ripresa autorizzata 2026-09-28. Audit 2026-09-22, base `ea0cf91425a5d01b39ed821c714cd397a6e0d2b0`, branch `codex/horizontal-scaling`.
 
 ## Obiettivo e confini
 
@@ -86,3 +86,13 @@ vLLM resta opzione successiva solo se benchmark dimostra necessità e hardware c
 ## Esito audit benchmark
 
 `bench.py:122` esegue 10 richieste sequenziali; non misura concorrenza, TTFT o cancellazioni. `bench_process.py:72` offre già sampling RSS/USS/CPU/I/O, da estendere ai PID API/motore invece del solo client. Il README riporta 24,1s p50 e 32s p95 su 10 campioni storici, non una baseline valida per questo confronto. Host con ollama/docker/nvidia-smi disponibili, ma nessun servizio di test avviato. Aggiungere tre sonde di cancellazione per k fuori dai percentili principali e annotare altri carichi concorrenti sullo stesso host.
+
+## Prova reale del motore — 2026-09-28
+
+La root ha verificato Ollama0.34.4 con l'unico modello locale qwen3.5:9b: il log sched.go:514 dichiara `model architecture does not currently support parallel requests` per architettura qwen35 e avvia runner `-np 1` malgrado `OLLAMA_NUM_PARALLEL=2`. Due richieste HTTP200 concorrenti sono state eseguite in sequenza sullo slot0. Quindi **inferenza realmente parallela non ottenibile con questo abbinamento**, mentre concorrenza HTTP e streaming rimangono implementabili e verificabili.
+
+[Codice ufficiale Ollama scheduler](https://github.com/ollama/ollama/blob/main/server/sched.go) conferma la restrizione qwen35/qwen35moe. Nessun modello/backend alternativo viene installato. Il gate reale resta non soddisfatto fino a disponibilità di un abbinamento compatibile; non confondere successo dei test fake con risoluzione di questo limite.
+
+Correzione provenienza: il processo isolato ereditava `OLLAMA_VULKAN=true`; `CUDA_VISIBLE_DEVICES=-1` non disabilita Vulkan. La prova ha usato GPU Vulkan RTX3070Ti, `size_vram=5435828468`, **non CPU**. La root ha fermato l'istanza dopo la rilevazione. Prove persistenti in `rag/adr/horizontal-bench/preflight-20260928/` (`ollama-overlap.json`, `ollama-evidence.log`, `README.md`); il report finale deve usare la provenienza reale.
+
+L'avvio del server baseline18000 è stato rifiutato dalla revisione automatica (`blocked by policy`, nessun ulteriore dettaglio). Nessun tentativo alternativo: baseline end-to-end resta bloccata, codice/test indipendenti proseguono.

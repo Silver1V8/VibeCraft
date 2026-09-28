@@ -1,33 +1,29 @@
 # Stato — scalabilità orizzontale
 
-## Checkpoint 2026-09-22 — audit concluso, gate root
+## Checkpoint 2026-09-28 — lavoro ripreso
 
 - Workspace: `C:/Users/Silve/.codex/worktrees/horizontal-scaling/vibecraft`.
-- Branch: `codex/horizontal-scaling`; base `ea0cf91425a5d01b39ed821c714cd397a6e0d2b0`.
-- [x] Audit codice: Sol runtime; Terra benchmark; consolidamento PM Astra.
-- [x] Specifica e piano in `rag/adr/SCALABILITA_ORIZZONTALE{,_PIANO}.md`.
-- [ ] Review/gate root prima del codice prodotto.
-- [ ] P0 benchmark e baseline isolata.
-- [ ] P1 pin collection, ammissione e streaming.
-- [ ] P2 reader/writer e immutabilità locale.
-- [ ] P3 misure reali k=1,4,8, review e consegna.
+- Branch `codex/horizontal-scaling`; base `ea0cf91425a5d01b39ed821c714cd397a6e0d2b0`; primo commit documenti `b575487`.
+- [x] Audit, specifica e piano approvati dalla root; esecuzione già autorizzata dall'utente.
+- [x] P0 harness:49 test verdi, ruff/diff-check puliti; review PM conclusa. Baseline reale separata bloccata.
+- [ ] P0 baseline HTTP reale: bloccata (vedi sotto).
+- [ ] P1 pin collection/ammissione/streaming: design Sol pronto, nessun core modificato finora.
+- [ ] P2 reader/writer/immutabilità locale.
+- [ ] P3 matrice reale k=1,4,8 e review finale.
 
-Nessun codice prodotto modificato; nessun server/modello avviato; nessun DB operativo toccato. La fattibilità del software è positiva; capacità hardware e beneficio prestazionale sono ancora da misurare. Async LLM e semaforo embedding2 esistono già. Replica iniziale stessa macchina: dati versione RO, coordinamento lease RW. Cross-host non ancora supportato. Incrementale rifiutato esplicitamente nel profilo immutable; full richiesto.
+Quota alla ripresa99%, ultima PM95% residua, uso consentito. Stop precedente al5% rispettato. Verificare quota prima/dopo ogni fase/fanout: stop <=5% qualunque finestra o ordinaryUsageAllowed=false/spendControlReached; ripresa solo >=15% tutte e uso consentito. Mai reset/acquisti. Heartbeat root.
 
-Ultima quota PM dopo audit/documenti: 9% residua (91% usata), uso consentito, nessun spend control. Margine prima dello stop: 4 punti percentuali; avviare solo P0 circoscritto, non fanout core. Ricontrollare prima di ogni fase/fanout e dopo. Stop <=5% in qualsiasi finestra, uso vietato o spendControlReached; ripresa solo >=15% in tutte e uso consentito. Non consumare reset/acquistare crediti. Heartbeat gestito dalla root.
+## Evidenze e blocchi
 
-## Ripresa
+- P0 Terra: `pytest tests/test_bench.py tests/test_bench_concurrency.py -q`49 pass; ruff sui4file bench/test e diff-check pass. Review PM corretta: status200 invalido, protocollo post-terminale, timeout finito, memoria PID+figli, metadati client/server separati. Sonde cancellazione reale/GPUpeak non eseguite e dichiarate nel report.
+- Baseline unità PM prima P1:132 pass sui sei file `test_ask_unified_llm`, `test_ask_cache`, `test_ask_abstention`, `test_ask_limits`, `test_ask_observability`, `test_llm`. Fake, non prova hardware.
+- Root ha preparato corpus reale innocuo prestiti biblioteca (1doc,5chunk) da sorgente ea0cf91, Qdrant16333 e Ollama21434 isolati. Lab conservato in `rag/database/qdrant_data/horizontal-lab` (ignorato Git). Servizi di test poi arrestati; operativi non modificati.
+- Avvio baseline HTTP18000 rifiutato automatic approval con `blocked by policy`, senza motivazione specifica. Nessun aggiramento; matrice end-to-end NON eseguita.
+- Ollama0.34.4/qwen3.5:9b forza runner `-np 1` per architettura qwen35: due HTTP200 sovrapposti ma inferenze sequenziali. Gate vera inferenza parallela NON soddisfatto con backend/modello presenti. Nessun modello/engine installato.
+- La sonda inizialmente pensata CPU era VulkanGPU per env ereditato `OLLAMA_VULKAN=true`: non attribuire numeri a CPU. Prove persistenti in `rag/adr/horizontal-bench/preflight-20260928/{README.md,ollama-overlap.json,ollama-evidence.log}`.
 
-1. Leggere quota live, stato Git, spec e piano; nessun affidamento alle percentuali storiche.
-2. Ottenere esito review root; procedere fase più piccola sostenibile, senza riconferma generica utente già autorizzato.
-3. Eseguire test dalla directory `rag` nel worktree con `C:/Users/Silve/Desktop/vibecraft/rag/.venv/Scripts/python.exe -m pytest ...` come nel piano. Dataset e servizi devono essere isolati.
-4. Aggiornare qui commit, test/benchmark eseguiti, raw/provenienza e ciò che manca prima di ogni sospensione.
+## Ripresa operativa
 
-## Evidenze
+Leggere spec+piano nello stesso percorso; conservare modifiche parziali. Sol applicazione, Terra benchmark, PM review; massimo2 sottoagenti attivi. Root review finale trasversale. Solo worktree, niente DB operativo, installazioni GPU/modelli, push main o deploy.
 
-- `git rev-parse HEAD`: base sopra.
-- `git switch -c codex/horizontal-scaling`: riuscito.
-- Audit statico: `/ask` omette collection_name; boot ripara alias+GC; ReindexManager può scrivere journal all'import; descrizioni/fallback prompt leggono docs live; incrementale muta collection in place; lease file RW locale.
-- Nessun benchmark runtime eseguito in fase audit. Vecchio p50 sequenziale non utilizzato come prova.
-
-- Verifica documenti: copertura spec↔P0/P1/P2/P3 riletta; piano include proxy/auth, lease→manifest→collection e distinzione concorrenza HTTP/inferenza. Solo tre nuovi Markdown previsti.
+Eseguire test da `worktree/rag` con `C:/Users/Silve/Desktop/vibecraft/rag/.venv/Scripts/python.exe -m pytest ...`; comandi per fase nel piano. P0 ingresso `scripts/bench.py --concurrency-bench`, solo POST /ask, senza reindex del benchmark storico. P1/P2 possono proseguire indipendentemente dal blocco hardware/avvio, ma la consegna deve dichiarare P3 incompleto.

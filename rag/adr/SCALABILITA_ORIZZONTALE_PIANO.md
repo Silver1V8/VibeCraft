@@ -28,9 +28,9 @@
 
 ## P0 — benchmark riproducibile e baseline (Terra)
 
-**File:** creare `rag/scripts/bench_concurrency.py`, `rag/tests/test_bench_concurrency.py`; riusare calcolo percentili/provenienza da `rag/scripts/bench.py` o `bench_process.py` se appropriati. Risultati reali in directory `rag/adr/horizontal-bench/<run>/`, raw JSONL + summary JSON/Markdown. Non alterare vecchi report.
+**File:** modificare `rag/scripts/bench.py` come ingresso `--concurrency-bench` in sola lettura; helper `rag/scripts/bench_concurrency.py` ammesso, creare `rag/tests/test_bench_concurrency.py`; riusare calcolo percentili/provenienza da `rag/scripts/bench.py` o `bench_process.py` se appropriati. Risultati reali in directory `rag/adr/horizontal-bench/<run>/`, raw JSONL + summary JSON/Markdown. Non alterare vecchi report.
 
-**Interfaccia CLI:** `--url`, `--concurrency 1 4 8`, `--requests 30`, `--warmup 3`, `--mode json|stream`, `--queries FILE`, `--out DIR`, `--timeout SECONDS`; chiave API da env, mai salvata nei report. Cache è configurazione server esplicita, non query random per simulare miss. Opzione pid per RSS API/motore e descrizione hardware/parametri nei metadati; valori mancanti null con motivo.
+**Interfaccia CLI:** `scripts/bench.py --concurrency-bench --url`, `--concurrency 1 4 8`, `--requests 30`, `--warmup 3`, `--response-mode json|stream`, `--queries FILE`, `--out DIR`, `--timeout SECONDS`; chiave API da env, mai salvata nei report. Il dispatch concorrente deve uscire prima di run_bench storico, che accoda un reindex incrementale: nessun reindex/full nel nuovo percorso. Cache è configurazione server esplicita, non query random per simulare miss. Opzione pid per RSS API/motore e descrizione hardware/parametri nei metadati; valori mancanti null con motivo.
 
 **Contratto:** parser NDJSON incrementale emette eventi; primo `delta.text` non vuoto determina TTFT, result/error determina termine; EOF senza terminale è errore. `result` graph/no_results senza delta => TTFT null. Report conta tutto il denominatore e throughput sui completamenti durante la durata totale, non media dei reciproci delle latenze.
 
@@ -49,7 +49,7 @@ Comando test:
 Comando benchmark dopo allestimento isolato (porta 18000 dedicata):
 
 ```powershell
-& 'C:/Users/Silve/Desktop/vibecraft/rag/.venv/Scripts/python.exe' scripts/bench_concurrency.py --url http://127.0.0.1:18000 --concurrency 1 4 8 --requests 30 --warmup 3 --mode json --queries adr/horizontal-bench/queries.json --out adr/horizontal-bench/baseline-json --timeout 300
+& 'C:/Users/Silve/Desktop/vibecraft/rag/.venv/Scripts/python.exe' scripts/bench.py --concurrency-bench --url http://127.0.0.1:18000 --concurrency 1 4 8 --requests 30 --warmup 3 --response-mode json --queries adr/horizontal-bench/queries.json --out adr/horizontal-bench/baseline-json --timeout 300
 ```
 
 ## P1 — collection coerente, ammissione e streaming (Sol; review Astra)
@@ -70,7 +70,7 @@ Comando benchmark dopo allestimento isolato (porta 18000 dedicata):
 & 'C:/Users/Silve/Desktop/vibecraft/rag/.venv/Scripts/python.exe' -m pytest tests/test_ask_streaming.py tests/test_ask_unified_llm.py tests/test_ask_cache.py tests/test_ask_abstention.py tests/test_ask_limits.py tests/test_ask_observability.py tests/test_llm.py -q
 ```
 
-Eseguire matrice `--mode stream` e JSON con cache off, poi hit calda separata. Documentare se Ollama effettivamente esegue due richieste; la sola sovrapposizione HTTP non soddisfa la prova reale. Non cambiare configurazione Ollama operativa per produrre il risultato.
+Eseguire matrice `--response-mode stream` e JSON con cache off, poi hit calda separata. Documentare se Ollama effettivamente esegue due richieste; la sola sovrapposizione HTTP non soddisfa la prova reale. Non cambiare configurazione Ollama operativa per produrre il risultato.
 
 ## P2 — reader/writer locali e indice immutabile (Sol; review Astra)
 

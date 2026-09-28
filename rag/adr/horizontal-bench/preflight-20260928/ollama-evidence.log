@@ -1,0 +1,13 @@
+time=2026-09-28T09:30:15.967+02:00 level=INFO source=types.go:32 msg="inference compute" id=0 filter_id=0 library=Vulkan compute=0.0 name=Vulkan0 description="NVIDIA GeForce RTX 3070 Ti" libdirs=ollama,vulkan driver=0.0 pci_id=0000:0a:00.0 type=discrete total="7.8 GiB" available="7.1 GiB"
+time=2026-09-28T09:31:40.633+02:00 level=WARN source=sched.go:514 msg="model architecture does not currently support parallel requests" architecture=qwen35
+load_tensors: offloaded 34/34 layers to GPU
+srv  update_slots: all slots are idle
+slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+slot      release: id  0 | task 0 | stop processing: n_tokens = 22, truncated = 0
+srv  update_slots: all slots are idle
+slot launch_slot_: id  0 | task 5 | processing task, is_child = 0
+slot      release: id  0 | task 5 | stop processing: n_tokens = 29, truncated = 0
+srv  update_slots: all slots are idle
+slot launch_slot_: id  0 | task 14 | processing task, is_child = 0
+slot      release: id  0 | task 14 | stop processing: n_tokens = 29, truncated = 0
+srv  update_slots: all slots are idle
