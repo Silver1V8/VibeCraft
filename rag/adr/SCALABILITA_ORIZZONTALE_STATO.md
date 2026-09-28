@@ -1,5 +1,11 @@
 # Stato — scalabilità orizzontale
 
+## Integrazione su main autorizzata — 28 settembre 2026
+
+L'utente ha richiesto commit e push su main. Integrato main `7512b1d` nel ramo di lavoro senza conflitti (merge `e417965`), preservando i nuovi sviluppi della pipeline. Sul risultato integrato: **1794 passed, 5 skipped in 139.10s**, exit 0; stessi quattro moduli esterni esclusi della precedente suite offline. Ruff sui file Python modificati e `git diff --check` superati. Prove: `horizontal-bench/verification-20260928/merge-regression.txt`; ambiente/comando in `run-merge-regression.ps1` (eseguiti come comandi nella sessione, perché la policy PowerShell locale disabilita i file script).
+
+L'autorizzazione alla pubblicazione non dichiara completata P3: restano da misurare HTTP/streaming e repliche con Qwen3.5:9b sui servizi dedicati. Nessun nuovo tentativo di avvio, installazione o modifica ai servizi operativi. Le modifiche locali estranee nel checkout principale restano fuori dal commit.
+
 ## Checkpoint 2026-09-28 — software verificato, gate reali aperti
 
 - Workspace: `C:/Users/Silve/.codex/worktrees/horizontal-scaling/vibecraft`.
