@@ -52,3 +52,9 @@ Il software P0/P1/P2 è implementato, verificato e approvato dalla review root e
 Per P3 servono la rimozione del blocco di avvio HTTP e una decisione sul modello/backend (qwen35 attuale serializza). Non riprovare l'avvio rifiutato in altra forma, non scaricare modelli senza autorizzazione. Quando sbloccato: baseline sorgente ea0cf91 e candidato su stessi corpus/config, k=1,4,8,30 campioni/cohort, cache-off/hit separate, raw/TTFT/throughput/errori/cancel/memoria e uno vs due reader.
 
 Finché restano solo questi gate esterni, **non ripetere suite o implementazione a ogni heartbeat** senza nuovo codice o rimozione del blocco. L'automazione root resta attiva finché il completamento richiesto non è verificato; nessun dato prestazionale inventato dai fake o dalle due sonde Ollama.
+
+## Nuova richiesta di test — 28 settembre 2026
+
+- Su richiesta esplicita dell'utente di provare altra porta, la root ha ritentato server18001: revisione automatica `blocked by policy`. Anche il comando di preflight/riavvio del Qdrant dedicato è stato rifiutato prima dell'esecuzione. Nessun servizio riavviato, nessun tentativo alternativo; driver ASGI con dipendenze reali non creato/eseguito.
+- Audit statico e unica suite offline estesa sul candidato `39b5a47`: **1779 pass,5 skip,138.83s,exit0**. Quattro file esclusi per listener/CLI/modelli/conversioni reali; cinque skip Qdrant esplicitamente disabilitato. Nessuna regressione e nessun cambio prodotto. Report, comando e output: `horizontal-bench/verification-20260928/OFFLINE_REGRESSION.md`, `run-offline-regression.ps1`, `offline-regression.txt`.
+- Quota aggiornata75% residua, ordinary usage consentito, spend control non raggiunto; nessun reset/acquisto. Il progresso software è verificato; P3 live resta bloccato e non si deducono prestazioni dai test. Nuovo heartbeat senza cambi di codice o sblocco esterno deve restare quieto, senza ripetere suite o avvii rifiutati.
