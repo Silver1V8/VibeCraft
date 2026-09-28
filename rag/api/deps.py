@@ -192,7 +192,9 @@ def require_gitlab_token(request: Request) -> None:
     if not GITLAB_TOKEN:
         return
     provided = request.headers.get("X-Gitlab-Token", "")
-    if not hmac.compare_digest(provided, GITLAB_TOKEN):
+    # Bytes UTF-8, come in _valid_api_key: compare_digest su str non ASCII (header decodificato
+    # latin-1 o token con accenti) solleva TypeError, cioè un 500 invece del 401.
+    if not hmac.compare_digest(provided.encode("utf-8"), GITLAB_TOKEN.encode("utf-8")):
         raise HTTPException(status_code=401, detail="Token webhook GitLab mancante o errato.")
 
 

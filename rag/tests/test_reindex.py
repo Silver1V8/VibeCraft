@@ -1300,6 +1300,15 @@ def test_gitlab_token_absent_rejected_when_env_set(monkeypatch):
     assert _call_require_gitlab_token(monkeypatch, "s3cret", None) == 401
 
 
+def test_gitlab_token_non_ascii_gives_401_not_500(monkeypatch):
+    """compare_digest su str non ASCII solleva TypeError (un 500): il confronto avviene sui
+    bytes UTF-8, quindi un header non ASCII è un token sbagliato come un altro, e un token
+    configurato con accenti funziona."""
+    assert _call_require_gitlab_token(monkeypatch, "s3cret", "s3crèt") == 401
+    assert _call_require_gitlab_token(monkeypatch, "sëcret", "nope") == 401
+    assert _call_require_gitlab_token(monkeypatch, "sëcret", "sëcret") is None
+
+
 def test_gitlab_token_not_required_when_env_unset(monkeypatch):
     # Env non impostata → nessun requisito aggiuntivo, anche senza header.
     assert _call_require_gitlab_token(monkeypatch, None, None) is None
