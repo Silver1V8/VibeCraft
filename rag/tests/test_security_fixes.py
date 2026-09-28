@@ -289,6 +289,39 @@ def test_require_api_key_strict_fails_closed_when_unconfigured(monkeypatch):
     assert exc_info.value.status_code == 401
 
 
+def test_valid_api_key_uses_constant_time_comparison(monkeypatch):
+    """_valid_api_key confronta con hmac.compare_digest (come require_gitlab_token), non
+    con `==`: il confronto che esce al primo carattere diverso rende la chiave
+    indovinabile per prefissi via timing. Lo spy registra le chiamate e delega al vero
+    compare_digest, così l'esito resta quello reale."""
+    import hmac as _hmac
+    calls = []
+    real = _hmac.compare_digest
+
+    def spy(a, b):
+        calls.append((a, b))
+        return real(a, b)
+
+    monkeypatch.setattr(deps.hmac, "compare_digest", spy)
+    monkeypatch.setattr(deps, "API_KEY", "s3cret")
+    assert deps._valid_api_key(_FakeRequest(headers={"X-API-Key": "s3cret"}))
+    assert not deps._valid_api_key(_FakeRequest(headers={"X-API-Key": "s3creX"}))
+    assert len(calls) == 2
+    # Chiave non ASCII: compare_digest su str solleverebbe TypeError; sui bytes UTF-8 no,
+    # e l'esito coincide con il vecchio `==`.
+    monkeypatch.setattr(deps, "API_KEY", "chiavè")
+    assert deps._valid_api_key(_FakeRequest(headers={"X-API-Key": "chiavè"}))
+    assert not deps._valid_api_key(_FakeRequest(headers={"X-API-Key": "chiave"}))
+    # Header assente o chiave non configurata: False senza nemmeno confrontare.
+    calls.clear()
+    assert not deps._valid_api_key(_FakeRequest())
+    monkeypatch.setattr(deps, "API_KEY", None)
+    assert not deps._valid_api_key(_FakeRequest(headers={"X-API-Key": "s3cret"}))
+    monkeypatch.setattr(deps, "API_KEY", "")
+    assert not deps._valid_api_key(_FakeRequest(headers={"X-API-Key": ""}))
+    assert calls == []
+
+
 def test_require_api_key_strict_differs_from_bypassing_require_api_key(monkeypatch):
     """La regressione esatta descritta dalla code review: require_api_key lascia
     passare localhost senza chiave; require_api_key_strict no. Stessa richiesta,

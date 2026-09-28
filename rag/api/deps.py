@@ -55,8 +55,19 @@ API_KEY = os.environ.get("VIBECRAFT_API_KEY")
 def _valid_api_key(request: Request) -> bool:
     """True se l'header X-API-Key della richiesta corrisponde a VIBECRAFT_API_KEY (e la
     chiave è configurata). Condivisa da require_api_key (bypass su localhost) e
-    require_api_key_strict (nessun bypass, per gli endpoint mutanti)."""
-    return bool(API_KEY) and request.headers.get("X-API-Key") == API_KEY
+    require_api_key_strict (nessun bypass, per gli endpoint mutanti).
+
+    Confronto a tempo costante (hmac.compare_digest, come require_gitlab_token): un `==`
+    esce al primo carattere diverso e rende la chiave indovinabile per prefissi misurando
+    i tempi di risposta. Entrambi i lati sono codificati in UTF-8 perché compare_digest
+    rifiuta (TypeError) le str non ASCII: l'uguaglianza dei bytes UTF-8 equivale a quella
+    delle str, quindi la semantica resta quella del vecchio `==`."""
+    if not API_KEY:
+        return False
+    provided = request.headers.get("X-API-Key")
+    if provided is None:
+        return False
+    return hmac.compare_digest(provided.encode("utf-8"), API_KEY.encode("utf-8"))
 
 
 def _is_local_request(request: Request) -> bool:
