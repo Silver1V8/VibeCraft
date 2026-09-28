@@ -321,3 +321,107 @@ def test_generation_manager_marks_failed_job_with_readable_error():
 
 def test_generation_manager_unknown_job_returns_none():
     assert doc_generation.GenerationManager().get("non-esiste") is None
+
+
+# ---------------------------------------------------------------------------
+# Limiti del GenerationManager: tetto di job attivi, retention dei terminati, _threads
+# ripulito. I job restano bloccati su un Event finché il test non li rilascia.
+# ---------------------------------------------------------------------------
+def _blocking_job(gate):
+    def run():
+        assert gate.wait(5)
+        return {"ok": True}
+    return run
+
+
+def test_generation_manager_rejects_beyond_active_ceiling_then_frees_slot():
+    import threading
+
+    mgr = doc_generation.GenerationManager(slots=doc_generation.GenerationSlots(2), max_finished=10)
+    gate = threading.Event()
+    first = mgr.start("a", 1, "", _blocking_job(gate))
+    mgr.start("b", 1, "", _blocking_job(gate))
+    with pytest.raises(doc_generation.GenerationBusyError, match="2/2"):
+        mgr.start("c", 1, "", _blocking_job(gate))
+    assert len(mgr._jobs) == 2  # il rifiutato non lascia né job né thread
+    assert len(mgr._threads) == 2
+
+    gate.set()
+    assert mgr.join_all(timeout=5)
+    assert mgr.get(first.id).status == "done"
+    assert mgr._threads == []  # i thread terminati si rimuovono da soli
+    third = mgr.start("c", 1, "", lambda: {"ok": True})  # slot liberati a fine job
+    assert mgr.join_all(timeout=5)
+    assert mgr.get(third.id).status == "done"
+
+
+def test_generation_manager_retention_drops_oldest_finished_never_running():
+    import threading
+
+    mgr = doc_generation.GenerationManager(slots=doc_generation.GenerationSlots(5), max_finished=2)
+    gate = threading.Event()
+    running = mgr.start("in corso", 1, "", _blocking_job(gate))
+    finished = []
+    for i in range(4):
+        finished.append(mgr.start(f"f{i}", 1, "", lambda: {"ok": True}))
+        # attende il singolo job veloce: l'ordine di fine è quello di avvio
+        for _ in range(500):
+            if mgr.get(finished[-1].id).finished_at and len(mgr._threads) == 1:
+                break
+            threading.Event().wait(0.01)
+    assert mgr.get(running.id) is not None and mgr.get(running.id).status == "running"
+    assert [mgr.get(j.id) is not None for j in finished] == [False, False, True, True]
+
+    gate.set()
+    assert mgr.join_all(timeout=5)
+    # ora anche il job lungo è terminato ed entra nella retention: il più vecchio esce
+    assert mgr.get(running.id) is not None
+    assert mgr.get(finished[2].id) is None and mgr.get(finished[3].id) is not None
+
+
+def test_slots_are_shared_across_managers():
+    """Il tetto è globale: un job di un manager occupa lo slot anche per gli altri."""
+    import threading
+
+    slots = doc_generation.GenerationSlots(1)
+    gen = doc_generation.GenerationManager(slots=slots)
+    refine = doc_generation.GenerationManager(slots=slots)
+    gate = threading.Event()
+    gen.start("a", 1, "", _blocking_job(gate))
+    with pytest.raises(doc_generation.GenerationBusyError):
+        refine.start("b", 1, "", lambda: {})
+    assert refine._jobs == {} and refine._threads == []
+    gate.set()
+    assert gen.join_all(timeout=5)
+    assert slots.active == 0
+    job = refine.start("b", 1, "", lambda: {})
+    assert refine.join_all(timeout=5) and refine.get(job.id).status == "done"
+
+
+def test_slot_is_free_before_the_job_is_visible_as_done():
+    """Un client che vede done e rilancia subito non deve ricevere un 429 spurio."""
+    slots = doc_generation.GenerationSlots(1)
+    mgr = doc_generation.GenerationManager(slots=slots)
+    seen = []
+    original = slots.release
+
+    def release():
+        original()
+        seen.append(next(iter(mgr._jobs.values())).status)
+    slots.release = release
+    job = mgr.start("a", 1, "", lambda: {"ok": True})
+    assert mgr.join_all(timeout=5)
+    assert seen == ["running"] and job.status == "done"
+
+
+def test_generation_limits_are_read_lazily_and_fail_loudly(monkeypatch):
+    """Come i limiti di /ask: l'env si legge alla prima start, e un valore non valido
+    è un errore esplicito col nome della variabile."""
+    mgr = doc_generation.GenerationManager()  # costruzione: nessuna lettura dell'env
+    monkeypatch.setenv("VIBECRAFT_GENERATION_MAX_ACTIVE", "0")
+    with pytest.raises(RuntimeError, match="VIBECRAFT_GENERATION_MAX_ACTIVE"):
+        mgr.start("a", 1, "", lambda: {})
+    monkeypatch.setenv("VIBECRAFT_GENERATION_MAX_ACTIVE", "1")
+    monkeypatch.setenv("VIBECRAFT_GENERATION_MAX_FINISHED", "abc")
+    with pytest.raises(RuntimeError, match="VIBECRAFT_GENERATION_MAX_FINISHED"):
+        doc_generation.GenerationManager().start("a", 1, "", lambda: {})

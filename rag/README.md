@@ -929,6 +929,8 @@ una generazione: vanno misurate separatamente.
 | `VIBECRAFT_LLM_CONCURRENCY` | 2 | Generazioni `/ask` contemporanee per processo |
 | `VIBECRAFT_LLM_QUEUE_TIMEOUT_SECONDS` | 30 | Attesa massima dello slot di generazione |
 | `VIBECRAFT_ASK_TIMEOUT_SECONDS` | Timeout Ollama + 60 | Scadenza della pipeline; un thread già avviato termina prima di restituire capacità |
+| `VIBECRAFT_GENERATION_MAX_ACTIVE` | 2 | Job LLM attivi per processo, in totale tra generate, refine e project brief; eccesso 429 |
+| `VIBECRAFT_GENERATION_MAX_FINISHED` | 100 | Job terminati conservati per tipo (generate, refine, brief) per il polling dello stato; oltre si scartano i più vecchi (mai quelli in corso), il GET risponde 404 |
 | `VIBECRAFT_ROLE` | `standalone` | `standalone`, `reader` oppure `writer` |
 | `VIBECRAFT_INDEX_MODE` | `legacy` | `legacy` oppure `immutable` |
 | `VIBECRAFT_DATABASE_DIR` | `rag/database` | Directory indice e coordinamento locale |

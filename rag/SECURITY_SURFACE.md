@@ -252,15 +252,15 @@ oltre a `require_api_key` del router.
 | 45 | GET | `/api/intake/staged/{doc_id}/preview` | require_api_key | path | Sì | read-only (journal + markdown derivato) | Basso | nessuna |
 | 46 | POST | `/api/intake/staged/{doc_id}/approve` | require_api_key | JSON Pydantic | No (preflight) | **scrive `docs/<categoria>/`** + **reindex delta** (Qdrant + CURRENT) sotto writer lock + reload snapshot | **Alto** | **anti-x-site** |
 | 47 | POST | `/api/intake/staged/{doc_id}/reject` | require_api_key | **JSON tutto-opz.** (`motivo` con default) | **Sì (bodyless)** | **scrive staging** (sposta in `staging/rejected/`, journal); `docs/` e indice intatti | Medio | **anti-x-site** |
-| 48 | POST | `/api/intake/generate` | require_api_key | JSON Pydantic | No (preflight) | avvia job LLM (Ollama) → documenti in staging | Medio (DoS/costo) | **anti-x-site** |
+| 48 | POST | `/api/intake/generate` | require_api_key | JSON Pydantic | No (preflight) | avvia job LLM (Ollama) → documenti in staging; tetto GLOBALE di job attivi condiviso con 50 e 56 (`VIBECRAFT_GENERATION_MAX_ACTIVE`, oltre: 429) | Medio (DoS/costo) | **anti-x-site** |
 | 49 | GET | `/api/intake/generate/{job_id}` | require_api_key | path | Sì | read-only (stato job) | Basso | nessuna |
-| 50 | POST | `/api/intake/staged/{doc_id}/refine` | require_api_key | **assente** | **Sì (bodyless)** | avvia job LLM di raffinazione → **scrive staging** | Medio (DoS/costo) | **anti-x-site** |
+| 50 | POST | `/api/intake/staged/{doc_id}/refine` | require_api_key | **assente** | **Sì (bodyless)** | avvia job LLM di raffinazione → **scrive staging**; tetto globale di job attivi condiviso fra 48, 50 e 56 (429) | Medio (DoS/costo) | **anti-x-site** |
 | 51 | GET | `/api/intake/refine/{job_id}` | require_api_key | path | Sì | read-only (stato job) | Basso | nessuna |
 | 52 | POST | `/api/intake/project/browse-path` | require_api_key | **assente** | **Sì (bodyless)** | **apre un dialogo tkinter MODALE sul desktop della macchina server** e occupa un thread finché non viene chiuso (vedi §4 #7) | Medio | **anti-x-site + local-bind** |
 | 53 | POST | `/api/intake/project/plan` | require_api_key | JSON Pydantic | No (preflight) | read-only ma **scansiona un path arbitrario del filesystem del server** e ne restituisce l'elenco file (vedi §4 #8) | Medio (info-disclosure) | **anti-x-site + local-bind** |
 | 54 | POST | `/api/intake/project/apply` | require_api_key | **JSON tutto-opz.** (`plan_id`/`plan` entrambi opzionali) | **Sì (bodyless)** | **copia file in `code/<target>/`** + backup zip + journal + **reindex delta** sotto writer lock | **Alto** | **anti-x-site** |
 | 55 | GET | `/api/intake/project/imports` | require_api_key | query | Sì | read-only (journal) | Basso | nessuna |
-| 56 | POST | `/api/intake/project/brief` | require_api_key | JSON Pydantic | No (preflight) | avvia job LLM sul grafo → documento in staging | Medio (DoS/costo) | **anti-x-site** |
+| 56 | POST | `/api/intake/project/brief` | require_api_key | JSON Pydantic | No (preflight) | avvia job LLM sul grafo → documento in staging; tetto globale di job attivi condiviso fra 48, 50 e 56 (429) | Medio (DoS/costo) | **anti-x-site** |
 | 57 | GET | `/api/intake/project/brief/{job_id}` | require_api_key | path | Sì | read-only (stato job) | Basso | nessuna |
 | 58 | GET | `/api/pipeline/gate` | require_api_key | query | Sì | read-only (ricalcola ammissibilità, decisioni e rilievi) | Basso | nessuna |
 | 59 | POST | `/api/pipeline/open-points/decision` | require_api_key **+ require_api_key_strict** | JSON Pydantic stretto | **No (strict)** | scrive decisione operatore e associazioni esplicite, non avvia l'agente | **Alto** | **strict** |

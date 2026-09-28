@@ -15,11 +15,13 @@ senza coda/coalescing perché i job di generazione sono indipendenti (scrivono s
 staging/; il writer lock protegge il solo aggiornamento dei metadati)."""
 from __future__ import annotations
 
+import os
 import re
 import tempfile
 import threading
 import time
 import uuid
+from collections import deque
 from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
@@ -382,8 +384,61 @@ def generate_docs(descrizione: str, n_file: int, categoria_target: str, *,
 # ---------------------------------------------------------------------------
 # Job async in background (pattern api.reindex.ReindexManager): POST risponde subito col
 # job_id, GET interroga lo stato. Nessuna coda/coalescing: i job di generazione non
-# toccano mai docs/ né il writer lock (solo staging/), possono girare in parallelo.
+# toccano mai docs/ né il writer lock (solo staging/), possono girare in parallelo —
+# ma non senza limite. Ogni job è un thread che tiene occupato il modello per minuti:
+# oltre VIBECRAFT_GENERATION_MAX_ACTIVE job attivi IN TOTALE fra i manager che
+# condividono lo stesso GenerationSlots (in api/routes_intake: generate, refine e
+# project brief) il POST risponde 429 (stesso contratto di VIBECRAFT_ASK_MAX_ACTIVE per
+# /ask), invece di accodare thread senza tetto. Il registro dei job TERMINATI è limitato,
+# per manager, a VIBECRAFT_GENERATION_MAX_FINISHED voci (si scartano i più vecchi; i job
+# in corso non vengono mai scartati), altrimenti _jobs cresceva per tutta la vita del
+# processo. Entrambe le variabili si leggono alla prima `start`, come i limiti di /ask.
 # ---------------------------------------------------------------------------
+def _env_positive_int(name: str, default: int) -> int:
+    """Intero > 0 da variabile d'ambiente; un valore non valido è un errore esplicito
+    (RuntimeError col nome della variabile), mai un limite silenziosamente diverso."""
+    raw = os.environ.get(name, str(default))
+    try:
+        value = int(raw)
+        if value <= 0:
+            raise ValueError
+    except ValueError:
+        raise RuntimeError(f"{name} deve essere un intero positivo (trovato {raw!r}).") from None
+    return value
+
+
+class GenerationBusyError(RuntimeError):
+    """Tetto di job attivi raggiunto: la route la traduce in 429."""
+
+
+class GenerationSlots:
+    """Tetto di job attivi, condivisibile fra più GenerationManager. `max_active` None =
+    letto da VIBECRAFT_GENERATION_MAX_ACTIVE (default 2) alla prima acquisizione."""
+
+    def __init__(self, max_active: int | None = None):
+        if max_active is not None and max_active <= 0:
+            raise ValueError("max_active deve essere positivo")
+        self._lock = threading.Lock()
+        self._max_active = max_active
+        self.active = 0
+
+    def acquire(self) -> None:
+        """Occupa uno slot o solleva GenerationBusyError (mai attesa: niente coda)."""
+        with self._lock:
+            if self._max_active is None:
+                self._max_active = _env_positive_int("VIBECRAFT_GENERATION_MAX_ACTIVE", 2)
+            if self.active >= self._max_active:
+                raise GenerationBusyError(
+                    f"Troppi job LLM attivi ({self.active}/{self._max_active} fra generazione, "
+                    "raffinazione e project brief): riprova quando uno dei job in corso è terminato.")
+            self.active += 1
+
+    def release(self) -> None:
+        with self._lock:
+            if self.active > 0:
+                self.active -= 1
+
+
 class GenerationJob:
     """Stato di un singolo job di generazione. `status` ∈ {pending, running, done, failed}."""
 
@@ -416,17 +471,34 @@ class GenerationManager:
     """Avvia job di generazione in thread daemon e ne conserva lo stato in memoria
     (nessuna persistenza su journal: a differenza del reindex, un job di generazione
     perso a un riavvio non lascia nulla di incoerente — i documenti già staged restano
-    nel journal di core.intake)."""
+    nel journal di core.intake).
 
-    def __init__(self):
+    Limiti: gli slot di job attivi vengono da `slots` (condiviso fra manager; senza,
+    un GenerationSlots privato) e `start` solleva GenerationBusyError quando sono
+    esauriti. Per manager, sotto `_lock`: al più `max_finished` job terminati conservati
+    per il polling di stato, e `_threads` contiene solo i thread vivi (ogni thread si
+    rimuove da sé a fine job)."""
+
+    def __init__(self, slots: GenerationSlots | None = None, max_finished: int | None = None):
+        if max_finished is not None and max_finished <= 0:
+            raise ValueError("max_finished deve essere positivo")
         self._lock = threading.Lock()
         self._jobs: dict[str, GenerationJob] = {}
         self._threads: list[threading.Thread] = []
+        self._slots = slots if slots is not None else GenerationSlots()
+        self._max_finished = max_finished  # None = letto dall'env alla prima start
+        # Id dei job terminati in ordine di fine: la testa è il primo da scartare.
+        self._finished: deque[str] = deque()
 
     def start(self, descrizione: str, n_file: int, categoria_target: str, run_fn) -> GenerationJob:
         """Avvia subito un job in background. `run_fn()` esegue il lavoro (bloccante,
         nessun argomento: il chiamante chiude sulle risorse di runtime) e deve restituire
-        il dict di `generate_docs`."""
+        il dict di `generate_docs`. GenerationBusyError se il tetto di job attivi è pieno:
+        nessun job viene registrato né thread creato."""
+        with self._lock:
+            if self._max_finished is None:
+                self._max_finished = _env_positive_int("VIBECRAFT_GENERATION_MAX_FINISHED", 100)
+        self._slots.acquire()
         job = GenerationJob(descrizione, n_file, categoria_target)
         with self._lock:
             self._jobs[job.id] = job
@@ -435,7 +507,16 @@ class GenerationManager:
                 name=f"docgen-{job.id[:8]}", daemon=True,
             )
             self._threads.append(thread)
-        thread.start()
+        try:
+            thread.start()
+        except RuntimeError:
+            # Thread non avviabile (risorse del processo esaurite): lo slot va restituito,
+            # altrimenti resterebbe occupato per sempre.
+            with self._lock:
+                self._jobs.pop(job.id, None)
+                self._threads.remove(thread)
+            self._slots.release()
+            raise
         return job
 
     def get(self, job_id: str) -> GenerationJob | None:
@@ -445,17 +526,36 @@ class GenerationManager:
     def join_all(self, timeout: float = 5.0) -> bool:
         """TEST-ONLY: attende la terminazione di tutti i thread dispatchati finora."""
         deadline = time.monotonic() + timeout
-        for thread in list(self._threads):
+        with self._lock:
+            threads = list(self._threads)
+        for thread in threads:
             thread.join(timeout=max(0.0, deadline - time.monotonic()))
-        return all(not t.is_alive() for t in self._threads)
+        return all(not t.is_alive() for t in threads)
 
     def _run(self, job: GenerationJob, run_fn) -> None:
         job.status = "running"
+        result, error = None, None
         try:
-            job.result = run_fn()
-            job.status = "done"
+            result = run_fn()
         except Exception as exc:
-            job.status = "failed"
-            job.error = f"{type(exc).__name__}: {exc}"
+            error = f"{type(exc).__name__}: {exc}"
         finally:
+            # Slot restituito PRIMA di rendere visibile lo stato finale: un client che
+            # vede "done" e rilancia subito non deve ricevere un 429 spurio.
+            self._slots.release()
+            job.result, job.error = result, error
             job.finished_at = _now_iso()
+            job.status = "failed" if error is not None else "done"
+            self._forget(job)
+
+    def _forget(self, job: GenerationJob) -> None:
+        """Fine job: rimuove il thread corrente da `_threads` e applica la retention ai
+        soli job terminati (quelli in corso non sono mai nella coda)."""
+        with self._lock:
+            try:
+                self._threads.remove(threading.current_thread())
+            except ValueError:
+                pass
+            self._finished.append(job.id)
+            while len(self._finished) > self._max_finished:
+                self._jobs.pop(self._finished.popleft(), None)
