@@ -1,0 +1,10 @@
+# Le action di terze parti in .github/workflows/ sono pinnate per SHA del commit
+# (con la versione in commento), non per tag mobile: senza questo file gli SHA non
+# si aggiornerebbero mai da soli. Dependabot apre una PR quando una nuova release
+# esce, aggiornando SHA e commento insieme.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
