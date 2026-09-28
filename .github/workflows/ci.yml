@@ -82,6 +82,7 @@ jobs:
         working-directory: rag
         env:
           QDRANT_URL: http://127.0.0.1:6333
+          VIBECRAFT_TEST_QDRANT_URL: http://127.0.0.1:6333
           VIBECRAFT_REQUIRE_QDRANT: "1"
           # Stesso patto di Qdrant: senza pesi i test con Docling reale FALLISCONO invece
           # di saltare (tests/test_intake_docling.py, fixture docling_reale).
@@ -103,6 +104,7 @@ jobs:
         working-directory: rag
         env:
           QDRANT_URL: http://127.0.0.1:6333
+          VIBECRAFT_TEST_QDRANT_URL: http://127.0.0.1:6333
           VIBECRAFT_REQUIRE_QDRANT: "1"
         run: |
           uv run pytest tests/test_qdrant_blue_green.py -rs -k "real_qdrant" >/tmp/integrazione.txt 2>&1 || true

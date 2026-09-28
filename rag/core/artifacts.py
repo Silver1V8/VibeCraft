@@ -52,13 +52,15 @@ from core.config import (
     CODE_JSON_PATH,
     CODE_NPZ_PATH,
     COLBERT_NPZ_PATH,
+    COLLECTION_NAME,
     DATABASE_DIR,
     DENSE_NPZ_PATH,
     DENSE_DIM,
     GRAPH_JSON_PATH,
+    INDEX_MODE,
 )
 from core.colbert_store import ColbertStore, ColbertWriter
-from core.writer_lock import try_version_lease
+from core.writer_lock import VersionLease, try_version_lease
 
 logger = logging.getLogger(__name__)
 
@@ -120,6 +122,7 @@ LEGACY_VERSION = "legacy"
 # Il manifest dell'indicizzazione vive DENTRO la directory di versione: ogni versione
 # è autodescritta (hash sorgenti + hash artefatti della SUA build).
 MANIFEST_FILENAME = "index_manifest.json"
+IMMUTABLE_MARKER_FILENAME = ".immutable-index"
 # Retention di default (override: env VIBECRAFT_INDEX_KEEP, letta a ogni prune).
 DEFAULT_KEEP_VERSIONS = 5
 
@@ -179,6 +182,33 @@ def manifest_path(version: str | None = None) -> Path:
     return artifact_dir(version) / MANIFEST_FILENAME
 
 
+def immutable_index_active() -> bool:
+    """Sticky immutable profile: explicit config or a marker left by a full build."""
+    return INDEX_MODE == "immutable" or (DATABASE_DIR / IMMUTABLE_MARKER_FILENAME).is_file()
+
+
+def activate_immutable_index() -> bool:
+    """Persist explicit immutable mode before a full build can mutate external state."""
+    if INDEX_MODE != "immutable":
+        return False
+    _atomic_write_text(DATABASE_DIR / IMMUTABLE_MARKER_FILENAME, "immutable\n")
+    return True
+
+
+def _require_immutable_version(version: str) -> None:
+    try:
+        manifest = _load_json(manifest_path(version))
+    except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Versione '{version}' non immutabile: manifest assente o illeggibile.") from exc
+    expected_collection = f"{COLLECTION_NAME}__{version}"
+    if (manifest.get("immutable") is not True
+            or manifest.get("qdrant_collection") != expected_collection):
+        raise ValueError(
+            f"Versione '{version}' non immutabile: serve un full rebuild con collection "
+            f"fisica dedicata '{expected_collection}'."
+        )
+
+
 def list_versions() -> list[str]:
     """Nomi delle versioni presenti su disco, in ordine cronologico (il nome è un
     timestamp UTC: l'ordine lessicografico coincide con quello temporale)."""
@@ -228,6 +258,8 @@ def promote_version(version: str) -> None:
         raise FileNotFoundError(
             f"Versione '{version}' assente o incompleta (nessun graph.json): non promuovibile."
         )
+    if immutable_index_active():
+        _require_immutable_version(version)
     npy_dir = version_dir(version) / "colbert"
     if npy_dir.exists():
         manifest_file = manifest_path(version)
@@ -324,6 +356,8 @@ def rollback_version(target: str | None = None) -> str:
     NON la collection Qdrant (vedi README). Restituisce il nome della versione attivata."""
     active = current_version_token()
     target = resolve_rollback_target(target)
+    if immutable_index_active():
+        _require_immutable_version(target)
     _atomic_write_text(DATABASE_DIR / CURRENT_FILENAME, target + "\n")
     logger.info("Rollback indice: CURRENT %s -> %s", active, target)
     return target
@@ -431,6 +465,7 @@ class Artifacts:
     code_store: dict = field(default_factory=dict)
     source: str = "json"
     version: str | None = None
+    version_lease: VersionLease | None = None
 
 
 def save_artifacts(graph, colbert_store: Mapping | ColbertWriter, chunks_store: dict,
@@ -502,16 +537,16 @@ def _load_json(path: Path):
 
 
 def load_artifacts(required: tuple[str, ...] = (), version: str | None = None,
-                   *, skip_colbert: bool = False) -> Artifacts:
+                   *, skip_colbert: bool = False, retain_lease: bool = False) -> Artifacts:
     """Load one version; retry an implicit CURRENT read if promotion wins the lease race."""
     if skip_colbert and "colbert" in required:
         raise ValueError("cannot require ColBERT while skipping its load")
     if version is not None:
-        return _load_artifacts_once(required, version, skip_colbert)
+        return _load_artifacts_once(required, version, skip_colbert, retain_lease)
     for _ in range(3):
         selected = current_version()
         try:
-            return _load_artifacts_once(required, selected, skip_colbert)
+            return _load_artifacts_once(required, selected, skip_colbert, retain_lease)
         except (BlockingIOError, FileNotFoundError):
             if current_version() == selected:
                 raise
@@ -519,7 +554,7 @@ def load_artifacts(required: tuple[str, ...] = (), version: str | None = None,
 
 
 def _load_artifacts_once(required: tuple[str, ...], version: str | None,
-                         skip_colbert: bool) -> Artifacts:
+                         skip_colbert: bool, retain_lease: bool) -> Artifacts:
     """Carica gli artefatti dell'indice dalla versione indicata (default: quella attiva,
     risolta via CURRENT). Se non esiste alcuna versione promossa si legge il layout
     LEGACY flat in database/ (formati storici JSON/.npz — il fallback ai vecchi pickle
@@ -533,9 +568,14 @@ def _load_artifacts_once(required: tuple[str, ...], version: str | None,
 
     Solleva se un file esiste ma è illeggibile/corrotto (il chiamante decide se degradare)."""
     name = version
+    lease = None
     if name is not None and name != LEGACY_VERSION:
+        lease = try_version_lease(DATABASE_DIR, name)
+        if lease is None:
+            raise BlockingIOError(f"version {name} is being removed")
         vdir = version_dir(name)
         if not vdir.is_dir():
+            lease.close()
             raise FileNotFoundError(f"Versione indice '{name}' inesistente in {versions_root()}.")
         new_paths = {fname: vdir / fname for fname in _ARTIFACT_FILENAMES}
     else:
@@ -545,25 +585,17 @@ def _load_artifacts_once(required: tuple[str, ...], version: str | None,
                      "code.npz": CODE_NPZ_PATH, "code.json": CODE_JSON_PATH}
 
     npy_dir = vdir / "colbert" if name not in (None, LEGACY_VERSION) else None
-    if skip_colbert:
-        colbert_store = {}
-        lease = try_version_lease(DATABASE_DIR, name) if name not in (None, LEGACY_VERSION) else None
-        if name not in (None, LEGACY_VERSION) and lease is None:
-            raise BlockingIOError(f"version {name} is being removed")
-        if name not in (None, LEGACY_VERSION) and not vdir.is_dir():
+    try:
+        if skip_colbert:
+            colbert_store = {}
+        elif npy_dir is not None and npy_dir.is_dir():
+            colbert_store = ColbertStore.open_version(DATABASE_DIR, name)
+        else:
+            colbert_store = None
+    except BaseException:
+        if lease is not None:
             lease.close()
-            raise FileNotFoundError(f"version {name} vanished before reader load")
-    elif npy_dir is not None and npy_dir.is_dir():
-        colbert_store = ColbertStore.open_version(DATABASE_DIR, name)
-        lease = None
-    else:
-        lease = try_version_lease(DATABASE_DIR, name) if name not in (None, LEGACY_VERSION) else None
-        if name not in (None, LEGACY_VERSION) and lease is None:
-            raise BlockingIOError(f"version {name} is being removed")
-        if name not in (None, LEGACY_VERSION) and not vdir.is_dir():
-            lease.close()
-            raise FileNotFoundError(f"version {name} vanished before reader load")
-        colbert_store = None
+        raise
 
     try:
         def _pick(kind: str, new_path: Path, new_loader, empty):
@@ -590,9 +622,13 @@ def _load_artifacts_once(required: tuple[str, ...], version: str | None,
         else:
             code_store = {}
 
-        return Artifacts(graph=graph, colbert_store=colbert_store,
-                         chunks_store=chunks_store, dense_store=dense_store,
-                         code_store=code_store, version=name)
+        result = Artifacts(graph=graph, colbert_store=colbert_store,
+                           chunks_store=chunks_store, dense_store=dense_store,
+                           code_store=code_store, version=name,
+                           version_lease=lease if retain_lease else None)
+        if retain_lease:
+            lease = None
+        return result
     except BaseException:
         if isinstance(colbert_store, ColbertStore):
             colbert_store.close()

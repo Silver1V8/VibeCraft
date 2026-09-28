@@ -1048,7 +1048,7 @@ def test_full_rebuild_never_drops_or_touches_existing_production_during_build(mo
     assert index.COLLECTION_NAME not in q.upserted_collection_names  # upsert solo sulla candidata
 
 
-def test_full_rebuild_manifest_contains_the_candidate_qdrant_collection(monkeypatch, tmp_path):
+def test_full_rebuild_legacy_manifest_has_candidate_collection_but_is_mutable(monkeypatch, tmp_path):
     docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
     (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
     stub, q = StubEmbed(), StatefulFakeQdrant()
@@ -1057,6 +1057,18 @@ def test_full_rebuild_manifest_contains_the_candidate_qdrant_collection(monkeypa
 
     candidate = index.qdrant_collection_name(version)
     assert _manifest_for_version(version)["qdrant_collection"] == candidate
+    assert _manifest_for_version(version)["immutable"] is False
+
+
+def test_full_rebuild_protected_manifest_is_immutable(monkeypatch, tmp_path):
+    docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (docs_dir / "spec.md").write_text(_spec("ALPHA"), encoding="utf-8")
+    _artifacts._atomic_write_text(
+        _artifacts.DATABASE_DIR / _artifacts.IMMUTABLE_MARKER_FILENAME, "immutable\n")
+
+    version = index.build_graph_and_index(qdrant=StatefulFakeQdrant(), embed_model=StubEmbed())
+
+    assert _manifest_for_version(version)["immutable"] is True
 
 
 def test_full_rebuild_gate_evaluates_the_candidate_not_the_production(monkeypatch, tmp_path):

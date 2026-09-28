@@ -20,6 +20,7 @@ diagnostica agli altri processi mentre il lock è tenuto."""
 import os
 import re
 import time
+import weakref
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -51,16 +52,10 @@ class VersionLease:
     """OS lock on a persistent per-version file, outside the deletable version dir."""
 
     def __init__(self, fd: int):
-        self._fd = fd
+        self._finalizer = weakref.finalize(self, _close_version_fd, fd)
 
     def close(self) -> None:
-        if self._fd is None:
-            return
-        fd, self._fd = self._fd, None
-        try:
-            _unlock_version(fd)
-        finally:
-            os.close(fd)
+        self._finalizer()
 
     def __enter__(self):
         return self
@@ -148,6 +143,14 @@ def _unlock_version(fd: int) -> None:
             raise ctypes.WinError(ctypes.get_last_error())
     else:
         fcntl.flock(fd, fcntl.LOCK_UN)
+
+
+def _close_version_fd(fd: int) -> None:
+    """Release once; weakref.finalize makes explicit close and GC idempotent."""
+    try:
+        _unlock_version(fd)
+    finally:
+        os.close(fd)
 
 
 def default_lock_path() -> Path:

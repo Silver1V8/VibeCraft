@@ -2,10 +2,11 @@
 # Pipeline CI minima: sync riproducibile (uv.lock) + lint + suite pytest. In locale
 # nessun servizio esterno e' richiesto: i CINQUE test che toccano un Qdrant reale
 # (tests/test_qdrant_blue_green.py, sezione "OPZIONALE / SKIPPABLE") si auto-saltano
-# con pytest.skip quando la connessione fallisce.
+# con pytest.skip senza VIBECRAFT_TEST_QDRANT_URL esplicito o quando la connessione fallisce.
 #
 # In CI invece Qdrant c'e' (services: nel workflow) e saltarli sarebbe la regressione:
-# il workflow esporta VIBECRAFT_REQUIRE_QDRANT=1, che trasforma quello skip in errore.
+# il workflow esporta VIBECRAFT_TEST_QDRANT_URL del servizio dedicato e
+# VIBECRAFT_REQUIRE_QDRANT=1, che trasforma quello skip in errore.
 # Qui restiamo agnostici — se la variabile non c'e', lo skip resta uno skip.
 #
 # Uso:  scripts/ci.sh

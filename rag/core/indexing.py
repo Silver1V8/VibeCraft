@@ -45,8 +45,10 @@ from code_index import (
 from core.artifacts import (
     _atomic_write_text,
     _new_version_name,
+    activate_immutable_index,
     artifact_dir,
     artifact_hashes,
+    immutable_index_active,
     list_versions,
     load_artifacts,
     manifest_path,
@@ -940,6 +942,7 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     rimuove le collection versionate orfane (build crashati/non promossi, lineage già
     ruotati dalla retention locale).
     """
+    activate_immutable_index()
     _log = emit or logger.info
     timings = _new_phase_timings()
     own_qdrant = qdrant is None
@@ -1021,7 +1024,8 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     write_index_manifest(state.point_count, G.number_of_nodes(), G.number_of_edges(),
                         version=version, qdrant_collection=collection_name,
                         doc_hashes=doc_hashes, code_hashes=code_hashes,
-                        colbert_new_files=staged_colbert.new_files if state.colbert_store is staged_colbert else None)
+                        colbert_new_files=staged_colbert.new_files if state.colbert_store is staged_colbert else None,
+                        immutable=immutable_index_active())
     timings["save_hash"] += time.perf_counter() - started
     _log(f"🧾 Manifest indicizzazione salvato in: {manifest_path(version)}")
 
@@ -1112,7 +1116,8 @@ def write_index_manifest(points_count: int, nodes: int = 0, edges: int = 0,
                          qdrant_collection: str | None = None,
                          doc_hashes: dict[str, str] | None = None,
                          code_hashes: dict[str, str] | None = None,
-                         colbert_new_files: set[str] | None = None) -> None:
+                         colbert_new_files: set[str] | None = None,
+                         immutable: bool = False) -> None:
     """Persiste lo snapshot dell'indice (config modello, conteggi, hash dei documenti)
     DENTRO la directory della versione indicata (default: la versione attiva; per il
     layout legacy resta il flat database/index_manifest.json): ogni versione blue/green
@@ -1135,6 +1140,7 @@ def write_index_manifest(points_count: int, nodes: int = 0, edges: int = 0,
         "embedding_model": EMBEDDING_MODEL,
         "collection": COLLECTION_NAME,
         "qdrant_collection": qdrant_collection if qdrant_collection is not None else COLLECTION_NAME,
+        "immutable": immutable,
         "created_at": now_iso,
         "documents": points_count,
         "graph_nodes": nodes,
@@ -2096,6 +2102,10 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     embeddare tutto quando si sa già cosa è cambiato. È solo un limite superiore al lavoro —
     il diff hash resta la fonte di verità — quindi non può indicizzare nulla che un delta
     completo non avrebbe toccato. Se None, si considera l'intero docs/ + code/ come sempre."""
+    if immutable_index_active():
+        raise RuntimeError(
+            "Indicizzazione incrementale disabilitata per indice immutabile: usare un full rebuild."
+        )
     _log = emit or logger.info
     timings = _new_phase_timings()
     own_qdrant = qdrant is None

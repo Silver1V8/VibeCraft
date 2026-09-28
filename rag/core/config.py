@@ -48,7 +48,23 @@ def setup_logging() -> None:
 RAG_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = RAG_DIR.parent
 CONFIG_PATH = RAG_DIR / "rag_config.yaml"
-DATABASE_DIR = RAG_DIR / "database"
+
+
+def _env_choice(name: str, default: str, allowed: set[str]) -> str:
+    value = os.environ.get(name, default).strip().lower()
+    if value not in allowed:
+        raise RuntimeError(
+            f"{name} non valido: {value!r} (valori ammessi: {', '.join(sorted(allowed))})."
+        )
+    return value
+
+
+ROLE = _env_choice("VIBECRAFT_ROLE", "standalone", {"standalone", "reader", "writer"})
+INDEX_MODE = _env_choice("VIBECRAFT_INDEX_MODE", "legacy", {"legacy", "immutable"})
+if ROLE in {"reader", "writer"} and INDEX_MODE != "immutable":
+    raise RuntimeError(f"VIBECRAFT_ROLE={ROLE} richiede VIBECRAFT_INDEX_MODE=immutable.")
+
+DATABASE_DIR = Path(os.environ.get("VIBECRAFT_DATABASE_DIR") or RAG_DIR / "database").expanduser()
 
 # Formati artefatto CORRENTI (sicuri e ispezionabili): il grafo in node-link JSON,
 # i vettori in .npz compressi (fp16), i metadati testuali in JSON sidecar. Sono

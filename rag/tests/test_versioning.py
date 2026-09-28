@@ -7,6 +7,8 @@ import pytest
 import shutil
 import subprocess
 import sys
+import gc
+import weakref
 
 from core import artifacts
 
@@ -100,6 +102,32 @@ def test_promote_rejects_missing_or_legacy_version(db):
         artifacts.promote_version("v_inesistente")
     with pytest.raises(ValueError):
         artifacts.promote_version(artifacts.LEGACY_VERSION)
+
+
+def test_immutable_profile_rejects_nonimmutable_promote_before_current(db, monkeypatch):
+    candidate = _save("legacy-candidate")
+    monkeypatch.setattr(artifacts, "INDEX_MODE", "immutable")
+
+    with pytest.raises(ValueError, match="non immutabile"):
+        artifacts.promote_version(candidate)
+
+    assert not (db / artifacts.CURRENT_FILENAME).exists()
+
+
+def test_immutable_profile_rejects_nonimmutable_rollback_before_current(db, monkeypatch):
+    legacy = _save("legacy")
+    immutable = _save("immutable")
+    manifest = artifacts._load_json(artifacts.manifest_path(immutable))
+    manifest.update(immutable=True,
+                    qdrant_collection=f"{artifacts.COLLECTION_NAME}__{immutable}")
+    artifacts._atomic_write_json(artifacts.manifest_path(immutable), manifest)
+    artifacts._atomic_write_text(db / artifacts.IMMUTABLE_MARKER_FILENAME, "immutable\n")
+    artifacts.promote_version(immutable)
+
+    with pytest.raises(ValueError, match="non immutabile"):
+        artifacts.rollback_version(legacy)
+
+    assert artifacts.current_version_token() == immutable
 
 
 def test_every_save_gets_a_distinct_version(db):
@@ -240,6 +268,37 @@ def test_retention_pinned_reader_and_failed_delete_are_retried(db, monkeypatch):
     monkeypatch.setattr(artifacts.shutil, "rmtree", real_rmtree)
     assert old in artifacts.prune_versions(keep=1)
     assert not artifacts.version_dir(old).exists()
+
+
+def test_retained_snapshot_lease_outlives_npy_store_and_finalizes(db):
+    old = _save("old")
+    _save("new")
+    loaded = artifacts.load_artifacts(version=old, retain_lease=True)
+    loaded.colbert_store.close()
+    lease_ref = weakref.ref(loaded.version_lease)
+
+    assert old not in artifacts.prune_versions(keep=1)
+    del loaded
+    gc.collect()
+
+    assert lease_ref() is None
+    assert old in artifacts.prune_versions(keep=1)
+
+
+def test_retained_snapshot_lease_protects_npz_version(db):
+    old = "v-old-npz"
+    vdir = artifacts.version_dir(old)
+    vdir.mkdir(parents=True)
+    artifacts._atomic_write_json(vdir / "graph.json", artifacts._graph_to_json(_graph("old")))
+    artifacts._save_vectors(vdir / "colbert.npz", {})
+    artifacts._atomic_write_json(vdir / "chunks.json", {})
+    _save("new")
+
+    loaded = artifacts.load_artifacts(version=old, retain_lease=True)
+    assert loaded.version_lease is not None
+    assert old not in artifacts.prune_versions(keep=1)
+    loaded.version_lease.close()
+    assert old in artifacts.prune_versions(keep=1)
 
 
 def test_retention_respects_reader_in_another_process(db):

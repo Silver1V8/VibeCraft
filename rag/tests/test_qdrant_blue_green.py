@@ -18,6 +18,7 @@ import json
 import os
 
 import pytest
+import networkx as nx
 
 from core import artifacts
 from core import indexing as index
@@ -473,13 +474,36 @@ def test_reconciler_never_writes_to_qdrant_or_local_state(monkeypatch):
 # Docker per la suite di default e non tocca mai COLLECTION_NAME/dati reali — usa
 # nomi di collection/alias dedicati e li ripulisce sempre a fine test.
 # ---------------------------------------------------------------------------
+def test_qdrant_guard_requires_explicit_test_endpoint(monkeypatch):
+    monkeypatch.delenv("VIBECRAFT_TEST_QDRANT_URL", raising=False)
+    monkeypatch.delenv("VIBECRAFT_REQUIRE_QDRANT", raising=False)
+
+    with pytest.raises(pytest.skip.Exception, match="VIBECRAFT_TEST_QDRANT_URL"):
+        _real_qdrant_client_or_skip()
+
+
+def test_required_qdrant_guard_fails_without_explicit_test_endpoint(monkeypatch):
+    monkeypatch.delenv("VIBECRAFT_TEST_QDRANT_URL", raising=False)
+    monkeypatch.setenv("VIBECRAFT_REQUIRE_QDRANT", "1")
+
+    with pytest.raises(RuntimeError, match="VIBECRAFT_TEST_QDRANT_URL"):
+        _real_qdrant_client_or_skip()
+
+
 def _real_qdrant_client_or_skip():
+    test_url = os.environ.get("VIBECRAFT_TEST_QDRANT_URL")
+    if not test_url:
+        message = "VIBECRAFT_TEST_QDRANT_URL assente: test Qdrant reali non autorizzati."
+        if os.environ.get("VIBECRAFT_REQUIRE_QDRANT") == "1":
+            raise RuntimeError(message)
+        pytest.skip(message)
+
     from qdrant_client import QdrantClient
 
-    from core.config import QDRANT_API_KEY, QDRANT_URL
+    from core.config import QDRANT_API_KEY
 
     try:
-        client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY, timeout=2)
+        client = QdrantClient(url=test_url, api_key=QDRANT_API_KEY, timeout=2)
         client.get_collections()
     except Exception as exc:
         # In CI il servizio Qdrant c'è (services: nel workflow), quindi uno skip qui non è
@@ -488,10 +512,10 @@ def _real_qdrant_client_or_skip():
         # ed è esattamente lo stato che questa variabile esiste per rendere impossibile.
         if os.environ.get("VIBECRAFT_REQUIRE_QDRANT") == "1":
             raise RuntimeError(
-                f"VIBECRAFT_REQUIRE_QDRANT=1 ma Qdrant non è raggiungibile su {QDRANT_URL}: "
+                f"VIBECRAFT_REQUIRE_QDRANT=1 ma Qdrant di test non è raggiungibile su {test_url}: "
                 f"{exc}. Questi test NON devono saltare dove il servizio è dichiarato."
             ) from exc
-        pytest.skip(f"Qdrant non raggiungibile su {QDRANT_URL}: {exc}")
+        pytest.skip(f"Qdrant di test non raggiungibile su {test_url}: {exc}")
     return client
 
 
@@ -745,3 +769,38 @@ def test_gc_orfane_non_cancella_nulla_senza_versioni_locali(tmp_path, monkeypatc
     assert removed == []
     assert sorted(index.list_qdrant_collections(q)) == [f"{base}__v1", f"{base}__v2"], \
         "con database/versions/ vuoto il GC non deve toccare alcuna collection"
+
+
+def test_snapshot_lease_keeps_manifest_and_collection_until_release(tmp_path, monkeypatch):
+    monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)
+    monkeypatch.setattr(artifacts, "INDEX_MODE", "legacy")
+    monkeypatch.setenv("VIBECRAFT_INDEX_KEEP", "1")
+    base = index.COLLECTION_NAME
+
+    def save_full(marker):
+        graph = nx.DiGraph()
+        graph.add_node(marker)
+        version = artifacts.save_artifacts(graph, {}, {}, {}, {})
+        collection = index.qdrant_collection_name(version)
+        index.write_index_manifest(0, version=version, qdrant_collection=collection,
+                                   immutable=True)
+        return version, collection
+
+    v1, c1 = save_full("v1")
+    artifacts.promote_version(v1)
+    snapshot = artifacts.load_artifacts(version=v1, retain_lease=True)
+    snapshot.colbert_store.close()
+    v2, c2 = save_full("v2")
+    artifacts.promote_version(v2)
+    v3, c3 = save_full("v3")
+    artifacts.promote_version(v3)
+    qdrant = AliasAwareFakeQdrant(collections={c1, c2, c3}, aliases={base: c3})
+
+    removed = index.gc_orphaned_qdrant_collections(qdrant)
+    assert artifacts.manifest_path(v1).is_file()
+    assert c1 in index.list_qdrant_collections(qdrant)
+    assert c2 in removed
+
+    snapshot.version_lease.close()
+    assert v1 in artifacts.prune_versions(keep=1)
+    assert c1 in index.gc_orphaned_qdrant_collections(qdrant)
