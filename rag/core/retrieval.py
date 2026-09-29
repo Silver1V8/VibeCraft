@@ -985,5 +985,13 @@ def build_ask_prompt(context: str, question: str,
             "dichiarata. Non risolvere il conflitto a tua discrezione: è già stato risolto."
         )
 
-    user_message = f"Contesto grafo:\n{context}\n\nDomanda: {question}"
+    # La chiusura dopo la domanda non è cortesia: istruzioni e contesto viaggiano in un solo
+    # turno utente, e su un contesto lungo e ripetitivo qwen3.5:9b perdeva il confine fra
+    # compito e documento e RICOPIAVA il prompt dalla prima riga (risposta = prompt, fino a
+    # riempire num_ctx). Emerso col chunking a parti (due parti della stessa sezione in
+    # finestra): eco su 16 delle 21 varianti drop-one del caso «ultimo posto», 0 su 22 con
+    # questa riga — stesso esito di spostare le istruzioni nel campo `system` di Ollama.
+    user_message = (f"Contesto grafo:\n{context}\n\nDomanda: {question}\n\n"
+                    "Rispondi ora alla Domanda qui sopra, senza ripetere il contesto né "
+                    "queste istruzioni.")
     return f"{system_prompt}\n\n{user_message}"

@@ -267,7 +267,8 @@ def test_build_ask_prompt_snapshot_testuale():
         "Se il contesto contiene anche una sola parte pertinente, rispondi normalmente e NON "
         "scrivere il token: è un'astensione totale, non un avviso su una risposta parziale."
         "\n\n"
-        "Contesto grafo:\nCONTESTO-DI-PROVA\n\nDomanda: Qual è il vincolo?"
+        "Contesto grafo:\nCONTESTO-DI-PROVA\n\nDomanda: Qual è il vincolo?\n\n"
+        "Rispondi ora alla Domanda qui sopra, senza ripetere il contesto né queste istruzioni."
     )
 
 

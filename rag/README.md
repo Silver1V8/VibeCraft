@@ -38,13 +38,23 @@ con un warning, gli step della pipeline restituiscono il messaggio come testo vi
 `llm.register_provider` — nessun HTTP (vedi [tests/test_llm.py](tests/test_llm.py)).
 
 Anche `POST /ask` (sintesi della risposta RAG) passa da questo layer, con purpose
-`ask`: il prompt (system storico + contesto + domanda, invariati) è costruito
+`ask`: il prompt (system storico + contesto + domanda + una riga di chiusura
+che chiede di rispondere senza ripetere contesto e istruzioni) è costruito
 dalla funzione pura `retrieval.build_ask_prompt` e la chiamata è
 `llm.agenerate(..., purpose="ask")` — stessi guardrail `think`/`options.num_ctx`
 degli altri step, un solo client da mantenere. Su `LLMError` la route risponde
 `502` col messaggio dell'errore: mai un testo d'errore dentro `answer` con
 `status: "success"`. La base URL di Ollama è unica per tutto il codice
 (`VIBECRAFT_OLLAMA_URL`, default `http://127.0.0.1:11434`, core/config.py).
+
+**La riga di chiusura evita l'eco del prompt.** Istruzioni e contesto viaggiano
+in un solo turno utente: su un contesto lungo e ripetitivo (per esempio due parti
+della stessa sezione in finestra) qwen3.5:9b perdeva il confine fra compito e
+documento e restituiva come `answer` il prompt stesso, ricopiato dalla prima riga
+fino a riempire `num_ctx`. Sulla domanda «ultimo posto» il prompt veniva ricopiato
+in 16 varianti su 21 (ognuna senza uno dei blocchi di contesto); con la riga di
+chiusura, in 0 su 22. È lo stesso esito che si ottiene spostando le istruzioni nel
+campo `system` di Ollama, ma senza toccare il layer dei provider.
 
 **L'astensione è leggibile a macchina** (`status: "abstained"`). Il modello si
 astiene già correttamente in prosa libera quando il contesto recuperato non
