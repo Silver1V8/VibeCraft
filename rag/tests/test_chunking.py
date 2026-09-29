@@ -39,6 +39,44 @@ def test_empty_sections_are_skipped():
     assert "Piena" in sections
 
 
+def test_sezione_lunga_diventa_parti_sotto_il_tetto_senza_perdere_testo():
+    paragrafi = [f"Paragrafo {i} " + "parola " * 60 for i in range(40)]
+    chunks = index.chunk_markdown("d.md", {"title": "T"}, "## Lunga\n" + "\n\n".join(paragrafi) + "\n## Breve\nx")
+    parti = [c for c in chunks if c["section"] == "Lunga"]
+    assert len(parti) > 1
+    assert all(len(c["text"]) <= index.MAX_CHUNK_CHARS for c in chunks)
+    assert parti[0]["chunk_id"] == "d.md#00-lunga" and parti[1]["chunk_id"] == "d.md#00-lunga-p02"
+    assert parti[0]["text"].startswith(f"# T\n## Lunga (parte 1/{len(parti)})\n")
+    corpo = "".join("".join(c["text"].split("\n", 2)[2].split()) for c in parti)
+    assert corpo == "".join("".join(paragrafi).split())        # nessuna parola persa o duplicata
+    assert chunks[-1]["chunk_id"] == "d.md#01-breve" and chunks[-1]["text"] == "# T\n## Breve\nx"
+
+
+def test_parte_di_sottotitolo_e_blocco_di_codice_resta_autonoma():
+    """Una continuazione ripete il `###` (così restates_only vede ancora il codice
+    DICHIARATO nel titolo) e riapre il blocco ``` tagliato; una tabella ripete l'intestazione."""
+    from core.retrieval import restates_only
+
+    gherkin = "\n".join(f"  Then passo {i} rispetta [REGOLA-VAL-07]" for i in range(150))
+    tabella = "| A | B |\n|---|---|\n" + "\n".join(f"| riga {i} | valore {i} |" for i in range(200))
+    body = f"## S\n### `[REGOLA-VAL-07]` Validazione\n```gherkin\n{gherkin}\n```\n\n### Tabella\n{tabella}\n"
+    parti = index.chunk_markdown("d.md", {}, body)
+    assert len(parti) > 2
+    for c in parti:
+        assert len(c["text"]) <= index.MAX_CHUNK_CHARS
+        assert c["text"].count("```") % 2 == 0
+        assert not restates_only(c["text"])
+    righe = [c for c in parti if "riga 150 " in c["text"]][0]["text"]
+    assert "### Tabella (continua)\n| A | B |\n|---|---|" in righe
+
+
+def test_tetto_dei_chunk_non_supera_i_tagli_dei_consumatori():
+    from api.routes_retrieval import ASK_MAX_CHARS_PER_CHUNK
+    from core.doc_generation import _GROUNDING_MAX_CHARS_PER_CHUNK
+
+    assert index.MAX_CHUNK_CHARS <= min(ASK_MAX_CHARS_PER_CHUNK, _GROUNDING_MAX_CHARS_PER_CHUNK)
+
+
 def test_slug_normalization():
     assert index._slug("Categoria 2 — Concorrenza!") == "categoria-2-concorrenza"
 

@@ -1,5 +1,5 @@
-generated_at: '2026-09-07T12:47:32'
-metric: recall@1
+generated_at: '2026-09-29T09:43:44'
+metric: recall@2
 cv:
   folds: 5
   seeds:
@@ -8,49 +8,64 @@ cv:
   - 2
   - 3
   - 4
-  default_recall: 0.6906
-  calibrated_recall: 0.7288
-  gain: 0.0382
-  gain_std: 0.0074
+  default_recall: 0.81
+  calibrated_recall: 0.7897
+  gain: -0.0203
+  gain_std: 0.0065
   gain_per_seed:
-  - 0.0333
-  - 0.0348
-  - 0.0348
-  - 0.053
-  - 0.0348
+  - -0.0167
+  - -0.0182
+  - -0.0167
+  - -0.0167
+  - -0.0333
   chosen_per_fold:
-  - alpha: 0.3
-    default_weight: 0.7
-    unclassified_weight: 0.3
-    section_restatement_weight: 0.92
-    n_folds: 21
   - alpha: 0.5
     default_weight: 0.7
     unclassified_weight: 0.3
     section_restatement_weight: 0.92
+    n_folds: 11
+  - alpha: 0.1
+    default_weight: 0.7
+    unclassified_weight: 0.3
+    section_restatement_weight: 1.0
+    n_folds: 6
+  - alpha: 0.5
+    default_weight: 0.7
+    unclassified_weight: 0.3
+    section_restatement_weight: 1.0
     n_folds: 4
-grid_seconds: 25.4
-dead_axes:
-- default_weight
+  - alpha: 0.1
+    default_weight: 0.7
+    unclassified_weight: 0.3
+    section_restatement_weight: 0.85
+    n_folds: 2
+  - alpha: 0.4
+    default_weight: 0.7
+    unclassified_weight: 0.3
+    section_restatement_weight: 1.0
+    n_folds: 1
+  - alpha: 0.0
+    default_weight: 0.7
+    unclassified_weight: 0.3
+    section_restatement_weight: 0.85
+    n_folds: 1
+grid_seconds: 29.6
+dead_axes: []
 in_sample_best:
+  alpha: 0.5
+  default_weight: 0.7
+  unclassified_weight: 0.3
+  section_restatement_weight: 0.92
+  recall: 0.8448
+default:
   alpha: 0.3
   default_weight: 0.7
   unclassified_weight: 0.3
   section_restatement_weight: 0.92
-  recall: 0.7414
-default:
-  alpha: 0.1
-  default_weight: 0.7
-  unclassified_weight: 0.3
-  section_restatement_weight: 0.92
-  recall: 0.6897
+  recall: 0.8103
 adversarial_subset:
   n: 5
-  recall_authority_off: 0.0
-  recall_default: 0.0
-  recall_grid_best: 0.8
-recommendation: APPLICA
-proposed_authority_yaml:
-  boost_alpha: 0.3
-  default_weight: 0.7
-  section_restatement_weight: 0.92
+  recall_authority_off: 0.8
+  recall_default: 1.0
+  recall_grid_best: 1.0
+recommendation: NON_APPLICARE

@@ -1,7 +1,8 @@
 """Caricamento e chunking dei documenti: parsing del frontmatter YAML, loader multi-formato
-(md/txt/docx/xlsx/pdf), estrazione delle entità, split per sezione (heading di livello 2)
-e archi tipizzati dal frontmatter. Nessuna dipendenza da Qdrant o dal modello di embedding."""
+(md/txt/docx/xlsx/pdf), estrazione delle entità, split per sezione (heading di livello 2,
+le sezioni oltre MAX_CHUNK_CHARS in più parti) e archi tipizzati dal frontmatter. Nessuna dipendenza da Qdrant o dal modello di embedding."""
 import re
+import textwrap
 from pathlib import Path
 
 import networkx as nx
@@ -150,11 +151,83 @@ def extract_entities(text: str) -> list[str]:
 
 # Heading di livello 2 (## Sezione): unità naturale di chunking dei design contract.
 _H2_RE = re.compile(r"(?m)^##\s+(.+?)\s*$")
+_H3_RE = re.compile(r"^###\s")
+_FENCE_RE = re.compile(r"^\s*(```|~~~)")
+_TABLE_SEP_RE = re.compile(r"^\s*\|?[\s:|-]*-[\s:|-]*\|?\s*$")
+
+# Tetto per chunk, sul testo completo (titolo + sezione + corpo). I consumatori troncano
+# ogni chunk oltre il proprio limite — il grounding di doc_generation a 2500 caratteri,
+# /ask a 3000 — perdendo in silenzio la coda della sezione: sull'indice v20260922T095110
+# 24 chunk su 286 superavano 3000 caratteri, fino a 22.182 (gli scenari BDD di spec_auth,
+# arrivati a /ask al 14%). Allineato al consumatore più stretto: una sezione più lunga
+# diventa più parti, e nessuno taglia più. Cambiarlo richiede un full rebuild e la
+# ricalibrazione congiunta di alpha, tetto del grafo e peso di sezione.
+MAX_CHUNK_CHARS = 2500
 
 
 def _slug(text: str, maxlen: int = 32) -> str:
     s = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
     return (s[:maxlen].strip("-") or "sez")
+
+
+def _split_body(body: str, budget: int) -> list[str]:
+    """Divide il corpo di una sezione troppo lunga in parti di al più `budget` caratteri.
+
+    Taglia di preferenza prima di un `###` (se cade nella seconda metà della parte),
+    altrimenti sull'ultima riga vuota fuori da un blocco di codice; solo se non ce n'è
+    alcuna taglia sulla riga corrente. Una parte che prosegue un sottotitolo lo ripete con
+    "(continua)": resta leggibile da sola, e retrieval.restates_only vede ancora il codice
+    di regola DICHIARATO nel titolo, invece di scambiare la continuazione per una
+    riformulazione da penalizzare. Un taglio forzato dentro un blocco ``` lo chiude e lo
+    riapre; dentro una tabella ne ripete intestazione e separatore."""
+    half = max(budget // 2, 1)
+    lines = [piece for line in body.split("\n")
+             for piece in (textwrap.wrap(line, half) if len(line) > half else [line])]
+    parts: list[str] = []
+    cur: list[str] = []
+    size = head = 0        # caratteri di cur; righe di contesto ripetute in testa a cur
+    cuts: list[tuple[int, int, str | None, bool]] = []  # (indice, caratteri prima, ### attivo, prima di un ###)
+    h3 = fence = None
+    table: list[str] = []  # intestazione e separatore della tabella in corso
+
+    def cut(at: int, before: int, carry: list[str], close: str | None = None) -> None:
+        nonlocal cur, size, head, cuts
+        if any(x.strip() for x in cur[head:at]):
+            parts.append("\n".join(cur[:at] + ([close] if close else [])).strip())
+        shift = len(carry) - at
+        extra = sum(len(x) + 1 for x in carry) - before
+        cuts = [(i + shift, c + extra, h, b) for i, c, h, b in cuts if i > at]
+        cur = carry + cur[at:]
+        head = len(carry)
+        size = sum(len(x) + 1 for x in cur)
+
+    for line in lines:
+        is_h3 = fence is None and bool(_H3_RE.match(line))
+        is_row = fence is None and line.lstrip().startswith("|")
+        if fence is None and (is_h3 or not line.strip()) and len(cur) > head:
+            cuts.append((len(cur), size, h3, is_h3))
+        while size + len(line) + 1 > budget and len(cur) > head:
+            ok = [c for c in cuts if c[0] > head]
+            if ok:
+                at, before, h, before_h3 = max((c for c in ok if c[3] and c[1] >= size / 2),
+                                               key=lambda c: c[0], default=ok[-1])
+                cut(at, before, [f"{h} (continua)"] if h and not before_h3 else [])
+            else:
+                carry = [f"{h3} (continua)"] if h3 and not is_h3 else []
+                if is_row and len(table) == 2 and _TABLE_SEP_RE.match(table[1]):
+                    carry += table
+                cut(len(cur), size, carry + ([fence] if fence else []),
+                    close=fence[:3] if fence else None)
+        cur.append(line)
+        size += len(line) + 1
+        if is_h3:
+            h3 = line.strip()
+        if _FENCE_RE.match(line):
+            fence = None if fence else line.strip()
+        table = (table + [line])[:2] if is_row else []
+    if any(x.strip() for x in cur[head:]):
+        parts.append("\n".join(cur).strip())
+    return parts
 
 
 def chunk_markdown(rel_path: str, metadata: dict, body: str) -> list[dict]:
@@ -163,7 +236,9 @@ def chunk_markdown(rel_path: str, metadata: dict, body: str) -> list[dict]:
 
     Restituisce una lista di dict {chunk_id, doc_id, section, text} con id stabili
     e leggibili nel formato `doc_id#NN-slug`. Se il documento non ha heading `##`,
-    diventa un unico chunk."""
+    diventa un unico chunk. Una sezione oltre MAX_CHUNK_CHARS diventa più parti
+    (vedi _split_body): la prima conserva l'id `doc_id#NN-slug`, le seguenti aggiungono
+    `-pNN`; `section` resta il titolo della sezione, il testo dichiara "(parte i/n)"."""
     title = str(metadata.get("title") or rel_path)
     matches = list(_H2_RE.finditer(body))
 
@@ -185,13 +260,19 @@ def chunk_markdown(rel_path: str, metadata: dict, body: str) -> list[dict]:
             continue
         # Testo per l'embedding: ancorato al documento (titolo) e alla sezione,
         # così il chunk resta interpretabile fuori dal suo documento.
-        text = f"# {title}\n## {heading}\n{sec_body}"
-        chunks.append({
-            "chunk_id": f"{rel_path}#{i:02d}-{_slug(heading)}",
-            "doc_id": rel_path,
-            "section": heading,
-            "text": text,
-        })
+        header = f"# {title}\n## {heading}\n"
+        bodies = [sec_body]
+        if len(header) + len(sec_body) > MAX_CHUNK_CHARS:
+            bodies = _split_body(sec_body, max(MAX_CHUNK_CHARS - len(header) - len(" (parte 99/99)"), 500))
+        base = f"{rel_path}#{i:02d}-{_slug(heading)}"
+        for j, part in enumerate(bodies, 1):
+            label = heading if len(bodies) == 1 else f"{heading} (parte {j}/{len(bodies)})"
+            chunks.append({
+                "chunk_id": base if j == 1 else f"{base}-p{j:02d}",
+                "doc_id": rel_path,
+                "section": heading,
+                "text": f"# {title}\n## {label}\n{part}",
+            })
 
     if not chunks:  # fallback estremo: intero documento come singolo chunk
         chunks.append({"chunk_id": f"{rel_path}#00-doc", "doc_id": rel_path, "section": "(documento)", "text": body})

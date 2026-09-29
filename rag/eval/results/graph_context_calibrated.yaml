@@ -1,4 +1,4 @@
-generated_at: '2026-09-07T13:16:00'
+generated_at: '2026-09-28T18:20:13'
 top_k: 5
 n_cases: 8
 current: 3
@@ -6,59 +6,77 @@ chosen: 3
 recommendation: NON_APPLICARE
 per_value:
   0:
-    catene_complete: 1
-    catene_complete_doc: 4
+    catene_complete: 2
+    catene_complete_doc: 3
     documenti_solo_via_grafo: 0
     fonti_solo_via_grafo: 0
     fonti_in_finestra: 12
     fonti_attese: 19
     blocchi_grafo_medi: 0.0
-    caratteri_medi: 18710
+    caratteri_medi: 16792
   1:
-    catene_complete: 3
-    catene_complete_doc: 7
+    catene_complete: 4
+    catene_complete_doc: 6
     documenti_solo_via_grafo: 3
     fonti_solo_via_grafo: 2
     fonti_in_finestra: 14
     fonti_attese: 19
     blocchi_grafo_medi: 1.0
-    caratteri_medi: 21309
+    caratteri_medi: 18810
   2:
-    catene_complete: 3
+    catene_complete: 4
     catene_complete_doc: 7
-    documenti_solo_via_grafo: 3
+    documenti_solo_via_grafo: 4
     fonti_solo_via_grafo: 2
     fonti_in_finestra: 14
     fonti_attese: 19
     blocchi_grafo_medi: 2.0
-    caratteri_medi: 22830
+    caratteri_medi: 20476
   3:
-    catene_complete: 3
+    catene_complete: 4
     catene_complete_doc: 8
-    documenti_solo_via_grafo: 4
+    documenti_solo_via_grafo: 5
     fonti_solo_via_grafo: 2
     fonti_in_finestra: 14
     fonti_attese: 19
     blocchi_grafo_medi: 3.0
-    caratteri_medi: 24589
+    caratteri_medi: 22107
   4:
-    catene_complete: 3
+    catene_complete: 4
     catene_complete_doc: 8
-    documenti_solo_via_grafo: 4
+    documenti_solo_via_grafo: 5
     fonti_solo_via_grafo: 2
     fonti_in_finestra: 14
     fonti_attese: 19
     blocchi_grafo_medi: 4.0
-    caratteri_medi: 27239
-  6:
-    catene_complete: 3
+    caratteri_medi: 24220
+  5:
+    catene_complete: 4
     catene_complete_doc: 8
-    documenti_solo_via_grafo: 4
+    documenti_solo_via_grafo: 5
+    fonti_solo_via_grafo: 2
+    fonti_in_finestra: 14
+    fonti_attese: 19
+    blocchi_grafo_medi: 5.0
+    caratteri_medi: 26163
+  6:
+    catene_complete: 4
+    catene_complete_doc: 8
+    documenti_solo_via_grafo: 5
     fonti_solo_via_grafo: 2
     fonti_in_finestra: 14
     fonti_attese: 19
     blocchi_grafo_medi: 6.0
-    caratteri_medi: 31301
+    caratteri_medi: 28405
+  8:
+    catene_complete: 4
+    catene_complete_doc: 8
+    documenti_solo_via_grafo: 5
+    fonti_solo_via_grafo: 2
+    fonti_in_finestra: 14
+    fonti_attese: 19
+    blocchi_grafo_medi: 8.0
+    caratteri_medi: 32066
 cases:
   0:
   - q: dove finisce il correlation id di una richiesta e chi lo impone?
@@ -69,13 +87,13 @@ cases:
     atteso_doc:
     - semantico
     - semantico
-    - semantico
+    - assente
     completo: false
-    completo_doc: true
+    completo_doc: false
     solo_via_grafo: 0
     blocchi_grafo: 0
     blocchi_totali: 5
-    caratteri: 17363
+    caratteri: 17000
   - q: quali vincoli valgono sui dati personali fra log, test e chiamate a LLM esterni?
     atteso:
     - semantico
@@ -90,11 +108,11 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 0
     blocchi_totali: 5
-    caratteri: 19822
+    caratteri: 17859
   - q: come si implementa e come si verifica la protezione sull'ultima unità disponibile?
     atteso:
     - semantico
-    - semantico
+    - assente
     - assente
     atteso_doc:
     - semantico
@@ -105,7 +123,7 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 0
     blocchi_totali: 5
-    caratteri: 20702
+    caratteri: 16673
   - q: qual è la differenza fra il giornale di audit e i log applicativi?
     atteso:
     - semantico
@@ -118,7 +136,7 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 0
     blocchi_totali: 5
-    caratteri: 20578
+    caratteri: 16974
   - q: come faccio a sapere se una funzionalità è davvero finita?
     atteso:
     - semantico
@@ -131,7 +149,7 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 0
     blocchi_totali: 5
-    caratteri: 19023
+    caratteri: 15692
   - q: come si collega una regola documentata al codice che la implementa e al test
       che la verifica?
     atteso:
@@ -145,7 +163,7 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 0
     blocchi_totali: 5
-    caratteri: 15100
+    caratteri: 17621
   - q: cosa devo fare quando modifico un documento della knowledge base?
     atteso:
     - semantico
@@ -158,20 +176,20 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 0
     blocchi_totali: 5
-    caratteri: 14966
+    caratteri: 14423
   - q: perché non posso scrivere un colore direttamente in un componente?
     atteso:
     - semantico
-    - assente
+    - semantico
     atteso_doc:
     - semantico
     - semantico
-    completo: false
+    completo: true
     completo_doc: true
     solo_via_grafo: 0
     blocchi_grafo: 0
     blocchi_totali: 5
-    caratteri: 22123
+    caratteri: 18092
   1:
   - q: dove finisce il correlation id di una richiesta e chi lo impone?
     atteso:
@@ -181,29 +199,14 @@ cases:
     atteso_doc:
     - semantico
     - semantico
-    - semantico
-    completo: false
-    completo_doc: true
-    solo_via_grafo: 0
-    blocchi_grafo: 1
-    blocchi_totali: 6
-    caratteri: 20554
-  - q: quali vincoli valgono sui dati personali fra log, test e chiamate a LLM esterni?
-    atteso:
-    - semantico
-    - semantico
-    - assente
-    atteso_doc:
-    - semantico
-    - semantico
     - grafo
     completo: false
     completo_doc: true
     solo_via_grafo: 0
     blocchi_grafo: 1
     blocchi_totali: 6
-    caratteri: 21597
-  - q: come si implementa e come si verifica la protezione sull'ultima unità disponibile?
+    caratteri: 19607
+  - q: quali vincoli valgono sui dati personali fra log, test e chiamate a LLM esterni?
     atteso:
     - semantico
     - semantico
@@ -217,7 +220,22 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 1
     blocchi_totali: 6
-    caratteri: 22837
+    caratteri: 19358
+  - q: come si implementa e come si verifica la protezione sull'ultima unità disponibile?
+    atteso:
+    - semantico
+    - assente
+    - assente
+    atteso_doc:
+    - semantico
+    - semantico
+    - assente
+    completo: false
+    completo_doc: false
+    solo_via_grafo: 0
+    blocchi_grafo: 1
+    blocchi_totali: 6
+    caratteri: 18808
   - q: qual è la differenza fra il giornale di audit e i log applicativi?
     atteso:
     - semantico
@@ -230,7 +248,7 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 1
     blocchi_totali: 6
-    caratteri: 23248
+    caratteri: 19499
   - q: come faccio a sapere se una funzionalità è davvero finita?
     atteso:
     - semantico
@@ -243,7 +261,7 @@ cases:
     solo_via_grafo: 1
     blocchi_grafo: 1
     blocchi_totali: 6
-    caratteri: 22220
+    caratteri: 18130
   - q: come si collega una regola documentata al codice che la implementa e al test
       che la verifica?
     atteso:
@@ -257,7 +275,7 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 1
     blocchi_totali: 6
-    caratteri: 18289
+    caratteri: 18646
   - q: cosa devo fare quando modifico un documento della knowledge base?
     atteso:
     - semantico
@@ -270,20 +288,20 @@ cases:
     solo_via_grafo: 1
     blocchi_grafo: 1
     blocchi_totali: 6
-    caratteri: 17896
+    caratteri: 16629
   - q: perché non posso scrivere un colore direttamente in un componente?
     atteso:
     - semantico
-    - assente
+    - semantico
     atteso_doc:
     - semantico
     - semantico
-    completo: false
+    completo: true
     completo_doc: true
     solo_via_grafo: 0
     blocchi_grafo: 1
     blocchi_totali: 6
-    caratteri: 23833
+    caratteri: 19802
   2:
   - q: dove finisce il correlation id di una richiesta e chi lo impone?
     atteso:
@@ -293,13 +311,13 @@ cases:
     atteso_doc:
     - semantico
     - semantico
-    - semantico
+    - grafo
     completo: false
     completo_doc: true
     solo_via_grafo: 0
     blocchi_grafo: 2
     blocchi_totali: 7
-    caratteri: 21392
+    caratteri: 21870
   - q: quali vincoli valgono sui dati personali fra log, test e chiamate a LLM esterni?
     atteso:
     - semantico
@@ -314,11 +332,11 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 2
     blocchi_totali: 7
-    caratteri: 22791
+    caratteri: 21133
   - q: come si implementa e come si verifica la protezione sull'ultima unità disponibile?
     atteso:
     - semantico
-    - semantico
+    - assente
     - assente
     atteso_doc:
     - semantico
@@ -329,7 +347,7 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 2
     blocchi_totali: 7
-    caratteri: 24119
+    caratteri: 20090
   - q: qual è la differenza fra il giornale di audit e i log applicativi?
     atteso:
     - semantico
@@ -342,7 +360,7 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 2
     blocchi_totali: 7
-    caratteri: 24377
+    caratteri: 20628
   - q: come faccio a sapere se una funzionalità è davvero finita?
     atteso:
     - semantico
@@ -355,7 +373,7 @@ cases:
     solo_via_grafo: 1
     blocchi_grafo: 2
     blocchi_totali: 7
-    caratteri: 23831
+    caratteri: 19629
   - q: come si collega una regola documentata al codice che la implementa e al test
       che la verifica?
     atteso:
@@ -369,7 +387,7 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 2
     blocchi_totali: 7
-    caratteri: 19314
+    caratteri: 19596
   - q: cosa devo fare quando modifico un documento della knowledge base?
     atteso:
     - semantico
@@ -382,20 +400,20 @@ cases:
     solo_via_grafo: 1
     blocchi_grafo: 2
     blocchi_totali: 7
-    caratteri: 19785
+    caratteri: 18518
   - q: perché non posso scrivere un colore direttamente in un componente?
     atteso:
     - semantico
-    - assente
+    - semantico
     atteso_doc:
     - semantico
     - semantico
-    completo: false
+    completo: true
     completo_doc: true
     solo_via_grafo: 0
     blocchi_grafo: 2
     blocchi_totali: 7
-    caratteri: 27030
+    caratteri: 22348
   3:
   - q: dove finisce il correlation id di una richiesta e chi lo impone?
     atteso:
@@ -405,13 +423,13 @@ cases:
     atteso_doc:
     - semantico
     - semantico
-    - semantico
+    - grafo
     completo: false
     completo_doc: true
     solo_via_grafo: 0
     blocchi_grafo: 3
     blocchi_totali: 8
-    caratteri: 22390
+    caratteri: 24533
   - q: quali vincoli valgono sui dati personali fra log, test e chiamate a LLM esterni?
     atteso:
     - semantico
@@ -426,11 +444,11 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 3
     blocchi_totali: 8
-    caratteri: 24710
+    caratteri: 22593
   - q: come si implementa e come si verifica la protezione sull'ultima unità disponibile?
     atteso:
     - semantico
-    - semantico
+    - assente
     - assente
     atteso_doc:
     - semantico
@@ -441,7 +459,7 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 3
     blocchi_totali: 8
-    caratteri: 25243
+    caratteri: 21214
   - q: qual è la differenza fra il giornale di audit e i log applicativi?
     atteso:
     - semantico
@@ -454,7 +472,7 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 3
     blocchi_totali: 8
-    caratteri: 26362
+    caratteri: 22127
   - q: come faccio a sapere se una funzionalità è davvero finita?
     atteso:
     - semantico
@@ -467,7 +485,7 @@ cases:
     solo_via_grafo: 1
     blocchi_grafo: 3
     blocchi_totali: 8
-    caratteri: 26024
+    caratteri: 21292
   - q: come si collega una regola documentata al codice che la implementa e al test
       che la verifica?
     atteso:
@@ -481,7 +499,7 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 3
     blocchi_totali: 8
-    caratteri: 21984
+    caratteri: 21123
   - q: cosa devo fare quando modifico un documento della knowledge base?
     atteso:
     - semantico
@@ -494,20 +512,20 @@ cases:
     solo_via_grafo: 1
     blocchi_grafo: 3
     blocchi_totali: 8
-    caratteri: 21367
+    caratteri: 20100
   - q: perché non posso scrivere un colore direttamente in un componente?
     atteso:
     - semantico
-    - assente
+    - semantico
     atteso_doc:
     - semantico
     - semantico
-    completo: false
+    completo: true
     completo_doc: true
     solo_via_grafo: 0
     blocchi_grafo: 3
     blocchi_totali: 8
-    caratteri: 28632
+    caratteri: 23875
   4:
   - q: dove finisce il correlation id di una richiesta e chi lo impone?
     atteso:
@@ -517,13 +535,13 @@ cases:
     atteso_doc:
     - semantico
     - semantico
-    - semantico
+    - grafo
     completo: false
     completo_doc: true
     solo_via_grafo: 0
     blocchi_grafo: 4
     blocchi_totali: 9
-    caratteri: 23584
+    caratteri: 27102
   - q: quali vincoli valgono sui dati personali fra log, test e chiamate a LLM esterni?
     atteso:
     - semantico
@@ -538,11 +556,11 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 4
     blocchi_totali: 9
-    caratteri: 27906
+    caratteri: 23787
   - q: come si implementa e come si verifica la protezione sull'ultima unità disponibile?
     atteso:
     - semantico
-    - semantico
+    - assente
     - assente
     atteso_doc:
     - semantico
@@ -553,7 +571,7 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 4
     blocchi_totali: 9
-    caratteri: 28434
+    caratteri: 22713
   - q: qual è la differenza fra il giornale di audit e i log applicativi?
     atteso:
     - semantico
@@ -566,7 +584,7 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 4
     blocchi_totali: 9
-    caratteri: 29558
+    caratteri: 24112
   - q: come faccio a sapere se una funzionalità è davvero finita?
     atteso:
     - semantico
@@ -579,7 +597,7 @@ cases:
     solo_via_grafo: 1
     blocchi_grafo: 4
     blocchi_totali: 9
-    caratteri: 28081
+    caratteri: 23901
   - q: come si collega una regola documentata al codice che la implementa e al test
       che la verifica?
     atteso:
@@ -593,7 +611,7 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 4
     blocchi_totali: 9
-    caratteri: 25171
+    caratteri: 23669
   - q: cosa devo fare quando modifico un documento della knowledge base?
     atteso:
     - semantico
@@ -606,20 +624,132 @@ cases:
     solo_via_grafo: 1
     blocchi_grafo: 4
     blocchi_totali: 9
-    caratteri: 24558
+    caratteri: 22160
   - q: perché non posso scrivere un colore direttamente in un componente?
     atteso:
     - semantico
+    - semantico
+    atteso_doc:
+    - semantico
+    - semantico
+    completo: true
+    completo_doc: true
+    solo_via_grafo: 0
+    blocchi_grafo: 4
+    blocchi_totali: 9
+    caratteri: 26313
+  5:
+  - q: dove finisce il correlation id di una richiesta e chi lo impone?
+    atteso:
+    - semantico
+    - semantico
     - assente
+    atteso_doc:
+    - semantico
+    - semantico
+    - grafo
+    completo: false
+    completo_doc: true
+    solo_via_grafo: 0
+    blocchi_grafo: 5
+    blocchi_totali: 10
+    caratteri: 28801
+  - q: quali vincoli valgono sui dati personali fra log, test e chiamate a LLM esterni?
+    atteso:
+    - semantico
+    - semantico
+    - assente
+    atteso_doc:
+    - semantico
+    - semantico
+    - grafo
+    completo: false
+    completo_doc: true
+    solo_via_grafo: 0
+    blocchi_grafo: 5
+    blocchi_totali: 10
+    caratteri: 25706
+  - q: come si implementa e come si verifica la protezione sull'ultima unità disponibile?
+    atteso:
+    - semantico
+    - assente
+    - assente
+    atteso_doc:
+    - semantico
+    - semantico
+    - grafo
+    completo: false
+    completo_doc: true
+    solo_via_grafo: 0
+    blocchi_grafo: 5
+    blocchi_totali: 10
+    caratteri: 23751
+  - q: qual è la differenza fra il giornale di audit e i log applicativi?
+    atteso:
+    - semantico
+    - semantico
+    atteso_doc:
+    - semantico
+    - semantico
+    completo: true
+    completo_doc: true
+    solo_via_grafo: 0
+    blocchi_grafo: 5
+    blocchi_totali: 10
+    caratteri: 26031
+  - q: come faccio a sapere se una funzionalità è davvero finita?
+    atteso:
+    - semantico
+    - grafo
+    atteso_doc:
+    - semantico
+    - grafo
+    completo: true
+    completo_doc: true
+    solo_via_grafo: 1
+    blocchi_grafo: 5
+    blocchi_totali: 10
+    caratteri: 26241
+  - q: come si collega una regola documentata al codice che la implementa e al test
+      che la verifica?
+    atteso:
+    - assente
+    - semantico
     atteso_doc:
     - semantico
     - semantico
     completo: false
     completo_doc: true
     solo_via_grafo: 0
-    blocchi_grafo: 4
-    blocchi_totali: 9
-    caratteri: 30617
+    blocchi_grafo: 5
+    blocchi_totali: 10
+    caratteri: 26176
+  - q: cosa devo fare quando modifico un documento della knowledge base?
+    atteso:
+    - semantico
+    - grafo
+    atteso_doc:
+    - semantico
+    - grafo
+    completo: true
+    completo_doc: true
+    solo_via_grafo: 1
+    blocchi_grafo: 5
+    blocchi_totali: 10
+    caratteri: 24685
+  - q: perché non posso scrivere un colore direttamente in un componente?
+    atteso:
+    - semantico
+    - semantico
+    atteso_doc:
+    - semantico
+    - semantico
+    completo: true
+    completo_doc: true
+    solo_via_grafo: 0
+    blocchi_grafo: 5
+    blocchi_totali: 10
+    caratteri: 27915
   6:
   - q: dove finisce il correlation id di una richiesta e chi lo impone?
     atteso:
@@ -629,13 +759,13 @@ cases:
     atteso_doc:
     - semantico
     - semantico
-    - semantico
+    - grafo
     completo: false
     completo_doc: true
     solo_via_grafo: 0
     blocchi_grafo: 6
     blocchi_totali: 11
-    caratteri: 28572
+    caratteri: 31308
   - q: quali vincoli valgono sui dati personali fra log, test e chiamate a LLM esterni?
     atteso:
     - semantico
@@ -650,11 +780,11 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 6
     blocchi_totali: 11
-    caratteri: 32016
+    caratteri: 28231
   - q: come si implementa e come si verifica la protezione sull'ultima unità disponibile?
     atteso:
     - semantico
-    - semantico
+    - assente
     - assente
     atteso_doc:
     - semantico
@@ -665,7 +795,7 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 6
     blocchi_totali: 11
-    caratteri: 31665
+    caratteri: 25944
   - q: qual è la differenza fra il giornale di audit e i log applicativi?
     atteso:
     - semantico
@@ -678,7 +808,7 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 6
     blocchi_totali: 11
-    caratteri: 34662
+    caratteri: 28413
   - q: come faccio a sapere se una funzionalità è davvero finita?
     atteso:
     - semantico
@@ -691,7 +821,7 @@ cases:
     solo_via_grafo: 1
     blocchi_grafo: 6
     blocchi_totali: 11
-    caratteri: 30789
+    caratteri: 27716
   - q: come si collega una regola documentata al codice che la implementa e al test
       che la verifica?
     atteso:
@@ -705,7 +835,7 @@ cases:
     solo_via_grafo: 0
     blocchi_grafo: 6
     blocchi_totali: 11
-    caratteri: 28645
+    caratteri: 28587
   - q: cosa devo fare quando modifico un documento della knowledge base?
     atteso:
     - semantico
@@ -718,17 +848,129 @@ cases:
     solo_via_grafo: 1
     blocchi_grafo: 6
     blocchi_totali: 11
-    caratteri: 30413
+    caratteri: 27067
   - q: perché non posso scrivere un colore direttamente in un componente?
     atteso:
     - semantico
+    - semantico
+    atteso_doc:
+    - semantico
+    - semantico
+    completo: true
+    completo_doc: true
+    solo_via_grafo: 0
+    blocchi_grafo: 6
+    blocchi_totali: 11
+    caratteri: 29971
+  8:
+  - q: dove finisce il correlation id di una richiesta e chi lo impone?
+    atteso:
+    - semantico
+    - semantico
     - assente
+    atteso_doc:
+    - semantico
+    - semantico
+    - grafo
+    completo: false
+    completo_doc: true
+    solo_via_grafo: 0
+    blocchi_grafo: 8
+    blocchi_totali: 13
+    caratteri: 36551
+  - q: quali vincoli valgono sui dati personali fra log, test e chiamate a LLM esterni?
+    atteso:
+    - semantico
+    - semantico
+    - assente
+    atteso_doc:
+    - semantico
+    - semantico
+    - grafo
+    completo: false
+    completo_doc: true
+    solo_via_grafo: 0
+    blocchi_grafo: 8
+    blocchi_totali: 13
+    caratteri: 32199
+  - q: come si implementa e come si verifica la protezione sull'ultima unità disponibile?
+    atteso:
+    - semantico
+    - assente
+    - assente
+    atteso_doc:
+    - semantico
+    - semantico
+    - grafo
+    completo: false
+    completo_doc: true
+    solo_via_grafo: 0
+    blocchi_grafo: 8
+    blocchi_totali: 13
+    caratteri: 29104
+  - q: qual è la differenza fra il giornale di audit e i log applicativi?
+    atteso:
+    - semantico
+    - semantico
+    atteso_doc:
+    - semantico
+    - semantico
+    completo: true
+    completo_doc: true
+    solo_via_grafo: 0
+    blocchi_grafo: 8
+    blocchi_totali: 13
+    caratteri: 30501
+  - q: come faccio a sapere se una funzionalità è davvero finita?
+    atteso:
+    - semantico
+    - grafo
+    atteso_doc:
+    - semantico
+    - grafo
+    completo: true
+    completo_doc: true
+    solo_via_grafo: 1
+    blocchi_grafo: 8
+    blocchi_totali: 13
+    caratteri: 32432
+  - q: come si collega una regola documentata al codice che la implementa e al test
+      che la verifica?
+    atteso:
+    - assente
+    - semantico
     atteso_doc:
     - semantico
     - semantico
     completo: false
     completo_doc: true
     solo_via_grafo: 0
-    blocchi_grafo: 6
-    blocchi_totali: 11
-    caratteri: 33648
+    blocchi_grafo: 8
+    blocchi_totali: 13
+    caratteri: 31312
+  - q: cosa devo fare quando modifico un documento della knowledge base?
+    atteso:
+    - semantico
+    - grafo
+    atteso_doc:
+    - semantico
+    - grafo
+    completo: true
+    completo_doc: true
+    solo_via_grafo: 1
+    blocchi_grafo: 8
+    blocchi_totali: 13
+    caratteri: 29780
+  - q: perché non posso scrivere un colore direttamente in un componente?
+    atteso:
+    - semantico
+    - semantico
+    atteso_doc:
+    - semantico
+    - semantico
+    completo: true
+    completo_doc: true
+    solo_via_grafo: 0
+    blocchi_grafo: 8
+    blocchi_totali: 13
+    caratteri: 34645
