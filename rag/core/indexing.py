@@ -774,11 +774,12 @@ def _diff_hashes(old: dict[str, str], new: dict[str, str]) -> tuple[list[str], l
     return added, removed, modified, unchanged
 
 
-def index_status(project: ProjectContext | None = None) -> dict:
+def index_status(project: ProjectContext | None = None, *, version: str | None = None) -> dict:
     """Confronta gli hash correnti di docs/ con quelli del manifest (della versione
     attiva) per dire se l'indice è aggiornato o va rigenerato, elencando i documenti
-    aggiunti/rimossi/modificati."""
-    path = manifest_path(project=project)
+    aggiunti/rimossi/modificati. `version` fissa la directory già catturata dal chiamante;
+    il campo `version` restituito mantiene il timestamp storico del manifest."""
+    path = manifest_path(version, project=project)
     if not path.exists():
         return {"indexed": False, "stale": True, "reason": "manifest assente — indice mai costruito", "changed": []}
     try:

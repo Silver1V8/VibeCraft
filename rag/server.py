@@ -29,7 +29,7 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 from api.deps import API_KEY, NO_CACHE_HEADERS, HostHeaderGuard, SecurityHeadersMiddleware, lifespan
-from api import routes_graph, routes_health, routes_pages, routes_retrieval
+from api import routes_graph, routes_health, routes_pages, routes_retrieval, routes_projects
 
 if ROLE != "reader":
     from api import routes_intake, routes_pipeline, routes_reindex
@@ -99,6 +99,7 @@ app.include_router(routes_pages.reader_router if ROLE == "reader" else routes_pa
 if ROLE != "reader":
     app.include_router(routes_pipeline.router)
     app.include_router(routes_reindex.router)
+app.include_router(routes_projects.router)
 app.include_router(routes_retrieval.router)
 app.include_router(routes_graph.reader_router if ROLE == "reader" else routes_graph.router)
 app.include_router(routes_health.reader_router if ROLE == "reader" else routes_health.router)

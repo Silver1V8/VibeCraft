@@ -33,17 +33,17 @@ def retrieve_env(monkeypatch):
 
     reloads = {"n": 0}
 
-    def counting_reload():
-        reloads["n"] += 1
-
-    monkeypatch.setattr(routes_retrieval, "maybe_reload_graph", counting_reload)
 
     snap = deps.IndexSnapshot(
         graph=None, colbert_store={}, chunks={}, rule_descriptions={},
         code_store={}, version="v-test", code_ids=[], code_matrix=None,
     )
-    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snap)
-    monkeypatch.setattr(routes_retrieval, "qdrant_collection_for_version", lambda v: "test-collection")
+    def capture(project):
+        reloads["n"] += 1
+        return snap
+
+    monkeypatch.setattr(routes_retrieval, "require_snapshot", capture)
+    monkeypatch.setattr(routes_retrieval, "qdrant_collection_for_version", lambda v, project=None: "test-collection")
     monkeypatch.setitem(deps.state, "qdrant", object())
     monkeypatch.setitem(deps.state, "embed_model", _StubEmbed())
     monkeypatch.setattr(retrieval, "hybrid_search", lambda *a, **kw: [])
@@ -71,3 +71,6 @@ def test_reload_index_state_returns_published_snapshot_token(monkeypatch):
     monkeypatch.setattr(deps, "load_artifacts", lambda required=(), **_kwargs: arts)
     monkeypatch.setattr(deps, "load_rule_descriptions", lambda: {})
     assert deps.reload_index_state() == "v-published"
+
+
+pytestmark = pytest.mark.usefixtures("legacy_http_project")

@@ -77,7 +77,6 @@ def ask_env(monkeypatch, tmp_path):
     `env.calls` con i contatori di provider LLM e hybrid_search, `env.current` per
     sostituire a caldo snapshot e risultati del retrieval."""
     monkeypatch.setattr(deps, "API_KEY", None)
-    monkeypatch.setattr(routes_retrieval, "maybe_reload_graph", lambda: None)
 
     calls = {"llm": 0, "search": 0}
 
@@ -97,7 +96,7 @@ def ask_env(monkeypatch, tmp_path):
         "results": [{"chunk_id": _CHUNK_ID, "doc_id": "spec.md", "section": "form",
                      "dense_score": 0.9, "colbert_score": None}],
     }
-    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: current["snap"])
+    monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: current["snap"])
     monkeypatch.setitem(deps.state, "qdrant", object())
     monkeypatch.setitem(deps.state, "embed_model", _StubEmbed())
 
@@ -107,7 +106,7 @@ def ask_env(monkeypatch, tmp_path):
 
     monkeypatch.setattr(retrieval, "hybrid_search", fake_search)
     # Manifest assente: qdrant_collection ricade su "unknown" (irrilevante qui).
-    monkeypatch.setattr(deps, "manifest_path", lambda v: tmp_path / f"manifest-{v}.json")
+    monkeypatch.setattr(deps, "manifest_path", lambda v, project=None: tmp_path / f"manifest-{v}.json")
 
     app = FastAPI()
     app.include_router(routes_retrieval.router)
@@ -261,9 +260,9 @@ def test_make_key_normalizza_la_domanda_e_separa_il_resto():
     assert base != ask_cache.make_key("v1", "hybrid", 5, 3, "Quali vincoli?")
     assert base != ask_cache.make_key("v1", "hybrid", 5, 2, "Quali altri vincoli?")
     # index_version float (layout legacy senza CURRENT): stringificata, chiave valida.
-    assert ask_cache.make_key(1712345.5, "hybrid", 5, 2, "q")[0] == "1712345.5"
+    assert ask_cache.make_key(1712345.5, "hybrid", 5, 2, "q")[1] == "1712345.5"
     # La domanda in chiaro non è trattenuta: solo il suo digest esadecimale.
-    assert len(base[4]) == 64 and "vincoli" not in base[4]
+    assert len(base[5]) == 64 and "vincoli" not in base[5]
 
 
 def test_lru_espelle_la_voce_meno_recente():
@@ -314,3 +313,6 @@ def test_for_app_crea_una_sola_istanza_per_app(monkeypatch):
     assert cache.max_size == 3
     assert ask_cache.for_app(app) is cache
     assert ask_cache.for_app(FastAPI()) is not cache
+
+
+pytestmark = pytest.mark.usefixtures("legacy_http_project")

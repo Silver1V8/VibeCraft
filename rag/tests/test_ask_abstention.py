@@ -42,20 +42,19 @@ def ask_env(monkeypatch):
     """Come in test_ask_observability.py, minimo indispensabile: la risposta dell'LLM
     finto è parametrizzabile per test tramite `risposta_llm`."""
     monkeypatch.setattr(deps, "API_KEY", None)
-    monkeypatch.setattr(routes_retrieval, "maybe_reload_graph", lambda: None)
     monkeypatch.setitem(llm.config, "llm_settings",
                         {"active_provider": "fake", "models": {"fake": "fake-model"}, "purposes": {}})
 
     def _make(risposta_llm="RISPOSTA", manifest_exists=False):
         llm.register_provider("fake", lambda model, prompt, timeout: risposta_llm)
-        monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: _snapshot())
+        monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: _snapshot())
         monkeypatch.setitem(deps.state, "qdrant", object())
         monkeypatch.setitem(deps.state, "embed_model", _StubEmbed())
         results = [{"chunk_id": _CHUNK_ID, "doc_id": "spec.md", "section": "form",
                     "dense_score": 0.9, "colbert_score": None}]
         monkeypatch.setattr(retrieval, "hybrid_search", lambda *a, **kw: results)
-        monkeypatch.setattr(deps, "manifest_path", lambda v: None)
-        monkeypatch.setattr(routes_retrieval, "qdrant_collection_for_version", lambda v: "coll")
+        monkeypatch.setattr(deps, "manifest_path", lambda v, project=None: None)
+        monkeypatch.setattr(routes_retrieval, "qdrant_collection_for_version", lambda v, project=None: "coll")
 
         app = FastAPI()
         app.include_router(routes_retrieval.router)
@@ -153,3 +152,6 @@ def test_motivazione_in_grassetto_non_viene_scorticata(ask_env):
     body = client.post("/ask", json={"question": "domanda?"}).json()
     assert body["status"] == "abstained"
     assert body["answer"] == "**Il contesto** non basta."
+
+
+pytestmark = pytest.mark.usefixtures("legacy_http_project")

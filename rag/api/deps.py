@@ -11,6 +11,7 @@ import os
 import queue
 import re
 import threading
+from collections import OrderedDict
 from collections.abc import Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
@@ -27,9 +28,8 @@ from FlagEmbedding import BGEM3FlagModel
 from core import retrieval
 from core.artifacts import (IMMUTABLE_MARKER_FILENAME, LEGACY_VERSION,
                             artifact_hashes, current_version_token, load_artifacts,
-                            manifest_path)
-from core.indexing import gc_orphaned_qdrant_collections, reconcile_and_repair_qdrant_alias
-from core.writer_lock import WriterLockBusyError, writer_lock
+                            manifest_path, _project_artifact_path)
+from core.projects import ProjectContext, ProjectError, ProjectRegistry
 from core.config import (
     COLLECTION_NAME,
     DATABASE_DIR,
@@ -454,6 +454,7 @@ state: dict = {
     "qdrant": None,
     "embed_model": None,
     "reload_error": None,
+    "lock": threading.RLock(),
 }
 
 
@@ -553,13 +554,19 @@ async def run_in_threadpool_until_complete(fn, *a, **k):
         raise
 
 
-def current_snapshot() -> IndexSnapshot | None:
+def current_snapshot(project: ProjectContext | None = None) -> IndexSnapshot | None:
     """Riferimento atomico allo snapshot corrente dell'indice. Ogni handler lo chiama
     UNA volta a inizio richiesta e usa solo l'oggetto restituito: essendo frozen e
     rebindato (mai mutato), il contenuto resta internamente coerente anche se un reload
     avviene a metà richiesta (il reload rebinda `state["snapshot"]`, non tocca l'oggetto
     già in mano all'handler)."""
-    return state.get("snapshot")
+    if project is None or project.legacy:
+        return state.get("snapshot")
+    with _reload_lock:
+        snapshot = _snapshots.get(project.id)
+        if snapshot is not None:
+            _snapshots.move_to_end(project.id)
+        return snapshot
 
 
 # ---------------------------------------------------------------------------
@@ -574,34 +581,39 @@ def current_snapshot() -> IndexSnapshot | None:
 _qdrant_collection_by_version: dict = {}
 
 
-def qdrant_collection_for_version(version: str | float | None) -> str:
+def qdrant_collection_for_version(version: str | float | None,
+                                  project: ProjectContext | None = None) -> str:
     """Nome della collection Qdrant dichiarata dal manifest di `version` (campo
     "qdrant_collection", scritto da core.indexing.write_index_manifest), con cache
     a livello di modulo per versione. Fallback "unknown" se il manifest è assente,
     illeggibile, non porta il campo, o se `version` non è un nome di versione valido
     (es. mtime float del layout legacy senza CURRENT)."""
-    if version in _qdrant_collection_by_version:
-        return _qdrant_collection_by_version[version]
+    key = (project.id if project else "legacy", version)
+    if key in _qdrant_collection_by_version:
+        return _qdrant_collection_by_version[key]
     try:
-        manifest = json.loads(manifest_path(version).read_text(encoding="utf-8"))
+        manifest = json.loads(manifest_path(version, project=project).read_text(encoding="utf-8"))
         name = manifest.get("qdrant_collection") if isinstance(manifest, dict) else None
     except Exception:
         name = None
     name = name or "unknown"
-    _qdrant_collection_by_version[version] = name
+    _qdrant_collection_by_version[key] = name
     return name
 
 
-def _graph_version() -> str | float | None:
+def _graph_version(project: ProjectContext | None = None) -> str | float | None:
     """Versione osservabile dell'indice su disco: il contenuto di database/CURRENT
     (nome della versione blue/green attiva — cambia a ogni promote E a ogni rollback),
     con fallback all'mtime del file-grafo flat (graph.json) per i layout senza CURRENT.
     È la baseline che innesca l'auto-reload."""
-    token = current_version_token()
+    token = current_version_token(project=project)
     if token is not None:
         return token
+    if project is not None and not project.legacy:
+        return None
+    path = _project_artifact_path(project.database_dir / "graph.json", project) if project else GRAPH_JSON_PATH
     try:
-        return GRAPH_JSON_PATH.stat().st_mtime
+        return path.stat().st_mtime
     except OSError:
         pass
     return None
@@ -641,18 +653,19 @@ def _prep_dev_type_index(code_ids: list[str], code_store: dict) -> dict[str, "np
 
 def _build_snapshot(graph, colbert_store, chunks, rule_descriptions, code_store,
                     *, version=None, collection_name=None, index_manifest=None,
-                    version_lease=None) -> IndexSnapshot:
+                    version_lease=None, project: ProjectContext | None = None) -> IndexSnapshot:
     """Assembla un IndexSnapshot con la versione degli artefatti già caricati e
     precalcolando la matrice densa del codice e l'indice per ambito (una volta per reindex,
     non per richiesta)."""
     # Il loader ha già catturato CURRENT prima di leggere gli artefatti.
     # Rileggerlo qui attribuirebbe una promozione concorrente ai dati precedenti.
     if version == "legacy":
-        version = GRAPH_JSON_PATH.stat().st_mtime
+        path = _project_artifact_path(project.database_dir / "graph.json", project) if project else GRAPH_JSON_PATH
+        version = path.stat().st_mtime
     elif version is None:
-        version = _graph_version()
+        version = _graph_version(project=project)
     code_ids, code_matrix = _prep_code_matrix(code_store)
-    resolved_collection = collection_name or qdrant_collection_for_version(version)
+    resolved_collection = collection_name or qdrant_collection_for_version(version, project=project)
     return IndexSnapshot(
         graph=graph,
         colbert_store=colbert_store,
@@ -663,14 +676,14 @@ def _build_snapshot(graph, colbert_store, chunks, rule_descriptions, code_store,
         code_ids=code_ids,
         code_matrix=code_matrix,
         code_dev_type_idx=_prep_dev_type_index(code_ids, code_store),
-        restatements=retrieval.restatement_sections(chunks),
+        restatements=retrieval.restatement_sections(chunks, project=project),
         collection_name=None if resolved_collection == "unknown" else resolved_collection,
         index_manifest=index_manifest or {},
         version_lease=version_lease,
     )
 
 
-def load_rule_descriptions() -> dict[str, str]:
+def load_rule_descriptions(project: ProjectContext | None = None) -> dict[str, str]:
     """
     Scansiona tutti i file spec_*.md in docs/ (ricorsivamente) ed estrae le descrizioni
     di regole e termini di glossario nel formato `[CHIAVE]`: <testo>.
@@ -678,12 +691,16 @@ def load_rule_descriptions() -> dict[str, str]:
     """
     descriptions: dict[str, str] = {}
     pattern = re.compile(r"`\[([A-Z0-9][A-Z0-9_\- ]*)]`:\s*(.+)")
-    docs_dir = PROJECT_ROOT / "docs"
+    docs_dir = project.docs_dir if project else PROJECT_ROOT / "docs"
     # Scansiona tutti i .md: le descrizioni possono vivere in qualsiasi documento
     # del knowledge base, non solo nei file spec_*.md.
-    for spec_file in sorted(docs_dir.rglob("*.md")):
+    from code_index import source_files
+    from core.projects import _unlinked
+    for spec_file in source_files(docs_dir):
+        if spec_file.suffix.lower() != ".md":
+            continue
         try:
-            content = spec_file.read_text(encoding="utf-8")
+            content = _unlinked(spec_file).read_text(encoding="utf-8")
             for m in pattern.finditer(content):
                 key = m.group(1).strip()
                 descriptions[key] = m.group(2).strip()
@@ -706,20 +723,21 @@ def rule_descriptions_from_chunks(chunks: Mapping) -> dict[str, str]:
     return descriptions
 
 
-def _reader_manifest(version) -> dict:
-    if not (DATABASE_DIR / IMMUTABLE_MARKER_FILENAME).is_file():
+def _reader_manifest(version, project: ProjectContext | None = None) -> dict:
+    database_dir = project.database_dir if project else DATABASE_DIR
+    if not _project_artifact_path(database_dir / IMMUTABLE_MARKER_FILENAME, project).is_file():
         raise RuntimeError(
             f"Reader rifiutato: marker {IMMUTABLE_MARKER_FILENAME} assente in {DATABASE_DIR}."
         )
     if not isinstance(version, str) or not version or version == LEGACY_VERSION:
         raise RuntimeError("Reader rifiutato: serve una versione immutabile non legacy.")
     try:
-        manifest = json.loads(manifest_path(version).read_text(encoding="utf-8"))
+        manifest = json.loads(manifest_path(version, project=project).read_text(encoding="utf-8"))
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
         raise RuntimeError(
             f"Reader rifiutato: manifest della versione '{version}' assente o illeggibile."
         ) from exc
-    expected = f"{COLLECTION_NAME}__{version}"
+    expected = f"{project.collection_name if project else COLLECTION_NAME}__{version}"
     if not isinstance(manifest, dict):
         raise RuntimeError(f"Reader rifiutato: manifest della versione '{version}' non valido.")
     if manifest.get("immutable") is not True or manifest.get("qdrant_collection") != expected:
@@ -728,7 +746,7 @@ def _reader_manifest(version) -> dict:
             f"fisica immutabile '{expected}'."
         )
     expected_hashes = manifest.get("artifact_hashes")
-    if not isinstance(expected_hashes, dict) or artifact_hashes(version) != expected_hashes:
+    if not isinstance(expected_hashes, dict) or artifact_hashes(version, project=project) != expected_hashes:
         raise RuntimeError(
             f"Reader rifiutato: hash degli artefatti della versione '{version}' non coerenti."
         )
@@ -745,13 +763,14 @@ def _close_unpublished_artifacts(arts) -> None:
         close()
 
 
-def _load_index_snapshot(*, boot: bool = False) -> IndexSnapshot:
-    required = (("graph", "colbert", "chunks") if ROLE == "reader" or not boot
+def _load_index_snapshot(*, boot: bool = False, project: ProjectContext | None = None) -> IndexSnapshot:
+    required = (("graph", "colbert", "chunks")
+                if ROLE == "reader" or (project is not None and not project.legacy) or not boot
                 else ("graph",))
-    arts = load_artifacts(required=required, retain_lease=True)
+    arts = load_artifacts(required=required, retain_lease=True, project=project)
     try:
-        if ROLE == "reader":
-            manifest = _reader_manifest(arts.version)
+        if ROLE == "reader" or (project is not None and not project.legacy):
+            manifest = _reader_manifest(arts.version, project=project)
             if set(arts.colbert_store) != set(arts.chunks_store):
                 raise RuntimeError(
                     "Reader rifiutato: chiavi ColBERT e chunks dello snapshot non coincidono."
@@ -764,107 +783,126 @@ def _load_index_snapshot(*, boot: bool = False) -> IndexSnapshot:
             descriptions = rule_descriptions_from_chunks(arts.chunks_store)
             collection_name = manifest["qdrant_collection"]
         else:
-            descriptions = load_rule_descriptions()
+            descriptions = load_rule_descriptions(project=project) if project else load_rule_descriptions()
             collection_name = None
             try:
-                manifest = json.loads(manifest_path(arts.version).read_text(encoding="utf-8"))
+                manifest = json.loads(manifest_path(arts.version, project=project).read_text(encoding="utf-8"))
             except (OSError, ValueError, TypeError, json.JSONDecodeError):
                 manifest = {}
         return _build_snapshot(
             arts.graph, arts.colbert_store, arts.chunks_store, descriptions,
             arts.code_store, version=arts.version, collection_name=collection_name,
-            index_manifest=manifest, version_lease=getattr(arts, "version_lease", None),
+            index_manifest=manifest, version_lease=getattr(arts, "version_lease", None), project=project,
         )
     except BaseException:
         _close_unpublished_artifacts(arts)
         raise
 
 
+_registry = None
+_registry_lock = threading.Lock()
+_resources_lock = threading.Lock()
+_project_states: dict[str, dict] = {}
+_snapshots: OrderedDict[str, IndexSnapshot] = OrderedDict()
+
+
+def project_registry() -> ProjectRegistry:
+    global _registry
+    with _registry_lock:
+        if _registry is None:
+            _registry = ProjectRegistry()
+        return _registry
+
+
+def project_http_error(exc: ProjectError) -> HTTPException:
+    logger.warning("Project operation failed (%s): %s", exc.code, exc)
+    return HTTPException(status_code=exc.status_code,
+                         detail={"code": exc.code, "message": exc.code.replace("_", " ")})
+
+
+def get_project(request: Request) -> ProjectContext:
+    """Capture once per request; missing header means only registered legacy."""
+    captured = getattr(request.state, "project", None)
+    if captured is not None:
+        return captured
+    project_id = request.headers.get("X-VibeCraft-Project")
+    try:
+        project = project_registry().get("legacy" if project_id is None else project_id)
+    except ProjectError as exc:
+        if project_id is None and exc.code == "project_not_found":
+            exc = ProjectError("Select a project", status_code=409, code="project_required")
+        raise project_http_error(exc) from exc
+    request.state.project = project
+    return project
+
+
+def project_runtime(project: ProjectContext | None = None) -> dict:
+    if project is None or project.legacy:
+        return state
+    with _reload_lock:
+        return _project_states.setdefault(project.id, {"reload_error": None, "lock": threading.RLock()})
+
+
+def ensure_shared_resources(*, embedding: bool = True) -> None:
+    """One shared client/model, initialized only when an indexed request needs them."""
+    with _resources_lock:
+        try:
+            if state.get("qdrant") is None:
+                state["qdrant"] = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+            if embedding and state.get("embed_model") is None:
+                state["embed_model"] = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False, devices="cpu")
+        except Exception as exc:
+            logger.exception("Shared resources unavailable")
+            raise HTTPException(503, detail={"code": "resources_unavailable",
+                                            "message": "Shared resources unavailable"}) from exc
+
+
+def _publish_snapshot(project: ProjectContext | None, snapshot: IndexSnapshot) -> None:
+    project_id = project.id if project else "legacy"
+    _snapshots[project_id] = snapshot
+    _snapshots.move_to_end(project_id)
+    if project is None or project.legacy:
+        state["snapshot"] = snapshot
+    while len(_snapshots) > 2:
+        evicted, _ = _snapshots.popitem(last=False)
+        if evicted == "legacy":
+            state["snapshot"] = None
+    # Eviction drops references only: in-flight requests still own their version lease.
+
+
+def require_snapshot(project: ProjectContext) -> IndexSnapshot:
+    # ponytail: serialize disk loads; per-project locks if load contention becomes material.
+    with _reload_lock:
+        maybe_reload_graph(project)
+        runtime = project_runtime(project)
+        if runtime.get("reload_error"):
+            raise HTTPException(503, detail={"code": "project_storage_error",
+                                            "message": "Project index unavailable"})
+        snapshot = current_snapshot(project)
+        if snapshot is None:
+            raise HTTPException(409, detail={"code": "project_not_indexed",
+                                            "message": "Project has no index"})
+        _publish_snapshot(project, snapshot)
+        return snapshot
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    """Carica le risorse pesanti al boot e le libera allo shutdown."""
-    if ROLE == "reader":
-        if not API_KEY:
-            raise RuntimeError(
-                "VIBECRAFT_ROLE=reader richiede VIBECRAFT_API_KEY: il bypass loopback "
-                "è disabilitato per le repliche."
-            )
-        if not (DATABASE_DIR / IMMUTABLE_MARKER_FILENAME).is_file():
-            raise RuntimeError(
-                f"Reader rifiutato: marker {IMMUTABLE_MARKER_FILENAME} assente in {DATABASE_DIR}."
-            )
+    """Shell and registry remain available with no index or unavailable resources."""
+    if ROLE == "reader" and not API_KEY:
+        raise RuntimeError("VIBECRAFT_ROLE=reader richiede VIBECRAFT_API_KEY")
     ask_runtime_for_app(application)
-    logger.info("Caricamento modello embedding: %s ...", EMBEDDING_MODEL)
-    # CPU per le query interattive (/ask, graph query): una singola embedding costa ms
-    # anche su CPU. GPU riservata ai job di reindex, che processano migliaia di chunk/
-    # simboli in batch (core.indexing crea lì un'istanza dedicata, vedi routes_reindex.py) —
-    # la VRAM da 8GB di una RTX 3070 Ti non basta a tenere residenti bge-m3 E il modello
-    # Ollama (qwen3.5:9b) insieme senza forzare quest'ultimo in split GPU/CPU (inferenza
-    # LLM molto più lenta).
-    state["embed_model"] = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False, devices="cpu")
-
-    logger.info("Connessione a Qdrant (server mode): %s ...", QDRANT_URL)
-    state["qdrant"] = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-
-    # Riconciliazione dell'alias Qdrant al boot, PRE-SERVING: unico punto (insieme ai
-    # percorsi writer dei job full) dove è consentita una riparazione reale (alias
-    # swap). Ripara solo "missing"/"diverging" e solo se la collection attesa esiste
-    # davvero (nessuna correzione distruttiva) — reconcile_and_repair_qdrant_alias non
-    # solleva mai: un Qdrant temporaneamente irraggiungibile qui non deve mai impedire
-    # il boot del server.
-    #
-    # Entrambe girano sotto il writer lock cross-processo (F2): senza, un boot che
-    # capita a metà di una build CLI in corso potrebbe fare GC della collection
-    # candidata il cui manifest non è ancora su disco. Se il lock è occupato (altro
-    # writer attivo) si salta riconciliazione+GC per questo avvio — mai un motivo di
-    # fallimento del boot, il server serve comunque in lettura con l'alias non
-    # riconciliato, che verrà sistemato dal prossimo job o boot.
-    if ROLE != "reader":
-        try:
-            with writer_lock(timeout_seconds=5):
-                alias_state = reconcile_and_repair_qdrant_alias(state["qdrant"])
-                logger.info("Stato alias Qdrant (riconciliazione): %s (expected=%s, actual=%s, repaired=%s)%s",
-                           alias_state["state"], alias_state.get("expected"), alias_state.get("actual"),
-                           alias_state.get("repaired"),
-                           f" — {alias_state['error']}" if alias_state.get("error") else "")
-
-                # GC delle collection Qdrant orfane, stesso punto pre-serving consentito: al
-                # boot nessun altro writer è concorrente (garantito dal lock qui sopra).
-                gc_orphaned_qdrant_collections(state["qdrant"])
-        except WriterLockBusyError:
-            logger.warning("Writer attivo durante il boot: riconciliazione alias e GC saltati, "
-                            "verranno rieseguiti dal prossimo job o boot.")
-
-    logger.info("Caricamento artefatti indice (grafo JSON, ColBERT/chunk) ...")
     try:
-        snapshot = _load_index_snapshot(boot=True)
-    except FileNotFoundError:
-        raise RuntimeError(
-            "Grafo non trovato (graph.json assente). Esegui prima 'python index.py' per indicizzare."
-        )
-    graph = snapshot.graph
-    colbert_store = snapshot.colbert_store
-    chunks = snapshot.chunks
-    code_store = snapshot.code_store
-    logger.info("Grafo caricato: %d nodi, %d archi.", graph.number_of_nodes(), graph.number_of_edges())
-    logger.info("Multivettori ColBERT caricati: %d chunk. Chunk sidecar: %d sezioni. Simboli codice: %d.",
-                len(colbert_store), len(chunks), len(code_store))
-
-    # Rebind atomico dello snapshot iniziale (un solo assegnamento).
-    state["snapshot"] = snapshot
-    state["_graph_mtime"] = state["snapshot"].version
-    state["reload_error"] = None
-    logger.info("Server pronto.")
-
-    # Il generatore lifespan rimane sospeso a yield: i locali del boot non devono
-    # trattenere il vecchio snapshot dopo un reload.
-    del snapshot, graph, colbert_store, chunks, code_store
-
-    yield  # il server è in esecuzione
-
-    logger.info("Shutdown: rilascio risorse.")
-    state["snapshot"] = None
-    state["qdrant"].close()
+        yield
+    finally:
+        with _reload_lock:
+            _snapshots.clear()
+            _project_states.clear()
+            state["snapshot"] = None
+        if state.get("qdrant") is not None:
+            state["qdrant"].close()
+            state["qdrant"] = None
+        state["embed_model"] = None
 
 
 # ---------------------------------------------------------------------------
@@ -872,14 +910,12 @@ async def lifespan(application: FastAPI):
 # ---------------------------------------------------------------------------
 # Serializza i reload (auto-reload dalle richieste, on_success del thread di reindex,
 # rollback, intake): due caricamenti paralleli raddoppierebbero memoria e I/O, e l'ultimo a
-# pubblicare vincerebbe anche se più vecchio. Lock NON rientrante: sotto lock nulla rientra
-# nel reload (_load_index_snapshot non chiama maybe_reload_graph né reload_index_state, e le
-# lease di versione sono try non bloccanti), quindi niente deadlock nemmeno col thread di
-# reindex che lo prende a fine job.
-_reload_lock = threading.Lock()
+# pubblicare vincerebbe anche se più vecchio. RLock: require_snapshot cattura il riferimento
+# sotto lo stesso lock del reload e della LRU; le lease su disco restano non bloccanti.
+_reload_lock = threading.RLock()
 
 
-def reload_index_state() -> str | float | None:
+def reload_index_state(project: ProjectContext | None = None) -> str | float | None:
     """Ricarica in memoria grafo, multivettori ColBERT e sidecar chunk dai file appena
     rigenerati dalla re-indicizzazione, così che il server rifletta subito la nuova base
     di conoscenza senza riavvio.
@@ -896,7 +932,7 @@ def reload_index_state() -> str | float | None:
     intake — possono aver cambiato i documenti senza cambiare versione), ma serializzata
     con gli altri reload tramite _reload_lock."""
     with _reload_lock:
-        return _reload_index_state_locked()
+        return _reload_project_locked(project) if project is not None else _reload_index_state_locked()
 
 
 def _reload_index_state_locked() -> str | float | None:
@@ -915,13 +951,33 @@ def _reload_index_state_locked() -> str | float | None:
 
     # Rebind ATOMICO: un solo IndexSnapshot completo sostituisce quello precedente.
     # Nessuna mutazione in place → nessun handler può osservare una versione mista.
-    state["snapshot"] = snapshot
+    _publish_snapshot(None, snapshot)
     state["_graph_mtime"] = state["snapshot"].version
     state["reload_error"] = None
     return state["snapshot"].version
 
 
-def maybe_reload_graph() -> None:
+def _reload_project_locked(project: ProjectContext) -> str | float | None:
+    runtime = project_runtime(project)
+    try:
+        version = _graph_version(project)
+        if version is None:
+            _snapshots.pop(project.id, None)
+            if project.legacy:
+                state["snapshot"] = None
+            runtime.update(reload_error=None, _graph_mtime=None)
+            return None
+        snapshot = _load_index_snapshot(project=project, boot=current_snapshot(project) is None)
+    except Exception as exc:
+        logger.exception("Project %s reload failed", project.id)
+        runtime["reload_error"] = type(exc).__name__
+        return None
+    _publish_snapshot(project, snapshot)
+    runtime.update(reload_error=None, _graph_mtime=snapshot.version)
+    return snapshot.version
+
+
+def maybe_reload_graph(project: ProjectContext | None = None) -> None:
     """Auto-reload: se la versione dell'indice su disco è cambiata (database/CURRENT
     spostato da una promozione o da un rollback; per i layout legacy, mtime del grafo
     flat), ricarica l'indice in memoria alla prima richiesta successiva, senza dover
@@ -933,6 +989,18 @@ def maybe_reload_graph() -> None:
     richiesta; chi deve ricaricare prende _reload_lock e RICONTROLLA la baseline, perché
     nel frattempo un'altra richiesta (o il thread di reindex) può aver già caricato la
     stessa versione — in quel caso non la si ricarica una seconda volta."""
+    if project is not None:
+        with _reload_lock:
+            runtime = project_runtime(project)
+            try:
+                version = _graph_version(project)
+            except Exception as exc:
+                runtime["reload_error"] = type(exc).__name__
+                return
+            if (current_snapshot(project) is None or version != runtime.get("_graph_mtime")
+                    or runtime.get("reload_error")):
+                _reload_project_locked(project)
+        return
     if current_snapshot() is None:
         return
     mtime = _graph_version()

@@ -187,12 +187,12 @@ Ogni task: aggiungere il test che fallisce, verificarne il fallimento pertinente
 **File:** `api/deps.py`, `server.py`, `routes_projects.py`, `routes_retrieval.py`, `routes_graph.py`, `routes_health.py`, `core/ask_cache.py`, `tests/test_project_api.py` (nuovo), `tests/test_project_runtime.py` (nuovo).
 **Produce:** get_project/current_snapshot/reload_index_state, runtime per ID, API registry e contratto header; readiness separata.
 
-- [ ] Test zero progetti e senza indice: shell e registry 200, retrieval 409; progetto guasto non blocca elenco/altro progetto.
-- [ ] Test header mancante/malformato/sconosciuto e auth/cross-site/local-bind; nessun fallback a B.
-- [ ] Test cache A/B con stessa query/versione e contenuti diversi; stato grafo/reload/version-cache isolato.
-- [ ] Test richieste concorrenti e eviction con snapshot in uso; modello/client pesanti condivisi, non ricaricati per ogni progetto.
-- [ ] Collegare tutti gli endpoint dati al contesto catturato una volta; metadata ID/versione coerenti anche in streaming.
-- [ ] Eseguire nuovi test e suite retrieval/graph/health/cache/security interessate; review su isolamento e ciclo vita.
+- [x] Test zero progetti e senza indice: shell e registry 200, retrieval 409; progetto guasto non blocca elenco/altro progetto.
+- [x] Test header mancante/malformato/sconosciuto e auth/cross-site/local-bind; nessun fallback a B.
+- [x] Test cache A/B con stessa query/versione e contenuti diversi; stato grafo/reload/version-cache isolato.
+- [x] Test richieste concorrenti e eviction con snapshot in uso; modello/client pesanti condivisi, non ricaricati per ogni progetto.
+- [x] Collegare tutti gli endpoint dati al contesto catturato una volta; metadata ID/versione coerenti anche in streaming.
+- [x] Eseguire nuovi test e suite retrieval/graph/health/cache/security interessate; review su isolamento e ciclo vita.
 
 ### Task 4: Job, intake, pipeline e valutazioni
 

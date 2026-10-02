@@ -237,8 +237,9 @@ def _extract(suffix: str, text: str, stem: str, rel: str = "",
 
 def source_files(root: Path, excluded_dirs=frozenset()) -> list[Path]:
     """Collect confined source files before parsers can follow auxiliary file paths."""
-    if root.is_symlink() or root.is_junction():
-        raise ValueError(f"linked source root forbidden: {root}")
+    for component in (root, *root.parents):
+        if component.is_symlink() or component.is_junction():
+            raise ValueError(f"linked source root forbidden: {component}")
     resolved = root.resolve()
     files = []
     for folder, dirs, names in root.walk(follow_symlinks=False):

@@ -72,7 +72,6 @@ def ask_env(monkeypatch, tmp_path):
     scritto su disco in tmp_path e api.deps.manifest_path viene fatto puntare lì, così i
     test controllano il contenuto del manifest senza toccare database/ reale."""
     monkeypatch.setattr(deps, "API_KEY", None)
-    monkeypatch.setattr(routes_retrieval, "maybe_reload_graph", lambda: None)
 
     settings = {"active_provider": "fake", "models": {"fake": "fake-model"}, "purposes": {}}
     monkeypatch.setitem(llm.config, "llm_settings", settings)
@@ -81,7 +80,7 @@ def ask_env(monkeypatch, tmp_path):
     def _make(version="v20260101T000000", manifest: dict | None = None,
               manifest_exists: bool = True):
         snap = _snapshot(version)
-        monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snap)
+        monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: snap)
         monkeypatch.setitem(deps.state, "qdrant", object())
         monkeypatch.setitem(deps.state, "embed_model", _StubEmbed())
         results = [{"chunk_id": _CHUNK_ID, "doc_id": "spec.md", "section": "form",
@@ -94,7 +93,7 @@ def ask_env(monkeypatch, tmp_path):
                 json.dumps(manifest if manifest is not None else {"qdrant_collection": "vc__" + str(version)}),
                 encoding="utf-8",
             )
-        monkeypatch.setattr(deps, "manifest_path", lambda v: manifest_file)
+        monkeypatch.setattr(deps, "manifest_path", lambda v, project=None: manifest_file)
 
         app = FastAPI()
         app.include_router(routes_retrieval.router)
@@ -233,7 +232,7 @@ def test_graph_context_disattivato_non_cambia_il_contesto(ask_env, monkeypatch):
     L'intestazione porta la CLASSE della fonte (A3): qui il documento del fixture non ha
     frontmatter, quindi "SENZA CLASSE" — che e' un'informazione, non un valore mancante."""
     client = ask_env()
-    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: _snapshot_con_vicino())
+    monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: _snapshot_con_vicino())
     monkeypatch.setattr(routes_retrieval, "GRAPH_CONTEXT_MAX_CHUNKS", 0)
     ctx = client.post("/ask", json={"question": "q"}).json()["graph_context"]["context_text"]
     assert ctx == "--- spec.md § form [SENZA CLASSE] ---\ntesto della sezione"
@@ -242,7 +241,7 @@ def test_graph_context_disattivato_non_cambia_il_contesto(ask_env, monkeypatch):
 
 def test_sezioni_da_grafo_sono_marcate_nel_contesto(ask_env, monkeypatch):
     client = ask_env()
-    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: _snapshot_con_vicino())
+    monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: _snapshot_con_vicino())
     monkeypatch.setattr(routes_retrieval, "GRAPH_CONTEXT_MAX_CHUNKS", 2)
     body = client.post("/ask", json={"question": "q"}).json()
     ctx = body["graph_context"]["context_text"]
@@ -270,7 +269,7 @@ def test_ancore_codice_ordinate_per_fiducia(ask_env, monkeypatch):
         return []
 
     client = ask_env()
-    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: _snapshot_con_vicino())
+    monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: _snapshot_con_vicino())
     monkeypatch.setattr(retrieval, "collect_implementing_code", _spia)
     client.post("/ask", json={"question": "q"})
 
@@ -325,7 +324,7 @@ def test_sezione_da_grafo_scelta_per_pertinenza_non_per_ordine_di_file(ask_env, 
     """Il difetto noto di S3: con l'ordine di documento si iniettava il preambolo. Ora la
     fiducia sceglie DI QUALE DOCUMENTO fidarsi e il ColBERT quale SEZIONE mostrare."""
     client = ask_env()
-    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: _snapshot_due_sezioni())
+    monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: _snapshot_due_sezioni())
     monkeypatch.setitem(deps.state, "embed_model", _EmbedColbert())
     monkeypatch.setattr(routes_retrieval, "GRAPH_CONTEXT_MAX_CHUNKS", 1)
     ctx = client.post("/ask", json={"question": "q"}).json()["graph_context"]["context_text"]
@@ -341,7 +340,7 @@ def test_documento_superato_non_rientra_dal_ramo_del_grafo(ask_env, monkeypatch)
     snap.graph.add_edge("spec.md", "glossario.md", relation="SUPERA_IN_PRIORITÀ",
                         nature="curated", reliability=0.9)
     client = ask_env()
-    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snap)
+    monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: snap)
     monkeypatch.setitem(deps.state, "embed_model", _EmbedColbert())
     monkeypatch.setattr(routes_retrieval, "GRAPH_CONTEXT_MAX_CHUNKS", 2)
     ctx = client.post("/ask", json={"question": "q"}).json()["graph_context"]["context_text"]
@@ -374,8 +373,7 @@ def test_una_sezione_del_seed_non_ruba_il_budget_al_documento_raggiunto(ask_env,
     l'autorità del loro documento, consumando tutto il tetto per reiniettare una fonte già
     presente. Con un budget di 1 deve entrare la sezione PERTINENTE del vicino."""
     client = ask_env()
-    monkeypatch.setattr(routes_retrieval, "current_snapshot",
-                        lambda: _snapshot_sezione_orfana_del_seed())
+    monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: _snapshot_sezione_orfana_del_seed())
     monkeypatch.setitem(deps.state, "embed_model", _EmbedColbert())
     monkeypatch.setattr(routes_retrieval, "GRAPH_CONTEXT_MAX_CHUNKS", 1)
     ctx = client.post("/ask", json={"question": "q"}).json()["graph_context"]["context_text"]
@@ -398,7 +396,7 @@ def test_il_ramo_grafo_ordina_per_pertinenza_fra_documenti_diversi(ask_env, monk
                                              "doc_id": "indice.md", "section": "(preambolo)"}
     snap.colbert_store["indice.md#00-preambolo"] = np.array([[0.0, 1.0]], dtype="float32")
     client = ask_env()
-    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snap)
+    monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: snap)
     monkeypatch.setitem(deps.state, "embed_model", _EmbedColbert())
     monkeypatch.setattr(routes_retrieval, "GRAPH_CONTEXT_MAX_CHUNKS", 1)
     ctx = client.post("/ask", json={"question": "q"}).json()["graph_context"]["context_text"]
@@ -433,7 +431,7 @@ def _due_vicini(*, classi=("", ""), affidabilita=(0.9, 0.9), pertinenze=(1.0, 1.
 
 def _vince(snap, ask_env, monkeypatch) -> str:
     client = ask_env()
-    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snap)
+    monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: snap)
     monkeypatch.setitem(deps.state, "embed_model", _EmbedColbert())
     monkeypatch.setattr(routes_retrieval, "GRAPH_CONTEXT_MAX_CHUNKS", 1)
     return client.post("/ask", json={"question": "q"}).json()["graph_context"]["context_text"]
@@ -487,9 +485,12 @@ def test_il_ramo_grafo_NON_penalizza_le_riformulazioni(ask_env, monkeypatch):
     assert snap.restatements == frozenset({"uno.md#01"})
 
     client = ask_env()
-    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snap)
+    monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: snap)
     monkeypatch.setitem(deps.state, "embed_model", _EmbedColbert())
     monkeypatch.setattr(routes_retrieval, "GRAPH_CONTEXT_MAX_CHUNKS", 1)
     ctx = client.post("/ask", json={"question": "q"}).json()["graph_context"]["context_text"]
     assert "Riepilogo delle Regole" in ctx    # la riformulazione, più pertinente
     assert "Nessun codice di regola qui" not in ctx
+
+
+pytestmark = pytest.mark.usefixtures("legacy_http_project")

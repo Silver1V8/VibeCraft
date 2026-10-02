@@ -18,9 +18,10 @@ from FlagEmbedding import BGEM3FlagModel
 
 from api.deps import (
     ask_runtime_for_app,
-    current_snapshot,
+    get_project,
+    require_snapshot,
+    ensure_shared_resources,
     embed_in_threadpool,
-    maybe_reload_graph,
     qdrant_collection_for_version,
     require_api_key,
     require_not_cross_site_request,
@@ -29,6 +30,7 @@ from api.deps import (
 )
 from api.models import AskQuery
 from core import ask_cache, graph_ops, llm, retrieval, router as question_router
+from core.projects import ProjectError, _unlinked
 from core.config import (
     CODE_CONTEXT_MAX_SNIPPETS,
     CODE_CONTEXT_MIN_WEIGHT,
@@ -41,10 +43,8 @@ from core.config import (
     CODE_SEARCH_MIN_SCORE,
     AUTHORITY_BOOST_ALPHA,
     AUTHORITY_PRECEDENCE_RELATION,
-    COLLECTION_NAME,
     GRAPH_CONTEXT_MAX_CHUNKS,
     GRAPH_CONTEXT_MIN_RATIO,
-    PROJECT_ROOT,
     ROLE,
 )
 
@@ -107,29 +107,33 @@ async def _emit(emit, event: dict) -> None:
         await emit(event)
 
 
-async def _ask_resources():
+async def _ask_resources(project):
     """Cattura una sola volta lo snapshot e valida la readiness prima degli header."""
-    await run_in_threadpool(maybe_reload_graph)
-    snap = current_snapshot()
+    snap = await run_in_threadpool(require_snapshot, project)
+    await run_in_threadpool(ensure_shared_resources)
     qdrant: QdrantClient = state["qdrant"]
     embed_model: BGEM3FlagModel = state["embed_model"]
     if snap is None or snap.graph is None or qdrant is None or embed_model is None:
         raise HTTPException(status_code=503, detail="Server non ancora inizializzato.")
-    return snap, qdrant, embed_model
+    return project, snap, qdrant, embed_model
 
 
 async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resources=None):
     request_id = uuid.uuid4().hex
     request_start = time.time()
 
-    snap, qdrant, embed_model = resources or await _ask_resources()
+    project, snap, qdrant, embed_model = resources or await _ask_resources(get_project(request))
+    retrieval_settings = project.settings.get("retrieval", {})
+    authority_settings = project.settings.get("authority", {})
     graph: nx.DiGraph = snap.graph
     index_version = snap.version
-    qdrant_collection = snap.collection_name or qdrant_collection_for_version(index_version)
+    qdrant_collection = snap.collection_name or qdrant_collection_for_version(index_version, project=project)
     collection = qdrant_collection
     if qdrant_collection == "unknown":
         # Compatibilità col layout flat e con gli snapshot storici costruiti a mano nei test.
-        collection = COLLECTION_NAME
+        if not project.legacy:
+            raise HTTPException(503, detail="Collection dello snapshot non disponibile.")
+        collection = project.collection_name
 
     # 0. Router deterministico M2: le domande STRUTTURALI (enumerazioni, relazioni,
     #    impatto, adiacenza — i casi B>A del report M1) sono risposte direttamente da
@@ -138,7 +142,7 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
     retrieval_strategy = question_router.route_question(query.question)
     if retrieval_strategy == "graph":
         await _emit(emit, {
-            "type": "meta", "request_id": request_id, "index_version": index_version,
+            "type": "meta", "request_id": request_id, "index_version": index_version, "project_id": project.id,
             "qdrant_collection": qdrant_collection, "retrieval_strategy": retrieval_strategy,
             "cached": False, "streaming_native": False,
         })
@@ -155,14 +159,14 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
             "retrieval_strategy=%s top_k=%s n_results=%s latency_retrieval_ms=%s "
             "latency_generation_ms=%s latency_total_ms=%s",
             request_id, index_version, qdrant_collection,
-            COLLECTION_NAME, retrieval_strategy, query.top_k, graph_result.get("count", 0),
+            project.collection_name, retrieval_strategy, query.top_k, graph_result.get("count", 0),
             latency_graph_ms, 0, latency_total_ms,
         )
         payload = {
             "status": "graph_answer",
             "graph_result": graph_result,
             "request_id": request_id,
-            "index_version": index_version,
+            "index_version": index_version, "project_id": project.id,
             # Stessa forma del ramo ibrido (vedi sotto): retrieval_ms = latenza di
             # graph_query, generation_ms = 0 (nessuna chiamata LLM in questo ramo).
             "latency": {
@@ -181,7 +185,8 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
     #     payload "success"). L'invalidazione è nella chiave: index_version cambia a ogni
     #     reindex/rollback e le voci vecchie non sono più consultate (core.ask_cache).
     cache_key = ask_cache.make_key(
-        index_version, retrieval_strategy, query.top_k, query.bfs_depth, query.question,
+        index_version, retrieval_strategy, query.top_k, query.bfs_depth, query.question, project_id=project.id,
+        project_settings=project.settings,
     )
     cached = _cache_get(request.app, cache_key)
     if cached is not None:
@@ -194,7 +199,7 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
             "retrieval_strategy=%s top_k=%s n_results=%s latency_retrieval_ms=%s "
             "latency_generation_ms=%s latency_total_ms=%s cached=true",
             request_id, index_version, qdrant_collection,
-            COLLECTION_NAME, retrieval_strategy, query.top_k,
+            project.collection_name, retrieval_strategy, query.top_k,
             len(cached.get("qdrant_scores", [])), 0, 0, latency_total_ms,
         )
         # request_id, latenze ed elaboration_seconds sono di QUESTA richiesta (quelli
@@ -208,7 +213,7 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
             "latency": {"retrieval_ms": 0, "generation_ms": 0, "total_ms": latency_total_ms},
         }
         await _emit(emit, {
-            "type": "meta", "request_id": request_id, "index_version": index_version,
+            "type": "meta", "request_id": request_id, "index_version": index_version, "project_id": project.id,
             "qdrant_collection": qdrant_collection, "retrieval_strategy": retrieval_strategy,
             "cached": True, "streaming_native": False,
         })
@@ -218,7 +223,7 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
 
     stream_resolved = llm.resolve_stream("ask") if emit is not None else None
     await _emit(emit, {
-        "type": "meta", "request_id": request_id, "index_version": index_version,
+        "type": "meta", "request_id": request_id, "index_version": index_version, "project_id": project.id,
         "qdrant_collection": qdrant_collection, "retrieval_strategy": retrieval_strategy,
         "cached": False,
         "streaming_native": stream_resolved[2] if stream_resolved is not None else False,
@@ -241,7 +246,7 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
         retrieval.hybrid_search, query.question, query.top_k,
         qdrant=qdrant, embed_model=embed_model, colbert_store=snap.colbert_store,
         collection_name=collection, query_encoding=query_encoding,
-        graph=graph, restatements=snap.restatements,
+        graph=graph, restatements=snap.restatements, project=project,
     )
 
     # 2b. Ricerca semantica DIRETTA sul codice, indipendente dai documenti recuperati: il
@@ -252,8 +257,8 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
     #     l'elenco dei campi, gli helper — restavano invisibili alla risposta.
     code_hits = await run_in_threadpool_until_complete(
         retrieval.search_code_symbols, query_encoding["dense"], snap.code_store,
-        max_snippets=CODE_SEARCH_MAX_SNIPPETS, min_score=CODE_SEARCH_MIN_SCORE,
-        max_per_file=CODE_SEARCH_MAX_PER_FILE,
+        max_snippets=retrieval_settings.get("code_search_max_snippets", CODE_SEARCH_MAX_SNIPPETS), min_score=retrieval_settings.get("code_search_min_score", CODE_SEARCH_MIN_SCORE),
+        max_per_file=retrieval_settings.get("code_search_max_per_file", CODE_SEARCH_MAX_PER_FILE),
         code_ids=snap.code_ids, code_matrix=snap.code_matrix,
     ) if query_encoding is not None else []
     latency_retrieval_ms = round((time.time() - retrieval_start) * 1000, 2)
@@ -266,7 +271,7 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
             "graph_context": {},
             "qdrant_scores": [],
             "request_id": request_id,
-            "index_version": index_version,
+            "index_version": index_version, "project_id": project.id,
         }
 
     # 3. Nodi seed nel grafo dai risultati (documenti padre dei chunk, deduplicati
@@ -285,14 +290,14 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
                 for r in search_results
             ],
             "request_id": request_id,
-            "index_version": index_version,
+            "index_version": index_version, "project_id": project.id,
         }
 
     # Precedenze effettivamente in gioco fra i documenti recuperati (S4): stesse coppie che
     # hanno riordinato il ranking dentro hybrid_search, rilette qui per dichiararle nel prompt
     # e nella risposta. Riordinare in silenzio sarebbe metà del lavoro: chi legge la dashboard
     # deve poter vedere PERCHÉ un documento è sceso.
-    precedenze = retrieval.precedence_pairs(search_results, graph=graph)
+    precedenze = retrieval.precedence_pairs(search_results, graph=graph, project=project)
 
     # 4a. Espansione BFS per il GRAFO (usa sempre depth >= 1 per la visualizzazione).
     #     trust_paths è la stessa visita di bfs_expand con, in più, la fiducia nel cammino
@@ -363,13 +368,19 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
 
     # Fallback legacy: senza sidecar dei chunk, inietta i documenti seed (col cap per blocco)
     if not context_parts:
-        if ROLE == "reader" and search_results:
+        if (ROLE == "reader" or not project.legacy) and search_results:
             raise HTTPException(
                 status_code=503,
                 detail="Testo dei chunk assente dallo snapshot immutabile.",
             )
         for doc_id in seed_nodes:
-            doc_path = PROJECT_ROOT / "docs" / doc_id
+            try:
+                docs_root = _unlinked(project.docs_dir)
+                doc_path = _unlinked(project.docs_dir / doc_id)
+                if not doc_path.is_relative_to(docs_root):
+                    raise ValueError("Document path escapes project docs")
+            except (ProjectError, ValueError) as exc:
+                raise HTTPException(503, detail="Invalid document path in index") from exc
             if doc_path.exists():
                 context_parts.append(f"--- Inizio Documento: {doc_id} ---\n{_cap_text(doc_path.read_text(encoding='utf-8'))}\n--- Fine Documento: {doc_id} ---")
 
@@ -383,7 +394,7 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
     # principale, questo è il complemento strutturale. I blocchi sono MARCATI "via grafo"
     # perché quelle sezioni non hanno matchato la domanda - sono arrivate da un legame
     # dichiarato, e l'LLM (o chi legge un dump del prompt in debug) deve poterlo distinguere.
-    if GRAPH_CONTEXT_MAX_CHUNKS > 0 and chunks_store:
+    if retrieval_settings.get("graph_context_max_chunks", GRAPH_CONTEXT_MAX_CHUNKS) > 0 and chunks_store:
         # Un nodo `document` non ha testo proprio: si iniettano le sue sezioni. Fino a S6
         # l'ordine era `fiducia × autorità` PER NODO, e la pertinenza sceglieva solo DENTRO
         # al documento vincente: il budget finiva sistematicamente sui preamboli della fonte
@@ -402,7 +413,7 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
 
         def _peso_grafo(node_id: str) -> float:
             attrs = graph.nodes[node_id] if node_id in graph else {}
-            return trust_by_node[node_id]["trust"] * retrieval._authority_weight(attrs)
+            return trust_by_node[node_id]["trust"] * retrieval._authority_weight(attrs, project=project)
 
         # Solo i nodi RAGGIUNTI, mai i seed: quelli sono già nel ramo semantico. Da S6 questo
         # ordine NON decide più cosa entra — lo decide la graduatoria composita più sotto —
@@ -419,15 +430,15 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
         superati = {b for _a, b in retrieval.precedence_pairs(
             [{"doc_id": d} for d in dict.fromkeys(
                 [r.get("doc_id") for r in search_results] + raggiunti)],
-            graph=graph)}
+            graph=graph, project=project)}
 
         # Pavimento di pertinenza RELATIVO al miglior punteggio di questa domanda: il MaxSim
         # ColBERT cambia scala da query a query, quindi una soglia assoluta scarterebbe
         # risposte corrette sulle domande che "scorano basso". 0.0 = nessun pavimento.
         punteggi_semantici = [r["colbert_score"] for r in search_results
                               if r.get("colbert_score") is not None]
-        pavimento = (GRAPH_CONTEXT_MIN_RATIO * max(punteggi_semantici)
-                     if punteggi_semantici and GRAPH_CONTEXT_MIN_RATIO > 0 else 0.0)
+        pavimento = (retrieval_settings.get("graph_context_min_ratio", GRAPH_CONTEXT_MIN_RATIO) * max(punteggi_semantici)
+                     if punteggi_semantici and retrieval_settings.get("graph_context_min_ratio", GRAPH_CONTEXT_MIN_RATIO) > 0 else 0.0)
 
         # Da quale nodo raggiunto arriva ogni sezione candidata: serve SOLO all'intestazione
         # (hop e fiducia del cammino), non all'ordinamento. A parità di sezione vince il
@@ -478,8 +489,8 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
         # aveva appena guadagnato — e con lui il `409` nella risposta.
         def _composito(cid: str, pertinenza: float) -> float:
             attrs_doc = graph.nodes.get(chunks_store[cid].get("doc_id", ""), {})
-            peso = retrieval._authority_weight(attrs_doc)
-            moltiplicatore = (1 - AUTHORITY_BOOST_ALPHA) + AUTHORITY_BOOST_ALPHA * peso
+            peso = retrieval._authority_weight(attrs_doc, project=project)
+            moltiplicatore = (1 - authority_settings.get("boost_alpha", AUTHORITY_BOOST_ALPHA)) + authority_settings.get("boost_alpha", AUTHORITY_BOOST_ALPHA) * peso
             return pertinenza * trust_by_node[provenienza[cid]]["trust"] * moltiplicatore
 
         graduatoria = retrieval.rank_sections_by_relevance(
@@ -491,7 +502,7 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
         valutabili = [(cid, p) for cid, p in graduatoria if p is not None]
         valutabili.sort(key=lambda voce: -_composito(*voce))
         for cid, punteggio in valutabili + [(cid, p) for cid, p in graduatoria if p is None]:
-            if len(context_parts) - n_parti_semantiche >= GRAPH_CONTEXT_MAX_CHUNKS:
+            if len(context_parts) - n_parti_semantiche >= retrieval_settings.get("graph_context_max_chunks", GRAPH_CONTEXT_MAX_CHUNKS):
                 break
             entry = chunks_store.get(cid)
             if entry is None:
@@ -503,7 +514,7 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
             # blocchi etichettati si legge come "fonte senza classe", che è un'altra cosa.
             attrs_doc = graph.nodes.get(entry.get("doc_id", ""), {})
             fonti_nel_contesto.append(
-                {**attrs_doc, "authority": retrieval._authority_weight(attrs_doc)})
+                {**attrs_doc, "authority": retrieval._authority_weight(attrs_doc, project=project)})
             context_parts.append(
                 f"--- {entry.get('doc_id', cid)} § {entry.get('section', '')} "
                 f"[{retrieval.source_label(attrs_doc)}; via grafo: {info['hops']} hop, "
@@ -541,24 +552,24 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
     code_anchor_nodes: list[str] = sorted(fiducia_ancore, key=lambda n: -fiducia_ancore[n])
     linked_code = retrieval.collect_implementing_code(
         graph, snap.code_store, code_anchor_nodes,
-        min_weight=CODE_CONTEXT_MIN_WEIGHT, max_snippets=CODE_CONTEXT_MAX_SNIPPETS,
+        min_weight=retrieval_settings.get("code_context_min_weight", CODE_CONTEXT_MIN_WEIGHT), max_snippets=retrieval_settings.get("code_context_max_snippets", CODE_CONTEXT_MAX_SNIPPETS),
     )
     # Il ponte sceglie per prossimità nel grafo: su una domanda che non parla di codice
     # inietterebbe comunque il suo tetto. Stesso pavimento di pertinenza alla domanda del
     # ramo semantico, ristretto ai simboli del ponte (0.0 = disattivato).
-    if CODE_LINK_MIN_QUESTION_SCORE > 0 and linked_code and query_encoding is not None:
+    if retrieval_settings.get("code_link_min_question_score", CODE_LINK_MIN_QUESTION_SCORE) > 0 and linked_code and query_encoding is not None:
         linked_code, scartati_ponte = await run_in_threadpool_until_complete(
             retrieval.filter_linked_code_by_question, linked_code, query_encoding["dense"],
-            snap.code_store, min_score=CODE_LINK_MIN_QUESTION_SCORE,
+            snap.code_store, min_score=retrieval_settings.get("code_link_min_question_score", CODE_LINK_MIN_QUESTION_SCORE),
             code_ids=snap.code_ids, code_matrix=snap.code_matrix)
         if scartati_ponte:
             logger.info("ask code_link_filter request_id=%s soglia=%s tenuti=%d scartati=%s",
-                        request_id, CODE_LINK_MIN_QUESTION_SCORE, len(linked_code),
+                        request_id, retrieval_settings.get("code_link_min_question_score", CODE_LINK_MIN_QUESTION_SCORE), len(linked_code),
                         ",".join(c["symbol_id"] for c in scartati_ponte))
     # Priorità al ramo semantico: è ordinato per pertinenza alla domanda, mentre il ponte
     # ordina per somiglianza codice→spec. Dedup per simbolo e tetto complessivo.
     implementing_code = retrieval.merge_code_context(
-        code_hits, linked_code, max_snippets=CODE_CONTEXT_TOTAL_SNIPPETS,
+        code_hits, linked_code, max_snippets=retrieval_settings.get("code_context_total_snippets", CODE_CONTEXT_TOTAL_SNIPPETS),
     )
     if implementing_code:
         code_block = "\n\n".join(
@@ -575,7 +586,7 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
     #    d'errore dentro "answer" con status "success".
     start_time = time.time()
     prompt = retrieval.build_ask_prompt(
-        context, query.question, precedences=precedenze,
+        f"PROJECT_ID: {project.id}\n{context}", query.question, precedences=precedenze,
         authority_classes=retrieval.authority_scale(fonti_nel_contesto),
     )
     runtime = ask_runtime_for_app(request.app)
@@ -628,7 +639,7 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
         "ask request_id=%s index_version=%s qdrant_collection=%s qdrant_alias=%s "
         "retrieval_strategy=%s top_k=%s n_results=%s latency_retrieval_ms=%s "
         "latency_generation_ms=%s latency_total_ms=%s abstained=%s",
-        request_id, index_version, qdrant_collection, COLLECTION_NAME,
+        request_id, index_version, qdrant_collection, project.collection_name,
         retrieval_strategy, query.top_k, len(search_results),
         latency_retrieval_ms, latency_generation_ms, latency_total_ms, astenuta,
     )
@@ -644,7 +655,7 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
         "cached": False,
         "elaboration_seconds": elaborazione_secondi,
         "request_id": request_id,
-        "index_version": index_version,
+        "index_version": index_version, "project_id": project.id,
         # Stessi valori già loggati sopra (M3 observability), esposti anche in risposta
         # così scripts/bench.py può misurare il breakdown senza fare parsing dei log.
         "latency": {
@@ -667,7 +678,7 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
         # Precedenze DICHIARATE fra i documenti recuperati che hanno riordinato il ranking
         # (vuoto quasi sempre: è il caso raro di due fonti in conflitto esplicito).
         "precedences": [{"prevailing": a, "superseded": b,
-                         "relation": AUTHORITY_PRECEDENCE_RELATION} for a, b in precedenze],
+                         "relation": authority_settings.get("precedence_relation", AUTHORITY_PRECEDENCE_RELATION)} for a, b in precedenze],
         # Codice iniettato nel contesto via archi IMPLEMENTS (vuoto se il grafo non ha
         # ancora simboli linkati alle sezioni recuperate): trasparenza su cosa ha visto l'LLM.
         "implementing_code": implementing_code,
@@ -758,7 +769,7 @@ async def ask_rag(request: Request, query: AskQuery):
             headers={"Retry-After": "1"},
         )
     try:
-        resources = await _ask_resources()
+        resources = await _ask_resources(get_project(request))
     except Exception:
         runtime.release()
         raise
@@ -777,6 +788,7 @@ async def ask_rag(request: Request, query: AskQuery):
 
 @router.get("/api/retrieve")
 async def api_retrieve(
+    request: Request,
     q: str = Query(min_length=1, max_length=4000),
     k: int = Query(default=5, ge=1, le=50),
     include_text: bool = Query(default=False),
@@ -796,22 +808,23 @@ async def api_retrieve(
     quelli vecchi, e il ranking esce da uno stato MISTO. Il danno non è teorico: è proprio
     questa la route su cui gira eval.run, cioè lo strumento con cui si decide se una modifica
     ha migliorato o peggiorato il sistema — e lo sbaglio era silenzioso, con numeri plausibili."""
-    await run_in_threadpool(maybe_reload_graph)
-    snap = current_snapshot()
+    project = get_project(request)
+    snap = await run_in_threadpool(require_snapshot, project)
+    await run_in_threadpool(ensure_shared_resources)
     if state.get("qdrant") is None or state.get("embed_model") is None or snap is None:
         raise HTTPException(status_code=503, detail="Indice non ancora pronto.")
-    collection = snap.collection_name or qdrant_collection_for_version(snap.version)
+    collection = snap.collection_name or qdrant_collection_for_version(snap.version, project=project)
     if collection == "unknown":
         if isinstance(snap.version, str) and snap.version != "legacy":
             raise HTTPException(status_code=503, detail="Collection dello snapshot non disponibile.")
-        collection = COLLECTION_NAME  # layout flat precedente al blue/green
+        collection = project.collection_name  # layout flat precedente al blue/green
     results = await embed_in_threadpool(
         retrieval.hybrid_search, q, k,
         qdrant=state["qdrant"], embed_model=state["embed_model"], colbert_store=snap.colbert_store,
         collection_name=collection,
         # Stesso ranking della produzione, precedenza e peso di sezione compresi: eval.run
         # misura QUESTO, ed e' l'unico modo perche' il numero che ne esce voglia dire qualcosa.
-        graph=snap.graph, restatements=snap.restatements,
+        graph=snap.graph, restatements=snap.restatements, project=project,
     )
     if include_text:
         enriched = []
@@ -824,7 +837,7 @@ async def api_retrieve(
                              "text": text[:text_max_chars], "text_chars": len(text),
                              "text_truncated": len(text) > text_max_chars})
         results = enriched
-    return {"query": q, "k": k, "results": results, "index_version": snap.version,
+    return {"query": q, "k": k, "results": results, "index_version": snap.version, "project_id": project.id,
             "limits": {"k": k, "text_max_chars": text_max_chars if include_text else None,
                        "exhaustive": False}}
 
@@ -846,7 +859,8 @@ async def api_retrieve(
 # Nessun LLM e nessuna query a Qdrant: una forward pass di bge-m3 sulla domanda e un prodotto
 # matriciale in memoria. È l'unico endpoint di ricerca che non tocca la rete.
 # ---------------------------------------------------------------------------
-def _code_hit_view(hit: dict, *, with_snippet: bool) -> dict:
+def _code_hit_view(hit: dict, *, with_snippet: bool,
+                   snippet_chars: int = CODE_SEARCH_API_SNIPPET_CHARS) -> dict:
     """Voce di risposta di /api/code/search: la forma di retrieval._code_entry meno ciò che
     all'agente non serve per decidere quale file aprire. `source` cade (qui è sempre
     "semantic"), `implements` resta solo se il linking l'ha calcolata, `text` solo su richiesta
@@ -863,10 +877,10 @@ def _code_hit_view(hit: dict, *, with_snippet: bool) -> dict:
         view["implements"] = hit["implements"]
     if with_snippet:
         text = str(hit.get("text") or "")
-        view["text_truncated"] = len(text) > CODE_SEARCH_API_SNIPPET_CHARS
+        view["text_truncated"] = len(text) > snippet_chars
         view["text_chars"] = len(text)
-        view["text"] = (text[:CODE_SEARCH_API_SNIPPET_CHARS].rstrip() + " …"
-                        if len(text) > CODE_SEARCH_API_SNIPPET_CHARS else text)
+        view["text"] = (text[:snippet_chars].rstrip() + " …"
+                        if len(text) > snippet_chars else text)
     return view
 
 
@@ -885,6 +899,7 @@ def _files_digest(hits: list[dict]) -> list[dict]:
 
 @router.get("/api/code/search")
 async def api_code_search(
+    request: Request,
     q: str = Query(min_length=1, max_length=2000),
     k: int = Query(default=8, ge=1, le=CODE_SEARCH_API_MAX_K),
     dev_type: str = Query(default="", max_length=64),
@@ -903,15 +918,23 @@ async def api_code_search(
     La risposta NON è una fonte di verità sul contenuto dei file: è uno snapshot dell'ultima
     indicizzazione e serve solo a scegliere cosa leggere. `index_version` dice su quale versione
     dell'indice è stata calcolata."""
-    await run_in_threadpool(maybe_reload_graph)
-    snap = current_snapshot()
+    project = get_project(request)
+    settings = project.settings.get("retrieval", {})
+    k = min(k, max(1, settings.get("code_search_api_max_k", CODE_SEARCH_API_MAX_K)))
+    if "min_score" not in request.query_params:
+        min_score = settings.get("code_search_min_score", min_score)
+    if "max_per_file" not in request.query_params:
+        max_per_file = settings.get("code_search_max_per_file", max_per_file)
+    snippet_chars = max(1, settings.get("code_search_api_snippet_chars", CODE_SEARCH_API_SNIPPET_CHARS))
+    snap = await run_in_threadpool(require_snapshot, project)
+    await run_in_threadpool(ensure_shared_resources)
     embed_model: BGEM3FlagModel = state.get("embed_model")
     if snap is None or embed_model is None:
         raise HTTPException(status_code=503, detail="Indice non ancora pronto.")
 
-    base = {"query": q, "k": k, "dev_type": dev_type, "index_version": snap.version,
+    base = {"query": q, "k": k, "dev_type": dev_type, "index_version": snap.version, "project_id": project.id,
             "limits": {"k": k, "min_score": min_score, "max_per_file": max_per_file,
-                       "snippet_chars": CODE_SEARCH_API_SNIPPET_CHARS if snippet else None,
+                       "snippet_chars": snippet_chars if snippet else None,
                        "exhaustive": False}}
 
     # Nessun simbolo indicizzato: risposta esplicita invece di un elenco vuoto ambiguo — la
@@ -942,5 +965,5 @@ async def api_code_search(
         **base,
         "count": len(hits),
         "files": _files_digest(hits),
-        "results": [_code_hit_view(h, with_snippet=snippet) for h in hits],
+        "results": [_code_hit_view(h, with_snippet=snippet, snippet_chars=snippet_chars) for h in hits],
     }

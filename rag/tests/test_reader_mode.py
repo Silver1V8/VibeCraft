@@ -69,10 +69,10 @@ def test_reader_richiede_api_key_anche_loopback_e_ignora_xff(monkeypatch):
     graph.add_node("doc.md", type="document")
     monkeypatch.setattr(deps, "ROLE", "reader")
     monkeypatch.setattr(deps, "API_KEY", "reader-secret")
-    monkeypatch.setattr(routes_graph, "maybe_reload_graph", lambda: None)
     monkeypatch.setitem(deps.state, "snapshot", deps.IndexSnapshot(
         graph, {}, {}, {}, {}, "v1", [], None, collection_name="physical-v1",
     ))
+    monkeypatch.setattr(routes_graph, "require_snapshot", lambda project: deps.current_snapshot())
     app = FastAPI()
     app.include_router(routes_graph.router)
     client = TestClient(app, client=("127.0.0.1", 1234))
@@ -118,9 +118,9 @@ def _patch_reader_boot(monkeypatch, tmp_path, artifacts):
     monkeypatch.setattr(deps, "DATABASE_DIR", tmp_path)
     monkeypatch.setattr(deps, "BGEM3FlagModel", lambda *_a, **_k: object())
     monkeypatch.setattr(deps, "QdrantClient", lambda *_a, **_k: _Qdrant())
-    monkeypatch.setattr(deps, "manifest_path", lambda version=None:
+    monkeypatch.setattr(deps, "manifest_path", lambda version=None, project=None:
                         tmp_path / "versions" / str(version) / "index_manifest.json")
-    monkeypatch.setattr(deps, "artifact_hashes", lambda version=None: {})
+    monkeypatch.setattr(deps, "artifact_hashes", lambda version=None, project=None: {})
     calls = []
 
     def load(**kwargs):
@@ -128,11 +128,13 @@ def _patch_reader_boot(monkeypatch, tmp_path, artifacts):
         return artifacts
 
     monkeypatch.setattr(deps, "load_artifacts", load)
-    monkeypatch.setattr(deps, "reconcile_and_repair_qdrant_alias",
+    import core.indexing as indexing
+    from core import writer_lock
+    monkeypatch.setattr(indexing, "reconcile_and_repair_qdrant_alias",
                         lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("repair")))
-    monkeypatch.setattr(deps, "gc_orphaned_qdrant_collections",
+    monkeypatch.setattr(indexing, "gc_orphaned_qdrant_collections",
                         lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("gc")))
-    monkeypatch.setattr(deps, "writer_lock",
+    monkeypatch.setattr(writer_lock, "writer_lock",
                         lambda *_a, **_k: (_ for _ in ()).throw(AssertionError("lock")))
     return calls
 
@@ -151,14 +153,14 @@ def test_reader_lifespan_carica_snapshot_pinnato_senza_mutazioni(monkeypatch, tm
 
     async def run():
         async with deps.lifespan(FastAPI()):
-            captured["snapshot"] = deps.current_snapshot()
+            captured["snapshot"] = deps._load_index_snapshot()
 
     asyncio.run(run())
     after = {p.relative_to(tmp_path): hashlib.sha256(p.read_bytes()).hexdigest()
              for p in tmp_path.rglob("*") if p.is_file()
              and ".reader-locks" not in p.parts}
     assert before == after
-    assert calls == [{"required": ("graph", "colbert", "chunks"), "retain_lease": True}]
+    assert calls == [{"required": ("graph", "colbert", "chunks"), "retain_lease": True, "project": None}]
     snap = captured["snapshot"]
     assert snap.version_lease is lease
     assert snap.collection_name == manifest["qdrant_collection"]
@@ -177,7 +179,7 @@ def test_reader_boot_rifiuta_bundle_con_chunk_mancante(monkeypatch, tmp_path):
 
     async def run():
         async with deps.lifespan(FastAPI()):
-            pass
+            deps._load_index_snapshot()
 
     with pytest.raises(RuntimeError, match="ColBERT e chunks"):
         asyncio.run(run())
@@ -193,11 +195,11 @@ def test_reader_boot_rifiuta_hash_artefatti_non_coerenti(monkeypatch, tmp_path):
         chunks_store={"c": {"text": "x"}}, version="v1", version_lease=lease,
     )
     _patch_reader_boot(monkeypatch, tmp_path, artifacts)
-    monkeypatch.setattr(deps, "artifact_hashes", lambda version=None: {"chunks.json": "changed"})
+    monkeypatch.setattr(deps, "artifact_hashes", lambda version=None, project=None: {"chunks.json": "changed"})
 
     async def run():
         async with deps.lifespan(FastAPI()):
-            pass
+            deps._load_index_snapshot()
 
     with pytest.raises(RuntimeError, match="hash degli artefatti"):
         asyncio.run(run())
@@ -224,11 +226,11 @@ def test_reader_boot_rifiuta_layout_non_immutabile(
 
     async def run():
         async with deps.lifespan(FastAPI()):
-            pass
+            deps._load_index_snapshot()
 
     with pytest.raises(RuntimeError):
         asyncio.run(run())
-    assert lease.closed is marker
+    assert lease.closed is True
 
 
 def test_reader_boot_senza_api_key_fallisce_prima_delle_risorse(monkeypatch, tmp_path):
@@ -263,9 +265,9 @@ def test_reader_reload_atomico_trattiene_lease_e_degrada_su_candidato_incompleto
         _reader_manifest(tmp_path, version)
     monkeypatch.setattr(deps, "ROLE", "reader")
     monkeypatch.setattr(deps, "DATABASE_DIR", tmp_path)
-    monkeypatch.setattr(deps, "manifest_path", lambda version=None:
+    monkeypatch.setattr(deps, "manifest_path", lambda version=None, project=None:
                         tmp_path / "versions" / str(version) / "index_manifest.json")
-    monkeypatch.setattr(deps, "artifact_hashes", lambda version=None: {})
+    monkeypatch.setattr(deps, "artifact_hashes", lambda version=None, project=None: {})
     monkeypatch.setattr(deps, "_graph_version", lambda: "v3")
 
     def bundle(version, lease, *, complete=True):
@@ -367,8 +369,7 @@ def test_semantic_map_route_usa_collection_fisica_dello_snapshot(monkeypatch):
     graph = nx.DiGraph()
     snap = deps.IndexSnapshot(graph, {}, {}, {}, {}, "v1", [], None,
                               collection_name="physical-v1")
-    monkeypatch.setattr(routes_graph, "maybe_reload_graph", lambda: None)
-    monkeypatch.setattr(routes_graph, "current_snapshot", lambda: snap)
+    monkeypatch.setattr(routes_graph, "require_snapshot", lambda project: snap)
     monkeypatch.setitem(deps.state, "qdrant", object())
     seen = {}
 
@@ -382,3 +383,6 @@ def test_semantic_map_route_usa_collection_fisica_dello_snapshot(monkeypatch):
     response = TestClient(app, client=("127.0.0.1", 1)).get("/api/graph/semantic-map")
     assert response.status_code == 200
     assert seen["collection"] == "physical-v1"
+
+
+pytestmark = pytest.mark.usefixtures("legacy_http_project")

@@ -1,288 +1,89 @@
-"""Test del lifespan del server (api.deps.lifespan): S8 del piano blue/green Qdrant
-collega al boot, PRE-SERVING, sia la riconciliazione riparatrice dell'alias
-(reconcile_and_repair_qdrant_alias) sia il GC delle collection orfane
-(gc_orphaned_qdrant_collections) — mai un motivo di fallimento del boot. Le risorse
-pesanti (modello di embedding, Qdrant, artefatti) sono tutte finte: nessun
-GPU/rete/disco reale.
-
-F2: entrambe girano sotto il writer lock cross-processo, per non GC-are al boot la
-candidata di una build CLI ancora in corso (manifest non ancora su disco). Se il lock
-è occupato, si saltano ma il boot completa comunque (vedi i due test dedicati in fondo
-al file)."""
+"""Lazy lifespan: shell availability, resource ownership and snapshot release."""
 import asyncio
-import contextlib
 import gc
 import weakref
 
-import networkx as nx
+import pytest
 from fastapi import FastAPI
 
 from api import deps
-from core.artifacts import Artifacts
+from core.projects import ProjectRegistry
+from test_project_runtime import indexed
 
 
-class _FakeLifespanQdrant:
-    """Basta a soddisfare il lifespan: nessuna vera connessione, si chiude e basta."""
-    def __init__(self):
-        self.closed = False
-
-    def close(self):
-        self.closed = True
-
-
-def _patch_heavy_resources(monkeypatch, *, repair_result: dict, gc_result: list | None = None):
-    monkeypatch.setattr(deps, "BGEM3FlagModel", lambda *a, **k: object())
-    monkeypatch.setattr(deps, "QdrantClient", lambda *a, **k: _FakeLifespanQdrant())
-    monkeypatch.setattr(
-        deps, "load_artifacts",
-        lambda required=(), **_kwargs: Artifacts(graph=nx.DiGraph()),
-    )
-    monkeypatch.setattr(deps, "load_rule_descriptions", lambda: {})
-    monkeypatch.setattr(deps, "reconcile_and_repair_qdrant_alias", lambda qdrant: dict(repair_result))
-    monkeypatch.setattr(deps, "gc_orphaned_qdrant_collections", lambda qdrant: list(gc_result or []))
+@pytest.fixture
+def empty_runtime(monkeypatch):
+    from collections import OrderedDict
+    monkeypatch.setattr(deps, "_snapshots", OrderedDict())
+    monkeypatch.setattr(deps, "_project_states", {})
+    for key in ("snapshot", "embed_model", "qdrant"):
+        monkeypatch.setitem(deps.state, key, None)
 
 
-def _run_lifespan_once():
-    """Entra ed esce dal lifespan una volta, restituendo lo stato osservato a metà
-    (dentro il `yield`, quando il server sarebbe "pronto")."""
-    app = FastAPI()
-    captured = {}
+def test_lifespan_boot_never_touches_models_storage_or_qdrant(empty_runtime, monkeypatch):
+    from core import indexing
+    from core import writer_lock
 
-    async def _run():
-        async with deps.lifespan(app):
-            captured["qdrant"] = deps.state["qdrant"]
-            captured["snapshot"] = deps.state["snapshot"]
+    def forbidden(*args, **kwargs):
+        pytest.fail("Startup must not initialize resources or mutate project indexes")
 
-    asyncio.run(_run())
-    return captured
-
-
-def test_lifespan_boot_does_not_fail_with_legacy_alias_state(monkeypatch):
-    """Layout legacy (nessuna versione con qdrant_collection nel manifest): il boot
-    deve comunque completarsi, con lo stato alias solo osservato/loggato (nulla da
-    riparare)."""
-    original_state = dict(deps.state)
-    _patch_heavy_resources(
-        monkeypatch, repair_result={"state": "legacy", "expected": None, "actual": None, "repaired": False}
-    )
-    try:
-        captured = _run_lifespan_once()  # non deve sollevare
-        assert captured["qdrant"] is not None
-        assert captured["snapshot"] is not None
-    finally:
-        deps.state.clear()
-        deps.state.update(original_state)
-
-
-def test_lifespan_releases_boot_graph_after_reload_without_readers(monkeypatch):
-    original_state = dict(deps.state)
-    _patch_heavy_resources(monkeypatch, repair_result={"state": "legacy", "expected": None,
-                                                     "actual": None, "repaired": False})
-    versions = iter(("v1", "v2"))
-    monkeypatch.setattr(deps, "load_artifacts",
-                        lambda required=(), **_kwargs:
-                        Artifacts(graph=nx.DiGraph(), version=next(versions)))
+    for name in ("BGEM3FlagModel", "QdrantClient", "load_artifacts", "project_registry"):
+        monkeypatch.setattr(deps, name, forbidden)
+    monkeypatch.setattr(indexing, "reconcile_and_repair_qdrant_alias", forbidden)
+    monkeypatch.setattr(indexing, "gc_orphaned_qdrant_collections", forbidden)
+    monkeypatch.setattr(writer_lock, "writer_lock", forbidden)
 
     async def exercise():
         async with deps.lifespan(FastAPI()):
-            first = weakref.ref(deps.current_snapshot().graph)
-            assert deps.reload_index_state() == "v2"
+            assert deps.state["qdrant"] is None
+            assert deps.current_snapshot() is None
+
+    asyncio.run(exercise())
+
+
+def test_lifespan_releases_superseded_graph_without_readers(empty_runtime, tmp_path):
+    project = ProjectRegistry(tmp_path / "projects", bootstrap_legacy=False).create("A")
+    indexed(project, "A", "v1")
+
+    async def exercise():
+        async with deps.lifespan(FastAPI()):
+            first = weakref.ref(deps.require_snapshot(project).graph)
+            indexed(project, "B", "v2")
+            assert deps.reload_index_state(project) == "v2"
             gc.collect()
             assert first() is None
 
-    try:
-        asyncio.run(exercise())
-    finally:
-        deps.state.clear()
-        deps.state.update(original_state)
+    asyncio.run(exercise())
 
 
-def test_lifespan_boot_does_not_fail_when_alias_gets_repaired(monkeypatch):
-    """Uno stato 'diverging' riparato con successo (repaired=True, S8) resta comunque
-    solo informativo per il boot: nessun fallimento, il server continua a servire."""
-    original_state = dict(deps.state)
-    _patch_heavy_resources(
-        monkeypatch,
-        repair_result={"state": "diverging", "expected": "vibecraft_events__v2",
-                       "actual": "vibecraft_events__v1", "repaired": True},
-    )
-    try:
-        captured = _run_lifespan_once()
-        assert captured["qdrant"] is not None
-    finally:
-        deps.state.clear()
-        deps.state.update(original_state)
+def test_lifespan_closes_only_initialized_shared_client_even_on_error(empty_runtime, monkeypatch):
+    closed = []
+
+    class Client:
+        def close(self):
+            closed.append(True)
+
+    monkeypatch.setattr(deps, "QdrantClient", lambda **kwargs: Client())
+
+    async def exercise():
+        with pytest.raises(ValueError):
+            async with deps.lifespan(FastAPI()):
+                deps.ensure_shared_resources(embedding=False)
+                raise ValueError("application shutdown")
+        assert closed == [True]
+        assert deps.state["qdrant"] is None
+
+    asyncio.run(exercise())
 
 
-def test_lifespan_boot_does_not_fail_when_repair_declines_missing_collection(monkeypatch):
-    """La collection attesa non esiste più: il repair rifiuta la correzione
-    (repaired=False) ma il boot deve comunque completarsi senza sollevare."""
-    original_state = dict(deps.state)
-    _patch_heavy_resources(
-        monkeypatch,
-        repair_result={"state": "missing", "expected": "vibecraft_events__v-sparita",
-                       "actual": None, "repaired": False},
-    )
-    try:
-        captured = _run_lifespan_once()
-        assert captured["qdrant"] is not None
-    finally:
-        deps.state.clear()
-        deps.state.update(original_state)
+def test_shutdown_drops_snapshot_refs_without_closing_inflight_store(empty_runtime, tmp_path):
+    project = ProjectRegistry(tmp_path / "projects", bootstrap_legacy=False).create("A")
+    indexed(project, "A")
 
+    async def exercise():
+        async with deps.lifespan(FastAPI()):
+            snapshot = deps.require_snapshot(project)
+        assert not deps._snapshots
+        assert snapshot.colbert_store["same.md#1"].shape == (1, 2)
 
-def test_lifespan_reconciles_and_gcs_using_the_same_qdrant_client_stored_in_state(monkeypatch):
-    """Wiring: sia reconcile_and_repair_qdrant_alias sia gc_orphaned_qdrant_collections
-    devono ricevere lo STESSO client che finisce in state["qdrant"] (nessuna
-    connessione parallela creata solo per riconciliazione/GC)."""
-    original_state = dict(deps.state)
-    received = {}
-
-    def _spy_repair(qdrant):
-        received["repair_qdrant"] = qdrant
-        return {"state": "legacy", "expected": None, "actual": None, "repaired": False}
-
-    def _spy_gc(qdrant):
-        received["gc_qdrant"] = qdrant
-        return []
-
-    monkeypatch.setattr(deps, "BGEM3FlagModel", lambda *a, **k: object())
-    monkeypatch.setattr(deps, "QdrantClient", lambda *a, **k: _FakeLifespanQdrant())
-    monkeypatch.setattr(
-        deps, "load_artifacts",
-        lambda required=(), **_kwargs: Artifacts(graph=nx.DiGraph()),
-    )
-    monkeypatch.setattr(deps, "load_rule_descriptions", lambda: {})
-    monkeypatch.setattr(deps, "reconcile_and_repair_qdrant_alias", _spy_repair)
-    monkeypatch.setattr(deps, "gc_orphaned_qdrant_collections", _spy_gc)
-    try:
-        captured = _run_lifespan_once()
-        assert received["repair_qdrant"] is captured["qdrant"]
-        assert received["gc_qdrant"] is captured["qdrant"]
-    finally:
-        deps.state.clear()
-        deps.state.update(original_state)
-
-
-def test_lifespan_runs_repair_before_gc(monkeypatch):
-    """Ordine: la riparazione dell'alias avviene PRIMA del GC — un GC che leggesse
-    l'alias_target prima di una riparazione lo troverebbe ancora nello stato vecchio."""
-    original_state = dict(deps.state)
-    sequence: list[str] = []
-
-    def _spy_repair(qdrant):
-        sequence.append("repair")
-        return {"state": "legacy", "expected": None, "actual": None, "repaired": False}
-
-    def _spy_gc(qdrant):
-        sequence.append("gc")
-        return []
-
-    monkeypatch.setattr(deps, "BGEM3FlagModel", lambda *a, **k: object())
-    monkeypatch.setattr(deps, "QdrantClient", lambda *a, **k: _FakeLifespanQdrant())
-    monkeypatch.setattr(
-        deps, "load_artifacts",
-        lambda required=(), **_kwargs: Artifacts(graph=nx.DiGraph()),
-    )
-    monkeypatch.setattr(deps, "load_rule_descriptions", lambda: {})
-    monkeypatch.setattr(deps, "reconcile_and_repair_qdrant_alias", _spy_repair)
-    monkeypatch.setattr(deps, "gc_orphaned_qdrant_collections", _spy_gc)
-    try:
-        _run_lifespan_once()
-        assert sequence == ["repair", "gc"]
-    finally:
-        deps.state.clear()
-        deps.state.update(original_state)
-
-
-def test_lifespan_skips_reconcile_and_gc_when_writer_lock_busy(monkeypatch, caplog):
-    """F2: se il writer lock è occupato al boot (altro writer attivo, es. una build CLI
-    in corso il cui manifest non è ancora su disco), riconciliazione alias e GC vengono
-    saltati per questo avvio — ma il boot NON deve mai fallire né bloccarsi: il server
-    deve partire e servire in lettura, con l'alias non riconciliato che verrà sistemato
-    dal prossimo job o boot."""
-    original_state = dict(deps.state)
-    repair_calls: list = []
-    gc_calls: list = []
-
-    monkeypatch.setattr(deps, "BGEM3FlagModel", lambda *a, **k: object())
-    monkeypatch.setattr(deps, "QdrantClient", lambda *a, **k: _FakeLifespanQdrant())
-    monkeypatch.setattr(
-        deps, "load_artifacts",
-        lambda required=(), **_kwargs: Artifacts(graph=nx.DiGraph()),
-    )
-    monkeypatch.setattr(deps, "load_rule_descriptions", lambda: {})
-    monkeypatch.setattr(deps, "reconcile_and_repair_qdrant_alias",
-                        lambda qdrant: repair_calls.append(qdrant) or
-                        {"state": "legacy", "expected": None, "actual": None, "repaired": False})
-    monkeypatch.setattr(deps, "gc_orphaned_qdrant_collections",
-                        lambda qdrant: gc_calls.append(qdrant) or [])
-
-    @contextlib.contextmanager
-    def _busy_lock(timeout_seconds=5):
-        raise deps.WriterLockBusyError(
-            "writer lock occupato (test): pid=999 acquired_at=2026-01-01T00:00:00Z"
-        )
-        yield  # pragma: no cover — mai raggiunto, serve solo a rendere _busy_lock un generatore
-
-    monkeypatch.setattr(deps, "writer_lock", _busy_lock)
-
-    try:
-        with caplog.at_level("WARNING"):
-            captured = _run_lifespan_once()  # non deve sollevare né bloccarsi
-        assert captured["qdrant"] is not None
-        assert captured["snapshot"] is not None
-        assert not repair_calls  # reconcile_and_repair_qdrant_alias mai chiamata
-        assert not gc_calls  # gc_orphaned_qdrant_collections mai chiamata
-        assert any("writer attivo durante il boot" in rec.message.lower()
-                   for rec in caplog.records)
-    finally:
-        deps.state.clear()
-        deps.state.update(original_state)
-
-
-def test_lifespan_runs_reconcile_and_gc_inside_writer_lock(monkeypatch):
-    """Percorso normale (lock libero): riconciliazione e GC girano DENTRO il writer
-    lock acquisito al boot, non prima/dopo — è la garanzia F2 (nessun writer
-    concorrente durante il GC) a dipendere dall'ordine, non solo dalla presenza
-    della chiamata a writer_lock."""
-    original_state = dict(deps.state)
-    sequence: list[str] = []
-
-    class _SpyLock:
-        def __init__(self, timeout_seconds=5):
-            self.timeout_seconds = timeout_seconds
-
-        def __enter__(self):
-            sequence.append("lock_enter")
-            return self
-
-        def __exit__(self, *exc_info):
-            sequence.append("lock_exit")
-            return False
-
-    def _spy_repair(qdrant):
-        sequence.append("repair")
-        return {"state": "legacy", "expected": None, "actual": None, "repaired": False}
-
-    def _spy_gc(qdrant):
-        sequence.append("gc")
-        return []
-
-    monkeypatch.setattr(deps, "BGEM3FlagModel", lambda *a, **k: object())
-    monkeypatch.setattr(deps, "QdrantClient", lambda *a, **k: _FakeLifespanQdrant())
-    monkeypatch.setattr(
-        deps, "load_artifacts",
-        lambda required=(), **_kwargs: Artifacts(graph=nx.DiGraph()),
-    )
-    monkeypatch.setattr(deps, "load_rule_descriptions", lambda: {})
-    monkeypatch.setattr(deps, "reconcile_and_repair_qdrant_alias", _spy_repair)
-    monkeypatch.setattr(deps, "gc_orphaned_qdrant_collections", _spy_gc)
-    monkeypatch.setattr(deps, "writer_lock", _SpyLock)
-
-    try:
-        _run_lifespan_once()
-        assert sequence == ["lock_enter", "repair", "gc", "lock_exit"]
-    finally:
-        deps.state.clear()
-        deps.state.update(original_state)
+    asyncio.run(exercise())

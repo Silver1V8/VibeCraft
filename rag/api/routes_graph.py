@@ -1,49 +1,50 @@
 """Route di analisi del grafo: grafo completo, Impact Ripple, Semantic Map e query
 deterministica. Handler sottili: leggono lo stato, validano e delegano a core.graph_ops."""
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from qdrant_client import QdrantClient
 
-from api.deps import (current_snapshot, maybe_reload_graph, require_api_key,
+from api.deps import (get_project, require_snapshot, ensure_shared_resources, require_api_key,
                       run_in_threadpool_until_complete, state)
 from core import graph_ops
-from core.config import COLLECTION_NAME, ROLE
+from core.config import ROLE
 
 if ROLE != "reader":
     from core.canvas_review import canvas_quality_stats
-    from core.config import CHANGES_DIR
 
 router = APIRouter(dependencies=[Depends(require_api_key)])
 reader_router = APIRouter(dependencies=[Depends(require_api_key)])
 
 
 @router.get("/api/canvas-quality")
-async def canvas_quality(last_n: int = Query(default=10, ge=1, le=50)):
+async def canvas_quality(request: Request, last_n: int = Query(default=10, ge=1, le=50)):
     """Dati del pannello 'Canvas quality' (governance): trend del giudizio di fedeltà
     delle ultime N change archiviate e le divergenze canvas<->codice più frequenti,
     letti dalle canvas_review.md prodotte all'archive. Stessa auth X-API-Key delle
     altre route (dependency del router)."""
     return await run_in_threadpool_until_complete(
-        canvas_quality_stats, CHANGES_DIR / "archive", last_n,
+        canvas_quality_stats, get_project(request).changes_dir / "archive", last_n,
     )
 
 
 @reader_router.get("/api/graph/all")
 @router.get("/api/graph/all")
-async def get_full_graph():
+async def get_full_graph(request: Request):
     """Restituisce l'intero grafo statico (tutti i nodi e gli archi) in formato JSON."""
-    await run_in_threadpool(maybe_reload_graph)
-    snap = current_snapshot()
+    project = get_project(request)
+    snap = await run_in_threadpool(require_snapshot, project)
     if snap is None or snap.graph is None:
         raise HTTPException(status_code=503, detail="Grafo non ancora inizializzato.")
-    return await run_in_threadpool_until_complete(
+    result = await run_in_threadpool_until_complete(
         graph_ops.full_graph, snap.graph, snap.rule_descriptions,
     )
+    return {**result, "project_id": project.id, "index_version": snap.version}
 
 
 @reader_router.get("/api/graph/impact")
 @router.get("/api/graph/impact")
 async def graph_impact(
+    request: Request,
     node: str = Query(min_length=1),
     depth: int = Query(default=3, ge=1, le=6),
 ):
@@ -52,37 +53,41 @@ async def graph_impact(
     modifico questo nodo?' in modo deterministico (nessun LLM).
 
     Input validato: `node` non vuoto, `depth` in [1, 6] (evita BFS incontrollate)."""
-    await run_in_threadpool(maybe_reload_graph)
-    snap = current_snapshot()
+    project = get_project(request)
+    snap = await run_in_threadpool(require_snapshot, project)
     if snap is None or snap.graph is None:
         raise HTTPException(status_code=503, detail="Grafo non ancora inizializzato.")
     if node not in snap.graph:
         raise HTTPException(status_code=404, detail=f"Nodo non presente nel grafo: {node}")
-    return graph_ops.impact(snap.graph, node, depth)
+    return {**graph_ops.impact(snap.graph, node, depth),
+            "project_id": project.id, "index_version": snap.version}
 
 
 @reader_router.get("/api/graph/semantic-map")
 @router.get("/api/graph/semantic-map")
-async def graph_semantic_map():
+async def graph_semantic_map(request: Request):
     """Semantic Map: proietta i CHUNK (sezioni) in 2D per prossimità semantica (PCA via
     SVD sui vettori densi bge-m3 in Qdrant). Le community e i nodi 'ponte' sono calcolati
     a livello di documento padre (co-menzione di entità) e ereditati dai chunk; i duplicati
     sono sezioni molto simili appartenenti a documenti diversi. Solo numpy/networkx."""
-    await run_in_threadpool(maybe_reload_graph)
-    snap = current_snapshot()
+    project = get_project(request)
+    snap = await run_in_threadpool(require_snapshot, project)
+    await run_in_threadpool(ensure_shared_resources, embedding=False)
     qdrant: QdrantClient = state["qdrant"]
     if snap is None or snap.graph is None or qdrant is None:
         raise HTTPException(status_code=503, detail="Grafo/Qdrant non inizializzati.")
-    collection_name = snap.collection_name or COLLECTION_NAME
-    return await run_in_threadpool_until_complete(
+    collection_name = snap.collection_name or project.collection_name
+    result = await run_in_threadpool_until_complete(
         graph_ops.semantic_map, snap.graph, qdrant,
         collection_name=collection_name,
     )
+    return {**result, "project_id": project.id, "index_version": snap.version}
 
 
 @reader_router.get("/api/graph/query")
 @router.get("/api/graph/query")
 async def graph_query(
+    request: Request,
     q: str = Query(min_length=1, max_length=2000),
     target: str | None = Query(default=None, max_length=1000),
     limit: int | None = Query(default=None, ge=1, le=1000),
@@ -93,11 +98,12 @@ async def graph_query(
 
     `target` opzionale: nodo bersaglio esplicito (es. doc_id da un click sulla Semantic Map),
     così l'intent resta dedotto da `q` ma il nodo non dipende dal match testuale."""
-    await run_in_threadpool(maybe_reload_graph)
-    snap = current_snapshot()
+    project = get_project(request)
+    snap = await run_in_threadpool(require_snapshot, project)
     if snap is None or snap.graph is None:
         raise HTTPException(status_code=503, detail="Grafo non ancora inizializzato.")
     result = graph_ops.graph_query(q, snap.graph, target=target)
+    result.update(project_id=project.id, index_version=snap.version)
     if limit is None:
         return result
     # Budget condiviso fra gli elenchi: ordine e count originale restano intatti.

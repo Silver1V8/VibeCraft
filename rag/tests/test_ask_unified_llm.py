@@ -85,12 +85,11 @@ def ask_env(monkeypatch):
     """Factory di TestClient con la sola route /ask: stato del server (snapshot, qdrant,
     embed_model) e hybrid_search finti — sotto esame c'è solo il confine con l'LLM."""
     monkeypatch.setattr(deps, "API_KEY", None)
-    monkeypatch.setattr(routes_retrieval, "maybe_reload_graph", lambda: None)
 
     def _make(chunk_text: str = "testo della sezione", code_text: str = "export const x = 1",
               orphan_code_text: str | None = None):
         snap = _snapshot(chunk_text, code_text, orphan_code_text)
-        monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snap)
+        monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: snap)
         monkeypatch.setitem(deps.state, "qdrant", object())
         monkeypatch.setitem(deps.state, "embed_model", object())
         results = [{"chunk_id": _CHUNK_ID, "doc_id": "spec.md", "section": "form",
@@ -313,13 +312,13 @@ def _ask_col_ponte(ask_env, monkeypatch, soglia, vettore_ponte):
     prompts = []
     llm.register_provider("fake", lambda model, prompt, timeout: prompts.append(prompt) or "ok")
     client = ask_env(code_text=_BRIDGE_TEXT)
-    snap = routes_retrieval.current_snapshot()
+    snap = routes_retrieval.require_snapshot(None)
     if vettore_ponte is not None:
         store = {k: dict(v) for k, v in snap.code_store.items()}
         store[_BRIDGE]["dense"] = np.array(vettore_ponte, dtype=np.float16)
         ids, matrix = deps._prep_code_matrix(store)
         snap = dataclasses.replace(snap, code_store=store, code_ids=ids, code_matrix=matrix)
-        monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snap)
+        monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: snap)
     monkeypatch.setattr(routes_retrieval, "CODE_LINK_MIN_QUESTION_SCORE", soglia)
     r = client.post("/ask", json={"question": "quali vincoli ha il form?"})
     assert r.status_code == 200, r.text
@@ -360,3 +359,6 @@ def test_s2_soglia_zero_non_chiama_il_filtro(ask_env, fake_ask_settings, monkeyp
     monkeypatch.setattr(retrieval, "filter_linked_code_by_question", _vietato)
     prompt, _codice = _ask_col_ponte(ask_env, monkeypatch, 0.0, [0.0, 1.0, 0.0])
     assert _BRIDGE_TEXT in prompt
+
+
+pytestmark = pytest.mark.usefixtures("legacy_http_project")

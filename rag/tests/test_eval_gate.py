@@ -110,7 +110,7 @@ def test_evaluate_recall_propaga_graph_e_restatements_a_hybrid_search(monkeypatc
     captured = {}
 
     def _fake_hybrid_search(query, kk, *, qdrant, embed_model, colbert_store, collection_name,
-                            graph=None, restatements=frozenset()):
+                            graph=None, restatements=frozenset(), project=None):
         captured["graph"] = graph
         captured["restatements"] = restatements
         return []

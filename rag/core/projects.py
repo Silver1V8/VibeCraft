@@ -270,6 +270,10 @@ class ProjectRegistry:
     def list(self) -> list[ProjectContext]:
         return [self._context(record) for record in self._read()]
 
+    def records(self) -> list[dict]:
+        """Validated registry metadata, without opening individual project manifests."""
+        return self._read()
+
     def get(self, project_id: str) -> ProjectContext:
         validate_project_id(project_id)
         for record in self._read():

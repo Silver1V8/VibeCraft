@@ -71,7 +71,6 @@ def ask_env(monkeypatch, tmp_path):
     """TestClient sulla sola route /ask con contatori: calls["llm"] e calls["search"]
     contano le invocazioni del provider LLM finto e di hybrid_search."""
     monkeypatch.setattr(deps, "API_KEY", None)
-    monkeypatch.setattr(routes_retrieval, "maybe_reload_graph", lambda: None)
 
     calls = {"llm": 0, "search": 0}
 
@@ -86,7 +85,7 @@ def ask_env(monkeypatch, tmp_path):
 
     version = "v-m2"
     snap = _snapshot(version)
-    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snap)
+    monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: snap)
     monkeypatch.setitem(deps.state, "qdrant", object())
     monkeypatch.setitem(deps.state, "embed_model", _StubEmbed())
 
@@ -99,7 +98,7 @@ def ask_env(monkeypatch, tmp_path):
 
     manifest_file = tmp_path / f"manifest-{version}.json"
     manifest_file.write_text(json.dumps({"qdrant_collection": "vc__" + version}), encoding="utf-8")
-    monkeypatch.setattr(deps, "manifest_path", lambda v: manifest_file)
+    monkeypatch.setattr(deps, "manifest_path", lambda v, project=None: manifest_file)
 
     app = FastAPI()
     app.include_router(routes_retrieval.router)
@@ -181,3 +180,6 @@ def test_domanda_semantica_segue_il_percorso_ibrido(ask_env, caplog):
              if rec.name == "api.routes_retrieval" and rec.message.startswith("ask ")]
     assert len(lines) == 1
     assert "retrieval_strategy=hybrid" in lines[0]
+
+
+pytestmark = pytest.mark.usefixtures("legacy_http_project")

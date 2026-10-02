@@ -25,6 +25,7 @@ incluso), qualche decina di KB l'una: il default costa nell'ordine dei MB.
 Il modulo NON importa fastapi (core/ resta puro): di `app` usa solo l'attributo `state`.
 """
 import hashlib
+import json
 import logging
 import os
 import re
@@ -35,9 +36,9 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_ASK_CACHE_SIZE = 256
 
-# Chiave di cache: (index_version, strategia, top_k, bfs_depth, sha256 della domanda
-# normalizzata). Tutto ciò che cambia la risposta a parità di domanda è nella chiave.
-AskCacheKey = tuple[str, str, int, int, str]
+# Chiave: progetto, versione, strategia, top_k, bfs_depth, hash domanda e impostazioni.
+# Authority/retrieval possono cambiare senza promuovere un nuovo indice.
+AskCacheKey = tuple[str, str, str, int, int, str, str]
 
 _WHITESPACE_RE = re.compile(r"\s+")
 
@@ -61,7 +62,8 @@ def max_size_from_env() -> int:
 
 
 def make_key(index_version: str | float | None, retrieval_strategy: str,
-             top_k: int, bfs_depth: int, question: str) -> AskCacheKey:
+             top_k: int, bfs_depth: int, question: str, *, project_id: str = "legacy",
+             project_settings: dict | None = None) -> AskCacheKey:
     """Chiave della risposta a `question` sull'indice `index_version`.
 
     La domanda è normalizzata (trim, lowercase, spazi collassati) prima dell'hash SHA-256:
@@ -71,7 +73,10 @@ def make_key(index_version: str | float | None, retrieval_strategy: str,
     l'mtime float del grafo."""
     normalized = _WHITESPACE_RE.sub(" ", question.strip().lower())
     digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
-    return (str(index_version), retrieval_strategy, int(top_k), int(bfs_depth), digest)
+    # Settings are captured in the request's context, independently of CURRENT.
+    settings = {name: (project_settings or {}).get(name, {}) for name in ("authority", "retrieval")}
+    settings_digest = hashlib.sha256(json.dumps(settings, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    return (project_id, str(index_version), retrieval_strategy, int(top_k), int(bfs_depth), digest, settings_digest)
 
 
 class AskCache:

@@ -58,14 +58,13 @@ def client(monkeypatch):
     """TestClient sulla sola route, con encode_query finta (nessun caricamento di bge-m3):
     la domanda diventa il versore [1,0,0], così i punteggi attesi sono calcolabili a mano."""
     monkeypatch.setattr(deps, "API_KEY", None)
-    monkeypatch.setattr(routes_retrieval, "maybe_reload_graph", lambda: None)
     monkeypatch.setitem(deps.state, "embed_model", object())
     monkeypatch.setitem(deps.state, "qdrant", None)  # l'endpoint non deve toccarlo
     monkeypatch.setattr(retrieval, "encode_query",
                         lambda model, question: {"dense": np.array([1.0, 0.0, 0.0])})
 
     snap = _snapshot(_code_store())
-    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snap)
+    monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: snap)
 
     app = FastAPI()
     app.include_router(routes_retrieval.router)
@@ -170,7 +169,7 @@ def test_dev_type_inesistente_risponde_200_con_gli_ambiti_disponibili(client):
 def test_indice_senza_codice_lo_dichiara_invece_di_tornare_vuoto(monkeypatch, client):
     """'Non c'è codice nell'indice' e 'non c'è nulla di pertinente' richiedono all'agente
     due comportamenti diversi: la risposta li distingue."""
-    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: _snapshot({}))
+    monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: _snapshot({}))
     body = client.get("/api/code/search", params={"q": "ordine"}).json()
 
     assert body["count"] == 0 and body["results"] == []
@@ -178,9 +177,12 @@ def test_indice_senza_codice_lo_dichiara_invece_di_tornare_vuoto(monkeypatch, cl
 
 
 def test_senza_indice_pronto_risponde_503(monkeypatch, client):
-    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: None)
+    monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: None)
     assert client.get("/api/code/search", params={"q": "ordine"}).status_code == 503
 
 
 def test_query_vuota_rifiutata(client):
     assert client.get("/api/code/search", params={"q": ""}).status_code == 422
+
+
+pytestmark = pytest.mark.usefixtures("legacy_http_project")

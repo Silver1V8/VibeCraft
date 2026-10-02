@@ -75,7 +75,7 @@ def record_alert(level: str, message: str, *, path: Path | None = None, **detail
 def evaluate_recall(qdrant, embed_model, colbert_store: Mapping, *, k: int = EVAL_GATE_K,
                     cases: list[dict] | None = None,
                     collection_name: str = COLLECTION_NAME,
-                    graph=None, restatements=frozenset()) -> dict:
+                    graph=None, restatements=frozenset(), project: ProjectContext | None = None) -> dict:
     """Misura recall@k del retrieval sul golden set contro (qdrant, colbert_store) dati. Riusa il
     percorso di produzione (retrieval.hybrid_search) e la metrica (core.eval_metrics.evaluate), così
     il numero del gate coincide con quello di eval.run. recall=None se non ci sono casi.
@@ -99,7 +99,7 @@ def evaluate_recall(qdrant, embed_model, colbert_store: Mapping, *, k: int = EVA
     def _retrieve(query: str, kk: int) -> list[dict]:
         return retrieval.hybrid_search(query, kk, qdrant=qdrant, embed_model=embed_model,
                                        colbert_store=colbert_store, collection_name=collection_name,
-                                       graph=graph, restatements=restatements)
+                                       graph=graph, restatements=restatements, project=project)
 
     # TUTTI i k misurati, non solo quello del gate (R12). Le righe dello storico portano la
     # chiave del k in vigore quando furono scritte e `_series` seleziona per chiave ESATTA:
@@ -168,7 +168,7 @@ def gate_promotion(version: str, qdrant, embed_model, colbert_store: Mapping, *,
     try:
         res = evaluate_recall(qdrant, embed_model, colbert_store, k=k, cases=cases,
                               collection_name=collection_name,
-                              graph=graph, restatements=restatements)
+                              graph=graph, restatements=restatements, project=project)
     except Exception as exc:  # un gate che crasha NON deve bloccare un build: fail-open + warn
         _log(f"⚠️  Eval-gate non eseguito ({type(exc).__name__}: {exc}); fail-open, promozione consentita.")
         return {"passed": True, "skipped": "error", "error": str(exc), "version": version}

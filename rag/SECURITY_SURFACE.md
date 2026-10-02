@@ -2,7 +2,7 @@
 
 ## Superficie MCP locale (sessione 5, 2026-09-11)
 
-`mcp_server.py` espone **tre tool stdio**, distinti dalle **60 route HTTP** sotto:
+`mcp_server.py` espone **tre tool stdio**, distinti dalle **65 route HTTP** sotto:
 `vibecraft_retrieve` → GET `/api/retrieve`, `vibecraft_code_search` → GET
 `/api/code/search`, `vibecraft_graph_query` → GET `/api/graph/query`.
 Nessuna porta MCP, risorsa filesystem, prompt o tool aggiuntivo. Il confine di accesso
@@ -25,8 +25,9 @@ mantengono l'assenza del testo documentale e il grafo senza taglio.
 Esclusi `/ask`, shell, agent_bridge, pipeline agentica, intake/approve/reject/refine,
 scritture sul grafo, reindex, rollback e gestione collection. Spegnimento: non
 avviare o terminare il processo stdio; nessun flag o modifica dell'indice.
-Il boot ordinario del **backend HTTP** conserva le sue operazioni di riconciliazione
-alias e GC: è separato dalle tre letture e durante le prove richiede risorse isolate.
+Il boot del **backend HTTP** è lazy: non carica indici o modelli e non esegue
+riconciliazione alias o GC. La manutenzione resta nei percorsi espliciti di scrittura,
+indicizzazione e lifecycle CLI; le letture HTTP non riparano lo storage.
 
 Gli estratti restano privati: un client che li invia a un modello remoto oltrepassa
 il confine dei dati anche se usa stdio. Tale uso non è autorizzato da questa sessione.
@@ -58,16 +59,17 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
 
 ## Metodologia e conteggio
 
-- **Route registrate sui router: 60** — contate con `grep -c '^@router\.'` su
+- **Route registrate sui router: 65** — contate con `grep -c '^@router\.'` su
   `api/routes_*.py`:
   - `routes_pages.py` → 6
   - `routes_pipeline.py` → 24
   - `routes_reindex.py` → 5
   - `routes_retrieval.py` → 3
   - `routes_graph.py` → 5
-  - `routes_health.py` → 2
+  - `routes_health.py` → 3
+  - `routes_projects.py` → 4
   - `routes_intake.py` → 15
-- **La tabella §1 ha 60 righe numerate** (una per route registrata) → il conteggio
+- **La tabella §1 ha 65 righe numerate** (una per route registrata) → il conteggio
   coincide con il criterio di completezza. La numerazione segue l'ordine di
   `include_router` in [`server.py`](server.py), poi l'ordine originario nel file;
   le due nuove route del gate e, più tardi, `GET /api/pipeline/agent/runners` (riga 60,
@@ -265,7 +267,7 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
 
 ---
 
-## 1. Tabella completa delle route (60 righe)
+## 1. Tabella completa delle route (65 righe)
 
 Legenda **Body**: *assente* = nessun body dichiarato · *query/path* = solo parametri URL ·
 *JSON Pydantic* = modello con campi obbligatori · *JSON opz.* = `Request` grezza con
@@ -340,6 +342,12 @@ oltre a `require_api_key` del router.
 | 58 | GET | `/api/pipeline/gate` | require_api_key | query | Sì | read-only (ricalcola ammissibilità, decisioni e rilievi) | Basso | nessuna |
 | 59 | POST | `/api/pipeline/open-points/decision` | require_api_key **+ require_api_key_strict** | JSON Pydantic stretto | **No (strict)** | scrive decisione operatore e associazioni esplicite, non avvia l'agente | **Alto** | **strict** |
 | 60 | GET | `/api/pipeline/agent/runners` | require_api_key | assente | Sì | read-only (elenco runner disponibili — Claude/local/Codex/Cursor —, modalità e modelli; interroga Ollama `/api/tags` con timeout 2 s e il PATH per i binari: rivela i modelli locali installati e quali CLI sono presenti sul server, §5) | Basso | nessuna |
+
+| 61 | GET | `/api/health/live` | require_api_key | assente | Sì | read-only (liveness, indipendente da indice/registry/risorse) | Basso | nessuna |
+| 62 | GET | `/api/projects` | require_api_key | assente | Sì | read-only (metadata; root solo loopback con bind locale, nessun segreto/settings) | Basso | nessuna |
+| 63 | GET | `/api/projects/{project_id}` | require_api_key | path | Sì | read-only (metadata e stato indice del progetto richiesto) | Basso | nessuna |
+| 64 | POST | `/api/projects` | require_api_key | JSON Pydantic | No (preflight) | scrive registry e cartelle del nuovo UUID; reader rifiutato | Medio | **anti-x-site** |
+| 65 | POST | `/api/projects/register` | require_api_key | JSON Pydantic | No (preflight) | legge manifest di path host e scrive registry; reader rifiutato | Medio | **anti-x-site + local-bind** |
 
 ### Nota sulle route a corpo consegnabile — dove la dependency è l'UNICO controllo
 
@@ -441,7 +449,7 @@ mentre il ramo "come oggi" dia il 422 — la business logic non viene mai esegui
 | `test_not_cross_site_*` (3 test) | Semantica della dependency in isolamento: 403 su `cross-site`; passa con header assente, `same-origin`, `same-site`, `none`; passa con API key valida. |
 | `test_matrix_route_declares_anti_cross_site_dependency` | Introspezione: ognuna delle **22** route della matrice dichiara la dependency. |
 | `test_excluded_route_does_not_declare_anti_cross_site_dependency` | `agent/run`, `open-points/decision` e `canvas/dry-run` **non** la dichiarano (nessuna protezione "per eccesso", nessun indebolimento dello strict). |
-| **`test_every_post_route_is_classified`** | **Il verso che mancava.** Ogni POST registrato su uno qualsiasi dei 7 router deve stare nella matrice o fra le esclusioni, e nessuna riga può essere fantasma. È ciò che impedisce alla matrice di restare indietro rispetto al codice: senza, i 9 POST di intake sono entrati senza che nulla lo segnalasse. |
+| **`test_every_post_route_is_classified`** | **Il verso che mancava.** Ogni POST registrato su uno qualsiasi dei 8 router deve stare nella matrice o fra le esclusioni, e nessuna riga può essere fantasma. È ciò che impedisce alla matrice di restare indietro rispetto al codice: senza, i 9 POST di intake sono entrati senza che nulla lo segnalasse. |
 | `test_http_cross_site_post_rejected_with_403` | Wiring HTTP reale sulle 22 route: cross-site keyless ⇒ 403. |
 | `test_http_without_fetch_metadata_behaves_as_today` | Senza `Sec-Fetch-Site` ⇒ mai 403 (curl/webhook/browser legacy invariati). |
 | `test_http_same_origin_behaves_as_today` | `same-origin` (la dashboard keyless) ⇒ mai 403. |
@@ -566,11 +574,11 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
 
 ## Report finale
 
-- **Conteggio route registrate sui router: 60** (6 pages · 24 pipeline · 5 reindex ·
-  3 retrieval · 5 graph · 2 health · 15 intake) — **coincide** con le 60 righe della
+- **Conteggio route registrate sui router: 65** (6 pages · 24 pipeline · 5 reindex ·
+  3 retrieval · 5 graph · 3 health · 15 intake · 4 projects) — **coincide** con le 65 righe della
   tabella §1. Fuori conteggio: 2 route asset + 1 mount statico + 4 route di default
   FastAPI (Appendice A).
-- **POST: 25** — **22 protetti** da `require_not_cross_site_request`, 3 esclusi con
+- **POST: 27** — **24 protetti** da `require_not_cross_site_request`, 3 esclusi con
   motivazione (`agent/run` e `open-points/decision` già strict, `canvas/dry-run` read-only). Nessun POST non
   classificato: lo garantisce `test_every_post_route_is_classified`.
 - **Route mutanti individuate: 13** — `explore/save`, `canvas/generate`,
@@ -588,7 +596,7 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
   l'unico caso in cui una route smette di esistere invece di essere protetta: la loro
   utilità dipende dal fatto che server e utente siano la stessa macchina, quindi con un
   bind aperto non resta nulla da proteggere.
-- **Header `Host` validato su tutta l'app** (Fatto 9): trasversale alle 60 route e
+- **Header `Host` validato su tutta l'app** (Fatto 9): trasversale alle 65 route e
   all'Appendice A, chiude il DNS rebinding verso il bypass loopback e l'iniezione della
   chiave in `/pipeline`; host estranei solo tramite `VIBECRAFT_ALLOWED_HOSTS`.
 - **Anti-framing su tutta l'app** (Fatto 10): `X-Frame-Options: DENY` e

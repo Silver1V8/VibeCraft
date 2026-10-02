@@ -107,7 +107,7 @@ def _authority_weight(attrs: dict, *, weights: dict | None = None,
                       default: float = AUTHORITY_DEFAULT_WEIGHT,
                       decay: float = AUTHORITY_ARCHIVED_DECAY,
                       use_declared: bool = AUTHORITY_USE_DECLARED,
-                      unclassified: float = AUTHORITY_UNCLASSIFIED_WEIGHT) -> float:
+                      unclassified: float = AUTHORITY_UNCLASSIFIED_WEIGHT, project=None) -> float:
     """Peso di autorità in [0,1] del documento (attributi presenti sia nel payload Qdrant sia
     nel nodo del grafo). Risoluzione dal più specifico al più generico:
 
@@ -122,6 +122,13 @@ def _authority_weight(attrs: dict, *, weights: dict | None = None,
     Il decadimento per status archiviato si applica DOPO, a qualunque ramo: è ortogonale alla
     provenienza del peso base. Tutti i parametri sono iniettabili: usati così come sono dal
     retrieval (default da config) e con valori variati dal calibratore per la grid search."""
+    if project is not None:
+        authority = project.settings.get("authority", {})
+        weights = authority.get("class_weights", weights)
+        default = authority.get("default_weight", default)
+        decay = authority.get("archived_decay", decay)
+        use_declared = authority.get("use_declared", use_declared)
+        unclassified = authority.get("unclassified_weight", unclassified)
     weights = weights if weights is not None else AUTHORITY_CLASS_WEIGHTS
     base = _declared_authority(attrs) if use_declared else None
     if base is None:
@@ -232,7 +239,7 @@ def restates_only(text: str) -> bool:
     return bool(_CODICE_OVUNQUE.search(text)) and not _CODICE_IN_TITOLO.search(text)
 
 
-def restatement_sections(chunks: dict) -> frozenset[str]:
+def restatement_sections(chunks: dict, *, project=None) -> frozenset[str]:
     """Gli id dei chunk che riformulano invece di stabilire, dal sidecar dei chunk. Calcolata
     UNA volta per snapshot (167 regex, millisecondi) e non per richiesta; deriva dal testo,
     quindi non richiede una re-indicizzazione e funziona sugli indici già su disco."""
@@ -242,7 +249,7 @@ def restatement_sections(chunks: dict) -> frozenset[str]:
 
 def rank_by_authority(results: list[dict], *, alpha: float = AUTHORITY_BOOST_ALPHA,
                       restatements: Collection[str] = frozenset(),
-                      restatement_weight: float = SECTION_RESTATEMENT_WEIGHT) -> list[dict]:
+                      restatement_weight: float = SECTION_RESTATEMENT_WEIGHT, project=None) -> list[dict]:
     """Ordinamento finale con boost di autorità: il punteggio di rilevanza è modulato da
     (1-alpha + alpha*peso), così una fonte normativa risale rispetto a una informativa a
     parità di rilevanza. alpha=0 ignora del tutto l'autorità (ranking puramente semantico);
@@ -268,6 +275,11 @@ def rank_by_authority(results: list[dict], *, alpha: float = AUTHORITY_BOOST_ALP
     sola non può togliere di mezzo la sezione che riformula la regola invece di stabilirla.
     Vuoto = comportamento identico a prima, che è ciò che serve a chi chiama questa funzione
     senza il sidecar dei chunk sotto mano."""
+    if project is not None:
+        authority = project.settings.get("authority", {})
+        alpha = authority.get("boost_alpha", alpha)
+        restatement_weight = authority.get("section_restatement_weight", restatement_weight)
+
     def _mult(r: dict) -> float:
         peso_sezione = restatement_weight if r.get("chunk_id") in restatements else 1.0
         return max(((1.0 - alpha) + alpha * r["authority"]) * peso_sezione, _MULT_FLOOR)
@@ -302,10 +314,10 @@ def encode_query(embed_model, question: str) -> dict:
 
 def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_store: Mapping,
                   query_filter: Filter | None = None,
-                  collection_name: str = COLLECTION_NAME,
+                  collection_name: str | None = None,
                   query_encoding: dict | None = None,
                   graph=None,
-                  restatements: Collection[str] = frozenset()) -> list[dict]:
+                  restatements: Collection[str] = frozenset(), project=None) -> list[dict]:
     """
     Ricerca ibrida a tre livelli (stessa forward pass di bge-m3 per tutti i vettori):
 
@@ -333,6 +345,7 @@ def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_sto
 
     Restituisce i top_k candidati con il breakdown completo del ranking.
     """
+    collection_name = collection_name or (project.collection_name if project else COLLECTION_NAME)
     # Una sola forward pass produce dense, sparse e colbert per la query
     q_out = query_encoding if query_encoding is not None else encode_query(embed_model, question)
     dense_q = np.asarray(q_out["dense"], dtype=np.float32).tolist()
@@ -406,7 +419,7 @@ def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_sto
             "classification": payload.get("classification", ""),
             "status": payload.get("status", ""),
             # Peso di autorità della sorgente (normativa vs informativa, attiva vs archiviata)
-            "authority": round(_authority_weight(payload), 3),
+            "authority": round(_authority_weight(payload, project=project), 3),
         }
         entry["colbert_score"] = colbert_maxsim(colbert_q, colbert_store.get(chunk_id))
         results.append(entry)
@@ -415,7 +428,7 @@ def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_sto
     # (N4): estratto in rank_by_authority così la calibrazione valuta esattamente questo
     # stesso ranking — `restatements` compreso, altrimenti il calibratore ottimizzerebbe un
     # ordinamento che nessuno serve (è l'avvertimento scritto in make_retrieve_fn).
-    rank_by_authority(results, restatements=restatements)
+    rank_by_authority(results, restatements=restatements, project=project)
 
     # Precedenza dichiarata fra fonti (S4), DOPO l'autorità e per ultima. L'ordine dei due
     # stadi non è arbitrario: l'autorità è un segnale statistico su una CLASSE di documenti,
@@ -423,7 +436,7 @@ def hybrid_search(question: str, top_k: int, *, qdrant, embed_model, colbert_sto
     # umana viene per ultima e vince. È anche l'ultimo riordino prima del taglio a top_k:
     # nessun consumatore a valle riordina i risultati (verificato su tutti i chiamanti).
     # No-op senza grafo, senza archi di precedenza o con la relazione disattivata da config.
-    results = apply_precedence(results, graph=graph)
+    results = apply_precedence(results, graph=graph, project=project)
 
     return results[:top_k]
 
@@ -448,7 +461,8 @@ def scope_tag_filter(tag_key: str, values: list[str]) -> Filter | None:
 def select_governed_chunks(question: str, *, graph: nx.DiGraph | None, results: list | None = None,
                            top_k: int = 10, max_chunks: int = 8,
                            qdrant=None, embed_model=None, colbert_store=None,
-                           query_filter: Filter | None = None) -> list[dict]:
+                           query_filter: Filter | None = None, project=None,
+                           collection_name: str | None = None, restatements=frozenset()) -> list[dict]:
     """Seleziona i CHUNK governati più pertinenti (una sezione per elemento). Il ranking
     ibrido è già ordinato per autorità×rilevanza; qui si filtra ai chunk il cui documento
     padre è nel grafo e si prendono i primi `max_chunks`. Se `results` è fornito, riusa
@@ -460,7 +474,9 @@ def select_governed_chunks(question: str, *, graph: nx.DiGraph | None, results: 
             return []
         try:
             results = hybrid_search(question, top_k, qdrant=qdrant, embed_model=embed_model,
-                                    colbert_store=colbert_store or {}, query_filter=query_filter)
+                                    colbert_store=colbert_store or {}, query_filter=query_filter,
+                                    collection_name=collection_name, graph=graph,
+                                    restatements=restatements, project=project)
         except Exception as exc:  # best-effort: il fallback è "nessun contesto"
             logger.warning("Attenzione: retrieval governato non riuscito: %s", exc)
             return []
@@ -470,12 +486,14 @@ def select_governed_chunks(question: str, *, graph: nx.DiGraph | None, results: 
 
 def select_governed_docs(question: str, *, graph: nx.DiGraph | None, results: list | None = None,
                          top_k: int = 10, max_docs: int = 4,
-                         qdrant=None, embed_model=None, colbert_store=None) -> list[str]:
+                         qdrant=None, embed_model=None, colbert_store=None, project=None,
+                         collection_name: str | None = None, restatements=frozenset()) -> list[str]:
     """Documenti padre unici dei chunk governati, nell'ordine di rilevanza, limitati a
     max_docs. Usato per gli elenchi di sorgenti (dry-run, [AGENT CONTEXT])."""
     chunks = select_governed_chunks(question, graph=graph, results=results,
                                     top_k=max(top_k, max_docs * 3), max_chunks=max_docs * 4,
-                                    qdrant=qdrant, embed_model=embed_model, colbert_store=colbert_store)
+                                    qdrant=qdrant, embed_model=embed_model, colbert_store=colbert_store,
+                                    project=project, collection_name=collection_name, restatements=restatements)
     ordered_docs: list[str] = []
     for r in chunks:
         d = r["doc_id"]
@@ -511,7 +529,8 @@ def retrieve_governed_context(question: str, *, graph: nx.DiGraph | None, chunks
                               qdrant, embed_model, colbert_store,
                               top_k: int = 10, max_chunks: int = 8,
                               max_chars_per_chunk: int = 3000,
-                              query_filter: Filter | None = None) -> str:
+                              query_filter: Filter | None = None, project=None,
+                              collection_name: str | None = None, restatements=frozenset()) -> str:
     """Recupera i CHUNK normativi pertinenti (le sezioni, non i documenti interi troncati)
     e li serializza come testo per Canvas/Propose/Validate. Selezione dei chunk PRIMA, poi
     eventuale cap leggero per chunk: niente più truncation-first del documento intero.
@@ -520,7 +539,8 @@ def retrieve_governed_context(question: str, *, graph: nx.DiGraph | None, chunks
     tecnico del Canvas, che cerca solo tra i documenti dell'ambito dichiarato."""
     chunks = select_governed_chunks(question, graph=graph, top_k=top_k, max_chunks=max_chunks,
                                     qdrant=qdrant, embed_model=embed_model, colbert_store=colbert_store,
-                                    query_filter=query_filter)
+                                    query_filter=query_filter, project=project,
+                                    collection_name=collection_name, restatements=restatements)
     # select_governed_chunks ritorna [] se graph è None: la riga sotto non è mai raggiunta
     # in quel caso, ma il controllo esplicito narrowa il tipo (graph non più Optional da qui in poi).
     if not chunks or graph is None:
@@ -737,7 +757,7 @@ def merge_code_context(*groups: list[dict], max_snippets: int) -> list[dict]:
 
 
 def precedence_pairs(results: list[dict], *, graph, 
-                     relation: str = AUTHORITY_PRECEDENCE_RELATION) -> list[tuple[str, str]]:
+                     relation: str = AUTHORITY_PRECEDENCE_RELATION, project=None) -> list[tuple[str, str]]:
     """Coppie (prevalente, subordinato) DICHIARATE fra i documenti presenti nei risultati.
 
     Solo archi DIRETTI fra due documenti entrambi presenti: nessuna chiusura transitiva.
@@ -745,6 +765,9 @@ def precedence_pairs(results: list[dict], *, graph,
     catena inferita da noi contraddirebbe lo spirito della dichiarazione — se serve, l'autore
     scrive l'arco. Le coppie servono sia al riordino sia alla dichiarazione del conflitto
     nella risposta: sono lo stesso fatto, letto una volta sola."""
+    if project is not None:
+        relation = project.settings.get("authority", {}).get("precedence_relation", relation)
+
     if graph is None or not results or not relation:
         return []
     presenti = list(dict.fromkeys(str(r.get("doc_id") or "") for r in results))
@@ -760,7 +783,7 @@ def precedence_pairs(results: list[dict], *, graph,
 
 
 def apply_precedence(results: list[dict], *, graph,
-                     relation: str = AUTHORITY_PRECEDENCE_RELATION) -> list[dict]:
+                     relation: str = AUTHORITY_PRECEDENCE_RELATION, project=None) -> list[dict]:
     """Riordina i risultati rispettando le precedenze dichiarate fra i documenti padre
     (ADR 0002 / S4): se il grafo contiene `A -[relation]-> B`, NESSUN chunk di B può
     precedere il PRIMO chunk di A.
@@ -785,6 +808,9 @@ def apply_precedence(results: list[dict], *, graph,
     quelle coppie restano nell'ordine che avevano: la funzione non entra in loop e non
     solleva dentro una richiesta. Il difetto va corretto nel corpus, ed è per questo che
     check_graph_consistency() lo segnala anche in fase di indicizzazione."""
+    if project is not None:
+        relation = project.settings.get("authority", {}).get("precedence_relation", relation)
+
     coppie = precedence_pairs(results, graph=graph, relation=relation)
     if not coppie:
         return results  # caso comune: nessuna precedenza, nessun costo e nessuna copia

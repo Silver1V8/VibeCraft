@@ -11,10 +11,12 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.concurrency import run_in_threadpool
 
-from api.deps import current_snapshot, require_api_key, state
+from api.deps import (get_project, require_snapshot, project_runtime, require_api_key, state,
+                      _is_local_request)
+from core.artifacts import _project_artifact_path
 from core.config import ALERTS_PATH, ROLE
 from core import llm
 
@@ -157,7 +159,7 @@ def build_health(*, snapshot, manager=None, qdrant, status_fn=None,
             )
 
         # Ultimo job di reindex + pending in coda.
-        recent = manager.list_recent(1)
+        recent = manager.list_recent(1) if manager is not None else []
         last_job = None
         if recent:
             j = recent[0]
@@ -165,7 +167,7 @@ def build_health(*, snapshot, manager=None, qdrant, status_fn=None,
                         "status": j["status"], "finished_at": j["finished_at"]}
             if j["status"] == "failed":
                 reasons.append(f"ultimo reindex fallito: {j.get('error') or j['job_id']}")
-        reindex_report = {"last_job": last_job, "pending": manager.pending_id is not None}
+        reindex_report = {"last_job": last_job, "pending": manager is not None and manager.pending_id is not None}
 
     # Dipendenze: Qdrant (necessario), Ollama (best-effort, mai bloccante > 2s).
     qdrant_collections = _qdrant_collection_names(qdrant)
@@ -213,24 +215,59 @@ def build_health(*, snapshot, manager=None, qdrant, status_fn=None,
     }
 
 
+@reader_router.get("/api/health/live")
+@router.get("/api/health/live")
+def api_liveness():
+    return {"status": "ok", "role": ROLE, "read_only": ROLE == "reader"}
+
+
 @reader_router.get("/api/health")
 @router.get("/api/health")
-async def api_health():
-    """Stato complessivo del servizio: snapshot, manifest, coda di reindex, dipendenze
-    e ultimo alert notturno. "ok" oppure "degraded" con l'elenco dei motivi."""
-    return await run_in_threadpool(
-        build_health,
-        snapshot=current_snapshot(),
-        manager=manager,
-        qdrant=state.get("qdrant"),
-        role=ROLE,
-        reload_error=state.get("reload_error"),
-    )
+async def api_health(request: Request):
+    project = get_project(request)
+    runtime = project_runtime(project)
+    try:
+        snapshot = await run_in_threadpool(require_snapshot, project)
+    except HTTPException:
+        snapshot = None
+    kwargs = {}
+    if not project.legacy:
+        try:
+            kwargs["alerts_path"] = _project_artifact_path(project.database_dir / "alerts.jsonl", project)
+            history = _project_artifact_path(project.database_dir / "eval" / "history.jsonl", project)
+        except ValueError as exc:
+            raise HTTPException(503, detail={"code": "project_storage_error",
+                                            "message": "Project health unavailable"}) from exc
+        kwargs["eval_health_fn"] = lambda: eval_health(path=history)
+    if ROLE != "reader":
+        kwargs["status_fn"] = lambda: index_status(project=project)
+    try:
+        report = await run_in_threadpool(
+            build_health, snapshot=snapshot,
+            manager=manager if project.legacy else runtime.get("reindex_manager"),
+            qdrant=state.get("qdrant"), role=ROLE, ollama_check=check_ollama,
+            reload_error=runtime.get("reload_error"), **kwargs,
+        )
+    except Exception as exc:
+        logger.exception("Project health unavailable: %s", project.id)
+        raise HTTPException(503, detail={"code": "project_storage_error",
+                                        "message": "Project health unavailable"}) from exc
+    if not _is_local_request(request):
+        # Jobs and batch alerts may contain OS paths or provider error details.
+        report["reasons"] = ["Project or dependency unavailable"] if report["reasons"] else []
+        report["last_alert"] = None
+    return {**report, "project_id": project.id, "live": True}
 
 
 @router.get("/api/eval/history")
-async def api_eval_history(limit: int = 100):
-    """Storico della qualità del retrieval (eval/results/history.jsonl): recall@k nel tempo e
-    per-versione, con marcatori di provenienza (eval.run / gate). Read-only; ultimi `limit`."""
-    rows = await run_in_threadpool(load_history, limit)
-    return {"n": len(rows), "history": rows, "summary": eval_health()}
+async def api_eval_history(request: Request, limit: int = 100):
+    project = get_project(request)
+    try:
+        path = None if project.legacy else _project_artifact_path(
+            project.database_dir / "eval" / "history.jsonl", project)
+    except ValueError as exc:
+        raise HTTPException(503, detail={"code": "project_storage_error",
+                                        "message": "Project history unavailable"}) from exc
+    rows = await run_in_threadpool(load_history, limit, path=path)
+    return {"n": len(rows), "history": rows, "summary": eval_health(path=path),
+            "project_id": project.id}

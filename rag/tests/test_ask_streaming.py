@@ -39,8 +39,7 @@ def ask_app(monkeypatch):
         collection_name="collection_v1",
     )
     monkeypatch.setattr(deps, "API_KEY", None)
-    monkeypatch.setattr(routes_retrieval, "maybe_reload_graph", lambda: None)
-    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: snapshot)
+    monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: snapshot)
     monkeypatch.setitem(deps.state, "qdrant", object())
     monkeypatch.setitem(deps.state, "embed_model", object())
     monkeypatch.setattr(
@@ -87,7 +86,7 @@ def test_stream_emette_meta_delta_e_result_con_payload_finale(ask_app):
     events = [json.loads(line) for line in response.text.splitlines()]
     assert [event["type"] for event in events] == ["meta", "delta", "delta", "result"]
     assert events[0] | {"type": "meta"} == {
-        "type": "meta", "request_id": events[0]["request_id"],
+        "type": "meta", "request_id": events[0]["request_id"], "project_id": "legacy",
         "index_version": "v-stream", "qdrant_collection": "collection_v1",
         "retrieval_strategy": "hybrid", "cached": False, "streaming_native": True,
     }
@@ -333,7 +332,7 @@ def test_json_resta_sul_provider_agenerate(ask_app):
 
 def test_reader_non_ripiega_sui_documenti_live_se_manca_un_chunk(ask_app, monkeypatch):
     app, _calls = ask_app
-    snapshot = routes_retrieval.current_snapshot()
+    snapshot = routes_retrieval.require_snapshot(None)
     snapshot.chunks.clear()
     monkeypatch.setattr(routes_retrieval, "ROLE", "reader")
 
@@ -395,7 +394,7 @@ def test_runtime_rifiuta_timeout_non_finiti(value):
 
 def test_stream_non_apre_headers_se_snapshot_non_pronto(ask_app, monkeypatch):
     app, _calls = ask_app
-    monkeypatch.setattr(routes_retrieval, "current_snapshot", lambda: None)
+    monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: None)
 
     with TestClient(app, client=("127.0.0.1", 54321)) as client:
         response = client.post("/ask", json={"question": "pronto?", "stream": True})
@@ -529,7 +528,7 @@ def test_route_pinna_la_collection_fisica_per_dense_e_sparse(ask_app, monkeypatc
             self.requested.append(collection_name)
             self.resolved.append(
                 self.alias_target
-                if collection_name == routes_retrieval.COLLECTION_NAME
+                if collection_name == routes_retrieval.get_project(None).collection_name
                 else collection_name
             )
             if len(self.requested) == 1:
@@ -610,7 +609,7 @@ def test_cancel_durante_emit_chiude_subito_lo_stream_llm_esterno(ask_app):
 
     async def scenario():
         request = Request({"type": "http", "app": app})
-        resources = await routes_retrieval._ask_resources()
+        resources = await routes_retrieval._ask_resources(routes_retrieval.get_project(None))
         task = asyncio.create_task(routes_retrieval._ask_pipeline(
             request, AskQuery(question="backpressure"),
             emit=blocked_emit, resources=resources,
@@ -780,3 +779,6 @@ def test_timeout_totale_e_finito_per_json_e_stream(ask_app, monkeypatch):
     assert json_response.status_code == 504
     assert json_response.json()["detail"] == "Timeout totale della richiesta /ask."
     assert runtime.active == 0
+
+
+pytestmark = pytest.mark.usefixtures("legacy_http_project")
