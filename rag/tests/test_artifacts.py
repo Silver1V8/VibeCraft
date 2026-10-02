@@ -213,7 +213,7 @@ def test_npz_migration_corruption_keeps_current(sandbox):
 
 def test_npz_migration_publish_failure_keeps_current(sandbox, monkeypatch):
     old, _ = _legacy_npz_version(sandbox)
-    def reject(_version):
+    def reject(_version, project=None):
         raise RuntimeError("publish interrupted")
     monkeypatch.setattr(artifacts, "promote_version", reject)
     with pytest.raises(RuntimeError, match="publish interrupted"):

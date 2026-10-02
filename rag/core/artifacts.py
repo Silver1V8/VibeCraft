@@ -33,10 +33,18 @@ mutano in place, senza candidata né versionamento.
 
 Qualunque altro modulo (core.indexing, api.deps) passa da qui: nessun pickle.load/dump
 diretto altrove."""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.projects import ProjectContext
+
 import json
 import hashlib
 import logging
 import os
+import re
 import shutil
 import tempfile
 from collections.abc import Mapping
@@ -132,89 +140,131 @@ _ARTIFACT_FILENAMES = ("graph.json", "colbert.npz", "chunks.json",
                        "dense.npz", "code.npz", "code.json")
 
 
-def versions_root() -> Path:
-    return DATABASE_DIR / "versions"
+def _project_artifact_path(path: Path, project: ProjectContext | None) -> Path:
+    """Validate a captured project's database path before filesystem access."""
+    if project is not None:
+        if not path.is_relative_to(project.database_dir):
+            raise ValueError(f"escaping project artifact path forbidden: {path}")
+        for component in (path, *path.parents):
+            if component.is_symlink() or component.is_junction():
+                raise ValueError(f"linked project artifact path forbidden: {component}")
+        if not path.resolve().is_relative_to(project.database_dir.resolve()):
+            raise ValueError(f"escaping project artifact path forbidden: {path}")
+    return path
 
 
-def version_dir(version: str) -> Path:
+def versions_root(project: ProjectContext | None = None) -> Path:
+    return _project_artifact_path(
+        (project.database_dir if project is not None else DATABASE_DIR) / "versions", project)
+
+
+def version_dir(version: str, project: ProjectContext | None = None) -> Path:
     """Directory dei file di `version` ('legacy' = i flat storici in database/)."""
+    if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z_-]*", version):
+        raise ValueError(f"invalid version name: {version!r}")
     if version == LEGACY_VERSION:
-        return DATABASE_DIR
-    return versions_root() / version
+        if project is not None and not project.legacy:
+            raise ValueError("legacy is not a valid version for an ordinary project")
+        return _project_artifact_path(project.database_dir if project is not None else DATABASE_DIR, project)
+    return _project_artifact_path(versions_root(project=project) / version, project)
 
 
-def current_version_token() -> str | None:
+def current_version_token(project: ProjectContext | None = None) -> str | None:
     """Contenuto grezzo di database/CURRENT (nome della versione attiva), o None se il
     puntatore non esiste. È il "numero di versione" che l'auto-reload del server
     (api.deps.maybe_reload_graph) osserva: cambia a ogni promote/rollback."""
+    path = _project_artifact_path(
+        (project.database_dir if project is not None else DATABASE_DIR) / CURRENT_FILENAME, project)
     try:
-        token = (DATABASE_DIR / CURRENT_FILENAME).read_text(encoding="utf-8").strip()
-    except OSError:
+        token = path.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
         return None
+    except OSError:
+        if project is not None and not project.legacy:
+            raise
+        return None
+    if not token and project is not None and not project.legacy:
+        raise ValueError("Empty project CURRENT pointer")
+    if token and project is not None and not project.legacy:
+        version_dir(token, project=project)
     return token or None
 
 
-def current_version() -> str | None:
+def current_version(project: ProjectContext | None = None) -> str | None:
     """Versione ATTIVA degli artefatti: il nome puntato da CURRENT se la sua directory
     esiste; 'legacy' se CURRENT manca ma in database/ ci sono i file flat storici
     (retrocompat: layout precedente al versionamento); None se non c'è alcun indice."""
-    token = current_version_token()
+    token = current_version_token(project=project)
     if token:
-        if version_dir(token).is_dir():
+        if version_dir(token, project=project).is_dir():
             return token
+        if project is not None and not project.legacy:
+            raise FileNotFoundError(f"Project CURRENT refers to missing version: {token}")
         logger.warning("CURRENT punta a una versione inesistente (%s): la ignoro.", token)
-    if GRAPH_JSON_PATH.exists():
+    if (project is None or project.legacy) and _project_artifact_path(
+        project.database_dir / "graph.json" if project is not None else GRAPH_JSON_PATH, project
+    ).exists():
         return LEGACY_VERSION
     return None
 
 
-def artifact_dir(version: str | None = None) -> Path:
+def artifact_dir(version: str | None = None, project: ProjectContext | None = None) -> Path:
     """Directory dei file artefatto per `version` (default: la versione attiva).
     Per 'legacy' — o quando non esiste alcuna versione — è database/ flat."""
-    name = version or current_version()
-    if name is None or name == LEGACY_VERSION:
-        return DATABASE_DIR
-    return versions_root() / name
+    name = version or current_version(project=project)
+    if name is None:
+        return _project_artifact_path(project.database_dir if project is not None else DATABASE_DIR, project)
+    return version_dir(name, project=project)
 
 
-def manifest_path(version: str | None = None) -> Path:
+def manifest_path(version: str | None = None, project: ProjectContext | None = None) -> Path:
     """Percorso del manifest di indicizzazione della versione (default: attiva)."""
-    return artifact_dir(version) / MANIFEST_FILENAME
+    return _project_artifact_path(artifact_dir(version, project=project) / MANIFEST_FILENAME, project)
 
 
-def _read_manifest() -> dict | None:
+def _read_manifest(project: ProjectContext | None = None) -> dict | None:
     """Legge il manifest della VERSIONE ATTIVA se presente e leggibile, altrimenti None
     (assente o corrotto). Il chiamante interpreta None come 'nessuna base nota' → tutto
     da (ri)indicizzare."""
-    path = manifest_path()
+    path = manifest_path(project=project)
     if not path.exists():
+        if project is not None and not project.legacy and current_version_token(project=project):
+            raise ValueError("Active project manifest is missing")
         return None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        return data if isinstance(data, dict) else None
+        if not isinstance(data, dict):
+            raise ValueError("Invalid index manifest")
+        return data
     except Exception:
+        if project is not None and not project.legacy:
+            raise
         return None
 
 
-def immutable_index_active() -> bool:
-    """Sticky immutable profile: explicit config or a marker left by a full build."""
-    return INDEX_MODE == "immutable" or (DATABASE_DIR / IMMUTABLE_MARKER_FILENAME).is_file()
+def immutable_index_active(project: ProjectContext | None = None) -> bool:
+    """Ordinary projects always publish immutable snapshots; legacy keeps its profile."""
+    return ((project is not None and not project.legacy) or INDEX_MODE == "immutable"
+            or _project_artifact_path((project.database_dir if project is not None else DATABASE_DIR)
+                                      / IMMUTABLE_MARKER_FILENAME, project).is_file())
 
 
-def activate_immutable_index() -> bool:
-    """Persist explicit immutable mode before a full build can mutate external state."""
-    if INDEX_MODE != "immutable":
+def activate_immutable_index(project: ProjectContext | None = None) -> bool:
+    """Persist the immutable profile before a full build can mutate external state."""
+    if INDEX_MODE != "immutable" and (project is None or project.legacy):
         return False
-    _atomic_write_text(DATABASE_DIR / IMMUTABLE_MARKER_FILENAME, "immutable\n")
+    marker = _project_artifact_path(
+        (project.database_dir if project is not None else DATABASE_DIR) / IMMUTABLE_MARKER_FILENAME, project)
+    _atomic_write_text(marker, "immutable\n")
     return True
 
 
-def _require_immutable_version(version: str) -> None:
+def _require_immutable_version(version: str, project: ProjectContext | None = None) -> None:
     try:
-        manifest = _load_json(manifest_path(version))
+        manifest = _load_json(manifest_path(version, project=project))
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
         raise ValueError(f"Versione '{version}' non immutabile: manifest assente o illeggibile.") from exc
-    expected_collection = f"{COLLECTION_NAME}__{version}"
+    expected_collection = f"{(project.collection_name if project is not None else COLLECTION_NAME)}__{version}"
     if (manifest.get("immutable") is not True
             or manifest.get("qdrant_collection") != expected_collection):
         raise ValueError(
@@ -223,28 +273,29 @@ def _require_immutable_version(version: str) -> None:
         )
 
 
-def list_versions() -> list[str]:
+def list_versions(project: ProjectContext | None = None) -> list[str]:
     """Nomi delle versioni presenti su disco, in ordine cronologico (il nome è un
     timestamp UTC: l'ordine lessicografico coincide con quello temporale)."""
-    root = versions_root()
+    root = versions_root(project=project)
     if not root.is_dir():
         return []
-    return sorted(p.name for p in root.iterdir() if p.is_dir())
+    return sorted(p.name for p in root.iterdir() if _project_artifact_path(p, project).is_dir())
 
 
-def _new_version_name() -> str:
+def _new_version_name(project: ProjectContext | None = None) -> str:
     """Nome di una NUOVA versione: v<timestamp UTC compatto>, con suffisso progressivo
     (zero-padded, così l'ordine lessicografico resta quello di creazione) in caso di
     collisione nello stesso secondo — possibile solo nei test: le build reali sono
     serializzate dalla coda del ReindexManager. Il nome è sempre STRETTAMENTE maggiore
     di ogni versione esistente: anche se la retention ha eliminato una dir, il suo nome
     non viene mai riusato entro lo stesso secondo (l'ordinamento resta = cronologia)."""
+    database_dir = project.database_dir if project is not None else DATABASE_DIR
     base = datetime.now(timezone.utc).strftime("v%Y%m%dT%H%M%S")
-    existing = list_versions()
+    existing = list_versions(project=project)
     last = existing[-1] if existing else ""
     name, n = base, 1
-    while (name <= last or (versions_root() / name).exists()
-           or (DATABASE_DIR / ".colbert-staging" / name).exists()):
+    while (name <= last or version_dir(name, project=project).exists()
+           or _project_artifact_path(database_dir / ".colbert-staging" / name, project).exists()):
         n += 1
         name = f"{base}-{n:02d}"
     return name
@@ -262,32 +313,34 @@ def _keep_from_env() -> int:
     return max(1, keep)
 
 
-def promote_version(version: str) -> None:
+def promote_version(version: str, project: ProjectContext | None = None) -> None:
     """Promuove `version` a versione attiva: sposta il puntatore CURRENT con una
     scrittura atomica (lo swap blue/green), poi applica la retention. Rifiuta versioni
     inesistenti o senza grafo (build incompleta): CURRENT non deve mai puntare al vuoto."""
+    database_dir = project.database_dir if project is not None else DATABASE_DIR
     if version == LEGACY_VERSION:
         raise ValueError("'legacy' è il layout flat storico, non una versione promuovibile.")
-    if not (version_dir(version) / "graph.json").exists():
+    current_path = _project_artifact_path(database_dir / CURRENT_FILENAME, project)
+    if not _project_artifact_path(version_dir(version, project=project) / "graph.json", project).exists():
         raise FileNotFoundError(
             f"Versione '{version}' assente o incompleta (nessun graph.json): non promuovibile."
         )
-    if immutable_index_active():
-        _require_immutable_version(version)
-    npy_dir = version_dir(version) / "colbert"
+    if immutable_index_active(project=project):
+        _require_immutable_version(version, project=project)
+    npy_dir = _project_artifact_path(version_dir(version, project=project) / "colbert", project)
     if npy_dir.exists():
-        manifest_file = manifest_path(version)
+        manifest_file = manifest_path(version, project=project)
         if not manifest_file.is_file():
             raise FileNotFoundError(f"candidate NPY manifest missing: {version}")
         arts = load_artifacts(required=("graph", "colbert", "chunks", "dense", "code"),
-                              version=version)
+                              version=version, project=project)
         store = arts.colbert_store
         try:
             if set(store) != set(arts.chunks_store):
                 raise ValueError("candidate ColBERT/chunk keys differ")
             manifest = _load_json(manifest_file)
             expected = manifest.get("artifact_hashes")
-            if not isinstance(expected, dict) or artifact_hashes(version) != expected:
+            if not isinstance(expected, dict) or artifact_hashes(version, project=project) != expected:
                 raise ValueError(f"candidate NPY artifact hashes differ from manifest: {version}")
             fresh = manifest.get("colbert_new_files")
             if fresh is None:
@@ -299,34 +352,35 @@ def promote_version(version: str) -> None:
                     raise ValueError(f"candidate NPY file hash differs from manifest: {name}")
         finally:
             store.close()
-    _atomic_write_text(DATABASE_DIR / CURRENT_FILENAME, version + "\n")
+    _atomic_write_text(_project_artifact_path(current_path, project), version + "\n")
     logger.info("Versione indice promossa: CURRENT -> %s", version)
-    prune_versions()
+    prune_versions(project=project)
 
 
-def prune_versions(keep: int | None = None) -> list[str]:
+def prune_versions(keep: int | None = None, project: ProjectContext | None = None) -> list[str]:
     """Retention: mantiene le ultime `keep` versioni (default: VIBECRAFT_INDEX_KEEP o 5)
     ed elimina le più vecchie — MAI quella puntata da CURRENT, anche se antica (dopo un
     rollback la versione attiva può non essere tra le ultime N). Restituisce i nomi rimossi."""
+    database_dir = project.database_dir if project is not None else DATABASE_DIR
     keep = max(1, keep if keep is not None else _keep_from_env())
-    versions = list_versions()
+    versions = list_versions(project=project)
     if len(versions) <= keep:
         return []
-    active = current_version_token()
+    active = current_version_token(project=project)
     doomed = [v for v in versions[:-keep] if v != active]
     removed = []
     for name in doomed:
-        lease = try_version_lease(DATABASE_DIR, name, exclusive=True)
+        lease = try_version_lease(database_dir, name, exclusive=True)
         if lease is None:
             logger.info("Retention indice: versione ancora letta, riproverò: %s", name)
             continue
         with lease:
             try:
-                shutil.rmtree(versions_root() / name)
+                shutil.rmtree(version_dir(name, project=project))
             except OSError as exc:
                 logger.warning("Retention indice: rimozione fallita per %s (retry futuro): %s", name, exc)
                 continue
-            if (versions_root() / name).exists():
+            if version_dir(name, project=project).exists():
                 logger.warning("Retention indice: versione ancora presente dopo rmtree: %s", name)
                 continue
             removed.append(name)
@@ -334,7 +388,7 @@ def prune_versions(keep: int | None = None) -> list[str]:
     return removed
 
 
-def resolve_rollback_target(target: str | None = None) -> str:
+def resolve_rollback_target(target: str | None = None, project: ProjectContext | None = None) -> str:
     """Risolve e VALIDA la destinazione di un rollback senza toccare nulla (default: la
     versione immediatamente precedente all'attiva). Estratta da `rollback_version` perché
     i chiamanti (CLI e server) possano pre-verificare la versione target — in particolare
@@ -342,10 +396,10 @@ def resolve_rollback_target(target: str | None = None) -> str:
     verso una versione i cui vettori non ci sono più lascia uno stato misto (sidecar del
     target, vettori di un'altra build) che nessun reconciler ripara. Solleva le stesse
     eccezioni di `rollback_version` (FileNotFoundError/ValueError) e con lo stesso testo."""
-    versions = list_versions()
+    versions = list_versions(project=project)
     if not versions:
         raise FileNotFoundError("Nessuna versione in database/versions/: nulla su cui fare rollback.")
-    active = current_version_token()
+    active = current_version_token(project=project)
     if target is None:
         if active not in versions:
             raise ValueError(
@@ -363,16 +417,18 @@ def resolve_rollback_target(target: str | None = None) -> str:
     return target
 
 
-def rollback_version(target: str | None = None) -> str:
+def rollback_version(target: str | None = None, project: ProjectContext | None = None) -> str:
     """Rollback ISTANTANEO: sposta il solo puntatore CURRENT su `target` (default: la
     versione immediatamente precedente all'attiva). Nessuna build, nessuna copia; il
     server se ne accorge via maybe_reload_graph. NB: riporta indietro grafo e sidecar,
     NON la collection Qdrant (vedi README). Restituisce il nome della versione attivata."""
-    active = current_version_token()
-    target = resolve_rollback_target(target)
-    if immutable_index_active():
-        _require_immutable_version(target)
-    _atomic_write_text(DATABASE_DIR / CURRENT_FILENAME, target + "\n")
+    active = current_version_token(project=project)
+    target = resolve_rollback_target(target, project=project)
+    if immutable_index_active(project=project):
+        _require_immutable_version(target, project=project)
+    current_path = _project_artifact_path(
+        (project.database_dir if project is not None else DATABASE_DIR) / CURRENT_FILENAME, project)
+    _atomic_write_text(current_path, target + "\n")
     logger.info("Rollback indice: CURRENT %s -> %s", active, target)
     return target
 
@@ -484,7 +540,7 @@ class Artifacts:
 
 def save_artifacts(graph, colbert_store: Mapping | ColbertWriter, chunks_store: dict,
                    dense_store: dict, code_store: dict,
-                   version: str | None = None) -> str:
+                   version: str | None = None, project: ProjectContext | None = None) -> str:
     """Persiste TUTTI gli artefatti dell'indice in una directory di versione
     (database/versions/<version>/), ciascuno con scrittura atomica, e restituisce
     il nome della versione. NON tocca il puntatore CURRENT: la versione diventa attiva
@@ -500,11 +556,12 @@ def save_artifacts(graph, colbert_store: Mapping | ColbertWriter, chunks_store: 
     sempre. Solleva ValueError se `version` è il sentinel 'legacy' (il layout flat
     storico, mai una directory di versione reale) o FileExistsError se la sua directory
     esiste già: questa funzione non sovrascrive mai una versione persistita."""
+    database_dir = project.database_dir if project is not None else DATABASE_DIR
     if version is None:
-        version = _new_version_name()
+        version = _new_version_name(project=project)
     elif version == LEGACY_VERSION:
         raise ValueError("'legacy' è il layout flat storico, non un nome di versione valido.")
-    vdir = versions_root() / version
+    vdir = version_dir(version, project=project)
     if vdir.exists():
         raise FileExistsError(
             f"Versione '{version}' già esistente in {vdir}: save_artifacts non sovrascrive mai una build persistita."
@@ -512,7 +569,7 @@ def save_artifacts(graph, colbert_store: Mapping | ColbertWriter, chunks_store: 
     if isinstance(colbert_store, ColbertWriter):
         writer = colbert_store
     else:
-        stage = DATABASE_DIR / ".colbert-staging" / version / "colbert"
+        stage = database_dir / ".colbert-staging" / version / "colbert"
         writer = ColbertWriter(stage, _colbert_dim(colbert_store))
         doc_keys: dict[str, list[str]] = {}
         for key in colbert_store:
@@ -527,7 +584,7 @@ def save_artifacts(graph, colbert_store: Mapping | ColbertWriter, chunks_store: 
     code_dense, code_meta = _split_code_store(code_store)
     _atomic_write_json(vdir / "graph.json", _graph_to_json(graph))
     shutil.move(str(writer.root), str(vdir / "colbert"))
-    if writer.root.parent == DATABASE_DIR / ".colbert-staging" / version:
+    if writer.root.parent == database_dir / ".colbert-staging" / version:
         writer.root.parent.rmdir()
     _save_vectors(vdir / "dense.npz", dense_store)
     _save_vectors(vdir / "code.npz", code_dense)
@@ -551,24 +608,25 @@ def _load_json(path: Path):
 
 
 def load_artifacts(required: tuple[str, ...] = (), version: str | None = None,
-                   *, skip_colbert: bool = False, retain_lease: bool = False) -> Artifacts:
+                   *, skip_colbert: bool = False, retain_lease: bool = False, project: ProjectContext | None = None) -> Artifacts:
     """Load one version; retry an implicit CURRENT read if promotion wins the lease race."""
     if skip_colbert and "colbert" in required:
         raise ValueError("cannot require ColBERT while skipping its load")
     if version is not None:
-        return _load_artifacts_once(required, version, skip_colbert, retain_lease)
+        version_dir(version, project=project)
+        return _load_artifacts_once(required, version, skip_colbert, retain_lease, project=project)
     for _ in range(3):
-        selected = current_version()
+        selected = current_version(project=project)
         try:
-            return _load_artifacts_once(required, selected, skip_colbert, retain_lease)
+            return _load_artifacts_once(required, selected, skip_colbert, retain_lease, project=project)
         except (BlockingIOError, FileNotFoundError):
-            if current_version() == selected:
+            if current_version(project=project) == selected:
                 raise
     raise RuntimeError("CURRENT changed repeatedly during artifact load")
 
 
 def _load_artifacts_once(required: tuple[str, ...], version: str | None,
-                         skip_colbert: bool, retain_lease: bool) -> Artifacts:
+                         skip_colbert: bool, retain_lease: bool, project: ProjectContext | None = None) -> Artifacts:
     """Carica gli artefatti dell'indice dalla versione indicata (default: quella attiva,
     risolta via CURRENT). Se non esiste alcuna versione promossa si legge il layout
     LEGACY flat in database/ (formati storici JSON/.npz — il fallback ai vecchi pickle
@@ -581,29 +639,35 @@ def _load_artifacts_once(required: tuple[str, ...], version: str | None,
     diventano il loro default vuoto (grafo None, dict {}).
 
     Solleva se un file esiste ma è illeggibile/corrotto (il chiamante decide se degradare)."""
+    database_dir = project.database_dir if project is not None else DATABASE_DIR
     name = version
     lease = None
     if name is not None and name != LEGACY_VERSION:
-        lease = try_version_lease(DATABASE_DIR, name)
+        vdir = version_dir(name, project=project)
+        lease = try_version_lease(database_dir, name)
         if lease is None:
             raise BlockingIOError(f"version {name} is being removed")
-        vdir = version_dir(name)
         if not vdir.is_dir():
             lease.close()
-            raise FileNotFoundError(f"Versione indice '{name}' inesistente in {versions_root()}.")
+            raise FileNotFoundError(f"Versione indice '{name}' inesistente in {versions_root(project=project)}.")
         new_paths = {fname: vdir / fname for fname in _ARTIFACT_FILENAMES}
     else:
         # Layout storico: file flat in database/.
         new_paths = {"graph.json": GRAPH_JSON_PATH, "colbert.npz": COLBERT_NPZ_PATH,
                      "chunks.json": CHUNKS_JSON_PATH, "dense.npz": DENSE_NPZ_PATH,
                      "code.npz": CODE_NPZ_PATH, "code.json": CODE_JSON_PATH}
+        if project is not None:
+            new_paths = {fname: project.database_dir / fname for fname in _ARTIFACT_FILENAMES}
 
     npy_dir = vdir / "colbert" if name not in (None, LEGACY_VERSION) else None
     try:
+        new_paths = {name: _project_artifact_path(path, project) for name, path in new_paths.items()}
+        if npy_dir is not None:
+            _project_artifact_path(npy_dir, project)
         if skip_colbert:
             colbert_store = {}
         elif npy_dir is not None and npy_dir.is_dir():
-            colbert_store = ColbertStore.open_version(DATABASE_DIR, name)
+            colbert_store = ColbertStore.open_version(database_dir, name)
         else:
             colbert_store = None
     except BaseException:
@@ -657,23 +721,24 @@ def sha256_file(path: Path) -> str:
         return hashlib.file_digest(file, "sha256").hexdigest()
 
 
-def artifact_hashes(version: str | None = None, *, deep: bool = False) -> dict[str, str]:
+def artifact_hashes(version: str | None = None, *, deep: bool = False, project: ProjectContext | None = None) -> dict[str, str]:
     """SHA-256 di ogni file artefatto presente nella directory della versione indicata
     (default: la versione attiva; per il layout legacy i flat in database/). Chiave =
     nome file. Alimenta il manifest così il check di coerenza può validare anche
     l'integrità dei file artefatto, non solo dei documenti sorgente."""
-    name = version or current_version()
-    lease = try_version_lease(DATABASE_DIR, name) if name not in (None, LEGACY_VERSION) else None
+    database_dir = project.database_dir if project is not None else DATABASE_DIR
+    name = version or current_version(project=project)
+    base = artifact_dir(name, project=project)
+    lease = try_version_lease(database_dir, name) if name not in (None, LEGACY_VERSION) else None
     if name not in (None, LEGACY_VERSION) and lease is None:
         raise BlockingIOError(f"version {name} is being removed")
     try:
-        base = artifact_dir(name)
         hashes: dict[str, str] = {}
         for fname in _ARTIFACT_FILENAMES:
-            path = base / fname
+            path = _project_artifact_path(base / fname, project)
             if path.exists():
                 hashes[fname] = sha256_file(path)
-        npy_dir = base / "colbert"
+        npy_dir = _project_artifact_path(base / "colbert", project)
         if npy_dir.is_dir():
             store = ColbertStore(npy_dir)
             hashes["colbert/index.json"] = sha256_file(npy_dir / "index.json")
@@ -686,34 +751,36 @@ def artifact_hashes(version: str | None = None, *, deep: bool = False) -> dict[s
             lease.close()
 
 
-def migrate_colbert_npy() -> str:
+def migrate_colbert_npy(project: ProjectContext | None = None) -> str:
     """Convert the active NPZ to an unpublished NPY candidate, then move CURRENT.
 
     The CLI holds the global writer lock. Only one document's ColBERT arrays are
     decompressed at a time; dense/code metadata retain their existing load cost.
     Qdrant is unchanged because every vector is copied exactly from the NPZ.
     """
-    source = current_version()
+    database_dir = project.database_dir if project is not None else DATABASE_DIR
+    source = current_version(project=project)
     if source in (None, LEGACY_VERSION):
         raise ValueError("migration requires a versioned NPZ index")
-    source_dir = version_dir(source)
-    if (source_dir / "colbert").exists() or not (source_dir / "colbert.npz").is_file():
+    source_dir = version_dir(source, project=project)
+    source_npz = _project_artifact_path(source_dir / "colbert.npz", project)
+    if _project_artifact_path(source_dir / "colbert", project).exists() or not source_npz.is_file():
         raise ValueError("active version is not an NPZ ColBERT index")
-    old_manifest = json.loads((source_dir / MANIFEST_FILENAME).read_text(encoding="utf-8"))
+    old_manifest = json.loads(manifest_path(source, project=project).read_text(encoding="utf-8"))
     expected = old_manifest.get("artifact_hashes")
-    if not isinstance(expected, dict) or artifact_hashes(source, deep=True) != expected:
+    if not isinstance(expected, dict) or artifact_hashes(source, deep=True, project=project) != expected:
         raise ValueError("source artifact hashes do not match manifest")
-    lease = try_version_lease(DATABASE_DIR, source)
+    lease = try_version_lease(database_dir, source)
     if lease is None:
         raise BlockingIOError(f"version {source} is being removed")
-    version = _new_version_name()
-    stage = DATABASE_DIR / ".colbert-staging" / version / "colbert"
+    version = _new_version_name(project=project)
+    stage = database_dir / ".colbert-staging" / version / "colbert"
     try:
         arts = load_artifacts(version=source, required=("graph", "chunks", "dense", "code"),
-                              skip_colbert=True)
+                              skip_colbert=True, project=project)
         writer = ColbertWriter(stage, None)
         groups: dict[str, list[tuple[str, int]]] = {}
-        with np.load(source_dir / "colbert.npz", allow_pickle=False) as data:
+        with np.load(source_npz, allow_pickle=False) as data:
             keys = [str(key) for key in data["keys"]]
             if len(keys) != len(set(keys)) or set(keys) != set(arts.chunks_store):
                 raise ValueError("NPZ keys differ from chunk metadata")
@@ -722,22 +789,22 @@ def migrate_colbert_npy() -> str:
             for doc_id, members in groups.items():
                 writer.add_document(doc_id, {key: data[f"v{index}"] for key, index in members})
         save_artifacts(arts.graph, writer, arts.chunks_store, arts.dense_store,
-                       arts.code_store, version=version)
-        candidate = ColbertStore.open_version(DATABASE_DIR, version)
+                       arts.code_store, version=version, project=project)
+        candidate = ColbertStore.open_version(database_dir, version)
         try:
-            with np.load(source_dir / "colbert.npz", allow_pickle=False) as data:
+            with np.load(source_npz, allow_pickle=False) as data:
                 for index, key in enumerate(keys):
                     if not np.array_equal(candidate[key], data[f"v{index}"]):
                         raise ValueError(f"NPY conversion changed vector: {key}")
-            converted_hashes = artifact_hashes(version, deep=True)
+            converted_hashes = artifact_hashes(version, deep=True, project=project)
         finally:
             candidate.close()
         new_manifest = dict(old_manifest, artifact_hashes=converted_hashes,
                             colbert_new_files=sorted(writer.new_files))
-        _atomic_write_json(manifest_path(version), new_manifest)
-        if artifact_hashes(version, deep=True) != new_manifest["artifact_hashes"]:
+        _atomic_write_json(manifest_path(version, project=project), new_manifest)
+        if artifact_hashes(version, deep=True, project=project) != new_manifest["artifact_hashes"]:
             raise ValueError("candidate artifact hashes changed before publication")
-        promote_version(version)
+        promote_version(version, project=project)
         return version
     finally:
         lease.close()

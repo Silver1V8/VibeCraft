@@ -163,11 +163,11 @@ Ogni task: aggiungere il test che fallisce, verificarne il fallimento pertinente
 **File:** `core/projects.py`, `core/config.py`, `tests/test_projects.py` (nuovo), `.gitignore`, `.dockerignore`.
 **Produce:** ProjectContext/ProjectRegistry e un resolver legacy; schema sopra, writer lock/atomic write esistenti.
 
-- [ ] Test `test_create_project_layout_and_unique_ids`: A/B hanno ID, root, database e collection diversi; stesso nome visualizzato consentito.
-- [ ] Test registro concorrente, duplicato, corrotto/versione sconosciuta, manifest non valido, symlink/junction e nomi con HTML; nessuna perdita di record.
-- [ ] Test `test_legacy_registration_preserves_paths_and_collection`: checksum degli artefatti e nome collection invariati dopo bootstrap ripetuto.
-- [ ] Implementare interfacce; separare INSTALL_ROOT dai percorsi del progetto; override limitati; nessun nuovo database per registry.
-- [ ] Eseguire da `rag/`: `uv run --frozen pytest tests/test_projects.py -rs`; review dello schema e delle garanzie filesystem.
+- [x] Test `test_create_project_layout_and_unique_ids`: A/B hanno ID, root, database e collection diversi; stesso nome visualizzato consentito.
+- [x] Test registro concorrente, duplicato, corrotto/versione sconosciuta, manifest non valido, symlink/junction e nomi con HTML; nessuna perdita di record.
+- [x] Test `test_legacy_registration_preserves_paths_and_collection`: checksum degli artefatti e nome collection invariati dopo bootstrap ripetuto.
+- [x] Implementare interfacce; separare INSTALL_ROOT dai percorsi del progetto; override limitati; nessun nuovo database per registry.
+- [x] Eseguire da `rag/`: `uv run --frozen pytest tests/test_projects.py -rs`; review dello schema e delle garanzie filesystem.
 
 ### Task 2: Artefatti, collection e indicizzazione per progetto
 
@@ -175,11 +175,11 @@ Ogni task: aggiungere il test che fallisce, verificarne il fallimento pertinente
 **File:** `core/artifacts.py`, `colbert_store.py`, `writer_lock.py`, `qdrant_versions.py`, `indexing.py`, `tests/test_project_indexing.py` (nuovo), test indice/blue-green esistenti.
 **Consume:** ProjectContext. **Produce:** funzioni storage/index che accettano `project: ProjectContext | None = None`, con None esclusivamente legacy; namespace e lock coerenti end-to-end.
 
-- [ ] Test build/delta/promote/rollback A/B con stessi token versione e nomi documento; CURRENT/manifest/vettori restano separati.
-- [ ] Test `test_gc_never_deletes_other_project_collections`, includendo candidato A non ancora manifestato e collection legacy.
-- [ ] Test lease: un reader di A mantiene snapshot precedente mentre A promuove; operazioni B non invalidano lease A.
+- [x] Test build/delta/promote/rollback A/B con stessi token versione e nomi documento; CURRENT/manifest/vettori restano separati.
+- [x] Test `test_gc_never_deletes_other_project_collections`, includendo candidato A non ancora manifestato e collection legacy.
+- [x] Test lease: un reader di A mantiene snapshot precedente mentre A promuove; operazioni B non invalidano lease A.
 - [ ] Propagare contesto in tutti i chiamanti; rimuovere dipendenze dai path globali nei percorsi non legacy, inclusi temporanei ColBERT e manifest fingerprint.
-- [ ] Eseguire suite mirata storage/indice/versioni e regressioni legacy; integrare prova con Qdrant reale su sole collection temporanee.
+- [x] Eseguire suite mirata storage/indice/versioni e regressioni legacy; integrare prova con Qdrant reale su sole collection temporanee.
 
 ### Task 3: Runtime HTTP, retrieval, cache e health
 

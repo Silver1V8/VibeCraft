@@ -17,6 +17,13 @@ esclusione è SOLO del lock OS, mai del contenuto.
 Su Windows il byte lockato sta a un offset alto, oltre i dati: msvcrt.locking è
 mandatorio sulla regione lockata, e lockare il byte 0 renderebbe illeggibile la
 diagnostica agli altri processi mentre il lock è tenuto."""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.projects import ProjectContext
+
 import os
 import re
 import time
@@ -153,9 +160,9 @@ def _close_version_fd(fd: int) -> None:
         os.close(fd)
 
 
-def default_lock_path() -> Path:
+def default_lock_path(project: ProjectContext | None = None) -> Path:
     """Percorso canonico del file di lock: database/.writer.lock."""
-    return DATABASE_DIR / LOCK_FILENAME
+    return (project.database_dir if project is not None else DATABASE_DIR) / LOCK_FILENAME
 
 
 def _read_holder_info(path: Path) -> str:
@@ -189,7 +196,7 @@ def _unlock(fd: int) -> None:
 
 
 @contextmanager
-def writer_lock(timeout_seconds: float = 5, lock_path: str | Path | None = None):
+def writer_lock(timeout_seconds: float = 5, lock_path: str | Path | None = None, project: ProjectContext | None = None):
     """Acquisisce il writer lock esclusivo (o solleva WriterLockBusyError al timeout).
 
     L'acquisizione è un retry non-bloccante fino a `timeout_seconds`; al timeout il
@@ -197,7 +204,7 @@ def writer_lock(timeout_seconds: float = 5, lock_path: str | Path | None = None)
     detentore). `lock_path` è il seam per i test (default: database/.writer.lock);
     il file NON viene mai cancellato al rilascio — cancellarlo aprirebbe la race
     "due processi lockano inode diversi dello stesso path"."""
-    path = Path(lock_path) if lock_path is not None else default_lock_path()
+    path = Path(lock_path) if lock_path is not None else default_lock_path(project=project)
     path.parent.mkdir(parents=True, exist_ok=True)
     flags = os.O_RDWR | os.O_CREAT
     if os.name == "nt":

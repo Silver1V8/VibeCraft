@@ -274,10 +274,10 @@ def test_incremental_index_noop_returns_early(monkeypatch, tmp_path):
     non costruisce mai il client Qdrant né il modello (idempotenza sulle run ripetute)."""
     current = {"a.md": "h1", "b.md": "h2"}
     code = {"backend/svc.py": "c1"}
-    monkeypatch.setattr(index, "docs_hashes", lambda: dict(current))
-    monkeypatch.setattr(index, "_code_hashes", lambda: dict(code))
+    monkeypatch.setattr(index, "docs_hashes", lambda project=None: dict(current))
+    monkeypatch.setattr(index, "_code_hashes", lambda project=None: dict(code))
     monkeypatch.setattr(index, "_read_manifest",
-                        lambda: {"doc_hashes": dict(current), "code_hashes": dict(code)})
+                        lambda project=None: {"doc_hashes": dict(current), "code_hashes": dict(code)})
 
     # Se venisse costruito un QdrantClient o un modello, questi solleverebbero.
     def _boom(*a, **k):
@@ -291,10 +291,10 @@ def test_incremental_index_noop_returns_early(monkeypatch, tmp_path):
 
 
 def test_incremental_only_delete_does_not_construct_embed_model(monkeypatch):
-    monkeypatch.setattr(index, "docs_hashes", lambda: {})
-    monkeypatch.setattr(index, "_code_hashes", lambda: {})
+    monkeypatch.setattr(index, "docs_hashes", lambda project=None: {})
+    monkeypatch.setattr(index, "_code_hashes", lambda project=None: {})
     monkeypatch.setattr(index, "_read_manifest",
-                        lambda: {"doc_hashes": {"a.md": "old"}, "code_hashes": {}})
+                        lambda project=None: {"doc_hashes": {"a.md": "old"}, "code_hashes": {}})
     monkeypatch.setattr(index, "BGEM3FlagModel",
                         lambda *a, **k: (_ for _ in ()).throw(AssertionError("model loaded")))
     monkeypatch.setattr(index, "QdrantClient",
@@ -304,10 +304,10 @@ def test_incremental_only_delete_does_not_construct_embed_model(monkeypatch):
 
 
 def test_incremental_modified_content_constructs_embed_model(monkeypatch):
-    monkeypatch.setattr(index, "docs_hashes", lambda: {"a.md": "new"})
-    monkeypatch.setattr(index, "_code_hashes", lambda: {})
+    monkeypatch.setattr(index, "docs_hashes", lambda project=None: {"a.md": "new"})
+    monkeypatch.setattr(index, "_code_hashes", lambda project=None: {})
     monkeypatch.setattr(index, "_read_manifest",
-                        lambda: {"doc_hashes": {"a.md": "old"}, "code_hashes": {}})
+                        lambda project=None: {"doc_hashes": {"a.md": "old"}, "code_hashes": {}})
     models = []
     monkeypatch.setattr(index, "BGEM3FlagModel",
                         lambda *a, **k: models.append((a, k)) or object())
@@ -968,7 +968,7 @@ def test_build_graph_and_index_generates_version_name_exactly_once(monkeypatch, 
     calls: list[str] = []
     real_new_version_name = index._new_version_name
 
-    def _counting_new_version_name():
+    def _counting_new_version_name(project=None):
         name = real_new_version_name()
         calls.append(name)
         return name
@@ -1124,7 +1124,7 @@ def test_promote_writes_current_before_alias_swap(monkeypatch, tmp_path):
     sequence: list[str] = []
     real_promote_version = index.promote_version
 
-    def _tracking_promote(version):
+    def _tracking_promote(version, project=None):
         sequence.append("promote")
         return real_promote_version(version)
 
@@ -1171,7 +1171,7 @@ def test_legacy_layout_migrates_deletes_legacy_then_creates_alias(monkeypatch, t
     sequence: list[str] = []
     real_promote_version = index.promote_version
 
-    def _tracking_promote(version):
+    def _tracking_promote(version, project=None):
         sequence.append("promote")
         return real_promote_version(version)
 

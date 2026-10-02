@@ -179,15 +179,18 @@ def _code_block_symbols(block: str, owner: str, stem: str) -> list[tuple]:
 
 def _collect_imports_usings(code_dir: Path) -> dict[str, list[str]]:
     """@using dei file _Imports.razor/_ViewImports.cshtml, per cartella."""
+    from code_index import source_files, CODE_EXCLUDED_DIRS
+
     usings: dict[str, list[str]] = {}
-    for pattern in ("**/_Imports.razor", "**/_ViewImports.cshtml"):
-        for path in code_dir.glob(pattern):
-            try:
-                text = path.read_text(encoding="utf-8", errors="ignore")
-            except Exception:
-                continue
-            folder = path.parent.relative_to(code_dir).as_posix()
-            usings.setdefault(folder, []).extend(_USING_RE.findall(text))
+    for path in source_files(code_dir, CODE_EXCLUDED_DIRS):
+        if path.name not in ("_Imports.razor", "_ViewImports.cshtml"):
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            continue
+        folder = path.parent.relative_to(code_dir).as_posix()
+        usings.setdefault(folder, []).extend(_USING_RE.findall(text))
     return usings
 
 

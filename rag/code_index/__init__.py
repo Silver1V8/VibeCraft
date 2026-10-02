@@ -235,6 +235,22 @@ def _extract(suffix: str, text: str, stem: str, rel: str = "",
     return []
 
 
+def source_files(root: Path, excluded_dirs=frozenset()) -> list[Path]:
+    """Collect confined source files before parsers can follow auxiliary file paths."""
+    if root.is_symlink() or root.is_junction():
+        raise ValueError(f"linked source root forbidden: {root}")
+    resolved = root.resolve()
+    files = []
+    for folder, dirs, names in root.walk(follow_symlinks=False):
+        dirs[:] = [name for name in dirs if name not in excluded_dirs]
+        for name in [*dirs, *names]:
+            path = folder / name
+            if path.is_symlink() or path.is_junction() or not path.resolve().is_relative_to(resolved):
+                raise ValueError(f"linked or escaping source forbidden: {path}")
+        files.extend(folder / name for name in names if (folder / name).is_file())
+    return sorted(files)
+
+
 def collect_code_symbols(code_dir: Path) -> list[dict]:
     """Scansiona code/ e restituisce i simboli estratti, uno per elemento di codice."""
     symbols: list[dict] = []
@@ -242,7 +258,7 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
     FALLBACK_LOG.clear()
     if not code_dir.exists():
         return symbols
-    for path in sorted(code_dir.rglob("*")):
+    for path in source_files(code_dir, CODE_EXCLUDED_DIRS):
         if not (path.is_file() and (path.suffix in CODE_EXTS or path.name in CODE_FILENAMES
                                     or _is_config_file(path.name) or _is_ci_file(path.name)
                                     or _is_docker_file(path.name))):

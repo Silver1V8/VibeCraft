@@ -28,5 +28,6 @@ def _isolate_production_paths(tmp_path_factory, monkeypatch):
     # Reindirizzati qui e non test per test per la stessa ragione di ALERTS_PATH: questi due
     # sono l'unico punto da cui passano TUTTI i chiamanti — writer_lock() senza `lock_path`
     # e ensure_staging_dirs() senza `base_dir` — quindi un test nuovo nasce già isolato.
-    monkeypatch.setattr(writer_lock, "default_lock_path", lambda: tmp / ".writer.lock")
+    monkeypatch.setattr(writer_lock, "default_lock_path", lambda project=None:
+                        (project.database_dir if project is not None else tmp) / ".writer.lock")
     monkeypatch.setattr(intake, "INTAKE_STAGING_DIR", tmp / "staging")

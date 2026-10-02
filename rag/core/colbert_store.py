@@ -193,6 +193,9 @@ class ColbertWriter:
             if verified_parent_hashes is None or dict(verified_parent_hashes) != expected:
                 raise ValueError("parent file hashes must be explicitly attested before reuse")
         self.root = Path(root)
+        for component in (self.root, *self.root.parents):
+            if component.is_symlink() or component.is_junction():
+                raise ValueError(f"linked ColBERT path forbidden: {component}")
         self.root.mkdir(parents=True, exist_ok=False)
         self.dim = dim if dim is not None else (parent.index["dim"] if parent is not None and parent.index["chunks"] else None)
         self.parent = parent

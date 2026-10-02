@@ -5,6 +5,13 @@ configurazione in core/config.py; il blue/green Qdrant (alias, rollback, reconci
 core/qdrant_versions.py; il check drift in core/drift_check.py; l'archiviazione delle change
 in core/feature_archive.py (nomi re-esportati qui). Le risorse pesanti (Qdrant, embedding)
 sono iniettabili."""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.projects import ProjectContext
+
 import json
 import logging
 import re
@@ -40,10 +47,12 @@ from code_index import (
     embed_symbols,
     link_symbols,
     referenced_entity_tokens,
+    source_files,
 )
 from core.artifacts import (
     _atomic_write_text,
     _new_version_name,
+    _project_artifact_path,
     _read_manifest,
     activate_immutable_index,
     artifact_dir,
@@ -385,7 +394,7 @@ def _build_full_state(embed_model, docs_dir: Path, code_dir: Path, emit=None,
     progressive_dense: dict = {}
     progressive_count = 0
 
-    all_docs = sorted(p for p in docs_dir.rglob("*") if p.is_file() and p.suffix.lower() in DOC_EXTS)
+    all_docs = [p for p in source_files(docs_dir) if p.suffix.lower() in DOC_EXTS]
     for filepath_obj in all_docs:
         rel_path = filepath_obj.relative_to(docs_dir).as_posix()
         metadata, body = read_document(filepath_obj)
@@ -485,7 +494,7 @@ def _build_full_state(embed_model, docs_dir: Path, code_dir: Path, emit=None,
 
 
 def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, emit=None,
-                          promote: bool = True, collector: dict | None = None) -> str | None:
+                          promote: bool = True, collector: dict | None = None, project: ProjectContext | None = None) -> str | None:
     """Esegue l'indicizzazione completa (Fase 0 e Fase 4) e restituisce il nome della
     versione blue/green scritta.
 
@@ -524,7 +533,11 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     rimuove le collection versionate orfane (build crashati/non promossi, lineage già
     ruotati dalla retention locale).
     """
-    activate_immutable_index()
+    database_dir = project.database_dir if project is not None else artifact_module.DATABASE_DIR
+    alias_name = project.collection_name if project is not None else COLLECTION_NAME
+    docs_dir = project.docs_dir if project is not None else DOCS_DIR
+    code_dir = project.code_dir if project is not None else CODE_DIR
+    activate_immutable_index(project=project)
     _log = emit or logger.info
     timings = _new_phase_timings()
     own_qdrant = qdrant is None
@@ -537,8 +550,8 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     if qdrant is None:
         qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
-    version = _new_version_name()
-    collection_name = qdrant_collection_name(version)
+    version = _new_version_name(project=project)
+    collection_name = qdrant_collection_name(version, project=project)
 
     # Mai recreate: la candidata è un nome nuovo per costruzione, niente da droppare,
     # e la produzione (nome diverso, COLLECTION_NAME) non va mai toccata da questa
@@ -546,7 +559,7 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     _ensure_collection(qdrant, recreate=False, collection_name=collection_name)
     timings["qdrant"] += time.perf_counter() - started
 
-    staged_colbert = ColbertWriter(artifact_module.DATABASE_DIR / ".colbert-staging" / version / "colbert", None)
+    staged_colbert = ColbertWriter(database_dir / ".colbert-staging" / version / "colbert", None)
 
     def _upsert_document(points):
         if not points:
@@ -558,7 +571,7 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
         timings["qdrant"] += time.perf_counter() - started_upsert
 
     try:
-        state = _build_full_state(embed_model, DOCS_DIR, CODE_DIR, emit=_log,
+        state = _build_full_state(embed_model, docs_dir, code_dir, emit=_log,
                                   phase_timings=timings, colbert_writer=staged_colbert,
                                   point_sink=_upsert_document)
     except BaseException:
@@ -581,12 +594,12 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
                 qdrant.upsert(collection_name=collection_name, points=state.points[i:i + batch_size])
         timings["qdrant"] += time.perf_counter() - started
         started = time.perf_counter()
-        doc_hashes = docs_hashes()
-        code_hashes = _code_hashes()
+        doc_hashes = docs_hashes(project=project)
+        code_hashes = _code_hashes(project=project)
         timings["scan_hash"] = time.perf_counter() - started
         started = time.perf_counter()
         version = save_artifacts(G, state.colbert_store, state.chunks_store, state.dense_store,
-                                 state.code_store, version=version)
+                                 state.code_store, version=version, project=project)
     except BaseException:
         if staged_colbert.root.exists():
             shutil.rmtree(staged_colbert.root)
@@ -607,9 +620,9 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
                         version=version, qdrant_collection=collection_name,
                         doc_hashes=doc_hashes, code_hashes=code_hashes,
                         colbert_new_files=staged_colbert.new_files if state.colbert_store is staged_colbert else None,
-                        immutable=immutable_index_active())
+                        immutable=immutable_index_active(project=project), project=project)
     timings["save_hash"] += time.perf_counter() - started
-    _log(f"🧾 Manifest indicizzazione salvato in: {manifest_path(version)}")
+    _log(f"🧾 Manifest indicizzazione salvato in: {manifest_path(version, project=project)}")
 
     if promote and version:
         # Eval-gate: valuta la recall della versione candidata sul golden set PRIMA di spostare
@@ -620,11 +633,11 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
         # graph/restatements: il gate deve leggere lo STESSO ordinamento che il server servirà
         # (precedenza S4, peso di sezione N4), non quello nudo — R26.
         started = time.perf_counter()
-        candidate_colbert = load_artifacts(version=version, required=("colbert",)).colbert_store
+        candidate_colbert = load_artifacts(version=version, required=("colbert",), project=project).colbert_store
         try:
             gate = gate_promotion(version, qdrant, embed_model, candidate_colbert, emit=_log,
                                   collection_name=collection_name, graph=G,
-                                  restatements=restatement_sections(state.chunks_store))
+                                  restatements=restatement_sections(state.chunks_store), project=project)
         finally:
             if isinstance(candidate_colbert, ColbertStore):
                 candidate_colbert.close()
@@ -639,15 +652,15 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
             # `collection_name` è la STESSA variabile locale usata per costruire
             # questa versione — non una ricostruzione indipendente del nome, quindi
             # mai ambigua.
-            promote_version(version)
-            _migrate_legacy_collection_if_needed(qdrant, COLLECTION_NAME, emit=_log)
-            _swap_alias(qdrant, COLLECTION_NAME, collection_name)
-            _log(f"🔀 Alias Qdrant '{COLLECTION_NAME}' → {collection_name} (blue/green).")
+            promote_version(version, project=project)
+            _migrate_legacy_collection_if_needed(qdrant, alias_name, emit=_log)
+            _swap_alias(qdrant, alias_name, collection_name)
+            _log(f"🔀 Alias Qdrant '{alias_name}' → {collection_name} (blue/green).")
             # promote_version() sopra ha già applicato la retention locale
             # (prune_versions), quindi _referenced_qdrant_collections() qui dentro
             # riflette già le versioni sopravvissute — solo DOPO lo swap, nel
             # single-writer di questo job, mai concorrente.
-            gc_orphaned_qdrant_collections(qdrant, emit=_log)
+            gc_orphaned_qdrant_collections(qdrant, emit=_log, project=project)
             _log(f"🔁 Versione promossa: CURRENT → {version} (swap atomico, rollback: index.py --rollback).")
         timings["promote"] = time.perf_counter() - started
 
@@ -670,26 +683,32 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     return version
 
 
-def docs_hashes() -> dict[str, str]:
+def docs_hashes(project: ProjectContext | None = None) -> dict[str, str]:
     """Calcola l'hash SHA-256 di ogni documento indicizzabile in docs/ (chiave = percorso relativo).
     Pubblica: la usa anche api/routes_pipeline (stato sorgente del gate di pipeline)."""
+    docs_dir = project.docs_dir if project is not None else DOCS_DIR
     hashes: dict[str, str] = {}
-    for filepath_obj in sorted(p for p in DOCS_DIR.rglob("*") if p.is_file() and p.suffix.lower() in DOC_EXTS):
-        rel_path = filepath_obj.relative_to(DOCS_DIR).as_posix()
+    for filepath_obj in source_files(docs_dir):
+        if filepath_obj.suffix.lower() not in DOC_EXTS:
+            continue
+        rel_path = filepath_obj.relative_to(docs_dir).as_posix()
         hashes[rel_path] = sha256_file(filepath_obj)
     return hashes
 
 
-def _code_hashes() -> dict[str, str]:
+def _code_hashes(project: ProjectContext | None = None) -> dict[str, str]:
     """Hash SHA-256 di ogni file di codice sotto code/ (chiave = percorso relativo a code/).
     Base del delta incrementale sul codice, gemella di docs_hashes per i documenti."""
+    code_dir = project.code_dir if project is not None else CODE_DIR
     hashes: dict[str, str] = {}
-    if not CODE_DIR.exists():
+    if not code_dir.exists():
         return hashes
-    for filepath_obj in sorted(p for p in CODE_DIR.rglob("*") if p.is_file() and p.suffix in CODE_EXTS):
-        if CODE_EXCLUDED_DIRS & set(filepath_obj.relative_to(CODE_DIR).parts):
+    for filepath_obj in source_files(code_dir, CODE_EXCLUDED_DIRS):
+        if filepath_obj.suffix not in CODE_EXTS:
             continue
-        rel_path = filepath_obj.relative_to(CODE_DIR).as_posix()
+        if CODE_EXCLUDED_DIRS & set(filepath_obj.relative_to(code_dir).parts):
+            continue
+        rel_path = filepath_obj.relative_to(code_dir).as_posix()
         hashes[rel_path] = sha256_file(filepath_obj)
     return hashes
 
@@ -700,7 +719,7 @@ def write_index_manifest(points_count: int, nodes: int = 0, edges: int = 0,
                          doc_hashes: dict[str, str] | None = None,
                          code_hashes: dict[str, str] | None = None,
                          colbert_new_files: set[str] | None = None,
-                         immutable: bool = False) -> None:
+                         immutable: bool = False, project: ProjectContext | None = None) -> None:
     """Persiste lo snapshot dell'indice (config modello, conteggi, hash dei documenti)
     DENTRO la directory della versione indicata (default: la versione attiva; per il
     layout legacy resta il flat database/index_manifest.json): ogni versione blue/green
@@ -717,12 +736,13 @@ def write_index_manifest(points_count: int, nodes: int = 0, edges: int = 0,
     dal manifest padre. I lettori di manifest pre-esistenti a questo campo lo
     trovano assente e devono tollerarlo (vedi index_status/check_index_integrity,
     che non lo richiedono)."""
+    alias_name = project.collection_name if project is not None else COLLECTION_NAME
     now_iso = datetime.now(timezone.utc).isoformat()
     manifest = {
         "version": now_iso,
         "embedding_model": EMBEDDING_MODEL,
-        "collection": COLLECTION_NAME,
-        "qdrant_collection": qdrant_collection if qdrant_collection is not None else COLLECTION_NAME,
+        "collection": alias_name,
+        "qdrant_collection": qdrant_collection if qdrant_collection is not None else alias_name,
         "immutable": immutable,
         "created_at": now_iso,
         "documents": points_count,
@@ -730,15 +750,15 @@ def write_index_manifest(points_count: int, nodes: int = 0, edges: int = 0,
         "graph_edges": edges,
         # Default: gli hash su disco (full rebuild, che indicizza tutto). L'incrementale passa
         # gli hash di ciò che ha davvero elaborato: vedi incremental_index.
-        "doc_hashes": doc_hashes if doc_hashes is not None else docs_hashes(),
-        "code_hashes": code_hashes if code_hashes is not None else _code_hashes(),
+        "doc_hashes": doc_hashes if doc_hashes is not None else docs_hashes(project=project),
+        "code_hashes": code_hashes if code_hashes is not None else _code_hashes(project=project),
         # Hash dei file artefatto della STESSA versione (grafo JSON, vettori .npz,
         # sidecar): permette al check di coerenza di validarne anche l'integrità.
-        "artifact_hashes": artifact_hashes(version),
+        "artifact_hashes": artifact_hashes(version, project=project),
     }
     if colbert_new_files is not None:
         manifest["colbert_new_files"] = sorted(colbert_new_files)
-    _atomic_write_text(manifest_path(version), json.dumps(manifest, ensure_ascii=False, indent=2))
+    _atomic_write_text(manifest_path(version, project=project), json.dumps(manifest, ensure_ascii=False, indent=2))
 
 
 def _diff_hashes(old: dict[str, str], new: dict[str, str]) -> tuple[list[str], list[str], list[str], list[str]]:
@@ -754,11 +774,11 @@ def _diff_hashes(old: dict[str, str], new: dict[str, str]) -> tuple[list[str], l
     return added, removed, modified, unchanged
 
 
-def index_status() -> dict:
+def index_status(project: ProjectContext | None = None) -> dict:
     """Confronta gli hash correnti di docs/ con quelli del manifest (della versione
     attiva) per dire se l'indice è aggiornato o va rigenerato, elencando i documenti
     aggiunti/rimossi/modificati."""
-    path = manifest_path()
+    path = manifest_path(project=project)
     if not path.exists():
         return {"indexed": False, "stale": True, "reason": "manifest assente — indice mai costruito", "changed": []}
     try:
@@ -766,7 +786,7 @@ def index_status() -> dict:
     except Exception as exc:
         return {"indexed": False, "stale": True, "reason": f"manifest illeggibile: {exc}", "changed": []}
 
-    added, removed, modified, _unchanged = _diff_hashes(manifest.get("doc_hashes", {}), docs_hashes())
+    added, removed, modified, _unchanged = _diff_hashes(manifest.get("doc_hashes", {}), docs_hashes(project=project))
     changed = [f"+ {p}" for p in added] + [f"- {p}" for p in removed] + [f"~ {p}" for p in modified]
     return {
         "indexed": True,
@@ -803,7 +823,7 @@ def _declares_instantiation(path: Path) -> bool:
 
 
 def observe_docs_git_divergence(root: Path = PROJECT_ROOT, docs_dir: Path = DOCS_DIR,
-                                timeout: float = 15.0) -> dict:
+                                timeout: float = 15.0, project: ProjectContext | None = None) -> dict:
     """Il corpus indicizzato (docs/ su disco) coincide con quello committato in git?
 
     Perché serve un check dedicato invece di `git status`: i file di `docs/` sono marcati
@@ -861,6 +881,9 @@ def observe_docs_git_divergence(root: Path = PROJECT_ROOT, docs_dir: Path = DOCS
       - state "unavailable"  : git assente, non un repository, HEAD assente (repo vuoto),
                                o comando fallito — `reason` dice perché. Mai un'eccezione.
     """
+    if project is not None:
+        root, docs_dir = project.root, project.docs_dir
+
     def _git(args: list[str], stdin: str | None = None) -> str:
         return subprocess.run(
             ["git", "-C", str(root), *args],
@@ -953,7 +976,7 @@ def observe_docs_git_divergence(root: Path = PROJECT_ROOT, docs_dir: Path = DOCS
     }
 
 
-def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict:
+def check_index_integrity(qdrant: QdrantClient | None = None, emit=None, project: ProjectContext | None = None) -> dict:
     """Check di integrità ECONOMICO dell'indice: zero embedding, nessuna costruzione,
     secondi di esecuzione. È il controllo notturno; il confronto profondo incrementale
     vs full rebuild (check_graph_consistency, che ri-embedda tutto) resta il check
@@ -995,6 +1018,8 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
     anche un alias divergente non fa fallire il check, e un manifest antecedente al
     campo qdrant_collection vi appare semplicemente come "legacy", non come un
     problema."""
+    database_dir = project.database_dir if project is not None else artifact_module.DATABASE_DIR
+    alias_name = project.collection_name if project is not None else COLLECTION_NAME
     _log = emit or logger.info
     problems: list[str] = []
     stale = False
@@ -1007,22 +1032,22 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
     # stato iniettato dal chiamante indipendentemente da cosa fa il passo 4.
     _injected_qdrant = qdrant
 
-    manifest = _read_manifest()
+    manifest = _read_manifest(project=project)
     if manifest is None:
         report = {
             "ok": False, "stale": True, "artifacts_corrupted": False,
             "qdrant_mismatch": False, "qdrant_unreachable": False,
             "problems": ["manifest assente o illeggibile: indice mai costruito (o manifest corrotto)"],
-            "qdrant_alias": observe_qdrant_alias(_injected_qdrant),
-            "docs_git": observe_docs_git_divergence(),
+            "qdrant_alias": observe_qdrant_alias(_injected_qdrant, project=project),
+            "docs_git": observe_docs_git_divergence(project=project),
         }
         _log(f"❌ Integrità indice: {report['problems'][0]}")
         return report
 
     # 2) Sorgenti vs manifest: differenze ⇒ indice stale (delta incrementale sufficiente).
     for label, old, new in (
-        ("docs", manifest.get("doc_hashes", {}), docs_hashes()),
-        ("code", manifest.get("code_hashes", {}), _code_hashes()),
+        ("docs", manifest.get("doc_hashes", {}), docs_hashes(project=project)),
+        ("code", manifest.get("code_hashes", {}), _code_hashes(project=project)),
     ):
         added, removed, modified, _unchanged = _diff_hashes(old, new)
         if added or removed or modified:
@@ -1048,8 +1073,8 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
         )
     else:
         try:
-            current_artifacts = (artifact_hashes(deep=True)
-                                 if (artifact_dir() / "colbert").is_dir() else artifact_hashes())
+            current_artifacts = (artifact_hashes(deep=True, project=project)
+                                 if (artifact_dir(project=project) / "colbert").is_dir() else artifact_hashes(project=project))
         except Exception as exc:
             artifacts_corrupted = True
             current_artifacts = {}
@@ -1064,7 +1089,7 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
                     f"artefatto con hash diverso dal manifest (corruzione o scrittura mista): {name}"
                 )
 
-    chunks_path = artifact_dir() / "chunks.json"
+    chunks_path = _project_artifact_path(artifact_dir(project=project) / "chunks.json", project)
     expected_chunks: int | None = None
     chunk_ids: set[str] | None = None
     if chunks_path.exists():
@@ -1089,15 +1114,15 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
     #    versionato. Per questo è un `problems` (remediation: full rebuild) e non
     #    un'osservazione pura come observe_qdrant_alias. Costo: si legge il solo membro
     #    `keys` del .npz, i vettori non vengono mai decompressi.
-    colbert_path = artifact_dir() / "colbert.npz"
+    colbert_path = _project_artifact_path(artifact_dir(project=project) / "colbert.npz", project)
     if chunk_ids is not None:
         colbert_ids: set[str] | None = None
-        if (artifact_dir() / "colbert").is_dir():
+        if (artifact_dir(project=project) / "colbert").is_dir():
             try:
-                active_version = artifact_module.current_version()
-                store = (ColbertStore.open_version(artifact_module.DATABASE_DIR, active_version)
+                active_version = artifact_module.current_version(project=project)
+                store = (ColbertStore.open_version(database_dir, active_version)
                          if active_version not in (None, artifact_module.LEGACY_VERSION)
-                         else ColbertStore(artifact_dir() / "colbert"))
+                         else ColbertStore(artifact_dir(project=project) / "colbert"))
                 try:
                     colbert_ids = set(store)
                 finally:
@@ -1141,12 +1166,12 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
         try:
             if own_qdrant:
                 qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
-            points = qdrant.count(collection_name=COLLECTION_NAME, exact=True).count
+            points = qdrant.count(collection_name=alias_name, exact=True).count
             if points != expected_chunks:
                 qdrant_mismatch = True
                 problems.append(
                     f"Qdrant e sidecar non allineati: {points} punti nella collection "
-                    f"'{COLLECTION_NAME}' vs {expected_chunks} chunk in {chunks_path.name}"
+                    f"'{alias_name}' vs {expected_chunks} chunk in {chunks_path.name}"
                 )
             # Il conteggio da solo non basta: se l'alias punta a una collection ALTRUI
             # con lo stesso numero di chunk, torna verde. La collection DICHIARATA dalla
@@ -1162,7 +1187,7 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
                 qdrant_mismatch = True
                 problems.append(
                     f"la collection '{declared}' dichiarata dalla versione attiva non "
-                    f"esiste più su Qdrant: l'alias '{COLLECTION_NAME}' serve i vettori "
+                    f"esiste più su Qdrant: l'alias '{alias_name}' serve i vettori "
                     f"di un'altra build (stato misto, non riparabile spostando l'alias) "
                     f"— serve una re-indicizzazione completa"
                 )
@@ -1182,7 +1207,7 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
             else:
                 qdrant_mismatch = True
                 problems.append(
-                    f"collection/alias '{COLLECTION_NAME}' assente su Qdrant (server raggiungibile): "
+                    f"collection/alias '{alias_name}' assente su Qdrant (server raggiungibile): "
                     "vettori di produzione mancanti — serve un full rebuild"
                 )
         finally:
@@ -1201,10 +1226,10 @@ def check_index_integrity(qdrant: QdrantClient | None = None, emit=None) -> dict
         "problems": problems,
         # Osservazione READ-ONLY dello stato alias Qdrant: esposta e basta, mai
         # inclusa nel calcolo di 'ok'/'problems' — vedi observe_qdrant_alias.
-        "qdrant_alias": observe_qdrant_alias(_injected_qdrant),
+        "qdrant_alias": observe_qdrant_alias(_injected_qdrant, project=project),
         # Idem per la divergenza fra docs/ su disco e docs/ committato: gli
         # skip-worktree la nascondono a git status, e un reindex non la ripara.
-        "docs_git": observe_docs_git_divergence(),
+        "docs_git": observe_docs_git_divergence(project=project),
     }
     if report["ok"]:
         _log("✅ Integrità indice OK: manifest, sorgenti, artefatti e Qdrant allineati.")
@@ -1277,13 +1302,16 @@ def plan_incremental_indexing(current_hashes: dict[str, str], manifest: dict | N
     return IndexPlan(unchanged=unchanged, new=added, modified=modified, deleted=removed)
 
 
-def _partition_changed_paths(changed_paths: list[str]) -> tuple[set[str], set[str]]:
+def _partition_changed_paths(changed_paths: list[str], project: ProjectContext | None = None) -> tuple[set[str], set[str]]:
     """Mappa i path repo-relative (es. da un webhook GitLab, relativi alla root del repo)
     negli insiemi dei path relativi a docs/ e a code/. I file fuori da questi due alberi
     (config, CI, ecc.) vengono ignorati: non fanno parte dell'indice. Restituisce
     (docs_rel, code_rel), pronti a filtrare il piano del delta e il delta del codice."""
-    docs_prefix = DOCS_DIR.relative_to(PROJECT_ROOT).as_posix().rstrip("/") + "/"
-    code_prefix = CODE_DIR.relative_to(PROJECT_ROOT).as_posix().rstrip("/") + "/"
+    docs_dir = project.docs_dir if project is not None else DOCS_DIR
+    code_dir = project.code_dir if project is not None else CODE_DIR
+    root = project.root if project is not None else PROJECT_ROOT
+    docs_prefix = docs_dir.relative_to(root).as_posix().rstrip("/") + "/"
+    code_prefix = code_dir.relative_to(root).as_posix().rstrip("/") + "/"
     docs_rel: set[str] = set()
     code_rel: set[str] = set()
     for raw in changed_paths:
@@ -1474,6 +1502,7 @@ def apply_incremental_indexing(
     code_dir: Path | None = None,
     phase_timings: dict[str, float] | None = None,
     colbert_writer: ColbertWriter | None = None,
+    project: ProjectContext | None = None,
 ) -> dict:
     """Esegue il piano del delta sugli oggetti passati (Qdrant + grafo + sidecar), mutandoli
     in-place. Con colbert_writer persiste i vettori per documento; il chiamante
@@ -1495,6 +1524,7 @@ def apply_incremental_indexing(
 
     `dense_store`/`code_store`/`code_delta`/`code_dir` sono opzionali: se assenti la funzione
     si comporta come prima (nessun ricalcolo dei code-link), preservando i chiamanti legacy."""
+    alias_name = project.collection_name if project is not None else COLLECTION_NAME
     _log = emit or logger.info
     apply_started = time.perf_counter()
     qdrant_seconds = 0.0
@@ -1508,7 +1538,7 @@ def apply_incremental_indexing(
     # 1. Purge (Qdrant + sidecar + grafo) dei documenti non più validi nella loro forma attuale
     if to_delete:
         started = time.perf_counter()
-        _delete_doc_chunks(qdrant, to_delete)
+        _delete_doc_chunks(qdrant, to_delete, collection_name=alias_name)
         qdrant_seconds += time.perf_counter() - started
         dead_set = set(to_delete)
         dead_chunks = [cid for cid, meta in chunks_store.items() if meta.get("doc_id") in dead_set]
@@ -1551,7 +1581,7 @@ def apply_incremental_indexing(
                 started = time.perf_counter()
                 batch_size = qdrant_upsert_batch_from_env()
                 for i in range(0, len(points), batch_size):
-                    qdrant.upsert(collection_name=COLLECTION_NAME, points=points[i:i + batch_size])
+                    qdrant.upsert(collection_name=alias_name, points=points[i:i + batch_size])
                 qdrant_seconds += time.perf_counter() - started
                 save_started = time.perf_counter()
                 colbert_writer.add_document(rel_path, colbert_partial)
@@ -1570,7 +1600,7 @@ def apply_incremental_indexing(
             points, colbert_partial, chunks_partial, _dense = _encode_chunks_to_points(embed_model, new_chunks)
             processed_colbert_tokens = _colbert_token_count(colbert_partial)
             started = time.perf_counter()
-            qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
+            qdrant.upsert(collection_name=alias_name, points=points)
             qdrant_seconds += time.perf_counter() - started
             colbert_store.update(colbert_partial)
             chunks_store.update(chunks_partial)
@@ -1657,7 +1687,7 @@ def apply_incremental_indexing(
 
 
 def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit=None,
-                      changed_paths: list[str] | None = None) -> dict:
+                      changed_paths: list[str] | None = None, project: ProjectContext | None = None) -> dict:
     """Orchestratore dell'indicizzazione incrementale: manifest → piano → esecuzione → persistenza.
 
     - Salta del tutto i documenti invariati (nessun re-embed).
@@ -1670,8 +1700,16 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     GitLab push/merge) restringe il delta ai soli file segnalati: si evita di ri-hashare/ri-
     embeddare tutto quando si sa già cosa è cambiato. È solo un limite superiore al lavoro —
     il diff hash resta la fonte di verità — quindi non può indicizzare nulla che un delta
-    completo non avrebbe toccato. Se None, si considera l'intero docs/ + code/ come sempre."""
-    if immutable_index_active():
+    completo non avrebbe toccato. Se None, si considera l'intero docs/ + code/ come sempre.
+
+    I progetti ordinari pubblicano snapshot immutabili: dopo il controllo no-op,
+    ricostruiscono tutti i sorgenti in una collection nuova. In questo caso
+    changed_paths decide se avviare il lavoro, non limita i file del full rebuild."""
+    database_dir = project.database_dir if project is not None else artifact_module.DATABASE_DIR
+    alias_name = project.collection_name if project is not None else COLLECTION_NAME
+    docs_dir = project.docs_dir if project is not None else DOCS_DIR
+    code_dir = project.code_dir if project is not None else CODE_DIR
+    if immutable_index_active(project=project) and (project is None or project.legacy):
         raise RuntimeError(
             "Indicizzazione incrementale disabilitata per indice immutabile: usare un full rebuild."
         )
@@ -1680,20 +1718,20 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     own_qdrant = qdrant is None
 
     started = time.perf_counter()
-    current = docs_hashes()
-    manifest = _read_manifest()
+    current = docs_hashes(project=project)
+    manifest = _read_manifest(project=project)
     plan = plan_incremental_indexing(current, manifest)
 
     # Delta sul codice: gemello del piano documenti, così l'incrementale reagisce anche a
     # nuovi file di codice / modifiche / cancellazioni sotto code/ (non solo a docs/).
-    current_code = _code_hashes()
+    current_code = _code_hashes(project=project)
     timings["scan_hash"] = time.perf_counter() - started
     old_code = manifest.get("code_hashes", {}) if isinstance(manifest, dict) else {}
     code_added, code_removed, code_modified, _uc = _diff_hashes(old_code, current_code)
 
     # Webhook: restringi piano documenti e delta codice ai soli path segnalati (limita il lavoro).
     if changed_paths is not None:
-        docs_rel, code_rel = _partition_changed_paths(changed_paths)
+        docs_rel, code_rel = _partition_changed_paths(changed_paths, project=project)
         plan = _restrict_plan(plan, docs_rel)
         code_added = [p for p in code_added if p in code_rel]
         code_modified = [p for p in code_modified if p in code_rel]
@@ -1713,6 +1751,16 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
                            "colbert_tokens_processed": 0, "colbert_tokens_indexed": None,
                            "code_tokens_processed": None,
                            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"}}
+
+    if project is not None and not project.legacy:
+        # ponytail: rebuild the complete candidate; add copy-on-write delta only if rebuild cost warrants it.
+        _log("Snapshot immutabile: ricostruzione completa dei sorgenti per pubblicare il delta.")
+        collector = {}
+        version = build_graph_and_index(qdrant, embed_model, emit, collector=collector, project=project)
+        counts = collector["counts"]
+        return {"noop": False, "version": version, "reindexed_docs": counts["docs_added"],
+                "deleted_docs": len(plan.deleted), "upserted_chunks": counts["chunks_indexed"],
+                "planned": plan.as_dict(), **collector}
 
     _log(f"📋 Piano incrementale: {len(plan.new)} nuovi, {len(plan.modified)} modificati, "
          f"{len(plan.deleted)} cancellati, {len(plan.unchanged)} invariati (saltati). "
@@ -1743,10 +1791,10 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
         # abortisce: le point-operation sotto passano per l'alias, e scrivere con
         # l'alias fuori lineage upserterebbe/cancellerebbe su una collection che
         # non è quella del padre.
-        repair = repair_qdrant_alias(qdrant, emit=_log)
+        repair = repair_qdrant_alias(qdrant, emit=_log, project=project)
         if repair["state"] in ("diverging", "missing") and not repair["repaired"]:
             raise RuntimeError(
-                f"Alias Qdrant '{COLLECTION_NAME}' in stato '{repair['state']}': attesa la "
+                f"Alias Qdrant '{alias_name}' in stato '{repair['state']}': attesa la "
                 f"collection del padre '{repair['expected']}', target attuale "
                 f"'{repair['actual']}', e riparazione impossibile (la collection attesa non "
                 f"esiste su Qdrant). Incrementale abortito senza scritture: full rebuild richiesto."
@@ -1761,7 +1809,7 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
                 f"Collection del padre '{parent_qdrant_collection}' assente su Qdrant: "
                 f"l'incrementale non la ricrea mai — full rebuild richiesto."
             )
-    elif _read_alias_target(qdrant, COLLECTION_NAME) is None:
+    elif _read_alias_target(qdrant, alias_name) is None:
         # Bootstrap (nessun manifest padre, o manifest antecedente all'introduzione
         # del campo qdrant_collection) SENZA alias: vero fresh install o layout non
         # ancora migrato — COLLECTION_NAME è la collection fisica storica, creata
@@ -1770,13 +1818,13 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
         # migrazione avvenuta altrove, es. rollback molto indietro), non c'è nulla
         # da assicurare né da guardare: l'alias risolve per costruzione a una
         # collection fisica esistente (stato "legacy" del reconciler, nessun abort).
-        _ensure_collection(qdrant, recreate=False, collection_name=COLLECTION_NAME)
+        _ensure_collection(qdrant, recreate=False, collection_name=alias_name)
     timings["qdrant"] += time.perf_counter() - started
 
     # Carica lo stato precedente dagli artefatti. Gli artefatti assenti diventano il
     # loro default vuoto.
     started = time.perf_counter()
-    arts = load_artifacts()
+    arts = load_artifacts(project=project)
     timings["load"] = time.perf_counter() - started
     graph: nx.DiGraph = arts.graph if arts.graph is not None else nx.DiGraph()
     colbert_store: dict = arts.colbert_store
@@ -1784,13 +1832,13 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     dense_store: dict = arts.dense_store
     code_store: dict = arts.code_store
 
-    version = _new_version_name()
+    version = _new_version_name(project=project)
     parent_store = colbert_store if isinstance(colbert_store, ColbertStore) else None
     if parent_store is None and colbert_store:
         raise RuntimeError("indice NPZ attivo: migrare prima con index.py --migrate-colbert-npy")
     parent_hashes = None
     if parent_store is not None:
-        parent_dir = artifact_dir(arts.version) / "colbert"
+        parent_dir = artifact_dir(arts.version, project=project) / "colbert"
         expected = manifest.get("artifact_hashes", {}) if isinstance(manifest, dict) else {}
         if sha256_file(parent_dir / "index.json") != expected.get("colbert/index.json"):
             raise ValueError("indice ColBERT del padre non attestato dal manifest")
@@ -1799,18 +1847,18 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
             raise ValueError("hash file ColBERT del padre divergenti dal manifest")
     writer = None
     try:
-        writer = ColbertWriter(artifact_module.DATABASE_DIR / ".colbert-staging" / version / "colbert", None,
+        writer = ColbertWriter(database_dir / ".colbert-staging" / version / "colbert", None,
                                parent=parent_store, verified_parent_hashes=parent_hashes)
         stats = apply_incremental_indexing(
-            plan, DOCS_DIR, qdrant, embed_model, graph, colbert_store, chunks_store, emit=_log,
+            plan, docs_dir, qdrant, embed_model, graph, colbert_store, chunks_store, emit=_log,
             dense_store=dense_store, code_store=code_store,
-            code_delta=(code_added, code_removed, code_modified), code_dir=CODE_DIR,
+            code_delta=(code_added, code_removed, code_modified), code_dir=code_dir,
             phase_timings=timings,
-            colbert_writer=writer,
+            colbert_writer=writer, project=project,
         )
         # Persistenza: nuova versione blue/green; promote segue il manifest.
         started = time.perf_counter()
-        version = save_artifacts(graph, writer, chunks_store, dense_store, code_store, version=version)
+        version = save_artifacts(graph, writer, chunks_store, dense_store, code_store, version=version, project=project)
     finally:
         if parent_store is not None:
             parent_store.close()
@@ -1836,11 +1884,11 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     write_index_manifest(len(chunks_store), graph.number_of_nodes(), graph.number_of_edges(),
                          version=version, qdrant_collection=parent_qdrant_collection,
                          doc_hashes=doc_hashes, code_hashes=code_hashes,
-                         colbert_new_files=writer.new_files)
+                         colbert_new_files=writer.new_files, project=project)
     timings["save_hash"] += time.perf_counter() - started
     started = time.perf_counter()
     if version:  # None solo con save_artifacts finto nei test
-        promote_version(version)
+        promote_version(version, project=project)
     timings["promote"] = time.perf_counter() - started
     stats["version"] = version
     stats["colbert_io_bytes"] = dict(writer.stats)
@@ -1894,7 +1942,7 @@ def precedence_cycles(G: nx.DiGraph, relation: str = AUTHORITY_PRECEDENCE_RELATI
 
 def check_graph_consistency(embed_model=None, docs_dir: Path | None = None,
                             code_dir: Path | None = None, graph_path: Path | None = None,
-                            emit=None) -> dict:
+                            emit=None, project: ProjectContext | None = None) -> dict:
     """Confronta il grafo INCREMENTALE persistito con quello che produrrebbe un full rebuild
     sugli STESSI input (documenti + codice), e segnala le differenze di nodi e archi.
 
@@ -1904,14 +1952,14 @@ def check_graph_consistency(embed_model=None, docs_dir: Path | None = None,
 
     Restituisce un dict con `consistent` (bool) e le liste delle differenze (troncate)."""
     _log = emit or logger.info
-    docs_dir = docs_dir or DOCS_DIR
-    code_dir = code_dir or CODE_DIR
+    docs_dir = docs_dir or (project.docs_dir if project is not None else DOCS_DIR)
+    code_dir = code_dir or (project.code_dir if project is not None else CODE_DIR)
 
     # Carica il grafo incrementale persistito (formato JSON). `graph_path` è mantenuto
     # per retrocompatibilità di firma ma non è più usato: il grafo vive ora come
     # artefatto gestito da core.artifacts.
     try:
-        incremental: nx.DiGraph | None = load_artifacts(required=("graph",)).graph
+        incremental: nx.DiGraph | None = load_artifacts(required=("graph",), project=project).graph
     except Exception as exc:
         return {"consistent": False, "reason": f"grafo incrementale assente o illeggibile: {exc}"}
 

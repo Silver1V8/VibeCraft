@@ -108,9 +108,9 @@ def env(tmp_path, monkeypatch):
     # risolvono nel layout flat legacy dentro tmp_path.
     monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)
     monkeypatch.setattr(artifacts, "GRAPH_JSON_PATH", tmp_path / "graph.json")
-    monkeypatch.setattr(indexing, "docs_hashes", lambda: dict(doc_hashes))
-    monkeypatch.setattr(indexing, "_code_hashes", lambda: dict(code_hashes))
-    monkeypatch.setattr(indexing, "artifact_hashes", lambda: dict(art_hashes))
+    monkeypatch.setattr(indexing, "docs_hashes", lambda project=None: dict(doc_hashes))
+    monkeypatch.setattr(indexing, "_code_hashes", lambda project=None: dict(code_hashes))
+    monkeypatch.setattr(indexing, "artifact_hashes", lambda project=None: dict(art_hashes))
     return {"manifest": manifest_path, "chunks": chunks_path, "colbert": colbert_path,
             "monkeypatch": monkeypatch}
 
@@ -171,7 +171,7 @@ def test_manifest_corrupt(env):
 def test_source_hash_divergence_marks_stale(env):
     # b.md modificato e nuovo.md aggiunto rispetto al manifest.
     env["monkeypatch"].setattr(
-        indexing, "docs_hashes", lambda: {"a.md": "h1", "b.md": "DIVERSO", "nuovo.md": "h9"}
+        indexing, "docs_hashes", lambda project=None: {"a.md": "h1", "b.md": "DIVERSO", "nuovo.md": "h9"}
     )
     report = _check(env)
     assert report["ok"] is False
@@ -182,7 +182,7 @@ def test_source_hash_divergence_marks_stale(env):
 
 
 def test_missing_artifact_marks_corrupted(env):
-    env["monkeypatch"].setattr(indexing, "artifact_hashes", lambda: {"graph.json": "g1"})
+    env["monkeypatch"].setattr(indexing, "artifact_hashes", lambda project=None: {"graph.json": "g1"})
     report = _check(env)
     assert report["ok"] is False
     assert report["artifacts_corrupted"] is True
@@ -192,7 +192,7 @@ def test_missing_artifact_marks_corrupted(env):
 
 def test_artifact_hash_mismatch_marks_corrupted(env):
     env["monkeypatch"].setattr(
-        indexing, "artifact_hashes", lambda: {"graph.json": "ALTRO", "chunks.json": "k1"}
+        indexing, "artifact_hashes", lambda project=None: {"graph.json": "ALTRO", "chunks.json": "k1"}
     )
     report = _check(env)
     assert report["artifacts_corrupted"] is True
@@ -201,8 +201,8 @@ def test_artifact_hash_mismatch_marks_corrupted(env):
 
 def test_manifest_without_artifact_hashes_marks_corrupted(env):
     env["manifest"].write_text(json.dumps({"doc_hashes": {}, "code_hashes": {}}), encoding="utf-8")
-    env["monkeypatch"].setattr(indexing, "docs_hashes", lambda: {})
-    env["monkeypatch"].setattr(indexing, "_code_hashes", lambda: {})
+    env["monkeypatch"].setattr(indexing, "docs_hashes", lambda project=None: {})
+    env["monkeypatch"].setattr(indexing, "_code_hashes", lambda project=None: {})
     report = _check(env)
     assert report["artifacts_corrupted"] is True
     assert any("artifact_hashes" in p for p in report["problems"])

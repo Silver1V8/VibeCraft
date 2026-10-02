@@ -19,11 +19,17 @@ assente) il gate è fail-open e non blocca nulla.
 
 Nessuna dipendenza dal package eval/: il golden set è caricato via GOLDEN_SET_PATH e la metrica
 da core.eval_metrics (stesso layer)."""
+from __future__ import annotations
+
 import json
 import logging
 from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.projects import ProjectContext
 
 import yaml
 
@@ -122,8 +128,9 @@ def evaluate_recall(qdrant, embed_model, colbert_store: Mapping, *, k: int = EVA
 def gate_promotion(version: str, qdrant, embed_model, colbert_store: Mapping, *,
                    k: int = EVAL_GATE_K, min_recall: float = EVAL_GATE_MIN_RECALL,
                    blocking: bool = EVAL_GATE_BLOCKING, cases: list[dict] | None = None,
-                   emit=None, collection_name: str = COLLECTION_NAME,
-                   graph=None, restatements=frozenset()) -> dict:
+                   emit=None, collection_name: str | None = None,
+                   graph=None, restatements=frozenset(),
+                   project: ProjectContext | None = None) -> dict:
     """Decide se la versione candidata può essere promossa. Restituisce un dict con almeno
     `passed` (bool) e, quando valutato, `recall`/`k`/`min_recall`/`n`.
 
@@ -134,7 +141,28 @@ def gate_promotion(version: str, qdrant, embed_model, colbert_store: Mapping, *,
     `collection_name` (opzionale, default COLLECTION_NAME): propagata a evaluate_recall.
     Nessun chiamante di produzione lo passa ancora."""
     _log = emit or logger.info
-    if not EVAL_GATE_ENABLED:
+    collection_name = collection_name or (project.collection_name if project is not None else COLLECTION_NAME)
+    enabled = EVAL_GATE_ENABLED
+    alert_kwargs = {}
+    history_kwargs = {}
+    if project is not None:
+        settings = project.settings.get("eval_gate", {})
+        enabled = settings.get("enabled", enabled)
+        k = settings.get("k", k)
+        min_recall = settings.get("min_recall", min_recall)
+        blocking = settings.get("blocking", blocking)
+        if not project.legacy:
+            if cases is None:
+                golden = project.root / "eval" / "golden.yaml"
+                for component in (golden, *golden.parents):
+                    if component.is_symlink() or component.is_junction():
+                        raise ValueError(f"linked project golden path forbidden: {component}")
+                if not golden.resolve().is_relative_to(project.root.resolve()):
+                    raise ValueError("escaping project golden path forbidden")
+                cases = load_golden_cases(golden)
+            alert_kwargs = {"path": project.database_dir / "alerts.jsonl"}
+            history_kwargs = {"path": project.database_dir / "eval" / "history.jsonl"}
+    if not enabled:
         return {"passed": True, "skipped": "disabled", "version": version}
 
     try:
@@ -156,7 +184,7 @@ def gate_promotion(version: str, qdrant, embed_model, colbert_store: Mapping, *,
         msg_sat = (f"Eval-gate valutato a un k SATURO: recall@{k}=1.000 su tutti i {res['n']} "
                    f"casi del golden set. A questo k il gate non distingue una candidata "
                    f"buona da una peggiorata — abbassare eval_gate.k a un k che discrimina.")
-        record_alert("warning", msg_sat, k=k, version=version, saturated=True)
+        record_alert("warning", msg_sat, k=k, version=version, saturated=True, **alert_kwargs)
         _log(f"⚠️  {msg_sat}")
     ok = res["recall"] >= min_recall
     # Storicizza ogni valutazione del gate (trend di qualità, Epic 5): source="gate", con
@@ -165,7 +193,7 @@ def gate_promotion(version: str, qdrant, embed_model, colbert_store: Mapping, *,
     # qui farebbe fallire proprio il build che il fail-open del gate esiste per proteggere.
     record_history(res.get("recall_by_k") or {f"recall@{k}": res["recall"]},
                    n_cases=res["n"], version=version,
-                   source="gate", gate={"passed": ok, "min_recall": min_recall})
+                   source="gate", gate={"passed": ok, "min_recall": min_recall}, **history_kwargs)
     if ok:
         res["passed"] = True
         _log(f"✅ Eval-gate: recall@{k}={res['recall']:.3f} ≥ soglia {min_recall} "
@@ -174,7 +202,7 @@ def gate_promotion(version: str, qdrant, embed_model, colbert_store: Mapping, *,
 
     msg = (f"Eval-gate: recall@{k}={res['recall']:.3f} < soglia {min_recall} su {res['n']} casi. "
            f"Versione candidata {version} sotto la qualità minima.")
-    record_alert("critical", msg, recall=res["recall"], k=k, threshold=min_recall, version=version)
+    record_alert("critical", msg, recall=res["recall"], k=k, threshold=min_recall, version=version, **alert_kwargs)
     if blocking:
         res["passed"] = False
         _log(f"❌ {msg} PROMOZIONE BLOCCATA (CURRENT invariato, alias di produzione "
