@@ -10,6 +10,7 @@ rag/.venv/
 
 # Stato locale: l'indice vive in un volume, non nell'immagine (vedi docker-compose.yml)
 rag/database/
+projects/
 rag/.env.local
 
 # Cache di sviluppo

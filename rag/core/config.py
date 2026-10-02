@@ -48,6 +48,10 @@ def setup_logging() -> None:
 # due livelli sopra: parent (core/) -> parent (rag/).
 RAG_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = RAG_DIR.parent
+INSTALL_ROOT = PROJECT_ROOT
+PROJECTS_DIR = Path(os.environ.get("VIBECRAFT_PROJECTS_DIR") or INSTALL_ROOT / "projects").expanduser()
+if not PROJECTS_DIR.is_absolute():
+    raise RuntimeError("VIBECRAFT_PROJECTS_DIR deve essere un percorso assoluto.")
 CONFIG_PATH = RAG_DIR / "rag_config.yaml"
 
 

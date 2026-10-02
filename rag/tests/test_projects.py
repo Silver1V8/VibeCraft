@@ -1,0 +1,308 @@
+"""Registry guarantees, using only disposable project roots and real OS locks."""
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+from dataclasses import replace
+
+import pytest
+import yaml
+
+from core import config as installation
+from core.projects import ProjectError, ProjectRegistry, legacy_project_context
+
+
+def registry(tmp_path):
+    return ProjectRegistry(tmp_path / "managed", bootstrap_legacy=False)
+
+
+def manifest(directory, project_id="a" * 32, name="External", **extra):
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "project.yaml").write_text(yaml.safe_dump({
+        "schema_version": 1, "id": project_id, "name": name, **extra,
+    }), encoding="utf-8")
+    return directory
+
+
+def test_create_project_layout_and_unique_ids(tmp_path):
+    store = registry(tmp_path)
+    a, b = store.create("<b>Same ../name</b>"), store.create("<b>Same ../name</b>")
+    assert a.id != b.id and a.root != b.root and a.database_dir != b.database_dir
+    assert a.collection_name == "vibecraft_" + a.id
+    assert b.collection_name == "vibecraft_" + b.id
+    assert len(a.id) == 32 and all(c in "0123456789abcdef" for c in a.id)
+    assert a.name == "<b>Same ../name</b>"
+    for project in (a, b):
+        assert project.root.name == project.id
+        for relative in ("code", "docs", "changes", "database", "database/staging",
+                         "database/versions", "database/pipeline", "database/eval"):
+            assert (project.root / relative).is_dir()
+        assert not (project.database_dir / "CURRENT").exists()
+        assert not (project.database_dir / "models").exists()
+        assert store.get(project.id) == project
+    assert [p.id for p in store.list()] == [a.id, b.id]
+
+
+def test_concurrent_processes_do_not_lose_records(tmp_path):
+    store = registry(tmp_path)
+    source = ("from core.projects import ProjectRegistry; import sys; "
+              "ProjectRegistry(sys.argv[1], bootstrap_legacy=False).create('Same')")
+    processes = [subprocess.Popen([sys.executable, "-c", source, str(store.projects_dir)],
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                 for _ in range(6)]
+    for process in processes:
+        stdout, stderr = process.communicate(timeout=60)
+        assert process.returncode == 0, (stdout, stderr)
+    assert len({p.id for p in store.list()}) == 6
+
+
+def test_duplicate_id_and_canonical_root_leave_registry_unchanged(tmp_path):
+    store = registry(tmp_path)
+    external = manifest(tmp_path / "External root with spaces")
+    registered = store.register(external)
+    before = store.registry_path.read_bytes()
+    for path in (external / ".", manifest(tmp_path / "second", registered.id)):
+        with pytest.raises(ProjectError) as error:
+            store.register(path)
+        assert error.value.status_code == 409
+        assert store.registry_path.read_bytes() == before
+
+
+@pytest.mark.parametrize("payload", ["{", '{"schema_version": 2, "projects": []}',
+    '{"schema_version": 1, "projects": {}}',
+    '{"schema_version": true, "projects": []}'])
+def test_corrupt_registry_is_never_overwritten(tmp_path, payload):
+    store = registry(tmp_path)
+    store.registry_path.write_text(payload, encoding="utf-8")
+    before = store.registry_path.read_bytes()
+    for action in (store.list, lambda: store.create("New"),
+                   lambda: ProjectRegistry(store.projects_dir)):
+        with pytest.raises(ProjectError) as error:
+            action()
+        assert error.value.status_code == 503
+        assert store.registry_path.read_bytes() == before
+
+
+@pytest.mark.parametrize("extra", [{"schema_version": 2}, {"id": "../outside"},
+    {"id": "legacy"}, {"name": " "}, {"root": "/other"},
+    {"settings": {"vector_database": {"collection_name": "other"}}},
+    {"settings": {"authority": {"endpoint": "http://other"}}},
+    {"settings": {"verification": {"commands": {"web": "npm test"}}}},
+    {"settings": {"retrieval": {"governed_max_chunks": "many"}}}])
+def test_invalid_manifest_never_changes_registry(tmp_path, extra):
+    store = registry(tmp_path)
+    root = manifest(tmp_path / "external", **extra)
+    before = store.registry_path.read_bytes()
+    with pytest.raises(ProjectError) as error:
+        store.register(root)
+    assert error.value.status_code == 422
+    assert store.registry_path.read_bytes() == before
+
+
+def test_settings_are_validated_and_do_not_mutate_installation(tmp_path):
+    store = registry(tmp_path)
+    root = manifest(tmp_path / "external", settings={
+        "authority": {"class_weights": {"CUSTOM": 0.8}},
+        "retrieval": {"governed_max_chunks": 3},
+        "verification": {"commands": {"web": ["npm", "test"]}},
+    })
+    before = json.dumps(installation.config, sort_keys=True)
+    context = store.register(root)
+    assert context.settings["retrieval"]["governed_max_chunks"] == 3
+    assert context.settings["verification"]["commands"]["web"] == ["npm", "test"]
+    context.settings["authority"]["class_weights"]["CUSTOM"] = 1
+    assert store.get(context.id).settings["authority"]["class_weights"]["CUSTOM"] == 0.8
+    assert json.dumps(installation.config, sort_keys=True) == before
+
+
+def test_missing_or_modified_project_fails_without_fallback(tmp_path):
+    store = registry(tmp_path)
+    a = store.create("A")
+    store.create("B")
+    (a.root / "project.yaml").unlink()
+    with pytest.raises(ProjectError):
+        store.get(a.id)
+    with pytest.raises(ProjectError) as error:
+        store.get("f" * 32)
+    assert error.value.status_code == 404
+    with pytest.raises(ProjectError) as error:
+        store.get("../other")
+    assert error.value.status_code == 422
+
+
+def test_linked_project_directories_and_registry_are_rejected(tmp_path):
+    store = registry(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    root = manifest(tmp_path / "external")
+    link = root / "code"
+    if os.name == "nt":
+        result = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(outside)],
+                                capture_output=True)
+        assert result.returncode == 0, result.stderr
+    else:
+        link.symlink_to(outside, target_is_directory=True)
+    with pytest.raises(ProjectError):
+        store.register(root)
+    assert not list(outside.iterdir())
+
+
+def test_legacy_registration_preserves_paths_and_collection(tmp_path):
+    legacy_root = tmp_path / "legacy"
+    legacy_root.mkdir()
+    db = tmp_path / "custom database"
+    db.mkdir()
+    artifact = db / "graph.json"
+    artifact.write_bytes(b'{"untouched": true}')
+    base = legacy_project_context()
+    legacy = replace(base, root=legacy_root, code_dir=legacy_root / "code",
+                     docs_dir=legacy_root / "custom-docs", changes_dir=legacy_root / "changes",
+                     database_dir=db, staging_dir=legacy_root / "rag" / "old-staging")
+    before = artifact.read_bytes()
+    for _ in range(2):
+        store = ProjectRegistry(tmp_path / "managed", legacy_context=legacy)
+        actual = store.get("legacy")
+        assert actual == legacy
+        assert actual.collection_name == installation.COLLECTION_NAME
+        assert artifact.read_bytes() == before
+        assert not (legacy_root / "project.yaml").exists()
+    store.registry_path.write_text('{"schema_version": 1, "projects": []}', encoding="utf-8")
+    assert ProjectRegistry(store.projects_dir, legacy_context=legacy).list() == []
+
+
+def test_empty_installation_does_not_bootstrap_legacy(tmp_path):
+    root = tmp_path / "empty"
+    root.mkdir()
+    legacy = replace(legacy_project_context(), root=root, code_dir=root / "code",
+                     docs_dir=root / "docs", changes_dir=root / "changes",
+                     database_dir=root / "database", staging_dir=root / "staging")
+    assert ProjectRegistry(tmp_path / "managed", legacy_context=legacy).list() == []
+    assert not legacy.database_dir.exists()
+
+
+def test_reader_registry_is_read_only(tmp_path, monkeypatch):
+    store = registry(tmp_path)
+    project = store.create("A")
+    monkeypatch.setattr(installation, "ROLE", "reader")
+    reader = ProjectRegistry(store.projects_dir)
+    assert reader.get(project.id) == project
+    before = store.registry_path.read_bytes()
+    with pytest.raises(ProjectError) as error:
+        reader.create("B")
+    assert error.value.status_code == 409
+    assert store.registry_path.read_bytes() == before
+    missing = tmp_path / "reader absent"
+    assert ProjectRegistry(missing).list() == []
+    assert not missing.exists()
+
+
+def test_relative_projects_dir_is_rejected(tmp_path):
+    with pytest.raises(ProjectError):
+        ProjectRegistry(Path("relative"), bootstrap_legacy=False)
+
+
+def test_duplicate_yaml_keys_and_nested_settings_are_rejected(tmp_path):
+    store = registry(tmp_path)
+    root = manifest(tmp_path / "external")
+    with (root / "project.yaml").open("a", encoding="utf-8") as stream:
+        stream.write("name: Replacement\n")
+    with pytest.raises(ProjectError):
+        store.register(root)
+
+
+def test_registry_rejects_duplicate_records_and_missing_roots(tmp_path):
+    store = registry(tmp_path)
+    project = store.create("A")
+    data = json.loads(store.registry_path.read_text(encoding="utf-8"))
+    data["projects"].append(data["projects"][0].copy())
+    store.registry_path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(ProjectError) as error:
+        store.list()
+    assert error.value.status_code == 503
+    data["projects"].pop()
+    data["projects"][0]["root"] = str((tmp_path / "missing").resolve())
+    store.registry_path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(ProjectError) as error:
+        store.get(project.id)
+    assert error.value.status_code == 503
+
+
+def test_registering_registry_directory_is_rejected(tmp_path):
+    store = registry(tmp_path)
+    manifest(store.projects_dir)
+    before = store.registry_path.read_bytes()
+    with pytest.raises(ProjectError):
+        store.register(store.projects_dir)
+    assert store.registry_path.read_bytes() == before
+
+
+def test_registered_link_is_rejected_on_reopen(tmp_path):
+    store = registry(tmp_path)
+    project = store.create("A")
+    project.code_dir.rmdir()  # Verified empty, test-owned directory only.
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    if os.name == "nt":
+        result = subprocess.run(["cmd", "/c", "mklink", "/J", str(project.code_dir), str(outside)],
+                                capture_output=True)
+        assert result.returncode == 0, result.stderr
+    else:
+        project.code_dir.symlink_to(outside, target_is_directory=True)
+    with pytest.raises(ProjectError) as error:
+        store.get(project.id)
+    assert error.value.status_code == 503
+
+
+def test_linked_registry_storage_is_rejected(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    link = tmp_path / "managed"
+    if os.name == "nt":
+        result = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(outside)], capture_output=True)
+        assert result.returncode == 0, result.stderr
+    else:
+        link.symlink_to(outside, target_is_directory=True)
+    with pytest.raises(ProjectError):
+        ProjectRegistry(link, bootstrap_legacy=False)
+    assert not list(outside.iterdir())
+
+
+@pytest.mark.parametrize("directory", ["versions", "pipeline", "eval"])
+def test_linked_database_subdirectories_are_rejected(tmp_path, directory):
+    store = registry(tmp_path)
+    project = store.create("A")
+    link = project.database_dir / directory
+    link.rmdir()  # Verified empty, test-owned directory only.
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    if os.name == "nt":
+        result = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(outside)], capture_output=True)
+        assert result.returncode == 0, result.stderr
+    else:
+        link.symlink_to(outside, target_is_directory=True)
+    with pytest.raises(ProjectError) as error:
+        store.get(project.id)
+    assert error.value.status_code == 503
+
+
+@pytest.mark.parametrize("location", ["parent", "nested"])
+def test_registered_roots_cannot_overlap_external_legacy_staging(tmp_path, location):
+    root = tmp_path / "legacy"
+    root.mkdir()
+    db = root / "database"
+    db.mkdir()
+    (db / "graph.json").write_text("{}", encoding="utf-8")
+    stage_parent = tmp_path / "custom stage area"
+    stage = stage_parent / "staging"
+    stage.mkdir(parents=True)
+    legacy = replace(legacy_project_context(), root=root, code_dir=root / "code",
+                     docs_dir=root / "docs", changes_dir=root / "changes",
+                     database_dir=db, staging_dir=stage)
+    store = ProjectRegistry(tmp_path / "managed", legacy_context=legacy)
+    external = manifest(stage_parent if location == "parent" else stage / "nested project")
+    before = store.registry_path.read_bytes()
+    with pytest.raises(ProjectError) as error:
+        store.register(external)
+    assert error.value.status_code == 409
+    assert store.registry_path.read_bytes() == before

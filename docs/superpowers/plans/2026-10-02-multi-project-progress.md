@@ -4,7 +4,7 @@ Baseline: 34b46dfeabcff05820240a1241baae1a215d3e1b; branch codex/multi-project; 
 
 | Task | State | Model | Agent | Owned files |
 |---|---|---|---|---|
-| 1 registry | running | sol/high | task1_registry | projects.py, config.py, test_projects.py, ignore files |
+| 1 registry | complete | sol/high | task1_registry | projects.py, config.py, test_projects.py, ignore files |
 | 2 indexing | queued | astra/high | — | artifacts, colbert, writer_lock, qdrant_versions, indexing |
 | 3 runtime | queued | astra/high | — | deps/server/projects/retrieval/graph/health/cache |
 | 4 workflows | queued | sol/high | — | pipeline/intake/reindex/eval core/routes |
@@ -56,3 +56,14 @@ Ruling: ProjectError exposes status_code/code and ProjectRegistry accepts depend
 - Dedicated Qdrant test service: container vibecraft-multi-project-test-20261002 (7645a0589b27), http://127.0.0.1:49634, ephemeral no volume, qdrant/qdrant:v1.19.0. Only unique test namespaces used; remove this exact created container on completion.
 Ruling: repair baseline Node extraction in Task 6 alongside UI because current gate tests are disconnected from served helper — preserves XSS assertions — minimal additional test files.
 
+- Baseline full pytest -rs: 2095 passed, 10 skipped in 264.46s; 5 Docling skips for missing model weights in worktree, 5 Qdrant skips because first baseline intentionally had no test service env. Exit 0. Ruff baseline exit 0.
+- Dedicated Qdrant /readyz returned HTTP 200; subsequent storage/integration tests set VIBECRAFT_TEST_QDRANT_URL=http://127.0.0.1:49634 and VIBECRAFT_REQUIRE_QDRANT=1.
+- uv run --frozen --no-sync --active verified resolves existing Python when VIRTUAL_ENV=C:/Users/Silve/Desktop/vibecraft/rag/.venv; this permits frozen CLI without modifying either environment.
+- Task 1 targeted implementation reports 28 tests passing and scoped ruff passing; complete regression started with frozen/no-sync active environment.
+- Task 1 staged package reviewed by /root/pm_multi_project/task1_review (gpt-6-astra/high), independent read-only gate.
+Ruling: projects.py reuses artifacts atomic helpers; Task 2 must TYPE_CHECKING-import ProjectContext in storage modules to prevent artifacts→projects→artifacts cycle — reuse standard helpers without moving abstractions — requires explicit type-only import discipline.
+- Task 1 fix round 1: reviewer concrete risk legacy staging_dir omitted from protected-root overlap when outside database_dir; implementer self-review found nested database/versions,pipeline,eval junction checks missing. Authorized test-first guards before dependent tasks. Reviewer assesses original diff then scoped fix delta.
+- Reviewer accidentally started plain uv run creating ignored worktree rag/.venv scaffold, immediately aborted. No code/git changes; use explicit original interpreter/no-sync only. PM will clean only verified created scaffold if needed; not a dependency install requirement.
+
+Task 1: complete — ProjectContext/Registry, validated atomic locked metadata, whitelisted copied settings, legacy in-place bootstrap, storage ignores. Independent Astra initial P1 legacy staging overlap fixed; scoped re-review PASS, nested junction guards also verified.
+Evidence: PM final targeted pytest 33 passed in 6.54s; scoped Ruff passed; implementer complete regression 2123 passed, 10 skipped in 262.34s collected pre-fix 28 registry tests; added 5 fixes checked in final scope. No corpus/collection touched. Reports task-1-report.md, task-1-review.md, task-1-fix-1-review.md.

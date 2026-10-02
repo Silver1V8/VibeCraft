@@ -107,3 +107,4 @@ docs.local-backup-*/
 /output/
 /tmp/
 /skills-lock.json
+/projects/
