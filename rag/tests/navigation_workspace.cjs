@@ -24,6 +24,10 @@ const { chromium } = require('playwright');
     await page.route('**/api/**', async route => {
       const url = new URL(route.request().url());
       let body = {};
+      if (url.pathname === '/api/projects') body = { projects: [{ id: 'legacy', name: 'Legacy', legacy: true,
+        index_status: 'ready', stale: false, index_version: 'navigation-version' }], read_only: false };
+      if (url.pathname === '/api/projects/legacy') body = { id: 'legacy', name: 'Legacy', legacy: true,
+        index_status: 'ready', stale: false, index_version: 'navigation-version' };
       if (url.pathname === '/api/pipeline/agent/run') {
         agentCount++;
         agentHasKey = !!route.request().headers()['x-api-key'];
@@ -57,17 +61,17 @@ const { chromium } = require('playwright');
     await consolePage.locator('#question-input').fill('Domanda da conservare');
     await consolePage.locator('#ask-btn').click();
     await page.waitForFunction(() => document.querySelector('iframe').contentDocument.getElementById('ask-btn').disabled);
-    await consolePage.locator('.app-nav a[href="/pipeline"]').click();
+    await consolePage.locator('.app-nav a[href^="/pipeline?project="]').click();
     const pipeline = page.frameLocator('iframe[data-workspace-page="/pipeline"]');
     await pipeline.locator('#feature-name-input').fill('feature-da-conservare');
     assert.equal(typeof finishAsk, 'function');
     finishAsk();
     await consolePage.locator('#answer-text').waitFor({ state: 'attached' });
     await page.waitForFunction(() => document.querySelector('iframe[data-workspace-page="/"]').contentDocument.getElementById('answer-text').textContent === 'Risposta mantenuta');
-    await pipeline.locator('.app-nav a[href="/"]').click();
+    await pipeline.locator('.app-nav a[href^="/?project="]').click();
     assert.equal(await consolePage.locator('#question-input').inputValue(), 'Domanda da conservare');
     assert.equal(await consolePage.locator('#answer-text').textContent(), 'Risposta mantenuta');
-    await consolePage.locator('.app-nav a[href="/pipeline"]').click();
+    await consolePage.locator('.app-nav a[href^="/pipeline?project="]').click();
     await pipeline.locator('#load-feature-btn').click();
     await page.waitForFunction(() => document.querySelector('iframe[data-workspace-page="/pipeline"]').contentDocument.getElementById('files-control-list').textContent.includes('explore.md'));
     await pipeline.locator('[data-click="goToStep"][data-arg="3"]').click();
@@ -75,7 +79,7 @@ const { chromium } = require('playwright');
     await pipeline.locator('#agent-mode-select').selectOption('oneshot');
     await pipeline.locator('#agent-run-btn').click();
     await page.waitForFunction(() => document.querySelector('iframe[data-workspace-page="/pipeline"]').contentDocument.getElementById('agent-run-btn').disabled);
-    await pipeline.locator('.app-nav a[href="/intake"]').click();
+    await pipeline.locator('.app-nav a[href^="/intake?project="]').click();
     const intake = page.frameLocator('iframe[data-workspace-page="/intake"]');
     const intakeInput = intake.locator('textarea').first();
     await intakeInput.fill('Bozza Intake mantenuta');
@@ -83,7 +87,7 @@ const { chromium } = require('playwright');
     assert.equal(typeof finishAgent, 'function');
     finishAgent();
     await page.waitForFunction(() => !document.querySelector('iframe[data-workspace-page="/pipeline"]').contentDocument.getElementById('agent-run-btn').disabled);
-    await intake.locator('.app-nav a[href="/pipeline"]').click();
+    await intake.locator('.app-nav a[href^="/pipeline?project="]').click();
     intakeComplete = true;
     await page.waitForFunction(() => document.querySelector('iframe[data-workspace-page="/intake"]').contentDocument.getElementById('gen-status').textContent === 'Generazione completata.');
     assert.equal(await pipeline.locator('#feature-name-input').inputValue(), 'feature-da-conservare');
@@ -95,7 +99,7 @@ const { chromium } = require('playwright');
     await page.goForward();
     await pipeline.locator('#agent-output').waitFor({ state: 'visible' });
     await pipeline.locator('#theme-switcher').selectOption('classic');
-    await pipeline.locator('.app-nav a[href="/"]').click();
+    await pipeline.locator('.app-nav a[href^="/?project="]').click();
     assert.equal(await consolePage.locator('#theme-switcher').inputValue(), 'classic');
     assert.equal(askCount, 1);
     assert.equal(agentCount, 1);
@@ -103,16 +107,16 @@ const { chromium } = require('playwright');
     assert.equal(agentHasKey, true);
     assert.equal(await page.locator('#workspace-pages iframe').count(), 3);
     let failOnce = true;
-    await page.route('**/infografica?workspace=1', route => {
+    await page.route('**/infografica?*workspace=1*', route => {
       if (failOnce) { failOnce = false; return route.fulfill({ status: 503, body: 'Unavailable' }); }
       return route.continue();
     });
-    await consolePage.locator('.app-nav a[href="/infografica"]').click();
+    await consolePage.locator('.app-nav a[href^="/infografica?project="]').click();
     await page.locator('#workspace-retry').waitFor({ state: 'visible' });
     assert.equal(await consolePage.locator('#question-input').inputValue(), 'Domanda da conservare');
     await page.locator('#workspace-retry').click();
     const infographic = page.frameLocator('iframe[data-workspace-page="/infografica"]');
-    await infographic.locator('.app-nav a[href="/"]').click();
+    await infographic.locator('.app-nav a[href^="/?project="]').click();
     assert.equal(await consolePage.locator('#answer-text').textContent(), 'Risposta mantenuta');
     assert.deepEqual(errors, []);
     console.log('OK: Console e agente continuano fuori pagina; Intake, cronologia, tema e API key conservati; nessuna violazione CSP.');

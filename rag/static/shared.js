@@ -28,6 +28,10 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;');
 }
 
+function apiErrorMessage(detail, fallback) {
+  return (typeof detail === 'string' ? detail : detail?.message) || fallback;
+}
+
 /* ──────────── THEME VAR (con cache) ────────────
    getComputedStyle forza la risoluzione degli stili: senza cache questa funzione
    veniva chiamata 5 volte per OGNI evento hoverNode del grafo e 13 volte per
@@ -70,6 +74,27 @@ function themeVar(name, fallback) {
    L'aggancio e' UN wrapper su window.fetch invece di 42 modifiche ai punti di chiamata:
    shared.js e' caricato nel <head> di ogni pagina, prima degli script che fanno richieste. */
 const API_KEY_STORAGE = 'vibecraft-api-key';
+const PROJECT_STORAGE = 'vibecraft-project';
+// Ogni frame conserva l'identità assegnata dalla shell anche quando si seleziona altro.
+const frameProjectId = window.frameElement?.dataset.projectId;
+function selectedProjectId() {
+  if (frameProjectId !== undefined) return frameProjectId;
+  const url = new URL(location.href);
+  if (url.searchParams.has('project')) return url.searchParams.get('project');
+  try { return sessionStorage.getItem(PROJECT_STORAGE) || ''; } catch (_) { return ''; }
+}
+
+function isProjectApi(url) {
+  const path = new URL(url, document.baseURI).pathname;
+  return !(/^\/api\/projects(?:\/|$)/.test(path) || path === '/api/health/live'
+    || path === '/api/intake/project/browse-path');
+}
+let workspaceActivity = 0;
+function retainWorkspaceTask(promise) {
+  workspaceActivity++;
+  return Promise.resolve(promise).finally(() => { workspaceActivity--; });
+}
+window.workspaceIsBusy = () => workspaceActivity > 0;
 
 /* La chiave iniettata arriva in un <meta name="vibecraft-agent-api-key"> e non più in uno
    <script> inline, vietato dalla CSP (script-src 'self'). Il server lo mette subito dopo
@@ -123,24 +148,32 @@ function chiediApiKey() {
 
 const fetchNativa = window.fetch.bind(window);
 window.fetch = function (input, init) {
-  const url = (typeof input === 'string') ? input : (input && input.url) || '';
+  const url = input instanceof URL ? input.href : (typeof input === 'string') ? input : (input && input.url) || '';
   if (!needsApiKey(url)) return fetchNativa(input, init);
+  const project = selectedProjectId();
+  const initialOptions = Object.assign({}, init);
+  const initialHeaders = new Headers((init && init.headers) || (input && input.headers) || {});
+  // Clone prima del primo tentativo: il body di un Request consumato non è riusabile.
+  const original = input instanceof Request ? input.clone() : input instanceof URL ? url : input;
 
   const conChiave = (chiave) => {
-    const opzioni = Object.assign({}, init);
-    const intestazioni = new Headers(
-      (init && init.headers) || (typeof input !== 'string' && input && input.headers) || {});
+    const opzioni = Object.assign({}, initialOptions);
+    const intestazioni = new Headers(initialHeaders);
     if (chiave) intestazioni.set('X-API-Key', chiave);
+    if (project && isProjectApi(url) && !intestazioni.has('X-VibeCraft-Project')) {
+      intestazioni.set('X-VibeCraft-Project', project);
+    }
     opzioni.headers = intestazioni;
     return opzioni;
   };
 
-  return fetchNativa(input, conChiave(apiKey())).then((risposta) => {
+  const attempt = key => fetchNativa(original instanceof Request ? original.clone() : original, conChiave(key));
+  return retainWorkspaceTask(attempt(apiKey()).then((risposta) => {
     // Un solo tentativo di recupero: se anche la chiave appena inserita e' sbagliata,
     // la 401 arriva al chiamante invece di aprire un ciclo di prompt.
     if (risposta.status !== 401) return risposta;
-    return chiediApiKey().then((chiave) => (chiave ? fetchNativa(input, conChiave(chiave)) : risposta));
-  });
+    return chiediApiKey().then((chiave) => (chiave ? attempt(chiave) : risposta));
+  }));
 };
 
 
@@ -404,7 +437,12 @@ function initNavigation() {
   const links = document.querySelectorAll('header a[href], nav a[href], .app-nav a[href]');
   const here = (window.frameElement?.dataset.workspacePage || location.pathname).replace(/\/+$/, '') || '/';
   links.forEach(a => {
-    const href = (a.getAttribute('href') || '').replace(/\/+$/, '') || '/';
+    const url = new URL(a.getAttribute('href') || '/', document.baseURI);
+    const href = url.pathname.replace(/\/+$/, '') || '/';
+    if (url.origin === new URL(document.baseURI).origin && selectedProjectId()) {
+      url.searchParams.set('project', selectedProjectId());
+      a.href = url.pathname + url.search + url.hash;
+    }
     if (href === here) {
       a.classList.add('is-current');
       a.setAttribute('aria-current', 'page');
@@ -423,6 +461,7 @@ function initNavigation() {
       }
       if (!window.parent.workspaceRoutes?.has(url.pathname)) return;
       event.preventDefault();
+      url.searchParams.set('project', frameProjectId);
       window.parent.navigateWorkspace(url.href);
     });
   }
@@ -453,7 +492,8 @@ function registerActions(map) {
       console.error('Azione UI non registrata: ' + name);
       return;
     }
-    action(el, event);
+    const result = action(el, event);
+    if (result && typeof result.then === 'function') retainWorkspaceTask(result).catch(error => console.error(error));
   });
 });
 registerActions({ setUiTheme: el => setUiTheme(el.value) });

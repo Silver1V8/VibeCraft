@@ -868,15 +868,22 @@
 
     function pollReindexJob(jobId, box) {
       const POLL_MS = 4000;
+      let finish;
+      retainWorkspaceTask(new Promise(resolve => { finish = resolve; }));
       const tick = async () => {
-        let job;
+        let job, missing = false;
         try {
           const res = await fetch(`/api/reindex/${jobId}`);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          if (!res.ok) {
+            missing = res.status === 404;
+            throw new Error(`HTTP ${res.status}`);
+          }
           job = await res.json();
         } catch (e) {
           box.textContent += `\n⚠ Impossibile verificare lo stato del job ${jobId}: ${e.message}\n`;
           box.scrollTop = box.scrollHeight;
+          // Senza stato terminale il job può ancora lavorare: il frame resta residente.
+          if (missing) finish(); else setTimeout(tick, POLL_MS);
           return;
         }
         if (!_TERMINAL_REINDEX_STATES.includes(job.status)) { setTimeout(tick, POLL_MS); return; }
@@ -886,6 +893,7 @@
         box.textContent += `\n${ok ? '✅' : '⚠'} ${message}\n`;
         box.scrollTop = box.scrollHeight;
         notifyReindexDone(message, ok);
+        finish();
       };
       setTimeout(tick, POLL_MS);
     }
@@ -1003,7 +1011,7 @@
 
     /* Ctrl+Enter per inviare in chat */
     document.getElementById('chat-input').addEventListener('keydown', e => {
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendExploreTurn();
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) retainWorkspaceTask(sendExploreTurn()).catch(error => console.error(error));
     });
 
     /* Popola subito la tendina dei tipi di sviluppo, ancora prima di caricare una feature */

@@ -6,7 +6,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const template = fs.readFileSync(path.join(__dirname, '../static/pages/intake.js'), 'utf8');
 // escapeHtml è quella di /static/shared.js, che la pagina carica in <head>.
-const shared = fs.readFileSync(path.join(__dirname, '../static/shared.js'), 'utf8');
+const shared = fs.readFileSync(path.join(__dirname, '../static/shared.js'), 'utf8').replace(/\r\n/g, '\n');
 const escapeCode = shared.slice(shared.indexOf('function escapeHtml('), shared.indexOf('\n}\n', shared.indexOf('function escapeHtml(')) + 3);
 const code = template.slice(template.indexOf('    function inlineMd('), template.indexOf('    function formatDate('));
 const context = vm.createContext({});

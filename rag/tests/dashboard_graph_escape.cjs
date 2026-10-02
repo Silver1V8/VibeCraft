@@ -9,7 +9,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const template = fs.readFileSync(path.join(__dirname, '../static/pages/dashboard.js'), 'utf8');
-const shared = fs.readFileSync(path.join(__dirname, '../static/shared.js'), 'utf8');
+const shared = fs.readFileSync(path.join(__dirname, '../static/shared.js'), 'utf8').replace(/\r\n/g, '\n');
 function slice(src, start, end) {
   const a = src.indexOf(start), b = src.indexOf(end, a + 1);
   assert.ok(a >= 0 && b > a, `marcatori non trovati: ${start} … ${end}`);

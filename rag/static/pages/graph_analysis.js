@@ -182,7 +182,7 @@
         const res = await fetch(`/api/graph/impact?node=${encodeURIComponent(node)}&depth=${depth}`);
         if (!res.ok) {
           const err = await res.json().catch(() => ({ detail: 'HTTP ' + res.status }));
-          throw new Error(err.detail || ('HTTP ' + res.status));
+          throw new Error(apiErrorMessage(err.detail, 'HTTP ' + res.status));
         }
         const data = await res.json();
         status.textContent = `${data.nodes.length} nodi impattati · anelli: [${data.rings.join(', ')}]`;
@@ -291,7 +291,10 @@
         let url = '/api/graph/query?q=' + encodeURIComponent(q);
         if (target) url += '&target=' + encodeURIComponent(target);
         const res = await fetch(url);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(apiErrorMessage(err.detail, 'HTTP ' + res.status));
+        }
         const d = await res.json();
         status.textContent = `intent: ${d.intent}` + (d.count !== undefined ? ` · ${d.count}` : '');
         out.style.display = 'block';

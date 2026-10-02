@@ -16,6 +16,7 @@ async function check(mode, unavailable = false, event = null, blockStatus = null
   const nodes = {
     'agent-mode-select': { value: mode }, 'agent-model-select': { value: 'sonnet' },
     'agent-runner-select': { value: 'claude' },
+    'agent-attempts-select': { value: '1' },
     'agent-run-btn': { disabled: false }, 'agent-output': { style: {}, textContent: '' },
   };
   for (const id of ['gate-status','gate-decisions','gate-comparison']) nodes[id] = {textContent:'',children:[],appendChild(n){this.children.push(n);}};
@@ -61,7 +62,7 @@ async function check(mode, unavailable = false, event = null, blockStatus = null
     assert.deepEqual(errors, ['Contratto non disponibile']);
   } else {
     assert.deepEqual(JSON.parse(runs()[0].options.body), {
-      ...(mode === 'agentic' ? {} : {prompt:`CONTRATTO ${mode}`}), mode, runner: 'claude', model: 'sonnet', feature: 'feat',validation_id:validationId,
+      ...(mode === 'agentic' ? {} : {prompt:`CONTRATTO ${mode}`}), mode, runner: 'claude', model: 'sonnet', feature: 'feat',validation_id:validationId, max_attempts: 1,
     });
   }
   if (blockStatus) {

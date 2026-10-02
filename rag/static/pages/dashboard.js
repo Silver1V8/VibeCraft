@@ -983,7 +983,7 @@
 
         if (!res.ok) {
           const err = await res.json().catch(() => ({ detail: res.statusText }));
-          throw new Error(err.detail || `HTTP ${res.status}`);
+          throw new Error(apiErrorMessage(err.detail, `HTTP ${res.status}`));
         }
 
         if (!res.body) throw new Error('Il browser non supporta lo streaming della risposta.');
@@ -1001,7 +1001,7 @@
           } else if (event.type === 'result') {
             finalData = event.value;
           } else if (event.type === 'error') {
-            throw new Error(event.detail || 'Errore durante lo streaming /ask.');
+            throw new Error(apiErrorMessage(event.detail, 'Errore durante lo streaming /ask.'));
           }
         });
 
@@ -1037,7 +1037,7 @@
     document.getElementById('question-input').addEventListener('keydown', e => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
         if (document.getElementById('ask-btn').disabled) return;
-        submitQuery();
+        retainWorkspaceTask(submitQuery()).catch(error => console.error(error));
       }
     });
 

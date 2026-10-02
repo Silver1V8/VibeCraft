@@ -226,12 +226,12 @@ Ogni task: aggiungere il test che fallisce, verificarne il fallimento pertinente
 **File:** `static/shared.js`, `shared.css`, `pages/workspace.js`, template/pagine serviti, `api/routes_pages.py`, `tests/navigation_workspace.cjs`, nuovo `tests/projects_workspace.cjs`.
 **Produce:** selezione per scheda, nuovo/apri progetto, stato indice, fetch e iframe con identità stabile.
 
-- [ ] Test browser due schede A/B, refresh/back/forward e link diretto: selezioni indipendenti.
-- [ ] Test nuova creazione e apertura, errori leggibili e accessibilità tastiera; nomi HTML restano testo.
-- [ ] Test fetch string/URL/Request, header esplicito, retry 401 e AbortSignal: il progetto resta quello iniziale; nessun header verso origin esterna.
-- [ ] Test stream/job A continua mentre si visualizza B; iframe A non consuma B; limite delle pagine conservate non interrompe un agente attivo.
-- [ ] Riutilizzare stile e navigazione esistenti; niente framework o ridisegno non richiesto.
-- [ ] Eseguire check Node e smoke browser usando runtime Playwright disponibile, senza aggiungere dipendenza product; review dei risultati tardivi.
+- [x] Test browser due schede A/B, refresh/back/forward e link diretto: selezioni indipendenti.
+- [x] Test nuova creazione e apertura, errori leggibili e accessibilità tastiera; nomi HTML restano testo.
+- [x] Test fetch string/URL/Request, header esplicito, retry 401 e AbortSignal: il progetto resta quello iniziale; nessun header verso origin esterna.
+- [x] Test stream/job A continua mentre si visualizza B; iframe A non consuma B; limite delle pagine conservate non interrompe un agente attivo.
+- [x] Riutilizzare stile e navigazione esistenti; niente framework o ridisegno non richiesto.
+- [x] Eseguire check Node e smoke browser usando runtime Playwright disponibile, senza aggiungere dipendenza product; review dei risultati tardivi.
 
 ### Task 7: Distribuzione, istruzioni e CI
 

@@ -9,7 +9,7 @@ Baseline: 34b46dfeabcff05820240a1241baae1a215d3e1b; branch codex/multi-project; 
 | 3 runtime | complete | astra/high | task3_runtime | deps/server/projects/retrieval/graph/health/cache |
 | 4 workflows | queued | sol/high | — | pipeline/intake/reindex/eval core/routes |
 | 5 tools | queued | sol/high | — | agent_bridge/runners/MCP/CLI |
-| 6 UI | reviewed, commit next | sol/high | task6_ui | static/templates/routes_pages/Node tests |
+| 6 UI | complete | sol/high | task6_ui | static/templates/routes_pages/Node tests |
 | 7 distribution | queued | sol/medium | — | Compose/Dockerfile/env/README/CI |
 | 8 integration | queued | sol/high; astra review | — | integration tests/report |
 
@@ -122,3 +122,7 @@ Ruling: reuse two existing operational agent identities for later scopes when ha
 
 Task 3: complete — explicit captured HTTP context/snapshot, lazy sharedresources, LRU2 retainleases, project-ID+effective-settings askcache, realstale metadata, projectranking, reader/security/liveness, confined sources/artifactreads. Independent Sol cross-review2P2 +PMcache/junctionrisks fixedround1; newWindows.MD regression fixedround2; both scopedreviews PASS, no openfinding.
 Evidence: originalworker558pass1skip88.20s; fixgate220pass18WindowsFILEsymlinkskip68.88s actualQdrant49634; reviewer46fixpass0skip then6micro0skip; PMfinal27pass1FILEskip21.22s plus6micro0skip10.71s andfullRuffgreen. Nofullsuite repeats; Tasks4/5 still owndatawriter/job/tool surfaces. Reports task-3-report.md/task-3-review.md/task-3-fix-1-review.md/task-3-fix-2-review.md.
+
+- Task3 commit edfbbe4 (runtime/storage read consumer scope reviewed). Task4 datawriter/jobs andTask5CLI/MCP/runner stillqueued.
+Task 6: complete (client scope) — tab/query projectselector/create/open/indexstatus, fixed frame and fetch identity, retry-target+headercapture, LRU2 busyrefusal, accessiblecontrols/escapednames, structuredqueryerrors, preservedlegacy/CSP. Independent Astra initialP1URLmutable+P2objecterrors fixedround1 and scopedPASS. Baseline3extractor +pipeline_agent fixtureadapter retainassertions.
+Evidence: PM+worker+reviewer freshprojects_workspace --navigation exit0 with realHTTPchunk fixture afterfirstchunk, A/Btabs/history/latejobs/streams andqueryerrors; fiveexistingNodeexit0, JSsyntaxgreen, fullRuffgreen; PMrealFastAPI/Edge actualzeroproject/createA/B/tabrefresh/fixedsrcdoc/noindex409 passed. Full indexedworkflow/browser/APIintegration stillTask8. Reports task-6-report.md/task-6-review.md/task-6-fix-1-review.md.

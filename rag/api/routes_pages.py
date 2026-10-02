@@ -3,13 +3,26 @@ API key (sono solo shell statiche, nessun dato). Ogni pagina passa da api.deps.s
 che serve la versione unificata (un file, CSS variables + data-theme iniettato dal server)
 se esiste, altrimenti ricade sulla vecchia coppia Matrix/Classico — vedi
 templates/CLAUDE_DESIGN_CONTRACT.md per il contratto di migrazione."""
+from html import escape
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from api.deps import NO_CACHE_HEADERS, inject_agent_api_key, serve_page
+from api.deps import NO_CACHE_HEADERS, SERVER_BIND_IS_LOCAL, inject_agent_api_key, serve_page as _serve_page
 
 router = APIRouter()
 reader_router = APIRouter()
+
+
+def serve_page(request: Request, *templates):
+    response = _serve_page(request, *templates)
+    if isinstance(response, HTMLResponse):
+        project = escape(request.query_params.get("project", ""), quote=True)
+        metadata = (f'<meta name="vibecraft-project" content="{project}">'
+                    f'<meta name="vibecraft-local-bind" content="{str(SERVER_BIND_IS_LOCAL).lower()}">')
+        html = response.body.decode("utf-8").replace("<head>", "<head>" + metadata, 1)
+        return HTMLResponse(html, headers=NO_CACHE_HEADERS)
+    return response
 
 
 @reader_router.get("/", include_in_schema=False)

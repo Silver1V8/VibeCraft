@@ -628,3 +628,16 @@ body.page-doc {
 .motion-toggle:hover { color: var(--color-text-primary); border-color: var(--color-text-muted); }
 .motion-toggle[aria-pressed="true"] { border-color: var(--color-primary); color: var(--color-primary); }
 .motion-toggle[hidden] { display: none; }
+
+.project-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg); color: var(--color-text-primary);
+}
+.project-bar select { max-width: 22rem; }
+#project-index-status { flex: 1; font-size: var(--text-sm); }
+#project-dialog { color: var(--color-text-primary); }
+#project-dialog::backdrop { background: rgba(0, 0, 0, .6); }
+#project-input { display: block; width: 100%; box-sizing: border-box; margin: var(--space-2) 0; }
+#project-error { color: var(--color-danger); white-space: pre-line; }
+#project-browse[hidden] { display: none; }

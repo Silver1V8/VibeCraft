@@ -8,15 +8,38 @@
   <link rel="stylesheet" href="/static/shared.css" />
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; }
+    body { display: flex; flex-direction: column; }
     #workspace-pages, #workspace-pages iframe { width: 100%; height: 100%; border: 0; }
     #workspace-pages iframe { display: block; }
     #workspace-pages iframe[hidden] { display: none; }
-    #workspace-status { position: fixed; z-index: 1000; top: 1rem; left: 1rem; padding: 1rem; background: var(--color-bg); color: var(--color-text-primary); }
+    #workspace-pages { flex: 1; min-height: 0; }
+    #workspace-status { position: fixed; z-index: 1000; top: 5rem; left: 1rem; padding: 1rem; background: var(--color-bg); color: var(--color-text-primary); }
   </style>
   <script src="/static/shared.js"></script>
   <script src="/static/pages/workspace.js" defer></script>
 </head>
 <body>
+  <header id="project-bar" class="project-bar" aria-label="Progetti">
+    <label for="project-select">Progetto</label>
+    <select id="project-select" data-change="selectProject" disabled><option value="">Caricamento…</option></select>
+    <span id="project-index-status" role="status" aria-live="polite"></span>
+    <button id="project-new" type="button" class="btn btn-secondary" data-click="newProject" disabled>Nuovo progetto</button>
+    <button id="project-open" type="button" class="btn btn-secondary" data-click="openProject" disabled>Apri progetto esistente</button>
+  </header>
+  <dialog id="project-dialog" class="confirm-dialog" aria-labelledby="project-dialog-title">
+    <form id="project-form">
+      <h2 id="project-dialog-title" class="confirm-title"></h2>
+      <label id="project-input-label" for="project-input"></label>
+      <input id="project-input" required autocomplete="off" />
+      <p id="project-help" class="confirm-message"></p>
+      <button id="project-browse" type="button" class="btn btn-secondary" data-click="browseExistingProject" hidden>Sfoglia cartella</button>
+      <p id="project-error" role="alert"></p>
+      <div class="confirm-actions">
+        <button type="button" class="btn btn-secondary" data-click="cancelProject">Annulla</button>
+        <button id="project-submit" type="submit" class="btn btn-primary">Crea</button>
+      </div>
+    </form>
+  </dialog>
   <div id="workspace-status" role="status"><span id="workspace-message">Caricamento…</span>
     <button id="workspace-retry" data-click="retryNavigation" hidden>Riprova</button>
   </div>
