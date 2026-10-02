@@ -103,6 +103,7 @@ def test_mcp_is_local_explicit_and_does_not_mutate_modes(mode, monkeypatch):
     assert opts.mcp_servers == {"vibecraft": {
         "type": "stdio", "command": sys.executable,
         "args": ["-B", str(PROJECT_ROOT / "rag" / "mcp_server.py")],
+        "env": {"VIBECRAFT_PROJECT_ID": "legacy"},
     }}
     assert opts.strict_mcp_config is True
     assert opts.max_turns == 12

@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import sys
 from contextlib import asynccontextmanager
 from typing import Any
@@ -66,8 +67,13 @@ def create_server(*, transport=None) -> MCPServer:
             raise ValueError
     except ValueError:
         raise ValueError('VIBECRAFT_MCP_TIMEOUT_SECONDS deve essere fra 0.1 e 120.') from None
+    project_id = os.environ.get('VIBECRAFT_PROJECT_ID')
+    if project_id is not None and not re.fullmatch(r'legacy|[0-9a-f]{32}', project_id):
+        raise ValueError('VIBECRAFT_PROJECT_ID deve essere legacy o un ID di 32 caratteri esadecimali minuscoli.')
     key = os.environ.get('VIBECRAFT_API_KEY')
     headers = {'X-API-Key': key} if key else {}
+    if project_id is not None:
+        headers['X-VibeCraft-Project'] = project_id
     client = None
 
     @asynccontextmanager

@@ -56,6 +56,8 @@ import shutil
 import sys
 import threading
 from pathlib import Path
+from copy import deepcopy
+from functools import partial
 from typing import Any
 
 from claude_agent_sdk import ClaudeAgentOptions, HookMatcher, query
@@ -64,7 +66,8 @@ from claude_agent_sdk.types import AssistantMessage, ResultMessage, TextBlock, T
 from core import llm
 from core.open_points import read_report
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+INSTALL_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = INSTALL_ROOT  # Historical legacy default; never the selected project.
 
 # Radice operativa della modalità agentic: l'unica area in cui può scrivere.
 CODE_ROOT = PROJECT_ROOT / "code"
@@ -150,13 +153,14 @@ async def _deny_out_of_sandbox_writes(
     input_data: dict[str, Any],
     tool_use_id: str | None,
     context: dict[str, Any],
+    *, code_root: Path = CODE_ROOT,
 ) -> dict[str, Any]:
     """Hook PreToolUse per la modalità agentic. Nega Write/Edit fuori da code/
     e qualunque Bash; per tutto il resto si astiene (dict vuoto), lasciando che
     allowed_tools + permission_mode='dontAsk' decidano."""
     tool_name = input_data.get("tool_name", "")
     tool_input = input_data.get("tool_input") or {}
-    reason = _agentic_tool_denial(tool_name, tool_input, CODE_ROOT)
+    reason = _agentic_tool_denial(tool_name, tool_input, code_root)
     if reason is None:
         return {}
     return {
@@ -211,11 +215,11 @@ def _max_turns() -> int:
     return max_turns
 
 
-def _build_agent_options(mode: str, model: str) -> ClaudeAgentOptions:
+def _build_agent_options(mode: str, model: str, *, project=None) -> ClaudeAgentOptions:
     """Costruisce le ClaudeAgentOptions per una modalità. Isolata dal resto per
     essere asseribile con precisione nei test."""
-    cfg = AGENT_MODES[mode]
-    cwd = cfg["cwd"]
+    cfg = deepcopy(AGENT_MODES[mode])
+    cwd = (project.code_dir if mode == "agentic" else project.root) if project is not None else cfg["cwd"]
 
     kwargs: dict[str, Any] = {
         "cwd": str(cwd),
@@ -245,7 +249,8 @@ def _build_agent_options(mode: str, model: str) -> ClaudeAgentOptions:
         # nel prompt o negli argomenti CLI. Il server MCP resta un adattatore HTTP.
         kwargs["mcp_servers"] = {"vibecraft": {
             "type": "stdio", "command": sys.executable,
-            "args": ["-B", str(PROJECT_ROOT / "rag" / "mcp_server.py")],
+            "args": ["-B", str(INSTALL_ROOT / "rag" / "mcp_server.py")],
+            "env": {"VIBECRAFT_PROJECT_ID": project.id if project is not None else "legacy"},
         }}
         kwargs["allowed_tools"] += [
             "mcp__vibecraft__vibecraft_retrieve",
@@ -261,7 +266,8 @@ def _build_agent_options(mode: str, model: str) -> ClaudeAgentOptions:
             "PreToolUse": [
                 HookMatcher(
                     matcher=_GUARDED_TOOLS_MATCHER,
-                    hooks=[_deny_out_of_sandbox_writes],
+                    hooks=[partial(_deny_out_of_sandbox_writes, code_root=project.code_dir)
+                           if project is not None else _deny_out_of_sandbox_writes],
                 )
             ]
         }
@@ -310,20 +316,20 @@ def _ensure_loop() -> asyncio.AbstractEventLoop:
 # Esecuzione con streaming degli eventi
 # ---------------------------------------------------------------------------
 async def _run_agent(prompt: str, mode: str, model: str, out: queue.Queue, *, feature: str | None = None,
-                     attempt_id=None, on_finish=None) -> None:
+                     attempt_id=None, on_finish=None, project=None) -> None:
     """Esegue query() sull'event loop dedicato e pubblica gli eventi sulla coda."""
     from core.pipeline_activity import track
-    with track(feature, attempt_id):
-        await _run_agent_messages(prompt, mode, model, out, on_finish=on_finish)
+    with track(feature, attempt_id, project=project):
+        await _run_agent_messages(prompt, mode, model, out, on_finish=on_finish, project=project)
 
 
-async def _run_agent_messages(prompt, mode, model, out, *, on_finish=None):
+async def _run_agent_messages(prompt, mode, model, out, *, on_finish=None, project=None):
     final_text = []
     terminated = False
     cost_usd = None  # costo dichiarato dall'SDK nel ResultMessage (anche con is_error)
     outcome = {'type': 'error', 'message': 'Esecuzione interrotta', **read_report(None)}
     try:
-        options = _build_agent_options(mode, model)
+        options = _build_agent_options(mode, model, project=project)
         async for message in query(prompt=prompt, options=options):
             if isinstance(message, AssistantMessage):
                 for block in message.content:
@@ -390,7 +396,7 @@ def _finish(out: queue.Queue, outcome: dict, on_finish) -> None:
 
 
 def run_agent_streaming(prompt: str, mode: str, model: str = "sonnet", *, feature: str | None = None,
-                        attempt_id=None, on_finish=None):
+                        attempt_id=None, on_finish=None, project=None):
     """
     Generatore sincrono di eventi NDJSON, consumabile da StreamingResponse.
     FastAPI lo esegue nel threadpool, quindi la lettura bloccante dalla coda
@@ -404,7 +410,7 @@ def run_agent_streaming(prompt: str, mode: str, model: str = "sonnet", *, featur
     # Ammissione e scheduling avvengono ora, sotto il lock della feature del chiamante;
     # non attendono la prima lettura HTTP. La fine viene registrata anche se il client esce.
     asyncio.run_coroutine_threadsafe(_run_agent(prompt, mode, model, out, feature=feature,
-                                               attempt_id=attempt_id, on_finish=on_finish), loop)
+                                               attempt_id=attempt_id, on_finish=on_finish, project=project), loop)
     def consume():
         while True:
             event = out.get()

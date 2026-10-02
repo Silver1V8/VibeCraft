@@ -355,11 +355,11 @@ def run_cli(runner: str, prompt: str, mode: str, model: str, *, project_root: Pa
 # ---------------------------------------------------------------------------
 # Streaming: stesso contratto di agent_bridge.run_agent_streaming
 # ---------------------------------------------------------------------------
-def _pump(events, out: queue.Queue, feature, attempt_id, on_finish) -> None:
+def _pump(events, out: queue.Queue, feature, attempt_id, on_finish, project=None) -> None:
     from core.pipeline_activity import track
     outcome = {"type": "error", "message": "Esecuzione interrotta", **read_report(None)}
     try:
-        with track(feature, attempt_id):
+        with track(feature, attempt_id, project=project):
             for event in events:
                 if event["type"] in ("result", "error"):
                     outcome = event
@@ -372,15 +372,20 @@ def _pump(events, out: queue.Queue, feature, attempt_id, on_finish) -> None:
 
 
 def run_streaming(runner: str, prompt: str, mode: str, model: str, *, feature=None, attempt_id=None,
-                  on_finish=None):
+                  on_finish=None, project=None):
     if reason := validate_run(runner, mode, model):
         raise ValueError(reason)
     if runner == "claude":
         return agent_bridge.run_agent_streaming(prompt, mode, model or "sonnet", feature=feature,
-                                                attempt_id=attempt_id, on_finish=on_finish)
-    events = run_local(prompt, mode, model) if runner == "local" else run_cli(runner, prompt, mode, model)
+                                                attempt_id=attempt_id, on_finish=on_finish, project=project)
+    roots = {"project_root": project.root} if project is not None else {}
+    if runner == "local":
+        events = run_local(prompt, mode, model, **roots,
+                           **({"code_root": project.code_dir} if project is not None else {}))
+    else:
+        events = run_cli(runner, prompt, mode, model, **roots)
     out: queue.Queue = queue.Queue()
-    threading.Thread(target=_pump, args=(events, out, feature, attempt_id, on_finish),
+    threading.Thread(target=_pump, args=(events, out, feature, attempt_id, on_finish, project),
                      name=f"agent-runner-{runner}", daemon=True).start()
 
     def consume():
