@@ -21,7 +21,7 @@ def _client() -> TestClient:
 def _page_and_scripts(client: TestClient) -> str:
     """HTML di /intake più gli script di pagina che referenzia: il codice che chiama le API
     sta in /static/pages/intake.js (fuori dal template per la CSP)."""
-    html = client.get("/intake").text
+    html = client.get("/intake?workspace=1").text
     scripts = re.findall(r'<script src="/static/(pages/[\w.-]+\.js)"', html)
     assert scripts, "la pagina non carica il proprio script"
     return html + "".join((STATIC_DIR / rel).read_text(encoding="utf-8") for rel in scripts)
@@ -29,7 +29,7 @@ def _page_and_scripts(client: TestClient) -> str:
 
 def test_intake_route_returns_200_with_four_blocks():
     client = _client()
-    resp = client.get("/intake")
+    resp = client.get("/intake?workspace=1")
     assert resp.status_code == 200
     body = resp.text
     assert "section-genera" in body

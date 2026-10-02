@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VibeCraft</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+  <link rel="stylesheet" href="/static/shared.css" />
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; }
+    #workspace-pages, #workspace-pages iframe { width: 100%; height: 100%; border: 0; }
+    #workspace-pages iframe { display: block; }
+    #workspace-pages iframe[hidden] { display: none; }
+    #workspace-status { position: fixed; z-index: 1000; top: 1rem; left: 1rem; padding: 1rem; background: var(--color-bg); color: var(--color-text-primary); }
+  </style>
+  <script src="/static/shared.js"></script>
+  <script src="/static/pages/workspace.js" defer></script>
+</head>
+<body>
+  <div id="workspace-status" role="status"><span id="workspace-message">Caricamento…</span>
+    <button id="workspace-retry" data-click="retryNavigation" hidden>Riprova</button>
+  </div>
+  <main id="workspace-pages" aria-label="Area di lavoro VibeCraft"></main>
+</body>
+</html>

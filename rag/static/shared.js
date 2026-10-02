@@ -98,8 +98,9 @@ function clearApiKey() {
    portarsi dietro la chiave. */
 function needsApiKey(url) {
   try {
-    const u = new URL(url, window.location.origin);
-    if (u.origin !== window.location.origin) return false;
+    const origin = new URL(document.baseURI).origin;
+    const u = new URL(url, origin);
+    if (u.origin !== origin) return false;
     return u.pathname === '/ask' || u.pathname.startsWith('/api/');
   } catch (e) { return false; }
 }
@@ -273,6 +274,9 @@ function initMotionToggle() {
 function setUiTheme(value) {
   document.cookie = 'ui_theme=' + value + ';path=/;max-age=31536000';
   document.documentElement.dataset.theme = value;   // live-flip: niente reload
+  if (window.frameElement?.dataset.workspacePage) window.parent.document.documentElement.dataset.theme = value;
+  const select = document.getElementById('theme-switcher');
+  if (select) select.value = value;
   if (value === 'matrix') startMatrixRain(); else stopMatrixRain();
   syncMotionToggle();   // il toggle del rain esiste solo nel tema Matrix
   // Hook per il redraw specifico della pagina (canvas bitmap, mermaid, …).
@@ -398,7 +402,7 @@ function confirmDialog(message, opts) {
    così lo stato non dipende dal solo colore. */
 function initNavigation() {
   const links = document.querySelectorAll('header a[href], nav a[href], .app-nav a[href]');
-  const here = location.pathname.replace(/\/+$/, '') || '/';
+  const here = (window.frameElement?.dataset.workspacePage || location.pathname).replace(/\/+$/, '') || '/';
   links.forEach(a => {
     const href = (a.getAttribute('href') || '').replace(/\/+$/, '') || '/';
     if (href === here) {
@@ -406,6 +410,22 @@ function initNavigation() {
       a.setAttribute('aria-current', 'page');
     }
   });
+  if (window.frameElement?.dataset.workspacePage) {
+    document.addEventListener('click', event => {
+      if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+      if (!link || link.hasAttribute('download') || (link.target && link.target !== '_self')) return;
+      const url = new URL(link.getAttribute('href'), document.baseURI);
+      if (url.origin !== new URL(document.baseURI).origin) {
+        link.target = '_blank';
+        link.rel = 'noopener';
+        return;
+      }
+      if (!window.parent.workspaceRoutes?.has(url.pathname)) return;
+      event.preventDefault();
+      window.parent.navigateWorkspace(url.href);
+    });
+  }
 }
 
 /* ──────────── AZIONI DICHIARATIVE (niente handler inline) ────────────

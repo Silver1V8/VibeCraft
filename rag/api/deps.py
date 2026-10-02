@@ -1024,7 +1024,8 @@ def _inject_data_theme(html: str, theme: str) -> str:
 
 
 def serve_page(request: Request, unified_name: str, matrix_name: str, classic_name: str) -> Response:
-    """Serve UNA pagina: se `unified_name` esiste sotto TEMPLATES_DIR (versione dedupata,
+    """Serve la shell persistente, oppure il documento richiesto con workspace=1.
+    Se `unified_name` esiste sotto TEMPLATES_DIR (versione dedupata,
     un solo file con CSS variables — consegnata da Claude Design), la serve iniettando
     data-theme dal cookie 'ui_theme'. Altrimenti (transizione in corso) ricade sulla
     vecchia coppia di file `matrix_name`/`classic_name`, invariata — così le pagine
@@ -1036,6 +1037,13 @@ def serve_page(request: Request, unified_name: str, matrix_name: str, classic_na
     theme = request.cookies.get("ui_theme", "matrix")
     if theme not in VALID_THEMES:
         theme = "matrix"
+
+    # La shell resta viva durante la navigazione; le pagine sono documenti separati
+    # caricati via fetch, così nessuno stream viene chiuso al cambio di sezione.
+    workspace_path = TEMPLATES_DIR / "workspace.html"
+    if request.query_params.get("workspace") != "1" and workspace_path.exists():
+        return HTMLResponse(_inject_data_theme(workspace_path.read_text(encoding="utf-8"), theme),
+                            headers=NO_CACHE_HEADERS)
 
     unified_path = TEMPLATES_DIR / unified_name
     if unified_path.exists():

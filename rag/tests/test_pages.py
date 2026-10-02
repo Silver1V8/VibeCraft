@@ -6,9 +6,10 @@ from starlette.requests import Request
 from api import deps
 
 
-def _request(cookie: str | None = None) -> Request:
+def _request(cookie: str | None = None, query: bytes = b"") -> Request:
     headers = [(b"cookie", cookie.encode())] if cookie else []
-    scope = {"type": "http", "client": ("127.0.0.1", 1234), "headers": headers}
+    scope = {"type": "http", "client": ("127.0.0.1", 1234), "headers": headers,
+             "query_string": query}
     return Request(scope)
 
 
@@ -112,3 +113,16 @@ def test_serve_page_unified_invalid_cookie_defaults_to_matrix(tmp_path, monkeypa
     resp = deps.serve_page(_request("ui_theme=bogus"), "page.unified.html", "page.html", "page_classic.html")
 
     assert 'data-theme="matrix"' in resp.body.decode("utf-8")
+
+
+def test_navigation_shell_keeps_page_documents_separate(tmp_path, monkeypatch):
+    monkeypatch.setattr(deps, "TEMPLATES_DIR", tmp_path)
+    (tmp_path / "workspace.html").write_text('<html><body>workspace shell</body></html>')
+    (tmp_path / "page.unified.html").write_text('<html><body>page content</body></html>')
+
+    shell = deps.serve_page(_request("ui_theme=classic"), "page.unified.html", "page.html", "classic.html")
+    assert "workspace shell" in shell.body.decode()
+    assert 'data-theme="classic"' in shell.body.decode()
+    page = deps.serve_page(_request(query=b"workspace=1"), "page.unified.html", "page.html", "classic.html")
+    assert "page content" in page.body.decode()
+    assert "workspace shell" not in page.body.decode()
