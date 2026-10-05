@@ -1,5 +1,15 @@
 # rag/ — Console Graph-RAG
 
+## Progetti separati
+
+Creazione/apertura/selezione per scheda, root gestite Docker, backup, migrazione legacy,
+CLI/MCP e limiti verificati sono nelle [istruzioni multiprogetto](../README.md#progetti-separati).
+Da `rag/`: `uv run python index.py --project <id> --index-status`; usa
+`--incremental`, `--check-integrity` o `--rollback [VERSIONE]` sullo stesso ID.
+Senza ID la CLI e il MCP usano soltanto legacy; per MCP esterno imposta
+`VIBECRAFT_PROJECT_ID=<id>`. Il reader richiede `VIBECRAFT_ROLE=reader`,
+`VIBECRAFT_INDEX_MODE=immutable` e chiave API, anche su loopback.
+
 Indicizzazione (core/indexing), retrieval ibrido e pipeline Explore → Canvas →
 Propose → Validate (core/) esposti via FastAPI (api/). Entrypoint: `server.py`,
 `index.py`, `mcp_server.py` (MCP locale di sola lettura).
@@ -1132,7 +1142,7 @@ configurato in `vector_database.collection_name`, lo stesso che `/ask` e
 `/api/retrieve` interrogano sempre) sulla candidata — la collection di produzione
 non viene mai toccata durante il build, solo alla promozione. Se il gate blocca la
 promozione, la collection candidata resta su Qdrant non referenziata da alcuna
-versione attiva: il GC del prossimo job/boot riuscito la rimuove (nessuna
+versione attiva: il GC del prossimo job writer riuscito la rimuove (nessuna
 collezione orfana si accumula).
 
 **Migrazione one-shot legacy→alias.** Se la collection di produzione esiste ancora
@@ -1143,8 +1153,7 @@ l'**unica operazione irreversibile** del meccanismo: una finestra di
 indisponibilità breve ma reale (millisecondi) fra il delete e la create, loggata
 esplicitamente. Da quel momento il nome di produzione non è più una collection
 fisica: è sempre un alias verso l'ultima versione promossa. Un crash esattamente
-in quella finestra lascia l'alias mancante: il reconciler lo ripara al boot
-successivo (o al prossimo job full) se la collection candidata esiste ancora,
+in quella finestra lascia l'alias mancante: il reconciler lo ripara alla manutenzione writer successiva (o al prossimo job full) se la collection candidata esiste ancora,
 senza bisogno di un nuovo rebuild.
 
 **Rollback**: `python index.py --rollback [VERSIONE]` (o `POST /api/index/rollback`)
@@ -1158,22 +1167,16 @@ il messaggio nomina la collection mancante e prescrive una re-indicizzazione com
 misto — sidecar della versione target, vettori di un'altra build — che nessun
 reconciler ripara e che il check di integrità dichiarava `ok: true` (vedi `AUDIT.md`,
 A20). Se Qdrant è irraggiungibile il pre-check si **salta**: un rollback locale non
-dipende dalla raggiungibilità di Qdrant, e l'alias viene riparato al prossimo boot.
+dipende dalla raggiungibilità di Qdrant, e l'alias viene riparato alla successiva manutenzione writer.
 Lo stato `"qdrant_alias": {"state": "missing_target_collection"}` nella risposta resta
 possibile solo se la collection sparisce fra il pre-check e lo swap, o se il pre-check
 è stato saltato — nessuna collection viene mai "inventata".
 
-**Riconciliazione e GC.** Al boot del server, prima di servire richieste, un
-reconciler confronta lo stato REALE dell'alias con quello atteso dal manifest della
-versione attiva e ripara automaticamente i casi "missing"/"diverging" — ma solo se
-la collection attesa esiste davvero (nessuna correzione distruttiva); lo stesso
-punto esegue il GC delle collection versionate orfane (build crashati o non
-promossi, lineage già ruotate dalla retention locale). Riconciliazione e GC girano
-**sotto il writer lock** (F2): se una build CLI è in corso al boot il lock è
-occupato e questo avvio **salta** entrambe (nessun GC che cancelli la collection
-candidata di un rebuild a metà) — non è un errore, il prossimo boot o job full le
-riesegue. `GET /api/index/integrity` espone la classificazione READ-ONLY sotto il
-campo `qdrant_alias`: `legacy`/`aligned`/`missing`/`diverging`/`unknown`.
+**Riconciliazione e GC.** Avvio e lettura non riparano alias e non eseguono GC.
+La manutenzione è esplicita nel lifecycle writer/CLI sotto writer lock, con namespace
+del progetto. Nessuna riparazione inventa collection mancanti.
+`GET /api/index/integrity` espone la classificazione READ-ONLY `qdrant_alias`:
+`legacy`/`aligned`/`missing`/`diverging`/`unknown`.
 
 ### Retrocompatibilità e formati legacy
 
@@ -1481,17 +1484,15 @@ negli argomenti delle CLI, quindi niente `-` iniziale né metacaratteri.
 |---|---|---|---|
 | `claude` | suggest, agentic, oneshot | tre tool MCP | bridge SDK descritto sopra |
 | `local` (Ollama `/api/chat`) | suggest, agentic, oneshot | `read_file`/`list_files`/`grep` | i tool li esegue VibeCraft, niente shell; letture in `PROJECT_ROOT` senza `.git` né `.env*`; in agentic `write_file`/`edit_file` passano da `_path_escapes_code`, la stessa decisione dell'hook Claude; output dei tool troncato a 6.000 caratteri |
-| `codex` | suggest, oneshot | lettura della CLI | `codex exec --sandbox read-only`, plugin/app/browser/hook disattivati con `--disable` |
-| `cursor` | suggest, oneshot | lettura della CLI | `agent -p --mode plan` (suggest) o `--mode ask` (oneshot) con `--sandbox enabled`: `-p` da solo ha scrittura e shell |
+| `codex` | export prompt | MCP esterno con ID esplicito | integrato disabilitato: isolamento letture non verificato |
+| `cursor` | export prompt | MCP esterno con ID esplicito | integrato disabilitato: isolamento letture non verificato |
 
 Agentic resta a `claude` e `local`: il confinamento delle scritture delle CLI esterne non è
 verificabile dai nostri test (400 se richiesto). Il prompt passa **sempre su stdin**, mai in
 argv: gli shim `.cmd` di npm su Windows lo farebbero interpretare a `cmd.exe`. Solo `claude`
 riceve il prompt con i tool MCP; gli altri ricevono la variante che chiede di cercare i file
 pertinenti con i propri strumenti di lettura. Timeout delle CLI:
-`VIBECRAFT_AGENT_TIMEOUT_SECONDS` (default 1800). Stato delle verifiche: Codex verificato dal
-vivo (codex-cli 0.154.0: scrittura in `code/` negata, suggest reale su LA3 con resoconto
-valido); Cursor **non ancora provato** su un'esecuzione reale.
+`VIBECRAFT_AGENT_TIMEOUT_SECONDS` (default 1800). Le prove storiche sulle CLI non verificano isolamento delle letture fra progetti: Codex/Cursor integrati restano disabilitati. Export prompt e MCP esterno disponibili anche senza binario.
 
 Verifica locale senza provider o corpus privato:
 `python -m pytest tests/test_agent_bridge_perimeter.py tests/test_agent_runners.py tests/test_pipeline.py tests/test_mcp_server.py tests/test_mcp_http.py`

@@ -73,6 +73,51 @@ def test_registry_mutations_cross_site_and_local_bind(client, monkeypatch):
     assert http.post("/api/projects/register", json={"root": str(registry.projects_dir)}).status_code == 403
 
 
+def test_remote_registration_confines_before_manifest_read(client, monkeypatch, tmp_path):
+    from api import routes_projects
+    import server
+    http, registry = client
+    # Real roots/manifests; registration must not inspect a denied host path.
+    inside = ProjectRegistry(registry.projects_dir / "mounted", bootstrap_legacy=False).create("Mounted")
+    outside = ProjectRegistry(tmp_path / "outside", bootstrap_legacy=False).create("Outside")
+    monkeypatch.setattr(deps, "SERVER_BIND_IS_LOCAL", False)
+    monkeypatch.setattr(deps, "API_KEY", "managed-test-key")
+    remote = TestClient(server.app, base_url="http://127.0.0.1", client=("192.0.2.1", 1234))
+    headers = {"X-API-Key": "managed-test-key"}
+    assert remote.post("/api/projects/register", json={"root": str(inside.root)}).status_code == 401
+    assert http.post("/api/projects/register", json={"root": str(inside.root)},
+                     headers={"Sec-Fetch-Site": "cross-site"}).status_code == 403
+    assert remote.post("/api/projects/register", json={"root": str(inside.root)}, headers=headers).status_code == 201
+    original = registry.register
+    monkeypatch.setattr(registry, "register", lambda root: pytest.fail("denied root reached manifest reader"))
+    for root in (outside.root, registry.projects_dir, inside.root / ".." / inside.root.name):
+        assert remote.post("/api/projects/register", json={"root": str(root)}, headers=headers).status_code == 403
+    monkeypatch.setattr(registry, "register", original)
+    monkeypatch.setattr(deps, "SERVER_BIND_IS_LOCAL", True)
+    assert http.post("/api/projects/register", json={"root": str(outside.root)}).status_code == 201
+    monkeypatch.setattr(routes_projects, "ROLE", "reader")
+    assert http.post("/api/projects/register", json={"root": str(inside.root)}).status_code == 403
+
+
+def test_remote_registration_rejects_directory_links(client, monkeypatch, tmp_path):
+    import os
+    import subprocess
+    http, registry = client
+    outside = ProjectRegistry(tmp_path / "outside", bootstrap_legacy=False).create("Outside")
+    registry.projects_dir.mkdir(exist_ok=True)
+    linked = registry.projects_dir / "linked"
+    if os.name == "nt":
+        subprocess.run(["cmd", "/c", "mklink", "/J", str(linked), str(outside.root)], check=True, capture_output=True)
+    else:
+        linked.symlink_to(outside.root, target_is_directory=True)
+    try:
+        monkeypatch.setattr(deps, "SERVER_BIND_IS_LOCAL", False)
+        monkeypatch.setattr(registry, "register", lambda root: pytest.fail("link reached manifest reader"))
+        assert http.post("/api/projects/register", json={"root": str(linked)}).status_code == 403
+    finally:
+        linked.rmdir() if os.name == "nt" else linked.unlink()
+
+
 def test_remote_metadata_and_errors_never_expose_paths(client, monkeypatch):
     http, registry = client
     import server

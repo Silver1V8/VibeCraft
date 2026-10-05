@@ -150,7 +150,7 @@ function showProjectDialog(mode) {
   document.getElementById('project-input-label').textContent = opening ? 'Cartella del progetto' : 'Nome del progetto';
   document.getElementById('project-input').value = '';
   document.getElementById('project-help').textContent = opening
-    ? 'Scegli una cartella VibeCraft con project.yaml valido. In Docker usa una directory montata nel container.'
+    ? 'Scegli una cartella VibeCraft con project.yaml valido. Con bind remoto sono ammesse solo sottocartelle della directory progetti gestita dal server; in Docker usa /app/projects/<cartella> montata nel container.'
     : 'La cartella viene creata nella directory gestita dal server. Potrai importare codice e documenti dalla pagina Intake.';
   document.getElementById('project-submit').textContent = opening ? 'Apri' : 'Crea';
   const localBind = document.querySelector('meta[name="vibecraft-local-bind"]')?.content === 'true';

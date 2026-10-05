@@ -185,3 +185,34 @@ def test_ci_workflow_actions_pinned_to_commit_sha(workflow):
         "action esterne non pinnate a uno SHA di commit (40 caratteri esadecimali): "
         + ", ".join(non_pinnate)
     )
+
+
+def test_multi_project_distribution_contract(monkeypatch):
+    """Every profile persists projects; executable healthcheck supplies reader auth."""
+    import urllib.request
+    compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
+    assert "vibecraft_projects" in compose["volumes"]
+    for name in ("app-cpu", "app-gpu", "app-host-ollama"):
+        service = compose["services"][name]
+        assert service["environment"]["VIBECRAFT_PROJECTS_DIR"] == "/app/projects"
+        assert "vibecraft_projects:/app/projects" in service["volumes"]
+        assert "vibecraft_index:/app/rag/database" in service["volumes"]
+        assert "vibecraft_models:/models/huggingface" in service["volumes"]
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert dockerfile.index("/app/projects") < dockerfile.index("USER vibecraft")
+    command = re.search(r'CMD python -c "([^"]+)"', dockerfile).group(1)
+    calls = []
+    class Response:
+        def close(self):
+            pass
+    def opened(request, timeout):
+        calls.append(request)
+        assert timeout == 5
+        return Response()
+    monkeypatch.setenv("VIBECRAFT_API_KEY", "synthetic-reader-key")
+    monkeypatch.setattr(urllib.request, "urlopen", opened)
+    exec(command, {})
+    assert calls[0].full_url == "http://127.0.0.1:8000/api/health/live"
+    assert calls[0].get_header("X-api-key") == "synthetic-reader-key"
+    ignores = (ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
+    assert "projects/" in ignores and "docs/superpowers/" in ignores

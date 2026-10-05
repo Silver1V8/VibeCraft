@@ -97,9 +97,11 @@ services:
       # Generane una e mettila in un file .env alla root (compose lo legge da solo):
       #   python -c "import secrets; print('VIBECRAFT_API_KEY=' + secrets.token_urlsafe(32))" > .env
       VIBECRAFT_API_KEY: ${VIBECRAFT_API_KEY:?manca VIBECRAFT_API_KEY — generala in un file .env alla root del repository, vedi README}
+      VIBECRAFT_PROJECTS_DIR: /app/projects
       VIBECRAFT_LOG_LEVEL: ${VIBECRAFT_LOG_LEVEL:-INFO}
     volumes:
       - vibecraft_index:/app/rag/database     # artefatti dell'indice (blue/green)
+      - vibecraft_projects:/app/projects
       - vibecraft_models:/models/huggingface  # bge-m3, 4,3 GB, scaricato al primo avvio
       # Per indicizzare i TUOI documenti al posto del corpus di esempio, e per far vedere
       # al sistema il codice di un progetto vero, scommenta e adatta:
@@ -119,10 +121,12 @@ services:
     environment:
       # Obbligatoria: vedi la nota estesa sul servizio app-cpu.
       VIBECRAFT_API_KEY: ${VIBECRAFT_API_KEY:?manca VIBECRAFT_API_KEY — generala in un file .env alla root del repository, vedi README}
+      VIBECRAFT_PROJECTS_DIR: /app/projects
       VIBECRAFT_LOG_LEVEL: ${VIBECRAFT_LOG_LEVEL:-INFO}
       VIBECRAFT_OLLAMA_URL: http://ollama-gpu:11434
     volumes:
       - vibecraft_index:/app/rag/database
+      - vibecraft_projects:/app/projects
       - vibecraft_models:/models/huggingface
       #- ./docs:/app/docs
       #- ./code:/app/code
@@ -147,6 +151,7 @@ services:
     environment:
       # Obbligatoria: vedi la nota estesa sul servizio app-cpu.
       VIBECRAFT_API_KEY: ${VIBECRAFT_API_KEY:?manca VIBECRAFT_API_KEY — generala in un file .env alla root del repository, vedi README}
+      VIBECRAFT_PROJECTS_DIR: /app/projects
       VIBECRAFT_LOG_LEVEL: ${VIBECRAFT_LOG_LEVEL:-INFO}
       # Ollama gira sull'host (nativo, con Metal su macOS): il container lo raggiunge qui.
       VIBECRAFT_OLLAMA_URL: http://host.docker.internal:11434
@@ -156,6 +161,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - vibecraft_index:/app/rag/database
+      - vibecraft_projects:/app/projects
       - vibecraft_models:/models/huggingface
       #- ./docs:/app/docs
       #- ./code:/app/code
@@ -165,3 +171,4 @@ volumes:
   ollama_models:
   vibecraft_index:
   vibecraft_models:
+  vibecraft_projects:

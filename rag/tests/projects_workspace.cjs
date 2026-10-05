@@ -300,6 +300,11 @@ async function browserChecks() {
     await remote.goto(base);
     await remote.locator('#project-open').click();
     assert.equal(await remote.locator('#project-browse').isVisible(), false);
+    assert.match(await remote.locator('#project-help').textContent(), /sottocartelle.*gestita.*\/app\/projects/);
+    await remote.locator('#project-input').fill('/app/projects/mounted-existing');
+    await remote.locator('#project-submit').click();
+    await remote.waitForFunction(() => !document.getElementById('project-dialog').open);
+    assert.ok(requests.some(r => r.path === '/api/projects/register'));
     assert.ok(requests.filter(r => r.path === '/api/intake/generate/project-job').every(r => r.project === A));
     assert.ok(requests.filter(r => r.path === '/api/projects' || r.path === '/api/intake/project/browse-path').every(r => !r.project));
     assert.deepEqual(errors, []);
@@ -319,7 +324,7 @@ async function browserChecks() {
 
 async function reindexChecks() {
   const pipeline = fs.readFileSync(path.join(__dirname, '../static/pages/pipeline.js'), 'utf8');
-  const code = pipeline.slice(pipeline.indexOf('    function pollReindexJob('), pipeline.indexOf('    function copyFinalPrompt('));
+  const code = pipeline.slice(pipeline.indexOf('    function pollReindexJob('), pipeline.indexOf('    async function copyFinalPrompt('));
   const timers = [], replies = [];
   let active = 0;
   const context = vm.createContext({

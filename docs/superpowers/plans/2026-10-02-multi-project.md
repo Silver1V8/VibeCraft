@@ -241,11 +241,11 @@ Ruling PM verificato: Codex/Cursor integrati non avviano processi finché l'isol
 **Modello:** gpt-6.1-sol/medium; gpt-6-luna/medium soltanto per edit documentali meccanici.
 **File:** Compose/Dockerfile/env example/README/CI/test distribuzione interessati.
 
-- [ ] Volume progetti persistente, permessi non-root, pesi condivisi, legacy mounts conservati; `.dockerignore` esclude i dati dei nuovi progetti.
-- [ ] Healthcheck passa con console funzionante a zero progetti; API espone readiness del corpus distinta.
-- [ ] Documentare nuovo/apri/seleziona, --project, MCP env, storage/backup, percorso Docker, registrazione legacy e limiti della prima versione.
-- [ ] Collegare nuovi check ai gate esistenti; nessun download di pesi o build pesante duplicato se il test non lo richiede.
-- [ ] Verificare test statici distribuzione e smoke container se Docker disponibile; altrimenti registrare il limite senza dichiarare prova riuscita.
+- [x] Volume progetti persistente, permessi non-root, pesi condivisi, legacy mounts conservati; `.dockerignore` esclude i dati dei nuovi progetti.
+- [x] Healthcheck passa con console funzionante a zero progetti; API espone readiness del corpus distinta.
+- [x] Documentare nuovo/apri/seleziona, --project, MCP env, storage/backup, percorso Docker, registrazione legacy e limiti della prima versione.
+- [x] Collegare nuovi check ai gate esistenti; nessun download di pesi o build pesante duplicato se il test non lo richiede.
+- [x] Verificare test statici distribuzione e smoke container se Docker disponibile; altrimenti registrare il limite senza dichiarare prova riuscita.
 
 ### Task 8: Integrazione completa e review finale
 

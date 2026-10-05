@@ -135,7 +135,7 @@ RUN apt-get update \
 
 # Utente non-root. Il processo non ha bisogno di privilegi e non deve averli.
 RUN useradd --create-home --uid 10001 vibecraft \
-    && mkdir -p /models/huggingface /app/rag/database \
+    && mkdir -p /models/huggingface /app/rag/database /app/projects \
     && chown -R vibecraft:vibecraft /models /app
 
 WORKDIR /app/rag
@@ -150,11 +150,9 @@ COPY --chown=vibecraft:vibecraft code/ /app/code/
 USER vibecraft
 EXPOSE 8000
 
-# Healthcheck sull'endpoint che il progetto gia' espone: dice se snapshot, Qdrant e Ollama
-# sono a posto, non solo se il processo e' vivo. start-period generoso: al primo avvio il
-# boot include il download di bge-m3 (4,3 GB).
-HEALTHCHECK --interval=30s --timeout=10s --start-period=600s --retries=3 \
-    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5).status==200 else 1)"
+# Liveness indipendente da progetti/indice/servizi; auth normale anche in reader.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD python -c "import os,urllib.request; r=urllib.request.Request('http://127.0.0.1:8000/api/health/live',headers={'X-API-Key':os.environ.get('VIBECRAFT_API_KEY','')}); urllib.request.urlopen(r,timeout=5).close()"
 
 CMD ["python", "server.py"]
 

@@ -1,5 +1,62 @@
 # VibeCraft
 
+## Progetti separati
+
+La console funziona anche senza progetti o indice. **Nuovo progetto** crea una root
+con `project.yaml`, `code/`, `docs/`, `changes/`, `database/` sotto
+`VIBECRAFT_PROJECTS_DIR` (percorso assoluto; default `<installazione>/projects`).
+Non avvia indicizzazione: importa codice/documenti da Intake e indicizza il progetto.
+**Apri progetto esistente** registra una root VibeCraft senza copiarla: con bind
+locale puoi scegliere una cartella host, con bind remoto soltanto una root senza
+symlink/junction strettamente sotto la directory progetti gestita. In Docker usa
+`/app/projects/<cartella>` e monta lì il progetto esistente; il selettore nativo è
+nascosto. Esempio di mount aggiuntivo Compose:
+`/percorso/host/progetto:/app/projects/esistente` (root con `project.yaml` valido).
+In console apri `/app/projects/esistente`; nell'IDE apri la cartella host originale.
+Il mount collega i percorsi: VibeCraft non copia il repository automaticamente.
+Il nome del progetto non costruisce percorsi.
+
+La selezione vale per scheda: `sessionStorage` e `?project=<id>` conservano il target;
+i job già avviati restano nel progetto originario. Due progetti possono mantenere
+pagine residenti; operazioni attive impediscono l'eviction. Una scheda chiusa non
+ripristina conversazioni non salvate. Non sono previsti delete, rename, ricerca
+fra progetti o ACL per progetto.
+
+Da `rag/`: `uv run python index.py --project <id> --index-status` seleziona il progetto
+anche per full/delta/integrity/rollback; senza flag usa soltanto `legacy`.
+Per il MCP esterno imposta `VIBECRAFT_PROJECT_ID=<id>` nell'ambiente del processo,
+oltre alla normale configurazione di URL/chiave: il target resta fisso per sessione.
+
+Il progetto preesistente è registrato come `legacy` **in-place**: nessuno spostamento,
+rename di collection o rebuild automatico. L'installazione vuota non inventa legacy.
+Il reader non inizializza il registry: un registry inizialmente assente restituisce
+`[]` e le richieste senza progetto `project_required`; dopo averlo osservato, la sua
+cancellazione/corruzione fallisce chiusa. Inizializza con writer prima del deploy reader; configura `VIBECRAFT_ROLE=reader`,
+`VIBECRAFT_INDEX_MODE=immutable` e chiave API obbligatoria.
+
+Compose mantiene `vibecraft_projects:/app/projects` separato da `vibecraft_index` e
+con permessi UID 10001; i mount legacy docs/code/database restano disponibili.
+I pesi sono condivisi (`vibecraft_models`, cache Docling nell'installazione,
+`ollama_models`), non copiati per progetto. Backup coerente: registry, manifest,
+code/docs/changes/database di ogni root (anche le root esterne registrate), volume
+legacy e `qdrant_storage` con le collection corrispondenti; salva anche i volumi
+modelli se vuoi evitare download. Ferma le scritture durante il backup.
+
+`/api/health/live` verifica soltanto il processo, anche senza progetti o con Qdrant
+indisponibile; richiede la normale autenticazione, inclusa la chiave in reader.
+Readiness e stato dell'indice sono separati in `/api/health` e nei metadati progetto.
+Modelli/client/snapshot sono caricati a richiesta: l'apertura della console non
+scarica pesi né ripara alias o esegue GC. La manutenzione è esplicita via lifecycle
+writer/CLI. Per progetti ordinari un delta non vuoto usa oggi un full rebuild:
+il costo embedding riguarda l'intero corpus; un delta noop non ricostruisce.
+
+Codex/Cursor integrati rimangono disabilitati finché l'isolamento delle letture non
+è verificato; esportazione prompt e MCP esterno restano disponibili anche senza
+binario installato. SDK: Read sicuro e scansioni di directory sicure sono utilizzabili;
+scansioni di subtree con segreti/link e scansioni root con `.git` sono negate.
+Il runner locale applica pruning dei percorsi vietati.
+
+
 Una console **Graph-RAG per la governance documentale**: indicizza un corpus di documenti
 normativi e il codice che dovrebbe implementarli, e risponde a domande citando le fonti —
 pesando quanto ciascuna fonte è autorevole, non solo quanto somiglia alla domanda.
@@ -46,12 +103,11 @@ non verificata automaticamente nel merito.
 |---|---|---|
 | Claude Code (`claude`) | suggest, oneshot, agentic | tre tool MCP locali |
 | Ollama (`local`) | suggest, oneshot, agentic | lettura e ricerca locali; scritture confinate in agentic |
-| Codex CLI (`codex`) | suggest, oneshot | strumenti della CLI in sandbox di sola lettura |
-| Cursor CLI (`cursor`) | suggest, oneshot | modalità plan/ask con sandbox abilitata |
+| Codex CLI (`codex`) | export prompt | integrato disabilitato: isolamento letture non verificato |
+| Cursor CLI (`cursor`) | export prompt | integrato disabilitato: isolamento letture non verificato |
 
 La console rileva i runner disponibili sul server. Le CLI e i relativi accessi al
-provider vanno predisposti sulla macchina che esegue VibeCraft; Cursor è integrato,
-ma non ancora verificato con un'esecuzione reale. Il runner `local` usa Ollama;
+provider vanno predisposti sulla macchina che esegue VibeCraft. Codex/Cursor offrono export prompt e MCP esterno; esecuzione integrata disabilitata. Il runner `local` usa Ollama;
 gli altri possono inviare il contesto letto al rispettivo provider remoto.
 
 **Agentic parte solo con una validazione superata del contratto corrente**: Canvas,

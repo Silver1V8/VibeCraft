@@ -2,13 +2,13 @@
 import json
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict
 
 from api import deps
 from core.artifacts import manifest_path
 from core.config import ROLE
-from core.projects import ProjectError
+from core.projects import ProjectError, _unlinked
 
 router = APIRouter(dependencies=[Depends(deps.require_api_key)])
 
@@ -93,9 +93,23 @@ def create_project(body: CreateProject, request: Request):
 
 
 @router.post("/api/projects/register", status_code=201,
-             dependencies=[Depends(deps.require_not_cross_site_request), Depends(deps.require_local_bind)])
+             dependencies=[Depends(deps.require_not_cross_site_request)])
 def register_project(body: RegisterProject, request: Request):
+    if ROLE == "reader":
+        raise HTTPException(status_code=403, detail="Project registration is read-only.")
     try:
-        return project_metadata(deps.project_registry().register(Path(body.root)), request)
+        registry = deps.project_registry()
+        root = Path(body.root).expanduser()
+        if not deps.SERVER_BIND_IS_LOCAL:
+            try:
+                if not root.is_absolute() or ".." in root.parts:
+                    raise ValueError("Invalid managed root")
+                root = _unlinked(root)
+                managed = _unlinked(registry.projects_dir)
+                if root == managed or not root.is_relative_to(managed):
+                    raise ValueError("Outside managed storage")
+            except (ProjectError, OSError, ValueError):
+                raise HTTPException(status_code=403, detail="Open a project beneath the server's managed projects directory.") from None
+        return project_metadata(registry.register(root), request)
     except ProjectError as exc:
         raise deps.project_http_error(exc) from exc

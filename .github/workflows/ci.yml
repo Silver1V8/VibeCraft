@@ -106,6 +106,41 @@ jobs:
       - name: Dashboard - relazioni degli archi e punteggi del corpus restano testo (niente XSS)
         run: node rag/tests/dashboard_graph_escape.cjs
 
+      - name: Errori workflow e capacità dei runner
+        run: |
+          node rag/tests/workflow_errors.cjs
+          node rag/tests/pipeline_runner_capability.cjs
+
+      # Dipendenza soltanto del gate browser, fuori da package/lock di prodotto.
+      - name: Browser di prova
+        run: |
+          npm install --prefix /tmp/vibecraft-browser --no-package-lock playwright@1.62.1
+          /tmp/vibecraft-browser/node_modules/.bin/playwright install --with-deps chromium
+
+      - name: Workspace multiprogetto e navigazione con server reale
+        working-directory: rag
+        env:
+          NODE_PATH: /tmp/vibecraft-browser/node_modules
+          PYTHONUTF8: "1"
+          QDRANT_URL: http://127.0.0.1:6333
+          VIBECRAFT_TEST_QDRANT_URL: http://127.0.0.1:6333
+          VIBECRAFT_REQUIRE_QDRANT: "1"
+          VIBECRAFT_REQUIRE_DOCLING: "1"
+          HF_HUB_OFFLINE: "1"
+        run: |
+          node tests/projects_workspace.cjs
+          uv run --frozen uvicorn server:app --lifespan off --host 127.0.0.1 --port 9876 >/tmp/vibecraft-navigation.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for _ in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:9876/api/health/live >/dev/null; then ready=1; break; fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then cat /tmp/vibecraft-navigation.log; exit 1; fi
+          node tests/navigation_workspace.cjs
+
       - name: Fedeltà Excel - nessuna fusione di tabelle indipendenti
         working-directory: rag
         run: uv run --frozen pytest tests/test_intake_excel.py -k tabelle_affiancate_e_sovrapposte_restano_distinte
@@ -223,7 +258,7 @@ jobs:
       - name: docker-compose valido in tutti e tre i profili
         run: |
           for profilo in cpu gpu host-ollama; do
-            VIBECRAFT_API_KEY=chiave-di-ci docker compose --profile "$profilo" config >/dev/null
+            VIBECRAFT_API_KEY=chiave-di-ci docker compose --profile "$profilo" config --quiet
           done
 
       # In Docker il browser non arriva al server come 127.0.0.1, quindi senza una chiave
