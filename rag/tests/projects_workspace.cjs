@@ -197,7 +197,8 @@ async function browserChecks() {
     const page = await context.newPage(), other = await context.newPage();
     await page.goto(base + '/?project=' + A);
     await other.goto(base + '/?project=' + B);
-    await page.locator('#project-select').waitFor();
+    await page.waitForFunction(id => document.getElementById('project-select').value === id, A);
+    await other.waitForFunction(id => document.getElementById('project-select').value === id, B);
     assert.equal(await page.locator('#project-select').inputValue(), A);
     assert.equal(await other.locator('#project-select').inputValue(), B);
     assert.equal(await page.locator('#project-select option').first().textContent(), projects[0].name);
@@ -250,9 +251,11 @@ async function browserChecks() {
     await page.waitForFunction(id => new URL(location.href).searchParams.get('project') === id, C);
     assert.equal(new Set(await page.locator('iframe').evaluateAll(frames => frames.map(f => f.dataset.projectId))).size, 2);
     await page.reload();
+    await page.waitForFunction(id => document.getElementById('project-select').value === id, C);
     assert.equal(await page.locator('#project-select').inputValue(), C);
     assert.equal(await other.locator('#project-select').inputValue(), B);
     await other.reload();
+    await other.waitForFunction(id => document.getElementById('project-select').value === id, B);
     assert.equal(await other.locator('#project-select').inputValue(), B);
     await other.goto(base);
     await other.locator('#project-welcome').waitFor();
