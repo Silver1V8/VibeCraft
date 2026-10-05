@@ -15,7 +15,7 @@ import pytest
 import agent_bridge as bridge
 import agent_runners as runners
 from core import config, indexing, artifacts, writer_lock
-from core.projects import ProjectRegistry
+from core.projects import ProjectRegistry, _create_project_root
 
 
 @pytest.fixture
@@ -62,8 +62,32 @@ def test_cli_absent_flag_ignores_mcp_environment(projects, monkeypatch):
     calls = []
     monkeypatch.setattr(indexing, "index_status", lambda **kwargs: calls.append(kwargs.get("project")) or {})
     monkeypatch.setattr(sys, "argv", ["index.py", "--index-status"])
+    with pytest.raises(SystemExit) as error:
+        runpy.run_path(str(Path(bridge.__file__).parent / "index.py"), run_name="__main__")
+    assert error.value.code == 2
+    assert calls == []
+
+
+def test_cli_default_resolves_registered_legacy(projects, monkeypatch):
+    registry, _, _ = projects
+    target = _create_project_root(registry.projects_dir / "legacy", "legacy", "Initial")
+    registry.register(target.root)
+    calls = []
+    monkeypatch.setattr(indexing, "index_status", lambda **kwargs: calls.append(kwargs.get("project")) or {})
+    monkeypatch.setattr(sys, "argv", ["index.py", "--index-status"])
     runpy.run_path(str(Path(bridge.__file__).parent / "index.py"), run_name="__main__")
-    assert calls == [None]
+    assert calls == [target]
+
+
+def test_root_docs_are_never_an_implicit_corpus(projects, monkeypatch, tmp_path):
+    root_docs = tmp_path / "root docs"
+    root_docs.mkdir()
+    (root_docs / "private.md").write_text("Root-only document")
+    monkeypatch.setattr(indexing, "DOCS_DIR", root_docs)
+    monkeypatch.setattr(sys, "argv", ["index.py", "--index-status"])
+    with pytest.raises(SystemExit) as error:
+        runpy.run_path(str(Path(bridge.__file__).parent / "index.py"), run_name="__main__")
+    assert error.value.code == 2
 
 
 @pytest.mark.parametrize("flag", ["--rollback", "--archive", "--check-drift"])
@@ -288,14 +312,10 @@ def test_http_native_run_rejects_but_external_prompt_remains_available(projects,
 def test_benchmark_join_uses_admitted_legacy_manager(projects, tmp_path, monkeypatch):
     from api import deps, routes_reindex
     from scripts import bench_delta
-    from core.projects import legacy_project_context
-    original = legacy_project_context()
-    legacy = replace(original, root=tmp_path, code_dir=tmp_path / "code", docs_dir=tmp_path / "docs",
-                     changes_dir=tmp_path / "changes", database_dir=tmp_path / "db", staging_dir=tmp_path / "staging")
-    for folder in (legacy.code_dir, legacy.docs_dir, legacy.changes_dir, legacy.database_dir):
-        folder.mkdir(exist_ok=True)
+    registry = ProjectRegistry(tmp_path / "legacy-registry", bootstrap_legacy=False)
+    legacy = _create_project_root(registry.projects_dir / "legacy", "legacy", "Initial")
+    registry.register(legacy.root)
     (legacy.code_dir / "app.py").write_text("data")
-    registry = ProjectRegistry(tmp_path / "legacy-registry", legacy_context=legacy)
     monkeypatch.setattr(deps, "project_registry", lambda: registry)
     contexts = []
     class Manager:
@@ -496,7 +516,7 @@ def test_real_delta_plan_defers_shared_model_until_content_changes(tmp_path, mon
     assert initialized == [True]  # legacy delete-only never needs an embedding model
 
 
-def test_default_registry_legacy_ancestor_keeps_ordinary_tools_usable(tmp_path, monkeypatch):
+def test_default_registry_initial_project_keeps_ordinary_tools_usable(tmp_path, monkeypatch):
     for name, path in (("PROJECT_ROOT", tmp_path), ("CODE_DIR", tmp_path / "code"),
                        ("DOCS_DIR", tmp_path / "docs"), ("CHANGES_DIR", tmp_path / "changes"),
                        ("DATABASE_DIR", tmp_path / "database"),
@@ -504,9 +524,10 @@ def test_default_registry_legacy_ancestor_keeps_ordinary_tools_usable(tmp_path, 
                        ("PROJECTS_DIR", tmp_path / "projects")):
         monkeypatch.setattr(config, name, path)
     config.CODE_DIR.mkdir()
-    (config.CODE_DIR / "old.py").write_text("LEGACY")
+    config.DOCS_DIR.mkdir()
+    (config.DOCS_DIR / "baseline.md").write_text("Baseline")
     registry = ProjectRegistry()
-    assert registry.get("legacy").root == tmp_path
+    assert registry.get("legacy").root == tmp_path / "projects" / "legacy"
     a, b = registry.create("A"), registry.create("B")
     for project in (a, b):
         safe = project.code_dir / "src"

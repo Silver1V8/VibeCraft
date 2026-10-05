@@ -11,7 +11,7 @@ from qdrant_client import QdrantClient
 
 from core import artifacts, indexing, qdrant_versions as versions
 from core.config import DENSE_DIM
-from core.projects import ProjectRegistry
+from core.projects import ProjectRegistry, _create_project_root
 from core.writer_lock import WriterLockBusyError, writer_lock
 
 
@@ -31,7 +31,8 @@ class Embed:
 @pytest.fixture
 def projects(tmp_path):
     registry = ProjectRegistry(tmp_path / "projects", bootstrap_legacy=False)
-    return registry.create("A"), registry.create("B")
+    initial = _create_project_root(registry.projects_dir / "legacy", "legacy", "A")
+    return registry.register(initial.root), registry.create("B")
 
 
 @pytest.fixture(params=["memory", "server"])
@@ -42,8 +43,14 @@ def qdrant(request, projects):
             pytest.fail("dedicated VIBECRAFT_TEST_QDRANT_URL required")
         pytest.skip("dedicated Qdrant endpoint absent")
     client = QdrantClient(":memory:") if request.param == "memory" else QdrantClient(url=url)
+    existing = {c.name for c in client.get_collections().collections}
+    existing.update(alias.alias_name for alias in client.get_aliases().aliases)
+    if any(name == p.collection_name or name.startswith(p.collection_name + "__")
+           for name in existing for p in projects):
+        client.close()
+        pytest.fail("Test namespaces already occupied; use a dedicated empty Qdrant server")
     yield client
-    # Only UUID project namespaces created by this test; never clean unrelated collections.
+    # Only namespaces verified empty before this test; never clean unrelated collections.
     for c in client.get_collections().collections:
         if any(c.name == p.collection_name or c.name.startswith(p.collection_name + "__") for p in projects):
             client.delete_collection(c.name)

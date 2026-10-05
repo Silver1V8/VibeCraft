@@ -44,7 +44,7 @@ class ProjectContext:
 
 
 def legacy_project_context() -> ProjectContext:
-    """Keep every historical config path, including staging outside DATABASE_DIR."""
+    """Historical source for migration/diagnostics, never a registered app context."""
     return ProjectContext(
         "legacy", installation.PROJECT_ROOT.name, installation.PROJECT_ROOT.resolve(),
         installation.CODE_DIR.resolve(), installation.DOCS_DIR.resolve(),
@@ -376,9 +376,7 @@ class ProjectRegistry:
                 raise ProjectError("Project ID or root already registered", status_code=409,
                                    code="project_conflict")
             existing = self._context(record)
-            protected = ((existing.code_dir, existing.docs_dir, existing.changes_dir,
-                          existing.database_dir, existing.staging_dir)
-                         if existing.legacy else (existing.root,))
+            protected = (existing.root,)
             if any(project.root.is_relative_to(path) or path.is_relative_to(project.root) for path in protected):
                 raise ProjectError("Project roots overlap", status_code=409, code="project_conflict")
         self._write([*records, self._record(project)])
@@ -395,7 +393,6 @@ class ProjectRegistry:
             project = _create_project_root(root, project_id, name)
             self._append(project, records)
             return project
-
     def register(self, root: Path) -> ProjectContext:
         self._require_writer()
         path = Path(root).expanduser()
@@ -408,3 +405,14 @@ class ProjectRegistry:
             project = _manifest(path)
             self._append(project, records)
             return project
+
+
+def resolve_registered_project(project_id: str | None = None, *,
+                               registry: ProjectRegistry | None = None) -> ProjectContext:
+    registry = registry if registry is not None else ProjectRegistry(readonly=True)
+    try:
+        return registry.get("legacy" if project_id is None else project_id)
+    except ProjectError as exc:
+        if project_id is None and exc.code == "project_not_found":
+            raise ProjectError("Select a project", status_code=409, code="project_required") from exc
+        raise

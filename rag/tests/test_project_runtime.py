@@ -8,7 +8,7 @@ import pytest
 
 from api import deps
 from core import artifacts, ask_cache
-from core.projects import ProjectRegistry
+from core.projects import ProjectRegistry, _create_project_root
 
 
 def indexed(project, text, version="v1"):
@@ -32,7 +32,8 @@ def projects(tmp_path, monkeypatch):
     monkeypatch.setitem(deps.state, "reload_error", None)
     monkeypatch.setattr(deps, "_project_states", {}, raising=False)
     monkeypatch.setattr(deps, "_snapshots", __import__('collections').OrderedDict(), raising=False)
-    return [registry.create(name) for name in ("A", "B", "C")]
+    initial = _create_project_root(registry.projects_dir / "legacy", "legacy", "A")
+    return [registry.register(initial.root), registry.create("B"), registry.create("C")]
 
 
 def test_snapshots_are_isolated_and_eviction_keeps_inflight_lease(projects):
@@ -72,6 +73,19 @@ def test_ask_cache_project_key():
     cache = ask_cache.AskCache()
     cache.set(a, {"answer": "A"})
     assert cache.get(b) is None
+
+
+def test_initial_project_gate_reads_its_own_golden(projects):
+    from dataclasses import replace
+    from core import eval_gate
+    project = replace(projects[0], settings={"eval_gate": {"enabled": True, "blocking": True}})
+    golden = project.root / "eval" / "golden.yaml"
+    golden.parent.mkdir()
+    golden.write_text("invalid: golden")
+    result = eval_gate.gate_promotion("v1", None, None, {}, project=project)
+    assert result["passed"] is False
+    assert result["error_stage"] == "load"
+    assert (project.database_dir / "alerts.jsonl").exists()
 
 
 def test_shared_resources_initialize_once(projects, monkeypatch):

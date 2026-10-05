@@ -53,14 +53,12 @@ if __name__ == "__main__":
     if any(value is not None and not value.strip() for value in
            (args.rollback, args.archive, args.check_drift)):
         parser.error("La versione o feature richiesta non può essere vuota")
-    project = None
-    if args.project is not None:
-        from core.projects import ProjectError, ProjectRegistry
-        try:
-            project = ProjectRegistry(readonly=True).get(args.project)
-        except ProjectError as exc:
-            parser.error(f"{exc.code}: progetto non disponibile")
-    project_kw = {"project": project} if project is not None else {}
+    from core.projects import ProjectError, resolve_registered_project
+    try:
+        project = resolve_registered_project(args.project)
+    except ProjectError as exc:
+        parser.error(f"{exc.code}: progetto non disponibile")
+    project_kw = {"project": project}
 
     def _dispatch():
         if args.rollback:

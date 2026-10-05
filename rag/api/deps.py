@@ -29,7 +29,7 @@ from core import retrieval
 from core.artifacts import (IMMUTABLE_MARKER_FILENAME, LEGACY_VERSION,
                             artifact_hashes, current_version_token, load_artifacts,
                             manifest_path, _project_artifact_path)
-from core.projects import ProjectContext, ProjectError, ProjectRegistry
+from core.projects import ProjectContext, ProjectError, ProjectRegistry, resolve_registered_project
 from core.config import (
     COLLECTION_NAME,
     DATABASE_DIR,
@@ -827,10 +827,8 @@ def get_project(request: Request) -> ProjectContext:
         return captured
     project_id = request.headers.get("X-VibeCraft-Project")
     try:
-        project = project_registry().get("legacy" if project_id is None else project_id)
+        project = resolve_registered_project(project_id, registry=project_registry())
     except ProjectError as exc:
-        if project_id is None and exc.code == "project_not_found":
-            exc = ProjectError("Select a project", status_code=409, code="project_required")
         raise project_http_error(exc) from exc
     request.state.project = project
     return project

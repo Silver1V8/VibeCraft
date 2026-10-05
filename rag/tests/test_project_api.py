@@ -33,6 +33,19 @@ def test_empty_shell_registry_and_liveness(client):
     assert response.json()["detail"]["code"] == "project_required"
 
 
+def test_historical_legacy_has_migration_diagnostics(client):
+    http, registry = client
+    registry.registry_path.write_text(json.dumps({"schema_version": 1, "projects": [{
+        "id": "legacy", "name": "Initial", "root": str(registry._legacy.root), "legacy": True
+    }]}))
+    result = http.get("/api/projects").json()["projects"][0]
+    assert result["index_status"] == "error"
+    assert result["error"] == "project_migration_required"
+    response = http.get("/api/retrieve?q=same")
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "project_migration_required"
+
+
 def test_create_selection_no_fallback_and_unindexed(client):
     http, registry = client
     created = http.post("/api/projects", json={"name": "Project A"})
