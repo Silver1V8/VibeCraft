@@ -66,14 +66,22 @@ def body(project, text):
 
 
 @pytest.mark.parametrize('selected', [0, 1], ids=['legacy', 'uuid'])
-def test_ordinary_build_preserves_foreign_physical_alias_name(projects, selected):
+@pytest.mark.parametrize('conflict', ['physical', 'candidate', 'alias'])
+def test_ordinary_build_preserves_foreign_physical_alias_name(projects, selected, conflict):
     project = projects[selected]
     body(project, 'ALPHA')
     with closing(QdrantClient(':memory:')) as client:
-        indexing._ensure_collection(client, collection_name=project.collection_name)
+        occupied = project.collection_name + ('__v1' if conflict == 'candidate' else '')
+        if conflict == 'alias':
+            occupied = 'third_party'
+        indexing._ensure_collection(client, collection_name=occupied)
+        if conflict == 'alias':
+            versions._swap_alias(client, project.collection_name, occupied)
         with pytest.raises(ValueError, match='occupied'):
             build(project, client)
-        assert client.collection_exists(project.collection_name)
+        assert client.collection_exists(occupied)
+        if conflict == 'alias':
+            assert versions._read_alias_target(client, project.collection_name) == occupied
         assert artifacts.current_version(project=project) is None
 
 

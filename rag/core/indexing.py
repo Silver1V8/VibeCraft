@@ -550,10 +550,19 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     if qdrant is None:
         qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
-    if project is not None and not project.legacy and _qdrant_collection_exists(qdrant, alias_name):
-        if own_qdrant:
-            qdrant.close()
-        raise ValueError("Project alias name is occupied by a physical collection")
+    if project is not None and not project.legacy:
+        try:
+            physical = {collection.name for collection in qdrant.get_collections().collections}
+            occupied = alias_name in physical
+            if not artifact_module.list_versions(project=project):
+                occupied = occupied or any(name.startswith(alias_name + '__') for name in physical)
+                occupied = occupied or _read_alias_target(qdrant, alias_name) is not None
+            if occupied:
+                raise ValueError("Project Qdrant namespace is occupied without local ownership")
+        except Exception:
+            if own_qdrant:
+                qdrant.close()
+            raise
 
     version = _new_version_name(project=project)
     collection_name = qdrant_collection_name(version, project=project)
