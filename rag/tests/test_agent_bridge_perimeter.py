@@ -67,11 +67,14 @@ def test_agentic_options_register_exactly_one_pretooluse_hook():
     assert len(matchers) == 1
 
     matcher = matchers[0]
-    assert matcher.matcher == "Write|Edit|MultiEdit|NotebookEdit|Bash"
-    assert matcher.hooks == [agent_bridge._deny_out_of_sandbox_writes]
+    assert matcher.matcher == "Read|Grep|Glob|Write|Edit|MultiEdit|NotebookEdit|Bash"
+    assert len(matcher.hooks) == 1
+    assert matcher.hooks[0].func is agent_bridge._guard_project_tools
+    denied = asyncio.run(matcher.hooks[0]({"tool_name": "Write", "tool_input": {"file_path": "../docs/x"}}, None, {}))
+    assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
-def test_suggest_options_read_only_with_mcp_no_hooks():
+def test_suggest_options_read_only_with_mcp_and_read_hooks():
     opts = _build_agent_options("suggest", "sonnet")
 
     assert opts.cwd == str(PROJECT_ROOT)  # NON confinata a code/
@@ -79,7 +82,9 @@ def test_suggest_options_read_only_with_mcp_no_hooks():
     assert opts.tools == ["Read", "Grep", "Glob"]
     assert opts.disallowed_tools == []
     assert opts.permission_mode == "dontAsk"
-    assert opts.hooks is None  # nessun hook di confinamento
+    assert set(opts.hooks) == {"PreToolUse"}
+    denied = asyncio.run(opts.hooks["PreToolUse"][0].hooks[0]({"tool_name": "Read", "tool_input": {"file_path": ".env"}}, None, {}))
+    assert denied["hookSpecificOutput"]["permissionDecision"] == "deny"
 
 
 def test_oneshot_options_unchanged_no_tools_no_hooks():
@@ -226,7 +231,9 @@ def test_hook_denies_out_of_sandbox_write_with_correct_shape():
     hso = out["hookSpecificOutput"]
     assert hso["hookEventName"] == "PreToolUse"
     assert hso["permissionDecision"] == "deny"
-    assert "rag" in hso["permissionDecisionReason"]
+    assert "sandbox code/" in hso["permissionDecisionReason"]
+    assert "[perimetro agentic]" in hso["permissionDecisionReason"]
+    assert "../rag/rag_config.yaml" not in hso["permissionDecisionReason"]
 
 
 def test_hook_denies_bash():

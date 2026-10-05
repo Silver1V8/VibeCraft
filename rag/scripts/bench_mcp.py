@@ -17,7 +17,7 @@ import httpx
 from mcp import Client
 from mcp.client.stdio import StdioServerParameters
 
-from mcp_server import backend_url
+from mcp_server import backend_url, project_headers
 
 OVERHEAD_LIMIT_MS = 10_000
 
@@ -28,11 +28,13 @@ def quantiles(values):
 
 
 async def benchmark(pairs):
-    url = backend_url(os.environ.get('VIBECRAFT_MCP_BACKEND_URL', 'http://127.0.0.1:8000'))
-    key = os.environ.get('VIBECRAFT_API_KEY')
+    environment = dict(os.environ)
+    url = backend_url(environment.get('VIBECRAFT_MCP_BACKEND_URL', 'http://127.0.0.1:8000'))
+    key = environment.get('VIBECRAFT_API_KEY')
     headers = {'X-API-Key': key} if key else {}
+    headers.update(project_headers(environment.get('VIBECRAFT_PROJECT_ID')))
     params = StdioServerParameters(command=sys.executable,
-        args=['-B', str(Path(__file__).resolve().parents[1] / 'mcp_server.py')], env=dict(os.environ))
+        args=['-B', str(Path(__file__).resolve().parents[1] / 'mcp_server.py')], env=environment)
     cases = [
         ('vibecraft_retrieve', '/api/retrieve',
          {'q': 'quali regole governano audit e sicurezza', 'k': 5, 'include_text': True, 'text_max_chars': 2000}),

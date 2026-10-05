@@ -59,6 +59,12 @@ class GraphInput(QueryInput):
     limit: int = Field(default=100, ge=1, le=1000)
 
 
+def project_headers(project_id: str | None) -> dict[str, str]:
+    if project_id is not None and not re.fullmatch(r'legacy|[0-9a-f]{32}', project_id):
+        raise ValueError('VIBECRAFT_PROJECT_ID deve essere legacy o un ID di 32 caratteri esadecimali minuscoli.')
+    return {'X-VibeCraft-Project': project_id} if project_id is not None else {}
+
+
 def create_server(*, transport=None) -> MCPServer:
     url = backend_url(os.environ.get('VIBECRAFT_MCP_BACKEND_URL', 'http://127.0.0.1:8000'))
     try:
@@ -68,12 +74,9 @@ def create_server(*, transport=None) -> MCPServer:
     except ValueError:
         raise ValueError('VIBECRAFT_MCP_TIMEOUT_SECONDS deve essere fra 0.1 e 120.') from None
     project_id = os.environ.get('VIBECRAFT_PROJECT_ID')
-    if project_id is not None and not re.fullmatch(r'legacy|[0-9a-f]{32}', project_id):
-        raise ValueError('VIBECRAFT_PROJECT_ID deve essere legacy o un ID di 32 caratteri esadecimali minuscoli.')
     key = os.environ.get('VIBECRAFT_API_KEY')
     headers = {'X-API-Key': key} if key else {}
-    if project_id is not None:
-        headers['X-VibeCraft-Project'] = project_id
+    headers.update(project_headers(project_id))
     client = None
 
     @asynccontextmanager

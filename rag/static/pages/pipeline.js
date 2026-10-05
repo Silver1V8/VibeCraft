@@ -567,6 +567,7 @@
     // Runner dal server (/api/pipeline/agent/runners): disponibilità reale, modelli e modalità
     // ammesse. Se la chiamata fallisce restano le opzioni statiche di Claude Code.
     let agentRunners = [];
+    let agentRunning = false;
     async function loadRunners() {
       try {
         const res = await fetch('/api/pipeline/agent/runners');
@@ -578,8 +579,8 @@
       const select = document.getElementById('agent-runner-select');
       select.textContent = '';
       for (const r of agentRunners) {
-        const option = new Option(r.available ? r.label : `${r.label} (non installato)`, r.id);
-        option.disabled = !r.available;
+        const option = new Option(r.available ? r.label : `${r.label} (${r.unavailable_reason || 'non installato'})`, r.id);
+        option.disabled = !(r.export_available ?? r.available);
         select.add(option);
       }
       select.value = (agentRunners.find(r => r.available) || agentRunners[0] || {}).id || 'claude';
@@ -622,12 +623,26 @@
       for (const o of modes.options) o.disabled = !runner.modes.includes(o.value);
       if (!runner.modes.includes(modes.value)) modes.value = runner.modes[0];
       syncAttemptsAvailability();
+      syncRunnerAvailability();
+    }
+
+    function syncRunnerAvailability() {
+      const runner = agentRunners.find(r => r.id === document.getElementById('agent-runner-select').value);
+      const btn = document.getElementById('agent-run-btn');
+      btn.disabled = agentRunning || runner?.available === false;
+      btn.title = runner?.available === false ? runner.unavailable_reason || 'Runner non disponibile.' : '';
     }
 
     async function runWithAgent() {
+      if (agentRunning) return;
       const mode = document.getElementById('agent-mode-select').value;
       const model = document.getElementById('agent-model-select').value;
       const runner = document.getElementById('agent-runner-select').value;
+      const capability = agentRunners.find(r => r.id === runner);
+      if (capability?.available === false) {
+        toast(capability.unavailable_reason || 'Runner non disponibile.', 'error');
+        return;
+      }
       // Fuori da agentic la tendina è spenta e il server non verifica: chiedere rilanci
       // sarebbe una richiesta senza effetto.
       const attempts = mode === 'agentic' ? Number(document.getElementById('agent-attempts-select').value) || 1 : 1;
@@ -646,6 +661,8 @@
       )) return;
       if (featureName !== runningFeature) return;
 
+      if (agentRunning) return;
+      agentRunning = true;
       const btn = document.getElementById('agent-run-btn');
       const out = document.getElementById('agent-output');
       btn.disabled = true;
@@ -733,7 +750,8 @@
       } catch (e) {
         out.textContent += `\n❌ Errore: ${e.message}\n${openPointsSummary({})}\n`;
       } finally {
-        btn.disabled = false;
+        agentRunning = false;
+        syncRunnerAvailability();
       }
     }
 
@@ -898,17 +916,21 @@
       setTimeout(tick, POLL_MS);
     }
 
-    function copyFinalPrompt(btn) {
-      const text = window._finalPrompt || document.getElementById('final-prompt-box').textContent;
-      navigator.clipboard.writeText(text).then(() => {
+    async function copyFinalPrompt(btn) {
+      try {
+        const runner = document.getElementById('agent-runner-select').value;
+        const mode = document.getElementById('agent-mode-select').value;
+        const text = await fetchFinalPrompt(featureName, devType, 'external', mode, runner);
+        await navigator.clipboard.writeText(text);
         const original = btn.textContent;
         btn.textContent = 'Copiato ✓';
         setTimeout(() => { btn.textContent = original; }, 1500);
-      }).catch(() => {
+      } catch (err) {
+        toast(err.message, 'error');
         const original = btn.textContent;
         btn.textContent = 'Copia non riuscita';
         setTimeout(() => { btn.textContent = original; }, 1500);
-      });
+      }
     }
 
     /* ──────────── DRY-RUN CANVAS (nessun token speso) ──────────── */

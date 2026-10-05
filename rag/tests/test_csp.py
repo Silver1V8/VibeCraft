@@ -37,8 +37,26 @@ GENERATED_HANDLER_RE = re.compile(
 ACTION_ATTR_RE = re.compile(r"""data-(?:click|change|input)="([^"$]+)\"""")
 # Commenti JS: blocchi /* */ e righe che iniziano con //.
 COMMENT_RE = re.compile(r"/\*.*?\*/|^[ \t]*//[^\n]*", re.S | re.M)
-REGISTER_RE = re.compile(r"registerActions\(\{(.*?)\}\);", re.S)
-REGISTERED_NAME_RE = re.compile(r"^\s*(\w+)\s*:", re.M)
+REGISTER_START_RE = re.compile(r"registerActions\(\s*\{")
+JS_TOKEN_RE = re.compile(r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|[\w$]+|[{}()[\],:]''')
+
+
+def _registered_actions(source):
+    """Top-level keys, including shorthand and several handlers on one line."""
+    for start in REGISTER_START_RE.finditer(source):
+        depth, key = 1, True
+        for token in JS_TOKEN_RE.findall(source[start.end():]):
+            if token in ("{", "(", "["):
+                depth += 1
+            elif token in ("}", ")", "]"):
+                depth -= 1
+                if depth == 0:
+                    break
+            elif depth == 1 and token == ",":
+                key = True
+            elif depth == 1 and key and re.fullmatch(r"[\w$]+", token):
+                yield token
+                key = False
 
 
 def _directives(policy: str) -> dict[str, list[str]]:
@@ -134,8 +152,7 @@ def test_every_declared_action_is_registered(template):
     scripts = re.findall(r'<script src="/static/((?:pages/)?[\w.-]+\.js)"', html)
     sources = [html] + [(STATIC_DIR / rel).read_text(encoding="utf-8") for rel in scripts]
     declared = {name for src in sources for name in ACTION_ATTR_RE.findall(src)}
-    registered = {name for src in sources for block in REGISTER_RE.findall(src)
-                  for name in REGISTERED_NAME_RE.findall(block)}
+    registered = {name for src in sources for name in _registered_actions(src)}
     assert declared, "nessuna azione trovata: il template non ha controlli?"
     assert declared <= registered, declared - registered
 

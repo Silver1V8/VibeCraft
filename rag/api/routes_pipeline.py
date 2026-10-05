@@ -16,7 +16,8 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from agent_bridge import AGENT_MODES
-from agent_runners import RUNNERS, list_runners, run_streaming as run_agent_streaming, validate_run
+from agent_runners import (RUNNERS, NATIVE_UNAVAILABLE_CODE, list_runners,
+                           run_streaming as run_agent_streaming, validate_run)
 from api.deps import (
     IndexSnapshot,
     current_snapshot,
@@ -240,7 +241,7 @@ async def agent_runners(project=Depends(get_project)):
     `max_attempts` è il tetto dei run per richiesta agentic (il primo più i rilanci
     automatici sulle failure della suite): lo espone il server perché la tendina della UI
     non offra un numero che poi verrebbe tagliato in silenzio."""
-    return {"runners": await run_in_threadpool(list_runners),
+    return {"runners": await run_in_threadpool(list_runners, project=project),
             "max_attempts": int((verification._settings(project=project).get('max_attempts') or 1))}
 
 
@@ -359,8 +360,9 @@ async def agent_run(req: AgentRunRequest, project=Depends(get_project)):
     """Ammissione ricalcolata dal server; solo agentic richiede il contratto validato."""
     if req.mode not in AGENT_MODES:
         raise HTTPException(status_code=400, detail=f"Modalità non valida: {req.mode}")
-    if reason := validate_run(req.runner, req.mode, req.model):
-        raise HTTPException(status_code=400, detail=reason)
+    if reason := validate_run(req.runner, req.mode, req.model, project=project):
+        detail = {"code": NATIVE_UNAVAILABLE_CODE, "message": reason.removeprefix(NATIVE_UNAVAILABLE_CODE + ": ")} if reason.startswith(NATIVE_UNAVAILABLE_CODE) else reason
+        raise HTTPException(status_code=400, detail=detail)
     if req.mode != 'agentic' and not req.prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt vuoto.")
     # Budget prima di gate e journal: il rifiuto non è un esito del contratto. 429 come le

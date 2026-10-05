@@ -570,7 +570,7 @@ def test_http_valid_gate_a_cannot_authorize_b(projects, monkeypatch):
     a, b = projects
     monkeypatch.setattr(deps, 'ROLE', 'writer')
     monkeypatch.setattr(deps, 'API_KEY', 'synthetic')
-    monkeypatch.setattr(routes, 'validate_run', lambda *args: None)
+    monkeypatch.setattr(routes, 'validate_run', lambda *args, **kwargs: None)
     monkeypatch.setattr(routes, '_validation_source_state', lambda **kwargs: gate.SourceState())
     canvas = '\n'.join('## ' + section for section in pipeline.CANVAS_SECTIONS)
     spec = 'GIVEN richiesta WHEN invio THEN successo\n## 4. Punti aperti\n```json\n{"open_points": []}\n```'

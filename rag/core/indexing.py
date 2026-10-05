@@ -1688,7 +1688,8 @@ def apply_incremental_indexing(
 
 
 def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit=None,
-                      changed_paths: list[str] | None = None, project: ProjectContext | None = None) -> dict:
+                      changed_paths: list[str] | None = None, project: ProjectContext | None = None,
+                      embed_model_factory=None) -> dict:
     """Orchestratore dell'indicizzazione incrementale: manifest → piano → esecuzione → persistenza.
 
     - Salta del tutto i documenti invariati (nessun re-embed).
@@ -1753,11 +1754,18 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
                            "code_tokens_processed": None,
                            "code_tokens_unavailable_reason": "embedding output does not expose code token counts"}}
 
+    if embed_model is None and embed_model_factory is not None and (
+            (project is not None and not project.legacy) or plan.to_index() or code_added or code_modified):
+        started = time.perf_counter()
+        embed_model = embed_model_factory()
+        timings["init_model"] = time.perf_counter() - started
+
     if project is not None and not project.legacy:
         # ponytail: rebuild the complete candidate; add copy-on-write delta only if rebuild cost warrants it.
         _log("Snapshot immutabile: ricostruzione completa dei sorgenti per pubblicare il delta.")
         collector = {}
         version = build_graph_and_index(qdrant, embed_model, emit, collector=collector, project=project)
+        collector["phase_timings_seconds"]["init_model"] += timings["init_model"]
         counts = collector["counts"]
         return {"noop": False, "version": version, "reindexed_docs": counts["docs_added"],
                 "deleted_docs": len(plan.deleted), "upserted_chunks": counts["chunks_indexed"],

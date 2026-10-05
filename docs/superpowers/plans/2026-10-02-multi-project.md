@@ -213,11 +213,13 @@ Ogni task: aggiungere il test che fallisce, verificarne il fallimento pertinente
 **File:** `agent_bridge.py`, `agent_runners.py`, `mcp_server.py`, `index.py`, script operativi effettivamente interessati, `tests/test_project_tools.py` (nuovo).
 **Consume:** contesto; niente accesso diretto a selezione UI. **Produce:** --project e VIBECRAFT_PROJECT_ID, runner e hook confinati.
 
-- [ ] Test CLI status/integrity/delta/full/rollback dispatchano il progetto scelto; flag assente continua legacy.
-- [ ] Test runner cwd/code_root A, hook blocca B e traversal/symlink; script MCP trovato in INSTALL_ROOT anche con progetto esterno.
-- [ ] Test MCP emette header fisso A e conserva auth/loopback/read-only; nessuna chiave o path sensibile nei prompt/log.
-- [ ] Test impostazioni e retry di agenti simultanei A/B non mutano dict AGENT_MODES/config condivisi.
-- [ ] Eseguire nuovi test e suite MCP/agent/CLI esistenti; nessuna chiamata a provider a pagamento per i test.
+- [x] Test CLI status/integrity/delta/full/rollback dispatchano il progetto scelto; flag assente continua legacy.
+- [x] Test runner cwd/code_root A, hook blocca B e traversal/symlink; script MCP trovato in INSTALL_ROOT anche con progetto esterno.
+- [x] Test MCP emette header fisso A e conserva auth/loopback/read-only; nessuna chiave o path sensibile nei prompt/log.
+- [x] Test impostazioni e retry di agenti simultanei A/B non mutano dict AGENT_MODES/config condivisi.
+- [x] Eseguire nuovi test e suite MCP/agent/CLI esistenti con provider simulati nei gate finali; incidenti di avvio precedenti documentati nel report, senza claim di zero contatti di rete.
+
+Ruling PM verificato: Codex/Cursor integrati non avviano processi finché l'isolamento delle letture non è verificato; prompt esportati e MCP esterno con ID esplicito restano disponibili. SDK/local applicano i guard; le scansioni SDK di un subtree con .git/segreti/link sono negate, mentre Read e scansioni di directory sicure restano utilizzabili. Compatibilità e limiti provati nel report Task5.
 
 ### Task 6: Selettore e workspace nel browser
 

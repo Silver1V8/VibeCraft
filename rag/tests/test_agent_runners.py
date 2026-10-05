@@ -3,7 +3,6 @@ loop di tool, comando e parsing delle CLI esterne, streaming NDJSON con on_finis
 Nessun Ollama né CLI reali: chat e popen sono iniettati."""
 import json
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -121,52 +120,21 @@ def test_cli_missing_binary_is_reported(monkeypatch, tmp_path):
         ar.cli_command("codex", "", tmp_path, tmp_path / "l")
 
 
-class FakeProc:
-    def __init__(self, lines, code=0):
-        self.stdin, self.stdout, self.code = MagicMock(), iter(lines), code
-
-    def wait(self):
-        return self.code
-
-    def poll(self):
-        return self.code
-
-    def kill(self):
-        pass
-
-
-def _run_cli(monkeypatch, tmp_path, runner, events, code=0):
-    monkeypatch.setattr(ar.shutil, "which", lambda b: b)
-    seen = {}
-
-    def popen(cmd, **kwargs):
-        seen["cmd"], seen["proc"] = cmd, FakeProc([json.dumps(e) + "\n" for e in events], code)
-        return seen["proc"]
-
-    return list(ar.run_cli(runner, "PROMPT", "suggest", "", project_root=tmp_path, popen=popen)), seen
-
-
-def test_cursor_stream_is_translated(monkeypatch, tmp_path):
-    events, seen = _run_cli(monkeypatch, tmp_path, "cursor", [
+def test_cursor_events_are_translated_without_execution():
+    events = [ar.translate_cli_event("cursor", item) for item in [
         {"type": "system", "subtype": "init"},
         {"type": "tool_call", "subtype": "started", "tool_call": {"readToolCall": {}}},
         {"type": "assistant", "message": {"content": [{"type": "text", "text": "fatto"}]}},
-        {"type": "result", "is_error": False, "duration_ms": 7, "result": '{"open_points":[]}'},
-    ])
-    assert [e["type"] for e in events] == ["tool_use", "text", "result"]
-    assert events[-1]["open_points_status"] == "valid"
-    seen["proc"].stdin.write.assert_called_once_with("PROMPT")
-    assert "PROMPT" not in seen["cmd"]
+    ]]
+    assert events == [None, {"type": "tool_use", "tool": "readToolCall"}, {"type": "text", "text": "fatto"}]
 
 
-def test_codex_stream_and_failure(monkeypatch, tmp_path):
-    events, _ = _run_cli(monkeypatch, tmp_path, "codex", [
-        {"type": "item.completed", "item": {"type": "agent_message", "text": '{"open_points":[]}'}},
-    ])
-    assert [e["type"] for e in events] == ["text", "result"]
-    assert events[-1]["open_points_status"] == "valid"
-    events, _ = _run_cli(monkeypatch, tmp_path, "codex", [], code=2)
-    assert events[-1]["type"] == "error" and "codice 2" in events[-1]["message"]
+def test_codex_events_and_failure_are_translated_without_execution():
+    event = ar.translate_cli_event("codex", {"type": "item.completed", "item": {
+        "type": "agent_message", "text": '{"open_points":[]}'}})
+    assert event == {"type": "text", "text": '{"open_points":[]}'}
+    assert ar.translate_cli_event("codex", {"type": "turn.failed", "error": "errore"}) == {
+        "type": "text", "text": "[turn.failed] errore"}
 
 
 def test_run_streaming_records_finish_and_errors(monkeypatch):

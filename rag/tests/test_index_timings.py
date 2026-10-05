@@ -98,8 +98,8 @@ def test_direct_full_collector_separates_eval_gate_from_promotion(monkeypatch, t
     clock = [0.0]
     monkeypatch.setattr(index.time, "perf_counter", lambda: clock[0])
     monkeypatch.setattr(index, "_build_full_state", lambda *a, **k: index.FullState(nx.DiGraph()))
-    monkeypatch.setattr(index, "docs_hashes", lambda: {})
-    monkeypatch.setattr(index, "_code_hashes", lambda: {})
+    monkeypatch.setattr(index, "docs_hashes", lambda **kwargs: {})
+    monkeypatch.setattr(index, "_code_hashes", lambda **kwargs: {})
     monkeypatch.setattr(index, "save_artifacts", lambda *a, **k: "v-test")
     monkeypatch.setattr(index, "write_index_manifest", lambda *a, **k: None)
     from core.artifacts import Artifacts
@@ -161,7 +161,7 @@ def test_route_measures_model_initialization_and_eval_separately(monkeypatch):
             "counts": {},
         }) or "v-test",
     )
-    monkeypatch.setattr(routes_reindex, "_eval_gate", lambda *_: {"passed": False})
+    monkeypatch.setattr(routes_reindex, "_eval_gate", lambda *args, **kwargs: {"passed": False})
 
     result = routes_reindex._run_full_rebuild(None)
 
@@ -171,6 +171,9 @@ def test_route_measures_model_initialization_and_eval_separately(monkeypatch):
 
 
 def test_incremental_route_defers_model_to_core_for_noop_and_content(monkeypatch):
+    resources = []
+    monkeypatch.setitem(routes_reindex.state, "embed_model", None)
+    monkeypatch.setattr(routes_reindex, "ensure_shared_resources", lambda **kwargs: resources.append(kwargs))
     received = []
     monkeypatch.setattr(routes_reindex, "_reindex_embed_model",
                         lambda: (_ for _ in ()).throw(AssertionError("route loaded model")))
@@ -178,6 +181,7 @@ def test_incremental_route_defers_model_to_core_for_noop_and_content(monkeypatch
                         lambda **kwargs: received.append(kwargs) or {"noop": False,
                             "phase_timings_seconds": {"init_model": 1.25}})
     routes_reindex._run_reindex(None)
+    assert resources == [{"embedding": False}]
     assert received[0]["embed_model"] is None
     assert received[0]["qdrant"] is routes_reindex.state.get("qdrant")
 
@@ -185,11 +189,12 @@ def test_incremental_route_defers_model_to_core_for_noop_and_content(monkeypatch
 def test_incremental_route_noop_marks_token_only_when_snapshot_aligned(monkeypatch):
     from types import SimpleNamespace
 
+    monkeypatch.setattr(routes_reindex, "ensure_shared_resources", lambda **kwargs: None)
     monkeypatch.setattr(routes_reindex, "incremental_index", lambda **kwargs: {"noop": True})
-    monkeypatch.setattr(routes_reindex, "current_version", lambda: "v2")
+    monkeypatch.setattr(routes_reindex, "current_version", lambda project=None: "v2")
     served = {"version": "v1"}
     monkeypatch.setattr(routes_reindex, "current_snapshot",
-                        lambda: SimpleNamespace(version=served["version"]))
+                        lambda project=None: SimpleNamespace(version=served["version"]))
     assert "snapshot_token" not in routes_reindex._run_reindex(None)
     served["version"] = "v2"
     assert routes_reindex._run_reindex(None)["snapshot_token"] == "v2"

@@ -7,7 +7,6 @@ from functools import partial
 import json
 from pathlib import Path
 import threading
-from unittest.mock import MagicMock
 
 import httpx
 import pytest
@@ -112,33 +111,15 @@ def test_local_streaming_writes_same_filename_only_in_captured_project(projects,
 
 
 @pytest.mark.parametrize("runner", ["codex", "cursor"])
-def test_cli_streaming_real_command_uses_external_project_root(projects, monkeypatch, tracking, runner):
-    calls = []
+def test_cli_command_helper_keeps_external_project_root(projects, monkeypatch, runner):
     monkeypatch.setattr(runners.shutil, "which", lambda name: name)
-
-    def popen(argv, **kwargs):
-        cwd = Path(kwargs["cwd"])
-        assert cwd in {p.root for p in projects}
-        flag = "-C" if runner == "codex" else "--workspace"
-        assert Path(argv[argv.index(flag) + 1]) == cwd
-        proc = MagicMock()
-        proc.stdin = MagicMock()
-        proc.poll.return_value = proc.wait.return_value = 0
-        if runner == "codex":
-            Path(argv[argv.index("--output-last-message") + 1]).write_text('{"open_points":[]}', encoding="utf-8")
-            proc.stdout = iter([])
-        else:
-            proc.stdout = iter([json.dumps({"type": "result", "result": '{"open_points":[]}', "is_error": False})])
-        calls.append((cwd, proc))
-        return proc
-
-    monkeypatch.setattr(runners, "run_cli", partial(runners.run_cli, popen=popen))
     for project in projects:
-        events = [json.loads(line) for line in runners.run_streaming(runner, "private prompt", "suggest", "",
-                    feature="same", attempt_id=project.id, project=project)]
-        assert events[-1]["type"] == "result" and events[-1]["open_points_status"] == "valid"
-    assert {cwd for cwd, _ in calls} == {p.root for p in projects}
-    assert all(proc.stdin.write.call_args.args == ("private prompt",) for _, proc in calls)
+        argv = runners.cli_command(runner, "", project.root, project.database_dir / "last.txt")
+        flag = "-C" if runner == "codex" else "--workspace"
+        assert Path(argv[argv.index(flag) + 1]) == project.root
+        assert "private prompt" not in argv
+        if runner == "codex":
+            assert argv[-1] == "-"
 
 
 def test_mcp_project_header_is_fixed_for_all_transport_calls(monkeypatch):

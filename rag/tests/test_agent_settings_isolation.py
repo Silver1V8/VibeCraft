@@ -54,9 +54,10 @@ def test_local_hooks_excluded_with_live_positive_control(mode, tmp_path, monkeyp
 
     options = agent_bridge._build_agent_options(mode, "sonnet")
     if mode == "agentic":
-        assert options.hooks["PreToolUse"][0].hooks == [
-            agent_bridge._deny_out_of_sandbox_writes
-        ]
+        matcher = options.hooks["PreToolUse"][0]
+        assert matcher.matcher == "Read|Grep|Glob|Write|Edit|MultiEdit|NotebookEdit|Bash"
+        assert len(matcher.hooks) == 1
+        assert matcher.hooks[0].func is agent_bridge._guard_project_tools
 
     async def initialize_only(opts):
         with anyio.fail_after(45):

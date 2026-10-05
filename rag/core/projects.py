@@ -175,7 +175,7 @@ class _ManifestLoader(yaml.SafeLoader):
 
 class ProjectRegistry:
     def __init__(self, projects_dir: Path | None = None, *, legacy_context: ProjectContext | None = None,
-                 bootstrap_legacy: bool = True):
+                 bootstrap_legacy: bool = True, readonly: bool = False):
         path = Path(projects_dir if projects_dir is not None else installation.PROJECTS_DIR).expanduser()
         if not path.is_absolute():
             raise ProjectError("Projects directory must be absolute", status_code=422,
@@ -184,8 +184,9 @@ class ProjectRegistry:
         self.registry_path = self.projects_dir / "projects.json"
         self.lock_path = self.projects_dir / ".projects.lock"
         self._legacy = legacy_context if legacy_context is not None else legacy_project_context()
+        self._readonly = readonly
         self._registry_seen = self.registry_path.exists()
-        if installation.ROLE == "reader":
+        if readonly or installation.ROLE == "reader":
             self._read()
             return
         with self._lock():
@@ -243,6 +244,7 @@ class ProjectRegistry:
                     raise ValueError("Duplicate registry ID or root")
                 ids.add(record["id"])
                 roots.add(root)
+            self._registry_seen = True
             return data["projects"]
         except (OSError, ValueError, ProjectError) as exc:
             raise ProjectError(f"Cannot read project registry: {exc}") from exc
@@ -281,9 +283,8 @@ class ProjectRegistry:
                 return self._context(record)
         raise ProjectError("Project not found", status_code=404, code="project_not_found")
 
-    @staticmethod
-    def _require_writer():
-        if installation.ROLE == "reader":
+    def _require_writer(self):
+        if self._readonly or installation.ROLE == "reader":
             raise ProjectError("Project registry is read-only", status_code=409, code="read_only")
 
     def _append(self, project, records):

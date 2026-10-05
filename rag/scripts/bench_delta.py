@@ -333,7 +333,10 @@ def _query_reader(samples: list[dict], stop: threading.Event, mode: str) -> None
 
 def _join_writer():
     from api import routes_reindex
-    while not routes_reindex.manager.join_all(timeout=5):
+    from api.deps import project_registry
+    project = project_registry().get("legacy")
+    manager = routes_reindex.project_manager(project)
+    while not manager.join_all(timeout=5):
         pass
 
 

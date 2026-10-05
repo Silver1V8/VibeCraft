@@ -84,7 +84,7 @@ def test_artifact_hashes_stream_full_file_without_read_bytes(tmp_path, monkeypat
     import hashlib
     data = b"colbert" * 100_000
     (tmp_path / "graph.json").write_bytes(data)
-    monkeypatch.setattr(artifacts, "artifact_dir", lambda version=None: tmp_path)
+    monkeypatch.setattr(artifacts, "artifact_dir", lambda version=None, project=None: tmp_path)
     with monkeypatch.context() as patch:
         patch.setattr(Path, "read_bytes", lambda self: (_ for _ in ()).throw(AssertionError("read_bytes")))
         hashes = artifacts.artifact_hashes()

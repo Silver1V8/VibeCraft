@@ -38,6 +38,7 @@ WRITER_BUSY_EXIT_CODE = 2
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Gestore indicizzazione, Drift e Archiviazione Graph RAG")
+    parser.add_argument("--project", metavar="ID", help="Progetto registrato; senza flag usa solo il progetto legacy")
     parser.add_argument("--check-drift", type=str, metavar="FEATURE", help="Esegue il controllo drift per la feature specificata")
     parser.add_argument("--archive", type=str, metavar="FEATURE", help="Archivia la feature e re-indicizza il database")
     parser.add_argument("--index-status", action="store_true", help="Verifica se l'indice è aggiornato rispetto ai documenti in docs/")
@@ -49,6 +50,17 @@ if __name__ == "__main__":
                         help="Rollback blue/green ISTANTANEO: sposta il puntatore database/CURRENT alla versione indicata (default: la precedente) e riallinea l'alias Qdrant alla collection di quella versione. Nessuna build. NB: se la collection della versione target non esiste più su Qdrant il rollback viene RIFIUTATO prima di toccare CURRENT (serve una re-indicizzazione completa); a Qdrant irraggiungibile il pre-check si salta e l'alias viene riparato al boot")
 
     args = parser.parse_args()
+    if any(value is not None and not value.strip() for value in
+           (args.rollback, args.archive, args.check_drift)):
+        parser.error("La versione o feature richiesta non può essere vuota")
+    project = None
+    if args.project is not None:
+        from core.projects import ProjectError, ProjectRegistry
+        try:
+            project = ProjectRegistry(readonly=True).get(args.project)
+        except ProjectError as exc:
+            parser.error(f"{exc.code}: progetto non disponibile")
+    project_kw = {"project": project} if project is not None else {}
 
     def _dispatch():
         if args.rollback:
@@ -74,10 +86,10 @@ if __name__ == "__main__":
                 print(f"⚠️  Qdrant non raggiungibile ({type(exc).__name__}: {exc}): "
                       f"pre-check del rollback saltato.")
             try:
-                name = resolve_rollback_target(target)
+                name = resolve_rollback_target(target, **project_kw)
                 if qdrant is not None:
-                    assert_rollback_target_has_vectors(qdrant, name)
-                name = rollback_version(name)
+                    assert_rollback_target_has_vectors(qdrant, name, **project_kw)
+                name = rollback_version(name, **project_kw)
             except (FileNotFoundError, ValueError) as exc:
                 print(f"❌ Rollback fallito: {exc}")
                 sys.exit(1)
@@ -86,14 +98,14 @@ if __name__ == "__main__":
                 print(f"❌ {exc}")
                 sys.exit(1)
             print(f"✅ Rollback: CURRENT → {name}")
-            print(f"   Versioni disponibili: {', '.join(list_versions())}")
+            print(f"   Versioni disponibili: {', '.join(list_versions(**project_kw))}")
 
             # Warning (non errore, exit 0): versioni POSTERIORI al target condividono la
             # sua collection Qdrant — incrementali intra-lineage l'hanno mutata in place,
             # quindi questo rollback locale NON riavvolge i punti Qdrant. Detection
             # puramente locale (manifest): stampata prima del blocco Qdrant sotto, così
             # il warning arriva anche a Qdrant irraggiungibile.
-            shared_later = rollback_shares_collection_with_later_versions(name)
+            shared_later = rollback_shares_collection_with_later_versions(name, **project_kw)
             if shared_later:
                 print(f"⚠️  La collection Qdrant di {name} è condivisa con versioni "
                       f"successive ({', '.join(shared_later)}): incrementali posteriori "
@@ -114,7 +126,7 @@ if __name__ == "__main__":
             try:
                 if qdrant is None:
                     raise RuntimeError("client Qdrant non aperto")
-                result = rollback_qdrant_alias_if_needed(qdrant, name, print)
+                result = rollback_qdrant_alias_if_needed(qdrant, name, print, **project_kw)
                 if result["state"] == "missing_target_collection":
                     sys.exit(1)
             except SystemExit:
@@ -123,32 +135,32 @@ if __name__ == "__main__":
                 print(f"⚠️  Rollback locale eseguito, ma Qdrant non raggiungibile: alias NON "
                       f"riallineato, sarà riparato al boot ({type(exc).__name__}: {exc})")
         elif args.check_drift:
-            check_drift(args.check_drift)
+            check_drift(args.check_drift, **project_kw)
         elif args.archive:
-            archive_feature(args.archive)
+            archive_feature(args.archive, **project_kw)
         elif args.index_status:
-            status = index_status()
+            status = index_status(**project_kw)
             print(json.dumps(status, ensure_ascii=False, indent=2))
         elif args.check_integrity:
             # Report JSON su stdout (i messaggi umani vanno su stderr, così lo stdout resta
             # parsabile dagli script notturni), exit 0/1.
-            report = check_index_integrity(emit=lambda m: print(m, file=sys.stderr))
+            report = check_index_integrity(emit=lambda m: print(m, file=sys.stderr), **project_kw)
             print(json.dumps(report, ensure_ascii=False, indent=2))
             sys.exit(0 if report.get("ok") else 1)
         elif args.check_graph:
             print("Confronto grafo incrementale vs full rebuild (coerenza)...\n")
-            report = check_graph_consistency()
+            report = check_graph_consistency(**project_kw)
             print(json.dumps(report, ensure_ascii=False, indent=2))
             sys.exit(0 if report.get("consistent") else 1)
         elif args.migrate_colbert_npy:
             from core.artifacts import migrate_colbert_npy
-            print(f"ColBERT NPY promosso: {migrate_colbert_npy()}")
+            print(f"ColBERT NPY promosso: {migrate_colbert_npy(**project_kw)}")
         elif args.incremental:
             print("Avvio indicizzazione incrementale (delta rispetto al manifest)...\n")
-            incremental_index()
+            incremental_index(**project_kw)
         else:
             print("Avvio indicizzazione Fase 0 (Base)...\n")
-            build_graph_and_index()
+            build_graph_and_index(**project_kw)
 
     # I rami che SCRIVONO girano sotto il writer lock cross-processo per l'INTERA durata:
     # build default, --incremental, --archive (archivia + full rebuild inline) e
@@ -156,13 +168,13 @@ if __name__ == "__main__":
     # deve interlacciarsi con la promote/alias-swap di un full rebuild in corso.
     # I check puri (--index-status, --check-integrity, --check-graph, --check-drift)
     # restano senza lock: solo letture, devono funzionare anche durante un reindex.
-    read_only = bool(args.check_drift or args.index_status
-                     or args.check_integrity or args.check_graph)
+    read_only = bool(not args.rollback and (args.check_drift or (not args.archive and
+                     (args.index_status or args.check_integrity or args.check_graph))))
     if read_only:
         _dispatch()
     else:
         try:
-            with writer_lock():
+            with writer_lock(**project_kw):
                 _dispatch()
         except WriterLockBusyError as exc:
             print(f"❌ Un altro writer è attivo: usa POST /api/reindex (accoda invece di "

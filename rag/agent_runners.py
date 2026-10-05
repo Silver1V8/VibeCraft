@@ -6,11 +6,9 @@ Perimetri, runner per runner:
   - local : i tool li esegue VibeCraft, non il modello, e non esiste shell. Letture solo
             dentro PROJECT_ROOT (niente .git né file .env*); in agentic le scritture passano
             da agent_bridge._path_escapes_code, la stessa decisione testata dell'hook Claude.
-  - codex : solo suggest/oneshot, `codex exec --sandbox read-only`.
-  - cursor: solo suggest/oneshot, `agent -p --mode plan|ask --sandbox enabled`: `-p` da solo ha
-            scrittura e shell, la sola lettura la danno le modalità plan/ask.
-Agentic resta a claude e local perché il confinamento delle scritture delle CLI esterne
-non è verificabile qui. Il prompt va sempre su stdin, mai negli argomenti: gli shim .cmd
+  - codex/cursor: avvio integrato negato fino alla verifica dell'isolamento delle letture;
+                 restano export per IDE e helper puri di traduzione/argv.
+Il prompt CLI va sempre su stdin, mai negli argomenti: gli shim .cmd
 di npm su Windows passerebbero il testo a cmd.exe, che ne interpreta i metacaratteri.
 """
 import json
@@ -27,10 +25,11 @@ import urllib.request
 from pathlib import Path
 
 import agent_bridge
-from agent_bridge import CODE_ROOT, PROJECT_ROOT, _path_escapes_code
+from agent_bridge import CODE_ROOT, PROJECT_ROOT, _path_escapes_code, _read_path
 from core import llm
 from core.config import OLLAMA_TIMEOUT_SECONDS, OLLAMA_URL, config
 from core.open_points import read_report
+from core.projects import ProjectError, ProjectRegistry
 
 RUNNERS: dict[str, dict] = {
     "claude": {"label": "Claude Code", "modes": ("suggest", "agentic", "oneshot"), "bin": "claude"},
@@ -51,7 +50,13 @@ _CODEX_DISABLED_FEATURES = ("plugins", "apps", "browser_use", "computer_use", "i
                             "multi_agent", "hooks", "skill_mcp_dependency_install")
 
 
-def validate_run(runner: str, mode: str, model: str) -> str | None:
+NATIVE_UNAVAILABLE_CODE = "native_read_isolation_unverified"
+NATIVE_UNAVAILABLE_MESSAGE = ("Avvio integrato non disponibile: l'isolamento delle letture del progetto "
+                            "non è verificato. Il prompt può essere esportato per l'IDE.")
+NATIVE_UNAVAILABLE_REASON = f"{NATIVE_UNAVAILABLE_CODE}: {NATIVE_UNAVAILABLE_MESSAGE}"
+
+
+def validate_run(runner: str, mode: str, model: str, *, project=None) -> str | None:
     """Motivo del rifiuto (400) o None."""
     if runner not in RUNNERS:
         return f"Runner non valido: {runner!r}. Validi: {list(RUNNERS)}"
@@ -59,10 +64,12 @@ def validate_run(runner: str, mode: str, model: str) -> str | None:
         return f"{RUNNERS[runner]['label']} non supporta la modalità {mode!r}."
     if not MODEL_RE.match(model or ""):
         return f"Nome modello non valido: {model!r}"
+    if runner in ("codex", "cursor"):
+        return NATIVE_UNAVAILABLE_REASON
     return None
 
 
-def list_runners() -> list[dict]:
+def list_runners(*, project=None) -> list[dict]:
     """Runner con disponibilità reale sulla macchina del server (PATH e modelli Ollama)."""
     try:
         with urllib.request.urlopen(f"{OLLAMA_URL.rstrip('/')}/api/tags", timeout=2) as r:
@@ -76,8 +83,13 @@ def list_runners() -> list[dict]:
         else:
             available = shutil.which(cfg["bin"]) is not None
             models = CLAUDE_MODELS if rid == "claude" else []
+        native = rid in ("codex", "cursor")
         out.append({"id": rid, "label": cfg["label"], "modes": list(cfg["modes"]),
-                    "available": available, "models": models})
+                    "installed": available, "export_available": True,
+                    "available": available and not native, "models": models,
+                    "unavailable_code": NATIVE_UNAVAILABLE_CODE if native else None,
+                    "unavailable_reason": NATIVE_UNAVAILABLE_MESSAGE if native else
+                        (None if available else "Runner non installato o modello locale non disponibile.")})
     return out
 
 
@@ -110,16 +122,8 @@ def tool_specs(mode: str) -> list[dict]:
     return {"oneshot": [], "suggest": _READ_TOOLS, "agentic": _READ_TOOLS + _WRITE_TOOLS}[mode]
 
 
-def _resolve_read(path_str: str, cwd: Path, project_root: Path) -> Path:
-    root = project_root.resolve()
-    raw = Path(path_str or ".")
-    p = (raw if raw.is_absolute() else cwd / raw).resolve()
-    if p != root and root not in p.parents:
-        raise PermissionError(f"fuori dal progetto: {p}")
-    parts = {part.lower() for part in p.relative_to(root).parts}
-    if ".git" in parts or any(part.startswith(".env") for part in parts):
-        raise PermissionError(f"area riservata: {p}")
-    return p
+def _resolve_read(path_str: str, cwd: Path, project_root: Path, registry=None) -> Path:
+    return _read_path(path_str, cwd, project_root, registry)
 
 
 def _write_target(path_str: str, code_root: Path) -> Path:
@@ -131,63 +135,83 @@ def _write_target(path_str: str, code_root: Path) -> Path:
 
 
 def execute_tool(name: str, args: dict, *, mode: str, project_root: Path = PROJECT_ROOT,
-                 code_root: Path = CODE_ROOT) -> str:
+                 code_root: Path = CODE_ROOT, registry=None) -> str:
     """Esegue un tool chiesto dal modello. Ogni errore torna al modello come testo."""
     if name not in {t["function"]["name"] for t in tool_specs(mode)}:
         return f"negato: tool {name!r} non disponibile in modalità {mode}"
     cwd = code_root if mode == "agentic" else project_root
     try:
+        registry = registry if registry is not None else ProjectRegistry(readonly=True)
         if name == "read_file":
-            text = _resolve_read(args.get("path", ""), cwd, project_root).read_text(
+            text = _resolve_read(args.get("path", ""), cwd, project_root, registry).read_text(
                 encoding="utf-8", errors="replace")
         elif name == "list_files":
-            base = _resolve_read(args.get("path", "."), cwd, project_root)
+            base = _resolve_read(args.get("path", "."), cwd, project_root, registry)
             found = []
-            for f in base.glob(args.get("pattern") or "**/*"):
+            pattern = args.get("pattern") or "**/*"
+            if Path(pattern).anchor or ".." in Path(pattern).parts or "~" in Path(pattern).parts:
+                raise PermissionError("pattern esterno al progetto")
+            for f in _safe_files(base, cwd, project_root, registry):
                 if len(found) >= _LIST_LIMIT:
                     break
-                try:
-                    # Anche le cartelle (con '/' finale): senza, un modello non sa dove scendere.
-                    found.append(str(_resolve_read(str(f), cwd, project_root)) + ("/" if f.is_dir() else ""))
-                except PermissionError:
-                    continue
+                if f.relative_to(base).full_match(pattern):
+                    found.append(str(f) + ("/" if f.is_dir() else ""))
             text = "\n".join(found) or "(nessuna voce)"
         elif name == "grep":
-            base = _resolve_read(args.get("path", "."), cwd, project_root)
+            base = _resolve_read(args.get("path", "."), cwd, project_root, registry)
             rx = re.compile(args.get("pattern", ""))
             hits = []
-            for dirpath, dirnames, filenames in os.walk(base):
-                dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
-                for fname in filenames:
-                    f = Path(dirpath) / fname
-                    if fname.startswith(".env") or f.stat().st_size > 1_000_000:
-                        continue
-                    for n, line in enumerate(f.read_text(encoding="utf-8", errors="ignore").splitlines(), 1):
-                        if rx.search(line):
-                            hits.append(f"{f}:{n}: {line.strip()[:200]}")
-                            if len(hits) >= _GREP_LIMIT:
-                                return "\n".join(hits)
+            for f in _safe_files(base, cwd, project_root, registry):
+                if not f.is_file() or f.stat().st_size > 1_000_000:
+                    continue
+                for n, line in enumerate(f.read_text(encoding="utf-8", errors="ignore").splitlines(), 1):
+                    if rx.search(line):
+                        hits.append(f"{f}:{n}: {line.strip()[:200]}")
+                        if len(hits) >= _GREP_LIMIT:
+                            return "\n".join(hits)
             text = "\n".join(hits) or "(nessuna corrispondenza)"
         elif name == "write_file":
             target = _write_target(args.get("path", ""), code_root)
+            _resolve_read(str(target), cwd, project_root, registry)
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(args.get("content", ""), encoding="utf-8")
             text = f"scritto {target}"
         else:  # edit_file
             target = _write_target(args.get("path", ""), code_root)
+            _resolve_read(str(target), cwd, project_root, registry)
             current = target.read_text(encoding="utf-8")
             old = args.get("old", "")
             if not old or current.count(old) != 1:
                 return "errore: il testo da sostituire deve comparire esattamente una volta"
             target.write_text(current.replace(old, args.get("new", "")), encoding="utf-8")
             text = f"modificato {target}"
-    except PermissionError as exc:
-        return f"negato: {exc}"
+    except (PermissionError, ProjectError):
+        return "negato: path o storage del progetto non disponibile per questo tool"
     except (OSError, ValueError, re.error) as exc:
         return f"errore: {exc}"
     if len(text) > _TOOL_OUTPUT_CHARS:
         text = text[:_TOOL_OUTPUT_CHARS] + f"\n[troncato: {len(text)} caratteri totali]"
     return text
+
+
+def _safe_files(base, cwd, project_root, registry):
+    """Prune before enumeration; validate every file before stat/open."""
+    if base.is_file():
+        yield base
+        return
+    for parent, dirs, files in os.walk(base, followlinks=False):
+        for entry in dirs[:] + files:
+            path = Path(parent) / entry
+            try:
+                _resolve_read(str(path), cwd, project_root, registry)
+            except (PermissionError, ProjectError):
+                if entry in dirs:
+                    dirs.remove(entry)
+                continue
+            if entry in dirs and entry in _SKIP_DIRS:
+                dirs.remove(entry)
+                continue
+            yield path
 
 
 def _ollama_chat(model: str, messages: list, tools: list) -> dict:
@@ -213,13 +237,14 @@ def _ollama_chat(model: str, messages: list, tools: list) -> dict:
 
 
 def run_local(prompt: str, mode: str, model: str, *, chat=_ollama_chat,
-              project_root: Path = PROJECT_ROOT, code_root: Path = CODE_ROOT):
+              project_root: Path = PROJECT_ROOT, code_root: Path = CODE_ROOT, registry=None):
     """Loop di tool su Ollama. Solo l'ultimo messaggio senza tool call vale come report,
     come in agent_bridge."""
     model = model or (config.get("llm_settings") or {}).get("models", {}).get("ollama", "")
     tools = tool_specs(mode)
     turns = 1 if mode == "oneshot" else agent_bridge._max_turns()
     cwd = code_root if mode == "agentic" else project_root
+    registry = registry if registry is not None else ProjectRegistry(readonly=True)
     messages = [{"role": "system", "content": (
         "Sei un agente di sviluppo. Usa solo i tool forniti; i percorsi relativi partono da "
         f"'{cwd}'. Non hai shell." if tools else "Non hai tool: rispondi solo con testo.")},
@@ -246,7 +271,7 @@ def run_local(prompt: str, mode: str, model: str, *, chat=_ollama_chat,
             yield {"type": "tool_use", "tool": fn.get("name", "")}
             messages.append({"role": "tool", "tool_name": fn.get("name", ""),
                              "content": execute_tool(fn.get("name", ""), args, mode=mode,
-                                                     project_root=project_root, code_root=code_root)})
+                                                     project_root=project_root, code_root=code_root, registry=registry)})
     yield {"type": "error", "message": f"Limite di {turns} turni raggiunto senza risposta finale",
            **read_report(None)}
 
@@ -261,7 +286,8 @@ def cli_command(runner: str, model: str, cwd: Path, last_message: Path, mode: st
     if runner == "codex":
         cmd = [exe, "exec", "--json", "--sandbox", "read-only", "--skip-git-repo-check", "--ephemeral",
                "-C", str(cwd), "--output-last-message", str(last_message)]
-        # Equivalente di setting_sources=[] per Claude: senza, Codex carica plugin e skill da
+        # Disabilita feature accessorie; questo non prova un confine di lettura o config.
+        # Senza, Codex carica plugin e skill da
         # ~/.codex (misurato: leggeva SKILL.md fuori dal progetto) e ha tool che comandano
         # desktop e browser, che il sandbox read-only sui comandi shell non copre.
         for feature in _CODEX_DISABLED_FEATURES:
@@ -300,6 +326,8 @@ def translate_cli_event(runner: str, ev: dict) -> dict | None:
 
 def run_cli(runner: str, prompt: str, mode: str, model: str, *, project_root: Path = PROJECT_ROOT,
             popen=subprocess.Popen):
+    if reason := validate_run(runner, mode, model):
+        raise ValueError(reason)
     timeout = float(os.environ.get("VIBECRAFT_AGENT_TIMEOUT_SECONDS", "1800"))
     started = time.monotonic()
     with tempfile.TemporaryDirectory() as tmp:
@@ -373,7 +401,7 @@ def _pump(events, out: queue.Queue, feature, attempt_id, on_finish, project=None
 
 def run_streaming(runner: str, prompt: str, mode: str, model: str, *, feature=None, attempt_id=None,
                   on_finish=None, project=None):
-    if reason := validate_run(runner, mode, model):
+    if reason := validate_run(runner, mode, model, project=project):
         raise ValueError(reason)
     if runner == "claude":
         return agent_bridge.run_agent_streaming(prompt, mode, model or "sonnet", feature=feature,
@@ -381,7 +409,8 @@ def run_streaming(runner: str, prompt: str, mode: str, model: str, *, feature=No
     roots = {"project_root": project.root} if project is not None else {}
     if runner == "local":
         events = run_local(prompt, mode, model, **roots,
-                           **({"code_root": project.code_dir} if project is not None else {}))
+                           **({"code_root": project.code_dir} if project is not None else {}),
+                           registry=ProjectRegistry(readonly=True))
     else:
         events = run_cli(runner, prompt, mode, model, **roots)
     out: queue.Queue = queue.Queue()

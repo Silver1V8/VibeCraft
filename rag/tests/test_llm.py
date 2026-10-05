@@ -358,7 +358,8 @@ def test_check_drift_mette_errore_nel_report(fake_settings, monkeypatch, tmp_pat
 
     report = drift_check.check_drift("feat x", emit=lambda _msg: None)
     assert "❌ Errore durante il check drift" in report
-    assert "ERRORE DI CONNESSIONE" in report
+    assert "servizio di generazione non disponibile" in report
+    assert "ERRORE DI CONNESSIONE" not in report and "Impossibile raggiungere Ollama" not in report
 
 
 def test_canvas_review_salta_con_warning_su_errore(fake_settings, tmp_path):

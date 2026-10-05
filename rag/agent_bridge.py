@@ -16,7 +16,7 @@ Tre modalità di fiducia (dalla più conservativa alla più autonoma):
               Write/Edit fuori da quel perimetro; MCP è di sola lettura, Bash è rimosso.
   - oneshot : nessun tool — pura generazione di testo/codice su PROJECT_ROOT.
 
-Perimetro di sicurezza della modalità "agentic" (SDK claude-agent-sdk 0.2.115)
+Perimetro di sicurezza della modalità "agentic" (SDK claude-agent-sdk 0.2.144)
 -----------------------------------------------------------------------------
 La modalità agentic è l'unico endpoint con scrittura file / esecuzione: è dietro
 require_api_key_strict (X-API-Key sempre, anche da localhost). Il confinamento
@@ -65,6 +65,7 @@ from claude_agent_sdk.types import AssistantMessage, ResultMessage, TextBlock, T
 
 from core import llm
 from core.open_points import read_report
+from core.projects import ProjectError, ProjectRegistry, _unlinked
 
 INSTALL_ROOT = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = INSTALL_ROOT  # Historical legacy default; never the selected project.
@@ -80,17 +81,77 @@ CODE_ROOT = PROJECT_ROOT / "code"
 # così un "rag/database/CURRENT" o ".git/config" è negato a prescindere.
 _RESERVED_SEGMENTS = frozenset({".git", "rag", "docs"})
 
-# Tool che possono scrivere/eseguire: l'hook PreToolUse li intercetta. Bash è
+# Tool filesystem: l'hook PreToolUse li intercetta in suggest e agentic. Bash è
 # incluso per difesa in profondità (viene già rimosso via disallowed_tools): se
 # in futuro qualcuno lo riaggiungesse a allowed_tools, l'hook lo negherebbe
 # comunque invece di lasciare una RCE non confinata.
-_GUARDED_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit", "Bash")
+_GUARDED_TOOLS = ("Read", "Grep", "Glob", "Write", "Edit", "MultiEdit", "NotebookEdit", "Bash")
 _GUARDED_TOOLS_MATCHER = "|".join(_GUARDED_TOOLS)
 
 
 # ---------------------------------------------------------------------------
 # Decisione di confinamento (funzioni pure, testabili in isolamento)
 # ---------------------------------------------------------------------------
+def _reserved_read(parts) -> bool:
+    return any(part.lower() in {".git", ".ssh", ".aws", ".claude", ".codex", ".cursor", "secret", "secrets"}
+               or part.lower().startswith((".env", "credentials", "id_rsa", "id_ed25519"))
+               or part.lower().endswith((".pem", ".key")) for part in parts)
+
+
+def _read_path(path_str: str, cwd: Path, project_root: Path, registry=None) -> Path:
+    """One guard for SDK and local tools, including every ancestor before resolve."""
+    raw = Path(path_str or ".")
+    if ".." in raw.parts or "~" in raw.parts or (raw.drive and not raw.is_absolute()):
+        raise PermissionError("percorso non consentito nel progetto")
+    root = _unlinked(project_root)
+    _unlinked(cwd)
+    candidate = _unlinked(raw if raw.is_absolute() else cwd / raw)
+    if not candidate.is_relative_to(root) or _reserved_read(candidate.relative_to(root).parts):
+        raise PermissionError("area riservata o esterna al progetto")
+    records = (registry if registry is not None else ProjectRegistry(readonly=True)).records()
+    for record in records:
+        foreign = Path(record["root"])
+        if foreign != root and foreign.is_relative_to(root) and candidate.is_relative_to(foreign):
+            raise PermissionError("area di un altro progetto")
+    # A nested project marker is conservative protection even before registration.
+    for parent in (candidate if candidate.is_dir() else candidate.parent, *candidate.parents):
+        if parent == root:
+            break
+        if (parent / "project.yaml").exists():
+            raise PermissionError("area di un altro progetto")
+    return candidate
+
+
+async def _guard_project_tools(input_data, tool_use_id, context, *, project_root, code_root, cwd, registry):
+    name, data = input_data.get("tool_name", ""), input_data.get("tool_input") or {}
+    reason = None
+    try:
+        if name in ("Read", "Grep", "Glob"):
+            value = data.get("file_path") if name == "Read" else data.get("path", ".")
+            if name == "Read" and not isinstance(value, str):
+                raise PermissionError("lettura senza path verificabile")
+            target = _read_path(value, cwd, project_root, registry)
+            pattern = Path(data.get("pattern") or "*")
+            if name == "Glob" and (pattern.anchor or ".." in pattern.parts or "~" in pattern.parts):
+                raise PermissionError("pattern esterno al progetto")
+            if name in ("Grep", "Glob") and target.is_dir():
+                # ponytail: native scans cannot prune denied children; deny this subtree,
+                # use a safe subdirectory or Read/MCP until native filtering is verified.
+                for parent, dirs, files in os.walk(target, followlinks=False):
+                    for entry in dirs + files:
+                        _read_path(str(Path(parent) / entry), cwd, project_root, registry)
+        else:
+            reason = _agentic_tool_denial(name, data, code_root)
+            if reason is None:
+                _read_path(data.get("file_path") or data.get("notebook_path"), code_root, project_root, registry)
+    except (PermissionError, ProjectError, OSError, RuntimeError, ValueError, TypeError):
+        reason = "path o storage del progetto non disponibile per questo tool"
+    if reason is None:
+        return {}
+    return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
+                                  "permissionDecisionReason": "[perimetro progetto] " + reason}}
+
+
 def _path_escapes_code(path_str: str, code_root: Path) -> str | None:
     """Restituisce un motivo di deny se `path_str` non è una scrittura sicura
     dentro `code_root`, altrimenti None (consentito).
@@ -107,21 +168,22 @@ def _path_escapes_code(path_str: str, code_root: Path) -> str | None:
     # 1) Blocklist di aree riservate, sui segmenti grezzi (prima della
     #    risoluzione): cattura "rag/...", ".git/config", "docs/..." anche quando
     #    risolverebbero dentro code/. Confronto case-insensitive (Windows).
-    lowered = {part.lower() for part in raw.parts}
-    reserved_hit = lowered & _RESERVED_SEGMENTS
-    if reserved_hit:
-        return f"path tocca un'area riservata del progetto: {sorted(reserved_hit)}"
-
     # 2) Confinamento reale: risolvi contro code_root e pretendi che resti dentro.
-    base = code_root.resolve()
-    candidate = raw if raw.is_absolute() else base / raw
     try:
-        resolved = candidate.resolve()
-    except (OSError, RuntimeError, ValueError):
-        return f"path non risolvibile: {path_str}"
+        base = _unlinked(code_root)
+        candidate = raw if raw.is_absolute() else base / raw
+        resolved = _unlinked(candidate)
+    except (OSError, RuntimeError, ValueError, ProjectError):
+        return "path non risolvibile o collegato"
 
     if resolved != base and base not in resolved.parents:
-        return f"path fuori dal sandbox code/: {resolved}"
+        return "path fuori dal sandbox code/"
+    scoped_parts = raw.relative_to(base).parts if raw.is_absolute() and raw.is_relative_to(base) else raw.parts if not raw.is_absolute() else ()
+    reserved_hit = {part.lower() for part in scoped_parts} & _RESERVED_SEGMENTS
+    if reserved_hit:
+        return f"path tocca un'area riservata del progetto: {sorted(reserved_hit)}"
+    if _reserved_read(resolved.relative_to(base).parts):
+        return "path tocca un'area riservata del progetto"
 
     return None
 
@@ -258,16 +320,22 @@ def _build_agent_options(mode: str, model: str, *, project=None) -> ClaudeAgentO
             "mcp__vibecraft__vibecraft_graph_query",
         ]
 
-    if cfg.get("confine_writes"):
+    if mode != "oneshot":
+        root = project.root if project is not None else PROJECT_ROOT
+        code_root = project.code_dir if project is not None else CODE_ROOT
+        registry = ProjectRegistry(readonly=True)
+        _unlinked(root)
+        _unlinked(code_root)
         # La working dir deve esistere: il transport dell'SDK fallisce se cwd non
         # esiste. mkdir non distruttivo (exist_ok).
-        Path(cwd).mkdir(parents=True, exist_ok=True)
+        if cfg.get("confine_writes"):
+            Path(cwd).mkdir(parents=True, exist_ok=True)
         kwargs["hooks"] = {
             "PreToolUse": [
                 HookMatcher(
                     matcher=_GUARDED_TOOLS_MATCHER,
-                    hooks=[partial(_deny_out_of_sandbox_writes, code_root=project.code_dir)
-                           if project is not None else _deny_out_of_sandbox_writes],
+                    hooks=[partial(_guard_project_tools, project_root=root, code_root=code_root,
+                                   cwd=Path(cwd), registry=registry)],
                 )
             ]
         }

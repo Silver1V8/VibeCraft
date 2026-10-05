@@ -10,6 +10,8 @@ from fastapi.testclient import TestClient
 from api import deps, routes_graph, routes_retrieval
 from core import pipeline, retrieval
 
+pytestmark = pytest.mark.usefixtures("legacy_http_project")
+
 
 @pytest.fixture
 def env(monkeypatch):
@@ -20,9 +22,11 @@ def env(monkeypatch):
     monkeypatch.setitem(deps.state, 'snapshot', snap)
     monkeypatch.setitem(deps.state, 'qdrant', object())
     monkeypatch.setitem(deps.state, 'embed_model', object())
-    monkeypatch.setattr(routes_retrieval, 'maybe_reload_graph', lambda: None)
-    monkeypatch.setattr(routes_graph, 'maybe_reload_graph', lambda: None)
-    monkeypatch.setattr(routes_retrieval, 'qdrant_collection_for_version', lambda v: f'collection-{v}')
+    monkeypatch.setattr(routes_retrieval, 'require_snapshot', lambda project: deps.state['snapshot'])
+    monkeypatch.setattr(routes_graph, 'require_snapshot', lambda project: deps.state['snapshot'])
+    monkeypatch.setattr(routes_retrieval, 'ensure_shared_resources', lambda **kwargs: None)
+    monkeypatch.setattr(routes_graph, 'ensure_shared_resources', lambda **kwargs: None)
+    monkeypatch.setattr(routes_retrieval, 'qdrant_collection_for_version', lambda v, project=None: f'collection-{v}')
     app = FastAPI()
     app.include_router(routes_retrieval.router)
     app.include_router(routes_graph.router)
@@ -121,7 +125,7 @@ def test_missing_snapshot_text_and_collection_fail_closed(env, monkeypatch):
     client, _ = env
     monkeypatch.setattr(retrieval, 'hybrid_search', lambda *a, **kw: [{'chunk_id': 'missing'}])
     assert client.get('/api/retrieve', params={'q': 'x', 'include_text': True}).status_code == 503
-    monkeypatch.setattr(routes_retrieval, 'qdrant_collection_for_version', lambda v: 'unknown')
+    monkeypatch.setattr(routes_retrieval, 'qdrant_collection_for_version', lambda v, **kw: 'unknown')
     assert client.get('/api/retrieve', params={'q': 'x'}).status_code == 503
 
 
@@ -141,8 +145,8 @@ def test_legacy_snapshot_does_not_reload_unchanged_files(tmp_path, monkeypatch):
     path = tmp_path / 'graph.json'
     path.write_text('{}')
     monkeypatch.setattr(deps, 'GRAPH_JSON_PATH', path)
-    monkeypatch.setattr(deps, 'current_version_token', lambda: None)
-    monkeypatch.setattr(deps, 'load_rule_descriptions', lambda: {})
+    monkeypatch.setattr(deps, 'current_version_token', lambda **kw: None)
+    monkeypatch.setattr(deps, 'load_rule_descriptions', lambda **kw: {})
     monkeypatch.setitem(deps.state, 'snapshot', None)
     monkeypatch.setitem(deps.state, '_graph_mtime', None)
     calls = []

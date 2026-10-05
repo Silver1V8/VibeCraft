@@ -96,10 +96,11 @@ def _job_content(job):
 
 def _run_reindex(changed_paths, *, project=None) -> dict:
     """Reindex delta con le risorse condivise inizializzate una volta."""
-    ensure_shared_resources()
+    ensure_shared_resources(embedding=False)
     result = incremental_index(
         qdrant=state.get("qdrant"),
         embed_model=state.get("embed_model"),
+        embed_model_factory=_reindex_embed_model,
         changed_paths=changed_paths, project=project,
     )
     if result.get("noop") is True:
