@@ -243,8 +243,34 @@ async function browserChecks() {
     await other.locator(`#project-list button[data-arg="${B}"]`).click();
     await other.waitForFunction(id => new URL(location.href).searchParams.get('project') === id, B);
     const chooser = await context.newPage();
+    await chooser.emulateMedia({ reducedMotion: 'no-preference' });
     await chooser.goto(base);
     await chooser.locator('#project-welcome').waitFor();
+    const rain = chooser.locator('#matrix-rain');
+    assert.equal(await rain.count(), 1, 'The welcome screen must include the shared rain canvas');
+    await rain.waitFor({ state: 'visible' });
+    await chooser.waitForFunction(() => {
+      const canvas = document.getElementById('matrix-rain');
+      const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+      return pixels.some((value, index) => index % 4 === 1 && value > pixels[index - 1]);
+    });
+    const rainChanges = () => rain.evaluate(async canvas => {
+      const before = canvas.toDataURL();
+      await new Promise(resolve => setTimeout(resolve, 150));
+      return canvas.toDataURL() !== before;
+    });
+    assert.equal(await rainChanges(), true, 'Rain on must animate the welcome background');
+    await chooser.locator('#motion-toggle').click();
+    assert.equal(await rainChanges(), false, 'Rain off must stop the animation');
+    await chooser.locator('#motion-toggle').click();
+    assert.equal(await rainChanges(), true, 'Rain must resume when switched back on');
+    await chooser.locator('#theme-switcher').selectOption('classic');
+    await rain.waitFor({ state: 'hidden' });
+    assert.equal(await rainChanges(), false, 'Classic theme must stop the animation');
+    await chooser.emulateMedia({ reducedMotion: 'reduce' });
+    await chooser.locator('#theme-switcher').selectOption('matrix');
+    await rain.waitFor({ state: 'visible' });
+    assert.equal(await rainChanges(), true, 'Explicit Rain on must override reduced motion');
     assert.equal(await chooser.locator('#project-list button').count(), 3);
     assert.equal(await chooser.locator('#project-list img').count(), 0, 'Project names must remain text on the welcome screen');
     await chooser.locator('#project-search').fill('nessun risultato');
