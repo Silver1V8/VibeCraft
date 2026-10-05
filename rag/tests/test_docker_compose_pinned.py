@@ -216,3 +216,18 @@ def test_multi_project_distribution_contract(monkeypatch):
     assert calls[0].get_header("X-api-key") == "synthetic-reader-key"
     ignores = (ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
     assert "projects/" in ignores and "docs/superpowers/" in ignores
+
+
+def test_container_layout_bootstraps_initial_project_under_projects(tmp_path, monkeypatch):
+    from dataclasses import replace
+    from core.projects import ProjectRegistry, legacy_project_context
+    app = tmp_path / 'app'
+    (app / 'docs').mkdir(parents=True)
+    (app / 'docs' / 'baseline.md').write_text('Container baseline')
+    source = replace(legacy_project_context(), root=app, code_dir=app / 'code', docs_dir=app / 'docs',
+                     changes_dir=app / 'changes', database_dir=app / 'rag' / 'database',
+                     staging_dir=app / 'rag' / 'database' / 'staging')
+    registry = ProjectRegistry(app / 'projects', legacy_context=source)
+    project = registry.get('legacy')
+    assert project.root == app / 'projects' / 'legacy' and project.legacy is False
+    assert (project.docs_dir / 'baseline.md').read_text() == 'Container baseline'

@@ -80,15 +80,21 @@ Un unico Qdrant ospita namespace distinti: alias `vibecraft_<id>` e collection
 `vibecraft_<id>__<version>`. Cache, grafo, staging, job, gate e storico sono per
 progetto; il cambio selezione non cambia il target di un lavoro già avviato.
 
-Il progetto preesistente è registrato come `legacy` **in-place**: nessuno spostamento,
-rename di collection o rebuild automatico. L'installazione vuota non inventa legacy.
+Anche il progetto iniziale ha una root dedicata: `projects/legacy/`, con `code/`,
+`docs/`, `changes/` e `database/`. Al primo avvio writer di un clone pulito, VibeCraft
+copia e verifica la baseline e lo scheletro del codice senza indicizzare o scaricare
+modelli. Gli altri progetti nuovi nascono vuoti. Un registro già vuoto resta vuoto.
+Il nome `legacy` identifica il progetto iniziale: usa lo stesso runtime e indice degli altri.
+L'indice legge soltanto `docs/` e `code/` nella root del progetto selezionato.
+In PyCharm espandi `projects/legacy/` oppure `projects/<id>/`; la root attiva
+è anche nei metadati del progetto. Le cartelle alla radice dell'installazione sono la baseline storica.
 Il reader non inizializza il registry: un registry inizialmente assente restituisce
 `[]` e le richieste senza progetto `project_required`; dopo averlo osservato, la sua
 cancellazione/corruzione fallisce chiusa. Inizializza con writer prima del deploy reader; configura `VIBECRAFT_ROLE=reader`,
 `VIBECRAFT_INDEX_MODE=immutable` e chiave API obbligatoria.
 
 Compose mantiene `vibecraft_projects:/app/projects` separato da `vibecraft_index` e
-con permessi UID 10001; i mount legacy docs/code/database restano disponibili.
+con permessi UID 10001; i mount storici docs/code/database servono come sorgenti di migrazione.
 I pesi sono condivisi (`vibecraft_models`, cache Docling nell'installazione,
 `ollama_models`), non copiati per progetto. Backup coerente: registry, manifest,
 code/docs/changes/database di ogni root (anche le root esterne registrate), volume
@@ -102,6 +108,36 @@ Modelli/client/snapshot sono caricati a richiesta: l'apertura della console non
 scarica pesi né ripara alias o esegue GC. La manutenzione è esplicita via lifecycle
 writer/CLI. Per progetti ordinari un delta non vuoto usa oggi un full rebuild:
 il costo embedding riguarda l'intero corpus; un delta noop non ricostruisce.
+
+### Migrare un'installazione esistente
+
+Con dati storici, l'apertura restituisce `project_migration_required`: la migrazione
+è esplicita. Ferma server, reader e altri writer; mantieni le variabili che indicano
+il database e lo staging originali. Da `rag/`:
+
+```bash
+uv run --frozen python -m scripts.migrate_project_layout
+```
+
+La migrazione conserva ID `legacy`, originali e vecchie collection; copia e verifica
+documenti, codice, changes, staging, pipeline e golden set. Se esiste un indice,
+Qdrant e il modello embedding devono essere disponibili: viene ricostruita una candidata
+completa in `projects/legacy/database/`, con gate, integrità e alias verificati prima
+di pubblicare il registro. Il costo è quello di un full rebuild dell'intero corpus;
+serve spazio per la copia e il nuovo indice. Le validazioni storiche richiedono una nuova validazione.
+
+Il registro originale viene salvato byte per byte in `projects/projects.v1.backup.json`
+quando presente. Il checkpoint è `projects/.legacy-migration.json`: rilancia lo stesso
+comando dopo un'interruzione; se è rimasto un candidato promosso con alias incompleto,
+usa `--repair`. Hash cambiati o namespace estranei bloccano la ripresa e richiedono diagnosi.
+Dopo pubblicazione una ripetizione non ricostruisce. Per annullare offline, ripristina
+il registro salvato e usa il codice precedente, mantenendo i percorsi originali; non cancellare gli originali.
+Se il registro prima non esisteva, il ripristino richiede rimuovere soltanto quello nuovo a processi fermi.
+
+In Docker, dopo aver fermato il servizio app, usa
+`docker compose --profile cpu run --rm app-cpu python -m scripts.migrate_project_layout`.
+Mantieni i volumi storici e gli eventuali bind fino alla verifica; i dati attivi vivono
+poi in `vibecraft_projects:/app/projects`, incluso `/app/projects/legacy`.
 
 Codex/Cursor integrati rimangono disabilitati finché l'isolamento delle letture non
 è verificato; esportazione prompt e MCP esterno restano disponibili anche senza
@@ -316,7 +352,7 @@ una [baseline di governance cross-progetto](docs/README.md), già pronta da indi
 In un clone pubblico `code/` contiene solo i segnaposto: il codice del progetto
 ospitante non viene distribuito. Un checkout locale può già contenerlo.
 Le funzioni che vivono sul codice (Semantic Map, Impact Ripple, il codice implementante
-dentro le risposte) restano quindi spente finché non punti `code/` a un progetto vero.
+dentro le risposte) restano quindi spente finché non importi codice nel progetto selezionato.
 
 ## Immagine pronta
 
@@ -336,8 +372,8 @@ docker build --target cpu -t vibecraft:cpu .   # Apple Silicon, build arm64 nati
 
 ## Aggiornare senza perdere l'indice
 
-Gli indici vivono nei dati persistenti: `<root-progetto>/database/` per i
-progetti nuovi, `rag/database/` per il legacy. Compose conserva
+Gli indici vivono nei dati persistenti: `<root-progetto>/database/` per tutti,
+incluso `projects/legacy/database/`. `rag/database/` è soltanto la sorgente storica. Compose conserva
 `vibecraft_projects`, `vibecraft_index` e `qdrant_storage`; aggiornare il
 codice non sposta i dati. Mantieni anche le root esterne e i loro mount.
 
@@ -362,8 +398,7 @@ Tre casi, in ordine di costo:
 
 | Cosa è cambiato | Cosa serve |
 |---|---|
-| Sorgenti del legacy | `index.py --incremental` — delta sui file toccati, se l'indice non è in modalità immutable |
-| Sorgenti di un progetto nuovo | `index.py --project <id> --incremental` — no-op se invariati; altrimenti ricostruisce una candidata completa |
+| Sorgenti di qualsiasi progetto | `index.py --project <id> --incremental` — no-op se invariati; altrimenti ricostruisce una candidata completa. Senza flag seleziona il `legacy` registrato |
 | Il **modello di embedding** (`rag_config.yaml`) | **Full rebuild** obbligatorio: i vettori vecchi non sono confrontabili con i nuovi. Il manifest registra il modello usato, quindi la differenza è rilevabile e non silenziosa |
 | Il **formato degli artefatti** | JSON, ColBERT in NPY per documento, dense/code in NPZ. Un ColBERT NPZ versionato richiede la migrazione sotto prima di un delta non vuoto; il vecchio layout piatto richiede una nuova build per passare a NPY. Gli indici solo pickle richiedono un rebuild |
 
@@ -392,17 +427,16 @@ uv run python index.py --rollback          # alla versione precedente
 Le versioni conservate sono 5 per default (`VIBECRAFT_INDEX_KEEP`).
 
 Il rollback viene rifiutato se la collection Qdrant di destinazione risulta assente.
-Nel percorso **legacy** gli incrementali condividono la collection della build completa di origine:
-tornare a un loro snapshot precedente **non riavvolge i punti Qdrant** modificati
-dopo; la CLI segnala il caso e consiglia un full rebuild.
+I vecchi indici storici con delta mutabili condividevano la collection della build
+di origine: il loro rollback non riavvolgeva i punti modificati dopo. La migrazione
+ricostruisce l'indice nel profilo ordinario, con collection distinta per candidata.
 
-Nei nuovi progetti il delta non vuoto passa dal rebuild e dal relativo gate.
+In tutti i progetti il delta non vuoto passa dal rebuild e dal relativo gate.
 Il golden set è `<root-progetto>/eval/golden.yaml`; se manca la promozione può
-passare come non valutata. Nel legacy il gate riguarda i rebuild completi e
-gli incrementali promuovono direttamente.
+passare come non valutata.
 Una metrica sotto soglia blocca la promozione se il gate è configurato come bloccante;
-un errore nell'esecuzione della valutazione o l'assenza del golden set lasciano invece
-passare la promozione. Questo gate è distinto da quello che autorizza l'avvio agentic.
+un errore nella valutazione segue la configurazione del gate. Questo gate è distinto
+da quello che autorizza l'avvio agentic.
 
 ## Scalabilità: risultati e limiti
 
@@ -451,7 +485,8 @@ uv run python scripts/docling_models.py --verifica
 L'importazione DOC/PPT richiede LibreOffice sull'host nell'installazione nativa;
 è già incluso nell'immagine Docker. XLS/XLSX vengono letti direttamente, senza
 ricalcolare le formule. Per usare documenti e codice dell'host in Docker, adatta
-i bind mount `docs/` e `code/` del servizio applicazione in `docker-compose.yml`.
+un bind della root completa sotto `/app/projects/<cartella>` e registra il suo manifest;
+oppure importa i file nel progetto selezionato tramite Intake.
 
 ## MCP locale
 

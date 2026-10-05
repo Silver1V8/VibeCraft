@@ -88,10 +88,26 @@ originario: selezionare B non sposta un job di A.
 
 ### Legacy, Docker e limiti
 
-Il progetto preesistente è registrato in-place come `legacy`, mantenendo cartelle,
-collection e indice; nessuno spostamento o rebuild automatico. Gli esempi storici
-senza `--project` si riferiscono al legacy. Il suo delta mutabile mantiene la
-semantica precedente; con marker immutable è rifiutato, richiedendo un full rebuild.
+Il progetto iniziale usa `<VIBECRAFT_PROJECTS_DIR>/legacy/`, con manifest e layout
+ordinari. Su clone pulito il primo avvio writer copia e verifica baseline e scheletro
+senza modelli, Qdrant o build. Gli altri progetti nuovi restano vuoti. Il reader non
+inizializza il registro. Un registro già vuoto resta vuoto.
+L'indice scansiona soltanto docs/code del progetto selezionato, anche per ID `legacy`.
+
+Con dati storici compare `project_migration_required`: ferma server e altri writer,
+poi da `rag/` esegui `uv run --frozen python -m scripts.migrate_project_layout`.
+La copia conserva gli originali; un indice esistente richiede Qdrant ed embedding,
+e un full rebuild verificato prima della pubblicazione. Pipeline e staging vengono
+copiati; le validazioni storiche richiedono nuova validazione. Registro originale:
+`projects/projects.v1.backup.json` quando presente; checkpoint:
+`projects/.legacy-migration.json`. Ripeti lo stesso comando per riprendere;
+`--repair` ripara soltanto il candidato proprio dopo interruzione CURRENT/alias.
+Costi e ripristino: [migrazione](../README.md#migrare-uninstallazione-esistente).
+
+Gli esempi senza `--project` selezionano soltanto il `legacy` registrato.
+Il suo indice è immutabile come gli altri: delta non vuoto con candidata completa,
+gate, alias e rollback separati. I paragrafi sui formati piatti e delta mutabili
+descrivono gli indici storici conservati per diagnostica.
 
 Con bind locale, Apri può registrare una root VibeCraft esterna; con bind remoto
 accetta solo root senza link strettamente sotto `VIBECRAFT_PROJECTS_DIR`, prima di
@@ -1043,9 +1059,9 @@ una generazione: vanno misurate separatamente.
 | `VIBECRAFT_GENERATION_MAX_FINISHED` | 100 | Job terminati conservati per tipo (generate, refine, brief) per il polling dello stato; oltre si scartano i più vecchi (mai quelli in corso), il GET risponde 404 |
 | `VIBECRAFT_ROLE` | `standalone` | `standalone`, `reader` oppure `writer` |
 | `VIBECRAFT_INDEX_MODE` | `legacy` | `legacy` oppure `immutable` |
-| `VIBECRAFT_DATABASE_DIR` | `rag/database` | Directory indice/coordinamento del solo legacy |
+| `VIBECRAFT_DATABASE_DIR` | `rag/database` | Sorgente storica per diagnostica/migrazione; gli indici attivi sono nelle root registrate |
 | `VIBECRAFT_PROJECTS_DIR` | `<installazione>/projects` | Registry e nuove root; percorso assoluto, `/app/projects` in Compose |
-| `VIBECRAFT_PROJECT_ID` | legacy | Progetto fisso per sessione MCP esterna |
+| `VIBECRAFT_PROJECT_ID` | legacy | Progetto fisso per MCP e script di manutenzione; la CLI index usa `--project` |
 
 8 e 2 sono limiti iniziali configurabili, non capacità dimostrate. Più processi
 moltiplicano sia i limiti verso il motore sia la memoria del modello embedding e
@@ -1116,7 +1132,7 @@ dall'implementazione corrente. Specifica, gate e stato sono in
 
 ## Artefatti dell'indice: formati sicuri, ispezionabili e versionati (blue/green)
 
-L'indice persiste in `<root-progetto>/database/` (legacy: `rag/database/`)
+L'indice persiste in `<root-progetto>/database/` (iniziale: `projects/legacy/database/`)
 tramite [core/artifacts.py](core/artifacts.py)
 e il reader/writer per documento [core/colbert_store.py](core/colbert_store.py).
 I formati sono sicuri (nessun `pickle`, che è fragile tra versioni

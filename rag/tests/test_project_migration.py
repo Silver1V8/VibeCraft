@@ -43,6 +43,22 @@ def test_clean_bootstrap_is_ordinary_and_idempotent(tmp_path, source):
     assert (source.docs_dir / "baseline.md").read_text().startswith("# Baseline")
 
 
+def test_server_start_prepares_clean_registry_without_heavy_resources(tmp_path, source, monkeypatch):
+    import asyncio
+    from fastapi import FastAPI
+    from api import deps
+    monkeypatch.setattr(deps, '_registry', None)
+    monkeypatch.setattr(deps, 'ProjectRegistry', lambda: ProjectRegistry(tmp_path / 'managed', legacy_context=source))
+    monkeypatch.setattr(deps, 'state', {'qdrant': None, 'embed_model': None})
+    monkeypatch.setattr(deps, '_snapshots', {})
+    monkeypatch.setattr(deps, '_project_states', {})
+    async def start():
+        async with deps.lifespan(FastAPI()):
+            assert (tmp_path / 'managed' / 'legacy' / 'project.yaml').is_file()
+            assert deps.state['qdrant'] is None and deps.state['embed_model'] is None
+    asyncio.run(start())
+
+
 @pytest.mark.parametrize("location", ["index", "changes", "staging", "pipeline", "code"])
 def test_bootstrap_with_historical_state_requires_migration(tmp_path, source, location):
     target = {"index": source.database_dir / "CURRENT", "changes": source.changes_dir / "feat" / "canvas.md",
@@ -77,6 +93,15 @@ def test_copy_rejects_links_and_foreign_destination(tmp_path, source):
     with pytest.raises(ProjectError):
         prepare_project_copy(source, other, checkpoint_path=checkpoint, include_history=False)
     assert not list(other.docs_dir.iterdir())
+
+
+def test_copy_does_not_ignore_foreign_indexable_temporary_name(tmp_path, source):
+    from core.project_migration import copy_source_tree
+    target = tmp_path / 'target docs'
+    target.mkdir()
+    (target / '.vibecraft-copy-foreign.md').write_text('Foreign indexed document')
+    with pytest.raises(ProjectError):
+        copy_source_tree(source.docs_dir, target)
 
 
 def test_copy_resumes_after_interruption(tmp_path, source, monkeypatch):

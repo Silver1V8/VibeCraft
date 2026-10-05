@@ -26,7 +26,7 @@ def _inventory(root: Path, *, copying: bool = False) -> dict[str, str]:
             _unlinked(parent / name)
         for name in files:
             if name.startswith(".vibecraft-copy-"):
-                if copying:
+                if copying and not Path(name).suffix:
                     continue
                 raise ProjectError("Reserved temporary filename in source")
             path = parent / name

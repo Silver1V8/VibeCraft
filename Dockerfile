@@ -144,6 +144,7 @@ WORKDIR /app/rag
 # docs/ entra nell'immagine perche' e' il corpus di esempio (14 documenti) che rende
 # l'avvio rapido possibile senza procurarsi nulla; si sovrascrive con un bind mount.
 COPY --chown=vibecraft:vibecraft rag/ /app/rag/
+# Baseline: il writer la copia una volta in /app/projects/legacy/docs.
 COPY --chown=vibecraft:vibecraft docs/ /app/docs/
 COPY --chown=vibecraft:vibecraft code/ /app/code/
 

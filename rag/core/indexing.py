@@ -550,6 +550,11 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     if qdrant is None:
         qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 
+    if project is not None and not project.legacy and _qdrant_collection_exists(qdrant, alias_name):
+        if own_qdrant:
+            qdrant.close()
+        raise ValueError("Project alias name is occupied by a physical collection")
+
     version = _new_version_name(project=project)
     collection_name = qdrant_collection_name(version, project=project)
 
@@ -653,7 +658,8 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
             # questa versione — non una ricostruzione indipendente del nome, quindi
             # mai ambigua.
             promote_version(version, project=project)
-            _migrate_legacy_collection_if_needed(qdrant, alias_name, emit=_log)
+            if project is None or project.legacy:
+                _migrate_legacy_collection_if_needed(qdrant, alias_name, emit=_log)
             _swap_alias(qdrant, alias_name, collection_name)
             _log(f"🔀 Alias Qdrant '{alias_name}' → {collection_name} (blue/green).")
             # promote_version() sopra ha già applicato la retention locale

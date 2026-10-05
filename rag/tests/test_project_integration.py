@@ -20,7 +20,7 @@ import agent_runners
 from api import deps, routes_pipeline, routes_reindex
 from core import artifacts, indexing, llm, pipeline, qdrant_versions
 from core.config import DENSE_DIM
-from core.projects import ProjectRegistry
+from core.projects import ProjectRegistry, _create_project_root
 
 
 class FixtureEmbedding:
@@ -43,8 +43,8 @@ class FixtureEmbedding:
         return result
 
 
-@pytest.fixture
-def integrated_server(tmp_path, monkeypatch):
+@pytest.fixture(params=['legacy', 'uuid'])
+def integrated_server(tmp_path, monkeypatch, request):
     from server import app
     # Historical adapters must restore their exact scope; do not conceal a leaked override.
     assert not app.dependency_overrides, "historical HTTP fixture leaked dependency overrides"
@@ -61,6 +61,13 @@ def integrated_server(tmp_path, monkeypatch):
     monkeypatch.setattr(deps, "ROLE", "writer")
     monkeypatch.setattr(deps, "SERVER_BIND_IS_LOCAL", True)
     qdrant, embed = QdrantClient(url=url), FixtureEmbedding()
+    names = {item.name for item in qdrant.get_collections().collections}
+    names.update(item.alias_name for item in qdrant.get_aliases().aliases)
+    if request.param == 'legacy':
+        if any(name == 'vibecraft_legacy' or name.startswith('vibecraft_legacy__') for name in names):
+            qdrant.close()
+            pytest.fail('Dedicated test namespace vibecraft_legacy already occupied')
+        registry.register(_create_project_root(registry.projects_dir / 'legacy', 'legacy', 'A').root)
     monkeypatch.setitem(deps.state, "qdrant", qdrant)
     monkeypatch.setitem(deps.state, "embed_model", embed)
     monkeypatch.setattr(indexing, "_new_version_name", lambda **kwargs: "v1")
@@ -142,9 +149,12 @@ def test_actual_http_projects_workflows_jobs_qdrant_and_browser(integrated_serve
     client, registry, qdrant, embed, prompts = integrated_server
     projects = []
     for name in ("A", "B"):
-        response = client.post("/api/projects", json={"name": name})
-        assert response.status_code == 201, response.text
-        project = registry.get(response.json()["id"])
+        if name == 'A' and any(record['id'] == 'legacy' for record in registry.records()):
+            project = registry.get('legacy')
+        else:
+            response = client.post("/api/projects", json={"name": name})
+            assert response.status_code == 201, response.text
+            project = registry.get(response.json()["id"])
         projects.append(project)
         for directory in (project.code_dir, project.docs_dir, project.changes_dir, project.database_dir):
             assert directory.is_dir()

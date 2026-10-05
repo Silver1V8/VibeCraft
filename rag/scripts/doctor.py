@@ -235,11 +235,27 @@ def controlla_porta() -> None:
         ok("Porta del server", f"{SERVER_HOST}:{SERVER_PORT} libera")
 
 
+def controlla_progetti() -> None:
+    from core.projects import ProjectRegistry, ProjectError
+    try:
+        registry = ProjectRegistry(readonly=True)
+        if any(record['legacy'] for record in registry.records()):
+            errore('Progetti', 'Migrazione necessaria: ferma server e altri writer, poi esegui '
+                   '`uv run --frozen python -m scripts.migrate_project_layout`.')
+        elif registry.records():
+            ok('Progetti', str(registry.projects_dir))
+        else:
+            avviso('Progetti', 'Avvia prima il server writer: prepara il progetto iniziale su clone pulito. '
+                   'Un registro già vuoto resta vuoto; crea il progetto dalla console.')
+    except ProjectError as exc:
+        errore('Progetti', f'{exc.code}: {exc}')
+
+
 def main() -> int:
     print("VibeCraft — preflight\n")
     for controllo in (controlla_python, controlla_qdrant, controlla_ollama,
                       controlla_spazio, controlla_modello_embedding,
-                      controlla_gpu, controlla_libreoffice, controlla_porta):
+                      controlla_gpu, controlla_libreoffice, controlla_porta, controlla_progetti):
         controllo()
 
     simboli = {"ok": "  OK  ", "avviso": " AVVISO", "errore": " ERRORE"}
@@ -258,7 +274,7 @@ def main() -> int:
         print(f"Nessun problema bloccante ({len(avvisi)} avviso/i sopra). Puoi avviare:")
     else:
         print("Tutto a posto. Puoi avviare:")
-    print("    uv run python index.py      # indicizza il corpus")
+    print("    uv run python index.py --project <id>  # dopo aver registrato il progetto")
     print("    uv run python server.py     # avvia la console su "
           f"http://{SERVER_HOST}:{SERVER_PORT}")
     return 0

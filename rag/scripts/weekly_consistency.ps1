@@ -17,10 +17,14 @@ $ErrorActionPreference = "Stop"
 $RagDir = Split-Path -Parent $PSScriptRoot
 Set-Location $RagDir
 
+$ProjectId = if ($env:VIBECRAFT_PROJECT_ID) { $env:VIBECRAFT_PROJECT_ID } else { "legacy" }
+$projectHeaders = @{ "X-VibeCraft-Project" = $ProjectId }
+if ($env:VIBECRAFT_API_KEY) { $projectHeaders["X-API-Key"] = $env:VIBECRAFT_API_KEY }
+
 Write-Host "[$(Get-Date -Format o)] Check di coerenza del grafo (incrementale vs full rebuild)..."
 
 # index.py --check-graph esce 1 se il grafo incrementale DIVERGE dal full rebuild.
-& uv run python index.py --check-graph
+& uv run python index.py --project $ProjectId --check-graph
 $checkExit = $LASTEXITCODE
 
 if ($checkExit -eq 0) {
@@ -33,7 +37,7 @@ Write-Host "[$(Get-Date -Format o)] Drift rilevato (exit $checkExit): avvio full
 # Preferisci il server (un solo scrittore: la coda del ReindexManager), fallback alla
 # CLI se il server e' spento.
 $baseUrl = if ($env:VIBECRAFT_SERVER_URL) { $env:VIBECRAFT_SERVER_URL } else { "http://127.0.0.1:8000" }
-$headers = @{}
+$headers = $projectHeaders.Clone()
 if ($env:VIBECRAFT_API_KEY) { $headers["X-API-Key"] = $env:VIBECRAFT_API_KEY }
 try {
     $resp = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/reindex" -Headers $headers -Body (@{full = $true} | ConvertTo-Json -Compress) -ContentType "application/json" -TimeoutSec 10
@@ -43,7 +47,7 @@ try {
     Write-Host "[$(Get-Date -Format o)] Server non raggiungibile ($baseUrl): fallback a index.py (full rebuild)..."
 }
 
-& uv run python index.py
+& uv run python index.py --project $ProjectId
 $rebuildExit = $LASTEXITCODE
 
 if ($rebuildExit -eq 0) {

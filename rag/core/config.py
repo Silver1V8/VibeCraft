@@ -69,6 +69,7 @@ INDEX_MODE = _env_choice("VIBECRAFT_INDEX_MODE", "legacy", {"legacy", "immutable
 if ROLE in {"reader", "writer"} and INDEX_MODE != "immutable":
     raise RuntimeError(f"VIBECRAFT_ROLE={ROLE} richiede VIBECRAFT_INDEX_MODE=immutable.")
 
+# Historical source/diagnostics only. Active storage comes from registered ProjectContext.
 DATABASE_DIR = Path(os.environ.get("VIBECRAFT_DATABASE_DIR") or RAG_DIR / "database").expanduser()
 
 # Formati artefatto CORRENTI (sicuri e ispezionabili): il grafo in node-link JSON,

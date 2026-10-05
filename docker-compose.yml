@@ -100,11 +100,11 @@ services:
       VIBECRAFT_PROJECTS_DIR: /app/projects
       VIBECRAFT_LOG_LEVEL: ${VIBECRAFT_LOG_LEVEL:-INFO}
     volumes:
-      - vibecraft_index:/app/rag/database     # artefatti dell'indice (blue/green)
+      - vibecraft_index:/app/rag/database     # sorgente storica per migrazione
       - vibecraft_projects:/app/projects
       - vibecraft_models:/models/huggingface  # bge-m3, 4,3 GB, scaricato al primo avvio
-      # Per indicizzare i TUOI documenti al posto del corpus di esempio, e per far vedere
-      # al sistema il codice di un progetto vero, scommenta e adatta:
+      # Root attive: /app/projects/<id>, incluso legacy.
+      # Bind docs/code qui sotto soltanto come sorgenti di migrazione offline:
       #- ./docs:/app/docs
       #- ./code:/app/code
 

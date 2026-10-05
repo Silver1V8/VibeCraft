@@ -28,13 +28,20 @@ $ErrorActionPreference = "Stop"
 $RagDir = Split-Path -Parent $PSScriptRoot
 Set-Location $RagDir
 
+$ProjectId = if ($env:VIBECRAFT_PROJECT_ID) { $env:VIBECRAFT_PROJECT_ID } else { "legacy" }
+$projectHeaders = @{ "X-VibeCraft-Project" = $ProjectId }
+if ($env:VIBECRAFT_API_KEY) { $projectHeaders["X-API-Key"] = $env:VIBECRAFT_API_KEY }
+
 # Alert su fallimento (check fallito E rimedio fallito): appende una riga JSON a
 # database/alerts.jsonl (letta da GET /api/health) e, se VIBECRAFT_ALERT_WEBHOOK e'
 # impostata, POSTa lo stesso JSON a quell'URL. Entrambi best-effort: un errore di
 # scrittura/rete non deve mascherare l'exit code del batch.
 function Send-Alert([string]$Message) {
     $json = @{ timestamp = (Get-Date -Format o); script = "nightly_consistency.ps1"; error = $Message } | ConvertTo-Json -Compress
-    try { Add-Content -Path (Join-Path $RagDir "database/alerts.jsonl") -Value $json -Encoding utf8 } catch {}
+    try {
+        $env:VIBECRAFT_SCRIPT_ERROR = $Message
+        & uv run python -c "import os; from core.projects import resolve_registered_project; from core.eval_gate import record_alert; p=resolve_registered_project(os.environ.get('VIBECRAFT_PROJECT_ID')); record_alert('critical', os.environ['VIBECRAFT_SCRIPT_ERROR'], path=p.database_dir/'alerts.jsonl')" *> $null
+    } catch {} finally { Remove-Item Env:VIBECRAFT_SCRIPT_ERROR -ErrorAction SilentlyContinue }
     if ($env:VIBECRAFT_ALERT_WEBHOOK) {
         try { Invoke-RestMethod -Method Post -Uri $env:VIBECRAFT_ALERT_WEBHOOK -ContentType "application/json" -Body $json -TimeoutSec 10 | Out-Null } catch {}
     }
@@ -49,9 +56,9 @@ function Send-Alert([string]$Message) {
 # confronto cadeva su recall@10 — satura a 1.000 — quindi questo check non poteva fallire.
 $qualityUrl = if ($env:VIBECRAFT_SERVER_URL) { $env:VIBECRAFT_SERVER_URL } else { "http://127.0.0.1:8000" }
 try {
-    Invoke-RestMethod -Uri "$qualityUrl/api/health" -TimeoutSec 5 | Out-Null
+    Invoke-RestMethod -Uri "$qualityUrl/api/health" -Headers $projectHeaders -TimeoutSec 5 | Out-Null
     Write-Host "[$(Get-Date -Format o)] Check di qualita' del retrieval (eval sul golden set)..."
-    & uv run python -m eval.run --url $qualityUrl --check-regression *> $null
+    & uv run python -m eval.run --project $ProjectId --url $qualityUrl --check-regression *> $null
     if ($LASTEXITCODE -eq 0) { Write-Host "[$(Get-Date -Format o)] Qualita' del retrieval OK." }
     else { Write-Host "[$(Get-Date -Format o)] Qualita' del retrieval: regressione o sotto soglia (alert registrato)." }
 
@@ -60,7 +67,7 @@ try {
     # Soglia e regola stanno in `eval_multihop` di rag_config.yaml; l'alert lo scrive lo script.
     # Costo: 14 chiamate a /api/retrieve e /api/graph/query, nessun LLM.
     Write-Host "[$(Get-Date -Format o)] Check strutturale/multihop (grafo + retrieval)..."
-    & uv run python -m eval.run_multihop --url $qualityUrl *> $null
+    & uv run python -m eval.run_multihop --project $ProjectId --url $qualityUrl *> $null
     if ($LASTEXITCODE -eq 0) { Write-Host "[$(Get-Date -Format o)] Suite strutturale/multihop OK." }
     else { Write-Host "[$(Get-Date -Format o)] Suite strutturale/multihop sotto soglia (alert registrato)." }
 
@@ -78,7 +85,7 @@ try {
     Write-Host "[$(Get-Date -Format o)] Contratto di astensione (domanda fuori corpus)..."
     $askStatus = ""
     try {
-        $r = Invoke-WebRequest -Method Post -Uri "$qualityUrl/ask" -ContentType "application/json" -TimeoutSec 600 -SkipHttpErrorCheck `
+        $r = Invoke-WebRequest -Method Post -Uri "$qualityUrl/ask" -Headers $projectHeaders -ContentType "application/json" -TimeoutSec 600 -SkipHttpErrorCheck `
             -Body '{"question":"qual e la ricetta tradizionale della carbonara e quanti grammi di guanciale servono per quattro persone"}'
         $askStatus = ($r.Content | ConvertFrom-Json).status
     } catch {}
@@ -99,7 +106,7 @@ try {
     Write-Host "[$(Get-Date -Format o)] Soglia di certezza su num_ctx (top_k=20)..."
     $ctxCode = 0; $ctxBody = ""
     try {
-        $r = Invoke-WebRequest -Method Post -Uri "$qualityUrl/ask" -ContentType "application/json" -TimeoutSec 600 -SkipHttpErrorCheck `
+        $r = Invoke-WebRequest -Method Post -Uri "$qualityUrl/ask" -Headers $projectHeaders -ContentType "application/json" -TimeoutSec 600 -SkipHttpErrorCheck `
             -Body '{"question":"quali vincoli valgono sui dati personali fra log, test e chiamate a LLM esterni?","top_k":20}'
         $ctxCode = [int]$r.StatusCode; $ctxBody = $r.Content
     } catch {}
@@ -117,7 +124,7 @@ try {
 Write-Host "[$(Get-Date -Format o)] Check di integrita' dell'indice (economico, zero embedding)..."
 
 # stdout = report JSON (i messaggi umani vanno su stderr), exit 1 se ci sono problemi.
-$reportJson = & uv run python index.py --check-integrity 2>$null
+$reportJson = & uv run python index.py --project $ProjectId --check-integrity 2>$null
 $checkExit = $LASTEXITCODE
 
 # Divergenza docs/ su disco <-> docs/ committato. NON e' un "problema" del report (non
@@ -167,7 +174,7 @@ if ($report.artifacts_corrupted -or $report.qdrant_mismatch) {
     # fallback alla CLI se il server e' spento.
     Write-Host "[$(Get-Date -Format o)] Artefatti corrotti o Qdrant disallineato: full rebuild..."
     $baseUrl = if ($env:VIBECRAFT_SERVER_URL) { $env:VIBECRAFT_SERVER_URL } else { "http://127.0.0.1:8000" }
-    $headers = @{}
+    $headers = $projectHeaders.Clone()
     if ($env:VIBECRAFT_API_KEY) { $headers["X-API-Key"] = $env:VIBECRAFT_API_KEY }
     try {
         $resp = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/reindex" -Headers $headers -Body (@{full = $true} | ConvertTo-Json -Compress) -ContentType "application/json" -TimeoutSec 10
@@ -176,7 +183,7 @@ if ($report.artifacts_corrupted -or $report.qdrant_mismatch) {
     } catch {
         Write-Host "[$(Get-Date -Format o)] Server non raggiungibile ($baseUrl): fallback a index.py (full rebuild)..."
     }
-    & uv run python index.py
+    & uv run python index.py --project $ProjectId
     if ($LASTEXITCODE -eq 0) {
         Write-Host "[$(Get-Date -Format o)] Full rebuild completato: indice riallineato."
         exit 0
@@ -190,7 +197,7 @@ if ($report.stale) {
     # Solo sorgenti cambiate: basta un reindex incrementale. Preferisci il server (un solo
     # scrittore: la coda del ReindexManager), fallback alla CLI se il server e' spento.
     $baseUrl = if ($env:VIBECRAFT_SERVER_URL) { $env:VIBECRAFT_SERVER_URL } else { "http://127.0.0.1:8000" }
-    $headers = @{}
+    $headers = $projectHeaders.Clone()
     if ($env:VIBECRAFT_API_KEY) { $headers["X-API-Key"] = $env:VIBECRAFT_API_KEY }
     try {
         $resp = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/reindex" -Headers $headers -TimeoutSec 10
@@ -199,7 +206,7 @@ if ($report.stale) {
     } catch {
         Write-Host "[$(Get-Date -Format o)] Server non raggiungibile ($baseUrl): fallback a index.py --incremental..."
     }
-    & uv run python index.py --incremental
+    & uv run python index.py --project $ProjectId --incremental
     if ($LASTEXITCODE -eq 0) {
         Write-Host "[$(Get-Date -Format o)] Reindex incrementale completato."
         exit 0

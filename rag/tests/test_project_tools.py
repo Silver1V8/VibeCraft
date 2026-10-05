@@ -595,3 +595,52 @@ def test_real_git_checkout_keeps_safe_code_tools_and_denies_git_reads(projects):
     assert "LEGITIMATE_CODE" in runners.execute_tool("grep", {"pattern": "LEGITIMATE_CODE"}, **kwargs)
     assert ".git" not in runners.execute_tool("list_files", {"pattern": "**/*"}, **kwargs)
     assert runners.execute_tool("read_file", {"path": ".git/config"}, **kwargs).startswith("negato")
+
+
+def test_cli_subprocess_without_registered_default_never_builds_root(tmp_path):
+    env = dict(os.environ, VIBECRAFT_PROJECTS_DIR=str(tmp_path / 'managed'),
+               VIBECRAFT_PROJECT_ID='b' * 32, PYTHONUTF8='1')
+    result = subprocess.run([sys.executable, str(Path(bridge.__file__).parent / 'index.py')],
+                            env=env, capture_output=True, text=True, encoding='utf-8', timeout=60)
+    assert result.returncode == 2 and 'project_required' in result.stderr
+    assert not (tmp_path / 'managed').exists()
+
+
+@pytest.mark.parametrize('name', ['nightly_consistency', 'weekly_consistency'])
+@pytest.mark.parametrize('extension', ['ps1', 'sh'])
+def test_maintenance_scripts_select_same_project_for_cli_and_http(name, extension):
+    path = Path(bridge.__file__).parent / 'scripts' / (name + '.' + extension)
+    text = path.read_text(encoding='utf-8')
+    assert 'VIBECRAFT_PROJECT_ID' in text and 'X-VibeCraft-Project' in text
+    commands = [line for line in text.splitlines() if 'uv run python index.py' in line and not line.lstrip().startswith('#')]
+    assert commands and all('--project' in line for line in commands)
+
+
+def test_eval_cli_measures_only_selected_project(projects, monkeypatch):
+    from eval import run
+    _, a, _ = projects
+    golden = a.root / 'eval' / 'golden.yaml'
+    golden.parent.mkdir()
+    golden.write_text('cases:\n  - q: Own question\n    expected: [own.md]\n')
+    seen = []
+    class Client:
+        def __init__(self, **kwargs):
+            seen.append(kwargs['headers']['X-VibeCraft-Project'])
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            pass
+        def get(self, url, **kwargs):
+            assert kwargs['params']['q'] == 'Own question'
+            class Response:
+                def raise_for_status(self):
+                    pass
+                def json(self):
+                    return {'results': [{'file': 'own.md', 'chunk_id': 'own.md#0', 'text': 'Own answer'}]}
+            return Response()
+    monkeypatch.setattr(run.httpx2, 'Client', Client)
+    monkeypatch.setattr(sys, 'argv', ['eval.run', '--project', a.id])
+    assert run.main() == 0
+    assert seen == [a.id]
+    assert list((a.database_dir / 'eval').glob('eval_*.json'))
+    assert (a.database_dir / 'eval' / 'history.jsonl').is_file()

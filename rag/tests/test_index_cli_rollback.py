@@ -5,10 +5,20 @@ catturiamo stdout con capsys. rollback_version/rollback_qdrant_alias_if_needed s
 finti: nessun database/Qdrant reale."""
 import runpy
 import sys
+import pytest
 
 from core.config import RAG_DIR
 
 INDEX_PY = RAG_DIR / "index.py"
+
+
+@pytest.fixture(autouse=True)
+def registered_default(tmp_path, monkeypatch):
+    from core import config
+    from core.projects import ProjectRegistry, _create_project_root
+    monkeypatch.setattr(config, 'PROJECTS_DIR', tmp_path / 'managed')
+    registry = ProjectRegistry(bootstrap_legacy=False)
+    registry.register(_create_project_root(registry.projects_dir / 'legacy', 'legacy', 'Initial').root)
 
 
 def _run_index_rollback_cli(monkeypatch, capsys, *, qdrant_client_factory,
@@ -18,23 +28,23 @@ def _run_index_rollback_cli(monkeypatch, capsys, *, qdrant_client_factory,
     import core.indexing as _indexing
     import qdrant_client as _qdrant_client_module
 
-    monkeypatch.setattr(_artifacts, "resolve_rollback_target", lambda target=None: "v1")
-    monkeypatch.setattr(_artifacts, "rollback_version", lambda target: "v1")
-    monkeypatch.setattr(_artifacts, "list_versions", lambda: ["v1"])
+    monkeypatch.setattr(_artifacts, "resolve_rollback_target", lambda target=None, **kw: "v1")
+    monkeypatch.setattr(_artifacts, "rollback_version", lambda target, **kw: "v1")
+    monkeypatch.setattr(_artifacts, "list_versions", lambda **kw: ["v1"])
     # Pre-check R14: di base passa (collection del target presente). I test che
     # simulano la sua distruzione iniettano un `precheck` che solleva, e ne verificano
     # che CURRENT NON venga toccato.
     monkeypatch.setattr(_indexing, "assert_rollback_target_has_vectors",
-                        precheck or (lambda qdrant, target_version: None))
+                        lambda qdrant, target_version, **kw: precheck(qdrant, target_version) if precheck else None)
     monkeypatch.setattr(_qdrant_client_module, "QdrantClient", qdrant_client_factory)
     # Default []: la detection della collection condivisa non deve leggere il vero
     # database/versions/ (i casi non-vuoti la iniettano via shared_later_result).
     monkeypatch.setattr(_indexing, "rollback_shares_collection_with_later_versions",
-                        lambda name: shared_later_result if shared_later_result is not None else [])
+                        lambda name, **kw: shared_later_result if shared_later_result is not None else [])
 
     captured: dict = {}
 
-    def _fake_rollback_alias(qdrant, target_version, emit=None):
+    def _fake_rollback_alias(qdrant, target_version, emit=None, **kw):
         captured["qdrant"] = qdrant
         captured["target_version"] = target_version
         return rollback_alias_result if rollback_alias_result is not None else {"state": "noop"}
@@ -110,8 +120,8 @@ def test_cli_rollback_fails_with_exit_2_when_writer_lock_busy(monkeypatch, capsy
     qdrant_calls: list = []
 
     monkeypatch.setattr(_artifacts, "rollback_version",
-                        lambda target: rollback_calls.append(target) or "v1")
-    monkeypatch.setattr(_artifacts, "list_versions", lambda: ["v1"])
+                        lambda target, **kw: rollback_calls.append(target) or "v1")
+    monkeypatch.setattr(_artifacts, "list_versions", lambda **kw: ["v1"])
     monkeypatch.setattr(_qdrant_client_module, "QdrantClient",
                         lambda url, api_key: qdrant_calls.append((url, api_key)))
     monkeypatch.setattr(_indexing, "rollback_qdrant_alias_if_needed",
@@ -119,7 +129,7 @@ def test_cli_rollback_fails_with_exit_2_when_writer_lock_busy(monkeypatch, capsy
                             alias_calls.append(target_version) or {"state": "noop"})
 
     @contextlib.contextmanager
-    def _busy_lock(timeout_seconds=5):
+    def _busy_lock(timeout_seconds=5, **kw):
         raise _writer_lock.WriterLockBusyError(
             "writer lock occupato (test): pid=999 acquired_at=2026-01-01T00:00:00Z"
         )

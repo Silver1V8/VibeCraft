@@ -12,10 +12,12 @@ from test_project_runtime import indexed
 
 
 @pytest.fixture
-def empty_runtime(monkeypatch):
+def empty_runtime(monkeypatch, tmp_path):
     from collections import OrderedDict
     monkeypatch.setattr(deps, "_snapshots", OrderedDict())
     monkeypatch.setattr(deps, "_project_states", {})
+    registry = ProjectRegistry(tmp_path / 'registry', readonly=True)
+    monkeypatch.setattr(deps, 'project_registry', lambda: registry)
     for key in ("snapshot", "embed_model", "qdrant"):
         monkeypatch.setitem(deps.state, key, None)
 
@@ -27,7 +29,7 @@ def test_lifespan_boot_never_touches_models_storage_or_qdrant(empty_runtime, mon
     def forbidden(*args, **kwargs):
         pytest.fail("Startup must not initialize resources or mutate project indexes")
 
-    for name in ("BGEM3FlagModel", "QdrantClient", "load_artifacts", "project_registry"):
+    for name in ("BGEM3FlagModel", "QdrantClient", "load_artifacts"):
         monkeypatch.setattr(deps, name, forbidden)
     monkeypatch.setattr(indexing, "reconcile_and_repair_qdrant_alias", forbidden)
     monkeypatch.setattr(indexing, "gc_orphaned_qdrant_collections", forbidden)

@@ -16,6 +16,7 @@ Exit code: 0 se recall@<max k> medio >= soglia (--assert-min), 1 se sotto soglia
 (il report in eval/results/ viene comunque scritto), 2 se il server non risponde.
 """
 import argparse
+import os
 import json
 import sys
 from datetime import datetime
@@ -159,7 +160,7 @@ def print_report(report: dict, ks: list[int]) -> None:
         print("   Calibrare o gatare lì significa non misurare nulla.")
 
 
-def corpus_provenance() -> dict:
+def corpus_provenance(project=None) -> dict:
     """Su QUALE corpus sono stati misurati questi numeri.
 
     Un numero di qualità senza il corpus che l'ha prodotto non è confrontabile con nessun
@@ -174,7 +175,7 @@ def corpus_provenance() -> dict:
     problema nel dichiarare il corpus non deve impedire di misurarlo."""
     try:
         from core.indexing import observe_docs_git_divergence
-        d = observe_docs_git_divergence()
+        d = observe_docs_git_divergence(**({'project': project} if project else {}))
         return {
             "available": True,
             "state": d.get("state"),
@@ -201,10 +202,11 @@ def format_provenance(prov: dict) -> str:
     return f"misurato su: {' · '.join(pezzi)}{coda}"
 
 
-def save_results(report: dict, url: str, provenance: dict | None = None) -> Path:
-    RESULTS_DIR.mkdir(exist_ok=True)
+def save_results(report: dict, url: str, provenance: dict | None = None, *, project=None) -> Path:
+    results_dir = project.database_dir / 'eval' if project else RESULTS_DIR
+    results_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out = RESULTS_DIR / f"eval_{ts}.json"
+    out = results_dir / f"eval_{ts}.json"
     payload = {
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "url": url,
@@ -223,7 +225,7 @@ def save_results(report: dict, url: str, provenance: dict | None = None) -> Path
 
 
 def run_eval(cases: list[dict], retrieve_fn, ks: list[int], assert_min: float,
-             save: bool = True, url: str = "") -> int:
+             save: bool = True, url: str = "", *, project=None) -> int:
     """Cuore della modalità guardrail, separato da HTTP/argparse così i test lo esercitano
     con un retriever fake: valuta i casi, stampa il report, lo salva SEMPRE in
     eval/results/ (anche sotto soglia, se save=True) e restituisce l'exit code:
@@ -235,38 +237,42 @@ def run_eval(cases: list[dict], retrieve_fn, ks: list[int], assert_min: float,
     dove questo guardrail gira da solo. Ora la chiave è quella del gate ovunque, e la k del
     gate viene aggiunta ai `ks` misurati: chiedere colonne diverse cambia cosa si LEGGE, mai
     su cosa si fallisce."""
-    ks = sorted(set(ks) | {EVAL_GATE_K})
+    gate_k = project.settings['eval_gate']['k'] if project else EVAL_GATE_K
+    gate_key = f'recall@{gate_k}'
+    ks = sorted(set(ks) | {gate_k})
     report = evaluate(cases, retrieve_fn, ks=ks)
 
     print_report(report, ks)
     # Il corpus va dichiarato ACCANTO ai numeri, non solo dentro il JSON: chi legge il
     # report a schermo è chi rischia di confrontarlo a mente con quello di ieri.
-    provenance = corpus_provenance()
+    provenance = corpus_provenance(**({'project': project} if project else {}))
     riga = format_provenance(provenance)
     if riga:
         print(f"\n{riga}")
     if save:
-        out = save_results(report, url, provenance)
+        out = save_results(report, url, provenance, **({'project': project} if project else {}))
         print(f"\n💾 Risultati salvati in {out}")
         # Storicizza nel trend di qualità (Epic 5): source="eval.run".
         try:
             from core.artifacts import current_version
             from core.eval_history import record_history
             record_history({f"recall@{k}": report["aggregate"][f"recall@{k}"] for k in ks},
-                           n_cases=report["n"], version=current_version(), source="eval.run")
+                           n_cases=report["n"], version=current_version(**({'project': project} if project else {})),
+                           source="eval.run", **({'path': project.database_dir / 'eval' / 'history.jsonl'} if project else {}))
         except Exception as exc:  # lo storico è telemetria: non deve mai far fallire l'eval
             print(f"(storico non aggiornato: {exc})")
 
-    gate_recall = report["aggregate"][GATE_RECALL_KEY]
+    gate_recall = report["aggregate"][gate_key]
     ok = gate_recall >= assert_min
     print(("✅ PASS" if ok else "❌ FAIL")
-          + f"  ({GATE_RECALL_KEY} = {gate_recall:.3f}, soglia --assert-min = {assert_min})")
+          + f"  ({gate_key} = {gate_recall:.3f}, soglia --assert-min = {assert_min})")
     return 0 if ok else 1
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Eval harness del retrieval sul golden-set")
     ap.add_argument("--url", default="http://127.0.0.1:8000")
+    ap.add_argument('--project', help='Registered project ID; default: legacy')
     ap.add_argument("--k", type=int, nargs="+", default=list(DEFAULT_KS),
                     help=f"soglie di recall (default: {' '.join(map(str, DEFAULT_KS))} — "
                          "k=1 e k=2 servono perché a k=5/10 questo corpus satura)")
@@ -285,13 +291,26 @@ def main() -> int:
                     help="dopo l'eval, controlla lo storico (eval/results/history.jsonl) e scrive un alert "
                          "critico se la recall è calata rispetto alla media mobile o sotto --assert-min (check notturno)")
     a = ap.parse_args()
+    from core.projects import resolve_registered_project, ProjectError
+    from core.eval_gate import load_golden_cases
+    from core import config
+    try:
+        project = resolve_registered_project(a.project)
+    except ProjectError as exc:
+        ap.error(exc.code)
+    golden = project.root / 'eval' / 'golden.yaml'
+    candidates_path = project.database_dir / 'eval' / 'candidates.yaml'
 
     if a.review_candidates or a.promote:
-        candidates = load_candidates()
+        candidates = load_candidates(candidates_path)
         print_candidates(candidates)
         if a.promote:
+            if config.ROLE == 'reader':
+                ap.error('read_only')
             try:
-                promoted = promote_candidates(a.promote)
+                from core.writer_lock import writer_lock
+                with writer_lock(project=project):
+                    promoted = promote_candidates(a.promote, candidates_path, golden)
             except ValueError as e:
                 print(f"❌ {e}")
                 return 1
@@ -303,13 +322,19 @@ def main() -> int:
     # Default = la soglia dell'eval-gate, non piu' un 0.7 scritto a mano (A2b): due numeri
     # separati per la stessa decisione divergono, ed erano gia' divergenti — gli script
     # notturni chiedevano 0.90 mentre il gate stava a 0.75.
-    assert_min = next(v for v in (a.assert_min, a.threshold, EVAL_GATE_MIN_RECALL) if v is not None)
-    cases = load_cases()
+    assert_min = next(v for v in (a.assert_min, a.threshold, project.settings['eval_gate']['min_recall']) if v is not None)
+    cases = load_golden_cases(golden)
+    if not cases:
+        print('Golden set missing or empty: quality not evaluated.')
+        return 0
+    headers = {'X-VibeCraft-Project': project.id}
+    if os.environ.get('VIBECRAFT_API_KEY'):
+        headers['X-API-Key'] = os.environ['VIBECRAFT_API_KEY']
 
     try:
-        with httpx2.Client(timeout=180) as client:
+        with httpx2.Client(timeout=180, headers=headers) as client:
             code = run_eval(cases, http_retriever(a.url, client), ks=a.k,
-                            assert_min=assert_min, save=not a.no_save, url=a.url)
+                            assert_min=assert_min, save=not a.no_save, url=a.url, project=project)
     except httpx2.HTTPError as e:
         print(f"❌ /api/retrieve non raggiungibile: {e}\n   Avvia il server: python server.py")
         return 2
@@ -325,13 +350,15 @@ def main() -> int:
         # potevano muoversi: un check notturno che, per costruzione, non poteva rilevare nulla.
         from core.eval_history import detect_regression
         from core.eval_gate import record_alert
-        reg = detect_regression(GATE_RECALL_KEY, floor=assert_min)
+        gate_key = f"recall@{project.settings['eval_gate']['k']}"
+        reg = detect_regression(gate_key, floor=assert_min, path=project.database_dir / 'eval' / 'history.jsonl')
         if reg is not None:
-            msg = (f"Regressione di qualità: {GATE_RECALL_KEY}={reg['last']} "
+            msg = (f"Regressione di qualità: {gate_key}={reg['last']} "
                    f"(media mobile {reg['moving_avg']} su {reg['window']} run"
                    + (f", soglia {reg['floor']}" if reg['floor'] is not None else "") + ").")
-            record_alert("critical", msg, source_check="eval.run --check-regression", **{
-                GATE_RECALL_KEY: reg["last"], "moving_avg": reg["moving_avg"]})
+            record_alert("critical", msg, path=project.database_dir / 'alerts.jsonl',
+                         source_check="eval.run --check-regression", **{
+                gate_key: reg["last"], "moving_avg": reg["moving_avg"]})
             print(f"⚠️  {msg} Alert scritto.")
         else:
             print("✅ Nessuna regressione di qualità rilevata rispetto allo storico.")

@@ -141,8 +141,8 @@ async function browserChecks() {
   const browser = await chromium.launch({ headless: true, ...(process.platform === 'win32' ? { channel: 'msedge' } : {}) });
   try {
     const context = await browser.newContext();
-    const A = 'a'.repeat(32), B = 'b'.repeat(32), C = 'c'.repeat(32);
-    const projects = [{ id: A, name: '<img src=x onerror=alert(1)>', index_status: 'ready', stale: false, index_version: '1' },
+    const A = 'legacy', B = 'b'.repeat(32), C = 'c'.repeat(32);
+    const projects = [{ id: A, legacy: false, name: '<img src=x onerror=alert(1)>', index_status: 'ready', stale: false, index_version: '1' },
       { id: B, name: 'B', index_status: 'not_indexed', stale: null, index_version: null },
       { id: C, name: 'C', index_status: 'indexing', stale: true, index_version: '1' }];
     const errors = [], requests = [];

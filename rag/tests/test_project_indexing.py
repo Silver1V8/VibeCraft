@@ -65,6 +65,18 @@ def body(project, text):
     (project.docs_dir / "same.md").write_text("# Shared title\n\n" + text, encoding="utf-8")
 
 
+@pytest.mark.parametrize('selected', [0, 1], ids=['legacy', 'uuid'])
+def test_ordinary_build_preserves_foreign_physical_alias_name(projects, selected):
+    project = projects[selected]
+    body(project, 'ALPHA')
+    with closing(QdrantClient(':memory:')) as client:
+        indexing._ensure_collection(client, collection_name=project.collection_name)
+        with pytest.raises(ValueError, match='occupied'):
+            build(project, client)
+        assert client.collection_exists(project.collection_name)
+        assert artifacts.current_version(project=project) is None
+
+
 def test_build_delta_rollback_same_names_and_versions(projects, qdrant, monkeypatch):
     a, b = projects
     monkeypatch.setattr(indexing, "_new_version_name", lambda **_: "v1")

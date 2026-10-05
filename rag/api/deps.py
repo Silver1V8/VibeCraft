@@ -891,6 +891,11 @@ async def lifespan(application: FastAPI):
         raise RuntimeError("VIBECRAFT_ROLE=reader richiede VIBECRAFT_API_KEY")
     ask_runtime_for_app(application)
     try:
+        project_registry()
+    except ProjectError as exc:
+        # Keep shell/diagnostic metadata available when migration or storage repair is needed.
+        logger.warning("Project registry not ready: %s", exc.code)
+    try:
         yield
     finally:
         with _reload_lock:

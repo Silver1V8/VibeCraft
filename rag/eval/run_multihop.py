@@ -29,6 +29,7 @@ riga in eval/results/history.jsonl (source="multihop") e, se la soglia non è ri
 alert critico in database/alerts.jsonl.
 """
 import argparse
+import os
 import json
 import sys
 from datetime import datetime
@@ -251,10 +252,11 @@ def print_report(report: dict) -> None:
             print("❌ FAIL  " + " | ".join(esito["reasons"]))
 
 
-def save_report(report: dict, url: str) -> Path:
-    RESULTS_DIR.mkdir(exist_ok=True)
+def save_report(report: dict, url: str, *, project=None) -> Path:
+    results_dir = project.database_dir / 'eval' if project else RESULTS_DIR
+    results_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out = RESULTS_DIR / f"multihop_{ts}.json"
+    out = results_dir / f"multihop_{ts}.json"
     payload = {"timestamp": datetime.now().isoformat(timespec="seconds"), "url": url,
                "golden_set": MULTIHOP.name, **report}
     out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -264,13 +266,25 @@ def save_report(report: dict, url: str) -> Path:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Eval M1: casi strutturali/multihop, baseline A (retrieve) vs riferimento B (graph_query)")
     ap.add_argument("--url", default="http://127.0.0.1:8000")
+    ap.add_argument('--project', help='Registered project ID; default: legacy')
     ap.add_argument("--k", type=int, default=K_DEFAULT, help=f"top-k della baseline A (default: {K_DEFAULT})")
     ap.add_argument("--no-save", action="store_true", help="non salvare il JSON in eval/results/")
     a = ap.parse_args()
-
-    cases = load_cases()
+    from core.projects import resolve_registered_project, ProjectError, _unlinked
     try:
-        with httpx2.Client(timeout=180) as client:
+        project = resolve_registered_project(a.project)
+        golden = _unlinked(project.root / 'eval' / 'golden_multihop.yaml')
+    except ProjectError as exc:
+        ap.error(exc.code)
+    if not golden.exists():
+        print('Project multihop golden set missing: quality not evaluated.')
+        return 0
+    cases = load_cases(golden)
+    headers = {'X-VibeCraft-Project': project.id}
+    if os.environ.get('VIBECRAFT_API_KEY'):
+        headers['X-API-Key'] = os.environ['VIBECRAFT_API_KEY']
+    try:
+        with httpx2.Client(timeout=180, headers=headers) as client:
             def retrieve_fn(q: str, k: int) -> list[dict]:
                 resp = client.get(f"{a.url}/api/retrieve", params={"q": q, "k": k})
                 resp.raise_for_status()
@@ -289,10 +303,10 @@ def main() -> int:
         print(f"❌ server non raggiungibile: {e}\n   Avvia il server: python server.py")
         return 2
 
-    report["verdict"] = verdict(report)
+    report["verdict"] = verdict(report, **project.settings['eval_multihop'])
     print_report(report)
     if not a.no_save:
-        out = save_report(report, a.url)
+        out = save_report(report, a.url, project=project)
         print(f"\n💾 Report salvato in {out}")
         # Storico e allarme condividono la sorte del report: --no-save vuol dire "questa
         # corsa non lascia traccia", e vale per tutte e tre le tracce, non solo per il JSON.
@@ -300,7 +314,8 @@ def main() -> int:
             from core.artifacts import current_version
             from core.eval_history import record_history
             record_history(history_keys(report), n_cases=report["n"],
-                           version=current_version(), source="multihop")
+                           version=current_version(project=project), source="multihop",
+                           path=project.database_dir / 'eval' / 'history.jsonl')
         except Exception as exc:  # lo storico è telemetria: non deve far fallire la misura
             print(f"(storico non aggiornato: {exc})")
         if not report["verdict"]["passed"]:
@@ -312,6 +327,7 @@ def main() -> int:
                 record_alert("critical",
                              "Regressione sulla suite strutturale/multihop: "
                              + " | ".join(report["verdict"]["reasons"]),
+                             path=project.database_dir / 'alerts.jsonl',
                              source_check="eval.run_multihop", **history_keys(report))
             except Exception as exc:
                 print(f"(alert non registrato: {exc})")

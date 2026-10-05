@@ -25,10 +25,14 @@ LOCAL_CLIENT = ("127.0.0.1", 50000)
 
 
 @pytest.fixture
-def server_client(monkeypatch):
+def server_client(monkeypatch, tmp_path):
     """server.app con chiave configurata e client loopback (il caso del rebinding). Niente
     `with`: il lifespan (Qdrant, embedder) non serve a /pipeline né a dev-types."""
     import server
+    from core.projects import ProjectRegistry, _create_project_root
+    registry = ProjectRegistry(tmp_path / 'projects', bootstrap_legacy=False)
+    registry.register(_create_project_root(registry.projects_dir / 'legacy', 'legacy', 'Initial').root)
+    monkeypatch.setattr(deps, 'project_registry', lambda: registry)
     monkeypatch.setattr(deps, "API_KEY", "s3cret-agent-key")
     return TestClient(server.app, base_url="http://127.0.0.1:8000", client=LOCAL_CLIENT)
 
