@@ -937,10 +937,18 @@ def test_http_reindex_bodyless_curl_still_reaches_handler(xsite_client, monkeypa
 # una apre un dialogo nativo sul desktop del server, l'altra scansiona un path arbitrario
 # del suo filesystem. Con un bind aperto non sono "più rischiose": sono prive di senso.
 _LOCAL_ONLY_ROUTES = [
-    (routes_projects.router, "POST", "/api/projects/register"),
     (routes_intake.router, "POST", "/api/intake/project/browse-path"),
     (routes_intake.router, "POST", "/api/intake/project/plan"),
 ]
+
+
+def test_managed_registration_keeps_auth_and_cross_site_classification():
+    # Arbitrary host roots remain local; the remote managed-root guard is tested with
+    # actual manifests, outside/traversal/link denial and reader/auth cases in test_project_api.
+    dependencies = _route_dependency_fns(routes_projects.router, "POST", "/api/projects/register")
+    assert deps.require_api_key in dependencies
+    assert deps.require_not_cross_site_request in dependencies
+    assert deps.require_local_bind not in dependencies
 
 
 def test_require_local_bind_passes_when_bound_to_loopback(monkeypatch):

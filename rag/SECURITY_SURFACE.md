@@ -347,7 +347,7 @@ oltre a `require_api_key` del router.
 | 62 | GET | `/api/projects` | require_api_key | assente | Sì | read-only (metadata; root solo loopback con bind locale, nessun segreto/settings) | Basso | nessuna |
 | 63 | GET | `/api/projects/{project_id}` | require_api_key | path | Sì | read-only (metadata e stato indice del progetto richiesto) | Basso | nessuna |
 | 64 | POST | `/api/projects` | require_api_key | JSON Pydantic | No (preflight) | scrive registry e cartelle del nuovo UUID; reader rifiutato | Medio | **anti-x-site** |
-| 65 | POST | `/api/projects/register` | require_api_key | JSON Pydantic | No (preflight) | legge manifest di path host e scrive registry; reader rifiutato | Medio | **anti-x-site + local-bind** |
+| 65 | POST | `/api/projects/register` | require_api_key | JSON Pydantic | No (preflight) | legge manifest e scrive registry; path host arbitrario solo con bind locale, altrimenti root canonica senza link strettamente sotto PROJECTS_DIR, verificata prima del manifest; reader rifiutato | Medio | **anti-x-site + confinement managed-root remoto** |
 
 ### Nota sulle route a corpo consegnabile — dove la dependency è l'UNICO controllo
 

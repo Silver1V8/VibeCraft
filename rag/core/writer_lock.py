@@ -55,6 +55,13 @@ class WriterLockBusyError(RuntimeError):
     """Un altro processo detiene il writer lock (timeout di acquisizione scaduto)."""
 
 
+def _unlinked_lock_path(path: Path) -> None:
+    # A captured project can outlive a directory replacement; validate before any I/O.
+    for component in (path, *path.parents):
+        if component.is_symlink() or component.is_junction():
+            raise ValueError("Linked lock path forbidden")
+
+
 class VersionLease:
     """OS lock on a persistent per-version file, outside the deletable version dir."""
 
@@ -76,16 +83,12 @@ def try_version_lease(database_dir: str | Path, version: str, *, exclusive: bool
     if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z-]*", version):
         raise ValueError(f"invalid version name: {version!r}")
     base = Path(database_dir)
-    if base.is_symlink() or (hasattr(base, "is_junction") and base.is_junction()):
-        raise ValueError("linked database path forbidden for version lease")
     locks = base / ".reader-locks"
-    if locks.is_symlink() or (hasattr(locks, "is_junction") and locks.is_junction()):
-        raise ValueError("linked lease directory forbidden")
+    _unlinked_lock_path(locks)
     locks.mkdir(parents=True, exist_ok=True)
     path = locks / f"{version}.lock"
-    if path.is_symlink() or (hasattr(path, "is_junction") and path.is_junction()):
-        raise ValueError("linked lease file forbidden")
-    flags = os.O_RDWR | os.O_CREAT
+    _unlinked_lock_path(path)
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
     if os.name == "nt":
         flags |= os.O_BINARY
     fd = os.open(path, flags, 0o644)
@@ -167,6 +170,7 @@ def default_lock_path(project: ProjectContext | None = None) -> Path:
 
 def _read_holder_info(path: Path) -> str:
     """Diagnostica (pid/timestamp) scritta dall'attuale detentore, best-effort."""
+    _unlinked_lock_path(path)
     try:
         text = path.read_text(encoding="utf-8", errors="replace").strip()
     except OSError:
@@ -205,8 +209,10 @@ def writer_lock(timeout_seconds: float = 5, lock_path: str | Path | None = None,
     il file NON viene mai cancellato al rilascio — cancellarlo aprirebbe la race
     "due processi lockano inode diversi dello stesso path"."""
     path = Path(lock_path) if lock_path is not None else default_lock_path(project=project)
+    _unlinked_lock_path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    flags = os.O_RDWR | os.O_CREAT
+    _unlinked_lock_path(path)
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
     if os.name == "nt":
         flags |= os.O_BINARY
     fd = os.open(path, flags, 0o644)

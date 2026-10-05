@@ -7,6 +7,7 @@ esserci su OGNI risposta dell'app vera: pagine, API, statici, errori, streaming.
 un base_url loopback (vedi test_host_header.py: `testserver` non è un Host ammesso).
 """
 import asyncio
+from dataclasses import replace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -26,10 +27,15 @@ EXPECTED = {
 
 
 @pytest.fixture
-def client(monkeypatch):
+def client(monkeypatch, tmp_path):
     """server.app senza lifespan (Qdrant/embedder non servono a queste risposte)."""
     import server
+    from core.projects import legacy_project_context
+    project = replace(legacy_project_context(), root=tmp_path,
+        code_dir=tmp_path / "code", docs_dir=tmp_path / "docs", changes_dir=tmp_path / "changes",
+        database_dir=tmp_path / "database", staging_dir=tmp_path / "staging")
     monkeypatch.setattr(deps, "API_KEY", None)
+    monkeypatch.setitem(server.app.dependency_overrides, deps.get_project, lambda: project)
     return TestClient(server.app, base_url="http://127.0.0.1:8000", client=LOCAL_CLIENT,
                       raise_server_exceptions=False)
 
@@ -86,8 +92,9 @@ def test_host_guard_400_has_security_headers(client):
     _assert_security_headers(response)
 
 
-def test_streaming_response_on_real_app_has_security_headers(client, monkeypatch):
-    def fake_check_drift(feature, emit):
+def test_streaming_response_on_real_app_has_security_headers(client, monkeypatch, tmp_path):
+    def fake_check_drift(feature, emit, *, project):
+        assert project.id == "legacy" and project.root == tmp_path
         emit(f"analisi {feature}")
         return {"ok": True}
 

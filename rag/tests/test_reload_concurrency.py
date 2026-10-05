@@ -9,6 +9,7 @@ reindex) caricavano entrambi, senza lock. Vedi api.deps._reload_lock.
 import asyncio
 import threading
 import time
+from collections import OrderedDict
 
 import httpx
 import pytest
@@ -26,19 +27,24 @@ def _snapshot(version: str) -> deps.IndexSnapshot:
 
 
 @pytest.fixture
-def reload_env(monkeypatch):
+def reload_env(monkeypatch, legacy_http_project):
     """Snapshot v1 servito, CURRENT già su v2: il primo trigger deve ricaricare.
     `gate` tiene fermo il caricamento finché il test non lo rilascia."""
     monkeypatch.setattr(deps, "API_KEY", None)
     monkeypatch.setitem(deps.state, "snapshot", _snapshot("v1"))
     monkeypatch.setitem(deps.state, "_graph_mtime", "v1")
     monkeypatch.setitem(deps.state, "reload_error", None)
-    monkeypatch.setattr(deps, "_graph_version", lambda: "v2")
+    monkeypatch.setattr(deps, "_snapshots", OrderedDict())
+    def disk_version(project=None):
+        assert project is None or project.id == "legacy"
+        return "v2"
+    monkeypatch.setattr(deps, "_graph_version", disk_version)
 
     env = {"loads": 0, "started": threading.Event(), "done": threading.Event(),
            "gate": threading.Event()}
 
-    def slow_load(**_kwargs):
+    def slow_load(*, project=None, boot=False):
+        assert project is None or project.id == "legacy"
         env["loads"] += 1
         env["started"].set()
         env["gate"].wait(2)

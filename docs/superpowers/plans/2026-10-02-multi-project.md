@@ -178,7 +178,7 @@ Ogni task: aggiungere il test che fallisce, verificarne il fallimento pertinente
 - [x] Test build/delta/promote/rollback A/B con stessi token versione e nomi documento; CURRENT/manifest/vettori restano separati.
 - [x] Test `test_gc_never_deletes_other_project_collections`, includendo candidato A non ancora manifestato e collection legacy.
 - [x] Test lease: un reader di A mantiene snapshot precedente mentre A promuove; operazioni B non invalidano lease A.
-- [ ] Propagare contesto in tutti i chiamanti; rimuovere dipendenze dai path globali nei percorsi non legacy, inclusi temporanei ColBERT e manifest fingerprint.
+- [x] Propagare contesto in tutti i chiamanti; rimuovere dipendenze dai path globali nei percorsi non legacy, inclusi temporanei ColBERT e manifest fingerprint.
 - [x] Eseguire suite mirata storage/indice/versioni e regressioni legacy; integrare prova con Qdrant reale su sole collection temporanee.
 
 ### Task 3: Runtime HTTP, retrieval, cache e health
@@ -252,25 +252,27 @@ Ruling PM verificato: Codex/Cursor integrati non avviano processi finché l'isol
 **Dipendenze:** tutti. **Modello implementazione:** gpt-6.1-sol/high; **review finale indipendente:** gpt-6-astra/high.
 **File:** soltanto correzioni necessarie, test integrazione progetto, report finale del PM.
 
-- [ ] Fixture A/B temporanee con stessi path/feature/versioni e testi distintivi: creare, indicizzare, chiedere, importare, validare, avviare runner simulato, selezionare B e tornare A.
-- [ ] Eseguire un vero smoke Qdrant su collection di prova isolate: build A/B, retrieval diverso, rebuild/rollback/GC A, B ancora leggibile e integro.
-- [ ] Eseguire `uv run --frozen ruff check .` e `uv run --frozen pytest -rs` da rag; equivalenti del gate scripts/ci.sh con PYTHONUTF8=1 su Windows.
-- [ ] Eseguire check Node già in CI più navigation_workspace/projects_workspace; smoke UI reale con servizi/provider simulati.
-- [ ] Reviewer confronta diff complessivo e criteri sotto; difetti di isolamento/sicurezza/dati sono bloccanti, correggerli e rieseguire i test pertinenti.
-- [ ] Compilare report con commit/branch, file, test eseguiti e skip motivati, limiti reali; marcare complete solo le caselle provate. Nessun push/publish/merge automatico.
+- [x] Fixture A/B temporanee con stessi path/feature/versioni e testi distintivi: creare, indicizzare, chiedere, importare, validare, avviare runner simulato, selezionare B e tornare A.
+- [x] Eseguire un vero smoke Qdrant su collection di prova isolate: build A/B, retrieval diverso, rebuild/rollback/GC A, B ancora leggibile e integro.
+- [x] Eseguire `uv run --frozen ruff check .` e `uv run --frozen pytest -rs` da rag; equivalenti del gate scripts/ci.sh con PYTHONUTF8=1 su Windows.
+- [x] Eseguire check Node già in CI più navigation_workspace/projects_workspace; smoke UI reale con servizi/provider simulati.
+- [x] Reviewer confronta diff complessivo e criteri sotto; difetti di isolamento/sicurezza/dati sono bloccanti, correggerli e rieseguire i test pertinenti.
+- [x] Compilare report con commit/branch, file, test eseguiti e skip motivati, limiti reali; marcare complete solo le caselle provate. Nessun push/publish/merge automatico.
 
 ## Criteri di accettazione
 
-- [ ] AC1: dalla console si creano e si aprono almeno due progetti; ciascuno ha code/docs/changes/database distinti.
-- [ ] AC2: file e query omonimi producono risultati riferiti esclusivamente al progetto richiesto; cache/graph/reload non contaminano altri progetti.
-- [ ] AC3: full/delta/rollback/retention/GC A non modificano artifact, CURRENT, alias o collection B.
-- [ ] AC4: intake/pipeline/gate/validazioni/storico/lock e job separati; stessa feature consentita in A/B.
-- [ ] AC5: cambio selezione, streaming, retry e due schede non cambiano il target di operazioni già partite.
-- [ ] AC6: agenti leggono il progetto corretto e scrivono solo nel suo code; MCP e CLI selezionano lo stesso progetto esplicito.
-- [ ] AC7: console utilizzabile senza indice; stato non indicizzato/guasto dichiarato, senza fallback silenzioso.
-- [ ] AC8: progetto attuale registrato in-place, senza perdita dati, nuova build o rename della collection.
-- [ ] AC9: Docker mantiene progetti dopo restart; auth/CSP/Host guard/local-bind e modalità reader conservano le garanzie.
-- [ ] AC10: suite pertinente, lint, smoke Qdrant isolato e smoke browser verificati; eventuali prove impedite dall'ambiente restano esplicitamente non verificate.
+- [x] AC1: dalla console si creano e si aprono almeno due progetti; ciascuno ha code/docs/changes/database distinti.
+- [x] AC2: file e query omonimi producono risultati riferiti esclusivamente al progetto richiesto; cache/graph/reload non contaminano altri progetti.
+- [x] AC3: full/delta/rollback/retention/GC A non modificano artifact, CURRENT, alias o collection B.
+- [x] AC4: intake/pipeline/gate/validazioni/storico/lock e job separati; stessa feature consentita in A/B.
+- [x] AC5: cambio selezione, streaming, retry e due schede non cambiano il target di operazioni già partite.
+- [x] AC6: agenti leggono il progetto corretto e scrivono solo nel suo code; MCP e CLI selezionano lo stesso progetto esplicito.
+- [x] AC7: console utilizzabile senza indice; stato non indicizzato/guasto dichiarato, senza fallback silenzioso.
+- [x] AC8: progetto attuale registrato in-place, senza perdita dati, nuova build o rename della collection.
+- [x] AC9: Docker mantiene progetti dopo restart; auth/CSP/Host guard/local-bind e modalità reader conservano le garanzie.
+- [x] AC10: suite pertinente, lint, smoke Qdrant isolato e smoke browser verificati; eventuali prove impedite dall'ambiente restano esplicitamente non verificate.
+
+Accettazione finale 5 ottobre 2026: review indipendente Astra PASS, nessun finding bloccante aperto; suite completa2348pass/20filelinkskipWindows, lint e smoke reali Qdrant/browser/Docker verificati. AC6 vale con il ruling native-launch sopra (SDK/local, export e MCP esterno disponibili); AC9/10 non equivalgono a fresh Docker build o esecuzione GitHub Actions. Dettagli/prove/limiti nel report finale e nella review Task8.
 
 ## Istruzioni operative per il PM
 

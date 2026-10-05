@@ -198,6 +198,8 @@ def test_health_degraded_by_rollback_shared_collection_alert(tmp_path, monkeypat
 # Logging configurabile via VIBECRAFT_LOG_LEVEL
 # ---------------------------------------------------------------------------
 def test_log_level_from_env(monkeypatch):
+    monkeypatch.setattr(logging.root, "handlers", [])
+    monkeypatch.setattr(logging.root, "level", logging.root.level)
     monkeypatch.setenv("VIBECRAFT_LOG_LEVEL", "DEBUG")
     setup_logging()
     assert logging.getLogger().level == logging.DEBUG
@@ -210,6 +212,8 @@ def test_log_level_from_env(monkeypatch):
 
 
 def test_log_level_invalid_falls_back_to_info(monkeypatch):
+    monkeypatch.setattr(logging.root, "handlers", [])
+    monkeypatch.setattr(logging.root, "level", logging.root.level)
     monkeypatch.setenv("VIBECRAFT_LOG_LEVEL", "NONSENSE")
     setup_logging()
     assert logging.getLogger().level == logging.INFO
