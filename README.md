@@ -40,6 +40,11 @@ I checkout precedenti vanno aggiornati prima di usare i nuovi comandi.
 
 ## Progetti separati
 
+L'apertura di `/` mostra la schermata iniziale con progetti recenti, ricerca,
+creazione e apertura di cartelle esistenti. **Progetti** nella barra torna alla
+selezione senza interrompere le operazioni attive. I link `?project=<id>` aprono
+direttamente il progetto; lo storico recente viene conservato nel browser.
+
 La console funziona anche senza progetti o indice. **Nuovo progetto** crea una root
 con `project.yaml`, `code/`, `docs/`, `changes/`, `database/` sotto
 `VIBECRAFT_PROJECTS_DIR` (percorso assoluto; default `<installazione>/projects`).

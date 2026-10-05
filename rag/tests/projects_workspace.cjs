@@ -189,6 +189,13 @@ async function browserChecks() {
     await frameA.locator('#ask-btn').click();
     await page.waitForFunction(id => document.querySelector('iframe').contentDocument.getElementById('answer-text').textContent === `First chunk ${id}`, A);
     assert.equal(await page.locator('iframe').evaluate(frame => frame.contentWindow.workspaceIsBusy()), true);
+    await page.locator('#project-home').click();
+    await page.locator('#project-welcome').waitFor();
+    assert.equal(await page.locator('#workspace-pages iframe').count(), 1);
+    assert.equal(await page.locator('iframe').evaluate(frame => frame.contentWindow.workspaceIsBusy()), true);
+    assert.equal(await page.locator('#project-list img').count(), 0);
+    await page.locator(`#project-list button[data-arg="${A}"]`).click();
+    assert.equal(await frameA.locator('#question-input').inputValue(), 'A question');
     await page.locator('#project-select').selectOption(B);
     const frameB = page.frameLocator(`iframe[data-project-id="${B}"][data-workspace-page="/"]`);
     await frameB.locator('#question-input').fill('B question');
@@ -230,14 +237,76 @@ async function browserChecks() {
     await other.reload();
     assert.equal(await other.locator('#project-select').inputValue(), B);
     await other.goto(base);
+    await other.locator('#project-welcome').waitFor();
+    assert.equal(new URL(other.url()).searchParams.has('project'), false);
+    assert.equal(await other.locator('iframe').count(), 0);
+    await other.locator(`#project-list button[data-arg="${B}"]`).click();
     await other.waitForFunction(id => new URL(location.href).searchParams.get('project') === id, B);
-    assert.equal(await other.locator('#project-select').inputValue(), B);
     const chooser = await context.newPage();
     await chooser.goto(base);
-    await chooser.locator('#workspace-message').filter({ hasText: 'Nessun progetto' }).waitFor();
-    assert.equal(await chooser.locator('#project-select').inputValue(), '');
+    await chooser.locator('#project-welcome').waitFor();
+    assert.equal(await chooser.locator('#project-list button').count(), 3);
+    assert.equal(await chooser.locator('#project-list img').count(), 0, 'Project names must remain text on the welcome screen');
+    await chooser.locator('#project-search').fill('nessun risultato');
+    await chooser.locator('#project-list-empty').filter({ hasText: 'Nessun progetto' }).waitFor();
+    assert.equal(await chooser.locator('#project-list button').count(), 0);
     assert.equal(await chooser.locator('iframe').count(), 0);
     await chooser.close();
+    if (process.env.VIBECRAFT_SCREENSHOT_DIR) {
+      const output = process.env.VIBECRAFT_SCREENSHOT_DIR;
+      fs.mkdirSync(output, { recursive: true });
+      const visual = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
+      const samples = projects.map((project, index) => ({ ...project,
+        name: ['VibeCraft', 'Portale clienti', 'Servizi API'][index], root: `C:\\Progetti\\${['vibecraft', 'portale-clienti', 'servizi-api'][index]}` }));
+      await visual.route('**/api/**', route => {
+        const pathname = new URL(route.request().url()).pathname;
+        const body = pathname === '/api/projects' ? { projects: samples, read_only: false }
+          : samples.find(project => pathname === '/api/projects/' + project.id) || {};
+        return route.fulfill({ json: body });
+      });
+      const preview = await visual.newPage();
+      preview.on('pageerror', error => errors.push(error.message));
+      await preview.goto(base);
+      await preview.locator('#project-list button').first().waitFor();
+      for (const theme of ['classic', 'matrix']) {
+        await preview.locator('#theme-switcher').selectOption(theme);
+        // Il CSS reduced-motion conserva transizioni di 0.01ms: attendere il paint
+        // effettivo evita screenshot con font nuovo e colori del frame precedente.
+        await preview.waitForFunction(background => getComputedStyle(document.body).backgroundColor === background,
+          theme === 'classic' ? 'rgb(2, 6, 23)' : 'rgb(4, 20, 10)', { timeout: 3000 });
+        const font = await preview.locator('body').evaluate(body => getComputedStyle(body).fontFamily);
+        assert.ok(font.includes(theme === 'classic' ? 'Inter' : 'JetBrains Mono'), 'Welcome must inherit the app typography');
+        const palette = await preview.evaluate(() => ({
+          token: getComputedStyle(document.documentElement).getPropertyValue('--color-bg').trim(),
+          background: getComputedStyle(document.body).backgroundColor,
+        }));
+        assert.equal(palette.token, theme === 'classic' ? '#020617' : '#04140a', JSON.stringify(palette));
+        assert.equal(palette.background, theme === 'classic' ? 'rgb(2, 6, 23)' : 'rgb(4, 20, 10)', JSON.stringify(palette));
+        await preview.screenshot({ path: path.join(output, `welcome-${theme}.png`) });
+      }
+      await preview.locator('#theme-switcher').selectOption('classic');
+      await preview.waitForFunction(() => getComputedStyle(document.body).backgroundColor === 'rgb(2, 6, 23)');
+      await preview.setViewportSize({ width: 390, height: 844 });
+      assert.equal(await preview.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Mobile welcome must not overflow');
+      await preview.screenshot({ path: path.join(output, 'welcome-mobile.png') });
+      await preview.setViewportSize({ width: 1280, height: 900 });
+      await preview.locator(`#project-list button[data-arg="${A}"]`).click();
+      await preview.frameLocator('iframe').locator('#question-input').waitFor();
+      await preview.evaluate(() => setUiTheme('classic'));
+      assert.equal(await preview.locator('#workspace-theme').isVisible(), false, 'Workspace must not duplicate the frame theme control');
+      assert.ok((await preview.locator('#project-select').evaluate(el => getComputedStyle(el).fontFamily)).includes('Inter'));
+      await preview.screenshot({ path: path.join(output, 'workspace-classic.png') });
+      await preview.setViewportSize({ width: 390, height: 844 });
+      assert.equal(await preview.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Mobile project bar must not overflow');
+      await preview.screenshot({ path: path.join(output, 'workspace-mobile.png') });
+      await preview.locator('#project-home').click();
+      await preview.goBack();
+      await preview.frameLocator('iframe').locator('#question-input').waitFor();
+      assert.equal(await preview.locator('#project-welcome').isVisible(), false);
+      await preview.goForward();
+      await preview.locator('#project-welcome').waitFor();
+      await visual.close();
+    }
     const unknown = await context.newPage();
     await unknown.goto(base + '/?project=' + 'e'.repeat(32));
     await unknown.locator('#workspace-message').filter({ hasText: 'Progetto non disponibile' }).waitFor();
@@ -282,23 +351,27 @@ async function browserChecks() {
     await page.reload();
     await page.waitForFunction(() => document.getElementById('project-new').disabled);
     assert.equal(await page.locator('#project-open').isDisabled(), true);
+    await page.locator('#project-home').click();
+    assert.equal(await page.locator('#welcome-new').isDisabled(), true);
+    assert.equal(await page.locator('#welcome-open').isDisabled(), true);
+    await page.locator('#project-read-only').waitFor();
     projects.length = 0;
     readOnly = false;
     const empty = await context.newPage();
     await empty.goto(base);
-    await empty.locator('#workspace-message').filter({ hasText: 'Nessun progetto' }).waitFor();
+    await empty.locator('#project-list-empty').filter({ hasText: 'Nessun progetto' }).waitFor();
     assert.equal(await empty.locator('iframe').count(), 0);
-    await empty.locator('#project-open').click();
+    await empty.locator('#welcome-open').click();
     await empty.locator('#project-browse').click();
     await empty.waitForFunction(() => document.getElementById('project-input').value === 'C:\\mounted\\existing');
     assert.equal(await empty.locator('#project-input').inputValue(), 'C:\\mounted\\existing');
     await empty.locator('#project-input').press('Escape');
     assert.equal(await empty.locator('#project-dialog').isVisible(), false);
-    assert.equal(await empty.locator('#project-open').evaluate(button => button === document.activeElement), true);
+    assert.equal(await empty.locator('#welcome-open').evaluate(button => button === document.activeElement), true);
     localBind = false;
     const remote = await context.newPage();
     await remote.goto(base);
-    await remote.locator('#project-open').click();
+    await remote.locator('#welcome-open').click();
     assert.equal(await remote.locator('#project-browse').isVisible(), false);
     assert.match(await remote.locator('#project-help').textContent(), /sottocartelle.*gestita.*\/app\/projects/);
     await remote.locator('#project-input').fill('/app/projects/mounted-existing');

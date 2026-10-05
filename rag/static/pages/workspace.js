@@ -9,6 +9,66 @@ let currentProject = selectedProjectId();
 let projects = [];
 let projectReadOnly = true;
 let projectDialogMode = 'new';
+const RECENT_PROJECTS_STORAGE = 'vibecraft-recent-projects';
+let recentProjects = [];
+try {
+  const saved = JSON.parse(localStorage.getItem(RECENT_PROJECTS_STORAGE) || '[]');
+  if (Array.isArray(saved)) recentProjects = saved.filter(item => item && typeof item.id === 'string' && Number.isFinite(item.openedAt)).slice(0, 20);
+} catch (_) { /* Storico facoltativo: storage privato o non valido. */ }
+
+function isProjectWelcome(url = new URL(location.href)) {
+  return url.pathname === '/' && !url.searchParams.get('project');
+}
+function setWelcomeView(visible) {
+  document.getElementById('project-welcome').hidden = !visible;
+  document.getElementById('workspace-pages').hidden = visible;
+  document.getElementById('project-context').hidden = visible;
+  document.getElementById('project-toolbar').hidden = visible;
+  document.getElementById('workspace-theme').hidden = !visible;
+}
+function showProjectWelcome(push = true) {
+  ++workspaceNavigation; // Una navigazione in attesa non deve riaprire un frame sopra la home.
+  setWelcomeView(true);
+  document.getElementById('theme-switcher').value = document.documentElement.dataset.theme;
+  document.getElementById('workspace-status').hidden = true;
+  document.getElementById('project-search').value = '';
+  renderProjectList();
+  document.title = 'VibeCraft · Progetti';
+  const url = new URL('/', location.origin);
+  if (push && url.href !== location.href) history.pushState(null, '', url);
+  if (push) document.getElementById('project-welcome').focus({ preventScroll: true });
+}
+function setIndexBadge(element, project) {
+  const labels = { not_indexed: 'Non indicizzato', ready: 'Indice pronto', indexing: 'Indicizzazione in corso', error: 'Errore indice' };
+  element.textContent = project ? `${labels[project.index_status] || 'Stato indice non disponibile'}${project.stale ? ' · da aggiornare' : ''}` : '';
+  element.dataset.state = project?.index_status === 'ready' && project.stale ? 'stale' : project?.index_status || '';
+}
+function renderProjectList() {
+  const filter = document.getElementById('project-search').value.trim().toLocaleLowerCase();
+  const opened = new Map(recentProjects.map(item => [item.id, item.openedAt]));
+  const matching = [...projects].filter(project => project.name.toLocaleLowerCase().includes(filter))
+    .sort((a, b) => (opened.get(b.id) || 0) - (opened.get(a.id) || 0));
+  const list = document.getElementById('project-list');
+  list.replaceChildren();
+  for (const project of matching) {
+    const card = document.getElementById('project-card-template').content.firstElementChild.cloneNode(true);
+    card.dataset.arg = project.id;
+    card.querySelector('.project-card-name').textContent = project.name;
+    const path = card.querySelector('.project-card-path');
+    path.textContent = project.root || (project.legacy ? 'Progetto originale' : 'Progetto VibeCraft');
+    path.title = path.textContent;
+    const lastOpened = opened.get(project.id);
+    card.querySelector('.project-card-meta').textContent = lastOpened
+      ? 'Ultima apertura: ' + new Date(lastOpened).toLocaleString('it-IT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+      : 'Pronto da aprire';
+    setIndexBadge(card.querySelector('.project-card-status'), project);
+    list.appendChild(card);
+  }
+  document.getElementById('project-count').textContent = `${matching.length} ${matching.length === 1 ? 'progetto' : 'progetti'}`;
+  const empty = document.getElementById('project-list-empty');
+  empty.hidden = matching.length > 0;
+  empty.textContent = filter ? 'Nessun progetto corrisponde alla ricerca.' : 'Nessun progetto ancora. Crea un progetto o apri una cartella esistente.';
+}
 
 function workspaceMessage(text, retry = false) {
   document.getElementById('workspace-status').hidden = false;
@@ -37,12 +97,14 @@ function renderProjects() {
   select.disabled = !projects.length;
   document.getElementById('project-new').disabled = projectReadOnly;
   document.getElementById('project-open').disabled = projectReadOnly;
+  document.getElementById('welcome-new').disabled = projectReadOnly;
+  document.getElementById('welcome-open').disabled = projectReadOnly;
+  document.getElementById('project-read-only').hidden = !projectReadOnly;
   renderIndexStatus(projects.find(project => project.id === currentProject));
+  renderProjectList();
 }
 function renderIndexStatus(project) {
-  const labels = { not_indexed: 'Non indicizzato', ready: 'Indice pronto', indexing: 'Indicizzazione in corso', error: 'Errore indice' };
-  document.getElementById('project-index-status').textContent = project
-    ? `${labels[project.index_status] || 'Stato indice non disponibile'}${project.stale ? ' · da aggiornare' : ''}` : '';
+  setIndexBadge(document.getElementById('project-index-status'), project);
 }
 async function refreshIndexStatus(id = currentProject) {
   if (!id) return;
@@ -60,6 +122,8 @@ async function refreshIndexStatus(id = currentProject) {
 function selectCurrentProject(id) {
   currentProject = id;
   try { sessionStorage.setItem(PROJECT_STORAGE, id); } catch (_) { /* tab privata */ }
+  recentProjects = [{ id, openedAt: Date.now() }, ...recentProjects.filter(item => item.id !== id)].slice(0, 20);
+  try { localStorage.setItem(RECENT_PROJECTS_STORAGE, JSON.stringify(recentProjects)); } catch (_) { /* storico facoltativo */ }
   document.getElementById('project-select').value = id;
   renderIndexStatus(projects.find(project => project.id === id));
 }
@@ -88,6 +152,8 @@ async function navigateWorkspace(target, push = true) {
   const url = new URL(target, location.origin);
   if (url.origin !== location.origin || !workspaceRoutes.has(url.pathname)) return;
   url.searchParams.delete('workspace');
+  // La root senza ID è sempre la schermata iniziale, anche con una selezione salvata.
+  if (isProjectWelcome(url)) { showProjectWelcome(push); return; }
   const project = url.searchParams.get('project') || currentProject;
   if (!project) { workspaceMessage('Nessun progetto selezionato. Crea un nuovo progetto o aprine uno esistente.'); return; }
   if (!projects.some(item => item.id === project)) { workspaceMessage('Progetto non disponibile. Seleziona un progetto valido.'); return; }
@@ -95,6 +161,7 @@ async function navigateWorkspace(target, push = true) {
   const key = project + ':' + url.pathname;
   const navigation = ++workspaceNavigation;
   workspaceTarget = url.href;
+  setWelcomeView(false);
   workspaceMessage('Caricamento…');
   try {
     reserveProject(project);
@@ -196,6 +263,8 @@ async function browseExistingProject() {
   finally { button.disabled = false; document.getElementById('project-input').focus(); }
 }
 async function initializeWorkspace() {
+  const welcome = isProjectWelcome();
+  setWelcomeView(welcome);
   try {
     const response = await fetch('/api/projects');
     const data = await response.json();
@@ -203,7 +272,7 @@ async function initializeWorkspace() {
     projects = data.projects;
     projectReadOnly = data.read_only;
     // Compatibilità soltanto legacy; nessun fallback al primo progetto della lista.
-    if (!currentProject && projects.some(project => project.id === 'legacy')) currentProject = 'legacy';
+    if (!welcome && !currentProject && projects.some(project => project.id === 'legacy')) currentProject = 'legacy';
     renderProjects();
     await navigateWorkspace(location.href, false);
   } catch (error) { workspaceMessage(`Impossibile caricare i progetti: ${error.message}`, true); }
@@ -212,12 +281,23 @@ async function initializeWorkspace() {
 window.navigateWorkspace = navigateWorkspace;
 window.workspaceRoutes = workspaceRoutes;
 registerActions({
-  retryNavigation: () => projects.length ? navigateWorkspace(workspaceTarget) : initializeWorkspace(),
+  retryNavigation: () => isProjectWelcome() || !projects.length ? initializeWorkspace() : navigateWorkspace(workspaceTarget),
+  showProjects: () => showProjectWelcome(), filterProjects: renderProjectList,
+  openRecentProject: el => {
+    const url = new URL('/', location.origin);
+    url.searchParams.set('project', el.dataset.arg);
+    return navigateWorkspace(url.href);
+  },
   selectProject: el => { const url = new URL(location.href); url.searchParams.set('project', el.value); return navigateWorkspace(url.href); },
   newProject: () => showProjectDialog('new'), openProject: () => showProjectDialog('open'),
   cancelProject: () => document.getElementById('project-dialog').close(), browseExistingProject,
 });
 document.getElementById('project-form').addEventListener('submit', submitProject);
 window.addEventListener('popstate', () => navigateWorkspace(location.href, false));
-setInterval(() => refreshIndexStatus(), 15000);
+window.onThemeChange = value => {
+  for (const page of workspacePages.values()) {
+    if (page.frame && !page.frame.hidden) page.frame.contentWindow.setUiTheme(value);
+  }
+};
+setInterval(() => { if (document.getElementById('project-welcome').hidden) refreshIndexStatus(); }, 15000);
 initializeWorkspace();
