@@ -3,6 +3,7 @@
 L'avvio agentic usa questo gate. Errori di storage non diventano record assenti.
 """
 import json
+import hashlib
 import os
 import re
 from contextlib import contextmanager
@@ -150,8 +151,16 @@ class PipelineStore:
             record = ValidationRecord.model_validate(json.loads(raw, object_pairs_hook=_unique_keys))
             if record.feature != feature or record.validation_id != identifier:
                 raise ValueError('Identità del record diversa dal percorso richiesto')
+            marker = _unlinked(self.root.parent / '.migrated-validations.json')
+            if marker.exists():
+                migrated = json.loads(marker.read_text(encoding='utf-8'), object_pairs_hook=_unique_keys)
+                if not isinstance(migrated, dict) or any(not isinstance(k, str) or not isinstance(v, str)
+                                                       for k, v in migrated.items()):
+                    raise ValueError('Invalid migrated validation inventory')
+                if migrated.get(path.relative_to(self.root).as_posix()) == hashlib.sha256(path.read_bytes()).hexdigest():
+                    return record.model_copy(update={'status': 'stale', 'passed': False})
             return record
-        except (ValueError, ValidationError) as exc:
+        except (OSError, UnicodeError, ProjectError, ValueError, ValidationError) as exc:
             raise PipelineStorageError(f'Record di validazione corrotto: {exc}') from exc
 
     def decisions(self, feature: str) -> list[PointDecision]:

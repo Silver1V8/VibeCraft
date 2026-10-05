@@ -217,7 +217,7 @@ class _ManifestLoader(yaml.SafeLoader):
 
 class ProjectRegistry:
     def __init__(self, projects_dir: Path | None = None, *, legacy_context: ProjectContext | None = None,
-                 bootstrap_legacy: bool = True, readonly: bool = False):
+                 bootstrap_legacy: bool = True, readonly: bool = False, initialize: bool = True):
         path = Path(projects_dir if projects_dir is not None else installation.PROJECTS_DIR).expanduser()
         if not path.is_absolute():
             raise ProjectError("Projects directory must be absolute", status_code=422,
@@ -228,7 +228,7 @@ class ProjectRegistry:
         self._legacy = legacy_context if legacy_context is not None else legacy_project_context()
         self._readonly = readonly
         self._registry_seen = self.registry_path.exists()
-        if readonly or installation.ROLE == "reader":
+        if readonly or installation.ROLE == "reader" or not initialize:
             self._read()
             return
         with self._lock():
