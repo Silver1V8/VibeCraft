@@ -129,8 +129,6 @@ def _manifest(root: Path) -> ProjectContext:
                 or raw.keys() - {"schema_version", "id", "name", "settings"}):
             raise ValueError("Invalid project manifest schema")
         project_id = validate_project_id(raw.get("id"))
-        if project_id == "legacy":
-            raise ValueError("legacy is reserved for installation bootstrap")
         name = _name(raw.get("name"))
         settings = _settings(raw.get("settings", {}))
         paths = [root / part for part in ("code", "docs", "changes", "database", "database/staging")]
@@ -156,6 +154,28 @@ def _has_legacy_data(project: ProjectContext) -> bool:
                        and (parent / name).stat().st_size for name in files):
                     return True
     return False
+
+
+def _migration_required() -> ProjectError:
+    return ProjectError("Run the explicit project layout migration", status_code=409,
+                        code="project_migration_required")
+
+
+def _create_project_root(root: Path, project_id: str, name: str,
+                         settings: dict | None = None) -> ProjectContext:
+    validate_project_id(project_id)
+    name = _name(name)
+    _settings(settings or {})
+    _unlinked(root)
+    root.mkdir()  # Never overwrite an unregistered root.
+    for directory in ("code", "docs", "changes", "database/versions", "database/staging",
+                      "database/pipeline", "database/eval"):
+        (root / directory).mkdir(parents=True)
+    manifest = {"schema_version": 1, "id": project_id, "name": name}
+    if settings:
+        manifest["settings"] = settings
+    _atomic_write_text(root / "project.yaml", yaml.safe_dump(manifest, allow_unicode=True))
+    return _manifest(root)
 
 
 def _json_object(pairs):
@@ -195,7 +215,7 @@ class ProjectRegistry:
             else:
                 records = []
                 if bootstrap_legacy and _has_legacy_data(self._legacy):
-                    records.append(self._record(self._legacy))
+                    raise _migration_required()
                 self._write(records)
 
     @contextmanager
@@ -224,7 +244,7 @@ class ProjectRegistry:
                 return []
             data = json.loads(self.registry_path.read_text(encoding="utf-8"), object_pairs_hook=_json_object)
             if (not isinstance(data, dict) or data.keys() != {"schema_version", "projects"}
-                    or type(data["schema_version"]) is not int or data["schema_version"] != 1
+                    or type(data["schema_version"]) is not int or data["schema_version"] not in (1, 2)
                     or not isinstance(data["projects"], list)):
                 raise ValueError("Invalid registry schema")
             ids, roots = set(), set()
@@ -233,7 +253,8 @@ class ProjectRegistry:
                     raise ValueError("Invalid registry record")
                 validate_project_id(record["id"])
                 _name(record["name"])
-                if type(record["legacy"]) is not bool or record["legacy"] != (record["id"] == "legacy"):
+                expected_legacy = data["schema_version"] == 1 and record["id"] == "legacy"
+                if type(record["legacy"]) is not bool or record["legacy"] != expected_legacy:
                     raise ValueError("Invalid legacy record")
                 if not isinstance(record["root"], str) or not Path(record["root"]).is_absolute():
                     raise ValueError("Registry root must be absolute")
@@ -250,24 +271,37 @@ class ProjectRegistry:
             raise ProjectError(f"Cannot read project registry: {exc}") from exc
 
     def _write(self, records):
-        _atomic_write_json(self.registry_path, {"schema_version": 1, "projects": records})
+        if any(record["legacy"] for record in records):
+            raise _migration_required()
+        _atomic_write_json(self.registry_path, {"schema_version": 2, "projects": records})
         self._registry_seen = True
 
     def _context(self, record):
+        if record["legacy"]:
+            raise _migration_required()
         try:
-            if record["legacy"]:
-                if Path(record["root"]) != self._legacy.root.resolve() or not self._legacy.root.is_dir():
-                    raise ValueError("Legacy installation root missing or changed")
-                for path in (self._legacy.code_dir, self._legacy.docs_dir, self._legacy.changes_dir,
-                             self._legacy.database_dir, self._legacy.staging_dir):
-                    _unlinked(path)
-                return replace(self._legacy, name=record["name"], settings=deepcopy(self._legacy.settings))
             project = _manifest(Path(record["root"]))
             if project.id != record["id"] or project.name != record["name"]:
                 raise ValueError("Registry and project manifest disagree")
             return project
         except (ValueError, ProjectError) as exc:
             raise ProjectError(f"Cannot open registered project: {exc}") from exc
+
+    def historical_project(self) -> ProjectContext | None:
+        records = self._read()
+        historical = next((record for record in records if record["legacy"]), None)
+        if historical is None:
+            if any(record["id"] == "legacy" for record in records) or not _has_legacy_data(self._legacy):
+                return None
+        elif Path(historical["root"]) != self._legacy.root.resolve():
+            raise ProjectError("Historical installation root changed")
+        for path in (self._legacy.root, self._legacy.code_dir, self._legacy.docs_dir,
+                     self._legacy.changes_dir, self._legacy.database_dir, self._legacy.staging_dir):
+            _unlinked(path)
+        if not self._legacy.root.is_dir():
+            raise ProjectError("Historical installation root missing")
+        return replace(self._legacy, name=historical["name"] if historical else self._legacy.name,
+                       settings=deepcopy(self._legacy.settings))
 
     def list(self) -> list[ProjectContext]:
         return [self._context(record) for record in self._read()]
@@ -309,16 +343,11 @@ class ProjectRegistry:
         name = _name(name)
         with self._lock():
             records = self._read()
+            if any(record["legacy"] for record in records):
+                raise _migration_required()
             project_id = uuid.uuid4().hex
             root = self.projects_dir / project_id
-            _unlinked(root)
-            root.mkdir()  # No exist_ok: never overwrite an unregistered root.
-            for directory in ("code", "docs", "changes", "database/versions", "database/staging",
-                              "database/pipeline", "database/eval"):
-                (root / directory).mkdir(parents=True)
-            _atomic_write_text(root / "project.yaml", yaml.safe_dump(
-                {"schema_version": 1, "id": project_id, "name": name}, allow_unicode=True))
-            project = _manifest(root)
+            project = _create_project_root(root, project_id, name)
             self._append(project, records)
             return project
 
@@ -329,6 +358,8 @@ class ProjectRegistry:
             raise ProjectError("Project root must be absolute", status_code=422, code="invalid_project_path")
         with self._lock():
             records = self._read()
+            if any(record["legacy"] for record in records):
+                raise _migration_required()
             project = _manifest(path)
             self._append(project, records)
             return project

@@ -69,7 +69,7 @@ def test_duplicate_id_and_canonical_root_leave_registry_unchanged(tmp_path):
         assert store.registry_path.read_bytes() == before
 
 
-@pytest.mark.parametrize("payload", ["{", '{"schema_version": 2, "projects": []}',
+@pytest.mark.parametrize("payload", ["{", '{"schema_version": 3, "projects": []}',
     '{"schema_version": 1, "projects": {}}',
     '{"schema_version": true, "projects": []}'])
 def test_corrupt_registry_is_never_overwritten(tmp_path, payload):
@@ -85,7 +85,7 @@ def test_corrupt_registry_is_never_overwritten(tmp_path, payload):
 
 
 @pytest.mark.parametrize("extra", [{"schema_version": 2}, {"id": "../outside"},
-    {"id": "legacy"}, {"name": " "}, {"root": "/other"},
+    {"id": "LEGACY"}, {"name": " "}, {"root": "/other"},
     {"settings": {"vector_database": {"collection_name": "other"}}},
     {"settings": {"authority": {"endpoint": "http://other"}}},
     {"settings": {"verification": {"commands": {"web": "npm test"}}}},
@@ -148,7 +148,7 @@ def test_linked_project_directories_and_registry_are_rejected(tmp_path):
     assert not list(outside.iterdir())
 
 
-def test_legacy_registration_preserves_paths_and_collection(tmp_path):
+def test_v1_legacy_requires_explicit_migration(tmp_path):
     legacy_root = tmp_path / "legacy"
     legacy_root.mkdir()
     db = tmp_path / "custom database"
@@ -160,15 +160,49 @@ def test_legacy_registration_preserves_paths_and_collection(tmp_path):
                      docs_dir=legacy_root / "custom-docs", changes_dir=legacy_root / "changes",
                      database_dir=db, staging_dir=legacy_root / "rag" / "old-staging")
     before = artifact.read_bytes()
-    for _ in range(2):
-        store = ProjectRegistry(tmp_path / "managed", legacy_context=legacy)
-        actual = store.get("legacy")
-        assert actual == legacy
-        assert actual.collection_name == installation.COLLECTION_NAME
+    store = ProjectRegistry(tmp_path / "managed", legacy_context=legacy, bootstrap_legacy=False)
+    store.registry_path.write_text(json.dumps({"schema_version": 1, "projects": [
+        {"id": "legacy", "name": legacy.name, "root": str(legacy.root), "legacy": True}
+    ]}), encoding="utf-8")
+    registry_before = store.registry_path.read_bytes()
+    for action in (lambda: store.get("legacy"), lambda: store.create("Other"),
+                   lambda: store.register(manifest(tmp_path / "external"))):
+        with pytest.raises(ProjectError) as error:
+            action()
+        assert error.value.code == "project_migration_required"
+        assert error.value.status_code == 409
+        assert store.registry_path.read_bytes() == registry_before
         assert artifact.read_bytes() == before
         assert not (legacy_root / "project.yaml").exists()
-    store.registry_path.write_text('{"schema_version": 1, "projects": []}', encoding="utf-8")
-    assert ProjectRegistry(store.projects_dir, legacy_context=legacy).list() == []
+    assert store.historical_project() == legacy
+
+
+def test_legacy_id_uses_an_ordinary_manifest(tmp_path):
+    store = registry(tmp_path)
+    project = store.register(manifest(tmp_path / "managed" / "legacy", "legacy", "Initial"))
+    assert project.id == "legacy" and project.legacy is False
+    assert project.collection_name == "vibecraft_legacy"
+    assert store.get("legacy") == project
+    assert json.loads(store.registry_path.read_text())["schema_version"] == 2
+
+
+def test_v1_ordinary_records_remain_openable(tmp_path):
+    store = registry(tmp_path)
+    project = store.create("A")
+    raw = json.loads(store.registry_path.read_text())
+    raw["schema_version"] = 1
+    store.registry_path.write_text(json.dumps(raw))
+    original = store.registry_path.read_bytes()
+    assert ProjectRegistry(store.projects_dir, readonly=True).get(project.id) == project
+    assert store.registry_path.read_bytes() == original
+    store.create("B")
+    assert json.loads(store.registry_path.read_text())["schema_version"] == 2
+
+
+def test_empty_v2_registry_stays_empty(tmp_path):
+    store = registry(tmp_path)
+    store.registry_path.write_text('{"schema_version": 2, "projects": []}')
+    assert ProjectRegistry(store.projects_dir).list() == []
 
 
 def test_empty_installation_does_not_bootstrap_legacy(tmp_path):
@@ -299,7 +333,10 @@ def test_registered_roots_cannot_overlap_external_legacy_staging(tmp_path, locat
     legacy = replace(legacy_project_context(), root=root, code_dir=root / "code",
                      docs_dir=root / "docs", changes_dir=root / "changes",
                      database_dir=db, staging_dir=stage)
-    store = ProjectRegistry(tmp_path / "managed", legacy_context=legacy)
+    store = ProjectRegistry(tmp_path / "managed", legacy_context=legacy, bootstrap_legacy=False)
+    store.registry_path.write_text(json.dumps({"schema_version": 1, "projects": [
+        {"id": "legacy", "name": legacy.name, "root": str(root), "legacy": True}
+    ]}))
     external = manifest(stage_parent if location == "parent" else stage / "nested project")
     before = store.registry_path.read_bytes()
     with pytest.raises(ProjectError) as error:
