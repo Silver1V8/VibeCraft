@@ -123,7 +123,7 @@ modulo di migrazione è il confine fra compatibilità storica e operazioni ordin
 - [x] **Step 2: Verificare RED.** `uv run --frozen pytest tests/test_docker_compose_pinned.py tests/test_docker_index.py tests/test_project_tools.py tests/test_project_integration.py -v`. Atteso: istruzioni/test o script ancora riferiti al layout storico attivo.
 - [x] **Step 3: Implementare.** Separare nei commenti/config i percorsi di sorgente storica dai percorsi attivi; la compatibilità storica viene usata solo dalla migrazione. Conservare il volume `/app/projects` e i permessi UID 10001. I vecchi bind docs/code/database servono solo come sorgenti di migrazione, con istruzioni esplicite. Aggiornare script in modo che HTTP e fallback CLI lavorino sullo stesso target. Documentare il bootstrap una tantum, i progetti nuovi vuoti, i percorsi host/container e la copia recuperabile. Non migrare ancora il workspace reale.
 - [x] **Step 4: Verifica finale unica.** Da `rag/`: `uv run --frozen ruff check .`; `uv run --frozen pytest -rs`; `node tests/projects_workspace.cjs`. Usare il servizio Qdrant dedicato e il browser di integrazione se disponibili, rispettando `VIBECRAFT_TEST_QDRANT_URL` e `VIBECRAFT_REQUIRE_QDRANT`; non usare collection di produzione per i test. Riportare separatamente ogni verifica non eseguita. Eseguire `git diff --check` dalla root e confrontare il diff con tutti i criteri della specifica.
-- [ ] **Step 5: Commit e handoff.** Commit solo dei file di distribuzione/documentazione e dei test aggiornati: `git commit -m 'docs: align setup and scripts with uniform project layout'`. Review finale dell'intero diff; applicare e verificare soltanto le correzioni necessarie. Consegnare riepilogo, risultati dei controlli e comando di migrazione reale. La migrazione del workspace esistente va eseguita a processi fermi, dopo avere verificato che i servizi necessari siano disponibili; se manca un requisito operativo, lasciare i dati intatti e indicare quello specifico.
+- [x] **Step 5: Commit e handoff.** Commit solo dei file di distribuzione/documentazione e dei test aggiornati: `git commit -m 'docs: align setup and scripts with uniform project layout'`. Review finale dell'intero diff; applicare e verificare soltanto le correzioni necessarie. Consegnare riepilogo, risultati dei controlli e comando di migrazione reale. La migrazione del workspace esistente va eseguita a processi fermi, dopo avere verificato che i servizi necessari siano disponibili; se manca un requisito operativo, lasciare i dati intatti e indicare quello specifico.
 
 ## Controllo di copertura del piano
 
@@ -139,3 +139,18 @@ e dal medesimo contesto, quindi un unico implementatore mantiene più facilmente
 coerenti migrazione e runtime. Alternativa: subagenti per task con review fra i
 passaggi. Prima dell'implementazione serve la revisione del piano e la scelta
 del metodo; poi seguire il workflow della skill scelta e la verifica finale.
+
+## Esito verificato
+
+Implementazione su `codex/uniform-project-layout`, base `main` a `6b86d77`.
+Review finale indipendente: corretti i quattro rilievi su errori di enumerazione,
+alias estranei, recupero prima/dopo promozione e discovery dello storico senza
+corpus/registro. Sette regressioni osservate RED e poi GREEN. Corretto anche il
+falso esito positivo di eval senza casi, con quattro regressioni RED→GREEN.
+
+Verifica finale: `python -m pytest -rs` con Qdrant dedicato e integrazione browser:
+2488 passed, 25 skipped (5 pesi Docling assenti nel worktree, 20 privilegi symlink
+Windows mancanti). Ruff, diff whitespace e sintassi PowerShell/Bash passano.
+Il workspace reale non è stato migrato: server 8000 attivo, PID 21908.
+Dopo integrazione, a writer fermi, eseguire da `rag/`:
+`uv run --frozen python -m scripts.migrate_project_layout`.

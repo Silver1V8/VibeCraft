@@ -494,7 +494,8 @@ def _build_full_state(embed_model, docs_dir: Path, code_dir: Path, emit=None,
 
 
 def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, emit=None,
-                          promote: bool = True, collector: dict | None = None, project: ProjectContext | None = None) -> str | None:
+                          promote: bool = True, collector: dict | None = None, project: ProjectContext | None = None,
+                          before_promote=None) -> str | None:
     """Esegue l'indicizzazione completa (Fase 0 e Fase 4) e restituisce il nome della
     versione blue/green scritta.
 
@@ -509,6 +510,7 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     `promote=False` lascia la nuova versione NON attiva (CURRENT invariato): è il gancio
     per la promozione condizionata dei job full del ReindexManager (eval gate) — il
     chiamante promuove poi con `core.artifacts.promote_version(nome)`.
+    `before_promote` permette alla migrazione di salvare la candidata approvata prima di CURRENT.
 
     Nome di versione e nome di collection sono DECISI UNA SOLA VOLTA all'inizio della
     funzione e riusati fino al salvataggio degli artefatti, al manifest e ai log.
@@ -666,6 +668,8 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
             # `collection_name` è la STESSA variabile locale usata per costruire
             # questa versione — non una ricostruzione indipendente del nome, quindi
             # mai ambigua.
+            if before_promote is not None:
+                before_promote(version)
             promote_version(version, project=project)
             if project is None or project.legacy:
                 _migrate_legacy_collection_if_needed(qdrant, alias_name, emit=_log)

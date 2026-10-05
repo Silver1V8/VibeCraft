@@ -8,7 +8,7 @@ import tempfile
 from dataclasses import replace
 
 from core.artifacts import _atomic_write, _atomic_write_json
-from core.projects import ProjectContext, ProjectError, _unlinked
+from core.projects import ProjectContext, ProjectError, _unlinked, _raise_walk_error
 
 
 def _inventory(root: Path, *, copying: bool = False) -> dict[str, str]:
@@ -21,7 +21,7 @@ def _inventory(root: Path, *, copying: bool = False) -> dict[str, str]:
             return {"": hashlib.file_digest(stream, "sha256").hexdigest()}
     if not root.is_dir():
         raise ProjectError("Copy source must be a file or directory")
-    for parent, directories, files in root.walk():
+    for parent, directories, files in root.walk(on_error=_raise_walk_error):
         for name in [*directories, *files]:
             _unlinked(parent / name)
         for name in files:
@@ -46,7 +46,7 @@ def copy_source_tree(source: Path, target: Path) -> dict[str, str]:
                            code="project_conflict")
     if source.is_dir():
         target.mkdir(parents=True, exist_ok=True)
-        for parent, directories, _ in source.walk():
+        for parent, directories, _ in source.walk(on_error=_raise_walk_error):
             for name in directories:
                 destination = _unlinked(target / (parent / name).relative_to(source))
                 destination.mkdir(parents=True, exist_ok=True)
@@ -173,19 +173,23 @@ def migrate_legacy_project(registry, *, qdrant=None, embed_model=None, emit=None
                         qdrant = QdrantClient(url=config.QDRANT_URL, api_key=config.QDRANT_API_KEY)
                     try:
                         names = {collection.name for collection in qdrant.get_collections().collections}
-                        aliases = {alias.alias_name for alias in qdrant.get_aliases().aliases}
-                        occupied = {name for name in names | aliases
+                        aliases = {alias.alias_name: alias.collection_name for alias in qdrant.get_aliases().aliases}
+                        occupied = {name for name in names | aliases.keys()
                                     if name == target.collection_name or name.startswith(target.collection_name + "__")}
                         version = checkpoint.get("version")
                         if version:
                             expected = qdrant_versions._qdrant_collection_for_version(version, project=target)
                             if occupied - {expected, target.collection_name} or target.collection_name in names:
                                 raise ProjectError("Migration namespace contains foreign collections")
-                            if artifacts.current_version(project=target) != version:
+                            if aliases.get(target.collection_name) not in (None, expected):
+                                raise ProjectError("Migration alias points to a foreign collection")
+                            current = artifacts.current_version(project=target)
+                            if current != version and (current is not None or not repair
+                                                       or checkpoint.get("promotion_approved") is not True):
                                 raise ProjectError("Migration CURRENT changed")
                             if repair and checkpoint["phase"] == "copied":
-                                # CURRENT is written only after the promotion gate passes.
-                                manifest = artifacts._read_manifest(project=target)
+                                # Ownership is checkpointed after the gate passes, before CURRENT.
+                                manifest = json.loads(artifacts.manifest_path(version, project=target).read_text())
                                 if (not manifest or not manifest.get("artifact_hashes")
                                         or manifest["artifact_hashes"] != artifacts.artifact_hashes(
                                             version, deep=True, project=target)):
@@ -194,14 +198,21 @@ def migrate_legacy_project(registry, *, qdrant=None, embed_model=None, emit=None
                                                                   version=version, skip_colbert=True, project=target)
                                 if qdrant.count(collection_name=expected, exact=True).count != len(loaded.chunks_store):
                                     raise ProjectError("Migration candidate vectors are incomplete")
+                                if current is None:
+                                    artifacts.promote_version(version, project=target)
                                 qdrant_versions._swap_alias(qdrant, target.collection_name, expected)
                         else:
                             if occupied or source.collection_name == target.collection_name:
                                 raise ProjectError("Migration namespace already occupied", status_code=409,
                                                    code="project_conflict")
                             try:
+                                def before_promote(candidate):
+                                    checkpoint["version"] = candidate
+                                    checkpoint["promotion_approved"] = True
+                                    _atomic_write_json(checkpoint_path, checkpoint)
                                 version = indexing.build_graph_and_index(qdrant=qdrant, embed_model=embed_model,
-                                                                        emit=emit, promote=True, project=target)
+                                                                        emit=emit, promote=True, project=target,
+                                                                        before_promote=before_promote)
                             except Exception:
                                 promoted = artifacts.current_version(project=target)
                                 if promoted:

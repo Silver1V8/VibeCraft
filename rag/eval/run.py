@@ -326,7 +326,7 @@ def main() -> int:
     cases = load_golden_cases(golden)
     if not cases:
         print('Golden set missing or empty: quality not evaluated.')
-        return 0
+        return 3
     headers = {'X-VibeCraft-Project': project.id}
     if os.environ.get('VIBECRAFT_API_KEY'):
         headers['X-API-Key'] = os.environ['VIBECRAFT_API_KEY']

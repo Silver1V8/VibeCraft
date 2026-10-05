@@ -336,3 +336,78 @@ def test_migration_repairs_owned_current_alias_interruption(tmp_path, source, mo
         project = migration.migrate_legacy_project(registry, qdrant=qdrant, repair=True)
         assert qdrant_versions._read_alias_target(qdrant, project.collection_name)
         assert qdrant.collection_exists(source.collection_name)
+
+
+@pytest.mark.parametrize("failed_walk", [1, 2])
+def test_copy_aborts_on_directory_enumeration_error(tmp_path, source, monkeypatch, failed_walk):
+    from core.project_migration import copy_source_tree
+    walk = Path.walk
+    calls = 0
+    def failing_walk(path, *, on_error=None, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == failed_walk:
+            if on_error:
+                on_error(PermissionError("nested directory unavailable"))
+            return
+        yield from walk(path, on_error=on_error, **kwargs)
+    monkeypatch.setattr(Path, "walk", failing_walk)
+    with pytest.raises(PermissionError):
+        copy_source_tree(source.docs_dir, tmp_path / "copy")
+
+
+@pytest.mark.parametrize("location", ["staging", "pipeline"])
+def test_migration_discovers_history_without_corpus_or_registry(tmp_path, source, location):
+    from core.project_migration import migrate_legacy_project
+    (source.docs_dir / "baseline.md").unlink()
+    old = (source.staging_dir if location == "staging" else source.database_dir / "pipeline") / "history.txt"
+    old.parent.mkdir(parents=True, exist_ok=True)
+    old.write_bytes(b"Only historical content")
+    with pytest.raises(ProjectError, match="migration"):
+        ProjectRegistry(tmp_path / "managed", legacy_context=source)
+    registry = ProjectRegistry(tmp_path / "managed", legacy_context=source, initialize=False)
+    target = migrate_legacy_project(registry)
+    new = (target.staging_dir if location == "staging" else target.database_dir / "pipeline") / "history.txt"
+    assert new.read_bytes() == old.read_bytes()
+    assert registry.get("legacy") == target
+
+
+def test_migration_repair_preserves_foreign_alias(tmp_path, source, monkeypatch):
+    from qdrant_client import QdrantClient
+    from test_project_indexing import Embed
+    from core import indexing, qdrant_versions, project_migration as migration
+    registry = historical_registry(tmp_path, source, indexed=True)
+    original = registry.registry_path.read_bytes()
+    monkeypatch.setattr(indexing, "_swap_alias", lambda *a: (_ for _ in ()).throw(OSError("alias interrupted")))
+    with closing(QdrantClient(":memory:")) as qdrant:
+        with pytest.raises(ProjectError):
+            migration.migrate_legacy_project(registry, qdrant=qdrant, embed_model=Embed())
+        indexing._ensure_collection(qdrant, collection_name="foreign_documents")
+        qdrant_versions._swap_alias(qdrant, "vibecraft_legacy", "foreign_documents")
+        with pytest.raises(ProjectError):
+            migration.migrate_legacy_project(registry, qdrant=qdrant, repair=True)
+        assert qdrant_versions._read_alias_target(qdrant, "vibecraft_legacy") == "foreign_documents"
+        assert registry.registry_path.read_bytes() == original
+
+
+@pytest.mark.parametrize("interruption", ["verification", "promotion"])
+def test_migration_resumes_owned_candidate_without_rebuilding(tmp_path, source, monkeypatch, interruption):
+    from qdrant_client import QdrantClient
+    from test_project_indexing import Embed
+    from core import indexing, artifacts, project_migration as migration
+    registry = historical_registry(tmp_path, source, indexed=True)
+    original = registry.registry_path.read_bytes()
+    attribute = "check_index_integrity" if interruption == "verification" else "promote_version"
+    real = getattr(indexing, attribute)
+    monkeypatch.setattr(indexing, attribute, lambda *a, **k: (_ for _ in ()).throw(OSError("interrupted")))
+    with closing(QdrantClient(":memory:")) as qdrant:
+        with pytest.raises(ProjectError):
+            migration.migrate_legacy_project(registry, qdrant=qdrant, embed_model=Embed())
+        checkpoint = json.loads((registry.projects_dir / ".legacy-migration.json").read_text())
+        assert checkpoint.get("version")
+        assert registry.registry_path.read_bytes() == original
+        monkeypatch.setattr(indexing, attribute, real)
+        monkeypatch.setattr(indexing, "build_graph_and_index", lambda *a, **k: pytest.fail("owned candidate rebuilt"))
+        target = migration.migrate_legacy_project(registry, qdrant=qdrant, repair=interruption == "promotion")
+        assert artifacts.current_version(project=target) == checkpoint["version"]
+        assert registry.get("legacy") == target

@@ -41,6 +41,8 @@ if curl -sf --max-time 5 "${project_headers[@]}" "$quality_url/api/health" >/dev
     echo "[$(date -Is)] Check di qualita' del retrieval (eval sul golden set)..."
     if uv run python -m eval.run --project "$project_id" --url "$quality_url" --check-regression >/dev/null 2>&1; then
         echo "[$(date -Is)] Qualita' del retrieval OK."
+    elif [ "$?" -eq 3 ]; then
+        echo "[$(date -Is)] Qualita' non valutata: golden set assente o vuoto."
     else
         echo "[$(date -Is)] Qualita' del retrieval: regressione o sotto soglia (alert registrato dall'eval)."
     fi
@@ -52,6 +54,8 @@ if curl -sf --max-time 5 "${project_headers[@]}" "$quality_url/api/health" >/dev
     echo "[$(date -Is)] Check strutturale/multihop (grafo + retrieval)..."
     if uv run python -m eval.run_multihop --project "$project_id" --url "$quality_url" >/dev/null 2>&1; then
         echo "[$(date -Is)] Suite strutturale/multihop OK."
+    elif [ "$?" -eq 3 ]; then
+        echo "[$(date -Is)] Suite strutturale/multihop non valutata: golden set assente o vuoto."
     else
         echo "[$(date -Is)] Suite strutturale/multihop sotto soglia (alert registrato)."
     fi

@@ -60,6 +60,7 @@ try {
     Write-Host "[$(Get-Date -Format o)] Check di qualita' del retrieval (eval sul golden set)..."
     & uv run python -m eval.run --project $ProjectId --url $qualityUrl --check-regression *> $null
     if ($LASTEXITCODE -eq 0) { Write-Host "[$(Get-Date -Format o)] Qualita' del retrieval OK." }
+    elseif ($LASTEXITCODE -eq 3) { Write-Host "[$(Get-Date -Format o)] Qualita' non valutata: golden set assente o vuoto." }
     else { Write-Host "[$(Get-Date -Format o)] Qualita' del retrieval: regressione o sotto soglia (alert registrato)." }
 
     # Suite STRUTTURALE/MULTIHOP (A4). Era l'unica suite senza gate: girava a mano, quindi la
@@ -69,6 +70,7 @@ try {
     Write-Host "[$(Get-Date -Format o)] Check strutturale/multihop (grafo + retrieval)..."
     & uv run python -m eval.run_multihop --project $ProjectId --url $qualityUrl *> $null
     if ($LASTEXITCODE -eq 0) { Write-Host "[$(Get-Date -Format o)] Suite strutturale/multihop OK." }
+    elseif ($LASTEXITCODE -eq 3) { Write-Host "[$(Get-Date -Format o)] Suite strutturale/multihop non valutata: golden set assente o vuoto." }
     else { Write-Host "[$(Get-Date -Format o)] Suite strutturale/multihop sotto soglia (alert registrato)." }
 
     # I DUE CONTRATTI CHE PRETENDONO UN LLM VERO (R10, R11). In CI non c'e' un modello:

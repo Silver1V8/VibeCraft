@@ -63,6 +63,10 @@ def _unlinked(path: Path) -> Path:
     return path.resolve()
 
 
+def _raise_walk_error(error: OSError) -> None:
+    raise error
+
+
 def _name(value) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ProjectError("Project name must not be empty", status_code=422, code="invalid_project_name")
@@ -148,7 +152,7 @@ def _has_legacy_data(project: ProjectContext) -> bool:
         return True
     for directory in (project.code_dir, project.docs_dir, project.changes_dir):
         if directory.is_dir():
-            for parent, directories, files in directory.walk():
+            for parent, directories, files in directory.walk(on_error=_raise_walk_error):
                 directories[:] = [name for name in directories if name not in installation.CODE_EXCLUDED_DIRS]
                 if any(not name.startswith(".") and (parent / name).is_file()
                        and (parent / name).stat().st_size for name in files):
@@ -170,7 +174,7 @@ def _has_historical_state(project: ProjectContext) -> bool:
                       project.database_dir / "pipeline", project.database_dir / "versions"):
         _unlinked(directory)
         if directory.is_dir():
-            for parent, directories, files in directory.walk():
+            for parent, directories, files in directory.walk(on_error=_raise_walk_error):
                 for name in [*directories, *files]:
                     _unlinked(parent / name)
                 if any(name not in (".gitkeep", ".gitignore", ".writer.lock")
@@ -336,7 +340,8 @@ class ProjectRegistry:
         records = self._read()
         historical = next((record for record in records if record["legacy"]), None)
         if historical is None:
-            if any(record["id"] == "legacy" for record in records) or not _has_legacy_data(self._legacy):
+            if any(record["id"] == "legacy" for record in records) or not (
+                    _has_historical_state(self._legacy) or _has_legacy_data(self._legacy)):
                 return None
         elif Path(historical["root"]) != self._legacy.root.resolve():
             raise ProjectError("Historical installation root changed")

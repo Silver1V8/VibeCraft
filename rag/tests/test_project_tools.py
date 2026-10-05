@@ -644,3 +644,20 @@ def test_eval_cli_measures_only_selected_project(projects, monkeypatch):
     assert seen == [a.id]
     assert list((a.database_dir / 'eval').glob('eval_*.json'))
     assert (a.database_dir / 'eval' / 'history.jsonl').is_file()
+
+
+@pytest.mark.parametrize('module,filename', [('run', 'golden.yaml'), ('run_multihop', 'golden_multihop.yaml')])
+@pytest.mark.parametrize('empty', [False, True])
+def test_eval_cli_without_cases_is_not_success(projects, monkeypatch, capsys, module, filename, empty):
+    from importlib import import_module
+    cli = import_module('eval.' + module)
+    _, a, _ = projects
+    if empty:
+        golden = a.root / 'eval' / filename
+        golden.parent.mkdir()
+        golden.write_text('cases: []\n')
+    monkeypatch.setattr(sys, 'argv', ['eval.' + module, '--project', a.id])
+    monkeypatch.setattr(cli.httpx2, 'Client', lambda **kw: pytest.fail('empty suite contacted server'))
+    assert cli.main() == 3
+    assert 'not evaluated' in capsys.readouterr().out
+    assert not list((a.database_dir / 'eval').glob('*'))

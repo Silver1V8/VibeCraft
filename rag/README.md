@@ -82,6 +82,8 @@ una candidata completa**; un no-op non carica embedding né riscrive l'indice.
 Ogni candidata conserva la propria collection e il rollback riattiva quella
 versione. Il golden set è `<root>/eval/golden.yaml`, lo storico vive in
 `database/eval/`; un golden mancante può lasciare passare il gate come non valutato.
+Le CLI `eval.run` e `eval.run_multihop` restituiscono exit 3 per una suite assente o vuota;
+il controllo notturno la segnala come non valutata.
 I job HTTP sono serializzati nel processo per contenere RAM/VRAM, con writer lock
 per progetto anche fra processi. Richieste, callback e stream conservano il target
 originario: selezionare B non sposta un job di A.

@@ -278,8 +278,11 @@ def main() -> int:
         ap.error(exc.code)
     if not golden.exists():
         print('Project multihop golden set missing: quality not evaluated.')
-        return 0
+        return 3
     cases = load_cases(golden)
+    if not cases:
+        print('Project multihop golden set empty: quality not evaluated.')
+        return 3
     headers = {'X-VibeCraft-Project': project.id}
     if os.environ.get('VIBECRAFT_API_KEY'):
         headers['X-API-Key'] = os.environ['VIBECRAFT_API_KEY']
