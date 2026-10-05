@@ -27,7 +27,8 @@ function makeContext(response) {
   const el = id => (els[id] ||= { id, innerHTML: '', value: '', disabled: false, focus() {},
     classList: { add() {}, remove() {} } });
   const context = vm.createContext({
-    featureName: '', devType: 'backend',
+    featureName: '', devType: 'backend', sessionRevision: 0,
+    ensurePipelineFeature: async () => true,
     getFeatureName: () => 'feature-x',
     document: { getElementById: el },
     fetch: async () => response,

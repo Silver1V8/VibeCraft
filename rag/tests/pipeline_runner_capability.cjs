@@ -15,7 +15,7 @@ const nodes = {'agent-runner-select':select('codex'),'agent-model-select':select
   'agent-attempts-select':select('1'),'agent-run-btn':{disabled:false,title:''},
   'final-prompt-box':{textContent:'OLD'},'agent-output':{style:{},textContent:''}};
 const calls = [], copied = [], errors = [];
-const context = vm.createContext({URLSearchParams,featureName:'same',devType:'backend',
+const context = vm.createContext({URLSearchParams,featureName:'same',devType:'backend',sessionRevision:0,
   TextDecoder, localStorage:{getItem:()=>''},refreshGateReview:async()=>{},
   validationRefs:new Map(),blockedAttempts:new Map(),openPointsSummary:()=>'',consumeNdjson:async()=>{},
   Option: function(text,value){this.text=text;this.value=value;this.disabled=false;},

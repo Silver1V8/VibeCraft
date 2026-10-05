@@ -269,6 +269,9 @@
           </button>
         </div>
         <p id="feature-folder-hint" class="text-xs text-slate-400 mt-2 font-mono"></p>
+        <p id="session-status" role="status" aria-live="polite" class="text-xs text-slate-300 mt-2">Bozze salvate solo in questo browser.</p>
+        <button id="session-restore-btn" hidden data-click="restorePipelineDraft" class="mt-2 rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-100">Ripristina bozza locale</button>
+        <button id="session-discard-btn" hidden data-click="discardPipelineDraft" class="mt-2 rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-100">Scarta bozza e usa file server</button>
 
         <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mt-4 mb-2">Tipo di sviluppo</label>
         <label for="dev-type-select"></label><select id="dev-type-select" data-change="onDevTypeChange"

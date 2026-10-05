@@ -57,6 +57,14 @@ Metadati indice: `not_indexed`, `ready`, `indexing`, `error`, più `stale`
 quando calcolabile. `/api/health/live` misura il processo, `/api/health` il
 progetto selezionato e le dipendenze. Creare un progetto non lo indicizza.
 
+La pipeline conserva nel browser una bozza per progetto e feature: intervista,
+input non inviato, editor, ambito e passo corrente. Dopo refresh o riapertura
+carica prima i file server e propone «Ripristina bozza locale» oppure
+«Scarta bozza e usa file server». Il ripristino è esplicito, non scrive sul server e non recupera
+autorizzazioni, validazioni o esecuzioni dell'agente. L'interfaccia mostra
+l'ultimo salvataggio locale e segnala storage browser indisponibile o corrotto.
+Le bozze non sono sincronizzate fra dispositivi e vengono perse cancellando i dati del sito.
+
 Da `rag/`, con l'ID ricavato dalla console o da `GET /api/projects`:
 
 ```bash
@@ -1178,8 +1186,11 @@ l'**eval-gate del golden-set sulla nuova versione** (in process, config
 assente, oggi 0.75 in config —, `blocking`):
 sotto soglia (e gate bloccante) la versione resta su disco **non promossa**, il job
 termina `completed_not_promoted` col report nell'esito e il server continua a
-servire la versione precedente. Se il gate è disattivo, il golden-set manca, o
-l'eval fallisce, la promozione è diretta (fail-open).
+servire la versione precedente. Se il gate è disattivo, il golden-set manca o
+dichiara `cases: []`, il bootstrap è consentito e il report indica che il gate
+non è stato valutato. Un golden-set presente ma invalido o un errore durante
+la valutazione blocca la promozione quando `blocking: true`; in modalità advisory
+la consente con un avviso esplicito. Un file YAML vuoto non è una baseline vuota valida.
 Una candidata che non può essere caricata correttamente blocca invece la
 promozione; le candidate NPY devono superare anche i controlli di completezza e
 coerenza degli artefatti prima dello spostamento di CURRENT.
@@ -1744,8 +1755,9 @@ Il nucleo distingue missing/invalid, unaddressed, mismatch, failed/stale e
 unavailable, con azioni user_action/operator_action/retryable. Blocca sui soli
 documenti forniti al validatore; il resto del corpus produce un avviso. Nessun
 TTL, riparazione JSON, normalize_spec nel calcolo dell'hash o force.
-Il difetto di retrieval che maschera i guasti come zero risultati esiste anche
-fuori da Validate: quei percorsi non vengono corretti in questo intervento.
+Canvas, Propose, dry-run e contesto dell'agente distinguono i guasti del retrieval
+governato dai risultati validi ma vuoti. Un guasto operativo restituisce 503
+senza chiamare il modello o sovrascrivere gli artefatti della feature.
 
 Sequenza originaria: **recorder provider minimo → ablazione prompt → decisione
 sul pilot → eventuale baseline A → commit dedicato all'isolamento delle

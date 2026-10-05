@@ -882,7 +882,8 @@ def build_agent_context(feature_name: str, dev_type: str = "", *,
     una metrica composita (rilevanza + copertura del canvas + spec BDD + copertura normativa).
 
     Le risorse (grafo, Qdrant, modello di embedding, sidecar ColBERT) sono iniettate; funzione
-    sincrona pensata per girare in threadpool dal route handler."""
+    sincrona pensata per girare in threadpool dal route handler. L'uso offline senza risorse
+    dichiara il contesto normativo non verificato; i guasti di una ricerca avviata sollevano."""
     folder = resolve_feature_dir(project.changes_dir if project else CHANGES_DIR, feature_name)
     folder_name = folder.name
     canvas = _unlinked(folder / "canvas.md").read_text(encoding="utf-8") if _unlinked(folder / "canvas.md").exists() else ""
@@ -899,8 +900,8 @@ def build_agent_context(feature_name: str, dev_type: str = "", *,
                                               **({"project": project, "collection_name": collection_name or project.collection_name} if project else {}))
             if results:
                 top_score = max((r.get("colbert_score") or r.get("dense_score") or 0.0) for r in results)
-        except Exception:
-            results = []
+        except Exception as exc:
+            raise retrieval.RetrievalUnavailable("Retrieval non disponibile.") from exc
     doc_ids = retrieval.select_governed_docs(query, graph=graph, results=results) if results else []
 
     entities = _entities_for_docs(graph, doc_ids) if graph is not None else []
@@ -927,6 +928,8 @@ def build_agent_context(feature_name: str, dev_type: str = "", *,
         constraints.append("Documenti IRON_MEMORY vincolanti: " + ", ".join(iron))
 
     risks = []
+    if graph is None or qdrant is None or embed_model is None:
+        risks.append("Retrieval non disponibile: contesto normativo non verificato.")
     if not spec_ok:
         risks.append("Spec BDD assente o incompleta: scenari di test non verificabili.")
     missing = [s for s in CANVAS_SECTIONS if s not in sections_present]

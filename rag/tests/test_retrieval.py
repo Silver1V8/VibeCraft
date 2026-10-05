@@ -192,6 +192,44 @@ def test_retrieve_governed_context_empty_without_graph():
     assert out == ""
 
 
+@pytest.mark.parametrize("missing", ["qdrant", "embed_model"])
+def test_select_governed_chunks_missing_runtime_is_not_empty(missing):
+    resources = dict(qdrant=_RecordingQdrant(), embed_model=_FakeEmbedModel())
+    resources[missing] = None
+    with pytest.raises(RuntimeError, match="Retrieval"):
+        retrieval.select_governed_chunks("q", graph=_graph(), **resources)
+
+
+@pytest.mark.parametrize("failure", ["qdrant", "embedding"])
+def test_governed_search_failure_is_not_zero_results(monkeypatch, failure):
+    qdrant, model = _RecordingQdrant(), _FakeEmbedModel()
+
+    def unavailable(*args, **kwargs):
+        raise ConnectionError("private host:6333 secret")
+
+    monkeypatch.setattr(qdrant if failure == "qdrant" else model,
+                        "query_points" if failure == "qdrant" else "encode", unavailable)
+    with pytest.raises(RuntimeError, match="Retrieval") as error:
+        retrieval.select_governed_docs("q", graph=_graph(), qdrant=qdrant, embed_model=model)
+    assert "private host" not in str(error.value)
+    assert isinstance(error.value.__cause__, ConnectionError)
+
+
+def test_governed_search_zero_results_is_valid():
+    assert retrieval.retrieve_governed_context(
+        "q", graph=_graph(), chunks_store={}, qdrant=_RecordingQdrant(),
+        embed_model=_FakeEmbedModel(), colbert_store={}) == ""
+
+
+def test_governed_context_missing_retrieved_text_is_an_error(monkeypatch):
+    monkeypatch.setattr(retrieval, "hybrid_search", lambda *a, **k: [
+        {"doc_id": "spec.md", "chunk_id": "spec.md#01", "section": "A"}])
+    with pytest.raises(RuntimeError, match="Retrieval"):
+        retrieval.retrieve_governed_context(
+            "q", graph=_graph(), chunks_store={}, qdrant=object(),
+            embed_model=object(), colbert_store={})
+
+
 def test_scope_tag_filter_matches_any_variant():
     # Il filtro cerca il dev_type sotto la chiave dichiarata dal documento, in una qualsiasi
     # delle grafie possibili: e' il doc che si dichiara, non noi che nominiamo dei file.

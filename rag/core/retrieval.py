@@ -28,6 +28,10 @@ from core.config import (
 logger = logging.getLogger(__name__)
 
 
+class RetrievalUnavailable(RuntimeError):
+    """Il contesto non è recuperabile; non equivale a zero risultati."""
+
+
 def _hit_doc_id(hit) -> str:
     """Estrae in modo sicuro il doc_id (documento padre) da un punto Qdrant."""
     return str((hit.payload or {}).get("doc_id", ""))
@@ -466,20 +470,21 @@ def select_governed_chunks(question: str, *, graph: nx.DiGraph | None, results: 
     """Seleziona i CHUNK governati più pertinenti (una sezione per elemento). Il ranking
     ibrido è già ordinato per autorità×rilevanza; qui si filtra ai chunk il cui documento
     padre è nel grafo e si prendono i primi `max_chunks`. Se `results` è fornito, riusa
-    quei punteggi invece di rifare la ricerca (dry-run/agent-context)."""
+    quei punteggi invece di rifare la ricerca (dry-run/agent-context).
+    Senza grafo la selezione governata è opzionalmente disabilitata; con un grafo,
+    risorse mancanti e guasti di ricerca sollevano RetrievalUnavailable."""
     if graph is None:
         return []
     if results is None:
         if qdrant is None or embed_model is None:
-            return []
+            raise RetrievalUnavailable("Retrieval non disponibile: risorse di ricerca assenti.")
         try:
             results = hybrid_search(question, top_k, qdrant=qdrant, embed_model=embed_model,
                                     colbert_store=colbert_store or {}, query_filter=query_filter,
                                     collection_name=collection_name, graph=graph,
                                     restatements=restatements, project=project)
-        except Exception as exc:  # best-effort: il fallback è "nessun contesto"
-            logger.warning("Attenzione: retrieval governato non riuscito: %s", exc)
-            return []
+        except Exception as exc:
+            raise RetrievalUnavailable("Retrieval governato non disponibile.") from exc
     governed = [r for r in results if r.get("doc_id") in graph]
     return governed[:max_chunks]
 
@@ -511,8 +516,8 @@ def _serialize_chunks(chunks: list[dict], *, graph: nx.DiGraph, chunks_store: di
     parts: list[str] = []
     for r in chunks:
         entry = chunks_store.get(r["chunk_id"])
-        if entry is None:
-            continue
+        if entry is None or not isinstance(entry.get("text"), str):
+            raise RetrievalUnavailable("Retrieval non disponibile: testo della fonte assente.")
         doc_id, section = r["doc_id"], r.get("section", "")
         attrs = graph.nodes[doc_id] if doc_id in graph else {}
         tag = attrs.get("classification") or attrs.get("status") or ""

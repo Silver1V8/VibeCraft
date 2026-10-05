@@ -267,6 +267,54 @@ def test_gate_uses_project_golden_and_history(projects, monkeypatch):
     assert not (b.database_dir / "eval" / "history.jsonl").exists()
 
 
+def test_disabled_project_gate_does_not_load_golden(projects, monkeypatch):
+    from core import eval_gate
+
+    project, _ = projects
+    project.settings["eval_gate"]["enabled"] = False
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("disabled gate must not read or evaluate golden cases")
+
+    monkeypatch.setattr(eval_gate, "load_golden_cases", forbidden)
+    monkeypatch.setattr(eval_gate, "evaluate_recall", forbidden)
+    res = eval_gate.gate_promotion("candidate", None, None, {}, project=project)
+    assert res["passed"] is True and res["skipped"] == "disabled"
+
+
+@pytest.mark.parametrize("entrypoint", ["cli", "api"])
+def test_invalid_project_golden_keeps_current_and_aliases(projects, qdrant, monkeypatch, entrypoint):
+    from api import routes_reindex
+
+    a, b = projects
+    monkeypatch.setattr(indexing, "_new_version_name", lambda **_: "v1")
+    for project, text in ((a, "ALPHA"), (b, "BETA")):
+        body(project, text)
+        build(project, qdrant)
+    (a.root / "eval").mkdir()
+    (a.root / "eval" / "golden.yaml").write_text("cases: [", encoding="utf-8")
+    a.settings["eval_gate"].update(enabled=True, blocking=True)
+    monkeypatch.setattr(indexing, "_new_version_name", lambda **_: "v2")
+    body(a, "BETA replacement")
+    if entrypoint == "cli":
+        assert build(a, qdrant) == "v2"
+    else:
+        monkeypatch.setattr(routes_reindex, "_reindex_embed_model", lambda: Embed())
+        monkeypatch.setitem(routes_reindex.state, "qdrant", qdrant)
+        result = routes_reindex._run_full_rebuild(None, project=a)
+        assert result["promoted"] is False and result["job_status"] == "completed_not_promoted"
+        assert result["eval"]["skipped"] == "error"
+    assert artifacts.current_version(project=a) == "v1"
+    assert artifacts.current_version(project=b) == "v1"
+    assert versions._read_alias_target(qdrant, a.collection_name) == a.collection_name + "__v1"
+    assert versions._read_alias_target(qdrant, b.collection_name) == b.collection_name + "__v1"
+    assert (a.database_dir / "versions" / "v2" / "index_manifest.json").is_file()
+    alert = json.loads((a.database_dir / "alerts.jsonl").read_text(encoding="utf-8"))
+    assert alert["level"] == "critical" and alert["version"] == "v2"
+    assert not (a.database_dir / "eval" / "history.jsonl").exists()
+    assert not (b.database_dir / "alerts.jsonl").exists()
+
+
 def test_corrupt_project_manifest_and_pointer_fail_explicitly(projects):
     project, _ = projects
     (project.database_dir / "CURRENT").write_text("missing", encoding="utf-8")

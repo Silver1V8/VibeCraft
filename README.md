@@ -61,8 +61,11 @@ Il nome del progetto non costruisce percorsi.
 
 La selezione vale per scheda: `sessionStorage` e `?project=<id>` conservano il target;
 i job già avviati restano nel progetto originario. Due progetti possono mantenere
-pagine residenti; operazioni attive impediscono l'eviction. Una scheda chiusa non
-ripristina conversazioni non salvate. Non sono previsti delete, rename, ricerca
+pagine residenti; operazioni attive impediscono l'eviction. La pipeline salva
+localmente intervista, input e bozze per progetto e feature. Dopo refresh o chiusura
+puoi scegliere «Ripristina bozza locale» dopo il caricamento dei file server:
+il recupero non li sovrascrive. L'ultimo salvataggio è visibile; le bozze restano
+nel browser e non sono sincronizzate fra dispositivi. Non sono previsti delete, rename, ricerca
 fra progetti o ACL per progetto.
 
 Da `rag/`: `uv run python index.py --project <id> --index-status` seleziona il progetto
@@ -128,6 +131,8 @@ disabilitata. Claude e i client esterni possono inviare il contesto al proprio p
 **Agentic parte solo con una validazione superata del contratto corrente**: Canvas,
 Spec e decisioni sono congelati nel record e ricontrollati dal server prima dell'avvio.
 Suggest e oneshot restano disponibili anche quando il gate blocca agentic.
+Canvas, Propose e contesto dell'agente distinguono i guasti di retrieval dai
+risultati vuoti: un guasto operativo restituisce un errore e non avvia la generazione.
 Accettare un punto aperto lo mantiene irrisolto; la chiave API condivisa non certifica
 l'identità di chi prende la decisione (`origin_verified: false`).
 

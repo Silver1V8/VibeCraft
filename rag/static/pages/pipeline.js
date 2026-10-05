@@ -8,6 +8,113 @@
     let interviewLog = "";
     let featureName = "";
     let devType = "";
+    let sessionRevision = 0;
+    let sessionLoading = false;
+    let pendingDraft = null;
+    let chatMessages = [];
+    const draftEditors = ['explore-md-editor', 'canvas-md-editor', 'spec-md-editor'];
+    const draftProject = selectedProjectId();
+    const lastFeatureKey = `vibecraft:pipeline:last:${JSON.stringify(draftProject)}`;
+    const draftKey = feature => `vibecraft:pipeline:1:${JSON.stringify([draftProject, feature])}`;
+
+    function sessionStatus(message) {
+      document.getElementById('session-status').textContent = message;
+    }
+
+    function choosePipelineDraft(draft) {
+      pendingDraft = draft;
+      for (const id of ['session-restore-btn', 'session-discard-btn']) {
+        document.getElementById(id).hidden = !draft;
+      }
+      for (const id of [...draftEditors, 'chat-input']) document.getElementById(id).readOnly = !!draft;
+      document.getElementById('dev-type-select').disabled = !!draft;
+    }
+
+    function savePipelineDraft() {
+      if (!featureName || sessionLoading || pendingDraft) return;
+      const draft = {version: 1, feature: featureName, savedAt: new Date().toISOString(),
+        devType, step: currentStep, exploreHistory, interviewLog, messages: chatMessages,
+        input: document.getElementById('chat-input').value,
+        editors: draftEditors.map(id => document.getElementById(id).value)};
+      try {
+        localStorage.setItem(draftKey(featureName), JSON.stringify(draft));
+        localStorage.setItem(lastFeatureKey, featureName);
+        sessionStatus(`Ultimo salvataggio locale: ${new Date(draft.savedAt).toLocaleString()}. Solo in questo browser.`);
+      } catch (_) {
+        sessionStatus('Bozza non salvata: memoria del browser non disponibile o piena. Salva i documenti sul server.');
+      }
+    }
+
+    function offerPipelineDraft() {
+      try {
+        const raw = localStorage.getItem(draftKey(featureName));
+        if (!raw) { sessionStatus('Le modifiche saranno salvate localmente in questo browser.'); return; }
+        const draft = JSON.parse(raw);
+        if (draft?.version !== 1 || draft.feature !== featureName || !Number.isFinite(Date.parse(draft.savedAt))
+          || !Number.isInteger(draft.step) || draft.step < 1 || draft.step > 5
+          || !['devType', 'exploreHistory', 'interviewLog', 'input'].every(key => typeof draft[key] === 'string')
+          || !Array.isArray(draft.editors) || draft.editors.length !== 3 || !draft.editors.every(text => typeof text === 'string')
+          || !Array.isArray(draft.messages) || !draft.messages.every(m => m && ['user', 'ai'].includes(m.role) && typeof m.text === 'string')) {
+          throw new Error('invalid draft');
+        }
+        choosePipelineDraft(draft);
+        sessionStatus(`Bozza locale del ${new Date(draft.savedAt).toLocaleString()}. Ora sono visibili i file server: ripristina la bozza negli editor oppure scartala per continuare. Operazioni interrotte non vengono riavviate.`);
+      } catch (_) {
+        sessionStatus('Bozza locale non valida o memoria del browser non disponibile. I file server restano utilizzabili.');
+      }
+    }
+
+    function restorePipelineDraft() {
+      if (!pendingDraft || sessionLoading) return;
+      const draft = pendingDraft;
+      choosePipelineDraft(null);
+      sessionLoading = true;
+      exploreHistory = draft.exploreHistory;
+      interviewLog = draft.interviewLog;
+      chatMessages = [];
+      document.getElementById('chat-log').textContent = '';
+      for (const message of draft.messages) appendChatBubble(message.role, message.text);
+      document.getElementById('chat-input').value = draft.input;
+      document.getElementById('dev-type-select').value = draft.devType;
+      devType = document.getElementById('dev-type-select').value;
+      draftEditors.forEach((id, i) => {
+        document.getElementById(id).value = draft.editors[i];
+        setPanelVisible(['review-explore', 'review-canvas', 'review-spec'][i], !!draft.editors[i]);
+        setStepState(i + 1, draft.editors[i] ? 'warning' : 'pending', draft.editors[i] ? 'bozza locale' : undefined);
+      });
+      document.getElementById('spec-open-points-status').textContent = 'Bozza locale: salva e verifica prima di procedere.';
+      goToStep(draft.step);
+      sessionLoading = false;
+      sessionStatus(`Bozza locale ripristinata, salvata il ${new Date(draft.savedAt).toLocaleString()}. I file server non sono stati modificati.`);
+    }
+
+    function discardPipelineDraft() {
+      if (!pendingDraft || sessionLoading) return;
+      try { localStorage.removeItem(draftKey(featureName)); }
+      catch (_) { sessionStatus('Impossibile scartare la bozza: memoria del browser non disponibile.'); return; }
+      choosePipelineDraft(null);
+      savePipelineDraft();
+    }
+
+    async function ensurePipelineFeature() {
+      if (!getFeatureName()) { document.getElementById('feature-name-input').focus(); return false; }
+      if (getFeatureName() !== featureName) await loadFeatureStatus();
+      if (sessionLoading || pendingDraft) {
+        toast('Attendi il caricamento e scegli se ripristinare o scartare la bozza locale.', 'error');
+        return false;
+      }
+      return true;
+    }
+
+    async function resumePipelineSession() {
+      let last;
+      try { last = localStorage.getItem(lastFeatureKey); }
+      catch (_) { sessionStatus('Recupero locale non disponibile: memoria del browser non accessibile.'); }
+      if (last && !getFeatureName()) {
+        document.getElementById('feature-name-input').value = last;
+        await loadFeatureStatus();
+      } else await loadDevTypes();
+    }
 
     /* Prompt finale della feature, chiesto al server invece di ricostruito qui.
        Il template è deterministico (nessun LLM) ma ha DUE forme — "external" per Claude
@@ -31,18 +138,22 @@
 
     function onDevTypeChange() {
       devType = document.getElementById('dev-type-select').value;
+      savePipelineDraft();
     }
 
     /* Popola la tendina con le sottocartelle reali di code/ (backend, frontend, logicAgent, ...). */
     async function loadDevTypes(selected) {
+      const revision = sessionRevision;
       const select = document.getElementById('dev-type-select');
       try {
         const res = await fetch('/api/pipeline/dev-types');
         const data = await res.json();
+        if (revision !== sessionRevision) return;
         const options = ['<option value="">— seleziona —</option>']
           .concat(data.dev_types.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`));
         select.innerHTML = options.join('');
       } catch (e) {
+        if (revision !== sessionRevision) return;
         select.innerHTML = '<option value="">— errore caricamento —</option>';
       }
       if (selected) select.value = selected;
@@ -75,6 +186,7 @@
         if (stato === 'done' || stato === 'warning' || stato === 'failed') return;
         setStepState(i, i === step ? 'current' : 'pending');
       });
+      savePipelineDraft();
     }
 
     /* ──────────── STATO DEI PASSI ────────────
@@ -123,10 +235,12 @@
     /* ──────────── FILE CONTROL PANEL ──────────── */
     async function refreshFilesControl() {
       if (!featureName) return;
+      const revision = sessionRevision;
       try {
         const res = await fetch(`/api/pipeline/status?feature=${encodeURIComponent(featureName)}`);
         if (!res.ok) return;
         const data = await res.json();
+        if (revision !== sessionRevision) return;
         const list = document.getElementById('files-control-list');
         const rows = [
           ['explore', 'explore.md', 1],
@@ -154,7 +268,31 @@
     async function loadFeatureStatus() {
       const name = getFeatureName();
       if (!name) { document.getElementById('feature-name-input').focus(); return; }
+      savePipelineDraft();
+      const revision = ++sessionRevision;
+      sessionLoading = true;
+      choosePipelineDraft(null);
+      for (const id of [...draftEditors, 'chat-input']) document.getElementById(id).readOnly = true;
+      document.getElementById('dev-type-select').disabled = true;
       featureName = name;
+      exploreHistory = interviewLog = '';
+      chatMessages = [];
+      document.getElementById('chat-log').textContent = '';
+      document.getElementById('chat-input').value = '';
+      document.getElementById('explore-status').textContent = '';
+      document.getElementById('chat-send-btn').disabled = false;
+      document.getElementById('chat-finish-btn').disabled = false;
+      document.getElementById('canvas-generate-btn').disabled = false;
+      document.getElementById('propose-generate-btn').disabled = false;
+      for (const id of draftEditors) document.getElementById(id).value = '';
+      for (const id of ['review-explore', 'review-canvas', 'review-spec', 'canvas-loader', 'propose-loader']) setPanelVisible(id, false);
+      for (const id of ['final-prompt-card', 'validate-card', 'validate-report-box', 'gate-comparison', 'drift-report-card', 'archive-report-card', 'dryrun-card', 'agent-context-wrap']) document.getElementById(id).classList.add('hidden');
+      for (const id of ['drift-report-box', 'archive-report-box', 'agent-output', 'gate-status', 'gate-decisions', 'gate-comparison']) document.getElementById(id).textContent = '';
+      for (const id of ['drift-loader', 'archive-loader']) setPanelVisible(id, false);
+      for (const id of ['drift-check-btn', 'archive-btn', 'canvas-dryrun-btn', 'agent-context-btn']) document.getElementById(id).disabled = false;
+      window._finalPrompt = '';
+      document.getElementById('final-prompt-box').textContent = '';
+      for (let step = 1; step <= 5; step++) setStepState(step, 'pending');
 
       // Recupera il tipo di sviluppo eventualmente già salvato per questa feature
       // e ripopola la tendina di conseguenza, prima di ricostruire il prompt finale.
@@ -163,7 +301,9 @@
         const statusRes = await fetch(`/api/pipeline/status?feature=${encodeURIComponent(featureName)}`);
         if (statusRes.ok) savedDevType = (await statusRes.json()).dev_type || "";
       } catch (e) { /* best-effort */ }
+      if (revision !== sessionRevision) return;
       await loadDevTypes(savedDevType);
+      if (revision !== sessionRevision) return;
 
       // Prova a recuperare eventuali file già generati per riprendere la review
       document.getElementById('spec-open-points-status').textContent = openPointsSummary({});
@@ -177,6 +317,7 @@
           const res = await fetch(`/api/pipeline/file?feature=${encodeURIComponent(featureName)}&name=${fname}`);
           if (res.ok) {
             const data = await res.json();
+            if (revision !== sessionRevision) return;
             document.getElementById(editorId).value = data.content;
             setPanelVisible(reviewId, true);
             furthestStep = step;
@@ -187,12 +328,14 @@
               // comunque (la card resta vuota e si ripopola rigenerando le specifiche).
               try {
                 const finalPrompt = await fetchFinalPrompt(featureName, devType, 'external');
+                if (revision !== sessionRevision) return;
                 window._finalPrompt = finalPrompt;
                 document.getElementById('final-prompt-box').textContent = finalPrompt;
               } catch (err) { /* prompt non recuperabile, ignora */ }
             }
           }
         } catch (e) { /* file non presente, ignora */ }
+        if (revision !== sessionRevision) return;
       }
 
       // Riprende automaticamente dall'ultimo step con contenuto già generato,
@@ -200,10 +343,17 @@
       goToStep(furthestStep);
 
       await refreshFilesControl();
+      if (revision !== sessionRevision) return;
+      sessionLoading = false;
+      choosePipelineDraft(null);
+      offerPipelineDraft();
+      try { localStorage.setItem(lastFeatureKey, name); }
+      catch (_) { sessionStatus('Recupero locale non disponibile: memoria del browser non accessibile.'); }
     }
 
     /* ──────────── STEP 1: EXPLORE ──────────── */
     function appendChatBubble(role, text) {
+      chatMessages.push({role, text});
       const log = document.getElementById('chat-log');
       const isUser = role === 'user';
       const bubble = document.createElement('div');
@@ -216,9 +366,8 @@
     }
 
     async function sendExploreTurn() {
-      const name = getFeatureName();
-      if (!name) { document.getElementById('feature-name-input').focus(); return; }
-      featureName = name;
+      if (!await ensurePipelineFeature()) return;
+      const revision = sessionRevision;
       if (!devType) { toast('Seleziona prima il tipo di sviluppo.', 'error'); return; }
 
       const input = document.getElementById('chat-input');
@@ -228,6 +377,7 @@
       appendChatBubble('user', userInput);
       interviewLog += `**Utente:** ${userInput}\n\n`;
       input.value = '';
+      savePipelineDraft();
 
       const sendBtn = document.getElementById('chat-send-btn');
       sendBtn.disabled = true;
@@ -239,24 +389,26 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ feature_name: featureName, history: exploreHistory, user_input: userInput, dev_type: devType }),
         });
+        if (!res.ok) throw new Error(apiErrorMessage((await res.json()).detail, `HTTP ${res.status}`));
         const data = await res.json();
+        if (revision !== sessionRevision) return;
         exploreHistory = data.history;
         appendChatBubble('ai', data.ai_response);
         interviewLog += `**IA:** ${data.ai_response}\n\n`;
+        savePipelineDraft();
         document.getElementById('explore-status').textContent = '';
       } catch (e) {
+        if (revision !== sessionRevision) return;
         appendChatBubble('ai', `❌ Errore: ${e.message}`);
         document.getElementById('explore-status').textContent = 'Errore di connessione';
       } finally {
-        sendBtn.disabled = false;
-        input.focus();
+        if (revision === sessionRevision) { sendBtn.disabled = false; input.focus(); }
       }
     }
 
     async function finishExplore() {
-      const name = getFeatureName();
-      if (!name) { document.getElementById('feature-name-input').focus(); return; }
-      featureName = name;
+      if (!await ensurePipelineFeature()) return;
+      const revision = sessionRevision;
       if (!devType) { toast('Seleziona prima il tipo di sviluppo.', 'error'); return; }
 
       if (!interviewLog) {
@@ -272,15 +424,19 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ feature_name: featureName, interview_log: interviewLog, dev_type: devType }),
         });
+        if (!res.ok) throw new Error(apiErrorMessage((await res.json()).detail, `HTTP ${res.status}`));
         const data = await res.json();
+        if (revision !== sessionRevision) return;
         document.getElementById('explore-md-editor').value = data.content;
+        savePipelineDraft();
         setPanelVisible('review-explore', true);
         markStepDone(1, 'generato');
         await refreshFilesControl();
       } catch (e) {
+        if (revision !== sessionRevision) return;
         toast(`Errore nel salvataggio di explore.md: ${e.message}`, 'error');
       } finally {
-        btn.disabled = false;
+        if (revision === sessionRevision) btn.disabled = false;
       }
     }
 
@@ -290,6 +446,8 @@
 
     /* ──────────── STEP 2: CANVAS ──────────── */
     async function generateCanvas() {
+      if (!await ensurePipelineFeature()) return;
+      const revision = sessionRevision;
       if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
       if (!devType) { toast('Seleziona prima il tipo di sviluppo.', 'error'); return; }
       const btn = document.getElementById('canvas-generate-btn');
@@ -308,15 +466,17 @@
           throw new Error(apiErrorMessage(err.detail, `HTTP ${res.status}`));
         }
         const data = await res.json();
+        if (revision !== sessionRevision) return;
         document.getElementById('canvas-md-editor').value = data.content;
+        savePipelineDraft();
         setPanelVisible('review-canvas', true);
         markStepDone(2, 'generato');
         await refreshFilesControl();
       } catch (e) {
+        if (revision !== sessionRevision) return;
         toast(`Errore nella generazione del Canvas: ${e.message}`, 'error');
       } finally {
-        btn.disabled = false;
-        setPanelVisible('canvas-loader', false);
+        if (revision === sessionRevision) { btn.disabled = false; setPanelVisible('canvas-loader', false); }
       }
     }
 
@@ -326,6 +486,8 @@
 
     /* ──────────── STEP 3: PROPOSE ──────────── */
     async function generatePropose() {
+      if (!await ensurePipelineFeature()) return;
+      const revision = sessionRevision;
       if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
       if (!devType) { toast('Seleziona prima il tipo di sviluppo.', 'error'); return; }
       const btn = document.getElementById('propose-generate-btn');
@@ -345,7 +507,9 @@
           throw new Error(apiErrorMessage(err.detail, `HTTP ${res.status}`));
         }
         const data = await res.json();
+        if (revision !== sessionRevision) return;
         document.getElementById('spec-md-editor').value = data.content;
+        savePipelineDraft();
         document.getElementById('spec-open-points-status').textContent = openPointsSummary(data);
         setPanelVisible('review-spec', true);
         document.getElementById('final-prompt-box').textContent = data.final_prompt;
@@ -353,10 +517,10 @@
         markStepDone(3, 'generato');
         await refreshFilesControl();
       } catch (e) {
+        if (revision !== sessionRevision) return;
         toast(`Errore nella generazione delle specifiche: ${e.message}`, 'error');
       } finally {
-        btn.disabled = false;
-        setPanelVisible('propose-loader', false);
+        if (revision === sessionRevision) { btn.disabled = false; setPanelVisible('propose-loader', false); }
       }
     }
 
@@ -537,9 +701,9 @@
       if (hashes.length && status !== 'accepted') { toast('Solo accepted può coprire un rilievo.', 'error'); return; }
       const btn = document.getElementById('decision-submit'); btn.disabled = true;
       const headers = {'Content-Type': 'application/json'};
-      const key = window.__VIBECRAFT_AGENT_API_KEY__ || localStorage.getItem('vibecraft_agent_api_key');
-      if (key) headers['X-API-Key'] = key;
       try {
+        const key = window.__VIBECRAFT_AGENT_API_KEY__ || localStorage.getItem('vibecraft_agent_api_key');
+        if (key) headers['X-API-Key'] = key;
         const res = await fetch('/api/pipeline/open-points/decision', {method: 'POST', headers,
           body: JSON.stringify({feature: review.feature, spec_hash: review.data.spec_hash, point_hash: point,
             status, motivation, declared_by: declaredBy, declared_origin: 'ui', coverage_finding_hashes: hashes})});
@@ -635,6 +799,7 @@
 
     async function runWithAgent() {
       if (agentRunning) return;
+      const revision = sessionRevision;
       const mode = document.getElementById('agent-mode-select').value;
       const model = document.getElementById('agent-model-select').value;
       const runner = document.getElementById('agent-runner-select').value;
@@ -650,7 +815,7 @@
       if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
       const runningFeature = featureName;
       await refreshGateReview();
-      if (featureName !== runningFeature) return;
+      if (revision !== sessionRevision || featureName !== runningFeature) return;
       let prompt;
       try {
         if (mode !== 'agentic') prompt = await fetchFinalPrompt(runningFeature, devType, 'agent', mode, runner);
@@ -659,7 +824,7 @@
         'La modalità Agentic scrive file nel progetto. Continuare?',
         { title: 'Modalità Agentic', confirmText: 'Continua', danger: true }
       )) return;
-      if (featureName !== runningFeature) return;
+      if (revision !== sessionRevision || featureName !== runningFeature) return;
 
       if (agentRunning) return;
       agentRunning = true;
@@ -675,11 +840,11 @@
       // window.__VIBECRAFT_AGENT_API_KEY__: niente piu' da fare a mano dopo un riavvio.
       // localStorage resta come fallback (es. se in futuro servisse impostarla a mano
       // da console: localStorage.setItem('vibecraft_agent_api_key', '...')).
-      const apiKey = window.__VIBECRAFT_AGENT_API_KEY__ || localStorage.getItem('vibecraft_agent_api_key') || '';
       const headers = { 'Content-Type': 'application/json' };
-      if (apiKey) headers['X-API-Key'] = apiKey;
 
       try {
+        const apiKey = window.__VIBECRAFT_AGENT_API_KEY__ || localStorage.getItem('vibecraft_agent_api_key') || '';
+        if (apiKey) headers['X-API-Key'] = apiKey;
         const res = await fetch('/api/pipeline/agent/run', {
           method: 'POST',
           headers,
@@ -690,6 +855,7 @@
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({ detail: res.statusText }));
+          if (revision !== sessionRevision) return;
           const gate = err.detail;
           if ([409, 503].includes(res.status) && gate?.allowed === false) {
             if (gate.attempt_id) blockedAttempts.set(runningFeature, gate.attempt_id);
@@ -704,6 +870,7 @@
 
         let terminated = false;
         await consumeNdjson(res, ev => {
+            if (revision !== sessionRevision) return;
             if (ev.type === 'gate') {
               out.textContent += `Gate del server${mode === 'agentic' ? '' : ' (advisory)'} · validazione: ${ev.gate.validation_id || 'assente'} · tentativo: ${ev.attempt_id || 'non registrato'}\n`;
               out.textContent += gateMessages(ev.gate).join('\n') + '\n';
@@ -746,8 +913,9 @@
             }
             out.scrollTop = out.scrollHeight;
         });
-        if (!terminated) throw new Error('Stream interrotto senza risultato finale');
+        if (revision === sessionRevision && !terminated) throw new Error('Stream interrotto senza risultato finale');
       } catch (e) {
+        if (revision !== sessionRevision) return;
         out.textContent += `\n❌ Errore: ${e.message}\n${openPointsSummary({})}\n`;
       } finally {
         agentRunning = false;
@@ -774,6 +942,7 @@
     /* ──────────── STEP 4: VERIFICA DEL DRIFT (streaming) ──────────── */
     async function runDriftCheck() {
       if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
+      const revision = sessionRevision;
       const btn = document.getElementById('drift-check-btn');
       const box = document.getElementById('drift-report-box');
       btn.disabled = true;
@@ -789,7 +958,7 @@
           body: JSON.stringify({ feature: featureName }),
         });
         if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(apiErrorMessage(e.detail, `HTTP ${res.status}`)); }
-        setPanelVisible('drift-loader', false);
+        if (revision === sessionRevision) setPanelVisible('drift-loader', false);
         // Il verdetto dipende da cosa è passato nello stream, non dal fatto che
         // lo stream sia finito: prima bastava che terminasse per marcare il passo
         // ✓ completato, anche con disallineamenti gravi dentro al report.
@@ -797,11 +966,13 @@
         // solo "✅ NESSUN DRIFT" conta come verificato.
         let verdict = '';
         await consumeNdjson(res, ev => {
+          if (revision !== sessionRevision) return;
           if (ev.type === 'log') box.textContent += ev.line + '\n';
           else if (ev.type === 'result') verdict = String(ev.value || '');
           else if (ev.type === 'error') { hadError = true; box.textContent += `\n❌ ${ev.message}\n`; }
           box.scrollTop = box.scrollHeight;
         });
+        if (revision !== sessionRevision) return;
         const clean = !hadError && verdict.startsWith('✅');
         const label = hadError || verdict.startsWith('❌') ? 'verifica fallita'
           : verdict.startsWith('⚠️ DRIFT') ? 'drift rilevato'
@@ -810,22 +981,24 @@
         setStepState(4, clean ? 'done' : 'failed', label);
         if (!clean) toast(`Drift check: ${label}. Leggi il report.`, 'warning');
       } catch (e) {
+        if (revision !== sessionRevision) return;
         box.textContent += `\n❌ Errore: ${e.message}`;
         setStepState(4, 'failed', 'verifica fallita');
         toast(`Verifica del drift fallita: ${e.message}`, 'error');
       } finally {
-        btn.disabled = false;
-        setPanelVisible('drift-loader', false);
+        if (revision === sessionRevision) { btn.disabled = false; setPanelVisible('drift-loader', false); }
       }
     }
 
     /* ──────────── STEP 5: ARCHIVIAZIONE + RE-INDICIZZAZIONE (streaming) ──────────── */
     async function runArchive() {
       if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
+      const revision = sessionRevision;
       if (!await confirmDialog(
         `Archiviare la feature "${featureName}" e ricostruire il Graph RAG?\nLa cartella verrà spostata in changes/archive/ e l'operazione non è reversibile dall'interfaccia.`,
         { title: 'Archiviazione feature', confirmText: 'Archivia', danger: true }
       )) return;
+      if (revision !== sessionRevision) return;
 
       const btn = document.getElementById('archive-btn');
       const box = document.getElementById('archive-report-box');
@@ -833,6 +1006,7 @@
       setPanelVisible('archive-loader', true);
       setStepState(5, 'running');
       let hadError = false;
+      let archived = false;
       box.textContent = '';
       document.getElementById('archive-report-card').classList.remove('hidden');
       try {
@@ -842,26 +1016,30 @@
           body: JSON.stringify({ feature: featureName }),
         });
         if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(apiErrorMessage(e.detail, `HTTP ${res.status}`)); }
-        setPanelVisible('archive-loader', false);
+        if (revision === sessionRevision) setPanelVisible('archive-loader', false);
         await consumeNdjson(res, ev => {
+          if (revision !== sessionRevision) return;
           if (ev.type === 'log') box.textContent += ev.line + '\n';
           else if (ev.type === 'reloaded') box.textContent += '\n🔄 Indice ricaricato in memoria.\n';
           else if (ev.type === 'reindex_queued') {
+            archived = true;
             box.textContent += `\n🔄 Re-indicizzazione accodata, job ${ev.job_id} (stato su /api/reindex/${ev.job_id}).\n`;
             pollReindexJob(ev.job_id, box);
           }
           else if (ev.type === 'error') { hadError = true; box.textContent += `\n❌ ${ev.message}\n`; }
           box.scrollTop = box.scrollHeight;
         });
+        if (revision !== sessionRevision) return;
+        if (!hadError && !archived) throw new Error('Stream interrotto senza conferma di archiviazione');
         setStepState(5, hadError ? 'failed' : 'done', hadError ? 'errori in archiviazione' : 'archiviato');
         await refreshFilesControl();
       } catch (e) {
+        if (revision !== sessionRevision) return;
         box.textContent += `\n❌ Errore: ${e.message}`;
         setStepState(5, 'failed', 'archiviazione fallita');
         toast(`Archiviazione fallita: ${e.message}`, 'error');
       } finally {
-        btn.disabled = false;
-        setPanelVisible('archive-loader', false);
+        if (revision === sessionRevision) { btn.disabled = false; setPanelVisible('archive-loader', false); }
       }
     }
 
@@ -885,10 +1063,12 @@
     }
 
     function pollReindexJob(jobId, box) {
+      const revision = sessionRevision;
       const POLL_MS = 4000;
       let finish;
       retainWorkspaceTask(new Promise(resolve => { finish = resolve; }));
       const tick = async () => {
+        if (revision !== sessionRevision) { finish(); return; }
         let job, missing = false;
         try {
           const res = await fetch(`/api/reindex/${jobId}`);
@@ -898,12 +1078,14 @@
           }
           job = await res.json();
         } catch (e) {
+          if (revision !== sessionRevision) { finish(); return; }
           box.textContent += `\n⚠ Impossibile verificare lo stato del job ${jobId}: ${e.message}\n`;
           box.scrollTop = box.scrollHeight;
           // Senza stato terminale il job può ancora lavorare: il frame resta residente.
           if (missing) finish(); else setTimeout(tick, POLL_MS);
           return;
         }
+        if (revision !== sessionRevision) { finish(); return; }
         if (!_TERMINAL_REINDEX_STATES.includes(job.status)) { setTimeout(tick, POLL_MS); return; }
         const ok = job.status === 'completed';
         const label = _REINDEX_STATUS_LABELS[job.status] || job.status;
@@ -937,7 +1119,8 @@
     async function runCanvasDryRun() {
       const name = getFeatureName();
       if (!name) { document.getElementById('feature-name-input').focus(); return; }
-      featureName = name;
+      if (!await ensurePipelineFeature()) return;
+      const revision = sessionRevision;
       const btn = document.getElementById('canvas-dryrun-btn');
       const card = document.getElementById('dryrun-card');
       const body = document.getElementById('dryrun-body');
@@ -951,6 +1134,7 @@
         });
         if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(apiErrorMessage(e.detail, `HTTP ${res.status}`)); }
         const data = await res.json();
+        if (revision !== sessionRevision) return;
         if (data.note) { body.innerHTML = `<span class="text-amber-400">${escapeHtml(data.note)}</span>`; return; }
         const fmt = v => (v === null || v === undefined) ? '—' : (typeof v === 'number' ? v.toFixed(3) : escapeHtml(v));
         // `branch` distingue il ramo di dominio da quello tecnico (scoping per dev_type):
@@ -965,13 +1149,15 @@
         body.innerHTML = `<div class="mb-2"><div class="text-slate-400 mb-1">Retrieval (ranking ibrido):</div>${src}</div>
           <div><div class="text-slate-400 mb-1">Documenti normativi che verrebbero iniettati:</div>${gov}</div>`;
       } catch (e) {
+        if (revision !== sessionRevision) return;
         body.innerHTML = `<span class="text-red-400">❌ ${escapeHtml(e.message)}</span>`;
-      } finally { btn.disabled = false; }
+      } finally { if (revision === sessionRevision) btn.disabled = false; }
     }
 
     /* ──────────── AGENT CONTEXT (blocco strutturato + confidence, Art. 1) ──────────── */
     async function loadAgentContext() {
       if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
+      const revision = sessionRevision;
       const btn = document.getElementById('agent-context-btn');
       const wrap = document.getElementById('agent-context-wrap');
       const box = document.getElementById('agent-context-box');
@@ -982,11 +1168,13 @@
         const res = await fetch(`/api/pipeline/agent-context?feature=${encodeURIComponent(featureName)}&dev_type=${encodeURIComponent(devType)}`);
         if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(apiErrorMessage(e.detail, `HTTP ${res.status}`)); }
         const data = await res.json();
+        if (revision !== sessionRevision) return;
         document.getElementById('agent-confidence').textContent = `${data.confidence} (${data.confidence_label})`;
         box.textContent = data.text || '(vuoto)';
       } catch (e) {
+        if (revision !== sessionRevision) return;
         box.textContent = `❌ Errore: ${e.message}`;
-      } finally { btn.disabled = false; }
+      } finally { if (revision === sessionRevision) btn.disabled = false; }
     }
 
     /* ──────────── EXPORT JSON del design contract ──────────── */
@@ -1010,6 +1198,10 @@
     /* ──────────── SHARED: SAVE EDITED MD FILE ──────────── */
     async function saveMdFile(name, editorId) {
       if (!featureName) return;
+      if (sessionLoading || pendingDraft) {
+        toast('Scegli prima se ripristinare o scartare la bozza locale.', 'error');
+        return;
+      }
       const savingFeature = featureName;
       const content = document.getElementById(editorId).value;
       try {
@@ -1037,12 +1229,19 @@
     });
 
     /* Popola subito la tendina dei tipi di sviluppo, ancora prima di caricare una feature */
-    loadDevTypes();
+    resumePipelineSession();
     loadRunners();
+
+    for (const id of [...draftEditors, 'chat-input']) {
+      document.getElementById(id).addEventListener('input', savePipelineDraft);
+    }
+    document.getElementById('feature-name-input').addEventListener('change', () => retainWorkspaceTask(loadFeatureStatus()));
 
     /* Azioni dei pulsanti/campi (data-click / data-change / data-input): prima erano
        handler inline, vietati dalla CSP — vedi registerActions in /static/shared.js. */
     registerActions({
+      restorePipelineDraft: () => restorePipelineDraft(),
+      discardPipelineDraft: () => discardPipelineDraft(),
       approveAndGoToCanvas: () => approveAndGoToCanvas(),
       approveAndGoToPropose: () => approveAndGoToPropose(),
       approveSpec: () => approveSpec(),

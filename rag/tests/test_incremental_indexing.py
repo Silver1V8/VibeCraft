@@ -445,6 +445,9 @@ def _wire_tmp_index(monkeypatch, tmp_path):
     db.mkdir()
     monkeypatch.setattr(index, "DOCS_DIR", docs_dir)
     monkeypatch.setattr(index, "CODE_DIR", code_dir)
+    # Corpus/embedding sintetici e fake senza query_points: qui si verifica indexing,
+    # non la qualità sul golden reale. I test del gate sovrascrivono questo esito.
+    monkeypatch.setattr(index, "gate_promotion", lambda *a, **k: {"passed": True})
     # L'I/O degli artefatti vive in core.artifacts: reindirizziamo LÌ database/
     # (versioni blue/green + CURRENT + manifest) e i percorsi flat dei formati
     # correnti (JSON/.npz) sulla sandbox.

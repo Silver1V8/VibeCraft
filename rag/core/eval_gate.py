@@ -45,17 +45,46 @@ from core.config import (
     GOLDEN_SET_PATH,
 )
 from core.eval_history import record_history
-from core.eval_metrics import DEFAULT_KS, evaluate
+from core.eval_metrics import DEFAULT_KS, evaluate, normalize_expected
 
 logger = logging.getLogger(__name__)
 
 
 def load_golden_cases(path: Path = GOLDEN_SET_PATH) -> list[dict]:
-    """Casi del golden set (lista di {q, expected}); [] se il file manca o è illeggibile."""
+    """[] solo se il file manca o dichiara cases: []; dati presenti invalidi sollevano errore."""
+    path = _unlinked(Path(path))
     try:
-        return yaml.safe_load(Path(path).read_text(encoding="utf-8")).get("cases") or []
-    except Exception:
+        content = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
         return []
+    data = yaml.safe_load(content)
+    if not isinstance(data, Mapping):
+        raise ValueError("golden set must be a mapping with a cases list")
+    return _validate_golden_cases(data.get("cases"))
+
+
+def _validate_golden_cases(cases) -> list[dict]:
+    if not isinstance(cases, list):
+        raise ValueError("golden cases must be a list")
+    keys = {"any", "chunk", "file", "doc", "section"}
+    for i, case in enumerate(cases):
+        if not isinstance(case, dict) or not isinstance(case.get("q"), str) or not case["q"].strip():
+            raise ValueError(f"golden case {i + 1} requires a nonempty query")
+        if "expected" in case and not isinstance(case["expected"], list):
+            raise ValueError(f"golden case {i + 1} expected must be a list")
+        expected = case.get("expected", [])
+        if any(not isinstance(item, (str, dict)) for item in expected):
+            raise ValueError(f"golden case {i + 1} contains an invalid matcher")
+        matchers = normalize_expected(case)
+        if not matchers or any(
+            not set(matcher).issubset(keys)
+            or not any(isinstance(value, str) and value.strip() for value in matcher.values())
+            or any(value is not None and (not isinstance(value, str) or not value.strip())
+                   for value in matcher.values())
+            for matcher in matchers
+        ):
+            raise ValueError(f"golden case {i + 1} requires valid nonempty expected matchers")
+    return cases
 
 
 def record_alert(level: str, message: str, *, path: Path | None = None, **details) -> dict:
@@ -93,7 +122,7 @@ def evaluate_recall(qdrant, embed_model, colbert_store: Mapping, *, k: int = EVA
     `collection_name` (opzionale, default COLLECTION_NAME): propagata a hybrid_search. Serve
     al blue/green di Qdrant, che dovrà far valutare il gate contro la collection candidata
     invece che quella di produzione. Nessun chiamante di produzione lo passa ancora."""
-    cases = cases if cases is not None else load_golden_cases()
+    cases = _validate_golden_cases(cases) if cases is not None else load_golden_cases()
     if not cases:
         return {"recall": None, "n": 0, "k": k}
 
@@ -135,9 +164,9 @@ def gate_promotion(version: str, qdrant, embed_model, colbert_store: Mapping, *,
     """Decide se la versione candidata può essere promossa. Restituisce un dict con almeno
     `passed` (bool) e, quando valutato, `recall`/`k`/`min_recall`/`n`.
 
-    Fail-open: gate disattivo o golden set assente ⇒ passed=True (non blocca i build privi di
-    baseline). Su regressione: scrive un alert critico; blocca la promozione solo se blocking=True
-    (advisory altrimenti — promuove ma segnala).
+    Gate disattivo o golden set assente/esplicitamente vuoto ⇒ passed=True, non valutato.
+    Errori di caricamento/valutazione e regressioni bloccano solo se blocking=True;
+    advisory altrimenti — promuove ma segnala.
 
     `collection_name` (opzionale, default COLLECTION_NAME): propagata a evaluate_recall.
     Nessun chiamante di produzione lo passa ancora."""
@@ -152,6 +181,10 @@ def gate_promotion(version: str, qdrant, embed_model, colbert_store: Mapping, *,
         k = settings.get("k", k)
         min_recall = settings.get("min_recall", min_recall)
         blocking = settings.get("blocking", blocking)
+    if not enabled:
+        return {"passed": True, "evaluated": False, "skipped": "disabled", "version": version}
+    golden = None
+    if project is not None:
         if not project.legacy:
             if cases is None:
                 golden = project.root / "eval" / "golden.yaml"
@@ -160,26 +193,37 @@ def gate_promotion(version: str, qdrant, embed_model, colbert_store: Mapping, *,
                         raise ValueError(f"linked project golden path forbidden: {component}")
                 if not golden.resolve().is_relative_to(project.root.resolve()):
                     raise ValueError("escaping project golden path forbidden")
-                cases = load_golden_cases(golden)
             alert_kwargs = {"path": project.database_dir / "alerts.jsonl"}
             history_kwargs = {"path": project.database_dir / "eval" / "history.jsonl"}
-    if not enabled:
-        return {"passed": True, "skipped": "disabled", "version": version}
 
+    error_stage = "load"
     try:
+        if cases is None:
+            cases = load_golden_cases(golden) if golden is not None else load_golden_cases()
+        else:
+            cases = _validate_golden_cases(cases)
+        error_stage = "evaluation"
         res = evaluate_recall(qdrant, embed_model, colbert_store, k=k, cases=cases,
                               collection_name=collection_name,
                               graph=graph, restatements=restatements, project=project)
-    except Exception as exc:  # un gate che crasha NON deve bloccare un build: fail-open + warn
-        _log(f"⚠️  Eval-gate non eseguito ({type(exc).__name__}: {exc}); fail-open, promozione consentita.")
-        return {"passed": True, "skipped": "error", "error": str(exc), "version": version}
+    except Exception as exc:
+        msg = f"Eval-gate non valutato ({type(exc).__name__}: {exc})."
+        record_alert("critical" if blocking else "warning", msg, version=version,
+                     error_stage=error_stage, blocking=blocking, **alert_kwargs)
+        _log(f"⚠️  {msg} " + ("PROMOZIONE BLOCCATA." if blocking else
+                               "Modalità advisory: promozione consentita con avviso."))
+        return {"passed": not blocking, "evaluated": False, "recall": None, "k": k,
+                "skipped": "error", "error": str(exc), "error_stage": error_stage,
+                "advisory": not blocking, "version": version}
     res["version"] = version
     if res["recall"] is None:
-        _log("ℹ️  Eval-gate saltato: golden set assente o vuoto (fail-open, promozione consentita).")
+        _log("ℹ️  Eval-gate non valutato: golden set assente o esplicitamente vuoto; promozione consentita.")
         res["passed"] = True
+        res["evaluated"] = False
         res["skipped"] = "no_golden_set"
         return res
 
+    res["evaluated"] = True
     res["min_recall"] = min_recall
     if res.get("saturated"):
         msg_sat = (f"Eval-gate valutato a un k SATURO: recall@{k}=1.000 su tutti i {res['n']} "
@@ -190,8 +234,7 @@ def gate_promotion(version: str, qdrant, embed_model, colbert_store: Mapping, *,
     ok = res["recall"] >= min_recall
     # Storicizza ogni valutazione del gate (trend di qualità, Epic 5): source="gate", con
     # TUTTI i k misurati (R12) e non solo quello in vigore. Il fallback copre un
-    # `evaluate_recall` sostituito da un doppio: siamo fuori dal try/except, e un KeyError
-    # qui farebbe fallire proprio il build che il fail-open del gate esiste per proteggere.
+    # `evaluate_recall` sostituito da un doppio privo di `recall_by_k`.
     record_history(res.get("recall_by_k") or {f"recall@{k}": res["recall"]},
                    n_cases=res["n"], version=version,
                    source="gate", gate={"passed": ok, "min_recall": min_recall}, **history_kwargs)

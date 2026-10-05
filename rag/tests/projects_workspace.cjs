@@ -524,6 +524,7 @@ async function reindexChecks() {
   let active = 0;
   const context = vm.createContext({
     setTimeout: callback => timers.push(callback),
+    sessionRevision: 0,
     retainWorkspaceTask: promise => { active++; promise.finally(() => active--); },
     fetch: async () => replies.shift(), notifyReindexDone() {},
     _TERMINAL_REINDEX_STATES: ['completed'], _REINDEX_STATUS_LABELS: { completed: 'completata' },

@@ -100,7 +100,7 @@ def _public_error(exc):
         return "Nome feature non valido."
     if isinstance(exc, (ProjectError, OSError, PipelineStorageError)):
         return "Archiviazione del progetto non disponibile."
-    if isinstance(exc, validation.ValidationUnavailable):
+    if isinstance(exc, (validation.ValidationUnavailable, retrieval.RetrievalUnavailable)):
         if isinstance(exc.__cause__, ValueError) and str(exc.__cause__) == "Fonte recuperata priva di testo o impronta nel manifest":
             return "Fonte recuperata priva di testo o impronta nel manifest."
         return "Retrieval non disponibile: verifica indice, Qdrant ed embedding."
@@ -166,12 +166,21 @@ def _snap_fields(snap: IndexSnapshot | None):
     return snap.graph, snap.chunks, snap.colbert_store
 
 
+async def _pipeline_retrieval(fn, *args, **kwargs):
+    try:
+        return await embed_in_threadpool(fn, *args, **kwargs)
+    except retrieval.RetrievalUnavailable as exc:
+        raise HTTPException(status_code=503, detail=_public_error(exc)) from exc
+
+
 def _governed_context(question: str, snap: IndexSnapshot | None, project=None) -> str:
     """Contesto NORMATIVO governato per `question` (safeguard, permessi, glossario): quello
     che i prompt presentano come «vincoli da rispettare e verificare». Iniezione delle risorse
     dallo snapshot, preso una volta dal chiamante.
     Sincrono (CPU-bound: embedding della query) → threadpool."""
     graph, chunks, colbert_store = _snap_fields(snap)
+    if graph is None:
+        raise retrieval.RetrievalUnavailable("Retrieval non disponibile: grafo assente.")
     return retrieval.retrieve_governed_context(
         question,
         graph=graph, chunks_store=chunks, max_chunks=GOVERNED_MAX_CHUNKS,
@@ -194,6 +203,8 @@ def _tech_context(dev_type: str, snap: IndexSnapshot | None, project=None) -> st
     if not tech_query:
         return ""
     graph, chunks, colbert_store = _snap_fields(snap)
+    if graph is None:
+        raise retrieval.RetrievalUnavailable("Retrieval non disponibile: grafo assente.")
     return retrieval.retrieve_governed_context(
         tech_query,
         graph=graph, chunks_store=chunks, max_chunks=TECH_MAX_CHUNKS,
@@ -221,6 +232,8 @@ def _canvas_lessons(query: str, snap: IndexSnapshot | None, project=None) -> str
 def _agent_context(feature: str, dev_type: str, snap: IndexSnapshot | None, project=None) -> dict:
     """Blocco [AGENT CONTEXT] iniettando le risorse dallo snapshot. Sincrono → threadpool."""
     graph, _, colbert_store = _snap_fields(snap)
+    if graph is None or state.get("qdrant") is None or state.get("embed_model") is None:
+        raise retrieval.RetrievalUnavailable("Retrieval non disponibile: risorse di ricerca assenti.")
     return pipeline.build_agent_context(
         feature, dev_type,
         graph=graph, qdrant=state.get("qdrant"),
@@ -515,11 +528,11 @@ async def pipeline_canvas_generate(req: CanvasGenerateRequest, project=Depends(g
     snap = await run_in_threadpool(require_snapshot, project)
     await run_in_threadpool(ensure_shared_resources)
     query = f"{req.feature_name}\n{contesto_intervista[:2000]}"
-    governed_context = await embed_in_threadpool(_governed_context, query, snap, project=project)
+    governed_context = await _pipeline_retrieval(_governed_context, query, snap, project=project)
     contesto_progetto_base = governed_context or "Nessun documento normativo pertinente recuperato dal Graph RAG."
     # Contesto tecnico: blocco separato nel prompt (vedi build_canvas_prompt), non fuso col
     # normativo — hanno ruoli diversi e istruzioni diverse.
-    contesto_tecnico = await embed_in_threadpool(_tech_context, dev_type, snap, project=project)
+    contesto_tecnico = await _pipeline_retrieval(_tech_context, dev_type, snap, project=project)
 
     # Persiste in meta.json QUALI documenti hanno ancorato questo canvas (normativi + tecnici):
     # all'archive diventano gli `expected` di un caso candidato per il golden-set di eval.
@@ -572,7 +585,7 @@ async def pipeline_propose_generate(req: ProposeGenerateRequest, project=Depends
     #
     # Niente ramo tecnico qui: lo stack lo porta il Canvas (vedi build_spec_prompt). Il
     # dev_type serve solo a delimitare l'ambito degli scenari.
-    governed_context = await embed_in_threadpool(
+    governed_context = await _pipeline_retrieval(
         _governed_context, f"{req.feature_folder}\n{canvas_content[:2000]}", await run_in_threadpool(require_snapshot, project)
         , project=project)
     prompt_strutturato = pipeline.build_spec_prompt(canvas_content, governed_context, dev_type,
@@ -994,7 +1007,7 @@ async def pipeline_canvas_dry_run(req: CanvasGenerateRequest, project=Depends(ge
 
     def work() -> dict:
         if snap is None or snap.graph is None or state.get("qdrant") is None or state.get("embed_model") is None:
-            return {"sources": [], "governed_docs": [], "note": "Indice non ancora pronto."}
+            raise retrieval.RetrievalUnavailable("Retrieval non disponibile: risorse di ricerca assenti.")
         graph = snap.graph
         search = functools.partial(retrieval.hybrid_search, qdrant=state["qdrant"],
                                    embed_model=state["embed_model"], colbert_store=snap.colbert_store, project=project, collection_name=snap.collection_name)
@@ -1009,8 +1022,8 @@ async def pipeline_canvas_dry_run(req: CanvasGenerateRequest, project=Depends(ge
         for label, q, query_filter in branches:
             try:
                 results = search(q, 6, query_filter=query_filter)
-            except Exception:
-                return {"sources": [], "governed_docs": [], "note": "Retrieval non disponibile."}
+            except Exception as exc:
+                raise retrieval.RetrievalUnavailable("Retrieval non disponibile.") from exc
             sources += [
                 {"doc_id": r["doc_id"], "section": r.get("section", ""), "branch": label,
                  "dense_score": r["dense_score"], "sparse_score": r["sparse_score"],
@@ -1032,7 +1045,7 @@ async def pipeline_canvas_dry_run(req: CanvasGenerateRequest, project=Depends(ge
             })
         return {"sources": sources, "governed_docs": governed}
 
-    data = await embed_in_threadpool(work)
+    data = await _pipeline_retrieval(work)
     return {"feature_folder": folder.name, "query_preview": query[:300], **data}
 
 
@@ -1045,7 +1058,7 @@ async def pipeline_agent_context(feature: str, dev_type: str = "", project=Depen
     feature_folder = _safe_slug(feature)
     snap = await run_in_threadpool(require_snapshot, project)
     await run_in_threadpool(ensure_shared_resources)
-    ctx = await embed_in_threadpool(_agent_context, feature, dev_type, snap, project=project)
+    ctx = await _pipeline_retrieval(_agent_context, feature, dev_type, snap, project=project)
     return {"feature_folder": feature_folder, **ctx}
 
 
@@ -1063,7 +1076,7 @@ async def pipeline_export(feature: str, dev_type: str = "", project=Depends(get_
     dev = dev_type or load_dev_type(folder)
     snap = await run_in_threadpool(require_snapshot, project)
     await run_in_threadpool(ensure_shared_resources)
-    ctx = await embed_in_threadpool(_agent_context, feature, dev, snap, project=project)
+    ctx = await _pipeline_retrieval(_agent_context, feature, dev, snap, project=project)
     spec = rd("spec.md")
     return {
         "feature": feature,

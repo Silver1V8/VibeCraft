@@ -26,7 +26,9 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
+import networkx as nx
 import pytest
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
@@ -179,6 +181,12 @@ def changes_env(tmp_path, monkeypatch):
     changes = tmp_path / "changes"
     monkeypatch.setattr(routes_pipeline, "CHANGES_DIR", changes)
     monkeypatch.setattr(pipeline, "CHANGES_DIR", changes)
+    # Questi scenari verificano path/auth/LLM, con retrieval disponibile ma senza risultati.
+    snapshot = SimpleNamespace(graph=nx.DiGraph(), chunks={}, colbert_store={}, collection_name="test")
+    monkeypatch.setattr(routes_pipeline, "require_snapshot", lambda project: snapshot)
+    monkeypatch.setitem(deps.state, "qdrant", object())
+    monkeypatch.setitem(deps.state, "embed_model", object())
+    monkeypatch.setattr(routes_pipeline.retrieval, "hybrid_search", lambda *args, **kwargs: [])
     return changes
 
 
@@ -261,7 +269,7 @@ def test_route_canvas_dry_run_works_on_existing_feature(changes_env):
 
     assert result["feature_folder"] == "feat-demo"
     assert "intervista di esempio" in result["query_preview"]
-    assert result["sources"] == []  # nessun indice pronto nel test: ramo "Indice non ancora pronto."
+    assert result["sources"] == []  # indice pronto, ricerca valida senza risultati
     assert folder.exists()  # la cartella pre-esistente non viene toccata/rimossa
 
 

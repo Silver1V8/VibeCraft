@@ -2,6 +2,8 @@
 fail-open. La misura della recall è mockata per controllare gli scenari senza modello reale."""
 import json
 
+import pytest
+
 from core import eval_gate
 
 
@@ -47,12 +49,83 @@ def test_gate_fail_open_without_golden_set(monkeypatch):
     assert res["passed"] is True and res["skipped"] == "no_golden_set"
 
 
-def test_gate_fail_open_on_error(monkeypatch):
+@pytest.mark.parametrize("blocking", [True, False])
+def test_gate_evaluation_error_respects_blocking(monkeypatch, blocking, tmp_path):
     def _boom(*a, **k):
         raise RuntimeError("qdrant giù")
     monkeypatch.setattr(eval_gate, "evaluate_recall", _boom)
-    res = eval_gate.gate_promotion("v5", None, None, {})
-    assert res["passed"] is True and res["skipped"] == "error"      # un gate rotto non blocca il build
+    alerts = tmp_path / "alerts.jsonl"
+    monkeypatch.setattr(eval_gate, "ALERTS_PATH", alerts)
+    logs = []
+    res = eval_gate.gate_promotion("v5", None, None, {}, blocking=blocking, emit=logs.append,
+                                   cases=[{"q": "query", "expected": ["doc.md"]}])
+    assert res["passed"] is (not blocking)
+    assert res["skipped"] == "error" and res["evaluated"] is False
+    assert res["error_stage"] == "evaluation" and res["recall"] is None
+    assert res.get("advisory", False) is (not blocking)
+    assert logs
+    alert = json.loads(alerts.read_text(encoding="utf-8"))
+    assert alert["level"] == ("critical" if blocking else "warning")
+    assert alert["version"] == "v5" and alert["error_stage"] == "evaluation"
+
+
+@pytest.mark.parametrize("content", [
+    "", "null", "[", "[]", "cases:", "other: []", "cases: {}",
+    "cases: [not-a-case]", "cases: [{expected: [doc.md]}]",
+    "cases: [{q: '  ', expected: [doc.md]}]", "cases: [{q: 1, expected: [doc.md]}]",
+    "cases: [{q: query}]", "cases: [{q: query, expected: []}]",
+    "cases: [{q: query, expected: doc.md}]", "cases: [{q: query, expected: [{}]}]",
+    "cases: [{q: query, expected: [{unknown: doc.md}]}]",
+    "cases: [{q: query, expected: ['  ']}]", "cases: [{q: query, expected: [{doc: 1}]}]",
+    "cases: [{q: query, expected: [doc.md, {}]}]",
+])
+def test_present_invalid_golden_is_not_bootstrap(tmp_path, content):
+    golden = tmp_path / "golden.yaml"
+    golden.write_text(content, encoding="utf-8")
+    with pytest.raises((ValueError, eval_gate.yaml.YAMLError)):
+        eval_gate.load_golden_cases(golden)
+
+
+@pytest.mark.parametrize("content", [None, "cases: []"])
+def test_absent_or_explicit_empty_golden_allows_unevaluated_bootstrap(monkeypatch, tmp_path, content):
+    golden = tmp_path / "golden.yaml"
+    if content is not None:
+        golden.write_text(content, encoding="utf-8")
+    loader = eval_gate.load_golden_cases
+    monkeypatch.setattr(eval_gate, "load_golden_cases", lambda: loader(golden))
+    res = eval_gate.gate_promotion("bootstrap", None, None, {}, blocking=True)
+    assert res["passed"] is True and res["skipped"] == "no_golden_set"
+    assert res["evaluated"] is False and res["recall"] is None and res["n"] == 0
+
+
+@pytest.mark.parametrize("content", ["cases: [{q: query, expected: [doc.md]}]",
+                                       "cases: [{q: query, expected_doc: doc.md, expected_section: null}]"])
+def test_valid_golden_matchers_retain_new_and_legacy_format(tmp_path, content):
+    golden = tmp_path / "golden.yaml"
+    golden.write_text(content, encoding="utf-8")
+    assert eval_gate.load_golden_cases(golden)[0]["q"] == "query"
+
+
+@pytest.mark.parametrize("blocking", [True, False])
+@pytest.mark.parametrize("failure", ["malformed", "unreadable"])
+def test_golden_load_error_respects_blocking(monkeypatch, tmp_path, blocking, failure):
+    golden = tmp_path / "golden.yaml"
+    if failure == "unreadable":
+        golden.mkdir()
+    else:
+        golden.write_text("cases: [", encoding="utf-8")
+    loader = eval_gate.load_golden_cases
+    monkeypatch.setattr(eval_gate, "load_golden_cases", lambda: loader(golden))
+    res = eval_gate.gate_promotion("candidate", None, None, {}, blocking=blocking)
+    assert res["passed"] is (not blocking) and res["skipped"] == "error"
+    assert res["error_stage"] == "load" and res["evaluated"] is False
+    assert res.get("advisory", False) is (not blocking)
+
+
+def test_explicit_invalid_cases_cannot_pass_with_zero_threshold():
+    res = eval_gate.gate_promotion("candidate", None, None, {}, min_recall=0, blocking=True,
+                                   cases=[{"q": "query"}])
+    assert res["passed"] is False and res["evaluated"] is False
 
 
 def test_gate_disabled_is_noop(monkeypatch):
@@ -100,7 +173,7 @@ def test_evaluate_recall_default_collection_name_propagated_to_hybrid_search(mon
         return []
 
     monkeypatch.setattr(eval_gate.retrieval, "hybrid_search", _fake_hybrid_search)
-    eval_gate.evaluate_recall(None, None, {}, cases=[{"q": "domanda"}])
+    eval_gate.evaluate_recall(None, None, {}, cases=[{"q": "domanda", "expected": ["doc.md"]}])
     assert captured["collection_name"] == eval_gate.COLLECTION_NAME
 
 
@@ -117,7 +190,7 @@ def test_evaluate_recall_propaga_graph_e_restatements_a_hybrid_search(monkeypatc
 
     monkeypatch.setattr(eval_gate.retrieval, "hybrid_search", _fake_hybrid_search)
     g = object()
-    eval_gate.evaluate_recall(None, None, {}, cases=[{"q": "domanda"}],
+    eval_gate.evaluate_recall(None, None, {}, cases=[{"q": "domanda", "expected": ["doc.md"]}],
                               graph=g, restatements=frozenset({"doc.md#06"}))
     assert captured["graph"] is g
     assert captured["restatements"] == frozenset({"doc.md#06"})
@@ -147,7 +220,7 @@ def test_evaluate_recall_explicit_collection_name_propagated_to_hybrid_search(mo
 
     monkeypatch.setattr(eval_gate.retrieval, "hybrid_search", _fake_hybrid_search)
     eval_gate.evaluate_recall(
-        None, None, {}, cases=[{"q": "domanda"}], collection_name="vibecraft_events__v9"
+        None, None, {}, cases=[{"q": "domanda", "expected": ["doc.md"]}], collection_name="vibecraft_events__v9"
     )
     assert captured["collection_name"] == "vibecraft_events__v9"
 
