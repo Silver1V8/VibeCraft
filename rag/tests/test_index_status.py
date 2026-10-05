@@ -2,9 +2,35 @@
 Usa i documenti reali in docs/ per gli hash, ma scrive il manifest in una dir temporanea
 (sandbox su database/: nessuna versione promossa -> layout flat legacy)."""
 import json
+from dataclasses import replace
+
+import pytest
 
 from core import artifacts
 from core import indexing as index
+from core.projects import legacy_project_context
+
+
+@pytest.mark.parametrize("change", ["modify", "add", "remove"])
+def test_code_only_changes_make_project_index_stale(tmp_path, change):
+    project = replace(legacy_project_context(), database_dir=tmp_path / "database",
+                      docs_dir=tmp_path / "docs", code_dir=tmp_path / "code")
+    for directory in (project.database_dir, project.docs_dir, project.code_dir):
+        directory.mkdir()
+    source = project.code_dir / "app.py"
+    source.write_text("value = 1", encoding="utf-8")
+    index.write_index_manifest(0, project=project)
+    assert index.index_status(project=project)["stale"] is False
+    if change == "modify":
+        source.write_text("value = 2", encoding="utf-8")
+    elif change == "add":
+        (project.code_dir / "other.py").write_text("value = 1", encoding="utf-8")
+    else:
+        source.unlink()
+    status = index.index_status(project=project)
+    assert status["stale"] is True
+    assert status["changed"] == []
+    assert status["code_changed"]
 
 
 def _sandbox_db(monkeypatch, tmp_path):

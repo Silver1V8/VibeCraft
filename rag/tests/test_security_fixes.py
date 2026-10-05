@@ -387,6 +387,7 @@ _REVERTED_TO_PLAIN_KEY_ROUTES = [
     (routes_pipeline.router, "POST", "/api/pipeline/archive/stream"),
     (routes_pipeline.router, "POST", "/api/pipeline/file/save"),
     (routes_reindex.router, "POST", "/api/reindex"),
+    (routes_reindex.router, "POST", "/api/index/reindex"),
     (routes_reindex.router, "POST", "/api/index/rollback"),
 ]
 
@@ -499,7 +500,12 @@ def test_http_canvas_generate_bypasses_localhost_without_key(changes_env, fake_l
     assert (changes_env / "http-demo" / "canvas.md").read_text(encoding="utf-8") == "## Requirements\nOK"
 
 
-def test_http_reindex_bypasses_localhost_without_key(monkeypatch):
+@pytest.mark.parametrize("endpoint,gitlab_token,immutable,kind", [
+    ("/api/reindex", None, False, "incremental"),
+    ("/api/index/reindex", "webhook-only-token", False, "incremental"),
+    ("/api/index/reindex", "webhook-only-token", True, "full"),
+])
+def test_http_reindex_bypasses_localhost_without_key(monkeypatch, endpoint, gitlab_token, immutable, kind):
     """La route accoda il job su un ReindexManager reale (thread + modello di
     embedding): per un test HTTP veloce e deterministico si sostituisce il manager
     con un fake minimale — l'unica cosa sotto esame qui è l'auth, non il reindex."""
@@ -509,15 +515,21 @@ def test_http_reindex_bypasses_localhost_without_key(monkeypatch):
         def to_dict(self):
             return {"job_id": self.id, "status": "running"}
 
+    started = []
+
     class _FakeManager:
         def start(self, changed_paths, run_reindex, on_success, kind="incremental"):
+            started.append(kind)
             return _FakeJob(), False
 
     monkeypatch.setattr(deps, "API_KEY", None)
+    monkeypatch.setattr(deps, "GITLAB_TOKEN", gitlab_token)
+    monkeypatch.setattr(routes_reindex, "immutable_index_active", lambda **kwargs: immutable, raising=False)
     monkeypatch.setattr(routes_reindex, "project_manager", lambda project: _FakeManager())
     client = _make_client(routes_reindex.router)
-    r = client.post("/api/reindex", json={})
+    r = client.post(endpoint, json={})
     assert r.status_code == 202, r.text
+    assert started == [kind]
 
 
 def test_http_rollback_bypasses_localhost_without_key(monkeypatch, tmp_path):
@@ -742,6 +754,7 @@ _ANTI_XSITE_ROUTES = [
     (routes_projects.router, "POST", "/api/projects"),
     (routes_projects.router, "POST", "/api/projects/register"),
     (routes_reindex.router, "POST", "/api/reindex"),
+    (routes_reindex.router, "POST", "/api/index/reindex"),
     (routes_reindex.router, "POST", "/api/index/rollback"),
     (routes_pipeline.router, "POST", "/api/pipeline/explore/save"),
     (routes_pipeline.router, "POST", "/api/pipeline/canvas/generate"),

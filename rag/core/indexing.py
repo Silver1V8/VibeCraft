@@ -775,9 +775,9 @@ def _diff_hashes(old: dict[str, str], new: dict[str, str]) -> tuple[list[str], l
 
 
 def index_status(project: ProjectContext | None = None, *, version: str | None = None) -> dict:
-    """Confronta gli hash correnti di docs/ con quelli del manifest (della versione
-    attiva) per dire se l'indice è aggiornato o va rigenerato, elencando i documenti
-    aggiunti/rimossi/modificati. `version` fissa la directory già catturata dal chiamante;
+    """Confronta gli hash correnti di docs/ e code/ con quelli del manifest della
+    versione attiva, elencando documenti e codice aggiunti/rimossi/modificati.
+    `version` fissa la directory già catturata dal chiamante;
     il campo `version` restituito mantiene il timestamp storico del manifest."""
     path = manifest_path(version, project=project)
     if not path.exists():
@@ -789,14 +789,17 @@ def index_status(project: ProjectContext | None = None, *, version: str | None =
 
     added, removed, modified, _unchanged = _diff_hashes(manifest.get("doc_hashes", {}), docs_hashes(project=project))
     changed = [f"+ {p}" for p in added] + [f"- {p}" for p in removed] + [f"~ {p}" for p in modified]
+    code_added, code_removed, code_modified, _ = _diff_hashes(manifest.get("code_hashes", {}), _code_hashes(project=project))
+    code_changed = [f"+ {p}" for p in code_added] + [f"- {p}" for p in code_removed] + [f"~ {p}" for p in code_modified]
     return {
         "indexed": True,
-        "stale": bool(changed),
+        "stale": bool(changed or code_changed),
         "version": manifest.get("version"),
         "created_at": manifest.get("created_at"),
         "embedding_model": manifest.get("embedding_model"),
         "documents": manifest.get("documents"),
         "changed": changed,
+        "code_changed": code_changed,
     }
 
 

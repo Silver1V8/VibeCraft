@@ -2,9 +2,15 @@
 Semantic Map) e del troncamento dichiarato di semantic_map quando Qdrant restituisce
 un next_page_offset non nullo. Non tocca soglie/semantica, PCA, community o betweenness."""
 import logging
+from types import SimpleNamespace
 
 import networkx as nx
 import numpy as np
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from httpx import Headers
+from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
 
 from core import graph_ops
 
@@ -117,3 +123,51 @@ def test_semantic_map_not_truncated_when_next_page_offset_none(caplog):
         result = graph_ops.semantic_map(nx.DiGraph(), _FakeQdrantComplete())
     assert result["truncated"] is False
     assert not any("10000" in rec.message for rec in caplog.records)
+
+
+@pytest.mark.usefixtures("legacy_http_project")
+@pytest.mark.parametrize("error,status,code", [
+    (ResponseHandlingException(ConnectionError("private connection details")), 503, "qdrant_unavailable"),
+    (UnexpectedResponse(404, "Not Found", b"private collection details", Headers()), 409, "project_vectors_missing"),
+    (UnexpectedResponse(503, "Unavailable", b"private service details", Headers()), 503, "qdrant_unavailable"),
+])
+def test_semantic_map_reports_actionable_qdrant_errors(monkeypatch, error, status, code):
+    from api import deps, routes_graph
+    snapshot = SimpleNamespace(graph=nx.DiGraph(), chunks={}, collection_name="physical-v1", version="v1")
+    monkeypatch.setattr(routes_graph, "require_snapshot", lambda project: snapshot)
+    monkeypatch.setattr(routes_graph, "ensure_shared_resources", lambda **kwargs: None)
+    monkeypatch.setitem(deps.state, "qdrant", object())
+
+    def unavailable(*args, **kwargs):
+        raise error
+
+    monkeypatch.setattr(graph_ops, "semantic_map", unavailable)
+    app = FastAPI()
+    app.include_router(routes_graph.router)
+    response = TestClient(app, client=("127.0.0.1", 1), raise_server_exceptions=False).get("/api/graph/semantic-map")
+    assert response.status_code == status
+    assert response.json()["detail"]["code"] == code
+    assert "private" not in response.text
+    assert response.json()["detail"]["message"]
+
+
+@pytest.mark.usefixtures("legacy_http_project")
+@pytest.mark.parametrize("expected,returned,truncated,status", [
+    (0, 0, False, 200), (1, 0, False, 200), (2, 0, False, 409),
+    (2, 2, False, 200), (3, 2, False, 409), (3, 2, True, 200),
+])
+def test_semantic_map_detects_incomplete_vectors(monkeypatch, expected, returned, truncated, status):
+    from api import deps, routes_graph
+    snapshot = SimpleNamespace(graph=nx.DiGraph(), chunks={str(i): {} for i in range(expected)},
+                               collection_name="physical-v1", version="v1")
+    monkeypatch.setattr(routes_graph, "require_snapshot", lambda project: snapshot)
+    monkeypatch.setattr(routes_graph, "ensure_shared_resources", lambda **kwargs: None)
+    monkeypatch.setitem(deps.state, "qdrant", object())
+    monkeypatch.setattr(graph_ops, "semantic_map", lambda *args, **kwargs:
+                        {"points": [{}] * returned, "truncated": truncated})
+    app = FastAPI()
+    app.include_router(routes_graph.router)
+    response = TestClient(app, client=("127.0.0.1", 1)).get("/api/graph/semantic-map")
+    assert response.status_code == status
+    if status == 409:
+        assert response.json()["detail"]["code"] == "project_vectors_missing"

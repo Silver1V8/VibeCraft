@@ -51,6 +51,7 @@ from core.indexing import (
     build_graph_and_index,
     gc_orphaned_qdrant_collections,
     incremental_index,
+    immutable_index_active,
     rollback_qdrant_alias_if_needed,
     rollback_shares_collection_with_later_versions,
 )
@@ -213,6 +214,7 @@ def enqueue_full_rebuild(project) -> tuple:
                                           lambda: reload_index_state(project), kind="full")
 
 
+@router.post("/api/index/reindex", dependencies=[Depends(require_not_cross_site_request)])
 @router.post("/api/reindex", dependencies=[Depends(require_gitlab_token),
                                            Depends(require_not_cross_site_request)])
 async def start_reindex(request: Request, project=Depends(get_project)):
@@ -224,12 +226,15 @@ async def start_reindex(request: Request, project=Depends(get_project)):
     un FULL REBUILD (build_graph_and_index) via coda. Se un reindex è già in corso la
     richiesta NON viene rifiutata: è accodata/fusa in un unico pending e la risposta
     riporta `{"job_id": <id del pending>, "queued": true}`."""
+    # La console usa /api/index/reindex con la sola API key; /api/reindex mantiene
+    # anche il token GitLab per i webhook configurati.
     try:
         payload = await request.json()
     except Exception:
         payload = None  # corpo assente o non-JSON: incrementale completo
 
-    if isinstance(payload, dict) and payload.get("full") is True:
+    console_full = request.url.path == "/api/index/reindex" and project.legacy and immutable_index_active(project=project)
+    if console_full or (isinstance(payload, dict) and payload.get("full") is True):
         job, queued = enqueue_full_rebuild(project)
     else:
         changed_paths = extract_gitlab_paths(payload) if payload is not None else None

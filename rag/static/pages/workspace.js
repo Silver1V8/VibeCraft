@@ -9,6 +9,8 @@ let currentProject = selectedProjectId();
 let projects = [];
 let projectReadOnly = true;
 let projectDialogMode = 'new';
+const projectIndexJobs = new Set();
+const projectIndexRepairs = new Set();
 const RECENT_PROJECTS_STORAGE = 'vibecraft-recent-projects';
 let recentProjects = [];
 try {
@@ -104,7 +106,84 @@ function renderProjects() {
   renderProjectList();
 }
 function renderIndexStatus(project) {
-  setIndexBadge(document.getElementById('project-index-status'), project);
+  const busy = project && (projectIndexJobs.has(project.id) || project.index_status === 'indexing');
+  const repair = project && projectIndexRepairs.has(project.id);
+  const badge = document.getElementById('project-index-status');
+  setIndexBadge(badge, busy ? { ...project, index_status: 'indexing', stale: false } : project);
+  if (repair && !busy) { badge.textContent = 'Indice da ricostruire'; badge.dataset.state = 'error'; }
+  const button = document.getElementById('project-index-update');
+  button.hidden = projectReadOnly || !project || (!busy && !repair && project.index_status === 'ready' && project.stale === false);
+  button.disabled = !!busy;
+  button.textContent = busy ? 'Indicizzazione…' : repair ? 'Ricostruisci indice' : project?.index_status === 'not_indexed' ? 'Crea indice' : 'Aggiorna indice';
+}
+window.reportProjectIndexIssue = id => {
+  projectIndexRepairs.add(id);
+  if (id === currentProject) renderIndexStatus(projects.find(project => project.id === id));
+};
+async function updateProjectIndex() {
+  const id = currentProject, project = projects.find(item => item.id === id);
+  if (projectReadOnly || !project || project.index_status === 'indexing' || projectIndexJobs.has(id)) return;
+  const headers = { 'Content-Type': 'application/json', 'X-VibeCraft-Project': id };
+  projectIndexJobs.add(id);
+  renderIndexStatus(project);
+  try {
+    const response = await fetch('/api/index/reindex', { method: 'POST', headers,
+      body: JSON.stringify(project.index_status !== 'ready' || projectIndexRepairs.has(id) ? { full: true } : {}),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(projectError(data, response));
+    if (!data.job_id) throw new Error('Il server non ha restituito il job di indicizzazione.');
+    let notified = false;
+    const tick = async () => {
+      let job;
+      try {
+        const status = await fetch('/api/reindex/' + encodeURIComponent(data.job_id), { headers });
+        const result = await status.json();
+        if (!status.ok) {
+          if (status.status === 404) {
+            projectIndexJobs.delete(id);
+            await refreshIndexStatus(id);
+            toast(`${project.name}: ${projectError(result, status)}`, 'warning');
+            return;
+          }
+          throw new Error(projectError(result, status));
+        }
+        job = result;
+      } catch (error) {
+        if (!notified) toast(`${project.name}: ${error.message}. Riprovo a verificare lo stato.`, 'warning');
+        notified = true;
+        setTimeout(tick, 4000);
+        return;
+      }
+      if (!['completed', 'completed_not_promoted', 'failed', 'interrupted'].includes(job.status)
+          || (job.status === 'completed' && job.reload_status === 'pending')) {
+        setTimeout(tick, 4000);
+        return;
+      }
+      projectIndexJobs.delete(id);
+      const ok = job.status === 'completed' && !job.reload_error && (!job.reload_status || job.reload_status === 'completed');
+      if (ok) projectIndexRepairs.delete(id);
+      await refreshIndexStatus(id);
+      renderProjectList();
+      const message = ok ? 'Indice aggiornato.' : job.reload_error || job.error
+        || (job.status === 'completed_not_promoted' ? 'Indice costruito ma non attivato: controlli di qualità non superati.'
+          : job.status === 'completed' ? 'Indice costruito ma non caricato. Riprova.' : 'Indicizzazione interrotta.');
+      toast(`${project.name}: ${message}`, ok ? 'success' : 'warning');
+      if (ok) {
+        for (const page of workspacePages.values()) {
+          if (page.project === id && page.frame) {
+            page.frame.contentWindow.loadSemanticMap?.();
+            page.frame.contentWindow.loadNodeList?.();
+          }
+        }
+      }
+    };
+    await tick();
+  } catch (error) {
+    projectIndexJobs.delete(id);
+    if (id === currentProject) renderIndexStatus(projects.find(item => item.id === id));
+    toast(`${project.name}: ${error.message}`, 'warning');
+  }
 }
 async function refreshIndexStatus(id = currentProject) {
   if (!id) return;
@@ -291,6 +370,7 @@ registerActions({
   selectProject: el => { const url = new URL(location.href); url.searchParams.set('project', el.value); return navigateWorkspace(url.href); },
   newProject: () => showProjectDialog('new'), openProject: () => showProjectDialog('open'),
   cancelProject: () => document.getElementById('project-dialog').close(), browseExistingProject,
+  updateProjectIndex,
 });
 document.getElementById('project-form').addEventListener('submit', submitProject);
 window.addEventListener('popstate', () => navigateWorkspace(location.href, false));

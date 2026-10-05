@@ -129,6 +129,7 @@ jobs:
           HF_HUB_OFFLINE: "1"
         run: |
           node tests/projects_workspace.cjs
+          node tests/infographic_workspace.cjs
           VIBECRAFT_INTEGRATION_BROWSER=1 uv run --frozen pytest tests/test_project_integration.py -rs
           uv run --frozen uvicorn server:app --lifespan off --host 127.0.0.1 --port 9876 >/tmp/vibecraft-navigation.log 2>&1 &
           server_pid=$!

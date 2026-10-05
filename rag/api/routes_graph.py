@@ -3,9 +3,10 @@ deterministica. Handler sottili: leggono lo stato, validano e delegano a core.gr
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from qdrant_client import QdrantClient
+from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
 
 from api.deps import (get_project, require_snapshot, ensure_shared_resources, require_api_key,
-                      run_in_threadpool_until_complete, state)
+                      run_in_threadpool_until_complete, state, logger)
 from core import graph_ops
 from core.config import ROLE
 
@@ -77,10 +78,21 @@ async def graph_semantic_map(request: Request):
     if snap is None or snap.graph is None or qdrant is None:
         raise HTTPException(status_code=503, detail="Grafo/Qdrant non inizializzati.")
     collection_name = snap.collection_name or project.collection_name
-    result = await run_in_threadpool_until_complete(
-        graph_ops.semantic_map, snap.graph, qdrant,
-        collection_name=collection_name,
-    )
+    missing_vectors = HTTPException(409, detail={"code": "project_vectors_missing",
+        "message": "I vettori dell'indice non sono allineati. Ricostruisci l'indice del progetto."})
+    try:
+        result = await run_in_threadpool_until_complete(
+            graph_ops.semantic_map, snap.graph, qdrant,
+            collection_name=collection_name,
+        )
+    except (ResponseHandlingException, UnexpectedResponse) as exc:
+        logger.warning("Semantic map Qdrant unavailable for project %s", project.id, exc_info=True)
+        if isinstance(exc, UnexpectedResponse) and exc.status_code == 404:
+            raise missing_vectors from exc
+        raise HTTPException(503, detail={"code": "qdrant_unavailable",
+            "message": "Qdrant non è raggiungibile o non è disponibile. Avvia il servizio e premi Ricarica."}) from exc
+    if not result.get("truncated") and len(snap.chunks) >= 2 and len(result["points"]) != len(snap.chunks):
+        raise missing_vectors
     return {**result, "project_id": project.id, "index_version": snap.version}
 
 

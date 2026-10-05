@@ -147,6 +147,10 @@ async function browserChecks() {
       { id: C, name: 'C', index_status: 'indexing', stale: true, index_version: '1' }];
     const errors = [], requests = [];
     let readOnly = false, finishJob = false, queryError;
+    let indexFinished = false, indexStartError = false, indexPollError = false, indexReloadReady = false;
+    let indexResultStatus = 'completed';
+    let invalidMapResponse = false;
+    const indexPosts = [];
     context.on('page', page => { page.on('pageerror', error => errors.push(error.message));
       page.on('console', msg => { if (msg.text().includes('Content Security Policy')) errors.push(msg.text()); }); });
     await context.route('**/ask', async route => {
@@ -158,10 +162,24 @@ async function browserChecks() {
     await context.route('**/api/**', async route => {
       const request = route.request(), url = new URL(request.url());
       requests.push({ path: url.pathname, project: request.headers()['x-vibecraft-project'] });
-      if (queryError && ['/api/graph/query', '/api/graph/impact'].includes(url.pathname)) {
+      if (queryError && ['/api/graph/query', '/api/graph/impact', '/api/graph/semantic-map'].includes(url.pathname)) {
         return route.fulfill({ status: queryError.status, json: { detail: queryError.detail } });
       }
       let body = {};
+      if (url.pathname === '/api/index/reindex' && request.method() === 'POST') {
+        indexPosts.push({ project: request.headers()['x-vibecraft-project'], body: request.postDataJSON() });
+        if (indexStartError) return route.fulfill({ status: 409, json: { detail: { message: 'Indice occupato' } } });
+        body = { job_id: 'index-job', status: 'running' };
+      }
+      if (url.pathname === '/api/reindex/index-job') {
+        if (indexPollError) return route.fulfill({ status: 503, json: { detail: 'Servizio temporaneamente indisponibile' } });
+        body = { status: indexFinished ? indexResultStatus : 'running', reload_status: indexReloadReady ? 'completed' : 'pending' };
+        if (indexFinished && indexReloadReady && indexResultStatus === 'completed') Object.assign(projects.find(p => p.id === request.headers()['x-vibecraft-project']), { index_status: 'ready', stale: false });
+      }
+      if (url.pathname === '/api/graph/semantic-map') body = invalidMapResponse ? {} : { points: [
+        { id: 'a#0', doc_id: 'a', x: -0.5, y: 0.5, community: 0 },
+        { id: 'b#0', doc_id: 'b', x: 0.5, y: -0.5, community: 1 },
+      ], duplicates: [] };
       if (url.pathname === '/api/projects' && request.method() === 'GET') body = { projects, read_only: readOnly };
       else if (url.pathname === '/api/projects' || url.pathname === '/api/projects/register') {
         const data = request.postDataJSON();
@@ -278,6 +296,55 @@ async function browserChecks() {
     assert.equal(await chooser.locator('#project-list button').count(), 0);
     assert.equal(await chooser.locator('iframe').count(), 0);
     await chooser.close();
+    await page.locator('#project-select').selectOption(B);
+    const indexButton = page.locator('#project-index-update');
+    await indexButton.filter({ hasText: 'Crea indice' }).waitFor();
+    await indexButton.click();
+    assert.equal(await indexButton.isDisabled(), true);
+    await page.waitForFunction(() => document.getElementById('project-index-status').textContent.includes('Indicizzazione'));
+    assert.deepEqual(indexPosts.at(-1), { project: B, body: { full: true } });
+    await page.locator('#project-select').selectOption(A);
+    await indexButton.waitFor({ state: 'hidden' });
+    indexPollError = true;
+    await page.locator('#toast-host').filter({ hasText: 'Servizio temporaneamente indisponibile' }).waitFor();
+    await page.locator('#project-select').selectOption(B);
+    assert.equal(await indexButton.isDisabled(), true, 'Polling errors must not permit duplicate index jobs');
+    await page.locator('#project-select').selectOption(A);
+    indexPollError = false;
+    const pendingReload = page.waitForResponse(async response => new URL(response.url()).pathname === '/api/reindex/index-job'
+      && (await response.json()).status === 'completed' && (await response.json()).reload_status === 'pending');
+    indexFinished = true;
+    await pendingReload;
+    await page.locator('#project-select').selectOption(B);
+    await page.waitForFunction(id => new URL(location.href).searchParams.get('project') === id, B);
+    assert.equal(await indexButton.isDisabled(), true, 'Completion must wait for the new snapshot to be loaded');
+    await page.locator('#project-select').selectOption(A);
+    indexReloadReady = true;
+    await page.locator('#toast-host').filter({ hasText: 'Indice aggiornato' }).waitFor();
+    assert.equal(await indexButton.isVisible(), false, 'Background completion must not change the selected project');
+    assert.ok(requests.filter(r => r.path === '/api/reindex/index-job').every(r => r.project === B));
+    projects[0].stale = true;
+    await page.evaluate(() => refreshIndexStatus());
+    await indexButton.filter({ hasText: 'Aggiorna indice' }).waitFor();
+    indexStartError = true;
+    await indexButton.click();
+    await page.locator('#toast-host').filter({ hasText: 'Indice occupato' }).waitFor();
+    assert.equal(await indexButton.isEnabled(), true);
+    assert.deepEqual(indexPosts.at(-1), { project: A, body: {} });
+    indexStartError = false;
+    await indexButton.click();
+    await indexButton.waitFor({ state: 'hidden' });
+    await page.locator('#project-select').selectOption(C);
+    await page.waitForFunction(id => new URL(location.href).searchParams.get('project') === id, C);
+    assert.equal(await indexButton.isDisabled(), true, 'An existing index job must disable the action');
+    await page.locator('#project-select').selectOption(B);
+    await page.waitForFunction(id => new URL(location.href).searchParams.get('project') === id, B);
+    projects[1].stale = null;
+    await page.evaluate(() => refreshIndexStatus());
+    assert.equal(await indexButton.isVisible(), true, 'Unknown alignment must allow updating the index');
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await page.setViewportSize({ width: 1280, height: 720 });
     if (process.env.VIBECRAFT_SCREENSHOT_DIR) {
       const output = process.env.VIBECRAFT_SCREENSHOT_DIR;
       fs.mkdirSync(output, { recursive: true });
@@ -364,6 +431,34 @@ async function browserChecks() {
     }
     await errorDashboard.locator('.app-nav a[href*="/analysis"]').click();
     const errorAnalysis = errorPage.frameLocator(`iframe[data-project-id="${B}"][data-workspace-page="/analysis"]`);
+    await errorAnalysis.locator('#map-status').filter({ hasText: 'Project storage unavailable.' }).waitFor();
+    queryError = null;
+    invalidMapResponse = true;
+    await errorAnalysis.locator('[data-click="loadSemanticMap"]').click();
+    await errorAnalysis.locator('#map-status').filter({ hasText: 'Dati della mappa non validi' }).waitFor();
+    await errorAnalysis.locator('#map-canvas').evaluate(() => window.dispatchEvent(new Event('resize')));
+    invalidMapResponse = false;
+    await errorAnalysis.locator('[data-click="loadSemanticMap"]').click();
+    await errorAnalysis.locator('#map-status').filter({ hasText: '2 documenti' }).waitFor();
+    assert.ok(await errorAnalysis.locator('#map-canvas').evaluate(canvas => canvas.width > 0 && canvas.getContext('2d')
+      .getImageData(0, 0, canvas.width, canvas.height).data.some((value, index) => index % 4 === 3 && value > 0)), 'Semantic map must draw visible points');
+    projects[1].stale = false;
+    queryError = { status: 409, detail: { code: 'project_vectors_missing', message: 'Ricostruisci indice' } };
+    await errorAnalysis.locator('[data-click="loadSemanticMap"]').click();
+    await errorAnalysis.locator('#map-status').filter({ hasText: 'Ricostruisci indice' }).waitFor();
+    await errorPage.evaluate(() => refreshIndexStatus());
+    await errorPage.locator('#project-index-update').filter({ hasText: 'Ricostruisci indice' }).waitFor();
+    queryError = null;
+    await errorPage.locator('#project-index-update').click();
+    assert.deepEqual(indexPosts.at(-1), { project: B, body: { full: true } });
+    await errorPage.locator('#project-index-update').waitFor({ state: 'hidden' });
+    projects[1].stale = true;
+    await errorPage.evaluate(() => refreshIndexStatus());
+    indexResultStatus = 'completed_not_promoted';
+    await errorPage.locator('#project-index-update').click();
+    await errorPage.locator('#toast-host').filter({ hasText: 'non attivato' }).waitFor();
+    assert.equal(await errorPage.locator('#project-index-update').isEnabled(), true);
+    queryError = { status: 503, detail: { code: 'project_storage_error', message: 'Project storage unavailable.' } };
     await errorAnalysis.locator('#gq-input').fill('Project relations');
     await errorAnalysis.locator('[data-click="runGraphQuery"]').click();
     await errorAnalysis.locator('#gq-status').filter({ hasText: '❌ Project storage unavailable.' }).waitFor();
@@ -377,6 +472,7 @@ async function browserChecks() {
     await page.reload();
     await page.waitForFunction(() => document.getElementById('project-new').disabled);
     assert.equal(await page.locator('#project-open').isDisabled(), true);
+    assert.equal(await page.locator('#project-index-update').isVisible(), false, 'Reader mode must hide index writes');
     await page.locator('#project-home').click();
     assert.equal(await page.locator('#welcome-new').isDisabled(), true);
     assert.equal(await page.locator('#welcome-open').isDisabled(), true);
@@ -407,7 +503,7 @@ async function browserChecks() {
     assert.ok(requests.filter(r => r.path === '/api/intake/generate/project-job').every(r => r.project === A));
     assert.ok(requests.filter(r => r.path === '/api/projects' || r.path === '/api/intake/project/browse-path').every(r => !r.project));
     assert.deepEqual(errors, []);
-    console.log('OK browser: schede/direct/refresh/history, create/open/error/reader/zero-project, XSS/CSP, stream/job A/B, retained max2 e limite attivo.');
+    console.log('OK browser: welcome/rain, schede/direct/refresh/history, create/open/error/reader/zero-project, XSS/CSP, stream/job A/B, indice isolato e limite attivo.');
     if (process.argv.includes('--navigation')) {
       const { spawn } = require('node:child_process');
       await new Promise((resolve, reject) => {

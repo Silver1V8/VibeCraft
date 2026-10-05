@@ -44,8 +44,14 @@
       status.textContent = 'Caricamento…';
       try {
         const res = await fetch('/api/graph/semantic-map');
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        mapData = await res.json();
+        if (!res.ok) {
+          const error = await res.json().catch(() => ({ detail: 'HTTP ' + res.status }));
+          if (error.detail?.code === 'project_vectors_missing') window.parent.reportProjectIndexIssue?.(selectedProjectId());
+          throw new Error(apiErrorMessage(error.detail, 'HTTP ' + res.status));
+        }
+        const data = await res.json();
+        if (!Array.isArray(data.points)) throw new Error('Dati della mappa non validi. Premi Ricarica.');
+        mapData = data;
         if (!mapData.points || mapData.points.length === 0) {
           status.textContent = mapData.note || 'Nessun documento da proiettare.';
           drawSemanticMap();

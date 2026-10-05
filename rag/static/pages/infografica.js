@@ -7,6 +7,9 @@
 
       /* ──────────── MERMAID: diagramma ricostruito a runtime dai colori del tema ──────────── */
       let mermaidRenderSeq = 0;
+      let mermaidRenderPending = true;
+      let mermaidRendering = false;
+      mermaid.initialize({ startOnLoad: false });
       function buildMermaidSource() {
         const userFill = themeVar('--mm-user-fill'),         userStroke = themeVar('--mm-user-stroke'),         userText = themeVar('--mm-user-text');
         const apiFill  = themeVar('--mm-fastapi-fill'),       apiStroke  = themeVar('--mm-fastapi-stroke'),      apiText  = themeVar('--mm-fastapi-text');
@@ -53,7 +56,13 @@ graph TD
 
       async function renderMermaidDiagram() {
         const container = document.getElementById('rag-mermaid');
+        mermaidRenderPending = true;
+        // La shell carica srcdoc nascosti: Mermaid richiede geometria reale per le frecce.
+        if (mermaidRendering || !container.getBoundingClientRect().width) return;
+        mermaidRenderPending = false;
+        mermaidRendering = true;
         const seq = ++mermaidRenderSeq;
+        const renderId = 'rag-mermaid-svg-' + seq;
         mermaid.initialize({
           startOnLoad: false,
           theme: 'base',
@@ -75,10 +84,17 @@ graph TD
         });
         const source = buildMermaidSource();
         try {
-          const { svg } = await mermaid.render('rag-mermaid-svg-' + seq, source);
-          if (seq === mermaidRenderSeq) container.innerHTML = svg;
+          const { svg } = await mermaid.render(renderId, source);
+          if (!container.getBoundingClientRect().width) mermaidRenderPending = true;
+          if (!mermaidRenderPending) container.innerHTML = svg;
         } catch (e) {
-          container.innerHTML = `<p style="color:#f87171">Errore nel rendering del diagramma: ${escapeHtml(e.message)}</p>`;
+          if (!container.getBoundingClientRect().width) mermaidRenderPending = true;
+          if (!mermaidRenderPending) container.innerHTML = `<p style="color:#f87171">Errore nel rendering del diagramma: ${escapeHtml(e.message)}</p>`;
+        } finally {
+          // Mermaid lascia il proprio wrapper nel body quando il layout fallisce.
+          document.getElementById('d' + renderId)?.remove();
+          mermaidRendering = false;
+          if (mermaidRenderPending) renderMermaidDiagram();
         }
       }
 
@@ -145,7 +161,17 @@ graph TD
         }
       }
 
-      document.addEventListener('DOMContentLoaded', () => { renderMermaidDiagram(); caricaKpi(); });
+      document.addEventListener('DOMContentLoaded', () => {
+        new ResizeObserver(entries => {
+          if (!entries[0].contentRect.width) mermaidRenderPending = true;
+          else if (mermaidRenderPending && !mermaidRendering) renderMermaidDiagram();
+        }).observe(document.getElementById('rag-mermaid'));
+        // Un frame nascosto sospende ResizeObserver; al ritorno può avere la stessa larghezza.
+        if (window.frameElement) new MutationObserver(() => renderMermaidDiagram())
+          .observe(window.frameElement, { attributes: true, attributeFilter: ['hidden'] });
+        renderMermaidDiagram();
+        caricaKpi();
+      });
 
     /* Azioni dei pulsanti/campi (data-click / data-change / data-input): prima erano
        handler inline, vietati dalla CSP — vedi registerActions in /static/shared.js. */

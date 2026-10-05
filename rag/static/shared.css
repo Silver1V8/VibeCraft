@@ -662,7 +662,8 @@ body.workspace-shell {
   background: var(--color-primary); color: var(--color-on-primary);
   font-family: var(--font-sans); font-size: 22px; font-weight: 800; font-style: italic;
 }
-.project-context { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.project-context { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); min-width: 0; }
+#project-index-update { min-height: 34px; white-space: nowrap; }
 .project-switcher { position: relative; display: flex; align-items: center; min-width: 0; }
 .project-switcher > .workspace-icon:first-child { position: absolute; left: 12px; pointer-events: none; color: var(--color-text-secondary); }
 .project-switcher select {
@@ -783,7 +784,7 @@ body.workspace-shell {
 }
 @media (max-width: 480px) {
   .project-context { flex-wrap: wrap; gap: var(--space-2); }
-  .project-switcher { flex: 1; }
+  .project-switcher { flex: 1; min-width: 180px; }
   .project-switcher select { width: 100%; }
   .project-context .project-index-status { max-width: 100%; }
   .workspace-theme { flex-wrap: wrap; justify-content: flex-end; }
