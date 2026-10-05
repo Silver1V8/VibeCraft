@@ -1,6 +1,7 @@
 # Gestione uniforme delle cartelle e degli indici dei progetti
 
-Specifica proposta il 5 ottobre 2026, da approvare prima del piano di implementazione.
+Specifica approvata dall'utente in chat il 5 ottobre 2026. Il piano di
+implementazione richiede revisione prima dell'esecuzione.
 
 ## Obiettivo concordato
 
