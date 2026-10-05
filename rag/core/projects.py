@@ -161,16 +161,38 @@ def _migration_required() -> ProjectError:
                         code="project_migration_required")
 
 
+def _has_historical_state(project: ProjectContext) -> bool:
+    for filename in ("CURRENT", "graph.json", "colbert.npz", "chunks.json", "index_manifest.json"):
+        path = _unlinked(project.database_dir / filename)
+        if path.exists():
+            return True
+    for directory in (project.code_dir, project.changes_dir, project.staging_dir,
+                      project.database_dir / "pipeline", project.database_dir / "versions"):
+        _unlinked(directory)
+        if directory.is_dir():
+            for parent, directories, files in directory.walk():
+                for name in [*directories, *files]:
+                    _unlinked(parent / name)
+                if any(name not in (".gitkeep", ".gitignore", ".writer.lock")
+                       for name in files):
+                    return True
+    return False
+
+
 def _create_project_root(root: Path, project_id: str, name: str,
-                         settings: dict | None = None) -> ProjectContext:
+                         settings: dict | None = None, *, resume: bool = False) -> ProjectContext:
     validate_project_id(project_id)
     name = _name(name)
     _settings(settings or {})
     _unlinked(root)
-    root.mkdir()  # Never overwrite an unregistered root.
+    root.mkdir(exist_ok=resume)  # resume is only used after a verified ownership checkpoint.
+    if resume and (root / "project.yaml").exists():
+        existing = _manifest(root)
+        if existing.id != project_id or existing.name != name or existing.settings != _settings(settings or {}):
+            raise ProjectError("Prepared project manifest changed")
     for directory in ("code", "docs", "changes", "database/versions", "database/staging",
                       "database/pipeline", "database/eval"):
-        (root / directory).mkdir(parents=True)
+        (root / directory).mkdir(parents=True, exist_ok=resume)
     manifest = {"schema_version": 1, "id": project_id, "name": name}
     if settings:
         manifest["settings"] = settings
@@ -214,9 +236,32 @@ class ProjectRegistry:
                 self._read()
             else:
                 records = []
-                if bootstrap_legacy and _has_legacy_data(self._legacy):
-                    raise _migration_required()
+                if bootstrap_legacy:
+                    project = self._bootstrap_initial_project()
+                    if project is not None:
+                        records.append(self._record(project))
                 self._write(records)
+
+    def _bootstrap_initial_project(self) -> ProjectContext | None:
+        if _has_historical_state(self._legacy):
+            raise _migration_required()
+        if not _has_legacy_data(self._legacy):
+            return None
+        from core.project_migration import prepare_project_copy
+        root = self.projects_dir / "legacy"
+        checkpoint_path = self.projects_dir / ".initial-project-copy.json"
+        _unlinked(root)
+        _unlinked(checkpoint_path)
+        if root.exists():
+            if not checkpoint_path.exists():
+                raise ProjectError("Initial project destination already exists", status_code=409,
+                                   code="project_conflict")
+        project = replace(self._legacy, root=root, code_dir=root / "code", docs_dir=root / "docs",
+                          changes_dir=root / "changes", database_dir=root / "database",
+                          staging_dir=root / "database" / "staging", collection_name="vibecraft_legacy",
+                          legacy=False)
+        prepare_project_copy(self._legacy, project, checkpoint_path=checkpoint_path, include_history=False)
+        return _manifest(root)
 
     @contextmanager
     def _lock(self):
