@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Architettura Graph RAG - Project Work</title>
+    <title>VibeCraft — Graph RAG multi-progetto</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
     <!-- Serviti da /static/vendor/: nessuna dipendenza da CDN esterni (local-first). -->
     <script src="/static/vendor/tailwind.min.js"></script>
@@ -196,18 +196,38 @@
         </div>
         <header class="text-center mb-12">
             <h1 class="glow-text text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-emerald-500 mb-4">
-                Architettura Graph RAG (Local-First)
+                Architettura Graph RAG multi-progetto
             </h1>
-            <p class="text-lg text-slate-600">Mappa visuale dei moduli <code class="font-mono">core/</code> + <code class="font-mono">api/</code>, degli artefatti dell'indice e del flusso di interrogazione ibrido.</p>
-            <p class="text-sm text-slate-500 mt-2">Documentazione aggiornata al 21 settembre 2026.</p>
+            <p class="text-lg text-slate-600">Una console, progetti separati: codice, documenti, indice e pipeline dedicati; modelli e istanza Qdrant condivisi.</p>
+            <p class="text-sm text-slate-500 mt-2">Documentazione aggiornata al 5 ottobre 2026 · multi-progetto integrato in <code class="font-mono">main</code>; aggiornare i checkout precedenti.</p>
         </header>
+
+        <section id="project-architecture" class="bg-white glass-card rounded-xl shadow-lg p-6 mb-12" aria-labelledby="projects-title">
+            <h2 id="projects-title" class="text-2xl font-bold mb-4">Una console, più progetti</h2>
+            <p class="text-sm text-slate-600 mb-4"><strong>Nuovo progetto</strong> crea le cartelle; <strong>Apri progetto esistente</strong> registra una root con <code class="font-mono">project.yaml</code>. Selezione per scheda, ID stabile e nessuna indicizzazione automatica di una cartella vuota.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div class="rounded-lg border border-slate-200 p-4">
+                    <h3 class="font-semibold mb-2">Progetto A</h3>
+                    <p class="text-sm font-mono">code/ · docs/ · changes/ · database/</p>
+                    <p class="text-sm text-slate-600 mt-2">Snapshot, staging, validazioni, job e storico A. Alias Qdrant <code class="font-mono">vibecraft_&lt;id-A&gt;</code>.</p>
+                </div>
+                <div class="rounded-lg border border-slate-200 p-4">
+                    <h3 class="font-semibold mb-2">Progetto B</h3>
+                    <p class="text-sm font-mono">code/ · docs/ · changes/ · database/</p>
+                    <p class="text-sm text-slate-600 mt-2">Snapshot, staging, validazioni, job e storico B. Alias Qdrant <code class="font-mono">vibecraft_&lt;id-B&gt;</code>.</p>
+                </div>
+            </div>
+            <p class="text-sm text-slate-600 mb-2"><strong>Condivisi:</strong> FastAPI, client Qdrant e pesi dei modelli. Risorse caricate a richiesta, massimo due snapshot residenti; indicizzazioni HTTP serializzate nel processo e writer lock per progetto.</p>
+            <p class="text-sm text-slate-600 mb-2"><strong>Identità:</strong> <code class="font-mono">X-VibeCraft-Project</code> nelle API, <code class="font-mono">index.py --project &lt;id&gt;</code> nella CLI, <code class="font-mono">VIBECRAFT_PROJECT_ID</code> nel MCP. Richieste e job conservano il progetto originario durante un cambio di selezione.</p>
+            <p class="text-sm text-slate-600"><strong>Compatibilità:</strong> il progetto attuale resta <code class="font-mono">legacy</code>, registrato in-place. La console parte anche senza indice; retrieval indisponibile dichiarato. In Docker le root apribili sono sotto <code class="font-mono">/app/projects</code>; browse nativo soltanto con bind locale.</p>
+        </section>
 
         <!-- Fascia KPI: dati REALI da /api/health, non numeri decorativi.
              Una pagina che descrive un sistema di retrieval deve mostrare lo
              stato di quel sistema, altrimenti resta una brochure. -->
-        <section id="kpi" class="mb-12" aria-label="Stato del sistema">
+        <section id="kpi" class="mb-12" aria-label="Stato del progetto selezionato">
             <div class="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
-                <h2 class="text-sm font-semibold uppercase tracking-widest text-slate-500">Stato attuale del sistema</h2>
+                <h2 class="text-sm font-semibold uppercase tracking-widest text-slate-500">Stato del progetto selezionato</h2>
                 <span id="kpi-stato" class="text-xs font-mono text-slate-500">carico…</span>
             </div>
             <div id="kpi-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -221,7 +241,7 @@
              dall'altra. Il box del diagramma non l'aveva, quindi restava
              attaccato alla prima riga di card sotto di lui. -->
         <div class="bg-white glass-card rounded-xl shadow-xl p-8 border border-slate-200 mb-12">
-            <h2 class="text-2xl font-bold text-slate-800 mb-6 border-b border-slate-200 pb-2">Diagramma del Flusso di Interrogazione (POST /ask)</h2>
+            <h2 class="text-2xl font-bold text-slate-800 mb-6 border-b border-slate-200 pb-2">Flusso del progetto selezionato (POST /ask)</h2>
             <!-- id="mermaid-wrap": distanzia il diagramma dai bordi della card
                  (era attaccato) e da' allo svg un contenitore su cui basare la
                  scala, visto che mermaid lo renderizza alla sua dimensione
@@ -237,10 +257,10 @@
                 <div class="text-3xl mb-3">🛠️</div>
                 <h2 class="text-xl font-bold mb-2">1. L'Indicizzatore</h2>
                 <p class="text-sm font-mono bg-slate-100 p-1 rounded text-pink-600 mb-2">core/indexing.py + core/chunking.py</p>
-                <p class="text-sm text-slate-600 mb-2">Legge documenti e codice, li spezza per sezione, estrae le entita. Full rebuild o solo il delta.</p>
+                <p class="text-sm text-slate-600 mb-2">Legge documenti e codice, li spezza per sezione, estrae le entita. Full rebuild; delta sui file cambiati nel legacy, candidata completa nei nuovi progetti.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Legge docs multi-formato (md/txt/docx/xlsx/pdf), li spezza in <strong>chunk per sezione</strong> (heading ##; le sezioni oltre 2500 caratteri diventano più parti <code class="bg-gray-200 px-1 rounded font-mono">-p02</code>…) ed estrae le entità <code class="bg-gray-200 px-1 rounded font-mono">[UTENTE]</code>. Supporta il <strong>full rebuild</strong> e il <strong>delta incrementale</strong> (manifest: solo doc nuovi/modificati). Indicizza anche il codice via AST, con parser per linguaggio nel sottopacchetto <code class="bg-gray-200 px-1 rounded font-mono">code_index/</code> (ts, java, c#, sql, shell, razor, ci, docker…), escludendo sempre dipendenze/build (<code class="bg-gray-200 px-1 rounded font-mono">node_modules</code>, <code class="bg-gray-200 px-1 rounded font-mono">bin</code>/<code class="bg-gray-200 px-1 rounded font-mono">obj</code>…). CLI: <code class="bg-gray-200 px-1 rounded font-mono">index.py</code>.</p>
+                  <p class="mt-2">Legge docs multi-formato (md/txt/docx/xlsx/pdf), li spezza in <strong>chunk per sezione</strong> (heading ##; le sezioni oltre 2500 caratteri diventano più parti <code class="bg-gray-200 px-1 rounded font-mono">-p02</code>…) ed estrae le entità <code class="bg-gray-200 px-1 rounded font-mono">[UTENTE]</code>. Ogni progetto usa i propri sorgenti e artefatti. Nel <strong>legacy</strong> il delta elabora i file cambiati; nei <strong>progetti nuovi</strong> un delta non vuoto ricostruisce la candidata completa, mentre un no-op non riscrive dati. Indicizza anche il codice via AST, con parser per linguaggio nel sottopacchetto <code class="bg-gray-200 px-1 rounded font-mono">code_index/</code> (ts, java, c#, sql, shell, razor, ci, docker…), escludendo sempre dipendenze/build (<code class="bg-gray-200 px-1 rounded font-mono">node_modules</code>, <code class="bg-gray-200 px-1 rounded font-mono">bin</code>/<code class="bg-gray-200 px-1 rounded font-mono">obj</code>…). CLI: <code class="bg-gray-200 px-1 rounded font-mono">index.py</code>.</p>
                 </details>
             </div>
 
@@ -288,7 +308,7 @@
                 <p class="text-sm text-slate-600 mb-2">Route sottili sopra le funzioni pure di core/. Bind locale, X-API-Key, snapshot immutabile.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Route handler sottili che iniettano le risorse nelle funzioni pure di <code class="bg-gray-200 px-1 rounded font-mono">core/</code>. Bind di default su 127.0.0.1; <code class="bg-gray-200 px-1 rounded font-mono">/api/*</code> e <code class="bg-gray-200 px-1 rounded font-mono">/ask</code> protetti da <strong>X-API-Key</strong>. L'indice vive in uno <strong>snapshot immutabile</strong>: mai versioni miste durante il reload. Le domande ripetute su <code class="bg-gray-200 px-1 rounded font-mono">/ask</code> sono servite da una <strong>cache LRU in-process</strong> (<code class="bg-gray-200 px-1 rounded font-mono">core/ask_cache.py</code>), chiave = domanda + <code class="bg-gray-200 px-1 rounded font-mono">index_version</code>: dopo un reindex o un rollback le voci vecchie semplicemente smettono di essere consultate.</p>
+                  <p class="mt-2">Route handler sottili che iniettano le risorse nelle funzioni pure di <code class="bg-gray-200 px-1 rounded font-mono">core/</code>. Bind di default su 127.0.0.1; <code class="bg-gray-200 px-1 rounded font-mono">/api/*</code> e <code class="bg-gray-200 px-1 rounded font-mono">/ask</code> protetti da <strong>X-API-Key</strong>. L'indice vive in uno <strong>snapshot immutabile</strong>: mai versioni miste durante il reload. Le domande ripetute su <code class="bg-gray-200 px-1 rounded font-mono">/ask</code> sono servite da una <strong>cache LRU in-process</strong> (<code class="bg-gray-200 px-1 rounded font-mono">core/ask_cache.py</code>), chiave = progetto + versione + parametri + domanda + fingerprint delle impostazioni: dopo un reindex o un rollback le voci vecchie semplicemente smettono di essere consultate.</p>
                 </details>
             </div>
 
@@ -299,7 +319,7 @@
                 <p class="text-sm text-slate-600 mb-2">Explore, Canvas, Propose, Validate, poi l'agente — con Drift e Archive a chiudere il ciclo, grounded sul grafo.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Explore → Canvas → Propose → Validate → esecuzione dell'agente, con <strong>Drift check</strong> e <strong>Archive</strong> a chiudere il ciclo. Canvas e Propose sono <strong>grounded nel Graph RAG</strong>; Propose chiude con i <strong>punti aperti</strong> in JSON (<code class="bg-gray-200 px-1 rounded font-mono">core/open_points.py</code>, perimetro advisory). L'avvio agentic passa dal <strong>gate del contratto</strong> (card 15) e l'agente può girare su quattro runner (card 16). All'archive la <strong>canvas review</strong> confronta il Canvas col diff reale e le lezioni rientrano nei prompt futuri.</p>
+                  <p class="mt-2">Explore → Canvas → Propose → Validate → esecuzione dell'agente, con <strong>Drift check</strong> e <strong>Archive</strong> a chiudere il ciclo. Canvas e Propose sono <strong>grounded nel Graph RAG</strong>; Propose chiude con i <strong>punti aperti</strong> in JSON (<code class="bg-gray-200 px-1 rounded font-mono">core/open_points.py</code>, perimetro advisory). L'avvio agentic passa dal <strong>gate del contratto</strong> (card 15) e l'avvio in-app è disponibile con Claude SDK e Ollama locale (card 16). All'archive la <strong>canvas review</strong> confronta il Canvas col diff reale e le lezioni rientrano nei prompt futuri.</p>
                 </details>
             </div>
 
@@ -307,10 +327,10 @@
                 <div class="text-3xl mb-3">♻️</div>
                 <h2 class="text-xl font-bold mb-2">7. Il Reindex Automatico</h2>
                 <p class="text-sm font-mono bg-purple-50 p-1 rounded text-purple-700 mb-2">api/reindex.py</p>
-                <p class="text-sm text-slate-600 mb-2">Un solo scrittore per l'indice: coda a coalescing, writer lock cross-processo, journal persistente.</p>
+                <p class="text-sm text-slate-600 mb-2">Coda e journal per progetto, writer lock cross-processo e un solo slot HTTP di indicizzazione nel processo.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2"><strong>Un solo scrittore</strong> per l'indice: reindex incrementale e archive passano dalla stessa <strong>coda a coalescing</strong> del ReindexManager (webhook ravvicinati fusi, mai persi), con job-id interrogabili e <strong>journal JSONL</strong> persistente. La mutua esclusione vale anche <strong>cross-processo</strong>: CLI e server si escludono con un <strong>writer lock</strong> OS (<code class="bg-gray-200 px-1 rounded font-mono">database/.writer.lock</code>), niente artefatti misti. Il journal distingue fine build e snapshot pronto; dopo un crash un reload pendente è marcato interrotto, conservando l’esito della build. Trigger via <strong>webhook GitLab</strong> con secret token o manuale dalla console.</p>
+                  <p class="mt-2"><strong>Manager, coda e journal separati per progetto</strong>: reindex incrementale e archive passano dalla stessa <strong>coda a coalescing</strong> del ReindexManager (webhook ravvicinati fusi, mai persi), con job-id interrogabili e <strong>journal JSONL</strong> persistente. La mutua esclusione vale anche <strong>cross-processo</strong>: CLI e server si escludono con un <strong>writer lock</strong> OS (<code class="bg-gray-200 px-1 rounded font-mono">database/.writer.lock</code>), niente artefatti misti. Il journal distingue fine build e snapshot pronto; dopo un crash un reload pendente è marcato interrotto, conservando l’esito della build. Trigger via <strong>webhook GitLab</strong> con secret token o manuale dalla console.</p>
                 </details>
             </div>
 
@@ -322,7 +342,7 @@
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
                   <p class="mt-2">Grafo e metadati in JSON; ColBERT in <strong>NPY fp16 per documento</strong>, con indice JSON degli offset; dense e codice restano NPZ. Il reader mappa il file, copia il solo chunk richiesto e chiude la mappa. I delta riusano i file immutati tramite hard link, con copia come fallback. La retention conserva le versioni ancora usate dai lettori.</p>
-                  <p class="mt-2">Ogni build scrive una nuova versione: lo swap del puntatore <code class="bg-gray-200 px-1 rounded font-mono">CURRENT</code> è atomico. Qdrant è versionato solo per i full rebuild; un rollback fra incrementali <strong>non riavvolge i punti Qdrant</strong>. Gli indici NPZ restano leggibili, ma richiedono <code class="bg-gray-200 px-1 rounded font-mono">index.py --migrate-colbert-npy</code> prima di un delta non vuoto. Eseguire <code class="bg-gray-200 px-1 rounded font-mono">index.py --check-integrity</code> prima e dopo: la migrazione non ripara Qdrant.</p>
+                  <p class="mt-2">Ogni build scrive una nuova versione: lo swap del puntatore <code class="bg-gray-200 px-1 rounded font-mono">CURRENT</code> è atomico. I nuovi progetti usano collection candidate distinte anche quando un delta avvia un rebuild completo; rollback, retention e GC restano nel namespace del progetto. Nel legacy i delta mutano una collection condivisa e il rollback <strong>non riavvolge quei punti</strong>. Gli indici NPZ restano leggibili, ma richiedono <code class="bg-gray-200 px-1 rounded font-mono">index.py --migrate-colbert-npy</code> prima di un delta non vuoto. Eseguire <code class="bg-gray-200 px-1 rounded font-mono">index.py --check-integrity</code> prima e dopo: la migrazione non ripara Qdrant.</p>
                 </details>
             </div>
 
@@ -337,7 +357,7 @@
                 <p class="text-sm text-slate-600 mb-2">Stato dell'indice, freschezza del manifest, ultimo job e raggiungibilita delle dipendenze.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Endpoint <code class="bg-gray-200 px-1 rounded font-mono">/api/health</code>: stato snapshot in memoria, freschezza del manifest, ultimo job di reindex e pending, raggiungibilità di Qdrant/Ollama. <strong>Logging strutturato</strong> e ultimo alert dei batch notturni da <code class="bg-gray-200 px-1 rounded font-mono">alerts.jsonl</code> (webhook).</p>
+                  <p class="mt-2"><code class="font-mono">/api/health/live</code> verifica il processo anche senza indice; <code class="font-mono">/api/health</code> descrive il progetto selezionato: stato snapshot in memoria, freschezza del manifest, ultimo job di reindex e pending, raggiungibilità di Qdrant/Ollama. <strong>Logging strutturato</strong> e ultimo alert dei batch notturni da <code class="bg-gray-200 px-1 rounded font-mono">alerts.jsonl</code> (webhook).</p>
                 </details>
             </div>
 
@@ -348,7 +368,7 @@
                 <p class="text-sm text-slate-600 mb-2">Sui rebuild completi il retrieval è valutato; una metrica sotto soglia blocca se il gate è configurato come bloccante.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Sui <strong>rebuild completi</strong> il retrieval è valutato sul golden set prima della promozione: se recall@k scende sotto soglia e il gate è bloccante, la promozione viene fermata. Gli incrementali promuovono direttamente. Un candidato illeggibile blocca il gate API; errori della valutazione o golden set assente possono invece lasciare passare la promozione. Il gate misura anche la <strong>saturazione</strong> della propria metrica: se recall@k vale 1.000 su <em>tutti</em> i casi non è severo, è cieco — lo supera qualunque candidata, anche peggiorata — e lo dichiara con un alert. Il golden set contiene per questo casi <strong>avversariali</strong>, in cui una fonte a bassa autorità matcha lessicalmente meglio della normativa che risponde: sono l'unico posto dove il boost di autorità può essere falsificato.</p>
+                  <p class="mt-2">Sui <strong>rebuild completi</strong> il retrieval è valutato sul golden set prima della promozione: se recall@k scende sotto soglia e il gate è bloccante, la promozione viene fermata. I delta legacy promuovono direttamente; nei nuovi progetti il delta non vuoto passa dal full e dal suo gate. Il golden set è <code class="font-mono">&lt;root-progetto&gt;/eval/golden.yaml</code>, storico e alert sono nel database del progetto. Un candidato illeggibile blocca il gate API; errori della valutazione o golden set assente possono invece lasciare passare la promozione. Il gate misura anche la <strong>saturazione</strong> della propria metrica: se recall@k vale 1.000 su <em>tutti</em> i casi non è severo, è cieco — lo supera qualunque candidata, anche peggiorata — e lo dichiara con un alert. Il golden set contiene per questo casi <strong>avversariali</strong>, in cui una fonte a bassa autorità matcha lessicalmente meglio della normativa che risponde: sono l'unico posto dove il boost di autorità può essere falsificato.</p>
                 </details>
             </div>
 
@@ -396,7 +416,7 @@
                 <p class="text-sm text-slate-600 mb-2">Tre tool locali per gli agenti: retrieval, ricerca nel codice, query sul grafo. Nessuna scrittura.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2"><code class="bg-gray-200 px-1 rounded font-mono">vibecraft_retrieve</code>, <code class="bg-gray-200 px-1 rounded font-mono">vibecraft_code_search</code>, <code class="bg-gray-200 px-1 rounded font-mono">vibecraft_graph_query</code>: un adattatore stdio sopra il backend HTTP, raggiungibile <strong>solo su loopback</strong> (niente redirect, proxy o credenziali nell'URL). Limiti espliciti su k, testo e dimensione (oltre 2 MiB la risposta è rifiutata), troncamenti dichiarati. Non espone <code class="bg-gray-200 px-1 rounded font-mono">/ask</code>, intake, reindex, shell né l'avvio dell'agente. È il contesto su richiesta del runner Claude in-app.</p>
+                  <p class="mt-2"><code class="bg-gray-200 px-1 rounded font-mono">vibecraft_retrieve</code>, <code class="bg-gray-200 px-1 rounded font-mono">vibecraft_code_search</code>, <code class="bg-gray-200 px-1 rounded font-mono">vibecraft_graph_query</code>: un adattatore stdio sopra il backend HTTP, raggiungibile <strong>solo su loopback</strong> (niente redirect, proxy o credenziali nell'URL). Limiti espliciti su k, testo e dimensione (oltre 2 MiB la risposta è rifiutata), troncamenti dichiarati. Non espone <code class="bg-gray-200 px-1 rounded font-mono">/ask</code>, intake, reindex, shell né l'avvio dell'agente. È il contesto su richiesta del runner Claude in-app e dei client esterni. <code class="font-mono">VIBECRAFT_PROJECT_ID</code> fissa il target per sessione e genera l'header progetto; senza ID si usa esclusivamente legacy.</p>
                 </details>
             </div>
 
@@ -407,7 +427,7 @@
                 <p class="text-sm text-slate-600 mb-2">In agentic parte solo un contratto validato e congelato: il server ricalcola l'ammissione, il client non può forzarla.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Validate congela Canvas, Spec, decisioni e fonti in un record con hash SHA-256; <code class="bg-gray-200 px-1 rounded font-mono">evaluate_gate</code> distingue missing/invalid, mismatch, stale e unavailable (<strong>409</strong> se il contratto è cambiato, <strong>503</strong> se l'infrastruttura manca). I rilievi bloccanti sono separati dai <strong>suggerimenti</strong>, che non toccano il gate. Le decisioni dell'operatore (accepted/resolved) hanno <code class="bg-gray-200 px-1 rounded font-mono">origin_verified: false</code> imposto dal server. Ogni blocco e avvio finisce in <code class="bg-gray-200 px-1 rounded font-mono">database/pipeline/events.jsonl</code>. Ciclo reale end-to-end verificato il 15 settembre 2026; restano aperti la coverage contraddittoria e il retrieval che maschera i guasti fuori da Validate.</p>
+                  <p class="mt-2">Validate congela Canvas, Spec, decisioni e fonti in un record con hash SHA-256; <code class="bg-gray-200 px-1 rounded font-mono">evaluate_gate</code> distingue missing/invalid, mismatch, stale e unavailable (<strong>409</strong> se il contratto è cambiato, <strong>503</strong> se l'infrastruttura manca). I rilievi bloccanti sono separati dai <strong>suggerimenti</strong>, che non toccano il gate. Le decisioni dell'operatore (accepted/resolved) hanno <code class="bg-gray-200 px-1 rounded font-mono">origin_verified: false</code> imposto dal server. Validazioni, decisioni, lock ed eventi in <code class="font-mono">database/pipeline/events.jsonl</code> appartengono al progetto: una validazione di A non autorizza una feature omonima di B. Le prove multi-progetto verificano questo isolamento; il contenuto dichiarato dall'agente resta da valutare nel merito.</p>
                 </details>
             </div>
 
@@ -415,10 +435,10 @@
                 <div class="text-3xl mb-3">🤖</div>
                 <h2 class="text-xl font-bold mb-2">16. I Runner dell'Agente</h2>
                 <p class="text-sm font-mono bg-orange-50 p-1 rounded text-orange-700 mb-2">agent_bridge.py + agent_runners.py</p>
-                <p class="text-sm text-slate-600 mb-2">Claude Code, Ollama locale, Codex CLI e Cursor CLI dietro la stessa route, lo stesso gate e lo stesso stream.</p>
+                <p class="text-sm text-slate-600 mb-2">Claude SDK e Ollama locale per il lancio in-app. Codex/Cursor: export prompt e MCP esterno; avvio integrato disabilitato.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2"><strong>Claude</strong>: SDK con impostazioni locali isolate, tre tool MCP, scritture confinate a <code class="bg-gray-200 px-1 rounded font-mono">code/</code> da un hook. <strong>Ollama</strong>: il loop di tool lo esegue VibeCraft, niente shell, stesse regole di confinamento. <strong>Codex</strong> (<code class="bg-gray-200 px-1 rounded font-mono">--sandbox read-only</code>, verificato dal vivo) e <strong>Cursor</strong> (<code class="bg-gray-200 px-1 rounded font-mono">--mode plan|ask</code>, non ancora provato): solo suggest/oneshot, perché le loro scritture non sono verificabili dai nostri test. Prompt sempre su stdin, mai negli argomenti. <code class="bg-gray-200 px-1 rounded font-mono">GET /api/pipeline/agent/runners</code> dice quali sono installati.</p>
+                  <p class="mt-2"><strong>Claude SDK</strong> e <strong>Ollama locale</strong> ricevono il contesto catturato del progetto; letture sicure e scritture solo in <code class="font-mono">code/</code>, senza shell per i tool in-app. Link, segreti, <code class="font-mono">.git</code> e altre root sono esclusi. <strong>Codex/Cursor integrati sono disabilitati</strong> con <code class="font-mono">native_read_isolation_unverified</code>: cwd e sola lettura non verificano isolamento delle letture. Export prompt e MCP esterno restano disponibili. <code class="font-mono">GET /api/pipeline/agent/runners</code> distingue installazione, lancio disponibile, export e motivo del blocco.</p>
                 </details>
             </div>
 
@@ -426,7 +446,7 @@
 
         <section class="bg-white glass-card rounded-xl shadow-lg p-6 mb-12" aria-labelledby="sidecar-title">
             <h2 id="sidecar-title" class="text-xl font-bold mb-3">Scalabilità misurata: meno RAM, delta non sempre più veloci</h2>
-            <p class="text-sm text-slate-600 mb-4">Misure del 21 settembre 2026 su Windows e CPU a quattro thread. Sono esperimenti separati, non indicatori in tempo reale.</p>
+            <p class="text-sm text-slate-600 mb-4">Misure del 21 settembre 2026 su Windows e CPU a quattro thread. Sono esperimenti separati sul percorso legacy, non indicatori in tempo reale. Il delta dei nuovi progetti usa oggi un rebuild completo; queste curve non ne misurano il costo.</p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <h3 class="font-semibold mb-2">Memoria durante la build</h3>
@@ -443,8 +463,14 @@
             <p class="text-sm mt-3"><a class="underline" href="https://github.com/Silver1V8/VibeCraft/blob/main/archive/eval-results/sidecar_npy_20260921/evidence/PHASE5.md">Metodo della prova full</a> · <a class="underline" href="https://github.com/Silver1V8/VibeCraft/blob/main/archive/eval-results/sidecar_npy_20260921/evidence/PHASE6.md">Curve, compromessi e limiti</a></p>
         </section>
 
+        <section class="bg-white glass-card rounded-xl shadow-lg p-6 mb-12" aria-labelledby="verification-title">
+            <h2 id="verification-title" class="text-xl font-bold mb-3">Verifica multi-progetto · 5 ottobre 2026</h2>
+            <p class="text-sm text-slate-600 mb-2">Gate finale: <strong>2.348 test superati</strong>, 20 skip per privilegi file-symlink Windows coperti da prove Linux complementari. Review indipendente, lint, check Node, integrazione HTTP/Qdrant/browser e persistenza Docker verificati su fixture isolate.</p>
+            <p class="text-sm text-slate-600">Provider simulati ai confini; Docker provato con sorgente corrente montato in runtime CPU esistente. Build Docker da zero e GitHub Actions non eseguiti. La prima versione non include eliminazione/spostamento/rinomina, ricerca fra progetti, ACL per progetto o embedding differenti.</p>
+        </section>
+
         <div class="mt-8 bg-blue-50 text-blue-800 p-4 rounded-lg border border-blue-200">
-            <p><strong>💡 La Magia del Determinismo:</strong> allo Step 0 un <strong>router deterministico</strong> (<code class="bg-gray-200 px-1 rounded font-mono">core/router.py</code>, sole regole lessicali) intercetta le domande <strong>strutturali</strong> — enumerazioni, relazioni, impatto, adiacenza — e le risponde direttamente dal grafo (<code class="bg-gray-200 px-1 rounded font-mono">graph_answer</code>) <strong>senza LLM</strong>. Per tutte le altre l'LLM interviene solo allo Step 6: tutto il "pescaggio" del contesto (Step 1-5: ricerca ibrida, rerank ColBERT, autorità dichiarata, precedenza fra fonti, espansione BFS pesata dalla fiducia sul cammino) è fatto in modo rigoroso e senza allucinazioni da Qdrant e NetworkX, e la sintesi finale passa dal layer unico <code class="bg-gray-200 px-1 rounded font-mono">core/llm.py</code> (purpose <code class="bg-gray-200 px-1 rounded font-mono">ask</code>), lo stesso usato dal resto della pipeline.</p>
+            <p><strong>💡 La Magia del Determinismo:</strong> allo Step 0 un <strong>router deterministico</strong> (<code class="bg-gray-200 px-1 rounded font-mono">core/router.py</code>, sole regole lessicali) intercetta le domande <strong>strutturali</strong> — enumerazioni, relazioni, impatto, adiacenza — e le risponde direttamente dal grafo (<code class="bg-gray-200 px-1 rounded font-mono">graph_answer</code>) <strong>senza LLM</strong>. Per tutte le altre l'LLM interviene solo allo Step 6: tutto il "pescaggio" del contesto (Step 1-5: ricerca ibrida, rerank ColBERT, autorità dichiarata, precedenza fra fonti, espansione BFS pesata dalla fiducia sul cammino) è calcolato da Qdrant e NetworkX sul progetto selezionato; ranking, code-link e recupero possono essere parziali, e la sintesi finale passa dal layer unico <code class="bg-gray-200 px-1 rounded font-mono">core/llm.py</code> (purpose <code class="bg-gray-200 px-1 rounded font-mono">ask</code>), lo stesso usato dal resto della pipeline.</p>
         </div>
 
     </main>

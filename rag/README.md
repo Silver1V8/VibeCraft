@@ -1,32 +1,109 @@
 # rag/ — Console Graph-RAG
 
+**Versione documentata: 5 ottobre 2026, multi-progetto integrato in `main`.**
+I checkout precedenti vanno aggiornati prima di usare i nuovi comandi.
+
 ## Progetti separati
 
-Creazione/apertura/selezione per scheda, root gestite Docker, backup, migrazione legacy,
-CLI/MCP e limiti verificati sono nelle [istruzioni multiprogetto](../README.md#progetti-separati).
-Da `rag/`: `uv run python index.py --project <id> --index-status`; usa
-`--incremental`, `--check-integrity` o `--rollback [VERSIONE]` sullo stesso ID.
-Senza ID la CLI e il MCP usano soltanto legacy; per MCP esterno imposta
-`VIBECRAFT_PROJECT_ID=<id>`. Il reader richiede `VIBECRAFT_ROLE=reader`,
-`VIBECRAFT_INDEX_MODE=immutable` e chiave API, anche su loopback.
+Una sola installazione gestisce progetti con contesti e snapshot separati.
+La console crea/apre/seleziona il progetto per scheda; modelli e client Qdrant
+restano condivisi, mentre root, codice, documenti, pipeline e indice sono distinti.
+La shell e il registry sono disponibili senza indice. Risorse pesanti e snapshot
+si caricano a richiesta; la cache conserva al massimo due snapshot residenti,
+mantenendo le lease delle richieste già in corso. Avvio e lettura non riparano
+alias né eseguono GC: le operazioni writer fanno la manutenzione.
 
-Indicizzazione (core/indexing), retrieval ibrido e pipeline Explore → Canvas →
-Propose → Validate (core/) esposti via FastAPI (api/). Entrypoint: `server.py`,
-`index.py`, `mcp_server.py` (MCP locale di sola lettura).
+```text
+<VIBECRAFT_PROJECTS_DIR>/        # default <installazione>/projects
+  projects.json                # registry atomico e protetto da lock
+  <id>/
+    project.yaml               # schema_version, id, name, settings opzionali
+    code/
+    docs/
+    changes/
+    database/
+      CURRENT
+      versions/
+      staging/
+      pipeline/
+      eval/
+      reindex_jobs.jsonl
+```
 
-Stato al 2026-09-21, in breve: ColBERT NPY per documento, lettura a richiesta,
-delta reale misurato e migrazione esplicita degli indici NPZ (vedi
-[artefatti](#artefatti-dellindice-formati-sicuri-ispezionabili-e-versionati-bluegreen));
-intake con staging e review (Docling, lettura diretta
-Excel, LibreOffice per DOC/PPT); tre tool MCP di sola lettura usati anche dagli agenti
-in-app; gate del contratto sull'avvio agentic (validazione congelata, decisioni
-dell'operatore, journal eventi — ciclo reale verificato, vedi
-[adr/PIPELINE_GATE.md](adr/PIPELINE_GATE.md)); quattro runner per l'agente
-(Claude Code, Ollama locale, Codex CLI, Cursor CLI — vedi
-[Runner dell'agente](#runner-dellagente-claude-ollama-codex-cursor)).
+Il nome visualizzato non costruisce percorsi; l'ID è stabile. `project.yaml`
+consente override validati di authority, retrieval, eval e verification. Root,
+collection, segreti, endpoint e modello embedding rimangono sotto il controllo
+dell'installazione. Tutti i progetti usano lo stesso modello embedding.
 
-Le decisioni architetturali significative sono raccolte in
-[rag/adr/](adr/README.md) (Architecture Decision Records).
+### Identità nelle API, CLI e MCP
+
+| Operazione | Contratto |
+|---|---|
+| Elenco e stato | `GET /api/projects`, `GET /api/projects/<id>` |
+| Creazione | `POST /api/projects`, JSON `{"name":"Nome progetto"}` |
+| Apertura | `POST /api/projects/register`, JSON `{"root":"percorso-assoluto"}` |
+| API del progetto | Header `X-VibeCraft-Project: <id>` su `/ask` e sulle API dati |
+| Navigazione | `?project=<id>`, selezione in sessionStorage per scheda |
+| CLI indice | `index.py --project <id>` |
+| MCP esterno | `VIBECRAFT_PROJECT_ID=<id>`, catturato all'avvio della sessione |
+
+Le richieste senza header usano **soltanto** il progetto registrato `legacy`;
+mai il primo disponibile o l'ultimo scelto nel browser. Header malformato: 422;
+ID sconosciuto: 404; selezione assente senza legacy: 409 `project_required`;
+indice assente: 409 `project_not_indexed`; storage o risorse guasti: 503.
+Restano validi auth, Host guard, CSP e controlli cross-site.
+
+Metadati indice: `not_indexed`, `ready`, `indexing`, `error`, più `stale`
+quando calcolabile. `/api/health/live` misura il processo, `/api/health` il
+progetto selezionato e le dipendenze. Creare un progetto non lo indicizza.
+
+Da `rag/`, con l'ID ricavato dalla console o da `GET /api/projects`:
+
+```bash
+uv run python index.py --project <id>
+uv run python index.py --project <id> --index-status
+uv run python index.py --project <id> --check-integrity
+uv run python index.py --project <id> --incremental
+uv run python index.py --project <id> --rollback [VERSIONE]
+```
+
+`[VERSIONE]` indica un argomento opzionale, non va digitato letteralmente.
+Le nuove collection usano alias `vibecraft_<id>` e nomi fisici
+`vibecraft_<id>__<version>`. Il delta **non vuoto di un nuovo progetto ricostruisce
+una candidata completa**; un no-op non carica embedding né riscrive l'indice.
+Ogni candidata conserva la propria collection e il rollback riattiva quella
+versione. Il golden set è `<root>/eval/golden.yaml`, lo storico vive in
+`database/eval/`; un golden mancante può lasciare passare il gate come non valutato.
+I job HTTP sono serializzati nel processo per contenere RAM/VRAM, con writer lock
+per progetto anche fra processi. Richieste, callback e stream conservano il target
+originario: selezionare B non sposta un job di A.
+
+### Legacy, Docker e limiti
+
+Il progetto preesistente è registrato in-place come `legacy`, mantenendo cartelle,
+collection e indice; nessuno spostamento o rebuild automatico. Gli esempi storici
+senza `--project` si riferiscono al legacy. Il suo delta mutabile mantiene la
+semantica precedente; con marker immutable è rifiutato, richiedendo un full rebuild.
+
+Con bind locale, Apri può registrare una root VibeCraft esterna; con bind remoto
+accetta solo root senza link strettamente sotto `VIBECRAFT_PROJECTS_DIR`, prima di
+leggere il manifest. Docker monta `vibecraft_projects:/app/projects`: per aprire
+un progetto host monta la root sotto `/app/projects/<cartella>`. Il dialogo nativo
+è disponibile solo con bind locale. Backup: registry, root registrate e relative
+collection Qdrant, con scritture ferme. Pesi dei modelli condivisi nell'installazione.
+
+Il reader richiede `VIBECRAFT_ROLE=reader`, `VIBECRAFT_INDEX_MODE=immutable` e chiave
+API anche su loopback; registry preparato dal writer e API mutanti disabilitate.
+Per creare/importare e per i dettagli Docker: [istruzioni principali](../README.md#progetti-separati).
+
+Avvio in-app disponibile per Claude SDK e Ollama locale. Codex/Cursor integrati
+sono disabilitati con `native_read_isolation_unverified`; prompt export e MCP
+esterno rimangono disponibili. La prima versione non include eliminazione,
+rinomina/spostamento, ricerca fra progetti, ACL per progetto o embedding differenti.
+
+Indicizzazione, retrieval, pipeline e importazione sono esposti da FastAPI.
+Entrypoint: `server.py`, `index.py`, `mcp_server.py`; decisioni architetturali in
+[adr/](adr/README.md). I benchmark datati sotto restano misure del percorso legacy.
 
 ## LLM: un solo layer, provider intercambiabili per step
 
@@ -149,14 +226,15 @@ run già ammessi o in corso possono superarla e bloccano soltanto quelli success
 valori già presenti nel log strutturato di fine richiesta, esposti anche nel JSON
 così i client (e `scripts/bench.py`) misurano il breakdown senza parsare i log.
 
-**Cache semantica su `/ask`, invalidata per `index_version`.**
+**Cache delle risposte su `/ask`, isolata per progetto e versione.**
 [core/ask_cache.py](core/ask_cache.py) è una LRU thread-safe in-process che azzera il
 costo (embedding + generazione LLM) delle domande ripetute — la maggioranza su una
-console di governance. La chiave (`make_key`) è `(index_version, retrieval_strategy,
-top_k, bfs_depth, sha256(domanda normalizzata))`: la domanda è normalizzata (trim,
+console di governance. La chiave (`make_key`) include progetto, versione, strategia, top-k, profondità
+BFS, hash della domanda e fingerprint delle impostazioni authority/retrieval: la domanda è normalizzata (trim,
 lowercase, spazi collassati) prima dell'hash, così due formulazioni identiche a meno
 di spaziatura condividono la voce. **L'invalidazione non esiste come operazione**:
-`index_version` fa parte della chiave, quindi dopo una re-indicizzazione o un
+ID progetto, `index_version` e impostazioni fanno parte della chiave: progetti
+con stessa query/versione non condividono risposte; dopo una re-indicizzazione o un
 rollback (`database/CURRENT` cambia in entrambi i casi) le voci della versione
 precedente non vengono più consultate e la LRU le espelle. Lo stato vive su
 `app.state.ask_cache` (non in una global di modulo, quindi i test restano isolati
@@ -434,8 +512,8 @@ incrementale.
   rieseguire il refine riparte sempre da quello, mai dalla riscrittura.
 - **Review staging** (`GET /api/intake/staged`, `.../preview`, `POST .../approve`,
   `POST .../reject`): preview del markdown, poi **approve** (scrive
-  `docs/<categoria>/<nome_file>` con frontmatter conforme + reindex delta della sola
-  path aggiunta, sotto writer lock) o **reject** (motivo nel journal, file spostati
+  `docs/<categoria>/<nome_file>` con frontmatter conforme + reindex con la
+  path aggiunta come trigger, sotto writer lock del progetto) o **reject** (motivo nel journal, file spostati
   in `staging/rejected/`, mai cancellati). `approve` **non sovrascrive MAI** un file
   esistente in `docs/`, e il documento composto deve passare parse/chunking PRIMA di
   qualunque scrittura. Sotto writer lock ricontrolla che il documento sia ancora in staging
@@ -448,10 +526,11 @@ incrementale.
   solo il `.md` composto; l'originale resta in `staging/docs/` (o `staging/rejected/`).
   Ogni pubblicazione dell'app in `docs/` è un `.md` — l'approve dell'intake e la copia storica
   della canvas review all'archive —, ma l'app non può impedire scritture manuali esterne.
-  L'approve reindicizza la SOLA path approvata: un documento rimosso a mano da `docs/` resta
-  nell'indice (e `--check-integrity` lo segnala come stale) finché non si sincronizza con
-  `uv run python index.py --incremental` o con un full rebuild. Importare un `.md` al posto di
-  un vecchio PDF non toglie da solo i chunk del PDF.
+  Nel legacy l'approve reindicizza la sola path approvata: un documento rimosso
+  manualmente resta nell'indice finché si sincronizza con `--incremental` o full.
+  Nei progetti nuovi il trigger non vuoto ricostruisce tutti i sorgenti, includendo
+  le altre modifiche/rimozioni presenti. Il PDF ancora su disco resta una fonte
+  distinta anche quando si approva un `.md` derivato.
 - **Pesi di Docling, Docker e CI**: i pesi (layout, TableFormer, RapidOCR, ~540 MB) non sono
   nel repository né nell'immagine. In locale: `uv run python scripts/docling_models.py`
   (scarica alle revisioni fissate e verifica gli SHA-256; `--verifica` controlla soltanto).
@@ -956,7 +1035,9 @@ una generazione: vanno misurate separatamente.
 | `VIBECRAFT_GENERATION_MAX_FINISHED` | 100 | Job terminati conservati per tipo (generate, refine, brief) per il polling dello stato; oltre si scartano i più vecchi (mai quelli in corso), il GET risponde 404 |
 | `VIBECRAFT_ROLE` | `standalone` | `standalone`, `reader` oppure `writer` |
 | `VIBECRAFT_INDEX_MODE` | `legacy` | `legacy` oppure `immutable` |
-| `VIBECRAFT_DATABASE_DIR` | `rag/database` | Directory indice e coordinamento locale |
+| `VIBECRAFT_DATABASE_DIR` | `rag/database` | Directory indice/coordinamento del solo legacy |
+| `VIBECRAFT_PROJECTS_DIR` | `<installazione>/projects` | Registry e nuove root; percorso assoluto, `/app/projects` in Compose |
+| `VIBECRAFT_PROJECT_ID` | legacy | Progetto fisso per sessione MCP esterna |
 
 8 e 2 sono limiti iniziali configurabili, non capacità dimostrate. Più processi
 moltiplicano sia i limiti verso il motore sia la memoria del modello embedding e
@@ -969,8 +1050,8 @@ dedicato, con Qdrant e motore esplicitamente selezionati, usando il full rebuild
 `python index.py` nel profilo writer. Il marker persistente `.immutable-index`
 impedisce successivi incrementali anche se un comando dimentica la variabile di
 ambiente; un full fallito può lasciare intenzionalmente questa protezione attiva.
-La modalità non converte automaticamente un incrementale in un full costoso:
-il comando viene rifiutato con un messaggio esplicito.
+Questo rifiuto riguarda il percorso legacy. Per i progetti ordinari l'indice
+è immutabile e `--incremental` non vuoto ricostruisce una candidata completa.
 
 Esempio di configurazione PowerShell da applicare **in ogni processo**, adattando
 i percorsi a un ambiente dedicato già predisposto. Non avvia né modifica i servizi:
@@ -1027,7 +1108,8 @@ dall'implementazione corrente. Specifica, gate e stato sono in
 
 ## Artefatti dell'indice: formati sicuri, ispezionabili e versionati (blue/green)
 
-L'indice persiste in `rag/database/` tramite [core/artifacts.py](core/artifacts.py)
+L'indice persiste in `<root-progetto>/database/` (legacy: `rag/database/`)
+tramite [core/artifacts.py](core/artifacts.py)
 e il reader/writer per documento [core/colbert_store.py](core/colbert_store.py).
 I formati sono sicuri (nessun `pickle`, che è fragile tra versioni
 e un vettore d'attacco se qualcuno scrive in `database/`) e ispezionabili:
@@ -1071,7 +1153,7 @@ payload con `chunks.json`, senza eliminare punti solo per far coincidere i conte
 La divergenza di un documento locale da Git è un avviso separato: un reindex usa
 la copia su disco e non decide quale versione del documento sia autoritativa.
 Il controllo integrità esplicito
-rilegge tutti i byte. Il delta ordinario verifica indice e file nuovi, ma eredita
+rilegge tutti i byte. Il delta legacy verifica indice e file nuovi, ma eredita
 gli hash attestati dei file immutati: non equivale a riverificare quei byte e non
 rileva una loro successiva alterazione esterna senza il controllo profondo.
 
@@ -1088,7 +1170,7 @@ atomica (`_atomic_write`), quindi lo swap è istantaneo e mai a metà.
 
 Build e promozione sono **due passi espliciti**: `save_artifacts()` restituisce
 il nome della nuova versione (senza toccare CURRENT), `promote_version(nome)`
-sposta il puntatore. Gli **incrementali** promuovono a fine build riuscita, senza
+sposta il puntatore. Gli **incrementali legacy** promuovono a fine build riuscita, senza
 passare dal gate (finché M6 non decide diversamente). I **full** — sia la CLI
 (`python index.py`) sia i job del ReindexManager — prima di promuovere eseguono
 l'**eval-gate del golden-set sulla nuova versione** (in process, config
@@ -1138,8 +1220,8 @@ persistono deliberatamente e non vanno cancellati mentre il sistema è in uso.
 Ogni full rebuild scrive su una collection Qdrant *candidata* e versionata
 (`{collection_name}__{version}`), valuta l'eval-gate su quella stessa candidata, e
 solo a gate passato promuove CURRENT e sposta un **alias** Qdrant (il nome
-configurato in `vector_database.collection_name`, lo stesso che `/ask` e
-`/api/retrieve` interrogano sempre) sulla candidata — la collection di produzione
+del progetto: `vibecraft_<id>`, oppure `vector_database.collection_name` nel
+legacy; retrieval usa la collection fisica del manifest dello snapshot catturato) sulla candidata — la collection di produzione
 non viene mai toccata durante il build, solo alla promozione. Se il gate blocca la
 promozione, la collection candidata resta su Qdrant non referenziata da alcuna
 versione attiva: il GC del prossimo job writer riuscito la rimuove (nessuna
@@ -1464,7 +1546,10 @@ perché Bash resta escluso. Il resoconto deve distinguere implementato da verifi
 Il bridge configura direttamente il processo stdio usando lo stesso interprete
 Python del backend. Il backend HTTP deve essere avviato e raggiungibile tramite
 `VIBECRAFT_MCP_BACKEND_URL` (default `http://127.0.0.1:8000`); URL, timeout e chiave
-sono ereditati dall'ambiente. `strict_mcp_config=True` esclude altri server MCP,
+sono ereditati dall'ambiente; l'ID del progetto catturato viene passato al MCP
+come `VIBECRAFT_PROJECT_ID`, indipendentemente dalla selezione corrente nel browser.
+Il prompt esportato dichiara l'header progetto per HTTP e l'ID per il client MCP.
+`strict_mcp_config=True` esclude altri server MCP,
 `tools` limita i tool nativi e `allowed_tools` autorizza solo i tre tool MCP nominati.
 `VIBECRAFT_AGENT_MAX_TURNS` limita il ciclo a 30 turni per default (intero 1–200);
 One-shot ha un solo turno. Gli errori di configurazione chiudono lo stream con errore.
@@ -1475,7 +1560,7 @@ Su Windows viene usato, se presente accanto allo shim npm, il binario nativo
 
 `POST /api/pipeline/agent/run` accetta `runner` (`claude` | `local` | `codex` | `cursor`,
 default `claude`) accanto a `mode`; `GET /api/pipeline/agent/runners` elenca quelli
-davvero disponibili sulla macchina del server (binario nel PATH, modelli Ollama installati).
+con capability esplicite (binario installato, modelli Ollama, export e lancio disponibili).
 Ammissione, gate, journal e formato NDJSON dello stream sono gli stessi per tutti
 ([agent_runners.py](agent_runners.py)). Il nome modello è vincolato da una regex: finisce
 negli argomenti delle CLI, quindi niente `-` iniziale né metacaratteri.
@@ -1483,16 +1568,21 @@ negli argomenti delle CLI, quindi niente `-` iniziale né metacaratteri.
 | runner | modalità | contesto | perimetro |
 |---|---|---|---|
 | `claude` | suggest, agentic, oneshot | tre tool MCP | bridge SDK descritto sopra |
-| `local` (Ollama `/api/chat`) | suggest, agentic, oneshot | `read_file`/`list_files`/`grep` | i tool li esegue VibeCraft, niente shell; letture in `PROJECT_ROOT` senza `.git` né `.env*`; in agentic `write_file`/`edit_file` passano da `_path_escapes_code`, la stessa decisione dell'hook Claude; output dei tool troncato a 6.000 caratteri |
+| `local` (Ollama `/api/chat`) | suggest, agentic, oneshot | `read_file`/`list_files`/`grep` | i tool li esegue VibeCraft, niente shell; letture nella root del progetto, escludendo altre root, link, `.git` e `.env*`; in agentic `write_file`/`edit_file` passano da `_path_escapes_code`, la stessa decisione dell'hook Claude; output dei tool troncato a 6.000 caratteri |
 | `codex` | export prompt | MCP esterno con ID esplicito | integrato disabilitato: isolamento letture non verificato |
 | `cursor` | export prompt | MCP esterno con ID esplicito | integrato disabilitato: isolamento letture non verificato |
 
-Agentic resta a `claude` e `local`: il confinamento delle scritture delle CLI esterne non è
-verificabile dai nostri test (400 se richiesto). Il prompt passa **sempre su stdin**, mai in
-argv: gli shim `.cmd` di npm su Windows lo farebbero interpretare a `cmd.exe`. Solo `claude`
-riceve il prompt con i tool MCP; gli altri ricevono la variante che chiede di cercare i file
-pertinenti con i propri strumenti di lettura. Timeout delle CLI:
-`VIBECRAFT_AGENT_TIMEOUT_SECONDS` (default 1800). Le prove storiche sulle CLI non verificano isolamento delle letture fra progetti: Codex/Cursor integrati restano disabilitati. Export prompt e MCP esterno disponibili anche senza binario.
+L'avvio integrato resta disponibile per `claude` e `local`. Per `codex` e
+`cursor` il server restituisce 400 `native_read_isolation_unverified` prima
+di avviare la CLI: cwd e sola lettura non dimostrano isolamento fra progetti.
+`GET /api/pipeline/agent/runners` distingue `installed`, `available`,
+`export_available` e motivo di indisponibilità; il binario installato non
+rende disponibile il lancio. Export prompt e MCP esterno sono utilizzabili
+anche senza binario. Il nome modello e i timeout conservano i vincoli esistenti.
+Claude/local catturano root, code_root e ID del progetto; Read e scansioni
+sicure restano disponibili, scritture soltanto in `code/`. Link, segreti,
+`.git` e progetti annidati sono esclusi; uno scan SDK di un subtree che li
+contiene è negato, il runner locale applica pruning.
 
 Verifica locale senza provider o corpus privato:
 `python -m pytest tests/test_agent_bridge_perimeter.py tests/test_agent_runners.py tests/test_pipeline.py tests/test_mcp_server.py tests/test_mcp_http.py`
@@ -1506,7 +1596,7 @@ rebuild), quindi ogni file va letto per intero prima di modificarlo e nessuna ri
 va dedotta dai frammenti dell'indice; e se l'indice non risponde, l'agente procede
 con Read/Grep — è una scorciatoia, non una dipendenza.
 
-# MCP locale di sola lettura
+## MCP locale di sola lettura
 
 Il backend HTTP locale deve essere già avviato con un indice pronto. Da PowerShell,
 nella directory `rag`, avviare l'adattatore con:
@@ -1514,6 +1604,7 @@ nella directory `rag`, avviare l'adattatore con:
 ```powershell
 uv sync --frozen
 $env:VIBECRAFT_MCP_BACKEND_URL = 'http://127.0.0.1:8000'
+$env:VIBECRAFT_PROJECT_ID = '<id-del-progetto>'  # omettere per legacy
 uv run --frozen python -B mcp_server.py
 ```
 
@@ -1537,7 +1628,10 @@ sono ammessi solo HTTP, `127.0.0.1`, `::1` e `localhost` (riscritto in `127.0.0.
 senza DNS). Niente path, credenziali nell'URL, proxy d'ambiente o redirect.
 `VIBECRAFT_API_KEY`, se necessaria, va ereditata dall'ambiente del client:
 l'adattatore la inoltra in `X-API-Key` e non legge file di segreti.
-L'autenticazione delle API resta invariata, compreso il bypass loopback già esistente.
+`VIBECRAFT_PROJECT_ID` è catturato una volta e inoltrato come
+`X-VibeCraft-Project`; riavviare la sessione MCP per cambiare progetto. Senza
+ID si usa solo legacy. L'auth resta invariata: bypass loopback per
+standalone/writer, chiave obbligatoria anche su loopback in reader.
 `VIBECRAFT_MCP_TIMEOUT_SECONDS` imposta la scadenza totale e HTTP: default 30 s,
 intervallo 0,1–120 s. Nessuna nuova porta MCP.
 
@@ -1574,9 +1668,10 @@ container del backend**, per esempio `docker exec -i <container> python -B mcp_s
 
 L'esecuzione in-app collega questi tool al solo runner `claude`: gli estratti richiesti
 entrano nel contesto del modello remoto. One-shot invia invece Canvas e Spec nel prompt.
-I runner `codex` e `cursor` non usano l'MCP ma leggono con i propri strumenti a partire
-dalla radice del progetto, `docs/` compreso: ciò che leggono va al rispettivo provider
-remoto. Solo `local` resta interamente sulla macchina.
+Per Codex/Cursor esterni si può esportare il prompt e configurare questo MCP
+nel client con l'ID esplicito: il lancio integrato resta disabilitato. Il
+client esterno mantiene la propria policy di accesso ai file; VibeCraft non
+certifica il suo sandbox. Solo `local` resta interamente sulla macchina.
 L'accesso al corpus privato da altri client o provider richiede autorizzazione
 esplicita. I test automatici usano dati sintetici e non chiamano il modello.
 Il server MCP resta di sola lettura: non espone `/ask`,
@@ -1732,3 +1827,14 @@ Restano visibili, con decisione, autore dichiarato e `origin_verified: false`.
 L'associazione integrale entra nell'hash; cambiando la Spec decadono sia la
 decisione sia l'associazione. Una lacuna accettata non certifica copertura.
 La scelta emersa in implementazione e i suoi limiti sono nel piano del gate.
+
+## Verifica multi-progetto — 5 ottobre 2026
+
+Gate finale: **2.348 passed, 20 skipped**, lint e check Node superati,
+review indipendente approvata. Sono stati verificati HTTP/Qdrant/browser reali,
+A/B con nomi/query/feature omonimi, job concorrenti e persistenza Docker. I 20
+skip dipendono dai privilegi file-symlink Windows; prove Linux complementari
+eseguono link reali. Docling e LibreOffice sono stati eseguiti con asset locali.
+I provider sono simulati ai confini. Docker è provato con sorgente corrente
+montato in runtime CPU esistente: build immagine da zero e GitHub Actions
+non eseguiti. Questi risultati non verificano provider remoti o release pubblicate.

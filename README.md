@@ -1,5 +1,43 @@
 # VibeCraft
 
+Una console **Graph-RAG per la governance documentale**: indicizza un corpus di documenti
+normativi e il codice che dovrebbe implementarli, e risponde a domande citando le fonti —
+pesando quanto ciascuna fonte è autorevole, non solo quanto somiglia alla domanda.
+
+La differenza rispetto a un RAG generico è questa: in un corpus di governance il documento
+che **spiega** una regola usa lo stesso vocabolario di quello che **la stabilisce**, ed è
+spesso più discorsivo, quindi vince il confronto semantico. VibeCraft tiene conto
+dell'autorità dichiarata dalle fonti, della precedenza dichiarata fra documenti in
+conflitto, e della fiducia nel cammino percorso sul grafo per arrivarci.
+
+Le risposte sono ancorate alle fonti recuperate; citazioni, risultati parziali e punti
+aperti restano da verificare. Il retrieval non garantisce che ogni informazione utile
+del corpus sia stata trovata.
+
+**Versione documentata: 5 ottobre 2026, multi-progetto integrato in `main`.**
+I checkout precedenti vanno aggiornati prima di usare i nuovi comandi.
+
+## Cosa fa
+
+- **`/ask`** — retrieval ibrido (denso + lessicale + rerank ColBERT) con ri-ponderazione
+  per autorità, più il codice che implementa le sezioni recuperate. Le domande puramente
+  strutturali ("quali relazioni ha X", "cosa impatta se modifico Y") sono risposte
+  direttamente dal grafo, senza chiamare l'LLM.
+- **Pipeline Explore → Canvas → Propose → Validate → Archive** per portare una modifica
+  dall'intervista alla specifica, ancorata ai documenti normativi.
+- **Intake & Import** con conversione locale, anteprima e review in staging: Docling
+  per PDF, lettura diretta Excel, MarkItDown per i formati moderni e LibreOffice per DOC/PPT.
+- **Mappa del grafo, Semantic Map, Impact Ripple** sul corpus e sul codice indicizzato.
+- **Progetti separati** con creazione/apertura/selezione, cartelle e indici dedicati.
+- **Agenti in-app** con Claude Code e Ollama; agentic richiede un contratto
+  corrente validato nel progetto. Codex/Cursor restano disponibili via export
+  prompt e MCP esterno, con avvio integrato disabilitato.
+- **MCP locale di sola lettura** per retrieval, ricerca nel codice e interrogazione del grafo.
+- **Versionamento blue/green** dell'indice, eval-gate sui rebuild completi e rollback
+  con verifica della collection Qdrant di destinazione.
+- **ColBERT su disco**, in file NPY per documento con lettura dei soli chunk richiesti;
+  benchmark del delta reale con memoria misurata e risultati riproducibili.
+
 ## Progetti separati
 
 La console funziona anche senza progetti o indice. **Nuovo progetto** crea una root
@@ -24,8 +62,15 @@ fra progetti o ACL per progetto.
 
 Da `rag/`: `uv run python index.py --project <id> --index-status` seleziona il progetto
 anche per full/delta/integrity/rollback; senza flag usa soltanto `legacy`.
+L'ID si trova nel parametro `?project=<id>` della console o in
+`GET /api/projects`. Le API del progetto ricevono `X-VibeCraft-Project: <id>`;
+senza header si usa esclusivamente il progetto registrato `legacy`.
 Per il MCP esterno imposta `VIBECRAFT_PROJECT_ID=<id>` nell'ambiente del processo,
 oltre alla normale configurazione di URL/chiave: il target resta fisso per sessione.
+
+Un unico Qdrant ospita namespace distinti: alias `vibecraft_<id>` e collection
+`vibecraft_<id>__<version>`. Cache, grafo, staging, job, gate e storico sono per
+progetto; il cambio selezione non cambia il target di un lavoro già avviato.
 
 Il progetto preesistente è registrato come `legacy` **in-place**: nessuno spostamento,
 rename di collection o rebuild automatico. L'installazione vuota non inventa legacy.
@@ -56,42 +101,6 @@ binario installato. SDK: Read sicuro e scansioni di directory sicure sono utiliz
 scansioni di subtree con segreti/link e scansioni root con `.git` sono negate.
 Il runner locale applica pruning dei percorsi vietati.
 
-
-Una console **Graph-RAG per la governance documentale**: indicizza un corpus di documenti
-normativi e il codice che dovrebbe implementarli, e risponde a domande citando le fonti —
-pesando quanto ciascuna fonte è autorevole, non solo quanto somiglia alla domanda.
-
-La differenza rispetto a un RAG generico è questa: in un corpus di governance il documento
-che **spiega** una regola usa lo stesso vocabolario di quello che **la stabilisce**, ed è
-spesso più discorsivo, quindi vince il confronto semantico. VibeCraft tiene conto
-dell'autorità dichiarata dalle fonti, della precedenza dichiarata fra documenti in
-conflitto, e della fiducia nel cammino percorso sul grafo per arrivarci.
-
-Le risposte sono ancorate alle fonti recuperate; citazioni, risultati parziali e punti
-aperti restano da verificare. Il retrieval non garantisce che ogni informazione utile
-del corpus sia stata trovata.
-
-Stato della documentazione: **21 settembre 2026**.
-
-## Cosa fa
-
-- **`/ask`** — retrieval ibrido (denso + lessicale + rerank ColBERT) con ri-ponderazione
-  per autorità, più il codice che implementa le sezioni recuperate. Le domande puramente
-  strutturali ("quali relazioni ha X", "cosa impatta se modifico Y") sono risposte
-  direttamente dal grafo, senza chiamare l'LLM.
-- **Pipeline Explore → Canvas → Propose → Validate → Archive** per portare una modifica
-  dall'intervista alla specifica, ancorata ai documenti normativi.
-- **Intake & Import** con conversione locale, anteprima e review in staging: Docling
-  per PDF, lettura diretta Excel, MarkItDown per i formati moderni e LibreOffice per DOC/PPT.
-- **Mappa del grafo, Semantic Map, Impact Ripple** sul corpus e sul codice indicizzato.
-- **Agenti in-app** con Claude Code, Ollama, Codex CLI e Cursor CLI; l'esecuzione
-  agentic richiede un contratto corrente validato dal server.
-- **MCP locale di sola lettura** per retrieval, ricerca nel codice e interrogazione del grafo.
-- **Versionamento blue/green** dell'indice, eval-gate sui rebuild completi e rollback
-  con verifica della collection Qdrant di destinazione.
-- **ColBERT su disco**, in file NPY per documento con lettura dei soli chunk richiesti;
-  benchmark del delta reale con memoria misurata e risultati riproducibili.
-
 ## Pipeline e agenti
 
 Da [`/pipeline`](http://127.0.0.1:8000/pipeline) si passa dall'intervista al Canvas,
@@ -106,9 +115,10 @@ non verificata automaticamente nel merito.
 | Codex CLI (`codex`) | export prompt | integrato disabilitato: isolamento letture non verificato |
 | Cursor CLI (`cursor`) | export prompt | integrato disabilitato: isolamento letture non verificato |
 
-La console rileva i runner disponibili sul server. Le CLI e i relativi accessi al
-provider vanno predisposti sulla macchina che esegue VibeCraft. Codex/Cursor offrono export prompt e MCP esterno; esecuzione integrata disabilitata. Il runner `local` usa Ollama;
-gli altri possono inviare il contesto letto al rispettivo provider remoto.
+La console distingue runner installati, avvio disponibile ed esportazione del prompt.
+Claude Code e il relativo accesso al provider vanno predisposti sul server; `local`
+usa Ollama. Codex/Cursor offrono export prompt e MCP esterno, con esecuzione integrata
+disabilitata. Claude e i client esterni possono inviare il contesto al proprio provider.
 
 **Agentic parte solo con una validazione superata del contratto corrente**: Canvas,
 Spec e decisioni sono congelati nel record e ricontrollati dal server prima dell'avvio.
@@ -126,7 +136,7 @@ per l'importazione PDF richiedono spazio aggiuntivo:
 
 | | |
 |---|---|
-| `bge-m3` (embedding) | 4,3 GB, scaricato al primo avvio |
+| `bge-m3` (embedding) | 4,3 GB, caricato alla prima operazione che lo richiede |
 | `qwen3.5:9b` (LLM locale) | 6,6 GB, via Ollama |
 | Spazio disco consigliato | ~20 GB |
 
@@ -170,11 +180,12 @@ docker compose --profile cpu up -d qdrant ollama
 # 2. Il modello LLM (6,6 GB, una volta sola)
 docker compose exec ollama ollama pull qwen3.5:9b
 
-# 3. Indicizza il corpus. Al primo avvio scarica anche bge-m3 (4,3 GB).
-docker compose --profile cpu run --rm app-cpu python index.py
-
-# 4. Avvia la console
+# 3. Avvia la console: funziona anche senza indice.
 docker compose --profile cpu up -d
+
+# 4. Facoltativo: indicizza la baseline inclusa nel progetto legacy.
+# La prima indicizzazione scarica bge-m3 (4,3 GB).
+docker compose --profile cpu run --rm app-cpu python index.py
 ```
 
 Poi apri **http://127.0.0.1:8000**.
@@ -198,10 +209,11 @@ Per **Ollama sull'host**, usa `--profile host-ollama`, avvia solo `qdrant` al pa
 esegui `ollama pull qwen3.5:9b` sull'host e indicizza con `app-host-ollama`.
 Ollama deve essere raggiungibile dal container tramite `host.docker.internal:11434`.
 
-**Perché il passo 3 usa `run --rm` e non `exec`.** Il server si rifiuta di partire finché
-un indice non esiste — è una scelta deliberata, meglio non partire che servire il vuoto.
-Quindi non c'è alcun container in cui entrare con `exec`: l'indicizzazione va fatta da un
-container usa-e-getta, prima del primo avvio.
+**Indicizzazione e avvio sono indipendenti.** Dopo l'avvio puoi creare un
+progetto, importare da Intake e avviare l'indicizzazione dalla console.
+`run --rm` esegue la CLI in un container temporaneo con gli stessi volumi;
+per un progetto nuovo aggiungi `--project <id>`. La shell della console non
+richiede un indice; retrieval e generazione basata sul corpus lo richiedono.
 
 **Perché tre profili.** Docker su macOS non espone Metal: un modello da 9B dentro un
 container gira su CPU. Lì il percorso sensato è tenere **Ollama nativo** sull'host e usare
@@ -243,11 +255,12 @@ ollama pull qwen3.5:9b
 cd rag
 uv sync --frozen
 
-# 5. Indicizza il corpus. Al primo avvio scarica anche bge-m3 (4,3 GB).
-uv run python index.py
-
-# 6. Avvia la console
+# 5. Avvia la console; crea/seleziona il progetto e importa da Intake.
 uv run python server.py       # oppure: scripts/run_server.sh
+
+# In un altro terminale, da rag/: baseline legacy facoltativa.
+uv run python index.py
+# Progetto creato nella console: uv run python index.py --project <id>
 ```
 
 Poi apri **http://127.0.0.1:8000**.
@@ -313,8 +326,10 @@ docker build --target cpu -t vibecraft:cpu .   # Apple Silicon, build arm64 nati
 
 ## Aggiornare senza perdere l'indice
 
-L'indice non sta mai dentro l'immagine né dentro il codice: vive in
-`rag/database/` (nativa) o nel volume `vibecraft_index` (Docker). Aggiornare non lo tocca.
+Gli indici vivono nei dati persistenti: `<root-progetto>/database/` per i
+progetti nuovi, `rag/database/` per il legacy. Compose conserva
+`vibecraft_projects`, `vibecraft_index` e `qdrant_storage`; aggiornare il
+codice non sposta i dati. Mantieni anche le root esterne e i loro mount.
 
 ```bash
 # Docker — i volumi (indice, pesi dei modelli, Qdrant) sopravvivono
@@ -337,7 +352,8 @@ Tre casi, in ordine di costo:
 
 | Cosa è cambiato | Cosa serve |
 |---|---|
-| Solo i documenti | `index.py --incremental` — reindicizza i soli file toccati |
+| Sorgenti del legacy | `index.py --incremental` — delta sui file toccati, se l'indice non è in modalità immutable |
+| Sorgenti di un progetto nuovo | `index.py --project <id> --incremental` — no-op se invariati; altrimenti ricostruisce una candidata completa |
 | Il **modello di embedding** (`rag_config.yaml`) | **Full rebuild** obbligatorio: i vettori vecchi non sono confrontabili con i nuovi. Il manifest registra il modello usato, quindi la differenza è rilevabile e non silenziosa |
 | Il **formato degli artefatti** | JSON, ColBERT in NPY per documento, dense/code in NPZ. Un ColBERT NPZ versionato richiede la migrazione sotto prima di un delta non vuoto; il vecchio layout piatto richiede una nuova build per passare a NPY. Gli indici solo pickle richiedono un rebuild |
 
@@ -366,18 +382,24 @@ uv run python index.py --rollback          # alla versione precedente
 Le versioni conservate sono 5 per default (`VIBECRAFT_INDEX_KEEP`).
 
 Il rollback viene rifiutato se la collection Qdrant di destinazione risulta assente.
-Gli incrementali condividono la collection della build completa di origine:
+Nel percorso **legacy** gli incrementali condividono la collection della build completa di origine:
 tornare a un loro snapshot precedente **non riavvolge i punti Qdrant** modificati
 dopo; la CLI segnala il caso e consiglia un full rebuild.
 
-L'eval-gate riguarda i rebuild completi; gli incrementali promuovono direttamente.
+Nei nuovi progetti il delta non vuoto passa dal rebuild e dal relativo gate.
+Il golden set è `<root-progetto>/eval/golden.yaml`; se manca la promozione può
+passare come non valutata. Nel legacy il gate riguarda i rebuild completi e
+gli incrementali promuovono direttamente.
 Una metrica sotto soglia blocca la promozione se il gate è configurato come bloccante;
 un errore nell'esecuzione della valutazione o l'assenza del golden set lasciano invece
 passare la promozione. Questo gate è distinto da quello che autorizza l'avvio agentic.
 
 ## Scalabilità: risultati e limiti
 
-ColBERT viene letto a richiesta e i delta riusano i file dei documenti invariati.
+Le misure seguenti sono del **21 settembre 2026, percorso legacy**. ColBERT
+viene letto a richiesta e i delta legacy riusano i file dei documenti invariati.
+Il delta dei nuovi progetti ricostruisce una candidata completa: queste curve
+non descrivono il suo costo.
 Grafo, metadati e vettori dense/code mantengono costi globali: il corpus non diventa
 illimitato e il costo complessivo del delta non dipende soltanto dai file modificati.
 
@@ -423,7 +445,8 @@ i bind mount `docs/` e `code/` del servizio applicazione in `docker-compose.yml`
 
 ## MCP locale
 
-Con il backend HTTP già avviato e un indice pronto, dalla directory `rag/`:
+Con il backend HTTP avviato e l'indice del progetto pronto, dalla directory
+`rag/` (imposta `VIBECRAFT_PROJECT_ID=<id>` nel client per un progetto nuovo):
 
 ```bash
 uv run --frozen python -B mcp_server.py
@@ -493,3 +516,12 @@ La superficie di attacco è mappata rotta per rotta in
 
 I pesi dei modelli scaricati a runtime (`bge-m3`, `qwen3.5`) hanno **ciascuno la propria
 licenza**, indipendente da questa: verificale prima di un uso commerciale.
+
+## Verifica dell'evoluzione multi-progetto
+
+Il gate finale del 5 ottobre 2026 ha registrato **2.348 test superati e 20 skip**
+per privilegi file-symlink Windows, con prove Linux complementari. Lint, check
+Node, integrazione HTTP/Qdrant/browser e persistenza Docker sono stati verificati.
+I provider sono simulati ai confini; lo smoke Docker usa un runtime CPU esistente
+con il sorgente corrente montato. Build Docker da zero e GitHub Actions non
+sono stati eseguiti: il gate non certifica una nuova immagine pubblicata.
