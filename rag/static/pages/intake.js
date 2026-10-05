@@ -114,7 +114,7 @@
           body: JSON.stringify({ descrizione, n_file: nFile, categoria_suggerita: categoria }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) { throw new Error(data.detail || `HTTP ${res.status}`); }
+        if (!res.ok) { throw new Error(apiErrorMessage(data.detail, `HTTP ${res.status}`)); }
         job = data;
       } catch (e) {
         status.className = 'status msg-err'; status.textContent = `Errore: ${e.message}`; btn.disabled = false; return;
@@ -128,7 +128,7 @@
           const data = await res.json().catch(() => ({}));
           // 404: job scartato dal registro (retention) o server riavviato — mai "completata".
           if (res.ok) job = data;
-          else if (res.status === 404) job = { status: 'failed', error: data.detail || 'job non più disponibile sul server' };
+          else if (res.status === 404) job = { status: 'failed', error: apiErrorMessage(data.detail, 'job non più disponibile sul server') };
           /* altri errori HTTP: ritenta al prossimo giro */
         } catch (e) { /* rete instabile: ritenta al prossimo giro */ }
       }
@@ -197,7 +197,7 @@
             + (avvisi ? `<span class="badge badge-err">⚠ ${avvisi} ${avvisi === 1 ? 'avviso' : 'avvisi'}: vedi anteprima</span>` : '');
           refreshStaging();
         } else {
-          el.innerHTML = `<span class="name">${escapeHtml(file.name)}</span><span class="msg-err">${escapeHtml(data.detail || `HTTP ${res.status}`)}</span>`;
+          el.innerHTML = `<span class="name">${escapeHtml(file.name)}</span><span class="msg-err">${escapeHtml(apiErrorMessage(data.detail, `HTTP ${res.status}`))}</span>`;
         }
       } catch (e) {
         const el = document.getElementById(rowId);
@@ -290,7 +290,7 @@
       try {
         const res = await fetch(`/api/intake/staged/${encodeURIComponent(id)}/preview`);
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        if (!res.ok) throw new Error(apiErrorMessage(data.detail, `HTTP ${res.status}`));
 
         const suggested = suggestFilename(data.filename);
         const raffinato = !!(data.files || {}).markdown_raw;
@@ -353,7 +353,7 @@
           body: JSON.stringify({ categoria, nome_file: nomeFile }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        if (!res.ok) throw new Error(apiErrorMessage(data.detail, `HTTP ${res.status}`));
         const reindex = data.reindex || {};
         out.className = 'msg-ok';
         out.textContent = `Approvato → docs/${categoria}/${nomeFile} — reindex: ${JSON.stringify(reindex)}`;
@@ -375,13 +375,13 @@
       try {
         const res = await fetch(`/api/intake/staged/${encodeURIComponent(id)}/refine`, { method: 'POST' });
         const job = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(job.detail || `HTTP ${res.status}`);
+        if (!res.ok) throw new Error(apiErrorMessage(job.detail, `HTTP ${res.status}`));
 
         while (true) {
           await new Promise(r => setTimeout(r, 3000));
           const poll = await fetch(`/api/intake/refine/${job.job_id}`);
           const stato = await poll.json().catch(() => ({}));
-          if (!poll.ok) throw new Error(stato.detail || `HTTP ${poll.status}`);
+          if (!poll.ok) throw new Error(apiErrorMessage(stato.detail, `HTTP ${poll.status}`));
           if (stato.status === 'failed') throw new Error(stato.error || 'raffinazione fallita');
           if (stato.status === 'done') {
             const s = (stato.result || {}).refine || {};
@@ -413,7 +413,7 @@
           body: JSON.stringify({ motivo }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        if (!res.ok) throw new Error(apiErrorMessage(data.detail, `HTTP ${res.status}`));
         out.className = 'msg-ok'; out.textContent = 'Documento rifiutato.';
         refreshStaging();
         setTimeout(closePreview, 1000);
@@ -453,7 +453,7 @@
       try {
         const res = await fetch('/api/intake/project/browse-path', { method: 'POST' });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        if (!res.ok) throw new Error(apiErrorMessage(data.detail, `HTTP ${res.status}`));
         if (data.path) {
           document.getElementById('prj-path').value = data.path;
           invalidateProjectPlan();
@@ -483,7 +483,7 @@
           body: JSON.stringify({ path, target }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        if (!res.ok) throw new Error(apiErrorMessage(data.detail, `HTTP ${res.status}`));
 
         currentProjectPlanId = data.plan_id;
         const t = data.totali || {};
@@ -520,7 +520,7 @@
           body: JSON.stringify({ plan_id: currentProjectPlanId }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+        if (!res.ok) throw new Error(apiErrorMessage(data.detail, `HTTP ${res.status}`));
 
         currentProjectPlanId = null;  // un piano applicato non è riutilizzabile
         status.className = 'status msg-ok'; status.textContent = 'Import applicato.';
@@ -594,7 +594,7 @@
           body: JSON.stringify({ target, progetto: progetto || null }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) { throw new Error(data.detail || `HTTP ${res.status}`); }
+        if (!res.ok) { throw new Error(apiErrorMessage(data.detail, `HTTP ${res.status}`)); }
         job = data;
       } catch (e) {
         status.className = 'status msg-err'; status.textContent = `Errore: ${e.message}`;
@@ -609,7 +609,7 @@
           const data = await res.json().catch(() => ({}));
           // 404: job scartato dal registro (retention) o server riavviato — mai "completata".
           if (res.ok) job = data;
-          else if (res.status === 404) job = { status: 'failed', error: data.detail || 'job non più disponibile sul server' };
+          else if (res.status === 404) job = { status: 'failed', error: apiErrorMessage(data.detail, 'job non più disponibile sul server') };
           /* altri errori HTTP: ritenta al prossimo giro */
         } catch (e) { /* rete instabile: ritenta al prossimo giro */ }
       }

@@ -3,10 +3,14 @@ import json
 
 import pytest
 
+
+
 from api import routes_pipeline as routes
 from core import pipeline_gate as gate
 from core.pipeline_store import PipelineStorageError
 from test_pipeline_validation import env as validation_env, accept
+
+pytestmark = pytest.mark.usefixtures("legacy_workflow_project")
 
 
 @pytest.fixture
@@ -89,7 +93,7 @@ def test_advisory_modes_remain_available_with_gate_reasons(env, monkeypatch, mod
 def test_agent_route_streams_runner_result_and_records_completion(env, monkeypatch):
     import agent_runners
 
-    def local_events(prompt, mode, model):
+    def local_events(prompt, mode, model, **kwargs):
         yield {'type': 'text', 'text': f'{model}: {prompt} ({mode})'}
         yield {'type': 'result', 'is_error': False, 'open_points_status': 'valid'}
 
@@ -125,7 +129,7 @@ def test_infrastructure_503_preserves_simultaneous_mismatch(env, monkeypatch):
     calls = runner(monkeypatch)
     vid = validated(client)
     (folder / 'canvas.md').write_text('Cambiato', encoding='utf-8')
-    def fail():
+    def fail(**kwargs):
         raise OSError('sources offline')
     monkeypatch.setattr(routes, '_validation_source_state', fail)
     response = client.post('/api/pipeline/agent/run', json={'feature':'demo', 'mode':'agentic', 'validation_id':vid})
@@ -199,7 +203,7 @@ def test_sdk_finish_is_recorded_without_http_consumption(monkeypatch):
         outcomes.append(outcome)
         done.set()
     monkeypatch.setattr(agent_bridge, 'query', query)
-    monkeypatch.setattr(agent_bridge, '_build_agent_options', lambda *a: None)
+    monkeypatch.setattr(agent_bridge, '_build_agent_options', lambda *a, **kwargs: None)
     stream = agent_bridge.run_agent_streaming('test', 'agentic', feature='demo',
                                              attempt_id='attempt-test', on_finish=finish)
     assert done.wait(3), 'La registrazione dipende ancora dalla lettura HTTP'
@@ -211,7 +215,7 @@ def test_failed_retry_lookup_never_persists_claimed_link(env, monkeypatch):
     _, store, client = env
     calls = runner(monkeypatch)
     vid = validated(client)
-    def fail(*a):
+    def fail(*a, **kwargs):
         raise PipelineStorageError('lookup offline')
     monkeypatch.setattr(store, 'retry_exists', fail)
     response = client.post('/api/pipeline/agent/run', json={'feature':'demo','mode':'agentic',
@@ -257,7 +261,7 @@ def test_sdk_run_cost_is_recorded_even_when_the_run_fails(budget, monkeypatch):
         yield FakeResult()
     monkeypatch.setattr(agent_bridge, 'ResultMessage', FakeResult)
     monkeypatch.setattr(agent_bridge, 'query', query)
-    monkeypatch.setattr(agent_bridge, '_build_agent_options', lambda *a: None)
+    monkeypatch.setattr(agent_bridge, '_build_agent_options', lambda *a, **kwargs: None)
     events = [json.loads(line) for line in agent_bridge.run_agent_streaming('test', 'suggest')]
     assert events[-1]['total_cost_usd'] == 0.42 and events[-1]['is_error']
     assert budget.spend_today_usd() == pytest.approx(0.42)

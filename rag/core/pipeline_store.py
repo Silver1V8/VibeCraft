@@ -10,7 +10,8 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from core.artifacts import _atomic_write_json
+from core.artifacts import _atomic_write_json, _project_artifact_path
+from core.projects import _unlinked, ProjectError
 from core.config import DATABASE_DIR
 from core.open_points import _unique_keys
 from core.pipeline import resolve_feature_dir
@@ -30,14 +31,25 @@ class PipelineStorageBusyError(PipelineStorageError):
 
 
 class PipelineStore:
-    def __init__(self, root: Path = DATABASE_DIR / 'pipeline'):
-        self.root = root
+    def __init__(self, root: Path | None = None, *, project=None):
+        self.project = project
+        self.root = root if root is not None else (project.database_dir if project else DATABASE_DIR) / 'pipeline'
+        self._path(self.root)
+
+    def _path(self, path):
+        try:
+            checked = _project_artifact_path(path, self.project) if self.project else _unlinked(path)
+            if not checked.is_relative_to(_unlinked(self.root)):
+                raise PipelineStorageError('Pipeline path outside project storage')
+            return checked
+        except (ProjectError, OSError, ValueError) as exc:
+            raise PipelineStorageError('Archiviazione pipeline non disponibile.') from exc
 
     @contextmanager
     def feature_lock(self, feature):
         self._validation_path(feature, 'val-' + '0' * 32)
         try:
-            with writer_lock(timeout_seconds=0, lock_path=self.root / 'locks' / (feature + '.lock')):
+            with writer_lock(timeout_seconds=0, lock_path=self._path(self.root / 'locks' / (feature + '.lock'))):
                 yield
         except WriterLockBusyError as exc:
             raise PipelineStorageBusyError('Operazione concorrente sulla feature: riprova.') from exc
@@ -45,7 +57,7 @@ class PipelineStore:
             raise PipelineStorageError(f'Storage della feature non disponibile: {exc}') from exc
 
     def _read_events_unlocked(self):
-        path = self.root / 'events.jsonl'
+        path = self._path(self.root / 'events.jsonl')
         if not path.resolve().is_relative_to(self.root.resolve()):
             raise ValueError('Registro eventi fuori da pipeline')
         if not path.exists():
@@ -62,7 +74,7 @@ class PipelineStore:
     def read_events(self):
         """Un journal corrotto non equivale a nessun tentativo precedente."""
         try:
-            with writer_lock(lock_path=self.root / '.events.lock'):
+            with writer_lock(lock_path=self._path(self.root / '.events.lock')):
                 return self._read_events_unlocked()
         except WriterLockBusyError as exc:
             raise PipelineStorageBusyError('Registro eventi occupato: riprova.') from exc
@@ -85,9 +97,9 @@ class PipelineStore:
         data = (json.dumps(record, ensure_ascii=False, allow_nan=False) + '\n').encode('utf-8')
         try:
             # ponytail: journal piccolo riletto sotto lock a ogni append; indicizzare se la crescita lo richiede.
-            with writer_lock(lock_path=self.root / '.events.lock'):
+            with writer_lock(lock_path=self._path(self.root / '.events.lock')):
                 self._read_events_unlocked()  # un tail corrotto non rende registrabile l’avvio
-                with (self.root / 'events.jsonl').open('ab') as stream:
+                with self._path(self.root / 'events.jsonl').open('ab') as stream:
                     stream.write(data)
                     stream.flush()
                     os.fsync(stream.fileno())
@@ -103,7 +115,7 @@ class PipelineStore:
         if not re.fullmatch(r'val-[0-9a-f]{32}', identifier):
             raise ValueError('Riferimento di validazione non valido')
         folder = resolve_feature_dir(self.root / 'validations', feature)
-        path = folder / (identifier + '.json')
+        path = self._path(folder / (identifier + '.json'))
         if not path.resolve().is_relative_to(self.root.resolve()):
             raise ValueError('Validazione fuori dalla directory pipeline')
         return path
@@ -113,7 +125,7 @@ class PipelineStore:
         checked = ValidationRecord.model_validate(record.model_dump())
         path = self._validation_path(checked.feature, checked.validation_id)
         try:
-            with writer_lock(timeout_seconds=0, lock_path=path.parent / '.writer.lock'):
+            with writer_lock(timeout_seconds=0, lock_path=self._path(path.parent / '.writer.lock')):
                 previous = self.read_validation(checked.feature, checked.validation_id)
                 if previous == checked:
                     return
@@ -144,13 +156,14 @@ class PipelineStore:
 
     def decisions(self, feature: str) -> list[PointDecision]:
         folder = self._validation_path(feature, 'val-' + '0' * 32).parent
-        folder = self.root / 'decisions' / folder.name
+        folder = self._path(self.root / 'decisions' / folder.name)
         try:
             if not folder.resolve().is_relative_to(self.root.resolve()):
                 raise ValueError('Directory decisioni fuori da pipeline')
             paths = sorted(folder.iterdir()) if folder.exists() else []
             records = []
             for path in paths:
+                path = self._path(path)
                 if path.suffix != '.json':
                     continue
                 if not path.resolve().is_relative_to(self.root.resolve()):
@@ -182,7 +195,7 @@ class PipelineStore:
             observed_metadata=observed_metadata, active_attempt_ids=active_attempt_ids,
             coverage_findings=coverage_findings, origin_verified=False)
         self._validation_path(feature, 'val-' + '0' * 32)  # stesso controllo dello slug
-        path = self.root / 'decisions' / feature / (record.decision_id + '.json')
+        path = self._path(self.root / 'decisions' / feature / (record.decision_id + '.json'))
         if not path.resolve().is_relative_to(self.root.resolve()):
             raise PipelineStorageError('Decisione fuori dalla directory pipeline')
         try:

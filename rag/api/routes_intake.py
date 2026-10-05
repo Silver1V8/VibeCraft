@@ -20,17 +20,19 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from api.deps import (
-    current_snapshot,
+    current_snapshot as current_snapshot,
     reload_index_state,
     require_api_key,
     require_local_bind,
     require_not_cross_site_request,
     state,
+    get_project, project_runtime, ensure_shared_resources, require_snapshot,
 )
 from core import doc_generation, intake, intake_refine, project_brief, project_import
 from core.config import INTAKE_ALLOWED_FORMATS, INTAKE_GENERATION_MAX_FILES, INTAKE_MAX_UPLOAD_MB
 from core.intake_convert import ConversionError
 from core.writer_lock import WriterLockBusyError
+from core.projects import ProjectError
 
 logger = logging.getLogger(__name__)
 
@@ -64,9 +66,27 @@ _ERROR_STATUS: tuple[tuple[type[Exception], int], ...] = (
 
 def _raise_http(exc: Exception) -> None:
     """Rilancia un errore di dominio come HTTPException (o lo propaga se sconosciuto)."""
+    if isinstance(exc, (ProjectError, OSError)):
+        logger.warning("Workflow storage unavailable", exc_info=True)
+        raise HTTPException(503, detail={"code": "project_storage_error", "message": "Archiviazione del progetto non disponibile."}) from exc
     for klass, status_code in _ERROR_STATUS:
         if isinstance(exc, klass):
-            raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+            logger.warning("Intake operation unavailable", exc_info=True)
+            if isinstance(exc, WriterLockBusyError):
+                message = "Writer lock occupato: riprova a lavoro terminato."
+            elif isinstance(exc, intake.StagedDocumentNotFoundError):
+                message = "Documento in staging non disponibile."
+            elif isinstance(exc, ConversionError):
+                message = "Conversione non riuscita: verifica formato, protezione e testo del documento."
+            elif isinstance(exc, intake_refine.RefineError):
+                message = "Raffinazione non riuscita: verifica il documento e il servizio di generazione."
+            elif isinstance(exc, project_import.InvalidImportPathError):
+                message = "Percorso di import non valido: scegli una cartella sorgente accessibile."
+            elif isinstance(exc, project_import.ProjectImportError):
+                message = "Import del progetto non disponibile: ripeti l'anteprima."
+            else:
+                message = str(exc)
+            raise HTTPException(status_code=status_code, detail=message) from exc
     raise exc
 
 
@@ -92,7 +112,20 @@ class GenerateRequest(BaseModel):
 # tetto per manager lo moltiplicherebbe. Retention dei terminati per manager
 # (VIBECRAFT_GENERATION_MAX_FINISHED). Entrambe lette alla prima start.
 _job_slots = doc_generation.GenerationSlots()
-_generation_manager = doc_generation.GenerationManager(slots=_job_slots)
+def _project_manager(project, kind):
+    runtime = project_runtime(project)
+    with runtime["lock"]:
+        key = kind + "_manager"
+        if key not in runtime:
+            runtime[key] = doc_generation.GenerationManager(slots=_job_slots)
+        return runtime[key]
+
+
+def _job_content(job):
+    content = job.to_dict()
+    if content.get("error"):
+        content["error"] = "Generazione non riuscita; consulta il log del server."
+    return content
 
 
 def _start_job(manager: doc_generation.GenerationManager, *args) -> doc_generation.GenerationJob:
@@ -103,20 +136,21 @@ def _start_job(manager: doc_generation.GenerationManager, *args) -> doc_generati
         raise HTTPException(status_code=429, detail=str(exc), headers={"Retry-After": "5"}) from exc
 
 
-def _server_reindex(changed_paths):
+def _server_reindex(changed_paths, *, project):
     """Reindex delta con le risorse del server: client Qdrant del lifespan e modello di
     embedding già caricato (CPU — un approve indicizza un solo documento, pochi chunk).
     Import lazy di core.indexing per non pagare torch all'import del router."""
     from core.indexing import incremental_index
+    ensure_shared_resources()
     return incremental_index(
         qdrant=state.get("qdrant"),
         embed_model=state.get("embed_model"),
-        changed_paths=changed_paths,
+        changed_paths=changed_paths, project=project,
     )
 
 
 @router.post("/api/intake/docs", dependencies=[Depends(require_not_cross_site_request)])
-async def upload_intake_document(file: UploadFile = File(...)):
+async def upload_intake_document(file: UploadFile = File(...), project=Depends(get_project)):
     """Upload multipart di un documento verso lo staging. Estensione validata contro
     intake.allowed_formats e dimensione contro intake.max_upload_mb PRIMA di leggere
     l'intero contenuto in memoria (Content-Length quando presente, poi conteggio a fette
@@ -150,54 +184,54 @@ async def upload_intake_document(file: UploadFile = File(...)):
         pieces.append(chunk)
     content = b"".join(pieces)
     try:
-        return await run_in_threadpool(intake.stage_document, filename, content)
+        return await run_in_threadpool(intake.stage_document, filename, content, project=project)
     except Exception as exc:
         _raise_http(exc)
 
 
 @router.get("/api/intake/staged")
-async def list_staged_documents():
+async def list_staged_documents(project=Depends(get_project)):
     """Documenti attualmente in staging (stato 'staged'), in ordine di arrivo."""
-    staged = await run_in_threadpool(intake.list_staged)
+    staged = await run_in_threadpool(intake.list_staged, project=project)
     return {"staged": staged}
 
 
 @router.get("/api/intake/staged/{doc_id}/preview")
-async def preview_staged_document(doc_id: str):
+async def preview_staged_document(doc_id: str, project=Depends(get_project)):
     """Entry del journal + markdown derivato, per la review prima di approve/reject."""
     try:
-        return await run_in_threadpool(intake.get_preview, doc_id)
+        return await run_in_threadpool(intake.get_preview, doc_id, project=project)
     except Exception as exc:
         _raise_http(exc)
 
 
 @router.post("/api/intake/staged/{doc_id}/approve",
              dependencies=[Depends(require_not_cross_site_request)])
-async def approve_staged_document(doc_id: str, payload: ApproveRequest):
+async def approve_staged_document(doc_id: str, payload: ApproveRequest, project=Depends(get_project)):
     """Approva un documento in staging verso docs/<categoria>/<nome_file> con reindex
     delta della sola path aggiunta (writer lock in core.intake.approve). Risponde con
     l'esito e le stats del job di reindex; a lock occupato (altro writer in corso) → 409."""
     try:
         record = await run_in_threadpool(
             intake.approve, doc_id, payload.categoria, payload.nome_file,
-            reindex=_server_reindex,
+            reindex=lambda paths: _server_reindex(paths, project=project), project=project,
         )
     except Exception as exc:
         _raise_http(exc)
     # Il reindex ha promosso una nuova versione: allinea subito lo snapshot in memoria
     # (stesso meccanismo di auto-reload dei job di reindex). Best-effort: reload_index_state
     # non solleva mai per artefatti mancanti/incoerenti.
-    await run_in_threadpool(reload_index_state)
+    await run_in_threadpool(reload_index_state, project)
     return record
 
 
 @router.post("/api/intake/staged/{doc_id}/reject",
              dependencies=[Depends(require_not_cross_site_request)])
-async def reject_staged_document(doc_id: str, payload: RejectRequest):
+async def reject_staged_document(doc_id: str, payload: RejectRequest, project=Depends(get_project)):
     """Rifiuta un documento in staging (motivo nel journal, file in staging/rejected/):
     docs/ e indice restano intatti."""
     try:
-        return await run_in_threadpool(intake.reject, doc_id, payload.motivo)
+        return await run_in_threadpool(intake.reject, doc_id, payload.motivo, project=project)
     except Exception as exc:
         _raise_http(exc)
 
@@ -205,42 +239,44 @@ async def reject_staged_document(doc_id: str, payload: RejectRequest):
 # ---------------------------------------------------------------------------
 # S3 — Generazione doc via Ollama: job in background + polling dello stato
 # ---------------------------------------------------------------------------
-def _server_generate(descrizione: str, n_file: int, categoria_target: str) -> dict:
+def _server_generate(descrizione: str, n_file: int, categoria_target: str, *, project, snap) -> dict:
     """Chiude sulle risorse di runtime del server (snapshot Qdrant/embedding), pattern di
     _server_reindex. Gira sul thread daemon del GenerationManager: bloccante ma fuori
     dall'event loop."""
-    snap = current_snapshot()
     return doc_generation.generate_docs(
         descrizione, n_file, categoria_target,
         qdrant=state.get("qdrant"), embed_model=state.get("embed_model"),
         colbert_store=snap.colbert_store if snap else None,
-        chunks_store=snap.chunks if snap else None,
+        chunks_store=snap.chunks if snap else None, project=project,
+        collection_name=snap.collection_name if snap else project.collection_name,
     )
 
 
 @router.post("/api/intake/generate", dependencies=[Depends(require_not_cross_site_request)])
-async def start_generation(payload: GenerateRequest):
+async def start_generation(payload: GenerateRequest, project=Depends(get_project)):
     """Avvia (subito, in background) un job di generazione documentazione grounded e
     risponde 202 col job_id. Il corpo dell'esito (documenti generati/scartati, latenze)
     si legge da GET /api/intake/generate/{job_id}."""
     if not payload.descrizione.strip():
         raise HTTPException(status_code=422, detail="descrizione vuota")
+    snap = await run_in_threadpool(require_snapshot, project)
+    await run_in_threadpool(ensure_shared_resources)
     job = _start_job(
-        _generation_manager,
+        _project_manager(project, "generation"),
         payload.descrizione, payload.n_file, payload.categoria_suggerita,
-        lambda: _server_generate(payload.descrizione, payload.n_file, payload.categoria_suggerita),
+        lambda: _server_generate(payload.descrizione, payload.n_file, payload.categoria_suggerita, project=project, snap=snap),
     )
-    return JSONResponse(status_code=202, content=job.to_dict())
+    return JSONResponse(status_code=202, content=_job_content(job))
 
 
 @router.get("/api/intake/generate/{job_id}")
-async def generation_status(job_id: str):
+async def generation_status(job_id: str, project=Depends(get_project)):
     """Stato di un job di generazione (pending/running/done/failed) con l'esito
     (generati/scartati/latenze) o l'errore leggibile."""
-    job = await run_in_threadpool(_generation_manager.get, job_id)
+    job = await run_in_threadpool(_project_manager(project, "generation").get, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job di generazione non trovato: {job_id}")
-    return job.to_dict()
+    return _job_content(job)
 
 
 # ---------------------------------------------------------------------------
@@ -250,37 +286,37 @@ async def generation_status(job_id: str):
 # ---------------------------------------------------------------------------
 # Manager dedicato: stessi thread daemon degli altri job, istanza separata per non
 # mescolare i job di raffinazione con quelli di generazione e brief.
-_refine_manager = doc_generation.GenerationManager(slots=_job_slots)
+
 
 
 @router.post("/api/intake/staged/{doc_id}/refine",
              dependencies=[Depends(require_not_cross_site_request)])
-async def refine_staged_document(doc_id: str):
+async def refine_staged_document(doc_id: str, project=Depends(get_project)):
     """Avvia la raffinazione di un documento in staging e risponde 202 col job_id: il
     dump del convertitore diventa una spec strutturata (sezioni, tabelle, blocchi di
     codice) con frontmatter semantico. Il markdown grezzo resta in staging accanto al
     raffinato e la preview mostrerà quest'ultimo. Precondizione verificata PRIMA di
     avviare il job: il documento è ancora in stato 'staged' (404/409 altrimenti)."""
     try:
-        await run_in_threadpool(intake.require_staged, doc_id)
+        await run_in_threadpool(intake.require_staged, doc_id, project=project)
     except Exception as exc:
         _raise_http(exc)
     job = _start_job(
-        _refine_manager,
+        _project_manager(project, "refine"),
         f"refine {doc_id}", 1, "",
-        lambda: intake_refine.refine_staged_document(doc_id),
+        lambda: intake_refine.refine_staged_document(doc_id, project=project),
     )
-    return JSONResponse(status_code=202, content=job.to_dict())
+    return JSONResponse(status_code=202, content=_job_content(job))
 
 
 @router.get("/api/intake/refine/{job_id}")
-async def refine_status(job_id: str):
+async def refine_status(job_id: str, project=Depends(get_project)):
     """Stato di un job di raffinazione (pending/running/done/failed) con l'entry
     aggiornata del journal (stats delle finestre, frontmatter semantico) o l'errore."""
-    job = await run_in_threadpool(_refine_manager.get, job_id)
+    job = await run_in_threadpool(_project_manager(project, "refine").get, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job di raffinazione non trovato: {job_id}")
-    return job.to_dict()
+    return _job_content(job)
 
 
 # ---------------------------------------------------------------------------
@@ -300,14 +336,20 @@ class ProjectApplyRequest(BaseModel):
 # processo come il GenerationManager — un riavvio del server li dimentica e l'utente
 # ripete semplicemente l'anteprima (che è comunque l'unica cosa sicura da fare dopo
 # un riavvio: lo stato di code/ potrebbe essere cambiato).
-_project_plans: dict[str, project_import.ImportPlan] = {}
+def _project_plans(project):
+    runtime = project_runtime(project)
+    with runtime["lock"]:
+        return runtime.setdefault("import_plans", {})
 _PROJECT_PLANS_MAX = 20
 
 
-def _remember_plan(plan: project_import.ImportPlan) -> None:
-    _project_plans[plan.plan_id] = plan
-    while len(_project_plans) > _PROJECT_PLANS_MAX:
-        _project_plans.pop(next(iter(_project_plans)))
+def _remember_plan(plan: project_import.ImportPlan, project) -> None:
+    runtime = project_runtime(project)
+    with runtime["lock"]:
+        plans = _project_plans(project)
+        plans[plan.plan_id] = plan
+        while len(plans) > _PROJECT_PLANS_MAX:
+            plans.pop(next(iter(plans)))
 
 
 def _native_folder_dialog() -> str | None:
@@ -346,14 +388,14 @@ async def browse_project_path():
     except Exception as exc:
         raise HTTPException(
             status_code=500,
-            detail=f"selettore di cartelle non disponibile: {exc}") from exc
+            detail="selettore di cartelle non disponibile") from exc
     return {"path": path}
 
 
 @router.post("/api/intake/project/plan",
              dependencies=[Depends(require_local_bind),
                            Depends(require_not_cross_site_request)])
-async def plan_project(payload: ProjectPlanRequest):
+async def plan_project(payload: ProjectPlanRequest, project=Depends(get_project)):
     """Anteprima dell'import (DRY-RUN puro, zero scritture): scansiona il path
     sorgente e classifica i file contro code/<target>/ (nuovi/identici/conflitti/
     esclusi). Validazioni in core.project_import: path assoluto, esistente,
@@ -365,22 +407,22 @@ async def plan_project(payload: ProjectPlanRequest):
     `require_local_bind` la spegne (403). Vedi api.deps.require_local_bind."""
     try:
         plan = await run_in_threadpool(
-            project_import.plan_project_import, payload.path, payload.target)
+            project_import.plan_project_import, payload.path, payload.target, project=project)
     except Exception as exc:
         _raise_http(exc)
-    _remember_plan(plan)
+    _remember_plan(plan, project)
     return plan.as_dict()
 
 
 @router.post("/api/intake/project/apply",
              dependencies=[Depends(require_not_cross_site_request)])
-async def apply_project(payload: ProjectApplyRequest):
+async def apply_project(payload: ProjectApplyRequest, project=Depends(get_project)):
     """Applica un piano di import (per plan_id di un'anteprima recente, o piano
     completo nel body): backup zip, copia dei SOLI file nuovi, journal, reindex delta
     del codice — tutto sotto writer lock (core.project_import.apply_project_import).
     Piano stale (stato di code/<target>/ cambiato dopo l'anteprima) → 409."""
     if payload.plan_id is not None:
-        plan = _project_plans.get(payload.plan_id)
+        plan = _project_plans(project).get(payload.plan_id)
         if plan is None:
             raise HTTPException(
                 status_code=404,
@@ -394,15 +436,15 @@ async def apply_project(payload: ProjectApplyRequest):
         raise HTTPException(status_code=422, detail="serve plan_id o plan")
     try:
         result = await run_in_threadpool(
-            project_import.apply_project_import, plan, reindex=_server_reindex)
+            project_import.apply_project_import, plan, reindex=lambda paths: _server_reindex(paths, project=project), project=project)
     except Exception as exc:
         _raise_http(exc)
     # Un piano applicato non è riutilizzabile: lo stato di code/ è cambiato per
     # costruzione (fingerprint diverso), inutile tenerlo in memoria.
-    _project_plans.pop(plan.plan_id, None)
+    _project_plans(project).pop(plan.plan_id, None)
     # Il reindex delta ha promosso una nuova versione: allinea lo snapshot in memoria
     # (stesso meccanismo dell'approve dei documenti). Best-effort, mai un errore.
-    await run_in_threadpool(reload_index_state)
+    await run_in_threadpool(reload_index_state, project)
     return result
 
 
@@ -420,27 +462,26 @@ class ProjectBriefRequest(BaseModel):
 
 # Manager dedicato ai brief: stessi thread daemon del GenerationManager S3, istanza
 # separata per non mescolare i job (e i monkeypatch dei test) con la generazione doc.
-_brief_manager = doc_generation.GenerationManager(slots=_job_slots)
 
 
-def _server_brief(target: str, progetto: str | None) -> dict:
+
+def _server_brief(target: str, progetto: str | None, *, project, snap) -> dict:
     """Chiude sullo snapshot di runtime del server (grafo + code_store coerenti fra
     loro, vedi IndexSnapshot): gira sul thread daemon del manager, mai sull'event loop."""
-    snap = current_snapshot()
     return project_brief.generate_project_brief(
         target,
         progetto=progetto,
         graph=snap.graph if snap else None,
-        code_store=snap.code_store if snap else None,
+        code_store=snap.code_store if snap else None, project=project,
     )
 
 
 @router.get("/api/intake/project/imports")
-async def list_project_imports(target: str | None = None):
+async def list_project_imports(target: str | None = None, project=Depends(get_project)):
     """Progetti importati con successo (uno per target/cartella, dal journal), così la
     pagina può far scegliere DI QUALE progetto scrivere il brief invece di indovinare."""
     try:
-        imports = await run_in_threadpool(project_brief.applied_imports, target)
+        imports = await run_in_threadpool(project_brief.applied_imports, target, project=project)
     except Exception as exc:
         _raise_http(exc)
     return {"imports": imports}
@@ -448,29 +489,30 @@ async def list_project_imports(target: str | None = None):
 
 @router.post("/api/intake/project/brief",
              dependencies=[Depends(require_not_cross_site_request)])
-async def start_project_brief(payload: ProjectBriefRequest):
+async def start_project_brief(payload: ProjectBriefRequest, project=Depends(get_project)):
     """Avvia il job di project brief per un progetto di code/<target>/ e risponde 202 col
     job_id. Precondizioni verificate PRIMA di avviare il job: target ammesso (422) e
     import riuscito per quel target/progetto nel journal intake (altrimenti 409)."""
     try:
         await run_in_threadpool(project_brief.require_applied_import, payload.target,
-                                None, payload.progetto)
+                                None, payload.progetto, project=project)
     except Exception as exc:
         _raise_http(exc)
     etichetta = f"{payload.target}/{payload.progetto}" if payload.progetto else payload.target
+    snap = await run_in_threadpool(require_snapshot, project)
     job = _start_job(
-        _brief_manager,
+        _project_manager(project, "brief"),
         f"project brief {etichetta}", 1, project_brief.BRIEF_CATEGORIA_SUGGERITA,
-        lambda: _server_brief(payload.target, payload.progetto),
+        lambda: _server_brief(payload.target, payload.progetto, project=project, snap=snap),
     )
-    return JSONResponse(status_code=202, content=job.to_dict())
+    return JSONResponse(status_code=202, content=_job_content(job))
 
 
 @router.get("/api/intake/project/brief/{job_id}")
-async def project_brief_status(job_id: str):
+async def project_brief_status(job_id: str, project=Depends(get_project)):
     """Stato di un job di brief (pending/running/done/failed) con l'esito (documento
     staged, scartati, avviso "grafo senza simboli") o l'errore leggibile."""
-    job = await run_in_threadpool(_brief_manager.get, job_id)
+    job = await run_in_threadpool(_project_manager(project, "brief").get, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job di brief non trovato: {job_id}")
-    return job.to_dict()
+    return _job_content(job)

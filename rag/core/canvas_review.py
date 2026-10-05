@@ -8,6 +8,7 @@ import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
+from core.projects import _unlinked, ProjectError
 
 import yaml
 
@@ -70,7 +71,10 @@ def collect_change_diff(feature_folder: str, change_dir: Path, repo_root: Path =
     # Solo i commit che citano lo slug nel SUBJECT come parola intera: --grep cerca anche
     # nel corpo, e un commit di vibecraft che nomina "BE1" come banco di prova veniva
     # scambiato per il codice della change BE1 (83 KB di diff estraneo).
-    log_out = _git(["log", "--reverse", "--format=%H %s", "-i", f"--grep={feature_folder}"], repo_root)
+    git_root = _git(["rev-parse", "--show-toplevel"], repo_root).strip()
+    owns_repository = bool(git_root) and Path(git_root).resolve() == _unlinked(repo_root)
+    log_out = (_git(["log", "--reverse", "--format=%H %s", "-i", f"--grep={feature_folder}"], repo_root)
+               if owns_repository else "")
     word = re.compile(rf"(?<![\w-]){re.escape(feature_folder)}(?![\w-])", re.IGNORECASE)
     shas = [sha for sha, _, subject in (line.partition(" ") for line in log_out.splitlines())
             if word.search(subject)]
@@ -81,11 +85,13 @@ def collect_change_diff(feature_folder: str, change_dir: Path, repo_root: Path =
         if diff.strip():
             return diff
 
-    tasks_path = change_dir / "tasks.md"
+    tasks_path = _unlinked(change_dir / "tasks.md")
     if tasks_path.exists():
         pieces = []
         for rel in _tasks_file_paths(tasks_path.read_text(encoding="utf-8")):
-            p = repo_root / rel.replace("\\", "/")
+            p = _unlinked(repo_root / rel.replace("\\", "/"))
+            if not p.is_relative_to(_unlinked(repo_root)):
+                raise ProjectError("Review task path outside project")
             if p.is_file():
                 pieces.append(f"--- FILE: {rel} ---\n{p.read_text(encoding='utf-8')}")
         if pieces:
@@ -146,7 +152,7 @@ _LESSON_SECTIONS = ("divergenze", "fedeltà", "fedelta")
 
 def retrieve_canvas_lessons(query: str, *, qdrant, embed_model, colbert_store,
                             chunks_store: dict, top_n: int = 3, top_k: int = 12,
-                            max_chars_per_doc: int = 1500, search=None) -> str:
+                            max_chars_per_doc: int = 1500, search=None, project=None, collection_name=None) -> str:
     """Recupera le "lezioni dalle change precedenti" per la generazione di un nuovo canvas:
     dalle canvas review archiviate più simili all'intent corrente (retrieval semantico
     esistente) estrae Divergenze e giudizio di Fedeltà. Restituisce '' se non ci sono
@@ -158,6 +164,7 @@ def retrieve_canvas_lessons(query: str, *, qdrant, embed_model, colbert_store,
     try:
         results = (search or retrieval.hybrid_search)(
             query, top_k, qdrant=qdrant, embed_model=embed_model, colbert_store=colbert_store,
+            **({"project": project, "collection_name": collection_name or project.collection_name} if project else {}),
         )
     except Exception:
         return ""  # retrieval non disponibile: nessuna lezione, nessun errore
@@ -221,8 +228,10 @@ def canvas_quality_stats(archive_dir: Path, last_n: int = 10) -> dict:
     ultime `last_n` change archiviate (dalla più vecchia alla più recente) e le
     divergenze più frequenti tra le loro review. Robusto ad archive vuoto/assente."""
     reviews: list[tuple[float, str, str]] = []  # (mtime, feature, testo)
+    archive_dir = _unlinked(archive_dir)
     if archive_dir.exists():
         for review_path in archive_dir.glob(f"*/{REVIEW_FILENAME}"):
+            review_path = _unlinked(review_path)
             try:
                 reviews.append((review_path.stat().st_mtime, review_path.parent.name,
                                 review_path.read_text(encoding="utf-8")))
@@ -278,8 +287,8 @@ def extract_eval_candidate(feature_folder: str, change_dir: Path) -> dict | None
     (nome + prima riga del canvas), gli expected sono i documenti normativi che il
     retrieval governato ha effettivamente usato per generare quel canvas (persistiti in
     meta.json da save_governed_sources). None se manca il canvas o le sorgenti."""
-    canvas_path = change_dir / "canvas.md"
-    meta_path = change_dir / "meta.json"
+    canvas_path = _unlinked(change_dir / "canvas.md")
+    meta_path = _unlinked(change_dir / "meta.json")
     if not canvas_path.exists() or not meta_path.exists():
         return None
     try:
@@ -302,6 +311,7 @@ def append_eval_candidate(candidate: dict, path: Path = EVAL_CANDIDATES_PATH) ->
     """Accoda il candidato a eval/candidates.yaml (creandolo se assente). Dedup per
     query: se un candidato con la stessa `q` esiste già non viene riproposto.
     Restituisce True se il candidato è stato aggiunto."""
+    path = _unlinked(path)
     data = {"candidates": []}
     if path.exists():
         try:
@@ -335,26 +345,26 @@ def _call_llm_sync(prompt: str) -> str:
 
 def generate_canvas_review(feature_folder: str, change_dir: Path,
                            repo_root: Path = PROJECT_ROOT, llm=None,
-                           code: str = "") -> tuple[str | None, str | None]:
+                           code: str | None = None) -> tuple[str | None, str | None]:
     """Genera il contenuto di canvas_review.md per la change in archiviazione.
 
     `code` è il codice che il check drift analizza (cartella della change + code/<dev_type>):
-    se non vuoto ha la precedenza sul diff git, che vede solo il repo di vibecraft.
+    anche vuoto ha la precedenza sul diff git. Solo None richiede il fallback storico.
 
     Restituisce (contenuto, None) in caso di successo oppure (None, warning) se la
     review va saltata (canvas assente o LLM non raggiungibile). Non solleva mai:
     l'archive non deve fallire per colpa della review.
     """
-    canvas_path = change_dir / "canvas.md"
+    canvas_path = _unlinked(change_dir / "canvas.md")
     if not canvas_path.exists():
         return None, "canvas.md assente: nessun contratto da confrontare con il codice."
 
     try:
         canvas_text = canvas_path.read_text(encoding="utf-8")
         sections = extract_canvas_sections(canvas_text)
-        spec_path = change_dir / "spec.md"
+        spec_path = _unlinked(change_dir / "spec.md")
         spec = spec_path.read_text(encoding="utf-8") if spec_path.exists() else ""
-        diff = code or collect_change_diff(feature_folder, change_dir, repo_root)
+        diff = collect_change_diff(feature_folder, change_dir, repo_root) if code is None else code
         prompt = build_canvas_review_prompt(feature_folder, sections, diff, spec)
         if OLLAMA_NUM_CTX and len(diff) > 0:
             # Stessa stima del guardrail di core/llm.py (~3 caratteri/token): il diff
@@ -365,8 +375,8 @@ def generate_canvas_review(feature_folder: str, change_dir: Path,
                 diff = diff[:max(room, 0)] + "\n… [diff troncato: supera la finestra di contesto] …"
                 prompt = build_canvas_review_prompt(feature_folder, sections, diff, spec)
         review = (llm or _call_llm_sync)(prompt)
-    except Exception as e:
-        return None, f"LLM non raggiungibile o review fallita: {e}"
+    except Exception:
+        return None, "LLM non raggiungibile o review fallita: consulta il log del server."
 
     content = (
         f"# Canvas Review: {feature_folder}\n\n"

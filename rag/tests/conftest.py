@@ -11,3 +11,36 @@ def legacy_http_project(monkeypatch):
     project = replace(legacy_project_context(), settings={})
     for routes in (routes_retrieval, routes_graph, routes_health):
         monkeypatch.setattr(routes, "get_project", lambda request: project)
+
+
+@pytest.fixture
+def legacy_workflow_project(tmp_path, monkeypatch):
+    """Opt-in historical HTTP adapters; real A/B tests never request this fixture.
+
+    Historical tests patch legacy path globals and provider/snapshot seams. Capture
+    those paths at request admission, with temporary database storage and an explicit
+    dependency override rather than teaching production routes an implicit fallback.
+    """
+    from fastapi import FastAPI
+    from api import deps, routes_pipeline, routes_intake, routes_reindex
+    from core import intake, project_import
+    from core.projects import legacy_project_context
+    monkeypatch.setattr(deps, '_project_states', {})
+
+    def context():
+        return replace(legacy_project_context(), root=tmp_path / "managed",
+            changes_dir=routes_pipeline.CHANGES_DIR, code_dir=project_import.CODE_DIR,
+            docs_dir=intake.DOCS_DIR, staging_dir=intake.INTAKE_STAGING_DIR,
+            database_dir=tmp_path/'database')
+
+    include = FastAPI.include_router
+    def include_router(application, router, **kwargs):
+        if router in (routes_pipeline.router, routes_intake.router, routes_reindex.router):
+            application.dependency_overrides[deps.get_project] = context
+        return include(application, router, **kwargs)
+    monkeypatch.setattr(FastAPI, 'include_router', include_router)
+    for routes in (routes_pipeline, routes_intake, routes_reindex):
+        monkeypatch.setattr(routes, 'ensure_shared_resources', lambda **kwargs: None)
+    monkeypatch.setattr(routes_pipeline, 'require_snapshot', lambda project: routes_pipeline.current_snapshot(project))
+    monkeypatch.setattr(routes_intake, 'require_snapshot', lambda project: routes_intake.current_snapshot(project))
+    return context

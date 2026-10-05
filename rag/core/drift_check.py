@@ -9,10 +9,11 @@ import logging
 import re
 from pathlib import Path
 
-from code_index import CODE_EXTS, collect_code_symbols
+from code_index import CODE_EXTS, collect_code_symbols, source_files
 from core import drift, llm
 from core.config import CHANGES_DIR, CODE_DIR, CODE_EXCLUDED_DIRS
-from core.pipeline import InvalidFeatureNameError, resolve_feature_dir
+from core.pipeline import InvalidFeatureNameError, resolve_feature_dir, validate_dev_type
+from core.projects import _unlinked
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +22,11 @@ def _load_dev_type(feature_dir: Path) -> str:
     """Legge il tipo di sviluppo salvato in <feature_dir>/meta.json, se presente.
     `feature_dir` è già il percorso risolto (e validato) della feature, non più
     una stringa da ri-comporre: evita una seconda concatenazione non verificata."""
-    meta_path = feature_dir / "meta.json"
+    meta_path = _unlinked(feature_dir / "meta.json")
     if not meta_path.exists():
         return ""
     try:
-        return json.loads(meta_path.read_text(encoding="utf-8")).get("dev_type", "")
+        return json.loads(_unlinked(meta_path).read_text(encoding="utf-8")).get("dev_type", "")
     except Exception:
         return ""
 
@@ -67,13 +68,15 @@ def _canvas_priority_dirs(canvas_content: str, *roots: Path) -> list[Path]:
         candidate = Path(token)
         anchor = candidate.parent if candidate.suffix else candidate
         for root in roots:
-            root = root.resolve()
+            root = _unlinked(root)
             # Include anche la cartella padre dell'anchor (es. `.../booking-requests`
             # oltre a `.../booking-requests/components`): il Canvas cita in genere solo
             # il file/cartella del layer UI, ma file "fratelli" come schema.ts o
             # rules.ts nella stessa feature sono altrettanto pertinenti al drift.
             for candidate_dir in (anchor, anchor.parent):
-                resolved = (root / candidate_dir).resolve()
+                resolved = _unlinked(root / candidate_dir)
+                if not resolved.is_relative_to(root):
+                    continue
                 if resolved == root:
                     continue
                 if resolved.is_dir() and resolved not in seen:
@@ -104,22 +107,24 @@ def _cited_symbols(text: str) -> set[str]:
     }
 
 
-def _feature_code_sources(feature_dir: Path, canvas_content: str) -> list[tuple[Path, list[Path]]]:
+def _feature_code_sources(feature_dir: Path, canvas_content: str, *, project=None) -> list[tuple[Path, list[Path]]]:
     """Il codice di una change, come lo vede il check drift: (radice, file) per la cartella
     della feature e per code/<dev_type> (dove Claude Code scrive l'implementazione).
     Stessa lista di estensioni del code index: una copia locale escludeva .cs/.java/.sql.
     In ogni radice vengono per primi i file più legati al contratto (simboli citati da
     canvas e spec, poi cartelle citate dal Canvas §4 Structure): se il budget non basta,
     restano fuori file di altre feature, non questi."""
-    search_dirs = [feature_dir]
+    code_dir = _unlinked(project.code_dir if project else CODE_DIR)
+    search_dirs = [_unlinked(feature_dir)]
     dev_type = _load_dev_type(feature_dir)
+    validate_dev_type(dev_type, project=project)
     if dev_type:
-        search_dirs.append(CODE_DIR / dev_type)
+        search_dirs.append(code_dir / dev_type)
     priority_dirs = _canvas_priority_dirs(
-        canvas_content, CODE_DIR, *([CODE_DIR / dev_type] if dev_type else [])
+        canvas_content, code_dir, *([code_dir / dev_type] if dev_type else [])
     )
-    spec_path = feature_dir / "spec.md"
-    spec = spec_path.read_text(encoding="utf-8") if spec_path.exists() else ""
+    spec_path = _unlinked(feature_dir / "spec.md")
+    spec = _unlinked(spec_path).read_text(encoding="utf-8") if spec_path.exists() else ""
     symbols = _cited_symbols(canvas_content + "\n" + spec)
 
     def rank(path: Path) -> tuple[int, int]:
@@ -127,7 +132,7 @@ def _feature_code_sources(feature_dir: Path, canvas_content: str) -> list[tuple[
         # percorso inesistente per EventCard e isSoldOut stava in lib/events/stock.ts; su
         # la3 la verifica posti/budget stava in un orchestratore mai nominato), poi quelli
         # sotto le cartelle citate.
-        text = path.read_text(encoding="utf-8", errors="replace")
+        text = _unlinked(path).read_text(encoding="utf-8", errors="replace")
         words = {_normalize_symbol(w) for w in re.findall(r"\w+", text)}
         words.add(_normalize_symbol(path.name.split(".")[0]))
         in_dir = any(path.is_relative_to(d) for d in priority_dirs)
@@ -139,24 +144,24 @@ def _feature_code_sources(feature_dir: Path, canvas_content: str) -> list[tuple[
             continue
         files = [
             path
-            for path in sorted(base.rglob("*"))
+            for path in source_files(_unlinked(base), CODE_EXCLUDED_DIRS)
             if path.is_file() and path.suffix in CODE_EXTS and not (CODE_EXCLUDED_DIRS & set(path.parts))
         ]
         sources.append((base, sorted(files, key=rank)))
     return sources
 
 
-def _review_code(feature_dir: Path) -> str:
+def _review_code(feature_dir: Path, *, project=None) -> str:
     """Il codice analizzato dal drift, per la canvas review all'archive (test e file
     generati esclusi, come nella revisione a lotti). '' se non c'è codice."""
-    canvas_path = feature_dir / "canvas.md"
-    canvas = canvas_path.read_text(encoding="utf-8") if canvas_path.exists() else ""
+    canvas_path = _unlinked(feature_dir / "canvas.md")
+    canvas = _unlinked(canvas_path).read_text(encoding="utf-8") if canvas_path.exists() else ""
     pieces = []
-    for base, files in _feature_code_sources(feature_dir, canvas):
+    for base, files in _feature_code_sources(feature_dir, canvas, project=project):
         for path in files:
             if drift.is_generated_path(path.name) or drift.is_test_path(path.relative_to(base).parts):
                 continue
-            text = path.read_text(encoding="utf-8", errors="replace")
+            text = _unlinked(path).read_text(encoding="utf-8", errors="replace")
             pieces.append(f"--- FILE: {path.relative_to(base).as_posix()} ---\n{text}")
     return "\n\n".join(pieces)
 
@@ -173,7 +178,7 @@ def _drift_code_budget(fixed_chars: int) -> int:
     return budget
 
 
-def check_drift(feature_name: str, emit=None) -> str:
+def check_drift(feature_name: str, emit=None, *, project=None) -> str:
     """Controlla se il codice generato si è discostato dal contratto (Canvas + Spec).
 
     Restituisce il report testuale (oltre a stamparlo/emetterlo), così da poterlo
@@ -187,7 +192,7 @@ def check_drift(feature_name: str, emit=None) -> str:
     """
     _log = emit or logger.info
     try:
-        feature_dir_path = resolve_feature_dir(CHANGES_DIR, feature_name)
+        feature_dir_path = resolve_feature_dir(project.changes_dir if project else CHANGES_DIR, feature_name)
     except InvalidFeatureNameError as exc:
         msg = f"❌ Nome feature non valido: {exc}"
         _log(msg)
@@ -195,19 +200,19 @@ def check_drift(feature_name: str, emit=None) -> str:
     feature_folder = feature_dir_path.name
     _log(f"\n🔍 Avvio controllo Drift (Disallineamento) per: 'changes/{feature_folder}'...")
 
-    canvas_path = feature_dir_path / "canvas.md"
+    canvas_path = _unlinked(feature_dir_path / "canvas.md")
 
     if not canvas_path.exists():
-        msg = f"❌ Errore: Non trovo il file {canvas_path}."
+        msg = "❌ Errore: Non trovo canvas.md per questa feature."
         _log(msg)
         return msg
 
-    canvas_content = canvas_path.read_text(encoding="utf-8")
+    canvas_content = _unlinked(canvas_path).read_text(encoding="utf-8")
     # La Spec (scenari Gherkin + punti aperti) è fonte normativa con precedenza sul
     # Canvas: senza, requisiti imposti da uno scenario (es. AUDIT_LOG sull'export in
     # BE1/S07) venivano segnalati come drift perché il Canvas non li citava.
-    spec_path = feature_dir_path / "spec.md"
-    spec_content = spec_path.read_text(encoding="utf-8") if spec_path.exists() else ""
+    spec_path = _unlinked(feature_dir_path / "spec.md")
+    spec_content = _unlinked(spec_path).read_text(encoding="utf-8") if spec_path.exists() else ""
 
     # Raccoglie il codice da confrontare: sia dall'eventuale codice presente nella
     # cartella della feature, sia dalla sottocartella code/<dev_type> dove Claude
@@ -223,13 +228,13 @@ def check_drift(feature_name: str, emit=None) -> str:
     generated: list[str] = []
     tests: list[str] = []
     symbols: list[dict] = []
-    for base, files in _feature_code_sources(feature_dir_path, canvas_content):
+    for base, files in _feature_code_sources(feature_dir_path, canvas_content, project=project):
         for path in files:
             # Path relativo alla radice di ricerca (non solo il nome file): più file
             # con lo stesso basename (es. `schema.ts` in moduli diversi) altrimenti
             # diventano indistinguibili nel prompt e l'LLM confonde i vincoli tra loro.
             label = path.relative_to(base).as_posix()
-            text = path.read_text(encoding="utf-8", errors="replace")
+            text = _unlinked(path).read_text(encoding="utf-8", errors="replace")
             all_texts[label] = text
             if drift.is_generated_path(path.name):
                 generated.append(label)
@@ -329,11 +334,12 @@ def check_drift(feature_name: str, emit=None) -> str:
                 f["descrizione"] += f" [riesame: punto aperto — {reason or 'nessun motivo indicato'}]"
             elif outcome is None:
                 f["descrizione"] += " [riesame non interpretabile: rilievo mantenuto]"
-    except llm.LLMError as e:
+    except llm.LLMError:
         # Il controllo drift è tollerante: l'errore diventa il report, mai un'eccezione
         # verso l'interfaccia. Si interrompe subito: le chiamate successive fallirebbero
         # allo stesso modo (generate ha già ritentato gli errori transitori).
-        report = f"❌ Errore durante il check drift: {e}"
+        logger.warning("Drift provider unavailable", exc_info=True)
+        report = "❌ Errore durante il check drift: servizio di generazione non disponibile."
     else:
         discarded = sum(1 for f in findings if f["scartato"])
         if discarded:

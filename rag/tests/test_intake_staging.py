@@ -13,6 +13,8 @@ import time
 from pathlib import Path
 
 import pytest
+
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -25,6 +27,8 @@ from core.intake_convert import ConversionError
 from core.writer_lock import writer_lock
 
 from test_incremental_indexing import StatefulFakeQdrant, StubEmbed, _wire_tmp_index
+
+pytestmark = pytest.mark.usefixtures("legacy_workflow_project")
 
 FIXTURES = Path(__file__).parent / "fixtures" / "intake"
 
@@ -40,7 +44,7 @@ def staging_dir(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def docs_dir(tmp_path, monkeypatch):
+def docs_dir(tmp_path, monkeypatch, **kwargs):
     docs = tmp_path / "docs"
     docs.mkdir()
     monkeypatch.setattr(intake, "DOCS_DIR", docs)
@@ -51,7 +55,7 @@ def _lock(tmp_path) -> Path:
     return tmp_path / "writer.lock"
 
 
-def _noop_reindex(_paths):
+def _noop_reindex(_paths, **kwargs):
     return {"noop": False, "reindexed_docs": 1, "upserted_chunks": 1}
 
 
@@ -360,7 +364,7 @@ def _client(tmp_path, monkeypatch) -> TestClient:
     monkeypatch.setattr(intake, "DOCS_DIR", docs)
     # niente risorse di runtime nei test: reindex e reload stubbati
     monkeypatch.setattr(routes_intake, "_server_reindex", _noop_reindex)
-    monkeypatch.setattr(routes_intake, "reload_index_state", lambda: None)
+    monkeypatch.setattr(routes_intake, "reload_index_state", lambda project=None, **kwargs: None)
     app = FastAPI()
     app.include_router(routes_intake.router)
     return TestClient(app, client=("127.0.0.1", 54321))

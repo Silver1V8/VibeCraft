@@ -7,6 +7,7 @@ importa questo modulo: un import a livello di modulo creerebbe un ciclo)."""
 import json
 import logging
 import shutil
+from contextlib import nullcontext
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -19,7 +20,11 @@ from core.canvas_review import (
     extract_eval_candidate,
     generate_canvas_review,
 )
-from core.config import CHANGES_DIR, DOCS_DIR
+from core.config import CHANGES_DIR, DOCS_DIR, PROJECT_ROOT
+from core.projects import _unlinked, ProjectError
+from core.writer_lock import writer_lock
+from core.indexing_lock import indexing_lock
+from code_index import source_files
 from core.drift_check import _review_code
 from core.pipeline import InvalidFeatureNameError, resolve_feature_dir
 
@@ -29,7 +34,7 @@ logger = logging.getLogger(__name__)
 def _record_review_skip(change_dir: Path, reason: str) -> None:
     """Registra nel manifest della change (meta.json) che la canvas review è stata
     saltata e perché, così l'assenza del file è documentata e non ambigua."""
-    meta_path = change_dir / "meta.json"
+    meta_path = _unlinked(change_dir / "meta.json")
     meta = {}
     if meta_path.exists():
         try:
@@ -48,7 +53,7 @@ def _record_review_skip(change_dir: Path, reason: str) -> None:
 
 
 def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_model=None,
-                    emit=None, reindex: bool = True) -> str:
+                    emit=None, reindex: bool = True, *, project=None) -> str:
     """Sposta la cartella in 'archive' (con canvas review) e, se `reindex=True`, innesca
     la re-indicizzazione completa inline.
 
@@ -61,6 +66,8 @@ def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_mode
     risorse pesanti possono essere iniettate dal server per riusare modello e client
     Qdrant già aperti; `emit` permette lo streaming SSE del progresso.
     """
+    changes_dir = project.changes_dir if project else CHANGES_DIR
+    docs_dir = project.docs_dir if project else DOCS_DIR
     _emit = emit or logger.info
     lines: list[str] = []
 
@@ -69,14 +76,14 @@ def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_mode
         lines.append(msg)
 
     try:
-        source_dir = resolve_feature_dir(CHANGES_DIR, feature_name)
+        source_dir = resolve_feature_dir(changes_dir, feature_name)
     except InvalidFeatureNameError as exc:
         log(f"❌ Nome feature non valido: {exc}")
         return "\n".join(lines)
     feature_folder = source_dir.name
     log(f"\n📦 Avvio archiviazione per la feature: '{feature_folder}'...")
 
-    archive_base_dir = CHANGES_DIR / "archive"
+    archive_base_dir = _unlinked(changes_dir / "archive")
     try:
         # feature_folder è già uno slug valido (appena prodotto sopra): questa validazione
         # è difesa in profondità, non attesa a fallire — protegge comunque da eventuali
@@ -87,9 +94,14 @@ def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_mode
         return "\n".join(lines)
 
     if not source_dir.exists():
+        if project is not None:
+            raise FileNotFoundError("Feature da archiviare non presente nel progetto")
         log(f"❌ Errore: La cartella {source_dir} non esiste. Non c'è nulla da archiviare.")
         return "\n".join(lines)
 
+    source_files(_unlinked(source_dir))  # validate the whole tree before recursive move
+    if _unlinked(target_dir).exists():
+        raise ValueError("Feature già presente nell’archivio del progetto")
     archive_base_dir.mkdir(parents=True, exist_ok=True)
 
     # Canvas che apprende: confronta il diff reale del codice della change con il
@@ -100,19 +112,26 @@ def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_mode
     try:
         log("🧾 Canvas review: confronto il codice della change con il canvas...")
         review, warning = generate_canvas_review(feature_folder, source_dir,
-                                                 code=_review_code(source_dir))
+                                                 code=_review_code(source_dir, project=project),
+                                                 repo_root=project.root if project else PROJECT_ROOT)
         if review is not None:
-            (source_dir / REVIEW_FILENAME).write_text(review, encoding="utf-8")
-            historical = DOCS_DIR / HISTORICAL_SUBDIR / f"{feature_folder}-canvas-review.md"
-            historical.parent.mkdir(parents=True, exist_ok=True)
-            historical.write_text(review, encoding="utf-8")
+            with writer_lock(project=project) if project else nullcontext():
+                _unlinked(source_dir / REVIEW_FILENAME).write_text(review, encoding="utf-8")
+                historical = _unlinked(docs_dir / HISTORICAL_SUBDIR / f"{feature_folder}-canvas-review.md")
+                historical.parent.mkdir(parents=True, exist_ok=True)
+                historical.write_text(review, encoding="utf-8")
             log(f"✅ Canvas review salvata in {REVIEW_FILENAME} (+ copia storica in docs/{HISTORICAL_SUBDIR}/).")
         else:
             log(f"⚠️ Canvas review saltata: {warning}")
-            _record_review_skip(source_dir, warning or "motivo sconosciuto")
+            with writer_lock(project=project) if project else nullcontext():
+                _record_review_skip(source_dir, warning or "motivo sconosciuto")
     except Exception as e:  # difensivo: nessun problema della review blocca l'archive
-        log(f"⚠️ Canvas review saltata per errore imprevisto: {e}")
-        _record_review_skip(source_dir, str(e))
+        if isinstance(e, (ProjectError, OSError, ValueError)):
+            raise
+        logger.warning("Canvas review unavailable", exc_info=True)
+        log("⚠️ Canvas review saltata: consulta il log del server.")
+        with writer_lock(project=project) if project else nullcontext():
+            _record_review_skip(source_dir, "Review non disponibile")
 
     # Golden-set che cresce dalle change: estrae (deterministicamente, nessun LLM) un
     # caso candidato di eval — query = intento della feature, expected = documenti
@@ -120,26 +139,37 @@ def archive_feature(feature_name, qdrant: QdrantClient | None = None, embed_mode
     # eval/candidates.yaml. La promozione nel golden-set resta una revisione umana.
     try:
         candidate = extract_eval_candidate(feature_folder, source_dir)
-        if candidate and append_eval_candidate(candidate):
+        with writer_lock(project=project) if project else nullcontext():
+            appended = candidate and append_eval_candidate(candidate, **({"path": project.root / "eval/candidates.yaml"} if project else {}))
+        if appended:
             log(f"🧪 Candidato di eval accodato a eval/candidates.yaml (q: {candidate['q'][:60]}...)")
     except Exception as e:  # anche il candidato non deve mai bloccare l'archive
-        log(f"⚠️ Estrazione candidato di eval saltata: {e}")
+        if isinstance(e, (ProjectError, OSError, ValueError)):
+            raise
+        logger.warning("Eval candidate unavailable", exc_info=True)
+        log("⚠️ Estrazione candidato di eval saltata: consulta il log del server.")
 
     try:
         from core.pipeline_store import PipelineStore
         # La review LLM resta fuori dal lock; solo la mutazione del contratto si coordina con l'ammissione.
-        with PipelineStore().feature_lock(feature_folder):
+        with PipelineStore(project=project).feature_lock(feature_folder), (writer_lock(project=project) if project else nullcontext()):
+            source_files(_unlinked(source_dir))
+            if _unlinked(target_dir).exists():
+                raise ValueError("Feature già presente nell’archivio del progetto")
             shutil.move(str(source_dir), str(target_dir))
-        log(f"✅ Feature archiviata con successo in: {target_dir}")
+        log(f"✅ Feature archiviata con successo in: changes/archive/{feature_folder}")
 
         if reindex:
             log("🔄 Innesco la re-indicizzazione del Graph RAG locale...")
             # Import lazy: core.indexing importa questo modulo (re-export di archive_feature).
             from core import indexing
-            indexing.build_graph_and_index(qdrant=qdrant, embed_model=embed_model, emit=_emit)
+            with indexing_lock, (writer_lock(project=project) if project else nullcontext()):
+                indexing.build_graph_and_index(qdrant=qdrant, embed_model=embed_model, emit=_emit, project=project)
             log("✅ Re-indicizzazione completata! Il Graph RAG ha appreso la nuova feature.")
 
     except Exception as e:
+        if project is not None:
+            raise
         log(f"❌ Errore durante l'archiviazione: {e}")
 
     return "\n".join(lines)

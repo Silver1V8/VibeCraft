@@ -26,6 +26,7 @@ from api.deps import (
     require_gitlab_token,
     require_not_cross_site_request,
     state,
+    get_project, project_runtime, ensure_shared_resources,
 )
 from api.reindex import ReindexManager, extract_gitlab_paths
 from core.artifacts import (
@@ -36,10 +37,11 @@ from core.artifacts import (
     resolve_rollback_target,
     rollback_version,
 )
-from core.config import REINDEX_JOURNAL_PATH
 from core import retrieval
 from core.eval_gate import gate_promotion, record_alert
-from core.config import COLLECTION_NAME, EMBEDDING_MODEL
+from core.config import COLLECTION_NAME
+from core.indexing_lock import indexing_lock
+from core.projects import ProjectError
 from core.indexing import (
     RollbackTargetCollectionMissing,
     _migrate_legacy_collection_if_needed,
@@ -53,7 +55,6 @@ from core.indexing import (
     rollback_shares_collection_with_later_versions,
 )
 from core.writer_lock import WriterLockBusyError, writer_lock
-from FlagEmbedding import BGEM3FlagModel
 
 logger = logging.getLogger(__name__)
 
@@ -65,62 +66,77 @@ router = APIRouter(dependencies=[Depends(require_api_key)])
 # dai 30s del manager (api.reindex._WRITER_LOCK_TIMEOUT_SECONDS): là il job È il lavoro.
 _ROLLBACK_WRITER_LOCK_TIMEOUT_SECONDS = 2
 
-# Un solo manager per processo: serializza i reindex e conserva lo stato dei job. Il journal
-# JSONL rende lo storico persistente ai riavvii (ricostruito dal manager al boot).
-manager = ReindexManager(journal_path=REINDEX_JOURNAL_PATH)
+def project_manager(project):
+    runtime = project_runtime(project)
+    with runtime["lock"]:
+        try:
+            if "reindex_manager" not in runtime:
+                runtime["reindex_manager"] = ReindexManager(project=project)
+            manager = runtime["reindex_manager"]
+            manager._guard_journal()
+            return manager
+        except (ProjectError, OSError, ValueError) as exc:
+            logger.warning("Reindex storage unavailable for %s", project.id if project else "legacy", exc_info=True)
+            raise HTTPException(503, detail={"code": "project_storage_error", "message": "Journal di indicizzazione non disponibile."}) from exc
 
 
 def _reindex_embed_model():
-    """Istanza di bge-m3 dedicata ai job full, separata da quella del server
-    (state["embed_model"], su CPU per le query interattive — vedi api/deps.py). I job
-    processano migliaia di chunk/simboli in batch: qui serve la GPU. Un'istanza fresca
-    per job costa solo qualche secondo di caricamento, trascurabile rispetto al lavoro
-    di embedding che segue."""
-    return BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
+    ensure_shared_resources()
+    return state["embed_model"]
 
 
-def _run_reindex(changed_paths) -> dict:
-    """Il core crea il modello dedicato solo quando il delta contiene contenuto."""
+def _job_content(job):
+    content = job.to_dict()
+    if content.get("error"):
+        content["error"] = "Indicizzazione non riuscita; consulta il log del server."
+    if content.get("reload_error"):
+        content["reload_error"] = "Caricamento dello snapshot non riuscito; consulta il log del server."
+    return content
+
+
+def _run_reindex(changed_paths, *, project=None) -> dict:
+    """Reindex delta con le risorse condivise inizializzate una volta."""
+    ensure_shared_resources()
     result = incremental_index(
         qdrant=state.get("qdrant"),
-        embed_model=None,
-        changed_paths=changed_paths,
+        embed_model=state.get("embed_model"),
+        changed_paths=changed_paths, project=project,
     )
     if result.get("noop") is True:
-        disk_version = current_version() or _graph_version()
-        snapshot = current_snapshot()
+        disk_version = current_version(project) or _graph_version(project)
+        snapshot = current_snapshot(project)
         if snapshot is not None and snapshot.version == disk_version:
             result["snapshot_token"] = snapshot.version
     return result
 
 
-def _eval_gate(version: str, embed_model) -> dict:
+def _eval_gate(version: str, embed_model, *, project=None) -> dict:
     """Eval-gate sulla versione APPENA COSTRUITA (non ancora promossa): carica i suoi sidecar
     e delega alla logica canonica core.eval_gate.gate_promotion, valutando la STESSA
     collection candidata su cui quella versione è stata costruita (letta dal suo
     manifest), mai la produzione. Un candidato illeggibile non supera il gate."""
     try:
-        arts = load_artifacts(required=("graph", "colbert", "chunks"), version=version)
+        arts = load_artifacts(required=("graph", "colbert", "chunks"), version=version, project=project)
     except Exception as exc:
         logger.warning("Eval-gate: artefatti candidati %s non caricabili (%s): promozione bloccata.",
                        version, exc)
         return {"passed": False, "skipped": "load_error", "version": version,
-                "error": f"{type(exc).__name__}: {exc}"}
-    collection_name = _qdrant_collection_for_version(version)
+                "error": "Artefatti candidati non disponibili"}
+    collection_name = _qdrant_collection_for_version(version, project=project)
     try:
         return gate_promotion(version, state.get("qdrant"), embed_model,
                               arts.colbert_store, emit=logger.info, collection_name=collection_name,
                               graph=arts.graph,
-                              restatements=retrieval.restatement_sections(arts.chunks_store))
+                              restatements=retrieval.restatement_sections(arts.chunks_store), project=project)
     finally:
         close = getattr(arts.colbert_store, "close", None)
         if close is not None:
             close()
 
 
-def _run_full_rebuild(changed_paths) -> dict:
+def _run_full_rebuild(changed_paths, *, project=None) -> dict:
     """Job "full": ricostruzione completa (build_graph_and_index) con un modello di embedding
-    GPU dedicato (vedi _reindex_embed_model), riusato anche per l'eval-gate che segue.
+    condiviso (vedi _reindex_embed_model), riusato anche per l'eval-gate che segue.
     `changed_paths` è ignorato (un full non ha delta). Gira sul thread daemon del
     ReindexManager: è così che OGNI scrittura degli artefatti passa da un solo scrittore.
 
@@ -154,7 +170,7 @@ def _run_full_rebuild(changed_paths) -> dict:
     }
     version = build_graph_and_index(qdrant=state.get("qdrant"),
                                     embed_model=embed_model, promote=False,
-                                    collector=collector)
+                                    collector=collector, project=project)
     timings = collector["phase_timings_seconds"]
     timings["init_model"] += init_model
     result = {"full_rebuild": True, "version": version,
@@ -163,7 +179,7 @@ def _run_full_rebuild(changed_paths) -> dict:
         result["colbert_io_bytes"] = collector["colbert_io_bytes"]
     if version:  # None solo con build finta nei test
         started = time.perf_counter()
-        gate = _eval_gate(version, embed_model)
+        gate = _eval_gate(version, embed_model, project=project)
         timings["eval_gate"] = time.perf_counter() - started
         result["eval"] = {kk: gate[kk] for kk in
                           ("recall", "k", "min_recall", "n", "skipped", "advisory") if kk in gate}
@@ -175,29 +191,30 @@ def _run_full_rebuild(changed_paths) -> dict:
             return result
 
         started = time.perf_counter()
-        promote_version(version)
-        collection_name = _qdrant_collection_for_version(version)
-        _migrate_legacy_collection_if_needed(state.get("qdrant"), COLLECTION_NAME, emit=logger.info)
-        _swap_alias(state.get("qdrant"), COLLECTION_NAME, collection_name)
+        promote_version(version, project=project)
+        collection_name = _qdrant_collection_for_version(version, project=project)
+        _migrate_legacy_collection_if_needed(state.get("qdrant"), project.collection_name if project else COLLECTION_NAME, emit=logger.info)
+        _swap_alias(state.get("qdrant"), project.collection_name if project else COLLECTION_NAME, collection_name)
         # GC: stesso punto consentito del path CLI (core.indexing.build_graph_and_index)
         # — dopo promote (retention locale già applicata) e dopo lo swap, dentro il
         # single-writer del ReindexManager (mai job full concorrenti).
-        gc_orphaned_qdrant_collections(state.get("qdrant"), emit=logger.info)
+        gc_orphaned_qdrant_collections(state.get("qdrant"), emit=logger.info, project=project)
         timings["promote"] += time.perf_counter() - started
     result["promoted"] = True
     return result
 
 
-def enqueue_full_rebuild() -> tuple:
+def enqueue_full_rebuild(project) -> tuple:
     """Accoda (o fonde) un full rebuild nella coda del manager. Restituisce `(job, queued)`.
     Usata anche dalle route dell'archive (Step 5), che non devono più chiamare
     build_graph_and_index inline: un solo scrittore per costruzione."""
-    return manager.start(None, _run_full_rebuild, reload_index_state, kind="full")
+    return project_manager(project).start(None, lambda paths: _run_full_rebuild(paths, project=project),
+                                          lambda: reload_index_state(project), kind="full")
 
 
 @router.post("/api/reindex", dependencies=[Depends(require_gitlab_token),
                                            Depends(require_not_cross_site_request)])
-async def start_reindex(request: Request):
+async def start_reindex(request: Request, project=Depends(get_project)):
     """Avvia (o accoda) un reindex incrementale in background e risponde 202 con il job-id.
 
     Il corpo è opzionale: se contiene un payload webhook GitLab (push) o un override
@@ -212,47 +229,53 @@ async def start_reindex(request: Request):
         payload = None  # corpo assente o non-JSON: incrementale completo
 
     if isinstance(payload, dict) and payload.get("full") is True:
-        job, queued = enqueue_full_rebuild()
+        job, queued = enqueue_full_rebuild(project)
     else:
         changed_paths = extract_gitlab_paths(payload) if payload is not None else None
-        job, queued = manager.start(changed_paths, _run_reindex, reload_index_state)
-    content = job.to_dict()
+        job, queued = project_manager(project).start(changed_paths, lambda paths: _run_reindex(paths, project=project),
+                                                     lambda: reload_index_state(project))
+    content = _job_content(job)
     if queued:
         content["queued"] = True
     return JSONResponse(status_code=202, content=content)
 
 
 @router.get("/api/reindex")
-async def list_reindex(limit: int = 20):
+async def list_reindex(limit: int = 20, project=Depends(get_project)):
     """Lista degli ultimi `limit` job di reindex (default 20), più recente prima — utile
     per debug e per la UI. Ricostruita dal journal al boot, quindi sopravvive ai riavvii."""
     if limit < 1:
         limit = 1
-    jobs = await run_in_threadpool(manager.list_recent, limit)
+    jobs = await run_in_threadpool(project_manager(project).list_recent, limit)
+    for job in jobs:
+        if job.get("error"):
+            job["error"] = "Indicizzazione non riuscita; consulta il log del server."
+        if job.get("reload_error"):
+            job["reload_error"] = "Caricamento dello snapshot non riuscito; consulta il log del server."
     return {"jobs": jobs}
 
 
 @router.get("/api/reindex/{job_id}")
-async def reindex_status(job_id: str):
+async def reindex_status(job_id: str, project=Depends(get_project)):
     """Stato di un job di reindex (running/completed/completed_not_promoted/failed)
     con il risultato o l'errore."""
-    job = await run_in_threadpool(manager.get, job_id)
+    job = await run_in_threadpool(project_manager(project).get, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job di reindex non trovato: {job_id}")
-    return job.to_dict()
+    return _job_content(job)
 
 
 # ---------------------------------------------------------------------------
 # Versioni blue/green: lista e rollback istantaneo
 # ---------------------------------------------------------------------------
 @router.get("/api/index/versions")
-async def index_versions():
+async def index_versions(project=Depends(get_project)):
     """Versioni dell'indice presenti su disco (ordine cronologico) e quella attiva."""
-    versions = await run_in_threadpool(list_versions)
-    return {"current": await run_in_threadpool(current_version), "versions": versions}
+    versions = await run_in_threadpool(list_versions, project)
+    return {"current": await run_in_threadpool(current_version, project), "versions": versions}
 
 
-def _rollback_under_writer_lock(target) -> tuple:
+def _rollback_under_writer_lock(target, project) -> tuple:
     """Esegue l'INTERA mutazione del rollback — rollback_version (sposta CURRENT) +
     rollback_qdrant_alias_if_needed (riallinea l'alias Qdrant) — dentro un solo writer
     lock cross-processo, restituendo `(name, qdrant_alias, shared_later)`.
@@ -274,22 +297,28 @@ def _rollback_under_writer_lock(target) -> tuple:
     (_ROLLBACK_WRITER_LOCK_TIMEOUT_SECONDS): a lock occupato solleva WriterLockBusyError,
     mappato a 409 dal chiamante. reload_index_state resta FUORI (sola lettura, dopo la
     mutazione)."""
-    with writer_lock(timeout_seconds=_ROLLBACK_WRITER_LOCK_TIMEOUT_SECONDS):
-        # Pre-check PRIMA della mutazione (R14): se la collection Qdrant della versione
-        # target non esiste più, il rollback lascerebbe CURRENT sul target e la
-        # produzione altrove — stato misto che nessuno ripara e che il check di
-        # integrità non vedeva. Solleva RollbackTargetCollectionMissing senza aver
-        # toccato nulla; Qdrant irraggiungibile ⇒ nessun blocco (vedi la funzione).
-        name = resolve_rollback_target(target)
-        if state.get("qdrant") is not None:
-            assert_rollback_target_has_vectors(state.get("qdrant"), name)
-        name = rollback_version(name)
-        shared_later = rollback_shares_collection_with_later_versions(name)
-        qdrant_alias = rollback_qdrant_alias_if_needed(state.get("qdrant"), name, logger.info)
+    ensure_shared_resources(embedding=False)
+    if not indexing_lock.acquire(timeout=_ROLLBACK_WRITER_LOCK_TIMEOUT_SECONDS):
+        raise WriterLockBusyError("Process indexing slot busy")
+    try:
+        with writer_lock(timeout_seconds=_ROLLBACK_WRITER_LOCK_TIMEOUT_SECONDS, project=project):
+            # Pre-check PRIMA della mutazione (R14): se la collection Qdrant della versione
+            # target non esiste più, il rollback lascerebbe CURRENT sul target e la
+            # produzione altrove — stato misto che nessuno ripara e che il check di
+            # integrità non vedeva. Solleva RollbackTargetCollectionMissing senza aver
+            # toccato nulla; Qdrant irraggiungibile ⇒ nessun blocco (vedi la funzione).
+            name = resolve_rollback_target(target, project=project)
+            if state.get("qdrant") is not None:
+                assert_rollback_target_has_vectors(state.get("qdrant"), name, project=project)
+            name = rollback_version(name, project=project)
+            shared_later = rollback_shares_collection_with_later_versions(name, project=project)
+            qdrant_alias = rollback_qdrant_alias_if_needed(state.get("qdrant"), name, logger.info, project=project)
+    finally:
+        indexing_lock.release()
     return name, qdrant_alias, shared_later
 
 
-def _record_shared_collection_rollback_alert(name: str, later_versions: list[str]) -> None:
+def _record_shared_collection_rollback_alert(name: str, later_versions: list[str], project) -> None:
     """Alert warning su database/alerts.jsonl quando un rollback lascia Qdrant non
     riavvolto (collection condivisa con versioni posteriori): è il canale che degrada
     GET /api/health per 48h (api.routes_health.read_last_alert). Riusa
@@ -301,12 +330,13 @@ def _record_shared_collection_rollback_alert(name: str, later_versions: list[str
         f"successive ({', '.join(later_versions)}) — incrementali posteriori l'hanno "
         f"mutata in place, Qdrant NON riavvolto. Full rebuild consigliato.",
         source="rollback", target_version=name, later_versions=later_versions,
+        **({"path": project.database_dir / "alerts.jsonl"} if project else {}),
     )
 
 
 @router.post("/api/index/rollback",
              dependencies=[Depends(require_not_cross_site_request)])
-async def index_rollback(request: Request):
+async def index_rollback(request: Request, project=Depends(get_project)):
     """Rollback blue/green ISTANTANEO: sposta il puntatore database/CURRENT alla
     versione indicata (corpo JSON opzionale `{"version": "v..."}`; default: la
     precedente) e ricarica subito lo snapshot in memoria. Nessuna build, nessuna copia.
@@ -342,29 +372,29 @@ async def index_rollback(request: Request):
     target = payload.get("version") if isinstance(payload, dict) else None
     try:
         name, qdrant_alias, shared_later = await run_in_threadpool(
-            _rollback_under_writer_lock, target)
-    except WriterLockBusyError as exc:
+            _rollback_under_writer_lock, target, project)
+    except WriterLockBusyError:
         # Distinto dal 409 del ValueError sotto: qui il rollback NON è stato tentato,
         # un altro scrittore (tipicamente un job full) detiene il lock. Il messaggio
         # dell'eccezione porta pid/timestamp del detentore.
         raise HTTPException(
             status_code=409,
-            detail=f"Writer lock occupato: un reindex/full rebuild è in corso, "
-                   f"rollback non eseguito — riprova a job finito. ({exc})",
+            detail="Writer lock occupato: un reindex/full rebuild è in corso, "
+                   "rollback non eseguito — riprova a job finito.",
         )
     except RollbackTargetCollectionMissing as exc:
         # 409 come gli altri conflitti di stato, ma qui NULLA è stato mutato: CURRENT
         # non si è mosso e l'alias nemmeno. Il messaggio nomina la collection mancante
         # e il rimedio (re-indicizzazione completa).
         raise HTTPException(status_code=409, detail=str(exc))
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
-    except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
-    await run_in_threadpool(reload_index_state)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Rollback non disponibile: controlla la versione e ripeti una indicizzazione completa.")
+    except ValueError:
+        raise HTTPException(status_code=409, detail="Rollback non disponibile: controlla la versione e ripeti una indicizzazione completa.")
+    await run_in_threadpool(reload_index_state, project)
     response = {
         "rolled_back_to": name,
-        "versions": await run_in_threadpool(list_versions),
+        "versions": await run_in_threadpool(list_versions, project),
         "qdrant_alias": qdrant_alias,
     }
     if shared_later:
@@ -377,5 +407,5 @@ async def index_rollback(request: Request):
             "later_versions": shared_later,
             "hint": "Qdrant non riavvolto: full rebuild consigliato",
         }
-        await run_in_threadpool(_record_shared_collection_rollback_alert, name, shared_later)
+        await run_in_threadpool(_record_shared_collection_rollback_alert, name, shared_later, project)
     return response

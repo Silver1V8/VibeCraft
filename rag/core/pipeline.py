@@ -6,6 +6,7 @@ parametri espliciti; l'orchestrazione async/I-O resta nei route handler (api/)."
 import json
 import re
 from pathlib import Path
+from core.projects import _unlinked
 
 from core import llm, retrieval, spec_format
 from core.open_points import REPORT_INSTRUCTIONS, RESEARCH_INSTRUCTIONS
@@ -62,8 +63,8 @@ def resolve_feature_dir(base_dir: Path, feature_name: str) -> Path:
     slug = slugify_feature(feature_name)
     candidate = base_dir / slug
     try:
-        base_resolved = base_dir.resolve()
-        candidate_resolved = candidate.resolve()
+        base_resolved = _unlinked(base_dir)
+        candidate_resolved = _unlinked(candidate)
     except OSError as exc:
         raise InvalidFeatureNameError(
             f"Percorso non risolvibile per la feature {feature_name!r}: {exc}"
@@ -91,17 +92,18 @@ async def call_ollama_generate(prompt: str) -> str:
     return await generate_tolerant(prompt, purpose="canvas")
 
 
-def feature_dir(feature_name: str) -> Path:
-    path = resolve_feature_dir(CHANGES_DIR, feature_name)
+def feature_dir(feature_name: str, *, project=None) -> Path:
+    path = resolve_feature_dir(project.changes_dir if project else CHANGES_DIR, feature_name)
     path.mkdir(parents=True, exist_ok=True)
     return path
 
 
-def list_dev_types() -> list[str]:
+def list_dev_types(*, project=None) -> list[str]:
     """Elenca le sottocartelle di 'code/' (backend, frontend, logicAgent, ...) da proporre in tendina."""
-    if not CODE_DIR.exists():
+    code_dir = _unlinked(project.code_dir if project else CODE_DIR)
+    if not code_dir.exists():
         return []
-    return sorted(p.name for p in CODE_DIR.iterdir() if p.is_dir() and not p.name.startswith("."))
+    return sorted(p.name for p in code_dir.iterdir() if _unlinked(p).is_dir() and not p.name.startswith("."))
 
 
 class InvalidDevTypeError(ValueError):
@@ -111,14 +113,14 @@ class InvalidDevTypeError(ValueError):
     whitelist esistente sono ammessi, mai un valore arbitrario fornito dal chiamante."""
 
 
-def validate_dev_type(dev_type: str) -> str:
+def validate_dev_type(dev_type: str, *, project=None) -> str:
     """Restituisce `dev_type` invariato se vuoto (nessun ambito scelto: sempre valido)
     o se compare tra le sottocartelle esistenti di code/ (list_dev_types()). Solleva
     InvalidDevTypeError altrimenti — stessa whitelist già usata per popolare la
     tendina di scelta, nessuna regex nuova."""
     if not dev_type:
         return dev_type
-    valid = list_dev_types()
+    valid = list_dev_types(project=project) if project else list_dev_types()
     if dev_type not in valid:
         raise InvalidDevTypeError(
             f"Tipo di sviluppo non valido: {dev_type!r} "
@@ -147,7 +149,7 @@ def dev_type_tag_variants(dev_type: str) -> list[str]:
     return list(dict.fromkeys(v for v in variants if v))   # unici, ordine stabile
 
 
-def build_tech_query(dev_type: str, template: str = TECH_QUERY_TEMPLATE) -> str:
+def build_tech_query(dev_type: str, template: str = TECH_QUERY_TEMPLATE, *, project=None) -> str:
     """Domanda del ramo TECNICO del retrieval governato: «con quale stack e quali pattern si
     implementa nell'ambito <dev_type>?». È una query semantica come le altre — nessun filtro
     su cartelle o nomi file: recupera ciò che le somiglia, ovunque stia nell'alberatura.
@@ -166,13 +168,13 @@ def build_tech_query(dev_type: str, template: str = TECH_QUERY_TEMPLATE) -> str:
     return template.replace("{dev_type}", readable)
 
 
-def save_dev_type(folder: Path, dev_type: str) -> None:
+def save_dev_type(folder: Path, dev_type: str, *, project=None) -> None:
     """Persiste il tipo di sviluppo scelto in changes/<feature>/meta.json, per ripristinarlo
     al resume. Solleva InvalidDevTypeError (via validate_dev_type) se dev_type non è vuoto
     e non è tra le sottocartelle esistenti di code/: non scrive mai un valore non valido."""
-    if not validate_dev_type(dev_type):
+    if not validate_dev_type(dev_type, project=project):
         return
-    meta_path = folder / "meta.json"
+    meta_path = _unlinked(folder / "meta.json")
     meta = {}
     if meta_path.exists():
         try:
@@ -205,7 +207,7 @@ def save_governed_sources(folder: Path, doc_ids: list[str]) -> None:
     al golden-set di eval (vedi core.canvas_review.extract_eval_candidate)."""
     if not doc_ids:
         return
-    meta_path = folder / "meta.json"
+    meta_path = _unlinked(folder / "meta.json")
     meta = {}
     if meta_path.exists():
         try:
@@ -218,7 +220,7 @@ def save_governed_sources(folder: Path, doc_ids: list[str]) -> None:
 
 def load_dev_type(folder: Path) -> str:
     """Legge il tipo di sviluppo salvato per la feature, se presente."""
-    meta_path = folder / "meta.json"
+    meta_path = _unlinked(folder / "meta.json")
     if not meta_path.exists():
         return ""
     try:
@@ -237,7 +239,7 @@ def load_dev_type(folder: Path) -> str:
 FINAL_PROMPT_CONSUMERS = ("external", "agent")
 
 
-def build_index_hint_block(dev_type: str = "", base_url: str = SERVER_BASE_URL) -> str:
+def build_index_hint_block(dev_type: str = "", base_url: str = SERVER_BASE_URL, *, project=None) -> str:
     """Orientamento per agenti esterni: MCP preferito, HTTP come fallback.
 
     Serve a un problema misurabile: senza, un agente che deve integrare codice in code/ ripiega
@@ -258,6 +260,12 @@ def build_index_hint_block(dev_type: str = "", base_url: str = SERVER_BASE_URL) 
     search_params = json.dumps({"params": {"q": "<simbolo o comportamento della feature>",
                                           "k": 5, "dev_type": dev_type, "snippet": False}},
                                ensure_ascii=False)
+    project_transport = (
+        f"  Configura il server MCP con VIBECRAFT_PROJECT_ID={project.id} prima di avviarlo;\n"
+        f"  verifica che la sessione sia associata a questo progetto. Se non lo è, usa il fallback\n"
+        f"  HTTP con il progetto esplicito oppure Read/Grep nelle cartelle indicate.\n"
+    ) if project else ""
+    project_header = f" e 'X-VibeCraft-Project: {project.id}' su ogni richiesta" if project else ""
     # Le righe dei tre esempi MCP e quelle `GET ...` restano INTERE, una per tool: i test
     # (tests/test_mcp_server.py, tests/test_mcp_http.py) le estraggono con una regex che non
     # attraversa i newline, e un a-capo di cortesia le renderebbe invisibili.
@@ -273,12 +281,13 @@ def build_index_hint_block(dev_type: str = "", base_url: str = SERVER_BASE_URL) 
         f"  Canale preferito: MCP, se il client espone i tool VibeCraft. I nomi qui sotto usano il\n"
         f"  prefisso di Claude Code per il server 'vibecraft'; negli altri client usa i nomi\n"
         f"  corrispondenti effettivamente esposti.\n"
+        f"{project_transport}"
         f"  - mcp__vibecraft__vibecraft_code_search con {search_params}. Apri i file pertinenti; snippet=true solo se i nomi non bastano.\n"
         '  - mcp__vibecraft__vibecraft_graph_query con {"params":{"q":"impatto","target":"<symbol_id restituito dalla ricerca>","limit":20}}. Verifica le dipendenze prima di modificare un simbolo condiviso.\n'
         '  - mcp__vibecraft__vibecraft_retrieve con {"params":{"q":"<vincolo da chiarire>","k":3,"include_text":true,"text_max_chars":1500}}. Recupera le fonti pertinenti.\n'
         f"\n"
         f"  Fallback HTTP, solo se i tool MCP non sono disponibili o il bridge non è raggiungibile, su\n"
-        f"  {base_url} con header 'X-API-Key: $VIBECRAFT_API_KEY' (omettibile da localhost).\n"
+        f"  {base_url} con header 'X-API-Key: $VIBECRAFT_API_KEY' (omettibile da localhost){project_header}.\n"
         f"  Non duplicare via HTTP una consultazione MCP riuscita.\n"
         f"    GET /api/code/search?q=<cosa+cerchi>&k=5{scope}\n"
         f"        Simboli più pertinenti: 'files' è l'elenco dei file da aprire, 'results' i simboli\n"
@@ -299,7 +308,7 @@ def build_index_hint_block(dev_type: str = "", base_url: str = SERVER_BASE_URL) 
         f"  recente non rendono da soli normativa una fonte. Cita doc_id e section per i vincoli usati.\n"
         f"  Se text_truncated=true e quell'estratto sostiene una decisione, leggi prima il testo\n"
         f"  completo della fonte indicata da doc_id, relativo alla cartella sorgente\n"
-        f"  '{DOCS_DIR}',\n"
+        f"  '{project.docs_dir if project else DOCS_DIR}',\n"
         f"  con Read o gli strumenti già disponibili per il suo formato. Non dedurre eccezioni o\n"
         f"  condizioni dalla parte omessa. Se la fonte completa non è accessibile, dichiara il punto\n"
         f"  aperto e sospendi quella decisione. Conserva index_version come provenienza della ricerca\n"
@@ -308,17 +317,17 @@ def build_index_hint_block(dev_type: str = "", base_url: str = SERVER_BASE_URL) 
 
 
 def build_final_prompt(folder_name: str, dev_type: str = "", consumer: str = "external",
-                       *, mode: str = "agentic", mcp: bool = True) -> str:
+                       *, mode: str = "agentic", mcp: bool = True, project=None) -> str:
     """Costruisce il prompt finale per Claude Code, scoperto sull'unica cartella code/<dev_type>
     se una tipologia di sviluppo è stata indicata, altrimenti con la distribuzione multi-cartella storica.
 
     `consumer` seleziona il prompt esterno o in-app; `mode` distingue le capacità
     in-app. I percorsi assoluti evitano ambiguità con la cwd agentic (code/)."""
     if consumer == "agent":
-        return build_agent_prompt(folder_name, dev_type, mode, mcp=mcp)
-    index_hint = build_index_hint_block(dev_type) if consumer == "external" else ""
+        return build_agent_prompt(folder_name, dev_type, mode, mcp=mcp, project=project)
+    index_hint = build_index_hint_block(dev_type, project=project) if consumer == "external" else ""
     index_hint += RESEARCH_INSTRUCTIONS + REPORT_INSTRUCTIONS
-    base = (
+    base = (f"Project ID: {project.id}; project root: {project.root}\n" if project else "") + (
         f"OBIETTIVO\n"
         f"  Implementa la funzionalità descritta da due documenti, letti rigorosamente:\n"
         f"    'changes/{folder_name}/canvas.md' — l'approccio tecnico da seguire;\n"
@@ -348,11 +357,12 @@ def build_final_prompt(folder_name: str, dev_type: str = "", consumer: str = "ex
 
 
 def build_agent_prompt(folder_name: str, dev_type: str, mode: str, *, contract=None,
-                       mcp: bool = True) -> str:
+                       mcp: bool = True, project=None) -> str:
     """Contratto operativo del prompt in-app, senza retrieval o I/O. `mcp=False` per i
     runner senza i tool vibecraft (LLM locale, Codex, Cursor): non si istruisce un agente
     a usare strumenti che non ha."""
-    scope = str((CODE_DIR / dev_type).resolve())
+    code_dir = _unlinked(project.code_dir if project else CODE_DIR)
+    scope = str(_unlinked(code_dir / validate_dev_type(dev_type, project=project)))
     if mode == "oneshot":
         return (
             "Genera una proposta di codice dai contenuti canvas.md e spec.md allegati in JSON. "
@@ -364,7 +374,7 @@ def build_agent_prompt(folder_name: str, dev_type: str, mode: str, *, contract=N
         ) + REPORT_INSTRUCTIONS
     if mode not in ("suggest", "agentic"):
         raise ValueError(f"Modalità non valida: {mode}")
-    folder = resolve_feature_dir(CHANGES_DIR, folder_name)
+    folder = resolve_feature_dir(project.changes_dir if project else CHANGES_DIR, folder_name)
     contract_instruction = (f"Contratto: leggi '{folder / 'canvas.md'}' e '{folder / 'spec.md'}'. "
                             if contract is None else
                             "Contratto autorizzato: usa esclusivamente Canvas, Spec e decisioni congelati "
@@ -405,9 +415,9 @@ def build_agent_prompt(folder_name: str, dev_type: str, mode: str, *, contract=N
         "Segui Approach del Canvas e copri gli scenari GIVEN/WHEN/THEN della Spec. "
         "Se i requisiti sono contraddittori o insufficienti, segnala il punto e fermati "
         "sulla parte bloccata; non inventare comportamenti.\n"
-        f"Percorsi: radice del codice '{CODE_DIR.resolve()}'; ambito '{scope}'. "
+        f"Percorsi: radice del codice '{code_dir}'; ambito '{scope}'. "
         "I path relativi restituiti dall'indice partono dalla radice del progetto, "
-        f"'{CODE_DIR.resolve().parent}'. Usa percorsi assoluti per leggere e scrivere file.\n\n"
+        f"'{project.root if project else code_dir.parent}'. Usa percorsi assoluti per leggere e scrivere file.\n\n"
         f"{context}"
         "Procedi per scenario: individua i file, riusa la struttura esistente senza rigenerare da zero, "
         "apporta o proponi la modifica minima e controlla la copertura prima dello scenario successivo. "
@@ -771,20 +781,20 @@ def check_bdd_semantics(spec_text: str) -> dict:
             "violations": violations, "valid": not violations}
 
 
-def _spec_e_archiviata(spec_path: Path | None) -> bool:
+def _spec_e_archiviata(spec_path: Path | None, *, project=None) -> bool:
     """Vero se lo spec vive sotto changes/archive/: gli spec archiviati sono storia, scritti
     con il formato in vigore al tempo, e bocciarli oggi produrrebbe solo rumore su documenti
     che nessuno riscriverà."""
     if spec_path is None:
         return False
     try:
-        relative = spec_path.resolve().relative_to(CHANGES_DIR.resolve())
+        relative = _unlinked(spec_path).relative_to(_unlinked(project.changes_dir if project else CHANGES_DIR))
     except (ValueError, OSError):
         return False
     return relative.parts[:1] == ("archive",)
 
 
-def validate_structural(canvas_text: str, spec_text: str, spec_path: Path | None = None) -> dict:
+def validate_structural(canvas_text: str, spec_text: str, spec_path: Path | None = None, *, project=None) -> dict:
     """Controlli strutturali deterministici (nessun LLM) su canvas/spec: presenza delle 7
     sezioni del Canvas, degli elementi BDD (GIVEN/WHEN/THEN) e sostanza degli scenari
     (check_bdd_semantics). La FORMA non si controlla qui: la ricostruisce
@@ -802,7 +812,7 @@ def validate_structural(canvas_text: str, spec_text: str, spec_path: Path | None
     bdd_given = "GIVEN" in spec_upper or "DATO CHE" in spec_upper
     bdd_when = "WHEN" in spec_upper or "QUANDO" in spec_upper
     bdd_then = "THEN" in spec_upper or "ALLORA" in spec_upper
-    archiviata = _spec_e_archiviata(spec_path)
+    archiviata = _spec_e_archiviata(spec_path, project=project)
     semantica = ({"checked": False, "scenarios": 0, "violations": [], "valid": True,
                   "skipped": "archiviata"}
                  if archiviata else check_bdd_semantics(spec_text))
@@ -865,7 +875,7 @@ def _render_agent_context(c: dict) -> str:
 
 
 def build_agent_context(feature_name: str, dev_type: str = "", *,
-                        graph, qdrant, embed_model, colbert_store) -> dict:
+                        graph, qdrant, embed_model, colbert_store, project=None, collection_name=None) -> dict:
     """Costruisce il blocco strutturato [AGENT CONTEXT] (intent / sorgenti / entità /
     vincoli / rischi / file / prompt / confidence) dell'Articolo 1, in modo deterministico
     a partire dal retrieval governato e dallo stato di canvas/spec. Il confidence score è
@@ -873,10 +883,10 @@ def build_agent_context(feature_name: str, dev_type: str = "", *,
 
     Le risorse (grafo, Qdrant, modello di embedding, sidecar ColBERT) sono iniettate; funzione
     sincrona pensata per girare in threadpool dal route handler."""
-    folder = resolve_feature_dir(CHANGES_DIR, feature_name)
+    folder = resolve_feature_dir(project.changes_dir if project else CHANGES_DIR, feature_name)
     folder_name = folder.name
-    canvas = (folder / "canvas.md").read_text(encoding="utf-8") if (folder / "canvas.md").exists() else ""
-    spec = (folder / "spec.md").read_text(encoding="utf-8") if (folder / "spec.md").exists() else ""
+    canvas = _unlinked(folder / "canvas.md").read_text(encoding="utf-8") if _unlinked(folder / "canvas.md").exists() else ""
+    spec = _unlinked(folder / "spec.md").read_text(encoding="utf-8") if _unlinked(folder / "spec.md").exists() else ""
     dev_type = dev_type or load_dev_type(folder)
 
     query = f"{feature_name}\n{canvas[:2000]}"
@@ -885,7 +895,8 @@ def build_agent_context(feature_name: str, dev_type: str = "", *,
     if graph is not None and qdrant is not None and embed_model is not None:
         try:
             results = retrieval.hybrid_search(query, 6, qdrant=qdrant, embed_model=embed_model,
-                                              colbert_store=colbert_store or {})
+                                              colbert_store=colbert_store or {},
+                                              **({"project": project, "collection_name": collection_name or project.collection_name} if project else {}))
             if results:
                 top_score = max((r.get("colbert_score") or r.get("dense_score") or 0.0) for r in results)
         except Exception:
@@ -937,7 +948,7 @@ def build_agent_context(feature_name: str, dev_type: str = "", *,
         "constraints": constraints,
         "risks": risks,
         "files_to_read": files_to_read,
-        "suggested_prompt": build_final_prompt(folder_name, dev_type),
+        "suggested_prompt": build_final_prompt(folder_name, dev_type, project=project),
         "confidence": confidence,
         "confidence_label": label,
     }

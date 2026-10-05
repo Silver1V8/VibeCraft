@@ -13,6 +13,8 @@ from types import SimpleNamespace
 import networkx as nx
 import numpy as np
 import pytest
+from api import deps
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -22,6 +24,8 @@ from core import intake, project_brief, project_import, retrieval
 from core.doc_generation import GenerationError
 
 from test_incremental_indexing import StatefulFakeQdrant, StubEmbed, _wire_tmp_index
+
+pytestmark = pytest.mark.usefixtures("legacy_workflow_project")
 
 
 # ---------------------------------------------------------------------------
@@ -96,7 +100,7 @@ def _graph_with_two_backend_projects() -> nx.DiGraph:
 
 
 @pytest.fixture
-def staging(tmp_path, monkeypatch):
+def staging(tmp_path, monkeypatch, **kwargs):
     base = tmp_path / "staging"
     monkeypatch.setattr(intake, "INTAKE_STAGING_DIR", base)
     return base
@@ -498,7 +502,7 @@ def _client(tmp_path, monkeypatch) -> TestClient:
     from api import routes_intake
     from core import doc_generation
     monkeypatch.setattr(intake, "INTAKE_STAGING_DIR", tmp_path / "staging")
-    monkeypatch.setattr(routes_intake, "_brief_manager", doc_generation.GenerationManager())
+    monkeypatch.setitem(deps.project_runtime(None), "brief_manager", doc_generation.GenerationManager())
     app = FastAPI()
     app.include_router(routes_intake.router)
     return TestClient(app, client=("127.0.0.1", 54321))
@@ -521,7 +525,7 @@ def test_route_brief_202_then_done_and_status_404_on_unknown(tmp_path, monkeypat
     from api import routes_intake
     client = _client(tmp_path, monkeypatch)
     _journal_applied_import(tmp_path / "staging")
-    monkeypatch.setattr(routes_intake, "_server_brief", lambda target, progetto: {
+    monkeypatch.setattr(routes_intake, "_server_brief", lambda target, progetto, **kwargs: {
         "target": target, "progetto": progetto, "generati": [{"id": "abc"}],
         "scartati": [], "n_generati": 1, "n_scartati": 0, "avviso": None,
         "latency": {"generation_ms": 1.0, "total_ms": 2.0}})
@@ -529,7 +533,7 @@ def test_route_brief_202_then_done_and_status_404_on_unknown(tmp_path, monkeypat
     resp = client.post("/api/intake/project/brief", json={"target": "backend"})
     assert resp.status_code == 202, resp.text
     job_id = resp.json()["job_id"]
-    assert routes_intake._brief_manager.join_all(timeout=5)
+    assert routes_intake._project_manager(None, "brief").join_all(timeout=5)
 
     status = client.get(f"/api/intake/project/brief/{job_id}")
     assert status.status_code == 200
@@ -543,15 +547,15 @@ def test_route_brief_job_failure_is_reported_not_raised(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
     _journal_applied_import(tmp_path / "staging")
 
-    def _boom(target, progetto):
+    def _boom(target, progetto, **kwargs):
         raise GenerationError("generazione brief fallita: Ollama irraggiungibile")
 
     monkeypatch.setattr(routes_intake, "_server_brief", _boom)
     resp = client.post("/api/intake/project/brief", json={"target": "backend"})
     assert resp.status_code == 202
-    assert routes_intake._brief_manager.join_all(timeout=5)
+    assert routes_intake._project_manager(None, "brief").join_all(timeout=5)
     body = client.get(f"/api/intake/project/brief/{resp.json()['job_id']}").json()
-    assert body["status"] == "failed" and "Ollama irraggiungibile" in body["error"]
+    assert body["status"] == "failed" and body["error"] == "Generazione non riuscita; consulta il log del server."
 
 
 def test_route_brief_unknown_progetto_returns_409_listing_available(tmp_path, monkeypatch):

@@ -34,6 +34,7 @@ if TYPE_CHECKING:
 import yaml
 
 from core import retrieval
+from core.projects import _unlinked
 from core.config import (
     ALERTS_PATH,
     COLLECTION_NAME,
@@ -61,7 +62,7 @@ def record_alert(level: str, message: str, *, path: Path | None = None, **detail
     """Appende un alert a database/alerts.jsonl (stesso formato letto da GET /api/health e dai
     check notturni). Best-effort: un errore di I/O non deve far fallire il build. `path` è
     risolto a runtime (default ALERTS_PATH) così i test possono reindirizzarlo via monkeypatch."""
-    path = path if path is not None else ALERTS_PATH
+    path = _unlinked(path if path is not None else ALERTS_PATH)
     alert = {"timestamp": datetime.now(timezone.utc).isoformat(), "level": level,
              "source": "eval_gate", "message": message, **details}
     try:

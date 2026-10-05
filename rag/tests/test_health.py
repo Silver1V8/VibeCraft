@@ -184,7 +184,7 @@ def test_health_degraded_by_rollback_shared_collection_alert(tmp_path, monkeypat
 
     p = tmp_path / "alerts.jsonl"
     monkeypatch.setattr(eval_gate, "ALERTS_PATH", p)
-    rr._record_shared_collection_rollback_alert("v1", ["v2"])
+    rr._record_shared_collection_rollback_alert("v1", ["v2"], project=None)
 
     report = _build(alerts_path=p)
     assert report["status"] == "degraded"

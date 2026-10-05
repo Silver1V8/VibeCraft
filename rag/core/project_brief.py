@@ -96,7 +96,7 @@ def _slug(nome: str) -> str:
     return re.sub(r"[^a-zA-Z0-9]+", "-", nome).strip("-").lower()
 
 
-def applied_imports(target: str | None = None, base_dir=None) -> list[dict]:
+def applied_imports(target: str | None = None, base_dir=None, *, project=None) -> list[dict]:
     """Progetti importati con successo, uno per (target, progetto) — del singolo
     progetto vince l'import più recente —, in ordine di applicazione. Ogni voce:
     {"target", "progetto", "src", "applied_at", "import_id"}."""
@@ -104,7 +104,7 @@ def applied_imports(target: str | None = None, base_dir=None) -> list[dict]:
         _validate_target(target)
     # Sola lettura (GET /api/intake/project/imports): non crea staging/ se non esiste
     # ancora — vedi core.intake.staging_paths_readonly.
-    paths = intake.staging_paths_readonly(base_dir)
+    paths = intake.staging_paths_readonly(base_dir, project=project)
     per_progetto: dict[tuple[str, str], dict] = {}
     for rec in intake._journal_state(paths).values():
         if rec.get("type") != "project_import" or rec.get("status") != "applied":
@@ -125,13 +125,13 @@ def applied_imports(target: str | None = None, base_dir=None) -> list[dict]:
 
 
 def last_applied_import(target: str, base_dir=None,
-                        progetto: str | None = None) -> dict | None:
+                        progetto: str | None = None, *, project=None) -> dict | None:
     """Ultima entry di journal "project_import"/"applied" per `target` (None se non
     esiste), ristretta a `progetto` quando indicato. Riusa il folding "ultima riga per
     id vince" di core.intake._journal_state: il journal è il registro unico
     dell'intake, non se ne introduce un secondo."""
     _validate_target(target)
-    paths = intake.ensure_staging_dirs(base_dir)
+    paths = intake.ensure_staging_dirs(base_dir, project=project)
     latest: dict | None = None
     for rec in intake._journal_state(paths).values():
         if (rec.get("type") == "project_import" and rec.get("status") == "applied"
@@ -143,13 +143,13 @@ def last_applied_import(target: str, base_dir=None,
 
 
 def require_applied_import(target: str, base_dir=None,
-                           progetto: str | None = None) -> dict:
+                           progetto: str | None = None, *, project=None) -> dict:
     """Entry dell'ultimo import riuscito per `target` (ristretta a `progetto`, se
     indicato), o BriefWithoutImportError."""
-    rec = last_applied_import(target, base_dir=base_dir, progetto=progetto)
+    rec = last_applied_import(target, base_dir=base_dir, progetto=progetto, project=project)
     if rec is None:
         if progetto is not None:
-            disponibili = [v["progetto"] for v in applied_imports(target, base_dir=base_dir)]
+            disponibili = [v["progetto"] for v in applied_imports(target, base_dir=base_dir, project=project)]
             raise BriefWithoutImportError(
                 f"nessun import progetto riuscito per {progetto!r} in code/{target}/ "
                 f"(importati finora: {', '.join(disponibili) or 'nessuno'})"
@@ -334,7 +334,7 @@ def seleziona_simboli(simboli: list[dict], gradi: dict[str, int], limite: int) -
 # Grounding deterministico: i fatti del grafo per il target (nessun LLM qui)
 # ---------------------------------------------------------------------------
 def collect_target_facts(graph, code_store: dict | None, target: str,
-                         progetto: str | None = None) -> dict:
+                         progetto: str | None = None, *, project=None) -> dict:
     """Estrae dal grafo i dati REALI del target: simboli (nodi type="code" con
     dev_type == target), entrypoint (kind "endpoint" o con route), archi DEPENDS_ON
     fra simboli del target e archi IMPLEMENTS simbolo→sezione/documento (la mappa
@@ -526,10 +526,10 @@ REGOLE DI FORMATO (obbligatorie):
 # generate_project_brief: il job completo (sincrono, pensato per il thread del
 # GenerationManager di core/doc_generation.py — mai sull'event loop).
 # ---------------------------------------------------------------------------
-def _journal_discarded_brief(base_dir, *, target: str, progetto: str, motivo: str) -> None:
+def _journal_discarded_brief(base_dir, *, target: str, progetto: str, motivo: str, project=None) -> None:
     """Traccia nel journal un brief SCARTATO in validazione (mai entrato in staging):
     stato 'discarded', ignorato da list_staged/approve/reject."""
-    paths = intake.ensure_staging_dirs(base_dir)
+    paths = intake.ensure_staging_dirs(base_dir, project=project)
     intake._append_journal(paths, {
         "id": uuid.uuid4().hex[:12],
         "status": "discarded",
@@ -558,7 +558,7 @@ def _avviso_senza_simboli(facts: dict, target: str, progetto: str) -> str:
 
 def generate_project_brief(target: str, *, progetto: str | None = None, graph=None,
                            code_store: dict | None = None,
-                           base_dir=None, generate=None) -> dict:
+                           base_dir=None, generate=None, project=None) -> dict:
     """Genera il project brief di code/<target>/<progetto> grounded sul grafo e lo mette
     in STAGING (source "brief"), approvabile SOLO dal ciclo di review S2 — nessuna
     scrittura in docs/. Precondizione: import progetto riuscito per quel target/progetto
@@ -575,7 +575,7 @@ def generate_project_brief(target: str, *, progetto: str | None = None, graph=No
     GenerationError se la chiamata LLM fallisce (il GenerationManager la registra come
     job "failed")."""
     total_start = time.time()
-    import_rec = require_applied_import(target, base_dir=base_dir, progetto=progetto)
+    import_rec = require_applied_import(target, base_dir=base_dir, progetto=progetto, project=project)
     progetto = progetto or progetto_di(import_rec.get("src", ""))
     facts = collect_target_facts(graph, code_store, target, progetto=progetto)
 
@@ -588,6 +588,8 @@ def generate_project_brief(target: str, *, progetto: str | None = None, graph=No
                             "total_ms": round((time.time() - total_start) * 1000, 2)}}
 
     prompt = build_brief_prompt(target, facts)
+    if project is not None:
+        prompt = f"Project ID: {project.id}\n" + prompt
     generate_fn = generate or (lambda p: llm.generate(p, purpose=_BRIEF_PURPOSE))
 
     generation_start = time.time()
@@ -607,7 +609,7 @@ def generate_project_brief(target: str, *, progetto: str | None = None, graph=No
     try:
         _validate_generated_markdown(markdown)
     except GenerationError as exc:
-        _journal_discarded_brief(base_dir, target=target, progetto=progetto, motivo=str(exc))
+        _journal_discarded_brief(base_dir, target=target, progetto=progetto, motivo=str(exc), project=project)
         return {**base, "scartati": [{"motivo": str(exc)}], "n_scartati": 1,
                 "latency": latency}
 
@@ -616,10 +618,10 @@ def generate_project_brief(target: str, *, progetto: str | None = None, graph=No
     filename = f"brief-{_slug(progetto) or target}-{uuid.uuid4().hex[:8]}.md"
     try:
         record = intake.stage_document(filename, markdown.encode("utf-8"),
-                                       base_dir=base_dir, source="brief")
+                                       base_dir=base_dir, source="brief", project=project)
     except intake.IntakeError as exc:
         motivo = f"staging fallito: {exc}"
-        _journal_discarded_brief(base_dir, target=target, progetto=progetto, motivo=motivo)
+        _journal_discarded_brief(base_dir, target=target, progetto=progetto, motivo=motivo, project=project)
         return {**base, "scartati": [{"motivo": motivo}], "n_scartati": 1,
                 "latency": latency}
 
@@ -631,6 +633,6 @@ def generate_project_brief(target: str, *, progetto: str | None = None, graph=No
         "modello": modello,
         "n_simboli_grounding": facts["n_simboli"],
         "latenze": {"generation_ms": latency_generation_ms},
-    })
+    }, project=project)
     latency["total_ms"] = round((time.time() - total_start) * 1000, 2)
     return {**base, "generati": [record], "n_generati": 1, "latency": latency}

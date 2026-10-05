@@ -25,6 +25,7 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
 from core.config import CODE_DIR, config
+from core.projects import _unlinked, ProjectError
 
 logger = logging.getLogger(__name__)
 
@@ -60,18 +61,18 @@ class VerificationResult:
         return {**asdict(self), 'passed': self.passed}
 
 
-def _settings() -> dict:
-    block = config.get('verification') or {}
+def _settings(*, project=None) -> dict:
+    block = (project.settings if project else config).get('verification') or {}
     return block if isinstance(block, dict) else {}
 
 
-def command_for(dev_type: str) -> list[str]:
+def command_for(dev_type: str, *, project=None) -> list[str]:
     """Comando di test configurato per l'ambito, [] se assente o malformato.
 
     Accetta solo una lista di stringhe: una stringa unica sarebbe ambigua da eseguire
     senza shell, e con la shell il contenuto della config diventerebbe eseguibile
     arbitrario a un livello di fiducia che qui non serve."""
-    commands = _settings().get('commands') or {}
+    commands = _settings(project=project).get('commands') or {}
     raw = commands.get(dev_type) if isinstance(commands, dict) else None
     if isinstance(raw, list) and raw and all(isinstance(part, str) and part for part in raw):
         return list(raw)
@@ -80,8 +81,8 @@ def command_for(dev_type: str) -> list[str]:
     return []
 
 
-def is_enabled() -> bool:
-    return bool(_settings().get('enabled', True))
+def is_enabled(*, project=None) -> bool:
+    return bool(_settings(project=project).get('enabled', True))
 
 
 def resolve_command(command: list[str]) -> list[str] | None:
@@ -101,27 +102,34 @@ def resolve_command(command: list[str]) -> list[str] | None:
     return [executable, *rest]
 
 
-def run_suite(dev_type: str, *, runner=subprocess.run) -> VerificationResult:
+def run_suite(dev_type: str, *, runner=subprocess.run, project=None) -> VerificationResult:
     """Esegue la suite dell'ambito e ne riporta l'esito. Non solleva mai: un guasto
     dello strumento di misura è un esito ('unavailable'), non un errore della richiesta
     che ha appena prodotto del codice."""
     result = VerificationResult(status=UNAVAILABLE, dev_type=dev_type)
-    if not is_enabled():
+    if not is_enabled(project=project):
         result.reason = 'Verifica eseguita disattivata in rag_config.yaml (verification.enabled).'
         return result
     if not dev_type:
         result.reason = 'Nessun ambito dichiarato per la feature: non so quale suite eseguire.'
         return result
 
-    command = command_for(dev_type)
+    command = command_for(dev_type, project=project)
     if not command:
         result.reason = f"Nessun comando in verification.commands['{dev_type}']."
         return result
     result.command = command
 
-    cwd = (CODE_DIR / dev_type).resolve()
+    try:
+        root = _unlinked(project.code_dir if project else CODE_DIR)
+        cwd = _unlinked(root / dev_type)
+        if not cwd.is_relative_to(root):
+            raise ProjectError("Verification scope outside code")
+    except (ProjectError, OSError):
+        result.reason = "Cartella della verifica non disponibile."
+        return result
     if not cwd.is_dir():
-        result.reason = f'Cartella dell\'ambito assente: {cwd}'
+        result.reason = "Cartella dell’ambito assente."
         return result
 
     argv = resolve_command(command)
@@ -129,7 +137,7 @@ def run_suite(dev_type: str, *, runner=subprocess.run) -> VerificationResult:
         result.reason = f'Eseguibile non trovato nel PATH del server: {command[0]}'
         return result
 
-    settings = _settings()
+    settings = _settings(project=project)
     timeout = settings.get('timeout_seconds') or _DEFAULT_TIMEOUT
     max_output = settings.get('max_output_chars') or _DEFAULT_MAX_OUTPUT
     started = time.perf_counter()
@@ -148,9 +156,10 @@ def run_suite(dev_type: str, *, runner=subprocess.run) -> VerificationResult:
         result.duration_seconds = round(time.perf_counter() - started, 2)
         result.output = _tail(_decode(exc.output) + _decode(exc.stderr), max_output)
         return result
-    except OSError as exc:
+    except OSError:
         result.duration_seconds = round(time.perf_counter() - started, 2)
-        result.reason = f'Avvio della suite non riuscito: {exc}'
+        logger.warning('Avvio verifica non riuscito', exc_info=True)
+        result.reason = 'Avvio della suite non riuscito: consulta il log del server.'
         return result
 
     result.duration_seconds = round(time.perf_counter() - started, 2)

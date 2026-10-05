@@ -10,11 +10,15 @@ import zipfile
 from pathlib import Path
 
 import pytest
+from api import deps
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from core import intake, project_import
 from core.config import PROJECT_ROOT
+
+pytestmark = pytest.mark.usefixtures("legacy_workflow_project")
 
 
 # ---------------------------------------------------------------------------
@@ -52,7 +56,7 @@ def sandbox(tmp_path, monkeypatch):
     return src, code_dir, staging, tmp_path / "writer.lock"
 
 
-def _noop_reindex(_paths):
+def _noop_reindex(_paths, **kwargs):
     return {"noop": False, "reindexed_docs": 0, "upserted_chunks": 0, "version": "vtest"}
 
 
@@ -269,8 +273,8 @@ def _client(tmp_path, monkeypatch) -> tuple[TestClient, Path, Path]:
     monkeypatch.setattr(project_import, "CODE_DIR", code_dir)
     monkeypatch.setattr(intake, "INTAKE_STAGING_DIR", tmp_path / "staging")
     monkeypatch.setattr(routes_intake, "_server_reindex", _noop_reindex)
-    monkeypatch.setattr(routes_intake, "reload_index_state", lambda: None)
-    monkeypatch.setattr(routes_intake, "_project_plans", {})
+    monkeypatch.setattr(routes_intake, "reload_index_state", lambda project=None, **kwargs: None)
+    monkeypatch.setitem(deps.project_runtime(None), "import_plans", {})
     app = FastAPI()
     app.include_router(routes_intake.router)
     return TestClient(app, client=("127.0.0.1", 54321)), src, code_dir

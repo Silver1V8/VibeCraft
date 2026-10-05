@@ -6,12 +6,16 @@ from types import SimpleNamespace
 
 import networkx as nx
 import pytest
+from api import deps
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from api import deps, routes_pipeline as routes
+from api import routes_pipeline as routes
 from core import pipeline, pipeline_gate as gate, pipeline_validation as validation, retrieval
 from core.pipeline_store import PipelineStore
+
+pytestmark = pytest.mark.usefixtures("legacy_workflow_project")
 
 CANVAS = '\n'.join('## ' + s for s in pipeline.CANVAS_SECTIONS)
 SCENARIO = ('```gherkin\nSCENARIO: S01 - Invio richiesta\n  GIVEN una richiesta pronta\n'
@@ -93,16 +97,16 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(routes, 'CHANGES_DIR', folder.parent)
     monkeypatch.setattr(pipeline, 'CHANGES_DIR', folder.parent)
     store = PipelineStore(tmp_path / 'database' / 'pipeline')
-    monkeypatch.setattr(routes, 'pipeline_store', store)
+    monkeypatch.setattr(routes, 'project_store', lambda project, **kwargs: store)
     graph = nx.DiGraph()
     graph.add_node('rule.md', type='document', classification='normative')
     snap = SimpleNamespace(graph=graph, chunks={'chunk': {'text': 'Regola intera', 'doc_id': 'rule.md'}},
-                           colbert_store={}, version='v-test')
-    monkeypatch.setattr(routes, 'current_snapshot', lambda: snap)
+                           colbert_store={}, collection_name='test-collection', version='v-test')
+    monkeypatch.setattr(routes, 'current_snapshot', lambda project=None, **kwargs: snap)
     monkeypatch.setitem(deps.state, 'qdrant', object())
     monkeypatch.setitem(deps.state, 'embed_model', object())
-    monkeypatch.setattr(routes, '_validation_manifest', lambda snap: {'rule.md': 'hash-rule'})
-    monkeypatch.setattr(routes, '_validation_source_state', lambda: gate.SourceState(
+    monkeypatch.setattr(routes, '_validation_manifest', lambda snap, **kwargs: {'rule.md': 'hash-rule'})
+    monkeypatch.setattr(routes, '_validation_source_state', lambda**kwargs: gate.SourceState(
         index_version='v-test', doc_hashes={'rule.md': 'hash-rule'}))
     monkeypatch.setattr(retrieval, 'hybrid_search', lambda *a, **kw: [dict(doc_id='rule.md', chunk_id='chunk', section='Regola')])
     monkeypatch.setattr(routes.llm, 'resolve', lambda purpose: ('test', 'test-model'))
@@ -214,7 +218,8 @@ def test_failed_retrieval_is_unavailable_and_does_not_call_model(env, monkeypatc
     response = env[2].post('/api/pipeline/validate', json={'feature': 'demo'})
     assert response.status_code == 503
     assert response.json()['status'] == 'unavailable'
-    assert 'qdrant offline' in response.json()['validation_error']
+    assert 'Retrieval non disponibile' in response.json()['validation_error']
+    assert 'qdrant offline' not in response.json()['validation_error']
 
 
 def test_successful_empty_search_is_not_an_outage(env, monkeypatch):
@@ -311,6 +316,6 @@ def test_sdk_activity_is_removed_when_query_fails(monkeypatch):
         raise RuntimeError('SDK fallito')
         yield
     monkeypatch.setattr(agent_bridge, 'query', query)
-    monkeypatch.setattr(agent_bridge, '_build_agent_options', lambda *a: None)
+    monkeypatch.setattr(agent_bridge, '_build_agent_options', lambda *a, **kwargs: None)
     asyncio.run(agent_bridge._run_agent('hi', 'agentic', 'test', queue.Queue(), feature='demo'))
     assert pipeline_activity.snapshot('demo')[0] == []

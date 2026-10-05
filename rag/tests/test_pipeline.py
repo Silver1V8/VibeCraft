@@ -10,12 +10,15 @@ import json
 
 import networkx as nx
 import pytest
+
 from fastapi import HTTPException
 
 from api import routes_pipeline
 from api.models import ProposeGenerateRequest, ValidateRequest
 from core import llm, pipeline
 from core.open_points import REPORT_INSTRUCTIONS
+
+pytestmark = pytest.mark.usefixtures("legacy_workflow_project")
 
 
 def test_slugify_feature():
@@ -504,20 +507,20 @@ def test_agent_prompt_oneshot_uses_embedded_contract_not_tools(tmp_path, monkeyp
     (folder / "canvas.md").write_text("Canvas sintetico {esempio}", encoding="utf-8")
     (folder / "spec.md").write_text("Spec sintetica", encoding="utf-8")
     result = asyncio.run(routes_pipeline.pipeline_final_prompt(
-        "feat", consumer="agent", mode="oneshot"))
+        "feat", consumer="agent", mode="oneshot", project=None))
     prompt = result["final_prompt"]
     assert "Canvas sintetico {esempio}" in prompt and "Spec sintetica" in prompt
     assert "mcp__" not in prompt and "/api/code/search" not in prompt
     assert result["mode"] == "oneshot"
     (folder / "spec.md").unlink()
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(routes_pipeline.pipeline_final_prompt("feat", consumer="agent", mode="oneshot"))
+        asyncio.run(routes_pipeline.pipeline_final_prompt("feat", consumer="agent", mode="oneshot", project=None))
     assert exc.value.status_code == 409
 
 
 def test_agent_prompt_rejects_unknown_mode():
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(routes_pipeline.pipeline_final_prompt("feat", consumer="agent", mode="bogus"))
+        asyncio.run(routes_pipeline.pipeline_final_prompt("feat", consumer="agent", mode="bogus", project=None))
     assert exc.value.status_code == 400
 
 
@@ -763,9 +766,9 @@ def validate_changes_env(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline, "CHANGES_DIR", changes)
     from core.pipeline_store import PipelineStore
     from core.pipeline_gate import ValidationSources, SourceState
-    monkeypatch.setattr(routes_pipeline, 'pipeline_store', PipelineStore(tmp_path / 'pipeline'))
-    monkeypatch.setattr(routes_pipeline, '_validation_manifest', lambda snap: {})
-    monkeypatch.setattr(routes_pipeline, '_validation_source_state', lambda: SourceState())
+    monkeypatch.setattr(routes_pipeline, 'project_store', lambda project, **kwargs: PipelineStore(tmp_path / 'pipeline'))
+    monkeypatch.setattr(routes_pipeline, '_validation_manifest', lambda snap, **kwargs: {})
+    monkeypatch.setattr(routes_pipeline, '_validation_source_state', lambda**kwargs: SourceState())
     monkeypatch.setattr(routes_pipeline.validation, 'validation_context', lambda *a, **kw: ('', ValidationSources()))
     folder = changes / "feat-demo"
     folder.mkdir(parents=True)
@@ -789,7 +792,7 @@ def test_validate_route_is_fail_closed_on_llm_error(validate_changes_env, fake_l
     llm.register_provider("fake", broken)
 
     req = ValidateRequest(feature="feat-demo")
-    result = asyncio.run(routes_pipeline.pipeline_validate(req))
+    result = asyncio.run(routes_pipeline.pipeline_validate(req, project=None))
     assert result.status_code == 503
     result = json.loads(result.body)
 
@@ -806,7 +809,7 @@ def test_validate_route_still_succeeds_when_llm_works(validate_changes_env, fake
     llm.register_provider("fake", lambda model, prompt, timeout: '{"summary":"Nessun conflitto rilevato.","findings":[],"suggestions":[]}')
 
     req = ValidateRequest(feature="feat-demo")
-    result = asyncio.run(routes_pipeline.pipeline_validate(req))
+    result = asyncio.run(routes_pipeline.pipeline_validate(req, project=None))
 
     assert result["validation_available"] is True
     assert result["report"] == "Nessun conflitto rilevato."
@@ -833,7 +836,7 @@ def _propose(monkeypatch, folder, risposta: str):
     monkeypatch.setattr(routes_pipeline, "embed_in_threadpool", finto_contesto)
     monkeypatch.setattr(routes_pipeline.llm, "agenerate", finta_generazione)
     req = ProposeGenerateRequest(feature_folder=folder.name, dev_type="")
-    return asyncio.run(routes_pipeline.pipeline_propose_generate(req))
+    return asyncio.run(routes_pipeline.pipeline_propose_generate(req, project=None))
 
 
 def test_propose_salva_il_grezzo_e_normalizza(tmp_path, monkeypatch):
@@ -896,9 +899,9 @@ def test_open_points_survive_propose_save_read_export(tmp_path, monkeypatch, rep
     raw = '```gherkin\nSCENARIO: S01 - Accesso\n  GIVEN un utente\n  WHEN accede\n  THEN entra\n```\n\n' + report
     proposed = _propose(monkeypatch, folder, raw)
     saved = asyncio.run(routes_pipeline.pipeline_save_file(
-        PipelineFileSaveRequest(feature=folder.name, name='spec.md', content=proposed['content'])))
-    loaded = asyncio.run(routes_pipeline.pipeline_get_file(folder.name, 'spec.md'))
-    exported = asyncio.run(routes_pipeline.pipeline_export(folder.name))
+        PipelineFileSaveRequest(feature=folder.name, name='spec.md', content=proposed['content']), project=None))
+    loaded = asyncio.run(routes_pipeline.pipeline_get_file(folder.name, 'spec.md', project=None))
+    exported = asyncio.run(routes_pipeline.pipeline_export(folder.name, project=None))
     for payload in (proposed, saved, loaded, exported):
         assert payload['open_points_status'] == status
         for key, value in read_report(proposed['content']).items():

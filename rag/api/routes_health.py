@@ -21,11 +21,9 @@ from core.config import ALERTS_PATH, ROLE
 from core import llm
 
 if ROLE != "reader":
-    from api.routes_reindex import manager
+    from api.reindex import ReindexManager
     from core.eval_history import eval_health, load_history
     from core.indexing import index_status
-else:
-    manager = None
 
 logger = logging.getLogger(__name__)
 
@@ -242,9 +240,13 @@ async def api_health(request: Request):
     if ROLE != "reader":
         kwargs["status_fn"] = lambda: index_status(project=project)
     try:
+        with runtime['lock']:
+            manager = runtime.get('reindex_manager')
+        if ROLE != 'reader' and manager is None:
+            manager = await run_in_threadpool(ReindexManager, project=project, recover_journal=False)
         report = await run_in_threadpool(
             build_health, snapshot=snapshot,
-            manager=manager if project.legacy else runtime.get("reindex_manager"),
+            manager=manager,
             qdrant=state.get("qdrant"), role=ROLE, ollama_check=check_ollama,
             reload_error=runtime.get("reload_error"), **kwargs,
         )

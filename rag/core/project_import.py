@@ -30,6 +30,7 @@ iniettabili; i default risolvono i percorsi reali da core.config a CALL time."""
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
 import shutil
 import uuid
@@ -42,9 +43,13 @@ from code_index import CODE_EXTS, CODE_FILENAMES
 from core.config import CODE_DIR, CODE_EXCLUDED_DIRS, INTAKE_STAGING_DIR, PROJECT_ROOT
 from core.intake import _append_journal, ensure_staging_dirs
 from core.writer_lock import writer_lock
+from core.projects import _unlinked
+from core.indexing_lock import indexing_lock
 
 # Target ammessi: le tre sottocartelle reali di code/ (backend .NET "Portal",
 # frontend Next.js, logicAgent). Whitelist chiusa: mai un path libero.
+logger = logging.getLogger(__name__)
+
 IMPORT_TARGETS = ("backend", "frontend", "logicAgent")
 
 
@@ -73,7 +78,7 @@ def _now_iso() -> str:
 
 
 def _sha256_file(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return hashlib.sha256(_unlinked(path).read_bytes()).hexdigest()
 
 
 def _is_copiable(path: Path) -> bool:
@@ -91,12 +96,15 @@ def _scan_tree(root: Path) -> tuple[list[str], list[str]]:
     esclusi: list[str] = []
     if not root.exists():
         return copiabili, esclusi
+    root = _unlinked(root)
     for dirpath, dirnames, filenames in os.walk(root):
         base = Path(dirpath)
         for d in sorted(dirnames):
             if d in CODE_EXCLUDED_DIRS:
                 esclusi.append((base / d).relative_to(root).as_posix() + "/")
         dirnames[:] = sorted(d for d in dirnames if d not in CODE_EXCLUDED_DIRS)
+        for name in [*dirnames, *filenames]:
+            _unlinked(base / name)
         for fname in sorted(filenames):
             p = base / fname
             rel = p.relative_to(root).as_posix()
@@ -117,7 +125,7 @@ def _target_fingerprint(target_dir: Path) -> str:
     for rel in copiabili:
         h.update(rel.encode("utf-8"))
         h.update(b"\0")
-        h.update(hashlib.sha256((target_dir / rel).read_bytes()).digest())
+        h.update(hashlib.sha256(_unlinked(target_dir / rel).read_bytes()).digest())
     return h.hexdigest()
 
 
@@ -129,7 +137,7 @@ def _target_is_effectively_empty(target_dir: Path) -> bool:
     return all(p.name == ".gitkeep" for p in target_dir.rglob("*") if p.is_file())
 
 
-def _validate_source_path(src_path: str | Path) -> Path:
+def _validate_source_path(src_path: str | Path, *, project=None) -> Path:
     """Valida il path sorgente: assoluto, esistente, directory, MAI dentro il repo
     vibecraft né dentro l'area di staging (importare il repo in sé stesso, o lo
     staging, è sempre un errore, non un caso d'uso)."""
@@ -140,7 +148,9 @@ def _validate_source_path(src_path: str | Path) -> Path:
         raise InvalidImportPathError(f"path inesistente: {src_path!r}")
     if not src.is_dir():
         raise InvalidImportPathError(f"path non è una directory: {src_path!r}")
-    resolved = src.resolve()
+    resolved = _unlinked(src)
+    if project and resolved.is_relative_to(_unlinked(project.root)):
+        raise InvalidImportPathError('Import source is inside the selected project')
     if resolved == PROJECT_ROOT.resolve() or resolved.is_relative_to(PROJECT_ROOT.resolve()):
         raise InvalidImportPathError(
             f"path dentro il repo vibecraft: {src_path!r} — importa solo progetti esterni"
@@ -178,6 +188,7 @@ class ImportPlan:
     esclusi: list[str] = field(default_factory=list)
     fingerprint: str = ""
     created_at: str = ""
+    project_id: str | None = None
 
     @property
     def totali(self) -> dict:
@@ -201,6 +212,7 @@ class ImportPlan:
             "totali": self.totali,
             "fingerprint": self.fingerprint,
             "created_at": self.created_at,
+            **({'project_id': self.project_id} if self.project_id is not None else {}),
         }
 
     @classmethod
@@ -217,21 +229,22 @@ class ImportPlan:
                 esclusi=[str(p) for p in data.get("esclusi", [])],
                 fingerprint=str(data.get("fingerprint", "")),
                 created_at=str(data.get("created_at", "")),
+                project_id=data.get('project_id'),
             )
         except (KeyError, TypeError) as exc:
             raise ProjectImportError(f"piano di import malformato: {exc}") from exc
 
 
 def plan_project_import(src_path: str | Path, target: str, *,
-                        code_dir: str | Path | None = None) -> ImportPlan:
+                        code_dir: str | Path | None = None, project=None) -> ImportPlan:
     """Anteprima dell'import: scansiona la sorgente (esclusioni CODE_EXCLUDED_DIRS,
     eleggibilità CODE_EXTS/CODE_FILENAMES) e classifica ogni file copiabile contro la
     cartella target: nuovo (assente), identico (stesso sha256), conflitto (contenuto
     diverso — mai applicato). DRY-RUN puro: zero scritture, ovunque."""
     _validate_target(target)
-    src = _validate_source_path(src_path)
-    code_root = Path(code_dir) if code_dir is not None else CODE_DIR
-    target_dir = code_root / target / src.name
+    src = _validate_source_path(src_path, project=project)
+    code_root = _unlinked(project.code_dir if project else Path(code_dir) if code_dir is not None else CODE_DIR)
+    target_dir = _unlinked(code_root / target / src.name)
 
     copiabili, esclusi = _scan_tree(src)
     nuovi: list[str] = []
@@ -258,6 +271,7 @@ def plan_project_import(src_path: str | Path, target: str, *,
         esclusi=esclusi,
         fingerprint=_target_fingerprint(target_dir),
         created_at=_now_iso(),
+        project_id=project.id if project else None,
     )
 
 
@@ -270,25 +284,26 @@ def _backup_target(target_dir: Path, target: str, backups_dir: Path) -> str | No
     e renderebbe il backup enorme."""
     if _target_is_effectively_empty(target_dir):
         return None
+    backups_dir = _unlinked(backups_dir)
     backups_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    zip_path = backups_dir / f"{target}-{timestamp}-{uuid.uuid4().hex[:6]}.zip"
+    zip_path = _unlinked(backups_dir / f"{target}-{timestamp}-{uuid.uuid4().hex[:6]}.zip")
     copiabili, esclusi = _scan_tree(target_dir)
     # Nel backup entrano TUTTI i file non potati (anche quelli con estensione non
     # riconosciuta): è una fotografia di sicurezza, non un filtro di indicizzazione.
     members = sorted(set(copiabili) | {e for e in esclusi if not e.endswith("/")})
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         for rel in members:
-            zf.write(target_dir / rel, arcname=rel)
+            zf.write(_unlinked(target_dir / rel), arcname=rel)
     return str(zip_path)
 
 
-def _default_reindex(changed_paths: list[str] | None) -> dict:
+def _default_reindex(changed_paths: list[str] | None, *, project=None) -> dict:
     """Reindex delta di default (CLI/uso diretto): import lazy per non pagare torch al
     solo import del modulo (stesso pattern di core/intake.py). Lo strato HTTP inietta
     la variante con le risorse del server (api/routes_intake.py)."""
     from core.indexing import incremental_index
-    return incremental_index(changed_paths=changed_paths)
+    return incremental_index(changed_paths=changed_paths, project=project)
 
 
 def apply_project_import(plan: ImportPlan | dict, *,
@@ -296,7 +311,7 @@ def apply_project_import(plan: ImportPlan | dict, *,
                          base_dir: str | Path | None = None,
                          reindex=None,
                          lock_timeout_seconds: float = 30,
-                         lock_path: str | Path | None = None) -> dict:
+                         lock_path: str | Path | None = None, project=None) -> dict:
     """Esegue un ImportPlan sotto writer lock: (i) backup zip della cartella target
     attuale (se non vuota di soli .gitkeep, anche in bootstrap); (ii) copia dei SOLI
     file "nuovi" del piano — mai una sovrascrittura, mai una cancellazione; (iii) riga
@@ -310,14 +325,17 @@ def apply_project_import(plan: ImportPlan | dict, *,
     diversa da plan.fingerprint), errore "ripeti l'anteprima" PRIMA di ogni scrittura."""
     if isinstance(plan, dict):
         plan = ImportPlan.from_dict(plan)
+    if project is not None and plan.project_id != project.id:
+        raise ProjectImportError('Import plan belongs to another project')
     _validate_target(plan.target)
-    src = _validate_source_path(plan.src)
-    code_root = Path(code_dir) if code_dir is not None else CODE_DIR
-    target_dir = code_root / plan.target / src.name
-    paths = ensure_staging_dirs(base_dir)
-    reindex_fn = reindex if reindex is not None else _default_reindex
+    src = _validate_source_path(plan.src, project=project)
+    code_root = _unlinked(project.code_dir if project else Path(code_dir) if code_dir is not None else CODE_DIR)
+    target_dir = _unlinked(code_root / plan.target / src.name)
+    paths = ensure_staging_dirs(base_dir, project=project)
+    reindex_fn = reindex if reindex is not None else (_default_reindex if project is None else lambda paths: _default_reindex(paths, project=project))
 
-    with writer_lock(timeout_seconds=lock_timeout_seconds, lock_path=lock_path):
+    lock_kwargs = {'project': project} if project else {}
+    with indexing_lock, writer_lock(timeout_seconds=lock_timeout_seconds, lock_path=lock_path, **lock_kwargs):
         current_fp = _target_fingerprint(target_dir)
         if current_fp != plan.fingerprint:
             raise StaleImportPlanError(
@@ -329,7 +347,10 @@ def apply_project_import(plan: ImportPlan | dict, *,
 
         copiati: list[str] = []
         for rel in plan.nuovi:
-            dst = target_dir / rel
+            dst = _unlinked(target_dir / rel)
+            source_file = _unlinked(src / rel)
+            if not dst.is_relative_to(_unlinked(target_dir)) or not source_file.is_relative_to(src):
+                raise ProjectImportError('Import file escapes source or target')
             if dst.exists():
                 # Cintura oltre al fingerprint: mai, in nessun caso, una sovrascrittura.
                 raise StaleImportPlanError(
@@ -337,7 +358,7 @@ def apply_project_import(plan: ImportPlan | dict, *,
                     f"ripeti l'anteprima"
                 )
             dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src / rel, dst)
+            shutil.copy2(source_file, dst)
             copiati.append(rel)
 
         # Delta ristretto ai soli path copiati (repo-relative, come il webhook):
@@ -345,7 +366,7 @@ def apply_project_import(plan: ImportPlan | dict, *,
         # In sandbox (test) si passa None: nessuna restrizione.
         try:
             changed_paths: list[str] | None = [
-                (target_dir / rel).resolve().relative_to(PROJECT_ROOT.resolve()).as_posix()
+                _unlinked(target_dir / rel).relative_to(_unlinked(project.root if project else PROJECT_ROOT)).as_posix()
                 for rel in copiati
             ]
         except ValueError:
@@ -360,7 +381,8 @@ def apply_project_import(plan: ImportPlan | dict, *,
             except Exception as exc:
                 # I file copiati restano (additivo, mai distruttivo): l'indice si
                 # riallinea col prossimo reindex; l'esito non nasconde nulla.
-                reindex_error = f"{type(exc).__name__}: {exc}"
+                logger.warning("Import reindex failed", exc_info=True)
+                reindex_error = "Indicizzazione del codice non riuscita; serve un full rebuild." if project else f"{type(exc).__name__}: {exc}"
 
     avviso = ("reindex delta fallito: serve full rebuild per i code-link"
               if reindex_error else None)

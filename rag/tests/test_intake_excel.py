@@ -335,7 +335,7 @@ def test_conversione_deterministica():
 
 
 @pytest.mark.parametrize("nome", ["casi_excel.xlsx", "casi_excel.xls"])
-def test_excel_api_preview_approve_solo_markdown_in_sandbox(nome, tmp_path, monkeypatch):
+def test_excel_api_preview_approve_solo_markdown_in_sandbox(nome, tmp_path, monkeypatch, legacy_workflow_project):
     import core.writer_lock as wl
     from core.chunking import parse_markdown_file
     monkeypatch.setattr(wl, "DATABASE_DIR", tmp_path)

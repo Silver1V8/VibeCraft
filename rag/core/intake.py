@@ -35,6 +35,8 @@ from core.config import (
 )
 from core.intake_convert import ConversionError, convert_to_markdown
 from core.writer_lock import writer_lock
+from core.projects import _unlinked
+from core.indexing_lock import indexing_lock
 
 # Sotto-cartelle dell'area di staging: 'docs' per i documenti (generati o importati) in attesa
 # di review, 'projects' per i progetti importati da path locale (S5, coi rispettivi backup),
@@ -110,16 +112,16 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _staging_paths(base_dir: str | Path | None, *, create: bool) -> dict[str, Path]:
+def _staging_paths(base_dir: str | Path | None, *, create: bool, project=None) -> dict[str, Path]:
     """Percorsi dell'area di staging. `create=True` crea le cartelle e il journal se
     mancanti (comportamento storico, usato da ensure_staging_dirs); `create=False` li
     restituisce senza toccare il filesystem — per le sole letture, vedi
     staging_paths_readonly."""
-    root = Path(base_dir) if base_dir is not None else INTAKE_STAGING_DIR
-    docs_dir = root / "docs"
-    projects_dir = root / "projects"
-    rejected_dir = root / "rejected"
-    journal_path = root / "intake.jsonl"
+    root = _unlinked(project.staging_dir if project else Path(base_dir) if base_dir is not None else INTAKE_STAGING_DIR)
+    docs_dir = _unlinked(root / "docs")
+    projects_dir = _unlinked(root / "projects")
+    rejected_dir = _unlinked(root / "rejected")
+    journal_path = _unlinked(root / "intake.jsonl")
 
     if create:
         for d in (docs_dir, projects_dir, rejected_dir):
@@ -136,7 +138,7 @@ def _staging_paths(base_dir: str | Path | None, *, create: bool) -> dict[str, Pa
     }
 
 
-def ensure_staging_dirs(base_dir: str | Path | None = None) -> dict[str, Path]:
+def ensure_staging_dirs(base_dir: str | Path | None = None, *, project=None) -> dict[str, Path]:
     """Crea (se mancanti) le cartelle dell'area di staging e il file del journal, e ne
     restituisce i percorsi. Lazy e idempotente — va chiamata dagli entrypoint che SCRIVONO
     in staging/ (stage, approve, reject, refine, import), mai assunta creata al solo
@@ -150,16 +152,24 @@ def ensure_staging_dirs(base_dir: str | Path | None = None) -> dict[str, Path]:
 
     `base_dir` è il seam per i test (default: INTAKE_STAGING_DIR, risolta da
     rag_config.yaml → intake.staging_dir)."""
-    return _staging_paths(base_dir, create=True)
+    return _staging_paths(base_dir, create=True, project=project)
 
 
-def staging_paths_readonly(base_dir: str | Path | None = None) -> dict[str, Path]:
+def staging_paths_readonly(base_dir: str | Path | None = None, *, project=None) -> dict[str, Path]:
     """Stessi percorsi di ensure_staging_dirs ma SENZA crearli: per le letture. Se
     staging/ non esiste ancora, i path restituiti puntano a file/cartelle inesistenti —
     `_journal_state` gestisce già un journal.exists() False restituendo lo stato vuoto
     ({}), quindi il chiamante vede correttamente 'nessun documento' senza che nulla venga
     scritto su disco."""
-    return _staging_paths(base_dir, create=False)
+    return _staging_paths(base_dir, create=False, project=project)
+
+
+def staged_file(paths, name, kind='docs') -> Path:
+    root = _unlinked(paths[kind])
+    path = _unlinked(root / name)
+    if not path.is_relative_to(root):
+        raise IntakeError('Staged file outside project storage')
+    return path
 
 
 # ---------------------------------------------------------------------------
@@ -178,8 +188,8 @@ _journal_lock = threading.Lock()
 def _append_journal(paths: dict[str, Path], record: dict) -> None:
     line = json.dumps(record, ensure_ascii=False) + "\n"
     with _journal_lock, writer_lock(timeout_seconds=30,
-                                    lock_path=paths["journal"].with_name("intake.jsonl.lock")):
-        with paths["journal"].open("a", encoding="utf-8") as fh:
+                                    lock_path=_unlinked(paths["journal"].with_name("intake.jsonl.lock"))):
+        with _unlinked(paths["journal"]).open("a", encoding="utf-8") as fh:
             fh.write(line)
             fh.flush()
 
@@ -188,7 +198,7 @@ def _journal_state(paths: dict[str, Path]) -> dict[str, dict]:
     """Stato corrente per id, ricostruito dal journal (ultima riga per id vince,
     ordine di prima comparsa preservato). Le righe corrotte si saltano, mai un abort."""
     state: dict[str, dict] = {}
-    journal = paths["journal"]
+    journal = _unlinked(paths["journal"])
     if not journal.exists():
         return state
     with journal.open("r", encoding="utf-8") as fh:
@@ -219,12 +229,12 @@ def _require_staged(paths: dict[str, Path], doc_id: str) -> dict:
     return entry
 
 
-def require_staged(doc_id: str, base_dir: str | Path | None = None) -> dict:
+def require_staged(doc_id: str, base_dir: str | Path | None = None, *, project=None) -> dict:
     """Come `_require_staged` ma per i moduli che estendono il ciclo di staging senza
     farne parte (core/intake_refine.py): risolve da sé i percorsi e solleva gli stessi
     errori tipizzati, così la regola "si opera solo su ciò che è ancora 'staged'" ha
     un'unica implementazione."""
-    return _require_staged(ensure_staging_dirs(base_dir), doc_id)
+    return _require_staged(ensure_staging_dirs(base_dir, project=project), doc_id)
 
 
 # ---------------------------------------------------------------------------
@@ -261,7 +271,7 @@ _stage_lock = threading.Lock()
 
 
 def stage_document(filename: str, content: bytes, *, base_dir: str | Path | None = None,
-                   source: str = "imported") -> dict:
+                   source: str = "imported", project=None) -> dict:
     """Converte `content` in Markdown (via core.intake_convert; i .md entrano nativi) e lo
     salva in staging/docs/ insieme all'originale, appendendo l'entry 'staged' al journal.
     Nessuna scrittura fuori da staging/: l'originale resta qui anche dopo l'approvazione.
@@ -269,7 +279,7 @@ def stage_document(filename: str, content: bytes, *, base_dir: str | Path | None
     Un upload col medesimo sha256 di un documento già 'staged' o già 'approved' viene
     RIFIUTATO (DuplicateStagedDocumentError): segnalato, non ri-staged — e prima di pagare
     la conversione. Un documento 'rejected' può invece essere ricaricato."""
-    paths = ensure_staging_dirs(base_dir)
+    paths = ensure_staging_dirs(base_dir, project=project)
     fmt = Path(filename).suffix.lower().lstrip(".")
     if fmt not in INTAKE_ALLOWED_FORMATS:
         raise ConversionError(
@@ -298,8 +308,8 @@ def stage_document(filename: str, content: bytes, *, base_dir: str | Path | None
     with _stage_lock:
         _check_not_duplicate(paths, sha)
         doc_id = uuid.uuid4().hex[:12]
-        original_path = paths["docs"] / f"{doc_id}.src.{fmt}"
-        markdown_path = paths["docs"] / f"{doc_id}.md"
+        original_path = staged_file(paths, f"{doc_id}.src.{fmt}")
+        markdown_path = staged_file(paths, f"{doc_id}.md")
         original_path.write_bytes(content)
         markdown_path.write_text(markdown, encoding="utf-8")
 
@@ -316,19 +326,19 @@ def stage_document(filename: str, content: bytes, *, base_dir: str | Path | None
     return record
 
 
-def list_staged(base_dir: str | Path | None = None) -> list[dict]:
+def list_staged(base_dir: str | Path | None = None, *, project=None) -> list[dict]:
     """Documenti attualmente in stato 'staged', in ordine di staging. Sola lettura: non
     crea staging/ se non esiste ancora (nessun documento è semplicemente lista vuota)."""
-    paths = staging_paths_readonly(base_dir)
+    paths = staging_paths_readonly(base_dir, project=project)
     return [e for e in _journal_state(paths).values() if e.get("status") == "staged"]
 
 
-def get_preview(doc_id: str, base_dir: str | Path | None = None) -> dict:
+def get_preview(doc_id: str, base_dir: str | Path | None = None, *, project=None) -> dict:
     """Entry + markdown derivato di un documento in staging (solo stato 'staged'). Sola
     lettura: non crea staging/ se non esiste ancora (doc_id non trovato, come oggi)."""
-    paths = staging_paths_readonly(base_dir)
+    paths = staging_paths_readonly(base_dir, project=project)
     entry = _require_staged(paths, doc_id)
-    markdown_path = paths["docs"] / entry["files"]["markdown"]
+    markdown_path = staged_file(paths, entry["files"]["markdown"])
     try:
         markdown = markdown_path.read_text(encoding="utf-8")
     except OSError as exc:
@@ -436,7 +446,7 @@ def _validate_composed(paths: dict[str, Path], doc_id: str, composed: str) -> No
     corpo non vuoto) e produrre almeno un chunk non vuoto — PRIMA di qualunque scrittura
     in docs/. La validazione passa da un file candidato in staging (parse_markdown_file
     legge da path), rimosso in ogni caso."""
-    candidate = paths["docs"] / f"{doc_id}.approve-candidate.md"
+    candidate = staged_file(paths, f"{doc_id}.approve-candidate.md")
     candidate.write_text(composed, encoding="utf-8")
     try:
         try:
@@ -463,12 +473,12 @@ def _validate_composed(paths: dict[str, Path], doc_id: str, composed: str) -> No
             pass
 
 
-def _default_reindex(changed_paths: list[str] | None) -> dict:
+def _default_reindex(changed_paths: list[str] | None, *, project=None) -> dict:
     """Reindex delta di default (CLI/uso diretto): import lazy per non pagare torch al
     solo import di core.intake. Lo strato HTTP inietta la propria variante col client
     Qdrant e il modello del server (api/routes_intake.py)."""
     from core.indexing import incremental_index
-    return incremental_index(changed_paths=changed_paths)
+    return incremental_index(changed_paths=changed_paths, project=project)
 
 
 def _slim_stats(stats) -> dict:
@@ -485,7 +495,7 @@ def approve(doc_id: str, categoria: str, nome_file: str, *,
             docs_dir: str | Path | None = None,
             reindex=None,
             lock_timeout_seconds: float = 30,
-            lock_path: str | Path | None = None) -> dict:
+            lock_path: str | Path | None = None, project=None) -> dict:
     """Promuove un documento dallo staging a docs/<categoria>/<nome_file> e lancia il
     reindex DELTA della sola path aggiunta — l'UNICO percorso che scrive in docs/, e scrive
     solo il .md composto: l'originale resta in staging.
@@ -501,7 +511,7 @@ def approve(doc_id: str, categoria: str, nome_file: str, *,
 
     Un secondo approve dello stesso id fallisce con DocumentAlreadyProcessedError senza
     alcun effetto (idempotenza degli errori, mai doppio file)."""
-    paths = ensure_staging_dirs(base_dir)
+    paths = ensure_staging_dirs(base_dir, project=project)
     _require_staged(paths, doc_id)
     if categoria not in CATEGORY_CLASSIFICATION:
         raise InvalidCategoryError(
@@ -509,15 +519,15 @@ def approve(doc_id: str, categoria: str, nome_file: str, *,
             f"(ammesse: {', '.join(sorted(CATEGORY_CLASSIFICATION))})"
         )
     nome = _sanitize_target_filename(nome_file)
-    docs_root = Path(docs_dir) if docs_dir is not None else DOCS_DIR
-    target = docs_root / categoria / nome
+    docs_root = _unlinked(project.docs_dir if project else Path(docs_dir) if docs_dir is not None else DOCS_DIR)
+    target = _unlinked(docs_root / categoria / nome)
     occupato = (f"esiste già un file {nome!r} in docs/{categoria}/: mai sovrascrittura — "
                 f"scegli un altro nome")
     if target.exists():
         raise TargetFileExistsError(occupato)
 
     try:
-        rel_path = target.resolve().relative_to(PROJECT_ROOT.resolve()).as_posix()
+        rel_path = target.resolve().relative_to(_unlinked(project.root if project else PROJECT_ROOT)).as_posix()
         changed_paths: list[str] | None = [rel_path]
     except ValueError:
         # docs_dir fuori dal repo (test/sandbox): nessuna restrizione del delta,
@@ -525,12 +535,14 @@ def approve(doc_id: str, categoria: str, nome_file: str, *,
         rel_path = str(target)
         changed_paths = None
 
-    reindex_fn = reindex if reindex is not None else _default_reindex
-    with writer_lock(timeout_seconds=lock_timeout_seconds, lock_path=lock_path):
+    reindex_fn = reindex if reindex is not None else (_default_reindex if project is None else lambda paths: _default_reindex(paths, project=project))
+    lock_kwargs = {'project': project} if project else {}
+    with indexing_lock, writer_lock(timeout_seconds=lock_timeout_seconds, lock_path=lock_path, **lock_kwargs):
         entry = _require_staged(paths, doc_id)
-        staged_markdown = (paths["docs"] / entry["files"]["markdown"]).read_text(encoding="utf-8")
+        staged_markdown = staged_file(paths, entry["files"]["markdown"]).read_text(encoding="utf-8")
         composed = _compose_document(entry, categoria, nome, staged_markdown)
         _validate_composed(paths, doc_id, composed)
+        target = _unlinked(target)
         target.parent.mkdir(parents=True, exist_ok=True)
         try:
             # "x": fallisce se il file esiste, anche se creato fuori da questo processo.
@@ -545,13 +557,13 @@ def approve(doc_id: str, categoria: str, nome_file: str, *,
             # docs/ e indice devono restare coerenti: senza reindex riuscito il file di QUESTA
             # richiesta non sopravvive in docs/. Se nel frattempo è cambiato non è più nostro.
             try:
-                if target.read_bytes() == written:
-                    target.unlink()
+                if _unlinked(target).read_bytes() == written:
+                    _unlinked(target).unlink()
             except OSError:
                 pass
             _append_journal(paths, {**entry, "approve_error": {
                 "at": _now_iso(), "categoria": categoria, "nome_file": nome,
-                "errore": f"{type(exc).__name__}: {exc}"[:500]}})
+                "errore": "Indicizzazione del documento non riuscita." if project else f"{type(exc).__name__}: {exc}"[:500]}})
             raise
 
         record = {
@@ -571,7 +583,7 @@ def approve(doc_id: str, categoria: str, nome_file: str, *,
 # reject: marca nel journal e sposta i file in staging/rejected/
 # ---------------------------------------------------------------------------
 def reject(doc_id: str, motivo: str = "", *, base_dir: str | Path | None = None,
-           lock_timeout_seconds: float = 30, lock_path: str | Path | None = None) -> dict:
+           lock_timeout_seconds: float = 30, lock_path: str | Path | None = None, project=None) -> dict:
     """Rifiuta un documento in staging: entry 'rejected' nel journal (col motivo) e file
     spostati in staging/rejected/. docs/ e indice NON vengono toccati — non c'è nulla da
     toccare: nulla era uscito dallo staging.
@@ -579,15 +591,16 @@ def reject(doc_id: str, motivo: str = "", *, base_dir: str | Path | None = None,
     Sotto lo stesso writer lock di approve, con lo stato ricontrollato dentro: un rifiuto che
     arriva mentre lo stesso documento viene pubblicato attende e trova lo stato già cambiato,
     invece di spostarne i file."""
-    paths = ensure_staging_dirs(base_dir)
+    paths = ensure_staging_dirs(base_dir, project=project)
     _require_staged(paths, doc_id)
-    with writer_lock(timeout_seconds=lock_timeout_seconds, lock_path=lock_path):
+    lock_kwargs = {'project': project} if project else {}
+    with writer_lock(timeout_seconds=lock_timeout_seconds, lock_path=lock_path, **lock_kwargs):
         entry = _require_staged(paths, doc_id)
         moved: dict[str, str] = {}
         for key, name in (entry.get("files") or {}).items():
-            src = paths["docs"] / name
+            src = staged_file(paths, name)
             if src.exists():
-                dst = paths["rejected"] / name
+                dst = staged_file(paths, name, 'rejected')
                 shutil.move(str(src), str(dst))
                 moved[key] = dst.name
         record = {

@@ -16,6 +16,7 @@ function slice(src, start, end) {
   return src.slice(a, b);
 }
 const escapeCode = slice(shared, 'function escapeHtml(', '\n}\n') + '\n}\n';
+const errorCode = slice(shared, 'function apiErrorMessage(', '\n}\n') + '\n}\n';
 const dryRunCode = slice(template, '    async function runCanvasDryRun(', '    /* ──────────── AGENT CONTEXT');
 const devTypesCode = slice(template, '    async function loadDevTypes(', '    function markStepDone(');
 
@@ -31,7 +32,7 @@ function makeContext(response) {
     document: { getElementById: el },
     fetch: async () => response,
   });
-  vm.runInContext(escapeCode + dryRunCode + devTypesCode, context);
+  vm.runInContext(escapeCode + errorCode + dryRunCode + devTypesCode, context);
   return { context, el };
 }
 const ok = data => ({ ok: true, json: async () => data });

@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from core.config import EVAL_GATE_K, EVAL_GATE_MIN_RECALL
+from core.projects import _unlinked
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +81,7 @@ def record_history(recall: dict, *, n_cases: int, version, source: str,
     Chiavi PREFISSATE per le suite che misurano altro (vedi eval.run_multihop.history_keys):
     finiscono nello stesso file, e un "recall@10" nudo si mescolerebbe con quello del golden
     set single-hop."""
-    path = path if path is not None else HISTORY_PATH
+    path = _unlinked(path if path is not None else HISTORY_PATH)
     entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "commit": _git_commit(),
@@ -102,7 +103,7 @@ def record_history(recall: dict, *, n_cases: int, version, source: str,
 
 def load_history(limit: int | None = None, path: Path | None = None) -> list[dict]:
     """Righe dello storico in ordine cronologico (le ultime `limit` se indicato); [] se assente."""
-    path = path if path is not None else HISTORY_PATH
+    path = _unlinked(path if path is not None else HISTORY_PATH)
     try:
         rows = [json.loads(ln) for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
     except (OSError, json.JSONDecodeError):

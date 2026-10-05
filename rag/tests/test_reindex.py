@@ -8,10 +8,14 @@ import threading
 import time
 
 import pytest
+from api import deps
+
 
 from api.reindex import ReindexJob, ReindexManager, extract_gitlab_paths
 from core import feature_archive, indexing
 from core.indexing import IndexPlan
+
+pytestmark = pytest.mark.usefixtures("legacy_workflow_project")
 
 
 @pytest.fixture(autouse=True)
@@ -75,9 +79,9 @@ def test_restrict_plan_keeps_only_allowed_docs():
 
 def test_incremental_index_restricts_to_changed_paths(monkeypatch):
     """changed_paths limita il lavoro: solo i path del webhook finiscono nel piano eseguito."""
-    monkeypatch.setattr(indexing, "docs_hashes", lambda: {"a.md": "h1", "b.md": "h2"})
-    monkeypatch.setattr(indexing, "_code_hashes", lambda: {})
-    monkeypatch.setattr(indexing, "_read_manifest", lambda: {"doc_hashes": {}, "code_hashes": {}})
+    monkeypatch.setattr(indexing, "docs_hashes", lambda **kwargs: {"a.md": "h1", "b.md": "h2"})
+    monkeypatch.setattr(indexing, "_code_hashes", lambda **kwargs: {})
+    monkeypatch.setattr(indexing, "_read_manifest", lambda **kwargs: {"doc_hashes": {}, "code_hashes": {}})
     monkeypatch.setattr(indexing, "_ensure_collection", lambda *a, **k: None)
     # load_artifacts restituisce artefatti vuoti: così `graph` resta un nx.DiGraph nuovo.
     from core.artifacts import Artifacts
@@ -248,7 +252,7 @@ def test_journal_error_does_not_stall_pending_dispatch(monkeypatch):
     mgr.start(["a"], first_run, lambda: "v1")
     assert first_started.wait(timeout=5)
     mgr.start(["b"], lambda paths: second_started.set() or {"noop": False}, lambda: "v2")
-    monkeypatch.setattr(mgr, "_record", lambda job: (_ for _ in ()).throw(OSError("disk full")))
+    monkeypatch.setattr(mgr, "_record", lambda job, **kwargs: (_ for _ in ()).throw(OSError("disk full")))
     release_first.set()
 
     assert mgr.join_all()
@@ -505,7 +509,7 @@ def _make_archive_env(tmp_path, monkeypatch):
     monkeypatch.setattr(feature_archive, "CHANGES_DIR", changes)
     monkeypatch.setattr(feature_archive, "DOCS_DIR", docs)
     monkeypatch.setattr(
-        feature_archive, "generate_canvas_review", lambda folder, change_dir: (None, "LLM off")
+        feature_archive, "generate_canvas_review", lambda folder, change_dir, **kwargs: (None, "LLM off")
     )
     built = []
     monkeypatch.setattr(indexing, "build_graph_and_index", lambda **kw: built.append(kw))
@@ -545,18 +549,18 @@ def test_archive_stream_route_queues_full_and_emits_final_event(tmp_path, monkey
     monkeypatch.setitem(rr.state, "embed_model", None)
     # Manager pulito (senza journal reale) e run_reindex finto: nessuna build vera.
     fresh_manager = ReindexManager()
-    monkeypatch.setattr(rr, "manager", fresh_manager)
+    monkeypatch.setattr(rr, "project_manager", lambda project, **kwargs: fresh_manager)
     # on_success (reload_index_state) fatto passare finto: qui si esamina solo il
     # wiring della coda, non il reload reale — che farebbe I/O vera su database/ e
     # docs/ del repo, indipendente dal sandbox di _make_archive_env, e girerebbe nel
     # thread daemon del manager oltre la vita del test se non sincronizzato (vedi
     # join_all sotto).
-    monkeypatch.setattr(rr, "reload_index_state", lambda: None)
+    monkeypatch.setattr(rr, "reload_index_state", lambda project=None, **kwargs: None)
     ran_full = threading.Event()
-    monkeypatch.setattr(rr, "_run_full_rebuild", lambda paths: ran_full.set() or {"full_rebuild": True})
+    monkeypatch.setattr(rr, "_run_full_rebuild", lambda paths, **kwargs: ran_full.set() or {"full_rebuild": True})
 
     async def collect():
-        resp = await rp.pipeline_archive_stream(ArchiveRequest(feature="feat-demo"))
+        resp = await rp.pipeline_archive_stream(ArchiveRequest(feature="feat-demo"), project=None)
         events = []
         async for chunk in resp.body_iterator:
             events.append(json.loads(chunk))
@@ -609,15 +613,15 @@ def _wire_full_rebuild(monkeypatch, gate_result: dict, *,
     segnalare al chiamante, che comunque ignora il valore di ritorno)."""
     import api.routes_reindex as rr
 
-    monkeypatch.setattr(rr, "_reindex_embed_model", lambda: object())
+    monkeypatch.setattr(rr, "_reindex_embed_model", lambda**kwargs: object())
     monkeypatch.setattr(rr, "build_graph_and_index", lambda **kw: "v-nuova")
-    monkeypatch.setattr(rr, "_eval_gate", lambda version, embed_model: gate_result)
-    monkeypatch.setattr(rr, "_qdrant_collection_for_version", lambda version: collection_for_version)
+    monkeypatch.setattr(rr, "_eval_gate", lambda version, embed_model, **kwargs: gate_result)
+    monkeypatch.setattr(rr, "_qdrant_collection_for_version", lambda version, **kwargs: collection_for_version)
 
     sequence: list = []
     promoted: list[str] = []
 
-    def _tracking_promote(v):
+    def _tracking_promote(v, **kwargs):
         promoted.append(v)
         sequence.append(("promote", v))
 
@@ -625,7 +629,7 @@ def _wire_full_rebuild(monkeypatch, gate_result: dict, *,
 
     migrate_calls: list[str] = []
 
-    def _fake_migrate(qdrant, alias, emit=None):
+    def _fake_migrate(qdrant, alias, emit=None, **kwargs):
         sequence.append(("migrate", alias))
         migrate_calls.append(alias)
         return False
@@ -634,7 +638,7 @@ def _wire_full_rebuild(monkeypatch, gate_result: dict, *,
 
     swap_calls: list[tuple] = []
 
-    def _fake_swap_alias(qdrant, alias, target):
+    def _fake_swap_alias(qdrant, alias, target, **kwargs):
         sequence.append(("alias_swap", alias, target))
         swap_calls.append((alias, target))
 
@@ -642,7 +646,7 @@ def _wire_full_rebuild(monkeypatch, gate_result: dict, *,
 
     gc_calls: list = []
 
-    def _fake_gc(qdrant, emit=None):
+    def _fake_gc(qdrant, emit=None, **kwargs):
         sequence.append("gc")
         gc_calls.append(qdrant)
         return []
@@ -784,11 +788,11 @@ def test_eval_gate_loads_candidate_with_real_loader_signature_and_releases_reade
         def close(self):
             loaded.append("closed")
     reader = Reader()
-    def load(*, required, version):
+    def load(*, required, version, **kwargs):
         loaded.append((required, version))
         return SimpleNamespace(colbert_store=reader, graph=None, chunks_store={})
     monkeypatch.setattr(rr, "load_artifacts", load)
-    monkeypatch.setattr(rr, "_qdrant_collection_for_version", lambda _version: "candidate")
+    monkeypatch.setattr(rr, "_qdrant_collection_for_version", lambda _version, **kwargs: "candidate")
     monkeypatch.setattr(rr, "gate_promotion", lambda *_a, **_k: {"passed": False})
     assert rr._eval_gate("v-candidate", object()) == {"passed": False}
     assert loaded == [(("graph", "colbert", "chunks"), "v-candidate"), "closed"]
@@ -796,7 +800,7 @@ def test_eval_gate_loads_candidate_with_real_loader_signature_and_releases_reade
 
 def test_full_job_exposes_colbert_io_bytes(monkeypatch):
     import api.routes_reindex as rr
-    monkeypatch.setattr(rr, "_reindex_embed_model", lambda: object())
+    monkeypatch.setattr(rr, "_reindex_embed_model", lambda**kwargs: object())
     def build(**kwargs):
         kwargs["collector"].update(colbert_io_bytes={"written_bytes": 123,
                                                     "hardlinked_bytes": 0,
@@ -813,12 +817,12 @@ def test_full_gate_load_error_blocks_publication_and_keeps_current(tmp_path, mon
     from core import artifacts
     monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)
     (tmp_path / "CURRENT").write_text("v-old\n", encoding="utf-8")
-    monkeypatch.setattr(rr, "_reindex_embed_model", lambda: object())
+    monkeypatch.setattr(rr, "_reindex_embed_model", lambda**kwargs: object())
     monkeypatch.setattr(rr, "build_graph_and_index", lambda **_kw: "v-new")
     def bad_load(**_kw):
         raise ValueError("candidate chunks corrupt")
     monkeypatch.setattr(rr, "load_artifacts", bad_load)
-    monkeypatch.setattr(rr, "promote_version", lambda _v: pytest.fail("corrupt candidate promoted"))
+    monkeypatch.setattr(rr, "promote_version", lambda _v, **kwargs: pytest.fail("corrupt candidate promoted"))
     result = rr._run_full_rebuild(None)
     assert result["job_status"] == "completed_not_promoted"
     assert result["promoted"] is False
@@ -856,30 +860,30 @@ def _call_index_rollback(monkeypatch, payload=None, *, rollback_version_result="
     monkeypatch.setattr(rr, "writer_lock",
                         writer_lock or (lambda *a, **k: contextlib.nullcontext()))
     monkeypatch.setitem(rr.state, "qdrant", "fake-qdrant-client")
-    monkeypatch.setattr(rr, "resolve_rollback_target", lambda target=None: rollback_version_result)
-    monkeypatch.setattr(rr, "rollback_version", lambda target: rollback_version_result)
-    monkeypatch.setattr(rr, "list_versions", lambda: ["v1", "v2"])
+    monkeypatch.setattr(rr, "resolve_rollback_target", lambda target=None, **kwargs: rollback_version_result)
+    monkeypatch.setattr(rr, "rollback_version", lambda target, **kwargs: rollback_version_result)
+    monkeypatch.setattr(rr, "list_versions", lambda project=None, **kwargs: ["v1", "v2"])
     # Pre-check R14: di base passa. I test che simulano la collection del target
     # distrutta iniettano un `precheck` che solleva.
     monkeypatch.setattr(rr, "assert_rollback_target_has_vectors",
-                        precheck or (lambda qdrant, target_version: None))
-    monkeypatch.setattr(rr, "reload_index_state", lambda: None)
+                        precheck or (lambda qdrant, target_version, **kwargs: None))
+    monkeypatch.setattr(rr, "reload_index_state", lambda project=None, **kwargs: None)
     # Default []: la detection della collection condivisa non deve leggere il vero
     # database/versions/ nei test che non la esercitano (per quelli che la esercitano
     # su un sandbox reale vedi i test "end to end" più sotto).
     monkeypatch.setattr(rr, "rollback_shares_collection_with_later_versions",
-                        lambda name: shared_later_result if shared_later_result is not None else [])
+                        lambda name, **kwargs: shared_later_result if shared_later_result is not None else [])
 
     captured: dict = {}
 
-    def _fake_rollback_qdrant_alias(qdrant, target_version, emit=None):
+    def _fake_rollback_qdrant_alias(qdrant, target_version, emit=None, **kwargs):
         captured["qdrant"] = qdrant
         captured["target_version"] = target_version
         return qdrant_alias_result if qdrant_alias_result is not None else {"state": "noop"}
 
     monkeypatch.setattr(rr, "rollback_qdrant_alias_if_needed", _fake_rollback_qdrant_alias)
 
-    response = asyncio.run(rr.index_rollback(_FakeJsonRequest(payload)))
+    response = asyncio.run(rr.index_rollback(_FakeJsonRequest(payload), project=None))
     return response, captured
 
 
@@ -936,14 +940,14 @@ def test_index_rollback_rifiutato_409_se_la_collection_del_target_non_esiste(mon
     mutazioni: list = []
     monkeypatch.setattr(rr, "writer_lock", lambda *a, **k: contextlib.nullcontext())
     monkeypatch.setitem(rr.state, "qdrant", "fake-qdrant-client")
-    monkeypatch.setattr(rr, "resolve_rollback_target", lambda target=None: "v1")
+    monkeypatch.setattr(rr, "resolve_rollback_target", lambda target=None, **kwargs: "v1")
     monkeypatch.setattr(rr, "rollback_version",
-                        lambda target: mutazioni.append(("current", target)) or "v1")
+                        lambda target, **kwargs: mutazioni.append(("current", target)) or "v1")
     monkeypatch.setattr(rr, "rollback_qdrant_alias_if_needed",
                         lambda *a, **k: mutazioni.append(("alias",)) or {"state": "noop"})
-    monkeypatch.setattr(rr, "reload_index_state", lambda: None)
+    monkeypatch.setattr(rr, "reload_index_state", lambda project=None, **kwargs: None)
 
-    def _precheck(qdrant, target_version):
+    def _precheck(qdrant, target_version, **kwargs):
         raise rr.RollbackTargetCollectionMissing(
             f"rollback a '{target_version}' RIFIUTATO: la sua collection Qdrant "
             f"'coll-v1' non esiste piu'. Serve una re-indicizzazione completa."
@@ -952,7 +956,7 @@ def test_index_rollback_rifiutato_409_se_la_collection_del_target_non_esiste(mon
     monkeypatch.setattr(rr, "assert_rollback_target_has_vectors", _precheck)
 
     with pytest.raises(HTTPException) as exc:
-        asyncio.run(rr.index_rollback(_FakeJsonRequest(None)))
+        asyncio.run(rr.index_rollback(_FakeJsonRequest(None), project=None))
 
     assert exc.value.status_code == 409
     assert "coll-v1" in exc.value.detail
@@ -1021,15 +1025,15 @@ def _call_index_rollback_on_sandbox(monkeypatch, tmp_path, versions: dict, curre
     monkeypatch.setattr(eval_gate, "ALERTS_PATH", alerts)
     monkeypatch.setattr(rr, "writer_lock", lambda *a, **k: contextlib.nullcontext())
     monkeypatch.setitem(rr.state, "qdrant", "fake-qdrant-client")
-    monkeypatch.setattr(rr, "reload_index_state", lambda: None)
+    monkeypatch.setattr(rr, "reload_index_state", lambda project=None, **kwargs: None)
     monkeypatch.setattr(rr, "rollback_qdrant_alias_if_needed",
-                        lambda qdrant, name, emit=None: {"state": "noop"})
+                        lambda qdrant, name, emit=None, **kwargs: {"state": "noop"})
     # Il pre-check R14 non e' l'oggetto di questi test end-to-end (il client Qdrant e'
     # una stringa finta): reso esplicitamente no-op invece di dipendere dal fatto che
     # degradi da solo su un client non valido.
     monkeypatch.setattr(rr, "assert_rollback_target_has_vectors",
-                        lambda qdrant, target_version: None)
-    response = asyncio.run(rr.index_rollback(_FakeJsonRequest(None)))
+                        lambda qdrant, target_version, **kwargs: None)
+    response = asyncio.run(rr.index_rollback(_FakeJsonRequest(None), project=None))
     return response, alerts
 
 
@@ -1072,10 +1076,10 @@ def test_index_rollback_local_failure_never_calls_qdrant_alias_helper(monkeypatc
 
     monkeypatch.setattr(rr, "writer_lock", lambda *a, **k: contextlib.nullcontext())
     monkeypatch.setitem(rr.state, "qdrant", "fake-qdrant-client")
-    monkeypatch.setattr(rr, "resolve_rollback_target", lambda target: "v-missing")
-    monkeypatch.setattr(rr, "assert_rollback_target_has_vectors", lambda *a: None)
+    monkeypatch.setattr(rr, "resolve_rollback_target", lambda target, **kwargs: "v-missing")
+    monkeypatch.setattr(rr, "assert_rollback_target_has_vectors", lambda *a, **kwargs: None)
 
-    def _boom(target):
+    def _boom(target, **kwargs):
         raise FileNotFoundError(f"versione inesistente: {target}")
 
     monkeypatch.setattr(rr, "rollback_version", _boom)
@@ -1087,7 +1091,7 @@ def test_index_rollback_local_failure_never_calls_qdrant_alias_helper(monkeypatc
 
     import asyncio
     try:
-        asyncio.run(rr.index_rollback(_FakeJsonRequest(None)))
+        asyncio.run(rr.index_rollback(_FakeJsonRequest(None), project=None))
         assert False, "doveva sollevare HTTPException"
     except HTTPException as exc:
         assert exc.status_code == 404
@@ -1111,12 +1115,12 @@ def test_index_rollback_409_when_writer_lock_held_and_leaves_state_untouched(tmp
     lock_file = tmp_path / ".writer.lock"
     monkeypatch.setattr(rr, "_ROLLBACK_WRITER_LOCK_TIMEOUT_SECONDS", 0.3)
     monkeypatch.setattr(rr, "writer_lock",
-                        lambda timeout_seconds: writer_lock(timeout_seconds, lock_path=lock_file))
+                        lambda timeout_seconds, **kwargs: writer_lock(timeout_seconds, lock_path=lock_file))
     monkeypatch.setitem(rr.state, "qdrant", "fake-qdrant-client")
 
     called = {"rollback_version": False, "alias": False}
 
-    def _rollback_version(target):
+    def _rollback_version(target, **kwargs):
         called["rollback_version"] = True
         return "v1"
 
@@ -1126,13 +1130,13 @@ def test_index_rollback_409_when_writer_lock_held_and_leaves_state_untouched(tmp
 
     monkeypatch.setattr(rr, "rollback_version", _rollback_version)
     monkeypatch.setattr(rr, "rollback_qdrant_alias_if_needed", _alias)
-    monkeypatch.setattr(rr, "reload_index_state", lambda: None)
+    monkeypatch.setattr(rr, "reload_index_state", lambda project=None, **kwargs: None)
 
     # Un altro handle (thread principale del test) tiene il lock per tutta la richiesta:
     # il thread del threadpool apre un handle diverso e fallisce entro il timeout corto.
     with writer_lock(timeout_seconds=5, lock_path=lock_file):
         with pytest.raises(HTTPException) as exc_info:
-            asyncio.run(rr.index_rollback(_FakeJsonRequest(None)))
+            asyncio.run(rr.index_rollback(_FakeJsonRequest(None), project=None))
 
     assert exc_info.value.status_code == 409
     assert "writer lock occupato" in exc_info.value.detail.lower()
@@ -1161,7 +1165,7 @@ def test_index_rollback_succeeds_when_writer_lock_free(tmp_path, monkeypatch):
     response, _ = _call_index_rollback(
         monkeypatch,
         qdrant_alias_result={"state": "swapped"},
-        writer_lock=lambda timeout_seconds: writer_lock(timeout_seconds, lock_path=lock_file),
+        writer_lock=lambda timeout_seconds, **kwargs: writer_lock(timeout_seconds, lock_path=lock_file),
     )
     assert response["rolled_back_to"] == "v1"
     assert response["qdrant_alias"]["state"] == "swapped"
@@ -1277,7 +1281,6 @@ class _FakeRequest:
 
 
 def _call_require_gitlab_token(monkeypatch, env_token, header_token):
-    import api.deps as deps
     from fastapi import HTTPException
     monkeypatch.setattr(deps, "GITLAB_TOKEN", env_token)
     headers = {} if header_token is None else {"X-Gitlab-Token": header_token}

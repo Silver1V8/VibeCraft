@@ -5,6 +5,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const html = fs.readFileSync(path.join(__dirname, '../static/pages/pipeline.js'), 'utf8');
+const shared = fs.readFileSync(path.join(__dirname, '../static/shared.js'), 'utf8');
+const errorHelper = shared.slice(shared.indexOf('function apiErrorMessage('), shared.indexOf('/* ──────────── THEME VAR'));
 const functions = html.slice(html.indexOf('    async function fetchFinalPrompt('), html.indexOf('    function getFeatureName('))
   + html.slice(html.indexOf('    function gateApiError('), html.indexOf('    /* ──────────── ESECUZIONE CON CLAUDE AGENT SDK'))
   + html.slice(html.indexOf('    function openPointsSummary('), html.indexOf('    /* ──────────── STEP 4:'))
@@ -45,7 +47,7 @@ async function check(mode, unavailable = false, event = null, blockStatus = null
         ? { done: false, value: chunks.shift() } : { done: true } }) } };
     },
   });
-  vm.runInContext(functions, context);
+  vm.runInContext(errorHelper + functions, context);
   await context.runWithAgent();
   const promptRequest = requests.find(r=>r.url.startsWith('/api/pipeline/final-prompt'));
   if (mode === 'agentic') assert.equal(promptRequest,undefined);

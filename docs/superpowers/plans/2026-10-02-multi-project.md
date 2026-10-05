@@ -102,7 +102,7 @@ def reload_index_state(project: ProjectContext | None = None) -> str | float | N
 ```
 
 - Riusare i percorsi HTTP già esistenti e il wrapper fetch di `static/shared.js`: ogni chiamata di progetto invia `X-VibeCraft-Project: <id>`. Questo è il contratto scelto per evitare duplicazioni dei router; il prefisso URL nella discussione iniziale era un esempio.
-- Gestione globale: `GET /api/projects`, `POST /api/projects` con `{name}`, `POST /api/projects/register` con `{root}`; registrazione di path host protetta anche da `require_local_bind`.
+- Gestione globale: `GET /api/projects`, `POST /api/projects` con `{name}`, `POST /api/projects/register` con `{root}`; registrazione di path host arbitrari protetta da `require_local_bind`; con bind non locale accettare soltanto root canoniche senza link sotto `VIBECRAFT_PROJECTS_DIR`, rifiutando root esterne prima di leggere il manifest.
 - `GET /api/projects/{id}` restituisce metadati pubblici e stato indice; non restituisce segreti o percorsi filesystem a client non locali. Stati: `not_indexed`, `ready`, `indexing`, `error`, più booleano `stale` quando calcolabile. Lo stato è derivato, non una seconda verità persistita nel registry.
 - Header progetto assente: endpoint storici usano esclusivamente il progetto `legacy`, se registrato, per compatibilità. Non usare il primo progetto disponibile o l'ultimo scelto. Con zero progetti: 409 `project_required`; ID malformato: 422; ID sconosciuto: 404.
 - Le pagine HTML usano `?project=<id>`; il server può iniettare un meta project ID usando escaping. Shell e registry funzionano senza indice. Le API che richiedono snapshot restituiscono 409 `project_not_indexed` o 503 per storage/reload guasto.
@@ -200,12 +200,12 @@ Ogni task: aggiungere il test che fallisce, verificarne il fallimento pertinente
 **File:** `api/reindex.py`, `routes_reindex.py`, `routes_pipeline.py`, `routes_intake.py`, moduli core associati nella mappa, `tests/test_project_workflows.py` (nuovo).
 **Consume:** ProjectContext e runtime. **Produce:** store/manager per progetto, callback con contesto esplicito, coda di indicizzazione limitata.
 
-- [ ] Test due feature omonime con validazioni/decisioni/gate diversi; gate valido A non autorizza B.
-- [ ] Test upload/approve/archive/generation/refine A: scritture soltanto nelle directory A; import plan A inutilizzabile da B.
-- [ ] Test job A avviato, scelta B, completamento A: snapshot/journal/alert aggiornano A soltanto; job ID A non consultabile sotto B.
-- [ ] Test serializzazione indicizzazioni e rilascio dopo errore; nessun deadlock con writer lock o perdita di job.
-- [ ] Test golden set/storico per progetto e comportamento assenza golden; conservare policy legacy.
-- [ ] Eseguire nuovi test e suite pipeline/intake/reindex/verification/eval pertinenti; review della propagazione nei thread/generatori.
+- [x] Test due feature omonime con validazioni/decisioni/gate diversi; gate valido A non autorizza B.
+- [x] Test upload/approve/archive/generation/refine A: scritture soltanto nelle directory A; import plan A inutilizzabile da B.
+- [x] Test job A avviato, scelta B, completamento A: snapshot/journal/alert aggiornano A soltanto; job ID A non consultabile sotto B.
+- [x] Test serializzazione indicizzazioni e rilascio dopo errore; nessun deadlock con writer lock o perdita di job.
+- [x] Test golden set/storico per progetto e comportamento assenza golden; conservare policy legacy.
+- [x] Eseguire nuovi test e suite pipeline/intake/reindex/verification/eval pertinenti; review della propagazione nei thread/generatori.
 
 ### Task 5: Agenti, CLI e MCP
 

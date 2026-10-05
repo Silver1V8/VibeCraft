@@ -15,6 +15,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from core.writer_lock import writer_lock
+from core.artifacts import _project_artifact_path
+from core.projects import _unlinked
+from core.indexing_lock import indexing_lock
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +175,10 @@ class ReindexManager:
     A fine job (successo O fallimento) il pending viene avviato automaticamente. Il lavoro
     gira su un thread daemon; a job riuscito invoca `on_success` per il reload in memoria."""
 
-    def __init__(self, journal_path: str | Path | None = None):
+    def __init__(self, journal_path: str | Path | None = None, *, project=None, recover_journal=True):
+        self.project = project
+        if project is not None and journal_path is None:
+            journal_path = project.database_dir / 'reindex_jobs.jsonl'
         self._lock = threading.Lock()
         self._running_id: str | None = None
         self._pending: ReindexJob | None = None
@@ -192,17 +198,23 @@ class ReindexManager:
         # sincronizzazione REALE con la fine del lavoro in background usano join_all.
         self._threads: list[threading.Thread] = []
         if self._journal_path is not None:
-            self._load_journal()
+            self._load_journal(recover_journal=recover_journal)
+
+    def _guard_journal(self):
+        if self._journal_path is not None:
+            self._journal_path = (_project_artifact_path(self._journal_path, self.project)
+                                  if self.project else _unlinked(self._journal_path))
 
     # ------------------------------------------------------------------
     # Persistenza (journal JSONL append-only + compattazione)
     # ------------------------------------------------------------------
-    def _load_journal(self) -> None:
+    def _load_journal(self, *, recover_journal=True) -> None:
         """Ricostruisce lo storico dei job dal journal: l'ultima riga per job_id vince.
         I job rimasti non-terminali (running/queued: crash a metà) vengono marcati
         "interrupted" e la transizione viene ri-journalata così da persistere.
         Un reload pendente viene interrotto separatamente dall'esito della build."""
         assert self._journal_path is not None
+        self._guard_journal()
         if not self._journal_path.exists():
             return
         latest: dict[str, dict] = {}
@@ -241,9 +253,10 @@ class ReindexManager:
             self._order.append(job_id)
 
         # Persisti le transizioni "interrupted" così il prossimo load le vede terminali.
-        for job in interrupted:
-            self._append_journal(job.to_dict())
-        self._maybe_compact()
+        if recover_journal:
+            for job in interrupted:
+                self._append_journal(job.to_dict())
+            self._maybe_compact()
 
     def _append_journal(self, record: dict) -> None:
         """Appende una riga JSON (col job serializzato) al journal, con flush. No-op se la
@@ -251,6 +264,7 @@ class ReindexManager:
         if self._journal_path is None:
             return
         with self._journal_lock:
+            self._guard_journal()
             self._journal_path.parent.mkdir(parents=True, exist_ok=True)
             with self._journal_path.open("a", encoding="utf-8") as fh:
                 fh.write(json.dumps(record, ensure_ascii=False) + "\n")
@@ -262,6 +276,7 @@ class ReindexManager:
         if self._journal_path is None:
             return
         with self._journal_lock:
+            self._guard_journal()
             try:
                 size = self._journal_path.stat().st_size
             except OSError:
@@ -272,6 +287,7 @@ class ReindexManager:
                 snapshot = [self._jobs[jid].to_dict() for jid in self._order if jid in self._jobs]
             tmp = self._journal_path.with_suffix(
                 self._journal_path.suffix + f".tmp.{threading.get_ident()}")
+            _unlinked(tmp)
             with tmp.open("w", encoding="utf-8") as fh:
                 for rec in snapshot:
                     fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
@@ -290,11 +306,13 @@ class ReindexManager:
             logger.error("Journal reindex non scrivibile (%s: %s).", type(exc).__name__, exc)
 
     def get(self, job_id: str) -> ReindexJob | None:
+        self._guard_journal()
         with self._lock:
             return self._jobs.get(job_id)
 
     def list_recent(self, limit: int = 20) -> list[dict]:
         """Ultimi `limit` job serializzati, più recente prima — per debug e per la UI."""
+        self._guard_journal()
         with self._lock:
             ids = self._order[-limit:] if limit else self._order[:]
             jobs = [self._jobs[jid] for jid in ids if jid in self._jobs]
@@ -412,7 +430,8 @@ class ReindexManager:
             # l'errore del lock nel journal, slot liberato e pending dispatchato come
             # per qualunque altro fallimento.
             lock_started = time.monotonic()
-            with writer_lock(timeout_seconds=_WRITER_LOCK_TIMEOUT_SECONDS):
+            lock_kwargs = {'project': self.project} if self.project else {}
+            with indexing_lock, writer_lock(timeout_seconds=_WRITER_LOCK_TIMEOUT_SECONDS, **lock_kwargs):
                 job.writer_lock_wait_seconds = max(0.0, time.monotonic() - lock_started)
                 build_started = time.monotonic()
                 try:

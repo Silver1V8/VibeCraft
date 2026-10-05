@@ -91,7 +91,7 @@ def test_generate_canvas_review_llm_unreachable_returns_warning(tmp_path):
 
     content, warning = cr.generate_canvas_review("feat-demo", change_dir, repo_root=tmp_path, llm=broken_llm)
     assert content is None
-    assert "Ollama giù" in warning
+    assert "LLM non raggiungibile" in warning and "Ollama giù" not in warning
 
 
 def test_generate_canvas_review_missing_canvas(tmp_path):

@@ -20,7 +20,7 @@
       const res = await fetch(`/api/pipeline/final-prompt?${params}`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: res.statusText }));
-        throw new Error(err.detail || `HTTP ${res.status}`);
+        throw new Error(apiErrorMessage(err.detail, `HTTP ${res.status}`));
       }
       return (await res.json()).final_prompt;
     }
@@ -305,7 +305,7 @@
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({ detail: res.statusText }));
-          throw new Error(err.detail || `HTTP ${res.status}`);
+          throw new Error(apiErrorMessage(err.detail, `HTTP ${res.status}`));
         }
         const data = await res.json();
         document.getElementById('canvas-md-editor').value = data.content;
@@ -342,7 +342,7 @@
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({ detail: res.statusText }));
-          throw new Error(err.detail || `HTTP ${res.status}`);
+          throw new Error(apiErrorMessage(err.detail, `HTTP ${res.status}`));
         }
         const data = await res.json();
         document.getElementById('spec-md-editor').value = data.content;
@@ -770,7 +770,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ feature: featureName }),
         });
-        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(e.detail || `HTTP ${res.status}`); }
+        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(apiErrorMessage(e.detail, `HTTP ${res.status}`)); }
         setPanelVisible('drift-loader', false);
         // Il verdetto dipende da cosa è passato nello stream, non dal fatto che
         // lo stream sia finito: prima bastava che terminasse per marcare il passo
@@ -823,7 +823,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ feature: featureName }),
         });
-        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(e.detail || `HTTP ${res.status}`); }
+        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(apiErrorMessage(e.detail, `HTTP ${res.status}`)); }
         setPanelVisible('archive-loader', false);
         await consumeNdjson(res, ev => {
           if (ev.type === 'log') box.textContent += ev.line + '\n';
@@ -927,7 +927,7 @@
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ feature_name: featureName, dev_type: devType }),
         });
-        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(e.detail || `HTTP ${res.status}`); }
+        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(apiErrorMessage(e.detail, `HTTP ${res.status}`)); }
         const data = await res.json();
         if (data.note) { body.innerHTML = `<span class="text-amber-400">${escapeHtml(data.note)}</span>`; return; }
         const fmt = v => (v === null || v === undefined) ? '—' : (typeof v === 'number' ? v.toFixed(3) : escapeHtml(v));
@@ -958,7 +958,7 @@
       box.textContent = '⏳ Costruzione del contesto…';
       try {
         const res = await fetch(`/api/pipeline/agent-context?feature=${encodeURIComponent(featureName)}&dev_type=${encodeURIComponent(devType)}`);
-        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(e.detail || `HTTP ${res.status}`); }
+        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(apiErrorMessage(e.detail, `HTTP ${res.status}`)); }
         const data = await res.json();
         document.getElementById('agent-confidence').textContent = `${data.confidence} (${data.confidence_label})`;
         box.textContent = data.text || '(vuoto)';
@@ -972,7 +972,7 @@
       if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
       try {
         const res = await fetch(`/api/pipeline/export?feature=${encodeURIComponent(featureName)}&dev_type=${encodeURIComponent(devType)}`);
-        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(e.detail || `HTTP ${res.status}`); }
+        if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(apiErrorMessage(e.detail, `HTTP ${res.status}`)); }
         const data = await res.json();
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);

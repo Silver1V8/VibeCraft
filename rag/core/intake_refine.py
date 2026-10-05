@@ -407,7 +407,7 @@ def refine_markdown(markdown: str, *, source_filename: str = "", generate=None,
 # Raffinazione di un documento in staging (I/O + journal)
 # ---------------------------------------------------------------------------
 def refine_staged_document(doc_id: str, *, base_dir: str | Path | None = None,
-                           generate=None) -> dict:
+                           generate=None, project=None) -> dict:
     """Raffina un documento in stato 'staged' e ne aggiorna l'entry del journal.
 
     Il markdown grezzo NON viene toccato: la versione raffinata si scrive accanto
@@ -418,14 +418,14 @@ def refine_staged_document(doc_id: str, *, base_dir: str | Path | None = None,
 
     Rieseguibile: un secondo refine riparte SEMPRE dal grezzo, mai dal raffinato — così
     riprovare dopo un risultato insoddisfacente non impila riscritture su riscritture."""
-    paths = intake.ensure_staging_dirs(base_dir)
-    entry = intake.require_staged(doc_id, base_dir)
+    paths = intake.ensure_staging_dirs(base_dir, project=project)
+    entry = intake.require_staged(doc_id, base_dir, project=project)
 
     files = dict(entry.get("files") or {})
     raw_name = files.get("markdown_raw") or files.get("markdown")
     if not raw_name:
         raise RefineError(f"nessun markdown in staging per {doc_id}")
-    raw_path = paths["docs"] / raw_name
+    raw_path = intake.staged_file(paths, raw_name)
     try:
         raw_markdown = raw_path.read_text(encoding="utf-8")
     except OSError as exc:
@@ -437,10 +437,10 @@ def refine_staged_document(doc_id: str, *, base_dir: str | Path | None = None,
     # La raffinazione dura minuti: nel frattempo il documento può essere stato approvato o
     # rifiutato. Scrittura e journal sotto lo stesso writer lock di approve/reject, con lo
     # stato ricontrollato: un risultato arrivato tardi si scarta, non riapre il documento.
-    with writer_lock(timeout_seconds=30):
-        entry = intake.require_staged(doc_id, base_dir)
+    with writer_lock(timeout_seconds=30, **({"project": project} if project else {})):
+        entry = intake.require_staged(doc_id, base_dir, project=project)
         files = dict(entry.get("files") or {})
-        refined_path = paths["docs"] / f"{doc_id}.refined.md"
+        refined_path = intake.staged_file(paths, f"{doc_id}.refined.md")
         refined_path.write_text(result.markdown, encoding="utf-8")
 
         files["markdown_raw"] = raw_name

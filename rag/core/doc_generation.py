@@ -59,7 +59,7 @@ def _now_iso() -> str:
 # Grounding: contesto normativo (hybrid_search) + lezioni dalle canvas review
 # ---------------------------------------------------------------------------
 def _grounded_context(descrizione: str, *, qdrant, embed_model, colbert_store: Mapping | None,
-                      chunks_store: dict | None, search=None) -> str:
+                      chunks_store: dict | None, search=None, project=None, collection_name=None) -> str:
     """Sezioni più pertinenti a `descrizione` (hybrid_search, core.retrieval), serializzate
     con citazione "doc_id § sezione". '' se manca qualunque risorsa di retrieval: la
     generazione prosegue senza grounding invece di fallire (stessa tolleranza di
@@ -70,6 +70,7 @@ def _grounded_context(descrizione: str, *, qdrant, embed_model, colbert_store: M
         results = (search or retrieval.hybrid_search)(
             descrizione, _GROUNDING_TOP_K, qdrant=qdrant, embed_model=embed_model,
             colbert_store=colbert_store or {},
+            **({"project": project, "collection_name": collection_name or project.collection_name} if project else {}),
         )
     except Exception:
         return ""
@@ -92,12 +93,13 @@ def _grounded_context(descrizione: str, *, qdrant, embed_model, colbert_store: M
 
 
 def _canvas_lessons(descrizione: str, *, qdrant, embed_model, colbert_store: Mapping | None,
-                    chunks_store: dict | None) -> str:
+                    chunks_store: dict | None, project=None, collection_name=None) -> str:
     """Lezioni dalle canvas review archiviate più simili (stesso meccanismo del Canvas,
     core.canvas_review.retrieve_canvas_lessons): '' se non ce ne sono o l'indice non è pronto."""
     return canvas_review.retrieve_canvas_lessons(
         descrizione, qdrant=qdrant, embed_model=embed_model,
         colbert_store=colbert_store, chunks_store=chunks_store or {},
+        project=project, collection_name=collection_name,
     )
 
 
@@ -246,19 +248,19 @@ def _validate_generated_markdown(markdown: str) -> None:
 # implementato da core.intake._journal_state — una riga in più per lo stesso id
 # aggiorna ciò che list_staged/get_preview vedono, senza duplicare la logica di staging.
 # ---------------------------------------------------------------------------
-def _append_journal_line(base_dir, record: dict) -> None:
-    intake._append_journal(intake.ensure_staging_dirs(base_dir), record)
+def _append_journal_line(base_dir, record: dict, *, project=None) -> None:
+    intake._append_journal(intake.ensure_staging_dirs(base_dir, project=project), record)
 
 
-def _attach_generation_metadata(base_dir, record: dict, extra: dict) -> dict:
+def _attach_generation_metadata(base_dir, record: dict, extra: dict, *, project=None) -> dict:
     """Arricchisce l'entry appena stagizzata coi metadata di generazione (descrizione
     richiesta, modello, latenze): core.intake.stage_document non li conosce (sono un
     concetto solo di S3), quindi si appende una riga aggiornata invece di estendere la
     firma di stage_document per un caso d'uso che non le appartiene."""
-    paths = intake.ensure_staging_dirs(base_dir)
+    paths = intake.ensure_staging_dirs(base_dir, project=project)
     # Dopo stage_document la review può aver già cambiato stato o file: arricchire
     # l'ultima entry sotto lo stesso lock di approve/reject/refine, senza riaprirla.
-    with writer_lock(timeout_seconds=30):
+    with writer_lock(timeout_seconds=30, **({"project": project} if project else {})):
         latest = intake._journal_state(paths).get(record["id"])
         if latest is None:
             raise intake.StagedDocumentNotFoundError(record["id"])
@@ -267,7 +269,7 @@ def _attach_generation_metadata(base_dir, record: dict, extra: dict) -> dict:
     return updated
 
 
-def _journal_discarded(base_dir, *, indice: int, motivo: str) -> dict:
+def _journal_discarded(base_dir, *, indice: int, motivo: str, project=None) -> dict:
     """Traccia nel journal un documento generato SCARTATO in validazione: mai entrato in
     staging (nessun file scritto), ma il motivo resta rintracciabile. Stato 'discarded',
     ignorato da list_staged/get_preview/reject/approve (guardano solo 'staged')."""
@@ -279,7 +281,7 @@ def _journal_discarded(base_dir, *, indice: int, motivo: str) -> dict:
         "motivo": motivo,
         "discarded_at": _now_iso(),
     }
-    _append_journal_line(base_dir, record)
+    _append_journal_line(base_dir, record, project=project)
     return record
 
 
@@ -291,7 +293,7 @@ def generate_docs(descrizione: str, n_file: int, categoria_target: str, *,
                   qdrant=None, embed_model=None, colbert_store: Mapping | None = None,
                   chunks_store: dict | None = None,
                   base_dir: str | Path | None = None,
-                  search=None, generate=None) -> dict:
+                  search=None, generate=None, project=None, collection_name=None) -> dict:
     """Genera fino a `n_file` documenti (clampato a INTAKE_GENERATION_MAX_FILES) grounded
     su `descrizione`, li valida e li mette in staging (source "generated"). NESSUNA
     scrittura in docs/: solo staging, come qualunque documento importato — approvabile
@@ -309,15 +311,17 @@ def generate_docs(descrizione: str, n_file: int, categoria_target: str, *,
     retrieval_start = time.time()
     contesto = _grounded_context(
         descrizione, qdrant=qdrant, embed_model=embed_model,
-        colbert_store=colbert_store, chunks_store=chunks_store, search=search,
+        colbert_store=colbert_store, chunks_store=chunks_store, search=search, project=project, collection_name=collection_name,
     )
     lessons = _canvas_lessons(
         descrizione, qdrant=qdrant, embed_model=embed_model,
-        colbert_store=colbert_store, chunks_store=chunks_store,
+        colbert_store=colbert_store, chunks_store=chunks_store, project=project, collection_name=collection_name,
     )
     latency_retrieval_ms = round((time.time() - retrieval_start) * 1000, 2)
 
     prompt = build_generation_prompt(descrizione, n_file, categoria_target, contesto, lessons)
+    if project is not None:
+        prompt = f"Project ID: {project.id}\n" + prompt
     generate_fn = generate or (lambda p: llm.generate(p, purpose=_GENERATION_PURPOSE))
 
     generation_start = time.time()
@@ -341,18 +345,18 @@ def generate_docs(descrizione: str, n_file: int, categoria_target: str, *,
         try:
             _validate_generated_markdown(markdown)
         except GenerationError as exc:
-            _journal_discarded(base_dir, indice=indice, motivo=str(exc))
+            _journal_discarded(base_dir, indice=indice, motivo=str(exc), project=project)
             scartati.append({"indice": indice, "motivo": str(exc)})
             continue
 
         filename = f"generato-{uuid.uuid4().hex[:8]}.md"
         try:
             record = intake.stage_document(
-                filename, markdown.encode("utf-8"), base_dir=base_dir, source="generated",
+                filename, markdown.encode("utf-8"), base_dir=base_dir, source="generated", project=project,
             )
         except intake.IntakeError as exc:
             motivo = f"staging fallito: {exc}"
-            _journal_discarded(base_dir, indice=indice, motivo=motivo)
+            _journal_discarded(base_dir, indice=indice, motivo=motivo, project=project)
             scartati.append({"indice": indice, "motivo": motivo})
             continue
 
@@ -364,7 +368,7 @@ def generate_docs(descrizione: str, n_file: int, categoria_target: str, *,
                 "retrieval_ms": latency_retrieval_ms,
                 "generation_ms": latency_generation_ms,
             },
-        })
+        }, project=project)
         generati.append(record)
 
     latency_total_ms = round((time.time() - total_start) * 1000, 2)

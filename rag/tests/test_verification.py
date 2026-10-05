@@ -22,12 +22,14 @@ class _Completed:
 
 
 @pytest.fixture
-def configured(monkeypatch):
+def configured(tmp_path, monkeypatch):
     """Config di verifica nota, indipendente da rag_config.yaml e dalla macchina."""
-    monkeypatch.setattr(verification, '_settings', lambda: {
+    monkeypatch.setattr(verification, '_settings', lambda **kwargs: {
         'enabled': True, 'timeout_seconds': 5, 'max_output_chars': 200, 'max_attempts': 3,
         'commands': {'frontend': ['npm', 'test']}})
     monkeypatch.setattr(verification, 'resolve_command', lambda command: list(command))
+    (tmp_path / "frontend").mkdir()
+    monkeypatch.setattr(verification, "CODE_DIR", tmp_path)
     return None
 
 
@@ -58,7 +60,7 @@ def test_cosa_non_e_un_verde(configured, monkeypatch, scenario, atteso):
     elif scenario == 'eseguibile_assente':
         monkeypatch.setattr(verification, 'resolve_command', lambda command: None)
     elif scenario == 'disattivata':
-        monkeypatch.setattr(verification, '_settings', lambda: {'enabled': False})
+        monkeypatch.setattr(verification, '_settings', lambda **kwargs: {'enabled': False})
     elif scenario == 'timeout':
         def runner(*a, **k):
             raise subprocess.TimeoutExpired(cmd='npm', timeout=5, output='appeso')
@@ -84,7 +86,7 @@ def test_il_comando_non_arriva_mai_dal_modello(configured, monkeypatch):
 
     # Una stringa unica, o una lista con elementi non-stringa, viene ignorata: sarebbe
     # eseguibile solo passando dalla shell.
-    monkeypatch.setattr(verification, '_settings', lambda: {
+    monkeypatch.setattr(verification, '_settings', lambda **kwargs: {
         'enabled': True, 'commands': {'frontend': 'npm test && rm -rf /'}})
     assert verification.command_for('frontend') == []
     assert verification.run_suite('frontend', runner=runner).status == verification.UNAVAILABLE
@@ -111,15 +113,15 @@ def loop_env(monkeypatch):
             eventi.append(dict(details, event=event))
             return {}
 
-    monkeypatch.setattr(routes_pipeline, 'pipeline_store', _Store())
+    monkeypatch.setattr(routes_pipeline, 'project_store', lambda project: _Store())
 
-    def fake_stream(runner, prompt, mode, model, *, feature, attempt_id, on_finish):
+    def fake_stream(runner, prompt, mode, model, *, feature, attempt_id, on_finish, project=None):
         run.append(dict(prompt=prompt, attempt_id=attempt_id))
         on_finish({'type': 'result'})
         return iter([json.dumps({'type': 'text', 'attempt_id': attempt_id}) + '\n'])
 
     monkeypatch.setattr(routes_pipeline, 'run_agent_streaming', fake_stream)
-    monkeypatch.setattr(verification, '_settings', lambda: {'max_attempts': 3})
+    monkeypatch.setattr(verification, '_settings', lambda **kwargs: {'max_attempts': 3})
     return types.SimpleNamespace(eventi=eventi, run=run)
 
 
@@ -188,7 +190,7 @@ def test_si_ferma_al_tetto_senza_dichiarare_verde(loop_env, monkeypatch):
 
 def test_il_tetto_di_config_vince_su_quello_del_client(loop_env, monkeypatch):
     _esiti(monkeypatch, verification.FAILED)
-    monkeypatch.setattr(verification, '_settings', lambda: {'max_attempts': 2})
+    monkeypatch.setattr(verification, '_settings', lambda **kwargs: {'max_attempts': 2})
     _consuma(max_attempts=10)
     assert len(loop_env.run) == 1, 'il client non può alzare il tetto del server'
 
@@ -245,9 +247,9 @@ def test_la_ui_riceve_il_tetto_vero_del_server(monkeypatch):
     significherebbe far scegliere un numero che il server poi taglia in silenzio."""
     import asyncio
 
-    monkeypatch.setattr(verification, '_settings', lambda: {'max_attempts': 4})
-    body = asyncio.run(routes_pipeline.agent_runners())
+    monkeypatch.setattr(verification, '_settings', lambda **kwargs: {'max_attempts': 4})
+    body = asyncio.run(routes_pipeline.agent_runners(project=None))
     assert body['max_attempts'] == 4 and 'runners' in body
 
-    monkeypatch.setattr(verification, '_settings', lambda: {})
-    assert asyncio.run(routes_pipeline.agent_runners())['max_attempts'] == 1
+    monkeypatch.setattr(verification, '_settings', lambda **kwargs: {})
+    assert asyncio.run(routes_pipeline.agent_runners(project=None))['max_attempts'] == 1

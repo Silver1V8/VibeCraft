@@ -99,13 +99,14 @@ def read_semantic(raw: str, contract: Contract, sources: ValidationSources):
     return report, check, output
 
 
-def validation_context(question, snap, doc_hashes, *, qdrant, embed_model, max_chunks):
+def validation_context(question, snap, doc_hashes, *, qdrant, embed_model, max_chunks, project=None):
     """Stesso retrieval; qui errore != zero risultati. Fonti congelate all'invio."""
     if snap is None or snap.graph is None or qdrant is None or embed_model is None:
         raise ValidationUnavailable('Retrieval non disponibile: indice, Qdrant o embedding assenti')
     try:
         results = retrieval.hybrid_search(question, 10, qdrant=qdrant, embed_model=embed_model,
-                                          colbert_store=snap.colbert_store or {})
+                                          colbert_store=snap.colbert_store or {},
+                                          **({"project": project, "collection_name": snap.collection_name} if project else {}))
         selected = retrieval.select_governed_chunks(question, graph=snap.graph, results=results, max_chunks=max_chunks)
         provided = []
         for hit in selected:

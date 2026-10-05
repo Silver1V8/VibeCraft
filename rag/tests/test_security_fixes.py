@@ -53,6 +53,8 @@ from api.models import (
 )
 from core import drift_check, feature_archive, llm, pipeline
 
+pytestmark = pytest.mark.usefixtures("legacy_workflow_project")
+
 
 # ===========================================================================
 # 1. Path traversal sui nomi feature
@@ -189,47 +191,47 @@ def _assert_bad_request(coro):
 
 def test_route_explore_save_rejects_traversal(changes_env):
     req = ExploreSaveRequest(feature_name="..", interview_log="log", dev_type="")
-    _assert_bad_request(routes_pipeline.pipeline_explore_save(req))
+    _assert_bad_request(routes_pipeline.pipeline_explore_save(req, project=None))
     assert not changes_env.exists()
 
 
 def test_route_canvas_generate_rejects_traversal(changes_env):
     req = CanvasGenerateRequest(feature_name="..", dev_type="")
-    _assert_bad_request(routes_pipeline.pipeline_canvas_generate(req))
+    _assert_bad_request(routes_pipeline.pipeline_canvas_generate(req, project=None))
     assert not changes_env.exists()
 
 
 def test_route_propose_generate_rejects_traversal(changes_env):
     req = ProposeGenerateRequest(feature_folder="..", dev_type="")
-    _assert_bad_request(routes_pipeline.pipeline_propose_generate(req))
+    _assert_bad_request(routes_pipeline.pipeline_propose_generate(req, project=None))
     assert not changes_env.exists()
 
 
 def test_route_archive_rejects_traversal_before_enqueueing(changes_env):
     req = ArchiveRequest(feature="..")
-    _assert_bad_request(routes_pipeline.pipeline_archive(req))
+    _assert_bad_request(routes_pipeline.pipeline_archive(req, project=None))
     assert not changes_env.exists()
 
 
 def test_route_drift_check_rejects_traversal(changes_env):
     req = DriftCheckRequest(feature="..")
-    _assert_bad_request(routes_pipeline.pipeline_drift_check(req))
+    _assert_bad_request(routes_pipeline.pipeline_drift_check(req, project=None))
 
 
 def test_route_validate_rejects_traversal(changes_env):
     req = ValidateRequest(feature="..")
-    _assert_bad_request(routes_pipeline.pipeline_validate(req))
+    _assert_bad_request(routes_pipeline.pipeline_validate(req, project=None))
 
 
 def test_route_save_file_rejects_traversal(changes_env):
     req = PipelineFileSaveRequest(feature="..", name="canvas.md", content="x")
-    _assert_bad_request(routes_pipeline.pipeline_save_file(req))
+    _assert_bad_request(routes_pipeline.pipeline_save_file(req, project=None))
     assert not changes_env.exists()
 
 
 def test_route_canvas_dry_run_rejects_traversal(changes_env):
     req = CanvasGenerateRequest(feature_name="..", dev_type="")
-    _assert_bad_request(routes_pipeline.pipeline_canvas_dry_run(req))
+    _assert_bad_request(routes_pipeline.pipeline_canvas_dry_run(req, project=None))
     assert not changes_env.exists()
 
 
@@ -241,7 +243,7 @@ def test_route_canvas_dry_run_does_not_create_feature_folder(changes_env):
     stessa, che non esiste ancora prima della chiamata) — fallisce senza la modifica,
     che passava create=True a _safe_feature_dir."""
     req = CanvasGenerateRequest(feature_name="feature mai vista", dev_type="")
-    result = asyncio.run(routes_pipeline.pipeline_canvas_dry_run(req))
+    result = asyncio.run(routes_pipeline.pipeline_canvas_dry_run(req, project=None))
     assert result["feature_folder"] == "feature-mai-vista"
     assert not changes_env.exists()
 
@@ -255,7 +257,7 @@ def test_route_canvas_dry_run_works_on_existing_feature(changes_env):
     (folder / "explore.md").write_text("intervista di esempio", encoding="utf-8")
     req = CanvasGenerateRequest(feature_name="feat demo", dev_type="")
 
-    result = asyncio.run(routes_pipeline.pipeline_canvas_dry_run(req))
+    result = asyncio.run(routes_pipeline.pipeline_canvas_dry_run(req, project=None))
 
     assert result["feature_folder"] == "feat-demo"
     assert "intervista di esempio" in result["query_preview"]
@@ -264,25 +266,25 @@ def test_route_canvas_dry_run_works_on_existing_feature(changes_env):
 
 
 def test_route_status_rejects_traversal(changes_env):
-    _assert_bad_request(routes_pipeline.pipeline_status(feature=".."))
+    _assert_bad_request(routes_pipeline.pipeline_status(feature="..", project=None))
 
 
 def test_route_get_file_rejects_traversal(changes_env):
-    _assert_bad_request(routes_pipeline.pipeline_get_file(feature="..", name="canvas.md"))
+    _assert_bad_request(routes_pipeline.pipeline_get_file(feature="..", name="canvas.md", project=None))
 
 
 def test_route_export_rejects_traversal(changes_env):
-    _assert_bad_request(routes_pipeline.pipeline_export(feature=".."))
+    _assert_bad_request(routes_pipeline.pipeline_export(feature="..", project=None))
 
 
 def test_route_agent_context_rejects_traversal(changes_env):
-    _assert_bad_request(routes_pipeline.pipeline_agent_context(feature=".."))
+    _assert_bad_request(routes_pipeline.pipeline_agent_context(feature="..", project=None))
 
 
 def test_route_accepts_valid_feature_name_unchanged(changes_env):
     """Compatibilità: un nome valido continua a creare/leggere la cartella attesa."""
     req = ExploreSaveRequest(feature_name="Gestione Eventi", interview_log="log", dev_type="")
-    result = asyncio.run(routes_pipeline.pipeline_explore_save(req))
+    result = asyncio.run(routes_pipeline.pipeline_explore_save(req, project=None))
     assert result["feature_folder"] == "gestione-eventi"
     assert (changes_env / "gestione-eventi" / "explore.md").exists()
 
@@ -458,7 +460,7 @@ def test_http_agent_run_accepts_localhost_with_correct_key(monkeypatch, tmp_path
     monkeypatch.setattr(deps, "API_KEY", "s3cret")
 
     from core.pipeline_store import PipelineStore
-    monkeypatch.setattr(routes_pipeline, "pipeline_store", PipelineStore(tmp_path / "pipeline"))
+    monkeypatch.setattr(routes_pipeline, "project_store", lambda project: PipelineStore(tmp_path / "pipeline"))
 
     def fake_stream(runner, prompt, mode, model, **kwargs):
         yield '{"type": "result", "is_error": false}\n'
@@ -512,7 +514,7 @@ def test_http_reindex_bypasses_localhost_without_key(monkeypatch):
             return _FakeJob(), False
 
     monkeypatch.setattr(deps, "API_KEY", None)
-    monkeypatch.setattr(routes_reindex, "manager", _FakeManager())
+    monkeypatch.setattr(routes_reindex, "project_manager", lambda project: _FakeManager())
     client = _make_client(routes_reindex.router)
     r = client.post("/api/reindex", json={})
     assert r.status_code == 202, r.text
@@ -566,7 +568,7 @@ def test_canvas_generate_does_not_persist_llm_error(changes_env, fake_llm_settin
     req = CanvasGenerateRequest(feature_name="feat demo", dev_type="")
 
     with pytest.raises(HTTPException) as exc_info:
-        asyncio.run(routes_pipeline.pipeline_canvas_generate(req))
+        asyncio.run(routes_pipeline.pipeline_canvas_generate(req, project=None))
 
     assert exc_info.value.status_code == 502
     assert "ERRORE DI CONNESSIONE" in exc_info.value.detail
@@ -582,7 +584,7 @@ def test_propose_generate_does_not_persist_llm_error(changes_env, fake_llm_setti
     req = ProposeGenerateRequest(feature_folder="feat-demo", dev_type="")
 
     with pytest.raises(HTTPException) as exc_info:
-        asyncio.run(routes_pipeline.pipeline_propose_generate(req))
+        asyncio.run(routes_pipeline.pipeline_propose_generate(req, project=None))
 
     assert exc_info.value.status_code == 502
     assert not (folder / "spec.md").exists()
@@ -594,7 +596,7 @@ def test_canvas_generate_still_persists_on_success(changes_env, fake_llm_setting
     _register_working_llm_provider("## Requirements\nOK")
     req = CanvasGenerateRequest(feature_name="feat demo", dev_type="")
 
-    result = asyncio.run(routes_pipeline.pipeline_canvas_generate(req))
+    result = asyncio.run(routes_pipeline.pipeline_canvas_generate(req, project=None))
 
     assert result["content"] == "## Requirements\nOK"
     canvas_path = changes_env / "feat-demo" / "canvas.md"
@@ -610,7 +612,7 @@ def test_propose_generate_still_persists_on_success(changes_env, fake_llm_settin
     _register_working_llm_provider(SPEC_LLM_STUB)
     req = ProposeGenerateRequest(feature_folder="feat-demo", dev_type="")
 
-    result = asyncio.run(routes_pipeline.pipeline_propose_generate(req))
+    result = asyncio.run(routes_pipeline.pipeline_propose_generate(req, project=None))
 
     assert result["content"] == (folder / "spec.md").read_text(encoding="utf-8")
     assert "SCENARIO: S01 - Caso nominale" in result["content"]
@@ -636,7 +638,7 @@ def code_dir_env(changes_env, tmp_path, monkeypatch):
 @pytest.mark.parametrize("bad_dev_type", ["../../etc", "..\\..\\windows", "/etc/passwd", "database"])
 def test_route_explore_save_rejects_unknown_dev_type(code_dir_env, bad_dev_type):
     req = ExploreSaveRequest(feature_name="feat demo", interview_log="log", dev_type=bad_dev_type)
-    exc = _assert_bad_request(routes_pipeline.pipeline_explore_save(req))
+    exc = _assert_bad_request(routes_pipeline.pipeline_explore_save(req, project=None))
     assert "Tipo di sviluppo non valido" in exc.detail
     assert not (code_dir_env / "feat-demo" / "meta.json").exists()
     assert not (code_dir_env / "feat-demo" / "explore.md").exists()
@@ -644,7 +646,7 @@ def test_route_explore_save_rejects_unknown_dev_type(code_dir_env, bad_dev_type)
 
 def test_route_explore_save_accepts_known_dev_type(code_dir_env):
     req = ExploreSaveRequest(feature_name="feat demo", interview_log="log", dev_type="backend")
-    result = asyncio.run(routes_pipeline.pipeline_explore_save(req))
+    result = asyncio.run(routes_pipeline.pipeline_explore_save(req, project=None))
     assert result["feature_folder"] == "feat-demo"
     assert (code_dir_env / "feat-demo" / "meta.json").exists()
 
@@ -652,7 +654,7 @@ def test_route_explore_save_accepts_known_dev_type(code_dir_env):
 def test_route_explore_save_accepts_empty_dev_type(code_dir_env):
     # Nessun ambito scelto resta sempre valido (comportamento invariato).
     req = ExploreSaveRequest(feature_name="feat demo", interview_log="log", dev_type="")
-    result = asyncio.run(routes_pipeline.pipeline_explore_save(req))
+    result = asyncio.run(routes_pipeline.pipeline_explore_save(req, project=None))
     assert result["feature_folder"] == "feat-demo"
     assert not (code_dir_env / "feat-demo" / "meta.json").exists()  # save_dev_type("") è no-op
 
@@ -662,7 +664,7 @@ def test_route_canvas_generate_rejects_unknown_dev_type_before_llm_call(code_dir
     llm.register_provider("fake", lambda model, prompt, timeout: calls.append(1) or "## Requirements\nOK")
     req = CanvasGenerateRequest(feature_name="feat demo", dev_type="../../etc")
 
-    exc = _assert_bad_request(routes_pipeline.pipeline_canvas_generate(req))
+    exc = _assert_bad_request(routes_pipeline.pipeline_canvas_generate(req, project=None))
 
     assert "Tipo di sviluppo non valido" in exc.detail
     assert calls == []  # nessuna chiamata LLM sprecata: validato prima di generare
@@ -673,7 +675,7 @@ def test_route_canvas_generate_accepts_known_dev_type(code_dir_env, fake_llm_set
     _register_working_llm_provider("## Requirements\nOK")
     req = CanvasGenerateRequest(feature_name="feat demo", dev_type="backend")
 
-    result = asyncio.run(routes_pipeline.pipeline_canvas_generate(req))
+    result = asyncio.run(routes_pipeline.pipeline_canvas_generate(req, project=None))
 
     assert result["content"] == "## Requirements\nOK"
     assert (code_dir_env / "feat-demo" / "canvas.md").exists()
@@ -687,7 +689,7 @@ def test_route_propose_generate_rejects_unknown_dev_type_before_llm_call(code_di
     llm.register_provider("fake", lambda model, prompt, timeout: calls.append(1) or "GIVEN x")
     req = ProposeGenerateRequest(feature_folder="feat-demo", dev_type="../../etc")
 
-    exc = _assert_bad_request(routes_pipeline.pipeline_propose_generate(req))
+    exc = _assert_bad_request(routes_pipeline.pipeline_propose_generate(req, project=None))
 
     assert "Tipo di sviluppo non valido" in exc.detail
     assert calls == []
@@ -701,7 +703,7 @@ def test_route_propose_generate_accepts_known_dev_type(code_dir_env, fake_llm_se
     _register_working_llm_provider(SPEC_LLM_STUB)
     req = ProposeGenerateRequest(feature_folder="feat-demo", dev_type="backend")
 
-    result = asyncio.run(routes_pipeline.pipeline_propose_generate(req))
+    result = asyncio.run(routes_pipeline.pipeline_propose_generate(req, project=None))
 
     assert "SCENARIO: S01 - Caso nominale" in result["content"]
     assert (folder / "spec.md").exists()
@@ -720,7 +722,7 @@ def test_route_propose_generate_rejects_stale_or_tampered_meta_dev_type(code_dir
     llm.register_provider("fake", lambda model, prompt, timeout: calls.append(1) or "GIVEN x")
     req = ProposeGenerateRequest(feature_folder="feat-demo", dev_type="")
 
-    exc = _assert_bad_request(routes_pipeline.pipeline_propose_generate(req))
+    exc = _assert_bad_request(routes_pipeline.pipeline_propose_generate(req, project=None))
 
     assert "Tipo di sviluppo non valido" in exc.detail
     assert calls == []
@@ -872,7 +874,7 @@ def xsite_client(monkeypatch, tmp_path):
             return _FakeJob(), False
 
     from core import artifacts
-    monkeypatch.setattr(routes_reindex, "manager", _FakeManager())
+    monkeypatch.setattr(routes_reindex, "project_manager", lambda project: _FakeManager())
     monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)  # rollback => 404, mai il reale
     monkeypatch.setattr(routes_intake, "_native_folder_dialog", lambda: None)
     return _make_client(routes_pipeline.router, routes_reindex.router,

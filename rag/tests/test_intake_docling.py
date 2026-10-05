@@ -348,7 +348,7 @@ def test_errore_di_conversione_non_lascia_nulla(staging_dir, docs_dir, monkeypat
     ("vuoto.pdf", b"", 422),
     ("script.exe", b"MZ", 415),
 ])
-def test_route_upload_errori_non_pubblicano_nulla(tmp_path, monkeypatch, nome, contenuto, status):
+def test_route_upload_errori_non_pubblicano_nulla(tmp_path, monkeypatch, nome, contenuto, status, legacy_workflow_project):
     monkeypatch.setattr(intake_convert, "INTAKE_DOCLING_ENABLED", True)
     client = _client(tmp_path, monkeypatch)
     resp = client.post("/api/intake/docs", files={"file": (nome, contenuto, "application/octet-stream")})
@@ -357,7 +357,7 @@ def test_route_upload_errori_non_pubblicano_nulla(tmp_path, monkeypatch, nome, c
     assert list((tmp_path / "docs").rglob("*")) == []
 
 
-def test_route_preview_espone_motore_e_avvisi_del_fallback(tmp_path, monkeypatch, senza_pesi):
+def test_route_preview_espone_motore_e_avvisi_del_fallback(tmp_path, monkeypatch, senza_pesi, legacy_workflow_project):
     client = _client(tmp_path, monkeypatch)
     doc_id = client.post("/api/intake/docs", files={
         "file": ("guida.pdf", SAMPLE_PDF.read_bytes(), "application/pdf")}).json()["id"]
