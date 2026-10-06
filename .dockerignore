@@ -80,3 +80,19 @@ code/**/.turbo/
 code/**/.cache/
 code/**/TestResults/
 code/**/packages/
+
+# Stesse esclusioni per gli scheletri spostati sotto templates/.
+templates/docs/superpowers/
+templates/changes/
+templates/code/frontend/.next/
+templates/code/frontend/tsconfig.tsbuildinfo
+templates/code/**/bin/
+templates/code/**/obj/
+templates/code/**/dist/
+templates/code/**/build/
+templates/code/**/coverage/
+templates/code/**/.vs/
+templates/code/**/.turbo/
+templates/code/**/.cache/
+templates/code/**/TestResults/
+templates/code/**/packages/

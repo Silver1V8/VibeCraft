@@ -35,6 +35,16 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # I test legacy usano docs/code/changes alla radice come corpus di prova.
+      # Nel repository gli scheletri vivono sotto templates; materializzarli solo
+      # nel checkout del job mantiene quei test senza duplicare file versionati.
+      - name: Prepara il corpus di prova dai template
+        run: |
+          for directory in changes code docs; do
+            test ! -e "$directory"
+            cp -R "templates/$directory" "$directory"
+          done
+
       - name: Install uv
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
