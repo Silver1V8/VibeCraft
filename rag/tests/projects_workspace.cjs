@@ -5,6 +5,41 @@ const path = require('node:path');
 const vm = require('node:vm');
 const http = require('node:http');
 
+async function intakeApprovalChecks() {
+  const source = fs.readFileSync(path.join(__dirname, '../static/pages/intake.js'), 'utf8');
+  const code = source.slice(source.indexOf('    let reviewInFlight'), source.indexOf('    /* Raffinazione LLM'));
+  const nodes = {
+    'preview-categoria': { value: '04_knowledge_informative' },
+    'preview-nomefile': { value: 'one.md' }, 'preview-result': {},
+  };
+  const calls = [], refreshed = [], timers = [];
+  let ok = true;
+  const context = vm.createContext({
+    document: { getElementById: id => nodes[id], querySelectorAll: () => [] },
+    window: { parent: { refreshIndexStatus: id => refreshed.push(id) } },
+    selectedProjectId: () => 'project-A', refreshStaging() {}, closePreview() {},
+    apiErrorMessage: detail => detail, setTimeout: fn => timers.push(fn),
+    fetch: async (url, options) => {
+      calls.push({ url, options });
+      return { ok, json: async () => ok ? { status: 'approved', reindex: {} } : { detail: 'File esistente' } };
+    },
+  });
+  vm.runInContext(code, context);
+  await context.approveStaged('one');
+  nodes['preview-nomefile'].value = 'two.md';
+  await context.approveStaged('two');
+  assert.deepEqual(refreshed, ['project-A', 'project-A']);
+  assert.deepEqual(calls.map(call => call.url), ['/api/intake/staged/one/approve', '/api/intake/staged/two/approve']);
+  assert.match(nodes['preview-result'].textContent, /Aggiorna indice/);
+  assert.equal(nodes['preview-result'].className, 'msg-ok');
+  ok = false;
+  await context.approveStaged('three');
+  assert.equal(nodes['preview-result'].className, 'msg-err');
+  assert.equal(refreshed.length, 2);
+  assert.equal(timers.length, 2);
+  console.log('OK intake: approvazioni separate, stato aggiornato sul progetto del frame, nessun reindex automatico.');
+}
+
 async function fetchChecks() {
   const shared = fs.readFileSync(path.join(__dirname, '../static/shared.js'), 'utf8');
   const source = shared.slice(shared.indexOf('const API_KEY_STORAGE'), shared.indexOf('const prefersReducedMotion'));
@@ -556,7 +591,7 @@ async function reindexChecks() {
 
 (async () => {
   if (process.argv.includes('--query-only')) return queryErrorChecks();
-  await fetchChecks(); await queryErrorChecks(); await reindexChecks();
+  await fetchChecks(); await queryErrorChecks(); await reindexChecks(); await intakeApprovalChecks();
   if (!process.argv.includes('--fetch-only')) await browserChecks();
 })()
   .catch(error => { console.error(error); process.exitCode = 1; });

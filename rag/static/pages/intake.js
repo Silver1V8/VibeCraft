@@ -329,7 +329,7 @@
     }
 
     /* Approva e Rifiuta non disabilitavano nulla durante la chiamata: un doppio
-       click su Approva produceva due scritture in docs/ e due reindex. La
+       click su Approva produceva due richieste di scrittura in docs/. La
        guardia vale per entrambi i bottoni della coppia, così un rifiuto non
        parte mentre un'approvazione è in volo. */
     let reviewInFlight = false;
@@ -354,9 +354,9 @@
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(apiErrorMessage(data.detail, `HTTP ${res.status}`));
-        const reindex = data.reindex || {};
         out.className = 'msg-ok';
-        out.textContent = `Approvato → docs/${categoria}/${nomeFile} — reindex: ${JSON.stringify(reindex)}`;
+        out.textContent = `Approvato → docs/${categoria}/${nomeFile}. Approva gli altri file, poi premi «Aggiorna indice».`;
+        window.parent.refreshIndexStatus?.(selectedProjectId());
         refreshStaging();
         setTimeout(closePreview, 1500);
       } catch (e) {

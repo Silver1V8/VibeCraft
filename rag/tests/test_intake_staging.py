@@ -431,7 +431,7 @@ def test_route_approve_maps_domain_errors(tmp_path, monkeypatch):
     assert resp.status_code == 422
 
 
-def test_route_approve_success_writes_doc_and_returns_stats(tmp_path, monkeypatch):
+def test_route_approve_success_writes_doc_without_indexing(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
     doc_id = client.post("/api/intake/docs",
                          files={"file": ("d.txt", b"contenuto ok", "text/plain")}).json()["id"]
@@ -440,7 +440,7 @@ def test_route_approve_success_writes_doc_and_returns_stats(tmp_path, monkeypatc
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["status"] == "approved"
-    assert body["reindex"]["upserted_chunks"] == 1
+    assert body["reindex"] == {}
     assert (tmp_path / "docs" / "04_knowledge_informative" / "doc-via-api.md").exists()
     # doppio approve via API → 409
     resp2 = client.post(f"/api/intake/staged/{doc_id}/approve",

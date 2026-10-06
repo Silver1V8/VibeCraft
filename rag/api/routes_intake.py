@@ -1,6 +1,6 @@
 """Route del ciclo Intake & Import — staging con review (S2, piano:
 docs/00_meta_governance/piano_intake_import.md): upload multipart → staging → preview →
-approve (docs/ + reindex delta) / reject. Handler sottili: la logica vive in
+approve (docs/, indicizzazione separata) / reject. Handler sottili: la logica vive in
 core/intake.py; qui solo validazioni HTTP (estensione e dimensione PRIMA di leggere tutto
 in memoria), mappatura degli errori tipizzati su status code e iniezione delle risorse di
 runtime (client Qdrant + modello embedding del server) nel reindex.
@@ -138,7 +138,7 @@ def _start_job(manager: doc_generation.GenerationManager, *args) -> doc_generati
 
 def _server_reindex(changed_paths, *, project):
     """Reindex delta con le risorse del server: client Qdrant del lifespan e modello di
-    embedding già caricato (CPU — un approve indicizza un solo documento, pochi chunk).
+    embedding già caricato, usato dall'import dei progetti.
     Import lazy di core.indexing per non pagare torch all'import del router."""
     from core.indexing import incremental_index
     ensure_shared_resources()
@@ -208,21 +208,16 @@ async def preview_staged_document(doc_id: str, project=Depends(get_project)):
 @router.post("/api/intake/staged/{doc_id}/approve",
              dependencies=[Depends(require_not_cross_site_request)])
 async def approve_staged_document(doc_id: str, payload: ApproveRequest, project=Depends(get_project)):
-    """Approva un documento in staging verso docs/<categoria>/<nome_file> con reindex
-    delta della sola path aggiunta (writer lock in core.intake.approve). Risponde con
-    l'esito e le stats del job di reindex; a lock occupato (altro writer in corso) → 409."""
+    """Approva e salva in docs/<categoria>/<nome_file>, senza avviare l'indice.
+    L'aggiornamento esplicito passa da /api/index/reindex dopo la review dei file.
+    A lock occupato (altro writer in corso) → 409."""
     try:
-        record = await run_in_threadpool(
+        return await run_in_threadpool(
             intake.approve, doc_id, payload.categoria, payload.nome_file,
-            reindex=lambda paths: _server_reindex(paths, project=project), project=project,
+            project=project,
         )
     except Exception as exc:
         _raise_http(exc)
-    # Il reindex ha promosso una nuova versione: allinea subito lo snapshot in memoria
-    # (stesso meccanismo di auto-reload dei job di reindex). Best-effort: reload_index_state
-    # non solleva mai per artefatti mancanti/incoerenti.
-    await run_in_threadpool(reload_index_state, project)
-    return record
 
 
 @router.post("/api/intake/staged/{doc_id}/reject",
@@ -443,7 +438,7 @@ async def apply_project(payload: ProjectApplyRequest, project=Depends(get_projec
     # costruzione (fingerprint diverso), inutile tenerlo in memoria.
     _project_plans(project).pop(plan.plan_id, None)
     # Il reindex delta ha promosso una nuova versione: allinea lo snapshot in memoria
-    # (stesso meccanismo dell'approve dei documenti). Best-effort, mai un errore.
+    # (stesso meccanismo dei job di reindex). Best-effort, mai un errore.
     await run_in_threadpool(reload_index_state, project)
     return result
 

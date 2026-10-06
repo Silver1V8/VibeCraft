@@ -442,8 +442,8 @@ conoscenza — documenti e progetti — nel sistema. Il principio non negoziabil
 **staging con review**: nulla entra in `docs/` o nell'indice senza un'approvazione
 esplicita dalla pagina. Il ciclo vive in [core/intake.py](core/intake.py) e nelle
 route [api/routes_intake.py](api/routes_intake.py) (`/api/intake/*`, auth `X-API-Key`
-come il resto), e usa lo stesso reindex delta + writer lock dell'indicizzazione
-incrementale.
+come il resto), e usa lo stesso writer lock dell'indicizzazione. L'approvazione dei
+documenti salva i file; il pulsante **Aggiorna indice** avvia l'indicizzazione dopo la review.
 
 **Cinque flussi, un solo staging** (`database/staging/`, con journal append-only
 `intake.jsonl`):
@@ -538,24 +538,23 @@ incrementale.
   rieseguire il refine riparte sempre da quello, mai dalla riscrittura.
 - **Review staging** (`GET /api/intake/staged`, `.../preview`, `POST .../approve`,
   `POST .../reject`): preview del markdown, poi **approve** (scrive
-  `docs/<categoria>/<nome_file>` con frontmatter conforme + reindex con la
-  path aggiunta come trigger, sotto writer lock del progetto) o **reject** (motivo nel journal, file spostati
+  `docs/<categoria>/<nome_file>` con frontmatter conforme, sotto writer lock del
+  progetto, senza reindex) o **reject** (motivo nel journal, file spostati
   in `staging/rejected/`, mai cancellati). `approve` **non sovrascrive MAI** un file
   esistente in `docs/`, e il documento composto deve passare parse/chunking PRIMA di
   qualunque scrittura. Sotto writer lock ricontrolla che il documento sia ancora in staging
-  e che la destinazione sia libera, crea il file in modo esclusivo e, se il reindex fallisce,
-  rimuove solo il file creato da quella richiesta (e solo se è ancora quello scritto): il
-  documento resta in staging con `approve_error` nel journal, riprovabile. Anche `reject` e
+  e che la destinazione sia libera e crea il file in modo esclusivo. Puoi approvare più
+  documenti e poi premere **Aggiorna indice** una sola volta: fino ad allora l'indice
+  resta sulla versione precedente, con lo stato **da aggiornare**. Se l'indicizzazione
+  fallisce, i file approvati restano in `docs/` per un nuovo tentativo. Anche `reject` e
   la scrittura finale della raffinazione passano dallo stesso writer lock, ricontrollando lo
   stato: un rifiuto o una raffinazione arrivati tardi non toccano un documento già
   approvato. In `docs/` entra
   solo il `.md` composto; l'originale resta in `staging/docs/` (o `staging/rejected/`).
   Ogni pubblicazione dell'app in `docs/` è un `.md` — l'approve dell'intake e la copia storica
   della canvas review all'archive —, ma l'app non può impedire scritture manuali esterne.
-  Nel legacy l'approve reindicizza la sola path approvata: un documento rimosso
-  manualmente resta nell'indice finché si sincronizza con `--incremental` o full.
-  Nei progetti nuovi il trigger non vuoto ricostruisce tutti i sorgenti, includendo
-  le altre modifiche/rimozioni presenti. Il PDF ancora su disco resta una fonte
+  L'aggiornamento esplicito considera anche le altre modifiche/rimozioni presenti
+  nei sorgenti del progetto. Il PDF ancora su disco resta una fonte
   distinta anche quando si approva un `.md` derivato.
 - **Pesi di Docling, Docker e CI**: i pesi (layout, TableFormer, RapidOCR, ~540 MB) non sono
   nel repository né nell'immagine. In locale: `uv run python scripts/docling_models.py`

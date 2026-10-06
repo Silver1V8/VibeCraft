@@ -65,6 +65,77 @@ def body(project, text):
     (project.docs_dir / "same.md").write_text("# Shared title\n\n" + text, encoding="utf-8")
 
 
+def test_intake_approvals_wait_for_one_explicit_index_update(projects, monkeypatch):
+    from collections import OrderedDict
+    from itertools import count
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api import deps, routes_intake, routes_reindex
+    from core import intake
+
+    project, other = projects
+    versions_created = count(1)
+    monkeypatch.setattr(indexing, '_new_version_name', lambda **_: f'v{next(versions_created)}')
+    monkeypatch.setattr(deps, '_project_states', {})
+    monkeypatch.setattr(deps, '_snapshots', OrderedDict())
+    monkeypatch.setattr(routes_intake, 'ensure_shared_resources', lambda **_: None)
+    monkeypatch.setattr(routes_reindex, 'ensure_shared_resources', lambda **_: None)
+    app = FastAPI()
+    app.dependency_overrides[deps.get_project] = lambda: project
+    app.include_router(routes_intake.router)
+    app.include_router(routes_reindex.router)
+
+    with closing(QdrantClient(':memory:')) as client:
+        embed = Embed()
+        monkeypatch.setitem(deps.state, 'qdrant', client)
+        monkeypatch.setitem(deps.state, 'embed_model', embed)
+        body(project, 'ALPHA baseline')
+        assert build(project, client) == 'v1'
+        baseline_points = client.count(project.collection_name).count
+        # The direct/default approval must also avoid loading its own providers.
+        incremental = indexing.incremental_index
+        monkeypatch.setattr(indexing, 'incremental_index', lambda **kw:
+            incremental(qdrant=client, embed_model=embed, **kw))
+        entry = intake.stage_document('direct.md', b'# Direct\nALPHA direct', project=project)
+        intake.approve(entry['id'], '04_knowledge_informative', 'direct.md', project=project)
+        assert artifacts.current_version(project=project) == 'v1'
+
+        with TestClient(app, client=('127.0.0.1', 54321)) as http:
+            for name in ('one', 'two'):
+                upload = http.post('/api/intake/docs', files={
+                    'file': (name + '.md', f'# {name}\nALPHA {name}'.encode(), 'text/markdown')})
+                assert upload.status_code == 200, upload.text
+                response = http.post(f'/api/intake/staged/{upload.json()["id"]}/approve',
+                    json={'categoria': '04_knowledge_informative', 'nome_file': name + '.md'})
+                assert response.status_code == 200, response.text
+                assert response.json()['status'] == 'approved'
+                assert artifacts.current_version(project=project) == 'v1'
+            assert http.get('/api/intake/staged').json()['staged'] == []
+            assert client.count(project.collection_name).count == baseline_points
+            assert indexing.index_status(project=project)['stale'] is True
+            assert artifacts.current_version(project=other) is None
+
+            response = http.post('/api/index/reindex', json={})
+            assert response.status_code == 202, response.text
+            manager = routes_reindex.project_manager(project)
+            assert manager.join_all(timeout=10)
+            job = http.get('/api/reindex/' + response.json()['job_id']).json()
+            assert job['status'] == 'completed', job
+            # Managed projects rebuild all four documents in one new version.
+            assert job['result']['reindexed_docs'] == 4
+            assert artifacts.current_version(project=project) == 'v2'
+            assert indexing.index_status(project=project)['stale'] is False
+            assert job['reload_status'] == 'completed'
+            assert deps.current_snapshot(project).version == 'v2'
+            points, _ = client.scroll(project.collection_name, limit=100)
+            assert {'04_knowledge_informative/' + name + '.md' for name in ('direct', 'one', 'two')} <= {
+                point.payload.get('doc_id') for point in points}
+            assert not list(other.docs_dir.rglob('*.md'))
+        snapshot = deps.current_snapshot(project)
+        if snapshot is not None:
+            snapshot.colbert_store.close()
+
+
 @pytest.mark.parametrize('selected', [0, 1], ids=['legacy', 'uuid'])
 @pytest.mark.parametrize('conflict', ['physical', 'candidate', 'alias'])
 def test_ordinary_build_preserves_foreign_physical_alias_name(projects, selected, conflict):

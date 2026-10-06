@@ -349,7 +349,7 @@ def get_preview(doc_id: str, base_dir: str | Path | None = None, *, project=None
 
 
 # ---------------------------------------------------------------------------
-# approve: frontmatter conforme + scrittura in docs/ + reindex delta, sotto writer lock
+# approve: frontmatter conforme + scrittura in docs/, sotto writer lock
 # ---------------------------------------------------------------------------
 def _sanitize_target_filename(nome_file: str) -> str:
     nome = (nome_file or "").strip()
@@ -473,14 +473,6 @@ def _validate_composed(paths: dict[str, Path], doc_id: str, composed: str) -> No
             pass
 
 
-def _default_reindex(changed_paths: list[str] | None, *, project=None) -> dict:
-    """Reindex delta di default (CLI/uso diretto): import lazy per non pagare torch al
-    solo import di core.intake. Lo strato HTTP inietta la propria variante col client
-    Qdrant e il modello del server (api/routes_intake.py)."""
-    from core.indexing import incremental_index
-    return incremental_index(changed_paths=changed_paths, project=project)
-
-
 def _slim_stats(stats) -> dict:
     """Sottoinsieme leggero delle stats del reindex per il journal (il risultato completo
     torna comunque al chiamante)."""
@@ -496,18 +488,17 @@ def approve(doc_id: str, categoria: str, nome_file: str, *,
             reindex=None,
             lock_timeout_seconds: float = 30,
             lock_path: str | Path | None = None, project=None) -> dict:
-    """Promuove un documento dallo staging a docs/<categoria>/<nome_file> e lancia il
-    reindex DELTA della sola path aggiunta — l'UNICO percorso che scrive in docs/, e scrive
-    solo il .md composto: l'originale resta in staging.
+    """Promuove un documento dallo staging a docs/<categoria>/<nome_file> senza
+    indicizzarlo: l'aggiornamento dell'indice è un'azione separata. Scrive solo il .md
+    composto; l'originale resta in staging.
 
     Ordine: validazioni rapide (stato staged, categoria, nome file, destinazione libera) →
     SOTTO WRITER LOCK: ricontrollo di stato e destinazione (nell'attesa un'altra richiesta
     può aver approvato lo stesso documento o occupato lo stesso nome), composizione del
-    frontmatter conforme e validazione parse/chunking, creazione ESCLUSIVA del file, reindex
-    delta (plan/apply di core/indexing.py, via `reindex(changed_paths)`; default
-    incremental_index), journal. Se il reindex fallisce si rimuove solo il file creato da
-    questa richiesta, e solo se è ancora quello scritto qui: il documento resta in staging
-    con l'errore nel journal, riprovabile.
+    frontmatter conforme e validazione parse/chunking, creazione ESCLUSIVA del file,
+    journal. Un callback `reindex` esplicito permette ancora l'indicizzazione sincrona:
+    se fallisce si rimuove solo il file creato da questa richiesta, e solo se è ancora
+    quello scritto qui; il documento resta in staging con l'errore, riprovabile.
 
     Un secondo approve dello stesso id fallisce con DocumentAlreadyProcessedError senza
     alcun effetto (idempotenza degli errori, mai doppio file)."""
@@ -535,7 +526,6 @@ def approve(doc_id: str, categoria: str, nome_file: str, *,
         rel_path = str(target)
         changed_paths = None
 
-    reindex_fn = reindex if reindex is not None else (_default_reindex if project is None else lambda paths: _default_reindex(paths, project=project))
     lock_kwargs = {'project': project} if project else {}
     with indexing_lock, writer_lock(timeout_seconds=lock_timeout_seconds, lock_path=lock_path, **lock_kwargs):
         entry = _require_staged(paths, doc_id)
@@ -552,7 +542,7 @@ def approve(doc_id: str, categoria: str, nome_file: str, *,
             raise TargetFileExistsError(occupato) from exc
         written = target.read_bytes()
         try:
-            stats = reindex_fn(changed_paths)
+            stats = reindex(changed_paths) if reindex is not None else {}
         except Exception as exc:
             # docs/ e indice devono restare coerenti: senza reindex riuscito il file di QUESTA
             # richiesta non sopravvive in docs/. Se nel frattempo è cambiato non è più nostro.
