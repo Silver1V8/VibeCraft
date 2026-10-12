@@ -27,7 +27,10 @@
         document.getElementById(id).hidden = !draft;
       }
       for (const id of [...draftEditors, 'chat-input']) document.getElementById(id).readOnly = !!draft;
-      document.getElementById('dev-type-select').disabled = !!draft;
+      /* La tendina resta usabile anche con una bozza in sospeso: disabilitata, senza
+         stile che lo mostri, i tipi appena aggiunti sembravano non comparire. Il
+         ripristino sovrascrive la scelta solo se la bozza ne aveva una. */
+      document.getElementById('dev-type-select').disabled = false;
       updateChatControls();
     }
 
@@ -119,7 +122,7 @@
       document.getElementById('chat-log').textContent = '';
       for (const message of draft.messages) appendChatBubble(message.role, message.text);
       document.getElementById('chat-input').value = draft.input;
-      document.getElementById('dev-type-select').value = draft.devType;
+      if (draft.devType) document.getElementById('dev-type-select').value = draft.devType;
       devType = document.getElementById('dev-type-select').value;
       draftEditors.forEach((id, i) => {
         document.getElementById(id).value = draft.editors[i];
