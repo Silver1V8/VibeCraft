@@ -215,6 +215,40 @@ def test_empty_installation_does_not_bootstrap_legacy(tmp_path):
     assert not legacy.database_dir.exists()
 
 
+def _clean_clone(tmp_path):
+    root = tmp_path / "clone"
+    (root / "templates" / "docs" / "area").mkdir(parents=True)
+    (root / "templates" / "docs" / "area" / "norma.md").write_text("# Norma\n", encoding="utf-8")
+    (root / "templates" / "code" / "backend").mkdir(parents=True)
+    (root / "templates" / "code" / "backend" / "app.py").write_text("x = 1\n", encoding="utf-8")
+    (root / "templates" / "template_spec.md").write_text("segnaposto\n", encoding="utf-8")
+    return root, replace(legacy_project_context(), root=root, code_dir=root / "code",
+                         docs_dir=root / "docs", changes_dir=root / "changes",
+                         database_dir=root / "database", staging_dir=root / "staging")
+
+
+def test_clean_clone_bootstraps_legacy_from_templates(tmp_path):
+    """Un clone locale non ha docs/ e code/ alla radice: la baseline versionata è in
+    templates/, e da lì nasce il progetto iniziale (come nell'immagine Docker)."""
+    root, legacy = _clean_clone(tmp_path)
+    store = ProjectRegistry(tmp_path / "managed", legacy_context=legacy)
+    [project] = store.list()
+    assert project.id == "legacy"
+    assert (project.docs_dir / "area" / "norma.md").read_text(encoding="utf-8") == "# Norma\n"
+    assert (project.code_dir / "backend" / "app.py").is_file()
+    assert not (project.docs_dir / "template_spec.md").exists()
+    assert (root / "templates" / "docs" / "area" / "norma.md").is_file()   # copia, non spostamento
+
+
+def test_root_baseline_takes_precedence_over_templates(tmp_path):
+    root, legacy = _clean_clone(tmp_path)
+    (root / "docs").mkdir()
+    (root / "docs" / "locale.md").write_text("# Locale\n", encoding="utf-8")
+    [project] = ProjectRegistry(tmp_path / "managed", legacy_context=legacy).list()
+    assert (project.docs_dir / "locale.md").is_file()
+    assert not (project.docs_dir / "area").exists()
+
+
 def test_reader_registry_is_read_only(tmp_path, monkeypatch):
     store = registry(tmp_path)
     project = store.create("A")

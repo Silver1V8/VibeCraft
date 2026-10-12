@@ -83,13 +83,11 @@ Un unico Qdrant ospita namespace distinti: alias `vibecraft_<id>` e collection
 progetto; il cambio selezione non cambia il target di un lavoro già avviato.
 
 Anche il progetto iniziale ha una root dedicata: `projects/legacy/`, con `code/`,
-`docs/`, `changes/` e `database/`. Al primo avvio writer, se `docs/` o `code/` alla radice
-dell'installazione contengono file, VibeCraft li copia e verifica in `projects/legacy/`
-senza indicizzare o scaricare modelli. La baseline versionata vive in `templates/docs/` e
-`templates/code/`: l'immagine Docker la copia in `/app/docs` e `/app/code`, quindi il
-progetto iniziale nasce già popolato. In un clone locale pulito le cartelle alla radice
-non esistono e il registro parte vuoto: crea un progetto e importa la baseline da Intake,
-oppure copia `templates/docs/` in `docs/` prima del primo avvio.
+`docs/`, `changes/` e `database/`. Al primo avvio writer VibeCraft copia e verifica in
+`projects/legacy/` la baseline, senza indicizzare o scaricare modelli: `docs/` e `code/`
+alla radice dell'installazione se contengono file, altrimenti la baseline versionata in
+`templates/docs/` e `templates/code/` (il caso di un clone locale pulito; l'immagine Docker
+la porta già in `/app/docs` e `/app/code`). I `template_*.md` di `templates/` non vengono copiati.
 Gli altri progetti nuovi nascono vuoti. Un registro già vuoto resta vuoto.
 Il nome `legacy` identifica il progetto iniziale: usa lo stesso runtime e indice degli altri.
 L'indice legge soltanto `docs/` e `code/` nella root del progetto selezionato.

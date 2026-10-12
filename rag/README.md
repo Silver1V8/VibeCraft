@@ -100,12 +100,10 @@ originario: selezionare B non sposta un job di A.
 ### Legacy, Docker e limiti
 
 Il progetto iniziale usa `<VIBECRAFT_PROJECTS_DIR>/legacy/`, con manifest e layout
-ordinari. Il primo avvio writer copia e verifica in quella root i file di `docs/` e
-`code/` alla radice dell'installazione, senza modelli, Qdrant o build. La baseline
-versionata sta in `templates/docs/` e `templates/code/`: l'immagine Docker la porta in
-`/app/docs` e `/app/code`; in un clone locale pulito quelle cartelle mancano e il
-registro parte vuoto (copia `templates/docs/` in `docs/` prima del primo avvio per
-ottenere il progetto iniziale). Gli altri progetti nuovi restano vuoti. Il reader non
+ordinari. Il primo avvio writer copia e verifica in quella root `docs/` e `code/` alla
+radice dell'installazione se contengono file, altrimenti `templates/docs/` e
+`templates/code/` (clone locale pulito; l'immagine Docker le porta in `/app/docs` e
+`/app/code`), senza modelli, Qdrant o build. Gli altri progetti nuovi restano vuoti. Il reader non
 inizializza il registro. Un registro già vuoto resta vuoto.
 L'indice scansiona soltanto docs/code del progetto selezionato, anche per ID `legacy`.
 

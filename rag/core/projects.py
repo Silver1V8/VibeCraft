@@ -273,8 +273,15 @@ class ProjectRegistry:
     def _bootstrap_initial_project(self) -> ProjectContext | None:
         if _has_historical_state(self._legacy):
             raise _migration_required()
-        if not _has_legacy_data(self._legacy):
-            return None
+        source = self._legacy
+        if not _has_legacy_data(source):
+            # Clone locale: docs/ e code/ alla radice non esistono, la baseline versionata
+            # è in templates/ (l'immagine Docker la copia invece in /app/docs e /app/code).
+            # Solo docs/ e code/: i template_*.md di templates/ non vanno indicizzati.
+            templates = self._legacy.root / "templates"
+            source = replace(self._legacy, docs_dir=templates / "docs", code_dir=templates / "code")
+            if not _has_legacy_data(source):
+                return None
         from core.project_migration import prepare_project_copy
         root = self.projects_dir / "legacy"
         checkpoint_path = self.projects_dir / ".initial-project-copy.json"
@@ -288,7 +295,7 @@ class ProjectRegistry:
                           changes_dir=root / "changes", database_dir=root / "database",
                           staging_dir=root / "database" / "staging", collection_name="vibecraft_legacy",
                           legacy=False)
-        prepare_project_copy(self._legacy, project, checkpoint_path=checkpoint_path, include_history=False)
+        prepare_project_copy(source, project, checkpoint_path=checkpoint_path, include_history=False)
         return _manifest(root)
 
     @contextmanager
