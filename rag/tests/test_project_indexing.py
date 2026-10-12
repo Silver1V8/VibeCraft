@@ -121,8 +121,9 @@ def test_intake_approvals_wait_for_one_explicit_index_update(projects, monkeypat
             assert manager.join_all(timeout=10)
             job = http.get('/api/reindex/' + response.json()['job_id']).json()
             assert job['status'] == 'completed', job
-            # Managed projects rebuild all four documents in one new version.
-            assert job['result']['reindexed_docs'] == 4
+            # Managed projects publish one new version via copy-on-write: only the three new docs are embedded.
+            assert job['result']['reindexed_docs'] == 3
+            assert job['result']['delta_mode'] == 'cow'
             assert artifacts.current_version(project=project) == 'v2'
             assert indexing.index_status(project=project)['stale'] is False
             assert job['reload_status'] == 'completed'

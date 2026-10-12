@@ -66,6 +66,9 @@ def _env_choice(name: str, default: str, allowed: set[str]) -> str:
 
 ROLE = _env_choice("VIBECRAFT_ROLE", "standalone", {"standalone", "reader", "writer"})
 INDEX_MODE = _env_choice("VIBECRAFT_INDEX_MODE", "legacy", {"legacy", "immutable"})
+# Delta dei progetti a snapshot immutabili: "cow" copia dal padre i punti invariati e
+# ricalcola solo i sorgenti cambiati; "rebuild" forza il full rebuild (via d'uscita).
+DELTA_MODE = _env_choice("VIBECRAFT_DELTA_MODE", "cow", {"cow", "rebuild"})
 if ROLE in {"reader", "writer"} and INDEX_MODE != "immutable":
     raise RuntimeError(f"VIBECRAFT_ROLE={ROLE} richiede VIBECRAFT_INDEX_MODE=immutable.")
 

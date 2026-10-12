@@ -82,6 +82,7 @@ from core.config import (
     CODE_DIR,
     CODE_EXCLUDED_DIRS,
     COLLECTION_NAME,
+    DELTA_MODE,
     DENSE_DIM,
     DOC_EXTS,
     DOCS_DIR,
@@ -1806,6 +1807,100 @@ def _delta_manifest_hashes(manifest, plan: IndexPlan, current: dict[str, str],
     return doc_hashes, code_hashes
 
 
+class _CowUnavailable(Exception):
+    """Precondizione del delta copy-on-write mancante: il chiamante ripiega sul full
+    rebuild. Sollevata solo PRIMA di qualunque scrittura (Qdrant, staging, versioni)."""
+
+
+def _cow_delta_index(qdrant: QdrantClient, embed_model, emit, plan: IndexPlan,
+                     current: dict[str, str], manifest, code_delta, current_code: dict[str, str],
+                     timings: dict, project: ProjectContext) -> dict:
+    """Delta copy-on-write di un progetto a snapshot immutabili: collection candidata
+    nuova con i punti invariati copiati dal padre, poi lo stesso motore delta del ramo
+    legacy (apply_incremental_indexing) puntato sulla candidata, infine eval-gate e
+    promozione come il full rebuild. Il padre non viene mai scritto: rollback intatto."""
+    if DELTA_MODE != "cow":
+        raise _CowUnavailable(f"VIBECRAFT_DELTA_MODE={DELTA_MODE}")
+    if not isinstance(manifest, dict):
+        raise _CowUnavailable("manifest della versione attiva assente")
+    if manifest.get("immutable") is not True:
+        raise _CowUnavailable("versione attiva non immutabile")
+    if manifest.get("embedding_model") != EMBEDDING_MODEL:
+        raise _CowUnavailable(
+            f"modello di embedding cambiato ({manifest.get('embedding_model')} → {EMBEDDING_MODEL})")
+    parent_version = artifact_module.current_version(project=project)
+    parent_collection = manifest.get("qdrant_collection")
+    if parent_version is None or parent_collection != qdrant_collection_name(parent_version, project=project):
+        raise _CowUnavailable(f"collection del padre non dedicata: {parent_collection!r}")
+    if not _qdrant_collection_exists(qdrant, parent_collection):
+        raise _CowUnavailable(f"collection del padre '{parent_collection}' assente su Qdrant")
+
+    started = time.perf_counter()
+    arts = load_artifacts(project=project)
+    timings["load"] = time.perf_counter() - started
+    try:
+        if arts.version != parent_version:
+            raise ValueError(f"artefatti caricati da {arts.version}, attesa {parent_version}")
+        parent_store, parent_hashes = _attested_parent_colbert(arts, manifest, project)
+    except (RuntimeError, ValueError) as exc:
+        if isinstance(arts.colbert_store, ColbertStore):
+            arts.colbert_store.close()
+        raise _CowUnavailable(f"artefatti del padre non riusabili: {exc}") from exc
+
+    graph: nx.DiGraph = arts.graph if arts.graph is not None else nx.DiGraph()
+    version = _new_version_name(project=project)
+    candidate = qdrant_collection_name(version, project=project)
+    code_added, code_removed, code_modified = code_delta
+    writer = None
+    try:
+        if embed_model is None:
+            started = time.perf_counter()
+            emit(f"Caricamento modello embedding: {EMBEDDING_MODEL} ...")
+            embed_model = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False)
+            timings["init_model"] += time.perf_counter() - started
+        started = time.perf_counter()
+        if _qdrant_collection_exists(qdrant, candidate):
+            raise RuntimeError(f"collection candidata '{candidate}' già esistente: mai riscritta")
+        _ensure_collection(qdrant, recreate=False, collection_name=candidate)
+        copied = _clone_points(qdrant, parent_collection, candidate, exclude_doc_ids=plan.to_delete())
+        timings["qdrant"] += time.perf_counter() - started
+        emit(f"📋 Copy-on-write da {parent_version}: {copied} punti copiati in '{candidate}'. "
+             f"Documenti: {len(plan.new)} nuovi, {len(plan.modified)} modificati, "
+             f"{len(plan.deleted)} cancellati. Codice: +{len(code_added)} ~{len(code_modified)} "
+             f"-{len(code_removed)}.")
+        writer = ColbertWriter(project.database_dir / ".colbert-staging" / version / "colbert", None,
+                               parent=parent_store, verified_parent_hashes=parent_hashes)
+        stats = apply_incremental_indexing(
+            plan, project.docs_dir, qdrant, embed_model, graph, arts.colbert_store, arts.chunks_store,
+            emit=emit, dense_store=arts.dense_store, code_store=arts.code_store,
+            code_delta=(code_added, code_removed, code_modified), code_dir=project.code_dir,
+            phase_timings=timings, colbert_writer=writer, project=project, collection_name=candidate,
+        )
+        started = time.perf_counter()
+        version = save_artifacts(graph, writer, arts.chunks_store, arts.dense_store, arts.code_store,
+                                 version=version, project=project)
+    finally:
+        if parent_store is not None:
+            parent_store.close()
+        if writer is not None and writer.root.exists():
+            shutil.rmtree(writer.root)
+        if writer is not None and writer.root.parent.exists() and not any(writer.root.parent.iterdir()):
+            writer.root.parent.rmdir()
+    doc_hashes, code_hashes = _delta_manifest_hashes(manifest, plan, current, code_delta, current_code)
+    write_index_manifest(len(arts.chunks_store), graph.number_of_nodes(), graph.number_of_edges(),
+                         version=version, qdrant_collection=candidate,
+                         doc_hashes=doc_hashes, code_hashes=code_hashes,
+                         colbert_new_files=writer.new_files, immutable=True, project=project)
+    timings["save_hash"] += time.perf_counter() - started
+    gate = _gate_and_publish(qdrant, embed_model, version, candidate, graph, arts.chunks_store,
+                             alias_name=project.collection_name, emit=emit, timings=timings,
+                             project=project)
+    stats.update({"noop": False, "version": version, "delta_mode": "cow",
+                  "copied_points": copied, "promoted": bool(gate.get("passed")),
+                  "colbert_io_bytes": dict(writer.stats), "phase_timings_seconds": timings})
+    return stats
+
+
 def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit=None,
                       changed_paths: list[str] | None = None, project: ProjectContext | None = None,
                       embed_model_factory=None) -> dict:
@@ -1823,9 +1918,11 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     il diff hash resta la fonte di verità — quindi non può indicizzare nulla che un delta
     completo non avrebbe toccato. Se None, si considera l'intero docs/ + code/ come sempre.
 
-    I progetti ordinari pubblicano snapshot immutabili: dopo il controllo no-op,
-    ricostruiscono tutti i sorgenti in una collection nuova. In questo caso
-    changed_paths decide se avviare il lavoro, non limita i file del full rebuild."""
+    I progetti ordinari pubblicano snapshot immutabili: dopo il controllo no-op il delta
+    è copy-on-write (_cow_delta_index): collection nuova con i punti invariati del padre,
+    ri-embedding dei soli sorgenti cambiati, stesso eval-gate del full. Se il padre non
+    è riusabile (vedi _CowUnavailable) si ripiega sul full rebuild, con il motivo in
+    `fallback_reason`."""
     database_dir = project.database_dir if project is not None else artifact_module.DATABASE_DIR
     alias_name = project.collection_name if project is not None else COLLECTION_NAME
     docs_dir = project.docs_dir if project is not None else DOCS_DIR
@@ -1880,15 +1977,27 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
         timings["init_model"] = time.perf_counter() - started
 
     if project is not None and not project.legacy:
-        # ponytail: rebuild the complete candidate; add copy-on-write delta only if rebuild cost warrants it.
-        _log("Snapshot immutabile: ricostruzione completa dei sorgenti per pubblicare il delta.")
-        collector = {}
-        version = build_graph_and_index(qdrant, embed_model, emit, collector=collector, project=project)
-        collector["phase_timings_seconds"]["init_model"] += timings["init_model"]
-        counts = collector["counts"]
-        return {"noop": False, "version": version, "reindexed_docs": counts["docs_added"],
-                "deleted_docs": len(plan.deleted), "upserted_chunks": counts["chunks_indexed"],
-                "planned": plan.as_dict(), **collector}
+        if qdrant is None:
+            qdrant = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+        try:
+            try:
+                return _cow_delta_index(qdrant, embed_model, _log, plan, current, manifest,
+                                        (code_added, code_removed, code_modified), current_code,
+                                        timings, project)
+            except _CowUnavailable as exc:
+                fallback = str(exc)
+            _log(f"Snapshot immutabile: ricostruzione completa dei sorgenti ({fallback}).")
+            collector = {}
+            version = build_graph_and_index(qdrant, embed_model, emit, collector=collector, project=project)
+            collector["phase_timings_seconds"]["init_model"] += timings["init_model"]
+            counts = collector["counts"]
+            return {"noop": False, "version": version, "delta_mode": "rebuild",
+                    "fallback_reason": fallback, "reindexed_docs": counts["docs_added"],
+                    "deleted_docs": len(plan.deleted), "upserted_chunks": counts["chunks_indexed"],
+                    "planned": plan.as_dict(), **collector}
+        finally:
+            if own_qdrant:
+                qdrant.close()
 
     _log(f"📋 Piano incrementale: {len(plan.new)} nuovi, {len(plan.modified)} modificati, "
          f"{len(plan.deleted)} cancellati, {len(plan.unchanged)} invariati (saltati). "
