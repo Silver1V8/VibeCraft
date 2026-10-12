@@ -71,3 +71,64 @@ candidates:
   - doc: 04_knowledge_informative/intent_synonym_mapping.md
   from_feature: la2
   extracted_at: '2026-08-05T09:58:44+00:00'
+- q: 'la3: REASONS Canvas: Feature LA3 (Validazione Posti e Notifica HITL)'
+  expected:
+  - doc: 00_meta_governance/safeguards_security.md
+  - doc: 05_project_specs/spec_tech_logic_agent.md
+  - doc: 02_specs_normative/spec_concurrency_2.3.md
+  - doc: 02_specs_normative/spec_crud_admin_3.2.md
+  - doc: 02_specs_normative/spec_det_1.3.md
+  - doc: 02_specs_normative/spec_dash_1.2.md
+  - doc: 04_knowledge_informative/vibe_coding_workflow.md
+  from_feature: la3
+  extracted_at: '2026-09-15T13:54:09+00:00'
+- q: 'be1: REASONS Canvas: BE1 - Pannello di Amministrazione e Reportistica (Backend)'
+  expected:
+  - doc: 05_project_specs/spec_tech_frontend.md
+  - doc: 05_project_specs/spec_tech_backend.md
+  - doc: 00_meta_governance/matrice_permessi.md
+  - doc: 02_specs_normative/spec_crud_admin_3.2.md
+  - doc: 02_specs_normative/spec_analytics_3.5.md
+  - doc: 02_specs_normative/spec_mgr_panel_2.2.md
+  from_feature: be1
+  extracted_at: '2026-09-16T15:07:25+00:00'
+- q: 'la4: REASONS Canvas: LA4 (Collegamento Logic Agent al Backend)'
+  expected:
+  - doc: 05_project_specs/spec_tech_logic_agent.md
+  - doc: 05_project_specs/spec_tech_backend.md
+  from_feature: la4
+  extracted_at: '2026-09-17T07:46:01+00:00'
+- q: 'fe5: REASONS Canvas: FE5 - Portale Richieste Utente (Frontend)'
+  expected:
+  - doc: 05_project_specs/spec_tech_frontend.md
+  - doc: 00_meta_governance/matrice_permessi.md
+  - doc: 05_project_specs/spec_tech_backend.md
+  - doc: 02_specs_normative/spec_dash_1.2.md
+  from_feature: fe5
+  extracted_at: '2026-09-17T09:23:06+00:00'
+- q: 'fe-design: REASONS Canvas: FE_Design'
+  expected:
+  - doc: 05_project_specs/spec_tech_frontend.md
+  - doc: 01_architecture_norms/ui_ux_brand_directives.md
+  - doc: 00_meta_governance/safeguards_security.md
+  - doc: 05_project_specs/spec_tech_backend.md
+  from_feature: fe-design
+  extracted_at: '2026-09-17T10:21:12+00:00'
+- q: 'fe-design2: REASONS Canvas: FE_Design2'
+  expected:
+  - doc: 05_project_specs/spec_tech_frontend.md
+  - doc: 05_project_specs/spec_tech_backend.md
+  - doc: 01_architecture_norms/ui_ux_brand_directives.md
+  - doc: 00_meta_governance/matrice_permessi.md
+  - doc: 02_specs_normative/spec_area_pers_1.5.md
+  from_feature: fe-design2
+  extracted_at: '2026-09-17T13:30:05+00:00'
+- q: 'fe-design3: REASONS Canvas: FE_Design3'
+  expected:
+  - doc: 01_architecture_norms/ui_ux_brand_directives.md
+  - doc: 05_project_specs/spec_tech_frontend.md
+  - doc: 00_meta_governance/safeguards_security.md
+  - doc: 02_specs_normative/spec_graph_rag_ingestion.md
+  - doc: 00_meta_governance/matrice_permessi.md
+  from_feature: fe-design3
+  extracted_at: '2026-09-22T09:51:06+00:00'

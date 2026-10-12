@@ -34,7 +34,30 @@
         "run",
         "dev"
       ],
-      "cwd": "code/frontend",
+      "cwd": "projects/legacy/code/frontend",
+      "port": 3000
+    },
+    {
+      "name": "portal-api",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": [
+        "run",
+        "--project",
+        "src/Portal.Api",
+        "--launch-profile",
+        "http"
+      ],
+      "cwd": "projects/legacy/code/backend",
+      "port": 5023
+    },
+    {
+      "name": "vibecraft-frontend-prod",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "start"
+      ],
+      "cwd": "projects/legacy/code/frontend",
       "port": 3000
     }
   ]
