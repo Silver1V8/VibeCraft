@@ -53,6 +53,11 @@
       send.title = reason;
       finish.disabled = finishBusy || sendBusy || !!reason || !interviewLog;
       finish.title = reason || (interviewLog ? '' : 'Rispondi almeno una volta al Tech Lead IA.');
+      /* Con una bozza in attesa il campo è in sola lettura: lo si dice lì, altrimenti
+         sembra un campo rotto. */
+      document.getElementById('chat-input').placeholder = pendingDraft
+        ? 'Bozza locale in attesa: usa "Ripristina bozza locale" o "Scarta bozza e usa file server" a sinistra per scrivere.'
+        : 'Rispondi al Tech Lead IA… (Ctrl+Invio per inviare)';
       const started = chatMessages.length > 0;
       setPanelVisible('chat-guide', !started);
       setPanelVisible('chat-log', started);
@@ -63,7 +68,9 @@
         step.classList.toggle('is-done', done);
         step.classList.toggle('is-next', id === next);
         document.getElementById(`${id}-mark`).textContent = done ? '✓' : String(index + 1);
-        document.getElementById(`${id}-state`).textContent = done ? 'fatto' : id === next ? 'da fare' : '';
+        document.getElementById(`${id}-state`).textContent = done ? 'fatto'
+          : id === next && id === 'guide-step-answer' && pendingDraft ? 'scegli la bozza'
+          : id === next ? 'da fare' : '';
       });
     }
 
@@ -72,7 +79,9 @@
     function focusGuideStep(id) {
       const select = document.getElementById('dev-type-select');
       const target = id === 'dev-type-select' && select.options.length <= 1
-        ? document.getElementById('dev-type-new-input') : document.getElementById(id);
+        ? document.getElementById('dev-type-new-input')
+        : id === 'chat-input' && pendingDraft ? document.getElementById('session-restore-btn')
+        : document.getElementById(id);
       target.scrollIntoView({ block: 'nearest' });
       target.focus();
     }
