@@ -112,8 +112,10 @@ indisponibile; richiede la normale autenticazione, inclusa la chiave in reader.
 Readiness e stato dell'indice sono separati in `/api/health` e nei metadati progetto.
 Modelli/client/snapshot sono caricati a richiesta: l'apertura della console non
 scarica pesi né ripara alias o esegue GC. La manutenzione è esplicita via lifecycle
-writer/CLI. Per progetti ordinari un delta non vuoto usa oggi un full rebuild:
-il costo embedding riguarda l'intero corpus; un delta noop non ricostruisce.
+writer/CLI. Per progetti ordinari un delta non vuoto pubblica una versione
+copy-on-write: collection nuova con i punti invariati del padre e ri-embedding dei
+soli documenti e file di codice cambiati. Se il padre non è riusabile si ripiega sul
+full rebuild (motivo in `fallback_reason` del job); un delta noop non scrive nulla.
 
 ### Migrare un'installazione esistente
 
@@ -442,7 +444,7 @@ I vecchi indici storici con delta mutabili condividevano la collection della bui
 di origine: il loro rollback non riavvolgeva i punti modificati dopo. La migrazione
 ricostruisce l'indice nel profilo ordinario, con collection distinta per candidata.
 
-In tutti i progetti il delta non vuoto passa dal rebuild e dal relativo gate.
+In tutti i progetti il delta non vuoto, copy-on-write o rebuild, passa dall'eval gate prima della promozione.
 Il golden set è `<root-progetto>/eval/golden.yaml`; se manca la promozione può
 passare come non valutata.
 Una metrica sotto soglia blocca la promozione se il gate è configurato come bloccante;
