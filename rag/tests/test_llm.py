@@ -355,6 +355,8 @@ def test_check_drift_mette_errore_nel_report(fake_settings, monkeypatch, tmp_pat
     (feature / "canvas.md").write_text("## Requirements\ncontratto", encoding="utf-8")
     monkeypatch.setattr(drift_check, "CHANGES_DIR", tmp_path / "changes")
     monkeypatch.setattr(drift_check, "CODE_DIR", tmp_path / "code")
+    # validate_dev_type legge la whitelist da pipeline.CODE_DIR: stessa radice.
+    monkeypatch.setattr(pipeline, "CODE_DIR", tmp_path / "code")
 
     report = drift_check.check_drift("feat x", emit=lambda _msg: None)
     assert "❌ Errore durante il check drift" in report
@@ -830,6 +832,8 @@ def test_check_drift_esclude_node_modules_e_altre_cartelle_di_build(fake_setting
     (feature / "meta.json").write_text('{"dev_type": "frontend"}', encoding="utf-8")
     monkeypatch.setattr(drift_check, "CHANGES_DIR", tmp_path / "changes")
     monkeypatch.setattr(drift_check, "CODE_DIR", tmp_path / "code")
+    # validate_dev_type legge la whitelist da pipeline.CODE_DIR: stessa radice.
+    monkeypatch.setattr(pipeline, "CODE_DIR", tmp_path / "code")
 
     code_dir = tmp_path / "code" / "frontend"
     (code_dir / "src").mkdir(parents=True)
@@ -858,6 +862,8 @@ def test_check_drift_include_codice_dotnet(fake_settings, monkeypatch, tmp_path)
     (feature / "meta.json").write_text('{"dev_type": "backend"}', encoding="utf-8")
     monkeypatch.setattr(drift_check, "CHANGES_DIR", tmp_path / "changes")
     monkeypatch.setattr(drift_check, "CODE_DIR", tmp_path / "code")
+    # validate_dev_type legge la whitelist da pipeline.CODE_DIR: stessa radice.
+    monkeypatch.setattr(pipeline, "CODE_DIR", tmp_path / "code")
 
     src = tmp_path / "code" / "backend" / "src" / "Portal.Api"
     (src / "bin").mkdir(parents=True)
@@ -1203,6 +1209,8 @@ def _drift_feature(tmp_path, monkeypatch, canvas="## Requirements\ncontratto", s
     (feature / "meta.json").write_text(f'{{"dev_type": "{dev_type}"}}', encoding="utf-8")
     monkeypatch.setattr(drift_check, "CHANGES_DIR", tmp_path / "changes")
     monkeypatch.setattr(drift_check, "CODE_DIR", tmp_path / "code")
+    # validate_dev_type legge la whitelist da pipeline.CODE_DIR: stessa radice.
+    monkeypatch.setattr(pipeline, "CODE_DIR", tmp_path / "code")
     code = tmp_path / "code" / dev_type
     code.mkdir(parents=True)
     return code

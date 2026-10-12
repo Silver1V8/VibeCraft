@@ -28,6 +28,19 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;');
 }
 
+/* ──────────── MARKDOWN IN LINEA ────────────
+   Codice, grassetto, corsivo e link http(s), sopra un testo già escapato: i tag
+   prodotti sono solo questi, mai markup preso dal contenuto. Era in intake.js;
+   serve anche ad Analisi, dove le divergenze mostravano gli asterischi grezzi. */
+function inlineMd(text) {
+  let t = escapeHtml(text);
+  t = t.replace(/`([^`]+)`/g, '<code>$1</code>');
+  t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  t = t.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  return t;
+}
+
 function apiErrorMessage(detail, fallback) {
   return (typeof detail === 'string' ? detail : detail?.message) || fallback;
 }
@@ -204,6 +217,16 @@ function setMotion(pref) {
   else stopMatrixRain();
 }
 
+/* L'interruttore vive solo nella shell: le pagine negli iframe (stessa origine)
+   ricevono la preferenza dall'evento storage e allineano attributo e animazione. */
+window.addEventListener('storage', event => {
+  if (event.key !== MOTION_KEY) return;
+  applyMotionAttr();
+  syncMotionToggle();
+  if (document.documentElement.dataset.theme === 'matrix' && motionEnabled()) startMatrixRain();
+  else stopMatrixRain();
+});
+
 /* Applicato subito, non a DOMContentLoaded: shared.js è caricato in <head> in
    modo sincrono, quindi l'attributo è sul posto già al primo paint e le
    transizioni non fanno in tempo a partire con la preferenza sbagliata. */
@@ -275,8 +298,8 @@ prefersReducedMotion.addEventListener('change', () => {
 });
 
 /* ──────────── TOGGLE DEL MOVIMENTO ────────────
-   Il comando viene iniettato accanto al selettore del tema, così compare su
-   tutte e 6 le pagine senza doverne toccare il markup. È visibile solo nel tema
+   Il comando viene iniettato accanto al selettore del tema, che ora esiste solo
+   nella shell: le pagine si allineano con l'evento storage. È visibile solo nel tema
    Matrix: il rain non esiste in Classico e un interruttore che non fa nulla
    confonde. */
 function syncMotionToggle() {
@@ -430,9 +453,10 @@ function confirmDialog(message, opts) {
 /* ──────────── NAVIGAZIONE: pagina corrente ────────────
    Ogni pagina aveva la propria nav scritta a mano, con ordine diverso e nessuna
    indicazione di dove ci si trovasse. Qui la pagina corrente viene marcata
-   confrontando l'href con location.pathname: funziona su tutti e 6 i template
-   senza modificarne il markup. `aria-current` copre anche gli screen reader,
-   così lo stato non dipende dal solo colore. */
+   confrontando l'href con location.pathname. La nav delle sezioni ora vive nella
+   shell (markWorkspaceNav in workspace.js); qui restano i link nel contenuto delle
+   pagine. `aria-current` copre anche gli screen reader, così lo stato non dipende
+   dal solo colore. */
 function initNavigation() {
   const links = document.querySelectorAll('header a[href], nav a[href], .app-nav a[href]');
   const here = (window.frameElement?.dataset.workspacePage || location.pathname).replace(/\/+$/, '') || '/';

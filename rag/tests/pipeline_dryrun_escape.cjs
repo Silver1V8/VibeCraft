@@ -30,6 +30,7 @@ function makeContext(response) {
     featureName: '', devType: 'backend', sessionRevision: 0,
     ensurePipelineFeature: async () => true,
     getFeatureName: () => 'feature-x',
+    updateChatControls() {},  // guida dell'intervista: fuori dal pezzo sotto esame
     document: { getElementById: el },
     fetch: async () => response,
   });

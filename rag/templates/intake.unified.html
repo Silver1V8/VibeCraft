@@ -76,7 +76,7 @@
 
 
 
-    /* Il glow era su OGNI <button>: "Approva", "Rifiuta", "Ricarica" e
+    /* Il glow era su OGNI <button type="button">: "Approva", "Rifiuta", "Ricarica" e
        "Anteprima" brillavano identici, quindi non segnalava più l'azione
        importante. Ora è riservato a .btn-primary (shared.css). Anche lo
        scale(1.02) su hover è caduto: faceva vibrare le righe della lista di
@@ -96,7 +96,7 @@
     }
     input, textarea { cursor: text; color: var(--body-text); }
     button:hover { background: var(--control-hover-bg); }
-    label.field { display: flex; flex-direction: column; gap: 4px; font-size: var(--text-size-sm); color: var(--muted-text); }
+    label.field, div.field { display: flex; flex-direction: column; gap: 4px; font-size: var(--text-size-sm); color: var(--muted-text); }
     .toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); margin-bottom: 12px; }
     .status { font-size: var(--text-size-sm); color: var(--muted-text); font-family: var(--mono-font); }
 
@@ -187,31 +187,19 @@
         <div class="sub">Genera con Ollama · Importa documenti · Review staging</div>
       </div>
     </div>
-    <nav class="app-nav is-end" aria-label="Sezioni">
-      <a href="/">Console</a>
-      <a href="/intake">Intake</a>
-      <a href="/pipeline">Pipeline</a>
-      <a href="/analysis">Analisi</a>
-      <a href="/eval">Eval</a>
-      <a href="/infografica">Infografica</a>
-    </nav>
-
-
-    <!-- Theme switcher -->
-    <label for="theme-switcher"></label><select id="theme-switcher" data-change="setUiTheme">
-      <option value="matrix">🟢 Matrix</option>
-      <option value="classic">☀️ Classico</option>
-    </select>
   </header>
 
   <main id="main-content" tabindex="-1">
     <!-- ══════════ (a) GENERA CON OLLAMA ══════════ -->
     <section id="section-genera">
       <h2>🪄 Genera con Ollama</h2>
-      <p class="desc">Descrivi lo sviluppo per cui vuoi documentazione: il modello genera fino a
-        <span id="gen-max-hint">5</span> documenti Markdown, grounded nel Graph RAG e nelle lezioni delle change
-        precedenti. Ogni documento generato entra in staging come uno importato: nessun percorso diretto verso
-        <code>docs/</code>.</p>
+      <!-- Una riga per capire cosa fa la sezione; il come sta in "Dettagli". -->
+      <p class="desc">Descrivi lo sviluppo: il modello scrive fino a <span id="gen-max-hint">5</span> documenti
+        Markdown, che entrano in staging per la review.</p>
+      <details class="desc-more"><summary>Dettagli</summary>
+        <p>I documenti sono grounded nel Graph RAG e nelle lezioni delle change precedenti. Come quelli importati,
+          non arrivano mai direttamente in <code>docs/</code>: passano sempre dalla review.</p>
+      </details>
       <label class="field">Descrizione dello sviluppo
         <textarea id="gen-descrizione" placeholder="Es. form di iscrizione a un evento con validazione lato client e persistenza su backend .NET"></textarea>
       </label>
@@ -222,7 +210,7 @@
         <label class="field">Categoria docs/ target
           <select id="gen-categoria"></select>
         </label>
-        <button id="gen-btn" data-click="startGeneration" class="btn btn-primary">▶ Avvia generazione</button>
+        <button type="button" id="gen-btn" data-click="startGeneration" class="btn btn-primary">▶ Avvia generazione</button>
         <span id="gen-status" class="status"></span>
       </div>
       <div id="gen-result"></div>
@@ -231,21 +219,22 @@
     <!-- ══════════ (b) IMPORTA DOCUMENTI ══════════ -->
     <section id="section-importa">
       <h2>📥 Importa documenti</h2>
-      <p class="desc">Carica documenti Office, PDF, HTML, dati (CSV/JSON/XML), email o testo: vengono convertiti
-        in Markdown <strong>su questa macchina</strong>, senza servizi esterni. I PDF passano da Docling, che
-        ricostruisce tabelle e titoli e usa l'OCR locale solo sulle pagine scansionate (può richiedere da qualche
-        secondo a qualche minuto); XLSX e XLS vengono letti direttamente dall'originale (openpyxl, xlrd): celle con
-        coordinate e valori memorizzati, un foglio per sezione, formule non ricalcolate, grafici e immagini esclusi
-        con avviso; gli altri formati da MarkItDown; i <code>.md</code> entrano nativi. I vecchi formati binari DOC e
-        PPT vengono prima portati al formato moderno da LibreOffice, sempre in locale, con macro e collegamenti
-        esterni disattivati.
-        La preview dice quale motore è stato usato davvero.
-        L'originale resta conservato in staging. Dopo la review, obbligatoria, in <code>docs/</code> viene
-        pubblicato solo il file <code>.md</code>.</p>
+      <p class="desc">Documenti Office, PDF, dati o testo vengono convertiti in Markdown <strong>su questa
+        macchina</strong>, senza servizi esterni, ed entrano in staging per la review.</p>
+      <details class="desc-more"><summary>Dettagli sulla conversione</summary>
+        <p>I PDF passano da Docling, che ricostruisce tabelle e titoli e usa l'OCR locale solo sulle pagine
+          scansionate (da qualche secondo a qualche minuto). XLSX e XLS vengono letti direttamente dall'originale
+          (openpyxl, xlrd): celle con coordinate e valori memorizzati, un foglio per sezione, formule non
+          ricalcolate, grafici e immagini esclusi con avviso. Gli altri formati passano da MarkItDown; i
+          <code>.md</code> entrano nativi. DOC e PPT vengono prima portati al formato moderno da LibreOffice,
+          sempre in locale, con macro e collegamenti esterni disattivati.</p>
+        <p>La preview dice quale motore è stato usato davvero. L'originale resta conservato in staging; dopo la
+          review, obbligatoria, in <code>docs/</code> viene pubblicato solo il file <code>.md</code>.</p>
+      </details>
       <div id="dropzone" class="dropzone" data-click="pickFiles">
         📎 Trascina qui i file, oppure clicca per selezionarli
         <div style="margin-top:4px;font-size:var(--text-xs)">md · pdf · docx · pptx · xlsx · doc · xls · ppt · html · txt · csv · json · xml · epub · msg</div>
-        <input id="file-input" type="file" multiple accept=".md,.pdf,.docx,.pptx,.xlsx,.doc,.xls,.ppt,.html,.htm,.txt,.csv,.json,.xml,.epub,.msg" data-change="onFilesPicked" />
+        <input id="file-input" type="file" aria-label="Seleziona i file da importare" multiple accept=".md,.pdf,.docx,.pptx,.xlsx,.doc,.xls,.ppt,.html,.htm,.txt,.csv,.json,.xml,.epub,.msg" data-change="onFilesPicked" />
       </div>
       <div id="import-results" aria-live="polite"></div>
     </section>
@@ -253,12 +242,10 @@
     <!-- ══════════ (c) IN STAGING ══════════ -->
     <section id="section-staging">
       <h2>🗂️ In staging</h2>
-      <p class="desc">Documenti importati o generati in attesa di review. Approva per scriverli in
-        <code>docs/</code>, oppure rifiuta (nessuna cancellazione: restano tracciati).
-        Quando hai approvato tutti i file desiderati, premi <strong>Aggiorna indice</strong> nella barra in alto
-        per indicizzarli insieme.</p>
+      <p class="desc">Approva per scrivere in <code>docs/</code> o rifiuta (resta tracciato). Finite le
+        approvazioni, premi <strong>Aggiorna indice</strong> nella barra in alto.</p>
       <div class="toolbar">
-        <button data-click="refreshStaging" class="btn btn-secondary">↻ Ricarica</button>
+        <button type="button" data-click="refreshStaging" class="btn btn-secondary">↻ Ricarica</button>
         <span id="staging-status" class="status"></span>
       </div>
       <div id="staging-list"></div>
@@ -268,10 +255,13 @@
     <!-- ══════════ (d) IMPORTA PROGETTO DA PATH ══════════ -->
     <section id="section-progetti">
       <h2>📦 Importa progetto da path</h2>
-      <p class="desc">Importa un progetto esistente dal filesystem locale in <code>code/&lt;target&gt;</code>.
-        Semantica NON distruttiva: cartella vuota → bootstrap (copia tutto il copiabile); cartella popolata →
-        additivo (copia solo i file nuovi; i file esistenti con contenuto diverso sono CONFLITTI, riportati e mai
-        applicati). Prima di applicare serve sempre un'anteprima.</p>
+      <p class="desc">Copia un progetto locale in <code>code/&lt;target&gt;</code> senza mai sovrascrivere:
+        prima l'anteprima, poi l'applicazione.</p>
+      <details class="desc-more"><summary>Come vengono trattati i file</summary>
+        <p>Cartella vuota: bootstrap, viene copiato tutto il copiabile. Cartella già popolata: import additivo,
+          vengono copiati solo i file nuovi. I file esistenti con contenuto diverso sono <strong>conflitti</strong>:
+          compaiono nell'anteprima e non vengono mai applicati.</p>
+      </details>
       <div class="toolbar">
         <label class="field" style="flex:1;min-width:min(260px, 100%)">Path assoluto del progetto sorgente
           <span style="display:flex;gap:6px;align-items:center">
@@ -281,15 +271,22 @@
                     title="Apri l'esplora risorse per scegliere la cartella">📁 Sfoglia…</button>
           </span>
         </label>
+        <!-- Le opzioni sono gli ambiti reali di code/ del progetto (loadImportTargets in
+             intake.js), gli stessi della tendina "Tipo di sviluppo" della Pipeline. -->
         <label class="field">Target in code/
           <select id="prj-target" data-change="projectCategoryChanged">
-            <option value="backend">backend</option>
-            <option value="frontend">frontend</option>
-            <option value="logicAgent">logicAgent</option>
+            <option value="">Caricamento…</option>
           </select>
         </label>
-        <button id="prj-plan-btn" data-click="planProjectImport" class="btn btn-secondary">🔍 Anteprima</button>
-        <button id="prj-apply-btn" data-click="applyProjectImport" disabled class="btn btn-primary">▶ Applica</button>
+        <div class="field">
+          <label for="prj-new-target">Nuovo ambito</label>
+          <span style="display:flex;gap:6px;align-items:center">
+            <input id="prj-new-target" type="text" maxlength="64" placeholder="es. backend" style="width:10rem" />
+            <button type="button" id="prj-new-target-btn" data-click="addImportTarget" class="btn btn-secondary">Aggiungi</button>
+          </span>
+        </div>
+        <button type="button" id="prj-plan-btn" data-click="planProjectImport" class="btn btn-secondary">🔍 Anteprima</button>
+        <button type="button" id="prj-apply-btn" data-click="applyProjectImport" disabled class="btn btn-primary">▶ Applica</button>
         <span id="prj-status" class="status"></span>
       </div>
       <div id="prj-plan-result"></div>
@@ -298,7 +295,7 @@
         <label class="field">Progetto di cui scrivere il brief
           <select id="prj-brief-progetto"><option value="">(nessun import registrato)</option></select>
         </label>
-        <button id="prj-brief-btn" data-click="startProjectBrief" class="btn btn-primary">🧭 Project brief</button>
+        <button type="button" id="prj-brief-btn" data-click="startProjectBrief" class="btn btn-primary">🧭 Project brief</button>
         <span id="prj-brief-status" class="status">Genera via Ollama una sintesi architetturale del
           progetto selezionato (grounded sul grafo) che entra in staging come ogni documento.
           L'elenco viene dagli import già riusciti, anche di sessioni precedenti.</span>

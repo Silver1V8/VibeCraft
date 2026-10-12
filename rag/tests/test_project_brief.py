@@ -116,7 +116,13 @@ def test_require_applied_import_without_import_raises(staging):
 
 def test_require_applied_import_invalid_target_raises(staging):
     with pytest.raises(project_import.InvalidImportTargetError):
-        project_brief.require_applied_import("altrove", base_dir=staging)
+        project_brief.require_applied_import("../altrove", base_dir=staging)
+
+
+def test_require_applied_import_accepts_custom_scope_name(staging):
+    # Ambito non standard ma nome sicuro: manca solo l'import, non è un target invalido.
+    with pytest.raises(project_brief.BriefWithoutImportError):
+        project_brief.require_applied_import("mobileApp", base_dir=staging)
 
 
 def test_require_applied_import_finds_journal_entry(staging):
@@ -517,7 +523,7 @@ def test_route_brief_without_import_returns_409(tmp_path, monkeypatch):
 
 def test_route_brief_invalid_target_returns_422(tmp_path, monkeypatch):
     client = _client(tmp_path, monkeypatch)
-    resp = client.post("/api/intake/project/brief", json={"target": "altrove"})
+    resp = client.post("/api/intake/project/brief", json={"target": "../altrove"})
     assert resp.status_code == 422
 
 
@@ -578,7 +584,9 @@ def test_route_project_imports_lists_projects_per_target(tmp_path, monkeypatch):
 
     body = client.get("/api/intake/project/imports?target=backend").json()
     assert [v["progetto"] for v in body["imports"]] == ["GD102_WSGDA", "GD172_WSProtocollo"]
-    assert client.get("/api/intake/project/imports?target=altrove").status_code == 422
+    assert client.get("/api/intake/project/imports?target=../altrove").status_code == 422
+    # Nome sicuro ma senza import: elenco vuoto, non un errore.
+    assert client.get("/api/intake/project/imports?target=altrove").json() == {"imports": []}
 
 
 # ---------------------------------------------------------------------------
@@ -612,6 +620,7 @@ def test_e2e_import_reindex_brief_staged_approve_retrieve(tmp_path, monkeypatch)
     reindex delta → project brief grounded (LLM mockato) → staged (source 'brief') →
     approve col flusso S2 → il documento è nell'indice e una hybrid_search lo trova."""
     docs_dir, code_dir = _wire_tmp_index(monkeypatch, tmp_path)
+    (code_dir / "backend").mkdir()  # il target dell'import è un ambito esistente di code/
     staging = tmp_path / "staging"
     monkeypatch.setattr(intake, "INTAKE_STAGING_DIR", staging)
     monkeypatch.setattr(intake, "DOCS_DIR", docs_dir)

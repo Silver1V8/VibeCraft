@@ -1,5 +1,5 @@
 """Test del manifest di indicizzazione e del rilevamento drift (index.index_status).
-Usa i documenti reali in docs/ per gli hash, ma scrive il manifest in una dir temporanea
+Gli hash vengono da un docs/ temporaneo; il manifest viene scritto il manifest in una dir temporanea
 (sandbox su database/: nessuna versione promossa -> layout flat legacy)."""
 import json
 from dataclasses import replace
@@ -50,6 +50,11 @@ def test_no_manifest_is_stale(tmp_path, monkeypatch):
 
 def test_fresh_then_tampered_goes_stale(tmp_path, monkeypatch):
     manifest_path = _sandbox_db(monkeypatch, tmp_path)
+    # Corpus minimo proprio: docs/ alla radice del checkout non esiste piu' (templates/).
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "norma.md").write_text("# Norma\n\n## Regola\ntesto", encoding="utf-8")
+    monkeypatch.setattr(index, "DOCS_DIR", docs)
 
     # manifest coerente con gli hash correnti di docs/ -> non stale
     index.write_index_manifest(points_count=42, nodes=10, edges=20)

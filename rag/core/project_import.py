@@ -43,14 +43,13 @@ from code_index import CODE_EXTS, CODE_FILENAMES
 from core.config import CODE_DIR, CODE_EXCLUDED_DIRS, INTAKE_STAGING_DIR, PROJECT_ROOT
 from core.intake import _append_journal, ensure_staging_dirs
 from core.writer_lock import writer_lock
-from core.projects import _unlinked
+from core.projects import _unlinked, code_scopes, is_code_scope_name
 from core.indexing_lock import indexing_lock
 
 # Target ammessi: le tre sottocartelle reali di code/ (backend .NET "Portal",
 # frontend Next.js, logicAgent). Whitelist chiusa: mai un path libero.
 logger = logging.getLogger(__name__)
 
-IMPORT_TARGETS = ("backend", "frontend", "logicAgent")
 
 
 # ---------------------------------------------------------------------------
@@ -66,7 +65,7 @@ class InvalidImportPathError(ProjectImportError):
 
 
 class InvalidImportTargetError(ProjectImportError):
-    """Target non tra quelli ammessi (IMPORT_TARGETS)."""
+    """Target non utilizzabile: nome non sicuro, o sottocartella assente da code/."""
 
 
 class StaleImportPlanError(ProjectImportError):
@@ -162,11 +161,20 @@ def _validate_source_path(src_path: str | Path, *, project=None) -> Path:
     return resolved
 
 
-def _validate_target(target: str) -> str:
-    if target not in IMPORT_TARGETS:
-        raise InvalidImportTargetError(
-            f"target non ammesso: {target!r} (ammessi: {', '.join(IMPORT_TARGETS)})"
-        )
+def _validate_target(target: str, code_root: Path | None = None) -> str:
+    """Target = ambito di sviluppo, cioè sottocartella di code/: le stesse cartelle della
+    tendina della Pipeline (prima era fisso a backend/frontend/logicAgent, e un progetto
+    nuovo con altre cartelle non poteva importare). Con `code_root` (plan e apply, che
+    scrivono) deve esistere; senza (letture del journal per il brief) basta un nome
+    sicuro, così uno storico resta leggibile anche se la cartella è stata rimossa."""
+    if not is_code_scope_name(target):
+        raise InvalidImportTargetError(f"target non valido: {target!r}")
+    if code_root is not None:
+        available = code_scopes(code_root)
+        if target not in available:
+            raise InvalidImportTargetError(
+                f"target non presente in code/: {target!r} "
+                f"(disponibili: {', '.join(available) if available else 'nessuno'})")
     return target
 
 
@@ -241,9 +249,9 @@ def plan_project_import(src_path: str | Path, target: str, *,
     eleggibilità CODE_EXTS/CODE_FILENAMES) e classifica ogni file copiabile contro la
     cartella target: nuovo (assente), identico (stesso sha256), conflitto (contenuto
     diverso — mai applicato). DRY-RUN puro: zero scritture, ovunque."""
-    _validate_target(target)
-    src = _validate_source_path(src_path, project=project)
     code_root = _unlinked(project.code_dir if project else Path(code_dir) if code_dir is not None else CODE_DIR)
+    _validate_target(target, code_root)
+    src = _validate_source_path(src_path, project=project)
     target_dir = _unlinked(code_root / target / src.name)
 
     copiabili, esclusi = _scan_tree(src)
@@ -327,9 +335,9 @@ def apply_project_import(plan: ImportPlan | dict, *,
         plan = ImportPlan.from_dict(plan)
     if project is not None and plan.project_id != project.id:
         raise ProjectImportError('Import plan belongs to another project')
-    _validate_target(plan.target)
-    src = _validate_source_path(plan.src, project=project)
     code_root = _unlinked(project.code_dir if project else Path(code_dir) if code_dir is not None else CODE_DIR)
+    _validate_target(plan.target, code_root)
+    src = _validate_source_path(plan.src, project=project)
     target_dir = _unlinked(code_root / plan.target / src.name)
     paths = ensure_staging_dirs(base_dir, project=project)
     reindex_fn = reindex if reindex is not None else (_default_reindex if project is None else lambda paths: _default_reindex(paths, project=project))

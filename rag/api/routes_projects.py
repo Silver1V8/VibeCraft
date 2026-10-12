@@ -23,7 +23,10 @@ class RegisterProject(BaseModel):
     root: str
 
 
-def project_metadata(project, request: Request) -> dict:
+def project_metadata(project, request: Request, *, check_stale: bool = True) -> dict:
+    """`check_stale=False` salta il confronto degli hash di docs/ e code/ (secondi su
+    progetti con migliaia di file): `stale` resta None e `stale_pending` dice al client
+    che il dato arriverà da una richiesta successiva, non che manca."""
     result = {"id": project.id, "name": project.name, "legacy": project.legacy,
               "index_status": "not_indexed", "stale": None, "index_version": None}
     if deps.SERVER_BIND_IS_LOCAL and deps._is_local_request(request):
@@ -40,7 +43,9 @@ def project_metadata(project, request: Request) -> dict:
                 if manifest.get("immutable") is not True or manifest.get("qdrant_collection") != expected:
                     raise ValueError("Invalid immutable manifest")
             result.update(index_status="ready", index_version=version)
-            if ROLE != "reader":
+            if ROLE != "reader" and not check_stale:
+                result["stale_pending"] = True
+            elif ROLE != "reader":
                 from core.indexing import index_status
                 status = index_status(project=project, version=manifest_version)
                 if status.get("version") == manifest.get("version"):
@@ -58,7 +63,9 @@ def project_metadata(project, request: Request) -> dict:
 
 
 @router.get("/api/projects")
-def list_projects(request: Request):
+def list_projects(request: Request, stale: bool = True):
+    """`?stale=0` risponde subito, senza lo stato "da aggiornare": la shell lo usa per
+    disegnare la pagina e completa lo stato con una seconda richiesta in background."""
     try:
         registry = deps.project_registry()
         records = registry.records()
@@ -67,7 +74,7 @@ def list_projects(request: Request):
     projects = []
     for record in records:
         try:
-            projects.append(project_metadata(registry.get(record["id"]), request))
+            projects.append(project_metadata(registry.get(record["id"]), request, check_stale=stale))
         except ProjectError as exc:
             projects.append({"id": record["id"], "name": record["name"], "legacy": record["legacy"],
                              "index_status": "error", "stale": None, "index_version": None,

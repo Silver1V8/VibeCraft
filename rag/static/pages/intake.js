@@ -22,16 +22,7 @@
        Escapa TUTTO l'input prima di riconoscere qualunque costrutto: i tag prodotti
        sono solo quelli che questa funzione genera esplicitamente, mai markup annidato
        nel contenuto sorgente (niente XSS da un documento caricato/generato).
-       escapeHtml vive in /static/shared.js (caricato in <head>): la copia locale era identica. */
-
-    function inlineMd(text) {
-      let t = escapeHtml(text);
-      t = t.replace(/`([^`]+)`/g, '<code>$1</code>');
-      t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-      t = t.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-      t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-      return t;
-    }
+       escapeHtml e inlineMd vivono in /static/shared.js (caricato in <head>). */
 
     function excelText(text) {
       // Excel (core/intake_excel.py): toglie solo gli escape del serializzatore (\X, &#N;, <br>)
@@ -273,7 +264,7 @@
               <span class="badge badge-${['generated', 'brief'].includes(entry.source) ? entry.source : 'imported'}">${entry.source}</span>
               <span class="name">${escapeHtml(entry.filename || entry.id)}</span>
               <span class="status">${escapeHtml(engineLabel(entry.metadata || {}))} · ${formatDate(entry.staged_at)}</span>
-              <button data-click="openPreview" data-arg="${escapeHtml(entry.id)}" class="btn btn-secondary">🔎 Anteprima</button>
+              <button type="button" data-click="openPreview" data-arg="${escapeHtml(entry.id)}" class="btn btn-secondary">🔎 Anteprima</button>
             </div>`).join('');
         }
         status.textContent = `${staged.length} documento/i in staging`;
@@ -300,7 +291,7 @@
           <div class="md-preview">${mdToHtml(data.markdown || '', ['openpyxl', 'xlrd'].includes(data.metadata?.motore) && !raffinato)}</div>
           <p class="status">Approvando, in <code>docs/&lt;categoria&gt;/</code> viene scritto solo il file <code>.md</code> mostrato qui, con il frontmatter di governance.</p>
           <div class="review-controls">
-            <button data-click="refineStaged" data-arg="${escapeHtml(id)}" class="btn btn-secondary" title="Riscrive il dump del convertitore come spec strutturata (sezioni, tabelle, blocchi di codice). Riesegubile: riparte sempre dal markdown grezzo.">✨ ${raffinato ? 'Raffina di nuovo' : 'Raffina con LLM'}</button>
+            <button type="button" data-click="refineStaged" data-arg="${escapeHtml(id)}" class="btn btn-secondary" title="Riscrive il dump del convertitore come spec strutturata (sezioni, tabelle, blocchi di codice). Riesegubile: riparte sempre dal markdown grezzo.">✨ ${raffinato ? 'Raffina di nuovo' : 'Raffina con LLM'}</button>
           </div>
           <div class="review-controls">
             <label class="field">Categoria docs/
@@ -309,11 +300,11 @@
             <label class="field">Nome file
               <input id="preview-nomefile" type="text" value="${escapeHtml(suggested)}" />
             </label>
-            <button data-click="approveStaged" data-arg="${escapeHtml(id)}" class="btn btn-primary">✅ Approva</button>
+            <button type="button" data-click="approveStaged" data-arg="${escapeHtml(id)}" class="btn btn-primary">✅ Approva</button>
             <label class="field">Motivo (rifiuto)
               <input id="preview-motivo" type="text" placeholder="opzionale" />
             </label>
-            <button data-click="rejectStaged" data-arg="${escapeHtml(id)}" class="btn btn-danger">🚫 Rifiuta</button>
+            <button type="button" data-click="rejectStaged" data-arg="${escapeHtml(id)}" class="btn btn-danger">🚫 Rifiuta</button>
           </div>
           <div id="preview-result" role="status" aria-live="polite"></div>`;
         populateCategorySelect(document.getElementById('preview-categoria'), '04_knowledge_informative');
@@ -468,6 +459,49 @@
       }
     }
 
+    /* Target dell'import = sottocartelle di code/ del progetto, dallo stesso endpoint
+       della tendina "Tipo di sviluppo" della Pipeline. Prima erano backend/frontend/
+       logicAgent scritti qui: un progetto nuovo, o con ambiti diversi, non poteva importare. */
+    async function loadImportTargets(selected) {
+      const select = document.getElementById('prj-target');
+      const keep = selected ?? select.value;
+      let targets = [];
+      try {
+        const res = await fetch('/api/pipeline/dev-types');
+        if (res.ok) targets = (await res.json()).dev_types || [];
+      } catch (e) { /* elenco non disponibile: resta il messaggio sotto */ }
+      select.innerHTML = targets.length
+        ? targets.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')
+        : '<option value="">(nessun ambito in code/: creane uno)</option>';
+      if (targets.includes(keep)) select.value = keep;
+      select.disabled = !targets.length;
+    }
+
+    async function addImportTarget() {
+      const input = document.getElementById('prj-new-target');
+      const btn = document.getElementById('prj-new-target-btn');
+      const name = input.value.trim();
+      if (!name) { input.focus(); return; }
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/pipeline/dev-types', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(apiErrorMessage(data.detail, `HTTP ${res.status}`));
+        input.value = '';
+        await loadImportTargets(data.dev_type);
+        invalidateProjectPlan();
+        await refreshProjectImports();
+        toast(`Ambito "${data.dev_type}" disponibile in code/.`, 'success');
+      } catch (e) {
+        toast(`Errore nella creazione dell'ambito: ${e.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
     async function planProjectImport() {
       const path = document.getElementById('prj-path').value.trim();
       const target = document.getElementById('prj-target').value;
@@ -476,6 +510,7 @@
       invalidateProjectPlan();
 
       if (!path) { status.className = 'status msg-err'; status.textContent = 'Indica il path del progetto.'; return; }
+      if (!target) { status.className = 'status msg-err'; status.textContent = 'Crea prima un ambito in code/ con "Aggiungi".'; return; }
       status.className = 'status'; status.textContent = 'Anteprima in corso…';
       try {
         const res = await fetch('/api/intake/project/plan', {
@@ -559,6 +594,7 @@
     async function refreshProjectImports() {
       const target = document.getElementById('prj-target').value;
       const select = document.getElementById('prj-brief-progetto');
+      if (!target) { select.innerHTML = '<option value="">(nessun ambito in code/)</option>'; return; }
       let imports = [];
       try {
         const res = await fetch(`/api/intake/project/imports?target=${encodeURIComponent(target)}`);
@@ -641,11 +677,15 @@
     /* ──────────── Bootstrap ──────────── */
     populateCategorySelect(document.getElementById('gen-categoria'), '04_knowledge_informative');
     refreshStaging();
-    refreshProjectImports();
+    loadImportTargets().then(refreshProjectImports);
+    document.getElementById('prj-new-target').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); retainWorkspaceTask(addImportTarget()).catch(error => console.error(error)); }
+    });
 
     /* Azioni dei pulsanti/campi (data-click / data-change / data-input): prima erano
        handler inline, vietati dalla CSP — vedi registerActions in /static/shared.js. */
     registerActions({
+      addImportTarget: () => addImportTarget(),
       applyProjectImport: () => applyProjectImport(),
       approveStaged: el => approveStaged(el.dataset.arg),
       browseProjectPath: () => browseProjectPath(),

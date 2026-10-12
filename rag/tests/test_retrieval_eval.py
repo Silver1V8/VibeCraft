@@ -148,7 +148,10 @@ def test_casi_avversariali_hanno_matcher_validi():
 
     import yaml
 
-    from core.config import DOCS_DIR, GOLDEN_SET_PATH
+    from core.config import GOLDEN_SET_PATH, PROJECT_ROOT
+
+    # Corpus versionato (templates/docs): lo stesso che la CI copia in docs/ alla radice.
+    DOCS_DIR = PROJECT_ROOT / "templates" / "docs"
 
     cases = yaml.safe_load(GOLDEN_SET_PATH.read_text(encoding="utf-8"))["cases"]
     avversariali = [c for c in cases if c.get("adversarial")]

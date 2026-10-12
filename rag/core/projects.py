@@ -63,6 +63,30 @@ def _unlinked(path: Path) -> Path:
     return path.resolve()
 
 
+# Ambito di sviluppo = sottocartella di code/ (backend, frontend, logicAgent, ...). Regole
+# condivise da Pipeline (tipo di sviluppo) e Intake (target dell'import progetto), così
+# le due tendine propongono sempre le stesse cartelle. Il nome diventa un componente di
+# path: niente separatori, punti o spazi; le maiuscole restano ('logicAgent').
+_CODE_SCOPE_NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
+# Nomi riservati da Windows: mkdir fallirebbe o creerebbe un device, non una cartella.
+_WINDOWS_RESERVED = {"con", "prn", "aux", "nul", *(f"com{i}" for i in range(1, 10)),
+                     *(f"lpt{i}" for i in range(1, 10))}
+
+
+def is_code_scope_name(name: str) -> bool:
+    """True se `name` è utilizzabile come singola sottocartella di code/."""
+    return (isinstance(name, str) and bool(_CODE_SCOPE_NAME_RE.fullmatch(name))
+            and name.lower() not in _WINDOWS_RESERVED)
+
+
+def code_scopes(code_dir: Path) -> list[str]:
+    """Sottocartelle esistenti di code/, in ordine alfabetico (nascoste escluse)."""
+    code_dir = _unlinked(code_dir)
+    if not code_dir.exists():
+        return []
+    return sorted(p.name for p in code_dir.iterdir() if _unlinked(p).is_dir() and not p.name.startswith("."))
+
+
 def _raise_walk_error(error: OSError) -> None:
     raise error
 

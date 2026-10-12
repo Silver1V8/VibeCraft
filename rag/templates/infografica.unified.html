@@ -129,25 +129,6 @@
         max-width: none !important;
       }
 
-      /* I pulsanti di navigazione prendono lo stesso trattamento cromatico del
-         titolo "Architettura Graph RAG (Local-First)" (bg-clip-text col
-         gradiente blue-600 → emerald-500). Solo nel tema Classico: in Matrix i
-         pulsanti restano sulla palette verde/teal dell'identità del tema, che
-         qui non ha un gradiente equivalente da riprendere.
-         Specificità (0,3,1): supera la regola .app-nav a.is-current di
-         shared.css (0,2,1) senza !important, e la classe .app-nav-brand è
-         locale a questa pagina — le altre cinque non sono toccate. */
-      :root[data-theme="classic"] .app-nav-brand a {
-        color: transparent;
-        background-image: linear-gradient(90deg, var(--blue-600), var(--emerald-500));
-        background-clip: text;
-        -webkit-background-clip: text;
-      }
-      :root[data-theme="classic"] .app-nav-brand a:hover {
-        background-image: linear-gradient(90deg, var(--blue-700), var(--emerald-600));
-        background-clip: text;
-        -webkit-background-clip: text;
-      }
       ::-webkit-scrollbar { width: 6px; }
       ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
       ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
@@ -168,32 +149,6 @@
     <div class="scanlines"></div>
 
     <main id="main-content" tabindex="-1" class="relative z-10 max-w-6xl mx-auto">
-        <div class="flex flex-wrap items-center gap-3 mb-8">
-            <!-- Nav canonica, identica sulle 6 pagine: stesso ordine, stesse
-                 etichette, pagina corrente inclusa. Lo stile e in shared.css. -->
-            <!-- app-nav-brand: scoping locale per il tema Classico (vedi lo
-                 style block di questa pagina) — i pulsanti prendono il colore
-                 del titolo "Architettura Graph RAG (Local-First)". -->
-            <nav class="app-nav app-nav-brand" aria-label="Sezioni">
-              <a href="/">Console</a>
-              <a href="/intake">Intake</a>
-              <a href="/pipeline">Pipeline</a>
-              <a href="/analysis">Analisi</a>
-              <a href="/eval">Eval</a>
-              <a href="/infografica">Infografica</a>
-            </nav>
-
-            <!-- Theme switcher -->
-            <!-- Lo stile inline era verde neon hardcoded: restava fluorescente
-                 anche nel tema Classico (pagina chiara), dove era fuori posto.
-                 Ora segue i token del tema. La <label> vuota non dava alcun nome
-                 accessibile: sostituita da aria-label. -->
-            <select id="theme-switcher" data-change="setUiTheme" aria-label="Tema dell'interfaccia"
-                    class="ml-auto rounded-md px-2.5 py-1.5 text-xs font-mono cursor-pointer bg-white border border-slate-200 text-slate-600">
-              <option value="matrix">🟢 Matrix</option>
-              <option value="classic">☀️ Classico</option>
-            </select>
-        </div>
         <header class="text-center mb-12">
             <h1 class="glow-text text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-emerald-500 mb-4">
                 Architettura Graph RAG multi-progetto

@@ -388,6 +388,7 @@ _STRICT_ROUTES = [
 ]
 
 _REVERTED_TO_PLAIN_KEY_ROUTES = [
+    (routes_pipeline.router, "POST", "/api/pipeline/dev-types"),
     (routes_pipeline.router, "POST", "/api/pipeline/explore/save"),
     (routes_pipeline.router, "POST", "/api/pipeline/canvas/generate"),
     (routes_pipeline.router, "POST", "/api/pipeline/propose/generate"),
@@ -764,6 +765,7 @@ _ANTI_XSITE_ROUTES = [
     (routes_reindex.router, "POST", "/api/reindex"),
     (routes_reindex.router, "POST", "/api/index/reindex"),
     (routes_reindex.router, "POST", "/api/index/rollback"),
+    (routes_pipeline.router, "POST", "/api/pipeline/dev-types"),
     (routes_pipeline.router, "POST", "/api/pipeline/explore/save"),
     (routes_pipeline.router, "POST", "/api/pipeline/canvas/generate"),
     (routes_pipeline.router, "POST", "/api/pipeline/propose/generate"),

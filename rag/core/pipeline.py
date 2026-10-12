@@ -6,7 +6,7 @@ parametri espliciti; l'orchestrazione async/I-O resta nei route handler (api/)."
 import json
 import re
 from pathlib import Path
-from core.projects import _unlinked
+from core.projects import _unlinked, code_scopes, is_code_scope_name
 
 from core import llm, retrieval, spec_format
 from core.open_points import REPORT_INSTRUCTIONS, RESEARCH_INSTRUCTIONS
@@ -100,10 +100,7 @@ def feature_dir(feature_name: str, *, project=None) -> Path:
 
 def list_dev_types(*, project=None) -> list[str]:
     """Elenca le sottocartelle di 'code/' (backend, frontend, logicAgent, ...) da proporre in tendina."""
-    code_dir = _unlinked(project.code_dir if project else CODE_DIR)
-    if not code_dir.exists():
-        return []
-    return sorted(p.name for p in code_dir.iterdir() if _unlinked(p).is_dir() and not p.name.startswith("."))
+    return code_scopes(project.code_dir if project else CODE_DIR)
 
 
 class InvalidDevTypeError(ValueError):
@@ -127,6 +124,25 @@ def validate_dev_type(dev_type: str, *, project=None) -> str:
             f"(attesi: {', '.join(valid) if valid else 'nessuno disponibile sotto code/'})"
         )
     return dev_type
+
+
+def create_dev_type(name: str, *, project=None) -> str:
+    """Crea code/<name> per renderlo selezionabile in tendina e restituisce il nome
+    effettivo. Idempotente: se esiste già una cartella con lo stesso nome, anche con
+    maiuscole diverse, restituisce quella senza crearne una gemella. Solleva
+    InvalidDevTypeError se il nome non è un singolo componente di path sicuro."""
+    name = (name or "").strip()
+    if not is_code_scope_name(name):
+        raise InvalidDevTypeError(f"Nome del tipo di sviluppo non valido: {name!r}")
+    existing = {t.lower(): t for t in list_dev_types(project=project)}
+    if name.lower() in existing:
+        return existing[name.lower()]
+    code_dir = _unlinked(project.code_dir if project else CODE_DIR)
+    target = _unlinked(code_dir / name)
+    if not target.is_relative_to(code_dir):
+        raise InvalidDevTypeError(f"Percorso del tipo di sviluppo fuori da code/: {name!r}")
+    target.mkdir(parents=True, exist_ok=True)
+    return name
 
 
 def _dev_type_words(dev_type: str) -> list[str]:

@@ -156,7 +156,7 @@ graph TD
             (h.status === 'ok' ? 'text-emerald-700' : h.status === 'degraded' ? 'text-orange-700' : 'text-slate-500');
         } catch (e) {
           grid.innerHTML = `<p class="text-sm col-span-full text-slate-600">Stato non disponibile (${escapeHtml(e.message)}).
-            <button class="btn btn-secondary" style="margin-left:.5rem" data-click="caricaKpi">Riprova</button></p>`;
+            <button type="button" class="btn btn-secondary" style="margin-left:.5rem" data-click="caricaKpi">Riprova</button></p>`;
           stato.textContent = '';
         }
       }

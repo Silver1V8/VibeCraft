@@ -7,7 +7,7 @@ import json
 import pytest
 
 from core import canvas_review as cr
-from core import drift_check, feature_archive
+from core import drift_check, feature_archive, pipeline
 from core import indexing as index
 
 CANVAS = """# REASONS Canvas: demo
@@ -127,6 +127,30 @@ def test_parse_fidelity_and_divergences():
     divs = cr.parse_divergences(REVIEW_TEXT)
     assert len(divs) == 2 and "valida l'input" in divs[0]
     assert cr.parse_divergences("## Divergenze\nNessuna divergenza rilevata.\n") == []
+
+
+def test_parse_divergences_keeps_bold_and_skips_group_headings():
+    # Forma reale delle review: titoli di gruppo in grassetto e voci "*   **Titolo:** testo".
+    review = ("## Divergenze\n\n"
+              "**Codice vs Canvas (Funzionalità non nominate nel Canvas):**\n"
+              "*   **Supporto XLSX:** il codice valida `xlsx`.\n"
+              "1. **Correlation ID:** propagato via middleware.\n\n"
+              "**Canvas vs Codice (previste ma non implementate)**:\n"
+              "*   **Nessuna divergenza rilevata.** Tutto presente.\n\n"
+              "---\n* * *\n"
+              "## Sezioni accurate\nTutte.\n")
+    assert cr.parse_divergences(review) == [
+        "**Supporto XLSX:** il codice valida `xlsx`.",
+        "**Correlation ID:** propagato via middleware.",
+    ]
+
+
+def test_canvas_quality_stats_shows_original_case(tmp_path):
+    archive = tmp_path / "archive"
+    _write_review(archive, "feat-a", "medio", ["Manca il `CorrelationId` nei log."], mtime=1000)
+    _write_review(archive, "feat-b", "medio", ["manca il `correlationid` nei log"], mtime=2000)
+    top = cr.canvas_quality_stats(archive)["top_divergences"]
+    assert top == [{"text": "Manca il `CorrelationId` nei log", "count": 2}]
 
 
 def _fake_resources():
@@ -318,6 +342,8 @@ def test_archive_passa_alla_review_il_codice_del_drift(archive_env, monkeypatch)
     (code / "Reporting.cs").write_text("class Reporting {}", encoding="utf-8")
     (code / "tests" / "ReportingTests.cs").write_text("class ReportingTests {}", encoding="utf-8")
     monkeypatch.setattr(drift_check, "CODE_DIR", archive_env / "code")
+    # validate_dev_type legge la whitelist da pipeline.CODE_DIR: stessa radice.
+    monkeypatch.setattr(pipeline, "CODE_DIR", archive_env / "code")
     seen = {}
 
     def fake_review(folder, change_dir, **kw):
@@ -363,6 +389,8 @@ def test_review_code_mette_prima_i_file_che_citano_i_simboli_del_contratto(archi
         (code / rel).parent.mkdir(parents=True, exist_ok=True)
         (code / rel).write_text(text, encoding="utf-8")
     monkeypatch.setattr(drift_check, "CODE_DIR", archive_env / "code")
+    # validate_dev_type legge la whitelist da pipeline.CODE_DIR: stessa radice.
+    monkeypatch.setattr(pipeline, "CODE_DIR", archive_env / "code")
     labels = [line for line in drift_check._review_code(change_dir).splitlines()
               if line.startswith("--- FILE:")]
     assert labels[:3] == ["--- FILE: src/z/Orchestrator.cs ---",

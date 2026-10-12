@@ -33,6 +33,7 @@ from api.models import (
     AgentRunRequest,
     ArchiveRequest,
     CanvasGenerateRequest,
+    DevTypeCreateRequest,
     DriftCheckRequest,
     ExploreSaveRequest,
     ExploreTurnRequest,
@@ -61,6 +62,7 @@ from core.pipeline import (
     InvalidDevTypeError,
     InvalidFeatureNameError,
     build_final_prompt,
+    create_dev_type,
     feature_dir,
     list_dev_types,
     load_dev_type,
@@ -467,6 +469,21 @@ async def agent_run(req: AgentRunRequest, project=Depends(get_project)):
 async def pipeline_dev_types(project=Depends(get_project)):
     """Elenca le tipologie di sviluppo disponibili (sottocartelle di 'code/') per la tendina di selezione."""
     return {"dev_types": list_dev_types(project=project)}
+
+
+@router.post("/api/pipeline/dev-types",
+             dependencies=[Depends(require_not_cross_site_request)])
+async def pipeline_create_dev_type(req: DevTypeCreateRequest, project=Depends(get_project)):
+    """Crea la sottocartella code/<name>: su un progetto nuovo la tendina è vuota e,
+    senza un ambito selezionabile, la pipeline non può partire."""
+    try:
+        name = create_dev_type(req.name, project=project)
+        return {"dev_type": name, "dev_types": list_dev_types(project=project)}
+    except InvalidDevTypeError as exc:
+        raise HTTPException(status_code=400,
+                            detail="Nome non valido: usa lettere, cifre, '-' o '_' (max 64 caratteri).") from exc
+    except (ProjectError, OSError) as exc:
+        raise _gate_storage_error(exc) from exc
 
 
 @router.post("/api/pipeline/explore/turn",

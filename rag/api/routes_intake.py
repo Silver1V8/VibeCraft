@@ -82,6 +82,8 @@ def _raise_http(exc: Exception) -> None:
                 message = "Raffinazione non riuscita: verifica il documento e il servizio di generazione."
             elif isinstance(exc, project_import.InvalidImportPathError):
                 message = "Percorso di import non valido: scegli una cartella sorgente accessibile."
+            elif isinstance(exc, project_import.InvalidImportTargetError):
+                message = "Target non valido: scegli un ambito esistente di code/ o creane uno con «Aggiungi»."
             elif isinstance(exc, project_import.ProjectImportError):
                 message = "Import del progetto non disponibile: ripeti l'anteprima."
             else:
@@ -394,7 +396,8 @@ async def plan_project(payload: ProjectPlanRequest, project=Depends(get_project)
     """Anteprima dell'import (DRY-RUN puro, zero scritture): scansiona il path
     sorgente e classifica i file contro code/<target>/ (nuovi/identici/conflitti/
     esclusi). Validazioni in core.project_import: path assoluto, esistente,
-    directory, MAI dentro il repo né dentro staging; target solo tra i tre ammessi.
+    directory, MAI dentro il repo né dentro staging; target solo tra le sottocartelle
+    esistenti di code/ del progetto (le stesse della Pipeline).
 
     Quelle validazioni limitano il DANNO ma non il RAGGIO: la directory scansionabile resta
     qualunque, quindi la risposta enumera file arbitrari della macchina server. Innocuo

@@ -28,6 +28,50 @@
       }
       for (const id of [...draftEditors, 'chat-input']) document.getElementById(id).readOnly = !!draft;
       document.getElementById('dev-type-select').disabled = !!draft;
+      updateChatControls();
+    }
+
+    /* Intervista: "Invia" si attiva solo con nome feature e tipo di sviluppo, "Termina"
+       solo dopo almeno un turno. Prima entrambi erano sempre cliccabili e il motivo del
+       rifiuto arrivava dopo, come toast. Il nome basta scritto: l'invio carica la feature
+       da sé (ensurePipelineFeature). Finché la conversazione è vuota, al posto del
+       riquadro vuoto c'è la guida con i tre passi e il loro stato. */
+    let sendBusy = false, finishBusy = false;
+    function updateChatControls() {
+      const named = !!getFeatureName();
+      const typed = !!devType;
+      const blocked = sessionLoading || !!pendingDraft;
+      const reason = !named ? 'Dai prima un nome alla feature.'
+        : !typed ? 'Scegli prima il tipo di sviluppo.'
+        : blocked ? 'Attendi il caricamento o scegli cosa fare della bozza locale.' : '';
+      const send = document.getElementById('chat-send-btn');
+      const finish = document.getElementById('chat-finish-btn');
+      send.disabled = sendBusy || !!reason;
+      send.title = reason;
+      finish.disabled = finishBusy || sendBusy || !!reason || !interviewLog;
+      finish.title = reason || (interviewLog ? '' : 'Rispondi almeno una volta al Tech Lead IA.');
+      const started = chatMessages.length > 0;
+      setPanelVisible('chat-guide', !started);
+      setPanelVisible('chat-log', started);
+      const steps = [['guide-step-feature', named], ['guide-step-type', typed], ['guide-step-answer', false]];
+      const next = steps.find(([, done]) => !done)[0];
+      steps.forEach(([id, done], index) => {
+        const step = document.getElementById(id);
+        step.classList.toggle('is-done', done);
+        step.classList.toggle('is-next', id === next);
+        document.getElementById(`${id}-mark`).textContent = done ? '✓' : String(index + 1);
+        document.getElementById(`${id}-state`).textContent = done ? 'fatto' : id === next ? 'da fare' : '';
+      });
+    }
+
+    /* Un passo della guida porta al campo da compilare. Senza tipi di sviluppo nel
+       progetto la tendina è vuota: si va al campo che ne crea uno. */
+    function focusGuideStep(id) {
+      const select = document.getElementById('dev-type-select');
+      const target = id === 'dev-type-select' && select.options.length <= 1
+        ? document.getElementById('dev-type-new-input') : document.getElementById(id);
+      target.scrollIntoView({ block: 'nearest' });
+      target.focus();
     }
 
     function savePipelineDraft() {
@@ -85,6 +129,7 @@
       document.getElementById('spec-open-points-status').textContent = 'Bozza locale: salva e verifica prima di procedere.';
       goToStep(draft.step);
       sessionLoading = false;
+      updateChatControls();
       sessionStatus(`Bozza locale ripristinata, salvata il ${new Date(draft.savedAt).toLocaleString()}. I file server non sono stati modificati.`);
     }
 
@@ -139,6 +184,7 @@
     function onDevTypeChange() {
       devType = document.getElementById('dev-type-select').value;
       savePipelineDraft();
+      updateChatControls();
     }
 
     /* Popola la tendina con le sottocartelle reali di code/ (backend, frontend, logicAgent, ...). */
@@ -158,6 +204,34 @@
       }
       if (selected) select.value = selected;
       devType = select.value;
+      updateChatControls();
+    }
+
+    /* Crea code/<nome> sul server: su un progetto nuovo è l'unico modo di avere un ambito da scegliere. */
+    async function addDevType() {
+      const input = document.getElementById('dev-type-new-input');
+      const btn = document.getElementById('dev-type-add-btn');
+      const name = input.value.trim();
+      if (!name) { input.focus(); return; }
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/pipeline/dev-types', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(apiErrorMessage(data.detail, `HTTP ${res.status}`));
+        input.value = '';
+        const select = document.getElementById('dev-type-select');
+        await loadDevTypes(select.disabled ? devType : data.dev_type);
+        if (!select.disabled) onDevTypeChange();
+        toast(`Tipo di sviluppo "${data.dev_type}" disponibile in code/.`, 'success');
+      } catch (e) {
+        toast(`Errore nella creazione del tipo di sviluppo: ${e.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     /* Mostra/nasconde un pannello flex-col in modo atomico: 'hidden' e 'flex'
@@ -280,8 +354,7 @@
       document.getElementById('chat-log').textContent = '';
       document.getElementById('chat-input').value = '';
       document.getElementById('explore-status').textContent = '';
-      document.getElementById('chat-send-btn').disabled = false;
-      document.getElementById('chat-finish-btn').disabled = false;
+      updateChatControls();
       document.getElementById('canvas-generate-btn').disabled = false;
       document.getElementById('propose-generate-btn').disabled = false;
       for (const id of draftEditors) document.getElementById(id).value = '';
@@ -362,6 +435,7 @@
       }`;
       bubble.textContent = text;
       log.appendChild(bubble);
+      updateChatControls();
       log.scrollTop = log.scrollHeight;
     }
 
@@ -379,8 +453,8 @@
       input.value = '';
       savePipelineDraft();
 
-      const sendBtn = document.getElementById('chat-send-btn');
-      sendBtn.disabled = true;
+      sendBusy = true;
+      updateChatControls();
       document.getElementById('explore-status').textContent = 'IA sta rispondendo…';
 
       try {
@@ -402,7 +476,7 @@
         appendChatBubble('ai', `❌ Errore: ${e.message}`);
         document.getElementById('explore-status').textContent = 'Errore di connessione';
       } finally {
-        if (revision === sessionRevision) { sendBtn.disabled = false; input.focus(); }
+        if (revision === sessionRevision) { sendBusy = false; updateChatControls(); input.focus(); }
       }
     }
 
@@ -416,8 +490,8 @@
         return;
       }
 
-      const btn = document.getElementById('chat-finish-btn');
-      btn.disabled = true;
+      finishBusy = true;
+      updateChatControls();
       try {
         const res = await fetch('/api/pipeline/explore/save', {
           method: 'POST',
@@ -436,7 +510,7 @@
         if (revision !== sessionRevision) return;
         toast(`Errore nel salvataggio di explore.md: ${e.message}`, 'error');
       } finally {
-        if (revision === sessionRevision) btn.disabled = false;
+        if (revision === sessionRevision) { finishBusy = false; updateChatControls(); }
       }
     }
 
@@ -1228,6 +1302,10 @@
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) retainWorkspaceTask(sendExploreTurn()).catch(error => console.error(error));
     });
 
+    document.getElementById('dev-type-new-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); retainWorkspaceTask(addDevType()).catch(error => console.error(error)); }
+    });
+
     /* Popola subito la tendina dei tipi di sviluppo, ancora prima di caricare una feature */
     resumePipelineSession();
     loadRunners();
@@ -1236,10 +1314,14 @@
       document.getElementById(id).addEventListener('input', savePipelineDraft);
     }
     document.getElementById('feature-name-input').addEventListener('change', () => retainWorkspaceTask(loadFeatureStatus()));
+    document.getElementById('feature-name-input').addEventListener('input', updateChatControls);
+    updateChatControls();
 
     /* Azioni dei pulsanti/campi (data-click / data-change / data-input): prima erano
        handler inline, vietati dalla CSP — vedi registerActions in /static/shared.js. */
     registerActions({
+      addDevType: () => addDevType(),
+      focusGuideStep: el => focusGuideStep(el.dataset.arg),
       restorePipelineDraft: () => restorePipelineDraft(),
       discardPipelineDraft: () => discardPipelineDraft(),
       approveAndGoToCanvas: () => approveAndGoToCanvas(),

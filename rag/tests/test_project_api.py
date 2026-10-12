@@ -361,6 +361,48 @@ def test_real_index_metadata_reports_staleness_for_captured_version(client, monk
     assert captured["index_version"] == "v1" and captured["stale"] is True
 
 
+def test_fast_project_list_defers_staleness(client, monkeypatch):
+    """?stale=0 è la prima richiesta della shell: deve rispondere senza calcolare gli hash
+    di docs/ e code/ e dichiarare che lo stato arriva dopo, non che manca."""
+    from core import indexing
+    from test_project_runtime import indexed
+    http, registry = client
+    a = registry.create("A")
+    (a.docs_dir / "same.md").write_text("original", encoding="utf-8")
+    indexed(a, "original")
+    indexing.write_index_manifest(1, version="v1", qdrant_collection=a.collection_name + "__v1",
+                                  immutable=True, project=a)
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("index_status non deve girare con ?stale=0")
+
+    original = indexing.index_status
+    monkeypatch.setattr(indexing, "index_status", forbidden)
+    fast = http.get("/api/projects", params={"stale": "0"}).json()["projects"][0]
+    assert fast["index_status"] == "ready" and fast["stale"] is None and fast["stale_pending"] is True
+    monkeypatch.setattr(indexing, "index_status", original)
+    full = http.get("/api/projects").json()["projects"][0]
+    assert full["stale"] is False and "stale_pending" not in full
+
+
+def test_status_hash_cache_reuses_digest_until_file_changes(tmp_path, monkeypatch):
+    import os
+    from core import indexing
+    source = tmp_path / "a.py"
+    source.write_text("value = 1", encoding="utf-8")
+    calls = []
+    real = indexing.sha256_file
+    monkeypatch.setattr(indexing, "sha256_file", lambda path: calls.append(path) or real(path))
+    monkeypatch.setattr(indexing, "_STATUS_HASH_CACHE", {})
+    first = indexing._status_sha256(source)
+    assert indexing._status_sha256(source) == first and len(calls) == 1
+    # Stessa dimensione, contenuto diverso: cambia mtime e il digest va ricalcolato.
+    source.write_text("value = 2", encoding="utf-8")
+    stat = source.stat()
+    os.utime(source, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000))
+    assert indexing._status_sha256(source) == real(source) != first and len(calls) == 2
+
+
 def test_ask_cache_settings_change_same_project_query_and_version(ab, monkeypatch):
     import yaml
     from core import llm

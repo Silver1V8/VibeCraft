@@ -264,7 +264,7 @@ async function browserChecks() {
     assert.equal(await frameB.locator('#question-input').inputValue(), 'B question');
     await page.locator('#project-select').selectOption(A);
     assert.equal(await frameA.locator('#question-input').inputValue(), 'A question');
-    await frameA.locator('.app-nav a').filter({ hasText: 'Intake' }).click();
+    await page.locator('#workspace-nav a').filter({ hasText: 'Intake' }).click();
     const intakeA = page.frameLocator(`iframe[data-project-id="${A}"][data-workspace-page="/intake"]`);
     await intakeA.locator('#gen-descrizione').fill('Job A');
     await intakeA.locator('#gen-btn').click();
@@ -424,7 +424,8 @@ async function browserChecks() {
       await preview.locator(`#project-list button[data-arg="${A}"]`).click();
       await preview.frameLocator('iframe').locator('#question-input').waitFor();
       await preview.evaluate(() => setUiTheme('classic'));
-      assert.equal(await preview.locator('#workspace-theme').isVisible(), false, 'Workspace must not duplicate the frame theme control');
+      assert.equal(await preview.locator('#workspace-theme').isVisible(), true, 'The theme control lives in the workspace shell');
+      assert.equal(await preview.frameLocator('iframe').locator('#theme-switcher, .app-nav').count(), 0, 'Pages must not duplicate shell controls');
       assert.ok((await preview.locator('#project-select').evaluate(el => getComputedStyle(el).fontFamily)).includes('Inter'));
       await preview.screenshot({ path: path.join(output, 'workspace-classic.png') });
       await preview.setViewportSize({ width: 390, height: 844 });
@@ -467,7 +468,7 @@ async function browserChecks() {
       await errorDashboard.locator('#answer-text').filter({ hasText: '❌ Errore: ' + message }).waitFor();
       assert.equal(await errorDashboard.locator('#ask-btn').isDisabled(), false);
     }
-    await errorDashboard.locator('.app-nav a[href*="/analysis"]').click();
+    await errorPage.locator('#workspace-nav a[href*="/analysis"]').click();
     const errorAnalysis = errorPage.frameLocator(`iframe[data-project-id="${B}"][data-workspace-page="/analysis"]`);
     await errorAnalysis.locator('#map-status').filter({ hasText: 'Project storage unavailable.' }).waitFor();
     queryError = null;

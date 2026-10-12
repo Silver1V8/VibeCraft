@@ -29,8 +29,9 @@ class Qdrant:
 
 @pytest.fixture
 def runtime(tmp_path, monkeypatch):
-    project = replace(legacy_project_context(), root=tmp_path,
-                      changes_dir=tmp_path / "changes", database_dir=tmp_path / "database")
+    project = replace(legacy_project_context(), root=tmp_path, changes_dir=tmp_path / "changes",
+                      code_dir=tmp_path / "code", database_dir=tmp_path / "database")
+    (project.code_dir / "backend").mkdir(parents=True)
     graph = nx.DiGraph()
     graph.add_node("spec.md", type="document")
     snap = SimpleNamespace(graph=graph, chunks={}, colbert_store={}, collection_name="candidate")

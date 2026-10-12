@@ -5,10 +5,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const template = fs.readFileSync(path.join(__dirname, '../static/pages/intake.js'), 'utf8');
-// escapeHtml è quella di /static/shared.js, che la pagina carica in <head>.
+// escapeHtml e inlineMd sono quelle di /static/shared.js, che la pagina carica in <head>.
 const shared = fs.readFileSync(path.join(__dirname, '../static/shared.js'), 'utf8').replace(/\r\n/g, '\n');
-const escapeCode = shared.slice(shared.indexOf('function escapeHtml('), shared.indexOf('\n}\n', shared.indexOf('function escapeHtml(')) + 3);
-const code = template.slice(template.indexOf('    function inlineMd('), template.indexOf('    function formatDate('));
+const sharedFunction = name => shared.slice(shared.indexOf(`function ${name}(`),
+  shared.indexOf('\n}\n', shared.indexOf(`function ${name}(`)) + 3);
+const escapeCode = sharedFunction('escapeHtml') + sharedFunction('inlineMd');
+const code = template.slice(template.indexOf('    function excelText('), template.indexOf('    function formatDate('));
 const context = vm.createContext({});
 vm.runInContext(escapeCode + code, context);
 
@@ -37,4 +39,7 @@ const hostile = context.mdToHtml('| Riga | A |\n| --- | --- |\n| 1 | <img src=x 
 assert.ok(!hostile.includes('<img'), hostile);
 // Il Markdown non Excel resta sul renderer ordinario.
 assert.ok(context.mdToHtml('# Titolo\n\n**testo**').includes('<strong>testo</strong>'));
+// inlineMd condiviso (anche Analisi): il markup del contenuto resta testo anche dentro **…**.
+assert.equal(context.inlineMd('**<img src=x onerror=alert(1)>** `a<b`'),
+  '<strong>&lt;img src=x onerror=alert(1)&gt;</strong> <code>a&lt;b</code>');
 console.log('Preview Excel: celle, colonne, a capo, escape e HTML della fonte non eseguito');

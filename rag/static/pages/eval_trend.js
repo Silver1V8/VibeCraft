@@ -52,14 +52,19 @@
       let lo = Math.min(...vals, soglia == null ? 1 : soglia);
       lo = Math.max(0, lo - 0.05);
       const hi = 1.0;
+      /* Tacche su valori tondi (70/80/90/100%, non 70/77/85/93%): passo "comodo" con
+         al massimo 6 intervalli e minimo arrotondato per difetto a un suo multiplo. */
+      const step = [0.05, 0.1, 0.2, 0.25].find(s => (hi - lo) / s <= 6) || 0.25;
+      lo = Math.max(0, Math.floor(lo / step + 1e-9) * step);
+      const ticks = Math.round((hi - lo) / step);
 
       const x = t => padL + (W - padL - padR) * ((t - t0) / span);
       const y = v => padT + (H - padT - padB) * (1 - (v - lo) / (hi - lo));
 
       // Griglia e etichette Y
-      const grid = [], ticks = 4;
+      const grid = [];
       for (let t = 0; t <= ticks; t++) {
-        const v = lo + (hi - lo) * t / ticks, yy = y(v);
+        const v = lo + step * t, yy = y(v);
         grid.push(`<line class="grid" x1="${padL}" y1="${yy}" x2="${W - padR}" y2="${yy}"/>`);
         grid.push(`<text class="lbl" x="4" y="${yy + 4}">${(v * 100).toFixed(0)}%</text>`);
       }
@@ -172,7 +177,7 @@
         .then(render)
         .catch(e => {
           chart.innerHTML = `<div class="empty">Impossibile caricare lo storico: ${escapeHtml(e.message)}
-            <br/><button class="btn btn-secondary" style="margin-top:.75rem" data-click="caricaStorico">Riprova</button></div>`;
+            <br/><button type="button" class="btn btn-secondary" style="margin-top:.75rem" data-click="caricaStorico">Riprova</button></div>`;
         });
     }
     caricaStorico();

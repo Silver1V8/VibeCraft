@@ -307,6 +307,7 @@ def test_import_plan_cannot_be_applied_to_other_project(projects, tmp_path):
     source = tmp_path / 'external source'
     source.mkdir()
     (source / 'same.py').write_text('A source', encoding='utf-8')
+    (a.code_dir / 'backend').mkdir()  # il target è un ambito esistente di code/
     plan = project_import.plan_project_import(source, 'backend', project=a)
     with pytest.raises(project_import.ProjectImportError):
         project_import.apply_project_import(plan, project=b, reindex=lambda paths: {})
@@ -416,6 +417,9 @@ def test_http_intake_and_plans_are_scoped(projects, tmp_path, monkeypatch):
         source = tmp_path / 'external'
         source.mkdir()
         (source / 'same.py').write_text('A source', encoding='utf-8')
+        missing = client.post('/api/intake/project/plan', headers=ha, json={'path':str(source),'target':'backend'})
+        assert missing.status_code == 422 and 'Target non valido' in missing.json()['detail']
+        (a.code_dir / 'backend').mkdir()
         plan = client.post('/api/intake/project/plan', headers=ha, json={'path':str(source),'target':'backend'})
         assert plan.status_code == 200, plan.text
         assert client.post('/api/intake/project/apply', headers=hb,

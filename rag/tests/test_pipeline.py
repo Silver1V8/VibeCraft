@@ -482,7 +482,10 @@ def test_build_final_prompt_chiede_integrazione_e_test():
     assert "esamina il contenuto esistente" not in pipeline.build_final_prompt("f", "")
 
 
-def test_build_final_prompt_matches_consumer_tools_and_paths():
+def test_build_final_prompt_matches_consumer_tools_and_paths(tmp_path, monkeypatch):
+    # Ambito valido senza dipendere dalla code/ reale del checkout.
+    monkeypatch.setattr(pipeline, "CODE_DIR", tmp_path / "code")
+    (tmp_path / "code" / "frontend").mkdir(parents=True)
     external = pipeline.build_final_prompt("form-eventi", "frontend", "external")
     agent = pipeline.build_final_prompt("form-eventi", "frontend", "agent")
 

@@ -326,41 +326,14 @@
       </div>
     </div>
 
-    <!-- ── Navigazione ──
-         Ordine canonico che segue il flusso di lavoro (Console → Intake →
-         Pipeline → Analisi → Eval → Infografica) e che include SEMPRE la pagina
-         corrente: prima ogni pagina ometteva sé stessa dalla propria nav, con
-         ordine ed etichette diversi ovunque, quindi non era mai possibile capire
-         dove ci si trovasse. La marcatura .is-current è applicata da
-         initNavigation() in shared.js. Questo blocco è il riferimento da
-         replicare sulle altre 5 pagine in Fase 3. -->
-    <!-- Nav canonica, identica sulle 6 pagine: stesso ordine, stesse
-         etichette, pagina corrente inclusa. Lo stile e in shared.css. -->
-    <nav class="app-nav is-end" aria-label="Sezioni">
-      <a href="/">Console</a>
-      <a href="/intake">Intake</a>
-      <a href="/pipeline">Pipeline</a>
-      <a href="/analysis">Analisi</a>
-      <a href="/eval">Eval</a>
-      <a href="/infografica">Infografica</a>
-    </nav>
-
-
     <!-- Status badge — lo stato non è affidato al solo colore del pallino:
          l'etichetta testuale accanto lo esplicita sempre. -->
     <div id="status-badge" role="status" aria-live="polite"
-         class="shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300">
+         class="ml-auto shrink-0 whitespace-nowrap flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-xs font-medium text-slate-300">
       <span class="w-2 h-2 rounded-full bg-slate-500" id="status-dot" aria-hidden="true"></span>
       <span id="status-text">In attesa</span>
     </div>
 
-    <!-- Theme switcher — la <label> era vuota, quindi il controllo non aveva
-         alcun nome accessibile. Sostituita da aria-label. -->
-    <select id="theme-switcher" data-change="setUiTheme" aria-label="Tema dell'interfaccia"
-            class="shrink-0 rounded-md px-2.5 py-1.5 text-xs font-mono cursor-pointer bg-slate-800 border border-slate-700 text-slate-200">
-      <option value="matrix">🟢 Matrix</option>
-      <option value="classic">☀️ Classico</option>
-    </select>
   </header>
 
   <!-- ═══════════════════ MAIN LAYOUT ═══════════════════ -->
@@ -381,7 +354,7 @@
             id="question-input"
             rows="7"
             placeholder="Es. Quali eventi sono previsti a giugno?"
-            class="autogrow w-full resize-y min-h-[160px] rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+            class="autogrow w-full resize-y min-h-[160px] rounded-lg bg-slate-800 border border-slate-700 px-4 py-3 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
           ></textarea>
         </div>
 
@@ -403,7 +376,7 @@
              `text-white` su bg-blue-600 dava 2,2:1 nel tema Matrix (dove
              --blue-600 è verde brillante): il testo su primario ora usa
              --color-on-primary, scuro in Matrix e bianco in Classico. -->
-        <button id="ask-btn" data-click="submitQuery"
+        <button type="button" id="ask-btn" data-click="submitQuery"
           style="color: var(--color-on-primary)"
           class="mt-4 w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-sm font-semibold py-2.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
@@ -463,11 +436,11 @@
       <!-- ── Top bar: Tab switcher + Graph controls ── -->
       <div class="flex flex-wrap items-center justify-between gap-3 shrink-0">
 
-        <!-- Tab buttons — erano <button> senza semantica di tab: nessun
+        <!-- Tab buttons — erano <button type="button"> senza semantica di tab: nessun
              role/aria-selected, nessuna navigazione con le frecce, e switchTab
              riscriveva className per intero (distruggendo ogni altra classe). -->
         <div class="flex items-center gap-0.5 p-0.5 rounded-lg glass-card shrink-0" role="tablist" aria-label="Vista del risultato">
-          <button id="tab-graph-btn" data-click="switchTab" data-arg="graph" role="tab" aria-selected="true" aria-controls="tab-graph-panel"
+          <button type="button" id="tab-graph-btn" data-click="switchTab" data-arg="graph" role="tab" aria-selected="true" aria-controls="tab-graph-panel"
             class="tab-btn is-active flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/>
@@ -475,14 +448,14 @@
             </svg>
             Mappa del Grafo
           </button>
-          <button id="tab-context-btn" data-click="switchTab" data-arg="context" role="tab" aria-selected="false" aria-controls="tab-context-panel"
+          <button type="button" id="tab-context-btn" data-click="switchTab" data-arg="context" role="tab" aria-selected="false" aria-controls="tab-context-panel"
             class="tab-btn flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0120 9.414V19a2 2 0 01-2 2z"/>
             </svg>
             Prompt Context
           </button>
-          <button id="tab-json-btn" data-click="switchTab" data-arg="json" role="tab" aria-selected="false" aria-controls="tab-json-panel"
+          <button type="button" id="tab-json-btn" data-click="switchTab" data-arg="json" role="tab" aria-selected="false" aria-controls="tab-json-panel"
             class="tab-btn flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h8m-8 6h16"/>
@@ -517,7 +490,7 @@
           <div class="flex items-center gap-2">
             <span id="graph-counter" class="text-xs font-mono text-slate-400"></span>
             <!-- Pulsante ripristina grafo contestuale (visibile solo dopo una query + vista globale) -->
-            <button id="restore-graph-btn" data-click="restoreContextualGraph"
+            <button type="button" id="restore-graph-btn" data-click="restoreContextualGraph"
               title="Ripristina il grafo dell'ultima interrogazione"
               style="display:none"
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
@@ -530,7 +503,7 @@
               Grafo Contestuale
             </button>
             <!-- Pulsante Grafo Completo -->
-            <button id="full-graph-btn" data-click="showFullGraph" title="Visualizza l'intera mappa del knowledge base"
+            <button type="button" id="full-graph-btn" data-click="showFullGraph" title="Visualizza l'intera mappa del knowledge base"
               class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold
                      bg-purple-900 border border-purple-700 text-purple-200
                      hover:bg-purple-800 hover:text-white active:bg-purple-950
@@ -540,7 +513,7 @@
               </svg>
               Visualizza Grafo Completo
             </button>
-            <button data-click="fitGraph" title="Adatta la vista"
+            <button type="button" data-click="fitGraph" title="Adatta la vista"
               class="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/>
@@ -548,9 +521,9 @@
             </button>
             <!-- Toggle vista 2D/3D -->
             <div class="flex items-center rounded-lg border border-slate-700 bg-slate-800/60 overflow-hidden">
-              <button id="view-mode-2d-btn" data-click="setGraphViewMode" data-arg="2d" title="Vista 2D" aria-pressed="false"
+              <button type="button" id="view-mode-2d-btn" data-click="setGraphViewMode" data-arg="2d" title="Vista 2D" aria-pressed="false"
                 class="view-toggle-btn">2D</button>
-              <button id="view-mode-3d-btn" data-click="setGraphViewMode" data-arg="3d" title="Vista 3D" aria-pressed="true"
+              <button type="button" id="view-mode-3d-btn" data-click="setGraphViewMode" data-arg="3d" title="Vista 3D" aria-pressed="true"
                 class="view-toggle-btn active">3D</button>
             </div>
           </div>
@@ -580,7 +553,7 @@
             class="absolute top-3 right-3 z-30 w-72 max-h-[75%] overflow-y-auto rounded-lg border border-slate-700 bg-slate-900/80 backdrop-blur-md p-3 shadow-xl">
             <div class="flex items-start justify-between gap-2 mb-2">
               <span id="nd-title" class="text-sm font-semibold text-slate-100 break-all leading-snug"></span>
-              <button data-click="closeNodeDetails" aria-label="Chiudi i dettagli del nodo"
+              <button type="button" data-click="closeNodeDetails" aria-label="Chiudi i dettagli del nodo"
                 class="shrink-0 text-lg leading-none text-slate-400 hover:text-white">×</button>
             </div>
             <div id="nd-badges" class="flex flex-wrap gap-1.5 mb-2 text-xs"></div>
@@ -611,7 +584,7 @@
             </svg>
             <p class="text-sm font-semibold" style="color:var(--color-danger)">Impossibile caricare il grafo</p>
             <p id="graph-error-detail" class="text-xs text-slate-400 max-w-md break-words"></p>
-            <button id="graph-error-retry" class="btn btn-secondary">Riprova</button>
+            <button type="button" id="graph-error-retry" class="btn btn-secondary">Riprova</button>
           </div>
         </div>
 

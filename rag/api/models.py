@@ -38,6 +38,10 @@ class ExploreTurnRequest(BaseModel):
     dev_type: str = ""
 
 
+class DevTypeCreateRequest(BaseModel):
+    name: str
+
+
 class ExploreSaveRequest(BaseModel):
     feature_name: str
     interview_log: str

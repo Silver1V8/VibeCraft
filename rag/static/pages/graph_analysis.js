@@ -337,10 +337,13 @@
           return `<span><i class="dot" style="background:${s.color}"></i> ${escapeHtml(t.feature)} (${s.label})</span>`;
         }).join('');
         const el = document.getElementById('cq-divergences');
+        // Il testo arriva dalle review in Markdown: inlineMd (shared.js) ne fa grassetto e
+        // codice sopra un testo già escapato, invece di mostrare gli asterischi.
         el.innerHTML = d.top_divergences.length
-          ? '<b>Divergenze più frequenti:</b>' + d.top_divergences.map(x =>
-              `<div>• ${escapeHtml(x.text)}${x.count > 1 ? ` <b>×${x.count}</b>` : ''}</div>`).join('')
-          : '<b>Nessuna divergenza registrata nelle review.</b>';
+          ? '<p class="cq-heading">Divergenze più frequenti</p><ul>' + d.top_divergences.map(x =>
+              `<li><span class="cq-count" title="Ricorre in ${Number(x.count)} review">×${Number(x.count)}</span>`
+              + `<span>${inlineMd(x.text)}</span></li>`).join('') + '</ul>'
+          : '<p class="cq-heading">Nessuna divergenza registrata nelle review.</p>';
       } catch (e) {
         status.textContent = '❌ ' + e.message;
       }

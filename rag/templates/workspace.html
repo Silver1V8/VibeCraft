@@ -32,10 +32,21 @@
       <span id="project-index-status" class="project-index-status" role="status" aria-live="polite"></span>
       <button id="project-index-update" type="button" class="btn btn-secondary" data-click="updateProjectIndex" hidden>Aggiorna indice</button>
     </div>
+    <!-- Unica nav delle sezioni: prima era copiata in ognuna delle 6 pagine, con
+         posizione diversa (a sinistra solo in Infografica). La pagina corrente è
+         marcata da markWorkspaceNav() in workspace.js, anche con aria-current. -->
+    <nav id="workspace-nav" class="app-nav workspace-nav" aria-label="Sezioni" hidden>
+      <a href="/">Console</a>
+      <a href="/intake">Intake</a>
+      <a href="/pipeline">Pipeline</a>
+      <a href="/analysis">Analisi</a>
+      <a href="/eval">Eval</a>
+      <a href="/infografica">Infografica</a>
+    </nav>
     <div id="project-toolbar" class="project-toolbar" hidden>
       <button id="project-home" type="button" class="btn btn-secondary" data-click="showProjects"><svg class="workspace-icon" aria-hidden="true"><use href="#icon-folder"/></svg>Progetti</button>
-      <button id="project-new" type="button" class="btn btn-secondary" data-click="newProject" aria-label="Nuovo progetto" disabled><svg class="workspace-icon" aria-hidden="true"><use href="#icon-plus"/></svg><span>Nuovo</span></button>
-      <button id="project-open" type="button" class="btn btn-secondary" data-click="openProject" aria-label="Apri progetto esistente" disabled><svg class="workspace-icon" aria-hidden="true"><use href="#icon-open"/></svg><span>Apri</span></button>
+      <button id="project-new" type="button" class="btn btn-secondary btn-icon" data-click="newProject" aria-label="Nuovo progetto" title="Nuovo progetto" disabled><svg class="workspace-icon" aria-hidden="true"><use href="#icon-plus"/></svg></button>
+      <button id="project-open" type="button" class="btn btn-secondary btn-icon" data-click="openProject" aria-label="Apri progetto esistente" title="Apri progetto esistente" disabled><svg class="workspace-icon" aria-hidden="true"><use href="#icon-open"/></svg></button>
     </div>
     <div id="workspace-theme" class="workspace-theme">
       <label class="workspace-sr-only" for="theme-switcher">Tema</label>
@@ -100,7 +111,17 @@
     </form>
   </dialog>
   <div id="workspace-status" role="status" hidden><span id="workspace-message">Caricamento…</span>
-    <button id="workspace-retry" class="btn btn-secondary" data-click="retryNavigation" hidden>Riprova</button>
+    <button type="button" id="workspace-retry" class="btn btn-secondary" data-click="retryNavigation" hidden>Riprova</button>
+  </div>
+  <div id="workspace-skeleton" role="status" aria-label="Caricamento della pagina" hidden>
+    <div class="skeleton-header" aria-hidden="true">
+      <span class="skeleton-block skeleton-icon"></span><span class="skeleton-block skeleton-title"></span>
+      <span class="skeleton-block skeleton-nav"></span>
+    </div>
+    <div class="skeleton-body" aria-hidden="true">
+      <div class="skeleton-column"><span class="skeleton-block skeleton-card"></span><span class="skeleton-block skeleton-card is-tall"></span></div>
+      <span class="skeleton-block skeleton-main"></span>
+    </div>
   </div>
   <main id="workspace-pages" aria-label="Area di lavoro VibeCraft" hidden></main>
 </body>

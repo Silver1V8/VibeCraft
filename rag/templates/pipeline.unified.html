@@ -196,6 +196,24 @@
     select option { background: var(--slate-900); color: var(--slate-100); }
     select option:checked { background: var(--slate-700); }
 
+    /* Guida dell'intervista vuota: tre passi con stato. Il completamento non è
+       affidato al colore: il glifo passa da numero a ✓ e il testo lo dice. */
+    .guide-step {
+      display: flex; align-items: center; gap: 0.75rem; width: 100%; text-align: left;
+      padding: 0.6rem 0.8rem; border: 1px solid var(--slate-700); border-radius: 0.6rem;
+      background: var(--slate-800); color: var(--slate-200); cursor: pointer;
+    }
+    .guide-step:hover { border-color: var(--color-primary); }
+    .guide-step-mark {
+      display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+      width: 1.5rem; height: 1.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700;
+      background: var(--slate-700); color: var(--slate-200);
+    }
+    .guide-step-state { margin-left: auto; font-size: 0.75rem; color: var(--slate-400); white-space: nowrap; }
+    .guide-step.is-done .guide-step-mark { background: var(--color-success); color: #04140a; }
+    .guide-step.is-done .guide-step-state { color: var(--color-success); }
+    .guide-step.is-next { border-color: var(--color-primary); }
+
     /* NB: matrix-rain, scanlines, glow-text e la regola di hide nel tema Classico
        vivono ora in /static/shared.css (identici tra le pagine). */
   </style>
@@ -225,27 +243,6 @@
         <p class="text-xs text-slate-400 -mt-0.5">Explore → REASONS Canvas → Propose</p>
       </div>
     </div>
-
-    <!-- Nav canonica, identica sulle 6 pagine: stesso ordine, stesse
-         etichette, pagina corrente inclusa. Lo stile e in shared.css. -->
-    <nav class="app-nav is-end" aria-label="Sezioni">
-      <a href="/">Console</a>
-      <a href="/intake">Intake</a>
-      <a href="/pipeline">Pipeline</a>
-      <a href="/analysis">Analisi</a>
-      <a href="/eval">Eval</a>
-      <a href="/infografica">Infografica</a>
-    </nav>
-
-    <!-- Theme switcher — lo stile inline era verde neon HARDCODED, quindi il
-         selettore restava verde fluorescente anche nel tema Classico, dove
-         stonava con tutto il resto. Ora usa i token e segue il tema. La <label>
-         era vuota: sostituita da aria-label, che dà davvero un nome al controllo. -->
-    <select id="theme-switcher" data-change="setUiTheme" aria-label="Tema dell'interfaccia"
-            class="shrink-0 rounded-md px-2.5 py-1.5 text-xs font-mono cursor-pointer bg-slate-800 border border-slate-700 text-slate-200">
-      <option value="matrix">🟢 Matrix</option>
-      <option value="classic">☀️ Classico</option>
-    </select>
   </header>
 
   <!-- ═══════════════════ MAIN LAYOUT ═══════════════════ -->
@@ -256,11 +253,11 @@
 
       <!-- Feature card -->
       <div class="rounded-xl glass-card p-4">
-        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Nome feature</label>
-        <label for="feature-name-input"></label><input id="feature-name-input" type="text" placeholder="Es. form eventi"
-                                                       class="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" />
+        <label for="feature-name-input" class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Nome feature</label>
+        <input id="feature-name-input" type="text" placeholder="Es. form eventi"
+                                                       class="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" />
         <div class="flex items-center gap-2 mt-2">
-          <button id="load-feature-btn" data-click="loadFeatureStatus"
+          <button type="button" id="load-feature-btn" data-click="loadFeatureStatus"
             class="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold py-2 transition">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -270,14 +267,21 @@
         </div>
         <p id="feature-folder-hint" class="text-xs text-slate-400 mt-2 font-mono"></p>
         <p id="session-status" role="status" aria-live="polite" class="text-xs text-slate-300 mt-2">Bozze salvate solo in questo browser.</p>
-        <button id="session-restore-btn" hidden data-click="restorePipelineDraft" class="mt-2 rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-100">Ripristina bozza locale</button>
-        <button id="session-discard-btn" hidden data-click="discardPipelineDraft" class="mt-2 rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-100">Scarta bozza e usa file server</button>
+        <button type="button" id="session-restore-btn" hidden data-click="restorePipelineDraft" class="mt-2 rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-100">Ripristina bozza locale</button>
+        <button type="button" id="session-discard-btn" hidden data-click="discardPipelineDraft" class="mt-2 rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-100">Scarta bozza e usa file server</button>
 
-        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mt-4 mb-2">Tipo di sviluppo</label>
-        <label for="dev-type-select"></label><select id="dev-type-select" data-change="onDevTypeChange"
+        <label for="dev-type-select" class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mt-4 mb-2">Tipo di sviluppo</label>
+        <select id="dev-type-select" data-change="onDevTypeChange"
                                                      class="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
           <option value="">Caricamento…</option>
         </select>
+        <div class="flex items-center gap-2 mt-2">
+          <label for="dev-type-new-input" class="sr-only">Nuovo tipo di sviluppo</label>
+          <input id="dev-type-new-input" type="text" maxlength="64" placeholder="Nuovo tipo, es. backend"
+                 class="min-w-0 flex-1 rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" />
+          <button type="button" id="dev-type-add-btn" data-click="addDevType"
+                  class="shrink-0 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Aggiungi</button>
+        </div>
         <p class="text-xs text-slate-400 mt-2">Determina in quale sottocartella di <code class="text-slate-400">code/</code> verranno scritti i file generati, a monte dell'intera pipeline.</p>
       </div>
 
@@ -290,7 +294,7 @@
             <div id="step-dot-1" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold step-dot-current shrink-0">1</div>
             <div class="step-line w-0.5 flex-1 my-1" id="step-line-1"></div>
           </div>
-          <button data-click="goToStep" data-arg="1" class="text-left pb-5 group">
+          <button type="button" data-click="goToStep" data-arg="1" class="text-left pb-5 group">
             <div class="text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition">Explore</div>
             <div class="text-xs text-slate-400">Intervista requisiti</div>
             <div id="step-badge-1" class="mt-1 text-xs font-mono step-badge-pending">non generato</div>
@@ -302,7 +306,7 @@
             <div id="step-dot-2" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold step-dot-pending shrink-0">2</div>
             <div class="step-line w-0.5 flex-1 my-1" id="step-line-2"></div>
           </div>
-          <button data-click="goToStep" data-arg="2" class="text-left pb-5 group">
+          <button type="button" data-click="goToStep" data-arg="2" class="text-left pb-5 group">
             <div class="text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition">Canvas</div>
             <div class="text-xs text-slate-400">REASONS Canvas</div>
             <div id="step-badge-2" class="mt-1 text-xs font-mono step-badge-pending">non generato</div>
@@ -314,7 +318,7 @@
             <div id="step-dot-3" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold step-dot-pending shrink-0">3</div>
             <div class="step-line w-0.5 flex-1 my-1" id="step-line-3"></div>
           </div>
-          <button data-click="goToStep" data-arg="3" class="text-left pb-5 group">
+          <button type="button" data-click="goToStep" data-arg="3" class="text-left pb-5 group">
             <div class="text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition">Propose</div>
             <div class="text-xs text-slate-400">Spec + Prompt finale</div>
             <div id="step-badge-3" class="mt-1 text-xs font-mono step-badge-pending">non generato</div>
@@ -326,7 +330,7 @@
             <div id="step-dot-4" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold step-dot-pending shrink-0">4</div>
             <div class="step-line w-0.5 flex-1 my-1" id="step-line-4"></div>
           </div>
-          <button data-click="goToStep" data-arg="4" class="text-left pb-5 group">
+          <button type="button" data-click="goToStep" data-arg="4" class="text-left pb-5 group">
             <div class="text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition">Drift</div>
             <div class="text-xs text-slate-400">Verifica disallineamento</div>
             <div id="step-badge-4" class="mt-1 text-xs font-mono step-badge-pending">non eseguito</div>
@@ -337,7 +341,7 @@
           <div class="flex flex-col items-center">
             <div id="step-dot-5" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold step-dot-pending shrink-0">5</div>
           </div>
-          <button data-click="goToStep" data-arg="5" class="text-left group">
+          <button type="button" data-click="goToStep" data-arg="5" class="text-left group">
             <div class="text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition">Archivia</div>
             <div class="text-xs text-slate-400">Archivio + Re-index</div>
             <div id="step-badge-5" class="mt-1 text-xs font-mono step-badge-pending">non eseguito</div>
@@ -365,15 +369,32 @@
             <span class="text-sm font-semibold text-slate-200">🎙️ Intervista Explore</span>
             <span id="explore-status" class="text-xs text-slate-400"></span>
           </div>
-          <div id="chat-log" class="chat-scroll flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-0"></div>
+          <!-- Guida al posto del riquadro vuoto: sparisce al primo messaggio
+               (updateChatControls in pipeline.js). Fuori da #chat-log, che contiene
+               solo i messaggi della conversazione. -->
+          <div id="chat-guide" class="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center gap-5 min-h-0">
+            <div class="text-center max-w-md">
+              <h2 class="text-base font-semibold text-slate-100">Inizia l'intervista Explore</h2>
+              <p class="text-sm text-slate-400 mt-1">Il Tech Lead IA ti fa domande sulla funzionalità da costruire. Dalle risposte nasce <code class="text-slate-300">explore.md</code>, la base del REASONS Canvas.</p>
+            </div>
+            <ol class="flex flex-col gap-2 w-full max-w-md" aria-label="Passi per iniziare">
+              <li><button type="button" id="guide-step-feature" class="guide-step" data-click="focusGuideStep" data-arg="feature-name-input">
+                <span id="guide-step-feature-mark" class="guide-step-mark" aria-hidden="true">1</span><span>Dai un nome alla feature</span><span id="guide-step-feature-state" class="guide-step-state"></span></button></li>
+              <li><button type="button" id="guide-step-type" class="guide-step" data-click="focusGuideStep" data-arg="dev-type-select">
+                <span id="guide-step-type-mark" class="guide-step-mark" aria-hidden="true">2</span><span>Scegli il tipo di sviluppo</span><span id="guide-step-type-state" class="guide-step-state"></span></button></li>
+              <li><button type="button" id="guide-step-answer" class="guide-step" data-click="focusGuideStep" data-arg="chat-input">
+                <span id="guide-step-answer-mark" class="guide-step-mark" aria-hidden="true">3</span><span>Descrivi cosa vuoi costruire, qui sotto</span><span id="guide-step-answer-state" class="guide-step-state"></span></button></li>
+            </ol>
+          </div>
+          <div id="chat-log" class="chat-scroll hidden flex-1 overflow-y-auto p-4 flex-col gap-3 min-h-0"></div>
           <div class="p-3 border-t border-slate-800 flex items-end gap-2 shrink-0">
-            <label for="chat-input"></label><textarea id="chat-input" rows="4" placeholder="Rispondi al Tech Lead IA… (Ctrl+Invio per inviare)"
-                                                      class="chat-compose flex-1 rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-            <button id="chat-send-btn" data-click="sendExploreTurn"
+            <label for="chat-input" class="sr-only">Risposta al Tech Lead IA</label><textarea id="chat-input" rows="4" placeholder="Rispondi al Tech Lead IA… (Ctrl+Invio per inviare)"
+                                                      class="chat-compose flex-1 rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            <button type="button" id="chat-send-btn" data-click="sendExploreTurn"
               class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
               Invia
             </button>
-            <button id="chat-finish-btn" data-click="finishExplore"
+            <button type="button" id="chat-finish-btn" data-click="finishExplore"
               class="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
               Termina e genera explore.md
             </button>
@@ -386,10 +407,10 @@
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisione · explore.md</span>
             <span class="text-xs text-amber-400 font-medium">Approva prima di continuare</span>
           </div>
-          <label for="explore-md-editor"></label><textarea id="explore-md-editor" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          <label for="explore-md-editor" class="sr-only">Contenuto di explore.md</label><textarea id="explore-md-editor" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
           <div class="flex items-center gap-2 mt-3 shrink-0">
-            <button data-click="saveMdFile" data-arg="explore.md" data-arg2="explore-md-editor" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
-            <button data-click="approveAndGoToCanvas" class="ml-auto rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva → vai a Canvas</button>
+            <button type="button" data-click="saveMdFile" data-arg="explore.md" data-arg2="explore-md-editor" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
+            <button type="button" data-click="approveAndGoToCanvas" class="ml-auto rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva → vai a Canvas</button>
           </div>
         </div>
       </div>
@@ -403,11 +424,11 @@
               <p class="text-xs text-slate-400 mt-0.5">Generato a partire da <code class="text-slate-400">explore.md</code>, con le 7 sezioni: Requirements, Entities, Approach, Structure, Operations, Norms, Safeguards.</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-              <button id="canvas-dryrun-btn" data-click="runCanvasDryRun"
+              <button type="button" id="canvas-dryrun-btn" data-click="runCanvasDryRun"
                 class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50">
                 🔎 Dry-run
               </button>
-              <button id="canvas-generate-btn" data-click="generateCanvas"
+              <button type="button" id="canvas-generate-btn" data-click="generateCanvas"
                 class="rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
                 Genera Canvas
               </button>
@@ -434,11 +455,11 @@
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisione · canvas.md</span>
             <span class="text-xs text-amber-400 font-medium">Approva prima di continuare</span>
           </div>
-          <label for="canvas-md-editor"></label><textarea id="canvas-md-editor" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          <label for="canvas-md-editor" class="sr-only">Contenuto di canvas.md</label><textarea id="canvas-md-editor" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
           <div class="flex items-center gap-2 mt-3 shrink-0">
-            <button data-click="saveMdFile" data-arg="canvas.md" data-arg2="canvas-md-editor" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
-            <button data-click="generateCanvas" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">🔄 Rigenera</button>
-            <button data-click="approveAndGoToPropose" class="ml-auto rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva → vai a Propose</button>
+            <button type="button" data-click="saveMdFile" data-arg="canvas.md" data-arg2="canvas-md-editor" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
+            <button type="button" data-click="generateCanvas" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">🔄 Rigenera</button>
+            <button type="button" data-click="approveAndGoToPropose" class="ml-auto rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva → vai a Propose</button>
           </div>
         </div>
       </div>
@@ -451,7 +472,7 @@
               <div class="text-sm font-semibold text-slate-200">⚙️ Propose · Specifiche BDD</div>
               <p class="text-xs text-slate-400 mt-0.5">Genera <code class="text-slate-400">spec.md</code> (scenari GIVEN/WHEN/THEN) dal Canvas approvato e il prompt finale pronto per Claude Code.</p>
             </div>
-            <button id="propose-generate-btn" data-click="generatePropose"
+            <button type="button" id="propose-generate-btn" data-click="generatePropose"
               class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
               Genera Spec
             </button>
@@ -472,25 +493,25 @@
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisione · spec.md</span>
             <span class="text-xs text-amber-400 font-medium">Approva per sbloccare il prompt finale</span>
           </div>
-          <label for="spec-md-editor"></label><textarea id="spec-md-editor" data-input="specEdited" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          <label for="spec-md-editor" class="sr-only">Contenuto di spec.md</label><textarea id="spec-md-editor" data-input="specEdited" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
           <p id="spec-open-points-status" role="status" class="text-xs text-slate-300 whitespace-pre-wrap">⚠ Resoconto dei punti aperti non disponibile.</p>
           <div class="flex items-center gap-2 mt-3 shrink-0">
-            <button data-click="saveMdFile" data-arg="spec.md" data-arg2="spec-md-editor" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
-            <button data-click="generatePropose" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">🔄 Rigenera</button>
-            <button data-click="approveSpec" class="ml-auto rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva spec.md</button>
+            <button type="button" data-click="saveMdFile" data-arg="spec.md" data-arg2="spec-md-editor" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
+            <button type="button" data-click="generatePropose" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">🔄 Rigenera</button>
+            <button type="button" data-click="approveSpec" class="ml-auto rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva spec.md</button>
           </div>
         </div>
 
         <div id="validate-card" class="hidden rounded-xl glass-card p-4 shrink-0 fade-in">
           <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <span class="text-xs font-semibold text-amber-400 uppercase tracking-widest">🛡️ Validazione governance (pre-apply)</span>
-            <button id="validate-btn" data-click="runValidate" class="text-xs font-semibold text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition disabled:opacity-50">Valida canvas + spec</button>
+            <button type="button" id="validate-btn" data-click="runValidate" class="text-xs font-semibold text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition disabled:opacity-50">Valida canvas + spec</button>
           </div>
           <p class="text-xs text-slate-400 mb-2">Verifica strutturale (7 sezioni del Canvas, scenari BDD) e coerenza semantica contro i vincoli normativi del Graph RAG, prima di lanciare Claude.</p>
           <p class="text-xs text-amber-400 mb-2">Agentic richiede il via libera del server sul contratto corrente. Suggest-only e One-shot restano disponibili con avvisi.</p>
-          <button data-click="refreshGateReview" class="text-xs underline">Rivedi punti aperti e associazioni</button>
+          <button type="button" data-click="refreshGateReview" class="text-xs underline">Rivedi punti aperti e associazioni</button>
           <pre id="gate-status" class="text-xs whitespace-pre-wrap my-2"></pre>
-          <button data-click="compareValidatedVersion" class="text-xs underline">Confronta con la versione validata</button>
+          <button type="button" data-click="compareValidatedVersion" class="text-xs underline">Confronta con la versione validata</button>
           <div id="gate-comparison" class="text-xs my-2"></div>
           <div id="gate-decisions" class="text-xs space-y-2"></div>
           <div id="validate-structural" class="flex flex-wrap gap-2 mb-2 text-xs font-mono"></div>
@@ -501,10 +522,10 @@
           <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <span class="text-xs font-semibold text-emerald-400 uppercase tracking-widest">🚀 Prompt finale per Claude Code / Cursor</span>
             <div class="flex items-center gap-2 flex-wrap">
-              <button id="agent-context-btn" data-click="loadAgentContext" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">🧠 Agent Context</button>
-              <button data-click="exportBundle" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">⬇️ Export JSON</button>
-              <button data-click="goToStep" data-arg="4" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">➡️ Verifica Drift</button>
-              <button data-click="copyFinalPrompt" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">Copia</button>
+              <button type="button" id="agent-context-btn" data-click="loadAgentContext" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">🧠 Agent Context</button>
+              <button type="button" data-click="exportBundle" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">⬇️ Export JSON</button>
+              <button type="button" data-click="goToStep" data-arg="4" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">➡️ Verifica Drift</button>
+              <button type="button" data-click="copyFinalPrompt" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">Copia</button>
             </div>
           </div>
           <pre id="final-prompt-box" class="text-xs text-emerald-200 whitespace-pre-wrap leading-relaxed bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-64 overflow-y-auto"></pre>
@@ -519,17 +540,17 @@
           <div class="mt-4 pt-4 border-t border-slate-800">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">🤖 Esegui con agente</span>
-              <label for="agent-runner-select"></label><select id="agent-runner-select" data-change="onRunnerChange"
+              <label for="agent-runner-select" class="sr-only">Agente</label><select id="agent-runner-select" data-change="onRunnerChange"
                                                                class="ml-auto rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="claude">Claude Code</option>
               </select>
-              <label for="agent-model-select"></label><select id="agent-model-select"
+              <label for="agent-model-select" class="sr-only">Modello</label><select id="agent-model-select"
                                                               class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="sonnet">🧠 Sonnet</option>
                 <option value="opus">🚀 Opus</option>
                 <option value="haiku">⚡ Haiku</option>
               </select>
-              <label for="agent-mode-select"></label><select id="agent-mode-select" data-change="syncAttemptsAvailability"
+              <label for="agent-mode-select" class="sr-only">Modalità di esecuzione</label><select id="agent-mode-select" data-change="syncAttemptsAvailability"
                                                              class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="suggest">🔍 Suggest-only (sola lettura)</option>
                 <option value="agentic">⚡ Agentic (scrive nel progetto)</option>
@@ -544,7 +565,7 @@
                       class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50">
                 <option value="1">1 · nessun rilancio</option>
               </select>
-              <button id="agent-run-btn" data-click="runWithAgent"
+              <button type="button" id="agent-run-btn" data-click="runWithAgent"
                 class="rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-xs font-semibold px-4 py-1.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
                 ▶ Esegui
               </button>
@@ -563,7 +584,7 @@
               <div class="text-sm font-semibold text-slate-200">🔍 Verifica del Drift</div>
               <p class="text-xs text-slate-400 mt-0.5">Confronta il contratto (<code class="text-slate-400">canvas.md</code> e <code class="text-slate-400">spec.md</code>, che prevale) con il codice effettivamente scritto: ogni rilievo cita il codice ed è verificato sui file reali prima di entrare nel verdetto. Equivale a <code class="text-slate-400">index.py --check-drift</code>, eseguito tramite LLM locale (Ollama).</p>
             </div>
-            <button id="drift-check-btn" data-click="runDriftCheck"
+            <button type="button" id="drift-check-btn" data-click="runDriftCheck"
               class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
               Esegui verifica
             </button>
@@ -582,7 +603,7 @@
         <div id="drift-report-card" class="hidden rounded-xl glass-card p-4 shrink-0 fade-in">
           <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">📊 Report Drift · Ollama</span>
-            <button data-click="goToStep" data-arg="5" class="text-xs font-semibold text-emerald-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-emerald-800 rounded-lg px-3 py-1.5 transition">➡️ Vai all'Archiviazione</button>
+            <button type="button" data-click="goToStep" data-arg="5" class="text-xs font-semibold text-emerald-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-emerald-800 rounded-lg px-3 py-1.5 transition">➡️ Vai all'Archiviazione</button>
           </div>
           <pre id="drift-report-box" class="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-96 overflow-y-auto"></pre>
         </div>
@@ -596,7 +617,7 @@
               <div class="text-sm font-semibold text-slate-200">📦 Archiviazione e Re-indicizzazione</div>
               <p class="text-xs text-slate-400 mt-0.5">Sposta <code class="text-slate-400">changes/&lt;feature&gt;</code> in <code class="text-slate-400">changes/archive/</code> e ricostruisce il Graph RAG locale (grafo + Qdrant + ColBERT). Equivale a <code class="text-slate-400">index.py --archive</code>. Operazione conclusiva e non reversibile dall'interfaccia.</p>
             </div>
-            <button id="archive-btn" data-click="runArchive"
+            <button type="button" id="archive-btn" data-click="runArchive"
               class="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
               Archivia e re-indicizza
             </button>

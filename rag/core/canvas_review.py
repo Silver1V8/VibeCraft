@@ -208,17 +208,33 @@ def parse_fidelity(review_text: str) -> str | None:
     return m.group(1).lower() if m else None
 
 
+# Marcatore di elenco ("- ", "*   ", "• ", "1. "): solo questo va tolto. Lo strip dei
+# caratteri "-*•" mangiava anche il "**" del grassetto iniziale, e il pannello mostrava
+# "canvas vs codice (…):**".
+_BULLET_RE = re.compile(r"^(?:[-*•+]|\d+[.)])\s+")
+# Riga fatta solo di grassetto, con i due punti dentro o fuori: è il titolo di un gruppo
+# ("**Codice vs Canvas (…):**"), non una divergenza. Contarla la faceva risultare la
+# divergenza più frequente, presente in ogni review.
+_GROUP_HEADING_RE = re.compile(r"\*\*[^*]+\*\*:?")
+# Linea orizzontale Markdown ("---", "***", "- - -"): separatore, non contenuto.
+_HORIZONTAL_RULE_RE = re.compile(r"(?:[-*_]\s*){3,}")
+
+
 def parse_divergences(review_text: str) -> list[str]:
-    """Estrae i bullet della sezione '## Divergenze' di una review (esclusi i
-    'nessuna divergenza'), come frasi normalizzate su una riga."""
+    """Estrae le voci della sezione '## Divergenze' di una review (esclusi i
+    'nessuna divergenza' e i titoli di gruppo in grassetto), come frasi su una riga
+    con il Markdown in linea intatto."""
     m = re.search(r"^#{1,3}\s*Divergenze\b.*?\n(.*?)(?=^#{1,3}\s|\Z)",
                   review_text, flags=re.MULTILINE | re.DOTALL | re.IGNORECASE)
     if not m:
         return []
     out = []
     for line in m.group(1).splitlines():
-        stripped = line.strip().lstrip("-*•").strip()
-        if stripped and "nessuna divergenza" not in stripped.lower():
+        if _HORIZONTAL_RULE_RE.fullmatch(line.strip()):
+            continue
+        stripped = _BULLET_RE.sub("", line.strip(), count=1).strip()
+        if (stripped and not _GROUP_HEADING_RE.fullmatch(stripped)
+                and "nessuna divergenza" not in stripped.lower()):
             out.append(stripped)
     return out
 
@@ -242,17 +258,22 @@ def canvas_quality_stats(archive_dir: Path, last_n: int = 10) -> dict:
 
     trend = []
     divergence_counts: dict[str, int] = {}
+    # Il conteggio raggruppa senza distinguere maiuscole; il testo mostrato è la prima
+    # forma incontrata, con le maiuscole originali (sigle, nomi di classi).
+    divergence_text: dict[str, str] = {}
     fidelity_counts = {"alto": 0, "medio": 0, "basso": 0, "sconosciuto": 0}
     for mtime, feature, text in reviews:
         fidelity = parse_fidelity(text) or "sconosciuto"
         fidelity_counts[fidelity] += 1
         trend.append({"feature": feature, "fidelity": fidelity})
         for d in parse_divergences(text):
-            key = re.sub(r"\s+", " ", d).strip().rstrip(".").lower()
+            shown = re.sub(r"\s+", " ", d).strip().rstrip(".")
+            key = shown.lower()
             divergence_counts[key] = divergence_counts.get(key, 0) + 1
+            divergence_text.setdefault(key, shown)
 
     top_divergences = [
-        {"text": k, "count": c}
+        {"text": divergence_text[k], "count": c}
         for k, c in sorted(divergence_counts.items(), key=lambda kv: (-kv[1], kv[0]))[:8]
     ]
     return {

@@ -702,7 +702,7 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     return version
 
 
-def docs_hashes(project: ProjectContext | None = None) -> dict[str, str]:
+def docs_hashes(project: ProjectContext | None = None, *, hasher=sha256_file) -> dict[str, str]:
     """Calcola l'hash SHA-256 di ogni documento indicizzabile in docs/ (chiave = percorso relativo).
     Pubblica: la usa anche api/routes_pipeline (stato sorgente del gate di pipeline)."""
     docs_dir = project.docs_dir if project is not None else DOCS_DIR
@@ -711,11 +711,11 @@ def docs_hashes(project: ProjectContext | None = None) -> dict[str, str]:
         if filepath_obj.suffix.lower() not in DOC_EXTS:
             continue
         rel_path = filepath_obj.relative_to(docs_dir).as_posix()
-        hashes[rel_path] = sha256_file(filepath_obj)
+        hashes[rel_path] = hasher(filepath_obj)
     return hashes
 
 
-def _code_hashes(project: ProjectContext | None = None) -> dict[str, str]:
+def _code_hashes(project: ProjectContext | None = None, *, hasher=sha256_file) -> dict[str, str]:
     """Hash SHA-256 di ogni file di codice sotto code/ (chiave = percorso relativo a code/).
     Base del delta incrementale sul codice, gemella di docs_hashes per i documenti."""
     code_dir = project.code_dir if project is not None else CODE_DIR
@@ -728,8 +728,27 @@ def _code_hashes(project: ProjectContext | None = None) -> dict[str, str]:
         if CODE_EXCLUDED_DIRS & set(filepath_obj.relative_to(code_dir).parts):
             continue
         rel_path = filepath_obj.relative_to(code_dir).as_posix()
-        hashes[rel_path] = sha256_file(filepath_obj)
+        hashes[rel_path] = hasher(filepath_obj)
     return hashes
+
+
+# Hash già calcolati per index_status, validi finché (mtime_ns, size) del file non cambia.
+# Solo per l'osservazione (lista progetti, health, badge dell'indice): con migliaia di file
+# di codice rileggerli tutti a ogni pagina costava secondi. Il reindex e il gate della
+# pipeline usano sempre sha256_file, così una scrittura che conserva mtime e dimensione
+# non può far saltare un aggiornamento reale.
+_STATUS_HASH_CACHE: dict[str, tuple[int, int, str]] = {}
+
+
+def _status_sha256(path: Path) -> str:
+    stat = path.stat()
+    key = str(path)
+    cached = _STATUS_HASH_CACHE.get(key)
+    if cached is not None and cached[0] == stat.st_mtime_ns and cached[1] == stat.st_size:
+        return cached[2]
+    digest = sha256_file(path)
+    _STATUS_HASH_CACHE[key] = (stat.st_mtime_ns, stat.st_size, digest)
+    return digest
 
 
 def write_index_manifest(points_count: int, nodes: int = 0, edges: int = 0,
@@ -806,9 +825,11 @@ def index_status(project: ProjectContext | None = None, *, version: str | None =
     except Exception as exc:
         return {"indexed": False, "stale": True, "reason": f"manifest illeggibile: {exc}", "changed": []}
 
-    added, removed, modified, _unchanged = _diff_hashes(manifest.get("doc_hashes", {}), docs_hashes(project=project))
+    added, removed, modified, _unchanged = _diff_hashes(manifest.get("doc_hashes", {}),
+                                                        docs_hashes(project=project, hasher=_status_sha256))
     changed = [f"+ {p}" for p in added] + [f"- {p}" for p in removed] + [f"~ {p}" for p in modified]
-    code_added, code_removed, code_modified, _ = _diff_hashes(manifest.get("code_hashes", {}), _code_hashes(project=project))
+    code_added, code_removed, code_modified, _ = _diff_hashes(manifest.get("code_hashes", {}),
+                                                              _code_hashes(project=project, hasher=_status_sha256))
     code_changed = [f"+ {p}" for p in code_added] + [f"- {p}" for p in code_removed] + [f"~ {p}" for p in code_modified]
     return {
         "indexed": True,

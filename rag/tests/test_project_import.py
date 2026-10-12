@@ -50,7 +50,8 @@ def sandbox(tmp_path, monkeypatch):
     """(src, code_dir, staging, lock) tutto in tmp_path."""
     src = _make_source_project(tmp_path)
     code_dir = tmp_path / "code"
-    code_dir.mkdir()
+    # Il target è una sottocartella ESISTENTE di code/ (come il tipo di sviluppo).
+    (code_dir / "backend").mkdir(parents=True)
     staging = tmp_path / "staging"
     monkeypatch.setattr(intake, "INTAKE_STAGING_DIR", staging)
     return src, code_dir, staging, tmp_path / "writer.lock"
@@ -78,8 +79,8 @@ def test_plan_is_pure_dry_run_zero_writes(sandbox):
     assert plan.mode == "bootstrap"
     assert plan.nuovi == COPIABLE
     assert plan.identici == [] and plan.conflitti == []
-    # zero scritture: code/ e la sorgente sono intatte
-    assert list(code_dir.rglob("*")) == []
+    # zero scritture: code/ contiene solo la cartella target creata dalla fixture
+    assert list(code_dir.rglob("*")) == [code_dir / "backend"]
 
 
 def test_plan_exclusions_node_modules_bin_and_unknown_ext(sandbox):
@@ -236,7 +237,7 @@ def test_apply_same_plan_twice_is_stale_no_double_effect(sandbox):
 def test_plan_rejects_path_inside_repo(sandbox):
     _src, code_dir, _staging, _lock = sandbox
     with pytest.raises(project_import.InvalidImportPathError, match="dentro il repo"):
-        _plan(PROJECT_ROOT / "docs", code_dir)
+        _plan(PROJECT_ROOT / "templates" / "docs", code_dir)
 
 
 @pytest.mark.parametrize("bad", ["relativo/senza-radice", "sorgente"])
@@ -258,8 +259,26 @@ def test_plan_rejects_missing_or_file_path(sandbox, tmp_path):
 
 def test_plan_rejects_unknown_target(sandbox):
     src, code_dir, _staging, _lock = sandbox
-    with pytest.raises(project_import.InvalidImportTargetError):
+    with pytest.raises(project_import.InvalidImportTargetError, match="non presente"):
         _plan(src, code_dir, target="altrove")
+
+
+@pytest.mark.parametrize("bad", ["..", "../code", "a/b", "a\b", ".git", "con", ""])
+def test_plan_rejects_unsafe_target(sandbox, bad):
+    src, code_dir, _staging, _lock = sandbox
+    with pytest.raises(project_import.InvalidImportTargetError):
+        _plan(src, code_dir, target=bad)
+
+
+def test_plan_accepts_any_existing_code_scope(sandbox):
+    """Un progetto con ambiti propri (non backend/frontend/logicAgent) può importare:
+    il target segue le cartelle reali di code/, come la tendina della Pipeline."""
+    src, code_dir, staging, lock = sandbox
+    (code_dir / "mobileApp").mkdir()
+    plan = _plan(src, code_dir, target="mobileApp")
+    assert plan.target == "mobileApp"
+    _apply(plan, code_dir, staging, lock)
+    assert (code_dir / "mobileApp" / src.name / "app" / "main.py").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -269,7 +288,7 @@ def _client(tmp_path, monkeypatch) -> tuple[TestClient, Path, Path]:
     from api import routes_intake
     src = _make_source_project(tmp_path)
     code_dir = tmp_path / "code"
-    code_dir.mkdir()
+    (code_dir / "backend").mkdir(parents=True)
     monkeypatch.setattr(project_import, "CODE_DIR", code_dir)
     monkeypatch.setattr(intake, "INTAKE_STAGING_DIR", tmp_path / "staging")
     monkeypatch.setattr(routes_intake, "_server_reindex", _noop_reindex)
@@ -307,7 +326,7 @@ def test_route_plan_validation_errors(tmp_path, monkeypatch):
                        json={"path": "relativo", "target": "backend"}).status_code == 422
     # path dentro il repo → 422
     assert client.post("/api/intake/project/plan",
-                       json={"path": str(PROJECT_ROOT / "docs"), "target": "backend"}).status_code == 422
+                       json={"path": str(PROJECT_ROOT / "templates" / "docs"), "target": "backend"}).status_code == 422
     # target non ammesso → 422
     assert client.post("/api/intake/project/plan",
                        json={"path": str(src), "target": "altrove"}).status_code == 422

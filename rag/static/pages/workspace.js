@@ -26,15 +26,30 @@ function setWelcomeView(visible) {
   document.getElementById('workspace-pages').hidden = visible;
   document.getElementById('project-context').hidden = visible;
   document.getElementById('project-toolbar').hidden = visible;
-  document.getElementById('workspace-theme').hidden = !visible;
+  document.getElementById('workspace-nav').hidden = visible;
+}
+/* La pagina corrente nella nav della shell: aria-current per gli screen reader,
+   href con ?project= perché "apri in nuova scheda" porti allo stesso progetto. */
+function markWorkspaceNav(url) {
+  for (const link of document.querySelectorAll('#workspace-nav a')) {
+    const target = new URL(link.getAttribute('href'), location.origin);
+    target.search = '';
+    target.searchParams.set('project', url.searchParams.get('project'));
+    link.href = target.pathname + target.search;
+    const current = target.pathname === url.pathname;
+    link.classList.toggle('is-current', current);
+    if (current) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
+  }
 }
 function showProjectWelcome(push = true) {
   ++workspaceNavigation; // Una navigazione in attesa non deve riaprire un frame sopra la home.
   setWelcomeView(true);
+  workspaceLoading(false);
   document.getElementById('theme-switcher').value = document.documentElement.dataset.theme;
   document.getElementById('workspace-status').hidden = true;
   document.getElementById('project-search').value = '';
   renderProjectList();
+  if (projects.some(project => project.stale_pending)) completeProjectStatus();
   document.title = 'VibeCraft · Progetti';
   const url = new URL('/', location.origin);
   if (push && url.href !== location.href) history.pushState(null, '', url);
@@ -42,8 +57,11 @@ function showProjectWelcome(push = true) {
 }
 function setIndexBadge(element, project) {
   const labels = { not_indexed: 'Non indicizzato', ready: 'Indice pronto', indexing: 'Indicizzazione in corso', error: 'Errore indice' };
-  element.textContent = project ? `${labels[project.index_status] || 'Stato indice non disponibile'}${project.stale ? ' · da aggiornare' : ''}` : '';
-  element.dataset.state = project?.index_status === 'ready' && project.stale ? 'stale' : project?.index_status || '';
+  const checking = project?.index_status === 'ready' && project.stale_pending;
+  const suffix = checking ? ' · verifica…' : project?.stale ? ' · da aggiornare' : '';
+  element.textContent = project ? `${labels[project.index_status] || 'Stato indice non disponibile'}${suffix}` : '';
+  element.dataset.state = checking ? 'checking'
+    : project?.index_status === 'ready' && project.stale ? 'stale' : project?.index_status || '';
 }
 function renderProjectList() {
   const filter = document.getElementById('project-search').value.trim().toLocaleLowerCase();
@@ -72,7 +90,16 @@ function renderProjectList() {
   empty.textContent = filter ? 'Nessun progetto corrisponde alla ricerca.' : 'Nessun progetto ancora. Crea un progetto o apri una cartella esistente.';
 }
 
+/* Scheletro al posto della pagina mentre il frame carica: la sagoma dell'interfaccia
+   compare subito invece di uno schermo vuoto con un messaggio in basso. */
+function workspaceLoading(visible) {
+  document.getElementById('workspace-skeleton').hidden = !visible;
+  // L'area pagine cede lo spazio allo scheletro; sulla home resta nascosta comunque.
+  document.getElementById('workspace-pages').hidden = visible || !document.getElementById('project-welcome').hidden;
+  if (visible) document.getElementById('workspace-status').hidden = true;
+}
 function workspaceMessage(text, retry = false) {
+  workspaceLoading(false);
   document.getElementById('workspace-status').hidden = false;
   document.getElementById('workspace-message').textContent = text;
   document.getElementById('workspace-retry').hidden = !retry;
@@ -112,7 +139,9 @@ function renderIndexStatus(project) {
   setIndexBadge(badge, busy ? { ...project, index_status: 'indexing', stale: false } : project);
   if (repair && !busy) { badge.textContent = 'Indice da ricostruire'; badge.dataset.state = 'error'; }
   const button = document.getElementById('project-index-update');
-  button.hidden = projectReadOnly || !project || (!busy && !repair && project.index_status === 'ready' && project.stale === false);
+  // Durante la verifica lo stato non è noto: niente pulsante che appare e poi sparisce.
+  button.hidden = projectReadOnly || !project || (!busy && !repair && project.index_status === 'ready'
+    && (project.stale === false || project.stale_pending));
   button.disabled = !!busy;
   button.textContent = busy ? 'Indicizzazione…' : repair ? 'Ricostruisci indice' : project?.index_status === 'not_indexed' ? 'Crea indice' : 'Aggiorna indice';
 }
@@ -241,7 +270,8 @@ async function navigateWorkspace(target, push = true) {
   const navigation = ++workspaceNavigation;
   workspaceTarget = url.href;
   setWelcomeView(false);
-  workspaceMessage('Caricamento…');
+  // Un frame già in cache si mostra all'istante: lo scheletro serve solo al primo caricamento.
+  if (!workspacePages.get(key)?.frame) workspaceLoading(true);
   try {
     reserveProject(project);
     if (!workspacePages.has(key)) {
@@ -273,10 +303,12 @@ async function navigateWorkspace(target, push = true) {
     const theme = document.documentElement.dataset.theme;
     if (frame.contentDocument.documentElement.dataset.theme !== theme) frame.contentWindow.setUiTheme(theme);
     document.title = frame.contentDocument.title;
+    markWorkspaceNav(url);
     if (url.href !== location.href) {
       if (push) history.pushState(null, '', url);
       else history.replaceState(null, '', url);
     }
+    workspaceLoading(false);
     document.getElementById('workspace-status').hidden = true;
     frame.focus();
     refreshIndexStatus(project);
@@ -344,8 +376,11 @@ async function browseExistingProject() {
 async function initializeWorkspace() {
   const welcome = isProjectWelcome();
   setWelcomeView(welcome);
+  if (!welcome) workspaceLoading(true);
   try {
-    const response = await fetch('/api/projects');
+    // Prima l'elenco senza lo stato "da aggiornare" (secondi su progetti grandi): la pagina
+    // parte subito, lo stato completo arriva dopo da completeProjectStatus.
+    const response = await fetch('/api/projects?stale=0');
     const data = await response.json();
     if (!response.ok) throw new Error(projectError(data, response));
     projects = data.projects;
@@ -353,8 +388,27 @@ async function initializeWorkspace() {
     // Compatibilità soltanto legacy; nessun fallback al primo progetto della lista.
     if (!welcome && !currentProject && projects.some(project => project.id === 'legacy')) currentProject = 'legacy';
     renderProjects();
+    // Dentro una pagina basta refreshIndexStatus sul progetto attivo (lo lancia
+    // navigateWorkspace); lo stato di tutti lo chiede showProjectWelcome.
     await navigateWorkspace(location.href, false);
   } catch (error) { workspaceMessage(`Impossibile caricare i progetti: ${error.message}`, true); }
+}
+let projectStatusRequest = null;
+function completeProjectStatus() {
+  projectStatusRequest ??= fetchProjectStatus().finally(() => { projectStatusRequest = null; });
+  return projectStatusRequest;
+}
+async function fetchProjectStatus() {
+  try {
+    const response = await fetch('/api/projects');
+    if (!response.ok) return;
+    const fresh = new Map((await response.json()).projects.map(project => [project.id, project]));
+    // Sostituisce solo i progetti ancora in verifica: un refreshIndexStatus arrivato
+    // nel frattempo ha già un dato più recente.
+    projects = projects.map(project => project.stale_pending && fresh.has(project.id) ? fresh.get(project.id) : project);
+    renderIndexStatus(projects.find(project => project.id === currentProject));
+    renderProjectList();
+  } catch (_) { /* resta "verifica…": il refresh periodico del progetto attivo lo completa */ }
 }
 
 window.navigateWorkspace = navigateWorkspace;
@@ -373,6 +427,13 @@ registerActions({
   updateProjectIndex,
 });
 document.getElementById('project-form').addEventListener('submit', submitProject);
+document.getElementById('workspace-nav').addEventListener('click', event => {
+  const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+  // Ctrl/Cmd/Maiusc e il tasto centrale restano al browser: nuova scheda o finestra.
+  if (!link || event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  navigateWorkspace(link.href);
+});
 window.addEventListener('popstate', () => navigateWorkspace(location.href, false));
 window.onThemeChange = value => {
   for (const page of workspacePages.values()) {

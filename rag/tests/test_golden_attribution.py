@@ -8,8 +8,11 @@ from datetime import datetime
 
 import yaml
 
-from core.config import DOCS_DIR, GOLDEN_SET_PATH
+from core.config import GOLDEN_SET_PATH, PROJECT_ROOT
 from core.eval_history import load_history
+
+# Corpus versionato: le fonti dichiarate devono esistere in cio' che il repository distribuisce.
+CORPUS_DIR = PROJECT_ROOT / "templates" / "docs"
 
 ATTRIBUTION_PATH = GOLDEN_SET_PATH.with_name("golden_attribution.yaml")
 INDEX_VERSION_RE = re.compile(r"^v\d{8}T\d{6}$")
@@ -49,12 +52,12 @@ def test_verdetto_coerente_con_la_fonte_normativa_dichiarata():
 
 
 def test_fonti_dichiarate_esistono_nel_corpus():
-    nomi = {p.stem for p in DOCS_DIR.rglob("*.md")}
+    nomi = {p.stem for p in CORPUS_DIR.rglob("*.md")}
     for caso in _load()["cases"]:
         if caso["normative"]:
             assert caso["normative"]["doc"] in nomi, (caso["id"], caso["normative"])
         if caso.get("distractor"):
-            assert (DOCS_DIR / caso["distractor"]).exists(), (caso["id"], caso["distractor"])
+            assert (CORPUS_DIR / caso["distractor"]).exists(), (caso["id"], caso["distractor"])
 
 
 def test_riepilogo_coerente_con_le_run():
