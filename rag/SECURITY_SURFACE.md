@@ -303,7 +303,7 @@ oltre a `require_api_key` del router.
 | 19 | POST | `/api/pipeline/validate` | require_api_key | JSON Pydantic | No (preflight) | esegue LLM + retrieval e persiste il record di validazione | Basso (Medio DoS) | **anti-x-site** |
 | 20 | GET | `/api/index/status` | require_api_key | assente | Sì | read-only (drift indicizzazione) | Basso | nessuna |
 | 21 | GET | `/api/index/integrity` | require_api_key | assente | Sì | read-only (interroga Qdrant in lettura) | Basso | nessuna |
-| 22 | POST | `/api/pipeline/canvas/dry-run` | require_api_key | JSON Pydantic | No (preflight) | read-only (retrieval/embedding, nessuna scrittura) | Basso (Medio DoS) | nessuna (esclusa §2C) |
+| 22 | POST | `/api/pipeline/canvas/dry-run` | require_api_key | JSON Pydantic | No (preflight) | read-only (retrieval/embedding, nessuna scrittura; misura la dimensione dei documenti governati solo dentro `docs/` del progetto, doc_id fuori ⇒ 0) | Basso (Medio DoS) | nessuna (esclusa §2C) |
 | 23 | GET | `/api/pipeline/agent-context` | require_api_key | query | Sì | read-only (retrieval) | Basso | nessuna |
 | 24 | GET | `/api/pipeline/export` | require_api_key | query | Sì | read-only | Basso | nessuna |
 | 25 | GET | `/api/pipeline/status` | require_api_key | query | Sì | read-only | Basso | nessuna |
@@ -327,7 +327,7 @@ oltre a `require_api_key` del router.
 | 43 | POST | `/api/intake/docs` | require_api_key | **multipart** (`UploadFile`) | **Sì (multipart)** | **scrive staging** (`database/staging/`, journal) | Medio | **anti-x-site** |
 | 44 | GET | `/api/intake/staged` | require_api_key | assente | Sì | read-only (journal) | Basso | nessuna |
 | 45 | GET | `/api/intake/staged/{doc_id}/preview` | require_api_key | path | Sì | read-only (journal + markdown derivato) | Basso | nessuna |
-| 46 | POST | `/api/intake/staged/{doc_id}/approve` | require_api_key | JSON Pydantic | No (preflight) | **scrive `docs/<categoria>/`** + **reindex delta** (Qdrant + CURRENT) sotto writer lock + reload snapshot | **Alto** | **anti-x-site** |
+| 46 | POST | `/api/intake/staged/{doc_id}/approve` | require_api_key | JSON Pydantic | No (preflight) | **scrive `docs/<categoria>/`** sotto writer lock; dal 2026-10-06 **nessun reindex** (indicizzazione separata con «Aggiorna indice», `POST /api/index/reindex`) | **Alto** | **anti-x-site** |
 | 47 | POST | `/api/intake/staged/{doc_id}/reject` | require_api_key | **JSON tutto-opz.** (`motivo` con default) | **Sì (bodyless)** | **scrive staging** (sposta in `staging/rejected/`, journal); `docs/` e indice intatti | Medio | **anti-x-site** |
 | 48 | POST | `/api/intake/generate` | require_api_key | JSON Pydantic | No (preflight) | avvia job LLM (Ollama) → documenti in staging; tetto GLOBALE di job attivi condiviso con 50 e 56 (`VIBECRAFT_GENERATION_MAX_ACTIVE`, oltre: 429) | Medio (DoS/costo) | **anti-x-site** |
 | 49 | GET | `/api/intake/generate/{job_id}` | require_api_key | path | Sì | read-only (stato job) | Basso | nessuna |
@@ -398,7 +398,7 @@ con `Sec-Fetch-Site: cross-site`; quelle **senza** l'header passano come prima.
 | POST `/api/pipeline/archive/stream` (18) | Variante streaming di #16, stesso effetto e stesso blast. |
 | POST `/api/pipeline/file/save` (27) | Scrive filesystem. |
 | POST `/api/intake/docs` (43) | **Consegnabile (multipart)**: scrive in staging senza preflight. |
-| POST `/api/intake/staged/{id}/approve` (46) | Scrive `docs/` **e** reindicizza (Qdrant + CURRENT): blast Alto. |
+| POST `/api/intake/staged/{id}/approve` (46) | Scrive `docs/`: il file entra nel corpus al successivo aggiornamento dell'indice, quindi blast Alto anche senza reindex immediato. |
 | POST `/api/intake/staged/{id}/reject` (47) | **Consegnabile (body tutto-opzionale)**: sposta file e scrive il journal. |
 | POST `/api/intake/project/apply` (54) | **Consegnabile (body tutto-opzionale)**: copia file in `code/`, backup, journal, reindex delta. Blast Alto. |
 | POST `/api/intake/project/browse-path` (52) | **Consegnabile (bodyless)**: non muta dati ma apre una finestra sul desktop del server e occupa un thread — effetto locale osservabile e fastidioso, trattato come mutante. Monta **anche** `require_local_bind` (§4 #7). |

@@ -154,7 +154,7 @@
                 Architettura Graph RAG multi-progetto
             </h1>
             <p class="text-lg text-slate-600">Una console, progetti separati: codice, documenti, indice e pipeline dedicati; modelli e istanza Qdrant condivisi.</p>
-            <p class="text-sm text-slate-500 mt-2">Documentazione aggiornata al 5 ottobre 2026 · multi-progetto integrato in <code class="font-mono">main</code>; aggiornare i checkout precedenti.</p>
+            <p class="text-sm text-slate-500 mt-2">Documentazione aggiornata al 12 ottobre 2026 · multi-progetto integrato in <code class="font-mono">main</code>; aggiornare i checkout precedenti.</p>
         </header>
 
         <section id="project-architecture" class="bg-white glass-card rounded-xl shadow-lg p-6 mb-12" aria-labelledby="projects-title">
@@ -174,7 +174,7 @@
             </div>
             <p class="text-sm text-slate-600 mb-2"><strong>Condivisi:</strong> FastAPI, client Qdrant e pesi dei modelli. Risorse caricate a richiesta, massimo due snapshot residenti; indicizzazioni HTTP serializzate nel processo e writer lock per progetto.</p>
             <p class="text-sm text-slate-600 mb-2"><strong>Identità:</strong> <code class="font-mono">X-VibeCraft-Project</code> nelle API, <code class="font-mono">index.py --project &lt;id&gt;</code> nella CLI, <code class="font-mono">VIBECRAFT_PROJECT_ID</code> nel MCP. Richieste e job conservano il progetto originario durante un cambio di selezione.</p>
-            <p class="text-sm text-slate-600"><strong>Compatibilità:</strong> il progetto attuale resta <code class="font-mono">legacy</code>, registrato in-place. La console parte anche senza indice; retrieval indisponibile dichiarato. In Docker le root apribili sono sotto <code class="font-mono">/app/projects</code>; browse nativo soltanto con bind locale.</p>
+            <p class="text-sm text-slate-600"><strong>Compatibilità:</strong> il progetto iniziale <code class="font-mono">legacy</code> ha una root dedicata in <code class="font-mono">projects/legacy/</code>, popolata una volta dalla baseline (<code class="font-mono">templates/</code> nell'immagine Docker). La console parte anche senza indice; retrieval indisponibile dichiarato. In Docker le root apribili sono sotto <code class="font-mono">/app/projects</code>; browse nativo soltanto con bind locale.</p>
         </section>
 
         <!-- Fascia KPI: dati REALI da /api/health, non numeri decorativi.
@@ -274,7 +274,7 @@
                 <p class="text-sm text-slate-600 mb-2">Explore, Canvas, Propose, Validate, poi l'agente — con Drift e Archive a chiudere il ciclo, grounded sul grafo.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Explore → Canvas → Propose → Validate → esecuzione dell'agente, con <strong>Drift check</strong> e <strong>Archive</strong> a chiudere il ciclo. Canvas e Propose sono <strong>grounded nel Graph RAG</strong>; Propose chiude con i <strong>punti aperti</strong> in JSON (<code class="bg-gray-200 px-1 rounded font-mono">core/open_points.py</code>, perimetro advisory). L'avvio agentic passa dal <strong>gate del contratto</strong> (card 15) e l'avvio in-app è disponibile con Claude SDK e Ollama locale (card 16). All'archive la <strong>canvas review</strong> confronta il Canvas col diff reale e le lezioni rientrano nei prompt futuri.</p>
+                  <p class="mt-2">Explore → Canvas → Propose → Validate → esecuzione dell'agente, con <strong>Drift check</strong> e <strong>Archive</strong> a chiudere il ciclo. Il <strong>tipo di sviluppo</strong> è una sottocartella reale di <code class="bg-gray-200 px-1 rounded font-mono">code/</code>, creabile dalla pagina; il <strong>dry-run</strong> mostra le sorgenti del Canvas senza chiamare il modello. Canvas e Propose sono <strong>grounded nel Graph RAG</strong>; Propose chiude con i <strong>punti aperti</strong> in JSON (<code class="bg-gray-200 px-1 rounded font-mono">core/open_points.py</code>, perimetro advisory). L'avvio agentic passa dal <strong>gate del contratto</strong> (card 15) e l'avvio in-app è disponibile con Claude SDK e Ollama locale (card 16). All'archive la <strong>canvas review</strong> confronta il Canvas col diff reale e le lezioni rientrano nei prompt futuri.</p>
                 </details>
             </div>
 
@@ -360,7 +360,7 @@
                 <p class="text-sm text-slate-600 mb-2">Unico ingresso di documenti e progetti: tutto passa da uno staging e da un'approvazione esplicita.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Cinque flussi, un solo staging: genera con Ollama, importa documenti, raffina con LLM (opt-in, a finestre, con forbice di lunghezza), review, import di progetti in <code class="bg-gray-200 px-1 rounded font-mono">code/</code> con <strong>plan/apply additivo</strong> (mai sovrascritture). Conversione <strong>in locale</strong> con una matrice misurata: <strong>Docling</strong> per i PDF (OCR solo sulle scansioni), <strong>lettura diretta</strong> di XLSX/XLS (openpyxl, xlrd), <strong>LibreOffice</strong> headless per DOC/PPT, MarkItDown per il resto. <code class="bg-gray-200 px-1 rounded font-mono">approve</code> non sovrascrive mai un file in <code class="bg-gray-200 px-1 rounded font-mono">docs/</code> e reindicizza la sola path, sotto writer lock.</p>
+                  <p class="mt-2">Cinque flussi, un solo staging: genera con Ollama, importa documenti, raffina con LLM (opt-in, a finestre, con forbice di lunghezza), review, import di progetti in <code class="bg-gray-200 px-1 rounded font-mono">code/</code> con <strong>plan/apply additivo</strong> (mai sovrascritture). Conversione <strong>in locale</strong> con una matrice misurata: <strong>Docling</strong> per i PDF (OCR solo sulle scansioni), <strong>lettura diretta</strong> di XLSX/XLS (openpyxl, xlrd), <strong>LibreOffice</strong> headless per DOC/PPT, MarkItDown per il resto. <code class="bg-gray-200 px-1 rounded font-mono">approve</code> non sovrascrive mai un file in <code class="bg-gray-200 px-1 rounded font-mono">docs/</code> e scrive sotto writer lock, senza indicizzare: approvati i file, <strong>Aggiorna indice</strong> li indicizza tutti insieme. Gli ambiti di <code class="bg-gray-200 px-1 rounded font-mono">code/</code> sono le sottocartelle reali, condivise con la Pipeline e creabili dalla pagina.</p>
                 </details>
             </div>
 

@@ -1,6 +1,6 @@
 # rag/ — Console Graph-RAG
 
-**Versione documentata: 5 ottobre 2026, multi-progetto integrato in `main`.**
+**Versione documentata: 12 ottobre 2026, multi-progetto integrato in `main`.**
 I checkout precedenti vanno aggiornati prima di usare i nuovi comandi.
 
 ## Progetti separati
@@ -64,6 +64,15 @@ carica prima i file server e propone «Ripristina bozza locale» oppure
 autorizzazioni, validazioni o esecuzioni dell'agente. L'interfaccia mostra
 l'ultimo salvataggio locale e segnala storage browser indisponibile o corrotto.
 Le bozze non sono sincronizzate fra dispositivi e vengono perse cancellando i dati del sito.
+Finché una bozza attende la scelta, chat ed editor sono in sola lettura e il campo
+dell'intervista lo dice; il tipo di sviluppo resta selezionabile e il ripristino lo
+sostituisce solo se la bozza ne aveva uno.
+
+Il tipo di sviluppo è una sottocartella reale di `code/` del progetto
+(`GET /api/pipeline/dev-types`). **Aggiungi** la crea con `POST /api/pipeline/dev-types`,
+JSON `{"name":"..."}`: un solo componente `[A-Za-z0-9][A-Za-z0-9_-]{0,63}`, nomi
+riservati Windows rifiutati, idempotente senza distinzione di maiuscole. Pipeline e
+import di Intake usano la stessa regola (`core/projects.py`).
 
 Da `rag/`, con l'ID ricavato dalla console o da `GET /api/projects`:
 
@@ -91,8 +100,12 @@ originario: selezionare B non sposta un job di A.
 ### Legacy, Docker e limiti
 
 Il progetto iniziale usa `<VIBECRAFT_PROJECTS_DIR>/legacy/`, con manifest e layout
-ordinari. Su clone pulito il primo avvio writer copia e verifica baseline e scheletro
-senza modelli, Qdrant o build. Gli altri progetti nuovi restano vuoti. Il reader non
+ordinari. Il primo avvio writer copia e verifica in quella root i file di `docs/` e
+`code/` alla radice dell'installazione, senza modelli, Qdrant o build. La baseline
+versionata sta in `templates/docs/` e `templates/code/`: l'immagine Docker la porta in
+`/app/docs` e `/app/code`; in un clone locale pulito quelle cartelle mancano e il
+registro parte vuoto (copia `templates/docs/` in `docs/` prima del primo avvio per
+ottenere il progetto iniziale). Gli altri progetti nuovi restano vuoti. Il reader non
 inizializza il registro. Un registro già vuoto resta vuoto.
 L'indice scansiona soltanto docs/code del progetto selezionato, anche per ID `legacy`.
 
@@ -568,7 +581,8 @@ documenti salva i file; il pulsante **Aggiorna indice** avvia l'indicizzazione d
   converte davvero un PDF, una scansione, DOC, PPT, XLSX e XLS nell'immagine costruita.
 - **Importa progetto da path** (`POST /api/intake/project/plan` + `.../apply`,
   [core/project_import.py](core/project_import.py)): import di un progetto locale in
-  `code/<target>` (`backend`, `frontend`, `logicAgent`) col pattern **plan/apply**.
+  `code/<target>` (una sottocartella esistente di `code/`, es. `backend`, `frontend`,
+  `logicAgent`, oppure una nuova creata dalla pagina) col pattern **plan/apply**.
   Il plan è un **dry-run puro** (zero scritture) che classifica i file in
   nuovi/identici/conflitti/esclusi (esclusioni riusate da `CODE_EXCLUDED_DIRS`).
   Semantica **additiva e non distruttiva, vincolante**: cartella vuota → bootstrap
@@ -1637,6 +1651,9 @@ uv run --frozen python -B mcp_server.py
 ```
 
 Il processo attende il protocollo su stdin; non è una console interattiva.
+Per Claude Code, `.\scripts\install_mcp.ps1 [-Scope user|local|project]
+[-BackendUrl http://127.0.0.1:8000]` esegue `uv sync --frozen` e registra il server
+`vibecraft` con il Python di `.venv`; rieseguirlo sostituisce la registrazione.
 Configurazione essenziale di un **client locale** che eredita l'ambiente:
 
 ```json

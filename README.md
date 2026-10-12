@@ -64,7 +64,9 @@ i job già avviati restano nel progetto originario. Due progetti possono mantene
 pagine residenti; operazioni attive impediscono l'eviction. La pipeline salva
 localmente intervista, input e bozze per progetto e feature. Dopo refresh o chiusura
 puoi scegliere «Ripristina bozza locale» dopo il caricamento dei file server:
-il recupero non li sovrascrive. L'ultimo salvataggio è visibile; le bozze restano
+il recupero non li sovrascrive. Finché non ripristini o scarti la bozza, chat ed editor
+restano in sola lettura; il tipo di sviluppo resta selezionabile e il ripristino lo
+sostituisce solo se la bozza ne aveva uno. L'ultimo salvataggio è visibile; le bozze restano
 nel browser e non sono sincronizzate fra dispositivi. Non sono previsti delete, rename, ricerca
 fra progetti o ACL per progetto.
 
@@ -81,13 +83,19 @@ Un unico Qdrant ospita namespace distinti: alias `vibecraft_<id>` e collection
 progetto; il cambio selezione non cambia il target di un lavoro già avviato.
 
 Anche il progetto iniziale ha una root dedicata: `projects/legacy/`, con `code/`,
-`docs/`, `changes/` e `database/`. Al primo avvio writer di un clone pulito, VibeCraft
-copia e verifica la baseline e lo scheletro del codice senza indicizzare o scaricare
-modelli. Gli altri progetti nuovi nascono vuoti. Un registro già vuoto resta vuoto.
+`docs/`, `changes/` e `database/`. Al primo avvio writer, se `docs/` o `code/` alla radice
+dell'installazione contengono file, VibeCraft li copia e verifica in `projects/legacy/`
+senza indicizzare o scaricare modelli. La baseline versionata vive in `templates/docs/` e
+`templates/code/`: l'immagine Docker la copia in `/app/docs` e `/app/code`, quindi il
+progetto iniziale nasce già popolato. In un clone locale pulito le cartelle alla radice
+non esistono e il registro parte vuoto: crea un progetto e importa la baseline da Intake,
+oppure copia `templates/docs/` in `docs/` prima del primo avvio.
+Gli altri progetti nuovi nascono vuoti. Un registro già vuoto resta vuoto.
 Il nome `legacy` identifica il progetto iniziale: usa lo stesso runtime e indice degli altri.
 L'indice legge soltanto `docs/` e `code/` nella root del progetto selezionato.
 In PyCharm espandi `projects/legacy/` oppure `projects/<id>/`; la root attiva
-è anche nei metadati del progetto. Le cartelle alla radice dell'installazione sono la baseline storica.
+è anche nei metadati del progetto. Le cartelle alla radice dell'installazione sono solo la
+sorgente di quella copia iniziale.
 Il reader non inizializza il registry: un registry inizialmente assente restituisce
 `[]` e le richieste senza progetto `project_required`; dopo averlo osservato, la sua
 cancellazione/corruzione fallisce chiusa. Inizializza con writer prima del deploy reader; configura `VIBECRAFT_ROLE=reader`,
@@ -148,7 +156,11 @@ Il runner locale applica pruning dei percorsi vietati.
 ## Pipeline e agenti
 
 Da [`/pipeline`](http://127.0.0.1:8000/pipeline) si passa dall'intervista al Canvas,
-alla Spec con scenari Gherkin, alla validazione e all'archiviazione. Propose e agente
+alla Spec con scenari Gherkin, alla validazione e all'archiviazione. Il **tipo di
+sviluppo** è una sottocartella di `code/` del progetto: la tendina elenca quelle esistenti
+e **Aggiungi** ne crea una nuova (nome a un solo componente, lettere, cifre, `-` e `_`).
+Il dry-run del Canvas mostra le sorgenti che verrebbero usate senza chiamare il modello.
+Propose e agente
 condividono un elenco di **punti aperti**: la loro descrizione è dichiarata dal modello,
 non verificata automaticamente nel merito.
 
@@ -346,10 +358,11 @@ Una macchina **senza GPU NVIDIA** su Linux o Windows x86-64 sincronizza normalme
 build CUDA si installa e gira su CPU (`torch.cuda.is_available()` → `False`). Costa ~4 GB
 di download che non userà — se pesano, il target `cpu` del Dockerfile li evita.
 
-**Non serve procurarsi dei documenti per provarlo:** il repository include in `docs/`
-una [baseline di governance cross-progetto](docs/README.md), già pronta da indicizzare.
+**Non serve procurarsi dei documenti per provarlo:** il repository include in
+`templates/docs/` una [baseline di governance cross-progetto](templates/docs/README.md),
+già pronta da indicizzare (vedi sopra come entra nel progetto iniziale).
 
-In un clone pubblico `code/` contiene solo i segnaposto: il codice del progetto
+In un clone pubblico `templates/code/` contiene solo i segnaposto: il codice del progetto
 ospitante non viene distribuito. Un checkout locale può già contenerlo.
 Le funzioni che vivono sul codice (Semantic Map, Impact Ripple, il codice implementante
 dentro le risposte) restano quindi spente finché non importi codice nel progetto selezionato.
@@ -497,6 +510,10 @@ Con il backend HTTP avviato e l'indice del progetto pronto, dalla directory
 uv run --frozen python -B mcp_server.py
 ```
 
+Per Claude Code su Windows, `rag/scripts/install_mcp.ps1` sincronizza l'ambiente e
+registra il server come `vibecraft` (`-Scope user|local|project`, `-BackendUrl`):
+rieseguirlo sostituisce la registrazione precedente. Il backend va avviato a parte.
+
 È un adattatore **stdio**, da avviare tramite un client MCP: attende messaggi su
 stdin e non apre una nuova porta. Espone solo `vibecraft_retrieve`,
 `vibecraft_code_search` e `vibecraft_graph_query`, senza scritture o avvio di agenti.
@@ -549,7 +566,7 @@ La superficie di attacco è mappata rotta per rotta in
 | [`rag/README.md`](rag/README.md) | architettura, retrieval, pipeline, indicizzazione |
 | [`rag/adr/`](rag/adr/README.md) | le decisioni architetturali e il perché |
 | [`rag/adr/PIPELINE_GATE.md`](rag/adr/PIPELINE_GATE.md) | contratto validato, decisioni e avvio agentic |
-| [`docs/README.md`](docs/README.md) | indice della baseline documentale inclusa |
+| [`templates/docs/README.md`](templates/docs/README.md) | indice della baseline documentale inclusa |
 | [`rag/SECURITY_SURFACE.md`](rag/SECURITY_SURFACE.md) | superficie di attacco, rotta per rotta |
 | [`rag/adr/AUDIT.md`](rag/adr/AUDIT.md) | audit del progetto: cosa è misurato, cosa è aperto |
 | [`rag/adr/DISTRIBUTION.md`](rag/adr/DISTRIBUTION.md) | piano di distribuzione e portabilità |
