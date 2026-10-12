@@ -117,6 +117,42 @@ def test_read_consumers_report_search_failure(runtime, monkeypatch, endpoint, fa
     assert {name: (folder / name).read_text(encoding="utf-8") for name in originals} == originals
 
 
+def test_canvas_dry_run_lists_governed_docs_with_size(tmp_path, monkeypatch):
+    """Con risultati il dry-run elenca i documenti governati e ne misura il file in
+    docs/ del progetto: il ramo non era coperto e una funzione inesistente dava 500."""
+    project = replace(legacy_project_context(), root=tmp_path, changes_dir=tmp_path / "changes",
+                      code_dir=tmp_path / "code", docs_dir=tmp_path / "docs",
+                      database_dir=tmp_path / "database")
+    (project.docs_dir / "area").mkdir(parents=True)
+    (project.docs_dir / "area" / "spec.md").write_text("12345", encoding="utf-8")
+    (project.changes_dir / "feature-a").mkdir(parents=True)
+    graph = nx.DiGraph()
+    graph.add_node("area/spec.md", type="document", classification="SPEC")
+    snap = SimpleNamespace(graph=graph, chunks={}, colbert_store={}, collection_name="candidate")
+    monkeypatch.setattr(routes_pipeline, "require_snapshot", lambda project: snap)
+    monkeypatch.setattr(routes_pipeline, "ensure_shared_resources", lambda: None)
+    monkeypatch.setitem(deps.state, "qdrant", Qdrant())
+    monkeypatch.setitem(deps.state, "embed_model", Model())
+    monkeypatch.setattr(deps, "_project_states", {})
+    hit = {"doc_id": "area/spec.md", "section": "S", "dense_score": 0.5, "sparse_score": None,
+           "colbert_score": 0.5, "authority": 0.7}
+    monkeypatch.setattr(routes_pipeline.retrieval, "hybrid_search", lambda *a, **k: [hit])
+    monkeypatch.setattr(routes_pipeline.retrieval, "select_governed_docs",
+                        lambda *a, **k: ["area/spec.md", "../fuori.md"])
+    application = FastAPI()
+    application.include_router(routes_pipeline.router)
+    application.dependency_overrides[deps.get_project] = lambda: project
+    application.dependency_overrides[deps.require_api_key] = lambda: None
+
+    response = TestClient(application).post("/api/pipeline/canvas/dry-run",
+                                            json={"feature_name": "feature-a"})
+    assert response.status_code == 200, response.text
+    governed = {d["doc_id"]: d for d in response.json()["governed_docs"]}
+    assert governed["area/spec.md"]["chars"] == 5
+    assert governed["area/spec.md"]["classification"] == "SPEC"
+    assert governed["../fuori.md"]["chars"] == 0
+
+
 def test_canvas_technical_retrieval_failure_preserves_metadata(runtime, monkeypatch):
     client, _, folder, originals = runtime
 

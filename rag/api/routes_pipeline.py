@@ -1051,9 +1051,19 @@ async def pipeline_canvas_dry_run(req: CanvasGenerateRequest, project=Depends(ge
                 if d not in doc_ids:
                     doc_ids.append(d)
 
+        def live_doc_path(doc_id: str) -> Path | None:
+            # doc_id viene dall'indice: dentro docs/ del progetto, mai fuori (stesso
+            # controllo di routes_retrieval). Fuori o illeggibile → 0 caratteri, non 500.
+            try:
+                docs_root = _unlinked(project.docs_dir)
+                path = _unlinked(project.docs_dir / doc_id)
+            except (ProjectError, ValueError, OSError):
+                return None
+            return path if path.is_relative_to(docs_root) else None
+
         governed = []
         for d in doc_ids:
-            p = retrieval._live_doc_path(d, project=project)
+            p = live_doc_path(d)
             governed.append({
                 "doc_id": d,
                 "authority": round(retrieval._authority_weight(graph.nodes[d]) if d in graph else 0.0, 3),
