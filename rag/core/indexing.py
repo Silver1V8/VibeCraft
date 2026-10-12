@@ -1396,6 +1396,28 @@ def _delete_doc_chunks(qdrant: QdrantClient, doc_ids: list[str],
     )
 
 
+def _clone_points(qdrant: QdrantClient, source: str, target: str, *,
+                  exclude_doc_ids=(), batch_size: int | None = None) -> int:
+    """Copia i punti (id, vettori nominati dense/sparse, payload) da `source` a `target`,
+    saltando quelli il cui payload.doc_id è in `exclude_doc_ids`. È la base del delta
+    copy-on-write: la candidata eredita i chunk invariati del padre senza ri-embedding,
+    e il padre resta intatto (sola lettura). Id identici ⇒ idempotente."""
+    batch_size = batch_size or qdrant_upsert_batch_from_env()
+    excluded = list(exclude_doc_ids)
+    scroll_filter = (Filter(must_not=[FieldCondition(key="doc_id", match=MatchAny(any=excluded))])
+                     if excluded else None)
+    copied, offset = 0, None
+    while True:
+        points, offset = qdrant.scroll(source, scroll_filter=scroll_filter, limit=batch_size,
+                                       offset=offset, with_payload=True, with_vectors=True)
+        if points:
+            qdrant.upsert(collection_name=target, points=[
+                PointStruct(id=p.id, vector=p.vector, payload=p.payload) for p in points])
+            copied += len(points)
+        if offset is None:
+            return copied
+
+
 def _apply_code_delta(
     graph: nx.DiGraph,
     code_dir: Path,
