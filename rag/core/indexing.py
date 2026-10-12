@@ -493,6 +493,55 @@ def _build_full_state(embed_model, docs_dir: Path, code_dir: Path, emit=None,
                      n_docs, progressive_count if colbert_writer is not None else len(points))
 
 
+def _gate_and_publish(qdrant: QdrantClient, embed_model, version: str, collection_name: str,
+                      graph: nx.DiGraph, chunks_store: dict, *, alias_name: str, emit,
+                      timings: dict, project: ProjectContext | None, before_promote=None) -> dict:
+    """Eval-gate sulla candidata e, se passa, promozione blue/green: CURRENT prima (commit
+    point locale), poi l'eventuale migrazione legacy→alias, lo swap dell'alias e il GC.
+    Condiviso da full rebuild e delta copy-on-write: entrambi pubblicano una collection
+    dedicata e devono passare dallo STESSO gate. Restituisce il report del gate."""
+    # Eval-gate: valuta la recall della versione candidata sul golden set PRIMA di spostare
+    # CURRENT. Lo stato candidato è in memoria e Qdrant è già popolato: la valutazione
+    # riflette il retrieval che verrebbe servito. Se regredisce, la promozione è bloccata.
+    # collection_name è la STESSA collection appena costruita dal chiamante: il gate misura
+    # sempre ciò che è stato davvero scritto, mai una collection diversa.
+    # graph/restatements: il gate deve leggere lo STESSO ordinamento che il server servirà
+    # (precedenza S4, peso di sezione N4), non quello nudo — R26.
+    started = time.perf_counter()
+    candidate_colbert = load_artifacts(version=version, required=("colbert",), project=project).colbert_store
+    try:
+        gate = gate_promotion(version, qdrant, embed_model, candidate_colbert, emit=emit,
+                              collection_name=collection_name, graph=graph,
+                              restatements=restatement_sections(chunks_store), project=project)
+    finally:
+        if isinstance(candidate_colbert, ColbertStore):
+            candidate_colbert.close()
+    timings["eval_gate"] = time.perf_counter() - started
+    started = time.perf_counter()
+    if not gate.get("passed"):
+        emit(f"⛔ Promozione RIFIUTATA dall'eval-gate: CURRENT resta invariato. "
+             f"Versione {version} salvata ma NON attiva. Investigare il calo di qualità.")
+    else:
+        # Ordine NON NEGOZIABILE: CURRENT prima (il commit point locale), poi
+        # l'eventuale migrazione one-shot legacy→alias e infine l'alias swap.
+        # `collection_name` è la STESSA variabile usata per costruire questa versione —
+        # non una ricostruzione indipendente del nome, quindi mai ambigua.
+        if before_promote is not None:
+            before_promote(version)
+        promote_version(version, project=project)
+        if project is None or project.legacy:
+            _migrate_legacy_collection_if_needed(qdrant, alias_name, emit=emit)
+        _swap_alias(qdrant, alias_name, collection_name)
+        emit(f"🔀 Alias Qdrant '{alias_name}' → {collection_name} (blue/green).")
+        # promote_version() sopra ha già applicato la retention locale (prune_versions),
+        # quindi _referenced_qdrant_collections() qui dentro riflette già le versioni
+        # sopravvissute — solo DOPO lo swap, nel single-writer di questo job, mai concorrente.
+        gc_orphaned_qdrant_collections(qdrant, emit=emit, project=project)
+        emit(f"🔁 Versione promossa: CURRENT → {version} (swap atomico, rollback: index.py --rollback).")
+    timings["promote"] = time.perf_counter() - started
+    return gate
+
+
 def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, emit=None,
                           promote: bool = True, collector: dict | None = None, project: ProjectContext | None = None,
                           before_promote=None) -> str | None:
@@ -641,47 +690,10 @@ def build_graph_and_index(qdrant: QdrantClient | None = None, embed_model=None, 
     _log(f"🧾 Manifest indicizzazione salvato in: {manifest_path(version, project=project)}")
 
     if promote and version:
-        # Eval-gate: valuta la recall della versione candidata sul golden set PRIMA di spostare
-        # CURRENT. Lo stato candidato è in memoria e Qdrant è già popolato: la valutazione
-        # riflette il retrieval che verrebbe servito. Se regredisce, la promozione è bloccata.
-        # collection_name è la STESSA collection appena costruita sopra: il gate misura
-        # sempre ciò che questa build ha davvero scritto, mai una collection diversa.
-        # graph/restatements: il gate deve leggere lo STESSO ordinamento che il server servirà
-        # (precedenza S4, peso di sezione N4), non quello nudo — R26.
-        started = time.perf_counter()
-        candidate_colbert = load_artifacts(version=version, required=("colbert",), project=project).colbert_store
-        try:
-            gate = gate_promotion(version, qdrant, embed_model, candidate_colbert, emit=_log,
-                                  collection_name=collection_name, graph=G,
-                                  restatements=restatement_sections(state.chunks_store), project=project)
-        finally:
-            if isinstance(candidate_colbert, ColbertStore):
-                candidate_colbert.close()
-        timings["eval_gate"] = time.perf_counter() - started
-        started = time.perf_counter()
-        if not gate.get("passed"):
-            _log(f"⛔ Promozione RIFIUTATA dall'eval-gate: CURRENT resta invariato. "
-                 f"Versione {version} salvata ma NON attiva. Investigare il calo di qualità.")
-        else:
-            # Ordine NON NEGOZIABILE: CURRENT prima (il commit point locale), poi
-            # l'eventuale migrazione one-shot legacy→alias e infine l'alias swap.
-            # `collection_name` è la STESSA variabile locale usata per costruire
-            # questa versione — non una ricostruzione indipendente del nome, quindi
-            # mai ambigua.
-            if before_promote is not None:
-                before_promote(version)
-            promote_version(version, project=project)
-            if project is None or project.legacy:
-                _migrate_legacy_collection_if_needed(qdrant, alias_name, emit=_log)
-            _swap_alias(qdrant, alias_name, collection_name)
-            _log(f"🔀 Alias Qdrant '{alias_name}' → {collection_name} (blue/green).")
-            # promote_version() sopra ha già applicato la retention locale
-            # (prune_versions), quindi _referenced_qdrant_collections() qui dentro
-            # riflette già le versioni sopravvissute — solo DOPO lo swap, nel
-            # single-writer di questo job, mai concorrente.
-            gc_orphaned_qdrant_collections(qdrant, emit=_log, project=project)
-            _log(f"🔁 Versione promossa: CURRENT → {version} (swap atomico, rollback: index.py --rollback).")
-        timings["promote"] = time.perf_counter() - started
+        # Eval-gate + promozione: vedi _gate_and_publish (condiviso col delta copy-on-write).
+        _gate_and_publish(qdrant, embed_model, version, collection_name, G, state.chunks_store,
+                          alias_name=alias_name, emit=_log, timings=timings, project=project,
+                          before_promote=before_promote)
 
     if own_qdrant:
         qdrant.close()
@@ -1569,6 +1581,7 @@ def apply_incremental_indexing(
     phase_timings: dict[str, float] | None = None,
     colbert_writer: ColbertWriter | None = None,
     project: ProjectContext | None = None,
+    collection_name: str | None = None,
 ) -> dict:
     """Esegue il piano del delta sugli oggetti passati (Qdrant + grafo + sidecar), mutandoli
     in-place. Con colbert_writer persiste i vettori per documento; il chiamante
@@ -1589,8 +1602,13 @@ def apply_incremental_indexing(
          check_graph_consistency), ma il costo è proporzionale al delta, non all'indice.
 
     `dense_store`/`code_store`/`code_delta`/`code_dir` sono opzionali: se assenti la funzione
-    si comporta come prima (nessun ricalcolo dei code-link), preservando i chiamanti legacy."""
+    si comporta come prima (nessun ricalcolo dei code-link), preservando i chiamanti legacy.
+
+    `collection_name`: collection su cui scrivere; default l'alias."""
     alias_name = project.collection_name if project is not None else COLLECTION_NAME
+    # Collection FISICA su cui scrivere: la candidata del delta copy-on-write, oppure
+    # (default, ramo legacy) l'alias che risolve alla collection del padre.
+    target = collection_name or alias_name
     _log = emit or logger.info
     apply_started = time.perf_counter()
     qdrant_seconds = 0.0
@@ -1604,7 +1622,7 @@ def apply_incremental_indexing(
     # 1. Purge (Qdrant + sidecar + grafo) dei documenti non più validi nella loro forma attuale
     if to_delete:
         started = time.perf_counter()
-        _delete_doc_chunks(qdrant, to_delete, collection_name=alias_name)
+        _delete_doc_chunks(qdrant, to_delete, collection_name=target)
         qdrant_seconds += time.perf_counter() - started
         dead_set = set(to_delete)
         dead_chunks = [cid for cid, meta in chunks_store.items() if meta.get("doc_id") in dead_set]
@@ -1647,7 +1665,7 @@ def apply_incremental_indexing(
                 started = time.perf_counter()
                 batch_size = qdrant_upsert_batch_from_env()
                 for i in range(0, len(points), batch_size):
-                    qdrant.upsert(collection_name=alias_name, points=points[i:i + batch_size])
+                    qdrant.upsert(collection_name=target, points=points[i:i + batch_size])
                 qdrant_seconds += time.perf_counter() - started
                 save_started = time.perf_counter()
                 colbert_writer.add_document(rel_path, colbert_partial)
@@ -1666,7 +1684,7 @@ def apply_incremental_indexing(
             points, colbert_partial, chunks_partial, _dense = _encode_chunks_to_points(embed_model, new_chunks)
             processed_colbert_tokens = _colbert_token_count(colbert_partial)
             started = time.perf_counter()
-            qdrant.upsert(collection_name=alias_name, points=points)
+            qdrant.upsert(collection_name=target, points=points)
             qdrant_seconds += time.perf_counter() - started
             colbert_store.update(colbert_partial)
             chunks_store.update(chunks_partial)
@@ -1750,6 +1768,42 @@ def apply_incremental_indexing(
             "code_tokens_unavailable_reason": "embedding output does not expose code token counts",
         },
     }
+
+
+def _attested_parent_colbert(arts, manifest, project: ProjectContext | None):
+    """ColBERT del padre riusabile dal ColbertWriter solo se ogni file è attestato dal
+    manifest della versione attiva. Restituisce (store, hash) oppure (None, None) se il
+    padre non ha ColBERT. RuntimeError: indice NPZ da migrare; ValueError: hash divergenti."""
+    colbert_store = arts.colbert_store
+    parent_store = colbert_store if isinstance(colbert_store, ColbertStore) else None
+    if parent_store is None:
+        if colbert_store:
+            raise RuntimeError("indice NPZ attivo: migrare prima con index.py --migrate-colbert-npy")
+        return None, None
+    parent_dir = artifact_dir(arts.version, project=project) / "colbert"
+    expected = manifest.get("artifact_hashes", {}) if isinstance(manifest, dict) else {}
+    if sha256_file(parent_dir / "index.json") != expected.get("colbert/index.json"):
+        raise ValueError("indice ColBERT del padre non attestato dal manifest")
+    parent_hashes = {name: meta["sha256"] for name, meta in parent_store.index["files"].items()}
+    if any(expected.get(f"colbert/{name}") != digest for name, digest in parent_hashes.items()):
+        raise ValueError("hash file ColBERT del padre divergenti dal manifest")
+    return parent_store, parent_hashes
+
+
+def _delta_manifest_hashes(manifest, plan: IndexPlan, current: dict[str, str],
+                           code_delta: tuple[list[str], list[str], list[str]],
+                           current_code: dict[str, str]) -> tuple[dict[str, str], dict[str, str]]:
+    """Hash del manifest figlio: quelli del padre, meno i cancellati, più i (ri)elaborati.
+    Con un delta ristretto i file non elaborati conservano la voce precedente e restano
+    visibili come stale (il manifest descrive ciò che l'indice CONTIENE)."""
+    code_added, code_removed, code_modified = code_delta
+    old_docs = manifest.get("doc_hashes", {}) if isinstance(manifest, dict) else {}
+    old_code = manifest.get("code_hashes", {}) if isinstance(manifest, dict) else {}
+    doc_hashes = {p: h for p, h in old_docs.items() if p not in plan.deleted}
+    doc_hashes.update({p: current[p] for p in [*plan.new, *plan.modified]})
+    code_hashes = {p: h for p, h in old_code.items() if p not in code_removed}
+    code_hashes.update({p: current_code[p] for p in [*code_added, *code_modified]})
+    return doc_hashes, code_hashes
 
 
 def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit=None,
@@ -1907,18 +1961,7 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     code_store: dict = arts.code_store
 
     version = _new_version_name(project=project)
-    parent_store = colbert_store if isinstance(colbert_store, ColbertStore) else None
-    if parent_store is None and colbert_store:
-        raise RuntimeError("indice NPZ attivo: migrare prima con index.py --migrate-colbert-npy")
-    parent_hashes = None
-    if parent_store is not None:
-        parent_dir = artifact_dir(arts.version, project=project) / "colbert"
-        expected = manifest.get("artifact_hashes", {}) if isinstance(manifest, dict) else {}
-        if sha256_file(parent_dir / "index.json") != expected.get("colbert/index.json"):
-            raise ValueError("indice ColBERT del padre non attestato dal manifest")
-        parent_hashes = {name: meta["sha256"] for name, meta in parent_store.index["files"].items()}
-        if any(expected.get(f"colbert/{name}") != digest for name, digest in parent_hashes.items()):
-            raise ValueError("hash file ColBERT del padre divergenti dal manifest")
+    parent_store, parent_hashes = _attested_parent_colbert(arts, manifest, project)
     writer = None
     try:
         writer = ColbertWriter(database_dir / ".colbert-staging" / version / "colbert", None,
@@ -1950,11 +1993,8 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
     # ristretto (changed_paths — l'approve dell'intake, un webhook) i documenti non elaborati,
     # cancellazioni comprese, conservano la voce precedente e restano visibili come stale.
     # Ricalcolarli da disco li faceva sparire dal manifest lasciandone i punti in Qdrant.
-    old_docs = manifest.get("doc_hashes", {}) if isinstance(manifest, dict) else {}
-    doc_hashes = {p: h for p, h in old_docs.items() if p not in plan.deleted}
-    doc_hashes.update({p: current[p] for p in [*plan.new, *plan.modified]})
-    code_hashes = {p: h for p, h in old_code.items() if p not in code_removed}
-    code_hashes.update({p: current_code[p] for p in [*code_added, *code_modified]})
+    doc_hashes, code_hashes = _delta_manifest_hashes(
+        manifest, plan, current, (code_added, code_removed, code_modified), current_code)
     write_index_manifest(len(chunks_store), graph.number_of_nodes(), graph.number_of_edges(),
                          version=version, qdrant_collection=parent_qdrant_collection,
                          doc_hashes=doc_hashes, code_hashes=code_hashes,
