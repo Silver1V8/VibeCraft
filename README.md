@@ -411,7 +411,7 @@ Tre casi, in ordine di costo:
 
 | Cosa è cambiato | Cosa serve |
 |---|---|
-| Sorgenti di qualsiasi progetto | `index.py --project <id> --incremental` — no-op se invariati; altrimenti ricostruisce una candidata completa. Senza flag seleziona il `legacy` registrato |
+| Sorgenti di qualsiasi progetto | `index.py --project <id> --incremental` — no-op se invariati; altrimenti delta copy-on-write (vedi sotto). Senza flag seleziona il `legacy` registrato |
 | Il **modello di embedding** (`rag_config.yaml`) | **Full rebuild** obbligatorio: i vettori vecchi non sono confrontabili con i nuovi. Il manifest registra il modello usato, quindi la differenza è rilevabile e non silenziosa |
 | Il **formato degli artefatti** | JSON, ColBERT in NPY per documento, dense/code in NPZ. Un ColBERT NPZ versionato richiede la migrazione sotto prima di un delta non vuoto; il vecchio layout piatto richiede una nuova build per passare a NPY. Gli indici solo pickle richiedono un rebuild |
 
@@ -444,7 +444,8 @@ I vecchi indici storici con delta mutabili condividevano la collection della bui
 di origine: il loro rollback non riavvolgeva i punti modificati dopo. La migrazione
 ricostruisce l'indice nel profilo ordinario, con collection distinta per candidata.
 
-In tutti i progetti il delta non vuoto, copy-on-write o rebuild, passa dall'eval gate prima della promozione.
+In tutti i progetti il delta non vuoto, copy-on-write o rebuild, passa dall'eval gate
+prima della promozione.
 Il golden set è `<root-progetto>/eval/golden.yaml`; se manca la promozione può
 passare come non valutata.
 Una metrica sotto soglia blocca la promozione se il gate è configurato come bloccante;
@@ -455,7 +456,11 @@ da quello che autorizza l'avvio agentic.
 
 Le misure seguenti sono del **21 settembre 2026, percorso legacy**. ColBERT
 viene letto a richiesta e i delta legacy riusano i file dei documenti invariati.
-Il delta dei nuovi progetti ricostruisce una candidata completa: queste curve
+Il delta dei nuovi progetti è copy-on-write: una nuova collection dedicata riceve i
+punti invariati del padre e si ri-embeddano solo i sorgenti cambiati. Se il padre non
+è riusabile (modello di embedding cambiato, collection o artefatti assenti o non
+attestati dal manifest, `VIBECRAFT_DELTA_MODE=rebuild`) si ripiega sul full rebuild
+e il motivo resta in `fallback_reason`. Queste curve, misurate sul percorso legacy,
 non descrivono il suo costo.
 Grafo, metadati e vettori dense/code mantengono costi globali: il corpus non diventa
 illimitato e il costo complessivo del delta non dipende soltanto dai file modificati.

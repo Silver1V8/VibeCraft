@@ -86,8 +86,10 @@ uv run python index.py --project <id> --rollback [VERSIONE]
 
 `[VERSIONE]` indica un argomento opzionale, non va digitato letteralmente.
 Le nuove collection usano alias `vibecraft_<id>` e nomi fisici
-`vibecraft_<id>__<version>`. Il delta **non vuoto di un nuovo progetto ricostruisce
-una candidata completa**; un no-op non carica embedding né riscrive l'indice.
+`vibecraft_<id>__<version>`. Il delta **non vuoto di un nuovo progetto è
+copy-on-write**: una nuova collection dedicata riceve i punti invariati del padre e
+si ri-embeddano solo i sorgenti cambiati; se il padre non è riusabile si ripiega sul
+full rebuild (`fallback_reason`). Un no-op non carica embedding né riscrive l'indice.
 Ogni candidata conserva la propria collection e il rollback riattiva quella
 versione. Il golden set è `<root>/eval/golden.yaml`, lo storico vive in
 `database/eval/`; un golden mancante può lasciare passare il gate come non valutato.
@@ -1089,7 +1091,7 @@ dedicato, con Qdrant e motore esplicitamente selezionati, usando il full rebuild
 impedisce successivi incrementali anche se un comando dimentica la variabile di
 ambiente; un full fallito può lasciare intenzionalmente questa protezione attiva.
 Questo rifiuto riguarda il percorso legacy. Per i progetti ordinari l'indice
-è immutabile e `--incremental` non vuoto ricostruisce una candidata completa.
+è immutabile e `--incremental` non vuoto è copy-on-write (full rebuild di ripiego).
 
 Esempio di configurazione PowerShell da applicare **in ogni processo**, adattando
 i percorsi a un ambiente dedicato già predisposto. Non avvia né modifica i servizi:
