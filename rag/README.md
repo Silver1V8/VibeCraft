@@ -1320,26 +1320,27 @@ senza alcun beneficio.
 
 ## Embedding (bge-m3): CPU per le query, GPU per il reindex
 
-`BGEM3FlagModel` viene istanziato in due punti con device diversi, di proposito:
-
-- **`api/deps.py`** (`state["embed_model"]`, usato da `/ask` e
-  `/api/graph/query`): `devices="cpu"`. Una singola query costa ms anche su
-  CPU, e lasciare la VRAM libera evita che Ollama carichi `qwen3.5:9b` in
-  split GPU/CPU (molto più lento — vedi sezione LLM sopra).
-- **`api/routes_reindex.py`** (`_reindex_embed_model()`): nessun `devices`
-  esplicito → autodetect GPU. I job di reindex processano migliaia di
-  chunk/simboli in batch; su CPU un `full` rebuild passa da minuti a **decine
-  di ore** (misurato: ~10s/embedding CPU contro ~6-10 it/s GPU). Richiede la
-  build CUDA di torch (vedi `[tool.uv.sources]` in [pyproject.toml](pyproject.toml)
-  — su Windows PyPI serve solo la wheel CPU-only, quella CUDA vive
-  sull'indice ufficiale `download.pytorch.org`). Quell'indice è vincolato da un
-  **marcatore di piattaforma**: vale su Linux e Windows x86-64, dove le sue wheel
-  esistono; su macOS Apple Silicon torch arriva da PyPI, altrimenti `uv sync`
+- **Server e `/ask`** (`api/deps.py`, `state["embed_model"]`, usato anche da
+  `/api/graph/query`): `BGEM3FlagModel` su `devices="cpu"`. Una singola query costa ms
+  anche su CPU, e lasciare la VRAM libera evita che Ollama carichi `qwen3.5:9b` in
+  split GPU/CPU (molto più lento — vedi sezione LLM sopra). Lo stesso modello CPU è il
+  ripiego dei job di reindex (`_reindex_embed_model()` in `api/routes_reindex.py`).
+- **Job di reindex** (`core/job_embedder.py`): al primo embedding del job, se
+  `VIBECRAFT_REINDEX_DEVICE=auto`, CUDA è disponibile e `nvidia-smi` riporta almeno
+  `VIBECRAFT_REINDEX_GPU_MIN_FREE_MB` di VRAM libera, bge-m3 gira su GPU in un processo
+  a vita breve (`python -m core.gpu_worker`), fermato a fine job: uscendo restituisce
+  tutta la sua VRAM, contesto CUDA compreso. L'avvio costa ~10 s per job. Altrimenti,
+  o se il processo esaurisce la memoria o muore, il job usa la CPU (motivo in
+  `embedding_fallback_reason`); con `VIBECRAFT_REINDEX_DEVICE=cpu` la GPU è esclusa.
+  Su CPU un `full` rebuild passa da minuti a **decine di ore** (misurato: ~10s/embedding
+  CPU contro ~6-10 it/s GPU). Lo stderr del processo GPU finisce nel log del server,
+  riga per riga, col prefisso `[gpu-worker]`.
+- Il percorso GPU richiede la build CUDA di torch (vedi `[tool.uv.sources]` in
+  [pyproject.toml](pyproject.toml) — su Windows PyPI serve solo la wheel CPU-only,
+  quella CUDA vive sull'indice ufficiale `download.pytorch.org`). Quell'indice è
+  vincolato da un **marcatore di piattaforma**: vale su Linux e Windows x86-64, dove le
+  sue wheel esistono; su macOS Apple Silicon torch arriva da PyPI, altrimenti `uv sync`
   fallirebbe lì (A15 — la matrice misurata è nel README di root).
-
-Un'istanza fresca per job costa solo qualche secondo di caricamento,
-trascurabile rispetto al lavoro di embedding che segue — non vale la pena
-condividere l'istanza fra i due usi.
 
 ## Check drift (Step 4): rilievi verificati, verdetto calcolato
 
