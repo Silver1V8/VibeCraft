@@ -182,7 +182,9 @@ def test_incremental_route_defers_model_to_core_for_noop_and_content(monkeypatch
                             "phase_timings_seconds": {"init_model": 1.25}})
     routes_reindex._run_reindex(None)
     assert resources == [{"embedding": False}]
-    assert received[0]["embed_model"] is None
+    from core.job_embedder import JobEmbedder
+    # Il modello del job è pigro: la route non carica nulla, il core decide se serve.
+    assert isinstance(received[0]["embed_model"], JobEmbedder)
     assert received[0]["qdrant"] is routes_reindex.state.get("qdrant")
 
 

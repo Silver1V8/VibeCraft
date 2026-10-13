@@ -139,16 +139,21 @@ def _start_job(manager: doc_generation.GenerationManager, *args) -> doc_generati
 
 
 def _server_reindex(changed_paths, *, project):
-    """Reindex delta con le risorse del server: client Qdrant del lifespan e modello di
-    embedding già caricato, usato dall'import dei progetti.
+    """Reindex delta con il client Qdrant del server e il modello di embedding del job
+    (GPU se disponibile, altrimenti quello CPU condiviso), usato dall'import dei progetti.
     Import lazy di core.indexing per non pagare torch all'import del router."""
     from core.indexing import incremental_index
-    ensure_shared_resources()
-    return incremental_index(
-        qdrant=state.get("qdrant"),
-        embed_model=state.get("embed_model"),
-        changed_paths=changed_paths, project=project,
-    )
+    from core.job_embedder import reindex_embedder
+    from api.routes_reindex import _reindex_embed_model
+    ensure_shared_resources(embedding=False)
+    with reindex_embedder(_reindex_embed_model) as embed_model:
+        result = incremental_index(
+            qdrant=state.get("qdrant"),
+            embed_model=embed_model,
+            changed_paths=changed_paths, project=project,
+        )
+    result.update(embed_model.report())
+    return result
 
 
 @router.post("/api/intake/docs", dependencies=[Depends(require_not_cross_site_request)])

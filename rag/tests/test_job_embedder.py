@@ -165,3 +165,45 @@ def test_real_gpu_model_is_released(monkeypatch):
         assert len(out["dense_vecs"]) == 12
         assert embedder.report()["embedding_device"] == "cuda"
     assert torch.cuda.memory_reserved() < 256 * 2**20
+
+
+def test_incremental_route_passes_job_embedder_and_reports_device(monkeypatch):
+    from api import routes_reindex
+
+    monkeypatch.setattr(routes_reindex, "ensure_shared_resources", lambda **kwargs: None)
+    received = {}
+
+    def fake_incremental(**kwargs):
+        received.update(kwargs)
+        kwargs["embed_model"].encode(["x"])
+        return {"noop": False}
+
+    monkeypatch.setattr(routes_reindex, "incremental_index", fake_incremental)
+    monkeypatch.setattr(routes_reindex, "_reindex_embed_model", lambda: FakeModel("cpu"))
+
+    result = routes_reindex._run_reindex(None)
+
+    assert isinstance(received["embed_model"], JobEmbedder)
+    assert result["embedding_device"] == "cpu"  # conftest: VIBECRAFT_REINDEX_DEVICE=cpu
+
+
+def test_full_rebuild_route_uses_job_embedder(monkeypatch):
+    from api import routes_reindex
+
+    seen = {}
+
+    def fake_build(**kwargs):
+        seen["model"] = kwargs["embed_model"]
+        kwargs["collector"].update({"phase_timings_seconds": {
+            p: 0.0 for p in ("init_model", "scan_hash", "load", "parsing_embedding", "qdrant",
+                             "relink", "save_hash", "eval_gate", "promote")}, "counts": {}})
+        return None
+
+    monkeypatch.setattr(routes_reindex, "build_graph_and_index", fake_build)
+    monkeypatch.setattr(routes_reindex, "_reindex_embed_model",
+                        lambda: pytest.fail("modello CPU caricato senza encode"))
+
+    result = routes_reindex._run_full_rebuild(None)
+
+    assert isinstance(seen["model"], JobEmbedder)
+    assert result["embedding_device"] == "unused"

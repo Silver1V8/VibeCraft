@@ -39,6 +39,7 @@ from core.artifacts import (
 )
 from core import retrieval
 from core.eval_gate import gate_promotion, record_alert
+from core.job_embedder import reindex_embedder
 from core.config import COLLECTION_NAME
 from core.indexing_lock import indexing_lock
 from core.projects import ProjectError
@@ -96,14 +97,16 @@ def _job_content(job):
 
 
 def _run_reindex(changed_paths, *, project=None) -> dict:
-    """Reindex delta con le risorse condivise inizializzate una volta."""
+    """Reindex delta: embedding sul modello del job (GPU finché c'è memoria, poi il
+    modello CPU condiviso, caricato solo se serve); un no-op non carica nulla."""
     ensure_shared_resources(embedding=False)
-    result = incremental_index(
-        qdrant=state.get("qdrant"),
-        embed_model=state.get("embed_model"),
-        embed_model_factory=_reindex_embed_model,
-        changed_paths=changed_paths, project=project,
-    )
+    with reindex_embedder(_reindex_embed_model) as embed_model:
+        result = incremental_index(
+            qdrant=state.get("qdrant"),
+            embed_model=embed_model,
+            changed_paths=changed_paths, project=project,
+        )
+    result.update(embed_model.report())
     if result.get("promoted") is False:
         # Delta (cow o rebuild) bocciato dall'eval-gate: la versione attiva resta il padre.
         result["job_status"] = "completed_not_promoted"
@@ -139,11 +142,13 @@ def _eval_gate(version: str, embed_model, *, project=None) -> dict:
             close()
 
 
-def _run_full_rebuild(changed_paths, *, project=None) -> dict:
-    """Job "full": ricostruzione completa (build_graph_and_index) con un modello di embedding
-    condiviso (vedi _reindex_embed_model), riusato anche per l'eval-gate che segue.
-    `changed_paths` è ignorato (un full non ha delta). Gira sul thread daemon del
-    ReindexManager: è così che OGNI scrittura degli artefatti passa da un solo scrittore.
+def _full_rebuild_with(embed_model, *, project=None) -> dict:
+    """Job "full": ricostruzione completa (build_graph_and_index) con il modello di embedding
+    del job (vedi reindex_embedder), riusato anche per l'eval-gate che segue.
+    Un full non ha delta. Il tempo di caricamento del modello GPU è in
+    `embedding_load_seconds`: `phase_timings_seconds.init_model` resta 0 per i job full.
+    Gira sul thread daemon del ReindexManager: è così che OGNI scrittura degli artefatti
+    passa da un solo scrittore.
 
     Blue/green: la build scrive una versione NUOVA (su una collection candidata
     versionata) senza promuoverla; la promozione passa dall'eval-gate (config
@@ -164,9 +169,6 @@ def _run_full_rebuild(changed_paths, *, project=None) -> dict:
     indisponibilità breve ma reale fra le due chiamate. Se il layout è già migrato o
     l'installazione è fresca, la migrazione è un no-op. Subito dopo lo swap, il GC
     rimuove le collection versionate orfane."""
-    started = time.perf_counter()
-    embed_model = _reindex_embed_model()
-    init_model = time.perf_counter() - started
     collector = {
         "phase_timings_seconds": {phase: 0.0 for phase in
                                   ("init_model", "scan_hash", "load", "parsing_embedding",
@@ -177,7 +179,6 @@ def _run_full_rebuild(changed_paths, *, project=None) -> dict:
                                     embed_model=embed_model, promote=False,
                                     collector=collector, project=project)
     timings = collector["phase_timings_seconds"]
-    timings["init_model"] += init_model
     result = {"full_rebuild": True, "version": version,
               "phase_timings_seconds": timings, "counts": collector["counts"]}
     if "colbert_io_bytes" in collector:
@@ -206,6 +207,15 @@ def _run_full_rebuild(changed_paths, *, project=None) -> dict:
         gc_orphaned_qdrant_collections(state.get("qdrant"), emit=logger.info, project=project)
         timings["promote"] += time.perf_counter() - started
     result["promoted"] = True
+    return result
+
+
+def _run_full_rebuild(changed_paths, *, project=None) -> dict:
+    """Job "full" (vedi _full_rebuild_with): embedding sul modello del job, la cui VRAM
+    è liberata a fine job anche se build o gate falliscono. `changed_paths` è ignorato."""
+    with reindex_embedder(_reindex_embed_model) as embed_model:
+        result = _full_rebuild_with(embed_model, project=project)
+    result.update(embed_model.report())
     return result
 
 
