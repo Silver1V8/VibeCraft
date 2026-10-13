@@ -119,12 +119,13 @@ full rebuild (motivo in `fallback_reason` del job); un delta noop non scrive nul
 
 Gli embedding dei job di reindex usano la GPU per la sola durata del job, se c'è VRAM
 libera sufficiente (la misura `nvidia-smi`: senza, il job usa la CPU); altrimenti, o
-se la memoria finisce a metà, proseguono sulla CPU. A fine job il modello e la sua
-memoria vengono rilasciati, ma dopo un job che ha davvero usato la GPU un contesto CUDA
-residuo di qualche centinaio di MB resta nel processo del server fino al riavvio. Il
-job riporta `embedding_device` ed eventualmente `embedding_fallback_reason`. Mentre un
-job usa la GPU, Ollama può dover tenere parte del modello in RAM: le risposte di
-`/ask` in quel momento possono rallentare.
+se la memoria finisce a metà, proseguono sulla CPU. Il modello su GPU gira in un
+processo separato, avviato per il job e fermato alla sua fine: uscendo restituisce
+tutta la VRAM che ha usato, contesto CUDA compreso, senza riavviare il server. L'avvio
+costa ~10 s per ogni job che usa davvero la GPU. Il job riporta `embedding_device` ed
+eventualmente `embedding_fallback_reason`. Mentre un job usa la GPU, Ollama può dover
+tenere parte del modello in RAM: le risposte di `/ask` in quel momento possono
+rallentare.
 
 ### Migrare un'installazione esistente
 
