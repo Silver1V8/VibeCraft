@@ -1,5 +1,6 @@
 """JobEmbedder: GPU solo per la durata del job di reindex, CPU come ripiego."""
 import os
+import weakref
 
 import pytest
 import torch
@@ -40,9 +41,10 @@ def make(*, gpu=None, available=True, free=8000, enabled=True, load_error=None):
 
 
 def test_noop_job_never_loads_anything():
-    embedder, _, _, loads, _ = make()
+    embedder, _, _, loads, cleared = make()
     embedder.release()
     assert loads == []
+    assert cleared == []
     assert embedder.report()["embedding_device"] == "unused"
 
 
@@ -101,6 +103,43 @@ def test_non_oom_gpu_error_propagates():
     with pytest.raises(ValueError, match="malformato"):
         embedder.encode(["a"])
     assert cpu.calls == []
+
+
+def test_oom_fallback_empties_cache_again_at_job_end():
+    gpu = FakeModel("gpu", fail=torch.OutOfMemoryError("CUDA out of memory"))
+    embedder, _, _, _, cleared = make(gpu=gpu)
+    embedder.encode(["a"])
+    after_fallback = len(cleared)
+    embedder.release()  # fine del job: la cache va svuotata anche dopo il ripiego
+    assert len(cleared) > after_fallback
+
+
+def test_load_failure_empties_cache_at_job_end():
+    embedder, _, _, _, cleared = make(load_error=RuntimeError("CUDA driver mismatch"))
+    embedder.encode(["a"])
+    embedder.release()
+    assert cleared
+
+
+def test_oom_fallback_empties_cache_after_the_exception_is_gone():
+    class Blob:
+        pass
+
+    seen, alive_at_empty = {}, []
+
+    class OOMGpu(FakeModel):
+        def encode(self, texts, **kwargs):
+            blob = Blob()  # vive nel frame referenziato dal traceback dell'eccezione
+            seen["blob"] = weakref.ref(blob)
+            raise torch.OutOfMemoryError("CUDA out of memory")
+
+    embedder = JobEmbedder(
+        load_gpu=lambda: OOMGpu("gpu"), cpu_model=lambda: FakeModel("cpu"),
+        gpu_available=lambda: True, free_vram_mb=lambda: 8000, min_free_mb=3072,
+        enabled=True,
+        empty_cache=lambda: alive_at_empty.append(seen["blob"]() is not None))
+    assert embedder.encode(["a"])["dense_vecs"] == ["cpu"]
+    assert alive_at_empty == [False]
 
 
 def test_context_releases_gpu_even_when_job_fails(monkeypatch):

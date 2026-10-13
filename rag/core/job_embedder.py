@@ -34,6 +34,7 @@ class JobEmbedder:
         self._enabled = enabled
         self._empty_cache = empty_cache
         self._gpu = None
+        self._cuda_touched = False
         self.device: str | None = None
         self.fallback_reason: str | None = None
         self.load_seconds = 0.0
@@ -47,7 +48,10 @@ class JobEmbedder:
             except Exception as exc:
                 if not _is_oom(exc):
                     raise
-                self._fall_back(f"memoria GPU esaurita durante l'embedding: {exc}")
+                reason = f"memoria GPU esaurita durante l'embedding: {exc}"
+            # Fuori dal blocco except: l'eccezione e il suo traceback (che tengono vivi
+            # tensori e modello) sono già rilasciati quando si svuota la cache CUDA.
+            self._fall_back(reason)
         return self._cpu_model().encode(texts, **kwargs)
 
     def _choose_device(self) -> None:
@@ -62,13 +66,17 @@ class JobEmbedder:
             self._fall_back(f"VRAM libera {free} MB sotto la soglia di {self._min_free_mb} MB")
             return
         started = time.perf_counter()
+        self._cuda_touched = True
+        failure = None
         try:
             self._gpu = self._load_gpu()
         except Exception as exc:
-            self._fall_back(f"caricamento del modello su GPU fallito: {exc}")
-            return
+            failure = f"caricamento del modello su GPU fallito: {exc}"
         finally:
             self.load_seconds = time.perf_counter() - started
+        if failure is not None:
+            self._fall_back(failure)  # fuori dall'except: vedi encode()
+            return
         self.device = "cuda"
         logger.info("Embedding del job di reindex su GPU (VRAM libera all'avvio: %s MB).", free)
 
@@ -79,14 +87,17 @@ class JobEmbedder:
         logger.warning("Embedding del job di reindex su CPU: %s", reason)
 
     def release(self) -> None:
-        """Libera il modello GPU e la cache CUDA; idempotente."""
-        if self._gpu is None:
+        """Libera il modello GPU e, se CUDA è stata toccata, la cache CUDA; idempotente.
+        La cache si svuota anche senza modello GPU attivo (dopo un ripiego), perché un
+        encode fallito può aver lasciato memoria riservata. Un job senza CUDA non la tocca."""
+        if self._gpu is not None:
+            try:
+                self._gpu.stop_self_pool()
+            except Exception:
+                logger.debug("stop_self_pool fallito durante il rilascio", exc_info=True)
+            self._gpu = None
+        if not self._cuda_touched:
             return
-        try:
-            self._gpu.stop_self_pool()
-        except Exception:
-            logger.debug("stop_self_pool fallito durante il rilascio", exc_info=True)
-        self._gpu = None
         gc.collect()
         self._empty_cache()
 
