@@ -12,6 +12,7 @@ nvidia-smi (torch.cuda.mem_get_info creerebbe un contesto CUDA nel server e, a V
 quasi piena, fallirebbe lui stesso); senza nvidia-smi il job usa la CPU."""
 from __future__ import annotations
 
+import atexit
 import logging
 import os
 import pickle
@@ -29,6 +30,13 @@ logger = logging.getLogger(__name__)
 
 GPU_WORKER_READY_TIMEOUT_S = 300.0
 GPU_WORKER_STOP_TIMEOUT_S = 30.0
+GPU_WORKER_LOG_PREFIX = "[gpu-worker] "
+
+# Processi GPU vivi. I thread dei job sono daemon: se il server esce a metà job
+# release() non gira, e un figlio bloccato dentro CUDA terrebbe la sua VRAM finché
+# qualcuno non lo uccide a mano (il launcher del venv non lo porta con sé).
+_live_workers: set[GpuWorker] = set()
+_live_workers_lock = threading.Lock()
 
 
 class GpuWorkerUnavailable(Exception):
@@ -43,6 +51,14 @@ class GpuWorker:
 
     def __init__(self, process: subprocess.Popen):
         self.process = process
+        with _live_workers_lock:
+            _live_workers.add(self)
+        self._stderr_reader = None
+        if process.stderr is not None:
+            self._stderr_reader = threading.Thread(
+                target=_forward_stderr, args=(process.stderr,), daemon=True,
+                name="gpu-worker-stderr")
+            self._stderr_reader.start()
 
     def wait_ready(self, timeout: float) -> None:
         """Attende ("ready", ...) entro timeout; altrimenti uccide il processo e solleva
@@ -56,8 +72,7 @@ class GpuWorker:
             # Dopo l'uccisione la pipe dà EOF e il thread esce; le pipe si chiudono solo
             # dopo, perché chiudere uno stream mentre un altro thread lo legge si blocca.
             reader.join(5)
-            if not reader.is_alive():
-                self._close_pipes()
+            self._close_pipes(stdout_busy=reader.is_alive())
             raise GpuWorkerUnavailable(f"processo GPU non pronto entro {timeout:g} s")
         reply = box[0]
         if isinstance(reply, BaseException):
@@ -120,28 +135,75 @@ class GpuWorker:
             self.process.kill()
             self.process.wait()
 
-    def _close_pipes(self) -> None:
-        for stream in (self.process.stdin, self.process.stdout):
+    def _close_pipes(self, *, stdout_busy: bool = False) -> None:
+        """Da chiamare dopo _terminate: attende il thread che inoltra lo stderr (finisce
+        quando il processo esce), poi chiude le pipe. Uno stream ancora letto da un altro
+        thread resta aperto: chiuderlo si bloccherebbe."""
+        with _live_workers_lock:
+            _live_workers.discard(self)
+        streams = [self.process.stdin]
+        if not stdout_busy:
+            streams.append(self.process.stdout)
+        if self._stderr_reader is not None:
+            self._stderr_reader.join(5)
+            if not self._stderr_reader.is_alive():
+                streams.append(self.process.stderr)
+        for stream in streams:
             try:
                 stream.close()
             except OSError:
                 pass
 
 
+def _forward_stderr(stream) -> None:
+    """Inoltra lo stderr del figlio al log del server, riga per riga. Di una barra tqdm,
+    che si riscrive con un ritorno carrello, resta lo stato finale."""
+    for raw in iter(stream.readline, b""):
+        line = raw.decode("utf-8", errors="replace").rstrip().rsplit("\r", 1)[-1].strip()
+        if line:
+            logger.info("%s%s", GPU_WORKER_LOG_PREFIX, line)
+
+
+def _kill_live_workers() -> None:
+    """Uccide i processi GPU ancora vivi; registrata con atexit."""
+    with _live_workers_lock:
+        workers = list(_live_workers)
+    for worker in workers:
+        try:
+            worker._kill(grace=0)
+        except Exception:
+            logger.debug("Uccisione del processo GPU all'uscita fallita", exc_info=True)
+
+
+atexit.register(_kill_live_workers)
+
+
 def start_gpu_worker(*, loader: str | None = None,
                      ready_timeout: float = GPU_WORKER_READY_TIMEOUT_S) -> GpuWorker:
     """Avvia `python -m core.gpu_worker` con l'interprete del server, nella cartella che
     contiene il package core (lo stesso codice del server), e attende che il modello sia
-    caricato. stderr è ereditato: i log del figlio finiscono nel log del server."""
+    caricato. Lo stderr del figlio è una pipe inoltrata al log del server (prefisso
+    GPU_WORKER_LOG_PREFIX): ereditarlo non va, perché lo stderr di un server avviato da
+    terminale Windows è un handle di console, inutilizzabile da un figlio senza console
+    (CREATE_NO_WINDOW): ogni scrittura, compresa la barra tqdm di FlagEmbedding,
+    fallirebbe con Errno 9; lo stesso con pythonw o un servizio."""
     command = [sys.executable, "-m", "core.gpu_worker"]
+    env = dict(os.environ)
+    env.setdefault("PYTHONIOENCODING", "utf-8")  # lo stderr inoltrato si decodifica in UTF-8
     if loader:
         command += ["--loader", loader]
     process = subprocess.Popen(
-        command, cwd=Path(core.__file__).resolve().parent.parent, env=dict(os.environ),
-        stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        command, cwd=Path(core.__file__).resolve().parent.parent, env=env,
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
     worker = GpuWorker(process)
-    worker.wait_ready(ready_timeout)
+    try:
+        worker.wait_ready(ready_timeout)
+    except GpuWorkerUnavailable:
+        raise  # wait_ready ha già fermato il processo
+    except BaseException:
+        worker._kill(grace=0)
+        raise
     return worker
 
 

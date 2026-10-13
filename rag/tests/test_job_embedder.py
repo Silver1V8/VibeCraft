@@ -2,8 +2,11 @@
 ripiego. I test con FakeWorker provano la scelta del device senza avviare processi; quelli
 con `real_worker` avviano il worker vero (python -m core.gpu_worker) con un loader finto."""
 import functools
+import logging
 import os
+import pickle
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -344,13 +347,51 @@ def test_real_worker_exiting_while_loading_falls_back(real_worker):
 
 
 def test_real_worker_not_ready_in_time_is_killed_and_falls_back(real_worker):
-    real_worker.use("slow", ready_timeout=1.0)
+    # 4 s: il loader annota il pid solo dopo avvio dell'interprete e import di numpy
+    # (~0.5 s a caldo, molto di più con antivirus o cache fredda).
+    real_worker.use("slow", ready_timeout=4.0)
     started = time.monotonic()
     with job_embedder.reindex_embedder(lambda: FakeModel("cpu")) as embedder:
         assert embedder.encode(["a"])["dense_vecs"] == ["cpu"]
         real_worker.assert_all_exited()  # ucciso prima del ripiego, interprete compreso
-    assert time.monotonic() - started < 10
-    assert "non pronto entro 1 s" in embedder.report()["embedding_fallback_reason"]
+    assert time.monotonic() - started < 20
+    assert "non pronto entro 4 s" in embedder.report()["embedding_fallback_reason"]
+
+
+def test_start_kills_the_worker_when_the_ready_reply_is_malformed(real_worker, monkeypatch):
+    real_worker.use("echo")
+
+    def read_then_garble(self, box):
+        pickle.load(self.process.stdout)  # il figlio è pronto (e ha annotato il pid)
+        box.append(42)  # risposta che non è una tupla: wait_ready solleva TypeError
+
+    monkeypatch.setattr(job_embedder.GpuWorker, "_read_into", read_then_garble)
+    with pytest.raises(TypeError):
+        job_embedder.start_gpu_worker(loader="tests.fake_gpu_loader:echo")
+    real_worker.assert_all_exited()
+    assert not job_embedder._live_workers
+
+
+def test_live_workers_are_killed_at_server_exit(real_worker):
+    real_worker.use("echo")
+    worker = job_embedder.start_gpu_worker(loader="tests.fake_gpu_loader:echo")
+    assert worker in job_embedder._live_workers and worker.process.poll() is None
+    job_embedder._kill_live_workers()  # registrata con atexit: i thread dei job sono daemon
+    real_worker.assert_all_exited()
+    assert worker not in job_embedder._live_workers
+
+
+def test_real_worker_stderr_goes_to_the_server_log(real_worker, caplog):
+    real_worker.use("chatty")
+    caplog.set_level(logging.INFO, logger=job_embedder.logger.name)
+    with job_embedder.reindex_embedder(no_cpu) as embedder:
+        embedder.encode(["t"] * 12, batch_size=12)  # come FlagEmbedding: barra tqdm attiva
+    lines = [r.getMessage() for r in caplog.records if r.name == job_embedder.logger.name]
+    forwarded = [line for line in lines if line.startswith("[gpu-worker] ")]
+    assert any("rumore nativo su stderr" in line for line in forwarded)
+    assert any("Inference Embeddings" in line for line in forwarded)
+    real_worker.assert_all_exited()
+    assert not job_embedder._live_workers
 
 
 def test_real_worker_exits_when_the_job_fails(real_worker):
@@ -372,6 +413,18 @@ def test_real_worker_that_does_not_exit_after_stop_is_killed(real_worker, monkey
     assert time.monotonic() - started < 10
     real_worker.assert_all_exited()
     embedder.release()  # idempotente anche dopo l'uccisione
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="riguarda le console di Windows")
+def test_real_worker_survives_a_server_started_from_a_console():
+    # pytest cattura il descrittore 2 su file: la console va riprodotta in un processo a
+    # parte (tests/console_stderr_helper.py), con STD_ERROR_HANDLE su CONOUT$.
+    helper = Path(__file__).resolve().parent / "console_stderr_helper.py"
+    result = subprocess.run([sys.executable, str(helper)], cwd=helper.parent.parent,
+                            capture_output=True, text=True, timeout=120,
+                            creationflags=subprocess.CREATE_NO_WINDOW)
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    assert result.stdout.strip() == "OK"
 
 
 def _gpu_memory_used_mb() -> int:

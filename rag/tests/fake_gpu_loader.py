@@ -114,3 +114,21 @@ def lingering():
     import threading
     threading.Thread(target=time.sleep, args=(60,)).start()
     return EchoModel()
+
+
+class _Chatty(EchoModel):
+    """Come BGEM3FlagModel.encode: barra tqdm su stderr, disattivata sotto batch_size."""
+
+    def encode(self, texts, **kwargs):
+        from tqdm import trange
+        batch_size = kwargs.get("batch_size", 256)
+        for _ in trange(0, len(texts), batch_size, desc="Inference Embeddings",
+                        disable=len(texts) < batch_size):
+            pass
+        os.write(2, b"rumore nativo su stderr\n")
+        return super().encode(texts, **kwargs)
+
+
+def chatty():
+    _record_pid()
+    return _Chatty()
