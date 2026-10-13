@@ -346,16 +346,28 @@ def test_real_worker_exiting_while_loading_falls_back(real_worker):
     real_worker.assert_all_exited()
 
 
-def test_real_worker_not_ready_in_time_is_killed_and_falls_back(real_worker):
-    # 4 s: il loader annota il pid solo dopo avvio dell'interprete e import di numpy
-    # (~0.5 s a caldo, molto di più con antivirus o cache fredda).
-    real_worker.use("slow", ready_timeout=4.0)
-    started = time.monotonic()
+def test_real_worker_not_ready_in_time_is_killed_and_falls_back(real_worker, monkeypatch):
+    # Il timeout di "ready" parte solo quando il loader lento ha annotato il pid (dopo
+    # l'avvio dell'interprete e l'import di numpy, lento a freddo o con l'antivirus):
+    # così si può sempre verificare che l'interprete ucciso non esista più.
+    real_wait_ready = job_embedder.GpuWorker.wait_ready
+
+    def wait_ready_once_pid_known(self, timeout):
+        deadline = time.monotonic() + 20
+        while not real_worker.pids() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        if not real_worker.pids():
+            pytest.fail("il loader lento non ha annotato il pid entro 20 s")
+        return real_wait_ready(self, timeout)
+
+    monkeypatch.setattr(job_embedder.GpuWorker, "wait_ready", wait_ready_once_pid_known)
+    real_worker.use("slow", ready_timeout=1.0)
     with job_embedder.reindex_embedder(lambda: FakeModel("cpu")) as embedder:
+        started = time.monotonic()
         assert embedder.encode(["a"])["dense_vecs"] == ["cpu"]
         real_worker.assert_all_exited()  # ucciso prima del ripiego, interprete compreso
-    assert time.monotonic() - started < 20
-    assert "non pronto entro 4 s" in embedder.report()["embedding_fallback_reason"]
+    assert time.monotonic() - started < 30
+    assert "non pronto entro 1 s" in embedder.report()["embedding_fallback_reason"]
 
 
 def test_start_kills_the_worker_when_the_ready_reply_is_malformed(real_worker, monkeypatch):

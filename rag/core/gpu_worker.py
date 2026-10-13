@@ -9,7 +9,8 @@ Protocollo: messaggi pickle sulla stdin/stdout binarie del figlio. Dopo il caric
 figlio invia ("ready", secondi) oppure ("load_error", messaggio) ed esce; poi risponde a
 ("encode", testi, kwargs) con ("ok", output), ("oom", messaggio) o ("error", traceback)
 ed esce su ("stop",) o a fine input. Lo stdout vero è riservato al protocollo: print,
-tqdm e log delle librerie finiscono su stderr, ereditato dal server (quindi nel suo log).
+tqdm e log delle librerie finiscono su stderr, una pipe che il server legge e inoltra
+al proprio log riga per riga, col prefisso [gpu-worker].
 
 `--loader modulo:funzione` sostituisce il caricamento reale (i test usano modelli finti).
 """
