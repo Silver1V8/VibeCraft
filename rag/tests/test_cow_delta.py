@@ -1,11 +1,13 @@
 """Delta copy-on-write degli indici immutabili: copia Qdrant, equivalenza col full
 rebuild, ripieghi. Riusa le fixture reali (registry, Qdrant memory/server) di
 test_project_indexing."""
+import json
 from uuid import NAMESPACE_URL, uuid5
 
 import pytest
 from qdrant_client.models import PointStruct, SparseVector
 
+from api import routes_reindex
 from core import artifacts, indexing, qdrant_versions as versions
 from core.config import DENSE_DIM
 from test_project_indexing import Embed, build, projects, qdrant  # noqa: F401
@@ -125,6 +127,9 @@ def test_cow_delta_matches_full_rebuild_points(projects, qdrant, monkeypatch):  
     for chunk_id in cow:
         assert cow[chunk_id].id == full[chunk_id].id
         assert cow[chunk_id].vector["dense"] == pytest.approx(full[chunk_id].vector["dense"])
+        assert cow[chunk_id].payload == full[chunk_id].payload
+        assert cow[chunk_id].vector["sparse"].indices == full[chunk_id].vector["sparse"].indices
+        assert cow[chunk_id].vector["sparse"].values == pytest.approx(full[chunk_id].vector["sparse"].values)
 
 
 def test_cow_drops_deleted_doc_and_keeps_parent_pinned(projects, qdrant, monkeypatch):  # noqa: F811
@@ -169,7 +174,15 @@ def test_cow_code_only_change_copies_all_points(projects, qdrant, monkeypatch): 
     assert indexing.check_graph_consistency(Embed(), project=a)["consistent"] is True
 
 
-@pytest.mark.parametrize("breakage", ["mode", "model", "parent_collection"])
+def _edit_manifest(project, version, mutate):
+    path = artifacts.manifest_path(version, project=project)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    mutate(data)
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+
+@pytest.mark.parametrize("breakage", [
+    "mode", "model", "parent_collection", "colbert_hash", "missing_graph", "not_immutable"])
 def test_cow_falls_back_to_rebuild(projects, qdrant, monkeypatch, breakage):  # noqa: F811
     a, _ = projects
     _seed(a, qdrant, monkeypatch)
@@ -177,6 +190,12 @@ def test_cow_falls_back_to_rebuild(projects, qdrant, monkeypatch, breakage):  # 
         monkeypatch.setattr(indexing, "DELTA_MODE", "rebuild")
     elif breakage == "model":
         monkeypatch.setattr(indexing, "EMBEDDING_MODEL", "altro-modello")
+    elif breakage == "colbert_hash":
+        _edit_manifest(a, "v1", lambda m: m["artifact_hashes"].__setitem__("colbert/index.json", "0" * 64))
+    elif breakage == "missing_graph":
+        (artifacts.artifact_dir("v1", project=a) / "graph.json").unlink()
+    elif breakage == "not_immutable":
+        _edit_manifest(a, "v1", lambda m: m.__setitem__("immutable", False))
     else:
         qdrant.delete_collection(a.collection_name + "__v1")
     _write(a, "edit.md", "# Edit\n\nEDIT2MARK BETA\n")
@@ -184,8 +203,27 @@ def test_cow_falls_back_to_rebuild(projects, qdrant, monkeypatch, breakage):  # 
     stats = indexing.incremental_index(qdrant, Embed(), project=a)
 
     assert stats["delta_mode"] == "rebuild" and stats["fallback_reason"]
+    assert stats["promoted"] is True
     assert artifacts.current_version(project=a) == "v2"
     assert versions._read_alias_target(qdrant, a.collection_name) == a.collection_name + "__v2"
+
+
+def test_cow_unusable_parent_is_detected_before_any_write(projects, qdrant, monkeypatch):  # noqa: F811
+    """Le precondizioni falliscono prima di ogni scrittura: l'unica collection creata e'
+    quella del rebuild di ripiego, mai una candidata del tentativo cow."""
+    a, _ = projects
+    _seed(a, qdrant, monkeypatch)
+    (artifacts.artifact_dir("v1", project=a) / "graph.json").unlink()
+    _write(a, "edit.md", "# Edit\n\nEDIT2MARK BETA\n")
+    created = []
+    real = indexing._ensure_collection
+    monkeypatch.setattr(indexing, "_ensure_collection",
+                        lambda *args, **kw: created.append(kw.get("collection_name")) or real(*args, **kw))
+
+    stats = indexing.incremental_index(qdrant, Embed(), project=a)
+
+    assert stats["delta_mode"] == "rebuild"
+    assert created == [a.collection_name + "__v2"]
 
 
 def test_cow_gate_rejection_keeps_parent_active(projects, qdrant, monkeypatch):  # noqa: F811
@@ -199,3 +237,21 @@ def test_cow_gate_rejection_keeps_parent_active(projects, qdrant, monkeypatch): 
     assert stats["delta_mode"] == "cow" and stats["promoted"] is False
     assert artifacts.current_version(project=a) == "v1"
     assert versions._read_alias_target(qdrant, a.collection_name) == a.collection_name + "__v1"
+
+
+def test_reindex_job_maps_unpromoted_delta_to_completed_not_promoted(monkeypatch):
+    monkeypatch.setattr(routes_reindex, "ensure_shared_resources", lambda **kwargs: None)
+    monkeypatch.setattr(routes_reindex, "incremental_index",
+                        lambda **kwargs: {"noop": False, "promoted": False})
+
+    result = routes_reindex._run_reindex(None)
+
+    assert result["job_status"] == "completed_not_promoted"
+
+
+def test_reindex_job_keeps_plain_status_for_promoted_delta(monkeypatch):
+    monkeypatch.setattr(routes_reindex, "ensure_shared_resources", lambda **kwargs: None)
+    monkeypatch.setattr(routes_reindex, "incremental_index",
+                        lambda **kwargs: {"noop": False, "promoted": True})
+
+    assert "job_status" not in routes_reindex._run_reindex(None)

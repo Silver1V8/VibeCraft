@@ -104,6 +104,9 @@ def _run_reindex(changed_paths, *, project=None) -> dict:
         embed_model_factory=_reindex_embed_model,
         changed_paths=changed_paths, project=project,
     )
+    if result.get("promoted") is False:
+        # Delta (cow o rebuild) bocciato dall'eval-gate: la versione attiva resta il padre.
+        result["job_status"] = "completed_not_promoted"
     if result.get("noop") is True:
         disk_version = current_version(project) or _graph_version(project)
         snapshot = current_snapshot(project)

@@ -1835,21 +1835,27 @@ def _cow_delta_index(qdrant: QdrantClient, embed_model, emit, plan: IndexPlan,
     if not _qdrant_collection_exists(qdrant, parent_collection):
         raise _CowUnavailable(f"collection del padre '{parent_collection}' assente su Qdrant")
 
+    graph: nx.DiGraph = nx.DiGraph()
+    version = _new_version_name(project=project)
+    candidate = qdrant_collection_name(version, project=project)
     started = time.perf_counter()
-    arts = load_artifacts(project=project)
-    timings["load"] = time.perf_counter() - started
+    arts = None
     try:
+        # Tutti gli artefatti sono richiesti: un grafo assente non diventa un grafo vuoto
+        # pubblicato nel figlio, un file mancante/corrotto ripiega PRIMA di ogni scrittura.
+        arts = load_artifacts(("graph", "chunks", "dense", "code"), project=project)
+        timings["load"] = time.perf_counter() - started
         if arts.version != parent_version:
             raise ValueError(f"artefatti caricati da {arts.version}, attesa {parent_version}")
         parent_store, parent_hashes = _attested_parent_colbert(arts, manifest, project)
-    except (RuntimeError, ValueError) as exc:
-        if isinstance(arts.colbert_store, ColbertStore):
+        if parent_store is None and "colbert/index.json" in (manifest.get("artifact_hashes") or {}):
+            raise ValueError("ColBERT attestato dal manifest ma assente nel padre")
+        graph = arts.graph
+    except (RuntimeError, ValueError, OSError) as exc:
+        if arts is not None and isinstance(arts.colbert_store, ColbertStore):
             arts.colbert_store.close()
         raise _CowUnavailable(f"artefatti del padre non riusabili: {exc}") from exc
 
-    graph: nx.DiGraph = arts.graph if arts.graph is not None else nx.DiGraph()
-    version = _new_version_name(project=project)
-    candidate = qdrant_collection_name(version, project=project)
     code_added, code_removed, code_modified = code_delta
     writer = None
     try:
@@ -1992,7 +1998,9 @@ def incremental_index(qdrant: QdrantClient | None = None, embed_model=None, emit
             collector["phase_timings_seconds"]["init_model"] += timings["init_model"]
             counts = collector["counts"]
             return {"noop": False, "version": version, "delta_mode": "rebuild",
-                    "fallback_reason": fallback, "reindexed_docs": counts["docs_added"],
+                    "fallback_reason": fallback,
+                    "promoted": artifact_module.current_version(project=project) == version,
+                    "reindexed_docs": counts["docs_added"],
                     "deleted_docs": len(plan.deleted), "upserted_chunks": counts["chunks_indexed"],
                     "planned": plan.as_dict(), **collector}
         finally:
