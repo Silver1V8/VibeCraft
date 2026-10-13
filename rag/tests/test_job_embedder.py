@@ -1,5 +1,6 @@
 """JobEmbedder: GPU solo per la durata del job di reindex, CPU come ripiego."""
 import os
+import subprocess
 import weakref
 
 import pytest
@@ -23,9 +24,16 @@ class FakeModel:
         self.stopped = True
 
 
-def make(*, gpu=None, available=True, free=8000, enabled=True, load_error=None):
+def make(*, gpu=None, available=True, free=8000, enabled=True, load_error=None,
+         oom_count=None):
     gpu, cpu = gpu or FakeModel("gpu"), FakeModel("cpu")
     loads, cleared = [], []
+    probe = {} if oom_count is None else {"oom_count": oom_count}
+
+    def free_probe():
+        if isinstance(free, BaseException):
+            raise free
+        return free
 
     def load_gpu():
         loads.append(True)
@@ -34,9 +42,9 @@ def make(*, gpu=None, available=True, free=8000, enabled=True, load_error=None):
         return gpu
 
     embedder = JobEmbedder(load_gpu=load_gpu, cpu_model=lambda: cpu,
-                           gpu_available=lambda: available, free_vram_mb=lambda: free,
+                           gpu_available=lambda: available, free_vram_mb=free_probe,
                            min_free_mb=3072, enabled=enabled,
-                           empty_cache=lambda: cleared.append(True))
+                           empty_cache=lambda: cleared.append(True), **probe)
     return embedder, gpu, cpu, loads, cleared
 
 
@@ -142,6 +150,92 @@ def test_oom_fallback_empties_cache_after_the_exception_is_gone():
     assert alive_at_empty == [False]
 
 
+def test_free_vram_probe_failure_falls_back_to_cpu_without_touching_cuda():
+    embedder, _, cpu, loads, cleared = make(free=RuntimeError("nvidia-smi assente"))
+    assert embedder.encode(["a"])["dense_vecs"] == ["cpu"]
+    assert loads == [] and cleared == []
+    assert "VRAM non interrogabile" in embedder.report()["embedding_fallback_reason"]
+    embedder.release()
+    assert cleared == []  # la sonda non crea un contesto CUDA: niente da svuotare
+
+
+def _nvidia_smi(monkeypatch, *, stdout="", returncode=0, error=None):
+    calls = []
+
+    def run(cmd, **kwargs):
+        calls.append((cmd, kwargs))
+        if error is not None:
+            raise error
+        return subprocess.CompletedProcess(cmd, returncode, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(job_embedder.subprocess, "run", run)
+    return calls
+
+
+def test_free_vram_reads_first_gpu_line_from_nvidia_smi(monkeypatch):
+    calls = _nvidia_smi(monkeypatch, stdout="4542\n")
+    assert job_embedder._free_vram_mb() == 4542
+    cmd, kwargs = calls[0]
+    assert cmd[0] == "nvidia-smi" and "--query-gpu=memory.free" in cmd
+    assert kwargs["timeout"] == 5
+
+
+def test_free_vram_uses_device_zero_on_multi_gpu(monkeypatch):
+    _nvidia_smi(monkeypatch, stdout="4542\n812\n")
+    assert job_embedder._free_vram_mb() == 4542
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"returncode": 9, "stdout": ""},
+    {"error": FileNotFoundError("nvidia-smi")},
+    {"error": subprocess.TimeoutExpired("nvidia-smi", 5)},
+    {"stdout": "No devices were found\n"},
+    {"stdout": ""},
+])
+def test_free_vram_raises_when_nvidia_smi_is_unusable(monkeypatch, kwargs):
+    _nvidia_smi(monkeypatch, **kwargs)
+    with pytest.raises(Exception):
+        job_embedder._free_vram_mb()
+
+
+class OOMCounter:
+    def __init__(self):
+        self.value = 0
+
+    def __call__(self):
+        return self.value
+
+
+def test_real_oom_surfacing_as_attribute_error_falls_back_to_cpu():
+    counter = OOMCounter()
+
+    class FlagLikeGpu(FakeModel):
+        def encode(self, texts, **kwargs):
+            self.calls.append(list(texts))
+            counter.value += 1  # il contatore di OOM di CUDA cresce, poi l'errore è altro
+            raise AttributeError("'list' object has no attribute 'keys'")
+
+    gpu = FlagLikeGpu("gpu")
+    embedder, _, cpu, _, cleared = make(gpu=gpu, oom_count=counter)
+    assert embedder.encode(["a", "b"])["dense_vecs"] == ["cpu", "cpu"]
+    assert cpu.calls == [["a", "b"]] and gpu.stopped and cleared
+    assert "memoria GPU" in embedder.report()["embedding_fallback_reason"]
+
+
+def test_attribute_error_without_oom_counter_increase_propagates():
+    gpu = FakeModel("gpu", fail=AttributeError("'list' object has no attribute 'keys'"))
+    embedder, _, cpu, _, _ = make(gpu=gpu, oom_count=OOMCounter())
+    with pytest.raises(AttributeError):
+        embedder.encode(["a"])
+    assert cpu.calls == []
+
+
+def test_oom_count_reading_failure_counts_as_zero(monkeypatch):
+    monkeypatch.setattr(torch.cuda, "memory_stats",
+                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no cuda")))
+    assert job_embedder._cuda_oom_count() == 0
+
+
 def test_context_releases_gpu_even_when_job_fails(monkeypatch):
     gpu = FakeModel("gpu")
     monkeypatch.setattr(job_embedder, "REINDEX_DEVICE", "auto")
@@ -207,3 +301,12 @@ def test_full_rebuild_route_uses_job_embedder(monkeypatch):
 
     assert isinstance(seen["model"], JobEmbedder)
     assert result["embedding_device"] == "unused"
+
+
+@pytest.mark.skipif(os.environ.get("VIBECRAFT_TEST_GPU") == "1",
+                    reason="con VIBECRAFT_TEST_GPU=1 il device è scelto dall'utente")
+def test_suite_forces_cpu_even_if_the_shell_exports_auto():
+    # conftest sovrascrive un eventuale VIBECRAFT_REINDEX_DEVICE=auto esportato
+    from core import config
+    assert os.environ["VIBECRAFT_REINDEX_DEVICE"] == "cpu"
+    assert config.REINDEX_DEVICE == "cpu"

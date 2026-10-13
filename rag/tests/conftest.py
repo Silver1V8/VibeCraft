@@ -2,8 +2,11 @@
 import os
 
 # I test non caricano mai bge-m3 sulla GPU: i job di reindex restano su CPU (modelli
-# finti) salvo i test che lo abilitano esplicitamente con monkeypatch.
-os.environ.setdefault("VIBECRAFT_REINDEX_DEVICE", "cpu")
+# finti) salvo i test che lo abilitano esplicitamente con monkeypatch. Il valore viene
+# forzato anche se la shell esporta VIBECRAFT_REINDEX_DEVICE=auto; solo con
+# VIBECRAFT_TEST_GPU=1 (opt-in per la macchina con CUDA) resta quello dell'utente.
+if os.environ.get("VIBECRAFT_TEST_GPU") != "1":
+    os.environ["VIBECRAFT_REINDEX_DEVICE"] = "cpu"
 
 from dataclasses import replace
 
