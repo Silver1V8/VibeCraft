@@ -156,7 +156,7 @@ def test_library_output_on_stdout_does_not_corrupt_the_protocol():
     code, replies, err = _talk("noisy", ("encode", ["a\nb", "cc"], {"batch_size": 2}), ("stop",))
     assert code == 0, err
     assert [kind for kind, *_ in replies] == ["ready", "ok"]
-    expected = fake_gpu_loader.echo().encode(["a\nb", "cc"], batch_size=2)
+    expected = fake_gpu_loader.EchoModel().encode(["a\nb", "cc"], batch_size=2)
     np.testing.assert_array_equal(replies[1][1]["dense_vecs"], expected["dense_vecs"])
     assert replies[1][1]["lexical_weights"] == expected["lexical_weights"]
     # il rumore finisce su stderr, che nel server è il log

@@ -8,6 +8,17 @@ import time
 
 import numpy as np
 
+PID_FILE_ENV = "FAKE_GPU_WORKER_PID_FILE"
+
+
+def _record_pid():
+    """Annota il pid del processo che fa davvero il lavoro: con un venv su Windows il
+    Popen del server è il launcher di Scripts/python.exe, l'interprete è un suo figlio."""
+    path = os.environ.get(PID_FILE_ENV)
+    if path:
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(f"{os.getpid()}\n")
+
 
 class EchoModel:
     """Output deterministico con la forma di BGEM3FlagModel.encode: dense ndarray,
@@ -50,39 +61,56 @@ class _Noisy(EchoModel):
 
 
 def echo():
+    _record_pid()
     return EchoModel()
 
 
 def oom():
+    _record_pid()
     return _Raising(RuntimeError("CUDA out of memory. Tried to allocate 2.00 GiB"))
 
 
 def crash():
+    _record_pid()
     return _Crashing()
 
 
 def bad_input():
+    _record_pid()
     return _Raising(ValueError("input malformato"))
 
 
 def introspect():
+    _record_pid()
     return _Introspecting()
 
 
 def noisy():
+    _record_pid()
     print("rumore durante il caricamento")
     os.write(1, b"rumore nativo durante il caricamento\n")
     return _Noisy()
 
 
 def broken():
+    _record_pid()
     raise RuntimeError("driver CUDA non compatibile")
 
 
 def exit_while_loading():
+    _record_pid()
     os._exit(5)
 
 
 def slow():
+    _record_pid()
     time.sleep(60)
+    return EchoModel()
+
+
+def lingering():
+    """Una libreria che lascia un thread non daemon: dopo ("stop",) l'interprete non esce."""
+    _record_pid()
+    import threading
+    threading.Thread(target=time.sleep, args=(60,)).start()
     return EchoModel()
