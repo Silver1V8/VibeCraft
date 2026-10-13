@@ -1,4 +1,10 @@
 """Explicit legacy seam for historical HTTP tests; A/B tests use the real registry."""
+import os
+
+# I test non caricano mai bge-m3 sulla GPU: i job di reindex restano su CPU (modelli
+# finti) salvo i test che lo abilitano esplicitamente con monkeypatch.
+os.environ.setdefault("VIBECRAFT_REINDEX_DEVICE", "cpu")
+
 from dataclasses import replace
 
 import pytest

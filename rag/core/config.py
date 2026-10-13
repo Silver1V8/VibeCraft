@@ -69,6 +69,10 @@ INDEX_MODE = _env_choice("VIBECRAFT_INDEX_MODE", "legacy", {"legacy", "immutable
 # Delta dei progetti a snapshot immutabili: "cow" copia dal padre i punti invariati e
 # ricalcola solo i sorgenti cambiati; "rebuild" forza il full rebuild (via d'uscita).
 DELTA_MODE = _env_choice("VIBECRAFT_DELTA_MODE", "cow", {"cow", "rebuild"})
+# Embedding dei job di reindex: "auto" usa la GPU per la sola durata del job se c'è
+# abbastanza VRAM libera (soglia sotto), altrimenti il modello CPU condiviso; "cpu" la esclude.
+REINDEX_DEVICE = _env_choice("VIBECRAFT_REINDEX_DEVICE", "auto", {"auto", "cpu"})
+REINDEX_GPU_MIN_FREE_MB = int(os.environ.get("VIBECRAFT_REINDEX_GPU_MIN_FREE_MB", "3072"))
 if ROLE in {"reader", "writer"} and INDEX_MODE != "immutable":
     raise RuntimeError(f"VIBECRAFT_ROLE={ROLE} richiede VIBECRAFT_INDEX_MODE=immutable.")
 
