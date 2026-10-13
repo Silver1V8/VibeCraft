@@ -117,6 +117,12 @@ copy-on-write: collection nuova con i punti invariati del padre e ri-embedding d
 soli documenti e file di codice cambiati. Se il padre non è riusabile si ripiega sul
 full rebuild (motivo in `fallback_reason` del job); un delta noop non scrive nulla.
 
+Gli embedding dei job di reindex usano la GPU per la sola durata del job, se c'è VRAM
+libera sufficiente, e la liberano a fine job; altrimenti, o se la memoria finisce a
+metà, proseguono sulla CPU. Il job riporta `embedding_device` ed eventualmente
+`embedding_fallback_reason`. Mentre un job usa la GPU, Ollama può dover tenere parte
+del modello in RAM: le risposte di `/ask` in quel momento possono rallentare.
+
 ### Migrare un'installazione esistente
 
 Con dati storici, l'apertura restituisce `project_migration_required`: la migrazione
