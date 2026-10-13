@@ -562,7 +562,8 @@ Expected: verde; fra gli skip compare `test_real_gpu_model_is_released` (opt-in)
 2. `nvidia-smi --query-gpu=memory.used --format=csv` prima del job.
 3. Sul progetto SviluppoUrgenteSandro modifica un documento, poi «Aggiorna indice».
 4. `GET /api/reindex/{job_id}`. Atteso: `result.embedding_device == "cuda"` (oppure `"cpu"` con un `embedding_fallback_reason` coerente con la VRAM di quel momento) e `result.delta_mode == "cow"`.
-5. `nvidia-smi` dopo il job: memoria tornata al valore del punto 2, con una tolleranza di circa 50 MB.
+5. `nvidia-smi` dopo il job: memoria tornata al valore del punto 2 più il contesto CUDA residuo (qualche centinaio di MiB) finché il server non viene riavviato.
+6. Con `qwen3.5:9b` caricato in Ollama, verificare che il job passi alla CPU se `nvidia-smi` riporta meno di 3072 MiB liberi.
 
 - [ ] **Step 5: Commit**
 

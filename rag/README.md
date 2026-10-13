@@ -1075,7 +1075,7 @@ una generazione: vanno misurate separatamente.
 | `VIBECRAFT_ROLE` | `standalone` | `standalone`, `reader` oppure `writer` |
 | `VIBECRAFT_INDEX_MODE` | `legacy` | `legacy` oppure `immutable` |
 | `VIBECRAFT_DELTA_MODE` | `cow` | Delta dei progetti a snapshot immutabili: `cow` (copy-on-write) oppure `rebuild` (full rebuild a ogni delta) |
-| `VIBECRAFT_REINDEX_DEVICE` | `auto` | Embedding dei job di reindex: `auto` usa la GPU per la sola durata del job (poi la libera) se c'è VRAM sufficiente, altrimenti la CPU; `cpu` la esclude |
+| `VIBECRAFT_REINDEX_DEVICE` | `auto` | Embedding dei job di reindex: `auto` usa la GPU per la sola durata del job (poi la libera) se c'è VRAM sufficiente (serve `nvidia-smi`), altrimenti la CPU; `cpu` la esclude |
 | `VIBECRAFT_REINDEX_GPU_MIN_FREE_MB` | 3072 | VRAM libera minima all'avvio del job per usare la GPU |
 | `VIBECRAFT_DATABASE_DIR` | `rag/database` | Sorgente storica per diagnostica/migrazione; gli indici attivi sono nelle root registrate |
 | `VIBECRAFT_PROJECTS_DIR` | `<installazione>/projects` | Registry e nuove root; percorso assoluto, `/app/projects` in Compose |
