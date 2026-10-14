@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VibeCraft · Intake &amp; Import</title>
+  <title>VibeCraft · Intake</title>
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
 
   <!-- Asset condivisi (estratti dai template per non duplicare CSS/JS) -->
@@ -165,6 +165,20 @@
     .conv-info p { margin: 2px 0; }
     .conv-info ul { margin: 6px 0 0; padding-left: 18px; }
     .conv-info .msg-err { font-weight: 600; }
+
+    /* Due colonne da 1200 px: a sinistra cosa entra, a destra la revisione dello staging,
+       che resta visibile mentre si caricano i file (prima finiva sotto la piega, dopo
+       Genera e Importa). Sotto i 1200 px resta la colonna unica di sempre. */
+    @media (min-width: 1200px) {
+      .page-doc main#main-content {
+        max-width: 1600px; display: grid; gap: var(--space-6); align-items: start;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      }
+      .page-doc section.intake-review {
+        grid-column: 2; grid-row: 1; position: sticky; top: var(--space-6);
+        max-height: calc(100vh - 2 * var(--space-6)); overflow-y: auto;
+      }
+    }
   </style>
 </head>
 <body class="page-doc">
@@ -175,21 +189,13 @@
   <canvas id="matrix-rain" aria-hidden="true"></canvas>
   <div class="scanlines"></div>
 
-  <header>
-    <div class="title-group">
-      <div class="icon-box" aria-hidden="true">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"/>
-        </svg>
-      </div>
-      <div>
-        <h1 class="glow-text">Intake &amp; Import</h1>
-        <div class="sub">Genera con Ollama · Importa documenti · Review staging</div>
-      </div>
-    </div>
-  </header>
+  <!-- Titolo solo per screen reader: il nome della sezione è già nella nav della
+       shell; l'intestazione visibile lo ripeteva e costava ~90 px di altezza. -->
+  <h1 class="sr-only">Intake &amp; Import</h1>
 
   <main id="main-content" tabindex="-1">
+    <!-- Colonna "cosa entra": genera, importa documenti, importa progetto. -->
+    <div class="intake-column">
     <!-- ══════════ (a) GENERA CON OLLAMA ══════════ -->
     <section id="section-genera">
       <h2>🪄 Genera con Ollama</h2>
@@ -210,7 +216,7 @@
         <label class="field">Categoria docs/ target
           <select id="gen-categoria"></select>
         </label>
-        <button type="button" id="gen-btn" data-click="startGeneration" class="btn btn-primary">▶ Avvia generazione</button>
+        <button type="button" id="gen-btn" data-click="startGeneration" data-requires="ollama" class="btn btn-primary">▶ Avvia generazione</button>
         <span id="gen-status" class="status"></span>
       </div>
       <div id="gen-result"></div>
@@ -239,22 +245,9 @@
       <div id="import-results" aria-live="polite"></div>
     </section>
 
-    <!-- ══════════ (c) IN STAGING ══════════ -->
-    <section id="section-staging">
-      <h2>🗂️ In staging</h2>
-      <p class="desc">Approva per scrivere in <code>docs/</code> o rifiuta (resta tracciato). Finite le
-        approvazioni, premi <strong>Aggiorna indice</strong> nella barra in alto.</p>
-      <div class="toolbar">
-        <button type="button" data-click="refreshStaging" class="btn btn-secondary">↻ Ricarica</button>
-        <span id="staging-status" class="status"></span>
-      </div>
-      <div id="staging-list"></div>
-      <div id="staging-detail"></div>
-    </section>
-
     <!-- ══════════ (d) IMPORTA PROGETTO DA PATH ══════════ -->
     <section id="section-progetti">
-      <h2>📦 Importa progetto da path</h2>
+      <h2>📦 Importa progetto da cartella</h2>
       <p class="desc">Copia un progetto locale in <code>code/&lt;target&gt;</code> senza mai sovrascrivere:
         prima l'anteprima, poi l'applicazione.</p>
       <details class="desc-more"><summary>Come vengono trattati i file</summary>
@@ -295,12 +288,26 @@
         <label class="field">Progetto di cui scrivere il brief
           <select id="prj-brief-progetto"><option value="">(nessun import registrato)</option></select>
         </label>
-        <button type="button" id="prj-brief-btn" data-click="startProjectBrief" class="btn btn-primary">🧭 Project brief</button>
+        <button type="button" id="prj-brief-btn" data-click="startProjectBrief" data-requires="ollama" class="btn btn-primary">🧭 Project brief</button>
         <span id="prj-brief-status" class="status">Genera via Ollama una sintesi architetturale del
           progetto selezionato (grounded sul grafo) che entra in staging come ogni documento.
           L'elenco viene dagli import già riusciti, anche di sessioni precedenti.</span>
       </div>
       <div id="prj-brief-result"></div>
+    </section>
+    </div>
+
+    <!-- Colonna "revisione": a destra da 1200 px, sotto nella colonna unica. -->
+    <section id="section-staging" class="intake-review">
+      <h2 title="Staging">🗂️ Da revisionare</h2>
+      <p class="desc">Approva per scrivere in <code>docs/</code> o rifiuta (resta tracciato). Finite le
+        approvazioni, premi <strong>Aggiorna indice</strong> nella barra in alto.</p>
+      <div class="toolbar">
+        <button type="button" data-click="refreshStaging" class="btn btn-secondary">↻ Ricarica</button>
+        <span id="staging-status" class="status"></span>
+      </div>
+      <div id="staging-list"></div>
+      <div id="staging-detail"></div>
     </section>
   </main>
 

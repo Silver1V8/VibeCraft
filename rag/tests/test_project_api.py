@@ -177,6 +177,10 @@ def ab(client, monkeypatch):
     indexed(b, "CORPUS_BETA")
     monkeypatch.setitem(deps.state, "qdrant", _Qdrant())
     monkeypatch.setitem(deps.state, "embed_model", _Embed())
+    # Gli ID nascono dal nome ("A", "B"), uguali in ogni test: la cache /ask dell'app
+    # (chiave progetto + versione indice) non deve portare risposte da un test all'altro.
+    from core import ask_cache
+    ask_cache.for_app(http.app).clear()
     return http, a, b
 
 
@@ -261,6 +265,32 @@ def test_reader_empty_boot_and_selected_marker_validation(ab, monkeypatch):
     assert http.get("/api/graph/all", headers=headers).status_code == 503
     assert http.post("/api/projects", headers=headers, json={"name": "forbidden"}).status_code == 409
     assert http.get("/api/health/live", headers=headers).status_code == 200
+
+
+def test_health_deps_creates_qdrant_client_and_skips_index_scan(client, monkeypatch):
+    from api import routes_health
+
+    class FakeQdrant:
+        def __init__(self, **_):
+            pass
+
+        def get_collections(self):
+            return []
+
+        def close(self):
+            pass
+
+    http, _ = client
+    monkeypatch.setattr(deps, "QdrantClient", FakeQdrant)
+    monkeypatch.setattr(routes_health, "check_ollama", lambda: False)
+    monkeypatch.setattr(routes_health, "index_status", lambda **_: pytest.fail("index scan"), raising=False)
+    provider = {"active_provider": "ollama"}
+    monkeypatch.setattr(routes_health.llm, "_llm_settings",
+                        lambda: __import__("types").SimpleNamespace(**provider))
+    # Senza progetto e prima di qualunque richiesta indicizzata (state["qdrant"] è None).
+    assert http.get("/api/health/deps").json() == {"qdrant": True, "ollama": False}
+    provider["active_provider"] = "anthropic"  # Ollama spento ma non in uso: niente allarme
+    assert http.get("/api/health/deps").json() == {"qdrant": True, "ollama": None}
 
 
 def test_index_health_and_history_are_project_local(ab, monkeypatch):

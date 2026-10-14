@@ -310,84 +310,6 @@ body.page-doc {
 .page-doc ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: var(--radius-pill); }
 .page-doc ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 
-.page-doc header {
-  position: sticky;
-  top: 0;
-  /* Era z-index:5, sotto main/section (10): l'header sticky restava "in cima"
-     visivamente solo finché non arrivava una sezione, che allora lo copriva
-     scorrendo. L'header sticky deve stare sopra il contenuto normale — resta
-     sotto gli overlay (30) e i toast (60), che devono poterlo coprire quando
-     aperti. */
-  z-index: 15;
-  display: flex;
-  /* wrap SEMPRE, non solo sotto il breakpoint: l'header ospita elementi
-     iniettati a runtime (il toggle del rain) e qualunque aggiunta futura
-     spingerebbe la riga oltre il viewport. Su schermi larghi non cambia nulla,
-     resta tutto su una riga. */
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3) var(--space-4);
-  padding: var(--space-3) var(--space-6);
-  background: linear-gradient(135deg, var(--header-grad-1) 0%, var(--header-grad-2) 50%, var(--header-grad-3) 100%);
-  border-bottom: 1px solid var(--header-border);
-}
-.page-doc header > div { flex-shrink: 0; }
-.page-doc header h1 {
-  margin: 0;
-  /* 18px letterali, non var(--text-lg) (16px): qui l'obiettivo e la parita
-     esatta col text-lg di Tailwind usato da pipeline/dashboard (1.125rem),
-     non la scala tipografica di questo file — nomi coincidenti, scale diverse. */
-  font-size: 18px;
-  color: var(--title-color);
-  text-shadow: var(--title-glow);
-  white-space: nowrap;
-}
-.page-doc header .sub {
-  margin-top: var(--space-1);
-  /* Era 11px: sotto il pavimento tipografico dichiarato (--text-xs = 12px). */
-  font-size: var(--text-xs);
-  color: var(--sub-text);
-  white-space: nowrap;
-}
-
-/* ── Blocco titolo (icona + h1 + sottotitolo) ──
-   intake, graph_analysis ed eval_trend avevano solo un h1 col glifo "◇" fisso:
-   pipeline e dashboard hanno un box-icona con glow accanto al titolo. Questi tre
-   template non caricano Tailwind, quindi l'equivalente vive qui invece di
-   ripetere l'utility in tre <style> diversi. */
-.page-doc header .title-group {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-.page-doc header .icon-box {
-  width: 36px;
-  height: 36px;
-  /* 8px letterali: e' il rounded-lg di Tailwind usato dall'icona di pipeline e
-     dashboard, non un token della scala (6/10/14) — qui l'obiettivo e la
-     corrispondenza pixel-per-pixel, non la coerenza coi propri controlli. */
-  border-radius: 8px;
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  box-shadow: var(--btn-glow-token);
-}
-.page-doc header .icon-box svg { width: 20px; height: 20px; }
-.page-doc header h1 { display: block; }
-
-/* Console (dashboard) e Pipeline: l'icona del logo è Tailwind puro
-   (bg-blue-600 + text-white), non passa da .icon-box. bg-blue-600 segue già
-   il tema (--blue-600 è verde in Matrix), ma text-white resta bianco fisso ->
-   solo in Matrix il simbolo va scurito per coerenza con l'icon-box di Intake
-   (stesso principio: colore SCURO su verde, mai bianco). In Classico non si
-   tocca nulla, il bianco su blu resta corretto. */
-:root[data-theme="matrix"] #app-header svg.text-white {
-  color: var(--color-on-primary);
-}
-
 .page-doc main {
   position: relative;
   z-index: 10;
@@ -432,17 +354,6 @@ body.page-doc {
    mai a capo, con `white-space: nowrap` sul titolo — sotto i ~700px usciva dallo
    schermo trascinandosi dietro tutta la pagina. */
 @media (max-width: 767px) {
-  .page-doc header {
-    flex-wrap: wrap;
-    gap: var(--space-2) var(--space-3);
-    padding: var(--space-3) var(--space-4);
-  }
-  .page-doc header h1 { white-space: normal; font-size: var(--text-base); }
-  .page-doc header .sub { white-space: normal; }
-  /* `flex-shrink: 0` sul blocco del titolo gli impediva di comprimersi: il
-     testo andava a capo ma il contenitore restava alla propria min-content
-     width, sforando di una manciata di px. */
-  .page-doc header > div { flex-shrink: 1; min-width: 0; }
   .page-doc main { padding: var(--space-3); }
   /* Le tabelle larghe scorrono DENTRO al proprio contenitore, senza mai far
      scorrere la pagina. */
@@ -704,6 +615,8 @@ body.workspace-shell {
    ampiezza con lo stato dell'indice). Su schermi stretti scorre in orizzontale
    invece di andare a capo. */
 .workspace-nav { order: 10; flex-basis: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.workspace-nav #service-status, .workspace-nav .workspace-guide { margin-left: auto; }
+.workspace-nav #service-status:not([hidden]) + .workspace-guide { margin-left: 0; }
 .project-index-status {
   display: inline-flex; align-items: center; gap: 7px; padding: 5px 9px;
   border: 1px solid var(--color-border); border-radius: var(--radius-pill);
@@ -711,6 +624,14 @@ body.workspace-shell {
   font-size: var(--text-xs); line-height: 1.4; white-space: nowrap;
 }
 .project-index-status:empty { display: none; }
+/* Prosa lunga (risposte, intervista, anteprime, guida): carattere proporzionale anche nel
+   tema Matrix, dove tutto il resto è monospace e migliaia di caratteri stancano. Codice,
+   dati ed editor di file restano monospace. */
+.prose-text { font-family: var(--font-sans); }
+.prose-text code, .prose-text pre, .prose-text kbd { font-family: var(--font-mono); }
+/* Controllo che richiede un servizio spento (applyServiceStatus in shared.js). */
+html[data-services-down~="qdrant"] [data-requires~="qdrant"],
+html[data-services-down~="ollama"] [data-requires~="ollama"] { opacity: .5; cursor: not-allowed; }
 .project-index-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--color-text-muted); flex-shrink: 0; }
 .project-index-status[data-state="ready"]::before { background: var(--color-success); }
 .project-index-status[data-state="stale"]::before, .project-index-status[data-state="indexing"]::before { background: var(--color-warning); }
@@ -775,29 +696,24 @@ body.workspace-shell {
 #workspace-pages { position: relative; z-index: 10; flex: 1; min-height: 0; }
 #workspace-pages, #workspace-pages iframe { width: 100%; height: 100%; border: 0; }
 #workspace-pages iframe { display: block; }
-/* Scheletro di caricamento: sagoma di header di pagina, colonna e contenuto. Il pulsare
+/* Scheletro di caricamento: sagoma di colonna e contenuto. Il pulsare
    si ferma con prefers-reduced-motion grazie alla regola globale della sezione 7. */
 #workspace-skeleton {
   position: relative; z-index: 10; flex: 1; min-height: 0; overflow: hidden;
-  display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--space-4); padding: var(--space-4);
+  display: grid; grid-template-rows: minmax(0, 1fr); gap: var(--space-4); padding: var(--space-4);
 }
-.skeleton-header { display: flex; align-items: center; gap: var(--space-4); }
 .skeleton-body { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: var(--space-4); min-height: 0; }
 .skeleton-column { display: flex; flex-direction: column; gap: var(--space-4); }
 .skeleton-block {
   border-radius: var(--radius-md); background: var(--color-surface-elevated);
   animation: skeleton-pulse 1.4s ease-in-out infinite;
 }
-.skeleton-icon { width: 40px; height: 40px; }
-.skeleton-title { width: 220px; height: 22px; }
-.skeleton-nav { width: 360px; height: 30px; margin-left: auto; border-radius: 999px; }
 .skeleton-card { height: 180px; }
 .skeleton-card.is-tall { flex: 1; }
 .skeleton-main { min-height: 0; }
 @keyframes skeleton-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 @media (max-width: 800px) {
   .skeleton-body { grid-template-columns: minmax(0, 1fr); }
-  .skeleton-nav { display: none; }
   .skeleton-main { display: none; }
 }
 #workspace-status {

@@ -264,6 +264,8 @@
       currentStep = step;
       [1, 2, 3, 4, 5].forEach(i => {
         setPanelVisible(`panel-step-${i}`, i === step);
+        const stepButton = document.getElementById(`step-btn-${i}`);
+        if (i === step) stepButton?.setAttribute?.('aria-current', 'step'); else stepButton?.removeAttribute?.('aria-current');
         // Non si sovrascrive uno stato TERMINALE (completato, con avvisi,
         // fallito): prima ogni navigazione riscriveva il className di tutti i
         // pallini, quindi un passo già completato tornava grigio appena si
@@ -309,7 +311,7 @@
       dot.textContent = s.glifo(step);
       const badge = document.getElementById(`step-badge-${step}`);
       badge.textContent = label || s.label;
-      badge.className = `mt-1 text-xs font-mono step-badge-${s.stato}`;
+      badge.className = `block text-xs font-mono step-badge-${s.stato}`;
       const line = document.getElementById(`step-line-${step}`);
       if (line) line.classList.toggle('done', state === 'done');
     }
@@ -442,7 +444,7 @@
       const log = document.getElementById('chat-log');
       const isUser = role === 'user';
       const bubble = document.createElement('div');
-      bubble.className = `fade-in max-w-[80%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
+      bubble.className = `fade-in prose-text max-w-[80%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
         isUser ? 'self-end bg-blue-600 text-white' : 'self-start bg-slate-800 text-slate-100'
       }`;
       bubble.textContent = text;

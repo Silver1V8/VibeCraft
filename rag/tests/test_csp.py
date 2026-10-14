@@ -153,7 +153,8 @@ def test_every_declared_action_is_registered(template):
     sources = [html] + [(STATIC_DIR / rel).read_text(encoding="utf-8") for rel in scripts]
     declared = {name for src in sources for name in ACTION_ATTR_RE.findall(src)}
     registered = {name for src in sources for name in _registered_actions(src)}
-    assert declared, "nessuna azione trovata: il template non ha controlli?"
+    # La guida (infografica) non ha controlli da quando lo stato del progetto è in Console.
+    assert declared or template.name == "infografica.unified.html",         "nessuna azione trovata: il template non ha controlli?"
     assert declared <= registered, declared - registered
 
 

@@ -43,6 +43,12 @@ def project_metadata(project, request: Request, *, check_stale: bool = True) -> 
                 if manifest.get("immutable") is not True or manifest.get("qdrant_collection") != expected:
                     raise ValueError("Invalid immutable manifest")
             result.update(index_status="ready", index_version=version)
+            # Per le schede della home: già nel manifest letto qui, nessuna scansione in più.
+            hashes = manifest.get("doc_hashes"), manifest.get("code_hashes")
+            if all(isinstance(item, dict) for item in hashes):
+                result.update(documents=len(hashes[0]), code_files=len(hashes[1]))
+            if isinstance(manifest.get("created_at"), str):
+                result["indexed_at"] = manifest["created_at"]
             if ROLE != "reader" and not check_stale:
                 result["stale_pending"] = True
             elif ROLE != "reader":

@@ -4,6 +4,7 @@ e pending in coda, raggiungibilità delle dipendenze (Qdrant, Ollama best-effort
 alert dei batch notturni (database/alerts.jsonl, entro 48h). La logica vive in
 `build_health`, pura rispetto allo stato del server: ogni pezzo è iniettabile, così i test
 usano fake senza FastAPI né rete."""
+import asyncio
 import json
 import logging
 import time
@@ -15,7 +16,7 @@ from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.concurrency import run_in_threadpool
 
 from api.deps import (get_project, require_snapshot, project_runtime, require_api_key, state,
-                      _is_local_request)
+                      _is_local_request, ensure_shared_resources)
 from core.artifacts import _project_artifact_path
 from core.config import ALERTS_PATH, ROLE
 from core import llm
@@ -58,6 +59,16 @@ def _qdrant_collection_names(qdrant) -> set[str] | None:
 def check_qdrant(qdrant) -> bool:
     """True se il client Qdrant risponde a get_collections (client assente ⇒ False)."""
     return _qdrant_collection_names(qdrant) is not None
+
+
+def _shared_qdrant():
+    """Client Qdrant condiviso, creato se manca: nasce alla prima richiesta indicizzata,
+    e prima di allora l'health dava Qdrant "non raggiungibile" anche quando era su."""
+    try:
+        ensure_shared_resources(embedding=False)
+    except HTTPException:
+        pass
+    return state.get("qdrant")
 
 
 def check_ollama(timeout: float = OLLAMA_PING_TIMEOUT_SECONDS) -> bool:
@@ -219,6 +230,22 @@ def api_liveness():
     return {"status": "ok", "role": ROLE, "read_only": ROLE == "reader"}
 
 
+@reader_router.get("/api/health/deps")
+@router.get("/api/health/deps")
+async def api_health_deps():
+    """Solo le dipendenze, per l'indicatore della shell: niente index_status, che su
+    progetti grandi scansiona migliaia di file a ogni chiamata."""
+    qdrant = await run_in_threadpool(_shared_qdrant)
+    qdrant_ok, ollama_ok = await asyncio.gather(run_in_threadpool(check_qdrant, qdrant),
+                                                run_in_threadpool(check_ollama))
+    # shortcut: guarda solo active_provider, non gli override per scopo
+    # (llm_settings.purposes); se un override punta a Ollama con provider attivo diverso,
+    # l'indicatore tace. Ollama spento non è un problema se nessuno lo usa: None = non in uso.
+    if llm._llm_settings().active_provider != "ollama":
+        ollama_ok = None
+    return {"qdrant": qdrant_ok, "ollama": ollama_ok}
+
+
 @reader_router.get("/api/health")
 @router.get("/api/health")
 async def api_health(request: Request):
@@ -247,7 +274,7 @@ async def api_health(request: Request):
         report = await run_in_threadpool(
             build_health, snapshot=snapshot,
             manager=manager,
-            qdrant=state.get("qdrant"), role=ROLE, ollama_check=check_ollama,
+            qdrant=await run_in_threadpool(_shared_qdrant), role=ROLE, ollama_check=check_ollama,
             reload_error=runtime.get("reload_error"), **kwargs,
         )
     except Exception as exc:

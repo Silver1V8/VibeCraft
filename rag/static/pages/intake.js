@@ -288,7 +288,7 @@
         detail.innerHTML = `
           <h3>${escapeHtml(data.filename || id)}${raffinato ? ' <span class="badge badge-generated">raffinato</span>' : ''}</h3>
           ${conversionInfoHtml(data)}
-          <div class="md-preview">${mdToHtml(data.markdown || '', ['openpyxl', 'xlrd'].includes(data.metadata?.motore) && !raffinato)}</div>
+          <div class="md-preview prose-text">${mdToHtml(data.markdown || '', ['openpyxl', 'xlrd'].includes(data.metadata?.motore) && !raffinato)}</div>
           <p class="status">Approvando, in <code>docs/&lt;categoria&gt;/</code> viene scritto solo il file <code>.md</code> mostrato qui, con il frontmatter di governance.</p>
           <div class="review-controls">
             <button type="button" data-click="refineStaged" data-arg="${escapeHtml(id)}" class="btn btn-secondary" title="Riscrive il dump del convertitore come spec strutturata (sezioni, tabelle, blocchi di codice). Riesegubile: riparte sempre dal markdown grezzo.">✨ ${raffinato ? 'Raffina di nuovo' : 'Raffina con LLM'}</button>

@@ -59,14 +59,14 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
 
 ## Metodologia e conteggio
 
-- **Route registrate sui router: 67** — contate con `grep -c '^@router\.'` su
+- **Route registrate sui router: 68** — contate con `grep -c '^@router\.'` su
   `api/routes_*.py`:
   - `routes_pages.py` → 6
   - `routes_pipeline.py` → 25
   - `routes_reindex.py` → 6
   - `routes_retrieval.py` → 3
   - `routes_graph.py` → 5
-  - `routes_health.py` → 3
+  - `routes_health.py` → 4
   - `routes_projects.py` → 4
   - `routes_intake.py` → 15
 - **La tabella §1 ha 67 righe numerate** (una per route registrata) → il conteggio
@@ -258,16 +258,16 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
    dashboard non usa (motore `d3` di default). Guardie in CI: `tests/test_csp.py` fallisce
    se un template reintroduce `<script>` inline, handler `on*=` o URL `javascript:`, se
    uno script di pagina genera markup con `on*=`, o se un `data-click` nomina un'azione
-   non registrata. **Residuo accettato: `style-src 'unsafe-inline'`.** Il runtime
-   Tailwind (`static/vendor/tailwind.min.js`) genera il CSS nel browser dentro uno
-   `<style>`, mermaid/vis/3d-force-graph scrivono stili inline e i template usano
-   `style="..."`; toglierlo richiede un CSS Tailwind precompilato, cioè un tool di build
-   che l'ambiente non ha. Il rischio che resta è l'iniezione di CSS (defacement,
+   non registrata. **Residuo accettato: `style-src 'unsafe-inline'`.** Dal 2026-10-14
+   Tailwind è precompilato (`static/tailwind*.css`, `scripts/build_css.sh`) e il runtime
+   che generava il CSS nel browser è stato rimosso; restano gli stili inline di
+   mermaid/vis/3d-force-graph e gli `style="..."` dei template, che vanno eliminati prima
+   di togliere `'unsafe-inline'`. Il rischio che resta è l'iniezione di CSS (defacement,
    esfiltrazione lenta via selettori), non l'esecuzione di codice.
 
 ---
 
-## 1. Tabella completa delle route (67 righe)
+## 1. Tabella completa delle route (68 righe)
 
 Legenda **Body**: *assente* = nessun body dichiarato · *query/path* = solo parametri URL ·
 *JSON Pydantic* = modello con campi obbligatori · *JSON opz.* = `Request` grezza con
@@ -350,6 +350,7 @@ oltre a `require_api_key` del router.
 | 65 | POST | `/api/projects/register` | require_api_key | JSON Pydantic | No (preflight) | legge manifest e scrive registry; path host arbitrario solo con bind locale, altrimenti root canonica senza link strettamente sotto PROJECTS_DIR, verificata prima del manifest; reader rifiutato | Medio | **anti-x-site + confinement managed-root remoto** |
 | 66 | POST | `/api/index/reindex` | require_api_key | **JSON opz.** (`Request` grezza) | **Sì (bodyless)** | avvia il job incrementale o full del progetto selezionato dalla console; nessun token webhook richiesto; non montata nel reader | **Alto** | **anti-x-site** |
 | 67 | POST | `/api/pipeline/dev-types` | require_api_key | JSON Pydantic | No (preflight) | **scrive filesystem** (crea `code/<nome>`; nome a singolo componente `[A-Za-z0-9][A-Za-z0-9_-]{0,63}`, nomi riservati Windows rifiutati, idempotente case-insensitive) | Basso | **anti-x-site** |
+| 68 | GET | `/api/health/deps` | require_api_key | assente | Sì | read-only (ping Qdrant/Ollama per l'indicatore della shell; crea il client Qdrant condiviso se manca, senza modello di embedding; `ollama` è `null` se non è il provider attivo) | Basso | nessuna |
 
 ### Nota sulle route a corpo consegnabile — dove la dependency è l'UNICO controllo
 
@@ -608,6 +609,6 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
   `frame-ancestors 'none'` su ogni risposta chiudono il clickjacking delle pagine con
   azioni che scrivono. CSP completa (Fatto 11): `script-src 'self'` senza
   `unsafe-inline`/`unsafe-eval`, nessuno script né handler inline nei template; residuo
-  `style-src 'unsafe-inline'` per il runtime Tailwind.
+  `style-src 'unsafe-inline'` per gli stili inline di librerie grafiche e template.
 - **Debiti annotati:** rate-limit sulle GET CPU-pesanti (§4 #4); `/docs`/`/openapi.json`
   da chiudere in caso di esposizione (§4 #5).

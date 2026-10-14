@@ -1,10 +1,10 @@
-/* Configurazione del runtime Tailwind (/static/vendor/tailwind.min.js), letta al primo
-   scan delle classi: era uno <script> inline nel template, spostata qui per la CSP. */
-      /* Tailwind punta a CSS variables: le classi (bg-white, text-slate-800, border-purple-500…)
-         sono generate UNA volta con var(--...) come valore colore. Il cambio tema
-         (:root[data-theme]) aggiorna le variabili senza rigenerare le classi -> live-flip. */
-      tailwind.config = {
-        theme: {
+/* Configurazione della build CSS statica (scripts/build_css.sh): sostituisce il runtime
+   Tailwind che generava il CSS nel browser a ogni caricamento. I colori puntano a CSS
+   variables: il cambio tema (:root[data-theme]) cambia le variabili, non le classi.
+   `content` elenca dove compaiono le classi, anche quelle scritte da JS. */
+module.exports = {
+  content: ["./templates/infografica.unified.html", "./static/pages/infografica.js", "./static/shared.js"],
+  theme: {
           extend: {
             colors: {
               white:  'var(--white)',
@@ -19,4 +19,4 @@
             fontFamily: { sans: ['var(--font-main)'] }
           }
         }
-      }
+      };

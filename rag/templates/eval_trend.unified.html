@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VibeCraft · Trend di Qualità del Retrieval</title>
+  <title>VibeCraft · Eval</title>
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
 
   <!-- Asset condivisi (estratti dai template per non duplicare CSS/JS) -->
@@ -72,10 +72,19 @@
        per retrocompatibilita ma non sono piu consumati qui. */
 
 
-    .cards { display: flex; gap: var(--space-4); flex-wrap: wrap; margin-bottom: 1rem; }
-    .card { border: 1px solid var(--section-border); background: var(--canvas-bg); border-radius: var(--radius-md); padding: var(--space-4) 1.25rem; min-width: 150px; }
+    /* Griglia e non flex: quattro card restano su una riga anche nella colonna di sinistra. */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-4); margin-bottom: 1rem; }
+    .card { border: 1px solid var(--section-border); background: var(--canvas-bg); border-radius: var(--radius-md); padding: var(--space-4); min-width: 0; }
     .card .k { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-text); }
     .card .v { font-size: 1.8rem; font-weight: 700; margin-top: 0.25rem; color: var(--body-text); font-family: var(--mono-font); }
+    .card .v-small { font-size: 1.15rem; padding: 0.3rem 0; }
+    .card .note { margin-top: 0.35rem; font-size: var(--text-xs); color: var(--muted-text); }
+    .card .note.ok { color: var(--color-success); }
+    .card .note.ko { color: var(--color-danger); }
+    .per-k { display: grid; grid-template-columns: repeat(2, auto); gap: 0.25rem 1rem; margin-top: 0.5rem;
+             font-family: var(--mono-font); font-size: var(--text-size-sm); color: var(--muted-text); }
+    /* La metrica del gate in evidenza: è quella che decide la promozione. */
+    .per-k .is-gate { color: var(--body-text); font-weight: 700; }
     .badge { display: inline-block; padding: 0.15rem 0.6rem; border-radius: var(--radius-pill); font-size: 0.85rem; font-weight: 600; }
     .up { background: rgba(46,204,113,0.18); color: var(--up-color); }
     .down { background: rgba(231,76,60,0.18); color: var(--down-color); }
@@ -115,6 +124,32 @@
     }
     .data-table th { color: var(--muted-text); font-weight: 600; }
     .data-table .row-fail td { color: var(--down-color); }
+    /* Qualità dei canvas (spostata da Analisi: è un trend di qualità come la recall).
+       Un pallino per change archiviata, divergenze con il conteggio in un badge. */
+    .cq-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-bottom: 12px; }
+    .cq-status { font-size: var(--text-xs); color: var(--muted-text); font-family: var(--mono-font); }
+    .cq-trend .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .cq-divergences { margin-top: 12px; font-size: var(--text-size-sm); color: var(--body-text); }
+    .cq-heading { margin: 0 0 8px; font-weight: 600; color: var(--legend-text); }
+    .cq-divergences ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+    .cq-divergences li {
+      display: flex; align-items: baseline; gap: 10px; padding: 6px 10px; line-height: 1.5;
+      border: 1px solid var(--section-border); border-radius: var(--radius-sm);
+    }
+    .cq-count {
+      flex-shrink: 0; min-width: 2.4em; text-align: center; padding: 0 6px; border-radius: 999px;
+      border: 1px solid var(--control-border); color: var(--control-color); font-size: var(--text-xs);
+    }
+    .cq-divergences code { font-family: var(--mono-font); background: var(--control-bg); padding: 0 4px; border-radius: 4px; }
+    .cq-divergences details summary { cursor: pointer; width: fit-content; margin-top: 8px; color: var(--legend-text); }
+    /* Due colonne da 1200 px: recall a sinistra, qualità dei canvas a destra. Prima la
+       seconda stava sotto il grafico, fuori dalla prima schermata. */
+    @media (min-width: 1200px) {
+      .page-doc main#main-content.eval-layout {
+        max-width: 1680px; display: grid; gap: var(--space-6); align-items: start;
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+      }
+    }
   </style>
 </head>
 <body class="page-doc">
@@ -125,25 +160,16 @@
   <canvas id="matrix-rain" aria-hidden="true"></canvas>
   <div class="scanlines"></div>
 
-  <header>
-    <div class="title-group">
-      <div class="icon-box" aria-hidden="true">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15l4-6 4 3 5-8"/>
-        </svg>
-      </div>
-      <div>
-        <h1 class="glow-text">Trend di Qualità del Retrieval</h1>
-        <div class="sub"><span class="chiave-recall">recall@10</span> sul golden set nel tempo</div>
-      </div>
-    </div>
-  </header>
+  <!-- Titolo solo per screen reader: il nome della sezione è già nella nav della
+       shell; l'intestazione visibile lo ripeteva e costava ~90 px di altezza. -->
+  <h1 class="sr-only">Trend di Qualità del Retrieval</h1>
 
-  <main id="main-content" tabindex="-1">
+  <main id="main-content" tabindex="-1" class="eval-layout">
     <section>
       <h2>📈 <span class="chiave-recall">recall@10</span> nel tempo</h2>
-      <p class="desc"><span class="chiave-recall">recall@10</span> sul golden set nel tempo — da <code>eval/results/history.jsonl</code>
-        (eval manuali ed eval-gate alla promozione blue/green).</p>
+      <p class="desc" title="Fonte: database/eval/history.jsonl del progetto">Quante domande del golden set trovano la fonte giusta
+        fra i primi risultati (<span class="chiave-recall">recall@10</span>), versione dopo versione: le valutazioni del gate a ogni
+        promozione e quelle lanciate a mano.</p>
       <div class="cards" id="cards"></div>
       <div class="chart" id="chart"><div class="empty">Caricamento…</div></div>
       <!-- Legenda per forma oltre che per colore: gate superato, gate bloccato ed
@@ -161,6 +187,19 @@
       <details class="data-table" id="data-table">
         <summary>Dati del grafico in tabella</summary>
       </details>
+    </section>
+
+    <section>
+      <h2 title="Canvas quality">📐 Qualità dei canvas</h2>
+      <p class="desc">All'archiviazione di ogni change il codice reale viene confrontato con il canvas
+        (<code>canvas_review.md</code>): qui la <em>fedeltà</em> delle ultime change e le <em>divergenze</em>
+        più frequenti, i punti ciechi che le review reiniettano nella generazione dei canvas futuri.</p>
+      <div class="cq-toolbar">
+        <button type="button" data-click="loadCanvasQuality" class="btn btn-secondary">↻ Ricarica</button>
+        <span id="cq-status" class="cq-status">Caricamento…</span>
+      </div>
+      <div id="cq-trend" class="legend cq-trend"></div>
+      <div id="cq-divergences" class="cq-divergences prose-text"></div>
     </section>
   </main>
 

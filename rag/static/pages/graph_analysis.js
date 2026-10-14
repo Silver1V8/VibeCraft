@@ -38,6 +38,20 @@
     /* ══════════ SEMANTIC MAP ══════════ */
     let mapPoints = [];   // {id, sx, sy, community, is_bridge}
     let mapData = null;
+    let selectedNode = '';      // nodo del pannello di destra (doc_id, entità o simbolo)
+    let highlightedDup = null;  // coppia simile evidenziata sulla mappa
+
+    // Solo i gruppi più grandi hanno un colore proprio: la palette ne ha 10 e oltre si
+    // ripetevano (gruppo 0 e 10 dello stesso verde). Gli altri e i documenti isolati
+    // restano nel colore neutro, con una voce di legenda sola.
+    const MAX_COLORED_COMMUNITIES = 8;
+    function communityColor(community, colors, muted) {
+      return community >= 0 && community < MAX_COLORED_COMMUNITIES ? colors[community] : muted;
+    }
+    function communityLabel(community) {
+      if (community < 0) return 'senza gruppo';
+      return mapData?.communities?.find(c => c.id === community)?.label || `gruppo ${community + 1}`;
+    }
 
     async function loadSemanticMap() {
       const status = document.getElementById('map-status');
@@ -52,12 +66,17 @@
         const data = await res.json();
         if (!Array.isArray(data.points)) throw new Error('Dati della mappa non validi. Premi Ricarica.');
         mapData = data;
+        highlightedDup = null;
         if (!mapData.points || mapData.points.length === 0) {
           status.textContent = mapData.note || 'Nessun documento da proiettare.';
           drawSemanticMap();
           return;
         }
-        status.textContent = `${mapData.points.length} documenti · ${(mapData.duplicates || []).length} coppie sospette`;
+        // I punti sono SEZIONI: prima l'etichetta diceva "384 documenti" per 50 documenti.
+        const documents = mapData.documents ?? new Set(mapData.points.map(p => p.doc_id)).size;
+        const pairs = (mapData.duplicates || []).length;
+        status.textContent = `${mapData.points.length} sezioni di ${documents} documenti · `
+          + `${pairs} ${pairs === 1 ? 'coppia simile' : 'coppie simili'}`;
         drawSemanticMap();
         renderLegend();
         renderDuplicates();
@@ -74,6 +93,7 @@
       const communityColors = getCommunityColors();
       const mutedNode = themeVar('--muted-node-color', '#5a7a66');
       const dupLineColor = themeVar('--dup-line-color', 'rgba(255,110,224,0.7)');
+      const selectColor = themeVar('--body-text', '#d8ffe4');
       const pad = 34;
       const toScreen = (x, y) => [pad + (x + 1) / 2 * (W - 2 * pad), pad + (1 - (y + 1) / 2) * (H - 2 * pad)];
 
@@ -82,47 +102,78 @@
         return { ...p, sx, sy };
       });
       const byId = Object.fromEntries(mapPoints.map(p => [p.id, p]));
+      const dups = mapData.duplicates || [];
 
-      // Linee dei duplicati (dietro ai punti)
+      // Linee delle coppie simili (dietro ai punti); quella evidenziata più spessa.
       ctx.save();
       ctx.setLineDash([5, 4]);
       ctx.strokeStyle = dupLineColor;
-      ctx.lineWidth = 1.2;
-      for (const d of (mapData.duplicates || [])) {
+      dups.forEach((d, i) => {
         const a = byId[d.a], b = byId[d.b];
-        if (a && b) { ctx.beginPath(); ctx.moveTo(a.sx, a.sy); ctx.lineTo(b.sx, b.sy); ctx.stroke(); }
-      }
+        if (!a || !b) return;
+        ctx.lineWidth = i === highlightedDup ? 3 : 1.2;
+        ctx.beginPath(); ctx.moveTo(a.sx, a.sy); ctx.lineTo(b.sx, b.sy); ctx.stroke();
+      });
       ctx.restore();
 
       // Punti
+      const pair = highlightedDup !== null && dups[highlightedDup] ? [dups[highlightedDup].a, dups[highlightedDup].b] : [];
       for (const p of mapPoints) {
-        const color = p.community >= 0 ? communityColors[p.community % communityColors.length] : mutedNode;
         ctx.beginPath();
         ctx.arc(p.sx, p.sy, p.is_bridge ? 7 : 4.5, 0, Math.PI * 2);
-        ctx.fillStyle = color; ctx.fill();
+        ctx.fillStyle = communityColor(p.community, communityColors, mutedNode); ctx.fill();
         if (p.is_bridge) { ctx.lineWidth = 2; ctx.strokeStyle = '#ffffff'; ctx.stroke(); }
+        // Anello largo sulle sezioni del nodo selezionato e sulla coppia evidenziata.
+        const marked = (selectedNode && p.doc_id === selectedNode) ? selectColor : pair.includes(p.id) ? dupLineColor : null;
+        if (marked) {
+          ctx.beginPath(); ctx.arc(p.sx, p.sy, 10, 0, Math.PI * 2);
+          ctx.lineWidth = 2; ctx.strokeStyle = marked; ctx.stroke();
+        }
       }
     }
 
     function renderLegend() {
       const communityColors = getCommunityColors();
+      const mutedNode = themeVar('--muted-node-color', '#5a7a66');
       const dupTextColor = themeVar('--dups-b-color', '#ff6ee0');
-      const communities = [...new Set(mapPoints.map(p => p.community))].filter(c => c >= 0).sort((a, b) => a - b);
-      const parts = communities.map(c =>
-        `<span><i class="dot" style="background:${communityColors[c % communityColors.length]}"></i> community ${c}</span>`);
-      parts.push('<span><i class="dot" style="background:#fff"></i> nodo ponte (anello bianco)</span>');
-      parts.push(`<span style="color:${dupTextColor}">— — coppia duplicata</span>`);
+      const sizes = {};
+      mapPoints.forEach(p => { sizes[p.community] = (sizes[p.community] || 0) + 1; });
+      const communities = Object.keys(sizes).map(Number).filter(c => c >= 0 && c < MAX_COLORED_COMMUNITIES).sort((a, b) => a - b);
+      const parts = communities.map(c => {
+        const info = mapData?.communities?.find(x => x.id === c);
+        const detail = `${info?.documents ?? '?'} documenti, ${sizes[c]} sezioni`
+          + (info?.entities?.length ? ` · entità più citate: ${info.entities.join(', ')}` : '');
+        return `<span title="${escapeHtml(detail)}"><i class="dot" style="background:${communityColors[c]}"></i> ${escapeHtml(communityLabel(c))}</span>`;
+      });
+      if (Object.keys(sizes).some(c => Number(c) < 0 || Number(c) >= MAX_COLORED_COMMUNITIES)) {
+        parts.push(`<span><i class="dot" style="background:${mutedNode}"></i> altri gruppi o nessuno</span>`);
+      }
+      parts.push('<span><i class="dot" style="background:#fff"></i> documento ponte (anello bianco)</span>');
+      parts.push(`<span style="color:${dupTextColor}">— — coppia simile</span>`);
       document.getElementById('map-legend').innerHTML = parts.join('');
     }
 
+    // Le prime 5 coppie visibili, le altre in un elenco richiudibile: erano ~1.000 px di righe.
+    const DUPS_VISIBLE = 5;
     function renderDuplicates() {
       if (!mapData) return;
       const dups = mapData.duplicates || [];
       const el = document.getElementById('map-dups');
       const mutedText = themeVar('--muted-text', '#4dbf6e');
       if (!dups.length) { el.innerHTML = ''; return; }
-      el.innerHTML = '<b>Potenziali duplicati (alta similarità, non collegati):</b>' +
-        dups.map(d => `<div>• ${escapeHtml(d.a)} ↔ ${escapeHtml(d.b)} <span style="color:${mutedText}">(sim ${d.sim})</span></div>`).join('');
+      const row = (d, i) => `<button type="button" data-click="highlightDuplicate" data-arg="${i}" aria-pressed="${i === highlightedDup}">`
+        + `• ${escapeHtml(d.a)} ↔ ${escapeHtml(d.b)} <span style="color:${mutedText}">(sim ${d.sim})</span></button>`;
+      el.innerHTML = '<b>Sezioni molto simili in documenti diversi</b> (clicca per vederle sulla mappa):'
+        + dups.slice(0, DUPS_VISIBLE).map(row).join('')
+        + (dups.length > DUPS_VISIBLE ? `<details><summary>Mostra le altre ${dups.length - DUPS_VISIBLE}</summary>`
+          + dups.slice(DUPS_VISIBLE).map((d, i) => row(d, i + DUPS_VISIBLE)).join('') + '</details>' : '');
+    }
+
+    function highlightDuplicate(index) {
+      highlightedDup = highlightedDup === index ? null : index;
+      drawSemanticMap();
+      renderDuplicates();
+      document.getElementById('map-canvas').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     // Hover + click sulla mappa
@@ -145,7 +196,7 @@
           tip.style.display = 'block';
           tip.style.left = (e.clientX - r.left + 12) + 'px';
           tip.style.top = (e.clientY - r.top + 12) + 'px';
-          tip.innerHTML = `${escapeHtml(p.id)}<br><span style="color:${mutedText}">community ${p.community}${p.is_bridge ? ' · PONTE' : ''}</span>`;
+          tip.innerHTML = `${escapeHtml(p.id)}<br><span style="color:${mutedText}">${escapeHtml(communityLabel(p.community))}${p.is_bridge ? ' · PONTE' : ''}</span>`;
           canvas.style.cursor = 'pointer';
         } else { tip.style.display = 'none'; canvas.style.cursor = 'default'; }
       });
@@ -153,20 +204,13 @@
       canvas.addEventListener('click', e => {
         const r = canvas.getBoundingClientRect();
         const p = nearest(e.clientX - r.left, e.clientY - r.top);
-        if (!p) return;
-        // Impact Ripple: prepara e calcola l'impatto del documento cliccato (senza rubare lo scroll).
-        document.getElementById('ripple-node').value = p.doc_id;
-        loadImpact();
-        // Collegamento mappa → Query deterministica: interroga le relazioni del documento cliccato
-        // e porta l'utente al pannello con la risposta (lettura diretta di nodi/archi, nessun LLM).
-        const gq = document.getElementById('gq-input');
-        gq.value = 'relazioni di ' + p.doc_id;
-        runGraphQuery(p.doc_id);
-        document.getElementById('section-query').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (p) retainWorkspaceTask(selectNode(p.doc_id)).catch(error => console.error(error));
       });
     })();
 
-    /* ══════════ IMPACT RIPPLE ══════════ */
+    /* ══════════ NODO SELEZIONATO ══════════
+       Un'unica selezione per mappa, ricerca, elenco delle relazioni e ripple: il pannello
+       mostra relazioni e propagazione dell'impatto dello stesso nodo, uno accanto all'altro. */
     async function loadNodeList() {
       try {
         const res = await fetch('/api/graph/all');
@@ -177,12 +221,50 @@
       } catch (e) { /* best-effort */ }
     }
 
+    async function selectNode(id) {
+      if (!id) return;
+      selectedNode = id;
+      document.getElementById('node-search').value = id;
+      document.getElementById('node-empty').hidden = true;
+      document.getElementById('node-detail').hidden = false;
+      document.getElementById('node-name').textContent = id;
+      drawSemanticMap();
+      await Promise.all([loadRelations(), loadImpact()]);
+    }
+
+    async function loadRelations() {
+      const node = document.getElementById('node-search').value.trim();
+      const status = document.getElementById('rel-status');
+      const list = document.getElementById('node-relations');
+      if (!node) { status.textContent = 'Scegli un nodo.'; return; }
+      status.textContent = 'Lettura…';
+      try {
+        // target esplicito: il backend non deve indovinare il nodo dal testo della domanda.
+        const res = await fetch('/api/graph/query?q=' + encodeURIComponent('relazioni di ' + node)
+          + '&target=' + encodeURIComponent(node));
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(apiErrorMessage(err.detail, 'HTTP ' + res.status));
+        }
+        const d = await res.json();
+        const rows = [...(d.out || []).map(e => ['→', e.relation, e.to]), ...(d.in || []).map(e => ['←', e.relation, e.from])];
+        status.textContent = `· ${rows.length}`;
+        list.innerHTML = rows.length
+          ? rows.map(([dir, rel, other]) => `<li><span class="rel">${dir} ${escapeHtml(rel || 'collegato a')}</span>`
+              + `<button type="button" data-click="selectNode" data-arg="${escapeHtml(other)}">${escapeHtml(other)}</button></li>`).join('')
+          : '<li><span class="rel">Nessuna relazione diretta.</span></li>';
+      } catch (e) {
+        status.textContent = '❌ ' + e.message;
+        list.innerHTML = '';
+      }
+    }
+
     let lastImpactData = null;
     async function loadImpact() {
-      const node = document.getElementById('ripple-node').value.trim();
+      const node = document.getElementById('node-search').value.trim();
       const depth = document.getElementById('ripple-depth').value;
       const status = document.getElementById('ripple-status');
-      if (!node) { status.textContent = 'Inserisci un nodo.'; return; }
+      if (!node) { status.textContent = 'Scegli un nodo.'; return; }
       status.textContent = 'Calcolo…';
       try {
         const res = await fetch(`/api/graph/impact?node=${encodeURIComponent(node)}&depth=${depth}`);
@@ -191,7 +273,7 @@
           throw new Error(apiErrorMessage(err.detail, 'HTTP ' + res.status));
         }
         const data = await res.json();
-        status.textContent = `${data.nodes.length} nodi impattati · anelli: [${data.rings.join(', ')}]`;
+        status.textContent = `· ${data.nodes.length - 1} nodi toccati · per anello: ${data.rings.slice(1).join(', ') || '0'}`;
         lastImpactData = data;
         drawRipple(data);
       } catch (e) {
@@ -212,7 +294,7 @@
       const fontFamily = themeVar('--canvas-font-family', 'monospace');
       const cx = W / 2, cy = H / 2;
       const maxRing = Math.max(1, data.rings.length - 1);
-      const maxR = Math.min(W, H) / 2 - 40;
+      const maxR = Math.min(W, H) / 2 - 24;
       const ringRadius = i => (i / maxRing) * maxR;
 
       // Anelli guida
@@ -263,7 +345,7 @@
     (function () {
       const canvas = document.getElementById('ripple-canvas');
       const tip = document.getElementById('ripple-tooltip');
-      canvas.addEventListener('mousemove', e => {
+      function nearest(e) {
         const r = canvas.getBoundingClientRect();
         const mx = e.clientX - r.left, my = e.clientY - r.top;
         let best = null, bd = 120;
@@ -271,94 +353,42 @@
           const d = (n.sx - mx) ** 2 + (n.sy - my) ** 2;
           if (d < bd) { bd = d; best = n; }
         }
+        return { best, mx, my };
+      }
+      canvas.addEventListener('mousemove', e => {
+        const { best, mx, my } = nearest(e);
         if (best) {
           const mutedText = themeVar('--muted-text', '#4dbf6e');
           tip.style.display = 'block';
           tip.style.left = (mx + 12) + 'px'; tip.style.top = (my + 12) + 'px';
           tip.innerHTML = `${escapeHtml(best.id)}<br><span style="color:${mutedText}">${escapeHtml(best.type)}${best.kind ? ' · ' + escapeHtml(best.kind) : ''} · anello ${best.ring}</span>`;
-        } else { tip.style.display = 'none'; }
+          canvas.style.cursor = 'pointer';
+        } else { tip.style.display = 'none'; canvas.style.cursor = 'default'; }
       });
       canvas.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+      canvas.addEventListener('click', e => {
+        const { best } = nearest(e);
+        if (best && best.id !== selectedNode) retainWorkspaceTask(selectNode(best.id)).catch(error => console.error(error));
+      });
     })();
 
     /* escapeHtml vive in /static/shared.js (escapa anche l'apice singolo): la copia
        locale, dichiarata dopo, la sovrascriveva con una versione che non lo gestiva. */
 
-    /* ══════════ QUERY DETERMINISTICA ══════════ */
-    // `target` opzionale: id di nodo esplicito (es. click su un punto della Semantic Map).
-    // Quando presente, il backend salta l'euristica di match testuale e usa questo nodo.
-    async function runGraphQuery(target) {
-      const q = document.getElementById('gq-input').value.trim();
-      const status = document.getElementById('gq-status');
-      const out = document.getElementById('gq-out');
-      if (!q) { status.textContent = 'Scrivi una domanda.'; return; }
-      status.textContent = 'Interrogazione…';
-      try {
-        let url = '/api/graph/query?q=' + encodeURIComponent(q);
-        if (target) url += '&target=' + encodeURIComponent(target);
-        const res = await fetch(url);
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(apiErrorMessage(err.detail, 'HTTP ' + res.status));
-        }
-        const d = await res.json();
-        status.textContent = `intent: ${d.intent}` + (d.count !== undefined ? ` · ${d.count}` : '');
-        out.style.display = 'block';
-        out.textContent = JSON.stringify(d, null, 2);
-      } catch (e) { status.textContent = '❌ ' + e.message; }
-    }
-    document.getElementById('gq-input').addEventListener('keydown', e => { if (e.key === 'Enter') runGraphQuery(); });
+    document.getElementById('node-search').addEventListener('keydown', e => {
+      if (e.key === 'Enter') retainWorkspaceTask(selectNode(e.target.value.trim())).catch(error => console.error(error));
+    });
 
-    /* ══════════ CANVAS QUALITY ══════════ */
-    const FIDELITY_STYLE = {
-      alto:        { color: 'var(--type-entity)',   label: 'alto' },
-      medio:       { color: 'var(--community-3)',   label: 'medio' },
-      basso:       { color: 'var(--community-6)',   label: 'basso' },
-      sconosciuto: { color: 'var(--muted-node-color)', label: '?' },
-    };
-    async function loadCanvasQuality() {
-      const status = document.getElementById('cq-status');
-      status.textContent = 'Caricamento…';
-      try {
-        const res = await fetch('/api/canvas-quality');
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const d = await res.json();
-        if (!d.total_reviews) {
-          status.textContent = 'Nessuna canvas review ancora: archivia una change per popolare il pannello.';
-          document.getElementById('cq-trend').innerHTML = '';
-          document.getElementById('cq-divergences').innerHTML = '';
-          return;
-        }
-        const c = d.fidelity_counts;
-        status.textContent = `${d.total_reviews} review · fedeltà: ${c.alto} alto / ${c.medio} medio / ${c.basso} basso`;
-        // Trend (dalla più vecchia alla più recente): un pallino colorato per change.
-        document.getElementById('cq-trend').innerHTML = d.trend.map(t => {
-          const s = FIDELITY_STYLE[t.fidelity] || FIDELITY_STYLE.sconosciuto;
-          return `<span><i class="dot" style="background:${s.color}"></i> ${escapeHtml(t.feature)} (${s.label})</span>`;
-        }).join('');
-        const el = document.getElementById('cq-divergences');
-        // Il testo arriva dalle review in Markdown: inlineMd (shared.js) ne fa grassetto e
-        // codice sopra un testo già escapato, invece di mostrare gli asterischi.
-        el.innerHTML = d.top_divergences.length
-          ? '<p class="cq-heading">Divergenze più frequenti</p><ul>' + d.top_divergences.map(x =>
-              `<li><span class="cq-count" title="Ricorre in ${Number(x.count)} review">×${Number(x.count)}</span>`
-              + `<span>${inlineMd(x.text)}</span></li>`).join('') + '</ul>'
-          : '<p class="cq-heading">Nessuna divergenza registrata nelle review.</p>';
-      } catch (e) {
-        status.textContent = '❌ ' + e.message;
-      }
-    }
-
-    window.addEventListener('resize', () => { drawSemanticMap(); });
+    window.addEventListener('resize', () => { drawSemanticMap(); if (lastImpactData) drawRipple(lastImpactData); });
     loadSemanticMap();
     loadNodeList();
-    loadCanvasQuality();
 
     /* Azioni dei pulsanti/campi (data-click / data-change / data-input): prima erano
        handler inline, vietati dalla CSP — vedi registerActions in /static/shared.js. */
     registerActions({
-      loadCanvasQuality: () => loadCanvasQuality(),
+      highlightDuplicate: el => highlightDuplicate(Number(el.dataset.arg)),
       loadImpact: () => loadImpact(),
       loadSemanticMap: () => loadSemanticMap(),
-      runGraphQuery: () => runGraphQuery(),
+      selectNode: el => selectNode(el.dataset.arg),
+      selectSearchedNode: () => selectNode(document.getElementById('node-search').value.trim()),
     });

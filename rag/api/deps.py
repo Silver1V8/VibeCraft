@@ -304,12 +304,11 @@ _FRAME_ANCESTORS = b"frame-ancestors 'none'"
 # Per questo i template non hanno script né handler inline: il codice sta in
 # /static/pages/*.js e le azioni passano da `data-click`/`data-change`/`data-input`
 # (registerActions in /static/shared.js); la chiave di /pipeline arriva in un <meta>.
-# Residuo accettato: `style-src 'unsafe-inline'`. Il runtime Tailwind
-# (/static/vendor/tailwind.min.js) genera il CSS nel browser in un <style>, mermaid e
-# vis/3d-force-graph scrivono stili inline, i template usano `style="..."`; togliere
-# 'unsafe-inline' dagli stili richiede CSS Tailwind precompilato (un tool di build che
-# l'ambiente non ha). Il rischio residuo è l'iniezione di CSS (defacement, esfiltrazione
-# lenta via selettori), non l'esecuzione di codice.
+# Residuo accettato: `style-src 'unsafe-inline'`. Tailwind ora è precompilato
+# (/static/tailwind*.css, scripts/build_css.sh, 2026-10-14), ma mermaid e
+# vis/3d-force-graph scrivono stili inline e i template usano `style="..."`: togliere
+# 'unsafe-inline' richiede di eliminare quelli. Il rischio residuo è l'iniezione di CSS
+# (defacement, esfiltrazione lenta via selettori), non l'esecuzione di codice.
 # `img-src data: blob:` per le icone SVG inline e gli export dei canvas; `worker-src blob:`
 # per i worker che le librerie grafiche possono creare. Tutto il resto solo same-origin:
 # la console è local-first, nessuna CDN (vedi i vendor in /static/vendor/).

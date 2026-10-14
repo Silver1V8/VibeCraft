@@ -3,12 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VibeCraft — Graph RAG multi-progetto</title>
+    <title>VibeCraft · Guida</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
     <!-- Serviti da /static/vendor/: nessuna dipendenza da CDN esterni (local-first). -->
-    <script src="/static/vendor/tailwind.min.js"></script>
     <script src="/static/vendor/mermaid.min.js"></script>
-    <script src="/static/pages/tailwind-config-infografica.js"></script>
 
     <!-- Asset condivisi (estratti dai template per non duplicare CSS/JS) -->
     <link rel="stylesheet" href="/static/shared.css" />
@@ -102,7 +100,7 @@
          vivono ora in /static/shared.css (identici tra le pagine). */
 
       /* Diagramma Mermaid: mermaid.render() produce un SVG alla sua dimensione
-         NATURALE — per un flowchart con 11 nodi e etichette multi-riga viene
+         NATURALE — per un flowchart con 14 nodi e etichette multi-riga viene
          piccolo, e senza spazio nel contenitore risultava anche attaccato ai
          bordi della card.
          Con .flex.justify-center sul wrapper, #rag-mermaid restava un flex item
@@ -134,6 +132,10 @@
       ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
       ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
     </style>
+    <!-- Tailwind precompilato (scripts/build_css.sh): prima il runtime generava il CSS nel
+         browser e lo inseriva DOPO lo <style> della pagina; il link sta qui per conservare
+         lo stesso ordine, o .glass-card coprirebbe bordi, sfondi e ombre delle utility. -->
+    <link rel="stylesheet" href="/static/tailwind-infografica.css" />
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans p-8">
 
@@ -148,18 +150,18 @@
     <canvas id="matrix-rain" aria-hidden="true"></canvas>
     <div class="scanlines"></div>
 
-    <main id="main-content" tabindex="-1" class="relative z-10 max-w-6xl mx-auto">
+    <main id="main-content" tabindex="-1" class="prose-text relative z-10 max-w-6xl mx-auto">
         <header class="text-center mb-12">
             <h1 class="glow-text text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-emerald-500 mb-4">
                 Architettura Graph RAG multi-progetto
             </h1>
             <p class="text-lg text-slate-600">Una console, progetti separati: codice, documenti, indice e pipeline dedicati; modelli e istanza Qdrant condivisi.</p>
-            <p class="text-sm text-slate-500 mt-2">Documentazione aggiornata al 12 ottobre 2026 · multi-progetto integrato in <code class="font-mono">main</code>; aggiornare i checkout precedenti.</p>
+            <p class="text-sm text-slate-500 mt-2">Documentazione aggiornata al 14 ottobre 2026 · delta copy-on-write, embedding del reindex su GPU in un processo separato, ID progetto leggibili.</p>
         </header>
 
         <section id="project-architecture" class="bg-white glass-card rounded-xl shadow-lg p-6 mb-12" aria-labelledby="projects-title">
             <h2 id="projects-title" class="text-2xl font-bold mb-4">Una console, più progetti</h2>
-            <p class="text-sm text-slate-600 mb-4"><strong>Nuovo progetto</strong> crea le cartelle; <strong>Apri progetto esistente</strong> registra una root con <code class="font-mono">project.yaml</code>. Selezione per scheda, ID stabile e nessuna indicizzazione automatica di una cartella vuota.</p>
+            <p class="text-sm text-slate-600 mb-4"><strong>Nuovo progetto</strong> crea le cartelle; <strong>Apri progetto esistente</strong> registra una root con <code class="font-mono">project.yaml</code>. Selezione per scheda e nessuna indicizzazione automatica di una cartella vuota. L'ID (e la cartella) nasce dal nome: «SGD_FE» diventa <code class="font-mono">SGD-FE</code>, gli omonimi prendono <code class="font-mono">-2</code>, <code class="font-mono">-3</code>; niente <code class="font-mono">_</code>, che renderebbe ambigui i nomi delle collection. Gli ID esadecimali dei progetti creati prima restano validi.</p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div class="rounded-lg border border-slate-200 p-4">
                     <h3 class="font-semibold mb-2">Progetto A</h3>
@@ -177,18 +179,8 @@
             <p class="text-sm text-slate-600"><strong>Compatibilità:</strong> il progetto iniziale <code class="font-mono">legacy</code> ha una root dedicata in <code class="font-mono">projects/legacy/</code>, popolata una volta dalla baseline (<code class="font-mono">templates/</code> nell'immagine Docker). La console parte anche senza indice; retrieval indisponibile dichiarato. In Docker le root apribili sono sotto <code class="font-mono">/app/projects</code>; browse nativo soltanto con bind locale.</p>
         </section>
 
-        <!-- Fascia KPI: dati REALI da /api/health, non numeri decorativi.
-             Una pagina che descrive un sistema di retrieval deve mostrare lo
-             stato di quel sistema, altrimenti resta una brochure. -->
-        <section id="kpi" class="mb-12" aria-label="Stato del progetto selezionato">
-            <div class="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
-                <h2 class="text-sm font-semibold uppercase tracking-widest text-slate-500">Stato del progetto selezionato</h2>
-                <span id="kpi-stato" class="text-xs font-mono text-slate-500">carico…</span>
-            </div>
-            <div id="kpi-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                <p class="text-sm text-slate-500 col-span-full">Lettura di <code class="font-mono">/api/health</code>…</p>
-            </div>
-        </section>
+        <!-- Lo stato del progetto (ex fascia KPI da /api/health) è nella Console: questa
+             pagina è la guida all'architettura. -->
 
         <!-- Il diagramma e l'informazione piu densa della pagina: sta in alto,
              non in fondo dopo 12 blocchi di testo. -->
@@ -200,7 +192,7 @@
             <!-- id="mermaid-wrap": distanzia il diagramma dai bordi della card
                  (era attaccato) e da' allo svg un contenitore su cui basare la
                  scala, visto che mermaid lo renderizza alla sua dimensione
-                 naturale — piccola, per un flowchart con 11 nodi. -->
+                 naturale — piccola, per un flowchart con 14 nodi. -->
             <div id="mermaid-wrap">
                 <div class="mermaid" id="rag-mermaid"></div>
             </div>
@@ -212,10 +204,10 @@
                 <div class="text-3xl mb-3">🛠️</div>
                 <h2 class="text-xl font-bold mb-2">1. L'Indicizzatore</h2>
                 <p class="text-sm font-mono bg-slate-100 p-1 rounded text-pink-600 mb-2">core/indexing.py + core/chunking.py</p>
-                <p class="text-sm text-slate-600 mb-2">Legge documenti e codice, li spezza per sezione, estrae le entita. Full rebuild; delta sui file cambiati nel legacy, candidata completa nei nuovi progetti.</p>
+                <p class="text-sm text-slate-600 mb-2">Legge documenti e codice, li spezza per sezione, estrae le entità. Full rebuild o delta copy-on-write: si ri-calcolano solo i file cambiati.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Legge docs multi-formato (md/txt/docx/xlsx/pdf), li spezza in <strong>chunk per sezione</strong> (heading ##; le sezioni oltre 2500 caratteri diventano più parti <code class="bg-gray-200 px-1 rounded font-mono">-p02</code>…) ed estrae le entità <code class="bg-gray-200 px-1 rounded font-mono">[UTENTE]</code>. Ogni progetto usa i propri sorgenti e artefatti. Nel <strong>legacy</strong> il delta elabora i file cambiati; nei <strong>progetti nuovi</strong> un delta non vuoto ricostruisce la candidata completa, mentre un no-op non riscrive dati. Indicizza anche il codice via AST, con parser per linguaggio nel sottopacchetto <code class="bg-gray-200 px-1 rounded font-mono">code_index/</code> (ts, java, c#, sql, shell, razor, ci, docker…), escludendo sempre dipendenze/build (<code class="bg-gray-200 px-1 rounded font-mono">node_modules</code>, <code class="bg-gray-200 px-1 rounded font-mono">bin</code>/<code class="bg-gray-200 px-1 rounded font-mono">obj</code>…). CLI: <code class="bg-gray-200 px-1 rounded font-mono">index.py</code>.</p>
+                  <p class="mt-2">Legge docs multi-formato (md/txt/docx/xlsx/pdf), li spezza in <strong>chunk per sezione</strong> (heading ##; le sezioni oltre 2500 caratteri diventano più parti <code class="bg-gray-200 px-1 rounded font-mono">-p02</code>…) ed estrae le entità <code class="bg-gray-200 px-1 rounded font-mono">[UTENTE]</code>. Ogni progetto usa i propri sorgenti e artefatti. Un delta non vuoto è <strong>copy-on-write</strong>: la nuova versione copia dal padre i punti Qdrant invariati e ri-calcola gli embedding solo dei sorgenti cambiati; se il padre non è riusabile ripiega sul full rebuild (<code class="bg-gray-200 px-1 rounded font-mono">fallback_reason</code>, <code class="bg-gray-200 px-1 rounded font-mono">VIBECRAFT_DELTA_MODE</code>). Un no-op non riscrive dati. Indicizza anche il codice via AST, con parser per linguaggio nel sottopacchetto <code class="bg-gray-200 px-1 rounded font-mono">code_index/</code> (ts, java, c#, sql, shell, razor, ci, docker…), escludendo sempre dipendenze/build (<code class="bg-gray-200 px-1 rounded font-mono">node_modules</code>, <code class="bg-gray-200 px-1 rounded font-mono">bin</code>/<code class="bg-gray-200 px-1 rounded font-mono">obj</code>…). CLI: <code class="bg-gray-200 px-1 rounded font-mono">index.py</code>.</p>
                 </details>
             </div>
 
@@ -223,10 +215,10 @@
                 <div class="text-3xl mb-3">🗄️</div>
                 <h2 class="text-xl font-bold mb-2">2. Il Cervello Semantico</h2>
                 <p class="text-sm font-mono bg-purple-50 p-1 rounded text-purple-700 mb-2">Qdrant server (Docker) + bge-m3</p>
-                <p class="text-sm text-slate-600 mb-2">Ricerca ibrida dense + sparse su Qdrant, rerank ColBERT, autorita dichiarata e precedenza fra fonti.</p>
+                <p class="text-sm text-slate-600 mb-2">Ricerca ibrida dense + sparse su Qdrant, rerank ColBERT, autorità dichiarata e precedenza fra fonti.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Database vettoriale in <strong>server mode</strong> (via <code class="bg-gray-200 px-1 rounded font-mono">QDRANT_URL</code>, niente lock locale). Ricerca <strong>ibrida dense + sparse</strong> con fusione per rank, poi <strong>rerank ColBERT locale</strong> con lettura a richiesta dei chunk dai sidecar NPY su disco, ri-ponderazione per <strong>autorità</strong> e infine la <strong>precedenza dichiarata</strong> fra fonti (se un autore scrive <code class="bg-gray-200 px-1 rounded font-mono">SUPERA_IN_PRIORITÀ</code> verso un altro documento, nessun chunk del subordinato precede il prevalente: la decisione umana viene per ultima e vince). L'autorità è quella <strong>dichiarata nel frontmatter</strong> del documento, con il peso di classe come ripiego e un peso più basso e distinto per le fonti <strong>senza classificazione</strong>. La forma è <strong>attenuata</strong> — <code class="bg-gray-200 px-1 rounded font-mono">score × ((1−α) + α·authority)</code>, non la moltiplicazione piena: misurato, α=1 costa 15 punti di recall@5. I pesi vivono in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code> e si ricalibrano sul golden set con <code class="bg-gray-200 px-1 rounded font-mono">eval/calibrate_authority.py</code> — sempre con split di validazione e a un <em>k</em> dove la recall non sia satura. <code class="bg-gray-200 px-1 rounded font-mono">bge-m3</code> gira su <strong>CPU per le query</strong> e su <strong>GPU per il reindex</strong> batch: la VRAM è condivisa con Ollama.</p>
+                  <p class="mt-2">Database vettoriale in <strong>server mode</strong> (via <code class="bg-gray-200 px-1 rounded font-mono">QDRANT_URL</code>, niente lock locale). Ricerca <strong>ibrida dense + sparse</strong> con fusione per rank, poi <strong>rerank ColBERT locale</strong> con lettura a richiesta dei chunk dai sidecar NPY su disco, ri-ponderazione per <strong>autorità</strong> e infine la <strong>precedenza dichiarata</strong> fra fonti (se un autore scrive <code class="bg-gray-200 px-1 rounded font-mono">SUPERA_IN_PRIORITÀ</code> verso un altro documento, nessun chunk del subordinato precede il prevalente: la decisione umana viene per ultima e vince). L'autorità è quella <strong>dichiarata nel frontmatter</strong> del documento, con il peso di classe come ripiego e un peso più basso e distinto per le fonti <strong>senza classificazione</strong>. La forma è <strong>attenuata</strong> — <code class="bg-gray-200 px-1 rounded font-mono">score × ((1−α) + α·authority)</code>, non la moltiplicazione piena: misurato, α=1 costa 15 punti di recall@5. I pesi vivono in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code> e si ricalibrano sul golden set con <code class="bg-gray-200 px-1 rounded font-mono">eval/calibrate_authority.py</code> — sempre con split di validazione e a un <em>k</em> dove la recall non sia satura. <code class="bg-gray-200 px-1 rounded font-mono">bge-m3</code> gira su <strong>CPU per le query</strong>; i job di reindex usano la <strong>GPU in un processo separato</strong> (<code class="bg-gray-200 px-1 rounded font-mono">core.gpu_worker</code>) che a fine job libera tutta la VRAM, condivisa con Ollama, con ripiego sulla CPU se la memoria non basta (<code class="bg-gray-200 px-1 rounded font-mono">VIBECRAFT_REINDEX_DEVICE</code>).</p>
                 </details>
             </div>
 
@@ -234,10 +226,10 @@
                 <div class="text-3xl mb-3">🕸️</div>
                 <h2 class="text-xl font-bold mb-2">3. Il Grafo delle Relazioni</h2>
                 <p class="text-sm font-mono bg-emerald-50 p-1 rounded text-emerald-700 mb-2">NetworkX (graph.json)</p>
-                <p class="text-sm text-slate-600 mb-2">Nodi a livello di sezione e archi tipizzati con natura e affidabilita: alimenta BFS, Impact Ripple e Semantic Map.</p>
+                <p class="text-sm text-slate-600 mb-2">Nodi a livello di sezione e archi tipizzati con natura e affidabilità: alimenta BFS e la pagina Analisi (mappa semantica e propagazione dell'impatto).</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Nodi a <strong>livello di sezione</strong> (non solo doc): i chunk diventano nodi e il <strong>code-link è per sezione</strong>. Archi tipizzati dal frontmatter più <strong>alias di autorità risolti in archi doc→doc</strong> che connettono il KG. Ogni arco porta una <strong>natura</strong> — <em>strutturale</em> (dedotta dal filesystem o da un parser: se è sbagliata è un bug), <em>curata</em> (dichiarata da un umano nel frontmatter), <em>inferita</em> (congettura di un algoritmo, penalizzata per costruzione) — e la relativa <strong>affidabilità</strong>. Da lì la <strong>fiducia sul cammino</strong> (<code class="bg-gray-200 px-1 rounded font-mono">trust_paths</code>): un nodo raggiunto via grafo vale <code class="bg-gray-200 px-1 rounded font-mono">1/lunghezza × Π(affidabilità)</code> sul cammino più breve — non PageRank, perché serve un punteggio relativo alla domanda, non una centralità globale. I nodi <code class="bg-gray-200 px-1 rounded font-mono">entity</code>/<code class="bg-gray-200 px-1 rounded font-mono">MENTIONS</code> passano da un <strong>vaglio di forma</strong> (<code class="bg-gray-200 px-1 rounded font-mono">extract_entities</code>) che scarta checkbox, link e segnaposto dei template — solo riferimenti veri, niente rumore. Artefatti <strong>sicuri e ispezionabili</strong> (JSON + NPY/NPZ, senza pickle). Alimenta BFS, <strong>Impact Ripple</strong> e <strong>Semantic Map</strong>.</p>
+                  <p class="mt-2">Nodi a <strong>livello di sezione</strong> (non solo doc): i chunk diventano nodi e il <strong>code-link è per sezione</strong>. Archi tipizzati dal frontmatter più <strong>alias di autorità risolti in archi doc→doc</strong> che connettono il KG. Ogni arco porta una <strong>natura</strong> — <em>strutturale</em> (dedotta dal filesystem o da un parser: se è sbagliata è un bug), <em>curata</em> (dichiarata da un umano nel frontmatter), <em>inferita</em> (congettura di un algoritmo, penalizzata per costruzione) — e la relativa <strong>affidabilità</strong>. Da lì la <strong>fiducia sul cammino</strong> (<code class="bg-gray-200 px-1 rounded font-mono">trust_paths</code>): un nodo raggiunto via grafo vale <code class="bg-gray-200 px-1 rounded font-mono">1/lunghezza × Π(affidabilità)</code> sul cammino più breve — non PageRank, perché serve un punteggio relativo alla domanda, non una centralità globale. I nodi <code class="bg-gray-200 px-1 rounded font-mono">entity</code>/<code class="bg-gray-200 px-1 rounded font-mono">MENTIONS</code> passano da un <strong>vaglio di forma</strong> (<code class="bg-gray-200 px-1 rounded font-mono">extract_entities</code>) che scarta checkbox, link e segnaposto dei template — solo riferimenti veri, niente rumore. Artefatti <strong>sicuri e ispezionabili</strong> (JSON + NPY/NPZ, senza pickle). Alimenta BFS e la pagina <strong>Analisi</strong>: la <strong>mappa semantica</strong> delle sezioni, con gruppi di documenti nominati dalla cartella prevalente e coppie di sezioni molto simili (escluse le canvas review, simili per costruzione), affiancata al dettaglio del nodo scelto, cioè relazioni e <strong>propagazione dell'impatto</strong>.</p>
                 </details>
             </div>
 
@@ -297,7 +289,7 @@
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
                   <p class="mt-2">Grafo e metadati in JSON; ColBERT in <strong>NPY fp16 per documento</strong>, con indice JSON degli offset; dense e codice restano NPZ. Il reader mappa il file, copia il solo chunk richiesto e chiude la mappa. I delta riusano i file immutati tramite hard link, con copia come fallback. La retention conserva le versioni ancora usate dai lettori.</p>
-                  <p class="mt-2">Ogni build scrive una nuova versione: lo swap del puntatore <code class="bg-gray-200 px-1 rounded font-mono">CURRENT</code> è atomico. I nuovi progetti usano collection candidate distinte anche quando un delta avvia un rebuild completo; rollback, retention e GC restano nel namespace del progetto. Nel legacy i delta mutano una collection condivisa e il rollback <strong>non riavvolge quei punti</strong>. Gli indici NPZ restano leggibili, ma richiedono <code class="bg-gray-200 px-1 rounded font-mono">index.py --migrate-colbert-npy</code> prima di un delta non vuoto. Eseguire <code class="bg-gray-200 px-1 rounded font-mono">index.py --check-integrity</code> prima e dopo: la migrazione non ripara Qdrant.</p>
+                  <p class="mt-2">Ogni build scrive una nuova versione: lo swap del puntatore <code class="bg-gray-200 px-1 rounded font-mono">CURRENT</code> è atomico. Ogni versione ha una collection propria, anche quella di un delta copy-on-write; rollback, retention e GC restano nel namespace del progetto. Solo nel percorso legacy (<code class="bg-gray-200 px-1 rounded font-mono">VIBECRAFT_INDEX_MODE=legacy</code>) i delta mutano una collection condivisa e il rollback <strong>non riavvolge quei punti</strong>. Gli indici NPZ restano leggibili, ma richiedono <code class="bg-gray-200 px-1 rounded font-mono">index.py --migrate-colbert-npy</code> prima di un delta non vuoto. Eseguire <code class="bg-gray-200 px-1 rounded font-mono">index.py --check-integrity</code> prima e dopo: la migrazione non ripara Qdrant.</p>
                 </details>
             </div>
 
@@ -309,10 +301,10 @@
                 <div class="text-3xl mb-3">🩺</div>
                 <h2 class="text-xl font-bold mb-2">9. L'Osservabilità</h2>
                 <p class="text-sm font-mono bg-blue-50 p-1 rounded text-blue-700 mb-2">GET /api/health + logging</p>
-                <p class="text-sm text-slate-600 mb-2">Stato dell'indice, freschezza del manifest, ultimo job e raggiungibilita delle dipendenze.</p>
+                <p class="text-sm text-slate-600 mb-2">Stato dell'indice, freschezza del manifest, ultimo job e raggiungibilità delle dipendenze.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2"><code class="font-mono">/api/health/live</code> verifica il processo anche senza indice; <code class="font-mono">/api/health</code> descrive il progetto selezionato: stato snapshot in memoria, freschezza del manifest, ultimo job di reindex e pending, raggiungibilità di Qdrant/Ollama. <strong>Logging strutturato</strong> e ultimo alert dei batch notturni da <code class="bg-gray-200 px-1 rounded font-mono">alerts.jsonl</code> (webhook).</p>
+                  <p class="mt-2"><code class="font-mono">/api/health/live</code> verifica il processo anche senza indice; <code class="font-mono">/api/health</code> descrive il progetto selezionato: stato snapshot in memoria, freschezza del manifest, ultimo job di reindex e pending, raggiungibilità di Qdrant/Ollama; <code class="font-mono">/api/health/deps</code> controlla solo Qdrant e Ollama e alimenta ogni 30 s l'avviso nella barra della console, mentre lo stato del progetto è nel pannello della Console. <strong>Logging strutturato</strong> e ultimo alert dei batch notturni da <code class="bg-gray-200 px-1 rounded font-mono">alerts.jsonl</code> (webhook).</p>
                 </details>
             </div>
 
@@ -320,10 +312,10 @@
                 <div class="text-3xl mb-3">✅</div>
                 <h2 class="text-xl font-bold mb-2">10. L'Eval-Gate Continuo</h2>
                 <p class="text-sm font-mono bg-emerald-50 p-1 rounded text-emerald-700 mb-2">core/eval_gate.py + golden set</p>
-                <p class="text-sm text-slate-600 mb-2">Sui rebuild completi il retrieval è valutato; una metrica sotto soglia blocca se il gate è configurato come bloccante.</p>
+                <p class="text-sm text-slate-600 mb-2">Ogni nuova versione, full o delta, è valutata; una metrica sotto soglia blocca se il gate è configurato come bloccante.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Sui <strong>rebuild completi</strong> il retrieval è valutato sul golden set prima della promozione: se recall@k scende sotto soglia e il gate è bloccante, la promozione viene fermata. I delta legacy promuovono direttamente; nei nuovi progetti il delta non vuoto passa dal full e dal suo gate. Il golden set è <code class="font-mono">&lt;root-progetto&gt;/eval/golden.yaml</code>, storico e alert sono nel database del progetto. Un candidato illeggibile blocca il gate API; errori della valutazione o golden set assente possono invece lasciare passare la promozione. Il gate misura anche la <strong>saturazione</strong> della propria metrica: se recall@k vale 1.000 su <em>tutti</em> i casi non è severo, è cieco — lo supera qualunque candidata, anche peggiorata — e lo dichiara con un alert. Il golden set contiene per questo casi <strong>avversariali</strong>, in cui una fonte a bassa autorità matcha lessicalmente meglio della normativa che risponde: sono l'unico posto dove il boost di autorità può essere falsificato.</p>
+                  <p class="mt-2">Ogni <strong>nuova versione</strong> è valutata sul golden set prima della promozione: se recall@k scende sotto soglia e il gate è bloccante, la promozione viene fermata. Anche il delta copy-on-write passa dal gate (bocciato: <code class="bg-gray-200 px-1 rounded font-mono">completed_not_promoted</code>); solo i delta del percorso legacy promuovono direttamente. Il golden set è <code class="font-mono">&lt;root-progetto&gt;/eval/golden.yaml</code>, storico e alert sono nel database del progetto. Un candidato illeggibile blocca il gate API; errori della valutazione o golden set assente possono invece lasciare passare la promozione. Il gate misura anche la <strong>saturazione</strong> della propria metrica: se recall@k vale 1.000 su <em>tutti</em> i casi non è severo, è cieco — lo supera qualunque candidata, anche peggiorata — e lo dichiara con un alert. Il golden set contiene per questo casi <strong>avversariali</strong>, in cui una fonte a bassa autorità matcha lessicalmente meglio della normativa che risponde: sono l'unico posto dove il boost di autorità può essere falsificato.</p>
                 </details>
             </div>
 
@@ -331,7 +323,7 @@
                 <div class="text-3xl mb-3">🌙</div>
                 <h2 class="text-xl font-bold mb-2">11. I Check Notturni</h2>
                 <p class="text-sm font-mono bg-purple-50 p-1 rounded text-purple-700 mb-2">scripts/nightly_consistency</p>
-                <p class="text-sm text-slate-600 mb-2">Check notturno economico sulla coerenza del grafo, piu un check profondo settimanale.</p>
+                <p class="text-sm text-slate-600 mb-2">Check notturno economico sulla coerenza del grafo, più un check profondo settimanale.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
                   <p class="mt-2">Check notturno <strong>economico</strong> (coerenza grafo, zero embedding) che segnala il drift, più un <strong>check profondo settimanale</strong> con re-embedding. Le anomalie diventano alert su <code class="bg-gray-200 px-1 rounded font-mono">alerts.jsonl</code> e webhook.</p>
@@ -342,10 +334,10 @@
                 <div class="text-3xl mb-3">📈</div>
                 <h2 class="text-xl font-bold mb-2">12. Il Trend di Qualità</h2>
                 <p class="text-sm font-mono bg-orange-50 p-1 rounded text-orange-700 mb-2">core/eval_history.py + /eval</p>
-                <p class="text-sm text-slate-600 mb-2">La recall non e solo misurata ma storicizzata: /eval la grafica nel tempo e le regressioni diventano alert.</p>
+                <p class="text-sm text-slate-600 mb-2">La recall non è solo misurata ma storicizzata: /eval la grafica nel tempo accanto alla qualità dei canvas, e le regressioni diventano alert.</p>
                 <details class="text-sm text-slate-600">
                   <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">La recall non è più solo misurata a ogni promozione ma <strong>storicizzata</strong> (<code class="bg-gray-200 px-1 rounded font-mono">history.jsonl</code> append-only) e resa un trend: la pagina <strong>/eval</strong> grafica nel tempo la recall del gate (oggi <code class="bg-gray-200 px-1 rounded font-mono">recall@2</code>, soglia 0.75 da <code class="bg-gray-200 px-1 rounded font-mono">eval_gate</code>) (marcatori gate vs eval manuale), <code class="bg-gray-200 px-1 rounded font-mono">/api/health</code> espone il trend up/flat/down e le <strong>regressioni lente</strong> diventano alert.</p>
+                  <p class="mt-2">La recall non è più solo misurata a ogni promozione ma <strong>storicizzata</strong> (<code class="bg-gray-200 px-1 rounded font-mono">history.jsonl</code> append-only) e resa un trend: la pagina <strong>/eval</strong> grafica nel tempo la recall del gate (oggi <code class="bg-gray-200 px-1 rounded font-mono">recall@2</code>, soglia 0.75 da <code class="bg-gray-200 px-1 rounded font-mono">eval_gate</code>) (marcatori gate vs eval manuale) insieme alla <strong>qualità dei canvas</strong> (fedeltà e divergenze delle review), <code class="bg-gray-200 px-1 rounded font-mono">/api/health</code> espone il trend up/flat/down e le <strong>regressioni lente</strong> diventano alert.</p>
                 </details>
             </div>
 
@@ -401,7 +393,7 @@
 
         <section class="bg-white glass-card rounded-xl shadow-lg p-6 mb-12" aria-labelledby="sidecar-title">
             <h2 id="sidecar-title" class="text-xl font-bold mb-3">Scalabilità misurata: meno RAM, delta non sempre più veloci</h2>
-            <p class="text-sm text-slate-600 mb-4">Misure del 21 settembre 2026 su Windows e CPU a quattro thread. Sono esperimenti separati sul percorso legacy, non indicatori in tempo reale. Il delta dei nuovi progetti usa oggi un rebuild completo; queste curve non ne misurano il costo.</p>
+            <p class="text-sm text-slate-600 mb-4">Misure del 21 settembre 2026 su Windows e CPU a quattro thread. Sono esperimenti separati sul percorso legacy, non indicatori in tempo reale. Il delta copy-on-write dei progetti ordinari (12 ottobre) è successivo: queste curve non ne misurano il costo.</p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <h3 class="font-semibold mb-2">Memoria durante la build</h3>
@@ -425,7 +417,7 @@
         </section>
 
         <div class="mt-8 bg-blue-50 text-blue-800 p-4 rounded-lg border border-blue-200">
-            <p><strong>💡 La Magia del Determinismo:</strong> allo Step 0 un <strong>router deterministico</strong> (<code class="bg-gray-200 px-1 rounded font-mono">core/router.py</code>, sole regole lessicali) intercetta le domande <strong>strutturali</strong> — enumerazioni, relazioni, impatto, adiacenza — e le risponde direttamente dal grafo (<code class="bg-gray-200 px-1 rounded font-mono">graph_answer</code>) <strong>senza LLM</strong>. Per tutte le altre l'LLM interviene solo allo Step 6: tutto il "pescaggio" del contesto (Step 1-5: ricerca ibrida, rerank ColBERT, autorità dichiarata, precedenza fra fonti, espansione BFS pesata dalla fiducia sul cammino) è calcolato da Qdrant e NetworkX sul progetto selezionato; ranking, code-link e recupero possono essere parziali, e la sintesi finale passa dal layer unico <code class="bg-gray-200 px-1 rounded font-mono">core/llm.py</code> (purpose <code class="bg-gray-200 px-1 rounded font-mono">ask</code>), lo stesso usato dal resto della pipeline.</p>
+            <p><strong>💡 La Magia del Determinismo:</strong> allo Step 0 un <strong>router deterministico</strong> (<code class="bg-gray-200 px-1 rounded font-mono">core/router.py</code>, sole regole lessicali) intercetta le domande <strong>strutturali</strong> — enumerazioni, relazioni, impatto, adiacenza — e le risponde direttamente dal grafo (<code class="bg-gray-200 px-1 rounded font-mono">graph_answer</code>) <strong>senza LLM</strong>. Una domanda già fatta sulla stessa versione dell'indice esce dalla <strong>cache</strong>, senza embedding né LLM. Per tutte le altre l'LLM interviene solo allo Step 6: tutto il "pescaggio" del contesto (Step 1-5: ricerca ibrida, rerank ColBERT, autorità dichiarata, precedenza fra fonti, espansione BFS pesata dalla fiducia sul cammino) è calcolato da Qdrant e NetworkX sul progetto selezionato; ranking, code-link e recupero possono essere parziali, e la sintesi finale passa dal layer unico <code class="bg-gray-200 px-1 rounded font-mono">core/llm.py</code> (purpose <code class="bg-gray-200 px-1 rounded font-mono">ask</code>), lo stesso usato dal resto della pipeline.</p>
         </div>
 
     </main>

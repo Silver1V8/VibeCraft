@@ -116,6 +116,15 @@ jobs:
       - name: Dashboard - relazioni degli archi e punteggi del corpus restano testo (niente XSS)
         run: node rag/tests/dashboard_graph_escape.cjs
 
+      # Il CSS Tailwind è precompilato e versionato: una classe nuova nei template o nei
+      # JS senza `scripts/build_css.sh` non avrebbe regole, e l'elemento resterebbe senza
+      # stile in silenzio. Si rigenera e si pretende che coincida con quello committato.
+      - name: CSS Tailwind allineato ai sorgenti
+        run: |
+          bash scripts/build_css.sh
+          git diff --exit-code -- static/tailwind.css static/tailwind-infografica.css
+        working-directory: rag
+
       - name: Errori workflow e capacità dei runner
         run: |
           node rag/tests/workflow_errors.cjs

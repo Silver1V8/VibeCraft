@@ -41,6 +41,52 @@ function inlineMd(text) {
   return t;
 }
 
+/* Markdown a blocchi (titoli, elenchi, blocchi di codice, separatori, paragrafi) sopra
+   inlineMd, che escapa SEMPRE il testo prima di formattarlo: l'HTML del modello resta
+   testo. Serve alla risposta della Console, che arriva in Markdown e prima si vedeva
+   grezza (### e ** compresi). Volutamente minimo: niente tabelle né elenchi annidati. */
+function renderMarkdown(text) {
+  const out = [];
+  let para = [], list = null, code = null;
+  const flushPara = () => { if (para.length) out.push('<p>' + para.map(inlineMd).join('<br>') + '</p>'); para = []; };
+  const flushList = () => {
+    if (list) out.push(`<${list.tag}>` + list.items.map(i => `<li>${inlineMd(i)}</li>`).join('') + `</${list.tag}>`);
+    list = null;
+  };
+  for (const raw of String(text ?? '').split('\n')) {
+    const line = raw.replace(/\s+$/, '');
+    if (code !== null) {
+      if (/^\s*```/.test(line)) { out.push('<pre><code>' + escapeHtml(code.join('\n')) + '</code></pre>'); code = null; }
+      else code.push(raw);
+      continue;
+    }
+    if (/^\s*```/.test(line)) { flushPara(); flushList(); code = []; continue; }
+    if (!line.trim()) { flushPara(); flushList(); continue; }
+    let m = line.match(/^(#{1,6})\s+(.*)$/);
+    if (m) {
+      flushPara(); flushList();
+      // # e ## -> h3, ### -> h4, oltre -> h5: il modello usa ### per le sezioni principali.
+      const level = Math.min(5, Math.max(3, m[1].length + 1));
+      out.push(`<h${level}>${inlineMd(m[2])}</h${level}>`);
+      continue;
+    }
+    if (/^\s*(?:[-*_]\s*){3,}$/.test(line)) { flushPara(); flushList(); out.push('<hr>'); continue; }
+    m = line.match(/^\s*([-*•+]|\d+[.)])\s+(.*)$/);
+    if (m) {
+      flushPara();
+      const tag = /\d/.test(m[1]) ? 'ol' : 'ul';
+      if (!list || list.tag !== tag) { flushList(); list = { tag, items: [] }; }
+      list.items.push(m[2]);
+      continue;
+    }
+    flushList();
+    para.push(line.trim());
+  }
+  if (code !== null) out.push('<pre><code>' + escapeHtml(code.join('\n')) + '</code></pre>');  // stream a metà blocco
+  flushPara(); flushList();
+  return out.join('');
+}
+
 function apiErrorMessage(detail, fallback) {
   return (typeof detail === 'string' ? detail : detail?.message) || fallback;
 }
@@ -473,6 +519,7 @@ function initNavigation() {
     }
   });
   if (window.frameElement?.dataset.workspacePage) {
+    document.addEventListener('keydown', event => window.parent.workspaceShortcut?.(event));
     document.addEventListener('click', event => {
       if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
       const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
@@ -502,6 +549,15 @@ function initNavigation() {
    iniettato non può quindi chiamare codice arbitrario. L'handler riceve (elemento, evento);
    l'eventuale argomento viaggia in `data-arg` (testo, mai codice). */
 const _uiActions = Object.create(null);
+/* Servizi spenti, comunicati dalla shell (renderServiceStatus in workspace.js): un
+   controllo con data-requires="qdrant" / "ollama" resta visibile ma non parte, e un
+   toast dice perché. Guardia qui e non `disabled`: le pagine riabilitano i propri
+   pulsanti a fine operazione e la sovrascriverebbero. */
+let _servicesDown = [];
+window.applyServiceStatus = down => {
+  _servicesDown = down;
+  document.documentElement.dataset.servicesDown = down.join(' ');
+};
 function registerActions(map) {
   Object.assign(_uiActions, map);
 }
@@ -514,6 +570,11 @@ function registerActions(map) {
     const action = _uiActions[name];
     if (typeof action !== 'function') {
       console.error('Azione UI non registrata: ' + name);
+      return;
+    }
+    const missing = type === 'click' && (el.dataset.requires || '').split(' ').find(s => _servicesDown.includes(s));
+    if (missing) {
+      toast(`${missing[0].toUpperCase() + missing.slice(1)} non raggiungibile: avvialo e riprova.`, 'warning');
       return;
     }
     const result = action(el, event);

@@ -41,7 +41,12 @@
       <a href="/pipeline">Pipeline</a>
       <a href="/analysis">Analisi</a>
       <a href="/eval">Eval</a>
-      <a href="/infografica">Infografica</a>
+      <!-- Servizi spenti (/api/health/deps): compare solo se qualcosa non risponde. Sta
+           nella riga della nav perché in riga 1 a 1440 px non c'è posto. -->
+      <span id="service-status" class="project-index-status" data-state="error" role="status" aria-live="polite" hidden></span>
+      <!-- L'infografica è documentazione dell'architettura, non una sezione di lavoro:
+           sta a destra, separata. Lo stato del progetto che conteneva è in Console. -->
+      <a href="/infografica" class="workspace-guide">Guida</a>
     </nav>
     <div id="project-toolbar" class="project-toolbar" hidden>
       <button id="project-home" type="button" class="btn btn-secondary" data-click="showProjects"><svg class="workspace-icon" aria-hidden="true"><use href="#icon-folder"/></svg>Progetti</button>
@@ -114,10 +119,6 @@
     <button type="button" id="workspace-retry" class="btn btn-secondary" data-click="retryNavigation" hidden>Riprova</button>
   </div>
   <div id="workspace-skeleton" role="status" aria-label="Caricamento della pagina" hidden>
-    <div class="skeleton-header" aria-hidden="true">
-      <span class="skeleton-block skeleton-icon"></span><span class="skeleton-block skeleton-title"></span>
-      <span class="skeleton-block skeleton-nav"></span>
-    </div>
     <div class="skeleton-body" aria-hidden="true">
       <div class="skeleton-column"><span class="skeleton-block skeleton-card"></span><span class="skeleton-block skeleton-card is-tall"></span></div>
       <span class="skeleton-block skeleton-main"></span>

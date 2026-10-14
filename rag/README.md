@@ -55,7 +55,8 @@ Restano validi auth, Host guard, CSP e controlli cross-site.
 
 Metadati indice: `not_indexed`, `ready`, `indexing`, `error`, più `stale`
 quando calcolabile. `/api/health/live` misura il processo, `/api/health` il
-progetto selezionato e le dipendenze. Creare un progetto non lo indicizza.
+progetto selezionato e le dipendenze, `/api/health/deps` solo Qdrant/Ollama
+(l'indicatore nella barra della shell, ogni 30 s). Creare un progetto non lo indicizza.
 
 La pipeline conserva nel browser una bozza per progetto e feature: intervista,
 input non inviato, editor, ambito e passo corrente. Dopo refresh o riapertura
@@ -888,6 +889,17 @@ quando quel servizio è predisposto: sono il posto dove le assunzioni sulla sema
 della collection) vengono verificate contro il servizio vero invece che contro
 `AliasAwareFakeQdrant`, che quelle stesse assunzioni le replica. Un fake e il
 codice che verifica possono sbagliare insieme; il servizio reale no.
+
+**CSS Tailwind precompilato.** Console, Pipeline e Guida usano `static/tailwind.css` e
+`static/tailwind-infografica.css`, generati da [scripts/build_css.sh](scripts/build_css.sh)
+(Tailwind 3.4.17 via `npx`, configurazioni in `static/tailwind/`). Dopo aver aggiunto
+classi Tailwind nuove a template o script di pagina va rilanciato e il CSS committato:
+la CI lo rigenera e fallisce se differisce, perché una classe senza regole lascerebbe
+l'elemento senza stile in silenzio.
+
+```bash
+bash scripts/build_css.sh
+```
 
 Il remote effettivo del repo determina la config della pipeline: su GitHub è
 [.github/workflows/ci.yml](../.github/workflows/ci.yml) (job `test` che chiama

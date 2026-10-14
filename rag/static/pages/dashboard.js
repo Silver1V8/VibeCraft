@@ -225,6 +225,7 @@
 
       document.getElementById('graph-counter').textContent =
         `${nodes.length} nodi · ${edges.length} archi`;
+      updateGraphHint();
     }
 
     function render2D(nodes, edges, visOptions) {
@@ -237,6 +238,7 @@
         network = new vis.Network(container, data, visOptions);
         attachTooltipListeners();
       }
+      scheduleFit();
     }
 
     function resize3DCanvas() {
@@ -280,7 +282,8 @@
           .linkWidth(0.6)
           .linkDirectionalArrowRelPos(1)
           .onNodeClick(n => renderNodeDetails(n.id))
-          .onBackgroundClick(() => closeNodeDetails());
+          .onBackgroundClick(() => closeNodeDetails())
+          .showNavInfo(false);
         resize3DCanvas();
         window.addEventListener('resize', resize3DCanvas);
       }
@@ -299,6 +302,22 @@
 
       graph3d.graphData(graphData);
       resize3DCanvas();
+      scheduleFit();
+    }
+
+    /* Adatta la vista al grafo appena disegnato: senza, il layout partiva dal centro con
+       lo zoom di default e un grafo di centinaia di nodi restava un puntino in mezzo. */
+    let fitTimer = 0;
+    function scheduleFit() {
+      clearTimeout(fitTimer);
+      fitTimer = setTimeout(() => fitGraph(), 1500);
+    }
+    const GRAPH_HINT = {
+      '3d': 'Trascina per ruotare · rotellina per lo zoom · tasto destro per spostare · clic su un nodo per i dettagli',
+      '2d': 'Trascina per spostare · rotellina per lo zoom · clic su un nodo per i dettagli',
+    };
+    function updateGraphHint() {
+      document.getElementById('graph-hint').textContent = lastGraphNodes.length ? GRAPH_HINT[graphViewMode] : '';
     }
 
     /* `rerender: false` serve a chi sta per disegnare comunque un grafo nuovo
@@ -320,15 +339,16 @@
         if (mode === '3d') render3D(lastGraphNodes, lastGraphEdges);
         else render2D(lastGraphNodes, lastGraphEdges, lastVisOptions);
       }
+      updateGraphHint();
     }
 
     /* ──────────── TAB SWITCHER ────────────
        Prima riscriveva `className` per intero con una stringa di 12 utility:
        qualunque classe aggiunta al markup (responsive, stato) veniva distrutta al
        primo switch. Ora tocca solo `is-active` e gli attributi ARIA. */
-    const TAB_ORDER = ['graph', 'context', 'json'];
-    const TAB_BTN   = { graph: 'tab-graph-btn',   context: 'tab-context-btn',   json: 'tab-json-btn' };
-    const TAB_PANEL = { graph: 'tab-graph-panel', context: 'tab-context-panel', json: 'tab-json-panel' };
+    const TAB_ORDER = ['answer', 'graph', 'context', 'json'];
+    const TAB_BTN   = { answer: 'tab-answer-btn',   graph: 'tab-graph-btn',   context: 'tab-context-btn',   json: 'tab-json-btn' };
+    const TAB_PANEL = { answer: 'tab-answer-panel', graph: 'tab-graph-panel', context: 'tab-context-panel', json: 'tab-json-panel' };
 
     function switchTab(tab) {
       TAB_ORDER.forEach(p => {
@@ -379,7 +399,8 @@
       const restoreBtn = document.getElementById('restore-graph-btn');
 
       if (mode === 'full') {
-        title.textContent = 'Grafo Completo';
+        title.textContent = 'Grafo completo';
+        document.getElementById('graph-expand-btn').style.display = 'none';
         badge.classList.remove('hidden');
         badge.classList.add('flex');
         // Mostra "Ripristina" solo se esiste un grafo contestuale salvato
@@ -390,6 +411,12 @@
         badge.classList.remove('flex');
         restoreBtn.style.display = 'none';
       }
+    }
+
+    let contextExpanded = false;
+    function toggleContextExpand() {
+      contextExpanded = !contextExpanded;
+      restoreContextualGraph();
     }
 
     /* ──────────── RIPRISTINO GRAFO CONTESTUALE ──────────── */
@@ -501,7 +528,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
           </svg>
-          Visualizza Grafo Completo`;
+          Visualizza grafo completo`;
       }
     }
 
@@ -629,6 +656,21 @@
       closeNodeDetails();
 
       const seedSet = new Set(seedNodes || []);
+      // Di default solo i documenti trovati e i loro vicini diretti (contextExpanded per
+      // tutti): cambia SOLO la vista, il contesto dato all'LLM resta quello di bfs_depth.
+      const allCount = expandedNodes.length;
+      if (!contextExpanded && seedSet.size) {
+        const keep = new Set(seedSet);
+        for (const e of graphEdges || []) {
+          if (seedSet.has(e.from)) keep.add(e.to);
+          if (seedSet.has(e.to)) keep.add(e.from);
+        }
+        expandedNodes = expandedNodes.filter(n => keep.has(n.id));
+        graphEdges = (graphEdges || []).filter(e => keep.has(e.from) && keep.has(e.to));
+      }
+      const expandBtn = document.getElementById('graph-expand-btn');
+      expandBtn.style.display = (contextExpanded || expandedNodes.length < allCount) ? '' : 'none';
+      expandBtn.textContent = contextExpanded ? 'Solo i vicini diretti' : `Mostra tutti i ${allCount} nodi`;
       const nodeFont  = themeVar('--node-font', '#eafff0');
       const edgeColor = themeVar('--edge-ctx', '#1f7a3d');
       const edgeHi    = themeVar('--edge-ctx-hi', '#4dbf6e');
@@ -871,7 +913,7 @@
       document.getElementById('json-llm-col').innerHTML = `
         <div style="font-size:var(--text-xs);font-weight:700;letter-spacing:.09em;text-transform:uppercase;
                     color:${muted};margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid ${divider}">
-          Risposta LLM Generativo
+          Risposta generata
         </div>
         <div style="font-size:12.5px;line-height:1.75;color:${descColor};white-space:pre-wrap;
                     word-break:break-word;font-family:Inter,ui-sans-serif,sans-serif">
@@ -915,18 +957,57 @@
     }
     /* ASK_STREAM_PARSER_END */
 
+    /* Risposta dal grafo (router deterministico, status "graph_answer"): non ha un campo
+       `answer` testuale e finiva in "(nessuna risposta)". Forme da core.graph_ops.graph_query. */
+    function graphAnswerText(g) {
+      if (!g) return '';
+      const lines = g.intent === 'impatto'
+        ? (g.rings || []).map((ring, i) => `${i ? 'Distanza ' + i : 'Nodo'}: ${ring.join(', ')}`)
+        : g.intent === 'relazioni'
+          ? [...(g.out || []).map(e => `→ ${e.relation} ${e.to}`), ...(g.in || []).map(e => `← ${e.relation} ${e.from}`)]
+          : (g.answer || []).map(item => `• ${item}`);
+      return `${g.count ?? lines.length} risultati (${g.intent}${g.target ? ': ' + g.target : ''})\n${lines.join('\n')}`;
+    }
+
+    /* La risposta sta nella scheda "Risposta" dell'area grande: la si mostra (e ci si
+       sposta) al primo token, al risultato e anche sull'errore, che altrimenti
+       resterebbe in una scheda nascosta. */
+    const ANSWER_CLASS = 'answer-md prose-text flex-1 min-h-0 overflow-y-auto px-6 py-4 text-sm text-slate-200 leading-relaxed';
+    function showAnswerPanel() {
+      document.getElementById('answer-empty').classList.add('hidden');
+      document.getElementById('answer-card').classList.remove('hidden');
+      switchTab('answer');
+    }
+    // Markdown reso al massimo una volta per frame durante lo streaming: a ogni token
+    // si rigenera tutto il testo, ma solo quando il browser sta per ridisegnare.
+    let answerFrame = 0;
+    function renderAnswerMarkdown(text) {
+      cancelAnimationFrame(answerFrame);
+      answerFrame = requestAnimationFrame(() => {
+        const answerText = document.getElementById('answer-text');
+        answerText.className = ANSWER_CLASS;
+        answerText.innerHTML = renderMarkdown(text);
+      });
+    }
+
     function renderAskResult(data) {
       /* ── ANSWER ── */
-      const answerCard = document.getElementById('answer-card');
       const answerText = document.getElementById('answer-text');
-      answerText.textContent = data.answer || '(nessuna risposta)';
-      answerText.className   = 'answer-appear text-sm text-slate-200 leading-relaxed whitespace-pre-wrap max-h-72 overflow-y-auto pr-1';
+      cancelAnimationFrame(answerFrame);
+      if (data.answer) {
+        answerText.className = ANSWER_CLASS + ' answer-appear';
+        answerText.innerHTML = renderMarkdown(data.answer);
+      } else {
+        // Risposta dal grafo o vuota: testo semplice, a righe.
+        answerText.className = ANSWER_CLASS + ' answer-appear whitespace-pre-wrap';
+        answerText.textContent = graphAnswerText(data.graph_result) || '(nessuna risposta)';
+      }
       void answerText.offsetWidth; // reflow per restart animation
 
       const elapsed = data.elaboration_seconds ?? data.elapsed_seconds;
       const badge   = document.getElementById('elapsed-badge');
       badge.textContent = elapsed != null ? `⏱ ${elapsed}s` : '';
-      answerCard.classList.remove('hidden');
+      showAnswerPanel();
 
       /* ── GRAPH ── */
       const gc = data.graph_context || {};
@@ -935,6 +1016,7 @@
       const seedNodes     = gc.seed_nodes     || [];
 
       if (expandedNodes.length > 0) {
+        contextExpanded = false;
         // Salva i dati in memoria per il ripristino istantaneo
         lastQueryGraphData = { nodes: expandedNodes, edges: graphEdges, seedNodes };
         buildGraph(expandedNodes, graphEdges, seedNodes);
@@ -993,11 +1075,9 @@
         let streamedAnswer = '';
         const parser = createAskStreamParser(event => {
           if (event.type === 'delta') {
+            if (!streamedAnswer) showAnswerPanel();
             streamedAnswer += event.text || '';
-            const answerText = document.getElementById('answer-text');
-            answerText.textContent = streamedAnswer;
-            answerText.className = 'text-sm text-slate-200 leading-relaxed whitespace-pre-wrap max-h-72 overflow-y-auto pr-1';
-            document.getElementById('answer-card').classList.remove('hidden');
+            renderAnswerMarkdown(streamedAnswer);
           } else if (event.type === 'result') {
             finalData = event.value;
           } else if (event.type === 'error') {
@@ -1019,11 +1099,10 @@
         }
         renderAskResult(finalData);
       } catch (e) {
-        const answerCard = document.getElementById('answer-card');
         const answerText = document.getElementById('answer-text');
         answerText.textContent = `❌ Errore: ${e.message}`;
         answerText.classList.add('text-red-400');
-        answerCard.classList.remove('hidden');
+        showAnswerPanel();
         setStatus('error');
       } finally {
         showLoader(false);
@@ -1036,8 +1115,9 @@
        N query premendo Ctrl+Invio ripetutamente. */
     document.getElementById('question-input').addEventListener('keydown', e => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-        if (document.getElementById('ask-btn').disabled) return;
-        retainWorkspaceTask(submitQuery()).catch(error => console.error(error));
+        // click() e non submitQuery(): passa dal dispatcher (guardia servizi) e un
+        // pulsante disabilitato non riceve il click.
+        document.getElementById('ask-btn').click();
       }
     });
 
@@ -1062,6 +1142,59 @@
     /* Popola la legenda dei pilastri REASONS al caricamento */
     renderReasonsLegend();
 
+    /* ──────────── STATO DEL PROGETTO ────────────
+       Ex fascia KPI dell'Infografica. Il colore non è l'unico canale: ogni valore ha
+       anche il testo ("non raggiungibile", "da aggiornare"). */
+    async function loadProjectStatus() {
+      const list = document.getElementById('project-status-list');
+      const row = (label, value, note, tone, href) => {
+        const item = document.createElement('div');
+        const dt = document.createElement('dt');
+        dt.className = 'text-slate-400';
+        dt.textContent = label;
+        const dd = document.createElement(href ? 'a' : 'dd');
+        dd.className = 'block font-mono text-sm text-slate-100 break-words';
+        if (href) dd.href = href;
+        dd.textContent = value;
+        if (tone) dd.style.color = `var(--color-${tone})`;
+        item.append(dt, dd);
+        if (note) {
+          const small = document.createElement('div');
+          small.className = 'text-slate-400';
+          small.textContent = note;
+          item.append(small);
+        }
+        return item;
+      };
+      try {
+        const res = await fetch('/api/health');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const h = await res.json();
+        const snap = h.snapshot || {}, ev = h.eval || {}, dep = h.dependencies || {};
+        const nf = n => (typeof n === 'number' ? n.toLocaleString('it-IT') : '—');
+        const trend = { up: '↑ in salita', down: '↓ in discesa', flat: '→ stabile' }[ev.trend] || '';
+        // Soglia dell'eval-gate dal payload, non scritta a mano.
+        const soglia = typeof ev.min_recall === 'number' ? ev.min_recall : 0.9;
+        const stale = h.manifest && h.manifest.stale;
+        list.replaceChildren(
+          row(ev.key || 'recall', typeof ev.last_recall === 'number' ? (ev.last_recall * 100).toFixed(1) + '%' : '—',
+              trend, typeof ev.last_recall !== 'number' ? null : ev.last_recall >= soglia ? 'success' : 'danger', '/eval'),
+          row('Grafo', nf(snap.graph_nodes) + ' nodi', nf(snap.graph_edges) + ' archi', null, '/analysis'),
+          row('Sezioni indicizzate', nf(snap.chunks), null, null),
+          row('Versione indice', snap.version || '—', stale ? 'da aggiornare' : 'allineata', stale ? 'warning' : null),
+          row('Qdrant', dep.qdrant ? 'raggiungibile' : 'non raggiungibile', null, dep.qdrant ? 'success' : 'danger'),
+          row('Ollama', dep.ollama ? 'raggiungibile' : 'non raggiungibile', null, dep.ollama ? 'success' : 'danger'),
+        );
+      } catch (e) {
+        const item = document.createElement('div');
+        item.className = 'col-span-2 text-slate-400';
+        item.textContent = `Stato non disponibile (${e.message}).`;
+        list.replaceChildren(item);
+      }
+    }
+    window.loadProjectStatus = loadProjectStatus;  // la shell lo richiama dopo un reindex
+    loadProjectStatus();
+
     /* Azioni dei pulsanti/campi (data-click / data-change / data-input): prima erano
        handler inline, vietati dalla CSP — vedi registerActions in /static/shared.js. */
     registerActions({
@@ -1071,5 +1204,13 @@
       setGraphViewMode: el => setGraphViewMode(el.dataset.arg),
       showFullGraph: () => showFullGraph(),
       submitQuery: () => submitQuery(),
+      toggleContextExpand: () => toggleContextExpand(),
+      askExample: el => {
+        // Scrive la domanda di esempio nel campo e la invia dal pulsante, così valgono
+        // la guardia dei servizi e il blocco durante una query già in corso.
+        document.getElementById('question-input').value = el.textContent.trim();
+        document.getElementById('ask-btn').click();
+      },
       switchTab: el => switchTab(el.dataset.arg),
+      loadProjectStatus: () => loadProjectStatus(),
     });

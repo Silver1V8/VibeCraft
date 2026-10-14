@@ -75,12 +75,20 @@ function renderProjectList() {
     card.dataset.arg = project.id;
     card.querySelector('.project-card-name').textContent = project.name;
     const path = card.querySelector('.project-card-path');
-    path.textContent = project.root || (project.legacy ? 'Progetto originale' : 'Progetto VibeCraft');
-    path.title = path.textContent;
+    // Le ultime due cartelle ("…/projects/SGD-FE") bastano a riconoscerlo; il percorso
+    // completo, lungo e uguale per tutti fino a projects\, resta nel tooltip.
+    const parts = (project.root || '').split(/[\\/]+/).filter(Boolean);
+    path.textContent = parts.length > 2 ? '…/' + parts.slice(-2).join('/') : project.root
+      || (project.legacy ? 'Progetto originale' : 'Progetto VibeCraft');
+    path.title = project.root || path.textContent;
+    // Cosa contiene e quando l'hai usato: "Pronto da aprire" su ogni scheda non distingueva nulla.
     const lastOpened = opened.get(project.id);
-    card.querySelector('.project-card-meta').textContent = lastOpened
-      ? 'Ultima apertura: ' + new Date(lastOpened).toLocaleString('it-IT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
-      : 'Pronto da aprire';
+    const when = value => new Date(value).toLocaleString('it-IT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    card.querySelector('.project-card-meta').textContent = [
+      Number.isInteger(project.documents) && `${project.documents} ${project.documents === 1 ? 'documento' : 'documenti'}`,
+      Number.isInteger(project.code_files) && project.code_files > 0 && `${project.code_files} file di codice`,
+      lastOpened && `aperto ${when(lastOpened)}`,
+    ].filter(Boolean).join(' · ');
     setIndexBadge(card.querySelector('.project-card-status'), project);
     list.appendChild(card);
   }
@@ -203,6 +211,7 @@ async function updateProjectIndex() {
           if (page.project === id && page.frame) {
             page.frame.contentWindow.loadSemanticMap?.();
             page.frame.contentWindow.loadNodeList?.();
+            page.frame.contentWindow.loadProjectStatus?.();
           }
         }
       }
@@ -213,6 +222,31 @@ async function updateProjectIndex() {
     if (id === currentProject) renderIndexStatus(projects.find(item => item.id === id));
     toast(`${project.name}: ${error.message}`, 'warning');
   }
+}
+/* Dipendenze esterne: senza questo la barra diceva "Indice pronto" con Qdrant spento,
+   e lo si scopriva solo da un errore in pagina o in fondo all'Infografica. Le pagine
+   ricevono l'elenco dei servizi spenti e bloccano i controlli con data-requires. */
+const SERVICE_IMPACT = {
+  qdrant: 'Qdrant non raggiungibile: interrogazioni e mappa semantica non funzionano.',
+  ollama: 'Ollama non raggiungibile: la generazione con il modello locale non funziona.',
+};
+let servicesDown = [];
+async function refreshServiceStatus() {
+  try {
+    const response = await fetch('/api/health/deps');
+    if (!response.ok) return;
+    const deps = await response.json();
+    servicesDown = Object.keys(SERVICE_IMPACT).filter(name => deps[name] === false);
+  } catch (_) { return; } /* server giù: lo segnalano già le richieste della pagina */
+  renderServiceStatus();
+}
+function renderServiceStatus() {
+  const badge = document.getElementById('service-status');
+  const names = servicesDown.map(name => name[0].toUpperCase() + name.slice(1));
+  badge.hidden = !names.length;
+  badge.textContent = names.length ? `${names.join(' e ')} non raggiungibil${names.length > 1 ? 'i' : 'e'}` : '';
+  badge.title = servicesDown.map(name => SERVICE_IMPACT[name]).join(' ');
+  for (const page of workspacePages.values()) page.frame?.contentWindow.applyServiceStatus?.(servicesDown);
 }
 async function refreshIndexStatus(id = currentProject) {
   if (!id) return;
@@ -304,6 +338,7 @@ async function navigateWorkspace(target, push = true) {
     if (frame.contentDocument.documentElement.dataset.theme !== theme) frame.contentWindow.setUiTheme(theme);
     document.title = frame.contentDocument.title;
     markWorkspaceNav(url);
+    frame.contentWindow.applyServiceStatus?.(servicesDown);
     if (url.href !== location.href) {
       if (push) history.pushState(null, '', url);
       else history.replaceState(null, '', url);
@@ -435,10 +470,30 @@ document.getElementById('workspace-nav').addEventListener('click', event => {
   navigateWorkspace(link.href);
 });
 window.addEventListener('popstate', () => navigateWorkspace(location.href, false));
+/* Alt+1…6 apre le sezioni nell'ordine della nav. Solo le cifre della riga superiore
+   (event.code DigitN): su Windows Alt+tastierino inserisce caratteri; AltGr è Ctrl+Alt e
+   resta escluso. Le pagine nei frame inoltrano i tasti qui (initNavigation in shared.js). */
+const workspaceNavLinks = [...document.querySelectorAll('#workspace-nav a')];
+workspaceNavLinks.forEach((link, i) => {
+  link.setAttribute('aria-keyshortcuts', `Alt+${i + 1}`);
+  link.title = `${link.textContent.trim()} (Alt+${i + 1})`;
+});
+function workspaceShortcut(event) {
+  if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  const match = /^Digit([1-9])$/.exec(event.code);
+  const link = match && workspaceNavLinks[Number(match[1]) - 1];
+  if (!link || document.getElementById('workspace-nav').hidden) return;
+  event.preventDefault();
+  navigateWorkspace(link.href);
+}
+window.workspaceShortcut = workspaceShortcut;
+document.addEventListener('keydown', workspaceShortcut);
 window.onThemeChange = value => {
   for (const page of workspacePages.values()) {
     if (page.frame && !page.frame.hidden) page.frame.contentWindow.setUiTheme(value);
   }
 };
 setInterval(() => { if (document.getElementById('project-welcome').hidden) refreshIndexStatus(); }, 15000);
+setInterval(() => { if (document.getElementById('project-welcome').hidden) refreshServiceStatus(); }, 30000);
 initializeWorkspace();
+refreshServiceStatus();

@@ -30,12 +30,14 @@ graph TD
     S("FastAPI: api/routes_retrieval.py<br>Rotta POST /ask (X-API-Key)"):::fastapi
     RT{"core/router.py (M2)<br>domanda strutturale?"}:::fastapi
     GA[("NetworkX: graph_ops.graph_query<br>risposta diretta nodi/archi<br>status: graph_answer · no LLM")]:::networkx
-    V{"Embedding bge-m3<br>dense + sparse"}:::fastapi
+    K{"Cache /ask (LRU in-process)<br>progetto + versione + domanda"}:::fastapi
+    V{"Embedding bge-m3 su CPU<br>dense + sparse + ColBERT"}:::fastapi
     Q[("Qdrant server (Docker)<br>Ricerca ibrida Top-K<br>fusione per rank")]:::qdrant
     NPY[("Sidecar ColBERT NPY<br>su disco, per documento")]:::fastapi
     CB{"Rerank ColBERT locale<br>+ peso autorità<br>+ precedenza fra fonti"}:::fastapi
+    CS[("Ricerca nel codice<br>vettori dei simboli (code.npz)<br>in memoria")]:::fastapi
     G[("NetworkX (graph.json)<br>Espansione BFS + fiducia sul cammino<br>seed = doc dei chunk")]:::networkx
-    C["Contesto chunk-aware:<br>testo delle SEZIONI recuperate<br>+ struttura del grafo"]:::fastapi
+    C["Contesto chunk-aware:<br>testo delle SEZIONI recuperate<br>+ codice pertinente + struttura del grafo"]:::fastapi
     O{"core/llm.py · purpose ask<br>provider da config<br>(Ollama / Claude)"}:::ollama
     R["JSON: answer + graph_context<br>+ breakdown ranking + latency"]:::user
 
@@ -43,10 +45,14 @@ graph TD
     S -->|"0. Router deterministico"| RT
     RT -->|"strutturale → graph"| GA
     GA -->|"graph_result"| R
-    RT -->|"altrimenti → hybrid"| V
+    RT -->|"altrimenti → hybrid"| K
+    K -->|"già chiesta: risposta servita"| R
+    K -->|"nuova domanda"| V
     V -->|"1. Vettori Domanda"| Q
     Q -->|"2. Candidati Top-K"| CB
     NPY -->|"Chunk richiesti"| CB
+    V -->|"2b. Vettore denso"| CS
+    CS -->|"Simboli pertinenti"| C
     CB -->|"3. Chunk ri-ordinati"| G
     G -->|"4. Nodi Estesi"| C
     C -->|"5. Prompt Rigido + Fascicolo"| O
@@ -98,69 +104,6 @@ graph TD
         }
       }
 
-      /* ──────────── KPI REALI DA /api/health ────────────
-         La pagina descriveva il sistema senza mostrarne un solo dato: nessuna
-         metrica, nessuna fonte, nessuna evidenza. Dodici blocchi che dichiarano
-         capacita non generano fiducia — questi numeri si, perche vengono
-         dall'indice vivo e cambiano insieme a lui. */
-      /* `href` opzionale: dove esiste una pagina che approfondisce il dato, la
-         card ci porta. Erano dodici blocchi senza una sola azione possibile. */
-      function kpiCard(etichetta, valore, nota, tono, href) {
-        const colori = { ok: 'text-emerald-700', warn: 'text-orange-700', bad: 'text-pink-600', neutro: 'text-slate-800' };
-        // La dimensione segue la lunghezza: un identificatore di versione non
-        // sta in 143px a 24px di corpo, e a 375px la card sforava.
-        const v = String(valore);
-        const corpo = v.length > 13 ? 'text-base' : v.length > 8 ? 'text-xl' : 'text-2xl';
-        const dentro = `
-          <div class="text-xs uppercase tracking-widest text-slate-500 mb-1">${escapeHtml(etichetta)}</div>
-          <div class="${corpo} font-bold font-mono break-words ${colori[tono] || colori.neutro}">${escapeHtml(v)}</div>
-          ${nota ? `<div class="text-xs text-slate-500 mt-1 break-words">${escapeHtml(nota)}</div>` : ''}`;
-        const base = 'bg-white glass-card rounded-xl p-4 border-t-4 border-slate-700 block min-w-0';
-        return href
-          ? `<a href="${href}" class="${base} no-underline hover-lift">${dentro}
-               <div class="text-xs text-blue-700 mt-2">Apri →</div></a>`
-          : `<div class="${base}">${dentro}</div>`;
-      }
-
-      async function caricaKpi() {
-        const grid = document.getElementById('kpi-grid');
-        const stato = document.getElementById('kpi-stato');
-        try {
-          const res = await fetch('/api/health');
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          const h = await res.json();
-          const snap = h.snapshot || {}, ev = h.eval || {}, dep = h.dependencies || {};
-          const nf = n => (typeof n === 'number' ? n.toLocaleString('it-IT') : '—');
-          const recall = typeof ev.last_recall === 'number'
-            ? (ev.last_recall * 100).toFixed(1) + '%' : '—';
-          const trend = { up: '↑ in salita', down: '↓ in discesa', flat: '→ stabile' }[ev.trend] || ev.trend || '';
-          // Il tono segue la soglia dell'eval-gate, che ora arriva NEL PAYLOAD (A2b): era
-          // scritta a mano come 0.9 mentre il gate stava gia' a 0.75, quindi la dashboard
-          // poteva colorare di rosso una recall che il gate accettava senza riserve.
-          const soglia = typeof ev.min_recall === 'number' ? ev.min_recall : 0.9;
-          const tonoRecall = typeof ev.last_recall !== 'number' ? 'neutro'
-                           : ev.last_recall >= soglia ? 'ok' : 'bad';
-
-          grid.innerHTML = [
-            kpiCard(ev.key || 'recall', recall, trend + ' · ' + (ev.history_points ?? 0) + ' misurazioni', tonoRecall, '/eval'),
-            kpiCard('Nodi nel grafo', nf(snap.graph_nodes), nf(snap.graph_edges) + ' archi', 'neutro', '/analysis'),
-            kpiCard('Sezioni indicizzate', nf(snap.chunks), 'chunk con vettori ColBERT', 'neutro', '/'),
-            kpiCard('Versione CURRENT', snap.version || '—', (h.manifest && h.manifest.stale) ? 'manifest da aggiornare' : 'manifest allineato',
-                    (h.manifest && h.manifest.stale) ? 'warn' : 'ok'),
-            kpiCard('Qdrant', dep.qdrant ? 'raggiungibile' : 'non raggiungibile', 'database vettoriale', dep.qdrant ? 'ok' : 'bad'),
-            kpiCard('Ollama', dep.ollama ? 'raggiungibile' : 'non raggiungibile', 'LLM locale', dep.ollama ? 'ok' : 'bad'),
-          ].join('');
-
-          stato.textContent = 'stato: ' + (h.status || '—');
-          stato.className = 'text-xs font-mono ' +
-            (h.status === 'ok' ? 'text-emerald-700' : h.status === 'degraded' ? 'text-orange-700' : 'text-slate-500');
-        } catch (e) {
-          grid.innerHTML = `<p class="text-sm col-span-full text-slate-600">Stato non disponibile (${escapeHtml(e.message)}).
-            <button type="button" class="btn btn-secondary" style="margin-left:.5rem" data-click="caricaKpi">Riprova</button></p>`;
-          stato.textContent = '';
-        }
-      }
-
       document.addEventListener('DOMContentLoaded', () => {
         new ResizeObserver(entries => {
           if (!entries[0].contentRect.width) mermaidRenderPending = true;
@@ -170,11 +113,4 @@ graph TD
         if (window.frameElement) new MutationObserver(() => renderMermaidDiagram())
           .observe(window.frameElement, { attributes: true, attributeFilter: ['hidden'] });
         renderMermaidDiagram();
-        caricaKpi();
       });
-
-    /* Azioni dei pulsanti/campi (data-click / data-change / data-input): prima erano
-       handler inline, vietati dalla CSP — vedi registerActions in /static/shared.js. */
-    registerActions({
-      caricaKpi: () => caricaKpi(),
-    });

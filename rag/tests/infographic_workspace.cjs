@@ -57,7 +57,7 @@ async function main() {
     await page.evaluate(() => { document.querySelector('iframe').hidden = false; });
     const frame = page.frames().find(frame => frame.url() === 'about:srcdoc');
     async function assertDiagram(theme) {
-      await frame.waitForFunction(() => document.querySelector('#rag-mermaid svg')?.querySelectorAll('.node').length === 12);
+      await frame.waitForFunction(() => document.querySelector('#rag-mermaid svg')?.querySelectorAll('.node').length === 14); // 14: cache /ask e ricerca nel codice inclusi
       await frame.waitForFunction(expected => {
         const node = document.querySelector('#rag-mermaid svg .node rect');
         return node && getComputedStyle(node).fill === expected;

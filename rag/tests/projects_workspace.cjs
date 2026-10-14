@@ -118,8 +118,8 @@ async function queryErrorChecks() {
   const sharedHelpers = shared.slice(shared.indexOf('function escapeHtml('), shared.indexOf('/* ──────────── THEME VAR'));
   const submit = dashboard.slice(dashboard.indexOf('    async function submitQuery()'), dashboard.indexOf('    /* Submit on Ctrl+Enter.'));
   const impact = analysis.slice(analysis.indexOf('    async function loadImpact()'), analysis.indexOf('    let rippleNodes'));
-  const graphQuery = analysis.slice(analysis.indexOf('    async function runGraphQuery('),
-    analysis.indexOf("    document.getElementById('gq-input').addEventListener"));
+  const graphQuery = analysis.slice(analysis.indexOf('    async function loadRelations()'),
+    analysis.indexOf('    let lastImpactData'));
   for (const [status, detail, expected] of [
     [409, { code: 'project_not_indexed', message: 'Project has no index.' }, 'Project has no index.'],
     [503, { code: 'project_storage_error', message: 'Project storage unavailable.' }, 'Project storage unavailable.'],
@@ -131,7 +131,7 @@ async function queryErrorChecks() {
       classList: { add() {}, remove() {} } };
     let loading;
     const context = vm.createContext({ document: { getElementById: node }, console,
-      showLoader: value => { loading = value; }, setStatus() {},
+      showLoader: value => { loading = value; }, setStatus() {}, showAnswerPanel() {},
       fetch: async () => ({ ok: false, status, json: async () => ({ detail }) }),
     });
     vm.runInContext(sharedHelpers + submit + impact + graphQuery, context);
@@ -140,8 +140,8 @@ async function queryErrorChecks() {
     assert.equal(loading, false);
     await context.loadImpact();
     assert.equal(node('ripple-status').textContent, '❌ ' + expected, 'Graph impact project error must be readable');
-    await context.runGraphQuery();
-    assert.equal(node('gq-status').textContent, '❌ ' + expected, 'Graph query project error must be readable');
+    await context.loadRelations();
+    assert.equal(node('rel-status').textContent, '❌ ' + expected, 'Graph relations project error must be readable');
   }
   console.log('OK query errors: dashboard/graph, 409 no index, 503 storage, legacy string e HTTP fallback.');
 }
@@ -498,12 +498,11 @@ async function browserChecks() {
     await errorPage.locator('#toast-host').filter({ hasText: 'non attivato' }).waitFor();
     assert.equal(await errorPage.locator('#project-index-update').isEnabled(), true);
     queryError = { status: 503, detail: { code: 'project_storage_error', message: 'Project storage unavailable.' } };
-    await errorAnalysis.locator('#gq-input').fill('Project relations');
-    await errorAnalysis.locator('[data-click="runGraphQuery"]').click();
-    await errorAnalysis.locator('#gq-status').filter({ hasText: '❌ Project storage unavailable.' }).waitFor();
+    await errorAnalysis.locator('#node-search').fill('same.md');
+    await errorAnalysis.locator('[data-click="selectSearchedNode"]').click();
+    await errorAnalysis.locator('#rel-status').filter({ hasText: '❌ Project storage unavailable.' }).waitFor();
     queryError = { status: 409, detail: { code: 'project_not_indexed', message: 'Project has no index.' } };
-    await errorAnalysis.locator('#ripple-node').fill('same.md');
-    await errorAnalysis.locator('[data-click="loadImpact"]').click();
+    await errorAnalysis.locator('[data-click="selectSearchedNode"]').click();
     await errorAnalysis.locator('#ripple-status').filter({ hasText: '❌ Project has no index.' }).waitFor();
     queryError = null;
     await errorPage.close();

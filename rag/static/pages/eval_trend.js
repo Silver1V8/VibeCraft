@@ -22,13 +22,7 @@
       const rows = (data.history || []).filter(e => typeof recallOf(e) === "number");
       const trend = s.trend || "flat";
       const last = s.last_recall;
-      document.getElementById("cards").innerHTML = `
-        <div class="card"><div class="k">${KEY} attuale</div>
-          <div class="v">${last == null ? "—" : (last * 100).toFixed(1) + "%"}</div></div>
-        <div class="card"><div class="k">trend</div>
-          <div class="v"><span class="badge ${trend}">${trend}</span></div></div>
-        <div class="card"><div class="k">punti storici</div>
-          <div class="v">${s.history_points ?? rows.length}</div></div>`;
+      renderCards(s, rows, trend, last);
 
       const chart = document.getElementById("chart");
       if (rows.length < 2) { chart.innerHTML = '<div class="empty">Servono almeno 2 valutazioni per un trend. Lancia <code>uv run python -m eval.run</code>.</div>'; return; }
@@ -111,6 +105,34 @@
       renderTabella(rows);
     }
 
+    /* Card con il contesto per leggere il numero: quanto margine resta sulla soglia del
+       gate, com'è andata l'ultima valutazione e la recall agli altri k. Prima c'erano
+       valore, "flat" in inglese e il numero di punti, senza dire se 82,8% fosse tanto. */
+    const TREND_LABEL = { up: "in salita", down: "in discesa", flat: "stabile" };
+    function pct(v) { return (v * 100).toFixed(1).replace(".", ",") + "%"; }
+    function renderCards(s, rows, trend, last) {
+      const soglia = typeof s.min_recall === "number" ? s.min_recall : sogliaGate(rows);
+      const ultimo = rows.slice().sort((a, b) => tsOf(a) - tsOf(b)).at(-1);
+      const margine = last != null && soglia != null ? (last - soglia) * 100 : null;
+      const noteRecall = margine == null ? "" : `<div class="note ${margine >= 0 ? "ok" : "ko"}">soglia del gate ${pct(soglia)}`
+        + ` · margine ${margine >= 0 ? "+" : ""}${margine.toFixed(1).replace(".", ",")} punti</div>`;
+      // Recall agli altri k: se quella del gate si avvicina al 100% il gate smette di distinguere le versioni.
+      const perK = ultimo && ultimo.recall ? Object.keys(ultimo.recall)
+        .sort((a, b) => Number(a.split("@")[1]) - Number(b.split("@")[1]))
+        .map(k => `<span class="${k === KEY ? "is-gate" : ""}">${escapeHtml(k.replace("recall", ""))} ${pct(ultimo.recall[k])}</span>`).join("") : "";
+      document.getElementById("cards").innerHTML = `
+        <div class="card"><div class="k">${escapeHtml(KEY)} attuale</div>
+          <div class="v">${last == null ? "—" : pct(last)}</div>${noteRecall}</div>
+        <div class="card"><div class="k">andamento</div>
+          <div class="v"><span class="badge ${trend}">${TREND_LABEL[trend] || escapeHtml(trend)}</span></div>
+          <div class="note">${s.history_points ?? rows.length} valutazioni</div></div>
+        ${ultimo ? `<div class="card"><div class="k">ultima valutazione</div>
+          <div class="v v-small">${escapeHtml(new Date(tsOf(ultimo)).toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" }))}</div>
+          <div class="note">${escapeHtml(esitoDi(ultimo))}${ultimo.n_cases ? ` · ${Number(ultimo.n_cases)} casi` : ""}</div></div>` : ""}
+        ${perK ? `<div class="card" title="Recall dell'ultima valutazione ai diversi k: se quella del gate arriva al 100% il gate non distingue più una versione peggiore.">
+          <div class="k">recall per k</div><div class="per-k">${perK}</div></div>` : ""}`;
+    }
+
     /* ──────────── HELPER ──────────── */
     function tsOf(e) { const t = Date.parse(e.timestamp || ""); return Number.isNaN(t) ? 0 : t; }
 
@@ -156,13 +178,14 @@
           <td>${escapeHtml(fmtCompleto(tsOf(e)))}</td>
           <td>${(recallOf(e) * 100).toFixed(1)}%</td>
           <td>${escapeHtml(esitoDi(e))}</td>
+          <td>${e.n_cases ? Number(e.n_cases) : "—"}</td>
           <td>${escapeHtml(e.version || "—")}</td>
           <td>${escapeHtml(e.commit || "—")}</td>
         </tr>`;
       }).join("");
       box.innerHTML = `<summary>Dati del grafico in tabella (${rows.length} valutazioni)</summary>
         <table>
-          <thead><tr><th>Data</th><th>${KEY}</th><th>Esito</th><th>Versione</th><th>Commit</th></tr></thead>
+          <thead><tr><th>Data</th><th>${KEY}</th><th>Esito</th><th>Casi</th><th>Versione</th><th>Commit</th></tr></thead>
           <tbody>${righe}</tbody>
         </table>`;
     }
@@ -182,8 +205,56 @@
     }
     caricaStorico();
 
+    /* ══════════ QUALITÀ DEI CANVAS (era in Analisi) ══════════
+       Colori dai token semantici di shared.css, uguali nei due temi; il giudizio è
+       comunque scritto accanto al pallino, non affidato al solo colore. */
+    const FIDELITY_STYLE = {
+      alto:        { color: 'var(--color-success)', label: 'alto' },
+      medio:       { color: 'var(--color-warning)', label: 'medio' },
+      basso:       { color: 'var(--color-danger)', label: 'basso' },
+      sconosciuto: { color: 'var(--color-text-muted)', label: '?' },
+    };
+    // Oltre le prime 5 le divergenze stanno in un elenco richiudibile: erano 800 px di pagina.
+    const CQ_VISIBLE = 5;
+    async function loadCanvasQuality() {
+      const status = document.getElementById('cq-status');
+      status.textContent = 'Caricamento…';
+      try {
+        const res = await fetch('/api/canvas-quality');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const d = await res.json();
+        if (!d.total_reviews) {
+          status.textContent = 'Nessuna canvas review ancora: archivia una change per popolare il pannello.';
+          document.getElementById('cq-trend').innerHTML = '';
+          document.getElementById('cq-divergences').innerHTML = '';
+          return;
+        }
+        const c = d.fidelity_counts;
+        status.textContent = `${d.total_reviews} review · fedeltà: ${c.alto} alto / ${c.medio} medio / ${c.basso} basso`;
+        // Trend (dalla più vecchia alla più recente): un pallino colorato per change.
+        document.getElementById('cq-trend').innerHTML = d.trend.map(t => {
+          const s = FIDELITY_STYLE[t.fidelity] || FIDELITY_STYLE.sconosciuto;
+          return `<span><i class="dot" style="background:${s.color}"></i> ${escapeHtml(t.feature)} (${s.label})</span>`;
+        }).join('');
+        // Il testo arriva dalle review in Markdown: inlineMd (shared.js) ne fa grassetto e
+        // codice sopra un testo già escapato, invece di mostrare gli asterischi.
+        const item = x => `<li><span class="cq-count" title="Ricorre in ${Number(x.count)} review">×${Number(x.count)}</span>`
+          + `<span>${inlineMd(x.text)}</span></li>`;
+        const top = d.top_divergences;
+        document.getElementById('cq-divergences').innerHTML = top.length
+          ? '<p class="cq-heading">Divergenze più frequenti</p><ul>' + top.slice(0, CQ_VISIBLE).map(item).join('') + '</ul>'
+            + (top.length > CQ_VISIBLE ? `<details><summary>Mostra le altre ${top.length - CQ_VISIBLE}</summary><ul>`
+              + top.slice(CQ_VISIBLE).map(item).join('') + '</ul></details>' : '')
+          : '<p class="cq-heading">Nessuna divergenza registrata nelle review.</p>';
+      } catch (e) {
+        status.textContent = '❌ ' + e.message;
+      }
+    }
+    loadCanvasQuality();
+
     /* Azioni dei pulsanti/campi (data-click / data-change / data-input): prima erano
        handler inline, vietati dalla CSP — vedi registerActions in /static/shared.js. */
     registerActions({
       caricaStorico: () => caricaStorico(),
+      loadCanvasQuality: () => loadCanvasQuality(),
     });

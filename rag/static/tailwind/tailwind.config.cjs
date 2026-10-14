@@ -1,11 +1,10 @@
-/* Configurazione del runtime Tailwind (/static/vendor/tailwind.min.js), letta al primo
-   scan delle classi: era uno <script> inline nel template, spostata qui per la CSP. */
-    /* Tailwind punta a CSS variables: le classi (bg-slate-900, text-blue-400, ecc.)
-       sono generate UNA volta sola con `var(--...)` come valore colore. Il cambio
-       tema (:root[data-theme]) aggiorna le variabili e ridipinge tutto senza
-       rigenerare le classi Tailwind -> è così che funziona il live-flip. */
-    tailwind.config = {
-      theme: {
+/* Configurazione della build CSS statica (scripts/build_css.sh): sostituisce il runtime
+   Tailwind che generava il CSS nel browser a ogni caricamento. I colori puntano a CSS
+   variables: il cambio tema (:root[data-theme]) cambia le variabili, non le classi.
+   `content` elenca dove compaiono le classi, anche quelle scritte da JS. */
+module.exports = {
+  content: ["./templates/dashboard.unified.html", "./templates/pipeline.unified.html", "./static/pages/dashboard.js", "./static/pages/pipeline.js", "./static/shared.js"],
+  theme: {
         extend: {
           colors: {
             brand:  { 50:'var(--brand-50)',100:'var(--brand-100)',200:'var(--brand-200)',300:'var(--brand-300)',400:'var(--brand-400)',500:'var(--brand-500)',600:'var(--brand-600)',700:'var(--brand-700)',800:'var(--brand-800)',900:'var(--brand-900)',950:'var(--brand-950)' },
@@ -16,4 +15,4 @@
           fontFamily: { sans: ['var(--font-main)'] }
         }
       }
-    }
+    };

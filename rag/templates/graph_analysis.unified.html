@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VibeCraft · Analisi del Grafo</title>
+  <title>VibeCraft · Analisi</title>
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
 
   <!-- Asset condivisi (estratti dai template per non duplicare CSS/JS) -->
@@ -101,7 +101,7 @@
                          border-color var(--duration-fast) var(--ease-standard); }
 
     /* Dati tecnici/numerici sempre in monospace, anche nel tema Classico (sans) */
-    .status, .dups, #gq-out { font-family: var(--mono-font); }
+    .status, .dups, .relations { font-family: var(--mono-font); }
     .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-bottom: 12px; }
     button, select, input {
       font-family: inherit; font-size: 12px; white-space: nowrap; background: var(--control-bg); color: var(--control-color);
@@ -110,14 +110,14 @@
     /* min() invece di un valore fisso: sotto i 240px di spazio il vincolo
        cede invece di spingere la pagina in overflow orizzontale. */
     input { cursor: text; min-width: min(240px, 100%); }
-    #gq-input { min-width: min(360px, 100%); }
+    #node-search { flex: 1; min-width: min(240px, 100%); }
     button:hover { background: var(--control-hover-bg); }
     .canvas-wrap { position: relative; }
     canvas { width: 100%; display: block; background: var(--canvas-bg); border: 1px solid var(--canvas-border); border-radius: var(--radius-md); }
     /* Altezza CSS esplicita: senza, con width:100% il browser preserva l'aspect ratio
        del bitmap e stira il canvas (i punti finiscono sparsi su un canvas altissimo). */
-    #map-canvas { height: 460px; }
-    #ripple-canvas { height: 480px; }
+    #map-canvas { height: 560px; }
+    #ripple-canvas { height: 360px; margin-top: 8px; }
     .status { font-size: var(--text-xs); color: var(--muted-text); }
     .legend { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: 10px; font-size: var(--text-xs); color: var(--legend-text); }
     .legend span { display: inline-flex; align-items: center; gap: 5px; }
@@ -130,20 +130,32 @@
     .dups { margin-top: 12px; font-size: var(--text-size-sm); color: var(--dups-color); }
     .dups b { color: var(--dups-b-color); }
     .dups div { padding: 2px 0; }
-    /* Divergenze del canvas: elenco con il conteggio in un badge iniziale. Colori del
-       testo normale, non il magenta di .dups, che appartiene ai duplicati della mappa. */
-    .cq-divergences { margin-top: 12px; font-size: var(--text-size-sm); color: var(--body-text); }
-    .cq-heading { margin: 0 0 8px; font-weight: 600; color: var(--legend-text); }
-    .cq-divergences ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-    .cq-divergences li {
-      display: flex; align-items: baseline; gap: 10px; padding: 6px 10px; line-height: 1.5;
-      border: 1px solid var(--section-border); border-radius: var(--radius-sm);
+    /* Coppie simili: righe cliccabili che evidenziano i due punti sulla mappa. */
+    .dups button { all: unset; cursor: pointer; display: block; padding: 2px 0; }
+    .dups button:hover, .dups button:focus-visible, .dups button[aria-pressed="true"] { color: var(--dups-b-color); }
+    .dups summary { cursor: pointer; width: fit-content; margin-top: 4px; }
+    /* Pannello del nodo selezionato */
+    #section-node h3 { font-size: var(--text-size-sm); margin: 16px 0 6px; color: var(--h2-color); }
+    .node-name { font-family: var(--mono-font); font-size: var(--text-size-sm); color: var(--body-text);
+                 word-break: break-all; margin: 4px 0 0; }
+    .relations { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto;
+                 font-size: var(--text-xs); border: 1px solid var(--canvas-border); border-radius: var(--radius-sm); }
+    .relations li { display: flex; gap: 8px; align-items: baseline; padding: 4px 8px; border-bottom: 1px solid var(--canvas-border); }
+    .relations li:last-child { border-bottom: 0; }
+    .relations .rel { color: var(--muted-text); flex-shrink: 0; }
+    .relations button { all: unset; cursor: pointer; color: var(--body-text); word-break: break-all; }
+    .relations button:hover, .relations button:focus-visible { text-decoration: underline; }
+    /* Due colonne da 1200 px: la mappa a sinistra, il pannello del nodo a destra e sempre
+       visibile mentre si scorre. Sotto, la colonna unica di sempre. */
+    @media (min-width: 1200px) {
+      .page-doc main#main-content.analysis-layout {
+        max-width: 1680px; display: grid; gap: var(--space-6); align-items: start;
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+      }
+      .page-doc section.analysis-inspector {
+        position: sticky; top: var(--space-6); max-height: calc(100vh - 2 * var(--space-6)); overflow-y: auto;
+      }
     }
-    .cq-count {
-      flex-shrink: 0; min-width: 2.4em; text-align: center; padding: 0 6px; border-radius: 999px;
-      border: 1px solid var(--control-border); color: var(--control-color); font-size: var(--text-xs);
-    }
-    .cq-divergences code { font-family: var(--mono-font); background: var(--control-bg); padding: 0 4px; border-radius: 4px; }
   </style>
 </head>
 <body class="page-doc">
@@ -154,96 +166,66 @@
   <canvas id="matrix-rain" aria-hidden="true"></canvas>
   <div class="scanlines"></div>
 
-  <header>
-    <div class="title-group">
-      <div class="icon-box" aria-hidden="true">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/>
-          <line x1="7" y1="11.5" x2="17" y2="6" stroke="currentColor"/><line x1="7" y1="12.5" x2="17" y2="18" stroke="currentColor"/>
-        </svg>
-      </div>
-      <div>
-        <h1 class="glow-text">Analisi del Grafo</h1>
-        <div class="sub">Semantic Map · Impact Ripple</div>
-      </div>
-    </div>
-  </header>
+  <!-- Titolo solo per screen reader: il nome della sezione è già nella nav della
+       shell; l'intestazione visibile lo ripeteva e costava ~90 px di altezza. -->
+  <h1 class="sr-only">Analisi del Grafo</h1>
 
-  <main id="main-content" tabindex="-1">
-    <!-- ══════════ QUERY DETERMINISTICA ══════════ -->
-    <section id="section-query">
-      <h2>❓ Query deterministica sul grafo</h2>
-      <p class="desc">Interroga il grafo <em>senza LLM</em>: «quali documenti esistono?», «quali entità?»,
-        «quale codice?», «relazioni di &lt;NODO&gt;», «cosa impatta &lt;NODO&gt;». Risposte istantanee lette
-        direttamente da nodi e archi (principio «determinismo prima dell'LLM»).</p>
+  <!-- Banco di lavoro: a sinistra la mappa, a destra il nodo selezionato con relazioni e
+       propagazione dell'impatto. Prima erano quattro sezioni impilate (~3.400 px) e il click
+       su un punto aggiornava la query in cima e il ripple in fondo, da cercare scorrendo.
+       La query testuale (elenchi di documenti/entità) è in Console, dove il router
+       deterministico risponde dal grafo; la qualità dei canvas è in Eval. -->
+  <main id="main-content" tabindex="-1" class="analysis-layout">
+    <!-- ══════════ MAPPA SEMANTICA ══════════ -->
+    <section id="section-map">
+      <h2 title="Semantic Map">🗺️ Mappa semantica</h2>
+      <p class="desc">Ogni punto è una <em>sezione</em>, vicina alle sezioni di significato simile (PCA sui
+        vettori densi bge-m3). Il colore è il <em>gruppo</em> di documenti che citano le stesse entità;
+        l'anello bianco segna i documenti <em>ponte</em>. Clicca un punto per vederne relazioni e impatto.</p>
       <div class="toolbar">
-        <label for="gq-input" class="sr-only">Domanda sul grafo</label>
-        <input id="gq-input" placeholder="es. quali documenti esistono?  ·  relazioni di EVENTO" />
-        <button type="button" data-click="runGraphQuery" class="btn btn-primary">▶ Interroga</button>
-        <span id="gq-status" class="status"></span>
-      </div>
-      <pre id="gq-out" style="display:none;white-space:pre-wrap;font-size:11.5px;color:var(--tooltip-color);background:var(--canvas-bg);border:1px solid var(--canvas-border);border-radius:10px;padding:12px;max-height:280px;overflow:auto"></pre>
-    </section>
-
-    <!-- ══════════ CANVAS QUALITY ══════════ -->
-    <section>
-      <h2>📐 Canvas quality</h2>
-      <p class="desc">Il canvas che apprende: all'archiviazione di ogni change il codice reale viene
-        confrontato con il canvas (canvas_review.md). Qui il trend del giudizio di <em>fedeltà</em>
-        delle ultime change e le <em>divergenze</em> più frequenti — i punti ciechi che le review
-        reiniettano nella generazione dei canvas futuri.</p>
-      <div class="toolbar">
-        <button type="button" data-click="loadCanvasQuality" class="btn btn-secondary">↻ Ricarica</button>
-        <span id="cq-status" class="status">Caricamento…</span>
-      </div>
-      <div id="cq-trend" class="legend"></div>
-      <div id="cq-divergences" class="cq-divergences"></div>
-    </section>
-
-    <!-- ══════════ SEMANTIC MAP ══════════ -->
-    <section>
-      <h2>🗺️ Semantic Map</h2>
-      <p class="desc">Ogni documento è proiettato in 2D per prossimità semantica (PCA sui vettori densi bge-m3).
-        I colori sono le <em>community</em> (documenti che condividono entità); i nodi con anello bianco sono i
-        <em>ponti</em> (alta centralità). Le linee tratteggiate magenta segnalano potenziali <em>duplicati</em>
-        (alta similarità ma non collegati). Clicca un punto per interrogarne le <em>relazioni</em> nella Query
-        deterministica in cima e centrarlo nell'Impact Ripple sotto.</p>
-      <div class="toolbar">
-        <button type="button" data-click="loadSemanticMap" class="btn btn-secondary">↻ Ricarica</button>
+        <button type="button" data-click="loadSemanticMap" data-requires="qdrant" class="btn btn-secondary">↻ Ricarica</button>
         <span id="map-status" class="status">Caricamento…</span>
       </div>
       <div class="canvas-wrap">
-        <canvas id="map-canvas" height="460"></canvas>
+        <canvas id="map-canvas" height="560"></canvas>
         <div id="map-tooltip" class="tooltip"></div>
       </div>
       <div id="map-legend" class="legend"></div>
       <div id="map-dups" class="dups"></div>
     </section>
 
-    <!-- ══════════ IMPACT RIPPLE ══════════ -->
-    <section>
-      <h2>🌊 Impact Ripple</h2>
-      <p class="desc">Espansione BFS a cerchi concentrici da un nodo: il centro è il nodo scelto, ogni anello è
-        un livello di distanza. Risponde «cosa viene impattato se modifico questo nodo?» in modo deterministico.</p>
+    <!-- ══════════ NODO SELEZIONATO ══════════ -->
+    <section id="section-node" class="analysis-inspector" aria-labelledby="node-title">
+      <h2 id="node-title">🔎 Nodo selezionato</h2>
       <div class="toolbar">
-        <label for="ripple-node" class="sr-only">Nodo da analizzare</label><input id="ripple-node" list="nodes-list" placeholder="Nodo (es. EVENTO, un documento o un simbolo di codice)" />
+        <label for="node-search" class="sr-only">Cerca un nodo</label>
+        <input id="node-search" list="nodes-list" placeholder="Cerca un nodo: documento, entità o codice" autocomplete="off" />
         <datalist id="nodes-list"></datalist>
+        <button type="button" data-click="selectSearchedNode" class="btn btn-primary">Mostra</button>
+      </div>
+      <p id="node-empty" class="desc">Clicca un punto della mappa o cerca un nodo per vederne le relazioni
+        e cosa viene toccato se lo modifichi.</p>
+      <div id="node-detail" hidden>
+        <p id="node-name" class="node-name"></p>
+        <h3>Relazioni <span id="rel-status" class="status"></span></h3>
+        <ul id="node-relations" class="relations"></ul>
+        <h3 title="Impact Ripple">Propagazione dell'impatto <span id="ripple-status" class="status"></span></h3>
+        <p class="desc">Anelli concentrici: il centro è il nodo scelto, ogni anello un passo di distanza nel grafo.
+          Clicca un nodo per selezionarlo.</p>
         <label class="status">Profondità
-          <select id="ripple-depth">
-            <option>1</option><option>2</option><option selected>3</option><option>4</option>
+          <select id="ripple-depth" data-change="loadImpact">
+            <option>1</option><option selected>2</option><option>3</option><option>4</option>
           </select>
         </label>
-        <button type="button" data-click="loadImpact" class="btn btn-primary">▶ Calcola impatto</button>
-        <span id="ripple-status" class="status"></span>
-      </div>
-      <div class="canvas-wrap">
-        <canvas id="ripple-canvas" height="480"></canvas>
-        <div id="ripple-tooltip" class="tooltip"></div>
-      </div>
-      <div class="legend">
-        <span><i class="dot" style="background:var(--type-document)"></i> documento</span>
-        <span><i class="dot" style="background:var(--type-entity)"></i> entità</span>
-        <span><i class="dot" style="background:var(--type-code)"></i> codice</span>
+        <div class="canvas-wrap">
+          <canvas id="ripple-canvas" height="360"></canvas>
+          <div id="ripple-tooltip" class="tooltip"></div>
+        </div>
+        <div class="legend">
+          <span><i class="dot" style="background:var(--type-document)"></i> documento</span>
+          <span><i class="dot" style="background:var(--type-entity)"></i> entità</span>
+          <span><i class="dot" style="background:var(--type-code)"></i> codice</span>
+        </div>
       </div>
     </section>
   </main>
