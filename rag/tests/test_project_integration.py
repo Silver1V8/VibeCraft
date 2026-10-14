@@ -18,7 +18,7 @@ import uvicorn
 
 import agent_runners
 from api import deps, routes_pipeline, routes_reindex
-from core import artifacts, indexing, llm, pipeline, qdrant_versions
+from core import artifacts, ask_cache, indexing, llm, pipeline, qdrant_versions
 from core.config import DENSE_DIM
 from core.projects import ProjectRegistry, _create_project_root
 
@@ -63,6 +63,12 @@ def integrated_server(tmp_path, monkeypatch, request):
     qdrant, embed = QdrantClient(url=url), FixtureEmbedding()
     names = {item.name for item in qdrant.get_collections().collections}
     names.update(item.alias_name for item in qdrant.get_aliases().aliases)
+    # Gli ID nascono dal nome ("A", "B"), non più da un UUID: il namespace è prevedibile, quindi
+    # va trovato libero come quello di legacy, o la pulizia toccherebbe collection altrui.
+    for owned in ('vibecraft_A', 'vibecraft_B'):
+        if any(name == owned or name.startswith(owned + '__') for name in names):
+            qdrant.close()
+            pytest.fail(f'Dedicated test namespace {owned} already occupied')
     if request.param == 'legacy':
         if any(name == 'vibecraft_legacy' or name.startswith('vibecraft_legacy__') for name in names):
             qdrant.close()
@@ -71,6 +77,9 @@ def integrated_server(tmp_path, monkeypatch, request):
     monkeypatch.setitem(deps.state, "qdrant", qdrant)
     monkeypatch.setitem(deps.state, "embed_model", embed)
     monkeypatch.setattr(indexing, "_new_version_name", lambda **kwargs: "v1")
+    # Stessi ID e stessa versione "v1" nelle due parametrizzazioni: la cache /ask dell'app
+    # (chiave progetto + versione + domanda) servirebbe la risposta della run precedente.
+    ask_cache.for_app(app).clear()
     prompts = []
 
     async def generate(prompt, *, purpose, **kwargs):
@@ -137,7 +146,7 @@ def integrated_server(tmp_path, monkeypatch, request):
             if snapshot:
                 snapshot.colbert_store.close()
                 snapshot.version_lease.close()
-            # Exact UUID namespace admitted by this fixture, never generic-prefix cleanup.
+            # Exact namespace admitted by this fixture, never generic-prefix cleanup.
             owned = {project.collection_name + "__" + version for version in ("v1", "v2", "v3", "unused")}
             for collection in qdrant.get_collections().collections:
                 if collection.name in owned:
