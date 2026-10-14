@@ -60,8 +60,10 @@ class GraphInput(QueryInput):
 
 
 def project_headers(project_id: str | None) -> dict[str, str]:
-    if project_id is not None and not re.fullmatch(r'legacy|[0-9a-f]{32}', project_id):
-        raise ValueError('VIBECRAFT_PROJECT_ID deve essere legacy o un ID di 32 caratteri esadecimali minuscoli.')
+    # Stesso formato di core.projects.validate_project_id (qui niente import del backend):
+    # il server rifiuta comunque gli ID non registrati.
+    if project_id is not None and not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9-]{0,63}', project_id):
+        raise ValueError('VIBECRAFT_PROJECT_ID deve essere legacy o un ID progetto (lettere, cifre e "-", max 64).')
     return {'X-VibeCraft-Project': project_id} if project_id is not None else {}
 
 

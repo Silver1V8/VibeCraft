@@ -25,13 +25,29 @@ def manifest(directory, project_id="a" * 32, name="External", **extra):
     return directory
 
 
+def test_project_id_from_name_is_readable_and_safe():
+    from core.projects import project_id_from_name, validate_project_id
+    assert project_id_from_name("SGD_FE", set()) == "SGD-FE"
+    assert project_id_from_name("Città ünica", set()) == "Citta-unica"
+    assert project_id_from_name("SGD_FE", {"sgd-fe", "SGD-FE-2"}) == "SGD-FE-3"
+    assert project_id_from_name("legacy", set()) == "legacy-2"
+    assert project_id_from_name("CON", set()) == "CON-2"
+    assert project_id_from_name("../..", set()) == "progetto"
+    assert len(project_id_from_name("x" * 200, {"x" * 56})) <= 64
+    for bad in ("Legacy", "nul", "a_b", "-a", "a/b", "x" * 65):
+        with pytest.raises(ProjectError):
+            validate_project_id(bad)
+    assert validate_project_id("a" * 32) == "a" * 32  # ID esadecimali già esistenti
+
+
 def test_create_project_layout_and_unique_ids(tmp_path):
     store = registry(tmp_path)
     a, b = store.create("<b>Same ../name</b>"), store.create("<b>Same ../name</b>")
     assert a.id != b.id and a.root != b.root and a.database_dir != b.database_dir
     assert a.collection_name == "vibecraft_" + a.id
     assert b.collection_name == "vibecraft_" + b.id
-    assert len(a.id) == 32 and all(c in "0123456789abcdef" for c in a.id)
+    # ID leggibile dal nome, "-2" solo per l'omonimo; mai separatori di path né "_".
+    assert (a.id, b.id) == ("b-Same-name-b", "b-Same-name-b-2")
     assert a.name == "<b>Same ../name</b>"
     for project in (a, b):
         assert project.root.name == project.id

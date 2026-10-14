@@ -19,7 +19,8 @@ def projects(tmp_path, monkeypatch):
     monkeypatch.setattr(deps, 'project_registry', lambda: registry)
     monkeypatch.setattr(deps, '_project_states', {})
     monkeypatch.setattr(deps, '_snapshots', OrderedDict())
-    return registry.create('A'), registry.create('B')
+    # Nomi lunghi: gli ID nascono dal nome, e "B" comparirebbe come lettera in qualunque testo.
+    return registry.create('Progetto-Alfa'), registry.create('Progetto-Beta')
 
 
 def _commit_git(root, subject):
@@ -455,7 +456,7 @@ def test_archive_and_drift_sources_use_only_selected_project(projects, monkeypat
         pipeline.save_dev_type(folder, 'backend', project=project)
         (project.code_dir/'backend/same.py').write_text(project.name, encoding='utf-8')
     sources = drift_check._feature_code_sources(a.changes_dir/'same-feature', '', project=a)
-    assert [path.read_text(encoding='utf-8') for _, files in sources for path in files] == ['A']
+    assert [path.read_text(encoding='utf-8') for _, files in sources for path in files] == [a.name]
     monkeypatch.setattr(feature_archive, 'generate_canvas_review', lambda *args, **kwargs: ('# A review', None))
     log = feature_archive.archive_feature('same-feature', project=a, reindex=False)
     assert 'successo' in log

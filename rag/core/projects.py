@@ -6,7 +6,7 @@ import json
 import math
 from pathlib import Path
 import re
-import uuid
+import unicodedata
 
 import yaml
 
@@ -22,10 +22,33 @@ class ProjectError(RuntimeError):
         self.code = code
 
 
+# ID = componente di path e suffisso delle collection Qdrant (vibecraft_<id>__<versione>).
+# Niente "_": con "foo_" le collection inizierebbero col prefisso di "foo" ("vibecraft_foo__")
+# e GC/parse delle versioni di un progetto toccherebbero l'altro. Gli ID esadecimali dei
+# progetti creati prima restano validi (sono un caso particolare).
+_PROJECT_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]{0,63}")
+
+
 def validate_project_id(project_id: str) -> str:
-    if not isinstance(project_id, str) or not re.fullmatch(r"legacy|[0-9a-f]{32}", project_id):
+    if not isinstance(project_id, str) or not (
+            project_id == "legacy" or (_PROJECT_ID_RE.fullmatch(project_id)
+                                       and project_id.lower() not in {"legacy", *_WINDOWS_RESERVED})):
         raise ProjectError("Invalid project ID", status_code=422, code="invalid_project_id")
     return project_id
+
+
+def project_id_from_name(name: str, taken) -> str:
+    """ID leggibile dal nome ("Sviluppo urgente" -> "Sviluppo-urgente"), con "-2", "-3"…
+    solo se è già preso. Il confronto ignora le maiuscole: su Windows "SGD" e "sgd" sono
+    la stessa cartella."""
+    ascii_name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    base = re.sub(r"[^A-Za-z0-9]+", "-", ascii_name)[:56].strip("-") or "progetto"
+    taken = {item.lower() for item in taken} | {"legacy", *_WINDOWS_RESERVED}
+    candidate, n = base, 1
+    while candidate.lower() in taken:
+        n += 1
+        candidate = f"{base}-{n}"
+    return candidate
 
 
 @dataclass(frozen=True)
@@ -424,7 +447,10 @@ class ProjectRegistry:
             records = self._read()
             if any(record["legacy"] for record in records):
                 raise _migration_required()
-            project_id = uuid.uuid4().hex
+            taken = {record["id"] for record in records}
+            if self.projects_dir.is_dir():  # cartelle orfane (create interrotte) contano come prese
+                taken |= {child.name for child in self.projects_dir.iterdir()}
+            project_id = project_id_from_name(name, taken)
             root = self.projects_dir / project_id
             project = _create_project_root(root, project_id, name)
             self._append(project, records)

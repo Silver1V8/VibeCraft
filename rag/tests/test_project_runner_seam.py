@@ -147,7 +147,7 @@ def test_mcp_project_header_is_fixed_for_all_transport_calls(monkeypatch):
     assert len(calls) == 12
 
 
-@pytest.mark.parametrize("project_id", ["", "../escape", "A" * 32, "unknown", "a" * 31, "a" * 33, "legacy\n"])
+@pytest.mark.parametrize("project_id", ["", "../escape", "a_b", "-a", "a/b", "x" * 65, "legacy\n"])
 def test_mcp_invalid_project_id_fails_before_transport(monkeypatch, project_id):
     monkeypatch.setenv("VIBECRAFT_PROJECT_ID", project_id)
     with pytest.raises(ValueError, match="VIBECRAFT_PROJECT_ID"):

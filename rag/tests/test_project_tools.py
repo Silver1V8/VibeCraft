@@ -23,7 +23,8 @@ def projects(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "PROJECTS_DIR", tmp_path / "registry")
     monkeypatch.setattr(config, "setup_logging", lambda: None)
     registry = ProjectRegistry(bootstrap_legacy=False)
-    return registry, registry.create("A"), registry.create("B")
+    # Nomi lunghi: gli ID nascono dal nome, e "B" comparirebbe come lettera in qualunque testo.
+    return registry, registry.create("Progetto-Alfa"), registry.create("Progetto-Beta")
 
 
 @pytest.mark.parametrize("flag,fn,result", [
