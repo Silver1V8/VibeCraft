@@ -145,6 +145,23 @@ def test_parse_divergences_keeps_bold_and_skips_group_headings():
     ]
 
 
+def test_parse_divergences_skips_negative_outcomes_and_their_subpoints():
+    # Forme reali (archive la1, la3, fe-design): conferme scritte come voci di elenco.
+    review = ("## Divergenze\n"
+              "- **Codice vs Canvas (Struttura):** rispetta i vincoli. Non ci sono divergenze strutturali.\n"
+              "- **Codice vs Canvas (Operazioni):** tutto ok. Non sono state rilevate divergenze funzionali.\n"
+              "*   **Nessuna divergenza rilevata.** Il codice implementa i flussi:\n"
+              "    *   Consumer con deduplicazione.\n"
+              "    *   Nessun lock pessimistico.\n"
+              "*   **Nessuna lacuna rilevata.** Tutto coperto.\n"
+              "*   **Store personalizzato:** usa Context invece di Zustand.\n"
+              "    *   Il Canvas citava Zustand.\n")
+    assert cr.parse_divergences(review) == [
+        "**Store personalizzato:** usa Context invece di Zustand.",
+        "Il Canvas citava Zustand.",
+    ]
+
+
 def test_canvas_quality_stats_shows_original_case(tmp_path):
     archive = tmp_path / "archive"
     _write_review(archive, "feat-a", "medio", ["Manca il `CorrelationId` nei log."], mtime=1000)

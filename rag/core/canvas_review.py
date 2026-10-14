@@ -218,23 +218,37 @@ _BULLET_RE = re.compile(r"^(?:[-*•+]|\d+[.)])\s+")
 _GROUP_HEADING_RE = re.compile(r"\*\*[^*]+\*\*:?")
 # Linea orizzontale Markdown ("---", "***", "- - -"): separatore, non contenuto.
 _HORIZONTAL_RULE_RE = re.compile(r"(?:[-*_]\s*){3,}")
+# Esito negativo in una delle forme che il modello usa davvero: "Nessuna divergenza
+# rilevata", "Non ci sono divergenze", "Non sono state rilevate divergenze", "Nessuna
+# lacuna". Prima si scartava solo la prima, e il pannello elencava conferme come divergenze.
+_NO_DIVERGENCE_RE = re.compile(
+    r"\bnessun[ao]?\s+(?:divergenz|lacun)"
+    r"|\bnon\s+(?:ci\s+sono|sono\s+state\s+(?:rilevate|riscontrate)|si\s+rilevano"
+    r"|risultano|emergono)\s+(?:altre\s+)?divergenz",
+    re.IGNORECASE)
 
 
 def parse_divergences(review_text: str) -> list[str]:
-    """Estrae le voci della sezione '## Divergenze' di una review (esclusi i
-    'nessuna divergenza' e i titoli di gruppo in grassetto), come frasi su una riga
-    con il Markdown in linea intatto."""
+    """Estrae le voci della sezione '## Divergenze' di una review (esclusi gli esiti
+    'nessuna divergenza' con i loro sotto-punti, e i titoli di gruppo in grassetto),
+    come frasi su una riga con il Markdown in linea intatto."""
     m = re.search(r"^#{1,3}\s*Divergenze\b.*?\n(.*?)(?=^#{1,3}\s|\Z)",
                   review_text, flags=re.MULTILINE | re.DOTALL | re.IGNORECASE)
     if not m:
         return []
     out = []
+    skip_indent = None  # rientro della voce "nessuna divergenza": i sotto-punti la giustificano
     for line in m.group(1).splitlines():
-        if _HORIZONTAL_RULE_RE.fullmatch(line.strip()):
+        if not line.strip() or _HORIZONTAL_RULE_RE.fullmatch(line.strip()):
             continue
+        indent = len(line) - len(line.lstrip())
+        if skip_indent is not None and indent > skip_indent:
+            continue
+        skip_indent = None
         stripped = _BULLET_RE.sub("", line.strip(), count=1).strip()
-        if (stripped and not _GROUP_HEADING_RE.fullmatch(stripped)
-                and "nessuna divergenza" not in stripped.lower()):
+        if _NO_DIVERGENCE_RE.search(stripped):
+            skip_indent = indent
+        elif not _GROUP_HEADING_RE.fullmatch(stripped):
             out.append(stripped)
     return out
 
