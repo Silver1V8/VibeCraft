@@ -3,6 +3,7 @@ testuale, grafo completo, Impact Ripple, Semantic Map (PCA + community) e query
 strutturale. Nessun LLM e nessuna dipendenza da FastAPI: il grafo (e, dove serve, il
 client Qdrant) sono passati come parametri espliciti dai route handler in api/."""
 import logging
+import re
 
 import networkx as nx
 import numpy as np
@@ -288,11 +289,14 @@ def _find_duplicates(
     chunk_ids: list[str],
     threshold: float = 0.9,
     top: int = 50,
+    templated: list[bool] | None = None,
 ) -> list[dict]:
     """Coppie di chunk (sezioni) quasi-duplicate: coseno >= threshold tra vettori di
     DOCUMENTI DIVERSI (i duplicati entro lo stesso documento sono naturalmente affini
     e non contano), le `top` per similarità decrescente. Pura e vettorizzata: stessa
-    semantica del doppio loop i<j con parents[i] != parents[j], nessun cambio di soglia."""
+    semantica del doppio loop i<j con parents[i] != parents[j], nessun cambio di soglia.
+    `templated[i]` marca le sezioni di documenti generati dallo stesso modello (le canvas
+    review): fra due di queste la somiglianza è per costruzione, non un duplicato."""
     norm = mat / (np.linalg.norm(mat, axis=1, keepdims=True) + 1e-8)
     sims = norm @ norm.T
     n = len(chunk_ids)
@@ -300,6 +304,9 @@ def _find_duplicates(
     diff_parents = parents_arr[:, None] != parents_arr[None, :]
     upper = np.triu(np.ones((n, n), dtype=bool), k=1)
     candidate_mask = upper & diff_parents & (sims >= threshold)
+    if templated is not None:
+        both_templated = np.asarray(templated, dtype=bool)
+        candidate_mask &= ~(both_templated[:, None] & both_templated[None, :])
     idx = np.argwhere(candidate_mask)
     duplicates = [
         {"a": chunk_ids[i], "b": chunk_ids[j], "sim": round(float(sims[i, j]), 3)}
@@ -345,6 +352,8 @@ def semantic_map(graph: nx.DiGraph, qdrant, *, collection_name: str = COLLECTION
         return {
             "points": [],
             "duplicates": [],
+            "communities": [],
+            "documents": len(set(parents)),
             "note": "Chunk insufficienti per la mappa.",
             "truncated": truncated,
         }
@@ -380,12 +389,35 @@ def semantic_map(graph: nx.DiGraph, qdrant, *, collection_name: str = COLLECTION
                 else:
                     und.add_edge(a, b, weight=1)
 
+    # Un documento che non condivide entità con nessuno diventa una "community" di uno:
+    # non è un gruppo, resta senza colore (-1). Le altre, già in ordine di dimensione,
+    # prendono il nome dalla cartella prevalente dei loro documenti ("01_architecture_norms"
+    # -> "architecture norms"): le entità più citate sono spesso ID di baseline, poco
+    # leggibili come nome, e restano in `entities` per il dettaglio.
     node_comm: dict[str, int] = {}
+    community_info: list[dict] = []
     if und.number_of_edges() > 0:
-        communities = nx.algorithms.community.greedy_modularity_communities(und)
-        for i, comm in enumerate(communities):
+        groups = [c for c in nx.algorithms.community.greedy_modularity_communities(und) if len(c) > 1]
+        for i, comm in enumerate(groups):
+            mentions: dict[str, int] = {}
+            folders: dict[str, int] = {}
             for n in comm:
                 node_comm[n] = i
+                path = n.replace("\\", "/")
+                folder = path.split("/")[0] if "/" in path else "(radice)"
+                folders[folder] = folders.get(folder, 0) + 1
+                for succ in graph.successors(n) if n in graph else ():
+                    if graph.nodes[succ].get("type") == "entity":
+                        mentions[succ] = mentions.get(succ, 0) + 1
+            top_entities = [e.removeprefix("entity::") for e in
+                            sorted(mentions, key=lambda e: (-mentions[e], e))[:3]]
+            folder = min(folders, key=lambda f: (-folders[f], f))
+            community_info.append({"id": i, "label": re.sub(r"^\d+_", "", folder).replace("_", " "),
+                                   "entities": top_entities, "documents": len(comm)})
+        labels = [info["label"] for info in community_info]
+        for info in community_info:  # stessa cartella prevalente: distingue con l'entità principale
+            if labels.count(info["label"]) > 1 and info["entities"]:
+                info["label"] += " · " + info["entities"][0]
 
     betw = nx.betweenness_centrality(und) if und.number_of_nodes() > 2 else {}
     n_bridges = max(1, len(unique_docs) // 6)
@@ -393,7 +425,9 @@ def semantic_map(graph: nx.DiGraph, qdrant, *, collection_name: str = COLLECTION
 
     # Duplicati: sezioni molto simili (coseno ≥ 0.9) appartenenti a DOCUMENTI DIVERSI
     # (le sezioni dello stesso documento sono naturalmente affini e non contano).
-    duplicates = _find_duplicates(mat, parents, chunk_ids)
+    from core.canvas_review import is_review_doc  # import locale: graph_ops resta leggero
+    duplicates = _find_duplicates(mat, parents, chunk_ids,
+                                  templated=[is_review_doc(parent) for parent in parents])
 
     points = [
         {
@@ -408,7 +442,13 @@ def semantic_map(graph: nx.DiGraph, qdrant, *, collection_name: str = COLLECTION
         }
         for i in range(len(chunk_ids))
     ]
-    return {"points": points, "duplicates": duplicates, "truncated": truncated}
+    sections_per_comm: dict[int, int] = {}
+    for point in points:
+        sections_per_comm[point["community"]] = sections_per_comm.get(point["community"], 0) + 1
+    for info in community_info:
+        info["sections"] = sections_per_comm.get(info["id"], 0)
+    return {"points": points, "duplicates": duplicates, "communities": community_info,
+            "documents": len(unique_docs), "truncated": truncated}
 
 
 def graph_query(q: str, graph: nx.DiGraph, target: str | None = None) -> dict:

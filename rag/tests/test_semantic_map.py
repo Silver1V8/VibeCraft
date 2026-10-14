@@ -171,3 +171,36 @@ def test_semantic_map_detects_incomplete_vectors(monkeypatch, expected, returned
     assert response.status_code == status
     if status == 409:
         assert response.json()["detail"]["code"] == "project_vectors_missing"
+
+
+def test_find_duplicates_skips_pairs_of_templated_documents():
+    # Tre sezioni identiche: due di canvas review (stesso modello) e una normale.
+    mat = np.ones((3, 4), dtype=np.float32)
+    got = graph_ops._find_duplicates(mat, ["r1", "r2", "doc"], ["r1#00", "r2#00", "doc#00"],
+                                     templated=[True, True, False])
+    assert {(d["a"], d["b"]) for d in got} == {("r1#00", "doc#00"), ("r2#00", "doc#00")}
+
+
+def test_semantic_map_names_communities_and_leaves_isolated_docs_out():
+    graph = nx.DiGraph()
+    docs = {"01_norms/d0": ["entity::EVENTO", "RUOLO"], "01_norms/d1": ["entity::EVENTO"],
+            "02_specs/d2": ["entity::EVENTO", "RUOLO"], "d3": []}
+    for doc, entities in docs.items():
+        graph.add_node(doc, type="document")
+        for entity in entities:
+            graph.add_node(entity, type="entity")
+            graph.add_edge(doc, entity)
+
+    class _Qdrant:
+        def scroll(self, **kwargs):
+            points = _points(4)
+            for point, doc in zip(points, docs):
+                point.payload = {"chunk_id": doc + "#00", "doc_id": doc}
+            return points, None
+
+    result = graph_ops.semantic_map(graph, _Qdrant())
+    assert result["documents"] == 4
+    # Nome dalla cartella prevalente, senza prefisso numerico; entità senza "entity::".
+    assert result["communities"] == [{"id": 0, "label": "norms", "entities": ["EVENTO", "RUOLO"],
+                                      "documents": 3, "sections": 3}]
+    assert {p["doc_id"]: p["community"] for p in result["points"]}["d3"] == -1
