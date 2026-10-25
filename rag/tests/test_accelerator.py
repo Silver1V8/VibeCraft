@@ -3,10 +3,14 @@ la memoria Apple e la NPU arrivano come dati."""
 import pytest
 
 from core.accelerator import (
+    BOTH_WEIGHTS_MB,
     GpuMemory,
+    cpu_threads,
     decide,
+    describe_placement,
     detect_npu,
     parse_nvidia_smi,
+    parse_rocm_smi,
     parse_vm_stat,
 )
 
@@ -17,13 +21,15 @@ def gpu(index=0, name="NVIDIA GeForce RTX 3070 Ti", free=8000, total=8192):
 
 def choose(preference="auto", *, cuda=True, gpus=None, gpu_error=None, mps=False,
            apple_mb=None, apple_error=None, npu=None, min_free_mb=3072,
-           npu_ready=False, npu_name=None, npu_reason=None):
+           npu_ready=False, npu_name=None, npu_reason=None, intel_ready=False,
+           intel_name=None, intel_reason=None):
     if gpus is None and gpu_error is None and cuda and preference in {"auto", "cuda"}:
         gpus = [gpu()]
     return decide(preference, cuda=cuda, gpus=gpus, gpu_error=gpu_error, mps=mps,
                   apple_mb=apple_mb, apple_error=apple_error, npu=npu,
                   min_free_mb=min_free_mb, npu_ready=npu_ready, npu_name=npu_name,
-                  npu_reason=npu_reason)
+                  npu_reason=npu_reason, intel_ready=intel_ready, intel_name=intel_name,
+                  intel_reason=intel_reason)
 
 
 def test_auto_picks_the_gpu_with_more_free_memory():
@@ -88,7 +94,14 @@ def test_auto_falls_through_to_apple_metal_when_cuda_is_absent():
 
 def test_auto_does_not_hide_a_cuda_refusal_behind_metal():
     decision = choose(gpus=[gpu(free=100)], mps=True, apple_mb=16000)
-    assert decision.device == "cpu" and "VRAM libera" in decision.reason
+    assert decision.device == "mps" and decision.placement == "split"
+
+
+def test_probe_error_does_not_fall_through_to_metal():
+    decision = choose(gpus=None, gpu_error=RuntimeError("nvidia-smi assente"),
+                      mps=True, apple_mb=16000)
+    assert decision.device == "cpu"
+    assert decision.reason == "VRAM non interrogabile: nvidia-smi assente"
 
 
 def test_low_apple_memory_stays_on_cpu():
@@ -117,7 +130,24 @@ def test_metal_stays_ahead_of_the_npu_on_apple():
 
 def test_cuda_refusal_is_not_hidden_behind_the_npu():
     decision = choose(gpus=[gpu(free=100)], npu="Intel NPU", npu_ready=True, npu_name="Intel NPU")
-    assert decision.device == "cpu" and "VRAM libera" in decision.reason
+    assert decision.device == "npu" and decision.placement == "split"
+
+
+def test_intel_gpu_takes_the_embedding_when_nvidia_has_no_room():
+    decision = choose(gpus=[gpu(free=100)], intel_ready=True, intel_name="Intel Arc Graphics",
+                      npu_ready=True, npu_name="Intel NPU")
+    assert decision.device == "intel" and decision.torch_device == "ov:GPU"
+    assert decision.accelerator == "Intel Arc Graphics"
+    assert decision.placement == "split"
+
+
+def test_eight_gigabytes_split_the_weights_and_a_wide_gpu_keeps_them_together():
+    small = choose(gpus=[gpu(free=5000, total=8192)])
+    assert small.device == "cuda" and small.placement == "split"
+    wide = choose(gpus=[gpu(name="NVIDIA GeForce RTX 4090", free=20000, total=24564)])
+    assert wide.device == "cuda" and wide.placement == "gpu"
+    assert wide.memory_mb == 20000
+    assert BOTH_WEIGHTS_MB > 8192
 
 
 def test_low_apple_memory_is_not_hidden_behind_the_npu():
@@ -154,6 +184,25 @@ def test_parse_nvidia_smi_rejects_silence_and_garbage():
         parse_nvidia_smi("No devices were found\n")
     with pytest.raises(RuntimeError):
         parse_nvidia_smi("")
+
+
+def test_parse_rocm_smi_reads_bytes_and_keeps_the_series_name():
+    text = "\n".join([
+        "GPU[0]          : Card series:          AMD Radeon RX 7900 XTX",
+        "GPU[0]          : VRAM Total Memory (B): 25753026560",
+        "GPU[0]          : VRAM Total Used Memory (B): 1048576",
+    ])
+    gpus = parse_rocm_smi(text)
+    assert gpus[0].name == "AMD Radeon RX 7900 XTX"
+    assert gpus[0].total_mb == 25753026560 // (1024 * 1024)
+    assert gpus[0].free_mb == gpus[0].total_mb - 1
+    assert describe_placement("cuda", gpus, gpus[0].name)[0] == "gpu"
+
+
+def test_cpu_threads_leave_one_core_and_cap_at_eight():
+    assert cpu_threads(1) == 1
+    assert cpu_threads(4) == 3
+    assert cpu_threads(32) == 8
 
 
 def test_parse_vm_stat_counts_reclaimable_pages_and_caps_at_total_ram():

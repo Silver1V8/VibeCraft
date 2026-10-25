@@ -847,6 +847,12 @@ def ensure_shared_resources(*, embedding: bool = True) -> None:
             if state.get("qdrant") is None:
                 state["qdrant"] = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
             if embedding and state.get("embed_model") is None:
+                import torch
+
+                from core.accelerator import cpu_threads
+                # /ask resta su CPU anche quando il reindex va in GPU: la generazione
+                # dello stesso turno usa la scheda. I thread lasciano un core al server.
+                torch.set_num_threads(cpu_threads())
                 state["embed_model"] = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False, devices="cpu")
         except Exception as exc:
             logger.exception("Shared resources unavailable")

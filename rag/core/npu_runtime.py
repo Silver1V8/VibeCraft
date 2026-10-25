@@ -35,6 +35,7 @@ class NpuTarget:
     label: str
     provider: str | None = None
     provider_options: dict | None = None
+    ov_device: str = "NPU"
 
 
 @dataclass(frozen=True)
@@ -125,6 +126,42 @@ def query_npu_runtime() -> NpuProbe:
     return NpuProbe(True, target.label, None, target)
 
 
+def query_openvino_gpu() -> str | None:
+    """Nome della GPU vista da OpenVINO, o None. Non compila un modello.
+    Una GPU NVIDIA qui non conta: quella passa da CUDA."""
+    import openvino as ov
+    core = ov.Core()
+    devices = [str(device) for device in core.available_devices]
+    gpu = next((device for device in devices if device == "GPU" or device.startswith("GPU.")), None)
+    if gpu is None:
+        return None
+    try:
+        name = str(core.get_property(gpu, "FULL_DEVICE_NAME"))
+    except Exception:
+        name = "GPU OpenVINO"
+    if "nvidia" in name.lower():
+        return None
+    return name
+
+
+def load_openvino_bge_m3(model_name: str, ov_device: str = "GPU"):
+    """Come la NPU, ma l'encoder è compilato sulla GPU OpenVINO (Arc, Xe, iGPU)."""
+    import torch
+    from FlagEmbedding import BGEM3FlagModel
+
+    embedder = BGEM3FlagModel(model_name, use_fp16=False, devices="cpu")
+    encoder = embedder.model.model
+    encoder.eval()
+    target = NpuTarget("openvino", "GPU OpenVINO", ov_device=ov_device)
+    bucket, session = _compile(target, encoder, model_name)
+    pad_id = int(getattr(embedder.tokenizer, "pad_token_id", None) or 1)
+    _patch(encoder, session, bucket, pad_id)
+    print(f"OpenVINO {ov_device}: encoder fino a {bucket} token; "
+          f"le sequenze più lunghe e le teste restano sulla CPU di questo processo",
+          file=sys.stderr)
+    return embedder
+
+
 def load_npu_bge_m3(model_name: str):
     """bge-m3 con l'encoder sulla NPU. Solleva se il runtime non compila il modello:
     il processo figlio lo riporta e il job prosegue sulla CPU."""
@@ -169,22 +206,22 @@ def _compile(target: NpuTarget, encoder, model_name: str):
             last = exc
             continue
         return bucket, session
-    raise RuntimeError(f"compilazione NPU fallita: {last}")
+    raise RuntimeError(f"compilazione dell'acceleratore fallita: {last}")
 
 
 def _compile_bucket(target: NpuTarget, wrapper, model_name: str, bucket: int):
     import torch
     example = (torch.ones(1, bucket, dtype=torch.long), torch.ones(1, bucket, dtype=torch.long))
     if target.kind == "openvino":
-        return _openvino_session(wrapper, example, model_name, bucket)
+        return _openvino_session(wrapper, example, model_name, bucket, target)
     if target.kind == "onnx":
         return _onnx_session(wrapper, example, target, model_name, bucket)
     raise RuntimeError(f"runtime NPU sconosciuto: {target.kind}")
 
 
-def _openvino_session(wrapper, example, model_name: str, bucket: int):
+def _openvino_session(wrapper, example, model_name: str, bucket: int, target: NpuTarget):
     import openvino as ov
-    path = _cache_file(model_name, bucket, ".xml")
+    path = _cache_file(model_name, bucket, ".xml", target.ov_device)
     core = ov.Core()
     if path.exists():
         model = core.read_model(path)
@@ -192,7 +229,7 @@ def _openvino_session(wrapper, example, model_name: str, bucket: int):
         model = ov.convert_model(wrapper, example_input=example)
         path.parent.mkdir(parents=True, exist_ok=True)
         ov.save_model(model, str(path))
-    compiled = core.compile_model(model, "NPU")
+    compiled = core.compile_model(model, target.ov_device)
 
     def run(ids, mask):
         result = compiled([ids.numpy(), mask.numpy()])
@@ -266,11 +303,12 @@ class _Hidden:
         self.last_hidden_state = last_hidden_state
 
 
-def _cache_file(model_name: str, bucket: int, suffix: str) -> Path:
+def _cache_file(model_name: str, bucket: int, suffix: str, device: str = "npu") -> Path:
     root = os.environ.get("VIBECRAFT_NPU_CACHE")
     base = Path(root) if root else Path.home() / ".cache" / "vibecraft" / "npu"
     safe = "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in model_name)
-    return base / f"{safe}-b{bucket}{suffix}"
+    kind = "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in device)
+    return base / f"{safe}-{kind}-b{bucket}{suffix}"
 
 
 def _as_numpy(value):

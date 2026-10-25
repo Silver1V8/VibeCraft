@@ -1089,7 +1089,7 @@ una generazione: vanno misurate separatamente.
 | `VIBECRAFT_ROLE` | `standalone` | `standalone`, `reader` oppure `writer` |
 | `VIBECRAFT_INDEX_MODE` | `legacy` | `legacy` oppure `immutable` |
 | `VIBECRAFT_DELTA_MODE` | `cow` | Delta dei progetti a snapshot immutabili: `cow` (copy-on-write) oppure `rebuild` (full rebuild a ogni delta) |
-| `VIBECRAFT_REINDEX_DEVICE` | `auto` | Embedding dei job di reindex, in un processo separato per la sola durata del job: `auto` prova CUDA (RTX discreta, DGX Spark, RTX Spark, GB10), poi Metal su Apple Silicon, poi la NPU se un runtime la compila, altrimenti la CPU; `cuda`, `mps` e `npu` forzano quel backend; `cpu` li esclude |
+| `VIBECRAFT_REINDEX_DEVICE` | `auto` | Embedding dei job di reindex, in un processo separato: `auto` prova CUDA (NVIDIA o AMD ROCm), poi Metal, poi una GPU OpenVINO, poi la NPU, altrimenti la CPU. `cuda`, `mps`, `intel` e `npu` forzano quel backend. Se la GPU ha spazio per embedding e LLM i pesi del reindex stanno tutti lì; se no si dividono. `/ask` resta su CPU |
 | `VIBECRAFT_REINDEX_GPU_MIN_FREE_MB` | 3072 | Memoria libera minima per usare l'acceleratore: VRAM libera sulla GPU NVIDIA più libera; sul totale del pool per i chip unificati NVIDIA (con almeno 1024 MB non mappati); memoria reclamabile su Apple |
 | `VIBECRAFT_DATABASE_DIR` | `rag/database` | Sorgente storica per diagnostica/migrazione; gli indici attivi sono nelle root registrate |
 | `VIBECRAFT_PROJECTS_DIR` | `<installazione>/projects` | Registry e nuove root; percorso assoluto, `/app/projects` in Compose |
@@ -1343,45 +1343,47 @@ senza alcun beneficio.
   primo embedding del job, `VIBECRAFT_REINDEX_DEVICE=auto` prova i backend che PyTorch
   esegue davvero, in quest'ordine.
   1. **CUDA**, se `torch.cuda` è disponibile e la memoria basta. Vale per le RTX
-     discrete e per i chip a memoria unificata NVIDIA (DGX Spark, RTX Spark, GB10,
-     Grace): sono CUDA, non un backend a parte. Si sceglie la GPU con più memoria
-     libera (`nvidia-smi`, CSV). Su una scheda discreta servono almeno
-     `VIBECRAFT_REINDEX_GPU_MIN_FREE_MB` liberi; su un chip unificato la soglia si
-     applica al totale del pool, purché resti almeno 1 GiB non mappato (`memory.free`
-     lì non è VRAM discreta).
-  2. **Metal (`mps`)** su Apple Silicon, se CUDA non c'è. La sonda è `vm_stat`:
-     pagine free, inactive e speculative (purgeable è già dentro inactive),
-     perché su un M2/M3 contare solo le pagine libere farebbe ripiegare sulla CPU
-     a macchina scarica. Il figlio parte con `PYTORCH_ENABLE_MPS_FALLBACK=1`: le
-     operazioni di bge-m3 senza kernel Metal si calcolano sulla CPU invece di far
-     morire il processo.
-  3. **NPU**, se CUDA e Metal non ci sono e un runtime installato accanto al progetto
-     compila l'encoder. Intel AI Boost passa da OpenVINO (`NPU` fra i device);
-     Qualcomm Hexagon da ONNX Runtime `QNNExecutionProvider`; AMD Ryzen AI da
-     `VitisAIExecutionProvider`; il Neural Engine di Apple da
-     `CoreMLExecutionProvider` con `CPUAndNeuralEngine`. Non sono dipendenze di
-     `uv sync`: senza il runtime il job usa la CPU e lo scrive in
-     `embedding_fallback_reason`. Su `auto` il Neural Engine non scavalca Metal:
-     Metal è l'acceleratore giusto per questo modello, e `npu` lo forza solo se
-     serve. L'encoder gira sulla NPU; le teste sparse e ColBERT (un lineare
-     ciascuna) restano sulla CPU del figlio, quindi l'indice resta denso, sparso
-     e multi-vettore. La NPU vuole una forma statica: si compila il bucket più
-     lungo fra 2048, 1024, 512 e 256 token, e una sequenza più lunga resta
-     sull'encoder CPU dello stesso processo. La IR o l'ONNX restano in
-     `~/.cache/vibecraft/npu` (o `VIBECRAFT_NPU_CACHE`).
-  4. **CPU**, con il motivo in `embedding_fallback_reason`.
+     discrete, per i chip NVIDIA a memoria unificata (DGX Spark, RTX Spark, GB10,
+     Grace) e per una GPU AMD sulla build ROCm di PyTorch: ROCm si presenta come
+     CUDA, la sonda è `rocm-smi` e non un backend nuovo. Si sceglie la GPU con più
+     memoria libera. Su una scheda discreta servono almeno
+     `VIBECRAFT_REINDEX_GPU_MIN_FREE_MB` liberi; su un chip unificato NVIDIA la
+     soglia si applica al totale del pool, purché resti almeno 1 GiB non mappato.
+  2. **Metal (`mps`)** su Apple Silicon, se CUDA non c'è o la scheda NVIDIA non
+     ha memoria libera. La sonda è `vm_stat` (pagine free, inactive e speculative).
+     Il figlio parte con `PYTORCH_ENABLE_MPS_FALLBACK=1`.
+  3. **GPU OpenVINO** (Arc, Xe, iGPU Intel; una GPU AMD solo se OpenVINO la
+     elenca). Ci gira l'encoder; le teste sparse e ColBERT restano sulla CPU del
+     figlio. Non è una dipendenza di `uv sync`.
+  4. **NPU**, con lo stesso vincolo: runtime opzionale, encoder sull'acceleratore,
+     teste sulla CPU del figlio.
+  5. **CPU**. All'avvio del modello condiviso torch usa `cpu_threads()`: i core
+     logici meno uno, al massimo 8, così il server tiene un core.
 
-  `cuda`, `mps` e `npu` forzano quel backend (un rifiuto non ricade sull'altro);
-  `cpu` li esclude. Il modello gira in `python -m core.gpu_worker --device cuda:N`,
-  `mps` oppure `npu`, fermato a fine job: uscendo restituisce la memoria, contesto
-  compreso. Il processo del server non crea mai un contesto CUDA, Metal o NPU.
-  L'avvio costa ~10 s per job; la prima compilazione NPU costa di più. Se il
-  processo esaurisce la memoria o muore, il resto del job usa la CPU. Su CPU un
-  `full` rebuild passa da minuti a **decine di ore** (misurato: ~10s/embedding
-  CPU contro ~6-10 it/s GPU). Lo stderr del processo finisce nel log del server,
-  riga per riga, col prefisso `[gpu-worker]`. Il job riporta `embedding_device`
-  (`cuda`, `mps`, `npu`, `cpu` o `unused`), `embedding_accelerator` e
-  `embedding_npu`.
+  Dove finiscono i pesi. bge-m3 fp32 sta intorno ai 2,2 GB; `qwen3.5:9b` in
+  Ollama non ci sta insieme su 8 GB (è la misura di questo progetto, non una
+  targa). Se la GPU scelta ha almeno quella somma più un giunto di 1 GB, il
+  reindex ci mette l'intero modello (`embedding_placement=gpu`) e l'LLM usa la
+  stessa scheda a turno. Altrimenti si divide (`split`): l'LLM tiene la scheda
+  grossa, il reindex va sull'altro acceleratore o ci sale solo finché trova
+  memoria libera, e le teste piccole restano sulla CPU del figlio.
+  `/ask` resta sulla CPU del server in ogni caso: la generazione dello stesso
+  turno usa la GPU subito dopo, e un contesto CUDA residente la manderebbe in
+  split. Una sonda `nvidia-smi`/`rocm-smi` muta non viene mascherata con un
+  altro acceleratore; la VRAM occupata dall'LLM sì, perché è proprio il caso in
+  cui il lavoro va diviso.
+
+  `cuda`, `mps`, `intel` e `npu` forzano quel backend; `cpu` li esclude. Il
+  modello gira in `python -m core.gpu_worker --device cuda:N`, `mps`, `ov:GPU`
+  oppure `npu`, fermato a fine job. Il processo del server non crea un contesto
+  CUDA o Metal e non compila un modello. L'avvio costa ~10 s per job; la prima
+  compilazione OpenVINO costa di più (cache in `~/.cache/vibecraft/npu` o
+  `VIBECRAFT_NPU_CACHE`). Se il processo esaurisce la memoria o muore, il resto
+  del job usa la CPU. Su CPU un `full` rebuild passa da minuti a **decine di
+  ore** (misurato: ~10s/embedding CPU contro ~6-10 it/s GPU). Lo stderr del
+  processo finisce nel log del server col prefisso `[gpu-worker]`. Il job
+  riporta `embedding_device`, `embedding_placement` (`gpu`, `split` o `cpu`) e
+  `embedding_accelerator`.
 - Il percorso CUDA richiede la build CUDA di torch (vedi `[tool.uv.sources]` in
   [pyproject.toml](pyproject.toml) — su Windows PyPI serve solo la wheel CPU-only,
   quella CUDA vive sull'indice ufficiale `download.pytorch.org`). Quell'indice è

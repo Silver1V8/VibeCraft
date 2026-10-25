@@ -69,11 +69,13 @@ INDEX_MODE = _env_choice("VIBECRAFT_INDEX_MODE", "legacy", {"legacy", "immutable
 # Delta dei progetti a snapshot immutabili: "cow" copia dal padre i punti invariati e
 # ricalcola solo i sorgenti cambiati; "rebuild" forza il full rebuild (via d'uscita).
 DELTA_MODE = _env_choice("VIBECRAFT_DELTA_MODE", "cow", {"cow", "rebuild"})
-# Embedding dei job di reindex. "auto" prova CUDA (anche Spark / GB10), poi Metal
-# su Apple Silicon, poi la NPU se un runtime la compila, per la sola durata del job;
-# "cuda", "mps" e "npu" forzano quel backend; "cpu" li esclude. La soglia è in
-# REINDEX_GPU_MIN_FREE_MB.
-REINDEX_DEVICE = _env_choice("VIBECRAFT_REINDEX_DEVICE", "auto", {"auto", "cpu", "cuda", "mps", "npu"})
+# Embedding dei job di reindex. "auto" prova CUDA (NVIDIA e AMD ROCm), poi Metal,
+# poi una GPU OpenVINO, poi la NPU, per la sola durata del job. "cuda", "mps",
+# "intel" e "npu" forzano quel backend; "cpu" li esclude. La soglia è in
+# REINDEX_GPU_MIN_FREE_MB. Dove mettere i pesi rispetto all'LLM lo decide
+# core.accelerator.describe_placement.
+REINDEX_DEVICE = _env_choice(
+    "VIBECRAFT_REINDEX_DEVICE", "auto", {"auto", "cpu", "cuda", "mps", "npu", "intel"})
 REINDEX_GPU_MIN_FREE_MB = int(os.environ.get("VIBECRAFT_REINDEX_GPU_MIN_FREE_MB", "3072"))
 if ROLE in {"reader", "writer"} and INDEX_MODE != "immutable":
     raise RuntimeError(f"VIBECRAFT_ROLE={ROLE} richiede VIBECRAFT_INDEX_MODE=immutable.")

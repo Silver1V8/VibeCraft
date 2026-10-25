@@ -3,11 +3,11 @@
 restituisce la memoria che ha usato, senza riavviare il server. Il processo del
 server non crea un contesto CUDA o Metal, e non compila un modello sulla NPU.
 
-`auto` prova prima CUDA — RTX discreta, DGX Spark, RTX Spark — poi Metal sugli
-Apple Silicon, poi la NPU se un runtime installato compila l'encoder. Le teste
-sparse e ColBERT restano sulla CPU del figlio. Se l'acceleratore manca, la memoria
-è sotto soglia, il processo non parte o un encode esaurisce la memoria, il resto
-del job usa il modello CPU condiviso del server. Espone encode() come BGEM3FlagModel.
+`auto` prova prima CUDA — NVIDIA, oppure AMD se PyTorch è la build ROCm — poi
+Metal, poi una GPU OpenVINO, poi la NPU. Le teste sparse e ColBERT restano sulla
+CPU del figlio quando l'encoder non è un device PyTorch. Se la GPU regge i pesi
+dell'embedding e dell'LLM, il reindex ci mette l'intero modello; se no, il lavoro
+si divide. `/ask` resta sulla CPU del server.
 
 Costi e limiti. Avviare il processo e caricarvi il modello costa ~10 s per ogni
 job che usa davvero l'acceleratore (un job no-op non avvia nulla); la prima
@@ -227,7 +227,7 @@ class JobEmbedder:
     def __init__(self, *, start_worker, cpu_model, gpu_available, free_vram_mb,
                  min_free_mb: int, enabled: bool, preference: str = "auto",
                  mps_available=lambda: False, apple_memory_mb=None, nvidia_gpus=None,
-                 npu_label=lambda: None, npu_runtime=None):
+                 npu_label=lambda: None, npu_runtime=None, amd_gpus=None, intel_gpu=None):
         self._start_worker = start_worker
         self._cpu_model = cpu_model
         self._gpu_available = gpu_available
@@ -240,17 +240,21 @@ class JobEmbedder:
         self._nvidia_gpus = nvidia_gpus
         self._npu_label = npu_label
         self._npu_runtime = npu_runtime
+        self._amd_gpus = amd_gpus
+        self._intel_gpu = intel_gpu
         self._worker = None
         self.device: str | None = None
         self.fallback_reason: str | None = None
         self.accelerator: str | None = None
         self.npu: str | None = None
+        self.placement: str | None = None
+        self.placement_reason: str | None = None
         self.load_seconds = 0.0
 
     def encode(self, texts, **kwargs):
         if self.device is None:
             self._choose_device()
-        if self.device in {"cuda", "mps", "npu"}:
+        if self.device in {"cuda", "mps", "npu", "intel"}:
             try:
                 return self._worker.encode(texts, **kwargs)
             except GpuWorkerUnavailable as exc:
@@ -284,6 +288,8 @@ class JobEmbedder:
         self.device = decision.device
         self.accelerator = decision.accelerator
         self.npu = decision.npu
+        self.placement = decision.placement
+        self.placement_reason = decision.placement_reason
         logger.info("Embedding del job di reindex su %s in un processo separato "
                     "(memoria libera all'avvio: %s MB, pronto in %.1f s).",
                     decision.torch_device, decision.memory_mb, self.load_seconds)
@@ -298,7 +304,15 @@ class JobEmbedder:
                 gpus = self._nvidia_gpus()
             except Exception as exc:
                 gpu_error = exc
-        elif cuda and self._preference in {"auto", "cuda"}:
+        if not gpus and self._amd_gpus is not None and cuda and self._preference in {"auto", "cuda"}:
+            try:
+                gpus = self._amd_gpus()
+                gpu_error = None
+            except Exception as exc:
+                if gpu_error is None:
+                    gpu_error = exc
+        elif gpus is None and self._nvidia_gpus is None and self._amd_gpus is None \
+                and cuda and self._preference in {"auto", "cuda"}:
             try:
                 free = self._free_vram_mb()
                 gpus = [GpuMemory(0, "GPU", free, free)]
@@ -320,27 +334,35 @@ class JobEmbedder:
         except Exception:
             npu = None
         npu_ready, npu_name, npu_reason = False, None, None
-        if self._npu_runtime is not None and self._preference in {"auto", "npu"}:
-            cuda_wins = False
-            if cuda and gpus and self._preference == "auto":
-                from core.accelerator import _pick_gpu
-                cuda_wins = _pick_gpu(gpus, self._min_free_mb) is not None
-            mps_wins = (self._preference == "auto" and mps and apple_error is None
-                        and apple_mb is not None and apple_mb >= self._min_free_mb)
-            if self._preference == "npu" or not (cuda_wins or mps_wins):
-                try:
-                    probe = self._npu_runtime()
-                    npu_ready, npu_name, npu_reason = probe.ready, probe.name, probe.reason
-                except Exception as exc:
-                    npu_reason = str(exc)
+        intel_name, intel_reason = None, None
+        cuda_wins = False
+        if cuda and gpus and self._preference == "auto":
+            from core.accelerator import _pick_gpu
+            cuda_wins = _pick_gpu(gpus, self._min_free_mb) is not None
+        mps_wins = (self._preference == "auto" and mps and apple_error is None
+                    and apple_mb is not None and apple_mb >= self._min_free_mb)
+        secondary = self._preference in {"auto", "npu", "intel"} and not (cuda_wins or mps_wins)
+        if self._npu_runtime is not None and secondary and self._preference in {"auto", "npu"}:
+            try:
+                probe = self._npu_runtime()
+                npu_ready, npu_name, npu_reason = probe.ready, probe.name, probe.reason
+            except Exception as exc:
+                npu_reason = str(exc)
+        if self._intel_gpu is not None and secondary and self._preference in {"auto", "intel"}:
+            try:
+                intel_name = self._intel_gpu()
+            except Exception as exc:
+                intel_reason = str(exc)
         return decide(self._preference, cuda=cuda, gpus=gpus, gpu_error=gpu_error,
                       mps=mps_present, apple_mb=apple_mb, apple_error=apple_error, npu=npu,
                       min_free_mb=self._min_free_mb, npu_ready=npu_ready, npu_name=npu_name,
-                      npu_reason=npu_reason)
+                      npu_reason=npu_reason, intel_ready=bool(intel_name),
+                      intel_name=intel_name, intel_reason=intel_reason)
 
     def _fall_back(self, reason: str) -> None:
         self.release()
         self.device = "cpu"
+        self.placement = "cpu"
         self.fallback_reason = reason
         logger.warning("Embedding del job di reindex su CPU: %s", reason)
 
@@ -356,7 +378,9 @@ class JobEmbedder:
                 "embedding_fallback_reason": self.fallback_reason,
                 "embedding_load_seconds": self.load_seconds,
                 "embedding_accelerator": self.accelerator,
-                "embedding_npu": self.npu}
+                "embedding_npu": self.npu,
+                "embedding_placement": self.placement,
+                "embedding_placement_reason": self.placement_reason}
 
 
 def _cuda_available() -> bool:
@@ -380,7 +404,7 @@ _start_gpu_worker = start_gpu_worker
 def reindex_embedder(cpu_model):
     """Embedder di un singolo job: il processo accelerato viene fermato all'uscita,
     anche su errore, e con lui torna libera la memoria che aveva preso."""
-    from core.accelerator import detect_npu, query_apple_reclaimable_mb, query_nvidia_gpus
+    from core.accelerator import detect_npu, query_amd_gpus, query_apple_reclaimable_mb, query_nvidia_gpus
 
     def start(device):
         return _start_gpu_worker(device=device)
@@ -392,12 +416,17 @@ def reindex_embedder(cpu_model):
         enabled=REINDEX_DEVICE != "cpu",
         preference="auto" if REINDEX_DEVICE == "cpu" else REINDEX_DEVICE,
         mps_available=_mps_available, apple_memory_mb=query_apple_reclaimable_mb,
-        nvidia_gpus=query_nvidia_gpus, npu_label=detect_npu,
-        npu_runtime=_query_npu_runtime)
+        nvidia_gpus=query_nvidia_gpus, amd_gpus=query_amd_gpus, npu_label=detect_npu,
+        npu_runtime=_query_npu_runtime, intel_gpu=_query_intel_gpu)
     try:
         yield embedder
     finally:
         embedder.release()
+
+
+def _query_intel_gpu():
+    from core.npu_runtime import query_openvino_gpu
+    return query_openvino_gpu()
 
 
 def _query_npu_runtime():

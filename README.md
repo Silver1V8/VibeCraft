@@ -137,25 +137,17 @@ soli documenti e file di codice cambiati. Se il padre non è riusabile si ripieg
 full rebuild (motivo in `fallback_reason` del job); un delta noop non scrive nulla.
 
 Gli embedding dei job di reindex usano un acceleratore per la sola durata del job.
-`auto` prova prima CUDA — RTX discreta, DGX Spark, RTX Spark, GB10, Grace: sono
-CUDA, non un backend a parte — poi Metal sugli Apple Silicon (M2, M3 e successivi),
-poi la NPU se un runtime installato compila l'encoder di bge-m3. Senza acceleratore,
-o se la memoria finisce a metà, il job prosegue sulla CPU. Il modello gira in un
-processo separato, avviato per il job e fermato alla sua fine: uscendo restituisce
-tutta la memoria che ha usato, senza riavviare il server. Su una scheda discreta la
-soglia si misura con `nvidia-smi` (la GPU più libera); su un chip NVIDIA a memoria
-unificata vale il totale del pool, purché resti almeno 1 GiB non mappato. Su Apple
-si conta la memoria reclamabile (`vm_stat`), non le sole pagine libere. La NPU
-(Intel AI Boost via OpenVINO, Hexagon via QNN, Ryzen AI via Vitis AI, Neural Engine
-via Core ML) esegue l'encoder; le teste sparse e ColBERT restano sulla CPU del
-figlio, così l'indice non perde pezzi. Quei runtime non sono nel `uv sync`: se
-mancano, il job resta sulla CPU e il motivo sta nel report, invece di fingere
-un'esecuzione sulla NPU. Le sequenze oltre il bucket compilato (al massimo 2048 token)
-restano sulla CPU del figlio. L'avvio costa ~10 s per ogni job che usa davvero
-l'acceleratore; la prima compilazione NPU costa di più. Il job riporta
-`embedding_device` (`cuda`, `mps`, `npu` o `cpu`) e l'acceleratore scelto. `/ask`
-resta su CPU, così Ollama tiene la GPU. Mentre un job la occupa, le risposte di
-`/ask` possono rallentare.
+`auto` prova CUDA (NVIDIA, compresi Spark e GB10, oppure AMD se PyTorch è ROCm),
+poi Metal, poi una GPU vista da OpenVINO, poi la NPU, poi la CPU. Il modello gira
+in un processo separato, fermato a fine job. Su 8 GB — la misura di questa
+installazione — bge-m3 e `qwen3.5:9b` non stanno insieme: il reindex sale sulla
+GPU solo se trova memoria libera, altrimenti va su un secondo componente o sulla
+CPU, e l'LLM tiene la scheda. Su una GPU che ha spazio per entrambi i pesi, il
+reindex ci mette l'intero modello. `/ask` resta sempre sulla CPU del server,
+perché la generazione dello stesso turno usa la GPU subito dopo. Una sonda muta
+non viene mascherata; la VRAM occupata dall'LLM sì. L'avvio costa ~10 s per ogni
+job che usa davvero l'acceleratore. Il job riporta `embedding_device` e
+`embedding_placement` (`gpu`, `split` o `cpu`).
 
 ### Migrare un'installazione esistente
 

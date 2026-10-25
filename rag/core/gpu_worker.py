@@ -30,6 +30,9 @@ def load_bge_m3(device: str = "cuda:0"):
     if device == "npu":
         from core.npu_runtime import load_npu_bge_m3
         return load_npu_bge_m3(EMBEDDING_MODEL)
+    if device.startswith("ov:"):
+        from core.npu_runtime import load_openvino_bge_m3
+        return load_openvino_bge_m3(EMBEDDING_MODEL, device.split(":", 1)[1])
     from FlagEmbedding import BGEM3FlagModel
     return BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False, devices=device)
 
@@ -116,7 +119,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--loader", help="modulo:funzione che restituisce il modello")
     parser.add_argument("--device", default="cuda:0",
-                        help="device del modello reale: cuda:N, mps oppure npu")
+                        help="device del modello reale: cuda:N, mps, npu oppure ov:GPU")
     args = parser.parse_args(argv)
     inp, out = _protocol_streams()
     if args.loader:

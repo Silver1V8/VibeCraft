@@ -7,21 +7,39 @@ L'ordine in `auto` è quello che questo processo sa eseguire davvero:
    Spark, RTX Spark, GB10, Grace): sono CUDA, non un backend a parte.
 2. Metal (`mps`) su Apple Silicon. Il processo figlio dura un job e, uscendo,
    restituisce la memoria unificata.
-3. NPU, se un runtime installato accanto al progetto compila l'encoder di bge-m3
-   (OpenVINO su Intel, QNN su Hexagon, Vitis AI su Ryzen AI, Core ML sul Neural
-   Engine). Le teste sparse e ColBERT restano sulla CPU del figlio. Senza quel
-   runtime la NPU è solo nominata: non si finge di eseguirci il modello.
-4. CPU.
+3. GPU Intel o AMD vista da OpenVINO, se CUDA e Metal non ci sono o la scheda
+   NVIDIA non ha memoria libera: ci gira l'encoder, le teste restano sulla CPU
+   del figlio. Una GPU AMD con ROCm è CUDA per PyTorch (HIP) e sta al punto 1.
+4. NPU, se un runtime installato compila l'encoder (OpenVINO su Intel, QNN su
+   Hexagon, Vitis AI su Ryzen AI, Core ML sul Neural Engine).
+5. CPU, con un numero di thread che lascia un core al server.
+
+Se la GPU scelta ha spazio per i pesi dell'embedding e per quelli dell'LLM
+(soglia ricavata dal vincolo misurato: 8 GB non tengono bge-m3 e qwen3.5:9b
+insieme), il reindex mette l'intero modello lì. Altrimenti si divide: l'LLM
+tiene la scheda grossa, l'embedding va sull'altro acceleratore o sulla CPU.
+`/ask` resta sempre sulla CPU del server: la generazione segue subito e un
+contesto CUDA residente la manderebbe in split.
 """
 from __future__ import annotations
 
 import csv
+import os
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
 
 UNIFIED_NVIDIA_MARKERS = ("gb10", "grace", "spark", "n1x")
 UNIFIED_FREE_FLOOR_MB = 1024
+# bge-m3 fp32 sta intorno ai 2,2 GB. qwen3.5:9b in Ollama non ci sta insieme su
+# 8 GB (misura del progetto, non una stima di targa): sotto questa soglia i due
+# pesi vanno su componenti diversi. Sopra, il reindex può tenere l'intero modello
+# sulla stessa GPU che userà l'LLM, a turno e non insieme a /ask.
+EMBED_WEIGHTS_MB = 2300
+LLM_WEIGHTS_MB = 7000
+PLACEMENT_HEADROOM_MB = 1024
+BOTH_WEIGHTS_MB = EMBED_WEIGHTS_MB + LLM_WEIGHTS_MB + PLACEMENT_HEADROOM_MB
 
 
 @dataclass(frozen=True)
@@ -45,17 +63,20 @@ class EmbeddingDecision:
     memory_mb: int | None
     accelerator: str | None
     npu: str | None
+    placement: str = "cpu"
+    placement_reason: str | None = None
 
 
 def decide(preference: str, *, cuda: bool, gpus: list[GpuMemory] | None,
            gpu_error: BaseException | None, mps: bool, apple_mb: int | None,
            apple_error: BaseException | None, npu: str | None,
            min_free_mb: int, npu_ready: bool = False, npu_name: str | None = None,
-           npu_reason: str | None = None) -> EmbeddingDecision:
-    """`preference` è auto, cuda, mps, npu o cpu. `gpus` è None se la sonda non è
-    stata tentata. Un errore di sonda non è un successo con memoria zero."""
+           npu_reason: str | None = None, intel_ready: bool = False,
+           intel_name: str | None = None, intel_reason: str | None = None) -> EmbeddingDecision:
+    """`preference` è auto, cuda, mps, npu, intel o cpu. `gpus` è None se la sonda
+    NVIDIA/AMD non è stata tentata. Un errore di sonda non è memoria zero."""
     if preference == "cpu":
-        return EmbeddingDecision("cpu", None, "VIBECRAFT_REINDEX_DEVICE=cpu", None, None, npu)
+        return _pack("cpu", None, "VIBECRAFT_REINDEX_DEVICE=cpu", None, None, npu, gpus)
 
     cuda_reason = None
     if preference in {"auto", "cuda"}:
@@ -68,17 +89,17 @@ def decide(preference: str, *, cuda: bool, gpus: list[GpuMemory] | None,
         else:
             chosen = _pick_gpu(gpus, min_free_mb)
             if chosen is not None:
-                return EmbeddingDecision(
-                    "cuda", f"cuda:{chosen.index}", None, chosen.free_mb, chosen.name, npu)
+                return _pack("cuda", f"cuda:{chosen.index}", None, chosen.free_mb,
+                             chosen.name, npu, gpus)
             cuda_reason = _cuda_refusal(gpus, min_free_mb)
 
-    # CUDA presente ma rifiutato (VRAM sotto soglia, sonda muta) non si nasconde
-    # dietro Metal o la NPU: in auto l'utente vedrebbe un successo su un altro
-    # acceleratore mentre quello che ha la memoria è rotto.
-    cuda_refused = bool(cuda and cuda_reason not in {None, "CUDA non disponibile"})
+    # Sonda muta: non sappiamo se la scheda è libera, quindi non si cambia
+    # acceleratore in silenzio. Memoria bassa è un'altra cosa: l'LLM può tenere
+    # la scheda e l'embedding andare su un secondo componente.
+    probe_failed = bool(cuda_reason and cuda_reason.startswith("VRAM non interrogabile"))
 
     mps_reason = None
-    if preference in {"auto", "mps"} and not cuda_refused:
+    if preference in {"auto", "mps"} and (preference == "mps" or not probe_failed):
         if not mps:
             mps_reason = "Metal non disponibile"
         elif apple_error is not None:
@@ -89,30 +110,74 @@ def decide(preference: str, *, cuda: bool, gpus: list[GpuMemory] | None,
             mps_reason = (f"memoria unificata Apple {apple_mb} MB sotto la soglia "
                           f"di {min_free_mb} MB")
         else:
-            return EmbeddingDecision("mps", "mps", None, apple_mb, "Apple Metal", npu)
+            return _pack("mps", "mps", None, apple_mb, "Apple Metal", npu, gpus)
 
     mps_refused = bool(mps and mps_reason not in {None, "Metal non disponibile"})
-    if preference == "npu" or (preference == "auto" and not cuda_refused and not mps_refused):
+    # Metal rifiutato per memoria usa lo stesso pool del Neural Engine: non si
+    # sposta il lavoro lì. Una NVIDIA senza VRAM libera, invece, può lasciare
+    # l'embedding a una GPU Intel/AMD o a una NPU diversa.
+    if not probe_failed and not mps_refused and preference in {"auto", "intel", "npu"}:
+        if preference in {"auto", "intel"} and intel_ready:
+            return _pack("intel", "ov:GPU", None, None, intel_name or "GPU OpenVINO", npu, gpus)
+        if preference == "intel":
+            return _pack("cpu", None, intel_reason or "GPU OpenVINO assente", None, None, npu, gpus)
         if npu_ready:
             name = npu_name or "NPU"
-            return EmbeddingDecision("npu", "npu", None, None, name, npu or name)
+            return _pack("npu", "npu", None, None, name, npu or name, gpus)
         if preference == "npu":
-            return EmbeddingDecision(
-                "cpu", None, npu_reason or "runtime NPU assente", None, None, npu)
+            return _pack("cpu", None, npu_reason or "runtime NPU assente", None, None, npu, gpus)
 
     if preference == "cuda":
         reason = cuda_reason
     elif preference == "mps":
         reason = mps_reason
-    elif cuda_refused:
+    elif preference == "intel":
+        reason = intel_reason or "GPU OpenVINO assente"
+    elif probe_failed or (cuda and cuda_reason and cuda_reason != "CUDA non disponibile"):
         reason = cuda_reason
     elif mps_refused:
         reason = mps_reason
     elif npu and not _apple_only(npu) and npu_reason:
         reason = f"{npu}: {npu_reason}"
     else:
-        reason = cuda_reason or mps_reason or npu_reason
-    return EmbeddingDecision("cpu", None, reason, None, None, npu)
+        reason = cuda_reason or mps_reason or npu_reason or intel_reason
+    return _pack("cpu", None, reason, None, None, npu, gpus)
+
+
+def _pack(device, torch_device, reason, memory, accelerator, npu, gpus) -> EmbeddingDecision:
+    mode, why = describe_placement(device, gpus, accelerator)
+    return EmbeddingDecision(device, torch_device, reason, memory, accelerator, npu, mode, why)
+
+
+def describe_placement(device: str, gpus: list[GpuMemory] | None,
+                       accelerator: str | None) -> tuple[str, str]:
+    """`gpu`: l'intero embedding sta sulla GPU che può ospitare anche l'LLM.
+    `split`: i pesi sono divisi fra componenti. `cpu`: niente acceleratore."""
+    best = max(gpus, key=lambda gpu: (gpu.total_mb, gpu.free_mb)) if gpus else None
+    if device in {"cuda", "mps"} and best is not None and best.total_mb >= BOTH_WEIGHTS_MB:
+        return ("gpu",
+                "pesi interi dell'embedding sulla GPU, che ha anche spazio per l'LLM; "
+                "/ask resta su CPU perché la generazione segue subito")
+    if device in {"cuda", "mps"}:
+        return ("split",
+                "reindex sulla GPU solo per il job; l'LLM tiene la scheda; /ask resta su CPU")
+    if device == "intel":
+        return ("split",
+                f"encoder su {accelerator or 'GPU OpenVINO'}, teste sparse e ColBERT "
+                "sulla CPU del figlio; l'LLM non usa questo componente")
+    if device == "npu":
+        return ("split",
+                f"encoder su {accelerator or 'NPU'}, teste sulla CPU del figlio; "
+                "/ask resta sul processore")
+    return ("cpu", "embedding su CPU")
+
+
+def cpu_threads(logical: int | None = None) -> int:
+    """Thread di torch per l'embedding su CPU. Un core resta al server."""
+    count = logical if logical is not None else (os.cpu_count() or 1)
+    if count <= 1:
+        return 1
+    return min(count - 1, 8)
 
 
 def _pick_gpu(gpus: list[GpuMemory], min_free_mb: int) -> GpuMemory | None:
@@ -166,6 +231,51 @@ def query_nvidia_gpus() -> list[GpuMemory]:
     if out.returncode != 0:
         raise RuntimeError(f"nvidia-smi uscito con codice {out.returncode}")
     return parse_nvidia_smi(out.stdout)
+
+
+def parse_rocm_smi(text: str) -> list[GpuMemory]:
+    """Output di `rocm-smi --showproductname --showmeminfo vram`. La VRAM è in byte.
+    PyTorch su ROCm si presenta come CUDA: il device resta `cuda:N`."""
+    totals: dict[int, int] = {}
+    used: dict[int, int] = {}
+    names: dict[int, str] = {}
+    for line in text.splitlines():
+        found = re.search(r"GPU\[(\d+)\]", line)
+        if not found:
+            continue
+        index = int(found.group(1))
+        lowered = line.lower()
+        if "card series" in lowered:
+            names[index] = line[lowered.index("card series:") + len("card series:"):].strip()
+        elif "vram total memory" in lowered and "used" not in lowered:
+            totals[index] = _vram_mb(line)
+        elif "vram total used memory" in lowered:
+            used[index] = _vram_mb(line)
+    if not totals:
+        raise RuntimeError("rocm-smi non ha prodotto output")
+    gpus = []
+    for index, total in sorted(totals.items()):
+        free = max(0, total - used.get(index, 0))
+        gpus.append(GpuMemory(index, names.get(index, "AMD GPU"), free, total))
+    return gpus
+
+
+def _vram_mb(line: str) -> int:
+    raw = line.rsplit(":", 1)[-1].strip().replace(",", "")
+    return int(raw) // (1024 * 1024)
+
+
+def query_amd_gpus() -> list[GpuMemory]:
+    """Non crea un contesto HIP. Qualsiasi errore della sonda è sollevato."""
+    try:
+        out = subprocess.run(
+            ["rocm-smi", "--showproductname", "--showmeminfo", "vram"],
+            capture_output=True, text=True, timeout=5, check=False)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RuntimeError(str(exc)) from exc
+    if out.returncode != 0:
+        raise RuntimeError(f"rocm-smi uscito con codice {out.returncode}")
+    return parse_rocm_smi(out.stdout)
 
 
 def parse_vm_stat(text: str, *, total_bytes: int) -> int:
