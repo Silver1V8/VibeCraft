@@ -54,8 +54,8 @@ def make(*, worker=None, available=True, free=8000, enabled=True, start_error=No
             raise free
         return free
 
-    def start_worker():
-        starts.append(True)
+    def start_worker(device="cuda:0"):
+        starts.append(device)
         if start_error is not None:
             raise start_error
         return worker
@@ -77,7 +77,7 @@ def test_uses_gpu_worker_then_stops_it():
     embedder, worker, cpu, starts = make()
     assert embedder.encode(["a"])["dense_vecs"] == ["gpu"]
     assert embedder.encode(["b"])["dense_vecs"] == ["gpu"]
-    assert starts == [True] and cpu.calls == []
+    assert starts == ["cuda:0"] and cpu.calls == []
     embedder.release()
     assert worker.stops == 1
     report = embedder.report()
@@ -169,17 +169,19 @@ def _nvidia_smi(monkeypatch, *, stdout="", returncode=0, error=None):
     return calls
 
 
-def test_free_vram_reads_first_gpu_line_from_nvidia_smi(monkeypatch):
-    calls = _nvidia_smi(monkeypatch, stdout="4542\n")
+def test_free_vram_reads_the_freest_gpu_from_nvidia_smi(monkeypatch):
+    calls = _nvidia_smi(monkeypatch, stdout="0, NVIDIA GeForce RTX 3070 Ti, 4542, 8192\n")
     assert job_embedder._free_vram_mb() == 4542
     cmd, kwargs = calls[0]
-    assert cmd[0] == "nvidia-smi" and "--query-gpu=memory.free" in cmd
+    assert cmd[0] == "nvidia-smi" and "--query-gpu=index,name,memory.free,memory.total" in cmd
     assert kwargs["timeout"] == 5
 
 
-def test_free_vram_uses_device_zero_on_multi_gpu(monkeypatch):
-    _nvidia_smi(monkeypatch, stdout="4542\n812\n")
-    assert job_embedder._free_vram_mb() == 4542
+def test_free_vram_picks_the_gpu_with_more_free_memory(monkeypatch):
+    _nvidia_smi(monkeypatch, stdout=(
+        "0, NVIDIA GeForce RTX 3070 Ti, 812, 8192\n"
+        "1, NVIDIA GeForce RTX 4090, 18000, 24564\n"))
+    assert job_embedder._free_vram_mb() == 18000
 
 
 @pytest.mark.parametrize("kwargs", [
@@ -198,9 +200,14 @@ def test_free_vram_raises_when_nvidia_smi_is_unusable(monkeypatch, kwargs):
 def test_context_stops_the_worker_even_when_job_fails(monkeypatch):
     worker = FakeWorker()
     monkeypatch.setattr(job_embedder, "REINDEX_DEVICE", "auto")
-    monkeypatch.setattr(job_embedder, "_start_gpu_worker", lambda: worker)
+    monkeypatch.setattr(job_embedder, "_start_gpu_worker", lambda device="cuda:0": worker)
     monkeypatch.setattr(job_embedder, "_cuda_available", lambda: True)
     monkeypatch.setattr(job_embedder, "_free_vram_mb", lambda: 8000)
+    monkeypatch.setattr(job_embedder, "_mps_available", lambda: False)
+    from core import accelerator
+    monkeypatch.setattr(accelerator, "query_nvidia_gpus", lambda: [
+        accelerator.GpuMemory(0, "NVIDIA GeForce RTX 3070 Ti", 8000, 8192)])
+    monkeypatch.setattr(accelerator, "detect_npu", lambda **kwargs: None)
     with pytest.raises(RuntimeError, match="job fallito"):
         with job_embedder.reindex_embedder(lambda: FakeModel("cpu")) as embedder:
             embedder.encode(["x"])
@@ -253,6 +260,11 @@ def real_worker(monkeypatch, tmp_path):
     monkeypatch.setattr(job_embedder, "REINDEX_DEVICE", "auto")
     monkeypatch.setattr(job_embedder, "_cuda_available", lambda: True)
     monkeypatch.setattr(job_embedder, "_free_vram_mb", lambda: 8000)
+    monkeypatch.setattr(job_embedder, "_mps_available", lambda: False)
+    from core import accelerator
+    monkeypatch.setattr(accelerator, "query_nvidia_gpus", lambda: [
+        accelerator.GpuMemory(0, "NVIDIA GeForce RTX 3070 Ti", 8000, 8192)])
+    monkeypatch.setattr(accelerator, "detect_npu", lambda **kwargs: None)
     yield workers
     for process in workers.spawned:  # rete di sicurezza: nessun figlio sopravvive al test
         if process.poll() is None:

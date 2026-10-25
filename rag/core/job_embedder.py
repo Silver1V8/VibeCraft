@@ -1,15 +1,18 @@
-"""Embedder dei job di reindex: bge-m3 su GPU in un processo separato (core.gpu_worker)
-per la sola durata del job. A fine job il processo esce e restituisce alla GPU tutta la
-VRAM che ha usato, contesto CUDA compreso, senza riavviare il server (la GPU è condivisa
-con Ollama): il processo del server non crea mai un contesto CUDA. Se CUDA manca, la
-VRAM libera è sotto soglia, il processo non parte o un encode esaurisce la memoria, il
-resto del job usa il modello CPU condiviso del server. Espone encode() come
-BGEM3FlagModel: indicizzazione, code-link ed eval-gate lo usano senza saperlo.
+"""Embedder dei job di reindex: bge-m3 su CUDA o su Metal, in un processo separato
+(core.gpu_worker) per la sola durata del job. A fine job il processo esce e
+restituisce la memoria che ha usato, senza riavviare il server. Il processo del
+server non crea mai un contesto CUDA né Metal.
 
-Costi e limiti. Avviare il processo e caricarvi il modello costa ~10 s per ogni job che
-usa davvero la GPU (un job no-op non avvia nulla). La VRAM libera si legge con
-nvidia-smi (torch.cuda.mem_get_info creerebbe un contesto CUDA nel server e, a VRAM
-quasi piena, fallirebbe lui stesso); senza nvidia-smi il job usa la CPU."""
+`auto` prova prima CUDA — RTX discreta, DGX Spark, RTX Spark — e poi Metal sugli
+Apple Silicon. Una NPU, se c'è, è solo nominata nel report: bge-m3 non ha un
+runtime NPU qui. Se l'acceleratore manca, la memoria è sotto soglia, il processo
+non parte o un encode esaurisce la memoria, il resto del job usa il modello CPU
+condiviso del server. Espone encode() come BGEM3FlagModel.
+
+Costi e limiti. Avviare il processo e caricarvi il modello costa ~10 s per ogni
+job che usa davvero l'acceleratore (un job no-op non avvia nulla). La memoria
+NVIDIA si legge con nvidia-smi; quella Apple con sysctl e vm_stat. Nessuna delle
+due sonde crea un contesto nel server."""
 from __future__ import annotations
 
 import atexit
@@ -178,7 +181,7 @@ def _kill_live_workers() -> None:
 atexit.register(_kill_live_workers)
 
 
-def start_gpu_worker(*, loader: str | None = None,
+def start_gpu_worker(*, loader: str | None = None, device: str = "cuda:0",
                      ready_timeout: float = GPU_WORKER_READY_TIMEOUT_S) -> GpuWorker:
     """Avvia `python -m core.gpu_worker` con l'interprete del server, nella cartella che
     contiene il package core (lo stesso codice del server), e attende che il modello sia
@@ -187,9 +190,13 @@ def start_gpu_worker(*, loader: str | None = None,
     terminale Windows è un handle di console, inutilizzabile da un figlio senza console
     (CREATE_NO_WINDOW): ogni scrittura, compresa la barra tqdm di FlagEmbedding,
     fallirebbe con Errno 9; lo stesso con pythonw o un servizio."""
-    command = [sys.executable, "-m", "core.gpu_worker"]
+    command = [sys.executable, "-m", "core.gpu_worker", "--device", device]
     env = dict(os.environ)
     env.setdefault("PYTHONIOENCODING", "utf-8")  # lo stderr inoltrato si decodifica in UTF-8
+    if device == "mps":
+        # Alcune op di bge-m3 non hanno un kernel Metal: senza questo il figlio
+        # muore invece di calcolare quel pezzo sulla CPU.
+        env.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
     if loader:
         command += ["--loader", loader]
     process = subprocess.Popen(
@@ -217,22 +224,31 @@ class JobEmbedder:
     processo; ogni altro errore dell'embedding si propaga e fa fallire il job."""
 
     def __init__(self, *, start_worker, cpu_model, gpu_available, free_vram_mb,
-                 min_free_mb: int, enabled: bool):
+                 min_free_mb: int, enabled: bool, preference: str = "auto",
+                 mps_available=lambda: False, apple_memory_mb=None, nvidia_gpus=None,
+                 npu_label=lambda: None):
         self._start_worker = start_worker
         self._cpu_model = cpu_model
         self._gpu_available = gpu_available
         self._free_vram_mb = free_vram_mb
         self._min_free_mb = min_free_mb
         self._enabled = enabled
+        self._preference = preference
+        self._mps_available = mps_available
+        self._apple_memory_mb = apple_memory_mb
+        self._nvidia_gpus = nvidia_gpus
+        self._npu_label = npu_label
         self._worker = None
         self.device: str | None = None
         self.fallback_reason: str | None = None
+        self.accelerator: str | None = None
+        self.npu: str | None = None
         self.load_seconds = 0.0
 
     def encode(self, texts, **kwargs):
         if self.device is None:
             self._choose_device()
-        if self.device == "cuda":
+        if self.device in {"cuda", "mps"}:
             try:
                 return self._worker.encode(texts, **kwargs)
             except GpuWorkerUnavailable as exc:
@@ -244,24 +260,15 @@ class JobEmbedder:
         if not self._enabled:
             self._fall_back("VIBECRAFT_REINDEX_DEVICE=cpu")
             return
-        if not self._gpu_available():
-            self._fall_back("CUDA non disponibile")
-            return
-        free = None
-        try:
-            free = self._free_vram_mb()
-        except Exception as exc:
-            unavailable = f"VRAM non interrogabile: {exc}"
-        if free is None:
-            self._fall_back(unavailable)
-            return
-        if free < self._min_free_mb:
-            self._fall_back(f"VRAM libera {free} MB sotto la soglia di {self._min_free_mb} MB")
+        decision = self._decision()
+        if decision.device == "cpu":
+            self.npu = decision.npu
+            self._fall_back(decision.reason or "nessun acceleratore")
             return
         started = time.perf_counter()
         failure = None
         try:
-            self._worker = self._start_worker()
+            self._worker = self._start_worker(decision.torch_device)
         except GpuWorkerUnavailable as exc:
             failure = str(exc)
         except Exception as exc:
@@ -269,11 +276,50 @@ class JobEmbedder:
         finally:
             self.load_seconds = time.perf_counter() - started
         if failure is not None:
+            self.npu = decision.npu
             self._fall_back(failure)
             return
-        self.device = "cuda"
-        logger.info("Embedding del job di reindex su GPU in un processo separato "
-                    "(VRAM libera all'avvio: %s MB, pronto in %.1f s).", free, self.load_seconds)
+        self.device = decision.device
+        self.accelerator = decision.accelerator
+        self.npu = decision.npu
+        logger.info("Embedding del job di reindex su %s in un processo separato "
+                    "(memoria libera all'avvio: %s MB, pronto in %.1f s).",
+                    decision.torch_device, decision.memory_mb, self.load_seconds)
+
+    def _decision(self):
+        from core.accelerator import GpuMemory, decide
+        cuda = self._gpu_available()
+        gpus = None
+        gpu_error = None
+        if self._nvidia_gpus is not None and cuda and self._preference in {"auto", "cuda"}:
+            try:
+                gpus = self._nvidia_gpus()
+            except Exception as exc:
+                gpu_error = exc
+        elif cuda and self._preference in {"auto", "cuda"}:
+            try:
+                free = self._free_vram_mb()
+                gpus = [GpuMemory(0, "GPU", free, free)]
+            except Exception as exc:
+                gpu_error = exc
+        apple_mb = None
+        apple_error = None
+        mps_present = self._mps_available()
+        mps = mps_present and self._preference in {"auto", "mps"}
+        if mps and self._apple_memory_mb is not None:
+            try:
+                apple_mb = self._apple_memory_mb()
+            except Exception as exc:
+                apple_error = exc
+        elif mps:
+            apple_error = RuntimeError("sonda della memoria Apple assente")
+        try:
+            npu = self._npu_label()
+        except Exception:
+            npu = None
+        return decide(self._preference, cuda=cuda, gpus=gpus, gpu_error=gpu_error,
+                      mps=mps_present, apple_mb=apple_mb, apple_error=apple_error, npu=npu,
+                      min_free_mb=self._min_free_mb)
 
     def _fall_back(self, reason: str) -> None:
         self.release()
@@ -291,7 +337,9 @@ class JobEmbedder:
     def report(self) -> dict:
         return {"embedding_device": self.device or "unused",
                 "embedding_fallback_reason": self.fallback_reason,
-                "embedding_load_seconds": self.load_seconds}
+                "embedding_load_seconds": self.load_seconds,
+                "embedding_accelerator": self.accelerator,
+                "embedding_npu": self.npu}
 
 
 def _cuda_available() -> bool:
@@ -301,19 +349,11 @@ def _cuda_available() -> bool:
 
 
 def _free_vram_mb() -> int:
-    """VRAM libera (MiB) della GPU 0 via nvidia-smi, che non crea un contesto CUDA nel
-    server e vede anche la memoria degli altri processi (Ollama). Qualsiasi errore
-    (nvidia-smi assente, uscita non zero, timeout, output illeggibile) è sollevato:
-    il chiamante ripiega sulla CPU."""
-    out = subprocess.run(
-        ["nvidia-smi", "--query-gpu=memory.free", "--format=csv,noheader,nounits"],
-        capture_output=True, text=True, timeout=5, check=False)
-    if out.returncode != 0:
-        raise RuntimeError(f"nvidia-smi uscito con codice {out.returncode}")
-    lines = out.stdout.strip().splitlines()
-    if not lines:
-        raise RuntimeError("nvidia-smi non ha prodotto output")
-    return int(lines[0].strip())
+    """MiB liberi della GPU più libera. Tenuta per i chiamanti che vogliono un solo
+    numero; la scelta vera usa query_nvidia_gpus."""
+    from core.accelerator import query_nvidia_gpus
+    gpus = query_nvidia_gpus()
+    return max(gpus, key=lambda gpu: gpu.free_mb).free_mb
 
 
 _start_gpu_worker = start_gpu_worker
@@ -321,13 +361,29 @@ _start_gpu_worker = start_gpu_worker
 
 @contextmanager
 def reindex_embedder(cpu_model):
-    """Embedder di un singolo job: il processo GPU viene fermato all'uscita, anche su
-    errore, e con lui torna libera la sua VRAM."""
-    embedder = JobEmbedder(start_worker=_start_gpu_worker, cpu_model=cpu_model,
-                           gpu_available=_cuda_available, free_vram_mb=_free_vram_mb,
-                           min_free_mb=REINDEX_GPU_MIN_FREE_MB,
-                           enabled=REINDEX_DEVICE == "auto")
+    """Embedder di un singolo job: il processo accelerato viene fermato all'uscita,
+    anche su errore, e con lui torna libera la memoria che aveva preso."""
+    from core.accelerator import detect_npu, query_apple_reclaimable_mb, query_nvidia_gpus
+
+    def start(device):
+        return _start_gpu_worker(device=device)
+
+    embedder = JobEmbedder(
+        start_worker=start, cpu_model=cpu_model,
+        gpu_available=_cuda_available, free_vram_mb=_free_vram_mb,
+        min_free_mb=REINDEX_GPU_MIN_FREE_MB,
+        enabled=REINDEX_DEVICE != "cpu",
+        preference="auto" if REINDEX_DEVICE == "cpu" else REINDEX_DEVICE,
+        mps_available=_mps_available, apple_memory_mb=query_apple_reclaimable_mb,
+        nvidia_gpus=query_nvidia_gpus, npu_label=detect_npu)
     try:
         yield embedder
     finally:
         embedder.release()
+
+
+def _mps_available() -> bool:
+    """Non alloca tensori Metal nel processo del server."""
+    import torch
+    backend = getattr(torch.backends, "mps", None)
+    return backend is not None and backend.is_available()

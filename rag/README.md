@@ -1089,8 +1089,8 @@ una generazione: vanno misurate separatamente.
 | `VIBECRAFT_ROLE` | `standalone` | `standalone`, `reader` oppure `writer` |
 | `VIBECRAFT_INDEX_MODE` | `legacy` | `legacy` oppure `immutable` |
 | `VIBECRAFT_DELTA_MODE` | `cow` | Delta dei progetti a snapshot immutabili: `cow` (copy-on-write) oppure `rebuild` (full rebuild a ogni delta) |
-| `VIBECRAFT_REINDEX_DEVICE` | `auto` | Embedding dei job di reindex: `auto` usa la GPU in un processo separato per la sola durata del job (a fine job tutta la sua VRAM torna libera) se c'è VRAM sufficiente (serve `nvidia-smi`), altrimenti la CPU; `cpu` la esclude |
-| `VIBECRAFT_REINDEX_GPU_MIN_FREE_MB` | 3072 | VRAM libera minima all'avvio del job per usare la GPU |
+| `VIBECRAFT_REINDEX_DEVICE` | `auto` | Embedding dei job di reindex, in un processo separato per la sola durata del job: `auto` prova CUDA (RTX discreta, DGX Spark, RTX Spark, GB10) e poi Metal su Apple Silicon, altrimenti la CPU; `cuda` e `mps` forzano quel backend; `cpu` li esclude. Una NPU, se presente, è solo nominata nel report |
+| `VIBECRAFT_REINDEX_GPU_MIN_FREE_MB` | 3072 | Memoria libera minima per usare l'acceleratore: VRAM libera sulla GPU NVIDIA più libera; sul totale del pool per i chip unificati NVIDIA (con almeno 1024 MB non mappati); memoria reclamabile su Apple |
 | `VIBECRAFT_DATABASE_DIR` | `rag/database` | Sorgente storica per diagnostica/migrazione; gli indici attivi sono nelle root registrate |
 | `VIBECRAFT_PROJECTS_DIR` | `<installazione>/projects` | Registry e nuove root; percorso assoluto, `/app/projects` in Compose |
 | `VIBECRAFT_PROJECT_ID` | legacy | Progetto fisso per MCP e script di manutenzione; la CLI index usa `--project` |
@@ -1332,29 +1332,52 @@ Mantenere `pickle.load` su un
 formato che nessuno produce più era superficie di deserializzazione arbitraria
 senza alcun beneficio.
 
-## Embedding (bge-m3): CPU per le query, GPU per il reindex
+## Embedding (bge-m3): CPU per le query, acceleratore per il reindex
 
 - **Server e `/ask`** (`api/deps.py`, `state["embed_model"]`, usato anche da
   `/api/graph/query`): `BGEM3FlagModel` su `devices="cpu"`. Una singola query costa ms
-  anche su CPU, e lasciare la VRAM libera evita che Ollama carichi `qwen3.5:9b` in
+  anche su CPU, e lasciare la GPU libera evita che Ollama carichi `qwen3.5:9b` in
   split GPU/CPU (molto più lento — vedi sezione LLM sopra). Lo stesso modello CPU è il
   ripiego dei job di reindex (`_reindex_embed_model()` in `api/routes_reindex.py`).
-- **Job di reindex** (`core/job_embedder.py`): al primo embedding del job, se
-  `VIBECRAFT_REINDEX_DEVICE=auto`, CUDA è disponibile e `nvidia-smi` riporta almeno
-  `VIBECRAFT_REINDEX_GPU_MIN_FREE_MB` di VRAM libera, bge-m3 gira su GPU in un processo
-  a vita breve (`python -m core.gpu_worker`), fermato a fine job: uscendo restituisce
-  tutta la sua VRAM, contesto CUDA compreso. L'avvio costa ~10 s per job. Altrimenti,
-  o se il processo esaurisce la memoria o muore, il job usa la CPU (motivo in
-  `embedding_fallback_reason`); con `VIBECRAFT_REINDEX_DEVICE=cpu` la GPU è esclusa.
-  Su CPU un `full` rebuild passa da minuti a **decine di ore** (misurato: ~10s/embedding
-  CPU contro ~6-10 it/s GPU). Lo stderr del processo GPU finisce nel log del server,
-  riga per riga, col prefisso `[gpu-worker]`.
-- Il percorso GPU richiede la build CUDA di torch (vedi `[tool.uv.sources]` in
+- **Job di reindex** (`core/job_embedder.py`, scelta in `core/accelerator.py`): al
+  primo embedding del job, `VIBECRAFT_REINDEX_DEVICE=auto` prova i backend che PyTorch
+  esegue davvero, in quest'ordine.
+  1. **CUDA**, se `torch.cuda` è disponibile e la memoria basta. Vale per le RTX
+     discrete e per i chip a memoria unificata NVIDIA (DGX Spark, RTX Spark, GB10,
+     Grace): sono CUDA, non un backend a parte. Si sceglie la GPU con più memoria
+     libera (`nvidia-smi`, CSV). Su una scheda discreta servono almeno
+     `VIBECRAFT_REINDEX_GPU_MIN_FREE_MB` liberi; su un chip unificato la soglia si
+     applica al totale del pool, purché resti almeno 1 GiB non mappato (`memory.free`
+     lì non è VRAM discreta).
+  2. **Metal (`mps`)** su Apple Silicon, se CUDA non c'è. La sonda è `vm_stat`:
+     pagine free, inactive e speculative (purgeable è già dentro inactive),
+     perché su un M2/M3 contare solo le pagine libere farebbe ripiegare sulla CPU
+     a macchina scarica. Il figlio parte con `PYTORCH_ENABLE_MPS_FALLBACK=1`: le
+     operazioni di bge-m3 senza kernel Metal si calcolano sulla CPU invece di far
+     morire il processo.
+  3. **CPU**, con il motivo in `embedding_fallback_reason`.
+
+  `cuda` e `mps` forzano quel backend (un rifiuto non ricade sull'altro); `cpu` li
+  esclude. Il modello gira in `python -m core.gpu_worker --device cuda:N` oppure
+  `mps`, fermato a fine job: uscendo restituisce la memoria, contesto compreso. Il
+  processo del server non crea mai un contesto CUDA né Metal. L'avvio costa ~10 s per
+  job. Se il processo esaurisce la memoria o muore, il resto del job usa la CPU. Su
+  CPU un `full` rebuild passa da minuti a **decine di ore** (misurato: ~10s/embedding
+  CPU contro ~6-10 it/s GPU). Lo stderr del processo finisce nel log del server, riga
+  per riga, col prefisso `[gpu-worker]`. Il job riporta `embedding_device` (`cuda`,
+  `mps`, `cpu` o `unused`), `embedding_accelerator` e `embedding_npu`.
+- **NPU.** Apple Neural Engine, Intel AI Boost, AMD Ryzen AI e Qualcomm Hexagon
+  vengono nominate in `embedding_npu` e non usate. bge-m3 non ha qui un runtime ONNX
+  o OpenVINO: eseguire il modello sulla NPU non è una cosa che questo codice fa.
+- Il percorso CUDA richiede la build CUDA di torch (vedi `[tool.uv.sources]` in
   [pyproject.toml](pyproject.toml) — su Windows PyPI serve solo la wheel CPU-only,
   quella CUDA vive sull'indice ufficiale `download.pytorch.org`). Quell'indice è
   vincolato da un **marcatore di piattaforma**: vale su Linux e Windows x86-64, dove le
-  sue wheel esistono; su macOS Apple Silicon torch arriva da PyPI, altrimenti `uv sync`
-  fallirebbe lì (A15 — la matrice misurata è nel README di root).
+  sue wheel esistono; su macOS Apple Silicon torch arriva da PyPI (e con lui Metal),
+  altrimenti `uv sync` fallirebbe lì (A15 — la matrice misurata è nel README di root).
+  Su Windows-on-Arm (RTX Spark) l'uso di CUDA dipende dalla wheel CUDA di torch per
+  quella piattaforma: se `torch.cuda` non è disponibile il job resta su CPU, e il
+  motivo sta nel report.
 
 ## Check drift (Step 4): rilievi verificati, verdetto calcolato
 

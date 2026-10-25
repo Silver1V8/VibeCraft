@@ -136,15 +136,21 @@ copy-on-write: collection nuova con i punti invariati del padre e ri-embedding d
 soli documenti e file di codice cambiati. Se il padre non è riusabile si ripiega sul
 full rebuild (motivo in `fallback_reason` del job); un delta noop non scrive nulla.
 
-Gli embedding dei job di reindex usano la GPU per la sola durata del job, se c'è VRAM
-libera sufficiente (la misura `nvidia-smi`: senza, il job usa la CPU); altrimenti, o
-se la memoria finisce a metà, proseguono sulla CPU. Il modello su GPU gira in un
-processo separato, avviato per il job e fermato alla sua fine: uscendo restituisce
-tutta la VRAM che ha usato, contesto CUDA compreso, senza riavviare il server. L'avvio
-costa ~10 s per ogni job che usa davvero la GPU. Il job riporta `embedding_device` ed
-eventualmente `embedding_fallback_reason`. Mentre un job usa la GPU, Ollama può dover
-tenere parte del modello in RAM: le risposte di `/ask` in quel momento possono
-rallentare.
+Gli embedding dei job di reindex usano un acceleratore per la sola durata del job.
+`auto` prova prima CUDA — RTX discreta, DGX Spark, RTX Spark, GB10, Grace: sono
+CUDA, non un backend a parte — e poi Metal sugli Apple Silicon (M2, M3 e successivi).
+Senza acceleratore, o se la memoria finisce a metà, il job prosegue sulla CPU. Il
+modello gira in un processo separato, avviato per il job e fermato alla sua fine:
+uscendo restituisce tutta la memoria che ha usato, senza riavviare il server. Su una
+scheda discreta la soglia si misura con `nvidia-smi` (la GPU più libera); su un chip
+NVIDIA a memoria unificata vale il totale del pool, purché resti almeno 1 GiB non
+mappato. Su Apple si conta la memoria reclamabile (`vm_stat`), non le sole pagine
+libere. L'avvio costa ~10 s per ogni job che usa davvero l'acceleratore. Il job
+riporta `embedding_device` (`cuda`, `mps` o `cpu`), l'acceleratore scelto e, se c'è,
+la NPU presente. Una NPU (Neural Engine, Intel AI Boost, Ryzen AI, Hexagon) è solo
+nominata: questo progetto non distribuisce bge-m3 in un runtime NPU, e dirlo
+altrimenti sarebbe falso. `/ask` resta su CPU, così Ollama tiene la GPU. Mentre un
+job la occupa, le risposte di `/ask` possono rallentare.
 
 ### Migrare un'installazione esistente
 

@@ -25,11 +25,11 @@ import time
 import traceback
 
 
-def load_bge_m3():
+def load_bge_m3(device: str = "cuda:0"):
     from FlagEmbedding import BGEM3FlagModel
 
     from core.config import EMBEDDING_MODEL
-    return BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False, devices="cuda:0")
+    return BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False, devices=device)
 
 
 def _torch():
@@ -113,13 +113,16 @@ def _resolve(spec: str):
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--loader", help="modulo:funzione che restituisce il modello")
+    parser.add_argument("--device", default="cuda:0",
+                        help="device PyTorch del modello reale: cuda:N oppure mps")
     args = parser.parse_args(argv)
     inp, out = _protocol_streams()
     if args.loader:
         def load():  # risolto dentro serve(): un loader sbagliato diventa load_error
             return _resolve(args.loader)()
     else:
-        load = load_bge_m3
+        def load():
+            return load_bge_m3(args.device)
     return serve(load, inp, out)
 
 
