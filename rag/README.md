@@ -1089,7 +1089,7 @@ una generazione: vanno misurate separatamente.
 | `VIBECRAFT_ROLE` | `standalone` | `standalone`, `reader` oppure `writer` |
 | `VIBECRAFT_INDEX_MODE` | `legacy` | `legacy` oppure `immutable` |
 | `VIBECRAFT_DELTA_MODE` | `cow` | Delta dei progetti a snapshot immutabili: `cow` (copy-on-write) oppure `rebuild` (full rebuild a ogni delta) |
-| `VIBECRAFT_REINDEX_DEVICE` | `auto` | Embedding dei job di reindex, in un processo separato per la sola durata del job: `auto` prova CUDA (RTX discreta, DGX Spark, RTX Spark, GB10) e poi Metal su Apple Silicon, altrimenti la CPU; `cuda` e `mps` forzano quel backend; `cpu` li esclude. Una NPU, se presente, è solo nominata nel report |
+| `VIBECRAFT_REINDEX_DEVICE` | `auto` | Embedding dei job di reindex, in un processo separato per la sola durata del job: `auto` prova CUDA (RTX discreta, DGX Spark, RTX Spark, GB10), poi Metal su Apple Silicon, poi la NPU se un runtime la compila, altrimenti la CPU; `cuda`, `mps` e `npu` forzano quel backend; `cpu` li esclude |
 | `VIBECRAFT_REINDEX_GPU_MIN_FREE_MB` | 3072 | Memoria libera minima per usare l'acceleratore: VRAM libera sulla GPU NVIDIA più libera; sul totale del pool per i chip unificati NVIDIA (con almeno 1024 MB non mappati); memoria reclamabile su Apple |
 | `VIBECRAFT_DATABASE_DIR` | `rag/database` | Sorgente storica per diagnostica/migrazione; gli indici attivi sono nelle root registrate |
 | `VIBECRAFT_PROJECTS_DIR` | `<installazione>/projects` | Registry e nuove root; percorso assoluto, `/app/projects` in Compose |
@@ -1355,20 +1355,33 @@ senza alcun beneficio.
      a macchina scarica. Il figlio parte con `PYTORCH_ENABLE_MPS_FALLBACK=1`: le
      operazioni di bge-m3 senza kernel Metal si calcolano sulla CPU invece di far
      morire il processo.
-  3. **CPU**, con il motivo in `embedding_fallback_reason`.
+  3. **NPU**, se CUDA e Metal non ci sono e un runtime installato accanto al progetto
+     compila l'encoder. Intel AI Boost passa da OpenVINO (`NPU` fra i device);
+     Qualcomm Hexagon da ONNX Runtime `QNNExecutionProvider`; AMD Ryzen AI da
+     `VitisAIExecutionProvider`; il Neural Engine di Apple da
+     `CoreMLExecutionProvider` con `CPUAndNeuralEngine`. Non sono dipendenze di
+     `uv sync`: senza il runtime il job usa la CPU e lo scrive in
+     `embedding_fallback_reason`. Su `auto` il Neural Engine non scavalca Metal:
+     Metal è l'acceleratore giusto per questo modello, e `npu` lo forza solo se
+     serve. L'encoder gira sulla NPU; le teste sparse e ColBERT (un lineare
+     ciascuna) restano sulla CPU del figlio, quindi l'indice resta denso, sparso
+     e multi-vettore. La NPU vuole una forma statica: si compila il bucket più
+     lungo fra 2048, 1024, 512 e 256 token, e una sequenza più lunga resta
+     sull'encoder CPU dello stesso processo. La IR o l'ONNX restano in
+     `~/.cache/vibecraft/npu` (o `VIBECRAFT_NPU_CACHE`).
+  4. **CPU**, con il motivo in `embedding_fallback_reason`.
 
-  `cuda` e `mps` forzano quel backend (un rifiuto non ricade sull'altro); `cpu` li
-  esclude. Il modello gira in `python -m core.gpu_worker --device cuda:N` oppure
-  `mps`, fermato a fine job: uscendo restituisce la memoria, contesto compreso. Il
-  processo del server non crea mai un contesto CUDA né Metal. L'avvio costa ~10 s per
-  job. Se il processo esaurisce la memoria o muore, il resto del job usa la CPU. Su
-  CPU un `full` rebuild passa da minuti a **decine di ore** (misurato: ~10s/embedding
-  CPU contro ~6-10 it/s GPU). Lo stderr del processo finisce nel log del server, riga
-  per riga, col prefisso `[gpu-worker]`. Il job riporta `embedding_device` (`cuda`,
-  `mps`, `cpu` o `unused`), `embedding_accelerator` e `embedding_npu`.
-- **NPU.** Apple Neural Engine, Intel AI Boost, AMD Ryzen AI e Qualcomm Hexagon
-  vengono nominate in `embedding_npu` e non usate. bge-m3 non ha qui un runtime ONNX
-  o OpenVINO: eseguire il modello sulla NPU non è una cosa che questo codice fa.
+  `cuda`, `mps` e `npu` forzano quel backend (un rifiuto non ricade sull'altro);
+  `cpu` li esclude. Il modello gira in `python -m core.gpu_worker --device cuda:N`,
+  `mps` oppure `npu`, fermato a fine job: uscendo restituisce la memoria, contesto
+  compreso. Il processo del server non crea mai un contesto CUDA, Metal o NPU.
+  L'avvio costa ~10 s per job; la prima compilazione NPU costa di più. Se il
+  processo esaurisce la memoria o muore, il resto del job usa la CPU. Su CPU un
+  `full` rebuild passa da minuti a **decine di ore** (misurato: ~10s/embedding
+  CPU contro ~6-10 it/s GPU). Lo stderr del processo finisce nel log del server,
+  riga per riga, col prefisso `[gpu-worker]`. Il job riporta `embedding_device`
+  (`cuda`, `mps`, `npu`, `cpu` o `unused`), `embedding_accelerator` e
+  `embedding_npu`.
 - Il percorso CUDA richiede la build CUDA di torch (vedi `[tool.uv.sources]` in
   [pyproject.toml](pyproject.toml) — su Windows PyPI serve solo la wheel CPU-only,
   quella CUDA vive sull'indice ufficiale `download.pytorch.org`). Quell'indice è

@@ -138,19 +138,24 @@ full rebuild (motivo in `fallback_reason` del job); un delta noop non scrive nul
 
 Gli embedding dei job di reindex usano un acceleratore per la sola durata del job.
 `auto` prova prima CUDA — RTX discreta, DGX Spark, RTX Spark, GB10, Grace: sono
-CUDA, non un backend a parte — e poi Metal sugli Apple Silicon (M2, M3 e successivi).
-Senza acceleratore, o se la memoria finisce a metà, il job prosegue sulla CPU. Il
-modello gira in un processo separato, avviato per il job e fermato alla sua fine:
-uscendo restituisce tutta la memoria che ha usato, senza riavviare il server. Su una
-scheda discreta la soglia si misura con `nvidia-smi` (la GPU più libera); su un chip
-NVIDIA a memoria unificata vale il totale del pool, purché resti almeno 1 GiB non
-mappato. Su Apple si conta la memoria reclamabile (`vm_stat`), non le sole pagine
-libere. L'avvio costa ~10 s per ogni job che usa davvero l'acceleratore. Il job
-riporta `embedding_device` (`cuda`, `mps` o `cpu`), l'acceleratore scelto e, se c'è,
-la NPU presente. Una NPU (Neural Engine, Intel AI Boost, Ryzen AI, Hexagon) è solo
-nominata: questo progetto non distribuisce bge-m3 in un runtime NPU, e dirlo
-altrimenti sarebbe falso. `/ask` resta su CPU, così Ollama tiene la GPU. Mentre un
-job la occupa, le risposte di `/ask` possono rallentare.
+CUDA, non un backend a parte — poi Metal sugli Apple Silicon (M2, M3 e successivi),
+poi la NPU se un runtime installato compila l'encoder di bge-m3. Senza acceleratore,
+o se la memoria finisce a metà, il job prosegue sulla CPU. Il modello gira in un
+processo separato, avviato per il job e fermato alla sua fine: uscendo restituisce
+tutta la memoria che ha usato, senza riavviare il server. Su una scheda discreta la
+soglia si misura con `nvidia-smi` (la GPU più libera); su un chip NVIDIA a memoria
+unificata vale il totale del pool, purché resti almeno 1 GiB non mappato. Su Apple
+si conta la memoria reclamabile (`vm_stat`), non le sole pagine libere. La NPU
+(Intel AI Boost via OpenVINO, Hexagon via QNN, Ryzen AI via Vitis AI, Neural Engine
+via Core ML) esegue l'encoder; le teste sparse e ColBERT restano sulla CPU del
+figlio, così l'indice non perde pezzi. Quei runtime non sono nel `uv sync`: se
+mancano, il job resta sulla CPU e il motivo sta nel report, invece di fingere
+un'esecuzione sulla NPU. Le sequenze oltre il bucket compilato (al massimo 2048 token)
+restano sulla CPU del figlio. L'avvio costa ~10 s per ogni job che usa davvero
+l'acceleratore; la prima compilazione NPU costa di più. Il job riporta
+`embedding_device` (`cuda`, `mps`, `npu` o `cpu`) e l'acceleratore scelto. `/ask`
+resta su CPU, così Ollama tiene la GPU. Mentre un job la occupa, le risposte di
+`/ask` possono rallentare.
 
 ### Migrare un'installazione esistente
 

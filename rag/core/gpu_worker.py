@@ -26,9 +26,11 @@ import traceback
 
 
 def load_bge_m3(device: str = "cuda:0"):
-    from FlagEmbedding import BGEM3FlagModel
-
     from core.config import EMBEDDING_MODEL
+    if device == "npu":
+        from core.npu_runtime import load_npu_bge_m3
+        return load_npu_bge_m3(EMBEDDING_MODEL)
+    from FlagEmbedding import BGEM3FlagModel
     return BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False, devices=device)
 
 
@@ -114,7 +116,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--loader", help="modulo:funzione che restituisce il modello")
     parser.add_argument("--device", default="cuda:0",
-                        help="device PyTorch del modello reale: cuda:N oppure mps")
+                        help="device del modello reale: cuda:N, mps oppure npu")
     args = parser.parse_args(argv)
     inp, out = _protocol_streams()
     if args.loader:

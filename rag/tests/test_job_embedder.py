@@ -45,7 +45,8 @@ class FakeWorker(FakeModel):
         self.stops += 1
 
 
-def make(*, worker=None, available=True, free=8000, enabled=True, start_error=None):
+def make(*, worker=None, available=True, free=8000, enabled=True, start_error=None,
+        preference="auto", npu_runtime=None):
     worker, cpu = worker or FakeWorker(), FakeModel("cpu")
     starts = []
 
@@ -62,7 +63,8 @@ def make(*, worker=None, available=True, free=8000, enabled=True, start_error=No
 
     embedder = JobEmbedder(start_worker=start_worker, cpu_model=lambda: cpu,
                            gpu_available=lambda: available, free_vram_mb=free_probe,
-                           min_free_mb=3072, enabled=enabled)
+                           min_free_mb=3072, enabled=enabled, preference=preference,
+                           npu_runtime=npu_runtime)
     return embedder, worker, cpu, starts
 
 
@@ -111,6 +113,26 @@ def test_disabled_goes_cpu():
     assert embedder.encode(["a"])["dense_vecs"] == ["cpu"]
     assert starts == []
     assert "VIBECRAFT_REINDEX_DEVICE" in embedder.report()["embedding_fallback_reason"]
+
+
+def test_npu_is_used_when_cuda_and_metal_are_absent():
+    from core.npu_runtime import NpuProbe
+    embedder, _, cpu, starts = make(
+        available=False, npu_runtime=lambda: NpuProbe(True, "Intel NPU", None))
+    assert embedder.encode(["a"])["dense_vecs"] == ["gpu"]
+    assert starts == ["npu"] and cpu.calls == []
+    report = embedder.report()
+    assert report["embedding_device"] == "npu"
+    assert report["embedding_accelerator"] == "Intel NPU"
+
+
+def test_forced_npu_without_a_runtime_stays_on_cpu_and_does_not_use_cuda():
+    from core.npu_runtime import NpuProbe
+    embedder, _, _, starts = make(
+        preference="npu", npu_runtime=lambda: NpuProbe(False, None, "runtime NPU assente"))
+    assert embedder.encode(["a"])["dense_vecs"] == ["cpu"]
+    assert starts == []
+    assert embedder.report()["embedding_fallback_reason"] == "runtime NPU assente"
 
 
 def test_free_vram_probe_failure_falls_back_to_cpu_without_starting_a_worker():

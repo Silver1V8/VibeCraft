@@ -16,12 +16,14 @@ def gpu(index=0, name="NVIDIA GeForce RTX 3070 Ti", free=8000, total=8192):
 
 
 def choose(preference="auto", *, cuda=True, gpus=None, gpu_error=None, mps=False,
-           apple_mb=None, apple_error=None, npu=None, min_free_mb=3072):
+           apple_mb=None, apple_error=None, npu=None, min_free_mb=3072,
+           npu_ready=False, npu_name=None, npu_reason=None):
     if gpus is None and gpu_error is None and cuda and preference in {"auto", "cuda"}:
         gpus = [gpu()]
     return decide(preference, cuda=cuda, gpus=gpus, gpu_error=gpu_error, mps=mps,
                   apple_mb=apple_mb, apple_error=apple_error, npu=npu,
-                  min_free_mb=min_free_mb)
+                  min_free_mb=min_free_mb, npu_ready=npu_ready, npu_name=npu_name,
+                  npu_reason=npu_reason)
 
 
 def test_auto_picks_the_gpu_with_more_free_memory():
@@ -100,6 +102,46 @@ def test_forced_mps_without_metal_does_not_silently_use_cuda():
     assert decision.device == "cpu" and decision.reason == "Metal non disponibile"
 
 
+def test_auto_uses_the_npu_when_cuda_and_metal_are_absent():
+    decision = choose(cuda=False, gpus=None, npu="Intel NPU", npu_ready=True, npu_name="Intel NPU")
+    assert decision.device == "npu" and decision.torch_device == "npu"
+    assert decision.accelerator == "Intel NPU" and decision.reason is None
+
+
+def test_metal_stays_ahead_of_the_npu_on_apple():
+    decision = choose(cuda=False, gpus=None, mps=True, apple_mb=12000,
+                      npu="Apple Neural Engine", npu_ready=True,
+                      npu_name="Apple Neural Engine")
+    assert decision.device == "mps"
+
+
+def test_cuda_refusal_is_not_hidden_behind_the_npu():
+    decision = choose(gpus=[gpu(free=100)], npu="Intel NPU", npu_ready=True, npu_name="Intel NPU")
+    assert decision.device == "cpu" and "VRAM libera" in decision.reason
+
+
+def test_low_apple_memory_is_not_hidden_behind_the_npu():
+    decision = choose(cuda=False, gpus=None, mps=True, apple_mb=1500,
+                      npu="Apple Neural Engine", npu_ready=True, npu_name="Apple Neural Engine")
+    assert decision.device == "cpu" and "memoria unificata Apple" in decision.reason
+
+
+def test_forced_npu_ignores_a_free_gpu():
+    decision = choose("npu", npu_ready=True, npu_name="Qualcomm Hexagon")
+    assert decision.device == "npu" and decision.accelerator == "Qualcomm Hexagon"
+
+
+def test_forced_npu_without_a_runtime_says_so():
+    decision = choose("npu", npu="Intel NPU", npu_reason="runtime NPU assente")
+    assert decision.device == "cpu" and decision.reason == "runtime NPU assente"
+
+
+def test_detected_intel_npu_without_a_runtime_is_named_in_the_reason():
+    decision = choose(cuda=False, gpus=None, npu="Intel NPU", npu_reason="runtime NPU assente")
+    assert decision.device == "cpu"
+    assert decision.reason == "Intel NPU: runtime NPU assente"
+
+
 def test_parse_nvidia_smi_keeps_a_comma_inside_a_quoted_name():
     text = '0, "NVIDIA RTX, Laptop", 5000, 8192\n1, NVIDIA GB10, 2048, 65536\n'
     gpus = parse_nvidia_smi(text)
@@ -131,14 +173,13 @@ def test_parse_vm_stat_counts_reclaimable_pages_and_caps_at_total_ram():
 
 def test_detect_npu_names_apple_and_does_not_claim_it_runs_the_model():
     label = detect_npu(platform="darwin", machine="arm64", exists=lambda path: False)
-    assert "Apple Neural Engine" in label and "non usata" in label
+    assert label == "Apple Neural Engine"
 
 
 def test_detect_npu_names_linux_devices_without_using_them():
     present = {"/sys/module/intel_vpu", "/dev/accel/accel0"}
     label = detect_npu(platform="linux", machine="x86_64", exists=present.__contains__)
-    assert label.startswith("Intel NPU, NPU accel")
-    assert "non usata" in label
+    assert label == "Intel NPU, NPU accel"
 
 
 def test_detect_npu_is_silent_when_nothing_is_there():

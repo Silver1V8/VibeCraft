@@ -1,18 +1,17 @@
 """Scelta dell'acceleratore per l'embedding di un job, senza aprire un contesto
 nel processo del server.
 
-bge-m3 gira su PyTorch. L'ordine in `auto` è quindi solo quello che PyTorch esegue
-davvero:
+L'ordine in `auto` è quello che questo processo sa eseguire davvero:
 
 1. CUDA. Vale per le RTX discrete e per i chip a memoria unificata NVIDIA (DGX
    Spark, RTX Spark, GB10, Grace): sono CUDA, non un backend a parte.
 2. Metal (`mps`) su Apple Silicon. Il processo figlio dura un job e, uscendo,
    restituisce la memoria unificata.
-3. CPU.
-
-Una NPU (Neural Engine, Intel AI Boost, Ryzen AI, Hexagon) viene nominata nel
-report e non usata. Questo progetto non distribuisce bge-m3 in ONNX o OpenVINO:
-far credere che la NPU esegua il modello sarebbe falso.
+3. NPU, se un runtime installato accanto al progetto compila l'encoder di bge-m3
+   (OpenVINO su Intel, QNN su Hexagon, Vitis AI su Ryzen AI, Core ML sul Neural
+   Engine). Le teste sparse e ColBERT restano sulla CPU del figlio. Senza quel
+   runtime la NPU è solo nominata: non si finge di eseguirci il modello.
+4. CPU.
 """
 from __future__ import annotations
 
@@ -51,9 +50,10 @@ class EmbeddingDecision:
 def decide(preference: str, *, cuda: bool, gpus: list[GpuMemory] | None,
            gpu_error: BaseException | None, mps: bool, apple_mb: int | None,
            apple_error: BaseException | None, npu: str | None,
-           min_free_mb: int) -> EmbeddingDecision:
-    """`preference` è auto, cuda, mps o cpu. `gpus` è None se la sonda non è stata
-    tentata. Un errore di sonda non è un successo con memoria zero."""
+           min_free_mb: int, npu_ready: bool = False, npu_name: str | None = None,
+           npu_reason: str | None = None) -> EmbeddingDecision:
+    """`preference` è auto, cuda, mps, npu o cpu. `gpus` è None se la sonda non è
+    stata tentata. Un errore di sonda non è un successo con memoria zero."""
     if preference == "cpu":
         return EmbeddingDecision("cpu", None, "VIBECRAFT_REINDEX_DEVICE=cpu", None, None, npu)
 
@@ -72,10 +72,12 @@ def decide(preference: str, *, cuda: bool, gpus: list[GpuMemory] | None,
                     "cuda", f"cuda:{chosen.index}", None, chosen.free_mb, chosen.name, npu)
             cuda_reason = _cuda_refusal(gpus, min_free_mb)
 
-    mps_reason = None
     # CUDA presente ma rifiutato (VRAM sotto soglia, sonda muta) non si nasconde
-    # dietro Metal: in auto l'utente vedrebbe un successo su un altro acceleratore.
-    cuda_refused = cuda and cuda_reason not in {None, "CUDA non disponibile"}
+    # dietro Metal o la NPU: in auto l'utente vedrebbe un successo su un altro
+    # acceleratore mentre quello che ha la memoria è rotto.
+    cuda_refused = bool(cuda and cuda_reason not in {None, "CUDA non disponibile"})
+
+    mps_reason = None
     if preference in {"auto", "mps"} and not cuda_refused:
         if not mps:
             mps_reason = "Metal non disponibile"
@@ -89,12 +91,27 @@ def decide(preference: str, *, cuda: bool, gpus: list[GpuMemory] | None,
         else:
             return EmbeddingDecision("mps", "mps", None, apple_mb, "Apple Metal", npu)
 
+    mps_refused = bool(mps and mps_reason not in {None, "Metal non disponibile"})
+    if preference == "npu" or (preference == "auto" and not cuda_refused and not mps_refused):
+        if npu_ready:
+            name = npu_name or "NPU"
+            return EmbeddingDecision("npu", "npu", None, None, name, npu or name)
+        if preference == "npu":
+            return EmbeddingDecision(
+                "cpu", None, npu_reason or "runtime NPU assente", None, None, npu)
+
     if preference == "cuda":
         reason = cuda_reason
     elif preference == "mps":
         reason = mps_reason
+    elif cuda_refused:
+        reason = cuda_reason
+    elif mps_refused:
+        reason = mps_reason
+    elif npu and not _apple_only(npu) and npu_reason:
+        reason = f"{npu}: {npu_reason}"
     else:
-        reason = cuda_reason or mps_reason
+        reason = cuda_reason or mps_reason or npu_reason
     return EmbeddingDecision("cpu", None, reason, None, None, npu)
 
 
@@ -191,15 +208,17 @@ def query_apple_reclaimable_mb() -> int:
 
 def detect_npu(*, platform: str | None = None, machine: str | None = None,
                exists=None) -> str | None:
-    """Nome della NPU presente, o None. Non prova a caricarci un modello."""
+    """Nome della NPU presente, o None. Non dice se un runtime sa eseguirci il modello:
+    quello lo stabilisce core.npu_runtime, e senza runtime il job resta sulla CPU."""
     platform = platform if platform is not None else sys.platform
     machine = machine if machine is not None else platform_machine()
     exists = exists if exists is not None else __import__("os").path.exists
     if platform == "darwin" and machine == "arm64":
-        return "Apple Neural Engine (non usata: PyTorch non espone bge-m3 sul Neural Engine)"
+        return "Apple Neural Engine"
     if platform != "linux":
         # I path qui sotto sono sysfs e /dev di Linux. Su Windows esistono ma non
         # dicono nulla, e una sonda PowerShell appesa al primo encode non vale il rischio.
+        # Lì la NPU si vede dal runtime (OpenVINO, QNN, Vitis AI), non dal filesystem.
         return None
     found = []
     for path, label in (
@@ -211,8 +230,12 @@ def detect_npu(*, platform: str | None = None, machine: str | None = None,
             found.append(label)
     if not found:
         return None
-    names = ", ".join(found)
-    return f"{names} (non usata: bge-m3 non ha un runtime NPU in questo progetto)"
+    return ", ".join(found)
+
+
+def _apple_only(label: str) -> bool:
+    return "Apple" in label and not any(
+        name in label for name in ("Intel", "AMD", "Qualcomm", "Hexagon"))
 
 
 def platform_machine() -> str:
