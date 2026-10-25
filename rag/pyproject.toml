@@ -1,7 +1,7 @@
 [project]
 name = "rag"
 version = "0.1.0"
-description = "Console Graph-RAG: indicizzazione (core/indexing), retrieval ibrido governato e pipeline Explore->Canvas->Propose (core/) esposti via FastAPI (api/). Entrypoint: server.py, index.py."
+description = "Console Graph-RAG per la governance documentale: retrieval ibrido pesato per autorità, grafo e pipeline Explore->Archive. Entrypoint: server.py, index.py."
 authors = [{ name = "Valerio Silvestre", email = "silvestre.valerio@gmail.com" }]
 # SPDX. Il file sta nella root del repository (../LICENSE), fuori da questa directory di
 # progetto: NON è dichiarato in `license-files` perché quel campo non accetta percorsi

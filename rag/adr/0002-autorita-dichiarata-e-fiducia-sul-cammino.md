@@ -1,9 +1,20 @@
 # 0002 — Autorità dichiarata e fiducia sul cammino del grafo
 
-**Stato:** Accettato (piano di lavoro in [0002-prompts/](0002-prompts/))
+**Stato:** Accettato e attuato. La tabella più sotto è la fotografia del 18 agosto 2026, non lo stato del codice.
 **Data:** 2026-08-18
 **Origine:** confronto con l'articolo di Andrea Magini «Problema di retrieval? No, problema
 di autorità» (HARO — Qdrant + NetworkX), letto integralmente.
+
+> **Non riaprire questi punti.** Quando la nota è stata scritta, `authority:` nel frontmatter
+> non entrava nel ranking, `boost_alpha` era 0.1 e l'espansione del grafo non portava una
+> fiducia sul cammino. Nel codice attuale quel divario è chiuso:
+> [`_authority_weight`](../core/retrieval.py) legge il coefficiente dichiarato,
+> [`rag_config.yaml`](../rag_config.yaml) ha `authority.boost_alpha: 0.3` (calibrato il
+> 2026-09-07; il fallback in `core/config.py` è 0.4 se la chiave manca) e
+> [`trust_paths`](../core/graph_ops.py) calcola la fiducia sul cammino. L'invariante
+> «freschezza ≠ autorità» è protetta da
+> `tests/test_retrieval.py::test_peso_autorita_e_indipendente_dai_campi_temporali`.
+> La tabella «Stato di VibeCraft al confronto» descrive il problema com'era.
 
 ---
 

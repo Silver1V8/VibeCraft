@@ -14,6 +14,23 @@ Le risposte sono ancorate alle fonti recuperate; citazioni, risultati parziali e
 aperti restano da verificare. Il retrieval non garantisce che ogni informazione utile
 del corpus sia stata trovata.
 
+## Per chi è, e per chi no
+
+| Conviene se | Non conviene se |
+|---|---|
+| il corpus è normativo e stratificato, e la risposta sta in più documenti che possono contraddirsi | i documenti sono pochi e tutti li conoscono già |
+| serve una risposta **verificabile**, con la fonte e il peso che l'ha fatta vincere | serve un assistente conversazionale rapido |
+| i dati non devono uscire dalla macchina | va bene un servizio esterno |
+
+Il sistema rende trovabili i documenti, non li migliora. Se sono scritti male, le risposte lo saranno. Non ricorda la conversazione precedente, non interroga più progetti insieme e non ha permessi per utente: nasce per girare in locale o su una rete controllata.
+
+Due guide, generate dal sorgente il 18 ottobre 2026. Nella console si aprono così come sono; su GitHub il link mostra il file.
+
+- [Percorso guidato](rag/static/manuale/percorso-guidato.html) — un caso reale dall'inizio alla fine, per chi deve decidere se adottarlo. In esecuzione: [`/static/manuale/percorso-guidato.html`](http://127.0.0.1:8000/static/manuale/percorso-guidato.html).
+- [Manuale utente](rag/static/manuale/manuale-utente.html) — i controlli, capitolo per capitolo. In esecuzione: [`/static/manuale/manuale-utente.html`](http://127.0.0.1:8000/static/manuale/manuale-utente.html).
+
+`archive/` non è il prodotto. È l'evidenza storica delle misure, citata dagli ADR: vedi [archive/README.md](archive/README.md). Docker e i test non la leggono. Toglierla con un commit ordinario non alleggerisce i clone: i byte restano nella history.
+
 **Versione documentata: 5 ottobre 2026, multi-progetto integrato in `main`.**
 I checkout precedenti vanno aggiornati prima di usare i nuovi comandi.
 
