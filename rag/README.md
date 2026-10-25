@@ -1,7 +1,9 @@
 # rag/ — Console Graph-RAG
 
-**Versione documentata: 12 ottobre 2026, multi-progetto integrato in `main`.**
-I checkout precedenti vanno aggiornati prima di usare i nuovi comandi.
+**Stato documentato: `main`, 25 ottobre 2026.**
+Il multi-progetto è in `main` dal 5 ottobre; il delta copy-on-write e l'embedding su GPU
+dal 12. I manuali in console sono del 25. I numeri di un gate restano quelli del giorno
+in cui sono stati misurati. Lo stesso stato è in [`../README.md`](../README.md).
 
 ## Progetti separati
 

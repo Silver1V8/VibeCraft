@@ -1,5 +1,14 @@
 # Piano di lavoro — ADR 0002
 
+> **Piano eseguito, non una coda aperta.** S1–S5 sono nel codice di `main`:
+> `authority` del frontmatter in `core/retrieval.py` (S1), natura e affidabilità degli
+> archi in `core/graph_ops.py` (S2), `trust_paths` (S3), la precedenza dichiarata fra
+> documenti (S4; in `rag_config.yaml` la relazione è `SUPERA_IN_PRIORITÀ`; se la chiave
+> manca, `core/config.py` la tratta come spenta), i casi avversariali in `eval/golden_set.yaml` (S5).
+> I prompt sotto restano la specifica con cui il lavoro è stato fatto. Non riaprirli
+> per «implementare» di nuovo quello che la tabella dell'[ADR](../0002-autorita-dichiarata-e-fiducia-sul-cammino.md)
+> descriveva il 18 agosto 2026.
+
 Cinque interventi indipendenti derivati da
 [ADR 0002 — Autorità dichiarata e fiducia sul cammino del grafo](../0002-autorita-dichiarata-e-fiducia-sul-cammino.md).
 

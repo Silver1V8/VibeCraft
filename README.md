@@ -31,8 +31,10 @@ Due guide, generate dal sorgente il 18 ottobre 2026. Nella console si aprono cos
 
 `archive/` non è il prodotto. È l'evidenza storica delle misure, citata dagli ADR: vedi [archive/README.md](archive/README.md). Docker e i test non la leggono. Toglierla con un commit ordinario non alleggerisce i clone: i byte restano nella history.
 
-**Versione documentata: 5 ottobre 2026, multi-progetto integrato in `main`.**
-I checkout precedenti vanno aggiornati prima di usare i nuovi comandi.
+**Stato documentato: `main`, 25 ottobre 2026.**
+Il multi-progetto è in `main` dal 5 ottobre; il delta copy-on-write e l'embedding su GPU
+dal 12. I manuali in console sono del 25. I numeri di un gate restano quelli del giorno
+in cui sono stati misurati. Lo stesso stato è in [`rag/README.md`](rag/README.md).
 
 ## Cosa fa
 
@@ -584,9 +586,12 @@ senza `unsafe-inline`/`unsafe-eval` (il browser esegue solo gli script serviti d
 codice di ogni pagina sta in `rag/static/pages/<pagina>.js` e i controlli dichiarano
 l'azione con `data-click`/`data-change`/`data-input`, registrata con `registerActions()`
 (`rag/static/shared.js`); `rag/tests/test_csp.py` lo verifica. Gli stili inline restano
-permessi (`style-src 'unsafe-inline'`) perché Tailwind gira come runtime nel browser. Chi
+permessi (`style-src 'unsafe-inline'`) perché mermaid, vis e i template scrivono
+attributi `style`: Tailwind non gira nel browser, è precompilato in
+`/static/tailwind*.css` da [`scripts/build_css.sh`](rag/scripts/build_css.sh). Chi
 aggiunge una pagina o un pulsante segue lo stesso schema: un handler inline verrebbe
-bloccato in silenzio.
+bloccato in silenzio. I manuali in `rag/static/manuale/` ubbidiscono allo stesso vincolo:
+lo script è [`rag/static/manuale.js`](rag/static/manuale.js).
 
 La superficie di attacco è mappata rotta per rotta in
 [`rag/SECURITY_SURFACE.md`](rag/SECURITY_SURFACE.md).
@@ -595,7 +600,9 @@ La superficie di attacco è mappata rotta per rotta in
 
 | | |
 |---|---|
-| [`rag/README.md`](rag/README.md) | architettura, retrieval, pipeline, indicizzazione |
+| [`rag/README.md`](rag/README.md) | architettura, retrieval, pipeline, indicizzazione — stesso stato documentato di questo file |
+| [`rag/static/manuale/percorso-guidato.html`](rag/static/manuale/percorso-guidato.html) | un caso reale, per chi deve decidere se adottarlo |
+| [`rag/static/manuale/manuale-utente.html`](rag/static/manuale/manuale-utente.html) | i controlli della console, capitolo per capitolo |
 | [`rag/adr/`](rag/adr/README.md) | le decisioni architetturali e il perché |
 | [`rag/adr/PIPELINE_GATE.md`](rag/adr/PIPELINE_GATE.md) | contratto validato, decisioni e avvio agentic |
 | [`templates/docs/README.md`](templates/docs/README.md) | indice della baseline documentale inclusa |

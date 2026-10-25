@@ -3,13 +3,17 @@ id: "docs-baseline-index-v1.0"
 title: "Indice della Baseline Documentale Cross-Progetto"
 project: "cross-project"
 scope: "cross-project"
-version: "1.1.0"
-date: "2026-07-22"
+version: "1.2.0"
+date: "2026-10-25"
 status: "ENFORCED"
 classification: "METADATA"
 path: "docs/README.md"
 authority: 0.75
 changelog:
+  - version: "1.2.0"
+    date: "2026-10-25"
+    changes:
+      - "Allineato al codice: due documenti di 04_knowledge_informative erano assenti dall'indice; 03_changes_historical e superpowers/plans sono indicizzati perché docs/ non ha esclusioni di cartella; l'avvio di un progetto non copia più questa baseline a mano"
   - version: "1.1.0"
     date: "2026-07-22"
     changes:
@@ -64,6 +68,12 @@ Questa cartella non documenta un'applicazione: è la **libreria di governance ri
 | [`01_architecture_norms/architecture_decision_rationale.md`](01_architecture_norms/architecture_decision_rationale.md) | Motivazione condivisa: modular monolith vs microservizi/agenti LLM | `NORMS` | 0.85 |
 | [`02_specs_normative/spec_graph_rag_ingestion.md`](02_specs_normative/spec_graph_rag_ingestion.md) | Pipeline di ingestion: chunking, authority, delta ingestion | `REQUIREMENTS` | 0.87 |
 | [`04_knowledge_informative/vibe_coding_workflow.md`](04_knowledge_informative/vibe_coding_workflow.md) | Protocollo Human-in-the-Loop e gestione delle deviazioni | `METHODOLOGY` | 0.90 |
+| [`04_knowledge_informative/graph_rag_ingestion_strategy.md`](04_knowledge_informative/graph_rag_ingestion_strategy.md) | Perché la spec di ingestion è fatta così. Non è una norma: non va citata come vincolo | `METHODOLOGY` | non dichiarata: vale il peso di classe, 0.5 |
+| [`04_knowledge_informative/inferenza_locale_o_remota.md`](04_knowledge_informative/inferenza_locale_o_remota.md) | Trade-off fra modello locale e modello ospitato. Non impone il confine dei dati | `METHODOLOGY` | 0.40 |
+
+`03_changes_historical/` non è una norma. Oggi contiene `fe1-canvas-review.md`, una review di archiviazione, ed è comunque indicizzata.
+
+`superpowers/plans/` è il diario di sviluppo committato sotto questa cartella. Non è baseline. L'indicizzatore lo legge lo stesso: su `docs/` `source_files` non riceve cartelle da saltare (`rag/core/indexing.py`). Un file markdown messo qui compete nel retrieval con le norme.
 
 ### Famiglie di identificatori
 
@@ -97,9 +107,12 @@ grep -rn "<<[A-Z_]*>>" docs/ | grep -v "reuse:" | grep -v "da compilare"
 
 ## Come si avvia un nuovo progetto
 
-1. Copiare `docs/` nel nuovo repository.
-2. Compilare la **Sezione 0** di ogni documento e sostituire tutti i `<<PARAMETRO>>`.
-3. Aggiungere i documenti **specifici del dominio**, che non appartengono a questa baseline. Gli scheletri sono in [`templates/`](../templates/README.md), fuori da `docs/` perché l'indicizzatore non ha esclusioni e i segnaposto inquinerebbero il retrieval:
+La console non copia questa baseline in ogni progetto. I progetti creati dopo il primo nascono vuoti. Al primo avvio in scrittura, se l'installazione non ha già `docs/` e `code/` alla radice, VibeCraft copia `templates/docs/` e `templates/code/` in `projects/legacy/`. I file `template_*.md` restano in `templates/` e non entrano nell'indice.
+
+Per un corpus proprio i documenti compilati vanno in `docs/` di quel progetto, da Intake oppure già presenti nella root prima del primo avvio. Poi si indicizza. Il golden set di questa baseline non è trasferibile: le attese puntano a questi documenti, non a quelli del dominio.
+
+1. Compilare la **Sezione 0** di ogni documento che si tiene e sostituire tutti i `<<PARAMETRO>>`.
+2. Aggiungere i documenti **specifici del dominio**. Gli scheletri sono in [`templates/README.md`](../README.md) (`templates/README.md` nel repository, accanto a questa baseline, non dentro `docs/`):
    - glossario delle entità (dizionario dati del progetto);
    - matrice dei permessi (modello RBAC del progetto);
    - specifiche tecnologiche di backend, frontend e worker;
@@ -107,8 +120,7 @@ grep -rn "<<[A-Z_]*>>" docs/ | grep -v "reuse:" | grep -v "da compilare"
    - registro delle modifiche del progetto;
    - mappatura sinonimi → intent, se il progetto espone un'interfaccia in linguaggio naturale.
 
-   `docs/05_project_specs/` è la cartella dedicata alle specifiche di progetto che non seguono il redirect per-classification delle altre cartelle (00-04): ci va tutto ciò che è specifico del progetto e non si vuole distribuire fra `00_meta_governance`/`01_architecture_norms`/`02_specs_normative` in base alla `classification`. È indicizzata automaticamente come il resto di `docs/` (`rag/core/indexing.py` percorre l'albero senza esclusioni), senza bisogno di configurazione aggiuntiva.
-4. Creare il golden set di retrieval del nuovo progetto: quello della baseline non è trasferibile, perché le attese puntano a documenti di dominio.
+   `docs/05_project_specs/` è la cartella dedicata alle specifiche di progetto che non seguono il redirect per-classification delle altre cartelle (00-04): ci va tutto ciò che è specifico del progetto e non si vuole distribuire fra `00_meta_governance`/`01_architecture_norms`/`02_specs_normative` in base alla `classification`. È indicizzata automaticamente come il resto di `docs/`, senza bisogno di configurazione aggiuntiva. Vale anche il contrario: non esiste una cartella da escludere.
 
 ---
 

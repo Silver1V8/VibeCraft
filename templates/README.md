@@ -4,7 +4,7 @@ Scheletri dei documenti **specifici di dominio** che ogni progetto deve produrre
 
 ## Perché stanno qui e non in `docs/`
 
-L'indicizzatore Graph-RAG percorre `docs/` in modo ricorsivo e senza esclusioni ([`rag/core/indexing.py`](../rag/core/indexing.py)). Un template è fatto di segnaposto e righe di esempio: indicizzarlo significherebbe metterlo in competizione di ranking con le norme reali, degradando la precisione del retrieval. Restano quindi fuori dal corpus indicizzato.
+L'indicizzatore Graph-RAG percorre `docs/` in modo ricorsivo e senza esclusioni di cartella ([`source_files`](../rag/code_index/__init__.py) chiamato da [`rag/core/indexing.py`](../rag/core/indexing.py) senza `CODE_EXCLUDED_DIRS`). Un template è fatto di segnaposto e righe di esempio: indicizzarlo significherebbe metterlo in competizione di ranking con le norme reali, degradando la precisione del retrieval. Restano quindi fuori dal corpus indicizzato. `code/` è un altro albero: lì le cartelle in `CODE_EXCLUDED_DIRS` (dipendenze, artefatti di build) non si attraversano.
 
 Quando un template viene compilato, il documento risultante va salvato **in `docs/`**, nella cartella corrispondente alla sua classificazione.
 
