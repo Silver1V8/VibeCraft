@@ -1089,7 +1089,7 @@ una generazione: vanno misurate separatamente.
 | `VIBECRAFT_ROLE` | `standalone` | `standalone`, `reader` oppure `writer` |
 | `VIBECRAFT_INDEX_MODE` | `legacy` | `legacy` oppure `immutable` |
 | `VIBECRAFT_DELTA_MODE` | `cow` | Delta dei progetti a snapshot immutabili: `cow` (copy-on-write) oppure `rebuild` (full rebuild a ogni delta) |
-| `VIBECRAFT_REINDEX_DEVICE` | `auto` | Embedding dei job di reindex, in un processo separato: `auto` prova CUDA (NVIDIA o AMD ROCm), poi Metal, poi una GPU OpenVINO, poi la NPU, altrimenti la CPU. `cuda`, `mps`, `intel` e `npu` forzano quel backend. Se la GPU ha spazio per embedding e LLM i pesi del reindex stanno tutti lì; se no si dividono. `/ask` resta su CPU |
+| `VIBECRAFT_REINDEX_DEVICE` | `auto` | Embedding dei job di reindex, in un processo separato. `auto` prova CUDA (NVIDIA, anche Spark/GB10, oppure AMD se PyTorch è la build ROCm), poi Metal, poi una GPU OpenVINO, poi la NPU, poi la CPU. `cuda`, `mps`, `intel` e `npu` forzano quel backend. Su una GPU discreta i pesi del reindex stanno tutti lì se c'è spazio anche per l'LLM (circa 8 GB più un giunto); su Apple la soglia è 24 GB installati, perché il sistema sta nello stesso pool. Sotto, si divide. Una GPU AMD senza ROCm e senza OpenVINO non viene usata. `/ask` resta su CPU |
 | `VIBECRAFT_REINDEX_GPU_MIN_FREE_MB` | 3072 | Memoria libera minima per usare l'acceleratore: VRAM libera sulla GPU NVIDIA più libera; sul totale del pool per i chip unificati NVIDIA (con almeno 1024 MB non mappati); memoria reclamabile su Apple |
 | `VIBECRAFT_DATABASE_DIR` | `rag/database` | Sorgente storica per diagnostica/migrazione; gli indici attivi sono nelle root registrate |
 | `VIBECRAFT_PROJECTS_DIR` | `<installazione>/projects` | Registry e nuove root; percorso assoluto, `/app/projects` in Compose |
@@ -1364,11 +1364,16 @@ senza alcun beneficio.
      `PYTORCH_ENABLE_MPS_FALLBACK=1`. A ottobre 2026 l'M6 in commercio è il chip
      base; Pro, Max e Ultra di quella generazione non sono un prodotto, ma un nome
      che li contiene si classifica lo stesso.
-  3. **GPU OpenVINO** (Arc, Xe, iGPU Intel; una GPU AMD solo se OpenVINO la
-     elenca). Ci gira l'encoder; le teste sparse e ColBERT restano sulla CPU del
-     figlio. Non è una dipendenza di `uv sync`.
-  4. **NPU**, con lo stesso vincolo: runtime opzionale, encoder sull'acceleratore,
-     teste sulla CPU del figlio.
+  3. **GPU OpenVINO** (Arc, Xe, iGPU Intel). Una GPU AMD ci finisce solo se
+     OpenVINO la elenca: senza ROCm e senza OpenVINO non viene eseguita.
+     Ci gira l'encoder; le teste sparse e ColBERT restano sulla CPU del figlio.
+     Non è una dipendenza di `uv sync`.
+  4. **NPU**, se accanto al progetto c'è un runtime che compila davvero
+     l'encoder: OpenVINO per Intel, `QNNExecutionProvider` per Qualcomm Hexagon,
+     `VitisAIExecutionProvider` per AMD Ryzen AI, `CoreMLExecutionProvider` per
+     l'Apple Neural Engine. Le teste restano sulla CPU del figlio. Su Apple
+     Metal viene prima: il Neural Engine condivide la stessa memoria e non
+     prende il posto di Metal. Neanche questo runtime è in `uv sync`.
   5. **CPU**. All'avvio del modello condiviso torch usa `cpu_threads()`: su Apple
      i core performanti meno uno, altrove i core logici meno uno, al massimo 8.
 
@@ -1376,7 +1381,9 @@ senza alcun beneficio.
   Ollama non ci sta insieme su 8 GB (è la misura di questo progetto, non una
   targa). Se la GPU scelta ha almeno quella somma più un giunto di 1 GB, il
   reindex ci mette l'intero modello (`embedding_placement=gpu`) e l'LLM usa la
-  stessa scheda a turno. Altrimenti si divide (`split`): l'LLM tiene la scheda
+  stessa scheda a turno. Su Apple la soglia non è quel giunto: sotto i 24 GB
+  installati il sistema occupa lo stesso pool, quindi si resta in `split` anche
+  quando Metal accetta il job. Altrimenti si divide: l'LLM tiene la scheda
   grossa, il reindex va sull'altro acceleratore o ci sale solo finché trova
   memoria libera, e le teste piccole restano sulla CPU del figlio.
   `/ask` resta sulla CPU del server in ogni caso: la generazione dello stesso

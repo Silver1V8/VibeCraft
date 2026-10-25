@@ -142,7 +142,11 @@ poi Metal, poi una GPU vista da OpenVINO, poi la NPU, poi la CPU. Su Apple, da
 M1 a M6 e sulle varianti Pro, Max e Ultra, conta la RAM installata: sotto i 24 GB
 il reindex prende Metal solo per il job e con un tetto, perché il pool è unico
 con il sistema e con l'LLM; da 24 GB in su l'intero embedding sta su Metal e il
-batch cresce col chip (Pro, Max, Ultra). I pesi restano fp32. Il modello gira
+batch cresce col chip (Pro, Max, Ultra). I pesi restano fp32. Una GPU AMD
+senza ROCm e senza OpenVINO non viene eseguita; una GPU Intel passa solo da
+OpenVINO, e solo per l'encoder. La NPU, se un runtime opzionale la compila
+(OpenVINO, QNN, VitisAI o CoreML), fa lo stesso: encoder lì, teste sulla CPU
+del figlio. Su Apple Metal viene prima del Neural Engine. Il modello gira
 in un processo separato, fermato a fine job. Su 8 GB — la misura di questa
 installazione su una RTX — bge-m3 e `qwen3.5:9b` non stanno insieme: il reindex
 sale sulla GPU solo se trova memoria libera, altrimenti va su un secondo

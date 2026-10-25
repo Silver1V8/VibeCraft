@@ -146,7 +146,6 @@ def query_openvino_gpu() -> str | None:
 
 def load_openvino_bge_m3(model_name: str, ov_device: str = "GPU"):
     """Come la NPU, ma l'encoder è compilato sulla GPU OpenVINO (Arc, Xe, iGPU)."""
-    import torch
     from FlagEmbedding import BGEM3FlagModel
 
     embedder = BGEM3FlagModel(model_name, use_fp16=False, devices="cpu")
@@ -165,7 +164,6 @@ def load_openvino_bge_m3(model_name: str, ov_device: str = "GPU"):
 def load_npu_bge_m3(model_name: str):
     """bge-m3 con l'encoder sulla NPU. Solleva se il runtime non compila il modello:
     il processo figlio lo riporta e il job prosegue sulla CPU."""
-    import torch
     from FlagEmbedding import BGEM3FlagModel
 
     probe = query_npu_runtime()
@@ -268,7 +266,6 @@ def _onnx_session(wrapper, example, target: NpuTarget, model_name: str, bucket: 
 
 
 def _patch(encoder, session, bucket: int, pad_id: int) -> None:
-    import torch
     original = encoder.forward
 
     def forward(*args, **kwargs):
