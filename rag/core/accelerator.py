@@ -40,6 +40,9 @@ EMBED_WEIGHTS_MB = 2300
 LLM_WEIGHTS_MB = 7000
 PLACEMENT_HEADROOM_MB = 1024
 BOTH_WEIGHTS_MB = EMBED_WEIGHTS_MB + LLM_WEIGHTS_MB + PLACEMENT_HEADROOM_MB
+# Su Apple la RAM è unica per sistema, LLM e embedding. 16 GB ci stanno solo
+# sulla carta: sotto i 24 GB installati i due pesi non hanno margine e si dividono.
+APPLE_BOTH_MB = 24 * 1024
 
 
 @dataclass(frozen=True)
@@ -56,6 +59,52 @@ class GpuMemory:
 
 
 @dataclass(frozen=True)
+class AppleChip:
+    """Chip letto da `machdep.cpu.brand_string` e RAM da `hw.memsize`.
+    La variante è quella scritta nel nome (base, Pro, Max, Ultra), non il
+    massimo di listino. A ottobre 2026 l'M6 è solo il chip base; un nome
+    futuro con Pro o Max si classifica lo stesso, perché conta la stringa."""
+    label: str
+    generation: int | None
+    variant: str
+    total_mb: int
+
+
+def parse_apple_brand(text: str) -> tuple[int | None, str]:
+    """`Apple M3 Max` → (3, max). Senza numero, generazione ignota e variante base."""
+    found = re.search(r"\bM(\d+)\b(?:\s+(Pro|Max|Ultra)\b)?", text, re.IGNORECASE)
+    if not found:
+        return None, "base"
+    return int(found.group(1)), (found.group(2) or "base").lower()
+
+
+def apple_chip_from(brand: str, total_mb: int) -> AppleChip:
+    generation, variant = parse_apple_brand(brand)
+    if generation is None:
+        label = brand.strip() or "Apple Silicon"
+    else:
+        suffix = {"pro": " Pro", "max": " Max", "ultra": " Ultra"}.get(variant, "")
+        label = f"Apple M{generation}{suffix}"
+    return AppleChip(label, generation, variant, total_mb)
+
+
+def apple_mps_limits(chip: AppleChip) -> tuple[str, str, int]:
+    """Tetto Metal (high, low) e batch di bge-m3.
+
+    PyTorch di default lascia crescere l'allocatore fino a 1,7 volte il massimo
+    consigliato da Metal, oltre la RAM fisica: macOS uccide il processo. Il tetto
+    è una frazione di quel massimo, non una misura di velocità. Il batch segue la
+    larghezza della classe (base, Pro, Max, Ultra) e la RAM installata. I pesi
+    restano fp32, gli stessi dell'indice calcolato su CPU."""
+    if chip.total_mb < 12 * 1024:
+        return "0.45", "0.35", 4
+    if chip.total_mb < APPLE_BOTH_MB:
+        return "0.55", "0.40", 8
+    batch = {"base": 12, "pro": 24, "max": 32, "ultra": 48}.get(chip.variant, 12)
+    return "1.0", "0.75", batch
+
+
+@dataclass(frozen=True)
 class EmbeddingDecision:
     device: str
     torch_device: str | None
@@ -65,6 +114,9 @@ class EmbeddingDecision:
     npu: str | None
     placement: str = "cpu"
     placement_reason: str | None = None
+    mps_high: str | None = None
+    mps_low: str | None = None
+    mps_batch: int | None = None
 
 
 def decide(preference: str, *, cuda: bool, gpus: list[GpuMemory] | None,
@@ -72,7 +124,8 @@ def decide(preference: str, *, cuda: bool, gpus: list[GpuMemory] | None,
            apple_error: BaseException | None, npu: str | None,
            min_free_mb: int, npu_ready: bool = False, npu_name: str | None = None,
            npu_reason: str | None = None, intel_ready: bool = False,
-           intel_name: str | None = None, intel_reason: str | None = None) -> EmbeddingDecision:
+           intel_name: str | None = None, intel_reason: str | None = None,
+           apple_chip: AppleChip | None = None) -> EmbeddingDecision:
     """`preference` è auto, cuda, mps, npu, intel o cpu. `gpus` è None se la sonda
     NVIDIA/AMD non è stata tentata. Un errore di sonda non è memoria zero."""
     if preference == "cpu":
@@ -110,7 +163,8 @@ def decide(preference: str, *, cuda: bool, gpus: list[GpuMemory] | None,
             mps_reason = (f"memoria unificata Apple {apple_mb} MB sotto la soglia "
                           f"di {min_free_mb} MB")
         else:
-            return _pack("mps", "mps", None, apple_mb, "Apple Metal", npu, gpus)
+            label = apple_chip.label if apple_chip is not None else "Apple Metal"
+            return _pack("mps", "mps", None, apple_mb, label, npu, gpus, apple_chip)
 
     mps_refused = bool(mps and mps_reason not in {None, "Metal non disponibile"})
     # Metal rifiutato per memoria usa lo stesso pool del Neural Engine: non si
@@ -144,15 +198,29 @@ def decide(preference: str, *, cuda: bool, gpus: list[GpuMemory] | None,
     return _pack("cpu", None, reason, None, None, npu, gpus)
 
 
-def _pack(device, torch_device, reason, memory, accelerator, npu, gpus) -> EmbeddingDecision:
-    mode, why = describe_placement(device, gpus, accelerator)
-    return EmbeddingDecision(device, torch_device, reason, memory, accelerator, npu, mode, why)
+def _pack(device, torch_device, reason, memory, accelerator, npu, gpus,
+          chip: AppleChip | None = None) -> EmbeddingDecision:
+    high = low = batch = None
+    if device == "mps" and chip is not None:
+        high, low, batch = apple_mps_limits(chip)
+    mode, why = describe_placement(device, gpus, accelerator, chip)
+    return EmbeddingDecision(device, torch_device, reason, memory, accelerator, npu,
+                             mode, why, high, low, batch)
 
 
 def describe_placement(device: str, gpus: list[GpuMemory] | None,
-                       accelerator: str | None) -> tuple[str, str]:
-    """`gpu`: l'intero embedding sta sulla GPU che può ospitare anche l'LLM.
+                       accelerator: str | None,
+                       chip: AppleChip | None = None) -> tuple[str, str]:
+    """`gpu`: l'intero embedding sta sull'acceleratore che può ospitare anche l'LLM.
     `split`: i pesi sono divisi fra componenti. `cpu`: niente acceleratore."""
+    if device == "mps" and chip is not None and chip.total_mb >= APPLE_BOTH_MB:
+        return ("gpu",
+                f"pesi interi dell'embedding su {chip.label} ({chip.total_mb} MB unificati), "
+                "che ha spazio anche per l'LLM; /ask resta su CPU")
+    if device == "mps" and chip is not None:
+        return ("split",
+                f"{chip.label} ({chip.total_mb} MB unificati): embedding e LLM non stanno "
+                "insieme al sistema; Metal solo per il job, con un tetto sull'allocatore")
     best = max(gpus, key=lambda gpu: (gpu.total_mb, gpu.free_mb)) if gpus else None
     if device in {"cuda", "mps"} and best is not None and best.total_mb >= BOTH_WEIGHTS_MB:
         return ("gpu",
@@ -172,9 +240,13 @@ def describe_placement(device: str, gpus: list[GpuMemory] | None,
     return ("cpu", "embedding su CPU")
 
 
-def cpu_threads(logical: int | None = None) -> int:
-    """Thread di torch per l'embedding su CPU. Un core resta al server."""
-    count = logical if logical is not None else (os.cpu_count() or 1)
+def cpu_threads(logical: int | None = None, performance: int | None = None) -> int:
+    """Thread di torch per l'embedding su CPU. Un core resta al server.
+    Su Apple si contano i core performanti (`hw.perflevel0`), non gli efficiency."""
+    if performance is not None and performance > 0:
+        count = performance
+    else:
+        count = logical if logical is not None else (os.cpu_count() or 1)
     if count <= 1:
         return 1
     return min(count - 1, 8)
@@ -314,6 +386,33 @@ def query_apple_reclaimable_mb() -> int:
     vm = subprocess.run(
         ["vm_stat"], capture_output=True, text=True, timeout=2, check=True)
     return parse_vm_stat(vm.stdout, total_bytes=int(total.stdout.strip()))
+
+
+def query_apple_chip() -> AppleChip:
+    """Nome del chip e RAM installata. Non apre Metal."""
+    if sys.platform != "darwin":
+        raise RuntimeError("non è macOS")
+    brand = subprocess.run(
+        ["sysctl", "-n", "machdep.cpu.brand_string"],
+        capture_output=True, text=True, timeout=2, check=True)
+    total = subprocess.run(
+        ["sysctl", "-n", "hw.memsize"],
+        capture_output=True, text=True, timeout=2, check=True)
+    return apple_chip_from(brand.stdout.strip(), int(total.stdout.strip()) // (1024 * 1024))
+
+
+def query_performance_cores() -> int | None:
+    """Core performanti su Apple. None altrove, o se sysctl non risponde."""
+    if sys.platform != "darwin":
+        return None
+    try:
+        out = subprocess.run(
+            ["sysctl", "-n", "hw.perflevel0.physicalcpu"],
+            capture_output=True, text=True, timeout=2, check=True)
+        count = int(out.stdout.strip())
+    except (OSError, subprocess.TimeoutExpired, ValueError, subprocess.CalledProcessError):
+        return None
+    return count if count > 0 else None
 
 
 def detect_npu(*, platform: str | None = None, machine: str | None = None,

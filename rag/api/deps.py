@@ -849,10 +849,11 @@ def ensure_shared_resources(*, embedding: bool = True) -> None:
             if embedding and state.get("embed_model") is None:
                 import torch
 
-                from core.accelerator import cpu_threads
+                from core.accelerator import cpu_threads, query_performance_cores
                 # /ask resta su CPU anche quando il reindex va in GPU: la generazione
-                # dello stesso turno usa la scheda. I thread lasciano un core al server.
-                torch.set_num_threads(cpu_threads())
+                # dello stesso turno usa la scheda. Su Apple si usano i core
+                # performanti; un core resta al server.
+                torch.set_num_threads(cpu_threads(performance=query_performance_cores()))
                 state["embed_model"] = BGEM3FlagModel(EMBEDDING_MODEL, use_fp16=False, devices="cpu")
         except Exception as exc:
             logger.exception("Shared resources unavailable")

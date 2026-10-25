@@ -138,16 +138,20 @@ full rebuild (motivo in `fallback_reason` del job); un delta noop non scrive nul
 
 Gli embedding dei job di reindex usano un acceleratore per la sola durata del job.
 `auto` prova CUDA (NVIDIA, compresi Spark e GB10, oppure AMD se PyTorch è ROCm),
-poi Metal, poi una GPU vista da OpenVINO, poi la NPU, poi la CPU. Il modello gira
+poi Metal, poi una GPU vista da OpenVINO, poi la NPU, poi la CPU. Su Apple, da
+M1 a M6 e sulle varianti Pro, Max e Ultra, conta la RAM installata: sotto i 24 GB
+il reindex prende Metal solo per il job e con un tetto, perché il pool è unico
+con il sistema e con l'LLM; da 24 GB in su l'intero embedding sta su Metal e il
+batch cresce col chip (Pro, Max, Ultra). I pesi restano fp32. Il modello gira
 in un processo separato, fermato a fine job. Su 8 GB — la misura di questa
-installazione — bge-m3 e `qwen3.5:9b` non stanno insieme: il reindex sale sulla
-GPU solo se trova memoria libera, altrimenti va su un secondo componente o sulla
-CPU, e l'LLM tiene la scheda. Su una GPU che ha spazio per entrambi i pesi, il
-reindex ci mette l'intero modello. `/ask` resta sempre sulla CPU del server,
-perché la generazione dello stesso turno usa la GPU subito dopo. Una sonda muta
-non viene mascherata; la VRAM occupata dall'LLM sì. L'avvio costa ~10 s per ogni
-job che usa davvero l'acceleratore. Il job riporta `embedding_device` e
-`embedding_placement` (`gpu`, `split` o `cpu`).
+installazione su una RTX — bge-m3 e `qwen3.5:9b` non stanno insieme: il reindex
+sale sulla GPU solo se trova memoria libera, altrimenti va su un secondo
+componente o sulla CPU, e l'LLM tiene la scheda. Su una GPU che ha spazio per
+entrambi i pesi, il reindex ci mette l'intero modello. `/ask` resta sempre sulla
+CPU del server, perché la generazione dello stesso turno usa la GPU subito dopo.
+Una sonda muta non viene mascherata; la VRAM occupata dall'LLM sì. L'avvio costa
+~10 s per ogni job che usa davvero l'acceleratore. Il job riporta
+`embedding_device` e `embedding_placement` (`gpu`, `split` o `cpu`).
 
 ### Migrare un'installazione esistente
 

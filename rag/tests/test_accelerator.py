@@ -3,12 +3,16 @@ la memoria Apple e la NPU arrivano come dati."""
 import pytest
 
 from core.accelerator import (
+    APPLE_BOTH_MB,
     BOTH_WEIGHTS_MB,
     GpuMemory,
+    apple_chip_from,
+    apple_mps_limits,
     cpu_threads,
     decide,
     describe_placement,
     detect_npu,
+    parse_apple_brand,
     parse_nvidia_smi,
     parse_rocm_smi,
     parse_vm_stat,
@@ -22,14 +26,14 @@ def gpu(index=0, name="NVIDIA GeForce RTX 3070 Ti", free=8000, total=8192):
 def choose(preference="auto", *, cuda=True, gpus=None, gpu_error=None, mps=False,
            apple_mb=None, apple_error=None, npu=None, min_free_mb=3072,
            npu_ready=False, npu_name=None, npu_reason=None, intel_ready=False,
-           intel_name=None, intel_reason=None):
+           intel_name=None, intel_reason=None, apple_chip=None):
     if gpus is None and gpu_error is None and cuda and preference in {"auto", "cuda"}:
         gpus = [gpu()]
     return decide(preference, cuda=cuda, gpus=gpus, gpu_error=gpu_error, mps=mps,
                   apple_mb=apple_mb, apple_error=apple_error, npu=npu,
                   min_free_mb=min_free_mb, npu_ready=npu_ready, npu_name=npu_name,
                   npu_reason=npu_reason, intel_ready=intel_ready, intel_name=intel_name,
-                  intel_reason=intel_reason)
+                  intel_reason=intel_reason, apple_chip=apple_chip)
 
 
 def test_auto_picks_the_gpu_with_more_free_memory():
@@ -203,6 +207,35 @@ def test_cpu_threads_leave_one_core_and_cap_at_eight():
     assert cpu_threads(1) == 1
     assert cpu_threads(4) == 3
     assert cpu_threads(32) == 8
+    assert cpu_threads(performance=4) == 3
+    assert cpu_threads(performance=12) == 8
+
+
+def test_apple_brand_covers_base_pro_max_and_ultra_through_m6():
+    assert parse_apple_brand("Apple M1") == (1, "base")
+    assert parse_apple_brand("Apple M2 Pro") == (2, "pro")
+    assert parse_apple_brand("Apple M3 Max") == (3, "max")
+    assert parse_apple_brand("Apple M4 Ultra") == (4, "ultra")
+    assert parse_apple_brand("Apple M5 Max") == (5, "max")
+    assert parse_apple_brand("Apple M5 Ultra") == (5, "ultra")
+    assert parse_apple_brand("Apple M6") == (6, "base")
+    assert apple_chip_from("Apple M6", 16 * 1024).label == "Apple M6"
+
+
+def test_eight_gigabyte_m1_splits_and_an_m5_max_keeps_the_weights_together():
+    small = apple_chip_from("Apple M1", 8 * 1024)
+    decision = choose(cuda=False, gpus=None, mps=True, apple_mb=5000, apple_chip=small)
+    assert decision.device == "mps" and decision.accelerator == "Apple M1"
+    assert decision.placement == "split"
+    assert decision.mps_batch == 4 and float(decision.mps_high) < 1
+
+    wide = apple_chip_from("Apple M5 Max", 128 * 1024)
+    decision = choose(cuda=False, gpus=None, mps=True, apple_mb=64000, apple_chip=wide)
+    assert decision.placement == "gpu" and decision.accelerator == "Apple M5 Max"
+    assert decision.mps_batch == 32 and decision.mps_high == "1.0"
+    assert apple_mps_limits(apple_chip_from("Apple M5 Ultra", 512 * 1024))[2] == 48
+    assert apple_mps_limits(apple_chip_from("Apple M2 Pro", 16 * 1024))[2] == 8
+    assert APPLE_BOTH_MB == 24 * 1024
 
 
 def test_parse_vm_stat_counts_reclaimable_pages_and_caps_at_total_ram():

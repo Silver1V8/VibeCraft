@@ -1349,16 +1349,28 @@ senza alcun beneficio.
      memoria libera. Su una scheda discreta servono almeno
      `VIBECRAFT_REINDEX_GPU_MIN_FREE_MB` liberi; su un chip unificato NVIDIA la
      soglia si applica al totale del pool, purché resti almeno 1 GiB non mappato.
-  2. **Metal (`mps`)** su Apple Silicon, se CUDA non c'è o la scheda NVIDIA non
-     ha memoria libera. La sonda è `vm_stat` (pagine free, inactive e speculative).
-     Il figlio parte con `PYTORCH_ENABLE_MPS_FALLBACK=1`.
+  2. **Metal (`mps`)** su Apple Silicon, da M1 a M6, base, Pro, Max e Ultra, se
+     CUDA non c'è o la scheda NVIDIA non ha memoria libera. Il nome arriva da
+     `machdep.cpu.brand_string`, la RAM installata da `hw.memsize` (non il massimo
+     di listino: un M5 Max da 36 GB non è trattato come uno da 128). La sonda per
+     salire su Metal resta `vm_stat`. Sotto i 24 GB installati — un M1 da 8 GB, un
+     Pro da 16, un M6 da 16 — embedding e `qwen3.5:9b` non hanno margine nel pool
+     unico: il reindex prende Metal solo per il job, con un tetto sull'allocatore
+     (`PYTORCH_MPS_HIGH_WATERMARK_RATIO` sotto 1; il default di PyTorch è 1,7 e
+     macOS uccide il processo) e un batch più piccolo (4 o 8). Da 24 GB in su i
+     pesi interi dell'embedding stanno su Metal (`embedding_placement=gpu`) e il
+     batch segue la classe: 12 sul base, 24 sul Pro, 32 sul Max, 48 sull'Ultra.
+     I pesi restano fp32, gli stessi dell'indice su CPU. Il figlio parte con
+     `PYTORCH_ENABLE_MPS_FALLBACK=1`. A ottobre 2026 l'M6 in commercio è il chip
+     base; Pro, Max e Ultra di quella generazione non sono un prodotto, ma un nome
+     che li contiene si classifica lo stesso.
   3. **GPU OpenVINO** (Arc, Xe, iGPU Intel; una GPU AMD solo se OpenVINO la
      elenca). Ci gira l'encoder; le teste sparse e ColBERT restano sulla CPU del
      figlio. Non è una dipendenza di `uv sync`.
   4. **NPU**, con lo stesso vincolo: runtime opzionale, encoder sull'acceleratore,
      teste sulla CPU del figlio.
-  5. **CPU**. All'avvio del modello condiviso torch usa `cpu_threads()`: i core
-     logici meno uno, al massimo 8, così il server tiene un core.
+  5. **CPU**. All'avvio del modello condiviso torch usa `cpu_threads()`: su Apple
+     i core performanti meno uno, altrove i core logici meno uno, al massimo 8.
 
   Dove finiscono i pesi. bge-m3 fp32 sta intorno ai 2,2 GB; `qwen3.5:9b` in
   Ollama non ci sta insieme su 8 GB (è la misura di questo progetto, non una

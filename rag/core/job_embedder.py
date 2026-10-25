@@ -183,7 +183,8 @@ atexit.register(_kill_live_workers)
 
 
 def start_gpu_worker(*, loader: str | None = None, device: str = "cuda:0",
-                     ready_timeout: float = GPU_WORKER_READY_TIMEOUT_S) -> GpuWorker:
+                     ready_timeout: float = GPU_WORKER_READY_TIMEOUT_S,
+                     mps_env: dict | None = None) -> GpuWorker:
     """Avvia `python -m core.gpu_worker` con l'interprete del server, nella cartella che
     contiene il package core (lo stesso codice del server), e attende che il modello sia
     caricato. Lo stderr del figlio è una pipe inoltrata al log del server (prefisso
@@ -196,8 +197,11 @@ def start_gpu_worker(*, loader: str | None = None, device: str = "cuda:0",
     env.setdefault("PYTHONIOENCODING", "utf-8")  # lo stderr inoltrato si decodifica in UTF-8
     if device == "mps":
         # Alcune op di bge-m3 non hanno un kernel Metal: senza questo il figlio
-        # muore invece di calcolare quel pezzo sulla CPU.
+        # muore invece di calcolare quel pezzo sulla CPU. Il tetto dell'allocatore
+        # va messo prima che il figlio importi torch: il default 1.7 supera la RAM.
         env.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+        for key, value in (mps_env or {}).items():
+            env.setdefault(key, value)
     if loader:
         command += ["--loader", loader]
     process = subprocess.Popen(
@@ -227,7 +231,8 @@ class JobEmbedder:
     def __init__(self, *, start_worker, cpu_model, gpu_available, free_vram_mb,
                  min_free_mb: int, enabled: bool, preference: str = "auto",
                  mps_available=lambda: False, apple_memory_mb=None, nvidia_gpus=None,
-                 npu_label=lambda: None, npu_runtime=None, amd_gpus=None, intel_gpu=None):
+                 npu_label=lambda: None, npu_runtime=None, amd_gpus=None, intel_gpu=None,
+                 apple_chip=None, mps_env_out=None):
         self._start_worker = start_worker
         self._cpu_model = cpu_model
         self._gpu_available = gpu_available
@@ -242,6 +247,8 @@ class JobEmbedder:
         self._npu_runtime = npu_runtime
         self._amd_gpus = amd_gpus
         self._intel_gpu = intel_gpu
+        self._apple_chip = apple_chip
+        self._mps_env_out = mps_env_out
         self._worker = None
         self.device: str | None = None
         self.fallback_reason: str | None = None
@@ -249,6 +256,7 @@ class JobEmbedder:
         self.npu: str | None = None
         self.placement: str | None = None
         self.placement_reason: str | None = None
+        self.mps_batch: int | None = None
         self.load_seconds = 0.0
 
     def encode(self, texts, **kwargs):
@@ -256,6 +264,8 @@ class JobEmbedder:
             self._choose_device()
         if self.device in {"cuda", "mps", "npu", "intel"}:
             try:
+                if self.device == "mps" and self.mps_batch and kwargs.get("batch_size", 12) == 12:
+                    kwargs = {**kwargs, "batch_size": self.mps_batch}
                 return self._worker.encode(texts, **kwargs)
             except GpuWorkerUnavailable as exc:
                 reason = str(exc)
@@ -274,6 +284,9 @@ class JobEmbedder:
         started = time.perf_counter()
         failure = None
         try:
+            if self._mps_env_out is not None and decision.mps_high:
+                self._mps_env_out["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = decision.mps_high
+                self._mps_env_out["PYTORCH_MPS_LOW_WATERMARK_RATIO"] = decision.mps_low
             self._worker = self._start_worker(decision.torch_device)
         except GpuWorkerUnavailable as exc:
             failure = str(exc)
@@ -290,6 +303,7 @@ class JobEmbedder:
         self.npu = decision.npu
         self.placement = decision.placement
         self.placement_reason = decision.placement_reason
+        self.mps_batch = decision.mps_batch
         logger.info("Embedding del job di reindex su %s in un processo separato "
                     "(memoria libera all'avvio: %s MB, pronto in %.1f s).",
                     decision.torch_device, decision.memory_mb, self.load_seconds)
@@ -329,6 +343,12 @@ class JobEmbedder:
                 apple_error = exc
         elif mps:
             apple_error = RuntimeError("sonda della memoria Apple assente")
+        apple_chip = None
+        if mps and self._apple_chip is not None:
+            try:
+                apple_chip = self._apple_chip()
+            except Exception:
+                apple_chip = None
         try:
             npu = self._npu_label()
         except Exception:
@@ -357,7 +377,8 @@ class JobEmbedder:
                       mps=mps_present, apple_mb=apple_mb, apple_error=apple_error, npu=npu,
                       min_free_mb=self._min_free_mb, npu_ready=npu_ready, npu_name=npu_name,
                       npu_reason=npu_reason, intel_ready=bool(intel_name),
-                      intel_name=intel_name, intel_reason=intel_reason)
+                      intel_name=intel_name, intel_reason=intel_reason,
+                      apple_chip=apple_chip)
 
     def _fall_back(self, reason: str) -> None:
         self.release()
@@ -404,9 +425,16 @@ _start_gpu_worker = start_gpu_worker
 def reindex_embedder(cpu_model):
     """Embedder di un singolo job: il processo accelerato viene fermato all'uscita,
     anche su errore, e con lui torna libera la memoria che aveva preso."""
-    from core.accelerator import detect_npu, query_amd_gpus, query_apple_reclaimable_mb, query_nvidia_gpus
+    from core.accelerator import (
+        detect_npu, query_amd_gpus, query_apple_chip, query_apple_reclaimable_mb,
+        query_nvidia_gpus)
+
+    mps_env: dict[str, str] = {}
 
     def start(device):
+        env = dict(mps_env) or None
+        if env:
+            return _start_gpu_worker(device=device, mps_env=env)
         return _start_gpu_worker(device=device)
 
     embedder = JobEmbedder(
@@ -417,7 +445,8 @@ def reindex_embedder(cpu_model):
         preference="auto" if REINDEX_DEVICE == "cpu" else REINDEX_DEVICE,
         mps_available=_mps_available, apple_memory_mb=query_apple_reclaimable_mb,
         nvidia_gpus=query_nvidia_gpus, amd_gpus=query_amd_gpus, npu_label=detect_npu,
-        npu_runtime=_query_npu_runtime, intel_gpu=_query_intel_gpu)
+        npu_runtime=_query_npu_runtime, intel_gpu=_query_intel_gpu,
+        apple_chip=query_apple_chip, mps_env_out=mps_env)
     try:
         yield embedder
     finally:
