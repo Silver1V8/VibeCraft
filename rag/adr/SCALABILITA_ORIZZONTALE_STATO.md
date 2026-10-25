@@ -28,7 +28,7 @@ Quota alla ripresa99%, finale78% residua, uso consentito e nessun limite di spes
 - Incidente test: baseline PM e primo run storage P2 hanno eseguito cinque test autodetect su Qdrant operativo6333, scrivendo collection/alias `_test_blue_green_*`. Log confermati in due finestre UTC07:44 e08:06. Audit delimitato e limiti dell'evidenza: `horizontal-bench/preflight-20260928/QDRANT_TEST_AUDIT.md`. Nessun cleanup operativo. Fixture corretta in P2; verifiche successive impongono endpoint dedicato16333 fermo e modelli offline.
 - Avvio baseline HTTP18000 rifiutato automatic approval con `blocked by policy`, senza motivazione specifica. Nessun aggiramento; matrice end-to-end NON eseguita.
 - Ollama0.34.4/qwen3.5:9b forza runner `-np 1` per architettura qwen35: due HTTP200 sovrapposti ma inferenze sequenziali. Gate vera inferenza parallela NON soddisfatto con backend/modello presenti. Nessun modello/engine installato.
-- La sonda inizialmente pensata CPU era VulkanGPU per env ereditato `OLLAMA_VULKAN=true`: non attribuire numeri a CPU. Prove persistenti in `rag/adr/horizontal-bench/preflight-20260928/{README.md,ollama-overlap.json,ollama-evidence.log}`.
+- La sonda inizialmente pensata CPU era VulkanGPU per env ereditato `OLLAMA_VULKAN=true`: non attribuire numeri a CPU. Prove persistenti in `archive/adr/horizontal-bench/preflight-20260928/{README.md,ollama-overlap.json,ollama-evidence.log}`.
 
 ## Ripresa operativa
 

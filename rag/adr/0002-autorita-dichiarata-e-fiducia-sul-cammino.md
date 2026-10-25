@@ -116,7 +116,7 @@ classe va aggiunta quando la cartella si popola, non dopo.
 ## Decisioni
 
 **Adottiamo**, in cinque interventi indipendenti e sequenziabili (prompt operativi in
-[0002-prompts/](0002-prompts/)):
+[0002-prompts/](../../archive/adr/0002-prompts/)):
 
 - **S1** — Onorare `authority` del frontmatter come coefficiente per-documento, con la classe
   come fallback; separare il peso della fonte **non classificata** da quello della classe

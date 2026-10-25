@@ -110,7 +110,7 @@ note sono la memoria del progetto e vanno estese, mai riscritte.
 `docs/02_specs_normative/spec_graph_rag_ingestion.md`, **[REGOLA-VAL-08]**, prescrive la
 moltiplicazione piena `score × authority`. Il codice implementa la forma attenuata
 `score × (1 − α + α·authority)`, e l'ADR
-[`rag/adr/0002`](../0002-autorita-dichiarata-e-fiducia-sul-cammino.md) documenta questa
+[`rag/adr/0002`](../../../rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md) documenta questa
 divergenza come **consapevole**: la calibrazione del 2026-07-14 aveva mostrato che il boost
 pieno sovra-promuove i safeguard `IRON_MEMORY` generici rispetto alle spec `REQUIREMENTS`
 specifiche attese.

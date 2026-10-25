@@ -117,7 +117,7 @@ attribuire loro prove o verifiche che non abbiamo recuperato.
 
 Il risultato storico 20/24 è una concordanza sui medesimi 24 record usati per
 tarare il prompt del giudice, attraverso sei varianti, come documentato in
-[AUDIT, S14](../../adr/AUDIT.md). Non è una stima di accuratezza su casi nuovi:
+[AUDIT, S14](../../../archive/adr/AUDIT.md). Non è una stima di accuratezza su casi nuovi:
 non va usato come affidabilità del giudice, limite di errore o base per le
 conclusioni della Fase 2. Resta esclusivamente un risultato di taratura.
 

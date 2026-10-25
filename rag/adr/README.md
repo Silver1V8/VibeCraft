@@ -8,7 +8,7 @@ dentro inquinerebbe il retrieval.
 | # | Titolo | Stato |
 |---|--------|-------|
 | [0001](0001-multi-agent-scartato.md) | Multi-agent supervisor scartato | Scartato (con trigger di riapertura) |
-| [0002](0002-autorita-dichiarata-e-fiducia-sul-cammino.md) | Autorità dichiarata e fiducia sul cammino del grafo | Accettato e attuato. La tabella nel documento è la fotografia del 18 agosto 2026, non il codice di oggi. I [prompt](0002-prompts/) sono il piano con cui è stato fatto, non lavoro aperto |
+| [0002](0002-autorita-dichiarata-e-fiducia-sul-cammino.md) | Autorità dichiarata e fiducia sul cammino del grafo | Accettato e attuato. La tabella nel documento è la fotografia del 18 agosto 2026, non il codice di oggi. I [prompt](../../archive/adr/0002-prompts/) sono il piano con cui è stato fatto, non lavoro aperto |
 
 ## Le altre tracce
 
@@ -19,10 +19,10 @@ indicizzare.
 
 | File | Cosa contiene |
 |---|---|
-| [`AUDIT.md`](AUDIT.md) | l'audit del progetto: run di misura, riscontri, indagini e le sessioni che li hanno chiusi |
-| [`RESIDUI.md`](RESIDUI.md) | il backlog derivato dall'audit — cosa resta aperto, triato in sessioni con un prompt pronto |
+| [`AUDIT.md`](../../archive/adr/AUDIT.md) | cronaca dell'audit, in archive dal 25 ottobre 2026. I numeri di riga citati altrove restano quelli del file spostato |
+| [`RESIDUI.md`](../../archive/adr/RESIDUI.md) | backlog derivato dall'audit, chiuso; stessa cartella |
 | [`DISTRIBUTION.md`](DISTRIBUTION.md) | il piano di distribuzione: numeri, forcelle e decisioni sul packaging |
-| [`EVOLUZIONE.md`](EVOLUZIONE.md) | il piano di evoluzione approvato: baseline locali, cancelli misurabili, rollback e forcelle ancora aperte |
+| [`EVOLUZIONE.md`](../../archive/adr/EVOLUZIONE.md) | piano di evoluzione del settembre 2026, in archive |
 | [`DOCLING_PIPELINE_ALTERNATIVA.md`](DOCLING_PIPELINE_ALTERNATIVA.md) | la proposta di pipeline Docling alternativa al pilot Granite, con configurazione e criteri di valutazione |
 | [`NOTA_IMPLEMENTAZIONE_MIGLIORIE.md`](NOTA_IMPLEMENTAZIONE_MIGLIORIE.md) | migliorie e bugfix emersi dal pilot Docling e indipendenti da esso: causa, diff, verifiche, rischio e rollback |
 | [`PIPELINE_GATE.md`](PIPELINE_GATE.md) | gate operativo, ciclo end-to-end verificato il 15 settembre 2026, misure, registro degli attriti e problemi aperti |

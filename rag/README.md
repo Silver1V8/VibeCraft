@@ -729,12 +729,12 @@ La corsa standard riporta il recall a **k ∈ {1, 2, 5, 10}**, e non per complet
   `section_restatement_weight: 0.92` (confermato, non spostato): a k=1 il guadagno
   held-out è **+0.038**, e ad alpha 0.3 il tetto del contesto da grafo
   (`graph_context_max_chunks`) è salito a 3 — a 2 una catena multihop perdeva la
-  terza fonte in finestra. Dettagli in [AUDIT.md §S11](adr/AUDIT.md).
+  terza fonte in finestra. Dettagli in [AUDIT.md §S11](../archive/adr/AUDIT.md).
 - **e ciò che il recall NON misura: a chi la risposta attribuisce il vincolo.** Il
   recall dice se la fonte giusta è stata *recuperata*; `/ask` ne inietta fino a 8 e
   l'LLM le legge tutte, quindi il recall può essere ottimo mentre la risposta cita
   come fonte del vincolo il documento che lo *illustra*. È successo davvero — 2 casi
-  avversariali su 4, indagine A3 in [AUDIT.md](adr/AUDIT.md) — e la correzione
+  avversariali su 4, indagine A3 in [AUDIT.md](../archive/adr/AUDIT.md) — e la correzione
   (`[CLASSE-FONTI]`: la classe dichiarata nell'intestazione di ogni blocco del
   contesto, più la graduatoria delle classi presenti) **non ha mosso il recall di un
   decimale**, perché il ranking era già corretto. Chi tocca il prompt di `/ask` non
@@ -772,7 +772,7 @@ uv run python -m eval.attribution --live        # (b) misura /ask: server SENZA 
 ```
 
 **Il giudice, misurato: 20/24 in-sample, e non passa il criterio fissato per validarlo**
-([AUDIT.md §S14](adr/AUDIT.md)). Sei formulazioni del prompt provate sugli stessi 24 record
+([AUDIT.md §S14](../archive/adr/AUDIT.md)). Sei formulazioni del prompt provate sugli stessi 24 record
 d'archivio (temperatura 0, un'unica chiamata per esecuzione, JSON frase→verbo→fonte); tenuta
 la migliore (v4: 20/24 d'accordo con l'umano, 5/7 sui negativi, 24/24 di giudizi ripetibili in
 tre esecuzioni). Il criterio di S6 era «se non coincide col verdetto umano, il giudice non è
@@ -1152,7 +1152,7 @@ controllo non equivale a una nuova scansione profonda di tutti i byte dei vettor
 
 Con Ollama 0.34.4 e il modello locale qwen3.5:9b, il motore impone un solo slot per
 l'architettura qwen35: richieste HTTP sovrapposte non producono inferenze parallele.
-Le [prove reali](adr/horizontal-bench/preflight-20260928/README.md) lo documentano.
+Le [prove reali](../archive/adr/horizontal-bench/preflight-20260928/README.md) lo documentano.
 La matrice applicativa k=1,4,8 e il confronto tra uno e due reader non sono ancora
 eseguiti; nessun miglioramento di throughput o TTFT è dichiarato.
 
@@ -1326,7 +1326,7 @@ versione nuova (mai riscritta). In lettura, se `CURRENT` non esiste ma in
 `database/` ci sono i file flat storici (JSON/`.npz`), `load_artifacts()` li carica
 come versione `legacy`; la prima build successiva crea la struttura versionata e la
 promozione fa vincere CURRENT sul layout flat. Il fallback ai vecchi pickle `*.pkl`
-è stato **rimosso** (A13, `adr/AUDIT.md`): nessuna installazione ne scrive più
+è stato **rimosso** (A13, `../archive/adr/AUDIT.md`): nessuna installazione ne scrive più
 dal passaggio ai formati JSON/NumPy (oggi NPY per ColBERT e NPZ per dense/code).
 Mantenere `pickle.load` su un
 formato che nessuno produce più era superficie di deserializzazione arbitraria

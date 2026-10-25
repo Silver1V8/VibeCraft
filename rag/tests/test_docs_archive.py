@@ -27,6 +27,27 @@ def test_sidecar_work_spostata_in_archive():
     assert any(dest.glob("*.md")), "archive/adr/sidecar-work/ non contiene .md"
 
 
+def test_cronaca_adr_spostata_decisioni_restano():
+    """Audit, residui, evoluzione, i prompt di 0002 e le run horizontal-bench sono
+    cronaca chiusa. Le decisioni ancora citate dal codice e dai README restano."""
+    for nome in ("AUDIT.md", "RESIDUI.md", "EVOLUZIONE.md"):
+        assert not (RAG_DIR / "adr" / nome).exists(), nome
+        assert (ARCHIVE_DIR / "adr" / nome).is_file()
+    assert not (RAG_DIR / "adr" / "0002-prompts").exists()
+    assert (ARCHIVE_DIR / "adr" / "0002-prompts" / "README.md").is_file()
+    assert not (RAG_DIR / "adr" / "horizontal-bench").exists()
+    prova = ARCHIVE_DIR / "adr" / "horizontal-bench" / "preflight-20260928" / "README.md"
+    assert prova.is_file()
+    for nome in (
+        "README.md",
+        "0001-multi-agent-scartato.md",
+        "0002-autorita-dichiarata-e-fiducia-sul-cammino.md",
+        "PIPELINE_GATE.md",
+        "DISTRIBUTION.md",
+    ):
+        assert (RAG_DIR / "adr" / nome).is_file(), nome
+
+
 def test_run_eval_pesanti_spostate_in_archive():
     """Le run con evidence/ non sono più sotto rag/eval/results/, TRANNE quelle che un test
     legge davvero a runtime (bloccanti, non spostate: vedi sotto) e i file sciolti (letti o

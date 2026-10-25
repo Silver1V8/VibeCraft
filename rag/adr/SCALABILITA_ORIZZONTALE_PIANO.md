@@ -28,7 +28,7 @@
 
 ## P0 — benchmark riproducibile e baseline (Terra)
 
-**File:** modificare `rag/scripts/bench.py` come ingresso `--concurrency-bench` in sola lettura; helper `rag/scripts/bench_concurrency.py` ammesso, creare `rag/tests/test_bench_concurrency.py`; riusare calcolo percentili/provenienza da `rag/scripts/bench.py` o `bench_process.py` se appropriati. Risultati reali in directory `rag/adr/horizontal-bench/<run>/`, raw JSONL + summary JSON/Markdown. Non alterare vecchi report.
+**File:** modificare `rag/scripts/bench.py` come ingresso `--concurrency-bench` in sola lettura; helper `rag/scripts/bench_concurrency.py` ammesso, creare `rag/tests/test_bench_concurrency.py`; riusare calcolo percentili/provenienza da `rag/scripts/bench.py` o `bench_process.py` se appropriati. Risultati reali in directory `rag/adr/horizontal-bench/<run>/`, raw JSONL + summary JSON/Markdown. Non alterare vecchi report: le run del 28 settembre 2026 sono in `archive/adr/horizontal-bench/`.
 
 **Interfaccia CLI:** `scripts/bench.py --concurrency-bench --url`, `--concurrency 1 4 8`, `--requests 30`, `--warmup 3`, `--response-mode json|stream`, `--queries FILE`, `--out DIR`, `--timeout SECONDS`; chiave API da env, mai salvata nei report. Il dispatch concorrente deve uscire prima di run_bench storico, che accoda un reindex incrementale: nessun reindex/full nel nuovo percorso. Cache è configurazione server esplicita, non query random per simulare miss. Opzione pid per RSS API/motore e descrizione hardware/parametri nei metadati; valori mancanti null con motivo.
 

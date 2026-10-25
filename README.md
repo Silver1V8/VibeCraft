@@ -136,26 +136,10 @@ copy-on-write: collection nuova con i punti invariati del padre e ri-embedding d
 soli documenti e file di codice cambiati. Se il padre non è riusabile si ripiega sul
 full rebuild (motivo in `fallback_reason` del job); un delta noop non scrive nulla.
 
-Gli embedding dei job di reindex usano un acceleratore per la sola durata del job.
-`auto` prova CUDA (NVIDIA, compresi Spark e GB10, oppure AMD se PyTorch è ROCm),
-poi Metal, poi una GPU vista da OpenVINO, poi la NPU, poi la CPU. Su Apple, da
-M1 a M6 e sulle varianti Pro, Max e Ultra, conta la RAM installata: sotto i 24 GB
-il reindex prende Metal solo per il job e con un tetto, perché il pool è unico
-con il sistema e con l'LLM; da 24 GB in su l'intero embedding sta su Metal e il
-batch cresce col chip (Pro, Max, Ultra). I pesi restano fp32. Una GPU AMD
-senza ROCm e senza OpenVINO non viene eseguita; una GPU Intel passa solo da
-OpenVINO, e solo per l'encoder. La NPU, se un runtime opzionale la compila
-(OpenVINO, QNN, VitisAI o CoreML), fa lo stesso: encoder lì, teste sulla CPU
-del figlio. Su Apple Metal viene prima del Neural Engine. Il modello gira
-in un processo separato, fermato a fine job. Su 8 GB — la misura di questa
-installazione su una RTX — bge-m3 e `qwen3.5:9b` non stanno insieme: il reindex
-sale sulla GPU solo se trova memoria libera, altrimenti va su un secondo
-componente o sulla CPU, e l'LLM tiene la scheda. Su una GPU che ha spazio per
-entrambi i pesi, il reindex ci mette l'intero modello. `/ask` resta sempre sulla
-CPU del server, perché la generazione dello stesso turno usa la GPU subito dopo.
-Una sonda muta non viene mascherata; la VRAM occupata dall'LLM sì. L'avvio costa
-~10 s per ogni job che usa davvero l'acceleratore. Il job riporta
-`embedding_device` e `embedding_placement` (`gpu`, `split` o `cpu`).
+Gli embedding dei job di reindex usano un acceleratore solo per la durata del job.
+Quale componente prende i pesi, e quando invece si dividono, è scritto una volta sola in
+[rag/README.md](rag/README.md#embedding-bge-m3-cpu-per-le-query-acceleratore-per-il-reindex).
+`/ask` resta sulla CPU del server.
 
 ### Migrare un'installazione esistente
 
@@ -618,7 +602,7 @@ La superficie di attacco è mappata rotta per rotta in
 | [`rag/adr/PIPELINE_GATE.md`](rag/adr/PIPELINE_GATE.md) | contratto validato, decisioni e avvio agentic |
 | [`templates/docs/README.md`](templates/docs/README.md) | indice della baseline documentale inclusa |
 | [`rag/SECURITY_SURFACE.md`](rag/SECURITY_SURFACE.md) | superficie di attacco, rotta per rotta |
-| [`rag/adr/AUDIT.md`](rag/adr/AUDIT.md) | audit del progetto: cosa è misurato, cosa è aperto |
+| [`archive/adr/AUDIT.md`](archive/adr/AUDIT.md) | cronaca dell'audit, settembre 2026 |
 | [`rag/adr/DISTRIBUTION.md`](rag/adr/DISTRIBUTION.md) | piano di distribuzione e portabilità |
 | `/infografica` (a server acceso) | il flusso di interrogazione, illustrato |
 

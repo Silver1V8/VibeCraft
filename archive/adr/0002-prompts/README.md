@@ -6,11 +6,11 @@
 > documenti (S4; in `rag_config.yaml` la relazione è `SUPERA_IN_PRIORITÀ`; se la chiave
 > manca, `core/config.py` la tratta come spenta), i casi avversariali in `eval/golden_set.yaml` (S5).
 > I prompt sotto restano la specifica con cui il lavoro è stato fatto. Non riaprirli
-> per «implementare» di nuovo quello che la tabella dell'[ADR](../0002-autorita-dichiarata-e-fiducia-sul-cammino.md)
+> per «implementare» di nuovo quello che la tabella dell'[ADR](../../../rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md)
 > descriveva il 18 agosto 2026.
 
 Cinque interventi indipendenti derivati da
-[ADR 0002 — Autorità dichiarata e fiducia sul cammino del grafo](../0002-autorita-dichiarata-e-fiducia-sul-cammino.md).
+[ADR 0002 — Autorità dichiarata e fiducia sul cammino del grafo](../../../rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md).
 
 Ogni file è un **prompt self-contained**: va incollato in una **sessione separata**, senza
 alcun contesto delle altre. Contiene il difetto, il codice interessato con i riferimenti
